@@ -33,7 +33,7 @@ enum class WasmValueType {
   kS128,
 
   kRef,
-  kOptRef,
+  kRefNull,
 
   kNumTypes
 };
@@ -55,7 +55,7 @@ class LoadHandler final : public DataHandler {
     kGlobal,
     kField,
     kConstantFromPrototype,
-    kAccessor,
+    kAccessorFromPrototype,
     kNativeDataProperty,
     kApiGetter,
     kApiGetterHolderIsPrototype,
@@ -80,14 +80,14 @@ class LoadHandler final : public DataHandler {
       DoAccessCheckOnLookupStartObjectBits::Next<bool, 1>;
 
   //
-  // Encoding when KindBits contains kAccessor or kNativeDataProperty.
+  // Encoding when KindBits contains kNativeDataProperty.
   //
 
   // Index of a value entry in the descriptor array.
   using DescriptorBits =
       LookupOnLookupStartObjectBits::Next<unsigned, kDescriptorIndexBitCount>;
   // Make sure we don't overflow the smi.
-  STATIC_ASSERT(DescriptorBits::kLastUsedBit < kSmiValueSize);
+  static_assert(DescriptorBits::kLastUsedBit < kSmiValueSize);
 
   //
   // Encoding when KindBits contains kField.
@@ -103,7 +103,7 @@ class LoadHandler final : public DataHandler {
   using FieldIndexBits =
       IsDoubleBits::Next<unsigned, kDescriptorIndexBitCount + 1>;
   // Make sure we don't overflow the smi.
-  STATIC_ASSERT(FieldIndexBits::kLastUsedBit < kSmiValueSize);
+  static_assert(FieldIndexBits::kLastUsedBit < kSmiValueSize);
 
   //
   // Encoding when KindBits contains kField and IsWasmStructBits is 1.
@@ -111,7 +111,7 @@ class LoadHandler final : public DataHandler {
   using WasmFieldTypeBits = IsWasmStructBits::Next<WasmValueType, 4>;
   using WasmFieldOffsetBits = WasmFieldTypeBits::Next<unsigned, 20>;
   // Make sure we don't overflow the smi.
-  STATIC_ASSERT(WasmFieldOffsetBits::kLastUsedBit < kSmiValueSize);
+  static_assert(WasmFieldOffsetBits::kLastUsedBit < kSmiValueSize);
 
   //
   // Encoding when KindBits contains kElement or kIndexedString.
@@ -130,14 +130,14 @@ class LoadHandler final : public DataHandler {
   using ConvertHoleBits = IsJsArrayBits::Next<bool, 1>;
   using ElementsKindBits = ConvertHoleBits::Next<ElementsKind, 8>;
   // Make sure we don't overflow the smi.
-  STATIC_ASSERT(ElementsKindBits::kLastUsedBit < kSmiValueSize);
+  static_assert(ElementsKindBits::kLastUsedBit < kSmiValueSize);
 
   //
   // Encoding when KindBits contains kElement and IsWasmArrayBits is 1.
   //
   using WasmArrayTypeBits = IsWasmArrayBits::Next<WasmValueType, 4>;
   // Make sure we don't overflow the smi.
-  STATIC_ASSERT(WasmArrayTypeBits::kLastUsedBit < kSmiValueSize);
+  static_assert(WasmArrayTypeBits::kLastUsedBit < kSmiValueSize);
 
   //
   // Encoding when KindBits contains kModuleExport.
@@ -145,7 +145,7 @@ class LoadHandler final : public DataHandler {
   using ExportsIndexBits = LookupOnLookupStartObjectBits::Next<
       unsigned,
       kSmiValueSize - LookupOnLookupStartObjectBits::kLastUsedBit - 1>;
-  STATIC_ASSERT(ExportsIndexBits::kLastUsedBit < kSmiValueSize);
+  static_assert(ExportsIndexBits::kLastUsedBit < kSmiValueSize);
 
   // Decodes kind from Smi-handler.
   static inline Kind GetHandlerKind(Smi smi_handler);
@@ -171,7 +171,7 @@ class LoadHandler final : public DataHandler {
   static inline Handle<Smi> LoadConstantFromPrototype(Isolate* isolate);
 
   // Creates a Smi-handler for calling a getter on a fast object.
-  static inline Handle<Smi> LoadAccessor(Isolate* isolate, int descriptor);
+  static inline Handle<Smi> LoadAccessorFromPrototype(Isolate* isolate);
 
   // Creates a Smi-handler for calling a getter on a proxy.
   static inline Handle<Smi> LoadProxy(Isolate* isolate);
@@ -294,7 +294,7 @@ class StoreHandler final : public DataHandler {
   using FieldIndexBits =
       RepresentationBits::Next<unsigned, kDescriptorIndexBitCount + 1>;
   // Make sure we don't overflow the smi.
-  STATIC_ASSERT(FieldIndexBits::kLastUsedBit < kSmiValueSize);
+  static_assert(FieldIndexBits::kLastUsedBit < kSmiValueSize);
 
   // Creates a Smi-handler for storing a field to fast object.
   static inline Handle<Smi> StoreField(Isolate* isolate, int descriptor,
@@ -354,10 +354,12 @@ class StoreHandler final : public DataHandler {
   // Creates a Smi-handler for storing a property to an interceptor.
   static inline Handle<Smi> StoreInterceptor(Isolate* isolate);
 
-  static inline Builtin StoreSloppyArgumentsBuiltin(KeyedAccessStoreMode mode);
-  static inline Builtin StoreFastElementBuiltin(KeyedAccessStoreMode mode);
-  static inline Builtin ElementsTransitionAndStoreBuiltin(
-      KeyedAccessStoreMode mode);
+  static inline Handle<CodeT> StoreSloppyArgumentsBuiltin(
+      Isolate* isolate, KeyedAccessStoreMode mode);
+  static inline Handle<CodeT> StoreFastElementBuiltin(
+      Isolate* isolate, KeyedAccessStoreMode mode);
+  static inline Handle<CodeT> ElementsTransitionAndStoreBuiltin(
+      Isolate* isolate, KeyedAccessStoreMode mode);
 
   // Creates a Smi-handler for storing a property.
   static inline Handle<Smi> StoreSlow(

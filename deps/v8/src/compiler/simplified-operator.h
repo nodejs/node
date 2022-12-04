@@ -13,6 +13,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/feedback-source.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
@@ -21,7 +22,6 @@
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/objects.h"
-#include "src/objects/type-hints.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {
@@ -36,9 +36,10 @@ class Zone;
 namespace compiler {
 
 // Forward declarations.
+class CallDescriptor;
 class Operator;
 struct SimplifiedOperatorGlobalCache;
-class CallDescriptor;
+struct WasmTypeCheckConfig;
 
 enum BaseTaggedness : uint8_t { kUntaggedBase, kTaggedBase };
 
@@ -78,16 +79,21 @@ struct FieldAccess {
   Type type;                      // type of the field.
   MachineType machine_type;       // machine type of the field.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
-  ConstFieldInfo const_field_info;      // the constness of this access, and the
-                                    // field owner map, if the access is const
-  bool is_store_in_literal;  // originates from a kStoreInLiteral access
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  const char* creator_mnemonic;   // store the name of factory/creator method
+  ConstFieldInfo const_field_info;// the constness of this access, and the
+                                  // field owner map, if the access is const
+  bool is_store_in_literal;       // originates from a kStoreInLiteral access
   ExternalPointerTag external_pointer_tag = kExternalPointerNullTag;
-#endif
   bool maybe_initializing_or_transitioning_store;  // store is potentially
                                                    // initializing a newly
                                                    // allocated object or part
                                                    // of a map transition.
+  bool is_bounded_size_access = false;  // Whether this field is stored as a
+                                        // bounded size field. In that case,
+                                        // the size is shifted to the left to
+                                        // guarantee that the value is at most
+                                        // kMaxSafeBufferSizeForSandbox after
+                                        // decoding.
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),
@@ -95,6 +101,7 @@ struct FieldAccess {
         type(Type::None()),
         machine_type(MachineType::None()),
         write_barrier_kind(kFullWriteBarrier),
+        creator_mnemonic(nullptr),
         const_field_info(ConstFieldInfo::None()),
         is_store_in_literal(false),
         maybe_initializing_or_transitioning_store(false) {}
@@ -102,11 +109,10 @@ struct FieldAccess {
   FieldAccess(BaseTaggedness base_is_tagged, int offset, MaybeHandle<Name> name,
               MaybeHandle<Map> map, Type type, MachineType machine_type,
               WriteBarrierKind write_barrier_kind,
+              const char* creator_mnemonic = nullptr,
               ConstFieldInfo const_field_info = ConstFieldInfo::None(),
               bool is_store_in_literal = false,
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
               ExternalPointerTag external_pointer_tag = kExternalPointerNullTag,
-#endif
               bool maybe_initializing_or_transitioning_store = false)
       : base_is_tagged(base_is_tagged),
         offset(offset),
@@ -117,9 +123,7 @@ struct FieldAccess {
         write_barrier_kind(write_barrier_kind),
         const_field_info(const_field_info),
         is_store_in_literal(is_store_in_literal),
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
         external_pointer_tag(external_pointer_tag),
-#endif
         maybe_initializing_or_transitioning_store(
             maybe_initializing_or_transitioning_store) {
     DCHECK_GE(offset, 0);
@@ -130,6 +134,11 @@ struct FieldAccess {
                    (write_barrier_kind == kMapWriteBarrier ||
                     write_barrier_kind == kNoWriteBarrier ||
                     write_barrier_kind == kAssertNoWriteBarrier));
+    #if !defined(OFFICIAL_BUILD)
+      this->creator_mnemonic = creator_mnemonic;
+    #else
+      this->creator_mnemonic = nullptr;
+    #endif
   }
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
@@ -363,16 +372,6 @@ size_t hash_value(const CheckTaggedInputParameters& params);
 bool operator==(CheckTaggedInputParameters const&,
                 CheckTaggedInputParameters const&);
 
-enum class CheckForMinusZeroMode : uint8_t {
-  kCheckForMinusZero,
-  kDontCheckForMinusZero,
-};
-
-size_t hash_value(CheckForMinusZeroMode);
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
-                                           CheckForMinusZeroMode);
-
 CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator*)
     V8_WARN_UNUSED_RESULT;
 
@@ -531,6 +530,7 @@ enum class NumberOperationHint : uint8_t {
 
 enum class BigIntOperationHint : uint8_t {
   kBigInt,
+  kBigInt64,
 };
 
 size_t hash_value(NumberOperationHint);
@@ -539,6 +539,8 @@ size_t hash_value(BigIntOperationHint);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, NumberOperationHint);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BigIntOperationHint);
 V8_EXPORT_PRIVATE NumberOperationHint NumberOperationHintOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
+V8_EXPORT_PRIVATE BigIntOperationHint BigIntOperationHintOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
 class NumberOperationParameters {
@@ -784,6 +786,10 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* BigIntAdd();
   const Operator* BigIntSubtract();
+  const Operator* BigIntMultiply();
+  const Operator* BigIntDivide();
+  const Operator* BigIntModulus();
+  const Operator* BigIntBitwiseAnd();
   const Operator* BigIntNegate();
 
   const Operator* SpeculativeSafeIntegerAdd(NumberOperationHint hint);
@@ -808,6 +814,10 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* SpeculativeBigIntAdd(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntSubtract(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntMultiply(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntDivide(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntModulus(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntBitwiseAnd(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntNegate(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntAsIntN(int bits,
                                           const FeedbackSource& feedback);
@@ -837,8 +847,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringToUpperCaseIntl();
   const Operator* StringSubstring();
 
-  const Operator* FindOrderedHashMapEntry();
   const Operator* FindOrderedHashMapEntryForInt32Key();
+  const Operator* FindOrderedCollectionEntry(CollectionKind collection_kind);
 
   const Operator* SpeculativeToNumber(NumberOperationHint hint,
                                       const FeedbackSource& feedback);
@@ -909,6 +919,11 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedInt32Mod();
   const Operator* CheckedInt32Mul(CheckForMinusZeroMode);
   const Operator* CheckedInt32Sub();
+  const Operator* CheckedInt64Add();
+  const Operator* CheckedInt64Sub();
+  const Operator* CheckedInt64Mul();
+  const Operator* CheckedInt64Div();
+  const Operator* CheckedInt64Mod();
   const Operator* CheckedInt32ToTaggedSigned(const FeedbackSource& feedback);
   const Operator* CheckedInt64ToInt32(const FeedbackSource& feedback);
   const Operator* CheckedInt64ToTaggedSigned(const FeedbackSource& feedback);
@@ -923,6 +938,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedTaggedToTaggedPointer(const FeedbackSource& feedback);
   const Operator* CheckedTaggedToTaggedSigned(const FeedbackSource& feedback);
   const Operator* CheckBigInt(const FeedbackSource& feedback);
+  const Operator* CheckedBigIntToBigInt64(const FeedbackSource& feedback);
   const Operator* CheckedTruncateTaggedToWord32(CheckTaggedInputMode,
                                                 const FeedbackSource& feedback);
   const Operator* CheckedUint32Div();
@@ -930,6 +946,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedUint32ToInt32(const FeedbackSource& feedback);
   const Operator* CheckedUint32ToTaggedSigned(const FeedbackSource& feedback);
   const Operator* CheckedUint64ToInt32(const FeedbackSource& feedback);
+  const Operator* CheckedUint64ToInt64(const FeedbackSource& feedback);
   const Operator* CheckedUint64ToTaggedSigned(const FeedbackSource& feedback);
 
   const Operator* ConvertReceiver(ConvertReceiverMode);
@@ -1060,7 +1077,29 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // SimplifiedLowering.
   const Operator* VerifyType();
 
+#if V8_ENABLE_WEBASSEMBLY
+  const Operator* AssertNotNull();
+  const Operator* IsNull();
+  const Operator* IsNotNull();
+  const Operator* Null();
+  const Operator* RttCanon(int index);
+  const Operator* WasmTypeCheck(WasmTypeCheckConfig config);
+  const Operator* WasmTypeCast(WasmTypeCheckConfig config);
+  const Operator* WasmExternInternalize();
+  const Operator* WasmExternExternalize();
+#endif
+
   const Operator* DateNow();
+
+  // Math.min/max for JSArray with PACKED_DOUBLE_ELEMENTS.
+  const Operator* DoubleArrayMin();
+  const Operator* DoubleArrayMax();
+
+  // Unsigned32Divide is a special operator to express the division of two
+  // Unsigned32 inputs and truncating the result to Unsigned32. It's semantics
+  // is equivalent to NumberFloor(NumberDivide(x:Unsigned32, y:Unsigned32)) but
+  // is required to allow consistent typing of the graph.
+  const Operator* Unsigned32Divide();
 
   // Represents the inputs necessary to construct a fast and a slow API call.
   const Operator* FastApiCall(
@@ -1140,7 +1179,6 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
   static constexpr int kHolderInputCount = 1;
   static constexpr int kContextAndFrameStateInputCount = 2;
   static constexpr int kEffectAndControlInputCount = 2;
-  int FastCallExtraInputCount() const;
   static constexpr int kSlowCallExtraInputCount =
       kSlowTargetInputCount + kArityInputCount + kNewTargetInputCount +
       kSlowReceiverInputCount + kHolderInputCount +

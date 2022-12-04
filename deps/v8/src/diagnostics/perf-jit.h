@@ -30,7 +30,7 @@
 
 #include "include/v8config.h"
 
-// {PerfJitLogger} is only implemented on Linux.
+// {LinuxPerfJitLogger} is only implemented on Linux.
 #if V8_OS_LINUX
 
 #include "src/logging/log.h"
@@ -39,10 +39,10 @@ namespace v8 {
 namespace internal {
 
 // Linux perf tool logging support.
-class PerfJitLogger : public CodeEventLogger {
+class LinuxPerfJitLogger : public CodeEventLogger {
  public:
-  explicit PerfJitLogger(Isolate* isolate);
-  ~PerfJitLogger() override;
+  explicit LinuxPerfJitLogger(Isolate* isolate);
+  ~LinuxPerfJitLogger() override;
 
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void CodeDisableOptEvent(Handle<AbstractCode> code,
@@ -85,7 +85,6 @@ class PerfJitLogger : public CodeEventLogger {
   static const uint32_t kElfMachIA32 = 3;
   static const uint32_t kElfMachX64 = 62;
   static const uint32_t kElfMachARM = 40;
-  static const uint32_t kElfMachMIPS = 8;
   static const uint32_t kElfMachMIPS64 = 8;
   static const uint32_t kElfMachLOONG64 = 258;
   static const uint32_t kElfMachARM64 = 183;
@@ -100,8 +99,6 @@ class PerfJitLogger : public CodeEventLogger {
     return kElfMachX64;
 #elif V8_TARGET_ARCH_ARM
     return kElfMachARM;
-#elif V8_TARGET_ARCH_MIPS
-    return kElfMachMIPS;
 #elif V8_TARGET_ARCH_MIPS64
     return kElfMachMIPS64;
 #elif V8_TARGET_ARCH_LOONG64
@@ -112,7 +109,7 @@ class PerfJitLogger : public CodeEventLogger {
     return kElfMachS390x;
 #elif V8_TARGET_ARCH_PPC64
     return kElfMachPPC64;
-#elif V8_TARGET_ARCH_RISCV64
+#elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
     return kElfMachRISCV;
 #else
     UNIMPLEMENTED();

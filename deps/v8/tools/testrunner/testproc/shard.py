@@ -18,6 +18,13 @@ def radix_hash(capacity, key):
 
 
 class ShardProc(base.TestProcFilter):
+  @staticmethod
+  def create(options):
+    myid, count = options.shard_info()
+    if count == 1:
+      return None
+    return ShardProc(myid, count)
+
   """Processor distributing tests between shards.
   It hashes the unique test identifiers uses the hash to shard tests.
   """

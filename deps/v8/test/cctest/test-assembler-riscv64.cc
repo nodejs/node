@@ -38,8 +38,8 @@
 #include "src/init/v8.h"
 #include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/test-helper-riscv64.h"
+#include "test/common/value-helper.h"
 
 namespace v8 {
 namespace internal {
@@ -79,7 +79,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 #define UTEST_R1_FORM_WITH_RES_C(instr_name, in_type, out_type, rs1_val, \
                                  expected_res)                           \
   TEST(RISCV_UTEST_##instr_name) {                                       \
-    i::FLAG_riscv_c_extension = true;                                    \
+    i::v8_flags.riscv_c_extension = true;                                \
     CcTest::InitializeVM();                                              \
     auto fn = [](MacroAssembler& assm) { __ instr_name(a0, a0); };       \
     auto res = GenAndRunTest<out_type, in_type>(rs1_val, fn);            \
@@ -1171,13 +1171,13 @@ TEST(NAN_BOX) {
   {
     auto fn = [](MacroAssembler& assm) { __ fmv_x_d(a0, fa0); };
     auto res = GenAndRunTest<uint64_t>(1234.56f, fn);
-    CHECK_EQ(0xFFFFFFFF00000000 | bit_cast<uint32_t>(1234.56f), res);
+    CHECK_EQ(0xFFFFFFFF00000000 | base::bit_cast<uint32_t>(1234.56f), res);
   }
   // Test NaN boxing in FMV.X.W
   {
     auto fn = [](MacroAssembler& assm) { __ fmv_x_w(a0, fa0); };
     auto res = GenAndRunTest<uint64_t>(1234.56f, fn);
-    CHECK_EQ((uint64_t)bit_cast<uint32_t>(1234.56f), res);
+    CHECK_EQ((uint64_t)base::bit_cast<uint32_t>(1234.56f), res);
   }
 
   // Test FLW and FSW
@@ -1205,13 +1205,13 @@ TEST(NAN_BOX) {
   t.res = 0;
   f.Call(&t, 0, 0, 0, 0);
 
-  CHECK_EQ(0xFFFFFFFF00000000 | bit_cast<int32_t>(t.a), t.box);
-  CHECK_EQ((uint64_t)bit_cast<uint32_t>(t.a), t.res);
+  CHECK_EQ(0xFFFFFFFF00000000 | base::bit_cast<int32_t>(t.a), t.box);
+  CHECK_EQ((uint64_t)base::bit_cast<uint32_t>(t.a), t.res);
 }
 
 TEST(RVC_CI) {
   // Test RV64C extension CI type instructions.
-  i::FLAG_riscv_c_extension = true;
+  i::v8_flags.riscv_c_extension = true;
   CcTest::InitializeVM();
 
   // Test c.addi
@@ -1264,7 +1264,7 @@ TEST(RVC_CI) {
 }
 
 TEST(RVC_CIW) {
-  i::FLAG_riscv_c_extension = true;
+  i::v8_flags.riscv_c_extension = true;
   CcTest::InitializeVM();
 
   // Test c.addi4spn
@@ -1282,7 +1282,7 @@ TEST(RVC_CIW) {
 
 TEST(RVC_CR) {
   // Test RV64C extension CR type instructions.
-  i::FLAG_riscv_c_extension = true;
+  i::v8_flags.riscv_c_extension = true;
   CcTest::InitializeVM();
 
   // Test c.add
@@ -1298,7 +1298,7 @@ TEST(RVC_CR) {
 
 TEST(RVC_CA) {
   // Test RV64C extension CA type instructions.
-  i::FLAG_riscv_c_extension = true;
+  i::v8_flags.riscv_c_extension = true;
   CcTest::InitializeVM();
 
   // Test c.sub
@@ -1364,7 +1364,7 @@ TEST(RVC_CA) {
 
 TEST(RVC_LOAD_STORE_SP) {
   // Test RV64C extension fldsp/fsdsp, lwsp/swsp, ldsp/sdsp.
-  i::FLAG_riscv_c_extension = true;
+  i::v8_flags.riscv_c_extension = true;
   CcTest::InitializeVM();
 
   {
@@ -1397,7 +1397,7 @@ TEST(RVC_LOAD_STORE_SP) {
 
 TEST(RVC_LOAD_STORE_COMPRESSED) {
   // Test RV64C extension fld,  lw, ld.
-  i::FLAG_riscv_c_extension = true;
+  i::v8_flags.riscv_c_extension = true;
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -1479,7 +1479,7 @@ TEST(RVC_LOAD_STORE_COMPRESSED) {
 }
 
 TEST(RVC_JUMP) {
-  i::FLAG_riscv_c_extension = true;
+  i::v8_flags.riscv_c_extension = true;
   CcTest::InitializeVM();
 
   Label L, C;
@@ -1505,7 +1505,7 @@ TEST(RVC_JUMP) {
 
 TEST(RVC_CB) {
   // Test RV64C extension CI type instructions.
-  FLAG_riscv_c_extension = true;
+  v8_flags.riscv_c_extension = true;
   CcTest::InitializeVM();
 
   // Test c.srai
@@ -1531,7 +1531,7 @@ TEST(RVC_CB) {
 }
 
 TEST(RVC_CB_BRANCH) {
-  FLAG_riscv_c_extension = true;
+  v8_flags.riscv_c_extension = true;
   // Test floating point compare and
   // branch instructions.
   CcTest::InitializeVM();
@@ -1962,7 +1962,6 @@ TEST(li_estimate) {
       -256,      -255,          0,         255,        8192,      0x7FFFFFFF,
       INT32_MIN, INT32_MAX / 2, INT32_MAX, UINT32_MAX, INT64_MAX, INT64_MAX / 2,
       INT64_MIN};
-  // Test jump tables with backward jumps and embedded heap objects.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -2333,9 +2332,7 @@ UTEST_RVV_VF_VV_FORM_WITH_OP(vfdiv_vv, /)
       }                                                                        \
       __ instr_name(v0, v2, fa1);                                              \
       __ li(t1, Operand(int64_t(result)));                                     \
-      __ li(t2, Operand(int64_t(&result[n / 2])));                             \
       __ vs(v0, t1, 0, VSew::E64);                                             \
-      __ vs(v1, t2, 0, VSew::E64);                                             \
     };                                                                         \
     for (float rs1_fval : compiler::ValueHelper::GetVector<float>()) {         \
       for (float rs2_fval : compiler::ValueHelper::GetVector<float>()) {       \
@@ -2412,6 +2409,11 @@ UTEST_RVV_VFW_VF_FORM_WITH_OP(vfwmul_vf, *, false, is_invalid_fmul)
     for (float rs1_fval : array) {                                            \
       for (float rs2_fval : array) {                                          \
         for (float rs3_fval : array) {                                        \
+          double rs1_dval = base::bit_cast<double>(                           \
+              (uint64_t)base::bit_cast<uint32_t>(rs1_fval) << 32 |            \
+              base::bit_cast<uint32_t>(rs1_fval));                            \
+          double rs2_dval = static_cast<double>(rs2_fval);                    \
+          double rs3_dval = static_cast<double>(rs3_fval);                    \
           double res =                                                        \
               GenAndRunTest<double, float>(rs1_fval, rs2_fval, rs3_fval, fn); \
           CHECK_DOUBLE_EQ((expect_res), res);                                 \
@@ -2437,6 +2439,11 @@ UTEST_RVV_VFW_VF_FORM_WITH_OP(vfwmul_vf, *, false, is_invalid_fmul)
     for (float rs1_fval : array) {                                            \
       for (float rs2_fval : array) {                                          \
         for (float rs3_fval : array) {                                        \
+          double rs1_dval = base::bit_cast<double>(                           \
+              (uint64_t)base::bit_cast<uint32_t>(rs1_fval) << 32 |            \
+              base::bit_cast<uint32_t>(rs1_fval));                            \
+          double rs2_dval = static_cast<double>(rs2_fval);                    \
+          double rs3_dval = static_cast<double>(rs3_fval);                    \
           double res =                                                        \
               GenAndRunTest<double, float>(rs1_fval, rs2_fval, rs3_fval, fn); \
           CHECK_DOUBLE_EQ((expect_res), res);                                 \
@@ -2447,21 +2454,21 @@ UTEST_RVV_VFW_VF_FORM_WITH_OP(vfwmul_vf, *, false, is_invalid_fmul)
 
 #define ARRAY_FLOAT compiler::ValueHelper::GetVector<float>()
 UTEST_RVV_VFW_FMA_VV_FORM_WITH_RES(vfwmacc_vv, ARRAY_FLOAT,
-                                   std::fma(rs2_fval, rs3_fval, rs1_fval))
+                                   std::fma(rs2_dval, rs3_dval, rs1_dval))
 UTEST_RVV_VFW_FMA_VF_FORM_WITH_RES(vfwmacc_vf, ARRAY_FLOAT,
-                                   std::fma(rs2_fval, rs3_fval, rs1_fval))
+                                   std::fma(rs2_dval, rs3_dval, rs1_dval))
 UTEST_RVV_VFW_FMA_VV_FORM_WITH_RES(vfwnmacc_vv, ARRAY_FLOAT,
-                                   std::fma(rs2_fval, -rs3_fval, -rs1_fval))
+                                   std::fma(rs2_dval, -rs3_dval, -rs1_dval))
 UTEST_RVV_VFW_FMA_VF_FORM_WITH_RES(vfwnmacc_vf, ARRAY_FLOAT,
-                                   std::fma(rs2_fval, -rs3_fval, -rs1_fval))
+                                   std::fma(rs2_dval, -rs3_dval, -rs1_dval))
 UTEST_RVV_VFW_FMA_VV_FORM_WITH_RES(vfwmsac_vv, ARRAY_FLOAT,
-                                   std::fma(rs2_fval, rs3_fval, -rs1_fval))
+                                   std::fma(rs2_dval, rs3_dval, -rs1_dval))
 UTEST_RVV_VFW_FMA_VF_FORM_WITH_RES(vfwmsac_vf, ARRAY_FLOAT,
-                                   std::fma(rs2_fval, rs3_fval, -rs1_fval))
+                                   std::fma(rs2_dval, rs3_dval, -rs1_dval))
 UTEST_RVV_VFW_FMA_VV_FORM_WITH_RES(vfwnmsac_vv, ARRAY_FLOAT,
-                                   std::fma(rs2_fval, -rs3_fval, rs1_fval))
+                                   std::fma(rs2_dval, -rs3_dval, rs1_dval))
 UTEST_RVV_VFW_FMA_VF_FORM_WITH_RES(vfwnmsac_vf, ARRAY_FLOAT,
-                                   std::fma(rs2_fval, -rs3_fval, rs1_fval))
+                                   std::fma(rs2_dval, -rs3_dval, rs1_dval))
 
 #undef ARRAY_FLOAT
 #undef UTEST_RVV_VFW_FMA_VV_FORM_WITH_RES
@@ -2571,7 +2578,9 @@ UTEST_RVV_FMA_VF_FORM_WITH_RES(vfnmsac_vf, ARRAY_FLOAT,
     for (float rs1_fval : compiler::ValueHelper::GetVector<float>()) { \
       std::vector<double> temp_arr(kRvvVLEN / 32,                      \
                                    static_cast<double>(rs1_fval));     \
-      double expect_res = rs1_fval;                                    \
+      double expect_res = base::bit_cast<double>(                      \
+          (uint64_t)base::bit_cast<uint32_t>(rs1_fval) << 32 |         \
+          base::bit_cast<uint32_t>(rs1_fval));                         \
       for (double val : temp_arr) {                                    \
         expect_res += val;                                             \
         if (std::isnan(expect_res)) {                                  \
@@ -2622,7 +2631,7 @@ static inline uint8_t get_round(int vxrm, uint64_t v, uint8_t shift) {
 #define UTEST_RVV_VNCLIP_E32M2_E16M1(instr_name, sign)                       \
   TEST(RISCV_UTEST_##instr_name##_E32M2_E16M1) {                             \
     if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                       \
-    constexpr RoundingMode vxrm = RNE;                                       \
+    constexpr FPURoundingMode vxrm = RNE;                                    \
     CcTest::InitializeVM();                                                  \
     Isolate* isolate = CcTest::i_isolate();                                  \
     HandleScope scope(isolate);                                              \
@@ -2814,7 +2823,7 @@ UTEST_VFIRST_M_WITH_WIDTH(8)
         __ vcpop_m(a0, v2);                                           \
       };                                                              \
       auto res = GenAndRunTest<int64_t, int64_t>((int64_t)src, fn);   \
-      CHECK_EQ(std::__popcount(src[0]), res);                         \
+      CHECK_EQ(__builtin_popcountl(src[0]), res);                     \
     }                                                                 \
   }
 

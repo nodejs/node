@@ -4,19 +4,52 @@
 
 #include "src/execution/arguments-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
-#include "src/regexp/regexp-utils.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/strings/string-builder-inl.h"
-#include "src/strings/string-search.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+// TODO(chromium:1236668): Drop this when the "SaveAndClearThreadInWasmFlag"
+// approach is no longer needed.
+#include "src/trap-handler/trap-handler.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
+
+namespace {
+
+#if V8_ENABLE_WEBASSEMBLY
+class V8_NODISCARD SaveAndClearThreadInWasmFlag {
+ public:
+  explicit SaveAndClearThreadInWasmFlag(Isolate* isolate) : isolate_(isolate) {
+    if (trap_handler::IsTrapHandlerEnabled()) {
+      if (trap_handler::IsThreadInWasm()) {
+        thread_was_in_wasm_ = true;
+        trap_handler::ClearThreadInWasm();
+      }
+    }
+  }
+  ~SaveAndClearThreadInWasmFlag() {
+    if (thread_was_in_wasm_ && !isolate_->has_pending_exception()) {
+      trap_handler::SetThreadInWasm();
+    }
+  }
+
+ private:
+  bool thread_was_in_wasm_{false};
+  Isolate* isolate_;
+};
+#define CLEAR_THREAD_IN_WASM_SCOPE \
+  SaveAndClearThreadInWasmFlag non_wasm_scope(isolate)
+#else
+#define CLEAR_THREAD_IN_WASM_SCOPE (void)0
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+}  // namespace
 
 RUNTIME_FUNCTION(Runtime_GetSubstitution) {
   HandleScope scope(isolate);
@@ -154,16 +187,16 @@ RUNTIME_FUNCTION(Runtime_StringSubstring) {
   DCHECK_LE(0, start);
   DCHECK_LE(start, end);
   DCHECK_LE(end, string->length());
-  isolate->counters()->sub_string_runtime()->Increment();
   return *isolate->factory()->NewSubString(string, start, end);
 }
 
 RUNTIME_FUNCTION(Runtime_StringAdd) {
+  // This is used by Wasm stringrefs.
+  CLEAR_THREAD_IN_WASM_SCOPE;
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   Handle<String> str1 = args.at<String>(0);
   Handle<String> str2 = args.at<String>(1);
-  isolate->counters()->string_add_runtime()->Increment();
   RETURN_RESULT_OR_FAILURE(isolate,
                            isolate->factory()->NewConsString(str1, str2));
 }
@@ -269,36 +302,6 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   }
 }
 
-
-// Copies Latin1 characters to the given fixed array looking up
-// one-char strings in the cache. Gives up on the first char that is
-// not in the cache and fills the remainder with smi zeros. Returns
-// the length of the successfully copied prefix.
-static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
-                                         FixedArray elements, int length) {
-  DisallowGarbageCollection no_gc;
-  FixedArray one_byte_cache = heap->single_character_string_cache();
-  Object undefined = ReadOnlyRoots(heap).undefined_value();
-  int i;
-  WriteBarrierMode mode = elements.GetWriteBarrierMode(no_gc);
-  for (i = 0; i < length; ++i) {
-    Object value = one_byte_cache.get(chars[i]);
-    if (value == undefined) break;
-    elements.set(i, value, mode);
-  }
-  if (i < length) {
-    MemsetTagged(elements.RawFieldOfElementAt(i), Smi::zero(), length - i);
-  }
-#ifdef DEBUG
-  for (int j = 0; j < length; ++j) {
-    Object element = elements.get(j);
-    DCHECK(element == Smi::zero() ||
-           (element.IsString() && String::cast(element).LooksValid()));
-  }
-#endif
-  return i;
-}
-
 // Converts a String to JSArray.
 // For example, "foo" => ["f", "o", "o"].
 RUNTIME_FUNCTION(Runtime_StringToArray) {
@@ -311,31 +314,38 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
   const int length =
       static_cast<int>(std::min(static_cast<uint32_t>(s->length()), limit));
 
-  Handle<FixedArray> elements;
-  int position = 0;
-  if (s->IsFlat() && s->IsOneByteRepresentation()) {
-    // Try using cached chars where possible.
-    elements = isolate->factory()->NewFixedArray(length);
+  Handle<FixedArray> elements = isolate->factory()->NewFixedArray(length);
+  bool elements_are_initialized = false;
 
+  if (s->IsFlat() && s->IsOneByteRepresentation()) {
     DisallowGarbageCollection no_gc;
     String::FlatContent content = s->GetFlatContent(no_gc);
+    // Use pre-initialized single characters to intialize all the elements.
+    // This can be false if the string is sliced from an externalized
+    // two-byte string that has only one-byte chars, in that case we will do
+    // a LookupSingleCharacterStringFromCode for each of the characters.
     if (content.IsOneByte()) {
       base::Vector<const uint8_t> chars = content.ToOneByteVector();
-      // Note, this will initialize all elements (not only the prefix)
-      // to prevent GC from seeing partially initialized array.
-      position = CopyCachedOneByteCharsToArray(isolate->heap(), chars.begin(),
-                                               *elements, length);
-    } else {
-      MemsetTagged(elements->data_start(),
-                   ReadOnlyRoots(isolate).undefined_value(), length);
+      FixedArray one_byte_table =
+          isolate->heap()->single_character_string_table();
+      for (int i = 0; i < length; ++i) {
+        Object value = one_byte_table.get(chars[i]);
+        DCHECK(value.IsString());
+        DCHECK(ReadOnlyHeap::Contains(HeapObject::cast(value)));
+        // The single-character strings are in RO space so it should
+        // be safe to skip the write barriers.
+        elements->set(i, value, SKIP_WRITE_BARRIER);
+      }
+      elements_are_initialized = true;
     }
-  } else {
-    elements = isolate->factory()->NewFixedArray(length);
   }
-  for (int i = position; i < length; ++i) {
-    Handle<Object> str =
-        isolate->factory()->LookupSingleCharacterStringFromCode(s->Get(i));
-    elements->set(i, *str);
+
+  if (!elements_are_initialized) {
+    for (int i = 0; i < length; ++i) {
+      Handle<Object> str =
+          isolate->factory()->LookupSingleCharacterStringFromCode(s->Get(i));
+      elements->set(i, *str);
+    }
   }
 
 #ifdef DEBUG

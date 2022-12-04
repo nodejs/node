@@ -68,7 +68,7 @@ function isInClassStaticInitializerRange(node, location) {
 }
 
 /**
- * Checks whether a given scope is the scope of a a class static initializer.
+ * Checks whether a given scope is the scope of a class static initializer.
  * Static initializers are static blocks and initializers of static fields.
  * @param {eslint-scope.Scope} scope A scope to check.
  * @returns {boolean} `true` if the scope is a class static initializer scope.

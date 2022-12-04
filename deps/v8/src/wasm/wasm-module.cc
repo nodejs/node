@@ -8,66 +8,64 @@
 #include <memory>
 
 #include "src/api/api-inl.h"
-#include "src/base/platform/wrappers.h"
-#include "src/codegen/assembler-inl.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/debug/interface-types.h"
-#include "src/execution/frames-inl.h"
-#include "src/execution/simulator.h"
-#include "src/init/v8.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects.h"
-#include "src/objects/property-descriptor.h"
-#include "src/snapshot/snapshot.h"
+#include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-init-expr.h"
 #include "src/wasm/wasm-js.h"
+#include "src/wasm/wasm-module-builder.h"  // For {ZoneBuffer}.
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-subtyping.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
+
+template <class Value>
+void AdaptiveMap<Value>::FinishInitialization() {
+  uint32_t count = 0;
+  uint32_t max = 0;
+  DCHECK_EQ(mode_, kInitializing);
+  for (const auto& entry : *map_) {
+    count++;
+    max = std::max(max, entry.first);
+  }
+  if (count >= (max + 1) / kLoadFactor) {
+    mode_ = kDense;
+    vector_.resize(max + 1);
+    for (auto& entry : *map_) {
+      vector_[entry.first] = std::move(entry.second);
+    }
+    map_.reset();
+  } else {
+    mode_ = kSparse;
+  }
+}
+template void NameMap::FinishInitialization();
+template void IndirectNameMap::FinishInitialization();
 
 WireBytesRef LazilyGeneratedNames::LookupFunctionName(
-    const ModuleWireBytes& wire_bytes, uint32_t function_index) const {
+    const ModuleWireBytes& wire_bytes, uint32_t function_index) {
   base::MutexGuard lock(&mutex_);
-  if (!function_names_) {
-    function_names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
-    DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(),
-                        function_names_.get());
+  if (!has_functions_) {
+    has_functions_ = true;
+    DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(), function_names_);
   }
-  auto it = function_names_->find(function_index);
-  if (it == function_names_->end()) return WireBytesRef();
-  return it->second;
+  const WireBytesRef* result = function_names_.Get(function_index);
+  if (!result) return WireBytesRef();
+  return *result;
 }
 
-// static
-int MaxNumExportWrappers(const WasmModule* module) {
-  // For each signature there may exist a wrapper, both for imported and
-  // internal functions.
-  return static_cast<int>(module->signature_map.size()) * 2;
+bool LazilyGeneratedNames::Has(uint32_t function_index) {
+  DCHECK(has_functions_);
+  base::MutexGuard lock(&mutex_);
+  return function_names_.Get(function_index) != nullptr;
 }
 
-int GetExportWrapperIndexInternal(const WasmModule* module,
-                                  int canonical_sig_index, bool is_import) {
-  if (is_import) canonical_sig_index += module->signature_map.size();
-  return canonical_sig_index;
-}
-
-int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
-                          bool is_import) {
-  int canonical_sig_index = module->signature_map.Find(*sig);
-  CHECK_GE(canonical_sig_index, 0);
-  return GetExportWrapperIndexInternal(module, canonical_sig_index, is_import);
-}
-
-int GetExportWrapperIndex(const WasmModule* module, uint32_t sig_index,
-                          bool is_import) {
-  uint32_t canonical_sig_index = module->canonicalized_type_ids[sig_index];
-  return GetExportWrapperIndexInternal(module, canonical_sig_index, is_import);
+int GetExportWrapperIndex(uint32_t canonical_sig_index, bool is_import) {
+  return 2 * canonical_sig_index + (is_import ? 1 : 0);
 }
 
 // static
@@ -130,10 +128,7 @@ int GetSubtypingDepth(const WasmModule* module, uint32_t type_index) {
 void LazilyGeneratedNames::AddForTesting(int function_index,
                                          WireBytesRef name) {
   base::MutexGuard lock(&mutex_);
-  if (!function_names_) {
-    function_names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
-  }
-  function_names_->insert(std::make_pair(function_index, name));
+  function_names_.Put(function_index, name);
 }
 
 AsmJsOffsetInformation::AsmJsOffsetInformation(
@@ -236,6 +231,13 @@ bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
          codegen_callback(
              v8::Utils::ToLocal(context),
              v8::Utils::ToLocal(isolate->factory()->empty_string()));
+}
+
+Handle<String> ErrorStringForCodegen(Isolate* isolate,
+                                     Handle<Context> context) {
+  Handle<Object> error = context->ErrorMessageForWasmCodeGeneration();
+  DCHECK(!error.is_null());
+  return Object::NoSideEffectsToString(isolate, error);
 }
 
 namespace {
@@ -625,7 +627,7 @@ size_t EstimateStoredSize(const WasmModule* module) {
          (module->signature_zone ? module->signature_zone->allocation_size()
                                  : 0) +
          VectorSize(module->types) +
-         VectorSize(module->canonicalized_type_ids) +
+         VectorSize(module->isorecursive_canonical_type_ids) +
          VectorSize(module->functions) + VectorSize(module->data_segments) +
          VectorSize(module->tables) + VectorSize(module->import_table) +
          VectorSize(module->export_table) + VectorSize(module->tags) +
@@ -652,6 +654,27 @@ size_t PrintSignature(base::Vector<char> buffer, const wasm::FunctionSig* sig,
   return old_size - buffer.size();
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+int JumpTableOffset(const WasmModule* module, int func_index) {
+  return JumpTableAssembler::JumpSlotIndexToOffset(
+      declared_function_index(module, func_index));
+}
+
+size_t GetWireBytesHash(base::Vector<const uint8_t> wire_bytes) {
+  return StringHasher::HashSequentialString(
+      reinterpret_cast<const char*>(wire_bytes.begin()), wire_bytes.length(),
+      kZeroHashSeed);
+}
+
+int NumFeedbackSlots(const WasmModule* module, int func_index) {
+  if (!v8_flags.wasm_speculative_inlining) return 0;
+  // TODO(clemensb): Avoid the mutex once this ships, or at least switch to a
+  // shared mutex.
+  base::MutexGuard type_feedback_guard{&module->type_feedback.mutex};
+  auto it = module->type_feedback.feedback_for_function.find(func_index);
+  if (it == module->type_feedback.feedback_for_function.end()) return 0;
+  // The number of call instructions is capped by max function size.
+  static_assert(kV8MaxWasmFunctionSize < std::numeric_limits<int>::max() / 2);
+  return static_cast<int>(2 * it->second.call_targets.size());
+}
+
+}  // namespace v8::internal::wasm

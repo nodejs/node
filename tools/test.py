@@ -909,10 +909,11 @@ class LiteralTestSuite(TestSuite):
 
 
 TIMEOUT_SCALEFACTOR = {
-    'arm'   : { 'debug' :  8, 'release' : 3 }, # The ARM buildbots are slow.
-    'ia32'  : { 'debug' :  4, 'release' : 1 },
-    'ppc'   : { 'debug' :  4, 'release' : 1 },
-    's390'  : { 'debug' :  4, 'release' : 1 } }
+    'arm'       : { 'debug' :  8, 'release' : 3 }, # The ARM buildbots are slow.
+    'riscv64'   : { 'debug' :  8, 'release' : 3 }, # The riscv devices are slow.
+    'ia32'      : { 'debug' :  4, 'release' : 1 },
+    'ppc'       : { 'debug' :  4, 'release' : 1 },
+    's390'      : { 'debug' :  4, 'release' : 1 } }
 
 
 class Context(object):
@@ -1616,9 +1617,9 @@ def Main():
   if options.check_deopts:
     options.node_args.append("--trace-opt")
     options.node_args.append("--trace-file-names")
-    # --always-opt is needed because many tests do not run long enough for the
-    # optimizer to kick in, so this flag will force it to run.
-    options.node_args.append("--always-opt")
+    # --always-turbofan is needed because many tests do not run long enough for
+    # the optimizer to kick in, so this flag will force it to run.
+    options.node_args.append("--always-turbofan")
     options.progress = "deopts"
 
   if options.worker:

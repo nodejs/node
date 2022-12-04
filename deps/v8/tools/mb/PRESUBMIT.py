@@ -18,15 +18,17 @@ def _CommonChecks(input_api, output_api):
   # Run the MB unittests.
   results.extend(
       input_api.canned_checks.RunUnitTestsInDirectory(input_api, output_api,
-                                                      '.', [r'^.+_test\.py$']))
+                                                      '.', [r'^.+_test\.py$'],
+                                                      run_on_python2=False))
 
   # Validate the format of the mb_config.pyl file.
-  cmd = [input_api.python_executable, 'mb.py', 'validate']
+  cmd = [input_api.python3_executable, 'mb.py', 'validate']
   kwargs = {'cwd': input_api.PresubmitLocalPath()}
   results.extend(input_api.RunTests([
       input_api.Command(name='mb_validate',
                         cmd=cmd, kwargs=kwargs,
-                        message=output_api.PresubmitError)]))
+                        message=output_api.PresubmitError,
+                        python3=True)]))
 
   is_mb_config = (lambda filepath: 'mb_config.pyl' in filepath.LocalPath())
   results.extend(

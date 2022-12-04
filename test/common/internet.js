@@ -25,7 +25,7 @@ const addresses = {
   // record not found. Use this to guarantee record not found.
   NOT_FOUND: 'come.on.fhqwhgads.test',
   // A host with SRV records registered
-  SRV_HOST: '_jabber._tcp.google.com',
+  SRV_HOST: '_caldav._tcp.google.com',
   // A host with PTR records registered
   PTR_HOST: '8.8.8.8.in-addr.arpa',
   // A host with NAPTR records registered
@@ -43,7 +43,7 @@ const addresses = {
   // An accessible IPv4 DNS server
   DNS4_SERVER: '8.8.8.8',
   // An accessible IPv4 DNS server
-  DNS6_SERVER: '2001:4860:4860::8888'
+  DNS6_SERVER: '2001:4860:4860::8888',
 };
 
 for (const key of Object.keys(addresses)) {
@@ -54,5 +54,5 @@ for (const key of Object.keys(addresses)) {
 }
 
 module.exports = {
-  addresses
+  addresses,
 };

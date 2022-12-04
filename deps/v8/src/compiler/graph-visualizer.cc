@@ -8,7 +8,6 @@
 #include <sstream>
 #include <string>
 
-#include "src/base/platform/wrappers.h"
 #include "src/base/vector.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/source-position.h"
@@ -24,8 +23,6 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
-#include "src/compiler/scheduler.h"
-#include "src/interpreter/bytecodes.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/utils/ostreams.h"
@@ -36,8 +33,8 @@ namespace compiler {
 
 const char* get_cached_trace_turbo_filename(OptimizedCompilationInfo* info) {
   if (!info->trace_turbo_filename()) {
-    info->set_trace_turbo_filename(
-        GetVisualizerLogFileName(info, FLAG_trace_turbo_path, nullptr, "json"));
+    info->set_trace_turbo_filename(GetVisualizerLogFileName(
+        info, v8_flags.trace_turbo_path, nullptr, "json"));
   }
   return info->trace_turbo_filename();
 }
@@ -88,6 +85,17 @@ class JSONEscaped {
 
   const std::string str_;
 };
+
+void JsonPrintBytecodeSource(std::ostream& os, int source_id,
+                             std::unique_ptr<char[]> function_name,
+                             Handle<BytecodeArray> bytecode_array) {
+  os << "\"" << source_id << "\" : {";
+  os << "\"sourceId\": " << source_id;
+  os << ", \"functionName\": \"" << function_name.get() << "\"";
+  os << ", \"bytecodeSource\": ";
+  bytecode_array->PrintJson(os);
+  os << "}";
+}
 
 void JsonPrintFunctionSource(std::ostream& os, int source_id,
                              std::unique_ptr<char[]> function_name,
@@ -161,6 +169,27 @@ void JsonPrintInlinedFunctionInfo(
 
 }  // namespace
 
+void JsonPrintAllBytecodeSources(std::ostream& os,
+                                 OptimizedCompilationInfo* info) {
+  os << "\"bytecodeSources\" : {";
+
+  JsonPrintBytecodeSource(os, -1, info->shared_info()->DebugNameCStr(),
+                          info->bytecode_array());
+
+  const auto& inlined = info->inlined_functions();
+  SourceIdAssigner id_assigner(info->inlined_functions().size());
+
+  for (unsigned id = 0; id < inlined.size(); id++) {
+    os << ", ";
+    Handle<SharedFunctionInfo> shared_info = inlined[id].shared_info;
+    const int source_id = id_assigner.GetIdFor(shared_info);
+    JsonPrintBytecodeSource(os, source_id, shared_info->DebugNameCStr(),
+                            inlined[id].bytecode_array);
+  }
+
+  os << "}";
+}
+
 void JsonPrintAllSourceWithPositions(std::ostream& os,
                                      OptimizedCompilationInfo* info,
                                      Isolate* isolate) {
@@ -203,19 +232,21 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* suffix) {
   base::EmbeddedVector<char, 256> filename(0);
   std::unique_ptr<char[]> debug_name = info->GetDebugName();
+  const char* file_prefix = v8_flags.trace_turbo_file_prefix.value();
   int optimization_id = info->IsOptimizing() ? info->optimization_id() : 0;
   if (strlen(debug_name.get()) > 0) {
-    SNPrintF(filename, "turbo-%s-%i", debug_name.get(), optimization_id);
-  } else if (info->has_shared_info()) {
-    SNPrintF(filename, "turbo-%p-%i",
-             reinterpret_cast<void*>(info->shared_info()->address()),
+    SNPrintF(filename, "%s-%s-%i", file_prefix, debug_name.get(),
              optimization_id);
+  } else if (info->has_shared_info()) {
+    SNPrintF(filename,  "%s-%p-%i", file_prefix,
+            reinterpret_cast<void*>(info->shared_info()->address()),
+            optimization_id);
   } else {
-    SNPrintF(filename, "turbo-none-%i", optimization_id);
+    SNPrintF(filename, "%s-none-%i", file_prefix, optimization_id);
   }
   base::EmbeddedVector<char, 256> source_file(0);
   bool source_available = false;
-  if (FLAG_trace_file_names && info->has_shared_info() &&
+  if (v8_flags.trace_file_names && info->has_shared_info() &&
       info->shared_info()->script().IsScript()) {
     Object source_name = Script::cast(info->shared_info()->script()).name();
     if (source_name.IsString()) {
@@ -649,7 +680,7 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
         PrintIndent();
         os_ << "0 " << uses << " ";
         PrintNode(node);
-        if (FLAG_trace_turbo_types) {
+        if (v8_flags.trace_turbo_types) {
           os_ << " ";
           PrintType(node);
         }
@@ -679,7 +710,7 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
         for (BasicBlock* successor : current->successors()) {
           os_ << " B" << successor->rpo_number();
         }
-        if (FLAG_trace_turbo_types && current->control_input() != nullptr) {
+        if (v8_flags.trace_turbo_types && current->control_input() != nullptr) {
           os_ << " ";
           PrintType(current->control_input());
         }
@@ -780,7 +811,7 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
 
     UsePosition* current_pos = range->first_pos();
     while (current_pos != nullptr) {
-      if (current_pos->RegisterIsBeneficial() || FLAG_trace_all_uses) {
+      if (current_pos->RegisterIsBeneficial() || v8_flags.trace_all_uses) {
         os_ << " " << current_pos->pos().value() << " M";
       }
       current_pos = current_pos->next();

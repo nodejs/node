@@ -29,6 +29,9 @@ class V8_EXPORT_PRIVATE Register final {
   static Register FromParameterIndex(int index);
   int ToParameterIndex() const;
 
+  static Register receiver() { return FromParameterIndex(0); }
+  bool is_receiver() const { return ToParameterIndex() == 0; }
+
   // Returns an invalid register.
   static Register invalid_value() { return Register(); }
 
@@ -132,7 +135,7 @@ class RegisterList {
     DCHECK_LT(new_count, register_count_);
     return RegisterList(first_reg_index_, new_count);
   }
-  const RegisterList PopLeft() {
+  const RegisterList PopLeft() const {
     DCHECK_GE(register_count_, 0);
     return RegisterList(first_reg_index_ + 1, register_count_ - 1);
   }
@@ -158,6 +161,7 @@ class RegisterList {
   friend class InterpreterTester;
   friend class BytecodeUtils;
   friend class BytecodeArrayIterator;
+  friend class CallArguments;
 
   RegisterList(int first_reg_index, int register_count)
       : first_reg_index_(first_reg_index), register_count_(register_count) {}

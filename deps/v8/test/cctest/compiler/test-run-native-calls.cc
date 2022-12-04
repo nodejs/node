@@ -12,11 +12,10 @@
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-linkage.h"
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/graph-and-builders.h"
-#include "test/cctest/compiler/value-helper.h"
+#include "test/common/value-helper.h"
 
 namespace v8 {
 namespace internal {
@@ -252,7 +251,7 @@ Handle<CodeT> CompileGraph(const char* name, CallDescriptor* call_descriptor,
                           AssemblerOptions::Default(isolate), schedule)
                           .ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_opt_code) {
+  if (v8_flags.print_opt_code) {
     StdoutStream os;
     code->Disassemble(name, os, isolate);
   }

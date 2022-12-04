@@ -33,7 +33,7 @@ if (isMainThread) {
     assert.strictEqual(headers[':status'], 200);
   }));
 
-  req.on('data', common.mustCall(process.exit));
+  req.on('data', common.mustCall(() => process.exit()));
   req.on('end', common.mustNotCall());
   req.end();
 }

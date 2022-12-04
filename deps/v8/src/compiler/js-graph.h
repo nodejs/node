@@ -10,7 +10,6 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-graph.h"
-#include "src/compiler/node-properties.h"
 #include "src/execution/isolate.h"
 
 namespace v8 {
@@ -113,7 +112,7 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
 // Cached global node accessor methods.
 #define DECLARE_GETTER(name) Node* name();
   CACHED_GLOBAL_LIST(DECLARE_GETTER)
-#undef DECLARE_FIELD
+#undef DECLARE_GETTER
 
  private:
   Isolate* isolate_;

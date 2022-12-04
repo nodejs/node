@@ -218,7 +218,7 @@ const char *PropNameData::getName(const char *nameGroup, int32_t nameIndex) {
 
 UBool PropNameData::containsName(BytesTrie &trie, const char *name) {
     if(name==NULL) {
-        return FALSE;
+        return false;
     }
     UStringTrieResult result=USTRINGTRIE_NO_VALUE;
     char c;
@@ -229,7 +229,7 @@ UBool PropNameData::containsName(BytesTrie &trie, const char *name) {
             continue;
         }
         if(!USTRINGTRIE_HAS_NEXT(result)) {
-            return FALSE;
+            return false;
         }
         result=trie.next((uint8_t)c);
     }

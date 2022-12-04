@@ -10,7 +10,6 @@
 #if defined(V8_OS_WIN_X64)
 #include "src/codegen/x64/assembler-x64.h"
 #elif defined(V8_OS_WIN_ARM64)
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/arm64/macro-assembler-arm64-inl.h"
 #else
@@ -22,52 +21,22 @@
 // This has to come after windows.h.
 #include <versionhelpers.h>  // For IsWindows8OrGreater().
 
-// Forward declaration to keep this independent of Win8
-NTSYSAPI
-DWORD
-NTAPI
-RtlAddGrowableFunctionTable(
-    _Out_ PVOID* DynamicTable,
-    _In_reads_(MaximumEntryCount) PRUNTIME_FUNCTION FunctionTable,
-    _In_ DWORD EntryCount,
-    _In_ DWORD MaximumEntryCount,
-    _In_ ULONG_PTR RangeBase,
-    _In_ ULONG_PTR RangeEnd
-    );
-
-
-NTSYSAPI
-void
-NTAPI
-RtlGrowFunctionTable(
-    _Inout_ PVOID DynamicTable,
-    _In_ DWORD NewEntryCount
-    );
-
-
-NTSYSAPI
-void
-NTAPI
-RtlDeleteGrowableFunctionTable(
-    _In_ PVOID DynamicTable
-    );
-
 namespace v8 {
 namespace internal {
 namespace win64_unwindinfo {
 
-bool CanEmitUnwindInfoForBuiltins() { return FLAG_win64_unwinding_info; }
+bool CanEmitUnwindInfoForBuiltins() { return v8_flags.win64_unwinding_info; }
 
 bool CanRegisterUnwindInfoForNonABICompliantCodeRange() {
-  return !FLAG_jitless;
+  return !v8_flags.jitless;
 }
 
 bool RegisterUnwindInfoForExceptionHandlingOnly() {
   DCHECK(CanRegisterUnwindInfoForNonABICompliantCodeRange());
 #if defined(V8_OS_WIN_ARM64)
-  return !FLAG_win64_unwinding_info;
+  return !v8_flags.win64_unwinding_info;
 #else
-  return !IsWindows8OrGreater() || !FLAG_win64_unwinding_info;
+  return !IsWindows8OrGreater() || !v8_flags.win64_unwinding_info;
 #endif
 }
 
@@ -317,7 +286,7 @@ struct V8UnwindData {
     // error is acceptable when the unwinding info for the caller frame also
     // depends on fp rather than sp, as is the case for V8 builtins and runtime-
     // generated code.
-    STATIC_ASSERT(kNumberOfUnwindCodeWords >= 1);
+    static_assert(kNumberOfUnwindCodeWords >= 1);
     unwind_codes[0] = Combine8BitUnwindCodes(
         OpSetFp, MakeOpSaveFpLrX(-CommonFrameConstants::kCallerSPOffset),
         OpEnd);
@@ -376,7 +345,7 @@ std::vector<uint8_t> GetUnwindInfoForBuiltinFunction(
 
   if (fp_adjustment.IsDefault()) {
     // One code word is plenty.
-    STATIC_ASSERT(kDefaultNumberOfUnwindCodeWords <
+    static_assert(kDefaultNumberOfUnwindCodeWords <
                   kMaxNumberOfUnwindCodeWords);
     xdata.unwind_info.CodeWords = kDefaultNumberOfUnwindCodeWords;
   } else {

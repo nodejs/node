@@ -34,14 +34,14 @@ namespace internal {
 
 class StatsCollector;
 class PageBackend;
+class GarbageCollector;
 
 class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
  public:
   static constexpr size_t kSmallestSpaceSize = 32;
 
-  ObjectAllocator(RawHeap& heap, PageBackend& page_backend,
-                  StatsCollector& stats_collector,
-                  PreFinalizerHandler& prefinalizer_handler);
+  ObjectAllocator(RawHeap&, PageBackend&, StatsCollector&, PreFinalizerHandler&,
+                  FatalOutOfMemoryHandler&, GarbageCollector&);
 
   inline void* AllocateObject(size_t size, GCInfoIndex gcinfo);
   inline void* AllocateObject(size_t size, AlignVal alignment,
@@ -52,9 +52,6 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
                               GCInfoIndex gcinfo, CustomSpaceIndex space_index);
 
   void ResetLinearAllocationBuffers();
-
-  // Terminate the allocator. Subsequent allocation calls result in a crash.
-  void Terminate();
 
  private:
   bool in_disallow_gc_scope() const;
@@ -71,13 +68,16 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
   void* OutOfLineAllocate(NormalPageSpace&, size_t, AlignVal, GCInfoIndex);
   void* OutOfLineAllocateImpl(NormalPageSpace&, size_t, AlignVal, GCInfoIndex);
 
-  void RefillLinearAllocationBuffer(NormalPageSpace&, size_t);
-  bool RefillLinearAllocationBufferFromFreeList(NormalPageSpace&, size_t);
+  bool TryRefillLinearAllocationBuffer(NormalPageSpace&, size_t);
+  bool TryRefillLinearAllocationBufferFromFreeList(NormalPageSpace&, size_t);
+  bool TryExpandAndRefillLinearAllocationBuffer(NormalPageSpace&);
 
   RawHeap& raw_heap_;
   PageBackend& page_backend_;
   StatsCollector& stats_collector_;
   PreFinalizerHandler& prefinalizer_handler_;
+  FatalOutOfMemoryHandler& oom_handler_;
+  GarbageCollector& garbage_collector_;
 };
 
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
@@ -143,10 +143,10 @@ void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace& space,
   // double-world alignment (8 bytes on 32bit and 16 bytes on 64bit
   // architectures). This is enforced on the public API via static_asserts
   // against alignof(T).
-  STATIC_ASSERT(2 * kAllocationGranularity ==
+  static_assert(2 * kAllocationGranularity ==
                 api_constants::kMaxSupportedAlignment);
-  STATIC_ASSERT(kAllocationGranularity == sizeof(HeapObjectHeader));
-  STATIC_ASSERT(kAllocationGranularity ==
+  static_assert(kAllocationGranularity == sizeof(HeapObjectHeader));
+  static_assert(kAllocationGranularity ==
                 api_constants::kAllocationGranularity);
   DCHECK_EQ(2 * sizeof(HeapObjectHeader), static_cast<size_t>(alignment));
   constexpr size_t kAlignment = 2 * kAllocationGranularity;

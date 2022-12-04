@@ -1,8 +1,16 @@
 # Diagnostics Channel
 
+<!-- YAML
+added: v15.1.0
+changes:
+  - version: v19.2.0
+    pr-url: https://github.com/nodejs/node/pull/45290
+    description: diagnostics_channel is now Stable.
+-->
+
 <!--introduced_in=v15.1.0-->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 <!-- source_link=lib/diagnostics_channel.js -->
 
@@ -54,7 +62,7 @@ diagnostics_channel.subscribe('my-channel', onMessage);
 if (channel.hasSubscribers) {
   // Publish data to the channel
   channel.publish({
-    some: 'data'
+    some: 'data',
   });
 }
 
@@ -79,7 +87,7 @@ diagnostics_channel.subscribe('my-channel', onMessage);
 if (channel.hasSubscribers) {
   // Publish data to the channel
   channel.publish({
-    some: 'data'
+    some: 'data',
   });
 }
 
@@ -165,7 +173,7 @@ will be run synchronously whenever a message is published to the channel. Any
 errors thrown in the message handler will trigger an [`'uncaughtException'`][].
 
 ```mjs
-import diagnostics_channel from 'diagnostics_channel';
+import diagnostics_channel from 'node:diagnostics_channel';
 
 diagnostics_channel.subscribe('my-channel', (message, name) => {
   // Received data
@@ -173,7 +181,7 @@ diagnostics_channel.subscribe('my-channel', (message, name) => {
 ```
 
 ```cjs
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 diagnostics_channel.subscribe('my-channel', (message, name) => {
   // Received data
@@ -196,7 +204,7 @@ Remove a message handler previously registered to this channel with
 [`diagnostics_channel.subscribe(name, onMessage)`][].
 
 ```mjs
-import diagnostics_channel from 'diagnostics_channel';
+import diagnostics_channel from 'node:diagnostics_channel';
 
 function onMessage(message, name) {
   // Received data
@@ -208,7 +216,7 @@ diagnostics_channel.unsubscribe('my-channel', onMessage);
 ```
 
 ```cjs
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 function onMessage(message, name) {
   // Received data
@@ -290,7 +298,7 @@ import diagnostics_channel from 'node:diagnostics_channel';
 const channel = diagnostics_channel.channel('my-channel');
 
 channel.publish({
-  some: 'message'
+  some: 'message',
 });
 ```
 
@@ -300,7 +308,7 @@ const diagnostics_channel = require('node:diagnostics_channel');
 const channel = diagnostics_channel.channel('my-channel');
 
 channel.publish({
-  some: 'message'
+  some: 'message',
 });
 ```
 
@@ -401,6 +409,12 @@ channel.unsubscribe(onMessage);
 
 ### Built-in Channels
 
+> Stability: 1 - Experimental
+
+While the diagnostics\_channel API is now considered stable, the built-in
+channels currently available are not. Each channel must be declared stable
+independently.
+
 #### HTTP
 
 `http.client.request.start`
@@ -459,7 +473,7 @@ Emitted when a new UDP socket is created.
 #### Process
 
 <!-- YAML
-added: REPLACEME
+added: v16.18.0
 -->
 
 `child_process`
@@ -471,7 +485,7 @@ Emitted when a new process is created.
 #### Worker Thread
 
 <!-- YAML
-added: REPLACEME
+added: v16.18.0
 -->
 
 `worker_threads`

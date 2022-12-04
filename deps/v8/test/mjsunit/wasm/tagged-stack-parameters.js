@@ -38,10 +38,10 @@ var instance = (function () {
       ...wasmI32Const(7), ...wasmI32Const(9), ...wasmI32Const(11),
       ...wasmI32Const(13),
       // Two structs (i.e. actual tagged pointers).
-      ...wasmI32Const(20), kGCPrefix, kExprRttCanon, struct_index,
-      kGCPrefix, kExprStructNewWithRtt, struct_index,
-      ...wasmI32Const(22), kGCPrefix, kExprRttCanon, struct_index,
-      kGCPrefix, kExprStructNewWithRtt, struct_index,
+      ...wasmI32Const(20),
+      kGCPrefix, kExprStructNew, struct_index,
+      ...wasmI32Const(22),
+      kGCPrefix, kExprStructNew, struct_index,
       kExprCallFunction, many_params.index,
     ])
     .exportFunc();

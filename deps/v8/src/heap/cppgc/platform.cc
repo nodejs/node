@@ -7,14 +7,42 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
 #include "src/base/sanitizer/asan.h"
+#include "src/base/sanitizer/lsan-page-allocator.h"
 #include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/platform.h"
 
+#if defined(CPPGC_CAGED_HEAP)
+#include "src/heap/cppgc/caged-heap.h"
+#endif  // defined(CPPGC_CAGED_HEAP)
+
 namespace cppgc {
 namespace internal {
+
+namespace {
+
+PageAllocator* g_page_allocator = nullptr;
+
+PageAllocator& CreateAllocatorIfNeeded(PageAllocator* page_allocator) {
+  if (!page_allocator) {
+    static v8::base::LeakyObject<v8::base::PageAllocator>
+        default_page_allocator;
+    page_allocator = default_page_allocator.get();
+  }
+#if defined(LEAK_SANITIZER)
+  // If lsan is enabled, override the given allocator with the custom lsan
+  // allocator.
+  static v8::base::LeakyObject<v8::base::LsanPageAllocator> lsan_page_allocator(
+      page_allocator);
+  page_allocator = lsan_page_allocator.get();
+#endif  // LEAK_SANITIZER
+  return *page_allocator;
+}
+
+}  // namespace
 
 void Fatal(const std::string& reason, const SourceLocation& loc) {
 #ifdef DEBUG
@@ -42,11 +70,17 @@ void FatalOutOfMemoryHandler::SetCustomHandler(Callback* callback) {
   custom_handler_ = callback;
 }
 
-}  // namespace internal
+FatalOutOfMemoryHandler& GetGlobalOOMHandler() {
+  static FatalOutOfMemoryHandler oom_handler;
+  return oom_handler;
+}
 
-namespace {
-PageAllocator* g_page_allocator = nullptr;
-}  // namespace
+PageAllocator& GetGlobalPageAllocator() {
+  CHECK_NOT_NULL(g_page_allocator);
+  return *g_page_allocator;
+}
+
+}  // namespace internal
 
 TracingController* Platform::GetTracingController() {
   static v8::base::LeakyObject<TracingController> tracing_controller;
@@ -65,11 +99,16 @@ void InitializeProcess(PageAllocator* page_allocator) {
   CHECK_EQ(0u, internal::kAllocationGranularity % poisoning_granularity);
 #endif
 
-  CHECK(!g_page_allocator);
-  internal::GlobalGCInfoTable::Initialize(page_allocator);
-  g_page_allocator = page_allocator;
+  auto& allocator = internal::CreateAllocatorIfNeeded(page_allocator);
+
+  CHECK(!internal::g_page_allocator);
+  internal::GlobalGCInfoTable::Initialize(allocator);
+#if defined(CPPGC_CAGED_HEAP)
+  internal::CagedHeap::InitializeIfNeeded(allocator);
+#endif  // defined(CPPGC_CAGED_HEAP)
+  internal::g_page_allocator = &allocator;
 }
 
-void ShutdownProcess() { g_page_allocator = nullptr; }
+void ShutdownProcess() { internal::g_page_allocator = nullptr; }
 
 }  // namespace cppgc

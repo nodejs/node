@@ -188,6 +188,23 @@ assert.throws(() => new Blob({}), {
 }
 
 {
+  const descriptors = Object.getOwnPropertyDescriptors(Blob.prototype);
+  const enumerable = [
+    'size',
+    'type',
+    'slice',
+    'stream',
+    'text',
+    'arrayBuffer',
+  ];
+
+  for (const prop of enumerable) {
+    assert.notStrictEqual(descriptors[prop], undefined);
+    assert.strictEqual(descriptors[prop].enumerable, true);
+  }
+}
+
+{
   const b = new Blob(['test', 42]);
   b.text().then(common.mustCall((text) => {
     assert.strictEqual(text, 'test42');
@@ -270,3 +287,32 @@ assert.throws(() => new Blob({}), {
   assert.strictEqual(blob.size, 28);
   assert.strictEqual(blob.type, '');
 })().then(common.mustCall());
+
+{
+  // Testing the defaults
+  [undefined, null, Object.create(null), { type: undefined }, {
+    get type() {}, // eslint-disable-line getter-return
+  }].forEach((options) => {
+    assert.strictEqual(
+      new Blob([], options).type,
+      new Blob([]).type,
+    );
+  });
+
+  Reflect.defineProperty(Object.prototype, 'type', {
+    __proto__: null,
+    configurable: true,
+    get: common.mustCall(() => 3, 7),
+  });
+
+  [{}, [], () => {}, Number, new Number(), new String(), new Boolean()].forEach(
+    (options) => {
+      assert.strictEqual(new Blob([], options).type, '3');
+    },
+  );
+  [0, '', true, Symbol(), 0n].forEach((options) => {
+    assert.throws(() => new Blob([], options), { code: 'ERR_INVALID_ARG_TYPE' });
+  });
+
+  delete Object.prototype.type;
+}

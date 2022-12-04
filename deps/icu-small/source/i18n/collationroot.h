@@ -15,6 +15,7 @@
 #define __COLLATIONROOT_H__
 
 #include "unicode/utypes.h"
+#include "unicode/udata.h"
 
 #if !UCONFIG_NO_COLLATION
 
@@ -34,9 +35,11 @@ public:
     static const CollationTailoring *getRoot(UErrorCode &errorCode);
     static const CollationData *getData(UErrorCode &errorCode);
     static const CollationSettings *getSettings(UErrorCode &errorCode);
+    static void U_EXPORT2 forceLoadFromFile(const char* ucadataPath, UErrorCode &errorCode);
 
 private:
-    static void U_CALLCONV load(UErrorCode &errorCode);
+    static void U_CALLCONV load(const char* ucadataPath, UErrorCode &errorCode);
+    static UDataMemory* loadFromFile(const char* ucadataPath, UErrorCode &errorCode);
 };
 
 U_NAMESPACE_END

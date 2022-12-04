@@ -5,9 +5,17 @@
 // This file was generated at 2014-10-08 15:25:47.940335
 
 #include "src/strings/unicode.h"
+
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <vector>
+
 #include "src/strings/unicode-inl.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/third_party/utf8-decoder/generalized-utf8-decoder.h"
+#endif
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"
@@ -230,6 +238,52 @@ bool Utf8::ValidateEncoding(const byte* bytes, size_t length) {
   }
   return state == State::kAccept;
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+bool Wtf8::ValidateEncoding(const byte* bytes, size_t length) {
+  using State = GeneralizedUtf8DfaDecoder::State;
+  auto state = State::kAccept;
+  uint32_t current = 0;
+  uint32_t previous = 0;
+  for (size_t i = 0; i < length; i++) {
+    GeneralizedUtf8DfaDecoder::Decode(bytes[i], &state, &current);
+    if (state == State::kReject) return false;
+    if (state == State::kAccept) {
+      if (Utf16::IsTrailSurrogate(current) &&
+          Utf16::IsLeadSurrogate(previous)) {
+        return false;
+      }
+      previous = current;
+      current = 0;
+    }
+  }
+  return state == State::kAccept;
+}
+
+// Precondition: valid WTF-8.
+void Wtf8::ScanForSurrogates(const v8::base::Vector<const byte>& wtf8,
+                             std::vector<size_t>* surrogate_offsets) {
+  // A surrogate codepoint is encoded in a three-byte sequence:
+  //
+  //   0xED [0xA0,0xBF] [0x80,0xBF]
+  //
+  // If the first byte is 0xED, you already have a 50% chance of the value being
+  // a surrogate; you just have to check the second byte.  (There are
+  // three-byte non-surrogates starting with 0xED whose second byte is in
+  // [0x80,0x9F].)  Could speed this up with SWAR; most likely case is that no
+  // byte in the array is 0xED.
+  const byte kWtf8SurrogateFirstByte = 0xED;
+  const byte kWtf8SurrogateSecondByteHighBit = 0x20;
+
+  for (size_t i = 0; i < wtf8.size(); i++) {
+    if (wtf8[i] == kWtf8SurrogateFirstByte &&
+        (wtf8[i + 1] & kWtf8SurrogateSecondByteHighBit)) {
+      // Record the byte offset of the encoded surrogate.
+      surrogate_offsets->push_back(i);
+    }
+  }
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Uppercase:            point.category == 'Lu'
 // TODO(jshin): Check if it's ok to exclude Other_Uppercase characters.

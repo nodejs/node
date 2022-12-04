@@ -51,13 +51,13 @@ class MetricRecorderTest : public testing::TestWithHeap {
   }
 
   void StartGC() {
-    stats->NotifyMarkingStarted(
-        GarbageCollector::Config::CollectionType::kMajor,
-        GarbageCollector::Config::IsForcedGC::kNotForced);
+    stats->NotifyMarkingStarted(CollectionType::kMajor,
+                                GCConfig::MarkingType::kIncremental,
+                                GCConfig::IsForcedGC::kNotForced);
   }
   void EndGC(size_t marked_bytes) {
     stats->NotifyMarkingCompleted(marked_bytes);
-    stats->NotifySweepingCompleted();
+    stats->NotifySweepingCompleted(GCConfig::SweepingType::kIncremental);
   }
 
   StatsCollector* stats;
@@ -99,7 +99,7 @@ TEST_F(MetricRecorderTest, IncrementalScopesReportedImmediately) {
   EndGC(0);
 }
 
-TEST_F(MetricRecorderTest, NonIncrementlaScopesNotReportedImmediately) {
+TEST_F(MetricRecorderTest, NonIncrementalScopesNotReportedImmediately) {
   MetricRecorderImpl::GCCycle_callcount = 0u;
   MetricRecorderImpl::MainThreadIncrementalMark_callcount = 0u;
   MetricRecorderImpl::MainThreadIncrementalSweep_callcount = 0u;
@@ -306,7 +306,7 @@ TEST_F(MetricRecorderTest, ObjectSizeMetricsWithAllocations) {
   stats->NotifyAllocation(150);
   stats->NotifyAllocatedMemory(1000);
   stats->NotifyFreedMemory(400);
-  stats->NotifySweepingCompleted();
+  stats->NotifySweepingCompleted(GCConfig::SweepingType::kAtomic);
   EXPECT_EQ(1300u, MetricRecorderImpl::GCCycle_event.objects.before_bytes);
   EXPECT_EQ(800, MetricRecorderImpl::GCCycle_event.objects.after_bytes);
   EXPECT_EQ(500u, MetricRecorderImpl::GCCycle_event.objects.freed_bytes);

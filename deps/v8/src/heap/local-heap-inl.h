@@ -19,7 +19,7 @@ namespace internal {
 AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
                                         AllocationOrigin origin,
                                         AllocationAlignment alignment) {
-  DCHECK(!FLAG_enable_third_party_heap);
+  DCHECK(!v8_flags.enable_third_party_heap);
 #if DEBUG
   VerifyCurrent();
   DCHECK(AllowHandleAllocation::IsAllowed());
@@ -63,26 +63,25 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
   }
 
   DCHECK_EQ(type, AllocationType::kSharedOld);
-  return shared_old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
-                                                   origin);
+  if (large_object) {
+    return heap()->shared_lo_allocation_space()->AllocateRawBackground(
+        this, size_in_bytes);
+  } else {
+    return shared_old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
+                                                     origin);
+  }
 }
 
 Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,
                                      AllocationOrigin origin,
                                      AllocationAlignment alignment) {
-  DCHECK(!FLAG_enable_third_party_heap);
+  object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
+  DCHECK(!v8_flags.enable_third_party_heap);
   AllocationResult result = AllocateRaw(object_size, type, origin, alignment);
   HeapObject object;
   if (result.To(&object)) return object.address();
   return PerformCollectionAndAllocateAgain(object_size, type, origin,
                                            alignment);
-}
-
-void LocalHeap::CreateFillerObjectAt(Address addr, int size,
-                                     ClearRecordedSlots clear_slots_mode) {
-  DCHECK_EQ(clear_slots_mode, ClearRecordedSlots::kNo);
-  heap()->CreateFillerObjectAtBackground(
-      addr, size, ClearFreedMemoryMode::kDontClearFreedMemory);
 }
 
 }  // namespace internal

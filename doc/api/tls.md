@@ -1173,6 +1173,9 @@ certificate.
 
 <!-- YAML
 changes:
+  - version: v19.1.0
+    pr-url: https://github.com/nodejs/node/pull/44935
+    description: Add "ca" property.
   - version:
       - v17.2.0
       - v16.14.0
@@ -1186,6 +1189,7 @@ changes:
 A certificate object has properties corresponding to the fields of the
 certificate.
 
+* `ca` {boolean} `true` if a Certificate Authority (CA), `false` otherwise.
 * `raw` {Buffer} The DER encoded X.509 certificate data.
 * `subject` {Object} The certificate subject, described in terms of
   Country (`C`), StateOrProvince (`ST`), Locality (`L`), Organization (`O`),
@@ -2012,7 +2016,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44031
     description: If `ALPNProtocols` is set, incoming connections that send an
                  ALPN extension with no supported protocols are terminated with
@@ -2122,7 +2126,7 @@ const options = {
   requestCert: true,
 
   // This is necessary only if the client uses a self-signed certificate.
-  ca: [ fs.readFileSync('client-cert.pem') ]
+  ca: [ fs.readFileSync('client-cert.pem') ],
 };
 
 const server = tls.createServer(options, (socket) => {

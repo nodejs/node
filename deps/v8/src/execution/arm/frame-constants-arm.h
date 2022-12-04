@@ -55,20 +55,29 @@ class EntryFrameConstants : public AllStatic {
       (kNumCalleeSaved - 1) * kSystemPointerSize;
 };
 
-class WasmCompileLazyFrameConstants : public TypedFrameConstants {
+class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
  public:
-  static constexpr int kNumberOfSavedGpParamRegs = 4;
+  // Number of gp parameters, without the instance.
+  static constexpr int kNumberOfSavedGpParamRegs = 3;
   static constexpr int kNumberOfSavedFpParamRegs = 8;
 
-  // FP-relative.
-  // The instance is pushed as part of the saved registers. Being in {r3}, it is
-  // at position 1 in the list [r0, r2, r3, r6] (kGpParamRegisters sorted by
-  // number and indexed zero-based from the back).
-  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  static constexpr int kFixedFrameSizeFromFp =
-      TypedFrameConstants::kFixedFrameSizeFromFp +
-      kNumberOfSavedGpParamRegs * kPointerSize +
-      kNumberOfSavedFpParamRegs * kDoubleSize;
+  // On arm, spilled registers are implicitly sorted backwards by number.
+  // We spill:
+  //   r3: param0 = instance
+  //   r0, r2, r6: param1, param2, param3
+  //   lr (== r14): internal usage of the caller
+  // in the following FP-relative order: [lr, r6, r3, r2, r0].
+  static constexpr int kInstanceSpillOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+
+  static constexpr int kParameterSpillsOffset[] = {
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(4), TYPED_FRAME_PUSHED_VALUE_OFFSET(3),
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(1)};
+
+  // SP-relative.
+  static constexpr int kWasmInstanceOffset = 2 * kSystemPointerSize;
+  static constexpr int kDeclaredFunctionIndexOffset = 1 * kSystemPointerSize;
+  static constexpr int kNativeModuleOffset = 0;
 };
 
 // Frame constructed by the {WasmDebugBreak} builtin.

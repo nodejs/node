@@ -33,7 +33,7 @@ class TimeDelta;
 // the mutex and suspend the execution of the calling thread. When the condition
 // variable is notified, the thread is awakened, and the mutex is reacquired.
 
-class V8_BASE_EXPORT ConditionVariable final {
+class V8_BASE_EXPORT ConditionVariable {
  public:
   ConditionVariable();
   ConditionVariable(const ConditionVariable&) = delete;

@@ -120,7 +120,7 @@ public:
     /** Returns the Unicode version when or after the UNICODE_VERSION_LINE has been read. */
     const UVersionInfo &getUnicodeVersion() const { return ucdVersion; }
 
-    /** Returns TRUE if the current line has property values. */
+    /** Returns true if the current line has property values. */
     UBool lineHasPropertyValues() const {
         return DEFAULTS_LINE<=lineType && lineType<=UNASSIGNED_LINE;
     }

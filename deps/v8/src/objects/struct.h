@@ -24,7 +24,7 @@ class StructBodyDescriptor;
 class Struct : public TorqueGeneratedStruct<Struct, HeapObject> {
  public:
   void BriefPrintDetails(std::ostream& os);
-  STATIC_ASSERT(kHeaderSize == HeapObject::kHeaderSize);
+  static_assert(kHeaderSize == HeapObject::kHeaderSize);
 
   TQ_OBJECT_CONSTRUCTORS(Struct)
 };

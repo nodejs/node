@@ -65,6 +65,12 @@ Address SimulatorBase::RedirectExternalReference(Address external_function,
   return redirection->address_of_instruction();
 }
 
+// static
+Address SimulatorBase::UnwrapRedirection(Address redirection_trampoline) {
+  return reinterpret_cast<Address>(
+      Redirection::UnwrapRedirection(redirection_trampoline));
+}
+
 Redirection::Redirection(Address external_function,
                          ExternalReference::Type type)
     : external_function_(external_function), type_(type), next_(nullptr) {

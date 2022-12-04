@@ -3,9 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/compiler/node.h"
+
 #include "src/compiler/operator.h"
 #include "test/unittests/test-utils.h"
-#include "testing/gmock-support.h"
+#include "testing/gmock/include/gmock/gmock.h"
 
 using testing::Contains;
 using testing::ElementsAre;

@@ -10,8 +10,8 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/value-helper.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-interpreter.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -157,7 +157,7 @@ static T factorial(T v) {
 TEST(Run_Wasm_returnCallFactorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
 
   WasmRunner<uint32_t, int32_t> r(TestExecutionTier::kInterpreter);
 
@@ -218,9 +218,6 @@ TEST(Run_Wasm_returnCallIndirectFactorial) {
   WasmRunner<uint32_t, uint32_t> r(TestExecutionTier::kInterpreter);
 
   WasmFunctionCompiler& fact_aux_fn = r.NewFunction(sigs.i_ii(), "fact_aux");
-  fact_aux_fn.SetSigIndex(0);
-
-  byte sig_index = r.builder().AddSignature(sigs.i_ii());
 
   // Function table.
   uint16_t indirect_function_table[] = {
@@ -229,15 +226,16 @@ TEST(Run_Wasm_returnCallIndirectFactorial) {
   r.builder().AddIndirectFunctionTable(indirect_function_table,
                                        arraysize(indirect_function_table));
 
-  BUILD(r, WASM_RETURN_CALL_INDIRECT(sig_index, WASM_LOCAL_GET(0), WASM_I32V(1),
-                                     WASM_ZERO));
+  BUILD(r, WASM_RETURN_CALL_INDIRECT(fact_aux_fn.sig_index(), WASM_LOCAL_GET(0),
+                                     WASM_I32V(1), WASM_ZERO));
 
   BUILD(
       fact_aux_fn,
       WASM_IF_ELSE_I(
           WASM_I32_EQ(WASM_I32V(1), WASM_LOCAL_GET(0)), WASM_LOCAL_GET(1),
           WASM_RETURN_CALL_INDIRECT(
-              sig_index, WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_I32V(1)),
+              fact_aux_fn.sig_index(),
+              WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_I32V(1)),
               WASM_I32_MUL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), WASM_ZERO)));
 
   uint32_t test_values[] = {1, 2, 5, 10, 20};

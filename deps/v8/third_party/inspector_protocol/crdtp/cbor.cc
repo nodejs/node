@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -46,7 +46,13 @@ constexpr uint8_t EncodeInitialByte(MajorType type, uint8_t additional_info) {
 // byte string carries its size (byte length).
 // https://tools.ietf.org/html/rfc7049#section-2.4.4.1
 static constexpr uint8_t kInitialByteForEnvelope =
-    EncodeInitialByte(MajorType::TAG, 24);
+    EncodeInitialByte(MajorType::TAG, kAdditionalInformation1Byte);
+
+// The standalone byte for "envelope" tag, to follow kInitialByteForEnvelope
+// in the correct implementation, as it is above in-tag value max (which is
+// also, confusingly, 24). See EnvelopeHeader::Parse() for more.
+static constexpr uint8_t kCBOREnvelopeTag = 24;
+
 // The initial byte for a byte string with at most 2^32 bytes
 // of payload. This is used for envelope encoding, even if
 // the byte string is shorter.
@@ -190,30 +196,25 @@ void WriteTokenStart(MajorType type,
 // Detecting CBOR content
 // =============================================================================
 
-uint8_t InitialByteForEnvelope() {
-  return kInitialByteForEnvelope;
-}
-
-uint8_t InitialByteFor32BitLengthByteString() {
-  return kInitialByteFor32BitLengthByteString;
-}
-
 bool IsCBORMessage(span<uint8_t> msg) {
-  return msg.size() >= 6 && msg[0] == InitialByteForEnvelope() &&
-         msg[1] == InitialByteFor32BitLengthByteString();
+  return msg.size() >= 4 && msg[0] == kInitialByteForEnvelope &&
+         (msg[1] == kInitialByteFor32BitLengthByteString ||
+          (msg[1] == kCBOREnvelopeTag &&
+           msg[2] == kInitialByteFor32BitLengthByteString));
 }
 
 Status CheckCBORMessage(span<uint8_t> msg) {
   if (msg.empty())
-    return Status(Error::CBOR_NO_INPUT, 0);
-  if (msg[0] != InitialByteForEnvelope())
+    return Status(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 0);
+  if (msg[0] != kInitialByteForEnvelope)
     return Status(Error::CBOR_INVALID_START_BYTE, 0);
-  if (msg.size() < 6 || msg[1] != InitialByteFor32BitLengthByteString())
-    return Status(Error::CBOR_INVALID_ENVELOPE, 1);
-  if (msg[2] == 0 && msg[3] == 0 && msg[4] == 0 && msg[5] == 0)
-    return Status(Error::CBOR_INVALID_ENVELOPE, 1);
-  if (msg.size() < 7 || msg[6] != EncodeIndefiniteLengthMapStart())
-    return Status(Error::CBOR_MAP_START_EXPECTED, 6);
+  StatusOr<EnvelopeHeader> status_or_header = EnvelopeHeader::Parse(msg);
+  if (!status_or_header.ok())
+    return status_or_header.status();
+  const size_t pos = (*status_or_header).header_size();
+  assert(pos < msg.size());  // EnvelopeParser would not allow empty envelope.
+  if (msg[pos] != EncodeIndefiniteLengthMapStart())
+    return Status(Error::CBOR_MAP_START_EXPECTED, pos);
   return Status();
 }
 
@@ -324,11 +325,6 @@ void EncodeBinary(span<uint8_t> in, std::vector<uint8_t>* out) {
 // (kInitialByteForDouble) plus the 64 bits of payload for its value.
 constexpr size_t kEncodedDoubleSize = 1 + sizeof(uint64_t);
 
-// An envelope is encoded with a specific initial byte
-// (kInitialByteForEnvelope), plus the start byte for a BYTE_STRING with a 32
-// bit wide length, plus a 32 bit length for that string.
-constexpr size_t kEncodedEnvelopeHeaderSize = 1 + 1 + sizeof(uint32_t);
-
 void EncodeDouble(double value, std::vector<uint8_t>* out) {
   // The additional_info=27 indicates 64 bits for the double follow.
   // See RFC 7049 Section 2.3, Table 1.
@@ -348,6 +344,7 @@ void EncodeDouble(double value, std::vector<uint8_t>* out) {
 void EnvelopeEncoder::EncodeStart(std::vector<uint8_t>* out) {
   assert(byte_size_pos_ == 0);
   out->push_back(kInitialByteForEnvelope);
+  out->push_back(kCBOREnvelopeTag);
   out->push_back(kInitialByteFor32BitLengthByteString);
   byte_size_pos_ = out->size();
   out->resize(out->size() + sizeof(uint32_t));
@@ -367,6 +364,54 @@ bool EnvelopeEncoder::EncodeStop(std::vector<uint8_t>* out) {
     (*out)[byte_size_pos_++] = 0xff & (byte_size >> (shift_bytes * 8));
   }
   return true;
+}
+
+// static
+StatusOr<EnvelopeHeader> EnvelopeHeader::Parse(span<uint8_t> in) {
+  auto header_or_status = ParseFromFragment(in);
+  if (!header_or_status.ok())
+    return header_or_status;
+  if ((*header_or_status).outer_size() > in.size()) {
+    return StatusOr<EnvelopeHeader>(
+        Status(Error::CBOR_ENVELOPE_CONTENTS_LENGTH_MISMATCH, in.size()));
+  }
+  return header_or_status;
+}
+
+// static
+StatusOr<EnvelopeHeader> EnvelopeHeader::ParseFromFragment(span<uint8_t> in) {
+  // Our copy of StatusOr<> requires explicit constructor.
+  using Ret = StatusOr<EnvelopeHeader>;
+  constexpr size_t kMinEnvelopeSize = 2 + /* for envelope tag */
+                                      1 + /* for byte string */
+                                      1;  /* for contents, a map or an array */
+  if (in.size() < kMinEnvelopeSize)
+    return Ret(Status(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, in.size()));
+  assert(in[0] == kInitialByteForEnvelope);  // Caller should assure that.
+  size_t offset = 1;
+  // TODO(caseq): require this! We're currently accepting both a legacy,
+  // non spec-compliant envelope tag (that this implementation still currently
+  // produces), as well as a well-formed two-byte tag that a correct
+  // implementation should emit.
+  if (in[offset] == kCBOREnvelopeTag)
+    ++offset;
+  MajorType type;
+  uint64_t size;
+  size_t string_header_size =
+      internals::ReadTokenStart(in.subspan(offset), &type, &size);
+  if (!string_header_size)
+    return Ret(Status(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, in.size()));
+  if (type != MajorType::BYTE_STRING)
+    return Ret(Status(Error::CBOR_INVALID_ENVELOPE, offset));
+  // Do not allow empty envelopes -- at least an empty map/array should fit.
+  if (!size) {
+    return Ret(Status(Error::CBOR_MAP_OR_ARRAY_EXPECTED_IN_ENVELOPE,
+                      offset + string_header_size));
+  }
+  if (size > std::numeric_limits<uint32_t>::max())
+    return Ret(Status(Error::CBOR_INVALID_ENVELOPE, offset));
+  offset += string_header_size;
+  return Ret(EnvelopeHeader(offset, static_cast<size_t>(size)));
 }
 
 // =============================================================================
@@ -490,8 +535,9 @@ std::unique_ptr<ParserHandler> NewCBOREncoder(std::vector<uint8_t>* out,
 // cbor::CBORTokenizer - for parsing individual CBOR items
 // =============================================================================
 
-CBORTokenizer::CBORTokenizer(span<uint8_t> bytes) : bytes_(bytes) {
-  ReadNextToken(/*enter_envelope=*/false);
+CBORTokenizer::CBORTokenizer(span<uint8_t> bytes)
+    : bytes_(bytes), status_(Error::OK, 0) {
+  ReadNextToken();
 }
 
 CBORTokenizer::~CBORTokenizer() {}
@@ -504,12 +550,12 @@ void CBORTokenizer::Next() {
   if (token_tag_ == CBORTokenTag::ERROR_VALUE ||
       token_tag_ == CBORTokenTag::DONE)
     return;
-  ReadNextToken(/*enter_envelope=*/false);
+  ReadNextToken();
 }
 
 void CBORTokenizer::EnterEnvelope() {
-  assert(token_tag_ == CBORTokenTag::ENVELOPE);
-  ReadNextToken(/*enter_envelope=*/true);
+  token_byte_length_ = GetEnvelopeHeader().header_size();
+  ReadNextToken();
 }
 
 Status CBORTokenizer::Status() const {
@@ -562,15 +608,18 @@ span<uint8_t> CBORTokenizer::GetBinary() const {
 }
 
 span<uint8_t> CBORTokenizer::GetEnvelope() const {
-  assert(token_tag_ == CBORTokenTag::ENVELOPE);
-  auto length = static_cast<size_t>(token_start_internal_value_);
-  return bytes_.subspan(status_.pos, length + kEncodedEnvelopeHeaderSize);
+  return bytes_.subspan(status_.pos, GetEnvelopeHeader().outer_size());
 }
 
 span<uint8_t> CBORTokenizer::GetEnvelopeContents() const {
+  const EnvelopeHeader& header = GetEnvelopeHeader();
+  return bytes_.subspan(status_.pos + header.header_size(),
+                        header.content_size());
+}
+
+const EnvelopeHeader& CBORTokenizer::GetEnvelopeHeader() const {
   assert(token_tag_ == CBORTokenTag::ENVELOPE);
-  auto length = static_cast<size_t>(token_start_internal_value_);
-  return bytes_.subspan(status_.pos + kEncodedEnvelopeHeaderSize, length);
+  return envelope_header_;
 }
 
 // All error checking happens in ::ReadNextToken, so that the accessors
@@ -595,19 +644,15 @@ span<uint8_t> CBORTokenizer::GetEnvelopeContents() const {
 //   and then checking whether the sum went past it.
 //
 // See also
-// https://chromium.googlesource.com/chromium/src/+/master/docs/security/integer-semantics.md
+// https://chromium.googlesource.com/chromium/src/+/main/docs/security/integer-semantics.md
 static const uint64_t kMaxValidLength =
     std::min<uint64_t>(std::numeric_limits<uint64_t>::max() >> 2,
                        std::numeric_limits<size_t>::max());
 
-void CBORTokenizer::ReadNextToken(bool enter_envelope) {
-  if (enter_envelope) {
-    status_.pos += kEncodedEnvelopeHeaderSize;
-  } else {
-    status_.pos =
-        status_.pos == Status::npos() ? 0 : status_.pos + token_byte_length_;
-  }
+void CBORTokenizer::ReadNextToken() {
+  status_.pos += token_byte_length_;
   status_.error = Error::OK;
+  envelope_header_ = EnvelopeHeader();
   if (status_.pos >= bytes_.size()) {
     token_tag_ = CBORTokenTag::DONE;
     return;
@@ -660,29 +705,16 @@ void CBORTokenizer::ReadNextToken(bool enter_envelope) {
       return;
     }
     case kInitialByteForEnvelope: {  // ENVELOPE
-      if (kEncodedEnvelopeHeaderSize > remaining_bytes) {
-        SetError(Error::CBOR_INVALID_ENVELOPE);
+      StatusOr<EnvelopeHeader> status_or_header =
+          EnvelopeHeader::Parse(bytes_.subspan(status_.pos));
+      if (!status_or_header.ok()) {
+        status_.pos += status_or_header.status().pos;
+        SetError(status_or_header.status().error);
         return;
       }
-      // The envelope must be a byte string with 32 bit length.
-      if (bytes_[status_.pos + 1] != kInitialByteFor32BitLengthByteString) {
-        SetError(Error::CBOR_INVALID_ENVELOPE);
-        return;
-      }
-      // Read the length of the byte string.
-      token_start_internal_value_ = ReadBytesMostSignificantByteFirst<uint32_t>(
-          bytes_.subspan(status_.pos + 2));
-      if (token_start_internal_value_ > kMaxValidLength) {
-        SetError(Error::CBOR_INVALID_ENVELOPE);
-        return;
-      }
-      uint64_t token_byte_length =
-          token_start_internal_value_ + kEncodedEnvelopeHeaderSize;
-      if (token_byte_length > remaining_bytes) {
-        SetError(Error::CBOR_INVALID_ENVELOPE);
-        return;
-      }
-      SetToken(CBORTokenTag::ENVELOPE, static_cast<size_t>(token_byte_length));
+      assert((*status_or_header).outer_size() <= remaining_bytes);
+      envelope_header_ = *status_or_header;
+      SetToken(CBORTokenTag::ENVELOPE, envelope_header_.outer_size());
       return;
     }
     default: {
@@ -795,9 +827,6 @@ bool ParseArray(int32_t stack_depth,
 bool ParseValue(int32_t stack_depth,
                 CBORTokenizer* tokenizer,
                 ParserHandler* out);
-bool ParseEnvelope(int32_t stack_depth,
-                   CBORTokenizer* tokenizer,
-                   ParserHandler* out);
 
 void ParseUTF16String(CBORTokenizer* tokenizer, ParserHandler* out) {
   std::vector<uint16_t> value;
@@ -823,9 +852,8 @@ bool ParseEnvelope(int32_t stack_depth,
   // expect to see after we're done parsing the envelope contents.
   // This way we can compare and produce an error if the contents
   // didn't fit exactly into the envelope length.
-  size_t pos_past_envelope = tokenizer->Status().pos +
-                             kEncodedEnvelopeHeaderSize +
-                             tokenizer->GetEnvelopeContents().size();
+  size_t pos_past_envelope =
+      tokenizer->Status().pos + tokenizer->GetEnvelopeHeader().outer_size();
   tokenizer->EnterEnvelope();
   switch (tokenizer->TokenTag()) {
     case CBORTokenTag::ERROR_VALUE:
@@ -983,7 +1011,7 @@ bool ParseMap(int32_t stack_depth,
 
 void ParseCBOR(span<uint8_t> bytes, ParserHandler* out) {
   if (bytes.empty()) {
-    out->HandleError(Status{Error::CBOR_NO_INPUT, 0});
+    out->HandleError(Status{Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 0});
     return;
   }
   CBORTokenizer tokenizer(bytes);
@@ -1009,33 +1037,37 @@ void ParseCBOR(span<uint8_t> bytes, ParserHandler* out) {
 Status AppendString8EntryToCBORMap(span<uint8_t> string8_key,
                                    span<uint8_t> string8_value,
                                    std::vector<uint8_t>* cbor) {
-  // Careful below: Don't compare (*cbor)[idx] with a uint8_t, since
-  // it could be a char (signed!). Instead, use bytes.
-  span<uint8_t> bytes(reinterpret_cast<const uint8_t*>(cbor->data()),
-                      cbor->size());
+  span<uint8_t> bytes(cbor->data(), cbor->size());
   CBORTokenizer tokenizer(bytes);
   if (tokenizer.TokenTag() == CBORTokenTag::ERROR_VALUE)
     return tokenizer.Status();
   if (tokenizer.TokenTag() != CBORTokenTag::ENVELOPE)
     return Status(Error::CBOR_INVALID_ENVELOPE, 0);
-  size_t envelope_size = tokenizer.GetEnvelopeContents().size();
+  EnvelopeHeader env_header = tokenizer.GetEnvelopeHeader();
   size_t old_size = cbor->size();
-  if (old_size != envelope_size + kEncodedEnvelopeHeaderSize)
+  if (old_size != env_header.outer_size())
     return Status(Error::CBOR_INVALID_ENVELOPE, 0);
-  if (envelope_size == 0 ||
-      (tokenizer.GetEnvelopeContents()[0] != EncodeIndefiniteLengthMapStart()))
-    return Status(Error::CBOR_MAP_START_EXPECTED, kEncodedEnvelopeHeaderSize);
+  assert(env_header.content_size() > 0);
+  if (tokenizer.GetEnvelopeContents()[0] != EncodeIndefiniteLengthMapStart())
+    return Status(Error::CBOR_MAP_START_EXPECTED, env_header.header_size());
   if (bytes[bytes.size() - 1] != EncodeStop())
     return Status(Error::CBOR_MAP_STOP_EXPECTED, cbor->size() - 1);
+  // We generally accept envelope headers with size specified in all possible
+  // widths, but when it comes to modifying, we only support the fixed 4 byte
+  // widths that we produce.
+  const size_t byte_string_pos = bytes[1] == kCBOREnvelopeTag ? 2 : 1;
+  if (bytes[byte_string_pos] != kInitialByteFor32BitLengthByteString)
+    return Status(Error::CBOR_INVALID_ENVELOPE, byte_string_pos);
   cbor->pop_back();
   EncodeString8(string8_key, cbor);
   EncodeString8(string8_value, cbor);
   cbor->push_back(EncodeStop());
-  size_t new_envelope_size = envelope_size + (cbor->size() - old_size);
+  size_t new_envelope_size =
+      env_header.content_size() + (cbor->size() - old_size);
   if (new_envelope_size > std::numeric_limits<uint32_t>::max())
     return Status(Error::CBOR_ENVELOPE_SIZE_LIMIT_EXCEEDED, 0);
-  size_t size_pos = cbor->size() - new_envelope_size - sizeof(uint32_t);
-  uint8_t* out = reinterpret_cast<uint8_t*>(&cbor->at(size_pos));
+  std::vector<uint8_t>::iterator out =
+      cbor->begin() + env_header.header_size() - sizeof(int32_t);
   *(out++) = (new_envelope_size >> 24) & 0xff;
   *(out++) = (new_envelope_size >> 16) & 0xff;
   *(out++) = (new_envelope_size >> 8) & 0xff;

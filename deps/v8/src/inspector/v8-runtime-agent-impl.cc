@@ -70,9 +70,9 @@ namespace {
 template <typename ProtocolCallback>
 class EvaluateCallbackWrapper : public EvaluateCallback {
  public:
-  static std::unique_ptr<EvaluateCallback> wrap(
+  static std::shared_ptr<EvaluateCallback> wrap(
       std::unique_ptr<ProtocolCallback> callback) {
-    return std::unique_ptr<EvaluateCallback>(
+    return std::shared_ptr<EvaluateCallback>(
         new EvaluateCallbackWrapper(std::move(callback)));
   }
   void sendSuccess(std::unique_ptr<protocol::Runtime::RemoteObject> result,
@@ -97,13 +97,14 @@ bool wrapEvaluateResultAsync(InjectedScript* injectedScript,
                              v8::MaybeLocal<v8::Value> maybeResultValue,
                              const v8::TryCatch& tryCatch,
                              const String16& objectGroup, WrapMode wrapMode,
+                             bool throwOnSideEffect,
                              ProtocolCallback* callback) {
   std::unique_ptr<RemoteObject> result;
   Maybe<protocol::Runtime::ExceptionDetails> exceptionDetails;
 
   Response response = injectedScript->wrapEvaluateResult(
-      maybeResultValue, tryCatch, objectGroup, wrapMode, &result,
-      &exceptionDetails);
+      maybeResultValue, tryCatch, objectGroup, wrapMode, throwOnSideEffect,
+      &result, &exceptionDetails);
   if (response.IsSuccess()) {
     callback->sendSuccess(std::move(result), std::move(exceptionDetails));
     return true;
@@ -117,7 +118,7 @@ void innerCallFunctionOn(
     v8::Local<v8::Value> recv, const String16& expression,
     Maybe<protocol::Array<protocol::Runtime::CallArgument>> optionalArguments,
     bool silent, WrapMode wrapMode, bool userGesture, bool awaitPromise,
-    const String16& objectGroup, bool throw_on_side_effect,
+    const String16& objectGroup, bool throwOnSideEffect,
     std::unique_ptr<V8RuntimeAgentImpl::CallFunctionOnCallback> callback) {
   V8InspectorImpl* inspector = session->inspector();
 
@@ -151,7 +152,7 @@ void innerCallFunctionOn(
   if (inspector
           ->compileScript(scope.context(), "(" + expression + ")", String16())
           .ToLocal(&functionScript)) {
-    v8::MicrotasksScope microtasksScope(inspector->isolate(),
+    v8::MicrotasksScope microtasksScope(scope.context(),
                                         v8::MicrotasksScope::kRunMicrotasks);
     maybeFunctionValue = functionScript->Run(scope.context());
   }
@@ -166,7 +167,7 @@ void innerCallFunctionOn(
   if (scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeFunctionValue,
                             scope.tryCatch(), objectGroup, WrapMode::kNoPreview,
-                            callback.get());
+                            throwOnSideEffect, callback.get());
     return;
   }
 
@@ -180,11 +181,11 @@ void innerCallFunctionOn(
 
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
-    v8::MicrotasksScope microtasksScope(inspector->isolate(),
+    v8::MicrotasksScope microtasksScope(scope.context(),
                                         v8::MicrotasksScope::kRunMicrotasks);
     maybeResultValue = v8::debug::CallFunctionOn(
         scope.context(), functionValue.As<v8::Function>(), recv, argc,
-        argv.get(), throw_on_side_effect);
+        argv.get(), throwOnSideEffect);
   }
   // Re-initialize after running client's code, as it could have destroyed
   // context or session.
@@ -197,12 +198,13 @@ void innerCallFunctionOn(
   if (!awaitPromise || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
                             scope.tryCatch(), objectGroup, wrapMode,
-                            callback.get());
+                            throwOnSideEffect, callback.get());
     return;
   }
 
   scope.injectedScript()->addPromiseCallback(
       session, maybeResultValue, objectGroup, wrapMode, false /* replMode */,
+      throwOnSideEffect,
       EvaluateCallbackWrapper<V8RuntimeAgentImpl::CallFunctionOnCallback>::wrap(
           std::move(callback)));
 }
@@ -297,7 +299,7 @@ void V8RuntimeAgentImpl::evaluate(
         return;
       }
     }
-    v8::MicrotasksScope microtasksScope(m_inspector->isolate(),
+    v8::MicrotasksScope microtasksScope(scope.context(),
                                         v8::MicrotasksScope::kRunMicrotasks);
     v8::debug::EvaluateGlobalMode mode =
         v8::debug::EvaluateGlobalMode::kDefault;
@@ -331,12 +333,13 @@ void V8RuntimeAgentImpl::evaluate(
   if (!await || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
                             scope.tryCatch(), objectGroup.fromMaybe(""),
-                            wrap_mode, callback.get());
+                            wrap_mode, throwOnSideEffect.fromMaybe(false),
+                            callback.get());
     return;
   }
   scope.injectedScript()->addPromiseCallback(
       m_session, maybeResultValue, objectGroup.fromMaybe(""), wrap_mode,
-      replMode,
+      replMode, throwOnSideEffect.fromMaybe(false),
       EvaluateCallbackWrapper<EvaluateCallback>::wrap(std::move(callback)));
 }
 
@@ -360,7 +363,7 @@ void V8RuntimeAgentImpl::awaitPromise(
   if (returnByValue.fromMaybe(false)) mode = WrapMode::kForceValue;
   scope.injectedScript()->addPromiseCallback(
       m_session, scope.object(), scope.objectGroupName(), mode,
-      false /* replMode */,
+      false /* replMode */, false /* throwOnSideEffect */,
       EvaluateCallbackWrapper<AwaitPromiseCallback>::wrap(std::move(callback)));
 }
 
@@ -444,7 +447,7 @@ Response V8RuntimeAgentImpl::getProperties(
   if (!response.IsSuccess()) return response;
 
   scope.ignoreExceptionsAndMuteConsole();
-  v8::MicrotasksScope microtasks_scope(m_inspector->isolate(),
+  v8::MicrotasksScope microtasks_scope(scope.context(),
                                        v8::MicrotasksScope::kRunMicrotasks);
   if (!scope.object()->IsObject())
     return Response::ServerError("Value with given id is not an object");
@@ -488,6 +491,11 @@ Response V8RuntimeAgentImpl::releaseObjectGroup(const String16& objectGroup) {
 }
 
 Response V8RuntimeAgentImpl::runIfWaitingForDebugger() {
+  if (m_runIfWaitingForDebuggerCalled) return Response::Success();
+  m_runIfWaitingForDebuggerCalled = true;
+  // The client implementation is resposible for checking if the session is
+  // actually waiting for debugger. m_runIfWaitingForDebuggerCalled only makes
+  // sure that the client implementation is invoked once per agent instance.
   m_inspector->client()->runIfWaitingForDebugger(m_session->contextGroupId());
   return Response::Success();
 }
@@ -612,7 +620,7 @@ void V8RuntimeAgentImpl::runScript(
 
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
-    v8::MicrotasksScope microtasksScope(m_inspector->isolate(),
+    v8::MicrotasksScope microtasksScope(scope.context(),
                                         v8::MicrotasksScope::kRunMicrotasks);
     maybeResultValue = script->Run(scope.context());
   }
@@ -631,12 +639,12 @@ void V8RuntimeAgentImpl::runScript(
   if (!awaitPromise.fromMaybe(false) || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
                             scope.tryCatch(), objectGroup.fromMaybe(""), mode,
-                            callback.get());
+                            false /* throwOnSideEffect */, callback.get());
     return;
   }
   scope.injectedScript()->addPromiseCallback(
       m_session, maybeResultValue.ToLocalChecked(), objectGroup.fromMaybe(""),
-      mode, false /* replMode */,
+      mode, false /* replMode */, false /* throwOnSideEffect */,
       EvaluateCallbackWrapper<RunScriptCallback>::wrap(std::move(callback)));
 }
 
@@ -669,12 +677,12 @@ Response V8RuntimeAgentImpl::globalLexicalScopeNames(
   response = scope.initialize();
   if (!response.IsSuccess()) return response;
 
-  v8::PersistentValueVector<v8::String> names(m_inspector->isolate());
+  std::vector<v8::Global<v8::String>> names;
   v8::debug::GlobalLexicalScopeNames(scope.context(), &names);
   *outNames = std::make_unique<protocol::Array<String16>>();
-  for (size_t i = 0; i < names.Size(); ++i) {
-    (*outNames)->emplace_back(
-        toProtocolString(m_inspector->isolate(), names.Get(i)));
+  for (size_t i = 0; i < names.size(); ++i) {
+    (*outNames)->emplace_back(toProtocolString(
+        m_inspector->isolate(), names[i].Get(m_inspector->isolate())));
   }
   return Response::Success();
 }
@@ -791,7 +799,7 @@ void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
   v8::Local<v8::Object> global = localContext->Global();
   v8::Local<v8::String> v8Name = toV8String(m_inspector->isolate(), name);
   v8::Local<v8::Value> functionValue;
-  v8::MicrotasksScope microtasks(m_inspector->isolate(),
+  v8::MicrotasksScope microtasks(localContext,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
   if (v8::Function::New(localContext, bindingCallback, v8Name)
           .ToLocal(&functionValue)) {

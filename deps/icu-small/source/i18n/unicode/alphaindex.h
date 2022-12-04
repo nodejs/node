@@ -649,7 +649,7 @@ private:
       * No Copy constructor.
       * @internal (private)
       */
-     AlphabeticIndex(const AlphabeticIndex &other);
+     AlphabeticIndex(const AlphabeticIndex &other) = delete;
 
      /**
       *   No assignment.

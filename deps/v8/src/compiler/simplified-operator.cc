@@ -10,11 +10,14 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
-#include "src/handles/handles-inl.h"
+#include "src/handles/handles-inl.h"  // for operator<<
 #include "src/objects/feedback-cell.h"
 #include "src/objects/map.h"
 #include "src/objects/name.h"
-#include "src/objects/objects-inl.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/compiler/wasm-compiler-definitions.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -74,7 +77,11 @@ size_t hash_value(FieldAccess const& access) {
 }
 
 std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
-  os << "[" << access.base_is_tagged << ", " << access.offset << ", ";
+  os << "[";
+  if (access.creator_mnemonic != nullptr) {
+    os << access.creator_mnemonic << ", ";
+  }
+  os << access.base_is_tagged << ", " << access.offset << ", ";
 #ifdef OBJECT_PRINT
   Handle<Name> name;
   if (access.name.ToHandle(&name)) {
@@ -226,20 +233,6 @@ CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kChangeFloat64ToTagged ||
          op->opcode() == IrOpcode::kCheckedInt32Mul);
   return OpParameter<CheckForMinusZeroMode>(op);
-}
-
-size_t hash_value(CheckForMinusZeroMode mode) {
-  return static_cast<size_t>(mode);
-}
-
-std::ostream& operator<<(std::ostream& os, CheckForMinusZeroMode mode) {
-  switch (mode) {
-    case CheckForMinusZeroMode::kCheckForMinusZero:
-      return os << "check-for-minus-zero";
-    case CheckForMinusZeroMode::kDontCheckForMinusZero:
-      return os << "dont-check-for-minus-zero";
-  }
-  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, CheckMapsFlags flags) {
@@ -498,6 +491,8 @@ std::ostream& operator<<(std::ostream& os, BigIntOperationHint hint) {
   switch (hint) {
     case BigIntOperationHint::kBigInt:
       return os << "BigInt";
+    case BigIntOperationHint::kBigInt64:
+      return os << "BigInt64";
   }
   UNREACHABLE();
 }
@@ -545,6 +540,16 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
          op->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd ||
          op->opcode() == IrOpcode::kSpeculativeSafeIntegerSubtract);
   return OpParameter<NumberOperationHint>(op);
+}
+
+BigIntOperationHint BigIntOperationHintOf(const Operator* op) {
+  // TODO(panq): Expand the DCHECK when more BigInt operations are supported.
+  DCHECK(op->opcode() == IrOpcode::kSpeculativeBigIntAdd ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntSubtract ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntMultiply ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntDivide ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntModulus);
+  return OpParameter<BigIntOperationHint>(op);
 }
 
 bool operator==(NumberOperationParameters const& lhs,
@@ -795,16 +800,23 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(StringLessThan, Operator::kNoProperties, 2, 0)               \
   V(StringLessThanOrEqual, Operator::kNoProperties, 2, 0)        \
   V(ToBoolean, Operator::kNoProperties, 1, 0)                    \
-  V(NewConsString, Operator::kNoProperties, 3, 0)
+  V(NewConsString, Operator::kNoProperties, 3, 0)                \
+  V(Unsigned32Divide, Operator::kNoProperties, 2, 0)
 
 #define EFFECT_DEPENDENT_OP_LIST(V)                       \
   V(BigIntAdd, Operator::kNoProperties, 2, 1)             \
   V(BigIntSubtract, Operator::kNoProperties, 2, 1)        \
+  V(BigIntMultiply, Operator::kNoProperties, 2, 1)        \
+  V(BigIntDivide, Operator::kNoProperties, 2, 1)          \
+  V(BigIntModulus, Operator::kNoProperties, 2, 1)         \
+  V(BigIntBitwiseAnd, Operator::kNoProperties, 2, 1)      \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)      \
   V(StringCodePointAt, Operator::kNoProperties, 2, 1)     \
   V(StringFromCodePointAt, Operator::kNoProperties, 2, 1) \
   V(StringSubstring, Operator::kNoProperties, 3, 1)       \
-  V(DateNow, Operator::kNoProperties, 0, 1)
+  V(DateNow, Operator::kNoProperties, 0, 1)               \
+  V(DoubleArrayMax, Operator::kNoProperties, 1, 1)        \
+  V(DoubleArrayMin, Operator::kNoProperties, 1, 1)
 
 #define SPECULATIVE_NUMBER_BINOP_LIST(V)      \
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
@@ -826,23 +838,30 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckedInt32Mod, 2, 1)                \
   V(CheckedInt32Sub, 2, 1)                \
   V(CheckedUint32Div, 2, 1)               \
-  V(CheckedUint32Mod, 2, 1)
+  V(CheckedUint32Mod, 2, 1)               \
+  V(CheckedInt64Add, 2, 1)                \
+  V(CheckedInt64Sub, 2, 1)                \
+  V(CheckedInt64Mul, 2, 1)                \
+  V(CheckedInt64Div, 2, 1)                \
+  V(CheckedInt64Mod, 2, 1)
 
-#define CHECKED_WITH_FEEDBACK_OP_LIST(V)    \
-  V(CheckNumber, 1, 1)                      \
-  V(CheckSmi, 1, 1)                         \
-  V(CheckString, 1, 1)                      \
-  V(CheckBigInt, 1, 1)                      \
-  V(CheckedInt32ToTaggedSigned, 1, 1)       \
-  V(CheckedInt64ToInt32, 1, 1)              \
-  V(CheckedInt64ToTaggedSigned, 1, 1)       \
-  V(CheckedTaggedToArrayIndex, 1, 1)        \
-  V(CheckedTaggedSignedToInt32, 1, 1)       \
-  V(CheckedTaggedToTaggedPointer, 1, 1)     \
-  V(CheckedTaggedToTaggedSigned, 1, 1)      \
-  V(CheckedUint32ToInt32, 1, 1)             \
-  V(CheckedUint32ToTaggedSigned, 1, 1)      \
-  V(CheckedUint64ToInt32, 1, 1)             \
+#define CHECKED_WITH_FEEDBACK_OP_LIST(V) \
+  V(CheckNumber, 1, 1)                   \
+  V(CheckSmi, 1, 1)                      \
+  V(CheckString, 1, 1)                   \
+  V(CheckBigInt, 1, 1)                   \
+  V(CheckedBigIntToBigInt64, 1, 1)       \
+  V(CheckedInt32ToTaggedSigned, 1, 1)    \
+  V(CheckedInt64ToInt32, 1, 1)           \
+  V(CheckedInt64ToTaggedSigned, 1, 1)    \
+  V(CheckedTaggedToArrayIndex, 1, 1)     \
+  V(CheckedTaggedSignedToInt32, 1, 1)    \
+  V(CheckedTaggedToTaggedPointer, 1, 1)  \
+  V(CheckedTaggedToTaggedSigned, 1, 1)   \
+  V(CheckedUint32ToInt32, 1, 1)          \
+  V(CheckedUint32ToTaggedSigned, 1, 1)   \
+  V(CheckedUint64ToInt32, 1, 1)          \
+  V(CheckedUint64ToInt64, 1, 1)          \
   V(CheckedUint64ToTaggedSigned, 1, 1)
 
 #define CHECKED_BOUNDS_OP_LIST(V) \
@@ -945,6 +964,13 @@ struct SimplifiedOperatorGlobalCache final {
   };
   FindOrderedHashMapEntryForInt32KeyOperator
       kFindOrderedHashMapEntryForInt32Key;
+
+  struct FindOrderedHashSetEntryOperator final : public Operator {
+    FindOrderedHashSetEntryOperator()
+        : Operator(IrOpcode::kFindOrderedHashSetEntry, Operator::kEliminatable,
+                   "FindOrderedHashSetEntry", 2, 1, 1, 1, 1, 0) {}
+  };
+  FindOrderedHashSetEntryOperator kFindOrderedHashSetEntry;
 
   template <CheckForMinusZeroMode kMode>
   struct ChangeFloat64ToTaggedOperator final
@@ -1141,6 +1167,40 @@ struct SimplifiedOperatorGlobalCache final {
   };
   LoadStackArgumentOperator kLoadStackArgument;
 
+#if V8_ENABLE_WEBASSEMBLY
+  // Note: The following two operators have a control input solely to find the
+  // typing context from the control path in wasm-gc-operator-reducer.
+  struct IsNullOperator final : public Operator {
+    IsNullOperator()
+        : Operator(IrOpcode::kIsNull, Operator::kPure, "IsNull", 1, 0, 1, 1, 0,
+                   0) {}
+  };
+  IsNullOperator kIsNull;
+
+  struct IsNotNullOperator final : public Operator {
+    IsNotNullOperator()
+        : Operator(IrOpcode::kIsNotNull, Operator::kPure, "IsNotNull", 1, 0, 1,
+                   1, 0, 0) {}
+  };
+  IsNotNullOperator kIsNotNull;
+
+  struct NullOperator final : public Operator {
+    NullOperator()
+        : Operator(IrOpcode::kNull, Operator::kPure, "Null", 0, 0, 0, 1, 0, 0) {
+    }
+  };
+  NullOperator kNull;
+
+  struct AssertNotNullOperator final : public Operator {
+    AssertNotNullOperator()
+        : Operator(
+              IrOpcode::kAssertNotNull,
+              Operator::kNoWrite | Operator::kNoThrow | Operator::kIdempotent,
+              "AssertNotNull", 1, 1, 1, 1, 1, 1) {}
+  };
+  AssertNotNullOperator kAssertNotNull;
+#endif
+
 #define SPECULATIVE_NUMBER_BINOP(Name)                                      \
   template <NumberOperationHint kHint>                                      \
   struct Name##Operator final : public Operator1<NumberOperationHint> {     \
@@ -1192,10 +1252,19 @@ SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
 PURE_OP_LIST(GET_FROM_CACHE)
 EFFECT_DEPENDENT_OP_LIST(GET_FROM_CACHE)
 CHECKED_OP_LIST(GET_FROM_CACHE)
-GET_FROM_CACHE(FindOrderedHashMapEntry)
 GET_FROM_CACHE(FindOrderedHashMapEntryForInt32Key)
 GET_FROM_CACHE(LoadFieldByIndex)
 #undef GET_FROM_CACHE
+
+const Operator* SimplifiedOperatorBuilder::FindOrderedCollectionEntry(
+    CollectionKind collection_kind) {
+  switch (collection_kind) {
+    case CollectionKind::kMap:
+      return &cache_.kFindOrderedHashMapEntry;
+    case CollectionKind::kSet:
+      return &cache_.kFindOrderedHashSetEntry;
+  }
+}
 
 #define GET_FROM_CACHE_WITH_FEEDBACK(Name, value_input_count,               \
                                      value_output_count)                    \
@@ -1302,6 +1371,51 @@ const Operator* SimplifiedOperatorBuilder::VerifyType() {
                                Operator::kNoThrow | Operator::kNoDeopt,
                                "VerifyType", 1, 0, 0, 1, 0, 0);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+const Operator* SimplifiedOperatorBuilder::WasmTypeCheck(
+    WasmTypeCheckConfig config) {
+  return zone_->New<Operator1<WasmTypeCheckConfig>>(
+      IrOpcode::kWasmTypeCheck, Operator::kEliminatable | Operator::kIdempotent,
+      "WasmTypeCheck", 2, 1, 1, 1, 1, 1, config);
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmTypeCast(
+    WasmTypeCheckConfig config) {
+  return zone_->New<Operator1<WasmTypeCheckConfig>>(
+      IrOpcode::kWasmTypeCast,
+      Operator::kNoWrite | Operator::kNoThrow | Operator::kIdempotent,
+      "WasmTypeCast", 2, 1, 1, 1, 1, 1, config);
+}
+
+const Operator* SimplifiedOperatorBuilder::RttCanon(int index) {
+  return zone()->New<Operator1<int>>(IrOpcode::kRttCanon, Operator::kPure,
+                                     "RttCanon", 0, 0, 0, 1, 0, 0, index);
+}
+
+const Operator* SimplifiedOperatorBuilder::Null() { return &cache_.kNull; }
+
+const Operator* SimplifiedOperatorBuilder::AssertNotNull() {
+  return &cache_.kAssertNotNull;
+}
+
+const Operator* SimplifiedOperatorBuilder::IsNull() { return &cache_.kIsNull; }
+const Operator* SimplifiedOperatorBuilder::IsNotNull() {
+  return &cache_.kIsNotNull;
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmExternInternalize() {
+  return zone()->New<Operator>(IrOpcode::kWasmExternInternalize,
+                               Operator::kEliminatable, "WasmExternInternalize",
+                               1, 1, 1, 1, 1, 1);
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmExternExternalize() {
+  return zone()->New<Operator>(IrOpcode::kWasmExternExternalize,
+                               Operator::kEliminatable, "WasmExternExternalize",
+                               1, 1, 1, 1, 1, 1);
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 const Operator* SimplifiedOperatorBuilder::CheckIf(
     DeoptimizeReason reason, const FeedbackSource& feedback) {
@@ -1517,6 +1631,38 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntSubtract(
       IrOpcode::kSpeculativeBigIntSubtract,
       Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntSubtract", 2,
       1, 1, 1, 1, 0, hint);
+}
+
+const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntMultiply(
+    BigIntOperationHint hint) {
+  return zone()->New<Operator1<BigIntOperationHint>>(
+      IrOpcode::kSpeculativeBigIntMultiply,
+      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntMultiply", 2,
+      1, 1, 1, 1, 0, hint);
+}
+
+const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntDivide(
+    BigIntOperationHint hint) {
+  return zone()->New<Operator1<BigIntOperationHint>>(
+      IrOpcode::kSpeculativeBigIntDivide,
+      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntDivide", 2, 1,
+      1, 1, 1, 0, hint);
+}
+
+const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntModulus(
+    BigIntOperationHint hint) {
+  return zone()->New<Operator1<BigIntOperationHint>>(
+      IrOpcode::kSpeculativeBigIntModulus,
+      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntModulus", 2,
+      1, 1, 1, 1, 0, hint);
+}
+
+const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntBitwiseAnd(
+    BigIntOperationHint hint) {
+  return zone()->New<Operator1<BigIntOperationHint>>(
+      IrOpcode::kSpeculativeBigIntBitwiseAnd,
+      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntBitwiseAnd",
+      2, 1, 1, 1, 1, 0, hint);
 }
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntNegate(
@@ -1932,12 +2078,6 @@ const Operator* SimplifiedOperatorBuilder::FastApiCall(
       IrOpcode::kFastApiCall, Operator::kNoThrow, "FastApiCall",
       value_input_count, 1, 1, 1, 1, 0,
       FastApiCallParameters(c_functions, feedback, descriptor));
-}
-
-int FastApiCallNode::FastCallExtraInputCount() const {
-  const CFunctionInfo* signature = Parameters().c_functions()[0].signature;
-  CHECK_NOT_NULL(signature);
-  return kEffectAndControlInputCount + (signature->HasOptions() ? 1 : 0);
 }
 
 int FastApiCallNode::FastCallArgumentCount() const {

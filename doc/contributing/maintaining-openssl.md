@@ -7,9 +7,11 @@ currently need to generate four PRs as follows:
 
 * a PR for `main` which is generated following the instructions
   below for OpenSSL 3.x.x.
+* a PR for 18.x following the instructions in the v18.x-staging version
+  of this guide.
 * a PR for 16.x following the instructions in the v16.x-staging version
   of this guide.
-* a PR for 14.x following the instructions in the v14.x-staging version
+* a PR for 14.x following the instructions in the [v14.x-staging version][]
   of this guide.
 
 ## Use of the quictls/openssl fork
@@ -152,3 +154,5 @@ regenerated and committed by:
 ```
 
 Finally, build Node.js and run the tests.
+
+[v14.x-staging version]: https://github.com/nodejs/node/blob/v14.x-staging/doc/guides/maintaining-openssl.md

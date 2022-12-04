@@ -15,8 +15,8 @@ jobs:
       - name: Compute number of commits in the PR
         id: nb-of-commits
         run: |
-          echo "::set-output name=plusOne::$((${{ github.event.pull_request.commits }} + 1))"
-          echo "::set-output name=minusOne::$((${{ github.event.pull_request.commits }} - 1))"
+          echo "plusOne=$((${{ github.event.pull_request.commits }} + 1))" >> $GITHUB_OUTPUT
+          echo "minusOne=$((${{ github.event.pull_request.commits }} - 1))" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v3
         with:
           fetch-depth: ${{ steps.nb-of-commits.outputs.plusOne }}

@@ -12,7 +12,9 @@
 #include "node_v8_platform-inl.h"
 #include "node_wasm_web_api.h"
 #include "uv.h"
-
+#ifdef NODE_ENABLE_VTUNE_PROFILING
+#include "../deps/v8/src/third_party/vtune/v8-vtune.h"
+#endif
 #if HAVE_INSPECTOR
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
@@ -226,6 +228,10 @@ void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
   }
   params->embedder_wrapper_object_index = BaseObject::InternalFields::kSlot;
   params->embedder_wrapper_type_index = std::numeric_limits<int>::max();
+
+#ifdef NODE_ENABLE_VTUNE_PROFILING
+  params->code_event_handler = vTune::GetVtuneCodeEventHandler();
+#endif
 }
 
 void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
@@ -370,7 +376,6 @@ Environment* CreateEnvironment(
   Environment* env = new Environment(
       isolate_data, context, args, exec_args, nullptr, flags, thread_id);
 #if HAVE_INSPECTOR
-  // TODO(joyeecheung): handle the exit code returned by InitializeInspector().
   if (env->should_create_inspector()) {
     if (inspector_parent_handle) {
       env->InitializeInspector(
@@ -774,8 +779,13 @@ void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code) {
   env->set_can_call_into_js(false);
   env->stop_sub_worker_contexts();
   env->isolate()->DumpAndResetStats();
-  DisposePlatform();
+  // When the process exits, the tasks in the thread pool may also need to
+  // access the data of V8Platform, such as trace agent, or a field
+  // added in the future. So make sure the thread pool exits first.
+  // And make sure V8Platform don not call into Libuv threadpool, see Dispose
+  // in node_v8_platform-inl.h
   uv_library_shutdown();
+  DisposePlatform();
   Exit(exit_code);
 }
 

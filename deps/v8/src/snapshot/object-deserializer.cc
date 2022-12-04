@@ -4,14 +4,11 @@
 
 #include "src/snapshot/object-deserializer.h"
 
-#include "src/codegen/assembler-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/objects/allocation-site-inl.h"
-#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects.h"
-#include "src/objects/slots.h"
 #include "src/snapshot/code-serializer.h"
 
 namespace v8 {
@@ -54,16 +51,6 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize() {
 }
 
 void ObjectDeserializer::CommitPostProcessedObjects() {
-  for (Handle<JSArrayBuffer> buffer : new_off_heap_array_buffers()) {
-    uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
-    auto bs = backing_store(store_index);
-    SharedFlag shared =
-        bs && bs->is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared;
-    // TODO(v8:11111): Support RAB / GSAB.
-    CHECK(!bs || !bs->is_resizable());
-    buffer->Setup(shared, ResizableFlag::kNotResizable, bs);
-  }
-
   for (Handle<Script> script : new_scripts()) {
     // Assign a new script id to avoid collision.
     script->set_id(isolate()->GetNextScriptId());
@@ -131,7 +118,6 @@ MaybeHandle<HeapObject> OffThreadObjectDeserializer::Deserialize(
   }
 
   Rehash();
-  CHECK(new_off_heap_array_buffers().empty());
 
   // TODO(leszeks): Figure out a better way of dealing with scripts.
   CHECK_EQ(new_scripts().size(), 1);

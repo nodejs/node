@@ -25,7 +25,6 @@ const fs = require("fs"),
     RuntimeInfo = require("./shared/runtime-info");
 const { Legacy: { naming } } = require("@eslint/eslintrc");
 const { findFlatConfigFile } = require("./eslint/flat-eslint");
-const { gitignoreToMinimatch } = require("@humanwhocodes/gitignore-to-minimatch");
 const { ModuleImporter } = require("@humanwhocodes/module-importer");
 
 const debug = require("debug")("eslint:cli");
@@ -38,6 +37,7 @@ const debug = require("debug")("eslint:cli");
 /** @typedef {import("./eslint/eslint").LintMessage} LintMessage */
 /** @typedef {import("./eslint/eslint").LintResult} LintResult */
 /** @typedef {import("./options").ParsedCLIOptions} ParsedCLIOptions */
+/** @typedef {import("./shared/types").ResultsMeta} ResultsMeta */
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -143,12 +143,6 @@ async function translateOptions({
             overrideConfig[0].plugins = plugins;
         }
 
-        if (ignorePattern) {
-            overrideConfig.push({
-                ignores: ignorePattern.map(gitignoreToMinimatch)
-            });
-        }
-
     } else {
         overrideConfigFile = config;
 
@@ -182,17 +176,19 @@ async function translateOptions({
         fix: (fix || fixDryRun) && (quiet ? quietFixPredicate : true),
         fixTypes: fixType,
         ignore,
-        ignorePath,
         overrideConfig,
         overrideConfigFile,
         reportUnusedDisableDirectives: reportUnusedDisableDirectives ? "error" : void 0
     };
 
-    if (configType !== "flat") {
+    if (configType === "flat") {
+        options.ignorePatterns = ignorePattern;
+    } else {
         options.resolvePluginsRelativeTo = resolvePluginsRelativeTo;
         options.rulePaths = rulesdir;
         options.useEslintrc = eslintrc;
         options.extensions = ext;
+        options.ignorePath = ignorePath;
     }
 
     return options;
@@ -201,7 +197,7 @@ async function translateOptions({
 /**
  * Count error messages.
  * @param {LintResult[]} results The lint results.
- * @returns {{errorCount:number;warningCount:number}} The number of error messages.
+ * @returns {{errorCount:number;fatalErrorCount:number,warningCount:number}} The number of error messages.
  */
 function countErrors(results) {
     let errorCount = 0;
@@ -239,10 +235,11 @@ async function isDirectory(filePath) {
  * @param {LintResult[]} results The results to print.
  * @param {string} format The name of the formatter to use or the path to the formatter.
  * @param {string} outputFile The path for the output file.
+ * @param {ResultsMeta} resultsMeta Warning count and max threshold.
  * @returns {Promise<boolean>} True if the printing succeeds, false if not.
  * @private
  */
-async function printResults(engine, results, format, outputFile) {
+async function printResults(engine, results, format, outputFile, resultsMeta) {
     let formatter;
 
     try {
@@ -252,7 +249,7 @@ async function printResults(engine, results, format, outputFile) {
         return false;
     }
 
-    const output = await formatter.format(results);
+    const output = await formatter.format(results, resultsMeta);
 
     if (output) {
         if (outputFile) {
@@ -276,6 +273,31 @@ async function printResults(engine, results, format, outputFile) {
     }
 
     return true;
+}
+
+/**
+ * Returns whether flat config should be used.
+ * @param {boolean} [allowFlatConfig] Whether or not to allow flat config.
+ * @returns {Promise<boolean>} Where flat config should be used.
+ */
+async function shouldUseFlatConfig(allowFlatConfig) {
+    if (!allowFlatConfig) {
+        return false;
+    }
+
+    switch (process.env.ESLINT_USE_FLAT_CONFIG) {
+        case "true":
+            return true;
+        case "false":
+            return false;
+        default:
+
+            /*
+             * If neither explicitly enabled nor disabled, then use the presence
+             * of a flat config file to determine enablement.
+             */
+            return !!(await findFlatConfigFile(process.cwd()));
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -307,7 +329,7 @@ const cli = {
          * switch to flat config we can remove this logic.
          */
 
-        const usingFlatConfig = allowFlatConfig && !!(await findFlatConfigFile(process.cwd()));
+        const usingFlatConfig = await shouldUseFlatConfig(allowFlatConfig);
 
         debug("Using flat config?", usingFlatConfig);
 
@@ -407,17 +429,24 @@ const cli = {
             resultsToPrint = ActiveESLint.getErrorResults(resultsToPrint);
         }
 
-        if (await printResults(engine, resultsToPrint, options.format, options.outputFile)) {
+        const resultCounts = countErrors(results);
+        const tooManyWarnings = options.maxWarnings >= 0 && resultCounts.warningCount > options.maxWarnings;
+        const resultsMeta = tooManyWarnings
+            ? {
+                maxWarningsExceeded: {
+                    maxWarnings: options.maxWarnings,
+                    foundWarnings: resultCounts.warningCount
+                }
+            }
+            : {};
+
+        if (await printResults(engine, resultsToPrint, options.format, options.outputFile, resultsMeta)) {
 
             // Errors and warnings from the original unfiltered results should determine the exit code
-            const { errorCount, fatalErrorCount, warningCount } = countErrors(results);
-
-            const tooManyWarnings =
-                options.maxWarnings >= 0 && warningCount > options.maxWarnings;
             const shouldExitForFatalErrors =
-                options.exitOnFatalError && fatalErrorCount > 0;
+                options.exitOnFatalError && resultCounts.fatalErrorCount > 0;
 
-            if (!errorCount && tooManyWarnings) {
+            if (!resultCounts.errorCount && tooManyWarnings) {
                 log.error(
                     "ESLint found too many warnings (maximum: %s).",
                     options.maxWarnings
@@ -428,7 +457,7 @@ const cli = {
                 return 2;
             }
 
-            return (errorCount || tooManyWarnings) ? 1 : 0;
+            return (resultCounts.errorCount || tooManyWarnings) ? 1 : 0;
         }
 
         return 2;

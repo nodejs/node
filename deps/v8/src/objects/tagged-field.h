@@ -6,19 +6,19 @@
 #define V8_OBJECTS_TAGGED_FIELD_H_
 
 #include "src/common/globals.h"
-
+#include "src/common/ptr-compr.h"
 #include "src/objects/objects.h"
 #include "src/objects/tagged-value.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // This helper static class represents a tagged field of type T at offset
 // kFieldOffset inside some host HeapObject.
 // For full-pointer mode this type adds no overhead but when pointer
 // compression is enabled such class allows us to use proper decompression
 // function depending on the field type.
-template <typename T, int kFieldOffset = 0>
+template <typename T, int kFieldOffset = 0,
+          typename CompressionScheme = V8HeapCompressionScheme>
 class TaggedField : public AllStatic {
  public:
   static_assert(std::is_base_of<Object, T>::value ||
@@ -91,7 +91,6 @@ class TaggedField : public AllStatic {
   static inline Tagged_t full_to_tagged(Address value);
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_OBJECTS_TAGGED_FIELD_H_

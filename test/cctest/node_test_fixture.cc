@@ -19,11 +19,16 @@ void NodeTestEnvironment::SetUp() {
   NodeZeroIsolateTestFixture::platform.reset(
       new node::NodePlatform(kV8ThreadPoolSize, tracing_controller));
   v8::V8::InitializePlatform(NodeZeroIsolateTestFixture::platform.get());
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   ASSERT_TRUE(v8::V8::InitializeSandbox());
 #endif
   cppgc::InitializeProcess(
       NodeZeroIsolateTestFixture::platform->GetPageAllocator());
+
+  // Before initializing V8, disable the --freeze-flags-after-init flag, so
+  // individual tests can set their own flags.
+  v8::V8::SetFlagsFromString("--no-freeze-flags-after-init");
+
   v8::V8::Initialize();
 }
 

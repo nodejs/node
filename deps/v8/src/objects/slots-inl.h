@@ -14,6 +14,7 @@
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
+#include "src/sandbox/external-pointer-inl.h"
 #include "src/utils/memcopy.h"
 
 namespace v8 {
@@ -153,6 +154,109 @@ void FullHeapObjectSlot::StoreHeapObject(HeapObject value) const {
   *location() = value.ptr();
 }
 
+void ExternalPointerSlot::init(Isolate* isolate, Address value,
+                               ExternalPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    ExternalPointerTable& table = GetExternalPointerTableForTag(isolate, tag);
+    ExternalPointerHandle handle =
+        table.AllocateAndInitializeEntry(isolate, value, tag);
+    // Use a Release_Store to ensure that the store of the pointer into the
+    // table is not reordered after the store of the handle. Otherwise, other
+    // threads may access an uninitialized table entry and crash.
+    Release_StoreHandle(handle);
+    return;
+  }
+#endif  // V8_ENABLE_SANDBOX
+  store(isolate, value, tag);
+}
+
+#ifdef V8_ENABLE_SANDBOX
+ExternalPointerHandle ExternalPointerSlot::Relaxed_LoadHandle() const {
+  // TODO(saelo): here and below: remove cast once ExternalPointerHandle is
+  // always 32 bit large.
+  auto handle_location = reinterpret_cast<ExternalPointerHandle*>(location());
+  return base::AsAtomic32::Relaxed_Load(handle_location);
+}
+
+void ExternalPointerSlot::Relaxed_StoreHandle(
+    ExternalPointerHandle handle) const {
+  auto handle_location = reinterpret_cast<ExternalPointerHandle*>(location());
+  return base::AsAtomic32::Relaxed_Store(handle_location, handle);
+}
+
+void ExternalPointerSlot::Release_StoreHandle(
+    ExternalPointerHandle handle) const {
+  auto handle_location = reinterpret_cast<ExternalPointerHandle*>(location());
+  return base::AsAtomic32::Release_Store(handle_location, handle);
+}
+#endif  // V8_ENABLE_SANDBOX
+
+Address ExternalPointerSlot::load(const Isolate* isolate,
+                                  ExternalPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    const ExternalPointerTable& table =
+        GetExternalPointerTableForTag(isolate, tag);
+    ExternalPointerHandle handle = Relaxed_LoadHandle();
+    return table.Get(handle, tag);
+  }
+#endif  // V8_ENABLE_SANDBOX
+  return ReadMaybeUnalignedValue<Address>(address());
+}
+
+void ExternalPointerSlot::store(Isolate* isolate, Address value,
+                                ExternalPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    ExternalPointerTable& table = GetExternalPointerTableForTag(isolate, tag);
+    ExternalPointerHandle handle = Relaxed_LoadHandle();
+    table.Set(handle, value, tag);
+    return;
+  }
+#endif  // V8_ENABLE_SANDBOX
+  WriteMaybeUnalignedValue<Address>(address(), value);
+}
+
+ExternalPointerSlot::RawContent
+ExternalPointerSlot::GetAndClearContentForSerialization(
+    const DisallowGarbageCollection& no_gc) {
+#ifdef V8_ENABLE_SANDBOX
+  ExternalPointerHandle content = Relaxed_LoadHandle();
+  Relaxed_StoreHandle(kNullExternalPointerHandle);
+#else
+  Address content = ReadMaybeUnalignedValue<Address>(address());
+  WriteMaybeUnalignedValue<Address>(address(), kNullAddress);
+#endif
+  return content;
+}
+
+void ExternalPointerSlot::RestoreContentAfterSerialization(
+    ExternalPointerSlot::RawContent content,
+    const DisallowGarbageCollection& no_gc) {
+#ifdef V8_ENABLE_SANDBOX
+  return Relaxed_StoreHandle(content);
+#else
+  return WriteMaybeUnalignedValue<Address>(address(), content);
+#endif
+}
+
+#ifdef V8_ENABLE_SANDBOX
+const ExternalPointerTable& ExternalPointerSlot::GetExternalPointerTableForTag(
+    const Isolate* isolate, ExternalPointerTag tag) {
+  return IsSharedExternalPointerType(tag)
+             ? isolate->shared_external_pointer_table()
+             : isolate->external_pointer_table();
+}
+
+ExternalPointerTable& ExternalPointerSlot::GetExternalPointerTableForTag(
+    Isolate* isolate, ExternalPointerTag tag) {
+  return IsSharedExternalPointerType(tag)
+             ? isolate->shared_external_pointer_table()
+             : isolate->external_pointer_table();
+}
+#endif  // V8_ENABLE_SANDBOX
+
 //
 // Utils.
 //
@@ -168,7 +272,7 @@ inline void CopyTagged(Address dst, const Address src, size_t num_tagged) {
 // Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
 inline void MemsetTagged(Tagged_t* start, Object value, size_t counter) {
 #ifdef V8_COMPRESS_POINTERS
-  Tagged_t raw_value = CompressTagged(value.ptr());
+  Tagged_t raw_value = V8HeapCompressionScheme::CompressTagged(value.ptr());
   MemsetUint32(start, raw_value, counter);
 #else
   Address raw_value = value.ptr();

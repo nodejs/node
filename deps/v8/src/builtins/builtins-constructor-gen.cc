@@ -180,8 +180,6 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   auto feedback_cell = Parameter<FeedbackCell>(Descriptor::kFeedbackCell);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  IncrementCounter(isolate()->counters()->fast_new_closure_total(), 1);
-
   // Bump the closure counter encoded the {feedback_cell}s map.
   {
     const TNode<Map> feedback_cell_map = LoadMap(feedback_cell);
@@ -248,7 +246,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
     BIND(&done);
   }
 
-  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
+  static_assert(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackCellOffset,
                                  feedback_cell);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
@@ -401,14 +399,14 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
       CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
   GotoIfNot(HasBoilerplate(literal_site), &call_runtime);
   {
-    STATIC_ASSERT(JSRegExp::kDataOffset == JSObject::kHeaderSize);
-    STATIC_ASSERT(JSRegExp::kSourceOffset ==
+    static_assert(JSRegExp::kDataOffset == JSObject::kHeaderSize);
+    static_assert(JSRegExp::kSourceOffset ==
                   JSRegExp::kDataOffset + kTaggedSize);
-    STATIC_ASSERT(JSRegExp::kFlagsOffset ==
+    static_assert(JSRegExp::kFlagsOffset ==
                   JSRegExp::kSourceOffset + kTaggedSize);
-    STATIC_ASSERT(JSRegExp::kHeaderSize ==
+    static_assert(JSRegExp::kHeaderSize ==
                   JSRegExp::kFlagsOffset + kTaggedSize);
-    STATIC_ASSERT(JSRegExp::kLastIndexOffset == JSRegExp::kHeaderSize);
+    static_assert(JSRegExp::kLastIndexOffset == JSRegExp::kHeaderSize);
     DCHECK_EQ(JSRegExp::Size(), JSRegExp::kLastIndexOffset + kTaggedSize);
 
     TNode<RegExpBoilerplateDescription> boilerplate = CAST(literal_site);
@@ -595,16 +593,19 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
 
   // Ensure new-space allocation for a fresh JSObject so we can skip write
   // barriers when copying all object fields.
-  STATIC_ASSERT(JSObject::kMaxInstanceSize < kMaxRegularHeapObjectSize);
+  static_assert(JSObject::kMaxInstanceSize < kMaxRegularHeapObjectSize);
   TNode<IntPtrT> instance_size =
       TimesTaggedSize(LoadMapInstanceSizeInWords(boilerplate_map));
+  TNode<IntPtrT> aligned_instance_size =
+      AlignToAllocationAlignment(instance_size);
   TNode<IntPtrT> allocation_size = instance_size;
-  bool needs_allocation_memento = FLAG_allocation_site_pretenuring;
+  bool needs_allocation_memento = v8_flags.allocation_site_pretenuring;
   if (needs_allocation_memento) {
     DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
     // Prepare for inner-allocating the AllocationMemento.
-    allocation_size =
-        IntPtrAdd(instance_size, IntPtrConstant(AllocationMemento::kSize));
+    allocation_size = IntPtrAdd(aligned_instance_size,
+                                IntPtrConstant(ALIGN_TO_ALLOCATION_ALIGNMENT(
+                                    AllocationMemento::kSize)));
   }
 
   TNode<HeapObject> copy =
@@ -622,7 +623,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
   // Initialize the AllocationMemento before potential GCs due to heap number
   // allocation when copying the in-object properties.
   if (needs_allocation_memento) {
-    InitializeAllocationMemento(copy, instance_size, allocation_site);
+    InitializeAllocationMemento(copy, aligned_instance_size, allocation_site);
   }
 
   {
@@ -678,7 +679,7 @@ TNode<JSObject> ConstructorBuiltinsAssembler::CreateEmptyObjectLiteral(
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> map = LoadObjectFunctionInitialMap(native_context);
   // Ensure that slack tracking is disabled for the map.
-  STATIC_ASSERT(Map::kNoSlackTracking == 0);
+  static_assert(Map::kNoSlackTracking == 0);
   CSA_DCHECK(this, IsClearWord32<Map::Bits3::ConstructionCounterBits>(
                        LoadMapBitField3(map)));
   TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();

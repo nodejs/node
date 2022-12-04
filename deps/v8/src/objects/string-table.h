@@ -82,7 +82,6 @@ class V8_EXPORT_PRIVATE StringTable {
   void NotifyElementsRemoved(int count);
 
   void VerifyIfOwnedBy(Isolate* isolate);
-  void UpdateCountersIfOwnedBy(Isolate* isolate);
 
  private:
   class Data;

@@ -4,9 +4,13 @@
 
 #include "src/heap/conservative-stack-visitor.h"
 
-#include "src/execution/isolate-utils-inl.h"
-#include "src/heap/large-spaces.h"
-#include "src/heap/paged-spaces-inl.h"
+#include "src/execution/isolate-inl.h"
+#include "src/heap/mark-compact.h"
+#include "src/objects/visitors.h"
+
+#ifdef V8_COMPRESS_POINTERS
+#include "src/common/ptr-compr-inl.h"
+#endif  // V8_COMPRESS_POINTERS
 
 namespace v8 {
 namespace internal {
@@ -16,62 +20,30 @@ ConservativeStackVisitor::ConservativeStackVisitor(Isolate* isolate,
     : isolate_(isolate), delegate_(delegate) {}
 
 void ConservativeStackVisitor::VisitPointer(const void* pointer) {
-  VisitConservativelyIfPointer(pointer);
+  auto address = reinterpret_cast<Address>(const_cast<void*>(pointer));
+  VisitConservativelyIfPointer(address);
+#ifdef V8_COMPRESS_POINTERS
+  V8HeapCompressionScheme::ProcessIntermediatePointers(
+      isolate_, address,
+      [this](Address ptr) { VisitConservativelyIfPointer(ptr); });
+#endif  // V8_COMPRESS_POINTERS
 }
 
-bool ConservativeStackVisitor::CheckPage(Address address, MemoryChunk* page) {
-  if (address < page->area_start() || address >= page->area_end()) return false;
-
-  auto base_ptr = page->object_start_bitmap()->FindBasePtr(address);
-  if (base_ptr == kNullAddress) {
-    return false;
-  }
-
-  // At this point, base_ptr *must* refer to the valid object. We check if
-  // |address| resides inside the object or beyond it in unused memory.
+void ConservativeStackVisitor::VisitConservativelyIfPointer(Address address) {
+  Address base_ptr;
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_MB
+  base_ptr = isolate_->heap()->mark_compact_collector()->FindBasePtrForMarking(
+      address);
+#else
+#error "Some inner pointer resolution mechanism is needed"
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_MB
+  if (base_ptr == kNullAddress) return;
   HeapObject obj = HeapObject::FromAddress(base_ptr);
-  Address obj_end = obj.address() + obj.Size();
-
-  if (address >= obj_end) {
-    // |address| points to unused memory.
-    return false;
-  }
-
-  // TODO(jakehughes) Pinning is only required for the marking visitor. Other
-  // visitors (such as verify visitor) could work without pining. This should
-  // be moved to delegate_
-  page->SetFlag(BasicMemoryChunk::Flag::PINNED);
-
-  Object ptr = HeapObject::FromAddress(base_ptr);
-  FullObjectSlot root = FullObjectSlot(&ptr);
-  delegate_->VisitRootPointer(Root::kHandleScope, nullptr, root);
-  DCHECK(root == FullObjectSlot(reinterpret_cast<Address>(&base_ptr)));
-  return true;
-}
-
-void ConservativeStackVisitor::VisitConservativelyIfPointer(
-    const void* pointer) {
-  auto address = reinterpret_cast<Address>(pointer);
-  if (address > isolate_->heap()->old_space()->top() ||
-      address < isolate_->heap()->old_space()->limit()) {
-    return;
-  }
-
-  for (Page* page : *isolate_->heap()->old_space()) {
-    if (CheckPage(address, page)) {
-      return;
-    }
-  }
-
-  for (LargePage* page : *isolate_->heap()->lo_space()) {
-    if (address >= page->area_start() && address < page->area_end()) {
-      Object ptr = page->GetObject();
-      FullObjectSlot root = FullObjectSlot(&ptr);
-      delegate_->VisitRootPointer(Root::kHandleScope, nullptr, root);
-      DCHECK(root == FullObjectSlot(&ptr));
-      return;
-    }
-  }
+  Object root = obj;
+  delegate_->VisitRootPointer(Root::kHandleScope, nullptr,
+                              FullObjectSlot(&root));
+  // Check that the delegate visitor did not modify the root slot.
+  DCHECK_EQ(root, obj);
 }
 
 }  // namespace internal

@@ -1,4 +1,1 @@
-wasm-function[0]:0x2e: WebAssembly.Exception: wasm exception
-WebAssembly.Exception: wasm exception
-    at throw0 (wasm://wasm/e4cabeba:wasm-function[0]:0x2e)
-    at *%(basename)s:17:18
+undefined:0: [object WebAssembly.Exception]

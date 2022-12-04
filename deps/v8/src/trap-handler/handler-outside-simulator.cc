@@ -4,6 +4,9 @@
 
 #include "include/v8config.h"
 #include "src/trap-handler/trap-handler-simulator.h"
+#include "src/trap-handler/trap-handler.h"
+
+#if V8_TRAP_HANDLER_SUPPORTED
 
 #if V8_OS_DARWIN
 #define SYMBOL(name) "_" #name
@@ -35,3 +38,5 @@ asm(
     SYMBOL(v8_probe_memory_continuation) ":         \n"
     // If the trap handler continues here, it wrote the landing pad in %rax.
     "  ret                                          \n");
+
+#endif

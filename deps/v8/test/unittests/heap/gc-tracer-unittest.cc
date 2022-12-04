@@ -103,10 +103,16 @@ void StopTracing(GCTracer* tracer, GarbageCollector collector) {
   tracer->StopAtomicPause();
   tracer->StopObservablePause();
   tracer->UpdateStatistics(collector);
-  if (Heap::IsYoungGenerationCollector(collector)) {
-    tracer->StopYoungCycleIfNeeded();
-  } else {
-    tracer->NotifySweepingCompleted();
+  switch (collector) {
+    case GarbageCollector::SCAVENGER:
+      tracer->StopYoungCycleIfNeeded();
+      break;
+    case GarbageCollector::MINOR_MARK_COMPACTOR:
+      tracer->NotifyYoungSweepingCompleted();
+      break;
+    case GarbageCollector::MARK_COMPACTOR:
+      tracer->NotifyFullSweepingCompleted();
+      break;
   }
 }
 
@@ -522,7 +528,7 @@ std::map<std::string, std::unique_ptr<GcHistogram>> GcHistogram::histograms_ =
     std::map<std::string, std::unique_ptr<GcHistogram>>();
 
 TEST_F(GCTracerTest, RecordMarkCompactHistograms) {
-  if (FLAG_stress_incremental_marking) return;
+  if (v8_flags.stress_incremental_marking) return;
   isolate()->SetCreateHistogramFunction(&GcHistogram::CreateHistogram);
   isolate()->SetAddHistogramSampleFunction(&GcHistogram::AddHistogramSample);
   GCTracer* tracer = i_isolate()->heap()->tracer();
@@ -547,7 +553,7 @@ TEST_F(GCTracerTest, RecordMarkCompactHistograms) {
 }
 
 TEST_F(GCTracerTest, RecordScavengerHistograms) {
-  if (FLAG_stress_incremental_marking) return;
+  if (v8_flags.stress_incremental_marking) return;
   isolate()->SetCreateHistogramFunction(&GcHistogram::CreateHistogram);
   isolate()->SetAddHistogramSampleFunction(&GcHistogram::AddHistogramSample);
   GCTracer* tracer = i_isolate()->heap()->tracer();

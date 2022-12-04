@@ -55,14 +55,14 @@ class CommonFrameConstants : public AllStatic {
   static constexpr int kCallerSPOffset = kCallerPCOffset + 1 * kPCOnStackSize;
 
   // Fixed part of the frame consists of return address, caller fp,
-  // constant pool (if FLAG_enable_embedded_constant_pool), context, and
+  // constant pool (if V8_EMBEDDED_CONSTANT_POOL_BOOL), context, and
   // function. CommonFrame::IterateExpressions assumes that kLastObjectOffset
   // is the last object pointer.
   static constexpr int kFixedFrameSizeAboveFp = kPCOnStackSize + kFPOnStackSize;
   static constexpr int kFixedSlotCountAboveFp =
       kFixedFrameSizeAboveFp / kSystemPointerSize;
   static constexpr int kCPSlotSize =
-      FLAG_enable_embedded_constant_pool ? kSystemPointerSize : 0;
+      V8_EMBEDDED_CONSTANT_POOL_BOOL ? kSystemPointerSize : 0;
   static constexpr int kCPSlotCount = kCPSlotSize / kSystemPointerSize;
   static constexpr int kConstantPoolOffset =
       kCPSlotSize ? -1 * kSystemPointerSize : 0;
@@ -216,6 +216,7 @@ class BuiltinWasmWrapperConstants : public TypedFrameConstants {
   static constexpr int kInParamCountOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
   // The number of parameters according to the signature.
   static constexpr int kParamCountOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  static constexpr int kSuspenderOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
 };
 
 class ConstructFrameConstants : public TypedFrameConstants {
@@ -415,16 +416,14 @@ inline static int FrameSlotToFPOffset(int slot) {
 #include "src/execution/arm/frame-constants-arm.h"
 #elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #include "src/execution/ppc/frame-constants-ppc.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/execution/mips/frame-constants-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/execution/mips64/frame-constants-mips64.h"
 #elif V8_TARGET_ARCH_LOONG64
 #include "src/execution/loong64/frame-constants-loong64.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/execution/s390/frame-constants-s390.h"
-#elif V8_TARGET_ARCH_RISCV64
-#include "src/execution/riscv64/frame-constants-riscv64.h"
+#elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
+#include "src/execution/riscv/frame-constants-riscv.h"
 #else
 #error Unsupported target architecture.
 #endif

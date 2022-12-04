@@ -7,6 +7,7 @@
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/marking-barrier.h"
+#include "src/heap/remembered-set.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/js-objects.h"
@@ -21,8 +22,9 @@ thread_local MarkingBarrier* current_marking_barrier = nullptr;
 }  // namespace
 
 MarkingBarrier* WriteBarrier::CurrentMarkingBarrier(Heap* heap) {
-  return current_marking_barrier ? current_marking_barrier
-                                 : heap->marking_barrier();
+  return current_marking_barrier
+             ? current_marking_barrier
+             : heap->main_thread_local_heap()->marking_barrier();
 }
 
 void WriteBarrier::SetForThread(MarkingBarrier* marking_barrier) {
@@ -37,15 +39,13 @@ void WriteBarrier::ClearForThread(MarkingBarrier* marking_barrier) {
 
 void WriteBarrier::MarkingSlow(Heap* heap, HeapObject host, HeapObjectSlot slot,
                                HeapObject value) {
-  MarkingBarrier* marking_barrier = current_marking_barrier
-                                        ? current_marking_barrier
-                                        : heap->marking_barrier();
+  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(heap);
   marking_barrier->Write(host, slot, value);
 }
 
 // static
 void WriteBarrier::MarkingSlowFromGlobalHandle(Heap* heap, HeapObject value) {
-  heap->marking_barrier()->WriteWithoutHost(value);
+  heap->main_thread_local_heap()->marking_barrier()->WriteWithoutHost(value);
 }
 
 // static
@@ -58,25 +58,29 @@ void WriteBarrier::MarkingSlowFromInternalFields(Heap* heap, JSObject host) {
 
 void WriteBarrier::MarkingSlow(Heap* heap, Code host, RelocInfo* reloc_info,
                                HeapObject value) {
-  MarkingBarrier* marking_barrier = current_marking_barrier
-                                        ? current_marking_barrier
-                                        : heap->marking_barrier();
+  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(heap);
   marking_barrier->Write(host, reloc_info, value);
+}
+
+void WriteBarrier::SharedSlow(Heap* heap, Code host, RelocInfo* reloc_info,
+                              HeapObject value) {
+  MarkCompactCollector::RecordRelocSlotInfo info =
+      MarkCompactCollector::ProcessRelocInfo(host, reloc_info, value);
+
+  base::MutexGuard write_scope(info.memory_chunk->mutex());
+  RememberedSet<OLD_TO_SHARED>::InsertTyped(info.memory_chunk, info.slot_type,
+                                            info.offset);
 }
 
 void WriteBarrier::MarkingSlow(Heap* heap, JSArrayBuffer host,
                                ArrayBufferExtension* extension) {
-  MarkingBarrier* marking_barrier = current_marking_barrier
-                                        ? current_marking_barrier
-                                        : heap->marking_barrier();
+  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(heap);
   marking_barrier->Write(host, extension);
 }
 
 void WriteBarrier::MarkingSlow(Heap* heap, DescriptorArray descriptor_array,
                                int number_of_own_descriptors) {
-  MarkingBarrier* marking_barrier = current_marking_barrier
-                                        ? current_marking_barrier
-                                        : heap->marking_barrier();
+  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(heap);
   marking_barrier->Write(descriptor_array, number_of_own_descriptors);
 }
 
@@ -93,7 +97,18 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
   }
 #endif
   WriteBarrier::Marking(host, slot, MaybeObject(value));
-  // Called by WriteBarrierCodeStubAssembler, which doesnt accept void type
+  // Called by WriteBarrierCodeStubAssembler, which doesn't accept void type
+  return 0;
+}
+
+int WriteBarrier::SharedFromCode(Address raw_host, Address raw_slot) {
+  HeapObject host = HeapObject::cast(Object(raw_host));
+
+  if (!host.InSharedWritableHeap()) {
+    Heap::SharedHeapBarrierSlow(host, raw_slot);
+  }
+
+  // Called by WriteBarrierCodeStubAssembler, which doesn't accept void type
   return 0;
 }
 

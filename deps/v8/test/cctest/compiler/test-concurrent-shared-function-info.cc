@@ -91,7 +91,7 @@ class BackgroundCompilationThread final : public v8::base::Thread {
 };
 
 TEST(TestConcurrentSharedFunctionInfo) {
-  FlagScope<bool> allow_natives_syntax(&i::FLAG_allow_natives_syntax, true);
+  FlagScope<bool> allow_natives_syntax(&i::v8_flags.allow_natives_syntax, true);
 
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();

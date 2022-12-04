@@ -52,7 +52,3 @@ class TestCase(testcase.TestCase):
 
   def get_shell(self):
     return 'v8_fuzzilli_test'
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

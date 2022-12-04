@@ -4,6 +4,9 @@ on:
   issues:
     types: [opened, labeled]
 
+permissions:
+  contents: read
+
 jobs:
   label:
     if: github.event.label.name == 'flaky-test'
@@ -41,7 +44,7 @@ jobs:
             labels="${labels}${platform2label[$platform]},"; \
           done;
 
-          echo "::set-output name=LABELS::${labels::-1}"
+          echo "LABELS=${labels::-1}" >> $GITHUB_OUTPUT
 
       - name: Add labels
         env:

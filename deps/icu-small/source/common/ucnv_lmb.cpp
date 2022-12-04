@@ -610,7 +610,7 @@ static const UConverterStaticData _LMBCSStaticData##n={\
   sizeof(UConverterStaticData),\
  "LMBCS-"  #n,\
     0, UCNV_IBM, UCNV_LMBCS_##n, 1, 3,\
-    { 0x3f, 0, 0, 0 },1,FALSE,FALSE,0,0,{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} \
+    { 0x3f, 0, 0, 0 },1,false,false,0,0,{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} \
 };\
 const UConverterSharedData _LMBCSData##n= \
         UCNV_IMMUTABLE_SHARED_DATA_INITIALIZER(&_LMBCSStaticData##n, &_LMBCSImpl##n);
@@ -721,7 +721,7 @@ _LMBCSSafeClone(const UConverter *cnv,
     }
 
     newLMBCS->cnv.extraInfo = &newLMBCS->lmbcs;
-    newLMBCS->cnv.isExtraLocal = TRUE;
+    newLMBCS->cnv.isExtraLocal = true;
     return &newLMBCS->cnv;
 }
 
@@ -763,14 +763,14 @@ LMBCSConversionWorker (
    U_ASSERT(xcnv);
    U_ASSERT(group<ULMBCS_GRP_UNICODE);
 
-   bytesConverted = ucnv_MBCSFromUChar32(xcnv, *pUniChar, &value, FALSE);
+   bytesConverted = ucnv_MBCSFromUChar32(xcnv, *pUniChar, &value, false);
 
    /* get the first result byte */
    if(bytesConverted > 0) {
       firstByte = (ulmbcs_byte_t)(value >> ((bytesConverted - 1) * 8));
    } else {
       /* most common failure mode is an unassigned character */
-      groups_tried[group] = TRUE;
+      groups_tried[group] = true;
       return 0;
    }
 
@@ -1191,11 +1191,11 @@ _LMBCSGetNextUCharWorker(UConverterToUnicodeArgs*   args,
                 if (*args->source == group) {
                     /* single byte */
                     ++args->source;
-                    uniChar = ucnv_MBCSSimpleGetNextUChar(cnv, args->source, 1, FALSE);
+                    uniChar = ucnv_MBCSSimpleGetNextUChar(cnv, args->source, 1, false);
                     ++args->source;
                 } else {
                     /* double byte */
-                    uniChar = ucnv_MBCSSimpleGetNextUChar(cnv, args->source, 2, FALSE);
+                    uniChar = ucnv_MBCSSimpleGetNextUChar(cnv, args->source, 2, false);
                     args->source += 2;
                 }
             }
@@ -1220,7 +1220,7 @@ _LMBCSGetNextUCharWorker(UConverterToUnicodeArgs*   args,
                     /* Lookup value must include opt group */
                     bytes[0] = group;
                     bytes[1] = CurByte;
-                    uniChar = ucnv_MBCSSimpleGetNextUChar(cnv, bytes, 2, FALSE);
+                    uniChar = ucnv_MBCSSimpleGetNextUChar(cnv, bytes, 2, false);
                 }
             }
         }
@@ -1236,13 +1236,13 @@ _LMBCSGetNextUCharWorker(UConverterToUnicodeArgs*   args,
                     CHECK_SOURCE_LIMIT(0);
 
                     /* let the MBCS conversion consume CurByte again */
-                    uniChar = ucnv_MBCSSimpleGetNextUChar(cnv, args->source - 1, 1, FALSE);
+                    uniChar = ucnv_MBCSSimpleGetNextUChar(cnv, args->source - 1, 1, false);
                 }
                 else
                 {
                     CHECK_SOURCE_LIMIT(1);
                     /* let the MBCS conversion consume CurByte again */
-                    uniChar = ucnv_MBCSSimpleGetNextUChar(cnv, args->source - 1, 2, FALSE);
+                    uniChar = ucnv_MBCSSimpleGetNextUChar(cnv, args->source - 1, 2, false);
                     ++args->source;
                 }
             }

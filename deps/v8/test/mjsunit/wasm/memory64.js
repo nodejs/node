@@ -9,6 +9,10 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 // We use standard JavaScript doubles to represent bytes and offsets. They offer
 // enough precision (53 bits) for every allowed memory size.
 
+const GB = 1024 * 1024 * 1024;
+// The current limit is 16GB. Adapt this test if this changes.
+const max_num_pages = 16 * GB / kPageSize;
+
 function BasicMemory64Tests(num_pages) {
   const num_bytes = num_pages * kPageSize;
   print(`Testing ${num_bytes} bytes (${num_pages} pages)`);
@@ -37,8 +41,20 @@ function BasicMemory64Tests(num_pages) {
   let load = module.exports.load;
   let store = module.exports.store;
 
-  let array = new Int8Array(memory.buffer);
-  assertEquals(num_bytes, array.length);
+  assertEquals(num_bytes, memory.buffer.byteLength);
+  // TODO(v8:4153): Enable for all sizes once the TypedArray size limit is
+  // raised.
+  const kMaxTypedArraySize = Math.pow(2, 32);
+  if (num_bytes > kMaxTypedArraySize) {
+    // TODO(v8:4153): Fix the error message below, if we don't decide to bump
+    // the limit soon.
+    assertThrows(
+        () => new Int8Array(memory.buffer), RangeError,
+        'Invalid typed array length: undefined');
+  } else {
+    let array = new Int8Array(memory.buffer);
+    assertEquals(num_bytes, array.length);
+  }
 
   assertEquals(0, load(num_bytes - 4));
   assertThrows(() => load(num_bytes - 3));
@@ -59,7 +75,18 @@ function BasicMemory64Tests(num_pages) {
     } else if (num_bytes - position <= 4) {
       expected = [0x12, 0x34, 0x56, 0x78][num_bytes - position - 1];
     }
-    assertEquals(expected, array[position]);
+    let value = new Int8Array(memory.buffer, position, 1)[0];
+    assertEquals(expected, value);
+  }
+}
+
+function allowOOM(fn) {
+  try {
+    fn();
+  } catch (e) {
+    const is_oom =
+        (e instanceof RangeError) && e.message.includes('Out of memory');
+    if (!is_oom) throw e;
   }
 }
 
@@ -70,22 +97,53 @@ function BasicMemory64Tests(num_pages) {
 
 (function Test3GBMemory() {
   print(arguments.callee.name);
-  let num_pages = 3 * 1024 * 1024 * 1024 / kPageSize;
+  let num_pages = 3 * GB / kPageSize;
   // This test can fail if 3GB of memory cannot be allocated.
-  try {
-    BasicMemory64Tests(num_pages);
-  } catch (e) {
-    assertInstanceof(e, RangeError);
-    assertMatches(/Out of memory/, e.message);
-  }
+  allowOOM(() => BasicMemory64Tests(num_pages));
 })();
 
-// TODO(clemensb): Allow for memories >4GB and enable this test.
-//(function Test5GBMemory() {
-//  print(arguments.callee.name);
-//  let num_pages = 5 * 1024 * 1024 * 1024 / kPageSize;
-//  BasicMemory64Tests(num_pages);
-//})();
+(function Test5GBMemory() {
+  print(arguments.callee.name);
+  let num_pages = 5 * GB / kPageSize;
+  // This test can fail if 5GB of memory cannot be allocated.
+  allowOOM(() => BasicMemory64Tests(num_pages));
+})();
+
+(function TestMaxMem64Size() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addMemory64(max_num_pages);
+
+  assertTrue(WebAssembly.validate(builder.toBuffer()));
+  builder.toModule();
+
+  // This test can fail if 16GB of memory cannot be allocated.
+  allowOOM(() => BasicMemory64Tests(max_num_pages));
+})();
+
+(function TestTooBigDeclaredInitial() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addMemory64(max_num_pages + 1);
+
+  assertFalse(WebAssembly.validate(builder.toBuffer()));
+  assertThrows(
+      () => builder.toModule(), WebAssembly.CompileError,
+      'WebAssembly.Module(): initial memory size (262145 pages) is larger ' +
+          'than implementation limit (262144 pages) @+12');
+})();
+
+(function TestTooBigDeclaredMaximum() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addMemory64(1, max_num_pages + 1);
+
+  assertFalse(WebAssembly.validate(builder.toBuffer()));
+  assertThrows(
+      () => builder.toModule(), WebAssembly.CompileError,
+      'WebAssembly.Module(): maximum memory size (262145 pages) is larger ' +
+          'than implementation limit (262144 pages) @+13');
+})();
 
 (function TestGrow64() {
   print(arguments.callee.name);
@@ -219,4 +277,97 @@ function BasicMemory64Tests(num_pages) {
   assertTraps(kTrapMemOutOfBounds, () => fill(-1n, 0, 1n));
   assertTraps(kTrapMemOutOfBounds, () => fill(1n << 62n, 0, 1n));
   assertTraps(kTrapMemOutOfBounds, () => fill(1n << 63n, 0, 1n));
+})();
+
+(function TestMemory64SharedBasic() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addMemory64(1, 10, true, true);
+  builder.addFunction('load', makeSig([kWasmI64], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,       // local.get 0
+        kExprI32LoadMem, 0, 0,  // i32.load_mem align=1 offset=0
+      ])
+      .exportFunc();
+  let instance = builder.instantiate();
+
+  assertTrue(instance.exports.memory instanceof WebAssembly.Memory);
+  assertTrue(instance.exports.memory.buffer instanceof SharedArrayBuffer);
+  assertEquals(0, instance.exports.load(0n));
+})();
+
+(function TestMemory64SharedBetweenWorkers() {
+  print(arguments.callee.name);
+  // Generate a shared memory64 by instantiating an module that exports one.
+  // TODO(clemensb): Use the proper API once that's decided.
+  let shared_mem64 = (function() {
+    let builder = new WasmModuleBuilder();
+    builder.addMemory64(1, 10, true, true);
+    return builder.instantiate().exports.memory;
+  })();
+
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory('imp', 'mem', 1, 10, true, true);
+
+  builder.addFunction('grow', makeSig([kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,    // local.get 0
+        kExprMemoryGrow, 0,  // memory.grow 0
+      ])
+      .exportFunc();
+  builder.addFunction('load', makeSig([kWasmI64], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,       // local.get 0
+        kExprI32LoadMem, 0, 0,  // i32.load_mem align=1 offset=0
+      ])
+      .exportFunc();
+  builder.addFunction('store', makeSig([kWasmI64, kWasmI32], []))
+      .addBody([
+        kExprLocalGet, 0,        // local.get 0
+        kExprLocalGet, 1,        // local.get 1
+        kExprI32StoreMem, 0, 0,  // i32.store_mem align=1 offset=0
+      ])
+      .exportFunc();
+
+  let module = builder.toModule();
+  let instance = new WebAssembly.Instance(module, {imp: {mem: shared_mem64}});
+
+  assertEquals(1n, instance.exports.grow(2n));
+  assertEquals(3n, instance.exports.grow(1n));
+  const kOffset1 = 47n;
+  const kOffset2 = 128n;
+  const kValue = 21;
+  assertEquals(0, instance.exports.load(kOffset1));
+  instance.exports.store(kOffset1, kValue);
+  assertEquals(kValue, instance.exports.load(kOffset1));
+  let worker = new Worker(function() {
+    onmessage = function([mem, module]) {
+      function workerAssert(condition, message) {
+        if (!condition) postMessage(`Check failed: ${message}`);
+      }
+
+      function workerAssertEquals(expected, actual, message) {
+        if (expected != actual)
+          postMessage(`Check failed (${message}): ${expected} != ${actual}`);
+      }
+
+      const kOffset1 = 47n;
+      const kOffset2 = 128n;
+      const kValue = 21;
+      workerAssert(mem instanceof WebAssembly.Memory, 'Wasm memory');
+      workerAssert(mem.buffer instanceof SharedArrayBuffer);
+      workerAssertEquals(4, mem.grow(1), 'grow');
+      let instance = new WebAssembly.Instance(module, {imp: {mem: mem}});
+      let exports = instance.exports;
+      workerAssertEquals(kValue, exports.load(kOffset1), 'load 1');
+      workerAssertEquals(0, exports.load(kOffset2), 'load 2');
+      exports.store(kOffset2, kValue);
+      workerAssertEquals(kValue, exports.load(kOffset2), 'load 3');
+      postMessage('OK');
+    }
+  }, {type: 'function'});
+  worker.postMessage([shared_mem64, module]);
+  assertEquals('OK', worker.getMessage());
+  assertEquals(kValue, instance.exports.load(kOffset2));
+  assertEquals(5n, instance.exports.grow(1n));
 })();

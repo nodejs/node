@@ -65,6 +65,10 @@
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
 
+#ifdef NODE_ENABLE_VTUNE_PROFILING
+#include "../deps/v8/src/third_party/vtune/v8-vtune.h"
+#endif
+
 #include "large_pages/node_large_page.h"
 
 #if defined(__APPLE__) || defined(__linux__) || defined(_WIN32)
@@ -166,7 +170,7 @@ void SignalExit(int signo, siginfo_t* info, void* ucontext) {
 #endif  // __POSIX__
 
 #if HAVE_INSPECTOR
-ExitCode Environment::InitializeInspector(
+void Environment::InitializeInspector(
     std::unique_ptr<inspector::ParentInspectorHandle> parent_handle) {
   std::string inspector_path;
   bool is_main = !parent_handle;
@@ -187,7 +191,7 @@ ExitCode Environment::InitializeInspector(
                           is_main);
   if (options_->debug_options().inspector_enabled &&
       !inspector_agent_->IsListening()) {
-    return ExitCode::kInvalidCommandLineArgument2;  // Signal internal error
+    return;
   }
 
   profiler::StartProfilers(this);
@@ -196,7 +200,7 @@ ExitCode Environment::InitializeInspector(
     inspector_agent_->PauseOnNextJavascriptStatement("Break at bootstrap");
   }
 
-  return ExitCode::kNoFailure;
+  return;
 }
 #endif  // HAVE_INSPECTOR
 
@@ -331,7 +335,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return StartExecution(env, "internal/main/test_runner");
   }
 
-  if (env->options()->watch_mode && !first_argv.empty()) {
+  if (env->options()->watch_mode) {
     return StartExecution(env, "internal/main/watch_mode");
   }
 
@@ -429,7 +433,7 @@ void ResetSignalHandlers() {
 #endif  // __POSIX__
 }
 
-static std::atomic<uint64_t> init_process_flags = 0;
+static std::atomic<uint32_t> init_process_flags = 0;
 
 static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   // init_process_flags is accessed in ResetStdio(),
@@ -453,11 +457,32 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
     for (auto& s : stdio) {
       const int fd = &s - stdio;
       if (fstat(fd, &s.stat) == 0) continue;
+
       // Anything but EBADF means something is seriously wrong.  We don't
       // have to special-case EINTR, fstat() is not interruptible.
       if (errno != EBADF) ABORT();
-      if (fd != open("/dev/null", O_RDWR)) ABORT();
-      if (fstat(fd, &s.stat) != 0) ABORT();
+
+      // If EBADF (file descriptor doesn't exist), open /dev/null and duplicate
+      // its file descriptor to the invalid file descriptor.  Make sure *that*
+      // file descriptor is valid.  POSIX doesn't guarantee the next file
+      // descriptor open(2) gives us is the lowest available number anymore in
+      // POSIX.1-2017, which is why dup2(2) is needed.
+      int null_fd;
+
+      do {
+        null_fd = open("/dev/null", O_RDWR);
+      } while (null_fd < 0 && errno == EINTR);
+
+      if (null_fd != fd) {
+        int err;
+
+        do {
+          err = dup2(null_fd, fd);
+        } while (err < 0 && errno == EINTR);
+        CHECK_EQ(err, 0);
+      }
+
+      if (fstat(fd, &s.stat) < 0) ABORT();
     }
   }
 
@@ -728,8 +753,8 @@ static ExitCode InitializeNodeWithArgsInternal(
   // Initialize node_start_time to get relative uptime.
   per_process::node_start_time = uv_hrtime();
 
-  // Register built-in modules
-  binding::RegisterBuiltinModules();
+  // Register built-in bindings
+  binding::RegisterBuiltinBindings();
 
   // Make inherited handles noninheritable.
   if (!(flags & ProcessInitializationFlags::kEnableStdioInheritance) &&
@@ -740,6 +765,11 @@ static ExitCode InitializeNodeWithArgsInternal(
   // Cache the original command line to be
   // used in diagnostic reports.
   per_process::cli_options->cmdline = *argv;
+
+  // Node provides a "v8.setFlagsFromString" method to dynamically change flags.
+  // Hence do not freeze flags when initializing V8. In a browser setting, this
+  // is security relevant, for Node it's less important.
+  V8::SetFlagsFromString("--no-freeze-flags-after-init");
 
 #if defined(NODE_V8_OPTIONS)
   // Should come before the call to V8::SetFlagsFromCommandLine()
@@ -764,15 +794,15 @@ static ExitCode InitializeNodeWithArgsInternal(
       env_argv.insert(env_argv.begin(), argv->at(0));
 
       const ExitCode exit_code = ProcessGlobalArgsInternal(
-          &env_argv, nullptr, errors, kAllowedInEnvironment);
+          &env_argv, nullptr, errors, kAllowedInEnvvar);
       if (exit_code != ExitCode::kNoFailure) return exit_code;
     }
   }
 #endif
 
   if (!(flags & ProcessInitializationFlags::kDisableCLIOptions)) {
-    const ExitCode exit_code = ProcessGlobalArgsInternal(
-        argv, exec_argv, errors, kDisallowedInEnvironment);
+    const ExitCode exit_code =
+        ProcessGlobalArgsInternal(argv, exec_argv, errors, kDisallowedInEnvvar);
     if (exit_code != ExitCode::kNoFailure) return exit_code;
   }
 
@@ -1224,5 +1254,5 @@ int Stop(Environment* env) {
 #if !HAVE_INSPECTOR
 void Initialize() {}
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(inspector, Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(inspector, Initialize)
 #endif  // !HAVE_INSPECTOR

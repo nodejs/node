@@ -20,10 +20,6 @@
 namespace v8 {
 namespace internal {
 
-inline Handle<Object> MakeCodeHandler(Isolate* isolate, Builtin builtin) {
-  return isolate->builtins()->code_handle(builtin);
-}
-
 OBJECT_CONSTRUCTORS_IMPL(LoadHandler, DataHandler)
 
 CAST_ACCESSOR(LoadHandler)
@@ -74,9 +70,8 @@ Handle<Smi> LoadHandler::LoadConstantFromPrototype(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Smi> LoadHandler::LoadAccessor(Isolate* isolate, int descriptor) {
-  int config =
-      KindBits::encode(Kind::kAccessor) | DescriptorBits::encode(descriptor);
+Handle<Smi> LoadHandler::LoadAccessorFromPrototype(Isolate* isolate) {
+  int config = KindBits::encode(Kind::kAccessorFromPrototype);
   return handle(Smi::FromInt(config), isolate);
 }
 
@@ -159,47 +154,56 @@ Handle<Smi> StoreHandler::StoreInterceptor(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
-Builtin StoreHandler::StoreSloppyArgumentsBuiltin(KeyedAccessStoreMode mode) {
+Handle<CodeT> StoreHandler::StoreSloppyArgumentsBuiltin(
+    Isolate* isolate, KeyedAccessStoreMode mode) {
   switch (mode) {
     case STANDARD_STORE:
-      return Builtin::kKeyedStoreIC_SloppyArguments_Standard;
+      return BUILTIN_CODE(isolate, KeyedStoreIC_SloppyArguments_Standard);
     case STORE_AND_GROW_HANDLE_COW:
-      return Builtin::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW;
+      return BUILTIN_CODE(
+          isolate, KeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW);
     case STORE_IGNORE_OUT_OF_BOUNDS:
-      return Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB;
+      return BUILTIN_CODE(isolate,
+                          KeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB);
     case STORE_HANDLE_COW:
-      return Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW;
+      return BUILTIN_CODE(isolate,
+                          KeyedStoreIC_SloppyArguments_NoTransitionHandleCOW);
     default:
       UNREACHABLE();
   }
 }
 
-Builtin StoreHandler::StoreFastElementBuiltin(KeyedAccessStoreMode mode) {
+Handle<CodeT> StoreHandler::StoreFastElementBuiltin(Isolate* isolate,
+                                                    KeyedAccessStoreMode mode) {
   switch (mode) {
     case STANDARD_STORE:
-      return Builtin::kStoreFastElementIC_Standard;
+      return BUILTIN_CODE(isolate, StoreFastElementIC_Standard);
     case STORE_AND_GROW_HANDLE_COW:
-      return Builtin::kStoreFastElementIC_GrowNoTransitionHandleCOW;
+      return BUILTIN_CODE(isolate,
+                          StoreFastElementIC_GrowNoTransitionHandleCOW);
     case STORE_IGNORE_OUT_OF_BOUNDS:
-      return Builtin::kStoreFastElementIC_NoTransitionIgnoreOOB;
+      return BUILTIN_CODE(isolate, StoreFastElementIC_NoTransitionIgnoreOOB);
     case STORE_HANDLE_COW:
-      return Builtin::kStoreFastElementIC_NoTransitionHandleCOW;
+      return BUILTIN_CODE(isolate, StoreFastElementIC_NoTransitionHandleCOW);
     default:
       UNREACHABLE();
   }
 }
 
-Builtin StoreHandler::ElementsTransitionAndStoreBuiltin(
-    KeyedAccessStoreMode mode) {
+Handle<CodeT> StoreHandler::ElementsTransitionAndStoreBuiltin(
+    Isolate* isolate, KeyedAccessStoreMode mode) {
   switch (mode) {
     case STANDARD_STORE:
-      return Builtin::kElementsTransitionAndStore_Standard;
+      return BUILTIN_CODE(isolate, ElementsTransitionAndStore_Standard);
     case STORE_AND_GROW_HANDLE_COW:
-      return Builtin::kElementsTransitionAndStore_GrowNoTransitionHandleCOW;
+      return BUILTIN_CODE(isolate,
+                          ElementsTransitionAndStore_GrowNoTransitionHandleCOW);
     case STORE_IGNORE_OUT_OF_BOUNDS:
-      return Builtin::kElementsTransitionAndStore_NoTransitionIgnoreOOB;
+      return BUILTIN_CODE(isolate,
+                          ElementsTransitionAndStore_NoTransitionIgnoreOOB);
     case STORE_HANDLE_COW:
-      return Builtin::kElementsTransitionAndStore_NoTransitionHandleCOW;
+      return BUILTIN_CODE(isolate,
+                          ElementsTransitionAndStore_NoTransitionHandleCOW);
     default:
       UNREACHABLE();
   }
@@ -295,8 +299,8 @@ inline const char* WasmValueType2String(WasmValueType type) {
 
     case WasmValueType::kRef:
       return "Ref";
-    case WasmValueType::kOptRef:
-      return "OptRef";
+    case WasmValueType::kRefNull:
+      return "RefNull";
 
     case WasmValueType::kNumTypes:
       return "???";

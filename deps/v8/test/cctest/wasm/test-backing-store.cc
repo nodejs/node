@@ -28,7 +28,7 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
     // Embedder requests contents.
     ManuallyExternalizedBuffer external(buffer);
 
-    buffer->Detach();
+    JSArrayBuffer::Detach(buffer).Check();
     CHECK(buffer->was_detached());
 
     // Make sure we can write to the buffer without crashing
@@ -74,8 +74,8 @@ TEST(BackingStore_Reclaim) {
   // Make sure we can allocate memories without running out of address space.
   Isolate* isolate = CcTest::InitIsolateOnce();
   for (int i = 0; i < 256; ++i) {
-    auto backing_store =
-        BackingStore::AllocateWasmMemory(isolate, 1, 1, SharedFlag::kNotShared);
+    auto backing_store = BackingStore::AllocateWasmMemory(
+        isolate, 1, 1, WasmMemoryFlag::kWasmMemory32, SharedFlag::kNotShared);
     CHECK(backing_store);
   }
 }

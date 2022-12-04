@@ -36,8 +36,8 @@ CollationIterator::CEBuffer::~CEBuffer() {}
 UBool
 CollationIterator::CEBuffer::ensureAppendCapacity(int32_t appCap, UErrorCode &errorCode) {
     int32_t capacity = buffer.getCapacity();
-    if((length + appCap) <= capacity) { return TRUE; }
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if((length + appCap) <= capacity) { return true; }
+    if(U_FAILURE(errorCode)) { return false; }
     do {
         if(capacity < 1000) {
             capacity *= 4;
@@ -48,9 +48,9 @@ CollationIterator::CEBuffer::ensureAppendCapacity(int32_t appCap, UErrorCode &er
     int64_t *p = buffer.resize(capacity, length);
     if(p == NULL) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
-        return FALSE;
+        return false;
     }
-    return TRUE;
+    return true;
 }
 
 // State of combining marks skipped in discontiguous contraction.
@@ -216,12 +216,12 @@ CollationIterator::handleGetTrailSurrogate() {
 
 UBool
 CollationIterator::foundNULTerminator() {
-    return FALSE;
+    return false;
 }
 
 UBool
 CollationIterator::forbidSurrogateCodePoints() const {
-    return FALSE;
+    return false;
 }
 
 uint32_t
@@ -239,7 +239,7 @@ int64_t
 CollationIterator::nextCEFromCE32(const CollationData *d, UChar32 c, uint32_t ce32,
                                   UErrorCode &errorCode) {
     --ceBuffer.length;  // Undo ceBuffer.incLength().
-    appendCEsFromCE32(d, c, ce32, TRUE, errorCode);
+    appendCEsFromCE32(d, c, ce32, true, errorCode);
     if(U_SUCCESS(errorCode)) {
         return ceBuffer.get(cesIndex++);
     } else {
@@ -661,7 +661,7 @@ CollationIterator::nextCE32FromDiscontiguousContraction(
         // and then from the combining marks that we skipped before the match.
         c = U_SENTINEL;
         for(;;) {
-            appendCEsFromCE32(d, c, ce32, TRUE, errorCode);
+            appendCEsFromCE32(d, c, ce32, true, errorCode);
             // Fetch CE32s for skipped combining marks from the normal data, with fallback,
             // rather than from the CollationData where we found the contraction.
             if(!skipped->hasNext()) { break; }
@@ -864,7 +864,7 @@ CollationIterator::previousCE(UVector32 &offsets, UErrorCode &errorCode) {
     if(Collation::isSimpleOrLongCE32(ce32)) {
         return Collation::ceFromCE32(ce32);
     }
-    appendCEsFromCE32(d, c, ce32, FALSE, errorCode);
+    appendCEsFromCE32(d, c, ce32, false, errorCode);
     if(U_SUCCESS(errorCode)) {
         if(ceBuffer.length > 1) {
             offsets.addElement(getOffset(), errorCode);

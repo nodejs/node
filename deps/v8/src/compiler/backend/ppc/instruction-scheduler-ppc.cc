@@ -46,6 +46,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_Mul32:
     case kPPC_Mul32WithHigh32:
     case kPPC_Mul64:
+    case kPPC_MulHighS64:
+    case kPPC_MulHighU64:
     case kPPC_MulHigh32:
     case kPPC_MulHighU32:
     case kPPC_MulPair:
@@ -150,8 +152,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_F32x4Le:
     case kPPC_F32x4Abs:
     case kPPC_F32x4Neg:
-    case kPPC_F32x4RecipApprox:
-    case kPPC_F32x4RecipSqrtApprox:
     case kPPC_F32x4Sqrt:
     case kPPC_F32x4SConvertI32x4:
     case kPPC_F32x4UConvertI32x4:

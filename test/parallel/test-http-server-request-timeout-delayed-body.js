@@ -47,6 +47,7 @@ server.listen(0, common.mustCall(() => {
 
   client.resume();
   client.write('POST / HTTP/1.1\r\n');
+  client.write('Host: example.com\r\n');
   client.write('Content-Length: 20\r\n');
   client.write('Connection: close\r\n');
   client.write('\r\n');

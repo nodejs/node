@@ -1,6 +1,7 @@
 'use strict';
 
 const CallExpression = (fnName) => `CallExpression[callee.name=${fnName}]`;
+const AnyFunction = 'FunctionDeclaration, FunctionExpression, ArrowFunctionExpression';
 
 function checkProperties(context, node) {
   if (
@@ -25,6 +26,22 @@ function checkProperties(context, node) {
   }
 }
 
+function isNullPrototypeObjectExpression(node) {
+  if (node.type !== 'ObjectExpression') return;
+
+  for (const { key, value } of node.properties) {
+    if (
+      key != null && value != null &&
+      ((key.type === 'Identifier' && key.name === '__proto__') ||
+        (key.type === 'Literal' && key.value === '__proto__')) &&
+      value.type === 'Literal' && value.value === null
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function checkPropertyDescriptor(context, node) {
   if (
     node.type === 'CallExpression' &&
@@ -46,23 +63,12 @@ function checkPropertyDescriptor(context, node) {
       }],
     });
   }
-  if (node.type !== 'ObjectExpression') return;
-
-  for (const { key, value } of node.properties) {
-    if (
-      key != null && value != null &&
-      ((key.type === 'Identifier' && key.name === '__proto__') ||
-        (key.type === 'Literal' && key.value === '__proto__')) &&
-      value.type === 'Literal' && value.value === null
-    ) {
-      return true;
-    }
+  if (isNullPrototypeObjectExpression(node) === false) {
+    context.report({
+      node,
+      message: 'Must use null-prototype object for property descriptors',
+    });
   }
-
-  context.report({
-    node,
-    message: 'Must use null-prototype object for property descriptors',
-  });
 }
 
 function createUnsafeStringMethodReport(context, name, lookedUpProperty) {
@@ -117,6 +123,24 @@ module.exports = {
       [`${CallExpression('ObjectCreate')}[arguments.length=2]`](node) {
         checkProperties(context, node.arguments[1]);
       },
+
+      [`:matches(${AnyFunction})[async=true]>BlockStatement ReturnStatement>ObjectExpression, :matches(${AnyFunction})[async=true]>ObjectExpression`](node) {
+        if (node.parent.type === 'ReturnStatement') {
+          let { parent } = node;
+          do {
+            ({ parent } = parent);
+          } while (!parent.type.includes('Function'));
+
+          if (!parent.async) return;
+        }
+        if (isNullPrototypeObjectExpression(node) === false) {
+          context.report({
+            node,
+            message: 'Use null-prototype when returning from async function',
+          });
+        }
+      },
+
       [CallExpression('RegExpPrototypeTest')](node) {
         context.report({
           node,
@@ -135,17 +159,22 @@ module.exports = {
           }],
         });
       },
-      [CallExpression(/^RegExpPrototypeSymbol(Match|MatchAll|Search)$/)](node) {
+      [CallExpression(/^RegExpPrototypeSymbol(Match|MatchAll)$/)](node) {
         context.report({
           node,
           message: node.callee.name + ' looks up the "exec" property of `this` value',
+        });
+      },
+      [CallExpression(/^(RegExpPrototypeSymbol|StringPrototype)Search$/)](node) {
+        context.report({
+          node,
+          message: node.callee.name + ' is unsafe, use SafeStringPrototypeSearch instead',
         });
       },
       ...createUnsafeStringMethodReport(context, '%String.prototype.match%', 'Symbol.match'),
       ...createUnsafeStringMethodReport(context, '%String.prototype.matchAll%', 'Symbol.matchAll'),
       ...createUnsafeStringMethodOnRegexReport(context, '%String.prototype.replace%', 'Symbol.replace'),
       ...createUnsafeStringMethodOnRegexReport(context, '%String.prototype.replaceAll%', 'Symbol.replace'),
-      ...createUnsafeStringMethodReport(context, '%String.prototype.search%', 'Symbol.search'),
       ...createUnsafeStringMethodOnRegexReport(context, '%String.prototype.split%', 'Symbol.split'),
 
       'NewExpression[callee.name="Proxy"][arguments.1.type="ObjectExpression"]'(node) {
@@ -162,6 +191,13 @@ module.exports = {
         context.report({
           node,
           message: 'Proxy handler must be a null-prototype object',
+        });
+      },
+
+      [`ExpressionStatement>AwaitExpression>${CallExpression(/^(Safe)?PromiseAll(Settled)?$/)}`](node) {
+        context.report({
+          node,
+          message: `Use ${node.callee.name}ReturnVoid`,
         });
       },
 

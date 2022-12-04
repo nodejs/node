@@ -633,7 +633,7 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
   // Create a new napi_env for this specific module.
   napi_env env = v8impl::NewEnv(context, module_filename);
 
-  napi_value _exports;
+  napi_value _exports = nullptr;
   env->CallIntoModule([&](napi_env env) {
     _exports = init(env, v8impl::JsValueFromV8LocalValue(exports));
   });
@@ -671,8 +671,9 @@ void NAPI_CDECL napi_module_register(napi_module* mod) {
   node::node_module_register(nm);
 }
 
-napi_status NAPI_CDECL napi_add_env_cleanup_hook(
-    napi_env env, void(NAPI_CDECL* fun)(void* arg), void* arg) {
+napi_status NAPI_CDECL napi_add_env_cleanup_hook(napi_env env,
+                                                 napi_cleanup_hook fun,
+                                                 void* arg) {
   CHECK_ENV(env);
   CHECK_ARG(env, fun);
 
@@ -681,8 +682,9 @@ napi_status NAPI_CDECL napi_add_env_cleanup_hook(
   return napi_ok;
 }
 
-napi_status NAPI_CDECL napi_remove_env_cleanup_hook(
-    napi_env env, void(NAPI_CDECL* fun)(void* arg), void* arg) {
+napi_status NAPI_CDECL napi_remove_env_cleanup_hook(napi_env env,
+                                                    napi_cleanup_hook fun,
+                                                    void* arg) {
   CHECK_ENV(env);
   CHECK_ARG(env, fun);
 
@@ -950,6 +952,10 @@ napi_status NAPI_CDECL napi_create_external_buffer(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
+#if defined(V8_ENABLE_SANDBOX)
+  return napi_set_last_error(env, napi_no_external_buffers_allowed);
+#endif
+
   v8::Isolate* isolate = env->isolate;
 
   // The finalizer object will delete itself after invoking the callback.
@@ -1069,7 +1075,7 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
             env->isolate,
             async_resource,
             *v8::String::Utf8Value(env->isolate, async_resource_name)),
-        ThreadPoolWork(env->node_env()),
+        ThreadPoolWork(env->node_env(), "node_api"),
         _env(env),
         _data(data),
         _execute(execute),

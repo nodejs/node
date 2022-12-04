@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbo-filter=* --always-opt --noanalyze-environment-liveness
+// Flags: --turbo-filter=* --always-turbofan --noanalyze-environment-liveness
 
 (function() {
   "use strict";

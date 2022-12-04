@@ -36,7 +36,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.12',
+    'v8_embedder_string': '-node.5',
 
     ##### V8 defaults for Node.js #####
 
@@ -283,11 +283,7 @@
           '-std:c++17'
         ],
         'BufferSecurityCheck': 'true',
-        'target_conditions': [
-          ['_toolset=="target"', {
-            'DebugInformationFormat': 1      # /Z7 embed info in .obj files
-          }],
-        ],
+        'DebugInformationFormat': 1,          # /Z7 embed info in .obj files
         'ExceptionHandling': 0,               # /EHsc
         'MultiProcessorCompilation': 'true',
         'StringPooling': 'true',              # pool string literals

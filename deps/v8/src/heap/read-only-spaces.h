@@ -265,11 +265,6 @@ class ReadOnlySpace : public BaseSpace {
   void EnsureSpaceForAllocation(int size_in_bytes);
   void FreeLinearAllocationArea();
 
-  // String padding must be cleared just before serialization and therefore
-  // the string padding in the space will already have been cleared if the
-  // space was deserialized.
-  bool is_string_padding_cleared_;
-
   size_t capacity_;
   const size_t area_size_;
 };

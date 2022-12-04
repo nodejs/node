@@ -365,7 +365,7 @@ process.on('uncaughtException', (err, origin) => {
   fs.writeSync(
     process.stderr.fd,
     `Caught exception: ${err}\n` +
-    `Exception origin: ${origin}`
+    `Exception origin: ${origin}`,
   );
 });
 
@@ -385,7 +385,7 @@ process.on('uncaughtException', (err, origin) => {
   fs.writeSync(
     process.stderr.fd,
     `Caught exception: ${err}\n` +
-    `Exception origin: ${origin}`
+    `Exception origin: ${origin}`,
   );
 });
 
@@ -1041,7 +1041,7 @@ This feature is not available in [`Worker`][] threads.
 <!-- YAML
 added: v0.7.7
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/43627
     description: The `process.config` object is now frozen.
   - version: v16.0.0
@@ -1293,7 +1293,7 @@ import { emitWarning } from 'node:process';
 // Emit a warning with a code and additional detail.
 emitWarning('Something happened!', {
   code: 'MY_WARNING',
-  detail: 'This is some additional information'
+  detail: 'This is some additional information',
 });
 // Emits:
 // (node:56338) [MY_WARNING] Warning: Something happened!
@@ -1306,7 +1306,7 @@ const { emitWarning } = require('node:process');
 // Emit a warning with a code and additional detail.
 emitWarning('Something happened!', {
   code: 'MY_WARNING',
-  detail: 'This is some additional information'
+  detail: 'This is some additional information',
 });
 // Emits:
 // (node:56338) [MY_WARNING] Warning: Something happened!
@@ -1708,9 +1708,15 @@ that started the Node.js process. Symbolic links, if any, are resolved.
 
 <!-- YAML
 added: v0.1.13
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43716
+    description: Only accepts a code of type number, or of type string if it
+                 represents an integer.
 -->
 
-* `code` {integer} The exit code. **Default:** `0`.
+* `code` {integer|string|null|undefined} The exit code. For string type, only
+  integer strings (e.g.,'1') are allowed. **Default:** `0`.
 
 The `process.exit()` method instructs Node.js to terminate the process
 synchronously with an exit status of `code`. If `code` is omitted, exit uses
@@ -1810,9 +1816,15 @@ than the current process.
 
 <!-- YAML
 added: v0.11.8
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43716
+    description: Only accepts a code of type number, or of type string if it
+                 represents an integer.
 -->
 
-* {integer}
+* {integer|string|null|undefined} The exit code. For string type, only
+  integer strings (e.g.,'1') are allowed. **Default:** `undefined`.
 
 A number which will be the process exit code, when the process either
 exits gracefully, or is exited via [`process.exit()`][] without specifying
@@ -2699,17 +2711,17 @@ tarball.
   only the source header files for the current release. This file is
   significantly smaller than the full source file and can be used for compiling
   Node.js native add-ons.
-* `libUrl` {string} an absolute URL pointing to a _`node.lib`_ file matching the
-  architecture and version of the current release. This file is used for
-  compiling Node.js native add-ons. _This property is only present on Windows
-  builds of Node.js and will be missing on all other platforms._
-* `lts` {string} a string label identifying the [LTS][] label for this release.
-  This property only exists for LTS releases and is `undefined` for all other
-  release types, including _Current_ releases.
-  Valid values include the LTS Release code names (including those
-  that are no longer supported).
-  * `'Dubnium'` for the 10.x LTS line beginning with 10.13.0.
-  * `'Erbium'` for the 12.x LTS line beginning with 12.13.0.
+* `libUrl` {string|undefined} an absolute URL pointing to a _`node.lib`_ file
+  matching the architecture and version of the current release. This file is
+  used for compiling Node.js native add-ons. _This property is only present on
+  Windows builds of Node.js and will be missing on all other platforms._
+* `lts` {string|undefined} a string label identifying the [LTS][] label for this
+  release. This property only exists for LTS releases and is `undefined` for all
+  other release types, including _Current_ releases. Valid values include the
+  LTS Release code names (including those that are no longer supported).
+  * `'Fermium'` for the 14.x LTS line beginning with 14.15.0.
+  * `'Gallium'` for the 16.x LTS line beginning with 16.13.0.
+  * `'Hydrogen'` for the 18.x LTS line beginning with 18.12.0.
     For other LTS Release code names, see [Node.js Changelog Archive](https://github.com/nodejs/node/blob/HEAD/doc/changelogs/CHANGELOG_ARCHIVE.md)
 
 <!-- eslint-skip -->
@@ -2717,10 +2729,10 @@ tarball.
 ```js
 {
   name: 'node',
-  lts: 'Erbium',
-  sourceUrl: 'https://nodejs.org/download/release/v12.18.1/node-v12.18.1.tar.gz',
-  headersUrl: 'https://nodejs.org/download/release/v12.18.1/node-v12.18.1-headers.tar.gz',
-  libUrl: 'https://nodejs.org/download/release/v12.18.1/win-x64/node.lib'
+  lts: 'Hydrogen',
+  sourceUrl: 'https://nodejs.org/download/release/v18.12.0/node-v18.12.0.tar.gz',
+  headersUrl: 'https://nodejs.org/download/release/v18.12.0/node-v18.12.0-headers.tar.gz',
+  libUrl: 'https://nodejs.org/download/release/v18.12.0/win-x64/node.lib'
 }
 ```
 
@@ -3186,7 +3198,7 @@ if (process.getegid && process.setegid) {
     process.setegid(501);
     console.log(`New gid: ${process.getegid()}`);
   } catch (err) {
-    console.log(`Failed to set gid: ${err}`);
+    console.error(`Failed to set gid: ${err}`);
   }
 }
 ```
@@ -3200,7 +3212,7 @@ if (process.getegid && process.setegid) {
     process.setegid(501);
     console.log(`New gid: ${process.getegid()}`);
   } catch (err) {
-    console.log(`Failed to set gid: ${err}`);
+    console.error(`Failed to set gid: ${err}`);
   }
 }
 ```
@@ -3231,7 +3243,7 @@ if (process.geteuid && process.seteuid) {
     process.seteuid(501);
     console.log(`New uid: ${process.geteuid()}`);
   } catch (err) {
-    console.log(`Failed to set uid: ${err}`);
+    console.error(`Failed to set uid: ${err}`);
   }
 }
 ```
@@ -3245,7 +3257,7 @@ if (process.geteuid && process.seteuid) {
     process.seteuid(501);
     console.log(`New uid: ${process.geteuid()}`);
   } catch (err) {
-    console.log(`Failed to set uid: ${err}`);
+    console.error(`Failed to set uid: ${err}`);
   }
 }
 ```
@@ -3276,7 +3288,7 @@ if (process.getgid && process.setgid) {
     process.setgid(501);
     console.log(`New gid: ${process.getgid()}`);
   } catch (err) {
-    console.log(`Failed to set gid: ${err}`);
+    console.error(`Failed to set gid: ${err}`);
   }
 }
 ```
@@ -3290,7 +3302,7 @@ if (process.getgid && process.setgid) {
     process.setgid(501);
     console.log(`New gid: ${process.getgid()}`);
   } catch (err) {
-    console.log(`Failed to set gid: ${err}`);
+    console.error(`Failed to set gid: ${err}`);
   }
 }
 ```
@@ -3321,7 +3333,7 @@ if (process.getgroups && process.setgroups) {
     process.setgroups([501]);
     console.log(process.getgroups()); // new groups
   } catch (err) {
-    console.log(`Failed to set groups: ${err}`);
+    console.error(`Failed to set groups: ${err}`);
   }
 }
 ```
@@ -3334,7 +3346,7 @@ if (process.getgroups && process.setgroups) {
     process.setgroups([501]);
     console.log(process.getgroups()); // new groups
   } catch (err) {
-    console.log(`Failed to set groups: ${err}`);
+    console.error(`Failed to set groups: ${err}`);
   }
 }
 ```
@@ -3365,7 +3377,7 @@ if (process.getuid && process.setuid) {
     process.setuid(501);
     console.log(`New uid: ${process.getuid()}`);
   } catch (err) {
-    console.log(`Failed to set uid: ${err}`);
+    console.error(`Failed to set uid: ${err}`);
   }
 }
 ```
@@ -3379,7 +3391,7 @@ if (process.getuid && process.setuid) {
     process.setuid(501);
     console.log(`New uid: ${process.getuid()}`);
   } catch (err) {
-    console.log(`Failed to set uid: ${err}`);
+    console.error(`Failed to set uid: ${err}`);
   }
 }
 ```
@@ -3671,7 +3683,7 @@ import { umask } from 'node:process';
 const newmask = 0o022;
 const oldmask = umask(newmask);
 console.log(
-  `Changed umask from ${oldmask.toString(8)} to ${newmask.toString(8)}`
+  `Changed umask from ${oldmask.toString(8)} to ${newmask.toString(8)}`,
 );
 ```
 
@@ -3681,7 +3693,7 @@ const { umask } = require('node:process');
 const newmask = 0o022;
 const oldmask = umask(newmask);
 console.log(
-  `Changed umask from ${oldmask.toString(8)} to ${newmask.toString(8)}`
+  `Changed umask from ${oldmask.toString(8)} to ${newmask.toString(8)}`,
 );
 ```
 

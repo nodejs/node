@@ -237,6 +237,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(fs_event_wrap, node::FSEventWrap::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(fs_event_wrap,
-                               node::FSEventWrap::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(fs_event_wrap,
+                                    node::FSEventWrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(fs_event_wrap,
+                                node::FSEventWrap::RegisterExternalReferences)

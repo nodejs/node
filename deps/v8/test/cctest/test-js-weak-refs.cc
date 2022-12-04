@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/execution/isolate.h"
-#include "src/execution/microtask-queue.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
@@ -712,7 +711,7 @@ TEST(TestJSWeakRef) {
 }
 
 TEST(TestJSWeakRefIncrementalMarking) {
-  if (!FLAG_incremental_marking) {
+  if (!v8_flags.incremental_marking) {
     return;
   }
   ManualGCScope manual_gc_scope;
@@ -784,7 +783,7 @@ TEST(TestJSWeakRefKeepDuringJob) {
 }
 
 TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
-  if (!FLAG_incremental_marking) {
+  if (!v8_flags.incremental_marking) {
     return;
   }
   ManualGCScope manual_gc_scope;
@@ -873,7 +872,7 @@ TEST(TestRemoveUnregisterToken) {
 }
 
 TEST(JSWeakRefScavengedInWorklist) {
-  if (!FLAG_incremental_marking || FLAG_single_generation) {
+  if (!v8_flags.incremental_marking || v8_flags.single_generation) {
     return;
   }
 
@@ -923,8 +922,8 @@ TEST(JSWeakRefScavengedInWorklist) {
 }
 
 TEST(JSWeakRefTenuredInWorklist) {
-  if (!FLAG_incremental_marking || FLAG_single_generation ||
-      FLAG_separate_gc_phases) {
+  if (!v8_flags.incremental_marking || v8_flags.single_generation ||
+      v8_flags.separate_gc_phases) {
     return;
   }
 
@@ -976,10 +975,10 @@ TEST(JSWeakRefTenuredInWorklist) {
 }
 
 TEST(UnregisterTokenHeapVerifier) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
   ManualGCScope manual_gc_scope;
 #ifdef VERIFY_HEAP
-  FLAG_verify_heap = true;
+  v8_flags.verify_heap = true;
 #endif
 
   CcTest::InitializeVM();
@@ -1024,10 +1023,10 @@ TEST(UnregisterTokenHeapVerifier) {
 }
 
 TEST(UnregisteredAndUnclearedCellHeapVerifier) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
   ManualGCScope manual_gc_scope;
 #ifdef VERIFY_HEAP
-  FLAG_verify_heap = true;
+  v8_flags.verify_heap = true;
 #endif
 
   CcTest::InitializeVM();

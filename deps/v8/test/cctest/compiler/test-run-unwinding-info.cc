@@ -17,8 +17,8 @@ namespace internal {
 namespace compiler {
 
 TEST(RunUnwindingInfo) {
-  FLAG_always_opt = true;
-  FLAG_perf_prof_unwinding_info = true;
+  v8_flags.always_turbofan = true;
+  v8_flags.perf_prof_unwinding_info = true;
 
   FunctionTester tester(
       "(function (x) {\n"

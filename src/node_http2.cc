@@ -14,6 +14,10 @@
 #include "util-inl.h"
 
 #include <algorithm>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace node {
 
@@ -644,7 +648,7 @@ void Http2Stream::EmitStatistics() {
           duration,
           statistics_);
 
-  env()->SetImmediate([entry = move(entry)](Environment* env) {
+  env()->SetImmediate([entry = std::move(entry)](Environment* env) {
     if (HasHttp2Observer(env))
       entry->Notify(env);
   });
@@ -703,6 +707,11 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
     Debug(this, "make done session callback");
     HandleScope scope(env()->isolate());
     MakeCallback(env()->ondone_string(), 0, nullptr);
+    if (stream_ != nullptr) {
+      // Start reading again to detect the other end finishing.
+      set_reading_stopped(false);
+      stream_->ReadStart();
+    }
   }
 
   // If there are outstanding pings, those will need to be canceled, do
@@ -1114,6 +1123,17 @@ int Http2Session::OnStreamClose(nghttp2_session* handle,
   // already been destroyed
   if (!stream || stream->is_destroyed())
     return 0;
+
+  // Don't close synchronously in case there's pending data to be written. This
+  // may happen when writing trailing headers.
+  if (code == NGHTTP2_NO_ERROR && nghttp2_session_want_write(handle) &&
+      !env->is_stopping()) {
+    env->SetImmediate([handle, id, code, user_data](Environment* env) {
+      OnStreamClose(handle, id, code, user_data);
+    });
+
+    return 0;
+  }
 
   stream->Close(code);
 
@@ -1592,6 +1612,11 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
   if (is_destroyed()) {
     HandleScope scope(env()->isolate());
     MakeCallback(env()->ondone_string(), 0, nullptr);
+    if (stream_ != nullptr) {
+      // Start reading again to detect the other end finishing.
+      set_reading_stopped(false);
+      stream_->ReadStart();
+    }
     return;
   }
 
@@ -1640,7 +1665,9 @@ void Http2Session::MaybeScheduleWrite() {
 }
 
 void Http2Session::MaybeStopReading() {
-  if (is_reading_stopped()) return;
+  // If the session is already closing we don't want to stop reading as we want
+  // to detect when the other peer is actually closed.
+  if (is_reading_stopped() || is_closing()) return;
   int want_read = nghttp2_session_want_read(session_.get());
   Debug(this, "wants read? %d", want_read);
   if (want_read == 0 || is_write_in_progress()) {
@@ -2060,9 +2087,12 @@ void Http2Stream::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 std::string Http2Stream::diagnostic_name() const {
+  const Http2Session* sess = session();
+  const std::string sname =
+      sess ? sess->diagnostic_name() : "session already destroyed";
   return "HttpStream " + std::to_string(id()) + " (" +
-      std::to_string(static_cast<int64_t>(get_async_id())) + ") [" +
-      session()->diagnostic_name() + "]";
+         std::to_string(static_cast<int64_t>(get_async_id())) + ") [" + sname +
+         "]";
 }
 
 // Notify the Http2Stream that a new block of HEADERS is being processed.
@@ -2375,8 +2405,7 @@ int Http2Stream::DoWrite(WriteWrap* req_wrap,
   CHECK_NULL(send_handle);
   Http2Scope h2scope(this);
   if (!is_writable() || is_destroyed()) {
-    req_wrap->Done(UV_EOF);
-    return 0;
+    return UV_EOF;
   }
   Debug(this, "queuing %d buffers to send", nbufs);
   for (size_t i = 0; i < nbufs; ++i) {
@@ -3154,6 +3183,12 @@ void SetCallbackFunctions(const FunctionCallbackInfo<Value>& args) {
 #undef SET_FUNCTION
 }
 
+#ifdef NODE_DEBUG_NGHTTP2
+void NgHttp2Debug(const char* format, va_list args) {
+  vfprintf(stderr, format, args);
+}
+#endif
+
 void Http2State::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("root_buffer", root_buffer);
 }
@@ -3319,8 +3354,12 @@ void Initialize(Local<Object> target,
 #undef V
 
   target->Set(context, env->constants_string(), constants).Check();
+
+#ifdef NODE_DEBUG_NGHTTP2
+  nghttp2_set_debug_vprintf_callback(NgHttp2Debug);
+#endif
 }
 }  // namespace http2
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(http2, node::http2::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(http2, node::http2::Initialize)

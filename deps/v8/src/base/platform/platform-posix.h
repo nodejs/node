@@ -5,6 +5,7 @@
 #ifndef V8_BASE_PLATFORM_PLATFORM_POSIX_H_
 #define V8_BASE_PLATFORM_PLATFORM_POSIX_H_
 
+#include "include/v8config.h"
 #include "src/base/platform/platform.h"
 #include "src/base/timezone-cache.h"
 
@@ -22,6 +23,10 @@ class PosixTimezoneCache : public TimezoneCache {
  protected:
   static const int msPerSecond = 1000;
 };
+
+#if !V8_OS_FUCHSIA
+int GetProtectionFromMemoryPermission(OS::MemoryPermission access);
+#endif
 
 }  // namespace base
 }  // namespace v8

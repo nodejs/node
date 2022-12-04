@@ -104,8 +104,9 @@ TypedArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(
             finalSource = source;
           }
           case (sourceTypedArray: JSTypedArray): {
-            const sourceBuffer = sourceTypedArray.buffer;
-            if (IsDetachedBuffer(sourceBuffer)) goto UseUserProvidedIterator;
+            finalLength =
+                LoadJSTypedArrayLengthAndCheckDetached(sourceTypedArray)
+                otherwise UseUserProvidedIterator;
 
             // Check that the iterator function is exactly
             // Builtin::kTypedArrayPrototypeValues.
@@ -117,7 +118,6 @@ TypedArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(
             // Source is a TypedArray with unmodified iterator behavior. Use the
             // source object directly, taking advantage of the special-case code
             // in TypedArrayCopyElements
-            finalLength = sourceTypedArray.length;
             finalSource = source;
           }
           case (Object): {
@@ -151,7 +151,9 @@ TypedArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(
         ThrowRangeError(MessageTemplate::kInvalidTypedArrayLength, length);
       }
     } label IteratorNotCallable(_value: JSAny) deferred {
-      ThrowTypeError(MessageTemplate::kIteratorSymbolNonCallable);
+      ThrowTypeError(
+          MessageTemplate::kFirstArgumentIteratorSymbolNonCallable,
+          kBuiltinNameFrom);
     }
 
     const finalLengthNum = Convert<Number>(finalLength);

@@ -52,60 +52,6 @@ TF_BUILTIN(WasmFloat64ToNumber, WasmBuiltinsAssembler) {
   Return(ChangeFloat64ToTagged(val));
 }
 
-TF_BUILTIN(WasmI32AtomicWait32, WasmBuiltinsAssembler) {
-  if (!Is32()) {
-    Unreachable();
-    return;
-  }
-
-  auto address = UncheckedParameter<Uint32T>(Descriptor::kAddress);
-  TNode<Number> address_number = ChangeUint32ToTagged(address);
-
-  auto expected_value = UncheckedParameter<Int32T>(Descriptor::kExpectedValue);
-  TNode<Number> expected_value_number = ChangeInt32ToTagged(expected_value);
-
-  auto timeout_low = UncheckedParameter<IntPtrT>(Descriptor::kTimeoutLow);
-  auto timeout_high = UncheckedParameter<IntPtrT>(Descriptor::kTimeoutHigh);
-  TNode<BigInt> timeout = BigIntFromInt32Pair(timeout_low, timeout_high);
-
-  TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
-  TNode<Context> context = LoadContextFromInstance(instance);
-
-  TNode<Smi> result_smi =
-      CAST(CallRuntime(Runtime::kWasmI32AtomicWait, context, instance,
-                       address_number, expected_value_number, timeout));
-  Return(Unsigned(SmiToInt32(result_smi)));
-}
-
-TF_BUILTIN(WasmI64AtomicWait32, WasmBuiltinsAssembler) {
-  if (!Is32()) {
-    Unreachable();
-    return;
-  }
-
-  auto address = UncheckedParameter<Uint32T>(Descriptor::kAddress);
-  TNode<Number> address_number = ChangeUint32ToTagged(address);
-
-  auto expected_value_low =
-      UncheckedParameter<IntPtrT>(Descriptor::kExpectedValueLow);
-  auto expected_value_high =
-      UncheckedParameter<IntPtrT>(Descriptor::kExpectedValueHigh);
-  TNode<BigInt> expected_value =
-      BigIntFromInt32Pair(expected_value_low, expected_value_high);
-
-  auto timeout_low = UncheckedParameter<IntPtrT>(Descriptor::kTimeoutLow);
-  auto timeout_high = UncheckedParameter<IntPtrT>(Descriptor::kTimeoutHigh);
-  TNode<BigInt> timeout = BigIntFromInt32Pair(timeout_low, timeout_high);
-
-  TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
-  TNode<Context> context = LoadContextFromInstance(instance);
-
-  TNode<Smi> result_smi =
-      CAST(CallRuntime(Runtime::kWasmI64AtomicWait, context, instance,
-                       address_number, expected_value, timeout));
-  Return(Unsigned(SmiToInt32(result_smi)));
-}
-
 TF_BUILTIN(JSToWasmLazyDeoptContinuation, WasmBuiltinsAssembler) {
   // Reset thread_in_wasm_flag.
   TNode<ExternalReference> thread_in_wasm_flag_address_address =

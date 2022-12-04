@@ -534,6 +534,7 @@ https://v8-roll.appspot.com/
 This only works with a Google account.
 
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux-blink-rel
+CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux_chromium_chromeos_msan_rel_ng
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:mac_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:win_optional_gpu_tests_rel

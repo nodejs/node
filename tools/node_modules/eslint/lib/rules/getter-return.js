@@ -112,18 +112,24 @@ module.exports = {
                 }
                 if (parent.type === "Property" && astUtils.getStaticPropertyName(parent) === "get" && parent.parent.type === "ObjectExpression") {
 
-                    // Object.defineProperty()
-                    if (parent.parent.parent.type === "CallExpression" &&
-                        astUtils.getStaticPropertyName(parent.parent.parent.callee) === "defineProperty") {
-                        return true;
+                    // Object.defineProperty() or Reflect.defineProperty()
+                    if (parent.parent.parent.type === "CallExpression") {
+                        const callNode = parent.parent.parent.callee;
+
+                        if (astUtils.isSpecificMemberAccess(callNode, "Object", "defineProperty") ||
+                            astUtils.isSpecificMemberAccess(callNode, "Reflect", "defineProperty")) {
+                            return true;
+                        }
                     }
 
-                    // Object.defineProperties()
+                    // Object.defineProperties() or Object.create()
                     if (parent.parent.parent.type === "Property" &&
                         parent.parent.parent.parent.type === "ObjectExpression" &&
-                        parent.parent.parent.parent.parent.type === "CallExpression" &&
-                        astUtils.getStaticPropertyName(parent.parent.parent.parent.parent.callee) === "defineProperties") {
-                        return true;
+                        parent.parent.parent.parent.parent.type === "CallExpression") {
+                        const callNode = parent.parent.parent.parent.parent.callee;
+
+                        return astUtils.isSpecificMemberAccess(callNode, "Object", "defineProperties") ||
+                               astUtils.isSpecificMemberAccess(callNode, "Object", "create");
                     }
                 }
             }

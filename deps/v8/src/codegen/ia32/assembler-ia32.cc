@@ -51,7 +51,6 @@
 #include "src/base/cpu.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/init/v8.h"
@@ -64,15 +63,8 @@ Immediate Immediate::EmbeddedNumber(double value) {
   int32_t smi;
   if (DoubleToSmiInteger(value, &smi)) return Immediate(Smi::FromInt(smi));
   Immediate result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
-  result.is_heap_object_request_ = true;
-  result.value_.heap_object_request = HeapObjectRequest(value);
-  return result;
-}
-
-Immediate Immediate::EmbeddedStringConstant(const StringConstantBase* str) {
-  Immediate result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
-  result.is_heap_object_request_ = true;
-  result.value_.heap_object_request = HeapObjectRequest(str);
+  result.is_heap_number_request_ = true;
+  result.value_.heap_number_request = HeapNumberRequest(value);
   return result;
 }
 
@@ -125,7 +117,7 @@ bool OSHasAVXSupport() {
 bool CpuFeatures::SupportsWasmSimd128() {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsSupported(SSE4_1)) return true;
-  if (FLAG_wasm_simd_ssse3_codegen && IsSupported(SSSE3)) return true;
+  if (v8_flags.wasm_simd_ssse3_codegen && IsSupported(SSSE3)) return true;
 #endif  // V8_ENABLE_WEBASSEMBLY
   return false;
 }
@@ -148,13 +140,13 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     if (cpu.has_fma3()) SetSupported(FMA3);
   }
 
-  if (cpu.has_bmi1() && FLAG_enable_bmi1) SetSupported(BMI1);
-  if (cpu.has_bmi2() && FLAG_enable_bmi2) SetSupported(BMI2);
-  if (cpu.has_lzcnt() && FLAG_enable_lzcnt) SetSupported(LZCNT);
-  if (cpu.has_popcnt() && FLAG_enable_popcnt) SetSupported(POPCNT);
-  if (strcmp(FLAG_mcpu, "auto") == 0) {
+  if (cpu.has_bmi1() && v8_flags.enable_bmi1) SetSupported(BMI1);
+  if (cpu.has_bmi2() && v8_flags.enable_bmi2) SetSupported(BMI2);
+  if (cpu.has_lzcnt() && v8_flags.enable_lzcnt) SetSupported(LZCNT);
+  if (cpu.has_popcnt() && v8_flags.enable_popcnt) SetSupported(POPCNT);
+  if (strcmp(v8_flags.mcpu, "auto") == 0) {
     if (cpu.is_atom()) SetSupported(INTEL_ATOM);
-  } else if (strcmp(FLAG_mcpu, "atom") == 0) {
+  } else if (strcmp(v8_flags.mcpu, "atom") == 0) {
     SetSupported(INTEL_ATOM);
   }
 
@@ -162,13 +154,13 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // AVX but not SSE4_2, if we have --enable-avx and --no-enable-sse4-2, the
   // code above would set AVX to supported, and SSE4_2 to unsupported, then the
   // checks below will set AVX to unsupported.
-  if (!FLAG_enable_sse3) SetUnsupported(SSE3);
-  if (!FLAG_enable_ssse3 || !IsSupported(SSE3)) SetUnsupported(SSSE3);
-  if (!FLAG_enable_sse4_1 || !IsSupported(SSSE3)) SetUnsupported(SSE4_1);
-  if (!FLAG_enable_sse4_2 || !IsSupported(SSE4_1)) SetUnsupported(SSE4_2);
-  if (!FLAG_enable_avx || !IsSupported(SSE4_2)) SetUnsupported(AVX);
-  if (!FLAG_enable_avx2 || !IsSupported(AVX)) SetUnsupported(AVX2);
-  if (!FLAG_enable_fma3 || !IsSupported(AVX)) SetUnsupported(FMA3);
+  if (!v8_flags.enable_sse3) SetUnsupported(SSE3);
+  if (!v8_flags.enable_ssse3 || !IsSupported(SSE3)) SetUnsupported(SSSE3);
+  if (!v8_flags.enable_sse4_1 || !IsSupported(SSSE3)) SetUnsupported(SSE4_1);
+  if (!v8_flags.enable_sse4_2 || !IsSupported(SSE4_1)) SetUnsupported(SSE4_2);
+  if (!v8_flags.enable_avx || !IsSupported(SSE4_2)) SetUnsupported(AVX);
+  if (!v8_flags.enable_avx2 || !IsSupported(AVX)) SetUnsupported(AVX2);
+  if (!v8_flags.enable_fma3 || !IsSupported(AVX)) SetUnsupported(FMA3);
 
   // Set a static value on whether Simd is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
@@ -212,8 +204,7 @@ void Displacement::init(Label* L, Type type) {
 const int RelocInfo::kApplyMask =
     RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-    RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
-    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+    RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET);
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
@@ -293,22 +284,12 @@ Register Operand::reg() const {
 
 bool operator!=(Operand op, XMMRegister r) { return !op.is_reg(r); }
 
-void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
-  for (auto& request : heap_object_requests_) {
-    Handle<HeapObject> object;
-    switch (request.kind()) {
-      case HeapObjectRequest::kHeapNumber:
-        object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+void Assembler::AllocateAndInstallRequestedHeapNumbers(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
+  for (auto& request : heap_number_requests_) {
+    Handle<HeapObject> object =
+        isolate->factory()->NewHeapNumber<AllocationType::kOld>(
             request.heap_number());
-        break;
-      case HeapObjectRequest::kStringConstant: {
-        const StringConstantBase* str = request.string();
-        CHECK_NOT_NULL(str);
-        object = str->AllocateStringConstant(isolate);
-        break;
-      }
-    }
     Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
     WriteUnalignedValue(pc, object);
   }
@@ -353,7 +334,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   // that we are still not overlapping instructions and relocation info).
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
 
-  AllocateAndInstallRequestedHeapObjects(isolate);
+  AllocateAndInstallRequestedHeapNumbers(isolate);
 
   // Set up code descriptor.
   // TODO(jgruber): Reconsider how these offsets and sizes are maintained up to
@@ -1643,11 +1624,7 @@ void Assembler::call(Address entry, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   DCHECK(!RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE8);
-  if (RelocInfo::IsRuntimeEntry(rmode)) {
-    emit(entry, rmode);
-  } else {
-    emit(entry - (reinterpret_cast<Address>(pc_) + sizeof(int32_t)), rmode);
-  }
+  emit(entry - (reinterpret_cast<Address>(pc_) + sizeof(int32_t)), rmode);
 }
 
 void Assembler::wasm_call(Address entry, RelocInfo::Mode rmode) {
@@ -1720,7 +1697,7 @@ void Assembler::jmp(Address entry, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   DCHECK(!RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE9);
-  if (RelocInfo::IsRuntimeEntry(rmode) || RelocInfo::IsWasmCall(rmode)) {
+  if (RelocInfo::IsWasmCall(rmode)) {
     emit(entry, rmode);
   } else {
     emit(entry - (reinterpret_cast<Address>(pc_) + sizeof(int32_t)), rmode);
@@ -1790,11 +1767,7 @@ void Assembler::j(Condition cc, byte* entry, RelocInfo::Mode rmode) {
   // 0000 1111 1000 tttn #32-bit disp.
   EMIT(0x0F);
   EMIT(0x80 | cc);
-  if (RelocInfo::IsRuntimeEntry(rmode)) {
-    emit(reinterpret_cast<uint32_t>(entry), rmode);
-  } else {
-    emit(entry - (pc_ + sizeof(int32_t)), rmode);
-  }
+  emit(entry - (pc_ + sizeof(int32_t)), rmode);
 }
 
 void Assembler::j(Condition cc, Handle<Code> code, RelocInfo::Mode rmode) {
@@ -3413,8 +3386,7 @@ void Assembler::db(uint8_t data) {
 void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-           RelocInfo::IsLiteralConstant(rmode));
+    DCHECK(RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   emit(data);
@@ -3422,10 +3394,7 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
 
 void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
-    RecordRelocInfo(rmode);
-  }
+  DCHECK(RelocInfo::IsNoInfo(rmode));
   emit_q(data);
 }
 

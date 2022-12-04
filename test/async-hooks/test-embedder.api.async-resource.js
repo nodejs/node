@@ -26,7 +26,7 @@ assert.throws(() => {
 
 assert.strictEqual(
   new AsyncResource('default_trigger_id').triggerAsyncId(),
-  async_hooks.executionAsyncId()
+  async_hooks.executionAsyncId(),
 );
 
 // Create first custom event 'alcazares' with triggerAsyncId derived

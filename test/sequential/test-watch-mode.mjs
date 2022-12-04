@@ -9,14 +9,22 @@ import { spawn } from 'node:child_process';
 import { writeFileSync, readFileSync } from 'node:fs';
 import { inspect } from 'node:util';
 import { once } from 'node:events';
+import { createInterface } from 'node:readline/promises';
 
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
+const supportsRecursive = common.isOSX || common.isWindows;
+let disableRestart = false;
+
 function restart(file) {
   // To avoid flakiness, we save the file repeatedly until test is done
   writeFileSync(file, readFileSync(file));
-  const timer = setInterval(() => writeFileSync(file, readFileSync(file)), 1000);
+  const timer = setInterval(() => {
+    if (!disableRestart) {
+      writeFileSync(file, readFileSync(file));
+    }
+  }, common.platformTimeout(1000));
   return () => clearInterval(timer);
 }
 
@@ -35,11 +43,15 @@ async function spawnWithRestarts({
   let stdout = '';
   let cancelRestarts;
 
+  disableRestart = true;
   const child = spawn(execPath, ['--watch', '--no-warnings', ...args], { encoding: 'utf8' });
   child.stderr.on('data', (data) => {
     stderr += data;
   });
   child.stdout.on('data', async (data) => {
+    if (data.toString().includes('Restarting')) {
+      disableRestart = true;
+    }
     stdout += data;
     const restartsCount = stdout.match(new RegExp(`Restarting ${printedArgs.replace(/\\/g, '\\\\')}`, 'g'))?.length ?? 0;
     if (restarts === 0 || !isReady(data.toString())) {
@@ -51,6 +63,9 @@ async function spawnWithRestarts({
       return;
     }
     cancelRestarts ??= restart(watchedFile);
+    if (isReady(data.toString())) {
+      disableRestart = false;
+    }
   });
 
   await once(child, 'exit');
@@ -59,8 +74,8 @@ async function spawnWithRestarts({
 }
 
 let tmpFiles = 0;
-function createTmpFile(content = 'console.log("running");') {
-  const file = path.join(tmpdir.path, `${tmpFiles++}.js`);
+function createTmpFile(content = 'console.log("running");', ext = '.js') {
+  const file = path.join(tmpdir.path, `${tmpFiles++}${ext}`);
   writeFileSync(file, content);
   return file;
 }
@@ -74,11 +89,29 @@ function assertRestartedCorrectly({ stdout, messages: { inner, completed, restar
   assert.deepStrictEqual(lines.slice(-end.length), end);
 }
 
+async function failWriteSucceed({ file, watchedFile }) {
+  const child = spawn(execPath, ['--watch', '--no-warnings', file], { encoding: 'utf8' });
+
+  try {
+    // Break the chunks into lines
+    for await (const data of createInterface({ input: child.stdout })) {
+      if (data.startsWith('Completed running')) {
+        break;
+      }
+      if (data.startsWith('Failed running')) {
+        writeFileSync(watchedFile, 'console.log("test has ran");');
+      }
+    }
+  } finally {
+    child.kill();
+  }
+}
+
 tmpdir.refresh();
 
-// Warning: this suite can run safely with concurrency: true
-// only if tests do not watch/depend on the same files
-describe('watch mode', { concurrency: true, timeout: 60_0000 }, () => {
+// Warning: this suite cannot run safely with concurrency: true
+// because of the disableRestart flag used for controlling restarts
+describe('watch mode', { concurrency: false, timeout: 60_000 }, () => {
   it('should watch changes to a file - event loop ended', async () => {
     const file = createTmpFile();
     const { stderr, stdout } = await spawnWithRestarts({ file });
@@ -104,16 +137,8 @@ describe('watch mode', { concurrency: true, timeout: 60_0000 }, () => {
     });
   });
 
-  it('should not watch when running an non-existing file', async () => {
-    const file = fixtures.path('watch-mode/non-existing.js');
-    const { stderr, stdout } = await spawnWithRestarts({ file, restarts: 0 });
-
-    assert.match(stderr, /code: 'MODULE_NOT_FOUND'/);
-    assert.strictEqual(stdout, `Failed running ${inspect(file)}\n`);
-  });
-
   it('should watch when running an non-existing file - when specified under --watch-path', {
-    skip: !common.isOSX && !common.isWindows
+    skip: !supportsRecursive
   }, async () => {
     const file = fixtures.path('watch-mode/subdir/non-existing.js');
     const watchedFile = fixtures.path('watch-mode/subdir/file.js');
@@ -219,5 +244,40 @@ describe('watch mode', { concurrency: true, timeout: 60_0000 }, () => {
       stdout,
       messages: { restarted: `Restarting ${inspect(file)}`, completed: `Completed running ${inspect(file)}` },
     });
+  });
+
+  // TODO: Remove skip after https://github.com/nodejs/node/pull/45271 lands
+  it('should not watch when running an missing file', {
+    skip: !supportsRecursive
+  }, async () => {
+    const nonExistingfile = path.join(tmpdir.path, `${tmpFiles++}.js`);
+    await failWriteSucceed({ file: nonExistingfile, watchedFile: nonExistingfile });
+  });
+
+  it('should not watch when running an missing mjs file', {
+    skip: !supportsRecursive
+  }, async () => {
+    const nonExistingfile = path.join(tmpdir.path, `${tmpFiles++}.mjs`);
+    await failWriteSucceed({ file: nonExistingfile, watchedFile: nonExistingfile });
+  });
+
+  it('should watch changes to previously missing dependency', {
+    skip: !supportsRecursive
+  }, async () => {
+    const dependency = path.join(tmpdir.path, `${tmpFiles++}.js`);
+    const relativeDependencyPath = `./${path.basename(dependency)}`;
+    const dependant = createTmpFile(`console.log(require('${relativeDependencyPath}'))`);
+
+    await failWriteSucceed({ file: dependant, watchedFile: dependency });
+  });
+
+  it('should watch changes to previously missing ESM dependency', {
+    skip: !supportsRecursive
+  }, async () => {
+    const dependency = path.join(tmpdir.path, `${tmpFiles++}.mjs`);
+    const relativeDependencyPath = `./${path.basename(dependency)}`;
+    const dependant = createTmpFile(`import '${relativeDependencyPath}'`, '.mjs');
+
+    await failWriteSucceed({ file: dependant, watchedFile: dependency });
   });
 });

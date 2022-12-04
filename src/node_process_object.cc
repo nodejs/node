@@ -92,11 +92,11 @@ MaybeLocal<Object> CreateProcessObject(Realm* realm) {
     return MaybeLocal<Object>();
   }
 
-  // process[exiting_aliased_Uint32Array]
+  // process[exit_info_private_symbol]
   if (process
           ->SetPrivate(context,
-                       realm->env()->exiting_aliased_Uint32Array(),
-                       realm->env()->exiting().GetJSArray())
+                       realm->env()->exit_info_private_symbol(),
+                       realm->env()->exit_info().GetJSArray())
           .IsNothing()) {
     return {};
   }
@@ -229,5 +229,5 @@ void RegisterProcessExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // namespace node
 
-NODE_MODULE_EXTERNAL_REFERENCE(process_object,
-                               node::RegisterProcessExternalReferences)
+NODE_BINDING_EXTERNAL_REFERENCE(process_object,
+                                node::RegisterProcessExternalReferences)

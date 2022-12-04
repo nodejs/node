@@ -74,7 +74,7 @@ class Traverser {
     }
 
     /**
-     * Gives a a copy of the ancestor nodes.
+     * Gives a copy of the ancestor nodes.
      * @returns {ASTNode[]} The ancestor nodes.
      */
     parents() {

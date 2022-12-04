@@ -43,7 +43,7 @@ let http2;
 try {
   http2 = require('node:http2');
 } catch (err) {
-  console.log('http2 support is disabled!');
+  console.error('http2 support is disabled!');
 }
 ```
 
@@ -61,7 +61,7 @@ let http2;
 try {
   http2 = await import('node:http2');
 } catch (err) {
-  console.log('http2 support is disabled!');
+  console.error('http2 support is disabled!');
 }
 ```
 
@@ -90,7 +90,7 @@ const fs = require('node:fs');
 
 const server = http2.createSecureServer({
   key: fs.readFileSync('localhost-privkey.pem'),
-  cert: fs.readFileSync('localhost-cert.pem')
+  cert: fs.readFileSync('localhost-cert.pem'),
 });
 server.on('error', (err) => console.error(err));
 
@@ -98,7 +98,7 @@ server.on('stream', (stream, headers) => {
   // stream is a Duplex
   stream.respond({
     'content-type': 'text/html; charset=utf-8',
-    ':status': 200
+    ':status': 200,
   });
   stream.end('<h1>Hello World</h1>');
 });
@@ -121,7 +121,7 @@ The following illustrates an HTTP/2 client:
 const http2 = require('node:http2');
 const fs = require('node:fs');
 const client = http2.connect('https://localhost:8443', {
-  ca: fs.readFileSync('localhost-cert.pem')
+  ca: fs.readFileSync('localhost-cert.pem'),
 });
 client.on('error', (err) => console.error(err));
 
@@ -327,7 +327,7 @@ session.on('stream', (stream, headers, flags) => {
   // ...
   stream.respond({
     ':status': 200,
-    'content-type': 'text/plain; charset=utf-8'
+    'content-type': 'text/plain; charset=utf-8',
   });
   stream.write('hello ');
   stream.end('world');
@@ -348,7 +348,7 @@ const server = http2.createServer();
 server.on('stream', (stream, headers) => {
   stream.respond({
     'content-type': 'text/html; charset=utf-8',
-    ':status': 200
+    ':status': 200,
   });
   stream.on('error', (error) => console.error(error));
   stream.end('<h1>Hello World</h1>');
@@ -971,7 +971,7 @@ const http2 = require('node:http2');
 const clientSession = http2.connect('https://localhost:1234');
 const {
   HTTP2_HEADER_PATH,
-  HTTP2_HEADER_STATUS
+  HTTP2_HEADER_STATUS,
 } = http2.constants;
 
 const req = clientSession.request({ [HTTP2_HEADER_PATH]: '/' });
@@ -1038,7 +1038,7 @@ encoding.
 ```js
 stream.respond({
   'content-type': 'text/html; charset=utf-8',
-  ':status': 200
+  ':status': 200,
 });
 ```
 
@@ -1731,7 +1731,7 @@ server.on('stream', (stream) => {
   const headers = {
     'content-length': stat.size,
     'last-modified': stat.mtime.toUTCString(),
-    'content-type': 'text/plain; charset=utf-8'
+    'content-type': 'text/plain; charset=utf-8',
   };
   stream.respondWithFD(fd, headers);
   stream.on('close', () => fs.closeSync(fd));
@@ -1776,7 +1776,7 @@ server.on('stream', (stream) => {
   const headers = {
     'content-length': stat.size,
     'last-modified': stat.mtime.toUTCString(),
-    'content-type': 'text/plain; charset=utf-8'
+    'content-type': 'text/plain; charset=utf-8',
   };
   stream.respondWithFD(fd, headers, { waitForTrailers: true });
   stream.on('wantTrailers', () => {
@@ -1850,7 +1850,7 @@ server.on('stream', (stream) => {
       }
     } catch (err) {
       // Perform actual error handling.
-      console.log(err);
+      console.error(err);
     }
     stream.end();
   }
@@ -2022,7 +2022,7 @@ const {
   HTTP2_HEADER_METHOD,
   HTTP2_HEADER_PATH,
   HTTP2_HEADER_STATUS,
-  HTTP2_HEADER_CONTENT_TYPE
+  HTTP2_HEADER_CONTENT_TYPE,
 } = http2.constants;
 
 const server = http2.createServer();
@@ -2032,7 +2032,7 @@ server.on('stream', (stream, headers, flags) => {
   // ...
   stream.respond({
     [HTTP2_HEADER_STATUS]: 200,
-    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain; charset=utf-8'
+    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain; charset=utf-8',
   });
   stream.write('hello ');
   stream.end('world');
@@ -2242,7 +2242,7 @@ const {
   HTTP2_HEADER_METHOD,
   HTTP2_HEADER_PATH,
   HTTP2_HEADER_STATUS,
-  HTTP2_HEADER_CONTENT_TYPE
+  HTTP2_HEADER_CONTENT_TYPE,
 } = http2.constants;
 
 const options = getOptionsSomehow();
@@ -2254,7 +2254,7 @@ server.on('stream', (stream, headers, flags) => {
   // ...
   stream.respond({
     [HTTP2_HEADER_STATUS]: 200,
-    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain; charset=utf-8'
+    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain; charset=utf-8',
   });
   stream.write('hello ');
   stream.end('world');
@@ -2276,7 +2276,7 @@ a given number of milliseconds set using `http2secureServer.setTimeout()`.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44031
     description: This event will only be emitted if the client did not transmit
                  an ALPN extension during the TLS handshake.
@@ -2527,7 +2527,7 @@ const server = http2.createServer();
 server.on('stream', (stream, headers) => {
   stream.respond({
     'content-type': 'text/html; charset=utf-8',
-    ':status': 200
+    ':status': 200,
   });
   stream.end('<h1>Hello World</h1>');
 });
@@ -2659,7 +2659,7 @@ const fs = require('node:fs');
 
 const options = {
   key: fs.readFileSync('server-key.pem'),
-  cert: fs.readFileSync('server-cert.pem')
+  cert: fs.readFileSync('server-cert.pem'),
 };
 
 // Create a secure HTTP/2 server
@@ -2668,7 +2668,7 @@ const server = http2.createSecureServer(options);
 server.on('stream', (stream, headers) => {
   stream.respond({
     'content-type': 'text/html; charset=utf-8',
-    ':status': 200
+    ':status': 200,
   });
   stream.end('<h1>Hello World</h1>');
 });
@@ -2889,7 +2889,7 @@ to send more than one value per header field).
 const headers = {
   ':status': '200',
   'content-type': 'text-plain',
-  'ABC': ['has', 'more', 'than', 'one', 'value']
+  'ABC': ['has', 'more', 'than', 'one', 'value'],
 };
 
 stream.respond(headers);
@@ -2940,7 +2940,7 @@ const headers = {
   'content-type': 'text-plain',
   'cookie': 'some-cookie',
   'other-sensitive-header': 'very secret data',
-  [http2.sensitiveHeaders]: ['cookie', 'other-sensitive-header']
+  [http2.sensitiveHeaders]: ['cookie', 'other-sensitive-header'],
 };
 
 stream.respond(headers);
@@ -3126,7 +3126,7 @@ const client = http2.connect('http://localhost:8001');
 // for CONNECT requests or an error will be thrown.
 const req = client.request({
   ':method': 'CONNECT',
-  ':authority': `localhost:${port}`
+  ':authority': `localhost:${port}`,
 });
 
 req.on('response', (headers) => {
@@ -3222,7 +3222,7 @@ const key = readFileSync('./key.pem');
 
 const server = createSecureServer(
   { cert, key, allowHTTP1: true },
-  onRequest
+  onRequest,
 ).listen(4443);
 
 function onRequest(req, res) {
@@ -3232,7 +3232,7 @@ function onRequest(req, res) {
   res.writeHead(200, { 'content-type': 'application/json' });
   res.end(JSON.stringify({
     alpnProtocol,
-    httpVersion: req.httpVersion
+    httpVersion: req.httpVersion,
   }));
 }
 ```
@@ -3787,7 +3787,7 @@ Removes a header that has been queued for implicit sending.
 response.removeHeader('Content-Encoding');
 ```
 
-### `response.req`
+#### `response.req`
 
 <!-- YAML
 added: v15.7.0
@@ -4005,30 +4005,34 @@ Sends a status `100 Continue` to the client, indicating that the request body
 should be sent. See the [`'checkContinue'`][] event on `Http2Server` and
 `Http2SecureServer`.
 
-### `response.writeEarlyHints(links)`
+#### `response.writeEarlyHints(hints)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.11.0
 -->
 
-* `links` {string|Array}
+* `hints` {Object}
 
 Sends a status `103 Early Hints` to the client with a Link header,
 indicating that the user agent can preload/preconnect the linked resources.
-The `links` can be a string or an array of strings containing the values
-of the `Link` header.
+The `hints` is an object containing the values of headers to be sent with
+early hints message.
 
 **Example**
 
 ```js
 const earlyHintsLink = '</styles.css>; rel=preload; as=style';
-response.writeEarlyHints(earlyHintsLink);
+response.writeEarlyHints({
+  'link': earlyHintsLink,
+});
 
 const earlyHintsLinks = [
   '</styles.css>; rel=preload; as=style',
   '</scripts.js>; rel=preload; as=script',
 ];
-response.writeEarlyHints(earlyHintsLinks);
+response.writeEarlyHints({
+  'link': earlyHintsLinks,
+});
 ```
 
 #### `response.writeHead(statusCode[, statusMessage][, headers])`

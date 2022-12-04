@@ -225,26 +225,17 @@ int SelectALPNCallback(
     const unsigned char* in,
     unsigned int inlen,
     void* arg) {
-  TLSWrap* w = static_cast<TLSWrap*>(SSL_get_app_data(s));
-  Environment* env = w->env();
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
+  TLSWrap* w = static_cast<TLSWrap*>(arg);
+  const std::vector<unsigned char>& alpn_protos = w->alpn_protos_;
 
-  Local<Value> alpn_buffer =
-      w->object()->GetPrivate(
-          env->context(),
-          env->alpn_buffer_private_symbol()).FromMaybe(Local<Value>());
-  if (UNLIKELY(alpn_buffer.IsEmpty()) || !alpn_buffer->IsArrayBufferView())
-    return SSL_TLSEXT_ERR_NOACK;
+  if (alpn_protos.empty()) return SSL_TLSEXT_ERR_NOACK;
 
-  ArrayBufferViewContents<unsigned char> alpn_protos(alpn_buffer);
-  int status = SSL_select_next_proto(
-      const_cast<unsigned char**>(out),
-      outlen,
-      alpn_protos.data(),
-      alpn_protos.length(),
-      in,
-      inlen);
+  int status = SSL_select_next_proto(const_cast<unsigned char**>(out),
+                                     outlen,
+                                     alpn_protos.data(),
+                                     alpn_protos.size(),
+                                     in,
+                                     inlen);
 
   // Previous versions of Node.js returned SSL_TLSEXT_ERR_NOACK if no protocol
   // match was found. This would neither cause a fatal alert nor would it result
@@ -1529,19 +1520,14 @@ void TLSWrap::SetALPNProtocols(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
     return env->ThrowTypeError("Must give a Buffer as first argument");
 
+  ArrayBufferViewContents<uint8_t> protos(args[0].As<ArrayBufferView>());
+  SSL* ssl = w->ssl_.get();
   if (w->is_client()) {
-    ArrayBufferViewContents<char> protos(args[0].As<ArrayBufferView>());
-    CHECK(SetALPN(w->ssl_, {protos.data(), protos.length()}));
+    CHECK_EQ(0, SSL_set_alpn_protos(ssl, protos.data(), protos.length()));
   } else {
-    CHECK(
-        w->object()->SetPrivate(
-            env->context(),
-            env->alpn_buffer_private_symbol(),
-            args[0]).FromJust());
-    // Server should select ALPN protocol from list of advertised by client
-    SSL_CTX_set_alpn_select_cb(SSL_get_SSL_CTX(w->ssl_.get()),
-                               SelectALPNCallback,
-                               nullptr);
+    w->alpn_protos_ = std::vector<unsigned char>(
+        protos.data(), protos.data() + protos.length());
+    SSL_CTX_set_alpn_select_cb(SSL_get_SSL_CTX(ssl), SelectALPNCallback, w);
   }
 }
 
@@ -2169,6 +2155,6 @@ void TLSWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace crypto
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(tls_wrap, node::crypto::TLSWrap::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(tls_wrap, node::crypto::TLSWrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(
     tls_wrap, node::crypto::TLSWrap::RegisterExternalReferences)

@@ -377,7 +377,7 @@ void CoverageInfo::ResetBlockCount(int slot_index) {
 
 void CoverageInfo::CoverageInfoPrint(std::ostream& os,
                                      std::unique_ptr<char[]> function_name) {
-  DCHECK(FLAG_trace_block_coverage);
+  DCHECK(v8_flags.trace_block_coverage);
   DisallowGarbageCollection no_gc;
 
   os << "Coverage info (";
@@ -406,7 +406,7 @@ int StackFrameInfo::GetSourcePosition(Handle<StackFrameInfo> info) {
       SharedFunctionInfo::cast(info->shared_or_script()), isolate);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
   int source_position = shared->abstract_code(isolate).SourcePosition(
-      info->bytecode_offset_or_source_position());
+      isolate, info->bytecode_offset_or_source_position());
   info->set_shared_or_script(shared->script());
   info->set_bytecode_offset_or_source_position(source_position);
   return source_position;

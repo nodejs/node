@@ -26,14 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --concurrent-recompilation
-// Flags: --no-stress-opt --no-always-opt
-//
-// --nostress-opt is in place because this particular optimization
-// (guaranteeing that the Array prototype chain has no elements) is
-// maintained isolate-wide. Once it's been "broken" by the change
-// to the Object prototype below, future compiles will not use the
-// optimization anymore, and the code will remain optimized despite
-// additional changes to the prototype chain.
+// Flags: --no-always-turbofan
 
 function f1(a, i) {
   return a[i] + 0.5;
@@ -59,6 +52,6 @@ assertUnoptimized(f1);
 // Sync with background thread to conclude optimization, which bails out
 // due to map dependency.
 %FinalizeOptimization();
-assertUnoptimized(f1, "sync");
+assertUnoptimized(f1);
 // Clear type info for stress runs.
 %ClearFunctionFeedback(f1);

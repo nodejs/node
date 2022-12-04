@@ -35,22 +35,6 @@ pip_install(
 )
 
 new_local_repository(
-    name = "com_googlesource_chromium_zlib",
-    build_file = "bazel/BUILD.zlib",
-    path = "third_party/zlib",
-)
-
-bind(
-    name = "zlib",
-    actual = "@com_googlesource_chromium_zlib//:zlib",
-)
-
-bind(
-    name = "zlib_compression_utils",
-    actual = "@com_googlesource_chromium_zlib//:zlib_compression_utils",
-)
-
-new_local_repository(
     name = "com_googlesource_chromium_icu",
     build_file = "bazel/BUILD.icu",
     path = "third_party/icu",

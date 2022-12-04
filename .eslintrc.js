@@ -117,8 +117,8 @@ module.exports = {
     // https://eslint.org/docs/rules/
     'accessor-pairs': 'error',
     'array-callback-return': 'error',
-    'arrow-parens': ['error', 'always'],
-    'arrow-spacing': ['error', { before: true, after: true }],
+    'arrow-parens': 'error',
+    'arrow-spacing': 'error',
     'block-scoped-var': 'error',
     'block-spacing': 'error',
     'brace-style': ['error', '1tbs', { allowSingleLine: true }],
@@ -126,8 +126,7 @@ module.exports = {
       line: {
         // Ignore all lines that have less characters than 20 and all lines that
         // start with something that looks like a variable name or code.
-        // eslint-disable-next-line max-len
-        ignorePattern: '.{0,20}$|[a-z]+ ?[0-9A-Z_.(/=:[#-]|std|http|ssh|ftp|(let|var|const) [a-z_A-Z0-9]+ =|[b-z] |[a-z]*[0-9].* ',
+        ignorePattern: '.{0,20}$|[a-z]+ ?[0-9A-Z_.(/=:[#-]|std|http|ssh|ftp',
         ignoreInlineComments: true,
         ignoreConsecutiveComments: true,
       },
@@ -162,9 +161,9 @@ module.exports = {
       ObjectExpression: 'first',
       SwitchCase: 1,
     }],
-    'key-spacing': ['error', { mode: 'strict' }],
+    'key-spacing': 'error',
     'keyword-spacing': 'error',
-    'linebreak-style': ['error', 'unix'],
+    'linebreak-style': 'error',
     'max-len': ['error', {
       code: 120,
       ignorePattern: '^// Flags:',
@@ -178,7 +177,7 @@ module.exports = {
     'no-constant-condition': ['error', { checkLoops: false }],
     'no-constructor-return': 'error',
     'no-duplicate-imports': 'error',
-    'no-else-return': ['error', { allowElseIf: true }],
+    'no-else-return': 'error',
     'no-extra-parens': ['error', 'functions'],
     'no-lonely-if': 'error',
     'no-mixed-requires': 'error',
@@ -285,7 +284,7 @@ module.exports = {
       named: 'never',
       asyncArrow: 'always',
     }],
-    'space-in-parens': ['error', 'never'],
+    'space-in-parens': 'error',
     'space-infix-ops': 'error',
     'space-unary-ops': 'error',
     'spaced-comment': ['error', 'always', {
@@ -311,7 +310,6 @@ module.exports = {
     'jsdoc/require-param': 'off',
     'jsdoc/check-tag-names': 'off',
     'jsdoc/require-returns': 'off',
-    'jsdoc/require-property-description': 'off',
 
     // Custom rules from eslint-plugin-node-core
     'node-core/no-unescaped-regexp-dot': 'error',

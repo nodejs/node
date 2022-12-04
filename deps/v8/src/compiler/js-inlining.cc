@@ -4,8 +4,6 @@
 
 #include "src/compiler/js-inlining.h"
 
-#include "src/ast/ast.h"
-#include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/access-builder.h"
@@ -18,11 +16,9 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/execution/isolate-inl.h"
 #include "src/objects/feedback-cell-inl.h"
-#include "src/parsing/parse-info.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"
@@ -38,11 +34,11 @@ namespace {
 static const int kMaxDepthForInlining = 50;
 }  // namespace
 
-#define TRACE(x)                     \
-  do {                               \
-    if (FLAG_trace_turbo_inlining) { \
-      StdoutStream() << x << "\n";   \
-    }                                \
+#define TRACE(x)                         \
+  do {                                   \
+    if (v8_flags.trace_turbo_inlining) { \
+      StdoutStream() << x << "\n";       \
+    }                                    \
   } while (false)
 
 // Provides convenience accessors for the common layout of nodes having either
@@ -409,7 +405,6 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
         CreateJSWasmCallBuiltinContinuationFrameState(
             jsgraph(), n.context(), n.frame_state(),
             wasm_call_params.signature());
-    JSWasmCallData js_wasm_call_data(wasm_call_params.signature());
 
     // All the nodes inserted by the inlined subgraph will have
     // id >= subgraph_min_node_id. We use this later to avoid wire nodes that
@@ -421,7 +416,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
         graph()->zone(), jsgraph(), wasm_call_params.signature(),
         wasm_call_params.module(), isolate(), source_positions_,
         StubCallMode::kCallBuiltinPointer, wasm::WasmFeatures::FromFlags(),
-        &js_wasm_call_data, continuation_frame_state);
+        continuation_frame_state);
 
     // Extract the inlinee start/end nodes.
     start_node = graph()->start();
@@ -583,8 +578,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       CallFrequency frequency = call.frequency();
       BuildGraphFromBytecode(broker(), zone(), *shared_info, feedback_cell,
                              BytecodeOffset::None(), jsgraph(), frequency,
-                             source_positions_, inlining_id, info_->code_kind(),
-                             flags, &info_->tick_counter());
+                             source_positions_, node_origins_, inlining_id,
+                             info_->code_kind(), flags, &info_->tick_counter());
     }
 
     // Extract the inlinee start/end nodes.
@@ -616,7 +611,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
 
   // Inline {JSConstruct} requires some additional magic.
   if (node->opcode() == IrOpcode::kJSConstruct) {
-    STATIC_ASSERT(JSCallOrConstructNode::kHaveIdenticalLayouts);
+    static_assert(JSCallOrConstructNode::kHaveIdenticalLayouts);
     JSConstructNode n(node);
 
     new_target = n.new_target();
@@ -713,16 +708,15 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     }
   }
 
-  // Insert argument adaptor frame if required. The callees formal parameter
-  // count have to match the number of arguments passed
-  // to the call.
+  // Insert inlined extra arguments if required. The callees formal parameter
+  // count have to match the number of arguments passed to the call.
   int parameter_count =
       shared_info->internal_formal_parameter_count_without_receiver();
   DCHECK_EQ(parameter_count, start.FormalParameterCountWithoutReceiver());
   if (call.argument_count() != parameter_count) {
     frame_state = CreateArtificialFrameState(
         node, frame_state, call.argument_count(), BytecodeOffset::None(),
-        FrameStateType::kArgumentsAdaptor, *shared_info);
+        FrameStateType::kInlinedExtraArguments, *shared_info);
   }
 
   return InlineCall(node, new_target, context, frame_state, start, end,

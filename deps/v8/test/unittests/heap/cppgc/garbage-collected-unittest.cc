@@ -45,43 +45,43 @@ class GarbageCollectedTestWithHeap
 }  // namespace
 
 TEST(GarbageCollectedTest, GarbageCollectedTrait) {
-  STATIC_ASSERT(!IsGarbageCollectedTypeV<int>);
-  STATIC_ASSERT(!IsGarbageCollectedTypeV<NotGCed>);
-  STATIC_ASSERT(IsGarbageCollectedTypeV<GCed>);
-  STATIC_ASSERT(!IsGarbageCollectedTypeV<Mixin>);
-  STATIC_ASSERT(IsGarbageCollectedTypeV<GCedWithMixin>);
-  STATIC_ASSERT(!IsGarbageCollectedTypeV<MergedMixins>);
-  STATIC_ASSERT(IsGarbageCollectedTypeV<GCWithMergedMixins>);
+  static_assert(!IsGarbageCollectedTypeV<int>);
+  static_assert(!IsGarbageCollectedTypeV<NotGCed>);
+  static_assert(IsGarbageCollectedTypeV<GCed>);
+  static_assert(!IsGarbageCollectedTypeV<Mixin>);
+  static_assert(IsGarbageCollectedTypeV<GCedWithMixin>);
+  static_assert(!IsGarbageCollectedTypeV<MergedMixins>);
+  static_assert(IsGarbageCollectedTypeV<GCWithMergedMixins>);
 }
 
 TEST(GarbageCollectedTest, GarbageCollectedMixinTrait) {
-  STATIC_ASSERT(!IsGarbageCollectedMixinTypeV<int>);
-  STATIC_ASSERT(!IsGarbageCollectedMixinTypeV<GCed>);
-  STATIC_ASSERT(!IsGarbageCollectedMixinTypeV<NotGCed>);
-  STATIC_ASSERT(IsGarbageCollectedMixinTypeV<Mixin>);
-  STATIC_ASSERT(!IsGarbageCollectedMixinTypeV<GCedWithMixin>);
-  STATIC_ASSERT(IsGarbageCollectedMixinTypeV<MergedMixins>);
-  STATIC_ASSERT(!IsGarbageCollectedMixinTypeV<GCWithMergedMixins>);
+  static_assert(!IsGarbageCollectedMixinTypeV<int>);
+  static_assert(!IsGarbageCollectedMixinTypeV<GCed>);
+  static_assert(!IsGarbageCollectedMixinTypeV<NotGCed>);
+  static_assert(IsGarbageCollectedMixinTypeV<Mixin>);
+  static_assert(!IsGarbageCollectedMixinTypeV<GCedWithMixin>);
+  static_assert(IsGarbageCollectedMixinTypeV<MergedMixins>);
+  static_assert(!IsGarbageCollectedMixinTypeV<GCWithMergedMixins>);
 }
 
 TEST(GarbageCollectedTest, GarbageCollectedOrMixinTrait) {
-  STATIC_ASSERT(!IsGarbageCollectedOrMixinTypeV<int>);
-  STATIC_ASSERT(IsGarbageCollectedOrMixinTypeV<GCed>);
-  STATIC_ASSERT(!IsGarbageCollectedOrMixinTypeV<NotGCed>);
-  STATIC_ASSERT(IsGarbageCollectedOrMixinTypeV<Mixin>);
-  STATIC_ASSERT(IsGarbageCollectedOrMixinTypeV<GCedWithMixin>);
-  STATIC_ASSERT(IsGarbageCollectedOrMixinTypeV<MergedMixins>);
-  STATIC_ASSERT(IsGarbageCollectedOrMixinTypeV<GCWithMergedMixins>);
+  static_assert(!IsGarbageCollectedOrMixinTypeV<int>);
+  static_assert(IsGarbageCollectedOrMixinTypeV<GCed>);
+  static_assert(!IsGarbageCollectedOrMixinTypeV<NotGCed>);
+  static_assert(IsGarbageCollectedOrMixinTypeV<Mixin>);
+  static_assert(IsGarbageCollectedOrMixinTypeV<GCedWithMixin>);
+  static_assert(IsGarbageCollectedOrMixinTypeV<MergedMixins>);
+  static_assert(IsGarbageCollectedOrMixinTypeV<GCWithMergedMixins>);
 }
 
 TEST(GarbageCollectedTest, GarbageCollectedWithMixinTrait) {
-  STATIC_ASSERT(!IsGarbageCollectedWithMixinTypeV<int>);
-  STATIC_ASSERT(!IsGarbageCollectedWithMixinTypeV<GCed>);
-  STATIC_ASSERT(!IsGarbageCollectedWithMixinTypeV<NotGCed>);
-  STATIC_ASSERT(!IsGarbageCollectedWithMixinTypeV<Mixin>);
-  STATIC_ASSERT(IsGarbageCollectedWithMixinTypeV<GCedWithMixin>);
-  STATIC_ASSERT(!IsGarbageCollectedWithMixinTypeV<MergedMixins>);
-  STATIC_ASSERT(IsGarbageCollectedWithMixinTypeV<GCWithMergedMixins>);
+  static_assert(!IsGarbageCollectedWithMixinTypeV<int>);
+  static_assert(!IsGarbageCollectedWithMixinTypeV<GCed>);
+  static_assert(!IsGarbageCollectedWithMixinTypeV<NotGCed>);
+  static_assert(!IsGarbageCollectedWithMixinTypeV<Mixin>);
+  static_assert(IsGarbageCollectedWithMixinTypeV<GCedWithMixin>);
+  static_assert(!IsGarbageCollectedWithMixinTypeV<MergedMixins>);
+  static_assert(IsGarbageCollectedWithMixinTypeV<GCWithMergedMixins>);
 }
 
 namespace {
@@ -91,8 +91,8 @@ class ForwardDeclaredType;
 }  // namespace
 
 TEST(GarbageCollectedTest, CompleteTypeTrait) {
-  STATIC_ASSERT(IsCompleteV<GCed>);
-  STATIC_ASSERT(!IsCompleteV<ForwardDeclaredType>);
+  static_assert(IsCompleteV<GCed>);
+  static_assert(!IsCompleteV<ForwardDeclaredType>);
 }
 
 TEST_F(GarbageCollectedTestWithHeap, GetObjectStartReturnsCurrentAddress) {

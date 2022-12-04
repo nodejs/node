@@ -51,9 +51,9 @@ constexpr int kPatternTooShortForBoyerMoore = 2;
 }  // namespace regexp_compiler_constants
 
 inline bool NeedsUnicodeCaseEquivalents(RegExpFlags flags) {
-  // Both unicode and ignore_case flags are set. We need to use ICU to find
-  // the closure over case equivalents.
-  return IsUnicode(flags) && IsIgnoreCase(flags);
+  // Both unicode (or unicode sets) and ignore_case flags are set. We need to
+  // use ICU to find the closure over case equivalents.
+  return IsEitherUnicode(flags) && IsIgnoreCase(flags);
 }
 
 // Details of a quick mask-compare check that can look ahead in the

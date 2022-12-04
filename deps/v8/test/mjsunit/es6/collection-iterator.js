@@ -18,13 +18,13 @@ test(function TestSetIterator() {
 
   var SetIteratorPrototype = iter.__proto__;
   assertFalse(SetIteratorPrototype.hasOwnProperty('constructor'));
-  assertEquals(SetIteratorPrototype.__proto__, Object.prototype);
+  assertSame(SetIteratorPrototype.__proto__.__proto__, Object.prototype);
 
   var propertyNames = Object.getOwnPropertyNames(SetIteratorPrototype);
   assertArrayEquals(['next'], propertyNames);
 
-  assertEquals(new Set().values().__proto__, SetIteratorPrototype);
-  assertEquals(new Set().entries().__proto__, SetIteratorPrototype);
+  assertSame(new Set().values().__proto__, SetIteratorPrototype);
+  assertSame(new Set().entries().__proto__, SetIteratorPrototype);
 
   assertEquals("[object Set Iterator]",
       Object.prototype.toString.call(iter));
@@ -163,14 +163,14 @@ test(function TestMapIterator() {
 
   var MapIteratorPrototype = iter.__proto__;
   assertFalse(MapIteratorPrototype.hasOwnProperty('constructor'));
-  assertEquals(MapIteratorPrototype.__proto__, Object.prototype);
+  assertSame(MapIteratorPrototype.__proto__.__proto__, Object.prototype);
 
   var propertyNames = Object.getOwnPropertyNames(MapIteratorPrototype);
   assertArrayEquals(['next'], propertyNames);
 
-  assertEquals(new Map().values().__proto__, MapIteratorPrototype);
-  assertEquals(new Map().keys().__proto__, MapIteratorPrototype);
-  assertEquals(new Map().entries().__proto__, MapIteratorPrototype);
+  assertSame(new Map().values().__proto__, MapIteratorPrototype);
+  assertSame(new Map().keys().__proto__, MapIteratorPrototype);
+  assertSame(new Map().entries().__proto__, MapIteratorPrototype);
 
   assertEquals("[object Map Iterator]",
       Object.prototype.toString.call(iter));

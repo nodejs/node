@@ -120,8 +120,8 @@ class ProbeSequence {
 //   for (int i : BitMask<uint64_t, 8, 3>(0x0000000080800000)) -> yields 2, 3
 template <class T, int SignificantBits, int Shift = 0>
 class BitMask {
-  STATIC_ASSERT(std::is_unsigned<T>::value);
-  STATIC_ASSERT(Shift == 0 || Shift == 3);
+  static_assert(std::is_unsigned<T>::value);
+  static_assert(Shift == 0 || Shift == 3);
 
  public:
   // These are useful for unit tests (gunit).
@@ -219,22 +219,6 @@ inline static swiss_table::ctrl_t H2(uint32_t hash) {
 }
 
 #if V8_SWISS_TABLE_HAVE_SSE2_HOST
-// https://github.com/abseil/abseil-cpp/issues/209
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87853
-// _mm_cmpgt_epi8 is broken under GCC with -funsigned-char
-// Work around this by using the portable implementation of Group
-// when using -funsigned-char under GCC.
-inline __m128i _mm_cmpgt_epi8_fixed(__m128i a, __m128i b) {
-#if defined(__GNUC__) && !defined(__clang__)
-  if (std::is_unsigned<char>::value) {
-    const __m128i mask = _mm_set1_epi8(0x80);
-    const __m128i diff = _mm_subs_epi8(b, a);
-    return _mm_cmpeq_epi8(_mm_and_si128(diff, mask), mask);
-  }
-#endif
-  return _mm_cmpgt_epi8(a, b);
-}
-
 struct GroupSse2Impl {
   static constexpr size_t kWidth = 16;  // the number of slots per group
 
@@ -258,33 +242,6 @@ struct GroupSse2Impl {
 #else
     return Match(static_cast<h2_t>(kEmpty));
 #endif
-  }
-
-  // Returns a bitmask representing the positions of empty or deleted slots.
-  BitMask<uint32_t, kWidth> MatchEmptyOrDeleted() const {
-    auto special = _mm_set1_epi8(kSentinel);
-    return BitMask<uint32_t, kWidth>(
-        _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl)));
-  }
-
-  // Returns the number of trailing empty or deleted elements in the group.
-  uint32_t CountLeadingEmptyOrDeleted() const {
-    auto special = _mm_set1_epi8(kSentinel);
-    return base::bits::CountTrailingZerosNonZero(
-        _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl)) + 1);
-  }
-
-  void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
-    auto msbs = _mm_set1_epi8(static_cast<char>(-128));
-    auto x126 = _mm_set1_epi8(126);
-#if V8_SWISS_TABLE_HAVE_SSSE3_HOST
-    auto res = _mm_or_si128(_mm_shuffle_epi8(x126, ctrl), msbs);
-#else
-    auto zero = _mm_setzero_si128();
-    auto special_mask = _mm_cmpgt_epi8_fixed(zero, ctrl);
-    auto res = _mm_or_si128(msbs, _mm_andnot_si128(special_mask, x126));
-#endif
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(dst), res);
   }
 
   __m128i ctrl;
@@ -312,26 +269,6 @@ struct GroupSse2Polyfill {
   // Returns a bitmask representing the positions of empty slots.
   BitMask<uint32_t, kWidth> MatchEmpty() const {
     return Match(static_cast<h2_t>(kEmpty));
-  }
-
-  // Returns a bitmask representing the positions of empty or deleted slots.
-  BitMask<uint32_t, kWidth> MatchEmptyOrDeleted() const {
-    return BitMask<uint32_t, kWidth>(MatchEmptyOrDeletedMask());
-  }
-
-  // Returns the number of trailing empty or deleted elements in the group.
-  uint32_t CountLeadingEmptyOrDeleted() const {
-    return base::bits::CountTrailingZerosNonZero(MatchEmptyOrDeletedMask() + 1);
-  }
-
-  void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
-    for (size_t i = 0; i < kWidth; i++) {
-      if (ctrl_[i] < 0) {
-        dst[i] = kEmpty;
-      } else {
-        dst[i] = kDeleted;
-      }
-    }
   }
 
  private:
@@ -380,26 +317,6 @@ struct GroupPortableImpl {
   // Returns a bitmask representing the positions of empty slots.
   BitMask<uint64_t, kWidth, 3> MatchEmpty() const {
     return BitMask<uint64_t, kWidth, 3>((ctrl & (~ctrl << 6)) & kMsbs);
-  }
-
-  // Returns a bitmask representing the positions of empty or deleted slots.
-  BitMask<uint64_t, kWidth, 3> MatchEmptyOrDeleted() const {
-    return BitMask<uint64_t, kWidth, 3>((ctrl & (~ctrl << 7)) & kMsbs);
-  }
-
-  // Returns the number of trailing empty or deleted elements in the group.
-  uint32_t CountLeadingEmptyOrDeleted() const {
-    constexpr uint64_t gaps = 0x00FEFEFEFEFEFEFEULL;
-    return (base::bits::CountTrailingZerosNonZero(
-                ((~ctrl & (ctrl >> 7)) | gaps) + 1) +
-            7) >>
-           3;
-  }
-
-  void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
-    auto x = ctrl & kMsbs;
-    auto res = (~x + (x >> 7)) & ~kLsbs;
-    base::WriteLittleEndianValue(reinterpret_cast<uint64_t*>(dst), res);
   }
 
   uint64_t ctrl;

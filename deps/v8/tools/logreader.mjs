@@ -168,8 +168,8 @@ export class LogReader {
    *
    * @param {number} pc Program counter.
    * @param {number} func JS Function.
-   * @param {Array.<string>} stack String representation of a stack.
-   * @return {Array.<number>} Processed stack.
+   * @param {string[]} stack String representation of a stack.
+   * @return {number[]} Processed stack.
    */
   processStack(pc, func, stack) {
     const fullStack = func ? [pc, func] : [pc];
@@ -195,7 +195,7 @@ export class LogReader {
   /**
    * Does a dispatch of a log record.
    *
-   * @param {Array.<string>} fields Log record.
+   * @param {string[]} fields Log record.
    * @private
    */
   async dispatchLogRow_(fields) {
@@ -223,7 +223,7 @@ export class LogReader {
   /**
    * Processes log lines.
    *
-   * @param {Array.<string>} lines Log lines.
+   * @param {string[]} lines Log lines.
    * @private
    */
   async processLog_(lines) {

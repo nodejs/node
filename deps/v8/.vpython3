@@ -47,7 +47,7 @@ wheel: <
 
 wheel: <
   name: "infra/python/wheels/coverage/${vpython_platform}"
-  version: "version:5.5.chromium.2"
+  version: "version:5.5.chromium.3"
 >
 
 wheel: <
@@ -68,4 +68,14 @@ wheel: <
 wheel: <
   name: "infra/python/wheels/numpy/${vpython_platform}"
   version: "version:1.2x.supported.1"
+>
+
+wheel: <
+  name: "infra/python/wheels/protobuf-py3"
+  version: "version:3.19.3"
+>
+
+wheel: <
+  name: "infra/python/wheels/requests-py2_py3"
+  version: "version:2.13.0"
 >

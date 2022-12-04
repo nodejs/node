@@ -164,14 +164,13 @@ class U_COMMON_API UnicodeSetIterator U_FINAL : public UObject {
      */
     const UnicodeString& getString();
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Skips over the remaining code points/ranges, if any.
      * A following call to next() or nextRange() will yield a string, if there is one.
      * No-op if next() would return false, or if it would yield a string anyway.
      *
      * @return *this
-     * @draft ICU 70
+     * @stable ICU 70
      * @see UnicodeSet#strings()
      */
     inline UnicodeSetIterator &skipToStrings() {
@@ -181,7 +180,6 @@ class U_COMMON_API UnicodeSetIterator U_FINAL : public UObject {
         nextElement = 0;
         return *this;
     }
-#endif  // U_HIDE_DRAFT_API
 
     /**
      * Advances the iteration position to the next element in the set, 

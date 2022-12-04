@@ -1,7 +1,7 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-// Flags: --no-always-opt --no-opt
+// Flags: --no-always-turbofan --no-turbofan
 
 // The first part of this file is copied over from debug-set-variable-value.js
 // (a few tests were removed because they make no sense for modules). The second

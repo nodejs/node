@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --expose-gc --opt --no-always-opt
+// Flags: --allow-natives-syntax --expose-gc --turbofan --no-always-turbofan
 
 var assertDoesNotThrow;
 var assertInstanceof;

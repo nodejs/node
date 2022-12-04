@@ -13,24 +13,23 @@
 #include <memory>
 
 #include "src/base/optional.h"
-#include "src/base/platform/wrappers.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/vector.h"
+#include "src/codegen/signature.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/wasm/branch-hint-map.h"
-#include "src/wasm/signature-map.h"
+#include "src/wasm/constant-expression.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-init-expr.h"
 #include "src/wasm/wasm-limits.h"
 
-namespace v8 {
-
-namespace internal {
-
+namespace v8::internal {
 class WasmModuleObject;
+}
 
-namespace wasm {
+namespace v8::internal::wasm {
 
 using WasmName = base::Vector<const char>;
 
@@ -40,8 +39,8 @@ class ErrorThrower;
 // Reference to a string in the wire bytes.
 class WireBytesRef {
  public:
-  WireBytesRef() : WireBytesRef(0, 0) {}
-  WireBytesRef(uint32_t offset, uint32_t length)
+  constexpr WireBytesRef() = default;
+  constexpr WireBytesRef(uint32_t offset, uint32_t length)
       : offset_(offset), length_(length) {
     DCHECK_IMPLIES(offset_ == 0, length_ == 0);
     DCHECK_LE(offset_, offset_ + length_);  // no uint32_t overflow.
@@ -54,117 +53,20 @@ class WireBytesRef {
   bool is_set() const { return offset_ != 0; }
 
  private:
-  uint32_t offset_;
-  uint32_t length_;
+  uint32_t offset_ = 0;
+  uint32_t length_ = 0;
 };
 
 // Static representation of a wasm function.
 struct WasmFunction {
-  const FunctionSig* sig;  // signature of the function.
-  uint32_t func_index;     // index into the function table.
-  uint32_t sig_index;      // index into the signature table.
-  WireBytesRef code;       // code of this function.
-  // Required number of slots in a feedback vector. Marked {mutable} because
-  // this is computed late (by Liftoff compilation), when the rest of the
-  // {WasmFunction} is typically considered {const}.
-  mutable int feedback_slots;
-  bool imported;
-  bool exported;
-  bool declared;
+  const FunctionSig* sig = nullptr;  // signature of the function.
+  uint32_t func_index = 0;           // index into the function table.
+  uint32_t sig_index = 0;            // index into the signature table.
+  WireBytesRef code = {};            // code of this function.
+  bool imported = false;
+  bool exported = false;
+  bool declared = false;
 };
-
-// A representation of a constant expression. The most common expression types
-// are hard-coded, while the rest are represented as a {WireBytesRef}.
-class ConstantExpression {
- public:
-  enum Kind {
-    kEmpty,
-    kI32Const,
-    kRefNull,
-    kRefFunc,
-    kWireBytesRef,
-    kLastKind = kWireBytesRef
-  };
-
-  union Value {
-    int32_t i32_value;
-    uint32_t index_or_offset;
-    HeapType::Representation repr;
-  };
-
-  ConstantExpression() : bit_field_(KindField::encode(kEmpty)) {}
-
-  static ConstantExpression I32Const(int32_t value) {
-    return ConstantExpression(ValueField::encode(value) |
-                              KindField::encode(kI32Const));
-  }
-  static ConstantExpression RefFunc(uint32_t index) {
-    return ConstantExpression(ValueField::encode(index) |
-                              KindField::encode(kRefFunc));
-  }
-  static ConstantExpression RefNull(HeapType::Representation repr) {
-    return ConstantExpression(ValueField::encode(repr) |
-                              KindField::encode(kRefNull));
-  }
-  static ConstantExpression WireBytes(uint32_t offset, uint32_t length) {
-    return ConstantExpression(OffsetField::encode(offset) |
-                              LengthField::encode(length) |
-                              KindField::encode(kWireBytesRef));
-  }
-
-  Kind kind() const { return KindField::decode(bit_field_); }
-
-  bool is_set() const { return kind() != kEmpty; }
-
-  uint32_t index() const {
-    DCHECK_EQ(kind(), kRefFunc);
-    return ValueField::decode(bit_field_);
-  }
-
-  HeapType::Representation repr() const {
-    DCHECK_EQ(kind(), kRefNull);
-    return static_cast<HeapType::Representation>(
-        ValueField::decode(bit_field_));
-  }
-
-  int32_t i32_value() const {
-    DCHECK_EQ(kind(), kI32Const);
-    return ValueField::decode(bit_field_);
-  }
-
-  WireBytesRef wire_bytes_ref() const {
-    DCHECK_EQ(kind(), kWireBytesRef);
-    return WireBytesRef(OffsetField::decode(bit_field_),
-                        LengthField::decode(bit_field_));
-  }
-
- private:
-  static constexpr int kValueBits = 32;
-  static constexpr int kLengthBits = 30;
-  static constexpr int kOffsetBits = 30;
-  static constexpr int kKindBits = 3;
-
-  // There are two possible combinations of fields: offset + length + kind if
-  // kind = kWireBytesRef, or value + kind for anything else.
-  using ValueField = base::BitField<uint32_t, 0, kValueBits, uint64_t>;
-  using OffsetField = base::BitField<uint32_t, 0, kOffsetBits, uint64_t>;
-  using LengthField = OffsetField::Next<uint32_t, kLengthBits>;
-  using KindField = LengthField::Next<Kind, kKindBits>;
-
-  // Make sure we reserve enough bits for a {WireBytesRef}'s length and offset.
-  STATIC_ASSERT(kV8MaxWasmModuleSize <= LengthField::kMax + 1);
-  STATIC_ASSERT(kV8MaxWasmModuleSize <= OffsetField::kMax + 1);
-  // Make sure kind fits in kKindBits.
-  STATIC_ASSERT(kLastKind <= KindField::kMax + 1);
-
-  explicit ConstantExpression(uint64_t bit_field) : bit_field_(bit_field) {}
-
-  uint64_t bit_field_;
-};
-
-// We want to keep {ConstantExpression} small to reduce memory usage during
-// compilation/instantiation.
-STATIC_ASSERT(sizeof(ConstantExpression) <= 8);
 
 // Static representation of a wasm global variable.
 struct WasmGlobal {
@@ -192,6 +94,12 @@ struct WasmTag {
   const FunctionSig* ToFunctionSig() const { return sig; }
 
   const WasmTagSig* sig;  // type signature of the tag.
+};
+
+// Static representation of a wasm literal stringref.
+struct WasmStringRefLiteral {
+  explicit WasmStringRefLiteral(const WireBytesRef& source) : source(source) {}
+  WireBytesRef source;  // start offset in the module bytes.
 };
 
 // Static representation of a wasm data segment.
@@ -298,22 +206,98 @@ enum ModuleOrigin : uint8_t {
   ((origin) == kWasmOrigin ? (counters)->prefix##_wasm_##suffix() \
                            : (counters)->prefix##_asm_##suffix())
 
+// Uses a map as backing storage when sparsely, or a vector when densely
+// populated. Requires {Value} to implement `bool is_set()` to identify
+// uninitialized objects.
+template <class Value>
+class AdaptiveMap {
+ public:
+  // The technical limitation here is that index+1 must not overflow. Since
+  // we have significantly lower maximums on anything that can be named,
+  // we can have a tighter limit here to reject useless entries early.
+  static constexpr uint32_t kMaxKey = 10'000'000;
+  static_assert(kMaxKey < std::numeric_limits<uint32_t>::max());
+
+  AdaptiveMap() : map_(new MapType()) {}
+
+  explicit AdaptiveMap(const AdaptiveMap&) = delete;
+  AdaptiveMap& operator=(const AdaptiveMap&) = delete;
+
+  AdaptiveMap(AdaptiveMap&& other) V8_NOEXCEPT { *this = std::move(other); }
+
+  AdaptiveMap& operator=(AdaptiveMap&& other) V8_NOEXCEPT {
+    mode_ = other.mode_;
+    vector_.swap(other.vector_);
+    map_.swap(other.map_);
+    return *this;
+  }
+
+  void FinishInitialization();
+
+  bool is_set() const { return mode_ != kInitializing; }
+
+  void Put(uint32_t key, const Value& value) {
+    DCHECK(mode_ == kInitializing);
+    DCHECK_LE(key, kMaxKey);
+    map_->insert(std::make_pair(key, value));
+  }
+
+  void Put(uint32_t key, Value&& value) {
+    DCHECK(mode_ == kInitializing);
+    DCHECK_LE(key, kMaxKey);
+    map_->insert(std::make_pair(key, std::move(value)));
+  }
+
+  const Value* Get(uint32_t key) const {
+    if (mode_ == kDense) {
+      if (key >= vector_.size()) return nullptr;
+      if (!vector_[key].is_set()) return nullptr;
+      return &vector_[key];
+    } else {
+      DCHECK(mode_ == kSparse || mode_ == kInitializing);
+      auto it = map_->find(key);
+      if (it == map_->end()) return nullptr;
+      return &it->second;
+    }
+  }
+
+  bool Has(uint32_t key) const {
+    if (mode_ == kDense) {
+      return key < vector_.size() && vector_[key].is_set();
+    } else {
+      DCHECK(mode_ == kSparse || mode_ == kInitializing);
+      return map_->find(key) != map_->end();
+    }
+  }
+
+ private:
+  static constexpr uint32_t kLoadFactor = 4;
+  using MapType = std::map<uint32_t, Value>;
+  enum Mode { kDense, kSparse, kInitializing };
+
+  Mode mode_{kInitializing};
+  std::vector<Value> vector_;
+  std::unique_ptr<MapType> map_;
+};
+using NameMap = AdaptiveMap<WireBytesRef>;
+using IndirectNameMap = AdaptiveMap<AdaptiveMap<WireBytesRef>>;
+
 struct ModuleWireBytes;
 
 class V8_EXPORT_PRIVATE LazilyGeneratedNames {
  public:
   WireBytesRef LookupFunctionName(const ModuleWireBytes& wire_bytes,
-                                  uint32_t function_index) const;
+                                  uint32_t function_index);
 
   void AddForTesting(int function_index, WireBytesRef name);
+  bool Has(uint32_t function_index);
 
  private:
-  // {function_names_} are populated lazily after decoding, and
-  // therefore need a mutex to protect concurrent modifications
-  // from multiple {WasmModuleObject}.
-  mutable base::Mutex mutex_;
-  mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>>
-      function_names_;
+  // Lazy loading must guard against concurrent modifications from multiple
+  // {WasmModuleObject}s.
+  base::Mutex mutex_;
+  bool has_functions_{false};
+  NameMap function_names_;
 };
 
 class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
@@ -393,19 +377,103 @@ struct V8_EXPORT_PRIVATE WasmDebugSymbols {
   WireBytesRef external_url;
 };
 
-struct CallSiteFeedback {
-  int function_index;
-  int absolute_call_frequency;
+class CallSiteFeedback {
+ public:
+  struct PolymorphicCase {
+    int function_index;
+    int absolute_call_frequency;
+  };
+
+  // Regular constructor: uninitialized/unknown, monomorphic, or polymorphic.
+  CallSiteFeedback() : index_or_count_(-1), frequency_or_ool_(0) {}
+  CallSiteFeedback(int function_index, int call_count)
+      : index_or_count_(function_index), frequency_or_ool_(call_count) {}
+  CallSiteFeedback(PolymorphicCase* polymorphic_cases, int num_cases)
+      : index_or_count_(-num_cases),
+        frequency_or_ool_(reinterpret_cast<intptr_t>(polymorphic_cases)) {}
+
+  // Copying and assignment: prefer moving, as it's cheaper.
+  // The code below makes sure external polymorphic storage is copied and/or
+  // freed as appropriate.
+  CallSiteFeedback(const CallSiteFeedback& other) V8_NOEXCEPT { *this = other; }
+  CallSiteFeedback(CallSiteFeedback&& other) V8_NOEXCEPT { *this = other; }
+  CallSiteFeedback& operator=(const CallSiteFeedback& other) V8_NOEXCEPT {
+    index_or_count_ = other.index_or_count_;
+    if (other.is_polymorphic()) {
+      int num_cases = other.num_cases();
+      PolymorphicCase* polymorphic = new PolymorphicCase[num_cases];
+      for (int i = 0; i < num_cases; i++) {
+        polymorphic[i].function_index = other.function_index(i);
+        polymorphic[i].absolute_call_frequency = other.call_count(i);
+      }
+      frequency_or_ool_ = reinterpret_cast<intptr_t>(polymorphic);
+    } else {
+      frequency_or_ool_ = other.frequency_or_ool_;
+    }
+    return *this;
+  }
+  CallSiteFeedback& operator=(CallSiteFeedback&& other) V8_NOEXCEPT {
+    if (this != &other) {
+      index_or_count_ = other.index_or_count_;
+      frequency_or_ool_ = other.frequency_or_ool_;
+      other.frequency_or_ool_ = 0;
+    }
+    return *this;
+  }
+
+  ~CallSiteFeedback() {
+    if (is_polymorphic()) delete[] polymorphic_storage();
+  }
+
+  int num_cases() const {
+    if (is_monomorphic()) return 1;
+    if (is_invalid()) return 0;
+    return -index_or_count_;
+  }
+  int function_index(int i) const {
+    DCHECK(!is_invalid());
+    if (is_monomorphic()) return index_or_count_;
+    return polymorphic_storage()[i].function_index;
+  }
+  int call_count(int i) const {
+    if (index_or_count_ >= 0) return static_cast<int>(frequency_or_ool_);
+    return polymorphic_storage()[i].absolute_call_frequency;
+  }
+
+ private:
+  bool is_monomorphic() const { return index_or_count_ >= 0; }
+  bool is_polymorphic() const { return index_or_count_ <= -2; }
+  bool is_invalid() const { return index_or_count_ == -1; }
+  const PolymorphicCase* polymorphic_storage() const {
+    DCHECK(is_polymorphic());
+    return reinterpret_cast<PolymorphicCase*>(frequency_or_ool_);
+  }
+
+  int index_or_count_;
+  intptr_t frequency_or_ool_;
 };
+
 struct FunctionTypeFeedback {
+  // {feedback_vector} is computed from {call_targets} and the instance-specific
+  // feedback vector by {TransitiveTypeFeedbackProcessor}.
   std::vector<CallSiteFeedback> feedback_vector;
-  std::map<WasmCodePosition, int> positions;
+
+  // {call_targets} has one entry per "call" and "call_ref" in the function.
+  // For "call", it holds the index of the called function, for "call_ref" the
+  // value will be {kNonDirectCall}.
+  base::OwnedVector<uint32_t> call_targets;
+
+  // {tierup_priority} is updated and used when triggering tier-up.
+  // TODO(clemensb): This does not belong here; find a better place.
   int tierup_priority = 0;
+
+  static constexpr uint32_t kNonDirectCall = 0xFFFFFFFF;
 };
+
 struct TypeFeedbackStorage {
-  std::map<uint32_t, FunctionTypeFeedback> feedback_for_function;
+  std::unordered_map<uint32_t, FunctionTypeFeedback> feedback_for_function;
   // Accesses to {feedback_for_function} are guarded by this mutex.
-  base::Mutex mutex;
+  mutable base::Mutex mutex;
 };
 
 struct WasmTable;
@@ -426,9 +494,11 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // mutable.
   uint32_t untagged_globals_buffer_size = 0;
   uint32_t tagged_globals_buffer_size = 0;
+  uint32_t num_imported_globals = 0;
   uint32_t num_imported_mutable_globals = 0;
   uint32_t num_imported_functions = 0;
   uint32_t num_imported_tables = 0;
+  uint32_t num_imported_tags = 0;
   uint32_t num_declared_functions = 0;  // excluding imported
   uint32_t num_exported_functions = 0;
   uint32_t num_declared_data_segments = 0;  // From the DataCount section.
@@ -436,14 +506,15 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // ID and length).
   WireBytesRef code = {0, 0};
   WireBytesRef name = {0, 0};
+  // Position and size of the name section (payload only, i.e. without section
+  // ID and length).
+  WireBytesRef name_section = {0, 0};
+
+  AccountingAllocator* allocator() const { return signature_zone->allocator(); }
 
   void add_type(TypeDefinition type) {
     types.push_back(type);
-    uint32_t canonical_id = type.kind == TypeDefinition::kFunction
-                                ? signature_map.FindOrInsert(*type.function_sig)
-                                : 0;
-    canonicalized_type_ids.push_back(canonical_id);
-    // Canonical type will be computed later.
+    // Isorecursive canonical type will be computed later.
     isorecursive_canonical_type_ids.push_back(kNoSuperType);
   }
 
@@ -494,15 +565,47 @@ struct V8_EXPORT_PRIVATE WasmModule {
     return supertype(index) != kNoSuperType;
   }
 
+  // Linear search. Returns -1 if types are empty.
+  int MaxCanonicalTypeIndex() const {
+    if (isorecursive_canonical_type_ids.empty()) return -1;
+    return *std::max_element(isorecursive_canonical_type_ids.begin(),
+                             isorecursive_canonical_type_ids.end());
+  }
+
+  bool function_was_validated(int func_index) const {
+    DCHECK_NOT_NULL(validated_functions);
+    static_assert(sizeof(validated_functions[0]) == 1);
+    DCHECK_LE(num_imported_functions, func_index);
+    int pos = func_index - num_imported_functions;
+    DCHECK_LE(pos, num_declared_functions);
+    uint8_t byte =
+        validated_functions[pos >> 3].load(std::memory_order_relaxed);
+    return byte & (1 << (pos & 7));
+  }
+
+  void set_function_validated(int func_index) const {
+    DCHECK_NOT_NULL(validated_functions);
+    DCHECK_LE(num_imported_functions, func_index);
+    int pos = func_index - num_imported_functions;
+    DCHECK_LE(pos, num_declared_functions);
+    std::atomic<uint8_t>* atomic_byte = &validated_functions[pos >> 3];
+    uint8_t old_byte = atomic_byte->load(std::memory_order_relaxed);
+    uint8_t new_bit = 1 << (pos & 7);
+    while ((old_byte & new_bit) == 0 &&
+           !atomic_byte->compare_exchange_weak(old_byte, old_byte | new_bit,
+                                               std::memory_order_relaxed)) {
+      // Retry with updated {old_byte}.
+    }
+  }
+
+  base::Vector<const WasmFunction> declared_functions() const {
+    return base::VectorOf(functions) + num_imported_functions;
+  }
+
   std::vector<TypeDefinition> types;  // by type index
-  // TODO(7748): Unify the following two arrays.
-  // Maps each type index to a canonical index for purposes of call_indirect.
-  std::vector<uint32_t> canonicalized_type_ids;
   // Maps each type index to its global (cross-module) canonical index as per
   // isorecursive type canonicalization.
   std::vector<uint32_t> isorecursive_canonical_type_ids;
-  // Canonicalizing map for signature indexes.
-  SignatureMap signature_map;
   std::vector<WasmFunction> functions;
   std::vector<WasmGlobal> globals;
   std::vector<WasmDataSegment> data_segments;
@@ -510,18 +613,27 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmImport> import_table;
   std::vector<WasmExport> export_table;
   std::vector<WasmTag> tags;
+  std::vector<WasmStringRefLiteral> stringref_literals;
   std::vector<WasmElemSegment> elem_segments;
   std::vector<WasmCompilationHint> compilation_hints;
   BranchHintInfo branch_hints;
+  // Pairs of module offsets and mark id.
+  std::vector<std::pair<uint32_t, uint32_t>> inst_traces;
   mutable TypeFeedbackStorage type_feedback;
 
   ModuleOrigin origin = kWasmOrigin;  // origin of the module
-  LazilyGeneratedNames lazily_generated_names;
+  mutable LazilyGeneratedNames lazily_generated_names;
   WasmDebugSymbols debug_symbols;
 
   // Asm.js source position information. Only available for modules compiled
   // from asm.js.
   std::unique_ptr<AsmJsOffsetInformation> asm_js_offset_information;
+
+  // {validated_functions} is atomically updated when functions get validated
+  // (during compilation, streaming decoding, or via explicit validation).
+  static_assert(sizeof(std::atomic<uint8_t>) == 1);
+  static_assert(alignof(std::atomic<uint8_t>) == 1);
+  mutable std::unique_ptr<std::atomic<uint8_t>[]> validated_functions;
 
   explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
   WasmModule(const WasmModule&) = delete;
@@ -531,17 +643,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
 // Static representation of a wasm indirect call table.
 struct WasmTable {
   MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmTable);
-
-  // 'module' can be nullptr
-  // TODO(9495): Update this function as more table types are supported, or
-  // remove it completely when all reference types are allowed.
-  static bool IsValidTableType(ValueType type, const WasmModule* module) {
-    if (!type.is_object_reference()) return false;
-    HeapType heap_type = type.heap_type();
-    return heap_type == HeapType::kFunc || heap_type == HeapType::kAny ||
-           (module != nullptr && heap_type.is_index() &&
-            module->has_signature(heap_type.ref_index()));
-  }
 
   ValueType type = kWasmVoid;     // table type.
   uint32_t initial_size = 0;      // initial table size.
@@ -558,16 +659,9 @@ inline bool is_asmjs_module(const WasmModule* module) {
 
 size_t EstimateStoredSize(const WasmModule* module);
 
-// Returns the number of possible export wrappers for a given module.
-V8_EXPORT_PRIVATE int MaxNumExportWrappers(const WasmModule* module);
-
-// Returns the wrapper index for a function in {module} with signature {sig}
-// or {sig_index} and origin defined by {is_import}.
-// Prefer to use the {sig_index} consuming version, as it is much faster.
-int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
-                          bool is_import);
-int GetExportWrapperIndex(const WasmModule* module, uint32_t sig_index,
-                          bool is_import);
+// Returns the wrapper index for a function with isorecursive canonical
+// signature index {canonical_sig_index}, and origin defined by {is_import}.
+int GetExportWrapperIndex(uint32_t canonical_sig_index, bool is_import);
 
 // Return the byte offset of the function identified by the given index.
 // The offset will be relative to the start of the module bytes.
@@ -640,10 +734,13 @@ struct WasmFunctionName {
   const WasmName name_;
 };
 
-std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const WasmFunctionName& name);
 
 V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(Isolate* isolate,
                                             Handle<Context> context);
+V8_EXPORT_PRIVATE Handle<String> ErrorStringForCodegen(Isolate* isolate,
+                                                       Handle<Context> context);
 
 Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
                                     bool for_exception = false);
@@ -674,6 +771,9 @@ inline int declared_function_index(const WasmModule* module, int func_index) {
   DCHECK_GT(module->num_declared_functions, declared_idx);
   return declared_idx;
 }
+
+// Translate from function index to jump table offset.
+int JumpTableOffset(const WasmModule* module, int func_index);
 
 // TruncatedUserString makes it easy to output names up to a certain length, and
 // output a truncation followed by '...' if they exceed a limit.
@@ -718,8 +818,12 @@ class TruncatedUserString {
 size_t PrintSignature(base::Vector<char> buffer, const wasm::FunctionSig*,
                       char delimiter = ':');
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+V8_EXPORT_PRIVATE size_t
+GetWireBytesHash(base::Vector<const uint8_t> wire_bytes);
+
+// Get the required number of feedback slots for a function.
+int NumFeedbackSlots(const WasmModule* module, int func_index);
+
+}  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_WASM_MODULE_H_

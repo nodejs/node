@@ -52,7 +52,9 @@ RELEASE_ACQUIRE_WEAK_ACCESSORS(Map, raw_transitions,
                                kTransitionsOrPrototypeInfoOffset)
 
 ACCESSORS_CHECKED2(Map, prototype, HeapObject, kPrototypeOffset, true,
-                   value.IsNull() || value.IsJSReceiver())
+                   value.IsNull() || value.IsJSProxy() ||
+                       value.IsWasmObject() ||
+                       (value.IsJSObject() && value.map().is_prototype_map()))
 
 DEF_GETTER(Map, prototype_info, Object) {
   Object value = TaggedField<Object, kTransitionsOrPrototypeInfoOffset>::load(
@@ -170,7 +172,9 @@ void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
 
 Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                            PropertyNormalizationMode mode, const char* reason) {
-  return Normalize(isolate, fast_map, fast_map->elements_kind(), mode, reason);
+  const bool kUseCache = true;
+  return Normalize(isolate, fast_map, fast_map->elements_kind(), mode,
+                   kUseCache, reason);
 }
 
 bool Map::EquivalentToForNormalization(const Map other,
@@ -312,6 +316,13 @@ void Map::SetInObjectPropertiesStartInWords(int value) {
   set_inobject_properties_start_or_constructor_function_index(value);
 }
 
+bool Map::HasOutOfObjectProperties() const {
+  bool ret = used_or_unused_instance_size_in_words() < JSObject::kFieldsAdded;
+  DCHECK_EQ(ret, GetInObjectProperties() <
+                     NumberOfFields(ConcurrencyMode::kSynchronous));
+  return ret;
+}
+
 int Map::GetInObjectProperties() const {
   DCHECK(IsJSObjectMap());
   return instance_size_in_words() - GetInObjectPropertiesStartInWords();
@@ -394,7 +405,7 @@ int Map::UsedInstanceSize() const {
 }
 
 void Map::SetInObjectUnusedPropertyFields(int value) {
-  STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kTaggedSize);
+  static_assert(JSObject::kFieldsAdded == JSObject::kHeaderSize / kTaggedSize);
   if (!IsJSObjectMap()) {
     CHECK_EQ(0, value);
     set_used_or_unused_instance_size_in_words(0);
@@ -410,7 +421,7 @@ void Map::SetInObjectUnusedPropertyFields(int value) {
 }
 
 void Map::SetOutOfObjectUnusedPropertyFields(int value) {
-  STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kTaggedSize);
+  static_assert(JSObject::kFieldsAdded == JSObject::kHeaderSize / kTaggedSize);
   CHECK_LT(static_cast<unsigned>(value), JSObject::kFieldsAdded);
   // For out of object properties "used_instance_size_in_words" byte encodes
   // the slack in the property array.
@@ -437,7 +448,7 @@ void Map::CopyUnusedPropertyFieldsAdjustedForInstanceSize(Map map) {
 
 void Map::AccountAddedPropertyField() {
   // Update used instance size and unused property fields number.
-  STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kTaggedSize);
+  static_assert(JSObject::kFieldsAdded == JSObject::kHeaderSize / kTaggedSize);
 #ifdef DEBUG
   int new_unused = UnusedPropertyFields() - 1;
   if (new_unused < 0) new_unused += JSObject::kFieldsAdded;
@@ -623,6 +634,10 @@ bool Map::has_frozen_elements() const {
   return IsFrozenElementsKind(elements_kind());
 }
 
+bool Map::has_shared_array_elements() const {
+  return IsSharedArrayElementsKind(elements_kind());
+}
+
 void Map::set_is_dictionary_map(bool value) {
   uint32_t new_bit_field3 =
       Bits3::IsDictionaryMapBit::update(bit_field3(), value);
@@ -658,8 +673,8 @@ bool Map::CanBeDeprecated() const {
 void Map::NotifyLeafMapLayoutChange(Isolate* isolate) {
   if (is_stable()) {
     mark_unstable();
-    dependent_code().DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kPrototypeCheckGroup);
+    DependentCode::DeoptimizeDependencyGroups(
+        isolate, *this, DependentCode::kPrototypeCheckGroup);
   }
 }
 
@@ -765,7 +780,8 @@ Map Map::ElementsTransitionMap(Isolate* isolate, ConcurrencyMode cmode) {
 }
 
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
-ACCESSORS(Map, prototype_validity_cell, Object, kPrototypeValidityCellOffset)
+RELAXED_ACCESSORS(Map, prototype_validity_cell, Object,
+                  kPrototypeValidityCellOffset)
 ACCESSORS_CHECKED2(Map, constructor_or_back_pointer, Object,
                    kConstructorOrBackPointerOrNativeContextOffset,
                    !IsContextMap(), value.IsNull() || !IsContextMap())
@@ -786,10 +802,14 @@ ACCESSORS_CHECKED(Map, wasm_type_info, WasmTypeInfo,
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 bool Map::IsPrototypeValidityCellValid() const {
-  Object validity_cell = prototype_validity_cell();
-  Object value = validity_cell.IsSmi() ? Smi::cast(validity_cell)
-                                       : Cell::cast(validity_cell).value();
-  return value == Smi::FromInt(Map::kPrototypeChainValid);
+  Object validity_cell = prototype_validity_cell(kRelaxedLoad);
+  if (validity_cell.IsSmi()) {
+    // Smi validity cells should always be considered valid.
+    DCHECK_EQ(Smi::cast(validity_cell).value(), Map::kPrototypeChainValid);
+    return true;
+  }
+  Smi cell_value = Smi::cast(Cell::cast(validity_cell).value());
+  return cell_value == Smi::FromInt(Map::kPrototypeChainValid);
 }
 
 DEF_GETTER(Map, GetConstructor, Object) {

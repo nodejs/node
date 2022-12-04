@@ -116,16 +116,34 @@ Each instance of `AsyncLocalStorage` maintains an independent storage context.
 Multiple instances can safely exist simultaneously without risk of interfering
 with each other's data.
 
-### `new AsyncLocalStorage()`
+### `new AsyncLocalStorage([options])`
 
 <!-- YAML
 added:
  - v13.10.0
  - v12.17.0
+changes:
+ - version: v19.2.0
+   pr-url: https://github.com/nodejs/node/pull/45386
+   description: Add option onPropagate.
 -->
+
+> Stability: 1 - `options.onPropagate` is experimental.
+
+* `options` {Object}
+  * `onPropagate` {Function} Optional callback invoked before a store is
+    propagated to a new async resource. Returning `true` allows propagation,
+    returning `false` avoids it. Default is to propagate always.
 
 Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
 `run()` call or after an `enterWith()` call.
+
+The `onPropagate` is called during creation of an async resource. Throwing at
+this time will print the stack trace and exit. See
+[`async_hooks` Error handling][] for details.
+
+Creating an async resource within the `onPropagate` callback will result in
+a recursive call to `onPropagate`.
 
 ### `asyncLocalStorage.disable()`
 
@@ -354,7 +372,7 @@ import { AsyncResource, executionAsyncId } from 'node:async_hooks';
 // new AsyncResource() also triggers init. If triggerAsyncId is omitted then
 // async_hook.executionAsyncId() is used.
 const asyncResource = new AsyncResource(
-  type, { triggerAsyncId: executionAsyncId(), requireManualDestroy: false }
+  type, { triggerAsyncId: executionAsyncId(), requireManualDestroy: false },
 );
 
 // Run a function in the execution context of the resource. This will
@@ -382,7 +400,7 @@ const { AsyncResource, executionAsyncId } = require('node:async_hooks');
 // new AsyncResource() also triggers init. If triggerAsyncId is omitted then
 // async_hook.executionAsyncId() is used.
 const asyncResource = new AsyncResource(
-  type, { triggerAsyncId: executionAsyncId(), requireManualDestroy: false }
+  type, { triggerAsyncId: executionAsyncId(), requireManualDestroy: false },
 );
 
 // Run a function in the execution context of the resource. This will
@@ -597,7 +615,7 @@ export default class WorkerPool extends EventEmitter {
   }
 
   addNewWorker() {
-    const worker = new Worker(new URL('task_processer.js', import.meta.url));
+    const worker = new Worker(new URL('task_processor.js', import.meta.url));
     worker.on('message', (result) => {
       // In case of success: Call the callback that was passed to `runTask`,
       // remove the `TaskInfo` associated with the Worker, and mark it as free
@@ -816,4 +834,5 @@ const server = createServer((req, res) => {
 [`EventEmitter`]: events.md#class-eventemitter
 [`Stream`]: stream.md#stream
 [`Worker`]: worker_threads.md#class-worker
+[`async_hooks` Error handling]: async_hooks.md#error-handling
 [`util.promisify()`]: util.md#utilpromisifyoriginal

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-simd
-
 // This exercises an bug in scalar-lowering for load transforms. In
 // particular, if the index input to v128.load32_splat was a extract_lane, the
 // input wasn't correctly lowered. This caused the extract_lane node to stick

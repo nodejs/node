@@ -45,7 +45,6 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/objects-inl.h"
 
@@ -59,17 +58,18 @@ static const unsigned kArmv8 = kArmv7WithSudiv | (1u << ARMv8);
 
 static unsigned CpuFeaturesFromCommandLine() {
   unsigned result;
-  if (strcmp(FLAG_arm_arch, "armv8") == 0) {
+  const char* arm_arch = v8_flags.arm_arch;
+  if (strcmp(arm_arch, "armv8") == 0) {
     result = kArmv8;
-  } else if (strcmp(FLAG_arm_arch, "armv7+sudiv") == 0) {
+  } else if (strcmp(arm_arch, "armv7+sudiv") == 0) {
     result = kArmv7WithSudiv;
-  } else if (strcmp(FLAG_arm_arch, "armv7") == 0) {
+  } else if (strcmp(arm_arch, "armv7") == 0) {
     result = kArmv7;
-  } else if (strcmp(FLAG_arm_arch, "armv6") == 0) {
+  } else if (strcmp(arm_arch, "armv6") == 0) {
     result = kArmv6;
   } else {
     fprintf(stderr, "Error: unrecognised value for --arm-arch ('%s').\n",
-            FLAG_arm_arch);
+            arm_arch);
     fprintf(stderr,
             "Supported values are:  armv8\n"
             "                       armv7+sudiv\n"
@@ -81,9 +81,15 @@ static unsigned CpuFeaturesFromCommandLine() {
   // If any of the old (deprecated) flags are specified, print a warning, but
   // otherwise try to respect them for now.
   // TODO(jbramley): When all the old bots have been updated, remove this.
-  if (FLAG_enable_armv7.has_value || FLAG_enable_vfp3.has_value ||
-      FLAG_enable_32dregs.has_value || FLAG_enable_neon.has_value ||
-      FLAG_enable_sudiv.has_value || FLAG_enable_armv8.has_value) {
+  base::Optional<bool> maybe_enable_armv7 = v8_flags.enable_armv7;
+  base::Optional<bool> maybe_enable_vfp3 = v8_flags.enable_vfp3;
+  base::Optional<bool> maybe_enable_32dregs = v8_flags.enable_32dregs;
+  base::Optional<bool> maybe_enable_neon = v8_flags.enable_neon;
+  base::Optional<bool> maybe_enable_sudiv = v8_flags.enable_sudiv;
+  base::Optional<bool> maybe_enable_armv8 = v8_flags.enable_armv8;
+  if (maybe_enable_armv7.has_value() || maybe_enable_vfp3.has_value() ||
+      maybe_enable_32dregs.has_value() || maybe_enable_neon.has_value() ||
+      maybe_enable_sudiv.has_value() || maybe_enable_armv8.has_value()) {
     // As an approximation of the old behaviour, set the default values from the
     // arm_arch setting, then apply the flags over the top.
     bool enable_armv7 = (result & (1u << ARMv7)) != 0;
@@ -92,41 +98,41 @@ static unsigned CpuFeaturesFromCommandLine() {
     bool enable_neon = (result & (1u << ARMv7)) != 0;
     bool enable_sudiv = (result & (1u << ARMv7_SUDIV)) != 0;
     bool enable_armv8 = (result & (1u << ARMv8)) != 0;
-    if (FLAG_enable_armv7.has_value) {
+    if (maybe_enable_armv7.has_value()) {
       fprintf(stderr,
               "Warning: --enable_armv7 is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_armv7 = FLAG_enable_armv7.value;
+      enable_armv7 = maybe_enable_armv7.value();
     }
-    if (FLAG_enable_vfp3.has_value) {
+    if (maybe_enable_vfp3.has_value()) {
       fprintf(stderr,
               "Warning: --enable_vfp3 is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_vfp3 = FLAG_enable_vfp3.value;
+      enable_vfp3 = maybe_enable_vfp3.value();
     }
-    if (FLAG_enable_32dregs.has_value) {
+    if (maybe_enable_32dregs.has_value()) {
       fprintf(stderr,
               "Warning: --enable_32dregs is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_32dregs = FLAG_enable_32dregs.value;
+      enable_32dregs = maybe_enable_32dregs.value();
     }
-    if (FLAG_enable_neon.has_value) {
+    if (maybe_enable_neon.has_value()) {
       fprintf(stderr,
               "Warning: --enable_neon is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_neon = FLAG_enable_neon.value;
+      enable_neon = maybe_enable_neon.value();
     }
-    if (FLAG_enable_sudiv.has_value) {
+    if (maybe_enable_sudiv.has_value()) {
       fprintf(stderr,
               "Warning: --enable_sudiv is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_sudiv = FLAG_enable_sudiv.value;
+      enable_sudiv = maybe_enable_sudiv.value();
     }
-    if (FLAG_enable_armv8.has_value) {
+    if (maybe_enable_armv8.has_value()) {
       fprintf(stderr,
               "Warning: --enable_armv8 is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_armv8 = FLAG_enable_armv8.value;
+      enable_armv8 = maybe_enable_armv8.value();
     }
     // Emulate the old implications.
     if (enable_armv8) {
@@ -391,15 +397,8 @@ Operand Operand::EmbeddedNumber(double value) {
   int32_t smi;
   if (DoubleToSmiInteger(value, &smi)) return Operand(Smi::FromInt(smi));
   Operand result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
-  result.is_heap_object_request_ = true;
-  result.value_.heap_object_request = HeapObjectRequest(value);
-  return result;
-}
-
-Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
-  Operand result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
-  result.is_heap_object_request_ = true;
-  result.value_.heap_object_request = HeapObjectRequest(str);
+  result.is_heap_number_request_ = true;
+  result.value_.heap_number_request = HeapNumberRequest(value);
   return result;
 }
 
@@ -456,22 +455,12 @@ void NeonMemOperand::SetAlignment(int align) {
   }
 }
 
-void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
-  for (auto& request : heap_object_requests_) {
-    Handle<HeapObject> object;
-    switch (request.kind()) {
-      case HeapObjectRequest::kHeapNumber:
-        object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+void Assembler::AllocateAndInstallRequestedHeapNumbers(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
+  for (auto& request : heap_number_requests_) {
+    Handle<HeapObject> object =
+        isolate->factory()->NewHeapNumber<AllocationType::kOld>(
             request.heap_number());
-        break;
-      case HeapObjectRequest::kStringConstant: {
-        const StringConstantBase* str = request.string();
-        CHECK_NOT_NULL(str);
-        object = str->AllocateStringConstant(isolate);
-        break;
-      }
-    }
     Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
     Memory<Address>(constant_pool_entry_address(pc, 0 /* unused */)) =
         object.address();
@@ -578,7 +567,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
 
   int code_comments_size = WriteCodeComments();
 
-  AllocateAndInstallRequestedHeapObjects(isolate);
+  AllocateAndInstallRequestedHeapNumbers(isolate);
 
   // Set up code descriptor.
   // TODO(jgruber): Reconsider how these offsets and sizes are maintained up to
@@ -1207,8 +1196,8 @@ void Assembler::Move32BitImmediate(Register rd, const Operand& x,
     }
   } else {
     int32_t immediate;
-    if (x.IsHeapObjectRequest()) {
-      RequestHeapObject(x.heap_object_request());
+    if (x.IsHeapNumberRequest()) {
+      RequestHeapNumber(x.heap_number_request());
       immediate = 0;
     } else {
       immediate = x.immediate();
@@ -4388,9 +4377,9 @@ enum IntegerBinOp {
   VQRDMULH
 };
 
-static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
-                             QwNeonRegister dst, QwNeonRegister src1,
-                             QwNeonRegister src2) {
+static Instr EncodeNeonDataTypeBinOp(IntegerBinOp op, NeonDataType dt,
+                                     QwNeonRegister dst, QwNeonRegister src1,
+                                     QwNeonRegister src2) {
   int op_encoding = 0;
   switch (op) {
     case VADD:
@@ -4447,11 +4436,13 @@ static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
          n * B7 | B6 | m * B5 | vm | op_encoding;
 }
 
-static Instr EncodeNeonBinOp(IntegerBinOp op, NeonSize size, QwNeonRegister dst,
-                             QwNeonRegister src1, QwNeonRegister src2) {
+static Instr EncodeNeonSizeBinOp(IntegerBinOp op, NeonSize size,
+                                 QwNeonRegister dst, QwNeonRegister src1,
+                                 QwNeonRegister src2) {
   // Map NeonSize values to the signed values in NeonDataType, so the U bit
   // will be 0.
-  return EncodeNeonBinOp(op, static_cast<NeonDataType>(size), dst, src1, src2);
+  return EncodeNeonDataTypeBinOp(op, static_cast<NeonDataType>(size), dst, src1,
+                                 src2);
 }
 
 void Assembler::vadd(QwNeonRegister dst, QwNeonRegister src1,
@@ -4467,7 +4458,7 @@ void Assembler::vadd(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vadd(Qn, Qm) SIMD integer addition.
   // Instruction details available in ARM DDI 0406C.b, A8-828.
-  emit(EncodeNeonBinOp(VADD, size, dst, src1, src2));
+  emit(EncodeNeonSizeBinOp(VADD, size, dst, src1, src2));
 }
 
 void Assembler::vqadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
@@ -4475,7 +4466,7 @@ void Assembler::vqadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vqadd(Qn, Qm) SIMD integer saturating addition.
   // Instruction details available in ARM DDI 0406C.b, A8-996.
-  emit(EncodeNeonBinOp(VQADD, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VQADD, dt, dst, src1, src2));
 }
 
 void Assembler::vsub(QwNeonRegister dst, QwNeonRegister src1,
@@ -4491,7 +4482,7 @@ void Assembler::vsub(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vsub(Qn, Qm) SIMD integer subtraction.
   // Instruction details available in ARM DDI 0406C.b, A8-1084.
-  emit(EncodeNeonBinOp(VSUB, size, dst, src1, src2));
+  emit(EncodeNeonSizeBinOp(VSUB, size, dst, src1, src2));
 }
 
 void Assembler::vqsub(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
@@ -4499,7 +4490,7 @@ void Assembler::vqsub(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vqsub(Qn, Qm) SIMD integer saturating subtraction.
   // Instruction details available in ARM DDI 0406C.b, A8-1020.
-  emit(EncodeNeonBinOp(VQSUB, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VQSUB, dt, dst, src1, src2));
 }
 
 void Assembler::vmlal(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src1,
@@ -4534,7 +4525,7 @@ void Assembler::vmul(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vadd(Qn, Qm) SIMD integer multiply.
   // Instruction details available in ARM DDI 0406C.b, A8-960.
-  emit(EncodeNeonBinOp(VMUL, size, dst, src1, src2));
+  emit(EncodeNeonSizeBinOp(VMUL, size, dst, src1, src2));
 }
 
 void Assembler::vmull(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src1,
@@ -4567,7 +4558,7 @@ void Assembler::vmin(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vmin(Qn, Qm) SIMD integer MIN.
   // Instruction details available in ARM DDI 0406C.b, A8-926.
-  emit(EncodeNeonBinOp(VMIN, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VMIN, dt, dst, src1, src2));
 }
 
 void Assembler::vmax(QwNeonRegister dst, QwNeonRegister src1,
@@ -4583,7 +4574,7 @@ void Assembler::vmax(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vmax(Qn, Qm) SIMD integer MAX.
   // Instruction details available in ARM DDI 0406C.b, A8-926.
-  emit(EncodeNeonBinOp(VMAX, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VMAX, dt, dst, src1, src2));
 }
 
 enum NeonShiftOp { VSHL, VSHR, VSLI, VSRI, VSRA };
@@ -4860,7 +4851,7 @@ void Assembler::vtst(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vtst(Qn, Qm) SIMD test integer operands.
   // Instruction details available in ARM DDI 0406C.b, A8-1098.
-  emit(EncodeNeonBinOp(VTST, size, dst, src1, src2));
+  emit(EncodeNeonSizeBinOp(VTST, size, dst, src1, src2));
 }
 
 void Assembler::vceq(QwNeonRegister dst, QwNeonRegister src1,
@@ -4876,7 +4867,7 @@ void Assembler::vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vceq(Qn, Qm) SIMD integer compare equal.
   // Instruction details available in ARM DDI 0406C.b, A8-844.
-  emit(EncodeNeonBinOp(VCEQ, size, dst, src1, src2));
+  emit(EncodeNeonSizeBinOp(VCEQ, size, dst, src1, src2));
 }
 
 void Assembler::vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
@@ -4901,7 +4892,7 @@ void Assembler::vcge(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vcge(Qn, Qm) SIMD integer compare greater or equal.
   // Instruction details available in ARM DDI 0406C.b, A8-848.
-  emit(EncodeNeonBinOp(VCGE, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VCGE, dt, dst, src1, src2));
 }
 
 void Assembler::vcgt(QwNeonRegister dst, QwNeonRegister src1,
@@ -4917,7 +4908,7 @@ void Assembler::vcgt(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vcgt(Qn, Qm) SIMD integer compare greater than.
   // Instruction details available in ARM DDI 0406C.b, A8-852.
-  emit(EncodeNeonBinOp(VCGT, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VCGT, dt, dst, src1, src2));
 }
 
 void Assembler::vclt(NeonSize size, QwNeonRegister dst, QwNeonRegister src,
@@ -4934,7 +4925,7 @@ void Assembler::vrhadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vrhadd(Qn, Qm) SIMD integer rounding halving add.
   // Instruction details available in ARM DDI 0406C.b, A8-1030.
-  emit(EncodeNeonBinOp(VRHADD, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VRHADD, dt, dst, src1, src2));
 }
 
 void Assembler::vext(QwNeonRegister dst, QwNeonRegister src1,
@@ -5044,7 +5035,7 @@ void Assembler::vqrdmulh(NeonDataType dt, QwNeonRegister dst,
                          QwNeonRegister src1, QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
   DCHECK(dt == NeonS16 || dt == NeonS32);
-  emit(EncodeNeonBinOp(VQRDMULH, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VQRDMULH, dt, dst, src1, src2));
 }
 
 void Assembler::vcnt(QwNeonRegister dst, QwNeonRegister src) {
@@ -5227,8 +5218,7 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
   if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-           RelocInfo::IsLiteralConstant(rmode));
+    DCHECK(RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), data);
@@ -5241,8 +5231,7 @@ void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
   if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-           RelocInfo::IsLiteralConstant(rmode));
+    DCHECK(RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), value);

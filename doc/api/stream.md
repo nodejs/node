@@ -172,7 +172,7 @@ server.listen(1337);
 // $ curl localhost:1337 -d "\"foo\""
 // string
 // $ curl localhost:1337 -d "not json"
-// error: Unexpected token o in JSON at position 1
+// error: Unexpected token 'o', "not json" is not valid JSON
 ```
 
 [`Writable`][] streams (such as `res` in the example) expose methods such as
@@ -882,8 +882,10 @@ pass.unpipe(writable);
 // readableFlowing is now false.
 
 pass.on('data', (chunk) => { console.log(chunk.toString()); });
+// readableFlowing is still false.
 pass.write('ok');  // Will not emit 'data'.
 pass.resume();     // Must be called to make stream emit 'data'.
+// readableFlowing is now true.
 ```
 
 While `readable.readableFlowing` is `false`, data may be accumulating
@@ -1681,6 +1683,41 @@ option. In the code example above, data will be in a single chunk if the file
 has less then 64 KiB of data because no `highWaterMark` option is provided to
 [`fs.createReadStream()`][].
 
+##### `readable.compose(stream[, options])`
+
+<!-- YAML
+added: v19.1.0
+-->
+
+> Stability: 1 - Experimental
+
+* `stream` {Stream|Iterable|AsyncIterable|Function}
+* `options` {Object}
+  * `signal` {AbortSignal} allows destroying the stream if the signal is
+    aborted.
+* Returns: {Duplex} a stream composed with the stream `stream`.
+
+```mjs
+import { Readable } from 'node:stream';
+
+async function* splitToWords(source) {
+  for await (const chunk of source) {
+    const words = String(chunk).split(' ');
+
+    for (const word of words) {
+      yield word;
+    }
+  }
+}
+
+const wordsStream = Readable.from(['this is', 'compose as operator']).compose(splitToWords);
+const words = await wordsStream.toArray();
+
+console.log(words); // prints ['this', 'is', 'compose', 'as', 'operator']
+```
+
+See [`stream.compose`][] for more information.
+
 ##### `readable.iterator([options])`
 
 <!-- YAML
@@ -2363,6 +2400,7 @@ changes:
 -->
 
 * `stream` {Stream} A readable and/or writable stream.
+
 * `options` {Object}
   * `error` {boolean} If set to `false`, then a call to `emit('error', err)` is
     not treated as finished. **Default:** `true`.
@@ -2376,8 +2414,12 @@ changes:
     underlying stream will _not_ be aborted if the signal is aborted. The
     callback will get called with an `AbortError`. All registered
     listeners added by this function will also be removed.
+  * `cleanup` {boolean} remove all registered stream listeners.
+    **Default:** `false`.
+
 * `callback` {Function} A callback function that takes an optional error
   argument.
+
 * Returns: {Function} A cleanup function which removes all registered
   listeners.
 
@@ -2496,7 +2538,7 @@ pipeline(
     } else {
       console.log('Pipeline succeeded.');
     }
-  }
+  },
 );
 ```
 
@@ -2515,7 +2557,7 @@ async function run() {
   await pipeline(
     fs.createReadStream('archive.tar'),
     zlib.createGzip(),
-    fs.createWriteStream('archive.tar.gz')
+    fs.createWriteStream('archive.tar.gz'),
   );
   console.log('Pipeline succeeded.');
 }
@@ -2562,7 +2604,7 @@ async function run() {
         yield await processChunk(chunk, { signal });
       }
     },
-    fs.createWriteStream('uppercase.txt')
+    fs.createWriteStream('uppercase.txt'),
   );
   console.log('Pipeline succeeded.');
 }
@@ -2584,7 +2626,7 @@ async function run() {
       await someLongRunningfn({ signal });
       yield 'asd';
     },
-    fs.createWriteStream('uppercase.txt')
+    fs.createWriteStream('uppercase.txt'),
   );
   console.log('Pipeline succeeded.');
 }
@@ -2656,7 +2698,7 @@ import { compose, Transform } from 'node:stream';
 const removeSpaces = new Transform({
   transform(chunk, encoding, callback) {
     callback(null, String(chunk).replace(' ', ''));
-  }
+  },
 });
 
 async function* toUpper(source) {
@@ -2714,6 +2756,8 @@ await finished(compose(s1, s2, s3));
 
 console.log(res); // prints 'HELLOWORLD'
 ```
+
+See [`readable.compose(stream)`][] for `stream.compose` as operator.
 
 ### `stream.Readable.from(iterable[, options])`
 
@@ -2906,7 +2950,7 @@ added: v17.0.0
 import { Duplex } from 'node:stream';
 import {
   ReadableStream,
-  WritableStream
+  WritableStream,
 } from 'node:stream/web';
 
 const readable = new ReadableStream({
@@ -2918,12 +2962,12 @@ const readable = new ReadableStream({
 const writable = new WritableStream({
   write(chunk) {
     console.log('writable', chunk);
-  }
+  },
 });
 
 const pair = {
   readable,
-  writable
+  writable,
 };
 const duplex = Duplex.fromWeb(pair, { encoding: 'utf8', objectMode: true });
 
@@ -2938,7 +2982,7 @@ for await (const chunk of duplex) {
 const { Duplex } = require('node:stream');
 const {
   ReadableStream,
-  WritableStream
+  WritableStream,
 } = require('node:stream/web');
 
 const readable = new ReadableStream({
@@ -2950,12 +2994,12 @@ const readable = new ReadableStream({
 const writable = new WritableStream({
   write(chunk) {
     console.log('writable', chunk);
-  }
+  },
 });
 
 const pair = {
   readable,
-  writable
+  writable,
 };
 const duplex = Duplex.fromWeb(pair, { encoding: 'utf8', objectMode: true });
 
@@ -2988,7 +3032,7 @@ const duplex = Duplex({
   write(chunk, encoding, callback) {
     console.log('writable', chunk);
     callback();
-  }
+  },
 });
 
 const { readable, writable } = Duplex.toWeb(duplex);
@@ -3010,7 +3054,7 @@ const duplex = Duplex({
   write(chunk, encoding, callback) {
     console.log('writable', chunk);
     callback();
-  }
+  },
 });
 
 const { readable, writable } = Duplex.toWeb(duplex);
@@ -3043,7 +3087,7 @@ const fs = require('node:fs');
 const controller = new AbortController();
 const read = addAbortSignal(
   controller.signal,
-  fs.createReadStream(('object.json'))
+  fs.createReadStream(('object.json')),
 );
 // Later, abort the operation closing the stream
 controller.abort();
@@ -3056,7 +3100,7 @@ const controller = new AbortController();
 setTimeout(() => controller.abort(), 10_000); // set a timeout
 const stream = addAbortSignal(
   controller.signal,
-  fs.createReadStream(('object.json'))
+  fs.createReadStream(('object.json')),
 );
 (async () => {
   try {
@@ -3150,7 +3194,7 @@ const myWritable = new Writable({
   },
   destroy() {
     // Free resources...
-  }
+  },
 });
 ```
 
@@ -3257,7 +3301,7 @@ const myWritable = new Writable({
   },
   writev(chunks, callback) {
     // ...
-  }
+  },
 });
 ```
 
@@ -3276,7 +3320,7 @@ const myWritable = new Writable({
   writev(chunks, callback) {
     // ...
   },
-  signal: controller.signal
+  signal: controller.signal,
 });
 // Later, abort the operation closing the stream
 controller.abort();
@@ -3467,7 +3511,7 @@ const myWritable = new Writable({
     } else {
       callback();
     }
-  }
+  },
 });
 ```
 
@@ -3614,7 +3658,7 @@ const { Readable } = require('node:stream');
 const myReadable = new Readable({
   read(size) {
     // ...
-  }
+  },
 });
 ```
 
@@ -3629,7 +3673,7 @@ const read = new Readable({
   read(size) {
     // ...
   },
-  signal: controller.signal
+  signal: controller.signal,
 });
 // Later, abort the operation closing the stream
 controller.abort();
@@ -3837,7 +3881,7 @@ const myReadable = new Readable({
     } else {
       // Do some work.
     }
-  }
+  },
 });
 ```
 
@@ -3955,7 +3999,7 @@ const myDuplex = new Duplex({
   },
   write(chunk, encoding, callback) {
     // ...
-  }
+  },
 });
 ```
 
@@ -3987,7 +4031,7 @@ pipeline(
       } catch (err) {
         callback(err);
       }
-    }
+    },
   }),
   fs.createWriteStream('valid-object.json'),
   (err) => {
@@ -3996,7 +4040,7 @@ pipeline(
     } else {
       console.log('completed');
     }
-  }
+  },
 );
 ```
 
@@ -4067,7 +4111,7 @@ const myTransform = new Transform({
 
     // Push the data onto the readable queue.
     callback(null, '0'.repeat(data.length % 2) + data);
-  }
+  },
 });
 
 myTransform.setEncoding('ascii');
@@ -4149,7 +4193,7 @@ const { Transform } = require('node:stream');
 const myTransform = new Transform({
   transform(chunk, encoding, callback) {
     // ...
-  }
+  },
 });
 ```
 
@@ -4482,11 +4526,13 @@ contain multi-byte characters.
 [`process.stdin`]: process.md#processstdin
 [`process.stdout`]: process.md#processstdout
 [`readable._read()`]: #readable_readsize
+[`readable.compose(stream)`]: #readablecomposestream-options
 [`readable.map`]: #readablemapfn-options
 [`readable.push('')`]: #readablepush
 [`readable.setEncoding()`]: #readablesetencodingencoding
 [`stream.Readable.from()`]: #streamreadablefromiterable-options
 [`stream.addAbortSignal()`]: #streamaddabortsignalsignal-stream
+[`stream.compose`]: #streamcomposestreams
 [`stream.cork()`]: #writablecork
 [`stream.finished()`]: #streamfinishedstream-options-callback
 [`stream.pipe()`]: #readablepipedestination-options

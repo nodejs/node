@@ -3,8 +3,8 @@ set -e
 
 # Shell script to update llhttp in the source tree to specific version
 
-BASE_DIR="$( pwd )"/
-DEPS_DIR="${BASE_DIR}deps/"
+BASE_DIR=$(cd "$(dirname "$0")/.." && pwd)
+DEPS_DIR="${BASE_DIR}/deps"
 LLHTTP_VERSION="$1"
 
 if [ "$#" -le 0 ]; then
@@ -59,5 +59,5 @@ echo ""
 echo "Please git add llhttp, commit the new version:"
 echo ""
 echo "$ git add -A deps/llhttp"
-echo "$ git commit -m \"deps: update nghttp2 to $LLHTTP_VERSION\""
+echo "$ git commit -m \"deps: update llhttp to $LLHTTP_VERSION\""
 echo ""

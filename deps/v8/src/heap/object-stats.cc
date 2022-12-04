@@ -15,6 +15,7 @@
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/compilation-cache-table-inl.h"
 #include "src/objects/heap-object.h"
@@ -448,10 +449,11 @@ class ObjectStatsCollectorImpl {
     return field_stats_collector_.cage_base();
   }
 
-  Heap* heap_;
-  ObjectStats* stats_;
-  MarkCompactCollector::NonAtomicMarkingState* marking_state_;
-  std::unordered_set<HeapObject, Object::Hasher> virtual_objects_;
+  Heap* const heap_;
+  ObjectStats* const stats_;
+  NonAtomicMarkingState* const marking_state_;
+  std::unordered_set<HeapObject, Object::Hasher, Object::KeyEqualSafe>
+      virtual_objects_;
   std::unordered_set<Address> external_resources_;
   FieldStatsCollector field_stats_collector_;
 };
@@ -460,8 +462,7 @@ ObjectStatsCollectorImpl::ObjectStatsCollectorImpl(Heap* heap,
                                                    ObjectStats* stats)
     : heap_(heap),
       stats_(stats),
-      marking_state_(
-          heap->mark_compact_collector()->non_atomic_marking_state()),
+      marking_state_(heap->non_atomic_marking_state()),
       field_stats_collector_(
           heap_, &stats->tagged_fields_count_, &stats->embedder_fields_count_,
           &stats->inobject_smi_fields_count_,
@@ -475,7 +476,7 @@ bool ObjectStatsCollectorImpl::ShouldRecordObject(HeapObject obj,
     bool cow_check = check_cow_array == kIgnoreCow || !IsCowArray(fixed_array);
     return CanRecordFixedArray(fixed_array) && cow_check;
   }
-  if (obj == ReadOnlyRoots(heap_).empty_property_array()) return false;
+  if (obj.SafeEquals(ReadOnlyRoots(heap_).empty_property_array())) return false;
   return true;
 }
 
@@ -633,10 +634,13 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject object) {
 
   // JSCollections.
   if (object.IsJSCollection()) {
-    // TODO(bmeurer): Properly compute over-allocation here.
-    RecordSimpleVirtualObjectStats(
-        object, FixedArray::cast(JSCollection::cast(object).table()),
-        ObjectStats::JS_COLLECTION_TABLE_TYPE);
+    Object maybe_table = JSCollection::cast(object).table();
+    if (!maybe_table.IsUndefined(isolate())) {
+      DCHECK(maybe_table.IsFixedArray(isolate()));
+      // TODO(bmeurer): Properly compute over-allocation here.
+      RecordSimpleVirtualObjectStats(object, HeapObject::cast(maybe_table),
+                                     ObjectStats::JS_COLLECTION_TABLE_TYPE);
+    }
   }
 }
 
@@ -810,8 +814,8 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->number_string_cache(),
                                  ObjectStats::NUMBER_STRING_CACHE_TYPE);
   RecordSimpleVirtualObjectStats(
-      HeapObject(), heap_->single_character_string_cache(),
-      ObjectStats::SINGLE_CHARACTER_STRING_CACHE_TYPE);
+      HeapObject(), heap_->single_character_string_table(),
+      ObjectStats::SINGLE_CHARACTER_STRING_TABLE_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->string_split_cache(),
                                  ObjectStats::STRING_SPLIT_CACHE_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->regexp_multiple_cache(),
@@ -921,7 +925,7 @@ void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script script) {
   Object raw_source = script.source();
   if (raw_source.IsExternalString(cage_base())) {
     // The contents of external strings aren't on the heap, so we have to record
-    // them manually. The on-heap String object is recorded indepentendely in
+    // them manually. The on-heap String object is recorded independently in
     // the normal pass.
     ExternalString string = ExternalString::cast(raw_source);
     Address resource = string.resource_as_address();
@@ -1085,8 +1089,7 @@ class ObjectStatsVisitor {
                      ObjectStatsCollectorImpl::Phase phase)
       : live_collector_(live_collector),
         dead_collector_(dead_collector),
-        marking_state_(
-            heap->mark_compact_collector()->non_atomic_marking_state()),
+        marking_state_(heap->non_atomic_marking_state()),
         phase_(phase) {}
 
   void Visit(HeapObject obj) {
@@ -1101,9 +1104,9 @@ class ObjectStatsVisitor {
   }
 
  private:
-  ObjectStatsCollectorImpl* live_collector_;
-  ObjectStatsCollectorImpl* dead_collector_;
-  MarkCompactCollector::NonAtomicMarkingState* marking_state_;
+  ObjectStatsCollectorImpl* const live_collector_;
+  ObjectStatsCollectorImpl* const dead_collector_;
+  NonAtomicMarkingState* const marking_state_;
   ObjectStatsCollectorImpl::Phase phase_;
 };
 

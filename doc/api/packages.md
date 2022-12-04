@@ -706,6 +706,9 @@ is provided below to assist with ecosystem coordination.
   the given export. _This condition should always be included first._
 * `"deno"` - indicates a variation for the Deno platform.
 * `"browser"` - any web browser environment.
+* `"react-native"` - will be matched by the React Native framework (all
+  platforms). _To target React Native for Web, `"browser"` should be specified
+  before this condition._
 * `"development"` - can be used to define a development-only environment
   entry point, for example to provide additional debugging context such as
   better error messages when running in a development mode. _Must always be
@@ -1033,7 +1036,7 @@ CommonJS and ES module instances of the package:
    // ./node_modules/pkg/index.mjs
    import state from './state.cjs';
    export {
-     state
+     state,
    };
    ```
 

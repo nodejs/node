@@ -17,8 +17,8 @@
 #include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
-#include "test/cctest/compiler/value-helper.h"
 #include "test/common/flag-utils.h"
+#include "test/common/value-helper.h"
 
 namespace v8 {
 namespace internal {
@@ -33,10 +33,10 @@ TEST(RunInt32Add) {
 }
 
 static int RunInt32AddShift(bool is_left, int32_t add_left, int32_t add_right,
-                            int32_t shift_left, int32_t shit_right) {
+                            int32_t shift_left, int32_t shift_right) {
   RawMachineAssemblerTester<int32_t> m;
   Node* shift =
-      m.Word32Shl(m.Int32Constant(shift_left), m.Int32Constant(shit_right));
+      m.Word32Shl(m.Int32Constant(shift_left), m.Int32Constant(shift_right));
   Node* add = m.Int32Add(m.Int32Constant(add_left), m.Int32Constant(add_right));
   Node* lsa = is_left ? m.Int32Add(shift, add) : m.Int32Add(add, shift);
   m.Return(lsa);
@@ -45,7 +45,7 @@ static int RunInt32AddShift(bool is_left, int32_t add_left, int32_t add_right,
 
 TEST(RunInt32AddShift) {
   struct Test_case {
-    int32_t add_left, add_right, shift_left, shit_right, expected;
+    int32_t add_left, add_right, shift_left, shift_right, expected;
   };
 
   Test_case tc[] = {
@@ -59,10 +59,10 @@ TEST(RunInt32AddShift) {
   for (size_t i = 0; i < tc_size; ++i) {
     CHECK_EQ(tc[i].expected,
              RunInt32AddShift(false, tc[i].add_left, tc[i].add_right,
-                              tc[i].shift_left, tc[i].shit_right));
+                              tc[i].shift_left, tc[i].shift_right));
     CHECK_EQ(tc[i].expected,
              RunInt32AddShift(true, tc[i].add_left, tc[i].add_right,
-                              tc[i].shift_left, tc[i].shit_right));
+                              tc[i].shift_left, tc[i].shift_right));
   }
 }
 
@@ -939,7 +939,7 @@ TEST(RunInt64SubWithOverflowInBranchP) {
 
 static int64_t RunInt64AddShift(bool is_left, int64_t add_left,
                                 int64_t add_right, int64_t shift_left,
-                                int64_t shit_right) {
+                                int64_t shift_right) {
   RawMachineAssemblerTester<int64_t> m;
   Node* shift = m.Word64Shl(m.Int64Constant(4), m.Int64Constant(2));
   Node* add = m.Int64Add(m.Int64Constant(20), m.Int64Constant(22));
@@ -950,7 +950,7 @@ static int64_t RunInt64AddShift(bool is_left, int64_t add_left,
 
 TEST(RunInt64AddShift) {
   struct Test_case {
-    int64_t add_left, add_right, shift_left, shit_right, expected;
+    int64_t add_left, add_right, shift_left, shift_right, expected;
   };
 
   Test_case tc[] = {
@@ -964,9 +964,9 @@ TEST(RunInt64AddShift) {
 
   for (size_t i = 0; i < tc_size; ++i) {
     CHECK_EQ(58, RunInt64AddShift(false, tc[i].add_left, tc[i].add_right,
-                                  tc[i].shift_left, tc[i].shit_right));
+                                  tc[i].shift_left, tc[i].shift_right));
     CHECK_EQ(58, RunInt64AddShift(true, tc[i].add_left, tc[i].add_right,
-                                  tc[i].shift_left, tc[i].shit_right));
+                                  tc[i].shift_left, tc[i].shift_right));
   }
 }
 
@@ -1502,7 +1502,7 @@ TEST(RunInt32AddAndWord32EqualP) {
         FOR_INT32_INPUTS(k) {
           // Use uint32_t because signed overflow is UB in C.
           int32_t const expected =
-              bit_cast<int32_t>(bit_cast<uint32_t>(i) + (j == k));
+              base::bit_cast<int32_t>(base::bit_cast<uint32_t>(i) + (j == k));
           CHECK_EQ(expected, m.Call(i, j, k));
         }
       }
@@ -1518,7 +1518,7 @@ TEST(RunInt32AddAndWord32EqualP) {
         FOR_INT32_INPUTS(k) {
           // Use uint32_t because signed overflow is UB in C.
           int32_t const expected =
-              bit_cast<int32_t>((i == j) + bit_cast<uint32_t>(k));
+              base::bit_cast<int32_t>((i == j) + base::bit_cast<uint32_t>(k));
           CHECK_EQ(expected, m.Call(i, j, k));
         }
       }
@@ -1538,7 +1538,7 @@ TEST(RunInt32AddAndWord32EqualImm) {
     FOR_INT32_INPUTS(k) {
       // Use uint32_t because signed overflow is UB in C.
       int32_t const expected =
-          bit_cast<int32_t>(bit_cast<uint32_t>(i) + (j == k));
+          base::bit_cast<int32_t>(base::bit_cast<uint32_t>(i) + (j == k));
       CHECK_EQ(expected, m.Call(j, k));
     }
   }
@@ -1554,7 +1554,7 @@ TEST(RunInt32AddAndWord32EqualImm) {
         FOR_INT32_INPUTS(k) {
           // Use uint32_t because signed overflow is UB in C.
           int32_t const expected =
-              bit_cast<int32_t>((i == j) + bit_cast<uint32_t>(k));
+              base::bit_cast<int32_t>((i == j) + base::bit_cast<uint32_t>(k));
           CHECK_EQ(expected, m.Call(j, k));
         }
       }
@@ -1574,7 +1574,7 @@ TEST(RunInt32AddAndWord32NotEqualP) {
         FOR_INT32_INPUTS(k) {
           // Use uint32_t because signed overflow is UB in C.
           int32_t const expected =
-              bit_cast<int32_t>(bit_cast<uint32_t>(i) + (j != k));
+              base::bit_cast<int32_t>(base::bit_cast<uint32_t>(i) + (j != k));
           CHECK_EQ(expected, m.Call(i, j, k));
         }
       }
@@ -1590,7 +1590,7 @@ TEST(RunInt32AddAndWord32NotEqualP) {
         FOR_INT32_INPUTS(k) {
           // Use uint32_t because signed overflow is UB in C.
           int32_t const expected =
-              bit_cast<int32_t>((i != j) + bit_cast<uint32_t>(k));
+              base::bit_cast<int32_t>((i != j) + base::bit_cast<uint32_t>(k));
           CHECK_EQ(expected, m.Call(i, j, k));
         }
       }
@@ -1610,7 +1610,7 @@ TEST(RunInt32AddAndWord32NotEqualImm) {
     FOR_INT32_INPUTS(k) {
       // Use uint32_t because signed overflow is UB in C.
       int32_t const expected =
-          bit_cast<int32_t>(bit_cast<uint32_t>(i) + (j != k));
+          base::bit_cast<int32_t>(base::bit_cast<uint32_t>(i) + (j != k));
       CHECK_EQ(expected, m.Call(j, k));
     }
   }
@@ -1626,7 +1626,7 @@ TEST(RunInt32AddAndWord32NotEqualImm) {
         FOR_INT32_INPUTS(k) {
           // Use uint32_t because signed overflow is UB in C.
           int32_t const expected =
-              bit_cast<int32_t>((i != j) + bit_cast<uint32_t>(k));
+              base::bit_cast<int32_t>((i != j) + base::bit_cast<uint32_t>(k));
           CHECK_EQ(expected, m.Call(j, k));
         }
       }
@@ -2466,9 +2466,10 @@ TEST(RunUint32MulHighP) {
   bt.AddReturn(m.Uint32MulHigh(bt.param0, bt.param1));
   FOR_UINT32_INPUTS(i) {
     FOR_UINT32_INPUTS(j) {
-      int32_t expected = bit_cast<int32_t>(static_cast<uint32_t>(
+      int32_t expected = base::bit_cast<int32_t>(static_cast<uint32_t>(
           (static_cast<uint64_t>(i) * static_cast<uint64_t>(j)) >> 32));
-      CHECK_EQ(expected, bt.call(bit_cast<int32_t>(i), bit_cast<int32_t>(j)));
+      CHECK_EQ(expected,
+               bt.call(base::bit_cast<int32_t>(i), base::bit_cast<int32_t>(j)));
     }
   }
 }
@@ -2519,7 +2520,7 @@ TEST(RunUint32DivP) {
         uint32_t p0 = i;
         uint32_t p1 = j;
         if (p1 != 0) {
-          int32_t expected = bit_cast<int32_t>(p0 / p1);
+          int32_t expected = base::bit_cast<int32_t>(p0 / p1);
           CHECK_EQ(expected, bt.call(p0, p1));
         }
       }
@@ -2534,7 +2535,7 @@ TEST(RunUint32DivP) {
         uint32_t p0 = i;
         uint32_t p1 = j;
         if (p1 != 0) {
-          int32_t expected = bit_cast<int32_t>(p0 + (p0 / p1));
+          int32_t expected = base::bit_cast<int32_t>(p0 + (p0 / p1));
           CHECK_EQ(expected, bt.call(p0, p1));
         }
       }
@@ -3553,7 +3554,7 @@ TEST(RunWord32SarP) {
         CHECK_EQ(expected, bt.call(i, shift));
       }
     }
-    CHECK_EQ(bit_cast<int32_t>(0xFFFF0000), bt.call(0x80000000, 15));
+    CHECK_EQ(base::bit_cast<int32_t>(0xFFFF0000), bt.call(0x80000000, 15));
   }
 }
 
@@ -4427,8 +4428,7 @@ TEST(RunTruncateFloat32ToInt32) {
       if (i < upper_bound && i >= lower_bound) {
         CHECK_EQ(static_cast<int32_t>(i), m.Call(i));
       } else if (i < lower_bound) {
-#if (V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64) && !_MIPS_ARCH_MIPS32R6 && \
-    !_MIPS_ARCH_MIPS64R6
+#if V8_TARGET_ARCH_MIPS64 && !_MIPS_ARCH_MIPS64R6
         CHECK_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
 #else
         CHECK_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
@@ -4446,7 +4446,7 @@ TEST(RunTruncateFloat32ToInt32) {
         CHECK_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
 #elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_LOONG64
         CHECK_EQ(0, m.Call(i));
-#elif V8_TARGET_ARCH_RISCV64
+#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
         CHECK_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
 #endif
       }
@@ -6126,7 +6126,7 @@ TEST(RunFloat64ExtractLowWord32) {
   BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Float64());
   m.Return(m.Float64ExtractLowWord32(m.Parameter(0)));
   FOR_FLOAT64_INPUTS(i) {
-    uint32_t expected = static_cast<uint32_t>(bit_cast<uint64_t>(i));
+    uint32_t expected = static_cast<uint32_t>(base::bit_cast<uint64_t>(i));
     CHECK_EQ(expected, m.Call(i));
   }
 }
@@ -6136,7 +6136,8 @@ TEST(RunFloat64ExtractHighWord32) {
   BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Float64());
   m.Return(m.Float64ExtractHighWord32(m.Parameter(0)));
   FOR_FLOAT64_INPUTS(i) {
-    uint32_t expected = static_cast<uint32_t>(bit_cast<uint64_t>(i) >> 32);
+    uint32_t expected =
+        static_cast<uint32_t>(base::bit_cast<uint64_t>(i) >> 32);
     CHECK_EQ(expected, m.Call(i));
   }
 }
@@ -6148,9 +6149,9 @@ TEST(RunFloat64InsertLowWord32) {
   m.Return(m.Float64InsertLowWord32(m.Parameter(0), m.Parameter(1)));
   FOR_FLOAT64_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
-      double expected =
-          bit_cast<double>((bit_cast<uint64_t>(i) & ~(uint64_t{0xFFFFFFFF})) |
-                           (static_cast<uint64_t>(bit_cast<uint32_t>(j))));
+      double expected = base::bit_cast<double>(
+          (base::bit_cast<uint64_t>(i) & ~(uint64_t{0xFFFFFFFF})) |
+          (static_cast<uint64_t>(base::bit_cast<uint32_t>(j))));
       CHECK_DOUBLE_EQ(expected, m.Call(i, j));
     }
   }
@@ -6163,10 +6164,10 @@ TEST(RunFloat64InsertHighWord32) {
   m.Return(m.Float64InsertHighWord32(m.Parameter(0), m.Parameter(1)));
   FOR_FLOAT64_INPUTS(i) {
     FOR_UINT32_INPUTS(j) {
-      uint64_t expected = (bit_cast<uint64_t>(i) & 0xFFFFFFFF) |
+      uint64_t expected = (base::bit_cast<uint64_t>(i) & 0xFFFFFFFF) |
                           (static_cast<uint64_t>(j) << 32);
 
-      CHECK_DOUBLE_EQ(bit_cast<double>(expected), m.Call(i, j));
+      CHECK_DOUBLE_EQ(base::bit_cast<double>(expected), m.Call(i, j));
     }
   }
 }
@@ -7048,7 +7049,7 @@ TEST(RunBitcastFloat64ToInt64) {
   BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Float64());
 
   m.Return(m.BitcastFloat64ToInt64(m.Parameter(0)));
-  FOR_FLOAT64_INPUTS(i) { CHECK_EQ(bit_cast<int64_t>(i), m.Call(i)); }
+  FOR_FLOAT64_INPUTS(i) { CHECK_EQ(base::bit_cast<int64_t>(i), m.Call(i)); }
 }
 
 
@@ -7295,7 +7296,8 @@ TEST(RunRoundUint64ToFloat64) {
   m.Return(m.RoundUint64ToFloat64(m.Parameter(0)));
 
   for (size_t i = 0; i < arraysize(values); i++) {
-    CHECK_EQ(bit_cast<double>(values[i].expected), m.Call(values[i].input));
+    CHECK_EQ(base::bit_cast<double>(values[i].expected),
+             m.Call(values[i].input));
   }
 }
 
@@ -7385,7 +7387,8 @@ TEST(RunRoundUint64ToFloat32) {
   m.Return(m.RoundUint64ToFloat32(m.Parameter(0)));
 
   for (size_t i = 0; i < arraysize(values); i++) {
-    CHECK_EQ(bit_cast<float>(values[i].expected), m.Call(values[i].input));
+    CHECK_EQ(base::bit_cast<float>(values[i].expected),
+             m.Call(values[i].input));
   }
 }
 
@@ -7400,7 +7403,7 @@ TEST(RunBitcastFloat32ToInt32) {
       m.LoadFromPointer(&input, MachineType::Float32())));
   FOR_FLOAT32_INPUTS(i) {
     input = i;
-    int32_t expected = bit_cast<int32_t>(input);
+    int32_t expected = base::bit_cast<int32_t>(input);
     CHECK_EQ(expected, m.Call());
   }
 }

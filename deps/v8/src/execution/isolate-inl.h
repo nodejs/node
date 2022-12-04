@@ -15,8 +15,31 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/source-text-module-inl.h"
 
+#ifdef DEBUG
+#include "src/common/ptr-compr-inl.h"
+#include "src/runtime/runtime-utils.h"
+#endif
+
 namespace v8 {
 namespace internal {
+
+// static
+V8_INLINE Isolate::PerIsolateThreadData*
+Isolate::CurrentPerIsolateThreadData() {
+  return g_current_per_isolate_thread_data_;
+}
+
+// static
+V8_INLINE Isolate* Isolate::TryGetCurrent() { return g_current_isolate_; }
+
+// static
+V8_INLINE Isolate* Isolate::Current() {
+  Isolate* isolate = TryGetCurrent();
+  DCHECK_NOT_NULL(isolate);
+  return isolate;
+}
+
+bool Isolate::IsCurrent() const { return this == TryGetCurrent(); }
 
 void Isolate::set_context(Context context) {
   DCHECK(context.is_null() || context.IsContext());
@@ -91,6 +114,53 @@ void Isolate::clear_scheduled_exception() {
 void Isolate::set_scheduled_exception(Object exception) {
   thread_local_top()->scheduled_exception_ = exception;
 }
+
+bool Isolate::is_execution_termination_pending() {
+  return thread_local_top()->pending_exception_ ==
+         i::ReadOnlyRoots(this).termination_exception();
+}
+
+bool Isolate::is_execution_terminating() {
+  return thread_local_top()->scheduled_exception_ ==
+         i::ReadOnlyRoots(this).termination_exception();
+}
+
+#ifdef DEBUG
+Object Isolate::VerifyBuiltinsResult(Object result) {
+  DCHECK_EQ(has_pending_exception(), result == ReadOnlyRoots(this).exception());
+#ifdef V8_COMPRESS_POINTERS
+  // Check that the returned pointer is actually part of the current isolate,
+  // because that's the assumption in generated code (which might call this
+  // builtin).
+  if (!result.IsSmi()) {
+    DCHECK_EQ(result.ptr(), V8HeapCompressionScheme::DecompressTaggedPointer(
+                                this, static_cast<Tagged_t>(result.ptr())));
+  }
+#endif
+  return result;
+}
+
+ObjectPair Isolate::VerifyBuiltinsResult(ObjectPair pair) {
+#ifdef V8_HOST_ARCH_64_BIT
+  DCHECK_EQ(has_pending_exception(),
+            pair.x == ReadOnlyRoots(this).exception().ptr());
+#ifdef V8_COMPRESS_POINTERS
+  // Check that the returned pointer is actually part of the current isolate,
+  // because that's the assumption in generated code (which might call this
+  // builtin).
+  if (!HAS_SMI_TAG(pair.x)) {
+    DCHECK_EQ(pair.x, V8HeapCompressionScheme::DecompressTaggedPointer(
+                          this, static_cast<Tagged_t>(pair.x)));
+  }
+  if (!HAS_SMI_TAG(pair.y)) {
+    DCHECK_EQ(pair.y, V8HeapCompressionScheme::DecompressTaggedPointer(
+                          this, static_cast<Tagged_t>(pair.y)));
+  }
+#endif  // V8_COMPRESS_POINTERS
+#endif  // V8_HOST_ARCH_64_BIT
+  return pair;
+}
+#endif  // DEBUG
 
 bool Isolate::is_catchable_by_javascript(Object exception) {
   return exception != ReadOnlyRoots(heap()).termination_exception();

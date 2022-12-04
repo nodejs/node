@@ -9,13 +9,13 @@
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-raw-json-inl.h"
 #include "src/objects/lookup.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/smi.h"
 #include "src/strings/string-builder-inl.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -583,6 +583,14 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
           Handle<JSPrimitiveWrapper>::cast(object), key);
     case SYMBOL_TYPE:
       return UNCHANGED;
+    case JS_RAW_JSON_TYPE:
+      DCHECK(v8_flags.harmony_json_parse_with_source);
+      if (deferred_string_key) SerializeDeferredKey(comma, key);
+      builder_.AppendString(Handle<String>::cast(
+          handle(Handle<JSRawJson>::cast(object)->InObjectPropertyAt(
+                     JSRawJson::kRawJsonIndex),
+                 isolate_)));
+      return SUCCESS;
     default:
       if (InstanceTypeChecker::IsString(instance_type)) {
         if (deferred_string_key) SerializeDeferredKey(comma, key);
@@ -677,7 +685,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
     uint32_t limit = std::min(length, kInterruptLength);
     const uint32_t kMaxAllowedFastPackedLength =
         std::numeric_limits<uint32_t>::max() - kInterruptLength;
-    STATIC_ASSERT(FixedArray::kMaxLength < kMaxAllowedFastPackedLength);
+    static_assert(FixedArray::kMaxLength < kMaxAllowedFastPackedLength);
     switch (object->GetElementsKind(cage_base)) {
       case PACKED_SMI_ELEMENTS: {
         Handle<FixedArray> elements(
@@ -869,7 +877,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
   if (contents.is_null()) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, contents,
-        KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
+        KeyAccumulator::GetKeys(isolate_, object, KeyCollectionMode::kOwnOnly,
                                 ENUMERABLE_STRINGS,
                                 GetKeysConversion::kConvertToString),
         EXCEPTION);

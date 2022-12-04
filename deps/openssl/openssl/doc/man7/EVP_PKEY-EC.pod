@@ -110,7 +110,9 @@ per-operation basis.
 
 =item "pub" (B<OSSL_PKEY_PARAM_PUB_KEY>) <octet string>
 
-The public key value in EC point format.
+The public key value in encoded EC point format. This parameter is used
+when importing or exporting the public key value with the EVP_PKEY_fromdata()
+and EVP_PKEY_todata() functions.
 
 =item "priv" (B<OSSL_PKEY_PARAM_PRIV_KEY>) <unsigned integer>
 

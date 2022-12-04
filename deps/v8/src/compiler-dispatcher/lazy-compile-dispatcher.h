@@ -9,17 +9,15 @@
 #include <memory>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "src/common/globals.h"
-#include "src/handles/maybe-handles.h"
 #include "src/utils/identity-map.h"
-#include "src/utils/locked-queue.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
@@ -191,7 +189,8 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
 
   std::unique_ptr<JobHandle> job_handle_;
 
-  // Copy of FLAG_trace_compiler_dispatcher to allow for access from any thread.
+  // Copy of v8_flags.trace_compiler_dispatcher to allow for access from any
+  // thread.
   bool trace_compiler_dispatcher_;
 
   std::unique_ptr<CancelableTaskManager> idle_task_manager_;

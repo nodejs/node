@@ -6,11 +6,9 @@
 
 #include <ostream>
 
-#include "src/base/bits.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
-#include "src/codegen/macro-assembler.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
@@ -19,10 +17,8 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/schedule.h"
-#include "src/execution/frames.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
-#include "src/interpreter/bytecodes.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/smi.h"
 #include "src/utils/memcopy.h"
@@ -234,25 +230,6 @@ bool CodeAssembler::IsWord64CtzSupported() const {
   return raw_assembler()->machine()->Word64Ctz().IsSupported();
 }
 
-#ifdef DEBUG
-void CodeAssembler::GenerateCheckMaybeObjectIsObject(TNode<MaybeObject> node,
-                                                     const char* location) {
-  Label ok(this);
-  GotoIf(WordNotEqual(WordAnd(BitcastMaybeObjectToWord(node),
-                              IntPtrConstant(kHeapObjectTagMask)),
-                      IntPtrConstant(kWeakHeapObjectTag)),
-         &ok);
-  base::EmbeddedVector<char, 1024> message;
-  SNPrintF(message, "no Object: %s", location);
-  TNode<String> message_node = StringConstant(message.begin());
-  // This somewhat misuses the AbortCSADcheck runtime function. This will print
-  // "abort: CSA_DCHECK failed: <message>", which is good enough.
-  AbortCSADcheck(message_node);
-  Unreachable();
-  Bind(&ok);
-}
-#endif
-
 TNode<Int32T> CodeAssembler::Int32Constant(int32_t value) {
   return UncheckedCast<Int32T>(jsgraph()->Int32Constant(value));
 }
@@ -277,7 +254,7 @@ TNode<Number> CodeAssembler::NumberConstant(double value) {
   } else {
     // We allocate the heap number constant eagerly at this point instead of
     // deferring allocation to code generation
-    // (see AllocateAndInstallRequestedHeapObjects) since that makes it easier
+    // (see AllocateAndInstallRequestedHeapNumbers) since that makes it easier
     // to generate constant lookups for embedded builtins.
     return UncheckedCast<Number>(HeapConstant(
         isolate()->factory()->NewHeapNumberForCodeAssembler(value)));
@@ -524,7 +501,7 @@ void CodeAssembler::Unreachable() {
 }
 
 void CodeAssembler::Comment(std::string str) {
-  if (!FLAG_code_comments) return;
+  if (!v8_flags.code_comments) return;
   raw_assembler()->Comment(str);
 }
 
@@ -947,6 +924,10 @@ CodeAssembler::AtomicCompareExchange64<AtomicUint64>(
     TNode<RawPtrT> base, TNode<WordT> offset, TNode<UintPtrT> old_value,
     TNode<UintPtrT> new_value, TNode<UintPtrT> old_value_high,
     TNode<UintPtrT> new_value_high);
+
+void CodeAssembler::MemoryBarrier(AtomicMemoryOrder order) {
+  raw_assembler()->MemoryBarrier(order);
+}
 
 void CodeAssembler::StoreRoot(RootIndex root_index, TNode<Object> value) {
   DCHECK(!RootsTable::IsImmortalImmovable(root_index));
@@ -1568,7 +1549,7 @@ void CodeAssemblerLabel::Bind(AssemblerDebugInfo debug_info) {
         << "\n#    previous: " << *label_->block();
     FATAL("%s", str.str().c_str());
   }
-  if (FLAG_enable_source_at_csa_bind) {
+  if (v8_flags.enable_source_at_csa_bind) {
     state_->raw_assembler_->SetCurrentExternalSourcePosition(
         {debug_info.file, debug_info.line});
   }

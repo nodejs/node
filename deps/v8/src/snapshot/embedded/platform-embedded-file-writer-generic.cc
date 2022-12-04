@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cinttypes>
 
-#include "src/common/globals.h"
 #include "src/objects/code.h"
 
 namespace v8 {
@@ -41,10 +40,6 @@ void PlatformEmbeddedFileWriterGeneric::SectionText() {
   }
 }
 
-void PlatformEmbeddedFileWriterGeneric::SectionData() {
-  fprintf(fp_, ".section .data\n");
-}
-
 void PlatformEmbeddedFileWriterGeneric::SectionRoData() {
   fprintf(fp_, ".section .rodata\n");
 }
@@ -58,14 +53,6 @@ void PlatformEmbeddedFileWriterGeneric::DeclareUint32(const char* name,
   Newline();
 }
 
-void PlatformEmbeddedFileWriterGeneric::DeclarePointerToSymbol(
-    const char* name, const char* target) {
-  DeclareSymbolGlobal(name);
-  DeclareLabel(name);
-  fprintf(fp_, "  %s %s%s\n", DirectiveAsString(PointerSizeDirective()),
-          SYMBOL_PREFIX, target);
-}
-
 void PlatformEmbeddedFileWriterGeneric::DeclareSymbolGlobal(const char* name) {
   fprintf(fp_, ".global %s%s\n", SYMBOL_PREFIX, name);
   // These symbols are not visible outside of the final binary, this allows for
@@ -74,18 +61,31 @@ void PlatformEmbeddedFileWriterGeneric::DeclareSymbolGlobal(const char* name) {
 }
 
 void PlatformEmbeddedFileWriterGeneric::AlignToCodeAlignment() {
-#if V8_TARGET_ARCH_X64
+#if (V8_OS_ANDROID || V8_OS_LINUX) && \
+    (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
+  // On these architectures and platforms, we remap the builtins, so need these
+  // to be aligned on a page boundary.
+  fprintf(fp_, ".balign 4096\n");
+#elif V8_TARGET_ARCH_X64
   // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
-  STATIC_ASSERT(64 >= kCodeAlignment);
+  static_assert(64 >= kCodeAlignment);
   fprintf(fp_, ".balign 64\n");
 #elif V8_TARGET_ARCH_PPC64
   // 64 byte alignment is needed on ppc64 to make sure p10 prefixed instructions
   // don't cross 64-byte boundaries.
-  STATIC_ASSERT(64 >= kCodeAlignment);
+  static_assert(64 >= kCodeAlignment);
   fprintf(fp_, ".balign 64\n");
 #else
-  STATIC_ASSERT(32 >= kCodeAlignment);
+  static_assert(32 >= kCodeAlignment);
   fprintf(fp_, ".balign 32\n");
+#endif
+}
+
+void PlatformEmbeddedFileWriterGeneric::AlignToPageSizeIfNeeded() {
+#if (V8_OS_ANDROID || V8_OS_LINUX) && \
+    (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
+  // Since the builtins are remapped, need to pad until the next page boundary.
+  fprintf(fp_, ".balign 4096\n");
 #endif
 }
 
@@ -94,7 +94,7 @@ void PlatformEmbeddedFileWriterGeneric::AlignToDataAlignment() {
   // instructions are used to retrieve v8_Default_embedded_blob_ and/or
   // v8_Default_embedded_blob_size_. The generated instructions require the
   // load target to be aligned at 8 bytes (2^3).
-  STATIC_ASSERT(8 >= Code::kMetadataAlignment);
+  static_assert(8 >= Code::kMetadataAlignment);
   fprintf(fp_, ".balign 8\n");
 }
 
@@ -163,8 +163,7 @@ int PlatformEmbeddedFileWriterGeneric::IndentedDataDirective(
 
 DataDirective PlatformEmbeddedFileWriterGeneric::ByteChunkDataDirective()
     const {
-#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
-    defined(V8_TARGET_ARCH_LOONG64)
+#if defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_LOONG64)
   // MIPS and LOONG64 uses a fixed 4 byte instruction set, using .long
   // to prevent any unnecessary padding.
   return kLong;

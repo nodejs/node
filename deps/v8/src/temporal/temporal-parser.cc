@@ -5,6 +5,7 @@
 #include "src/temporal/temporal-parser.h"
 
 #include "src/base/bounds.h"
+#include "src/base/optional.h"
 #include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
 
@@ -12,11 +13,6 @@ namespace v8 {
 namespace internal {
 
 namespace {
-
-// Temporal #prod-NonzeroDigit
-inline constexpr bool IsNonZeroDecimalDigit(base::uc32 c) {
-  return base::IsInRange(c, '1', '9');
-}
 
 // Temporal #prod-TZLeadingChar
 inline constexpr bool IsTZLeadingChar(base::uc32 c) {
@@ -47,11 +43,55 @@ inline constexpr bool IsSign(base::uc32 c) {
   return c == 0x2212 || IsAsciiSign(c);
 }
 
+// Temporal #prod-TimeZoneUTCOffsetSign
+inline constexpr bool IsTimeZoneUTCOffsetSign(base::uc32 c) {
+  return IsSign(c);
+}
+
 inline constexpr base::uc32 CanonicalSign(base::uc32 c) {
   return c == 0x2212 ? '-' : c;
 }
 
 inline constexpr int32_t ToInt(base::uc32 c) { return c - '0'; }
+
+// A helper template to make the scanning of production w/ two digits simpler.
+template <typename Char>
+bool HasTwoDigits(base::Vector<Char> str, int32_t s, int32_t* out) {
+  if (str.length() >= (s + 2) && IsDecimalDigit(str[s]) &&
+      IsDecimalDigit(str[s + 1])) {
+    *out = ToInt(str[s]) * 10 + ToInt(str[s + 1]);
+    return true;
+  }
+  return false;
+}
+
+// A helper template to make the scanning of production w/ a single two digits
+// value simpler.
+template <typename Char>
+int32_t ScanTwoDigitsExpectValue(base::Vector<Char> str, int32_t s,
+                                 int32_t expected, int32_t* out) {
+  return HasTwoDigits<Char>(str, s, out) && (*out == expected) ? 2 : 0;
+}
+
+// A helper template to make the scanning of production w/ two digits value in a
+// range simpler.
+template <typename Char>
+int32_t ScanTwoDigitsExpectRange(base::Vector<Char> str, int32_t s, int32_t min,
+                                 int32_t max, int32_t* out) {
+  return HasTwoDigits<Char>(str, s, out) && base::IsInRange(*out, min, max) ? 2
+                                                                            : 0;
+}
+
+// A helper template to make the scanning of production w/ two digits value as 0
+// or in a range simpler.
+template <typename Char>
+int32_t ScanTwoDigitsExpectZeroOrRange(base::Vector<Char> str, int32_t s,
+                                       int32_t min, int32_t max, int32_t* out) {
+  return HasTwoDigits<Char>(str, s, out) &&
+                 (*out == 0 || base::IsInRange(*out, min, max))
+             ? 2
+             : 0;
+}
 
 /**
  * The TemporalParser use two types of internal routine:
@@ -82,32 +122,31 @@ inline constexpr int32_t ToInt(base::uc32 c) { return c - '0'; }
 //   [0 1] Digit
 //   2 [0 1 2 3]
 template <typename Char>
-bool IsHour(base::Vector<Char> str, int32_t s) {
-  return (str.length() >= (s + 2)) &&
-         ((base::IsInRange(str[s], '0', '1') && IsDecimalDigit(str[s + 1])) ||
-          ((str[s] == '2') && base::IsInRange(str[s + 1], '0', '3')));
+int32_t ScanHour(base::Vector<Char> str, int32_t s, int32_t* out) {
+  return ScanTwoDigitsExpectRange<Char>(str, s, 0, 23, out);
 }
 
+// UnpaddedHour :
+//   DecimalDigit
+//   1 DecimalDigit
+//   20
+//   21
+//   22
+//   23
 template <typename Char>
-int32_t ScanHour(base::Vector<Char> str, int32_t s, int32_t* out) {
-  if (!IsHour(str, s)) return 0;
-  *out = ToInt(str[s]) * 10 + ToInt(str[s + 1]);
-  return 2;
+int32_t ScanUnpaddedHour(base::Vector<Char> str, int32_t s) {
+  int32_t dummy;
+  int32_t len = ScanTwoDigitsExpectRange<Char>(str, s, 10, 23, &dummy);
+  if (len > 0) return len;
+  if (str.length() >= (s + 1) && IsDecimalDigit(str[s])) return 1;
+  return 0;
 }
 
 // MinuteSecond:
 //   [0 1 2 3 4 5] Digit
 template <typename Char>
-bool IsMinuteSecond(base::Vector<Char> str, int32_t s) {
-  return (str.length() >= (s + 2)) &&
-         (base::IsInRange(str[s], '0', '5') && IsDecimalDigit(str[s + 1]));
-}
-
-template <typename Char>
 int32_t ScanMinuteSecond(base::Vector<Char> str, int32_t s, int32_t* out) {
-  if (!IsMinuteSecond(str, s)) return 0;
-  *out = ToInt(str[s]) * 10 + ToInt(str[s + 1]);
-  return 2;
+  return ScanTwoDigitsExpectRange<Char>(str, s, 0, 59, out);
 }
 
 // For the forward production in the grammar such as
@@ -144,15 +183,7 @@ SCAN_FORWARD(TimeMinute, MinuteSecond, int32_t)
 //   60
 template <typename Char>
 int32_t ScanTimeSecond(base::Vector<Char> str, int32_t s, int32_t* out) {
-  int32_t len = ScanMinuteSecond(str, s, out);
-  // MinuteSecond
-  if (len > 0) return len;
-  if ((str.length() < (s + 2)) || (str[s] != '6') || (str[s + 1] != '0')) {
-    return 0;
-  }
-  // 60
-  *out = 60;
-  return 2;
+  return ScanTwoDigitsExpectRange<Char>(str, s, 0, 60, out);
 }
 
 constexpr int kPowerOfTen[] = {1,      10,      100,      1000,     10000,
@@ -169,14 +200,6 @@ int32_t ScanFractionalPart(base::Vector<Char> str, int32_t s, int32_t* out) {
   }
   *out *= kPowerOfTen[9 - (cur - s)];
   return cur - s;
-}
-
-template <typename Char>
-int32_t ScanFractionalPart(base::Vector<Char> str, int32_t s, int64_t* out) {
-  int32_t out32;
-  int32_t len = ScanFractionalPart(str, s, &out32);
-  *out = out32;
-  return len;
 }
 
 // TimeFraction: FractionalPart
@@ -258,7 +281,8 @@ int32_t ScanTimeSpec(base::Vector<Char> str, int32_t s,
   r->time_hour = time_hour;
   r->time_minute = time_minute;
   r->time_second = time_second;
-  return cur + len - s;
+  cur += len;
+  return cur - s;
 }
 
 // TimeSpecSeparator: DateTimeSeparator TimeSpec
@@ -283,6 +307,10 @@ int32_t ScanDateExtendedYear(base::Vector<Char> str, int32_t s, int32_t* out) {
     *out = sign * (ToInt(str[s + 1]) * 100000 + ToInt(str[s + 2]) * 10000 +
                    ToInt(str[s + 3]) * 1000 + ToInt(str[s + 4]) * 100 +
                    ToInt(str[s + 5]) * 10 + ToInt(str[s + 6]));
+    // In the end of #sec-temporal-iso8601grammar
+    // It is a Syntax Error if DateExtendedYear is "-000000" or "−000000"
+    // (U+2212 MINUS SIGN followed by 000000).
+    if (sign == -1 && *out == 0) return 0;
     return 7;
   }
   return 0;
@@ -314,13 +342,7 @@ SCAN_EITHER_FORWARD(DateYear, DateFourDigitYear, DateExtendedYear, int32_t)
 //   12
 template <typename Char>
 int32_t ScanDateMonth(base::Vector<Char> str, int32_t s, int32_t* out) {
-  if (str.length() < (s + 2)) return 0;
-  if (((str[s] == '0') && IsNonZeroDecimalDigit(str[s + 1])) ||
-      ((str[s] == '1') && base::IsInRange(str[s + 1], '0', '2'))) {
-    *out = ToInt(str[s]) * 10 + ToInt(str[s + 1]);
-    return 2;
-  }
-  return 0;
+  return ScanTwoDigitsExpectRange<Char>(str, s, 1, 12, out);
 }
 
 // DateDay:
@@ -331,14 +353,7 @@ int32_t ScanDateMonth(base::Vector<Char> str, int32_t s, int32_t* out) {
 //   31
 template <typename Char>
 int32_t ScanDateDay(base::Vector<Char> str, int32_t s, int32_t* out) {
-  if (str.length() < (s + 2)) return 0;
-  if (((str[s] == '0') && IsNonZeroDecimalDigit(str[s + 1])) ||
-      (base::IsInRange(str[s], '1', '2') && IsDecimalDigit(str[s + 1])) ||
-      ((str[s] == '3') && base::IsInRange(str[s + 1], '0', '1'))) {
-    *out = ToInt(str[s]) * 10 + ToInt(str[s + 1]);
-    return 2;
-  }
-  return 0;
+  return ScanTwoDigitsExpectRange<Char>(str, s, 1, 31, out);
 }
 
 // Date:
@@ -367,6 +382,16 @@ int32_t ScanDate(base::Vector<Char> str, int32_t s, ParsedISO8601Result* r) {
   return cur + len - s;
 }
 
+// DateMonthWithThirtyOneDays : one of
+//    01 03 05 07 08 10 12
+template <typename Char>
+int32_t ScanDateMonthWithThirtyOneDays(base::Vector<Char> str, int32_t s) {
+  int32_t value;
+  if (!HasTwoDigits(str, s, &value)) return false;
+  return value == 1 || value == 3 || value == 5 || value == 7 || value == 8 ||
+         value == 10 || value == 12;
+}
+
 // TimeZoneUTCOffsetHour: Hour
 SCAN_FORWARD(TimeZoneUTCOffsetHour, Hour, int32_t)
 
@@ -393,26 +418,32 @@ int32_t ScanTimeZoneUTCOffsetFraction(base::Vector<Char> str, int32_t s,
   return 0;
 }
 
-// Note: "TimeZoneUTCOffset" is abbreviated as "TZUO" below
 // TimeZoneNumericUTCOffset:
-//   TZUOSign TZUOHour
-//   TZUOSign TZUOHour : TZUOMinute
-//   TZUOSign TZUOHour : TZUOMinute : TZUOSecond [TZUOFraction]
-//   TZUOSign TZUOHour TZUOMinute
-//   TZUOSign TZUOHour TZUOMinute TZUOSecond [TZUOFraction]
+//   TimeZoneUTCOffsetSign TimeZoneUTCOffsetHour
+//   TimeZoneUTCOffsetSign TimeZoneUTCOffsetHour : TimeZoneUTCOffsetMinute
+//   TimeZoneUTCOffsetSign TimeZoneUTCOffsetHour TimeZoneUTCOffsetMinute
+//   TimeZoneUTCOffsetSign TimeZoneUTCOffsetHour : TimeZoneUTCOffsetMinute :
+//   TimeZoneUTCOffsetSecond [TimeZoneUTCOffsetFraction] TimeZoneUTCOffsetSign
+//   TimeZoneUTCOffsetHour TimeZoneUTCOffsetMinute TimeZoneUTCOffsetSecond
+//   [TimeZoneUTCOffsetFraction]
+
 template <typename Char>
 int32_t ScanTimeZoneNumericUTCOffset(base::Vector<Char> str, int32_t s,
                                      ParsedISO8601Result* r) {
   int32_t len, hour, minute, second, nanosecond;
   int32_t cur = s;
-  if ((str.length() < (cur + 1)) || (!IsSign(str[cur]))) return 0;
+  if ((str.length() < (cur + 1)) || (!IsTimeZoneUTCOffsetSign(str[cur]))) {
+    return 0;
+  }
   int32_t sign = (CanonicalSign(str[cur++]) == '-') ? -1 : 1;
   if ((len = ScanTimeZoneUTCOffsetHour(str, cur, &hour)) == 0) return 0;
   cur += len;
   if ((cur + 1) > str.length()) {
-    // TZUOSign TZUOHour
+    //   TimeZoneUTCOffsetSign TimeZoneUTCOffsetHour
     r->tzuo_sign = sign;
     r->tzuo_hour = hour;
+    r->offset_string_start = s;
+    r->offset_string_length = cur - s;
     return cur - s;
   }
   if (str[cur] == ':') {
@@ -420,27 +451,33 @@ int32_t ScanTimeZoneNumericUTCOffset(base::Vector<Char> str, int32_t s,
     if ((len = ScanTimeZoneUTCOffsetMinute(str, cur, &minute)) == 0) return 0;
     cur += len;
     if ((cur + 1) > str.length() || str[cur] != ':') {
-      // TZUOSign TZUOHour : TZUOMinute
+      //   TimeZoneUTCOffsetSign TimeZoneUTCOffsetHour : TimeZoneUTCOffsetMinute
       r->tzuo_sign = sign;
       r->tzuo_hour = hour;
       r->tzuo_minute = minute;
+      r->offset_string_start = s;
+      r->offset_string_length = cur - s;
       return cur - s;
     }
     cur++;
     if ((len = ScanTimeZoneUTCOffsetSecond(str, cur, &second)) == 0) return 0;
   } else {
     if ((len = ScanTimeZoneUTCOffsetMinute(str, cur, &minute)) == 0) {
-      // TZUOSign TZUOHour
+      //   TimeZoneUTCOffsetSign TimeZoneUTCOffsetHour
       r->tzuo_sign = sign;
       r->tzuo_hour = hour;
+      r->offset_string_start = s;
+      r->offset_string_length = cur - s;
       return cur - s;
     }
     cur += len;
     if ((len = ScanTimeZoneUTCOffsetSecond(str, cur, &second)) == 0) {
-      // TZUOSign TZUOHour TZUOMinute
+      //   TimeZoneUTCOffsetSign TimeZoneUTCOffsetHour TimeZoneUTCOffsetMinute
       r->tzuo_sign = sign;
       r->tzuo_hour = hour;
       r->tzuo_minute = minute;
+      r->offset_string_start = s;
+      r->offset_string_length = cur - s;
       return cur - s;
     }
   }
@@ -451,7 +488,10 @@ int32_t ScanTimeZoneNumericUTCOffset(base::Vector<Char> str, int32_t s,
   r->tzuo_minute = minute;
   r->tzuo_second = second;
   if (len > 0) r->tzuo_nanosecond = nanosecond;
-  return cur + len - s;
+  r->offset_string_start = s;
+  r->offset_string_length = cur + len - s;
+  cur += len;
+  return cur - s;
 }
 
 // TimeZoneUTCOffset:
@@ -483,19 +523,88 @@ int32_t ScanTimeZoneIANANameComponent(base::Vector<Char> str, int32_t s) {
   if ((cur - s) == 2 && str[s] == '.' && str[s + 1] == '.') return 0;
   return cur - s;
 }
+// TimeZoneIANALegacyName :
+//   Etc/GMT0
+//   GMT0
+//   GMT-0
+//   GMT+0
+//   EST5EDT
+//   CST6CDT
+//   MST7MDT
+//   PST8PDT
+
+template <typename Char>
+int32_t ScanTimeZoneIANALegacyName(base::Vector<Char> str, int32_t s) {
+  int32_t cur = s;
+  {
+    constexpr int32_t len = 4;
+    if (str.length() < cur + len) return 0;
+    if (CompareCharsEqual(str.begin() + cur, "GMT0", len)) return len;
+  }
+
+  {
+    constexpr int32_t len = 5;
+    if (str.length() < cur + len) return 0;
+    if (CompareCharsEqual(str.begin() + cur, "GMT+0", len) ||
+        CompareCharsEqual(str.begin() + cur, "GMT-0", len)) {
+      return len;
+    }
+  }
+
+  {
+    constexpr int32_t len = 7;
+    if (str.length() < cur + len) return 0;
+    if (CompareCharsEqual(str.begin() + cur, "EST5EDT", len) ||
+        CompareCharsEqual(str.begin() + cur, "CST6CDT", len) ||
+        CompareCharsEqual(str.begin() + cur, "MST7MDT", len) ||
+        CompareCharsEqual(str.begin() + cur, "PST8PDT", len)) {
+      return len;
+    }
+  }
+
+  {
+    constexpr int32_t len = 8;
+    if (str.length() < cur + len) return 0;
+    if (CompareCharsEqual(str.begin() + cur, "Etc/GMT0", len)) return len;
+  }
+
+  return 0;
+}
+
+// Etc/GMT ASCIISign UnpaddedHour
+template <typename Char>
+int32_t ScanEtcGMTASCIISignUnpaddedHour(base::Vector<Char> str, int32_t s) {
+  if ((s + 9) > str.length()) return 0;
+  int32_t cur = s;
+  int32_t len = arraysize("Etc/GMT") - 1;
+  if (!CompareCharsEqual(str.begin() + cur, "Etc/GMT", len)) return 0;
+  cur += len;
+  Char sign = str[cur++];
+  if (!IsAsciiSign(sign)) return 0;
+  len = ScanUnpaddedHour(str, cur);
+  if (len == 0) return 0;
+  cur += len;
+  return cur - s;
+}
 
 // TimeZoneIANANameTail :
 //   TimeZoneIANANameComponent
 //   TimeZoneIANANameComponent / TimeZoneIANANameTail
 // TimeZoneIANAName :
+//   Etc/GMT ASCIISign UnpaddedHour
 //   TimeZoneIANANameTail
+//   TimeZoneIANALegacyName
 // The spec text use tail recusion with TimeZoneIANANameComponent and
 // TimeZoneIANANameTail. In our implementation, we use an iteration loop
 // instead.
 template <typename Char>
 int32_t ScanTimeZoneIANAName(base::Vector<Char> str, int32_t s) {
-  int32_t cur = s;
   int32_t len;
+  if ((len = ScanEtcGMTASCIISignUnpaddedHour(str, s)) > 0 ||
+      (len = ScanTimeZoneIANALegacyName(str, s)) > 0) {
+    return len;
+  }
+  int32_t cur = s;
   if ((len = ScanTimeZoneIANANameComponent(str, cur)) == 0) return 0;
   cur += len;
   while ((str.length() > (cur + 1)) && (str[cur] == '/')) {
@@ -507,16 +616,6 @@ int32_t ScanTimeZoneIANAName(base::Vector<Char> str, int32_t s) {
     cur += len;
   }
   return cur - s;
-}
-
-template <typename Char>
-int32_t ScanTimeZoneIANAName(base::Vector<Char> str, int32_t s,
-                             ParsedISO8601Result* r) {
-  int32_t len;
-  if ((len = ScanTimeZoneIANAName(str, s)) == 0) return 0;
-  r->tzi_name_start = s;
-  r->tzi_name_length = len;
-  return len;
 }
 
 // TimeZoneUTCOffsetName
@@ -566,7 +665,8 @@ int32_t ScanTimeZoneUTCOffsetName(base::Vector<Char> str, int32_t s) {
     cur += len;
     len = ScanFraction(str, cur, &fraction);
     //  Sign Hour MinuteSecond MinuteSecond [Fraction]
-    return cur + len - s;
+    cur += len;
+    return cur - s;
   }
 }
 
@@ -595,28 +695,25 @@ int32_t ScanEtcGMTAsciiSignHour(base::Vector<Char> str, int32_t s) {
 }
 
 template <typename Char>
-int32_t ScanTimeZoneBracketedName(base::Vector<Char> str, int32_t s,
-                                  ParsedISO8601Result* r) {
-  int32_t len;
-  if ((len = ScanEtcGMTAsciiSignHour(str, s)) > 0) return len;
-  if ((len = ScanTimeZoneIANAName(str, s)) > 0) {
-    r->tzi_name_start = s;
-    r->tzi_name_length = len;
-    return len;
-  }
-  return ScanTimeZoneUTCOffsetName(str, s);
-}
-
-// TimeZoneBracketedAnnotation: '[' TimeZoneBracketedName ']'
+int32_t ScanTimeZoneIdentifier(base::Vector<Char> str, int32_t s,
+                               ParsedISO8601Result* r);
+// TimeZoneBracketedAnnotation :
+// [ TimeZoneIdentifier ]
 template <typename Char>
 int32_t ScanTimeZoneBracketedAnnotation(base::Vector<Char> str, int32_t s,
                                         ParsedISO8601Result* r) {
   if ((str.length() < (s + 3)) || (str[s] != '[')) return 0;
   int32_t cur = s + 1;
-  cur += ScanTimeZoneBracketedName(str, cur, r);
-  if ((cur - s == 1) || str.length() < (cur + 1) || (str[cur++] != ']')) {
+  int32_t len = ScanTimeZoneIdentifier(str, cur, r);
+  cur += len;
+  if (len == 0 || str.length() < (cur + 1) || (str[cur] != ']')) {
+    // Only ScanTimeZoneBracketedAnnotation know the post condition of
+    // TimeZoneIdentifier is not matched so we need to reset here.
+    r->tzi_name_start = 0;
+    r->tzi_name_length = 0;
     return 0;
   }
+  cur++;
   return cur - s;
 }
 
@@ -628,7 +725,8 @@ int32_t ScanTimeZoneOffsetRequired(base::Vector<Char> str, int32_t s,
   int32_t cur = s;
   cur += ScanTimeZoneUTCOffset(str, cur, r);
   if (cur == s) return 0;
-  return cur + ScanTimeZoneBracketedAnnotation(str, cur, r) - s;
+  cur += ScanTimeZoneBracketedAnnotation(str, cur, r);
+  return cur - s;
 }
 
 //   TimeZoneNameRequired:
@@ -640,15 +738,101 @@ int32_t ScanTimeZoneNameRequired(base::Vector<Char> str, int32_t s,
   cur += ScanTimeZoneUTCOffset(str, cur, r);
   int32_t len = ScanTimeZoneBracketedAnnotation(str, cur, r);
   if (len == 0) return 0;
-  return cur + len - s;
+  cur += len;
+  return cur - s;
 }
 
 // TimeZone:
-//   TimeZoneOffsetRequired
-//   TimeZoneNameRequired
-// The lookahead is at most 1 char.
-SCAN_EITHER_FORWARD(TimeZone, TimeZoneOffsetRequired, TimeZoneNameRequired,
-                    ParsedISO8601Result)
+//   TimeZoneUTCOffset [TimeZoneBracketedAnnotation]
+//   TimeZoneBracketedAnnotation
+template <typename Char>
+int32_t ScanTimeZone(base::Vector<Char> str, int32_t s,
+                     ParsedISO8601Result* r) {
+  int32_t cur = s;
+  int32_t len;
+  // TimeZoneUTCOffset [TimeZoneBracketedAnnotation]
+  if ((len = ScanTimeZoneUTCOffset(str, cur, r)) > 0) {
+    cur += len;
+    // [TimeZoneBracketedAnnotation]
+    len = ScanTimeZoneBracketedAnnotation(str, cur, r);
+    cur += len;
+    return cur - s;
+  }
+  // TimeZoneBracketedAnnotation
+  return ScanTimeZoneBracketedAnnotation(str, cur, r);
+}
+
+// ValidMonthDay :
+//   DateMonth [-] 0 NonZeroDigit
+//   DateMonth [-] 1 DecimalDigit
+//   DateMonth [-] 2 DecimalDigit
+//   DateMonth [-] 30 but not one of 0230 or 02-30
+//   DateMonthWithThirtyOneDays [-] 31
+template <typename Char>
+int32_t ScanValidMonthDay(base::Vector<Char> str, int32_t s) {
+  int32_t len;
+  int32_t cur = s;
+  int32_t date_month;
+  if ((len = ScanDateMonth(str, cur, &date_month)) > 0) {
+    cur += len;
+    if (str.length() >= (cur + 1)) {
+      if (str[cur] == '-') cur++;
+      int32_t day_of_month;
+      if ((len = ScanTwoDigitsExpectRange(str, cur, 1, 30, &day_of_month)) >
+          0) {
+        cur += len;
+        // 0 NonZeroDigit
+        // 1 DecimalDigit
+        // 2 DecimalDigit
+        // 30 but not one of 0230 or 02-30
+        if (date_month != 2 || day_of_month != 30) {
+          return cur - s;
+        }
+      }
+    }
+  }
+  // Reset cur
+  cur = s;
+  //   DateMonthWithThirtyOneDays [-] 31
+  if ((len = ScanDateMonthWithThirtyOneDays(str, cur)) > 0) {
+    cur += len;
+    if (str.length() >= (cur + 1)) {
+      if (str[cur] == '-') cur++;
+      int32_t dummy;
+      if ((len = ScanTwoDigitsExpectValue(str, cur, 31, &dummy)) > 0) {
+        cur += len;
+        return cur - s;
+      }
+    }
+  }
+  return 0;
+}
+
+template <typename Char>
+int32_t ScanDateSpecYearMonth(base::Vector<Char> str, int32_t s,
+                              ParsedISO8601Result* r);
+
+// TimeSpecWithOptionalTimeZoneNotAmbiguous :
+//   TimeSpec [TimeZone] but not one of ValidMonthDay or DateSpecYearMonth
+template <typename Char>
+int32_t ScanTimeSpecWithOptionalTimeZoneNotAmbiguous(base::Vector<Char> str,
+                                                     int32_t s,
+                                                     ParsedISO8601Result* r) {
+  int32_t cur = s;
+  int32_t len;
+  if ((len = ScanTimeSpec(str, cur, r)) == 0) return 0;
+  cur += len;
+  // [TimeZone]
+  len = ScanTimeZone(str, cur, r);
+  cur += len;
+  len = cur - s;
+  // If it match ValidMonthDay, consider invalid.
+  if (ScanValidMonthDay(str, s) == len) return 0;
+  // If it match DateSpecYearMonth, consider invalid.
+  ParsedISO8601Result tmp;
+  if (ScanDateSpecYearMonth(str, s, &tmp) == len) return 0;
+  return len;
+}
 
 // CalendarNameComponent:
 //   CalChar {3,8}
@@ -657,7 +841,7 @@ int32_t ScanCalendarNameComponent(base::Vector<Char> str, int32_t s) {
   int32_t cur = s;
   while ((cur < str.length()) && IsAlphaNumeric(str[cur])) cur++;
   if ((cur - s) < 3 || (cur - s) > 8) return 0;
-  return (cur - s);
+  return cur - s;
 }
 
 // CalendarNameTail :
@@ -698,19 +882,44 @@ int32_t ScanCalendar(base::Vector<Char> str, int32_t s,
   int32_t len = ScanCalendarName(str, cur, r);
   if (len == 0) return 0;
   if ((str.length() < (cur + len + 1)) || (str[cur + len] != ']')) {
+    // Only ScanCalendar know the post condition of CalendarName is not met and
+    // need to reset here.
+    r->calendar_name_start = 0;
+    r->calendar_name_length = 0;
     return 0;
   }
   return 6 + len + 1;
 }
 
-// CalendarTime: TimeSpec [TimeZone] [Calendar]
+// CalendarTime_L1:
+//  TimeDesignator TimeSpec [TimeZone] [Calendar]
 template <typename Char>
-int32_t ScanCalendarTime(base::Vector<Char> str, int32_t s,
-                         ParsedISO8601Result* r) {
+int32_t ScanCalendarTime_L1(base::Vector<Char> str, int32_t s,
+                            ParsedISO8601Result* r) {
   int32_t cur = s;
-  cur += ScanTimeSpec(str, cur, r);
-  if (cur - s == 0) return 0;
+  if (str.length() < (s + 1)) return 0;
+  // TimeDesignator
+  if (AsciiAlphaToLower(str[cur++]) != 't') return 0;
+  int32_t len = ScanTimeSpec(str, cur, r);
+  if (len == 0) return 0;
+  cur += len;
+  // [TimeZone]
   cur += ScanTimeZone(str, cur, r);
+  // [Calendar]
+  cur += ScanCalendar(str, cur, r);
+  return cur - s;
+}
+
+// CalendarTime_L2 :
+//  TimeSpecWithOptionalTimeZoneNotAmbiguous [Calendar]
+template <typename Char>
+int32_t ScanCalendarTime_L2(base::Vector<Char> str, int32_t s,
+                            ParsedISO8601Result* r) {
+  int32_t cur = s;
+  int32_t len = ScanTimeSpecWithOptionalTimeZoneNotAmbiguous(str, cur, r);
+  if (len == 0) return 0;
+  cur += len;
+  // [Calendar]
   cur += ScanCalendar(str, cur, r);
   return cur - s;
 }
@@ -720,10 +929,12 @@ template <typename Char>
 int32_t ScanDateTime(base::Vector<Char> str, int32_t s,
                      ParsedISO8601Result* r) {
   int32_t cur = s;
-  cur += ScanDate(str, cur, r);
-  if (cur == s) return 0;
+  int32_t len = ScanDate(str, cur, r);
+  if (len == 0) return 0;
+  cur += len;
   cur += ScanTimeSpecSeparator(str, cur, r);
-  return cur + ScanTimeZone(str, cur, r) - s;
+  cur += ScanTimeZone(str, cur, r);
+  return cur - s;
 }
 
 // DateSpecYearMonth: DateYear ['-'] DateMonth
@@ -732,19 +943,21 @@ int32_t ScanDateSpecYearMonth(base::Vector<Char> str, int32_t s,
                               ParsedISO8601Result* r) {
   int32_t date_year, date_month;
   int32_t cur = s;
-  cur += ScanDateYear(str, cur, &date_year);
-  if (cur == s) return 0;
+  int32_t len = ScanDateYear(str, cur, &date_year);
+  if (len == 0) return 0;
+  cur += len;
   if (str.length() < (cur + 1)) return 0;
   if (str[cur] == '-') cur++;
-  int32_t len = ScanDateMonth(str, cur, &date_month);
+  len = ScanDateMonth(str, cur, &date_month);
   if (len == 0) return 0;
   r->date_year = date_year;
   r->date_month = date_month;
-  return cur + len - s;
+  cur += len;
+  return cur - s;
 }
 
 // DateSpecMonthDay:
-// TwoDashopt DateMonth -opt DateDay
+//   [TwoDash] DateMonth [-] DateDay
 template <typename Char>
 int32_t ScanDateSpecMonthDay(base::Vector<Char> str, int32_t s,
                              ParsedISO8601Result* r) {
@@ -767,30 +980,53 @@ int32_t ScanDateSpecMonthDay(base::Vector<Char> str, int32_t s,
   if (len == 0) return 0;
   r->date_month = date_month;
   r->date_day = date_day;
-  return cur + len - s;
+  cur += len;
+  return cur - s;
 }
 
-// TemporalTimeZoneIdentifier:
-//   TimeZoneNumericUTCOffset
+// TimeZoneIdentifier :
 //   TimeZoneIANAName
+//   TimeZoneUTCOffsetName
 template <typename Char>
-int32_t ScanTemporalTimeZoneIdentifier(base::Vector<Char> str, int32_t s,
-                                       ParsedISO8601Result* r) {
+int32_t ScanTimeZoneIdentifier(base::Vector<Char> str, int32_t s,
+                               ParsedISO8601Result* r) {
   int32_t len;
-  if ((len = ScanTimeZoneNumericUTCOffset(str, s, r)) > 0) return len;
-  if ((len = ScanTimeZoneIANAName(str, s)) == 0) return 0;
-  r->tzi_name_start = s;
-  r->tzi_name_length = len;
-  return len;
+  int32_t cur = s;
+  if ((len = ScanTimeZoneIANAName(str, cur)) > 0 ||
+      (len = ScanTimeZoneUTCOffsetName(str, cur)) > 0) {
+    cur += len;
+    r->tzi_name_start = s;
+    r->tzi_name_length = len;
+    return cur - s;
+  }
+  return 0;
 }
 
 // CalendarDateTime: DateTime [Calendar]
 template <typename Char>
 int32_t ScanCalendarDateTime(base::Vector<Char> str, int32_t s,
                              ParsedISO8601Result* r) {
-  int32_t len = ScanDateTime(str, 0, r);
+  int32_t len = ScanDateTime(str, s, r);
   if (len == 0) return 0;
   return len + ScanCalendar(str, len, r);
+}
+
+// CalendarDateTimeTimeRequired: Date TimeSpecSeparator [TimeZone] [Calendar]
+template <typename Char>
+int32_t ScanCalendarDateTimeTimeRequired(base::Vector<Char> str, int32_t s,
+                                         ParsedISO8601Result* r) {
+  int32_t cur = s;
+  int32_t len = ScanDate(str, cur, r);
+  if (len == 0) return 0;
+  cur += len;
+  len = ScanTimeSpecSeparator(str, cur, r);
+  if (len == 0) return 0;
+  cur += len;
+  // [TimeZone]
+  cur += ScanTimeZone(str, cur, r);
+  // [Calendar]
+  cur += ScanCalendar(str, cur, r);
+  return cur - s;
 }
 
 // TemporalZonedDateTimeString:
@@ -800,59 +1036,24 @@ int32_t ScanTemporalZonedDateTimeString(base::Vector<Char> str, int32_t s,
                                         ParsedISO8601Result* r) {
   // Date
   int32_t cur = s;
-  cur += ScanDate(str, cur, r);
-  if (cur == s) return 0;
+  int32_t len = ScanDate(str, cur, r);
+  if (len == 0) return 0;
+  cur += len;
 
   // TimeSpecSeparator
   cur += ScanTimeSpecSeparator(str, cur, r);
 
   // TimeZoneNameRequired
-  int32_t len = ScanTimeZoneNameRequired(str, cur, r);
+  len = ScanTimeZoneNameRequired(str, cur, r);
   if (len == 0) return 0;
   cur += len;
 
   // Calendar
-  return cur + ScanCalendar(str, cur, r) - s;
+  cur += ScanCalendar(str, cur, r);
+  return cur - s;
 }
 
-SCAN_FORWARD(TemporalDateString, CalendarDateTime, ParsedISO8601Result)
 SCAN_FORWARD(TemporalDateTimeString, CalendarDateTime, ParsedISO8601Result)
-
-// TemporalTimeZoneString:
-//   TemporalTimeZoneIdentifier
-//   Date [TimeSpecSeparator] TimeZone [Calendar]
-template <typename Char>
-int32_t ScanDate_TimeSpecSeparator_TimeZone_Calendar(base::Vector<Char> str,
-                                                     int32_t s,
-                                                     ParsedISO8601Result* r) {
-  int32_t cur = s;
-  cur += ScanDate(str, cur, r);
-  if (cur == s) return 0;
-  cur += ScanTimeSpecSeparator(str, cur, r);
-  int32_t len = ScanTimeZone(str, cur, r);
-  if (len == 0) return 0;
-  cur += len;
-  return cur + ScanCalendar(str, cur, r) - s;
-}
-
-// The lookahead is at most 8 chars.
-SCAN_EITHER_FORWARD(TemporalTimeZoneString, TemporalTimeZoneIdentifier,
-                    Date_TimeSpecSeparator_TimeZone_Calendar,
-                    ParsedISO8601Result)
-
-// TemporalTimeString
-//   CalendarTime
-//   CalendarDateTime
-// The lookahead is at most 7 chars.
-SCAN_EITHER_FORWARD(TemporalTimeString, CalendarTime, CalendarDateTime,
-                    ParsedISO8601Result)
-
-// TemporalYearMonthString:
-//   DateSpecYearMonth
-//   CalendarDateTime
-// The lookahead is at most 11 chars.
-SCAN_EITHER_FORWARD(TemporalYearMonthString, DateSpecYearMonth,
-                    CalendarDateTime, ParsedISO8601Result)
 
 // TemporalMonthDayString
 //   DateSpecMonthDay
@@ -861,42 +1062,27 @@ SCAN_EITHER_FORWARD(TemporalYearMonthString, DateSpecYearMonth,
 SCAN_EITHER_FORWARD(TemporalMonthDayString, DateSpecMonthDay, CalendarDateTime,
                     ParsedISO8601Result)
 
-// TemporalRelativeToString:
-//   TemporalDateTimeString
-//   TemporalZonedDateTimeString
-// TemporalZonedDateTimeString is subset of TemporalDateTimeString
-// See https://github.com/tc39/proposal-temporal/issues/1939
-SCAN_FORWARD(TemporalRelativeToString, TemporalDateTimeString,
-             ParsedISO8601Result)
-
 // TemporalInstantString
-//   Date TimeZoneOffsetRequired
-//   Date DateTimeSeparator TimeSpec TimeZoneOffsetRequired
+//   Date [TimeSpecSeparator] TimeZoneOffsetRequired [Calendar]
 template <typename Char>
 int32_t ScanTemporalInstantString(base::Vector<Char> str, int32_t s,
                                   ParsedISO8601Result* r) {
   // Date
   int32_t cur = s;
-  cur += ScanDate(str, cur, r);
-  if (cur == s) return 0;
-
-  // TimeZoneOffsetRequired
-  int32_t len = ScanTimeZoneOffsetRequired(str, cur, r);
-  if (len > 0) return cur + len - s;
-
-  // DateTimeSeparator
-  if (!(((cur + 1) < str.length()) && IsDateTimeSeparator(str[cur++]))) {
-    return 0;
-  }
-  // TimeSpec
-  len = ScanTimeSpec(str, cur, r);
+  int32_t len = ScanDate(str, cur, r);
   if (len == 0) return 0;
   cur += len;
+
+  // [TimeSpecSeparator]
+  cur += ScanTimeSpecSeparator(str, cur, r);
 
   // TimeZoneOffsetRequired
   len = ScanTimeZoneOffsetRequired(str, cur, r);
   if (len == 0) return 0;
-  return cur + len - s;
+  cur += len;
+  // [Calendar]
+  cur += ScanCalendar(str, cur, r);
+  return cur - s;
 }
 
 // ==============================================================================
@@ -926,62 +1112,39 @@ int32_t ScanTemporalInstantString(base::Vector<Char> str, int32_t s,
   }
 
 SATISIFY(TemporalDateTimeString, ParsedISO8601Result)
-SATISIFY(TemporalDateString, ParsedISO8601Result)
-SATISIFY(CalendarTime, ParsedISO8601Result)
 SATISIFY(DateTime, ParsedISO8601Result)
 SATISIFY(DateSpecYearMonth, ParsedISO8601Result)
 SATISIFY(DateSpecMonthDay, ParsedISO8601Result)
-SATISIFY(Date_TimeSpecSeparator_TimeZone_Calendar, ParsedISO8601Result)
 SATISIFY(CalendarDateTime, ParsedISO8601Result)
-SATISIFY_EITHER(TemporalTimeString, CalendarTime, CalendarDateTime,
+SATISIFY(CalendarTime_L1, ParsedISO8601Result)
+SATISIFY(CalendarTime_L2, ParsedISO8601Result)
+
+template <typename Char>
+bool SatisfyCalendarTime(base::Vector<Char> str, ParsedISO8601Result* r) {
+  IF_SATISFY_RETURN(CalendarTime_L1)
+  IF_SATISFY_RETURN(CalendarTime_L2)
+  return false;
+}
+SATISIFY(CalendarDateTimeTimeRequired, ParsedISO8601Result)
+SATISIFY_EITHER(TemporalTimeString, CalendarTime, CalendarDateTimeTimeRequired,
                 ParsedISO8601Result)
 SATISIFY_EITHER(TemporalYearMonthString, DateSpecYearMonth, CalendarDateTime,
                 ParsedISO8601Result)
 SATISIFY_EITHER(TemporalMonthDayString, DateSpecMonthDay, CalendarDateTime,
                 ParsedISO8601Result)
 SATISIFY(TimeZoneNumericUTCOffset, ParsedISO8601Result)
-SATISIFY(TimeZoneIANAName, ParsedISO8601Result)
-SATISIFY_EITHER(TemporalTimeZoneIdentifier, TimeZoneNumericUTCOffset,
-                TimeZoneIANAName, ParsedISO8601Result)
-SATISIFY_EITHER(TemporalTimeZoneString, TemporalTimeZoneIdentifier,
-                Date_TimeSpecSeparator_TimeZone_Calendar, ParsedISO8601Result)
+SATISIFY(TimeZoneIdentifier, ParsedISO8601Result)
 SATISIFY(TemporalInstantString, ParsedISO8601Result)
 SATISIFY(TemporalZonedDateTimeString, ParsedISO8601Result)
 
-SATISIFY_EITHER(TemporalRelativeToString, TemporalDateTimeString,
-                TemporalZonedDateTimeString, ParsedISO8601Result)
-
 SATISIFY(CalendarName, ParsedISO8601Result)
 
-template <typename Char>
-bool SatisfyTemporalCalendarString(base::Vector<Char> str,
-                                   ParsedISO8601Result* r) {
-  IF_SATISFY_RETURN(CalendarName)
-  IF_SATISFY_RETURN(TemporalInstantString)
-  IF_SATISFY_RETURN(CalendarDateTime)
-  IF_SATISFY_RETURN(CalendarTime)
-  IF_SATISFY_RETURN(DateSpecYearMonth)
-  IF_SATISFY_RETURN(DateSpecMonthDay)
-  return false;
-}
-
 // Duration
-
-SCAN_FORWARD(TimeFractionalPart, FractionalPart, int64_t)
-
-template <typename Char>
-int32_t ScanFraction(base::Vector<Char> str, int32_t s, int64_t* out) {
-  if (str.length() < (s + 2) || !IsDecimalSeparator(str[s])) return 0;
-  int32_t len = ScanTimeFractionalPart(str, s + 1, out);
-  return (len == 0) ? 0 : len + 1;
-}
-
-SCAN_FORWARD(TimeFraction, Fraction, int64_t)
 
 // Digits : Digit [Digits]
 
 template <typename Char>
-int32_t ScanDigits(base::Vector<Char> str, int32_t s, int64_t* out) {
+int32_t ScanDigits(base::Vector<Char> str, int32_t s, double* out) {
   if (str.length() < (s + 1) || !IsDecimalDigit(str[s])) return 0;
   *out = ToInt(str[s]);
   int32_t len = 1;
@@ -992,38 +1155,38 @@ int32_t ScanDigits(base::Vector<Char> str, int32_t s, int64_t* out) {
   return len;
 }
 
-SCAN_FORWARD(DurationYears, Digits, int64_t)
-SCAN_FORWARD(DurationMonths, Digits, int64_t)
-SCAN_FORWARD(DurationWeeks, Digits, int64_t)
-SCAN_FORWARD(DurationDays, Digits, int64_t)
+SCAN_FORWARD(DurationYears, Digits, double)
+SCAN_FORWARD(DurationMonths, Digits, double)
+SCAN_FORWARD(DurationWeeks, Digits, double)
+SCAN_FORWARD(DurationDays, Digits, double)
 
 // DurationWholeHours : Digits
-SCAN_FORWARD(DurationWholeHours, Digits, int64_t)
+SCAN_FORWARD(DurationWholeHours, Digits, double)
 
 // DurationWholeMinutes : Digits
-SCAN_FORWARD(DurationWholeMinutes, Digits, int64_t)
+SCAN_FORWARD(DurationWholeMinutes, Digits, double)
 
 // DurationWholeSeconds : Digits
-SCAN_FORWARD(DurationWholeSeconds, Digits, int64_t)
+SCAN_FORWARD(DurationWholeSeconds, Digits, double)
 
 // DurationHoursFraction : TimeFraction
-SCAN_FORWARD(DurationHoursFraction, TimeFraction, int64_t)
+SCAN_FORWARD(DurationHoursFraction, TimeFraction, int32_t)
 
 // DurationMinutesFraction : TimeFraction
-SCAN_FORWARD(DurationMinutesFraction, TimeFraction, int64_t)
+SCAN_FORWARD(DurationMinutesFraction, TimeFraction, int32_t)
 
 // DurationSecondsFraction : TimeFraction
-SCAN_FORWARD(DurationSecondsFraction, TimeFraction, int64_t)
+SCAN_FORWARD(DurationSecondsFraction, TimeFraction, int32_t)
 
 #define DURATION_WHOLE_FRACTION_DESIGNATOR(Name, name, d)                 \
   template <typename Char>                                                \
   int32_t ScanDurationWhole##Name##FractionDesignator(                    \
       base::Vector<Char> str, int32_t s, ParsedISO8601Duration* r) {      \
     int32_t cur = s;                                                      \
-    int64_t whole = 0;                                                    \
+    double whole = ParsedISO8601Duration::kEmpty;                         \
     cur += ScanDurationWhole##Name(str, cur, &whole);                     \
     if (cur == s) return 0;                                               \
-    int64_t fraction = 0;                                                 \
+    int32_t fraction = ParsedISO8601Duration::kEmpty;                     \
     int32_t len = ScanDuration##Name##Fraction(str, cur, &fraction);      \
     cur += len;                                                           \
     if (str.length() < (cur + 1) || AsciiAlphaToLower(str[cur++]) != (d)) \
@@ -1048,9 +1211,12 @@ SCAN_FORWARD(DurationSecondsPart, DurationWholeSecondsFractionDesignator,
 template <typename Char>
 int32_t ScanDurationMinutesPart(base::Vector<Char> str, int32_t s,
                                 ParsedISO8601Duration* r) {
-  int32_t cur = s + ScanDurationWholeMinutesFractionDesignator(str, s, r);
-  if (cur == s) return 0;
-  return cur + ScanDurationSecondsPart(str, cur, r) - s;
+  int32_t cur = s;
+  int32_t len = ScanDurationWholeMinutesFractionDesignator(str, s, r);
+  if (len == 0) return 0;
+  cur += len;
+  cur += ScanDurationSecondsPart(str, cur, r);
+  return cur - s;
 }
 
 // DurationHoursPart :
@@ -1062,17 +1228,23 @@ int32_t ScanDurationMinutesPart(base::Vector<Char> str, int32_t s,
 template <typename Char>
 int32_t ScanDurationHoursPart(base::Vector<Char> str, int32_t s,
                               ParsedISO8601Duration* r) {
-  int32_t cur = s + ScanDurationWholeHoursFractionDesignator(str, s, r);
-  if (cur == s) return 0;
-  int32_t len = ScanDurationMinutesPart(str, cur, r);
-  if (len > 0) return cur + len - s;
-  return cur + ScanDurationSecondsPart(str, cur, r) - s;
+  int32_t cur = s;
+  int32_t len = ScanDurationWholeHoursFractionDesignator(str, s, r);
+  if (len == 0) return 0;
+  cur += len;
+  len = ScanDurationMinutesPart(str, cur, r);
+  if (len > 0) {
+    cur += len;
+  } else {
+    cur += ScanDurationSecondsPart(str, cur, r);
+  }
+  return cur - s;
 }
 
 // DurationTime :
-//   DurationTimeDesignator DurationHoursPart
-//   DurationTimeDesignator DurationMinutesPart
-//   DurationTimeDesignator DurationSecondsPart
+//   TimeDesignator DurationHoursPart
+//   TimeDesignator DurationMinutesPart
+//   TimeDesignator DurationSecondsPart
 template <typename Char>
 int32_t ScanDurationTime(base::Vector<Char> str, int32_t s,
                          ParsedISO8601Duration* r) {
@@ -1090,7 +1262,7 @@ int32_t ScanDurationTime(base::Vector<Char> str, int32_t s,
   int32_t ScanDuration##Name##Designator(base::Vector<Char> str, int32_t s, \
                                          ParsedISO8601Duration* r) {        \
     int32_t cur = s;                                                        \
-    int64_t name;                                                           \
+    double name;                                                            \
     if ((cur += ScanDuration##Name(str, cur, &name)) == s) return 0;        \
     if (str.length() < (cur + 1) || AsciiAlphaToLower(str[cur++]) != (d)) { \
       return 0;                                                             \
@@ -1113,7 +1285,8 @@ int32_t ScanDurationWeeksPart(base::Vector<Char> str, int32_t s,
                               ParsedISO8601Duration* r) {
   int32_t cur = s;
   if ((cur += ScanDurationWeeksDesignator(str, cur, r)) == s) return 0;
-  return cur + ScanDurationDaysPart(str, cur, r) - s;
+  cur += ScanDurationDaysPart(str, cur, r);
+  return cur - s;
 }
 
 // DurationMonthsPart :
@@ -1123,10 +1296,15 @@ template <typename Char>
 int32_t ScanDurationMonthsPart(base::Vector<Char> str, int32_t s,
                                ParsedISO8601Duration* r) {
   int32_t cur = s;
-  int32_t len;
-  if ((cur += ScanDurationMonthsDesignator(str, cur, r)) == s) return 0;
-  if ((len = ScanDurationWeeksPart(str, cur, r)) > 0) return cur + len - s;
-  return cur + ScanDurationDaysPart(str, cur, r) - s;
+  int32_t len = ScanDurationMonthsDesignator(str, cur, r);
+  if (len == 0) return 0;
+  cur += len;
+  if ((len = ScanDurationWeeksPart(str, cur, r)) > 0) {
+    cur += len;
+  } else {
+    cur += ScanDurationDaysPart(str, cur, r);
+  }
+  return cur - s;
 }
 
 // DurationYearsPart :
@@ -1137,11 +1315,18 @@ template <typename Char>
 int32_t ScanDurationYearsPart(base::Vector<Char> str, int32_t s,
                               ParsedISO8601Duration* r) {
   int32_t cur = s;
-  int32_t len;
-  if ((cur += ScanDurationYearsDesignator(str, cur, r)) == s) return 0;
-  if ((len = ScanDurationMonthsPart(str, cur, r)) > 0) return cur + len - s;
-  if ((len = ScanDurationWeeksPart(str, cur, r)) > 0) return cur + len - s;
-  return cur + ScanDurationDaysPart(str, cur, r) - s;
+  int32_t len = ScanDurationYearsDesignator(str, cur, r);
+  if (len == 0) return 0;
+  cur += len;
+  if ((len = ScanDurationMonthsPart(str, cur, r)) > 0) {
+    cur += len;
+  } else if ((len = ScanDurationWeeksPart(str, cur, r)) > 0) {
+    cur += len;
+  } else {
+    len = ScanDurationDaysPart(str, cur, r);
+    cur += len;
+  }
+  return cur - s;
 }
 
 // DurationDate :
@@ -1160,7 +1345,8 @@ int32_t ScanDurationDate(base::Vector<Char> str, int32_t s,
     if ((cur += ScanDurationDaysPart(str, cur, r)) > s) break;
     return 0;
   } while (false);
-  return cur + ScanDurationTime(str, cur, r) - s;
+  cur += ScanDurationTime(str, cur, r);
+  return cur - s;
 }
 
 // Duration :
@@ -1178,7 +1364,8 @@ int32_t ScanDuration(base::Vector<Char> str, int32_t s,
   if (len == 0) len = ScanDurationTime(str, cur, r);
   if (len == 0) return 0;
   r->sign = sign;
-  return cur + len - s;
+  cur += len;
+  return cur - s;
 }
 SCAN_FORWARD(TemporalDurationString, Duration, ParsedISO8601Duration)
 
@@ -1186,35 +1373,33 @@ SATISIFY(TemporalDurationString, ParsedISO8601Duration)
 
 }  // namespace
 
-#define IMPL_PARSE_METHOD(R, NAME)                                         \
-  Maybe<R> TemporalParser::Parse##NAME(Isolate* isolate,                   \
-                                       Handle<String> iso_string) {        \
-    bool valid;                                                            \
-    R parsed;                                                              \
-    iso_string = String::Flatten(isolate, iso_string);                     \
-    {                                                                      \
-      DisallowGarbageCollection no_gc;                                     \
-      String::FlatContent str_content = iso_string->GetFlatContent(no_gc); \
-      if (str_content.IsOneByte()) {                                       \
-        valid = Satisfy##NAME(str_content.ToOneByteVector(), &parsed);     \
-      } else {                                                             \
-        valid = Satisfy##NAME(str_content.ToUC16Vector(), &parsed);        \
-      }                                                                    \
-    }                                                                      \
-    if (valid) return Just(parsed);                                        \
-    return Nothing<R>();                                                   \
+#define IMPL_PARSE_METHOD(R, NAME)                                           \
+  base::Optional<R> TemporalParser::Parse##NAME(Isolate* isolate,            \
+                                                Handle<String> iso_string) { \
+    bool valid;                                                              \
+    R parsed;                                                                \
+    iso_string = String::Flatten(isolate, iso_string);                       \
+    {                                                                        \
+      DisallowGarbageCollection no_gc;                                       \
+      String::FlatContent str_content = iso_string->GetFlatContent(no_gc);   \
+      if (str_content.IsOneByte()) {                                         \
+        valid = Satisfy##NAME(str_content.ToOneByteVector(), &parsed);       \
+      } else {                                                               \
+        valid = Satisfy##NAME(str_content.ToUC16Vector(), &parsed);          \
+      }                                                                      \
+    }                                                                        \
+    if (valid) return parsed;                                                \
+    return base::nullopt;                                                    \
   }
 
 IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalDateTimeString)
-IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalDateString)
 IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalYearMonthString)
 IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalMonthDayString)
 IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalTimeString)
 IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalInstantString)
 IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalZonedDateTimeString)
-IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalTimeZoneString)
-IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalRelativeToString)
-IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalCalendarString)
+IMPL_PARSE_METHOD(ParsedISO8601Result, TimeZoneIdentifier)
+IMPL_PARSE_METHOD(ParsedISO8601Result, CalendarName)
 IMPL_PARSE_METHOD(ParsedISO8601Result, TimeZoneNumericUTCOffset)
 IMPL_PARSE_METHOD(ParsedISO8601Duration, TemporalDurationString)
 

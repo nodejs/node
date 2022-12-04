@@ -14,6 +14,11 @@ namespace baseline {
 
 #define __ basm_.
 
+// A builtin call/jump mode that is used then short builtin calls feature is
+// not enabled.
+constexpr BuiltinCallJumpMode kFallbackBuiltinCallJumpModeForBaseline =
+    BuiltinCallJumpMode::kIndirect;
+
 void BaselineCompiler::Prologue() {
   ASM_CODE_COMMENT(&masm_);
   __ masm()->EnterFrame(StackFrame::BASELINE);

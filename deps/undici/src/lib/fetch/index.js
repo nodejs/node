@@ -35,11 +35,13 @@ const {
   isCancelled,
   isAborted,
   isErrorLike,
-  fullyReadBody
+  fullyReadBody,
+  readableStreamClose,
+  isomorphicEncode
 } = require('./util')
 const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
 const assert = require('assert')
-const { safelyExtractBody, extractBody } = require('./body')
+const { safelyExtractBody } = require('./body')
 const {
   redirectStatus,
   nullBodyStatus,
@@ -52,11 +54,14 @@ const { kHeadersList } = require('../core/symbols')
 const EE = require('events')
 const { Readable, pipeline } = require('stream')
 const { isErrored, isReadable } = require('../core/util')
-const { dataURLProcessor } = require('./dataURL')
+const { dataURLProcessor, serializeAMimeType } = require('./dataURL')
 const { TransformStream } = require('stream/web')
+const { getGlobalDispatcher } = require('../../index')
+const { webidl } = require('./webidl')
 
 /** @type {import('buffer').resolveObjectURL} */
 let resolveObjectURL
+/** @type {globalThis['ReadableStream']} */
 let ReadableStream
 
 const nodeVersion = process.versions.node.split('.')
@@ -71,6 +76,12 @@ class Fetch extends EE {
     this.connection = null
     this.dump = false
     this.state = 'ongoing'
+    // 2 terminated listeners get added per request,
+    // but only 1 gets removed. If there are 20 redirects,
+    // 21 listeners will be added.
+    // See https://github.com/nodejs/undici/issues/1711
+    // TODO (fix): Find and fix root cause for leaked listener.
+    this.setMaxListeners(21)
   }
 
   terminate (reason) {
@@ -83,26 +94,36 @@ class Fetch extends EE {
     this.emit('terminated', reason)
   }
 
-  abort () {
+  // https://fetch.spec.whatwg.org/#fetch-controller-abort
+  abort (error) {
     if (this.state !== 'ongoing') {
       return
     }
 
-    const reason = new DOMException('The operation was aborted.', 'AbortError')
-
+    // 1. Set controller’s state to "aborted".
     this.state = 'aborted'
-    this.connection?.destroy(reason)
-    this.emit('terminated', reason)
+
+    // 2. Let fallbackError be an "AbortError" DOMException.
+    // 3. Set error to fallbackError if it is not given.
+    if (!error) {
+      error = new DOMException('The operation was aborted.', 'AbortError')
+    }
+
+    // 4. Let serializedError be StructuredSerialize(error).
+    //    If that threw an exception, catch it, and let
+    //    serializedError be StructuredSerialize(fallbackError).
+
+    // 5. Set controller’s serialized abort reason to serializedError.
+    this.serializedAbortReason = error
+
+    this.connection?.destroy(error)
+    this.emit('terminated', error)
   }
 }
 
 // https://fetch.spec.whatwg.org/#fetch-method
 async function fetch (input, init = {}) {
-  if (arguments.length < 1) {
-    throw new TypeError(
-      `Failed to execute 'fetch' on 'Window': 1 argument required, but only ${arguments.length} present.`
-    )
-  }
+  webidl.argumentLengthCheck(arguments, 1, { header: 'globalThis.fetch' })
 
   // 1. Let p be a new promise.
   const p = createDeferredPromise()
@@ -124,8 +145,9 @@ async function fetch (input, init = {}) {
 
   // 4. If requestObject’s signal’s aborted flag is set, then:
   if (requestObject.signal.aborted) {
-    // 1. Abort fetch with p, request, and null.
-    abortFetch(p, request, null)
+    // 1. Abort the fetch() call with p, request, null, and
+    //    requestObject’s signal’s abort reason.
+    abortFetch(p, request, null, requestObject.signal.reason)
 
     // 2. Return p.
     return p.promise
@@ -159,8 +181,9 @@ async function fetch (input, init = {}) {
       // 1. Set locallyAborted to true.
       locallyAborted = true
 
-      // 2. Abort fetch with p, request, and responseObject.
-      abortFetch(p, request, responseObject)
+      // 2. Abort the fetch() call with p, request, responseObject,
+      //    and requestObject’s signal’s abort reason.
+      abortFetch(p, request, responseObject, requestObject.signal.reason)
 
       // 3. If controller is not null, then abort controller.
       if (controller != null) {
@@ -185,10 +208,16 @@ async function fetch (input, init = {}) {
       return
     }
 
-    // 2. If response’s aborted flag is set, then abort fetch with p,
-    // request, and responseObject, and terminate these substeps.
+    // 2. If response’s aborted flag is set, then:
     if (response.aborted) {
-      abortFetch(p, request, responseObject)
+      // 1. Let deserializedError be the result of deserialize a serialized
+      //    abort reason given controller’s serialized abort reason and
+      //    relevantRealm.
+
+      // 2. Abort the fetch() call with p, request, responseObject, and
+      //    deserializedError.
+
+      abortFetch(p, request, responseObject, controller.serializedAbortReason)
       return
     }
 
@@ -218,7 +247,7 @@ async function fetch (input, init = {}) {
     request,
     processResponseEndOfBody: handleFetchDone,
     processResponse,
-    dispatcher: this // undici
+    dispatcher: init.dispatcher ?? getGlobalDispatcher() // undici
   })
 
   // 14. Return p.
@@ -296,14 +325,18 @@ function markResourceTiming (timingInfo, originalURL, initiatorType, globalThis,
 }
 
 // https://fetch.spec.whatwg.org/#abort-fetch
-function abortFetch (p, request, responseObject) {
-  // 1. Let error be an "AbortError" DOMException.
-  const error = new DOMException('The operation was aborted.', 'AbortError')
+function abortFetch (p, request, responseObject, error) {
+  // Note: AbortSignal.reason was added in node v17.2.0
+  // which would give us an undefined error to reject with.
+  // Remove this once node v16 is no longer supported.
+  if (!error) {
+    error = new DOMException('The operation was aborted.', 'AbortError')
+  }
 
-  // 2. Reject promise with error.
+  // 1. Reject promise with error.
   p.reject(error)
 
-  // 3. If request’s body is not null and is readable, then cancel request’s
+  // 2. If request’s body is not null and is readable, then cancel request’s
   // body with error.
   if (request.body != null && isReadable(request.body?.stream)) {
     request.body.stream.cancel(error).catch((err) => {
@@ -315,15 +348,15 @@ function abortFetch (p, request, responseObject) {
     })
   }
 
-  // 4. If responseObject is null, then return.
+  // 3. If responseObject is null, then return.
   if (responseObject == null) {
     return
   }
 
-  // 5. Let response be responseObject’s response.
+  // 4. Let response be responseObject’s response.
   const response = responseObject[kState]
 
-  // 6. If response’s body is not null and is readable, then error response’s
+  // 5. If response’s body is not null and is readable, then error response’s
   // body with error.
   if (response.body != null && isReadable(response.body?.stream)) {
     response.body.stream.cancel(error).catch((err) => {
@@ -399,8 +432,8 @@ function fetching ({
     crossOriginIsolatedCapability
   }
 
-  // 7. If request’s body is a byte sequence, then set request’s body to the
-  // first return value of safely extracting request’s body.
+  // 7. If request’s body is a byte sequence, then set request’s body to
+  //    request’s body as a body.
   // NOTE: Since fetching is only called from fetch, body should already be
   // extracted.
   assert(!request.body || request.body.stream)
@@ -442,7 +475,7 @@ function fetching ({
   }
 
   // 12. If request’s header list does not contain `Accept`, then:
-  if (!request.headersList.has('accept')) {
+  if (!request.headersList.contains('accept')) {
     // 1. Let value be `*/*`.
     const value = '*/*'
 
@@ -465,7 +498,7 @@ function fetching ({
   // 13. If request’s header list does not contain `Accept-Language`, then
   // user agents should append `Accept-Language`/an appropriate value to
   // request’s header list.
-  if (!request.headersList.has('accept-language')) {
+  if (!request.headersList.contains('accept-language')) {
     request.headersList.append('accept-language', '*')
   }
 
@@ -688,7 +721,7 @@ async function mainFetch (fetchParams, recursive = false) {
     response.type === 'opaque' &&
     internalResponse.status === 206 &&
     internalResponse.rangeRequested &&
-    !request.headers.has('range')
+    !request.headers.contains('range')
   ) {
     response = internalResponse = makeNetworkError()
   }
@@ -730,8 +763,7 @@ async function mainFetch (fetchParams, recursive = false) {
         return
       }
 
-      // 2. Set response’s body to the first return value of safely
-      // extracting bytes.
+      // 2. Set response’s body to bytes as a body.
       response.body = safelyExtractBody(bytes)[0]
 
       // 3. Run fetch finale given fetchParams and response.
@@ -749,75 +781,73 @@ async function mainFetch (fetchParams, recursive = false) {
 // https://fetch.spec.whatwg.org/#concept-scheme-fetch
 // given a fetch params fetchParams
 async function schemeFetch (fetchParams) {
-  // let request be fetchParams’s request
+  // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
+  if (isCancelled(fetchParams)) {
+    return makeAppropriateNetworkError(fetchParams)
+  }
+
+  // 2. Let request be fetchParams’s request.
   const { request } = fetchParams
 
-  const {
-    protocol: scheme,
-    pathname: path
-  } = requestCurrentURL(request)
+  const { protocol: scheme } = requestCurrentURL(request)
 
-  // switch on request’s current URL’s scheme, and run the associated steps:
+  // 3. Switch on request’s current URL’s scheme and run the associated steps:
   switch (scheme) {
     case 'about:': {
       // If request’s current URL’s path is the string "blank", then return a new response
       // whose status message is `OK`, header list is « (`Content-Type`, `text/html;charset=utf-8`) »,
-      // and body is the empty byte sequence.
-      if (path === 'blank') {
-        const resp = makeResponse({
-          statusText: 'OK',
-          headersList: [
-            ['content-type', 'text/html;charset=utf-8']
-          ]
-        })
-
-        resp.urlList = [new URL('about:blank')]
-        return resp
-      }
+      // and body is the empty byte sequence as a body.
 
       // Otherwise, return a network error.
-      return makeNetworkError('invalid path called')
+      return makeNetworkError('about scheme is not supported')
     }
     case 'blob:': {
-      resolveObjectURL = resolveObjectURL || require('buffer').resolveObjectURL
+      if (!resolveObjectURL) {
+        resolveObjectURL = require('buffer').resolveObjectURL
+      }
 
-      // 1. Run these steps, but abort when the ongoing fetch is terminated:
-      //    1. Let blob be request’s current URL’s blob URL entry’s object.
-      //       https://w3c.github.io/FileAPI/#blob-url-entry
-      //       P.S. Thank God this method is available in node.
-      const currentURL = requestCurrentURL(request)
+      // 1. Let blobURLEntry be request’s current URL’s blob URL entry.
+      const blobURLEntry = requestCurrentURL(request)
 
       // https://github.com/web-platform-tests/wpt/blob/7b0ebaccc62b566a1965396e5be7bb2bc06f841f/FileAPI/url/resources/fetch-tests.js#L52-L56
       // Buffer.resolveObjectURL does not ignore URL queries.
-      if (currentURL.search.length !== 0) {
+      if (blobURLEntry.search.length !== 0) {
         return makeNetworkError('NetworkError when attempting to fetch resource.')
       }
 
-      const blob = resolveObjectURL(currentURL.toString())
+      const blobURLEntryObject = resolveObjectURL(blobURLEntry.toString())
 
-      //    2. If request’s method is not `GET` or blob is not a Blob object, then return a network error. [FILEAPI]
-      if (request.method !== 'GET' || !isBlobLike(blob)) {
+      // 2. If request’s method is not `GET`, blobURLEntry is null, or blobURLEntry’s
+      //    object is not a Blob object, then return a network error.
+      if (request.method !== 'GET' || !isBlobLike(blobURLEntryObject)) {
         return makeNetworkError('invalid method')
       }
 
-      //    3. Let response be a new response whose status message is `OK`.
-      const response = makeResponse({ statusText: 'OK', urlList: [currentURL] })
+      // 3. Let bodyWithType be the result of safely extracting blobURLEntry’s object.
+      const bodyWithType = safelyExtractBody(blobURLEntryObject)
 
-      //    4. Append (`Content-Length`, blob’s size attribute value) to response’s header list.
-      response.headersList.set('content-length', `${blob.size}`)
+      // 4. Let body be bodyWithType’s body.
+      const body = bodyWithType[0]
 
-      //    5. Append (`Content-Type`, blob’s type attribute value) to response’s header list.
-      response.headersList.set('content-type', blob.type)
+      // 5. Let length be body’s length, serialized and isomorphic encoded.
+      const length = isomorphicEncode(`${body.length}`)
 
-      //    6. Set response’s body to the result of performing the read operation on blob.
-      // TODO (fix): This needs to read?
-      response.body = extractBody(blob)[0]
+      // 6. Let type be bodyWithType’s type if it is non-null; otherwise the empty byte sequence.
+      const type = bodyWithType[1] ?? ''
 
-      //    7. Return response.
+      // 7. Return a new response whose status message is `OK`, header list is
+      //    « (`Content-Length`, length), (`Content-Type`, type) », and body is body.
+      const response = makeResponse({
+        statusText: 'OK',
+        headersList: [
+          ['content-length', length],
+          ['content-type', type]
+        ]
+      })
+
+      response.body = body
+
       return response
-
-      // 2. If aborted, then return the appropriate network error for fetchParams.
-      // TODO
     }
     case 'data:': {
       // 1. Let dataURLStruct be the result of running the
@@ -832,35 +862,17 @@ async function schemeFetch (fetchParams) {
       }
 
       // 3. Let mimeType be dataURLStruct’s MIME type, serialized.
-      const { mimeType } = dataURLStruct
-
-      /** @type {string} */
-      let contentType = `${mimeType.type}/${mimeType.subtype}`
-      const contentTypeParams = []
-
-      if (mimeType.parameters.size > 0) {
-        contentType += ';'
-      }
-
-      for (const [key, value] of mimeType.parameters) {
-        if (value.length > 0) {
-          contentTypeParams.push(`${key}=${value}`)
-        } else {
-          contentTypeParams.push(key)
-        }
-      }
-
-      contentType += contentTypeParams.join(',')
+      const mimeType = serializeAMimeType(dataURLStruct.mimeType)
 
       // 4. Return a response whose status message is `OK`,
       //    header list is « (`Content-Type`, mimeType) »,
-      //    and body is dataURLStruct’s body.
+      //    and body is dataURLStruct’s body as a body.
       return makeResponse({
         statusText: 'OK',
         headersList: [
-          ['content-type', contentType]
+          ['content-type', mimeType]
         ],
-        body: extractBody(dataURLStruct.body)[0]
+        body: safelyExtractBody(dataURLStruct.body)[0]
       })
     }
     case 'file:': {
@@ -948,6 +960,14 @@ async function fetchFinale (fetchParams, response) {
       start () {},
       transform: identityTransformAlgorithm,
       flush: processResponseEndOfBody
+    }, {
+      size () {
+        return 1
+      }
+    }, {
+      size () {
+        return 1
+      }
     })
 
     // 4. Set response’s body to the result of piping response’s body through transformStream.
@@ -1048,7 +1068,9 @@ async function httpFetch (fetchParams) {
     // and the connection uses HTTP/2, then user agents may, and are even
     // encouraged to, transmit an RST_STREAM frame.
     // See, https://github.com/whatwg/fetch/issues/1288
-    fetchParams.controller.connection.destroy()
+    if (request.redirect !== 'manual') {
+      fetchParams.controller.connection.destroy()
+    }
 
     // 2. Switch on request’s redirect mode:
     if (request.redirect === 'error') {
@@ -1279,8 +1301,7 @@ async function httpNetworkOrCacheFetch (
   //    7. If contentLength is non-null, then set contentLengthHeaderValue to
   //    contentLength, serialized and isomorphic encoded.
   if (contentLength != null) {
-    // TODO: isomorphic encoded
-    contentLengthHeaderValue = String(contentLength)
+    contentLengthHeaderValue = isomorphicEncode(`${contentLength}`)
   }
 
   //    8. If contentLengthHeaderValue is non-null, then append
@@ -1303,8 +1324,7 @@ async function httpNetworkOrCacheFetch (
   //    `Referer`/httpRequest’s referrer, serialized and isomorphic encoded,
   //     to httpRequest’s header list.
   if (httpRequest.referrer instanceof URL) {
-    // TODO: isomorphic encoded
-    httpRequest.headersList.append('referer', httpRequest.referrer.href)
+    httpRequest.headersList.append('referer', isomorphicEncode(httpRequest.referrer.href))
   }
 
   //    12. Append a request `Origin` header for httpRequest.
@@ -1316,7 +1336,7 @@ async function httpNetworkOrCacheFetch (
   //    14. If httpRequest’s header list does not contain `User-Agent`, then
   //    user agents should append `User-Agent`/default `User-Agent` value to
   //    httpRequest’s header list.
-  if (!httpRequest.headersList.has('user-agent')) {
+  if (!httpRequest.headersList.contains('user-agent')) {
     httpRequest.headersList.append('user-agent', 'undici')
   }
 
@@ -1326,11 +1346,11 @@ async function httpNetworkOrCacheFetch (
   //    httpRequest’s cache mode to "no-store".
   if (
     httpRequest.cache === 'default' &&
-    (httpRequest.headersList.has('if-modified-since') ||
-      httpRequest.headersList.has('if-none-match') ||
-      httpRequest.headersList.has('if-unmodified-since') ||
-      httpRequest.headersList.has('if-match') ||
-      httpRequest.headersList.has('if-range'))
+    (httpRequest.headersList.contains('if-modified-since') ||
+      httpRequest.headersList.contains('if-none-match') ||
+      httpRequest.headersList.contains('if-unmodified-since') ||
+      httpRequest.headersList.contains('if-match') ||
+      httpRequest.headersList.contains('if-range'))
   ) {
     httpRequest.cache = 'no-store'
   }
@@ -1342,7 +1362,7 @@ async function httpNetworkOrCacheFetch (
   if (
     httpRequest.cache === 'no-cache' &&
     !httpRequest.preventNoCacheCacheControlHeaderModification &&
-    !httpRequest.headersList.has('cache-control')
+    !httpRequest.headersList.contains('cache-control')
   ) {
     httpRequest.headersList.append('cache-control', 'max-age=0')
   }
@@ -1351,27 +1371,27 @@ async function httpNetworkOrCacheFetch (
   if (httpRequest.cache === 'no-store' || httpRequest.cache === 'reload') {
     // 1. If httpRequest’s header list does not contain `Pragma`, then append
     // `Pragma`/`no-cache` to httpRequest’s header list.
-    if (!httpRequest.headersList.has('pragma')) {
+    if (!httpRequest.headersList.contains('pragma')) {
       httpRequest.headersList.append('pragma', 'no-cache')
     }
 
     // 2. If httpRequest’s header list does not contain `Cache-Control`,
     // then append `Cache-Control`/`no-cache` to httpRequest’s header list.
-    if (!httpRequest.headersList.has('cache-control')) {
+    if (!httpRequest.headersList.contains('cache-control')) {
       httpRequest.headersList.append('cache-control', 'no-cache')
     }
   }
 
   //    18. If httpRequest’s header list contains `Range`, then append
   //    `Accept-Encoding`/`identity` to httpRequest’s header list.
-  if (httpRequest.headersList.has('range')) {
+  if (httpRequest.headersList.contains('range')) {
     httpRequest.headersList.append('accept-encoding', 'identity')
   }
 
   //    19. Modify httpRequest’s header list per HTTP. Do not append a given
   //    header if httpRequest’s header list contains that header’s name.
   //    TODO: https://github.com/whatwg/fetch/issues/1285#issuecomment-896560129
-  if (!httpRequest.headersList.has('accept-encoding')) {
+  if (!httpRequest.headersList.contains('accept-encoding')) {
     if (/^https:/.test(requestCurrentURL(httpRequest).protocol)) {
       httpRequest.headersList.append('accept-encoding', 'br, gzip, deflate')
     } else {
@@ -1460,7 +1480,7 @@ async function httpNetworkOrCacheFetch (
 
   // 12. If httpRequest’s header list contains `Range`, then set response’s
   // range-requested flag.
-  if (httpRequest.headersList.has('range')) {
+  if (httpRequest.headersList.contains('range')) {
     response.rangeRequested = true
   }
 
@@ -1741,9 +1761,9 @@ async function httpNetworkFetch (
   }
 
   // 12. Let cancelAlgorithm be an algorithm that aborts fetchParams’s
-  // controller.
-  const cancelAlgorithm = () => {
-    fetchParams.controller.abort()
+  // controller with reason, given reason.
+  const cancelAlgorithm = (reason) => {
+    fetchParams.controller.abort(reason)
   }
 
   // 13. Let highWaterMark be a non-negative, non-NaN number, chosen by
@@ -1774,7 +1794,12 @@ async function httpNetworkFetch (
         await cancelAlgorithm(reason)
       }
     },
-    { highWaterMark: 0 }
+    {
+      highWaterMark: 0,
+      size () {
+        return 1
+      }
+    }
   )
 
   // 17. Run these steps, but abort when the ongoing fetch is terminated:
@@ -1830,14 +1855,7 @@ async function httpNetworkFetch (
         // body is done normally and stream is readable, then close
         // stream, finalize response for fetchParams and response, and
         // abort these in-parallel steps.
-        try {
-          fetchParams.controller.controller.close()
-        } catch (err) {
-          // TODO (fix): How/Why can this happen? Do we have a bug?
-          if (!/Controller is already closed/.test(err)) {
-            throw err
-          }
-        }
+        readableStreamClose(fetchParams.controller.controller)
 
         finalizeResponse(fetchParams, response)
 
@@ -1878,10 +1896,13 @@ async function httpNetworkFetch (
       // 1. Set response’s aborted flag.
       response.aborted = true
 
-      // 2. If stream is readable, error stream with an "AbortError" DOMException.
+      // 2. If stream is readable, then error stream with the result of
+      //    deserialize a serialized abort reason given fetchParams’s
+      //    controller’s serialized abort reason and an
+      //    implementation-defined realm.
       if (isReadable(stream)) {
         fetchParams.controller.controller.error(
-          new DOMException('The operation was aborted.', 'AbortError')
+          fetchParams.controller.serializedAbortReason
         )
       }
     } else {
@@ -1956,8 +1977,12 @@ async function httpNetworkFetch (
 
           const decoders = []
 
+          const willFollow = request.redirect === 'follow' &&
+            location &&
+            redirectStatus.includes(status)
+
           // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
-          if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !(request.redirect === 'follow' && location)) {
+          if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !willFollow) {
             for (const coding of codings) {
               if (/(x-)?gzip/.test(coding)) {
                 decoders.push(zlib.createGunzip())
@@ -2033,4 +2058,9 @@ async function httpNetworkFetch (
   }
 }
 
-module.exports = fetch
+module.exports = {
+  fetch,
+  Fetch,
+  fetching,
+  finalizeAndReportTiming
+}

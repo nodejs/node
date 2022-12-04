@@ -23,10 +23,10 @@ using v8::Isolate;
 using v8::KeyCollectionMode;
 using v8::Local;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::ONLY_CONFIGURABLE;
 using v8::ONLY_ENUMERABLE;
 using v8::ONLY_WRITABLE;
-using v8::Private;
 using v8::Promise;
 using v8::PropertyFilter;
 using v8::Proxy;
@@ -138,6 +138,15 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void IsArrayBufferDetached(const FunctionCallbackInfo<Value>& args) {
+  if (args[0]->IsArrayBuffer()) {
+    auto buffer = args[0].As<v8::ArrayBuffer>();
+    args.GetReturnValue().Set(buffer->WasDetached());
+    return;
+  }
+  args.GetReturnValue().Set(false);
+}
+
 static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsObject())
     return;
@@ -157,44 +166,6 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   };
   return args.GetReturnValue().Set(
       Array::New(env->isolate(), ret, arraysize(ret)));
-}
-
-inline Local<Private> IndexToPrivateSymbol(Environment* env, uint32_t index) {
-#define V(name, _) &Environment::name,
-  static Local<Private> (Environment::*const methods[])() const = {
-    PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
-  };
-#undef V
-  CHECK_LT(index, arraysize(methods));
-  return (env->*methods[index])();
-}
-
-static void GetHiddenValue(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsObject());
-  CHECK(args[1]->IsUint32());
-
-  Local<Object> obj = args[0].As<Object>();
-  uint32_t index = args[1].As<Uint32>()->Value();
-  Local<Private> private_symbol = IndexToPrivateSymbol(env, index);
-  Local<Value> ret;
-  if (obj->GetPrivate(env->context(), private_symbol).ToLocal(&ret))
-    args.GetReturnValue().Set(ret);
-}
-
-static void SetHiddenValue(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsObject());
-  CHECK(args[1]->IsUint32());
-
-  Local<Object> obj = args[0].As<Object>();
-  uint32_t index = args[1].As<Uint32>()->Value();
-  Local<Private> private_symbol = IndexToPrivateSymbol(env, index);
-  bool ret;
-  if (obj->SetPrivate(env->context(), private_symbol, args[2]).To(&ret))
-    args.GetReturnValue().Set(ret);
 }
 
 static void Sleep(const FunctionCallbackInfo<Value>& args) {
@@ -294,6 +265,13 @@ void WeakReference::Get(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(weak_ref->target_.Get(isolate));
 }
 
+void WeakReference::GetRef(const FunctionCallbackInfo<Value>& args) {
+  WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
+  Isolate* isolate = args.GetIsolate();
+  args.GetReturnValue().Set(
+      v8::Number::New(isolate, weak_ref->reference_count_));
+}
+
 void WeakReference::IncRef(const FunctionCallbackInfo<Value>& args) {
   WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
   weak_ref->reference_count_++;
@@ -379,10 +357,9 @@ static void ToUSVString(const FunctionCallbackInfo<Value>& args) {
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  registry->Register(GetHiddenValue);
-  registry->Register(SetHiddenValue);
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
+  registry->Register(IsArrayBufferDetached);
   registry->Register(PreviewEntries);
   registry->Register(GetOwnNonIndexProperties);
   registry->Register(GetConstructorName);
@@ -391,6 +368,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ArrayBufferViewHasBuffer);
   registry->Register(WeakReference::New);
   registry->Register(WeakReference::Get);
+  registry->Register(WeakReference::GetRef);
   registry->Register(WeakReference::IncRef);
   registry->Register(WeakReference::DecRef);
   registry->Register(GuessHandleType);
@@ -404,31 +382,71 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
-#define V(name, _)                                                            \
-  target->Set(context,                                                        \
-              FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \
-              Integer::NewFromUnsigned(env->isolate(), index++)).Check();
   {
-    uint32_t index = 0;
+    Local<ObjectTemplate> tmpl = ObjectTemplate::New(isolate);
+#define V(PropertyName, _)                                                     \
+  tmpl->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #PropertyName),              \
+            env->PropertyName());
+
     PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
+#undef V
+
+    target
+        ->Set(context,
+              FIXED_ONE_BYTE_STRING(isolate, "privateSymbols"),
+              tmpl->NewInstance(context).ToLocalChecked())
+        .Check();
   }
+
+  {
+    Local<Object> constants = Object::New(isolate);
+#define V(name)                                                                \
+  constants                                                                    \
+      ->Set(context,                                                           \
+            FIXED_ONE_BYTE_STRING(isolate, #name),                             \
+            Integer::New(isolate, Promise::PromiseState::name))                \
+      .Check();
+
+    V(kPending);
+    V(kFulfilled);
+    V(kRejected);
 #undef V
 
-#define V(name)                                                               \
-  target->Set(context,                                                        \
-              FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \
-              Integer::New(env->isolate(), Promise::PromiseState::name))      \
-    .FromJust()
-  V(kPending);
-  V(kFulfilled);
-  V(kRejected);
+#define V(name)                                                                \
+  constants                                                                    \
+      ->Set(context,                                                           \
+            FIXED_ONE_BYTE_STRING(isolate, #name),                             \
+            Integer::New(isolate, Environment::ExitInfoField::name))           \
+      .Check();
+
+    V(kExiting);
+    V(kExitCode);
+    V(kHasExitCode);
 #undef V
 
-  SetMethodNoSideEffect(context, target, "getHiddenValue", GetHiddenValue);
-  SetMethod(context, target, "setHiddenValue", SetHiddenValue);
+#define V(name)                                                                \
+  constants                                                                    \
+      ->Set(context,                                                           \
+            FIXED_ONE_BYTE_STRING(isolate, #name),                             \
+            Integer::New(isolate, PropertyFilter::name))                       \
+      .Check();
+
+    V(ALL_PROPERTIES);
+    V(ONLY_WRITABLE);
+    V(ONLY_ENUMERABLE);
+    V(ONLY_CONFIGURABLE);
+    V(SKIP_STRINGS);
+    V(SKIP_SYMBOLS);
+#undef V
+
+    target->Set(context, env->constants_string(), constants).Check();
+  }
+
   SetMethodNoSideEffect(
       context, target, "getPromiseDetails", GetPromiseDetails);
   SetMethodNoSideEffect(context, target, "getProxyDetails", GetProxyDetails);
+  SetMethodNoSideEffect(
+      context, target, "isArrayBufferDetached", IsArrayBufferDetached);
   SetMethodNoSideEffect(context, target, "previewEntries", PreviewEntries);
   SetMethodNoSideEffect(
       context, target, "getOwnNonIndexProperties", GetOwnNonIndexProperties);
@@ -439,16 +457,6 @@ void Initialize(Local<Object> target,
 
   SetMethod(
       context, target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
-  Local<Object> constants = Object::New(env->isolate());
-  NODE_DEFINE_CONSTANT(constants, ALL_PROPERTIES);
-  NODE_DEFINE_CONSTANT(constants, ONLY_WRITABLE);
-  NODE_DEFINE_CONSTANT(constants, ONLY_ENUMERABLE);
-  NODE_DEFINE_CONSTANT(constants, ONLY_CONFIGURABLE);
-  NODE_DEFINE_CONSTANT(constants, SKIP_STRINGS);
-  NODE_DEFINE_CONSTANT(constants, SKIP_SYMBOLS);
-  target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "propertyFilter"),
-              constants).Check();
 
   Local<String> should_abort_on_uncaught_toggle =
       FIXED_ONE_BYTE_STRING(env->isolate(), "shouldAbortOnUncaughtToggle");
@@ -464,6 +472,7 @@ void Initialize(Local<Object> target,
       WeakReference::kInternalFieldCount);
   weak_ref->Inherit(BaseObject::GetConstructorTemplate(env));
   SetProtoMethod(isolate, weak_ref, "get", WeakReference::Get);
+  SetProtoMethod(isolate, weak_ref, "getRef", WeakReference::GetRef);
   SetProtoMethod(isolate, weak_ref, "incRef", WeakReference::IncRef);
   SetProtoMethod(isolate, weak_ref, "decRef", WeakReference::DecRef);
   SetConstructorFunction(context, target, "WeakReference", weak_ref);
@@ -476,5 +485,5 @@ void Initialize(Local<Object> target,
 }  // namespace util
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(util, node::util::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(util, node::util::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(util, node::util::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(util, node::util::RegisterExternalReferences)

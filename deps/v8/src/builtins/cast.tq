@@ -697,6 +697,21 @@ Cast<JSReceiver|Null>(o: HeapObject): JSReceiver|Null
   }
 }
 
+Cast<JSReceiver|Symbol>(implicit context: Context)(o: Object): JSReceiver|Symbol
+    labels CastError {
+  typeswitch (o) {
+    case (o: JSReceiver): {
+      return o;
+    }
+    case (o: Symbol): {
+      return o;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
+}
+
 Cast<Smi|PromiseReaction>(o: Object): Smi|PromiseReaction labels CastError {
   typeswitch (o) {
     case (o: Smi): {

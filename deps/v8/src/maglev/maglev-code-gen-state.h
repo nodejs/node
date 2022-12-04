@@ -7,12 +7,12 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/label.h"
-#include "src/codegen/macro-assembler.h"
-#include "src/codegen/safepoint-table.h"
+#include "src/codegen/machine-type.h"
+#include "src/codegen/maglev-safepoint-table.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/js-heap-broker.h"
-#include "src/maglev/maglev-compilation-unit.h"
+#include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-ir.h"
 
 namespace v8 {
@@ -20,30 +20,32 @@ namespace internal {
 namespace maglev {
 
 class InterpreterFrameState;
+class MaglevAssembler;
 
 class DeferredCodeInfo {
  public:
-  virtual void Generate(MaglevCodeGenState* code_gen_state,
-                        Label* return_label) = 0;
+  virtual void Generate(MaglevAssembler* masm) = 0;
   Label deferred_code_label;
-  Label return_label;
 };
 
 class MaglevCodeGenState {
  public:
-  MaglevCodeGenState(MaglevCompilationUnit* compilation_unit,
-                     SafepointTableBuilder* safepoint_table_builder)
-      : compilation_unit_(compilation_unit),
-        safepoint_table_builder_(safepoint_table_builder),
-        masm_(isolate(), CodeObjectRequired::kNo) {}
+  MaglevCodeGenState(MaglevCompilationInfo* compilation_info,
+                     MaglevSafepointTableBuilder* safepoint_table_builder)
+      : compilation_info_(compilation_info),
+        safepoint_table_builder_(safepoint_table_builder) {}
 
-  void SetVregSlots(int slots) { vreg_slots_ = slots; }
+  void set_tagged_slots(int slots) { tagged_slots_ = slots; }
+  void set_untagged_slots(int slots) { untagged_slots_ = slots; }
 
   void PushDeferredCode(DeferredCodeInfo* deferred_code) {
     deferred_code_.push_back(deferred_code);
   }
   const std::vector<DeferredCodeInfo*>& deferred_code() const {
     return deferred_code_;
+  }
+  std::vector<DeferredCodeInfo*> TakeDeferredCode() {
+    return std::exchange(deferred_code_, std::vector<DeferredCodeInfo*>());
   }
   void PushEagerDeopt(EagerDeoptInfo* info) { eager_deopts_.push_back(info); }
   void PushLazyDeopt(LazyDeoptInfo* info) { lazy_deopts_.push_back(info); }
@@ -53,68 +55,39 @@ class MaglevCodeGenState {
   const std::vector<LazyDeoptInfo*>& lazy_deopts() const {
     return lazy_deopts_;
   }
-  inline void DefineSafepointStackSlots(
-      SafepointTableBuilder::Safepoint& safepoint) const;
+
+  void PushHandlerInfo(NodeBase* node) { handlers_.push_back(node); }
+  const std::vector<NodeBase*>& handlers() const { return handlers_; }
 
   compiler::NativeContextRef native_context() const {
     return broker()->target_native_context();
   }
-  Isolate* isolate() const { return compilation_unit_->isolate(); }
-  int parameter_count() const { return compilation_unit_->parameter_count(); }
-  int register_count() const { return compilation_unit_->register_count(); }
-  const compiler::BytecodeAnalysis& bytecode_analysis() const {
-    return compilation_unit_->bytecode_analysis();
-  }
-  compiler::JSHeapBroker* broker() const { return compilation_unit_->broker(); }
-  const compiler::BytecodeArrayRef& bytecode() const {
-    return compilation_unit_->bytecode();
-  }
+  compiler::JSHeapBroker* broker() const { return compilation_info_->broker(); }
   MaglevGraphLabeller* graph_labeller() const {
-    return compilation_unit_->graph_labeller();
+    return compilation_info_->graph_labeller();
   }
-  MacroAssembler* masm() { return &masm_; }
-  int vreg_slots() const { return vreg_slots_; }
-  SafepointTableBuilder* safepoint_table_builder() const {
+  int stack_slots() const { return untagged_slots_ + tagged_slots_; }
+  int tagged_slots() const { return tagged_slots_; }
+  MaglevSafepointTableBuilder* safepoint_table_builder() const {
     return safepoint_table_builder_;
   }
-  MaglevCompilationUnit* compilation_unit() const { return compilation_unit_; }
-
-  // TODO(v8:7700): Clean up after all code paths are supported.
-  void set_found_unsupported_code_paths(bool val) {
-    found_unsupported_code_paths_ = val;
-  }
-  bool found_unsupported_code_paths() const {
-    return found_unsupported_code_paths_;
-  }
+  MaglevCompilationInfo* compilation_info() const { return compilation_info_; }
 
  private:
-  MaglevCompilationUnit* const compilation_unit_;
-  SafepointTableBuilder* const safepoint_table_builder_;
+  MaglevCompilationInfo* const compilation_info_;
+  MaglevSafepointTableBuilder* const safepoint_table_builder_;
 
-  MacroAssembler masm_;
   std::vector<DeferredCodeInfo*> deferred_code_;
   std::vector<EagerDeoptInfo*> eager_deopts_;
   std::vector<LazyDeoptInfo*> lazy_deopts_;
-  int vreg_slots_ = 0;
+  std::vector<NodeBase*> handlers_;
 
-  // Allow marking some codegen paths as unsupported, so that we can test maglev
-  // incrementally.
-  // TODO(v8:7700): Clean up after all code paths are supported.
-  bool found_unsupported_code_paths_ = false;
+  int untagged_slots_ = 0;
+  int tagged_slots_ = 0;
 };
 
 // Some helpers for codegen.
 // TODO(leszeks): consider moving this to a separate header.
-
-inline constexpr int GetFramePointerOffsetForStackSlot(int index) {
-  return StandardFrameConstants::kExpressionsOffset -
-         index * kSystemPointerSize;
-}
-
-inline int GetFramePointerOffsetForStackSlot(
-    const compiler::AllocatedOperand& operand) {
-  return GetFramePointerOffsetForStackSlot(operand.index());
-}
 
 inline int GetSafepointIndexForStackSlot(int i) {
   // Safepoint tables also contain slots for all fixed frame slots (both
@@ -122,41 +95,30 @@ inline int GetSafepointIndexForStackSlot(int i) {
   return StandardFrameConstants::kFixedSlotCount + i;
 }
 
-inline MemOperand GetStackSlot(int index) {
-  return MemOperand(rbp, GetFramePointerOffsetForStackSlot(index));
-}
-
-inline MemOperand GetStackSlot(const compiler::AllocatedOperand& operand) {
-  return GetStackSlot(operand.index());
-}
-
 inline Register ToRegister(const compiler::InstructionOperand& operand) {
   return compiler::AllocatedOperand::cast(operand).GetRegister();
+}
+
+inline DoubleRegister ToDoubleRegister(
+    const compiler::InstructionOperand& operand) {
+  return compiler::AllocatedOperand::cast(operand).GetDoubleRegister();
+}
+
+template <typename RegisterT>
+inline auto ToRegisterT(const compiler::InstructionOperand& operand) {
+  if constexpr (std::is_same_v<RegisterT, Register>) {
+    return ToRegister(operand);
+  } else {
+    return ToDoubleRegister(operand);
+  }
 }
 
 inline Register ToRegister(const ValueLocation& location) {
   return ToRegister(location.operand());
 }
 
-inline MemOperand ToMemOperand(const compiler::InstructionOperand& operand) {
-  return GetStackSlot(compiler::AllocatedOperand::cast(operand));
-}
-
-inline MemOperand ToMemOperand(const ValueLocation& location) {
-  return ToMemOperand(location.operand());
-}
-
-inline void MaglevCodeGenState::DefineSafepointStackSlots(
-    SafepointTableBuilder::Safepoint& safepoint) const {
-  DCHECK_EQ(compilation_unit()->stack_value_repr().size(), vreg_slots());
-  int stack_slot = 0;
-  for (ValueRepresentation repr : compilation_unit()->stack_value_repr()) {
-    if (repr == ValueRepresentation::kTagged) {
-      safepoint.DefineTaggedStackSlot(
-          GetSafepointIndexForStackSlot(stack_slot));
-    }
-    stack_slot++;
-  }
+inline DoubleRegister ToDoubleRegister(const ValueLocation& location) {
+  return ToDoubleRegister(location.operand());
 }
 
 }  // namespace maglev

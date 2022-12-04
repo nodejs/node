@@ -12,7 +12,8 @@ USE_PYTHON3 = True
 def _RunTests(input_api, output_api):
   return input_api.RunTests(
       input_api.canned_checks.GetUnitTestsInDirectory(
-          input_api, output_api, '.', files_to_check=[r'.+_test\.py$']))
+          input_api, output_api, '.', files_to_check=[r'.+_test\.py$'],
+          run_on_python2=False))
 
 
 def _CommonChecks(input_api, output_api):

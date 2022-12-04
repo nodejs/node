@@ -215,7 +215,8 @@ static const char* name_by_gid(gid_t gid) {
 
 static uid_t uid_by_name(Isolate* isolate, Local<Value> value) {
   if (value->IsUint32()) {
-    return static_cast<uid_t>(value.As<Uint32>()->Value());
+    static_assert(std::is_same<uid_t, uint32_t>::value);
+    return value.As<Uint32>()->Value();
   } else {
     Utf8Value name(isolate, value);
     return uid_by_name(*name);
@@ -224,7 +225,8 @@ static uid_t uid_by_name(Isolate* isolate, Local<Value> value) {
 
 static gid_t gid_by_name(Isolate* isolate, Local<Value> value) {
   if (value->IsUint32()) {
-    return static_cast<gid_t>(value.As<Uint32>()->Value());
+    static_assert(std::is_same<gid_t, uint32_t>::value);
+    return value.As<Uint32>()->Value();
   } else {
     Utf8Value name(isolate, value);
     return gid_by_name(*name);
@@ -454,12 +456,12 @@ static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
                        void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  Isolate* isolate = env->isolate();
-
   SetMethod(context, target, "safeGetenv", SafeGetenv);
 
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
+  Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
+
   READONLY_TRUE_PROPERTY(target, "implementsPosixCredentials");
   SetMethodNoSideEffect(context, target, "getuid", GetUid);
   SetMethodNoSideEffect(context, target, "geteuid", GetEUid);
@@ -481,6 +483,6 @@ static void Initialize(Local<Object> target,
 }  // namespace credentials
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(credentials, node::credentials::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(credentials,
-                               node::credentials::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(credentials, node::credentials::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(credentials,
+                                node::credentials::RegisterExternalReferences)

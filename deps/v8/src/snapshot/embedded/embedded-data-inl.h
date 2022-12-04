@@ -10,10 +10,30 @@
 namespace v8 {
 namespace internal {
 
+bool EmbeddedData::BuiltinContains(Builtin builtin, Address pc) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  Address start =
+      reinterpret_cast<Address>(RawCode() + desc.instruction_offset);
+  DCHECK_LT(start, reinterpret_cast<Address>(code_ + code_size_));
+  if (pc < start) return false;
+  Address end = start + desc.instruction_length;
+  return pc < end;
+}
+
 Address EmbeddedData::InstructionStartOfBuiltin(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
   const struct LayoutDescription& desc = LayoutDescription(builtin);
   const uint8_t* result = RawCode() + desc.instruction_offset;
+  DCHECK_LT(result, code_ + code_size_);
+  return reinterpret_cast<Address>(result);
+}
+
+Address EmbeddedData::InstructionEndOf(Builtin builtin) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  const uint8_t* result =
+      RawCode() + desc.instruction_offset + desc.instruction_length;
   DCHECK_LT(result, code_ + code_size_);
   return reinterpret_cast<Address>(result);
 }
@@ -49,12 +69,12 @@ Address EmbeddedData::SafepointTableStartOf(Builtin builtin) const {
 uint32_t EmbeddedData::SafepointTableSizeOf(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
   const struct LayoutDescription& desc = LayoutDescription(builtin);
-#if V8_EMBEDDED_CONSTANT_POOL
+#if V8_EMBEDDED_CONSTANT_POOL_BOOL
   DCHECK_LE(desc.handler_table_offset, desc.constant_pool_offset);
 #else
   DCHECK_LE(desc.handler_table_offset, desc.code_comments_offset_offset);
 #endif
-  return desc.handler_table_offset;
+  return desc.handler_table_offset - desc.metadata_offset;
 }
 
 Address EmbeddedData::HandlerTableStartOf(Builtin builtin) const {
@@ -68,7 +88,7 @@ Address EmbeddedData::HandlerTableStartOf(Builtin builtin) const {
 uint32_t EmbeddedData::HandlerTableSizeOf(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
   const struct LayoutDescription& desc = LayoutDescription(builtin);
-#if V8_EMBEDDED_CONSTANT_POOL
+#if V8_EMBEDDED_CONSTANT_POOL_BOOL
   DCHECK_LE(desc.handler_table_offset, desc.constant_pool_offset);
   return desc.constant_pool_offset - desc.handler_table_offset;
 #else
@@ -79,7 +99,7 @@ uint32_t EmbeddedData::HandlerTableSizeOf(Builtin builtin) const {
 
 Address EmbeddedData::ConstantPoolStartOf(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
-#if V8_EMBEDDED_CONSTANT_POOL
+#if V8_EMBEDDED_CONSTANT_POOL_BOOL
   const struct LayoutDescription& desc = LayoutDescription(builtin);
   const uint8_t* result = RawMetadata() + desc.constant_pool_offset;
   DCHECK_LE(desc.constant_pool_offset, data_size_);
@@ -91,7 +111,7 @@ Address EmbeddedData::ConstantPoolStartOf(Builtin builtin) const {
 
 uint32_t EmbeddedData::ConstantPoolSizeOf(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
-#if V8_EMBEDDED_CONSTANT_POOL
+#if V8_EMBEDDED_CONSTANT_POOL_BOOL
   const struct LayoutDescription& desc = LayoutDescription(builtin);
   DCHECK_LE(desc.constant_pool_offset, desc.code_comments_offset_offset);
   return desc.code_comments_offset_offset - desc.constant_pool_offset;
@@ -127,8 +147,15 @@ Address EmbeddedData::UnwindingInfoStartOf(Builtin builtin) const {
 uint32_t EmbeddedData::UnwindingInfoSizeOf(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
   const struct LayoutDescription& desc = LayoutDescription(builtin);
-  DCHECK_LE(desc.unwinding_info_offset_offset, desc.metadata_length);
-  return desc.metadata_length - desc.unwinding_info_offset_offset;
+  uint32_t metadata_end_offset = desc.metadata_offset + desc.metadata_length;
+  DCHECK_LE(desc.unwinding_info_offset_offset, metadata_end_offset);
+  return metadata_end_offset - desc.unwinding_info_offset_offset;
+}
+
+uint32_t EmbeddedData::StackSlotsOf(Builtin builtin) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  return desc.stack_slots;
 }
 
 Address EmbeddedData::InstructionStartOfBytecodeHandlers() const {
@@ -136,7 +163,7 @@ Address EmbeddedData::InstructionStartOfBytecodeHandlers() const {
 }
 
 Address EmbeddedData::InstructionEndOfBytecodeHandlers() const {
-  STATIC_ASSERT(static_cast<int>(Builtin::kFirstBytecodeHandler) +
+  static_assert(static_cast<int>(Builtin::kFirstBytecodeHandler) +
                     kNumberOfBytecodeHandlers +
                     2 * kNumberOfWideBytecodeHandlers ==
                 Builtins::kBuiltinCount);

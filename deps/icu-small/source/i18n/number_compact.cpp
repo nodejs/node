@@ -173,10 +173,14 @@ void CompactData::CompactDataSink::put(const char *key, ResourceValue &value, UB
     for (int i3 = 0; powersOfTenTable.getKeyAndValue(i3, key, value); ++i3) {
 
         // Assumes that the keys are always of the form "10000" where the magnitude is the
-        // length of the key minus one.  We expect magnitudes to be less than MAX_DIGITS.
+        // length of the key minus one.  We only support magnitudes less than COMPACT_MAX_DIGITS;
+        // ignore entries that have greater magnitude.
         auto magnitude = static_cast<int8_t> (strlen(key) - 1);
+        U_ASSERT(magnitude < COMPACT_MAX_DIGITS); // debug assert
+        if (magnitude >= COMPACT_MAX_DIGITS) { // skip in production
+            continue;
+        }
         int8_t multiplier = data.multipliers[magnitude];
-        U_ASSERT(magnitude < COMPACT_MAX_DIGITS);
 
         // Iterate over the plural variants ("one", "other", etc)
         ResourceTable pluralVariantsTable = value.getTable(status);

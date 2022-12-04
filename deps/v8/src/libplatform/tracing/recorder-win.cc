@@ -4,22 +4,15 @@
 #ifndef V8_LIBPLATFORM_TRACING_RECORDER_WIN_H_
 #define V8_LIBPLATFORM_TRACING_RECORDER_WIN_H_
 
-#include <Windows.h>
-#include <TraceLoggingProvider.h>
-
+#include "src/libplatform/etw/etw-provider-win.h"
 #include "src/libplatform/tracing/recorder.h"
-
-#if defined(__clang__)
-#pragma clang diagnostic ignored "-Wc++98-compat-extra-semi"
-#endif
 
 namespace v8 {
 namespace platform {
 namespace tracing {
 
-TRACELOGGING_DECLARE_PROVIDER(g_v8LibProvider);
-
-TRACELOGGING_DEFINE_PROVIDER(g_v8LibProvider, "V8.js", (V8_ETW_GUID));
+V8_DECLARE_TRACELOGGING_PROVIDER(g_v8LibProvider);
+V8_DEFINE_TRACELOGGING_PROVIDER(g_v8LibProvider);
 
 Recorder::Recorder() { TraceLoggingRegister(g_v8LibProvider); }
 
@@ -40,14 +33,18 @@ bool Recorder::IsEnabled(const uint8_t level) {
 void Recorder::AddEvent(TraceObject* trace_event) {
   // TODO(sartang@microsoft.com): Figure out how to write the conditional
   // arguments
-  wchar_t* wName = new wchar_t[4096];
+  wchar_t wName[4096];
   MultiByteToWideChar(CP_ACP, 0, trace_event->name(), -1, wName, 4096);
 
-  wchar_t* wCategoryGroupName = new wchar_t[4096];
+#if defined(V8_USE_PERFETTO)
+  const wchar_t* wCategoryGroupName = L"";
+#else  // defined(V8_USE_PERFETTO)
+  wchar_t wCategoryGroupName[4096];
   MultiByteToWideChar(CP_ACP, 0,
                       TracingController::GetCategoryGroupName(
                           trace_event->category_enabled_flag()),
                       -1, wCategoryGroupName, 4096);
+#endif  // !defined(V8_USE_PERFETTO)
 
   TraceLoggingWrite(g_v8LibProvider, "", TraceLoggingValue(wName, "Event Name"),
                     TraceLoggingValue(trace_event->pid(), "pid"),

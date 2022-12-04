@@ -28,12 +28,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <cmath>
 #include <limits>
+#include <optional>
 
-#include "src/init/v8.h"
-
-#include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
@@ -42,7 +41,6 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/arm64/disasm-arm64.h"
 #include "src/execution/arm64/simulator-arm64.h"
-#include "src/execution/simulator.h"
 #include "src/heap/factory.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"
@@ -118,23 +116,25 @@ static void InitializeVM() {
 #ifdef USE_SIMULATOR
 
 // Run tests with the simulator.
-#define SETUP_SIZE(buf_size)                                               \
-  Isolate* isolate = CcTest::i_isolate();                                  \
-  HandleScope scope(isolate);                                              \
-  CHECK_NOT_NULL(isolate);                                                 \
-  std::unique_ptr<byte[]> owned_buf{new byte[buf_size]};                   \
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,     \
-                      ExternalAssemblerBuffer(owned_buf.get(), buf_size)); \
-  Decoder<DispatchingDecoderVisitor>* decoder =                            \
-      new Decoder<DispatchingDecoderVisitor>();                            \
-  Simulator simulator(decoder);                                            \
-  std::unique_ptr<PrintDisassembler> pdis;                                 \
-  RegisterDump core;                                                       \
-  HandleScope handle_scope(isolate);                                       \
-  Handle<Code> code;                                                       \
-  if (i::FLAG_trace_sim) {                                                 \
-    pdis.reset(new PrintDisassembler(stdout));                             \
-    decoder->PrependVisitor(pdis.get());                                   \
+#define SETUP_SIZE(buf_size)                                                  \
+  Isolate* isolate = CcTest::i_isolate();                                     \
+  HandleScope scope(isolate);                                                 \
+  CHECK_NOT_NULL(isolate);                                                    \
+  auto owned_buf =                                                            \
+      AllocateAssemblerBuffer(buf_size, nullptr, JitPermission::kNoJit);      \
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,        \
+                      ExternalAssemblerBuffer(owned_buf->start(), buf_size)); \
+  std::optional<AssemblerBufferWriteScope> rw_buffer_scope;                   \
+  Decoder<DispatchingDecoderVisitor>* decoder =                               \
+      new Decoder<DispatchingDecoderVisitor>();                               \
+  Simulator simulator(decoder);                                               \
+  std::unique_ptr<PrintDisassembler> pdis;                                    \
+  RegisterDump core;                                                          \
+  HandleScope handle_scope(isolate);                                          \
+  Handle<Code> code;                                                          \
+  if (i::v8_flags.trace_sim) {                                                \
+    pdis.reset(new PrintDisassembler(stdout));                                \
+    decoder->PrependVisitor(pdis.get());                                      \
   }
 
 // Reset the assembler and simulator, so that instructions can be generated,
@@ -167,7 +167,7 @@ static void InitializeVM() {
     CodeDesc desc;                                                             \
     __ GetCode(masm.isolate(), &desc);                                         \
     code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(); \
-    if (FLAG_print_code) code->Print();                                        \
+    if (v8_flags.print_code) code->Print();                                    \
   }
 
 #else  // ifdef USE_SIMULATOR.
@@ -177,6 +177,7 @@ static void InitializeVM() {
   HandleScope scope(isolate);                                          \
   CHECK_NOT_NULL(isolate);                                             \
   auto owned_buf = AllocateAssemblerBuffer(buf_size);                  \
+  std::optional<AssemblerBufferWriteScope> rw_buffer_scope;            \
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes, \
                       owned_buf->CreateView());                        \
   HandleScope handle_scope(isolate);                                   \
@@ -184,7 +185,7 @@ static void InitializeVM() {
   RegisterDump core;
 
 #define RESET()                                                \
-  owned_buf->MakeWritable();                                   \
+  rw_buffer_scope.emplace(*owned_buf);                         \
   __ Reset();                                                  \
   __ CodeEntry();                                              \
   /* Reset the machine state (like simulator.ResetState()). */ \
@@ -198,10 +199,12 @@ static void InitializeVM() {
   RESET();      \
   START_AFTER_RESET();
 
-#define RUN()                                      \
-  {                                                \
-    auto f = GeneratedCode<void>::FromCode(*code); \
-    f.Call();                                      \
+#define RUN()                                                  \
+  {                                                            \
+    /* Reset the scope and thus make the buffer executable. */ \
+    rw_buffer_scope.reset();                                   \
+    auto f = GeneratedCode<void>::FromCode(*code);             \
+    f.Call();                                                  \
   }
 
 #define END()                                                                  \
@@ -212,7 +215,7 @@ static void InitializeVM() {
     CodeDesc desc;                                                             \
     __ GetCode(masm.isolate(), &desc);                                         \
     code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(); \
-    if (FLAG_print_code) code->Print();                                        \
+    if (v8_flags.print_code) code->Print();                                    \
   }
 
 #endif  // ifdef USE_SIMULATOR.
@@ -8723,19 +8726,19 @@ TEST(fmov_reg) {
   __ Fmov(x1, d1);
   __ Fmov(d2, x1);
   __ Fmov(d4, d1);
-  __ Fmov(d6, bit_cast<double>(0x0123456789ABCDEFL));
+  __ Fmov(d6, base::bit_cast<double>(0x0123456789ABCDEFL));
   __ Fmov(s6, s6);
   END();
 
   RUN();
 
-  CHECK_EQUAL_32(bit_cast<uint32_t>(1.0f), w10);
+  CHECK_EQUAL_32(base::bit_cast<uint32_t>(1.0f), w10);
   CHECK_EQUAL_FP32(1.0, s30);
   CHECK_EQUAL_FP32(1.0, s5);
-  CHECK_EQUAL_64(bit_cast<uint64_t>(-13.0), x1);
+  CHECK_EQUAL_64(base::bit_cast<uint64_t>(-13.0), x1);
   CHECK_EQUAL_FP64(-13.0, d2);
   CHECK_EQUAL_FP64(-13.0, d4);
-  CHECK_EQUAL_FP32(bit_cast<float>(0x89ABCDEF), s6);
+  CHECK_EQUAL_FP32(base::bit_cast<float>(0x89ABCDEF), s6);
 }
 
 TEST(fadd) {
@@ -9032,12 +9035,12 @@ TEST(fmadd_fmsub_float) {
 TEST(fmadd_fmsub_double_nans) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  double s1 = bit_cast<double>(0x7FF5555511111111);
-  double s2 = bit_cast<double>(0x7FF5555522222222);
-  double sa = bit_cast<double>(0x7FF55555AAAAAAAA);
-  double q1 = bit_cast<double>(0x7FFAAAAA11111111);
-  double q2 = bit_cast<double>(0x7FFAAAAA22222222);
-  double qa = bit_cast<double>(0x7FFAAAAAAAAAAAAA);
+  double s1 = base::bit_cast<double>(0x7FF5555511111111);
+  double s2 = base::bit_cast<double>(0x7FF5555522222222);
+  double sa = base::bit_cast<double>(0x7FF55555AAAAAAAA);
+  double q1 = base::bit_cast<double>(0x7FFAAAAA11111111);
+  double q2 = base::bit_cast<double>(0x7FFAAAAA22222222);
+  double qa = base::bit_cast<double>(0x7FFAAAAAAAAAAAAA);
   CHECK(IsSignallingNaN(s1));
   CHECK(IsSignallingNaN(s2));
   CHECK(IsSignallingNaN(sa));
@@ -9046,9 +9049,9 @@ TEST(fmadd_fmsub_double_nans) {
   CHECK(IsQuietNaN(qa));
 
   // The input NaNs after passing through ProcessNaN.
-  double s1_proc = bit_cast<double>(0x7FFD555511111111);
-  double s2_proc = bit_cast<double>(0x7FFD555522222222);
-  double sa_proc = bit_cast<double>(0x7FFD5555AAAAAAAA);
+  double s1_proc = base::bit_cast<double>(0x7FFD555511111111);
+  double s2_proc = base::bit_cast<double>(0x7FFD555522222222);
+  double sa_proc = base::bit_cast<double>(0x7FFD5555AAAAAAAA);
   double q1_proc = q1;
   double q2_proc = q2;
   double qa_proc = qa;
@@ -9060,10 +9063,10 @@ TEST(fmadd_fmsub_double_nans) {
   CHECK(IsQuietNaN(qa_proc));
 
   // Negated NaNs as it would be done on ARMv8 hardware.
-  double s1_proc_neg = bit_cast<double>(0xFFFD555511111111);
-  double sa_proc_neg = bit_cast<double>(0xFFFD5555AAAAAAAA);
-  double q1_proc_neg = bit_cast<double>(0xFFFAAAAA11111111);
-  double qa_proc_neg = bit_cast<double>(0xFFFAAAAAAAAAAAAA);
+  double s1_proc_neg = base::bit_cast<double>(0xFFFD555511111111);
+  double sa_proc_neg = base::bit_cast<double>(0xFFFD5555AAAAAAAA);
+  double q1_proc_neg = base::bit_cast<double>(0xFFFAAAAA11111111);
+  double qa_proc_neg = base::bit_cast<double>(0xFFFAAAAAAAAAAAAA);
   CHECK(IsQuietNaN(s1_proc_neg));
   CHECK(IsQuietNaN(sa_proc_neg));
   CHECK(IsQuietNaN(q1_proc_neg));
@@ -9114,12 +9117,12 @@ TEST(fmadd_fmsub_double_nans) {
 TEST(fmadd_fmsub_float_nans) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  float s1 = bit_cast<float>(0x7F951111);
-  float s2 = bit_cast<float>(0x7F952222);
-  float sa = bit_cast<float>(0x7F95AAAA);
-  float q1 = bit_cast<float>(0x7FEA1111);
-  float q2 = bit_cast<float>(0x7FEA2222);
-  float qa = bit_cast<float>(0x7FEAAAAA);
+  float s1 = base::bit_cast<float>(0x7F951111);
+  float s2 = base::bit_cast<float>(0x7F952222);
+  float sa = base::bit_cast<float>(0x7F95AAAA);
+  float q1 = base::bit_cast<float>(0x7FEA1111);
+  float q2 = base::bit_cast<float>(0x7FEA2222);
+  float qa = base::bit_cast<float>(0x7FEAAAAA);
   CHECK(IsSignallingNaN(s1));
   CHECK(IsSignallingNaN(s2));
   CHECK(IsSignallingNaN(sa));
@@ -9128,9 +9131,9 @@ TEST(fmadd_fmsub_float_nans) {
   CHECK(IsQuietNaN(qa));
 
   // The input NaNs after passing through ProcessNaN.
-  float s1_proc = bit_cast<float>(0x7FD51111);
-  float s2_proc = bit_cast<float>(0x7FD52222);
-  float sa_proc = bit_cast<float>(0x7FD5AAAA);
+  float s1_proc = base::bit_cast<float>(0x7FD51111);
+  float s2_proc = base::bit_cast<float>(0x7FD52222);
+  float sa_proc = base::bit_cast<float>(0x7FD5AAAA);
   float q1_proc = q1;
   float q2_proc = q2;
   float qa_proc = qa;
@@ -9142,10 +9145,10 @@ TEST(fmadd_fmsub_float_nans) {
   CHECK(IsQuietNaN(qa_proc));
 
   // Negated NaNs as it would be done on ARMv8 hardware.
-  float s1_proc_neg = bit_cast<float>(0xFFD51111);
-  float sa_proc_neg = bit_cast<float>(0xFFD5AAAA);
-  float q1_proc_neg = bit_cast<float>(0xFFEA1111);
-  float qa_proc_neg = bit_cast<float>(0xFFEAAAAA);
+  float s1_proc_neg = base::bit_cast<float>(0xFFD51111);
+  float sa_proc_neg = base::bit_cast<float>(0xFFD5AAAA);
+  float q1_proc_neg = base::bit_cast<float>(0xFFEA1111);
+  float qa_proc_neg = base::bit_cast<float>(0xFFEAAAAA);
   CHECK(IsQuietNaN(s1_proc_neg));
   CHECK(IsQuietNaN(sa_proc_neg));
   CHECK(IsQuietNaN(q1_proc_neg));
@@ -9253,15 +9256,15 @@ static float MinMaxHelper(float n,
                           float m,
                           bool min,
                           float quiet_nan_substitute = 0.0) {
-  uint32_t raw_n = bit_cast<uint32_t>(n);
-  uint32_t raw_m = bit_cast<uint32_t>(m);
+  uint32_t raw_n = base::bit_cast<uint32_t>(n);
+  uint32_t raw_m = base::bit_cast<uint32_t>(m);
 
   if (std::isnan(n) && ((raw_n & kSQuietNanMask) == 0)) {
     // n is signalling NaN.
-    return bit_cast<float>(raw_n | static_cast<uint32_t>(kSQuietNanMask));
+    return base::bit_cast<float>(raw_n | static_cast<uint32_t>(kSQuietNanMask));
   } else if (std::isnan(m) && ((raw_m & kSQuietNanMask) == 0)) {
     // m is signalling NaN.
-    return bit_cast<float>(raw_m | static_cast<uint32_t>(kSQuietNanMask));
+    return base::bit_cast<float>(raw_m | static_cast<uint32_t>(kSQuietNanMask));
   } else if (quiet_nan_substitute == 0.0) {
     if (std::isnan(n)) {
       // n is quiet NaN.
@@ -9294,15 +9297,15 @@ static double MinMaxHelper(double n,
                            double m,
                            bool min,
                            double quiet_nan_substitute = 0.0) {
-  uint64_t raw_n = bit_cast<uint64_t>(n);
-  uint64_t raw_m = bit_cast<uint64_t>(m);
+  uint64_t raw_n = base::bit_cast<uint64_t>(n);
+  uint64_t raw_m = base::bit_cast<uint64_t>(m);
 
   if (std::isnan(n) && ((raw_n & kDQuietNanMask) == 0)) {
     // n is signalling NaN.
-    return bit_cast<double>(raw_n | kDQuietNanMask);
+    return base::bit_cast<double>(raw_n | kDQuietNanMask);
   } else if (std::isnan(m) && ((raw_m & kDQuietNanMask) == 0)) {
     // m is signalling NaN.
-    return bit_cast<double>(raw_m | kDQuietNanMask);
+    return base::bit_cast<double>(raw_m | kDQuietNanMask);
   } else if (quiet_nan_substitute == 0.0) {
     if (std::isnan(n)) {
       // n is quiet NaN.
@@ -9355,10 +9358,10 @@ static void FminFmaxDoubleHelper(double n, double m, double min, double max,
 TEST(fmax_fmin_d) {
   INIT_V8();
   // Use non-standard NaNs to check that the payload bits are preserved.
-  double snan = bit_cast<double>(0x7FF5555512345678);
-  double qnan = bit_cast<double>(0x7FFAAAAA87654321);
+  double snan = base::bit_cast<double>(0x7FF5555512345678);
+  double qnan = base::bit_cast<double>(0x7FFAAAAA87654321);
 
-  double snan_processed = bit_cast<double>(0x7FFD555512345678);
+  double snan_processed = base::bit_cast<double>(0x7FFD555512345678);
   double qnan_processed = qnan;
 
   CHECK(IsSignallingNaN(snan));
@@ -9436,10 +9439,10 @@ static void FminFmaxFloatHelper(float n, float m, float min, float max,
 TEST(fmax_fmin_s) {
   INIT_V8();
   // Use non-standard NaNs to check that the payload bits are preserved.
-  float snan = bit_cast<float>(0x7F951234);
-  float qnan = bit_cast<float>(0x7FEA8765);
+  float snan = base::bit_cast<float>(0x7F951234);
+  float qnan = base::bit_cast<float>(0x7FEA8765);
 
-  float snan_processed = bit_cast<float>(0x7FD51234);
+  float snan_processed = base::bit_cast<float>(0x7FD51234);
   float qnan_processed = qnan;
 
   CHECK(IsSignallingNaN(snan));
@@ -10240,8 +10243,8 @@ TEST(fcvt_ds) {
   __ Fmov(s26, -0.0);
   __ Fmov(s27, FLT_MAX);
   __ Fmov(s28, FLT_MIN);
-  __ Fmov(s29, bit_cast<float>(0x7FC12345));  // Quiet NaN.
-  __ Fmov(s30, bit_cast<float>(0x7F812345));  // Signalling NaN.
+  __ Fmov(s29, base::bit_cast<float>(0x7FC12345));  // Quiet NaN.
+  __ Fmov(s30, base::bit_cast<float>(0x7F812345));  // Signalling NaN.
 
   __ Fcvt(d0, s16);
   __ Fcvt(d1, s17);
@@ -10282,8 +10285,8 @@ TEST(fcvt_ds) {
   //  - The top bit of the mantissa is forced to 1 (making it a quiet NaN).
   //  - The remaining mantissa bits are copied until they run out.
   //  - The low-order bits that haven't already been assigned are set to 0.
-  CHECK_EQUAL_FP64(bit_cast<double>(0x7FF82468A0000000), d13);
-  CHECK_EQUAL_FP64(bit_cast<double>(0x7FF82468A0000000), d14);
+  CHECK_EQUAL_FP64(base::bit_cast<double>(0x7FF82468A0000000), d13);
+  CHECK_EQUAL_FP64(base::bit_cast<double>(0x7FF82468A0000000), d14);
 }
 
 TEST(fcvt_sd) {
@@ -10311,23 +10314,38 @@ TEST(fcvt_sd) {
       //    For normalized numbers:
       //         bit 29 (0x0000000020000000) is the lowest-order bit which will
       //                                     fit in the float's mantissa.
-      {bit_cast<double>(0x3FF0000000000000), bit_cast<float>(0x3F800000)},
-      {bit_cast<double>(0x3FF0000000000001), bit_cast<float>(0x3F800000)},
-      {bit_cast<double>(0x3FF0000010000000), bit_cast<float>(0x3F800000)},
-      {bit_cast<double>(0x3FF0000010000001), bit_cast<float>(0x3F800001)},
-      {bit_cast<double>(0x3FF0000020000000), bit_cast<float>(0x3F800001)},
-      {bit_cast<double>(0x3FF0000020000001), bit_cast<float>(0x3F800001)},
-      {bit_cast<double>(0x3FF0000030000000), bit_cast<float>(0x3F800002)},
-      {bit_cast<double>(0x3FF0000030000001), bit_cast<float>(0x3F800002)},
-      {bit_cast<double>(0x3FF0000040000000), bit_cast<float>(0x3F800002)},
-      {bit_cast<double>(0x3FF0000040000001), bit_cast<float>(0x3F800002)},
-      {bit_cast<double>(0x3FF0000050000000), bit_cast<float>(0x3F800002)},
-      {bit_cast<double>(0x3FF0000050000001), bit_cast<float>(0x3F800003)},
-      {bit_cast<double>(0x3FF0000060000000), bit_cast<float>(0x3F800003)},
+      {base::bit_cast<double>(0x3FF0000000000000),
+       base::bit_cast<float>(0x3F800000)},
+      {base::bit_cast<double>(0x3FF0000000000001),
+       base::bit_cast<float>(0x3F800000)},
+      {base::bit_cast<double>(0x3FF0000010000000),
+       base::bit_cast<float>(0x3F800000)},
+      {base::bit_cast<double>(0x3FF0000010000001),
+       base::bit_cast<float>(0x3F800001)},
+      {base::bit_cast<double>(0x3FF0000020000000),
+       base::bit_cast<float>(0x3F800001)},
+      {base::bit_cast<double>(0x3FF0000020000001),
+       base::bit_cast<float>(0x3F800001)},
+      {base::bit_cast<double>(0x3FF0000030000000),
+       base::bit_cast<float>(0x3F800002)},
+      {base::bit_cast<double>(0x3FF0000030000001),
+       base::bit_cast<float>(0x3F800002)},
+      {base::bit_cast<double>(0x3FF0000040000000),
+       base::bit_cast<float>(0x3F800002)},
+      {base::bit_cast<double>(0x3FF0000040000001),
+       base::bit_cast<float>(0x3F800002)},
+      {base::bit_cast<double>(0x3FF0000050000000),
+       base::bit_cast<float>(0x3F800002)},
+      {base::bit_cast<double>(0x3FF0000050000001),
+       base::bit_cast<float>(0x3F800003)},
+      {base::bit_cast<double>(0x3FF0000060000000),
+       base::bit_cast<float>(0x3F800003)},
       //  - A mantissa that overflows into the exponent during rounding.
-      {bit_cast<double>(0x3FEFFFFFF0000000), bit_cast<float>(0x3F800000)},
+      {base::bit_cast<double>(0x3FEFFFFFF0000000),
+       base::bit_cast<float>(0x3F800000)},
       //  - The largest double that rounds to a normal float.
-      {bit_cast<double>(0x47EFFFFFEFFFFFFF), bit_cast<float>(0x7F7FFFFF)},
+      {base::bit_cast<double>(0x47EFFFFFEFFFFFFF),
+       base::bit_cast<float>(0x7F7FFFFF)},
 
       // Doubles that are too big for a float.
       {kFP64PositiveInfinity, kFP32PositiveInfinity},
@@ -10335,46 +10353,68 @@ TEST(fcvt_sd) {
       //  - The smallest exponent that's too big for a float.
       {pow(2.0, 128), kFP32PositiveInfinity},
       //  - This exponent is in range, but the value rounds to infinity.
-      {bit_cast<double>(0x47EFFFFFF0000000), kFP32PositiveInfinity},
+      {base::bit_cast<double>(0x47EFFFFFF0000000), kFP32PositiveInfinity},
 
       // Doubles that are too small for a float.
       //  - The smallest (subnormal) double.
       {DBL_MIN, 0.0},
       //  - The largest double which is too small for a subnormal float.
-      {bit_cast<double>(0x3690000000000000), bit_cast<float>(0x00000000)},
+      {base::bit_cast<double>(0x3690000000000000),
+       base::bit_cast<float>(0x00000000)},
 
       // Normal doubles that become subnormal floats.
       //  - The largest subnormal float.
-      {bit_cast<double>(0x380FFFFFC0000000), bit_cast<float>(0x007FFFFF)},
+      {base::bit_cast<double>(0x380FFFFFC0000000),
+       base::bit_cast<float>(0x007FFFFF)},
       //  - The smallest subnormal float.
-      {bit_cast<double>(0x36A0000000000000), bit_cast<float>(0x00000001)},
+      {base::bit_cast<double>(0x36A0000000000000),
+       base::bit_cast<float>(0x00000001)},
       //  - Subnormal floats that need (ties-to-even) rounding.
       //    For these subnormals:
       //         bit 34 (0x0000000400000000) is the lowest-order bit which will
       //                                     fit in the float's mantissa.
-      {bit_cast<double>(0x37C159E000000000), bit_cast<float>(0x00045678)},
-      {bit_cast<double>(0x37C159E000000001), bit_cast<float>(0x00045678)},
-      {bit_cast<double>(0x37C159E200000000), bit_cast<float>(0x00045678)},
-      {bit_cast<double>(0x37C159E200000001), bit_cast<float>(0x00045679)},
-      {bit_cast<double>(0x37C159E400000000), bit_cast<float>(0x00045679)},
-      {bit_cast<double>(0x37C159E400000001), bit_cast<float>(0x00045679)},
-      {bit_cast<double>(0x37C159E600000000), bit_cast<float>(0x0004567A)},
-      {bit_cast<double>(0x37C159E600000001), bit_cast<float>(0x0004567A)},
-      {bit_cast<double>(0x37C159E800000000), bit_cast<float>(0x0004567A)},
-      {bit_cast<double>(0x37C159E800000001), bit_cast<float>(0x0004567A)},
-      {bit_cast<double>(0x37C159EA00000000), bit_cast<float>(0x0004567A)},
-      {bit_cast<double>(0x37C159EA00000001), bit_cast<float>(0x0004567B)},
-      {bit_cast<double>(0x37C159EC00000000), bit_cast<float>(0x0004567B)},
+      {base::bit_cast<double>(0x37C159E000000000),
+       base::bit_cast<float>(0x00045678)},
+      {base::bit_cast<double>(0x37C159E000000001),
+       base::bit_cast<float>(0x00045678)},
+      {base::bit_cast<double>(0x37C159E200000000),
+       base::bit_cast<float>(0x00045678)},
+      {base::bit_cast<double>(0x37C159E200000001),
+       base::bit_cast<float>(0x00045679)},
+      {base::bit_cast<double>(0x37C159E400000000),
+       base::bit_cast<float>(0x00045679)},
+      {base::bit_cast<double>(0x37C159E400000001),
+       base::bit_cast<float>(0x00045679)},
+      {base::bit_cast<double>(0x37C159E600000000),
+       base::bit_cast<float>(0x0004567A)},
+      {base::bit_cast<double>(0x37C159E600000001),
+       base::bit_cast<float>(0x0004567A)},
+      {base::bit_cast<double>(0x37C159E800000000),
+       base::bit_cast<float>(0x0004567A)},
+      {base::bit_cast<double>(0x37C159E800000001),
+       base::bit_cast<float>(0x0004567A)},
+      {base::bit_cast<double>(0x37C159EA00000000),
+       base::bit_cast<float>(0x0004567A)},
+      {base::bit_cast<double>(0x37C159EA00000001),
+       base::bit_cast<float>(0x0004567B)},
+      {base::bit_cast<double>(0x37C159EC00000000),
+       base::bit_cast<float>(0x0004567B)},
       //  - The smallest double which rounds up to become a subnormal float.
-      {bit_cast<double>(0x3690000000000001), bit_cast<float>(0x00000001)},
+      {base::bit_cast<double>(0x3690000000000001),
+       base::bit_cast<float>(0x00000001)},
 
       // Check NaN payload preservation.
-      {bit_cast<double>(0x7FF82468A0000000), bit_cast<float>(0x7FC12345)},
-      {bit_cast<double>(0x7FF82468BFFFFFFF), bit_cast<float>(0x7FC12345)},
+      {base::bit_cast<double>(0x7FF82468A0000000),
+       base::bit_cast<float>(0x7FC12345)},
+      {base::bit_cast<double>(0x7FF82468BFFFFFFF),
+       base::bit_cast<float>(0x7FC12345)},
       //  - Signalling NaNs become quiet NaNs.
-      {bit_cast<double>(0x7FF02468A0000000), bit_cast<float>(0x7FC12345)},
-      {bit_cast<double>(0x7FF02468BFFFFFFF), bit_cast<float>(0x7FC12345)},
-      {bit_cast<double>(0x7FF000001FFFFFFF), bit_cast<float>(0x7FC00000)},
+      {base::bit_cast<double>(0x7FF02468A0000000),
+       base::bit_cast<float>(0x7FC12345)},
+      {base::bit_cast<double>(0x7FF02468BFFFFFFF),
+       base::bit_cast<float>(0x7FC12345)},
+      {base::bit_cast<double>(0x7FF000001FFFFFFF),
+       base::bit_cast<float>(0x7FC00000)},
   };
   int count = sizeof(test) / sizeof(test[0]);
 
@@ -11170,7 +11210,7 @@ static void FjcvtzsHelper(uint64_t value, uint64_t expected,
                           uint32_t expected_z) {
   SETUP();
   START();
-  __ Fmov(d0, bit_cast<double>(value));
+  __ Fmov(d0, base::bit_cast<double>(value));
   __ Fjcvtzs(w0, d0);
   __ Mrs(x1, NZCV);
   END();
@@ -11457,8 +11497,8 @@ static void TestUScvtfHelper(uint64_t in,
   RUN();
 
   // Check the results.
-  double expected_scvtf_base = bit_cast<double>(expected_scvtf_bits);
-  double expected_ucvtf_base = bit_cast<double>(expected_ucvtf_bits);
+  double expected_scvtf_base = base::bit_cast<double>(expected_scvtf_bits);
+  double expected_ucvtf_base = base::bit_cast<double>(expected_ucvtf_bits);
 
   for (int fbits = 0; fbits <= 32; fbits++) {
     double expected_scvtf = expected_scvtf_base / pow(2.0, fbits);
@@ -11608,8 +11648,8 @@ static void TestUScvtf32Helper(uint64_t in,
   RUN();
 
   // Check the results.
-  float expected_scvtf_base = bit_cast<float>(expected_scvtf_bits);
-  float expected_ucvtf_base = bit_cast<float>(expected_ucvtf_bits);
+  float expected_scvtf_base = base::bit_cast<float>(expected_scvtf_bits);
+  float expected_ucvtf_base = base::bit_cast<float>(expected_ucvtf_bits);
 
   for (int fbits = 0; fbits <= 32; fbits++) {
     float expected_scvtf = expected_scvtf_base / powf(2, fbits);
@@ -11802,7 +11842,7 @@ TEST(system_msr) {
 }
 
 TEST(system_pauth_b) {
-  i::FLAG_sim_abort_on_bad_auth = false;
+  i::v8_flags.sim_abort_on_bad_auth = false;
   SETUP();
   START();
 
@@ -12140,35 +12180,35 @@ TEST(peek_poke_unaligned) {
   //    x0-x6 should be unchanged.
   //    w10-w12 should contain the lower words of x0-x2.
   __ Poke(x0, 1);
-  Clobber(&masm, {x0});
+  Clobber(&masm, RegList{x0});
   __ Peek(x0, 1);
   __ Poke(x1, 2);
-  Clobber(&masm, {x1});
+  Clobber(&masm, RegList{x1});
   __ Peek(x1, 2);
   __ Poke(x2, 3);
-  Clobber(&masm, {x2});
+  Clobber(&masm, RegList{x2});
   __ Peek(x2, 3);
   __ Poke(x3, 4);
-  Clobber(&masm, {x3});
+  Clobber(&masm, RegList{x3});
   __ Peek(x3, 4);
   __ Poke(x4, 5);
-  Clobber(&masm, {x4});
+  Clobber(&masm, RegList{x4});
   __ Peek(x4, 5);
   __ Poke(x5, 6);
-  Clobber(&masm, {x5});
+  Clobber(&masm, RegList{x5});
   __ Peek(x5, 6);
   __ Poke(x6, 7);
-  Clobber(&masm, {x6});
+  Clobber(&masm, RegList{x6});
   __ Peek(x6, 7);
 
   __ Poke(w0, 1);
-  Clobber(&masm, {w10});
+  Clobber(&masm, RegList{w10});
   __ Peek(w10, 1);
   __ Poke(w1, 2);
-  Clobber(&masm, {w11});
+  Clobber(&masm, RegList{w11});
   __ Peek(w11, 2);
   __ Poke(w2, 3);
-  Clobber(&masm, {w12});
+  Clobber(&masm, RegList{w12});
   __ Peek(w12, 3);
 
   __ Drop(4);
@@ -14193,13 +14233,13 @@ TEST(barriers) {
 TEST(process_nan_double) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  double sn = bit_cast<double>(0x7FF5555511111111);
-  double qn = bit_cast<double>(0x7FFAAAAA11111111);
+  double sn = base::bit_cast<double>(0x7FF5555511111111);
+  double qn = base::bit_cast<double>(0x7FFAAAAA11111111);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsQuietNaN(qn));
 
   // The input NaNs after passing through ProcessNaN.
-  double sn_proc = bit_cast<double>(0x7FFD555511111111);
+  double sn_proc = base::bit_cast<double>(0x7FFD555511111111);
   double qn_proc = qn;
   CHECK(IsQuietNaN(sn_proc));
   CHECK(IsQuietNaN(qn_proc));
@@ -14239,17 +14279,17 @@ TEST(process_nan_double) {
   END();
   RUN();
 
-  uint64_t qn_raw = bit_cast<uint64_t>(qn);
-  uint64_t sn_raw = bit_cast<uint64_t>(sn);
+  uint64_t qn_raw = base::bit_cast<uint64_t>(qn);
+  uint64_t sn_raw = base::bit_cast<uint64_t>(sn);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP64(sn, d1);
-  CHECK_EQUAL_FP64(bit_cast<double>(sn_raw & ~kDSignMask), d2);
-  CHECK_EQUAL_FP64(bit_cast<double>(sn_raw ^ kDSignMask), d3);
+  CHECK_EQUAL_FP64(base::bit_cast<double>(sn_raw & ~kDSignMask), d2);
+  CHECK_EQUAL_FP64(base::bit_cast<double>(sn_raw ^ kDSignMask), d3);
   //   - Quiet NaN
   CHECK_EQUAL_FP64(qn, d11);
-  CHECK_EQUAL_FP64(bit_cast<double>(qn_raw & ~kDSignMask), d12);
-  CHECK_EQUAL_FP64(bit_cast<double>(qn_raw ^ kDSignMask), d13);
+  CHECK_EQUAL_FP64(base::bit_cast<double>(qn_raw & ~kDSignMask), d12);
+  CHECK_EQUAL_FP64(base::bit_cast<double>(qn_raw ^ kDSignMask), d13);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP64(sn_proc, d4);
@@ -14266,13 +14306,13 @@ TEST(process_nan_double) {
 TEST(process_nan_float) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  float sn = bit_cast<float>(0x7F951111);
-  float qn = bit_cast<float>(0x7FEA1111);
+  float sn = base::bit_cast<float>(0x7F951111);
+  float qn = base::bit_cast<float>(0x7FEA1111);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsQuietNaN(qn));
 
   // The input NaNs after passing through ProcessNaN.
-  float sn_proc = bit_cast<float>(0x7FD51111);
+  float sn_proc = base::bit_cast<float>(0x7FD51111);
   float qn_proc = qn;
   CHECK(IsQuietNaN(sn_proc));
   CHECK(IsQuietNaN(qn_proc));
@@ -14312,18 +14352,18 @@ TEST(process_nan_float) {
   END();
   RUN();
 
-  uint32_t qn_raw = bit_cast<uint32_t>(qn);
-  uint32_t sn_raw = bit_cast<uint32_t>(sn);
+  uint32_t qn_raw = base::bit_cast<uint32_t>(qn);
+  uint32_t sn_raw = base::bit_cast<uint32_t>(sn);
   uint32_t sign_mask = static_cast<uint32_t>(kSSignMask);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP32(sn, s1);
-  CHECK_EQUAL_FP32(bit_cast<float>(sn_raw & ~sign_mask), s2);
-  CHECK_EQUAL_FP32(bit_cast<float>(sn_raw ^ sign_mask), s3);
+  CHECK_EQUAL_FP32(base::bit_cast<float>(sn_raw & ~sign_mask), s2);
+  CHECK_EQUAL_FP32(base::bit_cast<float>(sn_raw ^ sign_mask), s3);
   //   - Quiet NaN
   CHECK_EQUAL_FP32(qn, s11);
-  CHECK_EQUAL_FP32(bit_cast<float>(qn_raw & ~sign_mask), s12);
-  CHECK_EQUAL_FP32(bit_cast<float>(qn_raw ^ sign_mask), s13);
+  CHECK_EQUAL_FP32(base::bit_cast<float>(qn_raw & ~sign_mask), s12);
+  CHECK_EQUAL_FP32(base::bit_cast<float>(qn_raw ^ sign_mask), s13);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP32(sn_proc, s4);
@@ -14371,18 +14411,18 @@ static void ProcessNaNsHelper(double n, double m, double expected) {
 TEST(process_nans_double) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  double sn = bit_cast<double>(0x7FF5555511111111);
-  double sm = bit_cast<double>(0x7FF5555522222222);
-  double qn = bit_cast<double>(0x7FFAAAAA11111111);
-  double qm = bit_cast<double>(0x7FFAAAAA22222222);
+  double sn = base::bit_cast<double>(0x7FF5555511111111);
+  double sm = base::bit_cast<double>(0x7FF5555522222222);
+  double qn = base::bit_cast<double>(0x7FFAAAAA11111111);
+  double qm = base::bit_cast<double>(0x7FFAAAAA22222222);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsQuietNaN(qn));
   CHECK(IsQuietNaN(qm));
 
   // The input NaNs after passing through ProcessNaN.
-  double sn_proc = bit_cast<double>(0x7FFD555511111111);
-  double sm_proc = bit_cast<double>(0x7FFD555522222222);
+  double sn_proc = base::bit_cast<double>(0x7FFD555511111111);
+  double sm_proc = base::bit_cast<double>(0x7FFD555522222222);
   double qn_proc = qn;
   double qm_proc = qm;
   CHECK(IsQuietNaN(sn_proc));
@@ -14439,18 +14479,18 @@ static void ProcessNaNsHelper(float n, float m, float expected) {
 TEST(process_nans_float) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  float sn = bit_cast<float>(0x7F951111);
-  float sm = bit_cast<float>(0x7F952222);
-  float qn = bit_cast<float>(0x7FEA1111);
-  float qm = bit_cast<float>(0x7FEA2222);
+  float sn = base::bit_cast<float>(0x7F951111);
+  float sm = base::bit_cast<float>(0x7F952222);
+  float qn = base::bit_cast<float>(0x7FEA1111);
+  float qm = base::bit_cast<float>(0x7FEA2222);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsQuietNaN(qn));
   CHECK(IsQuietNaN(qm));
 
   // The input NaNs after passing through ProcessNaN.
-  float sn_proc = bit_cast<float>(0x7FD51111);
-  float sm_proc = bit_cast<float>(0x7FD52222);
+  float sn_proc = base::bit_cast<float>(0x7FD51111);
+  float sm_proc = base::bit_cast<float>(0x7FD52222);
   float qn_proc = qn;
   float qm_proc = qm;
   CHECK(IsQuietNaN(sn_proc));
@@ -14531,11 +14571,11 @@ static void DefaultNaNHelper(float n, float m, float a) {
   RUN();
 
   if (test_1op) {
-    uint32_t n_raw = bit_cast<uint32_t>(n);
+    uint32_t n_raw = base::bit_cast<uint32_t>(n);
     uint32_t sign_mask = static_cast<uint32_t>(kSSignMask);
     CHECK_EQUAL_FP32(n, s10);
-    CHECK_EQUAL_FP32(bit_cast<float>(n_raw & ~sign_mask), s11);
-    CHECK_EQUAL_FP32(bit_cast<float>(n_raw ^ sign_mask), s12);
+    CHECK_EQUAL_FP32(base::bit_cast<float>(n_raw & ~sign_mask), s11);
+    CHECK_EQUAL_FP32(base::bit_cast<float>(n_raw ^ sign_mask), s12);
     CHECK_EQUAL_FP32(kFP32DefaultNaN, s13);
     CHECK_EQUAL_FP32(kFP32DefaultNaN, s14);
     CHECK_EQUAL_FP32(kFP32DefaultNaN, s15);
@@ -14560,12 +14600,12 @@ static void DefaultNaNHelper(float n, float m, float a) {
 
 TEST(default_nan_float) {
   INIT_V8();
-  float sn = bit_cast<float>(0x7F951111);
-  float sm = bit_cast<float>(0x7F952222);
-  float sa = bit_cast<float>(0x7F95AAAA);
-  float qn = bit_cast<float>(0x7FEA1111);
-  float qm = bit_cast<float>(0x7FEA2222);
-  float qa = bit_cast<float>(0x7FEAAAAA);
+  float sn = base::bit_cast<float>(0x7F951111);
+  float sm = base::bit_cast<float>(0x7F952222);
+  float sa = base::bit_cast<float>(0x7F95AAAA);
+  float qn = base::bit_cast<float>(0x7FEA1111);
+  float qm = base::bit_cast<float>(0x7FEA2222);
+  float qa = base::bit_cast<float>(0x7FEAAAAA);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsSignallingNaN(sa));
@@ -14656,10 +14696,10 @@ static void DefaultNaNHelper(double n, double m, double a) {
   RUN();
 
   if (test_1op) {
-    uint64_t n_raw = bit_cast<uint64_t>(n);
+    uint64_t n_raw = base::bit_cast<uint64_t>(n);
     CHECK_EQUAL_FP64(n, d10);
-    CHECK_EQUAL_FP64(bit_cast<double>(n_raw & ~kDSignMask), d11);
-    CHECK_EQUAL_FP64(bit_cast<double>(n_raw ^ kDSignMask), d12);
+    CHECK_EQUAL_FP64(base::bit_cast<double>(n_raw & ~kDSignMask), d11);
+    CHECK_EQUAL_FP64(base::bit_cast<double>(n_raw ^ kDSignMask), d12);
     CHECK_EQUAL_FP64(kFP64DefaultNaN, d13);
     CHECK_EQUAL_FP64(kFP64DefaultNaN, d14);
     CHECK_EQUAL_FP64(kFP64DefaultNaN, d15);
@@ -14684,12 +14724,12 @@ static void DefaultNaNHelper(double n, double m, double a) {
 
 TEST(default_nan_double) {
   INIT_V8();
-  double sn = bit_cast<double>(0x7FF5555511111111);
-  double sm = bit_cast<double>(0x7FF5555522222222);
-  double sa = bit_cast<double>(0x7FF55555AAAAAAAA);
-  double qn = bit_cast<double>(0x7FFAAAAA11111111);
-  double qm = bit_cast<double>(0x7FFAAAAA22222222);
-  double qa = bit_cast<double>(0x7FFAAAAAAAAAAAAA);
+  double sn = base::bit_cast<double>(0x7FF5555511111111);
+  double sm = base::bit_cast<double>(0x7FF5555522222222);
+  double sa = base::bit_cast<double>(0x7FF55555AAAAAAAA);
+  double qn = base::bit_cast<double>(0x7FFAAAAA11111111);
+  double qm = base::bit_cast<double>(0x7FFAAAAA22222222);
+  double qa = base::bit_cast<double>(0x7FFAAAAAAAAAAAAA);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsSignallingNaN(sa));
@@ -14880,6 +14920,7 @@ TEST(pool_size) {
 
   // This test does not execute any code. It only tests that the size of the
   // pools is read correctly from the RelocInfo.
+  rw_buffer_scope.emplace(*owned_buf);
 
   Label exit;
   __ b(&exit);
@@ -14942,7 +14983,7 @@ TEST(jump_tables_forward) {
   Label done;
 
   const Register& index = x0;
-  STATIC_ASSERT(sizeof(results[0]) == 4);
+  static_assert(sizeof(results[0]) == 4);
   const Register& value = w1;
   const Register& target = x2;
 
@@ -15003,7 +15044,7 @@ TEST(jump_tables_backward) {
   Label done;
 
   const Register& index = x0;
-  STATIC_ASSERT(sizeof(results[0]) == 4);
+  static_assert(sizeof(results[0]) == 4);
   const Register& value = w1;
   const Register& target = x2;
 

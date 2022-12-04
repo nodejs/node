@@ -275,7 +275,3 @@ class CombinedTest(testcase.D8TestCase):
     # Combine flags from all status file entries.
     return self._get_combined_flags(
         test._get_statusfile_flags() for test in self._tests)
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

@@ -45,7 +45,7 @@ CollationFastLatin::getOptions(const CollationData *data, const CollationSetting
         miniVarTop = table[i];
     }
 
-    UBool digitsAreReordered = FALSE;
+    UBool digitsAreReordered = false;
     if(settings.hasReordering()) {
         uint32_t prevStart = 0;
         uint32_t beforeDigitStart = 0;
@@ -80,7 +80,7 @@ CollationFastLatin::getOptions(const CollationData *data, const CollationSetting
             afterDigitStart = latinStart;
         }
         if(!(beforeDigitStart < digitStart && digitStart < afterDigitStart)) {
-            digitsAreReordered = TRUE;
+            digitsAreReordered = true;
         }
     }
 

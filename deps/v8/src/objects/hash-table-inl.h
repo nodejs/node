@@ -168,6 +168,7 @@ InternalIndex HashTable<Derived, Shape>::FindEntry(PtrComprCageBase cage_base,
   uint32_t count = 1;
   Object undefined = roots.undefined_value();
   Object the_hole = roots.the_hole_value();
+  DCHECK_EQ(Shape::Hash(roots, key), static_cast<uint32_t>(hash));
   // EnsureCapacity will guarantee the hash table is never full.
   for (InternalIndex entry = FirstProbe(hash, capacity);;
        entry = NextProbe(entry, count++, capacity)) {
@@ -236,6 +237,12 @@ Object HashTable<Derived, Shape>::KeyAt(PtrComprCageBase cage_base,
                                         InternalIndex entry,
                                         RelaxedLoadTag tag) {
   return get(cage_base, EntryToIndex(entry) + kEntryKeyIndex, tag);
+}
+
+template <typename Derived, typename Shape>
+void HashTable<Derived, Shape>::SetKeyAt(InternalIndex entry, Object value,
+                                         WriteBarrierMode mode) {
+  set_key(EntryToIndex(entry), value, mode);
 }
 
 template <typename Derived, typename Shape>
@@ -321,12 +328,13 @@ Handle<NameToIndexHashTable> NameToIndexHashTable::Add(
   SLOW_DCHECK(table->FindEntry(isolate, key).is_not_found());
   // Check whether the dictionary should be extended.
   table = EnsureCapacity(isolate, table);
-
+  DisallowGarbageCollection no_gc;
+  auto raw_table = *table;
   // Compute the key object.
-  InternalIndex entry = table->FindInsertionEntry(isolate, key->hash());
-  table->set(EntryToIndex(entry), *key);
-  table->set(EntryToValueIndex(entry), Smi::FromInt(index));
-  table->ElementAdded();
+  InternalIndex entry = raw_table.FindInsertionEntry(isolate, key->hash());
+  raw_table.set(EntryToIndex(entry), *key);
+  raw_table.set(EntryToValueIndex(entry), Smi::FromInt(index));
+  raw_table.ElementAdded();
   return table;
 }
 

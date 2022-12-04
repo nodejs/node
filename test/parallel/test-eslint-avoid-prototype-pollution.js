@@ -45,6 +45,17 @@ new RuleTester({
       'ReflectDefineProperty({}, "key", { "__proto__": null })',
       'ObjectDefineProperty({}, "key", { \'__proto__\': null })',
       'ReflectDefineProperty({}, "key", { \'__proto__\': null })',
+      'async function myFn() { return { __proto__: null } }',
+      'async function myFn() { function myFn() { return {} } return { __proto__: null } }',
+      'const myFn = async function myFn() { return { __proto__: null } }',
+      'const myFn = async function () { return { __proto__: null } }',
+      'const myFn = async () => { return { __proto__: null } }',
+      'const myFn = async () => ({ __proto__: null })',
+      'function myFn() { return {} }',
+      'const myFn = function myFn() { return {} }',
+      'const myFn = function () { return {} }',
+      'const myFn = () => { return {} }',
+      'const myFn = () => ({})',
       'StringPrototypeReplace("some string", "some string", "some replacement")',
       'StringPrototypeReplaceAll("some string", "some string", "some replacement")',
       'StringPrototypeSplit("some string", "some string")',
@@ -52,6 +63,8 @@ new RuleTester({
       'new Proxy({}, someFactory())',
       'new Proxy({}, { __proto__: null })',
       'new Proxy({}, { __proto__: null, ...{} })',
+      'async function name(){return await SafePromiseAll([])}',
+      'async function name(){const val = await SafePromiseAll([])}',
     ],
     invalid: [
       {
@@ -151,6 +164,34 @@ new RuleTester({
         errors: [{ message: /null-prototype/ }],
       },
       {
+        code: 'async function myFn(){ return {} }',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'async function myFn(){ async function someOtherFn() { return { __proto__: null } } return {} }',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'async function myFn(){ if (true) { return {} } return { __proto__: null } }',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'const myFn = async function myFn(){ return {} }',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'const myFn = async function (){ return {} }',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'const myFn = async () => { return {} }',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
+        code: 'const myFn = async () => ({})',
+        errors: [{ message: /null-prototype/ }],
+      },
+      {
         code: 'RegExpPrototypeTest(/some regex/, "some string")',
         errors: [{ message: /looks up the "exec" property/ }],
       },
@@ -164,7 +205,7 @@ new RuleTester({
       },
       {
         code: 'RegExpPrototypeSymbolSearch(/some regex/, "some string")',
-        errors: [{ message: /looks up the "exec" property/ }],
+        errors: [{ message: /SafeStringPrototypeSearch/ }],
       },
       {
         code: 'StringPrototypeMatch("some string", /some regex/)',
@@ -204,7 +245,7 @@ new RuleTester({
       },
       {
         code: 'StringPrototypeSearch("some string", /some regex/)',
-        errors: [{ message: /looks up the Symbol\.search property/ }],
+        errors: [{ message: /SafeStringPrototypeSearch/ }],
       },
       {
         code: 'StringPrototypeSplit("some string", /some regex/)',
@@ -233,6 +274,14 @@ new RuleTester({
       {
         code: 'PromiseAll([])',
         errors: [{ message: /\bSafePromiseAll\b/ }]
+      },
+      {
+        code: 'async function fn(){await SafePromiseAll([])}',
+        errors: [{ message: /\bSafePromiseAllReturnVoid\b/ }]
+      },
+      {
+        code: 'async function fn(){await SafePromiseAllSettled([])}',
+        errors: [{ message: /\bSafePromiseAllSettledReturnVoid\b/ }]
       },
       {
         code: 'PromiseAllSettled([])',

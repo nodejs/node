@@ -403,7 +403,7 @@ void TracedReferenceBase::SetWrapperClassId(uint16_t class_id) {
   using I = internal::Internals;
   if (IsEmpty()) return;
   internal::Address* obj = reinterpret_cast<internal::Address*>(val_);
-  uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
+  uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kTracedNodeClassIdOffset;
   *reinterpret_cast<uint16_t*>(addr) = class_id;
 }
 
@@ -411,7 +411,7 @@ uint16_t TracedReferenceBase::WrapperClassId() const {
   using I = internal::Internals;
   if (IsEmpty()) return 0;
   internal::Address* obj = reinterpret_cast<internal::Address*>(val_);
-  uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
+  uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kTracedNodeClassIdOffset;
   return *reinterpret_cast<uint16_t*>(addr);
 }
 

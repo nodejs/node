@@ -76,9 +76,9 @@ class Oddball : public PrimitiveHeapObject {
   using BodyDescriptor =
       FixedBodyDescriptor<kToStringOffset, kKindOffset, kSize>;
 
-  STATIC_ASSERT(kKindOffset == Internals::kOddballKindOffset);
-  STATIC_ASSERT(kNull == Internals::kNullOddballKind);
-  STATIC_ASSERT(kUndefined == Internals::kUndefinedOddballKind);
+  static_assert(kKindOffset == Internals::kOddballKindOffset);
+  static_assert(kNull == Internals::kNullOddballKind);
+  static_assert(kUndefined == Internals::kUndefinedOddballKind);
 
   DECL_PRINTER(Oddball)
 

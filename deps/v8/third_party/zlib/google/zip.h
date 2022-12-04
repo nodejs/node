@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -170,6 +170,9 @@ bool ZipFiles(const base::FilePath& src_dir,
               int dest_fd);
 #endif  // defined(OS_POSIX) || defined(OS_FUCHSIA)
 
+// Callback reporting the number of bytes written during Unzip.
+using UnzipProgressCallback = base::RepeatingCallback<void(uint64_t bytes)>;
+
 // Options of the Unzip function, with valid default values.
 struct UnzipOptions {
   // Encoding of entry paths in the ZIP archive. By default, paths are assumed
@@ -179,6 +182,9 @@ struct UnzipOptions {
   // Only extract the entries for which |filter_cb| returns true. By default,
   // everything gets extracted.
   FilterCallback filter;
+
+  // Callback to report bytes extracted from the ZIP.
+  UnzipProgressCallback progress;
 
   // Password to decrypt the encrypted files.
   std::string password;

@@ -18,9 +18,11 @@ class JSInliningHeuristic final : public AdvancedReducer {
   JSInliningHeuristic(Editor* editor, Zone* local_zone,
                       OptimizedCompilationInfo* info, JSGraph* jsgraph,
                       JSHeapBroker* broker,
-                      SourcePositionTable* source_positions, Mode mode)
+                      SourcePositionTable* source_positions,
+                      NodeOriginTable* node_origins, Mode mode)
       : AdvancedReducer(editor),
-        inliner_(editor, local_zone, info, jsgraph, broker, source_positions),
+        inliner_(editor, local_zone, info, jsgraph, broker, source_positions,
+                 node_origins),
         candidates_(local_zone),
         seen_(local_zone),
         source_positions_(source_positions),
@@ -28,9 +30,9 @@ class JSInliningHeuristic final : public AdvancedReducer {
         broker_(broker),
         mode_(mode),
         max_inlined_bytecode_size_cumulative_(
-            FLAG_max_inlined_bytecode_size_cumulative),
+            v8_flags.max_inlined_bytecode_size_cumulative),
         max_inlined_bytecode_size_absolute_(
-            FLAG_max_inlined_bytecode_size_absolute) {}
+            v8_flags.max_inlined_bytecode_size_absolute) {}
 
   const char* reducer_name() const override { return "JSInliningHeuristic"; }
 

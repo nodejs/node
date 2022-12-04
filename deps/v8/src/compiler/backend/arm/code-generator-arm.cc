@@ -3,10 +3,14 @@
 // found in the LICENSE file.
 
 #include "src/base/numbers/double.h"
+#include "src/codegen/arm/assembler-arm.h"
 #include "src/codegen/arm/constants-arm.h"
+#include "src/codegen/arm/register-arm.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/common/globals.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/gap-resolver.h"
@@ -134,9 +138,6 @@ class ArmOperandConverter final : public InstructionOperandConverter {
         return Operand::EmbeddedNumber(constant.ToFloat64().value());
       case Constant::kExternalReference:
         return Operand(constant.ToExternalReference());
-      case Constant::kDelayedStringConstant:
-        return Operand::EmbeddedStringConstant(
-            constant.ToDelayedStringConstant());
       case Constant::kInt64:
       case Constant::kCompressedHeapObject:
       case Constant::kHeapObject:
@@ -192,13 +193,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   }
 
   void Generate() final {
-    __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                     exit());
-    RememberedSetAction const remembered_set_action =
-        mode_ > RecordWriteMode::kValueIsMap ||
-                FLAG_use_full_record_write_builtin
-            ? RememberedSetAction::kEmit
-            : RememberedSetAction::kOmit;
+    __ CheckPageFlag(
+        value_, MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
+        eq, exit());
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
@@ -211,13 +208,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ CallEphemeronKeyBarrier(object_, offset_, save_fp_mode);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
-      __ CallRecordWriteStubSaveRegisters(object_, offset_,
-                                          remembered_set_action, save_fp_mode,
+      __ CallRecordWriteStubSaveRegisters(object_, offset_, save_fp_mode,
                                           StubCallMode::kCallWasmRuntimeStub);
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else {
-      __ CallRecordWriteStubSaveRegisters(object_, offset_,
-                                          remembered_set_action, save_fp_mode);
+      __ CallRecordWriteStubSaveRegisters(object_, offset_, save_fp_mode);
     }
     if (must_save_lr_) {
       __ Pop(lr);
@@ -390,7 +385,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ dmb(ISH);                                                       \
     __ bind(&binop);                                                   \
     __ ldrexd(r2, r3, i.TempRegister(0));                              \
-    __ instr1(i.TempRegister(1), r2, i.InputRegister(0), SBit::SetCC); \
+    __ instr1(i.TempRegister(1), r2, i.InputRegister(0), SetCC);       \
     __ instr2(i.TempRegister(2), r3, Operand(i.InputRegister(1)));     \
     DCHECK_EQ(LeaveCC, i.OutputSBit());                                \
     __ strexd(i.TempRegister(3), i.TempRegister(1), i.TempRegister(2), \
@@ -752,7 +747,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallJSFunction: {
       Register func = i.InputRegister(0);
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         UseScratchRegisterScope temps(tasm());
         Register scratch = temps.Acquire();
         // Check the function's context matches the context argument.
@@ -943,7 +938,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register object = i.InputRegister(0);
       Register value = i.InputRegister(2);
 
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         // Checking that |value| is not a cleared weakref: our write barrier
         // does not support that for now.
         __ cmp(value, Operand(kClearedWeakHeapObjectLower32));
@@ -1224,7 +1219,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // i.InputRegister(2) ... right low word.
       // i.InputRegister(3) ... right high word.
       __ add(i.OutputRegister(0), i.InputRegister(0), i.InputRegister(2),
-             SBit::SetCC);
+             SetCC);
       __ adc(i.OutputRegister(1), i.InputRegister(1),
              Operand(i.InputRegister(3)));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -1235,7 +1230,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // i.InputRegister(2) ... right low word.
       // i.InputRegister(3) ... right high word.
       __ sub(i.OutputRegister(0), i.InputRegister(0), i.InputRegister(2),
-             SBit::SetCC);
+             SetCC);
       __ sbc(i.OutputRegister(1), i.InputRegister(1),
              Operand(i.InputRegister(3)));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -1520,7 +1515,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
         // because INT32_MIN allows easier out-of-bounds detection.
         __ cmn(i.OutputRegister(), Operand(1));
-        __ mov(i.OutputRegister(), Operand(INT32_MIN), SBit::LeaveCC, vs);
+        __ mov(i.OutputRegister(), Operand(INT32_MIN), LeaveCC, vs);
       }
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
@@ -2204,14 +2199,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vsqrt(S_FROM_Q(dst, 2), S_FROM_Q(src1, 2));
       __ vsqrt(S_FROM_Q(dst, 3), S_FROM_Q(src1, 3));
 #undef S_FROM_Q
-      break;
-    }
-    case kArmF32x4RecipApprox: {
-      __ vrecpe(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kArmF32x4RecipSqrtApprox: {
-      __ vrsqrte(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kArmF32x4Add: {
@@ -3601,7 +3588,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         ReferenceMap* reference_map =
             gen_->zone()->New<ReferenceMap>(gen_->zone());
         gen_->RecordSafepoint(reference_map);
-        if (FLAG_debug_code) {
+        if (v8_flags.debug_code) {
           __ stop();
         }
       }
@@ -3673,7 +3660,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 
   if (!saves_fp.is_empty()) {
     // Save callee-saved FP registers.
-    STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
+    static_assert(DwVfpRegister::kNumRegisters == 32);
     uint32_t last = base::bits::CountLeadingZeros32(saves_fp.bits()) - 1;
     uint32_t first = base::bits::CountTrailingZeros32(saves_fp.bits());
     DCHECK_EQ((last - first + 1), saves_fp.Count());
@@ -3756,7 +3743,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if (required_slots * kSystemPointerSize < FLAG_stack_size * KB) {
+      if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
         UseScratchRegisterScope temps(tasm());
         Register scratch = temps.Acquire();
         __ ldr(scratch, FieldMemOperand(
@@ -3773,7 +3760,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // define an empty safepoint.
       ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
       RecordSafepoint(reference_map);
-      if (FLAG_debug_code) __ stop();
+      if (v8_flags.debug_code) __ stop();
 
       __ bind(&done);
     }
@@ -3790,7 +3777,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
   if (!saves_fp.is_empty()) {
     // Save callee-saved FP registers.
-    STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
+    static_assert(DwVfpRegister::kNumRegisters == 32);
     __ vstm(db_w, sp, saves_fp.first(), saves_fp.last());
   }
 
@@ -3822,7 +3809,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   // Restore FP registers.
   const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
   if (!saves_fp.is_empty()) {
-    STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
+    static_assert(DwVfpRegister::kNumRegisters == 32);
     __ vldm(ia_w, sp, saves_fp.first(), saves_fp.last());
   }
 
@@ -3837,7 +3824,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (parameter_slots != 0) {
     if (additional_pop_count->IsImmediate()) {
       DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
-    } else if (FLAG_debug_code) {
+    } else if (v8_flags.debug_code) {
       __ cmp(g.ToRegister(additional_pop_count), Operand(0));
       __ Assert(eq, AbortReason::kUnexpectedAdditionalPopValue);
     }
@@ -4055,6 +4042,150 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     }
   }
   UNREACHABLE();
+}
+
+void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
+  // Must be kept in sync with {MoveTempLocationTo}.
+  auto rep = LocationOperand::cast(source)->representation();
+  move_cycle_.temps.emplace(tasm());
+  auto& temps = *move_cycle_.temps;
+  // Temporarily exclude the reserved scratch registers while we pick a
+  // location to resolve the cycle. Re-include them immediately afterwards so
+  // that they are available to assemble the move.
+  temps.Exclude(move_cycle_.scratch_v_reglist);
+  int reg_code = -1;
+  if ((!IsFloatingPoint(rep) || rep == MachineRepresentation::kFloat32) &&
+      temps.CanAcquireS()) {
+    reg_code = temps.AcquireS().code();
+  } else if (rep == MachineRepresentation::kFloat64 && temps.CanAcquireD()) {
+    reg_code = temps.AcquireD().code();
+  } else if (rep == MachineRepresentation::kSimd128 && temps.CanAcquireQ()) {
+    reg_code = temps.AcquireQ().code();
+  }
+  temps.Include(move_cycle_.scratch_v_reglist);
+  if (reg_code != -1) {
+    // A scratch register is available for this rep.
+    move_cycle_.scratch_reg_code = reg_code;
+    if (IsFloatingPoint(rep)) {
+      AllocatedOperand scratch(LocationOperand::REGISTER, rep, reg_code);
+      AssembleMove(source, &scratch);
+    } else {
+      AllocatedOperand scratch(LocationOperand::REGISTER,
+                               MachineRepresentation::kFloat32, reg_code);
+      ArmOperandConverter g(this, nullptr);
+      if (source->IsStackSlot()) {
+        __ vldr(g.ToFloatRegister(&scratch), g.ToMemOperand(source));
+      } else {
+        DCHECK(source->IsRegister());
+        __ vmov(g.ToFloatRegister(&scratch), g.ToRegister(source));
+      }
+    }
+  } else {
+    // The scratch registers are blocked by pending moves. Use the stack
+    // instead.
+    int new_slots = ElementSizeInPointers(rep);
+    ArmOperandConverter g(this, nullptr);
+    if (source->IsRegister()) {
+      __ push(g.ToRegister(source));
+    } else if (source->IsStackSlot()) {
+      UseScratchRegisterScope temps2(tasm());
+      Register scratch = temps2.Acquire();
+      __ ldr(scratch, g.ToMemOperand(source));
+      __ push(scratch);
+    } else {
+      // No push instruction for this operand type. Bump the stack pointer and
+      // assemble the move.
+      int last_frame_slot_id =
+          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+      int sp_delta = frame_access_state_->sp_delta();
+      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
+      __ sub(sp, sp, Operand(new_slots * kSystemPointerSize));
+      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
+      AssembleMove(source, &temp);
+    }
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  }
+}
+
+void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
+                                       MachineRepresentation rep) {
+  int scratch_reg_code = move_cycle_.scratch_reg_code;
+  DCHECK(move_cycle_.temps.has_value());
+  if (scratch_reg_code != -1) {
+    if (IsFloatingPoint(rep)) {
+      AllocatedOperand scratch(LocationOperand::REGISTER, rep,
+                               scratch_reg_code);
+      AssembleMove(&scratch, dest);
+    } else {
+      AllocatedOperand scratch(LocationOperand::REGISTER,
+                               MachineRepresentation::kFloat32,
+                               scratch_reg_code);
+      ArmOperandConverter g(this, nullptr);
+      if (dest->IsStackSlot()) {
+        __ vstr(g.ToFloatRegister(&scratch), g.ToMemOperand(dest));
+      } else {
+        DCHECK(dest->IsRegister());
+        __ vmov(g.ToRegister(dest), g.ToFloatRegister(&scratch));
+      }
+    }
+  } else {
+    int new_slots = ElementSizeInPointers(rep);
+    frame_access_state()->IncreaseSPDelta(-new_slots);
+    ArmOperandConverter g(this, nullptr);
+    if (dest->IsRegister()) {
+      __ pop(g.ToRegister(dest));
+    } else if (dest->IsStackSlot()) {
+      UseScratchRegisterScope temps(tasm());
+      Register scratch = temps.Acquire();
+      __ pop(scratch);
+      __ str(scratch, g.ToMemOperand(dest));
+    } else {
+      int last_frame_slot_id =
+          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+      int sp_delta = frame_access_state_->sp_delta();
+      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
+      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
+      AssembleMove(&temp, dest);
+      __ add(sp, sp, Operand(new_slots * kSystemPointerSize));
+    }
+  }
+  // Restore the default state to release the {UseScratchRegisterScope} and to
+  // prepare for the next cycle.
+  move_cycle_ = MoveCycleState();
+}
+
+void CodeGenerator::SetPendingMove(MoveOperands* move) {
+  InstructionOperand& source = move->source();
+  InstructionOperand& destination = move->destination();
+  MoveType::Type move_type =
+      MoveType::InferMove(&move->source(), &move->destination());
+  UseScratchRegisterScope temps(tasm());
+  if (move_type == MoveType::kStackToStack) {
+    if (source.IsStackSlot() || source.IsFloatStackSlot()) {
+      SwVfpRegister temp = temps.AcquireS();
+      move_cycle_.scratch_v_reglist |= temp.ToVfpRegList();
+    } else if (source.IsDoubleStackSlot()) {
+      DwVfpRegister temp = temps.AcquireD();
+      move_cycle_.scratch_v_reglist |= temp.ToVfpRegList();
+    } else {
+      QwNeonRegister temp = temps.AcquireQ();
+      move_cycle_.scratch_v_reglist |= temp.ToVfpRegList();
+    }
+    return;
+  } else if (move_type == MoveType::kConstantToStack) {
+    if (destination.IsStackSlot()) {
+      // Acquire a S register instead of a general purpose register in case
+      // `vstr` needs one to compute the address of `dst`.
+      SwVfpRegister s_temp = temps.AcquireS();
+      move_cycle_.scratch_v_reglist |= s_temp.ToVfpRegList();
+    } else if (destination.IsFloatStackSlot()) {
+      SwVfpRegister temp = temps.AcquireS();
+      move_cycle_.scratch_v_reglist |= temp.ToVfpRegList();
+    } else {
+      DwVfpRegister temp = temps.AcquireD();
+      move_cycle_.scratch_v_reglist |= temp.ToVfpRegList();
+    }
+  }
 }
 
 void CodeGenerator::AssembleSwap(InstructionOperand* source,

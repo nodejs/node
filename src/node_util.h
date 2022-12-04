@@ -23,6 +23,7 @@ class WeakReference : public SnapshotableObject {
                 v8::Local<v8::Object> target);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetRef(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IncRef(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DecRef(const v8::FunctionCallbackInfo<v8::Value>& args);
 

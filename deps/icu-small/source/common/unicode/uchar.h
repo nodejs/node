@@ -60,7 +60,7 @@ U_CDECL_BEGIN
  * @see u_getUnicodeVersion
  * @stable ICU 2.0
  */
-#define U_UNICODE_VERSION "14.0"
+#define U_UNICODE_VERSION "15.0"
 
 /**
  * \file
@@ -483,57 +483,55 @@ typedef enum UProperty {
      * @stable ICU 62
      */
     UCHAR_EXTENDED_PICTOGRAPHIC=64,
-#ifndef U_HIDE_DRAFT_API
     /**
      * Binary property of strings Basic_Emoji.
      * See https://www.unicode.org/reports/tr51/#Emoji_Sets
      *
-     * @draft ICU 70
+     * @stable ICU 70
      */
     UCHAR_BASIC_EMOJI=65,
     /**
      * Binary property of strings Emoji_Keycap_Sequence.
      * See https://www.unicode.org/reports/tr51/#Emoji_Sets
      *
-     * @draft ICU 70
+     * @stable ICU 70
      */
     UCHAR_EMOJI_KEYCAP_SEQUENCE=66,
     /**
      * Binary property of strings RGI_Emoji_Modifier_Sequence.
      * See https://www.unicode.org/reports/tr51/#Emoji_Sets
      *
-     * @draft ICU 70
+     * @stable ICU 70
      */
     UCHAR_RGI_EMOJI_MODIFIER_SEQUENCE=67,
     /**
      * Binary property of strings RGI_Emoji_Flag_Sequence.
      * See https://www.unicode.org/reports/tr51/#Emoji_Sets
      *
-     * @draft ICU 70
+     * @stable ICU 70
      */
     UCHAR_RGI_EMOJI_FLAG_SEQUENCE=68,
     /**
      * Binary property of strings RGI_Emoji_Tag_Sequence.
      * See https://www.unicode.org/reports/tr51/#Emoji_Sets
      *
-     * @draft ICU 70
+     * @stable ICU 70
      */
     UCHAR_RGI_EMOJI_TAG_SEQUENCE=69,
     /**
      * Binary property of strings RGI_Emoji_ZWJ_Sequence.
      * See https://www.unicode.org/reports/tr51/#Emoji_Sets
      *
-     * @draft ICU 70
+     * @stable ICU 70
      */
     UCHAR_RGI_EMOJI_ZWJ_SEQUENCE=70,
     /**
      * Binary property of strings RGI_Emoji.
      * See https://www.unicode.org/reports/tr51/#Emoji_Sets
      *
-     * @draft ICU 70
+     * @stable ICU 70
      */
     UCHAR_RGI_EMOJI=71,
-#endif  // U_HIDE_DRAFT_API
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the last constant for binary Unicode properties.
@@ -1885,6 +1883,23 @@ enum UBlockCode {
     /** @stable ICU 70 */
     UBLOCK_ZNAMENNY_MUSICAL_NOTATION = 320, /*[1CF00]*/
 
+    // New blocks in Unicode 15.0
+
+    /** @stable ICU 72 */
+    UBLOCK_ARABIC_EXTENDED_C = 321, /*[10EC0]*/
+    /** @stable ICU 72 */
+    UBLOCK_CJK_UNIFIED_IDEOGRAPHS_EXTENSION_H = 322, /*[31350]*/
+    /** @stable ICU 72 */
+    UBLOCK_CYRILLIC_EXTENDED_D = 323, /*[1E030]*/
+    /** @stable ICU 72 */
+    UBLOCK_DEVANAGARI_EXTENDED_A = 324, /*[11B00]*/
+    /** @stable ICU 72 */
+    UBLOCK_KAKTOVIK_NUMERALS = 325, /*[1D2C0]*/
+    /** @stable ICU 72 */
+    UBLOCK_KAWI = 326, /*[11F00]*/
+    /** @stable ICU 72 */
+    UBLOCK_NAG_MUNDARI = 327, /*[1E4D0]*/
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UBlockCode value.
@@ -1892,7 +1907,7 @@ enum UBlockCode {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UBLOCK_COUNT = 321,
+    UBLOCK_COUNT = 328,
 #endif  // U_HIDE_DEPRECATED_API
 
     /** @stable ICU 2.0 */
@@ -2680,8 +2695,6 @@ typedef enum UVerticalOrientation {
 U_CAPI UBool U_EXPORT2
 u_hasBinaryProperty(UChar32 c, UProperty which);
 
-#ifndef U_HIDE_DRAFT_API
-
 /**
  * Returns true if the property is true for the string.
  * Same as u_hasBinaryProperty(single code point, which)
@@ -2704,12 +2717,10 @@ u_hasBinaryProperty(UChar32 c, UProperty which);
  * @see u_getBinaryPropertySet
  * @see u_getIntPropertyValue
  * @see u_getUnicodeVersion
- * @draft ICU 70
+ * @stable ICU 70
  */
 U_CAPI UBool U_EXPORT2
 u_stringHasBinaryProperty(const UChar *s, int32_t length, UProperty which);
-
-#endif  // U_HIDE_DRAFT_API
 
 /**
  * Returns a frozen USet for a binary property.

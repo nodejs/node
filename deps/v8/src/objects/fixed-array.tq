@@ -25,7 +25,9 @@ extern class WeakFixedArray extends HeapObject {
   @cppRelaxedLoad objects[length]: MaybeObject;
 }
 
-extern class ByteArray extends FixedArrayBase { bytes[length]: uint8; }
+extern class ByteArray extends FixedArrayBase {
+  bytes[length]: uint8;
+}
 
 @hasSameInstanceTypeAsParent
 @doNotGenerateCast
@@ -101,6 +103,11 @@ extern macro AllocateZeroedFixedArray(intptr): FixedArray;
 extern macro AllocateZeroedFixedDoubleArray(intptr): FixedDoubleArray;
 extern macro CalculateNewElementsCapacity(Smi): Smi;
 extern macro CalculateNewElementsCapacity(intptr): intptr;
+
+extern macro FillFixedArrayWithSmiZero(
+    constexpr ElementsKind, FixedArray, intptr, intptr): void;
+extern macro FillFixedDoubleArrayWithZero(
+    FixedDoubleArray, intptr, intptr): void;
 
 extern macro AllocateFixedArrayWithHoles(
     intptr, constexpr AllocationFlag): FixedArray;

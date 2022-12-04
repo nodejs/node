@@ -55,8 +55,8 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
     case FrameStateType::kUnoptimizedFunction:
       os << "UNOPTIMIZED_FRAME";
       break;
-    case FrameStateType::kArgumentsAdaptor:
-      os << "ARGUMENTS_ADAPTOR";
+    case FrameStateType::kInlinedExtraArguments:
+      os << "INLINED_EXTRA_ARGUMENTS";
       break;
     case FrameStateType::kConstructStub:
       os << "CONSTRUCT_STUB";
@@ -255,6 +255,22 @@ FrameState CreateGenericLazyDeoptContinuationFrameState(
       graph, shared, Builtin::kGenericLazyDeoptContinuation, target, context,
       stack_parameters, stack_parameter_count, outer_frame_state,
       ContinuationFrameStateMode::LAZY);
+}
+
+FrameState CloneFrameState(JSGraph* jsgraph, FrameState frame_state,
+                           OutputFrameStateCombine changed_state_combine) {
+  Graph* graph = jsgraph->graph();
+  CommonOperatorBuilder* common = jsgraph->common();
+
+  DCHECK_EQ(IrOpcode::kFrameState, frame_state->op()->opcode());
+
+  const Operator* op = common->FrameState(
+      frame_state.frame_state_info().bailout_id(), changed_state_combine,
+      frame_state.frame_state_info().function_info());
+  return FrameState(
+      graph->NewNode(op, frame_state.parameters(), frame_state.locals(),
+                     frame_state.stack(), frame_state.context(),
+                     frame_state.function(), frame_state.outer_frame_state()));
 }
 
 }  // namespace compiler

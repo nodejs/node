@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/compiler/control-equivalence.h"
+
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/node-origin-table.h"
-#include "src/compiler/node-properties.h"
 #include "src/utils/bit-vector.h"
 #include "src/zone/zone-containers.h"
 #include "test/unittests/compiler/graph-unittest.h"
@@ -30,7 +30,7 @@ class ControlEquivalenceTest : public GraphTest {
  protected:
   void ComputeEquivalence(Node* end_node) {
     graph()->SetEnd(graph()->NewNode(common()->End(1), end_node));
-    if (FLAG_trace_turbo) {
+    if (v8_flags.trace_turbo) {
       SourcePositionTable table(graph());
       NodeOriginTable table2(graph());
       StdoutStream{} << AsJSON(*graph(), &table, &table2);

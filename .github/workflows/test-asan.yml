@@ -30,7 +30,7 @@ concurrency:
 
 env:
   ASAN_OPTIONS: intercept_tls_get_addr=0
-  PYTHON_VERSION: '3.10'
+  PYTHON_VERSION: '3.11'
   FLAKY_TESTS: keep_retrying
 
 permissions:
@@ -39,7 +39,7 @@ permissions:
 jobs:
   test-asan:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     env:
       CC: clang
       CXX: clang++
@@ -50,7 +50,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information

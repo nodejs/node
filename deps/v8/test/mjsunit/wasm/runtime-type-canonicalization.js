@@ -7,24 +7,25 @@
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let builder = new WasmModuleBuilder();
+builder.setSingletonRecGroups();
 
 let struct_index = builder.addStruct([makeField(kWasmI32, true)]);
 let identical_struct_index = builder.addStruct([makeField(kWasmI32, true)]);
 let distinct_struct_index = builder.addStruct([makeField(kWasmI64, true)]);
 
 let struct_init = builder.addFunction("struct_init",
-                                      makeSig([], [kWasmDataRef]))
+                                      makeSig([], [kWasmStructRef]))
     .addBody([kGCPrefix, kExprStructNewDefault, struct_index])
     .exportFunc();
 let test_pass = builder.addFunction("test_pass",
-                                    makeSig([kWasmDataRef], [kWasmI32]))
+                                    makeSig([kWasmStructRef], [kWasmI32]))
     .addBody([kExprLocalGet, 0,
-              kGCPrefix, kExprRefTestStatic, identical_struct_index])
+              kGCPrefix, kExprRefTestDeprecated, identical_struct_index])
     .exportFunc();
 let test_fail = builder.addFunction("test_fail",
-                                    makeSig([kWasmDataRef], [kWasmI32]))
+                                    makeSig([kWasmStructRef], [kWasmI32]))
     .addBody([kExprLocalGet, 0,
-              kGCPrefix, kExprRefTestStatic, distinct_struct_index])
+              kGCPrefix, kExprRefTestDeprecated, distinct_struct_index])
     .exportFunc();
 
 (function TestCanonicalizationSameInstance() {

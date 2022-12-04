@@ -579,6 +579,7 @@ typedef enum {
   napi_arraybuffer_expected,
   napi_detachable_arraybuffer_expected,
   napi_would_deadlock,  /* unused */
+  napi_no_external_buffers_allowed
 } napi_status;
 ```
 
@@ -896,6 +897,24 @@ typedef void (*napi_threadsafe_function_call_js)(napi_env env,
 
 Unless for reasons discussed in [Object Lifetime Management][], creating a
 handle and/or callback scope inside the function body is not necessary.
+
+#### `napi_cleanup_hook`
+
+<!-- YAML
+added: v19.2.0
+napiVersion: 3
+-->
+
+Function pointer used with [`napi_add_env_cleanup_hook`][]. It will be called
+when the environment is being torn down.
+
+Callback functions must satisfy the following signature:
+
+```c
+typedef void (*napi_cleanup_hook)(void* data);
+```
+
+* `[in] data`: The data that was passed to [`napi_add_env_cleanup_hook`][].
 
 #### `napi_async_cleanup_hook`
 
@@ -1798,7 +1817,7 @@ napiVersion: 3
 
 ```c
 NODE_EXTERN napi_status napi_add_env_cleanup_hook(napi_env env,
-                                                  void (*fun)(void* arg),
+                                                  napi_cleanup_hook fun,
                                                   void* arg);
 ```
 
@@ -2403,6 +2422,19 @@ napi_create_external_arraybuffer(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
+**Some runtimes other than Node.js have dropped support for external buffers**.
+On runtimes other than Node.js this method may return
+`napi_no_external_buffers_allowed` to indicate that external
+buffers are not supported. One such runtime is Electron as
+described in this issue
+[electron/issues/35801](https://github.com/electron/electron/issues/35801).
+
+In order to maintain broadest compatibility with all runtimes
+you may define `NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED` in your addon before
+includes for the node-api headers. Doing so will hide the 2 functions
+that create external buffers. This will ensure a compilation error
+occurs if you accidentally use one of these methods.
+
 This API returns a Node-API value corresponding to a JavaScript `ArrayBuffer`.
 The underlying byte buffer of the `ArrayBuffer` is externally allocated and
 managed. The caller must ensure that the byte buffer remains valid until the
@@ -2446,6 +2478,19 @@ napi_status napi_create_external_buffer(napi_env env,
 * `[out] result`: A `napi_value` representing a `node::Buffer`.
 
 Returns `napi_ok` if the API succeeded.
+
+**Some runtimes other than Node.js have dropped support for external buffers**.
+On runtimes other than Node.js this method may return
+`napi_no_external_buffers_allowed` to indicate that external
+buffers are not supported. One such runtime is Electron as
+described in this issue
+[electron/issues/35801](https://github.com/electron/electron/issues/35801).
+
+In order to maintain broadest compatibility with all runtimes
+you may define `NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED` in your addon before
+includes for the node-api headers. Doing so will hide the 2 functions
+that create external buffers. This will ensure a compilation error
+occurs if you accidentally use one of these methods.
 
 This API allocates a `node::Buffer` object and initializes it with data
 backed by the passed in buffer. While this is still a fully-supported data
@@ -3973,7 +4018,7 @@ reasons. Consider the following JavaScript:
 const obj = {};
 Object.defineProperties(obj, {
   'foo': { value: 123, writable: true, configurable: true, enumerable: true },
-  'bar': { value: 456, writable: true, configurable: true, enumerable: true }
+  'bar': { value: 456, writable: true, configurable: true, enumerable: true },
 });
 ```
 

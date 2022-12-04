@@ -139,10 +139,10 @@ std::vector<std::unique_ptr<V8DebuggerScript>> V8Debugger::getCompiledScripts(
     int contextGroupId, V8DebuggerAgentImpl* agent) {
   std::vector<std::unique_ptr<V8DebuggerScript>> result;
   v8::HandleScope scope(m_isolate);
-  v8::PersistentValueVector<v8::debug::Script> scripts(m_isolate);
+  std::vector<v8::Global<v8::debug::Script>> scripts;
   v8::debug::GetLoadedScripts(m_isolate, scripts);
-  for (size_t i = 0; i < scripts.Size(); ++i) {
-    v8::Local<v8::debug::Script> script = scripts.Get(i);
+  for (size_t i = 0; i < scripts.size(); ++i) {
+    v8::Local<v8::debug::Script> script = scripts[i].Get(m_isolate);
     if (!script->WasCompiled()) continue;
     if (!script->IsEmbedded()) {
       int contextId;
@@ -202,6 +202,10 @@ bool V8Debugger::canBreakProgram() {
   return v8::debug::CanBreakProgram(m_isolate);
 }
 
+bool V8Debugger::isInInstrumentationPause() const {
+  return m_instrumentationPause;
+}
+
 void V8Debugger::breakProgram(int targetContextGroupId) {
   DCHECK(canBreakProgram());
   // Don't allow nested breaks.
@@ -223,6 +227,10 @@ void V8Debugger::interruptAndBreak(int targetContextGroupId) {
             v8::debug::BreakReasons({v8::debug::BreakReason::kScheduled}));
       },
       nullptr);
+}
+
+void V8Debugger::requestPauseAfterInstrumentation() {
+  m_requestedPauseAfterInstrumentation = true;
 }
 
 void V8Debugger::continueProgram(int targetContextGroupId,
@@ -338,6 +346,18 @@ Response V8Debugger::continueToLocation(
   } else {
     return Response::ServerError("Cannot continue to specified location");
   }
+}
+
+bool V8Debugger::restartFrame(int targetContextGroupId, int callFrameOrdinal) {
+  DCHECK(isPaused());
+  DCHECK(targetContextGroupId);
+  m_targetContextGroupId = targetContextGroupId;
+
+  if (v8::debug::PrepareRestartFrame(m_isolate, callFrameOrdinal)) {
+    continueProgram(targetContextGroupId);
+    return true;
+  }
+  return false;
 }
 
 bool V8Debugger::shouldContinueToCurrentLocation() {
@@ -498,11 +518,11 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
       });
 }
 
-void V8Debugger::BreakOnInstrumentation(
+V8Debugger::PauseAfterInstrumentation V8Debugger::BreakOnInstrumentation(
     v8::Local<v8::Context> pausedContext,
     v8::debug::BreakpointId instrumentationId) {
   // Don't allow nested breaks.
-  if (isPaused()) return;
+  if (isPaused()) return kNoPauseAfterInstrumentationRequested;
 
   int contextGroupId = m_inspector->contextGroupId(pausedContext);
   bool hasAgents = false;
@@ -511,9 +531,10 @@ void V8Debugger::BreakOnInstrumentation(
         if (session->debuggerAgent()->acceptsPause(false /* isOOMBreak */))
           hasAgents = true;
       });
-  if (!hasAgents) return;
+  if (!hasAgents) return kNoPauseAfterInstrumentationRequested;
 
   m_pausedContextGroupId = contextGroupId;
+  m_instrumentationPause = true;
   m_inspector->forEachSession(
       contextGroupId, [instrumentationId](V8InspectorSessionImpl* session) {
         if (session->debuggerAgent()->acceptsPause(false /* isOOMBreak */)) {
@@ -523,15 +544,23 @@ void V8Debugger::BreakOnInstrumentation(
       });
   {
     v8::Context::Scope scope(pausedContext);
-    m_inspector->client()->runMessageLoopOnPause(contextGroupId);
-    m_pausedContextGroupId = 0;
+    m_inspector->client()->runMessageLoopOnInstrumentationPause(contextGroupId);
   }
+  bool requestedPauseAfterInstrumentation =
+      m_requestedPauseAfterInstrumentation;
+
+  m_requestedPauseAfterInstrumentation = false;
+  m_pausedContextGroupId = 0;
+  m_instrumentationPause = false;
 
   m_inspector->forEachSession(contextGroupId,
                               [](V8InspectorSessionImpl* session) {
                                 if (session->debuggerAgent()->enabled())
                                   session->debuggerAgent()->didContinue();
                               });
+  return requestedPauseAfterInstrumentation
+             ? kPauseAfterInstrumentationRequested
+             : kNoPauseAfterInstrumentationRequested;
 }
 
 void V8Debugger::BreakProgramRequested(
@@ -774,6 +803,11 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
                        toV8StringInternalized(m_isolate, "[[Entries]]"));
     createDataProperty(context, properties, properties->Length(), entries);
   }
+
+  if (v8::debug::isExperimentalRemoveInternalScopesPropertyEnabled()) {
+    return properties;
+  }
+
   if (value->IsGeneratorObject()) {
     v8::Local<v8::Value> scopes;
     if (generatorScopes(context, value).ToLocal(&scopes)) {
@@ -797,17 +831,17 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
 v8::Local<v8::Array> V8Debugger::queryObjects(v8::Local<v8::Context> context,
                                               v8::Local<v8::Object> prototype) {
   v8::Isolate* isolate = context->GetIsolate();
-  v8::PersistentValueVector<v8::Object> v8Objects(isolate);
+  std::vector<v8::Global<v8::Object>> v8_objects;
   MatchPrototypePredicate predicate(m_inspector, context, prototype);
-  v8::debug::QueryObjects(context, &predicate, &v8Objects);
+  v8::debug::QueryObjects(context, &predicate, &v8_objects);
 
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Array> resultArray = v8::Array::New(
-      m_inspector->isolate(), static_cast<int>(v8Objects.Size()));
-  for (size_t i = 0; i < v8Objects.Size(); ++i) {
+      m_inspector->isolate(), static_cast<int>(v8_objects.size()));
+  for (size_t i = 0; i < v8_objects.size(); ++i) {
     createDataProperty(context, resultArray, static_cast<int>(i),
-                       v8Objects.Get(i));
+                       v8_objects[i].Get(isolate));
   }
   return resultArray;
 }

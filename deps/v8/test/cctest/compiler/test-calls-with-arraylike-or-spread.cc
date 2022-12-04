@@ -4,8 +4,8 @@
 
 #include "include/v8-function.h"
 #include "src/flags/flags.h"
-#include "test/cctest/compiler/node-observer-tester.h"
 #include "test/cctest/test-api.h"
+#include "test/common/node-observer-tester.h"
 
 namespace v8 {
 namespace internal {
@@ -20,8 +20,8 @@ void CompileRunWithNodeObserver(const std::string& js_code,
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
 
-  FLAG_allow_natives_syntax = true;
-  FLAG_turbo_optimize_apply = true;
+  v8_flags.allow_natives_syntax = true;
+  v8_flags.turbo_optimize_apply = true;
 
   // Note: Make sure to not capture stack locations (e.g. `this`) here since
   // these lambdas are executed on another thread.
@@ -146,8 +146,8 @@ TEST(ReduceCAPICallWithArrayLike) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
-  FLAG_allow_natives_syntax = true;
-  FLAG_turbo_optimize_apply = true;
+  v8_flags.allow_natives_syntax = true;
+  v8_flags.turbo_optimize_apply = true;
 
   Local<v8::FunctionTemplate> sum = v8::FunctionTemplate::New(isolate, SumF);
   CHECK(env->Global()

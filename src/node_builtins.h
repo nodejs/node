@@ -3,10 +3,14 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <list>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
+#if defined(NODE_HAVE_I18N_SUPPORT)
+#include <unicode/unistr.h>
+#endif  // NODE_HAVE_I18N_SUPPORT
 #include <vector>
 #include "node_mutex.h"
 #include "node_union_bytes.h"
@@ -132,11 +136,18 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   static void HasCachedBuiltins(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
+#if defined(NODE_HAVE_I18N_SUPPORT)
+  static void AddExternalizedBuiltin(const char* id, const char* filename);
+#endif  // NODE_HAVE_I18N_SUPPORT
+
   static BuiltinLoader instance_;
   BuiltinCategories builtin_categories_;
   BuiltinSourceMap source_;
   BuiltinCodeCacheMap code_cache_;
   UnionBytes config_;
+#if defined(NODE_HAVE_I18N_SUPPORT)
+  std::list<std::unique_ptr<icu::UnicodeString>> externalized_source_bytes_;
+#endif  // NODE_HAVE_I18N_SUPPORT
 
   // Used to synchronize access to the code cache map
   Mutex code_cache_mutex_;

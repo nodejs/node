@@ -2,12 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbo-optimize-apply --opt
-
-// These tests do not work well if this script is run more than once (e.g.
-// --stress-opt); after a few runs the whole function is immediately compiled
-// and assertions would fail. We prevent re-runs.
-// Flags: --nostress-opt --no-always-opt
+// Flags: --allow-natives-syntax --turbo-optimize-apply --turbofan
+// Flags: --no-always-turbofan
 
 // These tests do not work well if we flush the feedback vector, which causes
 // deoptimization.
@@ -222,6 +218,62 @@
   assertEquals(42, foo());
   assertFalse(got_interpreted);
   assertOptimized(foo);
+})();
+
+// Test with FixedDoubleArray and Math.min/max.
+(function () {
+  "use strict";
+  function arrayMin(val) {
+    return Math.min.apply(Math, val);
+  }
+  function arrayMax(val) {
+    return Math.max.apply(Math, val);
+  }
+
+  %PrepareFunctionForOptimization(arrayMin);
+  %PrepareFunctionForOptimization(arrayMin);
+  assertEquals(11.03, arrayMin([11.03, 16.11, 26.06]));
+
+  %PrepareFunctionForOptimization(arrayMax);
+  %PrepareFunctionForOptimization(arrayMax);
+  assertEquals(26.06, arrayMax([11.03, 16.11, 26.06]));
+  %OptimizeFunctionOnNextCall(arrayMin);
+  %OptimizeFunctionOnNextCall(arrayMax);
+
+  assertEquals(11.03, arrayMin([11.03, 16.11, 26.06]));
+  assertEquals(26.06, arrayMax([11.03, 16.11, 26.06]));
+
+  assertOptimized(arrayMin);
+  assertOptimized(arrayMax);
+
+})();
+
+// Test with holey double array and Math.min/max.
+(function () {
+  "use strict";
+  function arrayMin(val) {
+    return Math.min.apply(Math, val);
+  }
+  function arrayMax(val) {
+    return Math.max.apply(Math, val);
+  }
+
+  %PrepareFunctionForOptimization(arrayMin);
+  %PrepareFunctionForOptimization(arrayMin);
+  assertEquals(NaN, arrayMin([11.03, 16.11, , 26.06]));
+
+  %PrepareFunctionForOptimization(arrayMax);
+  %PrepareFunctionForOptimization(arrayMax);
+  assertEquals(NaN, arrayMax([11.03, 16.11, , 26.06]));
+  %OptimizeFunctionOnNextCall(arrayMin);
+  %OptimizeFunctionOnNextCall(arrayMax);
+
+  assertEquals(NaN, arrayMin([11.03, 16.11, , 26.06]));
+  assertEquals(NaN, arrayMax([11.03, 16.11, , 26.06]));
+
+  assertOptimized(arrayMin);
+  assertOptimized(arrayMax);
+
 })();
 
 // Test Reflect.apply().

@@ -80,4 +80,4 @@ static void Initialize(Local<Object> target,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(config, node::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(config, node::Initialize)

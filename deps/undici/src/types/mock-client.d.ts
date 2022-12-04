@@ -1,9 +1,9 @@
-import Client = require('./client')
-import Dispatcher = require('./dispatcher')
-import MockAgent = require('./mock-agent')
+import Client from './client'
+import Dispatcher from './dispatcher'
+import MockAgent from './mock-agent'
 import { MockInterceptor, Interceptable } from './mock-interceptor'
 
-export = MockClient
+export default MockClient
 
 /** MockClient extends the Client API and allows one to mock requests. */
 declare class MockClient extends Client implements Interceptable {

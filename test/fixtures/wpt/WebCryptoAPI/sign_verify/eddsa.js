@@ -354,6 +354,18 @@ function run_test() {
           .catch(function() {done();})
   }, "setup");
 
+  // Test that generated keys are valid for signing and verifying.
+  testVectors.forEach(function(vector) {
+      var algorithm = {name: vector.algorithmName};
+      promise_test(async() => {
+          let key = await subtle.generateKey(algorithm, false, ["sign", "verify"]);
+          let signature = await subtle.sign(algorithm, key.privateKey, vector.data);
+          let isVerified = await subtle.verify(algorithm, key.publicKey, signature, vector.data);
+          assert_true(isVerified, "Verificaton failed.");
+      }, "Sign and verify using generated " + vector.algorithmName + " keys.");
+  });
+
+
   // A test vector has all needed fields for signing and verifying, EXCEPT that the
   // key field may be null. This function replaces that null with the Correct
   // CryptoKey object.

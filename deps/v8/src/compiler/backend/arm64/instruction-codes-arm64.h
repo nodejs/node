@@ -41,7 +41,9 @@ namespace compiler {
   V(Arm64Strh)                                             \
   V(Arm64StrQ)                                             \
   V(Arm64StrS)                                             \
-  V(Arm64StrW)
+  V(Arm64StrW)                                             \
+  V(Arm64Word64AtomicLoadUint64)                           \
+  V(Arm64Word64AtomicStoreWord64)
 
 #define TARGET_ARCH_OPCODE_LIST(V)                   \
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
@@ -78,6 +80,7 @@ namespace compiler {
   V(Arm64Mul32)                                      \
   V(Arm64Smlal)                                      \
   V(Arm64Smlal2)                                     \
+  V(Arm64Smulh)                                      \
   V(Arm64Smull)                                      \
   V(Arm64Smull2)                                     \
   V(Arm64Uadalp)                                     \
@@ -85,6 +88,7 @@ namespace compiler {
   V(Arm64Umlal)                                      \
   V(Arm64Umlal2)                                     \
   V(Arm64Umull)                                      \
+  V(Arm64Umulh)                                      \
   V(Arm64Umull2)                                     \
   V(Arm64Madd)                                       \
   V(Arm64Madd32)                                     \
@@ -121,6 +125,7 @@ namespace compiler {
   V(Arm64Ubfx)                                       \
   V(Arm64Ubfx32)                                     \
   V(Arm64Ubfiz32)                                    \
+  V(Arm64Sbfiz)                                      \
   V(Arm64Bfi)                                        \
   V(Arm64Rbit)                                       \
   V(Arm64Rbit32)                                     \
@@ -237,8 +242,6 @@ namespace compiler {
   V(Arm64F64x2PromoteLowF32x4)                       \
   V(Arm64F32x4SConvertI32x4)                         \
   V(Arm64F32x4UConvertI32x4)                         \
-  V(Arm64F32x4RecipApprox)                           \
-  V(Arm64F32x4RecipSqrtApprox)                       \
   V(Arm64F32x4Qfma)                                  \
   V(Arm64F32x4Qfms)                                  \
   V(Arm64F32x4Pmin)                                  \
@@ -278,6 +281,8 @@ namespace compiler {
   V(Arm64IGeU)                                       \
   V(Arm64I32x4BitMask)                               \
   V(Arm64I32x4DotI16x8S)                             \
+  V(Arm64I16x8DotI8x16S)                             \
+  V(Arm64I32x4DotI8x16AddS)                          \
   V(Arm64I32x4TruncSatF64x2SZero)                    \
   V(Arm64I32x4TruncSatF64x2UZero)                    \
   V(Arm64IExtractLaneU)                              \
@@ -345,8 +350,6 @@ namespace compiler {
   V(Arm64I32x4AllTrue)                               \
   V(Arm64I16x8AllTrue)                               \
   V(Arm64I8x16AllTrue)                               \
-  V(Arm64Word64AtomicLoadUint64)                     \
-  V(Arm64Word64AtomicStoreWord64)                    \
   V(Arm64Word64AtomicAddUint64)                      \
   V(Arm64Word64AtomicSubUint64)                      \
   V(Arm64Word64AtomicAndUint64)                      \

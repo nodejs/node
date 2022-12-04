@@ -11,10 +11,8 @@
 #include <ostream>
 #include <streambuf>
 
-#include "include/v8config.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/strings.h"
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -82,6 +80,8 @@ class StdoutStream : public std::ostream {
   StdoutStream() : std::ostream(&stream_) {}
 
  private:
+  friend class StderrStream;
+
   static V8_EXPORT_PRIVATE base::RecursiveMutex* GetStdoutMutex();
 
   AndroidLogStream stream_;
@@ -93,11 +93,20 @@ class StdoutStream : public OFStream {
   StdoutStream() : OFStream(stdout) {}
 
  private:
+  friend class StderrStream;
   static V8_EXPORT_PRIVATE base::RecursiveMutex* GetStdoutMutex();
 
   base::RecursiveMutexGuard mutex_guard_{GetStdoutMutex()};
 };
 #endif
+
+class StderrStream : public OFStream {
+ public:
+  StderrStream() : OFStream(stderr) {}
+
+ private:
+  base::RecursiveMutexGuard mutex_guard_{StdoutStream::GetStdoutMutex()};
+};
 
 // Wrappers to disambiguate uint16_t and base::uc16.
 struct AsUC16 {

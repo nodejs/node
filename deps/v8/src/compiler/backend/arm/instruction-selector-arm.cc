@@ -5,7 +5,6 @@
 #include "src/base/bits.h"
 #include "src/base/enum-set.h"
 #include "src/base/iterator.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
@@ -26,7 +25,7 @@ class ArmOperandGenerator : public OperandGenerator {
   }
 
   bool CanBeImmediate(uint32_t value) const {
-    return CanBeImmediate(bit_cast<int32_t>(value));
+    return CanBeImmediate(base::bit_cast<int32_t>(value));
   }
 
   bool CanBeImmediate(Node* node, InstructionCode opcode) {
@@ -624,6 +623,7 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kSimd128:
       opcode = kArmVld1S128;
       break;
+    case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
@@ -662,6 +662,7 @@ ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
       return kArmStr;
     case MachineRepresentation::kSimd128:
       return kArmVst1S128;
+    case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
@@ -699,11 +700,12 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineRepresentation rep = store_rep.representation();
 
-  if (FLAG_enable_unconditional_write_barriers && CanBeTaggedPointer(rep)) {
+  if (v8_flags.enable_unconditional_write_barriers && CanBeTaggedPointer(rep)) {
     write_barrier_kind = kFullWriteBarrier;
   }
 
-  if (write_barrier_kind != kNoWriteBarrier && !FLAG_disable_write_barriers) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
@@ -1715,6 +1717,11 @@ void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
       ->MarkAsCall();
 }
 
+void InstructionSelector::EmitMoveParamToFPR(Node* node, int index) {}
+
+void InstructionSelector::EmitMoveFPRToParam(InstructionOperand* op,
+                                             LinkageLocation location) {}
+
 void InstructionSelector::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
     Node* node) {
@@ -2267,6 +2274,7 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
 }
 
 void InstructionSelector::VisitMemoryBarrier(Node* node) {
+  // Use DMB ISH for both acquire-release and sequentially consistent barriers.
   ArmOperandGenerator g(this);
   Emit(kArmDmbIsh, g.NoOutput());
 }
@@ -2580,8 +2588,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(F32x4UConvertI32x4, kArmF32x4UConvertI32x4)         \
   V(F32x4Abs, kArmF32x4Abs)                             \
   V(F32x4Neg, kArmF32x4Neg)                             \
-  V(F32x4RecipApprox, kArmF32x4RecipApprox)             \
-  V(F32x4RecipSqrtApprox, kArmF32x4RecipSqrtApprox)     \
   V(I64x2Abs, kArmI64x2Abs)                             \
   V(I64x2SConvertI32x4Low, kArmI64x2SConvertI32x4Low)   \
   V(I64x2SConvertI32x4High, kArmI64x2SConvertI32x4High) \
@@ -2687,6 +2693,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8GeU, kArmI16x8GeU)                           \
   V(I16x8RoundingAverageU, kArmI16x8RoundingAverageU) \
   V(I16x8Q15MulRSatS, kArmI16x8Q15MulRSatS)           \
+  V(I16x8RelaxedQ15MulRS, kArmI16x8Q15MulRSatS)       \
   V(I8x16SConvertI16x8, kArmI8x16SConvertI16x8)       \
   V(I8x16Add, kArmI8x16Add)                           \
   V(I8x16AddSatS, kArmI8x16AddSatS)                   \

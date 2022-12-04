@@ -133,7 +133,7 @@ class IsolateSafepoint final {
   }
 
   Isolate* isolate() const;
-  Isolate* shared_isolate() const;
+  Isolate* shared_heap_isolate() const;
 
   Barrier barrier_;
   Heap* heap_;
@@ -147,14 +147,15 @@ class IsolateSafepoint final {
 
   friend class GlobalSafepoint;
   friend class GlobalSafepointScope;
+  friend class Isolate;
+  friend class IsolateSafepointScope;
   friend class LocalHeap;
-  friend class SafepointScope;
 };
 
-class V8_NODISCARD SafepointScope {
+class V8_NODISCARD IsolateSafepointScope {
  public:
-  V8_EXPORT_PRIVATE explicit SafepointScope(Heap* heap);
-  V8_EXPORT_PRIVATE ~SafepointScope();
+  V8_EXPORT_PRIVATE explicit IsolateSafepointScope(Heap* heap);
+  V8_EXPORT_PRIVATE ~IsolateSafepointScope();
 
  private:
   IsolateSafepoint* safepoint_;
@@ -177,7 +178,7 @@ class GlobalSafepoint final {
     }
   }
 
-  void AssertNoClients();
+  void AssertNoClientsOnTearDown();
 
   void AssertActive() { clients_mutex_.AssertHeld(); }
 
@@ -185,8 +186,7 @@ class GlobalSafepoint final {
   void EnterGlobalSafepointScope(Isolate* initiator);
   void LeaveGlobalSafepointScope(Isolate* initiator);
 
-  Isolate* const shared_isolate_;
-  Heap* const shared_heap_;
+  Isolate* const shared_heap_isolate_;
   base::Mutex clients_mutex_;
   Isolate* clients_head_ = nullptr;
 
@@ -201,7 +201,19 @@ class V8_NODISCARD GlobalSafepointScope {
 
  private:
   Isolate* const initiator_;
-  Isolate* const shared_isolate_;
+  Isolate* const shared_heap_isolate_;
+};
+
+enum class SafepointKind { kIsolate, kGlobal };
+
+class V8_NODISCARD SafepointScope {
+ public:
+  V8_EXPORT_PRIVATE explicit SafepointScope(Isolate* initiator,
+                                            SafepointKind kind);
+
+ private:
+  base::Optional<IsolateSafepointScope> isolate_safepoint_;
+  base::Optional<GlobalSafepointScope> global_safepoint_;
 };
 
 }  // namespace internal

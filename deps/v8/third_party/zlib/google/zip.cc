@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -229,7 +229,10 @@ bool Unzip(const base::PlatformFile& src_file,
 
     // It's a file.
     std::unique_ptr<WriterDelegate> writer = writer_factory.Run(entry->path);
-    if (!writer || !reader.ExtractCurrentEntry(writer.get())) {
+    if (!writer ||
+        (options.progress ? !reader.ExtractCurrentEntryWithListener(
+                                writer.get(), options.progress)
+                          : !reader.ExtractCurrentEntry(writer.get()))) {
       LOG(ERROR) << "Cannot extract file " << Redact(entry->path)
                  << " from ZIP";
       if (!options.continue_on_error)

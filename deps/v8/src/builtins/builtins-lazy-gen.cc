@@ -29,50 +29,34 @@ void LazyBuiltinsAssembler::GenerateTailCallToReturnedCode(
   GenerateTailCallToJSCode(code, function);
 }
 
-void LazyBuiltinsAssembler::TailCallRuntimeIfStateEquals(
-    TNode<Uint32T> state, TieringState expected_state,
-    Runtime::FunctionId function_id, TNode<JSFunction> function) {
-  Label no_match(this);
-  GotoIfNot(
-      Word32Equal(state, Uint32Constant(static_cast<uint32_t>(expected_state))),
-      &no_match);
-  GenerateTailCallToReturnedCode(function_id, function);
-  BIND(&no_match);
-}
-
 void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
     TNode<JSFunction> function, TNode<FeedbackVector> feedback_vector) {
-  Label fallthrough(this), may_have_optimized_code(this);
+  Label fallthrough(this), may_have_optimized_code(this),
+      maybe_needs_logging(this);
 
-  TNode<Uint32T> optimization_state =
-      LoadObjectField<Uint32T>(feedback_vector, FeedbackVector::kFlagsOffset);
+  TNode<Uint16T> flags =
+      LoadObjectField<Uint16T>(feedback_vector, FeedbackVector::kFlagsOffset);
 
   // Fall through if no optimization trigger or optimized code.
   GotoIfNot(
-      IsSetWord32(
-          optimization_state,
-          FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask),
+      IsSetWord32(flags, FeedbackVector::kFlagsHasAnyOptimizedCode |
+                             FeedbackVector::kFlagsTieringStateIsAnyRequested |
+                             FeedbackVector::kFlagsLogNextExecution),
       &fallthrough);
 
-  GotoIfNot(IsSetWord32(optimization_state,
-                        FeedbackVector::kTieringStateIsAnyRequestMask),
-            &may_have_optimized_code);
+  GotoIfNot(
+      IsSetWord32(flags, FeedbackVector::kFlagsTieringStateIsAnyRequested),
+      &maybe_needs_logging);
+  GenerateTailCallToReturnedCode(Runtime::kCompileOptimized, function);
 
-  // TODO(ishell): introduce Runtime::kHandleTieringState and check
-  // all these state values there.
-  TNode<Uint32T> state =
-      DecodeWord32<FeedbackVector::TieringStateBits>(optimization_state);
-  TailCallRuntimeIfStateEquals(state,
-                               TieringState::kRequestTurbofan_Synchronous,
-                               Runtime::kCompileTurbofan_Synchronous, function);
-  TailCallRuntimeIfStateEquals(state, TieringState::kRequestTurbofan_Concurrent,
-                               Runtime::kCompileTurbofan_Concurrent, function);
-  TailCallRuntimeIfStateEquals(state, TieringState::kRequestMaglev_Synchronous,
-                               Runtime::kCompileMaglev_Synchronous, function);
-  TailCallRuntimeIfStateEquals(state, TieringState::kRequestMaglev_Concurrent,
-                               Runtime::kCompileMaglev_Concurrent, function);
+  BIND(&maybe_needs_logging);
+  {
+    GotoIfNot(IsSetWord32(flags, FeedbackVector::kFlagsLogNextExecution),
+              &may_have_optimized_code);
+    GenerateTailCallToReturnedCode(Runtime::kFunctionLogNextExecution,
+                                   function);
+  }
 
-  Unreachable();
   BIND(&may_have_optimized_code);
   {
     Label heal_optimized_code_slot(this);
@@ -85,12 +69,7 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
 
     // Check if the optimized code is marked for deopt. If it is, call the
     // runtime to clear it.
-    TNode<CodeDataContainer> code_data_container =
-        CodeDataContainerFromCodeT(optimized_code);
-    TNode<Int32T> code_kind_specific_flags = LoadObjectField<Int32T>(
-        code_data_container, CodeDataContainer::kKindSpecificFlagsOffset);
-    GotoIf(IsSetWord32<Code::MarkedForDeoptimizationField>(
-               code_kind_specific_flags),
+    GotoIf(IsMarkedForDeoptimization(optimized_code),
            &heal_optimized_code_slot);
 
     // Optimized code is good, get it into the closure and link the closure into

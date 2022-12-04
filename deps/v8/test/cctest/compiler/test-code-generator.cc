@@ -15,9 +15,9 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/function-tester.h"
+#include "test/common/code-assembler-tester.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"
@@ -31,6 +31,16 @@ namespace compiler {
 #define __ assembler.
 
 namespace {
+
+enum MoveMode { kParallelMoves, kSequentialMoves };
+
+ParallelMove* CopyMoves(ParallelMove* moves, Zone* zone) {
+  ParallelMove* copy = zone->New<ParallelMove>(zone);
+  for (auto m : *moves) {
+    copy->AddMove(m->source(), m->destination());
+  }
+  return copy;
+}
 
 int GetSlotSizeInBytes(MachineRepresentation rep) {
   switch (rep) {
@@ -291,9 +301,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
   os << ")";
 }
 
-bool TestSimd128Moves() {
-  return CpuFeatures::SupportsWasmSimd128();
-}
+bool TestSimd128Moves() { return CpuFeatures::SupportsWasmSimd128(); }
 
 }  // namespace
 
@@ -685,13 +693,13 @@ class TestEnvironment : public HandleAndZoneScope {
       // The "setup" and "teardown" functions are relatively big, and with
       // runtime assertions enabled they get so big that memory during register
       // allocation becomes a problem. Temporarily disable such assertions.
-      bool old_enable_slow_asserts = FLAG_enable_slow_asserts;
-      FLAG_enable_slow_asserts = false;
+      bool old_enable_slow_asserts = v8_flags.enable_slow_asserts;
+      v8_flags.enable_slow_asserts = false;
 #endif
       Handle<Code> setup =
           BuildSetupFunction(main_isolate(), test_descriptor_, layout_);
 #ifdef ENABLE_SLOW_DCHECKS
-      FLAG_enable_slow_asserts = old_enable_slow_asserts;
+      v8_flags.enable_slow_asserts = old_enable_slow_asserts;
 #endif
       // FunctionTester maintains its own HandleScope which means that its
       // return value will be freed along with it. Copy the result into
@@ -720,7 +728,8 @@ class TestEnvironment : public HandleAndZoneScope {
   // Perform the given list of moves on `state_in` and return a newly allocated
   // state with the results.
   Handle<FixedArray> SimulateMoves(ParallelMove* moves,
-                                   Handle<FixedArray> state_in) {
+                                   Handle<FixedArray> state_in,
+                                   MoveMode move_mode) {
     Handle<FixedArray> state_out = main_isolate()->factory()->NewFixedArray(
         static_cast<int>(layout_.size()));
     // We do not want to modify `state_in` in place so perform the moves on a
@@ -759,7 +768,9 @@ class TestEnvironment : public HandleAndZoneScope {
         state_out->set(to_index, *constant_value);
       } else {
         int from_index = OperandToStatePosition(AllocatedOperand::cast(from));
-        state_out->set(to_index, state_out->get(from_index));
+        state_out->set(to_index, move_mode == kParallelMoves
+                                     ? state_in->get(from_index)
+                                     : state_out->get(from_index));
       }
     }
     return state_out;
@@ -835,21 +846,48 @@ class TestEnvironment : public HandleAndZoneScope {
     kCannotBeConstant
   };
 
-  // Generate parallel moves at random. Note that they may not be compatible
-  // between each other as this doesn't matter to the code generator.
-  ParallelMove* GenerateRandomMoves(int size) {
+  // Generate parallel moves at random.
+  // In sequential mode, they can be incompatible between each other as this
+  // doesn't matter to the code generator.
+  // In parallel mode, ensure that two destinations can't conflict with each
+  // other, and pick sources among the compatible destinations if any, to
+  // increase the number of dependencies and stress the gap resolver.
+  ParallelMove* GenerateRandomMoves(int size, MoveMode move_mode) {
     ParallelMove* parallel_move = main_zone()->New<ParallelMove>(main_zone());
+    std::map<MachineRepresentation, std::vector<InstructionOperand*>>
+        destinations;
 
     for (int i = 0; i < size;) {
       MachineRepresentation rep = CreateRandomMachineRepresentation();
-      MoveOperands mo(CreateRandomOperand(kNone, rep),
-                      CreateRandomOperand(kCannotBeConstant, rep));
+      InstructionOperand source;
+      if (move_mode == kParallelMoves && !destinations[rep].empty()) {
+        // Try reusing a destination.
+        source = *destinations[rep][rng_->NextInt(
+            static_cast<int>(destinations[rep].size()))];
+      } else {
+        source = CreateRandomOperand(kNone, rep);
+      }
+      MoveOperands mo(source, CreateRandomOperand(kCannotBeConstant, rep));
       // It isn't valid to call `AssembleMove` and `AssembleSwap` with redundant
       // moves.
       if (mo.IsRedundant()) continue;
-      parallel_move->AddMove(mo.source(), mo.destination());
+      // Do not generate parallel moves with conflicting destinations.
+      if (move_mode == kParallelMoves) {
+        bool conflict = std::any_of(
+            destinations.begin(), destinations.end(), [&mo](auto& p) {
+              return std::any_of(
+                  p.second.begin(), p.second.end(), [&mo](auto& dest) {
+                    return dest->InterferesWith(mo.destination());
+                  });
+            });
+
+        if (conflict) continue;
+      }
+      MoveOperands* operands =
+          parallel_move->AddMove(mo.source(), mo.destination());
       // Iterate only when a move was created.
       i++;
+      destinations[rep].push_back(&operands->destination());
     }
 
     return parallel_move;
@@ -998,13 +1036,14 @@ class CodeGeneratorTester {
       i++;
     }
 
-    static constexpr size_t kMaxUnoptimizedFrameHeight = 0;
-    static constexpr size_t kMaxPushedArgumentCount = 0;
+    constexpr size_t kMaxUnoptimizedFrameHeight = 0;
+    constexpr size_t kMaxPushedArgumentCount = 0;
+    constexpr wasm::AssemblerBufferCache* kNoBufferCache = nullptr;
     generator_ = new CodeGenerator(
         environment->main_zone(), &frame_, &linkage_,
         environment->instructions(), &info_, environment->main_isolate(),
         base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
-        AssemblerOptions::Default(environment->main_isolate()),
+        AssemblerOptions::Default(environment->main_isolate()), kNoBufferCache,
         Builtin::kNoBuiltinId, kMaxUnoptimizedFrameHeight,
         kMaxPushedArgumentCount);
 
@@ -1078,9 +1117,11 @@ class CodeGeneratorTester {
 #if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_S390) || \
     defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
     // Only folding register pushes is supported on ARM.
-    bool supported = ((push_type & CodeGenerator::kRegisterPush) == push_type);
+    bool supported =
+        ((int{push_type} & CodeGenerator::kRegisterPush) == push_type);
 #elif defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
-    bool supported = ((push_type & CodeGenerator::kScalarPush) == push_type);
+    bool supported =
+        ((int{push_type} & CodeGenerator::kScalarPush) == push_type);
 #else
     bool supported = false;
 #endif
@@ -1102,6 +1143,14 @@ class CodeGeneratorTester {
     generator_->AssembleMove(MaybeTranslateSlot(source),
                              MaybeTranslateSlot(destination));
     CHECK(generator_->tasm()->pc_offset() > start);
+  }
+
+  void CheckAssembleMoves(ParallelMove* moves) {
+    for (auto m : *moves) {
+      m->set_source(*MaybeTranslateSlot(&m->source()));
+      m->set_destination(*MaybeTranslateSlot(&m->destination()));
+    }
+    generator_->resolver()->Resolve(moves);
   }
 
   void CheckAssembleSwap(InstructionOperand* source,
@@ -1207,9 +1256,10 @@ TEST(FuzzAssembleMove) {
   TestEnvironment env;
 
   Handle<FixedArray> state_in = env.GenerateInitialState();
-  ParallelMove* moves = env.GenerateRandomMoves(1000);
+  ParallelMove* moves = env.GenerateRandomMoves(1000, kSequentialMoves);
 
-  Handle<FixedArray> expected = env.SimulateMoves(moves, state_in);
+  Handle<FixedArray> expected =
+      env.SimulateMoves(moves, state_in, kSequentialMoves);
 
   // Test small and potentially large ranges separately.
   for (int extra_space : {0, kExtraSpace}) {
@@ -1220,12 +1270,51 @@ TEST(FuzzAssembleMove) {
     }
 
     Handle<Code> test = c.FinalizeForExecuting();
-    if (FLAG_print_code) {
+    if (v8_flags.print_code) {
       test->Print();
     }
 
     Handle<FixedArray> actual = env.Run(test, state_in);
     env.CheckState(actual, expected);
+  }
+}
+
+// Test integration with the gap resolver by resolving parallel moves first.
+TEST(FuzzAssembleParallelMove) {
+  TestEnvironment env;
+
+  // Generate a sequence of N parallel moves of M moves each.
+  constexpr int N = 100;
+  constexpr int M = 10;
+  Handle<FixedArray> state_in = env.GenerateInitialState();
+  Handle<FixedArray> state_out =
+      env.main_isolate()->factory()->NewFixedArray(state_in->length());
+  state_in->CopyTo(0, *state_out, 0, state_in->length());
+  ParallelMove* moves[N];
+  for (int i = 0; i < N; ++i) {
+    moves[i] = env.GenerateRandomMoves(M, kParallelMoves);
+    state_out = env.SimulateMoves(moves[i], state_out, kParallelMoves);
+  }
+
+  // Test small and potentially large ranges separately.
+  for (int extra_space : {0, kExtraSpace}) {
+    CodeGeneratorTester c(&env, extra_space);
+
+    for (int i = 0; i < N; ++i) {
+      // The gap resolver modifies the parallel move in-place. Copy and restore
+      // it after assembling.
+      ParallelMove* save_moves = CopyMoves(moves[i], env.main_zone());
+      c.CheckAssembleMoves(moves[i]);
+      moves[i] = save_moves;
+    }
+
+    Handle<Code> test = c.FinalizeForExecuting();
+    if (v8_flags.print_code) {
+      test->Print();
+    }
+
+    Handle<FixedArray> actual = env.Run(test, state_in);
+    env.CheckState(actual, state_out);
   }
 }
 
@@ -1246,7 +1335,7 @@ TEST(FuzzAssembleSwap) {
     }
 
     Handle<Code> test = c.FinalizeForExecuting();
-    if (FLAG_print_code) {
+    if (v8_flags.print_code) {
       test->Print();
     }
 
@@ -1271,8 +1360,8 @@ TEST(FuzzAssembleMoveAndSwap) {
     for (int i = 0; i < 1000; i++) {
       // Randomly alternate between swaps and moves.
       if (env.rng()->NextInt(2) == 0) {
-        ParallelMove* move = env.GenerateRandomMoves(1);
-        expected = env.SimulateMoves(move, expected);
+        ParallelMove* move = env.GenerateRandomMoves(1, kSequentialMoves);
+        expected = env.SimulateMoves(move, expected, kSequentialMoves);
         c.CheckAssembleMove(&move->at(0)->source(),
                             &move->at(0)->destination());
       } else {
@@ -1284,7 +1373,7 @@ TEST(FuzzAssembleMoveAndSwap) {
     }
 
     Handle<Code> test = c.FinalizeForExecuting();
-    if (FLAG_print_code) {
+    if (v8_flags.print_code) {
       test->Print();
     }
 
@@ -1365,7 +1454,7 @@ TEST(AssembleTailCallGap) {
     c.CheckAssembleTailCallGaps(instr, first_slot + 4,
                                 CodeGeneratorTester::kRegisterPush);
     Handle<Code> code = c.Finalize();
-    if (FLAG_print_code) {
+    if (v8_flags.print_code) {
       code->Print();
     }
   }
@@ -1394,7 +1483,7 @@ TEST(AssembleTailCallGap) {
     c.CheckAssembleTailCallGaps(instr, first_slot + 4,
                                 CodeGeneratorTester::kStackSlotPush);
     Handle<Code> code = c.Finalize();
-    if (FLAG_print_code) {
+    if (v8_flags.print_code) {
       code->Print();
     }
   }
@@ -1423,7 +1512,7 @@ TEST(AssembleTailCallGap) {
     c.CheckAssembleTailCallGaps(instr, first_slot + 4,
                                 CodeGeneratorTester::kScalarPush);
     Handle<Code> code = c.Finalize();
-    if (FLAG_print_code) {
+    if (v8_flags.print_code) {
       code->Print();
     }
   }

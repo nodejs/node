@@ -25,7 +25,6 @@
 #endif
 
 #if defined(V8_OS_WIN)
-#include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN
 
@@ -82,11 +81,10 @@ class Operand {
   inline Operand(Register reg, Extend extend, unsigned shift_amount = 0);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
-  static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
-  inline bool IsHeapObjectRequest() const;
-  inline HeapObjectRequest heap_object_request() const;
-  inline Immediate immediate_for_heap_object_request() const;
+  inline bool IsHeapNumberRequest() const;
+  inline HeapNumberRequest heap_number_request() const;
+  inline Immediate immediate_for_heap_number_request() const;
 
   // Implicit constructor for all int types, ExternalReference, and Smi.
   template <typename T>
@@ -120,7 +118,7 @@ class Operand {
   bool NeedsRelocation(const Assembler* assembler) const;
 
  private:
-  base::Optional<HeapObjectRequest> heap_object_request_;
+  base::Optional<HeapNumberRequest> heap_number_request_;
   Immediate immediate_;
   Register reg_;
   Shift shift_;
@@ -209,6 +207,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Insert the smallest number of zero bytes possible to align the pc offset
   // to a mulitple of m. m must be a power of 2 (>= 2).
   void DataAlign(int m);
+
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
   void LoopHeaderAlign() { CodeTargetAlign(); }
@@ -238,8 +237,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // instruction.
   void near_call(int offset, RelocInfo::Mode rmode);
   // Generate a BL immediate instruction with the corresponding relocation info
-  // for the input HeapObjectRequest.
-  void near_call(HeapObjectRequest request);
+  // for the input HeapNumberRequest.
+  void near_call(HeapNumberRequest request);
 
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc.
@@ -269,13 +268,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Returns the handle for the heap object referenced at 'pc'.
   inline Handle<HeapObject> target_object_handle_at(Address pc);
 
-  // Returns the target address for a runtime function for the call encoded
-  // at 'pc'.
-  // Runtime entries can be temporarily encoded as the offset between the
-  // runtime function entrypoint and the code range base (stored in the
-  // code_range_base field), in order to be encodable as we generate the code,
-  // before it is moved into the code space.
-  inline Address runtime_entry_at(Address pc);
+  // During code generation builtin targets in PC-relative call/jump
+  // instructions are temporarily encoded as builtin ID until the generated
+  // code is moved into the code space.
+  static inline Builtin target_builtin_at(Address pc);
 
   // This sets the branch destination. 'location' here can be either the pc of
   // an immediate branch or the address of an entry in the constant pool.
@@ -747,8 +743,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // 32 x 32 -> 64-bit multiply.
   void smull(const Register& rd, const Register& rn, const Register& rm);
 
-  // Xd = bits<127:64> of Xn * Xm.
+  // Xd = bits<127:64> of Xn * Xm, signed.
   void smulh(const Register& rd, const Register& rn, const Register& rm);
+
+  // Xd = bits<127:64> of Xn * Xm, unsigned.
+  void umulh(const Register& rd, const Register& rn, const Register& rm);
 
   // Signed 32 x 32 -> 64-bit multiply and accumulate.
   void smaddl(const Register& rd, const Register& rn, const Register& rm,
@@ -2066,8 +2065,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     BlockPoolsScope no_pool_scope(this);
     if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-             RelocInfo::IsLiteralConstant(rmode));
+      DCHECK(RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc32(data);
@@ -2075,8 +2073,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     BlockPoolsScope no_pool_scope(this);
     if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-             RelocInfo::IsLiteralConstant(rmode));
+      DCHECK(RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc64(data);
@@ -2084,8 +2081,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     BlockPoolsScope no_pool_scope(this);
     if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-             RelocInfo::IsLiteralConstant(rmode));
+      DCHECK(RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc64(data);
@@ -2566,7 +2562,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void NEON3DifferentHN(const VRegister& vd, const VRegister& vn,
                         const VRegister& vm, NEON3DifferentOp vop);
   void NEONFP2RegMisc(const VRegister& vd, const VRegister& vn,
-                      NEON2RegMiscOp vop, double value = 0.0);
+                      NEON2RegMiscOp vop, double value);
   void NEON2RegMisc(const VRegister& vd, const VRegister& vn,
                     NEON2RegMiscOp vop, int value = 0);
   void NEONFP2RegMisc(const VRegister& vd, const VRegister& vn, Instr op);
@@ -2614,8 +2610,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Emit the instruction at pc_.
   void Emit(Instr instruction) {
-    STATIC_ASSERT(sizeof(*pc_) == 1);
-    STATIC_ASSERT(sizeof(instruction) == kInstrSize);
+    static_assert(sizeof(*pc_) == 1);
+    static_assert(sizeof(instruction) == kInstrSize);
     DCHECK_LE(pc_ + sizeof(instruction), buffer_start_ + buffer_->size());
 
     memcpy(pc_, &instruction, sizeof(instruction));
@@ -2636,8 +2632,21 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   void GrowBuffer();
-  V8_INLINE void CheckBufferSpace();
-  void CheckBuffer();
+
+  void CheckBufferSpace() {
+    DCHECK_LT(pc_, buffer_start_ + buffer_->size());
+    if (V8_UNLIKELY(buffer_space() < kGap)) {
+      GrowBuffer();
+    }
+  }
+
+  void CheckBuffer() {
+    CheckBufferSpace();
+    if (pc_offset() >= next_veneer_pool_check_) {
+      CheckVeneerPool(false, true);
+    }
+    constpool_.MaybeCheck();
+  }
 
   // Emission of the veneer pools may be blocked in some code sequences.
   int veneer_pool_blocked_nesting_;  // Block emission if this is not zero.
@@ -2660,7 +2669,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // relocation info entries, and debug strings encoded in the instruction
   // stream.
   static constexpr int kGap = 64;
-  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
+  static_assert(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
  public:
 #ifdef DEBUG
@@ -2743,7 +2752,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // the length of the label chain.
   void DeleteUnresolvedBranchInfoForLabelTraverse(Label* label);
 
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
 
   int WriteCodeComments();
 

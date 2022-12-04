@@ -178,19 +178,15 @@ Implements [fetch](https://fetch.spec.whatwg.org/#fetch-method).
 
 Only supported on Node 16.8+.
 
-This is [experimental](https://nodejs.org/api/documentation.html#documentation_stability_index) and is not yet fully compliant with the Fetch Standard.
-We plan to ship breaking changes to this feature until it is out of experimental.
-Help us improve the test coverage by following instructions at [nodejs/undici/#951](https://github.com/nodejs/undici/issues/951).
-
 Basic usage example:
 
 ```js
-import { fetch } from 'undici';
+import { fetch } from 'undici'
 
 
 const res = await fetch('https://example.com')
 const json = await res.json()
-console.log(json);
+console.log(json)
 ```
 
 You can pass an optional dispatcher to `fetch` as:
@@ -225,29 +221,35 @@ A body can be of the following types:
 In this implementation of fetch, ```request.body``` now accepts ```Async Iterables```. It is not present in the [Fetch Standard.](https://fetch.spec.whatwg.org)
 
 ```js
-import { fetch } from "undici";
+import { fetch } from 'undici'
 
 const data = {
   async *[Symbol.asyncIterator]() {
-    yield "hello";
-    yield "world";
+    yield 'hello'
+    yield 'world'
   },
-};
+}
 
-await fetch("https://example.com", { body: data, method: 'POST' });
+await fetch('https://example.com', { body: data, method: 'POST', duplex: 'half' })
 ```
+
+#### `request.duplex`
+
+- half
+
+In this implementation of fetch, `request.duplex` must be set if `request.body` is `ReadableStream` or `Async Iterables`. And fetch requests are currently always be full duplex. More detail refer to [Fetch Standard.](https://fetch.spec.whatwg.org/#dom-requestinit-duplex)
 
 #### `response.body`
 
 Nodejs has two kinds of streams: [web streams](https://nodejs.org/dist/latest-v16.x/docs/api/webstreams.html), which follow the API of the WHATWG web standard found in browsers, and an older Node-specific [streams API](https://nodejs.org/api/stream.html). `response.body` returns a readable web stream. If you would prefer to work with a Node stream you can convert a web stream using `.fromWeb()`.
 
 ```js
-import { fetch } from 'undici';
-import { Readable } from 'node:stream';
+import { fetch } from 'undici'
+import { Readable } from 'node:stream'
 
 const response = await fetch('https://example.com')
-const readableWebStream = response.body;
-const readableNodeStream = Readable.fromWeb(readableWebStream);
+const readableWebStream = response.body
+const readableNodeStream = Readable.fromWeb(readableWebStream)
 ```
 
 #### Specification Compliance
@@ -328,6 +330,28 @@ Sets the global dispatcher used by Common API Methods.
 Gets the global dispatcher used by Common API Methods.
 
 Returns: `Dispatcher`
+
+### `undici.setGlobalOrigin(origin)`
+
+* origin `string | URL | undefined`
+
+Sets the global origin used in `fetch`.
+
+If `undefined` is passed, the global origin will be reset. This will cause `Response.redirect`, `new Request()`, and `fetch` to throw an error when a relative path is passed.
+
+```js
+setGlobalOrigin('http://localhost:3000')
+
+const response = await fetch('/api/ping')
+
+console.log(response.url) // http://localhost:3000/api/ping
+```
+
+### `undici.getGlobalOrigin()`
+
+Gets the global origin used in `fetch`.
+
+Returns: `URL`
 
 ### `UrlObject`
 

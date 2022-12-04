@@ -6,8 +6,11 @@
 #define V8_ZONE_ZONE_H_
 
 #include <limits>
+#include <memory>
+#include <type_traits>
 
 #include "src/base/logging.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/utils/utils.h"
 #include "src/zone/accounting-allocator.h"
@@ -119,6 +122,26 @@ class V8_EXPORT_PRIVATE Zone final {
     DCHECK_IMPLIES(is_compressed_pointer<T>::value, supports_compression());
     DCHECK_LT(length, std::numeric_limits<size_t>::max() / sizeof(T));
     return static_cast<T*>(Allocate<TypeTag>(length * sizeof(T)));
+  }
+
+  template <typename T, typename TypeTag = T[]>
+  base::Vector<T> NewVector(size_t length) {
+    T* new_array = NewArray<T, TypeTag>(length);
+    return {new_array, length};
+  }
+
+  template <typename T, typename TypeTag = T[]>
+  base::Vector<T> NewVector(size_t length, T value) {
+    T* new_array = NewArray<T, TypeTag>(length);
+    std::uninitialized_fill_n(new_array, length, value);
+    return {new_array, length};
+  }
+
+  template <typename T, typename TypeTag = std::remove_const_t<T>[]>
+  base::Vector<std::remove_const_t<T>> CloneVector(base::Vector<T> v) {
+    auto* new_array = NewArray<std::remove_const_t<T>, TypeTag>(v.size());
+    std::uninitialized_copy(v.begin(), v.end(), new_array);
+    return {new_array, v.size()};
   }
 
   // Return array of 'length' elements back to Zone. These bytes can be reused

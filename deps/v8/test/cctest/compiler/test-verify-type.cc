@@ -3,15 +3,16 @@
 // found in the LICENSE file.
 
 #include "src/compiler/js-operator.h"
-#include "test/cctest/compiler/node-observer-tester.h"
+#include "test/cctest/cctest.h"
 #include "test/common/flag-utils.h"
+#include "test/common/node-observer-tester.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
 TEST(TestVerifyType) {
-  FlagScope<bool> allow_natives_syntax(&i::FLAG_allow_natives_syntax, true);
+  FlagScope<bool> allow_natives_syntax(&i::v8_flags.allow_natives_syntax, true);
   HandleAndZoneScope handle_scope;
   Isolate* isolate = handle_scope.main_isolate();
   Zone* zone = handle_scope.main_zone();

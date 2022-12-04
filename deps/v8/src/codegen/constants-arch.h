@@ -11,8 +11,6 @@
 #include "src/codegen/arm64/constants-arm64.h"
 #elif V8_TARGET_ARCH_IA32
 #include "src/codegen/ia32/constants-ia32.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/codegen/mips/constants-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/codegen/mips64/constants-mips64.h"
 #elif V8_TARGET_ARCH_LOONG64
@@ -23,8 +21,8 @@
 #include "src/codegen/s390/constants-s390.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/codegen/x64/constants-x64.h"
-#elif V8_TARGET_ARCH_RISCV64
-#include "src/codegen/riscv64/constants-riscv64.h"
+#elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
+#include "src/codegen/riscv/constants-riscv.h"
 #else
 #error Unsupported target architecture.
 #endif

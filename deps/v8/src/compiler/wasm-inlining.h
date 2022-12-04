@@ -10,7 +10,7 @@
 #define V8_COMPILER_WASM_INLINING_H_
 
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/js-graph.h"
+#include "src/compiler/machine-graph.h"
 
 namespace v8 {
 namespace internal {
@@ -55,11 +55,16 @@ class WasmInliner final : public AdvancedReducer {
 
   const char* reducer_name() const override { return "WasmInliner"; }
 
+  // Registers (tail) calls to possibly be inlined, prioritized by inlining
+  // heuristics provided by {LexicographicOrdering}.
+  // Only locally defined functions are inlinable, and a limited number of
+  // inlinings of a specific function is allowed.
   Reduction Reduce(Node* node) final;
+  // Inlines calls registered by {Reduce}, until an inlining budget is exceeded.
   void Finalize() final;
 
-  static bool graph_size_allows_inlining(size_t initial_graph_size) {
-    return initial_graph_size < 5000;
+  static bool graph_size_allows_inlining(size_t graph_size) {
+    return graph_size < v8_flags.wasm_inlining_budget;
   }
 
  private:
@@ -78,8 +83,6 @@ class WasmInliner final : public AdvancedReducer {
       return c1.wire_byte_size > c2.wire_byte_size;
     }
   };
-
-  uint32_t FindOriginatingFunction(Node* call);
 
   Zone* zone() const { return mcgraph_->zone(); }
   CommonOperatorBuilder* common() const { return mcgraph_->common(); }
@@ -113,11 +116,7 @@ class WasmInliner final : public AdvancedReducer {
                       LexicographicOrdering>
       inlining_candidates_;
   std::unordered_set<Node*> seen_;
-  std::vector<uint32_t> inlined_functions_;
-  // Stores the graph size before an inlining was performed, to make it
-  // possible to map back from nodes to the function they came from.
-  // Guaranteed to have the same length as {inlined_functions_}.
-  std::vector<uint32_t> first_node_id_;
+  std::unordered_map<uint32_t, int> function_inlining_count_;
 };
 
 }  // namespace compiler

@@ -9,6 +9,7 @@
 
 #include "cppgc/internal/write-barrier.h"
 #include "cppgc/macros.h"
+#include "cppgc/member.h"
 #include "cppgc/trace-trait.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
@@ -45,6 +46,29 @@ class HeapConsistency final {
   static V8_INLINE WriteBarrierType GetWriteBarrierType(
       const void* slot, const void* value, WriteBarrierParams& params) {
     return internal::WriteBarrier::GetWriteBarrierType(slot, value, params);
+  }
+
+  /**
+   * Gets the required write barrier type for a specific write. This override is
+   * only used for all the BasicMember types.
+   *
+   * \param slot Slot containing the pointer to the object. The slot itself
+   *   must reside in an object that has been allocated using
+   *   `MakeGarbageCollected()`.
+   * \param value The pointer to the object held via `BasicMember`.
+   * \param params Parameters that may be used for actual write barrier calls.
+   *   Only filled if return value indicates that a write barrier is needed. The
+   *   contents of the `params` are an implementation detail.
+   * \returns whether a write barrier is needed and which barrier to invoke.
+   */
+  template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
+            typename CheckingPolicy>
+  static V8_INLINE WriteBarrierType GetWriteBarrierType(
+      const internal::BasicMember<T, WeaknessTag, WriteBarrierPolicy,
+                                  CheckingPolicy>& value,
+      WriteBarrierParams& params) {
+    return internal::WriteBarrier::GetWriteBarrierType(
+        value.GetRawSlot(), value.GetRawStorage(), params);
   }
 
   /**
@@ -146,7 +170,25 @@ class HeapConsistency final {
    */
   static V8_INLINE void GenerationalBarrier(const WriteBarrierParams& params,
                                             const void* slot) {
-    internal::WriteBarrier::GenerationalBarrier(params, slot);
+    internal::WriteBarrier::GenerationalBarrier<
+        internal::WriteBarrier::GenerationalBarrierType::kPreciseSlot>(params,
+                                                                       slot);
+  }
+
+  /**
+   * Generational barrier for maintaining consistency when running with multiple
+   * generations. This version is used when slot contains uncompressed pointer.
+   *
+   * \param params The parameters retrieved from `GetWriteBarrierType()`.
+   * \param slot Uncompressed slot containing the direct pointer to the object.
+   * The slot itself must reside in an object that has been allocated using
+   *   `MakeGarbageCollected()`.
+   */
+  static V8_INLINE void GenerationalBarrierForUncompressedSlot(
+      const WriteBarrierParams& params, const void* uncompressed_slot) {
+    internal::WriteBarrier::GenerationalBarrier<
+        internal::WriteBarrier::GenerationalBarrierType::
+            kPreciseUncompressedSlot>(params, uncompressed_slot);
   }
 
   /**
@@ -158,8 +200,9 @@ class HeapConsistency final {
    */
   static V8_INLINE void GenerationalBarrierForSourceObject(
       const WriteBarrierParams& params, const void* inner_pointer) {
-    internal::WriteBarrier::GenerationalBarrierForSourceObject(params,
-                                                               inner_pointer);
+    internal::WriteBarrier::GenerationalBarrier<
+        internal::WriteBarrier::GenerationalBarrierType::kImpreciseSlot>(
+        params, inner_pointer);
   }
 
  private:

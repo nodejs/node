@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_BYTECODE_ANALYSIS_H_
 #define V8_COMPILER_BYTECODE_ANALYSIS_H_
 
-#include "src/base/hashmap.h"
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-register.h"
@@ -74,6 +73,8 @@ struct V8_EXPORT_PRIVATE LoopInfo {
         resume_jump_targets_(zone) {}
 
   int parent_offset() const { return parent_offset_; }
+  bool resumable() const { return resumable_; }
+  void mark_resumable() { resumable_ = true; }
 
   const ZoneVector<ResumeJumpTarget>& resume_jump_targets() const {
     return resume_jump_targets_;
@@ -88,6 +89,7 @@ struct V8_EXPORT_PRIVATE LoopInfo {
  private:
   // The offset to the parent loop, or -1 if there is no parent.
   int parent_offset_;
+  bool resumable_ = false;
   BytecodeLoopAssignments assignments_;
   ZoneVector<ResumeJumpTarget> resume_jump_targets_;
 };

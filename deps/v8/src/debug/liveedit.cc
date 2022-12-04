@@ -13,13 +13,12 @@
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/debug/debug-interface.h"
+#include "src/debug/debug-stack-trace-iterator.h"
 #include "src/debug/debug.h"
+#include "src/debug/liveedit-diff.h"
 #include "src/execution/frames-inl.h"
-#include "src/execution/isolate-inl.h"
 #include "src/execution/v8threads.h"
-#include "src/init/v8.h"
 #include "src/logging/log.h"
-#include "src/objects/hash-table-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
@@ -28,247 +27,6 @@
 namespace v8 {
 namespace internal {
 namespace {
-// A general-purpose comparator between 2 arrays.
-class Comparator {
- public:
-  // Holds 2 arrays of some elements allowing to compare any pair of
-  // element from the first array and element from the second array.
-  class Input {
-   public:
-    virtual int GetLength1() = 0;
-    virtual int GetLength2() = 0;
-    virtual bool Equals(int index1, int index2) = 0;
-
-   protected:
-    virtual ~Input() = default;
-  };
-
-  // Receives compare result as a series of chunks.
-  class Output {
-   public:
-    // Puts another chunk in result list. Note that technically speaking
-    // only 3 arguments actually needed with 4th being derivable.
-    virtual void AddChunk(int pos1, int pos2, int len1, int len2) = 0;
-
-   protected:
-    virtual ~Output() = default;
-  };
-
-  // Finds the difference between 2 arrays of elements.
-  static void CalculateDifference(Input* input, Output* result_writer);
-};
-
-// A simple implementation of dynamic programming algorithm. It solves
-// the problem of finding the difference of 2 arrays. It uses a table of results
-// of subproblems. Each cell contains a number together with 2-bit flag
-// that helps building the chunk list.
-class Differencer {
- public:
-  explicit Differencer(Comparator::Input* input)
-      : input_(input), len1_(input->GetLength1()), len2_(input->GetLength2()) {
-  }
-
-  void Initialize() {
-  }
-
-  // Makes sure that result for the full problem is calculated and stored
-  // in the table together with flags showing a path through subproblems.
-  void FillTable() {
-    // Determine common prefix to skip.
-    int minLen = std::min(len1_, len2_);
-    while (prefixLen_ < minLen && input_->Equals(prefixLen_, prefixLen_)) {
-      ++prefixLen_;
-    }
-
-    // Pre-fill common suffix in the table.
-    for (int pos1 = len1_, pos2 = len2_; pos1 > prefixLen_ &&
-                                         pos2 > prefixLen_ &&
-                                         input_->Equals(--pos1, --pos2);) {
-      set_value4_and_dir(pos1, pos2, 0, EQ);
-    }
-
-    CompareUpToTail(prefixLen_, prefixLen_);
-  }
-
-  void SaveResult(Comparator::Output* chunk_writer) {
-    ResultWriter writer(chunk_writer);
-
-    if (prefixLen_) writer.eq(prefixLen_);
-    for (int pos1 = prefixLen_, pos2 = prefixLen_; true;) {
-      if (pos1 < len1_) {
-        if (pos2 < len2_) {
-          Direction dir = get_direction(pos1, pos2);
-          switch (dir) {
-            case EQ:
-              writer.eq();
-              pos1++;
-              pos2++;
-              break;
-            case SKIP1:
-              writer.skip1(1);
-              pos1++;
-              break;
-            case SKIP2:
-            case SKIP_ANY:
-              writer.skip2(1);
-              pos2++;
-              break;
-            default:
-              UNREACHABLE();
-          }
-        } else {
-          writer.skip1(len1_ - pos1);
-          break;
-        }
-      } else {
-        if (len2_ != pos2) {
-          writer.skip2(len2_ - pos2);
-        }
-        break;
-      }
-    }
-    writer.close();
-  }
-
- private:
-  Comparator::Input* input_;
-  std::map<std::pair<int, int>, int> buffer_;
-  int len1_;
-  int len2_;
-  int prefixLen_ = 0;
-
-  enum Direction {
-    EQ = 0,
-    SKIP1,
-    SKIP2,
-    SKIP_ANY,
-
-    MAX_DIRECTION_FLAG_VALUE = SKIP_ANY
-  };
-
-  // Computes result for a subtask and optionally caches it in the buffer table.
-  // All results values are shifted to make space for flags in the lower bits.
-  int CompareUpToTail(int pos1, int pos2) {
-    if (pos1 == len1_) {
-      return (len2_ - pos2) << kDirectionSizeBits;
-    }
-    if (pos2 == len2_) {
-      return (len1_ - pos1) << kDirectionSizeBits;
-    }
-    int res = get_value4(pos1, pos2);
-    if (res != kEmptyCellValue) {
-      return res;
-    }
-    Direction dir;
-    if (input_->Equals(pos1, pos2)) {
-      res = CompareUpToTail(pos1 + 1, pos2 + 1);
-      dir = EQ;
-    } else {
-      int res1 = CompareUpToTail(pos1 + 1, pos2) + (1 << kDirectionSizeBits);
-      int res2 = CompareUpToTail(pos1, pos2 + 1) + (1 << kDirectionSizeBits);
-      if (res1 == res2) {
-        res = res1;
-        dir = SKIP_ANY;
-      } else if (res1 < res2) {
-        res = res1;
-        dir = SKIP1;
-      } else {
-        res = res2;
-        dir = SKIP2;
-      }
-    }
-    set_value4_and_dir(pos1, pos2, res, dir);
-    return res;
-  }
-
-  inline int get_cell(int i1, int i2) {
-    auto it = buffer_.find(std::make_pair(i1, i2));
-    return it == buffer_.end() ? kEmptyCellValue : it->second;
-  }
-
-  inline void set_cell(int i1, int i2, int value) {
-    buffer_.insert(std::make_pair(std::make_pair(i1, i2), value));
-  }
-
-  // Each cell keeps a value plus direction. Value is multiplied by 4.
-  void set_value4_and_dir(int i1, int i2, int value4, Direction dir) {
-    DCHECK_EQ(0, value4 & kDirectionMask);
-    set_cell(i1, i2, value4 | dir);
-  }
-
-  int get_value4(int i1, int i2) {
-    return get_cell(i1, i2) & (kMaxUInt32 ^ kDirectionMask);
-  }
-  Direction get_direction(int i1, int i2) {
-    return static_cast<Direction>(get_cell(i1, i2) & kDirectionMask);
-  }
-
-  static const int kDirectionSizeBits = 2;
-  static const int kDirectionMask = (1 << kDirectionSizeBits) - 1;
-  static const int kEmptyCellValue = ~0u << kDirectionSizeBits;
-
-  // This method only holds static assert statement (unfortunately you cannot
-  // place one in class scope).
-  void StaticAssertHolder() {
-    STATIC_ASSERT(MAX_DIRECTION_FLAG_VALUE < (1 << kDirectionSizeBits));
-  }
-
-  class ResultWriter {
-   public:
-    explicit ResultWriter(Comparator::Output* chunk_writer)
-        : chunk_writer_(chunk_writer), pos1_(0), pos2_(0),
-          pos1_begin_(-1), pos2_begin_(-1), has_open_chunk_(false) {
-    }
-    void eq(int len = 1) {
-      FlushChunk();
-      pos1_ += len;
-      pos2_ += len;
-    }
-    void skip1(int len1) {
-      StartChunk();
-      pos1_ += len1;
-    }
-    void skip2(int len2) {
-      StartChunk();
-      pos2_ += len2;
-    }
-    void close() {
-      FlushChunk();
-    }
-
-   private:
-    Comparator::Output* chunk_writer_;
-    int pos1_;
-    int pos2_;
-    int pos1_begin_;
-    int pos2_begin_;
-    bool has_open_chunk_;
-
-    void StartChunk() {
-      if (!has_open_chunk_) {
-        pos1_begin_ = pos1_;
-        pos2_begin_ = pos2_;
-        has_open_chunk_ = true;
-      }
-    }
-
-    void FlushChunk() {
-      if (has_open_chunk_) {
-        chunk_writer_->AddChunk(pos1_begin_, pos2_begin_,
-                                pos1_ - pos1_begin_, pos2_ - pos2_begin_);
-        has_open_chunk_ = false;
-      }
-    }
-  };
-};
-
-void Comparator::CalculateDifference(Comparator::Input* input,
-                                     Comparator::Output* result_writer) {
-  Differencer differencer(input);
-  differencer.Initialize();
-  differencer.FillTable();
-  differencer.SaveResult(result_writer);
-}
 
 bool CompareSubstrings(Handle<String> s1, int pos1, Handle<String> s2, int pos2,
                        int len) {
@@ -753,17 +511,20 @@ class CollectFunctionLiterals final
 };
 
 bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
-                 bool compile_as_well, std::vector<FunctionLiteral*>* literals,
+                 MaybeHandle<ScopeInfo> outer_scope_info, bool compile_as_well,
+                 std::vector<FunctionLiteral*>* literals,
                  debug::LiveEditResult* result) {
   v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   Handle<SharedFunctionInfo> shared;
   bool success = false;
   if (compile_as_well) {
-    success = Compiler::CompileForLiveEdit(parse_info, script, isolate)
+    success = Compiler::CompileForLiveEdit(parse_info, script, outer_scope_info,
+                                           isolate)
                   .ToHandle(&shared);
   } else {
-    success = parsing::ParseProgram(parse_info, script, isolate,
-                                    parsing::ReportStatisticsMode::kYes);
+    success =
+        parsing::ParseProgram(parse_info, script, outer_scope_info, isolate,
+                              parsing::ReportStatisticsMode::kYes);
     if (!success) {
       // Throw the parser error.
       parse_info->pending_error_handler()->PrepareErrors(
@@ -797,7 +558,7 @@ struct FunctionData {
   // In case of multiple functions with different stack position, the latest
   // one (in the order below) is used, since it is the most restrictive.
   // This is important only for functions to be restarted.
-  enum StackPosition { NOT_ON_STACK, ON_STACK };
+  enum StackPosition { NOT_ON_STACK, ON_TOP_ONLY, ON_STACK };
   StackPosition stack_position;
 };
 
@@ -850,7 +611,7 @@ class FunctionDataMap : public ThreadVisitor {
     }
 
     // Visit the current thread stack.
-    VisitThread(isolate, isolate->thread_local_top());
+    VisitCurrentThread(isolate);
 
     // Visit the stacks of all archived threads.
     isolate->thread_manager()->IterateArchivedThreads(this);
@@ -904,12 +665,33 @@ class FunctionDataMap : public ThreadVisitor {
     }
   }
 
+  void VisitCurrentThread(Isolate* isolate) {
+    // We allow live editing the function that's currently top-of-stack. But
+    // only if no activation of that function is anywhere else on the stack.
+    bool is_top = true;
+    for (DebugStackTraceIterator it(isolate, /* index */ 0); !it.Done();
+         it.Advance(), is_top = false) {
+      auto sfi = it.GetSharedFunctionInfo();
+      if (sfi.is_null()) continue;
+      FunctionData* data = nullptr;
+      if (!Lookup(*sfi, &data)) continue;
+
+      // ON_TOP_ONLY will only be set on the first iteration (and if the frame
+      // can be restarted). Further activations will change the ON_TOP_ONLY to
+      // ON_STACK and prevent the live edit from happening.
+      data->stack_position = is_top && it.CanBeRestarted()
+                                 ? FunctionData::ON_TOP_ONLY
+                                 : FunctionData::ON_STACK;
+    }
+  }
+
   std::map<FuncId, FunctionData> map_;
 };
 
 bool CanPatchScript(const LiteralMap& changed, Handle<Script> script,
                     Handle<Script> new_script,
                     FunctionDataMap& function_data_map,
+                    bool allow_top_frame_live_editing,
                     debug::LiveEditResult* result) {
   for (const auto& mapping : changed) {
     FunctionData* data = nullptr;
@@ -925,6 +707,12 @@ bool CanPatchScript(const LiteralMap& changed, Handle<Script> script,
     } else if (!data->running_generators.empty()) {
       result->status = debug::LiveEditResult::BLOCKED_BY_RUNNING_GENERATOR;
       return false;
+    } else if (data->stack_position == FunctionData::ON_TOP_ONLY) {
+      if (!allow_top_frame_live_editing) {
+        result->status = debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION;
+        return false;
+      }
+      result->restart_top_frame_required = true;
     }
   }
   return true;
@@ -955,25 +743,85 @@ void TranslateSourcePositionTable(Isolate* isolate, Handle<BytecodeArray> code,
 }
 
 void UpdatePositions(Isolate* isolate, Handle<SharedFunctionInfo> sfi,
+                     FunctionLiteral* new_function,
                      const std::vector<SourceChangeRange>& diffs) {
-  int old_start_position = sfi->StartPosition();
-  int new_start_position =
-      LiveEdit::TranslatePosition(diffs, old_start_position);
-  int new_end_position = LiveEdit::TranslatePosition(diffs, sfi->EndPosition());
-  int new_function_token_position =
-      LiveEdit::TranslatePosition(diffs, sfi->function_token_position());
-  sfi->SetPosition(new_start_position, new_end_position);
-  sfi->SetFunctionTokenPosition(new_function_token_position,
-                                new_start_position);
+  sfi->UpdateFromFunctionLiteralForLiveEdit(new_function);
   if (sfi->HasBytecodeArray()) {
     TranslateSourcePositionTable(
         isolate, handle(sfi->GetBytecodeArray(isolate), isolate), diffs);
   }
 }
+
+#ifdef DEBUG
+ScopeInfo FindOuterScopeInfoFromScriptSfi(Isolate* isolate,
+                                          Handle<Script> script) {
+  // We take some SFI from the script and walk outwards until we find the
+  // EVAL_SCOPE. Then we do the same search as `DetermineOuterScopeInfo` and
+  // check that we found the same ScopeInfo.
+  SharedFunctionInfo::ScriptIterator it(isolate, *script);
+  ScopeInfo other_scope_info;
+  for (SharedFunctionInfo sfi = it.Next(); !sfi.is_null(); sfi = it.Next()) {
+    if (!sfi.scope_info().IsEmpty()) {
+      other_scope_info = sfi.scope_info();
+      break;
+    }
+  }
+  if (other_scope_info.is_null()) return other_scope_info;
+
+  while (!other_scope_info.IsEmpty() &&
+         other_scope_info.scope_type() != EVAL_SCOPE &&
+         other_scope_info.HasOuterScopeInfo()) {
+    other_scope_info = other_scope_info.OuterScopeInfo();
+  }
+
+  // This function is only called when we found a ScopeInfo candidate, so
+  // technically the EVAL_SCOPE must have an outer_scope_info. But, the GC can
+  // clean up some ScopeInfos it thinks are no longer needed. Abort the check
+  // in that case.
+  if (!other_scope_info.HasOuterScopeInfo()) return ScopeInfo();
+
+  DCHECK_EQ(other_scope_info.scope_type(), EVAL_SCOPE);
+  other_scope_info = other_scope_info.OuterScopeInfo();
+
+  while (!other_scope_info.IsEmpty() && !other_scope_info.HasContext() &&
+         other_scope_info.HasOuterScopeInfo()) {
+    other_scope_info = other_scope_info.OuterScopeInfo();
+  }
+  return other_scope_info;
+}
+#endif
+
+// For sloppy eval we need to know the ScopeInfo the eval was compiled in and
+// re-use it when we compile the new version of the script.
+MaybeHandle<ScopeInfo> DetermineOuterScopeInfo(Isolate* isolate,
+                                               Handle<Script> script) {
+  if (!script->has_eval_from_shared()) return kNullMaybeHandle;
+  DCHECK_EQ(script->compilation_type(), Script::COMPILATION_TYPE_EVAL);
+  ScopeInfo scope_info = script->eval_from_shared().scope_info();
+  // Sloppy eval compiles use the ScopeInfo of the context. Let's find it.
+  while (!scope_info.IsEmpty()) {
+    if (scope_info.HasContext()) {
+#ifdef DEBUG
+      ScopeInfo other_scope_info =
+          FindOuterScopeInfoFromScriptSfi(isolate, script);
+      DCHECK_IMPLIES(!other_scope_info.is_null(),
+                     scope_info == other_scope_info);
+#endif
+      return handle(scope_info, isolate);
+    } else if (!scope_info.HasOuterScopeInfo()) {
+      break;
+    }
+    scope_info = scope_info.OuterScopeInfo();
+  }
+
+  return kNullMaybeHandle;
+}
+
 }  // anonymous namespace
 
 void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
                            Handle<String> new_source, bool preview,
+                           bool allow_top_frame_live_editing,
                            debug::LiveEditResult* result) {
   std::vector<SourceChangeRange> diffs;
   LiveEdit::CompareStrings(isolate,
@@ -990,9 +838,13 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
   flags.set_is_eager(true);
+  flags.set_is_reparse(true);
   ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
+  MaybeHandle<ScopeInfo> outer_scope_info =
+      DetermineOuterScopeInfo(isolate, script);
   std::vector<FunctionLiteral*> literals;
-  if (!ParseScript(isolate, script, &parse_info, false, &literals, result))
+  if (!ParseScript(isolate, script, &parse_info, outer_scope_info, false,
+                   &literals, result))
     return;
 
   Handle<Script> new_script = isolate->factory()->CloneScript(script);
@@ -1004,8 +856,8 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   ParseInfo new_parse_info(isolate, new_flags, &new_compile_state,
                            &reusable_state);
   std::vector<FunctionLiteral*> new_literals;
-  if (!ParseScript(isolate, new_script, &new_parse_info, true, &new_literals,
-                   result)) {
+  if (!ParseScript(isolate, new_script, &new_parse_info, outer_scope_info, true,
+                   &new_literals, result)) {
     return;
   }
 
@@ -1026,7 +878,8 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   }
   function_data_map.Fill(isolate);
 
-  if (!CanPatchScript(changed, script, new_script, function_data_map, result)) {
+  if (!CanPatchScript(changed, script, new_script, function_data_map,
+                      allow_top_frame_live_editing, result)) {
     return;
   }
 
@@ -1057,7 +910,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       isolate->debug()->RemoveBreakInfoAndMaybeFree(debug_info);
     }
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, sfi);
-    UpdatePositions(isolate, sfi, diffs);
+    UpdatePositions(isolate, sfi, mapping.second, diffs);
 
     sfi->set_script(*new_script);
     sfi->set_function_literal_id(mapping.second->function_literal_id());
@@ -1107,7 +960,11 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   for (const auto& mapping : changed) {
     FunctionData* data = nullptr;
     if (!function_data_map.Lookup(new_script, mapping.second, &data)) continue;
-    Handle<SharedFunctionInfo> new_sfi = data->shared.ToHandleChecked();
+    Handle<SharedFunctionInfo> new_sfi;
+    // In most cases the new FunctionLiteral should also have an SFI, but there
+    // are some exceptions. E.g the compiler doesn't create SFIs for
+    // inner functions that are never referenced.
+    if (!data->shared.ToHandle(&new_sfi)) continue;
     DCHECK_EQ(new_sfi->script(), *new_script);
 
     if (!function_data_map.Lookup(script, mapping.first, &data)) continue;

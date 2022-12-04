@@ -19,7 +19,6 @@
 #include "src/compiler/operation-typer.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
-#include "src/init/bootstrapper.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -89,6 +88,7 @@ class Typer::Visitor : public Reducer {
       SIMPLIFIED_BIGINT_BINOP_LIST(DECLARE_BINARY_CASE)
       SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_BINARY_CASE)
       SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_BINARY_CASE)
+      TYPER_SUPPORTED_MACHINE_BINOP_LIST(DECLARE_BINARY_CASE)
 #undef DECLARE_BINARY_CASE
 #define DECLARE_OTHER_CASE(x, ...) \
   case IrOpcode::k##x:             \
@@ -124,8 +124,141 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(End)
       SIMPLIFIED_CHANGE_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
       SIMPLIFIED_CHECKED_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
+      IF_WASM(SIMPLIFIED_WASM_OP_LIST, DECLARE_IMPOSSIBLE_CASE)
       MACHINE_SIMD_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
-      MACHINE_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
+      MACHINE_UNOP_32_LIST(DECLARE_IMPOSSIBLE_CASE)
+      DECLARE_IMPOSSIBLE_CASE(Word32Xor)
+      DECLARE_IMPOSSIBLE_CASE(Word32Sar)
+      DECLARE_IMPOSSIBLE_CASE(Word32Rol)
+      DECLARE_IMPOSSIBLE_CASE(Word32Ror)
+      DECLARE_IMPOSSIBLE_CASE(Int32AddWithOverflow)
+      DECLARE_IMPOSSIBLE_CASE(Int32SubWithOverflow)
+      DECLARE_IMPOSSIBLE_CASE(Int32Mul)
+      DECLARE_IMPOSSIBLE_CASE(Int32MulWithOverflow)
+      DECLARE_IMPOSSIBLE_CASE(Int32MulHigh)
+      DECLARE_IMPOSSIBLE_CASE(Int32Div)
+      DECLARE_IMPOSSIBLE_CASE(Int32Mod)
+      DECLARE_IMPOSSIBLE_CASE(Uint32Mod)
+      DECLARE_IMPOSSIBLE_CASE(Uint32MulHigh)
+      DECLARE_IMPOSSIBLE_CASE(Word64Or)
+      DECLARE_IMPOSSIBLE_CASE(Word64Xor)
+      DECLARE_IMPOSSIBLE_CASE(Word64Sar)
+      DECLARE_IMPOSSIBLE_CASE(Word64Rol)
+      DECLARE_IMPOSSIBLE_CASE(Word64Ror)
+      DECLARE_IMPOSSIBLE_CASE(Word64RolLowerable)
+      DECLARE_IMPOSSIBLE_CASE(Word64RorLowerable)
+      DECLARE_IMPOSSIBLE_CASE(Int64AddWithOverflow)
+      DECLARE_IMPOSSIBLE_CASE(Int64SubWithOverflow)
+      DECLARE_IMPOSSIBLE_CASE(Int64Mul)
+      DECLARE_IMPOSSIBLE_CASE(Int64MulHigh)
+      DECLARE_IMPOSSIBLE_CASE(Int64MulWithOverflow)
+      DECLARE_IMPOSSIBLE_CASE(Int64Div)
+      DECLARE_IMPOSSIBLE_CASE(Int64Mod)
+      DECLARE_IMPOSSIBLE_CASE(Uint64Mod)
+      DECLARE_IMPOSSIBLE_CASE(Uint64MulHigh)
+      DECLARE_IMPOSSIBLE_CASE(Word64Equal)
+      DECLARE_IMPOSSIBLE_CASE(Int32LessThan)
+      DECLARE_IMPOSSIBLE_CASE(Int32LessThanOrEqual)
+      DECLARE_IMPOSSIBLE_CASE(Int64LessThan)
+      DECLARE_IMPOSSIBLE_CASE(Int64LessThanOrEqual)
+      DECLARE_IMPOSSIBLE_CASE(Uint64LessThan)
+      DECLARE_IMPOSSIBLE_CASE(Float32Equal)
+      DECLARE_IMPOSSIBLE_CASE(Float32LessThan)
+      DECLARE_IMPOSSIBLE_CASE(Float32LessThanOrEqual)
+      DECLARE_IMPOSSIBLE_CASE(Float64Equal)
+      DECLARE_IMPOSSIBLE_CASE(Float64LessThan)
+      DECLARE_IMPOSSIBLE_CASE(Float64LessThanOrEqual)
+      MACHINE_FLOAT32_BINOP_LIST(DECLARE_IMPOSSIBLE_CASE)
+      MACHINE_FLOAT32_UNOP_LIST(DECLARE_IMPOSSIBLE_CASE)
+      MACHINE_FLOAT64_BINOP_LIST(DECLARE_IMPOSSIBLE_CASE)
+      MACHINE_FLOAT64_UNOP_LIST(DECLARE_IMPOSSIBLE_CASE)
+      MACHINE_ATOMIC_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
+      DECLARE_IMPOSSIBLE_CASE(AbortCSADcheck)
+      DECLARE_IMPOSSIBLE_CASE(DebugBreak)
+      DECLARE_IMPOSSIBLE_CASE(Comment)
+      DECLARE_IMPOSSIBLE_CASE(LoadImmutable)
+      DECLARE_IMPOSSIBLE_CASE(Store)
+      DECLARE_IMPOSSIBLE_CASE(StackSlot)
+      DECLARE_IMPOSSIBLE_CASE(Word32Popcnt)
+      DECLARE_IMPOSSIBLE_CASE(Word64Popcnt)
+      DECLARE_IMPOSSIBLE_CASE(Word64Clz)
+      DECLARE_IMPOSSIBLE_CASE(Word64Ctz)
+      DECLARE_IMPOSSIBLE_CASE(Word64ClzLowerable)
+      DECLARE_IMPOSSIBLE_CASE(Word64CtzLowerable)
+      DECLARE_IMPOSSIBLE_CASE(Word64ReverseBits)
+      DECLARE_IMPOSSIBLE_CASE(Word64ReverseBytes)
+      DECLARE_IMPOSSIBLE_CASE(Simd128ReverseBytes)
+      DECLARE_IMPOSSIBLE_CASE(Int64AbsWithOverflow)
+      DECLARE_IMPOSSIBLE_CASE(BitcastTaggedToWord)
+      DECLARE_IMPOSSIBLE_CASE(BitcastTaggedToWordForTagAndSmiBits)
+      DECLARE_IMPOSSIBLE_CASE(BitcastWordToTagged)
+      DECLARE_IMPOSSIBLE_CASE(BitcastWordToTaggedSigned)
+      DECLARE_IMPOSSIBLE_CASE(TruncateFloat64ToWord32)
+      DECLARE_IMPOSSIBLE_CASE(ChangeFloat32ToFloat64)
+      DECLARE_IMPOSSIBLE_CASE(ChangeFloat64ToInt32)
+      DECLARE_IMPOSSIBLE_CASE(ChangeFloat64ToInt64)
+      DECLARE_IMPOSSIBLE_CASE(ChangeFloat64ToUint32)
+      DECLARE_IMPOSSIBLE_CASE(ChangeFloat64ToUint64)
+      DECLARE_IMPOSSIBLE_CASE(Float64SilenceNaN)
+      DECLARE_IMPOSSIBLE_CASE(TruncateFloat64ToInt64)
+      DECLARE_IMPOSSIBLE_CASE(TruncateFloat64ToUint32)
+      DECLARE_IMPOSSIBLE_CASE(TruncateFloat32ToInt32)
+      DECLARE_IMPOSSIBLE_CASE(TruncateFloat32ToUint32)
+      DECLARE_IMPOSSIBLE_CASE(TryTruncateFloat32ToInt64)
+      DECLARE_IMPOSSIBLE_CASE(TryTruncateFloat64ToInt64)
+      DECLARE_IMPOSSIBLE_CASE(TryTruncateFloat32ToUint64)
+      DECLARE_IMPOSSIBLE_CASE(TryTruncateFloat64ToUint64)
+      DECLARE_IMPOSSIBLE_CASE(TryTruncateFloat64ToInt32)
+      DECLARE_IMPOSSIBLE_CASE(TryTruncateFloat64ToUint32)
+      DECLARE_IMPOSSIBLE_CASE(ChangeInt32ToFloat64)
+      DECLARE_IMPOSSIBLE_CASE(BitcastWord32ToWord64)
+      DECLARE_IMPOSSIBLE_CASE(ChangeInt32ToInt64)
+      DECLARE_IMPOSSIBLE_CASE(ChangeInt64ToFloat64)
+      DECLARE_IMPOSSIBLE_CASE(ChangeUint32ToFloat64)
+      DECLARE_IMPOSSIBLE_CASE(ChangeUint32ToUint64)
+      DECLARE_IMPOSSIBLE_CASE(TruncateFloat64ToFloat32)
+      DECLARE_IMPOSSIBLE_CASE(TruncateInt64ToInt32)
+      DECLARE_IMPOSSIBLE_CASE(RoundFloat64ToInt32)
+      DECLARE_IMPOSSIBLE_CASE(RoundInt32ToFloat32)
+      DECLARE_IMPOSSIBLE_CASE(RoundInt64ToFloat32)
+      DECLARE_IMPOSSIBLE_CASE(RoundInt64ToFloat64)
+      DECLARE_IMPOSSIBLE_CASE(RoundUint32ToFloat32)
+      DECLARE_IMPOSSIBLE_CASE(RoundUint64ToFloat32)
+      DECLARE_IMPOSSIBLE_CASE(RoundUint64ToFloat64)
+      DECLARE_IMPOSSIBLE_CASE(BitcastFloat32ToInt32)
+      DECLARE_IMPOSSIBLE_CASE(BitcastFloat64ToInt64)
+      DECLARE_IMPOSSIBLE_CASE(BitcastInt32ToFloat32)
+      DECLARE_IMPOSSIBLE_CASE(BitcastInt64ToFloat64)
+      DECLARE_IMPOSSIBLE_CASE(Float64ExtractLowWord32)
+      DECLARE_IMPOSSIBLE_CASE(Float64ExtractHighWord32)
+      DECLARE_IMPOSSIBLE_CASE(Float64InsertLowWord32)
+      DECLARE_IMPOSSIBLE_CASE(Float64InsertHighWord32)
+      DECLARE_IMPOSSIBLE_CASE(Word32Select)
+      DECLARE_IMPOSSIBLE_CASE(Word64Select)
+      DECLARE_IMPOSSIBLE_CASE(Float32Select)
+      DECLARE_IMPOSSIBLE_CASE(Float64Select)
+      DECLARE_IMPOSSIBLE_CASE(LoadStackCheckOffset)
+      DECLARE_IMPOSSIBLE_CASE(LoadFramePointer)
+      DECLARE_IMPOSSIBLE_CASE(LoadParentFramePointer)
+      DECLARE_IMPOSSIBLE_CASE(UnalignedLoad)
+      DECLARE_IMPOSSIBLE_CASE(UnalignedStore)
+      DECLARE_IMPOSSIBLE_CASE(Int32PairAdd)
+      DECLARE_IMPOSSIBLE_CASE(Int32PairSub)
+      DECLARE_IMPOSSIBLE_CASE(Int32PairMul)
+      DECLARE_IMPOSSIBLE_CASE(Word32PairShl)
+      DECLARE_IMPOSSIBLE_CASE(Word32PairShr)
+      DECLARE_IMPOSSIBLE_CASE(Word32PairSar)
+      DECLARE_IMPOSSIBLE_CASE(ProtectedLoad)
+      DECLARE_IMPOSSIBLE_CASE(ProtectedStore)
+      DECLARE_IMPOSSIBLE_CASE(MemoryBarrier)
+      DECLARE_IMPOSSIBLE_CASE(SignExtendWord8ToInt32)
+      DECLARE_IMPOSSIBLE_CASE(SignExtendWord16ToInt32)
+      DECLARE_IMPOSSIBLE_CASE(SignExtendWord8ToInt64)
+      DECLARE_IMPOSSIBLE_CASE(SignExtendWord16ToInt64)
+      DECLARE_IMPOSSIBLE_CASE(SignExtendWord32ToInt64)
+      DECLARE_IMPOSSIBLE_CASE(StackPointerGreaterThan)
+      DECLARE_IMPOSSIBLE_CASE(TraceInstruction)
+
 #undef DECLARE_IMPOSSIBLE_CASE
       UNREACHABLE();
     }
@@ -228,6 +361,7 @@ class Typer::Visitor : public Reducer {
   SIMPLIFIED_BIGINT_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_METHOD)
+  TYPER_SUPPORTED_MACHINE_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 #define DECLARE_METHOD(Name, ...)                  \
   inline Type Type##Name(Type left, Type right) {  \
@@ -243,6 +377,7 @@ class Typer::Visitor : public Reducer {
   SIMPLIFIED_BIGINT_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_METHOD)
+  TYPER_SUPPORTED_MACHINE_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 #define DECLARE_METHOD(Name, ...) \
   inline Type Type##Name(Type input) { return TypeUnaryOp(input, Name); }
@@ -434,6 +569,9 @@ Type Typer::Visitor::BitwiseNot(Type type, Typer* t) {
   if (type.Is(Type::Number())) {
     return NumberBitwiseXor(type, t->cache_->kSingletonMinusOne, t);
   }
+  if (type.Is(Type::BigInt())) {
+    return Type::BigInt();
+  }
   return Type::Numeric();
 }
 
@@ -441,6 +579,9 @@ Type Typer::Visitor::Decrement(Type type, Typer* t) {
   type = ToNumeric(type, t);
   if (type.Is(Type::Number())) {
     return NumberSubtract(type, t->cache_->kSingletonOne, t);
+  }
+  if (type.Is(Type::BigInt())) {
+    return Type::BigInt();
   }
   return Type::Numeric();
 }
@@ -450,6 +591,9 @@ Type Typer::Visitor::Increment(Type type, Typer* t) {
   if (type.Is(Type::Number())) {
     return NumberAdd(type, t->cache_->kSingletonOne, t);
   }
+  if (type.Is(Type::BigInt())) {
+    return Type::BigInt();
+  }
   return Type::Numeric();
 }
 
@@ -457,6 +601,9 @@ Type Typer::Visitor::Negate(Type type, Typer* t) {
   type = ToNumeric(type, t);
   if (type.Is(Type::Number())) {
     return NumberMultiply(type, t->cache_->kSingletonMinusOne, t);
+  }
+  if (type.Is(Type::BigInt())) {
+    return Type::BigInt();
   }
   return Type::Numeric();
 }
@@ -716,9 +863,9 @@ Type Typer::Visitor::TypeOsrValue(Node* node) {
 
 Type Typer::Visitor::TypeRetain(Node* node) { UNREACHABLE(); }
 
-Type Typer::Visitor::TypeInt32Constant(Node* node) { UNREACHABLE(); }
+Type Typer::Visitor::TypeInt32Constant(Node* node) { return Type::Machine(); }
 
-Type Typer::Visitor::TypeInt64Constant(Node* node) { UNREACHABLE(); }
+Type Typer::Visitor::TypeInt64Constant(Node* node) { return Type::Machine(); }
 
 Type Typer::Visitor::TypeTaggedIndexConstant(Node* node) { UNREACHABLE(); }
 
@@ -760,6 +907,14 @@ Type Typer::Visitor::TypePhi(Node* node) {
     type = Type::Union(type, Operand(node, i), zone());
   }
   return type;
+}
+
+Type Typer::Visitor::TypeEnterMachineGraph(Node* node) {
+  return Type::Machine();
+}
+
+Type Typer::Visitor::TypeExitMachineGraph(Node* node) {
+  return ExitMachineGraphParametersOf(node->op()).output_type();
 }
 
 Type Typer::Visitor::TypeInductionVariablePhi(Node* node) {
@@ -862,7 +1017,7 @@ Type Typer::Visitor::TypeInductionVariablePhi(Node* node) {
     max = +V8_INFINITY;
   }
 
-  if (FLAG_trace_turbo_loop) {
+  if (v8_flags.trace_turbo_loop) {
     StdoutStream{} << std::setprecision(10) << "Loop ("
                    << NodeProperties::GetControlInput(node)->id()
                    << ") variable bounds in "
@@ -1371,7 +1526,7 @@ Type Typer::Visitor::Weaken(Node* node, Type current_type, Type previous_type) {
       4398046511103.0, 8796093022207.0, 17592186044415.0, 35184372088831.0,
       70368744177663.0, 140737488355327.0, 281474976710655.0,
       562949953421311.0};
-  STATIC_ASSERT(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
+  static_assert(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
 
   // If the types have nothing to do with integers, return the types.
   Type const integer = typer_->cache_->kInteger;
@@ -1470,6 +1625,10 @@ Type Typer::Visitor::TypeJSGetSuperConstructor(Node* node) {
   return Type::NonInternal();
 }
 
+Type Typer::Visitor::TypeJSFindNonDefaultConstructorOrConstruct(Node* node) {
+  return Type::Tuple(Type::Boolean(), Type::ReceiverOrNull(), zone());
+}
+
 // JS context operators.
 Type Typer::Visitor::TypeJSHasContextExtension(Node* node) {
   return Type::Boolean();
@@ -1523,6 +1682,15 @@ Type Typer::Visitor::TypeJSConstructWithSpread(Node* node) {
 Type Typer::Visitor::TypeJSObjectIsArray(Node* node) { return Type::Boolean(); }
 
 Type Typer::Visitor::TypeDateNow(Node* node) { return Type::Number(); }
+
+Type Typer::Visitor::TypeDoubleArrayMin(Node* node) { return Type::Number(); }
+
+Type Typer::Visitor::TypeDoubleArrayMax(Node* node) { return Type::Number(); }
+
+Type Typer::Visitor::TypeUnsigned32Divide(Node* node) {
+  Type lhs = Operand(node, 0);
+  return Type::Range(0, lhs.Max(), zone());
+}
 
 Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
   if (!fun.IsHeapConstant() || !fun.AsHeapConstant()->Ref().IsJSFunction()) {
@@ -1863,7 +2031,7 @@ Type Typer::Visitor::TypeJSForInNext(Node* node) {
 }
 
 Type Typer::Visitor::TypeJSForInPrepare(Node* node) {
-  STATIC_ASSERT(Map::Bits3::EnumLengthBits::kMax <= FixedArray::kMaxLength);
+  static_assert(Map::Bits3::EnumLengthBits::kMax <= FixedArray::kMaxLength);
   Type const cache_type =
       Type::Union(Type::SignedSmall(), Type::OtherInternal(), zone());
   Type const cache_array = Type::OtherInternal();
@@ -2356,15 +2524,15 @@ Type Typer::Visitor::TypeNewArgumentsElements(Node* node) {
 
 Type Typer::Visitor::TypeNewConsString(Node* node) { return Type::String(); }
 
-Type Typer::Visitor::TypeDelayedStringConstant(Node* node) {
-  return Type::String();
-}
-
 Type Typer::Visitor::TypeFindOrderedHashMapEntry(Node* node) {
   return Type::Range(-1.0, FixedArray::kMaxLength, zone());
 }
 
 Type Typer::Visitor::TypeFindOrderedHashMapEntryForInt32Key(Node* node) {
+  return Type::Range(-1.0, FixedArray::kMaxLength, zone());
+}
+
+Type Typer::Visitor::TypeFindOrderedHashSetEntry(Node* node) {
   return Type::Range(-1.0, FixedArray::kMaxLength, zone());
 }
 

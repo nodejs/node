@@ -1,13 +1,8 @@
 #include <assert.h>
 #include <stdio.h>
 #include <node_api.h>
+#include <uv.h>
 #include "../../js-native-api/common.h"
-
-#if defined _WIN32
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
 
 // this needs to be greater than the thread pool size
 #define MAX_CANCEL_THREADS 6
@@ -23,11 +18,7 @@ static carrier the_carrier;
 static carrier async_carrier[MAX_CANCEL_THREADS];
 
 static void Execute(napi_env env, void* data) {
-#if defined _WIN32
-  Sleep(1000);
-#else
-  sleep(1);
-#endif
+  uv_sleep(1000);
   carrier* c = (carrier*)(data);
 
   assert(c == &the_carrier);
@@ -130,11 +121,7 @@ static void CancelComplete(napi_env env, napi_status status, void* data) {
 }
 
 static void CancelExecute(napi_env env, void* data) {
-#if defined _WIN32
-  Sleep(1000);
-#else
-  sleep(1);
-#endif
+  uv_sleep(1000);
 }
 
 static napi_value TestCancel(napi_env env, napi_callback_info info) {

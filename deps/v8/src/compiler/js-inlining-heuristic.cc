@@ -4,26 +4,25 @@
 
 #include "src/compiler/js-inlining-heuristic.h"
 
-#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define TRACE(...)                                                             \
-  do {                                                                         \
-    if (FLAG_trace_turbo_inlining) StdoutStream{} << __VA_ARGS__ << std::endl; \
+#define TRACE(...)                                \
+  do {                                            \
+    if (v8_flags.trace_turbo_inlining)            \
+      StdoutStream{} << __VA_ARGS__ << std::endl; \
   } while (false)
 
 namespace {
 bool IsSmall(int const size) {
-  return size <= FLAG_max_inlined_bytecode_size_small;
+  return size <= v8_flags.max_inlined_bytecode_size_small;
 }
 
 bool CanConsiderForInlining(JSHeapBroker* broker,
@@ -175,7 +174,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   Candidate candidate = CollectFunctions(node, kMaxCallPolymorphism);
   if (candidate.num_functions == 0) {
     return NoChange();
-  } else if (candidate.num_functions > 1 && !FLAG_polymorphic_inlining) {
+  } else if (candidate.num_functions > 1 && !v8_flags.polymorphic_inlining) {
     TRACE("Not considering call site #"
           << node->id() << ":" << node->op()->mnemonic()
           << ", because polymorphic inlining is disabled");
@@ -250,7 +249,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   // threshold, i.e. a call site that is only hit once every N
   // invocations of the caller.
   if (candidate.frequency.IsKnown() &&
-      candidate.frequency.value() < FLAG_min_inlining_frequency) {
+      candidate.frequency.value() < v8_flags.min_inlining_frequency) {
     return NoChange();
   }
 
@@ -277,7 +276,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
 void JSInliningHeuristic::Finalize() {
   if (candidates_.empty()) return;  // Nothing to do without candidates.
-  if (FLAG_trace_turbo_inlining) PrintCandidates();
+  if (v8_flags.trace_turbo_inlining) PrintCandidates();
 
   // We inline at most one candidate in every iteration of the fixpoint.
   // This is to ensure that we don't consume the full inlining budget
@@ -295,7 +294,7 @@ void JSInliningHeuristic::Finalize() {
     // Make sure we have some extra budget left, so that any small functions
     // exposed by this function would be given a chance to inline.
     double size_of_candidate =
-        candidate.total_size * FLAG_reserve_inline_budget_scale_factor;
+        candidate.total_size * v8_flags.reserve_inline_budget_scale_factor;
     int total_size =
         total_inlined_bytecode_size_ + static_cast<int>(size_of_candidate);
     if (total_size > max_inlined_bytecode_size_cumulative_) {
@@ -657,7 +656,7 @@ void JSInliningHeuristic::CreateOrReuseDispatch(Node* node, Node* callee,
     return;
   }
 
-  STATIC_ASSERT(JSCallOrConstructNode::kHaveIdenticalLayouts);
+  static_assert(JSCallOrConstructNode::kHaveIdenticalLayouts);
 
   Node* fallthrough_control = NodeProperties::GetControlInput(node);
   int const num_calls = candidate.num_functions;

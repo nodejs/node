@@ -61,7 +61,7 @@ class PreParserIdentifier {
   bool IsAsync() const { return type_ == kAsyncIdentifier; }
   bool IsArguments() const { return type_ == kArgumentsIdentifier; }
   bool IsEvalOrArguments() const {
-    STATIC_ASSERT(kEvalIdentifier + 1 == kArgumentsIdentifier);
+    static_assert(kEvalIdentifier + 1 == kArgumentsIdentifier);
     return base::IsInRange(type_, kEvalIdentifier, kArgumentsIdentifier);
   }
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
@@ -226,7 +226,7 @@ class PreParserExpression {
   }
 
   bool IsPattern() const {
-    STATIC_ASSERT(kObjectLiteralExpression + 1 == kArrayLiteralExpression);
+    static_assert(kObjectLiteralExpression + 1 == kArrayLiteralExpression);
     return base::IsInRange(TypeField::decode(code_), kObjectLiteralExpression,
                            kArrayLiteralExpression);
   }
@@ -933,11 +933,11 @@ class PreParser : public ParserBase<PreParser> {
   PreParser(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
             AstValueFactory* ast_value_factory,
             PendingCompilationErrorHandler* pending_error_handler,
-            RuntimeCallStats* runtime_call_stats, Logger* logger,
+            RuntimeCallStats* runtime_call_stats, V8FileLogger* v8_file_logger,
             UnoptimizedCompileFlags flags, bool parsing_on_main_thread = true)
       : ParserBase<PreParser>(zone, scanner, stack_limit, ast_value_factory,
-                              pending_error_handler, runtime_call_stats, logger,
-                              flags, parsing_on_main_thread),
+                              pending_error_handler, runtime_call_stats,
+                              v8_file_logger, flags, parsing_on_main_thread),
         use_counts_(nullptr),
         preparse_data_builder_(nullptr),
         preparse_data_builder_buffer_() {
@@ -1519,6 +1519,10 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserIdentifier GetNumberAsSymbol() const {
+    return PreParserIdentifier::Default();
+  }
+
+  V8_INLINE PreParserIdentifier GetBigIntAsSymbol() const {
     return PreParserIdentifier::Default();
   }
 

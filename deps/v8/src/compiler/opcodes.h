@@ -33,20 +33,26 @@
   V(Throw)                 \
   V(End)
 
-// Opcodes for constant operators.
-#define CONSTANT_OP_LIST(V)   \
-  V(Int32Constant)            \
-  V(Int64Constant)            \
-  V(TaggedIndexConstant)      \
-  V(Float32Constant)          \
-  V(Float64Constant)          \
-  V(ExternalConstant)         \
-  V(NumberConstant)           \
-  V(PointerConstant)          \
-  V(HeapConstant)             \
-  V(CompressedHeapConstant)   \
-  V(RelocatableInt32Constant) \
+#define MACHINE_LEVEL_CONSTANT_OP_LIST(V) \
+  V(Int32Constant)                        \
+  V(Int64Constant)                        \
+  V(TaggedIndexConstant)                  \
+  V(Float32Constant)                      \
+  V(Float64Constant)                      \
+  V(CompressedHeapConstant)               \
+  V(RelocatableInt32Constant)             \
   V(RelocatableInt64Constant)
+
+#define JS_LEVEL_CONSTANT_OP_LIST(V) \
+  V(ExternalConstant)                \
+  V(NumberConstant)                  \
+  V(PointerConstant)                 \
+  V(HeapConstant)
+
+// Opcodes for constant operators.
+#define CONSTANT_OP_LIST(V)    \
+  JS_LEVEL_CONSTANT_OP_LIST(V) \
+  MACHINE_LEVEL_CONSTANT_OP_LIST(V)
 
 #define INNER_OP_LIST(V)    \
   V(Select)                 \
@@ -74,7 +80,9 @@
   V(Retain)                 \
   V(MapGuard)               \
   V(FoldConstant)           \
-  V(TypeGuard)
+  V(TypeGuard)              \
+  V(EnterMachineGraph)      \
+  V(ExitMachineGraph)
 
 #define COMMON_OP_LIST(V) \
   CONSTANT_OP_LIST(V)     \
@@ -183,7 +191,8 @@
   V(JSStoreInArrayLiteral)             \
   V(JSDeleteProperty)                  \
   V(JSHasProperty)                     \
-  V(JSGetSuperConstructor)
+  V(JSGetSuperConstructor)             \
+  V(JSFindNonDefaultConstructorOrConstruct)
 
 #define JS_CONTEXT_OP_LIST(V) \
   V(JSHasContextExtension)    \
@@ -279,6 +288,11 @@
   V(CheckedUint32Div)                 \
   V(CheckedUint32Mod)                 \
   V(CheckedInt32Mul)                  \
+  V(CheckedInt64Add)                  \
+  V(CheckedInt64Sub)                  \
+  V(CheckedInt64Mul)                  \
+  V(CheckedInt64Div)                  \
+  V(CheckedInt64Mod)                  \
   V(CheckedInt32ToTaggedSigned)       \
   V(CheckedInt64ToInt32)              \
   V(CheckedInt64ToTaggedSigned)       \
@@ -287,6 +301,7 @@
   V(CheckedUint32ToTaggedSigned)      \
   V(CheckedUint64Bounds)              \
   V(CheckedUint64ToInt32)             \
+  V(CheckedUint64ToInt64)             \
   V(CheckedUint64ToTaggedSigned)      \
   V(CheckedFloat64ToInt32)            \
   V(CheckedFloat64ToInt64)            \
@@ -334,7 +349,11 @@
 
 #define SIMPLIFIED_BIGINT_BINOP_LIST(V) \
   V(BigIntAdd)                          \
-  V(BigIntSubtract)
+  V(BigIntSubtract)                     \
+  V(BigIntMultiply)                     \
+  V(BigIntDivide)                       \
+  V(BigIntModulus)                      \
+  V(BigIntBitwiseAnd)
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
   V(SpeculativeNumberAdd)                           \
@@ -390,7 +409,8 @@
 
 #define SIMPLIFIED_BIGINT_UNOP_LIST(V) \
   V(BigIntNegate)                      \
-  V(CheckBigInt)
+  V(CheckBigInt)                       \
+  V(CheckedBigIntToBigInt64)
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(V) V(SpeculativeToNumber)
 
@@ -420,11 +440,13 @@
   V(ConvertReceiver)                    \
   V(ConvertTaggedHoleToUndefined)       \
   V(DateNow)                            \
-  V(DelayedStringConstant)              \
+  V(DoubleArrayMax)                     \
+  V(DoubleArrayMin)                     \
   V(EnsureWritableFastElements)         \
   V(FastApiCall)                        \
   V(FindOrderedHashMapEntry)            \
   V(FindOrderedHashMapEntryForInt32Key) \
+  V(FindOrderedHashSetEntry)            \
   V(InitializeImmutableInObject)        \
   V(LoadDataViewElement)                \
   V(LoadElement)                        \
@@ -493,16 +515,32 @@
   V(TransitionAndStoreNumberElement)    \
   V(TransitionElementsKind)             \
   V(TypeOf)                             \
+  V(Unsigned32Divide)                   \
   V(VerifyType)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) \
   V(SpeculativeBigIntAdd)                           \
-  V(SpeculativeBigIntSubtract)
+  V(SpeculativeBigIntSubtract)                      \
+  V(SpeculativeBigIntMultiply)                      \
+  V(SpeculativeBigIntDivide)                        \
+  V(SpeculativeBigIntModulus)                       \
+  V(SpeculativeBigIntBitwiseAnd)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(V) \
   V(SpeculativeBigIntAsIntN)                       \
   V(SpeculativeBigIntAsUintN)                      \
   V(SpeculativeBigIntNegate)
+
+#define SIMPLIFIED_WASM_OP_LIST(V) \
+  V(AssertNotNull)                 \
+  V(IsNull)                        \
+  V(IsNotNull)                     \
+  V(Null)                          \
+  V(RttCanon)                      \
+  V(WasmTypeCast)                  \
+  V(WasmTypeCheck)                 \
+  V(WasmExternInternalize)         \
+  V(WasmExternExternalize)
 
 #define SIMPLIFIED_OP_LIST(V)                 \
   SIMPLIFIED_CHANGE_OP_LIST(V)                \
@@ -516,9 +554,17 @@
   SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(V)  \
   SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(V)  \
   SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) \
+  IF_WASM(SIMPLIFIED_WASM_OP_LIST, V)         \
   SIMPLIFIED_OTHER_OP_LIST(V)
 
 // Opcodes for Machine-level operators.
+#define MACHINE_UNOP_32_LIST(V) \
+  V(Word32Clz)                  \
+  V(Word32Ctz)                  \
+  V(Int32AbsWithOverflow)       \
+  V(Word32ReverseBits)          \
+  V(Word32ReverseBytes)
+
 #define MACHINE_COMPARE_BINOP_LIST(V) \
   V(Word32Equal)                      \
   V(Word64Equal)                      \
@@ -536,13 +582,6 @@
   V(Float64Equal)                     \
   V(Float64LessThan)                  \
   V(Float64LessThanOrEqual)
-
-#define MACHINE_UNOP_32_LIST(V) \
-  V(Word32Clz)                  \
-  V(Word32Ctz)                  \
-  V(Int32AbsWithOverflow)       \
-  V(Word32ReverseBits)          \
-  V(Word32ReverseBytes)
 
 #define MACHINE_BINOP_32_LIST(V) \
   V(Word32And)                   \
@@ -582,10 +621,13 @@
   V(Int64Sub)                    \
   V(Int64SubWithOverflow)        \
   V(Int64Mul)                    \
+  V(Int64MulHigh)                \
+  V(Int64MulWithOverflow)        \
   V(Int64Div)                    \
   V(Int64Mod)                    \
   V(Uint64Div)                   \
-  V(Uint64Mod)
+  V(Uint64Mod)                   \
+  V(Uint64MulHigh)
 
 #define MACHINE_FLOAT32_UNOP_LIST(V) \
   V(Float32Abs)                      \
@@ -719,6 +761,8 @@
   V(TryTruncateFloat64ToInt64)           \
   V(TryTruncateFloat32ToUint64)          \
   V(TryTruncateFloat64ToUint64)          \
+  V(TryTruncateFloat64ToInt32)           \
+  V(TryTruncateFloat64ToUint32)          \
   V(ChangeInt32ToFloat64)                \
   V(BitcastWord32ToWord64)               \
   V(ChangeInt32ToInt64)                  \
@@ -765,8 +809,8 @@
   V(SignExtendWord8ToInt64)              \
   V(SignExtendWord16ToInt64)             \
   V(SignExtendWord32ToInt64)             \
-  V(UnsafePointerAdd)                    \
-  V(StackPointerGreaterThan)
+  V(StackPointerGreaterThan)             \
+  V(TraceInstruction)
 
 #define MACHINE_SIMD_OP_LIST(V)  \
   V(F64x2Splat)                  \
@@ -804,8 +848,6 @@
   V(F32x4Abs)                    \
   V(F32x4Neg)                    \
   V(F32x4Sqrt)                   \
-  V(F32x4RecipApprox)            \
-  V(F32x4RecipSqrtApprox)        \
   V(F32x4Add)                    \
   V(F32x4Sub)                    \
   V(F32x4Mul)                    \
@@ -994,6 +1036,9 @@
   V(I32x4RelaxedTruncF32x4U)     \
   V(I32x4RelaxedTruncF64x2SZero) \
   V(I32x4RelaxedTruncF64x2UZero) \
+  V(I16x8RelaxedQ15MulRS)        \
+  V(I16x8DotI8x16I7x16S)         \
+  V(I32x4DotI8x16I7x16AddS)      \
   V(I8x16Shuffle)                \
   V(V128AnyTrue)                 \
   V(I64x2AllTrue)                \
@@ -1050,6 +1095,24 @@ class V8_EXPORT_PRIVATE IrOpcode {
   // Returns true if opcode for JavaScript operator.
   static bool IsJsOpcode(Value value) {
     return kJSEqual <= value && value <= kJSDebugger;
+  }
+
+  // Returns true if opcode for machine operator.
+  static bool IsMachineOpcode(Value value) {
+    return kWord32Clz <= value && value <= kTraceInstruction;
+  }
+
+  // Returns true iff opcode is a machine-level constant.
+  static bool IsMachineConstantOpcode(Value value) {
+    switch (value) {
+#define CASE(name) \
+  case k##name:    \
+    return true;
+      MACHINE_LEVEL_CONSTANT_OP_LIST(CASE)
+#undef CASE
+      default:
+        return false;
+    }
   }
 
   // Returns true if opcode for constant operator.
@@ -1162,6 +1225,19 @@ class V8_EXPORT_PRIVATE IrOpcode {
   static bool IsFeedbackCollectingOpcode(int16_t value) {
     DCHECK(0 <= value && value <= kLast);
     return IsFeedbackCollectingOpcode(static_cast<IrOpcode::Value>(value));
+  }
+
+  static bool isAtomicOpOpcode(Value value) {
+    switch (value) {
+    #define CASE(Name, ...) \
+      case k##Name:         \
+        return true;
+      MACHINE_ATOMIC_OP_LIST(CASE)
+      default:
+        return false;
+    #undef CASE
+    }
+    UNREACHABLE();
   }
 };
 

@@ -15,6 +15,4 @@ extern class JSPluralRules extends JSObject {
   icu_plural_rules: Foreign;  // Managed<icu::PluralRules>
   icu_number_formatter:
       Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
-  icu_number_range_formatter:
-      Foreign;  // Managed<icu::number::LocalizedNumberRangeFormatter>
 }

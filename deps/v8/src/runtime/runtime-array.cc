@@ -2,22 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/heap/heap-write-barrier-inl.h"
-#include "src/logging/counters.h"
-#include "src/numbers/conversions-inl.h"
 #include "src/objects/allocation-site-inl.h"
-#include "src/objects/arguments-inl.h"
 #include "src/objects/elements.h"
-#include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/objects/prototype.h"
-#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -163,13 +155,18 @@ RUNTIME_FUNCTION(Runtime_NormalizeElements) {
   return *array;
 }
 
-// GrowArrayElements returns a sentinel Smi if the object was normalized or if
-// the key is negative.
+// GrowArrayElements grows fast kind elements and returns a sentinel Smi if the
+// object was normalized or if the key is negative.
 RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   Handle<JSObject> object = args.at<JSObject>(0);
   Handle<Object> key = args.at(1);
+  ElementsKind kind = object->GetElementsKind();
+  CHECK(IsFastElementsKind(kind));
+  const intptr_t kMaxLength = IsDoubleElementsKind(kind)
+                                  ? FixedDoubleArray::kMaxLength
+                                  : FixedArray::kMaxLength;
   uint32_t index;
   if (key->IsSmi()) {
     int value = Smi::ToInt(*key);
@@ -178,7 +175,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   } else {
     CHECK(key->IsHeapNumber());
     double value = HeapNumber::cast(*key).value();
-    if (value < 0 || value > std::numeric_limits<uint32_t>::max()) {
+    if (value < 0 || value > kMaxLength) {
       return Smi::zero();
     }
     index = static_cast<uint32_t>(value);

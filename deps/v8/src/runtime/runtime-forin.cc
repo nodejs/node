@@ -2,14 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/logging/counters.h"
-#include "src/objects/elements.h"
 #include "src/objects/keys.h"
 #include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
@@ -82,6 +77,10 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
           return it.GetName();
         }
       }
+      case LookupIterator::WASM_OBJECT:
+        THROW_NEW_ERROR(isolate,
+                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque),
+                        Object);
       case LookupIterator::INTERCEPTOR: {
         result = JSObject::GetPropertyAttributesWithInterceptor(&it);
         if (result.IsNothing()) return MaybeHandle<Object>();

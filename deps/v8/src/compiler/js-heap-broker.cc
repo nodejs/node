@@ -8,20 +8,15 @@
 #include <algorithm>
 #endif
 
-#include "src/codegen/code-factory.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/ic/handler-configuration-inl.h"
-#include "src/init/bootstrapper.h"
 #include "src/objects/allocation-site-inl.h"
-#include "src/objects/data-handler-inl.h"
-#include "src/objects/feedback-cell.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/map-updater.h"
+#include "src/objects/megadom-handler-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/oddball.h"
 #include "src/objects/property-cell.h"
 
 namespace v8 {
@@ -29,14 +24,6 @@ namespace internal {
 namespace compiler {
 
 #define TRACE(broker, x) TRACE_BROKER(broker, x)
-
-#ifdef V8_STATIC_CONSTEXPR_VARIABLES_NEED_DEFINITIONS
-// These definitions are here in order to please the linker, which in debug mode
-// sometimes requires static constants to be defined in .cc files.
-// This is, however, deprecated (and unnecessary) in C++17.
-const uint32_t JSHeapBroker::kMinimalRefsBucketCount;
-const uint32_t JSHeapBroker::kInitialRefsBucketCount;
-#endif
 
 void JSHeapBroker::IncrementTracingIndentation() { ++trace_indentation_; }
 
@@ -425,6 +412,12 @@ bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
   return true;
 }
 
+MegaDOMPropertyAccessFeedback::MegaDOMPropertyAccessFeedback(
+    FunctionTemplateInfoRef info_ref, FeedbackSlotKind slot_kind)
+    : ProcessedFeedback(kMegaDOMPropertyAccess, slot_kind), info_(info_ref) {
+  DCHECK(IsLoadICKind(slot_kind));
+}
+
 NamedAccessFeedback::NamedAccessFeedback(NameRef const& name,
                                          ZoneVector<MapRef> const& maps,
                                          FeedbackSlotKind slot_kind)
@@ -493,7 +486,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
       // if non-deprecation is important.
       if (map.is_deprecated()) {
         // TODO(ishell): support fast map updating if we enable it.
-        CHECK(!FLAG_fast_map_update);
+        CHECK(!v8_flags.fast_map_update);
         base::Optional<Map> maybe_map = MapUpdater::TryUpdateNoLock(
             isolate(), *map.object(), ConcurrencyMode::kConcurrent);
         if (maybe_map.has_value()) {
@@ -509,6 +502,21 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
 
   base::Optional<NameRef> name =
       static_name.has_value() ? static_name : GetNameFeedback(nexus);
+
+  if (nexus.ic_state() == InlineCacheState::MEGADOM) {
+    DCHECK(maps.empty());
+    MaybeObjectHandle maybe_handler = nexus.ExtractMegaDOMHandler();
+    if (!maybe_handler.is_null()) {
+      Handle<MegaDomHandler> handler =
+          Handle<MegaDomHandler>::cast(maybe_handler.object());
+      if (!handler->accessor(kAcquireLoad)->IsCleared()) {
+        FunctionTemplateInfoRef info = MakeRefAssumeMemoryFence(
+            this, FunctionTemplateInfo::cast(
+                      handler->accessor(kAcquireLoad).GetHeapObject()));
+        return *zone()->New<MegaDOMPropertyAccessFeedback>(info, kind);
+      }
+    }
+  }
 
   // If no maps were found for a non-megamorphic access, then our maps died
   // and we should soft-deopt.
@@ -676,7 +684,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
     MaybeObject maybe_target = nexus.GetFeedback();
     HeapObject target_object;
     if (maybe_target->GetHeapObject(&target_object)) {
-      target_ref = MakeRefAssumeMemoryFence(this, target_object);
+      target_ref = TryMakeRef(this, target_object);
     }
   }
 
@@ -934,6 +942,12 @@ InstanceOfFeedback const& ProcessedFeedback::AsInstanceOf() const {
 NamedAccessFeedback const& ProcessedFeedback::AsNamedAccess() const {
   CHECK_EQ(kNamedAccess, kind());
   return *static_cast<NamedAccessFeedback const*>(this);
+}
+
+MegaDOMPropertyAccessFeedback const&
+ProcessedFeedback::AsMegaDOMPropertyAccess() const {
+  CHECK_EQ(kMegaDOMPropertyAccess, kind());
+  return *static_cast<MegaDOMPropertyAccessFeedback const*>(this);
 }
 
 LiteralFeedback const& ProcessedFeedback::AsLiteral() const {

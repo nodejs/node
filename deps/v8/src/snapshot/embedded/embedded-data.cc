@@ -6,12 +6,8 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
-#include "src/codegen/interface-descriptors-inl.h"
-#include "src/objects/objects-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/snapshot-utils.h"
-#include "src/snapshot/snapshot.h"
-#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {
@@ -153,7 +149,7 @@ void OffHeapInstructionStream::CreateOffHeapOffHeapInstructionStream(
   // in the binary) and what we are currently setting up here (where the blob is
   // on the native heap).
   std::memcpy(allocated_code_bytes, d.code(), d.code_size());
-  if (FLAG_experimental_flush_embedded_blob_icache) {
+  if (v8_flags.experimental_flush_embedded_blob_icache) {
     FlushInstructionCache(allocated_code_bytes, d.code_size());
   }
   CHECK(SetPermissions(page_allocator, allocated_code_bytes,
@@ -201,7 +197,7 @@ bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code code) {
       return false;
   }
 
-  STATIC_ASSERT(CallInterfaceDescriptor::ContextRegister() !=
+  static_assert(CallInterfaceDescriptor::ContextRegister() !=
                 kOffHeapTrampolineRegister);
 
   Callable callable = Builtins::CallableFor(isolate, code.builtin_id());
@@ -220,17 +216,17 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
       RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
       RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
 
-  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     Code code = FromCodeT(isolate->builtins()->code(builtin));
     RelocIterator on_heap_it(code, kRelocMask);
     RelocIterator off_heap_it(blob, code, kRelocMask);
 
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
-    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) ||  \
-    defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_S390) || \
-    defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_LOONG64)
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) ||    \
+    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||     \
+    defined(V8_TARGET_ARCH_S390) || defined(V8_TARGET_ARCH_RISCV64) || \
+    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_RISCV32)
     // On these platforms we emit relative builtin-to-builtin
     // jumps for isolate independent builtins in the snapshot. This fixes up the
     // relative jumps to the right offsets in the snapshot.
@@ -244,9 +240,8 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
       CHECK(Builtins::IsIsolateIndependentBuiltin(target));
 
       // Do not emit write-barrier for off-heap writes.
-      off_heap_it.rinfo()->set_target_address(
-          blob->InstructionStartOfBuiltin(target.builtin_id()),
-          SKIP_WRITE_BARRIER);
+      off_heap_it.rinfo()->set_off_heap_target_address(
+          blob->InstructionStartOfBuiltin(target.builtin_id()));
 
       on_heap_it.next();
       off_heap_it.next();
@@ -262,6 +257,20 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
   }
 }
 
+void EnsureRelocatable(CodeT codet) {
+  Code code = FromCodeT(codet);
+  if (code.relocation_size() == 0) return;
+
+  // On some architectures (arm) the builtin might have a non-empty reloc
+  // info containing a CONST_POOL entry. These entries don't have to be
+  // updated when Code object is relocated, so it's safe to drop the reloc
+  // info alltogether. If it wasn't the case then we'd have to store it
+  // in the metadata.
+  for (RelocIterator it(code); !it.done(); it.next()) {
+    CHECK_EQ(it.rinfo()->rmode(), RelocInfo::CONST_POOL);
+  }
+}
+
 }  // namespace
 
 // static
@@ -274,7 +283,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   bool saw_unsafe_builtin = false;
   uint32_t raw_code_size = 0;
   uint32_t raw_data_size = 0;
-  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     Code code = FromCodeT(builtins->code(builtin));
@@ -308,7 +317,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
 
       layout_desc.handler_table_offset =
           raw_data_size + static_cast<uint32_t>(code.handler_table_offset());
-#if V8_EMBEDDED_CONSTANT_POOL
+#if V8_EMBEDDED_CONSTANT_POOL_BOOL
       layout_desc.constant_pool_offset =
           raw_data_size + static_cast<uint32_t>(code.constant_pool_offset());
 #endif
@@ -316,6 +325,9 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
           raw_data_size + static_cast<uint32_t>(code.code_comments_offset());
       layout_desc.unwinding_info_offset_offset =
           raw_data_size + static_cast<uint32_t>(code.unwinding_info_offset());
+      layout_desc.stack_slots = static_cast<uint32_t>(code.stack_slots());
+
+      CHECK_EQ(code.deoptimization_data().length(), 0);
     }
     // Align the start of each section.
     raw_code_size += PadAndAlignCode(instruction_size);
@@ -328,12 +340,12 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
       "If in doubt, ask jgruber@");
 
   // Allocate space for the code section, value-initialized to 0.
-  STATIC_ASSERT(RawCodeOffset() == 0);
+  static_assert(RawCodeOffset() == 0);
   const uint32_t blob_code_size = RawCodeOffset() + raw_code_size;
   uint8_t* const blob_code = new uint8_t[blob_code_size]();
 
   // Allocate space for the data section, value-initialized to 0.
-  STATIC_ASSERT(IsAligned(FixedDataSize(), Code::kMetadataAlignment));
+  static_assert(IsAligned(FixedDataSize(), Code::kMetadataAlignment));
   const uint32_t blob_data_size = FixedDataSize() + raw_data_size;
   uint8_t* const blob_data = new uint8_t[blob_data_size]();
 
@@ -343,7 +355,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
 
   // Hash relevant parts of the Isolate's heap and store the result.
   {
-    STATIC_ASSERT(IsolateHashSize() == kSizetSize);
+    static_assert(IsolateHashSize() == kSizetSize);
     const size_t hash = isolate->HashIsolateForEmbeddedBlob();
     std::memcpy(blob_data + IsolateHashOffset(), &hash, IsolateHashSize());
   }
@@ -356,7 +368,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
 
   // .. and the variable-size data section.
   uint8_t* const raw_metadata_start = blob_data + RawMetadataOffset();
-  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     Code code = FromCodeT(builtins->code(builtin));
@@ -368,10 +380,13 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     std::memcpy(dst, reinterpret_cast<uint8_t*>(code.raw_metadata_start()),
                 code.raw_metadata_size());
   }
+  CHECK_IMPLIES(
+      kMaxPCRelativeCodeRangeInMB,
+      static_cast<size_t>(raw_code_size) <= kMaxPCRelativeCodeRangeInMB * MB);
 
   // .. and the variable-size code section.
   uint8_t* const raw_code_start = blob_code + RawCodeOffset();
-  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     Code code = FromCodeT(builtins->code(builtin));
@@ -391,12 +406,12 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
 
   // Hash the blob and store the result.
   {
-    STATIC_ASSERT(EmbeddedBlobDataHashSize() == kSizetSize);
+    static_assert(EmbeddedBlobDataHashSize() == kSizetSize);
     const size_t data_hash = d.CreateEmbeddedBlobDataHash();
     std::memcpy(blob_data + EmbeddedBlobDataHashOffset(), &data_hash,
                 EmbeddedBlobDataHashSize());
 
-    STATIC_ASSERT(EmbeddedBlobCodeHashSize() == kSizetSize);
+    static_assert(EmbeddedBlobCodeHashSize() == kSizetSize);
     const size_t code_hash = d.CreateEmbeddedBlobCodeHash();
     std::memcpy(blob_data + EmbeddedBlobCodeHashOffset(), &code_hash,
                 EmbeddedBlobCodeHashSize());
@@ -407,15 +422,36 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     DCHECK_EQ(code_hash, d.EmbeddedBlobCodeHash());
   }
 
-  if (FLAG_serialization_statistics) d.PrintStatistics();
+  if (DEBUG_BOOL) {
+    for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+         ++builtin) {
+      Code code = FromCodeT(builtins->code(builtin));
+
+      CHECK_EQ(d.InstructionSizeOfBuiltin(builtin), code.InstructionSize());
+      CHECK_EQ(d.MetadataSizeOfBuiltin(builtin), code.MetadataSize());
+
+      CHECK_EQ(d.SafepointTableSizeOf(builtin), code.safepoint_table_size());
+      CHECK_EQ(d.HandlerTableSizeOf(builtin), code.handler_table_size());
+      CHECK_EQ(d.ConstantPoolSizeOf(builtin), code.constant_pool_size());
+      CHECK_EQ(d.CodeCommentsSizeOf(builtin), code.code_comments_size());
+      CHECK_EQ(d.UnwindingInfoSizeOf(builtin), code.unwinding_info_size());
+      CHECK_EQ(d.StackSlotsOf(builtin), code.stack_slots());
+    }
+  }
+  // Ensure that InterpreterEntryTrampolineForProfiling is relocatable.
+  // See v8_flags.interpreted_frames_native_stack for details.
+  EnsureRelocatable(
+      builtins->code(Builtin::kInterpreterEntryTrampolineForProfiling));
+
+  if (v8_flags.serialization_statistics) d.PrintStatistics();
 
   return d;
 }
 
 size_t EmbeddedData::CreateEmbeddedBlobDataHash() const {
-  STATIC_ASSERT(EmbeddedBlobDataHashOffset() == 0);
-  STATIC_ASSERT(EmbeddedBlobCodeHashOffset() == EmbeddedBlobDataHashSize());
-  STATIC_ASSERT(IsolateHashOffset() ==
+  static_assert(EmbeddedBlobDataHashOffset() == 0);
+  static_assert(EmbeddedBlobCodeHashOffset() == EmbeddedBlobDataHashSize());
+  static_assert(IsolateHashOffset() ==
                 EmbeddedBlobCodeHashOffset() + EmbeddedBlobCodeHashSize());
   static constexpr uint32_t kFirstHashedDataOffset = IsolateHashOffset();
   // Hash the entire data section except the embedded blob hash fields
@@ -426,17 +462,17 @@ size_t EmbeddedData::CreateEmbeddedBlobDataHash() const {
 }
 
 size_t EmbeddedData::CreateEmbeddedBlobCodeHash() const {
-  CHECK(FLAG_text_is_readable);
+  CHECK(v8_flags.text_is_readable);
   base::Vector<const byte> payload(code_, code_size_);
   return Checksum(payload);
 }
 
 void EmbeddedData::PrintStatistics() const {
-  DCHECK(FLAG_serialization_statistics);
+  DCHECK(v8_flags.serialization_statistics);
 
   constexpr int kCount = Builtins::kBuiltinCount;
   int sizes[kCount];
-  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (int i = 0; i < kCount; i++) {
     sizes[i] = InstructionSizeOfBuiltin(Builtins::FromInt(i));
   }

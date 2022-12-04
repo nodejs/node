@@ -34,6 +34,6 @@ function onexit() {
       { type: 'PIPECONNECTWRAP', id: 'pipeconnect:1',
         triggerAsyncId: 'pipe:1' },
       { type: 'PIPEWRAP', id: 'pipe:2', triggerAsyncId: 'pipeserver:1' },
-      { type: 'SHUTDOWNWRAP', id: 'shutdown:1', triggerAsyncId: 'pipe:2' } ]
+      { type: 'SHUTDOWNWRAP', id: 'shutdown:1', triggerAsyncId: 'pipe:2' } ],
   );
 }

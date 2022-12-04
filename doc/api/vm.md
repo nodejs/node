@@ -206,7 +206,7 @@ const vm = require('node:vm');
 
 const context = {
   animal: 'cat',
-  count: 2
+  count: 2,
 };
 
 const script = new vm.Script('count += 1; name = "kitty";');
@@ -342,6 +342,41 @@ for (let i = 0; i < 1000; ++i) {
 console.log(globalVar);
 
 // 1000
+```
+
+### `script.sourceMapURL`
+
+<!-- YAML
+added: v19.1.0
+-->
+
+* {string|undefined}
+
+When the script is compiled from a source that contains a source map magic
+comment, this property will be set to the URL of the source map.
+
+```mjs
+import vm from 'node:vm';
+
+const script = new vm.Script(`
+function myFunc() {}
+//# sourceMappingURL=sourcemap.json
+`);
+
+console.log(script.sourceMapURL);
+// Prints: sourcemap.json
+```
+
+```cjs
+const vm = require('node:vm');
+
+const script = new vm.Script(`
+function myFunc() {}
+//# sourceMappingURL=sourcemap.json
+`);
+
+console.log(script.sourceMapURL);
+// Prints: sourcemap.json
 ```
 
 ## Class: `vm.Module`
@@ -750,7 +785,7 @@ const module = new vm.SourceTextModule(
       // Object.prototype in the top context rather than that in
       // the contextified object.
       meta.prop = {};
-    }
+    },
   });
 // Since module has no dependencies, the linker function will never be called.
 await module.link(() => {});
@@ -777,7 +812,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
         // Object.prototype in the top context rather than that in
         // the contextified object.
         meta.prop = {};
-      }
+      },
     });
   // Since module has no dependencies, the linker function will never be called.
   await module.link(() => {});
@@ -1323,7 +1358,7 @@ const vm = require('node:vm');
 
 const contextObject = {
   animal: 'cat',
-  count: 2
+  count: 2,
 };
 
 vm.runInNewContext('count += 1; name = "kitty"', contextObject);
@@ -1487,7 +1522,7 @@ function loop() {
 vm.runInNewContext(
   'Promise.resolve().then(() => loop());',
   { loop, console },
-  { timeout: 5 }
+  { timeout: 5 },
 );
 // This is printed *before* 'entering loop' (!)
 console.log('done executing');
@@ -1506,7 +1541,7 @@ function loop() {
 vm.runInNewContext(
   'Promise.resolve().then(() => loop());',
   { loop, console },
-  { timeout: 5, microtaskMode: 'afterEvaluate' }
+  { timeout: 5, microtaskMode: 'afterEvaluate' },
 );
 ```
 

@@ -220,7 +220,7 @@ class SubclassBodyDescriptor final : public BodyDescriptorBase {
  public:
   // The parent must end be before the child's start offset, to make sure that
   // their slots are disjoint.
-  STATIC_ASSERT(ParentBodyDescriptor::kSize <=
+  static_assert(ParentBodyDescriptor::kSize <=
                 ChildBodyDescriptor::kStartOffset);
 
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {

@@ -65,7 +65,7 @@ let asyncTest = Promise.resolve();
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "options" argument must be of type object.' +
-               common.invalidArgTypeHelper(i)
+               common.invalidArgTypeHelper(i),
     })
   ));
 }
@@ -141,7 +141,7 @@ let asyncTest = Promise.resolve();
     handleEvent: common.mustCall(function(event) {
       strictEqual(event.type, 'foo');
       strictEqual(this, ev2);
-    })
+    }),
   };
 
   eventTarget.addEventListener('foo', ev1);
@@ -318,7 +318,7 @@ let asyncTest = Promise.resolve();
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "event" argument must be an instance of Event.' +
-               common.invalidArgTypeHelper(i)
+               common.invalidArgTypeHelper(i),
     });
   });
 
@@ -326,7 +326,7 @@ let asyncTest = Promise.resolve();
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "listener" argument must be an instance of EventListener.' +
-             common.invalidArgTypeHelper(arg)
+             common.invalidArgTypeHelper(arg),
   });
 
   [
@@ -388,7 +388,7 @@ let asyncTest = Promise.resolve();
   const event = new Event('foo');
   target1.addEventListener('foo', common.mustCall((event) => {
     throws(() => target2.dispatchEvent(event), {
-      code: 'ERR_EVENT_RECURSION'
+      code: 'ERR_EVENT_RECURSION',
     });
   }));
   target1.dispatchEvent(event);
@@ -486,7 +486,7 @@ let asyncTest = Promise.resolve();
     /a/,
   ].forEach((i) => {
     throws(() => target.dispatchEvent.call(i, event), {
-      code: 'ERR_INVALID_THIS'
+      code: 'ERR_INVALID_THIS',
     });
   });
 }
@@ -615,6 +615,15 @@ let asyncTest = Promise.resolve();
   deepStrictEqual(output, [1, 2, 3, 4]);
 }
 {
+  const target = new EventTarget();
+  defineEventHandler(target, 'foo', 'bar');
+  const output = [];
+  target.addEventListener('bar', () => output.push(1));
+  target.onfoo = () => output.push(2);
+  target.dispatchEvent(new Event('bar'));
+  deepStrictEqual(output, [1, 2]);
+}
+{
   const et = new EventTarget();
   const listener = common.mustNotCall();
   et.addEventListener('foo', common.mustCall((e) => {
@@ -627,12 +636,12 @@ let asyncTest = Promise.resolve();
 {
   const ev = new Event('test');
   const evConstructorName = inspect(ev, {
-    depth: -1
+    depth: -1,
   });
   strictEqual(evConstructorName, 'Event');
 
   const inspectResult = inspect(ev, {
-    depth: 1
+    depth: 1,
   });
   ok(inspectResult.includes('Event'));
 }
@@ -640,7 +649,7 @@ let asyncTest = Promise.resolve();
 {
   const et = new EventTarget();
   const inspectResult = inspect(et, {
-    depth: 1
+    depth: 1,
   });
   ok(inspectResult.includes('EventTarget'));
 }

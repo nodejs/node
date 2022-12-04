@@ -1,21 +1,19 @@
 'use strict'
 
-const { isBlobLike, isFileLike, toUSVString, makeIterator } = require('./util')
+const { isBlobLike, toUSVString, makeIterator } = require('./util')
 const { kState } = require('./symbols')
-const { File, FileLike } = require('./file')
+const { File, FileLike, isFileLike } = require('./file')
 const { webidl } = require('./webidl')
 const { Blob } = require('buffer')
 
 // https://xhr.spec.whatwg.org/#formdata
 class FormData {
-  static name = 'FormData'
-
   constructor (form) {
-    if (arguments.length > 0 && form != null) {
-      webidl.errors.conversionFailed({
+    if (form !== undefined) {
+      throw webidl.errors.conversionFailed({
         prefix: 'FormData constructor',
         argument: 'Argument 1',
-        types: ['null']
+        types: ['undefined']
       })
     }
 
@@ -23,15 +21,9 @@ class FormData {
   }
 
   append (name, value, filename = undefined) {
-    if (!(this instanceof FormData)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FormData)
 
-    if (arguments.length < 2) {
-      throw new TypeError(
-        `Failed to execute 'append' on 'FormData': 2 arguments required, but only ${arguments.length} present.`
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 2, { header: 'FormData.append' })
 
     if (arguments.length === 3 && !isBlobLike(value)) {
       throw new TypeError(
@@ -58,15 +50,9 @@ class FormData {
   }
 
   delete (name) {
-    if (!(this instanceof FormData)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FormData)
 
-    if (arguments.length < 1) {
-      throw new TypeError(
-        `Failed to execute 'delete' on 'FormData': 1 arguments required, but only ${arguments.length} present.`
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 1, { header: 'FormData.delete' })
 
     name = webidl.converters.USVString(name)
 
@@ -83,15 +69,9 @@ class FormData {
   }
 
   get (name) {
-    if (!(this instanceof FormData)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FormData)
 
-    if (arguments.length < 1) {
-      throw new TypeError(
-        `Failed to execute 'get' on 'FormData': 1 arguments required, but only ${arguments.length} present.`
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 1, { header: 'FormData.get' })
 
     name = webidl.converters.USVString(name)
 
@@ -108,15 +88,9 @@ class FormData {
   }
 
   getAll (name) {
-    if (!(this instanceof FormData)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FormData)
 
-    if (arguments.length < 1) {
-      throw new TypeError(
-        `Failed to execute 'getAll' on 'FormData': 1 arguments required, but only ${arguments.length} present.`
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 1, { header: 'FormData.getAll' })
 
     name = webidl.converters.USVString(name)
 
@@ -130,15 +104,9 @@ class FormData {
   }
 
   has (name) {
-    if (!(this instanceof FormData)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FormData)
 
-    if (arguments.length < 1) {
-      throw new TypeError(
-        `Failed to execute 'has' on 'FormData': 1 arguments required, but only ${arguments.length} present.`
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 1, { header: 'FormData.has' })
 
     name = webidl.converters.USVString(name)
 
@@ -148,15 +116,9 @@ class FormData {
   }
 
   set (name, value, filename = undefined) {
-    if (!(this instanceof FormData)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FormData)
 
-    if (arguments.length < 2) {
-      throw new TypeError(
-        `Failed to execute 'set' on 'FormData': 2 arguments required, but only ${arguments.length} present.`
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 2, { header: 'FormData.set' })
 
     if (arguments.length === 3 && !isBlobLike(value)) {
       throw new TypeError(
@@ -196,40 +158,33 @@ class FormData {
     }
   }
 
-  get [Symbol.toStringTag] () {
-    return this.constructor.name
-  }
-
   entries () {
-    if (!(this instanceof FormData)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FormData)
 
     return makeIterator(
-      makeIterable(this[kState], 'entries'),
-      'FormData'
+      () => this[kState].map(pair => [pair.name, pair.value]),
+      'FormData',
+      'key+value'
     )
   }
 
   keys () {
-    if (!(this instanceof FormData)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FormData)
 
     return makeIterator(
-      makeIterable(this[kState], 'keys'),
-      'FormData'
+      () => this[kState].map(pair => [pair.name, pair.value]),
+      'FormData',
+      'key'
     )
   }
 
   values () {
-    if (!(this instanceof FormData)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FormData)
 
     return makeIterator(
-      makeIterable(this[kState], 'values'),
-      'FormData'
+      () => this[kState].map(pair => [pair.name, pair.value]),
+      'FormData',
+      'value'
     )
   }
 
@@ -238,15 +193,9 @@ class FormData {
    * @param {unknown} thisArg
    */
   forEach (callbackFn, thisArg = globalThis) {
-    if (!(this instanceof FormData)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FormData)
 
-    if (arguments.length < 1) {
-      throw new TypeError(
-        `Failed to execute 'forEach' on 'FormData': 1 argument required, but only ${arguments.length} present.`
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 1, { header: 'FormData.forEach' })
 
     if (typeof callbackFn !== 'function') {
       throw new TypeError(
@@ -261,6 +210,13 @@ class FormData {
 }
 
 FormData.prototype[Symbol.iterator] = FormData.prototype.entries
+
+Object.defineProperties(FormData.prototype, {
+  [Symbol.toStringTag]: {
+    value: 'FormData',
+    configurable: true
+  }
+})
 
 /**
  * @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#create-an-entry
@@ -294,28 +250,20 @@ function makeEntry (name, value, filename) {
     // 2. If filename is given, then set value to a new File object,
     //    representing the same bytes, whose name attribute is filename.
     if (filename !== undefined) {
+      /** @type {FilePropertyBag} */
+      const options = {
+        type: value.type,
+        lastModified: value.lastModified
+      }
+
       value = value instanceof File
-        ? new File([value], filename, { type: value.type })
-        : new FileLike(value, filename, { type: value.type })
+        ? new File([value], filename, options)
+        : new FileLike(value, filename, options)
     }
   }
 
   // 4. Return an entry whose name is name and whose value is value.
   return { name, value }
-}
-
-function * makeIterable (entries, type) {
-  // The value pairs to iterate over are this’s entry list’s entries
-  // with the key being the name and the value being the value.
-  for (const { name, value } of entries) {
-    if (type === 'entries') {
-      yield [name, value]
-    } else if (type === 'values') {
-      yield value
-    } else {
-      yield name
-    }
-  }
 }
 
 module.exports = { FormData }

@@ -253,7 +253,14 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   bool IsReplModeScope() const;
 
 #ifdef DEBUG
-  bool Equals(ScopeInfo other) const;
+  // For LiveEdit we ignore:
+  //   - position info: "unchanged" functions are allowed to move in a script
+  //   - module info: SourceTextModuleInfo::Equals compares exact FixedArray
+  //     addresses which will never match for separate instances.
+  //   - outer scope info: LiveEdit already analyses outer scopes of unchanged
+  //     functions. Also checking it here will break in really subtle cases
+  //     e.g. changing a let to a const in an outer function, which is fine.
+  bool Equals(ScopeInfo other, bool is_live_edit_compare = false) const;
 #endif
 
   template <typename IsolateT>
@@ -293,8 +300,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
         kVariablePartIndex
   };
 
-  STATIC_ASSERT(LanguageModeSize == 1 << LanguageModeBit::kSize);
-  STATIC_ASSERT(FunctionKind::kLastFunctionKind <= FunctionKindBits::kMax);
+  static_assert(LanguageModeSize == 1 << LanguageModeBit::kSize);
+  static_assert(FunctionKind::kLastFunctionKind <= FunctionKindBits::kMax);
 
   bool IsEmpty() const;
 
@@ -303,6 +310,9 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   // Gives access to raw memory which stores the ScopeInfo's data.
   inline ObjectSlot data_start();
+
+  // Hash based on position info and flags. Falls back to flags + local count.
+  V8_EXPORT_PRIVATE uint32_t Hash();
 
  private:
   friend class WebSnapshotDeserializer;

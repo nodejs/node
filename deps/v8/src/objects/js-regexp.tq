@@ -11,6 +11,7 @@ bitfield struct JSRegExpFlags extends uint31 {
   dot_all: bool: 1 bit;
   linear: bool: 1 bit;
   has_indices: bool: 1 bit;
+  unicode_sets: bool: 1 bit;
 }
 
 extern class JSRegExp extends JSObject {
@@ -29,6 +30,8 @@ extern operator '.global' macro
 RegExpBuiltinsAssembler::FastFlagGetterGlobal(FastJSRegExp): bool;
 extern operator '.unicode' macro
 RegExpBuiltinsAssembler::FastFlagGetterUnicode(FastJSRegExp): bool;
+extern operator '.unicodeSets' macro
+RegExpBuiltinsAssembler::FastFlagGetterUnicodeSets(FastJSRegExp): bool;
 extern operator '.lastIndex' macro
 RegExpBuiltinsAssembler::FastLoadLastIndex(FastJSRegExp): Smi;
 extern operator '.lastIndex=' macro

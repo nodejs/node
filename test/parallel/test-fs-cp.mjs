@@ -746,6 +746,47 @@ if (!isWindows) {
      }));
 }
 
+// Copy should not throw exception if child folder is filtered out.
+{
+  const src = nextdir();
+  mkdirSync(join(src, 'test-cp'), mustNotMutateObjectDeep({ recursive: true }));
+
+  const dest = nextdir();
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
+  writeFileSync(join(dest, 'test-cp'), 'test-content', mustNotMutateObjectDeep({ mode: 0o444 }));
+
+  const opts = {
+    filter: (path) => !path.includes('test-cp'),
+    recursive: true,
+  };
+  cp(src, dest, opts, mustCall((err) => {
+    assert.strictEqual(err, null);
+  }));
+  cpSync(src, dest, opts);
+}
+
+// Copy should not throw exception if dest is invalid but filtered out.
+{
+  // Create dest as a file.
+  // Expect: cp skips the copy logic entirely and won't throw any exception in path validation process.
+  const src = join(nextdir(), 'bar');
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
+
+  const destParent = nextdir();
+  const dest = join(destParent, 'bar');
+  mkdirSync(destParent, mustNotMutateObjectDeep({ recursive: true }));
+  writeFileSync(dest, 'test-content', mustNotMutateObjectDeep({ mode: 0o444 }));
+
+  const opts = {
+    filter: (path) => !path.includes('bar'),
+    recursive: true,
+  };
+  cp(src, dest, opts, mustCall((err) => {
+    assert.strictEqual(err, null);
+  }));
+  cpSync(src, dest, opts);
+}
+
 // It throws if options is not object.
 {
   assert.throws(

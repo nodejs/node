@@ -5,7 +5,6 @@
 #include "src/snapshot/shared-heap-deserializer.h"
 
 #include "src/heap/heap-inl.h"
-#include "src/snapshot/shared-heap-serializer.h"
 
 namespace v8 {
 namespace internal {
@@ -13,9 +12,10 @@ namespace internal {
 void SharedHeapDeserializer::DeserializeIntoIsolate() {
   // Don't deserialize into client Isolates. If there are client Isolates, the
   // shared heap object cache should already be populated.
-  DCHECK_IMPLIES(isolate()->shared_isolate() != nullptr,
-                 !isolate()->shared_heap_object_cache()->empty());
-  if (isolate()->shared_isolate() != nullptr) return;
+  if (isolate()->has_shared_heap() && !isolate()->is_shared_space_isolate()) {
+    DCHECK(!isolate()->shared_heap_object_cache()->empty());
+    return;
+  }
   DCHECK(isolate()->shared_heap_object_cache()->empty());
   HandleScope scope(isolate());
 
@@ -32,7 +32,7 @@ void SharedHeapDeserializer::DeserializeIntoIsolate() {
 void SharedHeapDeserializer::DeserializeStringTable() {
   // See SharedHeapSerializer::SerializeStringTable.
 
-  DCHECK(isolate()->OwnsStringTable());
+  DCHECK(isolate()->OwnsStringTables());
 
   // Get the string table size.
   int string_table_size = source()->GetInt();

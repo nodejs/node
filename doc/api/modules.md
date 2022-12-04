@@ -90,8 +90,8 @@ By default, Node.js will treat the following as CommonJS modules:
 * Files with an extension that is not `.mjs`, `.cjs`, `.json`, `.node`, or `.js`
   (when the nearest parent `package.json` file contains a top-level field
   [`"type"`][] with a value of `"module"`, those files will be recognized as
-  CommonJS modules only if they are being `require`d, not when used as the
-  command-line entry point of the program).
+  CommonJS modules only if they are being included via `require()`, not when
+  used as the command-line entry point of the program).
 
 See [Determining module system][] for more details.
 
@@ -272,15 +272,10 @@ LOAD_PACKAGE_SELF(X, DIR)
 6. RESOLVE_ESM_MATCH(MATCH)
 
 RESOLVE_ESM_MATCH(MATCH)
-1. let { RESOLVED, EXACT } = MATCH
-2. let RESOLVED_PATH = fileURLToPath(RESOLVED)
-3. If EXACT is true,
-   a. If the file at RESOLVED_PATH exists, load RESOLVED_PATH as its extension
-      format. STOP
-4. Otherwise, if EXACT is false,
-   a. LOAD_AS_FILE(RESOLVED_PATH)
-   b. LOAD_AS_DIRECTORY(RESOLVED_PATH)
-5. THROW "not found"
+1. let RESOLVED_PATH = fileURLToPath(MATCH)
+2. If the file at RESOLVED_PATH exists, load RESOLVED_PATH as its extension
+   format. STOP
+3. THROW "not found"
 </pre>
 
 ## Caching

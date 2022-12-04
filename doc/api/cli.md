@@ -341,16 +341,6 @@ when `Error.stack` is accessed. If you access `Error.stack` frequently
 in your application, take into account the performance implications
 of `--enable-source-maps`.
 
-### `--experimental-global-customevent`
-
-<!-- YAML
-added:
-  - v18.7.0
-  - v16.17.0
--->
-
-Expose the [CustomEvent Web API][] on the global scope.
-
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -406,10 +396,18 @@ Disable experimental support for the [Fetch API][].
 ### `--no-experimental-global-webcrypto`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 Disable exposition of [Web Crypto API][] on the global scope.
+
+### `--no-experimental-global-customevent`
+
+<!-- YAML
+added: v19.0.0
+-->
+
+Disable exposition of [CustomEvent Web API][] on the global scope.
 
 ### `--no-experimental-repl-await`
 
@@ -422,7 +420,7 @@ Use this flag to disable top-level await in REPL.
 ### `--experimental-shadow-realm`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 Use this flag to enable [ShadowRealm][] support.
@@ -644,7 +642,7 @@ Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
 ### `--import=module`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -860,6 +858,7 @@ against FIPS-enabled OpenSSL.
 added:
   - v18.5.0
   - v16.17.0
+  - v14.21.0
 -->
 
 Enable OpenSSL default configuration section, `openssl_conf` to be read from
@@ -1123,7 +1122,9 @@ Default signal is `SIGUSR2`.
 <!-- YAML
 added: v11.8.0
 changes:
-  - version: v18.8.0
+  - version:
+      - v18.8.0
+      - v16.18.0
     pr-url: https://github.com/nodejs/node/pull/44208
     description: Report is not generated if the uncaught exception is handled.
   - version:
@@ -1186,12 +1187,11 @@ added: v18.8.0
 > Stability: 1 - Experimental
 
 When used with `--build-snapshot`, `--snapshot-blob` specifies the path
-where the generated snapshot blob will be written to. If not specified,
-the generated blob will be written, by default, to `snapshot.blob`
-in the current working directory.
+where the generated snapshot blob is written to. If not specified, the
+generated blob is written to `snapshot.blob` in the current working directory.
 
 When used without `--build-snapshot`, `--snapshot-blob` specifies the
-path to the blob that will be used to restore the application state.
+path to the blob that is used to restore the application state.
 
 When loading a snapshot, Node.js checks that:
 
@@ -1200,7 +1200,8 @@ When loading a snapshot, Node.js checks that:
 2. The V8 flags and CPU features are compatible with that of the binary
    that generates the snapshot.
 
-If they don't match, Node.js would refuse to load the snapshot and exit with 1.
+If they don't match, Node.js refuses to load the snapshot and exits with
+status code 1.
 
 ### `--test`
 
@@ -1208,16 +1209,21 @@ If they don't match, Node.js would refuse to load the snapshot and exit with 1.
 added:
   - v18.1.0
   - v16.17.0
+changes:
+  - version: v19.2.0
+    pr-url: https://github.com/nodejs/node/pull/45214
+    description: Test runner now supports running in watch mode.
 -->
 
 Starts the Node.js command line test runner. This flag cannot be combined with
-`--check`, `--eval`, `--interactive`, or the inspector. See the documentation
-on [running tests from the command line][] for more details.
+`--watch-path`, `--check`, `--eval`, `--interactive`, or the inspector.
+See the documentation on [running tests from the command line][]
+for more details.
 
 ### `--test-name-pattern`
 
 <!-- YAML
-added: REPLACEME
+added: v18.11.0
 -->
 
 A regular expression that configures the test runner to only execute tests
@@ -1339,7 +1345,9 @@ for TLSv1.2, which is not as secure as TLSv1.3.
 
 <!-- YAML
 added: v14.3.0
-deprecated: v18.8.0
+deprecated:
+  - v18.8.0
+  - v16.18.0
 -->
 
 > Stability: 0 - Deprecated
@@ -1562,16 +1570,21 @@ added: v5.10.0
 
 Set V8's thread pool size which will be used to allocate background jobs.
 
-If set to `0` then V8 will choose an appropriate size of the thread pool based
-on the number of online processors.
+If set to `0` then Node.js will choose an appropriate size of the thread pool
+based on an estimate of the amount of parallelism.
 
-If the value provided is larger than V8's maximum, then the largest value
-will be chosen.
+The amount of parallelism refers to the number of computations that can be
+carried out simultaneously in a given machine. In general, it's the same as the
+amount of CPUs, but it may diverge in environments such as VMs or containers.
 
 ### `--watch`
 
 <!-- YAML
-added: REPLACEME
+added: v18.11.0
+changes:
+  - version: v19.2.0
+    pr-url: https://github.com/nodejs/node/pull/45214
+    description: Test runner now supports running in watch mode.
 -->
 
 > Stability: 1 - Experimental
@@ -1593,7 +1606,7 @@ $ node --watch index.js
 ### `--watch-path`
 
 <!-- YAML
-added: REPLACEME
+added: v18.11.0
 -->
 
 > Stability: 1 - Experimental
@@ -1605,7 +1618,7 @@ This will turn off watching of required or imported modules, even when used in
 combination with `--watch`.
 
 This flag cannot be combined with
-`--check`, `--eval`, `--interactive`, or the REPL.
+`--check`, `--eval`, `--interactive`, `--test`, or the REPL.
 
 ```console
 $ node --watch-path=./src --watch-path=./tests index.js
@@ -1829,7 +1842,6 @@ Node.js options that are allowed are:
 * `--enable-fips`
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
-* `--experimental-global-customevent`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
@@ -1862,6 +1874,7 @@ Node.js options that are allowed are:
 * `--no-addons`
 * `--no-deprecation`
 * `--no-experimental-fetch`
+* `--no-experimental-global-customevent`
 * `--no-experimental-global-webcrypto`
 * `--no-experimental-repl-await`
 * `--no-extra-info-on-fatal-exception`
@@ -1934,6 +1947,7 @@ V8 options that are allowed are:
 * `--interpreted-frames-native-stack`
 * `--jitless`
 * `--max-old-space-size`
+* `--max-semi-space-size`
 * `--perf-basic-prof-only-functions`
 * `--perf-basic-prof`
 * `--perf-prof-unwinding-info`

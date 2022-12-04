@@ -8,7 +8,6 @@
 #include <map>
 
 #include "src/codegen/cpu-features.h"
-#include "src/common/globals.h"
 #include "src/compiler/backend/instruction-scheduler.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
@@ -78,9 +77,8 @@ class FlagsContinuation final {
   }
 
   // Creates a new flags continuation for a wasm trap.
-  static FlagsContinuation ForTrap(FlagsCondition condition, TrapId trap_id,
-                                   Node* result) {
-    return FlagsContinuation(condition, trap_id, result);
+  static FlagsContinuation ForTrap(FlagsCondition condition, TrapId trap_id) {
+    return FlagsContinuation(condition, trap_id);
   }
 
   static FlagsContinuation ForSelect(FlagsCondition condition, Node* result,
@@ -218,13 +216,8 @@ class FlagsContinuation final {
     DCHECK_NOT_NULL(result);
   }
 
-  FlagsContinuation(FlagsCondition condition, TrapId trap_id, Node* result)
-      : mode_(kFlags_trap),
-        condition_(condition),
-        frame_state_or_result_(result),
-        trap_id_(trap_id) {
-    DCHECK_NOT_NULL(result);
-  }
+  FlagsContinuation(FlagsCondition condition, TrapId trap_id)
+      : mode_(kFlags_trap), condition_(condition), trap_id_(trap_id) {}
 
   FlagsContinuation(FlagsCondition condition, Node* result, Node* true_value,
                     Node* false_value)
@@ -292,7 +285,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       size_t* max_pushed_argument_count,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
-      EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
+      EnableScheduling enable_scheduling = v8_flags.turbo_instruction_scheduling
                                                ? kEnableScheduling
                                                : kDisableScheduling,
       EnableRootsRelativeAddressing enable_roots_relative_addressing =
@@ -300,7 +293,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       EnableTraceTurboJson trace_turbo = kDisableTraceTurboJson);
 
   // Visit code for the entire graph with the included schedule.
-  bool SelectInstructions();
+  base::Optional<BailoutReason> SelectInstructions();
 
   void StartBlock(RpoNumber rpo);
   void EndBlock(RpoNumber rpo);
@@ -636,6 +629,16 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                             const CallDescriptor* call_descriptor, Node* node);
   void EmitPrepareResults(ZoneVector<compiler::PushParameter>* results,
                           const CallDescriptor* call_descriptor, Node* node);
+
+  // In LOONG64, calling convention uses free GP param register to pass
+  // floating-point arguments when no FP param register is available. But
+  // gap does not support moving from FPR to GPR, so we add EmitMoveFPRToParam
+  // to complete movement.
+  void EmitMoveFPRToParam(InstructionOperand* op, LinkageLocation location);
+  // Moving floating-point param from GP param register to FPR to participate in
+  // subsequent operations, whether CallCFunction or normal floating-point
+  // operations.
+  void EmitMoveParamToFPR(Node* node, int index);
 
   bool CanProduceSignalingNaN(Node* node);
 

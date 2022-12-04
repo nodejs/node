@@ -45,7 +45,10 @@ enum BoundsCheckStrategy : int8_t {
   kNoBoundsChecks
 };
 
-enum class DynamicTiering { kEnabled, kDisabled };
+enum DynamicTiering : bool {
+  kDynamicTiering = true,
+  kNoDynamicTiering = false
+};
 
 // The {CompilationEnv} encapsulates the module data that is used during
 // compilation. CompilationEnvs are shareable across multiple compilations.
@@ -82,19 +85,25 @@ struct CompilationEnv {
       : module(module),
         bounds_checks(bounds_checks),
         runtime_exception_support(runtime_exception_support),
-        // During execution, the memory can never be bigger than what fits in a
-        // uintptr_t.
-        min_memory_size(
-            std::min(kV8MaxWasmMemoryPages,
-                     uintptr_t{module ? module->initial_pages : 0}) *
-            kWasmPageSize),
-        max_memory_size((module && module->has_maximum_pages
-                             ? std::min(kV8MaxWasmMemoryPages,
-                                        uintptr_t{module->maximum_pages})
-                             : kV8MaxWasmMemoryPages) *
-                        kWasmPageSize),
+        min_memory_size(MinPages(module) * kWasmPageSize),
+        max_memory_size(MaxPages(module) * kWasmPageSize),
         enabled_features(enabled_features),
         dynamic_tiering(dynamic_tiering) {}
+
+  static constexpr uintptr_t MinPages(const WasmModule* module) {
+    if (!module) return 0;
+    const uintptr_t platform_max_pages =
+        module->is_memory64 ? kV8MaxWasmMemory64Pages : kV8MaxWasmMemory32Pages;
+    return std::min(platform_max_pages, uintptr_t{module->initial_pages});
+  }
+
+  static constexpr uintptr_t MaxPages(const WasmModule* module) {
+    if (!module) return kV8MaxWasmMemory32Pages;
+    const uintptr_t platform_max_pages =
+        module->is_memory64 ? kV8MaxWasmMemory64Pages : kV8MaxWasmMemory32Pages;
+    if (!module->has_maximum_pages) return platform_max_pages;
+    return std::min(platform_max_pages, uintptr_t{module->maximum_pages});
+  }
 };
 
 // The wire bytes are either owned by the StreamingDecoder, or (after streaming)
@@ -108,14 +117,12 @@ class WireBytesStorage {
   virtual base::Optional<ModuleWireBytes> GetModuleBytes() const = 0;
 };
 
-// Callbacks will receive either {kFailedCompilation} or both
-// {kFinishedBaselineCompilation} and {kFinishedTopTierCompilation}, in that
-// order. If tier up is off, both events are delivered right after each other.
+// Callbacks will receive either {kFailedCompilation} or
+// {kFinishedBaselineCompilation}.
 enum class CompilationEvent : uint8_t {
   kFinishedBaselineCompilation,
   kFinishedExportWrappers,
   kFinishedCompilationChunk,
-  kFinishedTopTierCompilation,
   kFailedCompilation,
   kFinishedRecompilation
 };
@@ -126,14 +133,17 @@ class V8_EXPORT_PRIVATE CompilationEventCallback {
 
   virtual void call(CompilationEvent event) = 0;
 
-  enum class ReleaseAfterFinalEvent { kRelease, kKeep };
+  enum ReleaseAfterFinalEvent : bool {
+    kReleaseAfterFinalEvent = true,
+    kKeepAfterFinalEvent = false
+  };
 
   // Tells the module compiler whether to keep or to release a callback when the
   // compilation state finishes all compilation units. Most callbacks should be
   // released, that's why there is a default implementation, but the callback
   // for code caching with dynamic tiering has to stay alive.
   virtual ReleaseAfterFinalEvent release_after_final_event() {
-    return ReleaseAfterFinalEvent::kRelease;
+    return kReleaseAfterFinalEvent;
   }
 };
 
@@ -157,19 +167,14 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   void AddCallback(std::unique_ptr<CompilationEventCallback> callback);
 
-  void InitializeAfterDeserialization(
-      base::Vector<const int> lazy_functions,
-      base::Vector<const int> liftoff_functions);
-
-  // Wait until top tier compilation finished, or compilation failed.
-  void WaitForTopTierFinished();
+  void InitializeAfterDeserialization(base::Vector<const int> lazy_functions,
+                                      base::Vector<const int> eager_functions);
 
   // Set a higher priority for the compilation job.
   void SetHighPriority();
 
   bool failed() const;
   bool baseline_compilation_finished() const;
-  bool top_tier_compilation_finished() const;
   bool recompilation_finished() const;
 
   void set_compilation_id(int compilation_id);

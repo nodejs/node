@@ -35,6 +35,9 @@ let S = new SharedStructType(['field']);
   let shared_rhs = new S();
   s.field = shared_rhs;
   assertEquals(s.field, shared_rhs);
+  shared_rhs = new SharedArray(10);
+  s.field = shared_rhs;
+  assertEquals(s.field, shared_rhs);
 })();
 
 (function TestNotExtensible() {
@@ -46,9 +49,48 @@ let S = new SharedStructType(['field']);
 })();
 
 (function TestTooManyFields() {
-  let field_names = [];
+  let fieldNames = [];
   for (let i = 0; i < 1000; i++) {
-    field_names.push('field' + i);
+    fieldNames.push('field' + i);
   }
-  assertThrows(() => { new SharedStructType(field_names); });
+  assertThrows(() => {
+    new SharedStructType(fieldNames);
+  });
+})();
+
+(function TestOwnPropertyEnumeration() {
+  let s = new S();
+  s.field = 42;
+
+  assertArrayEquals(['field'], Reflect.ownKeys(s));
+
+  let propDescs = Object.getOwnPropertyDescriptors(s);
+  let desc = propDescs['field'];
+  assertEquals(true, desc.writable);
+  assertEquals(false, desc.configurable);
+  assertEquals(true, desc.enumerable);
+  assertEquals(42, desc.value);
+
+  let vals = Object.values(s);
+  assertArrayEquals([42], vals);
+
+  let entries = Object.entries(s);
+  assertEquals(1, entries.length);
+  assertArrayEquals(['field', 42], entries[0]);
+})();
+
+(function TestForIn() {
+  let fieldNames = [];
+  for (let i = 0; i < 512; i++) {
+    fieldNames.push('field' + i);
+  }
+  let S2 = new SharedStructType(fieldNames);
+  let s = new S2();
+  let propNames = [];
+  for (let prop in s) propNames.push(prop);
+  assertArrayEquals(propNames, fieldNames);
+})();
+
+(function TestDuplicateFieldNames() {
+  assertThrows(() => new SharedStructType(['same', 'same']));
 })();

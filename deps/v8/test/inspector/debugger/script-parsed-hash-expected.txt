@@ -5,13 +5,13 @@ Tests scripts hasing
     endLine : 0
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 28e2d6c1ab1f4e4e82675bc4cd924d3481abe278
+    hash : 6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
     isLiveEdit : false
     isModule : false
     length : 1
     scriptId : <scriptId>
     scriptLanguage : JavaScript
-    sourceMapURL : 
+    sourceMapURL :
     startColumn : 0
     startLine : 0
     url : foo1.js
@@ -22,13 +22,13 @@ Tests scripts hasing
     endLine : 0
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 3dce1fbe923a7e1582675bc4cd924d3481abe278
+    hash : 79bf08685d3138f9b109c3546780f056bc954fd69377b84a2cf23622e464897b
     isLiveEdit : false
     isModule : false
     length : 3
     scriptId : <scriptId>
     scriptLanguage : JavaScript
-    sourceMapURL : 
+    sourceMapURL :
     startColumn : 0
     startLine : 0
     url : foo2.js
@@ -39,13 +39,13 @@ Tests scripts hasing
     endLine : 0
     executionContextId : <executionContextId>
     hasSourceURL : false
-    hash : 2a3f94401c23c4d8336963ce4656dae27a95edb4
+    hash : 31d50490dca67797f1cac5a75c26eb866d60aa7d688e4393b3d07e4868d3d36d
     isLiveEdit : false
     isModule : false
     length : 8106
     scriptId : <scriptId>
     scriptLanguage : JavaScript
-    sourceMapURL : 
+    sourceMapURL :
     startColumn : 0
     startLine : 0
     url : foo3.js

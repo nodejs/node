@@ -14,6 +14,7 @@
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/heap.h"
+#include "src/heap/cppgc/object-view.h"
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
@@ -48,12 +49,12 @@ class SweeperTest : public testing::TestWithHeap {
     // Pretend do finish marking as StatsCollector verifies that Notify*
     // methods are called in the right order.
     heap->stats_collector()->NotifyMarkingStarted(
-        GarbageCollector::Config::CollectionType::kMajor,
-        GarbageCollector::Config::IsForcedGC::kNotForced);
+        CollectionType::kMajor, GCConfig::MarkingType::kAtomic,
+        GCConfig::IsForcedGC::kNotForced);
     heap->stats_collector()->NotifyMarkingCompleted(0);
-    const Sweeper::SweepingConfig sweeping_config{
-        Sweeper::SweepingConfig::SweepingType::kAtomic,
-        Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
+    const SweepingConfig sweeping_config{
+        SweepingConfig::SweepingType::kAtomic,
+        SweepingConfig::CompactableSpaceHandling::kSweep};
     sweeper.Start(sweeping_config);
     sweeper.FinishIfRunning();
   }
@@ -225,8 +226,7 @@ class GCInDestructor final : public GarbageCollected<GCInDestructor> {
   ~GCInDestructor() {
     // Instead of directly calling GC, allocations should be supported here as
     // well.
-    heap_->CollectGarbage(
-        internal::GarbageCollector::Config::ConservativeAtomicConfig());
+    heap_->CollectGarbage(internal::GCConfig::ConservativeAtomicConfig());
   }
   void Trace(Visitor*) const {}
 
@@ -261,17 +261,26 @@ TEST_F(SweeperTest, UnmarkObjects) {
 
   Sweep();
 
-#if !defined(CPPGC_YOUNG_GENERATION)
-  EXPECT_FALSE(normal_object_header.IsMarked());
-  EXPECT_FALSE(large_object_header.IsMarked());
-#else
-  EXPECT_TRUE(normal_object_header.IsMarked());
-  EXPECT_TRUE(large_object_header.IsMarked());
-#endif
+  if (Heap::From(GetHeap())->generational_gc_supported()) {
+    EXPECT_TRUE(normal_object_header.IsMarked());
+    EXPECT_TRUE(large_object_header.IsMarked());
+  } else {
+    EXPECT_FALSE(normal_object_header.IsMarked());
+    EXPECT_FALSE(large_object_header.IsMarked());
+  }
 }
 
 TEST_F(SweeperTest, LazySweepingDuringAllocation) {
-  using GCedObject = GCed<256>;
+  // The test allocates objects in such a way that the object with its header is
+  // power of two. This is to make sure that if there is some padding at the end
+  // of the page, it will go to a different freelist bucket. To get that,
+  // subtract vptr and object-header-size from a power-of-two.
+  static constexpr size_t kGCObjectSize =
+      256 - sizeof(void*) - sizeof(HeapObjectHeader);
+  using GCedObject = GCed<kGCObjectSize>;
+  static_assert(v8::base::bits::IsPowerOfTwo(sizeof(GCedObject) +
+                                             sizeof(HeapObjectHeader)));
+
   static const size_t kObjectsPerPage =
       NormalPage::PayloadSize() /
       (sizeof(GCedObject) + sizeof(HeapObjectHeader));
@@ -298,11 +307,10 @@ TEST_F(SweeperTest, LazySweepingDuringAllocation) {
   testing::TestPlatform::DisableBackgroundTasksScope no_concurrent_sweep_scope(
       GetPlatformHandle().get());
   g_destructor_callcount = 0;
-  static constexpr Heap::Config config = {
-      Heap::Config::CollectionType::kMajor,
-      Heap::Config::StackState::kNoHeapPointers,
-      Heap::Config::MarkingType::kAtomic,
-      Heap::Config::SweepingType::kIncrementalAndConcurrent};
+  static constexpr GCConfig config = {
+      CollectionType::kMajor, StackState::kNoHeapPointers,
+      GCConfig::MarkingType::kAtomic,
+      GCConfig::SweepingType::kIncrementalAndConcurrent};
   Heap::From(GetHeap())->CollectGarbage(config);
   // Incremental sweeping is active and the space should have two pages with
   // no room for an additional GCedObject. Allocating a new GCedObject should
@@ -333,11 +341,13 @@ TEST_F(SweeperTest, LazySweepingNormalPages) {
   PreciseGC();
   EXPECT_EQ(0u, g_destructor_callcount);
   MakeGarbageCollected<GCedObject>(GetAllocationHandle());
-  static constexpr Heap::Config config = {
-      Heap::Config::CollectionType::kMajor,
-      Heap::Config::StackState::kNoHeapPointers,
-      Heap::Config::MarkingType::kAtomic,
-      Heap::Config::SweepingType::kIncrementalAndConcurrent};
+  static constexpr GCConfig config = {
+      CollectionType::kMajor, StackState::kNoHeapPointers,
+      GCConfig::MarkingType::kAtomic,
+      // Sweeping type must not include concurrent as that could lead to the
+      // concurrent sweeper holding onto pages in rare cases which delays
+      // reclamation of objects.
+      GCConfig::SweepingType::kIncremental};
   Heap::From(GetHeap())->CollectGarbage(config);
   EXPECT_EQ(0u, g_destructor_callcount);
   MakeGarbageCollected<GCedObject>(GetAllocationHandle());
@@ -438,10 +448,9 @@ TEST_F(SweeperTest, CrossThreadPersistentCanBeClearedFromOtherThread) {
   testing::TestPlatform::DisableBackgroundTasksScope no_concurrent_sweep_scope(
       GetPlatformHandle().get());
   Heap::From(GetHeap())->CollectGarbage(
-      {Heap::Config::CollectionType::kMajor,
-       Heap::Config::StackState::kNoHeapPointers,
-       Heap::Config::MarkingType::kAtomic,
-       Heap::Config::SweepingType::kIncrementalAndConcurrent});
+      {CollectionType::kMajor, StackState::kNoHeapPointers,
+       GCConfig::MarkingType::kAtomic,
+       GCConfig::SweepingType::kIncrementalAndConcurrent});
   // `holder` is unreachable (as the stack is not scanned) and will be
   // reclaimed. Its payload memory is generally poisoned at this point. The
   // CrossThreadPersistent slot should be unpoisoned.
@@ -466,11 +475,10 @@ TEST_F(SweeperTest, WeakCrossThreadPersistentCanBeClearedFromOtherThread) {
 
   testing::TestPlatform::DisableBackgroundTasksScope no_concurrent_sweep_scope(
       GetPlatformHandle().get());
-  static constexpr Heap::Config config = {
-      Heap::Config::CollectionType::kMajor,
-      Heap::Config::StackState::kNoHeapPointers,
-      Heap::Config::MarkingType::kAtomic,
-      Heap::Config::SweepingType::kIncrementalAndConcurrent};
+  static constexpr GCConfig config = {
+      CollectionType::kMajor, StackState::kNoHeapPointers,
+      GCConfig::MarkingType::kAtomic,
+      GCConfig::SweepingType::kIncrementalAndConcurrent};
   Heap::From(GetHeap())->CollectGarbage(config);
   // `holder` is unreachable (as the stack is not scanned) and will be
   // reclaimed. Its payload memory is generally poisoned at this point. The
@@ -479,15 +487,50 @@ TEST_F(SweeperTest, WeakCrossThreadPersistentCanBeClearedFromOtherThread) {
   // GC in the remote heap should also clear `holder->weak_ref`. The slot for
   // `weak_ref` should be unpoisoned by the GC.
   Heap::From(remote_heap.get())
-      ->CollectGarbage({Heap::Config::CollectionType::kMajor,
-                        Heap::Config::StackState::kNoHeapPointers,
-                        Heap::Config::MarkingType::kAtomic,
-                        Heap::Config::SweepingType::kAtomic});
+      ->CollectGarbage({CollectionType::kMajor, StackState::kNoHeapPointers,
+                        GCConfig::MarkingType::kAtomic,
+                        GCConfig::SweepingType::kAtomic});
 
   // Finish the sweeper which will find the CrossThreadPersistent in cleared
   // state.
   Heap::From(GetHeap())->sweeper().FinishIfRunning();
   EXPECT_EQ(1u, Holder::destructor_callcount);
+}
+
+TEST_F(SweeperTest, SweepOnAllocationTakeLastFreeListEntry) {
+  // The test allocates the following layout:
+  // |--object-A--|-object-B-|--object-A--|---free-space---|
+  // Objects A are reachable, whereas object B is not. sizeof(B) is smaller than
+  // that of A. The test starts garbage-collection with lazy sweeping, then
+  // tries to allocate object A, expecting the allocation to end up on the same
+  // page at the free-space.
+  using GCedA = GCed<256>;
+  using GCedB = GCed<240>;
+
+  PreciseGC();
+
+  // Allocate the layout.
+  Persistent<GCedA> a1 = MakeGarbageCollected<GCedA>(GetAllocationHandle());
+  MakeGarbageCollected<GCedB>(GetAllocationHandle());
+  Persistent<GCedA> a2 = MakeGarbageCollected<GCedA>(GetAllocationHandle());
+  ConstAddress free_space_start =
+      ObjectView<>(HeapObjectHeader::FromObject(a2.Get())).End();
+
+  // Start the GC without sweeping.
+  testing::TestPlatform::DisableBackgroundTasksScope no_concurrent_sweep_scope(
+      GetPlatformHandle().get());
+  static constexpr GCConfig config = {
+      CollectionType::kMajor, StackState::kNoHeapPointers,
+      GCConfig::MarkingType::kAtomic,
+      GCConfig::SweepingType::kIncrementalAndConcurrent};
+  Heap::From(GetHeap())->CollectGarbage(config);
+
+  // Allocate and sweep.
+  const GCedA* allocated_after_sweeping =
+      MakeGarbageCollected<GCedA>(GetAllocationHandle());
+  EXPECT_EQ(free_space_start,
+            reinterpret_cast<ConstAddress>(
+                &HeapObjectHeader::FromObject(allocated_after_sweeping)));
 }
 
 }  // namespace internal

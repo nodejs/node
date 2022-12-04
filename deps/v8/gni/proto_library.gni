@@ -76,6 +76,17 @@ template("proto_library") {
   out_dir = "$root_gen_dir/" + proto_out_dir
   rel_out_dir = rebase_path(out_dir, root_build_dir)
 
+  # exclude_imports is only used for generating the descriptor. Therefore, the
+  # check needs to be here to avoid complaints from GN about the unused
+  # variable.
+  if (generate_descriptor != "") {
+    if (defined(invoker.exclude_imports)) {
+      exclude_imports = invoker.exclude_imports
+    } else {
+      exclude_imports = false
+    }
+  }
+
   # Prevent unused errors when generating descriptor only.
   if (generate_descriptor != "") {
     not_needed([ "rel_out_dir" ])
@@ -163,8 +174,10 @@ template("proto_library") {
     }
     if (generate_descriptor != "") {
       depfile = "$out_dir/$generate_descriptor.d"
+      if (!exclude_imports) {
+        args += [ "--include_imports" ]
+      }
       args += [
-        "--include_imports",
         "--descriptor_set_out",
         rebase_path("$out_dir/$generate_descriptor", root_build_dir),
         "--dependency_out",

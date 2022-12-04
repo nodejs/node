@@ -5,10 +5,9 @@
 #ifndef V8_OBJECTS_JS_WEAK_REFS_INL_H_
 #define V8_OBJECTS_JS_WEAK_REFS_INL_H_
 
-#include "src/objects/js-weak-refs.h"
-
 #include "src/api/api-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/js-weak-refs.h"
 #include "src/objects/smi-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -55,7 +54,7 @@ void JSFinalizationRegistry::RegisterWeakCellWithUnregisterToken(
 
 bool JSFinalizationRegistry::Unregister(
     Handle<JSFinalizationRegistry> finalization_registry,
-    Handle<JSReceiver> unregister_token, Isolate* isolate) {
+    Handle<HeapObject> unregister_token, Isolate* isolate) {
   // Iterate through the doubly linked list of WeakCells associated with the
   // key. Each WeakCell will be in the "active_cells" or "cleared_cells" list of
   // its FinalizationRegistry; remove it from there.
@@ -66,7 +65,7 @@ bool JSFinalizationRegistry::Unregister(
 
 template <typename GCNotifyUpdatedSlotCallback>
 bool JSFinalizationRegistry::RemoveUnregisterToken(
-    JSReceiver unregister_token, Isolate* isolate,
+    HeapObject unregister_token, Isolate* isolate,
     RemoveUnregisterTokenMode removal_mode,
     GCNotifyUpdatedSlotCallback gc_notify_updated_slot) {
   // This method is called from both FinalizationRegistry#unregister and for
@@ -171,7 +170,7 @@ void WeakCell::Nullify(Isolate* isolate,
   // only called for WeakCells which haven't been unregistered yet, so they will
   // be in the active_cells list. (The caller must guard against calling this
   // for unregistered WeakCells by checking that the target is not undefined.)
-  DCHECK(target().IsJSReceiver());
+  DCHECK(target().CanBeHeldWeakly());
   set_target(ReadOnlyRoots(isolate).undefined_value());
 
   JSFinalizationRegistry fr =
@@ -217,7 +216,7 @@ void WeakCell::RemoveFromFinalizationRegistryCells(Isolate* isolate) {
 
   // It's important to set_target to undefined here. This guards that we won't
   // call Nullify (which assumes that the WeakCell is in active_cells).
-  DCHECK(target().IsUndefined() || target().IsJSReceiver());
+  DCHECK(target().IsUndefined() || target().CanBeHeldWeakly());
   set_target(ReadOnlyRoots(isolate).undefined_value());
 
   JSFinalizationRegistry fr =

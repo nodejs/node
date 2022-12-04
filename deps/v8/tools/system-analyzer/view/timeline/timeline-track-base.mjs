@@ -30,7 +30,7 @@ export class TimelineTrackBase extends V8CustomElement {
     this.timelineChunks = this.$('#timelineChunks');
     this.timelineSamples = this.$('#timelineSamples');
     this.timelineNode = this.$('#timeline');
-    this.toolTipTargetNode = this.$('#toolTipTarget');
+    this._toolTipTargetNode = undefined;
     this.hitPanelNode = this.$('#hitPanel');
     this.timelineAnnotationsNode = this.$('#timelineAnnotations');
     this.timelineMarkersNode = this.$('#timelineMarkers');
@@ -238,21 +238,25 @@ export class TimelineTrackBase extends V8CustomElement {
     this._lastContentWidth = parseInt(this.timelineMarkersNode.style.width);
     this._timeToPixel = width / this._timeline.duration();
     this._timeStartPixelOffset = start * this._timeToPixel;
-    this.timelineChunks.style.width = `${width}px`;
+    this.$('#cropper').style.width = `${width}px`;
     this.timelineMarkersNode.style.width = `${width}px`;
     this.timelineAnnotationsNode.style.width = `${width}px`;
     this.hitPanelNode.style.width = `${width}px`;
+
+    const ratio = this._scaleContent(width) || 1;
+    this.timelineChunks.style.width = `${width / Math.min(1, ratio)}px`;
     this._drawMarkers();
     this._selectionHandler.update();
-    this._scaleContent(width);
+
     this._cachedTimelineScrollLeft = this.timelineNode.scrollLeft =
         this.timeToPosition(time) - centerOffset;
   }
 
   _scaleContent(currentWidth) {
-    if (!this._lastContentWidth) return;
+    if (!this._lastContentWidth) return 1;
     const ratio = currentWidth / this._lastContentWidth;
     this._scalableContentNode.style.transform = `scale(${ratio}, 1)`;
+    return ratio;
   }
 
   _adjustHeight(height) {
@@ -352,8 +356,8 @@ export class TimelineTrackBase extends V8CustomElement {
 
   _updateToolTip(event) {
     if (!this._focusedEntry) return false;
-    this.dispatchEvent(
-        new ToolTipEvent(this._focusedEntry, this.toolTipTargetNode));
+    this.dispatchEvent(new ToolTipEvent(
+        this._focusedEntry, this._toolTipTargetNode, event.ctrlKey));
     event.stopImmediatePropagation();
   }
 
@@ -415,12 +419,26 @@ export class TimelineTrackBase extends V8CustomElement {
         (kTimelineHeight - event.layerY) / chunk.height * (chunk.size() - 1));
     if (relativeIndex > chunk.size()) return false;
     const logEntry = chunk.at(relativeIndex);
-    const style = this.toolTipTargetNode.style;
+    const node = this.getToolTipTargetNode(logEntry);
+    if (!node) return logEntry;
+    const style = node.style;
     style.left = `${chunk.index * kChunkWidth}px`;
     style.top = `${kTimelineHeight - chunk.height}px`;
     style.height = `${chunk.height}px`;
     style.width = `${kChunkVisualWidth}px`;
     return logEntry;
+  }
+
+  getToolTipTargetNode(logEntry) {
+    let node = this._toolTipTargetNode;
+    if (node) {
+      if (node.logEntry === logEntry) return undefined;
+      node.parentNode.removeChild(node);
+    }
+    node = this._toolTipTargetNode = DOM.div('toolTipTarget');
+    node.logEntry = logEntry;
+    this.$('#cropper').appendChild(node);
+    return node;
   }
 };
 

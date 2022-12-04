@@ -57,17 +57,17 @@ namespace internal {
 #define WHITE "37"
 
 using TEXT_COLOUR = char const* const;
-TEXT_COLOUR clr_normal = FLAG_log_colour ? COLOUR(NORMAL) : "";
-TEXT_COLOUR clr_flag_name = FLAG_log_colour ? COLOUR_BOLD(WHITE) : "";
-TEXT_COLOUR clr_flag_value = FLAG_log_colour ? COLOUR(NORMAL) : "";
-TEXT_COLOUR clr_reg_name = FLAG_log_colour ? COLOUR_BOLD(CYAN) : "";
-TEXT_COLOUR clr_reg_value = FLAG_log_colour ? COLOUR(CYAN) : "";
-TEXT_COLOUR clr_vreg_name = FLAG_log_colour ? COLOUR_BOLD(MAGENTA) : "";
-TEXT_COLOUR clr_vreg_value = FLAG_log_colour ? COLOUR(MAGENTA) : "";
-TEXT_COLOUR clr_memory_address = FLAG_log_colour ? COLOUR_BOLD(BLUE) : "";
-TEXT_COLOUR clr_debug_number = FLAG_log_colour ? COLOUR_BOLD(YELLOW) : "";
-TEXT_COLOUR clr_debug_message = FLAG_log_colour ? COLOUR(YELLOW) : "";
-TEXT_COLOUR clr_printf = FLAG_log_colour ? COLOUR(GREEN) : "";
+TEXT_COLOUR clr_normal = v8_flags.log_colour ? COLOUR(NORMAL) : "";
+TEXT_COLOUR clr_flag_name = v8_flags.log_colour ? COLOUR_BOLD(WHITE) : "";
+TEXT_COLOUR clr_flag_value = v8_flags.log_colour ? COLOUR(NORMAL) : "";
+TEXT_COLOUR clr_reg_name = v8_flags.log_colour ? COLOUR_BOLD(CYAN) : "";
+TEXT_COLOUR clr_reg_value = v8_flags.log_colour ? COLOUR(CYAN) : "";
+TEXT_COLOUR clr_vreg_name = v8_flags.log_colour ? COLOUR_BOLD(MAGENTA) : "";
+TEXT_COLOUR clr_vreg_value = v8_flags.log_colour ? COLOUR(MAGENTA) : "";
+TEXT_COLOUR clr_memory_address = v8_flags.log_colour ? COLOUR_BOLD(BLUE) : "";
+TEXT_COLOUR clr_debug_number = v8_flags.log_colour ? COLOUR_BOLD(YELLOW) : "";
+TEXT_COLOUR clr_debug_message = v8_flags.log_colour ? COLOUR(YELLOW) : "";
+TEXT_COLOUR clr_printf = v8_flags.log_colour ? COLOUR(GREEN) : "";
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
                                 Simulator::GlobalMonitor::Get)
@@ -86,9 +86,9 @@ bool Simulator::ProbeMemory(uintptr_t address, uintptr_t access_size) {
 #endif
 }
 
-// This is basically the same as PrintF, with a guard for FLAG_trace_sim.
+// This is basically the same as PrintF, with a guard for v8_flags.trace_sim.
 void Simulator::TraceSim(const char* format, ...) {
-  if (FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     va_list arguments;
     va_start(arguments, format);
     base::OS::VFPrint(stream_, format, arguments);
@@ -128,7 +128,7 @@ Simulator* Simulator::current(Isolate* isolate) {
 
   Simulator* sim = isolate_data->simulator();
   if (sim == nullptr) {
-    if (FLAG_trace_sim || FLAG_debug_sim) {
+    if (v8_flags.trace_sim || v8_flags.debug_sim) {
       sim = new Simulator(new Decoder<DispatchingDecoderVisitor>(), isolate);
     } else {
       sim = new Decoder<Simulator>();
@@ -336,7 +336,7 @@ Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
 
   Init(stream);
 
-  if (FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     decoder_->InsertVisitorBefore(print_disasm_, this);
     log_parameters_ = LOG_ALL;
   }
@@ -349,14 +349,14 @@ Simulator::Simulator()
       log_parameters_(NO_PARAM),
       isolate_(nullptr) {
   Init(stdout);
-  CHECK(!FLAG_trace_sim);
+  CHECK(!v8_flags.trace_sim);
 }
 
 void Simulator::Init(FILE* stream) {
   ResetState();
 
   // Allocate and setup the simulator stack.
-  stack_size_ = (FLAG_sim_stack_size * KB) + (2 * stack_protection_size_);
+  stack_size_ = (v8_flags.sim_stack_size * KB) + (2 * stack_protection_size_);
   stack_ = reinterpret_cast<uintptr_t>(new byte[stack_size_]);
   stack_limit_ = stack_ + stack_protection_size_;
   uintptr_t tos = stack_ + stack_size_ - stack_protection_size_;
@@ -411,19 +411,19 @@ void Simulator::Run() {
 
   pc_modified_ = false;
 
-  if (::v8::internal::FLAG_stop_sim_at == 0) {
+  if (v8_flags.stop_sim_at == 0) {
     // Fast version of the dispatch loop without checking whether the simulator
     // should be stopping at a particular executed instruction.
     while (pc_ != kEndOfSimAddress) {
       ExecuteInstruction();
     }
   } else {
-    // FLAG_stop_sim_at is at the non-default value. Stop in the debugger when
-    // we reach the particular instruction count.
+    // v8_flags.stop_sim_at is at the non-default value. Stop in the debugger
+    // when we reach the particular instruction count.
     while (pc_ != kEndOfSimAddress) {
       icount_for_stop_sim_at_ =
           base::AddWithWraparound(icount_for_stop_sim_at_, 1);
-      if (icount_for_stop_sim_at_ == ::v8::internal::FLAG_stop_sim_at) {
+      if (icount_for_stop_sim_at_ == v8_flags.stop_sim_at) {
         Debug();
       }
       ExecuteInstruction();
@@ -678,7 +678,7 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
   const int64_t arg17 = stack_pointer[9];
   const int64_t arg18 = stack_pointer[10];
   const int64_t arg19 = stack_pointer[11];
-  STATIC_ASSERT(kMaxCParameters == 20);
+  static_assert(kMaxCParameters == 20);
 
   switch (redirection->type()) {
     default:
@@ -872,7 +872,7 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
     case ExternalReference::PROFILING_API_CALL: {
       // void f(v8::FunctionCallbackInfo&, v8::FunctionCallback)
       TraceSim("Type: PROFILING_API_CALL\n");
-      void* arg1 = Redirection::ReverseRedirection(xreg(1));
+      void* arg1 = Redirection::UnwrapRedirection(xreg(1));
       TraceSim("Arguments: 0x%016" PRIx64 ", %p\n", xreg(0), arg1);
       UnsafeProfilingApiCall(external, xreg(0), arg1);
       TraceSim("No return value.");
@@ -888,7 +888,7 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       TraceSim("Type: PROFILING_GETTER_CALL\n");
       SimulatorRuntimeProfilingGetterCall target =
           reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-      void* arg2 = Redirection::ReverseRedirection(xreg(2));
+      void* arg2 = Redirection::UnwrapRedirection(xreg(2));
       TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 ", %p\n", xreg(0),
                xreg(1), arg2);
       target(xreg(0), xreg(1), arg2);
@@ -2401,6 +2401,8 @@ void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
   unsigned access_size = 1 << instr->LoadStoreXSizeLog2();
   uintptr_t address = LoadStoreAddress(rn, 0, AddrMode::Offset);
   DCHECK_EQ(address % access_size, 0);
+  // First, check whether the memory is accessible (for wasm trap handling).
+  if (!ProbeMemory(address, access_size)) return;
   base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   if (is_load != 0) {
     if (is_exclusive) {
@@ -2691,27 +2693,6 @@ void Simulator::VisitDataProcessing2Source(Instruction* instr) {
   }
 }
 
-// The algorithm used is described in section 8.2 of
-//   Hacker's Delight, by Henry S. Warren, Jr.
-// It assumes that a right shift on a signed integer is an arithmetic shift.
-static int64_t MultiplyHighSigned(int64_t u, int64_t v) {
-  uint64_t u0, v0, w0;
-  int64_t u1, v1, w1, w2, t;
-
-  u0 = u & 0xFFFFFFFFLL;
-  u1 = u >> 32;
-  v0 = v & 0xFFFFFFFFLL;
-  v1 = v >> 32;
-
-  w0 = u0 * v0;
-  t = u1 * v0 + (w0 >> 32);
-  w1 = t & 0xFFFFFFFFLL;
-  w2 = t >> 32;
-  w1 = u0 * v1 + w1;
-
-  return u1 * v1 + w2 + (w1 >> 32);
-}
-
 void Simulator::VisitDataProcessing3Source(Instruction* instr) {
   int64_t result = 0;
   // Extract and sign- or zero-extend 32-bit arguments for widening operations.
@@ -2746,7 +2727,13 @@ void Simulator::VisitDataProcessing3Source(Instruction* instr) {
       break;
     case SMULH_x:
       DCHECK_EQ(instr->Ra(), kZeroRegCode);
-      result = MultiplyHighSigned(xreg(instr->Rn()), xreg(instr->Rm()));
+      result =
+          base::bits::SignedMulHigh64(xreg(instr->Rn()), xreg(instr->Rm()));
+      break;
+    case UMULH_x:
+      DCHECK_EQ(instr->Ra(), kZeroRegCode);
+      result =
+          base::bits::UnsignedMulHigh64(xreg(instr->Rn()), xreg(instr->Rm()));
       break;
     default:
       UNIMPLEMENTED();
@@ -3453,7 +3440,7 @@ bool Simulator::PrintValue(const char* desc) {
   if (desc[0] == 'v') {
     PrintF(stream_, "%s %s:%s 0x%016" PRIx64 "%s (%s%s:%s %g%s %s:%s %g%s)\n",
            clr_vreg_name, VRegNameForCode(i), clr_vreg_value,
-           bit_cast<uint64_t>(dreg(i)), clr_normal, clr_vreg_name,
+           base::bit_cast<uint64_t>(dreg(i)), clr_normal, clr_vreg_name,
            DRegNameForCode(i), clr_vreg_value, dreg(i), clr_vreg_name,
            SRegNameForCode(i), clr_vreg_value, sreg(i), clr_normal);
     return true;
@@ -3832,7 +3819,8 @@ void Simulator::VisitException(Instruction* instr) {
         // Always print something when we hit a debug point that breaks.
         // We are going to break, so printing something is not an issue in
         // terms of speed.
-        if (FLAG_trace_sim_messages || FLAG_trace_sim || (parameters & BREAK)) {
+        if (v8_flags.trace_sim_messages || v8_flags.trace_sim ||
+            (parameters & BREAK)) {
           if (message != nullptr) {
             PrintF(stream_, "# %sDebugger hit %d: %s%s%s\n", clr_debug_number,
                    code, clr_debug_message, message, clr_normal);
@@ -5273,10 +5261,10 @@ void Simulator::VisitNEONModifiedImmediate(Instruction* instr) {
       } else {  // cmode_0 == 1, cmode == 0xF.
         if (op_bit == 0) {
           vform = q ? kFormat4S : kFormat2S;
-          imm = bit_cast<uint32_t>(instr->ImmNEONFP32());
+          imm = base::bit_cast<uint32_t>(instr->ImmNEONFP32());
         } else if (q == 1) {
           vform = kFormat2D;
-          imm = bit_cast<uint64_t>(instr->ImmNEONFP64());
+          imm = base::bit_cast<uint64_t>(instr->ImmNEONFP64());
         } else {
           DCHECK((q == 0) && (op_bit == 1) && (cmode == 0xF));
           VisitUnallocated(instr);
@@ -6050,7 +6038,7 @@ void Simulator::DoPrintf(Instruction* instr) {
   // Read the arguments encoded inline in the instruction stream.
   uint32_t arg_count;
   uint32_t arg_pattern_list;
-  STATIC_ASSERT(sizeof(*instr) == 1);
+  static_assert(sizeof(*instr) == 1);
   memcpy(&arg_count, instr + kPrintfArgCountOffset, sizeof(arg_count));
   memcpy(&arg_pattern_list, instr + kPrintfArgPatternListOffset,
          sizeof(arg_pattern_list));

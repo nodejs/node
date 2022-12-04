@@ -31,7 +31,7 @@ static const char* kHeader =
     "# yapf: disable\n\n";
 
 // Debug builds emit debug code, affecting code object sizes.
-#ifndef DEBUG
+#if !defined(DEBUG) && defined(V8_ENABLE_SANDBOX)
 static const char* kBuild = "shipping";
 #else
 static const char* kBuild = "non-shipping";
@@ -102,7 +102,8 @@ static void DumpKnownObject(FILE* out, i::Heap* heap, const char* space_name,
 static void DumpSpaceFirstPageAddress(FILE* out, i::BaseSpace* space,
                                       i::Address first_page) {
   const char* name = space->name();
-  i::Tagged_t compressed = i::CompressTagged(first_page);
+  i::Tagged_t compressed =
+      i::V8HeapCompressionScheme::CompressTagged(first_page);
   uintptr_t unsigned_compressed = static_cast<uint32_t>(compressed);
   i::PrintF(out, "  0x%08" V8PRIxPTR ": \"%s\",\n", unsigned_compressed, name);
 }
@@ -117,11 +118,6 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
   // Start up V8.
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform.get());
-#ifdef V8_SANDBOX
-  if (!v8::V8::InitializeSandbox()) {
-    FATAL("Could not initialize the sandbox");
-  }
-#endif
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(argv0);
   Isolate::CreateParams create_params;
@@ -131,7 +127,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
   {
     Isolate::Scope scope(isolate);
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-    i::SafepointScope safepoint_scope(heap);
+    i::IsolateSafepointScope safepoint_scope(heap);
     i::ReadOnlyHeap* read_only_heap =
         reinterpret_cast<i::Isolate*>(isolate)->read_only_heap();
     i::PrintF(out, "%s", kHeader);
@@ -153,12 +149,11 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
                      object);
       }
 
-      i::PagedSpace* space_for_maps = heap->space_for_maps();
-      i::PagedSpaceObjectIterator iterator(heap, space_for_maps);
+      i::PagedSpaceObjectIterator iterator(heap, heap->old_space());
       for (i::HeapObject object = iterator.Next(); !object.is_null();
            object = iterator.Next()) {
         if (!object.IsMap()) continue;
-        DumpKnownMap(out, heap, space_for_maps->name(), object);
+        DumpKnownMap(out, heap, heap->old_space()->name(), object);
       }
       i::PrintF(out, "}\n");
     }
@@ -180,8 +175,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       for (i::PagedSpace* s = spit.Next(); s != nullptr; s = spit.Next()) {
         i::PagedSpaceObjectIterator it(heap, s);
         // Code objects are generally platform-dependent.
-        if (s->identity() == i::CODE_SPACE || s->identity() == i::MAP_SPACE)
-          continue;
+        if (s->identity() == i::CODE_SPACE) continue;
         const char* sname = s->name();
         for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
           DumpKnownObject(out, heap, sname, o);

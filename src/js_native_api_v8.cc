@@ -746,6 +746,7 @@ static const char* error_messages[] = {
     "An arraybuffer was expected",
     "A detachable arraybuffer was expected",
     "Main thread would deadlock",
+    "External buffers are not allowed",
 };
 
 napi_status NAPI_CDECL napi_get_last_error_info(
@@ -757,7 +758,7 @@ napi_status NAPI_CDECL napi_get_last_error_info(
   // message in the `napi_status` enum each time a new error message is added.
   // We don't have a napi_status_last as this would result in an ABI
   // change each time a message was added.
-  const int last_status = napi_would_deadlock;
+  const int last_status = napi_no_external_buffers_allowed;
 
   static_assert(NAPI_ARRAYSIZE(error_messages) == last_status + 1,
                 "Count of error messages must match count of error values");
@@ -3238,7 +3239,7 @@ napi_status NAPI_CDECL napi_detach_arraybuffer(napi_env env,
   RETURN_STATUS_IF_FALSE(
       env, it->IsDetachable(), napi_detachable_arraybuffer_expected);
 
-  it->Detach();
+  it->Detach(v8::Local<v8::Value>()).Check();
 
   return napi_clear_last_error(env);
 }
@@ -3253,7 +3254,7 @@ napi_status NAPI_CDECL napi_is_detached_arraybuffer(napi_env env,
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
 
   *result =
-      value->IsArrayBuffer() && value.As<v8::ArrayBuffer>()->Data() == nullptr;
+      value->IsArrayBuffer() && value.As<v8::ArrayBuffer>()->WasDetached();
 
   return napi_clear_last_error(env);
 }

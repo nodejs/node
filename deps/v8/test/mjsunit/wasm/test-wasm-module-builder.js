@@ -188,14 +188,15 @@ function instantiate(buffer, ffi) {
   print(arguments.callee.name);
   // These are all positive type indices (e.g. kI31RefCode and not kWasmI31Ref)
   // and should be treated as such.
-  let indices = [kI31RefCode, kDataRefCode, 200, 400];
+  let indices = [kI31RefCode, kStructRefCode, 200, 400];
   let kMaxIndex = 400;
   let builder = new WasmModuleBuilder();
   for (let i = 0; i <= kMaxIndex; i++) {
     builder.addType(kSig_i_i);
     builder.addFunction(undefined, i)
            .addBody([kExprLocalGet, 0]);
-    builder.addGlobal(wasmRefType(i), false, WasmInitExpr.RefFunc(i));
+    builder.addGlobal(wasmRefType(i), false,
+                      [kExprRefFunc, ...wasmSignedLeb(i)]);
   }
   for (let i of indices) {
     builder.addFunction('f_' + i, makeSig([], [wasmRefType(i)]))

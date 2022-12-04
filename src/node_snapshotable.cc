@@ -123,7 +123,7 @@ std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
          << "// -- performance_state begins --\n"
          << i.performance_state << ",\n"
          << "// -- performance_state ends --\n"
-         << i.exiting << ",  // exiting\n"
+         << i.exit_info << ",  // exit_info\n"
          << i.stream_base_state << ",  // stream_base_state\n"
          << i.should_abort_on_uncaught_toggle
          << ",  // should_abort_on_uncaught_toggle\n"
@@ -736,7 +736,7 @@ EnvSerializeInfo FileReader::Read() {
   result.immediate_info = Read<ImmediateInfo::SerializeInfo>();
   result.performance_state =
       Read<performance::PerformanceState::SerializeInfo>();
-  result.exiting = Read<AliasedBufferIndex>();
+  result.exit_info = Read<AliasedBufferIndex>();
   result.stream_base_state = Read<AliasedBufferIndex>();
   result.should_abort_on_uncaught_toggle = Read<AliasedBufferIndex>();
   result.principal_realm = Read<RealmSerializeInfo>();
@@ -757,7 +757,7 @@ size_t FileWriter::Write(const EnvSerializeInfo& data) {
   written_total += Write<ImmediateInfo::SerializeInfo>(data.immediate_info);
   written_total += Write<performance::PerformanceState::SerializeInfo>(
       data.performance_state);
-  written_total += Write<AliasedBufferIndex>(data.exiting);
+  written_total += Write<AliasedBufferIndex>(data.exit_info);
   written_total += Write<AliasedBufferIndex>(data.stream_base_state);
   written_total +=
       Write<AliasedBufferIndex>(data.should_abort_on_uncaught_toggle);
@@ -1173,8 +1173,6 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
       // in the future).
       if (snapshot_type == SnapshotMetadata::Type::kFullyCustomized) {
 #if HAVE_INSPECTOR
-        // TODO(joyeecheung): handle the exit code returned by
-        // InitializeInspector().
         env->InitializeInspector({});
 #endif
         if (LoadEnvironment(env, StartExecutionCallback{}).IsEmpty()) {
@@ -1505,6 +1503,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace mksnapshot
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(mksnapshot, node::mksnapshot::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(mksnapshot,
-                               node::mksnapshot::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(mksnapshot, node::mksnapshot::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(mksnapshot,
+                                node::mksnapshot::RegisterExternalReferences)

@@ -4,7 +4,6 @@
 
 #include "src/compiler/branch-condition-duplicator.h"
 
-#include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
@@ -71,7 +70,7 @@ void BranchConditionDuplicator::DuplicateConditionIfNeeded(Node* node) {
   if (!IsBranch(node)) return;
 
   Node* condNode = node->InputAt(0);
-  if (condNode->UseCount() > 1 && CanDuplicate(condNode)) {
+  if (condNode->BranchUseCount() > 1 && CanDuplicate(condNode)) {
     node->ReplaceInput(0, DuplicateNode(condNode));
   }
 }

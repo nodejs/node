@@ -19,6 +19,7 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayIterator)
+TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateLiteralObject)
 
 DEF_GETTER(JSArray, length, Object) {
   return TaggedField<Object, kLengthOffset>::load(cage_base, *this);
@@ -72,6 +73,8 @@ IterationKind JSArrayIterator::kind() const {
 void JSArrayIterator::set_kind(IterationKind kind) {
   set_raw_kind(static_cast<int>(kind));
 }
+
+CAST_ACCESSOR(TemplateLiteralObject)
 
 }  // namespace internal
 }  // namespace v8

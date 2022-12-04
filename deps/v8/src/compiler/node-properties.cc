@@ -3,18 +3,15 @@
 // found in the LICENSE file.
 
 #include "src/compiler/node-properties.h"
+
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-heap-broker.h"
-#include "src/compiler/js-operator.h"
-#include "src/compiler/linkage.h"
 #include "src/compiler/map-inference.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/verifier.h"
-#include "src/handles/handles-inl.h"
-#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -599,37 +596,6 @@ bool NodeProperties::AllValueInputsAreTyped(Node* node) {
     if (!IsTyped(GetValueInput(node, index))) return false;
   }
   return true;
-}
-
-// static
-bool NodeProperties::IsFreshObject(Node* node) {
-  if (node->opcode() == IrOpcode::kAllocate ||
-      node->opcode() == IrOpcode::kAllocateRaw)
-    return true;
-#if V8_ENABLE_WEBASSEMBLY
-  if (node->opcode() == IrOpcode::kCall) {
-    // TODO(manoskouk): Currently, some wasm builtins are called with in
-    // CallDescriptor::kCallWasmFunction mode. Make sure this is synced if the
-    // calling mechanism is refactored.
-    if (CallDescriptorOf(node->op())->kind() !=
-        CallDescriptor::kCallBuiltinPointer) {
-      return false;
-    }
-    NumberMatcher matcher(node->InputAt(0));
-    if (matcher.HasResolvedValue()) {
-      Builtin callee = static_cast<Builtin>(matcher.ResolvedValue());
-      // Note: Make sure to only add builtins which are guaranteed to return a
-      // fresh object. E.g. kWasmAllocateFixedArray may return the canonical
-      // empty array.
-      return callee == Builtin::kWasmAllocateArray_Uninitialized ||
-             callee == Builtin::kWasmAllocateArray_InitNull ||
-             callee == Builtin::kWasmAllocateArray_InitZero ||
-             callee == Builtin::kWasmAllocateStructWithRtt ||
-             callee == Builtin::kWasmAllocateObjectWrapper;
-    }
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-  return false;
 }
 
 // static

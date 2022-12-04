@@ -71,13 +71,13 @@ utrans_rep_caseContextIterator(void *context, int8_t dir)
             c=rep->char32At(csc->index);
             if(c<0) {
                 csc->limit=csc->index;
-                csc->b1=TRUE;
+                csc->b1=true;
             } else {
                 csc->index+=U16_LENGTH(c);
                 return c;
             }
         } else {
-            csc->b1=TRUE;
+            csc->b1=true;
         }
     }
     return U_SENTINEL;
@@ -170,7 +170,7 @@ void CaseMapTransliterator::handleTransliterate(Replaceable& text,
             // see UCASE_MAX_STRING_LENGTH
             if(result<=UCASE_MAX_STRING_LENGTH) {
                 // string s[result]
-                tmp.setTo(FALSE, s, result);
+                tmp.setTo(false, s, result);
                 delta=result-U16_LENGTH(c);
             } else {
                 // single code point

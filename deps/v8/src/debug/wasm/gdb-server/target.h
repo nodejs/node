@@ -7,7 +7,9 @@
 
 #include <atomic>
 #include <map>
-#include "src/base/macros.h"
+
+#include "src/base/platform/mutex.h"
+#include "src/base/platform/semaphore.h"
 #include "src/debug/wasm/gdb-server/gdb-remote-util.h"
 
 namespace v8 {

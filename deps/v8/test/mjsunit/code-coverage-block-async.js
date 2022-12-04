@@ -2,44 +2,47 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt --no-stress-flush-code
+// Flags: --allow-natives-syntax --no-always-turbofan --no-stress-flush-code
 // Flags: --no-stress-incremental-marking
+// Flags: --expose-gc
 // Files: test/mjsunit/code-coverage-utils.js
 
-%DebugToggleBlockCoverage(true);
+(async function () {
 
-TestCoverage(
-"await expressions",
-`
+  %DebugToggleBlockCoverage(true);
+
+  await TestCoverage(
+    "await expressions",
+    `
 async function f() {                      // 0000
   await 42;                               // 0050
   await 42;                               // 0100
 };                                        // 0150
 f();                                      // 0200
 %PerformMicrotaskCheckpoint();            // 0250
-`,
-[{"start":0,"end":299,"count":1},
-  {"start":0,"end":151,"count":1}]
-);
+    `,
+    [ {"start":0,"end":299,"count":1},
+      {"start":0,"end":151,"count":1} ]
+  );
 
-TestCoverage(
-"for-await-of statements",
-`
+  await TestCoverage(
+    "for-await-of statements",
+    `
 !async function() {                       // 0000
   for await (var x of [0,1,2,3]) {        // 0050
     nop();                                // 0100
   }                                       // 0150
 }();                                      // 0200
 %PerformMicrotaskCheckpoint();            // 0250
-`,
-[{"start":0,"end":299,"count":1},
-  {"start":1,"end":201,"count":1},
-  {"start":83,"end":153,"count":4}]
-);
+    `,
+    [ {"start":0,"end":299,"count":1},
+      {"start":1,"end":201,"count":1},
+      {"start":83,"end":153,"count":4} ]
+  );
 
-TestCoverage(
-"https://crbug.com/981313",
-`
+  await TestCoverage(
+    "https://crbug.com/981313",
+    `
 class Foo {                               // 0000
   async timeout() {                       // 0000
     return new Promise(                   // 0100
@@ -47,14 +50,15 @@ class Foo {                               // 0000
   }                                       // 0200
 }                                         // 0000
 new Foo().timeout();                      // 0300
-`,
-[ {"start":0,  "end":349, "count":1},
-  {"start":52, "end":203, "count":1},
-  {"start":158,"end":182, "count":1}]);
+    `,
+    [ {"start":0,  "end":349, "count":1},
+      {"start":52, "end":203, "count":1},
+      {"start":158,"end":182, "count":1} ]
+  );
 
-TestCoverage(
-  "test async generator coverage",
-`
+  await TestCoverage(
+    "test async generator coverage",
+    `
 class Foo {                               // 0000
   async *timeout() {                      // 0000
     return new Promise(                   // 0100
@@ -62,14 +66,15 @@ class Foo {                               // 0000
   }                                       // 0200
 }                                         // 0000
 new Foo().timeout();                      // 0300
-`,
-  [ {"start":0,  "end":349, "count":1},
-    {"start":52, "end":203, "count":1},
-    {"start":158,"end":182, "count":0}]);
+    `,
+    [ {"start":0,  "end":349, "count":1},
+      {"start":52, "end":203, "count":1},
+      {"start":158,"end":182, "count":0} ]
+  );
 
-TestCoverage(
-  "test async generator coverage with next call",
-`
+  await TestCoverage(
+    "test async generator coverage with next call",
+    `
 class Foo {                               // 0000
   async *timeout() {                      // 0000
     return new Promise(                   // 0100
@@ -77,14 +82,15 @@ class Foo {                               // 0000
   }                                       // 0200
 }                                         // 0000
 new Foo().timeout().next();               // 0300
-`,
-  [ {"start":0,  "end":349, "count":1},
-    {"start":52, "end":203, "count":1},
-    {"start":158,"end":182, "count":1}]);
+    `,
+    [ {"start":0,  "end":349, "count":1},
+      {"start":52, "end":203, "count":1},
+      {"start":158,"end":182, "count":1} ]
+  );
 
-TestCoverage(
-  "test two consecutive returns",
-`
+  await TestCoverage(
+    "test two consecutive returns",
+    `
 class Foo {                               // 0000
   timeout() {                             // 0000
     return new Promise(                   // 0100
@@ -94,16 +100,17 @@ class Foo {                               // 0000
   }                                       // 0300
 }                                         // 0000
 new Foo().timeout();                      // 0400
-`,
-[ {"start":0,"end":449,"count":1},
-  {"start":52,"end":303,"count":1},
-  {"start":184,"end":302,"count":0},
-  {"start":158,"end":182,"count":1}] );
+    `,
+    [ {"start":0,"end":449,"count":1},
+      {"start":52,"end":303,"count":1},
+      {"start":184,"end":302,"count":0},
+      {"start":158,"end":182,"count":1} ]
+  );
 
 
-TestCoverage(
-  "test async generator with two consecutive returns",
-`
+  await TestCoverage(
+    "test async generator with two consecutive returns",
+    `
 class Foo {                               // 0000
   async *timeout() {                      // 0000
     return new Promise(                   // 0100
@@ -113,15 +120,16 @@ class Foo {                               // 0000
   }                                       // 0300
 }                                         // 0000
 new Foo().timeout().next();               // 0400
-`,
-[ {"start":0,"end":449,"count":1},
-  {"start":52,"end":303,"count":1},
-  {"start":184,"end":302,"count":0},
-  {"start":158,"end":182,"count":1}] );
+    `,
+    [ {"start":0,"end":449,"count":1},
+      {"start":52,"end":303,"count":1},
+      {"start":184,"end":302,"count":0},
+      {"start":158,"end":182,"count":1} ]
+  );
 
-TestCoverage(
-"https://crbug.com/v8/9952",
-`
+  await TestCoverage(
+    "https://crbug.com/v8/9952",
+    `
 async function test(foo) {                // 0000
   return {bar};                           // 0050
                                           // 0100
@@ -130,15 +138,17 @@ async function test(foo) {                // 0000
   }                                       // 0250
 }                                         // 0300
 test().then(r => r.bar());                // 0350
-%PerformMicrotaskCheckpoint();            // 0400`,
-[{"start":0,"end":449,"count":1},
- {"start":0,"end":301,"count":1},
- {"start":152,"end":253,"count":1},
- {"start":362,"end":374,"count":1}]);
+%PerformMicrotaskCheckpoint();            // 0400
+    `,
+    [ {"start":0,"end":449,"count":1},
+      {"start":0,"end":301,"count":1},
+      {"start":152,"end":253,"count":1},
+      {"start":362,"end":374,"count":1} ]
+  );
 
-TestCoverage(
-"https://crbug.com/v8/10628",
-`
+  await TestCoverage(
+    "https://crbug.com/v8/10628",
+    `
 async function abc() {                    // 0000
  try {                                    // 0050
   return 'abc';                           // 0100
@@ -148,13 +158,14 @@ async function abc() {                    // 0000
 }                                         // 0300
 abc();                                    // 0350
 %PerformMicrotaskCheckpoint();            // 0400
-`,
-[{"start":0,"end":449,"count":1},
- {"start":0,"end":301,"count":1}]);
+    `,
+    [ {"start":0,"end":449,"count":1},
+      {"start":0,"end":301,"count":1} ]
+  );
 
-TestCoverage(
-"try/catch/finally statements async",
-`
+  await TestCoverage(
+    "try/catch/finally statements async",
+    `
 !async function() {                       // 0000
   try { nop(); } catch (e) { nop(); }     // 0050
   try { nop(); } finally { nop(); }       // 0100
@@ -172,15 +183,16 @@ TestCoverage(
     nop();                                // 0700
   }                                       // 0750
 }();                                      // 0800
-`,
-[{"start":0,"end":849,"count":1},
-  {"start":1,"end":801,"count":1},
-  {"start":67,"end":87,"count":0},
-  {"start":254,"end":274,"count":0}]
-);
+    `,
+    [ {"start":0,"end":849,"count":1},
+      {"start":1,"end":801,"count":1},
+      {"start":67,"end":87,"count":0},
+      {"start":254,"end":274,"count":0} ]
+  );
 
-TestCoverage("try/catch/finally statements with early return async",
-`
+  await TestCoverage(
+    "try/catch/finally statements with early return async",
+    `
 !async function() {                       // 0000
   try { throw 42; } catch (e) { return; } // 0050
   nop();                                  // 0100
@@ -190,12 +202,14 @@ TestCoverage("try/catch/finally statements with early return async",
   finally { return; }                     // 0300
   nop();                                  // 0350
 }();                                      // 0400
-`,
-[{"start":0,"end":449,"count":1},
-  {"start":1,"end":151,"count":1},
-  {"start":91,"end":150,"count":0},
-  {"start":201,"end":401,"count":1},
-  {"start":321,"end":400,"count":0}]
-);
+    `,
+    [ {"start":0,"end":449,"count":1},
+      {"start":1,"end":151,"count":1},
+      {"start":91,"end":150,"count":0},
+      {"start":201,"end":401,"count":1},
+      {"start":321,"end":400,"count":0} ]
+  );
 
-%DebugToggleBlockCoverage(false);
+  %DebugToggleBlockCoverage(false);
+
+})();

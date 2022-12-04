@@ -603,12 +603,13 @@ the build before moving forward. Use the following list as a baseline:
   must be in the expected updated version)
 * npm version (check it matches what we expect)
 * Run the test suite against the built binaries (optional)
+  * Remember to use the proposal branch
+  * Run `make build-addons` before running the tests
+  * Remove `config.gypi` file
 
 ```console
 ./tools/test.py --shell ~/Downloads/node-v18.5.0-linux-x64/bin/node
 ```
-
-<sup>There may be test issues if the branch used to test does not match the Node.js binary.</sup>
 
 ### 11. Tag and sign the release commit
 
@@ -720,6 +721,24 @@ Revert all changes that were made to `src/node_version.h`:
 $ git checkout --ours HEAD -- src/node_version.h
 ```
 
+<details>
+<summary>Major version release</summary>
+
+On the main branch, instead of reverting changes made to `src/node_version.h`
+edit it instead and:
+
+* Increment `NODE_MAJOR_VERSION` by one
+* Reset `NODE_PATCH_VERSION` to `0`
+* Change `NODE_VERSION_IS_RELEASE` back to `0`
+
+Amend the current commit to apply the changes:
+
+```console
+$ git commit --amend
+```
+
+</details>
+
 Even if there are no conflicts, ensure that you revert all the changes that were
 made to `src/node_version.h`.
 
@@ -739,7 +758,7 @@ Then finish cherry-picking and push the commit upstream:
 $ git add src/node_version.h doc
 $ git diff --staged src doc # read output to validate that changes shows up as expected
 $ git cherry-pick --continue
-$ make lint
+$ make lint-md && make lint-cpp
 $ git push upstream main
 ```
 
@@ -902,6 +921,8 @@ This script will use the promoted builds and changelog to generate the post. Run
 * Select the tag version you pushed earlier.
 * For release title, copy the title from the changelog.
 * For the description, copy the rest of the changelog entry.
+* If you are not releasing the latest "Current", uncheck
+  "Set as the latest release".
 * Click on the "Publish release" button.
 
 ### 19. Cleanup
@@ -940,6 +961,31 @@ _In whatever form you do this..._
 
 ### Marking a release line as LTS
 
+The process of marking a release line as LTS has been automated using
+[node-core-utils](https://github.com/nodejs/node-core-utils).
+
+Start by checking out the staging branch for the release line that is going to
+be marked as LTS, e.g:
+
+```console
+$ git checkout v1.x-staging
+```
+
+Next, make sure you have **node-core-utils** installed:
+
+```console
+$ npm i -g node-core-utils
+```
+
+Run the prepare LTS release command:
+
+```console
+$ git node release --prepare --startLTS
+```
+
+<details>
+<summary>Manual steps for reference.</summary>
+
 To mark a release line as LTS, the following changes must be made to
 `src/node_version.h`:
 
@@ -968,6 +1014,18 @@ For example:
 
 The changes must be made as part of a new semver-minor release.
 
+Updating changelogs to properly reflect the changes between **Current** and
+**Long Term Support** is also necessary, along with adding a reference to the
+current LTS codename in its release line changelog file.
+
+The `test/parallel/test-process-release.js` file might also need to be updated.
+
+In case you can not run the automated `node-core-utils` command and you are
+currently running these steps manually it's a good idea to refer to previous
+LTS proposal PRs and make sure all required changes are covered.
+
+</details>
+
 ### Update release labels
 
 The `lts-watch-vN.x` issue label must be created, with the same color as other
@@ -975,6 +1033,25 @@ existing labels for that release line, such as `vN.x`.
 
 If the release is transitioning from Active LTS to Maintenance, the
 `backport-requested-vN.x` label must be deleted.
+
+### Add new codename to nodejs-latest-linker
+
+In order to make sure a download URL
+(e.g: <https://nodejs.org/download/release/latest-codename/>) will be available
+for the new LTS release line you need to submit a PR to
+<https://github.com/nodejs/nodejs-latest-linker> and add a new entry for the
+new LTS codename in its `ltsNames` map located in the `./latest-linker.js`
+file.
+
+Make sure to reach out to the Build WG in order to validate that the new URL is
+available as part of the LTS release promotion.
+
+### Update Release repo info
+
+Add the new LTS codename to the release schedule table located in the
+`./README.md` file located at the <https://github.com/nodejs/Release>
+repository along with the addition of the new codename to the `./schedule.json`
+file in that same repo.
 
 ## Major releases
 

@@ -93,7 +93,6 @@
         },
         'defines': [
           'U_ATTRIBUTE_DEPRECATED=',
-          '_CRT_SECURE_NO_DEPRECATE=',
           'U_STATIC_IMPLEMENTATION=1',
         ],
       },
@@ -419,7 +418,7 @@
       'target_name': 'genrb',
       'type': 'executable',
       'toolsets': [ 'host' ],
-      'dependencies': [ 'icutools' ],
+      'dependencies': [ 'icutools', 'icu_implementation' ],
       'sources': [
         '<@(icu_src_genrb)'
       ],

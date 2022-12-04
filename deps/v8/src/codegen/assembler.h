@@ -70,7 +70,6 @@ class Isolate;
 class SCTableReference;
 class SourcePosition;
 class StatsCounter;
-class StringConstantBase;
 
 // -----------------------------------------------------------------------------
 // Optimization for far-jmp like instructions that can be replaced by shorter.
@@ -103,23 +102,11 @@ class JumpOptimizationInfo {
   size_t hash_code_ = 0u;
 };
 
-class HeapObjectRequest {
+class HeapNumberRequest {
  public:
-  explicit HeapObjectRequest(double heap_number, int offset = -1);
-  explicit HeapObjectRequest(const StringConstantBase* string, int offset = -1);
+  explicit HeapNumberRequest(double heap_number, int offset = -1);
 
-  enum Kind { kHeapNumber, kStringConstant };
-  Kind kind() const { return kind_; }
-
-  double heap_number() const {
-    DCHECK_EQ(kind(), kHeapNumber);
-    return value_.heap_number;
-  }
-
-  const StringConstantBase* string() const {
-    DCHECK_EQ(kind(), kStringConstant);
-    return value_.string;
-  }
+  double heap_number() const { return value_; }
 
   // The code buffer offset at the time of the request.
   int offset() const {
@@ -133,13 +120,7 @@ class HeapObjectRequest {
   }
 
  private:
-  Kind kind_;
-
-  union {
-    double heap_number;
-    const StringConstantBase* string;
-  } value_;
-
+  double value_;
   int offset_;
 };
 
@@ -147,6 +128,28 @@ class HeapObjectRequest {
 // Platform independent assembler base class.
 
 enum class CodeObjectRequired { kNo, kYes };
+
+enum class BuiltinCallJumpMode {
+  // The builtin entry point address is embedded into the instruction stream as
+  // an absolute address.
+  kAbsolute,
+  // Generate builtin calls/jumps using PC-relative instructions. This mode
+  // assumes that the target is guaranteed to be within the
+  // kMaxPCRelativeCodeRangeInMB distance.
+  kPCRelative,
+  // Generate builtin calls/jumps as an indirect instruction which loads the
+  // target address from the builtins entry point table.
+  kIndirect,
+  // Same as kPCRelative but used only for generating embedded builtins.
+  // Currently we use RelocInfo::RUNTIME_ENTRY for generating kPCRelative but
+  // it's not supported yet for mksnapshot yet because of various reasons:
+  // 1) we encode the target as an offset from the code range which is not
+  // always available (32-bit architectures don't have it),
+  // 2) serialization of RelocInfo::RUNTIME_ENTRY is not implemented yet.
+  // TODO(v8:11527): Address the resons above and remove the kForMksnapshot in
+  // favor of kPCRelative or kIndirect.
+  kForMksnapshot,
+};
 
 struct V8_EXPORT_PRIVATE AssemblerOptions {
   // Recording reloc info for external references and off-heap targets is
@@ -167,27 +170,27 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // root array.
   // (macro assembler feature).
   bool isolate_independent_code = false;
-  // Enables the use of isolate-independent builtins through an off-heap
-  // trampoline. (macro assembler feature).
-  bool inline_offheap_trampolines = true;
-  // Enables generation of pc-relative calls to builtins if the off-heap
-  // builtins are guaranteed to be within the reach of pc-relative call or jump
-  // instructions. For example, when the bultins code is re-embedded into the
-  // code range.
-  bool short_builtin_calls = false;
+
+  // Defines how builtin calls and tail calls should be generated.
+  BuiltinCallJumpMode builtin_call_jump_mode = BuiltinCallJumpMode::kAbsolute;
+  // Mksnapshot ensures that the code range is small enough to guarantee that
+  // PC-relative call/jump instructions can be used for builtin to builtin
+  // calls/tail calls. The embedded builtins blob generator also ensures that.
+  // However, there are serializer tests, where we force isolate creation at
+  // runtime and at this point, Code space isn't restricted to a size s.t.
+  // PC-relative calls may be used. So, we fall back to an indirect mode.
+  // TODO(v8:11527): remove once kForMksnapshot is removed.
+  bool use_pc_relative_calls_and_jumps_for_mksnapshot = false;
+
   // On some platforms, all code is created within a certain address range in
   // the process, and the base of this code range is configured here.
   Address code_range_base = 0;
-  // Enable pc-relative calls/jumps on platforms that support it. When setting
-  // this flag, the code range must be small enough to fit all offsets into
-  // the instruction immediates.
-  bool use_pc_relative_calls_and_jumps = false;
   // Enables the collection of information useful for the generation of unwind
   // info. This is useful in some platform (Win64) where the unwind info depends
   // on a function prologue/epilogue.
   bool collect_win64_unwind_info = false;
   // Whether to emit code comments.
-  bool emit_code_comments = FLAG_code_comments;
+  bool emit_code_comments = v8_flags.code_comments;
 
   static AssemblerOptions Default(Isolate* isolate);
   static AssemblerOptions DefaultForOffHeapTrampoline(Isolate* isolate);
@@ -242,7 +245,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   }
 
   bool is_constant_pool_available() const {
-    if (FLAG_enable_embedded_constant_pool) {
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
       // We need to disable constant pool here for embeded builtins
       // because the metadata section is not adjacent to instructions
       return constant_pool_available_ && !options().isolate_independent_code;
@@ -268,8 +271,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   int pc_offset() const { return static_cast<int>(pc_ - buffer_start_); }
 
   int pc_offset_for_safepoint() {
-#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
-    defined(V8_TARGET_ARCH_LOONG64)
+#if defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_LOONG64)
     // MIPS and LOONG need to use their own implementation to avoid trampoline's
     // influence.
     UNREACHABLE();
@@ -303,7 +305,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   V8_INLINE void RecordComment(const char* comment) {
     // Set explicit dependency on --code-comments for dead-code elimination in
     // release builds.
-    if (!FLAG_code_comments) return;
+    if (!v8_flags.code_comments) return;
     if (options().emit_code_comments) {
       code_comments_writer_.Add(pc_offset(), std::string(comment));
     }
@@ -312,7 +314,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   V8_INLINE void RecordComment(std::string comment) {
     // Set explicit dependency on --code-comments for dead-code elimination in
     // release builds.
-    if (!FLAG_code_comments) return;
+    if (!v8_flags.code_comments) return;
     if (options().emit_code_comments) {
       code_comments_writer_.Add(pc_offset(), std::move(comment));
     }
@@ -323,10 +325,10 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
    public:
     explicit CodeComment(Assembler* assembler, const std::string& comment)
         : assembler_(assembler) {
-      if (FLAG_code_comments) Open(comment);
+      if (v8_flags.code_comments) Open(comment);
     }
     ~CodeComment() {
-      if (FLAG_code_comments) Close();
+      if (v8_flags.code_comments) Close();
     }
     static const int kIndentWidth = 2;
 
@@ -366,13 +368,13 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   std::unique_ptr<AssemblerBuffer> buffer_;
   // Cached from {buffer_->start()}, for faster access.
   byte* buffer_start_;
-  std::forward_list<HeapObjectRequest> heap_object_requests_;
+  std::forward_list<HeapNumberRequest> heap_number_requests_;
   // The program counter, which points into the buffer above and moves forward.
   // TODO(jkummerow): This should probably have type {Address}.
   byte* pc_;
 
   void set_constant_pool_available(bool available) {
-    if (FLAG_enable_embedded_constant_pool) {
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
       constant_pool_available_ = available;
     } else {
       // Embedded constant pool not supported on this architecture.
@@ -380,18 +382,19 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     }
   }
 
-  // {RequestHeapObject} records the need for a future heap number allocation,
+  // {RequestHeapNumber} records the need for a future heap number allocation,
   // code stub generation or string allocation. After code assembly, each
-  // platform's {Assembler::AllocateAndInstallRequestedHeapObjects} will
+  // platform's {Assembler::AllocateAndInstallRequestedHeapNumbers} will
   // allocate these objects and place them where they are expected (determined
   // by the pc offset associated with each request).
-  void RequestHeapObject(HeapObjectRequest request);
+  void RequestHeapNumber(HeapNumberRequest request);
 
   bool ShouldRecordRelocInfo(RelocInfo::Mode rmode) const {
     DCHECK(!RelocInfo::IsNoInfo(rmode));
     if (options().disable_reloc_info_for_patching) return false;
     if (RelocInfo::IsOnlyForSerializer(rmode) &&
-        !options().record_reloc_info_for_serialization && !FLAG_debug_code) {
+        !options().record_reloc_info_for_serialization &&
+        !v8_flags.debug_code) {
       return false;
     }
 #ifndef ENABLE_DISASSEMBLER
@@ -475,6 +478,17 @@ class V8_EXPORT_PRIVATE V8_NODISCARD CpuFeatureScope {
 #else
 #define ASM_CODE_COMMENT(asm)
 #define ASM_CODE_COMMENT_STRING(asm, ...)
+#endif
+
+// Use this macro to mark functions that are only defined if
+// V8_ENABLE_DEBUG_CODE is set, and are a no-op otherwise.
+// Use like:
+//   void AssertMyCondition() NOOP_UNLESS_DEBUG_CODE
+#ifdef V8_ENABLE_DEBUG_CODE
+#define NOOP_UNLESS_DEBUG_CODE ;
+#else
+#define NOOP_UNLESS_DEBUG_CODE \
+  { static_assert(v8_flags.debug_code.value() == false); }
 #endif
 
 }  // namespace internal

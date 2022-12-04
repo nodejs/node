@@ -6,33 +6,21 @@
 
 #include "src/api/api-inl.h"
 #include "src/api/api.h"
-#include "src/ast/ast-traversal-visitor.h"
-#include "src/ast/prettyprinter.h"
 #include "src/builtins/builtins.h"
 #include "src/common/message-template.h"
-#include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
-#include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/messages.h"
 #include "src/execution/tiering-manager.h"
 #include "src/handles/maybe-handles.h"
-#include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
-#include "src/objects/feedback-vector-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/objects/template-objects-inl.h"
-#include "src/parsing/parse-info.h"
-#include "src/parsing/parsing.h"
-#include "src/runtime/runtime-utils.h"
-#include "src/snapshot/snapshot.h"
-#include "src/strings/string-builder-inl.h"
 #include "src/utils/ostreams.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-// TODO(jkummerow): Drop this when the "SaveAndClearThreadInWasmFlag"
-// short-term mitigation is no longer needed.
+// TODO(chromium:1236668): Drop this when the "SaveAndClearThreadInWasmFlag"
+// approach is no longer needed.
 #include "src/trap-handler/trap-handler.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -95,6 +83,12 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolAsyncIteratorInvalid) {
       isolate, NewTypeError(MessageTemplate::kSymbolAsyncIteratorInvalid));
 }
 
+RUNTIME_FUNCTION(Runtime_TerminateExecution) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->TerminateExecution();
+}
+
 #define THROW_ERROR(isolate, args, call)                               \
   HandleScope scope(isolate);                                          \
   DCHECK_LE(1, args.length());                                         \
@@ -110,7 +104,7 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolAsyncIteratorInvalid) {
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, call(message_id, arg0, arg1, arg2));
 
 RUNTIME_FUNCTION(Runtime_ThrowRangeError) {
-  if (FLAG_correctness_fuzzer_suppressions) {
+  if (v8_flags.correctness_fuzzer_suppressions) {
     DCHECK_LE(1, args.length());
     int message_id_smi = args.smi_value_at(0);
 
@@ -356,7 +350,11 @@ RUNTIME_FUNCTION(Runtime_StackGuardWithGap) {
   return isolate->stack_guard()->HandleInterrupts();
 }
 
-RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptWithStackCheck) {
+namespace {
+
+Object BytecodeBudgetInterruptWithStackCheck(Isolate* isolate,
+                                             RuntimeArguments& args,
+                                             CodeKind code_kind) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
@@ -378,24 +376,49 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptWithStackCheck) {
     }
   }
 
-  isolate->tiering_manager()->OnInterruptTick(function);
+  isolate->tiering_manager()->OnInterruptTick(function, code_kind);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt) {
+Object BytecodeBudgetInterrupt(Isolate* isolate, RuntimeArguments& args,
+                               CodeKind code_kind) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
   TRACE_EVENT0("v8.execute", "V8.BytecodeBudgetInterrupt");
 
-  isolate->tiering_manager()->OnInterruptTick(function);
+  isolate->tiering_manager()->OnInterruptTick(function, code_kind);
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptWithStackCheck_Ignition) {
+  return BytecodeBudgetInterruptWithStackCheck(isolate, args,
+                                               CodeKind::INTERPRETED_FUNCTION);
+}
+
+RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt_Ignition) {
+  return BytecodeBudgetInterrupt(isolate, args, CodeKind::INTERPRETED_FUNCTION);
+}
+
+RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptWithStackCheck_Sparkplug) {
+  return BytecodeBudgetInterruptWithStackCheck(isolate, args,
+                                               CodeKind::BASELINE);
+}
+
+RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt_Sparkplug) {
+  return BytecodeBudgetInterrupt(isolate, args, CodeKind::BASELINE);
+}
+
+RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptWithStackCheck_Maglev) {
+  return BytecodeBudgetInterruptWithStackCheck(isolate, args, CodeKind::MAGLEV);
 }
 
 namespace {
 
 #if V8_ENABLE_WEBASSEMBLY
-class SaveAndClearThreadInWasmFlag {
+class V8_NODISCARD SaveAndClearThreadInWasmFlag {
  public:
   SaveAndClearThreadInWasmFlag() {
     if (trap_handler::IsTrapHandlerEnabled()) {
@@ -423,7 +446,8 @@ class SaveAndClearThreadInWasmFlag {};
 RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  int size = args.smi_value_at(0);
+  // TODO(v8:13070): Align allocations in the builtins that call this.
+  int size = ALIGN_TO_ALLOCATION_ALIGNMENT(args.smi_value_at(0));
   int flags = args.smi_value_at(1);
   AllocationAlignment alignment =
       AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
@@ -436,10 +460,10 @@ RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  // Short-term mitigation for crbug.com/1236668. When this is called from
-  // WasmGC code, clear the "thread in wasm" flag, which is important in case
-  // any GC needs to happen.
-  // TODO(jkummerow): Find a better fix, likely by replacing the global flag.
+  // When this is called from WasmGC code, clear the "thread in wasm" flag,
+  // which is important in case any GC needs to happen.
+  // TODO(chromium:1236668): Find a better fix, likely by replacing the global
+  // flag.
   SaveAndClearThreadInWasmFlag clear_wasm_flag;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -455,7 +479,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
 RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  int size = args.smi_value_at(0);
+  // TODO(v8:13070): Align allocations in the builtins that call this.
+  int size = ALIGN_TO_ALLOCATION_ALIGNMENT(args.smi_value_at(0));
   int flags = args.smi_value_at(1);
   AllocationAlignment alignment =
       AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
@@ -566,10 +591,39 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_GetAndResetTurboProfilingData) {
+  HandleScope scope(isolate);
+  DCHECK_LE(args.length(), 2);
+  if (!BasicBlockProfiler::Get()->HasData(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(
+            MessageTemplate::kInvalid,
+            isolate->factory()->NewStringFromAsciiChecked("Runtime Call"),
+            isolate->factory()->NewStringFromAsciiChecked(
+                "V8 was not built with v8_enable_builtins_profiling=true")));
+  }
+
+  std::stringstream stats_stream;
+  BasicBlockProfiler::Get()->Log(isolate, stats_stream);
+  Handle<String> result =
+      isolate->factory()->NewStringFromAsciiChecked(stats_stream.str().c_str());
+  BasicBlockProfiler::Get()->ResetCounts(isolate);
+  return *result;
+}
+
 RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   HandleScope scope(isolate);
   DCHECK_LE(args.length(), 2);
 #ifdef V8_RUNTIME_CALL_STATS
+  if (!v8_flags.runtime_call_stats) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kInvalid,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Runtime Call"),
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "--runtime-call-stats is not set")));
+  }
   // Append any worker thread runtime call stats to the main table before
   // printing.
   isolate->counters()->worker_thread_runtime_call_stats()->AddToMainTable(
@@ -612,8 +666,15 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   } else {
     std::fflush(f);
   }
-#endif  // V8_RUNTIME_CALL_STATS
   return ReadOnlyRoots(isolate).undefined_value();
+#else   // V8_RUNTIME_CALL_STATS
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kInvalid,
+                            isolate->factory()->NewStringFromAsciiChecked(
+                                "Runtime Call"),
+                            isolate->factory()->NewStringFromAsciiChecked(
+                                "RCS was disabled at compile-time")));
+#endif  // V8_RUNTIME_CALL_STATS
 }
 
 RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {

@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax --randomize-all-allocations
 // Flags: --wasm-max-initial-code-space-reservation=1
+// Disable lazy compilation, because force easier code generation.
+// Flags: --no-wasm-lazy-compilation
 
 // Disable tier-up, to reduce execution time of this test (Liftoff generates
 // much bigger code, thus reaches the four code spaces much faster).

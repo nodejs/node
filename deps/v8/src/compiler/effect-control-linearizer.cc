@@ -18,14 +18,11 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/memory-lowering.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
-#include "src/compiler/select-lowering.h"
-#include "src/execution/frames.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
@@ -87,6 +84,7 @@ class EffectControlLinearizer {
   Node* LowerCheckReceiverOrNullOrUndefined(Node* node, Node* frame_state);
   Node* LowerCheckString(Node* node, Node* frame_state);
   Node* LowerCheckBigInt(Node* node, Node* frame_state);
+  Node* LowerCheckedBigIntToBigInt64(Node* node, Node* frame_state);
   Node* LowerCheckSymbol(Node* node, Node* frame_state);
   void LowerCheckIf(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Add(Node* node, Node* frame_state);
@@ -96,6 +94,11 @@ class EffectControlLinearizer {
   Node* LowerCheckedUint32Div(Node* node, Node* frame_state);
   Node* LowerCheckedUint32Mod(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Mul(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64Add(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64Sub(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64Mul(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64Div(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64Mod(Node* node, Node* frame_state);
   Node* LowerCheckedInt32ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedInt64ToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedInt64ToTaggedSigned(Node* node, Node* frame_state);
@@ -104,6 +107,7 @@ class EffectControlLinearizer {
   Node* LowerCheckedUint32ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedUint64Bounds(Node* node, Node* frame_state);
   Node* LowerCheckedUint64ToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedUint64ToInt64(Node* node, Node* frame_state);
   Node* LowerCheckedUint64ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedFloat64ToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedFloat64ToInt64(Node* node, Node* frame_state);
@@ -177,6 +181,10 @@ class EffectControlLinearizer {
   Node* LowerStringLessThanOrEqual(Node* node);
   Node* LowerBigIntAdd(Node* node, Node* frame_state);
   Node* LowerBigIntSubtract(Node* node, Node* frame_state);
+  Node* LowerBigIntMultiply(Node* node, Node* frame_state);
+  Node* LowerBigIntDivide(Node* node, Node* frame_state);
+  Node* LowerBigIntModulus(Node* node, Node* frame_state);
+  Node* LowerBigIntBitwiseAnd(Node* node, Node* frame_state);
   Node* LowerBigIntNegate(Node* node);
   Node* LowerCheckFloat64Hole(Node* node, Node* frame_state);
   Node* LowerCheckNotTaggedHole(Node* node, Node* frame_state);
@@ -198,6 +206,7 @@ class EffectControlLinearizer {
                                         GraphAssemblerLabel<0>* bailout);
   Node* AdaptFastCallArgument(Node* node, CTypeInfo arg_type,
                               GraphAssemblerLabel<0>* if_error);
+  Node* ClampFastCallArgument(Node* input, CTypeInfo::Type scalar_type);
 
   struct AdaptOverloadedFastCallResult {
     Node* target_address;
@@ -224,6 +233,7 @@ class EffectControlLinearizer {
   void LowerStoreSignedSmallElement(Node* node);
   Node* LowerFindOrderedHashMapEntry(Node* node);
   Node* LowerFindOrderedHashMapEntryForInt32Key(Node* node);
+  Node* LowerFindOrderedHashSetEntry(Node* node);
   void LowerTransitionAndStoreElement(Node* node);
   void LowerTransitionAndStoreNumberElement(Node* node);
   void LowerTransitionAndStoreNonNumberElement(Node* node);
@@ -232,6 +242,7 @@ class EffectControlLinearizer {
   Node* LowerFoldConstant(Node* node);
   Node* LowerConvertReceiver(Node* node);
   Node* LowerDateNow(Node* node);
+  Node* LowerDoubleArrayMinMax(Node* node);
 
   // Lowering of optional operators.
   Maybe<Node*> LowerFloat64RoundUp(Node* node);
@@ -998,8 +1009,14 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckString:
       result = LowerCheckString(node, frame_state);
       break;
+    case IrOpcode::kCheckedUint64ToInt64:
+      result = LowerCheckedUint64ToInt64(node, frame_state);
+      break;
     case IrOpcode::kCheckBigInt:
       result = LowerCheckBigInt(node, frame_state);
+      break;
+    case IrOpcode::kCheckedBigIntToBigInt64:
+      result = LowerCheckedBigIntToBigInt64(node, frame_state);
       break;
     case IrOpcode::kCheckInternalizedString:
       result = LowerCheckInternalizedString(node, frame_state);
@@ -1027,6 +1044,21 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckedInt32Mul:
       result = LowerCheckedInt32Mul(node, frame_state);
+      break;
+    case IrOpcode::kCheckedInt64Add:
+      result = LowerCheckedInt64Add(node, frame_state);
+      break;
+    case IrOpcode::kCheckedInt64Sub:
+      result = LowerCheckedInt64Sub(node, frame_state);
+      break;
+    case IrOpcode::kCheckedInt64Mul:
+      result = LowerCheckedInt64Mul(node, frame_state);
+      break;
+    case IrOpcode::kCheckedInt64Div:
+      result = LowerCheckedInt64Div(node, frame_state);
+      break;
+    case IrOpcode::kCheckedInt64Mod:
+      result = LowerCheckedInt64Mod(node, frame_state);
       break;
     case IrOpcode::kCheckedInt32ToTaggedSigned:
       result = LowerCheckedInt32ToTaggedSigned(node, frame_state);
@@ -1239,6 +1271,18 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kBigIntSubtract:
       result = LowerBigIntSubtract(node, frame_state);
       break;
+    case IrOpcode::kBigIntMultiply:
+      result = LowerBigIntMultiply(node, frame_state);
+      break;
+    case IrOpcode::kBigIntDivide:
+      result = LowerBigIntDivide(node, frame_state);
+      break;
+    case IrOpcode::kBigIntModulus:
+      result = LowerBigIntModulus(node, frame_state);
+      break;
+    case IrOpcode::kBigIntBitwiseAnd:
+      result = LowerBigIntBitwiseAnd(node, frame_state);
+      break;
     case IrOpcode::kBigIntNegate:
       result = LowerBigIntNegate(node);
       break;
@@ -1335,6 +1379,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kFindOrderedHashMapEntryForInt32Key:
       result = LowerFindOrderedHashMapEntryForInt32Key(node);
       break;
+    case IrOpcode::kFindOrderedHashSetEntry:
+      result = LowerFindOrderedHashSetEntry(node);
+      break;
     case IrOpcode::kTransitionAndStoreNumberElement:
       LowerTransitionAndStoreNumberElement(node);
       break;
@@ -1378,6 +1425,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kFoldConstant:
       result = LowerFoldConstant(node);
+      break;
+    case IrOpcode::kDoubleArrayMax:
+    case IrOpcode::kDoubleArrayMin:
+      result = LowerDoubleArrayMinMax(node);
       break;
     default:
       return false;
@@ -1989,7 +2040,7 @@ Node* EffectControlLinearizer::LowerCheckReceiver(Node* node,
   Node* value_instance_type =
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
 
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
   Node* check = __ Uint32LessThanOrEqual(
       __ Uint32Constant(FIRST_JS_RECEIVER_TYPE), value_instance_type);
   __ DeoptimizeIfNot(DeoptimizeReason::kNotAJavaScriptObject, FeedbackSource(),
@@ -2006,8 +2057,8 @@ Node* EffectControlLinearizer::LowerCheckReceiverOrNullOrUndefined(
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
 
   // Rule out all primitives except oddballs (true, false, undefined, null).
-  STATIC_ASSERT(LAST_PRIMITIVE_HEAP_OBJECT_TYPE == ODDBALL_TYPE);
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  static_assert(LAST_PRIMITIVE_HEAP_OBJECT_TYPE == ODDBALL_TYPE);
+  static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
   Node* check0 = __ Uint32LessThanOrEqual(__ Uint32Constant(ODDBALL_TYPE),
                                           value_instance_type);
   __ DeoptimizeIfNot(DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined,
@@ -2261,19 +2312,13 @@ Node* EffectControlLinearizer::LowerCheckedInt32Mod(Node* node,
   //   if rhs <= 0 then
   //     rhs = -rhs
   //     deopt if rhs == 0
-  //   let msk = rhs - 1 in
   //   if lhs < 0 then
   //     let lhs_abs = -lsh in
-  //     let res = if rhs & msk == 0 then
-  //                 lhs_abs & msk
-  //               else
-  //                 lhs_abs % rhs in
-  //     if lhs < 0 then
-  //       deopt if res == 0
-  //       -res
-  //     else
-  //       res
+  //     let res = lhs_abs % rhs in
+  //     deopt if res == 0
+  //     -res
   //   else
+  //     let msk = rhs - 1 in
   //     if rhs & msk == 0 then
   //       lhs & msk
   //     else
@@ -2539,6 +2584,18 @@ Node* EffectControlLinearizer::LowerCheckedUint64ToInt32(Node* node,
   __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, params.feedback(), check,
                      frame_state);
   return __ TruncateInt64ToInt32(value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedUint64ToInt64(Node* node,
+                                                         Node* frame_state) {
+  Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  Node* check = __ Uint64LessThanOrEqual(
+      value, __ Uint64Constant(std::numeric_limits<int64_t>::max()));
+  __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, params.feedback(), check,
+                     frame_state);
+  return value;
 }
 
 Node* EffectControlLinearizer::LowerCheckedUint64ToTaggedSigned(
@@ -2896,6 +2953,159 @@ Node* EffectControlLinearizer::LowerCheckBigInt(Node* node, Node* frame_state) {
   __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, params.feedback(),
                      bi_check, frame_state);
 
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerCheckedBigIntToBigInt64(Node* node,
+                                                            Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  auto done = __ MakeLabel();
+  auto if_not_zero = __ MakeLabel();
+  auto if_may_be_out_of_range = __ MakeDeferredLabel();
+
+  Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  Node* bitfield = __ LoadField(AccessBuilder::ForBigIntBitfield(), value);
+  __ GotoIfNot(__ Word32Equal(bitfield, __ Int32Constant(0)), &if_not_zero);
+  __ Goto(&done);
+
+  __ Bind(&if_not_zero);
+  {
+    // Length must be 1. Compare it with 2 to avoid a right shift.
+    Node* length =
+        __ Word32And(bitfield, __ Int32Constant(BigInt::LengthBits::kMask));
+    __ DeoptimizeIfNot(
+        DeoptimizeReason::kNotABigInt64, params.feedback(),
+        __ Word32Equal(length, __ Int32Constant(uint32_t{1}
+                                                << BigInt::LengthBits::kShift)),
+        frame_state);
+
+    Node* lsd =
+        __ LoadField(AccessBuilder::ForBigIntLeastSignificantDigit64(), value);
+
+    Node* magnitude_check = __ Uint64LessThanOrEqual(
+        lsd, __ Int64Constant(std::numeric_limits<int64_t>::max()));
+    __ Branch(magnitude_check, &done, &if_may_be_out_of_range);
+
+    __ Bind(&if_may_be_out_of_range);
+    Node* sign =
+        __ Word32And(bitfield, __ Int32Constant(BigInt::SignBits::kMask));
+
+    Node* sign_check =
+        __ Word32Equal(sign, __ Int32Constant(BigInt::SignBits::kMask));
+    __ DeoptimizeIfNot(DeoptimizeReason::kNotABigInt64, params.feedback(),
+                       sign_check, frame_state);
+
+    Node* min_check = __ Word64Equal(
+        lsd, __ Int64Constant(std::numeric_limits<int64_t>::min()));
+    __ DeoptimizeIfNot(DeoptimizeReason::kNotABigInt64, params.feedback(),
+                       min_check, frame_state);
+
+    __ Goto(&done);
+  }
+
+  __ Bind(&done);
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerCheckedInt64Add(Node* node,
+                                                    Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* value = __ Int64AddWithOverflow(lhs, rhs);
+
+  Node* check = __ Projection(1, value);
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check,
+                  frame_state);
+  return __ Projection(0, value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedInt64Sub(Node* node,
+                                                    Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* value = __ Int64SubWithOverflow(lhs, rhs);
+
+  Node* check = __ Projection(1, value);
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check,
+                  frame_state);
+  return __ Projection(0, value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedInt64Mul(Node* node,
+                                                    Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* value = __ Int64MulWithOverflow(lhs, rhs);
+
+  Node* check = __ Projection(1, value);
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check,
+                  frame_state);
+  return __ Projection(0, value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedInt64Div(Node* node,
+                                                    Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  auto division = __ MakeLabel();
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* check_rhs_zero = __ Word64Equal(rhs, __ Int64Constant(0));
+  __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, FeedbackSource(),
+                  check_rhs_zero, frame_state);
+
+  __ GotoIfNot(__ Word64Equal(
+                   lhs, __ Int64Constant(std::numeric_limits<int64_t>::min())),
+               &division);
+  Node* check_overflow = __ Word64Equal(rhs, __ Int64Constant(-1));
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check_overflow,
+                  frame_state);
+  __ Goto(&division);
+
+  __ Bind(&division);
+  Node* value = __ Int64Div(lhs, rhs);
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerCheckedInt64Mod(Node* node,
+                                                    Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  auto modulo_op = __ MakeLabel();
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* check_rhs_zero = __ Word64Equal(rhs, __ Int64Constant(0));
+  __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, FeedbackSource(),
+                  check_rhs_zero, frame_state);
+
+  // While the mod-result cannot overflow, the underlying instruction is
+  // `idiv` and will trap when the accompanying div-result overflows.
+  __ GotoIfNot(__ Word64Equal(
+                   lhs, __ Int64Constant(std::numeric_limits<int64_t>::min())),
+               &modulo_op);
+  Node* check_overflow = __ Word64Equal(rhs, __ Int64Constant(-1));
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check_overflow,
+                  frame_state);
+  __ Goto(&modulo_op);
+
+  __ Bind(&modulo_op);
+  Node* value = __ Int64Mod(lhs, rhs);
   return value;
 }
 
@@ -3282,9 +3492,9 @@ Node* EffectControlLinearizer::LowerObjectIsSafeInteger(Node* node) {
 
 namespace {
 
-// There is no (currently) available constexpr version of bit_cast, so we have
-// to make do with constructing the -0.0 bits manually (by setting the sign bit
-// to 1 and everything else to 0).
+// There is no (currently) available constexpr version of base::bit_cast, so
+// we have to make do with constructing the -0.0 bits manually (by setting the
+// sign bit to 1 and everything else to 0).
 // TODO(leszeks): Revisit when upgrading to C++20.
 constexpr int32_t kMinusZeroLoBits = static_cast<int32_t>(0);
 constexpr int32_t kMinusZeroHiBits = static_cast<int32_t>(1) << 31;
@@ -3388,7 +3598,7 @@ Node* EffectControlLinearizer::LowerObjectIsNonCallable(Node* node) {
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_instance_type =
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
   Node* check1 = __ Uint32LessThanOrEqual(
       __ Uint32Constant(FIRST_JS_RECEIVER_TYPE), value_instance_type);
   __ GotoIfNot(check1, &if_primitive);
@@ -3433,7 +3643,7 @@ Node* EffectControlLinearizer::LowerObjectIsReceiver(Node* node) {
 
   __ GotoIf(ObjectIsSmi(value), &if_smi);
 
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_instance_type =
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
@@ -3721,8 +3931,8 @@ Node* EffectControlLinearizer::LowerNewConsString(Node* node) {
   auto if_onebyte = __ MakeLabel();
   auto if_twobyte = __ MakeLabel();
   auto done = __ MakeLabel(MachineRepresentation::kTaggedPointer);
-  STATIC_ASSERT(kOneByteStringTag != 0);
-  STATIC_ASSERT(kTwoByteStringTag == 0);
+  static_assert(kOneByteStringTag != 0);
+  static_assert(kTwoByteStringTag == 0);
   Node* instance_type = __ Word32And(first_instance_type, second_instance_type);
   Node* encoding =
       __ Word32And(instance_type, __ Int32Constant(kStringEncodingMask));
@@ -4036,7 +4246,6 @@ Node* EffectControlLinearizer::LowerStringFromSingleCharCode(Node* node) {
   Node* code = __ Word32And(value, __ Uint32Constant(0xFFFF));
 
   auto if_not_one_byte = __ MakeDeferredLabel();
-  auto cache_miss = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
 
   // Check if the {code} is a one byte character
@@ -4044,46 +4253,19 @@ Node* EffectControlLinearizer::LowerStringFromSingleCharCode(Node* node) {
       code, __ Uint32Constant(String::kMaxOneByteCharCode));
   __ GotoIfNot(check1, &if_not_one_byte);
   {
-    // Load the isolate wide single character string cache.
-    Node* cache = __ HeapConstant(factory()->single_character_string_cache());
+    // Load the isolate wide single character string table.
+    Node* table = __ HeapConstant(factory()->single_character_string_table());
 
-    // Compute the {cache} index for {code}.
+    // Compute the {table} index for {code}.
     Node* index = machine()->Is32() ? code : __ ChangeUint32ToUint64(code);
 
-    // Check if we have an entry for the {code} in the single character string
-    // cache already.
+    // Load the string for the {code} from the single character string
+    // table.
     Node* entry =
-        __ LoadElement(AccessBuilder::ForFixedArrayElement(), cache, index);
+        __ LoadElement(AccessBuilder::ForFixedArrayElement(), table, index);
 
-    Node* check2 = __ TaggedEqual(entry, __ UndefinedConstant());
-    __ GotoIf(check2, &cache_miss);
-
-    // Use the {entry} from the {cache}.
+    // Use the {entry} from the {table}.
     __ Goto(&done, entry);
-
-    __ Bind(&cache_miss);
-    {
-      // Allocate a new SeqOneByteString for {code}.
-      Node* vtrue2 =
-          __ Allocate(AllocationType::kYoung,
-                      __ IntPtrConstant(SeqOneByteString::SizeFor(1)));
-      __ StoreField(AccessBuilder::ForMap(), vtrue2,
-                    __ HeapConstant(factory()->one_byte_string_map()));
-      __ StoreField(AccessBuilder::ForNameRawHashField(), vtrue2,
-                    __ Int32Constant(Name::kEmptyHashField));
-      __ StoreField(AccessBuilder::ForStringLength(), vtrue2,
-                    __ Int32Constant(1));
-      __ Store(
-          StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
-          vtrue2,
-          __ IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag),
-          code);
-
-      // Remember it in the {cache}.
-      __ StoreElement(AccessBuilder::ForFixedArrayElement(), cache, index,
-                      vtrue2);
-      __ Goto(&done, vtrue2);
-    }
   }
 
   __ Bind(&if_not_one_byte);
@@ -4155,7 +4337,6 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
 
   auto if_not_single_code = __ MakeDeferredLabel();
   auto if_not_one_byte = __ MakeDeferredLabel();
-  auto cache_miss = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
 
   // Check if the {code} is a single code unit
@@ -4168,46 +4349,19 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
         code, __ Uint32Constant(String::kMaxOneByteCharCode));
     __ GotoIfNot(check1, &if_not_one_byte);
     {
-      // Load the isolate wide single character string cache.
-      Node* cache = __ HeapConstant(factory()->single_character_string_cache());
+      // Load the isolate wide single character string table.
+      Node* table = __ HeapConstant(factory()->single_character_string_table());
 
-      // Compute the {cache} index for {code}.
+      // Compute the {table} index for {code}.
       Node* index = machine()->Is32() ? code : __ ChangeUint32ToUint64(code);
 
-      // Check if we have an entry for the {code} in the single character string
-      // cache already.
+      // Load the string for the {code} from the single character string
+      // table.
       Node* entry =
-          __ LoadElement(AccessBuilder::ForFixedArrayElement(), cache, index);
+          __ LoadElement(AccessBuilder::ForFixedArrayElement(), table, index);
 
-      Node* check2 = __ TaggedEqual(entry, __ UndefinedConstant());
-      __ GotoIf(check2, &cache_miss);
-
-      // Use the {entry} from the {cache}.
+      // Use the {entry} from the {table}.
       __ Goto(&done, entry);
-
-      __ Bind(&cache_miss);
-      {
-        // Allocate a new SeqOneByteString for {code}.
-        Node* vtrue2 =
-            __ Allocate(AllocationType::kYoung,
-                        __ IntPtrConstant(SeqOneByteString::SizeFor(1)));
-        __ StoreField(AccessBuilder::ForMap(), vtrue2,
-                      __ HeapConstant(factory()->one_byte_string_map()));
-        __ StoreField(AccessBuilder::ForNameRawHashField(), vtrue2,
-                      __ Int32Constant(Name::kEmptyHashField));
-        __ StoreField(AccessBuilder::ForStringLength(), vtrue2,
-                      __ Int32Constant(1));
-        __ Store(
-            StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
-            vtrue2,
-            __ IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag),
-            code);
-
-        // Remember it in the {cache}.
-        __ StoreElement(AccessBuilder::ForFixedArrayElement(), cache, index,
-                        vtrue2);
-        __ Goto(&done, vtrue2);
-      }
     }
 
     __ Bind(&if_not_one_byte);
@@ -4382,6 +4536,159 @@ Node* EffectControlLinearizer::LowerBigIntSubtract(Node* node,
 
   Callable const callable =
       Builtins::CallableFor(isolate(), Builtin::kBigIntSubtractNoThrow);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kFoldable | Operator::kNoThrow);
+  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
+                        rhs, __ NoContextConstant());
+
+  // Check for exception sentinel: Smi is returned to signal BigIntTooBig.
+  __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, FeedbackSource{},
+                  ObjectIsSmi(value), frame_state);
+
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerBigIntMultiply(Node* node,
+                                                   Node* frame_state) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtin::kBigIntMultiplyNoThrow);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kFoldable | Operator::kNoThrow);
+  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
+                        rhs, __ NoContextConstant());
+
+  auto if_termreq = __ MakeDeferredLabel();
+  auto done = __ MakeLabel();
+
+  // Check for exception sentinel: Smi 1 is returned to signal
+  // TerminationRequested.
+  __ GotoIf(__ TaggedEqual(value, __ SmiConstant(1)), &if_termreq);
+
+  // Check for exception sentinel: Smi 0 is returned to signal
+  // BigIntTooBig.
+  __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, FeedbackSource{},
+                  ObjectIsSmi(value), frame_state);
+  __ Goto(&done);
+
+  __ Bind(&if_termreq);
+  {
+    Runtime::FunctionId id = Runtime::kTerminateExecution;
+    auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
+        graph()->zone(), id, 0, Operator::kNoDeopt,
+        CallDescriptor::kNeedsFrameState);
+    __ Call(call_descriptor, __ CEntryStubConstant(1),
+            __ ExternalConstant(ExternalReference::Create(id)),
+            __ Int32Constant(0), __ NoContextConstant(), frame_state);
+    __ Goto(&done);
+  }
+
+  __ Bind(&done);
+
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerBigIntDivide(Node* node,
+                                                 Node* frame_state) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtin::kBigIntDivideNoThrow);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kFoldable | Operator::kNoThrow);
+  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
+                        rhs, __ NoContextConstant());
+
+  auto if_termreq = __ MakeDeferredLabel();
+  auto done = __ MakeLabel();
+
+  // Check for exception sentinel
+  // - Smi 0 is returned to signal BigIntDivZero
+  // - Smi 1 is returned to signal TerminationRequested
+  __ GotoIf(__ TaggedEqual(value, __ SmiConstant(1)), &if_termreq);
+
+  __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, FeedbackSource{},
+                  ObjectIsSmi(value), frame_state);
+
+  __ Goto(&done);
+
+  __ Bind(&if_termreq);
+  {
+    Runtime::FunctionId id = Runtime::kTerminateExecution;
+    auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
+        graph()->zone(), id, 0, Operator::kNoDeopt,
+        CallDescriptor::kNeedsFrameState);
+    __ Call(call_descriptor, __ CEntryStubConstant(1),
+            __ ExternalConstant(ExternalReference::Create(id)),
+            __ Int32Constant(0), __ NoContextConstant(), frame_state);
+    __ Goto(&done);
+  }
+
+  __ Bind(&done);
+
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerBigIntModulus(Node* node,
+                                                  Node* frame_state) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtin::kBigIntModulusNoThrow);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kFoldable | Operator::kNoThrow);
+  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
+                        rhs, __ NoContextConstant());
+
+  auto if_termreq = __ MakeDeferredLabel();
+  auto done = __ MakeLabel();
+
+  // Check for exception sentinel
+  // - Smi 0 is returned to signal BigIntDivZero
+  // - Smi 1 is returned to signal TerminationRequested
+  __ GotoIf(__ TaggedEqual(value, __ SmiConstant(1)), &if_termreq);
+
+  __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, FeedbackSource{},
+                  ObjectIsSmi(value), frame_state);
+
+  __ Goto(&done);
+
+  __ Bind(&if_termreq);
+  {
+    Runtime::FunctionId id = Runtime::kTerminateExecution;
+    auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
+        graph()->zone(), id, 0, Operator::kNoDeopt,
+        CallDescriptor::kNeedsFrameState);
+    __ Call(call_descriptor, __ CEntryStubConstant(1),
+            __ ExternalConstant(ExternalReference::Create(id)),
+            __ Int32Constant(0), __ NoContextConstant(), frame_state);
+    __ Goto(&done);
+  }
+
+  __ Bind(&done);
+
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerBigIntBitwiseAnd(Node* node,
+                                                     Node* frame_state) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtin::kBigIntBitwiseAndNoThrow);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
@@ -4886,14 +5193,14 @@ Node* EffectControlLinearizer::AdaptFastCallTypedArrayArgument(
   Node* buffer_is_not_detached = __ Word32Equal(
       __ Word32And(buffer_bit_field,
                    __ Int32Constant(JSArrayBuffer::WasDetachedBit::kMask)),
-      __ ZeroConstant());
+      __ Int32Constant(0));
   __ GotoIfNot(buffer_is_not_detached, bailout);
 
   // Go to the slow path if the {buffer} is shared.
   Node* buffer_is_not_shared = __ Word32Equal(
       __ Word32And(buffer_bit_field,
                    __ Int32Constant(JSArrayBuffer::IsSharedBit::kMask)),
-      __ ZeroConstant());
+      __ Int32Constant(0));
   __ GotoIfNot(buffer_is_not_shared, bailout);
 
   // Unpack the store and length, and store them to a struct
@@ -4944,26 +5251,153 @@ Node* EffectControlLinearizer::AdaptFastCallTypedArrayArgument(
   return stack_slot;
 }
 
+Node* EffectControlLinearizer::ClampFastCallArgument(
+    Node* input, CTypeInfo::Type scalar_type) {
+  Node* min = nullptr;
+  Node* max = nullptr;
+  switch (scalar_type) {
+    case CTypeInfo::Type::kInt32:
+      min = __ Float64Constant(std::numeric_limits<int32_t>::min());
+      max = __ Float64Constant(std::numeric_limits<int32_t>::max());
+      break;
+    case CTypeInfo::Type::kUint32:
+      min = __ Float64Constant(0);
+      max = __ Float64Constant(std::numeric_limits<uint32_t>::max());
+      break;
+    case CTypeInfo::Type::kInt64:
+      min = __ Float64Constant(kMinSafeInteger);
+      max = __ Float64Constant(kMaxSafeInteger);
+      break;
+    case CTypeInfo::Type::kUint64:
+      min = __ Float64Constant(0);
+      max = __ Float64Constant(kMaxSafeInteger);
+      break;
+    default:
+      UNREACHABLE();
+  }
+  CHECK_NOT_NULL(min);
+  CHECK_NOT_NULL(max);
+
+  Node* clamped = graph()->NewNode(
+      common()->Select(MachineRepresentation::kFloat64),
+      graph()->NewNode(machine()->Float64LessThan(), min, input),
+      graph()->NewNode(
+          common()->Select(MachineRepresentation::kFloat64),
+          graph()->NewNode(machine()->Float64LessThan(), input, max), input,
+          max),
+      min);
+
+  Node* rounded = graph()->NewNode(
+      machine()->Float64RoundTiesEven().placeholder(), clamped);
+
+  auto if_zero = __ MakeDeferredLabel();
+  auto if_zero_or_nan = __ MakeDeferredLabel();
+  auto check_done = __ MakeLabel();
+  auto check_for_nan = __ MakeLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kWord64);
+
+  Node* check_is_zero = __ Float64Equal(rounded, __ Float64Constant(0));
+  __ Branch(check_is_zero, &check_for_nan, &check_done);
+
+  // Check if {rounded} is NaN.
+  __ Bind(&check_for_nan);
+  Node* diff = __ Float64Equal(rounded, rounded);
+  Node* check_is_nan = __ Word32Equal(diff, __ Int32Constant(0));
+  __ Branch(check_is_nan, &if_zero_or_nan, &check_done);
+
+  __ Bind(&if_zero_or_nan);
+  {
+    switch (scalar_type) {
+      case CTypeInfo::Type::kInt32:
+        __ Goto(&done, __ Int32Constant(0));
+        break;
+      case CTypeInfo::Type::kUint32:
+        __ Goto(&done, __ Uint32Constant(0));
+        break;
+      case CTypeInfo::Type::kInt64:
+        __ Goto(&done, __ Int64Constant(0));
+        break;
+      case CTypeInfo::Type::kUint64:
+        __ Goto(&done, __ Uint64Constant(0));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  __ Bind(&check_done);
+  {
+    switch (scalar_type) {
+      case CTypeInfo::Type::kInt32:
+        __ Goto(&done, __ ChangeFloat64ToInt32(rounded));
+        break;
+      case CTypeInfo::Type::kUint32:
+        __ Goto(&done, __ ChangeFloat64ToUint32(rounded));
+        break;
+      case CTypeInfo::Type::kInt64:
+        __ Goto(&done, __ ChangeFloat64ToInt64(rounded));
+        break;
+      case CTypeInfo::Type::kUint64:
+        __ Goto(&done, __ ChangeFloat64ToUint64(rounded));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
 Node* EffectControlLinearizer::AdaptFastCallArgument(
     Node* node, CTypeInfo arg_type, GraphAssemblerLabel<0>* if_error) {
   int kAlign = alignof(uintptr_t);
   int kSize = sizeof(uintptr_t);
   switch (arg_type.GetSequenceType()) {
     case CTypeInfo::SequenceType::kScalar: {
-      switch (arg_type.GetType()) {
-        case CTypeInfo::Type::kV8Value: {
-          Node* stack_slot = __ StackSlot(kSize, kAlign);
-          __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                       kNoWriteBarrier),
-                   stack_slot, 0, node);
+      uint8_t flags = uint8_t(arg_type.GetFlags());
+      if (flags & uint8_t(CTypeInfo::Flags::kEnforceRangeBit)) {
+        Node* truncation;
+        switch (arg_type.GetType()) {
+          case CTypeInfo::Type::kInt32:
+            truncation = __ TryTruncateFloat64ToInt32(node);
+            __ GotoIfNot(__ Projection(1, truncation), if_error);
+            return __ Projection(0, truncation);
+          case CTypeInfo::Type::kUint32:
+            truncation = __ TryTruncateFloat64ToUint32(node);
+            __ GotoIfNot(__ Projection(1, truncation), if_error);
+            return __ Projection(0, truncation);
+          case CTypeInfo::Type::kInt64:
+            truncation = __ TryTruncateFloat64ToInt64(node);
+            __ GotoIfNot(__ Projection(1, truncation), if_error);
+            return __ Projection(0, truncation);
+          case CTypeInfo::Type::kUint64:
+            truncation = __ TryTruncateFloat64ToUint64(node);
+            __ GotoIfNot(__ Projection(1, truncation), if_error);
+            return __ Projection(0, truncation);
+          default: {
+            __ Goto(if_error);
+            return node;
+          }
+        }
+      } else if (flags & uint8_t(CTypeInfo::Flags::kClampBit)) {
+        return ClampFastCallArgument(node, arg_type.GetType());
+      } else {
+        switch (arg_type.GetType()) {
+          case CTypeInfo::Type::kV8Value: {
+            Node* stack_slot = __ StackSlot(kSize, kAlign);
+            __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                                         kNoWriteBarrier),
+                     stack_slot, 0, node);
 
-          return stack_slot;
-        }
-        case CTypeInfo::Type::kFloat32: {
-          return __ TruncateFloat64ToFloat32(node);
-        }
-        default: {
-          return node;
+            return stack_slot;
+          }
+          case CTypeInfo::Type::kFloat32: {
+            return __ TruncateFloat64ToFloat32(node);
+          }
+          default: {
+            return node;
+          }
         }
       }
     }
@@ -5009,15 +5443,13 @@ EffectControlLinearizer::AdaptOverloadedFastCallArgument(
     Node* node, const FastApiCallFunctionVector& c_functions,
     const fast_api_call::OverloadsResolutionResult& overloads_resolution_result,
     GraphAssemblerLabel<0>* if_error) {
-  static constexpr int kReceiver = 1;
-
   auto merge = __ MakeLabel(MachineRepresentation::kTagged,
                             MachineRepresentation::kTagged);
 
   for (size_t func_index = 0; func_index < c_functions.size(); func_index++) {
     const CFunctionInfo* c_signature = c_functions[func_index].signature;
     CTypeInfo arg_type = c_signature->ArgumentInfo(
-        overloads_resolution_result.distinguishable_arg_index + kReceiver);
+        overloads_resolution_result.distinguishable_arg_index);
 
     auto next = __ MakeLabel();
 
@@ -5080,60 +5512,6 @@ EffectControlLinearizer::AdaptOverloadedFastCallArgument(
   return {merge.PhiAt(0), merge.PhiAt(1)};
 }
 
-Node* EffectControlLinearizer::WrapFastCall(
-    const CallDescriptor* call_descriptor, int inputs_size, Node** inputs,
-    Node* target, const CFunctionInfo* c_signature, int c_arg_count,
-    Node* stack_slot) {
-  // CPU profiler support
-  Node* target_address = __ ExternalConstant(
-      ExternalReference::fast_api_call_target_address(isolate()));
-  __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                               kNoWriteBarrier),
-           target_address, 0, target);
-
-  // Disable JS execution
-  Node* javascript_execution_assert = __ ExternalConstant(
-      ExternalReference::javascript_execution_assert(isolate()));
-  static_assert(sizeof(bool) == 1, "Wrong assumption about boolean size.");
-
-  if (FLAG_debug_code) {
-    auto do_store = __ MakeLabel();
-    Node* old_scope_value =
-        __ Load(MachineType::Int8(), javascript_execution_assert, 0);
-    __ GotoIf(__ Word32Equal(old_scope_value, __ Int32Constant(1)), &do_store);
-
-    // We expect that JS execution is enabled, otherwise assert.
-    __ Unreachable(&do_store);
-    __ Bind(&do_store);
-  }
-  __ Store(StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
-           javascript_execution_assert, 0, __ Int32Constant(0));
-
-  // Update effect and control
-  if (c_signature->HasOptions()) {
-    inputs[c_arg_count + 1] = stack_slot;
-    inputs[c_arg_count + 2] = __ effect();
-    inputs[c_arg_count + 3] = __ control();
-  } else {
-    inputs[c_arg_count + 1] = __ effect();
-    inputs[c_arg_count + 2] = __ control();
-  }
-
-  // Create the fast call
-  Node* call = __ Call(call_descriptor, inputs_size, inputs);
-
-  // Reenable JS execution
-  __ Store(StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
-           javascript_execution_assert, 0, __ Int32Constant(1));
-
-  // Reset the CPU profiler target address.
-  __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                               kNoWriteBarrier),
-           target_address, 0, __ IntPtrConstant(0));
-
-  return call;
-}
-
 Node* EffectControlLinearizer::GenerateSlowApiCall(Node* node) {
   FastApiCallNode n(node);
   FastApiCallParameters const& params = n.Parameters();
@@ -5163,8 +5541,6 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   FastApiCallNode n(node);
   FastApiCallParameters const& params = n.Parameters();
 
-  static constexpr int kReceiver = 1;
-
   const FastApiCallFunctionVector& c_functions = params.c_functions();
   const CFunctionInfo* c_signature = params.c_functions()[0].signature;
   const int c_arg_count = c_signature->ArgumentCount();
@@ -5174,201 +5550,77 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   CHECK_EQ(FastApiCallNode::ArityForArgc(c_arg_count, js_arg_count),
            value_input_count);
 
-  Node* stack_slot = nullptr;
-  int kAlign = alignof(v8::FastApiCallbackOptions);
-  int kSize = sizeof(v8::FastApiCallbackOptions);
-  // If this check fails, you've probably added new fields to
-  // v8::FastApiCallbackOptions, which means you'll need to write code
-  // that initializes and reads from them too.
-  CHECK_EQ(kSize, sizeof(uintptr_t) * 2);
-  stack_slot = __ StackSlot(kSize, kAlign);
-  if (c_signature->HasOptions()) {
-    __ Store(
-        StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
-        stack_slot,
-        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
-        __ Int32Constant(0));
-    __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                 kNoWriteBarrier),
-             stack_slot,
-             static_cast<int>(offsetof(v8::FastApiCallbackOptions, data)),
-             n.SlowCallArgument(FastApiCallNode::kSlowCallDataArgumentIndex));
-  } else {
-    __ Store(
-        StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
-        stack_slot,
-        0,  // fallback = false
-        __ Int32Constant(0));
-    __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                 kNoWriteBarrier),
-             stack_slot,
-             0,  // no data
-             n.SlowCallArgument(FastApiCallNode::kSlowCallDataArgumentIndex));
-  }
+  return fast_api_call::BuildFastApiCall(
+      isolate(), graph(), gasm(), c_functions, c_signature,
+      n.SlowCallArgument(FastApiCallNode::kSlowCallDataArgumentIndex),
+      // Load and convert parameters to be passed to C function
+      [this, node, c_signature, c_functions](
+          int param_index,
+          fast_api_call::OverloadsResolutionResult& overloads_resolution_result,
+          GraphAssemblerLabel<0>* if_error) {
+        Node* value = NodeProperties::GetValueInput(node, param_index);
+        if (param_index ==
+            overloads_resolution_result.distinguishable_arg_index) {
+          // This only happens when the FastApiCall node represents multiple
+          // overloaded functions and {i} is the index of the distinguishable
+          // argument.
+          AdaptOverloadedFastCallResult nodes = AdaptOverloadedFastCallArgument(
+              value, c_functions, overloads_resolution_result, if_error);
 
-  MachineSignature::Builder builder(
-      graph()->zone(), 1, c_arg_count + (c_signature->HasOptions() ? 1 : 0));
-  MachineType return_type =
-      MachineType::TypeForCType(c_signature->ReturnInfo());
-  builder.AddReturn(return_type);
-  for (int i = 0; i < c_arg_count; ++i) {
-    CTypeInfo type = c_signature->ArgumentInfo(i);
-    MachineType machine_type =
-        type.GetSequenceType() == CTypeInfo::SequenceType::kScalar
-            ? MachineType::TypeForCType(type)
-            : MachineType::AnyTagged();
-    builder.AddParam(machine_type);
-  }
-  if (c_signature->HasOptions()) {
-    builder.AddParam(MachineType::Pointer());  // stack_slot
-  }
+          // Replace the target address node with a Phi node that represents the
+          // choice between the target addreseses of overloaded functions.
+          overloads_resolution_result.target_address = nodes.target_address;
 
-  CallDescriptor* call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
-
-  // Hint to fast path.
-  auto if_success = __ MakeLabel();
-  auto if_error = __ MakeDeferredLabel();
-
-  // Overload resolution
-
-  bool generate_fast_call = false;
-  int distinguishable_arg_index = INT_MIN;
-  fast_api_call::OverloadsResolutionResult overloads_resolution_result =
-      fast_api_call::OverloadsResolutionResult::Invalid();
-
-  if (c_functions.size() == 1) {
-    generate_fast_call = true;
-  } else {
-    DCHECK_EQ(c_functions.size(), 2);
-    overloads_resolution_result = fast_api_call::ResolveOverloads(
-        graph()->zone(), c_functions, c_arg_count);
-    if (overloads_resolution_result.is_valid()) {
-      generate_fast_call = true;
-      distinguishable_arg_index =
-          overloads_resolution_result.distinguishable_arg_index;
-    }
-  }
-
-  if (!generate_fast_call) {
-    // Only generate the slow call.
-    return GenerateSlowApiCall(node);
-  }
-
-  // Generate fast call.
-
-  const int kFastTargetAddressInputIndex = 0;
-  const int kFastTargetAddressInputCount = 1;
-
-  Node** const inputs = graph()->zone()->NewArray<Node*>(
-      kFastTargetAddressInputCount + c_arg_count + n.FastCallExtraInputCount());
-
-  ExternalReference::Type ref_type = ExternalReference::FAST_C_CALL;
-
-  // The inputs to {Call} node for the fast call look like:
-  // [fast callee, receiver, ... C arguments, [optional Options], effect,
-  //  control].
-  //
-  // The first input node represents the target address for the fast call.
-  // If the function is not overloaded (c_functions.size() == 1) this is the
-  // address associated to the first and only element in the c_functions vector.
-  // If there are multiple overloads the value of this input will be set later
-  // with a Phi node created by AdaptOverloadedFastCallArgument.
-  inputs[kFastTargetAddressInputIndex] =
-      (c_functions.size() == 1) ? __ ExternalConstant(ExternalReference::Create(
-                                      c_functions[0].address, ref_type))
-                                : nullptr;
-
-  for (int i = 0; i < c_arg_count; ++i) {
-    Node* value = NodeProperties::GetValueInput(node, i);
-
-    if (i == distinguishable_arg_index + kReceiver) {
-      // This only happens when the FastApiCall node represents multiple
-      // overloaded functions and {i} is the index of the distinguishable
-      // argument.
-      AdaptOverloadedFastCallResult nodes = AdaptOverloadedFastCallArgument(
-          value, c_functions, overloads_resolution_result, &if_error);
-      inputs[i + kFastTargetAddressInputCount] = nodes.argument;
-
-      // Replace the target address node with a Phi node that represents the
-      // choice between the target addreseses of overloaded functions.
-      inputs[kFastTargetAddressInputIndex] = nodes.target_address;
-    } else {
-      CTypeInfo type = c_signature->ArgumentInfo(i);
-      inputs[i + kFastTargetAddressInputCount] =
-          AdaptFastCallArgument(value, type, &if_error);
-    }
-  }
-  DCHECK_NOT_NULL(inputs[0]);
-
-  Node* c_call_result = WrapFastCall(
-      call_descriptor, c_arg_count + n.FastCallExtraInputCount() + 1, inputs,
-      inputs[0], c_signature, c_arg_count, stack_slot);
-
-  Node* fast_call_result = nullptr;
-  switch (c_signature->ReturnInfo().GetType()) {
-    case CTypeInfo::Type::kVoid:
-      fast_call_result = __ UndefinedConstant();
-      break;
-    case CTypeInfo::Type::kBool:
-      static_assert(sizeof(bool) == 1, "unsupported bool size");
-      fast_call_result = ChangeBitToTagged(
-          __ Word32And(c_call_result, __ Int32Constant(0xFF)));
-      break;
-    case CTypeInfo::Type::kInt32:
-      fast_call_result = ChangeInt32ToTagged(c_call_result);
-      break;
-    case CTypeInfo::Type::kUint32:
-      fast_call_result = ChangeUint32ToTagged(c_call_result);
-      break;
-    case CTypeInfo::Type::kInt64:
-    case CTypeInfo::Type::kUint64:
-      UNREACHABLE();
-    case CTypeInfo::Type::kFloat32:
-      fast_call_result =
-          ChangeFloat64ToTagged(__ ChangeFloat32ToFloat64(c_call_result),
-                                CheckForMinusZeroMode::kCheckForMinusZero);
-      break;
-    case CTypeInfo::Type::kFloat64:
-      fast_call_result = ChangeFloat64ToTagged(
-          c_call_result, CheckForMinusZeroMode::kCheckForMinusZero);
-      break;
-    case CTypeInfo::Type::kV8Value:
-    case CTypeInfo::Type::kApiObject:
-      UNREACHABLE();
-    case CTypeInfo::Type::kAny:
-      fast_call_result =
-          ChangeFloat64ToTagged(__ ChangeInt64ToFloat64(c_call_result),
-                                CheckForMinusZeroMode::kCheckForMinusZero);
-      break;
-  }
-
-  auto merge = __ MakeLabel(MachineRepresentation::kTagged);
-  if (c_signature->HasOptions()) {
-    DCHECK_NOT_NULL(stack_slot);
-    Node* load = __ Load(
-        MachineType::Int32(), stack_slot,
-        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)));
-
-    Node* is_zero = __ Word32Equal(load, __ Int32Constant(0));
-    __ Branch(is_zero, &if_success, &if_error);
-  } else {
-    Node* true_constant = __ TrueConstant();
-    __ Branch(true_constant, &if_success, &if_error);
-  }
-
-  __ Bind(&if_success);
-  __ Goto(&merge, fast_call_result);
-
-  // Generate direct slow call.
-  __ Bind(&if_error);
-  {
-    Node* slow_call_result = GenerateSlowApiCall(node);
-    __ Goto(&merge, slow_call_result);
-  }
-
-  __ Bind(&merge);
-  return merge.PhiAt(0);
+          return nodes.argument;
+        } else {
+          CTypeInfo type = c_signature->ArgumentInfo(param_index);
+          return AdaptFastCallArgument(value, type, if_error);
+        }
+      },
+      // Convert return value from C function to JS value
+      [this](const CFunctionInfo* c_signature, Node* c_call_result) -> Node* {
+        switch (c_signature->ReturnInfo().GetType()) {
+          case CTypeInfo::Type::kVoid:
+            return __ UndefinedConstant();
+          case CTypeInfo::Type::kBool:
+            static_assert(sizeof(bool) == 1, "unsupported bool size");
+            return ChangeBitToTagged(
+                __ Word32And(c_call_result, __ Int32Constant(0xFF)));
+          case CTypeInfo::Type::kInt32:
+            return ChangeInt32ToTagged(c_call_result);
+          case CTypeInfo::Type::kUint32:
+            return ChangeUint32ToTagged(c_call_result);
+          case CTypeInfo::Type::kInt64:
+          case CTypeInfo::Type::kUint64:
+            UNREACHABLE();
+          case CTypeInfo::Type::kFloat32:
+            return ChangeFloat64ToTagged(
+                __ ChangeFloat32ToFloat64(c_call_result),
+                CheckForMinusZeroMode::kCheckForMinusZero);
+          case CTypeInfo::Type::kFloat64:
+            return ChangeFloat64ToTagged(
+                c_call_result, CheckForMinusZeroMode::kCheckForMinusZero);
+          case CTypeInfo::Type::kV8Value:
+          case CTypeInfo::Type::kApiObject:
+          case CTypeInfo::Type::kUint8:
+            UNREACHABLE();
+          case CTypeInfo::Type::kAny:
+            return ChangeFloat64ToTagged(
+                __ ChangeInt64ToFloat64(c_call_result),
+                CheckForMinusZeroMode::kCheckForMinusZero);
+        }
+      },
+      // Initialize js-specific callback options.
+      [this](Node* options_stack_slot) {
+        __ Store(
+            StoreRepresentation(MachineType::PointerRepresentation(),
+                                kNoWriteBarrier),
+            options_stack_slot,
+            static_cast<int>(offsetof(v8::FastApiCallbackOptions, wasm_memory)),
+            __ IntPtrConstant(0));
+      },
+      // Generate slow fallback if fast call fails
+      [this, node]() -> Node* { return GenerateSlowApiCall(node); });
 }
 
 Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
@@ -5384,6 +5636,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
 
   auto if_double = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
+  auto loaded_field = __ MakeLabel(MachineRepresentation::kTagged);
+  auto done_double = __ MakeLabel(MachineRepresentation::kFloat64);
 
   // Check if field is a mutable double field.
   __ GotoIfNot(__ IntPtrEqual(__ WordAnd(index, one), zero), &if_double);
@@ -5400,8 +5654,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
       Node* offset =
           __ IntAdd(__ WordShl(index, __ IntPtrConstant(kTaggedSizeLog2 - 1)),
                     __ IntPtrConstant(JSObject::kHeaderSize - kHeapObjectTag));
-      Node* result = __ Load(MachineType::AnyTagged(), object, offset);
-      __ Goto(&done, result);
+      Node* field = __ Load(MachineType::AnyTagged(), object, offset);
+      __ Goto(&loaded_field, field);
     }
 
     // The field is located in the properties backing store of {object}.
@@ -5415,8 +5669,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
                                __ IntPtrConstant(kTaggedSizeLog2 - 1)),
                     __ IntPtrConstant((FixedArray::kHeaderSize - kTaggedSize) -
                                       kHeapObjectTag));
-      Node* result = __ Load(MachineType::AnyTagged(), properties, offset);
-      __ Goto(&done, result);
+      Node* field = __ Load(MachineType::AnyTagged(), properties, offset);
+      __ Goto(&loaded_field, field);
     }
   }
 
@@ -5424,9 +5678,6 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
   // architectures, or a mutable HeapNumber.
   __ Bind(&if_double);
   {
-    auto loaded_field = __ MakeLabel(MachineRepresentation::kTagged);
-    auto done_double = __ MakeLabel(MachineRepresentation::kFloat64);
-
     index = __ WordSar(index, one);
 
     // Check if field is in-object or out-of-object.
@@ -5454,27 +5705,27 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
       Node* field = __ Load(MachineType::AnyTagged(), properties, offset);
       __ Goto(&loaded_field, field);
     }
+  }
 
-    __ Bind(&loaded_field);
-    {
-      Node* field = loaded_field.PhiAt(0);
-      // We may have transitioned in-place away from double, so check that
-      // this is a HeapNumber -- otherwise the load is fine and we don't need
-      // to copy anything anyway.
-      __ GotoIf(ObjectIsSmi(field), &done, field);
-      Node* field_map = __ LoadField(AccessBuilder::ForMap(), field);
-      __ GotoIfNot(__ TaggedEqual(field_map, __ HeapNumberMapConstant()), &done,
-                   field);
+  __ Bind(&loaded_field);
+  {
+    Node* field = loaded_field.PhiAt(0);
+    // We may have transitioned in-place away from double, so check that
+    // this is a HeapNumber -- otherwise the load is fine and we don't need
+    // to copy anything anyway.
+    __ GotoIf(ObjectIsSmi(field), &done, field);
+    Node* field_map = __ LoadField(AccessBuilder::ForMap(), field);
+    __ GotoIfNot(__ TaggedEqual(field_map, __ HeapNumberMapConstant()), &done,
+                 field);
 
-      Node* value = __ LoadField(AccessBuilder::ForHeapNumberValue(), field);
-      __ Goto(&done_double, value);
-    }
+    Node* value = __ LoadField(AccessBuilder::ForHeapNumberValue(), field);
+    __ Goto(&done_double, value);
+  }
 
-    __ Bind(&done_double);
-    {
-      Node* result = AllocateHeapNumberWithValue(done_double.PhiAt(0));
-      __ Goto(&done, result);
-    }
+  __ Bind(&done_double);
+  {
+    Node* result = AllocateHeapNumberWithValue(done_double.PhiAt(0));
+    __ Goto(&done, result);
   }
 
   __ Bind(&done);
@@ -5625,8 +5876,8 @@ Node* EffectControlLinearizer::BuildTypedArrayDataPointer(Node* base,
   if (IntPtrMatcher(base).Is(0)) {
     return external;
   } else {
+    base = __ BitcastTaggedToWord(base);
     if (COMPRESS_POINTERS_BOOL) {
-      base = __ BitcastTaggedToWord(base);
       // Zero-extend Tagged_t to UintPtr according to current compression
       // scheme so that the addition with |external_pointer| (which already
       // contains compensated offset value) will decompress the tagged value.
@@ -5634,7 +5885,7 @@ Node* EffectControlLinearizer::BuildTypedArrayDataPointer(Node* base,
       // details.
       base = ChangeUint32ToUintPtr(base);
     }
-    return __ UnsafePointerAdd(base, external);
+    return __ IntPtrAdd(base, external);
   }
 }
 
@@ -6095,6 +6346,48 @@ Node* EffectControlLinearizer::LowerFoldConstant(Node* node) {
   return constant;
 }
 
+Node* EffectControlLinearizer::LowerDoubleArrayMinMax(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kDoubleArrayMin ||
+         node->opcode() == IrOpcode::kDoubleArrayMax);
+
+  bool is_max = node->opcode() == IrOpcode::kDoubleArrayMax;
+  Node* arguments_list = node->InputAt(0);
+
+  // Iterate the elements and find the result.
+  Node* empty_value = is_max ? __ Float64Constant(-V8_INFINITY)
+                             : __ Float64Constant(V8_INFINITY);
+  Node* array_length = __ LoadField(
+      AccessBuilder::ForJSArrayLength(ElementsKind::PACKED_DOUBLE_ELEMENTS),
+      arguments_list);
+  array_length = ChangeSmiToIntPtr(array_length);
+  Node* elements =
+      __ LoadField(AccessBuilder::ForJSObjectElements(), arguments_list);
+
+  auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation(),
+                               MachineRepresentation::kFloat64);
+  auto done = __ MakeLabel(MachineRepresentation::kFloat64);
+
+  __ Goto(&loop, __ IntPtrConstant(0), empty_value);
+  __ Bind(&loop);
+  {
+    Node* index = loop.PhiAt(0);
+    Node* accumulator = loop.PhiAt(1);
+
+    Node* check = __ UintLessThan(index, array_length);
+    __ GotoIfNot(check, &done, accumulator);
+
+    Node* element = __ LoadElement(AccessBuilder::ForFixedDoubleArrayElement(),
+                                   elements, index);
+    __ Goto(&loop, __ IntAdd(index, __ IntPtrConstant(1)),
+            is_max ? __ Float64Max(accumulator, element)
+                   : __ Float64Min(accumulator, element));
+  }
+
+  __ Bind(&done);
+  return ChangeFloat64ToTagged(done.PhiAt(0),
+                               CheckForMinusZeroMode::kCheckForMinusZero);
+}
+
 Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
   ConvertReceiverMode const mode = ConvertReceiverModeOf(node->op());
   Node* value = node->InputAt(0);
@@ -6110,7 +6403,7 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
 
       // Check if {value} is already a JSReceiver.
       __ GotoIf(ObjectIsSmi(value), &convert_to_object);
-      STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+      static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
       Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
       Node* value_instance_type =
           __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
@@ -6143,7 +6436,7 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
 
       // Check if {value} is already a JSReceiver, or null/undefined.
       __ GotoIf(ObjectIsSmi(value), &convert_to_object);
-      STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+      static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
       Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
       Node* value_instance_type =
           __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
@@ -6530,6 +6823,23 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntry(Node* node) {
   }
 }
 
+Node* EffectControlLinearizer::LowerFindOrderedHashSetEntry(Node* node) {
+  Node* table = NodeProperties::GetValueInput(node, 0);
+  Node* key = NodeProperties::GetValueInput(node, 1);
+
+  {
+    Callable const callable =
+        Builtins::CallableFor(isolate(), Builtin::kFindOrderedHashSetEntry);
+    Operator::Properties const properties = node->op()->properties();
+    CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
+        graph()->zone(), callable.descriptor(),
+        callable.descriptor().GetStackParameterCount(), flags, properties);
+    return __ Call(call_descriptor, __ HeapConstant(callable.code()), table,
+                   key, __ NoContextConstant());
+  }
+}
+
 Node* EffectControlLinearizer::ComputeUnseededHash(Node* value) {
   // See v8::internal::ComputeUnseededHash()
   value = __ Int32Add(__ Word32Xor(value, __ Int32Constant(0xFFFFFFFF)),
@@ -6710,7 +7020,8 @@ void LinearizeEffectControl(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
                             SourcePositionTable* source_positions,
                             NodeOriginTable* node_origins,
                             JSHeapBroker* broker) {
-  JSGraphAssembler graph_assembler_(graph, temp_zone);
+  JSGraphAssembler graph_assembler_(graph, temp_zone,
+                                    BranchSemantics::kMachine);
   EffectControlLinearizer linearizer(graph, schedule, &graph_assembler_,
                                      temp_zone, source_positions, node_origins,
                                      MaintainSchedule::kDiscard, broker);

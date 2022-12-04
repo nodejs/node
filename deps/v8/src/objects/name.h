@@ -25,27 +25,41 @@ class SharedStringAccessGuardIfNeeded;
 class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
  public:
   // Tells whether the hash code has been computed.
+  // Note: Use TryGetHash() whenever you want to use the hash, instead of a
+  // combination of HashHashCode() and hash() for thread-safety.
   inline bool HasHashCode() const;
-
-  // Returns a hash value used for the property table. Ensures that the hash
-  // value is computed.
-  //
-  // The overload without SharedStringAccessGuardIfNeeded can only be called on
-  // the main thread.
-  inline uint32_t EnsureHash();
-  inline uint32_t EnsureHash(const SharedStringAccessGuardIfNeeded&);
+  // Tells whether the name contains a forwarding index pointing to a row
+  // in the string forwarding table.
+  inline bool HasForwardingIndex(AcquireLoadTag) const;
+  inline bool HasInternalizedForwardingIndex(AcquireLoadTag) const;
+  inline bool HasExternalForwardingIndex(AcquireLoadTag) const;
 
   inline uint32_t raw_hash_field() const {
     return RELAXED_READ_UINT32_FIELD(*this, kRawHashFieldOffset);
+  }
+
+  inline uint32_t raw_hash_field(AcquireLoadTag) const {
+    return ACQUIRE_READ_UINT32_FIELD(*this, kRawHashFieldOffset);
   }
 
   inline void set_raw_hash_field(uint32_t hash) {
     RELAXED_WRITE_UINT32_FIELD(*this, kRawHashFieldOffset, hash);
   }
 
+  inline void set_raw_hash_field(uint32_t hash, ReleaseStoreTag) {
+    RELEASE_WRITE_UINT32_FIELD(*this, kRawHashFieldOffset, hash);
+  }
+
+  // Sets the hash field only if it is empty. Otherwise does nothing.
+  inline void set_raw_hash_field_if_empty(uint32_t hash);
+
   // Returns a hash value used for the property table (same as Hash()), assumes
   // the hash is already computed.
   inline uint32_t hash() const;
+
+  // Returns true if the hash has been computed, and sets the computed hash
+  // as out-parameter.
+  inline bool TryGetHash(uint32_t* hash) const;
 
   // Equality operations.
   inline bool Equals(Name other);
@@ -110,9 +124,17 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
       HashFieldTypeBits::encode(HashFieldType::kEmpty);
 
   // Empty hash and forwarding indices can not be used as hash.
-  STATIC_ASSERT((kEmptyHashField & kHashNotComputedMask) != 0);
-  STATIC_ASSERT((HashFieldTypeBits::encode(HashFieldType::kForwardingIndex) &
+  static_assert((kEmptyHashField & kHashNotComputedMask) != 0);
+  static_assert((HashFieldTypeBits::encode(HashFieldType::kForwardingIndex) &
                  kHashNotComputedMask) != 0);
+
+  using IsInternalizedForwardingIndexBit = HashFieldTypeBits::Next<bool, 1>;
+  using IsExternalForwardingIndexBit =
+      IsInternalizedForwardingIndexBit::Next<bool, 1>;
+  using ForwardingIndexValueBits = IsExternalForwardingIndexBit::Next<
+      unsigned int, kBitsPerInt - HashFieldTypeBits::kSize -
+                        IsInternalizedForwardingIndexBit::kSize -
+                        IsExternalForwardingIndexBit::kSize>;
 
   // Array index strings this short can keep their index in the hash field.
   static const int kMaxCachedArrayIndexLength = 7;
@@ -135,8 +157,8 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   static const int kArrayIndexLengthBits =
       kBitsPerInt - kArrayIndexValueBits - HashFieldTypeBits::kSize;
 
-  STATIC_ASSERT(kArrayIndexLengthBits > 0);
-  STATIC_ASSERT(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
+  static_assert(kArrayIndexLengthBits > 0);
+  static_assert(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
 
   using ArrayIndexValueBits =
       HashFieldTypeBits::Next<unsigned int, kArrayIndexValueBits>;
@@ -151,21 +173,41 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
 
   // When any of these bits is set then the hash field does not contain a cached
   // array index.
-  STATIC_ASSERT(HashFieldTypeBits::encode(HashFieldType::kIntegerIndex) == 0);
+  static_assert(HashFieldTypeBits::encode(HashFieldType::kIntegerIndex) == 0);
   static const unsigned int kDoesNotContainCachedArrayIndexMask =
       (~static_cast<unsigned>(kMaxCachedArrayIndexLength)
        << ArrayIndexLengthBits::kShift) |
       HashFieldTypeBits::kMask;
 
+  // Returns a hash value used for the property table. Ensures that the hash
+  // value is computed.
+  //
+  // The overload without SharedStringAccessGuardIfNeeded can only be called on
+  // the main thread.
+  inline uint32_t EnsureHash();
+  inline uint32_t EnsureHash(const SharedStringAccessGuardIfNeeded&);
+  // The value returned is always a computed hash, even if the value stored is
+  // a forwarding index.
+  inline uint32_t EnsureRawHash();
+  inline uint32_t EnsureRawHash(const SharedStringAccessGuardIfNeeded&);
+  inline uint32_t RawHash();
+
   static inline bool IsHashFieldComputed(uint32_t raw_hash_field);
   static inline bool IsHash(uint32_t raw_hash_field);
   static inline bool IsIntegerIndex(uint32_t raw_hash_field);
   static inline bool IsForwardingIndex(uint32_t raw_hash_field);
+  static inline bool IsInternalizedForwardingIndex(uint32_t raw_hash_field);
+  static inline bool IsExternalForwardingIndex(uint32_t raw_hash_field);
 
   static inline uint32_t CreateHashFieldValue(uint32_t hash,
                                               HashFieldType type);
+  static inline uint32_t CreateInternalizedForwardingIndex(uint32_t index);
+  static inline uint32_t CreateExternalForwardingIndex(uint32_t index);
 
   TQ_OBJECT_CONSTRUCTORS(Name)
+
+ private:
+  inline uint32_t GetRawHashFromForwardingTable(uint32_t raw_hash) const;
 };
 
 // ES6 symbols.

@@ -21,7 +21,7 @@
 #include "unicode/locid.h"
 #include "unicode/uversion.h"
 
-#define V8_MINIMUM_ICU_VERSION 69
+#define V8_MINIMUM_ICU_VERSION 71
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
@@ -356,8 +356,44 @@ class Intl {
   // Function to support Temporal
   V8_WARN_UNUSED_RESULT static std::string TimeZoneIdFromIndex(int32_t index);
 
-  V8_WARN_UNUSED_RESULT static Maybe<bool> GetTimeZoneIndex(
-      Isolate* isolate, Handle<String> identifier, int32_t* index);
+  // Return the index of timezone which later could be used with
+  // TimeZoneIdFromIndex. Returns -1 while the identifier is not a built-in
+  // TimeZone name.
+  static int32_t GetTimeZoneIndex(Isolate* isolate, Handle<String> identifier);
+
+  enum class Transition { kNext, kPrevious };
+
+  // Functions to support Temporal
+
+  // Return the epoch of transition in BigInt or null if there are no
+  // transition.
+  static Handle<Object> GetTimeZoneOffsetTransitionNanoseconds(
+      Isolate* isolate, int32_t time_zone_index,
+      Handle<BigInt> nanosecond_epoch, Transition transition);
+
+  // Return the Time Zone offset, in the unit of nanosecond by int64_t, during
+  // the time of the nanosecond_epoch.
+  static int64_t GetTimeZoneOffsetNanoseconds(Isolate* isolate,
+                                              int32_t time_zone_index,
+                                              Handle<BigInt> nanosecond_epoch);
+
+  // This function may return the result, the std::vector<int64_t> in one of
+  // the following three condictions:
+  // 1. While nanosecond_epoch fall into the daylight saving time change
+  // moment that skipped one (or two or even six, in some Time Zone) hours
+  // later in local time:
+  //    [],
+  // 2. In other moment not during daylight saving time change:
+  //    [offset_former], and
+  // 3. when nanosecond_epoch fall into they daylight saving time change hour
+  // which the clock time roll back one (or two or six, in some Time Zone) hour:
+  //    [offset_former, offset_later]
+  // The unit of the return values in BigInt is nanosecond.
+  static std::vector<Handle<BigInt>> GetTimeZonePossibleOffsetNanoseconds(
+      Isolate* isolate, int32_t time_zone_index,
+      Handle<BigInt> nanosecond_epoch);
+
+  static Handle<String> DefaultTimeZone(Isolate* isolate);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> CanonicalizeTimeZoneName(
       Isolate* isolate, Handle<String> identifier);
@@ -365,12 +401,6 @@ class Intl {
   // ecma402/#sec-coerceoptionstoobject
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> CoerceOptionsToObject(
       Isolate* isolate, Handle<Object> options, const char* service);
-
-  // #sec-tointlmathematicalvalue
-  // The implementation preserve the Object in String, BigInt or Number
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  ToIntlMathematicalValueAsNumberBigIntOrString(Isolate* isolate,
-                                                Handle<Object> input);
 };
 
 }  // namespace internal

@@ -15,8 +15,8 @@
 #include <string>
 #include <vector>
 
-using node::kAllowedInEnvironment;
-using node::kDisallowedInEnvironment;
+using node::kAllowedInEnvvar;
+using node::kDisallowedInEnvvar;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
@@ -520,7 +520,7 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
                             nullptr,
                             &invalid_args,
                             per_isolate_opts.get(),
-                            kAllowedInEnvironment,
+                            kAllowedInEnvvar,
                             &errors);
       if (!errors.empty() && args[1]->IsObject()) {
         // Only fail for explicitly provided env, this protects from failures
@@ -562,13 +562,12 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     std::vector<std::string> errors{};
     // Using invalid_args as the v8_args argument as it stores unknown
     // options for the per isolate parser.
-    options_parser::Parse(
-        &exec_argv,
-        &exec_argv_out,
-        &invalid_args,
-        per_isolate_opts.get(),
-        kDisallowedInEnvironment,
-        &errors);
+    options_parser::Parse(&exec_argv,
+                          &exec_argv_out,
+                          &invalid_args,
+                          per_isolate_opts.get(),
+                          kDisallowedInEnvvar,
+                          &errors);
 
     // The first argument is program name.
     invalid_args.erase(invalid_args.begin());
@@ -779,6 +778,8 @@ class WorkerHeapSnapshotTaker : public AsyncWrap {
 void Worker::TakeHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  CHECK_EQ(args.Length(), 1);
+  auto options = heap::GetHeapSnapshotOptions(args[0]);
 
   Debug(w, "Worker %llu taking heap snapshot", w->thread_id_.id);
 
@@ -798,10 +799,10 @@ void Worker::TakeHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
 
   // Interrupt the worker thread and take a snapshot, then schedule a call
   // on the parent thread that turns that snapshot into a readable stream.
-  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
-                                        env](Environment* worker_env) mutable {
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker), env, options](
+                                           Environment* worker_env) mutable {
     heap::HeapSnapshotPointer snapshot{
-        worker_env->isolate()->GetHeapProfiler()->TakeHeapSnapshot()};
+        worker_env->isolate()->GetHeapProfiler()->TakeHeapSnapshot(options)};
     CHECK(snapshot);
 
     // Here, the worker thread temporarily owns the WorkerHeapSnapshotTaker
@@ -974,5 +975,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace worker
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(worker, node::worker::InitWorker)
-NODE_MODULE_EXTERNAL_REFERENCE(worker, node::worker::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(worker, node::worker::InitWorker)
+NODE_BINDING_EXTERNAL_REFERENCE(worker,
+                                node::worker::RegisterExternalReferences)

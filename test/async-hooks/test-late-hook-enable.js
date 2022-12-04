@@ -33,11 +33,11 @@ const fnsToTest = [setTimeout, (cb) => {
 
 const hook = async_hooks.createHook({
   before: common.mustNotCall(),
-  after: common.mustCall(() => {}, 3),
+  after: common.mustCall(3),
   destroy: common.mustCall(() => {
     hook.disable();
     nextTest();
-  }, 3)
+  }, 3),
 });
 
 nextTest();

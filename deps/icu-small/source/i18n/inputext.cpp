@@ -49,7 +49,7 @@ InputText::~InputText()
 void InputText::setText(const char *in, int32_t len)
 {
     fInputLen  = 0;
-    fC1Bytes   = FALSE;
+    fC1Bytes   = false;
     fRawInput  = (const uint8_t *) in;
     fRawLength = len == -1? (int32_t)uprv_strlen(in) : len;
 }
@@ -83,7 +83,7 @@ void InputText::MungeInput(UBool fStripTags) {
     int     srci = 0;
     int     dsti = 0;
     uint8_t b;
-    bool    inMarkup = FALSE;
+    bool    inMarkup = false;
     int32_t openTags = 0;
     int32_t badTags  = 0;
 
@@ -103,7 +103,7 @@ void InputText::MungeInput(UBool fStripTags) {
                     badTags += 1;
                 }
 
-                inMarkup = TRUE;
+                inMarkup = true;
                 openTags += 1;
             }
 
@@ -112,7 +112,7 @@ void InputText::MungeInput(UBool fStripTags) {
             }
 
             if (b == (uint8_t)0x3E) { /* Check for the ASCII '>' */
-                inMarkup = FALSE;
+                inMarkup = false;
             }
         }
 
@@ -153,7 +153,7 @@ void InputText::MungeInput(UBool fStripTags) {
 
     for (int32_t i = 0x80; i <= 0x9F; i += 1) {
         if (fByteStats[i] != 0) {
-            fC1Bytes = TRUE;
+            fC1Bytes = true;
             break;
         }
     }

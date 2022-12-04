@@ -6,16 +6,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/api/api-inl.h"
 #include "src/base/overflowing-math.h"
-#include "src/base/platform/elapsed-timer.h"
-#include "src/codegen/assembler-inl.h"
 #include "src/utils/utils.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/value-helper.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
@@ -628,7 +625,8 @@ WASM_EXEC_TEST(Float32Neg) {
   BUILD(r, WASM_F32_NEG(WASM_LOCAL_GET(0)));
 
   FOR_FLOAT32_INPUTS(i) {
-    CHECK_EQ(0x80000000, bit_cast<uint32_t>(i) ^ bit_cast<uint32_t>(r.Call(i)));
+    CHECK_EQ(0x80000000,
+             base::bit_cast<uint32_t>(i) ^ base::bit_cast<uint32_t>(r.Call(i)));
   }
 }
 
@@ -638,7 +636,7 @@ WASM_EXEC_TEST(Float64Neg) {
 
   FOR_FLOAT64_INPUTS(i) {
     CHECK_EQ(0x8000000000000000,
-             bit_cast<uint64_t>(i) ^ bit_cast<uint64_t>(r.Call(i)));
+             base::bit_cast<uint64_t>(i) ^ base::bit_cast<uint64_t>(r.Call(i)));
   }
 }
 
@@ -1118,7 +1116,7 @@ WASM_EXEC_TEST(I32ReinterpretF32) {
 
   FOR_FLOAT32_INPUTS(i) {
     float input = i;
-    int32_t expected = bit_cast<int32_t, float>(input);
+    int32_t expected = base::bit_cast<int32_t, float>(input);
     r.builder().WriteMemory(&memory[0], input);
     CHECK_EQ(expected, r.Call());
   }
@@ -1134,7 +1132,7 @@ WASM_EXEC_TEST(F32ReinterpretI32) {
 
   FOR_INT32_INPUTS(i) {
     int32_t input = i;
-    float expected = bit_cast<float, int32_t>(input);
+    float expected = base::bit_cast<float, int32_t>(input);
     r.builder().WriteMemory(&memory[0], input);
     float result = r.Call();
     if (std::isnan(expected)) {
@@ -2088,11 +2086,16 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   compiler::JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr,
                             &machine);
   const FunctionSig* sig = WasmOpcodes::Signature(opcode);
+  WasmModule module;
+  WasmFeatures enabled;
+  CompilationEnv env(&module, BoundsCheckStrategy::kExplicitBoundsChecks,
+                     RuntimeExceptionSupport::kRuntimeExceptionSupport, enabled,
+                     DynamicTiering::kDynamicTiering);
 
   if (sig->parameter_count() == 1) {
     byte code[] = {WASM_NO_LOCALS, kExprLocalGet, 0, static_cast<byte>(opcode),
                    WASM_END};
-    TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
+    TestBuildingGraph(&zone, &jsgraph, &env, sig, nullptr, code,
                       code + arraysize(code));
   } else {
     CHECK_EQ(2, sig->parameter_count());
@@ -2103,14 +2106,14 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
                    1,
                    static_cast<byte>(opcode),
                    WASM_END};
-    TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
+    TestBuildingGraph(&zone, &jsgraph, &env, sig, nullptr, code,
                       code + arraysize(code));
   }
 }
 
 TEST(Build_Wasm_SimpleExprs) {
 // Test that the decoder can build a graph for all supported simple expressions.
-#define GRAPH_BUILD_TEST(name, opcode, sig) \
+#define GRAPH_BUILD_TEST(name, ...) \
   TestBuildGraphForSimpleExpression(kExpr##name);
 
   FOREACH_SIMPLE_OPCODE(GRAPH_BUILD_TEST);
@@ -2283,8 +2286,8 @@ WASM_EXEC_TEST(MixedGlobals) {
 
   CHECK_EQ(static_cast<int32_t>(0xEE55CCAA), *var_int32);
   CHECK_EQ(static_cast<uint32_t>(0xEE55CCAA), *var_uint32);
-  CHECK_EQ(bit_cast<float>(0xEE55CCAA), *var_float);
-  CHECK_EQ(bit_cast<double>(0x99112233EE55CCAAULL), *var_double);
+  CHECK_EQ(base::bit_cast<float>(0xEE55CCAA), *var_float);
+  CHECK_EQ(base::bit_cast<double>(0x99112233EE55CCAAULL), *var_double);
 
   USE(unused);
 }
@@ -2511,7 +2514,7 @@ class IsolateScope {
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Factorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
@@ -2549,7 +2552,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Factorial) {
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
@@ -2596,7 +2599,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
@@ -2645,7 +2648,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Sum) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
@@ -2687,7 +2690,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Sum) {
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
@@ -2752,7 +2755,7 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
 
   int num_params = static_cast<int>(arraysize(mixed)) - start;
   for (int which = 0; which < num_params; ++which) {
-    v8::internal::AccountingAllocator allocator;
+    AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
     WasmRunner<int32_t> r(execution_tier);
     r.builder().AddMemory(kWasmPageSize);
@@ -3141,20 +3144,12 @@ WASM_EXEC_TEST(CallIndirect_canonical) {
 
   WasmFunctionCompiler& t1 = r.NewFunction(sigs.i_ii());
   BUILD(t1, WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)));
-  t1.SetSigIndex(0);
 
   WasmFunctionCompiler& t2 = r.NewFunction(sigs.i_ii());
   BUILD(t2, WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)));
-  t2.SetSigIndex(1);
 
   WasmFunctionCompiler& t3 = r.NewFunction(sigs.f_ff());
   BUILD(t3, WASM_F32_SUB(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)));
-  t3.SetSigIndex(2);
-
-  // Signature table.
-  r.builder().AddSignature(sigs.i_ii());
-  r.builder().AddSignature(sigs.i_ii());
-  r.builder().AddSignature(sigs.f_ff());
 
   // Function table.
   uint16_t i1 = static_cast<uint16_t>(t1.function_index());
@@ -3667,7 +3662,7 @@ WASM_EXEC_TEST(IndirectNullTyped) {
   FunctionSig sig(1, 0, &kWasmI32);
   byte sig_index = r.builder().AddSignature(&sig);
   r.builder().AddIndirectFunctionTable(nullptr, 1,
-                                       ValueType::Ref(sig_index, kNullable));
+                                       ValueType::RefNull(sig_index));
 
   BUILD(r, WASM_CALL_INDIRECT(sig_index, WASM_I32V(0)));
 

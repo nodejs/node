@@ -2288,6 +2288,9 @@ future release.
 
 <!-- YAML
 changes:
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/44919
+    description: \`url.parse()` is deprecated again in DEP0169.
   - version:
       - v15.13.0
       - v14.17.0
@@ -2300,7 +2303,7 @@ changes:
 
 Type: Deprecation revoked
 
-The [Legacy URL API][] is deprecated. This includes [`url.format()`][],
+The [legacy URL API][] is deprecated. This includes [`url.format()`][],
 [`url.parse()`][], [`url.resolve()`][], and the [legacy `urlObject`][]. Please
 use the [WHATWG URL API][] instead.
 
@@ -2970,12 +2973,15 @@ option, or a non-nullish non-boolean value for `verbatim` option in
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45653
+    description: Runtime deprecation.
   - version: v16.10.0
     pr-url: https://github.com/nodejs/node/pull/39927
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 The `'hash'` and `'mgf1Hash'` options are replaced with `'hashAlgorithm'`
 and `'mgf1HashAlgorithm'`.
@@ -3052,7 +3058,7 @@ const w = new Writable({
   async final(callback) {
     await someOp();
     callback();
-  }
+  },
 });
 ```
 
@@ -3176,9 +3182,14 @@ thing instead.
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43716
+    description: End-of-Life.
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44711
     description: Runtime deprecation.
-  - version: v18.10.0
+  - version:
+    - v18.10.0
+    - v16.18.0
     pr-url: https://github.com/nodejs/node/pull/44714
     description: Documentation-only deprecation of `process.exitCode` integer
                  coercion.
@@ -3190,7 +3201,7 @@ changes:
                  coercion.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Values other than `undefined`, `null`, integer numbers, and integer strings
 (e.g., `'1'`) are deprecated as value for the `code` parameter in
@@ -3200,7 +3211,9 @@ Values other than `undefined`, `null`, integer numbers, and integer strings
 
 <!-- YAML
 changes:
-  - version: v18.8.0
+  - version:
+    - v18.8.0
+    - v16.18.0
     pr-url: https://github.com/nodejs/node/pull/44093
     description: Documentation-only deprecation.
 -->
@@ -3233,7 +3246,9 @@ starting or ending in a slash.
 
 <!-- YAML
 changes:
-  - version: v18.10.0
+  - version:
+    - v18.10.0
+    - v16.18.0
     pr-url: https://github.com/nodejs/node/pull/44588
     description: Documentation-only deprecation.
 -->
@@ -3258,7 +3273,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime.
+Type: Runtime
 
 The implicit suppression of uncaught exceptions in Node-API callbacks is now
 deprecated.
@@ -3267,7 +3282,58 @@ Set the flag [`--force-node-api-uncaught-exceptions-policy`][] to force Node.js
 to emit an [`'uncaughtException'`][] event if the exception is not handled in
 Node-API callbacks.
 
-[Legacy URL API]: url.md#legacy-url-api
+### DEP0169: Insecure url.parse()
+
+<!-- YAML
+changes:
+  - version:
+      - v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/44919
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+[`url.parse()`][] behavior is not standardized and prone to errors that
+have security implications. Use the [WHATWG URL API][] instead. CVEs are not
+issued for `url.parse()` vulnerabilities.
+
+### DEP0170: Invalid port when using `url.parse()`
+
+<!-- YAML
+changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45526
+    description: Runtime deprecation.
+  - version:
+    - v19.2.0
+    pr-url: https://github.com/nodejs/node/pull/45576
+    description: Documentation-only deprecation.
+-->
+
+Type: Runtime
+
+[`url.parse()`][] accepts URLs with ports that are not numbers. This behavior
+might result in host name spoofing with unexpected input. These URLs will throw
+an error in future versions of Node.js, as the [WHATWG URL API][] does already.
+
+### DEP0171: Setters for `http.IncomingMessage` headers and trailers
+
+<!-- YAML
+changes:
+  - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45697
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+In a future version of Node.js, [`message.headers`][],
+[`message.headersDistinct`][], [`message.trailers`][], and
+[`message.trailersDistinct`][] will be read-only.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
@@ -3344,7 +3410,11 @@ Node-API callbacks.
 [`https.get()`]: https.md#httpsgetoptions-callback
 [`https.request()`]: https.md#httpsrequestoptions-callback
 [`message.connection`]: http.md#messageconnection
+[`message.headersDistinct`]: http.md#messageheadersdistinct
+[`message.headers`]: http.md#messageheaders
 [`message.socket`]: http.md#messagesocket
+[`message.trailersDistinct`]: http.md#messagetrailersdistinct
+[`message.trailers`]: http.md#messagetrailers
 [`module.createRequire()`]: module.md#modulecreaterequirefilename
 [`os.networkInterfaces()`]: os.md#osnetworkinterfaces
 [`os.tmpdir()`]: os.md#ostmpdir
@@ -3413,6 +3483,7 @@ Node-API callbacks.
 [alloc_unsafe_size]: buffer.md#static-method-bufferallocunsafesize
 [from_arraybuffer]: buffer.md#static-method-bufferfromarraybuffer-byteoffset-length
 [from_string_encoding]: buffer.md#static-method-bufferfromstring-encoding
+[legacy URL API]: url.md#legacy-url-api
 [legacy `urlObject`]: url.md#legacy-urlobject
 [static methods of `crypto.Certificate()`]: crypto.md#class-certificate
 [subpath exports]: packages.md#subpath-exports

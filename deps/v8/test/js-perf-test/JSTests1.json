@@ -129,6 +129,20 @@
           ]
         },
         {
+          "name": "Add-No-Opt",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax", "--no-turbofan"],
+          "resources": ["add-no-opt.js", "bigint-util.js"],
+          "test_flags": ["add-no-opt"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "Add-Small" },
+            { "name": "Add-Large" },
+            { "name": "Add-LargerThanSmall" },
+            { "name": "Add-Random" }
+          ]
+        },
+        {
           "name": "Subtract",
           "main": "run.js",
           "flags": ["--allow-natives-syntax"],
@@ -157,6 +171,59 @@
             { "name": "Subtract-SameSign-8192" },
             { "name": "Subtract-DifferentSign-8192" },
             { "name": "Subtract-Random" }
+          ]
+        },
+        {
+          "name": "Multiply",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
+          "resources": ["multiply.js", "bigint-util.js"],
+          "test_flags": ["multiply"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "Multiply-Zero" },
+            { "name": "Multiply-Small"},
+            { "name": "Multiply-Small-Truncated" },
+            { "name": "Multiply-Random" }
+          ]
+        },
+        {
+          "name": "Divide",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
+          "resources": ["divide.js", "bigint-util.js"],
+          "test_flags": ["divide"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "Divide-One" },
+            { "name": "Divide-Small"},
+            { "name": "Divide-Small-Truncated" },
+            { "name": "Divide-Random" }
+          ]
+        },
+        {
+          "name": "BitwiseAnd",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
+          "resources": ["bitwise-and.js", "bigint-util.js"],
+          "test_flags": ["bitwise-and"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "BitwiseAnd-Zero" },
+            { "name": "BitwiseAnd-Small" },
+            { "name": "BitwiseAnd-Small-Truncated" },
+            { "name": "BitwiseAnd-Random" }
+          ]
+        },
+        {
+          "name": "Exponentiate",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
+          "resources": ["exponentiate.js", "bigint-util.js"],
+          "test_flags": ["exponentiate"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "Exponentiate-Base-Two" }
           ]
         },
         {

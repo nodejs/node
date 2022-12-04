@@ -39,35 +39,41 @@ void HeapLayoutTracer::GCEpiloguePrintHeapLayout(v8::Isolate* isolate,
 
 // static
 void HeapLayoutTracer::PrintBasicMemoryChunk(std::ostream& os,
-                                             BasicMemoryChunk* chunk,
+                                             const BasicMemoryChunk& chunk,
                                              const char* owner_name) {
   os << "{owner:" << owner_name << ","
-     << "address:" << chunk << ","
-     << "size:" << chunk->size() << ","
-     << "allocated_bytes:" << chunk->allocated_bytes() << ","
-     << "wasted_memory:" << chunk->wasted_memory() << "}" << std::endl;
+     << "address:" << &chunk << ","
+     << "size:" << chunk.size() << ","
+     << "allocated_bytes:" << chunk.allocated_bytes() << ","
+     << "wasted_memory:" << chunk.wasted_memory() << "}" << std::endl;
 }
 
 // static
 void HeapLayoutTracer::PrintHeapLayout(std::ostream& os, Heap* heap) {
-  for (PageIterator it = heap->new_space()->to_space().begin();
-       it != heap->new_space()->to_space().end(); ++it) {
-    PrintBasicMemoryChunk(os, *it, "to_space");
-  }
+  if (v8_flags.minor_mc) {
+    for (const Page* page : *heap->paged_new_space()) {
+      PrintBasicMemoryChunk(os, *page, "new_space");
+    }
+  } else {
+    const SemiSpaceNewSpace* semi_space_new_space =
+        SemiSpaceNewSpace::From(heap->new_space());
+    for (const Page* page : semi_space_new_space->to_space()) {
+      PrintBasicMemoryChunk(os, *page, "to_space");
+    }
 
-  for (PageIterator it = heap->new_space()->from_space().begin();
-       it != heap->new_space()->from_space().end(); ++it) {
-    PrintBasicMemoryChunk(os, *it, "from_space");
+    for (const Page* page : semi_space_new_space->from_space()) {
+      PrintBasicMemoryChunk(os, *page, "from_space");
+    }
   }
 
   OldGenerationMemoryChunkIterator it(heap);
   MemoryChunk* chunk;
   while ((chunk = it.next()) != nullptr) {
-    PrintBasicMemoryChunk(os, chunk, chunk->owner()->name());
+    PrintBasicMemoryChunk(os, *chunk, chunk->owner()->name());
   }
 
   for (ReadOnlyPage* page : heap->read_only_space()->pages()) {
-    PrintBasicMemoryChunk(os, page, "ro_space");
+    PrintBasicMemoryChunk(os, *page, "ro_space");
   }
 }
 }  // namespace internal

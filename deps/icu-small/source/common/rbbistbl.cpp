@@ -254,8 +254,8 @@ void RBBISymbolTable::rbbiSymtablePrint() const {
         }
         RBBISymbolTableEntry  *s   = (RBBISymbolTableEntry *)e->value.pointer;
         RBBIDebugPrintf("%s\n", CStr(s->key)());
-        RBBINode::printTree(s->val, TRUE);
-        RBBINode::printTree(s->val->fLeftChild, FALSE);
+        RBBINode::printTree(s->val, true);
+        RBBINode::printTree(s->val->fLeftChild, false);
         RBBIDebugPrintf("\n");
     }
 }

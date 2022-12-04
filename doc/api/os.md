@@ -85,8 +85,8 @@ The properties included on each object include:
       nice: 0,
       sys: 30340,
       idle: 1070356870,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -96,8 +96,8 @@ The properties included on each object include:
       nice: 0,
       sys: 26980,
       idle: 1071569080,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -107,8 +107,8 @@ The properties included on each object include:
       nice: 0,
       sys: 21750,
       idle: 1070919370,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -118,8 +118,8 @@ The properties included on each object include:
       nice: 0,
       sys: 19430,
       idle: 1070905480,
-      irq: 20
-    }
+      irq: 20,
+    },
   },
 ]
 ```
@@ -219,6 +219,24 @@ system and expressed as a fractional number.
 
 The load average is a Unix-specific concept. On Windows, the return value is
 always `[0, 0, 0]`.
+
+## `os.machine()`
+
+<!-- YAML
+added:
+  - v18.9.0
+  - v16.18.0
+-->
+
+* Returns {string}
+
+Returns the machine type as a string, such as `arm`, `arm64`, `aarch64`,
+`mips`, `mips64`, `ppc64`, `ppc64le`, `s390`, `s390x`, `i386`, `i686`, `x86_64`.
+
+On POSIX systems, the machine type is determined by calling
+[`uname(3)`][]. On Windows, `RtlGetVersion()` is used, and if it is not
+available, `GetVersionExW()` will be used. See
+<https://en.wikipedia.org/wiki/Uname#Examples> for more information.
 
 ## `os.networkInterfaces()`
 
@@ -448,22 +466,6 @@ added:
 Returns a string identifying the kernel version.
 
 On POSIX systems, the operating system release is determined by calling
-[`uname(3)`][]. On Windows, `RtlGetVersion()` is used, and if it is not
-available, `GetVersionExW()` will be used. See
-<https://en.wikipedia.org/wiki/Uname#Examples> for more information.
-
-## `os.machine()`
-
-<!-- YAML
-added: v18.9.0
--->
-
-* Returns {string}
-
-Returns the machine type as a string, such as `arm`, `aarch64`, `mips`,
-`mips64`, `ppc64`, `ppc64le`, `s390`, `s390x`, `i386`, `i686`, `x86_64`.
-
-On POSIX systems, the machine type is determined by calling
 [`uname(3)`][]. On Windows, `RtlGetVersion()` is used, and if it is not
 available, `GetVersionExW()` will be used. See
 <https://en.wikipedia.org/wiki/Uname#Examples> for more information.

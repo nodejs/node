@@ -50,7 +50,8 @@ class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
   void WriteJump(Bytecode bytecode, BytecodeLabel* label,
                  BytecodeSourceInfo info = BytecodeSourceInfo());
   void WriteJumpLoop(Bytecode bytecode, BytecodeLoopHeader* loop_header,
-                     int depth, BytecodeSourceInfo info = BytecodeSourceInfo());
+                     int depth, int feedback_index,
+                     BytecodeSourceInfo info = BytecodeSourceInfo());
 
   BytecodeArrayWriter* writer() { return &bytecode_array_writer_; }
   ZoneVector<unsigned char>* bytecodes() { return writer()->bytecodes(); }
@@ -106,9 +107,9 @@ void BytecodeArrayWriterUnittest::WriteJump(Bytecode bytecode,
 
 void BytecodeArrayWriterUnittest::WriteJumpLoop(Bytecode bytecode,
                                                 BytecodeLoopHeader* loop_header,
-                                                int depth,
+                                                int depth, int feedback_index,
                                                 BytecodeSourceInfo info) {
-  BytecodeNode node(bytecode, 0, depth, info);
+  BytecodeNode node(bytecode, 0, depth, feedback_index, info);
   writer()->WriteJumpLoop(&node, loop_header);
 }
 
@@ -165,14 +166,14 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
       // clang-format off
       /*  0 42 S> */ B(LdaConstant), U8(0),
       /*  2 42 E> */ B(Add), R8(1), U8(1),
-      /*  4 68 S> */ B(JumpIfUndefined), U8(38),
-      /*  6       */ B(JumpIfNull), U8(36),
+      /*  4 68 S> */ B(JumpIfUndefined), U8(39),
+      /*  6       */ B(JumpIfNull), U8(37),
       /*  8       */ B(ToObject), R8(3),
       /* 10       */ B(ForInPrepare), R8(3), U8(4),
       /* 13       */ B(LdaZero),
       /* 14       */ B(Star), R8(7),
       /* 16 63 S> */ B(ForInContinue), R8(7), R8(6),
-      /* 19       */ B(JumpIfFalse), U8(23),
+      /* 19       */ B(JumpIfFalse), U8(24),
       /* 21       */ B(ForInNext), R8(3), R8(7), R8(4), U8(1),
       /* 26       */ B(JumpIfUndefined), U8(9),
       /* 28       */ B(Star), R8(0),
@@ -181,15 +182,15 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
       /* 34 85 S> */ B(Return),
       /* 35       */ B(ForInStep), R8(7),
       /* 37       */ B(Star), R8(7),
-      /* 39       */ B(JumpLoop), U8(23), U8(0),
-      /* 42       */ B(LdaUndefined),
-      /* 43 85 S> */ B(Return),
+      /* 39       */ B(JumpLoop), U8(23), U8(0), U8(0),
+      /* 43       */ B(LdaUndefined),
+      /* 44 85 S> */ B(Return),
       // clang-format on
   };
 
   static const PositionTableEntry expected_positions[] = {
       {0, 42, true},  {2, 42, false}, {5, 68, true},
-      {17, 63, true}, {35, 85, true}, {44, 85, true}};
+      {17, 63, true}, {35, 85, true}, {45, 85, true}};
 
   BytecodeLoopHeader loop_header;
   BytecodeLabel jump_for_in, jump_end_1, jump_end_2, jump_end_3;
@@ -214,7 +215,7 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   writer()->BindLabel(&jump_for_in);
   Write(Bytecode::kForInStep, R(7));
   Write(Bytecode::kStar, R(7));
-  WriteJumpLoop(Bytecode::kJumpLoop, &loop_header, 0);
+  WriteJumpLoop(Bytecode::kJumpLoop, &loop_header, 0, 0);
   writer()->BindLabel(&jump_end_1);
   writer()->BindLabel(&jump_end_2);
   writer()->BindLabel(&jump_end_3);
@@ -245,7 +246,7 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
 }
 
 TEST_F(BytecodeArrayWriterUnittest, ElideNoneffectfulBytecodes) {
-  if (!i::FLAG_ignition_elide_noneffectful_bytecodes) return;
+  if (!i::v8_flags.ignition_elide_noneffectful_bytecodes) return;
 
   static const uint8_t expected_bytes[] = {
       // clang-format off

@@ -132,7 +132,7 @@ transitioning macro RegExpReplaceFastString(implicit context: Context)(
   const global: bool = fastRegexp.global;
 
   if (global) {
-    unicode = fastRegexp.unicode;
+    unicode = fastRegexp.unicode || fastRegexp.unicodeSets;
     fastRegexp.lastIndex = 0;
   }
 

@@ -73,13 +73,13 @@ class ConcurrentSweeperTest : public testing::TestWithHeap {
     // Pretend do finish marking as StatsCollector verifies that Notify*
     // methods are called in the right order.
     heap->stats_collector()->NotifyMarkingStarted(
-        GarbageCollector::Config::CollectionType::kMajor,
-        GarbageCollector::Config::IsForcedGC::kNotForced);
+        CollectionType::kMajor, GCConfig::MarkingType::kAtomic,
+        GCConfig::IsForcedGC::kNotForced);
     heap->stats_collector()->NotifyMarkingCompleted(0);
     Sweeper& sweeper = heap->sweeper();
-    const Sweeper::SweepingConfig sweeping_config{
-        Sweeper::SweepingConfig::SweepingType::kIncrementalAndConcurrent,
-        Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
+    const SweepingConfig sweeping_config{
+        SweepingConfig::SweepingType::kIncrementalAndConcurrent,
+        SweepingConfig::CompactableSpaceHandling::kSweep};
     sweeper.Start(sweeping_config);
   }
 
@@ -158,13 +158,14 @@ TEST_F(ConcurrentSweeperTest, BackgroundSweepOfNormalPage) {
   // Wait for concurrent sweeping to finish.
   WaitForConcurrentSweeping();
 
-#if !defined(CPPGC_YOUNG_GENERATION)
-  // Check that the marked object was unmarked.
-  EXPECT_FALSE(HeapObjectHeader::FromObject(marked_object).IsMarked());
-#else
-  // Check that the marked object is still marked.
-  EXPECT_TRUE(HeapObjectHeader::FromObject(marked_object).IsMarked());
-#endif
+  const auto& hoh = HeapObjectHeader::FromObject(marked_object);
+  if (Heap::From(GetHeap())->generational_gc_supported()) {
+    // Check that the marked object is still marked.
+    EXPECT_TRUE(hoh.IsMarked());
+  } else {
+    // Check that the marked object was unmarked.
+    EXPECT_FALSE(hoh.IsMarked());
+  }
 
   // Check that free list entries are created right away for non-finalizable
   // objects, but not immediately returned to the space's freelist.
@@ -198,13 +199,14 @@ TEST_F(ConcurrentSweeperTest, BackgroundSweepOfLargePage) {
   // Wait for concurrent sweeping to finish.
   WaitForConcurrentSweeping();
 
-#if !defined(CPPGC_YOUNG_GENERATION)
-  // Check that the marked object was unmarked.
-  EXPECT_FALSE(HeapObjectHeader::FromObject(marked_object).IsMarked());
-#else
-  // Check that the marked object is still marked.
-  EXPECT_TRUE(HeapObjectHeader::FromObject(marked_object).IsMarked());
-#endif
+  const auto& hoh = HeapObjectHeader::FromObject(marked_object);
+  if (Heap::From(GetHeap())->generational_gc_supported()) {
+    // Check that the marked object is still marked.
+    EXPECT_TRUE(hoh.IsMarked());
+  } else {
+    // Check that the marked object was unmarked.
+    EXPECT_FALSE(hoh.IsMarked());
+  }
 
   // The page should not have been removed on the background threads.
   EXPECT_TRUE(PageInBackend(unmarked_page));
@@ -341,13 +343,14 @@ TEST_F(ConcurrentSweeperTest, IncrementalSweeping) {
   GetPlatform().RunAllForegroundTasks();
 
   EXPECT_EQ(2u, g_destructor_callcount);
-#if !defined(CPPGC_YOUNG_GENERATION)
-  EXPECT_FALSE(marked_normal_header.IsMarked());
-  EXPECT_FALSE(marked_large_header.IsMarked());
-#else
-  EXPECT_TRUE(marked_normal_header.IsMarked());
-  EXPECT_TRUE(marked_large_header.IsMarked());
-#endif
+
+  if (Heap::From(GetHeap())->generational_gc_supported()) {
+    EXPECT_TRUE(marked_normal_header.IsMarked());
+    EXPECT_TRUE(marked_large_header.IsMarked());
+  } else {
+    EXPECT_FALSE(marked_normal_header.IsMarked());
+    EXPECT_FALSE(marked_large_header.IsMarked());
+  }
 
   FinishSweeping();
 }

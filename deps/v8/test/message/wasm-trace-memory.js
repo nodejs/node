@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --trace-wasm-memory --no-liftoff
-// Flags: --experimental-wasm-simd
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 

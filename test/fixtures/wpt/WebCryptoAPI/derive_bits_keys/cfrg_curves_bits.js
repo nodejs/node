@@ -150,7 +150,7 @@ function define_tests() {
           promise_test(function(test) {
               return subtle.generateKey({name: "AES-CBC", length: 128}, true, ["encrypt", "decrypt"])
               .then(function(secretKey) {
-                  subtle.deriveBits({name: algorithmName, public: secretKey}, privateKeys[algorithmName], 8 * sizes[algorithmName])
+                  return subtle.deriveBits({name: algorithmName, public: secretKey}, privateKeys[algorithmName], 8 * sizes[algorithmName])
                   .then(function(derivation) {
                       assert_unreached("deriveBits succeeded but should have failed with InvalidAccessError");
                   }, function(err) {
@@ -183,6 +183,8 @@ function define_tests() {
                                           false, ["deriveBits", "deriveKey"])
                           .then(function(key) {
                               privateKeys[algorithmName] = key;
+                            }, function (err) {
+                              privateKeys[algorithmName] = null;
                           });
           promises.push(operation);
       });
@@ -192,6 +194,8 @@ function define_tests() {
                                           false, ["deriveKey"])
                           .then(function(key) {
                               noDeriveBitsKeys[algorithmName] = key;
+                            }, function (err) {
+                              noDeriveBitsKeys[algorithmName] = null;
                           });
           promises.push(operation);
       });
@@ -201,6 +205,8 @@ function define_tests() {
                                           false, [])
                           .then(function(key) {
                               publicKeys[algorithmName] = key;
+                            }, function (err) {
+                              publicKeys[algorithmName] = null;
                           });
           promises.push(operation);
       });

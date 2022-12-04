@@ -11,8 +11,8 @@ async function runTest() {
   await pipeline(
     '',
     new PassThrough({ objectMode: true }),
-    common.mustCall(() => { })
+    common.mustCall(),
   );
 }
 
-runTest().then(common.mustCall(() => {}));
+runTest().then(common.mustCall());

@@ -21,7 +21,7 @@ void AppendExceptionLine(Environment* env,
 
 [[noreturn]] void FatalError(const char* location, const char* message);
 void OnFatalError(const char* location, const char* message);
-void OOMErrorHandler(const char* location, bool is_heap_oom);
+void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
 
 // Helpers to construct errors similar to the ones provided by
 // lib/internal/errors.js.
@@ -60,6 +60,7 @@ void OOMErrorHandler(const char* location, bool is_heap_oom);
   V(ERR_CRYPTO_JOB_INIT_FAILED, Error)                                         \
   V(ERR_DLOPEN_DISABLED, Error)                                                \
   V(ERR_DLOPEN_FAILED, Error)                                                  \
+  V(ERR_ENCODING_INVALID_ENCODED_DATA, TypeError)                              \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE, Error)                            \
   V(ERR_INVALID_ADDRESS, Error)                                                \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                          \

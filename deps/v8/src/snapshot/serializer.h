@@ -11,7 +11,6 @@
 #include "src/handles/global-handles.h"
 #include "src/logging/log.h"
 #include "src/objects/objects.h"
-#include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
 #include "src/snapshot/snapshot.h"
@@ -23,11 +22,11 @@ namespace internal {
 class CodeAddressMap : public CodeEventLogger {
  public:
   explicit CodeAddressMap(Isolate* isolate) : CodeEventLogger(isolate) {
-    isolate->logger()->AddCodeEventListener(this);
+    isolate->v8_file_logger()->AddLogEventListener(this);
   }
 
   ~CodeAddressMap() override {
-    isolate_->logger()->RemoveCodeEventListener(this);
+    isolate_->v8_file_logger()->RemoveLogEventListener(this);
   }
 
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override {
@@ -354,7 +353,7 @@ class Serializer : public SerializerDeserializer {
    private:
     static const int kSize = kHotObjectCount;
     static const int kSizeMask = kSize - 1;
-    STATIC_ASSERT(base::bits::IsPowerOfTwo(kSize));
+    static_assert(base::bits::IsPowerOfTwo(kSize));
     Heap* heap_;
     StrongRootsEntry* strong_roots_entry_;
     Address circular_queue_[kSize] = {kNullAddress};
@@ -418,8 +417,6 @@ class Serializer : public SerializerDeserializer {
 #endif  // DEBUG
 };
 
-class RelocInfoIterator;
-
 class Serializer::ObjectSerializer : public ObjectVisitor {
  public:
   ObjectSerializer(Serializer* serializer, Handle<HeapObject> obj,
@@ -447,13 +444,13 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
                      MaybeObjectSlot end) override;
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override;
   void VisitEmbeddedPointer(Code host, RelocInfo* target) override;
-  void VisitExternalReference(Foreign host, Address* p) override;
   void VisitExternalReference(Code host, RelocInfo* rinfo) override;
-  void VisitExternalPointer(HeapObject host, ExternalPointer_t ptr) override;
   void VisitInternalReference(Code host, RelocInfo* rinfo) override;
   void VisitCodeTarget(Code host, RelocInfo* target) override;
-  void VisitRuntimeEntry(Code host, RelocInfo* reloc) override;
   void VisitOffHeapTarget(Code host, RelocInfo* target) override;
+
+  void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
+                            ExternalPointerTag tag) override;
 
   Isolate* isolate() { return isolate_; }
 

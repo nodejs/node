@@ -258,7 +258,8 @@ class DebugSealHandleScope {
 
 class ThreadPoolWork {
  public:
-  explicit inline ThreadPoolWork(Environment* env) : env_(env) {
+  explicit inline ThreadPoolWork(Environment* env, const char* type)
+      : env_(env), type_(type) {
     CHECK_NOT_NULL(env);
   }
   inline virtual ~ThreadPoolWork() = default;
@@ -274,6 +275,7 @@ class ThreadPoolWork {
  private:
   Environment* env_;
   uv_work_t work_req_;
+  const char* type_;
 };
 
 #define TRACING_CATEGORY_NODE "node"
@@ -380,7 +382,9 @@ class DiagnosticFilename {
 };
 
 namespace heap {
-v8::Maybe<void> WriteSnapshot(Environment* env, const char* filename);
+v8::Maybe<void> WriteSnapshot(Environment* env,
+                              const char* filename,
+                              v8::HeapProfiler::HeapSnapshotOptions options);
 }
 
 namespace heap {
@@ -421,6 +425,12 @@ std::ostream& operator<<(std::ostream& output,
 }
 
 bool linux_at_secure();
+
+namespace heap {
+v8::HeapProfiler::HeapSnapshotOptions GetHeapSnapshotOptions(
+    v8::Local<v8::Value> options);
+}  // namespace heap
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

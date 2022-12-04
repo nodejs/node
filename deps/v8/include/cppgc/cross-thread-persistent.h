@@ -120,7 +120,7 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
     if (!IsValid(raw)) return;
     PersistentRegionLock guard;
     CrossThreadPersistentRegion& region = this->GetPersistentRegion(raw);
-    SetNode(region.AllocateNode(this, &Trace));
+    SetNode(region.AllocateNode(this, &TraceAsRoot));
     this->CheckPointer(raw);
   }
 
@@ -138,7 +138,7 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
       : CrossThreadPersistentBase(raw), LocationPolicy(loc) {
     if (!IsValid(raw)) return;
     CrossThreadPersistentRegion& region = this->GetPersistentRegion(raw);
-    SetNode(region.AllocateNode(this, &Trace));
+    SetNode(region.AllocateNode(this, &TraceAsRoot));
     this->CheckPointer(raw);
   }
 
@@ -349,9 +349,8 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
     return ptr && ptr != kSentinelPointer;
   }
 
-  static void Trace(Visitor* v, const void* ptr) {
-    const auto* handle = static_cast<const BasicCrossThreadPersistent*>(ptr);
-    v->TraceRoot(*handle, handle->Location());
+  static void TraceAsRoot(RootVisitor& root_visitor, const void* ptr) {
+    root_visitor.Trace(*static_cast<const BasicCrossThreadPersistent*>(ptr));
   }
 
   void AssignUnsafe(T* ptr) {
@@ -378,7 +377,7 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
     SetValue(ptr);
     if (!IsValid(ptr)) return;
     PersistentRegionLock guard;
-    SetNode(this->GetPersistentRegion(ptr).AllocateNode(this, &Trace));
+    SetNode(this->GetPersistentRegion(ptr).AllocateNode(this, &TraceAsRoot));
     this->CheckPointer(ptr);
   }
 
@@ -398,7 +397,7 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
     }
     SetValue(ptr);
     if (!IsValid(ptr)) return;
-    SetNode(this->GetPersistentRegion(ptr).AllocateNode(this, &Trace));
+    SetNode(this->GetPersistentRegion(ptr).AllocateNode(this, &TraceAsRoot));
     this->CheckPointer(ptr);
   }
 
@@ -416,7 +415,7 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
     return static_cast<T*>(const_cast<void*>(GetValueFromGC()));
   }
 
-  friend class cppgc::Visitor;
+  friend class internal::RootVisitor;
 };
 
 template <typename T, typename LocationPolicy, typename CheckingPolicy>

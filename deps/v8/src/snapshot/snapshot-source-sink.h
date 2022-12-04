@@ -6,12 +6,11 @@
 #define V8_SNAPSHOT_SNAPSHOT_SOURCE_SINK_H_
 
 #include <utility>
+#include <vector>
 
 #include "src/base/atomicops.h"
 #include "src/base/logging.h"
-#include "src/base/platform/wrappers.h"
 #include "src/common/globals.h"
-#include "src/snapshot/snapshot-utils.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
@@ -123,6 +122,7 @@ class SnapshotByteSink {
 
   void Put(byte b, const char* description) { data_.push_back(b); }
 
+  void PutN(int number_of_bytes, const byte v, const char* description);
   void PutInt(uintptr_t integer, const char* description);
   void PutRaw(const byte* data, int number_of_bytes, const char* description);
 

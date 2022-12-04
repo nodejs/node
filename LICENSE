@@ -107,6 +107,18 @@ The externally maintained libraries used by Node.js are:
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   """
 
+- ittapi, located at deps/v8/third_party/ittapi, is licensed as follows:
+  """
+    Copyright (c) 2019 Intel Corporation. All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+    1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+    2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+    3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  """
+
 - ICU, located at deps/icu-small, is licensed as follows:
   """
     UNICODE, INC. LICENSE AGREEMENT - DATA FILES AND SOFTWARE
@@ -693,10 +705,6 @@ The externally maintained libraries used by Node.js are:
 
       - pthread-fixes.c, copyright Google Inc. and Sony Mobile Communications AB.
         Three clause BSD license.
-
-      - android-ifaddrs.h, android-ifaddrs.c, copyright Berkeley Software Design
-        Inc, Kenneth MacKay and Emergya (Cloud4all, FP7/2007-2013, grant agreement
-        n° 289016). Three clause BSD license.
   """
 
 - llhttp, located at deps/llhttp, is licensed as follows:
@@ -984,8 +992,7 @@ The externally maintained libraries used by Node.js are:
       - Strongtalk assembler, the basis of the files assembler-arm-inl.h,
         assembler-arm.cc, assembler-arm.h, assembler-ia32-inl.h,
         assembler-ia32.cc, assembler-ia32.h, assembler-x64-inl.h,
-        assembler-x64.cc, assembler-x64.h, assembler-mips-inl.h,
-        assembler-mips.cc, assembler-mips.h, assembler.cc and assembler.h.
+        assembler-x64.cc, assembler-x64.h, assembler.cc and assembler.h.
         This code is copyrighted by Sun Microsystems Inc. and released
         under a 3-clause BSD license.
 
@@ -1045,9 +1052,9 @@ The externally maintained libraries used by Node.js are:
 - zlib, located at deps/zlib, is licensed as follows:
   """
     zlib.h -- interface of the 'zlib' general purpose compression library
-    version 1.2.11, January 15th, 2017
+    version 1.2.13, October 13th, 2022
 
-    Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
+    Copyright (C) 1995-2022 Jean-loup Gailly and Mark Adler
 
     This software is provided 'as-is', without any express or implied
     warranty.  In no event will the authors be held liable for any damages

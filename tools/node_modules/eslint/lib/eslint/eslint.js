@@ -36,11 +36,12 @@ const { version } = require("../../package.json");
 /** @typedef {import("../shared/types").Plugin} Plugin */
 /** @typedef {import("../shared/types").Rule} Rule */
 /** @typedef {import("../shared/types").LintResult} LintResult */
+/** @typedef {import("../shared/types").ResultsMeta} ResultsMeta */
 
 /**
  * The main formatter object.
  * @typedef LoadedFormatter
- * @property {function(LintResult[]): string | Promise<string>} format format function.
+ * @property {(results: LintResult[], resultsMeta: ResultsMeta) => string | Promise<string>} format format function.
  */
 
 /**
@@ -625,14 +626,16 @@ class ESLint {
             /**
              * The main formatter method.
              * @param {LintResult[]} results The lint results to format.
+             * @param {ResultsMeta} resultsMeta Warning count and max threshold.
              * @returns {string | Promise<string>} The formatted lint results.
              */
-            format(results) {
+            format(results, resultsMeta) {
                 let rulesMeta = null;
 
                 results.sort(compareResultsByFilePath);
 
                 return formatter(results, {
+                    ...resultsMeta,
                     get cwd() {
                         return options.cwd;
                     },

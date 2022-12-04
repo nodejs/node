@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 #ifndef THIRD_PARTY_ZLIB_GOOGLE_ZIP_READER_H_
@@ -85,6 +85,9 @@ class ZipReader {
   // A callback that is called periodically during the operation with the number
   // of bytes that have been processed so far.
   using ProgressCallback = base::RepeatingCallback<void(int64_t)>;
+  // A callback that is called periodically during the operation with the number
+  // of bytes that have been processed since the previous call (i.e. delta).
+  using ListenerCallback = base::RepeatingCallback<void(uint64_t)>;
 
   // Information of an entry (file or directory) in a ZIP archive.
   struct Entry {
@@ -125,14 +128,17 @@ class ZipReader {
 
     // True if the entry is a directory.
     // False if the entry is a file.
-    bool is_directory;
+    bool is_directory = false;
 
     // True if the entry path cannot be converted to a safe relative path. This
     // happens if a file entry (not a directory) has a filename "." or "..".
-    bool is_unsafe;
+    bool is_unsafe = false;
 
     // True if the file content is encrypted.
-    bool is_encrypted;
+    bool is_encrypted = false;
+
+    // True if the encryption scheme is AES.
+    bool uses_aes_encryption = false;
 
     // Entry POSIX permissions (POSIX systems only).
     int posix_mode;
@@ -205,6 +211,17 @@ class ZipReader {
                            uint64_t num_bytes_to_extract =
                                std::numeric_limits<uint64_t>::max()) const;
 
+  // Extracts the current entry to |delegate|, starting from the beginning
+  // of the entry, calling |listener_callback| regularly with the number of
+  // bytes extracted.
+  //
+  // Returns true if the entire file was extracted without error.
+  //
+  // Precondition: Next() returned a non-null Entry.
+  bool ExtractCurrentEntryWithListener(
+      WriterDelegate* delegate,
+      ListenerCallback listener_callback) const;
+
   // Asynchronously extracts the current entry to the given output file path. If
   // the current entry is a directory it just creates the directory
   // synchronously instead.
@@ -266,6 +283,21 @@ class ZipReader {
   // entry_.is_directory and entry_.is_unsafe.
   void Normalize(base::StringPiece16 in);
 
+  // Runs the ListenerCallback at a throttled rate.
+  void ReportProgress(ListenerCallback listener_callback, uint64_t bytes) const;
+
+  // Extracts |num_bytes_to_extract| bytes of the current entry to |delegate|,
+  // starting from the beginning of the entry calling |listener_callback| if
+  // its supplied.
+  //
+  // Returns true if the entire file was extracted without error.
+  //
+  // Precondition: Next() returned a non-null Entry.
+  bool ExtractCurrentEntry(WriterDelegate* delegate,
+                           ListenerCallback listener_callback,
+                           uint64_t num_bytes_to_extract =
+                               std::numeric_limits<uint64_t>::max()) const;
+
   // Extracts a chunk of the file to the target.  Will post a task for the next
   // chunk and success/failure/progress callbacks as necessary.
   void ExtractChunk(base::File target_file,
@@ -282,6 +314,16 @@ class ZipReader {
   bool reached_end_;
   bool ok_;
   Entry entry_;
+
+  // Next time to report progress.
+  mutable base::TimeTicks next_progress_report_time_ = base::TimeTicks::Now();
+
+  // Progress time delta.
+  // TODO(crbug.com/953256) Add this as parameter to the unzip options.
+  base::TimeDelta progress_period_ = base::Milliseconds(1000);
+
+  // Number of bytes read since last progress report callback executed.
+  mutable uint64_t delta_bytes_read_ = 0;
 
   base::WeakPtrFactory<ZipReader> weak_ptr_factory_{this};
 };

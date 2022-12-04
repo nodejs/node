@@ -72,7 +72,7 @@ bool MustAlias(Node* a, Node* b) {
 }  // namespace
 
 Reduction LoadElimination::Reduce(Node* node) {
-  if (FLAG_trace_turbo_load_elimination) {
+  if (v8_flags.trace_turbo_load_elimination) {
     if (node->op()->EffectInputCount() > 0) {
       PrintF(" visit #%d:%s", node->id(), node->op()->mnemonic());
       if (node->op()->ValueInputCount() > 0) {
@@ -383,8 +383,12 @@ LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Merge(
 
 LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Extend(
     Node* object, ZoneHandleSet<Map> maps, Zone* zone) const {
-  AbstractMaps* that = zone->New<AbstractMaps>(zone);
-  that->info_for_node_ = this->info_for_node_;
+  AbstractMaps* that = zone->New<AbstractMaps>(*this);
+  if (that->info_for_node_.size() >= kMaxTrackedObjects) {
+    // We are tracking too many objects, which leads to bad performance.
+    // Delete one to avoid the map from becoming bigger.
+    that->info_for_node_.erase(that->info_for_node_.begin());
+  }
   object = ResolveRenames(object);
   that->info_for_node_[object] = maps;
   return that;
@@ -1075,6 +1079,7 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
       break;
     case MachineRepresentation::kFloat64:
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd256:
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
@@ -1132,6 +1137,7 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
       break;
     case MachineRepresentation::kFloat64:
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd256:
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
@@ -1417,6 +1423,7 @@ LoadElimination::IndexRange LoadElimination::FieldIndexOf(
     case MachineRepresentation::kNone:
     case MachineRepresentation::kBit:
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd256:
       UNREACHABLE();
     case MachineRepresentation::kWord8:
     case MachineRepresentation::kWord16:

@@ -32,10 +32,12 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
                              kCompilationHintTierDefault)
          .exportFunc();
   let bytes = builder.toBuffer();
-  assertPromiseResult(WebAssembly.compile(bytes)
-    .then(assertUnreachable,
-          error => assertEquals("WebAssembly.compile(): type error in " +
-          "fallthru[0] (expected i32, got i64) @+56", error.message)));
+  assertPromiseResult(WebAssembly.compile(bytes).then(
+      assertUnreachable,
+      error => assertEquals(
+          'WebAssembly.compile(): Compiling function #0:"id" failed: type ' +
+              'error in fallthru[0] (expected i32, got i64) @+56',
+          error.message)));
 })();
 
 (function testCompileEmptyModule() {

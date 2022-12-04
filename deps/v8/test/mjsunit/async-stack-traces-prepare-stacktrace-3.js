@@ -6,10 +6,10 @@
 
 // Check that Error.prepareStackTrace properly marks async frames.
 Error.prepareStackTrace = (e, frames) => {
-  assertEquals(two, frames[0].getFunction());
+  assertSame(two, frames[0].getFunction());
   assertEquals(two.name, frames[0].getFunctionName());
   assertFalse(frames[0].isAsync());
-  assertEquals(two, frames[1].getFunction());
+  assertSame(one, frames[1].getFunction());
   assertEquals(one.name, frames[1].getFunctionName());
   assertTrue(frames[1].isAsync());
   return frames;

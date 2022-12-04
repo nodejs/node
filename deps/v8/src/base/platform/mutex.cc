@@ -6,6 +6,10 @@
 
 #include <errno.h>
 
+#include <atomic>
+
+#include "src/base/platform/condition-variable.h"
+
 #if DEBUG
 #include <unordered_set>
 #endif  // DEBUG
@@ -224,31 +228,41 @@ bool RecursiveMutex::TryLock() {
 
 #if V8_OS_DARWIN
 
-SharedMutex::SharedMutex() { InitializeNativeHandle(&native_handle_); }
+SharedMutex::SharedMutex() = default;
+SharedMutex::~SharedMutex() = default;
 
-SharedMutex::~SharedMutex() { DestroyNativeHandle(&native_handle_); }
-
-void SharedMutex::LockShared() { LockExclusive(); }
+void SharedMutex::LockShared() {
+  DCHECK(TryHoldSharedMutex(this));
+  native_handle_.lock_shared();
+}
 
 void SharedMutex::LockExclusive() {
   DCHECK(TryHoldSharedMutex(this));
-  LockNativeHandle(&native_handle_);
+  native_handle_.lock();
 }
 
-void SharedMutex::UnlockShared() { UnlockExclusive(); }
+void SharedMutex::UnlockShared() {
+  DCHECK(TryReleaseSharedMutex(this));
+  native_handle_.unlock_shared();
+}
 
 void SharedMutex::UnlockExclusive() {
   DCHECK(TryReleaseSharedMutex(this));
-  UnlockNativeHandle(&native_handle_);
+  native_handle_.unlock();
 }
 
-bool SharedMutex::TryLockShared() { return TryLockExclusive(); }
+bool SharedMutex::TryLockShared() {
+  DCHECK(SharedMutexNotHeld(this));
+  bool result = native_handle_.try_lock_shared();
+  if (result) DCHECK(TryHoldSharedMutex(this));
+  return result;
+}
 
 bool SharedMutex::TryLockExclusive() {
   DCHECK(SharedMutexNotHeld(this));
-  if (!TryLockNativeHandle(&native_handle_)) return false;
-  DCHECK(TryHoldSharedMutex(this));
-  return true;
+  bool result = native_handle_.try_lock();
+  if (result) DCHECK(TryHoldSharedMutex(this));
+  return result;
 }
 
 #else  // !V8_OS_DARWIN

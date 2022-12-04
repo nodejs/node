@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-threads
-
 (function TestPostMessageUnsharedMemory() {
   let worker = new Worker('', {type: 'string'});
   let memory = new WebAssembly.Memory({initial: 1, maximum: 2});

@@ -346,7 +346,7 @@ added:
   - v17.6.0
   - v16.15.0
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42083
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
@@ -365,7 +365,7 @@ added:
   - v17.6.0
   - v16.15.0
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42083
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
@@ -382,7 +382,7 @@ added:
   - v17.6.0
   - v16.15.0
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42083
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
@@ -400,10 +400,14 @@ only if the Node.js binary was compiled with including support for the
 added:
   - v18.7.0
   - v16.17.0
+changes:
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/44860
+    description: No longer behind `--experimental-global-customevent` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Enable this API with the
-> [`--experimental-global-customevent`][] CLI flag.
+> Stability: 1 - Experimental. Disable this API with the
+> [`--no-experimental-global-customevent`][] CLI flag.
 
 <!-- type=global -->
 
@@ -459,6 +463,10 @@ This variable may appear to be global but is not. See [`exports`][].
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41811
+    description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -472,6 +480,10 @@ A browser-compatible implementation of the [`fetch()`][] function.
 added:
   - v17.6.0
   - v16.15.0
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41811
+    description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -500,6 +512,10 @@ Node.js this is different. The top-level scope is not the global scope;
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41811
+    description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -544,7 +560,7 @@ This variable may appear to be global but is not. See [`module`][].
 ## `PerformanceEntry`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 <!-- type=global -->
@@ -554,7 +570,7 @@ The `PerformanceEntry` class. See [`PerformanceEntry`][] for more details.
 ## `PerformanceMark`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 <!-- type=global -->
@@ -564,7 +580,7 @@ The `PerformanceMark` class. See [`PerformanceMark`][] for more details.
 ## `PerformanceMeasure`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 <!-- type=global -->
@@ -574,7 +590,7 @@ The `PerformanceMeasure` class. See [`PerformanceMeasure`][] for more details.
 ## `PerformanceObserver`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 <!-- type=global -->
@@ -584,7 +600,7 @@ The `PerformanceObserver` class. See [`PerformanceObserver`][] for more details.
 ## `PerformanceObserverEntryList`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 <!-- type=global -->
@@ -595,7 +611,7 @@ The `PerformanceObserverEntryList` class. See
 ## `PerformanceResourceTiming`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 <!-- type=global -->
@@ -733,6 +749,10 @@ This variable may appear to be global but is not. See [`require()`][].
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41811
+    description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -746,6 +766,10 @@ A browser-compatible implementation of {Response}.
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41811
+    description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -800,7 +824,7 @@ added:
   - v17.6.0
   - v16.15.0
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42083
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
@@ -947,8 +971,8 @@ added: v18.0.0
 A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 
 [Web Crypto API]: webcrypto.md
-[`--experimental-global-customevent`]: cli.md#--experimental-global-customevent
 [`--no-experimental-fetch`]: cli.md#--no-experimental-fetch
+[`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
 [`--no-experimental-global-webcrypto`]: cli.md#--no-experimental-global-webcrypto
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy

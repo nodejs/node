@@ -10,9 +10,9 @@
 #include "src/objects/string-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 #include "test/cctest/test-transitions.h"
+#include "test/common/code-assembler-tester.h"
 
 namespace v8 {
 namespace internal {
@@ -64,7 +64,7 @@ void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
   }
 
   // Test CSA implementation.
-  if (!FLAG_jitless) {
+  if (!v8_flags.jitless) {
     for (size_t i = 0; i < names.size(); ++i) {
       Handle<Object> name_index =
           Call(isolate, csa_lookup, map, names[i]).ToHandleChecked();
@@ -97,7 +97,7 @@ void CheckTransitionArrayLookups(Isolate* isolate,
   }
 
   // Test CSA implementation.
-  if (!FLAG_jitless) {
+  if (!v8_flags.jitless) {
     for (size_t i = 0; i < maps.size(); ++i) {
       Handle<Map> expected_map = maps[i];
       Handle<Name> name(expected_map->instance_descriptors(isolate).GetKey(
@@ -117,7 +117,7 @@ void CheckTransitionArrayLookups(Isolate* isolate,
 // or null otherwise.
 Handle<JSFunction> CreateCsaDescriptorArrayLookup(Isolate* isolate) {
   // We are not allowed to generate code in jitless mode.
-  if (FLAG_jitless) return Handle<JSFunction>();
+  if (v8_flags.jitless) return Handle<JSFunction>();
 
   // Preallocate handle for the result in the current handle scope.
   Handle<JSFunction> result_function(JSFunction{}, isolate);
@@ -163,7 +163,7 @@ Handle<JSFunction> CreateCsaDescriptorArrayLookup(Isolate* isolate) {
 // map if transition is found or null otherwise.
 Handle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
   // We are not allowed to generate code in jitless mode.
-  if (FLAG_jitless) return Handle<JSFunction>();
+  if (v8_flags.jitless) return Handle<JSFunction>();
 
   // Preallocate handle for the result in the current handle scope.
   Handle<JSFunction> result_function(JSFunction{}, isolate);
@@ -187,8 +187,8 @@ Handle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
 
     m.BIND(&if_found);
     {
-      STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
-      STATIC_ASSERT(NONE == 0);
+      static_assert(static_cast<int>(PropertyKind::kData) == 0);
+      static_assert(NONE == 0);
       const int kKeyToTargetOffset = (TransitionArray::kEntryTargetIndex -
                                       TransitionArray::kEntryKeyIndex) *
                                      kTaggedSize;

@@ -121,17 +121,6 @@ class V8_EXPORT Locker {
    */
   static bool IsLocked(Isolate* isolate);
 
-  /**
-   * Returns whether any v8::Locker has ever been used in this process.
-   * TODO(cbruni, chromium:1240851): Fix locking checks on a per-thread basis.
-   * The current implementation is quite confusing and leads to unexpected
-   * results if anybody uses v8::Locker in the current process.
-   */
-  V8_DEPRECATE_SOON("This method will be removed.")
-  static bool WasEverUsed();
-  V8_DEPRECATED("Use WasEverUsed instead")
-  static bool IsActive();
-
   // Disallow copying and assigning.
   Locker(const Locker&) = delete;
   void operator=(const Locker&) = delete;

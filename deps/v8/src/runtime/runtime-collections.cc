@@ -5,11 +5,8 @@
 #include "src/execution/arguments-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/logging/counters.h"
-#include "src/numbers/conversions-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection-inl.h"
-#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -82,7 +79,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   int hash = args.smi_value_at(2);
 
 #ifdef DEBUG
-  DCHECK(key->IsJSReceiver());
+  DCHECK(key->CanBeHeldWeakly());
   DCHECK(EphemeronHashTable::IsKey(ReadOnlyRoots(isolate), *key));
   Handle<EphemeronHashTable> table(
       EphemeronHashTable::cast(weak_collection->table()), isolate);
@@ -105,7 +102,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   int hash = args.smi_value_at(3);
 
 #ifdef DEBUG
-  DCHECK(key->IsJSReceiver());
+  DCHECK(key->CanBeHeldWeakly());
   DCHECK(EphemeronHashTable::IsKey(ReadOnlyRoots(isolate), *key));
   Handle<EphemeronHashTable> table(
       EphemeronHashTable::cast(weak_collection->table()), isolate);

@@ -12,8 +12,7 @@
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
-#include "test/cctest/compiler/value-helper.h"
-
+#include "test/common/value-helper.h"
 
 namespace v8 {
 namespace internal {
@@ -298,7 +297,7 @@ void RunLoadStore(MachineType type, TestAlignment t) {
   uintptr_t zap_data[] = {kZapValue, kZapValue};
   CType zap_value;
 
-  STATIC_ASSERT(sizeof(CType) <= sizeof(zap_data));
+  static_assert(sizeof(CType) <= sizeof(zap_data));
   MemCopy(&zap_value, &zap_data, sizeof(CType));
   InitBuffer(in_buffer, kNumElems, type);
 

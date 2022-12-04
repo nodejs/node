@@ -6,14 +6,11 @@
 #include "src/common/globals.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/logging/counters.h"
 #include "src/objects/allocation-site-scopes-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -169,7 +166,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
-    case HOLEY_ELEMENTS: {
+    case HOLEY_ELEMENTS:
+    case SHARED_ARRAY_ELEMENTS: {
       Handle<FixedArray> elements(FixedArray::cast(copy->elements(isolate)),
                                   isolate);
       if (elements->map(isolate) ==
@@ -265,14 +263,14 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
       // AllocationSite.
       InitializeTraversal(isolate()->factory()->NewAllocationSite(true));
       scope_site = Handle<AllocationSite>(*top(), isolate());
-      if (FLAG_trace_creation_allocation_sites) {
+      if (v8_flags.trace_creation_allocation_sites) {
         PrintF("*** Creating top level %s AllocationSite %p\n", "Fat",
                reinterpret_cast<void*>(scope_site->ptr()));
       }
     } else {
       DCHECK(!current().is_null());
       scope_site = isolate()->factory()->NewAllocationSite(false);
-      if (FLAG_trace_creation_allocation_sites) {
+      if (v8_flags.trace_creation_allocation_sites) {
         PrintF(
             "*** Creating nested %s AllocationSite (top, current, new) (%p, "
             "%p, "
@@ -290,7 +288,7 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
   void ExitScope(Handle<AllocationSite> scope_site, Handle<JSObject> object) {
     if (object.is_null()) return;
     scope_site->set_boilerplate(*object, kReleaseStore);
-    if (FLAG_trace_creation_allocation_sites) {
+    if (v8_flags.trace_creation_allocation_sites) {
       bool top_level =
           !scope_site.is_null() && top().is_identical_to(scope_site);
       if (top_level) {
@@ -567,7 +565,7 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
     vector->SynchronizedSet(literals_slot, *site);
   }
 
-  STATIC_ASSERT(static_cast<int>(ObjectLiteral::kDisableMementos) ==
+  static_assert(static_cast<int>(ObjectLiteral::kDisableMementos) ==
                 static_cast<int>(ArrayLiteral::kDisableMementos));
   bool enable_mementos = (flags & ObjectLiteral::kDisableMementos) == 0;
 

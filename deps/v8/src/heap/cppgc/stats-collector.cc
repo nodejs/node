@@ -108,10 +108,12 @@ StatsCollector::Event::Event() {
 }
 
 void StatsCollector::NotifyMarkingStarted(CollectionType collection_type,
+                                          MarkingType marking_type,
                                           IsForcedGC is_forced_gc) {
   DCHECK_EQ(GarbageCollectionState::kNotRunning, gc_state_);
   current_.collection_type = collection_type;
   current_.is_forced_gc = is_forced_gc;
+  current_.marking_type = marking_type;
   gc_state_ = GarbageCollectionState::kMarking;
 }
 
@@ -160,12 +162,17 @@ double StatsCollector::GetRecentAllocationSpeedInBytesPerMs() const {
 namespace {
 
 int64_t SumPhases(const MetricRecorder::GCCycle::Phases& phases) {
+  DCHECK_LE(0, phases.mark_duration_us);
+  DCHECK_LE(0, phases.weak_duration_us);
+  DCHECK_LE(0, phases.compact_duration_us);
+  DCHECK_LE(0, phases.sweep_duration_us);
   return phases.mark_duration_us + phases.weak_duration_us +
          phases.compact_duration_us + phases.sweep_duration_us;
 }
 
 MetricRecorder::GCCycle GetCycleEventForMetricRecorder(
-    StatsCollector::CollectionType type, int64_t atomic_mark_us,
+    CollectionType type, StatsCollector::MarkingType marking_type,
+    StatsCollector::SweepingType sweeping_type, int64_t atomic_mark_us,
     int64_t atomic_weak_us, int64_t atomic_compact_us, int64_t atomic_sweep_us,
     int64_t incremental_mark_us, int64_t incremental_sweep_us,
     int64_t concurrent_mark_us, int64_t concurrent_sweep_us,
@@ -173,12 +180,17 @@ MetricRecorder::GCCycle GetCycleEventForMetricRecorder(
     int64_t objects_freed_bytes, int64_t memory_before_bytes,
     int64_t memory_after_bytes, int64_t memory_freed_bytes) {
   MetricRecorder::GCCycle event;
-  event.type = (type == StatsCollector::CollectionType::kMajor)
+  event.type = (type == CollectionType::kMajor)
                    ? MetricRecorder::GCCycle::Type::kMajor
                    : MetricRecorder::GCCycle::Type::kMinor;
   // MainThread.Incremental:
-  event.main_thread_incremental.mark_duration_us = incremental_mark_us;
-  event.main_thread_incremental.sweep_duration_us = incremental_sweep_us;
+  event.main_thread_incremental.mark_duration_us =
+      marking_type != StatsCollector::MarkingType::kAtomic ? incremental_mark_us
+                                                           : -1;
+  event.main_thread_incremental.sweep_duration_us =
+      sweeping_type != StatsCollector::SweepingType::kAtomic
+          ? incremental_sweep_us
+          : -1;
   // MainThread.Atomic:
   event.main_thread_atomic.mark_duration_us = atomic_mark_us;
   event.main_thread_atomic.weak_duration_us = atomic_weak_us;
@@ -186,15 +198,13 @@ MetricRecorder::GCCycle GetCycleEventForMetricRecorder(
   event.main_thread_atomic.sweep_duration_us = atomic_sweep_us;
   // MainThread:
   event.main_thread.mark_duration_us =
-      event.main_thread_atomic.mark_duration_us +
-      event.main_thread_incremental.mark_duration_us;
+      event.main_thread_atomic.mark_duration_us + incremental_mark_us;
   event.main_thread.weak_duration_us =
       event.main_thread_atomic.weak_duration_us;
   event.main_thread.compact_duration_us =
       event.main_thread_atomic.compact_duration_us;
   event.main_thread.sweep_duration_us =
-      event.main_thread_atomic.sweep_duration_us +
-      event.main_thread_incremental.sweep_duration_us;
+      event.main_thread_atomic.sweep_duration_us + incremental_sweep_us;
   // Total:
   event.total.mark_duration_us =
       event.main_thread.mark_duration_us + concurrent_mark_us;
@@ -211,28 +221,50 @@ MetricRecorder::GCCycle GetCycleEventForMetricRecorder(
   event.memory.after_bytes = memory_after_bytes;
   event.memory.freed_bytes = memory_freed_bytes;
   // Collection Rate:
-  event.collection_rate_in_percent =
-      static_cast<double>(event.objects.after_bytes) /
-      event.objects.before_bytes;
+  if (event.objects.before_bytes == 0) {
+    event.collection_rate_in_percent = 0;
+  } else {
+    event.collection_rate_in_percent =
+        static_cast<double>(event.objects.after_bytes) /
+        event.objects.before_bytes;
+  }
   // Efficiency:
-  event.efficiency_in_bytes_per_us =
-      static_cast<double>(event.objects.freed_bytes) / SumPhases(event.total);
-  event.main_thread_efficiency_in_bytes_per_us =
-      static_cast<double>(event.objects.freed_bytes) /
-      SumPhases(event.main_thread);
+  if (event.objects.freed_bytes == 0) {
+    event.efficiency_in_bytes_per_us = 0;
+    event.main_thread_efficiency_in_bytes_per_us = 0;
+  } else {
+    // Here, SumPhases(event.main_thread) or even SumPhases(event.total) can be
+    // zero if the clock resolution is not small enough and the entire GC was
+    // very short, so the timed value was zero. This appears to happen on
+    // Windows, see crbug.com/1338256 and crbug.com/1339180. In this case, we
+    // are only here if the number of freed bytes is nonzero and the division
+    // below produces an infinite value.
+    event.efficiency_in_bytes_per_us =
+        static_cast<double>(event.objects.freed_bytes) / SumPhases(event.total);
+    event.main_thread_efficiency_in_bytes_per_us =
+        static_cast<double>(event.objects.freed_bytes) /
+        SumPhases(event.main_thread);
+  }
   return event;
 }
 
 }  // namespace
 
-void StatsCollector::NotifySweepingCompleted() {
+void StatsCollector::NotifySweepingCompleted(SweepingType sweeping_type) {
   DCHECK_EQ(GarbageCollectionState::kSweeping, gc_state_);
   gc_state_ = GarbageCollectionState::kNotRunning;
+  current_.sweeping_type = sweeping_type;
   previous_ = std::move(current_);
   current_ = Event();
+  DCHECK_IMPLIES(previous_.marking_type == StatsCollector::MarkingType::kAtomic,
+                 previous_.scope_data[kIncrementalMark].IsZero());
+  DCHECK_IMPLIES(
+      previous_.sweeping_type == StatsCollector::SweepingType::kAtomic,
+      previous_.scope_data[kIncrementalSweep].IsZero());
   if (metric_recorder_) {
     MetricRecorder::GCCycle event = GetCycleEventForMetricRecorder(
-        previous_.collection_type,
+        previous_.collection_type, previous_.marking_type,
+        previous_.sweeping_type,
         previous_.scope_data[kAtomicMark].InMicroseconds(),
         previous_.scope_data[kAtomicWeak].InMicroseconds(),
         previous_.scope_data[kAtomicCompact].InMicroseconds(),

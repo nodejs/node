@@ -397,12 +397,11 @@ class TextNode : public SeqRegExpNode {
   TextNode(ZoneList<TextElement>* elms, bool read_backward,
            RegExpNode* on_success)
       : SeqRegExpNode(on_success), elms_(elms), read_backward_(read_backward) {}
-  TextNode(RegExpCharacterClass* that, bool read_backward,
-           RegExpNode* on_success)
+  TextNode(RegExpClassRanges* that, bool read_backward, RegExpNode* on_success)
       : SeqRegExpNode(on_success),
         elms_(zone()->New<ZoneList<TextElement>>(1, zone())),
         read_backward_(read_backward) {
-    elms_->Add(TextElement::CharClass(that), zone());
+    elms_->Add(TextElement::ClassRanges(that), zone());
   }
   // Create TextNode for a single character class for the given ranges.
   static TextNode* CreateForCharacterRanges(Zone* zone,

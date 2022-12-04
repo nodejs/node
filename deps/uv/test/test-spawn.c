@@ -1675,9 +1675,6 @@ TEST_IMPL(closed_fd_events) {
   ASSERT(req.result == 1);
   uv_fs_req_cleanup(&req);
 
-#ifdef _WIN32
-  ASSERT(1 == uv_run(uv_default_loop(), UV_RUN_ONCE));
-#endif
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_ONCE));
 
   /* should have received just one byte */
@@ -1891,6 +1888,44 @@ TEST_IMPL(spawn_quoted_path) {
 #endif
 }
 
+TEST_IMPL(spawn_exercise_sigchld_issue) {
+  int r;
+  int i;
+  uv_process_options_t dummy_options = {0};
+  uv_process_t dummy_processes[100];
+  char* args[2];
+
+  init_process_options("spawn_helper1", exit_cb);
+
+  r = uv_spawn(uv_default_loop(), &process, &options);
+  ASSERT_EQ(r, 0);
+
+  // This test exercises a bug in the darwin kernel that causes SIGCHLD not to
+  // be delivered sometimes. Calling posix_spawn many times increases the
+  // likelihood of encountering this issue, so spin a few times to make this
+  // test more reliable.
+  dummy_options.file = args[0] = "program-that-had-better-not-exist";
+  args[1] = NULL;
+  dummy_options.args = args;
+  dummy_options.exit_cb = fail_cb;
+  dummy_options.flags = 0;
+  for (i = 0; i < 100; i++) {
+    r = uv_spawn(uv_default_loop(), &dummy_processes[i], &dummy_options);
+    if (r != UV_ENOENT)
+      ASSERT_EQ(r, UV_EACCES);
+    uv_close((uv_handle_t*) &dummy_processes[i], close_cb);
+  }
+
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  ASSERT_EQ(r, 0);
+
+  ASSERT_EQ(exit_cb_called, 1);
+  ASSERT_EQ(close_cb_called, 101);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
 /* Helper for child process of spawn_inherit_streams */
 #ifndef _WIN32
 void spawn_stdin_stdout(void) {
@@ -1943,3 +1978,37 @@ void spawn_stdin_stdout(void) {
   }
 }
 #endif /* !_WIN32 */
+
+TEST_IMPL(spawn_relative_path) {
+  char* sep;
+
+  init_process_options("spawn_helper1", exit_cb);
+
+  exepath_size = sizeof(exepath) - 2;
+  ASSERT_EQ(0, uv_exepath(exepath, &exepath_size));
+  exepath[exepath_size] = '\0';
+
+  /* Poor man's basename(3). */
+  sep = strrchr(exepath, '/');
+  if (sep == NULL)
+    sep = strrchr(exepath, '\\');
+  ASSERT_NOT_NULL(sep);
+
+  /* Split into dirname and basename and make basename relative. */
+  memmove(sep + 2, sep, 1 + strlen(sep));
+  sep[0] = '\0';
+  sep[1] = '.';
+  sep[2] = '/';
+
+  options.cwd = exepath;
+  options.file = options.args[0] = sep + 1;
+
+  ASSERT_EQ(0, uv_spawn(uv_default_loop(), &process, &options));
+  ASSERT_EQ(0, uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+
+  ASSERT_EQ(1, exit_cb_called);
+  ASSERT_EQ(1, close_cb_called);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}

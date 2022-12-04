@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/d8/d8-console.h"
-#include "src/d8/d8.h"
+
 #include "src/execution/isolate.h"
 
 namespace v8 {
@@ -73,7 +73,7 @@ void D8Console::Debug(const debug::ConsoleCallArguments& args,
 
 void D8Console::Time(const debug::ConsoleCallArguments& args,
                      const v8::debug::ConsoleContext&) {
-  if (internal::FLAG_correctness_fuzzer_suppressions) return;
+  if (i::v8_flags.correctness_fuzzer_suppressions) return;
   if (args.Length() == 0) {
     default_timer_ = base::TimeTicks::Now();
   } else {
@@ -95,7 +95,7 @@ void D8Console::Time(const debug::ConsoleCallArguments& args,
 
 void D8Console::TimeEnd(const debug::ConsoleCallArguments& args,
                         const v8::debug::ConsoleContext&) {
-  if (internal::FLAG_correctness_fuzzer_suppressions) return;
+  if (i::v8_flags.correctness_fuzzer_suppressions) return;
   base::TimeDelta delta;
   if (args.Length() == 0) {
     delta = base::TimeTicks::Now() - default_timer_;
@@ -119,7 +119,7 @@ void D8Console::TimeEnd(const debug::ConsoleCallArguments& args,
 
 void D8Console::TimeStamp(const debug::ConsoleCallArguments& args,
                           const v8::debug::ConsoleContext&) {
-  if (internal::FLAG_correctness_fuzzer_suppressions) return;
+  if (i::v8_flags.correctness_fuzzer_suppressions) return;
   base::TimeDelta delta = base::TimeTicks::Now() - default_timer_;
   if (args.Length() == 0) {
     printf("console.timeStamp: default, %f\n", delta.InMillisecondsF());
@@ -136,7 +136,7 @@ void D8Console::TimeStamp(const debug::ConsoleCallArguments& args,
 
 void D8Console::Trace(const debug::ConsoleCallArguments& args,
                       const v8::debug::ConsoleContext&) {
-  if (internal::FLAG_correctness_fuzzer_suppressions) return;
+  if (i::v8_flags.correctness_fuzzer_suppressions) return;
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
   i_isolate->PrintStack(stderr, i::Isolate::kPrintStackConcise);
 }

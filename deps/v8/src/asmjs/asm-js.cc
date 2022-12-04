@@ -133,7 +133,7 @@ void Report(Handle<Script> script, int position, base::Vector<const char> text,
 // Hook to report successful execution of {AsmJs::CompileAsmViaWasm} phase.
 void ReportCompilationSuccess(Handle<Script> script, int position,
                               double compile_time, size_t module_size) {
-  if (FLAG_suppress_asm_messages || !FLAG_trace_asm_time) return;
+  if (v8_flags.suppress_asm_messages || !v8_flags.trace_asm_time) return;
   base::EmbeddedVector<char, 100> text;
   int length = SNPrintF(text, "success, compile time %0.3f ms, %zu bytes",
                         compile_time, module_size);
@@ -146,7 +146,7 @@ void ReportCompilationSuccess(Handle<Script> script, int position,
 // Hook to report failed execution of {AsmJs::CompileAsmViaWasm} phase.
 void ReportCompilationFailure(ParseInfo* parse_info, int position,
                               const char* reason) {
-  if (FLAG_suppress_asm_messages) return;
+  if (v8_flags.suppress_asm_messages) return;
   parse_info->pending_error_handler()->ReportWarningAt(
       position, position, MessageTemplate::kAsmJsInvalid, reason);
 }
@@ -154,7 +154,7 @@ void ReportCompilationFailure(ParseInfo* parse_info, int position,
 // Hook to report successful execution of {AsmJs::InstantiateAsmWasm} phase.
 void ReportInstantiationSuccess(Handle<Script> script, int position,
                                 double instantiate_time) {
-  if (FLAG_suppress_asm_messages || !FLAG_trace_asm_time) return;
+  if (v8_flags.suppress_asm_messages || !v8_flags.trace_asm_time) return;
   base::EmbeddedVector<char, 50> text;
   int length = SNPrintF(text, "success, %0.3f ms", instantiate_time);
   CHECK_NE(-1, length);
@@ -166,7 +166,7 @@ void ReportInstantiationSuccess(Handle<Script> script, int position,
 // Hook to report failed execution of {AsmJs::InstantiateAsmWasm} phase.
 void ReportInstantiationFailure(Handle<Script> script, int position,
                                 const char* reason) {
-  if (FLAG_suppress_asm_messages) return;
+  if (v8_flags.suppress_asm_messages) return;
   base::Vector<const char> text = base::CStrVector(reason);
   Report(script, position, text, MessageTemplate::kAsmJsLinkingFailed,
          v8::Isolate::kMessageWarning);
@@ -237,7 +237,7 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
   stream->Seek(compilation_info()->literal()->start_position());
   wasm::AsmJsParser parser(&translate_zone, stack_limit(), stream);
   if (!parser.Run()) {
-    if (!FLAG_suppress_asm_messages) {
+    if (!v8_flags.suppress_asm_messages) {
       ReportCompilationFailure(parse_info(), parser.failure_location(),
                                parser.failure_message());
     }
@@ -300,7 +300,7 @@ inline bool IsValidAsmjsMemorySize(size_t size) {
   // Enforce asm.js spec minimum size.
   if (size < (1u << 12u)) return false;
   // Enforce engine-limited and flag-limited maximum allocation size.
-  if (size > wasm::max_mem_bytes()) return false;
+  if (size > wasm::max_mem32_bytes()) return false;
   // Enforce power-of-2 sizes for 2^12 - 2^24.
   if (size < (1u << 24u)) {
     uint32_t size32 = static_cast<uint32_t>(size);

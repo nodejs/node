@@ -259,7 +259,7 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
 
   CompressionStream(Environment* env, Local<Object> wrap)
       : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_ZLIB),
-        ThreadPoolWork(env),
+        ThreadPoolWork(env, "zlib"),
         write_result_(nullptr) {
     MakeWeak();
   }
@@ -1430,5 +1430,5 @@ void DefineZlibConstants(Local<Object> target) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(zlib, node::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(zlib, node::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(zlib, node::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(zlib, node::RegisterExternalReferences)

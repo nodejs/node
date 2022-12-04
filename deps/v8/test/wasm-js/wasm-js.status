@@ -9,24 +9,22 @@
   'wpt/idlharness': [SKIP],
   # Failing WPT tests
   'wpt/exception/getArg.tentative': [FAIL],
-  'wpt/exception/toString.tentative': [FAIL],
   'wpt/exception/type.tentative': [FAIL],
   'wpt/function/constructor.tentative': [FAIL],
   'wpt/function/table.tentative': [FAIL],
   'wpt/function/type.tentative': [FAIL],
-  'wpt/global/type.tentative': [FAIL],
-  'wpt/interface': [FAIL],
-  'wpt/table/type.tentative': [FAIL],
 
   # Outdated proposal tests.
   'proposals/js-types/table/get-set': [FAIL],
   'proposals/memory64/table/get-set': [FAIL],
-  'proposals/simd/table/get-set': [FAIL],
   'proposals/tail-call/table/get-set': [FAIL],
   'proposals/js-types/memory/constructor': [FAIL],
   'proposals/memory64/memory/constructor': [FAIL],
-  'proposals/simd/memory/constructor': [FAIL],
   'proposals/tail-call/memory/constructor': [FAIL],
+  'proposals/js-types/interface': [FAIL],
+  'proposals/memory64/interface': [FAIL],
+  'proposals/simd/interface': [FAIL],
+  'proposals/tail-call/interface': [FAIL],
 
   # TODO(v8:10556): Remove sub-typing in the reference-types implementation
   'proposals/js-types/constructor/instantiate': [FAIL],
@@ -35,18 +33,25 @@
 
   # These are slow, and not useful to run for the proposals:
   'proposals/js-types/limits': [SKIP],
-  'proposals/simd/limits': [SKIP],
   'proposals/memory64/limits': [SKIP],
-
-  # TODO(v8:11577): investigate this failure.
-  'limits': [SKIP],
 }], # ALWAYS
+
+['system == android', {
+  # Slow, and we always have the same limits anyway.
+  # Android bots don't have enough memory to run the test.
+  'limits': [SKIP],
+}],  # 'system == android'
 
 ['arch == s390 or arch == s390x or system == aix', {
   # https://bugs.chromium.org/p/v8/issues/detail?id=8402
   'instance/constructor': [SKIP],
   'constructor/instantiate': [SKIP],
 }],  # 'arch == s390 or arch == s390x or system == aix'
+
+['arch == ppc64', {
+  # Test needs larger than supported single code space.
+  'limits': [SKIP],
+}],  # 'arch == ppc64'
 
 ['mode == debug or simulator_run or variant != default or arch == arm or tsan or msan or asan', {
   # Slow, and we always have the same limits anyway.

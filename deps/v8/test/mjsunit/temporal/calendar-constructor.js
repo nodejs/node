@@ -10,7 +10,6 @@ assertThrows(() => Temporal.Calendar("iso8601"), TypeError);
 
 assertThrows(() => new Temporal.Calendar(), RangeError);
 
-// Wrong case
-assertThrows(() => new Temporal.Calendar("ISO8601"), RangeError);
+assertEquals("iso8601", (new Temporal.Calendar("IsO8601")).id)
 
 assertEquals("iso8601", (new Temporal.Calendar("iso8601")).id)

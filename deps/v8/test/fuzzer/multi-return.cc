@@ -16,8 +16,6 @@
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/execution/simulator.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
@@ -170,7 +168,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   CallDescriptor* desc =
       CreateRandomCallDescriptor(&zone, return_count, param_count, &input);
 
-  if (FLAG_wasm_fuzzer_gen_test) {
+  if (v8_flags.wasm_fuzzer_gen_test) {
     // Print some debugging output which describes the produced signature.
     printf("[");
     for (size_t j = 0; j < param_count; ++j) {

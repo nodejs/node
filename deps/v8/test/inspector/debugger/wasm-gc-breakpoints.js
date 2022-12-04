@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc
+// Flags: --experimental-wasm-gc --experimental-wasm-stringref
 
 utils.load('test/inspector/wasm-inspector-test.js');
 
@@ -14,7 +14,7 @@ const module_bytes = [
   0x00, 0x61, 0x73, 0x6d, 1, 0, 0, 0,  // wasm magic
 
   0x01,  // type section
-  0x18,  // section length
+  0x19,  // section length
   0x01,  // number of type section entries
   0x4f,  // recursive type group
   0x04,  // number of types in the recursive group
@@ -33,7 +33,7 @@ const module_bytes = [
   0x6c, 0x00, 0x01,  // mut ref null $StrA
   // type 3: func
   0x60,  // signature
-  0x00,  // number of params
+  0x01, 0x64,  // 1 param: stringref
   0x00,  // number of results
 
   0x03,  // function section
@@ -59,31 +59,30 @@ const module_bytes = [
 
   /////////////////////////// CODE SECTION //////////////////////////
   0x0a,  // code section
-  0x35,  // section length
+  0x2f,  // section length
   0x01,  // number of functions
 
-  0x33,  // function 0: size
+  0x2d,  // function 0: size
   0x02,  // number of locals
   0x01, 0x6c, 0x00,  // (local $varA (ref null $StrA))
   0x01, 0x6c, 0x02,  // (local $varC (ref null $ArrC))
   // $varA := new $StrA(127, 32767, new $StrB(null))
   0x41, 0xFF, 0x00,  // i32.const 127
   0x41, 0xFF, 0xFF, 0x01,  // i32.const 32767
-  0xfb, 0x30, 0x01,  // rtt.canon $StrB
-  0xfb, 0x02, 0x01,  // struct.new_default_with_rtt $StrB
-  0xfb, 0x30, 0x00,  // rtt.canon $StrA
-  0xfb, 0x01, 0x00,  // struct.new_with_rtt $StrA
-  0x22, 0x00,  // local.tee $varA
+  0xfb, 0x08, 0x01,  // struct.new_default $StrB
+  0xfb, 0x07, 0x00,  // struct.new $StrA
+  0x22, 0x01,  // local.tee $varA
   // $varA.$pointer.$next = $varA
   0xfb, 0x03, 0x00, 0x02,  // struct.get $StrA $pointer
-  0x20, 0x00,  // local.get $varA
+  0x20, 0x01,  // local.get $varA
   0xfb, 0x06, 0x01, 0x00,  // struct.set $StrB $next
   // $varC := new $ArrC($varA)
-  0x20, 0x00,  // local.get $varA -- value
+  0x20, 0x01,  // local.get $varA -- value
   0x41, 0x01,  // i32.const 1 -- length
-  0xfb, 0x30, 0x02,  // rtt.canon $ArrC
-  0xfb, 0x11, 0x02,  // array.new_with_rtt $ArrC
-  0x21, 0x01,  // local.set $varC
+  0xfb, 0x1b, 0x02,  // array.new $ArrC
+  0x20, 0x00,  // local.get 0
+  0x1a,  // drop
+  0x21, 0x02,  // local.set $varC
   0x0b,  // end
 
   /////////////////////////// NAME SECTION //////////////////////////
@@ -97,10 +96,10 @@ const module_bytes = [
   0x01,  // number of entries
   0x00,  // for function 0
   0x02,  // number of entries for function 0
-  0x00,  // local index
+  0x01,  // local index
   0x04,  // length of "varA"
   0x76, 0x61, 0x72, 0x41,  // "varA"
-  0x01,  // local index
+  0x02,  // local index
   0x04,  // length of "varB"
   0x76, 0x61, 0x72, 0x42,  // "varB"
 
@@ -221,10 +220,11 @@ InspectorTest.runAsyncTestSuite([
     // Ignore javascript and full module wasm script, get scripts for functions.
     const [, {params: wasm_script}] =
         await Protocol.Debugger.onceScriptParsed(2);
-    let offset = 109;  // "local.set $varC" at the end.
+    let offset = 103;  // "drop" before "local.set $varC" at the end.
     await setBreakpoint(offset, wasm_script.scriptId, wasm_script.url);
     InspectorTest.log('Calling main()');
-    await WasmInspectorTest.evalWithUrl('instance.exports.main()', 'runWasm');
+    await WasmInspectorTest.evalWithUrl('instance.exports.main("hello world")',
+                                        'runWasm');
     InspectorTest.log('exports.main returned!');
   }
 ]);

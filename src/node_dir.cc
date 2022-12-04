@@ -135,7 +135,9 @@ void DirHandle::MemoryInfo(MemoryTracker* tracker) const {
 inline void DirHandle::GCClose() {
   if (closed_) return;
   uv_fs_t req;
+  FS_DIR_SYNC_TRACE_BEGIN(closedir);
   int ret = uv_fs_closedir(nullptr, &req, dir_, nullptr);
+  FS_DIR_SYNC_TRACE_END(closedir);
   uv_fs_req_cleanup(&req);
   closing_ = false;
   closed_ = true;
@@ -423,5 +425,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // end namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(fs_dir, node::fs_dir::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(fs_dir, node::fs_dir::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(fs_dir, node::fs_dir::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(fs_dir,
+                                node::fs_dir::RegisterExternalReferences)

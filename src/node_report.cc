@@ -23,7 +23,7 @@
 #include <cwctype>
 #include <fstream>
 
-constexpr int NODE_REPORT_VERSION = 2;
+constexpr int NODE_REPORT_VERSION = 3;
 constexpr int NANOS_PER_SEC = 1000 * 1000 * 1000;
 constexpr double SEC_PER_MICROS = 1e-6;
 constexpr int MAX_FRAME_COUNT = 10;
@@ -627,6 +627,33 @@ static void PrintResourceUsage(JSONWriter* writer) {
   // Process and current thread usage statistics
   uv_rusage_t rusage;
   writer->json_objectstart("resourceUsage");
+
+  uint64_t free_memory = uv_get_free_memory();
+  uint64_t total_memory = uv_get_total_memory();
+
+  writer->json_keyvalue("free_memory", std::to_string(free_memory));
+  writer->json_keyvalue("total_memory", std::to_string(total_memory));
+
+  size_t rss;
+  int err = uv_resident_set_memory(&rss);
+  if (!err) {
+    writer->json_keyvalue("rss", std::to_string(rss));
+  }
+
+  uint64_t constrained_memory = uv_get_constrained_memory();
+  if (constrained_memory) {
+    writer->json_keyvalue("constrained_memory",
+                          std::to_string(constrained_memory));
+  }
+
+  // See GuessMemoryAvailableToTheProcess
+  if (!err && constrained_memory && constrained_memory >= rss) {
+    uint64_t available_memory = constrained_memory - rss;
+    writer->json_keyvalue("available_memory", std::to_string(available_memory));
+  } else {
+    writer->json_keyvalue("available_memory", std::to_string(free_memory));
+  }
+
   if (uv_getrusage(&rusage) == 0) {
     double user_cpu =
         rusage.ru_utime.tv_sec + SEC_PER_MICROS * rusage.ru_utime.tv_usec;
@@ -636,8 +663,12 @@ static void PrintResourceUsage(JSONWriter* writer) {
     writer->json_keyvalue("kernelCpuSeconds", kernel_cpu);
     double cpu_abs = user_cpu + kernel_cpu;
     double cpu_percentage = (cpu_abs / uptime) * 100.0;
+    double user_cpu_percentage = (user_cpu / uptime) * 100.0;
+    double kernel_cpu_percentage = (kernel_cpu / uptime) * 100.0;
     writer->json_keyvalue("cpuConsumptionPercent", cpu_percentage);
-    writer->json_keyvalue("maxRss", rusage.ru_maxrss * 1024);
+    writer->json_keyvalue("userCpuConsumptionPercent", user_cpu_percentage);
+    writer->json_keyvalue("kernelCpuConsumptionPercent", kernel_cpu_percentage);
+    writer->json_keyvalue("maxRss", std::to_string(rusage.ru_maxrss * 1024));
     writer->json_objectstart("pageFaults");
     writer->json_keyvalue("IORequired", rusage.ru_majflt);
     writer->json_keyvalue("IONotRequired", rusage.ru_minflt);
@@ -660,7 +691,11 @@ static void PrintResourceUsage(JSONWriter* writer) {
     writer->json_keyvalue("kernelCpuSeconds", kernel_cpu);
     double cpu_abs = user_cpu + kernel_cpu;
     double cpu_percentage = (cpu_abs / uptime) * 100.0;
+    double user_cpu_percentage = (user_cpu / uptime) * 100.0;
+    double kernel_cpu_percentage = (kernel_cpu / uptime) * 100.0;
     writer->json_keyvalue("cpuConsumptionPercent", cpu_percentage);
+    writer->json_keyvalue("userCpuConsumptionPercent", user_cpu_percentage);
+    writer->json_keyvalue("kernelCpuConsumptionPercent", kernel_cpu_percentage);
     writer->json_objectstart("fsActivity");
     writer->json_keyvalue("reads", stats.ru_inblock);
     writer->json_keyvalue("writes", stats.ru_oublock);

@@ -20,16 +20,12 @@
 
 #include "unicode/uobject.h"
 
-#ifndef UCNV_H
-
 /**
  * A TimeZoneTransition.  Use the ztrans_* API to manipulate.  Create with
  * ztrans_open*, and destroy with ztrans_close.
  */
 struct ZTrans;
 typedef struct ZTrans ZTrans;
-
-#endif
 
 /**
  * Constructs a time zone transition with the time and the rules before/after

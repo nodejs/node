@@ -9,22 +9,15 @@
 
 #include "include/libplatform/v8-tracing.h"
 
-#if !defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-#error "only include this file if V8_ENABLE_SYSTEM_INSTRUMENTATION"
-#endif
-
 #if V8_OS_DARWIN
 #include <os/signpost.h>
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunguarded-availability"
 #endif
 
-#if V8_OS_WIN
-#ifndef V8_ETW_GUID
-#define V8_ETW_GUID \
-  0x57277741, 0x3638, 0x4A4B, 0xBD, 0xBA, 0x0A, 0xC6, 0xE4, 0x5D, 0xA5, 0x6C
-#endif
-#endif
+#if !defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#error "only include this file if V8_ENABLE_SYSTEM_INSTRUMENTATION"
+#endif  // V8_ENABLE_SYSTEM_INSTRUMENTATION
 
 namespace v8 {
 namespace platform {

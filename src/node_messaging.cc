@@ -516,7 +516,7 @@ Maybe<bool> Message::Serialize(Environment* env,
   for (Local<ArrayBuffer> ab : array_buffers) {
     // If serialization succeeded, we render it inaccessible in this Isolate.
     std::shared_ptr<BackingStore> backing_store = ab->GetBackingStore();
-    ab->Detach();
+    ab->Detach(Local<Value>()).Check();
 
     array_buffers_.emplace_back(std::move(backing_store));
   }
@@ -1520,6 +1520,6 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace worker
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(messaging, node::worker::InitMessaging)
-NODE_MODULE_EXTERNAL_REFERENCE(messaging,
-                               node::worker::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(messaging, node::worker::InitMessaging)
+NODE_BINDING_EXTERNAL_REFERENCE(messaging,
+                                node::worker::RegisterExternalReferences)

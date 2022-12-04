@@ -44,10 +44,6 @@ declare_args() {
 #
 # There are test cases for this code posted as an attachment to
 # https://crbug.com/625353.
-#
-# TODO(GYP): Currently only regular (non-cross) compiles, and cross-compiles
-# from x64 hosts to Intel, ARM, or MIPS targets, are implemented. Add support
-# for the other supported configurations.
 
 if (v8_snapshot_toolchain == "") {
   if (current_os == host_os && current_cpu == host_cpu) {
@@ -64,28 +60,26 @@ if (v8_snapshot_toolchain == "") {
              current_cpu == "arm") {
     # Trying to compile 32-bit arm on arm64. Good luck!
     v8_snapshot_toolchain = current_toolchain
-  } else if (host_cpu == "x64" &&
-             (v8_current_cpu == "mips" || v8_current_cpu == "mips64")) {
+  } else if (host_cpu == "x64" && v8_current_cpu == "mips64") {
     # We don't support snapshot generation for big-endian targets,
     # therefore snapshots will need to be built using native mksnapshot
     # in combination with qemu
     v8_snapshot_toolchain = current_toolchain
+  } else if (host_cpu == current_cpu) {
+    # Cross-build from same ISA on one OS to another. For example:
+    # * targeting win/x64 on a linux/x64 host
+    # * targeting win/arm64 on a mac/arm64 host
+    v8_snapshot_toolchain = host_toolchain
   } else if (host_cpu == "arm64" && current_cpu == "x64") {
     # Cross-build from arm64 to intel (likely on an Apple Silicon mac).
     v8_snapshot_toolchain =
         "//build/toolchain/${host_os}:clang_arm64_v8_$v8_current_cpu"
   } else if (host_cpu == "x64") {
     # This is a cross-compile from an x64 host to either a non-Intel target
-    # cpu or a different target OS. Clang will always be used by default on the
-    # host, unless this is a ChromeOS build, in which case the same toolchain
-    # (Clang or GCC) will be used for target and host by default.
-    if (is_chromeos && !is_clang) {
-      _clang = ""
-    } else {
-      _clang = "clang_"
-    }
+    # cpu or to 32-bit x86 on a different target OS.
 
-    if (v8_current_cpu == "x64" || v8_current_cpu == "x86") {
+    assert(v8_current_cpu != "x64", "handled by host_cpu == current_cpu branch")
+    if (v8_current_cpu == "x86") {
       _cpus = v8_current_cpu
     } else if (v8_current_cpu == "arm64" || v8_current_cpu == "mips64el" ||
                v8_current_cpu == "riscv64" || v8_current_cpu == "loong64") {
@@ -96,7 +90,7 @@ if (v8_snapshot_toolchain == "") {
       } else {
         _cpus = "x64_v8_${v8_current_cpu}"
       }
-    } else if (v8_current_cpu == "arm" || v8_current_cpu == "mipsel") {
+    } else if (v8_current_cpu == "arm" || v8_current_cpu == "riscv32") {
       _cpus = "x86_v8_${v8_current_cpu}"
     } else {
       # This branch should not be reached; leave _cpus blank so the assert
@@ -105,7 +99,7 @@ if (v8_snapshot_toolchain == "") {
     }
 
     if (_cpus != "") {
-      v8_snapshot_toolchain = "//build/toolchain/${host_os}:${_clang}${_cpus}"
+      v8_snapshot_toolchain = "//build/toolchain/${host_os}:clang_${_cpus}"
     } else if (is_win && v8_current_cpu == "arm64") {
       # cross compile Windows arm64 with host toolchain.
       v8_snapshot_toolchain = host_toolchain
@@ -121,7 +115,6 @@ assert(v8_snapshot_toolchain != "",
 # avoid building v8_libbase on the host more than once. On mips with big endian,
 # the snapshot toolchain is the target toolchain and, hence, can't be used.
 v8_generator_toolchain = v8_snapshot_toolchain
-if (host_cpu == "x64" &&
-    (v8_current_cpu == "mips" || v8_current_cpu == "mips64")) {
+if (host_cpu == "x64" && v8_current_cpu == "mips64") {
   v8_generator_toolchain = "//build/toolchain/linux:clang_x64"
 }

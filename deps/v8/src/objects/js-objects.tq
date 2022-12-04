@@ -40,7 +40,9 @@ macro NewJSObject(implicit context: Context)(): JSObject {
   return AllocateJSObjectFromMap(map);
 }
 
-extern class JSExternalObject extends JSObject { value: ExternalPointer; }
+extern class JSExternalObject extends JSObject {
+  value: ExternalPointer;
+}
 
 // A JSObject that may contain EmbedderDataSlots.
 @abstract
@@ -114,7 +116,9 @@ extern class JSGlobalObject extends JSSpecialObject {
   global_proxy: JSGlobalProxy;
 }
 
-extern class JSPrimitiveWrapper extends JSCustomElementsObject { value: JSAny; }
+extern class JSPrimitiveWrapper extends JSCustomElementsObject {
+  value: JSAny;
+}
 
 extern class JSMessageObject extends JSObject {
   // Tagged fields.

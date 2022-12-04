@@ -1,4 +1,4 @@
-# Copyright (c) 2013 The Chromium Authors. All rights reserved.
+# Copyright 2013 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -41,6 +41,8 @@ config("zlib_internal_config") {
 }
 
 source_set("zlib_common_headers") {
+  visibility = [ ":*" ]
+
   sources = [
     "chromeconf.h",
     "deflate.h",
@@ -142,7 +144,7 @@ if (use_arm_neon_optimizations) {
       if (!is_win && !is_clang) {
         assert(!use_thin_lto,
                "ThinLTO fails mixing different module-level targets")
-        cflags_c = [ "-march=armv8-a+crc" ]
+        cflags_c = [ "-march=armv8-a+aes+crc" ]
       }
 
       sources = [
@@ -197,6 +199,7 @@ source_set("zlib_inflate_chunk_simd") {
   # style function declarations, which triggers warning C4131.
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [ ":zlib_warnings" ]
 
   public_configs = [ ":zlib_inflate_chunk_simd_config" ]
 
@@ -216,6 +219,7 @@ source_set("zlib_crc32_simd") {
     sources = [
       "crc32_simd.c",
       "crc32_simd.h",
+      "crc_folding.c",
     ]
 
     if (!is_win || is_clang) {
@@ -229,45 +233,45 @@ source_set("zlib_crc32_simd") {
   configs += [ ":zlib_internal_config" ]
 
   public_configs = [ ":zlib_crc32_simd_config" ]
+
   public_deps = [ ":zlib_common_headers" ]
 }
 
-config("zlib_x86_simd_config") {
+config("zlib_slide_hash_simd_config") {
   if (use_x86_x64_optimizations) {
-    defines = [
-      "CRC32_SIMD_SSE42_PCLMUL",
-      "DEFLATE_FILL_WINDOW_SSE2",
-    ]
+    defines = [ "DEFLATE_SLIDE_HASH_SSE2" ]
+  }
+
+  if (use_arm_neon_optimizations) {
+    defines = [ "DEFLATE_SLIDE_HASH_NEON" ]
   }
 }
 
-source_set("zlib_x86_simd") {
+source_set("zlib_slide_hash_simd") {
   visibility = [ ":*" ]
 
   if (use_x86_x64_optimizations) {
-    sources = [
-      "crc_folding.c",
-      "fill_window_sse.c",
-    ]
+    sources = [ "slide_hash_simd.h" ]
+  }
 
-    if (!is_win || is_clang) {
-      cflags = [
-        "-msse4.2",
-        "-mpclmul",
-      ]
-    }
+  if (use_arm_neon_optimizations) {
+    sources = [ "slide_hash_simd.h" ]
   }
 
   configs += [ ":zlib_internal_config" ]
 
-  public_configs = [ ":zlib_x86_simd_config" ]
+  public_configs = [ ":zlib_slide_hash_simd_config" ]
 
   public_deps = [ ":zlib_common_headers" ]
 }
 
 config("zlib_warnings") {
-  if (is_clang && use_x86_x64_optimizations) {
-    cflags = [ "-Wno-incompatible-pointer-types" ]
+  if (is_clang) {
+    cflags = [
+      "-Wno-deprecated-non-prototype",
+      "-Wno-incompatible-pointer-types",
+      "-Wunused-variable",
+    ]
   }
 }
 
@@ -330,19 +334,17 @@ component("zlib") {
     deps += [
       ":zlib_adler32_simd",
       ":zlib_inflate_chunk_simd",
+      ":zlib_slide_hash_simd",
     ]
 
     if (use_x86_x64_optimizations) {
       deps += [ ":zlib_crc32_simd" ]
     } else if (use_arm_neon_optimizations) {
-      sources += [ "contrib/optimizations/slide_hash_neon.h" ]
       deps += [ ":zlib_arm_crc32" ]
     }
   } else {
     sources += [ "inflate.c" ]
   }
-
-  deps += [ ":zlib_x86_simd" ]
 
   if (is_android) {
     import("//build/config/android/config.gni")
@@ -372,8 +374,11 @@ config("minizip_warnings") {
   visibility = [ ":*" ]
 
   if (is_clang) {
-    # zlib uses `if ((a == b))` for some reason.
-    cflags = [ "-Wno-parentheses-equality" ]
+    cflags = [
+      # zlib uses `if ((a == b))` for some reason.
+      "-Wno-parentheses-equality",
+      "-Wno-deprecated-non-prototype",
+    ]
   }
 }
 
@@ -437,7 +442,11 @@ if (!is_win || target_os != "winuwp") {
     sources = [ "contrib/minizip/minizip.c" ]
 
     if (is_clang) {
-      cflags = [ "-Wno-incompatible-pointer-types-discards-qualifiers" ]
+      cflags = [
+        "-Wno-incompatible-pointer-types-discards-qualifiers",
+
+        "-Wno-deprecated-non-prototype",
+      ]
     }
 
     if (!is_debug) {
@@ -457,7 +466,10 @@ if (!is_win || target_os != "winuwp") {
     sources = [ "contrib/minizip/miniunz.c" ]
 
     if (is_clang) {
-      cflags = [ "-Wno-incompatible-pointer-types-discards-qualifiers" ]
+      cflags = [
+        "-Wno-incompatible-pointer-types-discards-qualifiers",
+        "-Wno-deprecated-non-prototype",
+      ]
     }
 
     if (!is_debug) {

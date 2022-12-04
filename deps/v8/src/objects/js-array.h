@@ -123,12 +123,12 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   // Valid array indices range from +0 <= i < 2^32 - 1 (kMaxUInt32).
   static constexpr uint32_t kMaxArrayLength = JSObject::kMaxElementCount;
   static constexpr uint32_t kMaxArrayIndex = JSObject::kMaxElementIndex;
-  STATIC_ASSERT(kMaxArrayLength == kMaxUInt32);
-  STATIC_ASSERT(kMaxArrayIndex == kMaxUInt32 - 1);
+  static_assert(kMaxArrayLength == kMaxUInt32);
+  static_assert(kMaxArrayIndex == kMaxUInt32 - 1);
 
   // This constant is somewhat arbitrary. Any large enough value would work.
   static constexpr uint32_t kMaxFastArrayLength = 32 * 1024 * 1024;
-  STATIC_ASSERT(kMaxFastArrayLength <= kMaxArrayLength);
+  static_assert(kMaxFastArrayLength <= kMaxArrayLength);
 
   // Min. stack size for detecting an Array.prototype.join() call cycle.
   static const uint32_t kMinJoinStackSize = 2;
@@ -157,6 +157,17 @@ class JSArrayIterator
   DECL_INT_ACCESSORS(raw_kind)
 
   TQ_OBJECT_CONSTRUCTORS(JSArrayIterator)
+};
+
+// Helper class for JSArrays that are template literal objects
+class TemplateLiteralObject
+    : public TorqueGeneratedTemplateLiteralObject<TemplateLiteralObject,
+                                                  JSArray> {
+ public:
+  DECL_CAST(TemplateLiteralObject)
+
+ private:
+  TQ_OBJECT_CONSTRUCTORS(TemplateLiteralObject)
 };
 
 }  // namespace internal

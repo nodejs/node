@@ -80,7 +80,7 @@ const watcher =
 
 // 'stop' should only be emitted once - stopping a stopped watcher should
 // not trigger a 'stop' event.
-watcher.on('stop', common.mustCall(function onStop() {}));
+watcher.on('stop', common.mustCall());
 
 // Watch events should callback with a filename on supported systems.
 // Omitting AIX. It works but not reliably.
@@ -90,9 +90,9 @@ if (common.isLinux || common.isOSX || common.isWindows) {
   fs.mkdir(dir, common.mustCall(function(err) {
     if (err) assert.fail(err);
 
-    fs.watch(dir, common.mustCall(function(eventType, filename) {
+    const handle = fs.watch(dir, common.mustCall(function(eventType, filename) {
       clearInterval(interval);
-      this._handle.close();
+      handle.close();
       assert.strictEqual(filename, 'foo.txt');
     }));
 

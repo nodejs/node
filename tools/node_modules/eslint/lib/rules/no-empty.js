@@ -17,6 +17,7 @@ const astUtils = require("./utils/ast-utils");
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        hasSuggestions: true,
         type: "suggestion",
 
         docs: {
@@ -39,7 +40,8 @@ module.exports = {
         ],
 
         messages: {
-            unexpected: "Empty {{type}} statement."
+            unexpected: "Empty {{type}} statement.",
+            suggestComment: "Add comment inside empty {{type}} statement."
         }
     },
 
@@ -71,7 +73,22 @@ module.exports = {
                     return;
                 }
 
-                context.report({ node, messageId: "unexpected", data: { type: "block" } });
+                context.report({
+                    node,
+                    messageId: "unexpected",
+                    data: { type: "block" },
+                    suggest: [
+                        {
+                            messageId: "suggestComment",
+                            data: { type: "block" },
+                            fix(fixer) {
+                                const range = [node.range[0] + 1, node.range[1] - 1];
+
+                                return fixer.replaceTextRange(range, " /* empty */ ");
+                            }
+                        }
+                    ]
+                });
             },
 
             SwitchStatement(node) {
