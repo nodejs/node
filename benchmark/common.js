@@ -3,6 +3,10 @@
 const child_process = require('child_process');
 const http_benchmarkers = require('./_http-benchmarkers.js');
 
+function allow() {
+  return true;
+}
+
 class Benchmark {
   constructor(fn, configs, options = {}) {
     // Used to make sure a benchmark only start a timer once
@@ -31,8 +35,16 @@ class Benchmark {
       this.flags = this.flags.concat(options.flags);
     }
 
+    if (typeof options.combinationFilter === 'function')
+      this.combinationFilter = options.combinationFilter;
+    else
+      this.combinationFilter = allow;
+
     // The configuration list as a queue of jobs
     this.queue = this._queue(this.options);
+
+    if (this.queue.length === 0)
+      return;
 
     // The configuration of the current job, head of the queue
     this.config = this.queue[0];
@@ -108,6 +120,7 @@ class Benchmark {
   _queue(options) {
     const queue = [];
     const keys = Object.keys(options);
+    const { combinationFilter } = this;
 
     // Perform a depth-first walk through all options to generate a
     // configuration list that contains all combinations.
@@ -131,7 +144,15 @@ class Benchmark {
         if (keyIndex + 1 < keys.length) {
           recursive(keyIndex + 1, currConfig);
         } else {
-          queue.push(currConfig);
+          // Check if we should allow the current combination
+          const allowed = combinationFilter({ ...currConfig });
+          if (typeof allowed !== 'boolean') {
+            throw new TypeError(
+              'Combination filter must always return a boolean'
+            );
+          }
+          if (allowed)
+            queue.push(currConfig);
         }
       }
     }
