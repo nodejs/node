@@ -1,4 +1,4 @@
-// This is a auto generated file, please do not edit.
+// This is an auto generated file, please do not edit.
 // Refer to tools/update-undici.sh
 #ifndef SRC_UNDICI_VERSION_H_
 #define SRC_UNDICI_VERSION_H_
