@@ -450,8 +450,12 @@ The arguments of `createBenchmark` are:
   possible combinations of these parameters, unless specified otherwise.
   Each configuration is a property with an array of possible values.
   The configuration values can only be strings or numbers.
-* `options` {Object} The benchmark options. At the moment only the `flags`
-  option for specifying command line flags is supported.
+* `options` {Object} The benchmark options. Supported options:
+  * `flags` {Array} Contains node-specific command line flags to pass to
+    the child process.
+  * `combinationFilter` {Function} Has a single parameter which is an object
+    containing a combination of benchmark parameters. It should return `true`
+    or `false` to indicate whether the combination should be included or not.
 
 `createBenchmark` returns a `bench` object, which is used for timing
 the runtime of the benchmark. Run `bench.start()` after the initialization
