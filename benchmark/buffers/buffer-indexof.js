@@ -19,9 +19,14 @@ const searchStrings = [
 
 const bench = common.createBenchmark(main, {
   search: searchStrings,
-  encoding: ['utf8', 'ucs2'],
+  encoding: ['undefined', 'utf8', 'ucs2'],
   type: ['buffer', 'string'],
   n: [5e4]
+}, {
+  combinationFilter: (p) => {
+    return (p.type === 'buffer' && p.encoding === 'undefined') ||
+           (p.type !== 'buffer' && p.encoding !== 'undefined');
+  },
 });
 
 function main({ n, search, encoding, type }) {
