@@ -30,7 +30,7 @@ rm -f deps/undici/undici.js
     UNDICI_VERSION=$("$NODE" -p "require('./package.json').version")
     # update this version information in src/undici_version.h
     FILE_PATH="$ROOT/src/undici_version.h"
-    echo "// This is a auto generated file, please do not edit." > "$FILE_PATH"
+    echo "// This is an auto generated file, please do not edit." > "$FILE_PATH"
     echo "// Refer to tools/update-undici.sh" >> "$FILE_PATH"
     echo "#ifndef SRC_ACORN_VERSION_H_" >> "$FILE_PATH"
     echo "#define SRC_ACORN_VERSION_H_" >> "$FILE_PATH"
