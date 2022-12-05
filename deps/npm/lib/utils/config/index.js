@@ -25,8 +25,8 @@ const flatten = (obj, flat = {}) => {
     : /* istanbul ignore next - not configurable property */ undefined
   flat.nodeBin = process.env.NODE || process.execPath
 
-  // XXX should this be sha512?  is it even relevant?
-  flat.hashAlgorithm = 'sha1'
+  // Replaced SHA1 with SHA512
+  flat.hashAlgorithm = 'sha512'
 
   return flat
 }
