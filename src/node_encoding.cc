@@ -1,7 +1,9 @@
 #include "env-inl.h"
 #include "node.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "string_bytes.h"
 #include "util-inl.h"
 #include "v8-fast-api-calls.h"
 #include "v8.h"
@@ -21,6 +23,7 @@ using v8::FastOneByteString;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
 using v8::Uint32Array;
@@ -111,6 +114,49 @@ static void FastEncodeIntoUtf8(Local<Value> receiver,
   results[1] = min_length;
 }
 
+void DecodeUtf8(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);  // list, flags
+
+  CHECK_GE(args.Length(), 1);
+
+  if (!(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
+        args[0]->IsArrayBufferView())) {
+    return node::THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(),
+        "The \"list\" argument must be an instance of SharedArrayBuffer, "
+        "ArrayBuffer or ArrayBufferView.");
+  }
+
+  ArrayBufferViewContents<char> buffer(args[0]);
+
+  bool ignore_bom = args[1]->IsTrue();
+
+  const char* data = buffer.data();
+  size_t length = buffer.length();
+
+  if (!ignore_bom && length >= 3) {
+    if (memcmp(data, "\xEF\xBB\xBF", 3) == 0) {
+      data += 3;
+      length -= 3;
+    }
+  }
+
+  if (length == 0) return args.GetReturnValue().SetEmptyString();
+
+  Local<Value> error;
+  MaybeLocal<Value> maybe_ret =
+      StringBytes::Encode(env->isolate(), data, length, UTF8, &error);
+  Local<Value> ret;
+
+  if (!maybe_ret.ToLocal(&ret)) {
+    CHECK(!error.IsEmpty());
+    env->isolate()->ThrowException(error);
+    return;
+  }
+
+  args.GetReturnValue().Set(ret);
+}
+
 CFunction fast_encode_into_utf8_(CFunction::Make(FastEncodeIntoUtf8));
 #endif  // NODE_HAVE_I18N_SUPPORT
 
@@ -128,17 +174,19 @@ static void Initialize(Local<Object> target,
 #else
   SetMethodNoSideEffect(context, target, "encodeIntoUtf8", EncodeIntoUtf8);
 #endif  // NODE_HAVE_I18N_SUPPORT
+  SetMethodNoSideEffect(context, target, "decodeUtf8", DecodeUtf8);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(EncodeUtf8);
 
   registry->Register(EncodeIntoUtf8);
-
 #if defined(NODE_HAVE_I18N_SUPPORT)
   registry->Register(FastEncodeIntoUtf8);
   registry->Register(fast_encode_into_utf8_.GetTypeInfo());
 #endif  // NODE_HAVE_I18N_SUPPORT
+
+  registry->Register(DecodeUtf8);
 }
 
 }  // namespace encoding_methods
