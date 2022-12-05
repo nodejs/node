@@ -31,7 +31,7 @@ function spawnProcess(script, bench, state) {
       bench.start();
     }
 
-    if (state.finished == state.count) {
+    if (state.finished === state.count) {
       bench.end(state.count);
     }
   }
