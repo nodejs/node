@@ -58,9 +58,10 @@ function spawnWorker(script, bench, state) {
 
 function main({ count, script, mode }) {
   script = path.resolve(__dirname, '../../', `${script}.js`);
-  const state = { count, finished: -3 };
+  const warmup = 3;
+  const state = { count, finished: -warmup };
   if (mode === 'worker') {
-    Worker = require('worker_threads').Worker;  // Warm up.
+    Worker = require('worker_threads').Worker;
     spawnWorker(script, bench, state);
   } else {
     spawnProcess(script, bench, state);
