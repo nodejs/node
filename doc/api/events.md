@@ -1645,9 +1645,8 @@ and cannot be used in place of an `EventEmitter` in most cases.
    ignored.
 2. The `NodeEventTarget` does not emulate the full `EventEmitter` API.
    Specifically the `prependListener()`, `prependOnceListener()`,
-   `rawListeners()`, `setMaxListeners()`, `getMaxListeners()`, and
-   `errorMonitor` APIs are not emulated. The `'newListener'` and
-   `'removeListener'` events will also not be emitted.
+   `rawListeners()`, and `errorMonitor` APIs are not emulated.
+   The `'newListener'` and `'removeListener'` events will also not be emitted.
 3. The `NodeEventTarget` does not implement any special default behavior
    for events with type `'error'`.
 4. The `NodeEventTarget` supports `EventListener` objects as well as
