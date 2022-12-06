@@ -396,6 +396,18 @@ test('given null to a mock.method it throws a invalid argument error', (t) => {
   assert.throws(() => t.mock.method(null, {}), /ERR_INVALID_ARG_TYPE/);
 });
 
+test('it should throw given an inexistent property on a object instance', (t) => {
+  const expectedMessage = [
+    'The argument \'non-existent\'',
+    ' the property non-existent',
+    ' does not exists in the object instance.',
+    ' Received { abc: 0 }',
+  ].join('');
+  assert.throws(() => t.mock.method({ abc: 0 }, 'non-existent'), {
+    message: expectedMessage
+  });
+});
+
 test('spy functions can be used on classes inheritance', (t) => {
   // Makes sure that having a null-prototype doesn't throw our system off
   class A extends null {
