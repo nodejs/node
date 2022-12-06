@@ -68,10 +68,11 @@ myEmitter.on('event', function(a, b) {
   console.log(a, b, this, this === myEmitter);
   // Prints:
   //   a b MyEmitter {
-  //     domain: null,
-  //     _events: { event: [Function] },
+  //     _events: [Object: null prototype] { event: [Function (anonymous)] },
   //     _eventsCount: 1,
-  //     _maxListeners: undefined } true
+  //     _maxListeners: undefined,
+  //     [Symbol(kCapture)]: false
+  //   } true
 });
 myEmitter.emit('event', 'a', 'b');
 ```
