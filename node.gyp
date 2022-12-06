@@ -109,6 +109,9 @@
     },
 
     'conditions': [
+      ['target_arch=="arm64"', {
+        'cflags': ['-msign-return-address=all'],  # Pointer authentication.
+      }],
       ['OS=="aix"', {
         'ldflags': [
           '-Wl,-bnoerrmsg',
