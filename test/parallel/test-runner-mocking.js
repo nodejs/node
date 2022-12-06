@@ -397,7 +397,9 @@ test('given null to a mock.method it throws a invalid argument error', (t) => {
 });
 
 test('spy functions can be used on classes inheritance', (t) => {
-  class A {
+  
+  // make sure that having a null-prototype doesn't throw our system off
+  class A extends null {
     static someTask(msg) {
       return msg;
     }
