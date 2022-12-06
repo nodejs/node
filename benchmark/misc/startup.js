@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common.js');
-const { spawn, spawnSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const path = require('path');
 
 let Worker;  // Lazy loaded in main
