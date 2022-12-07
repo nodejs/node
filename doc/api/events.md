@@ -1042,7 +1042,7 @@ process.nextTick(() => {
 try {
   await once(ee, 'myevent');
 } catch (err) {
-  console.log('error happened', err);
+  console.error('error happened', err);
 }
 ```
 
@@ -1067,7 +1067,7 @@ async function run() {
   try {
     await once(ee, 'myevent');
   } catch (err) {
-    console.log('error happened', err);
+    console.error('error happened', err);
   }
 }
 
@@ -1086,7 +1086,7 @@ const ee = new EventEmitter();
 
 once(ee, 'error')
   .then(([err]) => console.log('ok', err.message))
-  .catch((err) => console.log('error', err.message));
+  .catch((err) => console.error('error', err.message));
 
 ee.emit('error', new Error('boom'));
 
@@ -1100,7 +1100,7 @@ const ee = new EventEmitter();
 
 once(ee, 'error')
   .then(([err]) => console.log('ok', err.message))
-  .catch((err) => console.log('error', err.message));
+  .catch((err) => console.error('error', err.message));
 
 ee.emit('error', new Error('boom'));
 

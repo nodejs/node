@@ -49,7 +49,7 @@ let crypto;
 try {
   crypto = require('node:crypto');
 } catch (err) {
-  console.log('crypto support is disabled!');
+  console.error('crypto support is disabled!');
 }
 ```
 
@@ -67,7 +67,7 @@ let crypto;
 try {
   crypto = await import('node:crypto');
 } catch (err) {
-  console.log('crypto support is disabled!');
+  console.error('crypto support is disabled!');
 }
 ```
 
