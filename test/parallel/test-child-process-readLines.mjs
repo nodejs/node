@@ -10,8 +10,12 @@ import { spawn, exec, execSync } from 'node:child_process';
   lines.on('line', common.mustCall((result) => assert.strictEqual(result, '42')));
 }
 
-for await (const line of spawn(process.execPath, ['-p', 42]).readLines()) {
-  assert.strictEqual(line, '42');
+{
+  const fn = common.mustCall();
+  for await (const line of spawn(process.execPath, ['-p', 42]).readLines()) {
+    assert.strictEqual(line, '42');
+    fn();
+  }
 }
 
 {
@@ -27,9 +31,8 @@ for await (const line of spawn(process.execPath, ['-p', 42]).readLines()) {
 }
 
 await assert.rejects(async () => {
-  for await (const line of spawn(process.execPath, ['-p', 42], { signal: AbortSignal.abort() }).readLines()) {
-    assert.strictEqual(line, '42');
-  }
+  // eslint-disable-next-line no-unused-vars
+  for await (const _ of spawn(process.execPath, ['-p', 42], { signal: AbortSignal.abort() }).readLines());
 }, { name: 'AbortError' });
 
 
@@ -39,6 +42,21 @@ await assert.rejects(async () => {
 }, { name: 'AbortError' });
 
 {
+  const ac = new AbortController();
+  const cp = spawn(
+    process.execPath,
+    ['-e', 'setTimeout(()=>console.log("line 2"), 10);setImmediate(()=>console.log("line 1"));'],
+    { signal: ac.signal });
+  await assert.rejects(async () => {
+    for await (const line of cp.readLines({ ignoreErrors: true })) {
+      assert.strictEqual(line, 'line 1');
+      ac.abort();
+    }
+  }, { name: 'AbortError' });
+  assert.strictEqual(ac.signal.aborted, true);
+}
+
+{
   const cp = spawn(process.execPath, ['-e', 'throw null']);
   await assert.rejects(async () => {
     // eslint-disable-next-line no-unused-vars
@@ -46,14 +64,19 @@ await assert.rejects(async () => {
   }, { pid: cp.pid, status: 1, signal: null });
 }
 
-for await (const line of spawn(process.execPath, ['-e', 'console.error(42)']).readLines({ useStdErr: true })) {
-  assert.strictEqual(line, '42');
+
+{
+  const fn = common.mustCall();
+  for await (const line of spawn(process.execPath, ['-e', 'console.error(42)']).readLines({ useStdErr: true })) {
+    assert.strictEqual(line, '42');
+    fn();
+  }
 }
 
 {
   let stderr;
   try {
-    execSync(`${process.execPath} -e 'throw new Error'`, { encoding: 'utf-8' });
+    execSync(`${process.execPath} -e 'throw new Error'`, { stdio: 'pipe', encoding: 'utf-8' });
   } catch (err) {
     if (!Array.isArray(err?.output)) throw err;
     stderr = err.output[2].split(/\r?\n/);
@@ -62,4 +85,5 @@ for await (const line of spawn(process.execPath, ['-e', 'console.error(42)']).re
   for await (const line of cp.readLines({ useStdErr: true, ignoreErrors: true })) {
     assert.strictEqual(line, stderr.shift());
   }
+  assert.deepStrictEqual(stderr, ['']);
 }

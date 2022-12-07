@@ -1470,7 +1470,7 @@ for await (const fileInfo of spawn('ls', ['-a']).readLines()) {
 ```
 
 ```cjs
-const { spawn } = require('node:child_process')
+const { spawn } = require('node:child_process');
 
 (async () => {
   for await (const fileInfo of spawn('ls', ['-a']).readLines()) {
