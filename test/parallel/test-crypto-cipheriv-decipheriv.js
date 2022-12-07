@@ -217,9 +217,9 @@ for (let n = minIvLength; n < maxIvLength; n += 1) {
 }
 
 {
-  // overflowing
-  assert.throws(() => crypto.createCipheriv('aes-128-gcm', Buffer.alloc(16), Buffer.alloc(12))
-  .update(Buffer.allocUnsafeSlow(2 ** 31 - 1)), {
-    name: 'Error',
-  });
+  // https://github.com/nodejs/node/issues/45757
+  // eslint-disable-next-line no-restricted-syntax
+  assert.throws(() =>
+    crypto.createCipheriv('aes-128-gcm', Buffer.alloc(16), Buffer.alloc(12))
+    .update(Buffer.allocUnsafeSlow(2 ** 31 - 1)));
 }
