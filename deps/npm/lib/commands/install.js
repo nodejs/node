@@ -20,8 +20,9 @@ class Install extends ArboristWorkspaceCmd {
     'save',
     'save-exact',
     'global',
-    'global-style',
+    'install-strategy',
     'legacy-bundling',
+    'global-style',
     'omit',
     'strict-peer-deps',
     'package-lock',
@@ -160,7 +161,6 @@ class Install extends ArboristWorkspaceCmd {
           args: [],
           scriptShell,
           stdio: 'inherit',
-          stdioString: true,
           banner: !this.npm.silent,
           event,
         })

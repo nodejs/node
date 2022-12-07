@@ -126,9 +126,6 @@ class Hook extends BaseCommand {
 
   hookName (hook) {
     let target = hook.name
-    if (hook.type === 'scope') {
-      target = '@' + target
-    }
     if (hook.type === 'owner') {
       target = '~' + target
     }

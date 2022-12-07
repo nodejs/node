@@ -1,7 +1,6 @@
 // this is called when an ERESOLVE error is caught in the exit-handler,
 // or when there's a log.warn('eresolve', msg, explanation), to turn it
 // into a human-intelligible explanation of what's wrong and how to fix.
-const { writeFileSync } = require('fs')
 const { explainEdge, explainNode, printNode } = require('./explain-dep.js')
 
 // expl is an explanation object that comes from Arborist.  It looks like:
@@ -45,27 +44,25 @@ const explain = (expl, color, depth) => {
 }
 
 // generate a full verbose report and tell the user how to fix it
-const report = (expl, color, fullReport) => {
-  const orNoStrict = expl.strictPeerDeps ? '--no-strict-peer-deps, ' : ''
+const report = (expl, color) => {
+  const flags = [
+    expl.strictPeerDeps ? '--no-strict-peer-deps' : '',
+    '--force',
+    '--legacy-peer-deps',
+  ].filter(Boolean)
+
+  const or = (arr) => arr.length <= 2
+    ? arr.join(' or ') :
+    arr.map((v, i, l) => i + 1 === l.length ? `or ${v}` : v).join(', ')
+
   const fix = `Fix the upstream dependency conflict, or retry
-this command with ${orNoStrict}--force, or --legacy-peer-deps
+this command with ${or(flags)}
 to accept an incorrect (and potentially broken) dependency resolution.`
 
-  writeFileSync(fullReport, `# npm resolution error report
-
-${new Date().toISOString()}
-
-${explain(expl, false, Infinity)}
-
-${fix}
-
-Raw JSON explanation object:
-
-${JSON.stringify(expl, null, 2)}
-`, 'utf8')
-
-  return explain(expl, color, 4) +
-    `\n\n${fix}\n\nSee ${fullReport} for a full report.`
+  return {
+    explanation: `${explain(expl, color, 4)}\n\n${fix}`,
+    file: `# npm resolution error report\n\n${explain(expl, false, Infinity)}\n\n${fix}`,
+  }
 }
 
 module.exports = {

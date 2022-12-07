@@ -16,7 +16,7 @@ module.exports = path => {
     // but strip the //?/C:/ off of //?/C:/path
     const root = path.charAt(0) === '/' && path.slice(0, 4) !== '//?/' ? '/'
       : parsed.root
-    path = path.substr(root.length)
+    path = path.slice(root.length)
     r += root
     parsed = parse(path)
   }

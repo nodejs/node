@@ -11,6 +11,10 @@ class BaseCommand {
   constructor (npm) {
     this.wrapWidth = 80
     this.npm = npm
+
+    if (!this.skipConfigValidation) {
+      this.npm.config.validate()
+    }
   }
 
   get name () {
@@ -23,6 +27,10 @@ class BaseCommand {
 
   get ignoreImplicitWorkspace () {
     return this.constructor.ignoreImplicitWorkspace
+  }
+
+  get skipConfigValidation () {
+    return this.constructor.skipConfigValidation
   }
 
   get usage () {

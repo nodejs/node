@@ -146,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
-<p>The <a href="../commands/npm-query.html"><code>npm query</code></a> commmand exposes a new dependency selector syntax (informed by &amp; respecting many aspects of the <a href="https://dev.w3.org/csswg/selectors4/#relational">CSS Selectors 4 Spec</a>) which:</p>
+<p>The <a href="../commands/npm-query.html"><code>npm query</code></a> command exposes a new dependency selector syntax (informed by &amp; respecting many aspects of the <a href="https://dev.w3.org/csswg/selectors4/#relational">CSS Selectors 4 Spec</a>) which:</p>
 <ul>
 <li>Standardizes the shape of, &amp; querying of, dependency graphs with a robust object model, metadata &amp; selector syntax</li>
 <li>Leverages existing, known language syntax &amp; operators from CSS to make disparate package information broadly accessible</li>
@@ -198,9 +198,45 @@ npm command-line interface
 <li><code>:extraneous</code> when a dependency exists but is not defined as a dependency of any node</li>
 <li><code>:invalid</code> when a dependency version is out of its ancestors specified range</li>
 <li><code>:missing</code> when a dependency is not found on disk</li>
-<li><code>:semver(&lt;spec&gt;)</code> matching a valid <a href="https://github.com/npm/node-semver"><code>node-semver</code></a> spec</li>
+<li><code>:semver(&lt;spec&gt;, [selector], [function])</code> match a valid <a href="https://github.com/npm/node-semver"><code>node-semver</code></a> version or range to a selector</li>
 <li><code>:path(&lt;path&gt;)</code> <a href="https://www.npmjs.com/package/glob">glob</a> matching based on dependencies path relative to the project</li>
 <li><code>:type(&lt;type&gt;)</code> <a href="https://github.com/npm/npm-package-arg#result-object">based on currently recognized types</a></li>
+<li><code>:outdated(&lt;type&gt;)</code> when a dependency is outdated</li>
+</ul>
+<h5 id="semverspec-selector-function"><code>:semver(&lt;spec&gt;, [selector], [function])</code></h5>
+<p>The <code>:semver()</code> pseudo selector allows comparing fields from each node's <code>package.json</code> using <a href="https://github.com/npm/node-semver#readme">semver</a> methods. It accepts up to 3 parameters, all but the first of which are optional.</p>
+<ul>
+<li><code>spec</code> a semver version or range</li>
+<li><code>selector</code> an attribute selector for each node (default <code>[version]</code>)</li>
+<li><code>function</code> a semver method to apply, one of: <code>satisfies</code>, <code>intersects</code>, <code>subset</code>, <code>gt</code>, <code>gte</code>, <code>gtr</code>, <code>lt</code>, <code>lte</code>, <code>ltr</code>, <code>eq</code>, <code>neq</code> or the special function <code>infer</code> (default <code>infer</code>)</li>
+</ul>
+<p>When the special <code>infer</code> function is used the <code>spec</code> and the actual value from the node are compared. If both are versions, according to <code>semver.valid()</code>, <code>eq</code> is used. If both values are ranges, according to <code>!semver.valid()</code>, <code>intersects</code> is used. If the values are mixed types <code>satisfies</code> is used.</p>
+<p>Some examples:</p>
+<ul>
+<li><code>:semver(^1.0.0)</code> returns every node that has a <code>version</code> satisfied by the provided range <code>^1.0.0</code></li>
+<li><code>:semver(16.0.0, :attr(engines, [node]))</code> returns every node which has an <code>engines.node</code> property satisfying the version <code>16.0.0</code></li>
+<li><code>:semver(1.0.0, [version], lt)</code> every node with a <code>version</code> less than <code>1.0.0</code></li>
+</ul>
+<h5 id="outdatedtype"><code>:outdated(&lt;type&gt;)</code></h5>
+<p>The <code>:outdated</code> pseudo selector retrieves data from the registry and returns information about which of your dependencies are outdated. The type parameter may be one of the following:</p>
+<ul>
+<li><code>any</code> (default) a version exists that is greater than the current one</li>
+<li><code>in-range</code> a version exists that is greater than the current one, and satisfies at least one if its dependents</li>
+<li><code>out-of-range</code> a version exists that is greater than the current one, does not satisfy at least one of its dependents</li>
+<li><code>major</code> a version exists that is a semver major greater than the current one</li>
+<li><code>minor</code> a version exists that is a semver minor greater than the current one</li>
+<li><code>patch</code> a version exists that is a semver patch greater than the current one</li>
+</ul>
+<p>In addition to the filtering performed by the pseudo selector, some extra data is added to the resulting objects. The following data can be found under the <code>queryContext</code> property of each node.</p>
+<ul>
+<li><code>versions</code> an array of every available version of the given node</li>
+<li><code>outdated.inRange</code> an array of objects, each with a <code>from</code> and <code>versions</code>, where <code>from</code> is the on-disk location of the node that depends on the current node and <code>versions</code> is an array of all available versions that satisfies that dependency. This is only populated if <code>:outdated(in-range)</code> is used.</li>
+<li><code>outdated.outOfRange</code> an array of objects, identical in shape to <code>inRange</code>, but where the <code>versions</code> array is every available version that does not satisfy the dependency. This is only populated if <code>:outdated(out-of-range)</code> is used.</li>
+</ul>
+<p>Some examples:</p>
+<ul>
+<li><code>:root &gt; :outdated(major)</code> returns every direct dependency that has a new semver major release</li>
+<li><code>.prod:outdated(in-range)</code> returns production dependencies that have a new release that satisfies at least one of its edges in</li>
 </ul>
 <h4 id="attribute-selectors"><a href="https://developer.mozilla.org/en-US/docs/Web/CSS/Attribute_selectors">Attribute Selectors</a></h4>
 <p>The attribute selector evaluates the key/value pairs in <code>package.json</code> if they are <code>String</code>s.</p>
@@ -216,29 +252,29 @@ npm command-line interface
 <h4 id="array--object-attribute-selectors"><code>Array</code> &amp; <code>Object</code> Attribute Selectors</h4>
 <p>The generic <code>:attr()</code> pseudo selector standardizes a pattern which can be used for attribute selection of <code>Object</code>s, <code>Array</code>s or <code>Arrays</code> of <code>Object</code>s accessible via <code>Arborist</code>'s <code>Node.package</code> metadata. This allows for iterative attribute selection beyond top-level <code>String</code> evaluation. The last argument passed to <code>:attr()</code> must be an <code>attribute</code> selector or a nested <code>:attr()</code>. See examples below:</p>
 <h4 id="objects"><code>Objects</code></h4>
-<pre lang="css"><code>/* return dependencies that have a `scripts.test` containing `"tap"` */
+<pre><code class="language-css">/* return dependencies that have a `scripts.test` containing `"tap"` */
 *:attr(scripts, [test~=tap])
 </code></pre>
 <h4 id="nested-objects">Nested <code>Objects</code></h4>
 <p>Nested objects are expressed as sequential arguments to <code>:attr()</code>.</p>
-<pre lang="css"><code>/* return dependencies that have a testling config for opera browsers */
+<pre><code class="language-css">/* return dependencies that have a testling config for opera browsers */
 *:attr(testling, browsers, [~=opera])
 </code></pre>
 <h4 id="arrays"><code>Arrays</code></h4>
 <p><code>Array</code>s specifically uses a special/reserved <code>.</code> character in place of a typical attribute name. <code>Arrays</code> also support exact <code>value</code> matching when a <code>String</code> is passed to the selector.</p>
 <h5 id="example-of-an-array-attribute-selection">Example of an <code>Array</code> Attribute Selection:</h5>
-<pre lang="css"><code>/* removes the distinction between properties &amp; arrays */
+<pre><code class="language-css">/* removes the distinction between properties &amp; arrays */
 /* ie. we'd have to check the property &amp; iterate to match selection */
 *:attr([keywords^=react])
 *:attr(contributors, :attr([name~=Jordan]))
 </code></pre>
 <h5 id="example-of-an-array-matching-directly-to-a-value">Example of an <code>Array</code> matching directly to a value:</h5>
-<pre lang="css"><code>/* return dependencies that have the exact keyword "react" */
+<pre><code class="language-css">/* return dependencies that have the exact keyword "react" */
 /* this is equivalent to `*:keywords([value="react"])` */
 *:attr([keywords=react])
 </code></pre>
 <h5 id="example-of-an-array-of-objects">Example of an <code>Array</code> of <code>Object</code>s:</h5>
-<pre lang="css"><code>/* returns */
+<pre><code class="language-css">/* returns */
 *:attr(contributors, [email=ruyadorno@github.com])
 </code></pre>
 <h3 id="groups">Groups</h3>
@@ -260,17 +296,17 @@ npm command-line interface
 </ul>
 </li>
 </ul>
-<pre lang="js"><code>const Arborist = require('@npmcli/arborist')
+<pre><code class="language-js">const Arborist = require('@npmcli/arborist')
 const arb = new Arborist({})
 </code></pre>
-<pre lang="js"><code>// root-level
+<pre><code class="language-js">// root-level
 arb.loadActual().then(async (tree) =&gt; {
   // query all production dependencies
   const results = await tree.querySelectorAll('.prod')
   console.log(results)
 })
 </code></pre>
-<pre lang="js"><code>// iterative
+<pre><code class="language-js">// iterative
 arb.loadActual().then(async (tree) =&gt; {
   // query for the deduped version of react
   const results = await tree.querySelectorAll('#react:not(:deduped)')
@@ -283,8 +319,7 @@ arb.loadActual().then(async (tree) =&gt; {
 <ul>
 <li><a href="../commands/npm-query.html">npm query</a></li>
 <li><a href="https://npm.im/@npmcli/arborist">@npmcli/arborist</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/using-npm/dependency-selectors.md">

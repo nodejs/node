@@ -1,186 +1,140 @@
 'use strict'
 
-const Minipass = require('minipass')
 const npa = require('npm-package-arg')
 const npmFetch = require('npm-registry-fetch')
-const validate = require('aproba')
 
-const eu = encodeURIComponent
-const npar = spec => {
+const npar = (spec) => {
   spec = npa(spec)
   if (!spec.registry) {
-    throw new Error('`spec` must be a registry spec')
+    throw new Error('must use package name only')
   }
   return spec
 }
-const mapJSON = (value, [key]) => {
-  if (value === 'read') {
-    return [key, 'read-only']
-  } else if (value === 'write') {
-    return [key, 'read-write']
-  } else {
-    return [key, value]
+
+const parseTeam = (scopeTeam) => {
+  let slice = 0
+  if (scopeTeam.startsWith('@')) {
+    slice = 1
   }
+  const [scope, team] = scopeTeam.slice(slice).split(':').map(encodeURIComponent)
+  return { scope, team }
 }
 
-const cmd = module.exports = {}
+const getPackages = async (scopeTeam, opts) => {
+  const { scope, team } = parseTeam(scopeTeam)
 
-cmd.public = (spec, opts) => setAccess(spec, 'public', opts)
-cmd.restricted = (spec, opts) => setAccess(spec, 'restricted', opts)
-function setAccess (spec, access, opts = {}) {
-  return Promise.resolve().then(() => {
-    spec = npar(spec)
-    validate('OSO', [spec, access, opts])
-    const uri = `/-/package/${eu(spec.name)}/access`
-    return npmFetch(uri, {
-      ...opts,
-      method: 'POST',
-      body: { access },
-      spec,
-    }).then(() => true)
-  })
-}
-
-cmd.grant = (spec, entity, permissions, opts = {}) => {
-  return Promise.resolve().then(() => {
-    spec = npar(spec)
-    const { scope, team } = splitEntity(entity)
-    validate('OSSSO', [spec, scope, team, permissions, opts])
-    if (permissions !== 'read-write' && permissions !== 'read-only') {
-      throw new Error(
-        '`permissions` must be `read-write` or `read-only`. Got `'
-        + permissions + '` instead')
-    }
-    const uri = `/-/team/${eu(scope)}/${eu(team)}/package`
-    return npmFetch(uri, {
-      ...opts,
-      method: 'PUT',
-      body: { package: spec.name, permissions },
-      scope,
-      spec,
-      ignoreBody: true,
-    })
-      .then(() => true)
-  })
-}
-
-cmd.revoke = (spec, entity, opts = {}) => {
-  return Promise.resolve().then(() => {
-    spec = npar(spec)
-    const { scope, team } = splitEntity(entity)
-    validate('OSSO', [spec, scope, team, opts])
-    const uri = `/-/team/${eu(scope)}/${eu(team)}/package`
-    return npmFetch(uri, {
-      ...opts,
-      method: 'DELETE',
-      body: { package: spec.name },
-      scope,
-      spec,
-      ignoreBody: true,
-    })
-      .then(() => true)
-  })
-}
-
-cmd.lsPackages = (entity, opts) => {
-  return cmd.lsPackages.stream(entity, opts)
-    .collect()
-    .then(data => {
-      return data.reduce((acc, [key, val]) => {
-        if (!acc) {
-          acc = {}
-        }
-        acc[key] = val
-        return acc
-      }, null)
-    })
-}
-
-cmd.lsPackages.stream = (entity, opts = {}) => {
-  validate('SO|SZ', [entity, opts])
-  const { scope, team } = splitEntity(entity)
   let uri
   if (team) {
-    uri = `/-/team/${eu(scope)}/${eu(team)}/package`
+    uri = `/-/team/${scope}/${team}/package`
   } else {
-    uri = `/-/org/${eu(scope)}/package`
+    uri = `/-/org/${scope}/package`
   }
-  const nextOpts = {
+  try {
+    return await npmFetch.json(uri, opts)
+  } catch (err) {
+    if (err.code === 'E404') {
+      uri = `/-/user/${scope}/package`
+      return npmFetch.json(uri, opts)
+    }
+    throw err
+  }
+}
+
+const getCollaborators = async (pkg, opts) => {
+  const spec = npar(pkg)
+  const uri = `/-/package/${spec.escapedName}/collaborators`
+  return npmFetch.json(uri, opts)
+}
+
+const getVisibility = async (pkg, opts) => {
+  const spec = npar(pkg)
+  const uri = `/-/package/${spec.escapedName}/visibility`
+  return npmFetch.json(uri, opts)
+}
+
+const setAccess = async (pkg, access, opts) => {
+  const spec = npar(pkg)
+  const uri = `/-/package/${spec.escapedName}/access`
+  await npmFetch(uri, {
     ...opts,
-    query: { format: 'cli' },
-    mapJSON,
-  }
-  const ret = new Minipass({ objectMode: true })
-  npmFetch.json.stream(uri, '*', nextOpts)
-    .on('error', err => {
-      if (err.code === 'E404' && !team) {
-        uri = `/-/user/${eu(scope)}/package`
-        npmFetch.json.stream(uri, '*', nextOpts)
-          .on('error', streamErr => ret.emit('error', streamErr))
-          .pipe(ret)
-      } else {
-        ret.emit('error', err)
-      }
-    })
-    .pipe(ret)
-  return ret
-}
-
-cmd.lsCollaborators = (spec, user, opts) => {
-  return Promise.resolve().then(() => {
-    return cmd.lsCollaborators.stream(spec, user, opts)
-      .collect()
-      .then(data => {
-        return data.reduce((acc, [key, val]) => {
-          if (!acc) {
-            acc = {}
-          }
-          acc[key] = val
-          return acc
-        }, null)
-      })
+    method: 'POST',
+    body: { access },
+    spec,
+    ignoreBody: true,
   })
+  return true
 }
 
-cmd.lsCollaborators.stream = (spec, user, opts) => {
-  if (typeof user === 'object' && !opts) {
-    opts = user
-    user = undefined
-  } else if (!opts) {
-    opts = {}
+const setMfa = async (pkg, level, opts) => {
+  const spec = npar(pkg)
+  const body = {}
+  switch (level) {
+    case 'none':
+      body.publish_requires_tfa = false
+      break
+    case 'publish':
+      // tfa is required, automation tokens can not override tfa
+      body.publish_requires_tfa = true
+      body.automation_token_overrides_tfa = false
+      break
+    case 'automation':
+      // tfa is required, automation tokens can override tfa
+      body.publish_requires_tfa = true
+      body.automation_token_overrides_tfa = true
+      break
+    default:
+      throw new Error(`Invalid mfa setting ${level}`)
   }
-  spec = npar(spec)
-  validate('OSO|OZO', [spec, user, opts])
-  const uri = `/-/package/${eu(spec.name)}/collaborators`
-  return npmFetch.json.stream(uri, '*', {
+  const uri = `/-/package/${spec.escapedName}/access`
+  await npmFetch(uri, {
     ...opts,
-    query: { format: 'cli', user: user || undefined },
-    mapJSON,
+    method: 'POST',
+    body,
+    spec,
+    ignoreBody: true,
   })
+  return true
 }
 
-cmd.tfaRequired = (spec, opts) => setRequires2fa(spec, true, opts)
-cmd.tfaNotRequired = (spec, opts) => setRequires2fa(spec, false, opts)
-function setRequires2fa (spec, required, opts = {}) {
-  return Promise.resolve().then(() => {
-    spec = npar(spec)
-    validate('OBO', [spec, required, opts])
-    const uri = `/-/package/${eu(spec.name)}/access`
-    return npmFetch(uri, {
-      ...opts,
-      method: 'POST',
-      body: { publish_requires_tfa: required },
-      spec,
-      ignoreBody: true,
-    }).then(() => true)
+const setPermissions = async (scopeTeam, pkg, permissions, opts) => {
+  const spec = npar(pkg)
+  const { scope, team } = parseTeam(scopeTeam)
+  if (!scope || !team) {
+    throw new Error('team must be in format `scope:team`')
+  }
+  const uri = `/-/team/${scope}/${team}/package`
+  await npmFetch(uri, {
+    ...opts,
+    method: 'PUT',
+    body: { package: spec.name, permissions },
+    scope,
+    spec,
+    ignoreBody: true,
   })
+  return true
 }
 
-cmd.edit = () => {
-  throw new Error('Not implemented yet')
+const removePermissions = async (scopeTeam, pkg, opts) => {
+  const spec = npar(pkg)
+  const { scope, team } = parseTeam(scopeTeam)
+  const uri = `/-/team/${scope}/${team}/package`
+  await npmFetch(uri, {
+    ...opts,
+    method: 'DELETE',
+    body: { package: spec.name },
+    scope,
+    spec,
+    ignoreBody: true,
+  })
+  return true
 }
 
-function splitEntity (entity = '') {
-  const [, scope, team] = entity.match(/^@?([^:]+)(?::(.*))?$/) || []
-  return { scope, team }
+module.exports = {
+  getCollaborators,
+  getPackages,
+  getVisibility,
+  removePermissions,
+  setAccess,
+  setMfa,
+  setPermissions,
 }

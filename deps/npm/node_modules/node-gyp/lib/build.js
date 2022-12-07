@@ -11,6 +11,8 @@ function build (gyp, argv, callback) {
   var platformMake = 'make'
   if (process.platform === 'aix') {
     platformMake = 'gmake'
+  } else if (process.platform === 'os400') {
+    platformMake = 'gmake'
   } else if (process.platform.indexOf('bsd') !== -1) {
     platformMake = 'gmake'
   } else if (win && argv.length > 0) {

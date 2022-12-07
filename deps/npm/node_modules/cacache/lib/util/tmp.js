@@ -1,8 +1,7 @@
 'use strict'
 
-const fs = require('@npmcli/fs')
-
-const fixOwner = require('./fix-owner')
+const { withTempDir } = require('@npmcli/fs')
+const fs = require('fs/promises')
 const path = require('path')
 
 module.exports.mkdir = mktmpdir
@@ -23,11 +22,5 @@ function withTmp (cache, opts, cb) {
     cb = opts
     opts = {}
   }
-  return fs.withTempDir(path.join(cache, 'tmp'), cb, opts)
-}
-
-module.exports.fix = fixtmpdir
-
-function fixtmpdir (cache) {
-  return fixOwner(cache, path.join(cache, 'tmp'))
+  return withTempDir(path.join(cache, 'tmp'), cb, opts)
 }
