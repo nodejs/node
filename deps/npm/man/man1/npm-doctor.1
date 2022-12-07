@@ -1,11 +1,11 @@
-.TH "NPM-DOCTOR" "1" "November 2022" "" ""
+.TH "NPM-DOCTOR" "1" "December 2022" "" ""
 .SH "NAME"
 \fBnpm-doctor\fR - Check your npm environment
 .SS "Synopsis"
 .P
 .RS 2
 .nf
-npm doctor
+npm doctor \[lB]ping\[rB] \[lB]registry\[rB] \[lB]versions\[rB] \[lB]environment\[rB] \[lB]permissions\[rB] \[lB]cache\[rB]
 .fi
 .RE
 .P
@@ -29,7 +29,7 @@ Without all of these working properly, npm may not work properly. Many issues ar
 .P
 Also, in addition to this, there are also very many issue reports due to using old versions of npm. Since npm is constantly improving, running \fBnpm@latest\fR is better than an old version.
 .P
-\fBnpm doctor\fR verifies the following items in your environment, and if there are any recommended changes, it will display them.
+\fBnpm doctor\fR verifies the following items in your environment, and if there are any recommended changes, it will display them. By default npm runs all of these checks. You can limit what checks are ran by specifying them as extra arguments.
 .SS "\fBnpm ping\fR"
 .P
 By default, npm installs from the primary npm registry, \fBregistry.npmjs.org\fR. \fBnpm doctor\fR hits a special ping endpoint within the registry. This can also be checked with \fBnpm ping\fR. If this check fails, you may be using a proxy that needs to be configured, or may need to talk to your IT staff to get access over HTTPS to \fBregistry.npmjs.org\fR.
