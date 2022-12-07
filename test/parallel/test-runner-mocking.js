@@ -398,10 +398,7 @@ test('given null to a mock.method it throws a invalid argument error', (t) => {
 
 test('it should throw given an inexistent property on a object instance', (t) => {
   const expectedMessage = [
-    'The argument \'non-existent\'',
-    ' the property non-existent',
-    ' does not exists in the object instance.',
-    ' Received { abc: 0 }',
+    'The argument \'methodName\' must be a method. Received undefined',
   ].join('');
   assert.throws(() => t.mock.method({ abc: 0 }, 'non-existent'), {
     message: expectedMessage
