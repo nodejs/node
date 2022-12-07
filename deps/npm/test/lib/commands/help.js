@@ -19,6 +19,7 @@ const npm = {
     parsedArgv: {
       cooked: [],
     },
+    validate: () => {},
   },
   exec: async (cmd, args) => {
     if (cmd === 'help-search') {

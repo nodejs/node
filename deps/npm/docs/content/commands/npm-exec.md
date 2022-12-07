@@ -33,10 +33,11 @@ specified multiple times, to execute the supplied command in an environment
 where all specified packages are available.
 
 If any requested packages are not present in the local project
-dependencies, then they are installed to a folder in the npm cache, which
-is added to the `PATH` environment variable in the executed process.  A
-prompt is printed (which can be suppressed by providing either `--yes` or
-`--no`).
+dependencies, then a prompt is printed, which can be suppressed by
+providing either `--yes` or `--no`. When standard input is not a TTY or a
+CI environment is detected, `--yes` is assumed. The requested packages are
+installed to a folder in the npm cache, which is added to the `PATH`
+environment variable in the executed process.
 
 Package names provided without a specifier will be matched with whatever
 version exists in the local project.  Package names with a specifier will
@@ -211,7 +212,8 @@ $ npx -c 'eslint && say "hooray, lint passed"'
 
 ### Workspaces support
 
-You may use the `workspace` or `workspaces` configs in order to run an
+You may use the [`workspace`](/using-npm/config#workspace) or
+[`workspaces`](/using-npm/config#workspaces) configs in order to run an
 arbitrary command from an npm package (either one installed locally, or fetched
 remotely) in the context of the specified workspaces.
 If no positional argument or `--call` option is provided, it will open an
@@ -242,9 +244,9 @@ Assuming the workspace configuration is properly set up at the root level
 ```
 
 You can execute an arbitrary command from a package in the context of each of
-the configured workspaces when using the `workspaces` configuration options,
-in this example we're using **eslint** to lint any js file found within each
-workspace folder:
+the configured workspaces when using the
+[`workspaces` config options](/using-npm/config#workspace), in this example
+we're using **eslint** to lint any js file found within each workspace folder:
 
 ```
 npm exec --ws -- eslint ./*.js

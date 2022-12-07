@@ -216,7 +216,7 @@ t.test('single arg', t => {
     })
 
     libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'simple-output@latest', 'should forward single spec')
+      t.equal(a, 'simple-output@*', 'should forward single spec')
       t.equal(b, `file:${path}`, 'should compare to cwd')
       t.match(opts, npm.flatOptions, 'should forward flat options')
     }
@@ -460,7 +460,7 @@ t.test('single arg', t => {
         }
       },
       libnpmdiff: async ([a, b], opts) => {
-        t.equal(a, 'lorem@latest', 'should target latest version of pkg name')
+        t.equal(a, 'lorem@*', 'should target any version of pkg name')
         t.equal(b, `file:${path}`, 'should target current cwd')
       },
     })
@@ -479,7 +479,7 @@ t.test('single arg', t => {
       'package.json': JSON.stringify({ version: '1.0.0' }),
     })
     libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@latest', 'should target latest tag of name')
+      t.equal(a, 'bar@*', 'should target any version of pkg name')
       t.equal(b, `file:${path}`, 'should compare to cwd')
     }
 
@@ -493,7 +493,7 @@ t.test('single arg', t => {
     t.plan(2)
 
     libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'foo@latest', 'should target latest tag of name')
+      t.equal(a, 'foo@*', 'should target any version of pkg name')
       t.equal(b, `file:${fooPath}`, 'should compare to cwd')
     }
 
@@ -592,7 +592,7 @@ t.test('first arg is a qualified spec', t => {
 
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, 'bar@1.0.0', 'should set expected first spec')
-      t.equal(b, 'bar-fork@latest', 'should target latest tag if not a dep')
+      t.equal(b, 'bar-fork@*', 'should target any version if not a dep')
     }
 
     config.diff = ['bar@1.0.0', 'bar-fork']
@@ -753,7 +753,7 @@ t.test('first arg is a known dependency name', async t => {
         `bar@file:${resolve(path, 'node_modules/bar')}`,
         'should target local node_modules pkg'
       )
-      t.equal(b, 'bar-fork@latest', 'should set expected second spec')
+      t.equal(b, 'bar-fork@*', 'should set expected second spec')
     }
 
     npm.prefix = path
@@ -840,7 +840,7 @@ t.test('first arg is a valid semver range', t => {
 
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, 'bar@1.0.0', 'should use name from second arg')
-      t.equal(b, 'bar@latest', 'should compare against latest tag')
+      t.equal(b, 'bar@*', 'should compare against any version')
     }
 
     config.diff = ['1.0.0', 'bar']
@@ -884,7 +884,7 @@ t.test('first arg is an unknown dependency name', t => {
     t.plan(4)
 
     libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@latest', 'should set expected first spec')
+      t.equal(a, 'bar@*', 'should set expected first spec')
       t.equal(b, 'bar@2.0.0', 'should set expected second spec')
       t.match(opts, npm.flatOptions, 'should forward flat options')
       t.match(opts, { where: fooPath }, 'should forward pacote options')
@@ -919,7 +919,7 @@ t.test('first arg is an unknown dependency name', t => {
     })
 
     libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar-fork@latest', 'should use latest tag')
+      t.equal(a, 'bar-fork@*', 'should use any version')
       t.equal(
         b,
         `bar@file:${resolve(path, 'node_modules/bar')}`,
@@ -940,7 +940,7 @@ t.test('first arg is an unknown dependency name', t => {
     t.plan(2)
 
     libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@latest', 'should use latest tag')
+      t.equal(a, 'bar@*', 'should use any version')
       t.equal(b, 'bar@^1.0.0', 'should use name from first arg')
     }
 
@@ -956,8 +956,8 @@ t.test('first arg is an unknown dependency name', t => {
     t.plan(2)
 
     libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@latest', 'should use latest tag')
-      t.equal(b, 'bar-fork@latest', 'should use latest tag')
+      t.equal(a, 'bar@*', 'should use any version')
+      t.equal(b, 'bar-fork@*', 'should use any version')
     }
 
     config.diff = ['bar', 'bar-fork']
@@ -973,8 +973,8 @@ t.test('first arg is an unknown dependency name', t => {
 
     const path = t.testdir({})
     libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@latest', 'should use latest tag')
-      t.equal(b, 'bar-fork@latest', 'should use latest tag')
+      t.equal(a, 'bar@*', 'should use any version')
+      t.equal(b, 'bar-fork@*', 'should use any version')
     }
 
     config.diff = ['bar', 'bar-fork']

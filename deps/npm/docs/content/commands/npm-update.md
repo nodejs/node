@@ -15,9 +15,9 @@ aliases: up, upgrade, udpate
 ### Description
 
 This command will update all the packages listed to the latest version
-(specified by the `tag` config), respecting the semver constraints of
-both your package and its dependencies (if they also require the same
-package).
+(specified by the [`tag` config](/using-npm/config#tag)), respecting the semver
+constraints of both your package and its dependencies (if they also require the
+same package).
 
 It will also install missing packages.
 
@@ -183,27 +183,39 @@ folder instead of the current working directory. See
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 
-#### `global-style`
+#### `install-strategy`
 
-* Default: false
-* Type: Boolean
+* Default: "hoisted"
+* Type: "hoisted", "nested", or "shallow"
 
-Causes npm to install the package into your local `node_modules` folder with
-the same layout it uses with the global `node_modules` folder. Only your
-direct dependencies will show in `node_modules` and everything they depend
-on will be flattened in their `node_modules` folders. This obviously will
-eliminate some deduping. If used with `legacy-bundling`, `legacy-bundling`
-will be preferred.
+Sets the strategy for installing packages in node_modules. hoisted
+(default): Install non-duplicated in top-level, and duplicated as necessary
+within directory structure. nested: (formerly --legacy-bundling) install in
+place, no hoisting. shallow (formerly --global-style) only install direct
+deps at top-level. linked: (coming soon) install in node_modules/.store,
+link in place, unhoisted.
 
 #### `legacy-bundling`
 
 * Default: false
 * Type: Boolean
+* DEPRECATED: This option has been deprecated in favor of
+  `--install-strategy=nested`
 
-Causes npm to install the package such that versions of npm prior to 1.4,
-such as the one included with node 0.8, can install the package. This
-eliminates all automatic deduping. If used with `global-style` this option
-will be preferred.
+Instead of hoisting package installs in `node_modules`, install packages in
+the same manner that they are depended on. This may cause very deep
+directory structures and duplicate package installs as there is no
+de-duplicating. Sets `--install-strategy=nested`.
+
+#### `global-style`
+
+* Default: false
+* Type: Boolean
+* DEPRECATED: This option has been deprecated in favor of
+  `--install-strategy=shallow`
+
+Only install direct dependencies in the top level `node_modules`, but hoist
+on deeper dependendencies. Sets `--install-strategy=shallow`.
 
 #### `omit`
 
@@ -375,12 +387,12 @@ This value is not exported to the environment for child processes.
 
 #### `install-links`
 
-* Default: false
+* Default: true
 * Type: Boolean
 
-When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.
+When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.
 
 ### See Also
 

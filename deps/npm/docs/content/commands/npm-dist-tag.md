@@ -19,8 +19,8 @@ alias: dist-tags
 Add, remove, and enumerate distribution tags on a package:
 
 * add: Tags the specified version of the package with the specified tag,
-  or the `--tag` config if not specified. If you have two-factor
-  authentication on auth-and-writes then you’ll need to include a
+  or the [`--tag` config](/using-npm/config#tag) if not specified. If you have
+  two-factor authentication on auth-and-writes then you’ll need to include a
   one-time password on the command line with
   `--otp <one-time password>`, or at the OTP prompt.
 

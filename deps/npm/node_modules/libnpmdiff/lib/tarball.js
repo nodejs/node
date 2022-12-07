@@ -1,5 +1,6 @@
 const { relative } = require('path')
 
+const Arborist = require('@npmcli/arborist')
 const npa = require('npm-package-arg')
 const pkgContents = require('@npmcli/installed-package-contents')
 const pacote = require('pacote')
@@ -28,7 +29,10 @@ const tarball = (manifest, opts) => {
     return nodeModulesTarball(manifest, opts)
   }
 
-  return pacote.tarball(manifest._resolved, opts)
+  return pacote.tarball(manifest._resolved, {
+    ...opts,
+    Arborist,
+  })
 }
 
 module.exports = tarball

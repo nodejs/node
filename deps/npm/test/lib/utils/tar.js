@@ -27,12 +27,17 @@ t.test('should log tarball contents', async (t) => {
       bundleDependencies: [
         'bundle-dep',
       ],
-    }, null, 2),
+      dependencies: {
+        'bundle-dep': '1.0.0',
+      },
+    }),
     cat: 'meow',
     chai: 'blub',
     dog: 'woof',
     node_modules: {
-      'bundle-dep': 'toto',
+      'bundle-dep': {
+        'package.json': '',
+      },
     },
   })
 
@@ -40,6 +45,38 @@ t.test('should log tarball contents', async (t) => {
   const tarballContents = await getContents({
     _id: '1',
     name: 'my-cool-pkg',
+    version: '1.0.0',
+  }, tarball)
+
+  t.matchSnapshot(printLogs(tarballContents))
+})
+
+t.test('should log tarball contents of a scoped package', async (t) => {
+  const testDir = t.testdir({
+    'package.json': JSON.stringify({
+      name: '@myscope/my-cool-pkg',
+      version: '1.0.0',
+      bundleDependencies: [
+        'bundle-dep',
+      ],
+      dependencies: {
+        'bundle-dep': '1.0.0',
+      },
+    }),
+    cat: 'meow',
+    chai: 'blub',
+    dog: 'woof',
+    node_modules: {
+      'bundle-dep': {
+        'package.json': '',
+      },
+    },
+  })
+
+  const tarball = await pack(testDir)
+  const tarballContents = await getContents({
+    _id: '1',
+    name: '@myscope/my-cool-pkg',
     version: '1.0.0',
   }, tarball)
 

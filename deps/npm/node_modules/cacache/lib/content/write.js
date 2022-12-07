@@ -1,17 +1,14 @@
 'use strict'
 
 const events = require('events')
-const util = require('util')
 
 const contentPath = require('./path')
-const fixOwner = require('../util/fix-owner')
-const fs = require('@npmcli/fs')
+const fs = require('fs/promises')
 const moveFile = require('../util/move-file')
 const Minipass = require('minipass')
 const Pipeline = require('minipass-pipeline')
 const Flush = require('minipass-flush')
 const path = require('path')
-const rimraf = util.promisify(require('rimraf'))
 const ssri = require('ssri')
 const uniqueFilename = require('unique-filename')
 const fsm = require('fs-minipass')
@@ -40,7 +37,7 @@ async function write (cache, data, opts = {}) {
     return { integrity: sri, size: data.length }
   } finally {
     if (!tmp.moved) {
-      await rimraf(tmp.target)
+      await fs.rm(tmp.target, { recursive: true, force: true })
     }
   }
 }
@@ -111,7 +108,7 @@ async function handleContent (inputStream, cache, opts) {
     return res
   } finally {
     if (!tmp.moved) {
-      await rimraf(tmp.target)
+      await fs.rm(tmp.target, { recursive: true, force: true })
     }
   }
 }
@@ -152,7 +149,7 @@ async function pipeToTmp (inputStream, cache, tmpTarget, opts) {
 
 async function makeTmp (cache, opts) {
   const tmpTarget = uniqueFilename(path.join(cache, 'tmp'), opts.tmpPrefix)
-  await fixOwner.mkdirfix(cache, path.dirname(tmpTarget))
+  await fs.mkdir(path.dirname(tmpTarget), { recursive: true })
   return {
     target: tmpTarget,
     moved: false,
@@ -163,10 +160,9 @@ async function moveToDestination (tmp, cache, sri, opts) {
   const destination = contentPath(cache, sri)
   const destDir = path.dirname(destination)
 
-  await fixOwner.mkdirfix(cache, destDir)
+  await fs.mkdir(destDir, { recursive: true })
   await moveFile(tmp.target, destination)
   tmp.moved = true
-  await fixOwner.chownr(cache, destination)
 }
 
 function sizeError (expected, found) {

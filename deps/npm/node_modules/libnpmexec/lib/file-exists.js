@@ -1,10 +1,10 @@
 const { resolve } = require('path')
-const fs = require('@npmcli/fs')
+const { stat } = require('fs/promises')
 const walkUp = require('walk-up-path')
 
 const fileExists = async (file) => {
   try {
-    const res = await fs.stat(file)
+    const res = await stat(file)
     return res.isFile()
   } catch {
     return false

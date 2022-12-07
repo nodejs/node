@@ -28,7 +28,7 @@ let hookArgs = null
 const libnpmhook = {
   add: async (pkg, uri, secret, opts) => {
     hookArgs = { pkg, uri, secret, opts }
-    return { id: 1, name: pkg.replace(/^@/, ''), type: pkgTypes[pkg], endpoint: uri }
+    return { id: 1, name: pkg, type: pkgTypes[pkg], endpoint: uri }
   },
   ls: async opts => {
     hookArgs = opts
@@ -39,7 +39,7 @@ const libnpmhook = {
 
     return Object.keys(pkgTypes).map(name => ({
       id: ++id,
-      name: name.replace(/^@/, ''),
+      name,
       type: pkgTypes[name],
       endpoint: 'https://google.com',
       last_delivery: id % 2 === 0 ? now : undefined,
@@ -50,7 +50,7 @@ const libnpmhook = {
     const pkg = Object.keys(pkgTypes)[0]
     return {
       id: 1,
-      name: pkg.replace(/^@/, ''),
+      name: pkg,
       type: pkgTypes[pkg],
       endpoint: 'https://google.com',
     }
@@ -58,7 +58,7 @@ const libnpmhook = {
   update: async (id, uri, secret, opts) => {
     hookArgs = { id, uri, secret, opts }
     const pkg = Object.keys(pkgTypes)[0]
-    return { id, name: pkg.replace(/^@/, ''), type: pkgTypes[pkg], endpoint: uri }
+    return { id, name: pkg, type: pkgTypes[pkg], endpoint: uri }
   },
 }
 
@@ -90,6 +90,48 @@ t.test('npm hook add', async t => {
     'provided the correct arguments to libnpmhook'
   )
   t.strictSame(output, ['+ semver  ->  https://google.com'], 'prints the correct output')
+})
+
+t.test('npm hook add - correct owner hook output', async t => {
+  t.teardown(() => {
+    hookArgs = null
+    output.length = 0
+  })
+
+  await hook.exec(['add', '~npm', 'https://google.com', 'some-secret'])
+
+  t.match(
+    hookArgs,
+    {
+      pkg: '~npm',
+      uri: 'https://google.com',
+      secret: 'some-secret',
+      opts: npm.flatOptions,
+    },
+    'provided the correct arguments to libnpmhook'
+  )
+  t.strictSame(output, ['+ ~npm  ->  https://google.com'], 'prints the correct output')
+})
+
+t.test('npm hook add - correct scope hook output', async t => {
+  t.teardown(() => {
+    hookArgs = null
+    output.length = 0
+  })
+
+  await hook.exec(['add', '@npmcli', 'https://google.com', 'some-secret'])
+
+  t.match(
+    hookArgs,
+    {
+      pkg: '@npmcli',
+      uri: 'https://google.com',
+      secret: 'some-secret',
+      opts: npm.flatOptions,
+    },
+    'provided the correct arguments to libnpmhook'
+  )
+  t.strictSame(output, ['+ @npmcli  ->  https://google.com'], 'prints the correct output')
 })
 
 t.test('npm hook add - unicode output', async t => {
@@ -139,7 +181,7 @@ t.test('npm hook add - json output', async t => {
     JSON.parse(output[0]),
     {
       id: 1,
-      name: 'npmcli',
+      name: '@npmcli',
       endpoint: 'https://google.com',
       type: 'scope',
     },
@@ -174,7 +216,7 @@ t.test('npm hook add - parseable output', async t => {
   )
   t.strictSame(
     output[1].split(/\t/),
-    ['1', 'npmcli', 'scope', 'https://google.com'],
+    ['1', '@npmcli', 'scope', 'https://google.com'],
     'prints the correct parseable values'
   )
 })
@@ -345,7 +387,7 @@ t.test('npm hook ls - parseable output', async t => {
     [
       ['id', 'name', 'type', 'endpoint', 'last_delivery'],
       ['1', 'semver', 'package', 'https://google.com', ''],
-      ['2', 'npmcli', 'scope', 'https://google.com', `${now}`],
+      ['2', '@npmcli', 'scope', 'https://google.com', `${now}`],
       ['3', 'npm', 'owner', 'https://google.com', ''],
     ],
     'prints the correct result'

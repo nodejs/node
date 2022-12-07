@@ -103,6 +103,7 @@ const config = {
   global: false,
   json: false,
   link: false,
+  location: 'project',
   omit: [],
   parseable: false,
   'package-lock-only': false,

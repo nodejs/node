@@ -19,14 +19,19 @@ const npm = {
 let openerUrl = null
 let openerOpts = null
 let openerResult = null
-const opener = (url, opts, cb) => {
+
+const open = async (url, options) => {
   openerUrl = url
-  openerOpts = opts
-  return cb(openerResult)
+  openerOpts = options
+  if (openerResult) {
+    throw openerResult
+  }
 }
 
 const openUrl = t.mock('../../../lib/utils/open-url.js', {
-  opener,
+  '@npmcli/promise-spawn': {
+    open,
+  },
 })
 
 t.test('opens a url', async t => {

@@ -146,20 +146,20 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm query &lt;selector&gt;
+<pre><code class="language-bash">npm query &lt;selector&gt;
 </code></pre>
 <h3 id="description">Description</h3>
 <p>The <code>npm query</code> command allows for usage of css selectors in order to retrieve
 an array of dependency objects.</p>
 <h3 id="piping-npm-query-to-other-commands">Piping npm query to other commands</h3>
-<pre lang="bash"><code># find all dependencies with postinstall scripts &amp; uninstall them
+<pre><code class="language-bash"># find all dependencies with postinstall scripts &amp; uninstall them
 npm query ":attr(scripts, [postinstall])" | jq 'map(.name)|join("\n")' -r | xargs -I {} npm uninstall {}
 
 # find all git dependencies &amp; explain who requires them
 npm query ":type(git)" | jq 'map(.name)' | xargs -I {} npm why {}
 </code></pre>
 <h3 id="extended-use-cases--queries">Extended Use Cases &amp; Queries</h3>
-<pre lang="stylus"><code>// all deps
+<pre><code class="language-stylus">// all deps
 *
 
 // all direct deps
@@ -230,7 +230,7 @@ npm query ":type(git)" | jq 'map(.name)' | xargs -I {} npm why {}
 <ul>
 <li>an array of dependency objects is returned which can contain multiple copies of the same package which may or may not have been linked or deduped</li>
 </ul>
-<pre lang="json"><code>[
+<pre><code class="language-json">[
   {
     "name": "",
     "version": "",
@@ -327,8 +327,7 @@ the specified workspaces, and not on the root project.</p>
 <h2 id="see-also">See Also</h2>
 <ul>
 <li><a href="../using-npm/dependency-selectors.html">dependency selectors</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-query.md">

@@ -116,6 +116,7 @@ def main(argv=None):
     else:
         format_list = {
             "aix5": ["make"],
+            "os400": ["make"],
             "freebsd7": ["make"],
             "freebsd8": ["make"],
             "openbsd5": ["make"],

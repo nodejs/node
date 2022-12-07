@@ -100,7 +100,6 @@ for (const [name, bash] of bashes) {
       const result = await spawn(bash, args, {
         env: { PATH: path, npm_config_update_notifier: 'false' },
         cwd: path,
-        stdioString: true,
       })
       t.match(result, {
         cmd: bash,
@@ -119,7 +118,6 @@ for (const [name, bash] of bashes) {
       const result = await spawn(bash, args, {
         env: { PATH: path, npm_config_update_notifier: 'false' },
         cwd: path,
-        stdioString: true,
       })
       t.match(result, {
         cmd: bash,

@@ -176,6 +176,11 @@ command-line in order to target multiple workspaces, e.g:
 npm run test --workspace=a --workspace=b
 ```
 
+Or run the command for each workspace within the 'packages' folder:
+```
+npm run test --workspace=packages
+```
+
 It's also possible to use the `workspaces` (plural) configuration option to
 enable the same behavior but running that command in the context of **all**
 configured workspaces. e.g:

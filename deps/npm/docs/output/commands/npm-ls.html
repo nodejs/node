@@ -146,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm ls &lt;package-spec&gt;
+<pre><code class="language-bash">npm ls &lt;package-spec&gt;
 
 alias: list
 </code></pre>
@@ -160,7 +160,7 @@ tree at all, use <a href="../commands/npm-explain.html"><code>npm explain</code>
 the results to only the paths to the packages named.  Note that nested
 packages will <em>also</em> show the paths to the specified packages.  For
 example, running <code>npm ls promzard</code> in npm's source tree will show:</p>
-<pre lang="bash"><code>npm@8.19.3 /path/to/npm
+<pre><code class="language-bash">npm@9.1.3 /path/to/npm
 └─┬ init-package-json@0.0.4
   └── promzard@0.1.5
 </code></pre>
@@ -333,12 +333,12 @@ the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="install-links"><code>install-links</code></h4>
 <ul>
-<li>Default: false</li>
+<li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.</p>
+<p>When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/package-spec.html">package spec</a></li>
@@ -352,8 +352,7 @@ symlink. This option has no effect on workspaces.</p>
 <li><a href="../commands/npm-prune.html">npm prune</a></li>
 <li><a href="../commands/npm-outdated.html">npm outdated</a></li>
 <li><a href="../commands/npm-update.html">npm update</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-ls.md">

@@ -27,7 +27,7 @@ packages will *also* show the paths to the specified packages.  For
 example, running `npm ls promzard` in npm's source tree will show:
 
 ```bash
-npm@8.19.3 /path/to/npm
+npm@9.1.3 /path/to/npm
 └─┬ init-package-json@0.0.4
   └── promzard@0.1.5
 ```
@@ -236,12 +236,12 @@ This value is not exported to the environment for child processes.
 
 #### `install-links`
 
-* Default: false
+* Default: true
 * Type: Boolean
 
-When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.
+When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.
 
 ### See Also
 

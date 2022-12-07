@@ -3,11 +3,6 @@ const npmlog = require('npmlog')
 const log = require('./log-shim.js')
 const { explain } = require('./explain-eresolve.js')
 
-const _logHandler = Symbol('logHandler')
-const _eresolveWarn = Symbol('eresolveWarn')
-const _log = Symbol('log')
-const _npmlog = Symbol('npmlog')
-
 class Display {
   constructor () {
     // pause by default until config is loaded
@@ -16,11 +11,11 @@ class Display {
   }
 
   on () {
-    process.on('log', this[_logHandler])
+    process.on('log', this.#logHandler)
   }
 
   off () {
-    process.off('log', this[_logHandler])
+    process.off('log', this.#logHandler)
     // Unbalanced calls to enable/disable progress
     // will leave change listeners on the tracker
     // This pretty much only happens in tests but
@@ -39,13 +34,20 @@ class Display {
       heading = 'npm',
     } = config
 
-    // XXX: decouple timing from loglevel
-    if (timing && loglevel === 'notice') {
-      log.level = 'timing'
-    } else {
-      log.level = loglevel
-    }
+    // npmlog is still going away someday, so this is a hack to dynamically
+    // set the loglevel of timing based on the timing flag, instead of making
+    // a breaking change to npmlog. The result is that timing logs are never
+    // shown except when the --timing flag is set. We also need to change
+    // the index of the silly level since otherwise it is set to -Infinity
+    // and we can't go any lower than that. silent is still set to Infinify
+    // because we DO want silent to hide timing levels. This allows for the
+    // special case of getting timing information while hiding all CLI output
+    // in order to get perf information that might be affected by writing to
+    // a terminal. XXX(npmlog): this will be removed along with npmlog
+    log.levels.silly = -10000
+    log.levels.timing = log.levels[loglevel] + (timing ? 1 : -1)
 
+    log.level = loglevel
     log.heading = heading
 
     if (color) {
@@ -72,16 +74,16 @@ class Display {
   }
 
   log (...args) {
-    this[_logHandler](...args)
+    this.#logHandler(...args)
   }
 
-  [_logHandler] = (level, ...args) => {
+  #logHandler = (level, ...args) => {
     try {
-      this[_log](level, ...args)
+      this.#log(level, ...args)
     } catch (ex) {
       try {
         // if it crashed once, it might again!
-        this[_npmlog]('verbose', `attempt to log ${inspect(args)} crashed`, ex)
+        this.#npmlog('verbose', `attempt to log ${inspect(args)} crashed`, ex)
       } catch (ex2) {
         // eslint-disable-next-line no-console
         console.error(`attempt to log ${inspect(args)} crashed`, ex, ex2)
@@ -89,13 +91,13 @@ class Display {
     }
   }
 
-  [_log] (...args) {
-    return this[_eresolveWarn](...args) || this[_npmlog](...args)
+  #log (...args) {
+    return this.#eresolveWarn(...args) || this.#npmlog(...args)
   }
 
   // Explicitly call these on npmlog and not log shim
   // This is the final place we should call npmlog before removing it.
-  [_npmlog] (level, ...args) {
+  #npmlog (level, ...args) {
     npmlog[level](...args)
   }
 
@@ -103,13 +105,13 @@ class Display {
   // log.warn() method so that when we see a peerDep override
   // explanation from Arborist, we can replace the object with a
   // highly abbreviated explanation of what's being overridden.
-  [_eresolveWarn] (level, heading, message, expl) {
+  #eresolveWarn (level, heading, message, expl) {
     if (level === 'warn' &&
         heading === 'ERESOLVE' &&
         expl && typeof expl === 'object'
     ) {
-      this[_npmlog](level, heading, message)
-      this[_npmlog](level, '', explain(expl, log.useColor(), 2))
+      this.#npmlog(level, heading, message)
+      this.#npmlog(level, '', explain(expl, log.useColor(), 2))
       // Return true to short circuit other log in chain
       return true
     }

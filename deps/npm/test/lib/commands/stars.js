@@ -4,7 +4,7 @@ let result = ''
 
 const noop = () => null
 const npm = {
-  config: { get () {} },
+  config: { get () {}, validate: () => {} },
   flatOptions: {},
   output: (...msg) => {
     result = [result, ...msg].join('\n')

@@ -47,7 +47,6 @@ Array [
       access
       adduser
       audit
-      bin
       bugs
       cache
       ci
@@ -95,7 +94,6 @@ Array [
       run-script
       search
       set
-      set-script
       shrinkwrap
       star
       stars
@@ -111,7 +109,6 @@ Array [
       version
       view
       whoami
-      login
       author
       home
       issues
@@ -174,11 +171,7 @@ Array [
 `
 
 exports[`test/lib/commands/completion.js TAP completion filtered subcommands > filtered subcommands 1`] = `
-Array [
-  Array [
-    "public",
-  ],
-]
+Array []
 `
 
 exports[`test/lib/commands/completion.js TAP completion flags > flags 1`] = `
@@ -222,15 +215,11 @@ exports[`test/lib/commands/completion.js TAP completion subcommand completion > 
 Array [
   Array [
     String(
-      public
-      restricted
+      get
       grant
+      list
       revoke
-      ls-packages
-      ls-collaborators
-      edit
-      2fa-required
-      2fa-not-required
+      set
     ),
   ],
 ]

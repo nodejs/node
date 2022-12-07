@@ -142,19 +142,19 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#example">Example</a></li><ul><li><a href="#caret-dependencies">Caret Dependencies</a></li><li><a href="#tilde-dependencies">Tilde Dependencies</a></li><li><a href="#caret-dependencies-below-100">Caret Dependencies below 1.0.0</a></li><li><a href="#subdependencies">Subdependencies</a></li><li><a href="#updating-globally-installed-packages">Updating Globally-Installed Packages</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#save"><code>save</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#example">Example</a></li><ul><li><a href="#caret-dependencies">Caret Dependencies</a></li><li><a href="#tilde-dependencies">Tilde Dependencies</a></li><li><a href="#caret-dependencies-below-100">Caret Dependencies below 1.0.0</a></li><li><a href="#subdependencies">Subdependencies</a></li><li><a href="#updating-globally-installed-packages">Updating Globally-Installed Packages</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#save"><code>save</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#install-strategy"><code>install-strategy</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm update [&lt;pkg&gt;...]
+<pre><code class="language-bash">npm update [&lt;pkg&gt;...]
 
 aliases: up, upgrade, udpate
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This command will update all the packages listed to the latest version
-(specified by the <code>tag</code> config), respecting the semver constraints of
-both your package and its dependencies (if they also require the same
-package).</p>
+(specified by the <a href="../using-npm/config#tag.html"><code>tag</code> config</a>), respecting the semver
+constraints of both your package and its dependencies (if they also require the
+same package).</p>
 <p>It will also install missing packages.</p>
 <p>If the <code>-g</code> flag is specified, this command will update globally installed
 packages.</p>
@@ -169,7 +169,7 @@ to make that the default behavior).</p>
 <p>For the examples below, assume that the current package is <code>app</code> and it depends
 on dependencies, <code>dep1</code> (<code>dep2</code>, .. etc.).  The published versions of <code>dep1</code>
 are:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "dist-tags": { "latest": "1.2.2" },
   "versions": [
     "1.2.2",
@@ -186,7 +186,7 @@ are:</p>
 </code></pre>
 <h4 id="caret-dependencies">Caret Dependencies</h4>
 <p>If <code>app</code>'s <code>package.json</code> contains:</p>
-<pre lang="json"><code>"dependencies": {
+<pre><code class="language-json">"dependencies": {
   "dep1": "^1.1.1"
 }
 </code></pre>
@@ -194,7 +194,7 @@ are:</p>
 <code>1.2.2</code> satisfies <code>^1.1.1</code>.</p>
 <h4 id="tilde-dependencies">Tilde Dependencies</h4>
 <p>However, if <code>app</code>'s <code>package.json</code> contains:</p>
-<pre lang="json"><code>"dependencies": {
+<pre><code class="language-json">"dependencies": {
   "dep1": "~1.1.1"
 }
 </code></pre>
@@ -204,14 +204,14 @@ equivalent to <code>&gt;=1.1.1 &lt;1.2.0</code>.  So the highest-sorting version
 <code>~1.1.1</code> is used, which is <code>1.1.2</code>.</p>
 <h4 id="caret-dependencies-below-100">Caret Dependencies below 1.0.0</h4>
 <p>Suppose <code>app</code> has a caret dependency on a version below <code>1.0.0</code>, for example:</p>
-<pre lang="json"><code>"dependencies": {
+<pre><code class="language-json">"dependencies": {
   "dep1": "^0.2.0"
 }
 </code></pre>
 <p><code>npm update</code> will install <code>dep1@0.2.0</code>, because there are no other
 versions which satisfy <code>^0.2.0</code>.</p>
 <p>If the dependence were on <code>^0.4.0</code>:</p>
-<pre lang="json"><code>"dependencies": {
+<pre><code class="language-json">"dependencies": {
   "dep1": "^0.4.0"
 }
 </code></pre>
@@ -219,7 +219,7 @@ versions which satisfy <code>^0.2.0</code>.</p>
 version that satisfies <code>^0.4.0</code> (<code>&gt;= 0.4.0 &lt;0.5.0</code>)</p>
 <h4 id="subdependencies">Subdependencies</h4>
 <p>Suppose your app now also has a dependency on <code>dep2</code></p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name": "my-app",
   "dependencies": {
       "dep1": "^1.0.0",
@@ -228,7 +228,7 @@ version that satisfies <code>^0.4.0</code> (<code>&gt;= 0.4.0 &lt;0.5.0</code>)<
 }
 </code></pre>
 <p>and <code>dep2</code> itself depends on this limited range of <code>dep1</code></p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
 "name": "dep2",
   "dependencies": {
     "dep1": "~1.1.1"
@@ -274,26 +274,37 @@ of the current working directory.</li>
 <li>bin files are linked to <code>{prefix}/bin</code></li>
 <li>man pages are linked to <code>{prefix}/share/man</code></li>
 </ul>
-<h4 id="global-style"><code>global-style</code></h4>
+<h4 id="install-strategy"><code>install-strategy</code></h4>
 <ul>
-<li>Default: false</li>
-<li>Type: Boolean</li>
+<li>Default: "hoisted"</li>
+<li>Type: "hoisted", "nested", or "shallow"</li>
 </ul>
-<p>Causes npm to install the package into your local <code>node_modules</code> folder with
-the same layout it uses with the global <code>node_modules</code> folder. Only your
-direct dependencies will show in <code>node_modules</code> and everything they depend
-on will be flattened in their <code>node_modules</code> folders. This obviously will
-eliminate some deduping. If used with <code>legacy-bundling</code>, <code>legacy-bundling</code>
-will be preferred.</p>
+<p>Sets the strategy for installing packages in node_modules. hoisted
+(default): Install non-duplicated in top-level, and duplicated as necessary
+within directory structure. nested: (formerly --legacy-bundling) install in
+place, no hoisting. shallow (formerly --global-style) only install direct
+deps at top-level. linked: (coming soon) install in node_modules/.store,
+link in place, unhoisted.</p>
 <h4 id="legacy-bundling"><code>legacy-bundling</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
+<li>DEPRECATED: This option has been deprecated in favor of
+<code>--install-strategy=nested</code></li>
 </ul>
-<p>Causes npm to install the package such that versions of npm prior to 1.4,
-such as the one included with node 0.8, can install the package. This
-eliminates all automatic deduping. If used with <code>global-style</code> this option
-will be preferred.</p>
+<p>Instead of hoisting package installs in <code>node_modules</code>, install packages in
+the same manner that they are depended on. This may cause very deep
+directory structures and duplicate package installs as there is no
+de-duplicating. Sets <code>--install-strategy=nested</code>.</p>
+<h4 id="global-style"><code>global-style</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+<li>DEPRECATED: This option has been deprecated in favor of
+<code>--install-strategy=shallow</code></li>
+</ul>
+<p>Only install direct dependencies in the top level <code>node_modules</code>, but hoist
+on deeper dependendencies. Sets <code>--install-strategy=shallow</code>.</p>
 <h4 id="omit"><code>omit</code></h4>
 <ul>
 <li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
@@ -436,12 +447,12 @@ the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="install-links"><code>install-links</code></h4>
 <ul>
-<li>Default: false</li>
+<li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.</p>
+<p>When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-install.html">npm install</a></li>
@@ -450,8 +461,7 @@ symlink. This option has no effect on workspaces.</p>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
 <li><a href="../configuring-npm/folders.html">npm folders</a></li>
 <li><a href="../commands/npm-ls.html">npm ls</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-update.md">

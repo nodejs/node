@@ -155,9 +155,10 @@ settings described in <a href="../using-npm/config.html"><code>config</code></a>
 <p>If you plan to publish your package, the <em>most</em> important things in your
 package.json are the name and version fields as they will be required. The
 name and version together form an identifier that is assumed to be
-completely unique. If you don't plan to publish your package, the name and
-version fields are optional.
-The name field contains your package name.</p>
+completely unique.  Changes to the package should come along with changes
+to the version. If you don't plan to publish your package, the name and
+version fields are optional.</p>
+<p>The name is what your thing is called.</p>
 <p>Some rules:</p>
 <ul>
 <li>The name must be less than or equal to 214 characters. This includes the
@@ -184,9 +185,12 @@ that name already, before you get too attached to it.
 <p>A name can be optionally prefixed by a scope, e.g. <code>@myorg/mypackage</code>. See
 <a href="../using-npm/scope.html"><code>scope</code></a> for more detail.</p>
 <h3 id="version">version</h3>
-<p>Changes to the package should come along with changes to the version.
-You can show developers how much they need to adjust on a new update by
-using <a href="../../about-semantic-versioning">semantic versioning</a></p>
+<p>If you plan to publish your package, the <em>most</em> important things in your
+package.json are the name and version fields as they will be required. The
+name and version together form an identifier that is assumed to be
+completely unique.  Changes to the package should come along with changes
+to the version. If you don't plan to publish your package, the name and
+version fields are optional.</p>
 <p>Version must be parseable by
 <a href="https://github.com/npm/node-semver">node-semver</a>, which is bundled with
 npm as a dependency.  (<code>npm install semver</code> to use it yourself.)</p>
@@ -199,14 +203,14 @@ your package as it's listed in <code>npm search</code>.</p>
 <h3 id="homepage">homepage</h3>
 <p>The url to the project homepage.</p>
 <p>Example:</p>
-<pre lang="json"><code>"homepage": "https://github.com/owner/project#readme"
+<pre><code class="language-json">"homepage": "https://github.com/owner/project#readme"
 </code></pre>
 <h3 id="bugs">bugs</h3>
 <p>The url to your project's issue tracker and / or the email address to which
 issues should be reported. These are helpful for people who encounter
 issues with your package.</p>
 <p>It should look like this:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "url" : "https://github.com/owner/project/issues",
   "email" : "project@hostname.com"
 }
@@ -220,7 +224,7 @@ object.</p>
 are permitted to use it, and any restrictions you're placing on it.</p>
 <p>If you're using a common license such as BSD-2-Clause or MIT, add a current
 SPDX license identifier for the license you're using, like this:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "license" : "BSD-3-Clause"
 }
 </code></pre>
@@ -230,20 +234,20 @@ IDs</a>.  Ideally you should pick one that is
 <p>If your package is licensed under multiple common licenses, use an <a href="https://spdx.dev/specifications/">SPDX
 license expression syntax version 2.0
 string</a>, like this:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "license" : "(ISC OR GPL-3.0)"
 }
 </code></pre>
 <p>If you are using a license that hasn't been assigned an SPDX identifier, or if
 you are using a custom license, use a string value like this one:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "license" : "SEE LICENSE IN &lt;filename&gt;"
 }
 </code></pre>
 <p>Then include a file named <code>&lt;filename&gt;</code> at the top level of the package.</p>
 <p>Some old packages used license objects or a "licenses" property containing
 an array of license objects:</p>
-<pre lang="json"><code>// Not valid metadata
+<pre><code class="language-json">// Not valid metadata
 {
   "license" : {
     "type" : "ISC",
@@ -266,17 +270,17 @@ an array of license objects:</p>
 }
 </code></pre>
 <p>Those styles are now deprecated. Instead, use SPDX expressions, like this:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "license": "ISC"
 }
 </code></pre>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "license": "(MIT OR Apache-2.0)"
 }
 </code></pre>
 <p>Finally, if you do not wish to grant others the right to use a private or
 unpublished package under any terms:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "license": "UNLICENSED"
 }
 </code></pre>
@@ -285,7 +289,7 @@ unpublished package under any terms:</p>
 <p>The "author" is one person.  "contributors" is an array of people.  A
 "person" is an object with a "name" field and optionally "url" and "email",
 like this:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name" : "Barney Rubble",
   "email" : "b@rubble.com",
   "url" : "http://barnyrubble.tumblr.com/"
@@ -293,7 +297,7 @@ like this:</p>
 </code></pre>
 <p>Or you can shorten that all into a single string, and npm will parse it for
 you:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "author": "Barney Rubble &lt;b@rubble.com&gt; (http://barnyrubble.tumblr.com/)"
 }
 </code></pre>
@@ -303,7 +307,7 @@ you:</p>
 <p>You can specify an object containing a URL that provides up-to-date
 information about ways to help fund development of your package, or a
 string URL, or an array of these:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "funding": {
     "type" : "individual",
     "url" : "http://example.com/donate"
@@ -398,31 +402,35 @@ rely on primitives that aren't available in Node.js modules. (e.g.
 install into the PATH. npm makes this pretty easy (in fact, it uses this
 feature to install the "npm" executable.)</p>
 <p>To use this, supply a <code>bin</code> field in your package.json which is a map of
-command name to local file name. When this package is installed
-globally, that file will be linked where global bins go so it is
-available to run by name.  When this package is installed as a
-dependency in another package, the file will be linked where it will be
-available to that package either directly by <code>npm exec</code> or by name in other
-scripts when invoking them via <code>npm run-script</code>.</p>
+command name to local file name. When this package is installed globally,
+that file will be either linked inside the global bins directory or
+a cmd (Windows Command File) will be created which executes the specified
+file in the <code>bin</code> field, so it is available to run by <code>name</code> or <code>name.cmd</code> (on
+Windows PowerShell). When this package is installed as a dependency in another
+package, the file will be linked where it will be available to that package
+either directly by <code>npm exec</code> or by name in other scripts when invoking them
+via <code>npm run-script</code>.</p>
 <p>For example, myapp could have this:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "bin": {
     "myapp": "./cli.js"
   }
 }
 </code></pre>
-<p>So, when you install myapp, it'll create a symlink from the <code>cli.js</code> script
-to <code>/usr/local/bin/myapp</code>.</p>
+<p>So, when you install myapp, in case of unix-like OS it'll create a symlink
+from the <code>cli.js</code> script to <code>/usr/local/bin/myapp</code> and in case of windows it
+will create a cmd file usually at <code>C:\Users\{Username}\AppData\Roaming\npm\myapp.cmd</code>
+which runs the <code>cli.js</code> script.</p>
 <p>If you have a single executable, and its name should be the name of the
 package, then you can just supply it as a string.  For example:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name": "my-program",
   "version": "1.2.5",
   "bin": "./path/to/program"
 }
 </code></pre>
 <p>would be the same as this:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name": "my-program",
   "version": "1.2.5",
   "bin": {
@@ -442,7 +450,7 @@ the <code>man</code> program to find.</p>
 <p>If only a single file is provided, then it's installed such that it is the
 result from <code>man &lt;pkgname&gt;</code>, regardless of its actual filename.  For
 example:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name": "foo",
   "version": "1.2.3",
   "description": "A packaged foo fooer for fooing foos",
@@ -453,7 +461,7 @@ example:</p>
 <p>would link the <code>./man/doc.1</code> file in such that it is the target for <code>man foo</code></p>
 <p>If the filename doesn't start with the package name, then it's prefixed.
 So, this:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name": "foo",
   "version": "1.2.3",
   "description": "A packaged foo fooer for fooing foos",
@@ -468,7 +476,7 @@ So, this:</p>
 <p>Man files must end with a number, and optionally a <code>.gz</code> suffix if they are
 compressed.  The number dictates which man section the file is installed
 into.</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name": "foo",
   "version": "1.2.3",
   "description": "A packaged foo fooer for fooing foos",
@@ -502,7 +510,7 @@ walking the folder.</p>
 want to contribute.  If the git repo is on GitHub, then the <code>npm docs</code>
 command will be able to find you.</p>
 <p>Do it like this:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "repository": {
     "type": "git",
     "url": "https://github.com/npm/cli.git"
@@ -515,7 +523,7 @@ be a url to an html project page that you put in your browser.  It's for
 computers.</p>
 <p>For GitHub, GitHub gist, Bitbucket, or GitLab repositories you can use the
 same shortcut syntax you use for <code>npm install</code>:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "repository": "npm/npm",
 
   "repository": "github:user/repo",
@@ -530,7 +538,7 @@ same shortcut syntax you use for <code>npm install</code>:</p>
 <p>If the <code>package.json</code> for your package is not in the root directory (for
 example if it is part of a monorepo), you can specify the directory in
 which it lives:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "repository": {
     "type": "git",
     "url": "https://github.com/facebook/react.git",
@@ -548,7 +556,7 @@ scripts.</p>
 <p>A "config" object can be used to set configuration parameters used in
 package scripts that persist across upgrades.  For instance, if a package
 had the following:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name": "foo",
   "config": {
     "port": "8080"
@@ -586,7 +594,7 @@ time tools in your <code>dependencies</code> object.</strong>  See <code>devDepe
 <li><code>path/path/path</code> See <a href="#local-paths">Local Paths</a> below</li>
 </ul>
 <p>For example, these are all valid:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "dependencies": {
     "foo": "1.0.0 - 2.9999.9999",
     "bar": "&gt;=1.0.2 &lt;2.1.2",
@@ -609,7 +617,7 @@ time tools in your <code>dependencies</code> object.</strong>  See <code>devDepe
 install time.</p>
 <h4 id="git-urls-as-dependencies">Git URLs as Dependencies</h4>
 <p>Git urls are of the form:</p>
-<pre lang="bash"><code>&lt;protocol&gt;://[&lt;user&gt;[:&lt;password&gt;]@]&lt;hostname&gt;[:&lt;port&gt;][:][/]&lt;path&gt;[#&lt;commit-ish&gt; | #semver:&lt;semver&gt;]
+<pre><code class="language-bash">&lt;protocol&gt;://[&lt;user&gt;[:&lt;password&gt;]@]&lt;hostname&gt;[:&lt;port&gt;][:][/]&lt;path&gt;[#&lt;commit-ish&gt; | #semver:&lt;semver&gt;]
 </code></pre>
 <p><code>&lt;protocol&gt;</code> is one of <code>git</code>, <code>git+ssh</code>, <code>git+http</code>, <code>git+https</code>, or
 <code>git+file</code>.</p>
@@ -620,7 +628,7 @@ or refs matching that range in the remote repository, much as it would for
 a registry dependency. If neither <code>#&lt;commit-ish&gt;</code> or <code>#semver:&lt;semver&gt;</code> is
 specified, then the default branch is used.</p>
 <p>Examples:</p>
-<pre lang="bash"><code>git+ssh://git@github.com:npm/cli.git#v1.0.27
+<pre><code class="language-bash">git+ssh://git@github.com:npm/cli.git#v1.0.27
 git+ssh://git@github.com:npm/cli#semver:^5.0
 git+https://isaacs@github.com/npm/cli.git
 git://github.com/npm/cli.git#v1.0.27
@@ -647,7 +655,7 @@ will be rebuilt for every installation.</p>
 <p>As of version 1.1.65, you can refer to GitHub urls as just "foo":
 "user/foo-project".  Just as with git URLs, a <code>commit-ish</code> suffix can be
 included.  For example:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name": "foo",
   "version": "0.0.0",
   "dependencies": {
@@ -660,14 +668,14 @@ included.  For example:</p>
 <h4 id="local-paths">Local Paths</h4>
 <p>As of version 2.0.0 you can provide a path to a local directory that
 contains a package. Local paths can be saved using <code>npm install -S</code> or <code>npm install --save</code>, using any of these forms:</p>
-<pre lang="bash"><code>../foo/bar
+<pre><code class="language-bash">../foo/bar
 ~/foo/bar
 ./foo/bar
 /foo/bar
 </code></pre>
 <p>in which case they will be normalized to a relative path and added to your
 <code>package.json</code>. For example:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name": "baz",
   "dependencies": {
     "bar": "file:../foo/bar"
@@ -693,7 +701,7 @@ param.  See <a href="../using-npm/config.html"><code>config</code></a> for more 
 CoffeeScript or other languages to JavaScript, use the <code>prepare</code> script to
 do this, and make the required package a devDependency.</p>
 <p>For example:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name": "ethopia-waza",
   "description": "a delightfully fruity coffee varietal",
   "version": "1.2.3",
@@ -717,7 +725,7 @@ This is usually referred to as a <em>plugin</em>. Notably, your module may be
 exposing a specific interface, expected and specified by the host
 documentation.</p>
 <p>For example:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name": "tea-latte",
   "version": "1.3.5",
   "peerDependencies": {
@@ -727,7 +735,7 @@ documentation.</p>
 </code></pre>
 <p>This ensures your package <code>tea-latte</code> can be installed <em>along</em> with the
 second major version of the host package <code>tea</code> only. <code>npm install tea-latte</code> could possibly yield the following dependency graph:</p>
-<pre lang="bash"><code>├── tea-latte@1.3.5
+<pre><code class="language-bash">├── tea-latte@1.3.5
 └── tea@2.2.0
 </code></pre>
 <p>In npm versions 3 through 6, <code>peerDependencies</code> were not automatically
@@ -750,7 +758,7 @@ specified in <code>peerDependencies</code> are not already installed. The
 your peer dependencies are to be used. Specifically, it allows peer
 dependencies to be marked as optional.</p>
 <p>For example:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name": "tea-latte",
   "version": "1.3.5",
   "peerDependencies": {
@@ -777,7 +785,7 @@ tarball file by specifying the package names in the <code>bundleDependencies</co
 array and executing <code>npm pack</code>.</p>
 <p>For example:</p>
 <p>If we define a package.json like this:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name": "awesome-web-framework",
   "version": "1.0.0",
   "bundleDependencies": [
@@ -802,7 +810,7 @@ url, just like the <code>dependencies</code> object.  The difference is that bui
 failures do not cause installation to fail.  Running <code>npm install --omit=optional</code> will prevent these dependencies from being installed.</p>
 <p>It is still your program's responsibility to handle the lack of the
 dependency.  For example, something like this:</p>
-<pre lang="js"><code>try {
+<pre><code class="language-js">try {
   var foo = require('foo')
   var fooVersion = require('foo/package.json').version
 } catch (er) {
@@ -830,7 +838,7 @@ another version, or another package entirely. These changes can be scoped as
 specific or as vague as desired.</p>
 <p>To make sure the package <code>foo</code> is always installed as version <code>1.0.0</code> no matter
 what version your dependencies rely on:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "overrides": {
     "foo": "1.0.0"
   }
@@ -840,7 +848,7 @@ what version your dependencies rely on:</p>
 overriding a package itself as well as a child of the package. This will cause
 <code>foo</code> to always be <code>1.0.0</code> while also making <code>bar</code> at any depth beyond <code>foo</code>
 also <code>1.0.0</code>:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "overrides": {
     "foo": {
       ".": "1.0.0",
@@ -851,7 +859,7 @@ also <code>1.0.0</code>:</p>
 </code></pre>
 <p>To only override <code>foo</code> to be <code>1.0.0</code> when it's a child (or grandchild, or great
 grandchild, etc) of the package <code>bar</code>:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "overrides": {
     "bar": {
       "foo": "1.0.0"
@@ -861,7 +869,7 @@ grandchild, etc) of the package <code>bar</code>:</p>
 </code></pre>
 <p>Keys can be nested to any arbitrary length. To override <code>foo</code> only when it's a
 child of <code>bar</code> and only when <code>bar</code> is a child of <code>baz</code>:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "overrides": {
     "baz": {
       "bar": {
@@ -873,7 +881,7 @@ child of <code>bar</code> and only when <code>bar</code> is a child of <code>baz
 </code></pre>
 <p>The key of an override can also include a version, or range of versions.
 To override <code>foo</code> to <code>1.0.0</code>, but only when it's a child of <code>bar@2.0.0</code>:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "overrides": {
     "bar@2.0.0": {
       "foo": "1.0.0"
@@ -886,7 +894,7 @@ both the dependency and the override itself share the exact same spec. To make
 this limitation easier to deal with, overrides may also be defined as a
 reference to a spec for a direct dependency by prefixing the name of the
 package you wish the version to match with a <code>$</code>.</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "dependencies": {
     "foo": "^1.0.0"
   },
@@ -904,7 +912,7 @@ package you wish the version to match with a <code>$</code>.</p>
 </code></pre>
 <h3 id="engines">engines</h3>
 <p>You can specify the version of node that your stuff works on:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "engines": {
     "node": "&gt;=0.10.3 &lt;15"
   }
@@ -914,19 +922,20 @@ package you wish the version to match with a <code>$</code>.</p>
 specify "*" as the version), then any version of node will do.</p>
 <p>You can also use the "engines" field to specify which versions of npm are
 capable of properly installing your program.  For example:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "engines": {
     "npm": "~1.0.20"
   }
 }
 </code></pre>
-<p>Unless the user has set the <code>engine-strict</code> config flag, this field is
-advisory only and will only produce warnings when your package is installed
-as a dependency.</p>
+<p>Unless the user has set the
+<a href="../using-npm/config#engine-strict.html"><code>engine-strict</code> config</a> flag, this field is
+advisory only and will only produce warnings when your package is installed as a
+dependency.</p>
 <h3 id="os">os</h3>
 <p>You can specify which operating systems your
 module will run on:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "os": [
     "darwin",
     "linux"
@@ -935,7 +944,7 @@ module will run on:</p>
 </code></pre>
 <p>You can also block instead of allowing operating systems, just prepend the
 blocked os with a '!':</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "os": [
     "!win32"
   ]
@@ -947,7 +956,7 @@ good reason to do this.</p>
 <h3 id="cpu">cpu</h3>
 <p>If your code only runs on certain cpu architectures,
 you can specify which ones.</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "cpu": [
     "x64",
     "ia32"
@@ -955,7 +964,7 @@ you can specify which ones.</p>
 }
 </code></pre>
 <p>Like the <code>os</code> option, you can also block architectures:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "cpu": [
     "!arm",
     "!mips"
@@ -989,7 +998,7 @@ workspaces or it can define globs that will resolve to these same folders.</p>
 <p>In the following example, all folders located inside the folder
 <code>./packages</code> will be treated as workspaces as long as they have valid
 <code>package.json</code> files inside them:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name": "workspace-example",
   "workspaces": [
     "./packages/*"
@@ -1029,8 +1038,7 @@ optional.  Lines which start with a <code>#</code> or are blank, will be ignored
 <li><a href="../commands/npm-install.html">npm install</a></li>
 <li><a href="../commands/npm-publish.html">npm publish</a></li>
 <li><a href="../commands/npm-uninstall.html">npm uninstall</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/configuring-npm/package-json.md">

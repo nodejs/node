@@ -31,7 +31,7 @@ Array [
 exports[`test/lib/commands/init.js TAP workspaces post workspace-init reify > should reify tree on init ws complete 1`] = `
 {
   "name": "top-level",
-  "lockfileVersion": 2,
+  "lockfileVersion": 3,
   "requires": true,
   "packages": {
     "": {
@@ -48,11 +48,6 @@ exports[`test/lib/commands/init.js TAP workspaces post workspace-init reify > sh
     "node_modules/a": {
       "resolved": "a",
       "link": true
-    }
-  },
-  "dependencies": {
-    "a": {
-      "version": "file:a"
     }
   }
 }

@@ -5,8 +5,9 @@ class FindDupes extends ArboristWorkspaceCmd {
   static description = 'Find duplication in the package tree'
   static name = 'find-dupes'
   static params = [
-    'global-style',
+    'install-strategy',
     'legacy-bundling',
+    'global-style',
     'strict-peer-deps',
     'package-lock',
     'omit',

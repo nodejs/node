@@ -62,7 +62,7 @@ const Bugs = t.mock('../../../lib/commands/bugs.js', {
   '../../../lib/utils/open-url.js': openUrl,
 })
 
-const bugs = new Bugs({ flatOptions: {} })
+const bugs = new Bugs({ flatOptions: {}, config: { validate: () => {} } })
 
 t.test('usage', (t) => {
   t.match(bugs.usage, 'bugs', 'usage has command name in it')

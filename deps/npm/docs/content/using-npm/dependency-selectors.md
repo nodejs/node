@@ -6,7 +6,7 @@ description: Dependency Selector Syntax & Querying
 
 ### Description
 
-The [`npm query`](/commands/npm-query) commmand exposes a new dependency selector syntax (informed by & respecting many aspects of the [CSS Selectors 4 Spec](https://dev.w3.org/csswg/selectors4/#relational)) which:
+The [`npm query`](/commands/npm-query) command exposes a new dependency selector syntax (informed by & respecting many aspects of the [CSS Selectors 4 Spec](https://dev.w3.org/csswg/selectors4/#relational)) which:
 
 - Standardizes the shape of, & querying of, dependency graphs with a robust object model, metadata & selector syntax
 - Leverages existing, known language syntax & operators from CSS to make disparate package information broadly accessible
@@ -58,9 +58,48 @@ The [`npm query`](/commands/npm-query) commmand exposes a new dependency selecto
 - `:extraneous` when a dependency exists but is not defined as a dependency of any node
 - `:invalid` when a dependency version is out of its ancestors specified range
 - `:missing` when a dependency is not found on disk
-- `:semver(<spec>)` matching a valid [`node-semver`](https://github.com/npm/node-semver) spec
+- `:semver(<spec>, [selector], [function])` match a valid [`node-semver`](https://github.com/npm/node-semver) version or range to a selector
 - `:path(<path>)` [glob](https://www.npmjs.com/package/glob) matching based on dependencies path relative to the project
 - `:type(<type>)` [based on currently recognized types](https://github.com/npm/npm-package-arg#result-object)
+- `:outdated(<type>)` when a dependency is outdated
+
+##### `:semver(<spec>, [selector], [function])`
+
+The `:semver()` pseudo selector allows comparing fields from each node's `package.json` using [semver](https://github.com/npm/node-semver#readme) methods. It accepts up to 3 parameters, all but the first of which are optional.
+
+- `spec` a semver version or range
+- `selector` an attribute selector for each node (default `[version]`)
+- `function` a semver method to apply, one of: `satisfies`, `intersects`, `subset`, `gt`, `gte`, `gtr`, `lt`, `lte`, `ltr`, `eq`, `neq` or the special function `infer` (default `infer`)
+
+When the special `infer` function is used the `spec` and the actual value from the node are compared. If both are versions, according to `semver.valid()`, `eq` is used. If both values are ranges, according to `!semver.valid()`, `intersects` is used. If the values are mixed types `satisfies` is used.
+
+Some examples:
+
+- `:semver(^1.0.0)` returns every node that has a `version` satisfied by the provided range `^1.0.0`
+- `:semver(16.0.0, :attr(engines, [node]))` returns every node which has an `engines.node` property satisfying the version `16.0.0`
+- `:semver(1.0.0, [version], lt)` every node with a `version` less than `1.0.0`
+
+##### `:outdated(<type>)`
+
+The `:outdated` pseudo selector retrieves data from the registry and returns information about which of your dependencies are outdated. The type parameter may be one of the following:
+
+- `any` (default) a version exists that is greater than the current one
+- `in-range` a version exists that is greater than the current one, and satisfies at least one if its dependents
+- `out-of-range` a version exists that is greater than the current one, does not satisfy at least one of its dependents
+- `major` a version exists that is a semver major greater than the current one
+- `minor` a version exists that is a semver minor greater than the current one
+- `patch` a version exists that is a semver patch greater than the current one
+
+In addition to the filtering performed by the pseudo selector, some extra data is added to the resulting objects. The following data can be found under the `queryContext` property of each node.
+
+- `versions` an array of every available version of the given node
+- `outdated.inRange` an array of objects, each with a `from` and `versions`, where `from` is the on-disk location of the node that depends on the current node and `versions` is an array of all available versions that satisfies that dependency. This is only populated if `:outdated(in-range)` is used.
+- `outdated.outOfRange` an array of objects, identical in shape to `inRange`, but where the `versions` array is every available version that does not satisfy the dependency. This is only populated if `:outdated(out-of-range)` is used.
+
+Some examples:
+
+- `:root > :outdated(major)` returns every direct dependency that has a new semver major release
+- `.prod:outdated(in-range)` returns production dependencies that have a new release that satisfies at least one of its edges in
 
 #### [Attribute Selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/Attribute_selectors)
 

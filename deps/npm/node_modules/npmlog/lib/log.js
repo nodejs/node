@@ -79,16 +79,12 @@ log.setGaugeTemplate = function (template) {
 }
 
 log.enableProgress = function () {
-  if (this.progressEnabled) {
+  if (this.progressEnabled || this._paused) {
     return
   }
 
   this.progressEnabled = true
   this.tracker.on('change', this.showProgress)
-  if (this._paused) {
-    return
-  }
-
   this.gauge.enable()
 }
 

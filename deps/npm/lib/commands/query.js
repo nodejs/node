@@ -21,6 +21,7 @@ class QuerySelectorItem {
     this.inBundle = node.target.inBundle
     this.deduped = this.from.length > 1
     this.overridden = node.overridden
+    this.queryContext = node.queryContext
     for (const edge of node.target.edgesIn) {
       this.from.push(edge.from.location)
     }
@@ -63,7 +64,7 @@ class Query extends BaseCommand {
     }
     const arb = new Arborist(opts)
     const tree = await arb.loadActual(opts)
-    const items = await tree.querySelectorAll(args[0])
+    const items = await tree.querySelectorAll(args[0], this.npm.flatOptions)
     this.buildResponse(items)
 
     this.npm.output(this.parsedResponse)
@@ -84,7 +85,7 @@ class Query extends BaseCommand {
         items = await tree.querySelectorAll(args[0])
       } else {
         const [workspace] = await tree.querySelectorAll(`.workspace:path(${workspacePath})`)
-        items = await workspace.target.querySelectorAll(args[0])
+        items = await workspace.target.querySelectorAll(args[0], this.npm.flatOptions)
       }
       this.buildResponse(items)
     }

@@ -9,29 +9,19 @@ description: Add a registry user account
 ```bash
 npm adduser
 
-aliases: login, add-user
+alias: add-user
 ```
 
 Note: This command is unaware of workspaces.
 
 ### Description
 
-Create or verify a user named `<username>` in the specified registry, and
-save the credentials to the `.npmrc` file. If no registry is specified,
-the default registry will be used (see [`config`](/using-npm/config)).
+Create a new user in the specified registry, and save the credentials to
+the `.npmrc` file. If no registry is specified, the default registry
+will be used (see [`registry`](/using-npm/registry)).
 
-The username, password, and email are read in from prompts.
-
-To reset your password, go to <https://www.npmjs.com/forgot>
-
-To change your email address, go to <https://www.npmjs.com/email-edit>
-
-You may use this command multiple times with the same user account to
-authorize on a new machine.  When authenticating on a new machine,
-the username, password and email address must all match with
-your existing record.
-
-`npm login` is an alias to `adduser` and behaves exactly the same way.
+When using `legacy` for your `auth-type`, the username, password, and
+email are read in from prompts.
 
 ### Configuration
 
@@ -74,11 +64,8 @@ npm init --scope=@foo --yes
 
 #### `auth-type`
 
-* Default: "legacy"
-* Type: "legacy", "web", "sso", "saml", "oauth", or "webauthn"
-
-NOTE: auth-type values "sso", "saml", "oauth", and "webauthn" will be
-removed in a future version.
+* Default: "web"
+* Type: "legacy" or "web"
 
 What authentication strategy to use with `login`.
 

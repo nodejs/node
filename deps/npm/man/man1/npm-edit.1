@@ -1,50 +1,43 @@
-.TH "NPM\-EDIT" "1" "November 2022" "" ""
+.TH "NPM-EDIT" "1" "November 2022" "" ""
 .SH "NAME"
-\fBnpm-edit\fR \- Edit an installed package
-.SS Synopsis
+\fBnpm-edit\fR - Edit an installed package
+.SS "Synopsis"
 .P
 .RS 2
 .nf
-npm edit <pkg>[/<subpkg>\.\.\.]
+npm edit <pkg>\[lB]/<subpkg>...\[rB]
 .fi
 .RE
 .P
-Note: This command is unaware of workspaces\.
-.SS Description
+Note: This command is unaware of workspaces.
+.SS "Description"
 .P
-Selects a dependency in the current project and opens the package folder in
-the default editor (or whatever you've configured as the npm \fBeditor\fP
-config \-\- see \fBnpm\-config\fP \fInpm\-config)\.\fR
+Selects a dependency in the current project and opens the package folder in the default editor (or whatever you've configured as the npm \fBeditor\fR config -- see \fB\fBnpm-config\fR\fR \fI\(lanpm-config\(ra\fR.)
 .P
-After it has been edited, the package is rebuilt so as to pick up any
-changes in compiled packages\.
+After it has been edited, the package is rebuilt so as to pick up any changes in compiled packages.
 .P
-For instance, you can do \fBnpm install connect\fP to install connect
-into your package, and then \fBnpm edit connect\fP to make a few
-changes to your locally installed copy\.
-.SS Configuration
-.SS \fBeditor\fP
+For instance, you can do \fBnpm install connect\fR to install connect into your package, and then \fBnpm edit connect\fR to make a few changes to your locally installed copy.
+.SS "Configuration"
+.SS "\fBeditor\fR"
 .RS 0
-.IP \(bu 2
-Default: The EDITOR or VISUAL environment variables, or 'notepad\.exe' on
-Windows, or 'vim' on Unix systems
-.IP \(bu 2
+.IP \(bu 4
+Default: The EDITOR or VISUAL environment variables, or '%SYSTEMROOT%\[rs]notepad.exe' on Windows, or 'vi' on Unix systems
+.IP \(bu 4
 Type: String
+.RE 0
 
-.RE
 .P
-The command to run for \fBnpm edit\fP and \fBnpm config edit\fP\|\.
-.SS See Also
+The command to run for \fBnpm edit\fR and \fBnpm config edit\fR.
+.SS "See Also"
 .RS 0
-.IP \(bu 2
+.IP \(bu 4
 npm help folders
-.IP \(bu 2
+.IP \(bu 4
 npm help explore
-.IP \(bu 2
+.IP \(bu 4
 npm help install
-.IP \(bu 2
+.IP \(bu 4
 npm help config
-.IP \(bu 2
+.IP \(bu 4
 npm help npmrc
-
-.RE
+.RE 0

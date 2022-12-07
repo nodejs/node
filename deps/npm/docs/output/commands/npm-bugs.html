@@ -146,15 +146,16 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm bugs [&lt;pkgname&gt; [&lt;pkgname&gt; ...]]
+<pre><code class="language-bash">npm bugs [&lt;pkgname&gt; [&lt;pkgname&gt; ...]]
 
 alias: issues
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This command tries to guess at the likely location of a package's bug
 tracker URL or the <code>mailto</code> URL of the support email, and then tries to
-open it using the <code>--browser</code> config param. If no package name is provided, it
-will search for a <code>package.json</code> in the current folder and use the <code>name</code> property.</p>
+open it using the <a href="../using-npm/config#browser.html"><code>--browser</code> config</a> param. If no
+package name is provided, it will search for a <code>package.json</code> in the current
+folder and use the <code>name</code> property.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="browser"><code>browser</code></h4>
 <ul>
@@ -225,8 +226,7 @@ the specified workspaces, and not on the root project.</p>
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
 <li><a href="../configuring-npm/package-json.html">package.json</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-bugs.md">

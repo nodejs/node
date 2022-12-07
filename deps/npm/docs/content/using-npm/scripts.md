@@ -42,12 +42,10 @@ situations. These scripts happen in addition to the `pre<event>`, `post<event>`,
 * `prepare`, `prepublish`, `prepublishOnly`, `prepack`, `postpack`, `dependencies`
 
 **prepare** (since `npm@4.0.0`)
-* Runs any time before the package is packed, i.e. during `npm publish`
+* Runs BEFORE the package is packed, i.e. during `npm publish`
     and `npm pack`
-* Runs BEFORE the package is packed
-* Runs BEFORE the package is published
 * Runs on local `npm install` without any arguments
-* Run AFTER `prepublish`, but BEFORE `prepublishOnly`
+* Runs AFTER `prepublish`, but BEFORE `prepublishOnly`
 
 * NOTE: If a package being installed through git contains a `prepare`
  script, its `dependencies` and `devDependencies` will be installed, and

@@ -4,17 +4,17 @@
 // if there's a symlink already, pointing into our pkg, remove it first
 // then create the symlink
 
-const { promisify } = require('util')
 const { resolve, dirname } = require('path')
-const mkdirp = require('mkdirp-infer-owner')
-const fs = require('fs')
-const symlink = promisify(fs.symlink)
-const readlink = promisify(fs.readlink)
-const lstat = promisify(fs.lstat)
+const { lstat, mkdir, readlink, rm, symlink } = require('fs/promises')
 const throwNonEnoent = er => {
   if (er.code !== 'ENOENT') {
     throw er
   }
+}
+
+const rmOpts = {
+  recursive: true,
+  force: true,
 }
 
 // even in --force mode, we never create a link over a link we've
@@ -22,10 +22,6 @@ const throwNonEnoent = er => {
 // to contend for the same bin, or the same manpage listed multiple times,
 // which creates a race condition and nondeterminism.
 const seen = new Set()
-
-// disable glob in our rimraf calls
-const rimraf = promisify(require('rimraf'))
-const rm = path => rimraf(path, { glob: false })
 
 const SKIP = Symbol('skip - missing or already installed')
 const CLOBBER = Symbol('clobber - ours or in forceful mode')
@@ -52,7 +48,7 @@ const linkGently = async ({ path, to, from, absFrom, force }) => {
     // exists! maybe clobber if we can
     if (stTo) {
       if (!stTo.isSymbolicLink()) {
-        return force && rm(to).then(() => CLOBBER)
+        return force && rm(to, rmOpts).then(() => CLOBBER)
       }
 
       return readlink(to).then(target => {
@@ -62,14 +58,14 @@ const linkGently = async ({ path, to, from, absFrom, force }) => {
 
         target = resolve(dirname(to), target)
         if (target.indexOf(path) === 0 || force) {
-          return rm(to).then(() => CLOBBER)
+          return rm(to, rmOpts).then(() => CLOBBER)
         }
         // neither skip nor clobber
         return false
       })
     } else {
       // doesn't exist, dir might not either
-      return mkdirp(dirname(to))
+      return mkdir(dirname(to), { recursive: true })
     }
   })
     .then(skipOrClobber => {
@@ -78,7 +74,7 @@ const linkGently = async ({ path, to, from, absFrom, force }) => {
       }
       return symlink(from, to, 'file').catch(er => {
         if (skipOrClobber === CLOBBER || force) {
-          return rm(to).then(() => symlink(from, to, 'file'))
+          return rm(to, rmOpts).then(() => symlink(from, to, 'file'))
         }
         throw er
       }).then(() => true)

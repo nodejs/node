@@ -142,11 +142,11 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#save"><code>save</code></a></li><li><a href="#save-exact"><code>save-exact</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#algorithm">Algorithm</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#save"><code>save</code></a></li><li><a href="#save-exact"><code>save-exact</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#install-strategy"><code>install-strategy</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#algorithm">Algorithm</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm install [&lt;package-spec&gt; ...]
+<pre><code class="language-bash">npm install [&lt;package-spec&gt; ...]
 
 aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 </code></pre>
@@ -209,7 +209,7 @@ but it will create a symlink to <code>&lt;folder&gt;</code>.</p>
 <p>NOTE: If you want to install the content of a directory like a package from the registry instead of creating a link, you would need to use the <code>--install-links</code> option.</p>
 </blockquote>
 <p>Example:</p>
-<pre lang="bash"><code>npm install ../../other-package --install-links
+<pre><code class="language-bash">npm install ../../other-package --install-links
 npm install ./sub-package
 </code></pre>
 </li>
@@ -229,7 +229,7 @@ when installing the package (an equivalent of <code>tar x --strip-components=1</
 <code>version</code> properties.</li>
 </ul>
 <p>Example:</p>
-<pre lang="bash"><code>npm install ./package.tgz
+<pre><code class="language-bash">npm install ./package.tgz
 </code></pre>
 </li>
 <li>
@@ -237,17 +237,17 @@ when installing the package (an equivalent of <code>tar x --strip-components=1</
 <p>Fetch the tarball url, and then install it.  In order to distinguish between
 this and other options, the argument must start with "http://" or "https://"</p>
 <p>Example:</p>
-<pre lang="bash"><code>npm install https://github.com/indexzero/forever/tarball/v0.5.6
+<pre><code class="language-bash">npm install https://github.com/indexzero/forever/tarball/v0.5.6
 </code></pre>
 </li>
 <li>
 <p><code>npm install [&lt;@scope&gt;/]&lt;name&gt;</code>:</p>
 <p>Do a <code>&lt;name&gt;@&lt;tag&gt;</code> install, where <code>&lt;tag&gt;</code> is the "tag" config. (See
-<a href="../using-npm/config.html"><code>config</code></a>. The config's default value is <code>latest</code>.)</p>
+<a href="../using-npm/config#tag.html"><code>config</code></a>. The config's default value is <code>latest</code>.)</p>
 <p>In most cases, this will install the version of the modules tagged as
 <code>latest</code> on the npm registry.</p>
 <p>Example:</p>
-<pre lang="bash"><code>npm install sax
+<pre><code class="language-bash">npm install sax
 </code></pre>
 <p><code>npm install</code> saves any specified packages into <code>dependencies</code> by default.
 Additionally, you can control where and how they get saved with some
@@ -290,7 +290,7 @@ the given scope the default registry is assumed. See
 interpret this as a GitHub repository instead, see below. Scopes names
 must also be followed by a slash.</p>
 <p>Examples:</p>
-<pre lang="bash"><code>npm install sax
+<pre><code class="language-bash">npm install sax
 npm install githubname/reponame
 npm install @myorg/privatepackage
 npm install node-tap --save-dev
@@ -312,7 +312,7 @@ project and does not rename packages in transitive dependencies.
 Aliases should follow the naming conventions stated in
 <a href="https://www.npmjs.com/package/validate-npm-package-name#naming-rules"><code>validate-npm-package-name</code></a>.</p>
 <p>Examples:</p>
-<pre lang="bash"><code>npm install my-react@npm:react
+<pre><code class="language-bash">npm install my-react@npm:react
 npm install jquery2@npm:jquery@2
 npm install jquery3@npm:jquery@3
 npm install npa@npm:npm-package-arg
@@ -324,7 +324,7 @@ npm install npa@npm:npm-package-arg
 If the tag does not exist in the registry data for that package, then this
 will fail.</p>
 <p>Example:</p>
-<pre lang="bash"><code>npm install sax@latest
+<pre><code class="language-bash">npm install sax@latest
 npm install @myorg/mypackage@latest
 </code></pre>
 </li>
@@ -333,7 +333,7 @@ npm install @myorg/mypackage@latest
 <p>Install the specified version of the package.  This will fail if the
 version has not been published to the registry.</p>
 <p>Example:</p>
-<pre lang="bash"><code>npm install sax@0.1.1
+<pre><code class="language-bash">npm install sax@0.1.1
 npm install @myorg/privatepackage@1.5.0
 </code></pre>
 </li>
@@ -345,7 +345,7 @@ This will follow the same rules for resolving dependencies described in
 <p>Note that most version ranges must be put in quotes so that your shell
 will treat it as a single argument.</p>
 <p>Example:</p>
-<pre lang="bash"><code>npm install sax@"&gt;=0.1.0 &lt;0.2.0"
+<pre><code class="language-bash">npm install sax@"&gt;=0.1.0 &lt;0.2.0"
 npm install @myorg/privatepackage@"16 - 17"
 </code></pre>
 </li>
@@ -353,7 +353,7 @@ npm install @myorg/privatepackage@"16 - 17"
 <p><code>npm install &lt;git remote url&gt;</code>:</p>
 <p>Installs the package from the hosted git provider, cloning it with
 <code>git</code>.  For a full git remote url, only that URL will be attempted.</p>
-<pre lang="bash"><code>&lt;protocol&gt;://[&lt;user&gt;[:&lt;password&gt;]@]&lt;hostname&gt;[:&lt;port&gt;][:][/]&lt;path&gt;[#&lt;commit-ish&gt; | #semver:&lt;semver&gt;]
+<pre><code class="language-bash">&lt;protocol&gt;://[&lt;user&gt;[:&lt;password&gt;]@]&lt;hostname&gt;[:&lt;port&gt;][:][/]&lt;path&gt;[#&lt;commit-ish&gt; | #semver:&lt;semver&gt;]
 </code></pre>
 <p><code>&lt;protocol&gt;</code> is one of <code>git</code>, <code>git+ssh</code>, <code>git+http</code>, <code>git+https</code>, or
 <code>git+file</code>.</p>
@@ -382,7 +382,7 @@ be added to the environment when running git:</p>
 </ul>
 <p>See the git man page for details.</p>
 <p>Examples:</p>
-<pre lang="bash"><code>npm install git+ssh://git@github.com:npm/cli.git#v1.0.27
+<pre><code class="language-bash">npm install git+ssh://git@github.com:npm/cli.git#v1.0.27
 npm install git+ssh://git@github.com:npm/cli#pull/273
 npm install git+ssh://git@github.com:npm/cli#semver:^5.0
 npm install git+https://isaacs@github.com/npm/cli.git
@@ -407,7 +407,7 @@ it would for a registry dependency. If neither <code>#&lt;commit-ish&gt;</code> 
 will be installed if the package has a <code>prepare</code> script before the
 package is done installing.</p>
 <p>Examples:</p>
-<pre lang="bash"><code>npm install mygithubuser/myproject
+<pre><code class="language-bash">npm install mygithubuser/myproject
 npm install github:mygithubuser/myproject
 </code></pre>
 </li>
@@ -420,7 +420,7 @@ optional and will not be saved in <code>package.json</code>.</p>
 be installed if the package has a <code>prepare</code> script before the package is
 done installing.</p>
 <p>Example:</p>
-<pre lang="bash"><code>npm install gist:101a11beef
+<pre><code class="language-bash">npm install gist:101a11beef
 </code></pre>
 </li>
 <li>
@@ -437,7 +437,7 @@ specified, then <code>master</code> is used.</p>
 be installed if the package has a <code>prepare</code> script before the package is
 done installing.</p>
 <p>Example:</p>
-<pre lang="bash"><code>npm install bitbucket:mybitbucketuser/myproject
+<pre><code class="language-bash">npm install bitbucket:mybitbucketuser/myproject
 </code></pre>
 </li>
 <li>
@@ -454,14 +454,14 @@ specified, then <code>master</code> is used.</p>
 be installed if the package has a <code>prepare</code> script before the package is
 done installing.</p>
 <p>Example:</p>
-<pre lang="bash"><code>npm install gitlab:mygitlabuser/myproject
+<pre><code class="language-bash">npm install gitlab:mygitlabuser/myproject
 npm install gitlab:myusr/myproj#semver:^5.0
 </code></pre>
 </li>
 </ul>
 <p>You may combine multiple arguments and even multiple types of arguments.
 For example:</p>
-<pre lang="bash"><code>npm install sax@"&gt;=0.1.0 &lt;0.2.0" bench supervisor
+<pre><code class="language-bash">npm install sax@"&gt;=0.1.0 &lt;0.2.0" bench supervisor
 </code></pre>
 <p>The <code>--tag</code> argument will apply to all of the specified install targets. If
 a tag with the given name exists, the tagged version is preferred over
@@ -473,7 +473,7 @@ would have done without actually installing anything.</p>
 dependencies.</p>
 <p>The <code>-f</code> or <code>--force</code> argument will force npm to fetch remote resources
 even if a local copy exists on disk.</p>
-<pre lang="bash"><code>npm install sax --force
+<pre><code class="language-bash">npm install sax --force
 </code></pre>
 <h3 id="configuration">Configuration</h3>
 <p>See the <a href="../using-npm/config.html"><code>config</code></a> help doc.  Many of the configuration
@@ -510,26 +510,37 @@ of the current working directory.</li>
 <li>bin files are linked to <code>{prefix}/bin</code></li>
 <li>man pages are linked to <code>{prefix}/share/man</code></li>
 </ul>
-<h4 id="global-style"><code>global-style</code></h4>
+<h4 id="install-strategy"><code>install-strategy</code></h4>
 <ul>
-<li>Default: false</li>
-<li>Type: Boolean</li>
+<li>Default: "hoisted"</li>
+<li>Type: "hoisted", "nested", or "shallow"</li>
 </ul>
-<p>Causes npm to install the package into your local <code>node_modules</code> folder with
-the same layout it uses with the global <code>node_modules</code> folder. Only your
-direct dependencies will show in <code>node_modules</code> and everything they depend
-on will be flattened in their <code>node_modules</code> folders. This obviously will
-eliminate some deduping. If used with <code>legacy-bundling</code>, <code>legacy-bundling</code>
-will be preferred.</p>
+<p>Sets the strategy for installing packages in node_modules. hoisted
+(default): Install non-duplicated in top-level, and duplicated as necessary
+within directory structure. nested: (formerly --legacy-bundling) install in
+place, no hoisting. shallow (formerly --global-style) only install direct
+deps at top-level. linked: (coming soon) install in node_modules/.store,
+link in place, unhoisted.</p>
 <h4 id="legacy-bundling"><code>legacy-bundling</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
+<li>DEPRECATED: This option has been deprecated in favor of
+<code>--install-strategy=nested</code></li>
 </ul>
-<p>Causes npm to install the package such that versions of npm prior to 1.4,
-such as the one included with node 0.8, can install the package. This
-eliminates all automatic deduping. If used with <code>global-style</code> this option
-will be preferred.</p>
+<p>Instead of hoisting package installs in <code>node_modules</code>, install packages in
+the same manner that they are depended on. This may cause very deep
+directory structures and duplicate package installs as there is no
+de-duplicating. Sets <code>--install-strategy=nested</code>.</p>
+<h4 id="global-style"><code>global-style</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+<li>DEPRECATED: This option has been deprecated in favor of
+<code>--install-strategy=shallow</code></li>
+</ul>
+<p>Only install direct dependencies in the top level <code>node_modules</code>, but hoist
+on deeper dependendencies. Sets <code>--install-strategy=shallow</code>.</p>
 <h4 id="omit"><code>omit</code></h4>
 <ul>
 <li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
@@ -672,16 +683,16 @@ the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="install-links"><code>install-links</code></h4>
 <ul>
-<li>Default: false</li>
+<li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.</p>
+<p>When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.</p>
 <h3 id="algorithm">Algorithm</h3>
 <p>Given a <code>package{dep}</code> structure: <code>A{B,C}, B{C}, C{D}</code>,
 the npm install algorithm produces:</p>
-<pre lang="bash"><code>A
+<pre><code class="language-bash">A
 +-- B
 +-- C
 +-- D
@@ -690,7 +701,7 @@ the npm install algorithm produces:</p>
 caused C to be installed at a higher level. D is still installed at the top
 level because nothing conflicts with it.</p>
 <p>For <code>A{B,C}, B{C,D@1}, C{D@2}</code>, this algorithm produces:</p>
-<pre lang="bash"><code>A
+<pre><code class="language-bash">A
 +-- B
 +-- C
    `-- D@2
@@ -719,8 +730,7 @@ the specific folder structures that npm creates.</p>
 <li><a href="../commands/npm-shrinkwrap.html">npm shrinkwrap</a></li>
 <li><a href="../configuring-npm/package-json.html">package.json</a></li>
 <li><a href="../using-npm/workspaces.html">workspaces</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-install.md">

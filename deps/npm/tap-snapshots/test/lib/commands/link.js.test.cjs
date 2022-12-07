@@ -48,3 +48,8 @@ exports[`test/lib/commands/link.js TAP link ws to globalDir when workspace speci
 {CWD}/test/lib/commands/tap-testdir-link-link-ws-to-globalDir-when-workspace-specified-and-no-args/global-prefix/lib/node_modules/a -> {CWD}/test/lib/commands/tap-testdir-link-link-ws-to-globalDir-when-workspace-specified-and-no-args/test-pkg-link/packages/a
 
 `
+
+exports[`test/lib/commands/link.js TAP test linked installed as symlinks > linked package should not be installed 1`] = `
+{CWD}/test/lib/commands/tap-testdir-link-test-linked-installed-as-symlinks/prefix/node_modules/mylink -> {CWD}/test/lib/commands/tap-testdir-link-test-linked-installed-as-symlinks/other/mylink
+
+`

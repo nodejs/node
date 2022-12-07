@@ -1,17 +1,22 @@
 name: Node.js Windows integration
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2019
     steps:
       - name: Clone gyp-next
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: gyp-next
       - name: Clone nodejs/node
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: nodejs/node
           path: node

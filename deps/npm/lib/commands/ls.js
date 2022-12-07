@@ -177,7 +177,7 @@ class LS extends ArboristWorkspaceCmd {
     const [rootError] = tree.errors.filter(e =>
       e.code === 'EJSONPARSE' && e.path === resolve(path, 'package.json'))
 
-    this.npm.output(
+    this.npm.outputBuffer(
       json
         ? jsonOutput({ path, problems, result, rootError, seenItems })
         : parseable

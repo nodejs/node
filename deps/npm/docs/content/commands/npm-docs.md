@@ -15,10 +15,10 @@ alias: home
 ### Description
 
 This command tries to guess at the likely location of a package's
-documentation URL, and then tries to open it using the `--browser` config
-param. You can pass multiple package names at once. If no package name is
-provided, it will search for a `package.json` in the current folder and use
-the `name` property.
+documentation URL, and then tries to open it using the
+[`--browser` config](/using-npm/config#browser) param. You can pass multiple
+package names at once. If no package name is provided, it will search for a
+`package.json` in the current folder and use the `name` property.
 
 ### Configuration
 

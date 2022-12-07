@@ -53,61 +53,6 @@ async function getDataByDigest (cache, key, opts = {}) {
 }
 module.exports.byDigest = getDataByDigest
 
-function getDataSync (cache, key, opts = {}) {
-  const { integrity, memoize, size } = opts
-  const memoized = memo.get(cache, key, opts)
-
-  if (memoized && memoize !== false) {
-    return {
-      metadata: memoized.entry.metadata,
-      data: memoized.data,
-      integrity: memoized.entry.integrity,
-      size: memoized.entry.size,
-    }
-  }
-  const entry = index.find.sync(cache, key, opts)
-  if (!entry) {
-    throw new index.NotFoundError(cache, key)
-  }
-  const data = read.sync(cache, entry.integrity, {
-    integrity: integrity,
-    size: size,
-  })
-  const res = {
-    metadata: entry.metadata,
-    data: data,
-    size: entry.size,
-    integrity: entry.integrity,
-  }
-  if (memoize) {
-    memo.put(cache, entry, res.data, opts)
-  }
-
-  return res
-}
-
-module.exports.sync = getDataSync
-
-function getDataByDigestSync (cache, digest, opts = {}) {
-  const { integrity, memoize, size } = opts
-  const memoized = memo.get.byDigest(cache, digest, opts)
-
-  if (memoized && memoize !== false) {
-    return memoized
-  }
-
-  const res = read.sync(cache, digest, {
-    integrity: integrity,
-    size: size,
-  })
-  if (memoize) {
-    memo.put.byDigest(cache, digest, res, opts)
-  }
-
-  return res
-}
-module.exports.sync.byDigest = getDataByDigestSync
-
 const getMemoizedStream = (memoized) => {
   const stream = new Minipass()
   stream.on('newListener', function (ev, cb) {

@@ -30,7 +30,7 @@ const cliMock = async (t, opts) => {
 }
 
 t.afterEach(() => {
-  delete process.exitCode
+  process.exitCode = undefined
 })
 
 t.test('print the version, and treat npm_g as npm -g', async t => {
@@ -172,37 +172,15 @@ t.test('load error calls error handler', async t => {
   t.strictSame(exitHandlerCalled(), [err])
 })
 
-t.test('known broken node version', async t => {
-  const errors = []
-  let exitCode
-  const { cli } = await cliMock(t, {
-    globals: {
-      'console.error': (msg) => errors.push(msg),
-      'process.version': '6.0.0',
-      'process.exit': e => exitCode = e,
-    },
-  })
-  await cli(process)
-  t.match(errors, [
-    'ERROR: npm is known not to run on Node.js 6.0.0',
-    'You\'ll need to upgrade to a newer Node.js version in order to use this',
-    'version of npm. You can find the latest version at https://nodejs.org/',
-  ])
-  t.match(exitCode, 1)
-})
-
 t.test('unsupported node version', async t => {
-  const errors = []
-  const { cli } = await cliMock(t, {
+  const { cli, logs } = await cliMock(t, {
     globals: {
-      'console.error': (msg) => errors.push(msg),
       'process.version': '12.6.0',
     },
   })
   await cli(process)
-  t.match(errors, [
-    'npm does not support Node.js 12.6.0',
-    'You should probably upgrade to a newer version of node as we',
-    'can\'t make any promises that npm will work with this version.',
-  ])
+  t.match(
+    logs.warn[0][1],
+    /npm v.* does not support Node\.js 12\.6\.0\./
+  )
 })

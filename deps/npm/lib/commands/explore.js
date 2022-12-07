@@ -59,7 +59,6 @@ class Explore extends BaseCommand {
         pkg,
         banner: false,
         path,
-        stdioString: true,
         event: '_explore',
         stdio: 'inherit',
       }).catch(er => {

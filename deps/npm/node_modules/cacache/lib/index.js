@@ -17,15 +17,12 @@ module.exports.ls.stream = index.lsStream
 
 module.exports.get = get
 module.exports.get.byDigest = get.byDigest
-module.exports.get.sync = get.sync
-module.exports.get.sync.byDigest = get.sync.byDigest
 module.exports.get.stream = get.stream
 module.exports.get.stream.byDigest = get.stream.byDigest
 module.exports.get.copy = get.copy
 module.exports.get.copy.byDigest = get.copy.byDigest
 module.exports.get.info = get.info
 module.exports.get.hasContent = get.hasContent
-module.exports.get.hasContent.sync = get.hasContent.sync
 
 module.exports.put = put
 module.exports.put.stream = put.stream

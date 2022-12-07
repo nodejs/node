@@ -18,7 +18,7 @@ t.test('setup', async (t) => {
   const { display } = mockDisplay(t)
 
   display.load({ timing: true, loglevel: 'notice' })
-  t.equal(log.level, 'timing')
+  t.equal(log.level, 'notice')
 
   display.load({ timing: false, loglevel: 'notice' })
   t.equal(log.level, 'notice')

@@ -6,6 +6,15 @@ const npm = {
   output: (...args) => {
     OUTPUT.push(args)
   },
+  config: {
+    validate: () => {},
+    get: (key) => {
+      if (key === 'location') {
+        return 'project'
+      }
+    },
+    isDefault: () => {},
+  },
 }
 const { resolve } = require('path')
 

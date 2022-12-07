@@ -146,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm hook add &lt;pkg&gt; &lt;url&gt; &lt;secret&gt; [--type=&lt;type&gt;]
+<pre><code class="language-bash">npm hook add &lt;pkg&gt; &lt;url&gt; &lt;secret&gt; [--type=&lt;type&gt;]
 npm hook ls [pkg]
 npm hook rm &lt;id&gt;
 npm hook update &lt;id&gt; &lt;url&gt; &lt;secret&gt;
@@ -170,25 +170,25 @@ for that particular hook.</p>
 the request came from your own configured hook.</p>
 <h3 id="example">Example</h3>
 <p>Add a hook to watch a package for changes:</p>
-<pre lang="bash"><code>$ npm hook add lodash https://example.com/ my-shared-secret
+<pre><code class="language-bash">$ npm hook add lodash https://example.com/ my-shared-secret
 </code></pre>
 <p>Add a hook to watch packages belonging to the user <code>substack</code>:</p>
-<pre lang="bash"><code>$ npm hook add ~substack https://example.com/ my-shared-secret
+<pre><code class="language-bash">$ npm hook add ~substack https://example.com/ my-shared-secret
 </code></pre>
 <p>Add a hook to watch packages in the scope <code>@npm</code></p>
-<pre lang="bash"><code>$ npm hook add @npm https://example.com/ my-shared-secret
+<pre><code class="language-bash">$ npm hook add @npm https://example.com/ my-shared-secret
 </code></pre>
 <p>List all your active hooks:</p>
-<pre lang="bash"><code>$ npm hook ls
+<pre><code class="language-bash">$ npm hook ls
 </code></pre>
 <p>List your active hooks for the <code>lodash</code> package:</p>
-<pre lang="bash"><code>$ npm hook ls lodash
+<pre><code class="language-bash">$ npm hook ls lodash
 </code></pre>
 <p>Update an existing hook's url:</p>
-<pre lang="bash"><code>$ npm hook update id-deadbeef https://my-new-website.here/
+<pre><code class="language-bash">$ npm hook update id-deadbeef https://my-new-website.here/
 </code></pre>
 <p>Remove a hook:</p>
-<pre lang="bash"><code>$ npm hook rm id-deadbeef
+<pre><code class="language-bash">$ npm hook rm id-deadbeef
 </code></pre>
 <h3 id="configuration">Configuration</h3>
 <h4 id="registry"><code>registry</code></h4>
@@ -209,8 +209,7 @@ password, npm will prompt on the command line for one.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="https://blog.npmjs.org/post/145260155635/introducing-hooks-get-notifications-of-npm">"Introducing Hooks" blog post</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-hook.md">

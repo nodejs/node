@@ -1,0 +1,67 @@
+{
+  "name": "minipass-fetch",
+  "version": "2.1.2",
+  "description": "An implementation of window.fetch in Node.js using Minipass streams",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "postpublish": "git push origin --follow-tags",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run lint -- --fix",
+    "prepublishOnly": "git push origin --follow-tags",
+    "posttest": "npm run lint",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "tap": {
+    "coverage-map": "map.js",
+    "check-coverage": true
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "3.5.0",
+    "@ungap/url-search-params": "^0.2.2",
+    "abort-controller": "^3.0.0",
+    "abortcontroller-polyfill": "~1.7.3",
+    "encoding": "^0.1.13",
+    "form-data": "^4.0.0",
+    "nock": "^13.2.4",
+    "parted": "^0.1.1",
+    "string-to-arraybuffer": "^1.0.2",
+    "tap": "^16.0.0"
+  },
+  "dependencies": {
+    "minipass": "^3.1.6",
+    "minipass-sized": "^1.0.3",
+    "minizlib": "^2.1.2"
+  },
+  "optionalDependencies": {
+    "encoding": "^0.1.13"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/minipass-fetch.git"
+  },
+  "keywords": [
+    "fetch",
+    "minipass",
+    "node-fetch",
+    "window.fetch"
+  ],
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+  },
+  "author": "GitHub Inc.",
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "3.5.0"
+  }
+}

@@ -4,7 +4,7 @@ const test = require('tap').test
 const path = require('path')
 const findNodeDirectory = require('../lib/find-node-directory')
 
-const platforms = ['darwin', 'freebsd', 'linux', 'sunos', 'win32', 'aix']
+const platforms = ['darwin', 'freebsd', 'linux', 'sunos', 'win32', 'aix', 'os400']
 
 // we should find the directory based on the directory
 // the script is running in and it should match the layout

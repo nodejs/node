@@ -146,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm version [&lt;newversion&gt; | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]
+<pre><code class="language-bash">npm version [&lt;newversion&gt; | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]
 
 alias: verison
 </code></pre>
@@ -265,16 +265,16 @@ behavior is controlled by <code>git-tag-version</code> (see below), and can be
 disabled on the command line by running <code>npm --no-git-tag-version version</code>.
 It will fail if the working directory is not clean, unless the <code>-f</code> or
 <code>--force</code> flag is set.</p>
-<p>If supplied with <code>-m</code> or <code>--message</code> config option, npm will use it as a
-commit message when creating a version commit.  If the <code>message</code> config
-contains <code>%s</code> then that will be replaced with the resulting version number.
-For example:</p>
-<pre lang="bash"><code>npm version patch -m "Upgrade to %s for reasons"
+<p>If supplied with <code>-m</code> or <a href="../using-npm/config#message.html"><code>--message</code> config</a> option,
+npm will use it as a commit message when creating a version commit.  If the
+<code>message</code> config contains <code>%s</code> then that will be replaced with the resulting
+version number. For example:</p>
+<pre><code class="language-bash">npm version patch -m "Upgrade to %s for reasons"
 </code></pre>
-<p>If the <code>sign-git-tag</code> config is set, then the tag will be signed using the
-<code>-s</code> flag to git.  Note that you must have a default GPG key set up in your
-git config for this to work properly.  For example:</p>
-<pre lang="bash"><code>$ npm config set sign-git-tag true
+<p>If the <a href="../using-npm/config#sign-git-tag.html"><code>sign-git-tag</code> config</a> is set, then the
+tag will be signed using the <code>-s</code> flag to git. Note that you must have a default
+GPG key set up in your git config for this to work properly. For example:</p>
+<pre><code class="language-bash">$ npm config set sign-git-tag true
 $ npm version patch
 
 You need a passphrase to unlock the secret key for
@@ -305,7 +305,7 @@ generated files to the commit using <code>git add</code>.</li>
 automatically push the commit and/or tag.</li>
 </ol>
 <p>Take the following example:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "scripts": {
     "preversion": "npm test",
     "version": "npm run build &amp;&amp; git add -A dist",
@@ -324,8 +324,7 @@ deletes the <code>build/temp</code> directory.</p>
 <li><a href="../using-npm/scripts.html">npm scripts</a></li>
 <li><a href="../configuring-npm/package-json.html">package.json</a></li>
 <li><a href="../using-npm/config.html">config</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-version.md">

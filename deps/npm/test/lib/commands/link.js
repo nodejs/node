@@ -1,9 +1,9 @@
 const t = require('tap')
-const { resolve } = require('path')
+const { resolve, join } = require('path')
 const fs = require('fs')
 
 const Arborist = require('@npmcli/arborist')
-const { fake: mockNpm } = require('../../fixtures/mock-npm')
+const { fake: mockNpm, load: fullMockNpm } = require('../../fixtures/mock-npm')
 
 const redactCwd = (path) => {
   const normalizePath = p => p
@@ -72,7 +72,6 @@ t.test('link to globalDir when in current working dir of pkg and no args', async
     path: resolve(npm.globalDir, '..'),
     global: true,
   })
-
   t.matchSnapshot(links, 'should create a global link to current pkg')
 })
 
@@ -549,4 +548,35 @@ t.test('hash character in working directory path', async t => {
   })
 
   t.matchSnapshot(links, 'should create a global link to current pkg, even within path with hash')
+})
+
+t.test('test linked installed as symlinks', async t => {
+  // fakeMock is insufficient due to lack of flatOptions
+  const { npm } = await fullMockNpm(t, {
+    otherDirs: {
+      mylink: {
+        'package.json': JSON.stringify({
+          name: 'mylink',
+          version: '1.0.0',
+        }),
+      },
+    },
+  })
+
+  const _cwd = process.cwd()
+  process.chdir(npm.prefix)
+
+  await npm.exec('link', [
+    join('file:../other/mylink'),
+  ])
+  process.chdir(_cwd)
+  const links = await printLinks({
+    path: npm.prefix,
+  })
+
+  t.ok(fs.lstatSync(join(npm.prefix, 'node_modules', 'mylink')).isSymbolicLink(),
+    'linked path should by symbolic link'
+  )
+
+  t.matchSnapshot(links, 'linked package should not be installed')
 })

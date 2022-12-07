@@ -103,6 +103,9 @@ class Node {
       dummy = false,
       sourceReference = null,
     } = options
+    // this object gives querySelectorAll somewhere to stash context about a node
+    // while processing a query
+    this.queryContext = {}
 
     // true if part of a global install
     this[_global] = global
@@ -1455,8 +1458,8 @@ class Node {
 
   // maybe accept both string value or array of strings
   // seems to be what dom API does
-  querySelectorAll (query) {
-    return querySelectorAll(this, query)
+  querySelectorAll (query, opts) {
+    return querySelectorAll(this, query, opts)
   }
 
   toJSON () {

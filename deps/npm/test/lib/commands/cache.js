@@ -1,10 +1,10 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
-const MockRegistry = require('../../fixtures/mock-registry.js')
+const MockRegistry = require('@npmcli/mock-registry')
 const mockGlobals = require('../../fixtures/mock-globals')
 
 const cacache = require('cacache')
-const fs = require('@npmcli/fs')
+const fs = require('fs')
 const path = require('path')
 
 const pkg = 'test-package'
