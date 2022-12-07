@@ -215,3 +215,11 @@ for (let n = minIvLength; n < maxIvLength; n += 1) {
     () => crypto.createCipheriv('aes-128-ecb', Buffer.alloc(17), null),
     /Invalid key length/);
 }
+
+{
+  // overflowing
+  assert.throws(() => crypto.createCipheriv('aes-128-gcm', Buffer.alloc(16), Buffer.alloc(12))
+  .update(Buffer.allocUnsafeSlow(2 ** 31 - 1)), {
+    name: 'Error',
+  });
+}
