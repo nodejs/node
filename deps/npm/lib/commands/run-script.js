@@ -117,7 +117,6 @@ class RunScript extends BaseCommand {
       args,
       scriptShell,
       stdio: 'inherit',
-      stdioString: true,
       pkg,
       banner: !this.npm.silent,
     }

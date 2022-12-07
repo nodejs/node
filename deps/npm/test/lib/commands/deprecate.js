@@ -1,7 +1,7 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 
-const MockRegistry = require('../../fixtures/mock-registry.js')
+const MockRegistry = require('@npmcli/mock-registry')
 
 const user = 'test-user'
 const token = 'test-auth-token'
@@ -32,7 +32,7 @@ t.test('completion', async t => {
   })
 
   registry.whoami({ username: user, times: 4 })
-  registry.lsPackages({ team: user, packages, times: 4 })
+  registry.getPackages({ team: user, packages, times: 4 })
   await Promise.all([
     testComp([], ['foo', 'bar', 'baz']),
     testComp(['b'], ['bar', 'baz']),
@@ -42,9 +42,12 @@ t.test('completion', async t => {
 
   await testComp(['foo', 'something'], [])
 
-  registry.whoami({ statusCode: 404, body: {} })
+  registry.whoami({ responseCode: 401, body: {} })
 
-  t.rejects(testComp([], []), { code: 'EINVALIDTYPE' })
+  await t.rejects(
+    testComp([], []),
+    { code: 'E401' }
+  )
 })
 
 t.test('no args', async t => {

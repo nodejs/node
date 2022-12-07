@@ -1,4 +1,5 @@
 const cacache = require('cacache')
+const Arborist = require('@npmcli/arborist')
 const { promisify } = require('util')
 const pacote = require('pacote')
 const path = require('path')
@@ -164,7 +165,7 @@ class Cache extends BaseCommand {
       return pacote.tarball.stream(spec, stream => {
         stream.resume()
         return stream.promise()
-      }, this.npm.flatOptions)
+      }, { ...this.npm.flatOptions, Arborist })
     }))
   }
 

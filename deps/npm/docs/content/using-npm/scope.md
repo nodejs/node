@@ -87,7 +87,7 @@ Publishing to a scope, you have two options:
 If publishing a public module to an organization scope, you must
 first either create an organization with the name of the scope
 that you'd like to publish to or be added to an existing organization
-with the appropriate permisssions. For example, if you'd like to
+with the appropriate permissions. For example, if you'd like to
 publish to `@org`, you would  need to create the `org` organization
 on npmjs.com prior to trying to publish.
 

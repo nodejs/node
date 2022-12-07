@@ -76,6 +76,7 @@ class Arborist extends Base {
       workspacesEnabled: options.workspacesEnabled !== false,
       replaceRegistryHost: options.replaceRegistryHost,
       lockfileVersion: lockfileVersion(options.lockfileVersion),
+      installStrategy: options.global ? 'shallow' : (options.installStrategy ? options.installStrategy : 'hoisted'),
     }
     this.replaceRegistryHost = this.options.replaceRegistryHost =
       (!this.options.replaceRegistryHost || this.options.replaceRegistryHost === 'npmjs') ?
