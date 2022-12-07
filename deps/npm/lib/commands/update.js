@@ -14,8 +14,9 @@ class Update extends ArboristWorkspaceCmd {
   static params = [
     'save',
     'global',
-    'global-style',
+    'install-strategy',
     'legacy-bundling',
+    'global-style',
     'omit',
     'strict-peer-deps',
     'package-lock',

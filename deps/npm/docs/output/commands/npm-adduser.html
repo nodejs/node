@@ -146,23 +146,17 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm adduser
+<pre><code class="language-bash">npm adduser
 
-aliases: login, add-user
+alias: add-user
 </code></pre>
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
-<p>Create or verify a user named <code>&lt;username&gt;</code> in the specified registry, and
-save the credentials to the <code>.npmrc</code> file. If no registry is specified,
-the default registry will be used (see <a href="../using-npm/config.html"><code>config</code></a>).</p>
-<p>The username, password, and email are read in from prompts.</p>
-<p>To reset your password, go to <a href="https://www.npmjs.com/forgot">https://www.npmjs.com/forgot</a></p>
-<p>To change your email address, go to <a href="https://www.npmjs.com/email-edit">https://www.npmjs.com/email-edit</a></p>
-<p>You may use this command multiple times with the same user account to
-authorize on a new machine.  When authenticating on a new machine,
-the username, password and email address must all match with
-your existing record.</p>
-<p><code>npm login</code> is an alias to <code>adduser</code> and behaves exactly the same way.</p>
+<p>Create a new user in the specified registry, and save the credentials to
+the <code>.npmrc</code> file. If no registry is specified, the default registry
+will be used (see <a href="../using-npm/registry.html"><code>registry</code></a>).</p>
+<p>When using <code>legacy</code> for your <code>auth-type</code>, the username, password, and
+email are read in from prompts.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="registry"><code>registry</code></h4>
 <ul>
@@ -193,11 +187,9 @@ npm init --scope=@foo --yes
 </code></pre>
 <h4 id="auth-type"><code>auth-type</code></h4>
 <ul>
-<li>Default: "legacy"</li>
-<li>Type: "legacy", "web", "sso", "saml", "oauth", or "webauthn"</li>
+<li>Default: "web"</li>
+<li>Type: "legacy" or "web"</li>
 </ul>
-<p>NOTE: auth-type values "sso", "saml", "oauth", and "webauthn" will be
-removed in a future version.</p>
 <p>What authentication strategy to use with <code>login</code>.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
@@ -208,8 +200,7 @@ removed in a future version.</p>
 <li><a href="../commands/npm-whoami.html">npm whoami</a></li>
 <li><a href="../commands/npm-token.html">npm token</a></li>
 <li><a href="../commands/npm-profile.html">npm profile</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-adduser.md">

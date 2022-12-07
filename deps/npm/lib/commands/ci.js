@@ -94,7 +94,6 @@ class CI extends ArboristWorkspaceCmd {
           args: [],
           scriptShell,
           stdio: 'inherit',
-          stdioString: true,
           banner: !this.npm.silent,
           event,
         })

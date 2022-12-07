@@ -8,6 +8,9 @@ const npm = {
       return 'called the right thing'
     }
   },
+  config: {
+    validate: () => {},
+  },
 }
 t.test('create a lifecycle command', async t => {
   t.plan(5)

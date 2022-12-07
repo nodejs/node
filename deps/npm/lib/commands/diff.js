@@ -185,7 +185,7 @@ class Diff extends BaseCommand {
       // work from the top of the arborist tree to find the original semver
       // range declared in the package that depends on the package.
       let bSpec
-      if (spec.rawSpec) {
+      if (spec.rawSpec !== '*') {
         bSpec = spec.rawSpec
       } else {
         const bTargetVersion =
@@ -269,7 +269,7 @@ class Diff extends BaseCommand {
 
     return specs.map(i => {
       const spec = npa(i)
-      if (spec.rawSpec) {
+      if (spec.rawSpec !== '*') {
         return i
       }
 

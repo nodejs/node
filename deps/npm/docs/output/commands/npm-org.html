@@ -146,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm org set orgname username [developer | admin | owner]
+<pre><code class="language-bash">npm org set orgname username [developer | admin | owner]
 npm org rm orgname username
 npm org ls orgname [&lt;username&gt;]
 
@@ -155,22 +155,22 @@ alias: ogr
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="example">Example</h3>
 <p>Add a new developer to an org:</p>
-<pre lang="bash"><code>$ npm org set my-org @mx-smith
+<pre><code class="language-bash">$ npm org set my-org @mx-smith
 </code></pre>
 <p>Add a new admin to an org (or change a developer to an admin):</p>
-<pre lang="bash"><code>$ npm org set my-org @mx-santos admin
+<pre><code class="language-bash">$ npm org set my-org @mx-santos admin
 </code></pre>
 <p>Remove a user from an org:</p>
-<pre lang="bash"><code>$ npm org rm my-org mx-santos
+<pre><code class="language-bash">$ npm org rm my-org mx-santos
 </code></pre>
 <p>List all users in an org:</p>
-<pre lang="bash"><code>$ npm org ls my-org
+<pre><code class="language-bash">$ npm org ls my-org
 </code></pre>
 <p>List all users in JSON format:</p>
-<pre lang="bash"><code>$ npm org ls my-org --json
+<pre><code class="language-bash">$ npm org ls my-org --json
 </code></pre>
 <p>See what role a user has in an org:</p>
-<pre lang="bash"><code>$ npm org ls my-org @mx-santos
+<pre><code class="language-bash">$ npm org ls my-org @mx-santos
 </code></pre>
 <h3 id="description">Description</h3>
 <p>You can use the <code>npm org</code> commands to manage and view users of an
@@ -214,8 +214,7 @@ saving them to your <code>package.json</code>.</li>
 <ul>
 <li><a href="../using-npm/orgs.html">using orgs</a></li>
 <li><a href="https://docs.npmjs.com/orgs/">Documentation on npm Orgs</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-org.md">

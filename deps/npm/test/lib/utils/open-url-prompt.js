@@ -21,10 +21,13 @@ const npm = {
 let openerUrl = null
 let openerOpts = null
 let openerResult = null
-const opener = (url, opts, cb) => {
+
+const open = async (url, options) => {
   openerUrl = url
-  openerOpts = opts
-  return cb(openerResult)
+  openerOpts = options
+  if (openerResult) {
+    throw openerResult
+  }
 }
 
 let questionShouldResolve = true
@@ -47,7 +50,9 @@ const readline = {
 }
 
 const openUrlPrompt = t.mock('../../../lib/utils/open-url-prompt.js', {
-  opener,
+  '@npmcli/promise-spawn': {
+    open,
+  },
   readline,
 })
 

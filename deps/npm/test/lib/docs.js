@@ -1,6 +1,6 @@
 const t = require('tap')
 const { join, resolve, basename, extname, dirname } = require('path')
-const fs = require('fs').promises
+const fs = require('fs/promises')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const docs = require('@npmcli/docs')
 
@@ -66,12 +66,12 @@ t.test('usage', async t => {
   // are all in sync. eg, this will error if a command is removed but not its docs file
   t.strictSame(
     fsCommands.sort(localeCompare),
-    cmdList.allCommands.filter(f => !['login'].includes(f)),
+    cmdList.allCommands,
     'command list and fs are the same'
   )
   t.strictSame(
     allDocs.filter(f => !bareCommands.includes(f)).sort(localeCompare),
-    cmdList.allCommands.filter(f => !['birthday', 'login'].includes(f)),
+    cmdList.allCommands,
     'command list and docs files are the same'
   )
 

@@ -23,10 +23,10 @@ class Deprecate extends BaseCommand {
     }
 
     const username = await getIdentity(this.npm, this.npm.flatOptions)
-    const packages = await libaccess.lsPackages(username, this.npm.flatOptions)
+    const packages = await libaccess.getPackages(username, this.npm.flatOptions)
     return Object.keys(packages)
       .filter((name) =>
-        packages[name] === 'read-write' &&
+        packages[name] === 'write' &&
         (opts.conf.argv.remain.length === 0 ||
           name.startsWith(opts.conf.argv.remain[0])))
   }
@@ -39,9 +39,7 @@ class Deprecate extends BaseCommand {
 
     // fetch the data and make sure it exists.
     const p = npa(pkg)
-    // npa makes the default spec "latest", but for deprecation
-    // "*" is the appropriate default.
-    const spec = p.rawSpec === '' ? '*' : p.fetchSpec
+    const spec = p.rawSpec === '*' ? '*' : p.fetchSpec
 
     if (semver.validRange(spec, true) === null) {
       throw new Error(`invalid version range: ${spec}`)

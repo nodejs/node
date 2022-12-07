@@ -146,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm init &lt;package-spec&gt; (same as `npx &lt;package-spec&gt;)
+<pre><code class="language-bash">npm init &lt;package-spec&gt; (same as `npx &lt;package-spec&gt;)
 npm init &lt;@scope&gt; (same as `npx &lt;@scope&gt;/create`)
 
 aliases: create, innit
@@ -195,20 +195,20 @@ both following commands are equivalent:</p>
 <h3 id="examples">Examples</h3>
 <p>Create a new React-based project using
 <a href="https://npm.im/create-react-app"><code>create-react-app</code></a>:</p>
-<pre lang="bash"><code>$ npm init react-app ./my-react-app
+<pre><code class="language-bash">$ npm init react-app ./my-react-app
 </code></pre>
 <p>Create a new <code>esm</code>-compatible package using
 <a href="https://npm.im/create-esm"><code>create-esm</code></a>:</p>
-<pre lang="bash"><code>$ mkdir my-esm-lib &amp;&amp; cd my-esm-lib
+<pre><code class="language-bash">$ mkdir my-esm-lib &amp;&amp; cd my-esm-lib
 $ npm init esm --yes
 </code></pre>
 <p>Generate a plain old package.json using legacy init:</p>
-<pre lang="bash"><code>$ mkdir my-npm-pkg &amp;&amp; cd my-npm-pkg
+<pre><code class="language-bash">$ mkdir my-npm-pkg &amp;&amp; cd my-npm-pkg
 $ git init
 $ npm init
 </code></pre>
 <p>Generate it without having it ask any questions:</p>
-<pre lang="bash"><code>$ npm init -y
+<pre><code class="language-bash">$ npm init -y
 </code></pre>
 <h3 id="workspaces-support">Workspaces support</h3>
 <p>It's possible to create a new workspace within your project by using the
@@ -221,7 +221,7 @@ sure that new generated <strong>workspace</strong> is properly set up as such.</
 +-- package.json
 </code></pre>
 <p>You may generate a new workspace using the legacy init:</p>
-<pre lang="bash"><code>$ npm init -w packages/a
+<pre><code class="language-bash">$ npm init -w packages/a
 </code></pre>
 <p>That will generate a new folder and <code>package.json</code> file, while also updating
 your top-level <code>package.json</code> to add the reference to this new workspace:</p>
@@ -238,7 +238,7 @@ creating a new React-based project using
 <a href="https://npm.im/create-react-app"><code>create-react-app</code></a>, the following syntax
 will make sure to create the new react app as a nested <strong>workspace</strong> within your
 project and configure your <code>package.json</code> to recognize it as such:</p>
-<pre lang="bash"><code>npm init -w packages/my-react-app react-app .
+<pre><code class="language-bash">npm init -w packages/my-react-app react-app .
 </code></pre>
 <p>This will make sure to generate your react app as expected, one important
 consideration to have in mind is that <code>npm exec</code> is going to be run in the
@@ -370,8 +370,7 @@ the specified workspaces, and not on the root project.</p>
 <li><a href="../using-npm/scope.html">npm scope</a></li>
 <li><a href="../commands/npm-exec.html">npm exec</a></li>
 <li><a href="../using-npm/workspaces.html">npm workspaces</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-init.md">

@@ -4,7 +4,7 @@ const path = require('path')
 const t = require('tap')
 
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
-const MockRegistry = require('../../fixtures/mock-registry.js')
+const MockRegistry = require('@npmcli/mock-registry')
 
 const gunzip = zlib.gunzipSync
 const gzip = zlib.gzipSync
@@ -1171,7 +1171,7 @@ t.test('audit signatures', async t => {
     t.matchSnapshot(joinedOutput())
   })
 
-  t.test('third-party registry without keys does not verify', async t => {
+  t.test('third-party registry without keys (E404) does not verify', async t => {
     const registryUrl = 'https://verdaccio-clone2.org'
     const { npm } = await loadMockNpm(t, {
       prefixDir: installWithThirdPartyRegistry,
@@ -1193,6 +1193,35 @@ t.test('audit signatures', async t => {
     })
     await registry.package({ manifest })
     registry.nock.get('/-/npm/v1/keys').reply(404)
+
+    await t.rejects(
+      npm.exec('audit', ['signatures']),
+      /found no dependencies to audit that where installed from a supported registry/
+    )
+  })
+
+  t.test('third-party registry without keys (E400) does not verify', async t => {
+    const registryUrl = 'https://verdaccio-clone2.org'
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: installWithThirdPartyRegistry,
+      config: {
+        '@npmcli:registry': registryUrl,
+      },
+    })
+    const registry = new MockRegistry({ tap: t, registry: registryUrl })
+    const manifest = registry.manifest({
+      name: '@npmcli/arborist',
+      packuments: [{
+        version: '1.0.14',
+        dist: {
+          tarball: 'https://registry.npmjs.org/@npmcli/arborist/-/@npmcli/arborist-1.0.14.tgz',
+          integrity: 'sha512-caa8hv5rW9VpQKk6tyNRvSaVDySVjo9GkI7Wj/wcsFyxPm3tYrE' +
+              'sFyTjSnJH8HCIfEGVQNjqqKXaXLFVp7UBag==',
+        },
+      }],
+    })
+    await registry.package({ manifest })
+    registry.nock.get('/-/npm/v1/keys').reply(400)
 
     await t.rejects(
       npm.exec('audit', ['signatures']),

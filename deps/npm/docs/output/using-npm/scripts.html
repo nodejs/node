@@ -157,7 +157,7 @@ commands with matching names will be run for those as well (e.g. <code>premyscri
 <p>To create "pre" or "post" scripts for any scripts defined in the
 <code>"scripts"</code> section of the <code>package.json</code>, simply create another script
 <em>with a matching name</em> and add "pre" or "post" to the beginning of them.</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "scripts": {
     "precompress": "{{ executes BEFORE the `compress` script }}",
     "compress": "{{ run command to compress files }}",
@@ -177,20 +177,14 @@ situations. These scripts happen in addition to the <code>pre&lt;event&gt;</code
 <p><strong>prepare</strong> (since <code>npm@4.0.0</code>)</p>
 <ul>
 <li>
-<p>Runs any time before the package is packed, i.e. during <code>npm publish</code>
+<p>Runs BEFORE the package is packed, i.e. during <code>npm publish</code>
 and <code>npm pack</code></p>
-</li>
-<li>
-<p>Runs BEFORE the package is packed</p>
-</li>
-<li>
-<p>Runs BEFORE the package is published</p>
 </li>
 <li>
 <p>Runs on local <code>npm install</code> without any arguments</p>
 </li>
 <li>
-<p>Run AFTER <code>prepublish</code>, but BEFORE <code>prepublishOnly</code></p>
+<p>Runs AFTER <code>prepublish</code>, but BEFORE <code>prepublishOnly</code></p>
 </li>
 <li>
 <p>NOTE: If a package being installed through git contains a <code>prepare</code>
@@ -373,7 +367,7 @@ the process.</p>
 <p>If you depend on modules that define executable scripts, like test
 suites, then those executables will be added to the <code>PATH</code> for
 executing the scripts.  So, if your package.json has this:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "name" : "foo",
   "dependencies" : {
     "bar" : "0.1.x"
@@ -402,11 +396,11 @@ based on what's currently happening.</p>
 <p>Objects are flattened following this format, so if you had
 <code>{"scripts":{"install":"foo.js"}}</code> in your package.json, then you'd
 see this in the script:</p>
-<pre lang="bash"><code>process.env.npm_package_scripts_install === "foo.js"
+<pre><code class="language-bash">process.env.npm_package_scripts_install === "foo.js"
 </code></pre>
 <h3 id="examples">Examples</h3>
 <p>For example, if your package.json contains this:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "scripts" : {
     "install" : "scripts/install.js",
     "postinstall" : "scripts/install.js",
@@ -422,7 +416,7 @@ be wise in this case to look at the <code>npm_lifecycle_event</code> environment
 variable.</p>
 <p>If you want to run a make command, you can do so.  This works just
 fine:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "scripts" : {
     "preinstall" : "./configure",
     "install" : "make &amp;&amp; make install",
@@ -472,8 +466,7 @@ were in when you ran <code>npm run</code>.</li>
 <li><a href="../configuring-npm/package-json.html">package.json</a></li>
 <li><a href="../using-npm/developers.html">npm developers</a></li>
 <li><a href="../commands/npm-install.html">npm install</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/using-npm/scripts.md">

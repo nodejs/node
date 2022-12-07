@@ -276,7 +276,6 @@ For Pacote's purposes, the following fields are relevant:
 * `time` In the full packument, an object mapping version numbers to
   publication times, for the `opts.before` functionality.
 
-Pacote adds the following fields, regardless of the accept header:
+Pacote adds the following field, regardless of the accept header:
 
-* `_cached` Whether the packument was fetched from the network or the local cache.
 * `_contentLength` The size of the packument.

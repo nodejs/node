@@ -1,6 +1,7 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
-const MockRegistry = require('../../fixtures/mock-registry.js')
+const MockRegistry = require('@npmcli/mock-registry')
+const nock = require('nock')
 
 const username = 'foo'
 const auth = { '//registry.npmjs.org/:_authToken': 'test-auth-token' }
@@ -66,4 +67,28 @@ t.test('not logged in', async t => {
     },
   })
   await t.rejects(npm.exec('whoami', []), { code: 'ENEEDAUTH' })
+})
+
+t.test('non-string username in response', async t => {
+  nock.disableNetConnect()
+  t.teardown(() => {
+    nock.enableNetConnect()
+  })
+
+  const server = nock('https://registry.npmjs.org', {
+    reqheaders: {
+      authorization: 'Bearer abcd1234',
+    },
+  })
+    .get('/-/whoami')
+    .reply(200, { username: null })
+
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      '//registry.npmjs.org/:_authToken': 'abcd1234',
+    },
+  })
+
+  await t.rejects(npm.exec('whoami', []), { code: 'ENEEDAUTH' })
+  t.ok(server.isDone())
 })

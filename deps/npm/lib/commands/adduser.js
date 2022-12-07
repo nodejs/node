@@ -1,14 +1,8 @@
 const log = require('../utils/log-shim.js')
 const replaceInfo = require('../utils/replace-info.js')
+const auth = require('../utils/auth.js')
+
 const BaseCommand = require('../base-command.js')
-const authTypes = {
-  legacy: require('../auth/legacy.js'),
-  web: require('../auth/legacy.js'),
-  webauthn: require('../auth/legacy.js'),
-  oauth: require('../auth/oauth.js'),
-  saml: require('../auth/saml.js'),
-  sso: require('../auth/sso.js'),
-}
 
 class AddUser extends BaseCommand {
   static description = 'Add a registry user account'
@@ -22,63 +16,38 @@ class AddUser extends BaseCommand {
   static ignoreImplicitWorkspace = true
 
   async exec (args) {
-    const { scope } = this.npm.flatOptions
-    const registry = this.getRegistry(this.npm.flatOptions)
-    const auth = this.getAuthType(this.npm.flatOptions)
-    const creds = this.npm.config.getCredentialsByURI(registry)
+    const scope = this.npm.config.get('scope')
+    let registry = this.npm.config.get('registry')
 
-    log.disableProgress()
-
-    log.warn('adduser',
-      '`adduser` will be split into `login` and `register` in a future version.'
-      + ' `adduser` will become an alias of `register`.'
-      + ' `login` (currently an alias) will become its own command.')
-    log.notice('', `Log in on ${replaceInfo(registry)}`)
-
-    const { message, newCreds } = await auth(this.npm, {
-      ...this.npm.flatOptions,
-      creds,
-      registry,
-      scope,
-    })
-
-    await this.updateConfig({
-      newCreds,
-      registry,
-      scope,
-    })
-
-    this.npm.output(message)
-  }
-
-  getRegistry ({ scope, registry }) {
     if (scope) {
       const scopedRegistry = this.npm.config.get(`${scope}:registry`)
       const cliRegistry = this.npm.config.get('registry', 'cli')
       if (scopedRegistry && !cliRegistry) {
-        return scopedRegistry
+        registry = scopedRegistry
       }
     }
-    return registry
-  }
 
-  getAuthType ({ authType }) {
-    const type = authTypes[authType]
+    const creds = this.npm.config.getCredentialsByURI(registry)
 
-    if (!type) {
-      throw new Error('no such auth module')
-    }
+    log.disableProgress()
+    log.notice('', `Log in on ${replaceInfo(registry)}`)
 
-    return type
-  }
+    const { message, newCreds } = await auth.adduser(this.npm, {
+      ...this.npm.flatOptions,
+      creds,
+      registry,
+    })
 
-  async updateConfig ({ newCreds, registry, scope }) {
     this.npm.config.delete('_token', 'user') // prevent legacy pollution
     this.npm.config.setCredentialsByURI(registry, newCreds)
+
     if (scope) {
       this.npm.config.set(scope + ':registry', registry, 'user')
     }
+
     await this.npm.config.save('user')
+
+    this.npm.output(message)
   }
 }
 module.exports = AddUser

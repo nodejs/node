@@ -125,7 +125,6 @@ t.test('default env, start, and restart scripts', t => {
         args: [],
         scriptShell: undefined,
         stdio: 'inherit',
-        stdioString: true,
         pkg: { name: 'x', version: '1.2.3', _id: 'x@1.2.3', scripts: {} },
         event: 'start',
       },
@@ -140,7 +139,6 @@ t.test('default env, start, and restart scripts', t => {
         args: [],
         scriptShell: undefined,
         stdio: 'inherit',
-        stdioString: true,
         pkg: {
           name: 'x',
           version: '1.2.3',
@@ -162,7 +160,6 @@ t.test('default env, start, and restart scripts', t => {
         args: [],
         scriptShell: undefined,
         stdio: 'inherit',
-        stdioString: true,
         pkg: {
           name: 'x',
           version: '1.2.3',
@@ -185,7 +182,6 @@ t.test('default env, start, and restart scripts', t => {
         args: [],
         scriptShell: undefined,
         stdio: 'inherit',
-        stdioString: true,
         pkg: {
           name: 'x',
           version: '1.2.3',
@@ -220,7 +216,6 @@ t.test('non-default env script', t => {
         args: [],
         scriptShell: undefined,
         stdio: 'inherit',
-        stdioString: true,
         pkg: {
           name: 'x',
           version: '1.2.3',
@@ -242,7 +237,6 @@ t.test('non-default env script', t => {
         args: [],
         scriptShell: undefined,
         stdio: 'inherit',
-        stdioString: true,
         pkg: {
           name: 'x',
           version: '1.2.3',
@@ -305,7 +299,6 @@ t.test('run pre/post hooks', async t => {
       args: [],
       scriptShell: undefined,
       stdio: 'inherit',
-      stdioString: true,
       pkg: {
         name: 'x',
         version: '1.2.3',
@@ -342,7 +335,6 @@ t.test('skip pre/post hooks when using ignoreScripts', async t => {
       args: [],
       scriptShell: undefined,
       stdio: 'inherit',
-      stdioString: true,
       pkg: {
         name: 'x',
         version: '1.2.3',
@@ -385,7 +377,6 @@ t.test('run silent', async t => {
       args: [],
       scriptShell: undefined,
       stdio: 'inherit',
-      stdioString: true,
       pkg: {
         name: 'x',
         version: '1.2.3',

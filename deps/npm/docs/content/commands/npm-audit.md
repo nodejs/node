@@ -100,9 +100,9 @@ the path `/-/npm/v1/security/advisories/bulk`.
 
 Any packages in the tree that do not have a `version` field in their
 package.json file will be ignored.  If any `--omit` options are specified
-(either via the `--omit` config, or one of the shorthands such as
-`--production`, `--only=dev`, and so on), then packages will be omitted
-from the submitted payload as appropriate.
+(either via the [`--omit` config](/using-npm/config#omit), or one of the
+shorthands such as `--production`, `--only=dev`, and so on), then packages will
+be omitted from the submitted payload as appropriate.
 
 If the registry responds with an error, or with an invalid response, then
 npm will attempt to load advisory data from the `Quick Audit` endpoint.
@@ -179,7 +179,7 @@ vulnerabilities are found _or_ if the remediation is able to successfully
 fix all vulnerabilities.
 
 If vulnerabilities were found the exit code will depend on the
-`audit-level` configuration setting.
+[`audit-level` config](/using-npm/config#audit-level).
 
 ### Examples
 
@@ -408,12 +408,12 @@ This value is not exported to the environment for child processes.
 
 #### `install-links`
 
-* Default: false
+* Default: true
 * Type: Boolean
 
-When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.
+When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.
 
 ### See Also
 

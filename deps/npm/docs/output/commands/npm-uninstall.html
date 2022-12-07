@@ -146,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm uninstall [&lt;@scope&gt;/]&lt;pkg&gt;...
+<pre><code class="language-bash">npm uninstall [&lt;@scope&gt;/]&lt;pkg&gt;...
 
 aliases: unlink, remove, rm, r, un
 </code></pre>
@@ -169,11 +169,11 @@ it uninstalls the current package context as a global package.
 <code>--no-save</code> is ignored in this case.</p>
 <p>Scope is optional and follows the usual rules for <a href="../using-npm/scope.html"><code>scope</code></a>.</p>
 <h3 id="examples">Examples</h3>
-<pre lang="bash"><code>npm uninstall sax
+<pre><code class="language-bash">npm uninstall sax
 </code></pre>
 <p><code>sax</code> will no longer be in your <code>package.json</code>, <code>npm-shrinkwrap.json</code>, or
 <code>package-lock.json</code> files.</p>
-<pre lang="bash"><code>npm uninstall lodash --no-save
+<pre><code class="language-bash">npm uninstall lodash --no-save
 </code></pre>
 <p><code>lodash</code> will not be removed from your <code>package.json</code>,
 <code>npm-shrinkwrap.json</code>, or <code>package-lock.json</code> files.</p>
@@ -234,12 +234,12 @@ the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="install-links"><code>install-links</code></h4>
 <ul>
-<li>Default: false</li>
+<li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.</p>
+<p>When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-prune.html">npm prune</a></li>
@@ -247,8 +247,7 @@ symlink. This option has no effect on workspaces.</p>
 <li><a href="../configuring-npm/folders.html">npm folders</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-uninstall.md">

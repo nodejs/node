@@ -1,4 +1,3 @@
-const debug = require('./debug.js')
 const relpath = require('./relpath.js')
 const Node = require('./node.js')
 const _loadDeps = Symbol.for('Arborist.Node._loadDeps')
@@ -50,27 +49,6 @@ class Link extends Node {
   set target (target) {
     const current = this[_target]
     if (target === current) {
-      return
-    }
-
-    if (current && current.then) {
-      debug(() => {
-        throw Object.assign(new Error('cannot set target while awaiting'), {
-          path: this.path,
-          realpath: this.realpath,
-        })
-      })
-    }
-
-    if (target && target.then) {
-      // can set to a promise during an async tree build operation
-      // wait until then to assign it.
-      this[_target] = target
-      // eslint-disable-next-line promise/always-return, promise/catch-or-return
-      target.then(node => {
-        this[_target] = null
-        this.target = node
-      })
       return
     }
 

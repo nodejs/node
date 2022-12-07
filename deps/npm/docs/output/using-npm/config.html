@@ -142,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><ul><li><a href="#command-line-flags">Command Line Flags</a></li><li><a href="#environment-variables">Environment Variables</a></li><li><a href="#npmrc-files">npmrc Files</a></li><li><a href="#default-configs">Default Configs</a></li></ul><li><a href="#shorthands-and-other-cli-niceties">Shorthands and Other CLI Niceties</a></li><li><a href="#config-settings">Config Settings</a></li><ul><li><a href="#auth"><code>_auth</code></a></li><li><a href="#access"><code>access</code></a></li><li><a href="#all"><code>all</code></a></li><li><a href="#allow-same-version"><code>allow-same-version</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#audit-level"><code>audit-level</code></a></li><li><a href="#auth-type"><code>auth-type</code></a></li><li><a href="#before"><code>before</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#browser"><code>browser</code></a></li><li><a href="#ca"><code>ca</code></a></li><li><a href="#cache"><code>cache</code></a></li><li><a href="#cafile"><code>cafile</code></a></li><li><a href="#call"><code>call</code></a></li><li><a href="#cert"><code>cert</code></a></li><li><a href="#ci-name"><code>ci-name</code></a></li><li><a href="#cidr"><code>cidr</code></a></li><li><a href="#color"><code>color</code></a></li><li><a href="#commit-hooks"><code>commit-hooks</code></a></li><li><a href="#depth"><code>depth</code></a></li><li><a href="#description2"><code>description</code></a></li><li><a href="#diff"><code>diff</code></a></li><li><a href="#diff-dst-prefix"><code>diff-dst-prefix</code></a></li><li><a href="#diff-ignore-all-space"><code>diff-ignore-all-space</code></a></li><li><a href="#diff-name-only"><code>diff-name-only</code></a></li><li><a href="#diff-no-prefix"><code>diff-no-prefix</code></a></li><li><a href="#diff-src-prefix"><code>diff-src-prefix</code></a></li><li><a href="#diff-text"><code>diff-text</code></a></li><li><a href="#diff-unified"><code>diff-unified</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#editor"><code>editor</code></a></li><li><a href="#engine-strict"><code>engine-strict</code></a></li><li><a href="#fetch-retries"><code>fetch-retries</code></a></li><li><a href="#fetch-retry-factor"><code>fetch-retry-factor</code></a></li><li><a href="#fetch-retry-maxtimeout"><code>fetch-retry-maxtimeout</code></a></li><li><a href="#fetch-retry-mintimeout"><code>fetch-retry-mintimeout</code></a></li><li><a href="#fetch-timeout"><code>fetch-timeout</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#format-package-lock"><code>format-package-lock</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#git"><code>git</code></a></li><li><a href="#git-tag-version"><code>git-tag-version</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#globalconfig"><code>globalconfig</code></a></li><li><a href="#heading"><code>heading</code></a></li><li><a href="#https-proxy"><code>https-proxy</code></a></li><li><a href="#if-present"><code>if-present</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#include-staged"><code>include-staged</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#init-author-email"><code>init-author-email</code></a></li><li><a href="#init-author-name"><code>init-author-name</code></a></li><li><a href="#init-author-url"><code>init-author-url</code></a></li><li><a href="#init-license"><code>init-license</code></a></li><li><a href="#init-module"><code>init-module</code></a></li><li><a href="#init-version"><code>init-version</code></a></li><li><a href="#install-links"><code>install-links</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#key"><code>key</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#legacy-peer-deps"><code>legacy-peer-deps</code></a></li><li><a href="#link"><code>link</code></a></li><li><a href="#local-address"><code>local-address</code></a></li><li><a href="#location"><code>location</code></a></li><li><a href="#lockfile-version"><code>lockfile-version</code></a></li><li><a href="#loglevel"><code>loglevel</code></a></li><li><a href="#logs-dir"><code>logs-dir</code></a></li><li><a href="#logs-max"><code>logs-max</code></a></li><li><a href="#long"><code>long</code></a></li><li><a href="#maxsockets"><code>maxsockets</code></a></li><li><a href="#message"><code>message</code></a></li><li><a href="#node-options"><code>node-options</code></a></li><li><a href="#node-version"><code>node-version</code></a></li><li><a href="#noproxy"><code>noproxy</code></a></li><li><a href="#npm-version"><code>npm-version</code></a></li><li><a href="#offline"><code>offline</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#omit-lockfile-registry-resolved"><code>omit-lockfile-registry-resolved</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#pack-destination"><code>pack-destination</code></a></li><li><a href="#package"><code>package</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#prefer-offline"><code>prefer-offline</code></a></li><li><a href="#prefer-online"><code>prefer-online</code></a></li><li><a href="#prefix"><code>prefix</code></a></li><li><a href="#preid"><code>preid</code></a></li><li><a href="#progress"><code>progress</code></a></li><li><a href="#proxy"><code>proxy</code></a></li><li><a href="#read-only"><code>read-only</code></a></li><li><a href="#rebuild-bundle"><code>rebuild-bundle</code></a></li><li><a href="#registry"><code>registry</code></a></li><li><a href="#replace-registry-host"><code>replace-registry-host</code></a></li><li><a href="#save"><code>save</code></a></li><li><a href="#save-bundle"><code>save-bundle</code></a></li><li><a href="#save-dev"><code>save-dev</code></a></li><li><a href="#save-exact"><code>save-exact</code></a></li><li><a href="#save-optional"><code>save-optional</code></a></li><li><a href="#save-peer"><code>save-peer</code></a></li><li><a href="#save-prefix"><code>save-prefix</code></a></li><li><a href="#save-prod"><code>save-prod</code></a></li><li><a href="#scope"><code>scope</code></a></li><li><a href="#script-shell"><code>script-shell</code></a></li><li><a href="#searchexclude"><code>searchexclude</code></a></li><li><a href="#searchlimit"><code>searchlimit</code></a></li><li><a href="#searchopts"><code>searchopts</code></a></li><li><a href="#searchstaleness"><code>searchstaleness</code></a></li><li><a href="#shell"><code>shell</code></a></li><li><a href="#sign-git-commit"><code>sign-git-commit</code></a></li><li><a href="#sign-git-tag"><code>sign-git-tag</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#strict-ssl"><code>strict-ssl</code></a></li><li><a href="#tag"><code>tag</code></a></li><li><a href="#tag-version-prefix"><code>tag-version-prefix</code></a></li><li><a href="#timing"><code>timing</code></a></li><li><a href="#umask"><code>umask</code></a></li><li><a href="#unicode"><code>unicode</code></a></li><li><a href="#update-notifier"><code>update-notifier</code></a></li><li><a href="#usage"><code>usage</code></a></li><li><a href="#user-agent"><code>user-agent</code></a></li><li><a href="#userconfig"><code>userconfig</code></a></li><li><a href="#version"><code>version</code></a></li><li><a href="#versions"><code>versions</code></a></li><li><a href="#viewer"><code>viewer</code></a></li><li><a href="#which"><code>which</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#workspaces-update"><code>workspaces-update</code></a></li><li><a href="#yes"><code>yes</code></a></li><li><a href="#also"><code>also</code></a></li><li><a href="#cache-max"><code>cache-max</code></a></li><li><a href="#cache-min"><code>cache-min</code></a></li><li><a href="#dev"><code>dev</code></a></li><li><a href="#initauthoremail"><code>init.author.email</code></a></li><li><a href="#initauthorname"><code>init.author.name</code></a></li><li><a href="#initauthorurl"><code>init.author.url</code></a></li><li><a href="#initlicense"><code>init.license</code></a></li><li><a href="#initmodule"><code>init.module</code></a></li><li><a href="#initversion"><code>init.version</code></a></li><li><a href="#only"><code>only</code></a></li><li><a href="#optional"><code>optional</code></a></li><li><a href="#production"><code>production</code></a></li><li><a href="#shrinkwrap"><code>shrinkwrap</code></a></li><li><a href="#sso-poll-frequency"><code>sso-poll-frequency</code></a></li><li><a href="#sso-type"><code>sso-type</code></a></li><li><a href="#tmp"><code>tmp</code></a></li></ul><li><a href="#see-also">See also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><ul><li><a href="#command-line-flags">Command Line Flags</a></li><li><a href="#environment-variables">Environment Variables</a></li><li><a href="#npmrc-files">npmrc Files</a></li><li><a href="#default-configs">Default Configs</a></li></ul><li><a href="#shorthands-and-other-cli-niceties">Shorthands and Other CLI Niceties</a></li><li><a href="#config-settings">Config Settings</a></li><ul><li><a href="#auth"><code>_auth</code></a></li><li><a href="#access"><code>access</code></a></li><li><a href="#all"><code>all</code></a></li><li><a href="#allow-same-version"><code>allow-same-version</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#audit-level"><code>audit-level</code></a></li><li><a href="#auth-type"><code>auth-type</code></a></li><li><a href="#before"><code>before</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#browser"><code>browser</code></a></li><li><a href="#ca"><code>ca</code></a></li><li><a href="#cache"><code>cache</code></a></li><li><a href="#cafile"><code>cafile</code></a></li><li><a href="#call"><code>call</code></a></li><li><a href="#ci-name"><code>ci-name</code></a></li><li><a href="#cidr"><code>cidr</code></a></li><li><a href="#color"><code>color</code></a></li><li><a href="#commit-hooks"><code>commit-hooks</code></a></li><li><a href="#depth"><code>depth</code></a></li><li><a href="#description2"><code>description</code></a></li><li><a href="#diff"><code>diff</code></a></li><li><a href="#diff-dst-prefix"><code>diff-dst-prefix</code></a></li><li><a href="#diff-ignore-all-space"><code>diff-ignore-all-space</code></a></li><li><a href="#diff-name-only"><code>diff-name-only</code></a></li><li><a href="#diff-no-prefix"><code>diff-no-prefix</code></a></li><li><a href="#diff-src-prefix"><code>diff-src-prefix</code></a></li><li><a href="#diff-text"><code>diff-text</code></a></li><li><a href="#diff-unified"><code>diff-unified</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#editor"><code>editor</code></a></li><li><a href="#engine-strict"><code>engine-strict</code></a></li><li><a href="#fetch-retries"><code>fetch-retries</code></a></li><li><a href="#fetch-retry-factor"><code>fetch-retry-factor</code></a></li><li><a href="#fetch-retry-maxtimeout"><code>fetch-retry-maxtimeout</code></a></li><li><a href="#fetch-retry-mintimeout"><code>fetch-retry-mintimeout</code></a></li><li><a href="#fetch-timeout"><code>fetch-timeout</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#format-package-lock"><code>format-package-lock</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#git"><code>git</code></a></li><li><a href="#git-tag-version"><code>git-tag-version</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#globalconfig"><code>globalconfig</code></a></li><li><a href="#heading"><code>heading</code></a></li><li><a href="#https-proxy"><code>https-proxy</code></a></li><li><a href="#if-present"><code>if-present</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#include-staged"><code>include-staged</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#init-author-email"><code>init-author-email</code></a></li><li><a href="#init-author-name"><code>init-author-name</code></a></li><li><a href="#init-author-url"><code>init-author-url</code></a></li><li><a href="#init-license"><code>init-license</code></a></li><li><a href="#init-module"><code>init-module</code></a></li><li><a href="#init-version"><code>init-version</code></a></li><li><a href="#install-links"><code>install-links</code></a></li><li><a href="#install-strategy"><code>install-strategy</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#legacy-peer-deps"><code>legacy-peer-deps</code></a></li><li><a href="#link"><code>link</code></a></li><li><a href="#local-address"><code>local-address</code></a></li><li><a href="#location"><code>location</code></a></li><li><a href="#lockfile-version"><code>lockfile-version</code></a></li><li><a href="#loglevel"><code>loglevel</code></a></li><li><a href="#logs-dir"><code>logs-dir</code></a></li><li><a href="#logs-max"><code>logs-max</code></a></li><li><a href="#long"><code>long</code></a></li><li><a href="#maxsockets"><code>maxsockets</code></a></li><li><a href="#message"><code>message</code></a></li><li><a href="#node-options"><code>node-options</code></a></li><li><a href="#noproxy"><code>noproxy</code></a></li><li><a href="#offline"><code>offline</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#omit-lockfile-registry-resolved"><code>omit-lockfile-registry-resolved</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#pack-destination"><code>pack-destination</code></a></li><li><a href="#package"><code>package</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#prefer-offline"><code>prefer-offline</code></a></li><li><a href="#prefer-online"><code>prefer-online</code></a></li><li><a href="#prefix"><code>prefix</code></a></li><li><a href="#preid"><code>preid</code></a></li><li><a href="#progress"><code>progress</code></a></li><li><a href="#proxy"><code>proxy</code></a></li><li><a href="#read-only"><code>read-only</code></a></li><li><a href="#rebuild-bundle"><code>rebuild-bundle</code></a></li><li><a href="#registry"><code>registry</code></a></li><li><a href="#replace-registry-host"><code>replace-registry-host</code></a></li><li><a href="#save"><code>save</code></a></li><li><a href="#save-bundle"><code>save-bundle</code></a></li><li><a href="#save-dev"><code>save-dev</code></a></li><li><a href="#save-exact"><code>save-exact</code></a></li><li><a href="#save-optional"><code>save-optional</code></a></li><li><a href="#save-peer"><code>save-peer</code></a></li><li><a href="#save-prefix"><code>save-prefix</code></a></li><li><a href="#save-prod"><code>save-prod</code></a></li><li><a href="#scope"><code>scope</code></a></li><li><a href="#script-shell"><code>script-shell</code></a></li><li><a href="#searchexclude"><code>searchexclude</code></a></li><li><a href="#searchlimit"><code>searchlimit</code></a></li><li><a href="#searchopts"><code>searchopts</code></a></li><li><a href="#searchstaleness"><code>searchstaleness</code></a></li><li><a href="#shell"><code>shell</code></a></li><li><a href="#sign-git-commit"><code>sign-git-commit</code></a></li><li><a href="#sign-git-tag"><code>sign-git-tag</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#strict-ssl"><code>strict-ssl</code></a></li><li><a href="#tag"><code>tag</code></a></li><li><a href="#tag-version-prefix"><code>tag-version-prefix</code></a></li><li><a href="#timing"><code>timing</code></a></li><li><a href="#umask"><code>umask</code></a></li><li><a href="#unicode"><code>unicode</code></a></li><li><a href="#update-notifier"><code>update-notifier</code></a></li><li><a href="#usage"><code>usage</code></a></li><li><a href="#user-agent"><code>user-agent</code></a></li><li><a href="#userconfig"><code>userconfig</code></a></li><li><a href="#version"><code>version</code></a></li><li><a href="#versions"><code>versions</code></a></li><li><a href="#viewer"><code>viewer</code></a></li><li><a href="#which"><code>which</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#workspaces-update"><code>workspaces-update</code></a></li><li><a href="#yes"><code>yes</code></a></li><li><a href="#also"><code>also</code></a></li><li><a href="#cache-max"><code>cache-max</code></a></li><li><a href="#cache-min"><code>cache-min</code></a></li><li><a href="#cert"><code>cert</code></a></li><li><a href="#dev"><code>dev</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#initauthoremail"><code>init.author.email</code></a></li><li><a href="#initauthorname"><code>init.author.name</code></a></li><li><a href="#initauthorurl"><code>init.author.url</code></a></li><li><a href="#initlicense"><code>init.license</code></a></li><li><a href="#initmodule"><code>init.module</code></a></li><li><a href="#initversion"><code>init.version</code></a></li><li><a href="#key"><code>key</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#only"><code>only</code></a></li><li><a href="#optional"><code>optional</code></a></li><li><a href="#production"><code>production</code></a></li><li><a href="#shrinkwrap"><code>shrinkwrap</code></a></li><li><a href="#tmp"><code>tmp</code></a></li></ul><li><a href="#see-also">See also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -231,7 +231,7 @@ internal to npm, and are defaults if nothing else is specified.</p>
 <p>If the specified configuration param resolves unambiguously to a known
 configuration parameter, then it is expanded to that configuration
 parameter.  For example:</p>
-<pre lang="bash"><code>npm ls --par
+<pre><code class="language-bash">npm ls --par
 # same as:
 npm ls --parseable
 </code></pre>
@@ -239,7 +239,7 @@ npm ls --parseable
 resulting combination is unambiguously not some other configuration
 param, then it is expanded to its various component pieces.  For
 example:</p>
-<pre lang="bash"><code>npm ls -gpld
+<pre><code class="language-bash">npm ls -gpld
 # same as:
 npm ls --global --parseable --long --loglevel info
 </code></pre>
@@ -257,18 +257,16 @@ safer to use a registry-provided authentication bearer token stored in the
 ~/.npmrc file by running <code>npm login</code>.</p>
 <h4 id="access"><code>access</code></h4>
 <ul>
-<li>Default: 'restricted' for scoped packages, 'public' for unscoped packages</li>
+<li>Default: 'public' for new packages, existing packages it will not change the
+current level</li>
 <li>Type: null, "restricted", or "public"</li>
 </ul>
-<p>When publishing scoped packages, the access level defaults to <code>restricted</code>.
-If you want your scoped package to be publicly viewable (and installable)
-set <code>--access=public</code>. The only valid values for <code>access</code> are <code>public</code> and
-<code>restricted</code>. Unscoped packages <em>always</em> have an access level of <code>public</code>.</p>
-<p>Note: Using the <code>--access</code> flag on the <code>npm publish</code> command will only set
-the package access level on the initial publish of the package. Any
-subsequent <code>npm publish</code> commands using the <code>--access</code> flag will not have an
-effect to the access level. To make changes to the access level after the
-initial publish use <code>npm access</code>.</p>
+<p>If do not want your scoped package to be publicly viewable (and installable)
+set <code>--access=restricted</code>.</p>
+<p>Unscoped packages can not be set to <code>restricted</code>.</p>
+<p>Note: This defaults to not changing the current access level for existing
+packages. Specifying a value of <code>restricted</code> or <code>public</code> during publish will
+change the access for an existing package the same way that <code>npm access set status</code> would.</p>
 <h4 id="all"><code>all</code></h4>
 <ul>
 <li>Default: false</li>
@@ -302,11 +300,9 @@ submitted.</p>
 exit code.</p>
 <h4 id="auth-type"><code>auth-type</code></h4>
 <ul>
-<li>Default: "legacy"</li>
-<li>Type: "legacy", "web", "sso", "saml", "oauth", or "webauthn"</li>
+<li>Default: "web"</li>
+<li>Type: "legacy" or "web"</li>
 </ul>
-<p>NOTE: auth-type values "sso", "saml", "oauth", and "webauthn" will be
-removed in a future version.</p>
 <p>What authentication strategy to use with <code>login</code>.</p>
 <h4 id="before"><code>before</code></h4>
 <ul>
@@ -349,12 +345,12 @@ terminal.</p>
 connections to the registry. Values should be in PEM format (Windows calls
 it "Base-64 encoded X.509 (.CER)") with newlines replaced by the string
 "\n". For example:</p>
-<pre lang="ini"><code>ca="-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----"
+<pre><code class="language-ini">ca="-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----"
 </code></pre>
 <p>Set to <code>null</code> to only allow "known" registrars, or to a specific CA cert to
 trust only that specific signing authority.</p>
 <p>Multiple CAs can be trusted by specifying an array of certificates:</p>
-<pre lang="ini"><code>ca[]="..."
+<pre><code class="language-ini">ca[]="..."
 ca[]="..."
 </code></pre>
 <p>See also the <code>strict-ssl</code> config.</p>
@@ -363,7 +359,7 @@ ca[]="..."
 <li>Default: Windows: <code>%LocalAppData%\npm-cache</code>, Posix: <code>~/.npm</code></li>
 <li>Type: Path</li>
 </ul>
-<p>The location of npm's cache directory. See <a href="../commands/npm-cache.html"><code>npm cache</code></a></p>
+<p>The location of npm's cache directory.</p>
 <h4 id="cafile"><code>cafile</code></h4>
 <ul>
 <li>Default: null</li>
@@ -379,21 +375,8 @@ well as for the CA information to be stored in a file on disk.</p>
 </ul>
 <p>Optional companion option for <code>npm exec</code>, <code>npx</code> that allows for specifying a
 custom command to be run along with the installed packages.</p>
-<pre lang="bash"><code>npm exec --package yo --package generator-node --call "yo node"
+<pre><code class="language-bash">npm exec --package yo --package generator-node --call "yo node"
 </code></pre>
-<h4 id="cert"><code>cert</code></h4>
-<ul>
-<li>Default: null</li>
-<li>Type: null or String</li>
-</ul>
-<p>A client certificate to pass when accessing the registry. Values should be
-in PEM format (Windows calls it "Base-64 encoded X.509 (.CER)") with
-newlines replaced by the string "\n". For example:</p>
-<pre lang="ini"><code>cert="-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----"
-</code></pre>
-<p>It is <em>not</em> the path to a certificate file, though you can set a
-registry-scoped "certfile" path like
-"//other-registry.tld/:certfile=/path/to/cert.pem".</p>
 <h4 id="ci-name"><code>ci-name</code></h4>
 <ul>
 <li>Default: The name of the current CI system, or <code>null</code> when not on a known CI
@@ -402,7 +385,7 @@ platform.</li>
 </ul>
 <p>The name of a continuous integration system. If not set explicitly, npm will
 detect the current CI environment using the
-<a href="http://npm.im/@npmcli/ci-detect"><code>@npmcli/ci-detect</code></a> module.</p>
+<a href="http://npm.im/ci-info"><code>ci-info</code></a> module.</p>
 <h4 id="cidr"><code>cidr</code></h4>
 <ul>
 <li>Default: null</li>
@@ -500,8 +483,8 @@ commands that modify your local installation, eg, <code>install</code>, <code>up
 <code>owner</code>, etc.</p>
 <h4 id="editor"><code>editor</code></h4>
 <ul>
-<li>Default: The EDITOR or VISUAL environment variables, or 'notepad.exe' on
-Windows, or 'vim' on Unix systems</li>
+<li>Default: The EDITOR or VISUAL environment variables, or
+'%SYSTEMROOT%\notepad.exe' on Windows, or 'vi' on Unix systems</li>
 <li>Type: String</li>
 </ul>
 <p>The command to run for <code>npm edit</code> and <code>npm config edit</code>.</p>
@@ -626,17 +609,6 @@ of the current working directory.</li>
 <li>bin files are linked to <code>{prefix}/bin</code></li>
 <li>man pages are linked to <code>{prefix}/share/man</code></li>
 </ul>
-<h4 id="global-style"><code>global-style</code></h4>
-<ul>
-<li>Default: false</li>
-<li>Type: Boolean</li>
-</ul>
-<p>Causes npm to install the package into your local <code>node_modules</code> folder with
-the same layout it uses with the global <code>node_modules</code> folder. Only your
-direct dependencies will show in <code>node_modules</code> and everything they depend
-on will be flattened in their <code>node_modules</code> folders. This obviously will
-eliminate some deduping. If used with <code>legacy-bundling</code>, <code>legacy-bundling</code>
-will be preferred.</p>
 <h4 id="globalconfig"><code>globalconfig</code></h4>
 <ul>
 <li>Default: The global --prefix setting plus 'etc/npmrc'. For example,
@@ -751,12 +723,23 @@ more information, or <a href="../commands/npm-init.html">npm init</a>.</p>
 number, if not already set in package.json.</p>
 <h4 id="install-links"><code>install-links</code></h4>
 <ul>
-<li>Default: false</li>
+<li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.</p>
+<p>When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.</p>
+<h4 id="install-strategy"><code>install-strategy</code></h4>
+<ul>
+<li>Default: "hoisted"</li>
+<li>Type: "hoisted", "nested", or "shallow"</li>
+</ul>
+<p>Sets the strategy for installing packages in node_modules. hoisted
+(default): Install non-duplicated in top-level, and duplicated as necessary
+within directory structure. nested: (formerly --legacy-bundling) install in
+place, no hoisting. shallow (formerly --global-style) only install direct
+deps at top-level. linked: (coming soon) install in node_modules/.store,
+link in place, unhoisted.</p>
 <h4 id="json"><code>json</code></h4>
 <ul>
 <li>Default: false</li>
@@ -768,26 +751,6 @@ symlink. This option has no effect on workspaces.</p>
 saving them to your <code>package.json</code>.</li>
 </ul>
 <p>Not supported by all npm commands.</p>
-<h4 id="key"><code>key</code></h4>
-<ul>
-<li>Default: null</li>
-<li>Type: null or String</li>
-</ul>
-<p>A client key to pass when accessing the registry. Values should be in PEM
-format with newlines replaced by the string "\n". For example:</p>
-<pre lang="ini"><code>key="-----BEGIN PRIVATE KEY-----\nXXXX\nXXXX\n-----END PRIVATE KEY-----"
-</code></pre>
-<p>It is <em>not</em> the path to a key file, though you can set a registry-scoped
-"keyfile" path like "//other-registry.tld/:keyfile=/path/to/key.pem".</p>
-<h4 id="legacy-bundling"><code>legacy-bundling</code></h4>
-<ul>
-<li>Default: false</li>
-<li>Type: Boolean</li>
-</ul>
-<p>Causes npm to install the package such that versions of npm prior to 1.4,
-such as the one included with node 0.8, can install the package. This
-eliminates all automatic deduping. If used with <code>global-style</code> this option
-will be preferred.</p>
 <h4 id="legacy-peer-deps"><code>legacy-peer-deps</code></h4>
 <ul>
 <li>Default: false</li>
@@ -833,8 +796,8 @@ of the current working directory.</li>
 </ul>
 <h4 id="lockfile-version"><code>lockfile-version</code></h4>
 <ul>
-<li>Default: Version 2 if no lockfile or current lockfile version less than or
-equal to 2, otherwise maintain current lockfile version</li>
+<li>Default: Version 3 if no lockfile, auto-converting v1 lockfiles to v3,
+otherwise maintain current lockfile version.</li>
 <li>Type: null, 1, 2, 3, "1", "2", or "3"</li>
 </ul>
 <p>Set the lockfile format version to be used in package-lock.json and
@@ -843,17 +806,17 @@ npm-shrinkwrap-json files. Possible options are:</p>
 is used during the install, resulting in slower and possibly less
 deterministic installs. Prevents lockfile churn when interoperating with
 older npm versions.</p>
-<p>2: The default lockfile version used by npm version 7. Includes both the
-version 1 lockfile data and version 3 lockfile data, for maximum determinism
-and interoperability, at the expense of more bytes on disk.</p>
+<p>2: The default lockfile version used by npm version 7 and 8. Includes both
+the version 1 lockfile data and version 3 lockfile data, for maximum
+determinism and interoperability, at the expense of more bytes on disk.</p>
 <p>3: Only the new lockfile information introduced in npm version 7. Smaller on
 disk than lockfile version 2, but not interoperable with older npm versions.
 Ideal if all users are on npm version 7 and higher.</p>
 <h4 id="loglevel"><code>loglevel</code></h4>
 <ul>
 <li>Default: "notice"</li>
-<li>Type: "silent", "error", "warn", "notice", "http", "timing", "info",
-"verbose", or "silly"</li>
+<li>Type: "silent", "error", "warn", "notice", "http", "info", "verbose", or
+"silly"</li>
 </ul>
 <p>What level of logs to report. All logs are written to a debug log, with the
 path to that file printed if the execution of a command fails.</p>
@@ -902,12 +865,6 @@ combination).</p>
 <p>Options to pass through to Node.js via the <code>NODE_OPTIONS</code> environment
 variable. This does not impact how npm itself is executed but it does impact
 how lifecycle scripts are called.</p>
-<h4 id="node-version"><code>node-version</code></h4>
-<ul>
-<li>Default: Node.js <code>process.version</code> value</li>
-<li>Type: SemVer string</li>
-</ul>
-<p>The node version to use when checking a package's <code>engines</code> setting.</p>
 <h4 id="noproxy"><code>noproxy</code></h4>
 <ul>
 <li>Default: The value of the NO_PROXY environment variable</li>
@@ -915,12 +872,6 @@ how lifecycle scripts are called.</p>
 </ul>
 <p>Domain extensions that should bypass any proxies.</p>
 <p>Also accepts a comma-delimited string.</p>
-<h4 id="npm-version"><code>npm-version</code></h4>
-<ul>
-<li>Default: Output of <code>npm --version</code></li>
-<li>Type: SemVer string</li>
-</ul>
-<p>The npm version to use when checking a package's <code>engines</code> setting.</p>
 <h4 id="offline"><code>offline</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1016,8 +967,8 @@ look for updates immediately even for fresh package data.</p>
 <h4 id="prefix"><code>prefix</code></h4>
 <ul>
 <li>Default: In global mode, the folder where the node executable is installed.
-In local mode, the nearest parent folder containing either a package.json
-file or a node_modules folder.</li>
+Otherwise, the nearest parent folder containing either a package.json file
+or a node_modules folder.</li>
 <li>Type: Path</li>
 </ul>
 <p>The location to install global items. If set on the command line, then it
@@ -1258,7 +1209,7 @@ tarball that will be compared with the local files by default.</p>
 <li>Type: String</li>
 </ul>
 <p>If set, alters the prefix used when tagging a new version when performing a
-version increment using <code>npm-version</code>. To remove the prefix altogether, set
+version increment using <code>npm version</code>. To remove the prefix altogether, set
 it to the empty string: <code>""</code>.</p>
 <p>Because other tools may rely on the convention that npm version tags look
 like <code>v1.0.0</code>, <em>only use this property if it is absolutely necessary</em>. In
@@ -1268,11 +1219,12 @@ particular, use care when overriding this setting for public packages.</p>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>If true, writes a debug log to <code>logs-dir</code> and timing information to
-<code>_timing.json</code> in the cache, even if the command completes successfully.
-<code>_timing.json</code> is a newline delimited list of JSON objects.</p>
+<p>If true, writes timing information to a process specific json file in the
+cache or <code>logs-dir</code>. The file name ends with <code>-timing.json</code>.</p>
 <p>You can quickly view it with this <a href="https://npm.im/json">json</a> command line:
-<code>npm exec -- json -g &lt; ~/.npm/_timing.json</code>.</p>
+<code>cat ~/.npm/_logs/*-timing.json | npm exec -- json -g</code>.</p>
+<p>Timing information will also be reported in the terminal. To suppress this
+while still writing the timing file, use <code>--silent</code>.</p>
 <h4 id="umask"><code>umask</code></h4>
 <ul>
 <li>Default: 0</li>
@@ -1436,6 +1388,23 @@ command line.</p>
 <li>DEPRECATED: This option has been deprecated in favor of <code>--prefer-offline</code>.</li>
 </ul>
 <p><code>--cache-min=9999 (or bigger)</code> is an alias for <code>--prefer-offline</code>.</p>
+<h4 id="cert"><code>cert</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or String</li>
+<li>DEPRECATED: <code>key</code> and <code>cert</code> are no longer used for most registry
+operations. Use registry scoped <code>keyfile</code> and <code>certfile</code> instead. Example:
+//other-registry.tld/:keyfile=/path/to/key.pem
+//other-registry.tld/:certfile=/path/to/cert.crt</li>
+</ul>
+<p>A client certificate to pass when accessing the registry. Values should be
+in PEM format (Windows calls it "Base-64 encoded X.509 (.CER)") with
+newlines replaced by the string "\n". For example:</p>
+<pre><code class="language-ini">cert="-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----"
+</code></pre>
+<p>It is <em>not</em> the path to a certificate file, though you can set a
+registry-scoped "certfile" path like
+"//other-registry.tld/:certfile=/path/to/cert.pem".</p>
 <h4 id="dev"><code>dev</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1443,6 +1412,15 @@ command line.</p>
 <li>DEPRECATED: Please use --include=dev instead.</li>
 </ul>
 <p>Alias for <code>--include=dev</code>.</p>
+<h4 id="global-style"><code>global-style</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+<li>DEPRECATED: This option has been deprecated in favor of
+<code>--install-strategy=shallow</code></li>
+</ul>
+<p>Only install direct dependencies in the top level <code>node_modules</code>, but hoist
+on deeper dependendencies. Sets <code>--install-strategy=shallow</code>.</p>
 <h4 id="initauthoremail"><code>init.author.email</code></h4>
 <ul>
 <li>Default: ""</li>
@@ -1485,6 +1463,32 @@ command line.</p>
 <li>DEPRECATED: Use <code>--init-version</code> instead.</li>
 </ul>
 <p>Alias for <code>--init-version</code></p>
+<h4 id="key"><code>key</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or String</li>
+<li>DEPRECATED: <code>key</code> and <code>cert</code> are no longer used for most registry
+operations. Use registry scoped <code>keyfile</code> and <code>certfile</code> instead. Example:
+//other-registry.tld/:keyfile=/path/to/key.pem
+//other-registry.tld/:certfile=/path/to/cert.crt</li>
+</ul>
+<p>A client key to pass when accessing the registry. Values should be in PEM
+format with newlines replaced by the string "\n". For example:</p>
+<pre><code class="language-ini">key="-----BEGIN PRIVATE KEY-----\nXXXX\nXXXX\n-----END PRIVATE KEY-----"
+</code></pre>
+<p>It is <em>not</em> the path to a key file, though you can set a registry-scoped
+"keyfile" path like "//other-registry.tld/:keyfile=/path/to/key.pem".</p>
+<h4 id="legacy-bundling"><code>legacy-bundling</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+<li>DEPRECATED: This option has been deprecated in favor of
+<code>--install-strategy=nested</code></li>
+</ul>
+<p>Instead of hoisting package installs in <code>node_modules</code>, install packages in
+the same manner that they are depended on. This may cause very deep
+directory structures and duplicate package installs as there is no
+de-duplicating. Sets <code>--install-strategy=nested</code>.</p>
 <h4 id="only"><code>only</code></h4>
 <ul>
 <li>Default: null</li>
@@ -1515,23 +1519,6 @@ command line.</p>
 <li>DEPRECATED: Use the --package-lock setting instead.</li>
 </ul>
 <p>Alias for --package-lock</p>
-<h4 id="sso-poll-frequency"><code>sso-poll-frequency</code></h4>
-<ul>
-<li>Default: 500</li>
-<li>Type: Number</li>
-<li>DEPRECATED: The --auth-type method of SSO/SAML/OAuth will be removed in a
-future version of npm in favor of web-based login.</li>
-</ul>
-<p>When used with SSO-enabled <code>auth-type</code>s, configures how regularly the
-registry should be polled while the user is completing authentication.</p>
-<h4 id="sso-type"><code>sso-type</code></h4>
-<ul>
-<li>Default: "oauth"</li>
-<li>Type: null, "oauth", or "saml"</li>
-<li>DEPRECATED: The --auth-type method of SSO/SAML/OAuth will be removed in a
-future version of npm in favor of web-based login.</li>
-</ul>
-<p>If <code>--auth-type=sso</code>, the type of SSO type to use.</p>
 <h4 id="tmp"><code>tmp</code></h4>
 <ul>
 <li>Default: The value returned by the Node.js <code>os.tmpdir()</code> method
@@ -1550,8 +1537,7 @@ relevant.</p>
 <li><a href="../using-npm/scripts.html">npm scripts</a></li>
 <li><a href="../configuring-npm/folders.html">npm folders</a></li>
 <li><a href="../commands/npm.html">npm</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/using-npm/config.md">

@@ -8,6 +8,7 @@ const log = require('./log-shim')
 module.exports = (er, npm) => {
   const short = []
   const detail = []
+  const files = []
 
   if (er.message) {
     er.message = replaceInfo(er.message)
@@ -17,14 +18,17 @@ module.exports = (er, npm) => {
   }
 
   switch (er.code) {
-    case 'ERESOLVE':
+    case 'ERESOLVE': {
       short.push(['ERESOLVE', er.message])
       detail.push(['', ''])
       // XXX(display): error messages are logged so we use the logColor since that is based
       // on stderr. This should be handled solely by the display layer so it could also be
       // printed to stdout if necessary.
-      detail.push(['', report(er, !!npm.logColor, resolve(npm.cache, 'eresolve-report.txt'))])
+      const { explanation, file } = report(er, !!npm.logColor)
+      detail.push(['', explanation])
+      files.push(['eresolve-report.txt', file])
       break
+    }
 
     case 'ENOLOCK': {
       const cmd = npm.command || ''
@@ -398,5 +402,5 @@ module.exports = (er, npm) => {
 
       break
   }
-  return { summary: short, detail: detail }
+  return { summary: short, detail, files }
 }

@@ -97,6 +97,15 @@ The settings `_auth`, `_authToken`, `username` and `_password` must all be
 scoped to a specific registry. This ensures that `npm` will never send
 credentials to the wrong host.
 
+The full list is:
+ - `_auth` (base64 authentication string)
+ - `_authToken` (authentication token)
+ - `username`
+ - `_password`
+ - `email`
+ - `certfile` (path to certificate file)
+ - `keyfile` (path to key file)
+
 In order to scope these values, they must be prefixed by a URI fragment.
 If the credential is meant for any request to a registry on a single host,
 the scope may look like `//registry.npmjs.org/:`. If it must be scoped to a

@@ -146,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm publish &lt;package-spec&gt;
+<pre><code class="language-bash">npm publish &lt;package-spec&gt;
 </code></pre>
 <h3 id="description">Description</h3>
 <p>Publishes a package to the registry so that it can be installed by name.</p>
@@ -231,18 +231,16 @@ command, if no explicit tag is given.</p>
 tarball that will be compared with the local files by default.</p>
 <h4 id="access"><code>access</code></h4>
 <ul>
-<li>Default: 'restricted' for scoped packages, 'public' for unscoped packages</li>
+<li>Default: 'public' for new packages, existing packages it will not change the
+current level</li>
 <li>Type: null, "restricted", or "public"</li>
 </ul>
-<p>When publishing scoped packages, the access level defaults to <code>restricted</code>.
-If you want your scoped package to be publicly viewable (and installable)
-set <code>--access=public</code>. The only valid values for <code>access</code> are <code>public</code> and
-<code>restricted</code>. Unscoped packages <em>always</em> have an access level of <code>public</code>.</p>
-<p>Note: Using the <code>--access</code> flag on the <code>npm publish</code> command will only set
-the package access level on the initial publish of the package. Any
-subsequent <code>npm publish</code> commands using the <code>--access</code> flag will not have an
-effect to the access level. To make changes to the access level after the
-initial publish use <code>npm access</code>.</p>
+<p>If do not want your scoped package to be publicly viewable (and installable)
+set <code>--access=restricted</code>.</p>
+<p>Unscoped packages can not be set to <code>restricted</code>.</p>
+<p>Note: This defaults to not changing the current access level for existing
+packages. Specifying a value of <code>restricted</code> or <code>public</code> during publish will
+change the access for an existing package the same way that <code>npm access set status</code> would.</p>
 <h4 id="dry-run"><code>dry-run</code></h4>
 <ul>
 <li>Default: false</li>
@@ -320,8 +318,7 @@ the specified workspaces, and not on the root project.</p>
 <li><a href="../commands/npm-dist-tag.html">npm dist-tag</a></li>
 <li><a href="../commands/npm-pack.html">npm pack</a></li>
 <li><a href="../commands/npm-profile.html">npm profile</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-publish.md">

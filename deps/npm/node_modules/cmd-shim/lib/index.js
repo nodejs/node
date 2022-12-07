@@ -8,16 +8,16 @@
 // Write a binroot/pkg.bin + ".cmd" file that has this line in it:
 // @<prog> <args...> %dp0%<target> %*
 
-const { promisify } = require('util')
-const fs = require('fs')
-const writeFile = promisify(fs.writeFile)
-const readFile = promisify(fs.readFile)
-const chmod = promisify(fs.chmod)
-const stat = promisify(fs.stat)
-const unlink = promisify(fs.unlink)
+const {
+  chmod,
+  mkdir,
+  readFile,
+  stat,
+  unlink,
+  writeFile,
+} = require('fs/promises')
 
 const { dirname, relative } = require('path')
-const mkdir = require('mkdirp-infer-owner')
 const toBatchSyntax = require('./to-batch-syntax')
 const shebangExpr = /^#!\s*(?:\/usr\/bin\/env\s*((?:[^ \t=]+=[^ \t=]+\s+)*))?([^ \t]+)(.*)$/
 
@@ -42,7 +42,7 @@ const writeShim = (from, to) =>
   // First, check if the bin is a #! of some sort.
   // If not, then assume it's something that'll be compiled, or some other
   // sort of script, and just call it directly.
-  mkdir(dirname(to))
+  mkdir(dirname(to), { recursive: true })
     .then(() => readFile(from, 'utf8'))
     .then(data => {
       const firstLine = data.trim().split(/\r*\n/)[0]

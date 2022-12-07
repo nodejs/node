@@ -21,7 +21,7 @@ latest: 1.0.0
 `
 
 exports[`test/lib/commands/dist-tag.js TAP ls on missing package > should log no dist-tag found msg 1`] = `
-dist-tag ls Couldn't get dist-tag data for foo@latest
+dist-tag ls Couldn't get dist-tag data for foo@*
 
 `
 

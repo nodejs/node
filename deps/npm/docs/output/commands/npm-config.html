@@ -142,15 +142,16 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#sub-commands">Sub-commands</a></li><ul><li><a href="#set">set</a></li><li><a href="#get">get</a></li><li><a href="#list">list</a></li><li><a href="#delete">delete</a></li><li><a href="#edit2">edit</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#json"><code>json</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#editor"><code>editor</code></a></li><li><a href="#location"><code>location</code></a></li><li><a href="#long"><code>long</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#sub-commands">Sub-commands</a></li><ul><li><a href="#set">set</a></li><li><a href="#get">get</a></li><li><a href="#list">list</a></li><li><a href="#delete">delete</a></li><li><a href="#edit2">edit</a></li><li><a href="#fix">fix</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#json"><code>json</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#editor"><code>editor</code></a></li><li><a href="#location"><code>location</code></a></li><li><a href="#long"><code>long</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm config set &lt;key&gt;=&lt;value&gt; [&lt;key&gt;=&lt;value&gt; ...]
+<pre><code class="language-bash">npm config set &lt;key&gt;=&lt;value&gt; [&lt;key&gt;=&lt;value&gt; ...]
 npm config get [&lt;key&gt; [&lt;key&gt; ...]]
 npm config delete &lt;key&gt; [&lt;key&gt; ...]
 npm config list [--json]
 npm config edit
+npm config fix
 
 alias: c
 </code></pre>
@@ -160,14 +161,14 @@ alias: c
 variables, <code>npmrc</code> files, and in some cases, the <code>package.json</code> file.</p>
 <p>See <a href="../configuring-npm/npmrc.html">npmrc</a> for more information about the npmrc
 files.</p>
-<p>See <a href="../using-npm/config.html">config(7)</a> for a more thorough explanation of the
+<p>See <a href="../using-npm/config.html">config</a> for a more thorough explanation of the
 mechanisms involved, and a full list of config options available.</p>
 <p>The <code>npm config</code> command can be used to update and edit the contents
 of the user and global npmrc files.</p>
 <h3 id="sub-commands">Sub-commands</h3>
 <p>Config supports the following sub-commands:</p>
 <h4 id="set">set</h4>
-<pre lang="bash"><code>npm config set key=value [key=value...]
+<pre><code class="language-bash">npm config set key=value [key=value...]
 npm set key=value [key=value...]
 </code></pre>
 <p>Sets each of the config keys to the value provided.</p>
@@ -175,7 +176,7 @@ npm set key=value [key=value...]
 <p>Note: for backwards compatibility, <code>npm config set key value</code> is supported
 as an alias for <code>npm config set key=value</code>.</p>
 <h4 id="get">get</h4>
-<pre lang="bash"><code>npm config get [key ...]
+<pre><code class="language-bash">npm config get [key ...]
 npm get [key ...]
 </code></pre>
 <p>Echo the config value(s) to stdout.</p>
@@ -183,19 +184,25 @@ npm get [key ...]
 key names.</p>
 <p>If no keys are provided, then this command behaves the same as <code>npm config list</code>.</p>
 <h4 id="list">list</h4>
-<pre lang="bash"><code>npm config list
+<pre><code class="language-bash">npm config list
 </code></pre>
 <p>Show all the config settings. Use <code>-l</code> to also show defaults. Use <code>--json</code>
 to show the settings in json format.</p>
 <h4 id="delete">delete</h4>
-<pre lang="bash"><code>npm config delete key [key ...]
+<pre><code class="language-bash">npm config delete key [key ...]
 </code></pre>
 <p>Deletes the specified keys from all configuration files.</p>
 <h4 id="edit2">edit</h4>
-<pre lang="bash"><code>npm config edit
+<pre><code class="language-bash">npm config edit
 </code></pre>
 <p>Opens the config file in an editor.  Use the <code>--global</code> flag to edit the
 global config.</p>
+<h4 id="fix">fix</h4>
+<pre><code class="language-bash">npm config fix
+</code></pre>
+<p>Attempts to repair invalid configuration items.  Usually this means
+attaching authentication config (i.e. <code>_auth</code>, <code>_authToken</code>) to the
+configured <code>registry</code>.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="json"><code>json</code></h4>
 <ul>
@@ -224,8 +231,8 @@ of the current working directory.</li>
 </ul>
 <h4 id="editor"><code>editor</code></h4>
 <ul>
-<li>Default: The EDITOR or VISUAL environment variables, or 'notepad.exe' on
-Windows, or 'vim' on Unix systems</li>
+<li>Default: The EDITOR or VISUAL environment variables, or
+'%SYSTEMROOT%\notepad.exe' on Windows, or 'vi' on Unix systems</li>
 <li>Type: String</li>
 </ul>
 <p>The command to run for <code>npm edit</code> and <code>npm config edit</code>.</p>
@@ -258,8 +265,7 @@ of the current working directory.</li>
 <li><a href="../configuring-npm/package-json.html">package.json</a></li>
 <li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
 <li><a href="../commands/npm.html">npm</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-config.md">

@@ -1,5 +1,4 @@
 const log = require('proc-log')
-const mkdirp = require('mkdirp')
 const fs = require('fs')
 const { dirname } = require('path')
 const os = require('os')
@@ -70,7 +69,7 @@ if (options.loglevel !== 'silent') {
 
 if (options.logfile) {
   log.silly('logfile', options.logfile)
-  mkdirp.sync(dirname(options.logfile))
+  fs.mkdirSync(dirname(options.logfile), { recursive: true })
   const fd = fs.openSync(options.logfile, 'a')
   addLogListener((str) => fs.writeSync(fd, str))
 }

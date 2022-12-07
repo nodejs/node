@@ -3,10 +3,8 @@ module.exports = definitions
 
 const Definition = require('./definition.js')
 
-const log = require('../log-shim')
 const { version: npmVersion } = require('../../../package.json')
-const ciDetect = require('@npmcli/ci-detect')
-const ciName = ciDetect()
+const ciInfo = require('ci-info')
 const querystring = require('querystring')
 const { isWindows } = require('../is-windows.js')
 const { join } = require('path')
@@ -61,7 +59,7 @@ const buildOmitList = obj => {
 
 const editor = process.env.EDITOR ||
   process.env.VISUAL ||
-  (isWindows ? 'notepad.exe' : 'vi')
+  (isWindows ? `${process.env.SYSTEMROOT}\\notepad.exe` : 'vi')
 
 const shell = isWindows ? process.env.ComSpec || 'cmd'
   : process.env.SHELL || 'sh'
@@ -161,21 +159,19 @@ define('_auth', {
 define('access', {
   default: null,
   defaultDescription: `
-    'restricted' for scoped packages, 'public' for unscoped packages
+    'public' for new packages, existing packages it will not change the current level
   `,
   type: [null, 'restricted', 'public'],
   description: `
-    When publishing scoped packages, the access level defaults to
-    \`restricted\`.  If you want your scoped package to be publicly viewable
-    (and installable) set \`--access=public\`. The only valid values for
-    \`access\` are \`public\` and \`restricted\`. Unscoped packages _always_
-    have an access level of \`public\`.
+    If do not want your scoped package to be publicly viewable (and
+    installable) set \`--access=restricted\`.
 
-    Note: Using the \`--access\` flag on the \`npm publish\` command will only
-    set the package access level on the initial publish of the package. Any
-    subsequent \`npm publish\` commands using the \`--access\` flag will not
-    have an effect to the access level.  To make changes to the access level
-    after the initial publish use \`npm access\`.
+    Unscoped packages can not be set to \`restricted\`.
+
+    Note: This defaults to not changing the current access level for existing
+    packages.  Specifying a value of \`restricted\` or \`public\` during
+    publish will change the access for an existing package the same way that
+    \`npm access set status\` would.
   `,
   flatten,
 })
@@ -238,25 +234,12 @@ define('audit-level', {
 })
 
 define('auth-type', {
-  default: 'legacy',
-  type: ['legacy', 'web', 'sso', 'saml', 'oauth', 'webauthn'],
-  // deprecation in description rather than field, because not every value
-  // is deprecated
+  default: 'web',
+  type: ['legacy', 'web'],
   description: `
-    NOTE: auth-type values "sso", "saml", "oauth", and "webauthn" will be
-    removed in a future version.
-
     What authentication strategy to use with \`login\`.
   `,
-  flatten (key, obj, flatOptions) {
-    flatOptions.authType = obj[key]
-    if (obj[key] === 'sso') {
-      // no need to deprecate saml/oauth here, as sso-type will be set by these in
-      // lib/auth/ and is deprecated already
-      log.warn('config',
-        '--auth-type=sso is will be removed in a future version.')
-    }
-  },
+  flatten,
 })
 
 define('before', {
@@ -342,8 +325,7 @@ define('cache', {
   `,
   type: path,
   description: `
-    The location of npm's cache directory.  See [\`npm
-    cache\`](/commands/npm-cache)
+    The location of npm's cache directory.
   `,
   flatten (key, obj, flatOptions) {
     flatOptions.cache = join(obj.cache, '_cacache')
@@ -439,11 +421,18 @@ define('cert', {
     It is _not_ the path to a certificate file, though you can set a registry-scoped
     "certfile" path like "//other-registry.tld/:certfile=/path/to/cert.pem".
   `,
+  deprecated: `
+    \`key\` and \`cert\` are no longer used for most registry operations.
+    Use registry scoped \`keyfile\` and \`certfile\` instead.
+    Example:
+    //other-registry.tld/:keyfile=/path/to/key.pem
+    //other-registry.tld/:certfile=/path/to/cert.crt
+  `,
   flatten,
 })
 
 define('ci-name', {
-  default: ciName || null,
+  default: ciInfo.name ? ciInfo.name.toLowerCase().split(' ').join('-') : null,
   defaultDescription: `
     The name of the current CI system, or \`null\` when not on a known CI
     platform.
@@ -452,7 +441,7 @@ define('ci-name', {
   description: `
     The name of a continuous integration system.  If not set explicitly, npm
     will detect the current CI environment using the
-    [\`@npmcli/ci-detect\`](http://npm.im/@npmcli/ci-detect) module.
+    [\`ci-info\`](http://npm.im/ci-info) module.
   `,
   flatten,
 })
@@ -638,8 +627,8 @@ define('dry-run', {
 define('editor', {
   default: editor,
   defaultDescription: `
-    The EDITOR or VISUAL environment variables, or 'notepad.exe' on Windows,
-    or 'vim' on Unix systems
+    The EDITOR or VISUAL environment variables, or '%SYSTEMROOT%\\notepad.exe' on Windows,
+    or 'vi' on Unix systems
   `,
   type: String,
   description: `
@@ -840,20 +829,6 @@ define('global', {
   },
 })
 
-define('global-style', {
-  default: false,
-  type: Boolean,
-  description: `
-    Causes npm to install the package into your local \`node_modules\` folder
-    with the same layout it uses with the global \`node_modules\` folder.
-    Only your direct dependencies will show in \`node_modules\` and
-    everything they depend on will be flattened in their \`node_modules\`
-    folders.  This obviously will eliminate some deduping. If used with
-    \`legacy-bundling\`, \`legacy-bundling\` will be preferred.
-  `,
-  flatten,
-})
-
 // the globalconfig has its default defined outside of this module
 define('globalconfig', {
   type: path,
@@ -866,6 +841,25 @@ define('globalconfig', {
     The config file to read for global config options.
   `,
   flatten,
+})
+
+define('global-style', {
+  default: false,
+  type: Boolean,
+  description: `
+    Only install direct dependencies in the top level \`node_modules\`,
+    but hoist on deeper dependendencies.
+    Sets \`--install-strategy=shallow\`.
+  `,
+  deprecated: `
+    This option has been deprecated in favor of \`--install-strategy=shallow\`
+  `,
+  flatten (key, obj, flatOptions) {
+    if (obj[key]) {
+      obj['install-strategy'] = 'shallow'
+      flatOptions.installStrategy = 'shallow'
+    }
+  },
 })
 
 define('heading', {
@@ -1083,12 +1077,27 @@ define('init.version', {
 })
 
 define('install-links', {
-  default: false,
+  default: true,
   type: Boolean,
   description: `
-    When set file: protocol dependencies that exist outside of the project root
-    will be packed and installed as regular dependencies instead of creating a
-    symlink. This option has no effect on workspaces.
+    When set file: protocol dependencies will be packed and installed as
+    regular dependencies instead of creating a symlink. This option has
+    no effect on workspaces.
+  `,
+  flatten,
+})
+
+define('install-strategy', {
+  default: 'hoisted',
+  type: ['hoisted', 'nested', 'shallow'],
+  description: `
+    Sets the strategy for installing packages in node_modules.
+    hoisted (default): Install non-duplicated in top-level, and duplicated as
+      necessary within directory structure.
+    nested: (formerly --legacy-bundling) install in place, no hoisting.
+    shallow (formerly --global-style) only install direct deps at top-level.
+    linked: (coming soon) install in node_modules/.store, link in place,
+      unhoisted.
   `,
   flatten,
 })
@@ -1121,6 +1130,13 @@ define('key', {
     It is _not_ the path to a key file, though you can set a registry-scoped
     "keyfile" path like "//other-registry.tld/:keyfile=/path/to/key.pem".
   `,
+  deprecated: `
+    \`key\` and \`cert\` are no longer used for most registry operations.
+    Use registry scoped \`keyfile\` and \`certfile\` instead.
+    Example:
+    //other-registry.tld/:keyfile=/path/to/key.pem
+    //other-registry.tld/:certfile=/path/to/cert.crt
+  `,
   flatten,
 })
 
@@ -1128,12 +1144,21 @@ define('legacy-bundling', {
   default: false,
   type: Boolean,
   description: `
-    Causes npm to install the package such that versions of npm prior to 1.4,
-    such as the one included with node 0.8, can install the package.  This
-    eliminates all automatic deduping. If used with \`global-style\` this
-    option will be preferred.
+    Instead of hoisting package installs in \`node_modules\`, install packages
+    in the same manner that they are depended on. This may cause very deep
+    directory structures and duplicate package installs as there is no
+    de-duplicating.
+    Sets \`--install-strategy=nested\`.
   `,
-  flatten,
+  deprecated: `
+    This option has been deprecated in favor of \`--install-strategy=nested\`
+  `,
+  flatten (key, obj, flatOptions) {
+    if (obj[key]) {
+      obj['install-strategy'] = 'nested'
+      flatOptions.installStrategy = 'nested'
+    }
+  },
 })
 
 define('legacy-peer-deps', {
@@ -1215,9 +1240,8 @@ define('lockfile-version', {
   default: null,
   type: [null, 1, 2, 3, '1', '2', '3'],
   defaultDescription: `
-    Version 2 if no lockfile or current lockfile version less than or equal to
-    2, otherwise maintain current lockfile version
-  `,
+    Version 3 if no lockfile, auto-converting v1 lockfiles to v3, otherwise
+    maintain current lockfile version.`,
   description: `
     Set the lockfile format version to be used in package-lock.json and
     npm-shrinkwrap-json files.  Possible options are:
@@ -1227,8 +1251,8 @@ define('lockfile-version', {
     deterministic installs.  Prevents lockfile churn when interoperating with
     older npm versions.
 
-    2: The default lockfile version used by npm version 7.  Includes both the
-    version 1 lockfile data and version 3 lockfile data, for maximum
+    2: The default lockfile version used by npm version 7 and 8.  Includes both
+    the version 1 lockfile data and version 3 lockfile data, for maximum
     determinism and interoperability, at the expense of more bytes on disk.
 
     3: Only the new lockfile information introduced in npm version 7.  Smaller
@@ -1248,7 +1272,6 @@ define('loglevel', {
     'warn',
     'notice',
     'http',
-    'timing',
     'info',
     'verbose',
     'silly',
@@ -1332,16 +1355,6 @@ define('node-options', {
   `,
 })
 
-define('node-version', {
-  default: process.version,
-  defaultDescription: 'Node.js `process.version` value',
-  type: semver,
-  description: `
-    The node version to use when checking a package's \`engines\` setting.
-  `,
-  flatten,
-})
-
 define('noproxy', {
   default: '',
   defaultDescription: `
@@ -1360,16 +1373,6 @@ define('noproxy', {
       flatOptions.noProxy = obj[key]
     }
   },
-})
-
-define('npm-version', {
-  default: npmVersion,
-  defaultDescription: 'Output of `npm --version`',
-  type: semver,
-  description: `
-    The npm version to use when checking a package's \`engines\` setting.
-  `,
-  flatten,
 })
 
 define('offline', {
@@ -1561,8 +1564,8 @@ define('prefix', {
   short: 'C',
   default: '',
   defaultDescription: `
-    In global mode, the folder where the node executable is installed. In
-    local mode, the nearest parent folder containing either a package.json
+    In global mode, the folder where the node executable is installed.
+    Otherwise, the nearest parent folder containing either a package.json
     file or a node_modules folder.
   `,
   description: `
@@ -1593,7 +1596,7 @@ define('production', {
 })
 
 define('progress', {
-  default: !ciName,
+  default: !ciInfo.isCI,
   defaultDescription: `
     \`true\` unless running in a known CI system
   `,
@@ -2004,33 +2007,6 @@ define('sign-git-tag', {
   flatten,
 })
 
-define('sso-poll-frequency', {
-  default: 500,
-  type: Number,
-  deprecated: `
-    The --auth-type method of SSO/SAML/OAuth will be removed in a future
-    version of npm in favor of web-based login.
-  `,
-  description: `
-    When used with SSO-enabled \`auth-type\`s, configures how regularly the
-    registry should be polled while the user is completing authentication.
-  `,
-  flatten,
-})
-
-define('sso-type', {
-  default: 'oauth',
-  type: [null, 'oauth', 'saml'],
-  deprecated: `
-    The --auth-type method of SSO/SAML/OAuth will be removed in a future
-    version of npm in favor of web-based login.
-  `,
-  description: `
-    If \`--auth-type=sso\`, the type of SSO type to use.
-  `,
-  flatten,
-})
-
 define('strict-peer-deps', {
   default: false,
   type: Boolean,
@@ -2089,7 +2065,7 @@ define('tag-version-prefix', {
   type: String,
   description: `
     If set, alters the prefix used when tagging a new version when performing
-    a version increment using  \`npm-version\`. To remove the prefix
+    a version increment using  \`npm version\`. To remove the prefix
     altogether, set it to the empty string: \`""\`.
 
     Because other tools may rely on the convention that npm version tags look
@@ -2103,13 +2079,14 @@ define('timing', {
   default: false,
   type: Boolean,
   description: `
-    If true, writes a debug log to \`logs-dir\` and timing information
-    to \`_timing.json\` in the cache, even if the command completes
-    successfully.  \`_timing.json\` is a newline delimited list of JSON
-    objects.
+    If true, writes timing information to a process specific json file in
+    the cache or \`logs-dir\`. The file name ends with \`-timing.json\`.
 
     You can quickly view it with this [json](https://npm.im/json) command
-    line: \`npm exec -- json -g < ~/.npm/_timing.json\`.
+    line: \`cat ~/.npm/_logs/*-timing.json | npm exec -- json -g\`.
+
+    Timing information will also be reported in the terminal. To suppress this
+    while still writing the timing file, use \`--silent\`.
   `,
 })
 
@@ -2213,8 +2190,8 @@ define('user-agent', {
       inWorkspaces = true
     }
     flatOptions.userAgent =
-      value.replace(/\{node-version\}/gi, obj['node-version'])
-        .replace(/\{npm-version\}/gi, obj['npm-version'])
+      value.replace(/\{node-version\}/gi, process.version)
+        .replace(/\{npm-version\}/gi, npmVersion)
         .replace(/\{platform\}/gi, process.platform)
         .replace(/\{arch\}/gi, process.arch)
         .replace(/\{workspaces\}/gi, inWorkspaces)

@@ -11,7 +11,17 @@ t.test('loading as main module will load the cli', t => {
   const cwd = t.testdir()
   const { spawn } = require('child_process')
   const LS = require('../lib/commands/ls.js')
-  const ls = new LS({})
+  const ls = new LS({
+    config: {
+      validate: () => {},
+      get: (key) => {
+        if (key === 'location') {
+          return 'project'
+        }
+      },
+      isDefault: () => {},
+    },
+  })
   const p = spawn(process.execPath, [index, 'ls', '-h', '--cache', cwd])
   const out = []
   p.stdout.on('data', c => out.push(c))

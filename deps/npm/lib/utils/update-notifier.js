@@ -3,7 +3,7 @@
 // Check daily for betas, and weekly otherwise.
 
 const pacote = require('pacote')
-const ciDetect = require('@npmcli/ci-detect')
+const ciInfo = require('ci-info')
 const semver = require('semver')
 const chalk = require('chalk')
 const { promisify } = require('util')
@@ -39,7 +39,7 @@ const updateNotifier = async (npm, spec = 'latest') => {
   // never check for updates in CI, when updating npm already, or opted out
   if (!npm.config.get('update-notifier') ||
       isGlobalNpmUpdate(npm) ||
-      ciDetect()) {
+      ciInfo.isCI) {
     return SKIP
   }
 

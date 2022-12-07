@@ -509,7 +509,7 @@ Array [
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-false-cacheDest-false-/cache/_logs",
+    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-false-cacheDest-false-/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
@@ -549,7 +549,7 @@ Array [
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-false-cacheDest-true-/cache/_logs",
+    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-false-cacheDest-true-/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
@@ -592,7 +592,7 @@ Array [
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-true-cacheDest-false-/cache/_logs",
+    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-true-cacheDest-false-/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
@@ -635,7 +635,7 @@ Array [
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-true-cacheDest-true-/cache/_logs",
+    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-true-cacheDest-true-/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
@@ -825,7 +825,7 @@ Array [
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-false-cacheDest-false-/cache/_logs",
+    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-false-cacheDest-false-/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
@@ -876,7 +876,7 @@ Array [
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-false-cacheDest-true-/cache/_logs",
+    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-false-cacheDest-true-/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
@@ -927,7 +927,7 @@ Array [
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-true-cacheDest-false-/cache/_logs",
+    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-true-cacheDest-false-/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
@@ -978,7 +978,7 @@ Array [
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-true-cacheDest-true-/cache/_logs",
+    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-true-cacheDest-true-/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
@@ -1174,6 +1174,12 @@ Object {
     Array [
       "",
       "explanation",
+    ],
+  ],
+  "files": Array [
+    Array [
+      "eresolve-report.txt",
+      "report",
     ],
   ],
   "summary": Array [

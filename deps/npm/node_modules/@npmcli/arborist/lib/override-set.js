@@ -25,7 +25,7 @@ class OverrideSet {
       this.name = spec.name
       spec.name = ''
       this.key = key
-      this.keySpec = spec.rawSpec === '' ? '' : spec.toString()
+      this.keySpec = spec.toString()
       this.value = overrides['.'] || this.keySpec
     }
 
@@ -50,8 +50,7 @@ class OverrideSet {
         continue
       }
 
-      if (rule.keySpec === '' ||
-        semver.intersects(edge.spec, rule.keySpec)) {
+      if (semver.intersects(edge.spec, rule.keySpec)) {
         return rule
       }
     }
@@ -65,8 +64,7 @@ class OverrideSet {
         continue
       }
 
-      if (rule.keySpec === '' ||
-        semver.satisfies(node.version, rule.keySpec) ||
+      if (semver.satisfies(node.version, rule.keySpec) ||
         semver.satisfies(node.version, rule.value)) {
         return rule
       }
@@ -81,8 +79,7 @@ class OverrideSet {
         continue
       }
 
-      if (rule.keySpec === '' ||
-        semver.satisfies(node.version, rule.keySpec) ||
+      if (semver.satisfies(node.version, rule.keySpec) ||
         semver.satisfies(node.version, rule.value)) {
         return rule
       }

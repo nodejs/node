@@ -1,5 +1,5 @@
 const t = require('tap')
-let ciMock = null
+let ciMock = {}
 const flatOptions = { global: false, cache: t.testdir() + '/_cacache' }
 
 const MANIFEST_REQUEST = []
@@ -86,7 +86,7 @@ t.afterEach(() => {
 const runUpdateNotifier = async ({ color = true, ...npmOptions } = {}) => {
   const _npm = { ...defaultNpm, ...npmOptions, logColor: color }
   return t.mock('../../../lib/utils/update-notifier.js', {
-    '@npmcli/ci-detect': () => ciMock,
+    'ci-info': ciMock,
     pacote,
     fs,
   })(_npm)
@@ -159,9 +159,9 @@ t.test('situations in which we do not notify', t => {
 
   t.test('do not update in CI', async t => {
     t.teardown(() => {
-      ciMock = null
+      ciMock = {}
     })
-    ciMock = 'something'
+    ciMock = { isCI: true, name: 'something' }
     t.equal(await runUpdateNotifier(), null)
     t.strictSame(MANIFEST_REQUEST, [], 'no requests for manifests')
   })

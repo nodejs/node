@@ -59,7 +59,8 @@ The actual shell your script is run within is platform dependent. By default,
 on Unix-like systems it is the `/bin/sh` command, on Windows it is
 `cmd.exe`.
 The actual shell referred to by `/bin/sh` also depends on the system.
-You can customize the shell with the `script-shell` configuration.
+You can customize the shell with the
+[`script-shell` config](/using-npm/config#script-shell).
 
 Scripts are run from the root of the package folder, regardless of what the
 current working directory is when `npm run` is called. If you want your
@@ -76,7 +77,8 @@ forgotten.
 
 ### Workspaces support
 
-You may use the `workspace` or `workspaces` configs in order to run an
+You may use the [`workspace`](/using-npm/config#workspace) or
+[`workspaces`](/using-npm/config#workspaces) configs in order to run an
 arbitrary command from a package's `"scripts"` object in the context of the
 specified workspaces. If no `"command"` is provided, it will list the available
 scripts for each of these configured workspaces.
@@ -105,7 +107,8 @@ Assuming the workspace configuration is properly set up at the root level
 ```
 
 And that each of the configured workspaces has a configured `test` script,
-we can run tests in all of them using the `workspaces` config:
+we can run tests in all of them using the
+[`workspaces` config](/using-npm/config#workspaces):
 
 ```
 npm test --workspaces

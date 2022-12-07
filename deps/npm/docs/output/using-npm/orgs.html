@@ -164,7 +164,7 @@ npm command-line interface
 <ul>
 <li>Check who you’ve added to your org:</li>
 </ul>
-<pre lang="bash"><code>npm team ls &lt;org&gt;:developers
+<pre><code class="language-bash">npm team ls &lt;org&gt;:developers
 </code></pre>
 <ul>
 <li>
@@ -174,53 +174,52 @@ npm command-line interface
 <p>Create a new team:</p>
 </li>
 </ul>
-<pre lang="bash"><code>npm team create &lt;org:team&gt;
+<pre><code class="language-bash">npm team create &lt;org:team&gt;
 </code></pre>
 <ul>
 <li>Add members to that team:</li>
 </ul>
-<pre lang="bash"><code>npm team add &lt;org:team&gt; &lt;user&gt;
+<pre><code class="language-bash">npm team add &lt;org:team&gt; &lt;user&gt;
 </code></pre>
 <h3 id="publish-a-package-and-adjust-package-access">Publish a package and adjust package access</h3>
 <ul>
 <li>In package directory, run</li>
 </ul>
-<pre lang="bash"><code>npm init --scope=&lt;org&gt;
+<pre><code class="language-bash">npm init --scope=&lt;org&gt;
 </code></pre>
 <p>to scope it for your org &amp; publish as usual</p>
 <ul>
 <li>Grant access:</li>
 </ul>
-<pre lang="bash"><code>npm access grant &lt;read-only|read-write&gt; &lt;org:team&gt; [&lt;package&gt;]
+<pre><code class="language-bash">npm access grant &lt;read-only|read-write&gt; &lt;org:team&gt; [&lt;package&gt;]
 </code></pre>
 <ul>
 <li>Revoke access:</li>
 </ul>
-<pre lang="bash"><code>npm access revoke &lt;org:team&gt; [&lt;package&gt;]
+<pre><code class="language-bash">npm access revoke &lt;org:team&gt; [&lt;package&gt;]
 </code></pre>
 <h3 id="monitor-your-package-access">Monitor your package access</h3>
 <ul>
 <li>See what org packages a team member can access:</li>
 </ul>
-<pre lang="bash"><code>npm access ls-packages &lt;org&gt; &lt;user&gt;
+<pre><code class="language-bash">npm access ls-packages &lt;org&gt; &lt;user&gt;
 </code></pre>
 <ul>
 <li>See packages available to a specific team:</li>
 </ul>
-<pre lang="bash"><code>npm access ls-packages &lt;org:team&gt;
+<pre><code class="language-bash">npm access ls-packages &lt;org:team&gt;
 </code></pre>
 <ul>
 <li>Check which teams are collaborating on a package:</li>
 </ul>
-<pre lang="bash"><code>npm access ls-collaborators &lt;pkg&gt;
+<pre><code class="language-bash">npm access ls-collaborators &lt;pkg&gt;
 </code></pre>
 <h3 id="see-also">See also</h3>
 <ul>
 <li><a href="../commands/npm-team.html">npm team</a></li>
 <li><a href="../commands/npm-access.html">npm access</a></li>
 <li><a href="../using-npm/scope.html">npm scope</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/using-npm/orgs.md">

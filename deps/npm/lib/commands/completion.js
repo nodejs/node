@@ -29,7 +29,7 @@
 // as an array.
 //
 
-const fs = require('@npmcli/fs')
+const fs = require('fs/promises')
 const nopt = require('nopt')
 
 const { definitions, shorthands } = require('../utils/config/index.js')

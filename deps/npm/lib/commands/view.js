@@ -196,15 +196,16 @@ class View extends BaseCommand {
     // get the data about this package
     let version = this.npm.config.get('tag')
     // rawSpec is the git url if this is from git
-    if (spec.type !== 'git' && spec.type !== 'directory' && spec.rawSpec) {
+    if (spec.type !== 'git' && spec.type !== 'directory' && spec.rawSpec !== '*') {
       version = spec.rawSpec
     }
 
     const pckmnt = await packument(spec, opts)
 
-    if (pckmnt['dist-tags'] && pckmnt['dist-tags'][version]) {
+    if (pckmnt['dist-tags']?.[version]) {
       version = pckmnt['dist-tags'][version]
     }
+
     if (pckmnt.time && pckmnt.time.unpublished) {
       const u = pckmnt.time.unpublished
       const er = new Error(`Unpublished on ${u.time}`)

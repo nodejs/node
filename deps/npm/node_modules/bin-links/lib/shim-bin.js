@@ -1,7 +1,5 @@
-const { promisify } = require('util')
 const { resolve, dirname } = require('path')
-const fs = require('fs')
-const lstat = promisify(fs.lstat)
+const { lstat } = require('fs/promises')
 const throwNonEnoent = er => {
   if (er.code !== 'ENOENT') {
     throw er

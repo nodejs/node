@@ -174,8 +174,8 @@ const LoadMockNpm = async (t, {
         .join('\n')
     },
     timingFile: async () => {
-      const data = await fs.readFile(path.resolve(dirs.cache, '_timing.json'), 'utf8')
-      return JSON.parse(data) // XXX: this fails if multiple timings are written
+      const data = await fs.readFile(npm.timingFile, 'utf8')
+      return JSON.parse(data)
     },
   }
 }
@@ -216,6 +216,7 @@ class MockNpm {
         }
       },
       list: [{ ...realConfig.defaults, ...config }],
+      validate: () => {},
     }
 
     if (t && config.loglevel) {
@@ -236,6 +237,15 @@ class MockNpm {
       return this.base.output(msg)
     }
     this._mockOutputs.push(msg)
+  }
+
+  // with the older fake mock npm there is no
+  // difference between output and outputBuffer
+  // since it just collects the output and never
+  // calls the exit handler, so we just mock the
+  // method the same as output.
+  outputBuffer (...msg) {
+    this.output(...msg)
   }
 }
 

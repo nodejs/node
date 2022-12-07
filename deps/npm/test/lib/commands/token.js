@@ -7,6 +7,7 @@ const mocks = {
 }
 const npm = {
   output: (...args) => mocks.output(...args),
+  config: { validate: () => {} },
 }
 
 const mockToken = (otherMocks) => t.mock('../../../lib/commands/token.js', {
@@ -21,6 +22,7 @@ const tokenWithMocks = (options = {}) => {
   for (const mod in mockRequests) {
     if (mod === 'npm') {
       mockRequests.npm = { ...npm, ...mockRequests.npm }
+      mockRequests.npm.config.validate = () => {}
     } else {
       if (typeof mockRequests[mod] === 'function') {
         mocks[mod] = mockRequests[mod]

@@ -1,163 +1,142 @@
-.TH "NPM\-FUND" "1" "November 2022" "" ""
+.TH "NPM-FUND" "1" "November 2022" "" ""
 .SH "NAME"
-\fBnpm-fund\fR \- Retrieve funding information
-.SS Synopsis
+\fBnpm-fund\fR - Retrieve funding information
+.SS "Synopsis"
 .P
 .RS 2
 .nf
-npm fund [<package\-spec>]
+npm fund \[lB]<package-spec>\[rB]
 .fi
 .RE
-.SS Description
+.SS "Description"
 .P
-This command retrieves information on how to fund the dependencies of a
-given project\. If no package name is provided, it will list all
-dependencies that are looking for funding in a tree structure, listing
-the type of funding and the url to visit\. If a package name is provided
-then it tries to open its funding url using the \fB\-\-browser\fP config
-param; if there are multiple funding sources for the package, the user
-will be instructed to pass the \fB\-\-which\fP option to disambiguate\.
+This command retrieves information on how to fund the dependencies of a given project. If no package name is provided, it will list all dependencies that are looking for funding in a tree structure, listing the type of funding and the url to visit. If a package name is provided then it tries to open its funding url using the \fB\fB--browser\fR config\fR \fI\(la/using-npm/config#browser\(ra\fR param; if there are multiple funding sources for the package, the user will be instructed to pass the \fB--which\fR option to disambiguate.
 .P
-The list will avoid duplicated entries and will stack all packages that
-share the same url as a single entry\. Thus, the list does not have the
-same shape of the output from \fBnpm ls\fP\|\.
-.SS Example
-.SS Workspaces support
+The list will avoid duplicated entries and will stack all packages that share the same url as a single entry. Thus, the list does not have the same shape of the output from \fBnpm ls\fR.
+.SS "Example"
+.SS "Workspaces support"
 .P
-It's possible to filter the results to only include a single workspace
-and its dependencies using the \fBworkspace\fP config option\.
-.SS Example:
+It's possible to filter the results to only include a single workspace and its dependencies using the \fB\fBworkspace\fR config\fR \fI\(la/using-npm/config#workspace\(ra\fR option.
+.SS "Example:"
 .P
-Here's an example running \fBnpm fund\fP in a project with a configured
-workspace \fBa\fP:
+Here's an example running \fBnpm fund\fR in a project with a configured workspace \fBa\fR:
 .P
 .RS 2
 .nf
 $ npm fund
-test\-workspaces\-fund@1\.0\.0
-+\-\- https://example\.com/a
-| | `\-\- a@1\.0\.0
-| `\-\- https://example\.com/maintainer
-|     `\-\- foo@1\.0\.0
-+\-\- https://example\.com/npmcli\-funding
-|   `\-\- @npmcli/test\-funding
-`\-\- https://example\.com/org
-    `\-\- bar@2\.0\.0
+test-workspaces-fund@1.0.0
++-- https://example.com/a
+| | `-- a@1.0.0
+| `-- https://example.com/maintainer
+|     `-- foo@1.0.0
++-- https://example.com/npmcli-funding
+|   `-- @npmcli/test-funding
+`-- https://example.com/org
+    `-- bar@2.0.0
 .fi
 .RE
 .P
-And here is an example of the expected result when filtering only by a
-specific workspace \fBa\fP in the same project:
+And here is an example of the expected result when filtering only by a specific workspace \fBa\fR in the same project:
 .P
 .RS 2
 .nf
-$ npm fund \-w a
-test\-workspaces\-fund@1\.0\.0
-`\-\- https://example\.com/a
-  | `\-\- a@1\.0\.0
-  `\-\- https://example\.com/maintainer
-      `\-\- foo@2\.0\.0
+$ npm fund -w a
+test-workspaces-fund@1.0.0
+`-- https://example.com/a
+  | `-- a@1.0.0
+  `-- https://example.com/maintainer
+      `-- foo@2.0.0
 .fi
 .RE
-.SS Configuration
-.SS \fBjson\fP
+.SS "Configuration"
+.SS "\fBjson\fR"
 .RS 0
-.IP \(bu 2
+.IP \(bu 4
 Default: false
-.IP \(bu 2
+.IP \(bu 4
 Type: Boolean
+.RE 0
 
-.RE
 .P
-Whether or not to output JSON data, rather than the normal output\.
+Whether or not to output JSON data, rather than the normal output.
 .RS 0
-.IP \(bu 2
-In \fBnpm pkg set\fP it enables parsing set values with JSON\.parse() before
-saving them to your \fBpackage\.json\fP\|\.
+.IP \(bu 4
+In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR.
+.RE 0
 
-.RE
 .P
-Not supported by all npm commands\.
-.SS \fBbrowser\fP
+Not supported by all npm commands.
+.SS "\fBbrowser\fR"
 .RS 0
-.IP \(bu 2
-Default: OS X: \fB"open"\fP, Windows: \fB"start"\fP, Others: \fB"xdg\-open"\fP
-.IP \(bu 2
+.IP \(bu 4
+Default: OS X: \fB"open"\fR, Windows: \fB"start"\fR, Others: \fB"xdg-open"\fR
+.IP \(bu 4
 Type: null, Boolean, or String
+.RE 0
 
-.RE
 .P
-The browser that is called by npm commands to open websites\.
+The browser that is called by npm commands to open websites.
 .P
-Set to \fBfalse\fP to suppress browser behavior and instead print urls to
-terminal\.
+Set to \fBfalse\fR to suppress browser behavior and instead print urls to terminal.
 .P
-Set to \fBtrue\fP to use default system URL opener\.
-.SS \fBunicode\fP
+Set to \fBtrue\fR to use default system URL opener.
+.SS "\fBunicode\fR"
 .RS 0
-.IP \(bu 2
-Default: false on windows, true on mac/unix systems with a unicode locale,
-as defined by the \fBLC_ALL\fP, \fBLC_CTYPE\fP, or \fBLANG\fP environment variables\.
-.IP \(bu 2
+.IP \(bu 4
+Default: false on windows, true on mac/unix systems with a unicode locale, as defined by the \fBLC_ALL\fR, \fBLC_CTYPE\fR, or \fBLANG\fR environment variables.
+.IP \(bu 4
 Type: Boolean
+.RE 0
 
-.RE
 .P
-When set to true, npm uses unicode characters in the tree output\. When
-false, it uses ascii characters instead of unicode glyphs\.
-.SS \fBworkspace\fP
+When set to true, npm uses unicode characters in the tree output. When false, it uses ascii characters instead of unicode glyphs.
+.SS "\fBworkspace\fR"
 .RS 0
-.IP \(bu 2
+.IP \(bu 4
 Default:
-.IP \(bu 2
+.IP \(bu 4
 Type: String (can be set multiple times)
+.RE 0
 
-.RE
 .P
-Enable running a command in the context of the configured workspaces of the
-current project while filtering by running only the workspaces defined by
-this configuration option\.
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
 .P
-Valid values for the \fBworkspace\fP config are either:
+Valid values for the \fBworkspace\fR config are either:
 .RS 0
-.IP \(bu 2
+.IP \(bu 4
 Workspace names
-.IP \(bu 2
+.IP \(bu 4
 Path to a workspace directory
-.IP \(bu 2
-Path to a parent workspace directory (will result in selecting all
-workspaces within that folder)
+.IP \(bu 4
+Path to a parent workspace directory (will result in selecting all workspaces within that folder)
+.RE 0
 
-.RE
 .P
-When set for the \fBnpm init\fP command, this may be set to the folder of a
-workspace which does not yet exist, to create the folder and set it up as a
-brand new workspace within the project\.
+When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
 .P
-This value is not exported to the environment for child processes\.
-.SS \fBwhich\fP
+This value is not exported to the environment for child processes.
+.SS "\fBwhich\fR"
 .RS 0
-.IP \(bu 2
+.IP \(bu 4
 Default: null
-.IP \(bu 2
+.IP \(bu 4
 Type: null or Number
+.RE 0
 
-.RE
 .P
-If there are multiple funding sources, which 1\-indexed source URL to open\.
-.SH See Also
+If there are multiple funding sources, which 1-indexed source URL to open.
+.SH "SEE ALSO"
 .RS 0
-.IP \(bu 2
+.IP \(bu 4
 npm help "package spec"
-.IP \(bu 2
+.IP \(bu 4
 npm help install
-.IP \(bu 2
+.IP \(bu 4
 npm help docs
-.IP \(bu 2
+.IP \(bu 4
 npm help ls
-.IP \(bu 2
+.IP \(bu 4
 npm help config
-.IP \(bu 2
+.IP \(bu 4
 npm help workspaces
-
-.RE
+.RE 0
