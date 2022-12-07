@@ -3,7 +3,7 @@ const { mustCall } = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('node:assert');
 const { MIMEType } = require('node:util');
-const createStaticServer = require('node:http/static');
+const { createStaticServer } = require('node:http');
 
 [0, 1, 1n, '', '1', true, false, NaN, Symbol(), {}, []].forEach((filter) => {
   assert.throws(() => createStaticServer({ filter }), { code: 'ERR_INVALID_ARG_TYPE' });
