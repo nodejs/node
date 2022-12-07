@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.21.2">14.21.2</a><br/>
 <a href="#14.21.1">14.21.1</a><br/>
 <a href="#14.21.0">14.21.0</a><br/>
 <a href="#14.20.1">14.20.1</a><br/>
@@ -79,6 +80,69 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.21.2"></a>
+
+## 2022-12-13, Version 14.21.2 'Fermium' (LTS), @richardlau
+
+### Notable Changes
+
+#### OpenSSL 1.1.1s
+
+This update is a bugfix release and does not address any security
+vulnerabilities.
+
+#### Root certificates updated to NSS 3.85
+
+Certificates added:
+
+* Autoridad de Certificacion Firmaprofesional CIF A62634068
+* Certainly Root E1
+* Certainly Root R1
+* D-TRUST BR Root CA 1 2020
+* D-TRUST EV Root CA 1 2020
+* DigiCert TLS ECC P384 Root G5
+* DigiCert TLS RSA4096 Root G5
+* E-Tugra Global Root CA ECC v3
+* E-Tugra Global Root CA RSA v3
+* HiPKI Root CA - G1
+* ISRG Root X2
+* Security Communication ECC RootCA1
+* Security Communication RootCA3
+* Telia Root CA v2
+* vTrus ECC Root CA
+* vTrus Root CA
+
+Certificates removed:
+
+* Cybertrust Global Root
+* DST Root CA X3
+* GlobalSign Root CA - R2
+* Hellenic Academic and Research Institutions RootCA 2011
+
+#### Time zone update to 2022f
+
+Time zone data has been updated to 2022f. This includes changes to Daylight
+Savings Time (DST) for Fiji and Mexico. For more information, see
+<https://mm.icann.org/pipermail/tz-announce/2022-October/000075.html>.
+
+### Commits
+
+* \[[`436a596e99`](https://github.com/nodejs/node/commit/436a596e99)] - **crypto**: update root certificates (Luigi Pinca) [#45490](https://github.com/nodejs/node/pull/45490)
+* \[[`4b422d34af`](https://github.com/nodejs/node/commit/4b422d34af)] - **deps**: V8: cherry-pick d2db7fa7f786 (Richard Lau) [#45785](https://github.com/nodejs/node/pull/45785)
+* \[[`625f4bf3a9`](https://github.com/nodejs/node/commit/625f4bf3a9)] - **deps**: update corepack to 0.15.1 (Node.js GitHub Bot) [#45331](https://github.com/nodejs/node/pull/45331)
+* \[[`48a9810de8`](https://github.com/nodejs/node/commit/48a9810de8)] - **deps**: update corepack to 0.15.0 (Node.js GitHub Bot) [#45235](https://github.com/nodejs/node/pull/45235)
+* \[[`9f4e64b603`](https://github.com/nodejs/node/commit/9f4e64b603)] - **deps**: update timezone to 2022f (Richard Lau) [#45521](https://github.com/nodejs/node/pull/45521)
+* \[[`f297b6bd21`](https://github.com/nodejs/node/commit/f297b6bd21)] - **deps**: update archs files for OpenSSL-1.1.1s (RafaelGSS) [#45272](https://github.com/nodejs/node/pull/45272)
+* \[[`11629fef15`](https://github.com/nodejs/node/commit/11629fef15)] - **deps**: upgrade openssl sources to 1.1.1s (RafaelGSS) [#45272](https://github.com/nodejs/node/pull/45272)
+* \[[`c3a90c4b44`](https://github.com/nodejs/node/commit/c3a90c4b44)] - **http2**: fix memory leak when nghttp2 hd threshold is reached (rogertyang) [#41502](https://github.com/nodejs/node/pull/41502)
+* \[[`785dc3efee`](https://github.com/nodejs/node/commit/785dc3efee)] - **module**: cjs-module-lexer WebAssembly fallback (Guy Bedford) [#43612](https://github.com/nodejs/node/pull/43612)
+* \[[`2dbeb889f6`](https://github.com/nodejs/node/commit/2dbeb889f6)] - **node-api**: handle no support for external buffers (Michael Dawson) [#45181](https://github.com/nodejs/node/pull/45181)
+* \[[`5b2ea124f3`](https://github.com/nodejs/node/commit/5b2ea124f3)] - **test**: add test to validate changelogs for releases (Richard Lau) [#45325](https://github.com/nodejs/node/pull/45325)
+* \[[`f13f889956`](https://github.com/nodejs/node/commit/f13f889956)] - **test**: add a test to ensure the correctness of timezone upgrades (Darshan Sen) [#45299](https://github.com/nodejs/node/pull/45299)
+* \[[`5608e6fa72`](https://github.com/nodejs/node/commit/5608e6fa72)] - **tools**: update certdata.txt (Luigi Pinca) [#45490](https://github.com/nodejs/node/pull/45490)
+* \[[`d6f1d7107b`](https://github.com/nodejs/node/commit/d6f1d7107b)] - **tools**: have test-asan use ubuntu-20.04 (Filip Skokan) [#45581](https://github.com/nodejs/node/pull/45581)
+* \[[`370a00f737`](https://github.com/nodejs/node/commit/370a00f737)] - **tools**: make license-builder.sh comply with shellcheck 0.8.0 (Rich Trott) [#41258](https://github.com/nodejs/node/pull/41258)
 
 <a id="14.21.1"></a>
 
