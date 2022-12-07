@@ -5,7 +5,6 @@ const localeCompare = require('@isaacs/string-locale-compare')('en')
 const aliases = {
 
   // aliases
-  login: 'adduser',
   author: 'owner',
   home: 'docs',
   issues: 'bugs',
@@ -74,7 +73,6 @@ const commands = [
   'access',
   'adduser',
   'audit',
-  'bin',
   'bugs',
   'cache',
   'ci',
@@ -122,7 +120,6 @@ const commands = [
   'run-script',
   'search',
   'set',
-  'set-script',
   'shrinkwrap',
   'star',
   'stars',
@@ -138,9 +135,9 @@ const commands = [
   'version',
   'view',
   'whoami',
-]
+].sort(localeCompare)
 
-const plumbing = ['birthday', 'help-search']
+const plumbing = ['help-search']
 const allCommands = [...commands, ...plumbing].sort(localeCompare)
 const abbrevs = abbrev(commands.concat(Object.keys(aliases)))
 

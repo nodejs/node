@@ -12,6 +12,7 @@ npm config get [<key> [<key> ...]]
 npm config delete <key> [<key> ...]
 npm config list [--json]
 npm config edit
+npm config fix
 
 alias: c
 ```
@@ -26,7 +27,7 @@ variables, `npmrc` files, and in some cases, the `package.json` file.
 See [npmrc](/configuring-npm/npmrc) for more information about the npmrc
 files.
 
-See [config(7)](/using-npm/config) for a more thorough explanation of the
+See [config](/using-npm/config) for a more thorough explanation of the
 mechanisms involved, and a full list of config options available.
 
 The `npm config` command can be used to update and edit the contents
@@ -91,6 +92,16 @@ npm config edit
 Opens the config file in an editor.  Use the `--global` flag to edit the
 global config.
 
+#### fix
+
+```bash
+npm config fix
+```
+
+Attempts to repair invalid configuration items.  Usually this means
+attaching authentication config (i.e. `_auth`, `_authToken`) to the
+configured `registry`.
+
 ### Configuration
 
 #### `json`
@@ -121,8 +132,8 @@ folder instead of the current working directory. See
 
 #### `editor`
 
-* Default: The EDITOR or VISUAL environment variables, or 'notepad.exe' on
-  Windows, or 'vim' on Unix systems
+* Default: The EDITOR or VISUAL environment variables, or
+  '%SYSTEMROOT%\notepad.exe' on Windows, or 'vi' on Unix systems
 * Type: String
 
 The command to run for `npm edit` and `npm config edit`.

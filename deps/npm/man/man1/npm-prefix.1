@@ -1,24 +1,21 @@
-.TH "NPM\-PREFIX" "1" "November 2022" "" ""
+.TH "NPM-PREFIX" "1" "November 2022" "" ""
 .SH "NAME"
-\fBnpm-prefix\fR \- Display prefix
-.SS Synopsis
+\fBnpm-prefix\fR - Display prefix
+.SS "Synopsis"
 .P
 .RS 2
 .nf
-npm prefix [\-g]
+npm prefix \[lB]-g\[rB]
 .fi
 .RE
 .P
-Note: This command is unaware of workspaces\.
-.SS Description
+Note: This command is unaware of workspaces.
+.SS "Description"
 .P
-Print the local prefix to standard output\. This is the closest parent directory
-to contain a \fBpackage\.json\fP file or \fBnode_modules\fP directory, unless \fB\-g\fP is
-also specified\.
+Print the local prefix to standard output. This is the closest parent directory to contain a \fBpackage.json\fR file or \fBnode_modules\fR directory, unless \fB-g\fR is also specified.
 .P
-If \fB\-g\fP is specified, this will be the value of the global prefix\. See
-npm help config for more detail\.
-.SS Example
+If \fB-g\fR is specified, this will be the value of the global prefix. See npm help config for more detail.
+.SS "Example"
 .P
 .RS 2
 .nf
@@ -29,44 +26,40 @@ npm prefix
 .P
 .RS 2
 .nf
-npm prefix \-g
+npm prefix -g
 /usr/local
 .fi
 .RE
-.SS Configuration
-.SS \fBglobal\fP
+.SS "Configuration"
+.SS "\fBglobal\fR"
 .RS 0
-.IP \(bu 2
+.IP \(bu 4
 Default: false
-.IP \(bu 2
+.IP \(bu 4
 Type: Boolean
+.RE 0
 
-.RE
 .P
-Operates in "global" mode, so that packages are installed into the \fBprefix\fP
-folder instead of the current working directory\. See
-npm help folders for more on the differences in behavior\.
+Operates in "global" mode, so that packages are installed into the \fBprefix\fR folder instead of the current working directory. See npm help folders for more on the differences in behavior.
 .RS 0
-.IP \(bu 2
-packages are installed into the \fB{prefix}/lib/node_modules\fP folder, instead
-of the current working directory\.
-.IP \(bu 2
-bin files are linked to \fB{prefix}/bin\fP
-.IP \(bu 2
-man pages are linked to \fB{prefix}/share/man\fP
+.IP \(bu 4
+packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the current working directory.
+.IP \(bu 4
+bin files are linked to \fB{prefix}/bin\fR
+.IP \(bu 4
+man pages are linked to \fB{prefix}/share/man\fR
+.RE 0
 
-.RE
-.SS See Also
+.SS "See Also"
 .RS 0
-.IP \(bu 2
+.IP \(bu 4
 npm help root
-.IP \(bu 2
+.IP \(bu 4
 npm help bin
-.IP \(bu 2
+.IP \(bu 4
 npm help folders
-.IP \(bu 2
+.IP \(bu 4
 npm help config
-.IP \(bu 2
+.IP \(bu 4
 npm help npmrc
-
-.RE
+.RE 0
