@@ -856,6 +856,14 @@ test('changes a mock behavior once', (t) => {
 });
 ```
 
+### `ctx.resetCalls()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Resets the call history of the mock function.
+
 ### `ctx.restore()`
 
 <!-- YAML
