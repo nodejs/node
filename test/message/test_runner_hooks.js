@@ -90,6 +90,8 @@ describe('afterEach throws and test fails', () => {
 
 test('test hooks', async (t) => {
   const testArr = [];
+
+  t.after(common.mustCall((t) => testArr.push('after ' + t.name)));
   t.beforeEach((t) => testArr.push('beforeEach ' + t.name));
   t.afterEach((t) => testArr.push('afterEach ' + t.name));
   await t.test('1', () => testArr.push('1'));
@@ -113,12 +115,14 @@ test('test hooks', async (t) => {
 });
 
 test('t.beforeEach throws', async (t) => {
+  t.after(common.mustCall());
   t.beforeEach(() => { throw new Error('beforeEach'); });
   await t.test('1', () => {});
   await t.test('2', () => {});
 });
 
 test('t.afterEach throws', async (t) => {
+  t.after(common.mustCall());
   t.afterEach(() => { throw new Error('afterEach'); });
   await t.test('1', () => {});
   await t.test('2', () => {});
@@ -126,13 +130,15 @@ test('t.afterEach throws', async (t) => {
 
 
 test('afterEach when test fails', async (t) => {
+  t.after(common.mustCall());
   t.afterEach(common.mustCall(2));
   await t.test('1', () => { throw new Error('test'); });
   await t.test('2', () => {});
 });
 
 test('afterEach throws and test fails', async (t) => {
-  afterEach(() => { throw new Error('afterEach'); });
+  t.after(common.mustCall());
+  t.afterEach(() => { throw new Error('afterEach'); });
   await t.test('1', () => { throw new Error('test'); });
   await t.test('2', () => {});
 });
