@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#16.19.0">16.19.0</a><br/>
 <a href="#16.18.1">16.18.1</a><br/>
 <a href="#16.18.0">16.18.0</a><br/>
 <a href="#16.17.1">16.17.1</a><br/>
@@ -67,6 +68,116 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="16.19.0"></a>
+
+## 2022-12-13, Version 16.19.0 'Gallium' (LTS), @richardlau
+
+### Notable Changes
+
+#### OpenSSL 1.1.1s
+
+This update is a bugfix release and does not address any security
+vulnerabilities.
+
+#### Root certificates updated to NSS 3.85
+
+Certificates added:
+
+* Autoridad de Certificacion Firmaprofesional CIF A62634068
+* Certainly Root E1
+* Certainly Root R1
+* D-TRUST BR Root CA 1 2020
+* D-TRUST EV Root CA 1 2020
+* DigiCert TLS ECC P384 Root G5
+* DigiCert TLS RSA4096 Root G5
+* E-Tugra Global Root CA ECC v3
+* E-Tugra Global Root CA RSA v3
+* HiPKI Root CA - G1
+* ISRG Root X2
+* Security Communication ECC RootCA1
+* Security Communication RootCA3
+* Telia Root CA v2
+* vTrus ECC Root CA
+* vTrus Root CA
+
+Certificates removed:
+
+* Cybertrust Global Root
+* DST Root CA X3
+* GlobalSign Root CA - R2
+* Hellenic Academic and Research Institutions RootCA 2011
+
+#### Time zone update to 2022f
+
+Time zone data has been updated to 2022f. This includes changes to Daylight
+Savings Time (DST) for Fiji and Mexico. For more information, see
+<https://mm.icann.org/pipermail/tz-announce/2022-October/000075.html>.
+
+#### Other Notable Changes
+
+* \[[`33707dcd03`](https://github.com/nodejs/node/commit/33707dcd03)] - **dgram**: add dgram send queue info (theanarkh) [#44149](https://github.com/nodejs/node/pull/44149)
+
+Dependency updates:
+
+* \[[`3b2b70d792`](https://github.com/nodejs/node/commit/3b2b70d792)] - **deps**: upgrade npm to 8.19.3 (npm team) [#45322](https://github.com/nodejs/node/pull/45322)
+
+Experimental features:
+
+* \[[`1e0dcd1ee0`](https://github.com/nodejs/node/commit/1e0dcd1ee0)] - **cli**: add `--watch` (Moshe Atlow) [#44366](https://github.com/nodejs/node/pull/44366)
+* \[[`8c73279ebb`](https://github.com/nodejs/node/commit/8c73279ebb)] - **util**: add default value option to parsearg (Manuel Spigolon) [#44631](https://github.com/nodejs/node/pull/44631)
+
+### Commits
+
+* \[[`bbef3c42f6`](https://github.com/nodejs/node/commit/bbef3c42f6)] - **build**: add version info to timezone update PR (Darshan Sen) [#45021](https://github.com/nodejs/node/pull/45021)
+* \[[`cc2c7648e0`](https://github.com/nodejs/node/commit/cc2c7648e0)] - **build**: support Python 3.11 (Luigi Pinca) [#45191](https://github.com/nodejs/node/pull/45191)
+* \[[`ac24c80663`](https://github.com/nodejs/node/commit/ac24c80663)] - **build**: remove redundant condition from common.gypi (Richard Lau) [#45076](https://github.com/nodejs/node/pull/45076)
+* \[[`03dcbe3030`](https://github.com/nodejs/node/commit/03dcbe3030)] - **build**: fix bad upstream merge (Stephen Gallagher) [#44642](https://github.com/nodejs/node/pull/44642)
+* \[[`1e0dcd1ee0`](https://github.com/nodejs/node/commit/1e0dcd1ee0)] - **cli**: add `--watch` (Moshe Atlow) [#44366](https://github.com/nodejs/node/pull/44366)
+* \[[`96d131665e`](https://github.com/nodejs/node/commit/96d131665e)] - **cluster**: use inspector utils (Moshe Atlow) [#44592](https://github.com/nodejs/node/pull/44592)
+* \[[`704836033a`](https://github.com/nodejs/node/commit/704836033a)] - **crypto**: update root certificates (Luigi Pinca) [#45490](https://github.com/nodejs/node/pull/45490)
+* \[[`5a776d4a69`](https://github.com/nodejs/node/commit/5a776d4a69)] - **deps**: update timezone to 2022f (Richard Lau) [#45613](https://github.com/nodejs/node/pull/45613)
+* \[[`3b2b70d792`](https://github.com/nodejs/node/commit/3b2b70d792)] - **deps**: upgrade npm to 8.19.3 (npm team) [#45322](https://github.com/nodejs/node/pull/45322)
+* \[[`9fbc8b21db`](https://github.com/nodejs/node/commit/9fbc8b21db)] - **deps**: update corepack to 0.15.1 (Node.js GitHub Bot) [#45331](https://github.com/nodejs/node/pull/45331)
+* \[[`87e3d002ca`](https://github.com/nodejs/node/commit/87e3d002ca)] - **deps**: update corepack to 0.15.0 (Node.js GitHub Bot) [#45235](https://github.com/nodejs/node/pull/45235)
+* \[[`e972ff7b13`](https://github.com/nodejs/node/commit/e972ff7b13)] - **deps**: V8: backport bbd800c6e359 (Chengzhong Wu) [#44947](https://github.com/nodejs/node/pull/44947)
+* \[[`af9d8217c0`](https://github.com/nodejs/node/commit/af9d8217c0)] - **deps**: V8: cherry-pick b95354290941 (Chengzhong Wu) [#44947](https://github.com/nodejs/node/pull/44947)
+* \[[`38202d321b`](https://github.com/nodejs/node/commit/38202d321b)] - **deps**: update undici to 5.12.0 (Node.js GitHub Bot) [#45236](https://github.com/nodejs/node/pull/45236)
+* \[[`7c0da6adf9`](https://github.com/nodejs/node/commit/7c0da6adf9)] - **deps**: update archs files for OpenSSL-1.1.1s (RafaelGSS) [#45274](https://github.com/nodejs/node/pull/45274)
+* \[[`1149ead6f7`](https://github.com/nodejs/node/commit/1149ead6f7)] - **deps**: upgrade openssl sources to OpenSSL\_1\_1\_1s (RafaelGSS) [#45274](https://github.com/nodejs/node/pull/45274)
+* \[[`cd54bce4f5`](https://github.com/nodejs/node/commit/cd54bce4f5)] - **deps**: update timezone (Node.js GitHub Bot) [#44950](https://github.com/nodejs/node/pull/44950)
+* \[[`2901abe4f0`](https://github.com/nodejs/node/commit/2901abe4f0)] - **deps**: update undici to 5.11.0 (Node.js GitHub Bot) [#44929](https://github.com/nodejs/node/pull/44929)
+* \[[`c80cf97033`](https://github.com/nodejs/node/commit/c80cf97033)] - **deps**: update corepack to 0.14.2 (Node.js GitHub Bot) [#44775](https://github.com/nodejs/node/pull/44775)
+* \[[`33707dcd03`](https://github.com/nodejs/node/commit/33707dcd03)] - **dgram**: add dgram send queue info (theanarkh) [#44149](https://github.com/nodejs/node/pull/44149)
+* \[[`c708d9bb94`](https://github.com/nodejs/node/commit/c708d9bb94)] - **doc**: fix typo in parseArgs default value (Tobias Nießen) [#45083](https://github.com/nodejs/node/pull/45083)
+* \[[`5a0efa05d2`](https://github.com/nodejs/node/commit/5a0efa05d2)] - **node-api**: handle no support for external buffers (Michael Dawson) [#45181](https://github.com/nodejs/node/pull/45181)
+* \[[`db31de634e`](https://github.com/nodejs/node/commit/db31de634e)] - **readline**: refactor to avoid unsafe regex primordials (Antoine du Hamel) [#43475](https://github.com/nodejs/node/pull/43475)
+* \[[`fbc52e5729`](https://github.com/nodejs/node/commit/fbc52e5729)] - **src**: disambiguate terms used to refer to builtins and addons (Joyee Cheung) [#44135](https://github.com/nodejs/node/pull/44135)
+* \[[`953072d3db`](https://github.com/nodejs/node/commit/953072d3db)] - **src**: let http2 streams end after session close (Santiago Gimeno) [#45153](https://github.com/nodejs/node/pull/45153)
+* \[[`54608d8dc3`](https://github.com/nodejs/node/commit/54608d8dc3)] - **src**: split property helpers from node::Environment (Chengzhong Wu) [#44056](https://github.com/nodejs/node/pull/44056)
+* \[[`6733556783`](https://github.com/nodejs/node/commit/6733556783)] - **test**: add test to validate changelogs for releases (Richard Lau) [#45325](https://github.com/nodejs/node/pull/45325)
+* \[[`821d832cef`](https://github.com/nodejs/node/commit/821d832cef)] - **test**: mark test-watch-mode\* as flaky on all platforms (Pierrick Bouvier) [#45049](https://github.com/nodejs/node/pull/45049)
+* \[[`02a18eac69`](https://github.com/nodejs/node/commit/02a18eac69)] - **test**: fix test-runner-inspect (Moshe Atlow) [#44620](https://github.com/nodejs/node/pull/44620)
+* \[[`197df63f74`](https://github.com/nodejs/node/commit/197df63f74)] - **test**: add a test to ensure the correctness of timezone upgrades (Darshan Sen) [#45299](https://github.com/nodejs/node/pull/45299)
+* \[[`42e9d8016a`](https://github.com/nodejs/node/commit/42e9d8016a)] - **test**: fix textdecoder test for small-icu builds (Richard Lau) [#45225](https://github.com/nodejs/node/pull/45225)
+* \[[`6d736a56d8`](https://github.com/nodejs/node/commit/6d736a56d8)] - **test**: fix watch mode test flake (Moshe Atlow) [#44739](https://github.com/nodejs/node/pull/44739)
+* \[[`543d3d2bf3`](https://github.com/nodejs/node/commit/543d3d2bf3)] - **test**: deflake watch mode tests (Moshe Atlow) [#44621](https://github.com/nodejs/node/pull/44621)
+* \[[`97f6caf4eb`](https://github.com/nodejs/node/commit/97f6caf4eb)] - **test**: split watch mode inspector tests to sequential (Moshe Atlow) [#44551](https://github.com/nodejs/node/pull/44551)
+* \[[`499750ff7a`](https://github.com/nodejs/node/commit/499750ff7a)] - **test**: update list of known globals (Antoine du Hamel) [#45255](https://github.com/nodejs/node/pull/45255)
+* \[[`64d343af74`](https://github.com/nodejs/node/commit/64d343af74)] - **test\_runner**: support using `--inspect` with `--test` (Moshe Atlow) [#44520](https://github.com/nodejs/node/pull/44520)
+* \[[`99ee5e484d`](https://github.com/nodejs/node/commit/99ee5e484d)] - **test\_runner**: fix `duration_ms` to be milliseconds (Moshe Atlow) [#44450](https://github.com/nodejs/node/pull/44450)
+* \[[`37e909251c`](https://github.com/nodejs/node/commit/37e909251c)] - **test\_runner**: support programmatically running `--test` (Moshe Atlow) [#44241](https://github.com/nodejs/node/pull/44241)
+* \[[`0ae5694f88`](https://github.com/nodejs/node/commit/0ae5694f88)] - **tools**: update certdata.txt (Luigi Pinca) [#45490](https://github.com/nodejs/node/pull/45490)
+* \[[`891368cefd`](https://github.com/nodejs/node/commit/891368cefd)] - **tools**: remove faulty early termination logic from update-timezone.mjs (Darshan Sen) [#44870](https://github.com/nodejs/node/pull/44870)
+* \[[`543493c242`](https://github.com/nodejs/node/commit/543493c242)] - **tools**: fix timezone update tool (Darshan Sen) [#44870](https://github.com/nodejs/node/pull/44870)
+* \[[`c77f660b75`](https://github.com/nodejs/node/commit/c77f660b75)] - **tools**: fix `create-or-update-pull-request-action` hash on GHA (Antoine du Hamel) [#45166](https://github.com/nodejs/node/pull/45166)
+* \[[`58c30dd049`](https://github.com/nodejs/node/commit/58c30dd049)] - **tools**: update gr2m/create-or-update-pull-request-action (Luigi Pinca) [#45022](https://github.com/nodejs/node/pull/45022)
+* \[[`749a4b3e5e`](https://github.com/nodejs/node/commit/749a4b3e5e)] - **tools**: use Python 3.11 in GitHub Actions workflows (Luigi Pinca) [#45191](https://github.com/nodejs/node/pull/45191)
+* \[[`6f541d99a5`](https://github.com/nodejs/node/commit/6f541d99a5)] - **tools**: have test-asan use ubuntu-20.04 (Filip Skokan) [#45581](https://github.com/nodejs/node/pull/45581)
+* \[[`e7ed56f501`](https://github.com/nodejs/node/commit/e7ed56f501)] - **tools**: make license-builder.sh comply with shellcheck 0.8.0 (Rich Trott) [#41258](https://github.com/nodejs/node/pull/41258)
+* \[[`cc819b4bf8`](https://github.com/nodejs/node/commit/cc819b4bf8)] - **tools**: fix typo in `avoid-prototype-pollution` lint rule (Antoine du Hamel) [#44446](https://github.com/nodejs/node/pull/44446)
+* \[[`254358c81e`](https://github.com/nodejs/node/commit/254358c81e)] - **tools**: refactor `avoid-prototype-pollution` lint rule (Antoine du Hamel) [#43476](https://github.com/nodejs/node/pull/43476)
+* \[[`8c73279ebb`](https://github.com/nodejs/node/commit/8c73279ebb)] - **util**: add default value option to parsearg (Manuel Spigolon) [#44631](https://github.com/nodejs/node/pull/44631)
 
 <a id="16.18.1"></a>
 

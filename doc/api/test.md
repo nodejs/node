@@ -457,7 +457,9 @@ test('spies on an object method', (t) => {
 ## `run([options])`
 
 <!-- YAML
-added: v18.9.0
+added:
+  - v18.9.0
+  - v16.19.0
 -->
 
 * `options` {Object} Configuration options for running tests. The following
@@ -1041,7 +1043,7 @@ not disassociate the mocks from the `MockTracker` instance.
 ### `mock.setter(object, methodName[, implementation][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v16.19.0
 -->
 
 This function is syntax sugar for [`MockTracker.method`][] with `options.setter`
