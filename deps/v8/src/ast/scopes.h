@@ -110,12 +110,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   class Snapshot final {
    public:
-    Snapshot()
-        : outer_scope_and_calls_eval_(nullptr, false),
-          top_unresolved_(),
-          top_local_() {
-      DCHECK(IsCleared());
-    }
     inline explicit Snapshot(Scope* scope);
 
     // Disallow copy and move.
@@ -123,45 +117,31 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     Snapshot(Snapshot&&) = delete;
 
     ~Snapshot() {
-      // If we're still active, there was no arrow function. In that case outer
-      // calls eval if it already called eval before this snapshot started, or
-      // if the code during the snapshot called eval.
-      if (!IsCleared() && outer_scope_and_calls_eval_.GetPayload()) {
-        RestoreEvalFlag();
+      // Restore eval flags from before the scope was active.
+      if (sloppy_eval_can_extend_vars_) {
+        declaration_scope_->sloppy_eval_can_extend_vars_ = true;
       }
-    }
-
-    void RestoreEvalFlag() {
-      if (outer_scope_and_calls_eval_.GetPayload()) {
-        // This recreates both calls_eval and sloppy_eval_can_extend_vars.
-        outer_scope_and_calls_eval_.GetPointer()->RecordEvalCall();
+      if (calls_eval_) {
+        outer_scope_->calls_eval_ = true;
       }
     }
 
     void Reparent(DeclarationScope* new_parent);
-    bool IsCleared() const {
-      return outer_scope_and_calls_eval_.GetPointer() == nullptr;
-    }
-
-    void Clear() {
-      outer_scope_and_calls_eval_.SetPointer(nullptr);
-#ifdef DEBUG
-      outer_scope_and_calls_eval_.SetPayload(false);
-      top_inner_scope_ = nullptr;
-      top_local_ = base::ThreadedList<Variable>::Iterator();
-      top_unresolved_ = UnresolvedList::Iterator();
-#endif
-    }
 
    private:
-    // During tracking calls_eval caches whether the outer scope called eval.
-    // Upon move assignment we store whether the new inner scope calls eval into
-    // the move target calls_eval bit, and restore calls eval on the outer
-    // scope.
-    base::PointerWithPayload<Scope, bool, 1> outer_scope_and_calls_eval_;
+    Scope* outer_scope_;
+    Scope* declaration_scope_;
     Scope* top_inner_scope_;
     UnresolvedList::Iterator top_unresolved_;
     base::ThreadedList<Variable>::Iterator top_local_;
+    // While the scope is active, the scope caches the flag values for
+    // outer_scope_ / declaration_scope_ they can be used to know what happened
+    // while parsing the arrow head. If this turns out to be an arrow head, new
+    // values on the respective scopes will be cleared and moved to the inner
+    // scope. Otherwise the cached flags will be merged with the flags from the
+    // arrow head.
+    bool calls_eval_;
+    bool sloppy_eval_can_extend_vars_;
   };
 
   enum class DeserializationMode { kIncludingVariables, kScopesOnly };
@@ -907,8 +887,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   void RecordDeclarationScopeEvalCall() {
     calls_eval_ = true;
 
-    // If this isn't a sloppy eval, we don't care about it.
-    if (language_mode() != LanguageMode::kSloppy) return;
+    // The caller already checked whether we're in sloppy mode.
+    CHECK(is_sloppy(language_mode()));
 
     // Sloppy eval in script scopes can only introduce global variables anyway,
     // so we don't care that it calls sloppy eval.
@@ -942,7 +922,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     }
 
     sloppy_eval_can_extend_vars_ = true;
-    num_heap_slots_ = Context::MIN_CONTEXT_EXTENDED_SLOTS;
   }
 
   bool sloppy_eval_can_extend_vars() const {
@@ -1367,7 +1346,9 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
 void Scope::RecordEvalCall() {
   calls_eval_ = true;
-  GetDeclarationScope()->RecordDeclarationScopeEvalCall();
+  if (is_sloppy(language_mode())) {
+    GetDeclarationScope()->RecordDeclarationScopeEvalCall();
+  }
   RecordInnerScopeEvalCall();
   // The eval contents might access "super" (if it's inside a function that
   // binds super).
@@ -1380,14 +1361,18 @@ void Scope::RecordEvalCall() {
 }
 
 Scope::Snapshot::Snapshot(Scope* scope)
-    : outer_scope_and_calls_eval_(scope, scope->calls_eval_),
+    : outer_scope_(scope),
+      declaration_scope_(scope->GetDeclarationScope()),
       top_inner_scope_(scope->inner_scope_),
       top_unresolved_(scope->unresolved_list_.end()),
-      top_local_(scope->GetClosureScope()->locals_.end()) {
-  // Reset in order to record eval calls during this Snapshot's lifetime.
-  outer_scope_and_calls_eval_.GetPointer()->calls_eval_ = false;
-  outer_scope_and_calls_eval_.GetPointer()->sloppy_eval_can_extend_vars_ =
-      false;
+      top_local_(scope->GetClosureScope()->locals_.end()),
+      calls_eval_(outer_scope_->calls_eval_),
+      sloppy_eval_can_extend_vars_(
+          declaration_scope_->sloppy_eval_can_extend_vars_) {
+  // Reset in order to record (sloppy) eval calls during this Snapshot's
+  // lifetime.
+  outer_scope_->calls_eval_ = false;
+  declaration_scope_->sloppy_eval_can_extend_vars_ = false;
 }
 
 class ModuleScope final : public DeclarationScope {

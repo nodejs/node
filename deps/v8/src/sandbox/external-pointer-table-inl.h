@@ -6,6 +6,7 @@
 #define V8_SANDBOX_EXTERNAL_POINTER_TABLE_INL_H_
 
 #include "src/base/atomicops.h"
+#include "src/common/assert-scope.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/utils/allocation.h"
@@ -74,6 +75,13 @@ bool ExternalPointerTable::TryAllocateEntryFromFreelist(Freelist freelist) {
 ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
     Isolate* isolate, Address initial_value, ExternalPointerTag tag) {
   DCHECK(is_initialized());
+
+  // We currently don't want entry allocation to trigger garbage collection as
+  // this may cause seemingly harmless pointer field assignments to trigger
+  // garbage collection. This is especially true for lazily-initialized
+  // external pointer slots which will typically only allocate the external
+  // pointer table entry when the pointer is first set to a non-null value.
+  DisallowGarbageCollection no_gc;
 
   Freelist freelist;
   bool success = false;
