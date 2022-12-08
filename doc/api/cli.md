@@ -1430,7 +1430,7 @@ will be chosen.
 ### `--watch`
 
 <!-- YAML
-added: REPLACEME
+added: v16.19.0
 -->
 
 > Stability: 1 - Experimental
@@ -1452,7 +1452,7 @@ $ node --watch index.js
 ### `--watch-path`
 
 <!-- YAML
-added: REPLACEME
+added: v16.19.0
 -->
 
 > Stability: 1 - Experimental

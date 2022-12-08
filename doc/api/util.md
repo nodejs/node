@@ -1024,7 +1024,7 @@ equality.
 <!-- YAML
 added: v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v16.19.0
     pr-url: https://github.com/nodejs/node/pull/44631
     description: Add support for default values in input `config`.
   - version: v16.17.0
