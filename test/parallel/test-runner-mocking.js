@@ -780,6 +780,23 @@ test('local mocks are auto restored after the test finishes', async (t) => {
   assert.strictEqual(originalBar, obj.bar);
 });
 
+test('reset mock calls', (t) => {
+  const sum = (arg1, arg2) => arg1 + arg2;
+  const difference = (arg1, arg2) => arg1 - arg2;
+  const fn = t.mock.fn(sum, difference);
+
+  assert.strictEqual(fn(1, 2), -1);
+  assert.strictEqual(fn(2, 1), 1);
+  assert.strictEqual(fn.mock.calls.length, 2);
+  assert.strictEqual(fn.mock.callCount(), 2);
+
+  fn.mock.resetCalls();
+  assert.strictEqual(fn.mock.calls.length, 0);
+  assert.strictEqual(fn.mock.callCount(), 0);
+
+  assert.strictEqual(fn(3, 2), 1);
+});
+
 test('uses top level mock', () => {
   function sum(a, b) {
     return a + b;
