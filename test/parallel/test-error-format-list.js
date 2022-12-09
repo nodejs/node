@@ -1,28 +1,18 @@
 // Flags: --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
 const { strictEqual } = require('node:assert');
 const { formatList } = require('internal/errors');
 
-strictEqual(formatList([]), '');
+if (common.hasIntl) {
+  const and = new Intl.ListFormat('en', { style: 'long', type: 'conjunction' });
+  const or = new Intl.ListFormat('en', { style: 'long', type: 'disjunction' });
 
-strictEqual(formatList([], 'or'), '');
-
-strictEqual(formatList(['apple']), 'apple');
-
-strictEqual(formatList(['apple'], 'or'), 'apple');
-
-strictEqual(formatList(['apple', 'banana']), 'apple and banana');
-
-strictEqual(formatList(['apple', 'banana'], 'or'), 'apple or banana');
-
-strictEqual(
-  formatList(['apple', 'banana', 'orange']),
-  'apple, banana, and orange'
-);
-
-strictEqual(
-  formatList(['apple', 'banana', 'orange'], 'or'),
-  'apple, banana, or orange'
-);
+  const input = ['apple', 'banana', 'orange'];
+  for (let i = 0; i < input.length; i++) {
+    const slicedInput = input.slice(0, i);
+    strictEqual(formatList(slicedInput), and.format(slicedInput));
+    strictEqual(formatList(slicedInput, 'or'), or.format(slicedInput));
+  }
+}
