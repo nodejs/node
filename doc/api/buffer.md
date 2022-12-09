@@ -1884,7 +1884,8 @@ changes:
 -->
 
 * `value` {string|Buffer|Uint8Array|integer} The value with which to fill `buf`.
-* `offset` {integer} Number of bytes to skip before starting to fill `buf`.
+  Empty value (string, Uint8Array, Buffer) is coerced to `0`.
+* `offset` {integer} Number of bytes to skip before starting to fill `buf`
   **Default:** `0`.
 * `end` {integer} Where to stop filling `buf` (not inclusive). **Default:**
   [`buf.length`][].
@@ -1904,6 +1905,12 @@ const b = Buffer.allocUnsafe(50).fill('h');
 
 console.log(b.toString());
 // Prints: hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+
+// Fill a buffer with empty string
+const c = Buffer.allocUnsafe(5).fill('');
+
+console.log(c.fill(''));
+// Prints: <Buffer 00 00 00 00 00>
 ```
 
 ```cjs
@@ -1915,6 +1922,12 @@ const b = Buffer.allocUnsafe(50).fill('h');
 
 console.log(b.toString());
 // Prints: hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+
+// Fill a buffer with empty string
+const c = Buffer.allocUnsafe(5).fill('');
+
+console.log(c.fill(''));
+// Prints: <Buffer 00 00 00 00 00>
 ```
 
 `value` is coerced to a `uint32` value if it is not a string, `Buffer`, or
