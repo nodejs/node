@@ -971,6 +971,9 @@ changes:
   * `filter` {Function} Function to filter copied files/directories. Return
     `true` to copy the item, `false` to ignore it. Can also return a `Promise`
     that resolves to `true` or `false` **Default:** `undefined`.
+    * `src` {string} source path to copy.
+    * `dest` {string} destination path to copy to.
+    * Returns: {boolean|Promise}
   * `force` {boolean} overwrite existing file or directory. The copy
     operation will ignore errors if you set this to false and the destination
     exists. Use the `errorOnExist` option to change this behavior.
@@ -2265,6 +2268,9 @@ changes:
   * `filter` {Function} Function to filter copied files/directories. Return
     `true` to copy the item, `false` to ignore it. Can also return a `Promise`
     that resolves to `true` or `false` **Default:** `undefined`.
+    * `src` {string} source path to copy.
+    * `dest` {string} destination path to copy to.
+    * Returns: {boolean|Promise}
   * `force` {boolean} overwrite existing file or directory. The copy
     operation will ignore errors if you set this to false and the destination
     exists. Use the `errorOnExist` option to change this behavior.
@@ -5077,6 +5083,9 @@ changes:
     exists, throw an error. **Default:** `false`.
   * `filter` {Function} Function to filter copied files/directories. Return
     `true` to copy the item, `false` to ignore it. **Default:** `undefined`
+    * `src` {string} source path to copy.
+    * `dest` {string} destination path to copy to.
+    * Returns: {boolean}
   * `force` {boolean} overwrite existing file or directory. The copy
     operation will ignore errors if you set this to false and the destination
     exists. Use the `errorOnExist` option to change this behavior.
