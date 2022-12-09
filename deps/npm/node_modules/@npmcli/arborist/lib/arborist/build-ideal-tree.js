@@ -619,14 +619,16 @@ module.exports = cls => class IdealTreeBuilder extends cls {
             continue
           }
 
-          const { isSemVerMajor, version } = fixAvailable
+          // name may be different if parent fixes the dep
+          // see Vuln fixAvailable setter
+          const { isSemVerMajor, version, name: fixName } = fixAvailable
           const breakingMessage = isSemVerMajor
             ? 'a SemVer major change'
             : 'outside your stated dependency range'
-          log.warn('audit', `Updating ${name} to ${version}, ` +
+          log.warn('audit', `Updating ${fixName} to ${version}, ` +
             `which is ${breakingMessage}.`)
 
-          await this[_add](node, { add: [`${name}@${version}`] })
+          await this[_add](node, { add: [`${fixName}@${version}`] })
           nodesTouched.add(node)
         }
       }

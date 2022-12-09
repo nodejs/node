@@ -1,6 +1,7 @@
 'use strict'
 module.exports = npa
 module.exports.resolve = resolve
+module.exports.toPurl = toPurl
 module.exports.Result = Result
 
 const url = require('url')
@@ -87,6 +88,24 @@ function resolve (name, spec, where, arg) {
   }
 }
 
+const defaultRegistry = 'https://registry.npmjs.org'
+
+function toPurl (arg, reg = defaultRegistry) {
+  const res = npa(arg)
+
+  if (res.type !== 'version') {
+    throw invalidPurlType(res.type, res.raw)
+  }
+
+  // URI-encode leading @ of scoped packages
+  let purl = 'pkg:npm/' + res.name.replace(/^@/, '%40') + '@' + res.rawSpec
+  if (reg !== defaultRegistry) {
+    purl += '?repository_url=' + reg
+  }
+
+  return purl
+}
+
 function invalidPackageName (name, valid, raw) {
   // eslint-disable-next-line max-len
   const err = new Error(`Invalid package name "${name}" of package "${raw}": ${valid.errors.join('; ')}.`)
@@ -98,6 +117,13 @@ function invalidTagName (name, raw) {
   // eslint-disable-next-line max-len
   const err = new Error(`Invalid tag name "${name}" of package "${raw}": Tags may not have any characters that encodeURIComponent encodes.`)
   err.code = 'EINVALIDTAGNAME'
+  return err
+}
+
+function invalidPurlType (type, raw) {
+  // eslint-disable-next-line max-len
+  const err = new Error(`Invalid type "${type}" of package "${raw}": Purl can only be generated for "version" types.`)
+  err.code = 'EINVALIDPURLTYPE'
   return err
 }
 

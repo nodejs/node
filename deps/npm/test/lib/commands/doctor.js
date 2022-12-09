@@ -1,5 +1,6 @@
 const t = require('tap')
 const fs = require('fs')
+const path = require('path')
 
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 const tnock = require('../../fixtures/tnock.js')
@@ -52,11 +53,14 @@ const dirs = {
   },
 }
 
-const globals = {
-  process: {
-    platform: 'test-not-windows',
-    version: 'v1.0.0',
-  },
+const globals = ({ globalPrefix }) => {
+  return {
+    process: {
+      'env.PATH': `${globalPrefix}:${path.join(globalPrefix, 'bin')}`,
+      platform: 'test-not-windows',
+      version: 'v1.0.0',
+    },
+  }
 }
 
 // getuid and getgid do not exist in windows, so we shim them
@@ -114,7 +118,7 @@ t.test('all clear in color', async t => {
   t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
 })
 
-t.test('silent', async t => {
+t.test('silent success', async t => {
   const { joinedOutput, logs, npm } = await loadMockNpm(t, {
     mocks,
     globals,
@@ -133,6 +137,24 @@ t.test('silent', async t => {
   t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
 })
 
+t.test('silent errors', async t => {
+  const { joinedOutput, logs, npm } = await loadMockNpm(t, {
+    mocks,
+    globals,
+    config: {
+      loglevel: 'silent',
+    },
+    ...dirs,
+  })
+  tnock(t, npm.config.get('registry'))
+    .get('/-/ping?write=true').reply(404, '{}')
+  await t.rejects(npm.exec('doctor', ['ping']), {
+    message: /Check logs/,
+  })
+  t.matchSnapshot(joinedOutput(), 'output')
+  t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
+})
+
 t.test('ping 404', async t => {
   const { joinedOutput, logs, npm } = await loadMockNpm(t, {
     mocks,
@@ -144,7 +166,9 @@ t.test('ping 404', async t => {
     .get('/npm').reply(200, npmManifest(npm.version))
   tnock(t, 'https://nodejs.org')
     .get('/dist/index.json').reply(200, nodeVersions)
-  await t.rejects(npm.exec('doctor', []))
+  await t.rejects(npm.exec('doctor', []), {
+    message: /See above/,
+  })
   t.matchSnapshot(joinedOutput(), 'ping 404')
   t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
 })
@@ -217,12 +241,16 @@ t.test('npm out of date', async t => {
 t.test('node out of date - lts', async t => {
   const { joinedOutput, logs, npm } = await loadMockNpm(t, {
     mocks,
-    globals: {
-      ...globals,
-      process: {
-        platform: 'test-not-windows',
-        version: 'v0.0.1',
-      },
+    globals: (context) => {
+      const g = globals(context)
+      return {
+        ...g,
+        process: {
+          ...g.process,
+          platform: 'test-not-windows',
+          version: 'v0.0.1',
+        },
+      }
     },
     ...dirs,
   })
@@ -239,12 +267,15 @@ t.test('node out of date - lts', async t => {
 t.test('node out of date - current', async t => {
   const { joinedOutput, logs, npm } = await loadMockNpm(t, {
     mocks,
-    globals: {
-      ...globals,
-      process: {
-        ...globals.process,
-        version: 'v2.0.0',
-      },
+    globals: (context) => {
+      const g = globals(context)
+      return {
+        ...g,
+        process: {
+          ...g.process,
+          version: 'v2.0.0',
+        },
+      }
     },
     ...dirs,
   })
@@ -299,12 +330,15 @@ t.test('missing git', async t => {
 t.test('windows skips permissions checks', async t => {
   const { joinedOutput, logs, npm } = await loadMockNpm(t, {
     mocks,
-    globals: {
-      ...globals,
-      process: {
-        ...globals.process,
-        platform: 'win32',
-      },
+    globals: (context) => {
+      const g = globals(context)
+      return {
+        ...g,
+        process: {
+          ...g.process,
+          platform: 'win32',
+        },
+      }
     },
     prefixDir: {},
     globalPrefixDir: {},
@@ -509,4 +543,124 @@ t.test('bad proxy', async t => {
   await t.rejects(npm.exec('doctor', []))
   t.matchSnapshot(joinedOutput(), 'output')
   t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
+})
+
+t.test('discrete checks', t => {
+  t.test('ping', async t => {
+    const { joinedOutput, logs, npm } = await loadMockNpm(t, {
+      mocks,
+      globals,
+      ...dirs,
+    })
+    tnock(t, npm.config.get('registry'))
+      .get('/-/ping?write=true').reply(200, '{}')
+    await npm.exec('doctor', ['ping'])
+    t.matchSnapshot(joinedOutput(), 'output')
+    t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
+  })
+
+  t.test('versions', async t => {
+    const { joinedOutput, logs, npm } = await loadMockNpm(t, {
+      mocks,
+      globals,
+      ...dirs,
+    })
+    tnock(t, npm.config.get('registry'))
+      .get('/npm').reply(200, npmManifest(npm.version))
+    tnock(t, 'https://nodejs.org')
+      .get('/dist/index.json').reply(200, nodeVersions)
+    await npm.exec('doctor', ['versions'])
+    t.matchSnapshot(joinedOutput(), 'output')
+    t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
+  })
+
+  t.test('registry', async t => {
+    const { joinedOutput, logs, npm } = await loadMockNpm(t, {
+      mocks,
+      globals,
+      ...dirs,
+    })
+    tnock(t, npm.config.get('registry'))
+      .get('/-/ping?write=true').reply(200, '{}')
+    await npm.exec('doctor', ['registry'])
+    t.matchSnapshot(joinedOutput(), 'output')
+    t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
+  })
+
+  t.test('git', async t => {
+    const { joinedOutput, logs, npm } = await loadMockNpm(t, {
+      mocks,
+      globals,
+      ...dirs,
+    })
+    await npm.exec('doctor', ['git'])
+    t.matchSnapshot(joinedOutput(), 'output')
+    t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
+  })
+
+  t.test('permissions - not windows', async t => {
+    const { joinedOutput, logs, npm } = await loadMockNpm(t, {
+      mocks,
+      globals,
+      ...dirs,
+    })
+    await npm.exec('doctor', ['permissions'])
+    t.matchSnapshot(joinedOutput(), 'output')
+    t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
+  })
+
+  t.test('cache', async t => {
+    const { joinedOutput, logs, npm } = await loadMockNpm(t, {
+      mocks,
+      globals,
+      ...dirs,
+    })
+    await npm.exec('doctor', ['cache'])
+    t.matchSnapshot(joinedOutput(), 'output')
+    t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
+  })
+
+  t.test('permissions - windows', async t => {
+    const { joinedOutput, logs, npm } = await loadMockNpm(t, {
+      mocks,
+      globals: (context) => {
+        const g = globals(context)
+        return {
+          ...g,
+          process: {
+            ...g.process,
+            platform: 'win32',
+          },
+        }
+      },
+      prefixDir: {},
+      globalPrefixDir: {},
+    })
+    await npm.exec('doctor', ['permissions'])
+    t.matchSnapshot(joinedOutput(), 'output')
+    t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
+  })
+
+  t.test('invalid environment', async t => {
+    const { joinedOutput, logs, npm } = await loadMockNpm(t, {
+      mocks,
+      globals: (context) => {
+        const g = globals(context)
+        return {
+          ...g,
+          process: {
+            ...g.process,
+            'env.PATH': '/nope',
+          },
+        }
+      },
+      prefixDir: {},
+      globalPrefixDir: {},
+    })
+    await t.rejects(npm.exec('doctor', ['environment']))
+    t.matchSnapshot(joinedOutput(), 'output')
+    t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
+  })
+
+  t.end()
 })

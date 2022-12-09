@@ -146,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre><code class="language-bash">npm doctor
+<pre><code class="language-bash">npm doctor [ping] [registry] [versions] [environment] [permissions] [cache]
 </code></pre>
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
@@ -167,8 +167,10 @@ so <code>npm doctor</code> confirms that the npm installation is in a good state
 <p>Also, in addition to this, there are also very many issue reports due to
 using old versions of npm. Since npm is constantly improving, running
 <code>npm@latest</code> is better than an old version.</p>
-<p><code>npm doctor</code> verifies the following items in your environment, and if there
-are any recommended changes, it will display them.</p>
+<p><code>npm doctor</code> verifies the following items in your environment, and if
+there are any recommended changes, it will display them.  By default npm
+runs all of these checks. You can limit what checks are ran by
+specifying them as extra arguments.</p>
 <h4 id="npm-ping"><code>npm ping</code></h4>
 <p>By default, npm installs from the primary npm registry,
 <code>registry.npmjs.org</code>.  <code>npm doctor</code> hits a special ping endpoint within the
