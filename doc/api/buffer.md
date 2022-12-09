@@ -1885,7 +1885,7 @@ changes:
 
 * `value` {string|Buffer|Uint8Array|integer} The value with which to fill `buf`.
   Empty value (string, Uint8Array, Buffer) is coerced to `0`.
-* `offset` {integer} Number of bytes to skip before starting to fill `buf`
+* `offset` {integer} Number of bytes to skip before starting to fill `buf`.
   **Default:** `0`.
 * `end` {integer} Where to stop filling `buf` (not inclusive). **Default:**
   [`buf.length`][].
