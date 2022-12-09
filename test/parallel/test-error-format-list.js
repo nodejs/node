@@ -5,7 +5,9 @@ const common = require('../common');
 const { strictEqual } = require('node:assert');
 const { formatList } = require('internal/errors');
 
-if (common.hasIntl) {
+if (!common.hasIntl) common.skip('missing Intl');
+
+{
   const and = new Intl.ListFormat('en', { style: 'long', type: 'conjunction' });
   const or = new Intl.ListFormat('en', { style: 'long', type: 'disjunction' });
 
