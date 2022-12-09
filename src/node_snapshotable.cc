@@ -1151,16 +1151,20 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
       Context::Scope context_scope(main_context);
 
       // Create the environment.
-      env = new Environment(main_instance->isolate_data(),
-                            main_context,
-                            args,
-                            exec_args,
-                            nullptr,
-                            node::EnvironmentFlags::kDefaultFlags,
-                            {});
+      uint64_t env_flags = EnvironmentFlags::kDefaultFlags |
+                           EnvironmentFlags::kInspectorOnlyAfterBootstrap;
+      if (snapshot_type != SnapshotMetadata::Type::kFullyCustomized) {
+        env_flags |= EnvironmentFlags::kNoCreateInspector;
+      }
 
-      // Run scripts in lib/internal/bootstrap/
-      if (env->principal_realm()->RunBootstrapping().IsEmpty()) {
+      env = CreateEnvironment(main_instance->isolate_data(),
+                              main_context,
+                              args,
+                              exec_args,
+                              static_cast<EnvironmentFlags::Flags>(env_flags));
+
+      // This already ran scripts in lib/internal/bootstrap/, if it fails return
+      if (env == nullptr) {
         return ExitCode::kBootstrapFailure;
       }
       // If --build-snapshot is true, lib/internal/main/mksnapshot.js would be
@@ -1169,9 +1173,6 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
       // could also explore snapshotting other kinds of execution modes
       // in the future).
       if (snapshot_type == SnapshotMetadata::Type::kFullyCustomized) {
-#if HAVE_INSPECTOR
-        env->InitializeInspector({});
-#endif
         if (LoadEnvironment(env, StartExecutionCallback{}).IsEmpty()) {
           return ExitCode::kGenericUserError;
         }

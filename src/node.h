@@ -560,7 +560,10 @@ enum Flags : uint64_t {
   // This control is needed by embedders who may not want to initialize the V8
   // inspector in situations where one has already been created,
   // e.g. Blink's in Chromium.
-  kNoCreateInspector = 1 << 9
+  kNoCreateInspector = 1 << 9,
+  // Whether to enable the V8 inspector during Node.js bootstrap or not.
+  // This has no effect if kNoCreateInspector is set.
+  kInspectorOnlyAfterBootstrap = 1 << 10
 };
 }  // namespace EnvironmentFlags
 

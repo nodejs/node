@@ -375,22 +375,32 @@ Environment* CreateEnvironment(
   // options than the global parse call.
   Environment* env = new Environment(
       isolate_data, context, args, exec_args, nullptr, flags, thread_id);
+
+  auto initialize_inspector = [&]() {
 #if HAVE_INSPECTOR
-  if (env->should_create_inspector()) {
-    if (inspector_parent_handle) {
-      env->InitializeInspector(
-          std::move(static_cast<InspectorParentHandleImpl*>(
-              inspector_parent_handle.get())->impl));
-    } else {
-      env->InitializeInspector({});
+    if (env->should_create_inspector()) {
+      if (inspector_parent_handle) {
+        env->InitializeInspector(
+            std::move(static_cast<InspectorParentHandleImpl*>(
+                          inspector_parent_handle.get())
+                          ->impl));
+      } else {
+        env->InitializeInspector({});
+      }
     }
-  }
 #endif
+  };
+
+  if (!(flags & EnvironmentFlags::kInspectorOnlyAfterBootstrap))
+    initialize_inspector();
 
   if (env->principal_realm()->RunBootstrapping().IsEmpty()) {
     FreeEnvironment(env);
     return nullptr;
   }
+
+  if (flags & EnvironmentFlags::kInspectorOnlyAfterBootstrap)
+    initialize_inspector();
 
   return env;
 }
