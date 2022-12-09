@@ -803,7 +803,11 @@ CipherBase::UpdateResult CipherBase::Update(
   if (kind_ == kDecipher && IsAuthenticatedMode())
     CHECK(MaybePassAuthTagToOpenSSL());
 
-  int buf_len = len + EVP_CIPHER_CTX_block_size(ctx_.get());
+  const int block_size = EVP_CIPHER_CTX_block_size(ctx_.get());
+  CHECK_GT(block_size, 0);
+  if (len + block_size > INT_MAX) return kErrorState;
+  int buf_len = len + block_size;
+
   // For key wrapping algorithms, get output size by calling
   // EVP_CipherUpdate() with null output.
   if (kind_ == kCipher && mode == EVP_CIPH_WRAP_MODE &&
