@@ -54,7 +54,7 @@ const BaseCommand = require('../base-command.js')
 class Completion extends BaseCommand {
   static description = 'Tab Completion for npm'
   static name = 'completion'
-  static ignoreImplicitWorkspace = false
+  static ignoreImplicitWorkspace = true
 
   // completion for the completion command
   async completion (opts) {
