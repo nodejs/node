@@ -6,6 +6,7 @@ const { WPTRunner } = require('../common/wpt');
 const runner = new WPTRunner('streams');
 
 // Set a script that will be executed in the worker before running the tests.
+runner.pretendGlobalThisAs('Window');
 runner.setInitScript(`
   // Simulate global postMessage for enqueue-with-detached-buffer.window.js
   function postMessage(value, origin, transferList) {

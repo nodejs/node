@@ -364,6 +364,7 @@ class WPTRunner {
         this.globalThisInitScripts.push(
           `global.Window = Object.getPrototypeOf(globalThis).constructor;
           self.GLOBAL.isWorker = () => false;`);
+        this.loadLazyGlobals();
         break;
       }
 
@@ -375,6 +376,31 @@ class WPTRunner {
 
       default: throw new Error(`Invalid globalThis type ${name}.`);
     }
+  }
+
+  loadLazyGlobals() {
+    const lazyProperties = [
+      'Performance', 'PerformanceEntry', 'PerformanceMark', 'PerformanceMeasure',
+      'PerformanceObserver', 'PerformanceObserverEntryList', 'PerformanceResourceTiming',
+      'Blob', 'atob', 'btoa',
+      'MessageChannel', 'MessagePort', 'MessageEvent',
+      'EventTarget', 'Event',
+      'AbortController', 'AbortSignal',
+      'performance',
+      'TransformStream', 'TransformStreamDefaultController',
+      'WritableStream', 'WritableStreamDefaultController', 'WritableStreamDefaultWriter',
+      'ReadableStream', 'ReadableStreamDefaultReader',
+      'ReadableStreamBYOBReader', 'ReadableStreamBYOBRequest',
+      'ReadableByteStreamController', 'ReadableStreamDefaultController',
+      'ByteLengthQueuingStrategy', 'CountQueuingStrategy',
+      'TextEncoderStream', 'TextDecoderStream',
+      'CompressionStream', 'DecompressionStream',
+    ];
+    if (Boolean(process.versions.openssl) && !process.env.NODE_SKIP_CRYPTO) {
+      lazyProperties.push('crypto');
+    }
+    const script = lazyProperties.map((name) => `globalThis.${name};`).join('\n');
+    this.globalThisInitScripts.push(script);
   }
 
   brandCheckGlobalScopeAttribute(name) {
