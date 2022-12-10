@@ -4,7 +4,6 @@ const common = require('../common');
 const assert = require('node:assert');
 const { TapParser } = require('internal/test_runner/tap_parser');
 const { TapChecker } = require('internal/test_runner/tap_checker');
-const { tapEscape } = require('internal/test_runner/tap_stream');
 
 const cases = [
   {
@@ -627,18 +626,4 @@ ok 1 - test 1
     actual,
     expected.map((item) => ({ __proto__: null, ...item }))
   );
-})().then(common.mustCall());
-
-(async () => {
-  [{ escapeChar: '\\', tappedEscape: '\\\\' },
-   { escapeChar: '#', tappedEscape: '\\#' },
-   { escapeChar: '\n', tappedEscape: '\\n' },
-   { escapeChar: '\t', tappedEscape: '\\t' },
-   { escapeChar: '\r', tappedEscape: '\\r' },
-   { escapeChar: '\f', tappedEscape: '\\f' },
-   { escapeChar: '\b', tappedEscape: '\\b' },
-   { escapeChar: '\v', tappedEscape: '\\v' },
-  ].forEach(({ escapeChar, tappedEscape }) => {
-    assert.strictEqual(tapEscape(escapeChar), tappedEscape);
-  });
 })().then(common.mustCall());
