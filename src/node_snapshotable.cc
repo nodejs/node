@@ -978,7 +978,7 @@ static void WriteCodeCacheInitializer(std::ostream* ss, const std::string& id) {
   *ss << "    },\n";
 }
 
-void FormatBlob(std::ostream& ss, SnapshotData* data) {
+void FormatBlob(std::ostream& ss, const SnapshotData* data) {
   ss << R"(#include <cstddef>
 #include "env.h"
 #include "node_snapshot_builder.h"
@@ -1004,7 +1004,7 @@ static const int v8_snapshot_blob_size = )"
     WriteStaticCodeCacheData(&ss, item);
   }
 
-  ss << R"(SnapshotData snapshot_data {
+  ss << R"(const SnapshotData snapshot_data {
   // -- data_ownership begins --
   SnapshotData::DataOwnership::kNotOwned,
   // -- data_ownership ends --
@@ -1036,7 +1036,6 @@ static const int v8_snapshot_blob_size = )"
 };
 
 const SnapshotData* SnapshotBuilder::GetEmbeddedSnapshotData() {
-  Mutex::ScopedLock lock(snapshot_data_mutex_);
   return &snapshot_data;
 }
 }  // namespace node
@@ -1052,8 +1051,6 @@ static void ResetContextSettingsBeforeSnapshot(Local<Context> context) {
   // node::InitializeContextRuntime.
   context->AllowCodeGenerationFromStrings(true);
 }
-
-Mutex SnapshotBuilder::snapshot_data_mutex_;
 
 const std::vector<intptr_t>& SnapshotBuilder::CollectExternalReferences() {
   static auto registry = std::make_unique<ExternalReferenceRegistry>();
