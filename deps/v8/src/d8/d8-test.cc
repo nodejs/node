@@ -43,6 +43,43 @@ class FastCApiObject {
   static FastCApiObject& instance();
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static AnyCType CopyStringFastCallbackPatch(AnyCType receiver,
+                                              AnyCType should_fallback,
+                                              AnyCType source, AnyCType out,
+                                              AnyCType options) {
+    AnyCType ret;
+    CopyStringFastCallback(receiver.object_value, should_fallback.bool_value,
+                           *source.string_value, *out.uint8_ta_value,
+                           *options.options_value);
+    return ret;
+  }
+
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static void CopyStringFastCallback(Local<Object> receiver,
+                                     bool should_fallback,
+                                     const FastOneByteString& source,
+                                     const FastApiTypedArray<uint8_t>& out,
+                                     FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    self->fast_call_count_++;
+
+    if (should_fallback) {
+      options.fallback = true;
+    } else {
+      options.fallback = false;
+    }
+
+    uint8_t* memory = nullptr;
+    CHECK(out.getStorageIfAligned(&memory));
+    memcpy(memory, source.data, source.length);
+  }
+
+  static void CopyStringSlowCallback(const FunctionCallbackInfo<Value>& args) {
+    FastCApiObject* self = UnwrapObject(args.This());
+    CHECK_SELF_OR_THROW();
+    self->slow_call_count_++;
+  }
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static AnyCType AddAllFastCallbackPatch(AnyCType receiver,
                                           AnyCType should_fallback,
                                           AnyCType arg_i32, AnyCType arg_u32,
@@ -1084,6 +1121,16 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
   PerIsolateData::Get(isolate)->SetTestApiObjectCtor(api_obj_ctor);
   Local<Signature> signature = Signature::New(isolate, api_obj_ctor);
   {
+    CFunction copy_str_func = CFunction::Make(
+        FastCApiObject::CopyStringFastCallback V8_IF_USE_SIMULATOR(
+            FastCApiObject::CopyStringFastCallbackPatch));
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "copy_string",
+        FunctionTemplate::New(isolate, FastCApiObject::CopyStringSlowCallback,
+                              Local<Value>(), signature, 1,
+                              ConstructorBehavior::kThrow,
+                              SideEffectType::kHasSideEffect, &copy_str_func));
+
     CFunction add_all_c_func =
         CFunction::Make(FastCApiObject::AddAllFastCallback V8_IF_USE_SIMULATOR(
             FastCApiObject::AddAllFastCallbackPatch));

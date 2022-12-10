@@ -315,6 +315,7 @@ class MachineType {
       case CTypeInfo::Type::kFloat64:
         return MachineType::Float64();
       case CTypeInfo::Type::kV8Value:
+      case CTypeInfo::Type::kSeqOneByteString:
       case CTypeInfo::Type::kApiObject:
         return MachineType::AnyTagged();
     }

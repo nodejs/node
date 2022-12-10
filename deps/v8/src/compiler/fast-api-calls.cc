@@ -29,6 +29,7 @@ ElementsKind GetTypedArrayElementsKind(CTypeInfo::Type type) {
     case CTypeInfo::Type::kFloat64:
       return FLOAT64_ELEMENTS;
     case CTypeInfo::Type::kVoid:
+    case CTypeInfo::Type::kSeqOneByteString:
     case CTypeInfo::Type::kBool:
     case CTypeInfo::Type::kV8Value:
     case CTypeInfo::Type::kApiObject:
