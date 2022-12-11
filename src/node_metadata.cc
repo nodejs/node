@@ -6,6 +6,7 @@
 #include "node.h"
 #include "util.h"
 #include "uv.h"
+#include "uvwasi.h"
 #include "v8.h"
 #include "zlib.h"
 
@@ -89,6 +90,8 @@ Metadata::Versions::Versions() {
     std::to_string((BrotliEncoderVersion() & 0xFFF000) >> 12) +
     "." +
     std::to_string(BrotliEncoderVersion() & 0xFFF);
+
+  uvwasi = UVWASI_VERSION_STRING;
 
 #if HAVE_OPENSSL
   openssl = GetOpenSSLVersion();
