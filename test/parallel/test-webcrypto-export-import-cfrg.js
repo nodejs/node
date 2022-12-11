@@ -8,7 +8,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { subtle } = crypto.webcrypto;
+const { subtle } = globalThis.crypto;
 
 const keyData = {
   'Ed25519': {

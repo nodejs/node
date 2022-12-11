@@ -1930,8 +1930,8 @@ added: v15.0.0
 Example: Converting a `CryptoKey` instance to a `KeyObject`:
 
 ```mjs
-const { webcrypto, KeyObject } = await import('node:crypto');
-const { subtle } = webcrypto;
+const { KeyObject } = await import('node:crypto');
+const { subtle } = globalThis.crypto;
 
 const key = await subtle.generateKey({
   name: 'HMAC',
@@ -1945,12 +1945,8 @@ console.log(keyObject.symmetricKeySize);
 ```
 
 ```cjs
-const {
-  webcrypto: {
-    subtle,
-  },
-  KeyObject,
-} = require('node:crypto');
+const { KeyObject } = require('node:crypto');
+const { subtle } = globalThis.crypto;
 
 (async function() {
   const key = await subtle.generateKey({
