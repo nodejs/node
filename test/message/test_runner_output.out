@@ -127,9 +127,9 @@ not ok 13 - async assertion fail
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
-    
+
     true !== false
-    
+
   code: 'ERR_ASSERTION'
   expected: false
   actual: true
@@ -353,8 +353,8 @@ ok 36 - functionAndOptions # SKIP
   ---
   duration_ms: *
   ...
-# Subtest: escaped description \\ \# \\\#\\
-ok 37 - escaped description \\ \# \\\#\\
+# Subtest: escaped description \\ \# \\\#\\ \n \t \f \v \b \r
+ok 37 - escaped description \\ \# \\\#\\ \n \t \f \v \b \r
   ---
   duration_ms: *
   ...

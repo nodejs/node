@@ -213,7 +213,7 @@ test('test with a name and options provided', { skip: true });
 test({ skip: true }, function functionAndOptions() {});
 
 // A test whose description needs to be escaped.
-test('escaped description \\ # \\#\\');
+test('escaped description \\ # \\#\\ \n \t \f \v \b \r');
 
 // A test whose skip message needs to be escaped.
 test('escaped skip message', { skip: '#skip' });
