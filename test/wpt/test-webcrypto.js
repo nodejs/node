@@ -15,4 +15,6 @@ runner.setInitScript(`
   global.location = {};
 `);
 
+runner.pretendGlobalThisAs('Window');
+
 runner.runJsTests();
