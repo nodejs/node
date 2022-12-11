@@ -16,8 +16,10 @@ declare namespace buildConnector {
     hostname: string
     host?: string
     protocol: string
-    port: number
+    port: string
     servername?: string
+    localAddress?: string | null
+    httpSocket?: Socket
   }
 
   export type Callback = (...args: CallbackArgs) => void

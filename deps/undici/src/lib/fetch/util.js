@@ -863,6 +863,8 @@ function isReadableStreamLike (stream) {
   )
 }
 
+const MAXIMUM_ARGUMENT_LENGTH = 65535
+
 /**
  * @see https://infra.spec.whatwg.org/#isomorphic-decode
  * @param {number[]|Uint8Array} input
@@ -871,13 +873,12 @@ function isomorphicDecode (input) {
   // 1. To isomorphic decode a byte sequence input, return a string whose code point
   //    length is equal to input’s length and whose code points have the same values
   //    as the values of input’s bytes, in the same order.
-  let output = ''
 
-  for (let i = 0; i < input.length; i++) {
-    output += String.fromCharCode(input[i])
+  if (input.length < MAXIMUM_ARGUMENT_LENGTH) {
+    return String.fromCharCode(...input)
   }
 
-  return output
+  return input.reduce((previous, current) => previous + String.fromCharCode(current), '')
 }
 
 /**
