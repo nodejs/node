@@ -177,6 +177,7 @@ class EnvironmentOptions : public Options {
 
   bool watch_mode = false;
   bool watch_mode_report_to_parent = false;
+  bool watch_mode_preserve_output = false;
   std::vector<std::string> watch_mode_paths;
 
   bool syntax_check_only = false;

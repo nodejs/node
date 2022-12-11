@@ -280,4 +280,29 @@ describe('watch mode', { concurrency: false, timeout: 60_000 }, () => {
 
     await failWriteSucceed({ file: dependant, watchedFile: dependency });
   });
+
+  it('should preserve output when --watch-preserve-output flag is passed', async () => {
+    const file = createTmpFile();
+    const { stderr, stdout } = await spawnWithRestarts({
+      file,
+      args: ['--watch-preserve-output', file],
+    });
+
+    assert.strictEqual(stderr, '');
+    // Checks if the existing output is preserved
+    assertRestartedCorrectly({
+      stdout,
+      messages: {
+        inner: 'running',
+        restarted: `Restarting ${inspect(file)}`,
+        completed: `Completed running ${inspect(file)}`,
+      },
+    });
+    // Remove the first 3 lines from stdout
+    const lines = stdout.split(/\r?\n/).filter(Boolean).slice(3);
+    assert.deepStrictEqual(lines, [
+      'running',
+      `Completed running ${inspect(file)}`,
+    ]);
+  });
 });
