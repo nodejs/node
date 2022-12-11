@@ -1630,7 +1630,7 @@ when the option is used on a platform that does not support it.
 
 ### --watch-preserve-output
 
-Option to ensure output of stdout is preserved during --watch on restart
+Option to ensure output of stdout is preserved during --watch on restart.
 
 ```console
 $ node --watch --watch-preserve-output test.js
