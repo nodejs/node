@@ -4,7 +4,7 @@ require('../common');
 
 const assert = require('assert');
 
-const { validateAssertions } = require('internal/modules/esm/assert');
+const { validateAssertions } = require('internal/modules/esm/load');
 
 const url = 'test://';
 

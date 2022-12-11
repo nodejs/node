@@ -4,11 +4,12 @@
 require('../common');
 
 const { strictEqual, throws } = require('assert');
-const { ESMLoader } = require('internal/modules/esm/loader');
-const ModuleMap = require('internal/modules/esm/module_map');
-const ModuleJob = require('internal/modules/esm/module_job');
-const createDynamicModule = require(
-  'internal/modules/esm/create_dynamic_module');
+const {
+  ESMLoader,
+  createDynamicModule,
+} = require('internal/modules/esm/loader');
+const { ModuleMap } = require('internal/modules/esm/utils');
+const { ModuleJob } = require('internal/modules/esm/utils');
 
 const jsModuleDataUrl = 'data:text/javascript,export{}';
 const jsonModuleDataUrl = 'data:application/json,""';
