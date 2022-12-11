@@ -13,7 +13,7 @@ using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
 using v8::DontEnum;
-using v8::EscapableHandleScope;
+using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
@@ -316,6 +316,26 @@ Maybe<bool> KVStore::AssignFromObject(Local<Context> context,
   return Just(true);
 }
 
+// TODO(bnoordhuis) Not super efficient but called infrequently. Not worth
+// the trouble yet of specializing for RealEnvStore and MapKVStore.
+Maybe<bool> KVStore::AssignToObject(v8::Isolate* isolate,
+                                    v8::Local<v8::Context> context,
+                                    v8::Local<v8::Object> object) {
+  HandleScope scope(isolate);
+  Local<Array> keys = Enumerate(isolate);
+  uint32_t keys_length = keys->Length();
+  for (uint32_t i = 0; i < keys_length; i++) {
+    Local<Value> key;
+    Local<String> value;
+    bool ok = keys->Get(context, i).ToLocal(&key);
+    ok = ok && key->IsString();
+    ok = ok && Get(isolate, key.As<String>()).ToLocal(&value);
+    ok = ok && object->Set(context, key, value).To(&ok);
+    if (!ok) return Nothing<bool>();
+  }
+  return Just(true);
+}
+
 static void EnvGetter(Local<Name> property,
                       const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
@@ -436,9 +456,13 @@ static void EnvDefiner(Local<Name> property,
   }
 }
 
-MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context, Isolate* isolate) {
-  EscapableHandleScope scope(isolate);
-  Local<ObjectTemplate> env_proxy_template = ObjectTemplate::New(isolate);
+void CreateEnvProxyTemplate(Isolate* isolate, IsolateData* isolate_data) {
+  HandleScope scope(isolate);
+  if (!isolate_data->env_proxy_template().IsEmpty()) return;
+  Local<FunctionTemplate> env_proxy_ctor_template =
+      FunctionTemplate::New(isolate);
+  Local<ObjectTemplate> env_proxy_template =
+      ObjectTemplate::New(isolate, env_proxy_ctor_template);
   env_proxy_template->SetHandler(NamedPropertyHandlerConfiguration(
       EnvGetter,
       EnvSetter,
@@ -449,7 +473,8 @@ MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context, Isolate* isolate) {
       nullptr,
       Local<Value>(),
       PropertyHandlerFlags::kHasNoSideEffect));
-  return scope.EscapeMaybe(env_proxy_template->NewInstance(context));
+  isolate_data->set_env_proxy_template(env_proxy_template);
+  isolate_data->set_env_proxy_ctor_template(env_proxy_ctor_template);
 }
 
 void RegisterEnvVarExternalReferences(ExternalReferenceRegistry* registry) {

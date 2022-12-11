@@ -10,12 +10,12 @@
 namespace node {
 
 class Environment;
+class IsolateData;
 class MemoryTracker;
 class ExternalReferenceRegistry;
 class Realm;
 
-v8::MaybeLocal<v8::Object> CreateEnvVarProxy(v8::Local<v8::Context> context,
-                                             v8::Isolate* isolate);
+void CreateEnvProxyTemplate(v8::Isolate* isolate, IsolateData* isolate_data);
 
 // Most of the time, it's best to use `console.error` to write
 // to the process.stderr stream.  However, in some cases, such as
