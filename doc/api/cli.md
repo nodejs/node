@@ -1630,7 +1630,7 @@ when the option is used on a platform that does not support it.
 
 ### `--watch-preserve-output`
 
-Option to ensure output of stdout is preserved during --watch on restart.
+Disable the clearing of the console when watch mode restarts the process.
 
 ```console
 $ node --watch --watch-preserve-output test.js
