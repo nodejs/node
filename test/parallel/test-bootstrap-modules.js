@@ -10,6 +10,7 @@ const assert = require('assert');
 
 const expectedModules = new Set([
   'Internal Binding async_wrap',
+  'Internal Binding blob',
   'Internal Binding buffer',
   'Internal Binding builtins',
   'Internal Binding config',
@@ -18,8 +19,8 @@ const expectedModules = new Set([
   'Internal Binding credentials',
   'Internal Binding errors',
   'Internal Binding fs',
-  'Internal Binding mksnapshot',
   'Internal Binding messaging',
+  'Internal Binding mksnapshot',
   'Internal Binding module_wrap',
   'Internal Binding options',
   'Internal Binding performance',
@@ -35,6 +36,7 @@ const expectedModules = new Set([
   'Internal Binding util',
   'Internal Binding wasm_web_api',
   'Internal Binding worker',
+  'NativeModule async_hooks',
   'NativeModule buffer',
   'NativeModule events',
   'NativeModule fs',
@@ -87,19 +89,17 @@ const expectedModules = new Set([
   'NativeModule internal/util/inspect',
   'NativeModule internal/util/iterable_weak_map',
   'NativeModule internal/util/types',
+  'NativeModule internal/v8/startup_snapshot',
   'NativeModule internal/validators',
   'NativeModule internal/vm',
   'NativeModule internal/vm/module',
   'NativeModule internal/wasm_web_api',
   'NativeModule internal/worker/js_transferable',
-  'Internal Binding blob',
-  'NativeModule async_hooks',
   'NativeModule path',
   'NativeModule querystring',
   'NativeModule timers',
   'NativeModule url',
   'NativeModule util',
-  'NativeModule internal/v8/startup_snapshot',
   'NativeModule vm',
 ]);
 
@@ -132,10 +132,10 @@ if (!common.isMainThread) {
     'NativeModule internal/streams/writable',
     'NativeModule internal/worker',
     'NativeModule internal/worker/io',
-    'NativeModule worker_threads',
     'NativeModule stream',
     'NativeModule stream/promises',
     'NativeModule string_decoder',
+    'NativeModule worker_threads',
   ].forEach(expectedModules.add.bind(expectedModules));
 }
 
