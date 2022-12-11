@@ -38,6 +38,7 @@ namespace node {
   V(nghttp2)                                                                   \
   V(napi)                                                                      \
   V(llhttp)                                                                    \
+  V(uvwasi)
 
 #if HAVE_OPENSSL
 #define NODE_VERSIONS_KEY_CRYPTO(V) V(openssl)
