@@ -67,6 +67,7 @@ class ExternalReferenceRegistry {
   V(credentials)                                                               \
   V(env_var)                                                                   \
   V(errors)                                                                    \
+  V(encoding_methods)                                                          \
   V(fs)                                                                        \
   V(fs_dir)                                                                    \
   V(fs_event_wrap)                                                             \

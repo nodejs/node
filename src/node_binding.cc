@@ -43,6 +43,7 @@
   V(contextify)                                                                \
   V(credentials)                                                               \
   V(errors)                                                                    \
+  V(encoding_methods)                                                          \
   V(fs)                                                                        \
   V(fs_dir)                                                                    \
   V(fs_event_wrap)                                                             \

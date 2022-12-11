@@ -29,6 +29,7 @@
 * [DNS](dns.md)
 * [Domain](domain.md)
 * [Errors](errors.md)
+* [Encoding](encoding.md)
 * [Events](events.md)
 * [File system](fs.md)
 * [Globals](globals.md)
