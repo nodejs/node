@@ -853,6 +853,15 @@ void SnapshotData::ToBlob(FILE* out) const {
   w.Debug("SnapshotData::ToBlob() Wrote %d bytes\n", written_total);
 }
 
+const SnapshotData* SnapshotData::FromEmbedderWrapper(
+    const EmbedderSnapshotData* data) {
+  return data != nullptr ? data->impl_ : nullptr;
+}
+
+EmbedderSnapshotData::Pointer SnapshotData::AsEmbedderWrapper() const {
+  return EmbedderSnapshotData::Pointer{new EmbedderSnapshotData(this, false)};
+}
+
 bool SnapshotData::FromBlob(SnapshotData* out, FILE* in) {
   FileReader r(in);
   r.Debug("SnapshotData::FromBlob()\n");
@@ -1062,6 +1071,8 @@ const std::vector<intptr_t>& SnapshotBuilder::CollectExternalReferences() {
 
 void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
                                               Isolate::CreateParams* params) {
+  CHECK_NULL(params->external_references);
+  CHECK_NULL(params->snapshot_blob);
   params->external_references = CollectExternalReferences().data();
   params->snapshot_blob =
       const_cast<v8::StartupData*>(&(data->v8_snapshot_blob_data));
