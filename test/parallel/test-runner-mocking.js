@@ -2,7 +2,6 @@
 const common = require('../common');
 const assert = require('node:assert');
 const { mock, test } = require('node:test');
-
 test('spies on a function', (t) => {
   const sum = t.mock.fn((arg1, arg2) => {
     return arg1 + arg2;
@@ -397,11 +396,8 @@ test('given null to a mock.method it throws a invalid argument error', (t) => {
 });
 
 test('it should throw given an inexistent property on a object instance', (t) => {
-  const expectedMessage = [
-    'The argument \'methodName\' must be a method. Received undefined',
-  ].join('');
   assert.throws(() => t.mock.method({ abc: 0 }, 'non-existent'), {
-    message: expectedMessage
+    code: 'ERR_INVALID_ARG_VALUE'
   });
 });
 
