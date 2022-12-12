@@ -59,6 +59,34 @@ functions for streams that return `Promise` objects rather than using
 callbacks. The API is accessible via `require('node:stream/promises')`
 or `require('node:stream').promises`.
 
+### `stream.pipeline(source[, ...transforms], destination, options)`
+
+### `stream.pipeline(streams, options)`
+
+* `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]}
+* `source` {Stream|Iterable|AsyncIterable|Function}
+  * Returns: {Promise\<Iterable|AsyncIterable>}
+* `...transforms` {Stream|Function}
+  * `source` {AsyncIterable}
+  * Returns: {Promise<AsyncIterable>}
+* `destination` {Stream|Function}
+  * `source` {AsyncIterable}
+  * Returns: {Promise<AsyncIterable>}
+* `options` {Object}
+  * `signal` {AbortSignal}
+  * `end` {boolean}
+* Returns: {Promise<void>}
+
+### `stream.finished(stream, options)`
+
+* `stream` {Stream}
+* `options` {Object}
+  * `error` {boolean|undefined}
+  * `readable` {boolean|undefined}
+  * `writable` {boolean|undefined}
+  * `signal`: {AbortSignal|undefined}
+* Returns: {Promise<void>}
+
 ### Object mode
 
 All streams created by Node.js APIs operate exclusively on strings and `Buffer`
