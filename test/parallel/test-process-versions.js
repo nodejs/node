@@ -45,6 +45,7 @@ assert.deepStrictEqual(actual_keys, expected_keys);
 
 const commonTemplate = /^\d+\.\d+\.\d+(?:-.*)?$/;
 
+assert.match(process.versions.acorn, commonTemplate);
 assert.match(process.versions.ares, commonTemplate);
 assert.match(process.versions.brotli, commonTemplate);
 assert.match(process.versions.llhttp, commonTemplate);
