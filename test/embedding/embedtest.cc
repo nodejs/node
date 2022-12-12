@@ -4,6 +4,8 @@
 
 // Note: This file is being referred to from doc/api/embedding.md, and excerpts
 // from it are included in the documentation. Try to keep these in sync.
+// Snapshot support is not part of the embedder API docs yet due to its
+// experimental nature, although it is of course documented in node.h.
 
 using node::CommonEnvironmentSetup;
 using node::Environment;
@@ -55,9 +57,22 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
                     const std::vector<std::string>& exec_args) {
   int exit_code = 0;
 
+  node::EmbedderSnapshotData::Pointer snapshot;
+  auto snapshot_arg_it =
+      std::find(args.begin(), args.end(), "--embedder-snapshot-blob");
+  if (snapshot_arg_it < args.end() - 1) {
+    FILE* fp = fopen((snapshot_arg_it + 1)->c_str(), "r");
+    assert(fp != nullptr);
+    snapshot = node::EmbedderSnapshotData::FromFile(fp);
+    fclose(fp);
+  }
+
   std::vector<std::string> errors;
   std::unique_ptr<CommonEnvironmentSetup> setup =
-      CommonEnvironmentSetup::Create(platform, &errors, args, exec_args);
+      snapshot
+          ? CommonEnvironmentSetup::CreateWithSnapshot(
+                platform, &errors, snapshot.get(), args, exec_args)
+          : CommonEnvironmentSetup::Create(platform, &errors, args, exec_args);
   if (!setup) {
     for (const std::string& err : errors)
       fprintf(stderr, "%s: %s\n", args[0].c_str(), err.c_str());
@@ -73,13 +88,18 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     HandleScope handle_scope(isolate);
     Context::Scope context_scope(setup->context());
 
-    MaybeLocal<Value> loadenv_ret = node::LoadEnvironment(
-        env,
-        "const publicRequire ="
-        "  require('module').createRequire(process.cwd() + '/');"
-        "globalThis.require = publicRequire;"
-        "globalThis.embedVars = { nön_ascıı: '🏳️‍🌈' };"
-        "require('vm').runInThisContext(process.argv[1]);");
+    MaybeLocal<Value> loadenv_ret;
+    if (snapshot) {
+      loadenv_ret = node::LoadEnvironment(env, node::StartExecutionCallback{});
+    } else {
+      loadenv_ret = node::LoadEnvironment(
+          env,
+          "const publicRequire ="
+          "  require('module').createRequire(process.cwd() + '/');"
+          "globalThis.require = publicRequire;"
+          "globalThis.embedVars = { nön_ascıı: '🏳️‍🌈' };"
+          "require('vm').runInThisContext(process.argv[1]);");
+    }
 
     if (loadenv_ret.IsEmpty())  // There has been a JS exception.
       return 1;
