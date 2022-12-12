@@ -49,9 +49,9 @@ assert.match(process.versions.ares, commonTemplate);
 assert.match(process.versions.brotli, commonTemplate);
 assert.match(process.versions.llhttp, commonTemplate);
 assert.match(process.versions.node, commonTemplate);
+assert.match(process.versions.undici, commonTemplate);
 assert.match(process.versions.uv, commonTemplate);
 assert.match(process.versions.zlib, commonTemplate);
-assert.match(process.versions.undici, commonTemplate);
 
 assert.match(
   process.versions.v8,
