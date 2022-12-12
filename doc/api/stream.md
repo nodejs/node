@@ -65,7 +65,7 @@ or `require('node:stream').promises`.
 
 * `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]}
 * `source` {Stream|Iterable|AsyncIterable|Function}
-  * Returns: {Promise\<Iterable|AsyncIterable>}
+  * Returns: {Promise<AsyncIterable>}
 * `...transforms` {Stream|Function}
   * `source` {AsyncIterable}
   * Returns: {Promise<AsyncIterable>}
