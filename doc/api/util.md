@@ -1107,7 +1107,7 @@ myMIME.type = 'application';
 console.log(myMIME.type);
 // Prints: application
 console.log(String(myMIME));
-// Prints: application/javascript/javascript
+// Prints: application/javascript
 ```
 
 #### `mime.subtype`
