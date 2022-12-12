@@ -127,6 +127,8 @@ struct napi_module;
 // terminally confused when it's done in node_internals.h
 namespace node {
 
+struct SnapshotData;
+
 namespace tracing {
 
 class TracingController;
@@ -473,6 +475,65 @@ struct IsolateSettings {
       modify_code_generation_from_strings_callback = nullptr;
 };
 
+// Represents a startup snapshot blob, e.g. created by passing
+// --node-snapshot-main=entry.js to the configure script at build time,
+// or by running Node.js with the --build-snapshot option.
+//
+// If used, the snapshot *must* have been built with the same Node.js
+// version and V8 flags as the version that is currently running, and will
+// be rejected otherwise.
+// The same EmbedderSnapshotData instance *must* be passed to both
+// `NewIsolate()` and `CreateIsolateData()`. The first `Environment` instance
+// should be created with an empty `context` argument and will then
+// use the main context included in the snapshot blob. It can be retrieved
+// using `GetMainContext()`. `LoadEnvironment` can receive an empty
+// `StartExecutionCallback` in this case.
+// If V8 was configured with the shared-readonly-heap option, it requires
+// all snapshots used to create `Isolate` instances to be identical.
+// This option *must* be unset by embedders who wish to use the startup
+// feature during the build step by passing the --disable-shared-readonly-heap
+// flag to the configure script.
+//
+// Snapshots are an *experimental* feature. In particular, the embedder API
+// exposed through this class is subject to change or removal between Node.js
+// versions, including possible API and ABI breakage.
+class EmbedderSnapshotData {
+ public:
+  struct DeleteSnapshotData {
+    void operator()(const EmbedderSnapshotData*) const;
+  };
+  using Pointer =
+      std::unique_ptr<const EmbedderSnapshotData, DeleteSnapshotData>;
+
+  // Return an EmbedderSnapshotData object that refers to the built-in
+  // snapshot of Node.js. This can have been configured through e.g.
+  // --node-snapshot-main=entry.js.
+  static Pointer BuiltinSnapshotData();
+
+  // Return an EmbedderSnapshotData object that is based on an input file.
+  // Calling this method will not consume but not close the FILE* handle.
+  // The FILE* handle can be closed immediately following this call.
+  // If the snapshot is invalid, this returns an empty pointer.
+  static Pointer FromFile(FILE* in);
+
+  // Returns whether custom snapshots can be used. Currently, this means
+  // that V8 was configured without the shared-readonly-heap feature.
+  static bool CanUseCustomSnapshotPerIsolate();
+
+  EmbedderSnapshotData(const EmbedderSnapshotData&) = delete;
+  EmbedderSnapshotData& operator=(const EmbedderSnapshotData&) = delete;
+  EmbedderSnapshotData(EmbedderSnapshotData&&) = delete;
+  EmbedderSnapshotData& operator=(EmbedderSnapshotData&&) = delete;
+
+ protected:
+  EmbedderSnapshotData(const SnapshotData* impl, bool owns_impl);
+
+ private:
+  const SnapshotData* impl_;
+  bool owns_impl_;
+  friend struct SnapshotData;
+};
+
 // Overriding IsolateSettings may produce unexpected behavior
 // in Node.js core functionality, so proceed at your own risk.
 NODE_EXTERN void SetIsolateUpForNode(v8::Isolate* isolate,
@@ -489,10 +550,23 @@ NODE_EXTERN void SetIsolateUpForNode(v8::Isolate* isolate);
 NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator,
                                     struct uv_loop_s* event_loop,
                                     MultiIsolatePlatform* platform = nullptr);
+// TODO(addaleax): Merge with the function definition above.
+NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator,
+                                    struct uv_loop_s* event_loop,
+                                    MultiIsolatePlatform* platform,
+                                    const EmbedderSnapshotData* snapshot_data,
+                                    const IsolateSettings& settings = {});
 NODE_EXTERN v8::Isolate* NewIsolate(
     std::shared_ptr<ArrayBufferAllocator> allocator,
     struct uv_loop_s* event_loop,
     MultiIsolatePlatform* platform);
+// TODO(addaleax): Merge with the function definition above.
+NODE_EXTERN v8::Isolate* NewIsolate(
+    std::shared_ptr<ArrayBufferAllocator> allocator,
+    struct uv_loop_s* event_loop,
+    MultiIsolatePlatform* platform,
+    const EmbedderSnapshotData* snapshot_data,
+    const IsolateSettings& settings = {});
 
 // Creates a new context with Node.js-specific tweaks.
 NODE_EXTERN v8::Local<v8::Context> NewContext(
@@ -512,6 +586,13 @@ NODE_EXTERN IsolateData* CreateIsolateData(
     struct uv_loop_s* loop,
     MultiIsolatePlatform* platform = nullptr,
     ArrayBufferAllocator* allocator = nullptr);
+// TODO(addaleax): Merge with the function definition above.
+NODE_EXTERN IsolateData* CreateIsolateData(
+    v8::Isolate* isolate,
+    struct uv_loop_s* loop,
+    MultiIsolatePlatform* platform,
+    ArrayBufferAllocator* allocator,
+    const EmbedderSnapshotData* snapshot_data);
 NODE_EXTERN void FreeIsolateData(IsolateData* isolate_data);
 
 struct ThreadId {
@@ -571,6 +652,8 @@ struct InspectorParentHandle {
 // TODO(addaleax): Maybe move per-Environment options parsing here.
 // Returns nullptr when the Environment cannot be created e.g. there are
 // pending JavaScript exceptions.
+// `context` may be empty if an `EmbedderSnapshotData` instance was provided
+// to `NewIsolate()` and `CreateIsolateData()`.
 NODE_EXTERN Environment* CreateEnvironment(
     IsolateData* isolate_data,
     v8::Local<v8::Context> context,
@@ -624,6 +707,9 @@ NODE_EXTERN void DefaultProcessExitHandler(Environment* env, int exit_code);
 NODE_EXTERN Environment* GetCurrentEnvironment(v8::Local<v8::Context> context);
 NODE_EXTERN IsolateData* GetEnvironmentIsolateData(Environment* env);
 NODE_EXTERN ArrayBufferAllocator* GetArrayBufferAllocator(IsolateData* data);
+// This is mostly useful for Environment* instances that were created through
+// a snapshot and have a main context that was read from that snapshot.
+NODE_EXTERN v8::Local<v8::Context> GetMainContext(Environment* env);
 
 NODE_EXTERN void OnFatalError(const char* location, const char* message);
 NODE_EXTERN void PromiseRejectCallback(v8::PromiseRejectMessage message);
@@ -730,6 +816,12 @@ class NODE_EXTERN CommonEnvironmentSetup {
       MultiIsolatePlatform* platform,
       std::vector<std::string>* errors,
       EnvironmentArgs&&... env_args);
+  template <typename... EnvironmentArgs>
+  static std::unique_ptr<CommonEnvironmentSetup> CreateWithSnapshot(
+      MultiIsolatePlatform* platform,
+      std::vector<std::string>* errors,
+      const EmbedderSnapshotData* snapshot_data,
+      EnvironmentArgs&&... env_args);
 
   struct uv_loop_s* event_loop() const;
   std::shared_ptr<ArrayBufferAllocator> array_buffer_allocator() const;
@@ -750,6 +842,11 @@ class NODE_EXTERN CommonEnvironmentSetup {
       MultiIsolatePlatform*,
       std::vector<std::string>*,
       std::function<Environment*(const CommonEnvironmentSetup*)>);
+  CommonEnvironmentSetup(
+      MultiIsolatePlatform*,
+      std::vector<std::string>*,
+      const EmbedderSnapshotData*,
+      std::function<Environment*(const CommonEnvironmentSetup*)>);
 };
 
 // Implementation for CommonEnvironmentSetup::Create
@@ -764,6 +861,27 @@ std::unique_ptr<CommonEnvironmentSetup> CommonEnvironmentSetup::Create(
         return CreateEnvironment(
             setup->isolate_data(), setup->context(),
             std::forward<EnvironmentArgs>(env_args)...);
+      }));
+  if (!errors->empty()) ret.reset();
+  return ret;
+}
+// Implementation for ::CreateWithSnapshot -- the ::Create() method
+// could call this with a nullptr snapshot_data in a major version.
+template <typename... EnvironmentArgs>
+std::unique_ptr<CommonEnvironmentSetup>
+CommonEnvironmentSetup::CreateWithSnapshot(
+    MultiIsolatePlatform* platform,
+    std::vector<std::string>* errors,
+    const EmbedderSnapshotData* snapshot_data,
+    EnvironmentArgs&&... env_args) {
+  auto ret = std::unique_ptr<CommonEnvironmentSetup>(new CommonEnvironmentSetup(
+      platform,
+      errors,
+      snapshot_data,
+      [&](const CommonEnvironmentSetup* setup) -> Environment* {
+        return CreateEnvironment(setup->isolate_data(),
+                                 setup->context(),
+                                 std::forward<EnvironmentArgs>(env_args)...);
       }));
   if (!errors->empty()) ret.reset();
   return ret;

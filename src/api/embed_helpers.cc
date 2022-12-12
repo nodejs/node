@@ -1,6 +1,7 @@
-#include "node.h"
-#include "env-inl.h"
 #include "debug_utils-inl.h"
+#include "env-inl.h"
+#include "node.h"
+#include "node_snapshot_builder.h"
 
 using v8::Context;
 using v8::Function;
@@ -86,8 +87,9 @@ struct CommonEnvironmentSetup::Impl {
 CommonEnvironmentSetup::CommonEnvironmentSetup(
     MultiIsolatePlatform* platform,
     std::vector<std::string>* errors,
+    const EmbedderSnapshotData* snapshot_data,
     std::function<Environment*(const CommonEnvironmentSetup*)> make_env)
-  : impl_(new Impl()) {
+    : impl_(new Impl()) {
   CHECK_NOT_NULL(platform);
   CHECK_NOT_NULL(errors);
 
@@ -104,16 +106,25 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
   loop->data = this;
 
   impl_->allocator = ArrayBufferAllocator::Create();
-  impl_->isolate = NewIsolate(impl_->allocator, &impl_->loop, platform);
+  impl_->isolate =
+      NewIsolate(impl_->allocator, &impl_->loop, platform, snapshot_data);
   Isolate* isolate = impl_->isolate;
 
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
     impl_->isolate_data.reset(CreateIsolateData(
-        isolate, loop, platform, impl_->allocator.get()));
+        isolate, loop, platform, impl_->allocator.get(), snapshot_data));
 
     HandleScope handle_scope(isolate);
+    if (snapshot_data) {
+      impl_->env.reset(make_env(this));
+      if (impl_->env) {
+        impl_->context.Reset(isolate, impl_->env->context());
+      }
+      return;
+    }
+
     Local<Context> context = NewContext(isolate);
     impl_->context.Reset(isolate, context);
     if (context.IsEmpty()) {
@@ -125,6 +136,12 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
     impl_->env.reset(make_env(this));
   }
 }
+
+CommonEnvironmentSetup::CommonEnvironmentSetup(
+    MultiIsolatePlatform* platform,
+    std::vector<std::string>* errors,
+    std::function<Environment*(const CommonEnvironmentSetup*)> make_env)
+    : CommonEnvironmentSetup(platform, errors, nullptr, make_env) {}
 
 CommonEnvironmentSetup::~CommonEnvironmentSetup() {
   if (impl_->isolate != nullptr) {
@@ -187,6 +204,44 @@ Environment* CommonEnvironmentSetup::env() const {
 
 v8::Local<v8::Context> CommonEnvironmentSetup::context() const {
   return impl_->context.Get(impl_->isolate);
+}
+
+void EmbedderSnapshotData::DeleteSnapshotData::operator()(
+    const EmbedderSnapshotData* data) const {
+  CHECK_IMPLIES(data->owns_impl_, data->impl_);
+  if (data->owns_impl_ &&
+      data->impl_->data_ownership == SnapshotData::DataOwnership::kOwned) {
+    delete data->impl_;
+  }
+  delete data;
+}
+
+EmbedderSnapshotData::Pointer EmbedderSnapshotData::BuiltinSnapshotData() {
+  return EmbedderSnapshotData::Pointer{new EmbedderSnapshotData(
+      SnapshotBuilder::GetEmbeddedSnapshotData(), false)};
+}
+
+EmbedderSnapshotData::Pointer EmbedderSnapshotData::FromFile(FILE* in) {
+  SnapshotData* snapshot_data = new SnapshotData();
+  CHECK_EQ(snapshot_data->data_ownership, SnapshotData::DataOwnership::kOwned);
+  EmbedderSnapshotData::Pointer result{
+      new EmbedderSnapshotData(snapshot_data, true)};
+  if (!SnapshotData::FromBlob(snapshot_data, in)) {
+    return {};
+  }
+  return result;
+}
+
+EmbedderSnapshotData::EmbedderSnapshotData(const SnapshotData* impl,
+                                           bool owns_impl)
+    : impl_(impl), owns_impl_(owns_impl) {}
+
+bool EmbedderSnapshotData::CanUseCustomSnapshotPerIsolate() {
+#ifdef NODE_V8_SHARED_RO_HEAP
+  return false;
+#else
+  return true;
+#endif
 }
 
 }  // namespace node

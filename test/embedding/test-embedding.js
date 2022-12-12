@@ -1,17 +1,26 @@
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const child_process = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
+tmpdir.refresh();
 common.allowGlobals(global.require);
 common.allowGlobals(global.embedVars);
-let binary = `out/${common.buildType}/embedtest`;
-if (common.isWindows) {
-  binary += '.exe';
+
+function resolveBuiltBinary(bin) {
+  let binary = `out/${common.buildType}/${bin}`;
+  if (common.isWindows) {
+    binary += '.exe';
+  }
+  return path.resolve(__dirname, '..', '..', binary);
 }
-binary = path.resolve(__dirname, '..', '..', binary);
+
+const binary = resolveBuiltBinary('embedtest');
+const standaloneNodeBinary = resolveBuiltBinary('node');
 
 assert.strictEqual(
   child_process.spawnSync(binary, ['console.log(42)'])
@@ -41,3 +50,39 @@ const fixturePath = JSON.stringify(fixtures.path('exit.js'));
 assert.strictEqual(
   child_process.spawnSync(binary, [`require(${fixturePath})`, 92]).status,
   92);
+
+// Basic snapshot support
+{
+  const snapshotFixture = fixtures.path('snapshot', 'echo-args.js');
+  const blobPath = path.join(tmpdir.path, 'embedder-snapshot.blob');
+  const buildSnapshotArgs = [snapshotFixture, 'arg1', 'arg2'];
+  const runEmbeddedArgs = ['--embedder-snapshot-blob', blobPath, 'arg3', 'arg4'];
+
+  fs.rmSync(blobPath, { force: true });
+  assert.strictEqual(child_process.spawnSync(standaloneNodeBinary, [
+    '--snapshot-blob', blobPath, '--build-snapshot', ...buildSnapshotArgs,
+  ], {
+    cwd: tmpdir.path,
+  }).status, 0);
+  const spawnResult = child_process.spawnSync(binary, ['--', ...runEmbeddedArgs]);
+  assert.deepStrictEqual(JSON.parse(spawnResult.stdout), {
+    originalArgv: [standaloneNodeBinary, ...buildSnapshotArgs],
+    currentArgv: [binary, ...runEmbeddedArgs],
+  });
+}
+
+// Create workers and vm contexts after deserialization
+{
+  const snapshotFixture = fixtures.path('snapshot', 'create-worker-and-vm.js');
+  const blobPath = path.join(tmpdir.path, 'embedder-snapshot.blob');
+
+  fs.rmSync(blobPath, { force: true });
+  assert.strictEqual(child_process.spawnSync(standaloneNodeBinary, [
+    '--snapshot-blob', blobPath, '--build-snapshot', snapshotFixture,
+  ], {
+    cwd: tmpdir.path,
+  }).status, 0);
+  assert.strictEqual(
+    child_process.spawnSync(binary, ['--', '--embedder-snapshot-blob', blobPath]).status,
+    0);
+}
