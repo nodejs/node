@@ -1,0 +1,43 @@
+'use strict';
+
+module.exports = {
+  'toascii.window.js': {
+    requires: [
+      'small-icu',
+    ],
+  },
+  'percent-encoding.window.js': {
+    requires: [
+      'small-icu',
+    ],
+    skip: 'TODO: port from .window.js',
+  },
+  'historical.any.js': {
+    requires: [
+      'small-icu',
+    ],
+  },
+  'urlencoded-parser.any.js': {
+    requires: [
+      'small-icu',
+    ],
+  },
+  'url-constructor.any.js': {
+    requires: [
+      'small-icu',
+    ],
+  },
+  'url-origin.any.js': {
+    requires: [
+      'small-icu',
+    ],
+  },
+  'url-setters.any.js': {
+    requires: [
+      'small-icu',
+    ],
+  },
+  'url-setters-a-area.window.js': {
+    skip: 'already tested in url-setters.any.js',
+  },
+};

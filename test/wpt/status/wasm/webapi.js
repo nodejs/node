@@ -1,0 +1,22 @@
+'use strict';
+
+module.exports = {
+  'historical.any.js': {
+    skip: 'indexedDB is not defined',
+  },
+  'origin.sub.any.js': {
+    skip: 'CORS not implemented',
+  },
+  'abort.any.js': {
+    skip: 'WPTRunner does not support fetch()',
+  },
+  'contenttype.any.js': {
+    skip: 'WPTRunner does not support fetch()',
+  },
+  'idlharness.any.js': {
+    skip: 'not configured',
+  },
+  'status.any.js': {
+    skip: 'WPTRunner does not support fetch()',
+  },
+};

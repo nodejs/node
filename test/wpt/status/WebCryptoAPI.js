@@ -1,0 +1,10 @@
+'use strict';
+
+module.exports = {
+  'algorithm-discards-context.https.window.js': {
+    skip: 'Not relevant in Node.js context',
+  },
+  'historical.any.js': {
+    skip: 'Not relevant in Node.js context',
+  },
+};

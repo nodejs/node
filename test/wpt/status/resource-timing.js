@@ -1,0 +1,25 @@
+'use strict';
+
+module.exports = {
+  'cors-preflight.any.js': {
+    skip: 'Browser-specific test',
+  },
+  'resource_nested_dedicated_worker.worker.js': {
+    skip: 'Browser-specific test',
+  },
+  'resource_timing.worker.js': {
+    skip: 'Browser-specific test',
+  },
+  'sizes-cache.any.js': {
+    skip: 'Browser-specific test',
+  },
+  'sizes-redirect.any.js': {
+    skip: 'Browser-specific test',
+  },
+  'supported_resource_type.any.js': {
+    skip: 'Browser-specific test',
+  },
+  'buffered-flag.any.js': {
+    skip: 'Browser-specific test',
+  },
+};
