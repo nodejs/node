@@ -6,9 +6,7 @@ const { NodeInstance } = require('../common/inspector-helper.js');
 const fixtures = require('../common/fixtures');
 const { pathToFileURL } = require('url');
 
-// This needs to be a ESM to work around
-// https://bugs.chromium.org/p/chromium/issues/detail?id=1246905
-const script = fixtures.path('inspector-global-function.mjs');
+const script = fixtures.path('inspector-global-function.js');
 
 async function setupDebugger(session) {
   console.log('[test]', 'Setting up a debugger');
