@@ -69,6 +69,10 @@ inline MultiIsolatePlatform* IsolateData::platform() const {
   return platform_;
 }
 
+inline const SnapshotData* IsolateData::snapshot_data() const {
+  return snapshot_data_;
+}
+
 inline void IsolateData::set_worker_context(worker::Worker* context) {
   CHECK_NULL(worker_context_);  // Should be set only once.
   worker_context_ = context;
