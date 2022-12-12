@@ -834,5 +834,5 @@ void ModuleWrap::RegisterExternalReferences(
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(module_wrap,
                                     node::loader::ModuleWrap::Initialize)
-NODE_BINDING_EXTERNAL_REFERENCE(module_wrap,
-                                node::loader::ModuleWrap::RegisterExternalReferences)
+NODE_BINDING_EXTERNAL_REFERENCE(
+    module_wrap, node::loader::ModuleWrap::RegisterExternalReferences)
