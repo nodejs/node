@@ -393,7 +393,7 @@ test('spies on async static class methods', async (t) => {
 });
 
 test('given null to a mock.method it throws a invalid argument error', (t) => {
-  assert.throws(() => t.mock.method(null, {}), /ERR_INVALID_ARG_TYPE/);
+  assert.throws(() => t.mock.method(null, {}), { code: 'ERR_INVALID_ARG_TYPE' });
 });
 
 test('it should throw given an inexistent property on a object instance', (t) => {
