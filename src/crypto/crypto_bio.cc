@@ -223,12 +223,9 @@ long NodeBIO::Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
 
 
 const BIO_METHOD* NodeBIO::GetMethod() {
-  // This is called from InitCryptoOnce() to avoid race conditions during
-  // initialization.
-  static BIO_METHOD* method = nullptr;
-
-  if (method == nullptr) {
-    method = BIO_meth_new(BIO_TYPE_MEM, "node.js SSL buffer");
+  // Static initialization ensures that this is safe to use concurrently.
+  static const BIO_METHOD* method = [&]() {
+    BIO_METHOD* method = BIO_meth_new(BIO_TYPE_MEM, "node.js SSL buffer");
     BIO_meth_set_write(method, Write);
     BIO_meth_set_read(method, Read);
     BIO_meth_set_puts(method, Puts);
@@ -236,7 +233,8 @@ const BIO_METHOD* NodeBIO::GetMethod() {
     BIO_meth_set_ctrl(method, Ctrl);
     BIO_meth_set_create(method, New);
     BIO_meth_set_destroy(method, Free);
-  }
+    return method;
+  }();
 
   return method;
 }

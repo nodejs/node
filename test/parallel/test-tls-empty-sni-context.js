@@ -26,6 +26,6 @@ const server = tls.createServer(options, (c) => {
   }, common.mustNotCall());
 
   c.on('error', common.mustCall((err) => {
-    assert.match(err.message, /Client network socket disconnected/);
+    assert.strictEqual(err.code, 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE');
   }));
 }));

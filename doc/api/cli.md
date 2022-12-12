@@ -1628,6 +1628,14 @@ This option is only supported on macOS and Windows.
 An `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM` exception will be thrown
 when the option is used on a platform that does not support it.
 
+### `--watch-preserve-output`
+
+Disable the clearing of the console when watch mode restarts the process.
+
+```console
+$ node --watch --watch-preserve-output test.js
+```
+
 ### `--zero-fill-buffers`
 
 <!-- YAML
@@ -1932,6 +1940,7 @@ Node.js options that are allowed are:
 * `--use-openssl-ca`
 * `--v8-pool-size`
 * `--watch-path`
+* `--watch-preserve-output`
 * `--watch`
 * `--zero-fill-buffers`
 

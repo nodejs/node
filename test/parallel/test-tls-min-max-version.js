@@ -120,23 +120,27 @@ test(U, U, 'TLS_method', U, U, 'TLSv1_2_method', 'TLSv1.2');
 test(U, U, 'TLS_method', U, U, 'TLSv1_1_method', 'TLSv1.1');
 test(U, U, 'TLS_method', U, U, 'TLSv1_method', 'TLSv1');
 
+// OpenSSL 1.1.1 and 3.0 use a different error code and alert (sent to the
+// client) when no protocols are enabled on the server.
+const NO_PROTOCOLS_AVAILABLE_SERVER = common.hasOpenSSL3 ?
+  'ERR_SSL_NO_PROTOCOLS_AVAILABLE' : 'ERR_SSL_INTERNAL_ERROR';
+const NO_PROTOCOLS_AVAILABLE_SERVER_ALERT = common.hasOpenSSL3 ?
+  'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION' : 'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR';
+
 // SSLv23 also means "any supported protocol" greater than the default
 // minimum (which is configurable via command line).
 if (DEFAULT_MIN_VERSION === 'TLSv1.3') {
   test(U, U, 'TLSv1_2_method', U, U, 'SSLv23_method',
-       U, 'ECONNRESET', common.hasOpenSSL3 ?
-         'ERR_SSL_NO_PROTOCOLS_AVAILABLE' : 'ERR_SSL_INTERNAL_ERROR');
+       U, NO_PROTOCOLS_AVAILABLE_SERVER_ALERT, NO_PROTOCOLS_AVAILABLE_SERVER);
 } else {
   test(U, U, 'TLSv1_2_method', U, U, 'SSLv23_method', 'TLSv1.2');
 }
 
 if (DEFAULT_MIN_VERSION === 'TLSv1.3') {
   test(U, U, 'TLSv1_1_method', U, U, 'SSLv23_method',
-       U, 'ECONNRESET', common.hasOpenSSL3 ?
-         'ERR_SSL_NO_PROTOCOLS_AVAILABLE' : 'ERR_SSL_INTERNAL_ERROR');
+       U, NO_PROTOCOLS_AVAILABLE_SERVER_ALERT, NO_PROTOCOLS_AVAILABLE_SERVER);
   test(U, U, 'TLSv1_method', U, U, 'SSLv23_method',
-       U, 'ECONNRESET', common.hasOpenSSL3 ?
-         'ERR_SSL_NO_PROTOCOLS_AVAILABLE' : 'ERR_SSL_INTERNAL_ERROR');
+       U, NO_PROTOCOLS_AVAILABLE_SERVER_ALERT, NO_PROTOCOLS_AVAILABLE_SERVER);
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_1_method',
        U, 'ERR_SSL_NO_PROTOCOLS_AVAILABLE', 'ERR_SSL_UNEXPECTED_MESSAGE');
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_method',
@@ -145,9 +149,11 @@ if (DEFAULT_MIN_VERSION === 'TLSv1.3') {
 
 if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
   test(U, U, 'TLSv1_1_method', U, U, 'SSLv23_method',
-       U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
+       U, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
+       'ERR_SSL_UNSUPPORTED_PROTOCOL');
   test(U, U, 'TLSv1_method', U, U, 'SSLv23_method',
-       U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
+       U, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
+       'ERR_SSL_UNSUPPORTED_PROTOCOL');
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_1_method',
        U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_method',
@@ -157,7 +163,8 @@ if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
 if (DEFAULT_MIN_VERSION === 'TLSv1.1') {
   test(U, U, 'TLSv1_1_method', U, U, 'SSLv23_method', 'TLSv1.1');
   test(U, U, 'TLSv1_method', U, U, 'SSLv23_method',
-       U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
+       U, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
+       'ERR_SSL_UNSUPPORTED_PROTOCOL');
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_1_method', 'TLSv1.1');
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_method',
        U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
@@ -179,9 +186,11 @@ test(U, U, 'TLSv1_method', U, U, 'TLSv1_method', 'TLSv1');
 // The default default.
 if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
   test(U, U, 'TLSv1_1_method', U, U, U,
-       U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
+       U, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
+       'ERR_SSL_UNSUPPORTED_PROTOCOL');
   test(U, U, 'TLSv1_method', U, U, U,
-       U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
+       U, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
+       'ERR_SSL_UNSUPPORTED_PROTOCOL');
 
   if (DEFAULT_MAX_VERSION === 'TLSv1.2') {
     test(U, U, U, U, U, 'TLSv1_1_method',
@@ -191,9 +200,11 @@ if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
   } else {
     // TLS1.3 client hellos are are not understood by TLS1.1 or below.
     test(U, U, U, U, U, 'TLSv1_1_method',
-         U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
+         U, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
+         'ERR_SSL_UNSUPPORTED_PROTOCOL');
     test(U, U, U, U, U, 'TLSv1_method',
-         U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
+         U, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
+         'ERR_SSL_UNSUPPORTED_PROTOCOL');
   }
 }
 
@@ -201,7 +212,8 @@ if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
 if (DEFAULT_MIN_VERSION === 'TLSv1.1') {
   test(U, U, 'TLSv1_1_method', U, U, U, 'TLSv1.1');
   test(U, U, 'TLSv1_method', U, U, U,
-       U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
+       U, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
+       'ERR_SSL_UNSUPPORTED_PROTOCOL');
   test(U, U, U, U, U, 'TLSv1_1_method', 'TLSv1.1');
 
   if (DEFAULT_MAX_VERSION === 'TLSv1.2') {
@@ -210,7 +222,8 @@ if (DEFAULT_MIN_VERSION === 'TLSv1.1') {
   } else {
     // TLS1.3 client hellos are are not understood by TLS1.1 or below.
     test(U, U, U, U, U, 'TLSv1_method',
-         U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
+         U, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
+         'ERR_SSL_UNSUPPORTED_PROTOCOL');
   }
 }
 
