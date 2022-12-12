@@ -59,8 +59,8 @@ namespace node {
 #endif  // NODE_HAVE_I18N_SUPPORT
 
 #ifdef OPENSSL_INFO_QUIC
-#define NODE_VERSIONS_KEY_QUIC(V)                                              \
-  V(ngtcp2)                                                                    \
+#define NODE_VERSIONS_KEY_QUIC(V)                                             \
+  V(ngtcp2)                                                                   \
   V(nghttp3)
 #else
 #define NODE_VERSIONS_KEY_QUIC(V)
