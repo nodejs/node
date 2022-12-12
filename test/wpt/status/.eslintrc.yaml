@@ -1,0 +1,9 @@
+## WPT Status files linter rules
+
+rules:
+  array-element-newline: [error, always]
+  array-bracket-newline: [error, always]
+  node-core/required-modules: [off]
+  node-core/require-common-first: [off]
+  quote-props: [error, as-needed]
+  max-len: [off]

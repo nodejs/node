@@ -269,8 +269,11 @@ class StatusLoader {
 
   load() {
     const dir = path.join(__dirname, '..', 'wpt');
-    const statusFile = path.join(dir, 'status', `${this.path}.json`);
-    const result = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+    const statusFile = path.join(dir, 'status', `${this.path}.js`);
+    if (!fs.existsSync(statusFile)) {
+      throw new Error(`Missing ${statusFile} WPT status file.`);
+    }
+    const result = require(statusFile);
     this.rules.addRules(result);
 
     const subDir = fixtures.path('wpt', this.path);
@@ -595,13 +598,13 @@ class WPTRunner {
                   `${failures.length} unexpected failures,`,
                   `${unexpectedPasses.length} unexpected passes`);
       if (failures.length > 0) {
-        const file = path.join('test', 'wpt', 'status', `${this.path}.json`);
+        const file = path.join('test', 'wpt', 'status', `${this.path}.js`);
         throw new Error(
           `Found ${failures.length} unexpected failures. ` +
           `Consider updating ${file} for these files:\n${failures.join('\n')}`);
       }
       if (unexpectedPasses.length > 0) {
-        const file = path.join('test', 'wpt', 'status', `${this.path}.json`);
+        const file = path.join('test', 'wpt', 'status', `${this.path}.js`);
         throw new Error(
           `Found ${unexpectedPasses.length} unexpected passes. ` +
           `Consider updating ${file} for these files:\n${unexpectedPasses.join('\n')}`);

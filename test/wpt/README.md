@@ -5,7 +5,7 @@ The tests here are drivers for running the [Web Platform Tests][].
 See [`test/fixtures/wpt/README.md`][] for a hash of the last
 updated WPT commit for each module being covered here.
 
-See the json files in [the `status` folder](./status) for prerequisites,
+See the WPT status files in [the `status` folder](./status) for prerequisites,
 expected failures, and support status for specific tests in each module.
 
 Currently there are still some Web Platform Tests titled `test-whatwg-*`
@@ -20,14 +20,14 @@ This folder covers the tests that have been migrated.
 
 ### 1. Create a status file
 
-For example, to add the URL tests, add a `test/wpt/status/url.json` file.
+For example, to add the URL tests, add a `test/wpt/status/url.js` file.
 
-In the beginning, it's fine to leave an empty object `{}` in the file if
-it's not yet clear how compliant the implementation is,
+In the beginning, it's fine to export an empty object `module.exports = {};`
+in the file if it's not yet clear how compliant the implementation is,
 the requirements and expected failures can be figured out in a later step
 when the tests are run for the first time.
 
-See [Format of a status JSON file](#status-format) for details.
+See [Format of a status file](#status-format) for details.
 
 ### 2. Pull the WPT files
 
@@ -42,6 +42,8 @@ $ git node wpt url
 ### 3. Create the test driver
 
 For example, for the URL tests, add a file `test/wpt/test-url.js`:
+
+<!-- eslint-skip -->
 
 ```js
 'use strict';
@@ -84,22 +86,26 @@ node test/wpt/test-url.js url-searchparams.any.js
 ```
 
 If there are any failures, update the corresponding status file
-(in this case, `test/wpt/status/url.json`) to make the test pass.
+(in this case, `test/wpt/status/url.js`) to make the test pass.
 
 For example, to mark `url/url-searchparams.any.js` as expected to fail,
-add this to `test/wpt/status/url.json`:
+add this to the `test/wpt/status/url.js` exported object:
 
-```json
-  "url-searchparams.any.js": {
-    "fail": {
-      "expected": [
-        "test name in the WPT test case, e.g. second argument passed to test()"
-      ]
-    }
-  }
+<!-- eslint-skip -->
+
+```js
+module.exports = {
+  'url-searchparams.any.js': {
+    fail: {
+      expected: [
+        'test name in the WPT test case, e.g. second argument passed to test()',
+      ],
+    },
+  },
+};
 ```
 
-See [Format of a status JSON file](#status-format) for details.
+See [Format of a status file](#status-format) for details.
 
 ### 5. Commit the changes and submit a Pull Request
 
@@ -137,7 +143,7 @@ Given a module, the `WPTRunner` class in [`test/common/wpt`](../common/wpt.js)
 loads:
 
 * `.js` test files (for example, `test/common/wpt/url/*.js` for `url`)
-* Status file (for example, `test/wpt/status/url.json` for `url`)
+* Status file (for example, `test/wpt/status/url.js` for `url`)
 * The WPT harness
 
 Then, for each test, it creates a worker thread with the globals and mocks,
@@ -148,31 +154,36 @@ expected failures.
 
 <a id="status-format"></a>
 
-## Format of a status JSON file
+## Format of a status file
 
-```text
-{
-  "something.scope.js": {  // the file name
+<!-- eslint-skip -->
+
+```js
+module.exports = {
+  'something.scope.js': { // the file name
     // Optional: If the requirement is not met, this test will be skipped
-    "requires": ["small-icu"],  // supports: "small-icu", "full-icu"
+    requires: ['small-icu'], // supports: 'small-icu', 'full-icu'
 
     // Optional: the test will be skipped with the reason printed
-    "skip": "explain why we cannot run a test that's supposed to pass",
+    skip: "explaination why we cannot run a test that's supposed to pass",
 
     // Optional: failing tests
-    "fail": {
-      "note": "You may leave an optional arbitrary note e.g. with TODOs",
-      "expected": [
-        "test name in the WPT test case, e.g. second argument passed to test()",
-        "another test name"
+    fail: {
+      expected: [
+        'test name in the WPT test case, e.g. second argument passed to test()',
+        'another test name',
       ],
-      "flaky": [
-        "flaky test name"
-      ]
-    }
-  }
-}
+      flaky: [
+        'flaky test name',
+      ],
+    },
+  },
+};
 ```
+
+You may automatically format the files by running `make lint-js-fix`. The lint
+rules are set such that adding or removing expected failures is unlikely to
+conflict with other updates.
 
 A test may have to be skipped because it depends on another irrelevant
 Web API, or certain harness has not been ported in our test runner yet.
