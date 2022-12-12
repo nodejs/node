@@ -12,10 +12,6 @@
         "Crypto interface: calling getRandomValues(ArrayBufferView) on crypto with too few arguments must throw TypeError",
         "CryptoKey interface: existence and properties of interface object",
         "CryptoKey interface: existence and properties of interface prototype object",
-        "CryptoKey interface: attribute type",
-        "CryptoKey interface: attribute extractable",
-        "CryptoKey interface: attribute algorithm",
-        "CryptoKey interface: attribute usages",
         "Window interface: attribute crypto"
       ]
     }
