@@ -3323,7 +3323,7 @@ an error in future versions of Node.js, as the [WHATWG URL API][] does already.
 <!-- YAML
 changes:
   - version:
-      - REPLACEME
+      - v19.3.0
     pr-url: https://github.com/nodejs/node/pull/45697
     description: Documentation-only deprecation.
 -->

@@ -875,7 +875,7 @@ test('changes a mock behavior once', (t) => {
 ### `ctx.resetCalls()`
 
 <!-- YAML
-added: REPLACEME
+added: v19.3.0
 -->
 
 Resets the call history of the mock function.
@@ -954,7 +954,7 @@ test('mocks a counting function', (t) => {
 ### `mock.getter(object, methodName[, implementation][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v19.3.0
 -->
 
 This function is syntax sugar for [`MockTracker.method`][] with `options.getter`
@@ -1043,7 +1043,9 @@ not disassociate the mocks from the `MockTracker` instance.
 ### `mock.setter(object, methodName[, implementation][, options])`
 
 <!-- YAML
-added: v16.19.0
+added:
+  - v19.3.0
+  - v16.19.0
 -->
 
 This function is syntax sugar for [`MockTracker.method`][] with `options.setter`
@@ -1138,7 +1140,7 @@ test('top level test', async (t) => {
 ### `context.after([fn][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v19.3.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function. The first argument
