@@ -2832,7 +2832,7 @@ assert.strictEqual(
     '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
     // This file is not an actual Node.js core file.
     '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
-    '    at require (node:internal/modules/cjs/helpers:14:16)',
+    '    at require (node:internal/modules/helpers:14:16)',
     '    at Array.forEach (<anonymous>)',
     `    at ${process.cwd()}/test/parallel/test-util-inspect.js:2760:12`,
     `    at Object.<anonymous> (${process.cwd()}/node_modules/hyper_module/folder/file.js:2753:10)`,
