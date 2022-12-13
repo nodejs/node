@@ -39,7 +39,7 @@ const {
   readableStreamClose,
   isomorphicEncode
 } = require('./util')
-const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
+const { kState, kHeaders, kGuard, kRealm, kHeadersCaseInsensitive } = require('./symbols')
 const assert = require('assert')
 const { safelyExtractBody } = require('./body')
 const {
@@ -61,8 +61,7 @@ const { webidl } = require('./webidl')
 
 /** @type {import('buffer').resolveObjectURL} */
 let resolveObjectURL
-/** @type {globalThis['ReadableStream']} */
-let ReadableStream
+let ReadableStream = globalThis.ReadableStream
 
 const nodeVersion = process.versions.node.split('.')
 const nodeMajor = Number(nodeVersion[0])
@@ -781,8 +780,11 @@ async function mainFetch (fetchParams, recursive = false) {
 // https://fetch.spec.whatwg.org/#concept-scheme-fetch
 // given a fetch params fetchParams
 async function schemeFetch (fetchParams) {
+  // Note: since the connection is destroyed on redirect, which sets fetchParams to a
+  // cancelled state, we do not want this condition to trigger *unless* there have been
+  // no redirects. See https://github.com/nodejs/undici/issues/1776
   // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
-  if (isCancelled(fetchParams)) {
+  if (isCancelled(fetchParams) && fetchParams.request.redirectCount === 0) {
     return makeAppropriateNetworkError(fetchParams)
   }
 
@@ -840,8 +842,8 @@ async function schemeFetch (fetchParams) {
       const response = makeResponse({
         statusText: 'OK',
         headersList: [
-          ['content-length', length],
-          ['content-type', type]
+          ['content-length', { name: 'Content-Length', value: length }],
+          ['content-type', { name: 'Content-Type', value: type }]
         ]
       })
 
@@ -870,7 +872,7 @@ async function schemeFetch (fetchParams) {
       return makeResponse({
         statusText: 'OK',
         headersList: [
-          ['content-type', mimeType]
+          ['content-type', { name: 'Content-Type', value: mimeType }]
         ],
         body: safelyExtractBody(dataURLStruct.body)[0]
       })
@@ -1135,12 +1137,12 @@ async function httpRedirectFetch (fetchParams, response) {
     return makeNetworkError('URL scheme must be a HTTP(S) scheme')
   }
 
-  // 7. If request’s redirect count is twenty, return a network error.
+  // 7. If request’s redirect count is 20, then return a network error.
   if (request.redirectCount === 20) {
     return makeNetworkError('redirect count exceeded')
   }
 
-  // 8. Increase request’s redirect count by one.
+  // 8. Increase request’s redirect count by 1.
   request.redirectCount += 1
 
   // 9. If request’s mode is "cors", locationURL includes credentials, and
@@ -1195,36 +1197,44 @@ async function httpRedirectFetch (fetchParams, response) {
     }
   }
 
-  // 13. If request’s body is non-null, then set request’s body to the first return
+  // 13. If request’s current URL’s origin is not same origin with locationURL’s
+  //     origin, then for each headerName of CORS non-wildcard request-header name,
+  //     delete headerName from request’s header list.
+  if (!sameOrigin(requestCurrentURL(request), locationURL)) {
+    // https://fetch.spec.whatwg.org/#cors-non-wildcard-request-header-name
+    request.headersList.delete('authorization')
+  }
+
+  // 14. If request’s body is non-null, then set request’s body to the first return
   // value of safely extracting request’s body’s source.
   if (request.body != null) {
     assert(request.body.source)
     request.body = safelyExtractBody(request.body.source)[0]
   }
 
-  // 14. Let timingInfo be fetchParams’s timing info.
+  // 15. Let timingInfo be fetchParams’s timing info.
   const timingInfo = fetchParams.timingInfo
 
-  // 15. Set timingInfo’s redirect end time and post-redirect start time to the
+  // 16. Set timingInfo’s redirect end time and post-redirect start time to the
   // coarsened shared current time given fetchParams’s cross-origin isolated
   // capability.
   timingInfo.redirectEndTime = timingInfo.postRedirectStartTime =
     coarsenedSharedCurrentTime(fetchParams.crossOriginIsolatedCapability)
 
-  // 16. If timingInfo’s redirect start time is 0, then set timingInfo’s
+  // 17. If timingInfo’s redirect start time is 0, then set timingInfo’s
   //  redirect start time to timingInfo’s start time.
   if (timingInfo.redirectStartTime === 0) {
     timingInfo.redirectStartTime = timingInfo.startTime
   }
 
-  // 17. Append locationURL to request’s URL list.
+  // 18. Append locationURL to request’s URL list.
   request.urlList.push(locationURL)
 
-  // 18. Invoke set request’s referrer policy on redirect on request and
+  // 19. Invoke set request’s referrer policy on redirect on request and
   // actualResponse.
   setRequestReferrerPolicyOnRedirect(request, actualResponse)
 
-  // 19. Return the result of running main fetch given fetchParams and true.
+  // 20. Return the result of running main fetch given fetchParams and true.
   return mainFetch(fetchParams, true)
 }
 
@@ -1930,7 +1940,7 @@ async function httpNetworkFetch (
         origin: url.origin,
         method: request.method,
         body: fetchParams.controller.dispatcher.isMockActive ? request.body && request.body.source : body,
-        headers: [...request.headersList].flat(),
+        headers: request.headersList[kHeadersCaseInsensitive],
         maxRedirections: 0,
         bodyTimeout: 300_000,
         headersTimeout: 300_000

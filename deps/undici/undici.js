@@ -75,7 +75,8 @@ var require_symbols2 = __commonJS({
       kSignal: Symbol("signal"),
       kState: Symbol("state"),
       kGuard: Symbol("guard"),
-      kRealm: Symbol("realm")
+      kRealm: Symbol("realm"),
+      kHeadersCaseInsensitive: Symbol("headers case insensitive")
     };
   }
 });
@@ -1157,12 +1158,12 @@ var require_util2 = __commonJS({
       }
       return stream instanceof ReadableStream || stream[Symbol.toStringTag] === "ReadableStream" && typeof stream.tee === "function";
     }
+    var MAXIMUM_ARGUMENT_LENGTH = 65535;
     function isomorphicDecode(input) {
-      let output = "";
-      for (let i = 0; i < input.length; i++) {
-        output += String.fromCharCode(input[i]);
+      if (input.length < MAXIMUM_ARGUMENT_LENGTH) {
+        return String.fromCharCode(...input);
       }
-      return output;
+      return input.reduce((previous, current) => previous + String.fromCharCode(current), "");
     }
     function readableStreamClose(controller) {
       try {
@@ -1578,7 +1579,7 @@ var require_headers = __commonJS({
   "lib/fetch/headers.js"(exports2, module2) {
     "use strict";
     var { kHeadersList } = require_symbols();
-    var { kGuard } = require_symbols2();
+    var { kGuard, kHeadersCaseInsensitive } = require_symbols2();
     var { kEnumerableProperty } = require_util();
     var {
       makeIterator,
@@ -1634,18 +1635,18 @@ var require_headers = __commonJS({
       }
       append(name, value) {
         this[kHeadersSortedMap] = null;
-        name = name.toLowerCase();
-        const exists = this[kHeadersMap].get(name);
+        const lowercaseName = name.toLowerCase();
+        const exists = this[kHeadersMap].get(lowercaseName);
         if (exists) {
-          this[kHeadersMap].set(name, `${exists}, ${value}`);
+          this[kHeadersMap].set(lowercaseName, { name: exists.name, value: `${exists.value}, ${value}` });
         } else {
-          this[kHeadersMap].set(name, `${value}`);
+          this[kHeadersMap].set(lowercaseName, { name, value });
         }
       }
       set(name, value) {
         this[kHeadersSortedMap] = null;
-        name = name.toLowerCase();
-        return this[kHeadersMap].set(name, value);
+        const lowercaseName = name.toLowerCase();
+        return this[kHeadersMap].set(lowercaseName, { name, value });
       }
       delete(name) {
         this[kHeadersSortedMap] = null;
@@ -1656,12 +1657,19 @@ var require_headers = __commonJS({
         if (!this.contains(name)) {
           return null;
         }
-        return this[kHeadersMap].get(name.toLowerCase()) ?? null;
+        return this[kHeadersMap].get(name.toLowerCase())?.value ?? null;
       }
       *[Symbol.iterator]() {
-        for (const pair of this[kHeadersMap]) {
-          yield pair;
+        for (const [name, { value }] of this[kHeadersMap]) {
+          yield [name, value];
         }
+      }
+      get [kHeadersCaseInsensitive]() {
+        const flatList = [];
+        for (const { name, value } of this[kHeadersMap].values()) {
+          flatList.push(name, value);
+        }
+        return flatList;
       }
     };
     var Headers = class {
@@ -5741,7 +5749,7 @@ var require_dataURL = __commonJS({
 var require_file = __commonJS({
   "lib/fetch/file.js"(exports2, module2) {
     "use strict";
-    var { Blob } = require("buffer");
+    var { Blob, File: NativeFile } = require("buffer");
     var { types } = require("util");
     var { kState } = require_symbols2();
     var { isBlobLike } = require_util2();
@@ -5912,7 +5920,7 @@ var require_file = __commonJS({
       return s.replace(/\r?\n/g, nativeLineEnding);
     }
     function isFileLike(object) {
-      return object instanceof File || object && (typeof object.stream === "function" || typeof object.arrayBuffer === "function") && object[Symbol.toStringTag] === "File";
+      return NativeFile && object instanceof NativeFile || object instanceof File || object && (typeof object.stream === "function" || typeof object.arrayBuffer === "function") && object[Symbol.toStringTag] === "File";
     }
     module2.exports = { File, FileLike, isFileLike };
   }
@@ -5924,9 +5932,10 @@ var require_formdata = __commonJS({
     "use strict";
     var { isBlobLike, toUSVString, makeIterator } = require_util2();
     var { kState } = require_symbols2();
-    var { File, FileLike, isFileLike } = require_file();
+    var { File: UndiciFile, FileLike, isFileLike } = require_file();
     var { webidl } = require_webidl();
-    var { Blob } = require("buffer");
+    var { Blob, File: NativeFile } = require("buffer");
+    var File = NativeFile ?? UndiciFile;
     var FormData = class {
       constructor(form) {
         if (form !== void 0) {
@@ -6068,15 +6077,16 @@ var require_body = __commonJS({
     var { kState } = require_symbols2();
     var { webidl } = require_webidl();
     var { DOMException, structuredClone } = require_constants();
-    var { Blob } = require("buffer");
+    var { Blob, File: NativeFile } = require("buffer");
     var { kBodyUsed } = require_symbols();
     var assert = require("assert");
     var { isErrored } = require_util();
     var { isUint8Array, isArrayBuffer } = require("util/types");
-    var { File } = require_file();
+    var { File: UndiciFile } = require_file();
     var { StringDecoder } = require("string_decoder");
     var { parseMIMEType, serializeAMimeType } = require_dataURL();
-    var ReadableStream;
+    var ReadableStream = globalThis.ReadableStream;
+    var File = NativeFile ?? UndiciFile;
     function extractBody(object, keepalive = false) {
       if (!ReadableStream) {
         ReadableStream = require("stream/web").ReadableStream;
@@ -6138,6 +6148,26 @@ Content-Type: ${value.type || "application/octet-stream"}\r
           yield enc.encode(`--${boundary}--`);
         };
         source = object;
+        length = (() => {
+          const prefixLength = prefix.length;
+          const boundaryLength = boundary.length;
+          let bodyLength = 0;
+          for (const [name, value] of object) {
+            if (typeof value === "string") {
+              bodyLength += prefixLength + Buffer.byteLength(`; name="${escape(normalizeLinefeeds(name))}"\r
+\r
+${normalizeLinefeeds(value)}\r
+`);
+            } else {
+              bodyLength += prefixLength + Buffer.byteLength(`; name="${escape(normalizeLinefeeds(name))}"` + (value.name ? `; filename="${escape(value.name)}"` : "")) + 2 + `Content-Type: ${value.type || "application/octet-stream"}\r
+\r
+`.length;
+              bodyLength += value.size + 2;
+            }
+          }
+          bodyLength += boundaryLength + 4;
+          return bodyLength;
+        })();
         type = "multipart/form-data; boundary=" + boundary;
       } else if (isBlobLike(object)) {
         source = object;
@@ -6255,7 +6285,10 @@ Content-Type: ${value.type || "application/octet-stream"}\r
             const responseFormData = new FormData();
             let busboy;
             try {
-              busboy = Busboy({ headers });
+              busboy = Busboy({
+                headers,
+                defParamCharset: "utf8"
+              });
             } catch (err) {
               throw Object.assign(new TypeError(), { cause: err });
             }
@@ -6265,7 +6298,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
             busboy.on("file", (name, value, info) => {
               const { filename, encoding, mimeType } = info;
               const chunks = [];
-              if (encoding.toLowerCase() === "base64") {
+              if (encoding === "base64" || encoding.toLowerCase() === "base64") {
                 let base64chunk = "";
                 value.on("data", (chunk) => {
                   base64chunk += chunk.toString().replace(/[\r\n]/gm, "");
@@ -6733,7 +6766,7 @@ var require_response = __commonJS({
     }
     function makeAppropriateNetworkError(fetchParams) {
       assert(isCancelled(fetchParams));
-      return isAborted(fetchParams) ? makeNetworkError(new DOMException("The operation was aborted.", "AbortError")) : makeNetworkError(fetchParams.controller.terminated.reason);
+      return isAborted(fetchParams) ? makeNetworkError(new DOMException("The operation was aborted.", "AbortError")) : makeNetworkError("Request was cancelled.");
     }
     function initializeResponse(response, init, body) {
       if (init.status !== null && (init.status < 200 || init.status > 599)) {
@@ -6886,7 +6919,7 @@ var require_request = __commonJS({
     var { URLSerializer } = require_dataURL();
     var { kHeadersList } = require_symbols();
     var assert = require("assert");
-    var TransformStream;
+    var TransformStream = globalThis.TransformStream;
     var kInit = Symbol("init");
     var requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
       signal.removeEventListener("abort", abort);
@@ -7800,14 +7833,62 @@ var require_connect = __commonJS({
     var util = require_util();
     var { InvalidArgumentError, ConnectTimeoutError } = require_errors();
     var tls;
+    var SessionCache;
+    if (global.FinalizationRegistry) {
+      SessionCache = class WeakSessionCache {
+        constructor(maxCachedSessions) {
+          this._maxCachedSessions = maxCachedSessions;
+          this._sessionCache = /* @__PURE__ */ new Map();
+          this._sessionRegistry = new global.FinalizationRegistry((key) => {
+            if (this._sessionCache.size < this._maxCachedSessions) {
+              return;
+            }
+            const ref = this._sessionCache.get(key);
+            if (ref !== void 0 && ref.deref() === void 0) {
+              this._sessionCache.delete(key);
+            }
+          });
+        }
+        get(sessionKey) {
+          const ref = this._sessionCache.get(sessionKey);
+          return ref ? ref.deref() : null;
+        }
+        set(sessionKey, session) {
+          if (this._maxCachedSessions === 0) {
+            return;
+          }
+          this._sessionCache.set(sessionKey, new WeakRef(session));
+          this._sessionRegistry.register(session, sessionKey);
+        }
+      };
+    } else {
+      SessionCache = class SimpleSessionCache {
+        constructor(maxCachedSessions) {
+          this._maxCachedSessions = maxCachedSessions;
+          this._sessionCache = /* @__PURE__ */ new Map();
+        }
+        get(sessionKey) {
+          return this._sessionCache.get(sessionKey);
+        }
+        set(sessionKey, session) {
+          if (this._maxCachedSessions === 0) {
+            return;
+          }
+          if (this._sessionCache.size >= this._maxCachedSessions) {
+            const { value: oldestKey } = this._sessionCache.keys().next();
+            this._sessionCache.delete(oldestKey);
+          }
+          this._sessionCache.set(sessionKey, session);
+        }
+      };
+    }
     function buildConnector({ maxCachedSessions, socketPath, timeout, ...opts }) {
       if (maxCachedSessions != null && (!Number.isInteger(maxCachedSessions) || maxCachedSessions < 0)) {
         throw new InvalidArgumentError("maxCachedSessions must be a positive integer or zero");
       }
       const options = { path: socketPath, ...opts };
-      const sessionCache = /* @__PURE__ */ new Map();
+      const sessionCache = new SessionCache(maxCachedSessions == null ? 100 : maxCachedSessions);
       timeout = timeout == null ? 1e4 : timeout;
-      maxCachedSessions = maxCachedSessions == null ? 100 : maxCachedSessions;
       return function connect({ hostname, host, protocol, port, servername, localAddress, httpSocket }, callback) {
         let socket;
         if (protocol === "https:") {
@@ -7829,18 +7910,7 @@ var require_connect = __commonJS({
             host: hostname
           });
           socket.on("session", function(session2) {
-            if (maxCachedSessions === 0) {
-              return;
-            }
-            if (sessionCache.size >= maxCachedSessions) {
-              const { value: oldestKey } = sessionCache.keys().next();
-              sessionCache.delete(oldestKey);
-            }
             sessionCache.set(sessionKey, session2);
-          }).on("error", function(err) {
-            if (sessionKey && err.code !== "UND_ERR_INFO") {
-              sessionCache.delete(sessionKey);
-            }
           });
         } else {
           assert(!httpSocket, "httpSocket can only be sent on TLS update");
@@ -10202,7 +10272,7 @@ var require_agent = __commonJS({
     var Client = require_client();
     var util = require_util();
     var createRedirectInterceptor = require_redirectInterceptor();
-    var { WeakRef, FinalizationRegistry } = require_dispatcher_weakref()();
+    var { WeakRef: WeakRef2, FinalizationRegistry } = require_dispatcher_weakref()();
     var kOnConnect = Symbol("onConnect");
     var kOnDisconnect = Symbol("onDisconnect");
     var kOnConnectionError = Symbol("onConnectionError");
@@ -10276,7 +10346,7 @@ var require_agent = __commonJS({
         let dispatcher = ref ? ref.deref() : null;
         if (!dispatcher) {
           dispatcher = this[kFactory](opts.origin, this[kOptions]).on("drain", this[kOnDrain]).on("connect", this[kOnConnect]).on("disconnect", this[kOnDisconnect]).on("connectionError", this[kOnConnectionError]);
-          this[kClients].set(key, new WeakRef(dispatcher));
+          this[kClients].set(key, new WeakRef2(dispatcher));
           this[kFinalizer].register(dispatcher, key);
         }
         return dispatcher.dispatch(opts, handler);
@@ -12709,13 +12779,6 @@ var require_util3 = __commonJS({
         cancelable: false
       });
       reader.dispatchEvent(event);
-      try {
-        reader[`on${e}`]?.call(reader, event);
-      } catch (err) {
-        queueMicrotask(() => {
-          throw err;
-        });
-      }
     }
     function packageData(bytes, type, mimeType, encodingName) {
       switch (type) {
@@ -12905,8 +12968,12 @@ var require_filereader = __commonJS({
       }
       set onloadend(fn) {
         webidl.brandCheck(this, FileReader);
+        if (this[kEvents].loadend) {
+          this.removeEventListener("loadend", this[kEvents].loadend);
+        }
         if (typeof fn === "function") {
           this[kEvents].loadend = fn;
+          this.addEventListener("loadend", fn);
         } else {
           this[kEvents].loadend = null;
         }
@@ -12917,8 +12984,12 @@ var require_filereader = __commonJS({
       }
       set onerror(fn) {
         webidl.brandCheck(this, FileReader);
+        if (this[kEvents].error) {
+          this.removeEventListener("error", this[kEvents].error);
+        }
         if (typeof fn === "function") {
           this[kEvents].error = fn;
+          this.addEventListener("error", fn);
         } else {
           this[kEvents].error = null;
         }
@@ -12929,8 +13000,12 @@ var require_filereader = __commonJS({
       }
       set onloadstart(fn) {
         webidl.brandCheck(this, FileReader);
+        if (this[kEvents].loadstart) {
+          this.removeEventListener("loadstart", this[kEvents].loadstart);
+        }
         if (typeof fn === "function") {
           this[kEvents].loadstart = fn;
+          this.addEventListener("loadstart", fn);
         } else {
           this[kEvents].loadstart = null;
         }
@@ -12941,8 +13016,12 @@ var require_filereader = __commonJS({
       }
       set onprogress(fn) {
         webidl.brandCheck(this, FileReader);
+        if (this[kEvents].progress) {
+          this.removeEventListener("progress", this[kEvents].progress);
+        }
         if (typeof fn === "function") {
           this[kEvents].progress = fn;
+          this.addEventListener("progress", fn);
         } else {
           this[kEvents].progress = null;
         }
@@ -12953,8 +13032,12 @@ var require_filereader = __commonJS({
       }
       set onload(fn) {
         webidl.brandCheck(this, FileReader);
+        if (this[kEvents].load) {
+          this.removeEventListener("load", this[kEvents].load);
+        }
         if (typeof fn === "function") {
           this[kEvents].load = fn;
+          this.addEventListener("load", fn);
         } else {
           this[kEvents].load = null;
         }
@@ -12965,8 +13048,12 @@ var require_filereader = __commonJS({
       }
       set onabort(fn) {
         webidl.brandCheck(this, FileReader);
+        if (this[kEvents].abort) {
+          this.removeEventListener("abort", this[kEvents].abort);
+        }
         if (typeof fn === "function") {
           this[kEvents].abort = fn;
+          this.addEventListener("abort", fn);
         } else {
           this[kEvents].abort = null;
         }
@@ -13166,7 +13253,7 @@ var require_fetch = __commonJS({
       readableStreamClose,
       isomorphicEncode
     } = require_util2();
-    var { kState, kHeaders, kGuard, kRealm } = require_symbols2();
+    var { kState, kHeaders, kGuard, kRealm, kHeadersCaseInsensitive } = require_symbols2();
     var assert = require("assert");
     var { safelyExtractBody } = require_body();
     var {
@@ -13186,7 +13273,7 @@ var require_fetch = __commonJS({
     var { getGlobalDispatcher } = require_undici();
     var { webidl } = require_webidl();
     var resolveObjectURL;
-    var ReadableStream;
+    var ReadableStream = globalThis.ReadableStream;
     var nodeVersion = process.versions.node.split(".");
     var nodeMajor = Number(nodeVersion[0]);
     var nodeMinor = Number(nodeVersion[1]);
@@ -13488,7 +13575,7 @@ var require_fetch = __commonJS({
       }
     }
     async function schemeFetch(fetchParams) {
-      if (isCancelled(fetchParams)) {
+      if (isCancelled(fetchParams) && fetchParams.request.redirectCount === 0) {
         return makeAppropriateNetworkError(fetchParams);
       }
       const { request } = fetchParams;
@@ -13516,8 +13603,8 @@ var require_fetch = __commonJS({
           const response = makeResponse({
             statusText: "OK",
             headersList: [
-              ["content-length", length],
-              ["content-type", type]
+              ["content-length", { name: "Content-Length", value: length }],
+              ["content-type", { name: "Content-Type", value: type }]
             ]
           });
           response.body = body;
@@ -13533,7 +13620,7 @@ var require_fetch = __commonJS({
           return makeResponse({
             statusText: "OK",
             headersList: [
-              ["content-type", mimeType]
+              ["content-type", { name: "Content-Type", value: mimeType }]
             ],
             body: safelyExtractBody(dataURLStruct.body)[0]
           });
@@ -13677,6 +13764,9 @@ var require_fetch = __commonJS({
         for (const headerName of requestBodyHeader) {
           request.headersList.delete(headerName);
         }
+      }
+      if (!sameOrigin(requestCurrentURL(request), locationURL)) {
+        request.headersList.delete("authorization");
       }
       if (request.body != null) {
         assert(request.body.source);
@@ -13958,7 +14048,7 @@ var require_fetch = __commonJS({
           origin: url.origin,
           method: request.method,
           body: fetchParams.controller.dispatcher.isMockActive ? request.body && request.body.source : body,
-          headers: [...request.headersList].flat(),
+          headers: request.headersList[kHeadersCaseInsensitive],
           maxRedirections: 0,
           bodyTimeout: 3e5,
           headersTimeout: 3e5
