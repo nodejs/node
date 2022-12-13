@@ -4,6 +4,7 @@
 #include "memory_tracker-inl.h"
 #include "node_contextify.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_process-inl.h"
 #include "node_url.h"
@@ -811,8 +812,27 @@ void ModuleWrap::Initialize(Local<Object> target,
 #undef V
 }
 
+void ModuleWrap::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+
+  registry->Register(Link);
+  registry->Register(Instantiate);
+  registry->Register(Evaluate);
+  registry->Register(SetSyntheticExport);
+  registry->Register(CreateCachedData);
+  registry->Register(GetNamespace);
+  registry->Register(GetStatus);
+  registry->Register(GetError);
+  registry->Register(GetStaticDependencySpecifiers);
+
+  registry->Register(SetImportModuleDynamicallyCallback);
+  registry->Register(SetInitializeImportMetaObjectCallback);
+}
 }  // namespace loader
 }  // namespace node
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(module_wrap,
                                     node::loader::ModuleWrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(
+    module_wrap, node::loader::ModuleWrap::RegisterExternalReferences)
