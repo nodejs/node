@@ -72,7 +72,7 @@ added: v15.0.0
   * Returns: {Promise|AsyncIterable}
 * `...transforms` {Stream|Function}
   * `source` {AsyncIterable}
-  * Returns: {Promise|AsyncIterable>}
+  * Returns: {Promise|AsyncIterable}
 * `destination` {Stream|Function}
   * `source` {AsyncIterable}
   * Returns: {Promise|AsyncIterable}
