@@ -51,26 +51,15 @@ const expectedModules = new Set([
   'NativeModule internal/fs/utils',
   'NativeModule internal/idna',
   'NativeModule internal/linkedlist',
-  'NativeModule internal/modules/helpers',
   'NativeModule internal/modules/cjs/loader',
-  'NativeModule internal/modules/esm/assert',
-  'NativeModule internal/modules/esm/formats',
-  'NativeModule internal/modules/esm/get_format',
-  'NativeModule internal/modules/esm/initialize_import_meta',
-  'NativeModule internal/modules/esm/load',
-  'NativeModule internal/modules/esm/loader',
-  'NativeModule internal/modules/esm/module_map',
-  'NativeModule internal/modules/esm/package_config',
-  'NativeModule internal/modules/esm/resolve',
-  'NativeModule internal/modules/esm/translators',
   'NativeModule internal/modules/esm/utils',
+  'NativeModule internal/modules/helpers',
   'NativeModule internal/modules/package_json_reader',
   'NativeModule internal/modules/run_main',
   'NativeModule internal/net',
   'NativeModule internal/options',
   'NativeModule internal/perf/utils',
   'NativeModule internal/priority_queue',
-  'NativeModule internal/process/esm_loader',
   'NativeModule internal/process/execution',
   'NativeModule internal/process/per_thread',
   'NativeModule internal/process/pre_execution',
@@ -100,7 +89,6 @@ const expectedModules = new Set([
   'NativeModule timers',
   'NativeModule url',
   'NativeModule internal/v8/startup_snapshot',
-  'NativeModule vm',
   'NativeModule util',
 ]);
 
@@ -138,6 +126,11 @@ if (!common.isMainThread) {
     'NativeModule string_decoder',
     'NativeModule util',
   ].forEach(expectedModules.add.bind(expectedModules));
+}
+
+if (common.isWindows) {
+  // On Windows fs needs SideEffectFreeRegExpPrototypeExec which uses vm.
+  expectedModules.add('NativeModule vm');
 }
 
 if (common.hasIntl) {
