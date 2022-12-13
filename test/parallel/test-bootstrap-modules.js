@@ -65,6 +65,7 @@ const expectedModules = new Set([
   'NativeModule internal/modules/esm/package_config',
   'NativeModule internal/modules/esm/resolve',
   'NativeModule internal/modules/esm/translators',
+  'NativeModule internal/modules/esm/utils',
   'NativeModule internal/modules/package_json_reader',
   'NativeModule internal/modules/run_main',
   'NativeModule internal/net',
