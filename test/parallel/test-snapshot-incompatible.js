@@ -52,7 +52,7 @@ const entry = fixtures.path('empty.js');
 
   const stderr = child.stderr.toString().trim();
   assert.match(stderr, /Failed to load the startup snapshot/);
-  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.status, 14);
 }
 
 {
