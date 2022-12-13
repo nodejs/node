@@ -434,6 +434,31 @@ test('spy functions can be used on classes inheritance', (t) => {
   assert.strictEqual(C.someTask.mock, undefined);
 });
 
+test('spy functions don\'t affect the prototype chain', (t) => {
+
+  class A {
+    static someTask(msg) {
+      return msg;
+    }
+  }
+  class B extends A {}
+  class C extends B {}
+
+  const msg = 'ok';
+
+  t.mock.method(C, C.someTask.name);
+  C.someTask(msg);
+
+  assert.strictEqual(B.someTask.mock, undefined);
+  assert.strictEqual(A.someTask.mock, undefined);
+
+  assert.strictEqual(C.someTask.mock.restore(), undefined);
+  C.someTask(msg);
+  assert.strictEqual(C.someTask.mock, undefined);
+  assert.strictEqual(B.someTask.mock, undefined);
+  assert.strictEqual(A.someTask.mock, undefined);
+});
+
 test('mocked functions report thrown errors', (t) => {
   const testError = new Error('test error');
   const fn = t.mock.fn(() => {
