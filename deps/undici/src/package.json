@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "5.13.0",
+  "version": "5.14.0",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -89,12 +89,12 @@
     "proxy": "^1.0.2",
     "proxyquire": "^2.1.3",
     "semver": "^7.3.5",
-    "sinon": "^14.0.0",
+    "sinon": "^15.0.0",
     "snazzy": "^9.0.0",
     "standard": "^17.0.0",
     "table": "^6.8.0",
     "tap": "^16.1.0",
-    "tsd": "^0.24.1",
+    "tsd": "^0.25.0",
     "typescript": "^4.8.4",
     "wait-on": "^6.0.0"
   },

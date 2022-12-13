@@ -7,17 +7,19 @@ const { FormData } = require('./formdata')
 const { kState } = require('./symbols')
 const { webidl } = require('./webidl')
 const { DOMException, structuredClone } = require('./constants')
-const { Blob } = require('buffer')
+const { Blob, File: NativeFile } = require('buffer')
 const { kBodyUsed } = require('../core/symbols')
 const assert = require('assert')
 const { isErrored } = require('../core/util')
 const { isUint8Array, isArrayBuffer } = require('util/types')
-const { File } = require('./file')
+const { File: UndiciFile } = require('./file')
 const { StringDecoder } = require('string_decoder')
 const { parseMIMEType, serializeAMimeType } = require('./dataURL')
 
-/** @type {globalThis['ReadableStream']} */
-let ReadableStream
+let ReadableStream = globalThis.ReadableStream
+
+/** @type {globalThis['File']} */
+const File = NativeFile ?? UndiciFile
 
 // https://fetch.spec.whatwg.org/#concept-bodyinit-extract
 function extractBody (object, keepalive = false) {
@@ -142,7 +144,33 @@ function extractBody (object, keepalive = false) {
     source = object
 
     // Set length to unclear, see html/6424 for improving this.
-    // TODO
+    length = (() => {
+      const prefixLength = prefix.length
+      const boundaryLength = boundary.length
+      let bodyLength = 0
+
+      for (const [name, value] of object) {
+        if (typeof value === 'string') {
+          bodyLength +=
+            prefixLength +
+            Buffer.byteLength(`; name="${escape(normalizeLinefeeds(name))}"\r\n\r\n${normalizeLinefeeds(value)}\r\n`)
+        } else {
+          bodyLength +=
+            prefixLength +
+            Buffer.byteLength(`; name="${escape(normalizeLinefeeds(name))}"` + (value.name ? `; filename="${escape(value.name)}"` : '')) +
+            2 + // \r\n
+            `Content-Type: ${
+              value.type || 'application/octet-stream'
+            }\r\n\r\n`.length
+
+          // value is a Blob or File, and \r\n
+          bodyLength += value.size + 2
+        }
+      }
+
+      bodyLength += boundaryLength + 4 // --boundary--
+      return bodyLength
+    })()
 
     // Set type to `multipart/form-data; boundary=`,
     // followed by the multipart/form-data boundary string generated
@@ -348,7 +376,10 @@ function bodyMixinMethods (instance) {
         let busboy
 
         try {
-          busboy = Busboy({ headers })
+          busboy = Busboy({
+            headers,
+            defParamCharset: 'utf8'
+          })
         } catch (err) {
           // Error due to headers:
           throw Object.assign(new TypeError(), { cause: err })
@@ -361,7 +392,7 @@ function bodyMixinMethods (instance) {
           const { filename, encoding, mimeType } = info
           const chunks = []
 
-          if (encoding.toLowerCase() === 'base64') {
+          if (encoding === 'base64' || encoding.toLowerCase() === 'base64') {
             let base64chunk = ''
 
             value.on('data', (chunk) => {

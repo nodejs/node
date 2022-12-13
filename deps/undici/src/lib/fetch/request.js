@@ -29,7 +29,7 @@ const { URLSerializer } = require('./dataURL')
 const { kHeadersList } = require('../core/symbols')
 const assert = require('assert')
 
-let TransformStream
+let TransformStream = globalThis.TransformStream
 
 const kInit = Symbol('init')
 

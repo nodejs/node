@@ -6,5 +6,6 @@ module.exports = {
   kSignal: Symbol('signal'),
   kState: Symbol('state'),
   kGuard: Symbol('guard'),
-  kRealm: Symbol('realm')
+  kRealm: Symbol('realm'),
+  kHeadersCaseInsensitive: Symbol('headers case insensitive')
 }

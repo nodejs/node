@@ -2,9 +2,12 @@
 
 const { isBlobLike, toUSVString, makeIterator } = require('./util')
 const { kState } = require('./symbols')
-const { File, FileLike, isFileLike } = require('./file')
+const { File: UndiciFile, FileLike, isFileLike } = require('./file')
 const { webidl } = require('./webidl')
-const { Blob } = require('buffer')
+const { Blob, File: NativeFile } = require('buffer')
+
+/** @type {globalThis['File']} */
+const File = NativeFile ?? UndiciFile
 
 // https://xhr.spec.whatwg.org/#formdata
 class FormData {

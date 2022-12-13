@@ -3,7 +3,7 @@
 'use strict'
 
 const { kHeadersList } = require('../core/symbols')
-const { kGuard } = require('./symbols')
+const { kGuard, kHeadersCaseInsensitive } = require('./symbols')
 const { kEnumerableProperty } = require('../core/util')
 const {
   makeIterator,
@@ -96,27 +96,27 @@ class HeadersList {
 
     // 1. If list contains name, then set name to the first such
     //    header’s name.
-    name = name.toLowerCase()
-    const exists = this[kHeadersMap].get(name)
+    const lowercaseName = name.toLowerCase()
+    const exists = this[kHeadersMap].get(lowercaseName)
 
     // 2. Append (name, value) to list.
     if (exists) {
-      this[kHeadersMap].set(name, `${exists}, ${value}`)
+      this[kHeadersMap].set(lowercaseName, { name: exists.name, value: `${exists.value}, ${value}` })
     } else {
-      this[kHeadersMap].set(name, `${value}`)
+      this[kHeadersMap].set(lowercaseName, { name, value })
     }
   }
 
   // https://fetch.spec.whatwg.org/#concept-header-list-set
   set (name, value) {
     this[kHeadersSortedMap] = null
-    name = name.toLowerCase()
+    const lowercaseName = name.toLowerCase()
 
     // 1. If list contains name, then set the value of
     //    the first such header to value and remove the
     //    others.
     // 2. Otherwise, append header (name, value) to list.
-    return this[kHeadersMap].set(name, value)
+    return this[kHeadersMap].set(lowercaseName, { name, value })
   }
 
   // https://fetch.spec.whatwg.org/#concept-header-list-delete
@@ -137,13 +137,25 @@ class HeadersList {
     // 2. Return the values of all headers in list whose name
     //    is a byte-case-insensitive match for name,
     //    separated from each other by 0x2C 0x20, in order.
-    return this[kHeadersMap].get(name.toLowerCase()) ?? null
+    return this[kHeadersMap].get(name.toLowerCase())?.value ?? null
   }
 
   * [Symbol.iterator] () {
-    for (const pair of this[kHeadersMap]) {
-      yield pair
+    // use the lowercased name
+    for (const [name, { value }] of this[kHeadersMap]) {
+      yield [name, value]
     }
+  }
+
+  get [kHeadersCaseInsensitive] () {
+    /** @type {string[]} */
+    const flatList = []
+
+    for (const { name, value } of this[kHeadersMap].values()) {
+      flatList.push(name, value)
+    }
+
+    return flatList
   }
 }
 
