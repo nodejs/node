@@ -119,6 +119,11 @@ if (!common.isMainThread) {
   ].forEach(expectedModules.add.bind(expectedModules));
 }
 
+if (common.isWindows) {
+  // On Windows fs needs SideEffectFreeRegExpPrototypeExec which uses vm.
+  expectedModules.add('NativeModule vm');
+}
+
 if (common.hasIntl) {
   expectedModules.add('Internal Binding icu');
 } else {
