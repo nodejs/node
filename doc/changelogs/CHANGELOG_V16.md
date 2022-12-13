@@ -77,8 +77,7 @@
 
 #### OpenSSL 1.1.1s
 
-This update is a bugfix release and does not address any security
-vulnerabilities.
+This OpenSSL version does not address any security vulnerabilities.
 
 #### Root certificates updated to NSS 3.85
 
@@ -116,7 +115,7 @@ Savings Time (DST) for Fiji and Mexico. For more information, see
 
 #### Other Notable Changes
 
-* \[[`33707dcd03`](https://github.com/nodejs/node/commit/33707dcd03)] - **dgram**: add dgram send queue info (theanarkh) [#44149](https://github.com/nodejs/node/pull/44149)
+* \[[`33707dcd03`](https://github.com/nodejs/node/commit/33707dcd03)] - **(SEMVER-MINOR)** **dgram**: add dgram send queue info (theanarkh) [#44149](https://github.com/nodejs/node/pull/44149)
 
 Dependency updates:
 
@@ -124,8 +123,8 @@ Dependency updates:
 
 Experimental features:
 
-* \[[`1e0dcd1ee0`](https://github.com/nodejs/node/commit/1e0dcd1ee0)] - **cli**: add `--watch` (Moshe Atlow) [#44366](https://github.com/nodejs/node/pull/44366)
-* \[[`8c73279ebb`](https://github.com/nodejs/node/commit/8c73279ebb)] - **util**: add default value option to parsearg (Manuel Spigolon) [#44631](https://github.com/nodejs/node/pull/44631)
+* \[[`1e0dcd1ee0`](https://github.com/nodejs/node/commit/1e0dcd1ee0)] - **(SEMVER-MINOR)** **cli**: add `--watch` (Moshe Atlow) [#44366](https://github.com/nodejs/node/pull/44366)
+* \[[`8c73279ebb`](https://github.com/nodejs/node/commit/8c73279ebb)] - **(SEMVER-MINOR)** **util**: add default value option to parsearg (Manuel Spigolon) [#44631](https://github.com/nodejs/node/pull/44631)
 
 ### Commits
 
@@ -133,7 +132,7 @@ Experimental features:
 * \[[`cc2c7648e0`](https://github.com/nodejs/node/commit/cc2c7648e0)] - **build**: support Python 3.11 (Luigi Pinca) [#45191](https://github.com/nodejs/node/pull/45191)
 * \[[`ac24c80663`](https://github.com/nodejs/node/commit/ac24c80663)] - **build**: remove redundant condition from common.gypi (Richard Lau) [#45076](https://github.com/nodejs/node/pull/45076)
 * \[[`03dcbe3030`](https://github.com/nodejs/node/commit/03dcbe3030)] - **build**: fix bad upstream merge (Stephen Gallagher) [#44642](https://github.com/nodejs/node/pull/44642)
-* \[[`1e0dcd1ee0`](https://github.com/nodejs/node/commit/1e0dcd1ee0)] - **cli**: add `--watch` (Moshe Atlow) [#44366](https://github.com/nodejs/node/pull/44366)
+* \[[`1e0dcd1ee0`](https://github.com/nodejs/node/commit/1e0dcd1ee0)] - **(SEMVER-MINOR)** **cli**: add `--watch` (Moshe Atlow) [#44366](https://github.com/nodejs/node/pull/44366)
 * \[[`96d131665e`](https://github.com/nodejs/node/commit/96d131665e)] - **cluster**: use inspector utils (Moshe Atlow) [#44592](https://github.com/nodejs/node/pull/44592)
 * \[[`704836033a`](https://github.com/nodejs/node/commit/704836033a)] - **crypto**: update root certificates (Luigi Pinca) [#45490](https://github.com/nodejs/node/pull/45490)
 * \[[`5a776d4a69`](https://github.com/nodejs/node/commit/5a776d4a69)] - **deps**: update timezone to 2022f (Richard Lau) [#45613](https://github.com/nodejs/node/pull/45613)
@@ -148,7 +147,7 @@ Experimental features:
 * \[[`cd54bce4f5`](https://github.com/nodejs/node/commit/cd54bce4f5)] - **deps**: update timezone (Node.js GitHub Bot) [#44950](https://github.com/nodejs/node/pull/44950)
 * \[[`2901abe4f0`](https://github.com/nodejs/node/commit/2901abe4f0)] - **deps**: update undici to 5.11.0 (Node.js GitHub Bot) [#44929](https://github.com/nodejs/node/pull/44929)
 * \[[`c80cf97033`](https://github.com/nodejs/node/commit/c80cf97033)] - **deps**: update corepack to 0.14.2 (Node.js GitHub Bot) [#44775](https://github.com/nodejs/node/pull/44775)
-* \[[`33707dcd03`](https://github.com/nodejs/node/commit/33707dcd03)] - **dgram**: add dgram send queue info (theanarkh) [#44149](https://github.com/nodejs/node/pull/44149)
+* \[[`33707dcd03`](https://github.com/nodejs/node/commit/33707dcd03)] - **(SEMVER-MINOR)** **dgram**: add dgram send queue info (theanarkh) [#44149](https://github.com/nodejs/node/pull/44149)
 * \[[`c708d9bb94`](https://github.com/nodejs/node/commit/c708d9bb94)] - **doc**: fix typo in parseArgs default value (Tobias Nießen) [#45083](https://github.com/nodejs/node/pull/45083)
 * \[[`5a0efa05d2`](https://github.com/nodejs/node/commit/5a0efa05d2)] - **node-api**: handle no support for external buffers (Michael Dawson) [#45181](https://github.com/nodejs/node/pull/45181)
 * \[[`db31de634e`](https://github.com/nodejs/node/commit/db31de634e)] - **readline**: refactor to avoid unsafe regex primordials (Antoine du Hamel) [#43475](https://github.com/nodejs/node/pull/43475)
@@ -177,7 +176,7 @@ Experimental features:
 * \[[`e7ed56f501`](https://github.com/nodejs/node/commit/e7ed56f501)] - **tools**: make license-builder.sh comply with shellcheck 0.8.0 (Rich Trott) [#41258](https://github.com/nodejs/node/pull/41258)
 * \[[`cc819b4bf8`](https://github.com/nodejs/node/commit/cc819b4bf8)] - **tools**: fix typo in `avoid-prototype-pollution` lint rule (Antoine du Hamel) [#44446](https://github.com/nodejs/node/pull/44446)
 * \[[`254358c81e`](https://github.com/nodejs/node/commit/254358c81e)] - **tools**: refactor `avoid-prototype-pollution` lint rule (Antoine du Hamel) [#43476](https://github.com/nodejs/node/pull/43476)
-* \[[`8c73279ebb`](https://github.com/nodejs/node/commit/8c73279ebb)] - **util**: add default value option to parsearg (Manuel Spigolon) [#44631](https://github.com/nodejs/node/pull/44631)
+* \[[`8c73279ebb`](https://github.com/nodejs/node/commit/8c73279ebb)] - **(SEMVER-MINOR)** **util**: add default value option to parsearg (Manuel Spigolon) [#44631](https://github.com/nodejs/node/pull/44631)
 
 <a id="16.18.1"></a>
 
