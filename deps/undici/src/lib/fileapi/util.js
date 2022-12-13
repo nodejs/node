@@ -191,25 +191,19 @@ function readOperation (fr, blob, type, encodingName) {
 
 /**
  * @see https://w3c.github.io/FileAPI/#fire-a-progress-event
+ * @see https://dom.spec.whatwg.org/#concept-event-fire
  * @param {string} e The name of the event
  * @param {import('./filereader').FileReader} reader
  */
 function fireAProgressEvent (e, reader) {
+  // The progress event e does not bubble. e.bubbles must be false
+  // The progress event e is NOT cancelable. e.cancelable must be false
   const event = new ProgressEvent(e, {
     bubbles: false,
     cancelable: false
   })
 
   reader.dispatchEvent(event)
-  try {
-    // eslint-disable-next-line no-useless-call
-    reader[`on${e}`]?.call(reader, event)
-  } catch (err) {
-    // Prevent the error from being swallowed
-    queueMicrotask(() => {
-      throw err
-    })
-  }
 }
 
 /**
