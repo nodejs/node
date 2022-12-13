@@ -6,7 +6,10 @@ const { NodeInstance } = require('../common/inspector-helper.js');
 const fixtures = require('../common/fixtures');
 const { pathToFileURL } = require('url');
 
-const script = fixtures.path('inspector-global-function.js');
+// This needs to be an ES module file to ensure that internal modules are
+// loaded before pausing. See
+// https://bugs.chromium.org/p/chromium/issues/detail?id=1246905
+const script = fixtures.path('inspector-global-function.mjs');
 
 async function setupDebugger(session) {
   console.log('[test]', 'Setting up a debugger');
@@ -23,7 +26,7 @@ async function setupDebugger(session) {
 
   // NOTE(mmarchini): We wait for the second console.log to ensure we loaded
   // every internal module before pausing. See
-  // https://bugs.chromium.org/p/v8/issues/detail?id=10287.
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=1246905
   const waitForReady = session.waitForConsoleOutput('log', 'Ready!');
   session.send({ 'method': 'Debugger.resume' });
   await waitForReady;
