@@ -1188,7 +1188,8 @@ ExitCode LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
     bool ok = SnapshotData::FromFile(read_data.get(), fp);
     fclose(fp);
     if (!ok) {
-      // If we fail to read the customized snapshot, simply exit with kStartupSnapshotFailure.
+      // If we fail to read the customized snapshot, 
+      // simply exit with kStartupSnapshotFailure.
       exit_code = ExitCode::kStartupSnapshotFailure;
       return exit_code;
     }
