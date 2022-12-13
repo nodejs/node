@@ -1132,7 +1132,6 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
               "node:embedded_snapshot_main was specified as snapshot "
               "entry point but Node.js was built without embedded "
               "snapshot.\n");
-      // TODO(joyeecheung): should be kInvalidCommandLineArgument instead.
       exit_code = ExitCode::kInvalidCommandLineArgument;
       return exit_code;
     }
@@ -1166,7 +1165,6 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
     fprintf(stderr,
             "Cannot open %s for writing a snapshot.\n",
             snapshot_blob_path.c_str());
-    // TODO(joyeecheung): should be kStartupSnapshotFailure.
     exit_code = ExitCode::kStartupSnapshotFailure;
   }
   return exit_code;
@@ -1192,7 +1190,6 @@ ExitCode LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
     fclose(fp);
     if (!ok) {
       // If we fail to read the customized snapshot, simply exit with 1.
-      // TODO(joyeecheung): should be kStartupSnapshotFailure.
       exit_code = ExitCode::kStartupSnapshotFailure;
       return exit_code;
     }
