@@ -148,6 +148,33 @@ The `readableStream.locked` property is `false` by default, and is
 switched to `true` while there is an active reader consuming the
 stream's data.
 
+#### `readableStream.fromWeb(readableStream[,options])`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+* `readableStream` {ReadableStream}
+* `options` {Object}
+  * `encoding` {string}
+  * `highWaterMark` {number}
+  * `objectMode` {boolean}
+  * `signal` {AbortSignal}
+* `Returns`: {stream.Readable}
+
+#### `readableStream.toWeb(writableStream[,options])`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+* `streamReadable` {stream.Readable}
+* `options` {Object}
+  * `strategy` {Object}
+  * `highWaterMark` {number}
+  * `size` {Function}
+* Returns: {ReadableStream}
+
 #### `readableStream.cancel([reason])`
 
 <!-- YAML
@@ -863,6 +890,29 @@ added: v16.5.0
 The `writableStream.locked` property is `false` by default, and is
 switched to `true` while there is an active writer attached to this
 `WritableStream`.
+
+#### `writableStream.fromWeb(writableStream[,options])`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+* `writableStream` {WritableStream}
+* `options` {Object}
+  * `decodeStrings` {boolean}
+  * `highWaterMark` {number}
+  * `objectMode` {boolean}
+  * `signal` {AbortSignal}
+* Returns: {stream.Writable}
+
+#### `writableStream.toWeb(streamWritable)`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+* `streamWritable` {stream.Writable}
+* Returns: {WritableStream}
 
 #### Transferring with postMessage()
 
