@@ -1717,7 +1717,7 @@ DEFINE_BOOL(experimental_reuse_locals_blocklists, false,
 DEFINE_BOOL(
     live_edit_top_frame, true,
     "enable support for live-editing the top-most function on the stack")
-DEFINE_BOOL(experimental_remove_internal_scopes_property, true,
+DEFINE_BOOL(experimental_remove_internal_scopes_property, false,
             "don't report the artificial [[Scopes]] property for functions")
 
 // disassembler
