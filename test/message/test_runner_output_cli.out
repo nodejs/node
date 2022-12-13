@@ -1,5 +1,5 @@
 TAP version 13
-# Subtest: *test/message/test_runner_output.js
+# Subtest: *test_runner_output.js
     # Subtest: sync pass todo
     ok 1 - sync pass todo # TODO
       ---
@@ -636,7 +636,7 @@ TAP version 13
         *
       ...
     1..65
-not ok 1 - *test/message/test_runner_output.js
+not ok 1 - *test_runner_output.js
   ---
   duration_ms: *
   failureType: 'subtestsFailed'
