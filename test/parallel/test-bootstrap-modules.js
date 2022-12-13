@@ -46,6 +46,7 @@ const expectedModules = new Set([
   'NativeModule internal/constants',
   'NativeModule internal/dns/utils',
   'NativeModule internal/errors',
+  'NativeModule internal/event_target',
   'NativeModule internal/fixed_queue',
   'NativeModule internal/fs/utils',
   'NativeModule internal/idna',
@@ -90,6 +91,7 @@ const expectedModules = new Set([
   'NativeModule internal/vm',
   'NativeModule internal/vm/module',
   'NativeModule internal/wasm_web_api',
+  'NativeModule internal/webidl',
   'NativeModule internal/worker/js_transferable',
   'Internal Binding blob',
   'NativeModule async_hooks',
@@ -99,6 +101,7 @@ const expectedModules = new Set([
   'NativeModule url',
   'NativeModule internal/v8/startup_snapshot',
   'NativeModule vm',
+  'NativeModule util',
 ]);
 
 if (!common.isMainThread) {
