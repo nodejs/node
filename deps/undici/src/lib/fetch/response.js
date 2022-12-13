@@ -436,7 +436,7 @@ function makeAppropriateNetworkError (fetchParams) {
   // otherwise return a network error.
   return isAborted(fetchParams)
     ? makeNetworkError(new DOMException('The operation was aborted.', 'AbortError'))
-    : makeNetworkError(fetchParams.controller.terminated.reason)
+    : makeNetworkError('Request was cancelled.')
 }
 
 // https://whatpr.org/fetch/1392.html#initialize-a-response
