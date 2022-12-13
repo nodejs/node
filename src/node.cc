@@ -1181,8 +1181,7 @@ ExitCode LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
     FILE* fp = fopen(filename.c_str(), "rb");
     if (fp == nullptr) {
       fprintf(stderr, "Cannot open %s", filename.c_str());
-      // TODO(joyeecheung): should be kStartupSnapshotFailure.
-      exit_code = ExitCode::kGenericUserError;
+      exit_code = ExitCode::kStartupSnapshotFailure;
       return exit_code;
     }
     std::unique_ptr<SnapshotData> read_data = std::make_unique<SnapshotData>();
