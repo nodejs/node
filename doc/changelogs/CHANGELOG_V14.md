@@ -89,8 +89,7 @@
 
 #### OpenSSL 1.1.1s
 
-This update is a bugfix release and does not address any security
-vulnerabilities.
+This OpenSSL version does not address any security vulnerabilities.
 
 #### Root certificates updated to NSS 3.85
 
