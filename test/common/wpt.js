@@ -397,7 +397,7 @@ class WPTRunner {
       'CompressionStream', 'DecompressionStream',
     ];
     if (Boolean(process.versions.openssl) && !process.env.NODE_SKIP_CRYPTO) {
-      lazyProperties.push('crypto');
+      lazyProperties.push('crypto', 'Crypto', 'CryptoKey', 'SubtleCrypto');
     }
     const script = lazyProperties.map((name) => `globalThis.${name};`).join('\n');
     this.globalThisInitScripts.push(script);
