@@ -1,4 +1,17 @@
 {
+  "import_export/ec_importKey.https.any.js": {
+    "fail": {
+      "note": "Compressed point export should result in uncompressed point https://github.com/nodejs/node/issues/45859",
+      "expected": [
+        "Good parameters: P-256 bits (spki, buffer(59, compressed), {name: ECDSA, namedCurve: P-256}, true, [])",
+        "Good parameters: P-384 bits (spki, buffer(72, compressed), {name: ECDSA, namedCurve: P-384}, true, [])",
+        "Good parameters: P-521 bits (spki, buffer(90, compressed), {name: ECDSA, namedCurve: P-521}, true, [])",
+        "Good parameters: P-256 bits (spki, buffer(59, compressed), {name: ECDH, namedCurve: P-256}, true, [])",
+        "Good parameters: P-384 bits (spki, buffer(72, compressed), {name: ECDH, namedCurve: P-384}, true, [])",
+        "Good parameters: P-521 bits (spki, buffer(90, compressed), {name: ECDH, namedCurve: P-521}, true, [])"
+      ]
+    }
+  },
   "algorithm-discards-context.https.window.js": {
     "skip": "Not relevant in Node.js context"
   },
