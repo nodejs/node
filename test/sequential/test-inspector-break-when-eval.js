@@ -6,8 +6,8 @@ const { NodeInstance } = require('../common/inspector-helper.js');
 const fixtures = require('../common/fixtures');
 const { pathToFileURL } = require('url');
 
-// This needs to be a ESM to ensure that internal modules are loaded
-// before pausing. See
+// This needs to be an ES module file to ensure that internal modules are
+// loaded before pausing. See
 // https://bugs.chromium.org/p/chromium/issues/detail?id=1246905
 const script = fixtures.path('inspector-global-function.mjs');
 
