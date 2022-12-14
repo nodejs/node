@@ -325,27 +325,27 @@ function parseYAML(text) {
   const removed = { description: '' };
 
   if (meta.added) {
-    added.version = meta.added.join(', ');
-    added.description = `<span>Added in: ${added.version}</span>`;
+    added.version = meta.added;
+    added.description = `<span>Added in: ${added.version.join(', ')}</span>`;
   }
 
   if (meta.deprecated) {
-    deprecated.version = meta.deprecated.join(', ');
+    deprecated.version = meta.deprecated;
     deprecated.description =
-        `<span>Deprecated since: ${deprecated.version}</span>`;
+        `<span>Deprecated since: ${deprecated.version.join(', ')}</span>`;
   }
 
   if (meta.removed) {
-    removed.version = meta.removed.join(', ');
-    removed.description = `<span>Removed in: ${removed.version}</span>`;
+    removed.version = meta.removed;
+    removed.description = `<span>Removed in: ${removed.version.join(', ')}</span>`;
   }
 
   if (meta.changes.length > 0) {
-    if (added.description) meta.changes.push(added);
     if (deprecated.description) meta.changes.push(deprecated);
     if (removed.description) meta.changes.push(removed);
 
     meta.changes.sort((a, b) => versionSort(a.version, b.version));
+    if (added.description) meta.changes.push(added);
 
     result += '<details class="changelog"><summary>History</summary>\n' +
             '<table>\n<tr><th>Version</th><th>Changes</th></tr>\n';

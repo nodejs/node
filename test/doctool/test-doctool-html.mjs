@@ -79,10 +79,11 @@ const testData = [
       '<div class="api_metadata">' +
       '<details class="changelog"><summary>History</summary>' +
       '<table><tbody><tr><th>Version</th><th>Changes</th></tr>' +
+      '<tr><td>v4.2.0</td><td><p>The <code>error</code> parameter can now be' +
+      'an arrow function.</p></td></tr>' +
       '<tr><td>v5.3.0, v4.2.0</td>' +
       '<td><p><span>Added in: v5.3.0, v4.2.0</span></p></td></tr>' +
-      '<tr><td>v4.2.0</td><td><p>The <code>error</code> parameter can now be' +
-      'an arrow function.</p></td></tr></tbody></table></details></div> ' +
+      '</tbody></table></details></div> ' +
       '<p>Describe <code>Foobar II</code> in more detail here.' +
       '<a href="http://man7.org/linux/man-pages/man1/fg.1.html"><code>fg(1)' +
       '</code></a></p></section><section>' +
