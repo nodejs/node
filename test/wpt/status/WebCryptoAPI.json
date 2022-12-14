@@ -21,7 +21,6 @@
   "idlharness.https.any.js": {
     "fail": {
       "expected": [
-        "Crypto interface: existence and properties of interface object",
         "CryptoKey interface: existence and properties of interface object",
         "Window interface: attribute crypto"
       ]
