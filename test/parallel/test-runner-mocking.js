@@ -446,17 +446,27 @@ test('spy functions don\'t affect the prototype chain', (t) => {
 
   const msg = 'ok';
 
+  const ABeforeMockIsUnchanged = Object.getOwnPropertyDescriptor(A, A.someTask.name);
+  const BBeforeMockIsUnchanged = Object.getOwnPropertyDescriptor(B, B.someTask.name);
+  const CBeforeMockShouldNotHaveDesc = Object.getOwnPropertyDescriptor(C, C.someTask.name);
+
   t.mock.method(C, C.someTask.name);
   C.someTask(msg);
+  const BAfterMockIsUnchanged = Object.getOwnPropertyDescriptor(B, B.someTask.name);
 
-  assert.strictEqual(B.someTask.mock, undefined);
-  assert.strictEqual(A.someTask.mock, undefined);
+  const AAfterMockIsUnchanged = Object.getOwnPropertyDescriptor(A, A.someTask.name);
+  const CAfterMockHasDescriptor = Object.getOwnPropertyDescriptor(C, C.someTask.name);
+
+  assert.strictEqual(CBeforeMockShouldNotHaveDesc, undefined);
+  assert.ok(CAfterMockHasDescriptor);
+
+  assert.deepStrictEqual(ABeforeMockIsUnchanged, AAfterMockIsUnchanged);
+  assert.strictEqual(BBeforeMockIsUnchanged, BAfterMockIsUnchanged);
+  assert.strictEqual(BBeforeMockIsUnchanged, undefined);
 
   assert.strictEqual(C.someTask.mock.restore(), undefined);
-  C.someTask(msg);
-  assert.strictEqual(C.someTask.mock, undefined);
-  assert.strictEqual(B.someTask.mock, undefined);
-  assert.strictEqual(A.someTask.mock, undefined);
+  const CAfterRestoreKeepsDescriptor = Object.getOwnPropertyDescriptor(C, C.someTask.name);
+  assert.ok(CAfterRestoreKeepsDescriptor);
 });
 
 test('mocked functions report thrown errors', (t) => {
