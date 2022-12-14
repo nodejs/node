@@ -127,7 +127,8 @@ const allowableCommentNode = new Set([
   'ObjectProperty',
   'ClassProperty',
   'PropertyDefinition',
-  'ExportDefaultDeclaration'
+  'ExportDefaultDeclaration',
+  'ReturnStatement'
 ]);
 
 /**
@@ -173,6 +174,7 @@ const getReducedASTNode = function (node, sourceCode) {
       if (sourceCode.getCommentsBefore(node).length) {
         return node;
       }
+
       while (
         !sourceCode.getCommentsBefore(parent).length &&
         !(/Function/u).test(parent.type) &&
