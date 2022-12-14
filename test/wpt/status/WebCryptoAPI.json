@@ -23,7 +23,6 @@
       "expected": [
         "Crypto interface: existence and properties of interface object",
         "CryptoKey interface: existence and properties of interface object",
-        "CryptoKey interface: existence and properties of interface prototype object",
         "Window interface: attribute crypto"
       ]
     }
