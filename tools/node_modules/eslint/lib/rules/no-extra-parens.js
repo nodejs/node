@@ -52,7 +52,8 @@ module.exports = {
                                 enforceForArrowConditionals: { type: "boolean" },
                                 enforceForSequenceExpressions: { type: "boolean" },
                                 enforceForNewInMemberExpressions: { type: "boolean" },
-                                enforceForFunctionPrototypeMethods: { type: "boolean" }
+                                enforceForFunctionPrototypeMethods: { type: "boolean" },
+                                allowParensAfterCommentPattern: { type: "string" }
                             },
                             additionalProperties: false
                         }
@@ -86,6 +87,7 @@ module.exports = {
             context.options[1].enforceForNewInMemberExpressions === false;
         const IGNORE_FUNCTION_PROTOTYPE_METHODS = ALL_NODES && context.options[1] &&
             context.options[1].enforceForFunctionPrototypeMethods === false;
+        const ALLOW_PARENS_AFTER_COMMENT_PATTERN = ALL_NODES && context.options[1] && context.options[1].allowParensAfterCommentPattern;
 
         const PRECEDENCE_OF_ASSIGNMENT_EXPR = precedence({ type: "AssignmentExpression" });
         const PRECEDENCE_OF_UPDATE_EXPR = precedence({ type: "UpdateExpression" });
@@ -401,6 +403,19 @@ module.exports = {
 
                 if (isIIFE(node) && !isParenthesised(node.callee)) {
                     return;
+                }
+
+                if (ALLOW_PARENS_AFTER_COMMENT_PATTERN) {
+                    const commentsBeforeLeftParenToken = sourceCode.getCommentsBefore(leftParenToken);
+                    const totalCommentsBeforeLeftParenTokenCount = commentsBeforeLeftParenToken.length;
+                    const ignorePattern = new RegExp(ALLOW_PARENS_AFTER_COMMENT_PATTERN, "u");
+
+                    if (
+                        totalCommentsBeforeLeftParenTokenCount > 0 &&
+                        ignorePattern.test(commentsBeforeLeftParenToken[totalCommentsBeforeLeftParenTokenCount - 1].value)
+                    ) {
+                        return;
+                    }
                 }
             }
 

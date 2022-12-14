@@ -6,6 +6,7 @@
     "firefox": "93",
     "node": "16.11",
     "deno": "1.14",
+    "samsung": "17",
     "electron": "15.0"
   },
   "proposal-class-static-block": {
@@ -15,6 +16,7 @@
     "firefox": "93",
     "node": "16.11",
     "deno": "1.14",
+    "samsung": "17",
     "electron": "15.0"
   },
   "transform-private-property-in-object": {
@@ -26,6 +28,7 @@
     "node": "16.9",
     "deno": "1.9",
     "ios": "15",
+    "samsung": "16",
     "electron": "13.0"
   },
   "proposal-private-property-in-object": {
@@ -37,6 +40,7 @@
     "node": "16.9",
     "deno": "1.9",
     "ios": "15",
+    "samsung": "16",
     "electron": "13.0"
   },
   "transform-class-properties": {
@@ -170,6 +174,7 @@
     "node": "16.9",
     "deno": "1.9",
     "ios": "13.4",
+    "samsung": "16",
     "electron": "13.0"
   },
   "proposal-optional-chaining": {
@@ -181,6 +186,7 @@
     "node": "16.9",
     "deno": "1.9",
     "ios": "13.4",
+    "samsung": "16",
     "electron": "13.0"
   },
   "transform-json-strings": {
