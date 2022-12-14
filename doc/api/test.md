@@ -1043,9 +1043,7 @@ not disassociate the mocks from the `MockTracker` instance.
 ### `mock.setter(object, methodName[, implementation][, options])`
 
 <!-- YAML
-added:
-  - v19.3.0
-  - v16.19.0
+added: v19.3.0
 -->
 
 This function is syntax sugar for [`MockTracker.method`][] with `options.setter`
@@ -1054,7 +1052,9 @@ set to `true`.
 ## Class: `TapStream`
 
 <!-- YAML
-added: v18.9.0
+added:
+  - v18.9.0
+  - v16.19.0
 -->
 
 * Extends {ReadableStream}
