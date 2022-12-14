@@ -708,8 +708,6 @@ Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
   `141F07595B7B3FFE74309A937405533BE57C7D57`
 * **Danielle Adams** <<adamzdanielle@gmail.com>>
   `74F12602B6F1C4E913FAA37AD3A89613643B6201`
-* **Juan José Arboleda** <<soyjuanarbol@gmail.com>>
-  `61FC681DFB92A079F1685E77973F295594EC4689`
 * **Michaël Zasso** <<targos@protonmail.com>>
   `8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600`
 * **Myles Borins** <<myles.borins@gmail.com>>
@@ -728,7 +726,6 @@ to sign releases):
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 4ED778F539E3634C779C87C6D7062848A1AB005C
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 141F07595B7B3FFE74309A937405533BE57C7D57
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 74F12602B6F1C4E913FAA37AD3A89613643B6201
-gpg --keyserver hkps://keys.openpgp.org --recv-keys 61FC681DFB92A079F1685E77973F295594EC4689
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600
 gpg --keyserver hkps://keys.openpgp.org --recv-keys C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4
@@ -761,6 +758,8 @@ verify a downloaded file.
   `71DCFD284A79C3B38668286BC97EC7A07EDE3FC1`
 * **Jeremiah Senkpiel** <<fishrock@keybase.io>>
   `FD3A5288F042B6850C66B31F09FE44734EB7990E`
+* **Juan José Arboleda** <<soyjuanarbol@gmail.com>>
+  `61FC681DFB92A079F1685E77973F295594EC4689`
 * **Julien Gilli** <<jgilli@fastmail.fm>>
   `114F43EE0176B71C7BC219DD50A3051F888C628D`
 * **Rod Vagg** <<rod@vagg.org>>
