@@ -57,6 +57,10 @@ assert.match(process.versions.node, commonTemplate);
 assert.match(process.versions.uv, commonTemplate);
 assert.match(process.versions.zlib, commonTemplate);
 
+if (hasUndici) {
+  assert.match(process.versions.undici, commonTemplate);
+}
+
 assert.match(
   process.versions.v8,
   /^\d+\.\d+\.\d+(?:\.\d+)?-node\.\d+(?: \(candidate\))?$/
@@ -71,10 +75,6 @@ if (common.hasCrypto) {
     /^\d+\.\d+\.\d+(?:[-+][a-z0-9]+)*$/ :
     /^\d+\.\d+\.\d+[a-z]?(\+quic)?(-fips)?$/;
   assert.match(process.versions.openssl, versionRegex);
-}
-
-if (hasUndici) {
-  assert.match(process.versions.undici, commonTemplate);
 }
 
 for (let i = 0; i < expected_keys.length; i++) {
