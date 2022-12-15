@@ -2668,7 +2668,7 @@ Especially useful in error handling scenarios where a stream is destroyed
 prematurely (like an aborted HTTP request), and will not emit `'end'`
 or `'finish'`.
 
-The `finished` API provides [promise version][stream-finished-promise]:
+The `finished` API provides [promise version][stream-finished-promise].
 
 `stream.finished()` leaves dangling event listeners (in particular
 `'error'`, `'end'`, `'finish'` and `'close'`) after `callback` has been
