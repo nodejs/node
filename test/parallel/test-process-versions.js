@@ -2,8 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-// Import of pure js deps for comparison
-const undici = require('../../deps/undici/src/package.json');
+// Import of pure js (non-shared) deps for comparison
 const acorn = require('../../deps/acorn/acorn/package.json');
 
 const expected_keys = [
@@ -18,9 +17,14 @@ const expected_keys = [
   'napi',
   'llhttp',
   'uvwasi',
-  'undici',
   'acorn',
 ];
+
+const hasUndici = process.config.variables.node_builtin_shareable_builtins.includes('deps/undici/undici.js');
+
+if (hasUndici) {
+  expected_keys.push('undici');
+}
 
 if (common.hasCrypto) {
   expected_keys.push('openssl');
@@ -50,7 +54,6 @@ assert.match(process.versions.ares, commonTemplate);
 assert.match(process.versions.brotli, commonTemplate);
 assert.match(process.versions.llhttp, commonTemplate);
 assert.match(process.versions.node, commonTemplate);
-assert.match(process.versions.undici, commonTemplate);
 assert.match(process.versions.uv, commonTemplate);
 assert.match(process.versions.zlib, commonTemplate);
 
@@ -70,6 +73,10 @@ if (common.hasCrypto) {
   assert.match(process.versions.openssl, versionRegex);
 }
 
+if (hasUndici) {
+  assert.match(process.versions.undici, commonTemplate);
+}
+
 for (let i = 0; i < expected_keys.length; i++) {
   const key = expected_keys[i];
   const descriptor = Object.getOwnPropertyDescriptor(process.versions, key);
@@ -79,8 +86,11 @@ for (let i = 0; i < expected_keys.length; i++) {
 assert.strictEqual(process.config.variables.napi_build_version,
                    process.versions.napi);
 
-const expectedUndiciVersion = undici.version;
-assert.strictEqual(process.versions.undici, expectedUndiciVersion);
+if (hasUndici) {
+  const undici = require('../../deps/undici/src/package.json');
+  const expectedUndiciVersion = undici.version;
+  assert.strictEqual(process.versions.undici, expectedUndiciVersion);
+}
 
 const expectedAcornVersion = acorn.version;
 assert.strictEqual(process.versions.acorn, expectedAcornVersion);
