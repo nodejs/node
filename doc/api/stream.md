@@ -2749,6 +2749,7 @@ pipeline(
 ```
 
 The `pipeline` API provides a [promise version][stream-pipeline-promise].
+
 `stream.pipeline()` will call `stream.destroy(err)` on all streams except:
 
 * `Readable` streams which have emitted `'end'` or `'close'`.
