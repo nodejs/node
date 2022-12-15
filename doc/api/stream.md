@@ -124,7 +124,7 @@ async function run() {
   const ac = new AbortController();
   const signal = ac.signal;
 
-  setTimeout(() => ac.abort(), 1);
+  setImmediate(() => ac.abort());
   await pipeline(
     fs.createReadStream('archive.tar'),
     zlib.createGzip(),
