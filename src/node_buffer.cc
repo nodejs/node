@@ -28,6 +28,7 @@
 #include "node_internals.h"
 
 #include "env-inl.h"
+#include "simdutf.h"
 #include "string_bytes.h"
 #include "string_search.h"
 #include "util-inl.h"
@@ -583,9 +584,19 @@ void DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferViewContents<char> buffer(args[0]);
 
   bool ignore_bom = args[1]->IsTrue();
+  bool has_fatal = args[2]->IsTrue();
 
   const char* data = buffer.data();
   size_t length = buffer.length();
+
+  if (has_fatal) {
+    auto result = simdutf::validate_utf8_with_errors(data, length);
+
+    if (result.error) {
+      return node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
+          env->isolate(), "The encoded data was not valid for encoding utf-8");
+    }
+  }
 
   if (!ignore_bom && length >= 3) {
     if (memcmp(data, "\xEF\xBB\xBF", 3) == 0) {
