@@ -92,7 +92,9 @@ Metadata::Versions::Versions() {
     std::to_string((BrotliEncoderVersion() & 0xFFF000) >> 12) +
     "." +
     std::to_string(BrotliEncoderVersion() & 0xFFF);
+  #ifndef NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH
   undici = UNDICI_VERSION;
+  #endif
   acorn = ACORN_VERSION;
 
   uvwasi = UVWASI_VERSION_STRING;
