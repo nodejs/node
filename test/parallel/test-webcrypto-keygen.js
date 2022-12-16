@@ -9,10 +9,10 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const { types: { isCryptoKey } } = require('util');
 const {
-  webcrypto: { subtle },
   createSecretKey,
   KeyObject,
 } = require('crypto');
+const { subtle } = globalThis.crypto;
 
 const { bigIntArrayToUnsignedBigInt } = require('internal/crypto/util');
 

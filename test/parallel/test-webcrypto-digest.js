@@ -7,7 +7,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const { Buffer } = require('buffer');
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 const { createHash } = require('crypto');
 
 const kTests = [
