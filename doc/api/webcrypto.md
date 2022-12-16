@@ -1554,7 +1554,7 @@ there is reason to use a different value, use `new Uint8Array([1, 0, 1])`
 added: v15.0.0
 -->
 
-#### rsaOaepParams.label
+#### `rsaOaepParams.label`
 
 <!-- YAML
 added: v15.0.0
@@ -1567,7 +1567,7 @@ to the generated ciphertext.
 
 The `rsaOaepParams.label` parameter is optional.
 
-#### rsaOaepParams.name
+#### `rsaOaepParams.name`
 
 <!-- YAML
 added: v15.0.0
