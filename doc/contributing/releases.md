@@ -925,11 +925,7 @@ This script will use the promoted builds and changelog to generate the post. Run
   "Set as the latest release".
 * Click on the "Publish release" button.
 
-### 19. Cleanup
-
-Close your release proposal PR and delete the proposal branch.
-
-### 20. Announce
+### 19. Announce
 
 The nodejs.org website will automatically rebuild and include the new version.
 To announce the build on Twitter through the official @nodejs account, email
@@ -953,7 +949,7 @@ Let the security release steward know the releases are available.
 
 </details>
 
-### 21. Celebrate
+### 20. Celebrate
 
 _In whatever form you do this..._
 
