@@ -239,6 +239,12 @@ module.exports = {
         selector: "CallExpression[callee.name='isNaN']",
         message: 'Use Number.isNaN() instead of the global isNaN() function.',
       },
+      {
+        // TODO(@panva): move this to no-restricted-properties
+        // when https://github.com/eslint/eslint/issues/16412 is fixed
+        selector: "Identifier[name='webcrypto']",
+        message: 'Use `globalThis.crypto`.',
+      },
     ],
     'no-return-await': 'error',
     'no-self-compare': 'error',
