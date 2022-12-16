@@ -1152,10 +1152,7 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
 
       // Create the environment.
       uint64_t env_flags = EnvironmentFlags::kDefaultFlags |
-                           EnvironmentFlags::kInspectorOnlyAfterBootstrap;
-      if (snapshot_type != SnapshotMetadata::Type::kFullyCustomized) {
-        env_flags |= EnvironmentFlags::kNoCreateInspector;
-      }
+                           EnvironmentFlags::kNoCreateInspector;
 
       env = CreateEnvironment(main_instance->isolate_data(),
                               main_context,
@@ -1173,6 +1170,9 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
       // could also explore snapshotting other kinds of execution modes
       // in the future).
       if (snapshot_type == SnapshotMetadata::Type::kFullyCustomized) {
+#if HAVE_INSPECTOR
+        env->InitializeInspector({});
+#endif
         if (LoadEnvironment(env, StartExecutionCallback{}).IsEmpty()) {
           return ExitCode::kGenericUserError;
         }
