@@ -10,7 +10,7 @@ export function replaceLinks({ filename, linksMapper }) {
       if (node.url) {
         node.url = node.url.replace(
           referenceToLocalMdFile,
-          (_, filename, hash) => `${filename}.html${hash || ''}`
+          (_, filename, hash) => `${filename}.html${hash || ''}`,
         );
       }
     });

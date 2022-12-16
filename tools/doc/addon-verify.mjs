@@ -38,7 +38,7 @@ tree.children.forEach((node) => {
 
 await Promise.all(
   Object.keys(addons).flatMap(
-    (header) => verifyFiles(addons[header].files, header)
+    (header) => verifyFiles(addons[header].files, header),
   ));
 
 function verifyFiles(files, blockName) {
@@ -82,8 +82,8 @@ ${files[name].replace(
           sources: files.map(({ name }) => name),
           includes: ['../common.gypi'],
         },
-      ]
-    })
+      ],
+    }),
   });
 
   const dirCreation = mkdir(dir);

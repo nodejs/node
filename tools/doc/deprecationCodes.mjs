@@ -27,7 +27,7 @@ const testHeading = (headingNode, expectedDeprecationCode) => {
     assert.strictEqual(
       headingNode?.children[0]?.value.substring(0, 9),
       `${expectedDeprecationCode}: `,
-      'Ill-formed or out-of-order deprecation code.'
+      'Ill-formed or out-of-order deprecation code.',
     );
   } catch (e) {
     throw addMarkdownPathToErrorStack(e, headingNode);
@@ -39,7 +39,7 @@ const testYAMLComment = (commentNode) => {
     assert.match(
       commentNode?.value?.substring(0, 21),
       /^<!-- YAML\r?\nchanges:\r?\n/,
-      'Missing or ill-formed YAML comment.'
+      'Missing or ill-formed YAML comment.',
     );
   } catch (e) {
     throw addMarkdownPathToErrorStack(e, commentNode);
@@ -51,7 +51,7 @@ const testDeprecationType = (paragraphNode) => {
     assert.strictEqual(
       paragraphNode?.children[0]?.value?.substring(0, 6),
       'Type: ',
-      'Missing deprecation type.'
+      'Missing deprecation type.',
     );
   } catch (e) {
     throw addMarkdownPathToErrorStack(e, paragraphNode);
@@ -74,7 +74,7 @@ for (let i = 0; i < tree.children.length; i++) {
       assert.strictEqual(
         deprecationCodeAsText,
         expectedDeprecationCode,
-        'Deprecation codes are not ordered correctly.'
+        'Deprecation codes are not ordered correctly.',
       );
     } catch (e) {
       throw addMarkdownPathToErrorStack(e, node);

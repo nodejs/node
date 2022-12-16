@@ -349,7 +349,7 @@ function parseSignature(text, sig) {
           throw new Error(
             `Invalid param "${sigParam}"\n` +
             ` > ${JSON.stringify(listParam)}\n` +
-            ` > ${text}`
+            ` > ${text}`,
           );
         }
       }
@@ -376,7 +376,7 @@ function parseListItem(item, file) {
 
   current.textRaw = item.children.filter((node) => node.type !== 'list')
     .map((node) => (
-      file.value.slice(node.position.start.offset, node.position.end.offset))
+      file.value.slice(node.position.start.offset, node.position.end.offset)),
     )
     .join('').replace(/\s+/g, ' ').replace(/<!--.*?-->/sg, '');
   let text = current.textRaw;
