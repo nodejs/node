@@ -710,7 +710,7 @@ repository.
 ```console
 $ git checkout main
 $ git pull upstream main
-$ git cherry-pick v1.x^
+$ git cherry-pick --strategy-option=diff-algorithm=patience v1.x^
 ```
 
 Git should stop to let you fix conflicts.
