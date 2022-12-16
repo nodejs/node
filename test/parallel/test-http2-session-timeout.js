@@ -6,7 +6,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const http2 = require('http2');
 const hrtime = process.hrtime.bigint;
-const NS_PER_MS = 1000000n;
+const NS_PER_MS = 1_000_000n;
 
 let requests = 0;
 const mustNotCall = () => {
