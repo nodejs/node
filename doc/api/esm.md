@@ -701,8 +701,9 @@ changes:
 To customize the default module resolution, loader hooks can optionally be
 provided via a `--experimental-loader ./loader-name.mjs` argument to Node.js.
 
-When hooks are used they apply to the entry point and all `import` calls. They
-won't apply to `require` calls; those still follow [CommonJS][] rules.
+When hooks are used they apply to each subsequent loader, the entry point, and
+all `import` calls. They won't apply to `require` calls; those still follow
+[CommonJS][] rules.
 
 Loaders follow the pattern of `--require`:
 
