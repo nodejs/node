@@ -16,7 +16,7 @@
     "path": "dom/events"
   },
   "encoding": {
-    "commit": "c1b24fce6e625c1b79124a58f27bf9adce02d5d7",
+    "commit": "779d175c40efcb8f2c9512bebe25ffbeda485708",
     "path": "encoding"
   },
   "fetch/data-urls/resources": {
