@@ -224,7 +224,6 @@ assert.throws(() => new Blob({}), {
   // The Blob has to be over a specific size for the data to
   // be copied asynchronously..
   const b = new Blob(['hello', 'there'.repeat(820)]);
-  assert.strictEqual(b.arrayBuffer(), b.arrayBuffer());
   b.arrayBuffer().then(common.mustCall());
 }
 
