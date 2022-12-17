@@ -488,7 +488,6 @@ not ok 13 - t.after() is called if test body throws
     *
     *
     *
-    *
   ...
 # - after() called
 1..13

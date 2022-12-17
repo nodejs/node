@@ -1245,7 +1245,7 @@ A test reporter to use when running tests. See the documentation on
 added: REPLACEME
 -->
 
-the destination for each used test reporter. See the documentation on
+The destination for each used test reporter. See the documentation on
 [test reporters][] for more details.
 
 ### `--test-only`

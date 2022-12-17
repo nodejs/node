@@ -460,7 +460,7 @@ added: REPLACEME
 The `node:test` module supports passing [`--test-reporter`][]
 flags for the test runner to use a specific reporter.
 
-the default reporter is the `tap` reporter.
+The default reporter is the `tap` reporter.
 
 The following built-reporters are supported:
 
@@ -485,12 +485,13 @@ accepted by [stream.compose][] wich can be
 {stream.Writable|Iterable|AsyncIterable|Function}.
 the reporter will transform events emitted by {TestsStream}
 
-Expamle of a custom reporter using {stream.Transform}:
+Example of a custom reporter using {stream.Transform}:
 
 ```mjs
 import { Transform } from 'node:stream';
 
 const customReporter = new Transform({
+  writableObjectMode: true,
   transform(event, encoding, callback) {
     switch (event.type) {
       case 'test:start':
@@ -519,6 +520,7 @@ export default customReporter;
 const { Transform } = require('node:stream');
 
 const customReporter = new Transform({
+  writableObjectMode: true,
   transform(event, encoding, callback) {
     switch (event.type) {
       case 'test:start':
@@ -543,7 +545,7 @@ const customReporter = new Transform({
 module.exports = customReporter;
 ```
 
-Expamle of a custom reporter using a Function:
+Example of a custom reporter using a Function:
 
 ```mjs
 export default async function * customReporter(source) {
@@ -598,17 +600,17 @@ module.exports = async function * customReporter(source) {
 When passing multiple values to the [`--test-reporter`][] flag,
 it is required to specify a destination for each reporter
 using [`--test-reporter-destination`][].
-for each reporter specified via [`--test-reporter`][],
+For each reporter specified via [`--test-reporter`][],
 the corresponding destination will be used according
 to the order they were specified.
 
-destination can be either `stdout`, `stderr` or a file path.
+Destination can be either `stdout`, `stderr` or a file path.
 
 ```bash
 node --test-reporter=spec --test-reporter=dot --test-reporter-destination=stdout --test-reporter-destination=file.txt
 ```
 
-when a single reporter is specified,
+Wwhen a single reporter is specified,
 the destination will be `stdout` by default.
 
 ## `run([options])`
