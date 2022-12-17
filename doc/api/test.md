@@ -608,8 +608,8 @@ and the `dot` reporter will output to `file.txt`:
 node --test-reporter=spec --test-reporter=dot --test-reporter-destination=stdout --test-reporter-destination=file.txt
 ```
 
-When a single reporter is specified, or the default reporter is used,
-the destination , unless a destination is explicitly provided.
+When a single reporter is specified, the destination will default to `stdout`,
+unless a destination is explicitly provided.
 
 ## `run([options])`
 
