@@ -242,14 +242,20 @@ FileHandle::FileHandle(BindingData* binding_data,
 }
 
 FileHandle* FileHandle::New(BindingData* binding_data,
-                            int fd, Local<Object> obj) {
+                            int fd,
+                            Local<Object> obj,
+                            std::optional<int64_t> maybeOffset,
+                            std::optional<int64_t> maybeLength) {
   Environment* env = binding_data->env();
   if (obj.IsEmpty() && !env->fd_constructor_template()
                             ->NewInstance(env->context())
                             .ToLocal(&obj)) {
     return nullptr;
   }
-  return new FileHandle(binding_data, obj, fd);
+  auto handle = new FileHandle(binding_data, obj, fd);
+  if (maybeOffset.has_value()) handle->read_offset_ = maybeOffset.value();
+  if (maybeLength.has_value()) handle->read_length_ = maybeLength.value();
+  return handle;
 }
 
 void FileHandle::New(const FunctionCallbackInfo<Value>& args) {
@@ -258,13 +264,18 @@ void FileHandle::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   CHECK(args[0]->IsInt32());
 
-  FileHandle* handle =
-      FileHandle::New(binding_data, args[0].As<Int32>()->Value(), args.This());
-  if (handle == nullptr) return;
+  std::optional<int64_t> maybeOffset = std::nullopt;
+  std::optional<int64_t> maybeLength = std::nullopt;
   if (args[1]->IsNumber())
-    handle->read_offset_ = args[1]->IntegerValue(env->context()).FromJust();
+    maybeOffset = args[1]->IntegerValue(env->context()).FromJust();
   if (args[2]->IsNumber())
-    handle->read_length_ = args[2]->IntegerValue(env->context()).FromJust();
+    maybeLength = args[2]->IntegerValue(env->context()).FromJust();
+
+  FileHandle::New(binding_data,
+                  args[0].As<Int32>()->Value(),
+                  args.This(),
+                  maybeOffset,
+                  maybeLength);
 }
 
 FileHandle::~FileHandle() {
@@ -503,10 +514,15 @@ void FileHandle::Close(const FunctionCallbackInfo<Value>& args) {
 void FileHandle::ReleaseFD(const FunctionCallbackInfo<Value>& args) {
   FileHandle* fd;
   ASSIGN_OR_RETURN_UNWRAP(&fd, args.Holder());
-  // Just act as if this FileHandle has been closed.
-  fd->AfterClose();
+  fd->Release();
 }
 
+int FileHandle::Release() {
+  int fd = GetFD();
+  // Just pretend that Close was called and we're all done.
+  AfterClose();
+  return fd;
+}
 
 void FileHandle::AfterClose() {
   closing_ = false;
