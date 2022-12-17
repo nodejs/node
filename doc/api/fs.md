@@ -202,15 +202,6 @@ When operating on file handles, the mode cannot be changed from what it was set
 to with [`fsPromises.open()`][]. Therefore, this is equivalent to
 [`filehandle.writeFile()`][].
 
-#### `filehandle.blob()`
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-Returns a {Blob} whose data is backed by this file.
-
 #### `filehandle.chmod(mode)`
 
 <!-- YAML
@@ -3332,6 +3323,45 @@ a colon, Node.js will open a file system stream, as described by
 
 Functions based on `fs.open()` exhibit this behavior as well:
 `fs.writeFile()`, `fs.readFile()`, etc.
+
+### `fs.openAsBlob(path[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `path` {string|Buffer|URL}
+* `options` {Object}
+  * `type` {string} An optional mime type for the blob.
+* Return: {Promise} containing {Blob}
+
+Returns a {Blob} whose data is backed by the given file.
+
+The file must not be modified after the {Blob} is created. Any modifications
+will cause reading the {Blob} data to fail with a `DOMException`.
+error. Synchronous stat operations on the file when the `Blob` is created, and
+before each read in order to detect whether the file data has been modified
+on disk.
+
+```mjs
+import { openAsBlob } from 'node:fs';
+
+const blob = await openAsBlob('the.file.txt');
+const ab = await blob.arrayBuffer();
+blob.stream();
+```
+
+```cjs
+const { openAsBlob } = require('node:fs');
+
+(async () => {
+  const blob = await openAsBlob('the.file.txt');
+  const ab = await blob.arrayBuffer();
+  blob.stream();
+})();
+```
 
 ### `fs.opendir(path[, options], callback)`
 

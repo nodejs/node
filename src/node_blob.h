@@ -42,7 +42,8 @@ class Blob : public BaseObject {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
 
-  static BaseObjectPtr<Blob> Create(Environment* env, std::shared_ptr<DataQueue> data_queue);
+  static BaseObjectPtr<Blob> Create(Environment* env,
+                                    std::shared_ptr<DataQueue> data_queue);
 
   static bool HasInstance(Environment* env, v8::Local<v8::Value> object);
 
@@ -52,12 +53,12 @@ class Blob : public BaseObject {
 
   BaseObjectPtr<Blob> Slice(Environment* env, size_t start, size_t end);
 
-  inline size_t length() const { return this->data_queue_->size().ToChecked(); }
+  inline size_t length() const { return this->data_queue_->size().value(); }
 
   class BlobTransferData : public worker::TransferData {
    public:
     explicit BlobTransferData(std::shared_ptr<DataQueue> data_queue)
-      : data_queue(data_queue) {}
+        : data_queue(data_queue) {}
 
     BaseObjectPtr<BaseObject> Deserialize(
         Environment* env,
@@ -69,30 +70,28 @@ class Blob : public BaseObject {
     SET_NO_MEMORY_INFO()
 
    private:
-     std::shared_ptr<DataQueue> data_queue;
+    std::shared_ptr<DataQueue> data_queue;
   };
 
   class Reader final : public AsyncWrap {
-  public:
+   public:
     static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
     static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
         Environment* env);
-    static BaseObjectPtr<Reader> Create(
-        Environment* env,
-        BaseObjectPtr<Blob> blob);
+    static BaseObjectPtr<Reader> Create(Environment* env,
+                                        BaseObjectPtr<Blob> blob);
     static void Pull(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-    explicit Reader(
-        Environment* env,
-        v8::Local<v8::Object> obj,
-        BaseObjectPtr<Blob> strong_ptr);
+    explicit Reader(Environment* env,
+                    v8::Local<v8::Object> obj,
+                    BaseObjectPtr<Blob> strong_ptr);
 
     SET_NO_MEMORY_INFO()
     SET_MEMORY_INFO_NAME(Blob::Reader)
     SET_SELF_SIZE(Reader)
 
-  private:
-    std::unique_ptr<DataQueue::Reader> inner_;
+   private:
+    std::shared_ptr<DataQueue::Reader> inner_;
     BaseObjectPtr<Blob> strong_ptr_;
     bool eos_ = false;
   };
@@ -100,10 +99,9 @@ class Blob : public BaseObject {
   BaseObject::TransferMode GetTransferMode() const override;
   std::unique_ptr<worker::TransferData> CloneForMessaging() const override;
 
-  Blob(
-    Environment* env,
-    v8::Local<v8::Object> obj,
-    std::shared_ptr<DataQueue> data_queue);
+  Blob(Environment* env,
+       v8::Local<v8::Object> obj,
+       std::shared_ptr<DataQueue> data_queue);
 
   DataQueue& getDataQueue() const { return *data_queue_; }
 
