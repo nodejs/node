@@ -202,6 +202,15 @@ When operating on file handles, the mode cannot be changed from what it was set
 to with [`fsPromises.open()`][]. Therefore, this is equivalent to
 [`filehandle.writeFile()`][].
 
+#### `filehandle.blob()`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Returns a {Blob} whose data is backed by this file.
+
 #### `filehandle.chmod(mode)`
 
 <!-- YAML
