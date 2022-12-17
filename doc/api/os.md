@@ -26,6 +26,19 @@ The operating system-specific end-of-line marker.
 * `\n` on POSIX
 * `\r\n` on Windows
 
+## `os.availableParallelism()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {integer}
+
+Returns an estimate of the default amount of parallelism a program should use.
+Always returns a value greater than zero.
+
+This function is a small wrapper about libuv's [`uv_available_parallelism()`][].
+
 ## `os.arch()`
 
 <!-- YAML
@@ -1340,3 +1353,4 @@ The following process scheduling constants are exported by
 [`process.arch`]: process.md#processarch
 [`process.platform`]: process.md#processplatform
 [`uname(3)`]: https://linux.die.net/man/3/uname
+[`uv_available_parallelism()`]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_available_parallelism

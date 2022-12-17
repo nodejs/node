@@ -255,6 +255,8 @@ if (!common.isIBMi) {
   is.number(os.uptime(), 'uptime');
 }
 
+is.number(+os.availableParallelism, 'availableParallelism');
+is.number(os.availableParallelism(), 'availableParallelism');
 is.number(+os.freemem, 'freemem');
 is.number(os.freemem(), 'freemem');
 
@@ -264,3 +266,5 @@ if (common.isWindows) {
 } else {
   assert.strictEqual(devNull, '/dev/null');
 }
+
+assert.ok(os.availableParallelism() > 0);
