@@ -270,7 +270,7 @@ to the {TestsStream}.
 The second `setImmediate()` creates an `uncaughtException` event.
 `uncaughtException` and `unhandledRejection` events originating from a completed
 test are marked as failed by the `test` module and reported as diagnostic
-warnings emitted at the top level of by the {TestsStream}.
+warnings at the top level by the {TestsStream}.
 
 ```js
 test('a test that creates asynchronous activity', (t) => {
@@ -460,30 +460,26 @@ added: REPLACEME
 The `node:test` module supports passing [`--test-reporter`][]
 flags for the test runner to use a specific reporter.
 
-The default reporter is the `tap` reporter.
-
 The following built-reporters are supported:
 
-### `tap`
+* `tap`
+  The `tap` reporter is the default reporter used by the test runner. It outputs
+  the test results in the [TAP][] format.
 
-The `tap` reporter is the default reporter used by the test runner. It outputs
-the test results in the [TAP][] format.
+* `spec`
+  The `spec` reporter outputs the test results in a human-readable format.
 
-### `spec`
-
-The `spec` reporter outputs the test results in a human-readable format.
-
-### `dot`
-
-The `dot` reporter outputs the test results in a dot format.
+* `dot`
+  The `dot` reporter outputs the test results in a comact format,
+  where each passing test is represented by a `.`,
+  and each failing test is represented by a `X`.
 
 ### Custom reporters
 
 [`--test-reporter`][] can be used to specify a path to custom reporter.
 a custom reporter is a module that exports a value
-accepted by [stream.compose][] wich can be
-{stream.Writable|Iterable|AsyncIterable|Function}.
-the reporter will transform events emitted by {TestsStream}
+accepted by [stream.compose][].
+Reporters should transform events emitted by a {TestsStream}
 
 Example of a custom reporter using {stream.Transform}:
 
@@ -545,7 +541,7 @@ const customReporter = new Transform({
 module.exports = customReporter;
 ```
 
-Example of a custom reporter using a Function:
+Example of a custom reporter using a generator function:
 
 ```mjs
 export default async function * customReporter(source) {
@@ -597,21 +593,23 @@ module.exports = async function * customReporter(source) {
 
 ### Multiple reporters
 
-When passing multiple values to the [`--test-reporter`][] flag,
+The [`--test-reporter`][] flag can be specified multiple times to report test
+results in several formats. In this situation
 it is required to specify a destination for each reporter
 using [`--test-reporter-destination`][].
-For each reporter specified via [`--test-reporter`][],
-the corresponding destination will be used according
+Destination can be `stdout`, `stderr`, or a file path.
+Reporters and destinations are paired according
 to the order they were specified.
 
-Destination can be either `stdout`, `stderr` or a file path.
+In the following example, the `spec` reporter will output to `stdout`,
+and the `dot` reporter will output to `file.txt`:
 
 ```bash
 node --test-reporter=spec --test-reporter=dot --test-reporter-destination=stdout --test-reporter-destination=file.txt
 ```
 
-Wwhen a single reporter is specified,
-the destination will be `stdout` by default.
+When a single reporter is specified, or the default reporter is used,
+the destination , unless a destination is explicitly provided.
 
 ## `run([options])`
 
@@ -1257,7 +1255,7 @@ Emitted when a test passes.
 
 * `data` {Object}
   * `nesting` {number} The nesting level of the test.
-  * `count` {number} The number of subtests that are have ran.
+  * `count` {number} The number of subtests that have ran.
 
 Emitted when all subtests have completed for a given test.
 

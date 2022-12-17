@@ -26,7 +26,7 @@ describe('node:test reporters', { concurrency: true }, () => {
   it('should default destination to stdout when passing a single reporter', async () => {
     const child = spawnSync(process.execPath, ['--test', '--test-reporter', 'dot', testFile]);
     assert.strictEqual(child.stderr.toString(), '');
-    assert.strictEqual(child.stdout.toString(), '.....\n');
+    assert.strictEqual(child.stdout.toString(), '.XX.X\n');
   });
 
   it('should throw when passing reporters without a destination', async () => {
@@ -45,13 +45,13 @@ describe('node:test reporters', { concurrency: true }, () => {
     const child = spawnSync(process.execPath,
                             ['--test', '--test-reporter', 'dot', '--test-reporter-destination', 'stdout', testFile]);
     assert.strictEqual(child.stderr.toString(), '');
-    assert.strictEqual(child.stdout.toString(), '.....\n');
+    assert.strictEqual(child.stdout.toString(), '.XX.X\n');
   });
 
   it('should support stderr as a destination', async () => {
     const child = spawnSync(process.execPath,
                             ['--test', '--test-reporter', 'dot', '--test-reporter-destination', 'stderr', testFile]);
-    assert.strictEqual(child.stderr.toString(), '.....\n');
+    assert.strictEqual(child.stderr.toString(), '.XX.X\n');
     assert.strictEqual(child.stdout.toString(), '');
   });
 
@@ -61,7 +61,7 @@ describe('node:test reporters', { concurrency: true }, () => {
                             ['--test', '--test-reporter', 'dot', '--test-reporter-destination', file, testFile]);
     assert.strictEqual(child.stderr.toString(), '');
     assert.strictEqual(child.stdout.toString(), '');
-    assert.strictEqual(fs.readFileSync(file, 'utf8'), '.....\n');
+    assert.strictEqual(fs.readFileSync(file, 'utf8'), '.XX.X\n');
   });
 
   it('should support multiple reporters', async () => {
@@ -75,7 +75,7 @@ describe('node:test reporters', { concurrency: true }, () => {
                              testFile]);
     assert.match(child.stdout.toString(), /TAP version 13/);
     assert.match(child.stdout.toString(), /# duration_ms/);
-    assert.strictEqual(fs.readFileSync(file, 'utf8'), '.....\n');
+    assert.strictEqual(fs.readFileSync(file, 'utf8'), '.XX.X\n');
     const file2Contents = fs.readFileSync(file2, 'utf8');
     assert.match(file2Contents, /▶ nested/);
     assert.match(file2Contents, /✔ ok/);
@@ -83,7 +83,7 @@ describe('node:test reporters', { concurrency: true }, () => {
   });
 
   ['js', 'cjs', 'mjs'].forEach((ext) => {
-    it(`should support an ${ext} file as a custom reporter`, async () => {
+    it(`should support a '${ext}' file as a custom reporter`, async () => {
       const filename = `custom.${ext}`;
       const child = spawnSync(process.execPath,
                               ['--test', '--test-reporter', fixtures.path('test-runner/custom_reporters/', filename),
