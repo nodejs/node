@@ -95,5 +95,8 @@
   },
   "textdecoder-eof.any.js": {
     "requires": ["small-icu"]
+  },
+  "unsupported-labels.window.js": {
+    "skip": "document is not defined"
   }
 }
