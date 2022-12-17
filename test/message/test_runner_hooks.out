@@ -475,10 +475,28 @@ not ok 12 - afterEach throws and test fails
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
   ...
-1..12
-# tests 12
+# Subtest: t.after() is called if test body throws
+not ok 13 - t.after() is called if test body throws
+  ---
+  duration_ms: *
+  failureType: 'testCodeFailure'
+  error: 'bye'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+  ...
+# - after() called
+1..13
+# tests 13
 # pass 2
-# fail 10
+# fail 11
 # cancelled 0
 # skipped 0
 # todo 0

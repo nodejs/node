@@ -142,3 +142,10 @@ test('afterEach throws and test fails', async (t) => {
   await t.test('1', () => { throw new Error('test'); });
   await t.test('2', () => {});
 });
+
+test('t.after() is called if test body throws', (t) => {
+  t.after(() => {
+    t.diagnostic('- after() called');
+  });
+  throw new Error('bye');
+});
