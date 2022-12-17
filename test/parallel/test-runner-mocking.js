@@ -2,7 +2,6 @@
 const common = require('../common');
 const assert = require('node:assert');
 const { mock, test } = require('node:test');
-
 test('spies on a function', (t) => {
   const sum = t.mock.fn((arg1, arg2) => {
     return arg1 + arg2;
@@ -317,6 +316,157 @@ test('spy functions can be bound', (t) => {
 
   assert.strictEqual(sum.mock.restore(), undefined);
   assert.strictEqual(sum.bind(0)(2, 11), 13);
+});
+
+test('mocks prototype methods on an instance', async (t) => {
+  class Runner {
+    async someTask(msg) {
+      return Promise.resolve(msg);
+    }
+
+    async method(msg) {
+      await this.someTask(msg);
+      return msg;
+    }
+  }
+  const msg = 'ok';
+  const obj = new Runner();
+  assert.strictEqual(await obj.method(msg), msg);
+
+  t.mock.method(obj, obj.someTask.name);
+  assert.strictEqual(obj.someTask.mock.calls.length, 0);
+
+  assert.strictEqual(await obj.method(msg), msg);
+
+  const call = obj.someTask.mock.calls[0];
+
+  assert.deepStrictEqual(call.arguments, [msg]);
+  assert.strictEqual(await call.result, msg);
+  assert.strictEqual(call.target, undefined);
+  assert.strictEqual(call.this, obj);
+
+  const obj2 = new Runner();
+  // Ensure that a brand new instance is not mocked
+  assert.strictEqual(
+    obj2.someTask.mock,
+    undefined
+  );
+
+  assert.strictEqual(obj.someTask.mock.restore(), undefined);
+  assert.strictEqual(await obj.method(msg), msg);
+  assert.strictEqual(obj.someTask.mock, undefined);
+  assert.strictEqual(Runner.prototype.someTask.mock, undefined);
+});
+
+test('spies on async static class methods', async (t) => {
+  class Runner {
+    static async someTask(msg) {
+      return Promise.resolve(msg);
+    }
+
+    static async method(msg) {
+      await this.someTask(msg);
+      return msg;
+    }
+  }
+  const msg = 'ok';
+  assert.strictEqual(await Runner.method(msg), msg);
+
+  t.mock.method(Runner, Runner.someTask.name);
+  assert.strictEqual(Runner.someTask.mock.calls.length, 0);
+
+  assert.strictEqual(await Runner.method(msg), msg);
+
+  const call = Runner.someTask.mock.calls[0];
+
+  assert.deepStrictEqual(call.arguments, [msg]);
+  assert.strictEqual(await call.result, msg);
+  assert.strictEqual(call.target, undefined);
+  assert.strictEqual(call.this, Runner);
+
+  assert.strictEqual(Runner.someTask.mock.restore(), undefined);
+  assert.strictEqual(await Runner.method(msg), msg);
+  assert.strictEqual(Runner.someTask.mock, undefined);
+  assert.strictEqual(Runner.prototype.someTask, undefined);
+
+});
+
+test('given null to a mock.method it throws a invalid argument error', (t) => {
+  assert.throws(() => t.mock.method(null, {}), { code: 'ERR_INVALID_ARG_TYPE' });
+});
+
+test('it should throw given an inexistent property on a object instance', (t) => {
+  assert.throws(() => t.mock.method({ abc: 0 }, 'non-existent'), {
+    code: 'ERR_INVALID_ARG_VALUE'
+  });
+});
+
+test('spy functions can be used on classes inheritance', (t) => {
+  // Makes sure that having a null-prototype doesn't throw our system off
+  class A extends null {
+    static someTask(msg) {
+      return msg;
+    }
+    static method(msg) {
+      return this.someTask(msg);
+    }
+  }
+  class B extends A {}
+  class C extends B {}
+
+  const msg = 'ok';
+  assert.strictEqual(C.method(msg), msg);
+
+  t.mock.method(C, C.someTask.name);
+  assert.strictEqual(C.someTask.mock.calls.length, 0);
+
+  assert.strictEqual(C.method(msg), msg);
+
+  const call = C.someTask.mock.calls[0];
+
+  assert.deepStrictEqual(call.arguments, [msg]);
+  assert.strictEqual(call.result, msg);
+  assert.strictEqual(call.target, undefined);
+  assert.strictEqual(call.this, C);
+
+  assert.strictEqual(C.someTask.mock.restore(), undefined);
+  assert.strictEqual(C.method(msg), msg);
+  assert.strictEqual(C.someTask.mock, undefined);
+});
+
+test('spy functions don\'t affect the prototype chain', (t) => {
+
+  class A {
+    static someTask(msg) {
+      return msg;
+    }
+  }
+  class B extends A {}
+  class C extends B {}
+
+  const msg = 'ok';
+
+  const ABeforeMockIsUnchanged = Object.getOwnPropertyDescriptor(A, A.someTask.name);
+  const BBeforeMockIsUnchanged = Object.getOwnPropertyDescriptor(B, B.someTask.name);
+  const CBeforeMockShouldNotHaveDesc = Object.getOwnPropertyDescriptor(C, C.someTask.name);
+
+  t.mock.method(C, C.someTask.name);
+  C.someTask(msg);
+  const BAfterMockIsUnchanged = Object.getOwnPropertyDescriptor(B, B.someTask.name);
+
+  const AAfterMockIsUnchanged = Object.getOwnPropertyDescriptor(A, A.someTask.name);
+  const CAfterMockHasDescriptor = Object.getOwnPropertyDescriptor(C, C.someTask.name);
+
+  assert.strictEqual(CBeforeMockShouldNotHaveDesc, undefined);
+  assert.ok(CAfterMockHasDescriptor);
+
+  assert.deepStrictEqual(ABeforeMockIsUnchanged, AAfterMockIsUnchanged);
+  assert.strictEqual(BBeforeMockIsUnchanged, BAfterMockIsUnchanged);
+  assert.strictEqual(BBeforeMockIsUnchanged, undefined);
+
+  assert.strictEqual(C.someTask.mock.restore(), undefined);
+  const CAfterRestoreKeepsDescriptor = Object.getOwnPropertyDescriptor(C, C.someTask.name);
+  assert.ok(CAfterRestoreKeepsDescriptor);
 });
 
 test('mocked functions report thrown errors', (t) => {
