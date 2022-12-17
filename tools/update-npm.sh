@@ -5,6 +5,9 @@ set -e
 BASE_DIR=$(cd "$(dirname "$0")/.." && pwd)
 DEPS_DIR="$BASE_DIR/deps"
 NPM_VERSION=$1
+[ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node" 
+[ -x "$NODE" ] || NODE=$(command -v node) 
+NPX="$BASE_DIR/deps/npm/bin/npx-cli.js"
 
 if [ "$#" -le 0 ]; then
   echo "Error: please provide an npm version to update to"
@@ -41,6 +44,11 @@ rm -rf npm/
 echo "Copying new npm"
 
 tar zxf "$WORKSPACE/cli/release/npm-$NPM_VERSION.tgz"
+
+echo "Building semver"
+
+cd npm/node_modules/semver
+"$NODE" "$NPX" esbuild@0.14.38 index.js --bundle --platform=node --outfile=semver.js
 
 echo ""
 echo "All done!"

@@ -59,7 +59,8 @@ with open ('tools/icu/icu_versions.json') as f:
 
 shareable_builtins = {'cjs_module_lexer/lexer': 'deps/cjs-module-lexer/lexer.js',
                      'cjs_module_lexer/dist/lexer': 'deps/cjs-module-lexer/dist/lexer.js',
-                     'undici/undici': 'deps/undici/undici.js'
+                     'undici/undici': 'deps/undici/undici.js',
+                     'semver/semver': 'deps/npm/node_modules/semver/semver.js',
 }
 
 # create option groups
