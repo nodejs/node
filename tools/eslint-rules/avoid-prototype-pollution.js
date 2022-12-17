@@ -224,6 +224,14 @@ module.exports = {
           message: `Use Safe${node.callee.name} instead of ${node.callee.name}`,
         });
       },
+
+      [CallExpression('ArrayPrototypeConcat')](node) {
+        context.report({
+          node,
+          message: '%Array.prototype.concat% looks up `@@isConcatSpreadable` ' +
+                   'which can be subject to prototype pollution',
+        });
+      },
     };
   },
 };
