@@ -27,6 +27,12 @@ namespace node {
 #define NODE_HAS_RELEASE_URLS
 #endif
 
+#ifndef NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH
+#define NODE_VERSIONS_KEY_UNDICI(V) V(undici)
+#else
+#define NODE_VERSIONS_KEY_UNDICI(V)
+#endif
+
 #define NODE_VERSIONS_KEYS_BASE(V)                                             \
   V(node)                                                                      \
   V(v8)                                                                        \
@@ -38,7 +44,9 @@ namespace node {
   V(nghttp2)                                                                   \
   V(napi)                                                                      \
   V(llhttp)                                                                    \
-  V(uvwasi)
+  V(uvwasi)                                                                    \
+  V(acorn)                                                                     \
+  NODE_VERSIONS_KEY_UNDICI(V)
 
 #if HAVE_OPENSSL
 #define NODE_VERSIONS_KEY_CRYPTO(V) V(openssl)

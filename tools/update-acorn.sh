@@ -23,6 +23,17 @@ rm -rf deps/acorn/acorn
     "$NODE" "$NPM" init --yes
 
     "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts acorn
+    cd node_modules/acorn
+    # get acorn version
+    ACORN_VERSION=$("$NODE" -p "require('./package.json').version")
+    # update this version information in src/acorn_version.h
+    FILE_PATH="$ROOT/src/acorn_version.h"
+    echo "// This is an auto generated file, please do not edit." > "$FILE_PATH"
+    echo "// Refer to tools/update-acorn.sh" >> "$FILE_PATH"
+    echo "#ifndef SRC_ACORN_VERSION_H_" >> "$FILE_PATH"
+    echo "#define SRC_ACORN_VERSION_H_" >> "$FILE_PATH"
+    echo "#define ACORN_VERSION \"$ACORN_VERSION\"" >> "$FILE_PATH"
+    echo "#endif  // SRC_ACORN_VERSION_H_" >> "$FILE_PATH"
 )
 
 mv acorn-tmp/node_modules/acorn deps/acorn
