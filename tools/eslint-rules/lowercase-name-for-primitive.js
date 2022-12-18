@@ -41,19 +41,19 @@ module.exports = function(context) {
         fix: (fixer) => {
           return fixer.replaceText(
             node,
-            `'${lowercaseName}'`
+            `'${lowercaseName}'`,
           );
-        }
+        },
       });
     }
 
   }
 
   return {
-    [astSelector]: (node) => checkNamesArgument(node)
+    [astSelector]: (node) => checkNamesArgument(node),
   };
 };
 
 module.exports.meta = {
-  fixable: 'code'
+  fixable: 'code',
 };

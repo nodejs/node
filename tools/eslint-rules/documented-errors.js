@@ -34,7 +34,7 @@ module.exports = {
             `doc/api/errors.md does not have an anchor for "${code}"`;
           context.report({ node, message });
         }
-      }
+      },
     };
-  }
+  },
 };

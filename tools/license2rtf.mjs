@@ -63,7 +63,7 @@ class ParagraphParser extends Stream {
     this.paragraph = {
       li: '',
       inLicenseBlock: this.blockIsLicenseBlock,
-      lines: []
+      lines: [],
     };
   }
 

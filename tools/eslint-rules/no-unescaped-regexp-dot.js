@@ -20,7 +20,7 @@ module.exports = {
       context.report({
         node,
         loc: sourceCode.getLocFromIndex(indexOfDot),
-        message: 'Unescaped dot character in regular expression'
+        message: 'Unescaped dot character in regular expression',
       });
     }
     const allowedModifiers = ['+', '*', '?', '{'];
@@ -127,7 +127,7 @@ module.exports = {
       'CallExpression': checkRegExpStart,
       'NewExpression': checkRegExpStart,
       'CallExpression:exit': checkRegExpEnd,
-      'NewExpression:exit': checkRegExpEnd
+      'NewExpression:exit': checkRegExpEnd,
     };
-  }
+  },
 };
