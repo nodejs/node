@@ -96,8 +96,8 @@ all = all.slice(0, apiStart.index + apiStart[0].length)
       '\n</head>',
       buildCSSForFlavoredJS(new Set(Array.from(
         apicontent.matchAll(/(?<=<pre class="with-)\d+(?=-chars">)/g),
-        (x) => Number(x[0])
-      ))) + '\n</head>'
+        (x) => Number(x[0]),
+      ))) + '\n</head>',
     ) +
   apicontent +
   all.slice(apiEnd);

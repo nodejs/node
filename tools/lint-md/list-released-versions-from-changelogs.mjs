@@ -32,7 +32,7 @@ const dir = await fs.promises.opendir(dataFolder);
 for await (const dirent of dir) {
   if (dirent.isFile()) {
     filesToCheck.push(
-      getVersionsFromFile(new URL(dirent.name, dataFolder))
+      getVersionsFromFile(new URL(dirent.name, dataFolder)),
     );
   }
 }

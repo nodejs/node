@@ -33,7 +33,7 @@ module.exports = {
         });
         if (hasSequentialParams)
           context.report(msg, errMsg);
-      }
+      },
     };
-  }
+  },
 };

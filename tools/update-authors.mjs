@@ -17,7 +17,7 @@ const log = spawn(
   'git',
   // Inspect author name/email and body.
   ['log', '--reverse', '--format=Author: %aN <%aE>\n%b'], {
-    stdio: ['inherit', 'pipe', 'inherit']
+    stdio: ['inherit', 'pipe', 'inherit'],
   });
 const rl = readline.createInterface({ input: log.stdout });
 

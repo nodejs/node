@@ -56,17 +56,17 @@ module.exports = function(context) {
     'Program:exit'(node) {
       if (foundModules.length < requiredModules.length) {
         const missingModules = requiredModules.filter(
-          ([module]) => foundModules.indexOf(module) === -1
+          ([module]) => foundModules.indexOf(module) === -1,
         );
         missingModules.forEach(([moduleName]) => {
           context.report(
             node,
             'Mandatory module "{{moduleName}}" must be loaded.',
-            { moduleName: moduleName }
+            { moduleName: moduleName },
           );
         });
       }
-    }
+    },
   };
 
   if (isESM) {
@@ -95,7 +95,7 @@ module.exports.meta = {
   schema: [{
     'type': 'object',
     'additionalProperties': {
-      'type': 'string'
+      'type': 'string',
     },
   }],
 };

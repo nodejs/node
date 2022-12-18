@@ -47,10 +47,10 @@ module.exports = {
               if (commonModuleNode) {
                 return fixer.insertTextAfter(
                   commonModuleNode,
-                  '\ncommon.skipIfEslintMissing();'
+                  '\ncommon.skipIfEslintMissing();',
                 );
               }
-            }
+            },
           });
         });
       }
@@ -59,7 +59,7 @@ module.exports = {
     return {
       'CallExpression': (node) => testEslintUsage(context, node),
       'MemberExpression': (node) => checkMemberExpression(context, node),
-      'Program:exit': () => reportIfMissing(context)
+      'Program:exit': () => reportIfMissing(context),
     };
-  }
+  },
 };

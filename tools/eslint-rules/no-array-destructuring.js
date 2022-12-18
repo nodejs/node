@@ -30,7 +30,7 @@ const findComma = (sourceCode, elements, i, start) => {
     element = elements[--i];
   }
   let token = sourceCode.getTokenAfter(
-    element ?? sourceCode.getTokenByRangeStart(start)
+    element ?? sourceCode.getTokenByRangeStart(start),
   );
   for (; i < originalIndex; i++) {
     token = sourceCode.getTokenAfter(token);
@@ -43,7 +43,7 @@ const createFix = (fixer, sourceCode, { range: [start, end], elements }) => [
   ...elements.map((node, i) =>
     (node === null ?
       fixer.remove(findComma(sourceCode, elements, i, start)) :
-      fixer.insertTextBefore(node, i + ':'))
+      fixer.insertTextBefore(node, i + ':')),
   ),
 ];
 const arrayPatternContainsRestOperator = ({ elements }) =>

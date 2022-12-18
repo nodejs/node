@@ -220,7 +220,7 @@ export function preprocessElements({ filename }) {
       } else if (node.type === 'code') {
         if (!node.lang) {
           console.warn(
-            `No language set in ${filename}, line ${node.position.start.line}`
+            `No language set in ${filename}, line ${node.position.start.line}`,
           );
         }
         const className = isJSFlavorSnippet(node) ?
@@ -302,7 +302,7 @@ export function preprocessElements({ filename }) {
               (noLinking ? '' :
                 '<a href="documentation.html#stability-index">') +
               `${prefix} ${number}${noLinking ? '' : '</a>'}`
-                .replace(/\n/g, ' ')
+                .replace(/\n/g, ' '),
           });
 
           // Remove prefix and number from text
@@ -408,7 +408,7 @@ export function buildToc({ filename, apilinks }) {
 
       if (node.depth - depth > 1) {
         throw new Error(
-          `Inappropriate heading level:\n${JSON.stringify(node)}`
+          `Inappropriate heading level:\n${JSON.stringify(node)}`,
         );
       }
 
@@ -543,7 +543,7 @@ function gtocPicker(id) {
 
   // Highlight the current module and add a link to the index
   const gtoc = gtocHTML.replace(
-    `class="nav-${id}"`, `class="nav-${id} active"`
+    `class="nav-${id}"`, `class="nav-${id} active"`,
   ).replace('</ul>', `
       <li>
         <a href="index.html">Index</a>

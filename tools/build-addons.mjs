@@ -31,7 +31,7 @@ async function buildAddon(dir) {
     await execFile(process.execPath, [nodeGyp, 'rebuild', `--directory=${dir}`],
                    {
                      stdio: 'inherit',
-                     env: { ...process.env, MAKEFLAGS: '-j1' }
+                     env: { ...process.env, MAKEFLAGS: '-j1' },
                    });
 
   // We buffer the output and print it out once the process is done in order

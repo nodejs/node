@@ -27,7 +27,7 @@ function execSync(command) {
   try {
     return child_process.execSync(
       command,
-      { stdio: ['ignore', null, 'ignore'] }
+      { stdio: ['ignore', null, 'ignore'] },
     ).toString().trim();
   } catch {
     return '';

@@ -8,7 +8,7 @@ const jsPrimitives = {
   number: 'Number',
   string: 'String',
   symbol: 'Symbol',
-  undefined: 'Undefined'
+  undefined: 'Undefined',
 };
 
 const jsGlobalObjectsUrl = `${jsDocPrefix}Reference/Global_Objects/`;
@@ -301,7 +301,7 @@ export function toLink(typeInput) {
       } else {
         throw new Error(
           `Unrecognized type: '${typeTextFull}'.\n` +
-          `Please, edit the type or update '${import.meta.url}'.`
+          `Please, edit the type or update '${import.meta.url}'.`,
         );
       }
     } else {
