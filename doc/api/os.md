@@ -140,6 +140,10 @@ The properties included on each object include:
 `nice` values are POSIX-only. On Windows, the `nice` values of all processors
 are always 0.
 
+`os.cpus().length` should not be used to calculate the amount of parallelism
+available to an application. Use
+[`os.availableParallelism()`](#osavailableparallelism) for this purpose.
+
 ## `os.devNull`
 
 <!-- YAML
