@@ -2,6 +2,13 @@ env:
   es6: true
 
 rules:
+  comma-dangle: [error, {
+    arrays: always-multiline,
+    exports: only-multiline,
+    functions: only-multiline,
+    imports: only-multiline,
+    objects: only-multiline,
+  }]
   prefer-object-spread: error
   no-buffer-constructor: error
   no-mixed-operators:

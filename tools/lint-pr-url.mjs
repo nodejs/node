@@ -28,7 +28,7 @@ for await (const line of diff) {
   } else if (!validatePrUrl(line.match(prUrlDefinition)?.[1])) {
     console.warn(
       `::warning file=${currentFile},line=${currentLine++},col=${line.length}` +
-      '::pr-url doesn\'t match the URL of the current PR.'
+      '::pr-url doesn\'t match the URL of the current PR.',
     );
   } else if (line[0] !== '-') {
     // Increment line counter if line is not being deleted.
