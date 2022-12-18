@@ -25,6 +25,6 @@ module.exports = function(context) {
     [arg0Selector]: report,
 
     // Catch common.mustCall(fn, 0)
-    [arg1Selector]: report
+    [arg1Selector]: report,
   };
 };

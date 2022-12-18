@@ -13,7 +13,7 @@ const message =
 
 module.exports = {
   meta: {
-    fixable: 'code'
+    fixable: 'code',
   },
   create: function(context) {
     let hasCommonModule = false;
@@ -31,10 +31,10 @@ module.exports = {
             fix: (fixer) => {
               if (hasCommonModule)
                 return fixer.insertTextAfter(node, '.then(common.mustCall())');
-            }
+            },
           });
         }
-      }
+      },
     };
-  }
+  },
 };

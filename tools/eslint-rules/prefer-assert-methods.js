@@ -16,7 +16,7 @@ const preferredAssertMethod = {
   '===': 'strictEqual',
   '!==': 'notStrictEqual',
   '==': 'equal',
-  '!=': 'notEqual'
+  '!=': 'notEqual',
 };
 
 module.exports = function(context) {
@@ -34,15 +34,15 @@ module.exports = function(context) {
             const right = sourceCode.getText(arg.right);
             return fixer.replaceText(
               node,
-              `assert.${assertMethod}(${left}, ${right});`
+              `assert.${assertMethod}(${left}, ${right});`,
             );
-          }
+          },
         });
       }
-    }
+    },
   };
 };
 
 module.exports.meta = {
-  fixable: 'code'
+  fixable: 'code',
 };
