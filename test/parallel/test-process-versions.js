@@ -2,6 +2,9 @@
 const common = require('../common');
 const assert = require('assert');
 
+// Import of pure js (non-shared) deps for comparison
+const acorn = require('../../deps/acorn/acorn/package.json');
+
 const expected_keys = [
   'ares',
   'brotli',
@@ -14,7 +17,14 @@ const expected_keys = [
   'napi',
   'llhttp',
   'uvwasi',
+  'acorn',
 ];
+
+const hasUndici = process.config.variables.node_builtin_shareable_builtins.includes('deps/undici/undici.js');
+
+if (hasUndici) {
+  expected_keys.push('undici');
+}
 
 if (common.hasCrypto) {
   expected_keys.push('openssl');
@@ -39,12 +49,17 @@ assert.deepStrictEqual(actual_keys, expected_keys);
 
 const commonTemplate = /^\d+\.\d+\.\d+(?:-.*)?$/;
 
+assert.match(process.versions.acorn, commonTemplate);
 assert.match(process.versions.ares, commonTemplate);
 assert.match(process.versions.brotli, commonTemplate);
 assert.match(process.versions.llhttp, commonTemplate);
 assert.match(process.versions.node, commonTemplate);
 assert.match(process.versions.uv, commonTemplate);
 assert.match(process.versions.zlib, commonTemplate);
+
+if (hasUndici) {
+  assert.match(process.versions.undici, commonTemplate);
+}
 
 assert.match(
   process.versions.v8,
@@ -70,3 +85,12 @@ for (let i = 0; i < expected_keys.length; i++) {
 
 assert.strictEqual(process.config.variables.napi_build_version,
                    process.versions.napi);
+
+if (hasUndici) {
+  const undici = require('../../deps/undici/src/package.json');
+  const expectedUndiciVersion = undici.version;
+  assert.strictEqual(process.versions.undici, expectedUndiciVersion);
+}
+
+const expectedAcornVersion = acorn.version;
+assert.strictEqual(process.versions.acorn, expectedAcornVersion);
