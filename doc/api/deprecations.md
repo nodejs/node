@@ -2892,7 +2892,7 @@ Prefer [`message.socket`][] over [`message.connection`][].
 
 <!-- YAML
 changes:
-  - version: v18.10.0
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/43627
     description: End-of-Life.
   - version: v16.0.0
@@ -3137,7 +3137,7 @@ resources and not the actual references.
 
 <!-- YAML
 changes:
-  - version: v18.10.0
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42796
     description: End-of-Life.
   - version: v18.0.0
@@ -3226,7 +3226,7 @@ The [`--trace-atomics-wait`][] flag is deprecated.
 
 <!-- YAML
 changes:
-  - version: v18.10.0
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44495
     description: Runtime deprecation.
   - version: v18.10.0
