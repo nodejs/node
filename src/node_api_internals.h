@@ -19,6 +19,9 @@ struct node_napi_env__ : public napi_env__ {
   template <bool enforceUncaughtExceptionPolicy>
   void CallFinalizer(napi_finalize cb, void* data, void* hint);
 
+  void EnqueueFinalizer(v8impl::RefTracker* finalizer) override;
+  void DrainFinalizerQueue();
+
   void trigger_fatal_exception(v8::Local<v8::Value> local_err);
   template <bool enforceUncaughtExceptionPolicy, typename T>
   void CallbackIntoModule(T&& call);
@@ -32,6 +35,7 @@ struct node_napi_env__ : public napi_env__ {
 
   std::string filename;
   bool destructing = false;
+  bool finalization_scheduled = false;
 };
 
 using node_napi_env = node_napi_env__*;
