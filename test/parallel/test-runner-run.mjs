@@ -10,7 +10,6 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
   it('should run with no tests', async () => {
     const stream = run({ files: [] });
-    stream.setEncoding('utf8');
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
