@@ -24,7 +24,6 @@ not ok 3 - sync fail todo # TODO
     *
     *
     *
-    *
   ...
 # Subtest: sync fail todo with message
 not ok 4 - sync fail todo with message # TODO this is a failing todo
@@ -34,7 +33,6 @@ not ok 4 - sync fail todo with message # TODO this is a failing todo
   error: 'thrown from sync fail todo with message'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
     *
     *
     *
@@ -74,7 +72,6 @@ not ok 8 - sync throw fail
     *
     *
     *
-    *
   ...
 # Subtest: async skip pass
 ok 9 - async skip pass # SKIP
@@ -101,7 +98,6 @@ not ok 11 - async throw fail
     *
     *
     *
-    *
   ...
 # Subtest: async skip fail
 not ok 12 - async skip fail # SKIP
@@ -111,7 +107,6 @@ not ok 12 - async skip fail # SKIP
   error: 'thrown from async throw fail'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
     *
     *
     *
@@ -142,7 +137,6 @@ not ok 13 - async assertion fail
     *
     *
     *
-    *
   ...
 # Subtest: resolve pass
 ok 14 - resolve pass
@@ -157,7 +151,6 @@ not ok 15 - reject fail
   error: 'rejected from reject fail'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
     *
     *
     *
