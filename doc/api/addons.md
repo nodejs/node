@@ -107,6 +107,9 @@ When building addons with `node-gyp`, using the macro `NODE_GYP_MODULE_NAME` as
 the first parameter of `NODE_MODULE()` will ensure that the name of the final
 binary will be passed to `NODE_MODULE()`.
 
+Addons defined with `NODE_MODULE()` can not be loaded in multiple contexts or
+multiple threads at the same time.
+
 ### Context-aware addons
 
 There are environments in which Node.js addons may need to be loaded multiple
