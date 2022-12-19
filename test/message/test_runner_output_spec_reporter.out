@@ -1,6 +1,6 @@
-✔ sync pass todo (*ms)
-✔ sync pass todo with message (*ms)
-✖ sync fail todo (*ms)
+ sync pass todo (*ms)
+ sync pass todo with message (*ms)
+ sync fail todo (*ms)
   Error: thrown from sync fail todo
   *
   *
@@ -10,7 +10,7 @@
   *
   *
 
-✖ sync fail todo with message (*ms)
+ sync fail todo with message (*ms)
   Error: thrown from sync fail todo with message
   *
   *
@@ -20,11 +20,11 @@
   *
   *
 
-✔ sync skip pass (*ms)
-✔ sync skip pass with message (*ms)
-✔ sync pass (*ms)
-ℹ this test should pass
-✖ sync throw fail (*ms)
+ sync skip pass (*ms)
+ sync skip pass with message (*ms)
+ sync pass (*ms)
+ this test should pass
+ sync throw fail (*ms)
   Error: thrown from sync throw fail
   *
   *
@@ -34,9 +34,9 @@
   *
   *
 
-✔ async skip pass (*ms)
-✔ async pass (*ms)
-✖ async throw fail (*ms)
+ async skip pass (*ms)
+ async pass (*ms)
+ async throw fail (*ms)
   Error: thrown from async throw fail
   *
   *
@@ -46,7 +46,7 @@
   *
   *
 
-✖ async skip fail (*ms)
+ async skip fail (*ms)
   Error: thrown from async throw fail
   *
   *
@@ -56,7 +56,7 @@
   *
   *
 
-✖ async assertion fail (*ms)
+ async assertion fail (*ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
   
   true !== false
@@ -68,15 +68,15 @@
   *
   *
   * {
-    generatedMessage: *true*,
-    code: *'ERR_ASSERTION'*,
-    actual: *true*,
-    expected: *false*,
-    operator: *'strictEqual'*
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual'
   }
 
-✔ resolve pass (*ms)
-✖ reject fail (*ms)
+ resolve pass (*ms)
+ reject fail (*ms)
   Error: rejected from reject fail
   *
   *
@@ -86,13 +86,13 @@
   *
   *
 
-✔ unhandled rejection - passes but warns (*ms)
-✔ async unhandled rejection - passes but warns (*ms)
-✔ immediate throw - passes but warns (*ms)
-✔ immediate reject - passes but warns (*ms)
-✔ immediate resolve pass (*ms)
-▶ subtest sync throw fail
-  ✖ +sync throw fail (*ms)
+ unhandled rejection - passes but warns (*ms)
+ async unhandled rejection - passes but warns (*ms)
+ immediate throw - passes but warns (*ms)
+ immediate reject - passes but warns (*ms)
+ immediate resolve pass (*ms)
+ subtest sync throw fail
+   +sync throw fail (*ms)
     Error: thrown from subtest sync throw fail
     *
     *
@@ -105,33 +105,33 @@
     *
     *
 
-  ℹ this subtest should make its parent test fail
-▶ subtest sync throw fail (*ms)
+   this subtest should make its parent test fail
+ subtest sync throw fail (*ms)
 
-✖ sync throw non-error fail (*ms)
-  *Symbol(thrown symbol from sync throw non-error fail)*
+ sync throw non-error fail (*ms)
+  Symbol(thrown symbol from sync throw non-error fail)
 
-▶ level 0a
-  ✔ level 1a (*ms)
-  ✔ level 1b (*ms)
-  ✔ level 1c (*ms)
-  ✔ level 1d (*ms)
-▶ level 0a (*ms)
+ level 0a
+   level 1a (*ms)
+   level 1b (*ms)
+   level 1c (*ms)
+   level 1d (*ms)
+ level 0a (*ms)
 
-▶ top level
-  ✖ +long running (*ms)
-    *'test did not finish before its parent and was cancelled'*
+ top level
+   +long running (*ms)
+    'test did not finish before its parent and was cancelled'
 
-  ▶ +short running
-    ✔ ++short running (*ms)
-  ▶ +short running (*ms)
+   +short running
+     ++short running (*ms)
+   +short running (*ms)
 
-▶ top level (*ms)
+ top level (*ms)
 
-✔ invalid subtest - pass but subtest fails (*ms)
-✔ sync skip option (*ms)
-✔ sync skip option with message (*ms)
-✖ sync skip option is false fail (*ms)
+ invalid subtest - pass but subtest fails (*ms)
+ sync skip option (*ms)
+ sync skip option with message (*ms)
+ sync skip option is false fail (*ms)
   Error: this should be executed
   *
   *
@@ -141,34 +141,34 @@
   *
   *
 
-✔ <anonymous> (*ms)
-✔ functionOnly (*ms)
-✔ <anonymous> (*ms)
-✔ test with only a name provided (*ms)
-✔ <anonymous> (*ms)
-✔ <anonymous> (*ms)
-✔ test with a name and options provided (*ms)
-✔ functionAndOptions (*ms)
-✔ escaped description \ # *
+ <anonymous> (*ms)
+ functionOnly (*ms)
+ <anonymous> (*ms)
+ test with only a name provided (*ms)
+ <anonymous> (*ms)
+ <anonymous> (*ms)
+ test with a name and options provided (*ms)
+ functionAndOptions (*ms)
+ escaped description \ # *
  	 *
  (*ms)
-✔ escaped skip message (*ms)
-✔ escaped todo message (*ms)
-✔ escaped diagnostic (*ms)
-ℹ #diagnostic
-✔ callback pass (*ms)
-✖ callback fail (*ms)
+ escaped skip message (*ms)
+ escaped todo message (*ms)
+ escaped diagnostic (*ms)
+ #diagnostic
+ callback pass (*ms)
+ callback fail (*ms)
   Error: callback failure
   *
   *
 
-✔ sync t is this in test (*ms)
-✔ async t is this in test (*ms)
-✔ callback t is this in test (*ms)
-✖ callback also returns a Promise (*ms)
-  *'passed a callback but also returned a Promise'*
+ sync t is this in test (*ms)
+ async t is this in test (*ms)
+ callback t is this in test (*ms)
+ callback also returns a Promise (*ms)
+  'passed a callback but also returned a Promise'
 
-✖ callback throw (*ms)
+ callback throw (*ms)
   Error: thrown from callback throw
   *
   *
@@ -178,39 +178,39 @@
   *
   *
 
-✖ callback called twice (*ms)
-  *'callback invoked multiple times'*
+ callback called twice (*ms)
+  'callback invoked multiple times'
 
-✔ callback called twice in different ticks (*ms)
-✖ callback called twice in future tick (*ms)
+ callback called twice in different ticks (*ms)
+ callback called twice in future tick (*ms)
   Error [ERR_TEST_FAILURE]: callback invoked multiple times
   *
-    failureType: *'multipleCallbackInvocations'*,
-    cause: *'callback invoked multiple times'*,
-    code: *'ERR_TEST_FAILURE'*
+    failureType: 'multipleCallbackInvocations',
+    cause: 'callback invoked multiple times',
+    code: 'ERR_TEST_FAILURE'
   }
 
-✖ callback async throw (*ms)
+ callback async throw (*ms)
   Error: thrown from callback async throw
   *
   *
 
-✔ callback async throw after done (*ms)
-▶ only is set but not in only mode
-  ✔ running subtest 1 (*ms)
-  ✔ running subtest 2 (*ms)
-  ✔ running subtest 3 (*ms)
-  ✔ running subtest 4 (*ms)
-▶ only is set but not in only mode (*ms)
+ callback async throw after done (*ms)
+ only is set but not in only mode
+   running subtest 1 (*ms)
+   running subtest 2 (*ms)
+   running subtest 3 (*ms)
+   running subtest 4 (*ms)
+ only is set but not in only mode (*ms)
 
-✖ custom inspect symbol fail (*ms)
+ custom inspect symbol fail (*ms)
   customized
 
-✖ custom inspect symbol that throws fail (*ms)
-  *
+ custom inspect symbol that throws fail (*ms)
+  { foo: 1, [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]] }
 
-▶ subtest sync throw fails
-  ✖ sync throw fails at first (*ms)
+ subtest sync throw fails
+   sync throw fails at first (*ms)
     Error: thrown from subtest sync throw fails at first
     *
     *
@@ -223,7 +223,7 @@
     *
     *
 
-  ✖ sync throw fails at second (*ms)
+   sync throw fails at second (*ms)
     Error: thrown from subtest sync throw fails at second
     *
     *
@@ -236,45 +236,45 @@
     *
     *
 
-▶ subtest sync throw fails (*ms)
+ subtest sync throw fails (*ms)
 
-✖ timed out async test (*ms)
-  *'test timed out after *ms'*
+ timed out async test (*ms)
+  'test timed out after *ms'
 
-✖ timed out callback test (*ms)
-  *'test timed out after *ms'*
+ timed out callback test (*ms)
+  'test timed out after *ms'
 
-✔ large timeout async test is ok (*ms)
-✔ large timeout callback test is ok (*ms)
-✔ successful thenable (*ms)
-✖ rejected thenable (*ms)
-  *'custom error'*
+ large timeout async test is ok (*ms)
+ large timeout callback test is ok (*ms)
+ successful thenable (*ms)
+ rejected thenable (*ms)
+  'custom error'
 
-✖ unfinished test with uncaughtException (*ms)
+ unfinished test with uncaughtException (*ms)
   Error: foo
   *
   *
   *
 
-✖ unfinished test with unhandledRejection (*ms)
+ unfinished test with unhandledRejection (*ms)
   Error: bar
   *
   *
   *
 
-✖ invalid subtest fail (*ms)
-  *'test could not be started because its parent finished'*
+ invalid subtest fail (*ms)
+  'test could not be started because its parent finished'
 
-ℹ Warning: Test "unhandled rejection - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
-ℹ Warning: Test "async unhandled rejection - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from async unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
-ℹ Warning: Test "immediate throw - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from immediate throw fail" and would have caused the test to fail, but instead triggered an uncaughtException event.
-ℹ Warning: Test "immediate reject - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from immediate reject fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
-ℹ Warning: Test "callback called twice in different ticks" generated asynchronous activity after the test ended. This activity created the error "Error [ERR_TEST_FAILURE]: callback invoked multiple times" and would have caused the test to fail, but instead triggered an uncaughtException event.
-ℹ Warning: Test "callback async throw after done" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
-ℹ tests 65
-ℹ pass 27
-ℹ fail 21
-ℹ cancelled 2
-ℹ skipped 10
-ℹ todo 5
-ℹ duration_ms *
+ Warning: Test "unhandled rejection - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+ Warning: Test "async unhandled rejection - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from async unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+ Warning: Test "immediate throw - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from immediate throw fail" and would have caused the test to fail, but instead triggered an uncaughtException event.
+ Warning: Test "immediate reject - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from immediate reject fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+ Warning: Test "callback called twice in different ticks" generated asynchronous activity after the test ended. This activity created the error "Error [ERR_TEST_FAILURE]: callback invoked multiple times" and would have caused the test to fail, but instead triggered an uncaughtException event.
+ Warning: Test "callback async throw after done" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
+ tests 65
+ pass 27
+ fail 21
+ cancelled 2
+ skipped 10
+ todo 5
+ duration_ms *
