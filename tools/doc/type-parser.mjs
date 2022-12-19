@@ -207,7 +207,7 @@ const customTypesMap = {
   'Timeout': 'timers.html#class-timeout',
   'Timer': 'timers.html#timers',
 
-  'TapStream': 'test.html#class-tapstream',
+  'TestsStream': 'test.html#class-testsstream',
 
   'tls.SecureContext': 'tls.html#tlscreatesecurecontextoptions',
   'tls.Server': 'tls.html#class-tlsserver',

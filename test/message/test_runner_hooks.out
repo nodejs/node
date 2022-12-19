@@ -64,7 +64,6 @@ not ok 2 - before throws
     *
     *
     *
-    *
   ...
 # Subtest: after throws
     # Subtest: 1
@@ -85,7 +84,6 @@ not ok 3 - after throws
   error: 'failed running after hook'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
     *
     *
     *
@@ -483,7 +481,6 @@ not ok 13 - t.after() is called if test body throws
   error: 'bye'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
     *
     *
     *
