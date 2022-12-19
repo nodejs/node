@@ -27,6 +27,7 @@ node_napi_env__::node_napi_env__(v8::Local<v8::Context> context,
 
 void node_napi_env__::DeleteMe() {
   destructing = true;
+  DrainFinalizerQueue();
   napi_env__::DeleteMe();
 }
 
@@ -47,26 +48,38 @@ void node_napi_env__::CallFinalizer(napi_finalize cb, void* data, void* hint) {
 
 template <bool enforceUncaughtExceptionPolicy>
 void node_napi_env__::CallFinalizer(napi_finalize cb, void* data, void* hint) {
-  if (destructing) {
-    // we can not defer finalizers when the environment is being destructed.
-    v8::HandleScope handle_scope(isolate);
-    v8::Context::Scope context_scope(context());
-    CallbackIntoModule<enforceUncaughtExceptionPolicy>(
-        [&](napi_env env) { cb(env, data, hint); });
-    return;
+  v8::HandleScope handle_scope(isolate);
+  v8::Context::Scope context_scope(context());
+  CallbackIntoModule<enforceUncaughtExceptionPolicy>(
+      [&](napi_env env) { cb(env, data, hint); });
+}
+
+void node_napi_env__::EnqueueFinalizer(v8impl::RefTracker* finalizer) {
+  napi_env__::EnqueueFinalizer(finalizer);
+  // Schedule a second pass only when it has not been scheduled, and not
+  // destructing the env.
+  // When the env is being destructed, queued finalizers are drained in the
+  // loop of `node_napi_env__::DrainFinalizerQueue`.
+  if (!finalization_scheduled && !destructing) {
+    finalization_scheduled = true;
+    Ref();
+    node_env()->SetImmediate([this](node::Environment* node_env) {
+      finalization_scheduled = false;
+      Unref();
+      DrainFinalizerQueue();
+    });
   }
-  // we need to keep the env live until the finalizer has been run
-  // EnvRefHolder provides an exception safe wrapper to Ref and then
-  // Unref once the lambda is freed
-  EnvRefHolder liveEnv(static_cast<napi_env>(this));
-  node_env()->SetImmediate(
-      [=, liveEnv = std::move(liveEnv)](node::Environment* node_env) {
-        node_napi_env__* env = static_cast<node_napi_env__*>(liveEnv.env());
-        v8::HandleScope handle_scope(env->isolate);
-        v8::Context::Scope context_scope(env->context());
-        env->CallbackIntoModule<enforceUncaughtExceptionPolicy>(
-            [&](napi_env env) { cb(env, data, hint); });
-      });
+}
+
+void node_napi_env__::DrainFinalizerQueue() {
+  // As userland code can delete additional references in one finalizer,
+  // the list of pending finalizers may be mutated as we execute them, so
+  // we keep iterating it until it is empty.
+  while (!pending_finalizers.empty()) {
+    v8impl::RefTracker* ref_tracker = *pending_finalizers.begin();
+    pending_finalizers.erase(ref_tracker);
+    ref_tracker->Finalize();
+  }
 }
 
 void node_napi_env__::trigger_fatal_exception(v8::Local<v8::Value> local_err) {
@@ -106,23 +119,40 @@ namespace {
 
 class BufferFinalizer : private Finalizer {
  public:
+  static BufferFinalizer* New(napi_env env,
+                              napi_finalize finalize_callback = nullptr,
+                              void* finalize_data = nullptr,
+                              void* finalize_hint = nullptr) {
+    return new BufferFinalizer(
+        env, finalize_callback, finalize_data, finalize_hint);
+  }
   // node::Buffer::FreeCallback
   static void FinalizeBufferCallback(char* data, void* hint) {
     std::unique_ptr<BufferFinalizer, Deleter> finalizer{
         static_cast<BufferFinalizer*>(hint)};
-    finalizer->_finalize_data = data;
+    finalizer->finalize_data_ = data;
 
-    if (finalizer->_finalize_callback == nullptr) return;
-    finalizer->_env->CallFinalizer(finalizer->_finalize_callback,
-                                   finalizer->_finalize_data,
-                                   finalizer->_finalize_hint);
+    // It is safe to call into JavaScript at this point.
+    if (finalizer->finalize_callback_ == nullptr) return;
+    finalizer->env_->CallFinalizer(finalizer->finalize_callback_,
+                                   finalizer->finalize_data_,
+                                   finalizer->finalize_hint_);
   }
 
   struct Deleter {
-    void operator()(BufferFinalizer* finalizer) {
-      Finalizer::Delete(finalizer);
-    }
+    void operator()(BufferFinalizer* finalizer) { delete finalizer; }
   };
+
+ private:
+  BufferFinalizer(napi_env env,
+                  napi_finalize finalize_callback,
+                  void* finalize_data,
+                  void* finalize_hint)
+      : Finalizer(env, finalize_callback, finalize_data, finalize_hint) {
+    env_->Ref();
+  }
+
+  ~BufferFinalizer() { env_->Unref(); }
 };
 
 inline napi_env NewEnv(v8::Local<v8::Context> context,
@@ -371,10 +401,7 @@ class ThreadSafeFunction : public node::AsyncResource {
     v8::HandleScope scope(env->isolate);
     if (finalize_cb) {
       CallbackScope cb_scope(this);
-      // Do not use CallFinalizer since it will defer the invocation, which
-      // would lead to accessing a deleted ThreadSafeFunction.
-      env->CallbackIntoModule<false>(
-          [&](napi_env env) { finalize_cb(env, finalize_data, context); });
+      env->CallFinalizer<false>(finalize_cb, finalize_data, context);
     }
     EmptyQueueAndDelete();
   }
@@ -959,12 +986,8 @@ napi_status NAPI_CDECL napi_create_external_buffer(napi_env env,
   v8::Isolate* isolate = env->isolate;
 
   // The finalizer object will delete itself after invoking the callback.
-  v8impl::Finalizer* finalizer =
-      v8impl::Finalizer::New(env,
-                             finalize_cb,
-                             nullptr,
-                             finalize_hint,
-                             v8impl::Finalizer::kKeepEnvReference);
+  v8impl::BufferFinalizer* finalizer =
+      v8impl::BufferFinalizer::New(env, finalize_cb, nullptr, finalize_hint);
 
   v8::MaybeLocal<v8::Object> maybe =
       node::Buffer::New(isolate,
