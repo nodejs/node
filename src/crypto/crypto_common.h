@@ -111,6 +111,10 @@ v8::MaybeLocal<v8::Value> GetFingerprintDigest(
     X509* cert);
 
 v8::MaybeLocal<v8::Value> GetKeyUsage(Environment* env, X509* cert);
+v8::MaybeLocal<v8::Value> GetCurrentCipherName(Environment* env,
+                                               const SSLPointer& ssl);
+v8::MaybeLocal<v8::Value> GetCurrentCipherVersion(Environment* env,
+                                                  const SSLPointer& ssl);
 
 v8::MaybeLocal<v8::Value> GetSerialNumber(Environment* env, X509* cert);
 

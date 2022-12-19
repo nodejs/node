@@ -545,6 +545,16 @@ MaybeLocal<Value> GetKeyUsage(Environment* env, X509* cert) {
   return Undefined(env->isolate());
 }
 
+MaybeLocal<Value> GetCurrentCipherName(Environment* env,
+                                       const SSLPointer& ssl) {
+  return GetCipherName(env, SSL_get_current_cipher(ssl.get()));
+}
+
+MaybeLocal<Value> GetCurrentCipherVersion(Environment* env,
+                                          const SSLPointer& ssl) {
+  return GetCipherVersion(env, SSL_get_current_cipher(ssl.get()));
+}
+
 MaybeLocal<Value> GetFingerprintDigest(
     Environment* env,
     const EVP_MD* method,
