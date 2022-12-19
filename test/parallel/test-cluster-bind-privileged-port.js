@@ -21,36 +21,41 @@
 
 'use strict';
 const common = require('../common');
+const { execSync } = require('child_process');
+
+const sysctlOutput = execSync('sysctl net.ipv4.ip_unprivileged_port_start').toString();
+
+const unprivilegedPortStart = parseInt(sysctlOutput.split(' ')[1], 10);
 
 // Skip on OS X Mojave. https://github.com/nodejs/node/issues/21679
 if (common.isOSX)
-  common.skip('macOS may allow ordinary processes to use any port');
+common.skip('macOS may allow ordinary processes to use any port');
 
 if (common.isIBMi)
-  common.skip('IBMi may allow ordinary processes to use any port');
+common.skip('IBMi may allow ordinary processes to use any port');
 
 if (common.isWindows)
-  common.skip('not reliable on Windows.');
-
+    common.skip('not reliable on Windows.');
+  
 if (process.getuid() === 0)
-  common.skip('Test is not supposed to be run as root.');
-
+    common.skip('Test is not supposed to be run as root.');
+  
 const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
-
+  
 if (cluster.isPrimary) {
   cluster.fork().on('exit', (exitCode) => {
     assert.strictEqual(exitCode, 1);
-  });
+});
 } else {
   const s = net.createServer(common.mustNotCall());
-  s.listen(42, (err) => {
+  s.listen(unprivilegedPortStart, (err) => {
     if (err && err.code === 'EACCES') {
       process.disconnect();
     } else {
       process.exit(0);
-    }
+     }
   });
 }
 
