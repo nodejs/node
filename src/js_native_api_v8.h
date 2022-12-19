@@ -4,7 +4,7 @@
 #include "js_native_api_types.h"
 #include "js_native_api_v8_internals.h"
 
-static napi_status napi_clear_last_error(napi_env env);
+inline napi_status napi_clear_last_error(napi_env env);
 
 namespace v8impl {
 
@@ -12,7 +12,7 @@ class RefTracker {
  public:
   RefTracker() {}
   virtual ~RefTracker() {}
-  virtual void Finalize(bool isEnvTeardown) {}
+  virtual void Finalize() {}
 
   typedef RefTracker RefList;
 
@@ -38,7 +38,7 @@ class RefTracker {
 
   static void FinalizeAll(RefList* list) {
     while (list->next_ != nullptr) {
-      list->next_->Finalize(true);
+      list->next_->Finalize();
     }
   }
 
@@ -47,12 +47,12 @@ class RefTracker {
   RefList* prev_ = nullptr;
 };
 
+class Finalizer;
 }  // end of namespace v8impl
 
 struct napi_env__ {
   explicit napi_env__(v8::Local<v8::Context> context)
       : isolate(context->GetIsolate()), context_persistent(isolate, context) {
-    CHECK_EQ(isolate, context->GetIsolate());
     napi_clear_last_error(this);
   }
 
@@ -89,11 +89,24 @@ struct napi_env__ {
     }
   }
 
-  // This should be overridden to schedule the finalization to a properiate
-  // timing, like next tick of the event loop.
+  // Call finalizer immediately.
   virtual void CallFinalizer(napi_finalize cb, void* data, void* hint) {
     v8::HandleScope handle_scope(isolate);
     CallIntoModule([&](napi_env env) { cb(env, data, hint); });
+  }
+
+  // Enqueue the finalizer to the napi_env's own queue of the second pass
+  // weak callback.
+  // Implementation should drain the queue at the time it is safe to call
+  // into JavaScript.
+  virtual void EnqueueFinalizer(v8impl::RefTracker* finalizer) {
+    pending_finalizers.emplace(finalizer);
+  }
+
+  // Remove the finalizer from the scheduled second pass weak callback queue.
+  // The finalizer can be deleted after this call.
+  virtual void DequeueFinalizer(v8impl::RefTracker* finalizer) {
+    pending_finalizers.erase(finalizer);
   }
 
   virtual void DeleteMe() {
@@ -117,6 +130,8 @@ struct napi_env__ {
   // have such a callback. See `~napi_env__()` above for details.
   v8impl::RefTracker::RefList reflist;
   v8impl::RefTracker::RefList finalizing_reflist;
+  // The invocation order of the finalizers is not determined.
+  std::unordered_set<v8impl::RefTracker*> pending_finalizers;
   napi_extended_error_info last_error;
   int open_handle_scopes = 0;
   int open_callback_scopes = 0;
@@ -129,37 +144,8 @@ struct napi_env__ {
   virtual ~napi_env__() = default;
 };
 
-// This class is used to keep a napi_env live in a way that
-// is exception safe versus calling Ref/Unref directly
-class EnvRefHolder {
- public:
-  explicit EnvRefHolder(napi_env env) : _env(env) { _env->Ref(); }
-
-  explicit EnvRefHolder(const EnvRefHolder& other) : _env(other.env()) {
-    _env->Ref();
-  }
-
-  EnvRefHolder(EnvRefHolder&& other) {
-    _env = other._env;
-    other._env = nullptr;
-  }
-
-  ~EnvRefHolder() {
-    if (_env != nullptr) {
-      _env->Unref();
-    }
-  }
-
-  napi_env env(void) const { return _env; }
-
- private:
-  napi_env _env;
-};
-
 inline napi_status napi_clear_last_error(napi_env env) {
   env->last_error.error_code = napi_ok;
-
-  // TODO(boingoing): Should this be a callback?
   env->last_error.engine_error_code = 0;
   env->last_error.engine_reserved = nullptr;
   env->last_error.error_message = nullptr;
@@ -306,49 +292,37 @@ inline v8::Local<v8::Value> V8LocalValueFromJsValue(napi_value v) {
 
 // Adapter for napi_finalize callbacks.
 class Finalizer {
- public:
-  // Some Finalizers are run during shutdown when the napi_env is destroyed,
-  // and some need to keep an explicit reference to the napi_env because they
-  // are run independently.
-  enum EnvReferenceMode { kNoEnvReference, kKeepEnvReference };
-
  protected:
   Finalizer(napi_env env,
             napi_finalize finalize_callback,
             void* finalize_data,
-            void* finalize_hint,
-            EnvReferenceMode refmode = kNoEnvReference)
-      : _env(env),
-        _finalize_callback(finalize_callback),
-        _finalize_data(finalize_data),
-        _finalize_hint(finalize_hint),
-        _has_env_reference(refmode == kKeepEnvReference) {
-    if (_has_env_reference) _env->Ref();
-  }
+            void* finalize_hint)
+      : env_(env),
+        finalize_callback_(finalize_callback),
+        finalize_data_(finalize_data),
+        finalize_hint_(finalize_hint) {}
 
-  ~Finalizer() {
-    if (_has_env_reference) _env->Unref();
-  }
+  virtual ~Finalizer() = default;
 
  public:
   static Finalizer* New(napi_env env,
                         napi_finalize finalize_callback = nullptr,
                         void* finalize_data = nullptr,
-                        void* finalize_hint = nullptr,
-                        EnvReferenceMode refmode = kNoEnvReference) {
-    return new Finalizer(
-        env, finalize_callback, finalize_data, finalize_hint, refmode);
+                        void* finalize_hint = nullptr) {
+    return new Finalizer(env, finalize_callback, finalize_data, finalize_hint);
   }
 
-  static void Delete(Finalizer* finalizer) { delete finalizer; }
+  napi_finalize callback() { return finalize_callback_; }
+  void* data() { return finalize_data_; }
+  void* hint() { return finalize_hint_; }
+
+  void ResetFinalizer();
 
  protected:
-  napi_env _env;
-  napi_finalize _finalize_callback;
-  void* _finalize_data;
-  void* _finalize_hint;
-  bool _finalize_ran = false;
-  bool _has_env_reference = false;
+  napi_env env_;
+  napi_finalize finalize_callback_;
+  void* finalize_data_;
+  void* finalize_hint_;
 };
 
 class TryCatch : public v8::TryCatch {
@@ -365,12 +339,22 @@ class TryCatch : public v8::TryCatch {
   napi_env _env;
 };
 
-// Wrapper around v8impl::Persistent that implements reference counting.
-class RefBase : protected Finalizer, RefTracker {
+// Ownership of a reference.
+enum class Ownership {
+  // The reference is owned by the runtime. No userland call is needed to
+  // destruct the reference.
+  kRuntime,
+  // The reference is owned by the userland. User code is responsible to delete
+  // the reference with appropriate node-api calls.
+  kUserland,
+};
+
+// Wrapper around Finalizer that implements reference counting.
+class RefBase : public Finalizer, public RefTracker {
  protected:
   RefBase(napi_env env,
           uint32_t initial_refcount,
-          bool delete_self,
+          Ownership ownership,
           napi_finalize finalize_callback,
           void* finalize_data,
           void* finalize_hint);
@@ -378,30 +362,29 @@ class RefBase : protected Finalizer, RefTracker {
  public:
   static RefBase* New(napi_env env,
                       uint32_t initial_refcount,
-                      bool delete_self,
+                      Ownership ownership,
                       napi_finalize finalize_callback,
                       void* finalize_data,
                       void* finalize_hint);
-
-  static inline void Delete(RefBase* reference);
-
   virtual ~RefBase();
+
   void* Data();
   uint32_t Ref();
   uint32_t Unref();
   uint32_t RefCount();
 
+  Ownership ownership() { return ownership_; }
+
  protected:
-  void Finalize(bool is_env_teardown = false) override;
+  void Finalize() override;
 
  private:
-  uint32_t _refcount;
-  bool _delete_self;
+  uint32_t refcount_;
+  Ownership ownership_;
 };
 
+// Wrapper around v8impl::Persistent.
 class Reference : public RefBase {
-  using SecondPassCallParameterRef = Reference*;
-
  protected:
   template <typename... Args>
   Reference(napi_env env, v8::Local<v8::Value> value, Args&&... args);
@@ -410,7 +393,7 @@ class Reference : public RefBase {
   static Reference* New(napi_env env,
                         v8::Local<v8::Value> value,
                         uint32_t initial_refcount,
-                        bool delete_self,
+                        Ownership ownership,
                         napi_finalize finalize_callback = nullptr,
                         void* finalize_data = nullptr,
                         void* finalize_hint = nullptr);
@@ -421,22 +404,14 @@ class Reference : public RefBase {
   v8::Local<v8::Value> Get();
 
  protected:
-  void Finalize(bool is_env_teardown = false) override;
+  void Finalize() override;
 
  private:
-  void ClearWeak();
+  static void WeakCallback(const v8::WeakCallbackInfo<Reference>& data);
+
   void SetWeak();
 
-  static void FinalizeCallback(
-      const v8::WeakCallbackInfo<SecondPassCallParameterRef>& data);
-  static void SecondPassCallback(
-      const v8::WeakCallbackInfo<SecondPassCallParameterRef>& data);
-
-  v8impl::Persistent<v8::Value> _persistent;
-  SecondPassCallParameterRef* _secondPassParameter;
-  bool _secondPassScheduled;
-
-  FRIEND_TEST(JsNativeApiV8Test, Reference);
+  v8impl::Persistent<v8::Value> persistent_;
 };
 
 }  // end of namespace v8impl
