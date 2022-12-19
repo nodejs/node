@@ -217,6 +217,10 @@ const { createStaticServer } = require('node:http');
       assert(Object.getPrototypeOf(fileURL), URL.prototype);
       return url === '/.bar';
     },
+    log: mustCall(function() {
+      assert.strictEqual(arguments.length, 2);
+    }, 5),
+    onStart: mustCall(),
   }).once('listening', mustCall(() => {
     const { port } = server.address();
     Promise.all([

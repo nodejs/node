@@ -3585,6 +3585,10 @@ added: REPLACEME
   * `filter` {Function|null} should be a function that accepts two arguments and
     returns a value that is coercible to a {boolean} value. When `null`, no
     files are filtered. **Default:** filters all dot files.
+  * `log` {Function|null} called when sending a response to the client.
+    **Default:** `console.log`.
+  * `onStart` {Function} called the server starts listening to requests.
+    **Default:** logs the URL to the console.
 
 * Returns: {http.Server}
 
