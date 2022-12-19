@@ -161,6 +161,9 @@ added: v17.0.0
   * `objectMode` {boolean}
   * `signal` {AbortSignal}
 * `Returns`: {stream.Readable}
+<!-- YAML
+added: v17.0.0
+-->
 
 #### `readableStream.toWeb(writableStream[,options])`
 
@@ -170,8 +173,8 @@ added: v17.0.0
 
 * `streamReadable` {stream.Readable}
 * `options` {Object}
-  * `strategy` {Object}
   * `highWaterMark` {number}
+  * `strategy` {Object}
   * `size` {Function}
 * Returns: {ReadableStream}
 
