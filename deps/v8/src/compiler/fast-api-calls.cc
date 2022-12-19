@@ -83,6 +83,13 @@ OverloadsResolutionResult ResolveOverloads(
 bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
   USE(c_signature);
 
+#if defined(V8_OS_MACOS) && defined(V8_TARGET_ARCH_ARM64)
+  // On MacArm64 hardware we don't support passing of arguments on the stack.
+  if (c_signature->ArgumentCount() > 8) {
+    return false;
+  }
+#endif  // defined(V8_OS_MACOS) && defined(V8_TARGET_ARCH_ARM64)
+
 #ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   if (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat32 ||
       c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat64) {

@@ -967,6 +967,14 @@
 }],  # 'system == macos'
 
 ##############################################################################
+['system == macos and arch == arm64', {
+  # BUG(v8:13171): The following tests a function that shouldn't be optimized
+  # on M1 hardware, unless a proper fix for the stack corruption is
+  # implemented (see linked issue).
+  'compiler/fast-api-calls-8args': [FAIL],
+}],  # 'system == macos  and arch == arm64'
+
+##############################################################################
 ['system == windows', {
   # Too slow with turbo fan.
   'math-floor-of-div': [PASS, ['mode == debug', SKIP]],
