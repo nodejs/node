@@ -47,9 +47,13 @@ static const char* const root_certs[] = {
 
 static const char system_cert_path[] = NODE_OPENSSL_SYSTEM_CERT_PATH;
 
-static X509_STORE* root_cert_store;
-
 static bool extra_root_certs_loaded = false;
+
+inline X509_STORE* GetOrCreateRootCertStore() {
+  // Guaranteed thread-safe by standard, just don't use -fno-threadsafe-statics.
+  static X509_STORE* store = NewRootCertStore();
+  return store;
+}
 
 // Takes a string or buffer and loads it into a BIO.
 // Caller responsible for BIO_free_all-ing the returned object.
@@ -701,7 +705,7 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_.get());
   while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509_AUX(
              bio.get(), nullptr, NoPasswordCallback, nullptr))) {
-    if (cert_store == root_cert_store) {
+    if (cert_store == GetOrCreateRootCertStore()) {
       cert_store = NewRootCertStore();
       SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
     }
@@ -731,7 +735,7 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to parse CRL");
 
   X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_.get());
-  if (cert_store == root_cert_store) {
+  if (cert_store == GetOrCreateRootCertStore()) {
     cert_store = NewRootCertStore();
     SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
   }
@@ -745,14 +749,10 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
   ClearErrorOnReturn clear_error_on_return;
-
-  if (root_cert_store == nullptr) {
-    root_cert_store = NewRootCertStore();
-  }
-
+  X509_STORE* store = GetOrCreateRootCertStore();
   // Increment reference count so global store is not deleted along with CTX.
-  X509_STORE_up_ref(root_cert_store);
-  SSL_CTX_set_cert_store(sc->ctx_.get(), root_cert_store);
+  X509_STORE_up_ref(store);
+  SSL_CTX_set_cert_store(sc->ctx_.get(), store);
 }
 
 void SecureContext::SetCipherSuites(const FunctionCallbackInfo<Value>& args) {
@@ -1025,7 +1025,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
     for (int i = 0; i < sk_X509_num(extra_certs.get()); i++) {
       X509* ca = sk_X509_value(extra_certs.get(), i);
 
-      if (cert_store == root_cert_store) {
+      if (cert_store == GetOrCreateRootCertStore()) {
         cert_store = NewRootCertStore();
         SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
       }
@@ -1328,24 +1328,18 @@ unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
 
 // UseExtraCaCerts is called only once at the start of the Node.js process.
 void UseExtraCaCerts(const std::string& file) {
+  if (file.empty()) return;
   ClearErrorOnReturn clear_error_on_return;
-
-  if (root_cert_store == nullptr) {
-    root_cert_store = NewRootCertStore();
-
-    if (!file.empty()) {
-      unsigned long err = AddCertsFromFile(  // NOLINT(runtime/int)
-                                           root_cert_store,
-                                           file.c_str());
-      if (err) {
-        fprintf(stderr,
-                "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
-                file.c_str(),
-                ERR_error_string(err, nullptr));
-      } else {
-        extra_root_certs_loaded = true;
-      }
-    }
+  X509_STORE* store = GetOrCreateRootCertStore();
+  if (auto err = AddCertsFromFile(store, file.c_str())) {
+    char buf[256];
+    ERR_error_string_n(err, buf, sizeof(buf));
+    fprintf(stderr,
+            "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
+            file.c_str(),
+            buf);
+  } else {
+    extra_root_certs_loaded = true;
   }
 }
 
