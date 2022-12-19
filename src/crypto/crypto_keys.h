@@ -163,6 +163,7 @@ class KeyObjectData : public MemoryRetainer {
 
 class KeyObjectHandle : public BaseObject {
  public:
+  static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
   static v8::Local<v8::Function> Initialize(Environment* env);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
