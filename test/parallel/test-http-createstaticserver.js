@@ -58,6 +58,30 @@ const { createStaticServer } = require('node:http');
         assert.strictEqual(new MIMEType(response.headers.get('Content-Type')).essence, 'text/html');
         assert.strictEqual((await response.text()).trimEnd(), 'Content of test.html');
       }),
+      fetch(`http://localhost:${port}/test.html?../../../../etc/passwd`).then(async (response) => {
+        assert(response.ok);
+        assert(!response.redirected);
+        assert.strictEqual(response.status, 200);
+        assert.strictEqual(response.statusText, 'OK');
+        assert.strictEqual(new MIMEType(response.headers.get('Content-Type')).essence, 'text/html');
+        assert.strictEqual((await response.text()).trimEnd(), 'Content of test.html');
+      }),
+      fetch(`http://localhost:${port}/././test.html`).then(async (response) => {
+        assert(response.ok);
+        assert(!response.redirected);
+        assert.strictEqual(response.status, 200);
+        assert.strictEqual(response.statusText, 'OK');
+        assert.strictEqual(new MIMEType(response.headers.get('Content-Type')).essence, 'text/html');
+        assert.strictEqual((await response.text()).trimEnd(), 'Content of test.html');
+      }),
+      fetch(`http://localhost:${port}/../../test.html`).then(async (response) => {
+        assert(response.ok);
+        assert(!response.redirected);
+        assert.strictEqual(response.status, 200);
+        assert.strictEqual(response.statusText, 'OK');
+        assert.strictEqual(new MIMEType(response.headers.get('Content-Type')).essence, 'text/html');
+        assert.strictEqual((await response.text()).trimEnd(), 'Content of test.html');
+      }),
       fetch(`http://localhost:${port}/test.html?key=value`).then(async (response) => {
         assert(response.ok);
         assert(!response.redirected);
@@ -97,6 +121,14 @@ const { createStaticServer } = require('node:http');
         assert.strictEqual(response.statusText, 'Forbidden');
         assert.strictEqual(response.headers.get('Content-Type'), null);
         assert.strictEqual(await response.text(), 'Forbidden\n');
+      }),
+      fetch(`http://localhost:${port}/.bar/../test.html`).then(async (response) => {
+        assert(response.ok);
+        assert(!response.redirected);
+        assert.strictEqual(response.status, 200);
+        assert.strictEqual(response.statusText, 'OK');
+        assert.strictEqual(new MIMEType(response.headers.get('Content-Type')).essence, 'text/html');
+        assert.strictEqual((await response.text()).trimEnd(), 'Content of test.html');
       }),
       fetch(`http://localhost:${port}/.foo`).then(async (response) => {
         assert(!response.ok);
