@@ -94,4 +94,22 @@ describe('node:test reporters', { concurrency: true }, () => {
       assert.strictEqual(stdout.slice(0, filename.length + 2), `${filename} {`);
     });
   });
+
+  it('should support a custom reporter from node_modules', async () => {
+    const child = spawnSync(process.execPath,
+                            ['--test', '--test-reporter', 'r', 'reporters.js'],
+                            { cwd: fixtures.path('test-runner') });
+    assert.strictEqual(child.stderr.toString(), '');
+    assert.strictEqual(child.stdout.toString(),
+                       'package: r{"test:start":5,"test:pass":2,"test:fail":3,"test:plan":3,"test:diagnostic":7}');
+  });
+
+  it('should support a custom ESM reporter from node_modules', async () => {
+    const child = spawnSync(process.execPath,
+                            ['--test', '--test-reporter', 'r-esm', 'reporters.js'],
+                            { cwd: fixtures.path('test-runner') });
+    assert.strictEqual(child.stderr.toString(), '');
+    assert.strictEqual(child.stdout.toString(),
+                       'package: r-esm{"test:start":5,"test:pass":2,"test:fail":3,"test:plan":3,"test:diagnostic":7}');
+  });
 });
