@@ -97,19 +97,19 @@ describe('node:test reporters', { concurrency: true }, () => {
 
   it('should support a custom reporter from node_modules', async () => {
     const child = spawnSync(process.execPath,
-                            ['--test', '--test-reporter', 'r', 'reporters.js'],
+                            ['--test', '--test-reporter', 'reporter-cjs', 'reporters.js'],
                             { cwd: fixtures.path('test-runner') });
     assert.strictEqual(child.stderr.toString(), '');
     assert.strictEqual(child.stdout.toString(),
-                       'package: r{"test:start":5,"test:pass":2,"test:fail":3,"test:plan":3,"test:diagnostic":7}');
+                       'package: reporter-cjs{"test:start":5,"test:pass":2,"test:fail":3,"test:plan":3,"test:diagnostic":7}');
   });
 
   it('should support a custom ESM reporter from node_modules', async () => {
     const child = spawnSync(process.execPath,
-                            ['--test', '--test-reporter', 'r-esm', 'reporters.js'],
+                            ['--test', '--test-reporter', 'reporter-esm', 'reporters.js'],
                             { cwd: fixtures.path('test-runner') });
     assert.strictEqual(child.stderr.toString(), '');
     assert.strictEqual(child.stdout.toString(),
-                       'package: r-esm{"test:start":5,"test:pass":2,"test:fail":3,"test:plan":3,"test:diagnostic":7}');
+                       'package: reporter-esm{"test:start":5,"test:pass":2,"test:fail":3,"test:plan":3,"test:diagnostic":7}');
   });
 });
