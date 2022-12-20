@@ -470,7 +470,7 @@ The following built-reporters are supported:
   The `spec` reporter outputs the test results in a human-readable format.
 
 * `dot`
-  The `dot` reporter outputs the test results in a comact format,
+  The `dot` reporter outputs the test results in a compact format,
   where each passing test is represented by a `.`,
   and each failing test is represented by a `X`.
 
@@ -590,6 +590,9 @@ module.exports = async function * customReporter(source) {
   }
 };
 ```
+
+The value provided to `--test-reporter` should be a string like one used in an
+`import()` in JavaScript code, or a value provided for [`--import`][].
 
 ### Multiple reporters
 
@@ -1585,6 +1588,7 @@ added:
   aborted.
 
 [TAP]: https://testanything.org/
+[`--import`]: cli.md#--importmodule
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination
