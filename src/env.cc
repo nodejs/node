@@ -619,7 +619,7 @@ std::string GetExecPath(const std::vector<std::string>& argv) {
   std::string exec_path;
   if (uv_exepath(exec_path_buf, &exec_path_len) == 0) {
     exec_path = std::string(exec_path_buf, exec_path_len);
-  } else {
+  } else if (argv.size() > 0) {
     exec_path = argv[0];
   }
 
