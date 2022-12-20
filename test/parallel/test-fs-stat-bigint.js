@@ -209,7 +209,7 @@ if (!common.isWindows) {
   const bigintStats = await handle.stat(common.mustNotMutateObjectDeep({ bigint: true }));
   const numStats = await handle.stat();
   const endTime = process.hrtime.bigint();
-  const allowableDelta = Math.ceil(Number(endTime - startTime) / 1e6);
+  const allowableDelta = Number((endTime - startTime) / 1000000n) + 1;
   verifyStats(bigintStats, numStats, allowableDelta);
   await handle.close();
 })().then(common.mustCall());
