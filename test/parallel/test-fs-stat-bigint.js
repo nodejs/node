@@ -209,7 +209,15 @@ if (!common.isWindows) {
   const bigintStats = await handle.stat(common.mustNotMutateObjectDeep({ bigint: true }));
   const numStats = await handle.stat();
   const endTime = process.hrtime.bigint();
-  const allowableDelta = Number((endTime - startTime) / 1000000n) + 1;
+  // TODO(@jasnell):  The verifyStats check will attempt to check that the
+  // stat timestamps in Number form are reasonably close to the bigint form
+  // values, within a reasonable delta. Ideally, this "reasonable delta" is
+  // as small as possible but we've seen flakiness here on newer faster systems
+  // such as the OSX M1 when the delta is too small. Increasing the window here
+  // reduces the flakiness but also reduces the effectiveness of the test.
+  // As with all timing-related tests, there is too much nondeterminism here
+  // to perfectly eliminate the flakiness so the +2 below is a compromise.
+  const allowableDelta = Number((endTime - startTime) / 1000000n) + 2;
   verifyStats(bigintStats, numStats, allowableDelta);
   await handle.close();
 })().then(common.mustCall());
