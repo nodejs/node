@@ -17,15 +17,15 @@ async function run() {
   process.exitCode = 1;
 
   // Long-lived file handle. Ensure we keep a reference to it.
-  const fh = await open(__filename)
-  fh.on('close', mustNotCall())
+  const fh = await open(__filename);
+  fh.on('close', mustNotCall());
 
-  const stream = fh.createReadStream({ autoClose: false })
+  const stream = fh.createReadStream({ autoClose: false });
   // Keeping the file handle open shouldn't prevent the stream from being GCed.
   registry.register(stream, `[GC] Collected readable ${fh.fd}`);
 
   for await (const chunk of stream.iterator({ destroyOnReturn: false })) {
-    break
+    break;
   }
 
   // Keep a reference to the file handle
