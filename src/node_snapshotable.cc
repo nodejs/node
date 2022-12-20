@@ -1275,7 +1275,7 @@ SnapshotableObject::SnapshotableObject(Environment* env,
     : BaseObject(env, wrap), type_(type) {
 }
 
-std::string_view SnapshotableObject::GetTypeNameChars() const {
+std::string_view SnapshotableObject::GetTypeName() const {
   switch (type_) {
 #define V(PropertyName, NativeTypeName)                                        \
   case EmbedderObjectType::k_##PropertyName: {                                 \
@@ -1382,7 +1382,7 @@ StartupData SerializeNodeContextInternalFields(Local<Object> holder,
   per_process::Debug(DebugCategory::MKSNAPSHOT,
                      "Object %p is %s, ",
                      *holder,
-                     obj->GetTypeNameChars());
+                     obj->GetTypeName());
   InternalFieldInfoBase* info = obj->Serialize(index);
 
   per_process::Debug(DebugCategory::MKSNAPSHOT,
@@ -1407,7 +1407,7 @@ void SerializeSnapshotableObjects(Realm* realm,
     }
     SnapshotableObject* ptr = static_cast<SnapshotableObject*>(obj);
 
-    std::string type_name{ptr->GetTypeNameChars()};
+    std::string type_name{ptr->GetTypeName()};
     per_process::Debug(DebugCategory::MKSNAPSHOT,
                        "Serialize snapshotable object %i (%p), "
                        "object=%p, type=%s\n",
