@@ -584,13 +584,6 @@ to run it again before invoking `make -j4`.
   to `PATH`. A build with the `openssl-no-asm` option does not need this, nor
   does a build targeting ARM64 Windows.
 
-Optional requirements to build the MSI installer package:
-
-* The [WiX Toolset v3.11](https://wixtoolset.org/releases/) and the
-  [Wix Toolset Visual Studio 2019 Extension](https://marketplace.visualstudio.com/items?itemName=WixToolset.WixToolsetVisualStudio2019Extension)
-* The [WiX Toolset v3.14](https://wixtoolset.org/releases/) if
-  building for Windows 10 on ARM (ARM64)
-
 Optional requirements for compiling for Windows 10 on ARM (ARM64):
 
 * Visual Studio 15.9.0 or newer
