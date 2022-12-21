@@ -1280,11 +1280,11 @@ SnapshotableObject::SnapshotableObject(Environment* env,
     : BaseObject(env, wrap), type_(type) {
 }
 
-const char* SnapshotableObject::GetTypeNameChars() const {
+std::string_view SnapshotableObject::GetTypeName() const {
   switch (type_) {
 #define V(PropertyName, NativeTypeName)                                        \
   case EmbedderObjectType::k_##PropertyName: {                                 \
-    return NativeTypeName::type_name.c_str();                                  \
+    return NativeTypeName::type_name.as_string_view();                         \
   }
     SERIALIZABLE_OBJECT_TYPES(V)
 #undef V
@@ -1325,7 +1325,7 @@ void DeserializeNodeInternalFields(Local<Object> holder,
     per_process::Debug(DebugCategory::MKSNAPSHOT,                              \
                        "Object %p is %s\n",                                    \
                        (*holder),                                              \
-                       NativeTypeName::type_name.c_str());                     \
+                       NativeTypeName::type_name.as_string_view());            \
     env_ptr->EnqueueDeserializeRequest(                                        \
         NativeTypeName::Deserialize,                                           \
         holder,                                                                \
@@ -1387,7 +1387,7 @@ StartupData SerializeNodeContextInternalFields(Local<Object> holder,
   per_process::Debug(DebugCategory::MKSNAPSHOT,
                      "Object %p is %s, ",
                      *holder,
-                     obj->GetTypeNameChars());
+                     obj->GetTypeName());
   InternalFieldInfoBase* info = obj->Serialize(index);
 
   per_process::Debug(DebugCategory::MKSNAPSHOT,
@@ -1412,7 +1412,7 @@ void SerializeSnapshotableObjects(Realm* realm,
     }
     SnapshotableObject* ptr = static_cast<SnapshotableObject*>(obj);
 
-    const char* type_name = ptr->GetTypeNameChars();
+    std::string type_name{ptr->GetTypeName()};
     per_process::Debug(DebugCategory::MKSNAPSHOT,
                        "Serialize snapshotable object %i (%p), "
                        "object=%p, type=%s\n",

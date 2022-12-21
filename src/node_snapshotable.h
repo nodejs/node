@@ -101,7 +101,7 @@ class SnapshotableObject : public BaseObject {
   SnapshotableObject(Environment* env,
                      v8::Local<v8::Object> wrap,
                      EmbedderObjectType type);
-  const char* GetTypeNameChars() const;
+  std::string_view GetTypeName() const;
 
   // If returns false, the object will not be serialized.
   virtual bool PrepareForSerialization(v8::Local<v8::Context> context,
