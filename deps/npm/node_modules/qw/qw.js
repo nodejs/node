@@ -12,6 +12,7 @@ function appendLast (arr, str) {
 }
 
 function qw () {
+  if (!arguments[0].raw) throw new Error('qw is only usable as a tagged template literal')
   const args = Object.assign([], arguments[0])
   const values = [].slice.call(arguments, 1)
   const words = []

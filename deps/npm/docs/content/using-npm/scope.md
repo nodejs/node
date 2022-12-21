@@ -1,11 +1,8 @@
 ---
-section: using-npm
 title: scope
+section: 7
 description: Scoped packages
 ---
-# scope(7)
-
-## Scoped packages
 
 ### Description
 
@@ -55,7 +52,7 @@ Or in `package.json`:
 ```
 
 Note that if the `@` symbol is omitted, in either case, npm will instead attempt to
-install from GitHub; see [`npm install`](/cli-commands/npm-install).
+install from GitHub; see [`npm install`](/commands/npm-install).
 
 ### Requiring scoped packages
 
@@ -101,7 +98,8 @@ desired, with `npm access` or on the npmjs.com website.
 
 Scopes can be associated with a separate registry. This allows you to
 seamlessly use a mix of packages from the primary npm registry and one or more
-private registries, such as npm Enterprise.
+private registries, such as GitHub Packages or the open source Verdaccio
+project.
 
 You can associate a scope with a registry at login, e.g.
 
@@ -125,7 +123,7 @@ that registry instead.
 
 ### See also
 
-* [npm install](/cli-commands/npm-install)
-* [npm publish](/cli-commands/npm-publish)
-* [npm access](/cli-commands/npm-access)
+* [npm install](/commands/npm-install)
+* [npm publish](/commands/npm-publish)
+* [npm access](/commands/npm-access)
 * [npm registry](/using-npm/registry)

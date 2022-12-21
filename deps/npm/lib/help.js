@@ -143,7 +143,7 @@ function htmlMan (man) {
   var f = path.basename(man).replace(/[.]([0-9]+)$/, '')
   switch (sect) {
     case 1:
-      sect = 'cli-commands'
+      sect = 'commands'
       break
     case 5:
       sect = 'configuring-npm'
@@ -154,7 +154,7 @@ function htmlMan (man) {
     default:
       throw new Error('invalid man section: ' + sect)
   }
-  return path.resolve(__dirname, '..', 'docs', 'public', sect, f, 'index.html')
+  return path.resolve(__dirname, '..', 'docs', 'output', sect, f + '.html')
 }
 
 function npmUsage (valid, cb) {

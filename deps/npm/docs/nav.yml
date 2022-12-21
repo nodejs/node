@@ -1,0 +1,236 @@
+- title: CLI Commands
+  shortName: Commands
+  url: /commands
+  children:
+  - title: npm
+    url: /commands/npm
+    description: JavaScript package manager
+  - title: npm access
+    url: /commands/npm-access
+    description: Set access level on published packages
+  - title: npm adduser
+    url: /commands/npm-adduser
+    description: Add a registry user account
+  - title: npm audit
+    url: /commands/npm-audit
+    description: Run a security audit
+  - title: npm bin
+    url: /commands/npm-bin
+    description: Display npm bin folder
+  - title: npm bugs
+    url: /commands/npm-bugs
+    description: Bugs for a package in a web browser maybe
+  - title: npm build
+    url: /commands/npm-build
+    description: Build a package
+  - title: npm bundle
+    url: /commands/npm-bundle
+    description: Removed
+  - title: npm cache
+    url: /commands/npm-cache
+    description: Manipulates packages cache
+  - title: npm ci
+    url: /commands/npm-ci
+    description: Install a project with a clean slate
+  - title: npm completion
+    url: /commands/npm-completion
+    description: Tab completion for npm
+  - title: npm config
+    url: /commands/npm-config
+    description: Manage the npm configuration files
+  - title: npm dedupe
+    url: /commands/npm-dedupe
+    description: Reduce duplication
+  - title: npm deprecate
+    url: /commands/npm-deprecate
+    description: Deprecate a version of a package
+  - title: npm dist-tag
+    url: /commands/npm-dist-tag
+    description: Modify package distribution tags
+  - title: npm docs
+    url: /commands/npm-docs
+    description: Docs for a package in a web browser maybe
+  - title: npm doctor
+    url: /commands/npm-doctor
+    description: Check your environments
+  - title: npm edit
+    url: /commands/npm-edit
+    description: Edit an installed package
+  - title: npm explore
+    url: /commands/npm-explore
+    description: Browse an installed package
+  - title: npm fund
+    url: /commands/npm-fund
+    description: Retrieve funding information
+  - title: npm help
+    url: /commands/npm-help
+    description: Search npm help documentation
+  - title: npm help-search
+    url: /commands/npm-help-search
+    description: Get help on npm
+  - title: npm hook
+    url: /commands/npm-hook
+    description: Manage registry hooks
+  - title: npm init
+    url: /commands/npm-init
+    description: Create a package.json file
+  - title: npm install
+    url: /commands/npm-install
+    description: Install a package
+  - title: npm install-ci-test
+    url: /commands/npm-install-ci-test
+    description: Install a project with a clean slate and run tests
+  - title: npm install-test
+    url: /commands/npm-install-test
+    description: Install package(s) and run tests
+  - title: npm link
+    url: /commands/npm-link
+    description: Symlink a package folder
+  - title: npm logout
+    url: /commands/npm-logout
+    description: Log out of the registry
+  - title: npm ls
+    url: /commands/npm-ls
+    description: List installed packages
+  - title: npm org
+    url: /commands/npm-org
+    description: Manage orgs
+  - title: npm outdated
+    url: /commands/npm-outdated
+    description: Check for outdated packages
+  - title: npm owner
+    url: /commands/npm-owner
+    description: Manage package owners
+  - title: npm pack
+    url: /commands/npm-pack
+    description: Create a tarball from a package
+  - title: npm ping
+    url: /commands/npm-ping
+    description: Ping npm registry
+  - title: npm prefix
+    url: /commands/npm-prefix
+    description: Display prefix
+  - title: npm profile
+    url: /commands/npm-profile
+    description: Change settings on your registry profile
+  - title: npm prune
+    url: /commands/npm-prune
+    description: Remove extraneous packages
+  - title: npm publish
+    url: /commands/npm-publish
+    description: Publish a package
+  - title: npm rebuild
+    url: /commands/npm-rebuild
+    description: Rebuild a package
+  - title: npm repo
+    url: /commands/npm-repo
+    description: Open package repository page in the browser
+  - title: npm restart
+    url: /commands/npm-restart
+    description: Restart a package
+  - title: npm root
+    url: /commands/npm-root
+    description: Display npm root
+  - title: npm run-script
+    url: /commands/npm-run-script
+    description: Run arbitrary package scripts
+  - title: npm search
+    url: /commands/npm-search
+    description: Search for packages
+  - title: npm shrinkwrap
+    url: /commands/npm-shrinkwrap
+    description: Lock down dependency versions for publication
+  - title: npm star
+    url: /commands/npm-star
+    description: Mark your favorite packages
+  - title: npm stars
+    url: /commands/npm-stars
+    description: View packages marked as favorites
+  - title: npm start
+    url: /commands/npm-start
+    description: Start a package
+  - title: npm stop
+    url: /commands/npm-stop
+    description: Stop a package
+  - title: npm team
+    url: /commands/npm-team
+    description: Manage organization teams and team memberships
+  - title: npm test
+    url: /commands/npm-test
+    description: Test a package
+  - title: npm token
+    url: /commands/npm-token
+    description: Manage your authentication tokens
+  - title: npm uninstall
+    url: /commands/npm-uninstall
+    description: Remove a package
+  - title: npm unpublish
+    url: /commands/npm-unpublish
+    description: Remove a package from the registry
+  - title: npm update
+    url: /commands/npm-update
+    description: Update a package
+  - title: npm version
+    url: /commands/npm-version
+    description: Bump a package version
+  - title: npm view
+    url: /commands/npm-view
+    description: View registry info
+  - title: npm whoami
+    url: /commands/npm-whoami
+    description: Display npm username
+
+- title: Configuring npm
+  shortName: Configuring
+  url: /configuring-npm
+  children:
+  - title: Install
+    url: /configuring-npm/install
+    description: Download and install node and npm
+  - title: Folders
+    url: /configuring-npm/folders
+    description: Folder structures used by npm
+  - title: .npmrc
+    url: /configuring-npm/npmrc
+    description: The npm config files
+  - title: package.json
+    url: /configuring-npm/package-json
+    description: Specifics of npm's package.json handling
+  - title: package-locks
+    url: /configuring-npm/package-locks
+    description: An explanation of npm lockfiles
+  - title: package-lock.json
+    url: /configuring-npm/package-lock-json
+    description: A manifestation of the manifest
+  - title: shrinkwrap.json
+    url: /configuring-npm/shrinkwrap-json
+    description: A publishable lockfile
+
+- title: Using npm
+  shortName: Using
+  url: /using-npm
+  children:
+  - title: Registry
+    url: /using-npm/registry
+    description: The JavaScript Package Registry
+  - title: Config
+    url: /using-npm/config
+    description: About npm configuration
+  - title: semver
+    url: /using-npm/semver
+    description: The semantic versioner for npm
+  - title: Scope
+    url: /using-npm/scope
+    description: Scoped packages
+  - title: Scripts
+    url: /using-npm/scripts
+    description: How npm handles the "scripts" field
+  - title: Organizations
+    url: /using-npm/orgs
+    description: Working with teams & organizations
+  - title: Developers
+    url: /using-npm/developers
+    description: Developer guide
+  - title: Removal
+    url: /using-npm/removal
+    description: Cleaning the slate

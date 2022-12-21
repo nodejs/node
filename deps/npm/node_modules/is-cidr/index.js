@@ -1,5 +1,6 @@
 "use strict";
 const cidrRegex = require("cidr-regex");
+
 const re4 = cidrRegex.v4({exact: true});
 const re6 = cidrRegex.v6({exact: true});
 

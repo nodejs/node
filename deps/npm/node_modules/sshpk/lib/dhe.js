@@ -11,14 +11,16 @@ var crypto = require('crypto');
 var Buffer = require('safer-buffer').Buffer;
 var algs = require('./algs');
 var utils = require('./utils');
-var nacl;
+var nacl = require('tweetnacl');
 
 var Key = require('./key');
 var PrivateKey = require('./private-key');
 
 var CRYPTO_HAVE_ECDH = (crypto.createECDH !== undefined);
 
-var ecdh, ec, jsbn;
+var ecdh = require('ecc-jsbn');
+var ec = require('ecc-jsbn/lib/ec');
+var jsbn = require('jsbn').BigInteger;
 
 function DiffieHellman(key) {
 	utils.assertCompatible(key, Key, [1, 4], 'key');
@@ -43,13 +45,6 @@ function DiffieHellman(key) {
 
 	} else if (key.type === 'ecdsa') {
 		if (!CRYPTO_HAVE_ECDH) {
-			if (ecdh === undefined)
-				ecdh = require('ecc-jsbn');
-			if (ec === undefined)
-				ec = require('ecc-jsbn/lib/ec');
-			if (jsbn === undefined)
-				jsbn = require('jsbn').BigInteger;
-
 			this._ecParams = new X9ECParameters(this._curve);
 
 			if (this._isPriv) {
@@ -76,9 +71,6 @@ function DiffieHellman(key) {
 		this._dh.setPublicKey(key.part.Q.data);
 
 	} else if (key.type === 'curve25519') {
-		if (nacl === undefined)
-			nacl = require('tweetnacl');
-
 		if (this._isPriv) {
 			utils.assertCompatible(key, PrivateKey, [1, 5], 'key');
 			this._priv = key.part.k.data;
@@ -321,9 +313,6 @@ ECPrivate.prototype.deriveSharedSecret = function (pubKey) {
 };
 
 function generateED25519() {
-	if (nacl === undefined)
-		nacl = require('tweetnacl');
-
 	var pair = nacl.sign.keyPair();
 	var priv = Buffer.from(pair.secretKey);
 	var pub = Buffer.from(pair.publicKey);
@@ -374,12 +363,6 @@ function generateECDSA(curve) {
 		});
 		return (key);
 	} else {
-		if (ecdh === undefined)
-			ecdh = require('ecc-jsbn');
-		if (ec === undefined)
-			ec = require('ecc-jsbn/lib/ec');
-		if (jsbn === undefined)
-			jsbn = require('jsbn').BigInteger;
 
 		var ecParams = new X9ECParameters(curve);
 

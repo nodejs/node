@@ -6,9 +6,9 @@ BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 
 markdowns = $(shell find docs -name '*.md' | grep -v 'index') README.md
 
-cli_mandocs = $(shell find docs/content/cli-commands -name '*.md' \
+cli_mandocs = $(shell find docs/content/commands -name '*.md' \
                |sed 's|.md|.1|g' \
-               |sed 's|docs/content/cli-commands/|man/man1/|g' ) \
+               |sed 's|docs/content/commands/|man/man1/|g' ) \
                man/man1/npm-README.1 \
                man/man1/npx.1
 
@@ -49,9 +49,7 @@ uninstall:
 mandocs: $(mandocs)
 
 htmldocs:
-	cd docs && node ../bin/npm-cli.js install && \
-	node ../bin/npm-cli.js run build:static echo>&2 && \
-	rm -rf node_modules .cache public/*js public/*json public/404* public/page-data public/manifest*
+	cd docs && node dockhand.js >&2
 
 docs: mandocs htmldocs
 
@@ -68,7 +66,7 @@ docs-clean:
     .building_marked-man \
     man \
     docs/node_modules \
-    docs/public \
+    docs/output \
     docs/.cache
 
 ## build-time tools for the documentation
@@ -80,7 +78,7 @@ man/man1/npm-README.1: README.md scripts/docs-build.js package.json $(build-doc-
 	@[ -d man/man1 ] || mkdir -p man/man1
 	node scripts/docs-build.js $< $@
 
-man/man1/%.1: docs/content/cli-commands/%.md scripts/docs-build.js package.json $(build-doc-tools)
+man/man1/%.1: docs/content/commands/%.md scripts/docs-build.js package.json $(build-doc-tools)
 	@[ -d man/man1 ] || mkdir -p man/man1
 	node scripts/docs-build.js $< $@
 
@@ -136,4 +134,4 @@ release: gitclean ls-ok markedclean marked-manclean docs-clean docs
 sandwich:
 	@[ $$(whoami) = "root" ] && (echo "ok"; echo "ham" > sandwich) || (echo "make it yourself" && exit 13)
 
-.PHONY: all latest install dev link docs clean uninstall test man docs-clean docclean release ls-ok realclean
+.PHONY: all latest install dev link docs clean uninstall test man docs-clean docsclean release ls-ok realclean

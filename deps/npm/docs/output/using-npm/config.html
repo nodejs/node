@@ -1,0 +1,1248 @@
+<html><head>
+<title>config</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="config">config</h1>
+<span class="description">More than you probably want to know about npm configuration</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><ul><li><a href="#command-line-flags">Command Line Flags</a></li><li><a href="#environment-variables">Environment Variables</a></li><li><a href="#npmrc-files">npmrc Files</a></li><li><a href="#default-configs">Default Configs</a></li></ul><li><a href="#shorthands-and-other-cli-niceties">Shorthands and Other CLI Niceties</a></li><li><a href="#per-package-config-settings">Per-Package Config Settings</a></li><li><a href="#config-settings">Config Settings</a></li><ul><li><a href="#access">access</a></li><li><a href="#allow-same-version">allow-same-version</a></li><li><a href="#always-auth">always-auth</a></li><li><a href="#also">also</a></li><li><a href="#audit">audit</a></li><li><a href="#audit-level">audit-level</a></li><li><a href="#auth-type">auth-type</a></li><li><a href="#before">before</a></li><li><a href="#bin-links">bin-links</a></li><li><a href="#browser">browser</a></li><li><a href="#ca">ca</a></li><li><a href="#cafile">cafile</a></li><li><a href="#cache">cache</a></li><li><a href="#cache-lock-stale">cache-lock-stale</a></li><li><a href="#cache-lock-retries">cache-lock-retries</a></li><li><a href="#cache-lock-wait">cache-lock-wait</a></li><li><a href="#cache-max">cache-max</a></li><li><a href="#cache-min">cache-min</a></li><li><a href="#cert">cert</a></li><li><a href="#cidr">cidr</a></li><li><a href="#color">color</a></li><li><a href="#depth">depth</a></li><li><a href="#description2">description</a></li><li><a href="#dev">dev</a></li><li><a href="#dry-run">dry-run</a></li><li><a href="#editor">editor</a></li><li><a href="#engine-strict">engine-strict</a></li><li><a href="#force">force</a></li><li><a href="#format-package-lock">format-package-lock</a></li><li><a href="#fetch-retries">fetch-retries</a></li><li><a href="#fetch-retry-factor">fetch-retry-factor</a></li><li><a href="#fetch-retry-mintimeout">fetch-retry-mintimeout</a></li><li><a href="#fetch-retry-maxtimeout">fetch-retry-maxtimeout</a></li><li><a href="#fund">fund</a></li><li><a href="#git">git</a></li><li><a href="#git-tag-version">git-tag-version</a></li><li><a href="#commit-hooks">commit-hooks</a></li><li><a href="#global">global</a></li><li><a href="#globalconfig">globalconfig</a></li><li><a href="#global-style">global-style</a></li><li><a href="#group">group</a></li><li><a href="#heading">heading</a></li><li><a href="#https-proxy">https-proxy</a></li><li><a href="#if-present">if-present</a></li><li><a href="#ignore-prepublish">ignore-prepublish</a></li><li><a href="#ignore-scripts">ignore-scripts</a></li><li><a href="#init-module">init-module</a></li><li><a href="#init-author-name">init-author-name</a></li><li><a href="#init-author-email">init-author-email</a></li><li><a href="#init-author-url">init-author-url</a></li><li><a href="#init-license">init-license</a></li><li><a href="#init-version">init-version</a></li><li><a href="#json">json</a></li><li><a href="#key">key</a></li><li><a href="#legacy-bundling">legacy-bundling</a></li><li><a href="#link">link</a></li><li><a href="#local-address">local-address</a></li><li><a href="#loglevel">loglevel</a></li><li><a href="#logstream">logstream</a></li><li><a href="#logs-max">logs-max</a></li><li><a href="#long">long</a></li><li><a href="#maxsockets">maxsockets</a></li><li><a href="#message">message</a></li><li><a href="#metrics-registry">metrics-registry</a></li><li><a href="#node-options">node-options</a></li><li><a href="#node-version">node-version</a></li><li><a href="#noproxy">noproxy</a></li><li><a href="#offline">offline</a></li><li><a href="#onload-script">onload-script</a></li><li><a href="#only">only</a></li><li><a href="#optional">optional</a></li><li><a href="#otp">otp</a></li><li><a href="#package-lock">package-lock</a></li><li><a href="#package-lock-only">package-lock-only</a></li><li><a href="#parseable">parseable</a></li><li><a href="#prefer-offline">prefer-offline</a></li><li><a href="#prefer-online">prefer-online</a></li><li><a href="#prefix">prefix</a></li><li><a href="#preid">preid</a></li><li><a href="#production">production</a></li><li><a href="#progress">progress</a></li><li><a href="#proxy">proxy</a></li><li><a href="#read-only">read-only</a></li><li><a href="#rebuild-bundle">rebuild-bundle</a></li><li><a href="#registry">registry</a></li><li><a href="#rollback">rollback</a></li><li><a href="#save">save</a></li><li><a href="#save-bundle">save-bundle</a></li><li><a href="#save-prod">save-prod</a></li><li><a href="#save-dev">save-dev</a></li><li><a href="#save-exact">save-exact</a></li><li><a href="#save-optional">save-optional</a></li><li><a href="#save-prefix">save-prefix</a></li><li><a href="#scope">scope</a></li><li><a href="#script-shell">script-shell</a></li><li><a href="#scripts-prepend-node-path">scripts-prepend-node-path</a></li><li><a href="#searchexclude">searchexclude</a></li><li><a href="#searchopts">searchopts</a></li><li><a href="#searchlimit">searchlimit</a></li><li><a href="#searchstaleness">searchstaleness</a></li><li><a href="#send-metrics">send-metrics</a></li><li><a href="#shell">shell</a></li><li><a href="#shrinkwrap">shrinkwrap</a></li><li><a href="#sign-git-commit">sign-git-commit</a></li><li><a href="#sign-git-tag">sign-git-tag</a></li><li><a href="#sso-poll-frequency">sso-poll-frequency</a></li><li><a href="#sso-type">sso-type</a></li><li><a href="#strict-ssl">strict-ssl</a></li><li><a href="#tag">tag</a></li><li><a href="#tag-version-prefix">tag-version-prefix</a></li><li><a href="#timing">timing</a></li><li><a href="#tmp">tmp</a></li><li><a href="#unicode">unicode</a></li><li><a href="#unsafe-perm">unsafe-perm</a></li><li><a href="#update-notifier">update-notifier</a></li><li><a href="#usage">usage</a></li><li><a href="#user">user</a></li><li><a href="#userconfig">userconfig</a></li><li><a href="#umask">umask</a></li><li><a href="#user-agent">user-agent</a></li><li><a href="#version">version</a></li><li><a href="#versions">versions</a></li><li><a href="#viewer">viewer</a></li></ul><li><a href="#see-also">See also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="description">Description</h3>
+<p>npm gets its configuration values from the following sources, sorted by priority:</p>
+<h4 id="command-line-flags">Command Line Flags</h4>
+<p>Putting <code>--foo bar</code> on the command line sets the <code>foo</code> configuration
+parameter to <code>"bar"</code>.  A <code>--</code> argument tells the cli parser to stop
+reading flags.  Using <code>--flag</code> without specifying any value will set
+the value to <code>true</code>.</p>
+<p>Example: <code>--flag1 --flag2</code> will set both configuration parameters
+to <code>true</code>, while <code>--flag1 --flag2 bar</code> will set <code>flag1</code> to <code>true</code>,
+and <code>flag2</code> to <code>bar</code>.  Finally, <code>--flag1 --flag2 -- bar</code> will set
+both configuration parameters to <code>true</code>, and the <code>bar</code> is taken
+as a command argument.</p>
+<h4 id="environment-variables">Environment Variables</h4>
+<p>Any environment variables that start with <code>npm_config_</code> will be
+interpreted as a configuration parameter.  For example, putting
+<code>npm_config_foo=bar</code> in your environment will set the <code>foo</code>
+configuration parameter to <code>bar</code>.  Any environment configurations that
+are not given a value will be given the value of <code>true</code>.  Config
+values are case-insensitive, so <code>NPM_CONFIG_FOO=bar</code> will work the
+same. However, please note that inside <a href="../using-npm/scripts.html"><code>scripts</code></a>
+npm will set its own environment variables and Node will prefer
+those lowercase versions over any uppercase ones that you might set.
+For details see <a href="https://github.com/npm/npm/issues/14528">this issue</a>.</p>
+<p>Notice that you need to use underscores instead of dashes, so <code>--allow-same-version</code>
+would become <code>npm_config_allow_same_version=true</code>.</p>
+<h4 id="npmrc-files">npmrc Files</h4>
+<p>The four relevant files are:</p>
+<ul>
+<li>per-project configuration file (<code>/path/to/my/project/.npmrc</code>)</li>
+<li>per-user configuration file (defaults to <code>$HOME/.npmrc</code>; configurable via CLI
+option <code>--userconfig</code> or environment variable <code>$NPM_CONFIG_USERCONFIG</code>)</li>
+<li>global configuration file (defaults to <code>$PREFIX/etc/npmrc</code>; configurable via
+CLI option <code>--globalconfig</code> or environment variable <code>$NPM_CONFIG_GLOBALCONFIG</code>)</li>
+<li>npm’s built-in configuration file (<code>/path/to/npm/npmrc</code>)</li>
+</ul>
+<p>See <a href="../configuring-npm/npmrc.html">npmrc</a> for more details.</p>
+<h4 id="default-configs">Default Configs</h4>
+<p>Run <code>npm config ls -l</code> to see a set of configuration parameters that are
+internal to npm, and are defaults if nothing else is specified.</p>
+<h3 id="shorthands-and-other-cli-niceties">Shorthands and Other CLI Niceties</h3>
+<p>The following shorthands are parsed on the command-line:</p>
+<ul>
+<li><code>-v</code>: <code>--version</code></li>
+<li><code>-h</code>, <code>-?</code>, <code>--help</code>, <code>-H</code>: <code>--usage</code></li>
+<li><code>-s</code>, <code>--silent</code>: <code>--loglevel silent</code></li>
+<li><code>-q</code>, <code>--quiet</code>: <code>--loglevel warn</code></li>
+<li><code>-d</code>: <code>--loglevel info</code></li>
+<li><code>-dd</code>, <code>--verbose</code>: <code>--loglevel verbose</code></li>
+<li><code>-ddd</code>: <code>--loglevel silly</code></li>
+<li><code>-g</code>: <code>--global</code></li>
+<li><code>-C</code>: <code>--prefix</code></li>
+<li><code>-l</code>: <code>--long</code></li>
+<li><code>-m</code>: <code>--message</code></li>
+<li><code>-p</code>, <code>--porcelain</code>: <code>--parseable</code></li>
+<li><code>-reg</code>: <code>--registry</code></li>
+<li><code>-f</code>: <code>--force</code></li>
+<li><code>-desc</code>: <code>--description</code></li>
+<li><code>-S</code>: <code>--save</code></li>
+<li><code>-P</code>: <code>--save-prod</code></li>
+<li><code>-D</code>: <code>--save-dev</code></li>
+<li><code>-O</code>: <code>--save-optional</code></li>
+<li><code>-B</code>: <code>--save-bundle</code></li>
+<li><code>-E</code>: <code>--save-exact</code></li>
+<li><code>-y</code>: <code>--yes</code></li>
+<li><code>-n</code>: <code>--yes false</code></li>
+<li><code>ll</code> and <code>la</code> commands: <code>ls --long</code></li>
+</ul>
+<p>If the specified configuration param resolves unambiguously to a known
+configuration parameter, then it is expanded to that configuration
+parameter.  For example:</p>
+<pre lang="bash"><code>npm ls --par
+# same as:
+npm ls --parseable
+</code></pre>
+<p>If multiple single-character shorthands are strung together, and the
+resulting combination is unambiguously not some other configuration
+param, then it is expanded to its various component pieces.  For
+example:</p>
+<pre lang="bash"><code>npm ls -gpld
+# same as:
+npm ls --global --parseable --long --loglevel info
+</code></pre>
+<h3 id="per-package-config-settings">Per-Package Config Settings</h3>
+<p>When running scripts (see <a href="../using-npm/scripts.html"><code>scripts</code></a>) the package.json “config”
+keys are overwritten in the environment if there is a config param of
+<code>&lt;name&gt;[@&lt;version&gt;]:&lt;key&gt;</code>.  For example, if the package.json has
+this:</p>
+<pre lang="json"><code>{ "name" : "foo"
+, "config" : { "port" : "8080" }
+, "scripts" : { "start" : "node server.js" } }
+</code></pre>
+<p>and the server.js is this:</p>
+<pre lang="javascript"><code>http.createServer(...).listen(process.env.npm_package_config_port)
+</code></pre>
+<p>then the user could change the behavior by doing:</p>
+<pre lang="bash"><code>npm config set foo:port 80
+</code></pre>
+<p>See <a href="../configuring-npm/package-json.html">package.json</a> for more information.</p>
+<h3 id="config-settings">Config Settings</h3>
+<h4 id="access">access</h4>
+<ul>
+<li>Default: <code>restricted</code></li>
+<li>Type: Access</li>
+</ul>
+<p>When publishing scoped packages, the access level defaults to <code>restricted</code>.  If
+you want your scoped package to be publicly viewable (and installable) set
+<code>--access=public</code>. The only valid values for <code>access</code> are <code>public</code> and
+<code>restricted</code>. Unscoped packages <em>always</em> have an access level of <code>public</code>.</p>
+<h4 id="allow-same-version">allow-same-version</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Prevents throwing an error when <code>npm version</code> is used to set the new version
+to the same value as the current version.</p>
+<h4 id="always-auth">always-auth</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Force npm to always require authentication when accessing the registry,
+even for <code>GET</code> requests.</p>
+<h4 id="also">also</h4>
+<ul>
+<li>Default: null</li>
+<li>Type: String</li>
+</ul>
+<p>When “dev” or “development” and running local <code>npm shrinkwrap</code>,
+<code>npm outdated</code>, or <code>npm update</code>, is an alias for <code>--dev</code>.</p>
+<h4 id="audit">audit</h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When “true” submit audit reports alongside <code>npm install</code> runs to the default
+registry and all registries configured for scopes.  See the documentation
+for <a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is submitted.</p>
+<h4 id="audit-level">audit-level</h4>
+<ul>
+<li>Default: <code>"low"</code></li>
+<li>Type: <code>'low'</code>, <code>'moderate'</code>, <code>'high'</code>, <code>'critical'</code></li>
+</ul>
+<p>The minimum level of vulnerability for <code>npm audit</code> to exit with
+a non-zero exit code.</p>
+<h4 id="auth-type">auth-type</h4>
+<ul>
+<li>Default: <code>'legacy'</code></li>
+<li>Type: <code>'legacy'</code>, <code>'sso'</code>, <code>'saml'</code>, <code>'oauth'</code></li>
+</ul>
+<p>What authentication strategy to use with <code>adduser</code>/<code>login</code>.</p>
+<h4 id="before">before</h4>
+<ul>
+<li>Alias: enjoy-by</li>
+<li>Default: null</li>
+<li>Type: Date</li>
+</ul>
+<p>If passed to <code>npm install</code>, will rebuild the npm tree such that only versions
+that were available <strong>on or before</strong> the <code>--before</code> time get installed.
+If there’s no versions available for the current set of direct dependencies, the
+command will error.</p>
+<p>If the requested version is a <code>dist-tag</code> and the given tag does not pass the
+<code>--before</code> filter, the most recent version less than or equal to that tag will
+be used. For example, <code>foo@latest</code> might install <code>foo@1.2</code> even though <code>latest</code>
+is <code>2.0</code>.</p>
+<h4 id="bin-links">bin-links</h4>
+<ul>
+<li>Default: <code>true</code></li>
+<li>Type: Boolean</li>
+</ul>
+<p>Tells npm to create symlinks (or <code>.cmd</code> shims on Windows) for package
+executables.</p>
+<p>Set to false to have it not do this.  This can be used to work around
+the fact that some file systems don’t support symlinks, even on
+ostensibly Unix systems.</p>
+<h4 id="browser">browser</h4>
+<ul>
+<li>Default: OS X: <code>"open"</code>, Windows: <code>"start"</code>, Others: <code>"xdg-open"</code></li>
+<li>Type: String</li>
+</ul>
+<p>The browser that is called by the <code>npm docs</code> command to open websites.</p>
+<h4 id="ca">ca</h4>
+<ul>
+<li>Default: The npm CA certificate</li>
+<li>Type: String, Array or null</li>
+</ul>
+<p>The Certificate Authority signing certificate that is trusted for SSL
+connections to the registry. Values should be in PEM format (Windows calls it “Base-64 encoded X.509 (.CER)”) with newlines
+replaced by the string “\n”. For example:</p>
+<pre lang="bash"><code>ca="-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----"
+</code></pre>
+<p>Set to <code>null</code> to only allow “known” registrars, or to a specific CA cert
+to trust only that specific signing authority.</p>
+<p>Multiple CAs can be trusted by specifying an array of certificates:</p>
+<pre lang="bash"><code>ca[]="..."
+ca[]="..."
+</code></pre>
+<p>See also the <code>strict-ssl</code> config.</p>
+<h4 id="cafile">cafile</h4>
+<ul>
+<li>Default: <code>null</code></li>
+<li>Type: path</li>
+</ul>
+<p>A path to a file containing one or multiple Certificate Authority signing
+certificates. Similar to the <code>ca</code> setting, but allows for multiple CA’s, as
+well as for the CA information to be stored in a file on disk.</p>
+<h4 id="cache">cache</h4>
+<ul>
+<li>Default: Windows: <code>%AppData%\npm-cache</code>, Posix: <code>~/.npm</code></li>
+<li>Type: path</li>
+</ul>
+<p>The location of npm’s cache directory.  See <a href="../commands/npm-cache.html"><code>npm cache</code></a></p>
+<h4 id="cache-lock-stale">cache-lock-stale</h4>
+<ul>
+<li>Default: 60000 (1 minute)</li>
+<li>Type: Number</li>
+</ul>
+<p>The number of ms before cache folder lockfiles are considered stale.</p>
+<h4 id="cache-lock-retries">cache-lock-retries</h4>
+<ul>
+<li>Default: 10</li>
+<li>Type: Number</li>
+</ul>
+<p>Number of times to retry to acquire a lock on cache folder lockfiles.</p>
+<h4 id="cache-lock-wait">cache-lock-wait</h4>
+<ul>
+<li>Default: 10000 (10 seconds)</li>
+<li>Type: Number</li>
+</ul>
+<p>Number of ms to wait for cache lock files to expire.</p>
+<h4 id="cache-max">cache-max</h4>
+<ul>
+<li>Default: Infinity</li>
+<li>Type: Number</li>
+</ul>
+<p><strong>DEPRECATED</strong>: This option has been deprecated in favor of <code>--prefer-online</code>.</p>
+<p><code>--cache-max=0</code> is an alias for <code>--prefer-online</code>.</p>
+<h4 id="cache-min">cache-min</h4>
+<ul>
+<li>Default: 10</li>
+<li>Type: Number</li>
+</ul>
+<p><strong>DEPRECATED</strong>: This option has been deprecated in favor of <code>--prefer-offline</code>.</p>
+<p><code>--cache-min=9999 (or bigger)</code> is an alias for <code>--prefer-offline</code>.</p>
+<h4 id="cert">cert</h4>
+<ul>
+<li>Default: <code>null</code></li>
+<li>Type: String</li>
+</ul>
+<p>A client certificate to pass when accessing the registry.  Values should be in
+PEM format (Windows calls it “Base-64 encoded X.509 (.CER)”) with newlines replaced by the string “\n”. For example:</p>
+<pre lang="bash"><code>cert="-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----"
+</code></pre>
+<p>It is <em>not</em> the path to a certificate file (and there is no “certfile” option).</p>
+<h4 id="cidr">cidr</h4>
+<ul>
+<li>Default: <code>null</code></li>
+<li>Type: String, Array, null</li>
+</ul>
+<p>This is a list of CIDR address to be used when configuring limited access tokens with the <code>npm token create</code> command.</p>
+<h4 id="color">color</h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean or <code>"always"</code></li>
+</ul>
+<p>If false, never shows colors.  If <code>"always"</code> then always shows colors.
+If true, then only prints color codes for tty file descriptors.</p>
+<p>This option can also be changed using the environment: colors are
+disabled when the environment variable <code>NO_COLOR</code> is set to any value.</p>
+<h4 id="depth">depth</h4>
+<ul>
+<li>Default: Infinity</li>
+<li>Type: Number</li>
+</ul>
+<p>The depth to go when recursing directories for <code>npm ls</code>,
+<code>npm cache ls</code>, and <code>npm outdated</code>.</p>
+<p>For <code>npm outdated</code>, a setting of <code>Infinity</code> will be treated as <code>0</code>
+since that gives more useful information.  To show the outdated status
+of all packages and dependents, use a large integer value,
+e.g., <code>npm outdated --depth 9999</code></p>
+<h4 id="description2">description</h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Show the description in <code>npm search</code></p>
+<h4 id="dev">dev</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Install <code>dev-dependencies</code> along with packages.</p>
+<h4 id="dry-run">dry-run</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Indicates that you don’t want npm to make any changes and that it should
+only report what it would have done.  This can be passed into any of the
+commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
+<code>dedupe</code>, <code>uninstall</code>.  This is NOT currently honored by some network related
+commands, eg <code>dist-tags</code>, <code>owner</code>, etc.</p>
+<h4 id="editor">editor</h4>
+<ul>
+<li>Default: <code>EDITOR</code> environment variable if set, or <code>"vi"</code> on Posix,
+or <code>"notepad"</code> on Windows.</li>
+<li>Type: path</li>
+</ul>
+<p>The command to run for <code>npm edit</code> or <code>npm config edit</code>.</p>
+<h4 id="engine-strict">engine-strict</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to true, then npm will stubbornly refuse to install (or even
+consider installing) any package that claims to not be compatible with
+the current Node.js version.</p>
+<h4 id="force">force</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Makes various commands more forceful.</p>
+<ul>
+<li>lifecycle script failure does not block progress.</li>
+<li>publishing clobbers previously published versions.</li>
+<li>skips cache when requesting from the registry.</li>
+<li>prevents checks against clobbering non-npm files.</li>
+</ul>
+<h4 id="format-package-lock">format-package-lock</h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Format <code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> as a human readable file.</p>
+<h4 id="fetch-retries">fetch-retries</h4>
+<ul>
+<li>Default: 2</li>
+<li>Type: Number</li>
+</ul>
+<p>The “retries” config for the <code>retry</code> module to use when fetching
+packages from the registry.</p>
+<h4 id="fetch-retry-factor">fetch-retry-factor</h4>
+<ul>
+<li>Default: 10</li>
+<li>Type: Number</li>
+</ul>
+<p>The “factor” config for the <code>retry</code> module to use when fetching
+packages.</p>
+<h4 id="fetch-retry-mintimeout">fetch-retry-mintimeout</h4>
+<ul>
+<li>Default: 10000 (10 seconds)</li>
+<li>Type: Number</li>
+</ul>
+<p>The “minTimeout” config for the <code>retry</code> module to use when fetching
+packages.</p>
+<h4 id="fetch-retry-maxtimeout">fetch-retry-maxtimeout</h4>
+<ul>
+<li>Default: 60000 (1 minute)</li>
+<li>Type: Number</li>
+</ul>
+<p>The “maxTimeout” config for the <code>retry</code> module to use when fetching
+packages.</p>
+<h4 id="fund">fund</h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When “true” displays the message at the end of each <code>npm install</code>
+acknowledging the number of dependencies looking for funding.
+See <a href="../commands/npm-fund.html"><code>npm fund</code></a> for details.</p>
+<h4 id="git">git</h4>
+<ul>
+<li>Default: <code>"git"</code></li>
+<li>Type: String</li>
+</ul>
+<p>The command to use for git commands.  If git is installed on the
+computer, but is not in the <code>PATH</code>, then set this to the full path to
+the git binary.</p>
+<h4 id="git-tag-version">git-tag-version</h4>
+<ul>
+<li>Default: <code>true</code></li>
+<li>Type: Boolean</li>
+</ul>
+<p>Tag the commit when using the <code>npm version</code> command.</p>
+<h4 id="commit-hooks">commit-hooks</h4>
+<ul>
+<li>Default: <code>true</code></li>
+<li>Type: Boolean</li>
+</ul>
+<p>Run git commit hooks when using the <code>npm version</code> command.</p>
+<h4 id="global">global</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Operates in “global” mode, so that packages are installed into the
+<code>prefix</code> folder instead of the current working directory.  See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
+<ul>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead of the
+current working directory.</li>
+<li>bin files are linked to <code>{prefix}/bin</code></li>
+<li>man pages are linked to <code>{prefix}/share/man</code></li>
+</ul>
+<h4 id="globalconfig">globalconfig</h4>
+<ul>
+<li>Default: {prefix}/etc/npmrc</li>
+<li>Type: path</li>
+</ul>
+<p>The config file to read for global config options.</p>
+<h4 id="global-style">global-style</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Causes npm to install the package into your local <code>node_modules</code> folder with
+the same layout it uses with the global <code>node_modules</code> folder.  Only your
+direct dependencies will show in <code>node_modules</code> and everything they depend
+on will be flattened in their <code>node_modules</code> folders.  This obviously will
+eliminate some deduping. If used with <code>legacy-bundling</code>, <code>legacy-bundling</code> will be
+preferred.</p>
+<h4 id="group">group</h4>
+<ul>
+<li>Default: GID of the current process</li>
+<li>Type: String or Number</li>
+</ul>
+<p>The group to use when running package scripts in global mode as the root
+user.</p>
+<h4 id="heading">heading</h4>
+<ul>
+<li>Default: <code>"npm"</code></li>
+<li>Type: String</li>
+</ul>
+<p>The string that starts all the debugging log output.</p>
+<h4 id="https-proxy">https-proxy</h4>
+<ul>
+<li>Default: null</li>
+<li>Type: url</li>
+</ul>
+<p>A proxy to use for outgoing https requests. If the <code>HTTPS_PROXY</code> or
+<code>https_proxy</code> or <code>HTTP_PROXY</code> or <code>http_proxy</code> environment variables are set,
+proxy settings will be honored by the underlying <code>request</code> library.</p>
+<h4 id="if-present">if-present</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, npm will not exit with an error code when <code>run-script</code> is invoked for
+a script that isn’t defined in the <code>scripts</code> section of <code>package.json</code>. This
+option can be used when it’s desirable to optionally run a script when it’s
+present and fail if the script fails. This is useful, for example, when running
+scripts that may only apply for some builds in an otherwise generic CI setup.</p>
+<h4 id="ignore-prepublish">ignore-prepublish</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, npm will not run <code>prepublish</code> scripts.</p>
+<h4 id="ignore-scripts">ignore-scripts</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, npm does not run scripts specified in package.json files.</p>
+<h4 id="init-module">init-module</h4>
+<ul>
+<li>Default: ~/.npm-init.js</li>
+<li>Type: path</li>
+</ul>
+<p>A module that will be loaded by the <code>npm init</code> command.  See the
+documentation for the
+<a href="https://github.com/isaacs/init-package-json">init-package-json</a> module
+for more information, or <a href="../commands/npm-init.html">npm init</a>.</p>
+<h4 id="init-author-name">init-author-name</h4>
+<ul>
+<li>Default: “”</li>
+<li>Type: String</li>
+</ul>
+<p>The value <code>npm init</code> should use by default for the package author’s name.</p>
+<h4 id="init-author-email">init-author-email</h4>
+<ul>
+<li>Default: “”</li>
+<li>Type: String</li>
+</ul>
+<p>The value <code>npm init</code> should use by default for the package author’s email.</p>
+<h4 id="init-author-url">init-author-url</h4>
+<ul>
+<li>Default: “”</li>
+<li>Type: String</li>
+</ul>
+<p>The value <code>npm init</code> should use by default for the package author’s homepage.</p>
+<h4 id="init-license">init-license</h4>
+<ul>
+<li>Default: “ISC”</li>
+<li>Type: String</li>
+</ul>
+<p>The value <code>npm init</code> should use by default for the package license.</p>
+<h4 id="init-version">init-version</h4>
+<ul>
+<li>Default: “1.0.0”</li>
+<li>Type: semver</li>
+</ul>
+<p>The value that <code>npm init</code> should use by default for the package
+version number, if not already set in package.json.</p>
+<h4 id="json">json</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Whether or not to output JSON data, rather than the normal output.</p>
+<p>This feature is currently experimental, and the output data structures for many
+commands is either not implemented in JSON yet, or subject to change.  Only the
+output from <code>npm ls --json</code> and <code>npm search --json</code> are currently valid.</p>
+<h4 id="key">key</h4>
+<ul>
+<li>Default: <code>null</code></li>
+<li>Type: String</li>
+</ul>
+<p>A client key to pass when accessing the registry.  Values should be in PEM
+format with newlines replaced by the string “\n”. For example:</p>
+<pre lang="json"><code>key="-----BEGIN PRIVATE KEY-----\nXXXX\nXXXX\n-----END PRIVATE KEY-----"
+</code></pre>
+<p>It is <em>not</em> the path to a key file (and there is no “keyfile” option).</p>
+<h4 id="legacy-bundling">legacy-bundling</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Causes npm to install the package such that versions of npm prior to 1.4,
+such as the one included with node 0.8, can install the package.  This
+eliminates all automatic deduping. If used with <code>global-style</code> this option
+will be preferred.</p>
+<h4 id="link">link</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, then local installs will link if there is a suitable globally
+installed package.</p>
+<p>Note that this means that local installs can cause things to be
+installed into the global space at the same time.  The link is only done
+if one of the two conditions are met:</p>
+<ul>
+<li>The package is not already installed globally, or</li>
+<li>the globally installed version is identical to the version that is
+being installed locally.</li>
+</ul>
+<h4 id="local-address">local-address</h4>
+<ul>
+<li>Default: undefined</li>
+<li>Type: IP Address</li>
+</ul>
+<p>The IP address of the local interface to use when making connections
+to the npm registry.  Must be IPv4 in versions of Node prior to 0.12.</p>
+<h4 id="loglevel">loglevel</h4>
+<ul>
+<li>Default: “notice”</li>
+<li>Type: String</li>
+<li>Values: “silent”, “error”, “warn”, “notice”, “http”, “timing”, “info”,
+“verbose”, “silly”</li>
+</ul>
+<p>What level of logs to report.  On failure, <em>all</em> logs are written to
+<code>npm-debug.log</code> in the current working directory.</p>
+<p>Any logs of a higher level than the setting are shown. The default is “notice”.</p>
+<h4 id="logstream">logstream</h4>
+<ul>
+<li>Default: process.stderr</li>
+<li>Type: Stream</li>
+</ul>
+<p>This is the stream that is passed to the
+<a href="https://github.com/npm/npmlog">npmlog</a> module at run time.</p>
+<p>It cannot be set from the command line, but if you are using npm
+programmatically, you may wish to send logs to somewhere other than
+stderr.</p>
+<p>If the <code>color</code> config is set to true, then this stream will receive
+colored output if it is a TTY.</p>
+<h4 id="logs-max">logs-max</h4>
+<ul>
+<li>Default: 10</li>
+<li>Type: Number</li>
+</ul>
+<p>The maximum number of log files to store.</p>
+<h4 id="long">long</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Show extended information in <code>npm ls</code> and <code>npm search</code>.</p>
+<h4 id="maxsockets">maxsockets</h4>
+<ul>
+<li>Default: 50</li>
+<li>Type: Number</li>
+</ul>
+<p>The maximum number of connections to use per origin (protocol/host/port
+combination). Passed to the <code>http</code> <code>Agent</code> used to make the request.</p>
+<h4 id="message">message</h4>
+<ul>
+<li>Default: “%s”</li>
+<li>Type: String</li>
+</ul>
+<p>Commit message which is used by <code>npm version</code> when creating version commit.</p>
+<p>Any “%s” in the message will be replaced with the version number.</p>
+<h4 id="metrics-registry">metrics-registry</h4>
+<ul>
+<li>Default: The value of  <code>registry</code> (which defaults to “<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>”)</li>
+<li>Type: String</li>
+</ul>
+<p>The registry you want to send cli metrics to if <code>send-metrics</code> is true.</p>
+<h4 id="node-options">node-options</h4>
+<ul>
+<li>Default: null</li>
+<li>Type: String</li>
+</ul>
+<p>Options to pass through to Node.js via the <code>NODE_OPTIONS</code> environment
+variable.  This does not impact how npm itself is executed but it does
+impact how lifecycle scripts are called.</p>
+<h4 id="node-version">node-version</h4>
+<ul>
+<li>Default: process.version</li>
+<li>Type: semver or false</li>
+</ul>
+<p>The node version to use when checking a package’s <code>engines</code> map.</p>
+<h4 id="noproxy">noproxy</h4>
+<ul>
+<li>Default: null</li>
+<li>Type: String or Array</li>
+</ul>
+<p>A comma-separated string or an array of domain extensions that a proxy should not be used for.</p>
+<h4 id="offline">offline</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Force offline mode: no network requests will be done during install. To allow
+the CLI to fill in missing cache data, see <code>--prefer-offline</code>.</p>
+<h4 id="onload-script">onload-script</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: path</li>
+</ul>
+<p>A node module to <code>require()</code> when npm loads.  Useful for programmatic
+usage.</p>
+<h4 id="only">only</h4>
+<ul>
+<li>Default: null</li>
+<li>Type: String</li>
+</ul>
+<p>When “dev” or “development” and running local <code>npm install</code> without any
+arguments, only devDependencies (and their dependencies) are installed.</p>
+<p>When “dev” or “development” and running local <code>npm ls</code>, <code>npm outdated</code>, or
+<code>npm update</code>, is an alias for <code>--dev</code>.</p>
+<p>When “prod” or “production” and running local <code>npm install</code> without any
+arguments, only non-devDependencies (and their dependencies) are
+installed.</p>
+<p>When “prod” or “production” and running local <code>npm ls</code>, <code>npm outdated</code>, or
+<code>npm update</code>, is an alias for <code>--production</code>.</p>
+<h4 id="optional">optional</h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Attempt to install packages in the <code>optionalDependencies</code> object.  Note
+that if these packages fail to install, the overall installation
+process is not aborted.</p>
+<h4 id="otp">otp</h4>
+<ul>
+<li>Default: null</li>
+<li>Type: Number</li>
+</ul>
+<p>This is a one-time password from a two-factor authenticator.  It’s needed
+when publishing or changing package permissions with <code>npm access</code>.</p>
+<h4 id="package-lock">package-lock</h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to false, then ignore <code>package-lock.json</code> files when installing. This
+will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save</code> is true.</p>
+<p>When package package-locks are disabled, automatic pruning of extraneous
+modules will also be disabled.  To remove extraneous modules with
+package-locks disabled use <code>npm prune</code>.</p>
+<p>This option is an alias for <code>--shrinkwrap</code>.</p>
+<h4 id="package-lock-only">package-lock-only</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to true, it will update only the <code>package-lock.json</code>,
+instead of checking <code>node_modules</code> and downloading dependencies.</p>
+<h4 id="parseable">parseable</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Output parseable results from commands that write to
+standard output. For <code>npm search</code>, this will be tab-separated table format.</p>
+<h4 id="prefer-offline">prefer-offline</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, staleness checks for cached data will be bypassed, but missing data
+will be requested from the server. To force full offline mode, use <code>--offline</code>.</p>
+<p>This option is effectively equivalent to <code>--cache-min=9999999</code>.</p>
+<h4 id="prefer-online">prefer-online</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, staleness checks for cached data will be forced, making the CLI look
+for updates immediately even for fresh package data.</p>
+<h4 id="prefix">prefix</h4>
+<ul>
+<li>Default: see <a href="../configuring-npm/folders.html">folders</a></li>
+<li>Type: path</li>
+</ul>
+<p>The location to install global items.  If set on the command line, then
+it forces non-global commands to run in the specified folder.</p>
+<h4 id="preid">preid</h4>
+<ul>
+<li>Default: “”</li>
+<li>Type: String</li>
+</ul>
+<p>The “prerelease identifier” to use as a prefix for the “prerelease” part of a
+semver. Like the <code>rc</code> in <code>1.2.0-rc.8</code>.</p>
+<h4 id="production">production</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Set to true to run in “production” mode.</p>
+<ol>
+<li>devDependencies are not installed at the topmost level when running
+local <code>npm install</code> without any arguments.</li>
+<li>Set the NODE_ENV=“production” for lifecycle scripts.</li>
+</ol>
+<h4 id="progress">progress</h4>
+<ul>
+<li>Default: true, unless TRAVIS or CI env vars set.</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When set to <code>true</code>, npm will display a progress bar during time intensive
+operations, if <code>process.stderr</code> is a TTY.</p>
+<p>Set to <code>false</code> to suppress the progress bar.</p>
+<h4 id="proxy">proxy</h4>
+<ul>
+<li>Default: null</li>
+<li>Type: url</li>
+</ul>
+<p>A proxy to use for outgoing http requests. If the <code>HTTP_PROXY</code> or
+<code>http_proxy</code> environment variables are set, proxy settings will be
+honored by the underlying <code>request</code> library.</p>
+<h4 id="read-only">read-only</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>This is used to mark a token as unable to publish when configuring limited access tokens with the <code>npm token create</code> command.</p>
+<h4 id="rebuild-bundle">rebuild-bundle</h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Rebuild bundled dependencies after installation.</p>
+<h4 id="registry">registry</h4>
+<ul>
+<li>Default: <a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a></li>
+<li>Type: url</li>
+</ul>
+<p>The base URL of the npm package registry.</p>
+<h4 id="rollback">rollback</h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Remove failed installs.</p>
+<h4 id="save">save</h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Save installed packages to a package.json file as dependencies.</p>
+<p>When used with the <code>npm rm</code> command, it removes it from the <code>dependencies</code>
+object.</p>
+<p>Only works if there is already a package.json file present.</p>
+<h4 id="save-bundle">save-bundle</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If a package would be saved at install time by the use of <code>--save</code>,
+<code>--save-dev</code>, or <code>--save-optional</code>, then also put it in the
+<code>bundleDependencies</code> list.</p>
+<p>When used with the <code>npm rm</code> command, it removes it from the
+bundledDependencies list.</p>
+<h4 id="save-prod">save-prod</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Makes sure that a package will be saved into <code>dependencies</code> specifically. This
+is useful if a package already exists in <code>devDependencies</code> or
+<code>optionalDependencies</code>, but you want to move it to be a production dep. This is
+also the default behavior if <code>--save</code> is true, and neither <code>--save-dev</code> or
+<code>--save-optional</code> are true.</p>
+<h4 id="save-dev">save-dev</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Save installed packages to a package.json file as <code>devDependencies</code>.</p>
+<p>When used with the <code>npm rm</code> command, it removes it from the
+<code>devDependencies</code> object.</p>
+<p>Only works if there is already a package.json file present.</p>
+<h4 id="save-exact">save-exact</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Dependencies saved to package.json using <code>--save</code>, <code>--save-dev</code> or
+<code>--save-optional</code> will be configured with an exact version rather than
+using npm’s default semver range operator.</p>
+<h4 id="save-optional">save-optional</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Save installed packages to a package.json file as
+optionalDependencies.</p>
+<p>When used with the <code>npm rm</code> command, it removes it from the
+<code>devDependencies</code> object.</p>
+<p>Only works if there is already a package.json file present.</p>
+<h4 id="save-prefix">save-prefix</h4>
+<ul>
+<li>Default: ‘^’</li>
+<li>Type: String</li>
+</ul>
+<p>Configure how versions of packages installed to a package.json file via
+<code>--save</code> or <code>--save-dev</code> get prefixed.</p>
+<p>For example if a package has version <code>1.2.3</code>, by default its version is
+set to <code>^1.2.3</code> which allows minor upgrades for that package, but after
+<code>npm config set save-prefix='~'</code> it would be set to <code>~1.2.3</code> which only allows
+patch upgrades.</p>
+<h4 id="scope">scope</h4>
+<ul>
+<li>Default: the scope of the current project, if any, or “”</li>
+<li>Type: String</li>
+</ul>
+<p>Associate an operation with a scope for a scoped registry. Useful when logging
+in to a private registry for the first time:
+<code>npm login --scope=@organization --registry=registry.organization.com</code>, which
+will cause <code>@organization</code> to be mapped to the registry for future installation
+of packages specified according to the pattern <code>@organization/package</code>.</p>
+<h4 id="script-shell">script-shell</h4>
+<ul>
+<li>Default: <code>null</code></li>
+<li>Type: path</li>
+</ul>
+<p>The shell to use for scripts run with the <code>npm run</code> command.</p>
+<h4 id="scripts-prepend-node-path">scripts-prepend-node-path</h4>
+<ul>
+<li>Default: “warn-only”</li>
+<li>Type: Boolean, <code>"auto"</code> or <code>"warn-only"</code></li>
+</ul>
+<p>If set to <code>true</code>, add the directory in which the current <code>node</code> executable
+resides to the <code>PATH</code> environment variable when running scripts,
+even if that means that <code>npm</code> will invoke a different <code>node</code> executable than
+the one which it is running.</p>
+<p>If set to <code>false</code>, never modify <code>PATH</code> with that.</p>
+<p>If set to <code>"warn-only"</code>, never modify <code>PATH</code> but print a warning if <code>npm</code> thinks
+that you may want to run it with <code>true</code>, e.g. because the <code>node</code> executable
+in the <code>PATH</code> is not the one <code>npm</code> was invoked with.</p>
+<p>If set to <code>auto</code>, only add that directory to the <code>PATH</code> environment variable
+if the <code>node</code> executable with which <code>npm</code> was invoked and the one that is found
+first on the <code>PATH</code> are different.</p>
+<h4 id="searchexclude">searchexclude</h4>
+<ul>
+<li>Default: “”</li>
+<li>Type: String</li>
+</ul>
+<p>Space-separated options that limit the results from search.</p>
+<h4 id="searchopts">searchopts</h4>
+<ul>
+<li>Default: “”</li>
+<li>Type: String</li>
+</ul>
+<p>Space-separated options that are always passed to search.</p>
+<h4 id="searchlimit">searchlimit</h4>
+<ul>
+<li>Default: 20</li>
+<li>Type: Number</li>
+</ul>
+<p>Number of items to limit search results to. Will not apply at all to legacy
+searches.</p>
+<h4 id="searchstaleness">searchstaleness</h4>
+<ul>
+<li>Default: 900 (15 minutes)</li>
+<li>Type: Number</li>
+</ul>
+<p>The age of the cache, in seconds, before another registry request is made if
+using legacy search endpoint.</p>
+<h4 id="send-metrics">send-metrics</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, success/failure metrics will be reported to the registry stored in
+<code>metrics-registry</code>.  These requests contain the number of successful and
+failing runs of the npm CLI and the time period overwhich those counts were
+gathered. No identifying information is included in these requests.</p>
+<h4 id="shell">shell</h4>
+<ul>
+<li>Default: SHELL environment variable, or “bash” on Posix, or “cmd” on
+Windows</li>
+<li>Type: path</li>
+</ul>
+<p>The shell to run for the <code>npm explore</code> command.</p>
+<h4 id="shrinkwrap">shrinkwrap</h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to false, then ignore <code>npm-shrinkwrap.json</code> files when installing. This
+will also prevent <em>writing</em> <code>npm-shrinkwrap.json</code> if <code>save</code> is true.</p>
+<p>This option is an alias for <code>--package-lock</code>.</p>
+<h4 id="sign-git-commit">sign-git-commit</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to true, then the <code>npm version</code> command will commit the new package
+version using <code>-S</code> to add a signature.</p>
+<p>Note that git requires you to have set up GPG keys in your git configs
+for this to work properly.</p>
+<h4 id="sign-git-tag">sign-git-tag</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to true, then the <code>npm version</code> command will tag the version
+using <code>-s</code> to add a signature.</p>
+<p>Note that git requires you to have set up GPG keys in your git configs
+for this to work properly.</p>
+<h4 id="sso-poll-frequency">sso-poll-frequency</h4>
+<ul>
+<li>Default: 500</li>
+<li>Type: Number</li>
+</ul>
+<p>When used with SSO-enabled <code>auth-type</code>s, configures how regularly the registry
+should be polled while the user is completing authentication.</p>
+<h4 id="sso-type">sso-type</h4>
+<ul>
+<li>Default: ‘oauth’</li>
+<li>Type: ‘oauth’, ‘saml’, or null</li>
+</ul>
+<p>If <code>--auth-type=sso</code>, the type of SSO type to use.</p>
+<h4 id="strict-ssl">strict-ssl</h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Whether or not to do SSL key validation when making requests to the
+registry via https.</p>
+<p>See also the <code>ca</code> config.</p>
+<h4 id="tag">tag</h4>
+<ul>
+<li>Default: latest</li>
+<li>Type: String</li>
+</ul>
+<p>If you ask npm to install a package and don’t tell it a specific version, then
+it will install the specified tag.</p>
+<p>Also the tag that is added to the package@version specified by the <code>npm tag</code> command, if no explicit tag is given.</p>
+<h4 id="tag-version-prefix">tag-version-prefix</h4>
+<ul>
+<li>Default: <code>"v"</code></li>
+<li>Type: String</li>
+</ul>
+<p>If set, alters the prefix used when tagging a new version when performing a
+version increment using  <code>npm-version</code>. To remove the prefix altogether, set it
+to the empty string: <code>""</code>.</p>
+<p>Because other tools may rely on the convention that npm version tags look like
+<code>v1.0.0</code>, <em>only use this property if it is absolutely necessary</em>. In
+particular, use care when overriding this setting for public packages.</p>
+<h4 id="timing">timing</h4>
+<ul>
+<li>Default: <code>false</code></li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, writes an <code>npm-debug</code> log to <code>_logs</code> and timing information to
+<code>_timing.json</code>, both in your cache.  <code>_timing.json</code> is a newline delimited
+list of JSON objects.  You can quickly view it with this
+<a href="https://www.npmjs.com/package/json">json</a> command line:
+<code>json -g &lt; ~/.npm/_timing.json</code>.</p>
+<h4 id="tmp">tmp</h4>
+<ul>
+<li>Default: TMPDIR environment variable, or “/tmp”</li>
+<li>Type: path</li>
+</ul>
+<p>Where to store temporary files and folders.  All temp files are deleted
+on success, but left behind on failure for forensic purposes.</p>
+<h4 id="unicode">unicode</h4>
+<ul>
+<li>Default: false on windows, true on mac/unix systems with a unicode locale</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When set to true, npm uses unicode characters in the tree output.  When
+false, it uses ascii characters to draw trees.</p>
+<h4 id="unsafe-perm">unsafe-perm</h4>
+<ul>
+<li>Default: false if running as root, true otherwise</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Set to true to suppress the UID/GID switching when running package
+scripts.  If set explicitly to false, then installing as a non-root user
+will fail.</p>
+<h4 id="update-notifier">update-notifier</h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Set to false to suppress the update notification when using an older
+version of npm than the latest.</p>
+<h4 id="usage">usage</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Set to show short usage output (like the -H output)
+instead of complete help when doing <a href="../commands/npm-help.html"><code>npm help</code></a>.</p>
+<h4 id="user">user</h4>
+<ul>
+<li>Default: “nobody”</li>
+<li>Type: String or Number</li>
+</ul>
+<p>The UID to set to when running package scripts as root.</p>
+<h4 id="userconfig">userconfig</h4>
+<ul>
+<li>Default: ~/.npmrc</li>
+<li>Type: path</li>
+</ul>
+<p>The location of user-level configuration settings.</p>
+<h4 id="umask">umask</h4>
+<ul>
+<li>Default: 022</li>
+<li>Type: Octal numeric string in range 0000..0777 (0..511)</li>
+</ul>
+<p>The “umask” value to use when setting the file creation mode on files
+and folders.</p>
+<p>Folders and executables are given a mode which is <code>0777</code> masked against
+this value.  Other files are given a mode which is <code>0666</code> masked against
+this value.  Thus, the defaults are <code>0755</code> and <code>0644</code> respectively.</p>
+<h4 id="user-agent">user-agent</h4>
+<ul>
+<li>Default: node/{process.version} {process.platform} {process.arch}</li>
+<li>Type: String</li>
+</ul>
+<p>Sets a User-Agent to the request header</p>
+<h4 id="version">version</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: boolean</li>
+</ul>
+<p>If true, output the npm version and exit successfully.</p>
+<p>Only relevant when specified explicitly on the command line.</p>
+<h4 id="versions">versions</h4>
+<ul>
+<li>Default: false</li>
+<li>Type: boolean</li>
+</ul>
+<p>If true, output the npm version as well as node’s <code>process.versions</code> map, and
+exit successfully.</p>
+<p>Only relevant when specified explicitly on the command line.</p>
+<h4 id="viewer">viewer</h4>
+<ul>
+<li>Default: “man” on Posix, “browser” on Windows</li>
+<li>Type: path</li>
+</ul>
+<p>The program to use to view help content.</p>
+<p>Set to <code>"browser"</code> to view html help content in the default web browser.</p>
+<h3 id="see-also">See also</h3>
+<ul>
+<li><a href="../commands/npm-config.html">npm config</a></li>
+<li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
+<li><a href="../using-npm/scripts.html">npm scripts</a></li>
+<li><a href="../configuring-npm/folders.html">npm folders</a></li>
+<li><a href="../commands/npm.html">npm</a></li>
+</ul>
+</div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/v6/docs/content/using-npm/config.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

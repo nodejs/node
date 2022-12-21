@@ -1,3 +1,60 @@
+## 6.14.18 (2022-12-21)
+
+### DEPENDENCIES
+
+* [`f55bd65da`](https://github.com/npm/cli/commit/f55bd65da0da00655c4d4312b30d65160e7149a6)
+  `rimraf@2.7.1`
+* [`cd4894696`](https://github.com/npm/cli/commit/cd4894696698f3a15bfa57eac373acd7f1121100)
+  `bluebird@3.7.2`
+* [`023d7e96b`](https://github.com/npm/cli/commit/023d7e96b7c20be4071d3da32fd74856651eb3dd)
+  `cacache@12.0.4`
+* [`dd2811c0b`](https://github.com/npm/cli/commit/dd2811c0b1e274dc56dd8e1f50d8b07bf1acc851)
+  `config-chain@1.1.1`:3
+* [`e21b6ebd9`](https://github.com/npm/cli/commit/e21b6ebd9ae1a543864f9667dd141979c87b6724)
+  `deep-equal@1.1.1`
+* [`2bec581c6`](https://github.com/npm/cli/commit/2bec581c6bd3ac622b8b46b2a13bc2e131c0bea4)
+  `dezalgo@1.0.4`
+* [`273485157`](https://github.com/npm/cli/commit/273485157d5743a51003f91670de18e1811f9b9f)
+  `figgy-pudding@3.5.2`
+* [`720f8ae5e`](https://github.com/npm/cli/commit/720f8ae5e120670463e1437ea201ef774ee5529b)
+  `glob@7.2.3`
+* [`5f1200e33`](https://github.com/npm/cli/commit/5f1200e3386422b055fbbdb274580f12ca85992d)
+  `graceful-fs@4.2.1`:0
+* [`58b74a38b`](https://github.com/npm/cli/commit/58b74a38b28aece8ae91474c48cc46dcb544e89d)
+  `is-cidr@3.1.1`
+* [`4b609655f`](https://github.com/npm/cli/commit/4b609655f5ed554bfb2eb1de2c8a3272a7da7cfd)
+  `jsdom@16.7.0`
+* [`14c7a1a85`](https://github.com/npm/cli/commit/14c7a1a85445bfd5277a4e4afdc31c98c5f67dac)
+  `meant@1.0.3`
+* [`06d9cefc4`](https://github.com/npm/cli/commit/06d9cefc4e2d07ca7160272765449d46d34b0bc4)
+  `minimatch@3.1.2`
+* [`1d2da355c`](https://github.com/npm/cli/commit/1d2da355ca7a7af1bf2d918ec5005cc820334af7)
+  `mkdirp@0.5.6`
+* [`22eda3a26`](https://github.com/npm/cli/commit/22eda3a26cb14f1a0ab82e6eadb9132cd87e7183)
+  `node-gyp@5.1.1`
+* [`b77a7f1b0`](https://github.com/npm/cli/commit/b77a7f1b095cf06b20817923cb0629e979a08ca5)
+  `npm-registry-mock@1.3.2`
+* [`de37398af`](https://github.com/npm/cli/commit/de37398af08036d62a6b4eb6d475c02b0e6f1161)
+  `query-string@6.14.1`
+* [`196650baa`](https://github.com/npm/cli/commit/196650baa43046c8db165a3130850a304cb9a8b7)
+  `qw@1.0.2`
+* [`3218c16b5`](https://github.com/npm/cli/commit/3218c16b5041821b7f72efeb0f8c19408bbf6df1)
+  `read-package-json@2.1.2`
+* [`0f5d57919`](https://github.com/npm/cli/commit/0f5d579197122713b9ffb2a7ee78108c3a851d49)
+  `request@2.88.2`
+* [`43ed5c23b`](https://github.com/npm/cli/commit/43ed5c23b806d4904df83bd72854b57012f65992)
+  `safe-buffer@5.2.1`
+* [`31b51c564`](https://github.com/npm/cli/commit/31b51c5646de729c691c2dec94f73988f6dd7d8a)
+  `tar-stream@2.2.0`
+* [`209a79d1f`](https://github.com/npm/cli/commit/209a79d1fc5a00288f23f6e359212f6420530ed3)
+  `uuid@3.4.0`
+* [`4778a8d95`](https://github.com/npm/cli/commit/4778a8d95680d62494035600a7240395a580c04d)
+  `yaml@1.10.2`
+* [`8b357e558`](https://github.com/npm/cli/commit/8b357e5581a4fd4c95fcb889c4d89e1634c7c862)
+  `decode-uri-component@0.2.2`
+* [`d3e7eed13`](https://github.com/npm/cli/commit/d3e7eed13a1109d7760e62bca639ed3ef64a0bd3)
+  `lock-verify@2.2.2`
+
 ## 6.14.17 (2022-04-28)
 
 ### DEPENDENCIES

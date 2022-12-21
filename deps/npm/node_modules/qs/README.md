@@ -1,12 +1,13 @@
 # qs <sup>[![Version Badge][2]][1]</sup>
 
-[![Build Status][3]][4]
-[![dependency status][5]][6]
-[![dev dependency status][7]][8]
+[![github actions][actions-image]][actions-url]
+[![coverage][codecov-image]][codecov-url]
+[![dependency status][deps-svg]][deps-url]
+[![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![License][license-image]][license-url]
 [![Downloads][downloads-image]][downloads-url]
 
-[![npm badge][11]][1]
+[![npm badge][npm-badge-png]][package-url]
 
 A querystring parsing and stringifying library with some added security.
 
@@ -182,7 +183,7 @@ assert.deepEqual(withIndexedEmptyString, { a: ['b', '', 'c'] });
 ```
 
 **qs** will also limit specifying indices in an array to a maximum index of `20`. Any array members with an index of greater than `20` will
-instead be converted to an object with the index as the key:
+instead be converted to an object with the index as the key. This is needed to handle cases when someone sent, for example, `a[999999999]` and it will take significant time to iterate over this huge array.
 
 ```javascript
 var withMaxIndex = qs.parse('a[100]=b');
@@ -264,6 +265,30 @@ Analogue to the `encoder` there is a `decoder` option for `parse` to override de
 var decoded = qs.parse('x=z', { decoder: function (str) {
     // Passed in values `x`, `z`
     return // Return decoded string
+}})
+```
+
+You can encode keys and values using different logic by using the type argument provided to the encoder:
+
+```javascript
+var encoded = qs.stringify({ a: { b: 'c' } }, { encoder: function (str, defaultEncoder, charset, type) {
+    if (type === 'key') {
+        return // Encoded key
+    } else if (type === 'value') {
+        return // Encoded value
+    }
+}})
+```
+
+The type argument is also provided to the decoder:
+
+```javascript
+var decoded = qs.parse('x=z', { decoder: function (str, defaultDecoder, charset, type) {
+    if (type === 'key') {
+        return // Decoded key
+    } else if (type === 'value') {
+        return // Decoded value
+    }
 }})
 ```
 
@@ -458,18 +483,28 @@ assert.equal(qs.stringify({ a: 'b c' }, { format : 'RFC3986' }), 'a=b%20c');
 assert.equal(qs.stringify({ a: 'b c' }, { format : 'RFC1738' }), 'a=b+c');
 ```
 
-[1]: https://npmjs.org/package/qs
-[2]: http://versionbadg.es/ljharb/qs.svg
-[3]: https://api.travis-ci.org/ljharb/qs.svg
-[4]: https://travis-ci.org/ljharb/qs
-[5]: https://david-dm.org/ljharb/qs.svg
-[6]: https://david-dm.org/ljharb/qs
-[7]: https://david-dm.org/ljharb/qs/dev-status.svg
-[8]: https://david-dm.org/ljharb/qs?type=dev
-[9]: https://ci.testling.com/ljharb/qs.png
-[10]: https://ci.testling.com/ljharb/qs
-[11]: https://nodei.co/npm/qs.png?downloads=true&stars=true
-[license-image]: http://img.shields.io/npm/l/qs.svg
+## Security
+
+Please email [@ljharb](https://github.com/ljharb) or see https://tidelift.com/security if you have a potential security vulnerability to report.
+
+## qs for enterprise
+
+Available as part of the Tidelift Subscription
+
+The maintainers of qs and thousands of other packages are working with Tidelift to deliver commercial support and maintenance for the open source dependencies you use to build your applications. Save time, reduce risk, and improve code health, while paying the maintainers of the exact dependencies you use. [Learn more.](https://tidelift.com/subscription/pkg/npm-qs?utm_source=npm-qs&utm_medium=referral&utm_campaign=enterprise&utm_term=repo)
+
+[package-url]: https://npmjs.org/package/qs
+[npm-version-svg]: https://versionbadg.es/ljharb/qs.svg
+[deps-svg]: https://david-dm.org/ljharb/qs.svg
+[deps-url]: https://david-dm.org/ljharb/qs
+[dev-deps-svg]: https://david-dm.org/ljharb/qs/dev-status.svg
+[dev-deps-url]: https://david-dm.org/ljharb/qs#info=devDependencies
+[npm-badge-png]: https://nodei.co/npm/qs.png?downloads=true&stars=true
+[license-image]: https://img.shields.io/npm/l/qs.svg
 [license-url]: LICENSE
-[downloads-image]: http://img.shields.io/npm/dm/qs.svg
-[downloads-url]: http://npm-stat.com/charts.html?package=qs
+[downloads-image]: https://img.shields.io/npm/dm/qs.svg
+[downloads-url]: https://npm-stat.com/charts.html?package=qs
+[codecov-image]: https://codecov.io/gh/ljharb/qs/branch/main/graphs/badge.svg
+[codecov-url]: https://app.codecov.io/gh/ljharb/qs/
+[actions-image]: https://img.shields.io/endpoint?url=https://github-actions-badge-u3jn4tfpocch.runkit.sh/ljharb/qs
+[actions-url]: https://github.com/ljharb/qs/actions

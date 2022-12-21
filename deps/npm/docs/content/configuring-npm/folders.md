@@ -1,12 +1,8 @@
 ---
-section: configuring-npm
 title: folders
+section: 5
 description: Folder Structures Used by npm
 ---
-
-# folders(5)
-
-## Folder Structures Used by npm
 
 ### Description
 
@@ -73,7 +69,7 @@ Man pages are not installed on Windows systems.
 
 #### Cache
 
-See [`npm cache`](/cli-commands/npm-cache).  Cache files are stored in `~/.npm` on Posix, or
+See [`npm cache`](/commands/npm-cache).  Cache files are stored in `~/.npm` on Posix, or
 `%AppData%/npm-cache` on Windows.
 
 This is controlled by the `cache` configuration param.
@@ -209,15 +205,15 @@ not be included in the package tarball.
 
 This allows a package maintainer to install all of their dependencies
 (and dev dependencies) locally, but only re-publish those items that
-cannot be found elsewhere.  See [`package.json`](/configuring-npm/package.json) for more information.
+cannot be found elsewhere.  See [`package.json`](/configuring-npm/package-json) for more information.
 
 ### See also
 
 * [package.json](/configuring-npm/package-json)
-* [npm install](/cli-commands/npm-install)
-* [npm pack](/cli-commands/npm-pack)
-* [npm cache](/cli-commands/npm-cache)
-* [npm config](/cli-commands/npm-config)
+* [npm install](/commands/npm-install)
+* [npm pack](/commands/npm-pack)
+* [npm cache](/commands/npm-cache)
+* [npm config](/commands/npm-config)
 * [npmrc](/configuring-npm/npmrc)
 * [config](/using-npm/config)
-* [npm publish](/cli-commands/npm-publish)
+* [npm publish](/commands/npm-publish)

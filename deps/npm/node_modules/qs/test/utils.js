@@ -4,6 +4,10 @@ var test = require('tape');
 var utils = require('../lib/utils');
 
 test('merge()', function (t) {
+    t.deepEqual(utils.merge(null, true), [null, true], 'merges true into null');
+
+    t.deepEqual(utils.merge(null, [42]), [null, 42], 'merges null into an array');
+
     t.deepEqual(utils.merge({ a: 'b' }, { a: 'c' }), { a: ['b', 'c'] }, 'merges two objects with the same key');
 
     var oneMerged = utils.merge({ foo: 'bar' }, { foo: { first: '123' } });
@@ -17,6 +21,33 @@ test('merge()', function (t) {
 
     var nestedArrays = utils.merge({ foo: ['baz'] }, { foo: ['bar', 'xyzzy'] });
     t.deepEqual(nestedArrays, { foo: ['baz', 'bar', 'xyzzy'] });
+
+    var noOptionsNonObjectSource = utils.merge({ foo: 'baz' }, 'bar');
+    t.deepEqual(noOptionsNonObjectSource, { foo: 'baz', bar: true });
+
+    t.test(
+        'avoids invoking array setters unnecessarily',
+        { skip: typeof Object.defineProperty !== 'function' },
+        function (st) {
+            var setCount = 0;
+            var getCount = 0;
+            var observed = [];
+            Object.defineProperty(observed, 0, {
+                get: function () {
+                    getCount += 1;
+                    return { bar: 'baz' };
+                },
+                set: function () { setCount += 1; }
+            });
+            utils.merge(observed, [null]);
+            st.equal(setCount, 0);
+            st.equal(getCount, 1);
+            observed[0] = observed[0]; // eslint-disable-line no-self-assign
+            st.equal(setCount, 1);
+            st.equal(getCount, 2);
+            st.end();
+        }
+    );
 
     t.end();
 });
