@@ -332,7 +332,7 @@ console.log(myURL.password);
 
 myURL.password = '123';
 console.log(myURL.href);
-// Prints https://abc:123@example.com
+// Prints https://abc:123@example.com/
 ```
 
 Invalid URL characters included in the value assigned to the `password` property
