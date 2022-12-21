@@ -148,6 +148,16 @@ The `readableStream.locked` property is `false` by default, and is
 switched to `true` while there is an active reader consuming the
 stream's data.
 
+#### `readableStream.cancel([reason])`
+
+<!-- YAML
+added: v16.5.0
+-->
+
+* `reason` {any}
+* Returns: A promise fulfilled with `undefined` once cancelation has
+  been completed.
+
 #### `readableStream.fromWeb(readableStream[,options])`
 
 <!-- YAML
@@ -161,32 +171,6 @@ added: v17.0.0
   * `objectMode` {boolean}
   * `signal` {AbortSignal}
 * `Returns`: {stream.Readable}
-<!-- YAML
-added: v17.0.0
--->
-
-#### `readableStream.toWeb(writableStream[,options])`
-
-<!-- YAML
-added: v17.0.0
--->
-
-* `streamReadable` {stream.Readable}
-* `options` {Object}
-  * `highWaterMark` {number}
-  * `strategy` {Object}
-  * `size` {Function}
-* Returns: {ReadableStream}
-
-#### `readableStream.cancel([reason])`
-
-<!-- YAML
-added: v16.5.0
--->
-
-* `reason` {any}
-* Returns: A promise fulfilled with `undefined` once cancelation has
-  been completed.
 
 #### `readableStream.getReader([options])`
 
@@ -344,6 +328,19 @@ Returns a pair of new {ReadableStream} instances to which this
 same data.
 
 Causes the `readableStream.locked` to be `true`.
+
+#### `readableStream.toWeb(writableStream[,options])`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+* `streamReadable` {stream.Readable}
+* `options` {Object}
+  * `highWaterMark` {number}
+  * `strategy` {Object}
+  * `size` {Function}
+* Returns: {ReadableStream}
 
 #### `readableStream.values([options])`
 
@@ -871,6 +868,20 @@ added: v16.5.0
 
 Closes the `WritableStream` when no additional writes are expected.
 
+#### `writableStream.fromWeb(writableStream[,options])`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+* `writableStream` {WritableStream}
+* `options` {Object}
+  * `decodeStrings` {boolean}
+  * `highWaterMark` {number}
+  * `objectMode` {boolean}
+  * `signal` {AbortSignal}
+* Returns: {stream.Writable}
+
 #### `writableStream.getWriter()`
 
 <!-- YAML
@@ -893,20 +904,6 @@ added: v16.5.0
 The `writableStream.locked` property is `false` by default, and is
 switched to `true` while there is an active writer attached to this
 `WritableStream`.
-
-#### `writableStream.fromWeb(writableStream[,options])`
-
-<!-- YAML
-added: v17.0.0
--->
-
-* `writableStream` {WritableStream}
-* `options` {Object}
-  * `decodeStrings` {boolean}
-  * `highWaterMark` {number}
-  * `objectMode` {boolean}
-  * `signal` {AbortSignal}
-* Returns: {stream.Writable}
 
 #### `writableStream.toWeb(streamWritable)`
 
