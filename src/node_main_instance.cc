@@ -180,19 +180,8 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code) {
     context = NewContext(isolate_);
     CHECK(!context.IsEmpty());
     Context::Scope context_scope(context);
-    env.reset(new Environment(isolate_data_.get(),
-                              context,
-                              args_,
-                              exec_args_,
-                              nullptr,
-                              EnvironmentFlags::kDefaultFlags,
-                              {}));
-#if HAVE_INSPECTOR
-    env->InitializeInspector({});
-#endif
-    if (env->principal_realm()->RunBootstrapping().IsEmpty()) {
-      return nullptr;
-    }
+    env.reset(
+        CreateEnvironment(isolate_data_.get(), context, args_, exec_args_));
   }
 
   return env;
