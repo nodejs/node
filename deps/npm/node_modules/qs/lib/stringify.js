@@ -4,15 +4,21 @@ var utils = require('./utils');
 var formats = require('./formats');
 
 var arrayPrefixGenerators = {
-    brackets: function brackets(prefix) { // eslint-disable-line func-name-matching
+    brackets: function brackets(prefix) {
         return prefix + '[]';
     },
-    indices: function indices(prefix, key) { // eslint-disable-line func-name-matching
+    indices: function indices(prefix, key) {
         return prefix + '[' + key + ']';
     },
-    repeat: function repeat(prefix) { // eslint-disable-line func-name-matching
+    repeat: function repeat(prefix) {
         return prefix;
     }
+};
+
+var isArray = Array.isArray;
+var push = Array.prototype.push;
+var pushToArray = function (arr, valueOrArray) {
+    push.apply(arr, isArray(valueOrArray) ? valueOrArray : [valueOrArray]);
 };
 
 var toISO = Date.prototype.toISOString;
@@ -22,14 +28,14 @@ var defaults = {
     encode: true,
     encoder: utils.encode,
     encodeValuesOnly: false,
-    serializeDate: function serializeDate(date) { // eslint-disable-line func-name-matching
+    serializeDate: function serializeDate(date) {
         return toISO.call(date);
     },
     skipNulls: false,
     strictNullHandling: false
 };
 
-var stringify = function stringify( // eslint-disable-line func-name-matching
+var stringify = function stringify(
     object,
     prefix,
     generateArrayPrefix,
@@ -48,7 +54,9 @@ var stringify = function stringify( // eslint-disable-line func-name-matching
         obj = filter(prefix, obj);
     } else if (obj instanceof Date) {
         obj = serializeDate(obj);
-    } else if (obj === null) {
+    }
+
+    if (obj === null) {
         if (strictNullHandling) {
             return encoder && !encodeValuesOnly ? encoder(prefix, defaults.encoder) : prefix;
         }
@@ -71,7 +79,7 @@ var stringify = function stringify( // eslint-disable-line func-name-matching
     }
 
     var objKeys;
-    if (Array.isArray(filter)) {
+    if (isArray(filter)) {
         objKeys = filter;
     } else {
         var keys = Object.keys(obj);
@@ -85,8 +93,8 @@ var stringify = function stringify( // eslint-disable-line func-name-matching
             continue;
         }
 
-        if (Array.isArray(obj)) {
-            values = values.concat(stringify(
+        if (isArray(obj)) {
+            pushToArray(values, stringify(
                 obj[key],
                 generateArrayPrefix(prefix, key),
                 generateArrayPrefix,
@@ -101,7 +109,7 @@ var stringify = function stringify( // eslint-disable-line func-name-matching
                 encodeValuesOnly
             ));
         } else {
-            values = values.concat(stringify(
+            pushToArray(values, stringify(
                 obj[key],
                 prefix + (allowDots ? '.' + key : '[' + key + ']'),
                 generateArrayPrefix,
@@ -125,7 +133,7 @@ module.exports = function (object, opts) {
     var obj = object;
     var options = opts ? utils.assign({}, opts) : {};
 
-    if (options.encoder !== null && options.encoder !== undefined && typeof options.encoder !== 'function') {
+    if (options.encoder !== null && typeof options.encoder !== 'undefined' && typeof options.encoder !== 'function') {
         throw new TypeError('Encoder has to be a function.');
     }
 
@@ -150,7 +158,7 @@ module.exports = function (object, opts) {
     if (typeof options.filter === 'function') {
         filter = options.filter;
         obj = filter('', obj);
-    } else if (Array.isArray(options.filter)) {
+    } else if (isArray(options.filter)) {
         filter = options.filter;
         objKeys = filter;
     }
@@ -186,8 +194,7 @@ module.exports = function (object, opts) {
         if (skipNulls && obj[key] === null) {
             continue;
         }
-
-        keys = keys.concat(stringify(
+        pushToArray(keys, stringify(
             obj[key],
             key,
             generateArrayPrefix,

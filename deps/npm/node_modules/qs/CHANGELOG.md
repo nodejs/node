@@ -1,3 +1,27 @@
+## **6.5.3**
+- [Fix] `parse`: ignore `__proto__` keys (#428)
+- [Fix]` `utils.merge`: avoid a crash with a null target and a truthy non-array source
+- [Fix] correctly parse nested arrays
+- [Fix] `stringify`: fix a crash with `strictNullHandling` and a custom `filter`/`serializeDate` (#279)
+- [Fix] `utils`: `merge`: fix crash when `source` is a truthy primitive & no options are provided
+- [Fix] when `parseArrays` is false, properly handle keys ending in `[]`
+- [Fix] fix for an impossible situation: when the formatter is called with a non-string value
+- [Fix] `utils.merge`: avoid a crash with a null target and an array source
+- [Refactor] `utils`: reduce observable [[Get]]s
+- [Refactor] use cached `Array.isArray`
+- [Refactor] `stringify`: Avoid arr = arr.concat(...), push to the existing instance (#269)
+- [Refactor] `parse`: only need to reassign the var once
+- [Robustness] `stringify`: avoid relying on a global `undefined` (#427)
+- [readme] remove travis badge; add github actions/codecov badges; update URLs
+- [Docs] Clean up license text so it’s properly detected as BSD-3-Clause
+- [Docs] Clarify the need for "arrayLimit" option
+- [meta] fix README.md (#399)
+- [meta] add FUNDING.yml
+- [actions] backport actions from main
+- [Tests] always use `String(x)` over `x.toString()`
+- [Tests] remove nonexistent tape option
+- [Dev Deps] backport from main
+
 ## **6.5.2**
 - [Fix] use `safer-buffer` instead of `Buffer` constructor
 - [Refactor] utils: `module.exports` one thing, instead of mutating `exports` (#230)

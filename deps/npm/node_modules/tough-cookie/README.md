@@ -198,7 +198,7 @@ compute the TTL relative to `now` (milliseconds).  The same precedence rules as 
 
 The "number" `Infinity` is returned for cookies without an explicit expiry and `0` is returned if the cookie is expired.  Otherwise a time-to-live in milliseconds is returned.
 
-### `.canonicalizedDoman()`
+### `.canonicalizedDomain()`
 
 ### `.cdomain()`
 
@@ -354,6 +354,16 @@ The `store` argument is optional, but must be a _synchronous_ `Store` instance i
 
 The _source_ and _destination_ must both be synchronous `Store`s. If one or both stores are asynchronous, use `.clone` instead. Recall that `MemoryCookieStore` supports both synchronous and asynchronous API calls.
 
+### `.removeAllCookies(cb(err))`
+
+Removes all cookies from the jar.
+
+This is a new backwards-compatible feature of `tough-cookie` version 2.5, so not all Stores will implement it efficiently. For Stores that do not implement `removeAllCookies`, the fallback is to call `removeCookie` after `getAllCookies`. If `getAllCookies` fails or isn't implemented in the Store, that error is returned. If one or more of the `removeCookie` calls fail, only the first error is returned.
+
+### `.removeAllCookiesSync()`
+
+Sync version of `.removeAllCookies()`
+
 ## Store
 
 Base class for CookieJar stores. Available as `tough.Store`.
@@ -418,19 +428,29 @@ Removes matching cookies from the store.  The `path` parameter is optional, and 
 
 Pass an error ONLY if removing any existing cookies failed.
 
+### `store.removeAllCookies(cb(err))`
+
+_Optional_. Removes all cookies from the store.
+
+Pass an error if one or more cookies can't be removed.
+
+**Note**: New method as of `tough-cookie` version 2.5, so not all Stores will implement this, plus some stores may choose not to implement this.
+
 ### `store.getAllCookies(cb(err, cookies))`
 
-Produces an `Array` of all cookies during `jar.serialize()`. The items in the array can be true `Cookie` objects or generic `Object`s with the [Serialization Format] data structure.
+_Optional_. Produces an `Array` of all cookies during `jar.serialize()`. The items in the array can be true `Cookie` objects or generic `Object`s with the [Serialization Format] data structure.
 
 Cookies SHOULD be returned in creation order to preserve sorting via `compareCookies()`. For reference, `MemoryCookieStore` will sort by `.creationIndex` since it uses true `Cookie` objects internally. If you don't return the cookies in creation order, they'll still be sorted by creation time, but this only has a precision of 1ms.  See `compareCookies` for more detail.
 
 Pass an error if retrieval fails.
 
+**Note**: not all Stores can implement this due to technical limitations, so it is optional.
+
 ## MemoryCookieStore
 
 Inherits from `Store`.
 
-A just-in-memory CookieJar synchronous store implementation, used by default. Despite being a synchronous implementation, it's usable with both the synchronous and asynchronous forms of the `CookieJar` API.
+A just-in-memory CookieJar synchronous store implementation, used by default. Despite being a synchronous implementation, it's usable with both the synchronous and asynchronous forms of the `CookieJar` API. Supports serialization, `getAllCookies`, and `removeAllCookies`.
 
 ## Community Cookie Stores
 
@@ -473,7 +493,7 @@ These are some Store implementations authored and maintained by the community. T
 
 # Copyright and License
 
-(tl;dr: BSD-3-Clause with some MPL/2.0)
+BSD-3-Clause:
 
 ```text
  Copyright (c) 2015, Salesforce.com, Inc.

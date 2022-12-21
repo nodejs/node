@@ -19,6 +19,15 @@ test('stringify()', function (t) {
         st.end();
     });
 
+    t.test('stringifies falsy values', function (st) {
+        st.equal(qs.stringify(undefined), '');
+        st.equal(qs.stringify(null), '');
+        st.equal(qs.stringify(null, { strictNullHandling: true }), '');
+        st.equal(qs.stringify(false), '');
+        st.equal(qs.stringify(0), '');
+        st.end();
+    });
+
     t.test('adds query prefix', function (st) {
         st.equal(qs.stringify({ a: 'b' }, { addQueryPrefix: true }), '?a=b');
         st.end();
@@ -26,6 +35,13 @@ test('stringify()', function (t) {
 
     t.test('with query prefix, outputs blank string given an empty object', function (st) {
         st.equal(qs.stringify({}, { addQueryPrefix: true }), '');
+        st.end();
+    });
+
+    t.test('stringifies nested falsy values', function (st) {
+        st.equal(qs.stringify({ a: { b: { c: null } } }), 'a%5Bb%5D%5Bc%5D=');
+        st.equal(qs.stringify({ a: { b: { c: null } } }, { strictNullHandling: true }), 'a%5Bb%5D%5Bc%5D');
+        st.equal(qs.stringify({ a: { b: { c: false } } }), 'a%5Bb%5D%5Bc%5D=false');
         st.end();
     });
 
@@ -490,6 +506,12 @@ test('stringify()', function (t) {
                 return String.fromCharCode(buffer.readUInt8(0) + 97);
             }
         }), 'a=b');
+
+        st.equal(qs.stringify({ a: SaferBuffer.from('a b') }, {
+            encoder: function (buffer) {
+                return buffer;
+            }
+        }), 'a=a b');
         st.end();
     });
 
@@ -530,17 +552,20 @@ test('stringify()', function (t) {
     t.test('RFC 1738 spaces serialization', function (st) {
         st.equal(qs.stringify({ a: 'b c' }, { format: qs.formats.RFC1738 }), 'a=b+c');
         st.equal(qs.stringify({ 'a b': 'c d' }, { format: qs.formats.RFC1738 }), 'a+b=c+d');
+        st.equal(qs.stringify({ 'a b': SaferBuffer.from('a b') }, { format: qs.formats.RFC1738 }), 'a+b=a+b');
         st.end();
     });
 
     t.test('RFC 3986 spaces serialization', function (st) {
         st.equal(qs.stringify({ a: 'b c' }, { format: qs.formats.RFC3986 }), 'a=b%20c');
         st.equal(qs.stringify({ 'a b': 'c d' }, { format: qs.formats.RFC3986 }), 'a%20b=c%20d');
+        st.equal(qs.stringify({ 'a b': SaferBuffer.from('a b') }, { format: qs.formats.RFC3986 }), 'a%20b=a%20b');
         st.end();
     });
 
     t.test('Backward compatibility to RFC 3986', function (st) {
         st.equal(qs.stringify({ a: 'b c' }), 'a=b%20c');
+        st.equal(qs.stringify({ 'a b': SaferBuffer.from('a b') }), 'a%20b=a%20b');
         st.end();
     });
 
@@ -590,6 +615,26 @@ test('stringify()', function (t) {
         var options = {};
         qs.stringify({}, options);
         st.deepEqual(options, {});
+        st.end();
+    });
+
+    t.test('strictNullHandling works with custom filter', function (st) {
+        var filter = function (prefix, value) {
+            return value;
+        };
+
+        var options = { strictNullHandling: true, filter: filter };
+        st.equal(qs.stringify({ key: null }, options), 'key');
+        st.end();
+    });
+
+    t.test('strictNullHandling works with null serializeDate', function (st) {
+        var serializeDate = function () {
+            return null;
+        };
+        var options = { strictNullHandling: true, serializeDate: serializeDate };
+        var date = new Date();
+        st.equal(qs.stringify({ key: date }, options), 'key');
         st.end();
     });
 

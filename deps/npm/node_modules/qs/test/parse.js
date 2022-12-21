@@ -237,6 +237,14 @@ test('parse()', function (t) {
         st.end();
     });
 
+    t.test('parses jquery-param strings', function (st) {
+        // readable = 'filter[0][]=int1&filter[0][]==&filter[0][]=77&filter[]=and&filter[2][]=int2&filter[2][]==&filter[2][]=8'
+        var encoded = 'filter%5B0%5D%5B%5D=int1&filter%5B0%5D%5B%5D=%3D&filter%5B0%5D%5B%5D=77&filter%5B%5D=and&filter%5B2%5D%5B%5D=int2&filter%5B2%5D%5B%5D=%3D&filter%5B2%5D%5B%5D=8';
+        var expected = { filter: [['int1', '=', '77'], 'and', ['int2', '=', '8']] };
+        st.deepEqual(qs.parse(encoded), expected);
+        st.end();
+    });
+
     t.test('continues parsing when no parent is found', function (st) {
         st.deepEqual(qs.parse('[]=&a=b'), { 0: '', a: 'b' });
         st.deepEqual(qs.parse('[]&a=b', { strictNullHandling: true }), { 0: null, a: 'b' });
@@ -257,7 +265,7 @@ test('parse()', function (t) {
         st.end();
     });
 
-    t.test('should not throw when a native prototype has an enumerable property', { parallel: false }, function (st) {
+    t.test('should not throw when a native prototype has an enumerable property', function (st) {
         Object.prototype.crash = '';
         Array.prototype.crash = '';
         st.doesNotThrow(qs.parse.bind(null, 'a=b'));
@@ -302,7 +310,14 @@ test('parse()', function (t) {
     });
 
     t.test('allows disabling array parsing', function (st) {
-        st.deepEqual(qs.parse('a[0]=b&a[1]=c', { parseArrays: false }), { a: { 0: 'b', 1: 'c' } });
+        var indices = qs.parse('a[0]=b&a[1]=c', { parseArrays: false });
+        st.deepEqual(indices, { a: { 0: 'b', 1: 'c' } });
+        st.equal(Array.isArray(indices.a), false, 'parseArrays:false, indices case is not an array');
+
+        var emptyBrackets = qs.parse('a[]=b', { parseArrays: false });
+        st.deepEqual(emptyBrackets, { a: { 0: 'b' } });
+        st.equal(Array.isArray(emptyBrackets.a), false, 'parseArrays:false, empty brackets case is not an array');
+
         st.end();
     });
 
@@ -508,8 +523,68 @@ test('parse()', function (t) {
 
         st.deepEqual(
             qs.parse('a[b]=c&a=toString', { plainObjects: true }),
-            { a: { b: 'c', toString: true } },
+            { __proto__: null, a: { __proto__: null, b: 'c', toString: true } },
             'can overwrite prototype with plainObjects true'
+        );
+
+        st.end();
+    });
+
+    t.test('dunder proto is ignored', function (st) {
+        var payload = 'categories[__proto__]=login&categories[__proto__]&categories[length]=42';
+        var result = qs.parse(payload, { allowPrototypes: true });
+
+        st.deepEqual(
+            result,
+            {
+                categories: {
+                    length: '42'
+                }
+            },
+            'silent [[Prototype]] payload'
+        );
+
+        var plainResult = qs.parse(payload, { allowPrototypes: true, plainObjects: true });
+
+        st.deepEqual(
+            plainResult,
+            {
+                __proto__: null,
+                categories: {
+                    __proto__: null,
+                    length: '42'
+                }
+            },
+            'silent [[Prototype]] payload: plain objects'
+        );
+
+        var query = qs.parse('categories[__proto__]=cats&categories[__proto__]=dogs&categories[some][json]=toInject', { allowPrototypes: true });
+
+        st.notOk(Array.isArray(query.categories), 'is not an array');
+        st.notOk(query.categories instanceof Array, 'is not instanceof an array');
+        st.deepEqual(query.categories, { some: { json: 'toInject' } });
+        st.equal(JSON.stringify(query.categories), '{"some":{"json":"toInject"}}', 'stringifies as a non-array');
+
+        st.deepEqual(
+            qs.parse('foo[__proto__][hidden]=value&foo[bar]=stuffs', { allowPrototypes: true }),
+            {
+                foo: {
+                    bar: 'stuffs'
+                }
+            },
+            'hidden values'
+        );
+
+        st.deepEqual(
+            qs.parse('foo[__proto__][hidden]=value&foo[bar]=stuffs', { allowPrototypes: true, plainObjects: true }),
+            {
+                __proto__: null,
+                foo: {
+                    __proto__: null,
+                    bar: 'stuffs'
+                }
+            },
+            'hidden values: plain objects'
         );
 
         st.end();
@@ -540,7 +615,7 @@ test('parse()', function (t) {
                     result.push(parseInt(parts[1], 16));
                     parts = reg.exec(str);
                 }
-                return iconv.decode(SaferBuffer.from(result), 'shift_jis').toString();
+                return String(iconv.decode(SaferBuffer.from(result), 'shift_jis'));
             }
         }), { 県: '大阪府' });
         st.end();

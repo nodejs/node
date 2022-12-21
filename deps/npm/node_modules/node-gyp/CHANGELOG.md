@@ -1,3 +1,17 @@
+v5.1.1 2020-05-25
+=================
+
+* [[`bdd3a79abe`](https://github.com/nodejs/node-gyp/commit/bdd3a79abe)] - **build**: shrink bloated addon binaries on windows (Shelley Vohr) [#2060](https://github.com/nodejs/node-gyp/pull/2060)
+* [[`1f2ba75bc0`](https://github.com/nodejs/node-gyp/commit/1f2ba75bc0)] - **doc**: add macOS Catalina software update info (Karl Horky) [#2078](https://github.com/nodejs/node-gyp/pull/2078)
+* [[`c106d915f5`](https://github.com/nodejs/node-gyp/commit/c106d915f5)] - **doc**: update catalina xcode cli tools download link (#2044) (Dario Vladović) [#2044](https://github.com/nodejs/node-gyp/pull/2044)
+* [[`9a6fea92e2`](https://github.com/nodejs/node-gyp/commit/9a6fea92e2)] - **doc**: update catalina xcode cli tools download link; formatting (Jonathan Hult) [#2034](https://github.com/nodejs/node-gyp/pull/2034)
+* [[`59b0b1add8`](https://github.com/nodejs/node-gyp/commit/59b0b1add8)] - **doc**: add download link for Command Line Tools for Xcode (Przemysław Bitkowski) [#2029](https://github.com/nodejs/node-gyp/pull/2029)
+* [[`bb8d0e7b10`](https://github.com/nodejs/node-gyp/commit/bb8d0e7b10)] - **doc**: Catalina suggestion: remove /Library/Developer/CommandLineTools (Christian Clauss) [#2022](https://github.com/nodejs/node-gyp/pull/2022)
+* [[`fb2e80d4e3`](https://github.com/nodejs/node-gyp/commit/fb2e80d4e3)] - **doc**: update link to the code of conduct (#2073) (Michaël Zasso) [#2073](https://github.com/nodejs/node-gyp/pull/2073)
+* [[`251d9c885c`](https://github.com/nodejs/node-gyp/commit/251d9c885c)] - **doc**: note in README that Python 3.8 is supported (#2072) (Michaël Zasso) [#2072](https://github.com/nodejs/node-gyp/pull/2072)
+* [[`2b6fc3c8d6`](https://github.com/nodejs/node-gyp/commit/2b6fc3c8d6)] - **doc, bin**: stop suggesting opening  node-gyp issues (Bartosz Sosnowski) [#2096](https://github.com/nodejs/node-gyp/pull/2096)
+* [[`a876ae58ad`](https://github.com/nodejs/node-gyp/commit/a876ae58ad)] - **test**: bump actions/checkout from v1 to v2 (BSKY) [#2063](https://github.com/nodejs/node-gyp/pull/2063)
+
 v5.1.0 2020-02-05
 =================
 

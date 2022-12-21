@@ -7,7 +7,7 @@ Match files using the patterns the shell uses, like stars and stuff.
 This is a glob implementation in JavaScript.  It uses the `minimatch`
 library to do its matching.
 
-![](logo/glob.png)
+![a fun cartoon logo made of glob characters](logo/glob.png)
 
 ## Usage
 
@@ -276,6 +276,9 @@ the filesystem.
 * `absolute` Set to true to always receive absolute paths for matched
   files.  Unlike `realpath`, this also affects the values returned in
   the `match` event.
+* `fs` File-system object with Node's `fs` API. By default, the built-in
+  `fs` module will be used. Set to a volume provided by a library like
+  `memfs` to avoid using the "real" file-system.
 
 ## Comparisons to other fnmatch/glob implementations
 

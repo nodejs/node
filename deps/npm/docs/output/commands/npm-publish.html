@@ -1,0 +1,232 @@
+<html><head>
+<title>npm-publish</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="npm-publish">npm-publish</h1>
+<span class="description">Publish a package</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="synopsis">Synopsis</h3>
+<pre lang="bash"><code>npm publish [&lt;tarball&gt;|&lt;folder&gt;] [--tag &lt;tag&gt;] [--access &lt;public|restricted&gt;] [--otp otpcode] [--dry-run]
+
+Publishes '.' if no argument supplied
+Sets tag 'latest' if no --tag specified
+</code></pre>
+<h3 id="description">Description</h3>
+<p>Publishes a package to the registry so that it can be installed by name. All
+files in the package directory are included if no local <code>.gitignore</code> or
+<code>.npmignore</code> file exists. If both files exist and a file is ignored by
+<code>.gitignore</code> but not by <code>.npmignore</code> then it will be included.  See
+<a href="../using-npm/developers.html"><code>developers</code></a> for full details on what’s included in the published package, as well as details on how the package is built.</p>
+<p>By default npm will publish to the public registry. This can be overridden by
+specifying a different default registry or using a <a href="../using-npm/scope.html"><code>scope</code></a> in the name (see <a href="../configuring-npm/package-json.html"><code>package.json</code></a>).</p>
+<ul>
+<li>
+<p><code>&lt;folder&gt;</code>:
+A folder containing a package.json file</p>
+</li>
+<li>
+<p><code>&lt;tarball&gt;</code>:
+A url or file path to a gzipped tar archive containing a single folder
+with a package.json file inside.</p>
+</li>
+<li>
+<p><code>[--tag &lt;tag&gt;]</code>
+Registers the published package with the given tag, such that
+<code>npm install &lt;name&gt;@&lt;tag&gt;</code> will install this version.  By default,
+<code>npm publish</code> updates and <code>npm install</code> installs the <code>latest</code> tag. See
+<a href="npm-dist-tag"><code>npm-dist-tag</code></a> for details about tags.</p>
+</li>
+<li>
+<p><code>[--access &lt;public|restricted&gt;]</code>
+Tells the registry whether this package should be published as public or
+restricted. Only applies to scoped packages, which default to <code>restricted</code>.
+If you don’t have a paid account, you must publish with <code>--access public</code>
+to publish scoped packages.</p>
+</li>
+<li>
+<p><code>[--otp &lt;otpcode&gt;]</code>
+If you have two-factor authentication enabled in <code>auth-and-writes</code> mode
+then you can provide a code from your authenticator with this. If you
+don’t include this and you’re running from a TTY then you’ll be prompted.</p>
+</li>
+<li>
+<p><code>[--dry-run]</code>
+As of <code>npm@6</code>, does everything publish would do except actually publishing
+to the registry. Reports the details of what would have been published.</p>
+</li>
+</ul>
+<p>Fails if the package name and version combination already exists in
+the specified registry.</p>
+<p>Once a package is published with a given name and version, that
+specific name and version combination can never be used again, even if
+it is removed with <a href="../commands/npm-unpublish.html"><code>npm unpublish</code></a>.</p>
+<p>As of <code>npm@5</code>, both a sha1sum and an integrity field with a sha512sum of the
+tarball will be submitted to the registry during publication. Subsequent
+installs will use the strongest supported algorithm to verify downloads.</p>
+<p>Similar to <code>--dry-run</code> see <a href="../commands/npm-pack.html"><code>npm pack</code></a>, which figures out the files to be
+included and packs them into a tarball to be uploaded to the registry.</p>
+<h3 id="see-also">See Also</h3>
+<ul>
+<li><a href="../using-npm/registry.html">npm registry</a></li>
+<li><a href="../using-npm/scope.html">npm scope</a></li>
+<li><a href="../commands/npm-adduser.html">npm adduser</a></li>
+<li><a href="../commands/npm-owner.html">npm owner</a></li>
+<li><a href="../commands/npm-deprecate.html">npm deprecate</a></li>
+<li><a href="../commands/npm-dist-tag.html">npm dist-tag</a></li>
+<li><a href="../commands/npm-pack.html">npm pack</a></li>
+<li><a href="../commands/npm-profile.html">npm profile</a></li>
+</ul>
+</div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/v6/docs/content/commands/npm-publish.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

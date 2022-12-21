@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.0.3](https://github.com/watilde/meant/compare/v1.0.2...v1.0.3) (2020-11-15)
+
+
+### Bug Fixes
+
+* remove unused files from npm package ([#8](https://github.com/watilde/meant/issues/8)) ([966a826](https://github.com/watilde/meant/commit/966a82693eb22c02d3e1d1e57e4a7019fdb71678))
+
 ### [1.0.2](https://github.com/watilde/meant/compare/v1.0.1...v1.0.2) (2020-07-19)
 
 

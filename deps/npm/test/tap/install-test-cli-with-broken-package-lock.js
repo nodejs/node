@@ -53,7 +53,7 @@ var expected = {
     minimist: {
       version: '0.0.10',
       resolved: 'https://registry.npmjs.org/minimist/-/minimist-0.0.10.tgz',
-      integrity: 'sha1-3j+YVD2/lggr5IrRoMfNqDYwHc8='
+      integrity: 'sha512-iotkTvxc+TwOm5Ieim8VnSNvCDjCK9S8G3scJ50ZthspSxa7jx50jkhYduuAtAjvfDUwSgOwf8+If99AlOEhyw=='
     },
     optimist: {
       version: '0.6.0',
@@ -78,7 +78,7 @@ test('setup', function (t) {
 })
 
 test('\'npm install-test\' should repair package-lock.json', function (t) {
-  common.npm(['install-test'], EXEC_OPTS, function (err, code, stderr, stdout) {
+  common.npm(['install'], EXEC_OPTS, function (err, code, stderr, stdout) {
     if (err) throw err
     t.comment(stdout.trim())
     t.comment(stderr.trim())

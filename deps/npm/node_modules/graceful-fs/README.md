@@ -30,8 +30,18 @@ the directory.
 var fs = require('graceful-fs')
 
 // now go and do stuff with it...
-fs.readFileSync('some-file-or-whatever')
+fs.readFile('some-file-or-whatever', (err, data) => {
+  // Do stuff here.
+})
 ```
+
+## Sync methods
+
+This module cannot intercept or handle `EMFILE` or `ENFILE` errors from sync
+methods.  If you use sync methods which open file descriptors then you are
+responsible for dealing with any errors.
+
+This is a known limitation, not a bug.
 
 ## Global Patching
 

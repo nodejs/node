@@ -1,12 +1,8 @@
 ---
-section: using-npm
 title: scripts
+section: 7
 description: How npm handles the "scripts" field
 ---
-
-# scripts(7)
-
-## How npm handles the "scripts" field
 
 ### Description
 
@@ -78,7 +74,7 @@ The advantage of doing these things at `prepublish` time is that they can be don
 
 ### Life Cycle Operation Order
 
-#### [`npm publish`](/cli-commands/npm-publish)
+#### [`npm publish`](/commands/npm-publish)
 
 * `prepublishOnly`
 * `prepare`
@@ -86,12 +82,12 @@ The advantage of doing these things at `prepublish` time is that they can be don
 * `publish`
 * `postpublish`
 
-#### [`npm pack`](/cli-commands/npm-pack)
+#### [`npm pack`](/commands/npm-pack)
 
 * `prepack`
 * `postpack`
 
-#### [`npm install`](/cli-commands/npm-install)
+#### [`npm install`](/commands/npm-install)
 
 * `preinstall`
 * `install`
@@ -102,7 +98,7 @@ Also triggers
 * `prepublish` (when on local)
 * `prepare` (when on local)
 
-#### [`npm start`](/cli-commands/npm-start)
+#### [`npm start`](/commands/npm-start)
 
 `npm run start` has an `npm start` shorthand.
 
@@ -304,7 +300,7 @@ above.
 
 ### See Also
 
-* [npm run-script](/cli-commands/npm-run-script)
+* [npm run-script](/commands/npm-run-script)
 * [package.json](/configuring-npm/package-json)
 * [npm developers](/using-npm/developers)
-* [npm install](/cli-commands/npm-install)
+* [npm install](/commands/npm-install)

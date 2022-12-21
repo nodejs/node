@@ -1,3 +1,11 @@
+# Note: pending imminent deprecation
+
+**This module will be deprecated once npm v7 is released.  Please do not rely
+on it more than absolutely necessary (ie, only if you are depending on
+it for use with npm v6 internal dependencies).**
+
+----
+
 # lock-verify
 
 Report if your package.json is out of sync with your package-lock.json.

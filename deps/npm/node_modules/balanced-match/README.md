@@ -66,6 +66,12 @@ With [npm](https://npmjs.org) do:
 npm install balanced-match
 ```
 
+## Security contact information
+
+To report a security vulnerability, please use the
+[Tidelift security contact](https://tidelift.com/security).
+Tidelift will coordinate the fix and disclosure.
+
 ## License
 
 (MIT)

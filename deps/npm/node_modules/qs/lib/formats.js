@@ -10,7 +10,7 @@ module.exports = {
             return replace.call(value, percentTwenties, '+');
         },
         RFC3986: function (value) {
-            return value;
+            return String(value);
         }
     },
     RFC1738: 'RFC1738',

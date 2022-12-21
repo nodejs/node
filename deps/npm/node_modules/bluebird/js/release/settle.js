@@ -37,6 +37,10 @@ Promise.settle = function (promises) {
     return new SettledPromiseArray(promises).promise();
 };
 
+Promise.allSettled = function (promises) {
+    return new SettledPromiseArray(promises).promise();
+};
+
 Promise.prototype.settle = function () {
     return Promise.settle(this);
 };
