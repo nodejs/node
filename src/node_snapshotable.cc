@@ -1151,16 +1151,21 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
       Context::Scope context_scope(main_context);
 
       // Create the environment.
-      env = new Environment(main_instance->isolate_data(),
-                            main_context,
-                            args,
-                            exec_args,
-                            nullptr,
-                            node::EnvironmentFlags::kDefaultFlags,
-                            {});
+      // It's not guaranteed that a context that goes through
+      // v8_inspector::V8Inspector::contextCreated() is runtime-independent,
+      // so do not start the inspector on the main context when building
+      // the default snapshot.
+      uint64_t env_flags = EnvironmentFlags::kDefaultFlags |
+                           EnvironmentFlags::kNoCreateInspector;
 
-      // Run scripts in lib/internal/bootstrap/
-      if (env->principal_realm()->RunBootstrapping().IsEmpty()) {
+      env = CreateEnvironment(main_instance->isolate_data(),
+                              main_context,
+                              args,
+                              exec_args,
+                              static_cast<EnvironmentFlags::Flags>(env_flags));
+
+      // This already ran scripts in lib/internal/bootstrap/, if it fails return
+      if (env == nullptr) {
         return ExitCode::kBootstrapFailure;
       }
       // If --build-snapshot is true, lib/internal/main/mksnapshot.js would be
