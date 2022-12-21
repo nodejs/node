@@ -397,6 +397,7 @@ void Deserializer<IsolateT>::PostProcessNewJSReceiver(
     auto buffer = JSArrayBuffer::cast(*obj);
     uint32_t store_index = buffer.GetBackingStoreRefForDeserialization();
     if (store_index == kEmptyBackingStoreRefSentinel) {
+      buffer.set_extension(nullptr);
       buffer.set_backing_store(main_thread_isolate(),
                                EmptyBackingStoreBuffer());
     } else {

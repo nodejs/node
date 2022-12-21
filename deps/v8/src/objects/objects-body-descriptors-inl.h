@@ -387,6 +387,8 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
     // JSArrayBuffer instances contain raw data that the GC does not know about.
     IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
     IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
+    v->VisitExternalPointer(map, obj.RawExternalPointerField(kExtensionOffset),
+                            kArrayBufferExtensionTag);
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
