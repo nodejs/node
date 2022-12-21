@@ -574,11 +574,11 @@ inline bool IsSafeJsInt(v8::Local<v8::Value> v) {
   return false;
 }
 
-constexpr size_t FastStringKey::HashImpl(const char* str) {
+constexpr size_t FastStringKey::HashImpl(std::string_view str) {
   // Low-quality hash (djb2), but just fine for current use cases.
   size_t h = 5381;
-  while (*str != '\0') {
-    h = h * 33 + *(str++);  // NOLINT(readability/pointer_notation)
+  for (const char c : str) {
+    h = h * 33 + c;
   }
   return h;
 }
@@ -589,19 +589,13 @@ constexpr size_t FastStringKey::Hash::operator()(
 }
 
 constexpr bool FastStringKey::operator==(const FastStringKey& other) const {
-  const char* p1 = name_;
-  const char* p2 = other.name_;
-  if (p1 == p2) return true;
-  do {
-    if (*(p1++) != *(p2++)) return false;
-  } while (*p1 != '\0');
-  return *p2 == '\0';
+  return name_ == other.name_;
 }
 
-constexpr FastStringKey::FastStringKey(const char* name)
-  : name_(name), cached_hash_(HashImpl(name)) {}
+constexpr FastStringKey::FastStringKey(std::string_view name)
+    : name_(name), cached_hash_(HashImpl(name)) {}
 
-constexpr const char* FastStringKey::c_str() const {
+constexpr std::string_view FastStringKey::as_string_view() const {
   return name_;
 }
 

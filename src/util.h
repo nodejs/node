@@ -838,20 +838,20 @@ class PersistentToLocal {
 // computations.
 class FastStringKey {
  public:
-  constexpr explicit FastStringKey(const char* name);
+  constexpr explicit FastStringKey(std::string_view name);
 
   struct Hash {
     constexpr size_t operator()(const FastStringKey& key) const;
   };
   constexpr bool operator==(const FastStringKey& other) const;
 
-  constexpr const char* c_str() const;
+  constexpr std::string_view as_string_view() const;
 
  private:
-  static constexpr size_t HashImpl(const char* str);
+  static constexpr size_t HashImpl(std::string_view str);
 
-  const char* name_;
-  size_t cached_hash_;
+  const std::string_view name_;
+  const size_t cached_hash_;
 };
 
 // Like std::static_pointer_cast but for unique_ptr with the default deleter.
