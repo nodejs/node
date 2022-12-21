@@ -19,7 +19,7 @@ extern class JSArrayBuffer extends JSObjectWithEmbedderSlots {
   raw_max_byte_length: uintptr;
   // A SandboxedPtr if the sandbox is enabled
   backing_store: RawPtr;
-  extension: RawPtr;
+  extension: ExternalPointer;
   bit_field: JSArrayBufferFlags;
   // Pads header size to be a multiple of kTaggedSize.
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
