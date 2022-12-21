@@ -398,7 +398,8 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
   V(kWasmInternalFunctionCallTargetTag,     sandboxed, TAG(17)) \
   V(kWasmTypeInfoNativeTypeTag,             sandboxed, TAG(18)) \
   V(kWasmExportedFunctionDataSignatureTag,  sandboxed, TAG(19)) \
-  V(kWasmContinuationJmpbufTag,             sandboxed, TAG(20))
+  V(kWasmContinuationJmpbufTag,             sandboxed, TAG(20)) \
+  V(kArrayBufferExtensionTag,               sandboxed, TAG(21))
 
 // All external pointer tags.
 #define ALL_EXTERNAL_POINTER_TAGS(V) \
