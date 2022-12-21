@@ -89,7 +89,7 @@ describe('node:test reporters', { concurrency: true }, () => {
                               ['--test', '--test-reporter', fixtures.path('test-runner/custom_reporters/', filename),
                                testFile]);
       assert.strictEqual(child.stderr.toString(), '');
-      assert.strictEqual(child.stdout.toString(), `${filename} {"test:start":5,"test:pass":2,"test:fail":3,"test:plan":3,"test:diagnostic":7}`);
+      assert.match(child.stdout.toString(), new RegExp(`${filename} {"test:start":5,"test:pass":2,"test:fail":3,"test:plan":3,"test:diagnostic":\\d}`));
     });
   });
 });
