@@ -370,6 +370,54 @@ Otherwise, the test is considered to be a failure. Test files must be
 executable by Node.js, but are not required to use the `node:test` module
 internally.
 
+## Collecting code coverage
+
+When Node.js is started with the [`--test-coverage`][] command-line flag, code
+coverage is collected and statistics are reported once all tests have completed.
+If the [`NODE_V8_COVERAGE`][] environment variable is used to specify a
+code coverage directory, the generated V8 coverage files are written to that
+directory. Node.js core modules and files within `node_modules/` directories
+are not included in the coverage report. If coverage is enabled, the coverage
+report is sent to any [test reporters][] via the `'test:coverage'` event.
+
+Coverage can be disabled on a series of lines using the following
+comment syntax:
+
+```js
+/* node:coverage disable */
+if (anAlwaysFalseCondition) {
+  // Code in this branch will never be executed, but the lines are ignored for
+  // coverage purposes. All lines following the 'disable' comment are ignored
+  // until a corresponding 'enable' comment is encountered.
+  console.log('this is never executed');
+}
+/* node:coverage enable */
+```
+
+Coverage can also be disabled for a specified number of lines. After the
+specified number of lines, coverage will be automatically reenabled. If the
+number of lines is not explicitly provided, a single line is ignored.
+
+```js
+/* node:coverage ignore next */
+if (anAlwaysFalseCondition) { console.log('this is never executed'); }
+
+/* node:coverage ignore next 3 */
+if (anAlwaysFalseCondition) {
+  console.log('this is never executed');
+}
+```
+
+The test runner's code coverage functionality has the following limitations,
+which will be addressed in a future Node.js release:
+
+* Although coverage data is collected for child processes, this information is
+  not included in the coverage report. Because the command line test runner uses
+  child processes to execute test files, it cannot be used with `--test-coverage`.
+* Source maps are not supported.
+* Excluding specific files or directories from the coverage report is not
+  supported.
+
 ## Mocking
 
 The `node:test` module supports mocking during testing via a top-level `mock`
@@ -1249,6 +1297,42 @@ A successful call to [`run()`][] method will return a new {TestsStream}
 object, streaming a series of events representing the execution of the tests.
 `TestsStream` will emit events, in the order of the tests definition
 
+### Event: `'test:coverage'`
+
+* `data` {Object}
+  * `summary` {Object} An object containing the coverage report.
+    * `files` {Array} An array of coverage reports for individual files. Each
+      report is an object with the following schema:
+      * `path` {string} The absolute path of the file.
+      * `totalLineCount` {number} The total number of lines.
+      * `totalBranchCount` {number} The total number of branches.
+      * `totalFunctionCount` {number} The total number of functions.
+      * `coveredLineCount` {number} The number of covered lines.
+      * `coveredBranchCount` {number} The number of covered branches.
+      * `coveredFunctionCount` {number} The number of covered functions.
+      * `coveredLinePercent` {number} The percentage of lines covered.
+      * `coveredBranchPercent` {number} The percentage of branches covered.
+      * `coveredFunctionPercent` {number} The percentage of functions covered.
+      * `uncoveredLineNumbers` {Array} An array of integers representing line
+        numbers that are uncovered.
+    * `totals` {Object} An object containing a summary of coverage for all
+      files.
+      * `totalLineCount` {number} The total number of lines.
+      * `totalBranchCount` {number} The total number of branches.
+      * `totalFunctionCount` {number} The total number of functions.
+      * `coveredLineCount` {number} The number of covered lines.
+      * `coveredBranchCount` {number} The number of covered branches.
+      * `coveredFunctionCount` {number} The number of covered functions.
+      * `coveredLinePercent` {number} The percentage of lines covered.
+      * `coveredBranchPercent` {number} The percentage of branches covered.
+      * `coveredFunctionPercent` {number} The percentage of functions covered.
+    * `workingDirectory` {string} The working directory when code coverage
+      began. This is useful for displaying relative path names in case the tests
+      changed the working directory of the Node.js process.
+  * `nesting` {number} The nesting level of the test.
+
+Emitted when code coverage is enabled and all tests have completed.
+
 ### Event: `'test:diagnostic'`
 
 * `data` {Object}
@@ -1631,6 +1715,7 @@ added:
 
 [TAP]: https://testanything.org/
 [`--import`]: cli.md#--importmodule
+[`--test-coverage`]: cli.md#--test-coverage
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination
@@ -1639,6 +1724,7 @@ added:
 [`MockFunctionContext`]: #class-mockfunctioncontext
 [`MockTracker.method`]: #mockmethodobject-methodname-implementation-options
 [`MockTracker`]: #class-mocktracker
+[`NODE_V8_COVERAGE`]: cli.md#node_v8_coveragedir
 [`SuiteContext`]: #class-suitecontext
 [`TestContext`]: #class-testcontext
 [`context.diagnostic`]: #contextdiagnosticmessage
@@ -1649,4 +1735,5 @@ added:
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [stream.compose]: stream.md#streamcomposestreams
+[test reporters]: #test-reporters
 [test runner execution model]: #test-runner-execution-model
