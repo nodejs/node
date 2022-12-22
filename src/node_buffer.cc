@@ -1223,6 +1223,14 @@ static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
   results[1] = written;
 }
 
+static void IsUtf8(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsArrayBuffer());
+  Local<ArrayBuffer> input = args[0].As<ArrayBuffer>();
+  auto external = static_cast<const char*>(input->Data());
+  args.GetReturnValue().Set(
+      simdutf::validate_utf8(external, input->ByteLength()));
+}
 
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1358,6 +1366,8 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "encodeInto", EncodeInto);
   SetMethodNoSideEffect(context, target, "encodeUtf8String", EncodeUtf8String);
 
+  SetMethodNoSideEffect(context, target, "isUtf8", IsUtf8);
+
   target
       ->Set(context,
             FIXED_ONE_BYTE_STRING(isolate, "kMaxLength"),
@@ -1412,6 +1422,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(EncodeInto);
   registry->Register(EncodeUtf8String);
+
+  registry->Register(IsUtf8);
 
   registry->Register(StringSlice<ASCII>);
   registry->Register(StringSlice<BASE64>);
