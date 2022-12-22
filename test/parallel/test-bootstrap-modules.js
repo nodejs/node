@@ -75,7 +75,6 @@ const expectedModules = new Set([
   'NativeModule internal/mime',
   'NativeModule internal/modules/cjs/helpers',
   'NativeModule internal/modules/cjs/loader',
-  'NativeModule internal/modules/utils',
   'NativeModule internal/modules/esm/assert',
   'NativeModule internal/modules/esm/create_dynamic_module',
   'NativeModule internal/modules/esm/fetch_module',
