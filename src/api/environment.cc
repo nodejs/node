@@ -473,7 +473,7 @@ MaybeLocal<Value> LoadEnvironment(
   return LoadEnvironment(
       env, [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
         std::string name = "embedder_main_" + std::to_string(env->thread_id());
-        builtins::BuiltinLoader::Add(name.c_str(), main_script_source_utf8);
+        env->builtin_loader()->Add(name.c_str(), main_script_source_utf8);
         Realm* realm = env->principal_realm();
 
         return realm->ExecuteBootstrapper(name.c_str());
@@ -714,10 +714,12 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
                                         "internal/per_context/messageport",
                                         nullptr};
 
+  auto builtin_loader = builtins::BuiltinLoader::Create();
   for (const char** module = context_files; *module != nullptr; module++) {
     Local<Value> arguments[] = {exports, primordials};
-    if (builtins::BuiltinLoader::CompileAndCall(
-            context, *module, arraysize(arguments), arguments, nullptr)
+    if (builtin_loader
+            ->CompileAndCall(
+                context, *module, arraysize(arguments), arguments, nullptr)
             .IsEmpty()) {
       // Execution failed during context creation.
       return Nothing<bool>();

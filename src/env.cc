@@ -752,6 +752,8 @@ Environment::Environment(IsolateData* isolate_data,
                   env_info,
                   flags,
                   thread_id) {
+  // TODO(addaleax): Make this part of CreateEnvironment().
+  set_builtin_loader(builtins::BuiltinLoader::Create());
   InitializeMainContext(context, env_info);
 }
 

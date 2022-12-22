@@ -721,6 +721,9 @@ class Environment : public MemoryRetainer {
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_async_id_list();
 
+  std::shared_ptr<builtins::BuiltinLoader> builtin_loader();
+  void set_builtin_loader(std::shared_ptr<builtins::BuiltinLoader> loader);
+
   std::unordered_multimap<int, loader::ModuleWrap*> hash_to_module_map;
   std::unordered_map<uint32_t, loader::ModuleWrap*> id_to_module_map;
   std::unordered_map<uint32_t, contextify::ContextifyScript*>
@@ -1143,6 +1146,8 @@ class Environment : public MemoryRetainer {
       DefaultProcessExitHandlerInternal};
 
   std::unique_ptr<Realm> principal_realm_ = nullptr;
+
+  std::shared_ptr<builtins::BuiltinLoader> builtin_loader_;
 
   // Used by allocate_managed_buffer() and release_managed_buffer() to keep
   // track of the BackingStore for a given pointer.

@@ -1183,9 +1183,6 @@ ExitCode LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
     }
   }
 
-  if ((*snapshot_data_ptr) != nullptr) {
-    BuiltinLoader::RefreshCodeCache((*snapshot_data_ptr)->code_cache);
-  }
   NodeMainInstance main_instance(*snapshot_data_ptr,
                                  uv_default_loop(),
                                  per_process::v8_platform.Platform(),
