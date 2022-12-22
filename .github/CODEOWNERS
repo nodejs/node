@@ -2,8 +2,8 @@
 
 # 1. Codeowners must always be teams, never individuals
 # 2. Each codeowner team should contain at least one TSC member
-# 3. PRs touching any code with a codeowner must be signed off by at least one
-#    person on the code owner team.
+# 3. PRs touching any code with a codeowner must tag said owners and wait for an
+#    appropriate time to let them time to review the changes.
 
 # tsc
 
