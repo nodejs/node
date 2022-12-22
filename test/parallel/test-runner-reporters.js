@@ -86,7 +86,7 @@ describe('node:test reporters', { concurrency: true }, () => {
     it(`should support a '${ext}' file as a custom reporter`, async () => {
       const filename = `custom.${ext}`;
       const child = spawnSync(process.execPath,
-                              ['--test', '--test-reporter', fixtures.path('test-runner/custom_reporters/', filename),
+                              ['--test', '--test-reporter', fixtures.fileURL('test-runner/custom_reporters/', filename),
                                testFile]);
       assert.strictEqual(child.stderr.toString(), '');
       const stdout = child.stdout.toString();
