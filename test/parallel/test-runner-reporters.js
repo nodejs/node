@@ -111,9 +111,9 @@ describe('node:test reporters', { concurrency: true }, () => {
                             ['--test', '--test-reporter', 'reporter-esm', 'reporters.js'],
                             { cwd: fixtures.path('test-runner') });
     assert.strictEqual(child.stderr.toString(), '');
-    const stdout = child.stdout.toString();
-    assert.match(stdout, /{"test:start":5,"test:pass":2,"test:fail":3,"test:plan":3,"test:diagnostic":\d+}$/);
-    const label = 'package: reporter-esm';
-    assert.strictEqual(stdout.slice(0, label.length + 1), `${label}{`);
+    assert.match(
+      child.stdout.toString(),
+      /^package: reporter-esm{"test:start":5,"test:pass":2,"test:fail":3,"test:plan":3,"test:diagnostic":\d+}$/,
+    );
   });
 });
