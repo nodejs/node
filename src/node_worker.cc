@@ -148,14 +148,10 @@ class WorkerThreadData {
         ArrayBufferAllocator::Create();
     Isolate::CreateParams params;
     SetIsolateCreateParamsForNode(&params);
-    params.array_buffer_allocator_shared = allocator;
-
-    if (w->snapshot_data() != nullptr) {
-      SnapshotBuilder::InitializeIsolateParams(w->snapshot_data(), &params);
-    }
     w->UpdateResourceConstraints(&params.constraints);
-
-    Isolate* isolate = Isolate::Allocate();
+    params.array_buffer_allocator_shared = allocator;
+    Isolate* isolate =
+        NewIsolate(&params, &loop_, w->platform_, w->snapshot_data());
     if (isolate == nullptr) {
       // TODO(joyeecheung): maybe this should be kBootstrapFailure instead?
       w->Exit(ExitCode::kGenericUserError,
@@ -164,8 +160,6 @@ class WorkerThreadData {
       return;
     }
 
-    w->platform_->RegisterIsolate(isolate, &loop_);
-    Isolate::Initialize(isolate, params);
     SetIsolateUpForNode(isolate);
 
     // Be sure it's called before Environment::InitializeDiagnostics()
