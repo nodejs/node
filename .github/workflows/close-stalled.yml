@@ -20,7 +20,7 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/stale@v4
+      - uses: actions/stale@v7
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           days-before-close: 30
