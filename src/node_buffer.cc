@@ -1224,12 +1224,32 @@ static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void IsUtf8(const FunctionCallbackInfo<Value>& args) {
-  CHECK_GE(args.Length(), 1);
-  CHECK(args[0]->IsArrayBuffer());
-  Local<ArrayBuffer> input = args[0].As<ArrayBuffer>();
-  auto external = static_cast<const char*>(input->Data());
-  args.GetReturnValue().Set(
-      simdutf::validate_utf8(external, input->ByteLength()));
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer());
+
+  Local<ArrayBuffer> buf;
+  size_t offset = 0;
+  size_t length = 0;
+
+  if (args[0]->IsTypedArray()) {
+    Local<v8::TypedArray> input = args[0].As<v8::TypedArray>();
+    buf = input->Buffer();
+    offset = input->ByteOffset();
+    length = input->ByteLength();
+  } else {
+    buf = args[0].As<ArrayBuffer>();
+    length = buf->ByteLength();
+  }
+
+  if (buf->WasDetached()) {
+    return node::THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
+  }
+
+  const char* external = static_cast<const char*>(buf->Data()) + offset;
+  args.GetReturnValue().Set(simdutf::validate_utf8(external, length));
 }
 
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
