@@ -17,7 +17,7 @@ assert.strictEqual(isUtf8(encoder.encode('aé日')), true);
   undefined,
   'hello',
   true,
-  false
+  false,
 ].forEach((input) => {
   assert.throws(
     () => { isUtf8(input); },
@@ -25,7 +25,7 @@ assert.strictEqual(isUtf8(encoder.encode('aé日')), true);
       code: 'ERR_INVALID_ARG_TYPE',
     },
   );
-})
+});
 
 {
   // Test with detached array buffers
@@ -33,8 +33,8 @@ assert.strictEqual(isUtf8(encoder.encode('aé日')), true);
   structuredClone(arrayBuffer, { transfer: [arrayBuffer] });
   assert.throws(
     () => { isUtf8(arrayBuffer); },
-  {
+    {
       code: 'ERR_BUFFER_CONTEXT_NOT_AVAILABLE'
     }
-  )
+  );
 }
