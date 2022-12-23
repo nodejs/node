@@ -29,7 +29,9 @@ module.exports = {
 `);
 
 writeFileSync(inputFile, `
-require('../common');
+// Although, require('../common') works locally, that couldn't be used here
+// because we set NODE_TEST_DIR=/Users/iojs/node-tmp on Jenkins CI.
+require('${join(__dirname, '..', 'common')}');
 
 const { deepStrictEqual, strictEqual } = require('assert');
 const { dirname } = require('path');
