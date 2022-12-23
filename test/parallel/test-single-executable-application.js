@@ -34,10 +34,17 @@ module.exports = {
 };
 `);
 
+let commonPathForSea = join(__dirname, '..', 'common');
+if (process.platform === 'win32') {
+  // Otherwise, the double backslashes get replaced with single backslashes in
+  // the generated file.
+  commonPathForSea = commonPathForSea.replace(/\\/g, '\\\\');
+}
+
 writeFileSync(inputFile, `
 // Although, require('../common') works locally, that couldn't be used here
 // because we set NODE_TEST_DIR=/Users/iojs/node-tmp on Jenkins CI.
-require('${join(__dirname, '..', 'common')}');
+require('${commonPathForSea}');
 
 const { deepStrictEqual, strictEqual } = require('assert');
 const { dirname } = require('path');
