@@ -96,6 +96,9 @@
         'NODE_USE_V8_PLATFORM=0',
       ],
     }],
+    [ 'v8_enable_shared_ro_heap==1', {
+      'defines': ['NODE_V8_SHARED_RO_HEAP',],
+    }],
     [ 'node_tag!=""', {
       'defines': [ 'NODE_TAG="<(node_tag)"' ],
     }],
