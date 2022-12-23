@@ -10,7 +10,7 @@ const {
   defaultResolve: resolve
 } = require('internal/modules/esm/resolve');
 
-assert.rejects(
+assert.throws(
   resolve('target'),
   {
     code: 'ERR_MODULE_NOT_FOUND',
