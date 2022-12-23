@@ -8,6 +8,12 @@ if (process.config.variables.asan)
   common.skip('ASAN builds fail with a SEGV on unknown address due to ' +
     'a READ memory access from FindSingleExecutableCode');
 
+if (process.platform === 'aix')
+  common.skip('XCOFF binary format not supported.');
+
+if (process.platform === 'freebsd')
+  common.skip('Running the resultant binary fails with `Exec format error`.');
+
 // This tests the creation of a single executable application.
 
 const tmpdir = require('../common/tmpdir');
@@ -54,32 +60,11 @@ copyFileSync(process.execPath, outputFile);
 const postjectFile = join(__dirname, '..', 'fixtures', 'postject-copy', 'node_modules', 'postject', 'dist', 'cli.js');
 execSync(`${process.execPath} ${postjectFile} ${outputFile} NODE_JS_CODE ${inputFile}`);
 
-// Verifying code signing using a self-signed certificate.
 if (process.platform === 'darwin') {
-  let codesignFound = false;
-  try {
-    execSync('command -v codesign');
-    codesignFound = true;
-  } catch (err) {
-    console.log(err.message);
-  }
-  if (codesignFound) {
-    execSync(`codesign --sign - ${outputFile}`);
-    execSync(`codesign --verify ${outputFile}`);
-  }
-} else if (process.platform === 'win32') {
-  let signtoolFound = false;
-  try {
-    execSync('where signtool');
-    signtoolFound = true;
-  } catch (err) {
-    console.log(err.message);
-  }
-  if (signtoolFound) {
-    execSync(`signtool sign /fd SHA256 ${outputFile}`);
-    execSync(`signtool verify /pa SHA256 ${outputFile}`);
-  }
+  execSync(`codesign --sign - ${outputFile}`);
+  execSync(`codesign --verify ${outputFile}`);
 }
+// TODO(RaisinTen): Test code signing on Windows.
 
 const singleExecutableApplicationOutput = execSync(`${outputFile} -a --b=c d`);
 strictEqual(singleExecutableApplicationOutput.toString(), 'Hello, world!\n');
