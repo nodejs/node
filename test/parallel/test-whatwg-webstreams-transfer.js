@@ -125,7 +125,7 @@ const theData = 'hello';
   const theByteData = new Uint8Array([1, 2, 3]);
 
   const readable = new ReadableStream({
-    type: "bytes",
+    type: 'bytes',
     start: common.mustCall((controller) => {
       // `enqueue` will detach its argument's buffer, so clone first
       controller.enqueue(theByteData.slice());
