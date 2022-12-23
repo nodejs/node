@@ -49,11 +49,8 @@ deepStrictEqual(requirable, {
 console.log('Hello, world!');
 `);
 copyFileSync(process.execPath, outputFile);
-if (process.platform === 'win32') {
-  execSync(`test\\fixtures\\postject-copy\\node_modules\\.bin\\postject.cmd ${outputFile} NODE_JS_CODE ${inputFile}`);
-} else {
-  execSync(`test/fixtures/postject-copy/node_modules/.bin/postject ${outputFile} NODE_JS_CODE ${inputFile}`);
-}
+const postjectFile = join(__dirname, '..', 'fixtures', 'postject-copy', 'node_modules', 'postject', 'dist', 'cli.js');
+execSync(`${process.execPath} ${postjectFile} ${outputFile} NODE_JS_CODE ${inputFile}`);
 
 // Verifying code signing using a self-signed certificate.
 if (process.platform === 'darwin') {
