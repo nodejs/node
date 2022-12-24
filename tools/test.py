@@ -172,7 +172,10 @@ class ProgressIndicator(object):
       # ...and then reraise the exception to bail out
       raise
     self.Done()
-    return not self.failed
+    return {
+      'allPassed': not self.failed,
+      'failed': self.failed,
+    }
 
   def RunSingle(self, parallel, thread_id):
     while not self.shutdown_event.is_set():
@@ -1757,10 +1760,8 @@ def Main():
   else:
     try:
       start = time.time()
-      if RunTestCases(cases_to_run, options.progress, options.j, options.flaky_tests, options.measure_flakiness):
-        result = 0
-      else:
-        result = 1
+      result = RunTestCases(cases_to_run, options.progress, options.j, options.flaky_tests, options.measure_flakiness)
+      exitCode = 0 if result['allPassed'] else 1
       duration = time.time() - start
     except KeyboardInterrupt:
       print("Interrupted")
@@ -1777,7 +1778,14 @@ def Main():
       t = FormatTimedelta(entry.duration)
       sys.stderr.write("%4i (%s) %s\n" % (i, t, entry.GetLabel()))
 
-  return result
+  if result['allPassed']:
+    print('All tests passed.')
+  else:
+    print('Failed tests:')
+    for failedTest in result['failed']:
+      print(EscapeCommand(failedTest.command))
+
+  return exitCode
 
 
 if __name__ == '__main__':
