@@ -416,13 +416,13 @@ if not defined licensertf goto stage_package
 
 set "use_x64_node_exe=false"
 if "%target_arch%"=="arm64" if "%PROCESSOR_ARCHITECTURE%"=="AMD64" set "use_x64_node_exe=true"
+set "x64_node_exe=temp-vcbuild\node-x64-cross-compiling.exe"
 if "%use_x64_node_exe%"=="true" (
   echo Cross-compilation to ARM64 detected. We'll use the x64 Node executable for license2rtf.
-  if not defined "%x64_node_exe%" set "x64_node_exe=temp-vcbuild\node-x64-cross-compiling.exe"
   if not exist "%x64_node_exe%" (
     echo Downloading x64 node.exe...
     if not exist "temp-vcbuild" mkdir temp-vcbuild
-    powershell -c "Invoke-WebRequest -Uri 'https://nodejs.org/dist/latest/win-x64/node.exe' -OutFile 'temp-vcbuild\node-x64-cross-compiling.exe'"
+    powershell -c "Invoke-WebRequest -Uri 'https://nodejs.org/dist/latest/win-x64/node.exe' -OutFile '%x64_node_exe%'"
   )
   if not exist "%x64_node_exe%" (
     echo Could not find the Node executable at the given x64_node_exe path. Aborting.
