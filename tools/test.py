@@ -147,7 +147,7 @@ class ProgressIndicator(object):
     })
     print("Path: %s" % "/".join(test.path))
 
-  def Run(self, tasks):
+  def Run(self, tasks) -> dict:
     self.Starting()
     threads = []
     # Spawn N-1 threads and then use this thread as the last one.
