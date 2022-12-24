@@ -1515,9 +1515,13 @@ or waiting for a response.
 added:
  - v11.3.0
  - v10.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45778
+    description: The default is now set to the minimum between 60000 (60 seconds) or `requestTimeout`.
 -->
 
-* {number} **Default:** `60000`
+* {number} **Default:** The minimum between [`server.requestTimeout`][] or `60000`.
 
 Limit the amount of time the parser will wait to receive the complete HTTP
 headers.
