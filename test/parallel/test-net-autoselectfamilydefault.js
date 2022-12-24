@@ -6,9 +6,9 @@ const { parseDNSPacket, writeDNSPacket } = require('../common/dns');
 const assert = require('assert');
 const dgram = require('dgram');
 const { Resolver } = require('dns');
-const { createConnection, createServer } = require('net');
+const { createConnection, createServer, setDefaultAutoSelectFamily } = require('net');
 
-// Test that happy eyeballs algorithm is properly implemented.
+// Test that the default for happy eyeballs algorithm is properly respected.
 
 let autoSelectFamilyAttemptTimeout = common.platformTimeout(250);
 if (common.isWindows) {
@@ -63,7 +63,7 @@ function createDnsServer(ipv6Addr, ipv4Addr, cb) {
   });
 }
 
-// Test that IPV4 is reached if IPV6 is not reachable
+// Test that IPV4 is reached by default if IPV6 is not reachable and the default is enabled
 {
   createDnsServer('::1', '127.0.0.1', common.mustCall(function({ dnsServer, lookup }) {
     const ipv4Server = createServer((socket) => {
@@ -74,11 +74,12 @@ function createDnsServer(ipv6Addr, ipv4Addr, cb) {
     });
 
     ipv4Server.listen(0, '127.0.0.1', common.mustCall(() => {
+      setDefaultAutoSelectFamily(true);
+
       const connection = createConnection({
         host: 'example.org',
         port: ipv4Server.address().port,
         lookup,
-        autoSelectFamily: true,
         autoSelectFamilyAttemptTimeout,
       });
 
@@ -100,84 +101,7 @@ function createDnsServer(ipv6Addr, ipv4Addr, cb) {
   }));
 }
 
-// Test that IPV4 is NOT reached if IPV6 is reachable
-if (common.hasIPv6) {
-  createDnsServer('::1', '127.0.0.1', common.mustCall(function({ dnsServer, lookup }) {
-    const ipv4Server = createServer((socket) => {
-      socket.on('data', common.mustNotCall(() => {
-        socket.write('response-ipv4');
-        socket.end();
-      }));
-    });
-
-    const ipv6Server = createServer((socket) => {
-      socket.on('data', common.mustCall(() => {
-        socket.write('response-ipv6');
-        socket.end();
-      }));
-    });
-
-    ipv4Server.listen(0, '127.0.0.1', common.mustCall(() => {
-      const port = ipv4Server.address().port;
-
-      ipv6Server.listen(port, '::1', common.mustCall(() => {
-        const connection = createConnection({
-          host: 'example.org',
-          port,
-          lookup,
-          autoSelectFamily: true,
-          autoSelectFamilyAttemptTimeout,
-        });
-
-        let response = '';
-        connection.setEncoding('utf-8');
-
-        connection.on('data', (chunk) => {
-          response += chunk;
-        });
-
-        connection.on('end', common.mustCall(() => {
-          assert.strictEqual(response, 'response-ipv6');
-          ipv4Server.close();
-          ipv6Server.close();
-          dnsServer.close();
-        }));
-
-        connection.write('request');
-      }));
-    }));
-  }));
-}
-
-// Test that when all errors are returned when no connections succeeded
-{
-  createDnsServer('::1', '127.0.0.1', common.mustCall(function({ dnsServer, lookup }) {
-    const connection = createConnection({
-      host: 'example.org',
-      port: 10,
-      lookup,
-      autoSelectFamily: true,
-      autoSelectFamilyAttemptTimeout,
-    });
-
-    connection.on('ready', common.mustNotCall());
-    connection.on('error', common.mustCall((error) => {
-      assert.strictEqual(error.constructor.name, 'AggregateError');
-      assert.strictEqual(error.errors.length, 2);
-
-      const errors = error.errors.map((e) => e.message);
-      assert.ok(errors.includes('connect ECONNREFUSED 127.0.0.1:10'));
-
-      if (common.hasIPv6) {
-        assert.ok(errors.includes('connect ECONNREFUSED ::1:10'));
-      }
-
-      dnsServer.close();
-    }));
-  }));
-}
-
-// Test that the option can be disabled
+// Test that IPV4 is not reached by default if IPV6 is not reachable and the default is disabled
 {
   createDnsServer('::1', '127.0.0.1', common.mustCall(function({ dnsServer, lookup }) {
     const ipv4Server = createServer((socket) => {
@@ -188,13 +112,14 @@ if (common.hasIPv6) {
     });
 
     ipv4Server.listen(0, '127.0.0.1', common.mustCall(() => {
+      setDefaultAutoSelectFamily(false);
+
       const port = ipv4Server.address().port;
 
       const connection = createConnection({
         host: 'example.org',
         port,
         lookup,
-        autoSelectFamily: false,
       });
 
       connection.on('ready', common.mustNotCall());
