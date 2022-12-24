@@ -1226,11 +1226,13 @@ static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
 static void IsUtf8(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer());
+  CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
+        args[0]->IsSharedArrayBuffer());
   ArrayBufferViewContents<char> abv(args[0]);
 
   if (abv.WasDetached()) {
-    return node::THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(env->isolate());
+    return node::THROW_ERR_INVALID_STATE(
+        env, "Cannot validate on a detached buffer");
   }
 
   args.GetReturnValue().Set(simdutf::validate_utf8(abv.data(), abv.length()));

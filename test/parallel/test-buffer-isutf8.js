@@ -9,8 +9,20 @@ const encoder = new TextEncoder();
 
 assert.strictEqual(isUtf8(encoder.encode('hello')), true);
 assert.strictEqual(isUtf8(encoder.encode('ğ')), true);
+assert.strictEqual(isUtf8(Buffer.from([])), true);
+
+// Invalid UTF-8
 assert.strictEqual(isUtf8(Buffer.from([0xf8])), false);
+
+// CESU-8
+assert.strictEqual(isUtf8(encoder.encode('\u0045\u0205\u10400')), true);
 assert.strictEqual(isUtf8(encoder.encode('aé日')), true);
+
+// Two byte overlong encoding
+assert.strictEqual(isUtf8(encoder.encode('\u0000')), true);
+
+// WTF-8
+assert.strictEqual(isUtf8(encoder.encode('\uD800\uDFFF')), true);
 
 [
   null,
@@ -34,7 +46,7 @@ assert.strictEqual(isUtf8(encoder.encode('aé日')), true);
   assert.throws(
     () => { isUtf8(arrayBuffer); },
     {
-      code: 'ERR_BUFFER_CONTEXT_NOT_AVAILABLE'
+      code: 'ERR_INVALID_STATE'
     }
   );
 }
