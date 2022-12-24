@@ -71,16 +71,18 @@
 /src/node_http2* @nodejs/http2 @nodejs/net
 /src/node_mem* @nodejs/http2
 
-# modules
+# modules, including loaders
 
-/doc/api/modules.md @nodejs/modules
-/doc/api/esm.md @nodejs/modules
-/doc/api/module.md @nodejs/modules
-/doc/api/packages.md @nodejs/modules
-/lib/module.js @nodejs/modules
-/lib/internal/modules/* @nodejs/modules
-/lib/internal/bootstrap/loaders.js @nodejs/modules
-/src/module_wrap* @nodejs/modules @nodejs/vm
+/doc/api/esm.md @nodejs/modules @nodejs/loaders
+/doc/api/module.md @nodejs/modules @nodejs/loaders
+/doc/api/modules.md @nodejs/modules @nodejs/loaders
+/doc/api/packages.md @nodejs/modules @nodejs/loaders
+/lib/internal/bootstrap/loaders.js @nodejs/modules @nodejs/loaders
+/lib/internal/modules/* @nodejs/modules @nodejs/loaders
+/lib/internal/process/esm_loader.js @nodejs/modules @nodejs/loaders
+/lib/internal/process/execution.js @nodejs/modules @nodejs/loaders
+/lib/module.js @nodejs/modules @nodejs/loaders
+/src/module_wrap* @nodejs/modules @nodejs/loaders @nodejs/vm
 
 # Node-API
 
@@ -96,6 +98,7 @@
 /tools/gyp/**/* @nodejs/gyp
 
 # WASI
+
 /deps/uvwasi/ @nodejs/wasi
 /doc/api/wasi.md @nodejs/wasi
 /lib/wasi.js @nodejs/wasi
@@ -113,6 +116,7 @@
 /tools/snapshot/* @nodejs/startup
 
 # V8
+
 /deps/v8/* @nodejs/v8-update
 /tools/v8_gypfiles/* @nodejs/v8-update
 
