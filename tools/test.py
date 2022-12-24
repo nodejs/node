@@ -482,6 +482,7 @@ class CompactProgressIndicator(ProgressIndicator):
         print("--- %s ---" % PrintCrashed(output.output.exit_code))
       if output.HasTimedOut():
         print("--- TIMEOUT ---")
+      print("\n") # Two blank lines between failures, for visual separation
 
   def Truncate(self, str, length):
     if length and (len(str) > (length - 3)):
@@ -1779,9 +1780,9 @@ def Main():
       sys.stderr.write("%4i (%s) %s\n" % (i, t, entry.GetLabel()))
 
   if result['allPassed']:
-    print('All tests passed.')
+    print("\nAll tests passed.")
   else:
-    print('Failed tests:')
+    print("\nFailed tests:")
     for failedTest in result['failed']:
       print(EscapeCommand(failedTest.command))
 
