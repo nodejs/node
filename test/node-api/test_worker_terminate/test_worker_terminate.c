@@ -18,8 +18,6 @@ napi_value Test(napi_env env, napi_callback_info info) {
       "Wrong first argument, function expected.");
 
   status = napi_call_function(env, recv, argv[0], 0, NULL, NULL);
-  assert(status == napi_ok);
-  status = napi_call_function(env, recv, argv[0], 0, NULL, NULL);
   assert(status == napi_pending_exception);
 
   return NULL;
