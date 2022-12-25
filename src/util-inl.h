@@ -555,6 +555,7 @@ void ArrayBufferViewContents<T, S>::ReadValue(v8::Local<v8::Value> buf) {
     auto ab = buf.As<v8::ArrayBuffer>();
     length_ = ab->ByteLength();
     data_ = static_cast<T*>(ab->Data());
+    was_detached_ = ab->WasDetached();
   } else {
     CHECK(buf->IsSharedArrayBuffer());
     auto sab = buf.As<v8::SharedArrayBuffer>();
