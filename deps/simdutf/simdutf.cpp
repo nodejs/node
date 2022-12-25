@@ -1,4 +1,4 @@
-/* auto-generated on 2022-12-13 18:33:40 -0500. Do not edit! */
+/* auto-generated on 2022-12-15 12:13:17 -0500. Do not edit! */
 // dofile: invoked with prepath=/Users/dlemire/CVS/github/simdutf/src, filename=simdutf.cpp
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
@@ -3895,7 +3895,9 @@ SIMDUTF_POP_DISABLE_WARNINGS
 
 #if __GNUC__ == 8
 #define SIMDUTF_GCC8 1
-#endif //  __GNUC__ == 8
+#elif __GNUC__ == 9
+#define SIMDUTF_GCC9 1
+#endif //  __GNUC__ == 8 || __GNUC__ == 9
 
 #endif // defined(__GNUC__) && !defined(__clang__)
 
@@ -15730,8 +15732,13 @@ simdutf_really_inline bool process_block_utf8_to_utf16(const char *&in, char16_t
     __mmask64 bxorleading = _kxor_mask64(b, leading);
     if (_kshiftli_mask64(m234, 1) != bxorleading) { return false; }
   }
-  in += 64 - _lzcnt_u64(_pdep_u64(0xFFFFFFFF, continuation_or_ascii));
-
+  //
+  if (tail == SIMDUTF_FULL) {
+    in += 32;
+    if(int8_t(*in) <= int8_t(0xc0)) in++;
+  } else {
+    in += 64 - _lzcnt_u64(_pdep_u64(0xFFFFFFFF, continuation_or_ascii));
+  }
   __m512i lead = _mm512_maskz_compress_epi8(leading, leading2byte);          // will contain zero for ascii, and the data
   lead = _mm512_cvtepu8_epi16(_mm512_castsi512_si256(lead));                 // ... zero extended into words
   __m512i follow = _mm512_maskz_compress_epi8(continuation_or_ascii, input); // the last bytes of each sequence
@@ -15742,8 +15749,9 @@ simdutf_really_inline bool process_block_utf8_to_utf16(const char *&in, char16_t
   if(big_endian) { final = _mm512_shuffle_epi8(final, byteflip); }
   if (tail == SIMDUTF_FULL) {
     // Next part is UTF-16 specific and can be generalized to UTF-32.
-    _mm512_storeu_si512(out, final);
-    out += 32; // UTF-8 to UTF-16 is only expansionary in this case.
+    int nout = _mm_popcnt_u32(uint32_t(leading));
+    _mm512_mask_storeu_epi16(out, __mmask32((uint64_t(1) << nout) - 1), final);
+    out += nout; // UTF-8 to UTF-16 is only expansionary in this case.
   } else {
     int nout = int(_mm_popcnt_u64(_pdep_u64(0xFFFFFFFF, leading)));
     _mm512_mask_storeu_epi16(out, __mmask32((uint64_t(1) << nout) - 1), final);
@@ -15909,12 +15917,12 @@ __m512i prev(__m512i input, __m512i previous) {
     static_assert(N<=32, "N must be no larger than 32");
     const __m512i movemask = _mm512_setr_epi32(28,29,30,31,0,1,2,3,4,5,6,7,8,9,10,11);
     const __m512i rotated = _mm512_permutex2var_epi32(input, movemask, previous);
-#if SIMDUTF_GCC8
-    constexpr int shift = 16-N; // workaround for GCC8
+#if SIMDUTF_GCC8 || SIMDUTF_GCC9
+    constexpr int shift = 16-N; // workaround for GCC8,9
     return _mm512_alignr_epi8(input, rotated, shift);
 #else
     return _mm512_alignr_epi8(input, rotated, 16-N);
-#endif // SIMDUTF_GCC8
+#endif // SIMDUTF_GCC8 || SIMDUTF_GCC9
 }
 
 template <unsigned idx0, unsigned idx1, unsigned idx2, unsigned idx3>
