@@ -1762,7 +1762,7 @@ def Main():
     try:
       start = time.time()
       result = RunTestCases(cases_to_run, options.progress, options.j, options.flaky_tests, options.measure_flakiness)
-      exitCode = 0 if result['allPassed'] else 1
+      exitcode = 0 if result['allPassed'] else 1
       duration = time.time() - start
     except KeyboardInterrupt:
       print("Interrupted")
@@ -1783,10 +1783,10 @@ def Main():
     print("\nAll tests passed.")
   else:
     print("\nFailed tests:")
-    for failedTest in result['failed']:
-      print(EscapeCommand(failedTest.command))
+    for failure in result['failed']:
+      print(EscapeCommand(failure.command))
 
-  return exitCode
+  return exitcode
 
 
 if __name__ == '__main__':
