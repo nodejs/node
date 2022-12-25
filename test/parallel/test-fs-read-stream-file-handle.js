@@ -23,7 +23,9 @@ fs.promises.open(file, 'r').then((handle) => {
     assert.strictEqual(output, input);
   }));
 
-  stream.on('close', common.mustCall());
+  stream.on('close', common.mustCall(() => {
+    assert(handle.listenerCount('close') === 0);
+  }));
 }).then(common.mustCall());
 
 fs.promises.open(file, 'r').then((handle) => {
