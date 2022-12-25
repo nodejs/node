@@ -5130,6 +5130,17 @@ For code running using Node.js APIs, converting between base64-encoded strings
 and binary data should be performed using `Buffer.from(str, 'base64')` and
 `buf.toString('base64')`.**
 
+### `buffer.isUtf8(input)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* input {Buffer | ArrayBuffer | TypedArray} The input to validate.
+* Returns: {boolean} Returns `true` if and only if the input is valid UTF-8.
+
+This function is used to check if input contains UTF-8 code points (characters).
+
 ### `buffer.INSPECT_MAX_BYTES`
 
 <!-- YAML

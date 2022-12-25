@@ -1223,6 +1223,20 @@ static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
   results[1] = written;
 }
 
+static void IsUtf8(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
+        args[0]->IsSharedArrayBuffer());
+  ArrayBufferViewContents<char> abv(args[0]);
+
+  if (abv.WasDetached()) {
+    return node::THROW_ERR_INVALID_STATE(
+        env, "Cannot validate on a detached buffer");
+  }
+
+  args.GetReturnValue().Set(simdutf::validate_utf8(abv.data(), abv.length()));
+}
 
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1358,6 +1372,8 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "encodeInto", EncodeInto);
   SetMethodNoSideEffect(context, target, "encodeUtf8String", EncodeUtf8String);
 
+  SetMethodNoSideEffect(context, target, "isUtf8", IsUtf8);
+
   target
       ->Set(context,
             FIXED_ONE_BYTE_STRING(isolate, "kMaxLength"),
@@ -1412,6 +1428,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(EncodeInto);
   registry->Register(EncodeUtf8String);
+
+  registry->Register(IsUtf8);
 
   registry->Register(StringSlice<ASCII>);
   registry->Register(StringSlice<BASE64>);

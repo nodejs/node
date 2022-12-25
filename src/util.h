@@ -511,6 +511,7 @@ class ArrayBufferViewContents {
   inline void Read(v8::Local<v8::ArrayBufferView> abv);
   inline void ReadValue(v8::Local<v8::Value> buf);
 
+  inline bool WasDetached() const { return was_detached_; }
   inline const T* data() const { return data_; }
   inline size_t length() const { return length_; }
 
@@ -525,6 +526,7 @@ class ArrayBufferViewContents {
   T stack_storage_[kStackStorageSize];
   T* data_ = nullptr;
   size_t length_ = 0;
+  bool was_detached_ = false;
 };
 
 class Utf8Value : public MaybeStackBuffer<char> {
