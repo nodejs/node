@@ -95,6 +95,9 @@ template <bool enforceUncaughtExceptionPolicy, typename T>
 void node_napi_env__::CallbackIntoModule(T&& call) {
   CallIntoModule(call, [](napi_env env_, v8::Local<v8::Value> local_err) {
     node_napi_env__* env = static_cast<node_napi_env__*>(env_);
+    if (env->terminatedOrTerminating()) {
+      return;
+    }
     node::Environment* node_env = env->node_env();
     if (!node_env->options()->force_node_api_uncaught_exceptions_policy &&
         !enforceUncaughtExceptionPolicy) {

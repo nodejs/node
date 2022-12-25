@@ -72,9 +72,20 @@ struct napi_env__ {
   }
 
   static inline void HandleThrow(napi_env env, v8::Local<v8::Value> value) {
+    if (env->terminatedOrTerminating()) {
+      return;
+    }
     env->isolate->ThrowException(value);
   }
 
+  // i.e. whether v8 exited or is about to exit
+  inline bool terminatedOrTerminating() {
+    return this->isolate->IsExecutionTerminating() || !can_call_into_js();
+  }
+
+  // v8 uses a special exception to indicate termination, the
+  // `handle_exception` callback should identify such case using
+  // terminatedOrTerminating() before actually handle the exception
   template <typename T, typename U = decltype(HandleThrow)>
   inline void CallIntoModule(T&& call, U&& handle_exception = HandleThrow) {
     int open_handle_scopes_before = open_handle_scopes;
