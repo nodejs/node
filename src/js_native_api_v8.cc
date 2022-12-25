@@ -314,6 +314,9 @@ class CallbackWrapperBase : public CallbackWrapper {
     env->CallIntoModule([&](napi_env env) { result = cb(env, cbinfo_wrapper); },
                         [&](napi_env env, v8::Local<v8::Value> value) {
                           exceptionOccurred = true;
+                          if (env->terminatedOrTerminating()) {
+                            return;
+                          }
                           env->isolate->ThrowException(value);
                         });
 
