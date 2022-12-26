@@ -381,6 +381,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental ES Module support for webassembly modules",
             &EnvironmentOptions::experimental_wasm_modules,
             kAllowedInEnvvar);
+  AddOption("--experimental-join-authorization-headers",
+            "experimental joining of the field line values "
+            "of multiple Authorization headers",
+            &EnvironmentOptions::experimental_join_authorization_headers,
+            kAllowedInEnvvar);
   AddOption("--experimental-import-meta-resolve",
             "experimental ES Module import.meta.resolve() support",
             &EnvironmentOptions::experimental_import_meta_resolve,
