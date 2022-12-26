@@ -29,6 +29,7 @@
 
 
 from __future__ import print_function
+from typing import Dict
 import logging
 import optparse
 import os
@@ -147,7 +148,7 @@ class ProgressIndicator(object):
     })
     print("Path: %s" % "/".join(test.path))
 
-  def Run(self, tasks) -> dict:
+  def Run(self, tasks) -> Dict:
     self.Starting()
     threads = []
     # Spawn N-1 threads and then use this thread as the last one.
