@@ -460,6 +460,7 @@ Enable experimental WebAssembly module support.
 
 Enable experimental joining of the field line values of
 multiple `Authorization` headers in a request.
+The values are joined together with `, `.
 
 ### `--force-context-aware`
 
@@ -1878,6 +1879,7 @@ Node.js options that are allowed are:
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
 * `--experimental-import-meta-resolve`
+* `--experimental-join-authorization-headers`
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
@@ -1889,7 +1891,6 @@ Node.js options that are allowed are:
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-wasm-modules`
-* `--experimental-join-authorization-headers`
 * `--force-context-aware`
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
