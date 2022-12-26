@@ -11,7 +11,7 @@ const {
 } = require('internal/modules/esm/resolve');
 
 assert.throws(
-  resolve('target'),
+  () => resolve('target'),
   {
     code: 'ERR_MODULE_NOT_FOUND',
     name: 'Error',
