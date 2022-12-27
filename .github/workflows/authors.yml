@@ -30,6 +30,9 @@ jobs:
             Here are some new additions to the AUTHORS file.
             This is an automatically generated PR by the
             `authors.yml` GitHub Action, which runs `tools/update-authors.mjs`.
+            Check the output of
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            for possible duplicates.
           branch: actions/authors-update  # Custom branch *just* for this Action.
           commit-message: 'meta: update AUTHORS'
           labels: meta
