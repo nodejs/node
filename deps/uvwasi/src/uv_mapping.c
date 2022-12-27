@@ -251,8 +251,13 @@ uvwasi_errno_t uvwasi__get_filetype_by_fd(uv_file fd, uvwasi_filetype_t* type) {
   if (r != 0) {
     uv_fs_req_cleanup(&req);
 
-    /* Windows can't stat a TTY. */
-    if (uv_guess_handle(fd) == UV_TTY) {
+    uv_handle_type guess;
+    /*
+      Windows can't stat a FILE_TYPE_CHAR, which is guessed
+      as UV_TTY in "ConsoleMode" or UV_FILE otherwise.
+    */
+    guess = uv_guess_handle(fd);
+    if (guess == UV_TTY || guess == UV_FILE) {
       *type = UVWASI_FILETYPE_CHARACTER_DEVICE;
       return UVWASI_ESUCCESS;
     }
