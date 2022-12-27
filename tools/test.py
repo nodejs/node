@@ -29,6 +29,7 @@
 
 
 from __future__ import print_function
+from typing import Dict
 import logging
 import optparse
 import os
@@ -147,7 +148,7 @@ class ProgressIndicator(object):
     })
     print("Path: %s" % "/".join(test.path))
 
-  def Run(self, tasks):
+  def Run(self, tasks) -> Dict:
     self.Starting()
     threads = []
     # Spawn N-1 threads and then use this thread as the last one.
@@ -172,7 +173,10 @@ class ProgressIndicator(object):
       # ...and then reraise the exception to bail out
       raise
     self.Done()
-    return not self.failed
+    return {
+      'allPassed': not self.failed,
+      'failed': self.failed,
+    }
 
   def RunSingle(self, parallel, thread_id):
     while not self.shutdown_event.is_set():
@@ -479,6 +483,7 @@ class CompactProgressIndicator(ProgressIndicator):
         print("--- %s ---" % PrintCrashed(output.output.exit_code))
       if output.HasTimedOut():
         print("--- TIMEOUT ---")
+      print("\n") # Two blank lines between failures, for visual separation
 
   def Truncate(self, str, length):
     if length and (len(str) > (length - 3)):
@@ -1757,10 +1762,8 @@ def Main():
   else:
     try:
       start = time.time()
-      if RunTestCases(cases_to_run, options.progress, options.j, options.flaky_tests, options.measure_flakiness):
-        result = 0
-      else:
-        result = 1
+      result = RunTestCases(cases_to_run, options.progress, options.j, options.flaky_tests, options.measure_flakiness)
+      exitcode = 0 if result['allPassed'] else 1
       duration = time.time() - start
     except KeyboardInterrupt:
       print("Interrupted")
@@ -1777,7 +1780,14 @@ def Main():
       t = FormatTimedelta(entry.duration)
       sys.stderr.write("%4i (%s) %s\n" % (i, t, entry.GetLabel()))
 
-  return result
+  if result['allPassed']:
+    print("\nAll tests passed.")
+  else:
+    print("\nFailed tests:")
+    for failure in result['failed']:
+      print(EscapeCommand(failure.command))
+
+  return exitcode
 
 
 if __name__ == '__main__':
