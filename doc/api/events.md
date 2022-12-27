@@ -1548,7 +1548,7 @@ Promise.resolve().then(() => {
 The `EventEmitterAsyncResource` class has the same methods and takes the
 same options as `EventEmitter` and `AsyncResource` themselves.
 
-### `new events.EventEmitterAsyncResource(options)`
+### `new events.EventEmitterAsyncResource([options])`
 
 * `options` {Object}
   * `captureRejections` {boolean} It enables
