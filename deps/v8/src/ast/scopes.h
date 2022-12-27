@@ -129,19 +129,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     }
 
     void Reparent(DeclarationScope* new_parent);
-    bool IsCleared() const {
-      return outer_scope_and_calls_eval_.GetPointer() == nullptr;
-    }
-
-    void Clear() {
-      outer_scope_and_calls_eval_.SetPointer(nullptr);
-#ifdef DEBUG
-      outer_scope_and_calls_eval_.SetPayload(false);
-      top_inner_scope_ = nullptr;
-      top_local_ = base::ThreadedList<Variable>::Iterator();
-      top_unresolved_ = UnresolvedList::Iterator();
-#endif
-    }
 
    private:
     Scope* outer_scope_;
