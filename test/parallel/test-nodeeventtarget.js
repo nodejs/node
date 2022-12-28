@@ -135,7 +135,7 @@ const { on } = require('events');
     strictEqual(warning.count, 2);
     strictEqual(warning.type, 'foo');
     ok(warning.message.includes(
-      '2 foo listeners added to NodeEventTarget'));
+      '2 foo listeners added to EventTarget'));
   }));
 
   strictEqual(target.getMaxListeners(), NodeEventTarget.defaultMaxListeners);
