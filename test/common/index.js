@@ -276,10 +276,9 @@ let knownGlobals = [
   setInterval,
   setTimeout,
   queueMicrotask,
-  // EventTarget prototype
-  addEventListener,
-  removeEventListener,
-  dispatchEvent,
+  EventTarget.prototype.addEventListener,
+  EventTarget.prototype.removeEventListener,
+  EventTarget.prototype.dispatchEvent,
 ];
 
 // TODO(@jasnell): This check can be temporary. AbortController is
