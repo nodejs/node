@@ -490,7 +490,7 @@ For instance, changing from `http` to `https` works:
 const u = new URL('http://example.org');
 u.protocol = 'https';
 console.log(u.href);
-// https://example.org
+// https://example.org/
 ```
 
 However, changing from `http` to a hypothetical `fish` protocol does not
@@ -500,7 +500,7 @@ because the new protocol is not special.
 const u = new URL('http://example.org');
 u.protocol = 'fish';
 console.log(u.href);
-// http://example.org
+// http://example.org/
 ```
 
 Likewise, changing from a non-special protocol to a special protocol is also
