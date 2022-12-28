@@ -1,10 +1,12 @@
+import { writeSync } from 'fs';
+
 export async function resolve(...args) {
-  console.log(`resolve arg count: ${args.length}`);
-  console.log({
+  writeSync(1, `resolve arg count: ${args.length}\n`);
+  writeSync(1, `${JSON.stringify({
     specifier: args[0],
     context: args[1],
     next: args[2],
-  });
+  })}\n`);
 
   return {
     shortCircuit: true,
@@ -13,12 +15,12 @@ export async function resolve(...args) {
 }
 
 export async function load(...args) {
-  console.log(`load arg count: ${args.length}`);
-  console.log({
+  writeSync(1, `load arg count: ${args.length}`);
+  writeSync(1, `${JSON.stringify({
     url: args[0],
     context: args[1],
     next: args[2],
-  });
+  })}\n`);
 
   return {
     format: 'module',

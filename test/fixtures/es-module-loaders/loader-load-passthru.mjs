@@ -1,3 +1,5 @@
+import { writeSync } from 'fs';
+
 export async function load(url, context, next) {
   // This check is needed to make sure that we don't prevent the
   // resolution from follow-up loaders. It wouldn't be a problem
@@ -7,6 +9,6 @@ export async function load(url, context, next) {
     return next(url);
   }
 
-  console.log('load passthru'); // This log is deliberate
+  writeSync(1, 'load passthru\n'); // This log is deliberate
   return next(url);
 }
