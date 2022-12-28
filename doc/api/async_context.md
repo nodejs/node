@@ -762,7 +762,7 @@ This pool could be used as follows:
 import WorkerPool from './worker_pool.js';
 import os from 'node:os';
 
-const pool = new WorkerPool(os.cpus().length);
+const pool = new WorkerPool(os.availableParallelism());
 
 let finished = 0;
 for (let i = 0; i < 10; i++) {
@@ -778,7 +778,7 @@ for (let i = 0; i < 10; i++) {
 const WorkerPool = require('./worker_pool.js');
 const os = require('node:os');
 
-const pool = new WorkerPool(os.cpus().length);
+const pool = new WorkerPool(os.availableParallelism());
 
 let finished = 0;
 for (let i = 0; i < 10; i++) {
