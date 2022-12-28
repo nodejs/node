@@ -2454,9 +2454,6 @@ header name:
 * `set-cookie` is always an array. Duplicates are added to the array.
 * For duplicate `cookie` headers, the values are joined together with `; `.
 * For all other headers, the values are joined together with `, `.
-* To enable joining the value of duplicate `authorization` header,
-  use the experimental command line flag `--experimental-join-authorization-headers`.
-  See [`--experimental-join-authorization-headers`][] for more information.
 
 ### `message.headersDistinct`
 
@@ -3734,7 +3731,6 @@ Set the maximum number of idle HTTP parsers. **Default:** `1000`.
 [`'request'`]: #event-request
 [`'response'`]: #event-response
 [`'upgrade'`]: #event-upgrade
-[`--experimental-join-authorization-headers`]: cli.md#--experimental-join-authorization-headers
 [`--insecure-http-parser`]: cli.md#--insecure-http-parser
 [`--max-http-header-size`]: cli.md#--max-http-header-sizesize
 [`Agent`]: #class-httpagent
