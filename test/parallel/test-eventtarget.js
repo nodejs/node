@@ -479,8 +479,6 @@ let asyncTest = Promise.resolve();
     {},
     [],
     1,
-    null,
-    undefined,
     false,
     Symbol(),
     /a/,
