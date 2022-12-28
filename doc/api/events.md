@@ -1754,7 +1754,7 @@ This is not used in Node.js and is provided purely for completeness.
 added: v14.5.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Alias for `event.stopPropagation()` if set to `true`. This is not used
 in Node.js and is provided purely for completeness.
