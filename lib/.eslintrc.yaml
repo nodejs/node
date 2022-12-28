@@ -143,7 +143,7 @@ rules:
     - name: WritableStreamDefaultController
       message: Use `const { WritableStreamDefaultController } = require('internal/webstreams/writablestream')` instead of the global.
     - name: addEventListener
-      message: Use `FunctionPrototypeCall(EventTarget.prototype.addEventListener, globalThis)` instead of the global.
+      message: Use `const { addEventListener } = EventTarget.prototype` instead of the global.
     - name: atob
       message: Use `const { atob } = require('buffer');` instead of the global.
     - name: btoa
@@ -163,7 +163,7 @@ rules:
     - name: CryptoKey
       message: Use `const { CryptoKey } = require('internal/crypto/webcrypto');` instead of the global.
     - name: dispatchEvent
-      message: Use `FunctionPrototypeCall(EventTarget.prototype.dispatchEvent, globalThis)` instead of the global.
+      message: Use `const { dispatchEvent } = EventTarget.prototype` instead of the global.
     - name: fetch
       message: Use `const { fetch } = require('internal/deps/undici/undici');` instead of the global.
     - name: global
@@ -175,7 +175,7 @@ rules:
     - name: queueMicrotask
       message: Use `const { queueMicrotask } = require('internal/process/task_queues');` instead of the global.
     - name: removeEventListener
-      message: Use `FunctionPrototypeCall(EventTarget.prototype.removeEventListener, globalThis)` instead of the global.
+      message: Use `const { removeEventListener } = EventTarget.prototype` instead of the global.
     - name: setImmediate
       message: Use `const { setImmediate } = require('timers');` instead of the global.
     - name: setInterval
