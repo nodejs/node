@@ -1748,15 +1748,15 @@ added: v14.5.0
 
 This is not used in Node.js and is provided purely for completeness.
 
-#### `event.cancelBubble(value)`
+#### `event.cancelBubble`
 
 <!-- YAML
 added: v14.5.0
 -->
 
-* `value` {boolean}
+* {boolean}
 
-Alias for `event.stopPropagation()` if `value` is `true`. This is not used
+Alias for `event.stopPropagation()` if set to `true`. This is not used
 in Node.js and is provided purely for completeness.
 
 #### `event.cancelable`
