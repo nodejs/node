@@ -3182,6 +3182,10 @@ changes:
     a 400 (Bad Request) status code to any HTTP/1.1 request message
     that lacks a Host header (as mandated by the specification).
     **Default:** `true`.
+  * `joinAuthorizationHeaders` {boolean} It joins the field line values of
+    multiple `Authorization` headers in a request
+    with ` ,` instead of discarding the duplicates.
+    **Default:** `false`.
   * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
     to be used. Useful for extending the original `ServerResponse`. **Default:**
     `ServerResponse`.
