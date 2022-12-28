@@ -2454,6 +2454,8 @@ header name:
 * `set-cookie` is always an array. Duplicates are added to the array.
 * For duplicate `cookie` headers, the values are joined together with `; `.
 * For all other headers, the values are joined together with `, `.
+* To allow duplicate values of `authorization` see the option
+  `joinAuthorizationHeaders` in [`http.request()`][]
 
 ### `message.headersDistinct`
 
@@ -3441,6 +3443,9 @@ changes:
   * `uniqueHeaders` {Array} A list of request headers that should be sent
     only once. If the header's value is an array, the items will be joined
     using `; `.
+  * `joinAuthorizationHeaders` {boolean} It joins the field line values of
+    multiple `Authorization` headers in a request
+    with ` ,` instead of discarding the duplicates.
 * `callback` {Function}
 * Returns: {http.ClientRequest}
 
