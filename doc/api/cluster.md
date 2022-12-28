@@ -17,10 +17,10 @@ server ports.
 ```mjs
 import cluster from 'node:cluster';
 import http from 'node:http';
-import { cpus } from 'node:os';
+import { availableParallelism } from 'node:os';
 import process from 'node:process';
 
-const numCPUs = cpus().length;
+const numCPUs = availableParallelism();
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -48,7 +48,7 @@ if (cluster.isPrimary) {
 ```cjs
 const cluster = require('node:cluster');
 const http = require('node:http');
-const numCPUs = require('node:os').cpus().length;
+const numCPUs = require('node:os').availableParallelism();
 const process = require('node:process');
 
 if (cluster.isPrimary) {
@@ -273,7 +273,7 @@ process of the number of HTTP requests received by the workers:
 ```mjs
 import cluster from 'node:cluster';
 import http from 'node:http';
-import { cpus } from 'node:os';
+import { availableParallelism } from 'node:os';
 import process from 'node:process';
 
 if (cluster.isPrimary) {
@@ -292,7 +292,7 @@ if (cluster.isPrimary) {
   }
 
   // Start workers and listen for messages containing notifyRequest
-  const numCPUs = cpus().length;
+  const numCPUs = availableParallelism();
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
   }
@@ -335,7 +335,7 @@ if (cluster.isPrimary) {
   }
 
   // Start workers and listen for messages containing notifyRequest
-  const numCPUs = require('node:os').cpus().length;
+  const numCPUs = require('node:os').availableParallelism();
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
   }
@@ -507,10 +507,10 @@ because of exiting or being signaled). Otherwise, it returns `false`.
 ```mjs
 import cluster from 'node:cluster';
 import http from 'node:http';
-import { cpus } from 'node:os';
+import { availableParallelism } from 'node:os';
 import process from 'node:process';
 
-const numCPUs = cpus().length;
+const numCPUs = availableParallelism();
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -540,7 +540,7 @@ if (cluster.isPrimary) {
 ```cjs
 const cluster = require('node:cluster');
 const http = require('node:http');
-const numCPUs = require('node:os').cpus().length;
+const numCPUs = require('node:os').availableParallelism();
 const process = require('node:process');
 
 if (cluster.isPrimary) {
