@@ -456,11 +456,6 @@ added: v12.3.0
 
 Enable experimental WebAssembly module support.
 
-### `--experimental-join-authorization-headers`
-
-Enable experimental joining of the field line values of
-multiple `Authorization` headers in a request.
-
 ### `--force-context-aware`
 
 <!-- YAML
@@ -1889,7 +1884,6 @@ Node.js options that are allowed are:
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-wasm-modules`
-* `--experimental-join-authorization-headers`
 * `--force-context-aware`
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`

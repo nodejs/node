@@ -115,7 +115,6 @@ class EnvironmentOptions : public Options {
   bool experimental_global_web_crypto = true;
   bool experimental_https_modules = false;
   bool experimental_wasm_modules = false;
-  bool experimental_join_authorization_headers = false;
   bool experimental_import_meta_resolve = false;
   std::string module_type;
   std::string experimental_policy;
