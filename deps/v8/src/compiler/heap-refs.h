@@ -56,7 +56,8 @@ class PropertyAccessInfo;
 enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas, kDefine };
 
 inline bool IsAnyStore(AccessMode mode) {
-  return mode == AccessMode::kStore || mode == AccessMode::kStoreInLiteral;
+  return mode == AccessMode::kStore || mode == AccessMode::kStoreInLiteral ||
+         mode == AccessMode::kDefine;
 }
 
 enum class OddballType : uint8_t {
