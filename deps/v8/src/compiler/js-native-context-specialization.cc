@@ -2896,7 +2896,7 @@ JSNativeContextSpecialization::BuildElementAccess(
 
     // Don't try to store to a copy-on-write backing store (unless supported by
     // the store mode).
-    if (keyed_mode.access_mode() == AccessMode::kStore &&
+    if (IsAnyStore(keyed_mode.access_mode()) &&
         IsSmiOrObjectElementsKind(elements_kind) &&
         !IsCOWHandlingStoreMode(keyed_mode.store_mode())) {
       effect = graph()->NewNode(
