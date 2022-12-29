@@ -3447,6 +3447,7 @@ changes:
   * `joinDuplicateHeaders` {boolean} It joins the field line values of
     multiple headers in a request with ` ,` instead of discarding
     the duplicates. See [`message.headers`][] for more information.
+    **Default:** `false`.
 * `callback` {Function}
 * Returns: {http.ClientRequest}
 
