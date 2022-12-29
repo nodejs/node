@@ -2451,11 +2451,12 @@ header name:
   `etag`, `expires`, `from`, `host`, `if-modified-since`, `if-unmodified-since`,
   `last-modified`, `location`, `max-forwards`, `proxy-authorization`, `referer`,
   `retry-after`, `server`, or `user-agent` are discarded.
+  To allow duplicate values of the headers listed above to be joined,
+  use the option `joinDuplicateHeaders` in [`http.request()`][]
+  and [`http.createServer()`][].
 * `set-cookie` is always an array. Duplicates are added to the array.
 * For duplicate `cookie` headers, the values are joined together with `; `.
 * For all other headers, the values are joined together with `, `.
-* To allow duplicate values of `authorization` see the option
-  `joinAuthorizationHeaders` in [`http.request()`][]
 
 ### `message.headersDistinct`
 
@@ -3184,9 +3185,9 @@ changes:
     a 400 (Bad Request) status code to any HTTP/1.1 request message
     that lacks a Host header (as mandated by the specification).
     **Default:** `true`.
-  * `joinAuthorizationHeaders` {boolean} It joins the field line values of
-    multiple `Authorization` headers in a request
-    with ` ,` instead of discarding the duplicates.
+  * `joinDuplicateHeaders` {boolean} It joins the field line values of multiple
+    headers in a request with ` ,` instead of discarding the duplicates.
+    See [`message.headers`][] for more information.
     **Default:** `false`.
   * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
     to be used. Useful for extending the original `ServerResponse`. **Default:**
@@ -3443,9 +3444,9 @@ changes:
   * `uniqueHeaders` {Array} A list of request headers that should be sent
     only once. If the header's value is an array, the items will be joined
     using `; `.
-  * `joinAuthorizationHeaders` {boolean} It joins the field line values of
-    multiple `Authorization` headers in a request
-    with ` ,` instead of discarding the duplicates.
+  * `joinDuplicateHeaders` {boolean} It joins the field line values of
+    multiple headers in a request with ` ,` instead of discarding
+    the duplicates. See [`message.headers`][] for more information.
 * `callback` {Function}
 * Returns: {http.ClientRequest}
 
@@ -3759,6 +3760,7 @@ Set the maximum number of idle HTTP parsers. **Default:** `1000`.
 [`http.IncomingMessage`]: #class-httpincomingmessage
 [`http.ServerResponse`]: #class-httpserverresponse
 [`http.Server`]: #class-httpserver
+[`http.createServer()`]: #httpcreateserveroptions-requestlistener
 [`http.get()`]: #httpgetoptions-callback
 [`http.globalAgent`]: #httpglobalagent
 [`http.request()`]: #httprequestoptions-callback
