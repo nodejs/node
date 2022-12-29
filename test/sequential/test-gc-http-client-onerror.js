@@ -6,7 +6,7 @@
 const common = require('../common');
 const onGC = require('../common/ongc');
 
-const cpus = require('os').cpus().length;
+const cpus = require('os').availableParallelism();
 
 function serverHandler(req, res) {
   req.resume();
