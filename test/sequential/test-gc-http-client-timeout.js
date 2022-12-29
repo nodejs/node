@@ -16,7 +16,7 @@ function serverHandler(req, res) {
   }, 100);
 }
 
-const cpus = os.cpus().length;
+const cpus = os.availableParallelism();
 const numRequests = 36;
 let createClients = true;
 let done = 0;
