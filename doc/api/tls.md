@@ -1173,7 +1173,9 @@ certificate.
 
 <!-- YAML
 changes:
-  - version: v19.1.0
+  - version:
+      - v19.1.0
+      - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/44935
     description: Add "ca" property.
   - version:

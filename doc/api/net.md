@@ -875,7 +875,9 @@ changes:
     description: The default value for autoSelectFamily option can be changed
                  at runtime using `setDefaultAutoSelectFamily` or via the
                  command line option `--enable-network-family-autoselection`.
-  - version: v19.3.0
+  - version:
+      - v19.3.0
+      - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/44731
     description: Added the `autoSelectFamily` option.
   - version:

@@ -1521,7 +1521,9 @@ The formatting process operates as follows:
 <!-- YAML
 added: v0.1.25
 changes:
-  - version: v19.0.0
+  - version:
+      - v19.0.0
+      - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/44919
     description: Documentation-only deprecation.
   - version:

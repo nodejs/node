@@ -2288,7 +2288,9 @@ future release.
 
 <!-- YAML
 changes:
-  - version: v19.0.0
+  - version:
+      - v19.0.0
+      - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/44919
     description: \`url.parse()` is deprecated again in DEP0169.
   - version:
@@ -3288,6 +3290,7 @@ Node-API callbacks.
 changes:
   - version:
       - v19.0.0
+      - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/44919
     description: Documentation-only deprecation.
 -->
@@ -3307,7 +3310,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/45526
     description: Runtime deprecation.
   - version:
-    - v19.2.0
+      - v19.2.0
+      - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/45576
     description: Documentation-only deprecation.
 -->
@@ -3324,6 +3328,7 @@ an error in future versions of Node.js, as the [WHATWG URL API][] does already.
 changes:
   - version:
       - v19.3.0
+      - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/45697
     description: Documentation-only deprecation.
 -->
