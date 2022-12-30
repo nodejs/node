@@ -123,7 +123,9 @@ added:
  - v13.10.0
  - v12.17.0
 changes:
- - version: v19.2.0
+ - version:
+    - v19.2.0
+    - v18.13.0
    pr-url: https://github.com/nodejs/node/pull/45386
    description: Add option onPropagate.
 -->

@@ -347,7 +347,9 @@ console.log(globalVar);
 ### `script.sourceMapURL`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 * {string|undefined}

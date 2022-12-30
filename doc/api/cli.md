@@ -429,7 +429,9 @@ Use this flag to disable top-level await in REPL.
 ### `--experimental-shadow-realm`
 
 <!-- YAML
-added: v19.0.0
+added:
+  - v19.0.0
+  - v18.13.0
 -->
 
 Use this flag to enable [ShadowRealm][] support.
@@ -1219,7 +1221,9 @@ added:
   - v18.1.0
   - v16.17.0
 changes:
-  - version: v19.2.0
+  - version:
+      - v19.2.0
+      - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/45214
     description: Test runner now supports running in watch mode.
 -->
@@ -1611,7 +1615,9 @@ added:
   - v18.11.0
   - v16.19.0
 changes:
-  - version: v19.2.0
+  - version:
+      - v19.2.0
+      - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/45214
     description: Test runner now supports running in watch mode.
 -->
