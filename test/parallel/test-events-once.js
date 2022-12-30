@@ -27,7 +27,7 @@ async function onceAnEvent() {
 async function onceAnEventWithInvalidOptions() {
   const ee = new EventEmitter();
 
-  await Promise.all([1, 'hi', null, false].map((options) => {
+  await Promise.all([1, 'hi', null, false, () => {}, Symbol(), 1n].map((options) => {
     return rejects(once(ee, 'myevent', options), {
       code: 'ERR_INVALID_ARG_TYPE',
     });
