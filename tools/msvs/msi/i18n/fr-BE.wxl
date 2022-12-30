@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="en-us" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+    <!-- See https://msdn.microsoft.com/en-us/goglobal/bb964664.aspx -->
+    <String Id="LocaleId">1033</String>
+
+    <String Id="WelcomeDlgDescription">L'assistant d'installation va installer [ProductName] sur votre ordinateur.</String>
+    <String Id="InstallDirDlgDescription">Choisissez un emplacement personnalisé ou cliquez sur Suivant pour installer.</String>
+
+    <String Id="MajorUpgrade_DowngradeErrorMessage">Une version ultérieure de [ProductName] est déjà installée. Le programme d'installation va maintenant se terminer.</String>
+
+    <String Id="NativeToolsDlg_Title">[ProductName] Setup</String>
+    <String Id="NativeToolsDlgTitle">{\WixUI_Font_Title}Outils pour les modules natifs</String>
+    <String Id="NativeToolsDlgDescription">En option, installez les outils nécessaires à la compilation des modules natifs.</String>
+    <String Id="NativeToolsDlgBannerBitmap">WixUI_Bmp_Banner</String>
+    <String Id="NativeToolsDlgIntro">Certains modules npm doivent être compilés à partir de C/C++ lors de l'installation. Si vous voulez être en mesure d'installer de tels modules, certains outils (Python et Visual Studio Build Tools) doivent être installés.</String>
+    <String Id="NativeToolsDlgInstallCheckbox">Installer automatiquement les outils nécessaires. Notez que cela installera également Chocolatey. Le script s'affichera dans une nouvelle fenêtre une fois l'installation terminée.</String>
+    <String Id="NativeToolsDlgManualDetails">Vous pouvez également suivre les instructions à l'adresse suivante <![CDATA[<a href="https://github.com/nodejs/node-gyp#on-windows">https://github.com/nodejs/node-gyp#on-windows</a>]]> pour installer les dépendances vous-même.</String>
+
+    <!-- References like [ProductName] or $(var.ProductName) don't seem to work in Title attributes -->
+    <String Id="NodeRuntime_Title">Exécution de Node.js</String>
+    <String Id="NodeRuntime_Description">Installez le runtime de base de [ProductName] (node.exe).</String>
+
+    <String Id="npm_Title">npm package manager</String>
+    <String Id="npm_Description">Installez npm, le gestionnaire de paquets recommandé pour [ProductName].</String>
+
+    <String Id="corepack_Title">corepack manager</String>
+    <String Id="corepack_Description">Installez corepack, le gestionnaire de paquets universel pour [ProductName].</String>
+
+    <String Id="DocumentationShortcuts_Title">Raccourcis de la documentation en ligne</String>
+    <String Id="DocumentationShortcuts_Description">Ajoutez des entrées de menu de démarrage qui renvoient à la documentation en ligne de [ProductName] [FullVersion]  et au site Web de [ProductName].</String>
+
+    <String Id="EnvironmentPath_Title">Ajouter à PATH</String>
+    <String Id="EnvironmentPath_Description">Ajoutez [ProductName], npm et les modules qui ont été globalement installés par npm à la variable d'environnement PATH.</String>
+
+    <String Id="EnvironmentPathNode_Title">Node.js and npm</String>
+    <String Id="EnvironmentPathNode_Description">Ajoutez [ProductName] et npm (si installé) à la variable d'environnement PATH.</String>
+
+    <String Id="EnvironmentPathNpmModules_Title">npm modules</String>
+    <String Id="EnvironmentPathNpmModules_Description">Ajouter les modules qui sont installés globalement par npm à la variable d'environnement PATH. Cette option ne fonctionne que pour l'utilisateur actuel ; les autres utilisateurs doivent mettre à jour leur PATH manuellement.</String>
+
+    <!-- References like [ProductName] are not resolved for Property tags -->
+    <String Id="WIXUI_EXITDIALOGOPTIONALTEXT">Node.js a été installé avec succès.</String>
+</WixLocalization>
