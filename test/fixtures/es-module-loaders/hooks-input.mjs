@@ -17,7 +17,7 @@ export async function resolve(specifier, context, next) {
   if (resolveCalls === 1) {
     url = new URL(specifier).href;
     assert.match(specifier, /json-modules\.mjs$/);
-    assert.deepStrictEqual(context.parentURL, undefined);
+    assert.strictEqual(context.parentURL, undefined);
     assert.deepStrictEqual(context.importAssertions, {
       __proto__: null,
     });
@@ -32,13 +32,13 @@ export async function resolve(specifier, context, next) {
   }
 
   // Ensure `context` has all and only the properties it's supposed to
-  assert.deepStrictEqual(Object.keys(context), [
+  assert.deepStrictEqual(Reflect.ownKeys(context), [
     'conditions',
     'importAssertions',
     'parentURL',
   ]);
   assert.ok(Array.isArray(context.conditions));
-  assert.deepStrictEqual(typeof next, 'function');
+  assert.strictEqual(typeof next, 'function');
 
   const returnValue = {
     url,
@@ -77,8 +77,8 @@ export async function load(url, context, next) {
     'format',
     'importAssertions',
   ]);
-  assert.deepStrictEqual(context.format, 'test');
-  assert.deepStrictEqual(typeof next, 'function');
+  assert.strictEqual(context.format, 'test');
+  assert.strictEqual(typeof next, 'function');
 
   const returnValue = {
     source,
