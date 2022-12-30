@@ -2,7 +2,6 @@
 // node --loader ./test/fixtures/es-module-loaders/hooks-input.mjs ./test/fixtures/es-modules/json-modules.mjs
 
 import assert from 'assert';
-import { write } from 'fs';
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
 
@@ -46,7 +45,7 @@ export async function resolve(specifier, context, next) {
     shortCircuit: true,
   }
 
-  await new Promise(resolve => write(1, `${JSON.stringify(returnValue)}\n`, resolve)); // For the test to read
+  console.log(JSON.stringify(returnValue)); // For the test to validate when it parses stdout
 
   return returnValue;
 }
@@ -86,7 +85,7 @@ export async function load(url, context, next) {
     shortCircuit: true,
   };
 
-  await new Promise(resolve => write(1, `${JSON.stringify(returnValue)}\n`, resolve)); // For the test to read
+  console.log(JSON.stringify(returnValue)); // For the test to validate when it parses stdout
 
   return returnValue;
 }
