@@ -3,7 +3,7 @@
 <!-- YAML
 added: v15.1.0
 changes:
-  - version: REPLACEME
+  - version: v18.13.0
     pr-url: https://github.com/nodejs/node/pull/45290
     description: diagnostics_channel is now Stable.
 -->

@@ -418,7 +418,7 @@ Use this flag to disable top-level await in REPL.
 ### `--experimental-shadow-realm`
 
 <!-- YAML
-added: REPLACEME
+added: v18.13.0
 -->
 
 Use this flag to enable [ShadowRealm][] support.
@@ -1199,7 +1199,7 @@ status code 1.
 <!-- YAML
 added: v18.1.0
 changes:
-  - version: REPLACEME
+  - version: v18.13.0
     pr-url: https://github.com/nodejs/node/pull/45214
     description: Test runner now supports running in watch mode.
 -->
@@ -1567,7 +1567,7 @@ amount of CPUs, but it may diverge in environments such as VMs or containers.
 <!-- YAML
 added: v18.11.0
 changes:
-  - version: REPLACEME
+  - version: v18.13.0
     pr-url: https://github.com/nodejs/node/pull/45214
     description: Test runner now supports running in watch mode.
 -->

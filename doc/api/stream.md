@@ -1684,7 +1684,7 @@ has less then 64 KiB of data because no `highWaterMark` option is provided to
 ##### `readable.compose(stream[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.13.0
 -->
 
 > Stability: 1 - Experimental

@@ -347,7 +347,7 @@ console.log(globalVar);
 ### `script.sourceMapURL`
 
 <!-- YAML
-added: REPLACEME
+added: v18.13.0
 -->
 
 * {string|undefined}

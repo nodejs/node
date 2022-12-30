@@ -854,7 +854,7 @@ behavior.
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v18.13.0
     pr-url: https://github.com/nodejs/node/pull/44731
     description: Added the `autoSelectFamily` option.
   - version: v17.7.0

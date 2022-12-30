@@ -1173,7 +1173,7 @@ certificate.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.13.0
     pr-url: https://github.com/nodejs/node/pull/44935
     description: Add "ca" property.
   - version:
