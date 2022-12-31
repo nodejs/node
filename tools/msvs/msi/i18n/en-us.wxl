@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="en-us" xmlns="http://schemas.microsoft.com/wix/2006/localization">
     <!-- See https://msdn.microsoft.com/en-us/goglobal/bb964664.aspx -->
-    <String Id="LocaleId">0x080C</String>
+    <String Id="LocaleId">1033</String>
 
     <String Id="WelcomeDlgDescription">The Setup Wizard will install [ProductName] on your computer.</String>
     <String Id="InstallDirDlgDescription">Choose a custom location or click Next to install.</String>

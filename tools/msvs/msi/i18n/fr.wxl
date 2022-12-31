@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="en-us" xmlns="http://schemas.microsoft.com/wix/2006/localization">
     <!-- See https://msdn.microsoft.com/en-us/goglobal/bb964664.aspx -->
-    <String Id="LocaleId">1033</String>
+    <String Id="LocaleId">0x000C</String>
 
     <String Id="WelcomeDlgDescription">L'assistant d'installation va installer [ProductName] sur votre ordinateur.</String>
     <String Id="InstallDirDlgDescription">Choisissez un emplacement personnalisé ou cliquez sur Suivant pour installer.</String>
