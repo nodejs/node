@@ -929,6 +929,7 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
   // Move eval calls since Snapshot's creation into new_parent.
   if (outer_scope_->calls_eval_) {
     new_parent->RecordEvalCall();
+    outer_scope_->calls_eval_ = false;
     declaration_scope_->sloppy_eval_can_extend_vars_ = false;
   }
 }
