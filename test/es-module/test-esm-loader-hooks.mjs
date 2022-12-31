@@ -1,83 +1,26 @@
-// Flags: --expose-internals
-import { mustCall } from '../common/index.mjs';
-import esmLoaderModule from 'internal/modules/esm/loader';
-import assert from 'assert';
+import { spawnPromisified } from '../common/index.mjs';
+import * as fixtures from '../common/fixtures.mjs';
+import assert from 'node:assert';
+import { execPath } from 'node:process';
+import { describe, it } from 'node:test';
 
-const { ESMLoader } = esmLoaderModule;
-
-/**
- * Verify custom hooks are called with appropriate arguments.
- */
-{
-  const esmLoader = new ESMLoader();
-
-  const originalSpecifier = 'foo/bar';
-  const importAssertions = {
-    __proto__: null,
-    type: 'json',
-  };
-  const parentURL = 'file:///entrypoint.js';
-  const resolvedURL = 'file:///foo/bar.js';
-  const suggestedFormat = 'test';
-
-  function resolve(specifier, context, defaultResolve) {
-    assert.strictEqual(specifier, originalSpecifier);
-    // Ensure `context` has all and only the properties it's supposed to
-    assert.deepStrictEqual(Object.keys(context), [
-      'conditions',
-      'importAssertions',
-      'parentURL',
+describe('Loader hooks', () => {
+  it('are called with all expected arguments', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-loader',
+      fixtures.fileURL('/es-module-loaders/hooks-input.mjs'),
+      fixtures.path('/es-modules/json-modules.mjs'),
     ]);
-    assert.ok(Array.isArray(context.conditions));
-    assert.deepStrictEqual(context.importAssertions, importAssertions);
-    assert.strictEqual(context.parentURL, parentURL);
-    assert.strictEqual(typeof defaultResolve, 'function');
 
-    return {
-      format: suggestedFormat,
-      shortCircuit: true,
-      url: resolvedURL,
-    };
-  }
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
 
-  function load(resolvedURL, context, defaultLoad) {
-    assert.strictEqual(resolvedURL, resolvedURL);
-    assert.ok(new URL(resolvedURL));
-    // Ensure `context` has all and only the properties it's supposed to
-    assert.deepStrictEqual(Object.keys(context), [
-      'format',
-      'importAssertions',
-    ]);
-    assert.strictEqual(context.format, suggestedFormat);
-    assert.deepStrictEqual(context.importAssertions, importAssertions);
-    assert.strictEqual(typeof defaultLoad, 'function');
-
-    // This doesn't matter (just to avoid errors)
-    return {
-      format: 'module',
-      shortCircuit: true,
-      source: '',
-    };
-  }
-
-  const customLoader = [
-    {
-      exports: {
-        // Ensure ESMLoader actually calls the custom hooks
-        resolve: mustCall(resolve),
-        load: mustCall(load),
-      },
-      url: import.meta.url,
-    },
-  ];
-
-  esmLoader.addCustomLoaders(customLoader);
-
-  // Manually trigger hooks (since ESMLoader is not actually running)
-  const job = await esmLoader.getModuleJob(
-    originalSpecifier,
-    parentURL,
-    importAssertions,
-  );
-  await job.modulePromise;
-}
+    const lines = stdout.split('\n');
+    assert.match(lines[0], /{"url":"file:\/\/\/.*\/json-modules\.mjs","format":"test","shortCircuit":true}/);
+    assert.match(lines[1], /{"source":{"type":"Buffer","data":\[.*\]},"format":"module","shortCircuit":true}/);
+    assert.match(lines[2], /{"url":"file:\/\/\/.*\/experimental\.json","format":"test","shortCircuit":true}/);
+    assert.match(lines[3], /{"source":{"type":"Buffer","data":\[.*\]},"format":"json","shortCircuit":true}/);
+  });
+});
