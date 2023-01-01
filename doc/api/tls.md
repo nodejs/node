@@ -29,7 +29,7 @@ let tls;
 try {
   tls = require('node:tls');
 } catch (err) {
-  console.log('tls support is disabled!');
+  console.error('tls support is disabled!');
 }
 ```
 
@@ -47,7 +47,7 @@ let tls;
 try {
   tls = await import('node:tls');
 } catch (err) {
-  console.log('tls support is disabled!');
+  console.error('tls support is disabled!');
 }
 ```
 
