@@ -278,7 +278,7 @@ setImmediatePromise('foobar', { signal })
   .then(console.log)
   .catch((err) => {
     if (err.name === 'AbortError')
-      console.log('The immediate was aborted');
+      console.error('The immediate was aborted');
   });
 
 ac.abort();
@@ -296,7 +296,7 @@ setTimeoutPromise(1000, 'foobar', { signal })
   .then(console.log)
   .catch((err) => {
     if (err.name === 'AbortError')
-      console.log('The timeout was aborted');
+      console.error('The timeout was aborted');
   });
 
 ac.abort();
