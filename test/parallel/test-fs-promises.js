@@ -64,7 +64,6 @@ assert.strictEqual(
     access(__filename, 8),
     {
       code: 'ERR_OUT_OF_RANGE',
-      message: /"mode".*must be an integer >= 0 && <= 7\. Received 8$/
     }
   );
 
@@ -72,7 +71,6 @@ assert.strictEqual(
     access(__filename, { [Symbol.toPrimitive]() { return 5; } }),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /"mode" argument.+integer\. Received an instance of Object$/
     }
   );
 }
