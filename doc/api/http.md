@@ -2422,6 +2422,13 @@ as an argument to any listeners on the event.
 <!-- YAML
 added: v0.1.5
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45982
+    description: >-
+     The `joinDuplicateHeaders` option in the `http.request()`
+     and `http.createServer()` functions ensures that duplicate
+     headers are not discarded, but rather combined using a
+     comma separator, in accordance with RFC 9110 Section 5.3.
   - version: v15.1.0
     pr-url: https://github.com/nodejs/node/pull/35281
     description: >-
@@ -3446,7 +3453,7 @@ changes:
     only once. If the header's value is an array, the items will be joined
     using `; `.
   * `joinDuplicateHeaders` {boolean} It joins the field line values of
-    multiple headers in a request with ` ,` instead of discarding
+    multiple headers in a request with `, ` instead of discarding
     the duplicates. See [`message.headers`][] for more information.
     **Default:** `false`.
 * `callback` {Function}
