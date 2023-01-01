@@ -3194,7 +3194,7 @@ changes:
     that lacks a Host header (as mandated by the specification).
     **Default:** `true`.
   * `joinDuplicateHeaders` {boolean} It joins the field line values of multiple
-    headers in a request with ` ,` instead of discarding the duplicates.
+    headers in a request with `, ` instead of discarding the duplicates.
     See [`message.headers`][] for more information.
     **Default:** `false`.
   * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
