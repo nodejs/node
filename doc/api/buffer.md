@@ -5137,9 +5137,12 @@ added: REPLACEME
 -->
 
 * input {Buffer | ArrayBuffer | TypedArray} The input to validate.
-* Returns: {boolean} Returns `true` if and only if the input is valid UTF-8.
+* Returns: {boolean}
 
-This function is used to check if input contains UTF-8 code points (characters).
+This function returns `true` if `input` contains only valid UTF-8-encoded data,
+including the case in which `input` is empty.
+
+Throws if the `input` is a detached array buffer.
 
 ### `buffer.INSPECT_MAX_BYTES`
 
