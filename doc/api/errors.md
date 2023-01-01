@@ -2573,6 +2573,13 @@ could not be determined.
 
 An attempt was made to operate on an already closed socket.
 
+<a id="ERR_SOCKET_CLOSED_BEFORE_CONNECTION"></a>
+
+### `ERR_SOCKET_CLOSED_BEFORE_CONNECTION`
+
+When calling [`net.Socket.write()`][] on a connecting socket and the socket was
+closed before the connection was established.
+
 <a id="ERR_SOCKET_DGRAM_IS_CONNECTED"></a>
 
 ### `ERR_SOCKET_DGRAM_IS_CONNECTED`
@@ -3586,6 +3593,7 @@ The native call from `process.cpuUsage` could not be processed.
 [`http`]: http.md
 [`https`]: https.md
 [`libuv Error handling`]: https://docs.libuv.org/en/v1.x/errors.html
+[`net.Socket.write()`]: net.md#socketwritedata-encoding-callback
 [`net`]: net.md
 [`new URL(input)`]: url.md#new-urlinput-base
 [`new URLSearchParams(iterable)`]: url.md#new-urlsearchparamsiterable
