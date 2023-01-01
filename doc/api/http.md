@@ -2453,7 +2453,8 @@ header name:
   `retry-after`, `server`, or `user-agent` are discarded.
   To allow duplicate values of the headers listed above to be joined,
   use the option `joinDuplicateHeaders` in [`http.request()`][]
-  and [`http.createServer()`][].
+  and [`http.createServer()`][]. See RFC 9110 Section 5.3 for more
+  information.
 * `set-cookie` is always an array. Duplicates are added to the array.
 * For duplicate `cookie` headers, the values are joined together with `; `.
 * For all other headers, the values are joined together with `, `.
