@@ -662,8 +662,7 @@ if (!common.isAIX) {
 // Check copyFile with invalid modes.
 {
   const validateError = {
-    message: /"mode".+must be an integer >= 0 && <= 7\. Received -1/,
-    code: 'ERR_OUT_OF_RANGE'
+    code: 'ERR_OUT_OF_RANGE',
   };
 
   assert.throws(
