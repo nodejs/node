@@ -827,6 +827,14 @@ or at runtime with:
 $ ./tools/release.sh -i ~/.ssh/node_id_rsa
 ```
 
+You can also specify a different ssh server address to connect to by defining
+a `NODEJS_RELEASE_HOST` environment variable:
+
+```console
+# Substitute proxy.xyz with whatever address you intend to use
+$ NODEJS_RELEASE_HOST=proxy.xyz ./tools/release.sh
+```
+
 `tools/release.sh` will perform the following actions when run:
 
 <details>
