@@ -703,16 +703,19 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
       if (key_data->GetKeyType() != kKeyTypePrivate)
         return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
       return PKEY_PKCS8_Export(key_data.get(), out);
-    case kWebCryptoKeyFormatSPKI:
+    case kWebCryptoKeyFormatSPKI: {
       if (key_data->GetKeyType() != kKeyTypePublic)
         return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      // Ensure exported key is in uncompressed point format.
-      // The temporary EC key is so we can have i2d_PUBKEY_bio() write out
-      // the header but it is a somewhat silly hoop to jump through because
-      // the header is for all practical purposes a static 26 byte sequence
-      // where only the second byte changes.
-      {
-        ManagedEVPPKey m_pkey = key_data->GetAsymmetricKey();
+
+      ManagedEVPPKey m_pkey = key_data->GetAsymmetricKey();
+      if (EVP_PKEY_id(m_pkey.get()) != EVP_PKEY_EC) {
+        return PKEY_SPKI_Export(key_data.get(), out);
+      } else {
+        // Ensure exported key is in uncompressed point format.
+        // The temporary EC key is so we can have i2d_PUBKEY_bio() write out
+        // the header but it is a somewhat silly hoop to jump through because
+        // the header is for all practical purposes a static 26 byte sequence
+        // where only the second byte changes.
         Mutex::ScopedLock lock(*m_pkey.mutex());
         const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(m_pkey.get());
         const EC_GROUP* group = EC_KEY_get0_group(ec_key);
@@ -744,6 +747,7 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
         *out = ByteSource::FromBIO(bio);
         return WebCryptoKeyExportStatus::OK;
       }
+    }
     default:
       UNREACHABLE();
   }
