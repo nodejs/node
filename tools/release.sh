@@ -8,7 +8,9 @@
 
 set -e
 
-webhost=direct.nodejs.org
+[ -z "$NODEJS_RELEASE_HOST" ] && NODEJS_RELEASE_HOST=direct.nodejs.org
+
+webhost=$NODEJS_RELEASE_HOST
 webuser=dist
 promotablecmd=dist-promotable
 promotecmd=dist-promote
