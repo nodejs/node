@@ -65,7 +65,7 @@ class WrkBenchmarker {
     const args = [
       '-d', duration,
       '-c', options.connections,
-      '-t', Math.min(options.connections, require('os').cpus().length || 8),
+      '-t', Math.min(options.connections, require('os').availableParallelism() || 8),
       `${scheme}://127.0.0.1:${options.port}${options.path}`,
     ];
     for (const field in options.headers) {
