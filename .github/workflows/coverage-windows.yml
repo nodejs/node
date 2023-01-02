@@ -37,7 +37,11 @@ permissions:
 jobs:
   coverage-windows:
     if: github.event.pull_request.draft == false
-    runs-on: windows-2019
+    strategy:
+      matrix:
+        windows: [windows-2019]
+        arch: [x64,arm64]
+    runs-on: ${{matrix.windows}}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -55,7 +59,7 @@ jobs:
       # TODO(bcoe): investigate tests that fail with coverage enabled
       # on Windows.
       - name: Test
-        run: ./vcbuild.bat test-ci-js; node -e 'process.exit(0)'
+        run: ./vcbuild.bat ${{matrix.arch}} test-ci-js; node -e 'process.exit(0)'
         env:
           NODE_V8_COVERAGE: ./coverage/tmp
       - name: Report
