@@ -75,6 +75,7 @@ const expectedModules = new Set([
   'NativeModule internal/util',
   'NativeModule internal/util/debuglog',
   'NativeModule internal/util/inspect',
+  'NativeModule internal/util/safe-property-assignment',
   'NativeModule internal/util/types',
   'NativeModule internal/v8/startup_snapshot',
   'NativeModule internal/validators',
