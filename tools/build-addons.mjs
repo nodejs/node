@@ -11,7 +11,7 @@ import os from 'node:os';
 
 const execFile = util.promisify(child_process.execFile);
 
-const parallelization = +process.env.JOBS || os.cpus().length;
+const parallelization = +process.env.JOBS || os.availableParallelism();
 const nodeGyp = process.argv[2];
 const directory = process.argv[3];
 
