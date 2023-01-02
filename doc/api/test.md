@@ -1222,6 +1222,8 @@ object, streaming a series of events representing the execution of the tests.
 ### Event: `'test:diagnostic'`
 
 * `data` {Object}
+  * `file` {string|undefined} The path of the test file,
+    undefined if test is not ran through a file.
   * `message` {string} The diagnostic message.
   * `nesting` {number} The nesting level of the test.
 
@@ -1233,6 +1235,8 @@ Emitted when [`context.diagnostic`][] is called.
   * `details` {Object} Additional execution metadata.
     * `duration` {number} The duration of the test in milliseconds.
     * `error` {Error} The error thrown by the test.
+  * `file` {string|undefined} The path of the test file,
+    undefined if test is not ran through a file.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
   * `testNumber` {number} The ordinal number of the test.
@@ -1246,6 +1250,8 @@ Emitted when a test fails.
 * `data` {Object}
   * `details` {Object} Additional execution metadata.
     * `duration` {number} The duration of the test in milliseconds.
+  * `file` {string|undefined} The path of the test file,
+    undefined if test is not ran through a file.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
   * `testNumber` {number} The ordinal number of the test.
@@ -1257,6 +1263,8 @@ Emitted when a test passes.
 ### Event: `'test:plan'`
 
 * `data` {Object}
+  * `file` {string|undefined} The path of the test file,
+    undefined if test is not ran through a file.
   * `nesting` {number} The nesting level of the test.
   * `count` {number} The number of subtests that have ran.
 
@@ -1265,6 +1273,8 @@ Emitted when all subtests have completed for a given test.
 ### Event: `'test:start'`
 
 * `data` {Object}
+  * `file` {string|undefined} The path of the test file,
+    undefined if test is not ran through a file.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
 
