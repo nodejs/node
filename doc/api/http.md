@@ -1516,7 +1516,7 @@ added:
  - v11.3.0
  - v10.14.0
 changes:
-  - version: REPLACEME
+  - version: v19.4.0
     pr-url: https://github.com/nodejs/node/pull/45778
     description: The default is now set to the minimum between 60000 (60 seconds) or `requestTimeout`.
 -->
