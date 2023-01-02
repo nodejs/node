@@ -343,7 +343,7 @@ async function testDeriveBitsMissingSalt(
 
   return assert.rejects(
     subtle.deriveBits(algorithm, baseKeys[size], 0), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_MISSING_OPTION'
     });
 }
 
@@ -361,7 +361,7 @@ async function testDeriveBitsMissingInfo(
 
   return assert.rejects(
     subtle.deriveBits(algorithm, baseKeys[size], 0), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_MISSING_OPTION'
     });
 }
 

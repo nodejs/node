@@ -382,7 +382,7 @@ async function setupBaseKeys() {
     promises.push(
       subtle.importKey(
         'raw',
-        kPasswords[size],
+        Buffer.from(kPasswords[size], 'hex'),
         { name: 'PBKDF2' },
         false,
         ['deriveBits'])
@@ -391,7 +391,7 @@ async function setupBaseKeys() {
     promises.push(
       subtle.importKey(
         'raw',
-        kPasswords[size],
+        Buffer.from(kPasswords[size], 'hex'),
         { name: 'PBKDF2' },
         false,
         ['deriveKey'])
@@ -474,7 +474,7 @@ async function testDeriveBitsBadHash(
   hash,
   iterations) {
   const salt = Buffer.from(kSalts[saltSize], 'hex');
-  const algorithm = { name: 'HKDF', salt, iterations };
+  const algorithm = { name: 'PBKDF2', salt, iterations };
 
   return Promise.all([
     assert.rejects(

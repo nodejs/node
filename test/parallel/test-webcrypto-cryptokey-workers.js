@@ -25,7 +25,7 @@ const sig = '13691a79fb55a0417e4d6699a32f91ad29283fa2c1439865cc0632931f4f48dc';
 async function doSig(key) {
   const signature = await subtle.sign({
     name: 'HMAC'
-  }, key, 'some data');
+  }, key, Buffer.from('some data'));
   assert.strictEqual(Buffer.from(signature).toString('hex'), sig);
 }
 
