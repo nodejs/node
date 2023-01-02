@@ -4,11 +4,7 @@ on: [push, pull_request]
 
 jobs:
   build-windows:
-    strategy:
-      matrix:
-        windows: [windows-2019,windows-latest]
-        arch: [x64,arm64]
-    runs-on: ${{matrix.windows}}
+    runs-on: windows-latest
     steps:
       - name: Clone gyp-next
         uses: actions/checkout@v3
@@ -28,4 +24,4 @@ jobs:
       - name: Build Node.js
         run: |
           cd node
-          ./vcbuild.bat ${{matrix.arch}}
+          ./vcbuild.bat
