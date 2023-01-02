@@ -39,7 +39,8 @@ body { margin: 0; padding: 10px; }
 
 promise_test(async t => {
   await new test_driver.Actions().scroll(50, 50, 0, 50).send();
-  assert_equals(scroller.scrollTop, 50);
+  // Allow the possibility the scroll is not fully synchronous
+  await t.step_wait(() => scroller.scrollTop === 50);
 }, "Wheel scroll in iframe chains to containing element.");
 
 </script>
