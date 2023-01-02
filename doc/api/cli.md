@@ -317,7 +317,7 @@ against FIPS-compatible OpenSSL.)
 ### `--enable-network-family-autoselection`
 
 <!-- YAML
-added: REPLACEME
+added: v19.4.0
 -->
 
 Enables the family autoselection algorithm unless connection options explicitly
