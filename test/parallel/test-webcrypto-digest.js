@@ -67,10 +67,16 @@ const kData = (new TextEncoder()).encode('hello');
 })().then(common.mustCall());
 
 Promise.all([1, null, undefined].map((i) =>
-  assert.rejects(subtle.digest(i, Buffer.alloc(0)), { message: /Unrecognized name/ })
+  assert.rejects(subtle.digest(i, Buffer.alloc(0)), {
+    message: /Unrecognized algorithm name/,
+    name: 'NotSupportedError',
+  })
 )).then(common.mustCall());
 
-assert.rejects(subtle.digest('', Buffer.alloc(0)), { message: /Unrecognized name/ }).then(common.mustCall());
+assert.rejects(subtle.digest('', Buffer.alloc(0)), {
+  message: /Unrecognized algorithm name/,
+  name: 'NotSupportedError',
+}).then(common.mustCall());
 
 Promise.all([1, [], {}, null, undefined].map((i) =>
   assert.rejects(subtle.digest('SHA-256', i), {

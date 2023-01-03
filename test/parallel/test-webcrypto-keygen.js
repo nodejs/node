@@ -164,7 +164,8 @@ const vectors = {
       // The extractable and usages values are invalid here also,
       // but the unrecognized algorithm name should be caught first.
       subtle.generateKey(algorithm, 7, []), {
-        message: /Unrecognized name/
+        message: /Unrecognized algorithm name/,
+        name: 'NotSupportedError',
       });
   }
 
@@ -345,7 +346,8 @@ const vectors = {
         publicExponent,
         hash
       }, true, usages), {
-        message: /Unrecognized name/
+        message: /Unrecognized algorithm name/,
+        name: 'NotSupportedError',
       });
     }));
 
@@ -564,7 +566,8 @@ const vectors = {
     [1, false, null].forEach(async (hash) => {
       await assert.rejects(
         subtle.generateKey({ name: 'HMAC', length, hash }, true, usages), {
-          message: /Unrecognized name/
+          message: /Unrecognized algorithm name/,
+          name: 'NotSupportedError',
         });
     });
   }
