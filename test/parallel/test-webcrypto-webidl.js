@@ -9,6 +9,7 @@ const assert = require('assert');
 
 const webidl = require('internal/crypto/webidl');
 
+const { converters } = webidl;
 const prefix = "Failed to execute 'fn' on 'interface'";
 
 {
@@ -26,4 +27,24 @@ const prefix = "Failed to execute 'fn' on 'interface'";
 
   // Does not throw when extra are added
   webidl.requiredArguments(4, 3, { prefix });
+}
+
+{
+  assert.strictEqual(converters.boolean(0), false);
+  assert.strictEqual(converters.boolean(NaN), false);
+  assert.strictEqual(converters.boolean(undefined), false);
+  assert.strictEqual(converters.boolean(null), false);
+  assert.strictEqual(converters.boolean(false), false);
+  assert.strictEqual(converters.boolean(''), false);
+
+  assert.strictEqual(converters.boolean(1), true);
+  assert.strictEqual(converters.boolean(Number.POSITIVE_INFINITY), true);
+  assert.strictEqual(converters.boolean(Number.NEGATIVE_INFINITY), true);
+  assert.strictEqual(converters.boolean('1'), true);
+  assert.strictEqual(converters.boolean('0'), true);
+  assert.strictEqual(converters.boolean('false'), true);
+  assert.strictEqual(converters.boolean(function() {}), true);
+  assert.strictEqual(converters.boolean(Symbol()), true);
+  assert.strictEqual(converters.boolean([]), true);
+  assert.strictEqual(converters.boolean({}), true);
 }
