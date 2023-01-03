@@ -881,6 +881,11 @@ void SetMethod(v8::Local<v8::Context> context,
                v8::Local<v8::Object> that,
                const char* name,
                v8::FunctionCallback callback);
+// Similar to SetProtoMethod but without receiver signature checks.
+void SetMethod(v8::Isolate* isolate,
+               v8::Local<v8::Template> that,
+               const char* name,
+               v8::FunctionCallback callback);
 
 void SetFastMethod(v8::Local<v8::Context> context,
                    v8::Local<v8::Object> that,
@@ -922,6 +927,20 @@ void SetConstructorFunction(v8::Local<v8::Context> context,
 
 void SetConstructorFunction(v8::Local<v8::Context> context,
                             v8::Local<v8::Object> that,
+                            v8::Local<v8::String> name,
+                            v8::Local<v8::FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag =
+                                SetConstructorFunctionFlag::SET_CLASS_NAME);
+
+void SetConstructorFunction(v8::Isolate* isolate,
+                            v8::Local<v8::Template> that,
+                            const char* name,
+                            v8::Local<v8::FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag =
+                                SetConstructorFunctionFlag::SET_CLASS_NAME);
+
+void SetConstructorFunction(v8::Isolate* isolate,
+                            v8::Local<v8::Template> that,
                             v8::Local<v8::String> name,
                             v8::Local<v8::FunctionTemplate> tmpl,
                             SetConstructorFunctionFlag flag =

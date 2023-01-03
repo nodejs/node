@@ -13,6 +13,7 @@ using v8::DEFAULT;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
 using v8::IntegrityLevel;
 using v8::Isolate;
 using v8::Local;
@@ -20,6 +21,7 @@ using v8::MaybeLocal;
 using v8::Name;
 using v8::None;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::PropertyCallbackInfo;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
@@ -371,8 +373,9 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
 // Returns Local<Function> of the compiled module if return_code_cache
 // is false (we are only compiling the function).
 // Otherwise return a Local<Object> containing the cache.
-MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
-    Local<Context> context, const char* id, Environment* optional_env) {
+MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
+                                                     const char* id,
+                                                     Realm* optional_realm) {
   Result result;
   std::vector<Local<String>> parameters;
   Isolate* isolate = context->GetIsolate();
@@ -426,8 +429,8 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
 
   MaybeLocal<Function> maybe = GetInstance()->LookupAndCompileInternal(
       context, id, &parameters, &result);
-  if (optional_env != nullptr) {
-    RecordResult(id, result, optional_env);
+  if (optional_realm != nullptr) {
+    RecordResult(id, result, optional_realm);
   }
   return maybe;
 }
@@ -482,18 +485,17 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
     // all the other cases: the arguments are generated in the JS-land loader.
     UNREACHABLE();
   }
-  return CompileAndCall(
-      context, id, arguments.size(), arguments.data(), realm->env());
+  return CompileAndCall(context, id, arguments.size(), arguments.data(), realm);
 }
 
 MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
                                                 const char* id,
                                                 int argc,
                                                 Local<Value> argv[],
-                                                Environment* optional_env) {
+                                                Realm* optional_realm) {
   // Arguments must match the parameters specified in
   // BuiltinLoader::LookupAndCompile().
-  MaybeLocal<Function> maybe_fn = LookupAndCompile(context, id, optional_env);
+  MaybeLocal<Function> maybe_fn = LookupAndCompile(context, id, optional_realm);
   Local<Function> fn;
   if (!maybe_fn.ToLocal(&fn)) {
     return MaybeLocal<Value>();
@@ -596,44 +598,44 @@ void BuiltinLoader::GetBuiltinCategories(
 }
 
 void BuiltinLoader::GetCacheUsage(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
+  Realm* realm = Realm::GetCurrent(args);
+  Isolate* isolate = realm->isolate();
+  Local<Context> context = realm->context();
   Local<Object> result = Object::New(isolate);
 
   Local<Value> builtins_with_cache_js;
   Local<Value> builtins_without_cache_js;
   Local<Value> builtins_in_snapshot_js;
-  if (!ToV8Value(context, env->builtins_with_cache)
+  if (!ToV8Value(context, realm->builtins_with_cache)
            .ToLocal(&builtins_with_cache_js)) {
     return;
   }
   if (result
-          ->Set(env->context(),
+          ->Set(context,
                 OneByteString(isolate, "compiledWithCache"),
                 builtins_with_cache_js)
           .IsNothing()) {
     return;
   }
 
-  if (!ToV8Value(context, env->builtins_without_cache)
+  if (!ToV8Value(context, realm->builtins_without_cache)
            .ToLocal(&builtins_without_cache_js)) {
     return;
   }
   if (result
-          ->Set(env->context(),
+          ->Set(context,
                 OneByteString(isolate, "compiledWithoutCache"),
                 builtins_without_cache_js)
           .IsNothing()) {
     return;
   }
 
-  if (!ToV8Value(context, env->builtins_in_snapshot)
+  if (!ToV8Value(context, realm->builtins_in_snapshot)
            .ToLocal(&builtins_without_cache_js)) {
     return;
   }
   if (result
-          ->Set(env->context(),
+          ->Set(context,
                 OneByteString(isolate, "compiledInSnapshot"),
                 builtins_without_cache_js)
           .IsNothing()) {
@@ -659,21 +661,21 @@ void BuiltinLoader::ConfigStringGetter(
 
 void BuiltinLoader::RecordResult(const char* id,
                                  BuiltinLoader::Result result,
-                                 Environment* env) {
+                                 Realm* realm) {
   if (result == BuiltinLoader::Result::kWithCache) {
-    env->builtins_with_cache.insert(id);
+    realm->builtins_with_cache.insert(id);
   } else {
-    env->builtins_without_cache.insert(id);
+    realm->builtins_without_cache.insert(id);
   }
 }
 
 void BuiltinLoader::CompileFunction(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Realm* realm = Realm::GetCurrent(args);
   CHECK(args[0]->IsString());
-  node::Utf8Value id_v(env->isolate(), args[0].As<String>());
+  node::Utf8Value id_v(realm->isolate(), args[0].As<String>());
   const char* id = *id_v;
   MaybeLocal<Function> maybe =
-      GetInstance()->LookupAndCompile(env->context(), id, env);
+      GetInstance()->LookupAndCompile(realm->context(), id, realm);
   Local<Function> fn;
   if (maybe.ToLocal(&fn)) {
     args.GetReturnValue().Set(fn);
@@ -685,51 +687,44 @@ void BuiltinLoader::HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
       v8::Boolean::New(args.GetIsolate(), GetInstance()->has_code_cache_));
 }
 
-// TODO(joyeecheung): It is somewhat confusing that Class::Initialize
-// is used to initialize to the binding, but it is the current convention.
-// Rename this across the code base to something that makes more sense.
-void BuiltinLoader::Initialize(Local<Object> target,
-                               Local<Value> unused,
-                               Local<Context> context,
-                               void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  Isolate* isolate = env->isolate();
+void BuiltinLoader::CreatePerIsolateProperties(IsolateData* isolate_data,
+                                               Local<FunctionTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
+  Local<ObjectTemplate> proto = target->PrototypeTemplate();
 
-  target
-      ->SetAccessor(context,
-                    env->config_string(),
-                    ConfigStringGetter,
-                    nullptr,
-                    MaybeLocal<Value>(),
-                    DEFAULT,
-                    None,
-                    SideEffectType::kHasNoSideEffect)
-      .Check();
-  target
-      ->SetAccessor(context,
-                    FIXED_ONE_BYTE_STRING(isolate, "builtinIds"),
-                    BuiltinIdsGetter,
-                    nullptr,
-                    MaybeLocal<Value>(),
-                    DEFAULT,
-                    None,
-                    SideEffectType::kHasNoSideEffect)
-      .Check();
+  proto->SetAccessor(isolate_data->config_string(),
+                     ConfigStringGetter,
+                     nullptr,
+                     Local<Value>(),
+                     DEFAULT,
+                     None,
+                     SideEffectType::kHasNoSideEffect);
 
-  target
-      ->SetAccessor(context,
-                    FIXED_ONE_BYTE_STRING(isolate, "builtinCategories"),
-                    GetBuiltinCategories,
-                    nullptr,
-                    Local<Value>(),
-                    DEFAULT,
-                    None,
-                    SideEffectType::kHasNoSideEffect)
-      .Check();
+  proto->SetAccessor(FIXED_ONE_BYTE_STRING(isolate, "builtinIds"),
+                     BuiltinIdsGetter,
+                     nullptr,
+                     Local<Value>(),
+                     DEFAULT,
+                     None,
+                     SideEffectType::kHasNoSideEffect);
 
-  SetMethod(context, target, "getCacheUsage", BuiltinLoader::GetCacheUsage);
-  SetMethod(context, target, "compileFunction", BuiltinLoader::CompileFunction);
-  SetMethod(context, target, "hasCachedBuiltins", HasCachedBuiltins);
+  proto->SetAccessor(FIXED_ONE_BYTE_STRING(isolate, "builtinCategories"),
+                     GetBuiltinCategories,
+                     nullptr,
+                     Local<Value>(),
+                     DEFAULT,
+                     None,
+                     SideEffectType::kHasNoSideEffect);
+
+  SetMethod(isolate, proto, "getCacheUsage", BuiltinLoader::GetCacheUsage);
+  SetMethod(isolate, proto, "compileFunction", BuiltinLoader::CompileFunction);
+  SetMethod(isolate, proto, "hasCachedBuiltins", HasCachedBuiltins);
+}
+
+void BuiltinLoader::CreatePerContextProperties(Local<Object> target,
+                                               Local<Value> unused,
+                                               Local<Context> context,
+                                               void* priv) {
   // internalBinding('builtins') should be frozen
   target->SetIntegrityLevel(context, IntegrityLevel::kFrozen).FromJust();
 }
@@ -747,7 +742,9 @@ void BuiltinLoader::RegisterExternalReferences(
 }  // namespace builtins
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(builtins,
-                                    node::builtins::BuiltinLoader::Initialize)
+NODE_BINDING_PER_ISOLATE_INIT(
+    builtins, node::builtins::BuiltinLoader::CreatePerIsolateProperties)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(
+    builtins, node::builtins::BuiltinLoader::CreatePerContextProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(
     builtins, node::builtins::BuiltinLoader::RegisterExternalReferences)

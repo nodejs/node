@@ -18,7 +18,7 @@
     "remark-rehype": "^10.1.0",
     "to-vfile": "^7.2.3",
     "unified": "^10.1.2",
-    "unist-util-select": "^4.0.1",
+    "unist-util-select": "^4.0.2",
     "unist-util-visit": "^4.1.1"
   },
   "bin": {

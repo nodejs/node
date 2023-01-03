@@ -1224,7 +1224,7 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
                           TRACE_STR_COPY(*path))
     AsyncDestCall(env, req_wrap_async, args, "symlink", *path, path.length(),
                   UTF8, AfterNoArgs, uv_fs_symlink, *target, *path, flags);
-  } else {  // symlink(target, path, flags, undefinec, ctx)
+  } else {  // symlink(target, path, flags, undefined, ctx)
     CHECK_EQ(argc, 5);
     FSReqWrapSync req_wrap_sync;
     FS_SYNC_TRACE_BEGIN(symlink);
