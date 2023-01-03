@@ -1291,7 +1291,7 @@ static std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
     argv = new_argv;
   }
 #endif
-  return { argc, argv };
+  return {argc, argv};
 }
 
 int Start(int argc, char** argv) {
