@@ -1412,8 +1412,8 @@ _isImports_, _conditions_)
 
 **PATTERN\_KEY\_COMPARE**(_keyA_, _keyB_)
 
-> 1. Assert: _keyA_ ends with _"/"_ or contains only a single _"\*"_.
-> 2. Assert: _keyB_ ends with _"/"_ or contains only a single _"\*"_.
+> 1. Assert: _keyA_ contains only a single _"\*"_.
+> 2. Assert: _keyB_ contains only a single _"\*"_.
 > 3. Let _baseLengthA_ be the index of _"\*"_ in _keyA_ plus one, if _keyA_
 >    contains _"\*"_, or the length of _keyA_ otherwise.
 > 4. Let _baseLengthB_ be the index of _"\*"_ in _keyB_ plus one, if _keyB_
