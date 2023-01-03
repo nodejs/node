@@ -44,7 +44,11 @@ if (process.platform === 'win32') {
 writeFileSync(inputFile, `
 // Although, require('../common') works locally, that couldn't be used here
 // because we set NODE_TEST_DIR=/Users/iojs/node-tmp on Jenkins CI.
-require('${commonPathForSea}');
+const { expectWarning } = require('${commonPathForSea}');
+
+expectWarning('ExperimentalWarning',
+              'Single executable application is an experimental feature and ' +
+              'might change at any time');
 
 const { deepStrictEqual, strictEqual } = require('assert');
 const { dirname } = require('path');
