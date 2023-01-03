@@ -120,6 +120,7 @@ std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
          << "// -- async_hooks ends --\n"
          << i.tick_info << ",  // tick_info\n"
          << i.immediate_info << ",  // immediate_info\n"
+         << i.timeout_info << ",  // timeout_info\n"
          << "// -- performance_state begins --\n"
          << i.performance_state << ",\n"
          << "// -- performance_state ends --\n"
@@ -735,6 +736,7 @@ EnvSerializeInfo FileReader::Read() {
   result.async_hooks = Read<AsyncHooks::SerializeInfo>();
   result.tick_info = Read<TickInfo::SerializeInfo>();
   result.immediate_info = Read<ImmediateInfo::SerializeInfo>();
+  result.timeout_info = Read<AliasedBufferIndex>();
   result.performance_state =
       Read<performance::PerformanceState::SerializeInfo>();
   result.exit_info = Read<AliasedBufferIndex>();
@@ -755,6 +757,7 @@ size_t FileWriter::Write(const EnvSerializeInfo& data) {
   size_t written_total = Write<AsyncHooks::SerializeInfo>(data.async_hooks);
   written_total += Write<TickInfo::SerializeInfo>(data.tick_info);
   written_total += Write<ImmediateInfo::SerializeInfo>(data.immediate_info);
+  written_total += Write<AliasedBufferIndex>(data.timeout_info);
   written_total += Write<performance::PerformanceState::SerializeInfo>(
       data.performance_state);
   written_total += Write<AliasedBufferIndex>(data.exit_info);

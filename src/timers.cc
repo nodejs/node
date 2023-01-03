@@ -59,6 +59,12 @@ void Initialize(Local<Object> target,
             FIXED_ONE_BYTE_STRING(env->isolate(), "immediateInfo"),
             env->immediate_info()->fields().GetJSArray())
       .Check();
+
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(env->isolate(), "timeoutInfo"),
+            env->timeout_info().GetJSArray())
+      .Check();
 }
 }  // anonymous namespace
 void RegisterTimerExternalReferences(ExternalReferenceRegistry* registry) {
