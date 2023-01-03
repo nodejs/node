@@ -215,11 +215,6 @@ const opts = { prefix, context };
   }
 }
 
-// sequence<DOMString>
-{
-  // TODO
-}
-
 // AlgorithmIdentifier (Union for (object or DOMString))
 {
   assert.strictEqual(converters.AlgorithmIdentifier('foo'), 'foo');
@@ -228,12 +223,25 @@ const opts = { prefix, context };
 
 // JsonWebKey
 {
-  // TODO
+  for (const good of [
+    {},
+    { use: 'sig' },
+    { key_ops: ['sign'] },
+    { ext: true },
+    { oth: [] },
+    { oth: [{ r: '', d: '', t: '' }] },
+  ]) {
+    assert.deepStrictEqual(converters.JsonWebKey(good), good)
+    assert.deepStrictEqual(converters.JsonWebKey({ ...good, filtered: 'out' }), good)
+  }
 }
 
 // BufferSource or JsonWebKey
 {
-  // TODO
+  const { 'BufferSource or JsonWebKey': converter } = converters;
+  assert.deepStrictEqual(converter({}), {})
+  assert.deepStrictEqual(converter({ filtered: 'out', kty: 'RSA' }), { kty: 'RSA' })
+  assert.deepStrictEqual(converter(Buffer.alloc(0)), Buffer.alloc(0))
 }
 
 // KeyFormat
@@ -278,7 +286,7 @@ const opts = { prefix, context };
 // Algorithm
 {
   const good = { name: 'RSA-PSS' };
-  assert.deepStrictEqual(converters.Algorithm({ ...good, this: 'will get stripped' }, opts), good);
+  assert.deepStrictEqual(converters.Algorithm({ ...good, filtered: 'out' }, opts), good);
 
   assert.throws(() => converters.Algorithm({}, opts), {
     name: 'TypeError',
@@ -287,25 +295,52 @@ const opts = { prefix, context };
   });
 }
 
-// sequence<KeyUsage>
-{
-  // TODO
-}
-
 // RsaHashedKeyGenParams
 {
-  // TODO
+  for (const good of [
+    {
+      name: 'RSA-OAEP',
+      hash: { name: 'SHA-1' },
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+    },
+    {
+      name: 'RSA-OAEP',
+      hash: 'SHA-1',
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+    },
+  ]) {
+    assert.deepStrictEqual(converters.RsaHashedKeyGenParams({ ...good, filtered: 'out' }, opts), good);
+    for (const required of ['hash', 'publicExponent', 'modulusLength']) {
+      assert.throws(() => converters.RsaHashedKeyGenParams({ ...good, [required]: undefined }, opts), {
+        name: 'TypeError',
+        code: 'ERR_MISSING_OPTION',
+        message: `${prefix}: ${context} can not be converted to 'RsaHashedKeyGenParams' because '${required}' is required in 'RsaHashedKeyGenParams'.`,
+      });
+    }
+  }
 }
 
 // RsaHashedImportParams
 {
-  // TODO
+  for (const good of [
+    { name: 'RSA-OAEP', hash: { name: 'SHA-1' } },
+    { name: 'RSA-OAEP', hash: 'SHA-1' },
+  ]) {
+    assert.deepStrictEqual(converters.RsaHashedImportParams({ ...good, filtered: 'out' }, opts), good);
+    assert.throws(() => converters.RsaHashedImportParams({ ...good, hash: undefined }, opts), {
+      name: 'TypeError',
+      code: 'ERR_MISSING_OPTION',
+      message: `${prefix}: ${context} can not be converted to 'RsaHashedImportParams' because 'hash' is required in 'RsaHashedImportParams'.`,
+    });
+  }
 }
 
 // RsaPssParams
 {
   const good = { name: 'RSA-PSS', saltLength: 20 };
-  assert.deepStrictEqual(converters.RsaPssParams({ ...good, this: 'will get stripped' }, opts), good);
+  assert.deepStrictEqual(converters.RsaPssParams({ ...good, filtered: 'out' }, opts), good);
 
   assert.throws(() => converters.RsaPssParams({ ...good, saltLength: undefined }, opts), {
     name: 'TypeError',
@@ -317,7 +352,7 @@ const opts = { prefix, context };
 // RsaOaepParams
 {
   for (const good of [{ name: 'RSA-OAEP' }, { name: 'RSA-OAEP', label: Buffer.alloc(0) }]) {
-    assert.deepStrictEqual(converters.RsaOaepParams({ ...good, this: 'will get stripped' }, opts), good);
+    assert.deepStrictEqual(converters.RsaOaepParams({ ...good, filtered: 'out' }, opts), good);
   }
 }
 
@@ -327,7 +362,7 @@ const opts = { prefix, context };
     const { [name]: converter } = converters;
 
     const good = { name: 'ECDSA', namedCurve: 'P-256' };
-    assert.deepStrictEqual(converter({ ...good, this: 'will get stripped' }, opts), good);
+    assert.deepStrictEqual(converter({ ...good, filtered: 'out' }, opts), good);
 
     assert.throws(() => converter({ ...good, namedCurve: undefined }, opts), {
       name: 'TypeError',
@@ -339,7 +374,17 @@ const opts = { prefix, context };
 
 // EcdsaParams
 {
-  // TODO
+  for (const good of [
+    { name: 'ECDSA', hash: { name: 'SHA-1' } },
+    { name: 'ECDSA', hash: 'SHA-1' },
+  ]) {
+    assert.deepStrictEqual(converters.EcdsaParams({ ...good, filtered: 'out' }, opts), good);
+    assert.throws(() => converters.EcdsaParams({ ...good, hash: undefined }, opts), {
+      name: 'TypeError',
+      code: 'ERR_MISSING_OPTION',
+      message: `${prefix}: ${context} can not be converted to 'EcdsaParams' because 'hash' is required in 'EcdsaParams'.`,
+    });
+  }
 }
 
 // HmacKeyGenParams, HmacImportParams
@@ -348,12 +393,12 @@ const opts = { prefix, context };
     const { [name]: converter } = converters;
 
     for (const good of [
-      { name: 'HMAC', hash: { name: 'SHA-256' } },
-      { name: 'HMAC', hash: { name: 'SHA-256' }, length: 20 },
-      { name: 'HMAC', hash: 'SHA-256' },
-      { name: 'HMAC', hash: 'SHA-256', length: 20 },
+      { name: 'HMAC', hash: { name: 'SHA-1' } },
+      { name: 'HMAC', hash: { name: 'SHA-1' }, length: 20 },
+      { name: 'HMAC', hash: 'SHA-1' },
+      { name: 'HMAC', hash: 'SHA-1', length: 20 },
     ]) {
-      assert.deepStrictEqual(converter({ ...good, this: 'will get stripped' }, opts), good);
+      assert.deepStrictEqual(converter({ ...good, filtered: 'out' }, opts), good);
       assert.throws(() => converter({ ...good, hash: undefined }, opts), {
         name: 'TypeError',
         code: 'ERR_MISSING_OPTION',
@@ -363,47 +408,119 @@ const opts = { prefix, context };
   }
 }
 
-// AesKeyGenParams
+// AesKeyGenParams, AesDerivedKeyParams
 {
-  // TODO
-}
+  for (const name of ['AesKeyGenParams', 'AesDerivedKeyParams']) {
+    const { [name]: converter } = converters;
 
-// AesDerivedKeyParams
-{
-  // TODO
+    const good = { name: 'AES-CBC', length: 128 };
+    assert.deepStrictEqual(converter({ ...good, filtered: 'out' }, opts), good);
+
+    assert.throws(() => converter({ ...good, length: undefined }, opts), {
+      name: 'TypeError',
+      code: 'ERR_MISSING_OPTION',
+      message: `${prefix}: ${context} can not be converted to '${name}' because 'length' is required in '${name}'.`,
+    });
+  }
 }
 
 // HkdfParams
 {
-  // TODO
+  for (const good of [
+    { name: 'HKDF', hash: { name: 'SHA-1' }, salt: Buffer.alloc(0), info: Buffer.alloc(0) },
+    { name: 'HKDF', hash: 'SHA-1', salt: Buffer.alloc(0), info: Buffer.alloc(0) },
+  ]) {
+    assert.deepStrictEqual(converters.HkdfParams({ ...good, filtered: 'out' }, opts), good);
+    for (const required of ['hash', 'salt', 'info']) {
+      assert.throws(() => converters.HkdfParams({ ...good, [required]: undefined }, opts), {
+        name: 'TypeError',
+        code: 'ERR_MISSING_OPTION',
+        message: `${prefix}: ${context} can not be converted to 'HkdfParams' because '${required}' is required in 'HkdfParams'.`,
+      });
+    }
+  }
 }
 
 // Pbkdf2Params
 {
-  // TODO
+  for (const good of [
+    { name: 'PBKDF2', hash: { name: 'SHA-1' }, iterations: 5, salt: Buffer.alloc(0) },
+    { name: 'PBKDF2', hash: 'SHA-1', iterations: 5, salt: Buffer.alloc(0) },
+  ]) {
+    assert.deepStrictEqual(converters.Pbkdf2Params({ ...good, filtered: 'out' }, opts), good);
+    for (const required of ['hash', 'iterations', 'salt']) {
+      assert.throws(() => converters.Pbkdf2Params({ ...good, [required]: undefined }, opts), {
+        name: 'TypeError',
+        code: 'ERR_MISSING_OPTION',
+        message: `${prefix}: ${context} can not be converted to 'Pbkdf2Params' because '${required}' is required in 'Pbkdf2Params'.`,
+      });
+    }
+  }
 }
 
 // AesCbcParams
 {
-  // TODO
+  const good = { name: 'AES-CBC', iv: Buffer.alloc(0) };
+  assert.deepStrictEqual(converters.AesCbcParams({ ...good, filtered: 'out' }, opts), good);
+
+  assert.throws(() => converters.AesCbcParams({ ...good, iv: undefined }, opts), {
+    name: 'TypeError',
+    code: 'ERR_MISSING_OPTION',
+    message: `${prefix}: ${context} can not be converted to 'AesCbcParams' because 'iv' is required in 'AesCbcParams'.`,
+  });
 }
 
 // AesGcmParams
 {
-  // TODO
+  for (const good of [
+    { name: 'AES-GCM', iv: Buffer.alloc(0) },
+    { name: 'AES-GCM', iv: Buffer.alloc(0), tagLength: 16 },
+    { name: 'AES-GCM', iv: Buffer.alloc(0), tagLength: 16, additionalData: Buffer.alloc(0) },
+  ]) {
+    assert.deepStrictEqual(converters.AesGcmParams({ ...good, filtered: 'out' }, opts), good);
+
+    assert.throws(() => converters.AesGcmParams({ ...good, iv: undefined }, opts), {
+      name: 'TypeError',
+      code: 'ERR_MISSING_OPTION',
+      message: `${prefix}: ${context} can not be converted to 'AesGcmParams' because 'iv' is required in 'AesGcmParams'.`,
+    });
+  }
 }
 
 // AesCtrParams
 {
-  // TODO
+  const good = { name: 'AES-CTR', counter: Buffer.alloc(0), length: 20 };
+  assert.deepStrictEqual(converters.AesCtrParams({ ...good, filtered: 'out' }, opts), good);
+
+  for (const required of ['counter', 'length']) {
+    assert.throws(() => converters.AesCtrParams({ ...good, [required]: undefined }, opts), {
+      name: 'TypeError',
+      code: 'ERR_MISSING_OPTION',
+      message: `${prefix}: ${context} can not be converted to 'AesCtrParams' because '${required}' is required in 'AesCtrParams'.`,
+    });
+  }
 }
 
 // EcdhKeyDeriveParams
 {
-  // TODO
+  subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits']).then((kp) => {
+    const good = { name: 'ECDH', public: kp.publicKey };
+    assert.deepStrictEqual(converters.EcdhKeyDeriveParams({ ...good, filtered: 'out' }, opts), good);
+
+    assert.throws(() => converters.EcdhKeyDeriveParams({ ...good, public: undefined }, opts), {
+      name: 'TypeError',
+      code: 'ERR_MISSING_OPTION',
+      message: `${prefix}: ${context} can not be converted to 'EcdhKeyDeriveParams' because 'public' is required in 'EcdhKeyDeriveParams'.`,
+    });
+  }).then(common.mustCall());
 }
 
 // Ed448Params
 {
-  // TODO
+  for (const good of [
+    { name: 'Ed448', context: new Uint8Array() },
+    { name: 'Ed448' },
+  ]) {
+    assert.deepStrictEqual(converters.Ed448Params({ ...good, filtered: 'out' }, opts), good);
+  }
 }
