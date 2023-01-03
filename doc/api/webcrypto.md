@@ -710,7 +710,7 @@ changes:
 
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
 * `key`: {CryptoKey}
-* Returns: {Promise} containing {ArrayBuffer}.
+* Returns: {Promise} containing {ArrayBuffer|Object}.
 
 Exports the given key into the specified format, if supported.
 
@@ -799,7 +799,7 @@ changes:
 -->
 
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
-* `keyData`: {ArrayBuffer|TypedArray|DataView|Buffer|KeyObject}
+* `keyData`: {ArrayBuffer|TypedArray|DataView|Buffer|Object}
 
 <!--lint disable maximum-line-length remark-lint-->
 
