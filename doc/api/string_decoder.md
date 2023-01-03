@@ -63,8 +63,8 @@ Creates a new `StringDecoder` instance.
 added: v0.9.3
 -->
 
-* `buffer` {string|Buffer|TypedArray|DataView} A `string`, `Buffer`,
-  `TypedArray`, or `DataView` containing the bytes to decode.
+* `buffer` {Buffer|TypedArray|DataView} A `Buffer`, `TypedArray`,
+  or `DataView` containing the bytes to decode.
 * Returns: {string}
 
 Returns any remaining input stored in the internal buffer as a string. Bytes
@@ -72,8 +72,9 @@ representing incomplete UTF-8 and UTF-16 characters will be replaced with
 substitution characters appropriate for the character encoding.
 
 If the `buffer` argument is provided, one final call to `stringDecoder.write()`
-is performed before returning the remaining input.
-After `end()` is called, the `stringDecoder` object can be reused for new input.
+is performed before returning the remaining input. If the `buffer` is a
+`string`, then the `string` is returned as-is. After `end()` is called, the
+`stringDecoder` object can be reused for new input.
 
 ### `stringDecoder.write(buffer)`
 
@@ -86,13 +87,15 @@ changes:
                  character instead of one for each individual byte.
 -->
 
-* `buffer` {string|Buffer|TypedArray|DataView} A `string`, `Buffer`,
-  `TypedArray`, or `DataView` containing the bytes to decode.
+* `buffer` {Buffer|TypedArray|DataView} A `Buffer`, `TypedArray`, or `DataView`
+  containing the bytes to decode.
 * Returns: {string}
 
 Returns a decoded string, ensuring that any incomplete multibyte characters at
 the end of the `Buffer`, or `TypedArray`, or `DataView` are omitted from the
 returned string and stored in an internal buffer for the next call to
-`stringDecoder.write()` or `stringDecoder.end()`.
+`stringDecoder.write()` or `stringDecoder.end()`. When a `string` buffer is
+passed into the function, the string is returned as-is without any special
+logic.
 
 [encoding]: buffer.md#buffers-and-character-encodings
