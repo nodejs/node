@@ -70,8 +70,29 @@ execSync(`${process.execPath} ${postjectFile} ${outputFile} NODE_JS_CODE ${input
 if (process.platform === 'darwin') {
   execSync(`codesign --sign - ${outputFile}`);
   execSync(`codesign --verify ${outputFile}`);
+} else if (process.platform === 'win32') {
+  let signtoolFound = false;
+  try {
+    execSync('where signtool');
+    signtoolFound = true;
+  } catch (err) {
+    console.log(err.message);
+  }
+  if (signtoolFound) {
+    let certificatesFound = false;
+    try {
+      execSync(`signtool sign /fd SHA256 ${outputFile}`);
+      certificatesFound = true;
+    } catch (err) {
+      if (!/SignTool Error: No certificates were found that met all the given criteria/.test(err)) {
+        throw err;
+      }
+    }
+    if (certificatesFound) {
+      execSync(`signtool verify /pa SHA256 ${outputFile}`);
+    }
+  }
 }
-// TODO(RaisinTen): Test code signing on Windows.
 
 const singleExecutableApplicationOutput = execSync(`${outputFile} -a --b=c d`);
 strictEqual(singleExecutableApplicationOutput.toString(), 'Hello, world!\n');
