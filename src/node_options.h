@@ -112,7 +112,6 @@ class EnvironmentOptions : public Options {
   bool enable_source_maps = false;
   bool experimental_fetch = true;
   bool experimental_global_customevent = true;
-  bool experimental_global_web_crypto = true;
   bool experimental_https_modules = false;
   bool experimental_wasm_modules = false;
   bool experimental_import_meta_resolve = false;

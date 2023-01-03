@@ -365,11 +365,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_global_customevent,
             kAllowedInEnvvar,
             true);
-  AddOption("--experimental-global-webcrypto",
-            "expose experimental Web Crypto API on the global scope",
-            &EnvironmentOptions::experimental_global_web_crypto,
-            kAllowedInEnvvar,
-            true);
   AddOption("--experimental-json-modules", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-loader",
             "use the specified module as a custom loader",

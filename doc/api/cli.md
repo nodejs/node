@@ -402,14 +402,6 @@ added: v18.0.0
 
 Disable experimental support for the [Fetch API][].
 
-### `--no-experimental-global-webcrypto`
-
-<!-- YAML
-added: v19.0.0
--->
-
-Disable exposition of [Web Crypto API][] on the global scope.
-
 ### `--no-experimental-global-customevent`
 
 <!-- YAML
@@ -1915,7 +1907,6 @@ Node.js options that are allowed are:
 * `--no-deprecation`
 * `--no-experimental-fetch`
 * `--no-experimental-global-customevent`
-* `--no-experimental-global-webcrypto`
 * `--no-experimental-repl-await`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
@@ -2329,7 +2320,6 @@ done
 [Source Map]: https://sourcemaps.info/spec.html
 [Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
-[Web Crypto API]: webcrypto.md
 [`"type"`]: packages.md#type
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
