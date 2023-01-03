@@ -323,6 +323,10 @@ inline ImmediateInfo* Environment::immediate_info() {
   return &immediate_info_;
 }
 
+inline AliasedInt32Array& Environment::timeout_info() {
+  return timeout_info_;
+}
+
 inline TickInfo* Environment::tick_info() {
   return &tick_info_;
 }
