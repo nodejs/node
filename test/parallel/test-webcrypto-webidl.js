@@ -231,17 +231,17 @@ const opts = { prefix, context };
     { oth: [] },
     { oth: [{ r: '', d: '', t: '' }] },
   ]) {
-    assert.deepStrictEqual(converters.JsonWebKey(good), good)
-    assert.deepStrictEqual(converters.JsonWebKey({ ...good, filtered: 'out' }), good)
+    assert.deepStrictEqual(converters.JsonWebKey(good), good);
+    assert.deepStrictEqual(converters.JsonWebKey({ ...good, filtered: 'out' }), good);
   }
 }
 
 // BufferSource or JsonWebKey
 {
   const { 'BufferSource or JsonWebKey': converter } = converters;
-  assert.deepStrictEqual(converter({}), {})
-  assert.deepStrictEqual(converter({ filtered: 'out', kty: 'RSA' }), { kty: 'RSA' })
-  assert.deepStrictEqual(converter(Buffer.alloc(0)), Buffer.alloc(0))
+  assert.deepStrictEqual(converter({}), {});
+  assert.deepStrictEqual(converter({ filtered: 'out', kty: 'RSA' }), { kty: 'RSA' });
+  assert.deepStrictEqual(converter(Buffer.alloc(0)), Buffer.alloc(0));
 }
 
 // KeyFormat
