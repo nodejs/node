@@ -63,8 +63,8 @@ Creates a new `StringDecoder` instance.
 added: v0.9.3
 -->
 
-* `buffer` {Buffer|TypedArray|DataView} A `Buffer`, or `TypedArray`, or
-  `DataView` containing the bytes to decode.
+* `buffer` {string|Buffer|TypedArray|DataView} A `string`, `Buffer`,
+  `TypedArray`, or `DataView` containing the bytes to decode.
 * Returns: {string}
 
 Returns any remaining input stored in the internal buffer as a string. Bytes
@@ -86,8 +86,8 @@ changes:
                  character instead of one for each individual byte.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView} A `Buffer`, or `TypedArray`, or
-  `DataView` containing the bytes to decode.
+* `buffer` {string|Buffer|TypedArray|DataView} A `string`, `Buffer`,
+  `TypedArray`, or `DataView` containing the bytes to decode.
 * Returns: {string}
 
 Returns a decoded string, ensuring that any incomplete multibyte characters at
