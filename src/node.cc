@@ -122,6 +122,7 @@
 #include <cstring>
 
 #include <string>
+#include <tuple>
 #include <vector>
 
 namespace node {
@@ -1270,7 +1271,7 @@ static ExitCode StartInternal(int argc, char** argv) {
   return LoadSnapshotDataAndRun(&snapshot_data, result.get());
 }
 
-int Start(int argc, char** argv) {
+static std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
   // Repeats argv[0] at position 1 on argv as a replacement for the missing
   // entry point file path.
@@ -1290,7 +1291,11 @@ int Start(int argc, char** argv) {
     argv = new_argv;
   }
 #endif
+  return { argc, argv };
+}
 
+int Start(int argc, char** argv) {
+  std::tie(argc, argv) = FixupArgsForSEA(argc, argv);
   return static_cast<int>(StartInternal(argc, argv));
 }
 
