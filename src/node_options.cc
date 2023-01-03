@@ -365,6 +365,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_global_customevent,
             kAllowedInEnvvar,
             true);
+  AddOption("--experimental-global-webcrypto", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-json-modules", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-loader",
             "use the specified module as a custom loader",
