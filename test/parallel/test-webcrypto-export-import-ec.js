@@ -269,7 +269,7 @@ async function testImportJwk(
         { name, namedCurve },
         extractable,
         publicUsages),
-      { message: /Named curve mismatch/ });
+      { message: 'JWK "crv" does not match the requested algorithm' });
 
     await assert.rejects(
       subtle.importKey(
@@ -277,8 +277,28 @@ async function testImportJwk(
         { kty: jwk.kty, d: jwk.d, x: jwk.x, y: jwk.y, crv },
         { name, namedCurve },
         extractable,
-        publicUsages),
-      { message: /Named curve mismatch/ });
+        privateUsages),
+      { message: 'JWK "crv" does not match the requested algorithm' });
+
+    if (crv && name === 'ECDSA') {
+      await assert.rejects(
+        subtle.importKey(
+          'jwk',
+          { kty: jwk.kty, x: jwk.x, y: jwk.y, crv: namedCurve, alg: `ES${crv.slice(2)}` },
+          { name, namedCurve },
+          extractable,
+          publicUsages),
+        { message: 'JWK "alg" does not match the requested algorithm' });
+
+      await assert.rejects(
+        subtle.importKey(
+          'jwk',
+          { kty: jwk.kty, d: jwk.d, x: jwk.x, y: jwk.y, crv: namedCurve, alg: `ES${crv.slice(2)}` },
+          { name, namedCurve },
+          extractable,
+          privateUsages),
+        { message: 'JWK "alg" does not match the requested algorithm' });
+    }
   }
 }
 

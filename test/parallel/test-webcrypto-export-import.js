@@ -63,7 +63,7 @@ const { subtle } = globalThis.crypto;
         hash: 'SHA-256',
       }, false, ['sign', 'verify']), {
         name: 'DataError',
-        message: 'Invalid key type'
+        message: 'Invalid keyData'
       });
   }
 

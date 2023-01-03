@@ -236,14 +236,6 @@ const opts = { prefix, context };
   }
 }
 
-// BufferSource or JsonWebKey
-{
-  const { 'BufferSource or JsonWebKey': converter } = converters;
-  assert.deepStrictEqual(converter({}), {});
-  assert.deepStrictEqual(converter({ filtered: 'out', kty: 'RSA' }), { kty: 'RSA' });
-  assert.deepStrictEqual(converter(Buffer.alloc(0)), Buffer.alloc(0));
-}
-
 // KeyFormat
 {
   for (const good of ['jwk', 'spki', 'pkcs8', 'raw']) {
