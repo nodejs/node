@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const util = require('util');
 
-const tests = Object.create(null);
+const tests = { __proto__: null };
 
 let gid = 1;
 let uid = 1;

@@ -35,7 +35,7 @@ import * as common from './common.mjs';
 import * as typeParser from './type-parser.mjs';
 import buildCSSForFlavoredJS from './buildCSSForFlavoredJS.mjs';
 
-const dynamicSizes = Object.create(null);
+const dynamicSizes = { __proto__: null };
 
 const { highlight, getLanguage } = highlightJs;
 
@@ -398,8 +398,8 @@ function versionSort(a, b) {
 const DEPRECATION_HEADING_PATTERN = /^DEP\d+:/;
 export function buildToc({ filename, apilinks }) {
   return (tree, file) => {
-    const idCounters = Object.create(null);
-    const legacyIdCounters = Object.create(null);
+    const idCounters = { __proto__: null };
+    const legacyIdCounters = { __proto__: null };
     let toc = '';
     let depth = 0;
 

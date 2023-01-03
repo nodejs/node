@@ -4,7 +4,7 @@ const assert = require('assert');
 const url = require('url');
 
 function createWithNoPrototype(properties = []) {
-  const noProto = Object.create(null);
+  const noProto = { __proto__: null };
   properties.forEach((property) => {
     noProto[property.key] = property.value;
   });
