@@ -261,6 +261,38 @@ async function testImportJwk(
       });
   }
 
+  {
+    const invalidUse = name === 'ECDH' ? 'sig' : 'enc';
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, use: invalidUse },
+        { name, namedCurve },
+        extractable,
+        privateUsages),
+      { message: 'Invalid JWK "use" Parameter' });
+  }
+
+  if (name === 'ECDSA') {
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, x: jwk.x, y: jwk.y, crv: jwk.crv, alg: jwk.crv === 'P-256' ? 'ES384' : 'ES256' },
+        { name, namedCurve },
+        extractable,
+        publicUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: jwk.crv === 'P-256' ? 'ES384' : 'ES256' },
+        { name, namedCurve },
+        extractable,
+        privateUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+  }
+
   for (const crv of [undefined, namedCurve === 'P-256' ? 'P-384' : 'P-256']) {
     await assert.rejects(
       subtle.importKey(
@@ -274,31 +306,11 @@ async function testImportJwk(
     await assert.rejects(
       subtle.importKey(
         'jwk',
-        { kty: jwk.kty, d: jwk.d, x: jwk.x, y: jwk.y, crv },
+        { ...jwk, crv },
         { name, namedCurve },
         extractable,
         privateUsages),
       { message: 'JWK "crv" does not match the requested algorithm' });
-
-    if (crv && name === 'ECDSA') {
-      await assert.rejects(
-        subtle.importKey(
-          'jwk',
-          { kty: jwk.kty, x: jwk.x, y: jwk.y, crv: namedCurve, alg: `ES${crv.slice(2)}` },
-          { name, namedCurve },
-          extractable,
-          publicUsages),
-        { message: 'JWK "alg" does not match the requested algorithm' });
-
-      await assert.rejects(
-        subtle.importKey(
-          'jwk',
-          { kty: jwk.kty, d: jwk.d, x: jwk.x, y: jwk.y, crv: namedCurve, alg: `ES${crv.slice(2)}` },
-          { name, namedCurve },
-          extractable,
-          privateUsages),
-        { message: 'JWK "alg" does not match the requested algorithm' });
-    }
   }
 }
 
