@@ -25,6 +25,9 @@ if (process.config.variables.node_shared)
 if (!process.config.variables.node_use_openssl || process.config.variables.node_shared_openssl)
   common.skip('Running the resultant binary fails with `Node.js is not compiled with OpenSSL crypto support`.');
 
+if (process.env.NODE_NAME === 'test-ibm-rhel8-s390x-1')
+  common.skip('Running the resultant binary fails with `memory access out of bounds`.');
+
 // This tests the creation of a single executable application.
 
 const tmpdir = require('../common/tmpdir');
