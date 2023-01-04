@@ -22,6 +22,9 @@ if (process.config.variables.node_shared)
     '`/home/iojs/node-tmp/.tmp.2366/sea: error while loading shared libraries: ' +
     'libnode.so.112: cannot open shared object file: No such file or directory`.');
 
+if (!process.config.variables.node_use_openssl || process.config.variables.node_shared_openssl)
+  common.skip('Running the resultant binary fails with `Node.js is not compiled with OpenSSL crypto support`.');
+
 // This tests the creation of a single executable application.
 
 const tmpdir = require('../common/tmpdir');
