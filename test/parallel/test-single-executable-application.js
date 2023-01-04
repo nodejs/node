@@ -17,6 +17,11 @@ if (process.platform === 'freebsd')
 if (process.platform === 'linux' && process.config.variables.is_debug === 1)
   common.skip('Running the resultant binary fails with `Couldn\'t read target executable"`.');
 
+if (process.config.variables.node_shared)
+  common.skip('Running the resultant binary fails with ' +
+    '`/home/iojs/node-tmp/.tmp.2366/sea: error while loading shared libraries: ' +
+    'libnode.so.112: cannot open shared object file: No such file or directory`.');
+
 // This tests the creation of a single executable application.
 
 const tmpdir = require('../common/tmpdir');
