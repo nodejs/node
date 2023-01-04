@@ -28,6 +28,9 @@ if (!process.config.variables.node_use_openssl || process.config.variables.node_
 if (process.env.NODE_NAME === 'test-ibm-rhel8-s390x-1')
   common.skip('Running the resultant binary fails with `memory access out of bounds`.');
 
+if (process.env.NODE_NAME === 'test-equinix_mnx-smartos20-x64-4')
+  common.skip('Injection fails with `Can\'t convert PT_NOTE.virtual_address into an offset (0x0)`.');
+
 // This tests the creation of a single executable application.
 
 const tmpdir = require('../common/tmpdir');
