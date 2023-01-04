@@ -8,13 +8,13 @@
 set -ex
 
 cd "$( dirname "$0" )" || exit
-rm -rf node_modules/eslint
+rm -rf ../node_modules/eslint
 (
     rm -rf eslint-tmp
     mkdir eslint-tmp
     cd eslint-tmp || exit
 
-    ROOT="$PWD/../.."
+    ROOT="$PWD/../../.."
     [ -z "$NODE" ] && NODE="$ROOT/out/Release/node"
     [ -x "$NODE" ] || NODE=$(command -v node)
     NPM="$ROOT/deps/npm/bin/npm-cli.js"
@@ -61,5 +61,5 @@ rm -rf node_modules/eslint
     find node_modules -name 'README*' -exec rm {} \;
 )
 
-mv eslint-tmp/node_modules/eslint node_modules/eslint
+mv eslint-tmp/node_modules/eslint ../node_modules/eslint
 rm -rf eslint-tmp/

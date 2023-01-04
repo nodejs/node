@@ -21,12 +21,11 @@ jobs:
             subsystem: tools
             label: tools
             run: |
-              cd tools
               NEW_VERSION=$(npm view eslint dist-tags.latest)
-              CURRENT_VERSION=$(node -p "require('./node_modules/eslint/package.json').version")
+              CURRENT_VERSION=$(node -p "require('./tools/node_modules/eslint/package.json').version")
               if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                ./update-eslint.sh
+                ./tools/dep_updaters/update-eslint.sh
               fi
           - id: corepack
             subsystem: deps
