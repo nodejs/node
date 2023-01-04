@@ -8,13 +8,6 @@
       ]
     }
   },
-  "AddEventListenerOptions-signal.any.js": {
-    "fail": {
-      "expected": [
-        "Passing null as the signal should throw (listener is also null)"
-      ]
-    }
-  },
   "Event-constructors.any.js": {
     "fail": {
       "expected": [
