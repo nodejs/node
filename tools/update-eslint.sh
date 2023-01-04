@@ -21,13 +21,41 @@ rm -rf node_modules/eslint
 
     "$NODE" "$NPM" init --yes
 
-    "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts eslint
-    # Uninstall plugins that we want to install so that they are removed from devDependencies.
-    # Otherwise --production will cause them to be skipped.
-    (cd node_modules/eslint && "$NODE" "$NPM" uninstall --ignore-scripts eslint-plugin-jsdoc eslint-plugin-markdown @babel/core @babel/eslint-parser @babel/plugin-syntax-import-assertions)
-    (cd node_modules/eslint && "$NODE" "$NPM" install --no-save --no-bin-links --ignore-scripts --production --omit=peer eslint-plugin-jsdoc eslint-plugin-markdown @babel/core @babel/eslint-parser @babel/plugin-syntax-import-assertions)
+    "$NODE" "$NPM" install \
+    --ignore-scripts \
+    --install-strategy=shallow \
+    --no-bin-links \
+    eslint
+    # Uninstall plugins that we want to install so that they are removed from
+    # devDependencies. Otherwise --omit=dev will cause them to be skipped.
+    (
+        cd node_modules/eslint
+        "$NODE" "$NPM" uninstall \
+        --install-links=false \
+        --ignore-scripts \
+        eslint-plugin-jsdoc \
+        eslint-plugin-markdown \
+        @babel/core \
+        @babel/eslint-parser \
+        @babel/plugin-syntax-import-assertions
+    )
+    (
+        cd node_modules/eslint
+        "$NODE" "$NPM" install \
+        --ignore-scripts \
+        --install-links=false \
+        --no-bin-links \
+        --no-save \
+        --omit=dev \
+        --omit=peer \
+        eslint-plugin-jsdoc \
+        eslint-plugin-markdown \
+        @babel/core \
+        @babel/eslint-parser \
+        @babel/plugin-syntax-import-assertions
+    )
     # Use dmn to remove some unneeded files.
-    "$NODE" "$NPM" exec -- dmn@2.2.2 -f clean
+    "$NODE" "$NPM" exec --package=dmn@2.2.2 --yes -- dmn -f clean
     # TODO: Get this into dmn.
     find node_modules -name .package-lock.json -exec rm {} \;
     find node_modules -name 'README*' -exec rm {} \;
