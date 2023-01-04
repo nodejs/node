@@ -14,6 +14,9 @@ if (process.platform === 'aix')
 if (process.platform === 'freebsd')
   common.skip('Running the resultant binary fails with `Exec format error`.');
 
+if (process.platform === 'linux' && process.config.variables.is_debug === 1)
+  common.skip('Running the resultant binary fails with `Couldn\'t read target executable"`.');
+
 // This tests the creation of a single executable application.
 
 const tmpdir = require('../common/tmpdir');
