@@ -678,9 +678,14 @@ const char* AsyncWrap::MemoryInfoName() const {
 }
 
 std::string AsyncWrap::diagnostic_name() const {
-  return std::string(MemoryInfoName()) + " (" +
-         std::to_string(env()->thread_id()) + ":" +
-         std::to_string(static_cast<int64_t>(async_id_)) + ")";
+  char buf[64];
+  snprintf(buf,
+           sizeof(buf),
+           "%s(%" PRIu64 ":%.0f)",
+           MemoryInfoName(),
+           env()->thread_id(),
+           async_id_);
+  return buf;
 }
 
 Local<Object> AsyncWrap::GetOwner() {
