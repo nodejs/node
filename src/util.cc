@@ -32,6 +32,7 @@
 #include "uv.h"
 
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+#define POSTJECT_SENTINEL_FUSE "NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2:0"
 #include "postject-api.h"
 #endif
 
