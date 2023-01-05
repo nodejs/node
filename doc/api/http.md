@@ -1953,6 +1953,8 @@ non-string values. However, the non-string values will be converted to strings
 for network transmission. The same response object is returned to the caller,
 to enable call chaining.
 
+> To set multiple header values at once see [`response.setHeaders()`][].
+
 ```js
 response.setHeader('Content-Type', 'text/html');
 ```
@@ -1986,6 +1988,49 @@ channel without caching internally, and the [`response.getHeader()`][] on the
 header will not yield the expected result. If progressive population of headers
 is desired with potential future retrieval and modification, use
 [`response.setHeader()`][] instead of [`response.writeHead()`][].
+
+### `response.setHeaders(headers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `headers` {Object|Array}
+* Returns: {http.ServerResponse}
+
+Returns the response object.
+
+Sets multiple header values for implicit headers.
+`headers` may be an `Array` where the keys and values are in the same list.
+It is _not_ a list of tuples. So, the even-numbered offsets are key values,
+and the odd-numbered offsets are the associated values. The array is in the same
+format as `request.rawHeaders`.
+
+```js
+response.setHeaders(['foo', 'bar', 'fizz', 'buzz']);
+```
+
+or
+
+```js
+response.setHeaders({
+  foo: 'bar',
+  fizz: 'buzz',
+});
+```
+
+When headers have been set with [`response.setHeaders()`][], they will be merged
+with any headers passed to [`response.writeHead()`][], with the headers passed
+to [`response.writeHead()`][] given precedence.
+
+```js
+// Returns content-type = text/plain
+const server = http.createServer((req, res) => {
+  res.setHeaders(['Content-Type', 'text/html', 'X-Foo', 'bar']);
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('ok');
+});
+```
 
 ### `response.setTimeout(msecs[, callback])`
 
@@ -3803,6 +3848,7 @@ Set the maximum number of idle HTTP parsers. **Default:** `1000`.
 [`response.end()`]: #responseenddata-encoding-callback
 [`response.getHeader()`]: #responsegetheadername
 [`response.setHeader()`]: #responsesetheadername-value
+[`response.setHeaders()`]: #responsesetheadersheaders
 [`response.socket`]: #responsesocket
 [`response.writableEnded`]: #responsewritableended
 [`response.writableFinished`]: #responsewritablefinished
