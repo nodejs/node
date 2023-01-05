@@ -1995,7 +1995,7 @@ is desired with potential future retrieval and modification, use
 added: REPLACEME
 -->
 
-* `headers` {Object|Array}
+* `headers` {Headers|Object|Array}
 * Returns: {http.ServerResponse}
 
 Returns the response object.
@@ -2005,6 +2005,13 @@ Sets multiple header values for implicit headers.
 It is _not_ a list of tuples. So, the even-numbered offsets are key values,
 and the odd-numbered offsets are the associated values. The array is in the same
 format as `request.rawHeaders`.
+
+```js
+const headers = new Headers({ foo: 'bar' });
+response.setHeaders(headers);
+```
+
+or
 
 ```js
 response.setHeaders(['foo', 'bar', 'fizz', 'buzz']);

@@ -67,3 +67,23 @@ const assert = require('assert');
     });
   }));
 }
+
+{
+  const server = http.createServer({ requireHostHeader: false }, common.mustCall((req, res) => {
+    const headers = new globalThis.Headers({ foo: '1', bar: '2' });
+    res.setHeaders(headers);
+    res.writeHead(200);
+    res.end();
+  }));
+
+  server.listen(0, common.mustCall(() => {
+    http.get({ port: server.address().port }, (res) => {
+      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.headers.foo, '1');
+      assert.strictEqual(res.headers.bar, '2');
+      res.resume().on('end', common.mustCall(() => {
+        server.close();
+      }));
+    });
+  }));
+}
