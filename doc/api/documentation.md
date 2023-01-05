@@ -32,6 +32,17 @@ The stability indices are as follows:
 > [semantic versioning][] rules. Non-backward compatible changes or removal may
 > occur in any future release. Use of the feature is not recommended in
 > production environments.
+>
+> Experimental features are subdivided into stages:
+>
+> * 1.0 - Early development. Experimental features at this stage are unfinished
+>   and subject to substantial change. They are not yet ready for user testing.
+> * 1.1 - Active development. Experimental features at this stage are nearing
+>   potential stability, with only minor changes expected.
+> * 1.2 - Release candidate. Experimental features at this stage are hopefully
+>   ready to become stable. No further breaking changes are anticipated and we
+>   welcome user testing and feedback so that we can know that this feature is
+>   ready to be marked as stable.
 
 <!-- separator -->
 
@@ -48,9 +59,9 @@ Features are marked as legacy rather than being deprecated if their use does no
 harm, and they are widely relied upon within the npm ecosystem. Bugs found in
 legacy features are unlikely to be fixed.
 
-Use caution when making use of Experimental features, particularly within
-modules. Users may not be aware that experimental features are being used.
-Bugs or behavior changes may surprise users when Experimental API
+Use caution when making use of Experimental features, particularly when
+authoring libraries. Users may not be aware that experimental features are being
+used. Bugs or behavior changes may surprise users when Experimental API
 modifications occur. To avoid surprises, use of an Experimental feature may need
 a command-line flag. Experimental features may also emit a [warning][].
 
