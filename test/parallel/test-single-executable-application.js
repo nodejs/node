@@ -4,10 +4,6 @@ const common = require('../common');
 if (!process.config.variables.single_executable_application)
   common.skip('Single Executable Application support has been disabled.');
 
-if (process.config.variables.asan)
-  common.skip('ASAN builds fail with a SEGV on unknown address due to ' +
-    'a READ memory access from FindSingleExecutableCode');
-
 if (process.platform === 'aix')
   common.skip('XCOFF binary format not supported.');
 
