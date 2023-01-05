@@ -147,8 +147,8 @@ Maybe<bool> GetDsaKeyDetail(
 
   DSA_get0_pqg(dsa, &p, &q, nullptr);
 
-  size_t modulus_length = BN_num_bytes(p) * CHAR_BIT;
-  size_t divisor_length = BN_num_bytes(q) * CHAR_BIT;
+  size_t modulus_length = BN_num_bits(p);
+  size_t divisor_length = BN_num_bits(q);
 
   if (target
           ->Set(
