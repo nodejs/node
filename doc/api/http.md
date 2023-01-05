@@ -2001,7 +2001,8 @@ added: REPLACEME
 Returns the response object.
 
 Sets multiple header values for implicit headers.
-`headers` may be an `Array` where the keys and values are in the same list.
+`headers` may be an instance of [`Headers`][] or `Array` where the keys
+and values are in the same list.
 It is _not_ a list of tuples. So, the even-numbered offsets are key values,
 and the odd-numbered offsets are the associated values. The array is in the same
 format as `request.rawHeaders`.
@@ -2255,6 +2256,10 @@ response.writeEarlyHints({
 <!-- YAML
 added: v0.1.30
 changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46109
+    description: Allow passing headers as Headers object.
   - version: v14.14.0
     pr-url: https://github.com/nodejs/node/pull/35274
     description: Allow passing headers as an array.
@@ -2274,7 +2279,7 @@ changes:
 
 * `statusCode` {number}
 * `statusMessage` {string}
-* `headers` {Object|Array}
+* `headers` {Headers|Object|Array}
 * Returns: {http.ServerResponse}
 
 Sends a response header to the request. The status code is a 3-digit HTTP
@@ -2296,6 +2301,15 @@ response
     'Content-Length': Buffer.byteLength(body),
     'Content-Type': 'text/plain',
   })
+  .end(body);
+```
+
+`headers` may also be an instance of the [`Headers`][].
+
+```js
+const body = 'hello world';
+response
+  .writeHead(200, new Headers({ foo: 'bar' }))
   .end(body);
 ```
 
@@ -3812,6 +3826,7 @@ Set the maximum number of idle HTTP parsers. **Default:** `1000`.
 [`Buffer.byteLength()`]: buffer.md#static-method-bufferbytelengthstring-encoding
 [`Duplex`]: stream.md#class-streamduplex
 [`HPE_HEADER_OVERFLOW`]: errors.md#hpe_header_overflow
+[`Headers`]: globals.md#class-headers
 [`TypeError`]: errors.md#class-typeerror
 [`URL`]: url.md#the-whatwg-url-api
 [`agent.createConnection()`]: #agentcreateconnectionoptions-callback
