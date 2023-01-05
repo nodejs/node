@@ -2,7 +2,6 @@
 
 require('../common');
 
-const { URL } = require('url');
 const assert = require('assert');
 
 [

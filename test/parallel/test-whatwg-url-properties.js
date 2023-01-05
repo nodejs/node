@@ -1,7 +1,6 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const { URL, URLSearchParams } = require('url');
 
 [
   { name: 'toString' },

@@ -27,7 +27,7 @@ tmpdir.refresh();
 
 const assert = require('assert');
 const { spawn } = require('child_process');
-const { pathToFileURL, URL } = require('url');
+const { pathToFileURL } = require('url');
 
 // Spawns 'pwd' with given options, then test
 // - whether the child pid is undefined or number,
