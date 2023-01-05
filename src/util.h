@@ -949,6 +949,7 @@ void SetConstructorFunction(v8::Isolate* isolate,
                                 SetConstructorFunctionFlag::SET_CLASS_NAME);
 
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+bool IsSingleExecutable();
 const char* FindSingleExecutableCode(size_t* size = nullptr);
 #endif
 

@@ -1275,7 +1275,7 @@ static std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
   // Repeats argv[0] at position 1 on argv as a replacement for the missing
   // entry point file path.
-  if (FindSingleExecutableCode() != nullptr) {
+  if (IsSingleExecutable()) {
     char** new_argv = new char*[argc + 2];
     int new_argc = 0;
     new_argv[new_argc++] = argv[0];

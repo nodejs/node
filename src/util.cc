@@ -603,9 +603,11 @@ Local<String> UnionBytes::ToStringChecked(Isolate* isolate) const {
 }
 
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+bool IsSingleExecutable() {
+  return postject_has_resource();
+}
+
 const char* FindSingleExecutableCode(size_t* size) {
-  // TODO(RaisinTen): Use a fuse when https://github.com/nodejs/postject/pull/59
-  // lands.
   if (single_executable_application_code_loaded == false) {
     single_executable_application_code =
         static_cast<const char*>(postject_find_resource(

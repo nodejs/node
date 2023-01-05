@@ -301,7 +301,7 @@ void Parse(
 
 DebugOptionsParser::DebugOptionsParser() {
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  if (FindSingleExecutableCode() != nullptr) return;
+  if (IsSingleExecutable()) return;
 #endif
 
   AddOption("--inspect-port",
