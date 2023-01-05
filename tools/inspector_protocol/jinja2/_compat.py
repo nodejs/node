@@ -58,7 +58,6 @@ else:
     iteritems = lambda d: d.iteritems()
 
     import cPickle as pickle
-    from cStringIO import StringIO as BytesIO, StringIO
     NativeStringIO = BytesIO
 
     exec('def reraise(tp, value, tb=None):\n raise tp, value, tb')

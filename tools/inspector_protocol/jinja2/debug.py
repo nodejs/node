@@ -302,7 +302,6 @@ def _init_ugly_crap():
     interpreters
     """
     import ctypes
-    from types import TracebackType
 
     if PY2:
         # figure out size of _Py_ssize_t for Python 2:
