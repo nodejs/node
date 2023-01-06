@@ -59,38 +59,3 @@ const http = require('http');
     }));
   }));
 }
-
-{
-  const server = http.createServer(common.mustCall((req, res) => {
-    res.writeHead(200, new globalThis.Headers({ foo: 'bar' }));
-    res.end();
-  }));
-
-  server.listen(0, common.mustCall(() => {
-    http.get({ port: server.address().port }, common.mustCall((res) => {
-      assert.strictEqual(res.headers.foo, 'bar');
-      assert.strictEqual(res.statusCode, 200);
-      res.resume().on('end', common.mustCall(() => {
-        server.close();
-      }));
-    }));
-  }));
-}
-
-{
-  const server = http.createServer(common.mustCall((req, res) => {
-    res.setHeader('test', '1');
-    res.writeHead(200, new globalThis.Headers({ test: '2', test2: '2' }));
-    res.end();
-  }));
-
-  server.listen(0, common.mustCall(() => {
-    http.get({ port: server.address().port }, common.mustCall((res) => {
-      assert.strictEqual(res.headers.test, '2');
-      assert.strictEqual(res.headers.test2, '2');
-      res.resume().on('end', common.mustCall(() => {
-        server.close();
-      }));
-    }));
-  }));
-}

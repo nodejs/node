@@ -1995,36 +1995,18 @@ is desired with potential future retrieval and modification, use
 added: REPLACEME
 -->
 
-* `headers` {Headers|Object|Array}
+* `headers` {Headers}
 * Returns: {http.ServerResponse}
 
 Returns the response object.
 
 Sets multiple header values for implicit headers.
-`headers` may be an instance of [`Headers`][] or `Array` where the keys
-and values are in the same list.
-It is _not_ a list of tuples. So, the even-numbered offsets are key values,
-and the odd-numbered offsets are the associated values. The array is in the same
-format as `request.rawHeaders`.
+`headers` must be an instance of [`Headers`][], if header already exists
+in the to-be-sent headers, its value will be replaced.
 
 ```js
 const headers = new Headers({ foo: 'bar' });
 response.setHeaders(headers);
-```
-
-or
-
-```js
-response.setHeaders(['foo', 'bar', 'fizz', 'buzz']);
-```
-
-or
-
-```js
-response.setHeaders({
-  foo: 'bar',
-  fizz: 'buzz',
-});
 ```
 
 When headers have been set with [`response.setHeaders()`][], they will be merged
@@ -2034,7 +2016,8 @@ to [`response.writeHead()`][] given precedence.
 ```js
 // Returns content-type = text/plain
 const server = http.createServer((req, res) => {
-  res.setHeaders(['Content-Type', 'text/html', 'X-Foo', 'bar']);
+  const headers = new Headers({ 'Content-Type': 'text/html' });
+  res.setHeaders(headers);
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('ok');
 });
@@ -2256,10 +2239,6 @@ response.writeEarlyHints({
 <!-- YAML
 added: v0.1.30
 changes:
-  - version:
-    - REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/46109
-    description: Allow passing headers as Headers object.
   - version: v14.14.0
     pr-url: https://github.com/nodejs/node/pull/35274
     description: Allow passing headers as an array.
@@ -2279,7 +2258,7 @@ changes:
 
 * `statusCode` {number}
 * `statusMessage` {string}
-* `headers` {Headers|Object|Array}
+* `headers` {Object|Array}
 * Returns: {http.ServerResponse}
 
 Sends a response header to the request. The status code is a 3-digit HTTP
@@ -2301,15 +2280,6 @@ response
     'Content-Length': Buffer.byteLength(body),
     'Content-Type': 'text/plain',
   })
-  .end(body);
-```
-
-`headers` may also be an instance of the [`Headers`][].
-
-```js
-const body = 'hello world';
-response
-  .writeHead(200, new Headers({ foo: 'bar' }))
   .end(body);
 ```
 
