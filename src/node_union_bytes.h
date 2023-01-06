@@ -63,8 +63,8 @@ class UnionBytes {
   UnionBytes(const uint8_t* data, size_t length)
       : one_bytes_(data), two_bytes_(nullptr), length_(length) {}
   template <typename T>  // T = uint8_t or uint16_t
-  UnionBytes(std::shared_ptr<T[]> data, size_t length)
-      : UnionBytes(data.get(), length) {
+  explicit UnionBytes(std::shared_ptr<std::vector<T>> data)
+      : UnionBytes(data->data(), data->size()) {
     owning_ptr_ = data;
   }
 

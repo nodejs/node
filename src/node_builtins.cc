@@ -256,12 +256,13 @@ void BuiltinLoader::AddExternalizedBuiltin(const char* id,
 bool BuiltinLoader::Add(const char* id, std::string_view utf8source) {
   size_t expected_u16_length =
       simdutf::utf16_length_from_utf8(utf8source.data(), utf8source.length());
-  std::shared_ptr<uint16_t[]> out{new uint16_t[expected_u16_length]};
-  size_t u16_length =
-      simdutf::convert_utf8_to_utf16le(utf8source.data(),
-                                       utf8source.length(),
-                                       reinterpret_cast<char16_t*>(out.get()));
-  return Add(id, UnionBytes(out, u16_length));
+  auto out = std::make_shared<std::vector<uint16_t>>(expected_u16_length);
+  size_t u16_length = simdutf::convert_utf8_to_utf16le(
+      utf8source.data(),
+      utf8source.length(),
+      reinterpret_cast<char16_t*>(out->data()));
+  out->resize(u16_length);
+  return Add(id, UnionBytes(out));
 }
 
 // Returns Local<Function> of the compiled module if return_code_cache
