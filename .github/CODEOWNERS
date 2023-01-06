@@ -1,9 +1,12 @@
 # Node.js Project Codeowners
 
-# 1. Codeowners must always be teams, never individuals
-# 2. Each codeowner team should contain at least one TSC member
-# 3. PRs touching any code with a codeowner must be signed off by at least one
-#    person on the code owner team.
+# This file does not define any requirements for landing PRs.
+# Its purpose is to allow automation of courtesy pings to the
+# relevant team(s) when any of the paths listed here are modified.
+# Criteria for landing PRs are defined in
+# https://github.com/nodejs/node/blob/main/doc/contributing/collaborator-guide.md#code-reviews.
+#
+# Codeowners must always be teams, never individuals.
 
 # tsc
 
