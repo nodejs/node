@@ -805,11 +805,6 @@ void Environment::RemoveCleanupHook(CleanupQueue::Callback fn, void* arg) {
   cleanup_queue_.Remove(fn, arg);
 }
 
-void Environment::set_main_utf16(std::unique_ptr<v8::String::Value> str) {
-  CHECK(!main_utf16_);
-  main_utf16_ = std::move(str);
-}
-
 void Environment::set_process_exit_handler(
     std::function<void(Environment*, ExitCode)>&& handler) {
   process_exit_handler_ = std::move(handler);

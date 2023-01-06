@@ -55,13 +55,18 @@ class NonOwningExternalTwoByteResource
 
 // Similar to a v8::String, but it's independent from Isolates
 // and can be materialized in Isolates as external Strings
-// via ToStringChecked. The data pointers are owned by the caller.
+// via ToStringChecked.
 class UnionBytes {
  public:
   UnionBytes(const uint16_t* data, size_t length)
       : one_bytes_(nullptr), two_bytes_(data), length_(length) {}
   UnionBytes(const uint8_t* data, size_t length)
       : one_bytes_(data), two_bytes_(nullptr), length_(length) {}
+  template <typename T>  // T = uint8_t or uint16_t
+  UnionBytes(std::shared_ptr<T[]> data, size_t length)
+      : UnionBytes(data.get(), length) {
+    owning_ptr_ = data;
+  }
 
   UnionBytes(const UnionBytes&) = default;
   UnionBytes& operator=(const UnionBytes&) = default;
@@ -94,6 +99,7 @@ class UnionBytes {
   const uint8_t* one_bytes_;
   const uint16_t* two_bytes_;
   size_t length_;
+  std::shared_ptr<void> owning_ptr_;
 };
 
 }  // namespace node
