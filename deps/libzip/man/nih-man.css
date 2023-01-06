@@ -1,0 +1,59 @@
+div.lit {
+    font-family: monospace;
+}
+div.sec-head, div.ssec-head, h1, h2 {
+    padding: 4pt;
+    border: 1px solid #555555;
+    background: #aaaaaa;
+    font-weight: bold;
+}
+div.sec-head, h1 {
+    font-size: large;
+}
+h2 {
+    font-size: medium;
+}
+div.sec-body, div.ssec-body {
+    margin-top: 1em;
+}
+span.arg {
+    font-style: italic;
+}
+span.define {
+}
+span.emph {    
+}
+span.errno {
+}
+span.farg {
+    font-style: italic;
+}
+span.fname {
+    font-weight: bold;
+}
+span.ftype {
+    font-style: italic;
+}
+span.includes {
+    font-weight: bold;
+}
+span.name {
+    font-weight: bold;
+}
+
+/* copied from nih's style.css */
+body {
+    background: #cccccc;
+}
+a {
+    text-decoration: none;
+}
+a:link {
+    color: #555555;
+}
+a:visited {
+    color: #666666;
+}
+a:hover {
+    color: #777777;
+}

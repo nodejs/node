@@ -1,0 +1,9 @@
+# get extra_by_id fields for index
+args encrypt.zip get_extra_by_id 0 21589 0 l get_extra_by_id 0 30805 0 l get_extra_by_id 0 21589 0 c get_extra_by_id 0 30805 0 c get_extra_by_id 0 21544 0 c
+return 1
+file encrypt.zip encrypt.zip encrypt.zip
+stdout Extra field 0x5455: len 9, data 0x033dda4c444dda4c44
+stdout Extra field 0x7855: len 4, data 0x64001400
+stdout Extra field 0x5455: len 5, data 0x033dda4c44
+stdout Extra field 0x7855: len 0
+stderr can't get extra field data for file at index 0, extra field id 21544, ef index 0, flags 512: No such file

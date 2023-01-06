@@ -1,0 +1,169 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zip_source_layered.mdoc -- create layered source from function
+.\" Copyright (C) 2004-2022 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIP_SOURCE_LAYERED" "3" "December 5, 2022" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzip_source_layered\fR,
+\fBzip_source_layered_create\fR
+\- create layered data source from function
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.sp
+\fIzip_source_t *\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_source_layered\fR(\fIzip_t\ *archive\fR, \fIzip_source_t\ *source\fR, \fIzip_source_layered_callback\ fn\fR, \fIvoid\ *userdata\fR);
+.PD
+.PP
+\fIzip_source_t *\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_source_layered_create\fR(\fIzip_source_t\ *source\fR, \fIzip_source_layered_callback\ fn\fR, \fIvoid\ *userdata\fR, \fIzip_error_t\ *error\fR);
+.PD
+.SH "DESCRIPTION"
+The functions
+\fBzip_source_layered\fR()
+and
+\fBzip_source_layered_create\fR()
+create a layered zip source from the user-provided function
+\fIfn\fR,
+which must be of the following type:
+.PP
+\fItypedef zip_int64_t\fR
+\fB\fR(*\zip_source_layered_callback\fR)\fP\fR(\fIzip_source_t\ *source\fR, \fIvoid\ *userdata\fR, \fIvoid\ *data\fR, \fIzip_uint64_t\ length\fR, \fIzip_source_cmd_t\ cmd\fR)
+.PP
+\fIarchive\fR
+or
+\fIerror\fR
+are used for reporting errors and can be
+\fRNULL\fR.
+.PP
+When called by the library, the first argument is the
+\fIsource\fR
+of the lower layer, the second argument is the
+\fIuserdata\fR
+argument supplied to the function.
+The next two arguments are a buffer
+\fIdata\fR
+of size
+\fIlength\fR
+when data is passed in or expected to be returned, or else
+\fRNULL\fR
+and 0.
+The last argument,
+\fIcmd\fR,
+specifies which action the function should perform.
+.PP
+See
+zip_source_function(3)
+for a description of the commands.
+.PP
+A layered source transforms the data or metadata of the source below in some way.
+Layered sources can't support writing and are not sufficient to cleanly add support for additional compression or encryption methods.
+This may be revised in a later release of libzip.
+.PP
+The interaction with the lower layer depends on the command:
+.SS "\fRZIP_SOURCE_ACCEPT_EMPTY\fR"
+If the layered source supports this command, the lower layer is not called automatically.
+Otherwise, the return value of the lower source is used.
+.SS "\fRZIP_SOURCE_CLOSE\fR"
+The lower layer is closed after the callback returns.
+.SS "\fRZIP_SOURCE_ERROR\fR"
+The lower layer is not called automatically.
+If you need to retrieve error information from the lower layer, use
+zip_error_set_from_source(3)
+or
+zip_source_pass_to_lower_layer(3).
+.SS "\fRZIP_SOURCE_FREE\fR"
+The lower layer is freed after the callback returns.
+.SS "\fRZIP_SOURCE_GET_FILE_ATTRIBUTES\fR"
+The attributes of the lower layer are merged with the attributes returned by the callback: information set by the callback wins over the lower layer, with the following exceptions: the higher
+\fIversion_needed\fR
+is used, and
+\fIgeneral_purpose_bit_flags\fR
+are only overwritten if the corresponding bit is set in
+\fIgeneral_purpose_bit_mask\fR.
+.SS "\fRZIP_SOURCE_OPEN\fR"
+The lower layer is opened before the callback is called.
+.SS "\fRZIP_SOURCE_READ\fR"
+The lower layer is not called automatically.
+.SS "\fRZIP_SOURCE_SEEK\fR"
+The lower layer is not called automatically.
+.SS "\fRZIP_SOURCE_STAT\fR"
+\fIdata\fR
+contains the stat information from the lower layer when the callback is called.
+.SS "\fRZIP_SOURCE_SUPPORTS\fR"
+\fIdata\fR
+contains the bitmap of commands supported by the lower layer when the callback is called.
+Since layered sources can't support writing, all commands related to writing are stripped from the returned support bitmap.
+.SS "\fRZIP_SOURCE_TELL\fR"
+The lower layer is not called automatically.
+.SH "RETURN VALUES"
+Upon successful completion, the created source is returned.
+Otherwise,
+\fRNULL\fR
+is returned and the error code in
+\fIarchive\fR
+or
+\fIerror\fR
+is set to indicate the error (unless
+it is
+\fRNULL\fR).
+.SH "ERRORS"
+\fBzip_source_layered\fR()
+fails if:
+.TP 19n
+[\fRZIP_ER_MEMORY\fR]
+Required memory could not be allocated.
+.SH "SEE ALSO"
+libzip(3),
+zip_file_add(3),
+zip_file_attributes_init(3),
+zip_file_replace(3),
+zip_source(3),
+zip_source_function(3),
+zip_source_pass_to_lower_layer(3)
+.SH "HISTORY"
+\fBzip_source_layered\fR()
+and
+\fBzip_source_layered_create\fR()
+were added in libzip 1.10.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

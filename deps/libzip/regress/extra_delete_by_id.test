@@ -1,0 +1,6 @@
+# delete extra field by id and index
+#args encrypt.zip set_extra 0 2345 65535 cl extrafieldcontent
+args encrypt.zip delete_extra_by_id 0 2345 0 c delete_extra_by_id 0 2345 0 l get_extra_by_id 0 2345 0 c
+return 1
+file encrypt.zip encrypt_plus_extra.zip encrypt.zip
+stderr can't get extra field data for file at index 0, extra field id 2345, ef index 0, flags 512: No such file

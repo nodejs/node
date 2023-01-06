@@ -1,0 +1,84 @@
+.\" zip_source_seek_write.mdoc -- set write offset in source
+.\" Copyright (C) 2014-2017 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd December 18, 2017
+.Dt ZIP_SOURCE_SEEK_WRITE 3
+.Os
+.Sh NAME
+.Nm zip_source_seek_write
+.Nd set write offset in zip source
+.Sh LIBRARY
+libzip (-lzip)
+.Sh SYNOPSIS
+.In zip.h
+.Ft int
+.Fn zip_source_seek_write "zip_source_t *source" "zip_int64_t offset" "int whence"
+.Sh DESCRIPTION
+The function
+.Fn zip_source_seek_write
+sets the current write offset for
+.Fa source .
+Just like in
+.Xr fseek 3 ,
+depending on the
+.Ar whence
+argument, the
+.Ar offset
+is counted relative from:
+.Bl -tag -width SEEK_CURXX -offset indent
+.It Dv SEEK_SET
+start of file
+.It Dv SEEK_CUR
+current write offset in file
+.It Dv SEEK_END
+end of file
+.El
+.Sh RETURN VALUES
+Upon successful completion 0 is returned.
+Otherwise, \-1 is returned and the error information in
+.Ar source
+is set to indicate the error.
+.Sh SEE ALSO
+.Xr libzip 3 ,
+.Xr zip_source 3 ,
+.Xr zip_source_begin_write 3 ,
+.Xr zip_source_commit_write 3 ,
+.Xr zip_source_rollback_write 3 ,
+.Xr zip_source_tell_write 3 ,
+.Xr zip_source_write 3
+.Sh HISTORY
+.Fn zip_source_seek_write
+was added in libzip 1.0.
+.Sh AUTHORS
+.An -nosplit
+.An Dieter Baron Aq Mt dillo@nih.at
+and
+.An Thomas Klausner Aq Mt tk@giga.or.at

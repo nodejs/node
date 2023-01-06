@@ -1,0 +1,6 @@
+# successful fseek test
+program fseek
+args test.zip 0 8
+return 1
+file test.zip test.zip test.zip
+stderr zip_fseek failed: Invalid argument

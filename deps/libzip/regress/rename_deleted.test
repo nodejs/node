@@ -1,0 +1,5 @@
+# rename deleted entry in zip archive (fails)
+return 1
+args testfile.zip delete 1 delete 3 rename 1 othername
+file testfile.zip testcomment.zip testcomment13.zip
+stderr can't rename file at index '1' to 'othername': Entry has been deleted

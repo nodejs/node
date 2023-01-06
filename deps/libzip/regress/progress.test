@@ -1,0 +1,10 @@
+# test default compression stores if smaller; print progress
+return 0
+args -n test.zip  print_progress  add compressible aaaaaaaaaaaaaa  add uncompressible uncompressible  add_nul large-compressible 8200  add_file large-uncompressible large-uncompressible 0 -1
+file-new test.zip cm-default.zip
+file large-uncompressible large-uncompressible large-uncompressible
+stdout 0.0% done
+stdout 25.0% done
+stdout 50.0% done
+stdout 75.0% done
+stdout 100.0% done

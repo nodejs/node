@@ -1,0 +1,5 @@
+# change method to unknown
+return 1
+args test.zip  set_file_compression 0 unknown 0
+file test.zip teststored.zip teststored.zip
+stderr can't set file compression method at index '0' to 'unknown', flags '0': Compression method not supported

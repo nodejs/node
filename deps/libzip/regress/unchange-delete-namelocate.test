@@ -1,0 +1,5 @@
+# namelocate after a file has been deleted and unchanged should succeed.
+args test2.zip delete  0  unchange 0  name_locate testfile.txt 0
+return 0
+file test2.zip test2.zip test2.zip
+stdout name 'testfile.txt' using flags '0' found at index 0

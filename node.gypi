@@ -139,6 +139,9 @@
     [ 'node_no_browser_globals=="true"', {
       'defines': [ 'NODE_NO_BROWSER_GLOBALS' ],
     } ],
+    [ 'node_shared_libzip=="false"', {
+      'dependencies': [ 'deps/libzip/libzip.gyp:libzip' ],
+    } ],
     [ 'node_shared_zlib=="false"', {
       'dependencies': [ 'deps/zlib/zlib.gyp:zlib' ],
       'conditions': [
@@ -213,6 +216,10 @@
 
     [ 'node_shared_brotli=="false"', {
       'dependencies': [ 'deps/brotli/brotli.gyp:brotli' ],
+    }],
+
+    [ 'node_shared_libzip=="false"', {
+      'dependencies': [ 'deps/libzip/libzip.gyp:libzip' ],
     }],
 
     [ 'OS=="mac"', {

@@ -1,0 +1,402 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" ziptool.mdoc -- modify zip archives in multiple ways
+.\" Copyright (C) 2016-2022 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIPTOOL" "1" "March 15, 2022" "NiH" "General Commands Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBziptool\fR
+\- modify zip archives
+.SH "SYNOPSIS"
+.HP 8n
+\fBziptool\fR
+[\fB\-ceghnrst\fR]
+[\fB\-l\fR\ \fIlength\fR]
+[\fB\-o\fR\ \fIoffset\fR]
+\fIzip-archive\fR
+\fBcommand\fR\ [\fIcommand-args\ ...\fR]
+[\fBcommand\fR\ [\fIcommand-args\ ...\fR]\ ...]
+.SH "DESCRIPTION"
+\fBziptool\fR
+modifies the zip archive
+\fIzip-archive\fR
+according to the
+\fIcommands\fR
+given.
+.PP
+Supported options:
+.TP 13n
+\fB\-c\fR
+Check zip archive consistency when opening it.
+.TP 13n
+\fB\-e\fR
+Error if archive already exists (only useful with
+\fB\-n\fR).
+.TP 13n
+\fB\-g\fR
+Guess file name encoding (for
+\fBstat\fR
+command).
+.TP 13n
+\fB\-h\fR
+Display help.
+.TP 13n
+\fB\-l\fR \fIlength\fR
+Only read
+\fIlength\fR
+bytes of archive.
+See also
+\fB\-o\fR.
+.TP 13n
+\fB\-n\fR
+Create archive if it doesn't exist.
+See also
+\fB\-e\fR.
+.TP 13n
+\fB\-o\fR \fIoffset\fR
+Start reading input archive from
+\fIoffset\fR.
+See also
+\fB\-l\fR.
+.TP 13n
+\fB\-r\fR
+Print raw file name encoding without translation (for
+\fBstat\fR
+command).
+.TP 13n
+\fB\-s\fR
+Follow file name convention strictly (for
+\fBstat\fR
+command).
+.TP 13n
+\fB\-t\fR
+Disregard current file contents, if any.
+\fINote\fR:
+use this with care, it deletes all existing file contents when
+you modify the archive.
+.SS "Commands"
+For all commands below, the index is zero-based.
+In other words, the first entry in the zip archive has index 0.
+.PP
+Supported commands and arguments are:
+.TP 12n
+\fBadd\fR \fIname content\fR
+Add file called
+\fIname\fR
+using the string
+\fIcontent\fR
+from the command line as data.
+.TP 12n
+\fBadd_dir\fR \fIname\fR
+Add directory
+\fIname\fR.
+.TP 12n
+\fBadd_file\fR \fIname file_to_add offset len\fR
+Add file
+\fIname\fR
+to archive, using
+\fIlen\fR
+bytes from the file
+\fIfile_to_add\fR
+as input data, starting at
+\fIoffset\fR.
+.TP 12n
+\fBadd_from_zip\fR \fIname archivename index offset len\fR
+Add file called
+\fIname\fR
+to archive using data from another zip archive
+\fIarchivename\fR
+using the entry with index
+\fIindex\fR
+and reading
+\fIlen\fR
+bytes from
+\fIoffset\fR.
+.TP 12n
+\fBcat\fR \fIindex\fR
+Output file contents for entry
+\fIindex\fR
+to stdout.
+.TP 12n
+\fBcount_extra\fR \fIindex flags\fR
+Print the number of extra fields for archive entry
+\fIindex\fR
+using
+\fIflags\fR.
+.TP 12n
+\fBcount_extra_by_id\fR \fIindex extra_id flags\fR
+Print number of extra fields of type
+\fIextra_id\fR
+for archive entry
+\fIindex\fR
+using
+\fIflags\fR.
+.TP 12n
+\fBdelete\fR \fIindex\fR
+Remove entry at
+\fIindex\fR
+from zip archive.
+.TP 12n
+\fBdelete_extra\fR \fIindex extra_idx flags\fR
+Remove extra field number
+\fIextra_idx\fR
+from archive entry
+\fIindex\fR
+using
+\fIflags\fR.
+.TP 12n
+\fBdelete_extra_by_id\fR \fIindex extra_id extra_index flags\fR
+Remove extra field number
+\fIextra_index\fR
+of type
+\fIextra_id\fR
+from archive entry
+\fIindex\fR
+using
+\fIflags\fR.
+.TP 12n
+\fBget_archive_comment\fR
+Print archive comment.
+.TP 12n
+\fBget_extra\fR \fIindex extra_index flags\fR
+Print extra field
+\fIextra_index\fR
+for archive entry
+\fIindex\fR
+using
+\fIflags\fR.
+.TP 12n
+\fBget_extra_by_id\fR \fIindex extra_id extra_index flags\fR
+Print extra field
+\fIextra_index\fR
+of type
+\fIextra_id\fR
+for archive entry
+\fIindex\fR
+using
+\fIflags\fR.
+.TP 12n
+\fBget_file_comment\fR \fIindex\fR
+Get file comment for archive entry
+\fIindex\fR.
+.TP 12n
+\fBget_num_entries\fR \fIflags\fR
+Print number of entries in archive using
+\fIflags\fR.
+.TP 12n
+\fBname_locate\fR \fIname flags\fR
+Find entry in archive with the filename
+\fIname\fR
+using
+\fIflags\fR
+and print its index.
+.TP 12n
+\fBrename\fR \fIindex name\fR
+Rename archive entry
+\fIindex\fR
+to
+\fIname\fR.
+.TP 12n
+\fBreplace_file_contents\fR \fIindex data\fR
+Replace file contents for archive entry
+\fIindex\fR
+with the string
+\fIdata\fR.
+.TP 12n
+\fBset_archive_comment\fR \fIcomment\fR
+Set archive comment to
+\fIcomment\fR.
+.TP 12n
+\fBset_extra\fR \fIindex extra_id extra_index flags value\fR
+Set extra field number
+\fIextra_index\fR
+of type
+\fIextra_id\fR
+for archive entry
+\fIindex\fR
+using
+\fIflags\fR
+to
+\fIvalue\fR.
+.TP 12n
+\fBset_file_comment\fR \fIindex comment\fR
+Set file comment for archive entry
+\fIindex\fR
+to string
+\fIcomment\fR.
+.TP 12n
+\fBset_file_compression\fR \fIindex method compression_flags\fR
+Set file compression method for archive entry
+\fIindex\fR
+to
+\fImethod\fR
+using
+\fIcompression_flags\fR.
+\fINote\fR:
+Currently,
+\fIcompression_flags\fR
+are ignored.
+.TP 12n
+\fBset_file_encryption\fR \fIindex method password\fR
+Set file encryption method for archive entry
+\fIindex\fR
+to
+\fImethod\fR
+with password
+\fIpassword\fR.
+.TP 12n
+\fBset_file_mtime\fR \fIindex timestamp\fR
+Set file modification time for archive entry
+\fIindex\fR
+to UNIX mtime
+\fItimestamp\fR.
+.TP 12n
+\fBset_file_mtime_all\fR \fItimestamp\fR
+Set file modification time for all archive entries to UNIX mtime
+\fItimestamp\fR.
+.TP 12n
+\fBset_password\fR \fIpassword\fR
+Set default password for encryption/decryption to
+\fIpassword\fR.
+.TP 12n
+\fBstat\fR \fIindex\fR
+Print information about archive entry
+\fIindex\fR.
+.SS "Flags"
+Some commands take flag arguments. Each character in the argument sets the corresponding flag. Use 0 or the empty string for no flags.
+.PP
+Supported flags are:
+.RS 6n
+.PD 0
+.TP 5n
+\fI4\fR
+\fRZIP_FL_ENC_CP437\fR
+.TP 5n
+\fI8\fR
+\fRZIP_FL_ENC_UTF_8\fR
+.TP 5n
+\fIC\fR
+\fRZIP_FL_NOCASE\fR
+.TP 5n
+\fIc\fR
+\fRZIP_FL_CENTRAL\fR
+.TP 5n
+\fId\fR
+\fRZIP_FL_NODIR\fR
+.TP 5n
+\fIl\fR
+\fRZIP_FL_LOCAL\fR
+.TP 5n
+\fIr\fR
+\fRZIP_FL_ENC_RAW\fR
+.TP 5n
+\fIs\fR
+\fRZIP_FL_ENC_STRICT\fR
+.TP 5n
+\fIu\fR
+\fRZIP_FL_UNCHANGED\fR
+.RE
+.PD
+.SS "Compression Methods"
+Some commands take compression method arguments.
+Supported methods are:
+.RS 6n
+.PD 0
+.TP 4n
+\fB\(bu\fR
+\fRdefault\fR
+.TP 4n
+\fB\(bu\fR
+\fRdeflate\fR
+.TP 4n
+\fB\(bu\fR
+\fRstore\fR
+.RE
+.PD
+.SS "Encryption Methods"
+Some commands take encryption method arguments.
+Supported methods are:
+.RS 6n
+.PD 0
+.TP 4n
+\fB\(bu\fR
+\fRnone\fR
+.TP 4n
+\fB\(bu\fR
+\fRAES-128\fR
+.TP 4n
+\fB\(bu\fR
+\fRAES-192\fR
+.TP 4n
+\fB\(bu\fR
+\fRAES-256\fR
+.RE
+.PD
+.SH "EXIT STATUS"
+.br
+The \fBziptool\fR utility exits\~0 on success, and\~>0 if an error occurs.
+.SH "EXAMPLES"
+Add a file called
+\fIteststring.txt\fR
+to the zip archive
+\fItestbuffer.zip\fR
+with data
+\(lqThis is a test.\en\(rq
+where
+\(lq\en\(rq
+is replaced with a newline character:
+.nf
+.sp
+.RS 6n
+ziptool testbuffer.zip add teststring.txt \\"This is a test.\en\\"
+.RE
+.fi
+.PP
+Delete the first file from the zip archive
+\fItestfile.zip\fR:
+.nf
+.sp
+.RS 6n
+ziptool testfile.zip delete 0
+.RE
+.fi
+.SH "SEE ALSO"
+zipcmp(1),
+zipmerge(1),
+libzip(3)
+.SH "HISTORY"
+\fBziptool\fR
+was added in libzip 1.1.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

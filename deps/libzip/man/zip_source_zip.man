@@ -1,0 +1,145 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zip_source_zip.mdoc -- create data source from zip file
+.\" Copyright (C) 2004-2021 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIP_SOURCE_ZIP" "3" "April 4, 2021" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzip_source_zip\fR,
+\fBzip_source_zip_create\fR
+\- create data source from zip file
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.sp
+\fIzip_source_t *\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_source_zip\fR(\fIzip_t\ *archive\fR, \fIzip_t\ *srcarchive\fR, \fIzip_uint64_t\ srcidx\fR, \fIzip_flags_t\ flags\fR, \fIzip_uint64_t\ start\fR, \fIzip_int64_t\ len\fR);
+.PD
+.PP
+\fIzip_source_t *\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_source_zip_create\fR(\fIzip_t\ *srcarchive\fR, \fIzip_uint64_t\ srcidx\fR, \fIzip_flags_t\ flags\fR, \fIzip_uint64_t\ start\fR, \fIzip_int64_t\ len\fR, \fIzip_error_t\ *error\fR);
+.PD
+.SH "DESCRIPTION"
+The functions
+\fBzip_source_zip\fR()
+and
+\fBzip_source_zip_create\fR()
+create a zip source from a file in a zip archive.
+The
+\fIsrcarchive\fR
+argument is the (open) zip archive containing the source zip file
+at index
+\fIsrcidx\fR.
+\fIlen\fR
+bytes from offset
+\fIstart\fR
+will be used in the zip_source.
+If
+\fIlen\fR
+is 0 or \-1, the rest of the file, starting from
+\fIstart\fR,
+is used.
+If
+\fIstart\fR
+is zero and
+\fIlen\fR
+is \-1, the whole file will be copied without decompressing it.
+.PP
+Supported flags are:
+.TP 23n
+\fRZIP_FL_UNCHANGED\fR
+Try to get the original data without any changes that may have been
+made to
+\fIsrcarchive\fR
+after opening it.
+.TP 23n
+\fRZIP_FL_RECOMPRESS\fR
+When adding the data from
+\fIsrcarchive\fR,
+re-compress it using the current settings instead of copying the
+compressed data.
+.SH "RETURN VALUES"
+Upon successful completion, the created source is returned.
+Otherwise,
+\fRNULL\fR
+is returned and the error code in
+\fIarchive\fR
+or
+\fIerror\fR
+is set to indicate the error.
+.SH "ERRORS"
+\fBzip_source_zip\fR()
+and
+\fBzip_source_zip_create\fR()
+fail if:
+.TP 19n
+[\fRZIP_ER_CHANGED\fR]
+Unchanged data was requested, but it is not available.
+.TP 19n
+[\fRZIP_ER_INVAL\fR]
+\fIsrcarchive\fR,
+\fIsrcidx\fR,
+\fIstart\fR,
+or
+\fIlen\fR
+are invalid.
+.TP 19n
+[\fRZIP_ER_MEMORY\fR]
+Required memory could not be allocated.
+.PD 0
+.PP
+Additionally, it can return all error codes from
+\fBzip_stat_index\fR()
+and
+\fBzip_fopen_index\fR().
+.PD
+.SH "SEE ALSO"
+libzip(3),
+zip_file_add(3),
+zip_file_replace(3),
+zip_source(3)
+.SH "HISTORY"
+\fBzip_source_zip\fR()
+was added in libzip 1.0.
+\fBzip_source_zip_create\fR()
+was added in libzip 1.8.0.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

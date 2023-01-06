@@ -1,0 +1,360 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" libzip.mdoc -- general overview of available functions
+.\" Copyright (C) 2005-2022 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "LIBZIP" "3" "December 5, 2022" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBlibzip\fR
+\- library for manipulating zip archives
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.SH "DESCRIPTION"
+\fBlibzip\fR
+is a library for reading, creating, and modifying zip archives.
+.PP
+The main design criteria for
+\fBlibzip\fR
+were:
+.PD 0
+.TP 4n
+\fB\(bu\fR
+Do not create corrupt files, even in case of errors.
+.TP 4n
+\fB\(bu\fR
+Do not delete data.
+.TP 4n
+\fB\(bu\fR
+Be efficient.
+.PD
+.PP
+For this reason, when modifying zip archives,
+\fBlibzip\fR
+writes to a temporary file and replaces the original
+zip archive atomically.
+.PP
+Below there are two sections listing functions: one for how to read
+from zip archives and one for how to create/modify them.
+.SH "FILE NAMES"
+.SS "Encoding"
+Names of files in the host file system are expected in UTF-8 encoding.
+On Windows, variants for ASCII and UTF-16 are also available.
+.PP
+Names of files inside archives are by default expected in UTF-8 encoding.
+Other encodings can be requested by using the flags
+\fRZIP_FL_ENC_CP437\fR
+and
+\fRZIP_FL_ENC_RAW\fR.
+.PP
+For details see the relevant man pages.
+.SS "Directory Separator"
+The zip format requires the use of forward slash
+(\(oq/\(cq)
+as directory separator.
+Since backslash
+(\(oq\e\(cq)
+can be part of a valid file name on Unix systems,
+\fBlibzip\fR
+does not automatically convert them, even on Windows.
+It is the responsibility of the programmer to ensure that all
+directory separators are passed as forward slashes to
+\fBlibzip\fR.
+.SH "THREAD SAFETY"
+In general, different zip archives opened by
+\fBlibzip\fR
+are independent of each other and can be used by parallel-running
+threads without locking.
+If you want to use an archive from multiple threads, you have to
+synchronize access to it yourself.
+If you use an archive as a source for
+zip_file_add(3)
+or
+zip_file_replace(3),
+access to the target archive must be synchronized with access to the
+source archive as well.
+.SH "READING ZIP ARCHIVES"
+.SS "Open Archive"
+.TP 4n
+\fB\(bu\fR
+zip_open(3)
+.PD 0
+.TP 4n
+\fB\(bu\fR
+zip_fdopen(3)
+.PD
+.SS "Find Files"
+.TP 4n
+\fB\(bu\fR
+zip_name_locate(3)
+.SS "Read Files"
+.TP 4n
+\fB\(bu\fR
+zip_fopen(3)
+.PD 0
+.TP 4n
+\fB\(bu\fR
+zip_fopen_encrypted(3)
+.TP 4n
+\fB\(bu\fR
+zip_fopen_index(3)
+.TP 4n
+\fB\(bu\fR
+zip_fopen_index_encrypted(3)
+.TP 4n
+\fB\(bu\fR
+zip_fread(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_is_seekable(3)
+.TP 4n
+\fB\(bu\fR
+zip_fseek(3)
+(uncompressed files only)
+.TP 4n
+\fB\(bu\fR
+zip_ftell(3)
+.TP 4n
+\fB\(bu\fR
+zip_fclose(3)
+.PD
+.SS "Close Archive"
+.TP 4n
+\fB\(bu\fR
+zip_close(3)
+.SS "Miscellaneous"
+.TP 4n
+\fB\(bu\fR
+zip_stat(3)
+.PD 0
+.TP 4n
+\fB\(bu\fR
+zip_compression_method_supported(3)
+.TP 4n
+\fB\(bu\fR
+zip_encryption_method_supported(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_get_comment(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_get_external_attributes(3)
+.TP 4n
+\fB\(bu\fR
+zip_get_archive_comment(3)
+.TP 4n
+\fB\(bu\fR
+zip_get_archive_flag(3)
+.TP 4n
+\fB\(bu\fR
+zip_get_name(3)
+.TP 4n
+\fB\(bu\fR
+zip_get_num_entries(3)
+.TP 4n
+\fB\(bu\fR
+zip_set_default_password(3)
+.TP 4n
+\fB\(bu\fR
+zip_source_pass_to_lower_layer(3)
+.PD
+.SH "CREATING/MODIFYING ZIP ARCHIVES"
+.SS "Create/Open Archive"
+.TP 4n
+\fB\(bu\fR
+zip_open(3)
+.SS "Add/Change Files and Directories"
+.TP 4n
+\fB\(bu\fR
+zip_dir_add(3)
+.PD 0
+.TP 4n
+\fB\(bu\fR
+zip_file_add(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_replace(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_set_comment(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_set_dostime(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_set_external_attributes(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_set_encryption(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_set_mtime(3)
+.TP 4n
+\fB\(bu\fR
+zip_set_file_compression(3)
+.TP 4n
+\fB\(bu\fR
+zip_source_buffer(3)
+.TP 4n
+\fB\(bu\fR
+zip_source_file(3)
+.TP 4n
+\fB\(bu\fR
+zip_source_filep(3)
+.TP 4n
+\fB\(bu\fR
+zip_source_free(3)
+.TP 4n
+\fB\(bu\fR
+zip_source_function(3)
+.TP 4n
+\fB\(bu\fR
+zip_source_layered(3)
+.TP 4n
+\fB\(bu\fR
+zip_source_zip(3)
+.PD
+.SS "Rename Files"
+.TP 4n
+\fB\(bu\fR
+zip_rename(3)
+.SS "Delete Files"
+.TP 4n
+\fB\(bu\fR
+zip_delete(3)
+.SS "Revert Changes"
+.TP 4n
+\fB\(bu\fR
+zip_unchange(3)
+.PD 0
+.TP 4n
+\fB\(bu\fR
+zip_unchange_all(3)
+.TP 4n
+\fB\(bu\fR
+zip_unchange_archive(3)
+.PD
+.SS "Read/Modify Extra Fields"
+.TP 4n
+\fB\(bu\fR
+zip_file_extra_field_delete(3)
+.PD 0
+.TP 4n
+\fB\(bu\fR
+zip_file_extra_field_delete_by_id(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_extra_field_get(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_extra_field_get_by_id(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_extra_field_set(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_extra_fields_count(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_extra_fields_count_by_id(3)
+.PD
+.SS "Close Archive (Writing)"
+.TP 4n
+\fB\(bu\fR
+zip_close(3)
+.PD 0
+.TP 4n
+\fB\(bu\fR
+zip_discard(3)
+.PD
+.SS "Miscellaneous (Writing)"
+.TP 4n
+\fB\(bu\fR
+zip_file_attributes_init(3)
+.PD 0
+.TP 4n
+\fB\(bu\fR
+zip_libzip_version(3)
+.TP 4n
+\fB\(bu\fR
+zip_register_cancel_callback_with_state(3)
+.TP 4n
+\fB\(bu\fR
+zip_register_progress_callback_with_state(3)
+.TP 4n
+\fB\(bu\fR
+zip_set_archive_comment(3)
+.TP 4n
+\fB\(bu\fR
+zip_set_archive_flag(3)
+.TP 4n
+\fB\(bu\fR
+zip_source(3)
+.PD
+.SH "ERROR HANDLING"
+.TP 4n
+\fB\(bu\fR
+zip_error_strerror(3)
+.PD 0
+.TP 4n
+\fB\(bu\fR
+zip_strerror(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_strerror(3)
+.TP 4n
+\fB\(bu\fR
+zip_file_get_error(3)
+.TP 4n
+\fB\(bu\fR
+zip_get_error(3)
+.TP 4n
+\fB\(bu\fR
+zip_error_init_with_code(3)
+.TP 4n
+\fB\(bu\fR
+zip_error_set(3)
+.TP 4n
+\fB\(bu\fR
+zip_error_set_from_source(3)
+.TP 4n
+\fB\(bu\fR
+zip_error_system_type(3)
+.TP 4n
+\fB\(bu\fR
+zip_errors(3)
+.PD
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

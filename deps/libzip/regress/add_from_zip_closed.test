@@ -1,0 +1,5 @@
+# add deflated file from zip to zip, but close the source before it can be read
+return 1
+args -- testfile.zip   add_from_zip abac-repeat.txt testdeflated.zzip 0 0 -1  zin_close 0
+file testdeflated.zzip testdeflated.zip testdeflated.zip
+stderr can't close zip archive 'testfile.zip': Containing zip archive was closed

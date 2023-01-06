@@ -1,0 +1,7 @@
+# zip_open: file has extra bytes at end of archive
+program tryopen
+file testextrabytes.zzip testextrabytes.zip testextrabytes.zip
+args -c testextrabytes.zzip
+return 1
+stdout opening 'testextrabytes.zzip' returned error 21/2
+stderr 1 errors

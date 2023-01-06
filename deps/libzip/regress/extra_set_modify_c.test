@@ -1,0 +1,16 @@
+# change existing central extra field
+args encrypt.zip get_extra 0 0 c get_extra 0 1 c get_extra 0 2 c get_extra 0 0 l get_extra 0 1 l get_extra 0 2 l set_extra 0 2345 0 c Extrafieldcontent get_extra 0 0 c get_extra 0 1 c get_extra 0 2 c get_extra 0 0 l get_extra 0 1 l get_extra 0 2 l
+file encrypt.zip encrypt_plus_extra.zip encrypt_plus_extra_modified_c.zip
+return 0
+stdout Extra field 0x5455: len 5, data 0x033dda4c44
+stdout Extra field 0x7855: len 0
+stdout Extra field 0x0929: len 17, data 0x65787472616669656c64636f6e74656e74
+stdout Extra field 0x0929: len 17, data 0x65787472616669656c64636f6e74656e74
+stdout Extra field 0x5455: len 9, data 0x033dda4c444dda4c44
+stdout Extra field 0x7855: len 4, data 0x64001400
+stdout Extra field 0x5455: len 5, data 0x033dda4c44
+stdout Extra field 0x7855: len 0
+stdout Extra field 0x0929: len 17, data 0x45787472616669656c64636f6e74656e74
+stdout Extra field 0x0929: len 17, data 0x65787472616669656c64636f6e74656e74
+stdout Extra field 0x5455: len 9, data 0x033dda4c444dda4c44
+stdout Extra field 0x7855: len 4, data 0x64001400

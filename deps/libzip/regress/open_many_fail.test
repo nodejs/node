@@ -1,0 +1,11 @@
+# zip_open: files with >65k that have issues
+program tryopen
+args manyfiles-zip64-modulo.zzip manyfiles-fewer.zzip manyfiles-more.zzip
+return 1
+file manyfiles-zip64-modulo.zzip manyfiles-zip64-modulo.zip manyfiles-zip64-modulo.zip
+file manyfiles-fewer.zzip manyfiles-fewer.zip manyfiles-fewer.zip
+file manyfiles-more.zzip manyfiles-more.zip manyfiles-more.zip
+stdout opening 'manyfiles-zip64-modulo.zzip' returned error 21/5
+stdout opening 'manyfiles-fewer.zzip' returned error 21/5
+stdout opening 'manyfiles-more.zzip' returned error 21/5
+stderr 3 errors

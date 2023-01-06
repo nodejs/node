@@ -1,0 +1,11 @@
+/.cache
+.DS_Store
+/build*
+/developer-xcode/libzip.xcodeproj/project.xcworkspace/xcuserdata/
+/developer-xcode/libzip.xcodeproj/xcuserdata/
+*~
+*.tar.gz
+*.tar.xz
+/.clangd
+/compile_commands.json
+/cmake-build-debug

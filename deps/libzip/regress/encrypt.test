@@ -1,0 +1,23 @@
+# test encryption support
+# TODO: only checks recognition of encrypted entries for now.
+return 0
+args encrypt.zzip stat 0 stat 1
+file encrypt.zzip encrypt.zip encrypt.zip
+stdout name: 'encrypted'
+stdout index: '0'
+stdout size: '4'
+stdout compressed size: '16'
+stdout mtime: 'Mon Apr 24 2006 16:01:34'
+stdout crc: '7e3265a8'
+stdout compression method: '0'
+stdout encryption method: '1'
+stdout 
+stdout name: 'plain'
+stdout index: '1'
+stdout size: '4'
+stdout compressed size: '4'
+stdout mtime: 'Mon Apr 24 2006 16:01:42'
+stdout crc: '7e3265a8'
+stdout compression method: '0'
+stdout encryption method: '0'
+stdout 

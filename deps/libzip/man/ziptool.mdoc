@@ -1,0 +1,339 @@
+.\" ziptool.mdoc -- modify zip archives in multiple ways
+.\" Copyright (C) 2016-2022 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd March 15, 2022
+.Dt ZIPTOOL 1
+.Os
+.Sh NAME
+.Nm ziptool
+.Nd modify zip archives
+.Sh SYNOPSIS
+.Nm
+.Op Fl ceghnrst
+.Op Fl l Ar length
+.Op Fl o Ar offset
+.Ar zip-archive
+.Cm command Op Ar command-args ...
+.Op Cm command Oo Ar command-args ... Oc ...
+.Sh DESCRIPTION
+.Nm
+modifies the zip archive
+.Ar zip-archive
+according to the
+.Ar commands
+given.
+.Pp
+Supported options:
+.Bl -tag -width MoMoffsetMM
+.It Fl c
+Check zip archive consistency when opening it.
+.It Fl e
+Error if archive already exists (only useful with
+.Fl n ) .
+.It Fl g
+Guess file name encoding (for
+.Cm stat
+command).
+.It Fl h
+Display help.
+.It Fl l Ar length
+Only read
+.Ar length
+bytes of archive.
+See also
+.Fl o .
+.It Fl n
+Create archive if it doesn't exist.
+See also
+.Fl e .
+.It Fl o Ar offset
+Start reading input archive from
+.Ar offset .
+See also
+.Fl l .
+.It Fl r
+Print raw file name encoding without translation (for
+.Cm stat
+command).
+.It Fl s
+Follow file name convention strictly (for
+.Cm stat
+command).
+.It Fl t
+Disregard current file contents, if any.
+.Em Note :
+use this with care, it deletes all existing file contents when
+you modify the archive.
+.El
+.Ss Commands
+For all commands below, the index is zero-based.
+In other words, the first entry in the zip archive has index 0.
+.Pp
+Supported commands and arguments are:
+.Bl -tag -width 10n
+.It Cm add Ar name content
+Add file called
+.Ar name
+using the string
+.Ar content
+from the command line as data.
+.It Cm add_dir Ar name
+Add directory
+.Ar name .
+.It Cm add_file Ar name file_to_add offset len
+Add file
+.Ar name
+to archive, using
+.Ar len
+bytes from the file
+.Ar file_to_add
+as input data, starting at
+.Ar offset .
+.It Cm add_from_zip Ar name archivename index offset len
+Add file called
+.Ar name
+to archive using data from another zip archive
+.Ar archivename
+using the entry with index
+.Ar index
+and reading
+.Ar len
+bytes from
+.Ar offset .
+.It Cm cat Ar index
+Output file contents for entry
+.Ar index
+to stdout.
+.It Cm count_extra Ar index flags
+Print the number of extra fields for archive entry
+.Ar index
+using
+.Ar flags .
+.It Cm count_extra_by_id Ar index extra_id flags
+Print number of extra fields of type
+.Ar extra_id
+for archive entry
+.Ar index
+using
+.Ar flags .
+.It Cm delete Ar index
+Remove entry at
+.Ar index
+from zip archive.
+.It Cm delete_extra Ar index extra_idx flags
+Remove extra field number
+.Ar extra_idx
+from archive entry
+.Ar index
+using
+.Ar flags .
+.It Cm delete_extra_by_id Ar index extra_id extra_index flags
+Remove extra field number
+.Ar extra_index
+of type
+.Ar extra_id
+from archive entry
+.Ar index
+using
+.Ar flags .
+.It Cm get_archive_comment
+Print archive comment.
+.It Cm get_extra Ar index extra_index flags
+Print extra field
+.Ar extra_index
+for archive entry
+.Ar index
+using
+.Ar flags .
+.It Cm get_extra_by_id Ar index extra_id extra_index flags
+Print extra field
+.Ar extra_index
+of type
+.Ar extra_id
+for archive entry
+.Ar index
+using
+.Ar flags .
+.It Cm get_file_comment Ar index
+Get file comment for archive entry
+.Ar index .
+.It Cm get_num_entries Ar flags
+Print number of entries in archive using
+.Ar flags .
+.It Cm name_locate Ar name flags
+Find entry in archive with the filename
+.Ar name
+using
+.Ar flags
+and print its index.
+.It Cm rename Ar index name
+Rename archive entry
+.Ar index
+to
+.Ar name .
+.It Cm replace_file_contents Ar index data
+Replace file contents for archive entry
+.Ar index
+with the string
+.Ar data .
+.It Cm set_archive_comment Ar comment
+Set archive comment to
+.Ar comment .
+.It Cm set_extra Ar index extra_id extra_index flags value
+Set extra field number
+.Ar extra_index
+of type
+.Ar extra_id
+for archive entry
+.Ar index
+using
+.Ar flags
+to
+.Ar value .
+.It Cm set_file_comment Ar index comment
+Set file comment for archive entry
+.Ar index
+to string
+.Ar comment .
+.It Cm set_file_compression Ar index method compression_flags
+Set file compression method for archive entry
+.Ar index
+to
+.Ar method
+using
+.Ar compression_flags .
+.Em Note :
+Currently,
+.Ar compression_flags
+are ignored.
+.It Cm set_file_encryption Ar index method password
+Set file encryption method for archive entry
+.Ar index
+to
+.Ar method
+with password
+.Ar password .
+.It Cm set_file_mtime Ar index timestamp
+Set file modification time for archive entry
+.Ar index
+to UNIX mtime
+.Ar timestamp .
+.It Cm set_file_mtime_all Ar timestamp
+Set file modification time for all archive entries to UNIX mtime
+.Ar timestamp .
+.It Cm set_password Ar password
+Set default password for encryption/decryption to
+.Ar password .
+.It Cm stat Ar index
+Print information about archive entry
+.Ar index .
+.El
+.Ss Flags
+Some commands take flag arguments. Each character in the argument sets the corresponding flag. Use 0 or the empty string for no flags.
+.Pp
+Supported flags are:
+.Bl -tag -width MMM -compact -offset indent
+.It Ar 4
+.Dv ZIP_FL_ENC_CP437
+.It Ar 8
+.Dv ZIP_FL_ENC_UTF_8
+.It Ar C
+.Dv ZIP_FL_NOCASE
+.It Ar c
+.Dv ZIP_FL_CENTRAL
+.It Ar d
+.Dv ZIP_FL_NODIR
+.It Ar l
+.Dv ZIP_FL_LOCAL
+.It Ar r
+.Dv ZIP_FL_ENC_RAW
+.It Ar s
+.Dv ZIP_FL_ENC_STRICT
+.It Ar u
+.Dv ZIP_FL_UNCHANGED
+.El
+.Ss Compression Methods
+Some commands take compression method arguments.
+Supported methods are:
+.Bl -bullet -compact -offset indent
+.It
+.Dv default
+.It
+.Dv deflate
+.It
+.Dv store
+.El
+.Ss Encryption Methods
+Some commands take encryption method arguments.
+Supported methods are:
+.Bl -bullet -compact -offset indent
+.It
+.Dv none
+.It
+.Dv AES-128
+.It
+.Dv AES-192
+.It
+.Dv AES-256
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Add a file called
+.Pa teststring.txt
+to the zip archive
+.Pa testbuffer.zip
+with data
+.Dq This is a test.\en
+where
+.Dq \en
+is replaced with a newline character:
+.Bd -literal -offset indent
+ziptool testbuffer.zip add teststring.txt \\"This is a test.\en\\"
+.Ed
+.Pp
+Delete the first file from the zip archive
+.Pa testfile.zip :
+.Bd -literal -offset indent
+ziptool testfile.zip delete 0
+.Ed
+.Sh SEE ALSO
+.Xr zipcmp 1 ,
+.Xr zipmerge 1 ,
+.Xr libzip 3
+.Sh HISTORY
+.Nm
+was added in libzip 1.1.
+.Sh AUTHORS
+.An -nosplit
+.An Dieter Baron Aq Mt dillo@nih.at
+and
+.An Thomas Klausner Aq Mt tk@giga.or.at

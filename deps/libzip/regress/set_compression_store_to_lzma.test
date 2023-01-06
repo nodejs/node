@@ -1,0 +1,5 @@
+# change method from stored to lzma-compressed (Id 14)
+features LIBLZMA
+return 0
+args test.zip  set_file_compression 0 lzma 0
+file test.zip testfile-stored-dos.zip testfile-lzma.zip

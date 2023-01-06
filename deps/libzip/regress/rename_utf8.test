@@ -1,0 +1,4 @@
+# rename file to UTF-8 name in zip archive
+return 0
+args testfile rename 0 ÄÖÜßäöü
+file testfile testfile.zip testfile-UTF8.zip

@@ -1,0 +1,6 @@
+# zip_open: ZIP64 file opens fine even when most eocd entries are 0xff (3MF format)
+program tryopen
+args test.zip
+return 0
+file test.zip zip64-3mf.zip zip64-3mf.zip
+stdout opening 'test.zip' succeeded, 1 entries

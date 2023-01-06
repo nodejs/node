@@ -1,0 +1,7 @@
+features CRYPTO
+precheck ./liboverride-test
+description encrypt file without entropy, to make results repeatable
+return 0
+preload nonrandomopen.so
+args encrypt.zzip  set_file_encryption 1 AES-128 no-entropy
+file encrypt.zzip encrypt-none.zip encrypt-aes128-noentropy.zip

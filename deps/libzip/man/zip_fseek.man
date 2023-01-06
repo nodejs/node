@@ -1,0 +1,98 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zip_fseek.mdoc -- seek in file
+.\" Copyright (C) 2016-2022 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIP_FSEEK" "3" "November 13, 2021" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzip_fseek\fR,
+\fBzip_file_is_seekable\fR
+\- seek in file
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.sp
+\fIzip_int8_t\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_fseek\fR(\fIzip_file_t\ *file\fR, \fIzip_int64_t\ offset\fR, \fIint\ whence\fR);
+.PD
+.PP
+\fIint\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_file_is_seekable\fR(\fIzip_file_t\ *file\fR);
+.PD
+.SH "DESCRIPTION"
+The
+\fBzip_fseek\fR()
+function seeks to the specified
+\fIoffset\fR
+relative to
+\fIwhence\fR,
+just like
+fseek(3).
+.PP
+\fBzip_fseek\fR
+only works on uncompressed (stored), unencrypted data.
+When called on compressed or encrypted data it will return an error.
+.PP
+The
+\fBzip_file_is_seekable\fR()
+function returns 1 if a file is seekable.
+.SH "RETURN VALUES"
+If successful,
+\fBzip_fseek\fR()
+returns 0.
+Otherwise, \-1 is returned.
+.PP
+\fBzip_file_is_seekable\fR()
+returns 1 if a file is seekable and 0 if not.
+On an invalid argument, it returns \-1.
+.SH "SEE ALSO"
+libzip(3),
+zip_fclose(3),
+zip_fopen(3),
+zip_fread(3),
+zip_ftell(3)
+.SH "HISTORY"
+\fBzip_fseek\fR()
+was added in libzip 1.2.0.
+\fBzip_file_is_seekable\fR()
+was added in libzip 1.9.0.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

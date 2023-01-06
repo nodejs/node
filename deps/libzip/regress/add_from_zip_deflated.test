@@ -1,0 +1,5 @@
+# add deflated file from zip to zip
+return 0
+args -- testfile.zip   add_from_zip abac-repeat.txt testdeflated.zzip 0 0 -1
+file testdeflated.zzip testdeflated.zip testdeflated.zip
+file-new testfile.zip testdeflated.zip

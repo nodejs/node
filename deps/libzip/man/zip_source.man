@@ -1,0 +1,91 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zip_source.mdoc -- description of zip data source
+.\" Copyright (C) 2014-2021 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIP_SOURCE" "3" "December 18, 2017" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzip_source\fR
+\- zip data source structure
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.sp
+\fIzip_source_t *zs\fR;
+.SH "DESCRIPTION"
+A
+\fIstruct zip_source\fR
+is a data source used by
+libzip(3)
+for adding or replacing file contents for a file in a zip archive.
+If the source supports seeking, it can also be used to open zip archives from.
+It is created by calling one of
+zip_source_buffer(3),
+zip_source_buffer_create(3),
+zip_source_file(3),
+zip_source_file_create(3),
+zip_source_filep(3),
+zip_source_filep_create(3),
+zip_source_function(3),
+zip_source_function_create(3),
+zip_source_window(3),
+or
+zip_source_zip(3).
+\fIzip_source_t\fR
+is reference counted, and created with a reference count of 1.
+zip_open_from_source(3),
+zip_file_add(3),
+and
+zip_file_replace(3)
+will decrement the reference count of the
+\fIzip_source_t\fR
+when they are done using it, so
+zip_source_free(3)
+only needs to be called when these functions return an error.
+Use
+zip_source_keep(3)
+to increase the reference count, for example if you need the source after
+zip_close(3).
+.SH "SEE ALSO"
+libzip(3),
+zip_source_buffer(3),
+zip_source_file(3),
+zip_source_filep(3),
+zip_source_free(3),
+zip_source_function(3),
+zip_source_window(3),
+zip_source_zip(3)
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

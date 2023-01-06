@@ -1,0 +1,5 @@
+# delete entry in zip archive then add file of same name
+# time is now(), so use zipcmp
+return 0
+args testfile.zip delete 0 add testfile.txt test
+file testfile.zip testfile.zip test2.zip

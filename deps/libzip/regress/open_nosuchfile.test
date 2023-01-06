@@ -1,0 +1,6 @@
+# zip_open: file doesn't exist
+program tryopen
+args nosuchfile
+return 1
+stdout opening 'nosuchfile' returned error 9
+stderr 1 errors

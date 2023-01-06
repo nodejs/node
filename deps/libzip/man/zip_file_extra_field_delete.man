@@ -1,0 +1,141 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zip_file_extra_field_delete.mdoc -- delete extra field for file in zip
+.\" Copyright (C) 2012-2017 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP files.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIP_FILE_EXTRA_FIELD_DELETE" "3" "December 18, 2017" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzip_file_extra_field_delete\fR,
+\fBzip_file_extra_field_delete_by_id\fR
+\- delete extra field for file in zip
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.sp
+\fIint\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_file_extra_field_delete\fR(\fIzip_t\ *archive\fR, \fIzip_uint64_t\ index\fR, \fIzip_uint16_t\ extra_field_index\fR, \fIzip_flags_t\ flags\fR);
+.PD
+.PP
+\fIint\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_file_extra_field_delete_by_id\fR(\fIzip_t\ *archive\fR, \fIzip_uint64_t\ index\fR, \fIzip_uint16_t\ extra_field_id\fR, \fIzip_uint16_t\ extra_field_index\fR, \fIzip_flags_t\ flags\fR);
+.PD
+.SH "DESCRIPTION"
+The
+\fBzip_file_extra_field_delete\fR()
+function deletes the extra field with index
+\fIextra_field_index\fR
+for the file at position
+\fIindex\fR
+in the zip archive.
+.PP
+If
+\fIextra_field_index\fR
+is
+\fRZIP_EXTRA_FIELD_ALL\fR,
+then all extra fields will be deleted.
+.PP
+The following
+\fIflags\fR
+are supported:
+.RS 6n
+.TP 18n
+\fRZIP_FL_CENTRAL\fR
+Delete extra fields from the archive's central directory.
+.TP 18n
+\fRZIP_FL_LOCAL\fR
+Delete extra fields from the local file headers.
+.RE
+.PP
+The
+\fBzip_file_extra_field_delete_by_id\fR()
+function deletes the extra field with ID (two-byte signature)
+\fIextra_field_id\fR
+and index
+\fIextra_field_index\fR
+(in other words, the
+\fIextra_field_index\fR'th
+extra field with ID
+\fIextra_field_id\fR)
+The other arguments are the same as for
+\fBzip_file_extra_field_delete\fR()
+(\fRZIP_EXTRA_FIELD_ALL\fR
+will delete all extra fields of the specified ID).
+.PP
+Please note that due to the library design, the index of an extra
+field may be different between central directory and local file
+headers.
+For this reason, it is not allowed to specify both
+\fRZIP_FL_CENTRAL\fR
+and
+\fRZIP_FL_LOCAL\fR
+in
+\fIflags\fR,
+except when deleting all extra fields (i.e.,
+\fIextra_field_index\fR
+being
+\fRZIP_EXTRA_FIELD_ALL\fR).
+.SH "RETURN VALUES"
+Upon successful completion 0 is returned.
+Otherwise, \-1 is returned and the error code in
+\fIarchive\fR
+is set to indicate the error.
+.SH "ERRORS"
+\fBzip_file_extra_field_delete\fR()
+and
+\fBzip_file_extra_field_delete_by_id\fR()
+fail if:
+.TP 19n
+[\fRZIP_ER_NOENT\fR]
+\fIindex\fR
+is not a valid file index in
+\fIarchive\fR.
+.SH "SEE ALSO"
+libzip(3),
+zip_file_extra_field_get(3),
+zip_file_extra_field_set(3),
+zip_file_extra_fields_count(3)
+.SH "HISTORY"
+\fBzip_file_extra_field_delete\fR()
+and
+\fBzip_file_extra_field_delete_by_id\fR()
+were added in libzip 0.11.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

@@ -1,0 +1,4 @@
+# test cloning archive from buffer, add new file
+return 0
+args -mF 100 test.zzip  add new "A new file."  set_file_mtime 3 1512998132
+file test.zzip gap.zip gap-add.zip

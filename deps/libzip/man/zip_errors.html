@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<!-- This is an automatically generated file.  Do not edit.
+   zip_errors.mdoc -- list of all libzip error codes
+   Copyright (C) 1999-2021 Dieter Baron and Thomas Klausner
+  
+   This file is part of libzip, a library to manipulate ZIP archives.
+   The authors can be contacted at <info@libzip.org>
+  
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in
+      the documentation and/or other materials provided with the
+      distribution.
+   3. The names of the authors may not be used to endorse or promote
+      products derived from this software without specific prior
+      written permission.
+  
+   THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+   OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+   ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+   DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+   GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+   IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+   IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  
+     This file was generated automatically by ./make_zip_errors.sh
+     from ./../lib/zip.h; make changes there.
+   -->
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" href="../nih-man.css" type="text/css" media="all"/>
+  <title>ZIP_ERRORS(3)</title>
+</head>
+<body>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">ZIP_ERRORS(3)</td>
+    <td class="head-vol">Library Functions Manual</td>
+    <td class="head-rtitle">ZIP_ERRORS(3)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<section class="Sh">
+<h1 class="Sh" id="NAME"><a class="permalink" href="#NAME">NAME</a></h1>
+<code class="Nm">zip_errors</code> &#x2014;
+<div class="Nd">list of all libzip error codes</div>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="LIBRARY"><a class="permalink" href="#LIBRARY">LIBRARY</a></h1>
+libzip (-lzip)
+</section>
+<section class="Sh">
+<h1 class="Sh" id="SYNOPSIS"><a class="permalink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<code class="In">#include &lt;<a class="In">zip.h</a>&gt;</code>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="DESCRIPTION"><a class="permalink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+The following error codes are used by libzip:
+<dl class="Bl-tag">
+  <dt>[<code class="Er">ZIP_ER_CHANGED</code>]</dt>
+  <dd>Entry has been changed.</dd>
+  <dt>[<code class="Er">ZIP_ER_CLOSE</code>]</dt>
+  <dd>Closing zip archive failed.</dd>
+  <dt>[<code class="Er">ZIP_ER_COMPNOTSUPP</code>]</dt>
+  <dd>Compression method not supported.</dd>
+  <dt>[<code class="Er">ZIP_ER_COMPRESSED_DATA</code>]</dt>
+  <dd>Compressed data invalid.</dd>
+  <dt>[<code class="Er">ZIP_ER_CRC</code>]</dt>
+  <dd>CRC error.</dd>
+  <dt>[<code class="Er">ZIP_ER_DELETED</code>]</dt>
+  <dd>Entry has been deleted.</dd>
+  <dt>[<code class="Er">ZIP_ER_ENCRNOTSUPP</code>]</dt>
+  <dd>Encryption method not supported.</dd>
+  <dt>[<code class="Er">ZIP_ER_EOF</code>]</dt>
+  <dd>Premature end of file.</dd>
+  <dt>[<code class="Er">ZIP_ER_EXISTS</code>]</dt>
+  <dd>File already exists.</dd>
+  <dt>[<code class="Er">ZIP_ER_INCONS</code>]</dt>
+  <dd>Zip archive inconsistent.</dd>
+  <dt>[<code class="Er">ZIP_ER_INTERNAL</code>]</dt>
+  <dd>Internal error.</dd>
+  <dt>[<code class="Er">ZIP_ER_INUSE</code>]</dt>
+  <dd>Resource still in use.</dd>
+  <dt>[<code class="Er">ZIP_ER_INVAL</code>]</dt>
+  <dd>Invalid argument.</dd>
+  <dt>[<code class="Er">ZIP_ER_MEMORY</code>]</dt>
+  <dd>Malloc failure.</dd>
+  <dt>[<code class="Er">ZIP_ER_MULTIDISK</code>]</dt>
+  <dd>Multi-disk zip archives not supported.</dd>
+  <dt>[<code class="Er">ZIP_ER_NOENT</code>]</dt>
+  <dd>No such file.</dd>
+  <dt>[<code class="Er">ZIP_ER_NOPASSWD</code>]</dt>
+  <dd>No password provided.</dd>
+  <dt>[<code class="Er">ZIP_ER_NOZIP</code>]</dt>
+  <dd>Not a zip archive.</dd>
+  <dt>[<code class="Er">ZIP_ER_OK</code>]</dt>
+  <dd>No error.</dd>
+  <dt>[<code class="Er">ZIP_ER_OPEN</code>]</dt>
+  <dd>Can't open file.</dd>
+  <dt>[<code class="Er">ZIP_ER_OPNOTSUPP</code>]</dt>
+  <dd>Operation not supported.</dd>
+  <dt>[<code class="Er">ZIP_ER_RDONLY</code>]</dt>
+  <dd>Read-only archive.</dd>
+  <dt>[<code class="Er">ZIP_ER_READ</code>]</dt>
+  <dd>Read error.</dd>
+  <dt>[<code class="Er">ZIP_ER_REMOVE</code>]</dt>
+  <dd>Can't remove file.</dd>
+  <dt>[<code class="Er">ZIP_ER_RENAME</code>]</dt>
+  <dd>Renaming temporary file failed.</dd>
+  <dt>[<code class="Er">ZIP_ER_SEEK</code>]</dt>
+  <dd>Seek error.</dd>
+  <dt>[<code class="Er">ZIP_ER_TELL</code>]</dt>
+  <dd>Tell error.</dd>
+  <dt>[<code class="Er">ZIP_ER_TMPOPEN</code>]</dt>
+  <dd>Failure to create temporary file.</dd>
+  <dt>[<code class="Er">ZIP_ER_WRITE</code>]</dt>
+  <dd>Write error.</dd>
+  <dt>[<code class="Er">ZIP_ER_WRONGPASSWD</code>]</dt>
+  <dd>Wrong password provided.</dd>
+  <dt>[<code class="Er">ZIP_ER_ZIPCLOSED</code>]</dt>
+  <dd>Containing zip archive was closed.</dd>
+  <dt>[<code class="Er">ZIP_ER_ZLIB</code>]</dt>
+  <dd>Zlib error.</dd>
+</dl>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="AUTHORS"><a class="permalink" href="#AUTHORS">AUTHORS</a></h1>
+<span class="An">Dieter Baron</span>
+  &lt;<a class="Mt" href="mailto:dillo@nih.at">dillo@nih.at</a>&gt; and
+  <span class="An">Thomas Klausner</span>
+  &lt;<a class="Mt" href="mailto:tk@giga.or.at">tk@giga.or.at</a>&gt;
+</section>
+</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">December 18, 2017</td>
+    <td class="foot-os">NiH</td>
+  </tr>
+</table>
+</body>
+</html>

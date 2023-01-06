@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<!-- This is an automatically generated file.  Do not edit.
+   ziptool.mdoc -- modify zip archives in multiple ways
+   Copyright (C) 2016-2022 Dieter Baron and Thomas Klausner
+  
+   This file is part of libzip, a library to manipulate ZIP archives.
+   The authors can be contacted at <info@libzip.org>
+  
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in
+      the documentation and/or other materials provided with the
+      distribution.
+   3. The names of the authors may not be used to endorse or promote
+      products derived from this software without specific prior
+      written permission.
+  
+   THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+   OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+   ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+   DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+   GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+   IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+   IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   -->
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" href="../nih-man.css" type="text/css" media="all"/>
+  <title>ZIPTOOL(1)</title>
+</head>
+<body>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">ZIPTOOL(1)</td>
+    <td class="head-vol">General Commands Manual</td>
+    <td class="head-rtitle">ZIPTOOL(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<section class="Sh">
+<h1 class="Sh" id="NAME"><a class="permalink" href="#NAME">NAME</a></h1>
+<code class="Nm">ziptool</code> &#x2014;
+<div class="Nd">modify zip archives</div>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="SYNOPSIS"><a class="permalink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<table class="Nm">
+  <tr>
+    <td><code class="Nm">ziptool</code></td>
+    <td>[<code class="Fl">-ceghnrst</code>] [<code class="Fl">-l</code>
+      <var class="Ar">length</var>] [<code class="Fl">-o</code>
+      <var class="Ar">offset</var>] <var class="Ar">zip-archive</var>
+      <code class="Cm">command</code> [<var class="Ar">command-args ...</var>]
+      [<code class="Cm">command</code> [<var class="Ar">command-args ...</var>]
+      ...]</td>
+  </tr>
+</table>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="DESCRIPTION"><a class="permalink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+<code class="Nm">ziptool</code> modifies the zip archive
+  <var class="Ar">zip-archive</var> according to the
+  <var class="Ar">commands</var> given.
+<p class="Pp">Supported options:</p>
+<dl class="Bl-tag">
+  <dt><a class="permalink" href="#c"><code class="Fl" id="c">-c</code></a></dt>
+  <dd>Check zip archive consistency when opening it.</dd>
+  <dt><a class="permalink" href="#e"><code class="Fl" id="e">-e</code></a></dt>
+  <dd>Error if archive already exists (only useful with
+      <code class="Fl">-n</code>).</dd>
+  <dt><a class="permalink" href="#g"><code class="Fl" id="g">-g</code></a></dt>
+  <dd>Guess file name encoding (for <code class="Cm">stat</code> command).</dd>
+  <dt><a class="permalink" href="#h"><code class="Fl" id="h">-h</code></a></dt>
+  <dd>Display help.</dd>
+  <dt><a class="permalink" href="#l"><code class="Fl" id="l">-l</code></a>
+    <var class="Ar">length</var></dt>
+  <dd>Only read <var class="Ar">length</var> bytes of archive. See also
+      <code class="Fl">-o</code>.</dd>
+  <dt><a class="permalink" href="#n"><code class="Fl" id="n">-n</code></a></dt>
+  <dd>Create archive if it doesn't exist. See also
+    <code class="Fl">-e</code>.</dd>
+  <dt><a class="permalink" href="#o"><code class="Fl" id="o">-o</code></a>
+    <var class="Ar">offset</var></dt>
+  <dd>Start reading input archive from <var class="Ar">offset</var>. See also
+      <code class="Fl">-l</code>.</dd>
+  <dt><a class="permalink" href="#r"><code class="Fl" id="r">-r</code></a></dt>
+  <dd>Print raw file name encoding without translation (for
+      <code class="Cm">stat</code> command).</dd>
+  <dt><a class="permalink" href="#s"><code class="Fl" id="s">-s</code></a></dt>
+  <dd>Follow file name convention strictly (for <code class="Cm">stat</code>
+      command).</dd>
+  <dt><a class="permalink" href="#t"><code class="Fl" id="t">-t</code></a></dt>
+  <dd>Disregard current file contents, if any. <i class="Em">Note</i>: use this
+      with care, it deletes all existing file contents when you modify the
+      archive.</dd>
+</dl>
+<section class="Ss">
+<h2 class="Ss" id="Commands"><a class="permalink" href="#Commands">Commands</a></h2>
+For all commands below, the index is zero-based. In other words, the first entry
+  in the zip archive has index 0.
+<p class="Pp">Supported commands and arguments are:</p>
+<dl class="Bl-tag">
+  <dt><a class="permalink" href="#add"><code class="Cm" id="add">add</code></a>
+    <var class="Ar">name content</var></dt>
+  <dd>Add file called <var class="Ar">name</var> using the string
+      <var class="Ar">content</var> from the command line as data.</dd>
+  <dt><a class="permalink" href="#add_dir"><code class="Cm" id="add_dir">add_dir</code></a>
+    <var class="Ar">name</var></dt>
+  <dd>Add directory <var class="Ar">name</var>.</dd>
+  <dt><a class="permalink" href="#add_file"><code class="Cm" id="add_file">add_file</code></a>
+    <var class="Ar">name file_to_add offset len</var></dt>
+  <dd>Add file <var class="Ar">name</var> to archive, using
+      <var class="Ar">len</var> bytes from the file
+      <var class="Ar">file_to_add</var> as input data, starting at
+      <var class="Ar">offset</var>.</dd>
+  <dt><a class="permalink" href="#add_from_zip"><code class="Cm" id="add_from_zip">add_from_zip</code></a>
+    <var class="Ar">name archivename index offset len</var></dt>
+  <dd>Add file called <var class="Ar">name</var> to archive using data from
+      another zip archive <var class="Ar">archivename</var> using the entry with
+      index <var class="Ar">index</var> and reading <var class="Ar">len</var>
+      bytes from <var class="Ar">offset</var>.</dd>
+  <dt><a class="permalink" href="#cat"><code class="Cm" id="cat">cat</code></a>
+    <var class="Ar">index</var></dt>
+  <dd>Output file contents for entry <var class="Ar">index</var> to stdout.</dd>
+  <dt><a class="permalink" href="#count_extra"><code class="Cm" id="count_extra">count_extra</code></a>
+    <var class="Ar">index flags</var></dt>
+  <dd>Print the number of extra fields for archive entry
+      <var class="Ar">index</var> using <var class="Ar">flags</var>.</dd>
+  <dt><a class="permalink" href="#count_extra_by_id"><code class="Cm" id="count_extra_by_id">count_extra_by_id</code></a>
+    <var class="Ar">index extra_id flags</var></dt>
+  <dd>Print number of extra fields of type <var class="Ar">extra_id</var> for
+      archive entry <var class="Ar">index</var> using
+      <var class="Ar">flags</var>.</dd>
+  <dt><a class="permalink" href="#delete"><code class="Cm" id="delete">delete</code></a>
+    <var class="Ar">index</var></dt>
+  <dd>Remove entry at <var class="Ar">index</var> from zip archive.</dd>
+  <dt><a class="permalink" href="#delete_extra"><code class="Cm" id="delete_extra">delete_extra</code></a>
+    <var class="Ar">index extra_idx flags</var></dt>
+  <dd>Remove extra field number <var class="Ar">extra_idx</var> from archive
+      entry <var class="Ar">index</var> using <var class="Ar">flags</var>.</dd>
+  <dt><a class="permalink" href="#delete_extra_by_id"><code class="Cm" id="delete_extra_by_id">delete_extra_by_id</code></a>
+    <var class="Ar">index extra_id extra_index flags</var></dt>
+  <dd>Remove extra field number <var class="Ar">extra_index</var> of type
+      <var class="Ar">extra_id</var> from archive entry
+      <var class="Ar">index</var> using <var class="Ar">flags</var>.</dd>
+  <dt><a class="permalink" href="#get_archive_comment"><code class="Cm" id="get_archive_comment">get_archive_comment</code></a></dt>
+  <dd>Print archive comment.</dd>
+  <dt><a class="permalink" href="#get_extra"><code class="Cm" id="get_extra">get_extra</code></a>
+    <var class="Ar">index extra_index flags</var></dt>
+  <dd>Print extra field <var class="Ar">extra_index</var> for archive entry
+      <var class="Ar">index</var> using <var class="Ar">flags</var>.</dd>
+  <dt><a class="permalink" href="#get_extra_by_id"><code class="Cm" id="get_extra_by_id">get_extra_by_id</code></a>
+    <var class="Ar">index extra_id extra_index flags</var></dt>
+  <dd>Print extra field <var class="Ar">extra_index</var> of type
+      <var class="Ar">extra_id</var> for archive entry
+      <var class="Ar">index</var> using <var class="Ar">flags</var>.</dd>
+  <dt><a class="permalink" href="#get_file_comment"><code class="Cm" id="get_file_comment">get_file_comment</code></a>
+    <var class="Ar">index</var></dt>
+  <dd>Get file comment for archive entry <var class="Ar">index</var>.</dd>
+  <dt><a class="permalink" href="#get_num_entries"><code class="Cm" id="get_num_entries">get_num_entries</code></a>
+    <var class="Ar">flags</var></dt>
+  <dd>Print number of entries in archive using <var class="Ar">flags</var>.</dd>
+  <dt><a class="permalink" href="#name_locate"><code class="Cm" id="name_locate">name_locate</code></a>
+    <var class="Ar">name flags</var></dt>
+  <dd>Find entry in archive with the filename <var class="Ar">name</var> using
+      <var class="Ar">flags</var> and print its index.</dd>
+  <dt><a class="permalink" href="#rename"><code class="Cm" id="rename">rename</code></a>
+    <var class="Ar">index name</var></dt>
+  <dd>Rename archive entry <var class="Ar">index</var> to
+      <var class="Ar">name</var>.</dd>
+  <dt><a class="permalink" href="#replace_file_contents"><code class="Cm" id="replace_file_contents">replace_file_contents</code></a>
+    <var class="Ar">index data</var></dt>
+  <dd>Replace file contents for archive entry <var class="Ar">index</var> with
+      the string <var class="Ar">data</var>.</dd>
+  <dt><a class="permalink" href="#set_archive_comment"><code class="Cm" id="set_archive_comment">set_archive_comment</code></a>
+    <var class="Ar">comment</var></dt>
+  <dd>Set archive comment to <var class="Ar">comment</var>.</dd>
+  <dt><a class="permalink" href="#set_extra"><code class="Cm" id="set_extra">set_extra</code></a>
+    <var class="Ar">index extra_id extra_index flags value</var></dt>
+  <dd>Set extra field number <var class="Ar">extra_index</var> of type
+      <var class="Ar">extra_id</var> for archive entry
+      <var class="Ar">index</var> using <var class="Ar">flags</var> to
+      <var class="Ar">value</var>.</dd>
+  <dt><a class="permalink" href="#set_file_comment"><code class="Cm" id="set_file_comment">set_file_comment</code></a>
+    <var class="Ar">index comment</var></dt>
+  <dd>Set file comment for archive entry <var class="Ar">index</var> to string
+      <var class="Ar">comment</var>.</dd>
+  <dt><a class="permalink" href="#set_file_compression"><code class="Cm" id="set_file_compression">set_file_compression</code></a>
+    <var class="Ar">index method compression_flags</var></dt>
+  <dd>Set file compression method for archive entry <var class="Ar">index</var>
+      to <var class="Ar">method</var> using
+      <var class="Ar">compression_flags</var>. <i class="Em">Note</i>:
+      Currently, <var class="Ar">compression_flags</var> are ignored.</dd>
+  <dt><a class="permalink" href="#set_file_encryption"><code class="Cm" id="set_file_encryption">set_file_encryption</code></a>
+    <var class="Ar">index method password</var></dt>
+  <dd>Set file encryption method for archive entry <var class="Ar">index</var>
+      to <var class="Ar">method</var> with password
+      <var class="Ar">password</var>.</dd>
+  <dt><a class="permalink" href="#set_file_mtime"><code class="Cm" id="set_file_mtime">set_file_mtime</code></a>
+    <var class="Ar">index timestamp</var></dt>
+  <dd>Set file modification time for archive entry <var class="Ar">index</var>
+      to UNIX mtime <var class="Ar">timestamp</var>.</dd>
+  <dt><a class="permalink" href="#set_file_mtime_all"><code class="Cm" id="set_file_mtime_all">set_file_mtime_all</code></a>
+    <var class="Ar">timestamp</var></dt>
+  <dd>Set file modification time for all archive entries to UNIX mtime
+      <var class="Ar">timestamp</var>.</dd>
+  <dt><a class="permalink" href="#set_password"><code class="Cm" id="set_password">set_password</code></a>
+    <var class="Ar">password</var></dt>
+  <dd>Set default password for encryption/decryption to
+      <var class="Ar">password</var>.</dd>
+  <dt><a class="permalink" href="#stat"><code class="Cm" id="stat">stat</code></a>
+    <var class="Ar">index</var></dt>
+  <dd>Print information about archive entry <var class="Ar">index</var>.</dd>
+</dl>
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Flags"><a class="permalink" href="#Flags">Flags</a></h2>
+Some commands take flag arguments. Each character in the argument sets the
+  corresponding flag. Use 0 or the empty string for no flags.
+<p class="Pp">Supported flags are:</p>
+<div class="Bd-indent">
+<dl class="Bl-tag Bl-compact">
+  <dt><var class="Ar">4</var></dt>
+  <dd><a class="permalink" href="#ZIP_FL_ENC_CP437"><code class="Dv" id="ZIP_FL_ENC_CP437">ZIP_FL_ENC_CP437</code></a></dd>
+  <dt><var class="Ar">8</var></dt>
+  <dd><a class="permalink" href="#ZIP_FL_ENC_UTF_8"><code class="Dv" id="ZIP_FL_ENC_UTF_8">ZIP_FL_ENC_UTF_8</code></a></dd>
+  <dt><var class="Ar">C</var></dt>
+  <dd><a class="permalink" href="#ZIP_FL_NOCASE"><code class="Dv" id="ZIP_FL_NOCASE">ZIP_FL_NOCASE</code></a></dd>
+  <dt><var class="Ar">c</var></dt>
+  <dd><a class="permalink" href="#ZIP_FL_CENTRAL"><code class="Dv" id="ZIP_FL_CENTRAL">ZIP_FL_CENTRAL</code></a></dd>
+  <dt><var class="Ar">d</var></dt>
+  <dd><a class="permalink" href="#ZIP_FL_NODIR"><code class="Dv" id="ZIP_FL_NODIR">ZIP_FL_NODIR</code></a></dd>
+  <dt><var class="Ar">l</var></dt>
+  <dd><a class="permalink" href="#ZIP_FL_LOCAL"><code class="Dv" id="ZIP_FL_LOCAL">ZIP_FL_LOCAL</code></a></dd>
+  <dt><var class="Ar">r</var></dt>
+  <dd><a class="permalink" href="#ZIP_FL_ENC_RAW"><code class="Dv" id="ZIP_FL_ENC_RAW">ZIP_FL_ENC_RAW</code></a></dd>
+  <dt><var class="Ar">s</var></dt>
+  <dd><a class="permalink" href="#ZIP_FL_ENC_STRICT"><code class="Dv" id="ZIP_FL_ENC_STRICT">ZIP_FL_ENC_STRICT</code></a></dd>
+  <dt><var class="Ar">u</var></dt>
+  <dd><a class="permalink" href="#ZIP_FL_UNCHANGED"><code class="Dv" id="ZIP_FL_UNCHANGED">ZIP_FL_UNCHANGED</code></a></dd>
+</dl>
+</div>
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Compression_Methods"><a class="permalink" href="#Compression_Methods">Compression
+  Methods</a></h2>
+Some commands take compression method arguments. Supported methods are:
+<ul class="Bl-bullet Bd-indent Bl-compact">
+  <li><a class="permalink" href="#default"><code class="Dv" id="default">default</code></a></li>
+  <li><a class="permalink" href="#deflate"><code class="Dv" id="deflate">deflate</code></a></li>
+  <li><a class="permalink" href="#store"><code class="Dv" id="store">store</code></a></li>
+</ul>
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Encryption_Methods"><a class="permalink" href="#Encryption_Methods">Encryption
+  Methods</a></h2>
+Some commands take encryption method arguments. Supported methods are:
+<ul class="Bl-bullet Bd-indent Bl-compact">
+  <li><a class="permalink" href="#none"><code class="Dv" id="none">none</code></a></li>
+  <li><a class="permalink" href="#AES-128"><code class="Dv" id="AES-128">AES-128</code></a></li>
+  <li><a class="permalink" href="#AES-192"><code class="Dv" id="AES-192">AES-192</code></a></li>
+  <li><a class="permalink" href="#AES-256"><code class="Dv" id="AES-256">AES-256</code></a></li>
+</ul>
+</section>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="EXIT_STATUS"><a class="permalink" href="#EXIT_STATUS">EXIT
+  STATUS</a></h1>
+The <code class="Nm">ziptool</code> utility exits&#x00A0;0 on success,
+  and&#x00A0;&gt;0 if an error occurs.
+</section>
+<section class="Sh">
+<h1 class="Sh" id="EXAMPLES"><a class="permalink" href="#EXAMPLES">EXAMPLES</a></h1>
+Add a file called <span class="Pa">teststring.txt</span> to the zip archive
+  <span class="Pa">testbuffer.zip</span> with data &#x201C;This is a
+  test.\n&#x201D; where &#x201C;\n&#x201D; is replaced with a newline character:
+<div class="Bd Pp Bd-indent">
+<pre>
+ziptool testbuffer.zip add teststring.txt \&quot;This is a test.\n\&quot;
+</pre>
+</div>
+<p class="Pp">Delete the first file from the zip archive
+    <span class="Pa">testfile.zip</span>:</p>
+<div class="Bd Pp Bd-indent">
+<pre>
+ziptool testfile.zip delete 0
+</pre>
+</div>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="SEE_ALSO"><a class="permalink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<a class="Xr" href="zipcmp.html">zipcmp(1)</a>,
+  <a class="Xr" href="zipmerge.html">zipmerge(1)</a>,
+  <a class="Xr" href="libzip.html">libzip(3)</a>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="HISTORY"><a class="permalink" href="#HISTORY">HISTORY</a></h1>
+<code class="Nm">ziptool</code> was added in libzip 1.1.
+</section>
+<section class="Sh">
+<h1 class="Sh" id="AUTHORS"><a class="permalink" href="#AUTHORS">AUTHORS</a></h1>
+<span class="An">Dieter Baron</span>
+  &lt;<a class="Mt" href="mailto:dillo@nih.at">dillo@nih.at</a>&gt; and
+  <span class="An">Thomas Klausner</span>
+  &lt;<a class="Mt" href="mailto:tk@giga.or.at">tk@giga.or.at</a>&gt;
+</section>
+</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">March 15, 2022</td>
+    <td class="foot-os">NiH</td>
+  </tr>
+</table>
+</body>
+</html>

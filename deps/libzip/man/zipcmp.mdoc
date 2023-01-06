@@ -1,0 +1,97 @@
+.\" zipcmp.mdoc -- compare zip archives
+.\" Copyright (C) 2003-2022 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd March 19, 2022
+.Dt ZIPCMP 1
+.Os
+.Sh NAME
+.Nm zipcmp
+.Nd compare contents of zip archives
+.Sh SYNOPSIS
+.Nm
+.Op Fl ChipqstVv
+.Ar archive1 archive2
+.Sh DESCRIPTION
+.Nm
+compares the zip archives or directories
+.Ar archive1
+and
+.Ar archive2
+and checks if they contain the same files, comparing their names,
+uncompressed sizes, and CRCs.
+File order and compressed size differences are ignored.
+.Pp
+Supported options:
+.Bl -tag -width MMM
+.It Fl C
+Check consistency of archives.
+Results in an error if archive is inconsistent or not valid
+according to the zip specification.
+.It Fl h
+Display a short help message and exit.
+.It Fl i
+Compare names ignoring case distinctions.
+.It Fl p
+Enable paranoid checks.
+Compares extra fields, comments, and other meta data.
+(Automatically disabled if one of the archives is a directory.)
+These checks are skipped for files where the data differs.
+.It Fl q
+Quiet mode.
+Compare
+.Fl v .
+.It Fl s
+Print a summary of how many files where added and removed.
+.It Fl t
+Test zip files by comparing the contents to their checksums.
+.It Fl V
+Display version information and exit.
+.It Fl v
+Verbose mode.
+Print details about differences to stdout.
+(This is the default.)
+.El
+.Sh EXIT STATUS
+.Nm
+exits 0 if the two archives contain the same files, 1 if they differ,
+and >1 if an error occurred.
+.Sh SEE ALSO
+.Xr zipmerge 1 ,
+.Xr ziptool 1 ,
+.Xr libzip 3
+.Sh HISTORY
+.Nm
+was added in libzip 0.6.
+.Sh AUTHORS
+.An -nosplit
+.An Dieter Baron Aq Mt dillo@nih.at
+and
+.An Thomas Klausner Aq Mt tk@giga.or.at

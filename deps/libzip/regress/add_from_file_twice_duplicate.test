@@ -1,0 +1,6 @@
+# add file to zip twice, making duplicate names
+return 1
+args -- testfile.zip   add_file testfile.txt testfile.txt 0 -1   add_file testfile.txt testfile.txt 0 -1
+file testfile.txt testfile.txt testfile.txt
+file-new testfile.zip testfile.zip
+stderr can't add file 'testfile.txt': File already exists

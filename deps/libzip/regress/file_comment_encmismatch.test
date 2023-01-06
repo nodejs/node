@@ -1,0 +1,4 @@
+# set file comment to UTF-8 for CP437 encoded filename (adds InfoZIP extra field)
+return 0
+args testfile.zip   set_file_comment 0 ÄÖÜßäöü
+file testfile.zip test-cp437.zip test-cp437-comment-utf-8.zip

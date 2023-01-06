@@ -1,0 +1,11 @@
+.gitattributes export-ignore
+.gitignore export-ignore
+.travis.yml export-ignore
+create-cmake-config.h.in.pl export-ignore
+docs export-ignore
+man/fix-man-links.sh export-ignore
+man/make_zip_errors.sh export-ignore
+man/mkdocset.pl export-ignore
+man/nih-man.css export-ignore
+vstudio export-ignore
+developer-xcode export-ignore

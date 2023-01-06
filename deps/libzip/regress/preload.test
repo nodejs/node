@@ -1,0 +1,4 @@
+description test if preload works
+program nonrandomopentest
+return 0
+preload nonrandomopen.so

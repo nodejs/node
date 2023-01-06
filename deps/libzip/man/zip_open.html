@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<!-- This is an automatically generated file.  Do not edit.
+   zip_open.mdoc -- open zip archive
+   Copyright (C) 2003-2022 Dieter Baron and Thomas Klausner
+  
+   This file is part of libzip, a library to manipulate ZIP archives.
+   The authors can be contacted at <info@libzip.org>
+  
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in
+      the documentation and/or other materials provided with the
+      distribution.
+   3. The names of the authors may not be used to endorse or promote
+      products derived from this software without specific prior
+      written permission.
+  
+   THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+   OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+   ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+   DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+   GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+   IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+   IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   -->
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" href="../nih-man.css" type="text/css" media="all"/>
+  <title>ZIP_OPEN(3)</title>
+</head>
+<body>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">ZIP_OPEN(3)</td>
+    <td class="head-vol">Library Functions Manual</td>
+    <td class="head-rtitle">ZIP_OPEN(3)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<section class="Sh">
+<h1 class="Sh" id="NAME"><a class="permalink" href="#NAME">NAME</a></h1>
+<code class="Nm">zip_open</code>, <code class="Nm">zip_open_from_source</code>
+  &#x2014;
+<div class="Nd">open zip archive</div>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="LIBRARY"><a class="permalink" href="#LIBRARY">LIBRARY</a></h1>
+libzip (-lzip)
+</section>
+<section class="Sh">
+<h1 class="Sh" id="SYNOPSIS"><a class="permalink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<code class="In">#include &lt;<a class="In">zip.h</a>&gt;</code>
+<p class="Pp"><var class="Ft">zip_t *</var>
+  <br/>
+  <code class="Fn">zip_open</code>(<var class="Fa" style="white-space: nowrap;">const
+    char *path</var>, <var class="Fa" style="white-space: nowrap;">int
+    flags</var>, <var class="Fa" style="white-space: nowrap;">int
+    *errorp</var>);</p>
+<p class="Pp"><var class="Ft">zip_t *</var>
+  <br/>
+  <code class="Fn">zip_open_from_source</code>(<var class="Fa" style="white-space: nowrap;">zip_source_t
+    *zs</var>, <var class="Fa" style="white-space: nowrap;">int flags</var>,
+    <var class="Fa" style="white-space: nowrap;">zip_error_t *ze</var>);</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="DESCRIPTION"><a class="permalink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+The <code class="Fn">zip_open</code>() function opens the zip archive specified
+  by <var class="Ar">path</var> and returns a pointer to a
+  <var class="Ft">struct zip</var>, used to manipulate the archive. The
+  <var class="Fa">flags</var> are specified by
+  <i class="Em">or</i><span class="No">'ing</span> the following values, or 0
+  for none of them.
+<div class="Bd-indent">
+<dl class="Bl-tag">
+  <dt><a class="permalink" href="#ZIP_CHECKCONS"><code class="Dv" id="ZIP_CHECKCONS">ZIP_CHECKCONS</code></a></dt>
+  <dd>Perform additional stricter consistency checks on the archive, and error
+      if they fail.</dd>
+  <dt><a class="permalink" href="#ZIP_CREATE"><code class="Dv" id="ZIP_CREATE">ZIP_CREATE</code></a></dt>
+  <dd>Create the archive if it does not exist.</dd>
+  <dt><a class="permalink" href="#ZIP_EXCL"><code class="Dv" id="ZIP_EXCL">ZIP_EXCL</code></a></dt>
+  <dd>Error if archive already exists.</dd>
+  <dt><a class="permalink" href="#ZIP_TRUNCATE"><code class="Dv" id="ZIP_TRUNCATE">ZIP_TRUNCATE</code></a></dt>
+  <dd>If archive exists, ignore its current contents. In other words, handle it
+      the same way as an empty archive.</dd>
+  <dt><a class="permalink" href="#ZIP_RDONLY"><code class="Dv" id="ZIP_RDONLY">ZIP_RDONLY</code></a></dt>
+  <dd>Open archive in read-only mode.</dd>
+</dl>
+</div>
+<p class="Pp">If an error occurs and <var class="Ar">errorp</var> is
+    non-<code class="Dv">NULL</code>, it will be set to the corresponding error
+    code.</p>
+<p class="Pp">The <code class="Fn">zip_open_from_source</code>() function opens
+    a zip archive encapsulated by the zip_source <var class="Fa">zs</var> using
+    the provided <var class="Fa">flags</var>. In case of error, the zip_error
+    <var class="Fa">ze</var> is filled in.</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="RETURN_VALUES"><a class="permalink" href="#RETURN_VALUES">RETURN
+  VALUES</a></h1>
+Upon successful completion <code class="Fn">zip_open</code>() and
+  <code class="Fn">zip_open_from_source</code>() return a <var class="Ft">struct
+  zip</var> pointer. Otherwise, <code class="Dv">NULL</code> is returned and
+  <code class="Fn">zip_open</code>() sets <var class="Ar">*errorp</var> to
+  indicate the error, while
+  <code class="Fn">zip_open_from</code>(<var class="Fa">source</var>) sets
+  <var class="Ar">ze</var> to indicate the error.
+</section>
+<section class="Sh">
+<h1 class="Sh" id="EXAMPLES"><a class="permalink" href="#EXAMPLES">EXAMPLES</a></h1>
+Here's an example of how you could report errors during
+  <code class="Nm">zip_open</code>:
+<div class="Bd Pp">
+<pre>
+    zip_t *za;
+    int err;
+
+    if ((za = zip_open(name, 0, &amp;err)) == NULL) {
+        zip_error_t error;
+        zip_error_init_with_code(&amp;error, err);
+        fprintf(stderr, &quot;%s: cannot open zip archive '%s': %s\n&quot;,
+	        progname, name, zip_error_strerror(&amp;error));
+        zip_error_fini(&amp;error);
+        return -1;
+    }
+</pre>
+</div>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="ERRORS"><a class="permalink" href="#ERRORS">ERRORS</a></h1>
+The archive specified by <var class="Ar">path</var> is opened unless:
+<dl class="Bl-tag">
+  <dt>[<a class="permalink" href="#ZIP_ER_EXISTS"><code class="Er" id="ZIP_ER_EXISTS">ZIP_ER_EXISTS</code></a>]</dt>
+  <dd>The file specified by <var class="Ar">path</var> exists and
+      <code class="Dv">ZIP_EXCL</code> is set.</dd>
+  <dt>[<a class="permalink" href="#ZIP_ER_INCONS"><code class="Er" id="ZIP_ER_INCONS">ZIP_ER_INCONS</code></a>]</dt>
+  <dd>Inconsistencies were found in the file specified by
+      <var class="Ar">path</var>. This error is often caused by specifying
+      <code class="Dv">ZIP_CHECKCONS</code> but can also happen without it.</dd>
+  <dt>[<a class="permalink" href="#ZIP_ER_INVAL"><code class="Er" id="ZIP_ER_INVAL">ZIP_ER_INVAL</code></a>]</dt>
+  <dd>The <var class="Ar">path</var> argument is
+    <code class="Dv">NULL</code>.</dd>
+  <dt>[<a class="permalink" href="#ZIP_ER_MEMORY"><code class="Er" id="ZIP_ER_MEMORY">ZIP_ER_MEMORY</code></a>]</dt>
+  <dd>Required memory could not be allocated.</dd>
+  <dt>[<a class="permalink" href="#ZIP_ER_NOENT"><code class="Er" id="ZIP_ER_NOENT">ZIP_ER_NOENT</code></a>]</dt>
+  <dd>The file specified by <var class="Ar">path</var> does not exist and
+      <code class="Dv">ZIP_CREATE</code> is not set.</dd>
+  <dt>[<a class="permalink" href="#ZIP_ER_NOZIP"><code class="Er" id="ZIP_ER_NOZIP">ZIP_ER_NOZIP</code></a>]</dt>
+  <dd>The file specified by <var class="Ar">path</var> is not a zip
+    archive.</dd>
+  <dt>[<a class="permalink" href="#ZIP_ER_OPEN"><code class="Er" id="ZIP_ER_OPEN">ZIP_ER_OPEN</code></a>]</dt>
+  <dd>The file specified by <var class="Ar">path</var> could not be opened.</dd>
+  <dt>[<a class="permalink" href="#ZIP_ER_READ"><code class="Er" id="ZIP_ER_READ">ZIP_ER_READ</code></a>]</dt>
+  <dd>A read error occurred; see <var class="Va">errno</var> for details.</dd>
+  <dt>[<a class="permalink" href="#ZIP_ER_SEEK"><code class="Er" id="ZIP_ER_SEEK">ZIP_ER_SEEK</code></a>]</dt>
+  <dd>The file specified by <var class="Ar">path</var> does not allow
+    seeks.</dd>
+</dl>
+For newly created archives, <code class="Fn">zip_open</code>() does not try to
+  create the file; this is done when calling
+  <a class="Xr" href="zip_close.html">zip_close(3)</a> and any errors, like
+  missing write permissions, will be reported then.
+</section>
+<section class="Sh">
+<h1 class="Sh" id="SEE_ALSO"><a class="permalink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<a class="Xr" href="libzip.html">libzip(3)</a>,
+  <a class="Xr" href="zip_close.html">zip_close(3)</a>,
+  <a class="Xr" href="zip_error_strerror.html">zip_error_strerror(3)</a>,
+  <a class="Xr" href="zip_fdopen.html">zip_fdopen(3)</a>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="HISTORY"><a class="permalink" href="#HISTORY">HISTORY</a></h1>
+<code class="Fn">zip_open</code>() and
+  <code class="Fn">zip_open_from_source</code>() were added in libzip 1.0.
+</section>
+<section class="Sh">
+<h1 class="Sh" id="AUTHORS"><a class="permalink" href="#AUTHORS">AUTHORS</a></h1>
+<span class="An">Dieter Baron</span>
+  &lt;<a class="Mt" href="mailto:dillo@nih.at">dillo@nih.at</a>&gt; and
+  <span class="An">Thomas Klausner</span>
+  &lt;<a class="Mt" href="mailto:tk@giga.or.at">tk@giga.or.at</a>&gt;
+</section>
+</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">October 9, 2022</td>
+    <td class="foot-os">NiH</td>
+  </tr>
+</table>
+</body>
+</html>

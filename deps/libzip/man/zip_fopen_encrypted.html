@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<!-- This is an automatically generated file.  Do not edit.
+   zip_fopen_encrypted.mdoc -- open encrypted file in zip archive for reading
+   Copyright (C) 2011-2021 Dieter Baron and Thomas Klausner
+  
+   This file is part of libzip, a library to manipulate ZIP archives.
+   The authors can be contacted at <info@libzip.org>
+  
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in
+      the documentation and/or other materials provided with the
+      distribution.
+   3. The names of the authors may not be used to endorse or promote
+      products derived from this software without specific prior
+      written permission.
+  
+   THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+   OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+   ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+   DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+   GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+   IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+   IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   -->
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" href="../nih-man.css" type="text/css" media="all"/>
+  <title>ZIP_FOPEN_ENCRYPTED(3)</title>
+</head>
+<body>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">ZIP_FOPEN_ENCRYPTED(3)</td>
+    <td class="head-vol">Library Functions Manual</td>
+    <td class="head-rtitle">ZIP_FOPEN_ENCRYPTED(3)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<section class="Sh">
+<h1 class="Sh" id="NAME"><a class="permalink" href="#NAME">NAME</a></h1>
+<code class="Nm">zip_fopen_encrypted</code>,
+  <code class="Nm">zip_fopen_index_encrypted</code> &#x2014;
+<div class="Nd">open encrypted file in zip archive for reading</div>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="LIBRARY"><a class="permalink" href="#LIBRARY">LIBRARY</a></h1>
+libzip (-lzip)
+</section>
+<section class="Sh">
+<h1 class="Sh" id="SYNOPSIS"><a class="permalink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<code class="In">#include &lt;<a class="In">zip.h</a>&gt;</code>
+<p class="Pp"><var class="Ft">zip_file_t *</var>
+  <br/>
+  <code class="Fn">zip_fopen_encrypted</code>(<var class="Fa" style="white-space: nowrap;">zip_t
+    *archive</var>, <var class="Fa" style="white-space: nowrap;">const char
+    *fname</var>, <var class="Fa" style="white-space: nowrap;">zip_flags_t
+    flags</var>, <var class="Fa" style="white-space: nowrap;">const char
+    *password</var>);</p>
+<p class="Pp"><var class="Ft">zip_file_t *</var>
+  <br/>
+  <code class="Fn">zip_fopen_index_encrypted</code>(<var class="Fa" style="white-space: nowrap;">zip_t
+    *archive</var>, <var class="Fa" style="white-space: nowrap;">zip_uint64_t
+    index</var>, <var class="Fa" style="white-space: nowrap;">zip_flags_t
+    flags</var>, <var class="Fa" style="white-space: nowrap;">const char
+    *password</var>);</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="DESCRIPTION"><a class="permalink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+The <code class="Fn">zip_fopen_encrypted</code>() function opens the encrypted
+  file name <var class="Ar">fname</var> in <var class="Ar">archive</var> using
+  the password given in the <var class="Ar">password</var> argument. If
+  <var class="Ar">password</var> is <code class="Dv">NULL</code> or the empty
+  string, the default password is used (see
+  <a class="Xr" href="zip_set_default_password.html">zip_set_default_password(3)</a>).
+  The <var class="Ar">flags</var> argument are the same as for
+  <a class="Xr" href="zip_fopen.html">zip_fopen(3)</a>.
+<p class="Pp">The <code class="Fn">zip_fopen_index_encrypted</code>() function
+    opens the file at position <var class="Ar">index</var>, see
+    <a class="Xr" href="zip_fopen_index.html">zip_fopen_index(3)</a>. These
+    functions are called automatically by
+    <a class="Xr" href="zip_fopen.html">zip_fopen(3)</a>; you only need to call
+    them if you want to specify a non-default password (see
+    <a class="Xr" href="zip_set_default_password.html">zip_set_default_password(3)</a>).</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="RETURN_VALUES"><a class="permalink" href="#RETURN_VALUES">RETURN
+  VALUES</a></h1>
+Upon successful completion, a <var class="Ft">struct zip_file</var> pointer is
+  returned. Otherwise, <code class="Dv">NULL</code> is returned and the error
+  code in <var class="Ar">archive</var> is set to indicate the error.
+</section>
+<section class="Sh">
+<h1 class="Sh" id="ERRORS"><a class="permalink" href="#ERRORS">ERRORS</a></h1>
+<dl class="Bl-tag">
+  <dt>[<a class="permalink" href="#ZIP_ER_NOPASSWD"><code class="Er" id="ZIP_ER_NOPASSWD">ZIP_ER_NOPASSWD</code></a>]</dt>
+  <dd>No password was provided.</dd>
+</dl>
+<p class="Pp">The function <code class="Fn">zip_fopen_encrypted</code>() may
+    also fail and set <var class="Va">zip_err</var> for any of the errors
+    specified for the routine
+    <a class="Xr" href="zip_fopen.html">zip_fopen(3)</a>.</p>
+<p class="Pp">The function <code class="Fn">zip_fopen_index_encrypted</code>()
+    may also fail and set <var class="Va">zip_err</var> for any of the errors
+    specified for the routine
+    <a class="Xr" href="zip_fopen_index.html">zip_fopen_index(3)</a>.</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="SEE_ALSO"><a class="permalink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<a class="Xr" href="libzip.html">libzip(3)</a>,
+  <a class="Xr" href="zip_fclose.html">zip_fclose(3)</a>,
+  <a class="Xr" href="zip_fopen.html">zip_fopen(3)</a>,
+  <a class="Xr" href="zip_fread.html">zip_fread(3)</a>,
+  <a class="Xr" href="zip_get_num_entries.html">zip_get_num_entries(3)</a>,
+  <a class="Xr" href="zip_name_locate.html">zip_name_locate(3)</a>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="HISTORY"><a class="permalink" href="#HISTORY">HISTORY</a></h1>
+<code class="Fn">zip_fopen_encrypted</code>() and
+  <code class="Fn">zip_fopen_index_encrypted</code>() were added in libzip 1.0.
+</section>
+<section class="Sh">
+<h1 class="Sh" id="AUTHORS"><a class="permalink" href="#AUTHORS">AUTHORS</a></h1>
+<span class="An">Dieter Baron</span>
+  &lt;<a class="Mt" href="mailto:dillo@nih.at">dillo@nih.at</a>&gt; and
+  <span class="An">Thomas Klausner</span>
+  &lt;<a class="Mt" href="mailto:tk@giga.or.at">tk@giga.or.at</a>&gt;
+</section>
+<section class="Sh">
+<h1 class="Sh" id="CAVEATS"><a class="permalink" href="#CAVEATS">CAVEATS</a></h1>
+The zip file format provides very limited possibility for password verification
+  (a short hash of is compared against one byte in the zip archive). For this
+  reason, reading a file while using an incorrect password may immediately fail
+  with <code class="Er">ZIP_ER_WRONGPASSWD</code>, but if the mismatch is not
+  detected, a zlib error may be returned later instead. Since zlib errors can
+  also be caused by broken compressed data, there is no way to make sure if the
+  password was incorrect or if it was correct, but the compressed data was
+  invalid.
+</section>
+</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">September 15, 2020</td>
+    <td class="foot-os">NiH</td>
+  </tr>
+</table>
+</body>
+</html>

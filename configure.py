@@ -265,6 +265,12 @@ shared_optgroup.add_argument('--shared-libuv',
     default=None,
     help='link to a shared libuv DLL instead of static linking')
 
+shared_optgroup.add_argument('--shared-libzip',
+    action='store_true',
+    dest='shared_libzip',
+    default=None,
+    help='link to a shared libzip DLL instead of static linking')
+
 shared_optgroup.add_argument('--shared-libuv-includes',
     action='store',
     dest='shared_libuv_includes',
@@ -2005,6 +2011,7 @@ configure_node(output)
 configure_node_lib_files(output)
 configure_napi(output)
 configure_library('zlib', output)
+configure_library('libzip', output)
 configure_library('http_parser', output)
 configure_library('libuv', output)
 configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])

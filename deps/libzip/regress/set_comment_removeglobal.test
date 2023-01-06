@@ -1,0 +1,4 @@
+# remove archive comment
+return 0
+args testcomment.zip  set_archive_comment ""
+file testcomment.zip testcomment.zip testcommentremoved.zip

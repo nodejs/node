@@ -1,0 +1,6 @@
+# zip_open: ZIP64 file opens fine
+program tryopen
+args test.zip
+return 0
+file test.zip zip64.zip zip64.zip
+stdout opening 'test.zip' succeeded, 1 entries

@@ -1,0 +1,169 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zip_file_extra_field_get.mdoc -- get extra field for file in zip
+.\" Copyright (C) 2012-2017 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP files.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIP_FILE_EXTRA_FIELD_GET" "3" "December 18, 2017" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzip_file_extra_field_get\fR,
+\fBzip_file_extra_field_get_by_id\fR
+\- get extra field for file in zip
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.sp
+\fIconst zip_uint8_t *\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_file_extra_field_get\fR(\fIzip_t\ *archive\fR, \fIzip_uint64_t\ index\fR, \fIzip_uint16_t\ extra_field_index\fR, \fIzip_uint16_t\ *idp\fR, \fIzip_uint16_t\ *lenp\fR, \fIzip_flags_t\ flags\fR);
+.PD
+.PP
+\fIconst zip_uint8_t *\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_file_extra_field_get_by_id\fR(\fIzip_t\ *archive\fR, \fIzip_uint64_t\ index\fR, \fIzip_uint16_t\ extra_field_id\fR, \fIzip_uint16_t\ extra_field_index\fR, \fIzip_uint16_t\ *lenp\fR, \fIzip_flags_t\ flags\fR);
+.PD
+.SH "DESCRIPTION"
+The
+\fBzip_file_extra_field_get\fR()
+function returns the extra field with index
+\fIextra_field_index\fR
+for the file at position
+\fIindex\fR
+in the zip archive.
+This pointer should not be modified or
+free(3)'d,
+and becomes invalid when
+\fIarchive\fR
+is closed.
+If
+\fIidp\fR
+is not
+\fRNULL\fR,
+the integer to which it points will be set to the ID (two-byte
+signature) of the selected extra field.
+If
+\fIlenp\fR
+is not
+\fRNULL\fR,
+the integer to which it points will be set to the length of the
+extra field.
+Generally speaking,
+\fIlenp\fR
+and
+\fIidp\fR
+should be passed since only the extra field data is returned (i.e.,
+neither the ID nor the length, if the
+\fIidp\fR
+and
+\fIlenp\fR
+arguments are not provided).
+.PP
+The following
+\fIflags\fR
+are supported:
+.RS 6n
+.TP 20n
+\fRZIP_FL_CENTRAL\fR
+Return extra fields from the archive's central directory.
+.TP 20n
+\fRZIP_FL_LOCAL\fR
+Return extra fields from the local file headers.
+.TP 20n
+\fRZIP_FL_UNCHANGED\fR
+Return the original unchanged extra fields, ignoring any changes made.
+.RE
+.PP
+The
+\fBzip_file_extra_field_get_by_id\fR()
+function returns the extra field with ID (two-byte signature)
+\fIextra_field_id\fR
+and index
+\fIextra_field_index\fR
+(in other words, the
+\fIextra_field_index\fR'th
+extra field with ID
+\fIextra_field_id\fR)
+The other arguments are the same as for
+\fBzip_file_extra_field_get\fR().
+.SH "RETURN VALUES"
+Upon successful completion, a pointer to an extra field is returned,
+or
+\fRNULL\fR
+if there is no extra field with that
+\fIextra_field_index\fR
+for the file with index
+\fIindex\fR.
+In case of an error,
+\fRNULL\fR
+is returned and the error code in
+\fIarchive\fR
+is set to indicate the error.
+.SH "ERRORS"
+\fBzip_file_extra_field_get\fR()
+and
+\fBzip_file_extra_field_get_by_id\fR()
+fail if:
+.TP 19n
+[\fRZIP_ER_NOENT\fR]
+\fIindex\fR
+is not a valid file index in
+\fIarchive\fR,
+or
+\fIextra_field_index\fR
+is not a valid extra file index (for ID
+\fIextra_field_id\fR).
+.SH "SEE ALSO"
+libzip(3),
+zip_file_extra_field_delete(3),
+zip_file_extra_field_set(3),
+zip_file_extra_fields_count(3)
+.SH "HISTORY"
+\fBzip_file_extra_field_get\fR()
+and
+\fBzip_file_extra_field_get_by_id\fR()
+were added in libzip 0.11.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>
+.SH "CAVEATS"
+Please note that the extra field IDs 0x0001 (ZIP64 extension),
+0x6375 (Infozip UTF-8 comment), and
+0x7075 (Infozip UTF-8 file name) can not be read using
+\fBzip_file_extra_field_get\fR()
+since they are used by
+libzip(3)
+internally.

@@ -1,0 +1,163 @@
+.\" zip_source_layered.mdoc -- create layered source from function
+.\" Copyright (C) 2004-2022 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd December 5, 2022
+.Dt ZIP_SOURCE_LAYERED 3
+.Os
+.Sh NAME
+.Nm zip_source_layered ,
+.Nm zip_source_layered_create
+.Nd create layered data source from function
+.Sh LIBRARY
+libzip (-lzip)
+.Sh SYNOPSIS
+.In zip.h
+.Ft zip_source_t *
+.Fn zip_source_layered "zip_t *archive" "zip_source_t *source" "zip_source_layered_callback fn" "void *userdata"
+.Ft zip_source_t *
+.Fn zip_source_layered_create "zip_source_t *source" "zip_source_layered_callback fn" "void *userdata" "zip_error_t *error"
+.Sh DESCRIPTION
+The functions
+.Fn zip_source_layered
+and
+.Fn zip_source_layered_create
+create a layered zip source from the user-provided function
+.Ar fn ,
+which must be of the following type:
+.Pp
+.Ft typedef zip_int64_t
+.Fo \fR(*\zip_source_layered_callback\fR)\fP
+.Fa "zip_source_t *source" "void *userdata" "void *data" "zip_uint64_t length" "zip_source_cmd_t cmd"
+.Fc
+.Pp
+.Ar archive
+or
+.Ar error
+are used for reporting errors and can be
+.Dv NULL .
+.Pp
+When called by the library, the first argument is the
+.Ar source
+of the lower layer, the second argument is the
+.Ar userdata
+argument supplied to the function.
+The next two arguments are a buffer
+.Ar data
+of size
+.Ar length
+when data is passed in or expected to be returned, or else
+.Dv NULL
+and 0.
+The last argument,
+.Ar cmd ,
+specifies which action the function should perform.
+.Pp
+See
+.Xr zip_source_function 3
+for a description of the commands.
+.Pp
+A layered source transforms the data or metadata of the source below in some way.
+Layered sources can't support writing and are not sufficient to cleanly add support for additional compression or encryption methods.
+This may be revised in a later release of libzip.
+.Pp
+The interaction with the lower layer depends on the command:
+.El
+.Ss Dv ZIP_SOURCE_ACCEPT_EMPTY
+If the layered source supports this command, the lower layer is not called automatically.
+Otherwise, the return value of the lower source is used.
+.Ss Dv ZIP_SOURCE_CLOSE
+The lower layer is closed after the callback returns.
+.Ss Dv ZIP_SOURCE_ERROR
+The lower layer is not called automatically.
+If you need to retrieve error information from the lower layer, use
+.Xr zip_error_set_from_source 3
+or
+.Xr zip_source_pass_to_lower_layer 3 .
+.Ss Dv ZIP_SOURCE_FREE
+The lower layer is freed after the callback returns.
+.Ss Dv ZIP_SOURCE_GET_FILE_ATTRIBUTES
+The attributes of the lower layer are merged with the attributes returned by the callback: information set by the callback wins over the lower layer, with the following exceptions: the higher
+.Ar version_needed
+is used, and
+.Ar general_purpose_bit_flags
+are only overwritten if the corresponding bit is set in
+.Ar general_purpose_bit_mask .
+.Ss Dv ZIP_SOURCE_OPEN
+The lower layer is opened before the callback is called.
+.Ss Dv ZIP_SOURCE_READ
+The lower layer is not called automatically.
+.Ss Dv ZIP_SOURCE_SEEK
+The lower layer is not called automatically.
+.Ss Dv ZIP_SOURCE_STAT
+.Ar data
+contains the stat information from the lower layer when the callback is called.
+.Ss Dv ZIP_SOURCE_SUPPORTS
+.Ar data
+contains the bitmap of commands supported by the lower layer when the callback is called.
+Since layered sources can't support writing, all commands related to writing are stripped from the returned support bitmap.
+.Ss Dv ZIP_SOURCE_TELL
+The lower layer is not called automatically.
+.Sh RETURN VALUES
+Upon successful completion, the created source is returned.
+Otherwise,
+.Dv NULL
+is returned and the error code in
+.Ar archive
+or
+.Ar error
+is set to indicate the error (unless
+it is
+.Dv NULL ) .
+.Sh ERRORS
+.Fn zip_source_layered
+fails if:
+.Bl -tag -width Er
+.It Bq Er ZIP_ER_MEMORY
+Required memory could not be allocated.
+.El
+.Sh SEE ALSO
+.Xr libzip 3 ,
+.Xr zip_file_add 3 ,
+.Xr zip_file_attributes_init 3 ,
+.Xr zip_file_replace 3 ,
+.Xr zip_source 3 ,
+.Xr zip_source_function 3 ,
+.Xr zip_source_pass_to_lower_layer 3
+.Sh HISTORY
+.Fn zip_source_layered
+and
+.Fn zip_source_layered_create
+were added in libzip 1.10.
+.Sh AUTHORS
+.An -nosplit
+.An Dieter Baron Aq Mt dillo@nih.at
+and
+.An Thomas Klausner Aq Mt tk@giga.or.at

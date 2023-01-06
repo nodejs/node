@@ -1,0 +1,121 @@
+.\" zip_file_set_encryption.mdoc -- set encryption method for file
+.\" Copyright (C) 2016-2021 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP files.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd April 2, 2020
+.Dt ZIP_FILE_SET_ENCRYPTION 3
+.Os
+.Sh NAME
+.Nm zip_file_set_encryption
+.Nd set encryption method for file in zip
+.Sh LIBRARY
+libzip (-lzip)
+.Sh SYNOPSIS
+.In zip.h
+.Ft int
+.Fn zip_file_set_encryption "zip_t *archive" "zip_uint64_t index" "zip_uint16_t method" "const char *password"
+.Sh DESCRIPTION
+The
+.Fn zip_file_set_encryption
+function sets the encryption method for the file at position
+.Ar index
+in the zip archive to
+.Ar method
+using the password
+.Ar password .
+The
+.Ar method
+is the same as returned by
+.Xr zip_stat 3 .
+For the
+.Ar method
+argument, currently only the following values are supported:
+.Bl -tag -width ZIP_CM_DEFLATE_XX
+.It Dv ZIP_EM_NONE
+No encryption.
+.It Dv ZIP_EM_AES_128
+Winzip AES-128 encryption.
+.It Dv ZIP_EM_AES_192
+Winzip AES-192 encryption.
+.It Dv ZIP_EM_AES_256
+Winzip AES-256 encryption.
+.It Dv ZIP_EM_TRAD_PKWARE
+Traditional PKWare encryption.
+Do not use this method, it is not secure.
+It is only provided for backwards compatibility.
+.El
+.Pp
+If
+.Ar password
+is
+.Dv NULL ,
+the default password provided by
+.Xr zip_set_default_password 3
+is used.
+.Pp
+The current encryption method for a file in a zip archive can be
+determined using
+.Xr zip_stat 3 .
+.Sh RETURN VALUES
+Upon successful completion 0 is returned.
+Otherwise, \-1 is returned and the error information in
+.Ar archive
+is set to indicate the error.
+.Sh ERRORS
+.Fn zip_file_set_encryption
+fails if:
+.Bl -tag -width Er
+.It Bq Er ZIP_ER_ENCRNOTSUPP
+Unsupported compression method requested.
+.It Bq Er ZIP_ER_INVAL
+.Ar index
+is not a valid file index in
+.Ar archive ,
+or the argument combination is invalid.
+.It Bq Er ZIP_ER_MEMORY
+Required memory could not be allocated.
+.It Bq Er ZIP_ER_RDONLY
+Read-only zip file, no changes allowed.
+.El
+.Sh SEE ALSO
+.Xr libzip 3 ,
+.Xr zip_encryption_method_supported 3 ,
+.Xr zip_fopen_encrypted 3 ,
+.Xr zip_fopen_index_encrypted 3 ,
+.Xr zip_set_default_password 3 ,
+.Xr zip_stat 3
+.Sh HISTORY
+.Fn zip_file_set_encryption
+was added in libzip 1.2.0.
+.Sh AUTHORS
+.An -nosplit
+.An Dieter Baron Aq Mt dillo@nih.at
+and
+.An Thomas Klausner Aq Mt tk@giga.or.at

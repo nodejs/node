@@ -33,6 +33,7 @@
 // node is built as static library. No need to depend on the
 // __attribute__((constructor)) like mechanism in GCC.
 #define NODE_BUILTIN_STANDARD_BINDINGS(V)                                      \
+  V(archive)                                                                   \
   V(async_wrap)                                                                \
   V(blob)                                                                      \
   V(block_list)                                                                \

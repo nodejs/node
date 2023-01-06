@@ -1,0 +1,4 @@
+# rename file to CP437 name in zip archive (fails)
+return 0
+args testfile.zip rename 0 ‚ƒ„…†‡ˆ‰Š‹Œ
+file testfile.zip testfile.zip testfile-cp437.zip

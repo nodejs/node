@@ -1,0 +1,6 @@
+# zip_open: file opens fine even though file name has length 0
+program tryopen
+args filename_empty.zip
+return 0
+file filename_empty.zip filename_empty.zip filename_empty.zip
+stdout opening 'filename_empty.zip' succeeded, 1 entries

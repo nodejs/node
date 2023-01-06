@@ -1,0 +1,4 @@
+# change method from stored to deflated
+return 0
+args test.zip  set_file_compression 0 deflate 0
+file test.zip teststored.zip testdeflated.zip

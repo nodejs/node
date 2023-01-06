@@ -1,0 +1,81 @@
+.\" zip_source_seek_compute_offset.mdoc - validate arguments and compute offset
+.\" Copyright (C) 2014-2017 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd December 18, 2017
+.Dt ZIP_SOURCE_SEEK_COMPUTE_OFFSET 3
+.Os
+.Sh NAME
+.Nm zip_source_seek_compute_offset
+.Nd validate arguments and compute offset
+.Sh LIBRARY
+libzip (-lzip)
+.Sh SYNOPSIS
+.In zip.h
+.Ft zip_int64_t
+.Fn zip_source_seek_compute_offset "zip_uint64_t offset" "zip_uint64_t length" "void *data" "zip_uint64_t data_length" "zip_error_t *error"
+.Sh DESCRIPTION
+Use this function to compute the offset for a
+.Dv ZIP_SOURCE_SEEK
+or
+.Dv ZIP_SOURCE_SEEK_WRITE
+command.
+.Ar data
+and
+.Ar data_length
+are the arguments to the source callback,
+.Ar offset
+is the current offset and
+.Ar length
+is the length of the source data or, for
+.Dv ZIP_SOURCE_SEEK_WRITE ,
+the amount of data written.
+.Sh RETURN VALUES
+On success, it returns the new offset, on error it returns \-1 and
+sets
+.Ar error .
+.Sh ERRORS
+.Fn zip_source_seek_compute_offset
+fails if:
+.Bl -tag -width Er
+.It Bq Er ZIP_ER_INVAL
+One of the arguments is invalid or the seek would place the offset
+outside the data.
+.El
+.Sh SEE ALSO
+.Xr zip_source_function 3
+.Sh HISTORY
+.Fn zip_source_seek_compute_offset
+was added in libzip 1.0.
+.Sh AUTHORS
+.An -nosplit
+.An Dieter Baron Aq Mt dillo@nih.at
+and
+.An Thomas Klausner Aq Mt tk@giga.or.at

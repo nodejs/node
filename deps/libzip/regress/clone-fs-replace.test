@@ -1,0 +1,5 @@
+# test cloning archive from filesystem, replacing a file
+precheck ./can_clone_file
+return 0
+args test.zzip  replace_file_contents 2 "A changed file."  set_file_mtime 2 1512998082
+file test.zzip gap.zip gap-replace.zip

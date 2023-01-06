@@ -1,0 +1,7 @@
+# add extra field
+#args encrypt.zip set_extra 0 2345 65535 cl extrafieldcontent
+args encrypt.zip set_extra 0 2345 65535 cl extrafieldcontent get_extra_by_id 0 2345 0 c get_extra_by_id 0 2345 0 l
+return 0
+file encrypt.zip encrypt.zip encrypt_plus_extra.zip
+stdout Extra field 0x0929: len 17, data 0x65787472616669656c64636f6e74656e74
+stdout Extra field 0x0929: len 17, data 0x65787472616669656c64636f6e74656e74

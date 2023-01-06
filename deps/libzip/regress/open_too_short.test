@@ -1,0 +1,7 @@
+# zip_open: file is too short for even a central directory entry
+program tryopen
+args test.piz
+return 1
+file test.piz bogus.zip bogus.zip
+stdout opening 'test.piz' returned error 19
+stderr 1 errors

@@ -1,0 +1,4 @@
+# test cloning archive from buffer, deleting a file
+return 0
+args -mF 100 test.zzip  delete 2
+file test.zzip gap.zip gap-delete.zip

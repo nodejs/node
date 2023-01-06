@@ -1,0 +1,165 @@
+.\" zip_file_get_external_attributes.mdoc -- get external attributes for file in zip
+.\" Copyright (C) 2013-2017 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP files.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd December 18, 2017
+.Dt ZIP_FILE_GET_EXTERNAL_ATTRIBUTES 3
+.Os
+.Sh NAME
+.Nm zip_file_get_external_attributes
+.Nd get external attributes for file in zip
+.Sh LIBRARY
+libzip (-lzip)
+.Sh SYNOPSIS
+.In zip.h
+.Ft int
+.Fn zip_file_get_external_attributes "zip_t *archive" "zip_uint64_t index" "zip_flags_t flags" "zip_uint8_t *opsys" "zip_uint32_t *attributes"
+.Sh DESCRIPTION
+The
+.Fn zip_file_get_external_attributes
+function returns the operating system and external attributes for the
+file at position
+.Ar index
+in the zip archive.
+The external attributes usually contain the operating system-specific
+file permissions.
+If
+.Ar flags
+is set to
+.Dv ZIP_FL_UNCHANGED ,
+the original unchanged values are returned.
+If
+.Ar opsys
+or
+.Ar attributes
+are
+.Dv NULL ,
+they are not filled in.
+.Pp
+The following operating systems are defined by the zip specification:
+.Bl -item -compact -offset indent
+.It
+.Dv ZIP_OPSYS_ACORN_RISC
+.It
+.Dv ZIP_OPSYS_ALTERNATE_MVS
+.It
+.Dv ZIP_OPSYS_AMIGA
+.It
+.Dv ZIP_OPSYS_ATARI_ST
+.It
+.Dv ZIP_OPSYS_BEOS
+.It
+.Dv ZIP_OPSYS_CPM
+.It
+.Dv ZIP_OPSYS_DOS
+.It
+.Dv ZIP_OPSYS_MACINTOSH
+.It
+.Dv ZIP_OPSYS_MVS
+.It
+.Dv ZIP_OPSYS_OPENVMS
+.It
+.Dv ZIP_OPSYS_OS_2
+.It
+.Dv ZIP_OPSYS_OS_400
+.It
+.Dv ZIP_OPSYS_OS_X
+.It
+.Dv ZIP_OPSYS_TANDEM
+.It
+.Dv ZIP_OPSYS_UNIX
+.It
+.Dv ZIP_OPSYS_VFAT
+.It
+.Dv ZIP_OPSYS_VM_CMS
+.It
+.Dv ZIP_OPSYS_VSE
+.It
+.Dv ZIP_OPSYS_WINDOWS_NTFS
+(uncommon, use
+.Dv ZIP_OPSYS_DOS
+instead)
+.It
+.Dv ZIP_OPSYS_Z_SYSTEM
+.El
+.Pp
+The defines above follow the PKWARE Inc. Appnote; please note that
+the InfoZIP Appnote has a slightly different mapping.
+.Sh RETURN VALUES
+Upon successful completion, 0 is returned.
+In case of an error,
+.Dv \-1
+is returned and the error code in
+.Ar archive
+is set to indicate the error.
+.Sh EXAMPLES
+The following code can be used to expand
+.Ar attributes
+if the operating system is
+.Dv ZIP_OPSYS_DOS .
+.Bd -literal
+#include <sys/stat.h>
+
+#define FA_RDONLY       0x01            // FILE_ATTRIBUTE_READONLY
+#define FA_DIREC        0x10            // FILE_ATTRIBUTE_DIRECTORY
+
+static mode_t
+_zip_dos_attr2mode(zip_uint32_t attr)
+{
+   mode_t m = S_IRUSR | S_IRGRP | S_IROTH;
+   if (0 == (attr & FA_RDONLY))
+      m |= S_IWUSR | S_IWGRP | S_IWOTH;
+
+   if (attr & FA_DIREC)
+      m = (S_IFDIR | (m & ~S_IFMT)) | S_IXUSR | S_IXGRP | S_IXOTH;
+
+   return m;
+}
+.Ed
+.Sh ERRORS
+.Fn zip_file_get_external_attributes
+fails if:
+.Bl -tag -width Er
+.It Bq Er ZIP_ER_INVAL
+.Ar index
+is not a valid file index in
+.Ar archive .
+.El
+.Sh SEE ALSO
+.Xr libzip 3 ,
+.Xr zip_file_set_external_attributes 3
+.Sh HISTORY
+.Fn zip_file_get_external_attributes
+was added in libzip 0.11.2.
+.Sh AUTHORS
+.An -nosplit
+.An Dieter Baron Aq Mt dillo@nih.at
+and
+.An Thomas Klausner Aq Mt tk@giga.or.at

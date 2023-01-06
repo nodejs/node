@@ -1,0 +1,13 @@
+# stat file in zip64 zip file
+args bigzero stat 0
+file bigzero bigzero.zip bigzero.zip
+return 0
+stdout name: 'bigzero'
+stdout index: '0'
+stdout size: '4294967296'
+stdout compressed size: '4168157'
+stdout mtime: 'Thu Mar 15 2012 14:54:06'
+stdout crc: 'd202ef8d'
+stdout compression method: '8'
+stdout encryption method: '0'
+stdout
