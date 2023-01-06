@@ -36,12 +36,12 @@ The stability indices are as follows:
 > Experimental features are subdivided into stages:
 >
 > * 1.0 - Early development. Experimental features at this stage are unfinished
->   and subject to substantial change. They are not yet ready for user testing.
+>   and subject to substantial change.
 > * 1.1 - Active development. Experimental features at this stage are nearing
->   potential stability, with only minor changes expected.
+>   potential stability but breaking changes are likely.
 > * 1.2 - Release candidate. Experimental features at this stage are hopefully
 >   ready to become stable. No further breaking changes are anticipated and we
->   welcome user testing and feedback so that we can know that this feature is
+>   encourage user testing and feedback so that we can know that this feature is
 >   ready to be marked as stable.
 
 <!-- separator -->
