@@ -5,7 +5,7 @@ const assert = require('assert');
 
 {
   const server = http.createServer({ requireHostHeader: false }, common.mustCall((req, res) => {
-    res.writeHead(200); // headers already sent
+    res.writeHead(200); // Headers already sent
     const headers = new globalThis.Headers({ foo: '1' });
     assert.throws(() => {
       res.setHeaders(headers);
@@ -101,7 +101,7 @@ const assert = require('assert');
   server.listen(0, common.mustCall(() => {
     http.get({ port: server.address().port }, (res) => {
       assert.strictEqual(res.statusCode, 200);
-      assert.strictEqual(res.headers.foo, '3'); // ovverride by writeHead
+      assert.strictEqual(res.headers.foo, '3'); // Ovverride by writeHead
       assert.strictEqual(res.headers.bar, '2');
       res.resume().on('end', common.mustCall(() => {
         server.close();
