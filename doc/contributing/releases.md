@@ -20,6 +20,7 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [5. Create release commit](#5-create-release-commit)
   * [6. Propose release on GitHub](#6-propose-release-on-github)
   * [7. Ensure that the release branch is stable](#7-ensure-that-the-release-branch-is-stable)
+    * [7.1 Updating the release _(optional)_](#7-1-updating-the-release-optional)
   * [8. Produce a nightly build _(optional)_](#8-produce-a-nightly-build-optional)
   * [9. Produce release builds](#9-produce-release-builds)
   * [10. Test the build](#10-test-the-build)
@@ -544,6 +545,50 @@ until CI has been locked down. The security steward should be coordinating this
 with the Build Working Group.
 
 </details>
+
+#### 7.1 Updating the release _(optional)_
+
+Sometimes a release might be deferred to the subsequent day due to several
+conditions:
+
+* Unstable CI
+* Late CI completion
+
+And when it happens, the CHANGELOG\_Vx and the commit metadata needs to be
+updated according to the new target date.
+
+However, if it's just the changelog/commit message that has changed since the
+last CI execution, there's no need to rerun CI, V8, or CITGM workflows.
+The PR still needs a clean GitHub action run, and the original CI, V8, and
+CITGM run should be in a visible comment.
+
+There are some cases when a commit needs to be dropped or adjusted,
+consider using the following approach:
+
+1. Update staging
+
+```console
+$ git checkout v1.x-staging
+$ git rebase -i $HASH_PREVIOUS_BAD_COMMIT
+... drop or edit the bad commit(s)
+$ git push -f upstream v1.x-staging
+```
+
+2. Rebase the proposal against the updated staging branch
+
+```console
+$ git checkout v1.2.3-proposal
+$ git checkout -b v1.2.3-proposal-tmp
+$ git checkout v1.2.3-proposal
+
+$ git reset --hard upstream/v1.x-staging
+$ git cherry-pick v1.2.3-proposal-tmp
+```
+
+Note the `tmp` branch was created just to save the release commit.
+
+3. Re-run `changelog-maker` and update the CHANGELOG\_Vx to include the new
+   Git SHAs. Remember to update the commit message if applicable.
 
 ### 8. Produce a nightly build _(optional)_
 
