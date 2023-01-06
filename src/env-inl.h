@@ -436,14 +436,9 @@ inline std::vector<double>* Environment::destroy_async_id_list() {
   return &destroy_async_id_list_;
 }
 
-inline std::shared_ptr<builtins::BuiltinLoader> Environment::builtin_loader() {
+inline builtins::BuiltinLoader* Environment::builtin_loader() {
   DCHECK(builtin_loader_);
-  return builtin_loader_;
-}
-
-inline void Environment::set_builtin_loader(
-    std::shared_ptr<builtins::BuiltinLoader> loader) {
-  builtin_loader_ = loader;
+  return builtin_loader_.get();
 }
 
 inline double Environment::new_async_id() {

@@ -674,7 +674,8 @@ Environment::Environment(IsolateData* isolate_data,
       flags_(flags),
       thread_id_(thread_id.id == static_cast<uint64_t>(-1)
                      ? AllocateEnvironmentThreadId().id
-                     : thread_id.id) {
+                     : thread_id.id),
+      builtin_loader_(builtins::BuiltinLoader::Create()) {
   // We'll be creating new objects so make sure we've entered the context.
   HandleScope handle_scope(isolate);
 
@@ -752,8 +753,6 @@ Environment::Environment(IsolateData* isolate_data,
                   env_info,
                   flags,
                   thread_id) {
-  // TODO(addaleax): Make this part of CreateEnvironment().
-  set_builtin_loader(builtins::BuiltinLoader::Create());
   InitializeMainContext(context, env_info);
 }
 

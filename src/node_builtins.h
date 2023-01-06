@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 #include "node_mutex.h"
+#include "node_threadsafe_cow.h"
 #include "node_union_bytes.h"
 #include "v8.h"
 
@@ -74,9 +75,10 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
 
   bool CompileAllBuiltins(v8::Local<v8::Context> context);
   void RefreshCodeCache(const std::vector<CodeCacheInfo>& in);
-  void CopyCodeCache(std::vector<CodeCacheInfo>* out);
+  void CopyCodeCache(std::vector<CodeCacheInfo>* out) const;
 
-  static std::shared_ptr<BuiltinLoader> Create();
+  static std::unique_ptr<BuiltinLoader> Create();
+  void CopySourceAndCodeCacheFrom(const BuiltinLoader* other);
 
  private:
   // Only allow access from friends.
@@ -101,7 +103,7 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   bool CanBeRequired(const char* id) const;
   bool CannotBeRequired(const char* id) const;
 
-  v8::ScriptCompiler::CachedData* GetCodeCache(const char* id) const;
+  const v8::ScriptCompiler::CachedData* GetCodeCache(const char* id) const;
   enum class Result { kWithCache, kWithoutCache };
   v8::MaybeLocal<v8::String> LoadBuiltinSource(v8::Isolate* isolate,
                                                const char* id) const;
@@ -135,19 +137,14 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
 
   void AddExternalizedBuiltin(const char* id, const char* filename);
 
-  // Used to synchronize access to builtin_categories.
   // builtin_categories is marked mutable because it is only initialized
   // as a cache, so that mutating it does not change any state.
-  Mutex builtin_categories_mutex_;
   mutable std::optional<BuiltinCategories> builtin_categories_;
 
-  // Used to synchronize access to the code cache map
-  RwLock source_mutex_;
-  BuiltinSourceMap source_;
+  ThreadsafeCopyOnWrite<BuiltinSourceMap> source_;
 
   const UnionBytes config_;
 
-  // Used to synchronize access to the code cache map
   RwLock code_cache_mutex_;
   BuiltinCodeCacheMap code_cache_;
   bool has_code_cache_;

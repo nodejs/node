@@ -344,8 +344,11 @@ void Worker::Run() {
             static_cast<EnvironmentFlags::Flags>(environment_flags_),
             thread_id_,
             std::move(inspector_parent_handle_)));
+#ifdef NODE_V8_SHARED_RO_HEAP
         // TODO(addaleax): Adjust for the embedder API snapshot support changes
-        env_->set_builtin_loader(env()->builtin_loader());
+        env_->builtin_loader()->CopySourceAndCodeCacheFrom(
+            env()->builtin_loader());
+#endif
         if (is_stopped()) return;
         CHECK_NOT_NULL(env_);
         env_->set_env_vars(std::move(env_vars_));
