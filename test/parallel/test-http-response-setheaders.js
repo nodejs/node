@@ -101,7 +101,7 @@ const assert = require('assert');
   server.listen(0, common.mustCall(() => {
     http.get({ port: server.address().port }, (res) => {
       assert.strictEqual(res.statusCode, 200);
-      assert.strictEqual(res.headers.foo, '3'); // Ovverride by writeHead
+      assert.strictEqual(res.headers.foo, '3'); // Override by writeHead
       assert.strictEqual(res.headers.bar, '2');
       res.resume().on('end', common.mustCall(() => {
         server.close();
