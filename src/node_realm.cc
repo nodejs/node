@@ -8,7 +8,6 @@
 
 namespace node {
 
-using builtins::BuiltinLoader;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;

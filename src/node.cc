@@ -126,8 +126,6 @@
 
 namespace node {
 
-using builtins::BuiltinLoader;
-
 using v8::EscapableHandleScope;
 using v8::Isolate;
 using v8::Local;

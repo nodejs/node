@@ -80,8 +80,8 @@ class ThreadsafeCopyOnWrite final {
 
  private:
   struct Impl {
-    Impl(const T& data) : data(data) {}
-    Impl(T&& data) : data(std::move(data)) {}
+    explicit Impl(const T& data) : data(data) {}
+    explicit Impl(T&& data) : data(std::move(data)) {}
 
     Impl(const Impl& other);
     Impl& operator=(const Impl& other) = delete;
