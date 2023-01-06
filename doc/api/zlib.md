@@ -254,6 +254,42 @@ possible to determine whether the input ended prematurely or lacks the
 integrity checks, making it necessary to manually check that the
 decompressed result is valid.
 
+## Compressing multiple files together
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `zlib` library provides ways to compress individual objects, but not to
+aggregate multiple ones into a single file suitable for redistribution (what
+is often called archival).
+
+To this end, `node:zip` provides the `ZipArchive` class which allows to create,
+read, and modify zip archives:
+
+```js
+const fs = require('node:fs');
+const { ZipArchive } = require('node:zlib');
+
+const zip = new ZipArchive();
+zip.addFile('README.md', fs.readFileSync('README.md'));
+const data = zip.digest();
+
+fs.writeFileSync('archive.zip', data);
+```
+
+The constructor accepts a buffer instance as parameter, which can be useful to
+inspect the content of existing archives:
+
+```js
+const fs = require('node:fs');
+const { ZipArchive } = require('node:zlib');
+
+const zip = new ZipArchive(fs.readFileSync('archive.zip'));
+const entries = zip.getEntries();
+const file = zip.readEntry(entries.get('README.md'));
+```
+
 ## Memory usage tuning
 
 <!--type=misc-->
@@ -1294,17 +1330,6 @@ added: REPLACEME
 
 > Stability: 1 - Experimental.
 
-### `zip.getEntries([options])`
-
-* `options` {Object}
-  * `withFileTypes` {boolean|null} **Default:** `false`
-* Returns: {Map} Returns a map where keys are paths and values are numbers
-  suitable for use in other functions accepting entry numbers.
-
-Returns a map of all the entries within the zip archive. Because of how zip
-works, not all entries are files: some may be directories too. To know their
-types for sure, set the `withFileTypes` option to true.
-
 ### `zip.addFile(path, data[, options])`
 
 <!-- YAML
@@ -1347,6 +1372,17 @@ set those of a symlink, using `ZIP_OPSYS_UNIX`.
 * `entry` {number}
 
 Removes an entry from a given zip archive.
+
+### `zip.getEntries([options])`
+
+* `options` {Object}
+  * `withFileTypes` {boolean|null} **Default:** `false`
+* Returns: {Map} Returns a map where keys are paths and values are numbers
+  suitable for use in other functions accepting entry numbers.
+
+Returns a map of all the entries within the zip archive. Because of how zip
+works, not all entries are files: some may be directories too. To know their
+types for sure, set the `withFileTypes` option to true.
 
 ### `zip.readEntry(entry[, options])`
 
