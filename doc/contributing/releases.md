@@ -537,6 +537,13 @@ purpose. Run it once with the base `vx.x` branch as a reference and with the
 proposal branch to check if new regressions could be introduced in the
 ecosystem.
 
+Use `ncu-ci` to compare `vx.x` run (10) and proposal branch (11)
+
+```console
+$ npm i -g node-core-utils
+$ ncu-ci citgm 10 11
+```
+
 <details>
 <summary>Security release</summary>
 
