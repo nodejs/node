@@ -18,6 +18,28 @@ const cases = [
     ],
   },
   {
+    input: '123',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: '123' },
+        nesting: 0,
+        lexeme: '123',
+      },
+    ],
+  },
+  {
+    input: '# 123',
+    expected: [
+      {
+        kind: 'Comment',
+        node: { comment: '123' },
+        nesting: 0,
+        lexeme: '# 123',
+      },
+    ],
+  },
+  {
     input: 'invalid tap',
     expected: [
       {
