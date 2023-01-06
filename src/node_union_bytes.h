@@ -11,48 +11,6 @@
 
 namespace node {
 
-class NonOwningExternalOneByteResource
-    : public v8::String::ExternalOneByteStringResource {
- public:
-  explicit NonOwningExternalOneByteResource(const uint8_t* data, size_t length)
-      : data_(data), length_(length) {}
-  ~NonOwningExternalOneByteResource() override = default;
-
-  const char* data() const override {
-    return reinterpret_cast<const char*>(data_);
-  }
-  size_t length() const override { return length_; }
-
-  NonOwningExternalOneByteResource(const NonOwningExternalOneByteResource&) =
-      delete;
-  NonOwningExternalOneByteResource& operator=(
-      const NonOwningExternalOneByteResource&) = delete;
-
- private:
-  const uint8_t* data_;
-  size_t length_;
-};
-
-class NonOwningExternalTwoByteResource
-    : public v8::String::ExternalStringResource {
- public:
-  explicit NonOwningExternalTwoByteResource(const uint16_t* data, size_t length)
-      : data_(data), length_(length) {}
-  ~NonOwningExternalTwoByteResource() override = default;
-
-  const uint16_t* data() const override { return data_; }
-  size_t length() const override { return length_; }
-
-  NonOwningExternalTwoByteResource(const NonOwningExternalTwoByteResource&) =
-      delete;
-  NonOwningExternalTwoByteResource& operator=(
-      const NonOwningExternalTwoByteResource&) = delete;
-
- private:
-  const uint16_t* data_;
-  size_t length_;
-};
-
 // Similar to a v8::String, but it's independent from Isolates
 // and can be materialized in Isolates as external Strings
 // via ToStringChecked.
@@ -63,7 +21,7 @@ class UnionBytes {
   UnionBytes(const uint8_t* data, size_t length)
       : one_bytes_(data), two_bytes_(nullptr), length_(length) {}
   template <typename T>  // T = uint8_t or uint16_t
-  explicit UnionBytes(std::shared_ptr<std::vector<T>> data)
+  explicit UnionBytes(std::shared_ptr<std::vector</*const*/ T>> data)
       : UnionBytes(data->data(), data->size()) {
     owning_ptr_ = data;
   }
@@ -82,18 +40,8 @@ class UnionBytes {
     CHECK_NOT_NULL(one_bytes_);
     return one_bytes_;
   }
-  v8::Local<v8::String> ToStringChecked(v8::Isolate* isolate) const {
-    if (is_one_byte()) {
-      NonOwningExternalOneByteResource* source =
-          new NonOwningExternalOneByteResource(one_bytes_data(), length_);
-      return v8::String::NewExternalOneByte(isolate, source).ToLocalChecked();
-    } else {
-      NonOwningExternalTwoByteResource* source =
-          new NonOwningExternalTwoByteResource(two_bytes_data(), length_);
-      return v8::String::NewExternalTwoByte(isolate, source).ToLocalChecked();
-    }
-  }
-  size_t length() { return length_; }
+  v8::Local<v8::String> ToStringChecked(v8::Isolate* isolate) const;
+  size_t length() const { return length_; }
 
  private:
   const uint8_t* one_bytes_;
