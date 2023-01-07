@@ -98,3 +98,8 @@ assert.strictEqual(
   require.resolve('./printA.js', {}),
   require.resolve('./printA.js')
 );
+
+assert.strictEqual(
+  require.resolve('no_index/'),
+  path.join(__dirname, 'node_modules', 'no_index', 'lib', 'index.js'),
+)
