@@ -2093,48 +2093,6 @@ argument, then `error` is assumed to be omitted and the string will be used for
 example in [`assert.throws()`][] carefully if using a string as the second
 argument gets considered.
 
-## `assert.snapshot(value, name)`
-
-<!-- YAML
-added: v18.8.0
--->
-
-> Stability: 1 - Experimental
-
-* `value` {any} the value to snapshot.
-* `name` {string} the name of the snapshot.
-* Returns: {Promise}
-
-Reads the `name` snapshot from a file and compares `value` to the snapshot.
-`value` is serialized with [`util.inspect()`][]. If the value is not strictly
-equal to the snapshot, `assert.snapshot()` returns a rejected `Promise` with an
-[`AssertionError`][].
-
-The snapshot filename uses the same basename as the application's main
-entrypoint with a `.snapshot` extension. If the snapshot file does not exist,
-it is created. The [`--update-assert-snapshot`][] command line flag can be used
-to force the update of an existing snapshot.
-
-```mjs
-import assert from 'node:assert/strict';
-
-// Assuming that the application's main entrypoint is app.mjs, this reads the
-// 'snapshotName' snapshot from app.snapshot and strictly compares its value
-// to `util.inspect('value')`.
-await assert.snapshot('value', 'snapshotName');
-```
-
-```cjs
-const assert = require('node:assert/strict');
-
-(async () => {
-  // Assuming that the application's main entrypoint is app.js, this reads the
-  // 'snapshotName' snapshot from app.snapshot and strictly compares its value
-  // to `util.inspect('value')`.
-  await assert.snapshot('value', 'snapshotName');
-})();
-```
-
 ## `assert.strictEqual(actual, expected[, message])`
 
 <!-- YAML
@@ -2571,7 +2529,6 @@ argument.
 [Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
 [`!=` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Inequality
-[`--update-assert-snapshot`]: cli.md#--update-assert-snapshot
 [`===` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Strict_equality
 [`==` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Equality
 [`AssertionError`]: #class-assertassertionerror
@@ -2603,6 +2560,5 @@ argument.
 [`process.on('exit')`]: process.md#event-exit
 [`tracker.calls()`]: #trackercallsfn-exact
 [`tracker.verify()`]: #trackerverify
-[`util.inspect()`]: util.md#utilinspectobject-options
 [enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots
