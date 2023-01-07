@@ -2981,7 +2981,7 @@ added: REPLACEME
 Returns the response object.
 
 Sets multiple header values for implicit headers.
-`headers` must be an instance of [`Headers`][], if header already exists
+`headers` must be an instance of [`Headers`][] or `Map`, if a header already exists
 in the to-be-sent headers, its value will be replaced.
 
 ```js
