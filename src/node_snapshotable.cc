@@ -620,12 +620,12 @@ template <>
 size_t FileWriter::Write(const ImmediateInfo::SerializeInfo& data) {
   if (is_debug) {
     std::string str = ToStr(data);
-    Debug("Write<ImmeidateInfo::SerializeInfo>() %s\n", str.c_str());
+    Debug("Write<ImmediateInfo::SerializeInfo>() %s\n", str.c_str());
   }
 
   size_t written_total = Write<AliasedBufferIndex>(data.fields);
 
-  Debug("Write<ImmeidateInfo::SerializeInfo>() wrote %d bytes\n",
+  Debug("Write<ImmediateInfo::SerializeInfo>() wrote %d bytes\n",
         written_total);
   return written_total;
 }
