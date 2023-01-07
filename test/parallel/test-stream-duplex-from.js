@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { Duplex, Readable, Writable, pipeline, PassThrough } = require('stream');
+const { ReadableStream, WritableStream } = require('stream/web');
 const { Blob } = require('buffer');
 
 {
@@ -298,4 +299,131 @@ const { Blob } = require('buffer');
   }).on('end', common.mustCall(() => {
     assert.strictEqual(res, 'foobar');
   })).on('close', common.mustCall());
+}
+
+{
+  const d = Duplex.from({
+    readable: new ReadableStream({
+      start(controller) {
+        controller.enqueue('foo');
+        controller.close();
+      },
+    }),
+  });
+  assert.strictEqual(d.readable, true);
+  assert.strictEqual(d.writable, false);
+  d.once(
+    'readable',
+    common.mustCall(() => {
+      assert.strictEqual(d.read().toString(), 'foo');
+    })
+  );
+  // assert.strictEqual(d.readable, false);
+}
+
+{
+  const d = Duplex.from(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue('foo');
+        controller.close();
+      },
+    })
+  );
+  assert.strictEqual(d.readable, true);
+  assert.strictEqual(d.writable, false);
+  d.once(
+    'readable',
+    common.mustCall(() => {
+      assert.strictEqual(d.read().toString(), 'foo');
+    })
+  );
+  // d.once(
+  //   'end',
+  //   common.mustCall(() => {
+  //     assert.strictEqual(d.readable, false);
+  //   })
+  // );
+}
+
+{
+  let str = '';
+  const d = Duplex.from({
+    writable: new WritableStream({
+      write(chunk) {
+        str += chunk;
+      },
+    }),
+  });
+  assert.strictEqual(d.readable, false);
+  assert.strictEqual(d.writable, true);
+  d.end('foo');
+  d.on(
+    'finish',
+    common.mustCall(() => {
+      assert.strictEqual(d.writable, false);
+      assert.strictEqual(str, 'foo');
+    })
+  );
+}
+
+{
+  let str = '';
+  const d = Duplex.from(
+    new WritableStream({
+      write(chunk) {
+        str += chunk;
+      },
+    })
+  );
+  assert.strictEqual(d.readable, false);
+  assert.strictEqual(d.writable, true);
+  d.end('foo');
+  d.on(
+    'finish',
+    common.mustCall(() => {
+      assert.strictEqual(d.writable, false);
+      assert.strictEqual(str, 'foo');
+    })
+  );
+}
+
+{
+  let ret = '';
+  const d = Duplex.from({
+    readable: new Readable({
+      read() {
+        this.push('foo');
+        this.push(null);
+      },
+    }),
+    writable: new Writable({
+      write(chunk, encoding, callback) {
+        ret += chunk;
+        callback();
+      },
+    }),
+  });
+  assert.strictEqual(d.readable, true);
+  assert.strictEqual(d.writable, true);
+  d.once(
+    'readable',
+    common.mustCall(function () {
+      assert.strictEqual(d.read().toString(), 'foo');
+    })
+  );
+  d.once(
+    'end',
+    common.mustCall(function () {
+      assert.strictEqual(d.readable, false);
+    })
+  );
+  d.end('asd');
+  d.once(
+    'finish',
+    common.mustCall(function () {
+      assert.strictEqual(d.writable, false);
+      assert.strictEqual(ret, 'asd');
+    })
+  );
 }
