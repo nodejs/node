@@ -150,6 +150,13 @@ async function onceWithEventTargetError() {
   strictEqual(err, error);
 }
 
+async function onceWithInvalidEventEmmiter() {
+  const ac = new AbortController();
+  return rejects(once(ac, 'myevent'), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+}
+
 async function prioritizesEventEmitter() {
   const ee = new EventEmitter();
   ee.addEventListener = fail;
@@ -256,6 +263,7 @@ Promise.all([
   onceError(),
   onceWithEventTarget(),
   onceWithEventTargetError(),
+  onceWithInvalidEventEmmiter(),
   prioritizesEventEmitter(),
   abortSignalBefore(),
   abortSignalAfter(),
