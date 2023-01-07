@@ -128,7 +128,7 @@ We often choose to work to improve our APIs based on those reports and issue
 fixes either in regular or security releases depending on how much of a risk to
 the community they pose.
 
-### Examples of vulneratibities
+### Examples of vulnerabilities
 
 #### Improper Certificate Validation (CWE-295)
 
@@ -156,7 +156,7 @@ the community they pose.
   and modification of that configuration can affect the confidentiality of
   data protected using the Node.js APIs this is considered a vulnerability.
 
-### Examples of non-vulneratibities
+### Examples of non-vulnerabilities
 
 #### Malicious Third-Party Modules (CWE-1357)
 
