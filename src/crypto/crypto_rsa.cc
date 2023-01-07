@@ -529,7 +529,7 @@ Maybe<bool> GetRsaKeyDetail(
 
   RSA_get0_key(rsa, &n, &e, nullptr);
 
-  size_t modulus_length = BN_num_bytes(n) * CHAR_BIT;
+  size_t modulus_length = BN_num_bits(n);
 
   if (target
           ->Set(
