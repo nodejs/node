@@ -1854,6 +1854,8 @@ This is not used in Node.js and is provided purely for completeness.
 added: v14.5.0
 -->
 
+> Stability: 3 - Legacy: Use [`event.target`][] instead.
+
 * Type: {EventTarget} The `EventTarget` dispatching the event.
 
 Alias for `event.target`.
@@ -2164,6 +2166,7 @@ to the `EventTarget`.
 [`emitter.listenerCount()`]: #emitterlistenercounteventname
 [`emitter.removeListener()`]: #emitterremovelistenereventname-listener
 [`emitter.setMaxListeners(n)`]: #emittersetmaxlistenersn
+[`event.target`]: #eventtarget
 [`events.defaultMaxListeners`]: #eventsdefaultmaxlisteners
 [`fs.ReadStream`]: fs.md#class-fsreadstream
 [`net.Server`]: net.md#class-netserver
