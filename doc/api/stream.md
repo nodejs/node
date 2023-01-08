@@ -2915,14 +2915,14 @@ the strings or buffers be iterated to match the other streams semantics
 for performance reasons.
 
 If an `Iterable` object containing promises is passed as an argument,
-it might result in uncaught exceptions.
+it might result in uncaught rejections.
 
 ```js
 const { Readable } = require('node:stream');
 
 Readable.from([
   new Promise((resolve) => setTimeout(resolve('1'), 1500)),
-  new Promise((_, reject) => setTimeout(reject(new Error('2')), 1000)), // Uncaught exception
+  new Promise((_, reject) => setTimeout(reject(new Error('2')), 1000)), // Uncaught rejection
 ]);
 ```
 
@@ -3057,14 +3057,14 @@ A utility method for creating duplex streams.
 * Returns: {stream.Duplex}
 
 If an `Iterable` object containing promises is passed as an argument,
-it might result in uncaught exceptions.
+it might result in uncaught rejections.
 
 ```js
 const { Duplex } = require('node:stream');
 
 Duplex.from([
   new Promise((resolve) => setTimeout(resolve('1'), 1500)),
-  new Promise((_, reject) => setTimeout(reject(new Error('2')), 1000)), // Uncaught exception
+  new Promise((_, reject) => setTimeout(reject(new Error('2')), 1000)), // Uncaught rejection
 ]);
 ```
 
