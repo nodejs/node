@@ -141,8 +141,8 @@ not required and a default ECDHE curve will be used. The `ecdhCurve` property
 can be used when creating a TLS Server to specify the list of names of supported
 curves to use, see [`tls.createServer()`][] for more info.
 
-Perfect forward secrecy was optional up to TLSv1.2, but it is not optional for
-TLSv1.3, because all TLSv1.3 cipher suites use ECDHE.
+Perfect forward secrecy was optional up to TLSv1.2. As of TLSv1.3, (EC)DHE is
+always used (with the exception of PSK-only connections).
 
 ### ALPN and SNI
 
