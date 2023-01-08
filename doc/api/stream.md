@@ -2914,6 +2914,19 @@ Calling `Readable.from(string)` or `Readable.from(buffer)` will not have
 the strings or buffers be iterated to match the other streams semantics
 for performance reasons.
 
+If an `Iterable` object containing promises is passed as an argument,
+it could result in uncaught exceptions.
+See the example below:
+
+```js
+const { Readable } = require('node:stream');
+
+Readable.from([
+  new Promise((resolve) => setTimeout(resolve('1'), 1500)),
+  new Promise((_, reject) => setTimeout(reject(new Error('2')), 1000)), // Uncaught exception
+]);
+```
+
 ### `stream.Readable.fromWeb(readableStream[, options])`
 
 <!-- YAML
@@ -3043,6 +3056,19 @@ A utility method for creating duplex streams.
   `Duplex` will write to the `writable` and read from the `readable`.
 * `Promise` converts into readable `Duplex`. Value `null` is ignored.
 * Returns: {stream.Duplex}
+
+If an `Iterable` object containing promises is passed as an argument,
+it could result in uncaught exceptions.
+See the example below:
+
+```js
+const { Duplex } = require('node:stream');
+
+Duplex.from([
+  new Promise((resolve) => setTimeout(resolve('1'), 1500)),
+  new Promise((_, reject) => setTimeout(reject(new Error('2')), 1000)), // Uncaught exception
+]);
+```
 
 ### `stream.Duplex.fromWeb(pair[, options])`
 
