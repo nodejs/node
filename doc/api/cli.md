@@ -434,6 +434,17 @@ added: v19.0.0
 
 Use this flag to enable [ShadowRealm][] support.
 
+### `--experimental-test-coverage`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When used in conjunction with the `node:test` module, a code coverage report is
+generated as part of the test runner output. If no tests are run, a coverage
+report is not generated. See the documentation on
+[collecting code coverage from tests][] for more details.
+
 ### `--experimental-vm-modules`
 
 <!-- YAML
@@ -1227,17 +1238,6 @@ Starts the Node.js command line test runner. This flag cannot be combined with
 `--watch-path`, `--check`, `--eval`, `--interactive`, or the inspector.
 See the documentation on [running tests from the command line][]
 for more details.
-
-### `--test-coverage`
-
-<!-- YAML
-added: REPLACEME
--->
-
-When used in conjunction with the `node:test` module, a code coverage report is
-generated as part of the test runner output. If no tests are run, a coverage
-report is not generated. See the documentation on
-[collecting code coverage from tests][] for more details.
 
 ### `--test-name-pattern`
 

@@ -143,7 +143,8 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     if (test_runner_coverage) {
       // TODO(cjihrig): This restriction can be removed once multi-process
       // code coverage is supported.
-      errors->push_back("--test-coverage cannot be used with --test");
+      errors->push_back(
+          "--experimental-test-coverage cannot be used with --test");
     }
 
     if (syntax_check_only) {
@@ -555,7 +556,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--test",
             "launch test runner on startup",
             &EnvironmentOptions::test_runner);
-  AddOption("--test-coverage",
+  AddOption("--experimental-test-coverage",
             "enable code coverage in the test runner",
             &EnvironmentOptions::test_runner_coverage);
   AddOption("--test-name-pattern",
