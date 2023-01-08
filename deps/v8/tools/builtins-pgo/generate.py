@@ -42,7 +42,7 @@ if args.target_cpu == None:
 
 def run(cmd, **kwargs):
   print(f"# CMD: {cmd} {kwargs}")
-  return subprocess.run(cmd, **kwargs)
+  return subprocess.run(cmd, **kwargs, check = True)
 
 
 def try_start_goma():
