@@ -4,13 +4,10 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.statements = exports.statement = exports.smart = exports.program = exports.expression = void 0;
-
 var _t = require("@babel/types");
-
 const {
   assertExpressionStatement
 } = _t;
-
 function makeStatementFormatter(fn) {
   return {
     code: str => `/* @babel/template */;\n${str}`,
@@ -20,7 +17,6 @@ function makeStatementFormatter(fn) {
     }
   };
 }
-
 const smart = makeStatementFormatter(body => {
   if (body.length > 1) {
     return body;
@@ -35,11 +31,9 @@ const statement = makeStatementFormatter(body => {
   if (body.length === 0) {
     throw new Error("Found nothing to return.");
   }
-
   if (body.length > 1) {
     throw new Error("Found multiple statements but wanted one");
   }
-
   return body[0];
 });
 exports.statement = statement;
@@ -49,7 +43,6 @@ const expression = {
     if (ast.program.body.length > 1) {
       throw new Error("Found multiple statements but wanted one");
     }
-
     if (expression.unwrap(ast).start === 0) {
       throw new Error("Parse result included parens.");
     }
@@ -69,3 +62,5 @@ const program = {
   unwrap: ast => ast.program
 };
 exports.program = program;
+
+//# sourceMappingURL=formatters.js.map
