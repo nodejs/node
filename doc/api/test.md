@@ -370,13 +370,14 @@ internally.
 
 ## Collecting code coverage
 
-When Node.js is started with the [`--test-coverage`][] command-line flag, code
-coverage is collected and statistics are reported once all tests have completed.
-If the [`NODE_V8_COVERAGE`][] environment variable is used to specify a
-code coverage directory, the generated V8 coverage files are written to that
-directory. Node.js core modules and files within `node_modules/` directories
-are not included in the coverage report. If coverage is enabled, the coverage
-report is sent to any [test reporters][] via the `'test:coverage'` event.
+When Node.js is started with the [`--experimental-test-coverage`][]
+command-line flag, code coverage is collected and statistics are reported once
+all tests have completed. If the [`NODE_V8_COVERAGE`][] environment variable is
+used to specify a code coverage directory, the generated V8 coverage files are
+written to that directory. Node.js core modules and files within
+`node_modules/` directories are not included in the coverage report. If
+coverage is enabled, the coverage report is sent to any [test reporters][] via
+the `'test:coverage'` event.
 
 Coverage can be disabled on a series of lines using the following
 comment syntax:
@@ -411,7 +412,8 @@ which will be addressed in a future Node.js release:
 
 * Although coverage data is collected for child processes, this information is
   not included in the coverage report. Because the command line test runner uses
-  child processes to execute test files, it cannot be used with `--test-coverage`.
+  child processes to execute test files, it cannot be used with
+  `--experimental-test-coverage`.
 * Source maps are not supported.
 * Excluding specific files or directories from the coverage report is not
   supported.
@@ -1634,7 +1636,7 @@ added: v18.7.0
   aborted.
 
 [TAP]: https://testanything.org/
-[`--test-coverage`]: cli.md#--test-coverage
+[`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination

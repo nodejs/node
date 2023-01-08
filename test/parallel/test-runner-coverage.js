@@ -37,15 +37,17 @@ function getCoverageFixtureReport() {
   return report;
 }
 
-test('--test-coverage and --test cannot be combined', () => {
+test('--experimental-test-coverage and --test cannot be combined', () => {
   // TODO(cjihrig): This test can be removed once multi-process code coverage
   // is supported.
-  const result = spawnSync(process.execPath, ['--test', '--test-coverage']);
+  const args = ['--test', '--experimental-test-coverage'];
+  const result = spawnSync(process.execPath, args);
 
   // 9 is the documented exit code for an invalid CLI argument.
   assert.strictEqual(result.status, 9);
   assert.match(
-    result.stderr.toString(), /--test-coverage cannot be used with --test/
+    result.stderr.toString(),
+    /--experimental-test-coverage cannot be used with --test/
   );
 });
 
@@ -55,7 +57,7 @@ test('handles the inspector not being available', (t) => {
   }
 
   const fixture = fixtures.path('test-runner', 'coverage.js');
-  const args = ['--test-coverage', fixture];
+  const args = ['--experimental-test-coverage', fixture];
   const result = spawnSync(process.execPath, args);
 
   assert(!result.stdout.toString().includes('# start of coverage report'));
@@ -70,7 +72,7 @@ test('coverage is reported and dumped to NODE_V8_COVERAGE if present', (t) => {
   }
 
   const fixture = fixtures.path('test-runner', 'coverage.js');
-  const args = ['--test-coverage', fixture];
+  const args = ['--experimental-test-coverage', fixture];
   const options = { env: { ...process.env, NODE_V8_COVERAGE: tmpdir.path } };
   const result = spawnSync(process.execPath, args, options);
   const report = getCoverageFixtureReport();
@@ -87,7 +89,7 @@ test('coverage is reported without NODE_V8_COVERAGE present', (t) => {
   }
 
   const fixture = fixtures.path('test-runner', 'coverage.js');
-  const args = ['--test-coverage', fixture];
+  const args = ['--experimental-test-coverage', fixture];
   const result = spawnSync(process.execPath, args);
   const report = getCoverageFixtureReport();
 
