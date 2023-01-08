@@ -2915,8 +2915,7 @@ the strings or buffers be iterated to match the other streams semantics
 for performance reasons.
 
 If an `Iterable` object containing promises is passed as an argument,
-it could result in uncaught exceptions.
-See the example below:
+it might result in uncaught exceptions.
 
 ```js
 const { Readable } = require('node:stream');
@@ -3058,8 +3057,7 @@ A utility method for creating duplex streams.
 * Returns: {stream.Duplex}
 
 If an `Iterable` object containing promises is passed as an argument,
-it could result in uncaught exceptions.
-See the example below:
+it might result in uncaught exceptions.
 
 ```js
 const { Duplex } = require('node:stream');
