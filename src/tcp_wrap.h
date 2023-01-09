@@ -50,7 +50,7 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
 
   SET_NO_MEMORY_INFO()
   SET_SELF_SIZE(TCPWrap)
-  std::string MemoryInfoName() const override {
+  const char* MemoryInfoName() const override {
     switch (provider_type()) {
       case ProviderType::PROVIDER_TCPWRAP:
         return "TCPSocketWrap";

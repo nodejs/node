@@ -673,13 +673,19 @@ MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   return ret;
 }
 
-std::string AsyncWrap::MemoryInfoName() const {
+const char* AsyncWrap::MemoryInfoName() const {
   return provider_names[provider_type()];
 }
 
 std::string AsyncWrap::diagnostic_name() const {
-  return MemoryInfoName() + " (" + std::to_string(env()->thread_id()) + ":" +
-      std::to_string(static_cast<int64_t>(async_id_)) + ")";
+  char buf[64];
+  snprintf(buf,
+           sizeof(buf),
+           "%s(%" PRIu64 ":%.0f)",
+           MemoryInfoName(),
+           env()->thread_id(),
+           async_id_);
+  return buf;
 }
 
 Local<Object> AsyncWrap::GetOwner() {

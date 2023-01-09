@@ -17,7 +17,7 @@ namespace node {
 
 // Set the node name of a MemoryRetainer to klass
 #define SET_MEMORY_INFO_NAME(Klass)                                            \
-  inline std::string MemoryInfoName() const override { return #Klass; }
+  inline const char* MemoryInfoName() const override { return #Klass; }
 
 // Set the self size of a MemoryRetainer to the stack-allocated size of a
 // certain class
@@ -68,7 +68,7 @@ class CleanupHookCallback;
  *     }
  *
  *     // Or use SET_MEMORY_INFO_NAME(ExampleRetainer)
- *     std::string MemoryInfoName() const override {
+ *     const char* MemoryInfoName() const override {
  *       return "ExampleRetainer";
  *     }
  *
@@ -119,7 +119,7 @@ class MemoryRetainer {
   // where all the edges start from the node of the current retainer,
   // and point to the nodes as specified by tracker->Track* calls.
   virtual void MemoryInfo(MemoryTracker* tracker) const = 0;
-  virtual std::string MemoryInfoName() const = 0;
+  virtual const char* MemoryInfoName() const = 0;
   virtual size_t SelfSize() const = 0;
 
   virtual v8::Local<v8::Object> WrappedObject() const {
