@@ -357,7 +357,7 @@ void Realm::VerifyNoStrongBaseObjects() {
     if (obj->IsNotIndicativeOfMemoryLeakAtExit()) return;
     fprintf(stderr,
             "Found bad BaseObject during clean exit: %s\n",
-            obj->MemoryInfoName().c_str());
+            obj->MemoryInfoName());
     fflush(stderr);
     ABORT();
   });
