@@ -28,7 +28,7 @@ One such tool is [postject][]:
 $ cat hello.js
 console.log(`Hello, ${process.argv[2]}!`);
 $ cp $(command -v node) hello
-$ npx postject hello NODE_JS_CODE hello.js --sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2:0
+$ npx postject hello NODE_JS_CODE hello.js --sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2
 $ ./hello world
 Hello, world!
 ```
