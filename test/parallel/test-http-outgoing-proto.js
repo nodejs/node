@@ -117,6 +117,7 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_HTTP_TOKEN',
   name: 'TypeError',
+  message: 'Trailer name must be a valid HTTP token ["あ"]'
 });
 
 assert.throws(() => {
