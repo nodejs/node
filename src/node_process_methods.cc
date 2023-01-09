@@ -283,14 +283,14 @@ static void GetActiveResourcesInfo(const FunctionCallbackInfo<Value>& args) {
     AsyncWrap* w = req_wrap->GetAsyncWrap();
     if (w->persistent().IsEmpty()) continue;
     resources_info.emplace_back(
-        OneByteString(env->isolate(), w->MemoryInfoName().c_str()));
+        OneByteString(env->isolate(), w->MemoryInfoName()));
   }
 
   // Active handles
   for (HandleWrap* w : *env->handle_wrap_queue()) {
     if (w->persistent().IsEmpty() || !HandleWrap::HasRef(w)) continue;
     resources_info.emplace_back(
-        OneByteString(env->isolate(), w->MemoryInfoName().c_str()));
+        OneByteString(env->isolate(), w->MemoryInfoName()));
   }
 
   // Active timeouts

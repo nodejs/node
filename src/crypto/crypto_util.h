@@ -398,7 +398,7 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
 
   AdditionalParams* params() { return &params_; }
 
-  std::string MemoryInfoName() const override {
+  const char* MemoryInfoName() const override {
     return CryptoJobTraits::JobName;
   }
 
