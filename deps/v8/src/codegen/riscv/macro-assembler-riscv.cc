@@ -4475,6 +4475,7 @@ MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
 }
 
 void TurboAssembler::PatchAndJump(Address target) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   auipc(scratch, 0);  // Load PC into scratch
