@@ -752,7 +752,7 @@ changes:
 > signature may change. Do not rely on the API described below.
 
 * `specifier` {string}
-* `context` {Object}
+* `context` {object}
   * `conditions` {string\[]} Export conditions of the relevant `package.json`
   * `importAssertions` {Object} An object whose key-value pairs represent the
     assertions for the module to import
@@ -846,16 +846,16 @@ changes:
 > deprecated, hooks (`getFormat`, `getSource`, and `transformSource`).
 
 * `url` {string} The URL returned by the `resolve` chain
-* `context` {Object}
+* `context` {object}
   * `conditions` {string\[]} Export conditions of the relevant `package.json`
   * `format` {string|null|undefined} The format optionally supplied by the
     `resolve` hook chain
-  * `importAssertions` {Object}
+  * `importAssertions` {object}
 * `nextLoad` {Function} The subsequent `load` hook in the chain, or the
   Node.js default `load` hook after the last user-supplied `load` hook
   * `specifier` {string}
-  * `context` {Object}
-* Returns: {Object}
+  * `context` {object}
+* Returns: {object}
   * `format` {string}
   * `shortCircuit` {undefined|boolean} A signal that this hook intends to
     terminate the chain of `resolve` hooks. **Default:** `false`
@@ -943,7 +943,7 @@ changes:
 > In a previous version of this API, this hook was named
 > `getGlobalPreloadCode`.
 
-* `context` {Object} Information to assist the preload code
+* `context` {object} Information to assist the preload code
   * `port` {MessagePort}
 * Returns: {string} Code to run before application startup
 
