@@ -6807,15 +6807,15 @@ const disable = {
 
 var defaultConstructs = /*#__PURE__*/Object.freeze({
   __proto__: null,
-  document: document,
-  contentInitial: contentInitial,
-  flowInitial: flowInitial,
-  flow: flow,
-  string: string,
-  text: text$2,
-  insideSpan: insideSpan,
   attentionMarkers: attentionMarkers,
-  disable: disable
+  contentInitial: contentInitial,
+  disable: disable,
+  document: document,
+  flow: flow,
+  flowInitial: flowInitial,
+  insideSpan: insideSpan,
+  string: string,
+  text: text$2
 });
 
 function parse$1(options = {}) {
@@ -7813,101 +7813,13 @@ function configure(base, extension) {
   return base
 }
 
-function track(options_) {
-  const options = options_ || {};
-  const now = options.now || {};
-  let lineShift = options.lineShift || 0;
-  let line = now.line || 1;
-  let column = now.column || 1;
-  return {move, current, shift}
-  function current() {
-    return {now: {line, column}, lineShift}
-  }
-  function shift(value) {
-    lineShift += value;
-  }
-  function move(value = '') {
-    const chunks = value.split(/\r?\n|\r/g);
-    const tail = chunks[chunks.length - 1];
-    line += chunks.length - 1;
-    column =
-      chunks.length === 1 ? column + tail.length : 1 + tail.length + lineShift;
-    return value
-  }
-}
-
-function containerFlow(parent, context, safeOptions) {
-  const indexStack = context.indexStack;
-  const children = parent.children || [];
-  const tracker = track(safeOptions);
-  const results = [];
-  let index = -1;
-  indexStack.push(-1);
-  while (++index < children.length) {
-    const child = children[index];
-    indexStack[indexStack.length - 1] = index;
-    results.push(
-      tracker.move(
-        context.handle(child, parent, context, {
-          before: '\n',
-          after: '\n',
-          ...tracker.current()
-        })
-      )
-    );
-    if (child.type !== 'list') {
-      context.bulletLastUsed = undefined;
-    }
-    if (index < children.length - 1) {
-      results.push(tracker.move(between(child, children[index + 1])));
-    }
-  }
-  indexStack.pop();
-  return results.join('')
-  function between(left, right) {
-    let index = context.join.length;
-    while (index--) {
-      const result = context.join[index](left, right, parent, context);
-      if (result === true || result === 1) {
-        break
-      }
-      if (typeof result === 'number') {
-        return '\n'.repeat(1 + result)
-      }
-      if (result === false) {
-        return '\n\n<!---->\n\n'
-      }
-    }
-    return '\n\n'
-  }
-}
-
-const eol = /\r?\n|\r/g;
-function indentLines(value, map) {
-  const result = [];
-  let start = 0;
-  let line = 0;
-  let match;
-  while ((match = eol.exec(value))) {
-    one(value.slice(start, match.index));
-    result.push(match[0]);
-    start = match.index + match[0].length;
-    line++;
-  }
-  one(value.slice(start));
-  return result.join('')
-  function one(value) {
-    result.push(map(value, line, !value));
-  }
-}
-
-function blockquote(node, _, context, safeOptions) {
-  const exit = context.enter('blockquote');
-  const tracker = track(safeOptions);
+function blockquote(node, _, state, info) {
+  const exit = state.enter('blockquote');
+  const tracker = state.createTracker(info);
   tracker.move('> ');
   tracker.shift(2);
-  const value = indentLines(
-    containerFlow(node, context, tracker.current()),
+  const value = state.indentLines(
+    state.containerFlow(node, tracker.current()),
     map$2
   );
   exit();
@@ -7924,11 +7836,11 @@ function patternInScope(stack, pattern) {
   )
 }
 function listInScope(stack, list, none) {
-  if (!list) {
-    return none
-  }
   if (typeof list === 'string') {
     list = [list];
+  }
+  if (!list || list.length === 0) {
+    return none
   }
   let index = -1;
   while (++index < list.length) {
@@ -7939,14 +7851,14 @@ function listInScope(stack, list, none) {
   return false
 }
 
-function hardBreak(_, _1, context, safeOptions) {
+function hardBreak(_, _1, state, info) {
   let index = -1;
-  while (++index < context.unsafe.length) {
+  while (++index < state.unsafe.length) {
     if (
-      context.unsafe[index].character === '\n' &&
-      patternInScope(context.stack, context.unsafe[index])
+      state.unsafe[index].character === '\n' &&
+      patternInScope(state.stack, state.unsafe[index])
     ) {
-      return /[ \t]/.test(safeOptions.before) ? '' : ' '
+      return /[ \t]/.test(info.before) ? '' : ' '
     }
   }
   return '\\\n'
@@ -7975,9 +7887,9 @@ function longestStreak(value, substring) {
   return max
 }
 
-function formatCodeAsIndented(node, context) {
+function formatCodeAsIndented(node, state) {
   return Boolean(
-    !context.options.fences &&
+    !state.options.fences &&
       node.value &&
       !node.lang &&
       /[^ \r\n]/.test(node.value) &&
@@ -7985,8 +7897,8 @@ function formatCodeAsIndented(node, context) {
   )
 }
 
-function checkFence(context) {
-  const marker = context.options.fence || '`';
+function checkFence(state) {
+  const marker = state.options.fence || '`';
   if (marker !== '`' && marker !== '~') {
     throw new Error(
       'Cannot serialize code with `' +
@@ -7997,136 +7909,24 @@ function checkFence(context) {
   return marker
 }
 
-function patternCompile(pattern) {
-  if (!pattern._compiled) {
-    const before =
-      (pattern.atBreak ? '[\\r\\n][\\t ]*' : '') +
-      (pattern.before ? '(?:' + pattern.before + ')' : '');
-    pattern._compiled = new RegExp(
-      (before ? '(' + before + ')' : '') +
-        (/[|\\{}()[\]^$+*?.-]/.test(pattern.character) ? '\\' : '') +
-        pattern.character +
-        (pattern.after ? '(?:' + pattern.after + ')' : ''),
-      'g'
-    );
-  }
-  return pattern._compiled
-}
-
-function safe(context, input, config) {
-  const value = (config.before || '') + (input || '') + (config.after || '');
-  const positions = [];
-  const result = [];
-  const infos = {};
-  let index = -1;
-  while (++index < context.unsafe.length) {
-    const pattern = context.unsafe[index];
-    if (!patternInScope(context.stack, pattern)) {
-      continue
-    }
-    const expression = patternCompile(pattern);
-    let match;
-    while ((match = expression.exec(value))) {
-      const before = 'before' in pattern || Boolean(pattern.atBreak);
-      const after = 'after' in pattern;
-      const position = match.index + (before ? match[1].length : 0);
-      if (positions.includes(position)) {
-        if (infos[position].before && !before) {
-          infos[position].before = false;
-        }
-        if (infos[position].after && !after) {
-          infos[position].after = false;
-        }
-      } else {
-        positions.push(position);
-        infos[position] = {before, after};
-      }
-    }
-  }
-  positions.sort(numerical);
-  let start = config.before ? config.before.length : 0;
-  const end = value.length - (config.after ? config.after.length : 0);
-  index = -1;
-  while (++index < positions.length) {
-    const position = positions[index];
-    if (position < start || position >= end) {
-      continue
-    }
-    if (
-      (position + 1 < end &&
-        positions[index + 1] === position + 1 &&
-        infos[position].after &&
-        !infos[position + 1].before &&
-        !infos[position + 1].after) ||
-      (positions[index - 1] === position - 1 &&
-        infos[position].before &&
-        !infos[position - 1].before &&
-        !infos[position - 1].after)
-    ) {
-      continue
-    }
-    if (start !== position) {
-      result.push(escapeBackslashes(value.slice(start, position), '\\'));
-    }
-    start = position;
-    if (
-      /[!-/:-@[-`{-~]/.test(value.charAt(position)) &&
-      (!config.encode || !config.encode.includes(value.charAt(position)))
-    ) {
-      result.push('\\');
-    } else {
-      result.push(
-        '&#x' + value.charCodeAt(position).toString(16).toUpperCase() + ';'
-      );
-      start++;
-    }
-  }
-  result.push(escapeBackslashes(value.slice(start, end), config.after));
-  return result.join('')
-}
-function numerical(a, b) {
-  return a - b
-}
-function escapeBackslashes(value, after) {
-  const expression = /\\(?=[!-/:-@[-`{-~])/g;
-  const positions = [];
-  const results = [];
-  const whole = value + after;
-  let index = -1;
-  let start = 0;
-  let match;
-  while ((match = expression.exec(whole))) {
-    positions.push(match.index);
-  }
-  while (++index < positions.length) {
-    if (start !== positions[index]) {
-      results.push(value.slice(start, positions[index]));
-    }
-    results.push('\\');
-    start = positions[index];
-  }
-  results.push(value.slice(start));
-  return results.join('')
-}
-
-function code$1(node, _, context, safeOptions) {
-  const marker = checkFence(context);
+function code$1(node, _, state, info) {
+  const marker = checkFence(state);
   const raw = node.value || '';
   const suffix = marker === '`' ? 'GraveAccent' : 'Tilde';
-  if (formatCodeAsIndented(node, context)) {
-    const exit = context.enter('codeIndented');
-    const value = indentLines(raw, map$1);
+  if (formatCodeAsIndented(node, state)) {
+    const exit = state.enter('codeIndented');
+    const value = state.indentLines(raw, map$1);
     exit();
     return value
   }
-  const tracker = track(safeOptions);
+  const tracker = state.createTracker(info);
   const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
-  const exit = context.enter('codeFenced');
+  const exit = state.enter('codeFenced');
   let value = tracker.move(sequence);
   if (node.lang) {
-    const subexit = context.enter('codeFencedLang' + suffix);
+    const subexit = state.enter(`codeFencedLang${suffix}`);
     value += tracker.move(
-      safe(context, node.lang, {
+      state.safe(node.lang, {
         before: value,
         after: ' ',
         encode: ['`'],
@@ -8136,10 +7936,10 @@ function code$1(node, _, context, safeOptions) {
     subexit();
   }
   if (node.lang && node.meta) {
-    const subexit = context.enter('codeFencedMeta' + suffix);
+    const subexit = state.enter(`codeFencedMeta${suffix}`);
     value += tracker.move(' ');
     value += tracker.move(
-      safe(context, node.meta, {
+      state.safe(node.meta, {
         before: value,
         after: '\n',
         encode: ['`'],
@@ -8160,15 +7960,8 @@ function map$1(line, _, blank) {
   return (blank ? '' : '    ') + line
 }
 
-function association(node) {
-  if (node.label || !node.identifier) {
-    return node.label || ''
-  }
-  return decodeString(node.identifier)
-}
-
-function checkQuote(context) {
-  const marker = context.options.quote || '"';
+function checkQuote(state) {
+  const marker = state.options.quote || '"';
   if (marker !== '"' && marker !== "'") {
     throw new Error(
       'Cannot serialize title with `' +
@@ -8179,15 +7972,15 @@ function checkQuote(context) {
   return marker
 }
 
-function definition(node, _, context, safeOptions) {
-  const quote = checkQuote(context);
+function definition(node, _, state, info) {
+  const quote = checkQuote(state);
   const suffix = quote === '"' ? 'Quote' : 'Apostrophe';
-  const exit = context.enter('definition');
-  let subexit = context.enter('label');
-  const tracker = track(safeOptions);
+  const exit = state.enter('definition');
+  let subexit = state.enter('label');
+  const tracker = state.createTracker(info);
   let value = tracker.move('[');
   value += tracker.move(
-    safe(context, association(node), {
+    state.safe(state.associationId(node), {
       before: value,
       after: ']',
       ...tracker.current()
@@ -8199,16 +7992,16 @@ function definition(node, _, context, safeOptions) {
     !node.url ||
     /[\0- \u007F]/.test(node.url)
   ) {
-    subexit = context.enter('destinationLiteral');
+    subexit = state.enter('destinationLiteral');
     value += tracker.move('<');
     value += tracker.move(
-      safe(context, node.url, {before: value, after: '>', ...tracker.current()})
+      state.safe(node.url, {before: value, after: '>', ...tracker.current()})
     );
     value += tracker.move('>');
   } else {
-    subexit = context.enter('destinationRaw');
+    subexit = state.enter('destinationRaw');
     value += tracker.move(
-      safe(context, node.url, {
+      state.safe(node.url, {
         before: value,
         after: node.title ? ' ' : '\n',
         ...tracker.current()
@@ -8217,10 +8010,10 @@ function definition(node, _, context, safeOptions) {
   }
   subexit();
   if (node.title) {
-    subexit = context.enter('title' + suffix);
+    subexit = state.enter(`title${suffix}`);
     value += tracker.move(' ' + quote);
     value += tracker.move(
-      safe(context, node.title, {
+      state.safe(node.title, {
         before: value,
         after: quote,
         ...tracker.current()
@@ -8233,8 +8026,8 @@ function definition(node, _, context, safeOptions) {
   return value
 }
 
-function checkEmphasis(context) {
-  const marker = context.options.emphasis || '*';
+function checkEmphasis(state) {
+  const marker = state.options.emphasis || '*';
   if (marker !== '*' && marker !== '_') {
     throw new Error(
       'Cannot serialize emphasis with `' +
@@ -8245,67 +8038,14 @@ function checkEmphasis(context) {
   return marker
 }
 
-function containerPhrasing(parent, context, safeOptions) {
-  const indexStack = context.indexStack;
-  const children = parent.children || [];
-  const results = [];
-  let index = -1;
-  let before = safeOptions.before;
-  indexStack.push(-1);
-  let tracker = track(safeOptions);
-  while (++index < children.length) {
-    const child = children[index];
-    let after;
-    indexStack[indexStack.length - 1] = index;
-    if (index + 1 < children.length) {
-      let handle = context.handle.handlers[children[index + 1].type];
-      if (handle && handle.peek) handle = handle.peek;
-      after = handle
-        ? handle(children[index + 1], parent, context, {
-            before: '',
-            after: '',
-            ...tracker.current()
-          }).charAt(0)
-        : '';
-    } else {
-      after = safeOptions.after;
-    }
-    if (
-      results.length > 0 &&
-      (before === '\r' || before === '\n') &&
-      child.type === 'html'
-    ) {
-      results[results.length - 1] = results[results.length - 1].replace(
-        /(\r?\n|\r)$/,
-        ' '
-      );
-      before = ' ';
-      tracker = track(safeOptions);
-      tracker.move(results.join(''));
-    }
-    results.push(
-      tracker.move(
-        context.handle(child, parent, context, {
-          ...tracker.current(),
-          before,
-          after
-        })
-      )
-    );
-    before = results[results.length - 1].slice(-1);
-  }
-  indexStack.pop();
-  return results.join('')
-}
-
 emphasis.peek = emphasisPeek;
-function emphasis(node, _, context, safeOptions) {
-  const marker = checkEmphasis(context);
-  const exit = context.enter('emphasis');
-  const tracker = track(safeOptions);
+function emphasis(node, _, state, info) {
+  const marker = checkEmphasis(state);
+  const exit = state.enter('emphasis');
+  const tracker = state.createTracker(info);
   let value = tracker.move(marker);
   value += tracker.move(
-    containerPhrasing(node, context, {
+    state.containerPhrasing(node, {
       before: value,
       after: marker,
       ...tracker.current()
@@ -8315,8 +8055,8 @@ function emphasis(node, _, context, safeOptions) {
   exit();
   return value
 }
-function emphasisPeek(_, _1, context) {
-  return context.options.emphasis || '*'
+function emphasisPeek(_, _1, state) {
+  return state.options.emphasis || '*'
 }
 
 const convert =
@@ -8472,7 +8212,7 @@ const visit$1 =
     }
   );
 
-function formatHeadingAsSetext(node, context) {
+function formatHeadingAsSetext(node, state) {
   let literalWithBreak = false;
   visit$1(node, (node) => {
     if (
@@ -8486,17 +8226,17 @@ function formatHeadingAsSetext(node, context) {
   return Boolean(
     (!node.depth || node.depth < 3) &&
       toString(node) &&
-      (context.options.setext || literalWithBreak)
+      (state.options.setext || literalWithBreak)
   )
 }
 
-function heading(node, _, context, safeOptions) {
+function heading(node, _, state, info) {
   const rank = Math.max(Math.min(6, node.depth || 1), 1);
-  const tracker = track(safeOptions);
-  if (formatHeadingAsSetext(node, context)) {
-    const exit = context.enter('headingSetext');
-    const subexit = context.enter('phrasing');
-    const value = containerPhrasing(node, context, {
+  const tracker = state.createTracker(info);
+  if (formatHeadingAsSetext(node, state)) {
+    const exit = state.enter('headingSetext');
+    const subexit = state.enter('phrasing');
+    const value = state.containerPhrasing(node, {
       ...tracker.current(),
       before: '\n',
       after: '\n'
@@ -8513,10 +8253,10 @@ function heading(node, _, context, safeOptions) {
     )
   }
   const sequence = '#'.repeat(rank);
-  const exit = context.enter('headingAtx');
-  const subexit = context.enter('phrasing');
+  const exit = state.enter('headingAtx');
+  const subexit = state.enter('phrasing');
   tracker.move(sequence + ' ');
-  let value = containerPhrasing(node, context, {
+  let value = state.containerPhrasing(node, {
     before: '# ',
     after: '\n',
     ...tracker.current()
@@ -8529,7 +8269,7 @@ function heading(node, _, context, safeOptions) {
       value.slice(1);
   }
   value = value ? sequence + ' ' + value : sequence;
-  if (context.options.closeAtx) {
+  if (state.options.closeAtx) {
     value += ' ' + sequence;
   }
   subexit();
@@ -8546,15 +8286,15 @@ function htmlPeek() {
 }
 
 image.peek = imagePeek;
-function image(node, _, context, safeOptions) {
-  const quote = checkQuote(context);
+function image(node, _, state, info) {
+  const quote = checkQuote(state);
   const suffix = quote === '"' ? 'Quote' : 'Apostrophe';
-  const exit = context.enter('image');
-  let subexit = context.enter('label');
-  const tracker = track(safeOptions);
+  const exit = state.enter('image');
+  let subexit = state.enter('label');
+  const tracker = state.createTracker(info);
   let value = tracker.move('![');
   value += tracker.move(
-    safe(context, node.alt, {before: value, after: ']', ...tracker.current()})
+    state.safe(node.alt, {before: value, after: ']', ...tracker.current()})
   );
   value += tracker.move('](');
   subexit();
@@ -8562,16 +8302,16 @@ function image(node, _, context, safeOptions) {
     (!node.url && node.title) ||
     /[\0- \u007F]/.test(node.url)
   ) {
-    subexit = context.enter('destinationLiteral');
+    subexit = state.enter('destinationLiteral');
     value += tracker.move('<');
     value += tracker.move(
-      safe(context, node.url, {before: value, after: '>', ...tracker.current()})
+      state.safe(node.url, {before: value, after: '>', ...tracker.current()})
     );
     value += tracker.move('>');
   } else {
-    subexit = context.enter('destinationRaw');
+    subexit = state.enter('destinationRaw');
     value += tracker.move(
-      safe(context, node.url, {
+      state.safe(node.url, {
         before: value,
         after: node.title ? ' ' : ')',
         ...tracker.current()
@@ -8580,10 +8320,10 @@ function image(node, _, context, safeOptions) {
   }
   subexit();
   if (node.title) {
-    subexit = context.enter('title' + suffix);
+    subexit = state.enter(`title${suffix}`);
     value += tracker.move(' ' + quote);
     value += tracker.move(
-      safe(context, node.title, {
+      state.safe(node.title, {
         before: value,
         after: quote,
         ...tracker.current()
@@ -8601,29 +8341,29 @@ function imagePeek() {
 }
 
 imageReference.peek = imageReferencePeek;
-function imageReference(node, _, context, safeOptions) {
+function imageReference(node, _, state, info) {
   const type = node.referenceType;
-  const exit = context.enter('imageReference');
-  let subexit = context.enter('label');
-  const tracker = track(safeOptions);
+  const exit = state.enter('imageReference');
+  let subexit = state.enter('label');
+  const tracker = state.createTracker(info);
   let value = tracker.move('![');
-  const alt = safe(context, node.alt, {
+  const alt = state.safe(node.alt, {
     before: value,
     after: ']',
     ...tracker.current()
   });
   value += tracker.move(alt + '][');
   subexit();
-  const stack = context.stack;
-  context.stack = [];
-  subexit = context.enter('reference');
-  const reference = safe(context, association(node), {
+  const stack = state.stack;
+  state.stack = [];
+  subexit = state.enter('reference');
+  const reference = state.safe(state.associationId(node), {
     before: value,
     after: ']',
     ...tracker.current()
   });
   subexit();
-  context.stack = stack;
+  state.stack = stack;
   exit();
   if (type === 'full' || !alt || alt !== reference) {
     value += tracker.move(reference + ']');
@@ -8638,8 +8378,24 @@ function imageReferencePeek() {
   return '!'
 }
 
+function patternCompile(pattern) {
+  if (!pattern._compiled) {
+    const before =
+      (pattern.atBreak ? '[\\r\\n][\\t ]*' : '') +
+      (pattern.before ? '(?:' + pattern.before + ')' : '');
+    pattern._compiled = new RegExp(
+      (before ? '(' + before + ')' : '') +
+        (/[|\\{}()[\]^$+*?.-]/.test(pattern.character) ? '\\' : '') +
+        pattern.character +
+        (pattern.after ? '(?:' + pattern.after + ')' : ''),
+      'g'
+    );
+  }
+  return pattern._compiled
+}
+
 inlineCode.peek = inlineCodePeek;
-function inlineCode(node, _, context) {
+function inlineCode(node, _, state) {
   let value = node.value || '';
   let sequence = '`';
   let index = -1;
@@ -8652,8 +8408,8 @@ function inlineCode(node, _, context) {
   ) {
     value = ' ' + value + ' ';
   }
-  while (++index < context.unsafe.length) {
-    const pattern = context.unsafe[index];
+  while (++index < state.unsafe.length) {
+    const pattern = state.unsafe[index];
     const expression = patternCompile(pattern);
     let match;
     if (!pattern.atBreak) continue
@@ -8674,10 +8430,10 @@ function inlineCodePeek() {
   return '`'
 }
 
-function formatLinkAsAutolink(node, context) {
+function formatLinkAsAutolink(node, state) {
   const raw = toString(node);
   return Boolean(
-    !context.options.resourceLink &&
+    !state.options.resourceLink &&
       node.url &&
       !node.title &&
       node.children &&
@@ -8690,19 +8446,19 @@ function formatLinkAsAutolink(node, context) {
 }
 
 link.peek = linkPeek;
-function link(node, _, context, safeOptions) {
-  const quote = checkQuote(context);
+function link(node, _, state, info) {
+  const quote = checkQuote(state);
   const suffix = quote === '"' ? 'Quote' : 'Apostrophe';
-  const tracker = track(safeOptions);
+  const tracker = state.createTracker(info);
   let exit;
   let subexit;
-  if (formatLinkAsAutolink(node, context)) {
-    const stack = context.stack;
-    context.stack = [];
-    exit = context.enter('autolink');
+  if (formatLinkAsAutolink(node, state)) {
+    const stack = state.stack;
+    state.stack = [];
+    exit = state.enter('autolink');
     let value = tracker.move('<');
     value += tracker.move(
-      containerPhrasing(node, context, {
+      state.containerPhrasing(node, {
         before: value,
         after: '>',
         ...tracker.current()
@@ -8710,14 +8466,14 @@ function link(node, _, context, safeOptions) {
     );
     value += tracker.move('>');
     exit();
-    context.stack = stack;
+    state.stack = stack;
     return value
   }
-  exit = context.enter('link');
-  subexit = context.enter('label');
+  exit = state.enter('link');
+  subexit = state.enter('label');
   let value = tracker.move('[');
   value += tracker.move(
-    containerPhrasing(node, context, {
+    state.containerPhrasing(node, {
       before: value,
       after: '](',
       ...tracker.current()
@@ -8729,16 +8485,16 @@ function link(node, _, context, safeOptions) {
     (!node.url && node.title) ||
     /[\0- \u007F]/.test(node.url)
   ) {
-    subexit = context.enter('destinationLiteral');
+    subexit = state.enter('destinationLiteral');
     value += tracker.move('<');
     value += tracker.move(
-      safe(context, node.url, {before: value, after: '>', ...tracker.current()})
+      state.safe(node.url, {before: value, after: '>', ...tracker.current()})
     );
     value += tracker.move('>');
   } else {
-    subexit = context.enter('destinationRaw');
+    subexit = state.enter('destinationRaw');
     value += tracker.move(
-      safe(context, node.url, {
+      state.safe(node.url, {
         before: value,
         after: node.title ? ' ' : ')',
         ...tracker.current()
@@ -8747,10 +8503,10 @@ function link(node, _, context, safeOptions) {
   }
   subexit();
   if (node.title) {
-    subexit = context.enter('title' + suffix);
+    subexit = state.enter(`title${suffix}`);
     value += tracker.move(' ' + quote);
     value += tracker.move(
-      safe(context, node.title, {
+      state.safe(node.title, {
         before: value,
         after: quote,
         ...tracker.current()
@@ -8763,34 +8519,34 @@ function link(node, _, context, safeOptions) {
   exit();
   return value
 }
-function linkPeek(node, _, context) {
-  return formatLinkAsAutolink(node, context) ? '<' : '['
+function linkPeek(node, _, state) {
+  return formatLinkAsAutolink(node, state) ? '<' : '['
 }
 
 linkReference.peek = linkReferencePeek;
-function linkReference(node, _, context, safeOptions) {
+function linkReference(node, _, state, info) {
   const type = node.referenceType;
-  const exit = context.enter('linkReference');
-  let subexit = context.enter('label');
-  const tracker = track(safeOptions);
+  const exit = state.enter('linkReference');
+  let subexit = state.enter('label');
+  const tracker = state.createTracker(info);
   let value = tracker.move('[');
-  const text = containerPhrasing(node, context, {
+  const text = state.containerPhrasing(node, {
     before: value,
     after: ']',
     ...tracker.current()
   });
   value += tracker.move(text + '][');
   subexit();
-  const stack = context.stack;
-  context.stack = [];
-  subexit = context.enter('reference');
-  const reference = safe(context, association(node), {
+  const stack = state.stack;
+  state.stack = [];
+  subexit = state.enter('reference');
+  const reference = state.safe(state.associationId(node), {
     before: value,
     after: ']',
     ...tracker.current()
   });
   subexit();
-  context.stack = stack;
+  state.stack = stack;
   exit();
   if (type === 'full' || !text || text !== reference) {
     value += tracker.move(reference + ']');
@@ -8805,8 +8561,8 @@ function linkReferencePeek() {
   return '['
 }
 
-function checkBullet(context) {
-  const marker = context.options.bullet || '*';
+function checkBullet(state) {
+  const marker = state.options.bullet || '*';
   if (marker !== '*' && marker !== '+' && marker !== '-') {
     throw new Error(
       'Cannot serialize items with `' +
@@ -8817,9 +8573,9 @@ function checkBullet(context) {
   return marker
 }
 
-function checkBulletOther(context) {
-  const bullet = checkBullet(context);
-  const bulletOther = context.options.bulletOther;
+function checkBulletOther(state) {
+  const bullet = checkBullet(state);
+  const bulletOther = state.options.bulletOther;
   if (!bulletOther) {
     return bullet === '*' ? '-' : '*'
   }
@@ -8842,8 +8598,8 @@ function checkBulletOther(context) {
   return bulletOther
 }
 
-function checkBulletOrdered(context) {
-  const marker = context.options.bulletOrdered || '.';
+function checkBulletOrdered(state) {
+  const marker = state.options.bulletOrdered || '.';
   if (marker !== '.' && marker !== ')') {
     throw new Error(
       'Cannot serialize items with `' +
@@ -8854,9 +8610,9 @@ function checkBulletOrdered(context) {
   return marker
 }
 
-function checkBulletOrderedOther(context) {
-  const bulletOrdered = checkBulletOrdered(context);
-  const bulletOrderedOther = context.options.bulletOrderedOther;
+function checkBulletOrderedOther(state) {
+  const bulletOrdered = checkBulletOrdered(state);
+  const bulletOrderedOther = state.options.bulletOrderedOther;
   if (!bulletOrderedOther) {
     return bulletOrdered === '.' ? ')' : '.'
   }
@@ -8879,8 +8635,8 @@ function checkBulletOrderedOther(context) {
   return bulletOrderedOther
 }
 
-function checkRule(context) {
-  const marker = context.options.rule || '*';
+function checkRule(state) {
+  const marker = state.options.rule || '*';
   if (marker !== '*' && marker !== '-' && marker !== '_') {
     throw new Error(
       'Cannot serialize rules with `' +
@@ -8891,20 +8647,20 @@ function checkRule(context) {
   return marker
 }
 
-function list(node, parent, context, safeOptions) {
-  const exit = context.enter('list');
-  const bulletCurrent = context.bulletCurrent;
-  let bullet = node.ordered ? checkBulletOrdered(context) : checkBullet(context);
+function list(node, parent, state, info) {
+  const exit = state.enter('list');
+  const bulletCurrent = state.bulletCurrent;
+  let bullet = node.ordered ? checkBulletOrdered(state) : checkBullet(state);
   const bulletOther = node.ordered
-    ? checkBulletOrderedOther(context)
-    : checkBulletOther(context);
-  const bulletLastUsed = context.bulletLastUsed;
+    ? checkBulletOrderedOther(state)
+    : checkBulletOther(state);
+  const bulletLastUsed = state.bulletLastUsed;
   let useDifferentMarker = false;
   if (
     parent &&
     (node.ordered
-      ? context.options.bulletOrderedOther
-      : context.options.bulletOther) &&
+      ? state.options.bulletOrderedOther
+      : state.options.bulletOther) &&
     bulletLastUsed &&
     bullet === bulletLastUsed
   ) {
@@ -8916,17 +8672,17 @@ function list(node, parent, context, safeOptions) {
       (bullet === '*' || bullet === '-') &&
       firstListItem &&
       (!firstListItem.children || !firstListItem.children[0]) &&
-      context.stack[context.stack.length - 1] === 'list' &&
-      context.stack[context.stack.length - 2] === 'listItem' &&
-      context.stack[context.stack.length - 3] === 'list' &&
-      context.stack[context.stack.length - 4] === 'listItem' &&
-      context.indexStack[context.indexStack.length - 1] === 0 &&
-      context.indexStack[context.indexStack.length - 2] === 0 &&
-      context.indexStack[context.indexStack.length - 3] === 0
+      state.stack[state.stack.length - 1] === 'list' &&
+      state.stack[state.stack.length - 2] === 'listItem' &&
+      state.stack[state.stack.length - 3] === 'list' &&
+      state.stack[state.stack.length - 4] === 'listItem' &&
+      state.indexStack[state.indexStack.length - 1] === 0 &&
+      state.indexStack[state.indexStack.length - 2] === 0 &&
+      state.indexStack[state.indexStack.length - 3] === 0
     ) {
       useDifferentMarker = true;
     }
-    if (checkRule(context) === bullet && firstListItem) {
+    if (checkRule(state) === bullet && firstListItem) {
       let index = -1;
       while (++index < node.children.length) {
         const item = node.children[index];
@@ -8946,16 +8702,16 @@ function list(node, parent, context, safeOptions) {
   if (useDifferentMarker) {
     bullet = bulletOther;
   }
-  context.bulletCurrent = bullet;
-  const value = containerFlow(node, context, safeOptions);
-  context.bulletLastUsed = bullet;
-  context.bulletCurrent = bulletCurrent;
+  state.bulletCurrent = bullet;
+  const value = state.containerFlow(node, info);
+  state.bulletLastUsed = bullet;
+  state.bulletCurrent = bulletCurrent;
   exit();
   return value
 }
 
-function checkListItemIndent(context) {
-  const style = context.options.listItemIndent || 'tab';
+function checkListItemIndent(state) {
+  const style = state.options.listItemIndent || 'tab';
   if (style === 1 || style === '1') {
     return 'one'
   }
@@ -8969,15 +8725,15 @@ function checkListItemIndent(context) {
   return style
 }
 
-function listItem(node, parent, context, safeOptions) {
-  const listItemIndent = checkListItemIndent(context);
-  let bullet = context.bulletCurrent || checkBullet(context);
+function listItem(node, parent, state, info) {
+  const listItemIndent = checkListItemIndent(state);
+  let bullet = state.bulletCurrent || checkBullet(state);
   if (parent && parent.type === 'list' && parent.ordered) {
     bullet =
       (typeof parent.start === 'number' && parent.start > -1
         ? parent.start
         : 1) +
-      (context.options.incrementListMarker === false
+      (state.options.incrementListMarker === false
         ? 0
         : parent.children.indexOf(node)) +
       bullet;
@@ -8990,12 +8746,12 @@ function listItem(node, parent, context, safeOptions) {
   ) {
     size = Math.ceil(size / 4) * 4;
   }
-  const tracker = track(safeOptions);
+  const tracker = state.createTracker(info);
   tracker.move(bullet + ' '.repeat(size - bullet.length));
   tracker.shift(size);
-  const exit = context.enter('listItem');
-  const value = indentLines(
-    containerFlow(node, context, tracker.current()),
+  const exit = state.enter('listItem');
+  const value = state.indentLines(
+    state.containerFlow(node, tracker.current()),
     map
   );
   exit();
@@ -9008,21 +8764,38 @@ function listItem(node, parent, context, safeOptions) {
   }
 }
 
-function paragraph(node, _, context, safeOptions) {
-  const exit = context.enter('paragraph');
-  const subexit = context.enter('phrasing');
-  const value = containerPhrasing(node, context, safeOptions);
+function paragraph(node, _, state, info) {
+  const exit = state.enter('paragraph');
+  const subexit = state.enter('phrasing');
+  const value = state.containerPhrasing(node, info);
   subexit();
   exit();
   return value
 }
 
-function root(node, _, context, safeOptions) {
-  return containerFlow(node, context, safeOptions)
+const phrasing = convert([
+  'break',
+  'delete',
+  'emphasis',
+  'footnote',
+  'footnoteReference',
+  'image',
+  'imageReference',
+  'inlineCode',
+  'link',
+  'linkReference',
+  'strong',
+  'text'
+]);
+
+function root(node, _, state, info) {
+  const hasPhrasing = node.children.some((d) => phrasing(d));
+  const fn = hasPhrasing ? state.containerPhrasing : state.containerFlow;
+  return fn.call(state, node, info)
 }
 
-function checkStrong(context) {
-  const marker = context.options.strong || '*';
+function checkStrong(state) {
+  const marker = state.options.strong || '*';
   if (marker !== '*' && marker !== '_') {
     throw new Error(
       'Cannot serialize strong with `' +
@@ -9034,13 +8807,13 @@ function checkStrong(context) {
 }
 
 strong.peek = strongPeek;
-function strong(node, _, context, safeOptions) {
-  const marker = checkStrong(context);
-  const exit = context.enter('strong');
-  const tracker = track(safeOptions);
+function strong(node, _, state, info) {
+  const marker = checkStrong(state);
+  const exit = state.enter('strong');
+  const tracker = state.createTracker(info);
   let value = tracker.move(marker + marker);
   value += tracker.move(
-    containerPhrasing(node, context, {
+    state.containerPhrasing(node, {
       before: value,
       after: marker,
       ...tracker.current()
@@ -9050,16 +8823,16 @@ function strong(node, _, context, safeOptions) {
   exit();
   return value
 }
-function strongPeek(_, _1, context) {
-  return context.options.strong || '*'
+function strongPeek(_, _1, state) {
+  return state.options.strong || '*'
 }
 
-function text$1(node, _, context, safeOptions) {
-  return safe(context, node.value, safeOptions)
+function text$1(node, _, state, info) {
+  return state.safe(node.value, info)
 }
 
-function checkRuleRepetition(context) {
-  const repetition = context.options.ruleRepetition || 3;
+function checkRuleRepetition(state) {
+  const repetition = state.options.ruleRepetition || 3;
   if (repetition < 3) {
     throw new Error(
       'Cannot serialize rules with repetition `' +
@@ -9070,11 +8843,11 @@ function checkRuleRepetition(context) {
   return repetition
 }
 
-function thematicBreak(_, _1, context) {
+function thematicBreak(_, _1, state) {
   const value = (
-    checkRule(context) + (context.options.ruleSpaces ? ' ' : '')
-  ).repeat(checkRuleRepetition(context));
-  return context.options.ruleSpaces ? value.slice(0, -1) : value
+    checkRule(state) + (state.options.ruleSpaces ? ' ' : '')
+  ).repeat(checkRuleRepetition(state));
+  return state.options.ruleSpaces ? value.slice(0, -1) : value
 }
 
 const handle = {
@@ -9101,12 +8874,12 @@ const handle = {
 };
 
 const join = [joinDefaults];
-function joinDefaults(left, right, parent, context) {
+function joinDefaults(left, right, parent, state) {
   if (
     right.type === 'code' &&
-    formatCodeAsIndented(right, context) &&
+    formatCodeAsIndented(right, state) &&
     (left.type === 'list' ||
-      (left.type === right.type && formatCodeAsIndented(left, context)))
+      (left.type === right.type && formatCodeAsIndented(left, state)))
   ) {
     return false
   }
@@ -9115,8 +8888,8 @@ function joinDefaults(left, right, parent, context) {
     left.type === right.type &&
     Boolean(left.ordered) === Boolean(right.ordered) &&
     !(left.ordered
-      ? context.options.bulletOrderedOther
-      : context.options.bulletOther)
+      ? state.options.bulletOrderedOther
+      : state.options.bulletOther)
   ) {
     return false
   }
@@ -9125,7 +8898,7 @@ function joinDefaults(left, right, parent, context) {
       left.type === 'paragraph' &&
       (left.type === right.type ||
         right.type === 'definition' ||
-        (right.type === 'heading' && formatHeadingAsSetext(right, context)))
+        (right.type === 'heading' && formatHeadingAsSetext(right, state)))
     ) {
       return
     }
@@ -9228,27 +9001,281 @@ const unsafe = [
   {atBreak: true, character: '~'}
 ];
 
+function association(node) {
+  if (node.label || !node.identifier) {
+    return node.label || ''
+  }
+  return decodeString(node.identifier)
+}
+
+function containerPhrasing(parent, state, info) {
+  const indexStack = state.indexStack;
+  const children = parent.children || [];
+  const results = [];
+  let index = -1;
+  let before = info.before;
+  indexStack.push(-1);
+  let tracker = state.createTracker(info);
+  while (++index < children.length) {
+    const child = children[index];
+    let after;
+    indexStack[indexStack.length - 1] = index;
+    if (index + 1 < children.length) {
+      let handle = state.handle.handlers[children[index + 1].type];
+      if (handle && handle.peek) handle = handle.peek;
+      after = handle
+        ? handle(children[index + 1], parent, state, {
+            before: '',
+            after: '',
+            ...tracker.current()
+          }).charAt(0)
+        : '';
+    } else {
+      after = info.after;
+    }
+    if (
+      results.length > 0 &&
+      (before === '\r' || before === '\n') &&
+      child.type === 'html'
+    ) {
+      results[results.length - 1] = results[results.length - 1].replace(
+        /(\r?\n|\r)$/,
+        ' '
+      );
+      before = ' ';
+      tracker = state.createTracker(info);
+      tracker.move(results.join(''));
+    }
+    results.push(
+      tracker.move(
+        state.handle(child, parent, state, {
+          ...tracker.current(),
+          before,
+          after
+        })
+      )
+    );
+    before = results[results.length - 1].slice(-1);
+  }
+  indexStack.pop();
+  return results.join('')
+}
+
+function containerFlow(parent, state, info) {
+  const indexStack = state.indexStack;
+  const children = parent.children || [];
+  const tracker = state.createTracker(info);
+  const results = [];
+  let index = -1;
+  indexStack.push(-1);
+  while (++index < children.length) {
+    const child = children[index];
+    indexStack[indexStack.length - 1] = index;
+    results.push(
+      tracker.move(
+        state.handle(child, parent, state, {
+          before: '\n',
+          after: '\n',
+          ...tracker.current()
+        })
+      )
+    );
+    if (child.type !== 'list') {
+      state.bulletLastUsed = undefined;
+    }
+    if (index < children.length - 1) {
+      results.push(
+        tracker.move(between(child, children[index + 1], parent, state))
+      );
+    }
+  }
+  indexStack.pop();
+  return results.join('')
+}
+function between(left, right, parent, state) {
+  let index = state.join.length;
+  while (index--) {
+    const result = state.join[index](left, right, parent, state);
+    if (result === true || result === 1) {
+      break
+    }
+    if (typeof result === 'number') {
+      return '\n'.repeat(1 + result)
+    }
+    if (result === false) {
+      return '\n\n<!---->\n\n'
+    }
+  }
+  return '\n\n'
+}
+
+const eol = /\r?\n|\r/g;
+function indentLines(value, map) {
+  const result = [];
+  let start = 0;
+  let line = 0;
+  let match;
+  while ((match = eol.exec(value))) {
+    one(value.slice(start, match.index));
+    result.push(match[0]);
+    start = match.index + match[0].length;
+    line++;
+  }
+  one(value.slice(start));
+  return result.join('')
+  function one(value) {
+    result.push(map(value, line, !value));
+  }
+}
+
+function safe(state, input, config) {
+  const value = (config.before || '') + (input || '') + (config.after || '');
+  const positions = [];
+  const result = [];
+  const infos = {};
+  let index = -1;
+  while (++index < state.unsafe.length) {
+    const pattern = state.unsafe[index];
+    if (!patternInScope(state.stack, pattern)) {
+      continue
+    }
+    const expression = patternCompile(pattern);
+    let match;
+    while ((match = expression.exec(value))) {
+      const before = 'before' in pattern || Boolean(pattern.atBreak);
+      const after = 'after' in pattern;
+      const position = match.index + (before ? match[1].length : 0);
+      if (positions.includes(position)) {
+        if (infos[position].before && !before) {
+          infos[position].before = false;
+        }
+        if (infos[position].after && !after) {
+          infos[position].after = false;
+        }
+      } else {
+        positions.push(position);
+        infos[position] = {before, after};
+      }
+    }
+  }
+  positions.sort(numerical);
+  let start = config.before ? config.before.length : 0;
+  const end = value.length - (config.after ? config.after.length : 0);
+  index = -1;
+  while (++index < positions.length) {
+    const position = positions[index];
+    if (position < start || position >= end) {
+      continue
+    }
+    if (
+      (position + 1 < end &&
+        positions[index + 1] === position + 1 &&
+        infos[position].after &&
+        !infos[position + 1].before &&
+        !infos[position + 1].after) ||
+      (positions[index - 1] === position - 1 &&
+        infos[position].before &&
+        !infos[position - 1].before &&
+        !infos[position - 1].after)
+    ) {
+      continue
+    }
+    if (start !== position) {
+      result.push(escapeBackslashes(value.slice(start, position), '\\'));
+    }
+    start = position;
+    if (
+      /[!-/:-@[-`{-~]/.test(value.charAt(position)) &&
+      (!config.encode || !config.encode.includes(value.charAt(position)))
+    ) {
+      result.push('\\');
+    } else {
+      result.push(
+        '&#x' + value.charCodeAt(position).toString(16).toUpperCase() + ';'
+      );
+      start++;
+    }
+  }
+  result.push(escapeBackslashes(value.slice(start, end), config.after));
+  return result.join('')
+}
+function numerical(a, b) {
+  return a - b
+}
+function escapeBackslashes(value, after) {
+  const expression = /\\(?=[!-/:-@[-`{-~])/g;
+  const positions = [];
+  const results = [];
+  const whole = value + after;
+  let index = -1;
+  let start = 0;
+  let match;
+  while ((match = expression.exec(whole))) {
+    positions.push(match.index);
+  }
+  while (++index < positions.length) {
+    if (start !== positions[index]) {
+      results.push(value.slice(start, positions[index]));
+    }
+    results.push('\\');
+    start = positions[index];
+  }
+  results.push(value.slice(start));
+  return results.join('')
+}
+
+function track(config) {
+  const options = config || {};
+  const now = options.now || {};
+  let lineShift = options.lineShift || 0;
+  let line = now.line || 1;
+  let column = now.column || 1;
+  return {move, current, shift}
+  function current() {
+    return {now: {line, column}, lineShift}
+  }
+  function shift(value) {
+    lineShift += value;
+  }
+  function move(input) {
+    const value = input || '';
+    const chunks = value.split(/\r?\n|\r/g);
+    const tail = chunks[chunks.length - 1];
+    line += chunks.length - 1;
+    column =
+      chunks.length === 1 ? column + tail.length : 1 + tail.length + lineShift;
+    return value
+  }
+}
+
 function toMarkdown(tree, options = {}) {
-  const context = {
+  const state = {
     enter,
+    indentLines,
+    associationId: association,
+    containerPhrasing: containerPhrasingBound,
+    containerFlow: containerFlowBound,
+    createTracker: track,
+    safe: safeBound,
     stack: [],
     unsafe: [],
     join: [],
     handlers: {},
     options: {},
-    indexStack: []
+    indexStack: [],
+    handle: undefined
   };
-  configure(context, {unsafe, join, handlers: handle});
-  configure(context, options);
-  if (context.options.tightDefinitions) {
-    configure(context, {join: [joinDefinition]});
+  configure(state, {unsafe, join, handlers: handle});
+  configure(state, options);
+  if (state.options.tightDefinitions) {
+    configure(state, {join: [joinDefinition]});
   }
-  context.handle = zwitch('type', {
+  state.handle = zwitch('type', {
     invalid,
     unknown,
-    handlers: context.handlers
+    handlers: state.handlers
   });
-  let result = context.handle(tree, undefined, context, {
+  let result = state.handle(tree, undefined, state, {
     before: '\n',
     after: '\n',
     now: {line: 1, column: 1},
@@ -9263,10 +9290,10 @@ function toMarkdown(tree, options = {}) {
   }
   return result
   function enter(name) {
-    context.stack.push(name);
+    state.stack.push(name);
     return exit
     function exit() {
-      context.stack.pop();
+      state.stack.pop();
     }
   }
 }
@@ -9280,6 +9307,15 @@ function joinDefinition(left, right) {
   if (left.type === 'definition' && left.type === right.type) {
     return 0
   }
+}
+function containerPhrasingBound(parent, info) {
+  return containerPhrasing(parent, this, info)
+}
+function containerFlowBound(parent, info) {
+  return containerFlow(parent, this, info)
+}
+function safeBound(value, config) {
+  return safe(this, value, config)
 }
 
 function remarkStringify(options) {
