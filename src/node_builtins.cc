@@ -3,6 +3,7 @@
 #include "env-inl.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "simdutf.h"
 #include "util-inl.h"
 
 namespace node {
@@ -35,7 +36,6 @@ BuiltinLoader BuiltinLoader::instance_;
 
 BuiltinLoader::BuiltinLoader() : config_(GetConfig()), has_code_cache_(false) {
   LoadJavaScriptSource();
-#if defined(NODE_HAVE_I18N_SUPPORT)
 #ifdef NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_LEXER_PATH
   AddExternalizedBuiltin(
       "internal/deps/cjs-module-lexer/lexer",
@@ -52,7 +52,6 @@ BuiltinLoader::BuiltinLoader() : config_(GetConfig()), has_code_cache_(false) {
   AddExternalizedBuiltin("internal/deps/undici/undici",
                          STRINGIFY(NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH));
 #endif  // NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH
-#endif  // NODE_HAVE_I18N_SUPPORT
 }
 
 BuiltinLoader* BuiltinLoader::GetInstance() {
@@ -240,7 +239,6 @@ MaybeLocal<String> BuiltinLoader::LoadBuiltinSource(Isolate* isolate,
 #endif  // NODE_BUILTIN_MODULES_PATH
 }
 
-#if defined(NODE_HAVE_I18N_SUPPORT)
 void BuiltinLoader::AddExternalizedBuiltin(const char* id,
                                            const char* filename) {
   std::string source;
@@ -252,16 +250,20 @@ void BuiltinLoader::AddExternalizedBuiltin(const char* id,
     return;
   }
 
-  icu::UnicodeString utf16 = icu::UnicodeString::fromUTF8(
-      icu::StringPiece(source.data(), source.length()));
-  auto source_utf16 = std::make_unique<icu::UnicodeString>(utf16);
-  Add(id,
-      UnionBytes(reinterpret_cast<const uint16_t*>((*source_utf16).getBuffer()),
-                 utf16.length()));
-  // keep source bytes for builtin alive while BuiltinLoader exists
-  GetInstance()->externalized_source_bytes_.push_back(std::move(source_utf16));
+  Add(id, source);
 }
-#endif  // NODE_HAVE_I18N_SUPPORT
+
+bool BuiltinLoader::Add(const char* id, std::string_view utf8source) {
+  size_t expected_u16_length =
+      simdutf::utf16_length_from_utf8(utf8source.data(), utf8source.length());
+  auto out = std::make_shared<std::vector<uint16_t>>(expected_u16_length);
+  size_t u16_length = simdutf::convert_utf8_to_utf16le(
+      utf8source.data(),
+      utf8source.length(),
+      reinterpret_cast<char16_t*>(out->data()));
+  out->resize(u16_length);
+  return Add(id, UnionBytes(out));
+}
 
 // Returns Local<Function> of the compiled module if return_code_cache
 // is false (we are only compiling the function).

@@ -2024,11 +2024,7 @@ output['variables']['node_builtin_shareable_builtins'] = []
 for builtin in shareable_builtins:
   builtin_id = 'node_shared_builtin_' + builtin.replace('/', '_') + '_path'
   if getattr(options, builtin_id):
-    if options.with_intl == 'none':
-      option_name = '--shared-builtin-' + builtin + '-path'
-      error(option_name + ' is incompatible with --with-intl=none' )
-    else:
-      output['defines'] += [builtin_id.upper() + '=' + getattr(options, builtin_id)]
+    output['defines'] += [builtin_id.upper() + '=' + getattr(options, builtin_id)]
   else:
     output['variables']['node_builtin_shareable_builtins'] += [shareable_builtins[builtin]]
 
