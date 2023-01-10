@@ -1211,6 +1211,7 @@
         'node_dtrace_header',
         'node_dtrace_ustack',
         'node_dtrace_provider',
+        'deps/simdutf/simdutf.gyp:simdutf',
       ],
 
       'includes': [
