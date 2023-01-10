@@ -12,7 +12,7 @@
     "path": "dom/abort"
   },
   "dom/events": {
-    "commit": "f8821adb281696322f4bd96d412a98ae510f9125",
+    "commit": "ab8999891c6225bef1741c2960033aad620481a8",
     "path": "dom/events"
   },
   "encoding": {

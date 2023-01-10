@@ -1,4 +1,5 @@
 <!DOCTYPE HTML>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
 <script src="/resources/testharness.js"></script>
 <script src="/resources/testharnessreport.js"></script>
 <script src="/resources/testdriver.js"></script>
@@ -80,12 +81,20 @@ function runTest() {
         'on target.');
     assert_equals(target_div.scrollLeft, 0);
 
-    // Scroll up on target div and wait for the element with overscroll-y to get
-    // scrollend event.
+    let touchEndPromise = new Promise((resolve) => {
+      target_div.addEventListener("touchend", resolve);
+    });
     await touchScrollInTarget(300, target_div, 'up');
-    await waitFor(() => { return vertical_scrollend_arrived; },
-        'Expected element did not receive scrollend event after scroll up on ' +
-        'target.');
+
+    // The scrollend event should never be fired before the gesture has completed.
+    await touchEndPromise;
+
+    // Ensure we wait at least a tick after the touch end.
+    await waitForCompositorCommit();
+
+    // We should not trigger a scrollend event for a scroll that did not change
+    // the scroll position.
+    assert_equals(vertical_scrollend_arrived, false);
     assert_equals(target_div.scrollTop, 0);
   }, 'Tests that the last element in the cut scroll chain gets scrollend ' +
      'event when no element scrolls by touch.');
