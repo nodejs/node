@@ -632,14 +632,18 @@ class RuleTester {
              * The goal is to check whether or not AST was modified when
              * running the rule under test.
              */
-            linter.defineRule("rule-tester/validate-ast", () => ({
-                Program(node) {
-                    beforeAST = cloneDeeplyExcludesParent(node);
-                },
-                "Program:exit"(node) {
-                    afterAST = node;
+            linter.defineRule("rule-tester/validate-ast", {
+                create() {
+                    return {
+                        Program(node) {
+                            beforeAST = cloneDeeplyExcludesParent(node);
+                        },
+                        "Program:exit"(node) {
+                            afterAST = node;
+                        }
+                    };
                 }
-            }));
+            });
 
             if (typeof config.parser === "string") {
                 assert(path.isAbsolute(config.parser), "Parsers provided as strings to RuleTester must be absolute paths");

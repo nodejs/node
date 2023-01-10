@@ -4,11 +4,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.statements = exports.statement = exports.smart = exports.program = exports.expression = exports.default = void 0;
-
 var formatters = require("./formatters");
-
 var _builder = require("./builder");
-
 const smart = (0, _builder.default)(formatters.smart);
 exports.smart = smart;
 const statement = (0, _builder.default)(formatters.statement);
@@ -19,7 +16,6 @@ const expression = (0, _builder.default)(formatters.expression);
 exports.expression = expression;
 const program = (0, _builder.default)(formatters.program);
 exports.program = program;
-
 var _default = Object.assign(smart.bind(undefined), {
   smart,
   statement,
@@ -28,5 +24,6 @@ var _default = Object.assign(smart.bind(undefined), {
   program,
   ast: smart.ast
 });
-
 exports.default = _default;
+
+//# sourceMappingURL=index.js.map

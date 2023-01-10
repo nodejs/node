@@ -144,7 +144,7 @@ module.exports = {
                     context.report({
                         node,
                         messageId: "unnecessaryConditionalAssignment",
-                        fix: fixer => {
+                        fix(fixer) {
                             const shouldParenthesizeAlternate =
                                 (
                                     astUtils.getPrecedence(node.alternate) < OR_PRECEDENCE ||

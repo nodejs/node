@@ -335,6 +335,7 @@ module.exports = {
                             // Convert the function expression to an arrow function.
                             const functionToken = sourceCode.getFirstToken(node, node.async ? 1 : 0);
                             const leftParenToken = sourceCode.getTokenAfter(functionToken, astUtils.isOpeningParenToken);
+                            const tokenBeforeBody = sourceCode.getTokenBefore(node.body);
 
                             if (sourceCode.commentsExistBetween(functionToken, leftParenToken)) {
 
@@ -348,7 +349,7 @@ module.exports = {
                                 // Remove extra tokens and spaces.
                                 yield fixer.removeRange([functionToken.range[0], leftParenToken.range[0]]);
                             }
-                            yield fixer.insertTextBefore(node.body, "=> ");
+                            yield fixer.insertTextAfter(tokenBeforeBody, " =>");
 
                             // Get the node that will become the new arrow function.
                             let replacedNode = callbackInfo.isLexicalThis ? node.parent.parent : node;

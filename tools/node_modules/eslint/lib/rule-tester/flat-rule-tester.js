@@ -619,15 +619,17 @@ class FlatRuleTester {
                 plugins: {
                     "rule-tester": {
                         rules: {
-                            "validate-ast"() {
-                                return {
-                                    Program(node) {
-                                        beforeAST = cloneDeeplyExcludesParent(node);
-                                    },
-                                    "Program:exit"(node) {
-                                        afterAST = node;
-                                    }
-                                };
+                            "validate-ast": {
+                                create() {
+                                    return {
+                                        Program(node) {
+                                            beforeAST = cloneDeeplyExcludesParent(node);
+                                        },
+                                        "Program:exit"(node) {
+                                            afterAST = node;
+                                        }
+                                    };
+                                }
                             }
                         }
                     }
