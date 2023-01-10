@@ -20,8 +20,7 @@ async function runAndKill(file) {
   });
   const [code, signal] = await once(child, 'exit');
   await finished(child.stdout);
-  assert.match(stdout, /not ok 1/);
-  assert.match(stdout, /# cancelled 1\n/);
+  assert(stdout.startsWith('TAP version 13\n'));
   assert.strictEqual(signal, null);
   assert.strictEqual(code, 1);
 }
