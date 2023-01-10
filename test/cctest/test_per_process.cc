@@ -1,4 +1,5 @@
 #include "node_builtins.h"
+#include "node_threadsafe_cow-inl.h"
 
 #include "gtest/gtest.h"
 #include "node_test_fixture.h"
