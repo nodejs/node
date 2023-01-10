@@ -85,7 +85,7 @@ const util = require('util');
   assert.strictEqual(util.inspect(m, { depth: -1 }), '[SourceTextModule]');
 
   assert.throws(
-    () => m[util.inspect.custom].call(Object.create(null)),
+    () => m[util.inspect.custom].call({ __proto__: null }),
     {
       code: 'ERR_VM_MODULE_NOT_MODULE',
       message: 'Provided module is not an instance of Module'

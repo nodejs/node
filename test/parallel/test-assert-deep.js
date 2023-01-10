@@ -1190,7 +1190,7 @@ assert.throws(
   });
   assertNotDeepOrStrict(a, b);
 
-  a = Object.create(null);
+  a = { __proto__: null };
   b = new RangeError('abc');
   Object.defineProperty(a, Symbol.toStringTag, {
     value: 'Error'
