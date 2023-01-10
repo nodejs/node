@@ -25,7 +25,7 @@ function runObject(n) {
 }
 
 function runNullProtoObject(n) {
-  const m = Object.create(null);
+  const m = { __proto__: null };
   bench.start();
   for (let i = 0; i < n; i++) {
     m[`i${i}`] = i;
@@ -51,7 +51,7 @@ function runNullProtoLiteralObject(n) {
 }
 
 function StorageObject() {}
-StorageObject.prototype = Object.create(null);
+StorageObject.prototype = { __proto__: null };
 
 function runStorageObject(n) {
   const m = new StorageObject();

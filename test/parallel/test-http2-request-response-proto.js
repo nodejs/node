@@ -11,8 +11,8 @@ const {
   Http2ServerResponse,
 } = http2;
 
-const protoRequest = Object.create(Http2ServerRequest.prototype);
-const protoResponse = Object.create(Http2ServerResponse.prototype);
+const protoRequest = { __proto__: Http2ServerRequest.prototype };
+const protoResponse = { __proto__: Http2ServerResponse.prototype };
 
 assert.strictEqual(protoRequest instanceof Http2ServerRequest, true);
 assert.strictEqual(protoResponse instanceof Http2ServerResponse, true);

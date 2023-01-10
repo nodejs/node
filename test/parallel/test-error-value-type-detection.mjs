@@ -33,7 +33,7 @@ strictEqual(
 );
 
 strictEqual(
-  determineSpecificType(Object.create(null)),
+  determineSpecificType({ __proto__: null }),
   '[Object: null prototype] {}',
 );
 

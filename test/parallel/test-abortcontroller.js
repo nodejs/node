@@ -103,7 +103,7 @@ const { setTimeout: sleep } = require('timers/promises');
     NaN,
     true,
     'AbortController',
-    Object.create(AbortController.prototype),
+    { __proto__: AbortController.prototype },
   ];
   for (const badController of badAbortControllers) {
     throws(
@@ -134,7 +134,7 @@ const { setTimeout: sleep } = require('timers/promises');
     NaN,
     true,
     'AbortSignal',
-    Object.create(AbortSignal.prototype),
+    { __proto__: AbortSignal.prototype },
   ];
   for (const badSignal of badAbortSignals) {
     throws(

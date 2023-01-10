@@ -973,7 +973,7 @@ test('tokens:true should not include the default options after the args input', 
 
 test('proto as default value must be ignored', () => {
   const args = [];
-  const options = Object.create(null);
+  const options = { __proto__: null };
 
   // eslint-disable-next-line no-proto
   options.__proto__ = { type: 'string', default: 'HELLO' };

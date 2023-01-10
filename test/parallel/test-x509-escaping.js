@@ -239,7 +239,7 @@ const { hasOpenSSL3 } = common;
         checkServerIdentity: (hostname, peerCert) => {
           assert.strictEqual(hostname, 'example.com');
           assert.deepStrictEqual(peerCert.infoAccess,
-                                 Object.assign(Object.create(null),
+                                 Object.assign({ __proto__: null },
                                                expected.legacy));
 
           // toLegacyObject() should also produce the same properties. However,
@@ -352,7 +352,7 @@ const { hasOpenSSL3 } = common;
         servername: 'example.com',
         checkServerIdentity: (hostname, peerCert) => {
           assert.strictEqual(hostname, 'example.com');
-          const expectedObject = Object.assign(Object.create(null),
+          const expectedObject = Object.assign({ __proto__: null },
                                                expected.legacy);
           assert.deepStrictEqual(peerCert.subject, expectedObject);
           // The issuer MUST be the same as the subject since the cert is

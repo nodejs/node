@@ -100,7 +100,7 @@ assert.strictEqual(
   `"${Array(75).fill(1)}'\\n" +\n  '\\x1D\\n' +\n  '\\x03\\x85\\x7F~\\x9F '`
 );
 assert.strictEqual(util.inspect([]), '[]');
-assert.strictEqual(util.inspect(Object.create([])), 'Array {}');
+assert.strictEqual(util.inspect({ __proto__: [] }), 'Array {}');
 assert.strictEqual(util.inspect([1, 2]), '[ 1, 2 ]');
 assert.strictEqual(util.inspect([1, [2, 3]]), '[ 1, [ 2, 3 ] ]');
 assert.strictEqual(util.inspect({}), '{}');
@@ -796,7 +796,7 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 });
 
 // https://github.com/nodejs/node-v0.x-archive/issues/1941
-assert.strictEqual(util.inspect(Object.create(Date.prototype)), 'Date {}');
+assert.strictEqual(util.inspect({ __proto__: Date.prototype }), 'Date {}');
 
 // https://github.com/nodejs/node-v0.x-archive/issues/1944
 {
@@ -1467,7 +1467,7 @@ if (typeof Symbol !== 'undefined') {
 }
 
 {
-  const x = Object.create(null);
+  const x = { __proto__: null };
   assert.strictEqual(util.inspect(x), '[Object: null prototype] {}');
 }
 
@@ -1631,7 +1631,7 @@ util.inspect(process);
     "Foo [bar] { foo: 'bar' }");
 
   assert.strictEqual(
-    util.inspect(Object.create(Object.create(Foo.prototype), {
+    util.inspect(Object.create({ __proto__: Foo.prototype }, {
       foo: { value: 'bar', enumerable: true }
     })),
     "Foo [bar] { foo: 'bar' }");
@@ -2396,7 +2396,7 @@ assert.strictEqual(
   );
 
   function StorageObject() {}
-  StorageObject.prototype = Object.create(null);
+  StorageObject.prototype = { __proto__: null };
   assert.strictEqual(
     util.inspect(new StorageObject()),
     'StorageObject <[Object: null prototype] {}> {}'
@@ -2406,17 +2406,17 @@ assert.strictEqual(
   Object.setPrototypeOf(obj, Number.prototype);
   assert.strictEqual(inspect(obj), "Number { '0': 1, '1': 2, '2': 3 }");
 
-  Object.setPrototypeOf(obj, Object.create(null));
+  Object.setPrototypeOf(obj, { __proto__: null });
   assert.strictEqual(
     inspect(obj),
     "Array <[Object: null prototype] {}> { '0': 1, '1': 2, '2': 3 }"
   );
 
-  StorageObject.prototype = Object.create(null);
-  Object.setPrototypeOf(StorageObject.prototype, Object.create(null));
+  StorageObject.prototype = { __proto__: null };
+  Object.setPrototypeOf(StorageObject.prototype, { __proto__: null });
   Object.setPrototypeOf(
     Object.getPrototypeOf(StorageObject.prototype),
-    Object.create(null)
+    { __proto__: null }
   );
   assert.strictEqual(
     util.inspect(new StorageObject()),
@@ -2991,7 +2991,7 @@ assert.strictEqual(
     '}'
   );
 
-  const obj = Object.create({ abc: true, def: 5, toString() {} });
+  const obj = { __proto__: { abc: true, def: 5, toString() {} } };
   assert.strictEqual(
     inspect(obj, { showHidden: true, colors: true }),
     '{ \x1B[2mabc: \x1B[33mtrue\x1B[39m\x1B[22m, ' +
@@ -3107,7 +3107,7 @@ assert.strictEqual(
         return this.stylized;
       }
     })
-  `, Object.create(null));
+  `, { __proto__: null });
   assert.strictEqual(target.ctx, undefined);
 
   {
