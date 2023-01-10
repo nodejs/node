@@ -1,7 +1,8 @@
-#include "util-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "gtest/gtest.h"
+#include "simdutf.h"
+#include "util-inl.h"
 
 using node::Calloc;
 using node::Malloc;
@@ -297,4 +298,18 @@ TEST(UtilTest, SPrintF) {
 
   const std::string with_zero = std::string("a") + '\0' + 'b';
   EXPECT_EQ(SPrintF("%s", with_zero), with_zero);
+}
+
+TEST(UtilTest, SimdutfEndiannessDoesNotMeanEndianness) {
+  // In simdutf, "LE" does *not* refer to Little Endian, it refers
+  // to 16-byte code units that are stored using *host* endianness.
+  // This is weird and confusing naming, and so we add this assertion
+  // here to verify that this is actually the case (so that CI tells
+  // us if it changed, because for most people Little Endian is
+  // host endianness, so locally everything would work fine).
+  const char utf8source[] = "\xe7\x8c\xab";
+  char16_t u16output;
+  size_t u16len = simdutf::convert_utf8_to_utf16le(utf8source, 3, &u16output);
+  EXPECT_EQ(u16len, 1u);
+  EXPECT_EQ(u16output, 0x732B);
 }
