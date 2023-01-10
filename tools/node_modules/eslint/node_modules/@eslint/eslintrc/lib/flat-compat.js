@@ -273,7 +273,7 @@ class FlatCompat {
     /**
      * Translates the `env` section of an ESLintRC-style config.
      * @param {Object} envConfig The `env` section of an ESLintRC config.
-     * @returns {Object} A flag-config object representing the environments.
+     * @returns {Object[]} An array of flag-config objects representing the environments.
      */
     env(envConfig) {
         return this.config({
@@ -284,7 +284,7 @@ class FlatCompat {
     /**
      * Translates the `extends` section of an ESLintRC-style config.
      * @param {...string} configsToExtend The names of the configs to load.
-     * @returns {Object} A flag-config object representing the config.
+     * @returns {Object[]} An array of flag-config objects representing the config.
      */
     extends(...configsToExtend) {
         return this.config({
@@ -295,7 +295,7 @@ class FlatCompat {
     /**
      * Translates the `plugins` section of an ESLintRC-style config.
      * @param {...string} plugins The names of the plugins to load.
-     * @returns {Object} A flag-config object representing the plugins.
+     * @returns {Object[]} An array of flag-config objects representing the plugins.
      */
     plugins(...plugins) {
         return this.config({
