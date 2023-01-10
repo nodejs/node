@@ -26,7 +26,7 @@ fs.writeFileSync(dotfileWithExtension, 'console.log(__filename);', 'utf8');
   delete require.cache[file];
   delete require.extensions['.bar'];
   delete require.extensions['.foo.bar'];
-  Module._pathCache = Object.create(null);
+  Module._pathCache = { __proto__: null };
 }
 
 {
@@ -40,7 +40,7 @@ fs.writeFileSync(dotfileWithExtension, 'console.log(__filename);', 'utf8');
   require(`${modulePath}.foo.bar`);
   delete require.cache[file];
   delete require.extensions['.foo.bar'];
-  Module._pathCache = Object.create(null);
+  Module._pathCache = { __proto__: null };
 }
 
 {
@@ -50,7 +50,7 @@ fs.writeFileSync(dotfileWithExtension, 'console.log(__filename);', 'utf8');
     (err) => err.message.startsWith(`Cannot find module '${modulePath}'`)
   );
   delete require.cache[file];
-  Module._pathCache = Object.create(null);
+  Module._pathCache = { __proto__: null };
 }
 
 {
@@ -61,7 +61,7 @@ fs.writeFileSync(dotfileWithExtension, 'console.log(__filename);', 'utf8');
   delete require.cache[file];
   delete require.extensions['.bar'];
   delete require.extensions['.foo.bar'];
-  Module._pathCache = Object.create(null);
+  Module._pathCache = { __proto__: null };
 }
 
 {
@@ -72,7 +72,7 @@ fs.writeFileSync(dotfileWithExtension, 'console.log(__filename);', 'utf8');
     (err) => err.message.startsWith(`Cannot find module '${modulePath}'`)
   );
   delete require.extensions['.foo.bar'];
-  Module._pathCache = Object.create(null);
+  Module._pathCache = { __proto__: null };
 }
 
 {
@@ -80,7 +80,7 @@ fs.writeFileSync(dotfileWithExtension, 'console.log(__filename);', 'utf8');
   require(dotfile);
   delete require.cache[dotfile];
   delete require.extensions['.bar'];
-  Module._pathCache = Object.create(null);
+  Module._pathCache = { __proto__: null };
 }
 
 {
@@ -90,5 +90,5 @@ fs.writeFileSync(dotfileWithExtension, 'console.log(__filename);', 'utf8');
   delete require.cache[dotfileWithExtension];
   delete require.extensions['.bar'];
   delete require.extensions['.foo.bar'];
-  Module._pathCache = Object.create(null);
+  Module._pathCache = { __proto__: null };
 }

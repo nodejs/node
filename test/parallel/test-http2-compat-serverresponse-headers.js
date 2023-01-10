@@ -102,7 +102,7 @@ server.listen(0, common.mustCall(function() {
     response.setHeader(real, expectedValue);
     const expectedHeaderNames = [real];
     assert.deepStrictEqual(response.getHeaderNames(), expectedHeaderNames);
-    const expectedHeaders = Object.create(null);
+    const expectedHeaders = { __proto__: null };
     expectedHeaders[real] = expectedValue;
     assert.deepStrictEqual(response.getHeaders(), expectedHeaders);
 
