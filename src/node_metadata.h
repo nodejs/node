@@ -46,6 +46,7 @@ namespace node {
   V(llhttp)                                                                    \
   V(uvwasi)                                                                    \
   V(acorn)                                                                     \
+  V(simdutf)                                                                   \
   NODE_VERSIONS_KEY_UNDICI(V)
 
 #if HAVE_OPENSSL
