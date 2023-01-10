@@ -159,7 +159,7 @@ function hasReferenceInTDZ(node) {
             return !reference.init && (
                 start < idStart ||
                 (defaultValue !== null && start >= defaultStart && end <= defaultEnd) ||
-                (start >= initStart && end <= initEnd)
+                (!astUtils.isFunction(node) && start >= initStart && end <= initEnd)
             );
         });
     };

@@ -177,7 +177,7 @@ module.exports = function(usingFlatConfig) {
             },
             resolvePluginsFlag,
             {
-                heading: "Specifying rules and plugins"
+                heading: "Specify Rules and Plugins"
             },
             {
                 option: "plugin",
@@ -191,7 +191,7 @@ module.exports = function(usingFlatConfig) {
             },
             rulesDirFlag,
             {
-                heading: "Fixing problems"
+                heading: "Fix Problems"
             },
             {
                 option: "fix",
@@ -211,7 +211,7 @@ module.exports = function(usingFlatConfig) {
                 description: "Specify the types of fixes to apply (directive, problem, suggestion, layout)"
             },
             {
-                heading: "Ignoring files"
+                heading: "Ignore Files"
             },
             ignorePathFlag,
             {
@@ -229,7 +229,7 @@ module.exports = function(usingFlatConfig) {
                 }]
             },
             {
-                heading: "Using stdin"
+                heading: "Use stdin"
             },
             {
                 option: "stdin",
@@ -243,7 +243,7 @@ module.exports = function(usingFlatConfig) {
                 description: "Specify filename to process STDIN as"
             },
             {
-                heading: "Handling warnings"
+                heading: "Handle Warnings"
             },
             {
                 option: "quiet",
