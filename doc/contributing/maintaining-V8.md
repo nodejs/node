@@ -15,20 +15,10 @@ releases, and discusses how the Node.js and V8 teams at Google can help.
 ## V8 release schedule
 
 V8 and Chromium follow a
-[roughly 6-week release cadence][ChromiumReleaseCalendar]. At any given time
-there are three V8 branches that are **active**.
-
-For example, at the time of this writing:
-
-* **Stable**: V8 5.4 is currently shipping as part of Chromium stable. This
-  branch was created approx. 6 weeks before from when V8 5.3 shipped as stable.
-* **Beta**: V8 5.5 is currently in beta. It will be promoted to stable next;
-  approximately 6 weeks after V8 5.4 shipped as stable.
-* **Master**: V8 tip-of-tree corresponds to V8 5.6. This branch gets regularly
-  released as part of the Chromium **canary** builds. This branch will be
-  promoted to beta next when V8 5.5 ships as stable.
-
-All older branches are abandoned and are not maintained by the V8 team.
+[roughly 4-week release cadence][ChromiumReleaseCalendar]. At any given time
+there are several V8 branches that are **active**, see the
+[V8 release process](https://v8.dev/docs/release-process). All older branches
+are abandoned and are not maintained by the V8 team.
 
 ### V8 merge process overview
 
@@ -51,97 +41,8 @@ documented [on the V8 wiki][V8MergingPatching]. The summary of the process is:
 ## Node.js support requirements
 
 At any given time Node.js needs to be maintaining a few different V8 branches
-for the various Current, LTS, and nightly releases. At present this list
-includes the following branches:[^1]
-
-<table>
-  <tr>
-   <td><strong>Release</strong>
-   </td>
-   <td><strong>Support Start</strong>
-   </td>
-   <td><strong>Support End</strong>
-   </td>
-   <td><strong>V8 version</strong>
-   </td>
-   <td><strong>V8 branch released</strong>
-   </td>
-   <td><strong>V8 branch abandoned</strong>
-   </td>
-  </tr>
-  <tr>
-   <td>Node.js 4.x
-   </td>
-   <td>2015-10-01
-   </td>
-   <td>April 2018
-   </td>
-   <td>4.5
-   </td>
-   <td>2015-09-01
-   </td>
-   <td>2015-10-13
-   </td>
-  </tr>
-  <tr>
-   <td>Node.js 6.x
-   </td>
-   <td>2016-04-01
-   </td>
-   <td>April 2019
-   </td>
-   <td>5.1
-   </td>
-   <td>2016-05-31
-   </td>
-   <td>2016-06-26
-   </td>
-  </tr>
-  <tr>
-   <td>Node.js 8.x
-   </td>
-   <td>2017-05-30
-   </td>
-   <td>December 2019
-   </td>
-   <td>6.1 (soon to be 6.2)
-   </td>
-   <td>2017-10-17 (6.2)
-   </td>
-   <td>~2017-12-05 (6.2)
-   </td>
-  </tr>
-    <tr>
-   <td>Node.js 9.x
-   </td>
-   <td>2017-10-31
-   </td>
-   <td>April 2018
-   </td>
-   <td>6.2
-   </td>
-   <td>2017-10-17
-   </td>
-   <td>~2017-12-05
-   </td>
-  </tr>
-  <tr>
-   <td>master
-   </td>
-   <td>N/A
-   </td>
-   <td>N/A
-   </td>
-   <td>6.2
-   </td>
-   <td>2017-10-17
-   </td>
-   <td>~2017-12-05
-   </td>
-  </tr>
-</table>
-
-The versions of V8 used in Node.js v4.x, v6.x, and 8.x have already been
+for the various Current, LTS, and nightly releases.
+The versions of V8 used in Node.js may have already been
 abandoned by upstream V8. However, Node.js needs to continue supporting
 these branches for many months (Current branches) or several
 years (LTS branches).
@@ -280,7 +181,7 @@ See [`git-node-v8-backport`][] for more documentation and additional options.
   * Run the Node.js [V8 CI][] in addition to the [Node.js CI][].
     The CI uses the `test-v8` target in the `Makefile`, which uses
     `tools/make-v8.sh` to reconstruct a git tree in the `deps/v8` directory to
-    run V8 tests.[^2]
+    run V8 tests.[^1]
 
 Here are the steps for the bug mentioned above:
 
@@ -463,10 +364,7 @@ This would require some tooling to:
   promoted from `nodejs/v8` to `nodejs/node`.
 * Enabled the V8-CI build in Jenkins to build from the `nodejs/v8` fork.
 
-[^1]: Node.js 0.12 and older are intentionally omitted from this document
-    as their support has ended.
-
-[^2]: On macOS, the V8 tests require a full Xcode install, not just the "command
+[^1]: On macOS, the V8 tests require a full Xcode install, not just the "command
     line tools" for Xcode.
 
 [ChromiumReleaseCalendar]: https://www.chromium.org/developers/calendar
