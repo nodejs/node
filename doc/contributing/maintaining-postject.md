@@ -14,7 +14,7 @@ Check that Node.js still builds and tests.
 
 Add postject: `git add --all test/fixtures/postject-copy`
 
-Commit the changes with a message like
+Commit the changes with a message like:
 
 ```text
 deps: update postject to 1.0.0-alpha.4
