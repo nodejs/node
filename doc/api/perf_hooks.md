@@ -917,6 +917,20 @@ Returns a `object` that is the JSON representation of the
 
 ## Class: `perf_hooks.PerformanceObserver`
 
+<!-- YAML
+added: v8.5.0
+-->
+
+### `PerformanceObserver.supportedEntryTypes`
+
+<!-- YAML
+added: v16.0.0
+-->
+
+* {string\[]}
+
+Get supported types.
+
 ### `new PerformanceObserver(callback)`
 
 <!-- YAML
