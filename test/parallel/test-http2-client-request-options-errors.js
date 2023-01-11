@@ -42,7 +42,7 @@ function determineSpecificType(value) {
     return `${inspect(value, { depth: -1 })}`;
   }
   let inspected = inspect(value, { colors: false });
-  if (inspected.length > 28) { inspected = `${StringPrototypeSlice(inspected, 0, 25)}...`; }
+  if (inspected.length > 28) { inspected = `${inspected.slice(0, 25)}...`; }
 
   return `type ${typeof value} (${inspected})`;
 }
