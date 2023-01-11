@@ -3777,7 +3777,7 @@ try {
 }
 ```
 
-## `http.setMaxIdleHTTPParsers`
+## `http.setMaxIdleHTTPParsers(max)`
 
 <!-- YAML
 added:
@@ -3785,7 +3785,7 @@ added:
   - v16.18.0
 -->
 
-* {number}
+* `max` {number}
 
 Set the maximum number of idle HTTP parsers. **Default:** `1000`.
 
