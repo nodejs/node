@@ -3672,7 +3672,7 @@ changes:
 -->
 
 * `name` {string}
-* `label` {string} Label for error message. **Default:** `Header name`.
+* `label` {string} Label for error message. **Default:** `'Header name'`.
 
 Performs the low-level validations on the provided `name` that are done when
 `res.setHeader(name, value)` is called.
