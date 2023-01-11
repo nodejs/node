@@ -39,6 +39,22 @@ class CopyOnWrite final {
 // Write helpers to access the target data structure.
 template <typename T>
 class ThreadsafeCopyOnWrite final {
+ private:
+  // Define this early since some of the public members depend on it
+  // and some compilers need it to be defined first in that case.
+  struct Impl {
+    explicit Impl(const T& data) : data(data) {}
+    explicit Impl(T&& data) : data(std::move(data)) {}
+
+    Impl(const Impl& other);
+    Impl& operator=(const Impl& other) = delete;
+    Impl(Impl&& other) = delete;
+    Impl& operator=(Impl&& other) = delete;
+
+    RwLock mutex;
+    T data;
+  };
+
  public:
   template <typename... Args>
   ThreadsafeCopyOnWrite(Args&&... args)
@@ -79,19 +95,6 @@ class ThreadsafeCopyOnWrite final {
   Write write() { return Write(this); }
 
  private:
-  struct Impl {
-    explicit Impl(const T& data) : data(data) {}
-    explicit Impl(T&& data) : data(std::move(data)) {}
-
-    Impl(const Impl& other);
-    Impl& operator=(const Impl& other) = delete;
-    Impl(Impl&& other) = delete;
-    Impl& operator=(Impl&& other) = delete;
-
-    RwLock mutex;
-    T data;
-  };
-
   CopyOnWrite<Impl> impl_;
 };
 
