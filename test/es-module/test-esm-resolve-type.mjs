@@ -42,7 +42,7 @@ try {
     [ '/es-modules/package-type-commonjs/index.js', 'commonjs' ],
     [ '/es-modules/package-without-type/index.js', 'commonjs' ],
     [ '/es-modules/package-without-pjson/index.js', 'commonjs' ],
-  ].map(([ testScript, expectedType ]) => {
+  ].forEach(([ testScript, expectedType ]) => {
     const resolvedPath = path.resolve(fixtures.path(testScript));
     const resolveResult = resolve(url.pathToFileURL(resolvedPath));
     assert.strictEqual(resolveResult.format, expectedType);
@@ -186,7 +186,7 @@ try {
     [ 'hmod', 'index.js', 'imp.js', 'commonjs', 'module', 'module', '#Key'],
     [ 'qhmod', 'index.js', 'imp.js', 'commonjs', 'module', 'module', '?k=v#h'],
     [ 'ts-mod-com', 'index.js', 'imp.ts', 'module', 'commonjs', undefined],
-  ].map((testVariant) => {
+  ].forEach((testVariant) => {
     const [
       moduleName,
       mainRequireScript,

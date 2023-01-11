@@ -33,7 +33,7 @@ assert.strictEqual(
 );
 [[], {}, Symbol(), 0, 1, 1n, 1.1, () => {}, true, false].map((arg) =>
   assert.throws(() => {
-    import.meta.resolve('../fixtures/', arg)
+    import.meta.resolve('../fixtures/', arg);
   }, { code: 'ERR_INVALID_ARG_TYPE' })
 );
 assert.strictEqual(
