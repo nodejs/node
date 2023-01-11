@@ -1754,6 +1754,8 @@ This is not used in Node.js and is provided purely for completeness.
 added: v14.5.0
 -->
 
+> Stability: 3 - Legacy: Use [`event.stopPropagation()`][] instead.
+
 * Type: {boolean}
 
 Alias for `event.stopPropagation()` if set to `true`. This is not used
@@ -2166,6 +2168,7 @@ to the `EventTarget`.
 [`emitter.listenerCount()`]: #emitterlistenercounteventname
 [`emitter.removeListener()`]: #emitterremovelistenereventname-listener
 [`emitter.setMaxListeners(n)`]: #emittersetmaxlistenersn
+[`event.stopPropagation()`]: #eventstoppropagation
 [`event.target`]: #eventtarget
 [`events.defaultMaxListeners`]: #eventsdefaultmaxlisteners
 [`fs.ReadStream`]: fs.md#class-fsreadstream
