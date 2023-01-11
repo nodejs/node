@@ -1846,8 +1846,11 @@ Sets the `defaultPrevented` property to `true` if `cancelable` is `true`.
 added: v14.5.0
 -->
 
+> Stability: 3 - Legacy: Use [`event.defaultPrevented`][] instead.
+
 * Type: {boolean} True if the event has not been canceled.
 
+Returns a value which is opposite of the value returned by `defaultPrevented`.
 This is not used in Node.js and is provided purely for completeness.
 
 #### `event.srcElement`
@@ -2168,6 +2171,7 @@ to the `EventTarget`.
 [`emitter.listenerCount()`]: #emitterlistenercounteventname
 [`emitter.removeListener()`]: #emitterremovelistenereventname-listener
 [`emitter.setMaxListeners(n)`]: #emittersetmaxlistenersn
+[`event.defaultPrevented`]: #eventdefaultprevented
 [`event.stopPropagation()`]: #eventstoppropagation
 [`event.target`]: #eventtarget
 [`events.defaultMaxListeners`]: #eventsdefaultmaxlisteners
