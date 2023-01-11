@@ -34,7 +34,7 @@ jobs:
     if: github.event.pull_request.draft == false
     strategy:
       matrix:
-        windows: [windows-2019]
+        windows: [windows-2019, windows-2022]
       fail-fast: false
     runs-on: ${{ matrix.windows }}
     steps:
