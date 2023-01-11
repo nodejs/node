@@ -28,6 +28,25 @@ const types = {
   symbol: Symbol('test')
 };
 
+function determineSpecificType(value) {
+  if (value == null) {
+    return '' + value;
+  }
+  if (typeof value === 'function' && value.name) {
+    return `function ${value.name}`;
+  }
+  if (typeof value === 'object') {
+    if (value.constructor?.name) {
+      return `an instance of ${value.constructor.name}`;
+    }
+    return `${inspect(value, { depth: -1 })}`;
+  }
+  let inspected = inspect(value, { colors: false });
+  if (inspected.length > 28) { inspected = `${StringPrototypeSlice(inspected, 0, 25)}...`; }
+
+  return `type ${typeof value} (${inspected})`;
+}
+
 const server = http2.createServer(common.mustNotCall());
 
 server.listen(0, common.mustCall(() => {
@@ -48,9 +67,9 @@ server.listen(0, common.mustCall(() => {
             [option]: types[type]
           }), {
             name: 'TypeError',
-            code: 'ERR_INVALID_ARG_VALUE',
-            message: `The property 'options.${option}' is invalid. ` +
-                    `Received ${inspect(types[type])}`
+            code: 'ERR_INVALID_ARG_TYPE',
+            message: `The "options.${option}" property must be of type ${optionsToTest[option]}. ` +
+                    `Received ${determineSpecificType(types[type])}`
           });
       });
     });
