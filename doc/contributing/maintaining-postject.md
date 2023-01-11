@@ -5,8 +5,8 @@ The [postject](https://github.com/nodejs/postject) dependency is used for the
 
 ## Updating postject
 
-The `tools/update-postject.sh` script automates the update of the postject
-source files.
+The `tools/dep_updaters/update-postject.sh` script automates the update of the
+postject source files.
 
 Check that Node.js still builds and tests.
 

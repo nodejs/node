@@ -7,9 +7,8 @@
 
 set -ex
 
-cd "$( dirname "$0" )/.." || exit
+cd "$( dirname "$0" )/../.." || exit
 rm -rf test/fixtures/postject-copy
-
 mkdir test/fixtures/postject-copy
 cd test/fixtures/postject-copy || exit
 
