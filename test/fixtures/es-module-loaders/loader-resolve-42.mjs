@@ -1,4 +1,4 @@
-import { writeSync } from 'fs';
+import { writeSync } from 'node:fs';
 
 export async function resolve(specifier, context, next) {
   // This check is needed to make sure that we don't prevent the

@@ -1,4 +1,4 @@
-import { writeSync } from 'fs';
+import { writeSync } from 'node:fs';
 
 export async function resolve(...args) {
   writeSync(1, `resolve arg count: ${args.length}\n`);
