@@ -1,5 +1,5 @@
 const os = require('os')
-const path = require('path')
+const { resolve } = require('path')
 const pacote = require('pacote')
 const table = require('text-table')
 const chalk = require('chalk')
@@ -26,7 +26,7 @@ class Outdated extends ArboristWorkspaceCmd {
   ]
 
   async exec (args) {
-    const global = path.resolve(this.npm.globalDir, '..')
+    const global = resolve(this.npm.globalDir, '..')
     const where = this.npm.global
       ? global
       : this.npm.prefix

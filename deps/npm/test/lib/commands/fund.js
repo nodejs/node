@@ -1,7 +1,8 @@
 const t = require('tap')
-const { fake: mockNpm } = require('../../fixtures/mock-npm')
+const mockNpm = require('../../fixtures/mock-npm')
 
 const version = '1.0.0'
+
 const funding = {
   type: 'individual',
   url: 'http://example.com/donate',
@@ -172,78 +173,64 @@ const conflictingFundingPackages = {
   },
 }
 
-let result = ''
-let printUrl = ''
-const config = {
-  color: false,
-  json: false,
-  global: false,
-  unicode: false,
-  which: null,
-}
-const openUrl = async (npm, url, msg) => {
-  if (url === 'http://npmjs.org') {
-    throw new Error('ERROR')
-  }
+const setup = async (t, { openUrl, ...opts } = {}) => {
+  const openedUrls = []
 
-  if (config.json) {
-    printUrl = JSON.stringify({
-      title: msg,
-      url: url,
-    })
-  } else {
-    printUrl = `${msg}:\n  ${url}`
-  }
-}
-const Fund = t.mock('../../../lib/commands/fund.js', {
-  '../../../lib/utils/open-url.js': openUrl,
-  pacote: {
-    manifest: arg =>
-      arg.name === 'ntl'
-        ? Promise.resolve({
-          funding: 'http://example.com/pacote',
-        })
-        : Promise.reject(new Error('ERROR')),
-  },
-})
-const npm = mockNpm({
-  config,
-  output: msg => {
-    result += msg + '\n'
-  },
-})
-const fund = new Fund(npm)
-
-t.afterEach(() => {
-  printUrl = ''
-  result = ''
-})
-t.test('fund with no package containing funding', async t => {
-  npm.prefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'no-funding-package',
-      version: '0.0.0',
-    }),
+  const res = await mockNpm(t, {
+    ...opts,
+    mocks: {
+      '@npmcli/promise-spawn': { open: openUrl || (async url => openedUrls.push(url)) },
+      pacote: {
+        manifest: arg =>
+          arg.name === 'ntl'
+            ? Promise.resolve({ funding: 'http://example.com/pacote' })
+            : Promise.reject(new Error('ERROR')),
+      },
+      ...opts.mocks,
+    },
   })
 
-  await fund.exec([])
-  t.matchSnapshot(result, 'should print empty funding info')
+  return {
+    ...res,
+    openedUrls: () => openedUrls,
+    fund: (...args) => res.npm.exec('fund', args),
+  }
+}
+
+t.test('fund with no package containing funding', async t => {
+  const { fund, joinedOutput } = await setup(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'no-funding-package',
+        version: '0.0.0',
+      }),
+    },
+    config: {},
+  })
+
+  await fund()
+  t.matchSnapshot(joinedOutput(), 'should print empty funding info')
 })
 
 t.test('fund in which same maintainer owns all its deps', async t => {
-  npm.prefix = t.testdir(maintainerOwnsAllDeps)
+  const { fund, joinedOutput } = await setup(t, {
+    prefixDir: maintainerOwnsAllDeps,
+    config: {},
+  })
 
-  await fund.exec([])
-  t.matchSnapshot(result, 'should print stack packages together')
+  await fund()
+  t.matchSnapshot(joinedOutput(), 'should print stack packages together')
 })
 
 t.test('fund in which same maintainer owns all its deps, using --json option', async t => {
-  config.json = true
-  npm.prefix = t.testdir(maintainerOwnsAllDeps)
+  const { fund, joinedOutput } = await setup(t, {
+    prefixDir: maintainerOwnsAllDeps,
+    config: { json: true },
+  })
 
-  await fund.exec([])
+  await fund()
   t.same(
-    JSON.parse(result),
+    JSON.parse(joinedOutput()),
     {
       length: 3,
       name: 'maintainer-owns-all-deps',
@@ -268,24 +255,27 @@ t.test('fund in which same maintainer owns all its deps, using --json option', a
     },
     'should print stack packages together'
   )
-  config.json = false
 })
 
 t.test('fund containing multi-level nested deps with no funding', async t => {
-  npm.prefix = t.testdir(nestedNoFundingPackages)
+  const { fund, joinedOutput } = await setup(t, {
+    prefixDir: nestedNoFundingPackages,
+    config: {},
+  })
 
-  await fund.exec([])
-  t.matchSnapshot(result, 'should omit dependencies with no funding declared')
-  t.end()
+  await fund()
+  t.matchSnapshot(joinedOutput(), 'should omit dependencies with no funding declared')
 })
 
 t.test('fund containing multi-level nested deps with no funding, using --json option', async t => {
-  npm.prefix = t.testdir(nestedNoFundingPackages)
-  config.json = true
+  const { fund, joinedOutput } = await setup(t, {
+    prefixDir: nestedNoFundingPackages,
+    config: { json: true },
+  })
 
-  await fund.exec([])
+  await fund()
   t.same(
-    JSON.parse(result),
+    JSON.parse(joinedOutput()),
     {
       length: 2,
       name: 'nested-no-funding-packages',
@@ -303,16 +293,17 @@ t.test('fund containing multi-level nested deps with no funding, using --json op
     },
     'should omit dependencies with no funding declared in json output'
   )
-  config.json = false
 })
 
 t.test('fund containing multi-level nested deps with no funding, using --json option', async t => {
-  npm.prefix = t.testdir(nestedMultipleFundingPackages)
-  config.json = true
+  const { fund, joinedOutput } = await setup(t, {
+    prefixDir: nestedMultipleFundingPackages,
+    config: { json: true },
+  })
 
-  await fund.exec([])
+  await fund()
   t.same(
-    JSON.parse(result),
+    JSON.parse(joinedOutput()),
     {
       length: 2,
       name: 'nested-multiple-funding-packages',
@@ -355,376 +346,337 @@ t.test('fund containing multi-level nested deps with no funding, using --json op
     },
     'should list multiple funding entries in json output'
   )
-  config.json = false
 })
 
 t.test('fund does not support global', async t => {
-  npm.prefix = t.testdir({})
-  config.global = true
+  const { fund } = await setup(t, {
+    config: { global: true },
+  })
 
-  await t.rejects(fund.exec([]), { code: 'EFUNDGLOBAL' }, 'should throw EFUNDGLOBAL error')
-  config.global = false
+  await t.rejects(fund(), { code: 'EFUNDGLOBAL' }, 'should throw EFUNDGLOBAL error')
 })
 
 t.test('fund using package argument', async t => {
-  npm.prefix = t.testdir(maintainerOwnsAllDeps)
+  const { fund, openedUrls, joinedOutput } = await setup(t, {
+    prefixDir: maintainerOwnsAllDeps,
+    config: {},
+  })
 
-  await fund.exec(['.'])
-  t.matchSnapshot(printUrl, 'should open funding url')
+  await fund('.')
+  t.equal(joinedOutput(), '')
+  t.strictSame(openedUrls(), ['http://example.com/donate'], 'should open funding url')
 })
 
 t.test('fund does not support global, using --json option', async t => {
-  npm.prefix = t.testdir({})
-  config.global = true
-  config.json = true
+  const { fund } = await setup(t, {
+    prefixDir: {},
+    config: { global: true, json: true },
+  })
 
   await t.rejects(
-    fund.exec([]),
+    fund(),
     { code: 'EFUNDGLOBAL', message: '`npm fund` does not support global packages' },
     'should use expected error msg'
   )
-  config.global = false
-  config.json = false
 })
 
 t.test('fund using string shorthand', async t => {
-  npm.prefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'funding-string-shorthand',
-      version: '0.0.0',
-      funding: 'https://example.com/sponsor',
-    }),
+  const { fund, openedUrls } = await setup(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'funding-string-shorthand',
+        version: '0.0.0',
+        funding: 'https://example.com/sponsor',
+      }),
+    },
+    config: {},
   })
 
-  await fund.exec(['.'])
-  t.matchSnapshot(printUrl, 'should open string-only url')
+  await fund('.')
+  t.strictSame(openedUrls(), ['https://example.com/sponsor'], 'should open string-only url')
 })
 
 t.test('fund using nested packages with multiple sources', async t => {
-  npm.prefix = t.testdir(nestedMultipleFundingPackages)
+  const { fund, joinedOutput } = await setup(t, {
+    prefixDir: nestedMultipleFundingPackages,
+    config: {},
+  })
 
-  await fund.exec(['.'])
-  t.matchSnapshot(result, 'should prompt with all available URLs')
+  await fund('.')
+  t.matchSnapshot(joinedOutput(), 'should prompt with all available URLs')
 })
 
 t.test('fund using symlink ref', async t => {
-  npm.prefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'using-symlink-ref',
-      version: '1.0.0',
-    }),
-    a: {
+  const f = 'http://example.com/a'
+  const { fund, openedUrls } = await setup(t, {
+    prefixDir: {
       'package.json': JSON.stringify({
-        name: 'a',
+        name: 'using-symlink-ref',
         version: '1.0.0',
-        funding: 'http://example.com/a',
       }),
-    },
-    node_modules: {
-      a: t.fixture('symlink', '../a'),
-    },
-  })
-
-  // using symlinked ref
-  await fund.exec(['./node_modules/a'])
-  t.match(printUrl, 'http://example.com/a', 'should retrieve funding url from symlink')
-
-  printUrl = ''
-  result = ''
-
-  // using target ref
-  await fund.exec(['./a'])
-
-  t.match(printUrl, 'http://example.com/a', 'should retrieve funding url from symlink target')
-})
-
-t.test('fund using data from actual tree', async t => {
-  npm.prefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'using-actual-tree',
-      version: '1.0.0',
-    }),
-    node_modules: {
       a: {
         'package.json': JSON.stringify({
           name: 'a',
           version: '1.0.0',
-          funding: 'http://example.com/a',
+          funding: f,
         }),
       },
-      b: {
-        'package.json': JSON.stringify({
-          name: 'a',
-          version: '1.0.0',
-          funding: 'http://example.com/b',
-        }),
-        node_modules: {
-          a: {
-            'package.json': JSON.stringify({
-              name: 'a',
-              version: '1.0.1',
-              funding: 'http://example.com/_AAA',
-            }),
+      node_modules: {
+        a: t.fixture('symlink', '../a'),
+      },
+    },
+    config: {},
+  })
+
+  // using symlinked ref
+  await fund('./node_modules/a')
+  t.strictSame(openedUrls(), [f], 'should retrieve funding url from symlink')
+
+  // using target ref
+  await fund('./a')
+  t.strictSame(openedUrls(), [f, f], 'should retrieve funding url from symlink target')
+})
+
+t.test('fund using data from actual tree', async t => {
+  const { fund, openedUrls } = await setup(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'using-actual-tree',
+        version: '1.0.0',
+      }),
+      node_modules: {
+        a: {
+          'package.json': JSON.stringify({
+            name: 'a',
+            version: '1.0.0',
+            funding: 'http://example.com/a',
+          }),
+        },
+        b: {
+          'package.json': JSON.stringify({
+            name: 'a',
+            version: '1.0.0',
+            funding: 'http://example.com/b',
+          }),
+          node_modules: {
+            a: {
+              'package.json': JSON.stringify({
+                name: 'a',
+                version: '1.0.1',
+                funding: 'http://example.com/_AAA',
+              }),
+            },
           },
         },
       },
     },
+    config: {},
   })
 
   // using symlinked ref
-  await fund.exec(['a'])
-  t.match(
-    printUrl,
-    'http://example.com/_AAA',
+  await fund('a')
+  t.strictSame(
+    openedUrls(),
+    ['http://example.com/_AAA'],
     'should retrieve fund info from actual tree, using greatest version found'
   )
 })
 
 t.test('fund using nested packages with multiple sources, with a source number', async t => {
-  npm.prefix = t.testdir(nestedMultipleFundingPackages)
-  config.which = '1'
+  const { fund, openedUrls } = await setup(t, {
+    prefixDir: nestedMultipleFundingPackages,
+    config: { which: '1' },
+  })
 
-  await fund.exec(['.'])
-  t.matchSnapshot(printUrl, 'should open the numbered URL')
-  config.which = null
+  await fund('.')
+  t.strictSame(openedUrls(), ['https://one.example.com'], 'should open the numbered URL')
 })
 
 t.test('fund using pkg name while having conflicting versions', async t => {
-  npm.prefix = t.testdir(conflictingFundingPackages)
-  config.which = '1'
+  const { fund, openedUrls } = await setup(t, {
+    prefixDir: conflictingFundingPackages,
+    config: { which: '1' },
+  })
 
-  await fund.exec(['foo'])
-  t.matchSnapshot(printUrl, 'should open greatest version')
+  await fund('foo')
+  t.strictSame(openedUrls(), ['http://example.com/2'], 'should open greatest version')
+})
+
+t.test('fund using bad which value: index too high', async t => {
+  const { fund, joinedOutput } = await setup(t, {
+    prefixDir: nestedMultipleFundingPackages,
+    config: { which: '100' },
+  })
+
+  await fund('foo')
+  t.match(joinedOutput(), 'not a valid index')
+  t.matchSnapshot(joinedOutput(), 'should print message about invalid which')
 })
 
 t.test('fund using package argument with no browser, using --json option', async t => {
-  npm.prefix = t.testdir(maintainerOwnsAllDeps)
-  config.json = true
+  const { fund, openedUrls, joinedOutput } = await setup(t, {
+    prefixDir: maintainerOwnsAllDeps,
+    config: { json: true },
+  })
 
-  await fund.exec(['.'])
+  await fund('.')
+  t.equal(joinedOutput(), '', 'no output')
   t.same(
-    JSON.parse(printUrl),
-    {
-      title: 'individual funding available at the following URL',
-      url: 'http://example.com/donate',
-    },
+    openedUrls(),
+    ['http://example.com/donate'],
     'should open funding url using json output'
   )
-  config.json = false
 })
 
 t.test('fund using package info fetch from registry', async t => {
-  npm.prefix = t.testdir({})
+  const { fund, openedUrls } = await setup(t, {
+    prefixDir: {},
+    config: {},
+  })
 
-  await fund.exec(['ntl'])
+  await fund('ntl')
   t.match(
-    printUrl,
+    openedUrls(),
     /http:\/\/example.com\/pacote/,
     'should open funding url that was loaded from registry manifest'
   )
 })
 
 t.test('fund tries to use package info fetch from registry but registry has nothing', async t => {
-  npm.prefix = t.testdir({})
+  const { fund } = await setup(t, {
+    prefixDir: {},
+    config: {},
+  })
 
   await t.rejects(
-    fund.exec(['foo']),
+    fund('foo'),
     { code: 'ENOFUND', message: 'No valid funding method available for: foo' },
     'should have no valid funding message'
   )
 })
 
 t.test('fund but target module has no funding info', async t => {
-  npm.prefix = t.testdir(nestedNoFundingPackages)
+  const { fund } = await setup(t, {
+    prefixDir: nestedNoFundingPackages,
+    config: {},
+  })
 
   await t.rejects(
-    fund.exec(['foo']),
+    fund('foo'),
     { code: 'ENOFUND', message: 'No valid funding method available for: foo' },
     'should have no valid funding message'
   )
 })
 
 t.test('fund using bad which value', async t => {
-  npm.prefix = t.testdir(nestedMultipleFundingPackages)
-  config.which = 3
+  const { fund } = await setup(t, {
+    prefixDir: nestedMultipleFundingPackages,
+    config: { which: '0' },
+  })
 
   await t.rejects(
-    fund.exec(['bar']),
+    fund('bar'),
     {
       code: 'EFUNDNUMBER',
-      /* eslint-disable-next-line max-len */
-      message: '`npm fund [<@scope>/]<pkg> [--which=fundingSourceNumber]` must be given a positive integer',
+      message: /must be given a positive integer/,
     },
     'should have bad which option error message'
   )
-  config.which = null
 })
 
 t.test('fund pkg missing version number', async t => {
-  npm.prefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'foo',
-      funding: 'http://example.com/foo',
-    }),
+  const { fund, joinedOutput } = await setup(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'foo',
+        funding: 'http://example.com/foo',
+      }),
+    },
+    config: {},
   })
 
-  await fund.exec([])
-  t.matchSnapshot(result, 'should print name only')
+  await fund()
+  t.matchSnapshot(joinedOutput(), 'should print name only')
 })
 
 t.test('fund a package throws on openUrl', async t => {
-  npm.prefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'foo',
-      version: '1.0.0',
-      funding: 'http://npmjs.org',
-    }),
+  const { fund } = await setup(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'foo',
+        version: '1.0.0',
+        funding: 'http://npmjs.org',
+      }),
+    },
+    config: {},
+    openUrl: () => {
+      throw new Error('ERROR')
+    },
   })
 
-  await t.rejects(fund.exec(['.']), { message: 'ERROR' }, 'should throw unknown error')
+  await t.rejects(fund('.'), { message: 'ERROR' }, 'should throw unknown error')
 })
 
 t.test('fund a package with type and multiple sources', async t => {
-  npm.prefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'foo',
-      funding: [
-        {
-          type: 'Foo',
-          url: 'http://example.com/foo',
-        },
-        {
-          type: 'Lorem',
-          url: 'http://example.com/foo-lorem',
-        },
-      ],
-    }),
+  const { fund, joinedOutput } = await setup(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'foo',
+        funding: [
+          {
+            type: 'Foo',
+            url: 'http://example.com/foo',
+          },
+          {
+            type: 'Lorem',
+            url: 'http://example.com/foo-lorem',
+          },
+        ],
+      }),
+    },
+    config: {},
   })
 
-  await fund.exec(['.'])
-  t.matchSnapshot(result, 'should print prompt select message')
+  await fund('.')
+  t.matchSnapshot(joinedOutput(), 'should print prompt select message')
 })
 
 t.test('fund colors', async t => {
-  npm.prefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'test-fund-colors',
-      version: '1.0.0',
-      dependencies: {
-        a: '^1.0.0',
-        b: '^1.0.0',
-        c: '^1.0.0',
-      },
-    }),
-    node_modules: {
-      a: {
-        'package.json': JSON.stringify({
-          name: 'a',
-          version: '1.0.0',
-          funding: 'http://example.com/a',
-        }),
-      },
-      b: {
-        'package.json': JSON.stringify({
-          name: 'b',
-          version: '1.0.0',
-          funding: 'http://example.com/b',
-          dependencies: {
-            d: '^1.0.0',
-            e: '^1.0.0',
-          },
-        }),
-      },
-      c: {
-        'package.json': JSON.stringify({
-          name: 'c',
-          version: '1.0.0',
-          funding: 'http://example.com/b',
-        }),
-      },
-      d: {
-        'package.json': JSON.stringify({
-          name: 'd',
-          version: '1.0.0',
-          funding: 'http://example.com/d',
-        }),
-      },
-      e: {
-        'package.json': JSON.stringify({
-          name: 'e',
-          version: '1.0.0',
-          funding: 'http://example.com/e',
-        }),
-      },
-    },
-  })
-  npm.color = true
-
-  await fund.exec([])
-  t.matchSnapshot(result, 'should print output with color info')
-  npm.color = false
-})
-
-t.test('sub dep with fund info and a parent with no funding info', async t => {
-  npm.prefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'test-multiple-funding-sources',
-      version: '1.0.0',
-      dependencies: {
-        a: '^1.0.0',
-        b: '^1.0.0',
-      },
-    }),
-    node_modules: {
-      a: {
-        'package.json': JSON.stringify({
-          name: 'a',
-          version: '1.0.0',
-          dependencies: {
-            c: '^1.0.0',
-          },
-        }),
-      },
-      b: {
-        'package.json': JSON.stringify({
-          name: 'b',
-          version: '1.0.0',
-          funding: 'http://example.com/b',
-        }),
-      },
-      c: {
-        'package.json': JSON.stringify({
-          name: 'c',
-          version: '1.0.0',
-          funding: ['http://example.com/c', 'http://example.com/c-other'],
-        }),
-      },
-    },
-  })
-
-  await fund.exec([])
-  t.matchSnapshot(result, 'should nest sub dep as child of root')
-})
-
-t.test('workspaces', async t => {
-  t.test('filter funding info by a specific workspace', async t => {
-    npm.localPrefix = npm.prefix = t.testdir({
+  const { fund, joinedOutput } = await setup(t, {
+    prefixDir: {
       'package.json': JSON.stringify({
-        name: 'workspaces-support',
+        name: 'test-fund-colors',
         version: '1.0.0',
-        workspaces: ['packages/*'],
         dependencies: {
-          d: '^1.0.0',
+          a: '^1.0.0',
+          b: '^1.0.0',
+          c: '^1.0.0',
         },
       }),
       node_modules: {
-        a: t.fixture('symlink', '../packages/a'),
-        b: t.fixture('symlink', '../packages/b'),
+        a: {
+          'package.json': JSON.stringify({
+            name: 'a',
+            version: '1.0.0',
+            funding: 'http://example.com/a',
+          }),
+        },
+        b: {
+          'package.json': JSON.stringify({
+            name: 'b',
+            version: '1.0.0',
+            funding: 'http://example.com/b',
+            dependencies: {
+              d: '^1.0.0',
+              e: '^1.0.0',
+            },
+          }),
+        },
         c: {
           'package.json': JSON.stringify({
             name: 'c',
             version: '1.0.0',
-            funding: ['http://example.com/c', 'http://example.com/c-other'],
+            funding: 'http://example.com/b',
           }),
         },
         d: {
@@ -734,13 +686,38 @@ t.test('workspaces', async t => {
             funding: 'http://example.com/d',
           }),
         },
+        e: {
+          'package.json': JSON.stringify({
+            name: 'e',
+            version: '1.0.0',
+            funding: 'http://example.com/e',
+          }),
+        },
       },
-      packages: {
+    },
+    config: { color: 'always' },
+  })
+
+  await fund()
+  t.matchSnapshot(joinedOutput(), 'should print output with color info')
+})
+
+t.test('sub dep with fund info and a parent with no funding info', async t => {
+  const { fund, joinedOutput } = await setup(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'test-multiple-funding-sources',
+        version: '1.0.0',
+        dependencies: {
+          a: '^1.0.0',
+          b: '^1.0.0',
+        },
+      }),
+      node_modules: {
         a: {
           'package.json': JSON.stringify({
             name: 'a',
             version: '1.0.0',
-            funding: 'https://example.com/a',
             dependencies: {
               c: '^1.0.0',
             },
@@ -751,22 +728,97 @@ t.test('workspaces', async t => {
             name: 'b',
             version: '1.0.0',
             funding: 'http://example.com/b',
-            dependencies: {
-              d: '^1.0.0',
-            },
+          }),
+        },
+        c: {
+          'package.json': JSON.stringify({
+            name: 'c',
+            version: '1.0.0',
+            funding: ['http://example.com/c', 'http://example.com/c-other'],
           }),
         },
       },
+    },
+    config: {},
+  })
+
+  await fund()
+  t.matchSnapshot(joinedOutput(), 'should nest sub dep as child of root')
+})
+
+t.test('workspaces', async t => {
+  const wsPrefixDir = {
+    'package.json': JSON.stringify({
+      name: 'workspaces-support',
+      version: '1.0.0',
+      workspaces: ['packages/*'],
+      dependencies: {
+        d: '^1.0.0',
+      },
+    }),
+    node_modules: {
+      a: t.fixture('symlink', '../packages/a'),
+      b: t.fixture('symlink', '../packages/b'),
+      c: {
+        'package.json': JSON.stringify({
+          name: 'c',
+          version: '1.0.0',
+          funding: ['http://example.com/c', 'http://example.com/c-other'],
+        }),
+      },
+      d: {
+        'package.json': JSON.stringify({
+          name: 'd',
+          version: '1.0.0',
+          funding: 'http://example.com/d',
+        }),
+      },
+    },
+    packages: {
+      a: {
+        'package.json': JSON.stringify({
+          name: 'a',
+          version: '1.0.0',
+          funding: 'https://example.com/a',
+          dependencies: {
+            c: '^1.0.0',
+          },
+        }),
+      },
+      b: {
+        'package.json': JSON.stringify({
+          name: 'b',
+          version: '1.0.0',
+          funding: 'http://example.com/b',
+          dependencies: {
+            d: '^1.0.0',
+          },
+        }),
+      },
+    },
+  }
+
+  t.test('filter funding info by a specific workspace name', async t => {
+    const { fund, joinedOutput } = await setup(t, {
+      prefixDir: wsPrefixDir,
+      config: {
+        workspace: 'a',
+      },
     })
 
-    await fund.execWorkspaces([], ['a'])
+    await fund()
+    t.matchSnapshot(joinedOutput(), 'should display only filtered workspace name and its deps')
+  })
 
-    t.matchSnapshot(result, 'should display only filtered workspace name and its deps')
+  t.test('filter funding info by a specific workspace path', async t => {
+    const { fund, joinedOutput } = await setup(t, {
+      prefixDir: wsPrefixDir,
+      config: {
+        workspace: './packages/a',
+      },
+    })
 
-    result = ''
-
-    await fund.execWorkspaces([], ['./packages/a'])
-
-    t.matchSnapshot(result, 'should display only filtered workspace path and its deps')
+    await fund()
+    t.matchSnapshot(joinedOutput(), 'should display only filtered workspace name and its deps')
   })
 })

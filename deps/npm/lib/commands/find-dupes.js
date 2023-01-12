@@ -18,7 +18,7 @@ class FindDupes extends ArboristWorkspaceCmd {
     ...super.params,
   ]
 
-  async exec (args, cb) {
+  async exec (args) {
     this.npm.config.set('dry-run', true)
     return this.npm.exec('dedupe', [])
   }

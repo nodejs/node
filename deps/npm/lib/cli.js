@@ -68,6 +68,11 @@ module.exports = async process => {
   // leak any private CLI configs to other programs
   process.title = 'npm'
 
+  // if npm is called as "npmg" or "npm_g", then run in global mode.
+  if (process.argv[1][process.argv[1].length - 1] === 'g') {
+    process.argv.splice(1, 1, 'npm', '-g')
+  }
+
   // Nothing should happen before this line if we can't guarantee it will
   // not have syntax errors in some version of node
   const validateEngines = createEnginesValidation()
@@ -77,11 +82,6 @@ module.exports = async process => {
   const Npm = require('./npm.js')
   const npm = new Npm()
   exitHandler.setNpm(npm)
-
-  // if npm is called as "npmg" or "npm_g", then run in global mode.
-  if (process.argv[1][process.argv[1].length - 1] === 'g') {
-    process.argv.splice(1, 1, 'npm', '-g')
-  }
 
   // only log node and npm paths in argv initially since argv can contain
   // sensitive info. a cleaned version will be logged later
@@ -112,6 +112,7 @@ module.exports = async process => {
   // this is how to use npm programmatically:
   try {
     await npm.load()
+
     if (npm.config.get('version', 'cli')) {
       npm.output(npm.version)
       return exitHandler()
@@ -130,7 +131,7 @@ module.exports = async process => {
       return exitHandler()
     }
 
-    await npm.exec(cmd, npm.argv)
+    await npm.exec(cmd)
     return exitHandler()
   } catch (err) {
     if (err.code === 'EUNKNOWNCOMMAND') {

@@ -7,28 +7,41 @@ const util = require('util')
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
 const { allCommands } = require('../../lib/utils/cmd-list.js')
 
+const isAsyncFn = (v) => typeof v === 'function' && /^\[AsyncFunction:/.test(util.inspect(v))
+
 t.test('load each command', async t => {
   for (const cmd of allCommands) {
     t.test(cmd, async t => {
-      const { npm, outputs } = await loadMockNpm(t, {
+      const { npm, outputs, cmd: impl } = await loadMockNpm(t, {
+        command: cmd,
         config: { usage: true },
       })
-      const impl = await npm.cmd(cmd)
+      const ctor = impl.constructor
+
       if (impl.completion) {
         t.type(impl.completion, 'function', 'completion, if present, is a function')
       }
-      t.type(impl.exec, 'function', 'implementation has an exec function')
-      t.type(impl.execWorkspaces, 'function', 'implementation has an execWorkspaces function')
-      t.equal(util.inspect(impl.exec), '[AsyncFunction: exec]', 'exec function is async')
-      t.equal(
-        util.inspect(impl.execWorkspaces),
-        '[AsyncFunction: execWorkspaces]',
-        'execWorkspaces function is async'
-      )
+
+      // exec fn
+      t.ok(isAsyncFn(impl.exec), 'exec is async')
+      t.ok(impl.exec.length <= 1, 'exec fn has 0 or 1 args')
+
+      // workspaces
+      t.type(ctor.ignoreImplicitWorkspace, 'boolean', 'ctor has ignoreImplictWorkspace boolean')
+      t.type(ctor.workspaces, 'boolean', 'ctor has workspaces boolean')
+      if (ctor.workspaces) {
+        t.ok(isAsyncFn(impl.execWorkspaces), 'execWorkspaces is async')
+        t.ok(impl.exec.length <= 1, 'execWorkspaces fn has 0 or 1 args')
+      } else {
+        t.notOk(impl.execWorkspaces, 'has no execWorkspaces fn')
+      }
+
+      // name/desc
       t.ok(impl.description, 'implementation has a description')
       t.ok(impl.name, 'implementation has a name')
       t.equal(cmd, impl.name, 'command list and name are the same')
-      t.ok(impl.ignoreImplicitWorkspace !== undefined, 'implementation has ignoreImplictWorkspace')
+
+      // usage
       t.match(impl.usage, cmd, 'usage contains the command')
       await npm.exec(cmd, [])
       t.match(outputs[0][0], impl.usage, 'usage is what is output')

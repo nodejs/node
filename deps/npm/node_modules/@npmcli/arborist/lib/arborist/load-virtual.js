@@ -1,5 +1,6 @@
 // mixin providing the loadVirtual method
 const localeCompare = require('@isaacs/string-locale-compare')('en')
+const mapWorkspaces = require('@npmcli/map-workspaces')
 
 const { resolve } = require('path')
 
@@ -21,7 +22,6 @@ const loadRoot = Symbol('loadRoot')
 const loadNode = Symbol('loadVirtualNode')
 const loadLink = Symbol('loadVirtualLink')
 const loadWorkspaces = Symbol.for('loadWorkspaces')
-const loadWorkspacesVirtual = Symbol.for('loadWorkspacesVirtual')
 const flagsSuspect = Symbol.for('flagsSuspect')
 const reCalcDepFlags = Symbol('reCalcDepFlags')
 const checkRootEdges = Symbol('checkRootEdges')
@@ -157,7 +157,7 @@ module.exports = cls => class VirtualLoader extends cls {
     }
 
     const lockWS = []
-    const workspaces = this[loadWorkspacesVirtual]({
+    const workspaces = mapWorkspaces.virtual({
       cwd: this.path,
       lockfile: s.data,
     })

@@ -1,5 +1,4 @@
 const util = require('util')
-const _data = Symbol('data')
 const _delete = Symbol('delete')
 const _append = Symbol('append')
 
@@ -236,6 +235,8 @@ const setter = ({ data, key, value, force }) => {
 }
 
 class Queryable {
+  #data = null
+
   constructor (obj) {
     if (!obj || typeof obj !== 'object') {
       throw Object.assign(new Error('Queryable needs an object to query properties from.'), {
@@ -243,7 +244,7 @@ class Queryable {
       })
     }
 
-    this[_data] = obj
+    this.#data = obj
   }
 
   query (queries) {
@@ -251,12 +252,12 @@ class Queryable {
     // with the legacy API lib/view.js is consuming, if at some point
     // we refactor that command then we can revisit making this nicer
     if (queries === '') {
-      return { '': this[_data] }
+      return { '': this.#data }
     }
 
     const q = query =>
       getter({
-        data: this[_data],
+        data: this.#data,
         key: query,
       })
 
@@ -283,7 +284,7 @@ class Queryable {
   // and assigns `value` to the last property of the query chain
   set (query, value, { force } = {}) {
     setter({
-      data: this[_data],
+      data: this.#data,
       key: query,
       value,
       force,
@@ -293,14 +294,14 @@ class Queryable {
   // deletes the value of the property found at `query`
   delete (query) {
     setter({
-      data: this[_data],
+      data: this.#data,
       key: query,
       value: _delete,
     })
   }
 
   toJSON () {
-    return this[_data]
+    return this.#data
   }
 
   [util.inspect.custom] () {

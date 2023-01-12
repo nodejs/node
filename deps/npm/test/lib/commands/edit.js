@@ -9,7 +9,7 @@ const npmConfig = {
   config: {
     'ignore-scripts': false,
     editor: 'testeditor',
-    scriptShell: process.platform === 'win32' ? process.env.COMSPEC : 'sh',
+    'script-shell': process.platform === 'win32' ? process.env.COMSPEC : 'sh',
   },
   prefixDir: {
     node_modules: {
@@ -38,7 +38,7 @@ t.test('npm edit', async t => {
   const semverPath = path.resolve(npm.prefix, 'node_modules', 'semver')
   spawk.spawn('testeditor', [semverPath])
 
-  const scriptShell = npm.config.get('scriptShell')
+  const scriptShell = npm.config.get('script-shell')
   const scriptArgs = isCmdRe.test(scriptShell)
     ? ['/d', '/s', '/c', 'testinstall']
     : ['-c', 'testinstall']
@@ -54,7 +54,7 @@ t.test('rebuild failure', async t => {
   const semverPath = path.resolve(npm.prefix, 'node_modules', 'semver')
   spawk.spawn('testeditor', [semverPath])
 
-  const scriptShell = npm.config.get('scriptShell')
+  const scriptShell = npm.config.get('script-shell')
   const scriptArgs = isCmdRe.test(scriptShell)
     ? ['/d', '/s', '/c', 'testinstall']
     : ['-c', 'testinstall']
@@ -89,7 +89,7 @@ t.test('npm edit editor has flags', async t => {
   const semverPath = path.resolve(npm.prefix, 'node_modules', 'semver')
   spawk.spawn('testeditor', ['--flag', semverPath])
 
-  const scriptShell = npm.config.get('scriptShell')
+  const scriptShell = npm.config.get('script-shell')
   const scriptArgs = isCmdRe.test(scriptShell)
     ? ['/d', '/s', '/c', 'testinstall']
     : ['-c', 'testinstall']

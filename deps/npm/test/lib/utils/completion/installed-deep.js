@@ -1,5 +1,6 @@
 const { resolve } = require('path')
 const t = require('tap')
+const installedDeep = require('../../../../lib/utils/completion/installed-deep.js')
 
 let prefix
 let globalDir = 'MISSING_GLOBAL_DIR'
@@ -11,8 +12,6 @@ const _flatOptions = {
     return prefix
   },
 }
-const p = '../../../../lib/utils/completion/installed-deep.js'
-const installedDeep = require(p)
 const npm = {
   flatOptions: _flatOptions,
   get prefix () {

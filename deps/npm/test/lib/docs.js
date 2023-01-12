@@ -41,7 +41,7 @@ t.test('basic usage', async t => {
   // are generated in the following test
   const { npm } = await loadMockNpm(t, {
     mocks: {
-      '../../lib/utils/cmd-list.js': { commands: [] },
+      '{LIB}/utils/cmd-list.js': { commands: [] },
     },
   })
 
