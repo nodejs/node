@@ -34,7 +34,7 @@ Important concepts when using V8 are the ones of [`Isolate`][]s and
 ## libuv API documentation
 
 The other major dependency of Node.js is [libuv][], providing
-the [event loop][] and other operation system abstractions to Node.js.
+the [event loop][] and other operating system abstractions to Node.js.
 
 There is a [reference documentation for the libuv API][].
 
