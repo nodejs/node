@@ -313,7 +313,7 @@ function makeATestReadableStream(value) {
 function makeATestWritableStream(writeFunc) {
   return new WritableStream({
     write(chunk) {
-      writeFunc(chunk)
+      writeFunc(chunk);
     }
   });
 }
@@ -386,7 +386,7 @@ function makeATestWritableStream(writeFunc) {
     writable: makeATestWritableStream((chunk) => ret += chunk),
   });
 
-  d.end('bar')
+  d.end('bar');
 
   d.on('data', common.mustCall((data) => {
     assert.strictEqual(data.toString(), 'foo');
