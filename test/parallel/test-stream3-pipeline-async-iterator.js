@@ -1,8 +1,6 @@
+/* eslint-disable node-core/require-common-first, require-yield */
 'use strict';
-const common = require('../common');
-const assert = require('assert');
 const { pipeline } = require('node:stream/promises');
-
 {
   // Ensure that async iterators can act as readable and writable streams
   async function* myCustomReadable() {
@@ -10,18 +8,20 @@ const { pipeline } = require('node:stream/promises');
     yield 'World';
   }
 
-  // eslint-disable-next-line require-yield
+  const messages = [];
   async function* myCustomWritable(stream) {
-    const messages = [];
     for await (const chunk of stream) {
       messages.push(chunk);
     }
-    assert.deepStrictEqual(messages, ['Hello', 'World']);
   }
 
-  pipeline(
-    myCustomReadable,
-    myCustomWritable,
-  )
-  .then(common.mustCall());
+  (async () => {
+    await pipeline(
+      myCustomReadable,
+      myCustomWritable,
+    );
+    // Importing here to avoid initializing streams
+    require('assert').deepStrictEqual(messages, ['Hello', 'World']);
+  })()
+  .then(require('../common').mustCall());
 }
