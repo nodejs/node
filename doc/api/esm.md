@@ -9,7 +9,7 @@ added: v8.5.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/44710
-    description: User hooks are executed off thread.
+    description: User hooks are executed off the main thread.
   - version:
     - v18.6.0
     - v16.17.0
