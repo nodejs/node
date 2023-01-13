@@ -33,7 +33,7 @@ jobs:
         run: tools/find-inactive-collaborators.mjs
 
       - name: Open pull request
-        uses: gr2m/create-or-update-pull-request-action@dc1726cbf4dd3ce766af4ec29cfb660e0125e8ee
+        uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
         env:
