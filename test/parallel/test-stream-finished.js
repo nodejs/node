@@ -260,12 +260,7 @@ const http = require('http');
   const streamLike = new EE();
   streamLike.readableEnded = true;
   streamLike.readable = true;
-  assert.throws(
-    () => {
-      finished(streamLike, () => {});
-    },
-    { code: 'ERR_INVALID_ARG_TYPE' }
-  );
+  finished(streamLike, common.mustCall());
   streamLike.emit('close');
 }
 
