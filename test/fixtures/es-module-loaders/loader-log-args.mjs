@@ -1,8 +1,9 @@
 import { writeSync } from 'node:fs';
+import { format } from 'node:util';
 
 export async function resolve(...args) {
   writeSync(1, `resolve arg count: ${args.length}\n`);
-  writeSync(1, `${JSON.stringify({
+  writeSync(1, `${format({
     specifier: args[0],
     context: args[1],
     next: args[2],
@@ -15,8 +16,8 @@ export async function resolve(...args) {
 }
 
 export async function load(...args) {
-  writeSync(1, `load arg count: ${args.length}`);
-  writeSync(1, `${JSON.stringify({
+  writeSync(1, `load arg count: ${args.length}\n`);
+  writeSync(1, `${format({
     url: args[0],
     context: args[1],
     next: args[2],
