@@ -81,6 +81,11 @@ class BindingData : public SnapshotableObject {
 
   static void SlowBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  static void ConstrainedMemoryImpl(BindingData* receiver);
+  static void SlowGetConstrainedMemory(
+    const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void FastGetConstrainedMemory(v8::Local<v8::Value> receiver);
+
  private:
   static constexpr size_t kBufferSize =
       std::max(sizeof(uint64_t), sizeof(uint32_t) * 3);
@@ -92,6 +97,7 @@ class BindingData : public SnapshotableObject {
   // time.
   static v8::CFunction fast_number_;
   static v8::CFunction fast_bigint_;
+  static v8::CFunction fast_get_constrained_memory_;
 };
 
 }  // namespace process

@@ -471,11 +471,18 @@ BindingData::BindingData(Environment* env, v8::Local<v8::Object> object)
 
 v8::CFunction BindingData::fast_number_(v8::CFunction::Make(FastNumber));
 v8::CFunction BindingData::fast_bigint_(v8::CFunction::Make(FastBigInt));
+v8::CFunction BindingData::fast_get_constrained_memory_ =
+  v8::CFunction::Make(FastGetConstrainedMemory);
 
 void BindingData::AddMethods() {
   Local<Context> ctx = env()->context();
   SetFastMethod(ctx, object(), "hrtime", SlowNumber, &fast_number_);
   SetFastMethod(ctx, object(), "hrtimeBigInt", SlowBigInt, &fast_bigint_);
+  SetFastMethod(ctx,
+                object(),
+                "constrainedMemory",
+                SlowGetConstrainedMemory,
+                &fast_get_constrained_memory_);
 }
 
 void BindingData::RegisterExternalReferences(
@@ -486,6 +493,9 @@ void BindingData::RegisterExternalReferences(
   registry->Register(FastBigInt);
   registry->Register(fast_number_.GetTypeInfo());
   registry->Register(fast_bigint_.GetTypeInfo());
+  registry->Register(SlowGetConstrainedMemory);
+  registry->Register(FastGetConstrainedMemory);
+  registry->Register(fast_get_constrained_memory_.GetTypeInfo());
 }
 
 BindingData* BindingData::FromV8Value(Local<Value> value) {
@@ -531,6 +541,23 @@ void BindingData::SlowBigInt(const FunctionCallbackInfo<Value>& args) {
 
 void BindingData::SlowNumber(const v8::FunctionCallbackInfo<v8::Value>& args) {
   NumberImpl(FromJSObject<BindingData>(args.Holder()));
+}
+
+void BindingData::ConstrainedMemoryImpl(BindingData* receiver) {
+  // Make sure we don't accidentally access buffers wiped for snapshot.
+  CHECK(!receiver->array_buffer_.IsEmpty());
+  uint64_t t = uv_get_constrained_memory();
+  uint64_t* fields = static_cast<uint64_t*>(receiver->backing_store_->Data());
+  fields[0] = t;
+}
+
+void BindingData::SlowGetConstrainedMemory(
+  const FunctionCallbackInfo<Value>& args) {
+  ConstrainedMemoryImpl(FromJSObject<BindingData>(args.Holder()));
+}
+
+void BindingData::FastGetConstrainedMemory(v8::Local<v8::Value> receiver) {
+  ConstrainedMemoryImpl(FromV8Value(receiver));
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,

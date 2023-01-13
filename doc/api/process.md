@@ -1103,6 +1103,21 @@ and [Cluster][] documentation), the `process.connected` property will return
 Once `process.connected` is `false`, it is no longer possible to send messages
 over the IPC channel using `process.send()`.
 
+## `process.constrainedMemory()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+Gets the amount of memory available to the process (in bytes) based on
+limits imposed by the OS. If there is no such constraint, or the constraint
+is unknown, `0` is returned. It is not unusual for this value to
+be less than or greater than `os.totalmem()`. This function currently only
+returns a non-zero value on Linux, based on cgroups if it is present, and
+on z/OS based on `RLIMIT_MEMLIMIT`.
+
 ## `process.cpuUsage([previousValue])`
 
 <!-- YAML
