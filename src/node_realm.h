@@ -56,7 +56,7 @@ class Realm : public MemoryRetainer {
   Realm& operator=(Realm&&) = delete;
 
   SET_MEMORY_INFO_NAME(Realm)
-  SET_SELF_SIZE(Realm);
+  SET_SELF_SIZE(Realm)
   void MemoryInfo(MemoryTracker* tracker) const override;
 
   void CreateProperties();
