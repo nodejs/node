@@ -9,7 +9,7 @@ added: v8.5.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/44710
-    description: Convert from asynchronous to synchronous.
+    description: User hooks are executed off thread.
   - version:
     - v18.6.0
     - v16.17.0
@@ -328,6 +328,9 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44710
+    description: This API now returns a string synchronously instead of a Promise.
   - version:
       - v16.2.0
       - v14.18.0
@@ -352,8 +355,6 @@ synchronously.
 > **Caveat** This can result in synchronous file-system operations, which
 > can impact performance similarly to `require.resolve`.
 
-<!-- eslint-skip -->
-
 ```js
 const dependencyAsset = import.meta.resolve('component-lib/asset.css');
 ```
@@ -361,14 +362,9 @@ const dependencyAsset = import.meta.resolve('component-lib/asset.css');
 `import.meta.resolve` also accepts a second argument which is the parent module
 from which to resolve from:
 
-<!-- eslint-skip -->
-
 ```js
 import.meta.resolve('./dep', import.meta.url);
 ```
-
-This function is synchronous because the ES module resolver in Node.js is
-synchronous.
 
 ## Interoperability with CommonJS
 
@@ -741,9 +737,6 @@ prevent unintentional breaks in the chain.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/44710
-    description: Convert hook from asynchronous to synchronous.
   - version:
     - v18.6.0
     - v16.17.0
@@ -772,7 +765,7 @@ changes:
   Node.js default `resolve` hook after the last user-supplied `resolve` hook
   * `specifier` {string}
   * `context` {Object}
-* Returns: {Object}
+* Returns: {Object|Promise}
   * `format` {string|null|undefined} A hint to the load hook (it might be
     ignored)
     `'builtin' | 'commonjs' | 'json' | 'module' | 'wasm'`
@@ -782,8 +775,8 @@ changes:
     terminate the chain of `resolve` hooks. **Default:** `false`
   * `url` {string} The absolute URL to which this input resolves
 
-> **Caveat** A resolve hook can contain synchronous file-system operations
-> (as `defaultResolveHook()` does), which can impact performance.
+> **Caveat** Despite support for returning promises, calls to `resolve` will
+> block the main thread which can impact performance.
 
 The `resolve` hook chain is responsible for telling Node.js where to find and
 how to cache a given `import` statement or expression. It can optionally return
