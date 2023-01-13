@@ -273,7 +273,7 @@ const transformedStream = stream.pipeThrough(transform);
 })();
 ```
 
-#### `readableStream.pipeTo(destination, options)`
+#### `readableStream.pipeTo(destination[, options])`
 
 <!-- YAML
 added: v16.5.0
