@@ -27,7 +27,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 // Google Test - The Google C++ Testing and Mocking Framework
 //
 // This file implements a universal value printer that can print a
@@ -95,7 +94,9 @@
 // being defined as many user-defined container types don't have
 // value_type.
 
-// GOOGLETEST_CM0001 DO NOT DELETE
+// IWYU pragma: private, include "gtest/gtest.h"
+// IWYU pragma: friend gtest/.*
+// IWYU pragma: friend gmock/.*
 
 #ifndef GOOGLETEST_INCLUDE_GTEST_GTEST_PRINTERS_H_
 #define GOOGLETEST_INCLUDE_GTEST_GTEST_PRINTERS_H_
@@ -107,6 +108,7 @@
 #include <string>
 #include <tuple>
 #include <type_traits>
+#include <typeinfo>
 #include <utility>
 #include <vector>
 
@@ -257,12 +259,10 @@ struct ConvertibleToStringViewPrinter {
 #endif
 };
 
-
 // Prints the given number of bytes in the given object to the given
 // ostream.
 GTEST_API_ void PrintBytesInObjectTo(const unsigned char* obj_bytes,
-                                     size_t count,
-                                     ::std::ostream* os);
+                                     size_t count, ::std::ostream* os);
 struct RawBytesPrinter {
   // SFINAE on `sizeof` to make sure we have a complete type.
   template <typename T, size_t = sizeof(T)>
@@ -375,17 +375,17 @@ GTEST_IMPL_FORMAT_C_STRING_AS_POINTER_(const char32_t);
 // to point to a NUL-terminated string, and thus can print it as a string.
 
 #define GTEST_IMPL_FORMAT_C_STRING_AS_STRING_(CharType, OtherStringType) \
-  template <>                                                           \
-  class FormatForComparison<CharType*, OtherStringType> {               \
-   public:                                                              \
-    static ::std::string Format(CharType* value) {                      \
-      return ::testing::PrintToString(value);                           \
-    }                                                                   \
+  template <>                                                            \
+  class FormatForComparison<CharType*, OtherStringType> {                \
+   public:                                                               \
+    static ::std::string Format(CharType* value) {                       \
+      return ::testing::PrintToString(value);                            \
+    }                                                                    \
   }
 
 GTEST_IMPL_FORMAT_C_STRING_AS_STRING_(char, ::std::string);
 GTEST_IMPL_FORMAT_C_STRING_AS_STRING_(const char, ::std::string);
-#ifdef __cpp_char8_t
+#ifdef __cpp_lib_char8_t
 GTEST_IMPL_FORMAT_C_STRING_AS_STRING_(char8_t, ::std::u8string);
 GTEST_IMPL_FORMAT_C_STRING_AS_STRING_(const char8_t, ::std::u8string);
 #endif
@@ -410,8 +410,8 @@ GTEST_IMPL_FORMAT_C_STRING_AS_STRING_(const wchar_t, ::std::wstring);
 //
 // INTERNAL IMPLEMENTATION - DO NOT USE IN A USER PROGRAM.
 template <typename T1, typename T2>
-std::string FormatForComparisonFailureMessage(
-    const T1& value, const T2& /* other_operand */) {
+std::string FormatForComparisonFailureMessage(const T1& value,
+                                              const T2& /* other_operand */) {
   return FormatForComparison<T1, T2>::Format(value);
 }
 
@@ -479,6 +479,87 @@ inline void PrintTo(char8_t c, ::std::ostream* os) {
 }
 #endif
 
+// gcc/clang __{u,}int128_t
+#if defined(__SIZEOF_INT128__)
+GTEST_API_ void PrintTo(__uint128_t v, ::std::ostream* os);
+GTEST_API_ void PrintTo(__int128_t v, ::std::ostream* os);
+#endif  // __SIZEOF_INT128__
+
+// The default resolution used to print floating-point values uses only
+// 6 digits, which can be confusing if a test compares two values whose
+// difference lies in the 7th digit.  So we'd like to print out numbers
+// in full precision.
+// However if the value is something simple like 1.1, full will print a
+// long string like 1.100000001 due to floating-point numbers not using
+// a base of 10.  This routiune returns an appropriate resolution for a
+// given floating-point number, that is, 6 if it will be accurate, or a
+// max_digits10 value (full precision) if it won't,  for values between
+// 0.0001 and one million.
+// It does this by computing what those digits would be (by multiplying
+// by an appropriate power of 10), then dividing by that power again to
+// see if gets the original value back.
+// A similar algorithm applies for values larger than one million; note
+// that for those values, we must divide to get a six-digit number, and
+// then multiply to possibly get the original value again.
+template <typename FloatType>
+int AppropriateResolution(FloatType val) {
+  int full = std::numeric_limits<FloatType>::max_digits10;
+  if (val < 0) val = -val;
+
+  if (val < 1000000) {
+    FloatType mulfor6 = 1e10;
+    if (val >= 100000.0) {  // 100,000 to 999,999
+      mulfor6 = 1.0;
+    } else if (val >= 10000.0) {
+      mulfor6 = 1e1;
+    } else if (val >= 1000.0) {
+      mulfor6 = 1e2;
+    } else if (val >= 100.0) {
+      mulfor6 = 1e3;
+    } else if (val >= 10.0) {
+      mulfor6 = 1e4;
+    } else if (val >= 1.0) {
+      mulfor6 = 1e5;
+    } else if (val >= 0.1) {
+      mulfor6 = 1e6;
+    } else if (val >= 0.01) {
+      mulfor6 = 1e7;
+    } else if (val >= 0.001) {
+      mulfor6 = 1e8;
+    } else if (val >= 0.0001) {
+      mulfor6 = 1e9;
+    }
+    if (static_cast<int32_t>(val * mulfor6 + 0.5) / mulfor6 == val) return 6;
+  } else if (val < 1e10) {
+    FloatType divfor6 = 1.0;
+    if (val >= 1e9) {  // 1,000,000,000 to 9,999,999,999
+      divfor6 = 10000;
+    } else if (val >= 1e8) {  // 100,000,000 to 999,999,999
+      divfor6 = 1000;
+    } else if (val >= 1e7) {  // 10,000,000 to 99,999,999
+      divfor6 = 100;
+    } else if (val >= 1e6) {  // 1,000,000 to 9,999,999
+      divfor6 = 10;
+    }
+    if (static_cast<int32_t>(val / divfor6 + 0.5) * divfor6 == val) return 6;
+  }
+  return full;
+}
+
+inline void PrintTo(float f, ::std::ostream* os) {
+  auto old_precision = os->precision();
+  os->precision(AppropriateResolution(f));
+  *os << f;
+  os->precision(old_precision);
+}
+
+inline void PrintTo(double d, ::std::ostream* os) {
+  auto old_precision = os->precision();
+  os->precision(AppropriateResolution(d));
+  *os << d;
+  os->precision(old_precision);
+}
+
 // Overloads for C strings.
 GTEST_API_ void PrintTo(const char* s, ::std::ostream* os);
 inline void PrintTo(char* s, ::std::ostream* os) {
@@ -545,13 +626,13 @@ void PrintRawArrayTo(const T a[], size_t count, ::std::ostream* os) {
 }
 
 // Overloads for ::std::string.
-GTEST_API_ void PrintStringTo(const ::std::string&s, ::std::ostream* os);
+GTEST_API_ void PrintStringTo(const ::std::string& s, ::std::ostream* os);
 inline void PrintTo(const ::std::string& s, ::std::ostream* os) {
   PrintStringTo(s, os);
 }
 
 // Overloads for ::std::u8string
-#ifdef __cpp_char8_t
+#ifdef __cpp_lib_char8_t
 GTEST_API_ void PrintU8StringTo(const ::std::u8string& s, ::std::ostream* os);
 inline void PrintTo(const ::std::u8string& s, ::std::ostream* os) {
   PrintU8StringTo(s, os);
@@ -572,7 +653,7 @@ inline void PrintTo(const ::std::u32string& s, ::std::ostream* os) {
 
 // Overloads for ::std::wstring.
 #if GTEST_HAS_STD_WSTRING
-GTEST_API_ void PrintWideStringTo(const ::std::wstring&s, ::std::ostream* os);
+GTEST_API_ void PrintWideStringTo(const ::std::wstring& s, ::std::ostream* os);
 inline void PrintTo(const ::std::wstring& s, ::std::ostream* os) {
   PrintWideStringTo(s, os);
 }
@@ -586,6 +667,12 @@ inline void PrintTo(internal::StringView sp, ::std::ostream* os) {
 #endif  // GTEST_INTERNAL_HAS_STRING_VIEW
 
 inline void PrintTo(std::nullptr_t, ::std::ostream* os) { *os << "(nullptr)"; }
+
+#if GTEST_HAS_RTTI
+inline void PrintTo(const std::type_info& info, std::ostream* os) {
+  *os << internal::GetTypeName(info);
+}
+#endif  // GTEST_HAS_RTTI
 
 template <typename T>
 void PrintTo(std::reference_wrapper<T> ref, ::std::ostream* os) {
@@ -744,6 +831,14 @@ class UniversalPrinter<Optional<T>> {
   }
 };
 
+template <>
+class UniversalPrinter<decltype(Nullopt())> {
+ public:
+  static void Print(decltype(Nullopt()), ::std::ostream* os) {
+    *os << "(nullopt)";
+  }
+};
+
 #endif  // GTEST_INTERNAL_HAS_OPTIONAL
 
 #if GTEST_INTERNAL_HAS_VARIANT
@@ -802,8 +897,8 @@ void UniversalPrintArray(const T* begin, size_t len, ::std::ostream* os) {
   }
 }
 // This overload prints a (const) char array compactly.
-GTEST_API_ void UniversalPrintArray(
-    const char* begin, size_t len, ::std::ostream* os);
+GTEST_API_ void UniversalPrintArray(const char* begin, size_t len,
+                                    ::std::ostream* os);
 
 #ifdef __cpp_char8_t
 // This overload prints a (const) char8_t array compactly.
@@ -820,8 +915,8 @@ GTEST_API_ void UniversalPrintArray(const char32_t* begin, size_t len,
                                     ::std::ostream* os);
 
 // This overload prints a (const) wchar_t array compactly.
-GTEST_API_ void UniversalPrintArray(
-    const wchar_t* begin, size_t len, ::std::ostream* os);
+GTEST_API_ void UniversalPrintArray(const wchar_t* begin, size_t len,
+                                    ::std::ostream* os);
 
 // Implements printing an array type T[N].
 template <typename T, size_t N>
@@ -870,6 +965,13 @@ class UniversalTersePrinter<T&> {
  public:
   static void Print(const T& value, ::std::ostream* os) {
     UniversalPrint(value, os);
+  }
+};
+template <typename T>
+class UniversalTersePrinter<std::reference_wrapper<T>> {
+ public:
+  static void Print(std::reference_wrapper<T> value, ::std::ostream* os) {
+    UniversalTersePrinter<T>::Print(value.get(), os);
   }
 };
 template <typename T, size_t N>
@@ -980,10 +1082,10 @@ void UniversalPrint(const T& value, ::std::ostream* os) {
   UniversalPrinter<T1>::Print(value, os);
 }
 
-typedef ::std::vector< ::std::string> Strings;
+typedef ::std::vector<::std::string> Strings;
 
-  // Tersely prints the first N fields of a tuple to a string vector,
-  // one element for each field.
+// Tersely prints the first N fields of a tuple to a string vector,
+// one element for each field.
 template <typename Tuple>
 void TersePrintPrefixToStrings(const Tuple&, std::integral_constant<size_t, 0>,
                                Strings*) {}
