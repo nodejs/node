@@ -247,7 +247,6 @@ void BuiltinLoader::AddExternalizedBuiltin(const char* id,
     fprintf(
         stderr, "Cannot load externalized builtin: \"%s:%s\".\n", id, filename);
     ABORT();
-    return;
   }
 
   Add(id, source);
