@@ -27,7 +27,7 @@
 
   'conditions': [
     [ 'clang==1', {
-      'cflags': [ '-Werror=undefined-inline', ]
+      'cflags': [ '-Werror=undefined-inline', '-Werror=extra-semi']
     }],
     [ '"<(_type)"=="executable"', {
       'msvs_settings': {
