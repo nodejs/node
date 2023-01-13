@@ -775,8 +775,8 @@ changes:
     terminate the chain of `resolve` hooks. **Default:** `false`
   * `url` {string} The absolute URL to which this input resolves
 
-> **Caveat** Despite support for returning promises, calls to `resolve` will
-> block the main thread which can impact performance.
+> **Caveat** Despite support for returning promises and async function, calls to
+> `resolve` may block the main thread which can impact performance.
 
 The `resolve` hook chain is responsible for telling Node.js where to find and
 how to cache a given `import` statement or expression. It can optionally return
