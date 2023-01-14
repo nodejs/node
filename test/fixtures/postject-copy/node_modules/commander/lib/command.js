@@ -815,6 +815,25 @@ Expecting one of '${allowedValues.join("', '")}'`);
   }
 
   /**
+    * Get source of option value. See also .optsWithGlobals().
+    * Expected values are default | config | env | cli | implied
+    *
+    * @param {string} key
+    * @return {string}
+    */
+
+  getOptionValueSourceWithGlobals(key) {
+    // global overwrites local, like optsWithGlobals
+    let source;
+    getCommandAndParents(this).forEach((cmd) => {
+      if (cmd.getOptionValueSource(key) !== undefined) {
+        source = cmd.getOptionValueSource(key);
+      }
+    });
+    return source;
+  }
+
+  /**
    * Get user arguments from implied or explicit arguments.
    * Side-effects: set _scriptPath if args included script. Used for default program name, and subcommand searches.
    *

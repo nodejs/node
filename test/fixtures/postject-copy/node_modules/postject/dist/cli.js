@@ -28,6 +28,7 @@ async function main(filename, resourceName, resource, options) {
     await inject(filename, resourceName, resourceData, {
       machoSegmentName: options.machoSegmentName,
       overwrite: options.overwrite,
+      sentinelFuse: options.sentinelFuse,
     });
   } catch (err) {
     console.log(err.message);
@@ -51,6 +52,11 @@ if (require.main === module) {
       "--macho-segment-name <segment_name>",
       "Name for the Mach-O segment",
       "__POSTJECT"
+    )
+    .option(
+      "--sentinel-fuse <sentinel_fuse>",
+      "Sentinel fuse for resource presence detection",
+      "POSTJECT_SENTINEL_fce680ab2cc467b6e072b8b5df1996b2"
     )
     .option("--output-api-header", "Output the API header to stdout")
     .option("--overwrite", "Overwrite the resource if it already exists")

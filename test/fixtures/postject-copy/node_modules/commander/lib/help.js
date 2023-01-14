@@ -16,6 +16,7 @@ class Help {
     this.helpWidth = undefined;
     this.sortSubcommands = false;
     this.sortOptions = false;
+    this.showGlobalOptions = false;
   }
 
   /**
@@ -46,6 +47,21 @@ class Help {
   }
 
   /**
+   * Compare options for sort.
+   *
+   * @param {Option} a
+   * @param {Option} b
+   * @returns number
+   */
+  compareOptions(a, b) {
+    const getSortKey = (option) => {
+      // WYSIWYG for order displayed in help. Short used for comparison if present. No special handling for negated.
+      return option.short ? option.short.replace(/^-/, '') : option.long.replace(/^--/, '');
+    };
+    return getSortKey(a).localeCompare(getSortKey(b));
+  }
+
+  /**
    * Get an array of the visible options. Includes a placeholder for the implicit help option, if there is one.
    *
    * @param {Command} cmd
@@ -69,15 +85,30 @@ class Help {
       visibleOptions.push(helpOption);
     }
     if (this.sortOptions) {
-      const getSortKey = (option) => {
-        // WYSIWYG for order displayed in help with short before long, no special handling for negated.
-        return option.short ? option.short.replace(/^-/, '') : option.long.replace(/^--/, '');
-      };
-      visibleOptions.sort((a, b) => {
-        return getSortKey(a).localeCompare(getSortKey(b));
-      });
+      visibleOptions.sort(this.compareOptions);
     }
     return visibleOptions;
+  }
+
+  /**
+   * Get an array of the visible global options. (Not including help.)
+   *
+   * @param {Command} cmd
+   * @returns {Option[]}
+   */
+
+  visibleGlobalOptions(cmd) {
+    if (!this.showGlobalOptions) return [];
+
+    const globalOptions = [];
+    for (let parentCmd = cmd.parent; parentCmd; parentCmd = parentCmd.parent) {
+      const visibleOptions = parentCmd.options.filter((option) => !option.hidden);
+      globalOptions.push(...visibleOptions);
+    }
+    if (this.sortOptions) {
+      globalOptions.sort(this.compareOptions);
+    }
+    return globalOptions;
   }
 
   /**
@@ -169,6 +200,20 @@ class Help {
   }
 
   /**
+   * Get the longest global option term length.
+   *
+   * @param {Command} cmd
+   * @param {Help} helper
+   * @returns {number}
+   */
+
+  longestGlobalOptionTermLength(cmd, helper) {
+    return helper.visibleGlobalOptions(cmd).reduce((max, option) => {
+      return Math.max(max, helper.optionTerm(option).length);
+    }, 0);
+  }
+
+  /**
    * Get the longest argument term length.
    *
    * @param {Command} cmd
@@ -216,7 +261,7 @@ class Help {
 
   /**
    * Get the subcommand summary to show in the list of subcommands.
-   * (Fallback to description for backwards compatiblity.)
+   * (Fallback to description for backwards compatibility.)
    *
    * @param {Command} cmd
    * @returns {string}
@@ -341,6 +386,15 @@ class Help {
       output = output.concat(['Options:', formatList(optionList), '']);
     }
 
+    if (this.showGlobalOptions) {
+      const globalOptionList = helper.visibleGlobalOptions(cmd).map((option) => {
+        return formatItem(helper.optionTerm(option), helper.optionDescription(option));
+      });
+      if (globalOptionList.length > 0) {
+        output = output.concat(['Global Options:', formatList(globalOptionList), '']);
+      }
+    }
+
     // Commands
     const commandList = helper.visibleCommands(cmd).map((cmd) => {
       return formatItem(helper.subcommandTerm(cmd), helper.subcommandDescription(cmd));
@@ -363,6 +417,7 @@ class Help {
   padWidth(cmd, helper) {
     return Math.max(
       helper.longestOptionTermLength(cmd, helper),
+      helper.longestGlobalOptionTermLength(cmd, helper),
       helper.longestSubcommandTermLength(cmd, helper),
       helper.longestArgumentTermLength(cmd, helper)
     );
