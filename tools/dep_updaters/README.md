@@ -60,3 +60,23 @@ been created with the changes), do the following:
 3. Check that Node.js compiles without errors and the tests pass.
 4. Create a commit for the update and in the commit message include the
    important/relevant items from the changelog.
+
+## postject
+
+The `update-postject.sh` script downloads postject from the [npm package](http://npmjs.com/package/postject)
+and uses it to replace the contents of `test/fixtures/postject-copy`.
+
+In order to update, the following command can be run:
+
+```bash
+./tools/dep_updaters/update-postject.sh
+```
+
+Once the script has run (either manually, or by CI in which case a PR will have
+been created with the changes), do the following:
+
+1. Check the [changelog](https://github.com/nodejs/postject/releases/tag/v1.0.0-alpha.4)
+   for things that might require changes in Node.js.
+2. Check that Node.js compiles without errors and the tests pass.
+3. Create a commit for the update and in the commit message include the
+   important/relevant items from the changelog.
