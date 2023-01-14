@@ -1295,7 +1295,7 @@ function _resume (client, sync) {
 }
 
 function write (client, request) {
-  const { body, method, path, host, upgrade, headers, blocking } = request
+  const { body, method, path, host, upgrade, headers, blocking, reset } = request
 
   // https://tools.ietf.org/html/rfc7231#section-4.3.1
   // https://tools.ietf.org/html/rfc7231#section-4.3.2
@@ -1363,7 +1363,6 @@ function write (client, request) {
 
   if (method === 'HEAD') {
     // https://github.com/mcollina/undici/issues/258
-
     // Close after a HEAD request to interop with misbehaving servers
     // that may send a body in the response.
 
@@ -1374,6 +1373,10 @@ function write (client, request) {
     // On CONNECT or upgrade, block pipeline from dispatching further
     // requests on this connection.
 
+    socket[kReset] = true
+  }
+
+  if (reset) {
     socket[kReset] = true
   }
 
@@ -1395,7 +1398,7 @@ function write (client, request) {
 
   if (upgrade) {
     header += `connection: upgrade\r\nupgrade: ${upgrade}\r\n`
-  } else if (client[kPipelining]) {
+  } else if (client[kPipelining] && !socket[kReset]) {
     header += 'connection: keep-alive\r\n'
   } else {
     header += 'connection: close\r\n'

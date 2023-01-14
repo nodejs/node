@@ -1,5 +1,5 @@
-import { TlsOptions } from 'tls'
 import Agent from './agent'
+import buildConnector from './connector';
 import Dispatcher from './dispatcher'
 
 export default ProxyAgent
@@ -19,7 +19,7 @@ declare namespace ProxyAgent {
      */
     auth?: string;
     token?: string;
-    requestTls?: TlsOptions & { servername?: string };
-    proxyTls?: TlsOptions & { servername?: string };
+    requestTls?: buildConnector.BuildOptions;
+    proxyTls?: buildConnector.BuildOptions;
   }
 }
