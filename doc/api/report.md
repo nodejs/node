@@ -567,9 +567,9 @@ In cases where standard streams are used, the value in `directory` is ignored.
 URLs are not supported. Defaults to a composite filename that contains
 timestamp, PID, and sequence number.
 
-`directory` specifies the filesystem directory where the report will be written.
-URLs are not supported. Defaults to the current working directory of the
-Node.js process.
+`directory` specifies the file system directory where the report will be
+written. URLs are not supported. Defaults to the current working directory of
+the Node.js process.
 
 ```js
 // Trigger report only on uncaught exceptions.
