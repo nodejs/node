@@ -77,6 +77,16 @@ jobs:
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
                 ./tools/update-undici.sh
               fi
+          - id: postject
+            subsystem: deps
+            label: dependencies
+            run: |
+              NEW_VERSION=$(npm view postject dist-tags.latest)
+              CURRENT_VERSION=$(node -p "require('./test/fixtures/postject-copy/node_modules/postject/package.json').version")
+              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                ./tools/dep_updaters/update-postject.sh
+              fi
           - id: base64
             subsystem: deps
             label: dependencies
