@@ -901,6 +901,14 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
   if (kind_ == kDecipher && IsSupportedAuthenticatedMode(ctx_.get()))
     MaybePassAuthTagToOpenSSL();
 
+  // OpenSSL v1.x doesn't verify the presence of the auth tag so do
+  // it ourselves, see https://github.com/nodejs/node/issues/45874.
+  if (OPENSSL_VERSION_NUMBER < 0x30000000L && kind_ == kDecipher &&
+      NID_chacha20_poly1305 == EVP_CIPHER_CTX_nid(ctx_.get()) &&
+      auth_tag_state_ != kAuthTagPassedToOpenSSL) {
+    return false;
+  }
+
   // In CCM mode, final() only checks whether authentication failed in update().
   // EVP_CipherFinal_ex must not be called and will fail.
   bool ok;
