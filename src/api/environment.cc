@@ -424,6 +424,9 @@ void FreeEnvironment(Environment* env) {
     Context::Scope context_scope(env->context());
     SealHandleScope seal_handle_scope(isolate);
 
+    // Set the flag in accordance with the DisallowJavascriptExecutionScope
+    // above.
+    env->set_can_call_into_js(false);
     env->set_stopping(true);
     env->stop_sub_worker_contexts();
     env->RunCleanup();

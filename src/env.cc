@@ -910,10 +910,13 @@ void Environment::InitializeLibuv() {
 }
 
 void Environment::ExitEnv() {
-  set_can_call_into_js(false);
+  // Should not access non-thread-safe methods here.
   set_stopping(true);
   isolate_->TerminateExecution();
-  SetImmediateThreadsafe([](Environment* env) { uv_stop(env->event_loop()); });
+  SetImmediateThreadsafe([](Environment* env) {
+    env->set_can_call_into_js(false);
+    uv_stop(env->event_loop());
+  });
 }
 
 void Environment::RegisterHandleCleanups() {
