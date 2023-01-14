@@ -3777,7 +3777,7 @@ try {
 }
 ```
 
-## `http.setMaxIdleHTTPParsers`
+## `http.setMaxIdleHTTPParsers(max)`
 
 <!-- YAML
 added:
@@ -3785,9 +3785,9 @@ added:
   - v16.18.0
 -->
 
-* {number}
+* `max` {number} **Default:** `1000`.
 
-Set the maximum number of idle HTTP parsers. **Default:** `1000`.
+Set the maximum number of idle HTTP parsers.
 
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
 [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`]: errors.md#err_http_content_length_mismatch
