@@ -32,7 +32,7 @@ const { finished: finishedPromise } = require('stream/promises');
   });
 
   finished(rs, common.mustCall((err) => {
-    assert.strictEqual(err?.message, "asd");
+    assert.strictEqual(err?.message, 'asd');
   }));
 }
 
@@ -44,7 +44,7 @@ const { finished: finishedPromise } = require('stream/promises');
   });
 
   finished(rs, common.mustCall((err) => {
-    assert.strictEqual(err?.message, "asd");
+    assert.strictEqual(err?.message, 'asd');
   }));
 }
 
@@ -77,7 +77,7 @@ const { finished: finishedPromise } = require('stream/promises');
   });
 
   finishedPromise(rs).then(common.mustNotCall()).catch(common.mustCall((err) => {
-    assert.strictEqual(err?.message, "asd");
+    assert.strictEqual(err?.message, 'asd');
   }));
 }
 
@@ -89,7 +89,7 @@ const { finished: finishedPromise } = require('stream/promises');
   });
 
   finishedPromise(rs).then(common.mustNotCall()).catch(common.mustCall((err) => {
-    assert.strictEqual(err?.message, "asd");
+    assert.strictEqual(err?.message, 'asd');
   }));
 }
 
@@ -130,11 +130,11 @@ const { finished: finishedPromise } = require('stream/promises');
   const { 0: s1, 1: s2 } = rs.tee();
 
   finished(s1, common.mustCall((err) => {
-    assert.strictEqual(err?.message, "asd");
+    assert.strictEqual(err?.message, 'asd');
   }));
 
   finished(s2, common.mustCall((err) => {
-    assert.strictEqual(err?.message, "asd");
+    assert.strictEqual(err?.message, 'asd');
   }));
 }
 
@@ -176,12 +176,12 @@ const { finished: finishedPromise } = require('stream/promises');
   });
 
   finished(ws, common.mustCall((err) => {
-    assert.strictEqual(err?.message, "asd");
+    assert.strictEqual(err?.message, 'asd');
   }));
 
   const writer = ws.getWriter();
   writer.write('asd').catch((err) => {
-    assert.strictEqual(err?.message, "asd");
+    assert.strictEqual(err?.message, 'asd');
   });
 }
 
@@ -203,14 +203,11 @@ const { finished: finishedPromise } = require('stream/promises');
 }
 
 {
-  let str = '';
   const ws = new WritableStream({
-    write(chunk) {
-      str += chunk;
-    }
+    write(chunk) { }
   });
   finished(ws, common.mustCall((err) => {
-    assert.strictEqual(err?.message, "asd");
+    assert.strictEqual(err?.message, 'asd');
   }));
 
   const writer = ws.getWriter();
@@ -225,11 +222,11 @@ const { finished: finishedPromise } = require('stream/promises');
   });
 
   finishedPromise(ws).then(common.mustNotCall()).catch(common.mustCall((err) => {
-    assert.strictEqual(err?.message, "asd");
+    assert.strictEqual(err?.message, 'asd');
   }));
 
   const writer = ws.getWriter();
   writer.write('asd').catch((err) => {
-    assert.strictEqual(err?.message, "asd");
+    assert.strictEqual(err?.message, 'asd');
   });
 }
