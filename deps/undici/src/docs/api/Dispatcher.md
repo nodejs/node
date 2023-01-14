@@ -192,6 +192,7 @@ Returns: `Boolean` - `false` if dispatcher is busy and further dispatch calls wo
 * **origin** `string | URL`
 * **path** `string`
 * **method** `string`
+* **reset** `boolean` (optional) - Default: `false` - If `false`, the request will attempt to create a long-living connection by sending the `connection: keep-alive` header,otherwise will attempt to close it immediately after response by sending `connection: close` within the request and closing the socket afterwards.
 * **body** `string | Buffer | Uint8Array | stream.Readable | Iterable | AsyncIterable | null` (optional) - Default: `null`
 * **headers** `UndiciHeaders | string[]` (optional) - Default: `null`.
 * **query** `Record<string, any> | null` (optional) - Default: `null` - Query string params to be embedded in the request URL. Note that both keys and values of query are encoded using `encodeURIComponent`. If for some reason you need to send them unencoded, embed query params into path directly instead.
