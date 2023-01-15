@@ -26,13 +26,15 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+
 // The Google C++ Testing and Mocking Framework (Google Test)
 //
 // This header file declares functions and macros used internally by
 // Google Test.  They are subject to change without notice.
 
-// GOOGLETEST_CM0001 DO NOT DELETE
+// IWYU pragma: private, include "gtest/gtest.h"
+// IWYU pragma: friend gtest/.*
+// IWYU pragma: friend gmock/.*
 
 #ifndef GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_INTERNAL_H_
 #define GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_INTERNAL_H_
@@ -40,26 +42,29 @@
 #include "gtest/internal/gtest-port.h"
 
 #if GTEST_OS_LINUX
-# include <stdlib.h>
-# include <sys/types.h>
-# include <sys/wait.h>
-# include <unistd.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #endif  // GTEST_OS_LINUX
 
 #if GTEST_HAS_EXCEPTIONS
-# include <stdexcept>
+#include <stdexcept>
 #endif
 
 #include <ctype.h>
 #include <float.h>
 #include <string.h>
+
 #include <cstdint>
+#include <functional>
 #include <iomanip>
 #include <limits>
 #include <map>
 #include <set>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "gtest/gtest-message.h"
@@ -76,7 +81,7 @@
 // the current line number.  For more details, see
 // http://www.parashift.com/c++-faq-lite/misc-technical-issues.html#faq-39.6
 #define GTEST_CONCAT_TOKEN_(foo, bar) GTEST_CONCAT_TOKEN_IMPL_(foo, bar)
-#define GTEST_CONCAT_TOKEN_IMPL_(foo, bar) foo ## bar
+#define GTEST_CONCAT_TOKEN_IMPL_(foo, bar) foo##bar
 
 // Stringifies its argument.
 // Work around a bug in visual studio which doesn't accept code like this:
@@ -98,21 +103,21 @@ namespace testing {
 
 // Forward declarations.
 
-class AssertionResult;                 // Result of an assertion.
-class Message;                         // Represents a failure message.
-class Test;                            // Represents a test.
-class TestInfo;                        // Information about a test.
-class TestPartResult;                  // Result of a test part.
-class UnitTest;                        // A collection of test suites.
+class AssertionResult;  // Result of an assertion.
+class Message;          // Represents a failure message.
+class Test;             // Represents a test.
+class TestInfo;         // Information about a test.
+class TestPartResult;   // Result of a test part.
+class UnitTest;         // A collection of test suites.
 
 template <typename T>
 ::std::string PrintToString(const T& value);
 
 namespace internal {
 
-struct TraceInfo;                      // Information about a trace point.
-class TestInfoImpl;                    // Opaque implementation of TestInfo
-class UnitTestImpl;                    // Opaque implementation of UnitTest
+struct TraceInfo;    // Information about a trace point.
+class TestInfoImpl;  // Opaque implementation of TestInfo
+class UnitTestImpl;  // Opaque implementation of UnitTest
 
 // The text used in failure messages to indicate the start of the
 // stack trace.
@@ -121,6 +126,7 @@ GTEST_API_ extern const char kStackTraceMarker[];
 // An IgnoredValue object can be implicitly constructed from ANY value.
 class IgnoredValue {
   struct Sink {};
+
  public:
   // This constructor template allows any value to be implicitly
   // converted to IgnoredValue.  The object has no data member and
@@ -136,13 +142,13 @@ class IgnoredValue {
 };
 
 // Appends the user-supplied message to the Google-Test-generated message.
-GTEST_API_ std::string AppendUserMessage(
-    const std::string& gtest_msg, const Message& user_msg);
+GTEST_API_ std::string AppendUserMessage(const std::string& gtest_msg,
+                                         const Message& user_msg);
 
 #if GTEST_HAS_EXCEPTIONS
 
-GTEST_DISABLE_MSC_WARNINGS_PUSH_(4275 \
-/* an exported class was derived from a class that was not exported */)
+GTEST_DISABLE_MSC_WARNINGS_PUSH_(
+    4275 /* an exported class was derived from a class that was not exported */)
 
 // This exception is thrown by (and only by) a failed Google Test
 // assertion when GTEST_FLAG(throw_on_failure) is true (if exceptions
@@ -181,14 +187,6 @@ GTEST_API_ std::string CreateUnifiedDiff(const std::vector<std::string>& left,
 
 }  // namespace edit_distance
 
-// Calculate the diff between 'left' and 'right' and return it in unified diff
-// format.
-// If not null, stores in 'total_line_count' the total number of lines found
-// in left + right.
-GTEST_API_ std::string DiffStrings(const std::string& left,
-                                   const std::string& right,
-                                   size_t* total_line_count);
-
 // Constructs and returns the message for an equality assertion
 // (e.g. ASSERT_EQ, EXPECT_STREQ, etc) failure.
 //
@@ -212,10 +210,8 @@ GTEST_API_ AssertionResult EqFailure(const char* expected_expression,
 
 // Constructs a failure message for Boolean assertions such as EXPECT_TRUE.
 GTEST_API_ std::string GetBoolAssertionFailureMessage(
-    const AssertionResult& assertion_result,
-    const char* expression_text,
-    const char* actual_predicate_value,
-    const char* expected_predicate_value);
+    const AssertionResult& assertion_result, const char* expression_text,
+    const char* actual_predicate_value, const char* expected_predicate_value);
 
 // This template class represents an IEEE floating-point number
 // (either single-precision or double-precision, depending on the
@@ -256,11 +252,11 @@ class FloatingPoint {
   // Constants.
 
   // # of bits in a number.
-  static const size_t kBitCount = 8*sizeof(RawType);
+  static const size_t kBitCount = 8 * sizeof(RawType);
 
   // # of fraction bits in a number.
   static const size_t kFractionBitCount =
-    std::numeric_limits<RawType>::digits - 1;
+      std::numeric_limits<RawType>::digits - 1;
 
   // # of exponent bits in a number.
   static const size_t kExponentBitCount = kBitCount - 1 - kFractionBitCount;
@@ -269,8 +265,8 @@ class FloatingPoint {
   static const Bits kSignBitMask = static_cast<Bits>(1) << (kBitCount - 1);
 
   // The mask for the fraction bits.
-  static const Bits kFractionBitMask =
-    ~static_cast<Bits>(0) >> (kExponentBitCount + 1);
+  static const Bits kFractionBitMask = ~static_cast<Bits>(0) >>
+                                       (kExponentBitCount + 1);
 
   // The mask for the exponent bits.
   static const Bits kExponentBitMask = ~(kSignBitMask | kFractionBitMask);
@@ -309,9 +305,7 @@ class FloatingPoint {
   }
 
   // Returns the floating-point number that represent positive infinity.
-  static RawType Infinity() {
-    return ReinterpretBits(kExponentBitMask);
-  }
+  static RawType Infinity() { return ReinterpretBits(kExponentBitMask); }
 
   // Returns the maximum representable finite floating-point number.
   static RawType Max();
@@ -319,7 +313,7 @@ class FloatingPoint {
   // Non-static methods
 
   // Returns the bits that represents this number.
-  const Bits &bits() const { return u_.bits_; }
+  const Bits& bits() const { return u_.bits_; }
 
   // Returns the exponent bits of this number.
   Bits exponent_bits() const { return kExponentBitMask & u_.bits_; }
@@ -348,8 +342,8 @@ class FloatingPoint {
     // a NAN must return false.
     if (is_nan() || rhs.is_nan()) return false;
 
-    return DistanceBetweenSignAndMagnitudeNumbers(u_.bits_, rhs.u_.bits_)
-        <= kMaxUlps;
+    return DistanceBetweenSignAndMagnitudeNumbers(u_.bits_, rhs.u_.bits_) <=
+           kMaxUlps;
   }
 
  private:
@@ -374,7 +368,7 @@ class FloatingPoint {
   //
   // Read http://en.wikipedia.org/wiki/Signed_number_representations
   // for more details on signed number representations.
-  static Bits SignAndMagnitudeToBiased(const Bits &sam) {
+  static Bits SignAndMagnitudeToBiased(const Bits& sam) {
     if (kSignBitMask & sam) {
       // sam represents a negative number.
       return ~sam + 1;
@@ -386,8 +380,8 @@ class FloatingPoint {
 
   // Given two numbers in the sign-and-magnitude representation,
   // returns the distance between them as an unsigned number.
-  static Bits DistanceBetweenSignAndMagnitudeNumbers(const Bits &sam1,
-                                                     const Bits &sam2) {
+  static Bits DistanceBetweenSignAndMagnitudeNumbers(const Bits& sam1,
+                                                     const Bits& sam2) {
     const Bits biased1 = SignAndMagnitudeToBiased(sam1);
     const Bits biased2 = SignAndMagnitudeToBiased(sam2);
     return (biased1 >= biased2) ? (biased1 - biased2) : (biased2 - biased1);
@@ -399,9 +393,13 @@ class FloatingPoint {
 // We cannot use std::numeric_limits<T>::max() as it clashes with the max()
 // macro defined by <windows.h>.
 template <>
-inline float FloatingPoint<float>::Max() { return FLT_MAX; }
+inline float FloatingPoint<float>::Max() {
+  return FLT_MAX;
+}
 template <>
-inline double FloatingPoint<double>::Max() { return DBL_MAX; }
+inline double FloatingPoint<double>::Max() {
+  return DBL_MAX;
+}
 
 // Typedefs the instances of the FloatingPoint template class that we
 // care to use.
@@ -461,10 +459,11 @@ class TestFactoryBase {
   TestFactoryBase() {}
 
  private:
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(TestFactoryBase);
+  TestFactoryBase(const TestFactoryBase&) = delete;
+  TestFactoryBase& operator=(const TestFactoryBase&) = delete;
 };
 
-// This class provides implementation of TeastFactoryBase interface.
+// This class provides implementation of TestFactoryBase interface.
 // It is used in TEST and TEST_F macros.
 template <class TestClass>
 class TestFactoryImpl : public TestFactoryBase {
@@ -510,11 +509,11 @@ inline SetUpTearDownSuiteFuncType GetNotDefaultOrNull(
 
 template <typename T>
 //  Note that SuiteApiResolver inherits from T because
-//  SetUpTestSuite()/TearDownTestSuite() could be protected. Ths way
+//  SetUpTestSuite()/TearDownTestSuite() could be protected. This way
 //  SuiteApiResolver can access them.
 struct SuiteApiResolver : T {
   // testing::Test is only forward declared at this point. So we make it a
-  // dependend class for the compiler to be OK with it.
+  // dependent class for the compiler to be OK with it.
   using Test =
       typename std::conditional<sizeof(T) != 0, ::testing::Test, void>::type;
 
@@ -634,7 +633,7 @@ class GTEST_API_ TypedTestSuitePState {
                                         const char* registered_tests);
 
  private:
-  typedef ::std::map<std::string, CodeLocation> RegisteredTestsMap;
+  typedef ::std::map<std::string, CodeLocation, std::less<>> RegisteredTestsMap;
 
   bool registered_;
   RegisteredTestsMap registered_tests_;
@@ -654,7 +653,8 @@ inline const char* SkipComma(const char* str) {
   if (comma == nullptr) {
     return nullptr;
   }
-  while (IsSpace(*(++comma))) {}
+  while (IsSpace(*(++comma))) {
+  }
   return comma;
 }
 
@@ -668,7 +668,7 @@ inline std::string GetPrefixUntilComma(const char* str) {
 // Splits a given string on a given delimiter, populating a given
 // vector with the fields.
 void SplitString(const ::std::string& str, char delimiter,
-                 ::std::vector< ::std::string>* dest);
+                 ::std::vector<::std::string>* dest);
 
 // The default argument to the template below for the case when the user does
 // not provide a name generator.
@@ -781,13 +781,13 @@ class TypeParameterizedTestSuite {
                        const std::vector<std::string>& type_names =
                            GenerateNames<DefaultNameGenerator, Types>()) {
     RegisterTypeParameterizedTestSuiteInstantiation(case_name);
-    std::string test_name = StripTrailingSpaces(
-        GetPrefixUntilComma(test_names));
+    std::string test_name =
+        StripTrailingSpaces(GetPrefixUntilComma(test_names));
     if (!state->TestExists(test_name)) {
       fprintf(stderr, "Failed to get code location for test %s.%s at %s.",
               case_name, test_name.c_str(),
-              FormatFileLocation(code_location.file.c_str(),
-                                 code_location.line).c_str());
+              FormatFileLocation(code_location.file.c_str(), code_location.line)
+                  .c_str());
       fflush(stderr);
       posix::Abort();
     }
@@ -831,8 +831,7 @@ class TypeParameterizedTestSuite<Fixture, internal::None, Types> {
 // For example, if Foo() calls Bar(), which in turn calls
 // GetCurrentOsStackTraceExceptTop(..., 1), Foo() will be included in
 // the trace but Bar() and GetCurrentOsStackTraceExceptTop() won't.
-GTEST_API_ std::string GetCurrentOsStackTraceExceptTop(
-    UnitTest* unit_test, int skip_count);
+GTEST_API_ std::string GetCurrentOsStackTraceExceptTop(int skip_count);
 
 // Helpers for suppressing warnings on unreachable code or constant
 // condition.
@@ -881,7 +880,8 @@ class GTEST_API_ Random {
 
  private:
   uint32_t state_;
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(Random);
+  Random(const Random&) = delete;
+  Random& operator=(const Random&) = delete;
 };
 
 // Turns const U&, U&, const U, and U all into U.
@@ -954,7 +954,9 @@ IsContainer IsContainerTest(int /* dummy */) {
 
 typedef char IsNotContainer;
 template <class C>
-IsNotContainer IsContainerTest(long /* dummy */) { return '\0'; }
+IsNotContainer IsContainerTest(long /* dummy */) {
+  return '\0';
+}
 
 // Trait to detect whether a type T is a hash table.
 // The heuristic used is that the type contains an inner type `hasher` and does
@@ -1017,11 +1019,13 @@ bool ArrayEq(const T* lhs, size_t size, const U* rhs);
 
 // This generic version is used when k is 0.
 template <typename T, typename U>
-inline bool ArrayEq(const T& lhs, const U& rhs) { return lhs == rhs; }
+inline bool ArrayEq(const T& lhs, const U& rhs) {
+  return lhs == rhs;
+}
 
 // This overload is used when k >= 1.
 template <typename T, typename U, size_t N>
-inline bool ArrayEq(const T(&lhs)[N], const U(&rhs)[N]) {
+inline bool ArrayEq(const T (&lhs)[N], const U (&rhs)[N]) {
   return internal::ArrayEq(lhs, N, rhs);
 }
 
@@ -1031,8 +1035,7 @@ inline bool ArrayEq(const T(&lhs)[N], const U(&rhs)[N]) {
 template <typename T, typename U>
 bool ArrayEq(const T* lhs, size_t size, const U* rhs) {
   for (size_t i = 0; i != size; i++) {
-    if (!internal::ArrayEq(lhs[i], rhs[i]))
-      return false;
+    if (!internal::ArrayEq(lhs[i], rhs[i])) return false;
   }
   return true;
 }
@@ -1042,8 +1045,7 @@ bool ArrayEq(const T* lhs, size_t size, const U* rhs) {
 template <typename Iter, typename Element>
 Iter ArrayAwareFind(Iter begin, Iter end, const Element& elem) {
   for (Iter it = begin; it != end; ++it) {
-    if (internal::ArrayEq(*it, elem))
-      return it;
+    if (internal::ArrayEq(*it, elem)) return it;
   }
   return end;
 }
@@ -1057,11 +1059,13 @@ void CopyArray(const T* from, size_t size, U* to);
 
 // This generic version is used when k is 0.
 template <typename T, typename U>
-inline void CopyArray(const T& from, U* to) { *to = from; }
+inline void CopyArray(const T& from, U* to) {
+  *to = from;
+}
 
 // This overload is used when k >= 1.
 template <typename T, typename U, size_t N>
-inline void CopyArray(const T(&from)[N], U(*to)[N]) {
+inline void CopyArray(const T (&from)[N], U (*to)[N]) {
   internal::CopyArray(from, N, *to);
 }
 
@@ -1114,8 +1118,7 @@ class NativeArray {
   }
 
   ~NativeArray() {
-    if (clone_ != &NativeArray::InitRef)
-      delete[] array_;
+    if (clone_ != &NativeArray::InitRef) delete[] array_;
   }
 
   // STL-style container methods.
@@ -1123,8 +1126,7 @@ class NativeArray {
   const_iterator begin() const { return array_; }
   const_iterator end() const { return array_ + size_; }
   bool operator==(const NativeArray& rhs) const {
-    return size() == rhs.size() &&
-        ArrayEq(begin(), size(), rhs.begin());
+    return size() == rhs.size() && ArrayEq(begin(), size(), rhs.begin());
   }
 
  private:
@@ -1335,9 +1337,9 @@ struct tuple_size<testing::internal::FlatTuple<Ts...>>
 #endif
 }  // namespace std
 
-#define GTEST_MESSAGE_AT_(file, line, message, result_type) \
-  ::testing::internal::AssertHelper(result_type, file, line, message) \
-    = ::testing::Message()
+#define GTEST_MESSAGE_AT_(file, line, message, result_type)             \
+  ::testing::internal::AssertHelper(result_type, file, line, message) = \
+      ::testing::Message()
 
 #define GTEST_MESSAGE_(message, result_type) \
   GTEST_MESSAGE_AT_(__FILE__, __LINE__, message, result_type)
@@ -1458,103 +1460,112 @@ class NeverThrown {
 
 #endif  // GTEST_HAS_EXCEPTIONS
 
-#define GTEST_TEST_NO_THROW_(statement, fail) \
-  GTEST_AMBIGUOUS_ELSE_BLOCKER_ \
-  if (::testing::internal::TrueWithString gtest_msg{}) { \
-    try { \
-      GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement); \
-    } \
-    GTEST_TEST_NO_THROW_CATCH_STD_EXCEPTION_() \
-    catch (...) { \
-      gtest_msg.value = "it throws."; \
-      goto GTEST_CONCAT_TOKEN_(gtest_label_testnothrow_, __LINE__); \
-    } \
-  } else \
-    GTEST_CONCAT_TOKEN_(gtest_label_testnothrow_, __LINE__): \
-      fail(("Expected: " #statement " doesn't throw an exception.\n" \
-            "  Actual: " + gtest_msg.value).c_str())
+#define GTEST_TEST_NO_THROW_(statement, fail)                            \
+  GTEST_AMBIGUOUS_ELSE_BLOCKER_                                          \
+  if (::testing::internal::TrueWithString gtest_msg{}) {                 \
+    try {                                                                \
+      GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement);         \
+    }                                                                    \
+    GTEST_TEST_NO_THROW_CATCH_STD_EXCEPTION_()                           \
+    catch (...) {                                                        \
+      gtest_msg.value = "it throws.";                                    \
+      goto GTEST_CONCAT_TOKEN_(gtest_label_testnothrow_, __LINE__);      \
+    }                                                                    \
+  } else                                                                 \
+    GTEST_CONCAT_TOKEN_(gtest_label_testnothrow_, __LINE__)              \
+        : fail(("Expected: " #statement " doesn't throw an exception.\n" \
+                "  Actual: " +                                           \
+                gtest_msg.value)                                         \
+                   .c_str())
 
-#define GTEST_TEST_ANY_THROW_(statement, fail) \
-  GTEST_AMBIGUOUS_ELSE_BLOCKER_ \
-  if (::testing::internal::AlwaysTrue()) { \
-    bool gtest_caught_any = false; \
-    try { \
-      GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement); \
-    } \
-    catch (...) { \
-      gtest_caught_any = true; \
-    } \
-    if (!gtest_caught_any) { \
+#define GTEST_TEST_ANY_THROW_(statement, fail)                       \
+  GTEST_AMBIGUOUS_ELSE_BLOCKER_                                      \
+  if (::testing::internal::AlwaysTrue()) {                           \
+    bool gtest_caught_any = false;                                   \
+    try {                                                            \
+      GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement);     \
+    } catch (...) {                                                  \
+      gtest_caught_any = true;                                       \
+    }                                                                \
+    if (!gtest_caught_any) {                                         \
       goto GTEST_CONCAT_TOKEN_(gtest_label_testanythrow_, __LINE__); \
-    } \
-  } else \
-    GTEST_CONCAT_TOKEN_(gtest_label_testanythrow_, __LINE__): \
-      fail("Expected: " #statement " throws an exception.\n" \
-           "  Actual: it doesn't.")
-
+    }                                                                \
+  } else                                                             \
+    GTEST_CONCAT_TOKEN_(gtest_label_testanythrow_, __LINE__)         \
+        : fail("Expected: " #statement                               \
+               " throws an exception.\n"                             \
+               "  Actual: it doesn't.")
 
 // Implements Boolean test assertions such as EXPECT_TRUE. expression can be
 // either a boolean expression or an AssertionResult. text is a textual
 // representation of expression as it was passed into the EXPECT_TRUE.
 #define GTEST_TEST_BOOLEAN_(expression, text, actual, expected, fail) \
-  GTEST_AMBIGUOUS_ELSE_BLOCKER_ \
-  if (const ::testing::AssertionResult gtest_ar_ = \
-      ::testing::AssertionResult(expression)) \
-    ; \
-  else \
-    fail(::testing::internal::GetBoolAssertionFailureMessage(\
-        gtest_ar_, text, #actual, #expected).c_str())
+  GTEST_AMBIGUOUS_ELSE_BLOCKER_                                       \
+  if (const ::testing::AssertionResult gtest_ar_ =                    \
+          ::testing::AssertionResult(expression))                     \
+    ;                                                                 \
+  else                                                                \
+    fail(::testing::internal::GetBoolAssertionFailureMessage(         \
+             gtest_ar_, text, #actual, #expected)                     \
+             .c_str())
 
-#define GTEST_TEST_NO_FATAL_FAILURE_(statement, fail) \
-  GTEST_AMBIGUOUS_ELSE_BLOCKER_ \
-  if (::testing::internal::AlwaysTrue()) { \
+#define GTEST_TEST_NO_FATAL_FAILURE_(statement, fail)                          \
+  GTEST_AMBIGUOUS_ELSE_BLOCKER_                                                \
+  if (::testing::internal::AlwaysTrue()) {                                     \
     ::testing::internal::HasNewFatalFailureHelper gtest_fatal_failure_checker; \
-    GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement); \
-    if (gtest_fatal_failure_checker.has_new_fatal_failure()) { \
-      goto GTEST_CONCAT_TOKEN_(gtest_label_testnofatal_, __LINE__); \
-    } \
-  } else \
-    GTEST_CONCAT_TOKEN_(gtest_label_testnofatal_, __LINE__): \
-      fail("Expected: " #statement " doesn't generate new fatal " \
-           "failures in the current thread.\n" \
-           "  Actual: it does.")
+    GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement);                 \
+    if (gtest_fatal_failure_checker.has_new_fatal_failure()) {                 \
+      goto GTEST_CONCAT_TOKEN_(gtest_label_testnofatal_, __LINE__);            \
+    }                                                                          \
+  } else                                                                       \
+    GTEST_CONCAT_TOKEN_(gtest_label_testnofatal_, __LINE__)                    \
+        : fail("Expected: " #statement                                         \
+               " doesn't generate new fatal "                                  \
+               "failures in the current thread.\n"                             \
+               "  Actual: it does.")
 
 // Expands to the name of the class that implements the given test.
 #define GTEST_TEST_CLASS_NAME_(test_suite_name, test_name) \
   test_suite_name##_##test_name##_Test
 
 // Helper macro for defining tests.
-#define GTEST_TEST_(test_suite_name, test_name, parent_class, parent_id)      \
-  static_assert(sizeof(GTEST_STRINGIFY_(test_suite_name)) > 1,                \
-                "test_suite_name must not be empty");                         \
-  static_assert(sizeof(GTEST_STRINGIFY_(test_name)) > 1,                      \
-                "test_name must not be empty");                               \
-  class GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)                    \
-      : public parent_class {                                                 \
-   public:                                                                    \
-    GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)() = default;           \
-    ~GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)() override = default; \
-    GTEST_DISALLOW_COPY_AND_ASSIGN_(GTEST_TEST_CLASS_NAME_(test_suite_name,   \
-                                                           test_name));       \
-    GTEST_DISALLOW_MOVE_AND_ASSIGN_(GTEST_TEST_CLASS_NAME_(test_suite_name,   \
-                                                           test_name));       \
-                                                                              \
-   private:                                                                   \
-    void TestBody() override;                                                 \
-    static ::testing::TestInfo* const test_info_ GTEST_ATTRIBUTE_UNUSED_;     \
-  };                                                                          \
-                                                                              \
-  ::testing::TestInfo* const GTEST_TEST_CLASS_NAME_(test_suite_name,          \
-                                                    test_name)::test_info_ =  \
-      ::testing::internal::MakeAndRegisterTestInfo(                           \
-          #test_suite_name, #test_name, nullptr, nullptr,                     \
-          ::testing::internal::CodeLocation(__FILE__, __LINE__), (parent_id), \
-          ::testing::internal::SuiteApiResolver<                              \
-              parent_class>::GetSetUpCaseOrSuite(__FILE__, __LINE__),         \
-          ::testing::internal::SuiteApiResolver<                              \
-              parent_class>::GetTearDownCaseOrSuite(__FILE__, __LINE__),      \
-          new ::testing::internal::TestFactoryImpl<GTEST_TEST_CLASS_NAME_(    \
-              test_suite_name, test_name)>);                                  \
+#define GTEST_TEST_(test_suite_name, test_name, parent_class, parent_id)       \
+  static_assert(sizeof(GTEST_STRINGIFY_(test_suite_name)) > 1,                 \
+                "test_suite_name must not be empty");                          \
+  static_assert(sizeof(GTEST_STRINGIFY_(test_name)) > 1,                       \
+                "test_name must not be empty");                                \
+  class GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)                     \
+      : public parent_class {                                                  \
+   public:                                                                     \
+    GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)() = default;            \
+    ~GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)() override = default;  \
+    GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)                         \
+    (const GTEST_TEST_CLASS_NAME_(test_suite_name, test_name) &) = delete;     \
+    GTEST_TEST_CLASS_NAME_(test_suite_name, test_name) & operator=(            \
+        const GTEST_TEST_CLASS_NAME_(test_suite_name,                          \
+                                     test_name) &) = delete; /* NOLINT */      \
+    GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)                         \
+    (GTEST_TEST_CLASS_NAME_(test_suite_name, test_name) &&) noexcept = delete; \
+    GTEST_TEST_CLASS_NAME_(test_suite_name, test_name) & operator=(            \
+        GTEST_TEST_CLASS_NAME_(test_suite_name,                                \
+                               test_name) &&) noexcept = delete; /* NOLINT */  \
+                                                                               \
+   private:                                                                    \
+    void TestBody() override;                                                  \
+    static ::testing::TestInfo* const test_info_ GTEST_ATTRIBUTE_UNUSED_;      \
+  };                                                                           \
+                                                                               \
+  ::testing::TestInfo* const GTEST_TEST_CLASS_NAME_(test_suite_name,           \
+                                                    test_name)::test_info_ =   \
+      ::testing::internal::MakeAndRegisterTestInfo(                            \
+          #test_suite_name, #test_name, nullptr, nullptr,                      \
+          ::testing::internal::CodeLocation(__FILE__, __LINE__), (parent_id),  \
+          ::testing::internal::SuiteApiResolver<                               \
+              parent_class>::GetSetUpCaseOrSuite(__FILE__, __LINE__),          \
+          ::testing::internal::SuiteApiResolver<                               \
+              parent_class>::GetTearDownCaseOrSuite(__FILE__, __LINE__),       \
+          new ::testing::internal::TestFactoryImpl<GTEST_TEST_CLASS_NAME_(     \
+              test_suite_name, test_name)>);                                   \
   void GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)::TestBody()
 
 #endif  // GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_INTERNAL_H_

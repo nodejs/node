@@ -32,11 +32,12 @@
 // This file implements just enough of the matcher interface to allow
 // EXPECT_DEATH and friends to accept a matcher argument.
 
-#include "gtest/internal/gtest-internal.h"
-#include "gtest/internal/gtest-port.h"
 #include "gtest/gtest-matchers.h"
 
 #include <string>
+
+#include "gtest/internal/gtest-internal.h"
+#include "gtest/internal/gtest-port.h"
 
 namespace testing {
 
