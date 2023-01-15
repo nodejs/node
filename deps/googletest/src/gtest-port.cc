@@ -27,76 +27,68 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 #include "gtest/internal/gtest-port.h"
 
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <cstdint>
 #include <fstream>
 #include <memory>
 
 #if GTEST_OS_WINDOWS
-# include <windows.h>
-# include <io.h>
-# include <sys/stat.h>
-# include <map>  // Used in ThreadLocal.
-# ifdef _MSC_VER
-#  include <crtdbg.h>
-# endif  // _MSC_VER
+#include <io.h>
+#include <sys/stat.h>
+#include <windows.h>
+
+#include <map>  // Used in ThreadLocal.
+#ifdef _MSC_VER
+#include <crtdbg.h>
+#endif  // _MSC_VER
 #else
-# include <unistd.h>
+#include <unistd.h>
 #endif  // GTEST_OS_WINDOWS
 
 #if GTEST_OS_MAC
-# include <mach/mach_init.h>
-# include <mach/task.h>
-# include <mach/vm_map.h>
+#include <mach/mach_init.h>
+#include <mach/task.h>
+#include <mach/vm_map.h>
 #endif  // GTEST_OS_MAC
 
 #if GTEST_OS_DRAGONFLY || GTEST_OS_FREEBSD || GTEST_OS_GNU_KFREEBSD || \
     GTEST_OS_NETBSD || GTEST_OS_OPENBSD
-# include <sys/sysctl.h>
-# if GTEST_OS_DRAGONFLY || GTEST_OS_FREEBSD || GTEST_OS_GNU_KFREEBSD
-#  include <sys/user.h>
-# endif
+#include <sys/sysctl.h>
+#if GTEST_OS_DRAGONFLY || GTEST_OS_FREEBSD || GTEST_OS_GNU_KFREEBSD
+#include <sys/user.h>
+#endif
 #endif
 
 #if GTEST_OS_QNX
-# include <devctl.h>
-# include <fcntl.h>
-# include <sys/procfs.h>
+#include <devctl.h>
+#include <fcntl.h>
+#include <sys/procfs.h>
 #endif  // GTEST_OS_QNX
 
 #if GTEST_OS_AIX
-# include <procinfo.h>
-# include <sys/types.h>
+#include <procinfo.h>
+#include <sys/types.h>
 #endif  // GTEST_OS_AIX
 
 #if GTEST_OS_FUCHSIA
-# include <zircon/process.h>
-# include <zircon/syscalls.h>
+#include <zircon/process.h>
+#include <zircon/syscalls.h>
 #endif  // GTEST_OS_FUCHSIA
 
-#include "gtest/gtest-spi.h"
 #include "gtest/gtest-message.h"
+#include "gtest/gtest-spi.h"
 #include "gtest/internal/gtest-internal.h"
 #include "gtest/internal/gtest-string.h"
 #include "src/gtest-internal-inl.h"
 
 namespace testing {
 namespace internal {
-
-#if defined(_MSC_VER) || defined(__BORLANDC__)
-// MSVC and C++Builder do not provide a definition of STDERR_FILENO.
-const int kStdOutFileno = 1;
-const int kStdErrFileno = 2;
-#else
-const int kStdOutFileno = STDOUT_FILENO;
-const int kStdErrFileno = STDERR_FILENO;
-#endif  // _MSC_VER
 
 #if GTEST_OS_LINUX || GTEST_OS_GNU_HURD
 
@@ -131,8 +123,7 @@ size_t GetThreadCount() {
   if (status == KERN_SUCCESS) {
     // task_threads allocates resources in thread_list and we need to free them
     // to avoid leaks.
-    vm_deallocate(task,
-                  reinterpret_cast<vm_address_t>(thread_list),
+    vm_deallocate(task, reinterpret_cast<vm_address_t>(thread_list),
                   sizeof(thread_t) * thread_count);
     return static_cast<size_t>(thread_count);
   } else {
@@ -141,7 +132,7 @@ size_t GetThreadCount() {
 }
 
 #elif GTEST_OS_DRAGONFLY || GTEST_OS_FREEBSD || GTEST_OS_GNU_KFREEBSD || \
-      GTEST_OS_NETBSD
+    GTEST_OS_NETBSD
 
 #if GTEST_OS_NETBSD
 #undef KERN_PROC
@@ -184,12 +175,12 @@ size_t GetThreadCount() {
 // we cannot detect it.
 size_t GetThreadCount() {
   int mib[] = {
-    CTL_KERN,
-    KERN_PROC,
-    KERN_PROC_PID | KERN_PROC_SHOW_THREADS,
-    getpid(),
-    sizeof(struct kinfo_proc),
-    0,
+      CTL_KERN,
+      KERN_PROC,
+      KERN_PROC_PID | KERN_PROC_SHOW_THREADS,
+      getpid(),
+      sizeof(struct kinfo_proc),
+      0,
   };
   u_int miblen = sizeof(mib) / sizeof(mib[0]);
 
@@ -210,8 +201,7 @@ size_t GetThreadCount() {
   // exclude empty members
   size_t nthreads = 0;
   for (size_t i = 0; i < size / static_cast<size_t>(mib[4]); i++) {
-    if (info[i].p_tid != -1)
-      nthreads++;
+    if (info[i].p_tid != -1) nthreads++;
   }
   return nthreads;
 }
@@ -254,13 +244,9 @@ size_t GetThreadCount() {
 size_t GetThreadCount() {
   int dummy_buffer;
   size_t avail;
-  zx_status_t status = zx_object_get_info(
-      zx_process_self(),
-      ZX_INFO_PROCESS_THREADS,
-      &dummy_buffer,
-      0,
-      nullptr,
-      &avail);
+  zx_status_t status =
+      zx_object_get_info(zx_process_self(), ZX_INFO_PROCESS_THREADS,
+                         &dummy_buffer, 0, nullptr, &avail);
   if (status == ZX_OK) {
     return avail;
   } else {
@@ -280,27 +266,15 @@ size_t GetThreadCount() {
 
 #if GTEST_IS_THREADSAFE && GTEST_OS_WINDOWS
 
-void SleepMilliseconds(int n) {
-  ::Sleep(static_cast<DWORD>(n));
-}
+AutoHandle::AutoHandle() : handle_(INVALID_HANDLE_VALUE) {}
 
-AutoHandle::AutoHandle()
-    : handle_(INVALID_HANDLE_VALUE) {}
+AutoHandle::AutoHandle(Handle handle) : handle_(handle) {}
 
-AutoHandle::AutoHandle(Handle handle)
-    : handle_(handle) {}
+AutoHandle::~AutoHandle() { Reset(); }
 
-AutoHandle::~AutoHandle() {
-  Reset();
-}
+AutoHandle::Handle AutoHandle::Get() const { return handle_; }
 
-AutoHandle::Handle AutoHandle::Get() const {
-  return handle_;
-}
-
-void AutoHandle::Reset() {
-  Reset(INVALID_HANDLE_VALUE);
-}
+void AutoHandle::Reset() { Reset(INVALID_HANDLE_VALUE); }
 
 void AutoHandle::Reset(HANDLE handle) {
   // Resetting with the same handle we already own is invalid.
@@ -312,7 +286,7 @@ void AutoHandle::Reset(HANDLE handle) {
   } else {
     GTEST_CHECK_(!IsCloseable())
         << "Resetting a valid handle to itself is likely a programmer error "
-            "and thus not allowed.";
+           "and thus not allowed.";
   }
 }
 
@@ -320,23 +294,6 @@ bool AutoHandle::IsCloseable() const {
   // Different Windows APIs may use either of these values to represent an
   // invalid handle.
   return handle_ != nullptr && handle_ != INVALID_HANDLE_VALUE;
-}
-
-Notification::Notification()
-    : event_(::CreateEvent(nullptr,     // Default security attributes.
-                           TRUE,        // Do not reset automatically.
-                           FALSE,       // Initially unset.
-                           nullptr)) {  // Anonymous event.
-  GTEST_CHECK_(event_.Get() != nullptr);
-}
-
-void Notification::Notify() {
-  GTEST_CHECK_(::SetEvent(event_.Get()) != FALSE);
-}
-
-void Notification::WaitForNotification() {
-  GTEST_CHECK_(
-      ::WaitForSingleObject(event_.Get(), INFINITE) == WAIT_OBJECT_0);
 }
 
 Mutex::Mutex()
@@ -391,25 +348,25 @@ namespace {
 //    MemoryIsNotDeallocated memory_is_not_deallocated;
 //    critical_section_ = new CRITICAL_SECTION;
 //
-class MemoryIsNotDeallocated
-{
+class MemoryIsNotDeallocated {
  public:
   MemoryIsNotDeallocated() : old_crtdbg_flag_(0) {
     old_crtdbg_flag_ = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
     // Set heap allocation block type to _IGNORE_BLOCK so that MS debug CRT
     // doesn't report mem leak if there's no matching deallocation.
-    _CrtSetDbgFlag(old_crtdbg_flag_ & ~_CRTDBG_ALLOC_MEM_DF);
+    (void)_CrtSetDbgFlag(old_crtdbg_flag_ & ~_CRTDBG_ALLOC_MEM_DF);
   }
 
   ~MemoryIsNotDeallocated() {
     // Restore the original _CRTDBG_ALLOC_MEM_DF flag
-    _CrtSetDbgFlag(old_crtdbg_flag_);
+    (void)_CrtSetDbgFlag(old_crtdbg_flag_);
   }
 
  private:
   int old_crtdbg_flag_;
 
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(MemoryIsNotDeallocated);
+  MemoryIsNotDeallocated(const MemoryIsNotDeallocated&) = delete;
+  MemoryIsNotDeallocated& operator=(const MemoryIsNotDeallocated&) = delete;
 };
 #endif  // _MSC_VER
 
@@ -435,15 +392,13 @@ void Mutex::ThreadSafeLazyInit() {
         ::InitializeCriticalSection(critical_section_);
         // Updates the critical_section_init_phase_ to 2 to signal
         // initialization complete.
-        GTEST_CHECK_(::InterlockedCompareExchange(
-                          &critical_section_init_phase_, 2L, 1L) ==
-                      1L);
+        GTEST_CHECK_(::InterlockedCompareExchange(&critical_section_init_phase_,
+                                                  2L, 1L) == 1L);
         break;
       case 1:
         // Somebody else is already initializing the mutex; spin until they
         // are done.
-        while (::InterlockedCompareExchange(&critical_section_init_phase_,
-                                            2L,
+        while (::InterlockedCompareExchange(&critical_section_init_phase_, 2L,
                                             2L) != 2L) {
           // Possibly yields the rest of the thread's time slice to other
           // threads.
@@ -488,9 +443,7 @@ class ThreadWithParamSupport : public ThreadWithParamBase {
  private:
   struct ThreadMainParam {
     ThreadMainParam(Runnable* runnable, Notification* thread_can_start)
-        : runnable_(runnable),
-          thread_can_start_(thread_can_start) {
-    }
+        : runnable_(runnable), thread_can_start_(thread_can_start) {}
     std::unique_ptr<Runnable> runnable_;
     // Does not own.
     Notification* thread_can_start_;
@@ -508,20 +461,18 @@ class ThreadWithParamSupport : public ThreadWithParamBase {
   // Prohibit instantiation.
   ThreadWithParamSupport();
 
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(ThreadWithParamSupport);
+  ThreadWithParamSupport(const ThreadWithParamSupport&) = delete;
+  ThreadWithParamSupport& operator=(const ThreadWithParamSupport&) = delete;
 };
 
 }  // namespace
 
-ThreadWithParamBase::ThreadWithParamBase(Runnable *runnable,
+ThreadWithParamBase::ThreadWithParamBase(Runnable* runnable,
                                          Notification* thread_can_start)
-      : thread_(ThreadWithParamSupport::CreateThread(runnable,
-                                                     thread_can_start)) {
-}
+    : thread_(
+          ThreadWithParamSupport::CreateThread(runnable, thread_can_start)) {}
 
-ThreadWithParamBase::~ThreadWithParamBase() {
-  Join();
-}
+ThreadWithParamBase::~ThreadWithParamBase() { Join(); }
 
 void ThreadWithParamBase::Join() {
   GTEST_CHECK_(::WaitForSingleObject(thread_.Get(), INFINITE) == WAIT_OBJECT_0)
@@ -548,8 +499,10 @@ class ThreadLocalRegistryImpl {
     ThreadIdToThreadLocals::iterator thread_local_pos =
         thread_to_thread_locals->find(current_thread);
     if (thread_local_pos == thread_to_thread_locals->end()) {
-      thread_local_pos = thread_to_thread_locals->insert(
-          std::make_pair(current_thread, ThreadLocalValues())).first;
+      thread_local_pos =
+          thread_to_thread_locals
+              ->insert(std::make_pair(current_thread, ThreadLocalValues()))
+              .first;
       StartWatcherThreadFor(current_thread);
     }
     ThreadLocalValues& thread_local_values = thread_local_pos->second;
@@ -577,9 +530,8 @@ class ThreadLocalRegistryImpl {
       ThreadIdToThreadLocals* const thread_to_thread_locals =
           GetThreadLocalsMapLocked();
       for (ThreadIdToThreadLocals::iterator it =
-          thread_to_thread_locals->begin();
-          it != thread_to_thread_locals->end();
-          ++it) {
+               thread_to_thread_locals->begin();
+           it != thread_to_thread_locals->end(); ++it) {
         ThreadLocalValues& thread_local_values = it->second;
         ThreadLocalValues::iterator value_pos =
             thread_local_values.find(thread_local_instance);
@@ -609,9 +561,8 @@ class ThreadLocalRegistryImpl {
       if (thread_local_pos != thread_to_thread_locals->end()) {
         ThreadLocalValues& thread_local_values = thread_local_pos->second;
         for (ThreadLocalValues::iterator value_pos =
-            thread_local_values.begin();
-            value_pos != thread_local_values.end();
-            ++value_pos) {
+                 thread_local_values.begin();
+             value_pos != thread_local_values.end(); ++value_pos) {
           value_holders.push_back(value_pos->second);
         }
         thread_to_thread_locals->erase(thread_local_pos);
@@ -637,9 +588,8 @@ class ThreadLocalRegistryImpl {
   static void StartWatcherThreadFor(DWORD thread_id) {
     // The returned handle will be kept in thread_map and closed by
     // watcher_thread in WatcherThreadFunc.
-    HANDLE thread = ::OpenThread(SYNCHRONIZE | THREAD_QUERY_INFORMATION,
-                                 FALSE,
-                                 thread_id);
+    HANDLE thread =
+        ::OpenThread(SYNCHRONIZE | THREAD_QUERY_INFORMATION, FALSE, thread_id);
     GTEST_CHECK_(thread != nullptr);
     // We need to pass a valid thread ID pointer into CreateThread for it
     // to work correctly under Win98.
@@ -650,7 +600,8 @@ class ThreadLocalRegistryImpl {
         &ThreadLocalRegistryImpl::WatcherThreadFunc,
         reinterpret_cast<LPVOID>(new ThreadIdAndHandle(thread_id, thread)),
         CREATE_SUSPENDED, &watcher_thread_id);
-    GTEST_CHECK_(watcher_thread != nullptr);
+    GTEST_CHECK_(watcher_thread != nullptr)
+        << "CreateThread failed with error " << ::GetLastError() << ".";
     // Give the watcher thread the same priority as ours to avoid being
     // blocked by it.
     ::SetThreadPriority(watcher_thread,
@@ -664,8 +615,7 @@ class ThreadLocalRegistryImpl {
   static DWORD WINAPI WatcherThreadFunc(LPVOID param) {
     const ThreadIdAndHandle* tah =
         reinterpret_cast<const ThreadIdAndHandle*>(param);
-    GTEST_CHECK_(
-        ::WaitForSingleObject(tah->second, INFINITE) == WAIT_OBJECT_0);
+    GTEST_CHECK_(::WaitForSingleObject(tah->second, INFINITE) == WAIT_OBJECT_0);
     OnThreadExit(tah->first);
     ::CloseHandle(tah->second);
     delete tah;
@@ -689,16 +639,17 @@ class ThreadLocalRegistryImpl {
 };
 
 Mutex ThreadLocalRegistryImpl::mutex_(Mutex::kStaticMutex);  // NOLINT
-Mutex ThreadLocalRegistryImpl::thread_map_mutex_(Mutex::kStaticMutex);  // NOLINT
+Mutex ThreadLocalRegistryImpl::thread_map_mutex_(
+    Mutex::kStaticMutex);  // NOLINT
 
 ThreadLocalValueHolderBase* ThreadLocalRegistry::GetValueOnCurrentThread(
-      const ThreadLocalBase* thread_local_instance) {
+    const ThreadLocalBase* thread_local_instance) {
   return ThreadLocalRegistryImpl::GetValueOnCurrentThread(
       thread_local_instance);
 }
 
 void ThreadLocalRegistry::OnThreadLocalDestroyed(
-      const ThreadLocalBase* thread_local_instance) {
+    const ThreadLocalBase* thread_local_instance) {
   ThreadLocalRegistryImpl::OnThreadLocalDestroyed(thread_local_instance);
 }
 
@@ -786,7 +737,7 @@ bool IsRepeat(char ch) { return IsInSet(ch, "?*+"); }
 bool IsAsciiWhiteSpace(char ch) { return IsInSet(ch, " \f\n\r\t\v"); }
 bool IsAsciiWordChar(char ch) {
   return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z') ||
-      ('0' <= ch && ch <= '9') || ch == '_';
+         ('0' <= ch && ch <= '9') || ch == '_';
 }
 
 // Returns true if and only if "\\c" is a supported escape sequence.
@@ -799,17 +750,28 @@ bool IsValidEscape(char c) {
 bool AtomMatchesChar(bool escaped, char pattern_char, char ch) {
   if (escaped) {  // "\\p" where p is pattern_char.
     switch (pattern_char) {
-      case 'd': return IsAsciiDigit(ch);
-      case 'D': return !IsAsciiDigit(ch);
-      case 'f': return ch == '\f';
-      case 'n': return ch == '\n';
-      case 'r': return ch == '\r';
-      case 's': return IsAsciiWhiteSpace(ch);
-      case 'S': return !IsAsciiWhiteSpace(ch);
-      case 't': return ch == '\t';
-      case 'v': return ch == '\v';
-      case 'w': return IsAsciiWordChar(ch);
-      case 'W': return !IsAsciiWordChar(ch);
+      case 'd':
+        return IsAsciiDigit(ch);
+      case 'D':
+        return !IsAsciiDigit(ch);
+      case 'f':
+        return ch == '\f';
+      case 'n':
+        return ch == '\n';
+      case 'r':
+        return ch == '\r';
+      case 's':
+        return IsAsciiWhiteSpace(ch);
+      case 'S':
+        return !IsAsciiWhiteSpace(ch);
+      case 't':
+        return ch == '\t';
+      case 'v':
+        return ch == '\v';
+      case 'w':
+        return IsAsciiWordChar(ch);
+      case 'W':
+        return !IsAsciiWordChar(ch);
     }
     return IsAsciiPunct(pattern_char) && pattern_char == ch;
   }
@@ -820,7 +782,8 @@ bool AtomMatchesChar(bool escaped, char pattern_char, char ch) {
 // Helper function used by ValidateRegex() to format error messages.
 static std::string FormatRegexSyntaxError(const char* regex, int index) {
   return (Message() << "Syntax error at index " << index
-          << " in simple regular expression \"" << regex << "\": ").GetString();
+                    << " in simple regular expression \"" << regex << "\": ")
+      .GetString();
 }
 
 // Generates non-fatal failures and returns false if regex is invalid;
@@ -862,12 +825,12 @@ bool ValidateRegex(const char* regex) {
                       << "'$' can only appear at the end.";
         is_valid = false;
       } else if (IsInSet(ch, "()[]{}|")) {
-        ADD_FAILURE() << FormatRegexSyntaxError(regex, i)
-                      << "'" << ch << "' is unsupported.";
+        ADD_FAILURE() << FormatRegexSyntaxError(regex, i) << "'" << ch
+                      << "' is unsupported.";
         is_valid = false;
       } else if (IsRepeat(ch) && !prev_repeatable) {
-        ADD_FAILURE() << FormatRegexSyntaxError(regex, i)
-                      << "'" << ch << "' can only follow a repeatable token.";
+        ADD_FAILURE() << FormatRegexSyntaxError(regex, i) << "'" << ch
+                      << "' can only follow a repeatable token.";
         is_valid = false;
       }
 
@@ -885,12 +848,10 @@ bool ValidateRegex(const char* regex) {
 // characters to be indexable by size_t, in which case the test will
 // probably time out anyway.  We are fine with this limitation as
 // std::string has it too.
-bool MatchRepetitionAndRegexAtHead(
-    bool escaped, char c, char repeat, const char* regex,
-    const char* str) {
+bool MatchRepetitionAndRegexAtHead(bool escaped, char c, char repeat,
+                                   const char* regex, const char* str) {
   const size_t min_count = (repeat == '+') ? 1 : 0;
-  const size_t max_count = (repeat == '?') ? 1 :
-      static_cast<size_t>(-1) - 1;
+  const size_t max_count = (repeat == '?') ? 1 : static_cast<size_t>(-1) - 1;
   // We cannot call numeric_limits::max() as it conflicts with the
   // max() macro on Windows.
 
@@ -903,8 +864,7 @@ bool MatchRepetitionAndRegexAtHead(
       // greedy match.
       return true;
     }
-    if (str[i] == '\0' || !AtomMatchesChar(escaped, c, str[i]))
-      return false;
+    if (str[i] == '\0' || !AtomMatchesChar(escaped, c, str[i])) return false;
   }
   return false;
 }
@@ -918,25 +878,23 @@ bool MatchRegexAtHead(const char* regex, const char* str) {
 
   // "$" only matches the end of a string.  Note that regex being
   // valid guarantees that there's nothing after "$" in it.
-  if (*regex == '$')
-    return *str == '\0';
+  if (*regex == '$') return *str == '\0';
 
   // Is the first thing in regex an escape sequence?
   const bool escaped = *regex == '\\';
-  if (escaped)
-    ++regex;
+  if (escaped) ++regex;
   if (IsRepeat(regex[1])) {
     // MatchRepetitionAndRegexAtHead() calls MatchRegexAtHead(), so
     // here's an indirect recursion.  It terminates as the regex gets
     // shorter in each recursion.
-    return MatchRepetitionAndRegexAtHead(
-        escaped, regex[0], regex[1], regex + 2, str);
+    return MatchRepetitionAndRegexAtHead(escaped, regex[0], regex[1], regex + 2,
+                                         str);
   } else {
     // regex isn't empty, isn't "$", and doesn't start with a
     // repetition.  We match the first atom of regex with the first
     // character of str and recurse.
     return (*str != '\0') && AtomMatchesChar(escaped, *regex, *str) &&
-        MatchRegexAtHead(regex + 1, str + 1);
+           MatchRegexAtHead(regex + 1, str + 1);
   }
 }
 
@@ -951,13 +909,11 @@ bool MatchRegexAtHead(const char* regex, const char* str) {
 bool MatchRegexAnywhere(const char* regex, const char* str) {
   if (regex == nullptr || str == nullptr) return false;
 
-  if (*regex == '^')
-    return MatchRegexAtHead(regex + 1, str);
+  if (*regex == '^') return MatchRegexAtHead(regex + 1, str);
 
   // A successful match can be anywhere in str.
   do {
-    if (MatchRegexAtHead(regex, str))
-      return true;
+    if (MatchRegexAtHead(regex, str)) return true;
   } while (*str++ != '\0');
   return false;
 }
@@ -1038,8 +994,8 @@ GTEST_API_ ::std::string FormatFileLocation(const char* file, int line) {
 // FormatFileLocation in order to contrast the two functions.
 // Note that FormatCompilerIndependentFileLocation() does NOT append colon
 // to the file location it produces, unlike FormatFileLocation().
-GTEST_API_ ::std::string FormatCompilerIndependentFileLocation(
-    const char* file, int line) {
+GTEST_API_ ::std::string FormatCompilerIndependentFileLocation(const char* file,
+                                                               int line) {
   const std::string file_name(file == nullptr ? kUnknownFile : file);
 
   if (line < 0)
@@ -1050,12 +1006,13 @@ GTEST_API_ ::std::string FormatCompilerIndependentFileLocation(
 
 GTestLog::GTestLog(GTestLogSeverity severity, const char* file, int line)
     : severity_(severity) {
-  const char* const marker =
-      severity == GTEST_INFO ?    "[  INFO ]" :
-      severity == GTEST_WARNING ? "[WARNING]" :
-      severity == GTEST_ERROR ?   "[ ERROR ]" : "[ FATAL ]";
-  GetStream() << ::std::endl << marker << " "
-              << FormatFileLocation(file, line).c_str() << ": ";
+  const char* const marker = severity == GTEST_INFO      ? "[  INFO ]"
+                             : severity == GTEST_WARNING ? "[WARNING]"
+                             : severity == GTEST_ERROR   ? "[ ERROR ]"
+                                                         : "[ FATAL ]";
+  GetStream() << ::std::endl
+              << marker << " " << FormatFileLocation(file, line).c_str()
+              << ": ";
 }
 
 // Flushes the buffers and, if severity is GTEST_FATAL, aborts the program.
@@ -1078,27 +1035,26 @@ class CapturedStream {
  public:
   // The ctor redirects the stream to a temporary file.
   explicit CapturedStream(int fd) : fd_(fd), uncaptured_fd_(dup(fd)) {
-# if GTEST_OS_WINDOWS
-    char temp_dir_path[MAX_PATH + 1] = { '\0' };  // NOLINT
-    char temp_file_path[MAX_PATH + 1] = { '\0' };  // NOLINT
+#if GTEST_OS_WINDOWS
+    char temp_dir_path[MAX_PATH + 1] = {'\0'};   // NOLINT
+    char temp_file_path[MAX_PATH + 1] = {'\0'};  // NOLINT
 
     ::GetTempPathA(sizeof(temp_dir_path), temp_dir_path);
-    const UINT success = ::GetTempFileNameA(temp_dir_path,
-                                            "gtest_redir",
+    const UINT success = ::GetTempFileNameA(temp_dir_path, "gtest_redir",
                                             0,  // Generate unique file name.
                                             temp_file_path);
     GTEST_CHECK_(success != 0)
         << "Unable to create a temporary file in " << temp_dir_path;
     const int captured_fd = creat(temp_file_path, _S_IREAD | _S_IWRITE);
-    GTEST_CHECK_(captured_fd != -1) << "Unable to open temporary file "
-                                    << temp_file_path;
+    GTEST_CHECK_(captured_fd != -1)
+        << "Unable to open temporary file " << temp_file_path;
     filename_ = temp_file_path;
-# else
+#else
     // There's no guarantee that a test has write access to the current
     // directory, so we create the temporary file in a temporary directory.
     std::string name_template;
 
-#  if GTEST_OS_LINUX_ANDROID
+#if GTEST_OS_LINUX_ANDROID
     // Note: Android applications are expected to call the framework's
     // Context.getExternalStorageDirectory() method through JNI to get
     // the location of the world-writable SD Card directory. However,
@@ -1111,7 +1067,7 @@ class CapturedStream {
     // '/sdcard' and other variants cannot be relied on, as they are not
     // guaranteed to be mounted, or may have a delay in mounting.
     name_template = "/data/local/tmp/";
-#  elif GTEST_OS_IOS
+#elif GTEST_OS_IOS
     char user_temp_dir[PATH_MAX + 1];
 
     // Documented alternative to NSTemporaryDirectory() (for obtaining creating
@@ -1132,9 +1088,9 @@ class CapturedStream {
     name_template = user_temp_dir;
     if (name_template.back() != GTEST_PATH_SEP_[0])
       name_template.push_back(GTEST_PATH_SEP_[0]);
-#  else
+#else
     name_template = "/tmp/";
-#  endif
+#endif
     name_template.append("gtest_captured_stream.XXXXXX");
 
     // mkstemp() modifies the string bytes in place, and does not go beyond the
@@ -1150,15 +1106,13 @@ class CapturedStream {
           << " for test; does the test have access to the /tmp directory?";
     }
     filename_ = std::move(name_template);
-# endif  // GTEST_OS_WINDOWS
+#endif  // GTEST_OS_WINDOWS
     fflush(nullptr);
     dup2(captured_fd, fd_);
     close(captured_fd);
   }
 
-  ~CapturedStream() {
-    remove(filename_.c_str());
-  }
+  ~CapturedStream() { remove(filename_.c_str()); }
 
   std::string GetCapturedString() {
     if (uncaptured_fd_ != -1) {
@@ -1185,7 +1139,8 @@ class CapturedStream {
   // Name of the temporary file holding the stderr output.
   ::std::string filename_;
 
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(CapturedStream);
+  CapturedStream(const CapturedStream&) = delete;
+  CapturedStream& operator=(const CapturedStream&) = delete;
 };
 
 GTEST_DISABLE_MSC_DEPRECATED_POP_()
@@ -1213,6 +1168,15 @@ static std::string GetCapturedStream(CapturedStream** captured_stream) {
   return content;
 }
 
+#if defined(_MSC_VER) || defined(__BORLANDC__)
+// MSVC and C++Builder do not provide a definition of STDERR_FILENO.
+const int kStdOutFileno = 1;
+const int kStdErrFileno = 2;
+#else
+const int kStdOutFileno = STDOUT_FILENO;
+const int kStdErrFileno = STDERR_FILENO;
+#endif  // defined(_MSC_VER) || defined(__BORLANDC__)
+
 // Starts capturing stdout.
 void CaptureStdout() {
   CaptureStream(kStdOutFileno, "stdout", &g_captured_stdout);
@@ -1235,10 +1199,6 @@ std::string GetCapturedStderr() {
 
 #endif  // GTEST_HAS_STREAM_REDIRECTION
 
-
-
-
-
 size_t GetFileSize(FILE* file) {
   fseek(file, 0, SEEK_END);
   return static_cast<size_t>(ftell(file));
@@ -1256,7 +1216,8 @@ std::string ReadEntireFile(FILE* file) {
   // Keeps reading the file until we cannot read further or the
   // pre-determined file size is reached.
   do {
-    bytes_last_read = fread(buffer+bytes_read, 1, file_size-bytes_read, file);
+    bytes_last_read =
+        fread(buffer + bytes_read, 1, file_size - bytes_read, file);
     bytes_read += bytes_last_read;
   } while (bytes_last_read > 0 && bytes_read < file_size);
 
@@ -1344,7 +1305,7 @@ bool ParseInt32(const Message& src_text, const char* str, int32_t* value) {
       // LONG_MAX or LONG_MIN when the input overflows.)
       result != long_value
       // The parsed value overflows as an int32_t.
-      ) {
+  ) {
     Message msg;
     msg << "WARNING: " << src_text
         << " is expected to be a 32-bit integer, but actually"
@@ -1388,8 +1349,8 @@ int32_t Int32FromGTestEnv(const char* flag, int32_t default_value) {
   }
 
   int32_t result = default_value;
-  if (!ParseInt32(Message() << "Environment variable " << env_var,
-                  string_value, &result)) {
+  if (!ParseInt32(Message() << "Environment variable " << env_var, string_value,
+                  &result)) {
     printf("The default value %s is used.\n",
            (Message() << default_value).GetString().c_str());
     fflush(stdout);
@@ -1408,7 +1369,7 @@ int32_t Int32FromGTestEnv(const char* flag, int32_t default_value) {
 // not check that the flag is 'output'
 // In essence this checks an env variable called XML_OUTPUT_FILE
 // and if it is set we prepend "xml:" to its value, if it not set we return ""
-std::string OutputFlagAlsoCheckEnvVar(){
+std::string OutputFlagAlsoCheckEnvVar() {
   std::string default_value_for_output_flag = "";
   const char* xml_output_file_env = posix::GetEnv("XML_OUTPUT_FILE");
   if (nullptr != xml_output_file_env) {
