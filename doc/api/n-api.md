@@ -80,7 +80,8 @@ for `node-addon-api`.
 
 The [Node-API Resource](https://nodejs.github.io/node-addon-examples/) offers
 an excellent orientation and tips for developers just getting started with
-Node-API and `node-addon-api`.
+Node-API and `node-addon-api`. Additional media resources can be found on the
+[Node-API Media][] page.
 
 ## Implications of ABI stability
 
@@ -6333,6 +6334,7 @@ the add-on's file name during loading.
 [GitHub releases]: https://help.github.com/en/github/administering-a-repository/about-releases
 [LLVM]: https://llvm.org
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
+[Node-API Media]: https://github.com/nodejs/abi-stable-node/blob/HEAD/node-api-media.md
 [Object lifetime management]: #object-lifetime-management
 [Object wrap]: #object-wrap
 [Section 12.10.4]: https://tc39.github.io/ecma262/#sec-instanceofoperator
