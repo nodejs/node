@@ -32,10 +32,10 @@ rm -f deps/undici/undici.js
     FILE_PATH="$ROOT/src/undici_version.h"
     echo "// This is an auto generated file, please do not edit." > "$FILE_PATH"
     echo "// Refer to tools/update-undici.sh" >> "$FILE_PATH"
-    echo "#ifndef SRC_ACORN_VERSION_H_" >> "$FILE_PATH"
-    echo "#define SRC_ACORN_VERSION_H_" >> "$FILE_PATH"
+    echo "#ifndef SRC_UNDICI_VERSION_H_" >> "$FILE_PATH"
+    echo "#define SRC_UNDICI_VERSION_H_" >> "$FILE_PATH"
     echo "#define UNDICI_VERSION \"$UNDICI_VERSION\"" >> "$FILE_PATH"
-    echo "#endif  // SRC_ACORN_VERSION_H_" >> "$FILE_PATH"
+    echo "#endif  // SRC_UNDICI_VERSION_H_" >> "$FILE_PATH"
 )
 
 mv undici-tmp/node_modules/undici deps/undici/src
