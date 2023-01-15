@@ -20781,6 +20781,7 @@ const plugins = [
     remarkLintProhibitedStrings,
     [
       { yes: "End-of-Life" },
+      { no: "filesystem", yes: "file system" },
       { yes: "GitHub" },
       { no: "hostname", yes: "host name" },
       { yes: "JavaScript" },
