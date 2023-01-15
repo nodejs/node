@@ -26,7 +26,7 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+
 // Google Test filepath utilities
 //
 // This header file declares classes and functions used internally by
@@ -35,15 +35,22 @@
 // This file is #included in gtest/internal/gtest-internal.h.
 // Do not include this header file separately!
 
-// GOOGLETEST_CM0001 DO NOT DELETE
+// IWYU pragma: private, include "gtest/gtest.h"
+// IWYU pragma: friend gtest/.*
+// IWYU pragma: friend gmock/.*
 
 #ifndef GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_FILEPATH_H_
 #define GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_FILEPATH_H_
 
+#include <string>
+
+#include "gtest/internal/gtest-port.h"
 #include "gtest/internal/gtest-string.h"
 
 GTEST_DISABLE_MSC_WARNINGS_PUSH_(4251 \
 /* class A needs to have dll-interface to be used by clients of class B */)
+
+#if GTEST_HAS_FILE_SYSTEM
 
 namespace testing {
 namespace internal {
@@ -61,8 +68,8 @@ namespace internal {
 
 class GTEST_API_ FilePath {
  public:
-  FilePath() : pathname_("") { }
-  FilePath(const FilePath& rhs) : pathname_(rhs.pathname_) { }
+  FilePath() : pathname_("") {}
+  FilePath(const FilePath& rhs) : pathname_(rhs.pathname_) {}
 
   explicit FilePath(const std::string& pathname) : pathname_(pathname) {
     Normalize();
@@ -73,9 +80,7 @@ class GTEST_API_ FilePath {
     return *this;
   }
 
-  void Set(const FilePath& rhs) {
-    pathname_ = rhs.pathname_;
-  }
+  void Set(const FilePath& rhs) { pathname_ = rhs.pathname_; }
 
   const std::string& string() const { return pathname_; }
   const char* c_str() const { return pathname_.c_str(); }
@@ -88,8 +93,7 @@ class GTEST_API_ FilePath {
   // than zero (e.g., 12), returns "dir/test_12.xml".
   // On Windows platform, uses \ as the separator rather than /.
   static FilePath MakeFileName(const FilePath& directory,
-                               const FilePath& base_name,
-                               int number,
+                               const FilePath& base_name, int number,
                                const char* extension);
 
   // Given directory = "dir", relative_path = "test.xml",
@@ -200,6 +204,16 @@ class GTEST_API_ FilePath {
   // separators. Returns NULL if no path separator was found.
   const char* FindLastPathSeparator() const;
 
+  // Returns the length of the path root, including the directory separator at
+  // the end of the prefix. Returns zero by definition if the path is relative.
+  // Examples:
+  // - [Windows] "..\Sibling" => 0
+  // - [Windows] "\Windows" => 1
+  // - [Windows] "C:/Windows\Notepad.exe" => 3
+  // - [Windows] "\\Host\Share\C$/Windows" => 13
+  // - [UNIX] "/bin" => 1
+  size_t CalculateRootLength() const;
+
   std::string pathname_;
 };  // class FilePath
 
@@ -207,5 +221,7 @@ class GTEST_API_ FilePath {
 }  // namespace testing
 
 GTEST_DISABLE_MSC_WARNINGS_POP_()  //  4251
+
+#endif  // GTEST_HAS_FILE_SYSTEM
 
 #endif  // GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_FILEPATH_H_
