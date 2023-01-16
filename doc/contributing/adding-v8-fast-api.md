@@ -9,7 +9,8 @@ for example, they may not trigger garbage collection.
 ## Limitations
 
 * Fast API functions may not trigger garbage collection. This means by proxy
-  that JavaScript execution and heap allocation are also forbidden.
+  that JavaScript execution and heap allocation are also forbidden, including
+  `v8::Array::Get()` or `v8::Number::New()`.
 * Throwing errors is not available on fast API, but can be done
   through the fallback to slow API.
 * Not all parameter and return types are supported in fast API calls.
@@ -26,7 +27,7 @@ for example, they may not trigger garbage collection.
 * The fast callback must be idempotent up to the point where error and fallback
   conditions are checked, because otherwise executing the slow callback might
   produce visible side effects twice.
-*
+
 ## Fallback to slow path
 
 Fast API supports fallback to slow path in case logically it is wise to do so,
