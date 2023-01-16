@@ -11,8 +11,6 @@
 
 namespace node {
 namespace crypto {
-static constexpr size_t kMaxDigestMultiplier = 255;
-
 struct HKDFConfig final : public MemoryRetainer {
   CryptoJobMode mode;
   size_t length;
