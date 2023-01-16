@@ -875,8 +875,6 @@ such as if the CI run fails or a new outstanding review comment is posted.
 ***
 
 * `semver-{minor,major}`
-  * be conservative – that is, if a change has the remote _chance_ of breaking
-    something, go for semver-major
   * when adding a semver label, add a comment explaining why you're adding it
   * minor vs. patch: roughly: "does it add a new method / does it add a new
     section to the docs"
