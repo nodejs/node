@@ -773,6 +773,10 @@ one of the [DNS error codes][].
 added:
   - v16.4.0
   - v14.18.0
+changes:
+  - version: v17.0.0
+    pr-url: https://github.com/nodejs/node/pull/39987
+    description: Changed default value to `verbatim`.
 -->
 
 * `order` {string} must be `'ipv4first'` or `'verbatim'`.
@@ -783,7 +787,7 @@ Set the default value of `verbatim` in [`dns.lookup()`][] and
 * `ipv4first`: sets default `verbatim` `false`.
 * `verbatim`: sets default `verbatim` `true`.
 
-The default is `ipv4first` and [`dns.setDefaultResultOrder()`][] have higher
+The default is `verbatim` and [`dns.setDefaultResultOrder()`][] have higher
 priority than [`--dns-result-order`][]. When using [worker threads][],
 [`dns.setDefaultResultOrder()`][] from the main thread won't affect the default
 dns orders in workers.
@@ -1328,6 +1332,10 @@ is one of the [DNS error codes][].
 added:
   - v16.4.0
   - v14.18.0
+changes:
+  - version: v17.0.0
+    pr-url: https://github.com/nodejs/node/pull/39987
+    description: Changed default value to `verbatim`.
 -->
 
 * `order` {string} must be `'ipv4first'` or `'verbatim'`.
@@ -1338,7 +1346,7 @@ Set the default value of `verbatim` in [`dns.lookup()`][] and
 * `ipv4first`: sets default `verbatim` `false`.
 * `verbatim`: sets default `verbatim` `true`.
 
-The default is `ipv4first` and [`dnsPromises.setDefaultResultOrder()`][] have
+The default is `verbatim` and [`dnsPromises.setDefaultResultOrder()`][] have
 higher priority than [`--dns-result-order`][]. When using [worker threads][],
 [`dnsPromises.setDefaultResultOrder()`][] from the main thread won't affect the
 default dns orders in workers.
