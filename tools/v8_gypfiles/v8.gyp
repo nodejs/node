@@ -1433,6 +1433,14 @@
         ['want_separate_host_toolset', {
           'toolsets': ['host'],
         }],
+        ['OS=="win"', {
+          'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
+          'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
+          'sources': [
+            '<(_msvs_precompiled_header)',
+            '<(_msvs_precompiled_source)',
+          ],
+        }],
       ],
     },  # mksnapshot
     {
