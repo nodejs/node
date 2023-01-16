@@ -1833,6 +1833,7 @@ added: REPLACEME
 
 Redundant with event constructors and incapable of setting `composed`.
 This is not used in Node.js and is provided purely for completeness.
+The WHATWG spec considers it deprecated and users shouldn't use it at all.
 
 #### `event.isTrusted`
 
