@@ -1825,7 +1825,8 @@ This is not used in Node.js and is provided purely for completeness.
 added: REPLACEME
 -->
 
-> Stability: 3 - Legacy
+> Stability: 3 - Legacy: The WHATWG spec considers it deprecated and users
+shouldn't use it at all.
 
 * `type` {string}
 * `bubbles` {boolean}
@@ -1833,7 +1834,6 @@ added: REPLACEME
 
 Redundant with event constructors and incapable of setting `composed`.
 This is not used in Node.js and is provided purely for completeness.
-The WHATWG spec considers it deprecated and users shouldn't use it at all.
 
 #### `event.isTrusted`
 
