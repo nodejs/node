@@ -324,7 +324,7 @@ bool ToASCII(const std::string& input, std::string* output) {
   output->assign(*buf, buf.length());
   return true;
 }
-#else   // !defined(NODE_HAVE_I18N_SUPPORT)
+#else  // !defined(NODE_HAVE_I18N_SUPPORT)
 // Intentional non-ops if ICU is not present.
 bool ToUnicode(const std::string& input, std::string* output) {
   *output = input;
