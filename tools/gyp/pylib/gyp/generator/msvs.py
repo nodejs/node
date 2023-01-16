@@ -3633,7 +3633,10 @@ def _AddSources2(
                     elif file_name.startswith("$("):
                         file_name = re.sub(r"^\$\([^)]+\)\\", "", file_name)
                     detail.append(["ObjectFileName", "$(IntDir)\\" + file_name])
-                grouped_sources[group].append([element, {"Include": source}] + detail)
+                element_node = [element, {"Include": source}]
+                if element == "MARMASM":
+                    element_node.append(["PreprocessedFileName", source + ".pp"])
+                grouped_sources[group].append(element_node + detail)
 
 
 def _GetMSBuildProjectReferences(project):

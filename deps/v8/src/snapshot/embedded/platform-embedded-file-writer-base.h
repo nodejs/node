@@ -5,6 +5,8 @@
 #ifndef V8_SNAPSHOT_EMBEDDED_PLATFORM_EMBEDDED_FILE_WRITER_BASE_H_
 #define V8_SNAPSHOT_EMBEDDED_PLATFORM_EMBEDDED_FILE_WRITER_BASE_H_
 
+#include "src/objects/fixed-array-inl.h"
+
 #include <cinttypes>
 #include <cstdio>  // For FILE.
 #include <memory>
