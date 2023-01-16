@@ -97,6 +97,7 @@ A typical function that communicates between JavaScript and C++ is as follows.
                            v8::FastApiCallbackOptions& options) {
     if (b == 0) {
       options.fallback = true;
+      return 0;
     } else {
       return a / b;
     }
