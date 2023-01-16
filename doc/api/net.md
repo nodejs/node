@@ -29,7 +29,7 @@ sockets on other operating systems.
 [`socket.connect()`][] take a `path` parameter to identify IPC endpoints.
 
 On Unix, the local domain is also known as the Unix domain. The path is a
-filesystem pathname. It gets truncated to an OS-dependent length of
+file system pathname. It gets truncated to an OS-dependent length of
 `sizeof(sockaddr_un.sun_path) - 1`. Typical values are 107 bytes on Linux and
 103 bytes on macOS. If a Node.js API abstraction creates the Unix domain socket,
 it will unlink the Unix domain socket as well. For example,
@@ -37,7 +37,7 @@ it will unlink the Unix domain socket as well. For example,
 [`server.close()`][] will unlink it. But if a user creates the Unix domain
 socket outside of these abstractions, the user will need to remove it. The same
 applies when a Node.js API creates a Unix domain socket but the program then
-crashes. In short, a Unix domain socket will be visible in the filesystem and
+crashes. In short, a Unix domain socket will be visible in the file system and
 will persist until unlinked.
 
 On Windows, the local domain is implemented using a named pipe. The path _must_
@@ -783,7 +783,7 @@ socket as reported by the operating system:
 ### `socket.autoSelectFamilyAttemptedAddresses`
 
 <!-- YAML
-added: REPLACEME
+added: v19.4.0
 -->
 
 * {string\[]}
@@ -870,12 +870,14 @@ behavior.
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v19.4.0
     pr-url: https://github.com/nodejs/node/pull/45777
     description: The default value for autoSelectFamily option can be changed
                  at runtime using `setDefaultAutoSelectFamily` or via the
                  command line option `--enable-network-family-autoselection`.
-  - version: v19.3.0
+  - version:
+      - v19.3.0
+      - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/44731
     description: Added the `autoSelectFamily` option.
   - version:
@@ -1519,7 +1521,7 @@ then returns the `net.Socket` that starts the connection.
 ## `net.setDefaultAutoSelectFamily(value)`
 
 <!-- YAML
-added: REPLACEME
+added: v19.4.0
 -->
 
 Sets the default value of the `autoSelectFamily` option of [`socket.connect(options)`][].
@@ -1529,7 +1531,7 @@ Sets the default value of the `autoSelectFamily` option of [`socket.connect(opt
 ## `net.getDefaultAutoSelectFamily()`
 
 <!-- YAML
-added: REPLACEME
+added: v19.4.0
 -->
 
 Gets the current default value of the `autoSelectFamily` option of [`socket.connect(options)`][].

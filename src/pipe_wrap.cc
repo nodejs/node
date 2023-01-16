@@ -217,10 +217,9 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->Int32Value(env->context()).To(&fd)) return;
 
   int err = uv_pipe_open(&wrap->handle_, fd);
-  wrap->set_fd(fd);
+  if (err == 0) wrap->set_fd(fd);
 
-  if (err != 0)
-    env->ThrowUVException(err, "uv_pipe_open");
+  args.GetReturnValue().Set(err);
 }
 
 

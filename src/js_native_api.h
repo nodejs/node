@@ -492,7 +492,7 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_get_date_value(napi_env env,
 // Add finalizer for pointer
 NAPI_EXTERN napi_status NAPI_CDECL napi_add_finalizer(napi_env env,
                                                       napi_value js_object,
-                                                      void* native_object,
+                                                      void* finalize_data,
                                                       napi_finalize finalize_cb,
                                                       void* finalize_hint,
                                                       napi_ref* result);

@@ -1,0 +1,84 @@
+<!DOCTYPE HTML>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="scroll_support.js"></script>
+<style>
+#rootDiv {
+  width: 500px;
+  height: 500px;
+}
+
+#targetDiv {
+  width: 200px;
+  height: 200px;
+  overflow: scroll;
+}
+
+#innerDiv {
+  width: 500px;
+  height: 4000px;
+}
+</style>
+
+<body style="margin:0" onload=runTest()>
+</body>
+
+<script>
+let scrollend_arrived = false;
+
+async function setupHtmlAndScrollAndRemoveElement(element_to_remove_id) {
+  document.body.innerHTML=`
+    <div id="rootDiv">
+      <div id="targetDiv">
+        <div id="innerDiv">
+        </div>
+      </div>
+    </div>
+  `;
+  await waitForCompositorCommit();
+
+  const target_div = document.getElementById('targetDiv');
+  const element_to_remove = document.getElementById(element_to_remove_id);
+  let reached_half_scroll = false;
+  scrollend_arrived = false;
+
+  target_div.addEventListener("scrollend", () => {
+    scrollend_arrived = true;
+  });
+
+  target_div.onscroll = () => {
+    // Remove the element after reached half of the scroll offset,
+    if(target_div.scrollTop >= 1000) {
+      reached_half_scroll = true;
+      element_to_remove.remove();
+    }
+  };
+
+  target_div.scrollTo({top:2000, left:0, behavior:"smooth"});
+  await waitFor(() => {return reached_half_scroll; },
+    "target_div never reached scroll offset of 1000");
+  await waitForCompositorCommit();
+}
+
+function runTest() {
+  promise_test (async (t) => {
+    await setupHtmlAndScrollAndRemoveElement("rootDiv");
+    await conditionHolds(() => { return !scrollend_arrived; });
+  }, "No scrollend is received after removing parent div");
+
+  promise_test (async (t) => {
+    await setupHtmlAndScrollAndRemoveElement("targetDiv");
+    await conditionHolds(() => { return !scrollend_arrived; });
+  }, "No scrollend is received after removing scrolling element");
+
+  promise_test (async (t) => {
+    await setupHtmlAndScrollAndRemoveElement("innerDiv");
+    await waitFor(() => { return scrollend_arrived; },
+        'target_div did not receive scrollend event after vertical scroll.');
+  }, "scrollend is received after removing descendant div");
+}
+</script>

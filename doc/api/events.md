@@ -1748,14 +1748,18 @@ added: v14.5.0
 
 This is not used in Node.js and is provided purely for completeness.
 
-#### `event.cancelBubble()`
+#### `event.cancelBubble`
 
 <!-- YAML
 added: v14.5.0
 -->
 
-Alias for `event.stopPropagation()`. This is not used in Node.js and is
-provided purely for completeness.
+> Stability: 3 - Legacy: Use [`event.stopPropagation()`][] instead.
+
+* Type: {boolean}
+
+Alias for `event.stopPropagation()` if set to `true`. This is not used
+in Node.js and is provided purely for completeness.
 
 #### `event.cancelable`
 
@@ -1851,6 +1855,8 @@ This is not used in Node.js and is provided purely for completeness.
 <!-- YAML
 added: v14.5.0
 -->
+
+> Stability: 3 - Legacy: Use [`event.target`][] instead.
 
 * Type: {EventTarget} The `EventTarget` dispatching the event.
 
@@ -2162,6 +2168,8 @@ to the `EventTarget`.
 [`emitter.listenerCount()`]: #emitterlistenercounteventname
 [`emitter.removeListener()`]: #emitterremovelistenereventname-listener
 [`emitter.setMaxListeners(n)`]: #emittersetmaxlistenersn
+[`event.stopPropagation()`]: #eventstoppropagation
+[`event.target`]: #eventtarget
 [`events.defaultMaxListeners`]: #eventsdefaultmaxlisteners
 [`fs.ReadStream`]: fs.md#class-fsreadstream
 [`net.Server`]: net.md#class-netserver

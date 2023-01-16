@@ -22,7 +22,7 @@ const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
-const cpus = require('os').cpus().length;
+const cpus = require('os').availableParallelism();
 
 function hash(algo, body) {
   const values = [];

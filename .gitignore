@@ -136,10 +136,11 @@ tools/*/*.i.tmp
 /deps/npm/node_modules/.bin/
 # Respect V8's .gitignore
 !deps/v8/**
-# Ignore the libuv book and GitHub templates
-/deps/uv/.github/
+# Ignore the libuv book
 /deps/uv/docs/code/
 /deps/uv/docs/src/guide/
+# Ignore .github directories
+/deps/**/.github/
 # Ignore dependencies fetched by tools/v8/fetch_deps.py
 /deps/.cipd
 

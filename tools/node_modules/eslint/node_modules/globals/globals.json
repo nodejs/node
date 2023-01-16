@@ -685,6 +685,7 @@
 		"NavigationPreloadManager": false,
 		"navigator": false,
 		"Navigator": false,
+		"NavigatorUAData": false,
 		"NetworkInformation": false,
 		"Node": false,
 		"NodeFilter": false,

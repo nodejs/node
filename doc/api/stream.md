@@ -1907,7 +1907,9 @@ has less then 64 KiB of data because no `highWaterMark` option is provided to
 ##### `readable.compose(stream[, options])`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 > Stability: 1 - Experimental
@@ -2912,6 +2914,18 @@ Calling `Readable.from(string)` or `Readable.from(buffer)` will not have
 the strings or buffers be iterated to match the other streams semantics
 for performance reasons.
 
+If an `Iterable` object containing promises is passed as an argument,
+it might result in unhandled rejection.
+
+```js
+const { Readable } = require('node:stream');
+
+Readable.from([
+  new Promise((resolve) => setTimeout(resolve('1'), 1500)),
+  new Promise((_, reject) => setTimeout(reject(new Error('2')), 1000)), // Unhandled rejection
+]);
+```
+
 ### `stream.Readable.fromWeb(readableStream[, options])`
 
 <!-- YAML
@@ -3041,6 +3055,18 @@ A utility method for creating duplex streams.
   `Duplex` will write to the `writable` and read from the `readable`.
 * `Promise` converts into readable `Duplex`. Value `null` is ignored.
 * Returns: {stream.Duplex}
+
+If an `Iterable` object containing promises is passed as an argument,
+it might result in unhandled rejection.
+
+```js
+const { Duplex } = require('node:stream');
+
+Duplex.from([
+  new Promise((resolve) => setTimeout(resolve('1'), 1500)),
+  new Promise((_, reject) => setTimeout(reject(new Error('2')), 1000)), // Unhandled rejection
+]);
+```
 
 ### `stream.Duplex.fromWeb(pair[, options])`
 

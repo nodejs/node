@@ -705,13 +705,6 @@ A special type of error that can be triggered whenever Node.js detects an
 exceptional logic violation that should never occur. These are raised typically
 by the `node:assert` module.
 
-<a id="ERR_ASSERT_SNAPSHOT_NOT_SUPPORTED"></a>
-
-### `ERR_ASSERT_SNAPSHOT_NOT_SUPPORTED`
-
-An attempt was made to use `assert.snapshot()` in an environment that
-does not support snapshots, such as the REPL, or when using `node --eval`.
-
 <a id="ERR_ASYNC_CALLBACK"></a>
 
 ### `ERR_ASYNC_CALLBACK`
@@ -2809,7 +2802,8 @@ Failed to set PSK identity hint. Hint may be too long.
 
 ### `ERR_TLS_RENEGOTIATION_DISABLED`
 
-An attempt was made to renegotiate TLS on a socket instance with TLS disabled.
+An attempt was made to renegotiate TLS on a socket instance with renegotiation
+disabled.
 
 <a id="ERR_TLS_REQUIRED_SERVER_NAME"></a>
 

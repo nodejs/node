@@ -323,6 +323,10 @@ inline ImmediateInfo* Environment::immediate_info() {
   return &immediate_info_;
 }
 
+inline AliasedInt32Array& Environment::timeout_info() {
+  return timeout_info_;
+}
+
 inline TickInfo* Environment::tick_info() {
   return &tick_info_;
 }
@@ -799,11 +803,6 @@ void Environment::AddCleanupHook(CleanupQueue::Callback fn, void* arg) {
 
 void Environment::RemoveCleanupHook(CleanupQueue::Callback fn, void* arg) {
   cleanup_queue_.Remove(fn, arg);
-}
-
-void Environment::set_main_utf16(std::unique_ptr<v8::String::Value> str) {
-  CHECK(!main_utf16_);
-  main_utf16_ = std::move(str);
 }
 
 void Environment::set_process_exit_handler(

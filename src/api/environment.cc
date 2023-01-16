@@ -424,6 +424,9 @@ void FreeEnvironment(Environment* env) {
     Context::Scope context_scope(env->context());
     SealHandleScope seal_handle_scope(isolate);
 
+    // Set the flag in accordance with the DisallowJavascriptExecutionScope
+    // above.
+    env->set_can_call_into_js(false);
     env->set_stopping(true);
     env->stop_sub_worker_contexts();
     env->RunCleanup();
@@ -467,21 +470,10 @@ MaybeLocal<Value> LoadEnvironment(
     Environment* env,
     const char* main_script_source_utf8) {
   CHECK_NOT_NULL(main_script_source_utf8);
-  Isolate* isolate = env->isolate();
   return LoadEnvironment(
-      env,
-      [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
-        // This is a slightly hacky way to convert UTF-8 to UTF-16.
-        Local<String> str =
-            String::NewFromUtf8(isolate,
-                                main_script_source_utf8).ToLocalChecked();
-        auto main_utf16 = std::make_unique<String::Value>(isolate, str);
-
-        // TODO(addaleax): Avoid having a global table for all scripts.
+      env, [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
         std::string name = "embedder_main_" + std::to_string(env->thread_id());
-        builtins::BuiltinLoader::Add(
-            name.c_str(), UnionBytes(**main_utf16, main_utf16->length()));
-        env->set_main_utf16(std::move(main_utf16));
+        builtins::BuiltinLoader::Add(name.c_str(), main_script_source_utf8);
         Realm* realm = env->principal_realm();
 
         return realm->ExecuteBootstrapper(name.c_str());

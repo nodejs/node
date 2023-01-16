@@ -12,7 +12,7 @@ namespace util {
 
 class WeakReference : public SnapshotableObject {
  public:
-  SERIALIZABLE_OBJECT_METHODS();
+  SERIALIZABLE_OBJECT_METHODS()
 
   static constexpr FastStringKey type_name{"node::util::WeakReference"};
   static constexpr EmbedderObjectType type_int =
