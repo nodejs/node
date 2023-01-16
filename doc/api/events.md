@@ -1826,7 +1826,7 @@ added: REPLACEME
 -->
 
 > Stability: 3 - Legacy: The WHATWG spec considers it deprecated and users
-shouldn't use it at all.
+> shouldn't use it at all.
 
 * `type` {string}
 * `bubbles` {boolean}
