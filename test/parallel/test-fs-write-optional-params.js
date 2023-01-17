@@ -29,22 +29,26 @@ function testValidCb(buffer, options, index, callback) {
   const length = options?.length;
   const offset = options?.offset;
   const dest = path.resolve(tmpdir.path, `rwopt_valid_${index}`);
-  fs.open(dest, 'w+', common.mustSucceed((fd) => {
+  fs.open(dest, 'w', common.mustSucceed((fd) => {
     fs.write(fd, buffer, options, common.mustSucceed((bytesWritten, bufferWritten) => {
       const writeBufCopy = Uint8Array.prototype.slice.call(bufferWritten);
+      fs.close(fd, common.mustSucceed(() => {
+        fs.open(dest, 'r', common.mustSucceed((fd) => {
+          fs.read(fd, buffer, options, common.mustSucceed((bytesRead, bufferRead) => {
+            const readBufCopy = Uint8Array.prototype.slice.call(bufferRead);
 
-      fs.read(fd, buffer, options, common.mustSucceed((bytesRead, bufferRead) => {
-        const readBufCopy = Uint8Array.prototype.slice.call(bufferRead);
-
-        assert.ok(bytesWritten >= bytesRead);
-        if (length !== undefined && length !== null) {
-          assert.strictEqual(bytesWritten, length);
-        }
-        if (offset === undefined || offset === 0) {
-          assert.deepStrictEqual(writeBufCopy, readBufCopy);
-        }
-        assert.deepStrictEqual(bufferWritten, bufferRead);
-        fs.close(fd, common.mustSucceed(callback));
+            assert.ok(bytesWritten >= bytesRead);
+            if (length !== undefined && length !== null) {
+              assert.strictEqual(bytesWritten, length);
+              assert.strictEqual(bytesRead, length);
+            }
+            if (offset === undefined || offset === 0) {
+              assert.deepStrictEqual(writeBufCopy, readBufCopy);
+            }
+            assert.deepStrictEqual(bufferWritten, bufferRead);
+            fs.close(fd, common.mustSucceed(callback));
+          }));
+        }));
       }));
     }));
   }));
