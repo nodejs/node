@@ -19,12 +19,8 @@ class Hook extends BaseCommand {
     'update <id> <url> <secret>',
   ]
 
-  static ignoreImplicitWorkspace = true
-
   async exec (args) {
-    return otplease(this.npm, {
-      ...this.npm.flatOptions,
-    }, (opts) => {
+    return otplease(this.npm, { ...this.npm.flatOptions }, (opts) => {
       switch (args[0]) {
         case 'add':
           return this.add(args[1], args[2], args[3], opts)
@@ -49,9 +45,7 @@ class Hook extends BaseCommand {
       this.npm.output(Object.keys(hook).join('\t'))
       this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
     } else if (!this.npm.silent) {
-      this.npm.output(`+ ${this.hookName(hook)} ${
-        opts.unicode ? ' ➜ ' : ' -> '
-      } ${hook.endpoint}`)
+      this.npm.output(`+ ${this.hookName(hook)} ${opts.unicode ? ' ➜ ' : ' -> '} ${hook.endpoint}`)
     }
   }
 
@@ -104,9 +98,7 @@ class Hook extends BaseCommand {
       this.npm.output(Object.keys(hook).join('\t'))
       this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
     } else if (!this.npm.silent) {
-      this.npm.output(`- ${this.hookName(hook)} ${
-        opts.unicode ? ' ✘ ' : ' X '
-      } ${hook.endpoint}`)
+      this.npm.output(`- ${this.hookName(hook)} ${opts.unicode ? ' ✘ ' : ' X '} ${hook.endpoint}`)
     }
   }
 
@@ -118,9 +110,7 @@ class Hook extends BaseCommand {
       this.npm.output(Object.keys(hook).join('\t'))
       this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
     } else if (!this.npm.silent) {
-      this.npm.output(`+ ${this.hookName(hook)} ${
-        opts.unicode ? ' ➜ ' : ' -> '
-      } ${hook.endpoint}`)
+      this.npm.output(`+ ${this.hookName(hook)} ${opts.unicode ? ' ➜ ' : ' -> '} ${hook.endpoint}`)
     }
   }
 

@@ -152,7 +152,7 @@ class VerifySignatures {
     const keys = await fetch.json('/-/npm/v1/keys', {
       ...this.npm.flatOptions,
       registry,
-    }).then(({ keys }) => keys.map((key) => ({
+    }).then(({ keys: ks }) => ks.map((key) => ({
       ...key,
       pemkey: `-----BEGIN PUBLIC KEY-----\n${key.key}\n-----END PUBLIC KEY-----`,
     }))).catch(err => {

@@ -37,18 +37,18 @@ ruyadorno
 `
 
 exports[`test/lib/commands/team.js TAP team ls <scope:team> default output > should list users for a given scope:team 1`] = `
-
 @npmcli:developers has 4 users:
-darcyclarke isaacs nlf ruyadorno
+darcyclarke
+isaacs
+nlf
+ruyadorno
 `
 
 exports[`test/lib/commands/team.js TAP team ls <scope:team> no users > should list no users for a given scope 1`] = `
-
 @npmcli:developers has 0 users
 `
 
 exports[`test/lib/commands/team.js TAP team ls <scope:team> single user > should list single user for a given scope 1`] = `
-
 @npmcli:developers has 1 user:
 foo
 `
@@ -60,18 +60,17 @@ npmcli:product
 `
 
 exports[`test/lib/commands/team.js TAP team ls <scope> default output > should list teams for a given scope 1`] = `
-
 @npmcli has 3 teams:
-@npmcli:designers @npmcli:developers @npmcli:product
+@npmcli:designers
+@npmcli:developers
+@npmcli:product
 `
 
 exports[`test/lib/commands/team.js TAP team ls <scope> no teams > should list no teams for a given scope 1`] = `
-
 @npmcli has 0 teams
 `
 
 exports[`test/lib/commands/team.js TAP team ls <scope> single team > should list single team for a given scope 1`] = `
-
 @npmcli has 1 team:
 @npmcli:developers
 `

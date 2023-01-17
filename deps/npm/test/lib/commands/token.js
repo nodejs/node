@@ -1,73 +1,43 @@
 const t = require('tap')
+const mockNpm = require('../../fixtures/mock-npm')
 
-const mocks = {
-  profile: {},
-  output: () => {},
-  readUserInfo: {},
-}
-const npm = {
-  output: (...args) => mocks.output(...args),
-  config: { validate: () => {} },
-}
+const mockToken = async (t, { profile, getCredentialsByURI, readUserInfo, ...opts } = {}) => {
+  const mocks = {}
 
-const mockToken = (otherMocks) => t.mock('../../../lib/commands/token.js', {
-  '../../../lib/utils/read-user-info.js': mocks.readUserInfo,
-  'npm-profile': mocks.profile,
-  ...otherMocks,
-})
-
-const tokenWithMocks = (options = {}) => {
-  const { log, ...mockRequests } = options
-
-  for (const mod in mockRequests) {
-    if (mod === 'npm') {
-      mockRequests.npm = { ...npm, ...mockRequests.npm }
-      mockRequests.npm.config.validate = () => {}
-    } else {
-      if (typeof mockRequests[mod] === 'function') {
-        mocks[mod] = mockRequests[mod]
-      } else {
-        for (const key in mockRequests[mod]) {
-          mocks[mod][key] = mockRequests[mod][key]
-        }
-      }
-    }
+  if (profile) {
+    mocks['npm-profile'] = profile
   }
 
-  const reset = () => {
-    for (const mod in mockRequests) {
-      if (mod !== 'npm') {
-        if (typeof mockRequests[mod] === 'function') {
-          mocks[mod] = () => {}
-        } else {
-          for (const key in mockRequests[mod]) {
-            delete mocks[mod][key]
-          }
-        }
-      }
-    }
+  if (readUserInfo) {
+    mocks['{LIB}/utils/read-user-info.js'] = readUserInfo
   }
 
-  const MockedToken = mockToken(log ? {
-    'proc-log': {
-      info: log.info,
-    },
-    npmlog: {
-      gauge: log.gauge,
-      newItem: log.newItem,
-    },
-  } : {})
-  const token = new MockedToken(mockRequests.npm || npm)
-  return [token, reset]
+  const mock = await mockNpm(t, {
+    ...opts,
+    mocks,
+  })
+
+  // XXX: replace with mock registry
+  if (getCredentialsByURI) {
+    mock.npm.config.getCredentialsByURI = getCredentialsByURI
+  }
+
+  const token = {
+    exec: (args) => mock.npm.exec('token', args),
+  }
+
+  return {
+    ...mock,
+    token,
+  }
 }
 
-t.test('completion', t => {
-  t.plan(5)
-
-  const [token] = tokenWithMocks()
+t.test('completion', async t => {
+  const { npm } = await mockToken(t)
+  const { completion } = await npm.cmd('token')
 
   const testComp = (argv, expect) => {
-    t.resolveMatch(token.completion({ conf: { argv: { remain: argv } } }), expect, argv.join(' '))
+    t.resolveMatch(completion({ conf: { argv: { remain: argv } } }), expect, argv.join(' '))
   }
 
   testComp(['npm', 'token'], ['list', 'revoke', 'create'])
@@ -75,32 +45,18 @@ t.test('completion', t => {
   testComp(['npm', 'token', 'revoke'], [])
   testComp(['npm', 'token', 'create'], [])
 
-  t.rejects(token.completion({ conf: { argv: { remain: ['npm', 'token', 'foobar'] } } }), {
+  t.rejects(completion({ conf: { argv: { remain: ['npm', 'token', 'foobar'] } } }), {
     message: 'foobar not recognize',
   })
 })
 
 t.test('token foobar', async t => {
-  t.plan(2)
-
-  const [token, reset] = tokenWithMocks({
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token', 'shows a gauge')
-        },
-      },
-    },
-  })
-
-  t.teardown(reset)
+  const { token } = await mockToken(t)
 
   await t.rejects(token.exec(['foobar']), /foobar is not a recognized subcommand/)
 })
 
 t.test('token list', async t => {
-  t.plan(14)
-
   const now = new Date().toISOString()
   const tokens = [
     {
@@ -121,15 +77,11 @@ t.test('token list', async t => {
     },
   ]
 
-  const [token, reset] = tokenWithMocks({
-    npm: {
-      flatOptions: { registry: 'https://registry.npmjs.org', otp: '123456' },
-      config: {
-        getCredentialsByURI: uri => {
-          t.equal(uri, 'https://registry.npmjs.org', 'requests correct registry')
-          return { token: 'thisisnotarealtoken' }
-        },
-      },
+  const { token, joinedOutput } = await mockToken(t, {
+    config: { registry: 'https://registry.npmjs.org', otp: '123456' },
+    getCredentialsByURI: uri => {
+      t.equal(uri, 'https://registry.npmjs.org/', 'requests correct registry')
+      return { token: 'thisisnotarealtoken' }
     },
     profile: {
       listTokens: conf => {
@@ -137,39 +89,23 @@ t.test('token list', async t => {
         return tokens
       },
     },
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token')
-        },
-      },
-      info: (type, msg) => {
-        t.equal(type, 'token')
-        t.equal(msg, 'getting list')
-      },
-    },
-    output: spec => {
-      const lines = spec.split(/\r?\n/)
-      t.match(lines[3], ' abcd123 ', 'includes the trimmed key')
-      t.match(lines[3], ' efgh56… ', 'includes the trimmed token')
-      t.match(lines[3], ` ${now.slice(0, 10)} `, 'includes the trimmed creation timestamp')
-      t.match(lines[3], ' no ', 'includes the "no" string for readonly state')
-      t.match(lines[5], ' abcd125 ', 'includes the trimmed key')
-      t.match(lines[5], ' hgfe87… ', 'includes the trimmed token')
-      t.match(lines[5], ` ${now.slice(0, 10)} `, 'includes the trimmed creation timestamp')
-      t.match(lines[5], ' yes ', 'includes the "no" string for readonly state')
-      t.match(lines[5], ` ${tokens[1].cidr_whitelist.join(',')} `, 'includes the cidr whitelist')
-    },
   })
 
-  t.teardown(reset)
-
   await token.exec([])
+
+  const lines = joinedOutput().split(/\r?\n/)
+  t.match(lines[3], ' abcd123 ', 'includes the trimmed key')
+  t.match(lines[3], ' efgh56… ', 'includes the trimmed token')
+  t.match(lines[3], ` ${now.slice(0, 10)} `, 'includes the trimmed creation timestamp')
+  t.match(lines[3], ' no ', 'includes the "no" string for readonly state')
+  t.match(lines[5], ' abcd125 ', 'includes the trimmed key')
+  t.match(lines[5], ' hgfe87… ', 'includes the trimmed token')
+  t.match(lines[5], ` ${now.slice(0, 10)} `, 'includes the trimmed creation timestamp')
+  t.match(lines[5], ' yes ', 'includes the "no" string for readonly state')
+  t.match(lines[5], ` ${tokens[1].cidr_whitelist.join(',')} `, 'includes the cidr whitelist')
 })
 
 t.test('token list json output', async t => {
-  t.plan(7)
-
   const now = new Date().toISOString()
   const tokens = [
     {
@@ -182,15 +118,11 @@ t.test('token list json output', async t => {
     },
   ]
 
-  const [token, reset] = tokenWithMocks({
-    npm: {
-      flatOptions: { registry: 'https://registry.npmjs.org', json: true },
-      config: {
-        getCredentialsByURI: uri => {
-          t.equal(uri, 'https://registry.npmjs.org', 'requests correct registry')
-          return { username: 'foo', password: 'bar' }
-        },
-      },
+  const { token, joinedOutput } = await mockToken(t, {
+    config: { registry: 'https://registry.npmjs.org', json: true },
+    getCredentialsByURI: uri => {
+      t.equal(uri, 'https://registry.npmjs.org/', 'requests correct registry')
+      return { username: 'foo', password: 'bar' }
     },
     profile: {
       listTokens: conf => {
@@ -202,32 +134,16 @@ t.test('token list json output', async t => {
         return tokens
       },
     },
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token')
-        },
-      },
-      info: (type, msg) => {
-        t.equal(type, 'token')
-        t.equal(msg, 'getting list')
-      },
-    },
-    output: spec => {
-      t.type(spec, 'string', 'is called with a string')
-      const parsed = JSON.parse(spec)
-      t.match(parsed, tokens, 'prints the json parsed tokens')
-    },
+
   })
 
-  t.teardown(reset)
-
   await token.exec(['list'])
+
+  const parsed = JSON.parse(joinedOutput())
+  t.match(parsed, tokens, 'prints the json parsed tokens')
 })
 
 t.test('token list parseable output', async t => {
-  t.plan(11)
-
   const now = new Date().toISOString()
   const tokens = [
     {
@@ -248,17 +164,11 @@ t.test('token list parseable output', async t => {
     },
   ]
 
-  let callCount = 0
-
-  const [token, reset] = tokenWithMocks({
-    npm: {
-      flatOptions: { registry: 'https://registry.npmjs.org', parseable: true },
-      config: {
-        getCredentialsByURI: uri => {
-          t.equal(uri, 'https://registry.npmjs.org', 'requests correct registry')
-          return { auth: Buffer.from('foo:bar').toString('base64') }
-        },
-      },
+  const { token, joinedOutput } = await mockToken(t, {
+    config: { registry: 'https://registry.npmjs.org', parseable: true },
+    getCredentialsByURI: uri => {
+      t.equal(uri, 'https://registry.npmjs.org/', 'requests correct registry')
+      return { auth: Buffer.from('foo:bar').toString('base64') }
     },
     profile: {
       listTokens: conf => {
@@ -270,82 +180,43 @@ t.test('token list parseable output', async t => {
         return tokens
       },
     },
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token')
-        },
-      },
-      info: (type, msg) => {
-        t.equal(type, 'token')
-        t.equal(msg, 'getting list')
-      },
-    },
-    output: spec => {
-      ++callCount
-      t.type(spec, 'string', 'is called with a string')
-      if (callCount === 1) {
-        t.equal(
-          spec,
-          ['key', 'token', 'created', 'readonly', 'CIDR whitelist'].join('\t'),
-          'prints header'
-        )
-      } else if (callCount === 2) {
-        t.equal(
-          spec,
-          [tokens[0].key, tokens[0].token, tokens[0].created, tokens[0].readonly, ''].join('\t'),
-          'prints token info'
-        )
-      } else {
-        t.equal(
-          spec,
-          [
-            tokens[1].key,
-            tokens[1].token,
-            tokens[1].created,
-            tokens[1].readonly,
-            tokens[1].cidr_whitelist.join(','),
-          ].join('\t'),
-          'prints token info'
-        )
-      }
-    },
   })
 
-  t.teardown(reset)
-
   await token.exec(['list'])
+
+  const lines = joinedOutput().split(/\r?\n/)
+
+  t.equal(
+    lines[0],
+    ['key', 'token', 'created', 'readonly', 'CIDR whitelist'].join('\t'),
+    'prints header'
+  )
+
+  t.equal(
+    lines[1],
+    [tokens[0].key, tokens[0].token, tokens[0].created, tokens[0].readonly, ''].join('\t'),
+    'prints token info'
+  )
+
+  t.equal(
+    lines[2],
+    [
+      tokens[1].key,
+      tokens[1].token,
+      tokens[1].created,
+      tokens[1].readonly,
+      tokens[1].cidr_whitelist.join(','),
+    ].join('\t'),
+    'prints token info'
+  )
 })
 
 t.test('token revoke', async t => {
-  t.plan(9)
-
-  const [token, reset] = tokenWithMocks({
-    npm: {
-      flatOptions: { registry: 'https://registry.npmjs.org' },
-      config: {
-        getCredentialsByURI: uri => {
-          t.equal(uri, 'https://registry.npmjs.org', 'requests correct registry')
-          return {}
-        },
-      },
-    },
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token', 'starts a gauge')
-        },
-      },
-      newItem: (action, len) => {
-        t.equal(action, 'removing tokens')
-        t.equal(len, 0)
-        return {
-          info: (name, progress) => {
-            t.equal(name, 'token')
-            t.equal(progress, 'getting existing list')
-          },
-        }
-      },
+  const { token, joinedOutput } = await mockToken(t, {
+    config: { registry: 'https://registry.npmjs.org' },
+    getCredentialsByURI: uri => {
+      t.equal(uri, 'https://registry.npmjs.org/', 'requests correct registry')
+      return {}
     },
     profile: {
       listTokens: conf => {
@@ -356,45 +227,19 @@ t.test('token revoke', async t => {
         t.equal(key, 'abcd1234', 'deletes the correct token')
       },
     },
-    output: spec => {
-      t.equal(spec, 'Removed 1 token')
-    },
   })
 
-  t.teardown(reset)
-
   await token.exec(['rm', 'abcd'])
+
+  t.equal(joinedOutput(), 'Removed 1 token')
 })
 
 t.test('token revoke multiple tokens', async t => {
-  t.plan(9)
-
-  const [token, reset] = tokenWithMocks({
-    npm: {
-      flatOptions: { registry: 'https://registry.npmjs.org' },
-      config: {
-        getCredentialsByURI: uri => {
-          t.equal(uri, 'https://registry.npmjs.org', 'requests correct registry')
-          return { token: 'thisisnotarealtoken' }
-        },
-      },
-    },
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token', 'starts a gauge')
-        },
-      },
-      newItem: (action, len) => {
-        t.equal(action, 'removing tokens')
-        t.equal(len, 0)
-        return {
-          info: (name, progress) => {
-            t.equal(name, 'token')
-            t.equal(progress, 'getting existing list')
-          },
-        }
-      },
+  const { token, joinedOutput } = await mockToken(t, {
+    config: { registry: 'https://registry.npmjs.org' },
+    getCredentialsByURI: uri => {
+      t.equal(uri, 'https://registry.npmjs.org/', 'requests correct registry')
+      return { token: 'thisisnotarealtoken' }
     },
     profile: {
       listTokens: () => Promise.resolve([{ key: 'abcd1234' }, { key: 'efgh5678' }]),
@@ -403,45 +248,19 @@ t.test('token revoke multiple tokens', async t => {
         t.ok(['abcd1234', 'efgh5678'].includes(key), 'deletes the correct token')
       },
     },
-    output: spec => {
-      t.equal(spec, 'Removed 2 tokens')
-    },
   })
 
-  t.teardown(reset)
-
   await token.exec(['revoke', 'abcd', 'efgh'])
+
+  t.equal(joinedOutput(), 'Removed 2 tokens')
 })
 
 t.test('token revoke json output', async t => {
-  t.plan(9)
-
-  const [token, reset] = tokenWithMocks({
-    npm: {
-      flatOptions: { registry: 'https://registry.npmjs.org', json: true },
-      config: {
-        getCredentialsByURI: uri => {
-          t.equal(uri, 'https://registry.npmjs.org', 'requests correct registry')
-          return { token: 'thisisnotarealtoken' }
-        },
-      },
-    },
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token', 'starts a gauge')
-        },
-      },
-      newItem: (action, len) => {
-        t.equal(action, 'removing tokens')
-        t.equal(len, 0)
-        return {
-          info: (name, progress) => {
-            t.equal(name, 'token')
-            t.equal(progress, 'getting existing list')
-          },
-        }
-      },
+  const { token, joinedOutput } = await mockToken(t, {
+    config: { registry: 'https://registry.npmjs.org', json: true },
+    getCredentialsByURI: uri => {
+      t.equal(uri, 'https://registry.npmjs.org/', 'requests correct registry')
+      return { token: 'thisisnotarealtoken' }
     },
     profile: {
       listTokens: () => Promise.resolve([{ key: 'abcd1234' }]),
@@ -449,47 +268,21 @@ t.test('token revoke json output', async t => {
         t.equal(key, 'abcd1234', 'deletes the correct token')
       },
     },
-    output: spec => {
-      t.type(spec, 'string', 'is given a string')
-      const parsed = JSON.parse(spec)
-      t.same(parsed, ['abcd1234'], 'logs the token as json')
-    },
+
   })
 
-  t.teardown(reset)
-
   await token.exec(['delete', 'abcd'])
+
+  const parsed = JSON.parse(joinedOutput())
+  t.same(parsed, ['abcd1234'], 'logs the token as json')
 })
 
 t.test('token revoke parseable output', async t => {
-  t.plan(8)
-
-  const [token, reset] = tokenWithMocks({
-    npm: {
-      flatOptions: { registry: 'https://registry.npmjs.org', parseable: true },
-      config: {
-        getCredentialsByURI: uri => {
-          t.equal(uri, 'https://registry.npmjs.org', 'requests correct registry')
-          return { token: 'thisisnotarealtoken' }
-        },
-      },
-    },
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token', 'starts a gauge')
-        },
-      },
-      newItem: (action, len) => {
-        t.equal(action, 'removing tokens')
-        t.equal(len, 0)
-        return {
-          info: (name, progress) => {
-            t.equal(name, 'token')
-            t.equal(progress, 'getting existing list')
-          },
-        }
-      },
+  const { token, joinedOutput } = await mockToken(t, {
+    config: { registry: 'https://registry.npmjs.org', parseable: true },
+    getCredentialsByURI: uri => {
+      t.equal(uri, 'https://registry.npmjs.org/', 'requests correct registry')
+      return { token: 'thisisnotarealtoken' }
     },
     profile: {
       listTokens: () => Promise.resolve([{ key: 'abcd1234' }]),
@@ -497,45 +290,19 @@ t.test('token revoke parseable output', async t => {
         t.equal(key, 'abcd1234', 'deletes the correct token')
       },
     },
-    output: spec => {
-      t.equal(spec, 'abcd1234', 'logs the token as a string')
-    },
   })
 
-  t.teardown(reset)
-
   await token.exec(['remove', 'abcd'])
+
+  t.equal(joinedOutput(), 'abcd1234', 'logs the token as a string')
 })
 
 t.test('token revoke by token', async t => {
-  t.plan(8)
-
-  const [token, reset] = tokenWithMocks({
-    npm: {
-      flatOptions: { registry: 'https://registry.npmjs.org' },
-      config: {
-        getCredentialsByURI: uri => {
-          t.equal(uri, 'https://registry.npmjs.org', 'requests correct registry')
-          return { token: 'thisisnotarealtoken' }
-        },
-      },
-    },
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token', 'starts a gauge')
-        },
-      },
-      newItem: (action, len) => {
-        t.equal(action, 'removing tokens')
-        t.equal(len, 0)
-        return {
-          info: (name, progress) => {
-            t.equal(name, 'token')
-            t.equal(progress, 'getting existing list')
-          },
-        }
-      },
+  const { token, joinedOutput } = await mockToken(t, {
+    config: { registry: 'https://registry.npmjs.org' },
+    getCredentialsByURI: uri => {
+      t.equal(uri, 'https://registry.npmjs.org/', 'requests correct registry')
+      return { token: 'thisisnotarealtoken' }
     },
     profile: {
       listTokens: () => Promise.resolve([{ key: 'abcd1234', token: 'efgh5678' }]),
@@ -543,143 +310,60 @@ t.test('token revoke by token', async t => {
         t.equal(key, 'efgh5678', 'passes through user input')
       },
     },
-    output: spec => {
-      t.equal(spec, 'Removed 1 token')
-    },
   })
 
-  t.teardown(reset)
-
   await token.exec(['rm', 'efgh5678'])
+  t.equal(joinedOutput(), 'Removed 1 token')
 })
 
 t.test('token revoke requires an id', async t => {
-  t.plan(2)
-
-  const [token, reset] = tokenWithMocks({
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token')
-        },
-      },
-    },
-  })
-
-  t.teardown(reset)
+  const { token } = await mockToken(t)
 
   await t.rejects(token.exec(['rm']), /`<tokenKey>` argument is required/)
 })
 
 t.test('token revoke ambiguous id errors', async t => {
-  t.plan(7)
-
-  const [token, reset] = tokenWithMocks({
-    npm: {
-      flatOptions: { registry: 'https://registry.npmjs.org' },
-      config: {
-        getCredentialsByURI: uri => {
-          t.equal(uri, 'https://registry.npmjs.org', 'requests correct registry')
-          return { token: 'thisisnotarealtoken' }
-        },
-      },
-    },
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token', 'starts a gauge')
-        },
-      },
-      newItem: (action, len) => {
-        t.equal(action, 'removing tokens')
-        t.equal(len, 0)
-        return {
-          info: (name, progress) => {
-            t.equal(name, 'token')
-            t.equal(progress, 'getting existing list')
-          },
-        }
-      },
+  const { token } = await mockToken(t, {
+    config: { registry: 'https://registry.npmjs.org' },
+    getCredentialsByURI: uri => {
+      t.equal(uri, 'https://registry.npmjs.org/', 'requests correct registry')
+      return { token: 'thisisnotarealtoken' }
     },
     profile: {
       listTokens: () => Promise.resolve([{ key: 'abcd1234' }, { key: 'abcd5678' }]),
     },
   })
 
-  t.teardown(reset)
-
   await t.rejects(token.exec(['rm', 'abcd']), /Token ID "abcd" was ambiguous/)
 })
 
 t.test('token revoke unknown id errors', async t => {
-  t.plan(7)
-
-  const [token, reset] = tokenWithMocks({
-    npm: {
-      flatOptions: { registry: 'https://registry.npmjs.org' },
-      config: {
-        getCredentialsByURI: uri => {
-          t.equal(uri, 'https://registry.npmjs.org', 'requests correct registry')
-          return { token: 'thisisnotarealtoken' }
-        },
-      },
-    },
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token', 'starts a gauge')
-        },
-      },
-      newItem: (action, len) => {
-        t.equal(action, 'removing tokens')
-        t.equal(len, 0)
-        return {
-          info: (name, progress) => {
-            t.equal(name, 'token')
-            t.equal(progress, 'getting existing list')
-          },
-        }
-      },
+  const { token } = await mockToken(t, {
+    config: { registry: 'https://registry.npmjs.org' },
+    getCredentialsByURI: uri => {
+      t.equal(uri, 'https://registry.npmjs.org/', 'requests correct registry')
+      return { token: 'thisisnotarealtoken' }
     },
     profile: {
       listTokens: () => Promise.resolve([{ key: 'abcd1234' }]),
     },
   })
 
-  t.teardown(reset)
-
   await t.rejects(token.exec(['rm', 'efgh']), /Unknown token id or value "efgh"./)
 })
 
 t.test('token create', async t => {
-  t.plan(14)
-
   const now = new Date().toISOString()
   const password = 'thisisnotreallyapassword'
 
-  const [token, reset] = tokenWithMocks({
-    npm: {
-      flatOptions: {
-        registry: 'https://registry.npmjs.org',
-        cidr: ['10.0.0.0/8', '192.168.1.0/24'],
-      },
-      config: {
-        getCredentialsByURI: uri => {
-          t.equal(uri, 'https://registry.npmjs.org', 'requests correct registry')
-          return { token: 'thisisnotarealtoken' }
-        },
-      },
+  const { token, joinedOutput } = await mockToken(t, {
+    config: {
+      registry: 'https://registry.npmjs.org',
+      cidr: ['10.0.0.0/8', '192.168.1.0/24'],
     },
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token', 'starts a gauge')
-        },
-      },
-      info: (name, message) => {
-        t.equal(name, 'token')
-        t.equal(message, 'creating')
-      },
+    getCredentialsByURI: uri => {
+      t.equal(uri, 'https://registry.npmjs.org/', 'requests correct registry')
+      return { token: 'thisisnotarealtoken' }
     },
     readUserInfo: {
       password: () => Promise.resolve(password),
@@ -687,7 +371,7 @@ t.test('token create', async t => {
     profile: {
       createToken: (pw, readonly, cidr) => {
         t.equal(pw, password)
-        t.equal(readonly, undefined)
+        t.equal(readonly, false)
         t.same(cidr, ['10.0.0.0/8', '192.168.1.0/24'], 'defaults to empty array')
         return {
           key: 'abcd1234',
@@ -699,49 +383,30 @@ t.test('token create', async t => {
         }
       },
     },
-    output: spec => {
-      const lines = spec.split(/\r?\n/)
-      t.match(lines[1], 'token')
-      t.match(lines[1], 'efgh5678', 'prints the whole token')
-      t.match(lines[3], 'created')
-      t.match(lines[3], now, 'prints the correct timestamp')
-      t.match(lines[5], 'readonly')
-      t.match(lines[5], 'false', 'prints the readonly flag')
-      t.match(lines[7], 'cidr_whitelist')
-    },
+
   })
 
-  t.teardown(reset)
-
   await token.exec(['create'])
+
+  const lines = joinedOutput().split(/\r?\n/)
+  t.match(lines[1], 'token')
+  t.match(lines[1], 'efgh5678', 'prints the whole token')
+  t.match(lines[3], 'created')
+  t.match(lines[3], now, 'prints the correct timestamp')
+  t.match(lines[5], 'readonly')
+  t.match(lines[5], 'false', 'prints the readonly flag')
+  t.match(lines[7], 'cidr_whitelist')
 })
 
 t.test('token create json output', async t => {
-  t.plan(9)
-
   const now = new Date().toISOString()
   const password = 'thisisnotreallyapassword'
 
-  const [token, reset] = tokenWithMocks({
-    npm: {
-      flatOptions: { registry: 'https://registry.npmjs.org', json: true },
-      config: {
-        getCredentialsByURI: uri => {
-          t.equal(uri, 'https://registry.npmjs.org', 'requests correct registry')
-          return { token: 'thisisnotarealtoken' }
-        },
-      },
-    },
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token', 'starts a gauge')
-        },
-      },
-      info: (name, message) => {
-        t.equal(name, 'token')
-        t.equal(message, 'creating')
-      },
+  const { token } = await mockToken(t, {
+    config: { registry: 'https://registry.npmjs.org', json: true },
+    getCredentialsByURI: uri => {
+      t.equal(uri, 'https://registry.npmjs.org/', 'requests correct registry')
+      return { token: 'thisisnotarealtoken' }
     },
     readUserInfo: {
       password: () => Promise.resolve(password),
@@ -749,7 +414,7 @@ t.test('token create json output', async t => {
     profile: {
       createToken: (pw, readonly, cidr) => {
         t.equal(pw, password)
-        t.equal(readonly, undefined)
+        t.equal(readonly, false)
         t.same(cidr, [], 'defaults to empty array')
         return {
           key: 'abcd1234',
@@ -772,38 +437,18 @@ t.test('token create json output', async t => {
     },
   })
 
-  t.teardown(reset)
-
   await token.exec(['create'])
 })
 
 t.test('token create parseable output', async t => {
-  t.plan(11)
-
   const now = new Date().toISOString()
   const password = 'thisisnotreallyapassword'
 
-  let callCount = 0
-  const [token, reset] = tokenWithMocks({
-    npm: {
-      flatOptions: { registry: 'https://registry.npmjs.org', parseable: true },
-      config: {
-        getCredentialsByURI: uri => {
-          t.equal(uri, 'https://registry.npmjs.org', 'requests correct registry')
-          return { token: 'thisisnotarealtoken' }
-        },
-      },
-    },
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token', 'starts a gauge')
-        },
-      },
-      info: (name, message) => {
-        t.equal(name, 'token')
-        t.equal(message, 'creating')
-      },
+  const { token, joinedOutput } = await mockToken(t, {
+    config: { registry: 'https://registry.npmjs.org', parseable: true },
+    getCredentialsByURI: uri => {
+      t.equal(uri, 'https://registry.npmjs.org/', 'requests correct registry')
+      return { token: 'thisisnotarealtoken' }
     },
     readUserInfo: {
       password: () => Promise.resolve(password),
@@ -811,7 +456,7 @@ t.test('token create parseable output', async t => {
     profile: {
       createToken: (pw, readonly, cidr) => {
         t.equal(pw, password)
-        t.equal(readonly, undefined)
+        t.equal(readonly, false)
         t.same(cidr, [], 'defaults to empty array')
         return {
           key: 'abcd1234',
@@ -823,53 +468,31 @@ t.test('token create parseable output', async t => {
         }
       },
     },
-    output: spec => {
-      ++callCount
-      if (callCount === 1) {
-        t.match(spec, 'token\tefgh5678', 'prints the token')
-      } else if (callCount === 2) {
-        t.match(spec, `created\t${now}`, 'prints the created timestamp')
-      } else if (callCount === 3) {
-        t.match(spec, 'readonly\tfalse', 'prints the readonly flag')
-      } else {
-        t.match(spec, 'cidr_whitelist\t', 'prints the cidr whitelist')
-      }
-    },
   })
 
-  t.teardown(reset)
-
   await token.exec(['create'])
+
+  const spec = joinedOutput().split(/\r?\n/)
+
+  t.match(spec[0], 'token\tefgh5678', 'prints the token')
+  t.match(spec[1], `created\t${now}`, 'prints the created timestamp')
+  t.match(spec[2], 'readonly\tfalse', 'prints the readonly flag')
+  t.match(spec[3], 'cidr_whitelist\t', 'prints the cidr whitelist')
 })
 
 t.test('token create ipv6 cidr', async t => {
-  t.plan(3)
-
   const password = 'thisisnotreallyapassword'
 
-  const [token, reset] = tokenWithMocks({
-    npm: {
-      flatOptions: { registry: 'https://registry.npmjs.org', cidr: '::1/128' },
-      config: {
-        getCredentialsByURI: uri => {
-          t.equal(uri, 'https://registry.npmjs.org', 'requests correct registry')
-          return { token: 'thisisnotarealtoken' }
-        },
-      },
-    },
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token', 'starts a gauge')
-        },
-      },
+  const { token } = await mockToken(t, {
+    config: { registry: 'https://registry.npmjs.org', cidr: '::1/128' },
+    getCredentialsByURI: uri => {
+      t.equal(uri, 'https://registry.npmjs.org/', 'requests correct registry')
+      return { token: 'thisisnotarealtoken' }
     },
     readUserInfo: {
       password: () => Promise.resolve(password),
     },
   })
-
-  t.teardown(reset)
 
   await t.rejects(
     token.exec(['create']),
@@ -882,33 +505,18 @@ t.test('token create ipv6 cidr', async t => {
 })
 
 t.test('token create invalid cidr', async t => {
-  t.plan(3)
-
   const password = 'thisisnotreallyapassword'
 
-  const [token, reset] = tokenWithMocks({
-    npm: {
-      flatOptions: { registry: 'https://registry.npmjs.org', cidr: 'apple/cider' },
-      config: {
-        getCredentialsByURI: uri => {
-          t.equal(uri, 'https://registry.npmjs.org', 'requests correct registry')
-          return { token: 'thisisnotarealtoken' }
-        },
-      },
-    },
-    log: {
-      gauge: {
-        show: name => {
-          t.equal(name, 'token', 'starts a gauge')
-        },
-      },
+  const { token } = await mockToken(t, {
+    config: { registry: 'https://registry.npmjs.org', cidr: 'apple/cider' },
+    getCredentialsByURI: uri => {
+      t.equal(uri, 'https://registry.npmjs.org/', 'requests correct registry')
+      return { token: 'thisisnotarealtoken' }
     },
     readUserInfo: {
       password: () => Promise.resolve(password),
     },
   })
-
-  t.teardown(reset)
 
   await t.rejects(
     token.exec(['create']),

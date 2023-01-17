@@ -34,7 +34,7 @@
     "@npmcli/eslint-config": "^4.0.0",
     "@npmcli/template-oss": "4.11.0",
     "require-inject": "^1.4.4",
-    "tap": "^16.0.1"
+    "tap": "^16.3.2"
   },
   "dependencies": {
     "@npmcli/git": "^4.0.1",

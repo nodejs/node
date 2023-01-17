@@ -148,8 +148,9 @@ npm command-line interface
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
 <pre><code class="language-bash">npm
 </code></pre>
+<p>Note: This command is unaware of workspaces.</p>
 <h3 id="version">Version</h3>
-<p>9.2.0</p>
+<p>9.3.0</p>
 <h3 id="description">Description</h3>
 <p>npm is the package manager for the Node JavaScript platform.  It puts
 modules in place so that node can find them, and manages dependency
@@ -247,7 +248,7 @@ more info on the global prefix.  If the <code>globalconfig</code> option is set
 in the cli, env, or user config, then that file is parsed instead.</li>
 <li>Defaults:
 npm's default configuration options are defined in
-lib/utils/config-defs.js.  These must not be changed.</li>
+<code>lib/utils/config/definitions.js</code>.  These must not be changed.</li>
 </ul>
 <p>See <a href="../using-npm/config.html"><code>config</code></a> for much much more information.</p>
 <h3 id="contributions">Contributions</h3>

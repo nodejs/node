@@ -154,6 +154,7 @@ npm access set mfa=none|publish|automation [&lt;package&gt;]
 npm access grant &lt;read-only|read-write&gt; &lt;scope:team&gt; [&lt;package&gt;]
 npm access revoke &lt;scope:team&gt; [&lt;package&gt;]
 </code></pre>
+<p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
 <p>Used to set access controls on private packages.</p>
 <p>For all of the subcommands, <code>npm access</code> will perform actions on the packages

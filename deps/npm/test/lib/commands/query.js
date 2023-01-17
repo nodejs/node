@@ -1,15 +1,8 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
+const { cleanCwd } = require('../../fixtures/clean-snapshot.js')
 
-t.cleanSnapshot = (str) => {
-  const normalizePath = p => p
-    .replace(/\\+/g, '/')
-    .replace(/\r\n/g, '\n')
-  return normalizePath(str)
-    .replace(new RegExp(normalizePath(process.cwd()), 'g'), '{CWD}')
-    // normalize between windows and posix
-    .replace(new RegExp('lib/node_modules', 'g'), 'node_modules')
-}
+t.cleanSnapshot = (str) => cleanCwd(str)
 
 t.test('simple query', async t => {
   const { npm, joinedOutput } = await loadMockNpm(t, {
@@ -71,7 +64,7 @@ t.test('recursive tree', async t => {
 t.test('workspace query', async t => {
   const { npm, joinedOutput } = await loadMockNpm(t, {
     config: {
-      workspaces: ['c'],
+      workspace: ['c'],
     },
     prefixDir: {
       node_modules: {
@@ -101,7 +94,7 @@ t.test('workspace query', async t => {
       }),
     },
   })
-  await npm.exec('query', [':scope'], ['c'])
+  await npm.exec('query', [':scope'])
   t.matchSnapshot(joinedOutput(), 'should return workspace object')
 })
 
@@ -109,7 +102,7 @@ t.test('include-workspace-root', async t => {
   const { npm, joinedOutput } = await loadMockNpm(t, {
     config: {
       'include-workspace-root': true,
-      workspaces: ['c'],
+      workspace: ['c'],
     },
     prefixDir: {
       node_modules: {
@@ -139,7 +132,7 @@ t.test('include-workspace-root', async t => {
       }),
     },
   })
-  await npm.exec('query', [':scope'], ['c'])
+  await npm.exec('query', [':scope'])
   t.matchSnapshot(joinedOutput(), 'should return workspace object and root object')
 })
 t.test('linked node', async t => {
@@ -171,8 +164,6 @@ t.test('global', async t => {
     config: {
       global: true,
     },
-    // This is a global dir that works in both windows and non-windows, that's
-    // why it has two node_modules folders
     globalPrefixDir: {
       node_modules: {
         lorem: {
@@ -182,16 +173,7 @@ t.test('global', async t => {
           }),
         },
       },
-      lib: {
-        node_modules: {
-          lorem: {
-            'package.json': JSON.stringify({
-              name: 'lorem',
-              version: '2.0.0',
-            }),
-          },
-        },
-      },
+
     },
   })
   await npm.exec('query', ['[name=lorem]'])

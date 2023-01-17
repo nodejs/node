@@ -1,4 +1,5 @@
 const t = require('tap')
+const tmock = require('../../fixtures/tmock')
 
 t.test('ll', t => {
   t.plan(3)
@@ -13,8 +14,8 @@ t.test('ll', t => {
     }
   }
 
-  const LL = t.mock('../../../lib/commands/ll.js', {
-    '../../../lib/commands/ls.js': LS,
+  const LL = tmock(t, '{LIB}/commands/ll.js', {
+    '{LIB}/commands/ls.js': LS,
   })
   const ll = new LL({
     config: {
