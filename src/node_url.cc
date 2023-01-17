@@ -421,12 +421,7 @@ bool IsIPv4NumberValid(std::string_view input) {
 
       return input.find_first_not_of("0123456789abcdefABCDEF", 2) ==
              std::string_view::npos;
-
     } else {
-      if (input.size() == 1) {
-        return true;
-      }
-
       return input.find_first_not_of("01234567", 1) == std::string_view::npos;
     }
   }
