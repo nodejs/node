@@ -3703,13 +3703,18 @@ Passing an `AbortSignal` and then calling `abort` on the corresponding
 `AbortController` will behave the same way as calling `.destroy()` on the
 request itself.
 
-## `http.validateHeaderName(name)`
+## `http.validateHeaderName(name[, label])`
 
 <!-- YAML
 added: v14.3.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46143
+    description: The `label` parameter is added.
 -->
 
 * `name` {string}
+* `label` {string} Label for error message. **Default:** `'Header name'`.
 
 Performs the low-level validations on the provided `name` that are done when
 `res.setHeader(name, value)` is called.
