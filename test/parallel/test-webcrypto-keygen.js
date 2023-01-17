@@ -163,8 +163,9 @@ const vectors = {
     return assert.rejects(
       // The extractable and usages values are invalid here also,
       // but the unrecognized algorithm name should be caught first.
-      subtle.generateKey(algorithm, 7, ['zebra']), {
-        message: /Unrecognized name/
+      subtle.generateKey(algorithm, 7, []), {
+        message: /Unrecognized algorithm name/,
+        name: 'NotSupportedError',
       });
   }
 
@@ -299,12 +300,12 @@ const vectors = {
     // Missing parameters
     await assert.rejects(
       subtle.generateKey({ name, publicExponent, hash }, true, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        code: 'ERR_MISSING_OPTION'
       });
 
     await assert.rejects(
       subtle.generateKey({ name, modulusLength, hash }, true, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        code: 'ERR_MISSING_OPTION'
       });
 
     await assert.rejects(
@@ -312,7 +313,7 @@ const vectors = {
         code: 'ERR_MISSING_OPTION'
       });
 
-    await Promise.all(['', true, {}].map((modulusLength) => {
+    await Promise.all([{}].map((modulusLength) => {
       return assert.rejects(subtle.generateKey({
         name,
         modulusLength,
@@ -338,25 +339,15 @@ const vectors = {
           { code: 'ERR_INVALID_ARG_TYPE' });
       }));
 
-    await Promise.all([true, {}, 1, []].map((hash) => {
+    await Promise.all([true, 1].map((hash) => {
       return assert.rejects(subtle.generateKey({
         name,
         modulusLength,
         publicExponent,
         hash
       }, true, usages), {
-        message: /Unrecognized name/
-      });
-    }));
-
-    await Promise.all(['', {}, 1, []].map((extractable) => {
-      return assert.rejects(subtle.generateKey({
-        name,
-        modulusLength,
-        publicExponent,
-        hash
-      }, extractable, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        message: /Unrecognized algorithm name/,
+        name: 'NotSupportedError',
       });
     }));
 
@@ -449,12 +440,17 @@ const vectors = {
     assert.strictEqual(privateKey.algorithm.namedCurve, namedCurve);
 
     // Invalid parameters
-    [1, true, {}, [], undefined, null].forEach(async (namedCurve) => {
+    [1, true, {}, [], null].forEach(async (namedCurve) => {
       await assert.rejects(
         subtle.generateKey({ name, namedCurve }, true, privateUsages), {
           name: 'NotSupportedError'
         });
     });
+    await assert.rejects(
+      subtle.generateKey({ name, namedCurve: undefined }, true, privateUsages), {
+        name: 'TypeError',
+        code: 'ERR_MISSING_OPTION'
+      });
   }
 
   const kTests = [
@@ -509,19 +505,18 @@ const vectors = {
     assert.strictEqual(key.algorithm.length, length);
 
     // Invalid parameters
-    [1, 100, 257].forEach(async (length) => {
+    [1, 100, 257, '', false, null].forEach(async (length) => {
       await assert.rejects(
         subtle.generateKey({ name, length }, true, usages), {
           name: 'OperationError'
         });
     });
 
-    ['', {}, [], false, null, undefined].forEach(async (length) => {
-      await assert.rejects(
-        subtle.generateKey({ name, length }, true, usages), {
-          name: 'OperationError',
-        });
-    });
+    await assert.rejects(
+      subtle.generateKey({ name, length: undefined }, true, usages), {
+        name: 'TypeError',
+        code: 'ERR_MISSING_OPTION'
+      });
   }
 
   const kTests = [
@@ -568,17 +563,11 @@ const vectors = {
     assert.strictEqual(key.algorithm.length, length);
     assert.strictEqual(key.algorithm.hash.name, hash);
 
-    ['', {}, [], false, null].forEach(async (length) => {
+    [1, false, null].forEach(async (hash) => {
       await assert.rejects(
         subtle.generateKey({ name: 'HMAC', length, hash }, true, usages), {
-          code: 'ERR_INVALID_ARG_TYPE'
-        });
-    });
-
-    [1, {}, [], false, null].forEach(async (hash) => {
-      await assert.rejects(
-        subtle.generateKey({ name: 'HMAC', length, hash }, true, usages), {
-          message: /Unrecognized name/
+          message: /Unrecognized algorithm name/,
+          name: 'NotSupportedError',
         });
     });
   }

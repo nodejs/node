@@ -135,7 +135,8 @@ async function testVerify({ name,
 
   await assert.rejects(
     subtle.verify({ name, hash: 'sha256' }, publicKey, signature, copy), {
-      message: /Unrecognized name/
+      message: /Unrecognized algorithm name/,
+      name: 'NotSupportedError',
     });
 }
 

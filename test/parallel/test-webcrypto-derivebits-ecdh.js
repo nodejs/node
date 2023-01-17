@@ -165,7 +165,7 @@ async function prepareKeys() {
         { name: 'ECDH' },
         keys['P-384'].privateKey,
         8 * keys['P-384'].size),
-      { code: 'ERR_INVALID_ARG_TYPE' });
+      { code: 'ERR_MISSING_OPTION' });
   }
 
   {

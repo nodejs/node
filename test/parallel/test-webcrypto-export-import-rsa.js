@@ -444,6 +444,57 @@ async function testImportJwk(
         message: /key is not extractable/
       });
   }
+
+  {
+    const invalidUse = name === 'RSA-OAEP' ? 'sig' : 'enc';
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, n: jwk.n, e: jwk.e, use: invalidUse },
+        { name, hash },
+        extractable,
+        publicUsages),
+      { message: 'Invalid JWK "use" Parameter' });
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, use: invalidUse },
+        { name, hash },
+        extractable,
+        privateUsages),
+      { message: 'Invalid JWK "use" Parameter' });
+  }
+
+  {
+    let invalidAlg = name === 'RSA-OAEP' ? name : name === 'RSA-PSS' ? 'PS' : 'RS';
+    switch (name) {
+      case 'RSA-OAEP':
+        if (hash === 'SHA-1')
+          invalidAlg += '-256';
+        break;
+      default:
+        if (hash === 'SHA-256')
+          invalidAlg += '384';
+        else
+          invalidAlg += '256';
+    }
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: invalidAlg },
+        { name, hash },
+        extractable,
+        publicUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: invalidAlg },
+        { name, hash },
+        extractable,
+        privateUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+  }
 }
 
 // combinations to test
