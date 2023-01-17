@@ -1,125 +1,84 @@
 const t = require('tap')
 const { resolve } = require('path')
-const { fake: mockNpm } = require('../../fixtures/mock-npm')
+const realRunScript = require('@npmcli/run-script')
+const mockNpm = require('../../fixtures/mock-npm')
+const { cleanCwd } = require('../../fixtures/clean-snapshot')
 
-const normalizePath = p => p.replace(/\\+/g, '/').replace(/\r\n/g, '\n')
+const mockRs = async (t, { windows = false, runScript, ...opts } = {}) => {
+  let RUN_SCRIPTS = []
 
-const cleanOutput = str => normalizePath(str).replace(normalizePath(process.cwd()), '{CWD}')
+  t.afterEach(() => RUN_SCRIPTS = [])
 
-const RUN_SCRIPTS = []
-const flatOptions = {
-  scriptShell: undefined,
-}
-const defaultLoglevel = 'info'
-const config = {
-  json: false,
-  parseable: false,
-  'if-present': false,
-  loglevel: defaultLoglevel,
-}
-
-const npm = mockNpm({
-  localPrefix: __dirname,
-  flatOptions,
-  config,
-  cmd: c => {
-    return { description: `test ${c} description` }
-  },
-  output: (...msg) => output.push(msg),
-})
-
-const setLoglevel = (t, level) => {
-  npm.config.set('loglevel', level)
-  t.teardown(() => {
-    npm.config.set('loglevel', defaultLoglevel)
+  const mock = await mockNpm(t, {
+    ...opts,
+    mocks: {
+      '@npmcli/run-script': Object.assign(
+        async rs => {
+          if (runScript) {
+            await runScript(rs)
+          }
+          RUN_SCRIPTS.push(rs)
+        },
+        realRunScript
+      ),
+      '{LIB}/utils/is-windows.js': { isWindowsShell: windows },
+    },
   })
+
+  return {
+    ...mock,
+    RUN_SCRIPTS: () => RUN_SCRIPTS,
+    runScript: { exec: (args) => mock.npm.exec('run-script', args) },
+    cleanLogs: () => mock.logs.error.flat().map(v => v.toString()).map(cleanCwd),
+  }
 }
 
-const output = []
+t.test('completion', async t => {
+  const completion = async (t, remain, pkg) => {
+    const { npm } = await mockRs(t,
+      pkg ? { prefixDir: { 'package.json': JSON.stringify(pkg) } } : {}
+    )
+    const cmd = await npm.cmd('run-script')
+    return cmd.completion({ conf: { argv: { remain } } })
+  }
 
-const log = {
-  error: () => null,
-}
-
-t.afterEach(() => {
-  npm.color = false
-  log.error = () => null
-  output.length = 0
-  RUN_SCRIPTS.length = 0
-  config['if-present'] = false
-  config.json = false
-  config.parseable = false
-})
-
-const getRS = windows => {
-  const RunScript = t.mock('../../../lib/commands/run-script.js', {
-    '@npmcli/run-script': Object.assign(
-      async opts => {
-        RUN_SCRIPTS.push(opts)
-      },
-      {
-        isServerPackage: require('@npmcli/run-script').isServerPackage,
-      }
-    ),
-    'proc-log': log,
-    '../../../lib/utils/is-windows.js': { isWindowsShell: windows },
-  })
-  return new RunScript(npm)
-}
-
-const runScript = getRS(false)
-const runScriptWin = getRS(true)
-
-const { writeFileSync } = require('fs')
-t.test('completion', t => {
-  const dir = t.testdir()
-  npm.localPrefix = dir
   t.test('already have a script name', async t => {
-    const res = await runScript.completion({ conf: { argv: { remain: ['npm', 'run', 'x'] } } })
+    const res = await completion(t, ['npm', 'run', 'x'])
     t.equal(res, undefined)
-    t.end()
   })
   t.test('no package.json', async t => {
-    const res = await runScript.completion({ conf: { argv: { remain: ['npm', 'run'] } } })
+    const res = await completion(t, ['npm', 'run'])
     t.strictSame(res, [])
-    t.end()
   })
   t.test('has package.json, no scripts', async t => {
-    writeFileSync(`${dir}/package.json`, JSON.stringify({}))
-    const res = await runScript.completion({ conf: { argv: { remain: ['npm', 'run'] } } })
+    const res = await completion(t, ['npm', 'run'], {})
     t.strictSame(res, [])
-    t.end()
   })
   t.test('has package.json, with scripts', async t => {
-    writeFileSync(
-      `${dir}/package.json`,
-      JSON.stringify({
-        scripts: { hello: 'echo hello', world: 'echo world' },
-      })
-    )
-    const res = await runScript.completion({ conf: { argv: { remain: ['npm', 'run'] } } })
+    const res = await completion(t, ['npm', 'run'], {
+      scripts: { hello: 'echo hello', world: 'echo world' },
+    })
     t.strictSame(res, ['hello', 'world'])
-    t.end()
   })
-  t.end()
 })
 
 t.test('fail if no package.json', async t => {
-  t.plan(2)
-  npm.localPrefix = t.testdir()
+  const { runScript } = await mockRs(t)
   await t.rejects(runScript.exec([]), { code: 'ENOENT' })
   await t.rejects(runScript.exec(['test']), { code: 'ENOENT' })
 })
 
-t.test('default env, start, and restart scripts', t => {
-  npm.localPrefix = t.testdir({
-    'package.json': JSON.stringify({ name: 'x', version: '1.2.3' }),
-    'server.js': 'console.log("hello, world")',
+t.test('default env, start, and restart scripts', async t => {
+  const { npm, runScript, RUN_SCRIPTS } = await mockRs(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({ name: 'x', version: '1.2.3' }),
+      'server.js': 'console.log("hello, world")',
+    },
   })
 
   t.test('start', async t => {
     await runScript.exec(['start'])
-    t.match(RUN_SCRIPTS, [
+    t.match(RUN_SCRIPTS(), [
       {
         path: npm.localPrefix,
         args: [],
@@ -133,7 +92,7 @@ t.test('default env, start, and restart scripts', t => {
 
   t.test('env', async t => {
     await runScript.exec(['env'])
-    t.match(RUN_SCRIPTS, [
+    t.match(RUN_SCRIPTS(), [
       {
         path: npm.localPrefix,
         args: [],
@@ -152,31 +111,10 @@ t.test('default env, start, and restart scripts', t => {
     ])
   })
 
-  t.test('windows env', async t => {
-    await runScriptWin.exec(['env'])
-    t.match(RUN_SCRIPTS, [
-      {
-        path: npm.localPrefix,
-        args: [],
-        scriptShell: undefined,
-        stdio: 'inherit',
-        pkg: {
-          name: 'x',
-          version: '1.2.3',
-          _id: 'x@1.2.3',
-          scripts: {
-            env: 'SET',
-          },
-        },
-        event: 'env',
-      },
-    ])
-  })
-
   t.test('restart', async t => {
     await runScript.exec(['restart'])
 
-    t.match(RUN_SCRIPTS, [
+    t.match(RUN_SCRIPTS(), [
       {
         path: npm.localPrefix,
         args: [],
@@ -194,23 +132,52 @@ t.test('default env, start, and restart scripts', t => {
       },
     ])
   })
-  t.end()
 })
 
-t.test('non-default env script', t => {
-  npm.localPrefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'x',
-      version: '1.2.3',
-      scripts: {
-        env: 'hello',
+t.test('default windows env', async t => {
+  const { npm, runScript, RUN_SCRIPTS } = await mockRs(t, {
+    windows: true,
+    prefixDir: {
+      'package.json': JSON.stringify({ name: 'x', version: '1.2.3' }),
+      'server.js': 'console.log("hello, world")',
+    },
+  })
+  await runScript.exec(['env'])
+  t.match(RUN_SCRIPTS(), [
+    {
+      path: npm.localPrefix,
+      args: [],
+      scriptShell: undefined,
+      stdio: 'inherit',
+      pkg: {
+        name: 'x',
+        version: '1.2.3',
+        _id: 'x@1.2.3',
+        scripts: {
+          env: 'SET',
+        },
       },
-    }),
+      event: 'env',
+    },
+  ])
+})
+
+t.test('non-default env script', async t => {
+  const { npm, runScript, RUN_SCRIPTS } = await mockRs(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'x',
+        version: '1.2.3',
+        scripts: {
+          env: 'hello',
+        },
+      }),
+    },
   })
 
   t.test('env', async t => {
     await runScript.exec(['env'])
-    t.match(RUN_SCRIPTS, [
+    t.match(RUN_SCRIPTS(), [
       {
         path: npm.localPrefix,
         args: [],
@@ -228,71 +195,98 @@ t.test('non-default env script', t => {
       },
     ])
   })
+})
 
-  t.test('env windows', async t => {
-    await runScriptWin.exec(['env'])
-    t.match(RUN_SCRIPTS, [
-      {
-        path: npm.localPrefix,
-        args: [],
-        scriptShell: undefined,
-        stdio: 'inherit',
-        pkg: {
-          name: 'x',
-          version: '1.2.3',
-          _id: 'x@1.2.3',
-          scripts: {
-            env: 'hello',
-          },
+t.test('non-default env script windows', async t => {
+  const { npm, runScript, RUN_SCRIPTS } = await mockRs(t, {
+    windows: true,
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'x',
+        version: '1.2.3',
+        scripts: {
+          env: 'hello',
         },
-        event: 'env',
-      },
-    ])
-  })
-  t.end()
-})
-
-t.test('try to run missing script', t => {
-  npm.localPrefix = t.testdir({
-    'package.json': JSON.stringify({
-      scripts: { hello: 'world' },
-      bin: { goodnight: 'moon' },
-    }),
-  })
-  t.test('no suggestions', async t => {
-    await t.rejects(runScript.exec(['notevenclose']), 'Missing script: "notevenclose"')
-  })
-  t.test('script suggestions', async t => {
-    await t.rejects(runScript.exec(['helo']), /Missing script: "helo"/)
-    await t.rejects(runScript.exec(['helo']), /npm run hello/)
-  })
-  t.test('bin suggestions', async t => {
-    await t.rejects(runScript.exec(['goodneght']), /Missing script: "goodneght"/)
-    await t.rejects(runScript.exec(['goodneght']), /npm exec goodnight/)
-  })
-  t.test('with --if-present', async t => {
-    config['if-present'] = true
-    await runScript.exec(['goodbye'])
-    t.strictSame(RUN_SCRIPTS, [], 'did not try to run anything')
-  })
-  t.end()
-})
-
-t.test('run pre/post hooks', async t => {
-  npm.localPrefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'x',
-      version: '1.2.3',
-      scripts: {
-        preenv: 'echo before the env',
-        postenv: 'echo after the env',
-      },
-    }),
+      }),
+    },
   })
 
   await runScript.exec(['env'])
 
-  t.match(RUN_SCRIPTS, [
+  t.match(RUN_SCRIPTS(), [
+    {
+      path: npm.localPrefix,
+      args: [],
+      scriptShell: undefined,
+      stdio: 'inherit',
+      pkg: {
+        name: 'x',
+        version: '1.2.3',
+        _id: 'x@1.2.3',
+        scripts: {
+          env: 'hello',
+        },
+      },
+      event: 'env',
+    },
+  ])
+})
+
+t.test('try to run missing script', async t => {
+  t.test('errors', async t => {
+    const { runScript } = await mockRs(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          scripts: { hello: 'world' },
+          bin: { goodnight: 'moon' },
+        }),
+      },
+    })
+    t.test('no suggestions', async t => {
+      await t.rejects(runScript.exec(['notevenclose']), 'Missing script: "notevenclose"')
+    })
+    t.test('script suggestions', async t => {
+      await t.rejects(runScript.exec(['helo']), /Missing script: "helo"/)
+      await t.rejects(runScript.exec(['helo']), /npm run hello/)
+    })
+    t.test('bin suggestions', async t => {
+      await t.rejects(runScript.exec(['goodneght']), /Missing script: "goodneght"/)
+      await t.rejects(runScript.exec(['goodneght']), /npm exec goodnight/)
+    })
+  })
+
+  t.test('with --if-present', async t => {
+    const { runScript, RUN_SCRIPTS } = await mockRs(t, {
+      config: { 'if-present': true },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          scripts: { hello: 'world' },
+          bin: { goodnight: 'moon' },
+        }),
+      },
+    })
+    await runScript.exec(['goodbye'])
+    t.strictSame(RUN_SCRIPTS(), [], 'did not try to run anything')
+  })
+})
+
+t.test('run pre/post hooks', async t => {
+  const { npm, runScript, RUN_SCRIPTS } = await mockRs(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'x',
+        version: '1.2.3',
+        scripts: {
+          preenv: 'echo before the env',
+          postenv: 'echo after the env',
+        },
+      }),
+    },
+  })
+
+  await runScript.exec(['env'])
+
+  t.match(RUN_SCRIPTS(), [
     { event: 'preenv' },
     {
       path: npm.localPrefix,
@@ -314,22 +308,23 @@ t.test('run pre/post hooks', async t => {
 })
 
 t.test('skip pre/post hooks when using ignoreScripts', async t => {
-  config['ignore-scripts'] = true
-
-  npm.localPrefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'x',
-      version: '1.2.3',
-      scripts: {
-        preenv: 'echo before the env',
-        postenv: 'echo after the env',
-      },
-    }),
+  const { npm, runScript, RUN_SCRIPTS } = await mockRs(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'x',
+        version: '1.2.3',
+        scripts: {
+          preenv: 'echo before the env',
+          postenv: 'echo after the env',
+        },
+      }),
+    },
+    config: { 'ignore-scripts': true },
   })
 
   await runScript.exec(['env'])
 
-  t.same(RUN_SCRIPTS, [
+  t.same(RUN_SCRIPTS(), [
     {
       path: npm.localPrefix,
       args: [],
@@ -349,25 +344,25 @@ t.test('skip pre/post hooks when using ignoreScripts', async t => {
       event: 'env',
     },
   ])
-  delete config['ignore-scripts']
 })
 
 t.test('run silent', async t => {
-  setLoglevel(t, 'silent')
-
-  npm.localPrefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'x',
-      version: '1.2.3',
-      scripts: {
-        preenv: 'echo before the env',
-        postenv: 'echo after the env',
-      },
-    }),
+  const { npm, runScript, RUN_SCRIPTS } = await mockRs(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'x',
+        version: '1.2.3',
+        scripts: {
+          preenv: 'echo before the env',
+          postenv: 'echo after the env',
+        },
+      }),
+    },
+    config: { silent: true },
   })
 
   await runScript.exec(['env'])
-  t.match(RUN_SCRIPTS, [
+  t.match(RUN_SCRIPTS(), [
     {
       event: 'preenv',
       stdio: 'inherit',
@@ -395,7 +390,7 @@ t.test('run silent', async t => {
   ])
 })
 
-t.test('list scripts', t => {
+t.test('list scripts', async t => {
   const scripts = {
     test: 'exit 2',
     start: 'node server.js',
@@ -403,16 +398,26 @@ t.test('list scripts', t => {
     preenv: 'echo before the env',
     postenv: 'echo after the env',
   }
-  npm.localPrefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'x',
-      version: '1.2.3',
-      scripts,
-    }),
-  })
+
+  const mockList = async (t, config = {}) => {
+    const mock = await mockRs(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'x',
+          version: '1.2.3',
+          scripts,
+        }),
+      },
+      config,
+    })
+
+    await mock.runScript.exec([])
+
+    return mock.outputs
+  }
 
   t.test('no args', async t => {
-    await runScript.exec([])
+    const output = await mockList(t)
     t.strictSame(
       output,
       [
@@ -430,20 +435,17 @@ t.test('list scripts', t => {
   })
 
   t.test('silent', async t => {
-    setLoglevel(t, 'silent')
-    await runScript.exec([])
-    t.strictSame(output, [])
+    const outputs = await mockList(t, { silent: true })
+    t.strictSame(outputs, [])
   })
   t.test('warn json', async t => {
-    config.json = true
-    await runScript.exec([])
-    t.strictSame(output, [[JSON.stringify(scripts, 0, 2)]], 'json report')
+    const outputs = await mockList(t, { json: true })
+    t.strictSame(outputs, [[JSON.stringify(scripts, 0, 2)]], 'json report')
   })
 
   t.test('parseable', async t => {
-    config.parseable = true
-    await runScript.exec([])
-    t.strictSame(output, [
+    const outputs = await mockList(t, { parseable: true })
+    t.strictSame(outputs, [
       ['test:exit 2'],
       ['start:node server.js'],
       ['stop:node kill-server.js'],
@@ -451,32 +453,35 @@ t.test('list scripts', t => {
       ['postenv:echo after the env'],
     ])
   })
-  t.end()
 })
 
 t.test('list scripts when no scripts', async t => {
-  npm.localPrefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'x',
-      version: '1.2.3',
-    }),
+  const { runScript, outputs } = await mockRs(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'x',
+        version: '1.2.3',
+      }),
+    },
   })
 
   await runScript.exec([])
-  t.strictSame(output, [], 'nothing to report')
+  t.strictSame(outputs, [], 'nothing to report')
 })
 
 t.test('list scripts, only commands', async t => {
-  npm.localPrefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'x',
-      version: '1.2.3',
-      scripts: { preversion: 'echo doing the version dance' },
-    }),
+  const { runScript, outputs } = await mockRs(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'x',
+        version: '1.2.3',
+        scripts: { preversion: 'echo doing the version dance' },
+      }),
+    },
   })
 
   await runScript.exec([])
-  t.strictSame(output, [
+  t.strictSame(outputs, [
     ['Lifecycle scripts included in x@1.2.3:'],
     ['  preversion\n    echo doing the version dance'],
     [''],
@@ -484,83 +489,104 @@ t.test('list scripts, only commands', async t => {
 })
 
 t.test('list scripts, only non-commands', async t => {
-  npm.localPrefix = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'x',
-      version: '1.2.3',
-      scripts: { glorp: 'echo doing the glerp glop' },
-    }),
+  const { runScript, outputs } = await mockRs(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'x',
+        version: '1.2.3',
+        scripts: { glorp: 'echo doing the glerp glop' },
+      }),
+    },
   })
 
   await runScript.exec([])
-  t.strictSame(output, [
+  t.strictSame(outputs, [
     ['Scripts available in x@1.2.3 via `npm run-script`:'],
     ['  glorp\n    echo doing the glerp glop'],
     [''],
   ])
 })
 
-t.test('workspaces', t => {
-  npm.localPrefix = t.testdir({
-    packages: {
-      a: {
-        'package.json': JSON.stringify({
-          name: 'a',
-          version: '1.0.0',
-          scripts: { glorp: 'echo a doing the glerp glop' },
-        }),
-      },
-      b: {
-        'package.json': JSON.stringify({
-          name: 'b',
-          version: '2.0.0',
-          scripts: { glorp: 'echo b doing the glerp glop' },
-        }),
-      },
-      c: {
-        'package.json': JSON.stringify({
-          name: 'c',
-          version: '1.0.0',
-          scripts: {
-            test: 'exit 0',
-            posttest: 'echo posttest',
-            lorem: 'echo c lorem',
+t.test('workspaces', async t => {
+  const mockWorkspaces = async (t, {
+    runScript,
+    prefixDir,
+    workspaces = true,
+    exec = [],
+    ...config
+  } = {}) => {
+    const mock = await mockRs(t, {
+      prefixDir: prefixDir || {
+        packages: {
+          a: {
+            'package.json': JSON.stringify({
+              name: 'a',
+              version: '1.0.0',
+              scripts: { glorp: 'echo a doing the glerp glop' },
+            }),
           },
-        }),
-      },
-      d: {
-        'package.json': JSON.stringify({
-          name: 'd',
-          version: '1.0.0',
-          scripts: {
-            test: 'exit 0',
-            posttest: 'echo posttest',
+          b: {
+            'package.json': JSON.stringify({
+              name: 'b',
+              version: '2.0.0',
+              scripts: { glorp: 'echo b doing the glerp glop' },
+            }),
           },
-        }),
-      },
-      e: {
+          c: {
+            'package.json': JSON.stringify({
+              name: 'c',
+              version: '1.0.0',
+              scripts: {
+                test: 'exit 0',
+                posttest: 'echo posttest',
+                lorem: 'echo c lorem',
+              },
+            }),
+          },
+          d: {
+            'package.json': JSON.stringify({
+              name: 'd',
+              version: '1.0.0',
+              scripts: {
+                test: 'exit 0',
+                posttest: 'echo posttest',
+              },
+            }),
+          },
+          e: {
+            'package.json': JSON.stringify({
+              name: 'e',
+              scripts: { test: 'exit 0', start: 'echo start something' },
+            }),
+          },
+          noscripts: {
+            'package.json': JSON.stringify({
+              name: 'noscripts',
+              version: '1.0.0',
+            }),
+          },
+        },
         'package.json': JSON.stringify({
-          name: 'e',
-          scripts: { test: 'exit 0', start: 'echo start something' },
+          name: 'x',
+          version: '1.2.3',
+          workspaces: ['packages/*'],
         }),
       },
-      noscripts: {
-        'package.json': JSON.stringify({
-          name: 'noscripts',
-          version: '1.0.0',
-        }),
+      config: {
+        ...Array.isArray(workspaces) ? { workspace: workspaces } : { workspaces },
+        ...config,
       },
-    },
-    'package.json': JSON.stringify({
-      name: 'x',
-      version: '1.2.3',
-      workspaces: ['packages/*'],
-    }),
-  })
+      runScript,
+    })
+    if (exec) {
+      await mock.runScript.exec(exec)
+    }
+    return mock
+  }
 
   t.test('list all scripts', async t => {
-    await runScript.execWorkspaces([], [])
-    t.strictSame(output, [
+    const { outputs } = await mockWorkspaces(t)
+    t.strictSame(outputs, [
       ['Scripts available in a@1.0.0 via `npm run-script`:'],
       ['  glorp\n    echo a doing the glerp glop'],
       [''],
@@ -585,8 +611,8 @@ t.test('workspaces', t => {
   })
 
   t.test('list regular scripts, filtered by name', async t => {
-    await runScript.execWorkspaces([], ['a', 'b'])
-    t.strictSame(output, [
+    const { outputs } = await mockWorkspaces(t, { workspaces: ['a', 'b'] })
+    t.strictSame(outputs, [
       ['Scripts available in a@1.0.0 via `npm run-script`:'],
       ['  glorp\n    echo a doing the glerp glop'],
       [''],
@@ -597,8 +623,8 @@ t.test('workspaces', t => {
   })
 
   t.test('list regular scripts, filtered by path', async t => {
-    await runScript.execWorkspaces([], ['./packages/a'])
-    t.strictSame(output, [
+    const { outputs } = await mockWorkspaces(t, { workspaces: ['./packages/a'] })
+    t.strictSame(outputs, [
       ['Scripts available in a@1.0.0 via `npm run-script`:'],
       ['  glorp\n    echo a doing the glerp glop'],
       [''],
@@ -606,8 +632,8 @@ t.test('workspaces', t => {
   })
 
   t.test('list regular scripts, filtered by parent folder', async t => {
-    await runScript.execWorkspaces([], ['./packages'])
-    t.strictSame(output, [
+    const { outputs } = await mockWorkspaces(t, { workspaces: ['./packages'] })
+    t.strictSame(outputs, [
       ['Scripts available in a@1.0.0 via `npm run-script`:'],
       ['  glorp\n    echo a doing the glerp glop'],
       [''],
@@ -632,9 +658,8 @@ t.test('workspaces', t => {
   })
 
   t.test('list all scripts with colors', async t => {
-    npm.color = true
-    await runScript.execWorkspaces([], [])
-    t.strictSame(output, [
+    const { outputs } = await mockWorkspaces(t, { color: 'always' })
+    t.strictSame(outputs, [
       [
         /* eslint-disable-next-line max-len */
         '\u001b[1mScripts\u001b[22m available in \x1B[32ma@1.0.0\x1B[39m via `\x1B[34mnpm run-script\x1B[39m`:',
@@ -665,9 +690,8 @@ t.test('workspaces', t => {
   })
 
   t.test('list all scripts --json', async t => {
-    config.json = true
-    await runScript.execWorkspaces([], [])
-    t.strictSame(output, [
+    const { outputs } = await mockWorkspaces(t, { json: true })
+    t.strictSame(outputs, [
       [
         '{\n' +
           '  "a": {\n' +
@@ -696,9 +720,8 @@ t.test('workspaces', t => {
   })
 
   t.test('list all scripts --parseable', async t => {
-    config.parseable = true
-    await runScript.execWorkspaces([], [])
-    t.strictSame(output, [
+    const { outputs } = await mockWorkspaces(t, { parseable: true })
+    t.strictSame(outputs, [
       ['a:glorp:echo a doing the glerp glop'],
       ['b:glorp:echo b doing the glerp glop'],
       ['c:test:exit 0'],
@@ -712,15 +735,14 @@ t.test('workspaces', t => {
   })
 
   t.test('list no scripts --loglevel=silent', async t => {
-    setLoglevel(t, 'silent')
-    await runScript.execWorkspaces([], [])
-    t.strictSame(output, [])
+    const { outputs } = await mockWorkspaces(t, { silent: true })
+    t.strictSame(outputs, [])
   })
 
   t.test('run scripts across all workspaces', async t => {
-    await runScript.execWorkspaces(['test'], [])
+    const { npm, RUN_SCRIPTS } = await mockWorkspaces(t, { exec: ['test'] })
 
-    t.match(RUN_SCRIPTS, [
+    t.match(RUN_SCRIPTS(), [
       {
         path: resolve(npm.localPrefix, 'packages/c'),
         pkg: { name: 'c', version: '1.0.0' },
@@ -750,70 +772,65 @@ t.test('workspaces', t => {
   })
 
   t.test('missing scripts in all workspaces', async t => {
-    const LOG = []
-    log.error = err => {
-      LOG.push(String(err))
-    }
+    const { runScript, RUN_SCRIPTS, cleanLogs } = await mockWorkspaces(t, { exec: null })
+
     await t.rejects(
-      runScript.execWorkspaces(['missing-script'], []),
+      runScript.exec(['missing-script']),
       /Missing script: missing-script/,
       'should throw missing script error'
     )
 
-    process.exitCode = 0 // clean exit code
-
-    t.match(RUN_SCRIPTS, [])
+    t.match(RUN_SCRIPTS(), [])
     t.strictSame(
-      LOG.map(cleanOutput),
+      cleanLogs(),
       [
         'Lifecycle script `missing-script` failed with error:',
         'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: a@1.0.0',
-        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/a',
+        '  at location: {CWD}/prefix/packages/a',
         'Lifecycle script `missing-script` failed with error:',
         'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: b@2.0.0',
-        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/b',
+        '  at location: {CWD}/prefix/packages/b',
         'Lifecycle script `missing-script` failed with error:',
         'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: c@1.0.0',
-        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/c',
+        '  at location: {CWD}/prefix/packages/c',
         'Lifecycle script `missing-script` failed with error:',
         'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: d@1.0.0',
-        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/d',
+        '  at location: {CWD}/prefix/packages/d',
         'Lifecycle script `missing-script` failed with error:',
         'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: e',
-        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/e',
+        '  at location: {CWD}/prefix/packages/e',
         'Lifecycle script `missing-script` failed with error:',
         'Error: Missing script: "missing-script"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: noscripts@1.0.0',
-        /* eslint-disable-next-line max-len */
-        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/noscripts',
+        '  at location: {CWD}/prefix/packages/noscripts',
       ],
       'should log error msgs for each workspace script'
     )
   })
 
   t.test('missing scripts in some workspaces', async t => {
-    const LOG = []
-    log.error = err => {
-      LOG.push(String(err))
-    }
-    await runScript.execWorkspaces(['test'], ['a', 'b', 'c', 'd'])
-    t.match(RUN_SCRIPTS, [])
+    const { RUN_SCRIPTS, cleanLogs } = await mockWorkspaces(t, {
+      exec: ['test'],
+      workspaces: ['a', 'b', 'c', 'd'],
+    })
+
+    t.match(RUN_SCRIPTS(), [])
     t.strictSame(
-      LOG.map(cleanOutput),
+      cleanLogs(),
       [
         'Lifecycle script `test` failed with error:',
         'Error: Missing script: "test"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: a@1.0.0',
-        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/a',
+        '  at location: {CWD}/prefix/packages/a',
         'Lifecycle script `test` failed with error:',
         'Error: Missing script: "test"\n\nTo see a list of scripts, run:\n  npm run',
         '  in workspace: b@2.0.0',
-        '  at location: {CWD}/test/lib/commands/tap-testdir-run-script-workspaces/packages/b',
+        '  at location: {CWD}/prefix/packages/b',
       ],
       'should log error msgs for each workspace script'
     )
@@ -821,68 +838,76 @@ t.test('workspaces', t => {
 
   t.test('no workspaces when filtering by user args', async t => {
     await t.rejects(
-      runScript.execWorkspaces([], ['foo', 'bar']),
+      mockWorkspaces(t, { workspaces: ['foo', 'bar'] }),
       'No workspaces found:\n  --workspace=foo --workspace=bar',
       'should throw error msg'
     )
   })
 
   t.test('no workspaces', async t => {
-    const _prevPrefix = npm.localPrefix
-    npm.localPrefix = t.testdir({
-      'package.json': JSON.stringify({
-        name: 'foo',
-        version: '1.0.0',
-      }),
-    })
-
     await t.rejects(
-      runScript.execWorkspaces([], []),
+      mockWorkspaces(t, {
+        prefixDir: {
+          'package.json': JSON.stringify({
+            name: 'foo',
+            version: '1.0.0',
+          }),
+        },
+      }),
       /No workspaces found!/,
       'should throw error msg'
     )
-    npm.localPrefix = _prevPrefix
   })
 
   t.test('single failed workspace run', async t => {
-    const RunScript = t.mock('../../../lib/commands/run-script.js', {
-      '@npmcli/run-script': () => {
+    const { cleanLogs } = await mockWorkspaces(t, {
+      runScript: () => {
         throw new Error('err')
       },
-      'proc-log': log,
-      '../../../lib/utils/is-windows.js': { isWindowsShell: false },
+      exec: ['test'],
+      workspaces: ['c'],
     })
-    const runScript = new RunScript(npm)
 
-    await runScript.execWorkspaces(['test'], ['c'])
-    process.exitCode = 0 // clean up exit code
+    t.strictSame(
+      cleanLogs(),
+      [
+        'Lifecycle script `test` failed with error:',
+        'Error: err',
+        '  in workspace: c@1.0.0',
+        '  at location: {CWD}/prefix/packages/c',
+      ],
+      'should log error msgs for each workspace script'
+    )
   })
 
   t.test('failed workspace run with succeeded runs', async t => {
-    const RunScript = t.mock('../../../lib/commands/run-script.js', {
-      '@npmcli/run-script': async opts => {
+    const { cleanLogs, RUN_SCRIPTS, prefix } = await mockWorkspaces(t, {
+      runScript: (opts) => {
         if (opts.pkg.name === 'a') {
           throw new Error('ERR')
         }
-
-        RUN_SCRIPTS.push(opts)
       },
-      'proc-log': log,
-      '../../../lib/utils/is-windows.js': { isWindowsShell: false },
+      exec: ['glorp'],
+      workspaces: ['a', 'b'],
     })
-    const runScript = new RunScript(npm)
 
-    await runScript.execWorkspaces(['glorp'], ['a', 'b'])
-    t.match(RUN_SCRIPTS, [
+    t.strictSame(
+      cleanLogs(),
+      [
+        'Lifecycle script `glorp` failed with error:',
+        'Error: ERR',
+        '  in workspace: a@1.0.0',
+        '  at location: {CWD}/prefix/packages/a',
+      ],
+      'should log error msgs for each workspace script'
+    )
+
+    t.match(RUN_SCRIPTS(), [
       {
-        path: resolve(npm.localPrefix, 'packages/b'),
+        path: resolve(prefix, 'packages/b'),
         pkg: { name: 'b', version: '2.0.0' },
         event: 'glorp',
       },
     ])
-
-    process.exitCode = 0 // clean up exit code
   })
-
-  t.end()
 })

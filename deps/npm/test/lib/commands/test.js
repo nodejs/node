@@ -19,11 +19,11 @@ t.test('should run test script from package.json', async t => {
     },
     config: {
       loglevel: 'silent',
-      scriptShell: process.platform === 'win32' ? process.env.COMSPEC : 'sh',
+      'script-shell': process.platform === 'win32' ? process.env.COMSPEC : 'sh',
     },
   })
 
-  const scriptShell = npm.config.get('scriptShell')
+  const scriptShell = npm.config.get('script-shell')
   const scriptArgs = isCmdRe.test(scriptShell)
     ? ['/d', '/s', '/c', 'node ./test-test.js foo']
     : ['-c', 'node ./test-test.js foo']

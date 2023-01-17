@@ -5,7 +5,6 @@ const log = require('./log-shim.js')
 const errorMessage = require('./error-message.js')
 const replaceInfo = require('./replace-info.js')
 
-const messageText = msg => msg.map(line => line.slice(1).join(' ')).join('\n')
 const indent = (val) => Array.isArray(val) ? val.map(v => indent(v)) : `    ${val}`
 
 let npm = null // set by the cli
@@ -144,7 +143,7 @@ const exitHandler = err => {
     // will presumably print its own errors and exit with a proper status
     // code if there's a problem.  If we got an error with a code=0, then...
     // something else went wrong along the way, so maybe an npm problem?
-    const isShellout = npm.commandInstance && npm.commandInstance.constructor.isShellout
+    const isShellout = npm.isShellout
     const quietShellout = isShellout && typeof err.code === 'number' && err.code
     if (quietShellout) {
       exitCode = err.code
@@ -181,7 +180,8 @@ const exitHandler = err => {
         }
       }
 
-      const { summary, detail, files = [] } = errorMessage(err, npm)
+      const { summary, detail, json, files = [] } = errorMessage(err, npm)
+      jsonError = json
 
       for (let [file, content] of files) {
         file = `${npm.logPath}${file}`
@@ -189,23 +189,13 @@ const exitHandler = err => {
         try {
           fs.writeFileSync(file, content)
           detail.push(['', `\n\nFor a full report see:\n${file}`])
-        } catch (err) {
-          log.warn('', `Could not write error message to ${file} due to ${err}`)
+        } catch (logFileErr) {
+          log.warn('', `Could not write error message to ${file} due to ${logFileErr}`)
         }
       }
 
       for (const errline of [...summary, ...detail]) {
         log.error(...errline)
-      }
-
-      if (hasLoadedNpm && npm.config.get('json')) {
-        jsonError = {
-          error: {
-            code: err.code,
-            summary: messageText(summary),
-            detail: messageText(detail),
-          },
-        }
       }
 
       if (typeof err.errno === 'number') {

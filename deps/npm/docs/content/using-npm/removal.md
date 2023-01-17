@@ -28,8 +28,8 @@ continue reading.
 
 Note that this is only necessary for globally-installed packages.  Local
 installs are completely contained within a project's `node_modules`
-folder.  Delete that folder, and everything is gone less a package's
-install script is particularly ill-behaved).
+folder.  Delete that folder, and everything is gone unless a package's
+install script is particularly ill-behaved.
 
 This assumes that you installed node and npm in the default place.  If
 you configured node with a different `--prefix`, or installed npm with a

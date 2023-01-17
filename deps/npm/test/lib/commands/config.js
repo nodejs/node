@@ -26,15 +26,9 @@ t.test('config ignores workspaces', async t => {
   await t.rejects(
     sandbox.run('config', ['--workspaces']),
     {
-      code: 'EUSAGE',
+      code: 'ENOWORKSPACES',
     },
     'rejects with usage'
-  )
-
-  t.match(
-    sandbox.logs.warn,
-    [['config', 'This command does not support workspaces.']],
-    'logged the warning'
   )
 })
 

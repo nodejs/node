@@ -13,7 +13,6 @@ class Org extends BaseCommand {
   ]
 
   static params = ['registry', 'otp', 'json', 'parseable']
-  static ignoreImplicitWorkspace = true
 
   async completion (opts) {
     const argv = opts.conf.argv.remain
@@ -32,7 +31,7 @@ class Org extends BaseCommand {
     }
   }
 
-  async exec ([cmd, orgname, username, role], cb) {
+  async exec ([cmd, orgname, username, role]) {
     return otplease(this.npm, {
       ...this.npm.flatOptions,
     }, opts => {
@@ -139,15 +138,15 @@ class Org extends BaseCommand {
       this.npm.output(JSON.stringify(roster, null, 2))
     } else if (opts.parseable) {
       this.npm.output(['user', 'role'].join('\t'))
-      Object.keys(roster).forEach(user => {
-        this.npm.output([user, roster[user]].join('\t'))
+      Object.keys(roster).forEach(u => {
+        this.npm.output([u, roster[u]].join('\t'))
       })
     } else if (!this.npm.silent) {
       const table = new Table({ head: ['user', 'role'] })
       Object.keys(roster)
         .sort()
-        .forEach(user => {
-          table.push([user, roster[user]])
+        .forEach(u => {
+          table.push([u, roster[u]])
         })
       this.npm.output(table.toString())
     }

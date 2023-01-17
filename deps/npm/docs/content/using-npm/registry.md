@@ -35,7 +35,7 @@ Authentication configuration such as auth tokens and certificates are configured
 specifically scoped to an individual registry. See
 [Auth Related Configuration](/configuring-npm/npmrc#auth-related-configuration)
 
-When the default registry is used in a package-lock or shrinkwrap is has the
+When the default registry is used in a package-lock or shrinkwrap it has the
 special meaning of "the currently configured registry". If you create a lock
 file while using the default registry you can switch to another registry and
 npm will install packages from the new registry, but if you create a lock

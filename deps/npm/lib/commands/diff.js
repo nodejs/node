@@ -32,6 +32,7 @@ class Diff extends BaseCommand {
     'include-workspace-root',
   ]
 
+  static workspaces = true
   static ignoreImplicitWorkspace = false
 
   async exec (args) {
@@ -67,8 +68,8 @@ class Diff extends BaseCommand {
     return this.npm.output(res)
   }
 
-  async execWorkspaces (args, filters) {
-    await this.setWorkspaces(filters)
+  async execWorkspaces (args) {
+    await this.setWorkspaces()
     for (const workspacePath of this.workspacePaths) {
       this.top = workspacePath
       this.prefix = workspacePath

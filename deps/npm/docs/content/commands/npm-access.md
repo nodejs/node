@@ -16,6 +16,8 @@ npm access grant <read-only|read-write> <scope:team> [<package>]
 npm access revoke <scope:team> [<package>]
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Used to set access controls on private packages.

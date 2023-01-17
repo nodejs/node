@@ -5,7 +5,21 @@ const replaceInfo = require('./replace-info.js')
 const { report } = require('./explain-eresolve.js')
 const log = require('./log-shim')
 
-module.exports = (er, npm) => {
+const messageText = msg => msg.map(line => line.slice(1).join(' ')).join('\n')
+
+const jsonError = (er, npm, { summary, detail }) => {
+  if (npm?.config.loaded && npm.config.get('json')) {
+    return {
+      error: {
+        code: er.code,
+        summary: messageText(summary),
+        detail: messageText(detail),
+      },
+    }
+  }
+}
+
+const errorMessage = (er, npm) => {
   const short = []
   const detail = []
   const files = []
@@ -329,7 +343,7 @@ module.exports = (er, npm) => {
           'Actual:   ' +
             JSON.stringify({
               npm: npm.version,
-              node: npm.config.loaded ? npm.config.get('node-version') : process.version,
+              node: process.version,
             }),
         ].join('\n'),
       ])
@@ -402,5 +416,7 @@ module.exports = (er, npm) => {
 
       break
   }
-  return { summary: short, detail, files }
+  return { summary: short, detail, files, json: jsonError(er, npm, { summary: short, detail }) }
 }
+
+module.exports = errorMessage

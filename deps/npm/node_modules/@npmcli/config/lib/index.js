@@ -17,6 +17,14 @@ const {
   mkdir,
 } = require('fs/promises')
 
+const fileExists = (...p) => stat(resolve(...p))
+  .then((st) => st.isFile())
+  .catch(() => false)
+
+const dirExists = (...p) => stat(resolve(...p))
+  .then((st) => st.isDirectory())
+  .catch(() => false)
+
 const hasOwnProperty = (obj, key) =>
   Object.prototype.hasOwnProperty.call(obj, key)
 
@@ -90,6 +98,7 @@ class Config {
     platform = process.platform,
     execPath = process.execPath,
     cwd = process.cwd(),
+    excludeNpmCwd = false,
   }) {
     // turn the definitions into nopt's weirdo syntax
     this.definitions = definitions
@@ -117,10 +126,12 @@ class Config {
     this.execPath = execPath
     this.platform = platform
     this.cwd = cwd
+    this.excludeNpmCwd = excludeNpmCwd
 
     // set when we load configs
     this.globalPrefix = null
     this.localPrefix = null
+    this.localPackage = null
 
     // defaults to env.HOME, but will always be *something*
     this.home = null
@@ -311,15 +322,11 @@ class Config {
     // default the globalconfig file to that location, instead of the default
     // global prefix.  It's weird that `npm get globalconfig --prefix=/foo`
     // returns `/foo/etc/npmrc`, but better to not change it at this point.
-    settableGetter(data, 'globalconfig', () =>
-      resolve(this[_get]('prefix'), 'etc/npmrc'))
+    settableGetter(data, 'globalconfig', () => resolve(this[_get]('prefix'), 'etc/npmrc'))
   }
 
   loadHome () {
-    if (this.env.HOME) {
-      return this.home = this.env.HOME
-    }
-    this.home = homedir()
+    this.home = this.env.HOME || homedir()
   }
 
   loadGlobalPrefix () {
@@ -330,7 +337,7 @@ class Config {
     if (this.env.PREFIX) {
       this.globalPrefix = this.env.PREFIX
     } else if (this.platform === 'win32') {
-    // c:\node\node.exe --> prefix=c:\node\
+      // c:\node\node.exe --> prefix=c:\node\
       this.globalPrefix = dirname(this.execPath)
     } else {
       // /usr/local/bin/node --> prefix=/usr/local
@@ -599,6 +606,12 @@ class Config {
     // we return to make sure localPrefix is set
     await this.loadLocalPrefix()
 
+    // if we have not detected a local package json yet, try now that we
+    // have a local prefix
+    if (this.localPackage == null) {
+      this.localPackage = await fileExists(this.localPrefix, 'package.json')
+    }
+
     if (this[_get]('global') === true || this[_get]('location') === 'global') {
       this.data.get('project').source = '(global mode enabled, ignored)'
       this.sources.set(this.data.get('project').source, 'project')
@@ -630,16 +643,17 @@ class Config {
     const isGlobal = this[_get]('global') || this[_get]('location') === 'global'
 
     for (const p of walkUp(this.cwd)) {
-      const hasNodeModules = await stat(resolve(p, 'node_modules'))
-        .then((st) => st.isDirectory())
-        .catch(() => false)
+      // HACK: this is an option set in tests to stop the local prefix from being set
+      // on tests that are created inside the npm repo
+      if (this.excludeNpmCwd && p === this.npmPath) {
+        break
+      }
 
-      const hasPackageJson = await stat(resolve(p, 'package.json'))
-        .then((st) => st.isFile())
-        .catch(() => false)
+      const hasPackageJson = await fileExists(p, 'package.json')
 
-      if (!this.localPrefix && (hasNodeModules || hasPackageJson)) {
+      if (!this.localPrefix && (hasPackageJson || await dirExists(p, 'node_modules'))) {
         this.localPrefix = p
+        this.localPackage = hasPackageJson
 
         // if workspaces are disabled, or we're in global mode, return now
         if (cliWorkspaces === false || isGlobal) {
@@ -663,11 +677,7 @@ class Config {
         for (const w of workspaces.values()) {
           if (w === this.localPrefix) {
             // see if there's a .npmrc file in the workspace, if so log a warning
-            const hasNpmrc = await stat(resolve(this.localPrefix, '.npmrc'))
-              .then((st) => st.isFile())
-              .catch(() => false)
-
-            if (hasNpmrc) {
+            if (await fileExists(this.localPrefix, '.npmrc')) {
               log.warn(`ignoring workspace config at ${this.localPrefix}/.npmrc`)
             }
 
@@ -675,6 +685,7 @@ class Config {
             const { data } = this.data.get('default')
             data.workspace = [this.localPrefix]
             this.localPrefix = p
+            this.localPackage = hasPackageJson
             log.info(`found workspace root at ${this.localPrefix}`)
             // we found a root, so we return now
             return

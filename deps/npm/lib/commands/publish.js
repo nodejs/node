@@ -38,6 +38,7 @@ class Publish extends BaseCommand {
   ]
 
   static usage = ['<package-spec>']
+  static workspaces = true
   static ignoreImplicitWorkspace = false
 
   async exec (args) {
@@ -123,7 +124,7 @@ class Publish extends BaseCommand {
     log.notice('', msg)
 
     if (!dryRun) {
-      await otplease(this.npm, opts, opts => libpub(manifest, tarballData, opts))
+      await otplease(this.npm, opts, o => libpub(manifest, tarballData, o))
     }
 
     if (spec.type === 'directory' && !ignoreScripts) {
@@ -155,14 +156,14 @@ class Publish extends BaseCommand {
     return pkgContents
   }
 
-  async execWorkspaces (args, filters) {
+  async execWorkspaces (args) {
     // Suppresses JSON output in publish() so we can handle it here
     this.suppressOutput = true
 
     const results = {}
     const json = this.npm.config.get('json')
     const { silent } = this.npm
-    await this.setWorkspaces(filters)
+    await this.setWorkspaces()
 
     for (const [name, workspace] of this.workspaces.entries()) {
       let pkgContents

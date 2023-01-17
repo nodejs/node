@@ -16,11 +16,26 @@ const getPrintableName = ({ name, version }) => {
   return `${name}${printableVersion}`
 }
 
+const errCode = (msg, code) => Object.assign(new Error(msg), { code })
+
 class Fund extends ArboristWorkspaceCmd {
   static description = 'Retrieve funding information'
   static name = 'fund'
   static params = ['json', 'browser', 'unicode', 'workspace', 'which']
   static usage = ['[<package-spec>]']
+
+  // XXX: maybe worth making this generic for all commands?
+  usageMessage (paramsObj = {}) {
+    let msg = `\`npm ${this.constructor.name}`
+    const params = Object.entries(paramsObj)
+    if (params.length) {
+      msg += ` ${this.constructor.usage}`
+    }
+    for (const [key, value] of params) {
+      msg += ` --${key}=${value}`
+    }
+    return `${msg}\``
+  }
 
   // TODO
   /* istanbul ignore next */
@@ -30,25 +45,23 @@ class Fund extends ArboristWorkspaceCmd {
 
   async exec (args) {
     const spec = args[0]
-    const numberArg = this.npm.config.get('which')
 
-    const fundingSourceNumber = numberArg && parseInt(numberArg, 10)
-
-    const badFundingSourceNumber =
-      numberArg !== null && (String(fundingSourceNumber) !== numberArg || fundingSourceNumber < 1)
-
-    if (badFundingSourceNumber) {
-      const err = new Error(
-        '`npm fund [<@scope>/]<pkg> [--which=fundingSourceNumber]` must be given a positive integer'
-      )
-      err.code = 'EFUNDNUMBER'
-      throw err
+    let fundingSourceNumber = this.npm.config.get('which')
+    if (fundingSourceNumber != null) {
+      fundingSourceNumber = parseInt(fundingSourceNumber, 10)
+      if (isNaN(fundingSourceNumber) || fundingSourceNumber < 1) {
+        throw errCode(
+          `${this.usageMessage({ which: 'fundingSourceNumber' })} must be given a positive integer`,
+          'EFUNDNUMBER'
+        )
+      }
     }
 
     if (this.npm.global) {
-      const err = new Error('`npm fund` does not support global packages')
-      err.code = 'EFUNDGLOBAL'
-      throw err
+      throw errCode(
+        `${this.usageMessage()} does not support global packages`,
+        'EFUNDGLOBAL'
+      )
     }
 
     const where = this.npm.prefix
@@ -146,6 +159,7 @@ class Fund extends ArboristWorkspaceCmd {
 
   async openFundingUrl ({ path, tree, spec, fundingSourceNumber }) {
     const arg = npa(spec, path)
+
     const retrievePackageMetadata = () => {
       if (arg.type === 'directory') {
         if (tree.path === arg.fetchSpec) {
@@ -178,32 +192,35 @@ class Fund extends ArboristWorkspaceCmd {
 
     const validSources = [].concat(normalizeFunding(funding)).filter(isValidFunding)
 
-    const matchesValidSource =
-      validSources.length === 1 ||
-      (fundingSourceNumber > 0 && fundingSourceNumber <= validSources.length)
-
-    if (matchesValidSource) {
-      const index = fundingSourceNumber ? fundingSourceNumber - 1 : 0
-      const { type, url } = validSources[index]
-      const typePrefix = type ? `${type} funding` : 'Funding'
-      const msg = `${typePrefix} available at the following URL`
-      return openUrl(this.npm, url, msg)
-    } else if (validSources.length && !(fundingSourceNumber >= 1)) {
-      validSources.forEach(({ type, url }, i) => {
-        const typePrefix = type ? `${type} funding` : 'Funding'
-        const msg = `${typePrefix} available at the following URL`
-        this.npm.output(`${i + 1}: ${msg}: ${url}`)
-      })
-      this.npm.output(
-        /* eslint-disable-next-line max-len */
-        'Run `npm fund [<@scope>/]<pkg> --which=1`, for example, to open the first funding URL listed in that package'
-      )
-    } else {
-      const noFundingError = new Error(`No valid funding method available for: ${spec}`)
-      noFundingError.code = 'ENOFUND'
-
-      throw noFundingError
+    if (!validSources.length) {
+      throw errCode(`No valid funding method available for: ${spec}`, 'ENOFUND')
     }
+
+    const fundSource = fundingSourceNumber
+      ? validSources[fundingSourceNumber - 1]
+      : validSources.length === 1 ? validSources[0]
+      : null
+
+    if (fundSource) {
+      return openUrl(this.npm, ...this.urlMessage(fundSource))
+    }
+
+    const ambiguousUrlMsg = [
+      ...validSources.map((s, i) => `${i + 1}: ${this.urlMessage(s).reverse().join(': ')}`),
+      `Run ${this.usageMessage({ which: '1' })}` +
+      ', for example, to open the first funding URL listed in that package',
+    ]
+    if (fundingSourceNumber) {
+      ambiguousUrlMsg.unshift(`--which=${fundingSourceNumber} is not a valid index`)
+    }
+    this.npm.output(ambiguousUrlMsg.join('\n'))
+  }
+
+  urlMessage (source) {
+    const { type, url } = source
+    const typePrefix = type ? `${type} funding` : 'Funding'
+    const message = `${typePrefix} available at the following URL`
+    return [url, message]
   }
 }
 module.exports = Fund

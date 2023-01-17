@@ -123,7 +123,7 @@ audited 1 package in xxx
 
 1 package has an invalid registry signature:
 
-@npmcli/arborist@1.0.14 (https://verdaccio-clone.org)
+@npmcli/arborist@1.0.14 (https://verdaccio-clone.org/)
 
 Someone might have tampered with this package since it was published on the registry!
 
@@ -134,7 +134,7 @@ audited 1 package in xxx
 
 1 package has a missing registry signature but the registry is providing signing keys:
 
-@npmcli/arborist@1.0.14 (https://verdaccio-clone.org)
+@npmcli/arborist@1.0.14 (https://verdaccio-clone.org/)
 `
 
 exports[`test/lib/commands/audit.js TAP audit signatures third-party registry with keys and signatures > must match snapshot 1`] = `
