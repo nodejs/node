@@ -479,12 +479,8 @@ std::shared_ptr<KeyObjectData> ImportJWKSecretKey(
     return std::shared_ptr<KeyObjectData>();
   }
 
+  static_assert(String::kMaxLength <= INT_MAX);
   ByteSource key_data = ByteSource::FromEncodedString(env, key.As<String>());
-  if (key_data.size() > INT_MAX) {
-    THROW_ERR_CRYPTO_INVALID_KEYLEN(env);
-    return std::shared_ptr<KeyObjectData>();
-  }
-
   return KeyObjectData::CreateSecret(std::move(key_data));
 }
 
