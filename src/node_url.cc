@@ -5,11 +5,16 @@
 #include "node_i18n.h"
 #include "util-inl.h"
 
+#include <__string>
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <cstddef>
 #include <cstdio>
+#include <iterator>
 #include <numeric>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace node {
@@ -409,42 +414,28 @@ int64_t ParseIPv4Number(const char* start, const char* end) {
 
 // https://url.spec.whatwg.org/#ipv4-number-parser
 bool IsIPv4NumberValid(std::string_view input) {
-  // If input is the empty string, then return failure.
   if (input.empty()) {
     return false;
   }
 
-  // If input contains at least two code points..
-  if (input.size() >= 2) {
-    // and the first two code points are either "0X" or "0x", then:
-    if (input[0] == '0' && (input[1] == 'X' || input[1] == 'x')) {
+  if (input.size() >= 2 && input[0] == '0') {
+    if (input[1] == 'X' || input[1] == 'x') {
       if (input.size() == 2) {
         return true;
       }
 
-      // Remove the first two code points from input,
-      // radix-R is 16
-      // If input contains a code point that is not a radix-R digit, then return
-      // failure.
       return input.find_first_not_of("0123456789abcdefABCDEF", 2) ==
              std::string_view::npos;
 
-      // and the first code point is U+0030 (0), then:
-    } else if (input[0] == '0') {
+    } else {
       if (input.size() == 1) {
         return true;
       }
 
-      // Remove the first code point from input.
-      // radix-R is 8
-      // If input contains a code point that is not a radix-R digit, then return
-      // failure.
       return input.find_first_not_of("01234567", 1) == std::string_view::npos;
     }
   }
 
-  // If input contains a code point that is not a radix-R digit, then return
-  // failure. radix-R is 10
   return std::all_of(input.begin(), input.end(), ::isdigit);
 }
 
@@ -454,38 +445,32 @@ bool EndsInANumber(const std::string_view input) {
     return false;
   }
 
-  const std::string delimiter = ".";
+  char delimiter = '.';
   auto pointer_start = input.begin();
   auto pointer_end = input.end();
 
-  uint8_t parts_size = std::count(pointer_start, pointer_end, delimiter[0]);
+  uint8_t parts_size = std::count(pointer_start, pointer_end, delimiter);
   ++parts_size;
 
-  // If the last item in parts is the empty string, then:
-  if (input.back() == delimiter[0]) {
-    // Remove the last item from parts.
+  if (input.back() == delimiter) {
     --pointer_end;
     --parts_size;
   }
 
-  // Let last be the last item in parts
   if (parts_size > 1) {
-    pointer_start = std::find_end(
-        pointer_start, pointer_end, delimiter.begin(), delimiter.end());
-    ++pointer_start;
+    pointer_start +=
+        input.rfind(delimiter, std::distance(pointer_start, pointer_end) - 1) +
+        1;
   }
 
   if (std::distance(pointer_start, pointer_end) == 0) {
     return false;
   }
 
-  // If last is non-empty and contains only ASCII digits, then return true.
   if (std::all_of(pointer_start, pointer_end, ::isdigit)) {
     return true;
   }
 
-  // If parsing last as an IPv4 number does not return failure, then return
-  // true.
   return IsIPv4NumberValid(std::string(pointer_start, pointer_end));
 }
 
