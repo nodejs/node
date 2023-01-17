@@ -15,19 +15,17 @@ const { subtle } = webcrypto;
     await Promise.all([1, null, undefined, {}, []].map((format) =>
       assert.rejects(
         subtle.importKey(format, keyData, {}, false, ['wrapKey']), {
-          code: 'ERR_INVALID_ARG_TYPE'
+          code: 'ERR_INVALID_ARG_VALUE'
         })
     ));
     await assert.rejects(
       subtle.importKey('not valid', keyData, {}, false, ['wrapKey']), {
         code: 'ERR_INVALID_ARG_VALUE'
       });
-    await Promise.all([1, null, undefined, {}, []].map((keyData) =>
-      assert.rejects(
-        subtle.importKey('raw', keyData, {}, false, ['deriveBits']), {
-          code: 'ERR_INVALID_ARG_TYPE'
-        })
-    ));
+    await assert.rejects(
+      subtle.importKey('raw', 1, {}, false, ['deriveBits']), {
+        code: 'ERR_INVALID_ARG_TYPE'
+      });
     await assert.rejects(
       subtle.importKey('raw', keyData, {
         name: 'HMAC'
@@ -66,7 +64,7 @@ const { subtle } = webcrypto;
         hash: 'SHA-256',
       }, false, ['sign', 'verify']), {
         name: 'DataError',
-        message: 'Invalid JWK keyData'
+        message: 'Invalid keyData'
       });
   }
 
