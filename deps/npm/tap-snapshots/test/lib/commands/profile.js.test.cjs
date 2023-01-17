@@ -8,8 +8,7 @@
 exports[`test/lib/commands/profile.js TAP enable-2fa from token and set otp, retries on pending and verifies with qrcode > should output 2fa enablement success msgs 1`] = `
 Scan into your authenticator app:
 qrcode
- Or enter code:
-1234
+ Or enter code: 1234
 2FA successfully enabled. Below are your recovery codes, please print these out.
 You will need these to recover access to your account if you lose your authentication device.
 	123456

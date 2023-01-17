@@ -1,46 +1,48 @@
 const t = require('tap')
-const { fake: mockNpm } = require('../../fixtures/mock-npm.js')
-const { join, sep } = require('path')
+const mockNpm = require('../../fixtures/mock-npm.js')
+const { sep } = require('path')
 
-const pkgDirs = t.testdir({
-  'package.json': JSON.stringify({
-    name: 'thispkg',
-    version: '1.2.3',
-    homepage: 'https://example.com',
-  }),
-  nodocs: {
+const fixtures = {
+  pkg: {
     'package.json': JSON.stringify({
-      name: 'nodocs',
+      name: 'thispkg',
       version: '1.2.3',
+      homepage: 'https://example.com',
     }),
-  },
-  docsurl: {
-    'package.json': JSON.stringify({
-      name: 'docsurl',
-      version: '1.2.3',
-      homepage: 'https://bugzilla.localhost/docsurl',
-    }),
-  },
-  repourl: {
-    'package.json': JSON.stringify({
-      name: 'repourl',
-      version: '1.2.3',
-      repository: 'https://github.com/foo/repourl',
-    }),
-  },
-  repoobj: {
-    'package.json': JSON.stringify({
-      name: 'repoobj',
-      version: '1.2.3',
-      repository: { url: 'https://github.com/foo/repoobj' },
-    }),
-  },
-  repourlobj: {
-    'package.json': JSON.stringify({
-      name: 'repourlobj',
-      version: '1.2.3',
-      repository: { url: { works: false } },
-    }),
+    nodocs: {
+      'package.json': JSON.stringify({
+        name: 'nodocs',
+        version: '1.2.3',
+      }),
+    },
+    docsurl: {
+      'package.json': JSON.stringify({
+        name: 'docsurl',
+        version: '1.2.3',
+        homepage: 'https://bugzilla.localhost/docsurl',
+      }),
+    },
+    repourl: {
+      'package.json': JSON.stringify({
+        name: 'repourl',
+        version: '1.2.3',
+        repository: 'https://github.com/foo/repourl',
+      }),
+    },
+    repoobj: {
+      'package.json': JSON.stringify({
+        name: 'repoobj',
+        version: '1.2.3',
+        repository: { url: 'https://github.com/foo/repoobj' },
+      }),
+    },
+    repourlobj: {
+      'package.json': JSON.stringify({
+        name: 'repourlobj',
+        version: '1.2.3',
+        repository: { url: { works: false } },
+      }),
+    },
   },
   workspaces: {
     'package.json': JSON.stringify({
@@ -69,26 +71,31 @@ const pkgDirs = t.testdir({
       },
     }),
   },
-})
-
-// keep a tally of which urls got opened
-let opened = {}
-const openUrl = async (npm, url, errMsg) => {
-  opened[url] = opened[url] || 0
-  opened[url]++
 }
 
-const Docs = t.mock('../../../lib/commands/docs.js', {
-  '../../../lib/utils/open-url.js': openUrl,
-})
-const flatOptions = {}
-const npm = mockNpm({ flatOptions })
-const docs = new Docs(npm)
+const setup = async (t, { prefixDir = fixtures.pkg, config } = {}) => {
+  // keep a tally of which urls got opened
+  const opened = {}
+  const openUrl = async (_, url) => {
+    opened[url] = opened[url] || 0
+    opened[url]++
+  }
 
-t.afterEach(() => opened = {})
+  const res = await mockNpm(t, {
+    prefixDir,
+    mocks: {
+      '{LIB}/utils/open-url.js': openUrl,
+    },
+    config,
+  })
 
-t.test('open docs urls', t => {
-  npm.localPrefix = pkgDirs
+  return {
+    ...res,
+    opened,
+  }
+}
+
+t.test('open docs urls', async t => {
   const expect = {
     nodocs: 'https://www.npmjs.com/package/nodocs',
     docsurl: 'https://bugzilla.localhost/docsurl',
@@ -97,51 +104,60 @@ t.test('open docs urls', t => {
     repourlobj: 'https://www.npmjs.com/package/repourlobj',
     '.': 'https://example.com',
   }
-  const keys = Object.keys(expect)
-  t.plan(keys.length)
-  keys.forEach(pkg => {
-    t.test(pkg, async t => {
-      await docs.exec([['.', pkg].join(sep)])
-      const url = expect[pkg]
-      t.match({
-        [url]: 1,
-      }, opened, `opened ${url}`, { opened })
+
+  for (const [key, url] of Object.entries(expect)) {
+    await t.test(`open ${key} url`, async t => {
+      const { npm, opened } = await setup(t)
+      await npm.exec('docs', [['.', key].join(sep)])
+      t.strictSame({ [url]: 1 }, opened, `opened ${url}`)
     })
-  })
+  }
 })
 
 t.test('open default package if none specified', async t => {
-  await docs.exec([])
-  t.equal(opened['https://example.com'], 1, 'opened expected url', { opened })
+  const { npm, opened } = await setup(t)
+
+  await npm.exec('docs', [])
+  t.strictSame({ 'https://example.com': 1 }, opened, 'opened expected url')
 })
 
-t.test('workspaces', (t) => {
-  npm.localPrefix = join(pkgDirs, 'workspaces')
-  t.test('all workspaces', async t => {
-    await docs.execWorkspaces([], [])
-    t.match({
+t.test('workspaces', async (t) => {
+  await t.test('all workspaces', async t => {
+    const { npm, opened } = await setup(t, {
+      prefixDir: fixtures.workspaces,
+      config: { workspaces: true },
+    })
+    await npm.exec('docs', [])
+    t.strictSame({
       'http://docs.workspace-a/': 1,
       'https://github.com/npm/workspace-b#readme': 1,
     }, opened, 'opened two valid docs urls')
   })
 
-  t.test('one workspace', async t => {
-    await docs.execWorkspaces([], ['workspace-a'])
-    t.match({
+  await t.test('one workspace', async t => {
+    const { npm, opened } = await setup(t, {
+      prefixDir: fixtures.workspaces,
+      config: { workspace: 'workspace-a' },
+    })
+    await npm.exec('docs', [])
+    t.strictSame({
       'http://docs.workspace-a/': 1,
     }, opened, 'opened one requested docs urls')
   })
 
-  t.test('invalid workspace', async t => {
+  await t.test('invalid workspace', async t => {
+    const { npm, opened } = await setup(t, {
+      prefixDir: fixtures.workspaces,
+      config: { workspace: 'workspace-x' },
+    })
     await t.rejects(
-      docs.execWorkspaces([], ['workspace-x']),
+      npm.exec('docs', []),
       /No workspaces found/
     )
     await t.rejects(
-      docs.execWorkspaces([], ['workspace-x']),
+      npm.exec('docs', []),
       /workspace-x/
     )
     t.match({}, opened, 'opened no docs urls')
   })
-  t.end()
 })

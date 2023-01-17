@@ -1,6 +1,7 @@
 const t = require('tap')
+const tmock = require('../../fixtures/tmock')
 
-const makeShim = (mocks) => t.mock('../../../lib/utils/log-shim.js', mocks)
+const makeShim = (mocks) => tmock(t, '{LIB}/utils/log-shim.js', mocks)
 
 const loggers = [
   'notice',

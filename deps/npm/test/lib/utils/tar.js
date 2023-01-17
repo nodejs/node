@@ -1,10 +1,11 @@
 const t = require('tap')
 const pack = require('libnpmpack')
 const ssri = require('ssri')
+const tmock = require('../../fixtures/tmock')
 
 const { getContents } = require('../../../lib/utils/tar.js')
 
-const mockTar = ({ notice }) => t.mock('../../../lib/utils/tar.js', {
+const mockTar = ({ notice }) => tmock(t, '{LIB}/utils/tar.js', {
   'proc-log': {
     notice,
   },

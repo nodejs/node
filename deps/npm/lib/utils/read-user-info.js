@@ -28,7 +28,7 @@ function readOTP (msg = otpPrompt, otp, isRetry) {
   }
 
   return read({ prompt: msg, default: otp || '' })
-    .then((otp) => readOTP(msg, otp, true))
+    .then((rOtp) => readOTP(msg, rOtp, true))
 }
 
 function readPassword (msg = passwordPrompt, password, isRetry) {
@@ -37,7 +37,7 @@ function readPassword (msg = passwordPrompt, password, isRetry) {
   }
 
   return read({ prompt: msg, silent: true, default: password || '' })
-    .then((password) => readPassword(msg, password, true))
+    .then((rPassword) => readPassword(msg, rPassword, true))
 }
 
 function readUsername (msg = usernamePrompt, username, isRetry) {
@@ -51,7 +51,7 @@ function readUsername (msg = usernamePrompt, username, isRetry) {
   }
 
   return read({ prompt: msg, default: username || '' })
-    .then((username) => readUsername(msg, username, true))
+    .then((rUsername) => readUsername(msg, rUsername, true))
 }
 
 function readEmail (msg = emailPrompt, email, isRetry) {

@@ -13,8 +13,6 @@ class Login extends BaseCommand {
     'auth-type',
   ]
 
-  static ignoreImplicitWorkspace = true
-
   async exec (args) {
     const scope = this.npm.config.get('scope')
     let registry = this.npm.config.get('registry')

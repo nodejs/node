@@ -54,8 +54,6 @@ class Profile extends BaseCommand {
     'otp',
   ]
 
-  static ignoreImplicitWorkspace = true
-
   async completion (opts) {
     var argv = opts.conf.argv.remain
 
@@ -221,7 +219,7 @@ class Profile extends BaseCommand {
 
     newUser[prop] = value
 
-    const result = await otplease(this.npm, conf, conf => npmProfile.set(newUser, conf))
+    const result = await otplease(this.npm, conf, c => npmProfile.set(newUser, c))
 
     if (this.npm.config.get('json')) {
       this.npm.output(JSON.stringify({ [prop]: result[prop] }, null, 2))
