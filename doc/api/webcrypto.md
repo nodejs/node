@@ -2,6 +2,10 @@
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46067
+    description: Arguments are now coerced and validated as per their WebIDL
+      definitions like in other Web Crypto API implementations.
   - version: v16.17.0
     pr-url: https://github.com/nodejs/node/pull/43310
     description: Removed proprietary `'node.keyObject'` import/export format.
