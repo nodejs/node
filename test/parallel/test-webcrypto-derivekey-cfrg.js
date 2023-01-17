@@ -111,7 +111,7 @@ async function prepareKeys() {
         { name: 'X448' },
         keys.X448.privateKey,
         ...otherArgs),
-      { code: 'ERR_INVALID_ARG_TYPE' });
+      { code: 'ERR_MISSING_OPTION' });
   }
 
   {
