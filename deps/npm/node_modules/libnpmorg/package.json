@@ -31,7 +31,7 @@
     "@npmcli/template-oss": "4.11.0",
     "minipass": "^4.0.0",
     "nock": "^13.2.4",
-    "tap": "^16.0.1"
+    "tap": "^16.3.2"
   },
   "repository": {
     "type": "git",

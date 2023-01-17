@@ -1,4 +1,4 @@
-.TH "NPM-ACCESS" "1" "December 2022" "" ""
+.TH "NPM-ACCESS" "1" "January 2023" "" ""
 .SH "NAME"
 \fBnpm-access\fR - Set access level on published packages
 .SS "Synopsis"
@@ -14,6 +14,8 @@ npm access grant <read-only|read-write> <scope:team> \[lB]<package>\[rB]
 npm access revoke <scope:team> \[lB]<package>\[rB]
 .fi
 .RE
+.P
+Note: This command is unaware of workspaces.
 .SS "Description"
 .P
 Used to set access controls on private packages.

@@ -1,34 +1,36 @@
 const t = require('tap')
+const realFetch = require('npm-registry-fetch')
+const mockNpm = require('../../fixtures/mock-npm')
 
-let result = ''
+const noop = () => {}
 
-const noop = () => null
-const npm = {
-  config: { get () {}, validate: () => {} },
-  flatOptions: {},
-  output: (...msg) => {
-    result = [result, ...msg].join('\n')
-  },
+const mockStars = async (t, { npmFetch = noop, exec = true, ...opts }) => {
+  const mock = await mockNpm(t, {
+    mocks: {
+      'npm-registry-fetch': Object.assign(noop, realFetch, { json: npmFetch }),
+      '{LIB}/utils/get-identity.js': async () => 'foo',
+    },
+    ...opts,
+  })
+
+  const stars = { exec: (args) => mock.npm.exec('stars', args) }
+
+  if (exec) {
+    await stars.exec(Array.isArray(exec) ? exec : [])
+    mock.result = mock.joinedOutput()
+  }
+
+  return {
+    ...mock,
+    stars,
+    logs: () => mock.logs.filter(l => l[1] === 'stars').map(l => l[2]),
+  }
 }
-const npmFetch = { json: noop }
-const log = { warn: noop }
-const mocks = {
-  'proc-log': log,
-  'npm-registry-fetch': npmFetch,
-  '../../../lib/utils/get-identity.js': async () => 'foo',
-}
-
-const Stars = t.mock('../../../lib/commands/stars.js', mocks)
-const stars = new Stars(npm)
-
-t.afterEach(() => {
-  npm.config = { get () {} }
-  log.warn = noop
-  result = ''
-})
 
 t.test('no args', async t => {
-  npmFetch.json = async (uri, opts) => {
+  t.plan(3)
+
+  const npmFetch = async (uri, opts) => {
     t.equal(uri, '/-/_view/starredByUser', 'should fetch from expected uri')
     t.equal(opts.query.key, '"foo"', 'should match logged in username')
 
@@ -43,7 +45,7 @@ t.test('no args', async t => {
     }
   }
 
-  await stars.exec([])
+  const { result } = await mockStars(t, { npmFetch, exec: true })
 
   t.matchSnapshot(
     result,
@@ -53,7 +55,8 @@ t.test('no args', async t => {
 
 t.test('npm star <user>', async t => {
   t.plan(3)
-  npmFetch.json = async (uri, opts) => {
+
+  const npmFetch = async (uri, opts) => {
     t.equal(uri, '/-/_view/starredByUser', 'should fetch from expected uri')
     t.equal(opts.query.key, '"ruyadorno"', 'should match username')
 
@@ -62,7 +65,7 @@ t.test('npm star <user>', async t => {
     }
   }
 
-  await stars.exec(['ruyadorno'])
+  const { result } = await mockStars(t, { npmFetch, exec: ['ruyadorno'] })
 
   t.match(
     result,
@@ -72,22 +75,14 @@ t.test('npm star <user>', async t => {
 })
 
 t.test('unauthorized request', async t => {
-  t.plan(4)
-  npmFetch.json = async () => {
+  const npmFetch = async () => {
     throw Object.assign(
       new Error('Not logged in'),
       { code: 'ENEEDAUTH' }
     )
   }
 
-  log.warn = (title, msg) => {
-    t.equal(title, 'stars', 'should use expected title')
-    t.equal(
-      msg,
-      'auth is required to look up your username',
-      'should warn auth required msg'
-    )
-  }
+  const { joinedOutput, stars, logs } = await mockStars(t, { npmFetch, exec: false })
 
   await t.rejects(
     stars.exec([]),
@@ -95,41 +90,43 @@ t.test('unauthorized request', async t => {
     'should throw unauthorized request msg'
   )
 
+  t.strictSame(
+    logs(),
+    ['auth is required to look up your username'],
+    'should warn auth required msg'
+  )
+
   t.equal(
-    result,
+    joinedOutput(),
     '',
     'should have empty output'
   )
 })
 
 t.test('unexpected error', async t => {
-  npmFetch.json = async () => {
+  const npmFetch = async () => {
     throw new Error('ERROR')
   }
 
-  log.warn = (title, msg) => {
-    throw new Error('Should not output extra warning msgs')
-  }
+  const { stars, logs } = await mockStars(t, { npmFetch, exec: false })
 
   await t.rejects(
     stars.exec([]),
     /ERROR/,
     'should throw unexpected error message'
   )
+
+  t.strictSame(logs(), [], 'no logs')
 })
 
 t.test('no pkg starred', async t => {
-  t.plan(2)
-  npmFetch.json = async (uri, opts) => ({ rows: [] })
+  const npmFetch = async () => ({ rows: [] })
 
-  log.warn = (title, msg) => {
-    t.equal(title, 'stars', 'should use expected title')
-    t.equal(
-      msg,
-      'user has not starred any packages',
-      'should warn no starred packages msg'
-    )
-  }
+  const { logs } = await mockStars(t, { npmFetch, exec: true })
 
-  await stars.exec([])
+  t.strictSame(
+    logs(),
+    ['user has not starred any packages'],
+    'should warn no starred packages msg'
+  )
 })

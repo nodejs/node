@@ -1,4 +1,5 @@
 const t = require('tap')
+const tmock = require('../../fixtures/tmock')
 
 const OUTPUT = []
 const output = (...args) => OUTPUT.push(args)
@@ -28,7 +29,7 @@ const open = async (url, options) => {
   }
 }
 
-const openUrl = t.mock('../../../lib/utils/open-url.js', {
+const openUrl = tmock(t, '{LIB}/utils/open-url.js', {
   '@npmcli/promise-spawn': {
     open,
   },

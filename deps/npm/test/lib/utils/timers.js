@@ -2,10 +2,11 @@ const t = require('tap')
 const { resolve, join } = require('path')
 const fs = require('graceful-fs')
 const mockLogs = require('../../fixtures/mock-logs')
+const tmock = require('../../fixtures/tmock')
 
 const mockTimers = (t, options) => {
   const { logs, logMocks } = mockLogs()
-  const Timers = t.mock('../../../lib/utils/timers', {
+  const Timers = tmock(t, '{LIB}/utils/timers', {
     ...logMocks,
   })
   const timers = new Timers(options)

@@ -163,7 +163,7 @@ define('access', {
   `,
   type: [null, 'restricted', 'public'],
   description: `
-    If do not want your scoped package to be publicly viewable (and
+    If you do not want your scoped package to be publicly viewable (and
     installable) set \`--access=restricted\`.
 
     Unscoped packages can not be set to \`restricted\`.
@@ -238,6 +238,7 @@ define('auth-type', {
   type: ['legacy', 'web'],
   description: `
     What authentication strategy to use with \`login\`.
+    Note that if an \`otp\` config is given, this value will always be set to \`legacy\`.
   `,
   flatten,
 })
@@ -848,7 +849,7 @@ define('global-style', {
   type: Boolean,
   description: `
     Only install direct dependencies in the top level \`node_modules\`,
-    but hoist on deeper dependendencies.
+    but hoist on deeper dependencies.
     Sets \`--install-strategy=shallow\`.
   `,
   deprecated: `
@@ -1465,7 +1466,13 @@ define('otp', {
     If not set, and a registry response fails with a challenge for a one-time
     password, npm will prompt on the command line for one.
   `,
-  flatten,
+  flatten (key, obj, flatOptions) {
+    flatten(key, obj, flatOptions)
+    if (obj.otp) {
+      obj['auth-type'] = 'legacy'
+      flatten('auth-type', obj, flatOptions)
+    }
+  },
 })
 
 define('package', {
@@ -2021,7 +2028,7 @@ define('strict-peer-deps', {
     even if doing so will result in some packages receiving a peer dependency
     outside the range set in their package's \`peerDependencies\` object.
 
-    When such and override is performed, a warning is printed, explaining the
+    When such an override is performed, a warning is printed, explaining the
     conflict and the packages involved.  If \`--strict-peer-deps\` is set,
     then this warning is treated as a failure.
   `,
@@ -2141,6 +2148,7 @@ define('unicode', {
     When set to true, npm uses unicode characters in the tree output.  When
     false, it uses ascii characters instead of unicode glyphs.
   `,
+  flatten,
 })
 
 define('update-notifier', {

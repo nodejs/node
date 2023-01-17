@@ -67,7 +67,8 @@ npm init --scope=@foo --yes
 * Default: "web"
 * Type: "legacy" or "web"
 
-What authentication strategy to use with `login`.
+What authentication strategy to use with `login`. Note that if an `otp`
+config is given, this value will always be set to `legacy`.
 
 ### See Also
 

@@ -51,7 +51,6 @@ class Search extends BaseCommand {
   ]
 
   static usage = ['[search terms ...]']
-  static ignoreImplicitWorkspace = true
 
   async exec (args) {
     const opts = {

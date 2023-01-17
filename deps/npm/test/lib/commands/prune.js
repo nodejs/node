@@ -13,7 +13,7 @@ t.test('should prune using Arborist', async (t) => {
           t.ok(true, 'prune is called')
         }
       },
-      '../../lib/utils/reify-finish.js': (arb) => {
+      '{LIB}/utils/reify-finish.js': (arb) => {
         t.ok(arb, 'gets arborist tree')
       },
     },

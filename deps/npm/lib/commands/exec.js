@@ -1,4 +1,4 @@
-const path = require('path')
+const { resolve } = require('path')
 const libexec = require('libnpmexec')
 const BaseCommand = require('../base-command.js')
 
@@ -20,10 +20,25 @@ class Exec extends BaseCommand {
     '--package=foo -c \'<cmd> [args...]\'',
   ]
 
+  static workspaces = true
   static ignoreImplicitWorkspace = false
   static isShellout = true
 
-  async exec (_args, { locationMsg, runPath } = {}) {
+  async exec (args) {
+    return this.callExec(args)
+  }
+
+  async execWorkspaces (args) {
+    await this.setWorkspaces()
+
+    for (const [name, path] of this.workspaces) {
+      const locationMsg =
+        `in workspace ${this.npm.chalk.green(name)} at location:\n${this.npm.chalk.dim(path)}`
+      await this.callExec(args, { locationMsg, runPath: path })
+    }
+  }
+
+  async callExec (args, { locationMsg, runPath } = {}) {
     // This is where libnpmexec will look for locally installed packages
     const localPrefix = this.npm.localPrefix
 
@@ -32,7 +47,6 @@ class Exec extends BaseCommand {
       runPath = process.cwd()
     }
 
-    const args = [..._args]
     const call = this.npm.config.get('call')
     let globalPath
     const {
@@ -49,10 +63,10 @@ class Exec extends BaseCommand {
     // is invalid (i.e. no lib/node_modules).  This is not a trivial thing to
     // untangle and fix so we work around it here.
     if (this.npm.localPrefix !== this.npm.globalPrefix) {
-      globalPath = path.resolve(globalDir, '..')
+      globalPath = resolve(globalDir, '..')
     }
 
-    if (call && _args.length) {
+    if (call && args.length) {
       throw this.usageError()
     }
 
@@ -61,7 +75,8 @@ class Exec extends BaseCommand {
       // we explicitly set packageLockOnly to false because if it's true
       // when we try to install a missing package, we won't actually install it
       packageLockOnly: false,
-      args,
+      // copy args so they dont get mutated
+      args: [...args],
       call,
       localBin,
       locationMsg,
@@ -74,16 +89,6 @@ class Exec extends BaseCommand {
       scriptShell,
       yes,
     })
-  }
-
-  async execWorkspaces (args, filters) {
-    await this.setWorkspaces(filters)
-
-    for (const [name, path] of this.workspaces) {
-      const locationMsg =
-        `in workspace ${this.npm.chalk.green(name)} at location:\n${this.npm.chalk.dim(path)}`
-      await this.exec(args, { locationMsg, runPath: path })
-    }
   }
 }
 

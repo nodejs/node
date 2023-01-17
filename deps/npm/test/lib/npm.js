@@ -1,38 +1,9 @@
 const t = require('tap')
 const { resolve, dirname, join } = require('path')
 const fs = require('fs')
-
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
 const mockGlobals = require('../fixtures/mock-globals')
 const { commands } = require('../../lib/utils/cmd-list.js')
-
-// delete this so that we don't have configs from the fact that it
-// is being run by 'npm test'
-const event = process.env.npm_lifecycle_event
-
-for (const env of Object.keys(process.env).filter(e => /^npm_/.test(e))) {
-  if (env === 'npm_command') {
-    // should only be running this in the 'test' or 'run-script' command!
-    // if the lifecycle event is 'test', then it'll be either 'test' or 'run',
-    // otherwise it should always be run-script. Of course, it'll be missing
-    // if this test is just run directly, which is also acceptable.
-    if (event === 'test') {
-      t.ok(
-        ['test', 'run-script'].some(i => i === process.env[env]),
-        'should match "npm test" or "npm run test"'
-      )
-    } else {
-      t.match(process.env[env], /^(run-script|exec)$/)
-    }
-  }
-  delete process.env[env]
-}
-
-t.afterEach(async (t) => {
-  for (const env of Object.keys(process.env).filter(e => /^npm_/.test(e))) {
-    delete process.env[env]
-  }
-})
 
 t.test('not yet loaded', async t => {
   const { npm, logs } = await loadMockNpm(t, { load: false })
@@ -160,8 +131,8 @@ t.test('npm.load', async t => {
       prefixDir: {
         bin: t.fixture('symlink', dirname(process.execPath)),
       },
-      globals: ({ prefix }) => ({
-        'process.env.PATH': resolve(prefix, 'bin'),
+      globals: (dirs) => ({
+        'process.env.PATH': resolve(dirs.prefix, 'bin'),
         'process.argv': [
           node,
           process.argv[1],
@@ -299,9 +270,6 @@ t.test('npm.load', async t => {
       },
     })
 
-    // verify that calling the command with a short name still sets
-    // the npm.command property to the full canonical name of the cmd.
-    npm.command = null
     await npm.exec('run', [])
 
     t.equal(npm.command, 'run-script', 'npm.command set to canonical name')
@@ -357,9 +325,7 @@ t.test('npm.load', async t => {
         ],
       },
     })
-    // verify that calling the command with a short name still sets
-    // the npm.command property to the full canonical name of the cmd.
-    npm.command = null
+
     await t.rejects(
       npm.exec('run', []),
       /Workspaces not supported for global packages/
@@ -441,9 +407,9 @@ t.test('debug log', async t => {
   t.test('can load with bad dir', async t => {
     const { npm, testdir } = await loadMockNpm(t, {
       load: false,
-      config: {
-        'logs-dir': (c) => join(c.testdir, 'my_logs_dir'),
-      },
+      config: (dirs) => ({
+        'logs-dir': join(dirs.testdir, 'my_logs_dir'),
+      }),
     })
     const logsDir = join(testdir, 'my_logs_dir')
 
@@ -648,15 +614,15 @@ t.test('implicit workspace rejection', async t => {
         workspaces: ['./packages/a'],
       }),
     },
-    globals: ({ prefix }) => ({
-      'process.cwd': () => join(prefix, 'packages', 'a'),
+    chdir: ({ prefix }) => join(prefix, 'packages', 'a'),
+    globals: {
       'process.argv': [
         process.execPath,
         process.argv[1],
         '--color', 'false',
         '--workspace', './packages/a',
       ],
-    }),
+    },
   })
   await t.rejects(
     mock.npm.exec('team', []),
@@ -682,14 +648,14 @@ t.test('implicit workspace accept', async t => {
         workspaces: ['./packages/a'],
       }),
     },
-    globals: ({ prefix }) => ({
-      'process.cwd': () => join(prefix, 'packages', 'a'),
+    chdir: ({ prefix }) => join(prefix, 'packages', 'a'),
+    globals: {
       'process.argv': [
         process.execPath,
         process.argv[1],
         '--color', 'false',
       ],
-    }),
+    },
   })
   await t.rejects(mock.npm.exec('org', []), /.*Usage/)
 })

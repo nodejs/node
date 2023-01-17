@@ -2,9 +2,7 @@ const { createHook, executionAsyncId } = require('async_hooks')
 const { EventEmitter } = require('events')
 const { homedir, tmpdir } = require('os')
 const { dirname, join } = require('path')
-const { promisify } = require('util')
-const { mkdir } = require('fs/promises')
-const rimraf = promisify(require('rimraf'))
+const { mkdir, rm } = require('fs/promises')
 const mockLogs = require('./mock-logs')
 const pkg = require('../../package.json')
 
@@ -201,7 +199,7 @@ class Sandbox extends EventEmitter {
     if (this[_npm]) {
       this[_npm].unload()
     }
-    return rimraf(this[_dirs].temp).catch(() => null)
+    return rm(this[_dirs].temp, { recursive: true, force: true }).catch(() => null)
   }
 
   // proxy get handler

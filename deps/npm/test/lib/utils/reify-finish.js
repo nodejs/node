@@ -1,4 +1,6 @@
 const t = require('tap')
+const { cleanNewlines } = require('../../fixtures/clean-snapshot')
+const tmock = require('../../fixtures/tmock')
 
 const npm = {
   config: {
@@ -30,9 +32,9 @@ const fs = {
   },
 }
 
-const reifyFinish = t.mock('../../../lib/utils/reify-finish.js', {
+const reifyFinish = tmock(t, '{LIB}/utils/reify-finish.js', {
   fs,
-  '../../../lib/utils/reify-output.js': reifyOutput,
+  '{LIB}/utils/reify-output.js': reifyOutput,
 })
 
 t.test('should not write if not global', async t => {
@@ -74,6 +76,6 @@ t.test('should write if everything above passes', async t => {
     },
   })
   // windowwwwwwssss!!!!!
-  const data = fs.readFileSync(`${path}/npmrc`, 'utf8').replace(/\r\n/g, '\n')
+  const data = cleanNewlines(fs.readFileSync(`${path}/npmrc`, 'utf8'))
   t.matchSnapshot(data, 'written config')
 })

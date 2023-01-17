@@ -1,6 +1,7 @@
 const t = require('tap')
 const mockGlobals = require('../../fixtures/mock-globals')
 
+/* eslint-disable no-console */
 const originals = {
   platform: process.platform,
   error: console.error,
@@ -28,6 +29,7 @@ t.test('console', async t => {
 
   t.equal(console.error, originals.error)
 })
+/* eslint-enable no-console */
 
 t.test('platform', async (t) => {
   t.equal(process.platform, originals.platform)
@@ -235,6 +237,14 @@ t.test('replace', async (t) => {
   t.strictSame(process.env, originals.env)
 })
 
+t.test('dot key', async t => {
+  const dotKey = 'this.is.a.single.key'
+  mockGlobals(t, {
+    [`process.env."${dotKey}"`]: 'value',
+  })
+  t.strictSame(process.env[dotKey], 'value')
+})
+
 t.test('multiple mocks and resets', async (t) => {
   const initial = 'a'
   const platforms = ['b', 'c', 'd', 'e', 'f', 'g']
@@ -299,11 +309,11 @@ t.test('multiple mocks and resets', async (t) => {
 
     await t.test('platforms', async (t) => {
       const resets = platforms.map((p) => {
-        const { teardown, reset } = mockGlobals(t, { 'process.platform': p })
+        const { teardown: nestedTeardown, reset } = mockGlobals(t, { 'process.platform': p })
         t.equal(process.platform, p)
         return [
           reset['process.platform'],
-          teardown,
+          nestedTeardown,
         ]
       })
 

@@ -17,11 +17,11 @@ run npm packages globally.
 ### Overview
 
 - [Checking your version of npm and
-  Node.js](#checking-your-version-of-npm-and-node-js)
+  Node.js](#checking-your-version-of-npm-and-nodejs)
 - [Using a Node version manager to install Node.js and
-  npm](#using-a-node-version-manager-to-install-node-js-and-npm)
+  npm](#using-a-node-version-manager-to-install-nodejs-and-npm)
 - [Using a Node installer to install Node.js and
-  npm](#using-a-node-installer-to-install-node-js-and-npm)
+  npm](#using-a-node-installer-to-install-nodejs-and-npm)
 
 ### Checking your version of npm and Node.js
 

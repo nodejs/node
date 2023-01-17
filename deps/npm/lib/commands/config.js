@@ -112,11 +112,6 @@ class Config extends BaseCommand {
     }
   }
 
-  async execWorkspaces (args, filters) {
-    log.warn('config', 'This command does not support workspaces.')
-    return this.exec(args)
-  }
-
   async exec ([action, ...args]) {
     log.disableProgress()
     try {
@@ -251,14 +246,14 @@ ${defData}
 `.split('\n').join(EOL)
     await mkdir(dirname(file), { recursive: true })
     await writeFile(file, tmpData, 'utf8')
-    await new Promise((resolve, reject) => {
+    await new Promise((res, rej) => {
       const [bin, ...args] = e.split(/\s+/)
       const editor = spawn(bin, [...args, file], { stdio: 'inherit' })
       editor.on('exit', (code) => {
         if (code) {
-          return reject(new Error(`editor process exited with code: ${code}`))
+          return rej(new Error(`editor process exited with code: ${code}`))
         }
-        return resolve()
+        return res()
       })
     })
   }

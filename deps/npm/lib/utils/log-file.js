@@ -1,10 +1,10 @@
 const os = require('os')
-const path = require('path')
+const { join, dirname, basename } = require('path')
 const { format, promisify } = require('util')
-const rimraf = promisify(require('rimraf'))
 const glob = promisify(require('glob'))
 const MiniPass = require('minipass')
 const fsMiniPass = require('fs-minipass')
+const fs = require('fs/promises')
 const log = require('./log-shim')
 
 const padZero = (n, length) => n.toString().padStart(length.toString().length, '0')
@@ -197,7 +197,7 @@ class LogFiles {
 
     try {
       const logPath = this.#getLogFilePath()
-      const logGlob = path.join(path.dirname(logPath), path.basename(logPath)
+      const logGlob = join(dirname(logPath), basename(logPath)
         // tell glob to only match digits
         .replace(/\d/g, '[0123456789]')
         // Handle the old (prior to 8.2.0) log file names which did not have a
@@ -217,7 +217,7 @@ class LogFiles {
 
       for (const file of files.slice(0, toDelete)) {
         try {
-          await rimraf(file, { glob: false })
+          await fs.rm(file, { force: true })
         } catch (e) {
           log.silly('logfile', 'error removing log file', file, e)
         }

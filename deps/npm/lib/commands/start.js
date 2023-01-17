@@ -8,7 +8,6 @@ class Start extends LifecycleCmd {
     'ignore-scripts',
     'script-shell',
   ]
-
-  static ignoreImplicitWorkspace = false
 }
+
 module.exports = Start

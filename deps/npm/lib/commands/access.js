@@ -37,8 +37,6 @@ class Access extends BaseCommand {
     'registry',
   ]
 
-  static ignoreImplicitWorkspace = true
-
   static usage = [
     'list packages [<user>|<scope>|<scope:team> [<package>]',
     'list collaborators [<package> [<user>]]',

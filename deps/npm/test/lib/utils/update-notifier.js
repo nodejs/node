@@ -1,4 +1,6 @@
 const t = require('tap')
+const tmock = require('../../fixtures/tmock')
+
 let ciMock = {}
 const flatOptions = { global: false, cache: t.testdir() + '/_cacache' }
 
@@ -17,7 +19,6 @@ let PACOTE_ERROR = null
 const pacote = {
   manifest: async (spec, opts) => {
     if (!spec.match(/^npm@/)) {
-      console.error(new Error('should only fetch manifest for npm'))
       process.exit(1)
     }
     MANIFEST_REQUEST.push(spec)
@@ -53,22 +54,15 @@ const fs = {
   ...require('fs'),
   stat: (path, cb) => {
     if (basename(path) !== '_update-notifier-last-checked') {
-      console.error(
-        new Error('should only write to notifier last checked file')
-      )
       process.exit(1)
     }
     process.nextTick(() => cb(STAT_ERROR, { mtime: new Date(STAT_MTIME) }))
   },
   writeFile: (path, content, cb) => {
     if (content !== '') {
-      console.error(new Error('should not be writing content'))
       process.exit(1)
     }
     if (basename(path) !== '_update-notifier-last-checked') {
-      console.error(
-        new Error('should only write to notifier last checked file')
-      )
       process.exit(1)
     }
     process.nextTick(() => cb(WRITE_ERROR))
@@ -85,7 +79,7 @@ t.afterEach(() => {
 
 const runUpdateNotifier = async ({ color = true, ...npmOptions } = {}) => {
   const _npm = { ...defaultNpm, ...npmOptions, logColor: color }
-  return t.mock('../../../lib/utils/update-notifier.js', {
+  return tmock(t, '{LIB}/utils/update-notifier.js', {
     'ci-info': ciMock,
     pacote,
     fs,

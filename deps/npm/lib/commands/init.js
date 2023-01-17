@@ -10,6 +10,8 @@ const PackageJson = require('@npmcli/package-json')
 const log = require('../utils/log-shim.js')
 const updateWorkspaces = require('../workspaces/update-workspaces.js')
 
+const posixPath = p => p.split('\\').join('/')
+
 const BaseCommand = require('../base-command.js')
 
 class Init extends BaseCommand {
@@ -26,23 +28,24 @@ class Init extends BaseCommand {
 
   static name = 'init'
   static usage = [
-    '<package-spec> (same as `npx <package-spec>)',
+    '<package-spec> (same as `npx <package-spec>`)',
     '<@scope> (same as `npx <@scope>/create`)',
   ]
 
+  static workspaces = true
   static ignoreImplicitWorkspace = false
 
   async exec (args) {
     // npm exec style
     if (args.length) {
-      return (await this.execCreate({ args, path: process.cwd() }))
+      return await this.execCreate(args)
     }
 
     // no args, uses classic init-package-json boilerplate
     await this.template()
   }
 
-  async execWorkspaces (args, filters) {
+  async execWorkspaces (args) {
     // if the root package is uninitiated, take care of it first
     if (this.npm.flatOptions.includeWorkspaceRoot) {
       await this.exec(args)
@@ -51,7 +54,16 @@ class Init extends BaseCommand {
     // reads package.json for the top-level folder first, by doing this we
     // ensure the command throw if no package.json is found before trying
     // to create a workspace package.json file or its folders
-    const pkg = await rpj(resolve(this.npm.localPrefix, 'package.json'))
+    const pkg = await rpj(resolve(this.npm.localPrefix, 'package.json')).catch((err) => {
+      if (err.code === 'ENOENT') {
+        log.warn('Missing package.json. Try with `--include-workspace-root`.')
+      }
+      throw err
+    })
+
+    // these are workspaces that are being created, so we cant use
+    // this.setWorkspaces()
+    const filters = this.npm.config.get('workspace')
     const wPath = filterArg => resolve(this.npm.localPrefix, filterArg)
 
     const workspacesPaths = []
@@ -61,8 +73,8 @@ class Init extends BaseCommand {
         const path = wPath(filterArg)
         await mkdir(path, { recursive: true })
         workspacesPaths.push(path)
-        await this.execCreate({ args, path })
-        await this.setWorkspace({ pkg, workspacePath: path })
+        await this.execCreate(args, path)
+        await this.setWorkspace(pkg, path)
       }
       return
     }
@@ -73,14 +85,14 @@ class Init extends BaseCommand {
       await mkdir(path, { recursive: true })
       workspacesPaths.push(path)
       await this.template(path)
-      await this.setWorkspace({ pkg, workspacePath: path })
+      await this.setWorkspace(pkg, path)
     }
 
     // reify packages once all workspaces have been initialized
     await this.update(workspacesPaths)
   }
 
-  async execCreate ({ args, path }) {
+  async execCreate (args, path = process.cwd()) {
     const [initerName, ...otherArgs] = args
     let packageName = initerName
 
@@ -95,8 +107,7 @@ class Init extends BaseCommand {
       const req = npa(initerName)
       if (req.type === 'git' && req.hosted) {
         const { user, project } = req.hosted
-        packageName = initerName
-          .replace(user + '/' + project, user + '/create-' + project)
+        packageName = initerName.replace(`${user}/${project}`, `${user}/create-${project}`)
       } else if (req.registry) {
         packageName = `${req.name.replace(/^(@[^/]+\/)?/, '$1create-')}@${req.rawSpec}`
       } else {
@@ -174,7 +185,7 @@ class Init extends BaseCommand {
     })
   }
 
-  async setWorkspace ({ pkg, workspacePath }) {
+  async setWorkspace (pkg, workspacePath) {
     const workspaces = await mapWorkspaces({ cwd: this.npm.localPrefix, pkg })
 
     // skip setting workspace if current package.json glob already satisfies it
@@ -199,7 +210,7 @@ class Init extends BaseCommand {
     pkgJson.update({
       workspaces: [
         ...(pkgJson.content.workspaces || []),
-        relative(this.npm.localPrefix, workspacePath),
+        posixPath(relative(this.npm.localPrefix, workspacePath)),
       ],
     })
 
@@ -210,9 +221,7 @@ class Init extends BaseCommand {
     // translate workspaces paths into an array containing workspaces names
     const workspaces = []
     for (const path of workspacesPaths) {
-      const pkgPath = resolve(path, 'package.json')
-      const { name } = await rpj(pkgPath)
-        .catch(() => ({}))
+      const { name } = await rpj(resolve(path, 'package.json')).catch(() => ({}))
 
       if (name) {
         workspaces.push(name)

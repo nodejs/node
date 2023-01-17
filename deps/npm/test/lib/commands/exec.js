@@ -38,9 +38,6 @@ t.test('registry package', async t => {
   require('fs').writeFileSync('npm-exec-test-success', '')`,
       },
     },
-    globals: ({ prefix }) => ({
-      'process.cwd': () => prefix,
-    }),
   })
 
   await registry.package({
@@ -75,9 +72,6 @@ t.test('--prefix', async t => {
   require('fs').writeFileSync('npm-exec-test-success', '')`,
       },
     },
-    globals: ({ prefix }) => ({
-      'process.cwd': () => prefix,
-    }),
   })
 
   // This is what `--prefix` does
@@ -125,9 +119,6 @@ t.test('workspaces', async t => {
         }),
       },
     },
-    globals: ({ prefix }) => ({
-      'process.cwd': () => prefix,
-    }),
   })
 
   await registry.package({ manifest,

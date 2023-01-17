@@ -1,5 +1,5 @@
 const t = require('tap')
-const { load: _loadMockNpm } = require('../../fixtures/mock-npm.js')
+const mockNpm = require('../../fixtures/mock-npm.js')
 const { sep } = require('path')
 
 const fixture = {
@@ -180,24 +180,30 @@ const workspaceFixture = {
   }),
 }
 
-// keep a tally of which urls got opened
-let opened = {}
-const openUrl = async (npm, url, errMsg) => {
-  opened[url] = opened[url] || 0
-  opened[url]++
-}
-t.afterEach(() => opened = {})
+const loadMockNpm = async (t, prefixDir, config = {}) => {
+  // keep a tally of which urls got opened
+  const opened = {}
 
-const loadMockNpm = async (t, prefixDir) => {
-  const res = await _loadMockNpm(t, {
-    mocks: { '../../lib/utils/open-url.js': openUrl },
+  const mock = await mockNpm(t, {
+    command: 'repo',
+    mocks: {
+      '{LIB}/utils/open-url.js': async (_, url) => {
+        opened[url] = opened[url] || 0
+        opened[url]++
+      },
+    },
+    config,
     prefixDir,
   })
-  return res
+
+  return {
+    ...mock,
+    opened,
+  }
 }
 
 t.test('open repo urls', async t => {
-  const { npm } = await loadMockNpm(t, fixture)
+  const { repo, opened } = await loadMockNpm(t, fixture)
   const expect = {
     hostedgit: 'https://github.com/foo/hostedgit',
     hostedgitat: 'https://github.com/foo/hostedgitat',
@@ -224,22 +230,14 @@ t.test('open repo urls', async t => {
     directory: 'https://github.com/foo/test-repo-with-directory/tree/HEAD/some/directory',
     '.': 'https://example.com/thispkg',
   }
-  const keys = Object.keys(expect)
-  t.plan(keys.length)
-  keys.forEach(pkg => {
-    t.test(pkg, async t => {
-      await npm.exec('repo', [['.', pkg].join(sep)])
-      const url = expect[pkg]
-      t.match({
-        [url]: 1,
-      }, opened, `opened ${url}`, { opened })
-      t.end()
-    })
-  })
+  for (const [pkg, url] of Object.entries(expect)) {
+    await repo.exec([['.', pkg].join(sep)])
+    t.equal(opened[url], 1, `opened ${url}`)
+  }
 })
 
 t.test('fail if cannot figure out repo url', async t => {
-  const { npm } = await loadMockNpm(t, fixture)
+  const { repo } = await loadMockNpm(t, fixture)
 
   const cases = [
     'norepo',
@@ -248,37 +246,29 @@ t.test('fail if cannot figure out repo url', async t => {
     'unhostedgitatobj',
   ]
 
-  t.plan(cases.length)
-
-  cases.forEach(pkg => {
-    t.test(pkg, async t => {
-      t.rejects(
-        npm.exec('repo', [['.', pkg].join(sep)]),
-        { pkgid: pkg }
-      )
-    })
-  })
+  for (const pkg of cases) {
+    await t.rejects(
+      repo.exec([['.', pkg].join(sep)]),
+      { pkgid: pkg }
+    )
+  }
 })
 
 t.test('open default package if none specified', async t => {
-  const { npm } = await loadMockNpm(t, fixture)
-  await npm.exec('repo', [])
+  const { repo, opened } = await loadMockNpm(t, fixture)
+  await repo.exec([])
   t.equal(opened['https://example.com/thispkg'], 1, 'opened expected url', { opened })
 })
 
 t.test('workspaces', async t => {
-  const { npm } = await loadMockNpm(t, workspaceFixture)
-
-  t.afterEach(() => {
-    npm.config.set('workspaces', null)
-    npm.config.set('workspace', [])
-    npm.config.set('include-workspace-root', false)
-  })
+  const mockWorkspaces = (t, config) => loadMockNpm(t, workspaceFixture, config)
 
   t.test('include workspace root', async (t) => {
-    npm.config.set('workspaces', true)
-    npm.config.set('include-workspace-root', true)
-    await npm.exec('repo', [])
+    const { opened, repo } = await mockWorkspaces(t, {
+      workspaces: true,
+      'include-workspace-root': true,
+    })
+    await repo.exec([])
     t.match({
       'https://github.com/npm/workspaces-test': 1,
       'https://repo.workspace-a/': 1, // Gets translated to https!
@@ -287,8 +277,10 @@ t.test('workspaces', async t => {
   })
 
   t.test('all workspaces', async (t) => {
-    npm.config.set('workspaces', true)
-    await npm.exec('repo', [])
+    const { opened, repo } = await mockWorkspaces(t, {
+      workspaces: true,
+    })
+    await repo.exec([])
     t.match({
       'https://repo.workspace-a/': 1, // Gets translated to https!
       'https://github.com/npm/workspace-b': 1,
@@ -296,25 +288,31 @@ t.test('workspaces', async t => {
   })
 
   t.test('one workspace', async (t) => {
-    npm.config.set('workspace', ['workspace-a'])
-    await npm.exec('repo', [])
+    const { opened, repo } = await mockWorkspaces(t, {
+      workspace: ['workspace-a'],
+    })
+    await repo.exec([])
     t.match({
       'https://repo.workspace-a/': 1,
     }, opened, 'opened one requested repo urls')
   })
 
   t.test('invalid workspace', async (t) => {
-    npm.config.set('workspace', ['workspace-x'])
+    const { opened, repo } = await mockWorkspaces(t, {
+      workspace: ['workspace-x'],
+    })
     await t.rejects(
-      npm.exec('repo', []),
+      repo.exec([]),
       /workspace-x/
     )
     t.match({}, opened, 'opened no repo urls')
   })
 
   t.test('package arg and workspace', async (t) => {
-    npm.config.set('workspace', ['workspace-a'])
-    await npm.exec('repo', ['.'])
+    const { opened, repo } = await mockWorkspaces(t, {
+      workspace: ['workspace-x'],
+    })
+    await repo.exec(['.'])
     t.match({
       'https://github.com/npm/workspaces-test': 1,
     }, opened, 'opened url for package arg, not workspace')

@@ -390,7 +390,7 @@ Object {
       "",
       Error: whoopsie {
         "code": "EACCES",
-        "dest": "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-false-cachePath-false-cacheDest-true-/cache/dest",
+        "dest": "{CWD}/cache/dest",
         "path": "/not/cache/dir/path",
       },
     ],
@@ -424,7 +424,7 @@ Object {
       Error: whoopsie {
         "code": "EACCES",
         "dest": "/not/cache/dir/dest",
-        "path": "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-false-cachePath-true-cacheDest-false-/cache/path",
+        "path": "{CWD}/cache/path",
       },
     ],
   ],
@@ -456,8 +456,8 @@ Object {
       "",
       Error: whoopsie {
         "code": "EACCES",
-        "dest": "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-false-cachePath-true-cacheDest-true-/cache/dest",
-        "path": "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-false-cachePath-true-cacheDest-true-/cache/path",
+        "dest": "{CWD}/cache/dest",
+        "path": "{CWD}/cache/path",
       },
     ],
   ],
@@ -505,15 +505,15 @@ Array [
   ],
   Array [
     "argv",
-    "",
+    "/"--fetch-retries/" /"0/" /"--cache/" /"{CWD}/cache/"",
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-false-cacheDest-false-/cache/_logs/{DATE}-",
+    "logs-max:10 dir:{CWD}/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
-    "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-false-cacheDest-false-/cache/_logs/{DATE}-debug-0.log",
+    "{CWD}/cache/_logs/{DATE}-debug-0.log",
   ],
 ]
 `
@@ -530,7 +530,7 @@ Object {
         previous versions of npm which has since been addressed.
         
         To permanently fix this problem, please run:
-          sudo chown -R 867:5309 "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-false-cacheDest-true-/cache"
+          sudo chown -R 867:5309 "{CWD}/cache"
       ),
     ],
   ],
@@ -545,18 +545,15 @@ Array [
   ],
   Array [
     "argv",
-    "",
+    "/"--fetch-retries/" /"0/" /"--cache/" /"{CWD}/cache/"",
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-false-cacheDest-true-/cache/_logs/{DATE}-",
+    "logs-max:10 dir:{CWD}/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
-    "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-false-cacheDest-true-/cache/_logs/{DATE}-debug-0.log",
-  ],
-  Array [
-    "dummy stack trace",
+    "{CWD}/cache/_logs/{DATE}-debug-0.log",
   ],
 ]
 `
@@ -573,7 +570,7 @@ Object {
         previous versions of npm which has since been addressed.
         
         To permanently fix this problem, please run:
-          sudo chown -R 867:5309 "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-true-cacheDest-false-/cache"
+          sudo chown -R 867:5309 "{CWD}/cache"
       ),
     ],
   ],
@@ -588,18 +585,15 @@ Array [
   ],
   Array [
     "argv",
-    "",
+    "/"--fetch-retries/" /"0/" /"--cache/" /"{CWD}/cache/"",
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-true-cacheDest-false-/cache/_logs/{DATE}-",
+    "logs-max:10 dir:{CWD}/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
-    "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-true-cacheDest-false-/cache/_logs/{DATE}-debug-0.log",
-  ],
-  Array [
-    "dummy stack trace",
+    "{CWD}/cache/_logs/{DATE}-debug-0.log",
   ],
 ]
 `
@@ -616,7 +610,7 @@ Object {
         previous versions of npm which has since been addressed.
         
         To permanently fix this problem, please run:
-          sudo chown -R 867:5309 "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-true-cacheDest-true-/cache"
+          sudo chown -R 867:5309 "{CWD}/cache"
       ),
     ],
   ],
@@ -631,18 +625,15 @@ Array [
   ],
   Array [
     "argv",
-    "",
+    "/"--fetch-retries/" /"0/" /"--cache/" /"{CWD}/cache/"",
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-true-cacheDest-true-/cache/_logs/{DATE}-",
+    "logs-max:10 dir:{CWD}/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
-    "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-false-loaded-true-cachePath-true-cacheDest-true-/cache/_logs/{DATE}-debug-0.log",
-  ],
-  Array [
-    "dummy stack trace",
+    "{CWD}/cache/_logs/{DATE}-debug-0.log",
   ],
 ]
 `
@@ -703,7 +694,7 @@ Object {
       "",
       Error: whoopsie {
         "code": "EACCES",
-        "dest": "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-false-cachePath-false-cacheDest-true-/cache/dest",
+        "dest": "{CWD}/cache/dest",
         "path": "/not/cache/dir/path",
       },
     ],
@@ -738,7 +729,7 @@ Object {
       Error: whoopsie {
         "code": "EACCES",
         "dest": "/not/cache/dir/dest",
-        "path": "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-false-cachePath-true-cacheDest-false-/cache/path",
+        "path": "{CWD}/cache/path",
       },
     ],
   ],
@@ -771,8 +762,8 @@ Object {
       "",
       Error: whoopsie {
         "code": "EACCES",
-        "dest": "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-false-cachePath-true-cacheDest-true-/cache/dest",
-        "path": "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-false-cachePath-true-cacheDest-true-/cache/path",
+        "dest": "{CWD}/cache/dest",
+        "path": "{CWD}/cache/path",
       },
     ],
   ],
@@ -821,15 +812,15 @@ Array [
   ],
   Array [
     "argv",
-    "",
+    "/"--fetch-retries/" /"0/" /"--cache/" /"{CWD}/cache/"",
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-false-cacheDest-false-/cache/_logs/{DATE}-",
+    "logs-max:10 dir:{CWD}/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
-    "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-false-cacheDest-false-/cache/_logs/{DATE}-debug-0.log",
+    "{CWD}/cache/_logs/{DATE}-debug-0.log",
   ],
 ]
 `
@@ -856,7 +847,7 @@ Object {
       "",
       Error: whoopsie {
         "code": "EACCES",
-        "dest": "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-false-cacheDest-true-/cache/dest",
+        "dest": "{CWD}/cache/dest",
         "path": "/not/cache/dir/path",
       },
     ],
@@ -872,15 +863,15 @@ Array [
   ],
   Array [
     "argv",
-    "",
+    "/"--fetch-retries/" /"0/" /"--cache/" /"{CWD}/cache/"",
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-false-cacheDest-true-/cache/_logs/{DATE}-",
+    "logs-max:10 dir:{CWD}/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
-    "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-false-cacheDest-true-/cache/_logs/{DATE}-debug-0.log",
+    "{CWD}/cache/_logs/{DATE}-debug-0.log",
   ],
 ]
 `
@@ -908,7 +899,7 @@ Object {
       Error: whoopsie {
         "code": "EACCES",
         "dest": "/not/cache/dir/dest",
-        "path": "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-true-cacheDest-false-/cache/path",
+        "path": "{CWD}/cache/path",
       },
     ],
   ],
@@ -923,15 +914,15 @@ Array [
   ],
   Array [
     "argv",
-    "",
+    "/"--fetch-retries/" /"0/" /"--cache/" /"{CWD}/cache/"",
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-true-cacheDest-false-/cache/_logs/{DATE}-",
+    "logs-max:10 dir:{CWD}/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
-    "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-true-cacheDest-false-/cache/_logs/{DATE}-debug-0.log",
+    "{CWD}/cache/_logs/{DATE}-debug-0.log",
   ],
 ]
 `
@@ -958,8 +949,8 @@ Object {
       "",
       Error: whoopsie {
         "code": "EACCES",
-        "dest": "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-true-cacheDest-true-/cache/dest",
-        "path": "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-true-cacheDest-true-/cache/path",
+        "dest": "{CWD}/cache/dest",
+        "path": "{CWD}/cache/path",
       },
     ],
   ],
@@ -974,15 +965,15 @@ Array [
   ],
   Array [
     "argv",
-    "",
+    "/"--fetch-retries/" /"0/" /"--cache/" /"{CWD}/cache/"",
   ],
   Array [
     "logfile",
-    "logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-true-cacheDest-true-/cache/_logs/{DATE}-",
+    "logs-max:10 dir:{CWD}/cache/_logs/{DATE}-",
   ],
   Array [
     "logfile",
-    "{CWD}/test/lib/utils/tap-testdir-error-message-eacces-eperm--windows-true-loaded-true-cachePath-true-cacheDest-true-/cache/_logs/{DATE}-debug-0.log",
+    "{CWD}/cache/_logs/{DATE}-debug-0.log",
   ],
 ]
 `
@@ -1280,7 +1271,7 @@ Object {
       String(
         Not compatible with your version of node/npm: some@package
         Required: undefined
-        Actual:   {"npm":"123.456.789-npm","node":"99.99.99"}
+        Actual:   {"npm":"123.456.789-npm","node":"123.456.789-node"}
       ),
     ],
   ],

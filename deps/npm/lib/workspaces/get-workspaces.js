@@ -42,7 +42,7 @@ const getWorkspaces = async (filters, { path, includeWorkspaceRoot, relativeFrom
     let msg = '!'
     if (filters.length) {
       msg = `:\n ${filters.reduce(
-        (res, filterArg) => `${res} --workspace=${filterArg}`, '')}`
+        (acc, filterArg) => `${acc} --workspace=${filterArg}`, '')}`
     }
 
     throw new Error(`No workspaces found${msg}`)

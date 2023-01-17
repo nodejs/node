@@ -1,4 +1,4 @@
-.TH "NPM" "1" "December 2022" "" ""
+.TH "NPM" "1" "January 2023" "" ""
 .SH "NAME"
 \fBnpm\fR - javascript package manager
 .SS "Synopsis"
@@ -8,9 +8,11 @@
 npm
 .fi
 .RE
+.P
+Note: This command is unaware of workspaces.
 .SS "Version"
 .P
-9.2.0
+9.3.0
 .SS "Description"
 .P
 npm is the package manager for the Node JavaScript platform. It puts modules in place so that node can find them, and manages dependency conflicts intelligently.
@@ -80,7 +82,7 @@ User Configs: The file at \fB$HOME/.npmrc\fR is an ini-formatted list of configs
 .IP \(bu 4
 Global Configs: The file found at \fB./etc/npmrc\fR (relative to the global prefix will be parsed if it is found. See npm help prefix for more info on the global prefix. If the \fBglobalconfig\fR option is set in the cli, env, or user config, then that file is parsed instead.
 .IP \(bu 4
-Defaults: npm's default configuration options are defined in lib/utils/config-defs.js. These must not be changed.
+Defaults: npm's default configuration options are defined in \fBlib/utils/config/definitions.js\fR. These must not be changed.
 .RE 0
 
 .P

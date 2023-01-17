@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "December 2022" "" ""
+.TH "CONFIG" "7" "January 2023" "" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
@@ -161,7 +161,7 @@ Type: null, "restricted", or "public"
 .RE 0
 
 .P
-If do not want your scoped package to be publicly viewable (and installable) set \fB--access=restricted\fR.
+If you do not want your scoped package to be publicly viewable (and installable) set \fB--access=restricted\fR.
 .P
 Unscoped packages can not be set to \fBrestricted\fR.
 .P
@@ -216,7 +216,7 @@ Type: "legacy" or "web"
 .RE 0
 
 .P
-What authentication strategy to use with \fBlogin\fR.
+What authentication strategy to use with \fBlogin\fR. Note that if an \fBotp\fR config is given, this value will always be set to \fBlegacy\fR.
 .SS "\fBbefore\fR"
 .RS 0
 .IP \(bu 4
@@ -1445,7 +1445,7 @@ If set to \fBtrue\fR, and \fB--legacy-peer-deps\fR is not set, then \fIany\fR co
 .P
 By default, conflicting \fBpeerDependencies\fR deep in the dependency graph will be resolved using the nearest non-peer dependency specification, even if doing so will result in some packages receiving a peer dependency outside the range set in their package's \fBpeerDependencies\fR object.
 .P
-When such and override is performed, a warning is printed, explaining the conflict and the packages involved. If \fB--strict-peer-deps\fR is set, then this warning is treated as a failure.
+When such an override is performed, a warning is printed, explaining the conflict and the packages involved. If \fB--strict-peer-deps\fR is set, then this warning is treated as a failure.
 .SS "\fBstrict-ssl\fR"
 .RS 0
 .IP \(bu 4
@@ -1770,7 +1770,7 @@ DEPRECATED: This option has been deprecated in favor of \fB--install-strategy=sh
 .RE 0
 
 .P
-Only install direct dependencies in the top level \fBnode_modules\fR, but hoist on deeper dependendencies. Sets \fB--install-strategy=shallow\fR.
+Only install direct dependencies in the top level \fBnode_modules\fR, but hoist on deeper dependencies. Sets \fB--install-strategy=shallow\fR.
 .SS "\fBinit.author.email\fR"
 .RS 0
 .IP \(bu 4

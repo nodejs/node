@@ -12,6 +12,7 @@ const { readdirScoped } = require('@npmcli/fs')
 const { lstat, readlink } = require('fs/promises')
 const { depth } = require('treeverse')
 const log = require('proc-log')
+const { cleanUrl } = require('npm-registry-fetch')
 
 const {
   OK,
@@ -1210,7 +1211,8 @@ This is a one-time fix-up, please be patient...
     if (this[_manifests].has(spec.raw)) {
       return this[_manifests].get(spec.raw)
     } else {
-      log.silly('fetch manifest', spec.raw)
+      const cleanRawSpec = cleanUrl(spec.rawSpec)
+      log.silly('fetch manifest', spec.raw.replace(spec.rawSpec, cleanRawSpec))
       const p = pacote.manifest(spec, options)
         .then(mani => {
           this[_manifests].set(spec.raw, mani)

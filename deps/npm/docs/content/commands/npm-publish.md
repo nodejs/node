@@ -107,8 +107,8 @@ tarball that will be compared with the local files by default.
   current level
 * Type: null, "restricted", or "public"
 
-If do not want your scoped package to be publicly viewable (and installable)
-set `--access=restricted`.
+If you do not want your scoped package to be publicly viewable (and
+installable) set `--access=restricted`.
 
 Unscoped packages can not be set to `restricted`.
 

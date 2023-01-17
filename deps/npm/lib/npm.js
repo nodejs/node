@@ -20,25 +20,24 @@ const updateNotifier = require('./utils/update-notifier.js')
 const pkg = require('../package.json')
 const cmdList = require('./utils/cmd-list.js')
 
-let warnedNonDashArg = false
-const _load = Symbol('_load')
-
 class Npm extends EventEmitter {
   static get version () {
     return pkg.version
   }
 
-  command = null
   updateNotification = null
   loadErr = null
   argv = []
 
+  #command = null
   #runId = new Date().toISOString().replace(/[.:]/g, '_')
   #loadPromise = null
   #tmpFolder = null
   #title = 'npm'
   #argvClean = []
   #chalk = null
+  #npmRoot = null
+  #warnedNonDashArg = false
 
   #outputBuffer = []
   #logFile = new LogFile()
@@ -52,12 +51,30 @@ class Npm extends EventEmitter {
     },
   })
 
-  config = new Config({
-    npmPath: dirname(__dirname),
-    definitions,
-    flatten,
-    shorthands,
-  })
+  // all these options are only used by tests in order to make testing more
+  // closely resemble real world usage. for now, npm has no programmatic API so
+  // it is ok to add stuff here, but we should not rely on it more than
+  // necessary. XXX: make these options not necessary by refactoring @npmcli/config
+  //   - npmRoot: this is where npm looks for docs files and the builtin config
+  //   - argv: this allows tests to extend argv in the same way the argv would
+  //     be passed in via a CLI arg.
+  //   - excludeNpmCwd: this is a hack to get @npmcli/config to stop walking up
+  //     dirs to set a local prefix when it encounters the `npmRoot`. this
+  //     allows tests created by tap inside this repo to not set the local
+  //     prefix to `npmRoot` since that is the first dir it would encounter when
+  //     doing implicit detection
+  constructor ({ npmRoot = dirname(__dirname), argv = [], excludeNpmCwd = false } = {}) {
+    super()
+    this.#npmRoot = npmRoot
+    this.config = new Config({
+      npmPath: this.#npmRoot,
+      definitions,
+      flatten,
+      shorthands,
+      argv: [...process.argv, ...argv],
+      excludeNpmCwd,
+    })
+  }
 
   get version () {
     return this.constructor.version
@@ -89,43 +106,30 @@ class Npm extends EventEmitter {
   async cmd (cmd) {
     await this.load()
 
-    // when location isn't set and global isn't true
-    // check for a package.json at the localPrefix
-    // and set the location to project if found
-    // TODO: this logic can move to the config module loadLocalPrefix to
-    // avoid double stat calls and consolidate logic
-    if (this.config.isDefault('location') && !this.config.get('global')) {
-      const hasPackageJson = await fs.stat(resolve(this.config.localPrefix, 'package.json'))
-        .then((st) => st.isFile())
-        .catch(() => false)
-      if (hasPackageJson) {
-        this.config.set('location', 'project')
-      }
-    }
-
-    const command = this.deref(cmd)
-    if (!command) {
+    const cmdId = this.deref(cmd)
+    if (!cmdId) {
       throw Object.assign(new Error(`Unknown command ${cmd}`), {
         code: 'EUNKNOWNCOMMAND',
       })
     }
-    const Impl = require(`./commands/${command}.js`)
-    const impl = new Impl(this)
-    return impl
-  }
 
-  // Call an npm command
-  async exec (cmd, args) {
-    const command = await this.cmd(cmd)
-    const timeEnd = this.time(`command:${cmd}`)
+    const Impl = require(`./commands/${cmdId}.js`)
+    const command = new Impl(this)
 
     // since 'test', 'start', 'stop', etc. commands re-enter this function
     // to call the run-script command, we need to only set it one time.
-    if (!this.command) {
-      process.env.npm_command = command.name
-      this.command = command.name
-      this.commandInstance = command
+    if (!this.#command) {
+      this.#command = command
+      process.env.npm_command = this.command
     }
+
+    return command
+  }
+
+  // Call an npm command
+  async exec (cmd, args = this.argv) {
+    const command = await this.cmd(cmd)
+    const timeEnd = this.time(`command:${cmd}`)
 
     // this is async but we dont await it, since its ok if it doesnt
     // finish before the command finishes running. it uses command and argv
@@ -135,72 +139,27 @@ class Npm extends EventEmitter {
 
     // Options are prefixed by a hyphen-minus (-, \u2d).
     // Other dash-type chars look similar but are invalid.
-    if (!warnedNonDashArg) {
-      args
-        .filter(arg => /^[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/.test(arg))
-        .forEach(arg => {
-          warnedNonDashArg = true
-          log.error(
-            'arg',
-            'Argument starts with non-ascii dash, this is probably invalid:',
-            arg
-          )
-        })
-    }
-
-    const workspacesEnabled = this.config.get('workspaces')
-    // if cwd is a workspace, the default is set to [that workspace]
-    const implicitWorkspace = this.config.get('workspace', 'default').length > 0
-    const workspacesFilters = this.config.get('workspace')
-    const includeWorkspaceRoot = this.config.get('include-workspace-root')
-    // only call execWorkspaces when we have workspaces explicitly set
-    // or when it is implicit and not in our ignore list
-    const hasWorkspaceFilters = workspacesFilters.length > 0
-    const invalidWorkspaceConfig = workspacesEnabled === false && hasWorkspaceFilters
-
-    // (-ws || -w foo) && (cwd is not a workspace || command is not ignoring implicit workspaces)
-    const filterByWorkspaces = (workspacesEnabled || hasWorkspaceFilters) &&
-      (!implicitWorkspace || !command.ignoreImplicitWorkspace)
-    // normally this would go in the constructor, but our tests don't
-    // actually use a real npm object so this.npm.config isn't always
-    // populated.  this is the compromise until we can make that a reality
-    // and then move this into the constructor.
-    command.workspaces = workspacesEnabled
-    command.workspacePaths = null
-    // normally this would be evaluated in base-command#setWorkspaces, see
-    // above for explanation
-    command.includeWorkspaceRoot = includeWorkspaceRoot
-
-    let execPromise = Promise.resolve()
-    if (this.config.get('usage')) {
-      this.output(command.usage)
-    } else if (invalidWorkspaceConfig) {
-      execPromise = Promise.reject(
-        new Error('Can not use --no-workspaces and --workspace at the same time'))
-    } else if (filterByWorkspaces) {
-      if (this.global) {
-        execPromise = Promise.reject(new Error('Workspaces not supported for global packages'))
-      } else {
-        execPromise = command.execWorkspaces(args, workspacesFilters)
+    if (!this.#warnedNonDashArg) {
+      const nonDashArgs = args.filter(a => /^[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/.test(a))
+      if (nonDashArgs.length) {
+        this.#warnedNonDashArg = true
+        log.error(
+          'arg',
+          'Argument starts with non-ascii dash, this is probably invalid:',
+          nonDashArgs.join(', ')
+        )
       }
-    } else {
-      execPromise = command.exec(args)
     }
 
-    return execPromise.finally(timeEnd)
+    return command.cmdExec(args).finally(timeEnd)
   }
 
   async load () {
     if (!this.#loadPromise) {
-      this.#loadPromise = this.time('npm:load', async () => {
-        await this[_load]().catch((er) => {
-          this.loadErr = er
-          throw er
-        })
-        if (this.config.get('force')) {
-          log.warn('using --force', 'Recommended protections disabled.')
-        }
-      })
+      this.#loadPromise = this.time('npm:load', () => this.#load().catch((er) => {
+        this.loadErr = er
+        throw er
+      }))
     }
     return this.#loadPromise
   }
@@ -240,20 +199,16 @@ class Npm extends EventEmitter {
     this.#title = t
   }
 
-  async [_load] () {
-    const node = this.time('npm:load:whichnode', () => {
-      try {
-        return which.sync(process.argv[0])
-      } catch {
-        // TODO should we throw here?
+  async #load () {
+    await this.time('npm:load:whichnode', async () => {
+      // TODO should we throw here?
+      const node = await which(process.argv[0]).catch(() => {})
+      if (node && node.toUpperCase() !== process.execPath.toUpperCase()) {
+        log.verbose('node symlink', node)
+        process.execPath = node
+        this.config.execPath = node
       }
     })
-
-    if (node && node.toUpperCase() !== process.execPath.toUpperCase()) {
-      log.verbose('node symlink', node)
-      process.execPath = node
-      this.config.execPath = node
-    }
 
     await this.time('npm:load:configload', () => this.config.load())
 
@@ -323,6 +278,18 @@ class Npm extends EventEmitter {
         this.config.set('scope', `@${configScope}`, this.config.find('scope'))
       }
     })
+
+    if (this.config.get('force')) {
+      log.warn('using --force', 'Recommended protections disabled.')
+    }
+  }
+
+  get isShellout () {
+    return this.#command?.constructor?.isShellout
+  }
+
+  get command () {
+    return this.#command?.name
   }
 
   get flatOptions () {
@@ -346,6 +313,10 @@ class Npm extends EventEmitter {
     return this.flatOptions.color
   }
 
+  get logColor () {
+    return this.flatOptions.logColor
+  }
+
   get chalk () {
     if (!this.#chalk) {
       let level = chalk.level
@@ -359,10 +330,6 @@ class Npm extends EventEmitter {
 
   get global () {
     return this.config.get('global') || this.config.get('location') === 'global'
-  }
-
-  get logColor () {
-    return this.flatOptions.logColor
   }
 
   get silent () {
@@ -401,6 +368,10 @@ class Npm extends EventEmitter {
     return this.#timers.file
   }
 
+  get npmRoot () {
+    return this.#npmRoot
+  }
+
   get cache () {
     return this.config.get('cache')
   }
@@ -423,6 +394,10 @@ class Npm extends EventEmitter {
 
   set localPrefix (r) {
     this.config.localPrefix = r
+  }
+
+  get localPackage () {
+    return this.config.localPackage
   }
 
   get globalDir () {

@@ -354,7 +354,6 @@ exports[`test/lib/commands/config.js TAP config list with publishConfig > output
 ; "cli" config from command line options
 
 cache = "{NPMDIR}/test/lib/commands/tap-testdir-config-config-list-with-publishConfig-sandbox/cache"
-location = "project"
 prefix = "{LOCALPREFIX}"
 userconfig = "{HOME}/.npmrc"
 

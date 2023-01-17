@@ -1,4 +1,3 @@
-const { dirname } = require('path')
 const { commands } = require('./cmd-list')
 
 const COL_MAX = 60
@@ -36,7 +35,7 @@ or on the command line via: npm <command> --key=value
 More configuration info: npm help config
 Configuration fields: npm help 7 config
 
-npm@${npm.version} ${dirname(dirname(__dirname))}`
+npm@${npm.version} ${npm.npmRoot}`
 }
 
 const cmdNames = () => {

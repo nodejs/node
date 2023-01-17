@@ -41,6 +41,7 @@ class Query extends BaseCommand {
   static name = 'query'
   static usage = ['<selector>']
 
+  static workspaces = true
   static ignoreImplicitWorkspace = false
 
   static params = [
@@ -70,8 +71,8 @@ class Query extends BaseCommand {
     this.npm.output(this.parsedResponse)
   }
 
-  async execWorkspaces (args, filters) {
-    await this.setWorkspaces(filters)
+  async execWorkspaces (args) {
+    await this.setWorkspaces()
     const opts = {
       ...this.npm.flatOptions,
       path: this.npm.prefix,
