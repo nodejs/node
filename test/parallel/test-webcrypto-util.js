@@ -12,14 +12,8 @@ const {
 } = require('internal/crypto/util');
 
 {
-  // Check that normalizeAlgorithm does not add an undefined hash property.
-  assert.strictEqual('hash' in normalizeAlgorithm({ name: 'ECDH' }), false);
-  assert.strictEqual('hash' in normalizeAlgorithm('ECDH'), false);
-}
-
-{
   // Check that normalizeAlgorithm does not mutate object inputs.
-  const algorithm = { name: 'ECDH', hash: 'SHA-256' };
-  assert.strictEqual(normalizeAlgorithm(algorithm) !== algorithm, true);
-  assert.deepStrictEqual(algorithm, { name: 'ECDH', hash: 'SHA-256' });
+  const algorithm = { name: 'ECDSA', hash: 'SHA-256' };
+  assert.strictEqual(normalizeAlgorithm(algorithm, 'sign') !== algorithm, true);
+  assert.deepStrictEqual(algorithm, { name: 'ECDSA', hash: 'SHA-256' });
 }

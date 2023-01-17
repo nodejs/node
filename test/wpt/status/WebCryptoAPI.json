@@ -1,4 +1,17 @@
 {
+  "encrypt_decrypt/aes_gcm.https.any.js": {
+    "fail": {
+      "note": "We're throwing correct error for the WebIDL definition, WPT needs update: https://github.com/web-platform-tests/wpt/pull/37734",
+      "expected": [
+        "AES-GCM 128-bit key, illegal tag length 256-bits",
+        "AES-GCM 192-bit key, illegal tag length 256-bits",
+        "AES-GCM 256-bit key, illegal tag length 256-bits",
+        "AES-GCM 128-bit key, illegal tag length 256-bits decryption",
+        "AES-GCM 192-bit key, illegal tag length 256-bits decryption",
+        "AES-GCM 256-bit key, illegal tag length 256-bits decryption"
+      ]
+    }
+  },
   "algorithm-discards-context.https.window.js": {
     "skip": "Not relevant in Node.js context"
   },

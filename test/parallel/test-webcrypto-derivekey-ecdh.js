@@ -127,7 +127,7 @@ async function prepareKeys() {
         { name: 'ECDH' },
         keys['P-384'].privateKey,
         ...otherArgs),
-      { code: 'ERR_INVALID_ARG_TYPE' });
+      { code: 'ERR_MISSING_OPTION' });
   }
 
   {

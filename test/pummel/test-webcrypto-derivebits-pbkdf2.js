@@ -382,7 +382,7 @@ async function setupBaseKeys() {
     promises.push(
       subtle.importKey(
         'raw',
-        kPasswords[size],
+        Buffer.from(kPasswords[size], 'hex'),
         { name: 'PBKDF2' },
         false,
         ['deriveBits'])
@@ -391,7 +391,7 @@ async function setupBaseKeys() {
     promises.push(
       subtle.importKey(
         'raw',
-        kPasswords[size],
+        Buffer.from(kPasswords[size], 'hex'),
         { name: 'PBKDF2' },
         false,
         ['deriveKey'])
@@ -474,7 +474,7 @@ async function testDeriveBitsBadHash(
   hash,
   iterations) {
   const salt = Buffer.from(kSalts[saltSize], 'hex');
-  const algorithm = { name: 'HKDF', salt, iterations };
+  const algorithm = { name: 'PBKDF2', salt, iterations };
 
   return Promise.all([
     assert.rejects(
@@ -483,7 +483,8 @@ async function testDeriveBitsBadHash(
           ...algorithm,
           hash: hash.substring(0, 3) + hash.substring(4)
         }, baseKeys[size], 256), {
-        message: /Unrecognized name/
+        message: /Unrecognized algorithm name/,
+        name: 'NotSupportedError',
       }),
     assert.rejects(
       subtle.deriveBits(
@@ -492,7 +493,8 @@ async function testDeriveBitsBadHash(
           hash: 'HKDF'
         },
         baseKeys[size], 256), {
-        message: /Unrecognized name/
+        message: /Unrecognized algorithm name/,
+        name: 'NotSupportedError',
       }),
   ]);
 }
@@ -569,7 +571,10 @@ async function testDeriveKeyBadHash(
         keyType,
         true,
         usages),
-      { message: /Unrecognized name/ }),
+      {
+        message: /Unrecognized algorithm name/,
+        name: 'NotSupportedError',
+      }),
     assert.rejects(
       subtle.deriveKey(
         {
@@ -580,7 +585,10 @@ async function testDeriveKeyBadHash(
         keyType,
         true,
         usages),
-      { message: /Unrecognized name/ }),
+      {
+        message: /Unrecognized algorithm name/,
+        name: 'NotSupportedError',
+      }),
   ]);
 }
 
