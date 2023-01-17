@@ -59,8 +59,6 @@ bool BuiltinLoader::Exists(const char* id) {
 }
 
 bool BuiltinLoader::Add(const char* id, const UnionBytes& source) {
-  builtin_categories_
-      .reset();  // The category cache is reset by adding new sources
   auto result = source_.write()->emplace(id, source);
   return result.second;
 }
@@ -90,13 +88,8 @@ std::vector<std::string> BuiltinLoader::GetBuiltinIds() const {
   return ids;
 }
 
-const BuiltinLoader::BuiltinCategories&
-BuiltinLoader::InitializeBuiltinCategories() const {
-  if (LIKELY(builtin_categories_.has_value())) {
-    DCHECK(!builtin_categories_.value().can_be_required.empty());
-    return builtin_categories_.value();
-  }
-  auto& builtin_categories = builtin_categories_.emplace();
+BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
+  BuiltinCategories builtin_categories;
 
   std::vector<std::string> prefixes = {
 #if !HAVE_OPENSSL
@@ -158,22 +151,6 @@ BuiltinLoader::InitializeBuiltinCategories() const {
   }
 
   return builtin_categories;
-}
-
-const std::set<std::string>& BuiltinLoader::GetCannotBeRequired() const {
-  return InitializeBuiltinCategories().cannot_be_required;
-}
-
-const std::set<std::string>& BuiltinLoader::GetCanBeRequired() const {
-  return InitializeBuiltinCategories().can_be_required;
-}
-
-bool BuiltinLoader::CanBeRequired(const char* id) const {
-  return GetCanBeRequired().count(id) == 1;
-}
-
-bool BuiltinLoader::CannotBeRequired(const char* id) const {
-  return GetCannotBeRequired().count(id) == 1;
 }
 
 const ScriptCompiler::CachedData* BuiltinLoader::GetCodeCache(
@@ -563,20 +540,19 @@ void BuiltinLoader::GetBuiltinCategories(
   Local<Context> context = env->context();
   Local<Object> result = Object::New(isolate);
 
-  std::set<std::string> cannot_be_required =
-      env->builtin_loader()->GetCannotBeRequired();
-  std::set<std::string> can_be_required =
-      env->builtin_loader()->GetCanBeRequired();
+  BuiltinCategories builtin_categories =
+      env->builtin_loader()->GetBuiltinCategories();
 
   if (!env->owns_process_state()) {
-    can_be_required.erase("trace_events");
-    cannot_be_required.insert("trace_events");
+    builtin_categories.can_be_required.erase("trace_events");
+    builtin_categories.cannot_be_required.insert("trace_events");
   }
 
   Local<Value> cannot_be_required_js;
   Local<Value> can_be_required_js;
 
-  if (!ToV8Value(context, cannot_be_required).ToLocal(&cannot_be_required_js))
+  if (!ToV8Value(context, builtin_categories.cannot_be_required)
+           .ToLocal(&cannot_be_required_js))
     return;
   if (result
           ->Set(context,
@@ -584,7 +560,9 @@ void BuiltinLoader::GetBuiltinCategories(
                 cannot_be_required_js)
           .IsNothing())
     return;
-  if (!ToV8Value(context, can_be_required).ToLocal(&can_be_required_js)) return;
+  if (!ToV8Value(context, builtin_categories.can_be_required)
+           .ToLocal(&can_be_required_js))
+    return;
   if (result
           ->Set(context,
                 OneByteString(isolate, "canBeRequired"),

@@ -96,12 +96,10 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
     std::set<std::string> can_be_required;
     std::set<std::string> cannot_be_required;
   };
-  const BuiltinCategories& InitializeBuiltinCategories() const;
-  const std::set<std::string>& GetCannotBeRequired() const;
-  const std::set<std::string>& GetCanBeRequired() const;
-
-  bool CanBeRequired(const char* id) const;
-  bool CannotBeRequired(const char* id) const;
+  // This method builds `BuiltinCategories` from scratch every time,
+  // and is therefore somewhat expensive, but also currently only being
+  // used for testing, so that should not be an issue.
+  BuiltinCategories GetBuiltinCategories() const;
 
   const v8::ScriptCompiler::CachedData* GetCodeCache(const char* id) const;
   enum class Result { kWithCache, kWithoutCache };
@@ -136,10 +134,6 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
   void AddExternalizedBuiltin(const char* id, const char* filename);
-
-  // builtin_categories is marked mutable because it is only initialized
-  // as a cache, so that mutating it does not change any state.
-  mutable std::optional<BuiltinCategories> builtin_categories_;
 
   ThreadsafeCopyOnWrite<BuiltinSourceMap> source_;
 
