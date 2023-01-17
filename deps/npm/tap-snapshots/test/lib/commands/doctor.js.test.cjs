@@ -59,7 +59,7 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-all-clear/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39mok    [90m  [39m
 Perms check on local node_modules [90m  [39mok    [90m  [39m
 Perms check on global node_modules[90m  [39mok    [90m  [39m
@@ -75,7 +75,7 @@ npm -v                            [90m  [39m[32mok[39m    [90m  [39mcurren
 node -v                           [90m  [39m[32mok[39m    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39m[32mok[39m    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39m[32mok[39m    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39m[32mok[39m    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-all-clear-in-color/global/bin
+global bin folder in PATH         [90m  [39m[32mok[39m    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39m[32mok[39m    [90m  [39m
 Perms check on local node_modules [90m  [39m[32mok[39m    [90m  [39m
 Perms check on global node_modules[90m  [39m[32mok[39m    [90m  [39m
@@ -185,7 +185,7 @@ npm -v                            [90m  [39mnot ok[90m  [39mError: unsupport
 node -v                           [90m  [39mnot ok[90m  [39mError: unsupported proxy protocol: 'ssh:'
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-bad-proxy/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39mok    [90m  [39m
 Perms check on local node_modules [90m  [39mok    [90m  [39m
 Perms check on global node_modules[90m  [39mok    [90m  [39m
@@ -201,7 +201,7 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-cacache-badContent/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39mok    [90m  [39m
 Perms check on local node_modules [90m  [39mok    [90m  [39m
 Perms check on global node_modules[90m  [39mok    [90m  [39m
@@ -329,7 +329,7 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-cacache-missingContent/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39mok    [90m  [39m
 Perms check on local node_modules [90m  [39mok    [90m  [39m
 Perms check on global node_modules[90m  [39mok    [90m  [39m
@@ -345,7 +345,7 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-cacache-reclaimedCount/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39mok    [90m  [39m
 Perms check on local node_modules [90m  [39mok    [90m  [39m
 Perms check on global node_modules[90m  [39mok    [90m  [39m
@@ -482,7 +482,7 @@ Object {
 exports[`test/lib/commands/doctor.js TAP discrete checks invalid environment > output 1`] = `
 Check                    [90m  [39mValue [90m  [39mRecommendation/Notes
 git executable in PATH   [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH[90m  [39mnot ok[90m  [39mError: Add {CWD}/test/lib/commands/tap-testdir-doctor-discrete-checks-invalid-environment/global/bin to your $PATH
+global bin folder in PATH[90m  [39mnot ok[90m  [39mError: Add {CWD}/global/bin to your $PATH
 `
 
 exports[`test/lib/commands/doctor.js TAP discrete checks permissions - not windows > logs 1`] = `
@@ -637,23 +637,23 @@ Object {
   "warn": Array [
     Array [
       "checkFilesPermission",
-      "error reading directory {CWD}/test/lib/commands/tap-testdir-doctor-error-reading-directory/cache",
+      "error reading directory {CWD}/cache",
     ],
     Array [
       "checkFilesPermission",
-      "error reading directory {CWD}/test/lib/commands/tap-testdir-doctor-error-reading-directory/prefix/node_modules",
+      "error reading directory {CWD}/prefix/node_modules",
     ],
     Array [
       "checkFilesPermission",
-      "error reading directory {CWD}/test/lib/commands/tap-testdir-doctor-error-reading-directory/global/lib/node_modules",
+      "error reading directory {CWD}/global/node_modules",
     ],
     Array [
       "checkFilesPermission",
-      "error reading directory {CWD}/test/lib/commands/tap-testdir-doctor-error-reading-directory/prefix/node_modules/.bin",
+      "error reading directory {CWD}/prefix/node_modules/.bin",
     ],
     Array [
       "checkFilesPermission",
-      "error reading directory {CWD}/test/lib/commands/tap-testdir-doctor-error-reading-directory/global/bin",
+      "error reading directory {CWD}/global/bin",
     ],
   ],
 }
@@ -666,12 +666,12 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-error-reading-directory/global/bin
-Perms check on cached files       [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/test/lib/commands/tap-testdir-doctor-error-reading-directory/cache (should be owned by current user)
-Perms check on local node_modules [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/test/lib/commands/tap-testdir-doctor-error-reading-directory/prefix/node_modules (should be owned by current user)
-Perms check on global node_modules[90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/test/lib/commands/tap-testdir-doctor-error-reading-directory/global/lib/node_modules
-Perms check on local bin folder   [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/test/lib/commands/tap-testdir-doctor-error-reading-directory/prefix/node_modules/.bin
-Perms check on global bin folder  [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/test/lib/commands/tap-testdir-doctor-error-reading-directory/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
+Perms check on cached files       [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/cache (should be owned by current user)
+Perms check on local node_modules [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/prefix/node_modules (should be owned by current user)
+Perms check on global node_modules[90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/global/node_modules
+Perms check on local bin folder   [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/prefix/node_modules/.bin
+Perms check on global bin folder  [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/global/bin
 Verify cache contents             [90m  [39mok    [90m  [39mverified 0 tarballs
 `
 
@@ -682,8 +682,8 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/global/bin
-Perms check on cached files       [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache (should be owned by current user)
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
+Perms check on cached files       [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/cache (should be owned by current user)
 Perms check on local node_modules [90m  [39mok    [90m  [39m
 Perms check on global node_modules[90m  [39mok    [90m  [39m
 Perms check on local bin folder   [90m  [39mok    [90m  [39m
@@ -737,7 +737,7 @@ Object {
   "warn": Array [
     Array [
       "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache",
+      "should be owner of {CWD}/cache/_cacache",
     ],
   ],
 }
@@ -750,12 +750,12 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-incorrect-permissions/global/bin
-Perms check on cached files       [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-permissions/cache (should be owned by current user)
-Perms check on local node_modules [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-permissions/prefix/node_modules (should be owned by current user)
-Perms check on global node_modules[90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-permissions/global/lib/node_modules
-Perms check on local bin folder   [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-permissions/prefix/node_modules/.bin
-Perms check on global bin folder  [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-permissions/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
+Perms check on cached files       [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/cache (should be owned by current user)
+Perms check on local node_modules [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/prefix/node_modules (should be owned by current user)
+Perms check on global node_modules[90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/global/node_modules
+Perms check on local bin folder   [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/prefix/node_modules/.bin
+Perms check on global bin folder  [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/global/bin
 Verify cache contents             [90m  [39mok    [90m  [39mverified 0 tarballs
 `
 
@@ -764,23 +764,23 @@ Object {
   "error": Array [
     Array [
       "checkFilesPermission",
-      "Missing permissions on {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-permissions/cache (expect: readable)",
+      "Missing permissions on {CWD}/cache (expect: readable)",
     ],
     Array [
       "checkFilesPermission",
-      "Missing permissions on {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-permissions/prefix/node_modules (expect: readable, writable)",
+      "Missing permissions on {CWD}/prefix/node_modules (expect: readable, writable)",
     ],
     Array [
       "checkFilesPermission",
-      "Missing permissions on {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-permissions/global/lib/node_modules (expect: readable)",
+      "Missing permissions on {CWD}/global/node_modules (expect: readable)",
     ],
     Array [
       "checkFilesPermission",
-      "Missing permissions on {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-permissions/prefix/node_modules/.bin (expect: readable, writable, executable)",
+      "Missing permissions on {CWD}/prefix/node_modules/.bin (expect: readable, writable, executable)",
     ],
     Array [
       "checkFilesPermission",
-      "Missing permissions on {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-permissions/global/bin (expect: executable)",
+      "Missing permissions on {CWD}/global/bin (expect: executable)",
     ],
   ],
   "info": Array [
@@ -885,7 +885,7 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mnot ok[90m  [39mError: Install git and ensure it's in your PATH.
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-missing-git/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39mok    [90m  [39m
 Perms check on local node_modules [90m  [39mok    [90m  [39m
 Perms check on global node_modules[90m  [39mok    [90m  [39m
@@ -940,11 +940,11 @@ Object {
   "warn": Array [
     Array [
       "checkFilesPermission",
-      "error getting info for {CWD}/test/lib/commands/tap-testdir-doctor-missing-global-directories/global/lib/node_modules",
+      "error getting info for {CWD}/global/node_modules",
     ],
     Array [
       "checkFilesPermission",
-      "error getting info for {CWD}/test/lib/commands/tap-testdir-doctor-missing-global-directories/global/bin",
+      "error getting info for {CWD}/global/bin",
     ],
   ],
 }
@@ -957,12 +957,12 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-missing-global-directories/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39mok    [90m  [39m
 Perms check on local node_modules [90m  [39mok    [90m  [39m
-Perms check on global node_modules[90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/test/lib/commands/tap-testdir-doctor-missing-global-directories/global/lib/node_modules
+Perms check on global node_modules[90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/global/node_modules
 Perms check on local bin folder   [90m  [39mok    [90m  [39m
-Perms check on global bin folder  [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/test/lib/commands/tap-testdir-doctor-missing-global-directories/global/bin
+Perms check on global bin folder  [90m  [39mnot ok[90m  [39mCheck the permissions of files in {CWD}/global/bin
 Verify cache contents             [90m  [39mok    [90m  [39mverified 0 tarballs
 `
 
@@ -1020,7 +1020,7 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-missing-local-node_modules/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39mok    [90m  [39m
 Perms check on local node_modules [90m  [39mok    [90m  [39m
 Perms check on global node_modules[90m  [39mok    [90m  [39m
@@ -1083,7 +1083,7 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mnot ok[90m  [39mUse node v2.0.1 (current: v2.0.0)
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-node-out-of-date---current/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39mok    [90m  [39m
 Perms check on local node_modules [90m  [39mok    [90m  [39m
 Perms check on global node_modules[90m  [39mok    [90m  [39m
@@ -1146,7 +1146,7 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mnot ok[90m  [39mUse node v1.0.0 (current: v0.0.1)
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-node-out-of-date---lts/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39mok    [90m  [39m
 Perms check on local node_modules [90m  [39mok    [90m  [39m
 Perms check on global node_modules[90m  [39mok    [90m  [39m
@@ -1209,7 +1209,7 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39mnot ok[90m  [39mTry \`npm config set registry=https://registry.npmjs.org/\`
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-non-default-registry/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39mok    [90m  [39m
 Perms check on local node_modules [90m  [39mok    [90m  [39m
 Perms check on global node_modules[90m  [39mok    [90m  [39m
@@ -1272,7 +1272,7 @@ npm -v                            [90m  [39mnot ok[90m  [39mUse npm v2.0.0
 node -v                           [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-npm-out-of-date/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39mok    [90m  [39m
 Perms check on local node_modules [90m  [39mok    [90m  [39m
 Perms check on global node_modules[90m  [39mok    [90m  [39m
@@ -1335,7 +1335,7 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-ping-404/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39mok    [90m  [39m
 Perms check on local node_modules [90m  [39mok    [90m  [39m
 Perms check on global node_modules[90m  [39mok    [90m  [39m
@@ -1398,7 +1398,7 @@ npm -v                            [90m  [39m[32mok[39m    [90m  [39mcurren
 node -v                           [90m  [39m[32mok[39m    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39m[32mok[39m    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39m[32mok[39m    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39m[32mok[39m    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-ping-404-in-color/global/bin
+global bin folder in PATH         [90m  [39m[32mok[39m    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39m[32mok[39m    [90m  [39m
 Perms check on local node_modules [90m  [39m[32mok[39m    [90m  [39m
 Perms check on global node_modules[90m  [39m[32mok[39m    [90m  [39m
@@ -1461,7 +1461,7 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-ping-exception-with-code/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39mok    [90m  [39m
 Perms check on local node_modules [90m  [39mok    [90m  [39m
 Perms check on global node_modules[90m  [39mok    [90m  [39m
@@ -1524,7 +1524,7 @@ npm -v                            [90m  [39mok    [90m  [39mcurrent: v1.0.0,
 node -v                           [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry           [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH            [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-ping-exception-without-code/global/bin
+global bin folder in PATH         [90m  [39mok    [90m  [39m{CWD}/global/bin
 Perms check on cached files       [90m  [39mok    [90m  [39m
 Perms check on local node_modules [90m  [39mok    [90m  [39m
 Perms check on global node_modules[90m  [39mok    [90m  [39m
@@ -1643,5 +1643,5 @@ npm -v                   [90m  [39mok    [90m  [39mcurrent: v1.0.0, latest: 
 node -v                  [90m  [39mok    [90m  [39mcurrent: v1.0.0, recommended: v1.0.0
 npm config get registry  [90m  [39mok    [90m  [39musing default registry (https://registry.npmjs.org/)
 git executable in PATH   [90m  [39mok    [90m  [39m/path/to/git
-global bin folder in PATH[90m  [39mok    [90m  [39m{CWD}/test/lib/commands/tap-testdir-doctor-windows-skips-permissions-checks/global
+global bin folder in PATH[90m  [39mok    [90m  [39m{CWD}/global
 `

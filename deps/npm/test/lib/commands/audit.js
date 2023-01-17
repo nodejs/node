@@ -86,7 +86,6 @@ t.test('normal audit', async t => {
 
   await npm.exec('audit', [])
   t.ok(process.exitCode, 'would have exited uncleanly')
-  process.exitCode = 0
   t.matchSnapshot(joinedOutput())
 })
 
@@ -135,7 +134,6 @@ t.test('fallback audit ', async t => {
     })
   await npm.exec('audit', [])
   t.ok(process.exitCode, 'would have exited uncleanly')
-  process.exitCode = 0
   t.matchSnapshot(joinedOutput())
 })
 
@@ -165,7 +163,6 @@ t.test('json audit', async t => {
 
   await npm.exec('audit', [])
   t.ok(process.exitCode, 'would have exited uncleanly')
-  process.exitCode = 0
   t.matchSnapshot(joinedOutput())
 })
 
@@ -762,7 +759,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 0, 'should exit successfully')
-    process.exitCode = 0
     t.match(joinedOutput(), /audited 1 package/)
     t.matchSnapshot(joinedOutput())
   })
@@ -796,7 +792,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 0, 'should exit successfully')
-    process.exitCode = 0
     t.match(joinedOutput(), /audited 1 package/)
     t.matchSnapshot(joinedOutput())
   })
@@ -903,7 +898,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 1, 'should exit with error')
-    process.exitCode = 0
     t.match(joinedOutput(), /audited 3 packages/)
     t.match(joinedOutput(), /2 packages have verified registry signatures/)
     t.match(joinedOutput(), /1 package has an invalid registry signature/)
@@ -921,7 +915,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 0, 'should exit successfully')
-    process.exitCode = 0
     t.match(joinedOutput(), /audited 1 package/)
     t.matchSnapshot(joinedOutput())
   })
@@ -937,7 +930,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 1, 'should exit with error')
-    process.exitCode = 0
     t.match(joinedOutput(), /invalid registry signature/)
     t.match(joinedOutput(), /kms-demo@1.0.0/)
     t.matchSnapshot(joinedOutput())
@@ -955,7 +947,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 1, 'should exit with error')
-    process.exitCode = 0
     t.match(joinedOutput(), /audited 2 packages/)
     t.match(joinedOutput(), /verified registry signature/)
     t.match(joinedOutput(), /missing registry signature/)
@@ -974,7 +965,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 1, 'should exit with error')
-    process.exitCode = 0
     t.match(joinedOutput(), /audited 2 packages/)
     t.match(joinedOutput(), /invalid/)
     t.match(joinedOutput(), /missing/)
@@ -993,7 +983,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 1, 'should exit with error')
-    process.exitCode = 0
     t.matchSnapshot(joinedOutput())
   })
 
@@ -1009,7 +998,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 1, 'should exit with error')
-    process.exitCode = 0
     t.matchSnapshot(joinedOutput())
   })
 
@@ -1069,7 +1057,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 1, 'should exit with error')
-    process.exitCode = 0
     t.match(
       joinedOutput(),
       /registry is providing signing keys/
@@ -1088,7 +1075,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 1, 'should exit with error')
-    process.exitCode = 0
     t.match(
       joinedOutput(),
       /kms-demo/
@@ -1110,7 +1096,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 0, 'should exit successfully')
-    process.exitCode = 0
     t.match(joinedOutput(), JSON.stringify({ invalid: [], missing: [] }, null, 2))
     t.matchSnapshot(joinedOutput())
   })
@@ -1129,7 +1114,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 1, 'should exit with error')
-    process.exitCode = 0
     t.matchSnapshot(joinedOutput())
   })
 
@@ -1148,7 +1132,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 1, 'should exit with error')
-    process.exitCode = 0
     t.matchSnapshot(joinedOutput())
   })
 
@@ -1166,7 +1149,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 0, 'should exit successfully')
-    process.exitCode = 0
     t.match(joinedOutput(), /audited 1 package/)
     t.matchSnapshot(joinedOutput())
   })
@@ -1176,7 +1158,8 @@ t.test('audit signatures', async t => {
     const { npm } = await loadMockNpm(t, {
       prefixDir: installWithThirdPartyRegistry,
       config: {
-        '@npmcli:registry': registryUrl,
+        scope: '@npmcli',
+        registry: registryUrl,
       },
     })
     const registry = new MockRegistry({ tap: t, registry: registryUrl })
@@ -1205,7 +1188,8 @@ t.test('audit signatures', async t => {
     const { npm } = await loadMockNpm(t, {
       prefixDir: installWithThirdPartyRegistry,
       config: {
-        '@npmcli:registry': registryUrl,
+        scope: '@npmcli',
+        registry: registryUrl,
       },
     })
     const registry = new MockRegistry({ tap: t, registry: registryUrl })
@@ -1234,7 +1218,8 @@ t.test('audit signatures', async t => {
     const { npm, joinedOutput } = await loadMockNpm(t, {
       prefixDir: installWithThirdPartyRegistry,
       config: {
-        '@npmcli:registry': registryUrl,
+        scope: '@npmcli',
+        registry: registryUrl,
       },
     })
     const registry = new MockRegistry({ tap: t, registry: registryUrl })
@@ -1273,7 +1258,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 0, 'should exit successfully')
-    process.exitCode = 0
     t.match(joinedOutput(), /audited 1 package/)
     t.matchSnapshot(joinedOutput())
   })
@@ -1283,7 +1267,8 @@ t.test('audit signatures', async t => {
     const { npm, joinedOutput } = await loadMockNpm(t, {
       prefixDir: installWithThirdPartyRegistry,
       config: {
-        '@npmcli:registry': registryUrl,
+        scope: '@npmcli',
+        registry: registryUrl,
       },
     })
     const registry = new MockRegistry({ tap: t, registry: registryUrl })
@@ -1321,7 +1306,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 1, 'should exit with error')
-    process.exitCode = 0
     t.match(joinedOutput(), /https:\/\/verdaccio-clone.org/)
     t.matchSnapshot(joinedOutput())
   })
@@ -1331,7 +1315,8 @@ t.test('audit signatures', async t => {
     const { npm, joinedOutput } = await loadMockNpm(t, {
       prefixDir: installWithThirdPartyRegistry,
       config: {
-        '@npmcli:registry': registryUrl,
+        scope: '@npmcli',
+        registry: registryUrl,
       },
     })
     const registry = new MockRegistry({ tap: t, registry: registryUrl })
@@ -1363,7 +1348,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 1, 'should exit with error')
-    process.exitCode = 0
     t.match(joinedOutput(), /1 package has a missing registry signature/)
     t.matchSnapshot(joinedOutput())
   })
@@ -1371,9 +1355,9 @@ t.test('audit signatures', async t => {
   t.test('multiple registries with keys and signatures', async t => {
     const registryUrl = 'https://verdaccio-clone.org'
     const { npm, joinedOutput } = await loadMockNpm(t, {
-      prefixDir: installWithMultipleRegistries,
-      config: {
-        '@npmcli:registry': registryUrl,
+      prefixDir: {
+        ...installWithMultipleRegistries,
+        '.npmrc': `@npmcli:registry=${registryUrl}\n`,
       },
     })
     const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
@@ -1418,7 +1402,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 0, 'should exit successfully')
-    process.exitCode = 0
     t.match(joinedOutput(), /audited 2 packages/)
     t.matchSnapshot(joinedOutput())
   })
@@ -1465,7 +1448,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 0, 'should exit successfully')
-    process.exitCode = 0
     t.match(joinedOutput(), /audited 1 package/)
     t.matchSnapshot(joinedOutput())
   })
@@ -1586,7 +1568,6 @@ t.test('audit signatures', async t => {
     await npm.exec('audit', ['signatures'])
 
     t.equal(process.exitCode, 1, 'should exit with error')
-    process.exitCode = 0
     t.match(
       joinedOutput(),
       // eslint-disable-next-line no-control-regex
@@ -1645,7 +1626,6 @@ t.test('audit signatures', async t => {
       await npm.exec('audit', ['signatures'])
 
       t.equal(process.exitCode, 0, 'should exit successfully')
-      process.exitCode = 0
       t.match(joinedOutput(), /audited 3 packages/)
       t.matchSnapshot(joinedOutput())
     })
@@ -1653,7 +1633,7 @@ t.test('audit signatures', async t => {
     t.test('verifies registry deps when filtering by workspace name', async t => {
       const { npm, joinedOutput } = await loadMockNpm(t, {
         prefixDir: workspaceInstall,
-        config: { workspace: ['./packages/a'] },
+        config: { workspace: './packages/a' },
       })
       const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
       const asyncManifest = registry.manifest({
@@ -1699,7 +1679,6 @@ t.test('audit signatures', async t => {
       await npm.exec('audit', ['signatures'])
 
       t.equal(process.exitCode, 0, 'should exit successfully')
-      process.exitCode = 0
       t.match(joinedOutput(), /audited 2 packages/)
       t.matchSnapshot(joinedOutput())
     })

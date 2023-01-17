@@ -8,7 +8,6 @@ class Restart extends LifecycleCmd {
     'ignore-scripts',
     'script-shell',
   ]
-
-  static ignoreImplicitWorkspace = false
 }
+
 module.exports = Restart

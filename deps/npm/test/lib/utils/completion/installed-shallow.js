@@ -1,10 +1,9 @@
-const flatOptions = { global: false }
-const npm = { flatOptions }
 const t = require('tap')
 const { resolve } = require('path')
+const installed = require('../../../../lib/utils/completion/installed-shallow.js')
 
-const p = '../../../../lib/utils/completion/installed-shallow.js'
-const installed = require(p)
+const flatOptions = { global: false }
+const npm = { flatOptions }
 
 t.test('global not set, include globals with -g', async t => {
   const dir = t.testdir({

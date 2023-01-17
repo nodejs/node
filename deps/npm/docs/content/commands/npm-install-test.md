@@ -85,7 +85,7 @@ de-duplicating. Sets `--install-strategy=nested`.
   `--install-strategy=shallow`
 
 Only install direct dependencies in the top level `node_modules`, but hoist
-on deeper dependendencies. Sets `--install-strategy=shallow`.
+on deeper dependencies. Sets `--install-strategy=shallow`.
 
 #### `omit`
 
@@ -120,7 +120,7 @@ be resolved using the nearest non-peer dependency specification, even if
 doing so will result in some packages receiving a peer dependency outside
 the range set in their package's `peerDependencies` object.
 
-When such and override is performed, a warning is printed, explaining the
+When such an override is performed, a warning is printed, explaining the
 conflict and the packages involved. If `--strict-peer-deps` is set, then
 this warning is treated as a failure.
 

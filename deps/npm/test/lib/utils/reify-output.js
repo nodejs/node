@@ -1,25 +1,22 @@
 const t = require('tap')
+const mockNpm = require('../../fixtures/mock-npm')
+const reifyOutput = require('../../../lib/utils/reify-output.js')
 
 t.cleanSnapshot = str => str.replace(/in [0-9]+m?s/g, 'in {TIME}')
 
-const settings = {
-  fund: true,
-}
-const npm = {
-  started: Date.now(),
-  flatOptions: settings,
-  silent: false,
-}
-const reifyOutput = require('../../../lib/utils/reify-output.js')
-t.test('missing info', (t) => {
-  t.plan(1)
-  npm.output = out => t.notMatch(
-    out,
-    'looking for funding',
-    'should not print fund message if missing info'
-  )
+const mockReify = async (t, reify, { command, ...config } = {}) => {
+  const mock = await mockNpm(t, {
+    command,
+    config,
+  })
 
-  reifyOutput(npm, {
+  reifyOutput(mock.npm, reify)
+
+  return mock.joinedOutput()
+}
+
+t.test('missing info', async t => {
+  const out = await mockReify(t, {
     actualTree: {
       children: [],
     },
@@ -27,36 +24,30 @@ t.test('missing info', (t) => {
       children: [],
     },
   })
-})
 
-t.test('even more missing info', t => {
-  t.plan(1)
-  npm.output = out => t.notMatch(
+  t.notMatch(
     out,
     'looking for funding',
     'should not print fund message if missing info'
   )
+})
 
-  reifyOutput(npm, {
+t.test('even more missing info', async t => {
+  const out = await mockReify(t, {
     actualTree: {
       children: [],
     },
   })
+
+  t.notMatch(
+    out,
+    'looking for funding',
+    'should not print fund message if missing info'
+  )
 })
 
-t.test('single package', (t) => {
-  t.plan(1)
-  npm.output = out => {
-    if (out.endsWith('looking for funding')) {
-      t.match(
-        out,
-        '1 package is looking for funding',
-        'should print single package message'
-      )
-    }
-  }
-
-  reifyOutput(npm, {
+t.test('single package', async t => {
+  const out = await mockReify(t, {
     // a report with an error is the same as no report at all, if
     // the command is not 'audit'
     auditReport: {
@@ -87,20 +78,16 @@ t.test('single package', (t) => {
       children: [],
     },
   })
+
+  t.match(
+    out,
+    '1 package is looking for funding',
+    'should print single package message'
+  )
 })
 
-t.test('no message when funding config is false', (t) => {
-  t.teardown(() => {
-    settings.fund = true
-  })
-  settings.fund = false
-  npm.output = out => {
-    if (out.endsWith('looking for funding')) {
-      t.fail('should not print funding info', { actual: out })
-    }
-  }
-
-  reifyOutput(npm, {
+t.test('no message when funding config is false', async t => {
+  const out = await mockReify(t, {
     actualTree: {
       name: 'foo',
       package: {
@@ -123,24 +110,13 @@ t.test('no message when funding config is false', (t) => {
     diff: {
       children: [],
     },
-  })
+  }, { fund: false })
 
-  t.end()
+  t.notMatch(out, 'looking for funding', 'should not print funding info')
 })
 
-t.test('print appropriate message for many packages', (t) => {
-  t.plan(1)
-  npm.output = out => {
-    if (out.endsWith('looking for funding')) {
-      t.match(
-        out,
-        '3 packages are looking for funding',
-        'should print single package message'
-      )
-    }
-  }
-
-  reifyOutput(npm, {
+t.test('print appropriate message for many packages', async t => {
+  const out = await mockReify(t, {
     actualTree: {
       name: 'foo',
       package: {
@@ -184,6 +160,12 @@ t.test('print appropriate message for many packages', (t) => {
       children: [],
     },
   })
+
+  t.match(
+    out,
+    '3 packages are looking for funding',
+    'should print single package message'
+  )
 })
 
 t.test('showing and not showing audit report', async t => {
@@ -231,15 +213,8 @@ t.test('showing and not showing audit report', async t => {
     },
   }
 
-  t.test('no output when silent', t => {
-    t.teardown(() => {
-      delete npm.silent
-    })
-    npm.silent = true
-    npm.output = out => {
-      t.fail('should not get output when silent', { actual: out })
-    }
-    reifyOutput(npm, {
+  t.test('no output when silent', async t => {
+    const out = await mockReify(t, {
       actualTree: { inventory: { size: 999 }, children: [] },
       auditReport,
       diff: {
@@ -247,16 +222,12 @@ t.test('showing and not showing audit report', async t => {
           { action: 'ADD', ideal: { location: 'loc' } },
         ],
       },
-    })
-    t.end()
+    }, { silent: true })
+    t.equal(out, '', 'should not get output when silent')
   })
 
-  t.test('output when not silent', t => {
-    const OUT = []
-    npm.output = out => {
-      OUT.push(out)
-    }
-    reifyOutput(npm, {
+  t.test('output when not silent', async t => {
+    const out = await mockReify(t, {
       actualTree: { inventory: new Map(), children: [] },
       auditReport,
       diff: {
@@ -265,33 +236,14 @@ t.test('showing and not showing audit report', async t => {
         ],
       },
     })
-    t.match(OUT.join('\n'), /Run `npm audit` for details\.$/, 'got audit report')
-    t.end()
+
+    t.match(out, /Run `npm audit` for details\.$/, 'got audit report')
   })
 
   for (const json of [true, false]) {
-    t.test(`json=${json}`, t => {
-      t.teardown(() => {
-        delete npm.flatOptions.json
-      })
-      npm.flatOptions.json = json
-      t.test('set exit code when cmd is audit', t => {
-        npm.output = () => {}
-        const { exitCode } = process
-        const { command } = npm
-        npm.flatOptions.auditLevel = 'low'
-        t.teardown(() => {
-          delete npm.flatOptions.auditLevel
-          npm.command = command
-          // only set exitCode back if we're passing tests
-          if (t.passing()) {
-            process.exitCode = exitCode
-          }
-        })
-
-        process.exitCode = 0
-        npm.command = 'audit'
-        reifyOutput(npm, {
+    t.test(`json=${json}`, async t => {
+      t.test('set exit code when cmd is audit', async t => {
+        await mockReify(t, {
           actualTree: { inventory: new Map(), children: [] },
           auditReport,
           diff: {
@@ -299,29 +251,13 @@ t.test('showing and not showing audit report', async t => {
               { action: 'ADD', ideal: { location: 'loc' } },
             ],
           },
-        })
+        }, { command: 'audit', 'audit-level': 'low' })
 
         t.equal(process.exitCode, 1, 'set exit code')
-        t.end()
       })
 
-      t.test('do not set exit code when cmd is install', t => {
-        npm.output = () => {}
-        const { exitCode } = process
-        const { command } = npm
-        npm.flatOptions.auditLevel = 'low'
-        t.teardown(() => {
-          delete npm.flatOptions.auditLevel
-          npm.command = command
-          // only set exitCode back if we're passing tests
-          if (t.passing()) {
-            process.exitCode = exitCode
-          }
-        })
-
-        process.exitCode = 0
-        npm.command = 'install'
-        reifyOutput(npm, {
+      t.test('do not set exit code when cmd is install', async t => {
+        await mockReify(t, {
           actualTree: { inventory: new Map(), children: [] },
           auditReport,
           diff: {
@@ -329,28 +265,17 @@ t.test('showing and not showing audit report', async t => {
               { action: 'ADD', ideal: { location: 'loc' } },
             ],
           },
-        })
+        }, { command: 'install', 'audit-level': 'low' })
 
-        t.equal(process.exitCode, 0, 'did not set exit code')
-        t.end()
+        t.notOk(process.exitCode, 'did not set exit code')
       })
-      t.end()
     })
   }
-
-  t.end()
 })
 
-t.test('packages changed message', t => {
-  const output = []
-  npm.output = out => {
-    output.push(out)
-  }
-
+t.test('packages changed message', async t => {
   // return a test function that builds up the mock and snapshots output
-  const testCase = (t, added, removed, changed, audited, json, command) => {
-    settings.json = json
-    npm.command = command
+  const testCase = async (t, added, removed, changed, audited, json, command) => {
     const mock = {
       actualTree: {
         inventory: { size: audited, has: () => true },
@@ -384,9 +309,9 @@ t.test('packages changed message', t => {
       const ideal = { location: 'loc' }
       mock.diff.children.push({ action: 'CHANGE', actual, ideal })
     }
-    output.length = 0
-    reifyOutput(npm, mock)
-    t.matchSnapshot(output.join('\n'), JSON.stringify({
+
+    const out = await mockReify(t, mock, { json, command })
+    t.matchSnapshot(out, JSON.stringify({
       added,
       removed,
       changed,
@@ -412,20 +337,14 @@ t.test('packages changed message', t => {
   cases.push([0, 0, 0, 2, true, 'audit'])
   cases.push([0, 0, 0, 2, false, 'audit'])
 
-  t.plan(cases.length)
-  for (const [added, removed, changed, audited, json, command] of cases) {
-    testCase(t, added, removed, changed, audited, json, command)
+  for (const c of cases) {
+    await t.test('', t => testCase(t, ...c))
   }
-
-  t.end()
 })
 
-t.test('added packages should be looked up within returned tree', t => {
-  t.test('has added pkg in inventory', t => {
-    t.plan(1)
-    npm.output = out => t.matchSnapshot(out)
-
-    reifyOutput(npm, {
+t.test('added packages should be looked up within returned tree', async t => {
+  t.test('has added pkg in inventory', async t => {
+    const out = await mockReify(t, {
       actualTree: {
         name: 'foo',
         inventory: {
@@ -438,13 +357,12 @@ t.test('added packages should be looked up within returned tree', t => {
         ],
       },
     })
+
+    t.matchSnapshot(out)
   })
 
-  t.test('missing added pkg in inventory', t => {
-    t.plan(1)
-    npm.output = out => t.matchSnapshot(out)
-
-    reifyOutput(npm, {
+  t.test('missing added pkg in inventory', async t => {
+    const out = await mockReify(t, {
       actualTree: {
         name: 'foo',
         inventory: {
@@ -457,6 +375,7 @@ t.test('added packages should be looked up within returned tree', t => {
         ],
       },
     })
+
+    t.matchSnapshot(out)
   })
-  t.end()
 })

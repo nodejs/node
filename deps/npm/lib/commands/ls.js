@@ -178,11 +178,9 @@ class LS extends ArboristWorkspaceCmd {
       e.code === 'EJSONPARSE' && e.path === resolve(path, 'package.json'))
 
     this.npm.outputBuffer(
-      json
-        ? jsonOutput({ path, problems, result, rootError, seenItems })
-        : parseable
-          ? parseableOutput({ seenNodes, global, long })
-          : humanOutput({ color, result, seenItems, unicode })
+      json ? jsonOutput({ path, problems, result, rootError, seenItems }) :
+      parseable ? parseableOutput({ seenNodes, global, long }) :
+      humanOutput({ color, result, seenItems, unicode })
     )
 
     // if filtering items, should exit with error code on no results
@@ -402,7 +400,7 @@ const getJsonOutputItem = (node, { global, long }) => {
   return augmentItemWithIncludeMetadata(node, item)
 }
 
-const filterByEdgesTypes = ({ link, omit = [] }) => (edge) => {
+const filterByEdgesTypes = ({ link, omit }) => (edge) => {
   for (const omitType of omit) {
     if (edge[omitType]) {
       return false

@@ -63,7 +63,7 @@ situations. These scripts happen in addition to the `pre<event>`, `post<event>`,
 * Runs BEFORE the package is prepared and packed, ONLY on `npm publish`.
 
 **prepack**
-* Runs BEFORE a tarball is packed (on "`npm pack`", "`npm publish`", and when installing a git dependencies).
+* Runs BEFORE a tarball is packed (on "`npm pack`", "`npm publish`", and when installing a git dependency).
 * NOTE: "`npm run pack`" is NOT the same as "`npm pack`". "`npm run pack`" is an arbitrary user defined script name, where as, "`npm pack`" is a CLI defined command.
 
 **postpack**

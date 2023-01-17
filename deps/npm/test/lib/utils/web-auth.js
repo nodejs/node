@@ -1,10 +1,11 @@
 const t = require('tap')
+const tmock = require('../../fixtures/tmock')
 
 const webAuthCheckLogin = async () => {
   return { token: 'otp-token' }
 }
 
-const webauth = t.mock('../../../lib/utils/web-auth.js', {
+const webauth = tmock(t, '{LIB}/utils/web-auth.js', {
   'npm-profile': { webAuthCheckLogin },
 })
 

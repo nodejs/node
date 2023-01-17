@@ -22,6 +22,7 @@ class Version extends BaseCommand {
     'include-workspace-root',
   ]
 
+  static workspaces = true
   static ignoreImplicitWorkspace = false
 
   /* eslint-disable-next-line max-len */
@@ -60,12 +61,12 @@ class Version extends BaseCommand {
     }
   }
 
-  async execWorkspaces (args, filters) {
+  async execWorkspaces (args) {
     switch (args.length) {
       case 0:
-        return this.listWorkspaces(filters)
+        return this.listWorkspaces()
       case 1:
-        return this.changeWorkspaces(args, filters)
+        return this.changeWorkspaces(args)
       default:
         throw this.usageError()
     }
@@ -80,9 +81,9 @@ class Version extends BaseCommand {
     return this.npm.output(`${prefix}${version}`)
   }
 
-  async changeWorkspaces (args, filters) {
+  async changeWorkspaces (args) {
     const prefix = this.npm.config.get('tag-version-prefix')
-    await this.setWorkspaces(filters)
+    await this.setWorkspaces()
     const updatedWorkspaces = []
     for (const [name, path] of this.workspaces) {
       this.npm.output(name)
@@ -120,9 +121,9 @@ class Version extends BaseCommand {
     }
   }
 
-  async listWorkspaces (filters) {
+  async listWorkspaces () {
     const results = {}
-    await this.setWorkspaces(filters)
+    await this.setWorkspaces()
     for (const path of this.workspacePaths) {
       const pj = resolve(path, 'package.json')
       // setWorkspaces has already parsed package.json so we know it won't error
