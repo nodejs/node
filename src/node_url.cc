@@ -5,16 +5,11 @@
 #include "node_i18n.h"
 #include "util-inl.h"
 
-#include <__string>
 #include <algorithm>
-#include <atomic>
 #include <cmath>
-#include <cstddef>
 #include <cstdio>
-#include <iterator>
 #include <numeric>
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace node {
