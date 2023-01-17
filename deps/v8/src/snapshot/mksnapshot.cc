@@ -16,9 +16,9 @@
 #include "src/base/vector.h"
 #include "src/codegen/cpu-features.h"
 #include "src/flags/flags.h"
+#include "src/objects/fixed-array-inl.h"
 #include "src/snapshot/embedded/embedded-file-writer.h"
 #include "src/snapshot/snapshot.h"
-#include "src/objects/fixed-array-inl.h"
 
 namespace {
 
