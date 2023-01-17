@@ -563,7 +563,6 @@ void BuiltinLoader::GetBuiltinCategories(
   Local<Context> context = env->context();
   Local<Object> result = Object::New(isolate);
 
-  // Copy from the per-process categories
   std::set<std::string> cannot_be_required =
       env->builtin_loader()->GetCannotBeRequired();
   std::set<std::string> can_be_required =
