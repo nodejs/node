@@ -463,8 +463,8 @@ inline bool EndsInANumber(const std::string_view input) {
     return true;
   }
 
-  return IsIPv4NumberValid(
-      std::string_view(pointer_start, size_t(pointer_end - pointer_start)));
+  return IsIPv4NumberValid(std::string_view(const_cast<char*>(pointer_start),
+                                            pointer_end - pointer_start));
 }
 
 void URLHost::ParseIPv4Host(const char* input, size_t length) {
