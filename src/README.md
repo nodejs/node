@@ -1043,6 +1043,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`MakeCallback()`]: #makecallback
 [`MessagePort`]: https://nodejs.org/api/worker_threads.html#worker_threads_class_messageport
 [`ReqWrap`]: #reqwrap
+[V8 Fast API]: ../doc/contributing/adding-v8-fast-api.md
 [`async_hooks` module]: https://nodejs.org/api/async_hooks.html
 [`async_wrap.h`]: async_wrap.h
 [`base_object.h`]: base_object.h
@@ -1064,4 +1065,3 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [libuv handles]: #libuv-handles-and-requests
 [libuv requests]: #libuv-handles-and-requests
 [reference documentation for the libuv API]: http://docs.libuv.org/en/v1.x/
-[V8 Fast API]: ../doc/contributing/adding-v8-fast-api.md
