@@ -78,7 +78,6 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   void RefreshCodeCache(const std::vector<CodeCacheInfo>& in);
   void CopyCodeCache(std::vector<CodeCacheInfo>* out) const;
 
-  static std::unique_ptr<BuiltinLoader> Create();
   void CopySourceAndCodeCacheReferenceFrom(const BuiltinLoader* other);
 
  private:

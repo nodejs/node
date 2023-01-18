@@ -676,7 +676,8 @@ Environment::Environment(IsolateData* isolate_data,
                      ? AllocateEnvironmentThreadId().id
                      : thread_id.id) {
 #ifdef NODE_V8_SHARED_RO_HEAP
-  if (isolate_data->worker_context() != nullptr) {
+  if (!is_main_thread()) {
+    CHECK_NOT_NULL(isolate_data->worker_context());
     // TODO(addaleax): Adjust for the embedder API snapshot support changes
     builtin_loader()->CopySourceAndCodeCacheReferenceFrom(
         isolate_data->worker_context()->env()->builtin_loader());

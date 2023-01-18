@@ -669,10 +669,6 @@ void BuiltinLoader::HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
       args.GetIsolate(), instance->code_cache_->has_code_cache));
 }
 
-std::unique_ptr<BuiltinLoader> BuiltinLoader::Create() {
-  return std::unique_ptr<BuiltinLoader>{new BuiltinLoader()};
-}
-
 void BuiltinLoader::CopySourceAndCodeCacheReferenceFrom(
     const BuiltinLoader* other) {
   code_cache_ = other->code_cache_;
