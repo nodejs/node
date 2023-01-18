@@ -17,7 +17,7 @@ export function globalPreload({ port }) {
       // Artificial timeout to keep the event loop alive.
       // https://bugs.chromium.org/p/v8/issues/detail?id=13238
       // TODO(targos) Remove when V8 issue is resolved.
-      const timeout = setTimeout(() => {}, 1_000);
+      const timeout = setTimeout(() => { throw new Error('timeout'); }, 1_000);
       await Atomics.waitAsync(int32, 0, 0).value;
       clearTimeout(timeout);
       return receiveMessageOnPort(port).message;
