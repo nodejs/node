@@ -12,7 +12,7 @@ using node::builtins::BuiltinSourceMap;
 class PerProcessTest : public ::testing::Test {
  protected:
   static const BuiltinSourceMap get_sources_for_test() {
-    return *BuiltinLoader::Create()->source_.read();
+    return *BuiltinLoader().source_.read();
   }
 };
 

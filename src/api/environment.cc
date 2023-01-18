@@ -719,11 +719,11 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
   // in the first place. However, creating BuiltinLoader instances is
   // relatively cheap and all the scripts that we may want to run at
   // startup are always present in it.
-  thread_local auto builtin_loader = builtins::BuiltinLoader::Create();
+  thread_local builtins::BuiltinLoader builtin_loader;
   for (const char** module = context_files; *module != nullptr; module++) {
     Local<Value> arguments[] = {exports, primordials};
     if (builtin_loader
-            ->CompileAndCall(
+            .CompileAndCall(
                 context, *module, arraysize(arguments), arguments, nullptr)
             .IsEmpty()) {
       // Execution failed during context creation.

@@ -674,8 +674,7 @@ Environment::Environment(IsolateData* isolate_data,
       flags_(flags),
       thread_id_(thread_id.id == static_cast<uint64_t>(-1)
                      ? AllocateEnvironmentThreadId().id
-                     : thread_id.id),
-      builtin_loader_(builtins::BuiltinLoader::Create()) {
+                     : thread_id.id) {
 #ifdef NODE_V8_SHARED_RO_HEAP
   if (isolate_data->worker_context() != nullptr) {
     // TODO(addaleax): Adjust for the embedder API snapshot support changes

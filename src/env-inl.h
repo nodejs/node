@@ -437,8 +437,7 @@ inline std::vector<double>* Environment::destroy_async_id_list() {
 }
 
 inline builtins::BuiltinLoader* Environment::builtin_loader() {
-  DCHECK(builtin_loader_);
-  return builtin_loader_.get();
+  return &builtin_loader_;
 }
 
 inline double Environment::new_async_id() {

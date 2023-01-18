@@ -1146,7 +1146,7 @@ class Environment : public MemoryRetainer {
 
   std::unique_ptr<Realm> principal_realm_ = nullptr;
 
-  std::unique_ptr<builtins::BuiltinLoader> builtin_loader_;
+  builtins::BuiltinLoader builtin_loader_;
 
   // Used by allocate_managed_buffer() and release_managed_buffer() to keep
   // track of the BackingStore for a given pointer.
