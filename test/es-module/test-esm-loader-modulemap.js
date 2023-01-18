@@ -4,7 +4,7 @@
 require('../common');
 
 const { strictEqual, throws } = require('assert');
-const { ModuleLoader } = require('internal/modules/esm/loader');
+const { createModuleLoader } = require('internal/modules/esm/loader');
 const ModuleMap = require('internal/modules/esm/module_map');
 const ModuleJob = require('internal/modules/esm/module_job');
 const createDynamicModule = require(
@@ -16,7 +16,7 @@ const jsonModuleDataUrl = 'data:application/json,""';
 const stubJsModule = createDynamicModule([], ['default'], jsModuleDataUrl);
 const stubJsonModule = createDynamicModule([], ['default'], jsonModuleDataUrl);
 
-const loader = new ModuleLoader(false);
+const loader = createModuleLoader(false);
 const jsModuleJob = new ModuleJob(loader, stubJsModule.module, undefined,
                                   () => new Promise(() => {}));
 const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
