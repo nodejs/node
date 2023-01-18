@@ -134,7 +134,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
       });
     }, {
       name: 'RangeError',
-      code: 'ERR_OUT_OF_RANGE'
+      code: 'ERR_OUT_OF_RANGE',
     });
   });
 
@@ -147,7 +147,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
       });
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   });
 
