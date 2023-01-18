@@ -413,7 +413,9 @@ bool IsIPv4NumberValid(const std::string_view input) {
     return false;
   }
 
-  // ref: #ipv4-number-parser session in url specs, subtopics 4-5
+  // If a number starts with '0' it might be a number with base 8 or base
+  // 16. If not, checking if all characters are digits proves that it is a
+  // base 10 number.
   if (input.size() >= 2 && input[0] == '0') {
     if (input[1] == 'X' || input[1] == 'x') {
       if (input.size() == 2) {
