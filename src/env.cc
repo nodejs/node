@@ -676,6 +676,14 @@ Environment::Environment(IsolateData* isolate_data,
                      ? AllocateEnvironmentThreadId().id
                      : thread_id.id),
       builtin_loader_(builtins::BuiltinLoader::Create()) {
+#ifdef NODE_V8_SHARED_RO_HEAP
+  if (isolate_data->worker_context() != nullptr) {
+    // TODO(addaleax): Adjust for the embedder API snapshot support changes
+    builtin_loader()->CopySourceAndCodeCacheFrom(
+        isolate_data->worker_context()->env()->builtin_loader());
+  }
+#endif
+
   // We'll be creating new objects so make sure we've entered the context.
   HandleScope handle_scope(isolate);
 
