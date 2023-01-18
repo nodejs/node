@@ -1231,10 +1231,10 @@ int SnapshotBuilder::Generate(SnapshotData* out,
 
 #ifdef NODE_USE_NODE_CODE_CACHE
       // Regenerate all the code cache.
-      if (!builtins::BuiltinLoader::CompileAllBuiltins(main_context)) {
+      if (!env->builtin_loader()->CompileAllBuiltins(main_context)) {
         return UNCAUGHT_EXCEPTION_ERROR;
       }
-      builtins::BuiltinLoader::CopyCodeCache(&(out->code_cache));
+      env->builtin_loader()->CopyCodeCache(&(out->code_cache));
       for (const auto& item : out->code_cache) {
         std::string size_str = FormatSize(item.data.size());
         per_process::Debug(DebugCategory::MKSNAPSHOT,

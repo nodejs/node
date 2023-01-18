@@ -132,8 +132,6 @@
 
 namespace node {
 
-using builtins::BuiltinLoader;
-
 using v8::EscapableHandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -1214,9 +1212,6 @@ int LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
     }
   }
 
-  if ((*snapshot_data_ptr) != nullptr) {
-    BuiltinLoader::RefreshCodeCache((*snapshot_data_ptr)->code_cache);
-  }
   NodeMainInstance main_instance(*snapshot_data_ptr,
                                  uv_default_loop(),
                                  per_process::v8_platform.Platform(),
