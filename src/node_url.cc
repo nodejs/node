@@ -408,11 +408,12 @@ int64_t ParseIPv4Number(const char* start, const char* end) {
 }
 
 // https://url.spec.whatwg.org/#ipv4-number-parser
-bool IsIPv4NumberValid(std::string_view input) {
+bool IsIPv4NumberValid(const std::string_view input) {
   if (input.empty()) {
     return false;
   }
 
+  // ref: #ipv4-number-parser session in url specs, subtopics 4-5
   if (input.size() >= 2 && input[0] == '0') {
     if (input[1] == 'X' || input[1] == 'x') {
       if (input.size() == 2) {
@@ -421,23 +422,23 @@ bool IsIPv4NumberValid(std::string_view input) {
 
       return input.find_first_not_of("0123456789abcdefABCDEF", 2) ==
              std::string_view::npos;
-    } else {
-      return input.find_first_not_of("01234567", 1) == std::string_view::npos;
     }
+
+    return input.find_first_not_of("01234567", 1) == std::string_view::npos;
   }
 
   return std::all_of(input.begin(), input.end(), ::isdigit);
 }
 
 // https://url.spec.whatwg.org/#ends-in-a-number-checker
-bool EndsInANumber(const std::string_view input) {
+inline bool EndsInANumber(const std::string_view input) {
   if (input.empty()) {
     return false;
   }
 
   char delimiter = '.';
-  auto pointer_start = input.begin();
-  auto pointer_end = input.end();
+  std::string_view::iterator pointer_start = input.begin();
+  std::string_view::iterator pointer_end = input.end();
 
   uint8_t parts_size = std::count(pointer_start, pointer_end, delimiter);
   ++parts_size;
@@ -449,11 +450,10 @@ bool EndsInANumber(const std::string_view input) {
 
   if (parts_size > 1) {
     pointer_start +=
-        input.rfind(delimiter, std::distance(pointer_start, pointer_end) - 1) +
-        1;
+        input.rfind(delimiter, pointer_end - pointer_start - 1) + 1;
   }
 
-  if (std::distance(pointer_start, pointer_end) == 0) {
+  if ((pointer_end - pointer_start) == 0) {
     return false;
   }
 
@@ -462,7 +462,7 @@ bool EndsInANumber(const std::string_view input) {
   }
 
   return IsIPv4NumberValid(
-      std::string_view(&*pointer_start, pointer_end - pointer_start));
+      std::string_view(pointer_start, pointer_end - pointer_start));
 }
 
 void URLHost::ParseIPv4Host(const char* input, size_t length) {
