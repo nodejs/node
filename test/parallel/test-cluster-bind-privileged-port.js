@@ -21,6 +21,18 @@
 
 'use strict';
 const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
+const { execSync } = require('child_process');
+
+if (common.isLinux) {
+  const sysctlOutput = execSync('sysctl net.ipv4.ip_unprivileged_port_start').toString();
+  const unprivilegedPortStart = parseInt(sysctlOutput.split(' ')[2], 10);
+  if (unprivilegedPortStart <= 42) {
+    common.skip('Port 42 is unprivileged');
+  }
+}
 
 // Skip on OS X Mojave. https://github.com/nodejs/node/issues/21679
 if (common.isOSX)
@@ -34,10 +46,6 @@ if (common.isWindows)
 
 if (process.getuid() === 0)
   common.skip('Test is not supposed to be run as root.');
-
-const assert = require('assert');
-const cluster = require('cluster');
-const net = require('net');
 
 if (cluster.isPrimary) {
   cluster.fork().on('exit', common.mustCall((exitCode) => {
