@@ -314,7 +314,7 @@ function emitLegacyRuleAPIWarning(ruleName) {
     if (!emitLegacyRuleAPIWarning[`warned-${ruleName}`]) {
         emitLegacyRuleAPIWarning[`warned-${ruleName}`] = true;
         process.emitWarning(
-            `"${ruleName}" rule is using the deprecated function-style format and will stop working in ESLint v9. Please use object-style format: https://eslint.org/docs/developer-guide/working-with-rules`,
+            `"${ruleName}" rule is using the deprecated function-style format and will stop working in ESLint v9. Please use object-style format: https://eslint.org/docs/latest/extend/custom-rules`,
             "DeprecationWarning"
         );
     }
@@ -329,7 +329,7 @@ function emitMissingSchemaWarning(ruleName) {
     if (!emitMissingSchemaWarning[`warned-${ruleName}`]) {
         emitMissingSchemaWarning[`warned-${ruleName}`] = true;
         process.emitWarning(
-            `"${ruleName}" rule has options but is missing the "meta.schema" property and will stop working in ESLint v9. Please add a schema: https://eslint.org/docs/developer-guide/working-with-rules#options-schemas`,
+            `"${ruleName}" rule has options but is missing the "meta.schema" property and will stop working in ESLint v9. Please add a schema: https://eslint.org/docs/latest/extend/custom-rules#options-schemas`,
             "DeprecationWarning"
         );
     }
@@ -493,7 +493,7 @@ class RuleTester {
         if (typeof this[DESCRIBE] === "function" || typeof this[IT] === "function") {
             throw new Error(
                 "Set `RuleTester.itOnly` to use `only` with a custom test framework.\n" +
-                "See https://eslint.org/docs/developer-guide/nodejs-api#customizing-ruletester for more."
+                "See https://eslint.org/docs/latest/integrate/nodejs-api#customizing-ruletester for more."
             );
         }
         if (typeof it === "function") {
