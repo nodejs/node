@@ -33,7 +33,8 @@ using v8::String;
 using v8::Undefined;
 using v8::Value;
 
-BuiltinLoader::BuiltinLoader() : config_(GetConfig()), has_code_cache_(false) {
+BuiltinLoader::BuiltinLoader()
+    : config_(GetConfig()), code_cache_(std::make_shared<BuiltinCodeCache>()) {
   LoadJavaScriptSource();
 #ifdef NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_LEXER_PATH
   AddExternalizedBuiltin(
@@ -155,9 +156,9 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 
 const ScriptCompiler::CachedData* BuiltinLoader::GetCodeCache(
     const char* id) const {
-  RwLock::ScopedReadLock lock(code_cache_mutex_);
-  const auto it = code_cache_.find(id);
-  if (it == code_cache_.end()) {
+  RwLock::ScopedReadLock lock(code_cache_->mutex);
+  const auto it = code_cache_->map.find(id);
+  if (it == code_cache_->map.end()) {
     // The module has not been compiled before.
     return nullptr;
   }
@@ -282,12 +283,12 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
     // `CompileFunction()` call below, because this function may recurse if
     // there is a syntax error during bootstrap (because the fatal exception
     // handler is invoked, which may load built-in modules).
-    RwLock::ScopedLock lock(code_cache_mutex_);
-    auto cache_it = code_cache_.find(id);
-    if (cache_it != code_cache_.end()) {
+    RwLock::ScopedLock lock(code_cache_->mutex);
+    auto cache_it = code_cache_->map.find(id);
+    if (cache_it != code_cache_->map.end()) {
       // Transfer ownership to ScriptCompiler::Source later.
       cached_data = cache_it->second.release();
-      code_cache_.erase(cache_it);
+      code_cache_->map.erase(cache_it);
     }
   }
 
@@ -348,8 +349,8 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
   CHECK_NOT_NULL(new_cached_data);
 
   {
-    RwLock::ScopedLock lock(code_cache_mutex_);
-    code_cache_[id] = std::move(new_cached_data);
+    RwLock::ScopedLock lock(code_cache_->mutex);
+    code_cache_->map[id] = std::move(new_cached_data);
   }
 
   return scope.Escape(fun);
@@ -512,8 +513,8 @@ bool BuiltinLoader::CompileAllBuiltins(Local<Context> context) {
 }
 
 void BuiltinLoader::CopyCodeCache(std::vector<CodeCacheInfo>* out) const {
-  RwLock::ScopedReadLock lock(code_cache_mutex_);
-  for (auto const& item : code_cache_) {
+  RwLock::ScopedReadLock lock(code_cache_->mutex);
+  for (auto const& item : code_cache_->map) {
     out->push_back(
         {item.first,
          {item.second->data, item.second->data + item.second->length}});
@@ -521,16 +522,16 @@ void BuiltinLoader::CopyCodeCache(std::vector<CodeCacheInfo>* out) const {
 }
 
 void BuiltinLoader::RefreshCodeCache(const std::vector<CodeCacheInfo>& in) {
-  RwLock::ScopedLock lock(code_cache_mutex_);
+  RwLock::ScopedLock lock(code_cache_->mutex);
   for (auto const& item : in) {
     size_t length = item.data.size();
     uint8_t* buffer = new uint8_t[length];
     memcpy(buffer, item.data.data(), length);
     auto new_cache = std::make_unique<v8::ScriptCompiler::CachedData>(
         buffer, length, v8::ScriptCompiler::CachedData::BufferOwned);
-    code_cache_[item.id] = std::move(new_cache);
+    code_cache_->map[item.id] = std::move(new_cache);
   }
-  has_code_cache_ = true;
+  code_cache_->has_code_cache = true;
 }
 
 void BuiltinLoader::GetBuiltinCategories(
@@ -663,23 +664,18 @@ void BuiltinLoader::CompileFunction(const FunctionCallbackInfo<Value>& args) {
 
 void BuiltinLoader::HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
   auto instance = Environment::GetCurrent(args)->builtin_loader();
-  RwLock::ScopedReadLock lock(instance->code_cache_mutex_);
-  args.GetReturnValue().Set(
-      v8::Boolean::New(args.GetIsolate(), instance->has_code_cache_));
+  RwLock::ScopedReadLock lock(instance->code_cache_->mutex);
+  args.GetReturnValue().Set(v8::Boolean::New(
+      args.GetIsolate(), instance->code_cache_->has_code_cache));
 }
 
 std::unique_ptr<BuiltinLoader> BuiltinLoader::Create() {
   return std::unique_ptr<BuiltinLoader>{new BuiltinLoader()};
 }
 
-void BuiltinLoader::CopySourceAndCodeCacheFrom(const BuiltinLoader* other) {
-  {
-    std::vector<CodeCacheInfo> cache;
-    other->CopyCodeCache(&cache);
-    RefreshCodeCache(cache);
-    has_code_cache_ = other->has_code_cache_;
-  }
-
+void BuiltinLoader::CopySourceAndCodeCacheReferenceFrom(
+    const BuiltinLoader* other) {
+  code_cache_ = other->code_cache_;
   source_ = other->source_;
 }
 

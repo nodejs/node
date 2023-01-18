@@ -79,7 +79,7 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   void CopyCodeCache(std::vector<CodeCacheInfo>* out) const;
 
   static std::unique_ptr<BuiltinLoader> Create();
-  void CopySourceAndCodeCacheFrom(const BuiltinLoader* other);
+  void CopySourceAndCodeCacheReferenceFrom(const BuiltinLoader* other);
 
  private:
   // Only allow access from friends.
@@ -138,9 +138,12 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
 
   const UnionBytes config_;
 
-  RwLock code_cache_mutex_;
-  BuiltinCodeCacheMap code_cache_;
-  bool has_code_cache_;
+  struct BuiltinCodeCache {
+    RwLock mutex;
+    BuiltinCodeCacheMap map;
+    bool has_code_cache = false;
+  };
+  std::shared_ptr<BuiltinCodeCache> code_cache_;
 
   friend class ::PerProcessTest;
 };

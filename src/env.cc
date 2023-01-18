@@ -678,7 +678,7 @@ Environment::Environment(IsolateData* isolate_data,
 #ifdef NODE_V8_SHARED_RO_HEAP
   if (isolate_data->worker_context() != nullptr) {
     // TODO(addaleax): Adjust for the embedder API snapshot support changes
-    builtin_loader()->CopySourceAndCodeCacheFrom(
+    builtin_loader()->CopySourceAndCodeCacheReferenceFrom(
         isolate_data->worker_context()->env()->builtin_loader());
   }
 #endif
