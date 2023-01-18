@@ -1032,6 +1032,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [Callback scopes]: #callback-scopes
 [JavaScript value handles]: #js-handles
 [N-API]: https://nodejs.org/api/n-api.html
+[V8 Fast API]: ../doc/contributing/adding-v8-fast-api.md
 [`BaseObject`]: #baseobject
 [`Context`]: #context
 [`Environment`]: #environment
@@ -1043,7 +1044,6 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`MakeCallback()`]: #makecallback
 [`MessagePort`]: https://nodejs.org/api/worker_threads.html#worker_threads_class_messageport
 [`ReqWrap`]: #reqwrap
-[V8 Fast API]: ../doc/contributing/adding-v8-fast-api.md
 [`async_hooks` module]: https://nodejs.org/api/async_hooks.html
 [`async_wrap.h`]: async_wrap.h
 [`base_object.h`]: base_object.h
