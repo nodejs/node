@@ -11,38 +11,23 @@
 #include "uv_mapping.h"
 
 
-#define UVWASI__WIN_TIME_AND_RETURN(handle, time)                             \
+#define UVWASI__WIN_TIME_AND_RETURN(handle, get_times, time)                  \
   do {                                                                        \
     FILETIME create;                                                          \
     FILETIME exit;                                                            \
     FILETIME system;                                                          \
     FILETIME user;                                                            \
-    SYSTEMTIME sys_system;                                                    \
-    SYSTEMTIME sys_user;                                                      \
-    if (0 == GetProcessTimes((handle), &create, &exit, &system, &user)) {     \
+    if (0 == get_times((handle), &create, &exit, &system, &user)) {           \
       return uvwasi__translate_uv_error(                                      \
         uv_translate_sys_error(GetLastError())                                \
       );                                                                      \
     }                                                                         \
                                                                               \
-    if (0 == FileTimeToSystemTime(&system, &sys_system)) {                    \
-      return uvwasi__translate_uv_error(                                      \
-        uv_translate_sys_error(GetLastError())                                \
-      );                                                                      \
-    }                                                                         \
-                                                                              \
-    if (0 == FileTimeToSystemTime(&user, &sys_user)) {                        \
-      return uvwasi__translate_uv_error(                                      \
-        uv_translate_sys_error(GetLastError())                                \
-      );                                                                      \
-    }                                                                         \
-                                                                              \
-    (time) = (((uvwasi_timestamp_t)(sys_system.wHour * 3600) +                \
-              (sys_system.wMinute * 60) + sys_system.wSecond) * NANOS_PER_SEC) + \
-             ((uvwasi_timestamp_t)(sys_system.wMilliseconds) * 1000000) +     \
-             (((uvwasi_timestamp_t)(sys_user.wHour * 3600) +                  \
-              (sys_user.wMinute * 60) + sys_user.wSecond) * NANOS_PER_SEC) +  \
-             ((uvwasi_timestamp_t)(sys_user.wMilliseconds) * 1000000);        \
+    /* FILETIME times are in units of 100 nanoseconds */                      \
+    (time) = (((uvwasi_timestamp_t)                                           \
+               system.dwHighDateTime << 32 | system.dwLowDateTime) * 100 +    \
+              ((uvwasi_timestamp_t)                                           \
+               user.dwHighDateTime << 32 | user.dwLowDateTime) * 100);        \
     return UVWASI_ESUCCESS;                                                   \
   } while (0)
 
@@ -137,7 +122,7 @@ uvwasi_errno_t uvwasi__clock_gettime_realtime(uvwasi_timestamp_t* time) {
 
 uvwasi_errno_t uvwasi__clock_gettime_process_cputime(uvwasi_timestamp_t* time) {
 #if defined(_WIN32)
-  UVWASI__WIN_TIME_AND_RETURN(GetCurrentProcess(), *time);
+  UVWASI__WIN_TIME_AND_RETURN(GetCurrentProcess(), GetProcessTimes, *time);
 #elif defined(CLOCK_PROCESS_CPUTIME_ID) && \
       !defined(__APPLE__)               && \
       !defined(__sun)
@@ -150,7 +135,7 @@ uvwasi_errno_t uvwasi__clock_gettime_process_cputime(uvwasi_timestamp_t* time) {
 
 uvwasi_errno_t uvwasi__clock_gettime_thread_cputime(uvwasi_timestamp_t* time) {
 #if defined(_WIN32)
-  UVWASI__WIN_TIME_AND_RETURN(GetCurrentThread(), *time);
+  UVWASI__WIN_TIME_AND_RETURN(GetCurrentThread(), GetThreadTimes, *time);
 #elif defined(__APPLE__)
   UVWASI__OSX_THREADTIME_AND_RETURN(*time);
 #elif defined(CLOCK_THREAD_CPUTIME_ID) && !defined(__sun) && !defined(__PASE__)
