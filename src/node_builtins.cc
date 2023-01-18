@@ -32,8 +32,6 @@ using v8::String;
 using v8::Undefined;
 using v8::Value;
 
-BuiltinLoader BuiltinLoader::instance_;
-
 BuiltinLoader::BuiltinLoader() : config_(GetConfig()), has_code_cache_(false) {
   LoadJavaScriptSource();
 #ifdef NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_LEXER_PATH
@@ -55,6 +53,7 @@ BuiltinLoader::BuiltinLoader() : config_(GetConfig()), has_code_cache_(false) {
 }
 
 BuiltinLoader* BuiltinLoader::GetInstance() {
+  static BuiltinLoader instance_;
   return &instance_;
 }
 
@@ -63,8 +62,11 @@ bool BuiltinLoader::Exists(const char* id) {
   return source.find(id) != source.end();
 }
 
-bool BuiltinLoader::Add(const char* id, const UnionBytes& source) {
-  auto result = GetInstance()->source_.emplace(id, source);
+bool BuiltinLoader::Add(const char* id,
+                        const UnionBytes& source,
+                        BuiltinLoader* instance) {
+  if (instance == nullptr) instance = GetInstance();
+  auto result = instance->source_.emplace(id, source);
   return result.second;
 }
 
@@ -249,10 +251,12 @@ void BuiltinLoader::AddExternalizedBuiltin(const char* id,
     ABORT();
   }
 
-  Add(id, source);
+  Add(id, source, this);
 }
 
-bool BuiltinLoader::Add(const char* id, std::string_view utf8source) {
+bool BuiltinLoader::Add(const char* id,
+                        std::string_view utf8source,
+                        BuiltinLoader* instance) {
   size_t expected_u16_length =
       simdutf::utf16_length_from_utf8(utf8source.data(), utf8source.length());
   auto out = std::make_shared<std::vector<uint16_t>>(expected_u16_length);
@@ -261,7 +265,7 @@ bool BuiltinLoader::Add(const char* id, std::string_view utf8source) {
       utf8source.length(),
       reinterpret_cast<char16_t*>(out->data()));
   out->resize(u16_length);
-  return Add(id, UnionBytes(out));
+  return Add(id, UnionBytes(out), instance);
 }
 
 // Returns Local<Function> of the compiled module if return_code_cache

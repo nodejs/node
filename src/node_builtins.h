@@ -67,8 +67,14 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   // Returns config.gypi as a JSON string
   static v8::Local<v8::String> GetConfigString(v8::Isolate* isolate);
   static bool Exists(const char* id);
-  static bool Add(const char* id, const UnionBytes& source);
-  static bool Add(const char* id, std::string_view utf8source);
+  // TODO(addaleax): Make BuiltinLoader non-global so that these
+  // methods do not need to be static.
+  static bool Add(const char* id,
+                  const UnionBytes& source,
+                  BuiltinLoader* instance = nullptr);
+  static bool Add(const char* id,
+                  std::string_view utf8source,
+                  BuiltinLoader* instance = nullptr);
 
   static bool CompileAllBuiltins(v8::Local<v8::Context> context);
   static void RefreshCodeCache(const std::vector<CodeCacheInfo>& in);
@@ -134,9 +140,8 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   static void HasCachedBuiltins(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static void AddExternalizedBuiltin(const char* id, const char* filename);
+  void AddExternalizedBuiltin(const char* id, const char* filename);
 
-  static BuiltinLoader instance_;
   BuiltinCategories builtin_categories_;
   BuiltinSourceMap source_;
   BuiltinCodeCacheMap code_cache_;

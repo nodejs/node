@@ -11,7 +11,7 @@ using node::builtins::BuiltinSourceMap;
 class PerProcessTest : public ::testing::Test {
  protected:
   static const BuiltinSourceMap get_sources_for_test() {
-    return BuiltinLoader::instance_.source_;
+    return BuiltinLoader::GetInstance()->source_;
   }
 };
 
