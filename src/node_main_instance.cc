@@ -159,6 +159,11 @@ NodeMainInstance::CreateMainEnvironment(ExitCode* exit_code) {
                               &(snapshot_data_->env_info),
                               EnvironmentFlags::kDefaultFlags,
                               {}));
+#ifdef NODE_V8_SHARED_RO_HEAP
+    // TODO(addaleax): Do this as part of creating the Environment
+    // once we store the SnapshotData* itself on IsolateData.
+    env->builtin_loader()->RefreshCodeCache(snapshot_data_->code_cache);
+#endif
     context = Context::FromSnapshot(isolate_,
                                     SnapshotData::kNodeMainContextIndex,
                                     {DeserializeNodeInternalFields, env.get()})

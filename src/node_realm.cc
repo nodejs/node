@@ -8,7 +8,6 @@
 
 namespace node {
 
-using builtins::BuiltinLoader;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -174,7 +173,8 @@ void Realm::DeserializeProperties(const RealmSerializeInfo* info) {
 MaybeLocal<Value> Realm::ExecuteBootstrapper(const char* id) {
   EscapableHandleScope scope(isolate());
   Local<Context> ctx = context();
-  MaybeLocal<Value> result = BuiltinLoader::CompileAndCall(ctx, id, this);
+  MaybeLocal<Value> result =
+      env()->builtin_loader()->CompileAndCall(ctx, id, this);
 
   // If there was an error during bootstrap, it must be unrecoverable
   // (e.g. max call stack exceeded). Clear the stack so that the
