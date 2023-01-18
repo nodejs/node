@@ -278,6 +278,8 @@ const vectors = {
 
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(privateKey.type, 'private');
+    assert.strictEqual(publicKey.toString(), '[object CryptoKey]');
+    assert.strictEqual(privateKey.toString(), '[object CryptoKey]');
     assert.strictEqual(publicKey.extractable, true);
     assert.strictEqual(privateKey.extractable, true);
     assert.deepStrictEqual(publicKey.usages, publicUsages);
@@ -430,6 +432,8 @@ const vectors = {
 
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(privateKey.type, 'private');
+    assert.strictEqual(publicKey.toString(), '[object CryptoKey]');
+    assert.strictEqual(privateKey.toString(), '[object CryptoKey]');
     assert.strictEqual(publicKey.extractable, true);
     assert.strictEqual(privateKey.extractable, true);
     assert.deepStrictEqual(publicKey.usages, publicUsages);
@@ -499,6 +503,7 @@ const vectors = {
     assert(isCryptoKey(key));
 
     assert.strictEqual(key.type, 'secret');
+    assert.strictEqual(key.toString(), '[object CryptoKey]');
     assert.strictEqual(key.extractable, true);
     assert.deepStrictEqual(key.usages, usages);
     assert.strictEqual(key.algorithm.name, name);
@@ -557,6 +562,7 @@ const vectors = {
     assert(isCryptoKey(key));
 
     assert.strictEqual(key.type, 'secret');
+    assert.strictEqual(key.toString(), '[object CryptoKey]');
     assert.strictEqual(key.extractable, true);
     assert.deepStrictEqual(key.usages, usages);
     assert.strictEqual(key.algorithm.name, 'HMAC');
@@ -618,6 +624,8 @@ assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
 
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(privateKey.type, 'private');
+    assert.strictEqual(publicKey.toString(), '[object CryptoKey]');
+    assert.strictEqual(privateKey.toString(), '[object CryptoKey]');
     assert.strictEqual(publicKey.extractable, true);
     assert.strictEqual(privateKey.extractable, true);
     assert.deepStrictEqual(publicKey.usages, publicUsages);
