@@ -19,6 +19,9 @@ const
     pkg = require("../../package.json"),
     astUtils = require("../shared/ast-utils"),
     {
+        directivesPattern
+    } = require("../shared/directives"),
+    {
         Legacy: {
             ConfigOps,
             ConfigValidator,
@@ -377,7 +380,7 @@ function getDirectiveComments(ast, ruleMapper, warnInlineConfig) {
     ast.comments.filter(token => token.type !== "Shebang").forEach(comment => {
         const { directivePart, justificationPart } = extractDirectiveComment(comment.value);
 
-        const match = /^(eslint(?:-env|-enable|-disable(?:(?:-next)?-line)?)?|exported|globals?)(?:\s|$)/u.exec(directivePart);
+        const match = directivesPattern.exec(directivePart);
 
         if (!match) {
             return;
