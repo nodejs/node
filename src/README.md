@@ -31,6 +31,9 @@ embedder API.
 Important concepts when using V8 are the ones of [`Isolate`][]s and
 [JavaScript value handles][].
 
+V8 supports fast-path C functions called [V8 Fast API][]
+which is useful for improving the performance in certain cases.
+
 ## libuv API documentation
 
 The other major dependency of Node.js is [libuv][], providing
@@ -1061,3 +1064,4 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [libuv handles]: #libuv-handles-and-requests
 [libuv requests]: #libuv-handles-and-requests
 [reference documentation for the libuv API]: http://docs.libuv.org/en/v1.x/
+[V8 Fast API]: ../doc/contributing/adding-v8-fast-api.md

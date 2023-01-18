@@ -19,8 +19,13 @@ for example, they may not trigger garbage collection.
 
 ## Requirements
 
-* Each unique fast API function signature should be defined inside the
+* Any function passed to `CFunction::Make`, including fast API function
+  declarations, should have their signature registered in
   [`external references`](../../src/node_external_reference.h) file.
+  Although, it would not start failing or crashing until the function end up
+  in a snapshot (either the built-in or a user-land one). Please refer to
+  [binding functions documentation](../../src#binding-functions) for more
+  information.
 * To test fast APIs, make sure to run the tests in a loop with a decent
   iterations count to trigger V8 for optimization and to prefer the fast API
   over slow one.
@@ -31,7 +36,7 @@ for example, they may not trigger garbage collection.
 ## Fallback to slow path
 
 Fast API supports fallback to slow path in case logically it is wise to do so,
-for example when providing a detailed error, or need to trigger JavaScript.
+for example when a detailed error or JavaScript execution is needed.
 Fallback mechanism can be enabled and changed from the C++ implementation of
 the fast API function declaration.
 
@@ -77,7 +82,7 @@ A typical function that communicates between JavaScript and C++ is as follows.
   namespace node {
   namespace custom_namespace {
 
-  static void divide(const FunctionCallbackInfo<Value>& args) {
+  static void SlowDivide(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK_GE(args.Length(), 2);
     CHECK(args[0]->IsInt32());
@@ -90,7 +95,7 @@ A typical function that communicates between JavaScript and C++ is as follows.
     }
 
     double result = a->Value() / b->Value();
-    args.GetReturnValue().Set(result);
+    args.GetReturnValue().Set(v8::Number::New(env->isolate(), result));
   }
 
   static double FastDivide(const int32_t a,
@@ -110,11 +115,11 @@ A typical function that communicates between JavaScript and C++ is as follows.
                          Local<Value> unused,
                          Local<Context> context,
                          void* priv) {
-    SetFastMethod(context, target, "divide", Divide, &fast_divide_);
+    SetFastMethod(context, target, "divide", SlowDivide, &fast_divide_);
   }
 
   void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-    registry->Register(Divide);
+    registry->Register(SlowDivide);
     registry->Register(FastDivide);
     registry->Register(fast_divide_.GetTypeInfo());
   }
