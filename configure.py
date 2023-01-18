@@ -1669,6 +1669,9 @@ def configure_intl(o):
   # always set icu_small, node.gyp depends on it being defined.
   o['variables']['icu_small'] = b(False)
 
+  # prevent data override
+  o['defines'] += ['ICU_NO_USER_DATA_OVERRIDE']
+
   with_intl = options.with_intl
   with_icu_source = options.with_icu_source
   have_icu_path = bool(options.with_icu_path)
