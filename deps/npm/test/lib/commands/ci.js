@@ -79,6 +79,30 @@ t.test('reifies, audits, removes node_modules', async t => {
   t.equal(fs.existsSync(nmAbbrev), true, 'installs abbrev')
 })
 
+t.test('reifies, audits, removes node_modules on repeat run', async t => {
+  const { npm, joinedOutput, registry } = await loadMockNpm(t, {
+    prefixDir: {
+      abbrev: abbrev,
+      'package.json': JSON.stringify(packageJson),
+      'package-lock.json': JSON.stringify(packageLock),
+      node_modules: { test: 'test file that will be removed' },
+    },
+  })
+  const manifest = registry.manifest({ name: 'abbrev' })
+  await registry.tarball({
+    manifest: manifest.versions['1.0.0'],
+    tarball: path.join(npm.prefix, 'abbrev'),
+  })
+  registry.nock.post('/-/npm/v1/security/advisories/bulk').reply(200, {})
+  await npm.exec('ci', [])
+  await npm.exec('ci', [])
+  t.match(joinedOutput(), 'added 1 package, and audited 2 packages in')
+  const nmTest = path.join(npm.prefix, 'node_modules', 'test')
+  t.equal(fs.existsSync(nmTest), false, 'existing node_modules is removed')
+  const nmAbbrev = path.join(npm.prefix, 'node_modules', 'abbrev')
+  t.equal(fs.existsSync(nmAbbrev), true, 'installs abbrev')
+})
+
 t.test('--no-audit and --ignore-scripts', async t => {
   const { npm, joinedOutput, registry } = await loadMockNpm(t, {
     config: {

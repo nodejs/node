@@ -67,7 +67,7 @@ class CI extends ArboristWorkspaceCmd {
       const path = `${where}/node_modules`
       // get the list of entries so we can skip the glob for performance
       const entries = await fs.readdir(path, null).catch(er => [])
-      return Promise.all(entries.map(f => fs.rm(`${path}/${f}`, { force: true })))
+      return Promise.all(entries.map(f => fs.rm(`${path}/${f}`, { force: true, recursive: true })))
     })
 
     await arb.reify(opts)
