@@ -74,7 +74,7 @@ class RequestToServer {
     switch (action_) {
       case TransportAction::kKill:
         server->TerminateConnections();
-        // Fallthrough
+        [[fallthrough]];
       case TransportAction::kStop:
         server->Stop();
         break;
