@@ -631,13 +631,13 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
     CHECK(exports->SetPrototype(context, Null(isolate)).FromJust());
     DefineConstants(isolate, exports);
   } else if (!strcmp(*module_v, "natives")) {
-    exports = builtins::BuiltinLoader::GetSourceObject(context);
+    exports = realm->env()->builtin_loader()->GetSourceObject(context);
     // Legacy feature: process.binding('natives').config contains stringified
     // config.gypi
     CHECK(exports
               ->Set(context,
                     realm->isolate_data()->config_string(),
-                    builtins::BuiltinLoader::GetConfigString(isolate))
+                    realm->env()->builtin_loader()->GetConfigString(isolate))
               .FromJust());
   } else {
     return THROW_ERR_INVALID_MODULE(isolate, "No such binding: %s", *module_v);
