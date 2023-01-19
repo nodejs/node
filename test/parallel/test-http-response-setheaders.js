@@ -4,7 +4,7 @@ const http = require('http');
 const assert = require('assert');
 
 {
-  const server = http.createServer({ requireHostHeader: false }, common.mustCall((req, res) => {
+  const server = http.createServer(common.mustCall((req, res) => {
     res.writeHead(200); // Headers already sent
     const headers = new globalThis.Headers({ foo: '1' });
     assert.throws(() => {
@@ -26,7 +26,7 @@ const assert = require('assert');
 }
 
 {
-  const server = http.createServer({ requireHostHeader: false }, common.mustCall((req, res) => {
+  const server = http.createServer(common.mustCall((req, res) => {
     assert.throws(() => {
       res.setHeaders(['foo', '1']);
     }, {
@@ -71,7 +71,7 @@ const assert = require('assert');
 }
 
 {
-  const server = http.createServer({ requireHostHeader: false }, common.mustCall((req, res) => {
+  const server = http.createServer(common.mustCall((req, res) => {
     const headers = new globalThis.Headers({ foo: '1', bar: '2' });
     res.setHeaders(headers);
     res.writeHead(200);
@@ -91,7 +91,7 @@ const assert = require('assert');
 }
 
 {
-  const server = http.createServer({ requireHostHeader: false }, common.mustCall((req, res) => {
+  const server = http.createServer(common.mustCall((req, res) => {
     const headers = new globalThis.Headers({ foo: '1', bar: '2' });
     res.setHeaders(headers);
     res.writeHead(200, ['foo', '3']);
@@ -111,7 +111,7 @@ const assert = require('assert');
 }
 
 {
-  const server = http.createServer({ requireHostHeader: false }, common.mustCall((req, res) => {
+  const server = http.createServer(common.mustCall((req, res) => {
     const headers = new Map([['foo', '1'], ['bar', '2']]);
     res.setHeaders(headers);
     res.writeHead(200);
