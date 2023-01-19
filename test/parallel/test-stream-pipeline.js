@@ -1556,3 +1556,38 @@ const tsp = require('timers/promises');
     })
   );
 }
+
+{
+  class CustomReadable extends Readable {
+    _read() {
+      this.push('asd');
+      this.push(null);
+    }
+  }
+
+  class CustomWritable extends Writable {
+    constructor() {
+      super();
+      this.endCount = 0;
+      this.str = '';
+    }
+
+    _write(chunk, enc, cb) {
+      this.str += chunk;
+      cb();
+    }
+
+    end() {
+      this.endCount += 1;
+      super.end();
+    }
+  }
+
+  const readable = new CustomReadable();
+  const writable = new CustomWritable();
+
+  pipeline(readable, writable, common.mustSucceed(() => {
+    assert.strictEqual(writable.str, 'asd');
+    assert.strictEqual(writable.endCount, 1);
+  }));
+}
