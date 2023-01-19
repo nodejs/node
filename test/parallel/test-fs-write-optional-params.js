@@ -68,9 +68,7 @@ async function runTests(fd) {
     new Date(),
     new String('notPrimitive'),
     { [Symbol.toPrimitive]: (hint) => 'amObject' },
-
-    // TODO(LiviaMedeiros): add the following after DEP0162 EOL
-    // { toString() { return 'amObject'; } },
+    { toString() { return 'amObject'; } },
   ]) {
     await testInvalid(fd, 'ERR_INVALID_ARG_TYPE', badBuffer, {});
   }
