@@ -12,7 +12,7 @@ const crypto = require('node:crypto');
 
 if (common.isMainThread) {
   // TODO(richardlau): Decide if `crypto.setFips` should error if the
-  // provider namd "fips" is not available.
+  // provider named "fips" is not available.
   crypto.setFips(1);
   crypto.randomBytes(20, common.mustCall((err) => {
     // crypto.randomBytes should either succeed or fail but not hang.
