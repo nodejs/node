@@ -736,11 +736,8 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
     }
 
     default:
-      CHECK(0 && "unknown encoding");
-      break;
+      UNREACHABLE("unknown encoding");
   }
-
-  UNREACHABLE();
 }
 
 
