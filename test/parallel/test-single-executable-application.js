@@ -88,7 +88,11 @@ console.log('Hello, world!');
 `);
 copyFileSync(process.execPath, outputFile);
 const postjectFile = join(__dirname, '..', 'fixtures', 'postject-copy', 'node_modules', 'postject', 'dist', 'cli.js');
-execSync(`${process.execPath} ${postjectFile} ${outputFile} NODE_JS_CODE ${inputFile} --sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2`);
+let postjectCommand = `${process.execPath} ${postjectFile} ${outputFile} NODE_JS_CODE ${inputFile} --sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2`;
+if (process.platform === 'darwin') {
+  postjectCommand += ' --macho-segment-name NODE_JS';
+}
+execSync(postjectCommand);
 
 if (process.platform === 'darwin') {
   execSync(`codesign --sign - ${outputFile}`);
