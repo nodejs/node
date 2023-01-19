@@ -175,6 +175,8 @@ CHAR_TEST(8, IsC0ControlOrSpace, (ch >= '\0' && ch <= ' '))
 // https://infra.spec.whatwg.org/#ascii-digit
 CHAR_TEST(8, IsASCIIDigit, (ch >= '0' && ch <= '9'))
 
+CHAR_TEST(8, IsASCIIOcDigit, (ch >= '0' && ch <= '7'))
+
 // https://infra.spec.whatwg.org/#ascii-hex-digit
 CHAR_TEST(8, IsASCIIHexDigit, (IsASCIIDigit(ch) ||
                                (ch >= 'A' && ch <= 'F') ||
@@ -422,14 +424,19 @@ bool IsIPv4NumberValid(const std::string_view input) {
         return true;
       }
 
-      return input.find_first_not_of("0123456789abcdefABCDEF", 2) ==
-             std::string_view::npos;
+      return std::all_of(input.begin() + 2, input.end(), [](const char& c) {
+        return IsASCIIHexDigit(c);
+      });
     }
 
-    return input.find_first_not_of("01234567", 1) == std::string_view::npos;
+    return std::all_of(input.begin() + 1, input.end(), [](const char& c) {
+      return IsASCIIOcDigit(c);
+    });
   }
 
-  return std::all_of(input.begin(), input.end(), ::isdigit);
+  return std::all_of(input.begin(), input.end(), [](const char& c) {
+    return IsASCIIDigit(c);
+  });
 }
 
 // https://url.spec.whatwg.org/#ends-in-a-number-checker
@@ -439,32 +446,31 @@ inline bool EndsInANumber(const std::string_view input) {
   }
 
   char delimiter = '.';
-  std::string_view::iterator pointer_start = input.begin();
-  std::string_view::iterator pointer_end = input.end();
+  auto it_start = input.begin();
+  auto it_end = input.end();
 
-  uint8_t parts_size = std::count(pointer_start, pointer_end, delimiter);
+  auto parts_size = std::count(it_start, it_end, delimiter);
   ++parts_size;
 
   if (input.back() == delimiter) {
-    --pointer_end;
+    --it_end;
     --parts_size;
   }
 
   if (parts_size > 1) {
-    pointer_start +=
-        input.rfind(delimiter, pointer_end - pointer_start - 1) + 1;
+    it_start += input.rfind(delimiter, it_end - it_start - 1) + 1;
   }
 
-  if ((pointer_end - pointer_start) == 0) {
+  if ((it_end - it_start) == 0) {
     return false;
   }
 
-  if (std::all_of(pointer_start, pointer_end, ::isdigit)) {
+  if (std::all_of(
+          it_start, it_end, [](const char& c) { return IsASCIIDigit(c); })) {
     return true;
   }
 
-  return IsIPv4NumberValid(std::string_view(const_cast<char*>(pointer_start),
-                                            pointer_end - pointer_start));
+  return IsIPv4NumberValid(std::string_view(&(*it_start), it_end - it_start));
 }
 
 void URLHost::ParseIPv4Host(const char* input, size_t length) {
