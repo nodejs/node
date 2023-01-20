@@ -446,31 +446,30 @@ inline bool EndsInANumber(const std::string_view input) {
   }
 
   char delimiter = '.';
-  auto it_start = input.begin();
-  auto it_end = input.end();
-
-  auto parts_size = std::count(it_start, it_end, delimiter);
-  ++parts_size;
-
+  auto last_index = input.size() - 1;
   if (input.back() == delimiter) {
-    --it_end;
-    --parts_size;
+    --last_index;
   }
 
-  if (parts_size > 1) {
-    it_start += input.rfind(delimiter, it_end - it_start - 1) + 1;
+  std::string_view last{};
+  auto pos = input.find_last_of(delimiter, last_index);
+  if (pos == std::string_view::npos) {
+    last = input.substr(0, last_index);
+  } else {
+    last = input.substr(pos + 1, last_index - pos);
   }
 
-  if ((it_end - it_start) == 0) {
+  if (last.empty()) {
     return false;
   }
 
-  if (std::all_of(
-          it_start, it_end, [](const char& c) { return IsASCIIDigit(c); })) {
+  if (std::all_of(last.begin(), last.end(), [](const char& c) {
+        return IsASCIIDigit(c);
+      })) {
     return true;
   }
 
-  return IsIPv4NumberValid(std::string_view(&(*it_start), it_end - it_start));
+  return IsIPv4NumberValid(last);
 }
 
 void URLHost::ParseIPv4Host(const char* input, size_t length) {
