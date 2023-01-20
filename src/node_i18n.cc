@@ -794,12 +794,12 @@ static int GetColumnWidth(UChar32 codepoint,
         return 2;
       }
       // If ambiguous_as_full_width is false:
-      // Fall through
+      [[fallthrough]];
     case U_EA_NEUTRAL:
       if (u_hasBinaryProperty(codepoint, UCHAR_EMOJI_PRESENTATION)) {
         return 2;
       }
-      // Fall through
+      [[fallthrough]];
     case U_EA_HALFWIDTH:
     case U_EA_NARROW:
     default:
