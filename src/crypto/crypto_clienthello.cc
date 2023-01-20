@@ -29,7 +29,7 @@ void ClientHelloParser::Parse(const uint8_t* data, size_t avail) {
     case kWaiting:
       if (!ParseRecordHeader(data, avail))
         break;
-      // Fall through
+      [[fallthrough]];
     case kTLSHeader:
       ParseHeader(data, avail);
       break;

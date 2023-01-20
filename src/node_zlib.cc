@@ -797,7 +797,7 @@ void ZlibContext::DoThreadPoolWork() {
             break;
           }
 
-          // fallthrough
+          [[fallthrough]];
         case 1:
           if (next_expected_header_byte == nullptr) {
             break;
@@ -817,7 +817,7 @@ void ZlibContext::DoThreadPoolWork() {
           CHECK(0 && "invalid number of gzip magic number bytes read");
       }
 
-      // fallthrough
+      [[fallthrough]];
     case INFLATE:
     case GUNZIP:
     case INFLATERAW:
