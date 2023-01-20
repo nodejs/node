@@ -2426,7 +2426,7 @@ as an argument to any listeners on the event.
 <!-- YAML
 added: v0.1.5
 changes:
-  - version: REPLACEME
+  - version: v19.5.0
     pr-url: https://github.com/nodejs/node/pull/45982
     description: >-
      The `joinDuplicateHeaders` option in the `http.request()`
@@ -3708,7 +3708,7 @@ request itself.
 <!-- YAML
 added: v14.3.0
 changes:
-  - version: REPLACEME
+  - version: v19.5.0
     pr-url: https://github.com/nodejs/node/pull/46143
     description: The `label` parameter is added.
 -->
