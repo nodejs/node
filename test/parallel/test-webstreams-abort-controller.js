@@ -48,7 +48,7 @@ const assert = require('assert');
         ac.abort();
       }
     }
-  })(), /AbortError/);
+  })(), /AbortError/).then(common.mustCall());
 }
 
 {
