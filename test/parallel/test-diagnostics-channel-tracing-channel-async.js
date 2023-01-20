@@ -49,3 +49,12 @@ channel.tracePromise(function(value) {
   }),
   common.mustNotCall()
 );
+
+let failed = false;
+try {
+  channel.traceCallback(common.mustNotCall(), 0, input, thisArg, 1, 2, 3);
+} catch (err) {
+  assert.ok(/"callback" argument must be of type function/.test(err.message));
+  failed = true;
+}
+assert.strictEqual(failed, true);
