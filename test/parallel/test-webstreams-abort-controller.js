@@ -25,7 +25,7 @@ const assert = require('assert');
 
   ac.abort();
 
-  assert.rejects(reader.read(), 'AbortError: The operation was aborted.');
+  assert.rejects(reader.read(), 'AbortError: The operation was aborted.').then(common.mustCall());
 }
 
 {
