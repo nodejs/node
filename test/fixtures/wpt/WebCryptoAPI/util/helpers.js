@@ -160,6 +160,7 @@ function assert_goodCryptoKey(key, algorithm, extractable, usages, kind) {
         assert_in_array(usage, correctUsages, "Has " + usage + " usage");
     });
     assert_equals(key.usages.length, usageCount, "usages property is correct");
+    assert_equals(key[Symbol.toStringTag], 'CryptoKey', "has the expected Symbol.toStringTag");
 }
 
 
