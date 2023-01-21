@@ -25,6 +25,7 @@
 #include "env-inl.h"
 #include "node_buffer.h"
 #include "node_errors.h"
+#include "simdutf.h"
 #include "util.h"
 
 #include <climits>
@@ -467,60 +468,6 @@ Maybe<size_t> StringBytes::Size(Isolate* isolate,
   UNREACHABLE();
 }
 
-
-
-
-static bool contains_non_ascii_slow(const char* buf, size_t len) {
-  for (size_t i = 0; i < len; ++i) {
-    if (buf[i] & 0x80)
-      return true;
-  }
-  return false;
-}
-
-
-static bool contains_non_ascii(const char* src, size_t len) {
-  if (len < 16) {
-    return contains_non_ascii_slow(src, len);
-  }
-
-  const unsigned bytes_per_word = sizeof(uintptr_t);
-  const unsigned align_mask = bytes_per_word - 1;
-  const unsigned unaligned = reinterpret_cast<uintptr_t>(src) & align_mask;
-
-  if (unaligned > 0) {
-    const unsigned n = bytes_per_word - unaligned;
-    if (contains_non_ascii_slow(src, n))
-      return true;
-    src += n;
-    len -= n;
-  }
-
-
-#if defined(_WIN64) || defined(_LP64)
-  const uintptr_t mask = 0x8080808080808080ll;
-#else
-  const uintptr_t mask = 0x80808080l;
-#endif
-
-  const uintptr_t* srcw = reinterpret_cast<const uintptr_t*>(src);
-
-  for (size_t i = 0, n = len / bytes_per_word; i < n; ++i) {
-    if (srcw[i] & mask)
-      return true;
-  }
-
-  const unsigned remainder = len & align_mask;
-  if (remainder > 0) {
-    const size_t offset = len - remainder;
-    if (contains_non_ascii_slow(src + offset, remainder))
-      return true;
-  }
-
-  return false;
-}
-
-
 static void force_ascii_slow(const char* src, char* dst, size_t len) {
   for (size_t i = 0; i < len; ++i) {
     dst[i] = src[i] & 0x7f;
@@ -634,7 +581,8 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
       }
 
     case ASCII:
-      if (contains_non_ascii(buf, buflen)) {
+      if (simdutf::validate_ascii_with_errors(buf, buflen).error) {
+        // The input contains non-ASCII bytes.
         char* out = node::UncheckedMalloc(buflen);
         if (out == nullptr) {
           *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
