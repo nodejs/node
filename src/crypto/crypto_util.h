@@ -12,12 +12,13 @@
 #include "util.h"
 #include "v8.h"
 
+#include <openssl/dsa.h>
+#include <openssl/ec.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
-#include <openssl/ec.h>
+#include <openssl/hmac.h>
 #include <openssl/kdf.h>
 #include <openssl/rsa.h>
-#include <openssl/dsa.h>
 #include <openssl/ssl.h>
 #ifndef OPENSSL_NO_ENGINE
 #  include <openssl/engine.h>
