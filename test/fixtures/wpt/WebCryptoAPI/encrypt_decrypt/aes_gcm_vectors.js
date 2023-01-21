@@ -246,7 +246,7 @@ function getTestVectors() {
     var failing = [];
     keyLengths.forEach(function(keyLength) {
         // First, make some tests for bad tag lengths
-        [24, 48, 72, 95, 129, 256].forEach(function(badTagLength) {
+        [24, 48, 72, 95, 129].forEach(function(badTagLength) {
             failing.push({
                 name: "AES-GCM " + keyLength.toString() + "-bit key, illegal tag length " + badTagLength.toString() + "-bits",
                 keyBuffer: keyBytes[keyLength],
