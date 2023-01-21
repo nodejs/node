@@ -316,7 +316,7 @@ def removeList(count=0):
             erritems = fi.readlines()
             fi.close()
             #Item zone/zh_Hant_TW.res depends on missing item zone/zh_Hant.res
-            pat = re.compile(bytes(r"^Item ([^ ]+) depends on missing item ([^ ]+).*", 'utf-8'))
+            pat = re.compile(br"^Item ([^ ]+) depends on missing item ([^ ]+).*")
             for i in range(len(erritems)):
                 line = erritems[i].strip()
                 m = pat.match(line)
