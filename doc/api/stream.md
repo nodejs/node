@@ -3231,7 +3231,7 @@ added: v15.4.0
 -->
 
 * `signal` {AbortSignal} A signal representing possible cancellation
-* `stream` {Stream} | {ReadableStream} | {WritableStream} 
+* `stream` {Stream|ReadableStream|WritableStream} 
 
 A stream to attach a signal to
 
