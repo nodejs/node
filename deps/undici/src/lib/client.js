@@ -441,6 +441,7 @@ class Parser {
 
     this.keepAlive = ''
     this.contentLength = ''
+    this.connection = ''
     this.maxResponseSize = client[kMaxResponseSize]
   }
 
@@ -616,6 +617,8 @@ class Parser {
     const key = this.headers[len - 2]
     if (key.length === 10 && key.toString().toLowerCase() === 'keep-alive') {
       this.keepAlive += buf.toString()
+    } else if (key.length === 10 && key.toString().toLowerCase() === 'connection') {
+      this.connection += buf.toString()
     } else if (key.length === 14 && key.toString().toLowerCase() === 'content-length') {
       this.contentLength += buf.toString()
     }
@@ -709,7 +712,11 @@ class Parser {
     assert.strictEqual(this.timeoutType, TIMEOUT_HEADERS)
 
     this.statusCode = statusCode
-    this.shouldKeepAlive = shouldKeepAlive
+    this.shouldKeepAlive = (
+      shouldKeepAlive ||
+      // Override llhttp value which does not allow keepAlive for HEAD.
+      (request.method === 'HEAD' && !socket[kReset] && this.connection.toLowerCase() === 'keep-alive')
+    )
 
     if (this.statusCode >= 200) {
       const bodyTimeout = request.bodyTimeout != null
@@ -739,7 +746,7 @@ class Parser {
     this.headers = []
     this.headersSize = 0
 
-    if (shouldKeepAlive && client[kPipelining]) {
+    if (this.shouldKeepAlive && client[kPipelining]) {
       const keepAliveTimeout = this.keepAlive ? util.parseKeepAliveTimeout(this.keepAlive) : null
 
       if (keepAliveTimeout != null) {
@@ -769,7 +776,6 @@ class Parser {
     }
 
     if (request.method === 'HEAD') {
-      assert(socket[kReset])
       return 1
     }
 
@@ -843,6 +849,7 @@ class Parser {
     this.bytesRead = 0
     this.contentLength = ''
     this.keepAlive = ''
+    this.connection = ''
 
     assert(this.headers.length % 2 === 0)
     this.headers = []
@@ -1376,8 +1383,8 @@ function write (client, request) {
     socket[kReset] = true
   }
 
-  if (reset) {
-    socket[kReset] = true
+  if (reset != null) {
+    socket[kReset] = reset
   }
 
   if (client[kMaxRequests] && socket[kCounter]++ >= client[kMaxRequests]) {

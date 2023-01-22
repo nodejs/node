@@ -144,7 +144,7 @@ class Request {
 
     this.blocking = blocking == null ? false : blocking
 
-    this.reset = reset == null ? false : reset
+    this.reset = reset == null ? null : reset
 
     this.host = null
 
