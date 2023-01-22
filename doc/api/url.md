@@ -940,6 +940,14 @@ console.log(params.toString());
 // Prints foo=def&abc=def&xyz=opq
 ```
 
+#### `urlSearchParams.size`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The total number of parameter entries.
+
 #### `urlSearchParams.sort()`
 
 <!-- YAML

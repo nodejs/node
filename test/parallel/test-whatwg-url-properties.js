@@ -54,6 +54,14 @@ const { URL, URLSearchParams } = require('url');
   testMethod(URLSearchParams.prototype, name, methodName);
 });
 
+{
+  const params = new URLSearchParams();
+  params.append('a', 'b');
+  params.append('a', 'c');
+  params.append('b', 'c');
+  assert.strictEqual(params.size, 3);
+}
+
 function stringifyName(name) {
   if (typeof name === 'symbol') {
     const { description } = name;
