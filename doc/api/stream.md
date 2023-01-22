@@ -3233,7 +3233,7 @@ added: v15.4.0
 * `signal` {AbortSignal} A signal representing possible cancellation
 * `stream` {Stream|ReadableStream|WritableStream} 
 
-A stream to attach a signal to
+A stream to attach a signal to.
 
 Attaches an AbortSignal to a readable or writeable stream. This lets code
 control stream destruction using an `AbortController`.
