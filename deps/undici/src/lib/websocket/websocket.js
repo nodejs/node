@@ -309,23 +309,14 @@ class WebSocket extends EventTarget {
       // not throw an exception must increase the bufferedAmount attribute
       // by the length of data’s buffer in bytes.
 
-      const ab = new ArrayBuffer(data.byteLength)
+      const ab = Buffer.from(data, data.byteOffset, data.byteLength)
 
-      if (Buffer.isBuffer(data)) {
-        // new Buffer signature is deprecated
-        Buffer.from(ab).set(data)
-      } else {
-        new data.constructor(ab).set(data)
-      }
-
-      const value = Buffer.from(ab)
-
-      const frame = new WebsocketFrameSend(value)
+      const frame = new WebsocketFrameSend(ab)
       const buffer = frame.createFrame(opcodes.BINARY)
 
-      this.#bufferedAmount += value.byteLength
+      this.#bufferedAmount += ab.byteLength
       socket.write(buffer, () => {
-        this.#bufferedAmount -= value.byteLength
+        this.#bufferedAmount -= ab.byteLength
       })
     } else if (isBlobLike(data)) {
       // If the WebSocket connection is established, and the WebSocket

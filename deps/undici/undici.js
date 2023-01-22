@@ -6088,7 +6088,7 @@ var require_formdata = __commonJS({
             type: value.type,
             lastModified: value.lastModified
           };
-          value = value instanceof File ? new File([value], filename, options) : new FileLike(value, filename, options);
+          value = NativeFile && value instanceof NativeFile || value instanceof UndiciFile ? new File([value], filename, options) : new FileLike(value, filename, options);
         }
       }
       return { name, value };
@@ -7505,7 +7505,7 @@ var require_request2 = __commonJS({
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
-        this.reset = reset == null ? false : reset;
+        this.reset = reset == null ? null : reset;
         this.host = null;
         this.contentLength = null;
         this.contentType = null;
@@ -8869,6 +8869,7 @@ var require_client = __commonJS({
         this.bytesRead = 0;
         this.keepAlive = "";
         this.contentLength = "";
+        this.connection = "";
         this.maxResponseSize = client[kMaxResponseSize];
       }
       setTimeout(value, type) {
@@ -9004,6 +9005,8 @@ var require_client = __commonJS({
         const key = this.headers[len - 2];
         if (key.length === 10 && key.toString().toLowerCase() === "keep-alive") {
           this.keepAlive += buf.toString();
+        } else if (key.length === 10 && key.toString().toLowerCase() === "connection") {
+          this.connection += buf.toString();
         } else if (key.length === 14 && key.toString().toLowerCase() === "content-length") {
           this.contentLength += buf.toString();
         }
@@ -9067,7 +9070,7 @@ var require_client = __commonJS({
         }
         assert.strictEqual(this.timeoutType, TIMEOUT_HEADERS);
         this.statusCode = statusCode;
-        this.shouldKeepAlive = shouldKeepAlive;
+        this.shouldKeepAlive = shouldKeepAlive || request.method === "HEAD" && !socket[kReset] && this.connection.toLowerCase() === "keep-alive";
         if (this.statusCode >= 200) {
           const bodyTimeout = request.bodyTimeout != null ? request.bodyTimeout : client[kBodyTimeout];
           this.setTimeout(bodyTimeout, TIMEOUT_BODY);
@@ -9089,7 +9092,7 @@ var require_client = __commonJS({
         assert(this.headers.length % 2 === 0);
         this.headers = [];
         this.headersSize = 0;
-        if (shouldKeepAlive && client[kPipelining]) {
+        if (this.shouldKeepAlive && client[kPipelining]) {
           const keepAliveTimeout = this.keepAlive ? util.parseKeepAliveTimeout(this.keepAlive) : null;
           if (keepAliveTimeout != null) {
             const timeout = Math.min(keepAliveTimeout - client[kKeepAliveTimeoutThreshold], client[kKeepAliveMaxTimeout]);
@@ -9112,7 +9115,6 @@ var require_client = __commonJS({
           return -1;
         }
         if (request.method === "HEAD") {
-          assert(socket[kReset]);
           return 1;
         }
         if (statusCode < 200) {
@@ -9168,6 +9170,7 @@ var require_client = __commonJS({
         this.bytesRead = 0;
         this.contentLength = "";
         this.keepAlive = "";
+        this.connection = "";
         assert(this.headers.length % 2 === 0);
         this.headers = [];
         this.headersSize = 0;
@@ -9534,8 +9537,8 @@ var require_client = __commonJS({
       if (upgrade || method === "CONNECT") {
         socket[kReset] = true;
       }
-      if (reset) {
-        socket[kReset] = true;
+      if (reset != null) {
+        socket[kReset] = reset;
       }
       if (client[kMaxRequests] && socket[kCounter]++ >= client[kMaxRequests]) {
         socket[kReset] = true;
@@ -14518,18 +14521,12 @@ var require_websocket = __commonJS({
             this.#bufferedAmount -= value.byteLength;
           });
         } else if (ArrayBuffer.isView(data)) {
-          const ab = new ArrayBuffer(data.byteLength);
-          if (Buffer.isBuffer(data)) {
-            Buffer.from(ab).set(data);
-          } else {
-            new data.constructor(ab).set(data);
-          }
-          const value = Buffer.from(ab);
-          const frame = new WebsocketFrameSend(value);
+          const ab = Buffer.from(data, data.byteOffset, data.byteLength);
+          const frame = new WebsocketFrameSend(ab);
           const buffer = frame.createFrame(opcodes.BINARY);
-          this.#bufferedAmount += value.byteLength;
+          this.#bufferedAmount += ab.byteLength;
           socket.write(buffer, () => {
-            this.#bufferedAmount -= value.byteLength;
+            this.#bufferedAmount -= ab.byteLength;
           });
         } else if (isBlobLike(data)) {
           const frame = new WebsocketFrameSend();
