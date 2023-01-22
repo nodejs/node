@@ -23,7 +23,6 @@
 const common = require('../common');
 const assert = require('assert');
 const events = require('events');
-const { inspect } = require('util');
 const e = new events.EventEmitter();
 
 e.on('maxListeners', common.mustCall());
@@ -31,16 +30,15 @@ e.on('maxListeners', common.mustCall());
 // Should not corrupt the 'maxListeners' queue.
 e.setMaxListeners(42);
 
-const throwsObjs = [NaN, -1, 'and even this'];
+const rangeErrorObjs = [NaN, -1];
+const typeErrorObj = 'and even this';
 
-for (const obj of throwsObjs) {
+for (const obj of rangeErrorObjs) {
   assert.throws(
     () => e.setMaxListeners(obj),
     {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
-      message: 'The value of "n" is out of range. ' +
-               `It must be a non-negative number. Received ${inspect(obj)}`,
     }
   );
 
@@ -49,21 +47,39 @@ for (const obj of throwsObjs) {
     {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
-      message: 'The value of "defaultMaxListeners" is out of range. ' +
-               `It must be a non-negative number. Received ${inspect(obj)}`,
     }
   );
 }
+
+assert.throws(
+  () => e.setMaxListeners(typeErrorObj),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+  }
+);
+
+assert.throws(
+  () => events.defaultMaxListeners = typeErrorObj,
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+  }
+);
 
 e.emit('maxListeners');
 
 {
   const { EventEmitter, defaultMaxListeners } = events;
-  for (const obj of throwsObjs) {
+  for (const obj of rangeErrorObjs) {
     assert.throws(() => EventEmitter.setMaxListeners(obj), {
       code: 'ERR_OUT_OF_RANGE',
     });
   }
+
+  assert.throws(() => EventEmitter.setMaxListeners(typeErrorObj), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
 
   assert.throws(
     () => EventEmitter.setMaxListeners(defaultMaxListeners, 'INVALID_EMITTER'),
