@@ -75,6 +75,9 @@
 #include "v8-platform.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 
+#define NAPI_EXPERIMENTAL
+#include "node_api.h"
+
 #include <functional>
 #include <memory>
 #include <ostream>
@@ -120,8 +123,6 @@
 
 // Forward-declare libuv loop
 struct uv_loop_s;
-
-struct napi_module;
 
 // Forward-declare these functions now to stop MSVS from becoming
 // terminally confused when it's done in node_internals.h
@@ -1252,6 +1253,9 @@ NODE_EXTERN void AddLinkedBinding(Environment* env,
                                   const char* name,
                                   addon_context_register_func fn,
                                   void* priv);
+NODE_EXTERN void AddLinkedBinding(Environment* env,
+                                  const char* name,
+                                  napi_addon_register_func fn);
 
 /* Registers a callback with the passed-in Environment instance. The callback
  * is called after the event loop exits, but before the VM is disposed.

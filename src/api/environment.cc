@@ -865,7 +865,9 @@ void AddLinkedBinding(Environment* env, const node_module& mod) {
 }
 
 void AddLinkedBinding(Environment* env, const napi_module& mod) {
-  AddLinkedBinding(env, napi_module_to_node_module(&mod));
+  node_module node_mod = napi_module_to_node_module(&mod);
+  node_mod.nm_flags = NM_F_LINKED;
+  AddLinkedBinding(env, node_mod);
 }
 
 void AddLinkedBinding(Environment* env,
@@ -882,6 +884,32 @@ void AddLinkedBinding(Environment* env,
     name,
     priv,
     nullptr   // nm_link
+  };
+  AddLinkedBinding(env, mod);
+}
+
+void AddLinkedBinding(Environment* env,
+                      const char* name,
+                      napi_addon_register_func fn) {
+  node_module mod = {
+      -1,
+      NM_F_LINKED,
+      nullptr,  // nm_dso_handle
+      nullptr,  // nm_filename
+      nullptr,  // nm_register_func
+      [](v8::Local<v8::Object> exports,
+         v8::Local<v8::Value> module,
+         v8::Local<v8::Context> context,
+         void* priv) {
+        napi_module_register_by_symbol(
+            exports,
+            module,
+            context,
+            reinterpret_cast<napi_addon_register_func>(priv));
+      },
+      name,
+      reinterpret_cast<void*>(fn),
+      nullptr  // nm_link
   };
   AddLinkedBinding(env, mod);
 }
