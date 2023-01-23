@@ -31,6 +31,7 @@ struct uv_loop_s;  // Forward declaration.
 typedef napi_value(NAPI_CDECL* napi_addon_register_func)(napi_env env,
                                                          napi_value exports);
 
+// Used by deprecated registration method napi_module_register.
 typedef struct napi_module {
   int nm_version;
   unsigned int nm_flags;
@@ -43,70 +44,15 @@ typedef struct napi_module {
 
 #define NAPI_MODULE_VERSION 1
 
-#if defined(_MSC_VER)
-#if defined(__cplusplus)
-#define NAPI_C_CTOR(fn)                                                        \
-  static void NAPI_CDECL fn(void);                                             \
-  namespace {                                                                  \
-  struct fn##_ {                                                               \
-    fn##_() { fn(); }                                                          \
-  } fn##_v_;                                                                   \
-  }                                                                            \
-  static void NAPI_CDECL fn(void)
-#else  // !defined(__cplusplus)
-#pragma section(".CRT$XCU", read)
-// The NAPI_C_CTOR macro defines a function fn that is called during CRT
-// initialization.
-// C does not support dynamic initialization of static variables and this code
-// simulates C++ behavior. Exporting the function pointer prevents it from being
-// optimized. See for details:
-// https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-initialization?view=msvc-170
-#define NAPI_C_CTOR(fn)                                                        \
-  static void NAPI_CDECL fn(void);                                             \
-  __declspec(dllexport, allocate(".CRT$XCU")) void(NAPI_CDECL * fn##_)(void) = \
-      fn;                                                                      \
-  static void NAPI_CDECL fn(void)
-#endif  // defined(__cplusplus)
-#else
-#define NAPI_C_CTOR(fn)                                                        \
-  static void fn(void) __attribute__((constructor));                           \
-  static void fn(void)
-#endif
-
-#define NAPI_MODULE_X(modname, regfunc, priv, flags)                           \
-  EXTERN_C_START                                                               \
-  static napi_module _module = {                                               \
-      NAPI_MODULE_VERSION,                                                     \
-      flags,                                                                   \
-      __FILE__,                                                                \
-      regfunc,                                                                 \
-      #modname,                                                                \
-      priv,                                                                    \
-      {0},                                                                     \
-  };                                                                           \
-  NAPI_C_CTOR(_register_##modname) { napi_module_register(&_module); }         \
-  EXTERN_C_END
-
 #define NAPI_MODULE_INITIALIZER_X(base, version)                               \
   NAPI_MODULE_INITIALIZER_X_HELPER(base, version)
 #define NAPI_MODULE_INITIALIZER_X_HELPER(base, version) base##version
 
 #ifdef __wasm32__
-#define NAPI_WASM_INITIALIZER                                                  \
-  NAPI_MODULE_INITIALIZER_X(napi_register_wasm_v, NAPI_MODULE_VERSION)
-#define NAPI_MODULE(modname, regfunc)                                          \
-  EXTERN_C_START                                                               \
-  NAPI_MODULE_EXPORT napi_value NAPI_WASM_INITIALIZER(napi_env env,            \
-                                                      napi_value exports) {    \
-    return regfunc(env, exports);                                              \
-  }                                                                            \
-  EXTERN_C_END
+#define NAPI_MODULE_INITIALIZER_BASE napi_register_wasm_v
 #else
-#define NAPI_MODULE(modname, regfunc)                                          \
-  NAPI_MODULE_X(modname, regfunc, NULL, 0)  // NOLINT (readability/null_usage)
-#endif
-
 #define NAPI_MODULE_INITIALIZER_BASE napi_register_module_v
+#endif
 
 #define NAPI_MODULE_INITIALIZER                                                \
   NAPI_MODULE_INITIALIZER_X(NAPI_MODULE_INITIALIZER_BASE, NAPI_MODULE_VERSION)
@@ -116,12 +62,24 @@ typedef struct napi_module {
   NAPI_MODULE_EXPORT napi_value NAPI_MODULE_INITIALIZER(napi_env env,          \
                                                         napi_value exports);   \
   EXTERN_C_END                                                                 \
-  NAPI_MODULE(NODE_GYP_MODULE_NAME, NAPI_MODULE_INITIALIZER)                   \
   napi_value NAPI_MODULE_INITIALIZER(napi_env env, napi_value exports)
+
+#define NAPI_MODULE(modname, regfunc)                                          \
+  NAPI_MODULE_INIT() { return regfunc(env, exports); }
+
+// Deprecated. Use NAPI_MODULE.
+#define NAPI_MODULE_X(modname, regfunc, priv, flags)                           \
+  NAPI_MODULE(modname, regfunc)
 
 EXTERN_C_START
 
-NAPI_EXTERN void NAPI_CDECL napi_module_register(napi_module* mod);
+// Deprecated. Replaced by symbol-based registration defined by NAPI_MODULE
+// and NAPI_MODULE_INIT macros.
+#if defined(__cplusplus) && __cplusplus >= 201402L
+[[deprecated]]
+#endif
+NAPI_EXTERN void NAPI_CDECL
+napi_module_register(napi_module* mod);
 
 NAPI_EXTERN NAPI_NO_RETURN void NAPI_CDECL
 napi_fatal_error(const char* location,
