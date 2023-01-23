@@ -12,12 +12,14 @@ Check that Node.js still builds and tests.
 
 ## Committing postject
 
-Add postject: `git add --all test/fixtures/postject-copy`
+* Add postject: `git add --all test/fixtures/postject-copy`
 
-Commit the changes with a message like:
+* Commit the changes: `git commit`
+
+* Add a message like:
 
 ```text
-deps: update postject to 1.0.0-alpha.4
+test: update postject to <version>
 
 Updated as described in doc/contributing/maintaining-postject.md.
 ```
