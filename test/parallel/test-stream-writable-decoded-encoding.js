@@ -56,3 +56,27 @@ class MyWritable extends stream.Writable {
   m.write('some-text', 'utf8');
   m.end();
 }
+
+{
+  assert.throws(() => {
+    const m = new MyWritable(null, {
+      defaultEncoding: 'my invalid encoding',
+    });
+    m.end();
+  }, {
+    code: 'ERR_UNKNOWN_ENCODING',
+  });
+}
+
+{
+  const w = new MyWritable(function(isBuffer, type, enc) {
+    assert(!isBuffer);
+    assert.strictEqual(type, 'string');
+    assert.strictEqual(enc, 'hex');
+  }, {
+    defaultEncoding: 'hex',
+    decodeStrings: false
+  });
+  w.write('asd');
+  w.end();
+}
