@@ -931,8 +931,7 @@ int SyncProcessRunner::ParseStdioOption(int child_fd,
     return AddStdioInheritFD(child_fd, inherit_fd);
 
   } else {
-    CHECK(0 && "invalid child stdio type");
-    return UV_EINVAL;
+    UNREACHABLE("invalid child stdio type");
   }
 }
 
