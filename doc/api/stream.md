@@ -2625,7 +2625,9 @@ changes:
                  finished before the call to `finished(stream, cb)`.
 -->
 
-* `stream` {Stream|ReadableStream|WritableStream} A readable and/or writable stream/webstream.
+* `stream` {Stream|ReadableStream|WritableStream}
+
+A readable and/or writable stream/webstream.
 
 * `options` {Object}
   * `error` {boolean} If set to `false`, then a call to `emit('error', err)` is
@@ -3042,7 +3044,8 @@ changes:
 -->
 
 * `src` {Stream|Blob|ArrayBuffer|string|Iterable|AsyncIterable|
-  AsyncGeneratorFunction|AsyncFunction|Promise|Object|ReadableStream|WritableStream}
+  AsyncGeneratorFunction|AsyncFunction|Promise|Object|
+  ReadableStream|WritableStream}
 
 A utility method for creating duplex streams.
 
