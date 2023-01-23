@@ -3228,6 +3228,11 @@ readable.getReader().read().then((result) => {
 
 <!-- YAML
 added: v15.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46273
+    description: Added support for `ReadableStream` and
+                 `WritableStream`.
 -->
 
 * `signal` {AbortSignal} A signal representing possible cancellation
