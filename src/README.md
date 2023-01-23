@@ -31,8 +31,8 @@ embedder API.
 Important concepts when using V8 are the ones of [`Isolate`][]s and
 [JavaScript value handles][].
 
-V8 supports fast-path C functions called [V8 Fast API][]
-which is useful for improving the performance in certain cases.
+V8 supports [fast API calls][], which can be useful for improving the
+performance in certain cases.
 
 ## libuv API documentation
 
@@ -1032,7 +1032,6 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [Callback scopes]: #callback-scopes
 [JavaScript value handles]: #js-handles
 [N-API]: https://nodejs.org/api/n-api.html
-[V8 Fast API]: ../doc/contributing/adding-v8-fast-api.md
 [`BaseObject`]: #baseobject
 [`Context`]: #context
 [`Environment`]: #environment
@@ -1059,6 +1058,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [cleanup hooks]: #cleanup-hooks
 [event loop]: #event-loop
 [exception handling]: #exception-handling
+[fast API calls]: ../doc/contributing/adding-v8-fast-api.md
 [internal field]: #internal-fields
 [introduction for V8 embedders]: https://v8.dev/docs/embed
 [libuv]: https://libuv.org/

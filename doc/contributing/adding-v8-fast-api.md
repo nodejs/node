@@ -1,8 +1,8 @@
 # Adding V8 Fast API
 
 Node.js uses [V8](https://v8.dev/) as its JavaScript engine.
-Embedder functions implemented in C++ incur a high overhead, so V8
-provides an API to implement fast-path C functions which may be invoked directly
+Embedding functions implemented in C++ incur a high overhead, so V8
+provides an API to implement native functions which may be invoked directly
 from JITted code. These functions also come with additional constraints,
 for example, they may not trigger garbage collection.
 
@@ -11,36 +11,36 @@ for example, they may not trigger garbage collection.
 * Fast API functions may not trigger garbage collection. This means by proxy
   that JavaScript execution and heap allocation are also forbidden, including
   `v8::Array::Get()` or `v8::Number::New()`.
-* Throwing errors is not available on fast API, but can be done
-  through the fallback to slow API.
+* Throwing errors is not available from within a fast API call, but can be done
+  through the fallback to the slow API.
 * Not all parameter and return types are supported in fast API calls.
   For a full list, please look into
-  [`v8-fast-api-calls.h`](../../deps/v8/include/v8-fast-api-calls.h) file.
+  [`v8-fast-api-calls.h`](../../deps/v8/include/v8-fast-api-calls.h).
 
 ## Requirements
 
 * Any function passed to `CFunction::Make`, including fast API function
   declarations, should have their signature registered in
-  [`external references`](../../src/node_external_reference.h) file.
-  Although, it would not start failing or crashing until the function end up
-  in a snapshot (either the built-in or a user-land one). Please refer to
+  [`node_external_reference.h`](../../src/node_external_reference.h) file.
+  Although, it would not start failing or crashing until the function ends up
+  in a snapshot (either the built-in or a user-land one). Please refer to the
   [binding functions documentation](../../src#binding-functions) for more
   information.
 * To test fast APIs, make sure to run the tests in a loop with a decent
-  iterations count to trigger V8 for optimization and to prefer the fast API
-  over slow one.
+  iterations count to trigger relevant optimizations that prefer the fast API
+  over the slow one.
 * The fast callback must be idempotent up to the point where error and fallback
   conditions are checked, because otherwise executing the slow callback might
   produce visible side effects twice.
 
 ## Fallback to slow path
 
-Fast API supports fallback to slow path in case logically it is wise to do so,
-for example when a detailed error or JavaScript execution is needed.
-Fallback mechanism can be enabled and changed from the C++ implementation of
-the fast API function declaration.
+Fast API supports fallback to slow path for when it is desirable to do so,
+for example, when throwing a custom error or executing JavaScript code is
+needed. The fallback mechanism can be enabled and changed from the C++
+implementation of the fast API function declaration.
 
-Passing a `true` value to `fallback` option will force V8 to run the slow path
+Passing `true` to the `fallback` option will force V8 to run the slow path
 with the same arguments.
 
 In V8, the options fallback is defined as `FastApiCallbackOptions` inside
