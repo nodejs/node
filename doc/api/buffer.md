@@ -3768,8 +3768,9 @@ console.log(buf2.toString(undefined, 0, 3));
 // Prints: té
 ```
 
-For encoding and decoding large strings to/from `utf-8`, it is recommended to use the
-[`util.TextEncoder`][] and [`util.TextDecoder`][] APIs.
+For encoding and decoding large strings to/from `utf-8`,
+it is recommended to use the [`util.TextEncoder`][]
+and [`util.TextDecoder`][] APIs.
 
 ### `buf.values()`
 
@@ -5487,11 +5488,11 @@ introducing security vulnerabilities into an application.
 [`buffer.constants.MAX_LENGTH`]: #bufferconstantsmax_length
 [`buffer.constants.MAX_STRING_LENGTH`]: #bufferconstantsmax_string_length
 [`buffer.kMaxLength`]: #bufferkmaxlength
+[`util.TextDecoder`]: https://nodejs.org/api/util.html#class-utiltextdecoder
+[`util.TextEncoder`]: https://nodejs.org/api/util.html#class-utiltextencoder
 [`util.inspect()`]: util.md#utilinspectobject-options
 [`v8::TypedArray::kMaxLength`]: https://v8.github.io/api/head/classv8_1_1TypedArray.html#a54a48f4373da0850663c4393d843b9b0
 [base64url]: https://tools.ietf.org/html/rfc4648#section-5
 [binary strings]: https://developer.mozilla.org/en-US/docs/Web/API/DOMString/Binary
 [endianness]: https://en.wikipedia.org/wiki/Endianness
 [iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
-[`util.TextEncoder`]: https://nodejs.org/api/util.html#class-utiltextencoder
-[`util.TextDecoder`]: https://nodejs.org/api/util.html#class-utiltextdecoder
