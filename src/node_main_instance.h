@@ -22,33 +22,6 @@ struct SnapshotData;
 // We may be able to create an abstract class to reuse some of the routines.
 class NodeMainInstance {
  public:
-  // To create a main instance that does not own the isolate,
-  // The caller needs to do:
-  //
-  //   Isolate* isolate = Isolate::Allocate();
-  //   platform->RegisterIsolate(isolate, loop);
-  //   isolate->Initialize(...);
-  //   isolate->Enter();
-  //   std::unique_ptr<NodeMainInstance> main_instance =
-  //       NodeMainInstance::Create(isolate, loop, args, exec_args);
-  //
-  // When tearing it down:
-  //
-  //   main_instance->Cleanup();  // While the isolate is entered
-  //   isolate->Exit();
-  //   isolate->Dispose();
-  //   platform->UnregisterIsolate(isolate);
-  //
-  // After calling Dispose() the main_instance is no longer accessible.
-  static std::unique_ptr<NodeMainInstance> Create(
-      v8::Isolate* isolate,
-      uv_loop_t* event_loop,
-      MultiIsolatePlatform* platform,
-      const std::vector<std::string>& args,
-      const std::vector<std::string>& exec_args);
-
-  void Dispose();
-
   // Create a main instance that owns the isolate
   NodeMainInstance(const SnapshotData* snapshot_data,
                    uv_loop_t* event_loop,

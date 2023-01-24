@@ -778,8 +778,7 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
   Implies("--harmony-shadow-realm", "--experimental-shadow-realm");
   ImpliesNot("--no-harmony-shadow-realm", "--experimental-shadow-realm");
   AddOption("--build-snapshot",
-            "Generate a snapshot blob when the process exits."
-            " Currently only supported in the node_mksnapshot binary.",
+            "Generate a snapshot blob when the process exits.",
             &PerIsolateOptions::build_snapshot,
             kDisallowedInEnvvar);
 

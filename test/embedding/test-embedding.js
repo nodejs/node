@@ -20,7 +20,6 @@ function resolveBuiltBinary(bin) {
 }
 
 const binary = resolveBuiltBinary('embedtest');
-const standaloneNodeBinary = resolveBuiltBinary('node');
 
 assert.strictEqual(
   child_process.spawnSync(binary, ['console.log(42)'])
@@ -51,22 +50,30 @@ assert.strictEqual(
   child_process.spawnSync(binary, [`require(${fixturePath})`, 92]).status,
   92);
 
+function getReadFileCodeForPath(path) {
+  return `(require("fs").readFileSync(${JSON.stringify(path)}, "utf8"))`;
+}
+
 // Basic snapshot support
 {
+  // readSync + eval since snapshots don't support userland require() (yet)
   const snapshotFixture = fixtures.path('snapshot', 'echo-args.js');
   const blobPath = path.join(tmpdir.path, 'embedder-snapshot.blob');
-  const buildSnapshotArgs = [snapshotFixture, 'arg1', 'arg2'];
+  const buildSnapshotArgs = [
+    `eval(${getReadFileCodeForPath(snapshotFixture)})`, 'arg1', 'arg2',
+    '--embedder-snapshot-blob', blobPath, '--embedder-snapshot-create',
+  ];
   const runEmbeddedArgs = ['--embedder-snapshot-blob', blobPath, 'arg3', 'arg4'];
 
   fs.rmSync(blobPath, { force: true });
-  assert.strictEqual(child_process.spawnSync(standaloneNodeBinary, [
-    '--snapshot-blob', blobPath, '--build-snapshot', ...buildSnapshotArgs,
+  assert.strictEqual(child_process.spawnSync(binary, [
+    '--', ...buildSnapshotArgs,
   ], {
     cwd: tmpdir.path,
   }).status, 0);
   const spawnResult = child_process.spawnSync(binary, ['--', ...runEmbeddedArgs]);
   assert.deepStrictEqual(JSON.parse(spawnResult.stdout), {
-    originalArgv: [standaloneNodeBinary, ...buildSnapshotArgs],
+    originalArgv: [binary, ...buildSnapshotArgs],
     currentArgv: [binary, ...runEmbeddedArgs],
   });
 }
@@ -75,10 +82,14 @@ assert.strictEqual(
 {
   const snapshotFixture = fixtures.path('snapshot', 'create-worker-and-vm.js');
   const blobPath = path.join(tmpdir.path, 'embedder-snapshot.blob');
+  const buildSnapshotArgs = [
+    `eval(${getReadFileCodeForPath(snapshotFixture)})`,
+    '--embedder-snapshot-blob', blobPath, '--embedder-snapshot-create',
+  ];
 
   fs.rmSync(blobPath, { force: true });
-  assert.strictEqual(child_process.spawnSync(standaloneNodeBinary, [
-    '--snapshot-blob', blobPath, '--build-snapshot', snapshotFixture,
+  assert.strictEqual(child_process.spawnSync(binary, [
+    '--', ...buildSnapshotArgs,
   ], {
     cwd: tmpdir.path,
   }).status, 0);

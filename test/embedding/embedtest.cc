@@ -1,3 +1,6 @@
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include "node.h"
 #include "uv.h"
 #include <assert.h>
@@ -58,9 +61,12 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
   int exit_code = 0;
 
   node::EmbedderSnapshotData::Pointer snapshot;
+  auto snapshot_build_mode_it =
+      std::find(args.begin(), args.end(), "--embedder-snapshot-create");
   auto snapshot_arg_it =
       std::find(args.begin(), args.end(), "--embedder-snapshot-blob");
-  if (snapshot_arg_it < args.end() - 1) {
+  if (snapshot_arg_it < args.end() - 1 &&
+      snapshot_build_mode_it == args.end()) {
     FILE* fp = fopen((snapshot_arg_it + 1)->c_str(), "r");
     assert(fp != nullptr);
     snapshot = node::EmbedderSnapshotData::FromFile(fp);
@@ -69,9 +75,11 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 
   std::vector<std::string> errors;
   std::unique_ptr<CommonEnvironmentSetup> setup =
-      snapshot
-          ? CommonEnvironmentSetup::CreateWithSnapshot(
-                platform, &errors, snapshot.get(), args, exec_args)
+      snapshot ? CommonEnvironmentSetup::CreateFromSnapshot(
+                     platform, &errors, snapshot.get(), args, exec_args)
+      : snapshot_build_mode_it != args.end()
+          ? CommonEnvironmentSetup::CreateForSnapshotting(
+                platform, &errors, args, exec_args)
           : CommonEnvironmentSetup::Create(platform, &errors, args, exec_args);
   if (!setup) {
     for (const std::string& err : errors)
@@ -94,9 +102,12 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     } else {
       loadenv_ret = node::LoadEnvironment(
           env,
-          "const publicRequire ="
-          "  require('module').createRequire(process.cwd() + '/');"
-          "globalThis.require = publicRequire;"
+          // Snapshots do not support userland require()s (yet)
+          "if (!require('v8').startupSnapshot.isBuildingSnapshot()) {"
+          "  const publicRequire ="
+          "    require('module').createRequire(process.cwd() + '/');"
+          "  globalThis.require = publicRequire;"
+          "} else globalThis.require = require;"
           "globalThis.embedVars = { nön_ascıı: '🏳️‍🌈' };"
           "require('vm').runInThisContext(process.argv[1]);");
     }
@@ -105,9 +116,20 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
       return 1;
 
     exit_code = node::SpinEventLoop(env).FromMaybe(1);
-
-    node::Stop(env);
   }
+
+  if (snapshot_arg_it < args.end() - 1 &&
+      snapshot_build_mode_it != args.end()) {
+    snapshot = setup->CreateSnapshot();
+    assert(snapshot);
+
+    FILE* fp = fopen((snapshot_arg_it + 1)->c_str(), "w");
+    assert(fp != nullptr);
+    snapshot->ToFile(fp);
+    fclose(fp);
+  }
+
+  node::Stop(env);
 
   return exit_code;
 }

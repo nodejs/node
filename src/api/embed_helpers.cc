@@ -14,6 +14,7 @@ using v8::Locker;
 using v8::Maybe;
 using v8::Nothing;
 using v8::SealHandleScope;
+using v8::SnapshotCreator;
 
 namespace node {
 
@@ -78,16 +79,18 @@ struct CommonEnvironmentSetup::Impl {
   MultiIsolatePlatform* platform = nullptr;
   uv_loop_t loop;
   std::shared_ptr<ArrayBufferAllocator> allocator;
+  std::optional<SnapshotCreator> snapshot_creator;
   Isolate* isolate = nullptr;
   DeleteFnPtr<IsolateData, FreeIsolateData> isolate_data;
   DeleteFnPtr<Environment, FreeEnvironment> env;
-  Global<Context> context;
+  Global<Context> main_context;
 };
 
 CommonEnvironmentSetup::CommonEnvironmentSetup(
     MultiIsolatePlatform* platform,
     std::vector<std::string>* errors,
     const EmbedderSnapshotData* snapshot_data,
+    uint32_t flags,
     std::function<Environment*(const CommonEnvironmentSetup*)> make_env)
     : impl_(new Impl()) {
   CHECK_NOT_NULL(platform);
@@ -105,28 +108,43 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
   }
   loop->data = this;
 
-  impl_->allocator = ArrayBufferAllocator::Create();
-  impl_->isolate =
-      NewIsolate(impl_->allocator, &impl_->loop, platform, snapshot_data);
-  Isolate* isolate = impl_->isolate;
+  Isolate* isolate;
+  if (flags & Flags::kIsForSnapshotting) {
+    const std::vector<intptr_t>& external_references =
+        SnapshotBuilder::CollectExternalReferences();
+    isolate = impl_->isolate = Isolate::Allocate();
+    // Must be done before the SnapshotCreator creation so  that the
+    // memory reducer can be initialized.
+    platform->RegisterIsolate(isolate, loop);
+    impl_->snapshot_creator.emplace(isolate, external_references.data());
+    isolate->SetCaptureStackTraceForUncaughtExceptions(
+        true, 10, v8::StackTrace::StackTraceOptions::kDetailed);
+    SetIsolateMiscHandlers(isolate, {});
+  } else {
+    impl_->allocator = ArrayBufferAllocator::Create();
+    isolate = impl_->isolate =
+        NewIsolate(impl_->allocator, &impl_->loop, platform, snapshot_data);
+  }
 
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
     impl_->isolate_data.reset(CreateIsolateData(
         isolate, loop, platform, impl_->allocator.get(), snapshot_data));
+    impl_->isolate_data->options()->build_snapshot =
+        impl_->snapshot_creator.has_value();
 
     HandleScope handle_scope(isolate);
     if (snapshot_data) {
       impl_->env.reset(make_env(this));
       if (impl_->env) {
-        impl_->context.Reset(isolate, impl_->env->context());
+        impl_->main_context.Reset(isolate, impl_->env->context());
       }
       return;
     }
 
     Local<Context> context = NewContext(isolate);
-    impl_->context.Reset(isolate, context);
+    impl_->main_context.Reset(isolate, context);
     if (context.IsEmpty()) {
       errors->push_back("Failed to initialize V8 Context");
       return;
@@ -141,7 +159,37 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
     MultiIsolatePlatform* platform,
     std::vector<std::string>* errors,
     std::function<Environment*(const CommonEnvironmentSetup*)> make_env)
-    : CommonEnvironmentSetup(platform, errors, nullptr, make_env) {}
+    : CommonEnvironmentSetup(platform, errors, nullptr, false, make_env) {}
+
+std::unique_ptr<CommonEnvironmentSetup>
+CommonEnvironmentSetup::CreateForSnapshotting(
+    MultiIsolatePlatform* platform,
+    std::vector<std::string>* errors,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args) {
+  // It's not guaranteed that a context that goes through
+  // v8_inspector::V8Inspector::contextCreated() is runtime-independent,
+  // so do not start the inspector on the main context when building
+  // the default snapshot.
+  uint64_t env_flags =
+      EnvironmentFlags::kDefaultFlags | EnvironmentFlags::kNoCreateInspector;
+
+  auto ret = std::unique_ptr<CommonEnvironmentSetup>(new CommonEnvironmentSetup(
+      platform,
+      errors,
+      nullptr,
+      true,
+      [&](const CommonEnvironmentSetup* setup) -> Environment* {
+        return CreateEnvironment(
+            setup->isolate_data(),
+            setup->context(),
+            args,
+            exec_args,
+            static_cast<EnvironmentFlags::Flags>(env_flags));
+      }));
+  if (!errors->empty()) ret.reset();
+  return ret;
+}
 
 CommonEnvironmentSetup::~CommonEnvironmentSetup() {
   if (impl_->isolate != nullptr) {
@@ -150,7 +198,7 @@ CommonEnvironmentSetup::~CommonEnvironmentSetup() {
       Locker locker(isolate);
       Isolate::Scope isolate_scope(isolate);
 
-      impl_->context.Reset();
+      impl_->main_context.Reset();
       impl_->env.reset();
       impl_->isolate_data.reset();
     }
@@ -160,7 +208,10 @@ CommonEnvironmentSetup::~CommonEnvironmentSetup() {
       *static_cast<bool*>(data) = true;
     }, &platform_finished);
     impl_->platform->UnregisterIsolate(isolate);
-    isolate->Dispose();
+    if (impl_->snapshot_creator.has_value())
+      impl_->snapshot_creator.reset();
+    else
+      isolate->Dispose();
 
     // Wait until the platform has cleaned up all relevant resources.
     while (!platform_finished)
@@ -171,6 +222,21 @@ CommonEnvironmentSetup::~CommonEnvironmentSetup() {
     CheckedUvLoopClose(&impl_->loop);
 
   delete impl_;
+}
+
+EmbedderSnapshotData::Pointer CommonEnvironmentSetup::CreateSnapshot() {
+  CHECK_NOT_NULL(snapshot_creator());
+  SnapshotData* snapshot_data = new SnapshotData();
+  EmbedderSnapshotData::Pointer result{
+      new EmbedderSnapshotData(snapshot_data, true)};
+
+  auto exit_code = SnapshotBuilder::CreateSnapshot(
+      snapshot_data,
+      this,
+      static_cast<uint8_t>(SnapshotMetadata::Type::kFullyCustomized));
+  if (exit_code != ExitCode::kNoFailure) return {};
+
+  return result;
 }
 
 Maybe<int> SpinEventLoop(Environment* env) {
@@ -203,7 +269,11 @@ Environment* CommonEnvironmentSetup::env() const {
 }
 
 v8::Local<v8::Context> CommonEnvironmentSetup::context() const {
-  return impl_->context.Get(impl_->isolate);
+  return impl_->main_context.Get(impl_->isolate);
+}
+
+v8::SnapshotCreator* CommonEnvironmentSetup::snapshot_creator() {
+  return impl_->snapshot_creator ? &impl_->snapshot_creator.value() : nullptr;
 }
 
 void EmbedderSnapshotData::DeleteSnapshotData::operator()(
@@ -230,6 +300,10 @@ EmbedderSnapshotData::Pointer EmbedderSnapshotData::FromFile(FILE* in) {
     return {};
   }
   return result;
+}
+
+void EmbedderSnapshotData::ToFile(FILE* out) const {
+  impl_->ToBlob(out);
 }
 
 EmbedderSnapshotData::EmbedderSnapshotData(const SnapshotData* impl,

@@ -29,34 +29,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::Locker;
 
-NodeMainInstance::NodeMainInstance(Isolate* isolate,
-                                   uv_loop_t* event_loop,
-                                   MultiIsolatePlatform* platform,
-                                   const std::vector<std::string>& args,
-                                   const std::vector<std::string>& exec_args)
-    : args_(args),
-      exec_args_(exec_args),
-      array_buffer_allocator_(nullptr),
-      isolate_(isolate),
-      platform_(platform),
-      isolate_data_(nullptr),
-      snapshot_data_(nullptr) {
-  isolate_data_ =
-      std::make_unique<IsolateData>(isolate_, event_loop, platform, nullptr);
-
-  SetIsolateMiscHandlers(isolate_, {});
-}
-
-std::unique_ptr<NodeMainInstance> NodeMainInstance::Create(
-    Isolate* isolate,
-    uv_loop_t* event_loop,
-    MultiIsolatePlatform* platform,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args) {
-  return std::unique_ptr<NodeMainInstance>(
-      new NodeMainInstance(isolate, event_loop, platform, args, exec_args));
-}
-
 NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
                                    uv_loop_t* event_loop,
                                    MultiIsolatePlatform* platform,
@@ -86,13 +58,6 @@ NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
 
   isolate_data_->max_young_gen_size =
       isolate_params_->constraints.max_young_generation_size_in_bytes();
-}
-
-void NodeMainInstance::Dispose() {
-  // This should only be called on a main instance that does not own its
-  // isolate.
-  CHECK_NULL(isolate_params_);
-  platform_->DrainTasks(isolate_);
 }
 
 NodeMainInstance::~NodeMainInstance() {
