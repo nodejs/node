@@ -3767,6 +3767,7 @@ console.log(buf2.toString('utf8', 0, 3));
 console.log(buf2.toString(undefined, 0, 3));
 // Prints: té
 ```
+
 For encoding and decoding large strings to/from `utf-8`, it is recommended to use the
 [`util.TextEncoder`][] and [`util.TextDecoder`][] APIs.
 
@@ -5492,5 +5493,5 @@ introducing security vulnerabilities into an application.
 [binary strings]: https://developer.mozilla.org/en-US/docs/Web/API/DOMString/Binary
 [endianness]: https://en.wikipedia.org/wiki/Endianness
 [iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
-[`util.TextEncoder`]:https://nodejs.org/api/util.html#class-utiltextencoder
-[`util.TextDecoder`]:https://nodejs.org/api/util.html#class-utiltextdecoder
+[`util.TextEncoder`]: https://nodejs.org/api/util.html#class-utiltextencoder
+[`util.TextDecoder`]: https://nodejs.org/api/util.html#class-utiltextdecoder
