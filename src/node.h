@@ -511,10 +511,15 @@ class EmbedderSnapshotData {
   static Pointer BuiltinSnapshotData();
 
   // Return an EmbedderSnapshotData object that is based on an input file.
-  // Calling this method will not consume but not close the FILE* handle.
+  // Calling this method will consume but not close the FILE* handle.
   // The FILE* handle can be closed immediately following this call.
   // If the snapshot is invalid, this returns an empty pointer.
   static Pointer FromFile(FILE* in);
+
+  // Write this EmbedderSnapshotData object to an output file.
+  // Calling this method will not close the FILE* handle.
+  // The FILE* handle can be closed immediately following this call.
+  void ToFile(FILE* out) const;
 
   // Returns whether custom snapshots can be used. Currently, this means
   // that V8 was configured without the shared-readonly-heap feature.
@@ -532,6 +537,7 @@ class EmbedderSnapshotData {
   const SnapshotData* impl_;
   bool owns_impl_;
   friend struct SnapshotData;
+  friend class CommonEnvironmentSetup;
 };
 
 // Overriding IsolateSettings may produce unexpected behavior
@@ -823,7 +829,29 @@ class NODE_EXTERN CommonEnvironmentSetup {
       const EmbedderSnapshotData* snapshot_data,
       EnvironmentArgs&&... env_args);
 
+  // Create an embedding setup which will be used for creating a snapshot
+  // using CreateSnapshot().
+  //
+  // This will create and attach a v8::SnapshotCreator to this instance,
+  // and the same restrictions apply to this instance that also apply to
+  // other V8 snapshotting environments.
+  // Not all Node.js APIs are supported in this case. Currently, there is
+  // no support for native/host objects other than Node.js builtins
+  // in the snapshot.
+  //
+  // Snapshots are an *experimental* feature. In particular, the embedder API
+  // exposed through this class is subject to change or removal between Node.js
+  // versions, including possible API and ABI breakage.
+  static std::unique_ptr<CommonEnvironmentSetup> CreateForSnapshotting(
+      MultiIsolatePlatform* platform,
+      std::vector<std::string>* errors,
+      const std::vector<std::string>& args = {},
+      const std::vector<std::string>& exec_args = {});
+  EmbedderSnapshotData::Pointer CreateSnapshot();
+
   struct uv_loop_s* event_loop() const;
+  v8::SnapshotCreator* snapshot_creator();
+  // Empty for snapshotting environments.
   std::shared_ptr<ArrayBufferAllocator> array_buffer_allocator() const;
   v8::Isolate* isolate() const;
   IsolateData* isolate_data() const;
@@ -846,6 +874,7 @@ class NODE_EXTERN CommonEnvironmentSetup {
       MultiIsolatePlatform*,
       std::vector<std::string>*,
       const EmbedderSnapshotData*,
+      bool is_snapshotting,
       std::function<Environment*(const CommonEnvironmentSetup*)>);
 };
 
@@ -878,6 +907,7 @@ CommonEnvironmentSetup::CreateWithSnapshot(
       platform,
       errors,
       snapshot_data,
+      false,
       [&](const CommonEnvironmentSetup* setup) -> Environment* {
         return CreateEnvironment(setup->isolate_data(),
                                  setup->context(),

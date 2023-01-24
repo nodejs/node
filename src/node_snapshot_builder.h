@@ -31,9 +31,14 @@ class NODE_EXTERN_PRIVATE SnapshotBuilder {
   static void InitializeIsolateParams(const SnapshotData* data,
                                       v8::Isolate::CreateParams* params);
 
- private:
   static const std::vector<intptr_t>& CollectExternalReferences();
 
+  static ExitCode CreateSnapshot(
+      SnapshotData* out,
+      CommonEnvironmentSetup* setup,
+      /*SnapshotMetadata::Type*/ uint8_t snapshot_type);
+
+ private:
   static std::unique_ptr<ExternalReferenceRegistry> registry_;
 };
 }  // namespace node

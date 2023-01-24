@@ -32,6 +32,7 @@ using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::ScriptCompiler;
@@ -1081,38 +1082,15 @@ void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
 ExitCode SnapshotBuilder::Generate(SnapshotData* out,
                                    const std::vector<std::string> args,
                                    const std::vector<std::string> exec_args) {
-  const std::vector<intptr_t>& external_references =
-      CollectExternalReferences();
-  Isolate* isolate = Isolate::Allocate();
-  // Must be done before the SnapshotCreator creation so  that the
-  // memory reducer can be initialized.
-  per_process::v8_platform.Platform()->RegisterIsolate(isolate,
-                                                       uv_default_loop());
-
-  SnapshotCreator creator(isolate, external_references.data());
-
-  isolate->SetCaptureStackTraceForUncaughtExceptions(
-      true, 10, v8::StackTrace::StackTraceOptions::kDetailed);
-
-  Environment* env = nullptr;
-  std::unique_ptr<NodeMainInstance> main_instance =
-      NodeMainInstance::Create(isolate,
-                               uv_default_loop(),
-                               per_process::v8_platform.Platform(),
-                               args,
-                               exec_args);
-
-  // The cleanups should be done in case of an early exit due to errors.
-  auto cleanup = OnScopeLeave([&]() {
-    // Must be done while the snapshot creator isolate is entered i.e. the
-    // creator is still alive. The snapshot creator destructor will destroy
-    // the isolate.
-    if (env != nullptr) {
-      FreeEnvironment(env);
-    }
-    main_instance->Dispose();
-    per_process::v8_platform.Platform()->UnregisterIsolate(isolate);
-  });
+  std::vector<std::string> errors;
+  auto setup = CommonEnvironmentSetup::CreateForSnapshotting(
+      per_process::v8_platform.Platform(), &errors, args, exec_args);
+  if (!setup) {
+    for (const std::string& err : errors)
+      fprintf(stderr, "%s: %s\n", args[0].c_str(), err.c_str());
+    return ExitCode::kBootstrapFailure;
+  }
+  Isolate* isolate = setup->isolate();
 
   // It's only possible to be kDefault in node_mksnapshot.
   SnapshotMetadata::Type snapshot_type =
@@ -1131,57 +1109,11 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
       }
     });
 
-    // The default context with only things created by V8.
-    Local<Context> default_context = Context::New(isolate);
-
-    // The context used by the vm module.
-    Local<Context> vm_context;
-    {
-      Local<ObjectTemplate> global_template =
-          main_instance->isolate_data()->contextify_global_template();
-      CHECK(!global_template.IsEmpty());
-      if (!contextify::ContextifyContext::CreateV8Context(
-               isolate, global_template, nullptr, nullptr)
-               .ToLocal(&vm_context)) {
-        return ExitCode::kStartupSnapshotFailure;
-      }
-    }
-
-    // The Node.js-specific context with primodials, can be used by workers
-    // TODO(joyeecheung): investigate if this can be used by vm contexts
-    // without breaking compatibility.
-    Local<Context> base_context = NewContext(isolate);
-    if (base_context.IsEmpty()) {
-      return ExitCode::kBootstrapFailure;
-    }
-    ResetContextSettingsBeforeSnapshot(base_context);
-
-    Local<Context> main_context = NewContext(isolate);
-    if (main_context.IsEmpty()) {
-      return ExitCode::kBootstrapFailure;
-    }
     // Initialize the main instance context.
     {
-      Context::Scope context_scope(main_context);
+      Context::Scope context_scope(setup->context());
+      Environment* env = setup->env();
 
-      // Create the environment.
-      // It's not guaranteed that a context that goes through
-      // v8_inspector::V8Inspector::contextCreated() is runtime-independent,
-      // so do not start the inspector on the main context when building
-      // the default snapshot.
-      uint64_t env_flags = EnvironmentFlags::kDefaultFlags |
-                           EnvironmentFlags::kNoCreateInspector;
-
-      env = CreateEnvironment(main_instance->isolate_data(),
-                              main_context,
-                              args,
-                              exec_args,
-                              static_cast<EnvironmentFlags::Flags>(env_flags));
-
-      // This already ran scripts in lib/internal/bootstrap/, if it fails return
-      if (env == nullptr) {
-        return ExitCode::kBootstrapFailure;
-      }
       // If --build-snapshot is true, lib/internal/main/mksnapshot.js would be
       // loaded via LoadEnvironment() to execute process.argv[1] as the entry
       // point (we currently only support this kind of entry point, but we
@@ -1203,6 +1135,52 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
           return exit_code;
         }
       }
+    }
+  }
+
+  return CreateSnapshot(out, setup.get(), static_cast<uint8_t>(snapshot_type));
+}
+
+ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
+                                         CommonEnvironmentSetup* setup,
+                                         uint8_t snapshot_type_u8) {
+  SnapshotMetadata::Type snapshot_type =
+      static_cast<SnapshotMetadata::Type>(snapshot_type_u8);
+  Isolate* isolate = setup->isolate();
+  Environment* env = setup->env();
+  SnapshotCreator* creator = setup->snapshot_creator();
+
+  {
+    HandleScope scope(isolate);
+    Local<Context> main_context = setup->context();
+
+    // The default context with only things created by V8.
+    Local<Context> default_context = Context::New(isolate);
+
+    // The context used by the vm module.
+    Local<Context> vm_context;
+    {
+      Local<ObjectTemplate> global_template =
+          setup->isolate_data()->contextify_global_template();
+      CHECK(!global_template.IsEmpty());
+      if (!contextify::ContextifyContext::CreateV8Context(
+               isolate, global_template, nullptr, nullptr)
+               .ToLocal(&vm_context)) {
+        return ExitCode::kStartupSnapshotFailure;
+      }
+    }
+
+    // The Node.js-specific context with primodials, can be used by workers
+    // TODO(joyeecheung): investigate if this can be used by vm contexts
+    // without breaking compatibility.
+    Local<Context> base_context = NewContext(isolate);
+    if (base_context.IsEmpty()) {
+      return ExitCode::kBootstrapFailure;
+    }
+    ResetContextSettingsBeforeSnapshot(base_context);
+
+    {
+      Context::Scope context_scope(main_context);
 
       if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
         env->ForEachRealm([](Realm* realm) { realm->PrintInfoForSnapshot(); });
@@ -1210,9 +1188,8 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
       }
 
       // Serialize the native states
-      out->isolate_data_info =
-          main_instance->isolate_data()->Serialize(&creator);
-      out->env_info = env->Serialize(&creator);
+      out->isolate_data_info = setup->isolate_data()->Serialize(creator);
+      out->env_info = env->Serialize(creator);
 
 #ifdef NODE_USE_NODE_CODE_CACHE
       // Regenerate all the code cache.
@@ -1235,19 +1212,19 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
     // Global handles to the contexts can't be disposed before the
     // blob is created. So initialize all the contexts before adding them.
     // TODO(joyeecheung): figure out how to remove this restriction.
-    creator.SetDefaultContext(default_context);
-    size_t index = creator.AddContext(vm_context);
+    creator->SetDefaultContext(default_context);
+    size_t index = creator->AddContext(vm_context);
     CHECK_EQ(index, SnapshotData::kNodeVMContextIndex);
-    index = creator.AddContext(base_context);
+    index = creator->AddContext(base_context);
     CHECK_EQ(index, SnapshotData::kNodeBaseContextIndex);
-    index = creator.AddContext(main_context,
-                               {SerializeNodeContextInternalFields, env});
+    index = creator->AddContext(main_context,
+                                {SerializeNodeContextInternalFields, env});
     CHECK_EQ(index, SnapshotData::kNodeMainContextIndex);
   }
 
   // Must be out of HandleScope
   out->v8_snapshot_blob_data =
-      creator.CreateBlob(SnapshotCreator::FunctionCodeHandling::kKeep);
+      creator->CreateBlob(SnapshotCreator::FunctionCodeHandling::kKeep);
 
   // We must be able to rehash the blob when we restore it or otherwise
   // the hash seed would be fixed by V8, introducing a vulnerability.
@@ -1448,6 +1425,22 @@ void SerializeSnapshotableObjects(Realm* realm,
 
 namespace mksnapshot {
 
+void GetEmbedderEntryFunction(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  if (!env->embedder_mksnapshot_entry_point()) return;
+  MaybeLocal<Function> jsfn = Function::New(
+      isolate->GetCurrentContext(),
+      [](const FunctionCallbackInfo<Value>& args) {
+        Environment* env = Environment::GetCurrent(args);
+        Local<Value> require_fn = args[0];
+        CHECK(require_fn->IsFunction());
+        CHECK(env->embedder_mksnapshot_entry_point());
+        env->embedder_mksnapshot_entry_point()(require_fn.As<Function>());
+      });
+  if (!jsfn.IsEmpty()) args.GetReturnValue().Set(jsfn.ToLocalChecked());
+}
+
 void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Local<String> filename = args[0].As<String>();
@@ -1501,6 +1494,8 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
+  SetMethod(
+      context, target, "getEmbedderEntryFunction", GetEmbedderEntryFunction);
   SetMethod(context, target, "compileSerializeMain", CompileSerializeMain);
   SetMethod(context, target, "setSerializeCallback", SetSerializeCallback);
   SetMethod(context, target, "setDeserializeCallback", SetDeserializeCallback);
@@ -1511,6 +1506,7 @@ void Initialize(Local<Object> target,
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(GetEmbedderEntryFunction);
   registry->Register(CompileSerializeMain);
   registry->Register(SetSerializeCallback);
   registry->Register(SetDeserializeCallback);
