@@ -751,6 +751,10 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             &PerIsolateOptions::report_signal,
             kAllowedInEnvironment);
   Implies("--report-signal", "--report-on-signal");
+  AddOption("--enable-etw-stack-walking",
+            "provides heap data to ETW Windows native tracing",
+            V8Option{},
+            kAllowedInEnvironment);
 
   AddOption(
       "--experimental-top-level-await", "", NoOp{}, kAllowedInEnvironment);
