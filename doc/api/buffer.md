@@ -3767,6 +3767,9 @@ console.log(buf2.toString('utf8', 0, 3));
 console.log(buf2.toString(undefined, 0, 3));
 // Prints: té
 ```
+For encoding and decoding large strings to/from `utf-8`, it is recommended to use the
+[`util.TextEncoder`][https://nodejs.org/api/util.html#class-utiltextencoder] and 
+[`util.TextDecoder`][https://nodejs.org/api/util.html#class-utiltextdecoder] APIs.
 
 ### `buf.values()`
 
