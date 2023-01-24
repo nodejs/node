@@ -80,3 +80,16 @@ class MyWritable extends stream.Writable {
   w.write('asd');
   w.end();
 }
+
+{
+  const w = new MyWritable(function(isBuffer, type, enc) {
+    assert(!isBuffer);
+    assert.strictEqual(type, 'string');
+    assert.strictEqual(enc, 'utf8');
+  }, {
+    defaultEncoding: null,
+    decodeStrings: false
+  });
+  w.write('asd');
+  w.end();
+}
