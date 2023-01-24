@@ -307,7 +307,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return StartExecution(env, "internal/main/inspect");
   }
 
-  if (per_process::cli_options->build_snapshot) {
+  if (env->isolate_data()->options()->build_snapshot) {
     return StartExecution(env, "internal/main/mksnapshot");
   }
 
@@ -1227,7 +1227,7 @@ static ExitCode StartInternal(int argc, char** argv) {
   uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
 
   // --build-snapshot indicates that we are in snapshot building mode.
-  if (per_process::cli_options->build_snapshot) {
+  if (per_process::cli_options->per_isolate->build_snapshot) {
     if (result->args().size() < 2) {
       fprintf(stderr,
               "--build-snapshot must be used with an entry point script.\n"
