@@ -1136,7 +1136,7 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
 
   // It's only possible to be kDefault in node_mksnapshot.
   SnapshotMetadata::Type snapshot_type =
-      per_process::cli_options->build_snapshot
+      per_process::cli_options->per_isolate->build_snapshot
           ? SnapshotMetadata::Type::kFullyCustomized
           : SnapshotMetadata::Type::kDefault;
 

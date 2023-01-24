@@ -72,7 +72,7 @@ int BuildSnapshot(int argc, char* argv[]) {
   CHECK_EQ(result->exit_code(), 0);
 
   std::string out_path;
-  if (node::per_process::cli_options->build_snapshot) {
+  if (node::per_process::cli_options->per_isolate->build_snapshot) {
     out_path = result->args()[2];
   } else {
     out_path = result->args()[1];
