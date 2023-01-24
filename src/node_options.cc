@@ -777,6 +777,11 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
   Implies("--experimental-shadow-realm", "--harmony-shadow-realm");
   Implies("--harmony-shadow-realm", "--experimental-shadow-realm");
   ImpliesNot("--no-harmony-shadow-realm", "--experimental-shadow-realm");
+  AddOption("--build-snapshot",
+            "Generate a snapshot blob when the process exits."
+            " Currently only supported in the node_mksnapshot binary.",
+            &PerIsolateOptions::build_snapshot,
+            kDisallowedInEnvvar);
 
   Insert(eop, &PerIsolateOptions::get_per_env_options);
 }
@@ -815,11 +820,6 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "disable Object.prototype.__proto__",
             &PerProcessOptions::disable_proto,
             kAllowedInEnvvar);
-  AddOption("--build-snapshot",
-            "Generate a snapshot blob when the process exits."
-            " Currently only supported in the node_mksnapshot binary.",
-            &PerProcessOptions::build_snapshot,
-            kDisallowedInEnvvar);
   AddOption("--node-snapshot",
             "",  // It's a debug-only option.
             &PerProcessOptions::node_snapshot,
