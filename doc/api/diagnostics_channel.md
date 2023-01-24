@@ -562,7 +562,7 @@ Applies the given data to any AsyncLocalStorage instances bound to the channel
 for the duration of the given function, then publishes the [`start` event][]
 for the channel within the context of the bound stores. If a transform function
 was given to [`channel.bindStore(store)`][] it will be applied to transform the
-message data before it becomes to context value for the store. The prior
+message data before it becomes the context value for the store. The prior
 storage context is accessible from within the transform function in cases where
 context linking is required.
 
@@ -650,7 +650,7 @@ channels.subscribe({
     // Handle end message
   },
   asyncStart(message) {
-    // Handle asyncEnd message
+    // Handle asyncStart message
   },
   asyncEnd(message) {
     // Handle asyncEnd message
@@ -674,7 +674,7 @@ channels.subscribe({
     // Handle end message
   },
   asyncStart(message) {
-    // Handle asyncEnd message
+    // Handle asyncStart message
   },
   asyncEnd(message) {
     // Handle asyncEnd message
@@ -720,7 +720,7 @@ channels.unsubscribe({
     // Handle end message
   },
   asyncStart(message) {
-    // Handle asyncEnd message
+    // Handle asyncStart message
   },
   asyncEnd(message) {
     // Handle asyncEnd message
@@ -744,7 +744,7 @@ channels.unsubscribe({
     // Handle end message
   },
   asyncStart(message) {
-    // Handle asyncEnd message
+    // Handle asyncStart message
   },
   asyncEnd(message) {
     // Handle asyncEnd message
@@ -765,7 +765,7 @@ added:
 > Stability: 1 - Experimental
 
 * `fn` {Function} Function to wrap a trace around
-* `data` {Object} Shared object to correlate trace events through
+* `data` {Object} Shared object to correlate events through
 * `thisArg` {any} The receiver to be used for the function call
 * `...args` {any} Optional arguments to pass to the function
 * Returns: {any} The return value of the given function
@@ -898,12 +898,12 @@ channels.traceCallback((arg1, callback) => {
 
 ### TracingChannel Channels
 
-A TracingChannel is a collection of several channels representing specific
-points in the execution lifecycle of a single traceable action. The behaviour
-is split into five channels consisting of `start`, `end`, `asyncStart`,
-`asyncEnd`, and `error`. A single traceable action will share the same event
-object between all events, this can be helpful for managing correlation
-through a weakmap.
+A TracingChannel is a collection of several diagnostics\_channels representing
+specific points in the execution lifecycle of a single traceable action. The
+behaviour is split into five diagnostics\_channels consisting of `start`,
+`end`, `asyncStart`, `asyncEnd`, and `error`. A single traceable action will
+share the same event object between all events, this can be helpful for
+managing correlation through a weakmap.
 
 These event objects will be extended with `result` or `error` values when
 the task "completes". In the case of a synchronous task the `result` will be
@@ -925,18 +925,20 @@ Tracing channels should follow a naming pattern of:
 
 * Name: `tracing:${name}:start`
 
-The `start` event represents the synchronous start of a traceable function.
-At this point the event data may contain function arguments or anything else
-available at the very start of the execution of the function.
+The `start` event represents the point at which a function is called. At this
+point the event data may contain function arguments or anything else available
+at the very start of the execution of the function.
 
 #### `end(event)`
 
 * Name: `tracing:${name}:end`
 
-The `end` event represents the synchronous end of a traceable function. At this
-point, if the traced function was synchronous the `result` field will be set to
-the return value of the function. Alternatively, the `error` field may be
-present to represent any thrown errors.
+The `end` event represents the point at which a function call returns a value.
+In the case of an async function this is when the promise returned not when the
+function itself makes a return statement internally. At this point, if the
+traced function was synchronous the `result` field will be set to the return
+value of the function. Alternatively, the `error` field may be present to
+represent any thrown errors.
 
 It is recommended to listen specifically to the `error` event to track errors
 as it may be possible for a traceable action to produce multiple errors. For
@@ -967,10 +969,9 @@ part of the task then throws an error.
 
 * Name: `tracing:${name}:asyncEnd`
 
-The `asyncEnd` event represents the callback of an asynchronous traceable
-function being completed. It's not likely event data will change after the
-`asyncStart` event, however it may be useful for some tracers to see the point
-where the callback completes.
+The `asyncEnd` event represents the callback of an asynchronous function
+returning. It's not likely event data will change after the `asyncStart` event,
+however it may be useful to see the point where the callback completes.
 
 #### `error(event)`
 
