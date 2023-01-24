@@ -276,14 +276,21 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   if (cb != nullptr) {
     EscapableHandleScope scope(env->isolate());
 
-    if (StartExecution(env, "internal/main/environment").IsEmpty()) return {};
+    if (env->isolate_data()->options()->build_snapshot) {
+      // TODO(addaleax): pass the callback to the main script more directly,
+      // e.g. by making StartExecution(env, builtin) parametrizable
+      env->set_embedder_mksnapshot_entry_point(std::move(cb));
+      auto reset_entry_point =
+          OnScopeLeave([&]() { env->set_embedder_mksnapshot_entry_point({}); });
 
-    StartExecutionCallbackInfo info = {
+      return StartExecution(env, "internal/main/mksnapshot");
+    }
+
+    if (StartExecution(env, "internal/main/environment").IsEmpty()) return {};
+    return scope.EscapeMaybe(cb({
         env->process_object(),
         env->builtin_module_require(),
-    };
-
-    return scope.EscapeMaybe(cb(info));
+    }));
   }
 
   // TODO(joyeecheung): move these conditions into JS land and let the

@@ -961,6 +961,9 @@ class Environment : public MemoryRetainer {
 
 #endif  // HAVE_INSPECTOR
 
+  inline const StartExecutionCallback& embedder_mksnapshot_entry_point() const;
+  inline void set_embedder_mksnapshot_entry_point(StartExecutionCallback&& fn);
+
   inline void set_process_exit_handler(
       std::function<void(Environment*, ExitCode)>&& handler);
 
@@ -1144,6 +1147,7 @@ class Environment : public MemoryRetainer {
   std::unique_ptr<Realm> principal_realm_ = nullptr;
 
   builtins::BuiltinLoader builtin_loader_;
+  StartExecutionCallback embedder_mksnapshot_entry_point_;
 
   // Used by allocate_managed_buffer() and release_managed_buffer() to keep
   // track of the BackingStore for a given pointer.
