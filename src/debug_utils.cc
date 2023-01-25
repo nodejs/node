@@ -321,7 +321,7 @@ void CheckedUvLoopClose(uv_loop_t* loop) {
 
   fflush(stderr);
   // Finally, abort.
-  CHECK(0 && "uv_loop_close() while having open handles");
+  UNREACHABLE("uv_loop_close() while having open handles");
 }
 
 void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream) {

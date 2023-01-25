@@ -368,8 +368,7 @@ size_t StringBytes::Write(Isolate* isolate,
       break;
 
     default:
-      CHECK(0 && "unknown encoding");
-      break;
+      UNREACHABLE("unknown encoding");
   }
 
   return nbytes;
@@ -423,8 +422,7 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
       break;
 
     default:
-      CHECK(0 && "unknown encoding");
-      break;
+      UNREACHABLE("unknown encoding");
   }
 
   return Just(data_size);

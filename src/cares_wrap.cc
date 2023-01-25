@@ -233,8 +233,7 @@ int ParseGeneralReply(
       status = ares_parse_ptr_reply(buf, len, nullptr, 0, AF_INET, &host);
       break;
     default:
-      CHECK(0 && "Bad NS type");
-      break;
+      UNREACHABLE("Bad NS type");
   }
 
   if (status != ARES_SUCCESS)
@@ -1578,7 +1577,7 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
       family = AF_INET6;
       break;
     default:
-      CHECK(0 && "bad address family");
+      UNREACHABLE("bad address family");
   }
 
   auto req_wrap = std::make_unique<GetAddrInfoReqWrap>(env,
@@ -1736,7 +1735,7 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
         err = uv_inet_pton(AF_INET6, *ip, &cur->addr);
         break;
       default:
-        CHECK(0 && "Bad address family.");
+        UNREACHABLE("Bad address family");
     }
 
     if (err)
