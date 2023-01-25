@@ -74,8 +74,7 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
     throws(
       () => session.origin(longInput),
       {
-        code: 'ERR_HTTP2_ORIGIN_LENGTH',
-        name: 'TypeError'
+        code: 'ERR_INVALID_URL',
       }
     );
   }));

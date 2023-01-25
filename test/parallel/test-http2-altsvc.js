@@ -94,9 +94,7 @@ server.on('session', common.mustCall((session) => {
                      `http://example.${'a'.repeat(17000)}.org:8000`);
     },
     {
-      code: 'ERR_HTTP2_ALTSVC_LENGTH',
-      name: 'TypeError',
-      message: 'HTTP/2 ALTSVC frames are limited to 16382 bytes'
+      code: 'ERR_INVALID_URL',
     }
   );
 }));

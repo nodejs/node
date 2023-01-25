@@ -65,7 +65,8 @@ class URLHost {
   void ParseHost(const char* input,
                  size_t length,
                  bool is_special,
-                 bool unicode = false);
+                 bool unicode = false,
+                 i18n::idna_mode mode = i18n::idna_mode::kStrict);
 
   bool ParsingFailed() const { return type_ == HostType::H_FAILED; }
   std::string ToString() const;
@@ -324,9 +325,11 @@ bool ToUnicode(const std::string& input, std::string* output) {
   return true;
 }
 
-bool ToASCII(const std::string& input, std::string* output) {
+bool ToASCII(const std::string& input,
+             std::string* output,
+             i18n::idna_mode mode) {
   MaybeStackBuffer<char> buf;
-  if (i18n::ToASCII(&buf, input.c_str(), input.length()) < 0)
+  if (i18n::ToASCII(&buf, input.c_str(), input.length(), mode) < 0)
     return false;
   if (buf.length() == 0)
     return false;
@@ -546,7 +549,8 @@ void URLHost::ParseOpaqueHost(const char* input, size_t length) {
 void URLHost::ParseHost(const char* input,
                         size_t length,
                         bool is_special,
-                        bool unicode) {
+                        bool unicode,
+                        i18n::idna_mode mode) {
   CHECK_EQ(type_, HostType::H_FAILED);
   const char* pointer = input;
 
@@ -566,8 +570,7 @@ void URLHost::ParseHost(const char* input,
   std::string decoded = PercentDecode(input, length);
 
   // Then we have to punycode toASCII
-  if (!ToASCII(decoded, &decoded))
-    return;
+  if (!ToASCII(decoded, &decoded, mode)) return;
 
   // If any of the following characters are still present, we have to fail
   for (size_t n = 0; n < decoded.size(); n++) {
@@ -689,13 +692,14 @@ std::string URLHost::ToString() const {
 bool ParseHost(const std::string& input,
                std::string* output,
                bool is_special,
-               bool unicode = false) {
+               bool unicode = false,
+               i18n::idna_mode mode = i18n::idna_mode::kStrict) {
   if (input.empty()) {
     output->clear();
     return true;
   }
   URLHost host;
-  host.ParseHost(input.c_str(), input.length(), is_special, unicode);
+  host.ParseHost(input.c_str(), input.length(), is_special, unicode, mode);
   if (host.ParsingFailed())
     return false;
   *output = host.ToStringMove();
@@ -1290,7 +1294,11 @@ void URL::Parse(const char* input,
             return;
           }
           url->flags |= URL_FLAGS_HAS_HOST;
-          if (!ParseHost(buffer, &url->host, special)) {
+          if (!ParseHost(buffer,
+                         &url->host,
+                         special,
+                         false,
+                         i18n::idna_mode::kDefault)) {
             url->flags |= URL_FLAGS_FAILED;
             return;
           }
@@ -1314,7 +1322,11 @@ void URL::Parse(const char* input,
             return;
           }
           url->flags |= URL_FLAGS_HAS_HOST;
-          if (!ParseHost(buffer, &url->host, special)) {
+          if (!ParseHost(buffer,
+                         &url->host,
+                         special,
+                         false,
+                         i18n::idna_mode::kDefault)) {
             url->flags |= URL_FLAGS_FAILED;
             return;
           }
@@ -1800,7 +1812,8 @@ void DomainToASCII(const FunctionCallbackInfo<Value>& args) {
 
   URLHost host;
   // Assuming the host is used for a special scheme.
-  host.ParseHost(*value, value.length(), true);
+  host.ParseHost(
+      *value, value.length(), true, false, i18n::idna_mode::kDefault);
   if (host.ParsingFailed()) {
     args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(env->isolate(), ""));
     return;
@@ -1818,7 +1831,7 @@ void DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
 
   URLHost host;
   // Assuming the host is used for a special scheme.
-  host.ParseHost(*value, value.length(), true, true);
+  host.ParseHost(*value, value.length(), true, true, i18n::idna_mode::kDefault);
   if (host.ParsingFailed()) {
     args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(env->isolate(), ""));
     return;
