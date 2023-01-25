@@ -4,15 +4,15 @@ require('../common');
 const fs = require('fs');
 const assert = require('assert');
 
-assert.strictEqual(typeof fs.isFile, 'function');
-assert.strictEqual(typeof fs.isDirectory, 'function');
+assert.strictEqual(typeof fs.isFileSync, 'function');
+assert.strictEqual(typeof fs.isDirectorySync, 'function');
 
 {
-  assert.strictEqual(fs.isFile(__filename), true);
-  assert.strictEqual(fs.isDirectory(__filename), false);
+  assert.strictEqual(fs.isFileSync(__filename), true);
+  assert.strictEqual(fs.isDirectorySync(__filename), false);
 }
 
 {
-  assert.strictEqual(fs.isFile('./thisdoesntexist.txt'), false);
-  assert.strictEqual(fs.isDirectory('./thisdirectorydoestexist'), false);
+  assert.strictEqual(fs.isFileSync('./thisdoesntexist.txt'), false);
+  assert.strictEqual(fs.isDirectorySync('./thisdirectorydoestexist'), false);
 }

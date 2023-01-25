@@ -11,7 +11,7 @@ const bench = common.createBenchmark(main, {
 function main({ n, fileName }) {
   bench.start();
   for (let i = 0; i < n; i++) {
-    fs.isFile(fileName);
+    fs.isFileSync(fileName);
   }
   bench.end(n);
 }
