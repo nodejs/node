@@ -190,12 +190,9 @@ long NodeBIO::Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
         *reinterpret_cast<void**>(ptr) = nullptr;
       break;
     case BIO_C_SET_BUF_MEM:
-      CHECK(0 && "Can't use SET_BUF_MEM_PTR with NodeBIO");
-      break;
+      UNREACHABLE("Can't use SET_BUF_MEM_PTR with NodeBIO");
     case BIO_C_GET_BUF_MEM_PTR:
-      CHECK(0 && "Can't use GET_BUF_MEM_PTR with NodeBIO");
-      ret = 0;
-      break;
+      UNREACHABLE("Can't use GET_BUF_MEM_PTR with NodeBIO");
     case BIO_CTRL_GET_CLOSE:
       ret = BIO_get_shutdown(bio);
       break;
