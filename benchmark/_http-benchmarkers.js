@@ -106,7 +106,7 @@ class TestDoubleBenchmarker {
     const scheme = options.scheme || 'http';
     const env = {
       test_url: `${scheme}://127.0.0.1:${options.port}${options.path}`,
-      ...process.env
+      ...process.env,
     };
 
     const child = child_process.fork(this.executable,
@@ -203,7 +203,7 @@ exports.run = function(options, callback) {
     connections: 100,
     duration: 5,
     benchmarker: exports.default_http_benchmarker,
-    ...options
+    ...options,
   };
   if (!options.benchmarker) {
     callback(new Error('Could not locate required http benchmarker. See ' +

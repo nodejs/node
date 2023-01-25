@@ -3,7 +3,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   n: [1e6],
-  listeners: [1, 5, 10]
+  listeners: [1, 5, 10],
 }, { flags: ['--expose-internals'] });
 
 function main({ n, listeners }) {
