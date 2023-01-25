@@ -23,14 +23,14 @@ assert.throws(
   () => {
     test_array.TestGetElement(array, array.length + 1);
   },
-  /^Error: assertion \(\(\(uint32_t\)index < length\)\) failed: Index out of bounds!$/
+  /^Error: assertion \(\(\(uint32_t\)index < length\)\) failed: Index out of bounds!$/,
 );
 
 assert.throws(
   () => {
     test_array.TestGetElement(array, -2);
   },
-  /^Error: assertion \(index >= 0\) failed: Invalid index\. Expects a positive integer\.$/
+  /^Error: assertion \(index >= 0\) failed: Invalid index\. Expects a positive integer\.$/,
 );
 
 array.forEach(function(element, index) {

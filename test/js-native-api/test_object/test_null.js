@@ -9,7 +9,7 @@ const expectedForProperty = {
   envIsNull: 'Invalid argument',
   objectIsNull: 'Invalid argument',
   keyIsNull: 'Invalid argument',
-  valueIsNull: 'Invalid argument'
+  valueIsNull: 'Invalid argument',
 };
 assert.deepStrictEqual(testNull.setProperty(), expectedForProperty);
 assert.deepStrictEqual(testNull.getProperty(), expectedForProperty);
@@ -28,7 +28,7 @@ assert.deepStrictEqual(testNull.hasNamedProperty(), expectedForProperty);
 const expectedForElement = {
   envIsNull: 'Invalid argument',
   objectIsNull: 'Invalid argument',
-  valueIsNull: 'Invalid argument'
+  valueIsNull: 'Invalid argument',
 };
 assert.deepStrictEqual(testNull.setElement(), expectedForElement);
 assert.deepStrictEqual(testNull.getElement(), expectedForElement);

@@ -40,13 +40,13 @@ assert.deepStrictEqual(test_function.TestCreateFunctionParameters(), {
   envIsNull: 'Invalid argument',
   nameIsNull: 'napi_ok',
   cbIsNull: 'Invalid argument',
-  resultIsNull: 'Invalid argument'
+  resultIsNull: 'Invalid argument',
 });
 
 assert.throws(
   () => test_function.TestBadReturnExceptionPending(),
   {
     code: 'throwing exception',
-    name: 'Error'
-  }
+    name: 'Error',
+  },
 );
