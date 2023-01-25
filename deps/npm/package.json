@@ -1,5 +1,5 @@
 {
-  "version": "9.3.1",
+  "version": "9.4.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -53,7 +53,7 @@
   },
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",
-    "@npmcli/arborist": "^6.1.6",
+    "@npmcli/arborist": "^6.2.0",
     "@npmcli/config": "^6.1.1",
     "@npmcli/map-workspaces": "^3.0.0",
     "@npmcli/package-json": "^3.0.0",
@@ -76,12 +76,12 @@
     "is-cidr": "^4.0.2",
     "json-parse-even-better-errors": "^3.0.0",
     "libnpmaccess": "^7.0.1",
-    "libnpmdiff": "^5.0.7",
-    "libnpmexec": "^5.0.7",
-    "libnpmfund": "^4.0.7",
+    "libnpmdiff": "^5.0.8",
+    "libnpmexec": "^5.0.8",
+    "libnpmfund": "^4.0.8",
     "libnpmhook": "^9.0.1",
     "libnpmorg": "^5.0.1",
-    "libnpmpack": "^5.0.7",
+    "libnpmpack": "^5.0.8",
     "libnpmpublish": "^7.0.6",
     "libnpmsearch": "^6.0.1",
     "libnpmteam": "^5.0.1",
@@ -196,7 +196,7 @@
     "@npmcli/git": "^4.0.1",
     "@npmcli/mock-registry": "^1.0.0",
     "@npmcli/promise-spawn": "^6.0.1",
-    "@npmcli/template-oss": "4.11.0",
+    "@npmcli/template-oss": "4.11.1",
     "licensee": "^10.0.0",
     "nock": "^13.2.4",
     "npm-packlist": "^7.0.4",
@@ -250,7 +250,7 @@
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.11.0",
+    "version": "4.11.1",
     "content": "./scripts/template-oss/root.js"
   },
   "license": "Artistic-2.0",
