@@ -61,7 +61,7 @@ if (typeof Symbol !== 'undefined' && 'hasInstance' in Symbol &&
   function compareToNative(theObject, theConstructor) {
     assert.strictEqual(
       addon.doInstanceOf(theObject, theConstructor),
-      (theObject instanceof theConstructor)
+      (theObject instanceof theConstructor),
     );
   }
 
@@ -69,7 +69,7 @@ if (typeof Symbol !== 'undefined' && 'hasInstance' in Symbol &&
   Object.defineProperty(MyClass, Symbol.hasInstance, {
     value: function(candidate) {
       return 'mark' in candidate;
-    }
+    },
   });
 
   function MySubClass() {}

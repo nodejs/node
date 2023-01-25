@@ -31,7 +31,7 @@ const test_exception = (function() {
   // Test that the native side passes the exception through
   assert.throws(
     () => { test_exception.allowException(throwTheError); },
-    (err) => err === theError
+    (err) => err === theError,
   );
 
   // Test that the exception thrown above was marked as pending
@@ -59,7 +59,7 @@ const test_exception = (function() {
   // Test that the native side passes the exception through
   assert.throws(
     () => { test_exception.constructAllowException(throwTheError); },
-    (err) => err === theError
+    (err) => err === theError,
   );
 
   // Test that the exception thrown above was marked as pending

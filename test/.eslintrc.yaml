@@ -76,7 +76,6 @@ overrides:
   - files:
       - es-module/*.js
       - es-module/*.mjs
-      - js-native-api/*/*.js
       - parallel/*.js
       - parallel/*.mjs
       - pummel/*.js

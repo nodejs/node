@@ -12,8 +12,8 @@ const object = {
     1, 94, 'str', 12.321, { test: 'obj in arr' },
   ],
   newObject: {
-    test: 'obj in obj'
-  }
+    test: 'obj in obj',
+  },
 };
 
 assert.strictEqual(test_object.Get(object, 'hello'), 'world');
@@ -91,7 +91,7 @@ assert.strictEqual(newObject.test_string, 'test string');
   const cube = {
     x: 10,
     y: 10,
-    z: 10
+    z: 10,
   };
 
   assert.deepStrictEqual(test_object.Inflate(cube), { x: 11, y: 11, z: 11 });
@@ -107,7 +107,7 @@ assert.strictEqual(newObject.test_string, 'test string');
   const sym4 = Symbol('4');
   const object2 = {
     [sym1]: '@@iterator',
-    [sym2]: sym3
+    [sym2]: sym3,
   };
 
   assert(test_object.Has(object2, sym1));
@@ -236,7 +236,7 @@ assert.strictEqual(newObject.test_string, 'test string');
   // and includes indices and converts them to strings.
 
   const object = { __proto__: {
-    inherited: 1
+    inherited: 1,
   } };
 
   const fooSymbol = Symbol('foo');
@@ -247,19 +247,19 @@ assert.strictEqual(newObject.test_string, 'test string');
     value: 4,
     enumerable: false,
     writable: true,
-    configurable: true
+    configurable: true,
   });
   Object.defineProperty(object, 'writable', {
     value: 4,
     enumerable: true,
     writable: true,
-    configurable: false
+    configurable: false,
   });
   Object.defineProperty(object, 'configurable', {
     value: 4,
     enumerable: true,
     writable: false,
-    configurable: true
+    configurable: true,
   });
   object[5] = 5;
 
@@ -308,7 +308,7 @@ assert.deepStrictEqual(test_object.TestSetProperty(), {
   envIsNull: 'Invalid argument',
   objectIsNull: 'Invalid argument',
   keyIsNull: 'Invalid argument',
-  valueIsNull: 'Invalid argument'
+  valueIsNull: 'Invalid argument',
 });
 
 // Verify that passing NULL to napi_has_property() results in the correct
@@ -317,7 +317,7 @@ assert.deepStrictEqual(test_object.TestHasProperty(), {
   envIsNull: 'Invalid argument',
   objectIsNull: 'Invalid argument',
   keyIsNull: 'Invalid argument',
-  resultIsNull: 'Invalid argument'
+  resultIsNull: 'Invalid argument',
 });
 
 // Verify that passing NULL to napi_get_property() results in the correct
@@ -326,7 +326,7 @@ assert.deepStrictEqual(test_object.TestGetProperty(), {
   envIsNull: 'Invalid argument',
   objectIsNull: 'Invalid argument',
   keyIsNull: 'Invalid argument',
-  resultIsNull: 'Invalid argument'
+  resultIsNull: 'Invalid argument',
 });
 
 {

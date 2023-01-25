@@ -58,5 +58,5 @@ assert.deepStrictEqual(TestConstructor.TestDefineClass(), {
   cbIsNull: 'Invalid argument',
   cbDataIsNull: 'napi_ok',
   propertiesIsNull: 'Invalid argument',
-  resultIsNull: 'Invalid argument'
+  resultIsNull: 'Invalid argument',
 });

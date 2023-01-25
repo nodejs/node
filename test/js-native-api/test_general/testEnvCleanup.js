@@ -11,7 +11,7 @@ if (process.argv[2] === 'child') {
     'simple wrap': 0,
     'wrap, removeWrap': 1,
     'first wrap': 2,
-    'second wrap': 3
+    'second wrap': 3,
   };
 
   // We attach the three objects we will test to `module.exports` to ensure they
@@ -39,7 +39,7 @@ if (process.argv[2] === 'child') {
   const { spawnSync } = require('child_process');
 
   const child = spawnSync(process.execPath, [__filename, 'child'], {
-    stdio: [ process.stdin, 'pipe', process.stderr ]
+    stdio: [ process.stdin, 'pipe', process.stderr ],
   });
 
   // Grab the child's output and construct an object whose keys are the rows of
@@ -49,7 +49,7 @@ if (process.argv[2] === 'child') {
     child.stdout.toString().split(/\r\n|\r|\n/g).reduce((obj, item) =>
       Object.assign(obj, item ? { [item]: true } : {}), {}), {
       'finalize at env cleanup for simple wrap': true,
-      'finalize at env cleanup for second wrap': true
+      'finalize at env cleanup for second wrap': true,
     });
 
   // Ensure that the child exited successfully.
