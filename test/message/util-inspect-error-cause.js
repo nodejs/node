@@ -19,11 +19,11 @@ const cause5 = new Error('Object cause', {
     message: 'Unique',
     name: 'Error',
     stack: 'Error: Unique\n' +
-           '    at Module._compile (node:internal/modules/cjs/loader:827:30)'
-  }
+           '    at Module._compile (node:internal/modules/cjs/loader:827:30)',
+  },
 });
 const cause6 = new Error('undefined cause', {
-  cause: undefined
+  cause: undefined,
 });
 
 console.log(cause4);
