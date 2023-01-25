@@ -23,5 +23,5 @@ binding.CallIntoModule(
   'resource_name',
   common.mustCall(function finalizer() {
     throw new Error('finalizer error');
-  })
+  }),
 );

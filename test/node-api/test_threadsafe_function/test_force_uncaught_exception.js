@@ -7,7 +7,7 @@ const binding = require(`./build/${common.buildType}/binding`);
 process.on(
   'uncaughtException',
   common.mustNotCall('uncaught callback errors should be suppressed ' +
-    'with the option --no-force-node-api-uncaught-exceptions-policy')
+    'with the option --no-force-node-api-uncaught-exceptions-policy'),
 );
 
 binding.CallIntoModule(
@@ -18,5 +18,5 @@ binding.CallIntoModule(
   'resource_name',
   common.mustCall(function finalizer() {
     throw new Error('finalizer error');
-  })
+  }),
 );

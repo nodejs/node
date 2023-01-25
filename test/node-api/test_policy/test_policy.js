@@ -57,9 +57,9 @@ function test(shouldFail, resources) {
 
 test(false, [{
   url: depURL,
-  integrity: `sha256-${hash('sha256', depBody)}`
+  integrity: `sha256-${hash('sha256', depBody)}`,
 }]);
 test(true, [{
   url: depURL,
-  integrity: `sha256akjsalkjdlaskjdk-${hash('sha256', depBody)}`
+  integrity: `sha256akjsalkjdlaskjdk-${hash('sha256', depBody)}`,
 }]);

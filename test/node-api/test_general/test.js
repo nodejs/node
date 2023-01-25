@@ -34,7 +34,7 @@ tmpdir.refresh();
   fs.rmSync(urlTestDir, {
     force: true,
     recursive: true,
-    maxRetries: 256
+    maxRetries: 256,
   });
 }
 
