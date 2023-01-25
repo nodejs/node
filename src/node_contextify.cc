@@ -49,6 +49,7 @@ using v8::HandleScope;
 using v8::IndexedPropertyHandlerConfiguration;
 using v8::Int32;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -58,6 +59,7 @@ using v8::MicrotaskQueue;
 using v8::MicrotasksPolicy;
 using v8::Name;
 using v8::NamedPropertyHandlerConfiguration;
+using v8::Nothing;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -857,38 +859,73 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   }
   contextify_script->script_.Reset(isolate, v8_script);
 
-  Local<Context> env_context = env->context();
-  if (compile_options == ScriptCompiler::kConsumeCodeCache) {
-    args.This()->Set(
-        env_context,
-        env->cached_data_rejected_string(),
-        Boolean::New(isolate, source.GetCachedData()->rejected)).Check();
-  } else if (produce_cached_data) {
-    std::unique_ptr<ScriptCompiler::CachedData> cached_data{
-        ScriptCompiler::CreateCodeCache(v8_script)};
-    bool cached_data_produced = cached_data != nullptr;
-    if (cached_data_produced) {
-      MaybeLocal<Object> buf = Buffer::Copy(
-          env,
-          reinterpret_cast<const char*>(cached_data->data),
-          cached_data->length);
-      args.This()->Set(env_context,
-                       env->cached_data_string(),
-                       buf.ToLocalChecked()).Check();
-    }
-    args.This()->Set(
-        env_context,
-        env->cached_data_produced_string(),
-        Boolean::New(isolate, cached_data_produced)).Check();
+  std::unique_ptr<ScriptCompiler::CachedData> new_cached_data;
+  if (produce_cached_data) {
+    new_cached_data.reset(ScriptCompiler::CreateCodeCache(v8_script));
   }
 
-  args.This()
-      ->Set(env_context,
-            env->source_map_url_string(),
-            v8_script->GetSourceMappingURL())
-      .Check();
+  if (StoreCodeCacheResult(env,
+                           args.This(),
+                           compile_options,
+                           source,
+                           produce_cached_data,
+                           std::move(new_cached_data))
+          .IsNothing()) {
+    return;
+  }
+
+  if (args.This()
+          ->Set(env->context(),
+                env->source_map_url_string(),
+                v8_script->GetSourceMappingURL())
+          .IsNothing())
+    return;
 
   TRACE_EVENT_END0(TRACING_CATEGORY_NODE2(vm, script), "ContextifyScript::New");
+}
+
+Maybe<bool> StoreCodeCacheResult(
+    Environment* env,
+    Local<Object> target,
+    ScriptCompiler::CompileOptions compile_options,
+    const v8::ScriptCompiler::Source& source,
+    bool produce_cached_data,
+    std::unique_ptr<ScriptCompiler::CachedData> new_cached_data) {
+  Local<Context> context;
+  if (!target->GetCreationContext().ToLocal(&context)) {
+    return Nothing<bool>();
+  }
+  if (compile_options == ScriptCompiler::kConsumeCodeCache) {
+    if (target
+            ->Set(
+                context,
+                env->cached_data_rejected_string(),
+                Boolean::New(env->isolate(), source.GetCachedData()->rejected))
+            .IsNothing()) {
+      return Nothing<bool>();
+    }
+  }
+  if (produce_cached_data) {
+    bool cached_data_produced = new_cached_data != nullptr;
+    if (cached_data_produced) {
+      MaybeLocal<Object> buf =
+          Buffer::Copy(env,
+                       reinterpret_cast<const char*>(new_cached_data->data),
+                       new_cached_data->length);
+      if (target->Set(context, env->cached_data_string(), buf.ToLocalChecked())
+              .IsNothing()) {
+        return Nothing<bool>();
+      }
+    }
+    if (target
+            ->Set(context,
+                  env->cached_data_produced_string(),
+                  Boolean::New(env->isolate(), cached_data_produced))
+            .IsNothing()) {
+      return Nothing<bool>();
+    }
+  }
+  return Just(true);
 }
 
 bool ContextifyScript::InstanceOf(Environment* env,
@@ -1242,28 +1279,18 @@ void ContextifyContext::CompileFunction(
           .IsNothing())
     return;
 
+  std::unique_ptr<ScriptCompiler::CachedData> new_cached_data;
   if (produce_cached_data) {
-    const std::unique_ptr<ScriptCompiler::CachedData> cached_data(
-        ScriptCompiler::CreateCodeCacheForFunction(fn));
-    bool cached_data_produced = cached_data != nullptr;
-    if (cached_data_produced) {
-      MaybeLocal<Object> buf = Buffer::Copy(
-          env,
-          reinterpret_cast<const char*>(cached_data->data),
-          cached_data->length);
-      if (result
-              ->Set(parsing_context,
-                    env->cached_data_string(),
-                    buf.ToLocalChecked())
-              .IsNothing())
-        return;
-    }
-    if (result
-            ->Set(parsing_context,
-                  env->cached_data_produced_string(),
-                  Boolean::New(isolate, cached_data_produced))
-            .IsNothing())
-      return;
+    new_cached_data.reset(ScriptCompiler::CreateCodeCacheForFunction(fn));
+  }
+  if (StoreCodeCacheResult(env,
+                           result,
+                           options,
+                           source,
+                           produce_cached_data,
+                           std::move(new_cached_data))
+          .IsNothing()) {
+    return;
   }
 
   args.GetReturnValue().Set(result);
