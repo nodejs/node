@@ -3772,6 +3772,14 @@ For encoding and decoding large strings to/from `utf-8`,
 it is recommended to use the [`util.TextEncoder`][]
 and [`util.TextDecoder`][] APIs.
 
+```js
+const encoder = new TextEncoder();
+const encoded = encoder.encode('<large string>');
+
+const decoder = new TextDecoder();
+const decoded = decoder.decode(encoded);
+```
+
 ### `buf.values()`
 
 <!-- YAML
