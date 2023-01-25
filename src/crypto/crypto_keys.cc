@@ -1393,7 +1393,7 @@ BaseObjectPtr<BaseObject> NativeKeyObject::KeyObjectTransferData::Deserialize(
       key_ctor = env->crypto_key_object_private_constructor();
       break;
     default:
-      CHECK(false);
+      UNREACHABLE();
   }
 
   Local<Value> key;
