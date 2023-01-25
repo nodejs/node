@@ -34,7 +34,7 @@ const test_hook = async_hooks.createHook({
 test_hook.enable();
 const asyncResource = createAsyncResource(
   { foo: 'bar' },
-  /* destroy_on_finalizer */false
+  /* destroy_on_finalizer */false,
 );
 
 // Trigger GC. This does *not* use global.gc(), because what we want to verify
