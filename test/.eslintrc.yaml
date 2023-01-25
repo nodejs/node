@@ -90,8 +90,8 @@ overrides:
     rules:
       comma-dangle: [error, {
         arrays: always-multiline,
-        exports: only-multiline,
+        exports: always-multiline,
         functions: only-multiline,
-        imports: only-multiline,
+        imports: always-multiline,
         objects: only-multiline,
       }]
