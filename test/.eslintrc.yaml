@@ -79,7 +79,6 @@ overrides:
       - internet/*.js
       - js-native-api/*/*.js
       - known_issues/*.js
-      - node-api/*/*.js
       - parallel/*.js
       - parallel/*.mjs
       - pummel/*.js
