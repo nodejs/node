@@ -199,6 +199,14 @@ class CompiledFnEntry final : public BaseObject {
   static void WeakCallback(const v8::WeakCallbackInfo<CompiledFnEntry>& data);
 };
 
+v8::Maybe<bool> StoreCodeCacheResult(
+    Environment* env,
+    v8::Local<v8::Object> target,
+    v8::ScriptCompiler::CompileOptions compile_options,
+    const v8::ScriptCompiler::Source& source,
+    bool produce_cached_data,
+    std::unique_ptr<v8::ScriptCompiler::CachedData> new_cached_data);
+
 }  // namespace contextify
 }  // namespace node
 
