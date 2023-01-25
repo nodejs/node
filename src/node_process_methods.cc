@@ -206,6 +206,13 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
           : static_cast<double>(array_buffer_allocator->total_mem_usage());
 }
 
+static void GetConstrainedMemory(const FunctionCallbackInfo<Value>& args) {
+  uint64_t value = uv_get_constrained_memory();
+  if (value != 0) {
+    args.GetReturnValue().Set(static_cast<double>(value));
+  }
+}
+
 void RawDebug(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.Length() == 1 && args[0]->IsString() &&
         "must be called with a single string");
@@ -577,6 +584,7 @@ static void Initialize(Local<Object> target,
 
   SetMethod(context, target, "umask", Umask);
   SetMethod(context, target, "memoryUsage", MemoryUsage);
+  SetMethod(context, target, "constrainedMemory", GetConstrainedMemory);
   SetMethod(context, target, "rss", Rss);
   SetMethod(context, target, "cpuUsage", CPUUsage);
   SetMethod(context, target, "resourceUsage", ResourceUsage);
@@ -607,6 +615,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Umask);
   registry->Register(RawDebug);
   registry->Register(MemoryUsage);
+  registry->Register(GetConstrainedMemory);
   registry->Register(Rss);
   registry->Register(CPUUsage);
   registry->Register(ResourceUsage);
