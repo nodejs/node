@@ -232,23 +232,19 @@ const http = require('http');
 
   server.listen(0, () => {
     const req = http.request({
-      port: server.address().port
+      port: server.address().port,
+      method: 'POST',
     });
 
-    let c;
 
     const rs = new ReadableStream({
       start(controller) {
-        c = controller;
+        controller.enqueue('hello');
+        controller.close();
       }
     });
 
-    c.enqueue('hello');
-    c.close();
-
-    pipeline(rs, req, common.mustSucceed(() => {
-      server.close();
-    }));
+    pipeline(rs, req, common.mustSucceed());
 
     req.on('response', (res) => {
       res.on('data', (chunk) => {
