@@ -404,8 +404,7 @@ async function lazyllhttp () {
 
 let llhttpInstance = null
 let llhttpPromise = lazyllhttp()
-  .catch(() => {
-  })
+llhttpPromise.catch()
 
 let currentParser = null
 let currentBufferRef = null
@@ -1074,8 +1073,6 @@ async function connect (client) {
 
     assert(socket)
 
-    client[kSocket] = socket
-
     socket[kNoRef] = false
     socket[kWriting] = false
     socket[kReset] = false
@@ -1090,6 +1087,8 @@ async function connect (client) {
       .on('readable', onSocketReadable)
       .on('end', onSocketEnd)
       .on('close', onSocketClose)
+
+    client[kSocket] = socket
 
     if (channels.connected.hasSubscribers) {
       channels.connected.publish({
@@ -1176,7 +1175,7 @@ function _resume (client, sync) {
 
     const socket = client[kSocket]
 
-    if (socket) {
+    if (socket && !socket.destroyed) {
       if (client[kSize] === 0) {
         if (!socket[kNoRef] && socket.unref) {
           socket.unref()
@@ -1243,7 +1242,7 @@ function _resume (client, sync) {
 
     if (!socket) {
       connect(client)
-      continue
+      return
     }
 
     if (socket.destroyed || socket[kWriting] || socket[kReset] || socket[kBlocking]) {

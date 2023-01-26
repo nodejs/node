@@ -24,6 +24,14 @@ const nodeVersion = process.versions.node.split('.')
 const nodeMajor = Number(nodeVersion[0])
 const nodeMinor = Number(nodeVersion[1])
 
+let hasCrypto
+try {
+  require('crypto')
+  hasCrypto = true
+} catch {
+  hasCrypto = false
+}
+
 Object.assign(Dispatcher.prototype, api)
 
 module.exports.Dispatcher = Dispatcher
@@ -128,7 +136,7 @@ if (nodeMajor >= 16) {
   module.exports.setCookie = setCookie
 }
 
-if (nodeMajor >= 18) {
+if (nodeMajor >= 18 && hasCrypto) {
   const { WebSocket } = require('./lib/websocket/websocket')
 
   module.exports.WebSocket = WebSocket
