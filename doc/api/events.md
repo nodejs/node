@@ -2314,6 +2314,20 @@ equivalent `EventEmitter` API. The only difference between `addListener()` and
 `addEventListener()` is that `addListener()` will return a reference to the
 `EventTarget`.
 
+#### `nodeEventTarget.emit(type, arg)`
+
+<!-- YAML
+added: v15.2.0
+-->
+
+* `type` {string}
+* `arg` {any}
+* Returns: {boolean} `true` if event listeners registered for the `type` exist,
+  otherwise `false`.
+
+Node.js-specific extension to the `EventTarget` class that dispatches the
+`arg` to the list of handlers for `type`.
+
 #### `nodeEventTarget.eventNames()`
 
 <!-- YAML
@@ -2375,7 +2389,7 @@ added: v14.5.0
 
 * Returns: {EventTarget} this
 
-Node.js-specific alias for `eventTarget.removeListener()`.
+Node.js-specific alias for `eventTarget.removeEventListener()`.
 
 #### `nodeEventTarget.on(type, listener)`
 
@@ -2389,7 +2403,7 @@ added: v14.5.0
 
 * Returns: {EventTarget} this
 
-Node.js-specific alias for `eventTarget.addListener()`.
+Node.js-specific alias for `eventTarget.addEventListener()`.
 
 #### `nodeEventTarget.once(type, listener)`
 
