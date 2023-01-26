@@ -1,3 +1,5 @@
+import { IncomingHttpHeaders } from 'http'
+
 import Agent from './agent'
 import buildConnector from './connector';
 import Dispatcher from './dispatcher'
@@ -19,6 +21,7 @@ declare namespace ProxyAgent {
      */
     auth?: string;
     token?: string;
+    headers?: IncomingHttpHeaders;
     requestTls?: buildConnector.BuildOptions;
     proxyTls?: buildConnector.BuildOptions;
   }

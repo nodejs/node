@@ -56,7 +56,7 @@ const { Readable, pipeline } = require('stream')
 const { isErrored, isReadable } = require('../core/util')
 const { dataURLProcessor, serializeAMimeType } = require('./dataURL')
 const { TransformStream } = require('stream/web')
-const { getGlobalDispatcher } = require('../../index')
+const { getGlobalDispatcher } = require('../global')
 const { webidl } = require('./webidl')
 const { STATUS_CODES } = require('http')
 
@@ -1951,8 +1951,6 @@ async function httpNetworkFetch (
         body: fetchParams.controller.dispatcher.isMockActive ? request.body && request.body.source : body,
         headers: request.headersList[kHeadersCaseInsensitive],
         maxRedirections: 0,
-        bodyTimeout: 300_000,
-        headersTimeout: 300_000,
         upgrade: request.mode === 'websocket' ? 'websocket' : undefined
       },
       {

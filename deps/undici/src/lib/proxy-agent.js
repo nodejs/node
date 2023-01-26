@@ -53,7 +53,7 @@ class ProxyAgent extends DispatcherBase {
 
     this[kRequestTls] = opts.requestTls
     this[kProxyTls] = opts.proxyTls
-    this[kProxyHeaders] = {}
+    this[kProxyHeaders] = opts.headers || {}
 
     if (opts.auth && opts.token) {
       throw new InvalidArgumentError('opts.auth cannot be used in combination with opts.token')

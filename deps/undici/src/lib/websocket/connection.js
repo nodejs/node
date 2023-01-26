@@ -1,6 +1,5 @@
 'use strict'
 
-// TODO: crypto isn't available in all environments
 const { randomBytes, createHash } = require('crypto')
 const diagnosticsChannel = require('diagnostics_channel')
 const { uid, states } = require('./constants')
