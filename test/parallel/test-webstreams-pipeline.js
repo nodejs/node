@@ -300,3 +300,93 @@ const http = require('http');
 
   c.error(new Error('kaboom'));
 }
+
+{
+  const values = [];
+  let c;
+  const rs = new ReadableStream({
+    start(controller) {
+      c = controller;
+    }
+  });
+
+  pipeline(rs, async function(source) {
+    for await (const chunk of source) {
+      values.push(chunk?.toString());
+    }
+  }, common.mustSucceed(() => {
+    assert.deepStrictEqual(values, ['hello', 'world']);
+  }));
+
+  c.enqueue('hello');
+  c.enqueue('world');
+  c.close();
+}
+
+{
+  const rs = new ReadableStream({
+    start() {}
+  });
+
+  pipeline(rs, async function(source) {
+    throw new Error('kaboom');
+  }, (err) => {
+    assert.strictEqual(err?.message, 'kaboom');
+  });
+}
+
+{
+  const values = [];
+  let c;
+  const rs = new ReadableStream({
+    start(controller) {
+      c = controller;
+    }
+  });
+
+  const ts = new TransformStream({
+    transform(chunk, controller) {
+      controller.enqueue(chunk?.toString().toUpperCase());
+    }
+  });
+
+  pipeline(rs, ts, async function(source) {
+    for await (const chunk of source) {
+      values.push(chunk?.toString());
+    }
+  }, common.mustSucceed(() => {
+    assert.deepStrictEqual(values, ['HELLO', 'WORLD']);
+  }));
+
+  c.enqueue('hello');
+  c.enqueue('world');
+  c.close();
+}
+
+{
+  const values = [];
+  let c;
+  const rs = new ReadableStream({
+    start(controller) {
+      c = controller;
+    }
+  });
+
+  const ws = new WritableStream({
+    write(chunk) {
+      values.push(chunk?.toString());
+    }
+  });
+
+  pipeline(rs, async function* (source) {
+    for await (const chunk of source) {
+      yield chunk?.toString().toUpperCase();
+    }
+  }, ws, common.mustSucceed(() => {
+    assert.deepStrictEqual(values, ['HELLO', 'WORLD']);
+  }));
+
+  c.enqueue('hello');
+  c.enqueue('world');
+  c.close();
+}
