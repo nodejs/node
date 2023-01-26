@@ -32,6 +32,15 @@ inline void Initialize(v8::Local<v8::Object> exports,
 
   const SSL_METHOD* method = TLSv1_2_server_method();
   assert(method != nullptr);
+
+  {
+    const EVP_CIPHER* cipher = EVP_chacha20();
+    assert(cipher != nullptr);
+  }
+  {
+    const EVP_CIPHER* cipher = EVP_chacha20_poly1305();
+    assert(cipher != nullptr);
+  }
 }
 
 }  // anonymous namespace
