@@ -6,7 +6,6 @@
 #include "util-inl.h"
 
 #include <algorithm>
-#include <cmath>
 #include <cstdio>
 #include <numeric>
 #include <string>
@@ -477,10 +476,10 @@ void URLHost::ParseIPv4Host(const char* input, size_t length) {
   const char* pointer = input;
   const char* mark = input;
   const char* end = pointer + length;
-  int parts = 0;
+  unsigned int parts = 0;
   uint32_t val = 0;
   uint64_t numbers[4];
-  int tooBigNumbers = 0;
+  unsigned int tooBigNumbers = 0;
   if (length == 0)
     return;
 
@@ -488,7 +487,7 @@ void URLHost::ParseIPv4Host(const char* input, size_t length) {
     const char ch = pointer < end ? pointer[0] : kEOL;
     int64_t remaining = end - pointer - 1;
     if (ch == '.' || ch == kEOL) {
-      if (++parts > static_cast<int>(arraysize(numbers))) return;
+      if (++parts > arraysize(numbers)) return;
       if (pointer == mark)
         return;
       int64_t n = ParseIPv4Number(mark, pointer);
@@ -510,18 +509,15 @@ void URLHost::ParseIPv4Host(const char* input, size_t length) {
   // If any but the last item in numbers is greater than 255, return failure.
   // If the last item in numbers is greater than or equal to
   // 256^(5 - the number of items in numbers), return failure.
-  if (tooBigNumbers > 1 ||
-      (tooBigNumbers == 1 && numbers[parts - 1] <= 255) ||
-      numbers[parts - 1] >= pow(256, static_cast<double>(5 - parts))) {
+  if (tooBigNumbers > 1 || (tooBigNumbers == 1 && numbers[parts - 1] <= 255) ||
+      numbers[parts - 1] >= UINT64_C(1) << (8 * (5 - parts))) {
     return;
   }
 
   type_ = HostType::H_IPV4;
   val = static_cast<uint32_t>(numbers[parts - 1]);
-  for (int n = 0; n < parts - 1; n++) {
-    double b = 3 - n;
-    val +=
-        static_cast<uint32_t>(numbers[n]) * static_cast<uint32_t>(pow(256, b));
+  for (unsigned int n = 0; n < parts - 1; n++) {
+    val += static_cast<uint32_t>(numbers[n]) << (8 * (3 - n));
   }
 
   value_.ipv4 = val;
