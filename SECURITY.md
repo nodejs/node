@@ -82,14 +82,22 @@ Vulnerabilities related to this case may be fixed by a documentation update.
 
 **Node.js does NOT trust**:
 
-1. The data from network connections that are created through the use of Node.js
-   APIs and which is transformed/validated by Node.js before being passed to the
-   application. This includes:
-   * HTTP APIs (all flavors) client and server APIs.
+1. Data received from the remote end of inbound network connections
+   that are accepted through the use of Node.js APIs and
+   which is transformed/validated by Node.js before being passed
+   to the application. This includes:
+   * HTTP APIs (all flavors) server APIs.
+2. The data received from the remote end of outbound network connections
+   that are created through the use of Node.js APIs and
+   which is transformed/validated by Node.js before being passed
+   to the application EXCEPT in respect to payload length. Node.js trusts
+   that applications make connections/requests which will avoid payload
+   sizes that will result in a Denial of Service.
+   * HTTP APIs (all flavors) client APIs.
    * DNS APIs.
-2. Consumers of data protected through the use of Node.js APIs (for example
+3. Consumers of data protected through the use of Node.js APIs (for example
    people who have access to data encrypted through the Node.js crypto APIs).
-3. The file content or other I/O that is opened for reading or writing by the
+4. The file content or other I/O that is opened for reading or writing by the
    use of Node.js APIs (ex: stdin, stdout, stderr).
 
 In other words, if the data passing through Node.js to/from the application
@@ -180,6 +188,13 @@ the community they pose.
 * If Node.js automatically loads a configuration file which is documented
   no scenario that requires modification of that configuration file is
   considered a vulnerability.
+
+#### Uncontrolled Resource Consumption (CWE-400) on outbound connections
+
+* If Node.js is asked to connect to a remote site and return an
+  artifact, it is not considered a vulnerability if the size of
+  that artifact is large enough to impact performance and or
+  cause the runtime to run out of resources.
 
 ## Receiving security updates
 
