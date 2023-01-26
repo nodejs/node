@@ -1531,6 +1531,19 @@ changes:
 * Returns: {Promise}  Fulfills with the {fs.Stats} object for the
   given `path`.
 
+### `fsPromises.statfs(path[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {Object}
+  * `bigint` {boolean} Whether the numeric values in the returned
+    {fs.StatFs} object should be `bigint`. **Default:** `false`.
+* Returns: {Promise} Fulfills with the {fs.StatFs} object for the
+  given `path`.
+
 ### `fsPromises.symlink(target, path[, type])`
 
 <!-- YAML
@@ -4101,6 +4114,26 @@ Stats {
 }
 ```
 
+### `fs.statfs(path[, options], callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {Object}
+  * `bigint` {boolean} Whether the numeric values in the returned
+    {fs.StatFs} object should be `bigint`. **Default:** `false`.
+* `callback` {Function}
+  * `err` {Error}
+  * `stats` {fs.StatFs}
+
+Asynchronous statfs(2). Returns information about the mounted file system which
+contains `path`. The callback gets two arguments `(err, stats)` where `stats`
+is an {fs.StatFs} object.
+
+In case of an error, the `err.code` will be one of [Common System Errors][].
+
 ### `fs.symlink(target, path[, type], callback)`
 
 <!-- YAML
@@ -5852,6 +5885,23 @@ changes:
 
 Retrieves the {fs.Stats} for the path.
 
+### `fs.statfsSync(path[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {Object}
+  * `bigint` {boolean} Whether the numeric values in the returned
+    {fs.StatFs} object should be `bigint`. **Default:** `false`.
+* Returns: {fs.StatFs}
+
+Synchronous statfs(2). Returns information about the mounted file system which
+contains `path`.
+
+In case of an error, the `err.code` will be one of [Common System Errors][].
+
 ### `fs.symlinkSync(target, path[, type])`
 
 <!-- YAML
@@ -6944,6 +6994,114 @@ The times in the stat object have the following semantics:
 Prior to Node.js 0.12, the `ctime` held the `birthtime` on Windows systems. As
 of 0.12, `ctime` is not "creation time", and on Unix systems, it never was.
 
+### Class: `fs.StatFs`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Provides information about a mounted file system.
+
+Objects returned from [`fs.statfs()`][] and its synchronous counterpart are of
+this type. If `bigint` in the `options` passed to those methods is `true`, the
+numeric values will be `bigint` instead of `number`.
+
+```console
+StatFs {
+  type: 1397114950,
+  bsize: 4096,
+  blocks: 121938943,
+  bfree: 61058895,
+  bavail: 61058895,
+  files: 999,
+  ffree: 1000000
+}
+```
+
+`bigint` version:
+
+```console
+StatFs {
+  type: 1397114950n,
+  bsize: 4096n,
+  blocks: 121938943n,
+  bfree: 61058895n,
+  bavail: 61058895n,
+  files: 999n,
+  ffree: 1000000n
+}
+```
+
+#### `statfs.bavail`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number|bigint}
+
+Free blocks available to unprivileged users.
+
+#### `statfs.bfree`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number|bigint}
+
+Free blocks in file system.
+
+#### `statfs.blocks`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number|bigint}
+
+Total data blocks in file system.
+
+#### `statfs.bsize`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number|bigint}
+
+Optimal transfer block size.
+
+#### `statfs.ffree`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number|bigint}
+
+Free file nodes in file system.
+
+#### `statfs.files`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number|bigint}
+
+Total file nodes in file system.
+
+#### `statfs.type`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number|bigint}
+
+Type of file system.
+
 ### Class: `fs.WriteStream`
 
 <!-- YAML
@@ -7787,6 +7945,7 @@ the file contents.
 [`fs.rmSync()`]: #fsrmsyncpath-options
 [`fs.rmdir()`]: #fsrmdirpath-options-callback
 [`fs.stat()`]: #fsstatpath-options-callback
+[`fs.statfs()`]: #fsstatfspath-options-callback
 [`fs.symlink()`]: #fssymlinktarget-path-type-callback
 [`fs.utimes()`]: #fsutimespath-atime-mtime-callback
 [`fs.watch()`]: #fswatchfilename-options-listener
