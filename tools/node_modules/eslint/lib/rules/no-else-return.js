@@ -178,7 +178,7 @@ module.exports = {
             context.report({
                 node,
                 messageId: "unexpected",
-                fix: fixer => {
+                fix(fixer) {
 
                     if (!isSafeFromNameCollisions(node, currentScope)) {
                         return null;

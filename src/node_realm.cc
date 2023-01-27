@@ -8,7 +8,6 @@
 
 namespace node {
 
-using builtins::BuiltinLoader;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -46,6 +45,8 @@ void Realm::MemoryInfo(MemoryTracker* tracker) const {
 
   tracker->TrackField("env", env_);
   tracker->TrackField("cleanup_queue", cleanup_queue_);
+  tracker->TrackField("builtins_with_cache", builtins_with_cache);
+  tracker->TrackField("builtins_without_cache", builtins_without_cache);
 
   ForEachBaseObject([&](BaseObject* obj) {
     if (obj->IsDoneInitializing()) {
@@ -102,6 +103,11 @@ RealmSerializeInfo Realm::Serialize(SnapshotCreator* creator) {
   RealmSerializeInfo info;
   Local<Context> ctx = context();
 
+  // Currently all modules are compiled without cache in builtin snapshot
+  // builder.
+  info.builtins = std::vector<std::string>(builtins_without_cache.begin(),
+                                           builtins_without_cache.end());
+
   uint32_t id = 0;
 #define V(PropertyName, TypeName)                                              \
   do {                                                                         \
@@ -125,6 +131,8 @@ RealmSerializeInfo Realm::Serialize(SnapshotCreator* creator) {
 
 void Realm::DeserializeProperties(const RealmSerializeInfo* info) {
   Local<Context> ctx = context();
+
+  builtins_in_snapshot = info->builtins;
 
   const std::vector<PropInfo>& values = info->persistent_values;
   size_t i = 0;  // index to the array
@@ -165,7 +173,8 @@ void Realm::DeserializeProperties(const RealmSerializeInfo* info) {
 MaybeLocal<Value> Realm::ExecuteBootstrapper(const char* id) {
   EscapableHandleScope scope(isolate());
   Local<Context> ctx = context();
-  MaybeLocal<Value> result = BuiltinLoader::CompileAndCall(ctx, id, this);
+  MaybeLocal<Value> result =
+      env()->builtin_loader()->CompileAndCall(ctx, id, this);
 
   // If there was an error during bootstrap, it must be unrecoverable
   // (e.g. max call stack exceeded). Clear the stack so that the
@@ -243,9 +252,10 @@ MaybeLocal<Value> Realm::BootstrapNode() {
   }
 
   Local<String> env_string = FIXED_ONE_BYTE_STRING(isolate_, "env");
-  Local<Object> env_var_proxy;
-  if (!CreateEnvVarProxy(context(), isolate_).ToLocal(&env_var_proxy) ||
-      process_object()->Set(context(), env_string, env_var_proxy).IsNothing()) {
+  Local<Object> env_proxy;
+  CreateEnvProxyTemplate(isolate_, env_->isolate_data());
+  if (!env_->env_proxy_template()->NewInstance(context()).ToLocal(&env_proxy) ||
+      process_object()->Set(context(), env_string, env_proxy).IsNothing()) {
     return MaybeLocal<Value>();
   }
 
@@ -304,6 +314,20 @@ void Realm::PrintInfoForSnapshot() {
     std::cout << "#" << i++ << " " << obj << ": " << obj->MemoryInfoName()
               << "\n";
   });
+
+  fprintf(stderr, "\nnBuiltins without cache:\n");
+  for (const auto& s : builtins_without_cache) {
+    fprintf(stderr, "%s\n", s.c_str());
+  }
+  fprintf(stderr, "\nBuiltins with cache:\n");
+  for (const auto& s : builtins_with_cache) {
+    fprintf(stderr, "%s\n", s.c_str());
+  }
+  fprintf(stderr, "\nStatic bindings (need to be registered):\n");
+  for (const auto mod : internal_bindings) {
+    fprintf(stderr, "%s:%s\n", mod->nm_filename, mod->nm_modname);
+  }
+
   fprintf(stderr, "End of the Realm.\n");
 }
 
@@ -333,7 +357,7 @@ void Realm::VerifyNoStrongBaseObjects() {
     if (obj->IsNotIndicativeOfMemoryLeakAtExit()) return;
     fprintf(stderr,
             "Found bad BaseObject during clean exit: %s\n",
-            obj->MemoryInfoName().c_str());
+            obj->MemoryInfoName());
     fflush(stderr);
     ABORT();
   });

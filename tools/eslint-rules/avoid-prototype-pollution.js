@@ -80,7 +80,7 @@ function createUnsafeStringMethodReport(context, name, lookedUpProperty) {
         node,
         message: `${name} looks up the ${lookedUpProperty} property on the first argument`,
       });
-    }
+    },
   };
 }
 
@@ -98,7 +98,7 @@ function createUnsafeStringMethodOnRegexReport(context, name, lookedUpProperty) 
         node,
         message: `${name} looks up the ${lookedUpProperty} property of the passed regex, use ${safePrimordialName} directly`,
       });
-    }
+    },
   };
 }
 
@@ -155,7 +155,7 @@ module.exports = {
                 fixer.replaceTextRange(testRange, 'Exec'),
                 fixer.insertTextAfter(node, ' !== null'),
               ];
-            }
+            },
           }],
         });
       },
@@ -222,6 +222,14 @@ module.exports = {
         context.report({
           node,
           message: `Use Safe${node.callee.name} instead of ${node.callee.name}`,
+        });
+      },
+
+      [CallExpression('ArrayPrototypeConcat')](node) {
+        context.report({
+          node,
+          message: '%Array.prototype.concat% looks up `@@isConcatSpreadable` ' +
+                   'which can be subject to prototype pollution',
         });
       },
     };

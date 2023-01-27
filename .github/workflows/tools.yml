@@ -21,12 +21,11 @@ jobs:
             subsystem: tools
             label: tools
             run: |
-              cd tools
               NEW_VERSION=$(npm view eslint dist-tags.latest)
-              CURRENT_VERSION=$(node -p "require('./node_modules/eslint/package.json').version")
+              CURRENT_VERSION=$(node -p "require('./tools/node_modules/eslint/package.json').version")
               if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                ./update-eslint.sh
+                ./tools/dep_updaters/update-eslint.sh
               fi
           - id: corepack
             subsystem: deps
@@ -78,6 +77,16 @@ jobs:
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
                 ./tools/update-undici.sh
               fi
+          - id: postject
+            subsystem: deps
+            label: dependencies
+            run: |
+              NEW_VERSION=$(npm view postject dist-tags.latest)
+              CURRENT_VERSION=$(node -p "require('./test/fixtures/postject-copy/node_modules/postject/package.json').version")
+              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                ./tools/dep_updaters/update-postject.sh
+              fi
           - id: base64
             subsystem: deps
             label: dependencies
@@ -125,6 +134,16 @@ jobs:
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
                 ./tools/dep_updaters/update-libuv.sh "$NEW_VERSION"
               fi
+          - id: simdutf
+            subsystem: deps
+            label: dependencies
+            run: |
+              NEW_VERSION=$(gh api repos/simdutf/simdutf/releases/latest -q '.tag_name|ltrimstr("v")')
+              CURRENT_VERSION=$(grep "#define SIMDUTF_VERSION" ./deps/simdutf/simdutf.h | sed -n "s/^.*VERSION \(.*\)/\1/p")
+              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                ./tools/dep_updaters/update-simdutf.sh "$NEW_VERSION"
+              fi
     steps:
       - uses: actions/checkout@v3
         with:
@@ -132,7 +151,7 @@ jobs:
       - run: ${{ matrix.run }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
-      - uses: gr2m/create-or-update-pull-request-action@dc1726cbf4dd3ce766af4ec29cfb660e0125e8ee
+      - uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
         env:

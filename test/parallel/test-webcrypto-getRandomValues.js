@@ -6,6 +6,6 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { getRandomValues } = require('crypto').webcrypto;
+const { getRandomValues } = globalThis.crypto;
 
 assert.throws(() => getRandomValues(new Uint8Array()), { code: 'ERR_INVALID_THIS' });

@@ -6807,15 +6807,15 @@ const disable = {
 
 var defaultConstructs = /*#__PURE__*/Object.freeze({
   __proto__: null,
-  document: document,
-  contentInitial: contentInitial,
-  flowInitial: flowInitial,
-  flow: flow,
-  string: string,
-  text: text$2,
-  insideSpan: insideSpan,
   attentionMarkers: attentionMarkers,
-  disable: disable
+  contentInitial: contentInitial,
+  disable: disable,
+  document: document,
+  flow: flow,
+  flowInitial: flowInitial,
+  insideSpan: insideSpan,
+  string: string,
+  text: text$2
 });
 
 function parse$1(options = {}) {
@@ -7813,101 +7813,13 @@ function configure(base, extension) {
   return base
 }
 
-function track(options_) {
-  const options = options_ || {};
-  const now = options.now || {};
-  let lineShift = options.lineShift || 0;
-  let line = now.line || 1;
-  let column = now.column || 1;
-  return {move, current, shift}
-  function current() {
-    return {now: {line, column}, lineShift}
-  }
-  function shift(value) {
-    lineShift += value;
-  }
-  function move(value = '') {
-    const chunks = value.split(/\r?\n|\r/g);
-    const tail = chunks[chunks.length - 1];
-    line += chunks.length - 1;
-    column =
-      chunks.length === 1 ? column + tail.length : 1 + tail.length + lineShift;
-    return value
-  }
-}
-
-function containerFlow(parent, context, safeOptions) {
-  const indexStack = context.indexStack;
-  const children = parent.children || [];
-  const tracker = track(safeOptions);
-  const results = [];
-  let index = -1;
-  indexStack.push(-1);
-  while (++index < children.length) {
-    const child = children[index];
-    indexStack[indexStack.length - 1] = index;
-    results.push(
-      tracker.move(
-        context.handle(child, parent, context, {
-          before: '\n',
-          after: '\n',
-          ...tracker.current()
-        })
-      )
-    );
-    if (child.type !== 'list') {
-      context.bulletLastUsed = undefined;
-    }
-    if (index < children.length - 1) {
-      results.push(tracker.move(between(child, children[index + 1])));
-    }
-  }
-  indexStack.pop();
-  return results.join('')
-  function between(left, right) {
-    let index = context.join.length;
-    while (index--) {
-      const result = context.join[index](left, right, parent, context);
-      if (result === true || result === 1) {
-        break
-      }
-      if (typeof result === 'number') {
-        return '\n'.repeat(1 + result)
-      }
-      if (result === false) {
-        return '\n\n<!---->\n\n'
-      }
-    }
-    return '\n\n'
-  }
-}
-
-const eol = /\r?\n|\r/g;
-function indentLines(value, map) {
-  const result = [];
-  let start = 0;
-  let line = 0;
-  let match;
-  while ((match = eol.exec(value))) {
-    one(value.slice(start, match.index));
-    result.push(match[0]);
-    start = match.index + match[0].length;
-    line++;
-  }
-  one(value.slice(start));
-  return result.join('')
-  function one(value) {
-    result.push(map(value, line, !value));
-  }
-}
-
-function blockquote(node, _, context, safeOptions) {
-  const exit = context.enter('blockquote');
-  const tracker = track(safeOptions);
+function blockquote(node, _, state, info) {
+  const exit = state.enter('blockquote');
+  const tracker = state.createTracker(info);
   tracker.move('> ');
   tracker.shift(2);
-  const value = indentLines(
-    containerFlow(node, context, tracker.current()),
+  const value = state.indentLines(
+    state.containerFlow(node, tracker.current()),
     map$2
   );
   exit();
@@ -7924,11 +7836,11 @@ function patternInScope(stack, pattern) {
   )
 }
 function listInScope(stack, list, none) {
-  if (!list) {
-    return none
-  }
   if (typeof list === 'string') {
     list = [list];
+  }
+  if (!list || list.length === 0) {
+    return none
   }
   let index = -1;
   while (++index < list.length) {
@@ -7939,14 +7851,14 @@ function listInScope(stack, list, none) {
   return false
 }
 
-function hardBreak(_, _1, context, safe) {
+function hardBreak(_, _1, state, info) {
   let index = -1;
-  while (++index < context.unsafe.length) {
+  while (++index < state.unsafe.length) {
     if (
-      context.unsafe[index].character === '\n' &&
-      patternInScope(context.stack, context.unsafe[index])
+      state.unsafe[index].character === '\n' &&
+      patternInScope(state.stack, state.unsafe[index])
     ) {
-      return /[ \t]/.test(safe.before) ? '' : ' '
+      return /[ \t]/.test(info.before) ? '' : ' '
     }
   }
   return '\\\n'
@@ -7975,9 +7887,9 @@ function longestStreak(value, substring) {
   return max
 }
 
-function formatCodeAsIndented(node, context) {
+function formatCodeAsIndented(node, state) {
   return Boolean(
-    !context.options.fences &&
+    !state.options.fences &&
       node.value &&
       !node.lang &&
       /[^ \r\n]/.test(node.value) &&
@@ -7985,8 +7897,8 @@ function formatCodeAsIndented(node, context) {
   )
 }
 
-function checkFence(context) {
-  const marker = context.options.fence || '`';
+function checkFence(state) {
+  const marker = state.options.fence || '`';
   if (marker !== '`' && marker !== '~') {
     throw new Error(
       'Cannot serialize code with `' +
@@ -7997,136 +7909,24 @@ function checkFence(context) {
   return marker
 }
 
-function patternCompile(pattern) {
-  if (!pattern._compiled) {
-    const before =
-      (pattern.atBreak ? '[\\r\\n][\\t ]*' : '') +
-      (pattern.before ? '(?:' + pattern.before + ')' : '');
-    pattern._compiled = new RegExp(
-      (before ? '(' + before + ')' : '') +
-        (/[|\\{}()[\]^$+*?.-]/.test(pattern.character) ? '\\' : '') +
-        pattern.character +
-        (pattern.after ? '(?:' + pattern.after + ')' : ''),
-      'g'
-    );
-  }
-  return pattern._compiled
-}
-
-function safe(context, input, config) {
-  const value = (config.before || '') + (input || '') + (config.after || '');
-  const positions = [];
-  const result = [];
-  const infos = {};
-  let index = -1;
-  while (++index < context.unsafe.length) {
-    const pattern = context.unsafe[index];
-    if (!patternInScope(context.stack, pattern)) {
-      continue
-    }
-    const expression = patternCompile(pattern);
-    let match;
-    while ((match = expression.exec(value))) {
-      const before = 'before' in pattern || Boolean(pattern.atBreak);
-      const after = 'after' in pattern;
-      const position = match.index + (before ? match[1].length : 0);
-      if (positions.includes(position)) {
-        if (infos[position].before && !before) {
-          infos[position].before = false;
-        }
-        if (infos[position].after && !after) {
-          infos[position].after = false;
-        }
-      } else {
-        positions.push(position);
-        infos[position] = {before, after};
-      }
-    }
-  }
-  positions.sort(numerical);
-  let start = config.before ? config.before.length : 0;
-  const end = value.length - (config.after ? config.after.length : 0);
-  index = -1;
-  while (++index < positions.length) {
-    const position = positions[index];
-    if (position < start || position >= end) {
-      continue
-    }
-    if (
-      (position + 1 < end &&
-        positions[index + 1] === position + 1 &&
-        infos[position].after &&
-        !infos[position + 1].before &&
-        !infos[position + 1].after) ||
-      (positions[index - 1] === position - 1 &&
-        infos[position].before &&
-        !infos[position - 1].before &&
-        !infos[position - 1].after)
-    ) {
-      continue
-    }
-    if (start !== position) {
-      result.push(escapeBackslashes(value.slice(start, position), '\\'));
-    }
-    start = position;
-    if (
-      /[!-/:-@[-`{-~]/.test(value.charAt(position)) &&
-      (!config.encode || !config.encode.includes(value.charAt(position)))
-    ) {
-      result.push('\\');
-    } else {
-      result.push(
-        '&#x' + value.charCodeAt(position).toString(16).toUpperCase() + ';'
-      );
-      start++;
-    }
-  }
-  result.push(escapeBackslashes(value.slice(start, end), config.after));
-  return result.join('')
-}
-function numerical(a, b) {
-  return a - b
-}
-function escapeBackslashes(value, after) {
-  const expression = /\\(?=[!-/:-@[-`{-~])/g;
-  const positions = [];
-  const results = [];
-  const whole = value + after;
-  let index = -1;
-  let start = 0;
-  let match;
-  while ((match = expression.exec(whole))) {
-    positions.push(match.index);
-  }
-  while (++index < positions.length) {
-    if (start !== positions[index]) {
-      results.push(value.slice(start, positions[index]));
-    }
-    results.push('\\');
-    start = positions[index];
-  }
-  results.push(value.slice(start));
-  return results.join('')
-}
-
-function code$1(node, _, context, safeOptions) {
-  const marker = checkFence(context);
+function code$1(node, _, state, info) {
+  const marker = checkFence(state);
   const raw = node.value || '';
   const suffix = marker === '`' ? 'GraveAccent' : 'Tilde';
-  if (formatCodeAsIndented(node, context)) {
-    const exit = context.enter('codeIndented');
-    const value = indentLines(raw, map$1);
+  if (formatCodeAsIndented(node, state)) {
+    const exit = state.enter('codeIndented');
+    const value = state.indentLines(raw, map$1);
     exit();
     return value
   }
-  const tracker = track(safeOptions);
+  const tracker = state.createTracker(info);
   const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
-  const exit = context.enter('codeFenced');
+  const exit = state.enter('codeFenced');
   let value = tracker.move(sequence);
   if (node.lang) {
-    const subexit = context.enter('codeFencedLang' + suffix);
+    const subexit = state.enter(`codeFencedLang${suffix}`);
     value += tracker.move(
-      safe(context, node.lang, {
+      state.safe(node.lang, {
         before: value,
         after: ' ',
         encode: ['`'],
@@ -8136,10 +7936,10 @@ function code$1(node, _, context, safeOptions) {
     subexit();
   }
   if (node.lang && node.meta) {
-    const subexit = context.enter('codeFencedMeta' + suffix);
+    const subexit = state.enter(`codeFencedMeta${suffix}`);
     value += tracker.move(' ');
     value += tracker.move(
-      safe(context, node.meta, {
+      state.safe(node.meta, {
         before: value,
         after: '\n',
         encode: ['`'],
@@ -8160,15 +7960,8 @@ function map$1(line, _, blank) {
   return (blank ? '' : '    ') + line
 }
 
-function association(node) {
-  if (node.label || !node.identifier) {
-    return node.label || ''
-  }
-  return decodeString(node.identifier)
-}
-
-function checkQuote(context) {
-  const marker = context.options.quote || '"';
+function checkQuote(state) {
+  const marker = state.options.quote || '"';
   if (marker !== '"' && marker !== "'") {
     throw new Error(
       'Cannot serialize title with `' +
@@ -8179,15 +7972,15 @@ function checkQuote(context) {
   return marker
 }
 
-function definition(node, _, context, safeOptions) {
-  const quote = checkQuote(context);
+function definition(node, _, state, info) {
+  const quote = checkQuote(state);
   const suffix = quote === '"' ? 'Quote' : 'Apostrophe';
-  const exit = context.enter('definition');
-  let subexit = context.enter('label');
-  const tracker = track(safeOptions);
+  const exit = state.enter('definition');
+  let subexit = state.enter('label');
+  const tracker = state.createTracker(info);
   let value = tracker.move('[');
   value += tracker.move(
-    safe(context, association(node), {
+    state.safe(state.associationId(node), {
       before: value,
       after: ']',
       ...tracker.current()
@@ -8199,16 +7992,16 @@ function definition(node, _, context, safeOptions) {
     !node.url ||
     /[\0- \u007F]/.test(node.url)
   ) {
-    subexit = context.enter('destinationLiteral');
+    subexit = state.enter('destinationLiteral');
     value += tracker.move('<');
     value += tracker.move(
-      safe(context, node.url, {before: value, after: '>', ...tracker.current()})
+      state.safe(node.url, {before: value, after: '>', ...tracker.current()})
     );
     value += tracker.move('>');
   } else {
-    subexit = context.enter('destinationRaw');
+    subexit = state.enter('destinationRaw');
     value += tracker.move(
-      safe(context, node.url, {
+      state.safe(node.url, {
         before: value,
         after: node.title ? ' ' : '\n',
         ...tracker.current()
@@ -8217,10 +8010,10 @@ function definition(node, _, context, safeOptions) {
   }
   subexit();
   if (node.title) {
-    subexit = context.enter('title' + suffix);
+    subexit = state.enter(`title${suffix}`);
     value += tracker.move(' ' + quote);
     value += tracker.move(
-      safe(context, node.title, {
+      state.safe(node.title, {
         before: value,
         after: quote,
         ...tracker.current()
@@ -8233,8 +8026,8 @@ function definition(node, _, context, safeOptions) {
   return value
 }
 
-function checkEmphasis(context) {
-  const marker = context.options.emphasis || '*';
+function checkEmphasis(state) {
+  const marker = state.options.emphasis || '*';
   if (marker !== '*' && marker !== '_') {
     throw new Error(
       'Cannot serialize emphasis with `' +
@@ -8245,67 +8038,14 @@ function checkEmphasis(context) {
   return marker
 }
 
-function containerPhrasing(parent, context, safeOptions) {
-  const indexStack = context.indexStack;
-  const children = parent.children || [];
-  const results = [];
-  let index = -1;
-  let before = safeOptions.before;
-  indexStack.push(-1);
-  let tracker = track(safeOptions);
-  while (++index < children.length) {
-    const child = children[index];
-    let after;
-    indexStack[indexStack.length - 1] = index;
-    if (index + 1 < children.length) {
-      let handle = context.handle.handlers[children[index + 1].type];
-      if (handle && handle.peek) handle = handle.peek;
-      after = handle
-        ? handle(children[index + 1], parent, context, {
-            before: '',
-            after: '',
-            ...tracker.current()
-          }).charAt(0)
-        : '';
-    } else {
-      after = safeOptions.after;
-    }
-    if (
-      results.length > 0 &&
-      (before === '\r' || before === '\n') &&
-      child.type === 'html'
-    ) {
-      results[results.length - 1] = results[results.length - 1].replace(
-        /(\r?\n|\r)$/,
-        ' '
-      );
-      before = ' ';
-      tracker = track(safeOptions);
-      tracker.move(results.join(''));
-    }
-    results.push(
-      tracker.move(
-        context.handle(child, parent, context, {
-          ...tracker.current(),
-          before,
-          after
-        })
-      )
-    );
-    before = results[results.length - 1].slice(-1);
-  }
-  indexStack.pop();
-  return results.join('')
-}
-
 emphasis.peek = emphasisPeek;
-function emphasis(node, _, context, safeOptions) {
-  const marker = checkEmphasis(context);
-  const exit = context.enter('emphasis');
-  const tracker = track(safeOptions);
+function emphasis(node, _, state, info) {
+  const marker = checkEmphasis(state);
+  const exit = state.enter('emphasis');
+  const tracker = state.createTracker(info);
   let value = tracker.move(marker);
   value += tracker.move(
-    containerPhrasing(node, context, {
+    state.containerPhrasing(node, {
       before: value,
       after: marker,
       ...tracker.current()
@@ -8315,8 +8055,8 @@ function emphasis(node, _, context, safeOptions) {
   exit();
   return value
 }
-function emphasisPeek(_, _1, context) {
-  return context.options.emphasis || '*'
+function emphasisPeek(_, _1, state) {
+  return state.options.emphasis || '*'
 }
 
 const convert =
@@ -8472,7 +8212,7 @@ const visit$1 =
     }
   );
 
-function formatHeadingAsSetext(node, context) {
+function formatHeadingAsSetext(node, state) {
   let literalWithBreak = false;
   visit$1(node, (node) => {
     if (
@@ -8486,17 +8226,17 @@ function formatHeadingAsSetext(node, context) {
   return Boolean(
     (!node.depth || node.depth < 3) &&
       toString(node) &&
-      (context.options.setext || literalWithBreak)
+      (state.options.setext || literalWithBreak)
   )
 }
 
-function heading(node, _, context, safeOptions) {
+function heading(node, _, state, info) {
   const rank = Math.max(Math.min(6, node.depth || 1), 1);
-  const tracker = track(safeOptions);
-  if (formatHeadingAsSetext(node, context)) {
-    const exit = context.enter('headingSetext');
-    const subexit = context.enter('phrasing');
-    const value = containerPhrasing(node, context, {
+  const tracker = state.createTracker(info);
+  if (formatHeadingAsSetext(node, state)) {
+    const exit = state.enter('headingSetext');
+    const subexit = state.enter('phrasing');
+    const value = state.containerPhrasing(node, {
       ...tracker.current(),
       before: '\n',
       after: '\n'
@@ -8513,10 +8253,10 @@ function heading(node, _, context, safeOptions) {
     )
   }
   const sequence = '#'.repeat(rank);
-  const exit = context.enter('headingAtx');
-  const subexit = context.enter('phrasing');
+  const exit = state.enter('headingAtx');
+  const subexit = state.enter('phrasing');
   tracker.move(sequence + ' ');
-  let value = containerPhrasing(node, context, {
+  let value = state.containerPhrasing(node, {
     before: '# ',
     after: '\n',
     ...tracker.current()
@@ -8529,7 +8269,7 @@ function heading(node, _, context, safeOptions) {
       value.slice(1);
   }
   value = value ? sequence + ' ' + value : sequence;
-  if (context.options.closeAtx) {
+  if (state.options.closeAtx) {
     value += ' ' + sequence;
   }
   subexit();
@@ -8546,15 +8286,15 @@ function htmlPeek() {
 }
 
 image.peek = imagePeek;
-function image(node, _, context, safeOptions) {
-  const quote = checkQuote(context);
+function image(node, _, state, info) {
+  const quote = checkQuote(state);
   const suffix = quote === '"' ? 'Quote' : 'Apostrophe';
-  const exit = context.enter('image');
-  let subexit = context.enter('label');
-  const tracker = track(safeOptions);
+  const exit = state.enter('image');
+  let subexit = state.enter('label');
+  const tracker = state.createTracker(info);
   let value = tracker.move('![');
   value += tracker.move(
-    safe(context, node.alt, {before: value, after: ']', ...tracker.current()})
+    state.safe(node.alt, {before: value, after: ']', ...tracker.current()})
   );
   value += tracker.move('](');
   subexit();
@@ -8562,16 +8302,16 @@ function image(node, _, context, safeOptions) {
     (!node.url && node.title) ||
     /[\0- \u007F]/.test(node.url)
   ) {
-    subexit = context.enter('destinationLiteral');
+    subexit = state.enter('destinationLiteral');
     value += tracker.move('<');
     value += tracker.move(
-      safe(context, node.url, {before: value, after: '>', ...tracker.current()})
+      state.safe(node.url, {before: value, after: '>', ...tracker.current()})
     );
     value += tracker.move('>');
   } else {
-    subexit = context.enter('destinationRaw');
+    subexit = state.enter('destinationRaw');
     value += tracker.move(
-      safe(context, node.url, {
+      state.safe(node.url, {
         before: value,
         after: node.title ? ' ' : ')',
         ...tracker.current()
@@ -8580,10 +8320,10 @@ function image(node, _, context, safeOptions) {
   }
   subexit();
   if (node.title) {
-    subexit = context.enter('title' + suffix);
+    subexit = state.enter(`title${suffix}`);
     value += tracker.move(' ' + quote);
     value += tracker.move(
-      safe(context, node.title, {
+      state.safe(node.title, {
         before: value,
         after: quote,
         ...tracker.current()
@@ -8601,29 +8341,29 @@ function imagePeek() {
 }
 
 imageReference.peek = imageReferencePeek;
-function imageReference(node, _, context, safeOptions) {
+function imageReference(node, _, state, info) {
   const type = node.referenceType;
-  const exit = context.enter('imageReference');
-  let subexit = context.enter('label');
-  const tracker = track(safeOptions);
+  const exit = state.enter('imageReference');
+  let subexit = state.enter('label');
+  const tracker = state.createTracker(info);
   let value = tracker.move('![');
-  const alt = safe(context, node.alt, {
+  const alt = state.safe(node.alt, {
     before: value,
     after: ']',
     ...tracker.current()
   });
   value += tracker.move(alt + '][');
   subexit();
-  const stack = context.stack;
-  context.stack = [];
-  subexit = context.enter('reference');
-  const reference = safe(context, association(node), {
+  const stack = state.stack;
+  state.stack = [];
+  subexit = state.enter('reference');
+  const reference = state.safe(state.associationId(node), {
     before: value,
     after: ']',
     ...tracker.current()
   });
   subexit();
-  context.stack = stack;
+  state.stack = stack;
   exit();
   if (type === 'full' || !alt || alt !== reference) {
     value += tracker.move(reference + ']');
@@ -8638,8 +8378,24 @@ function imageReferencePeek() {
   return '!'
 }
 
+function patternCompile(pattern) {
+  if (!pattern._compiled) {
+    const before =
+      (pattern.atBreak ? '[\\r\\n][\\t ]*' : '') +
+      (pattern.before ? '(?:' + pattern.before + ')' : '');
+    pattern._compiled = new RegExp(
+      (before ? '(' + before + ')' : '') +
+        (/[|\\{}()[\]^$+*?.-]/.test(pattern.character) ? '\\' : '') +
+        pattern.character +
+        (pattern.after ? '(?:' + pattern.after + ')' : ''),
+      'g'
+    );
+  }
+  return pattern._compiled
+}
+
 inlineCode.peek = inlineCodePeek;
-function inlineCode(node, _, context) {
+function inlineCode(node, _, state) {
   let value = node.value || '';
   let sequence = '`';
   let index = -1;
@@ -8652,8 +8408,8 @@ function inlineCode(node, _, context) {
   ) {
     value = ' ' + value + ' ';
   }
-  while (++index < context.unsafe.length) {
-    const pattern = context.unsafe[index];
+  while (++index < state.unsafe.length) {
+    const pattern = state.unsafe[index];
     const expression = patternCompile(pattern);
     let match;
     if (!pattern.atBreak) continue
@@ -8674,10 +8430,10 @@ function inlineCodePeek() {
   return '`'
 }
 
-function formatLinkAsAutolink(node, context) {
+function formatLinkAsAutolink(node, state) {
   const raw = toString(node);
   return Boolean(
-    !context.options.resourceLink &&
+    !state.options.resourceLink &&
       node.url &&
       !node.title &&
       node.children &&
@@ -8690,19 +8446,19 @@ function formatLinkAsAutolink(node, context) {
 }
 
 link.peek = linkPeek;
-function link(node, _, context, safeOptions) {
-  const quote = checkQuote(context);
+function link(node, _, state, info) {
+  const quote = checkQuote(state);
   const suffix = quote === '"' ? 'Quote' : 'Apostrophe';
-  const tracker = track(safeOptions);
+  const tracker = state.createTracker(info);
   let exit;
   let subexit;
-  if (formatLinkAsAutolink(node, context)) {
-    const stack = context.stack;
-    context.stack = [];
-    exit = context.enter('autolink');
+  if (formatLinkAsAutolink(node, state)) {
+    const stack = state.stack;
+    state.stack = [];
+    exit = state.enter('autolink');
     let value = tracker.move('<');
     value += tracker.move(
-      containerPhrasing(node, context, {
+      state.containerPhrasing(node, {
         before: value,
         after: '>',
         ...tracker.current()
@@ -8710,14 +8466,14 @@ function link(node, _, context, safeOptions) {
     );
     value += tracker.move('>');
     exit();
-    context.stack = stack;
+    state.stack = stack;
     return value
   }
-  exit = context.enter('link');
-  subexit = context.enter('label');
+  exit = state.enter('link');
+  subexit = state.enter('label');
   let value = tracker.move('[');
   value += tracker.move(
-    containerPhrasing(node, context, {
+    state.containerPhrasing(node, {
       before: value,
       after: '](',
       ...tracker.current()
@@ -8729,16 +8485,16 @@ function link(node, _, context, safeOptions) {
     (!node.url && node.title) ||
     /[\0- \u007F]/.test(node.url)
   ) {
-    subexit = context.enter('destinationLiteral');
+    subexit = state.enter('destinationLiteral');
     value += tracker.move('<');
     value += tracker.move(
-      safe(context, node.url, {before: value, after: '>', ...tracker.current()})
+      state.safe(node.url, {before: value, after: '>', ...tracker.current()})
     );
     value += tracker.move('>');
   } else {
-    subexit = context.enter('destinationRaw');
+    subexit = state.enter('destinationRaw');
     value += tracker.move(
-      safe(context, node.url, {
+      state.safe(node.url, {
         before: value,
         after: node.title ? ' ' : ')',
         ...tracker.current()
@@ -8747,10 +8503,10 @@ function link(node, _, context, safeOptions) {
   }
   subexit();
   if (node.title) {
-    subexit = context.enter('title' + suffix);
+    subexit = state.enter(`title${suffix}`);
     value += tracker.move(' ' + quote);
     value += tracker.move(
-      safe(context, node.title, {
+      state.safe(node.title, {
         before: value,
         after: quote,
         ...tracker.current()
@@ -8763,34 +8519,34 @@ function link(node, _, context, safeOptions) {
   exit();
   return value
 }
-function linkPeek(node, _, context) {
-  return formatLinkAsAutolink(node, context) ? '<' : '['
+function linkPeek(node, _, state) {
+  return formatLinkAsAutolink(node, state) ? '<' : '['
 }
 
 linkReference.peek = linkReferencePeek;
-function linkReference(node, _, context, safeOptions) {
+function linkReference(node, _, state, info) {
   const type = node.referenceType;
-  const exit = context.enter('linkReference');
-  let subexit = context.enter('label');
-  const tracker = track(safeOptions);
+  const exit = state.enter('linkReference');
+  let subexit = state.enter('label');
+  const tracker = state.createTracker(info);
   let value = tracker.move('[');
-  const text = containerPhrasing(node, context, {
+  const text = state.containerPhrasing(node, {
     before: value,
     after: ']',
     ...tracker.current()
   });
   value += tracker.move(text + '][');
   subexit();
-  const stack = context.stack;
-  context.stack = [];
-  subexit = context.enter('reference');
-  const reference = safe(context, association(node), {
+  const stack = state.stack;
+  state.stack = [];
+  subexit = state.enter('reference');
+  const reference = state.safe(state.associationId(node), {
     before: value,
     after: ']',
     ...tracker.current()
   });
   subexit();
-  context.stack = stack;
+  state.stack = stack;
   exit();
   if (type === 'full' || !text || text !== reference) {
     value += tracker.move(reference + ']');
@@ -8805,8 +8561,8 @@ function linkReferencePeek() {
   return '['
 }
 
-function checkBullet(context) {
-  const marker = context.options.bullet || '*';
+function checkBullet(state) {
+  const marker = state.options.bullet || '*';
   if (marker !== '*' && marker !== '+' && marker !== '-') {
     throw new Error(
       'Cannot serialize items with `' +
@@ -8817,9 +8573,9 @@ function checkBullet(context) {
   return marker
 }
 
-function checkBulletOther(context) {
-  const bullet = checkBullet(context);
-  const bulletOther = context.options.bulletOther;
+function checkBulletOther(state) {
+  const bullet = checkBullet(state);
+  const bulletOther = state.options.bulletOther;
   if (!bulletOther) {
     return bullet === '*' ? '-' : '*'
   }
@@ -8842,8 +8598,8 @@ function checkBulletOther(context) {
   return bulletOther
 }
 
-function checkBulletOrdered(context) {
-  const marker = context.options.bulletOrdered || '.';
+function checkBulletOrdered(state) {
+  const marker = state.options.bulletOrdered || '.';
   if (marker !== '.' && marker !== ')') {
     throw new Error(
       'Cannot serialize items with `' +
@@ -8854,9 +8610,9 @@ function checkBulletOrdered(context) {
   return marker
 }
 
-function checkBulletOrderedOther(context) {
-  const bulletOrdered = checkBulletOrdered(context);
-  const bulletOrderedOther = context.options.bulletOrderedOther;
+function checkBulletOrderedOther(state) {
+  const bulletOrdered = checkBulletOrdered(state);
+  const bulletOrderedOther = state.options.bulletOrderedOther;
   if (!bulletOrderedOther) {
     return bulletOrdered === '.' ? ')' : '.'
   }
@@ -8879,8 +8635,8 @@ function checkBulletOrderedOther(context) {
   return bulletOrderedOther
 }
 
-function checkRule(context) {
-  const marker = context.options.rule || '*';
+function checkRule(state) {
+  const marker = state.options.rule || '*';
   if (marker !== '*' && marker !== '-' && marker !== '_') {
     throw new Error(
       'Cannot serialize rules with `' +
@@ -8891,20 +8647,20 @@ function checkRule(context) {
   return marker
 }
 
-function list(node, parent, context, safeOptions) {
-  const exit = context.enter('list');
-  const bulletCurrent = context.bulletCurrent;
-  let bullet = node.ordered ? checkBulletOrdered(context) : checkBullet(context);
+function list(node, parent, state, info) {
+  const exit = state.enter('list');
+  const bulletCurrent = state.bulletCurrent;
+  let bullet = node.ordered ? checkBulletOrdered(state) : checkBullet(state);
   const bulletOther = node.ordered
-    ? checkBulletOrderedOther(context)
-    : checkBulletOther(context);
-  const bulletLastUsed = context.bulletLastUsed;
+    ? checkBulletOrderedOther(state)
+    : checkBulletOther(state);
+  const bulletLastUsed = state.bulletLastUsed;
   let useDifferentMarker = false;
   if (
     parent &&
     (node.ordered
-      ? context.options.bulletOrderedOther
-      : context.options.bulletOther) &&
+      ? state.options.bulletOrderedOther
+      : state.options.bulletOther) &&
     bulletLastUsed &&
     bullet === bulletLastUsed
   ) {
@@ -8916,17 +8672,17 @@ function list(node, parent, context, safeOptions) {
       (bullet === '*' || bullet === '-') &&
       firstListItem &&
       (!firstListItem.children || !firstListItem.children[0]) &&
-      context.stack[context.stack.length - 1] === 'list' &&
-      context.stack[context.stack.length - 2] === 'listItem' &&
-      context.stack[context.stack.length - 3] === 'list' &&
-      context.stack[context.stack.length - 4] === 'listItem' &&
-      context.indexStack[context.indexStack.length - 1] === 0 &&
-      context.indexStack[context.indexStack.length - 2] === 0 &&
-      context.indexStack[context.indexStack.length - 3] === 0
+      state.stack[state.stack.length - 1] === 'list' &&
+      state.stack[state.stack.length - 2] === 'listItem' &&
+      state.stack[state.stack.length - 3] === 'list' &&
+      state.stack[state.stack.length - 4] === 'listItem' &&
+      state.indexStack[state.indexStack.length - 1] === 0 &&
+      state.indexStack[state.indexStack.length - 2] === 0 &&
+      state.indexStack[state.indexStack.length - 3] === 0
     ) {
       useDifferentMarker = true;
     }
-    if (checkRule(context) === bullet && firstListItem) {
+    if (checkRule(state) === bullet && firstListItem) {
       let index = -1;
       while (++index < node.children.length) {
         const item = node.children[index];
@@ -8946,16 +8702,16 @@ function list(node, parent, context, safeOptions) {
   if (useDifferentMarker) {
     bullet = bulletOther;
   }
-  context.bulletCurrent = bullet;
-  const value = containerFlow(node, context, safeOptions);
-  context.bulletLastUsed = bullet;
-  context.bulletCurrent = bulletCurrent;
+  state.bulletCurrent = bullet;
+  const value = state.containerFlow(node, info);
+  state.bulletLastUsed = bullet;
+  state.bulletCurrent = bulletCurrent;
   exit();
   return value
 }
 
-function checkListItemIndent(context) {
-  const style = context.options.listItemIndent || 'tab';
+function checkListItemIndent(state) {
+  const style = state.options.listItemIndent || 'tab';
   if (style === 1 || style === '1') {
     return 'one'
   }
@@ -8969,15 +8725,15 @@ function checkListItemIndent(context) {
   return style
 }
 
-function listItem(node, parent, context, safeOptions) {
-  const listItemIndent = checkListItemIndent(context);
-  let bullet = context.bulletCurrent || checkBullet(context);
+function listItem(node, parent, state, info) {
+  const listItemIndent = checkListItemIndent(state);
+  let bullet = state.bulletCurrent || checkBullet(state);
   if (parent && parent.type === 'list' && parent.ordered) {
     bullet =
       (typeof parent.start === 'number' && parent.start > -1
         ? parent.start
         : 1) +
-      (context.options.incrementListMarker === false
+      (state.options.incrementListMarker === false
         ? 0
         : parent.children.indexOf(node)) +
       bullet;
@@ -8990,12 +8746,12 @@ function listItem(node, parent, context, safeOptions) {
   ) {
     size = Math.ceil(size / 4) * 4;
   }
-  const tracker = track(safeOptions);
+  const tracker = state.createTracker(info);
   tracker.move(bullet + ' '.repeat(size - bullet.length));
   tracker.shift(size);
-  const exit = context.enter('listItem');
-  const value = indentLines(
-    containerFlow(node, context, tracker.current()),
+  const exit = state.enter('listItem');
+  const value = state.indentLines(
+    state.containerFlow(node, tracker.current()),
     map
   );
   exit();
@@ -9008,21 +8764,38 @@ function listItem(node, parent, context, safeOptions) {
   }
 }
 
-function paragraph(node, _, context, safeOptions) {
-  const exit = context.enter('paragraph');
-  const subexit = context.enter('phrasing');
-  const value = containerPhrasing(node, context, safeOptions);
+function paragraph(node, _, state, info) {
+  const exit = state.enter('paragraph');
+  const subexit = state.enter('phrasing');
+  const value = state.containerPhrasing(node, info);
   subexit();
   exit();
   return value
 }
 
-function root(node, _, context, safeOptions) {
-  return containerFlow(node, context, safeOptions)
+const phrasing = convert([
+  'break',
+  'delete',
+  'emphasis',
+  'footnote',
+  'footnoteReference',
+  'image',
+  'imageReference',
+  'inlineCode',
+  'link',
+  'linkReference',
+  'strong',
+  'text'
+]);
+
+function root(node, _, state, info) {
+  const hasPhrasing = node.children.some((d) => phrasing(d));
+  const fn = hasPhrasing ? state.containerPhrasing : state.containerFlow;
+  return fn.call(state, node, info)
 }
 
-function checkStrong(context) {
-  const marker = context.options.strong || '*';
+function checkStrong(state) {
+  const marker = state.options.strong || '*';
   if (marker !== '*' && marker !== '_') {
     throw new Error(
       'Cannot serialize strong with `' +
@@ -9034,13 +8807,13 @@ function checkStrong(context) {
 }
 
 strong.peek = strongPeek;
-function strong(node, _, context, safeOptions) {
-  const marker = checkStrong(context);
-  const exit = context.enter('strong');
-  const tracker = track(safeOptions);
+function strong(node, _, state, info) {
+  const marker = checkStrong(state);
+  const exit = state.enter('strong');
+  const tracker = state.createTracker(info);
   let value = tracker.move(marker + marker);
   value += tracker.move(
-    containerPhrasing(node, context, {
+    state.containerPhrasing(node, {
       before: value,
       after: marker,
       ...tracker.current()
@@ -9050,16 +8823,16 @@ function strong(node, _, context, safeOptions) {
   exit();
   return value
 }
-function strongPeek(_, _1, context) {
-  return context.options.strong || '*'
+function strongPeek(_, _1, state) {
+  return state.options.strong || '*'
 }
 
-function text$1(node, _, context, safeOptions) {
-  return safe(context, node.value, safeOptions)
+function text$1(node, _, state, info) {
+  return state.safe(node.value, info)
 }
 
-function checkRuleRepetition(context) {
-  const repetition = context.options.ruleRepetition || 3;
+function checkRuleRepetition(state) {
+  const repetition = state.options.ruleRepetition || 3;
   if (repetition < 3) {
     throw new Error(
       'Cannot serialize rules with repetition `' +
@@ -9070,11 +8843,11 @@ function checkRuleRepetition(context) {
   return repetition
 }
 
-function thematicBreak(_, _1, context) {
+function thematicBreak(_, _1, state) {
   const value = (
-    checkRule(context) + (context.options.ruleSpaces ? ' ' : '')
-  ).repeat(checkRuleRepetition(context));
-  return context.options.ruleSpaces ? value.slice(0, -1) : value
+    checkRule(state) + (state.options.ruleSpaces ? ' ' : '')
+  ).repeat(checkRuleRepetition(state));
+  return state.options.ruleSpaces ? value.slice(0, -1) : value
 }
 
 const handle = {
@@ -9101,12 +8874,12 @@ const handle = {
 };
 
 const join = [joinDefaults];
-function joinDefaults(left, right, parent, context) {
+function joinDefaults(left, right, parent, state) {
   if (
     right.type === 'code' &&
-    formatCodeAsIndented(right, context) &&
+    formatCodeAsIndented(right, state) &&
     (left.type === 'list' ||
-      (left.type === right.type && formatCodeAsIndented(left, context)))
+      (left.type === right.type && formatCodeAsIndented(left, state)))
   ) {
     return false
   }
@@ -9115,8 +8888,8 @@ function joinDefaults(left, right, parent, context) {
     left.type === right.type &&
     Boolean(left.ordered) === Boolean(right.ordered) &&
     !(left.ordered
-      ? context.options.bulletOrderedOther
-      : context.options.bulletOther)
+      ? state.options.bulletOrderedOther
+      : state.options.bulletOther)
   ) {
     return false
   }
@@ -9125,7 +8898,7 @@ function joinDefaults(left, right, parent, context) {
       left.type === 'paragraph' &&
       (left.type === right.type ||
         right.type === 'definition' ||
-        (right.type === 'heading' && formatHeadingAsSetext(right, context)))
+        (right.type === 'heading' && formatHeadingAsSetext(right, state)))
     ) {
       return
     }
@@ -9196,10 +8969,10 @@ const unsafe = [
   },
   {atBreak: true, before: '\\d+', character: ')'},
   {character: ')', inConstruct: 'destinationRaw'},
-  {atBreak: true, character: '*'},
+  {atBreak: true, character: '*', after: '(?:[ \t\r\n*])'},
   {character: '*', inConstruct: 'phrasing', notInConstruct: fullPhrasingSpans},
-  {atBreak: true, character: '+'},
-  {atBreak: true, character: '-'},
+  {atBreak: true, character: '+', after: '(?:[ \t\r\n])'},
+  {atBreak: true, character: '-', after: '(?:[ \t\r\n-])'},
   {atBreak: true, before: '\\d+', character: '.', after: '(?:[ \t\r\n]|$)'},
   {atBreak: true, character: '<', after: '[!/?A-Za-z]'},
   {
@@ -9228,27 +9001,281 @@ const unsafe = [
   {atBreak: true, character: '~'}
 ];
 
+function association(node) {
+  if (node.label || !node.identifier) {
+    return node.label || ''
+  }
+  return decodeString(node.identifier)
+}
+
+function containerPhrasing(parent, state, info) {
+  const indexStack = state.indexStack;
+  const children = parent.children || [];
+  const results = [];
+  let index = -1;
+  let before = info.before;
+  indexStack.push(-1);
+  let tracker = state.createTracker(info);
+  while (++index < children.length) {
+    const child = children[index];
+    let after;
+    indexStack[indexStack.length - 1] = index;
+    if (index + 1 < children.length) {
+      let handle = state.handle.handlers[children[index + 1].type];
+      if (handle && handle.peek) handle = handle.peek;
+      after = handle
+        ? handle(children[index + 1], parent, state, {
+            before: '',
+            after: '',
+            ...tracker.current()
+          }).charAt(0)
+        : '';
+    } else {
+      after = info.after;
+    }
+    if (
+      results.length > 0 &&
+      (before === '\r' || before === '\n') &&
+      child.type === 'html'
+    ) {
+      results[results.length - 1] = results[results.length - 1].replace(
+        /(\r?\n|\r)$/,
+        ' '
+      );
+      before = ' ';
+      tracker = state.createTracker(info);
+      tracker.move(results.join(''));
+    }
+    results.push(
+      tracker.move(
+        state.handle(child, parent, state, {
+          ...tracker.current(),
+          before,
+          after
+        })
+      )
+    );
+    before = results[results.length - 1].slice(-1);
+  }
+  indexStack.pop();
+  return results.join('')
+}
+
+function containerFlow(parent, state, info) {
+  const indexStack = state.indexStack;
+  const children = parent.children || [];
+  const tracker = state.createTracker(info);
+  const results = [];
+  let index = -1;
+  indexStack.push(-1);
+  while (++index < children.length) {
+    const child = children[index];
+    indexStack[indexStack.length - 1] = index;
+    results.push(
+      tracker.move(
+        state.handle(child, parent, state, {
+          before: '\n',
+          after: '\n',
+          ...tracker.current()
+        })
+      )
+    );
+    if (child.type !== 'list') {
+      state.bulletLastUsed = undefined;
+    }
+    if (index < children.length - 1) {
+      results.push(
+        tracker.move(between(child, children[index + 1], parent, state))
+      );
+    }
+  }
+  indexStack.pop();
+  return results.join('')
+}
+function between(left, right, parent, state) {
+  let index = state.join.length;
+  while (index--) {
+    const result = state.join[index](left, right, parent, state);
+    if (result === true || result === 1) {
+      break
+    }
+    if (typeof result === 'number') {
+      return '\n'.repeat(1 + result)
+    }
+    if (result === false) {
+      return '\n\n<!---->\n\n'
+    }
+  }
+  return '\n\n'
+}
+
+const eol = /\r?\n|\r/g;
+function indentLines(value, map) {
+  const result = [];
+  let start = 0;
+  let line = 0;
+  let match;
+  while ((match = eol.exec(value))) {
+    one(value.slice(start, match.index));
+    result.push(match[0]);
+    start = match.index + match[0].length;
+    line++;
+  }
+  one(value.slice(start));
+  return result.join('')
+  function one(value) {
+    result.push(map(value, line, !value));
+  }
+}
+
+function safe(state, input, config) {
+  const value = (config.before || '') + (input || '') + (config.after || '');
+  const positions = [];
+  const result = [];
+  const infos = {};
+  let index = -1;
+  while (++index < state.unsafe.length) {
+    const pattern = state.unsafe[index];
+    if (!patternInScope(state.stack, pattern)) {
+      continue
+    }
+    const expression = patternCompile(pattern);
+    let match;
+    while ((match = expression.exec(value))) {
+      const before = 'before' in pattern || Boolean(pattern.atBreak);
+      const after = 'after' in pattern;
+      const position = match.index + (before ? match[1].length : 0);
+      if (positions.includes(position)) {
+        if (infos[position].before && !before) {
+          infos[position].before = false;
+        }
+        if (infos[position].after && !after) {
+          infos[position].after = false;
+        }
+      } else {
+        positions.push(position);
+        infos[position] = {before, after};
+      }
+    }
+  }
+  positions.sort(numerical);
+  let start = config.before ? config.before.length : 0;
+  const end = value.length - (config.after ? config.after.length : 0);
+  index = -1;
+  while (++index < positions.length) {
+    const position = positions[index];
+    if (position < start || position >= end) {
+      continue
+    }
+    if (
+      (position + 1 < end &&
+        positions[index + 1] === position + 1 &&
+        infos[position].after &&
+        !infos[position + 1].before &&
+        !infos[position + 1].after) ||
+      (positions[index - 1] === position - 1 &&
+        infos[position].before &&
+        !infos[position - 1].before &&
+        !infos[position - 1].after)
+    ) {
+      continue
+    }
+    if (start !== position) {
+      result.push(escapeBackslashes(value.slice(start, position), '\\'));
+    }
+    start = position;
+    if (
+      /[!-/:-@[-`{-~]/.test(value.charAt(position)) &&
+      (!config.encode || !config.encode.includes(value.charAt(position)))
+    ) {
+      result.push('\\');
+    } else {
+      result.push(
+        '&#x' + value.charCodeAt(position).toString(16).toUpperCase() + ';'
+      );
+      start++;
+    }
+  }
+  result.push(escapeBackslashes(value.slice(start, end), config.after));
+  return result.join('')
+}
+function numerical(a, b) {
+  return a - b
+}
+function escapeBackslashes(value, after) {
+  const expression = /\\(?=[!-/:-@[-`{-~])/g;
+  const positions = [];
+  const results = [];
+  const whole = value + after;
+  let index = -1;
+  let start = 0;
+  let match;
+  while ((match = expression.exec(whole))) {
+    positions.push(match.index);
+  }
+  while (++index < positions.length) {
+    if (start !== positions[index]) {
+      results.push(value.slice(start, positions[index]));
+    }
+    results.push('\\');
+    start = positions[index];
+  }
+  results.push(value.slice(start));
+  return results.join('')
+}
+
+function track(config) {
+  const options = config || {};
+  const now = options.now || {};
+  let lineShift = options.lineShift || 0;
+  let line = now.line || 1;
+  let column = now.column || 1;
+  return {move, current, shift}
+  function current() {
+    return {now: {line, column}, lineShift}
+  }
+  function shift(value) {
+    lineShift += value;
+  }
+  function move(input) {
+    const value = input || '';
+    const chunks = value.split(/\r?\n|\r/g);
+    const tail = chunks[chunks.length - 1];
+    line += chunks.length - 1;
+    column =
+      chunks.length === 1 ? column + tail.length : 1 + tail.length + lineShift;
+    return value
+  }
+}
+
 function toMarkdown(tree, options = {}) {
-  const context = {
+  const state = {
     enter,
+    indentLines,
+    associationId: association,
+    containerPhrasing: containerPhrasingBound,
+    containerFlow: containerFlowBound,
+    createTracker: track,
+    safe: safeBound,
     stack: [],
     unsafe: [],
     join: [],
     handlers: {},
     options: {},
-    indexStack: []
+    indexStack: [],
+    handle: undefined
   };
-  configure(context, {unsafe, join, handlers: handle});
-  configure(context, options);
-  if (context.options.tightDefinitions) {
-    configure(context, {join: [joinDefinition]});
+  configure(state, {unsafe, join, handlers: handle});
+  configure(state, options);
+  if (state.options.tightDefinitions) {
+    configure(state, {join: [joinDefinition]});
   }
-  context.handle = zwitch('type', {
+  state.handle = zwitch('type', {
     invalid,
     unknown,
-    handlers: context.handlers
+    handlers: state.handlers
   });
-  let result = context.handle(tree, null, context, {
+  let result = state.handle(tree, undefined, state, {
     before: '\n',
     after: '\n',
     now: {line: 1, column: 1},
@@ -9263,10 +9290,10 @@ function toMarkdown(tree, options = {}) {
   }
   return result
   function enter(name) {
-    context.stack.push(name);
+    state.stack.push(name);
     return exit
     function exit() {
-      context.stack.pop();
+      state.stack.pop();
     }
   }
 }
@@ -9280,6 +9307,15 @@ function joinDefinition(left, right) {
   if (left.type === 'definition' && left.type === right.type) {
     return 0
   }
+}
+function containerPhrasingBound(parent, info) {
+  return containerPhrasing(parent, this, info)
+}
+function containerFlowBound(parent, info) {
+  return containerFlow(parent, this, info)
+}
+function safeBound(value, config) {
+  return safe(this, value, config)
 }
 
 function remarkStringify(options) {
@@ -12128,7 +12164,11 @@ function commonjsRequire(path) {
 	throw new Error('Could not dynamically require "' + path + '". Please configure the dynamicRequireTargets or/and ignoreDynamicRequires option of @rollup/plugin-commonjs appropriately for this require call to work.');
 }
 
-var pluralize = {exports: {}};
+var pluralizeExports = {};
+var pluralize = {
+  get exports(){ return pluralizeExports; },
+  set exports(v){ pluralizeExports = v; },
+};
 
 (function (module, exports) {
 	(function (root, pluralize) {
@@ -12454,7 +12494,7 @@ var pluralize = {exports: {}};
 	  return pluralize;
 	});
 } (pluralize));
-var plural = pluralize.exports;
+var plural = pluralizeExports;
 
 /**
  * ## When should I use this?
@@ -19273,7 +19313,11 @@ var constants = {
   MAX_SAFE_COMPONENT_LENGTH,
 };
 
-var re$2 = {exports: {}};
+var reExports = {};
+var re$2 = {
+  get exports(){ return reExports; },
+  set exports(v){ reExports = v; },
+};
 
 const debug$1 = (
   typeof process === 'object' &&
@@ -19376,7 +19420,7 @@ var debug_1 = debug$1;
 	createToken('STAR', '(<|>)?=?\\s*\\*');
 	createToken('GTE0', '^\\s*>=\\s*0\\.0\\.0\\s*$');
 	createToken('GTE0PRE', '^\\s*>=\\s*0\\.0\\.0-0\\s*$');
-} (re$2, re$2.exports));
+} (re$2, reExports));
 
 const opts = ['includePrerelease', 'loose', 'rtl'];
 const parseOptions$2 = options =>
@@ -19410,7 +19454,7 @@ var identifiers = {
 
 const debug = debug_1;
 const { MAX_LENGTH: MAX_LENGTH$1, MAX_SAFE_INTEGER } = constants;
-const { re: re$1, t: t$1 } = re$2.exports;
+const { re: re$1, t: t$1 } = reExports;
 const parseOptions$1 = parseOptions_1;
 const { compareIdentifiers } = identifiers;
 let SemVer$2 = class SemVer {
@@ -19639,7 +19683,7 @@ let SemVer$2 = class SemVer {
 var semver = SemVer$2;
 
 const { MAX_LENGTH } = constants;
-const { re, t } = re$2.exports;
+const { re, t } = reExports;
 const SemVer$1 = semver;
 const parseOptions = parseOptions_1;
 const parse = (version, options) => {
@@ -20737,6 +20781,7 @@ const plugins = [
     remarkLintProhibitedStrings,
     [
       { yes: "End-of-Life" },
+      { no: "filesystem", yes: "file system" },
       { yes: "GitHub" },
       { no: "hostname", yes: "host name" },
       { yes: "JavaScript" },
@@ -20879,7 +20924,11 @@ function stripAnsi(string) {
 	return string.replace(ansiRegex(), '');
 }
 
-var eastasianwidth = {exports: {}};
+var eastasianwidthExports = {};
+var eastasianwidth = {
+  get exports(){ return eastasianwidthExports; },
+  set exports(v){ eastasianwidthExports = v; },
+};
 
 (function (module) {
 	var eaw = {};
@@ -21183,7 +21232,7 @@ var eastasianwidth = {exports: {}};
 	  return result;
 	};
 } (eastasianwidth));
-var eastAsianWidth = eastasianwidth.exports;
+var eastAsianWidth = eastasianwidthExports;
 
 var emojiRegex = function () {
   return /\uD83C\uDFF4\uDB40\uDC67\uDB40\uDC62(?:\uDB40\uDC77\uDB40\uDC6C\uDB40\uDC73|\uDB40\uDC73\uDB40\uDC63\uDB40\uDC74|\uDB40\uDC65\uDB40\uDC6E\uDB40\uDC67)\uDB40\uDC7F|(?:\uD83E\uDDD1\uD83C\uDFFF\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFF\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFB-\uDFFE])|(?:\uD83E\uDDD1\uD83C\uDFFE\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFE\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFB-\uDFFD\uDFFF])|(?:\uD83E\uDDD1\uD83C\uDFFD\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFD\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])|(?:\uD83E\uDDD1\uD83C\uDFFC\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFC\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFB\uDFFD-\uDFFF])|(?:\uD83E\uDDD1\uD83C\uDFFB\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFB\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFC-\uDFFF])|\uD83D\uDC68(?:\uD83C\uDFFB(?:\u200D(?:\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFF])|\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFF]))|\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFC-\uDFFF])|[\u2695\u2696\u2708]\uFE0F|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD]))?|(?:\uD83C[\uDFFC-\uDFFF])\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFF])|\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFF]))|\u200D(?:\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83D\uDC68|(?:\uD83D[\uDC68\uDC69])\u200D(?:\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67]))|\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFF\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFE])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFE\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFD\uDFFF])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFD\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFC\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB\uDFFD-\uDFFF])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|(?:\uD83C\uDFFF\u200D[\u2695\u2696\u2708]|\uD83C\uDFFE\u200D[\u2695\u2696\u2708]|\uD83C\uDFFD\u200D[\u2695\u2696\u2708]|\uD83C\uDFFC\u200D[\u2695\u2696\u2708]|\u200D[\u2695\u2696\u2708])\uFE0F|\u200D(?:(?:\uD83D[\uDC68\uDC69])\u200D(?:\uD83D[\uDC66\uDC67])|\uD83D[\uDC66\uDC67])|\uD83C\uDFFF|\uD83C\uDFFE|\uD83C\uDFFD|\uD83C\uDFFC)?|(?:\uD83D\uDC69(?:\uD83C\uDFFB\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D(?:\uD83D[\uDC68\uDC69])|\uD83D[\uDC68\uDC69])|(?:\uD83C[\uDFFC-\uDFFF])\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D(?:\uD83D[\uDC68\uDC69])|\uD83D[\uDC68\uDC69]))|\uD83E\uDDD1(?:\uD83C[\uDFFB-\uDFFF])\u200D\uD83E\uDD1D\u200D\uD83E\uDDD1)(?:\uD83C[\uDFFB-\uDFFF])|\uD83D\uDC69\u200D\uD83D\uDC69\u200D(?:\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67]))|\uD83D\uDC69(?:\u200D(?:\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D(?:\uD83D[\uDC68\uDC69])|\uD83D[\uDC68\uDC69])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFF\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFE\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFD\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFC\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFB\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD]))|\uD83E\uDDD1(?:\u200D(?:\uD83E\uDD1D\u200D\uD83E\uDDD1|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFF\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFE\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFD\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFC\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFB\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD]))|\uD83D\uDC69\u200D\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC69\u200D\uD83D\uDC69\u200D(?:\uD83D[\uDC66\uDC67])|\uD83D\uDC69\u200D\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67])|(?:\uD83D\uDC41\uFE0F\u200D\uD83D\uDDE8|\uD83E\uDDD1(?:\uD83C\uDFFF\u200D[\u2695\u2696\u2708]|\uD83C\uDFFE\u200D[\u2695\u2696\u2708]|\uD83C\uDFFD\u200D[\u2695\u2696\u2708]|\uD83C\uDFFC\u200D[\u2695\u2696\u2708]|\uD83C\uDFFB\u200D[\u2695\u2696\u2708]|\u200D[\u2695\u2696\u2708])|\uD83D\uDC69(?:\uD83C\uDFFF\u200D[\u2695\u2696\u2708]|\uD83C\uDFFE\u200D[\u2695\u2696\u2708]|\uD83C\uDFFD\u200D[\u2695\u2696\u2708]|\uD83C\uDFFC\u200D[\u2695\u2696\u2708]|\uD83C\uDFFB\u200D[\u2695\u2696\u2708]|\u200D[\u2695\u2696\u2708])|\uD83D\uDE36\u200D\uD83C\uDF2B|\uD83C\uDFF3\uFE0F\u200D\u26A7|\uD83D\uDC3B\u200D\u2744|(?:(?:\uD83C[\uDFC3\uDFC4\uDFCA]|\uD83D[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4-\uDEB6]|\uD83E[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD-\uDDCF\uDDD4\uDDD6-\uDDDD])(?:\uD83C[\uDFFB-\uDFFF])|\uD83D\uDC6F|\uD83E[\uDD3C\uDDDE\uDDDF])\u200D[\u2640\u2642]|(?:\u26F9|\uD83C[\uDFCB\uDFCC]|\uD83D\uDD75)(?:\uFE0F|\uD83C[\uDFFB-\uDFFF])\u200D[\u2640\u2642]|\uD83C\uDFF4\u200D\u2620|(?:\uD83C[\uDFC3\uDFC4\uDFCA]|\uD83D[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4-\uDEB6]|\uD83E[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD-\uDDCF\uDDD4\uDDD6-\uDDDD])\u200D[\u2640\u2642]|[\xA9\xAE\u203C\u2049\u2122\u2139\u2194-\u2199\u21A9\u21AA\u2328\u23CF\u23ED-\u23EF\u23F1\u23F2\u23F8-\u23FA\u24C2\u25AA\u25AB\u25B6\u25C0\u25FB\u25FC\u2600-\u2604\u260E\u2611\u2618\u2620\u2622\u2623\u2626\u262A\u262E\u262F\u2638-\u263A\u2640\u2642\u265F\u2660\u2663\u2665\u2666\u2668\u267B\u267E\u2692\u2694-\u2697\u2699\u269B\u269C\u26A0\u26A7\u26B0\u26B1\u26C8\u26CF\u26D1\u26D3\u26E9\u26F0\u26F1\u26F4\u26F7\u26F8\u2702\u2708\u2709\u270F\u2712\u2714\u2716\u271D\u2721\u2733\u2734\u2744\u2747\u2763\u27A1\u2934\u2935\u2B05-\u2B07\u3030\u303D\u3297\u3299]|\uD83C[\uDD70\uDD71\uDD7E\uDD7F\uDE02\uDE37\uDF21\uDF24-\uDF2C\uDF36\uDF7D\uDF96\uDF97\uDF99-\uDF9B\uDF9E\uDF9F\uDFCD\uDFCE\uDFD4-\uDFDF\uDFF5\uDFF7]|\uD83D[\uDC3F\uDCFD\uDD49\uDD4A\uDD6F\uDD70\uDD73\uDD76-\uDD79\uDD87\uDD8A-\uDD8D\uDDA5\uDDA8\uDDB1\uDDB2\uDDBC\uDDC2-\uDDC4\uDDD1-\uDDD3\uDDDC-\uDDDE\uDDE1\uDDE3\uDDE8\uDDEF\uDDF3\uDDFA\uDECB\uDECD-\uDECF\uDEE0-\uDEE5\uDEE9\uDEF0\uDEF3])\uFE0F|\uD83C\uDFF3\uFE0F\u200D\uD83C\uDF08|\uD83D\uDC69\u200D\uD83D\uDC67|\uD83D\uDC69\u200D\uD83D\uDC66|\uD83D\uDE35\u200D\uD83D\uDCAB|\uD83D\uDE2E\u200D\uD83D\uDCA8|\uD83D\uDC15\u200D\uD83E\uDDBA|\uD83E\uDDD1(?:\uD83C\uDFFF|\uD83C\uDFFE|\uD83C\uDFFD|\uD83C\uDFFC|\uD83C\uDFFB)?|\uD83D\uDC69(?:\uD83C\uDFFF|\uD83C\uDFFE|\uD83C\uDFFD|\uD83C\uDFFC|\uD83C\uDFFB)?|\uD83C\uDDFD\uD83C\uDDF0|\uD83C\uDDF6\uD83C\uDDE6|\uD83C\uDDF4\uD83C\uDDF2|\uD83D\uDC08\u200D\u2B1B|\u2764\uFE0F\u200D(?:\uD83D\uDD25|\uD83E\uDE79)|\uD83D\uDC41\uFE0F|\uD83C\uDFF3\uFE0F|\uD83C\uDDFF(?:\uD83C[\uDDE6\uDDF2\uDDFC])|\uD83C\uDDFE(?:\uD83C[\uDDEA\uDDF9])|\uD83C\uDDFC(?:\uD83C[\uDDEB\uDDF8])|\uD83C\uDDFB(?:\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDEE\uDDF3\uDDFA])|\uD83C\uDDFA(?:\uD83C[\uDDE6\uDDEC\uDDF2\uDDF3\uDDF8\uDDFE\uDDFF])|\uD83C\uDDF9(?:\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDED\uDDEF-\uDDF4\uDDF7\uDDF9\uDDFB\uDDFC\uDDFF])|\uD83C\uDDF8(?:\uD83C[\uDDE6-\uDDEA\uDDEC-\uDDF4\uDDF7-\uDDF9\uDDFB\uDDFD-\uDDFF])|\uD83C\uDDF7(?:\uD83C[\uDDEA\uDDF4\uDDF8\uDDFA\uDDFC])|\uD83C\uDDF5(?:\uD83C[\uDDE6\uDDEA-\uDDED\uDDF0-\uDDF3\uDDF7-\uDDF9\uDDFC\uDDFE])|\uD83C\uDDF3(?:\uD83C[\uDDE6\uDDE8\uDDEA-\uDDEC\uDDEE\uDDF1\uDDF4\uDDF5\uDDF7\uDDFA\uDDFF])|\uD83C\uDDF2(?:\uD83C[\uDDE6\uDDE8-\uDDED\uDDF0-\uDDFF])|\uD83C\uDDF1(?:\uD83C[\uDDE6-\uDDE8\uDDEE\uDDF0\uDDF7-\uDDFB\uDDFE])|\uD83C\uDDF0(?:\uD83C[\uDDEA\uDDEC-\uDDEE\uDDF2\uDDF3\uDDF5\uDDF7\uDDFC\uDDFE\uDDFF])|\uD83C\uDDEF(?:\uD83C[\uDDEA\uDDF2\uDDF4\uDDF5])|\uD83C\uDDEE(?:\uD83C[\uDDE8-\uDDEA\uDDF1-\uDDF4\uDDF6-\uDDF9])|\uD83C\uDDED(?:\uD83C[\uDDF0\uDDF2\uDDF3\uDDF7\uDDF9\uDDFA])|\uD83C\uDDEC(?:\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEE\uDDF1-\uDDF3\uDDF5-\uDDFA\uDDFC\uDDFE])|\uD83C\uDDEB(?:\uD83C[\uDDEE-\uDDF0\uDDF2\uDDF4\uDDF7])|\uD83C\uDDEA(?:\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDED\uDDF7-\uDDFA])|\uD83C\uDDE9(?:\uD83C[\uDDEA\uDDEC\uDDEF\uDDF0\uDDF2\uDDF4\uDDFF])|\uD83C\uDDE8(?:\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDEE\uDDF0-\uDDF5\uDDF7\uDDFA-\uDDFF])|\uD83C\uDDE7(?:\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEF\uDDF1-\uDDF4\uDDF6-\uDDF9\uDDFB\uDDFC\uDDFE\uDDFF])|\uD83C\uDDE6(?:\uD83C[\uDDE8-\uDDEC\uDDEE\uDDF1\uDDF2\uDDF4\uDDF6-\uDDFA\uDDFC\uDDFD\uDDFF])|[#\*0-9]\uFE0F\u20E3|\u2764\uFE0F|(?:\uD83C[\uDFC3\uDFC4\uDFCA]|\uD83D[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4-\uDEB6]|\uD83E[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD-\uDDCF\uDDD4\uDDD6-\uDDDD])(?:\uD83C[\uDFFB-\uDFFF])|(?:\u26F9|\uD83C[\uDFCB\uDFCC]|\uD83D\uDD75)(?:\uFE0F|\uD83C[\uDFFB-\uDFFF])|\uD83C\uDFF4|(?:[\u270A\u270B]|\uD83C[\uDF85\uDFC2\uDFC7]|\uD83D[\uDC42\uDC43\uDC46-\uDC50\uDC66\uDC67\uDC6B-\uDC6D\uDC72\uDC74-\uDC76\uDC78\uDC7C\uDC83\uDC85\uDC8F\uDC91\uDCAA\uDD7A\uDD95\uDD96\uDE4C\uDE4F\uDEC0\uDECC]|\uD83E[\uDD0C\uDD0F\uDD18-\uDD1C\uDD1E\uDD1F\uDD30-\uDD34\uDD36\uDD77\uDDB5\uDDB6\uDDBB\uDDD2\uDDD3\uDDD5])(?:\uD83C[\uDFFB-\uDFFF])|(?:[\u261D\u270C\u270D]|\uD83D[\uDD74\uDD90])(?:\uFE0F|\uD83C[\uDFFB-\uDFFF])|[\u270A\u270B]|\uD83C[\uDF85\uDFC2\uDFC7]|\uD83D[\uDC08\uDC15\uDC3B\uDC42\uDC43\uDC46-\uDC50\uDC66\uDC67\uDC6B-\uDC6D\uDC72\uDC74-\uDC76\uDC78\uDC7C\uDC83\uDC85\uDC8F\uDC91\uDCAA\uDD7A\uDD95\uDD96\uDE2E\uDE35\uDE36\uDE4C\uDE4F\uDEC0\uDECC]|\uD83E[\uDD0C\uDD0F\uDD18-\uDD1C\uDD1E\uDD1F\uDD30-\uDD34\uDD36\uDD77\uDDB5\uDDB6\uDDBB\uDDD2\uDDD3\uDDD5]|\uD83C[\uDFC3\uDFC4\uDFCA]|\uD83D[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4-\uDEB6]|\uD83E[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD-\uDDCF\uDDD4\uDDD6-\uDDDD]|\uD83D\uDC6F|\uD83E[\uDD3C\uDDDE\uDDDF]|[\u231A\u231B\u23E9-\u23EC\u23F0\u23F3\u25FD\u25FE\u2614\u2615\u2648-\u2653\u267F\u2693\u26A1\u26AA\u26AB\u26BD\u26BE\u26C4\u26C5\u26CE\u26D4\u26EA\u26F2\u26F3\u26F5\u26FA\u26FD\u2705\u2728\u274C\u274E\u2753-\u2755\u2757\u2795-\u2797\u27B0\u27BF\u2B1B\u2B1C\u2B50\u2B55]|\uD83C[\uDC04\uDCCF\uDD8E\uDD91-\uDD9A\uDE01\uDE1A\uDE2F\uDE32-\uDE36\uDE38-\uDE3A\uDE50\uDE51\uDF00-\uDF20\uDF2D-\uDF35\uDF37-\uDF7C\uDF7E-\uDF84\uDF86-\uDF93\uDFA0-\uDFC1\uDFC5\uDFC6\uDFC8\uDFC9\uDFCF-\uDFD3\uDFE0-\uDFF0\uDFF8-\uDFFF]|\uD83D[\uDC00-\uDC07\uDC09-\uDC14\uDC16-\uDC3A\uDC3C-\uDC3E\uDC40\uDC44\uDC45\uDC51-\uDC65\uDC6A\uDC79-\uDC7B\uDC7D-\uDC80\uDC84\uDC88-\uDC8E\uDC90\uDC92-\uDCA9\uDCAB-\uDCFC\uDCFF-\uDD3D\uDD4B-\uDD4E\uDD50-\uDD67\uDDA4\uDDFB-\uDE2D\uDE2F-\uDE34\uDE37-\uDE44\uDE48-\uDE4A\uDE80-\uDEA2\uDEA4-\uDEB3\uDEB7-\uDEBF\uDEC1-\uDEC5\uDED0-\uDED2\uDED5-\uDED7\uDEEB\uDEEC\uDEF4-\uDEFC\uDFE0-\uDFEB]|\uD83E[\uDD0D\uDD0E\uDD10-\uDD17\uDD1D\uDD20-\uDD25\uDD27-\uDD2F\uDD3A\uDD3F-\uDD45\uDD47-\uDD76\uDD78\uDD7A-\uDDB4\uDDB7\uDDBA\uDDBC-\uDDCB\uDDD0\uDDE0-\uDDFF\uDE70-\uDE74\uDE78-\uDE7A\uDE80-\uDE86\uDE90-\uDEA8\uDEB0-\uDEB6\uDEC0-\uDEC2\uDED0-\uDED6]|(?:[\u231A\u231B\u23E9-\u23EC\u23F0\u23F3\u25FD\u25FE\u2614\u2615\u2648-\u2653\u267F\u2693\u26A1\u26AA\u26AB\u26BD\u26BE\u26C4\u26C5\u26CE\u26D4\u26EA\u26F2\u26F3\u26F5\u26FA\u26FD\u2705\u270A\u270B\u2728\u274C\u274E\u2753-\u2755\u2757\u2795-\u2797\u27B0\u27BF\u2B1B\u2B1C\u2B50\u2B55]|\uD83C[\uDC04\uDCCF\uDD8E\uDD91-\uDD9A\uDDE6-\uDDFF\uDE01\uDE1A\uDE2F\uDE32-\uDE36\uDE38-\uDE3A\uDE50\uDE51\uDF00-\uDF20\uDF2D-\uDF35\uDF37-\uDF7C\uDF7E-\uDF93\uDFA0-\uDFCA\uDFCF-\uDFD3\uDFE0-\uDFF0\uDFF4\uDFF8-\uDFFF]|\uD83D[\uDC00-\uDC3E\uDC40\uDC42-\uDCFC\uDCFF-\uDD3D\uDD4B-\uDD4E\uDD50-\uDD67\uDD7A\uDD95\uDD96\uDDA4\uDDFB-\uDE4F\uDE80-\uDEC5\uDECC\uDED0-\uDED2\uDED5-\uDED7\uDEEB\uDEEC\uDEF4-\uDEFC\uDFE0-\uDFEB]|\uD83E[\uDD0C-\uDD3A\uDD3C-\uDD45\uDD47-\uDD78\uDD7A-\uDDCB\uDDCD-\uDDFF\uDE70-\uDE74\uDE78-\uDE7A\uDE80-\uDE86\uDE90-\uDEA8\uDEB0-\uDEB6\uDEC0-\uDEC2\uDED0-\uDED6])|(?:[#\*0-9\xA9\xAE\u203C\u2049\u2122\u2139\u2194-\u2199\u21A9\u21AA\u231A\u231B\u2328\u23CF\u23E9-\u23F3\u23F8-\u23FA\u24C2\u25AA\u25AB\u25B6\u25C0\u25FB-\u25FE\u2600-\u2604\u260E\u2611\u2614\u2615\u2618\u261D\u2620\u2622\u2623\u2626\u262A\u262E\u262F\u2638-\u263A\u2640\u2642\u2648-\u2653\u265F\u2660\u2663\u2665\u2666\u2668\u267B\u267E\u267F\u2692-\u2697\u2699\u269B\u269C\u26A0\u26A1\u26A7\u26AA\u26AB\u26B0\u26B1\u26BD\u26BE\u26C4\u26C5\u26C8\u26CE\u26CF\u26D1\u26D3\u26D4\u26E9\u26EA\u26F0-\u26F5\u26F7-\u26FA\u26FD\u2702\u2705\u2708-\u270D\u270F\u2712\u2714\u2716\u271D\u2721\u2728\u2733\u2734\u2744\u2747\u274C\u274E\u2753-\u2755\u2757\u2763\u2764\u2795-\u2797\u27A1\u27B0\u27BF\u2934\u2935\u2B05-\u2B07\u2B1B\u2B1C\u2B50\u2B55\u3030\u303D\u3297\u3299]|\uD83C[\uDC04\uDCCF\uDD70\uDD71\uDD7E\uDD7F\uDD8E\uDD91-\uDD9A\uDDE6-\uDDFF\uDE01\uDE02\uDE1A\uDE2F\uDE32-\uDE3A\uDE50\uDE51\uDF00-\uDF21\uDF24-\uDF93\uDF96\uDF97\uDF99-\uDF9B\uDF9E-\uDFF0\uDFF3-\uDFF5\uDFF7-\uDFFF]|\uD83D[\uDC00-\uDCFD\uDCFF-\uDD3D\uDD49-\uDD4E\uDD50-\uDD67\uDD6F\uDD70\uDD73-\uDD7A\uDD87\uDD8A-\uDD8D\uDD90\uDD95\uDD96\uDDA4\uDDA5\uDDA8\uDDB1\uDDB2\uDDBC\uDDC2-\uDDC4\uDDD1-\uDDD3\uDDDC-\uDDDE\uDDE1\uDDE3\uDDE8\uDDEF\uDDF3\uDDFA-\uDE4F\uDE80-\uDEC5\uDECB-\uDED2\uDED5-\uDED7\uDEE0-\uDEE5\uDEE9\uDEEB\uDEEC\uDEF0\uDEF3-\uDEFC\uDFE0-\uDFEB]|\uD83E[\uDD0C-\uDD3A\uDD3C-\uDD45\uDD47-\uDD78\uDD7A-\uDDCB\uDDCD-\uDDFF\uDE70-\uDE74\uDE78-\uDE7A\uDE80-\uDE86\uDE90-\uDEA8\uDEB0-\uDEB6\uDEC0-\uDEC2\uDED0-\uDED6])\uFE0F|(?:[\u261D\u26F9\u270A-\u270D]|\uD83C[\uDF85\uDFC2-\uDFC4\uDFC7\uDFCA-\uDFCC]|\uD83D[\uDC42\uDC43\uDC46-\uDC50\uDC66-\uDC78\uDC7C\uDC81-\uDC83\uDC85-\uDC87\uDC8F\uDC91\uDCAA\uDD74\uDD75\uDD7A\uDD90\uDD95\uDD96\uDE45-\uDE47\uDE4B-\uDE4F\uDEA3\uDEB4-\uDEB6\uDEC0\uDECC]|\uD83E[\uDD0C\uDD0F\uDD18-\uDD1F\uDD26\uDD30-\uDD39\uDD3C-\uDD3E\uDD77\uDDB5\uDDB6\uDDB8\uDDB9\uDDBB\uDDCD-\uDDCF\uDDD1-\uDDDD])/g;
@@ -21283,7 +21332,7 @@ function compare(a, b, property) {
   return String(a[property] || '').localeCompare(b[property] || '')
 }
 
-function hasFlag(flag, argv = process$1.argv) {
+function hasFlag(flag, argv = globalThis.Deno ? globalThis.Deno.args : process$1.argv) {
 	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
 	const position = argv.indexOf(prefix + flag);
 	const terminatorPosition = argv.indexOf('--');
@@ -21347,6 +21396,9 @@ function _supportsColor(haveStream, {streamIsTTY, sniffFlags = true} = {}) {
 			return 2;
 		}
 	}
+	if ('TF_BUILD' in env && 'AGENT_NAME' in env) {
+		return 1;
+	}
 	if (haveStream && !streamIsTTY && forceColor === undefined) {
 		return 0;
 	}
@@ -21365,7 +21417,10 @@ function _supportsColor(haveStream, {streamIsTTY, sniffFlags = true} = {}) {
 		return 1;
 	}
 	if ('CI' in env) {
-		if (['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI', 'GITHUB_ACTIONS', 'BUILDKITE', 'DRONE'].some(sign => sign in env) || env.CI_NAME === 'codeship') {
+		if ('GITHUB_ACTIONS' in env) {
+			return 3;
+		}
+		if (['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI', 'BUILDKITE', 'DRONE'].some(sign => sign in env) || env.CI_NAME === 'codeship') {
 			return 1;
 		}
 		return min;
@@ -21373,19 +21428,21 @@ function _supportsColor(haveStream, {streamIsTTY, sniffFlags = true} = {}) {
 	if ('TEAMCITY_VERSION' in env) {
 		return /^(9\.(0*[1-9]\d*)\.|\d{2,}\.)/.test(env.TEAMCITY_VERSION) ? 1 : 0;
 	}
-	if ('TF_BUILD' in env && 'AGENT_NAME' in env) {
-		return 1;
-	}
 	if (env.COLORTERM === 'truecolor') {
+		return 3;
+	}
+	if (env.TERM === 'xterm-kitty') {
 		return 3;
 	}
 	if ('TERM_PROGRAM' in env) {
 		const version = Number.parseInt((env.TERM_PROGRAM_VERSION || '').split('.')[0], 10);
 		switch (env.TERM_PROGRAM) {
-			case 'iTerm.app':
+			case 'iTerm.app': {
 				return version >= 3 ? 3 : 2;
-			case 'Apple_Terminal':
+			}
+			case 'Apple_Terminal': {
 				return 2;
+			}
 		}
 	}
 	if (/-256(color)?$/i.test(env.TERM)) {

@@ -16,8 +16,9 @@ alias: issues
 
 This command tries to guess at the likely location of a package's bug
 tracker URL or the `mailto` URL of the support email, and then tries to
-open it using the `--browser` config param. If no package name is provided, it
-will search for a `package.json` in the current folder and use the `name` property.
+open it using the [`--browser` config](/using-npm/config#browser) param. If no
+package name is provided, it will search for a `package.json` in the current
+folder and use the `name` property.
 
 ### Configuration
 

@@ -1,8 +1,8 @@
 const t = require('tap')
-const fs = require('@npmcli/fs')
+const fs = require('fs/promises')
 const path = require('path')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
-const MockRegistry = require('../../fixtures/mock-registry.js')
+const MockRegistry = require('@npmcli/mock-registry')
 
 t.test('call with args', async t => {
   const { npm } = await loadMockNpm(t, {
@@ -38,9 +38,6 @@ t.test('registry package', async t => {
   require('fs').writeFileSync('npm-exec-test-success', '')`,
       },
     },
-    globals: ({ prefix }) => ({
-      'process.cwd': () => prefix,
-    }),
   })
 
   await registry.package({
@@ -75,9 +72,6 @@ t.test('--prefix', async t => {
   require('fs').writeFileSync('npm-exec-test-success', '')`,
       },
     },
-    globals: ({ prefix }) => ({
-      'process.cwd': () => prefix,
-    }),
   })
 
   // This is what `--prefix` does
@@ -125,9 +119,6 @@ t.test('workspaces', async t => {
         }),
       },
     },
-    globals: ({ prefix }) => ({
-      'process.cwd': () => prefix,
-    }),
   })
 
   await registry.package({ manifest,

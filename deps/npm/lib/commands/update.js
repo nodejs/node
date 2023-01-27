@@ -14,8 +14,9 @@ class Update extends ArboristWorkspaceCmd {
   static params = [
     'save',
     'global',
-    'global-style',
+    'install-strategy',
     'legacy-bundling',
+    'global-style',
     'omit',
     'strict-peer-deps',
     'package-lock',
@@ -39,9 +40,7 @@ class Update extends ArboristWorkspaceCmd {
   async exec (args) {
     const update = args.length === 0 ? true : args
     const global = path.resolve(this.npm.globalDir, '..')
-    const where = this.npm.global
-      ? global
-      : this.npm.prefix
+    const where = this.npm.global ? global : this.npm.prefix
 
     // In the context of `npm update` the save
     // config value should default to `false`

@@ -192,7 +192,7 @@ function setPrototypeOfQuux(root) {
 // Test various supported types, directly and nested:
 [
   undefined, null, false, true, 42, 42n, Symbol('42'), NaN, Infinity, {}, [],
-  () => {}, async () => {}, Promise.resolve(), Math, Object.create(null),
+  () => {}, async () => {}, Promise.resolve(), Math, { __proto__: null },
 ].forEach((target) => {
   assert.deepStrictEqual(mustNotMutateObjectDeep(target), target);
   assert.deepStrictEqual(mustNotMutateObjectDeep({ target }), { target });

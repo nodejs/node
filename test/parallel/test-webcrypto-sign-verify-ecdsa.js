@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 const vectors = require('../fixtures/crypto/ecdsa')();
 
@@ -135,7 +135,8 @@ async function testVerify({ name,
 
   await assert.rejects(
     subtle.verify({ name, hash: 'sha256' }, publicKey, signature, copy), {
-      message: /Unrecognized name/
+      message: /Unrecognized algorithm name/,
+      name: 'NotSupportedError',
     });
 }
 

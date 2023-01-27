@@ -73,7 +73,9 @@ class Cell {
   }
 
   computeLines(tableOptions) {
-    if (this.fixedWidth && (tableOptions.wordWrap || tableOptions.textWrap)) {
+    const tableWordWrap = tableOptions.wordWrap || tableOptions.textWrap;
+    const { wordWrap = tableWordWrap } = this.options;
+    if (this.fixedWidth && wordWrap) {
       this.fixedWidth -= this.paddingLeft + this.paddingRight;
       if (this.colSpan) {
         let i = 1;
@@ -82,7 +84,8 @@ class Cell {
           i++;
         }
       }
-      const { wrapOnWordBoundary = true } = tableOptions;
+      const { wrapOnWordBoundary: tableWrapOnWordBoundary = true } = tableOptions;
+      const { wrapOnWordBoundary = tableWrapOnWordBoundary } = this.options;
       return this.wrapLines(utils.wordWrap(this.fixedWidth, this.content, wrapOnWordBoundary));
     }
     return this.wrapLines(this.content.split('\n'));

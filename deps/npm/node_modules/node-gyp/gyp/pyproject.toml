@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gyp-next"
+version = "0.14.0"
+authors = [
+  { name="Node.js contributors", email="ryzokuken@disroot.org" },
+]
+description = "A fork of the GYP build system for use in the Node.js projects"
+readme = "README.md"
+license = { file="LICENSE" }
+requires-python = ">=3.6"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Natural Language :: English",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+]
+
+[project.optional-dependencies]
+dev = ["flake8", "pytest"]
+
+[project.scripts]
+gyp = "gyp:script_main"
+
+[project.urls]
+"Homepage" = "https://github.com/nodejs/gyp-next"
+
+[tool.setuptools]
+package-dir = {"" = "pylib"}
+packages = ["gyp", "gyp.generator"]

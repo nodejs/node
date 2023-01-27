@@ -135,6 +135,13 @@ const { inspect } = require('util');
     });
   });
 
+  // Number greater than 5 is not allowed
+  for (const i of [6, 10]) {
+    throws(() => createHistogram({ figures: i }), {
+      code: 'ERR_OUT_OF_RANGE',
+    });
+  }
+
   createHistogram({ lowest: 1, highest: 11, figures: 1 });
 }
 

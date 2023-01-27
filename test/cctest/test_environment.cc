@@ -553,7 +553,9 @@ TEST_F(EnvironmentTest, ExitHandlerTest) {
     callback_calls++;
     node::Stop(*env);
   });
-  node::LoadEnvironment(*env, "process.exit(42)").ToLocalChecked();
+  // When terminating, v8 throws makes the current embedder call bail out
+  // with MaybeLocal<>()
+  EXPECT_TRUE(node::LoadEnvironment(*env, "process.exit(42)").IsEmpty());
   EXPECT_EQ(callback_calls, 1);
 }
 

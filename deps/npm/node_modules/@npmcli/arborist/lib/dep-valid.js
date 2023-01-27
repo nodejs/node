@@ -109,8 +109,8 @@ const depValid = (child, requested, requestor) => {
 const linkValid = (child, requested, requestor) => {
   const isLink = !!child.isLink
   // if we're installing links and the node is a link, then it's invalid because we want
-  // a real node to be there
-  if (requestor.installLinks) {
+  // a real node to be there.  Except for workspaces. They are always links.
+  if (requestor.installLinks && !child.isWorkspace) {
     return !isLink
   }
 

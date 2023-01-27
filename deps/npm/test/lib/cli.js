@@ -1,6 +1,6 @@
 const t = require('tap')
-
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
+const tmock = require('../fixtures/tmock')
 
 const cliMock = async (t, opts) => {
   let exitHandlerArgs = null
@@ -12,9 +12,9 @@ const cliMock = async (t, opts) => {
   exitHandlerMock.setNpm = _npm => npm = _npm
 
   const { Npm, outputs, logMocks, logs } = await loadMockNpm(t, { ...opts, init: false })
-  const cli = t.mock('../../lib/cli.js', {
-    '../../lib/npm.js': Npm,
-    '../../lib/utils/exit-handler.js': exitHandlerMock,
+  const cli = tmock(t, '{LIB}/cli.js', {
+    '{LIB}/npm.js': Npm,
+    '{LIB}/utils/exit-handler.js': exitHandlerMock,
     ...logMocks,
   })
 
@@ -29,10 +29,6 @@ const cliMock = async (t, opts) => {
   }
 }
 
-t.afterEach(() => {
-  delete process.exitCode
-})
-
 t.test('print the version, and treat npm_g as npm -g', async t => {
   const { logsBy, logs, cli, Npm, outputs, exitHandlerCalled } = await cliMock(t, {
     globals: { 'process.argv': ['node', 'npm_g', '-v'] },
@@ -42,24 +38,18 @@ t.test('print the version, and treat npm_g as npm -g', async t => {
   t.strictSame(process.argv, ['node', 'npm', '-g', '-v'], 'system process.argv was rewritten')
   t.strictSame(logsBy('cli'), [['node npm']])
   t.strictSame(logsBy('title'), [['npm']])
-  t.strictSame(logsBy('argv'), [['"--global" "--version"']])
+  t.match(logsBy('argv'), [['"--global" "--version"']])
   t.strictSame(logs.info, [
     ['using', 'npm@%s', Npm.version],
     ['using', 'node@%s', process.version],
   ])
+  t.equal(outputs.length, 1)
   t.strictSame(outputs, [[Npm.version]])
   t.strictSame(exitHandlerCalled(), [])
 })
 
 t.test('calling with --versions calls npm version with no args', async t => {
   const { logsBy, cli, outputs, exitHandlerCalled } = await cliMock(t, {
-    mocks: {
-      '../../lib/commands/version.js': class Version {
-        async exec (args) {
-          t.strictSame(args, [])
-        }
-      },
-    },
     globals: {
       'process.argv': ['node', 'npm', 'install', 'or', 'whatever', '--versions'],
     },
@@ -69,18 +59,14 @@ t.test('calling with --versions calls npm version with no args', async t => {
   t.equal(process.title, 'npm install or whatever')
   t.strictSame(logsBy('cli'), [['node npm']])
   t.strictSame(logsBy('title'), [['npm install or whatever']])
-  t.strictSame(logsBy('argv'), [['"install" "or" "whatever" "--versions"']])
-  t.strictSame(outputs, [])
+  t.match(logsBy('argv'), [['"install" "or" "whatever" "--versions"']])
+  t.equal(outputs.length, 1)
+  t.match(outputs[0][0], { npm: String, node: String, v8: String })
   t.strictSame(exitHandlerCalled(), [])
 })
 
 t.test('logged argv is sanitized', async t => {
   const { logsBy, cli } = await cliMock(t, {
-    mocks: {
-      '../../lib/commands/version.js': class Version {
-        async exec () {}
-      },
-    },
     globals: {
       'process.argv': [
         'node',
@@ -96,16 +82,11 @@ t.test('logged argv is sanitized', async t => {
   t.equal(process.title, 'npm version')
   t.strictSame(logsBy('cli'), [['node npm']])
   t.strictSame(logsBy('title'), [['npm version']])
-  t.strictSame(logsBy('argv'), [['"version" "--registry" "https://u:***@npmjs.org/password"']])
+  t.match(logsBy('argv'), [['"version" "--registry" "https://u:***@npmjs.org/password"']])
 })
 
 t.test('logged argv is sanitized with equals', async t => {
   const { logsBy, cli } = await cliMock(t, {
-    mocks: {
-      '../../lib/commands/version.js': class Version {
-        async exec () {}
-      },
-    },
     globals: {
       'process.argv': [
         'node',
@@ -117,7 +98,7 @@ t.test('logged argv is sanitized with equals', async t => {
   })
   await cli(process)
 
-  t.strictSame(logsBy('argv'), [['"version" "--registry" "https://u:***@npmjs.org"']])
+  t.match(logsBy('argv'), [['"version" "--registry" "https://u:***@npmjs.org"']])
 })
 
 t.test('print usage if no params provided', async t => {
@@ -153,7 +134,7 @@ t.test('load error calls error handler', async t => {
   const err = new Error('test load error')
   const { cli, exitHandlerCalled } = await cliMock(t, {
     mocks: {
-      '../../lib/utils/config/index.js': {
+      '{LIB}/utils/config/index.js': {
         definitions: null,
         flatten: null,
         shorthands: null,
@@ -172,37 +153,15 @@ t.test('load error calls error handler', async t => {
   t.strictSame(exitHandlerCalled(), [err])
 })
 
-t.test('known broken node version', async t => {
-  const errors = []
-  let exitCode
-  const { cli } = await cliMock(t, {
-    globals: {
-      'console.error': (msg) => errors.push(msg),
-      'process.version': '6.0.0',
-      'process.exit': e => exitCode = e,
-    },
-  })
-  await cli(process)
-  t.match(errors, [
-    'ERROR: npm is known not to run on Node.js 6.0.0',
-    'You\'ll need to upgrade to a newer Node.js version in order to use this',
-    'version of npm. You can find the latest version at https://nodejs.org/',
-  ])
-  t.match(exitCode, 1)
-})
-
 t.test('unsupported node version', async t => {
-  const errors = []
-  const { cli } = await cliMock(t, {
+  const { cli, logs } = await cliMock(t, {
     globals: {
-      'console.error': (msg) => errors.push(msg),
       'process.version': '12.6.0',
     },
   })
   await cli(process)
-  t.match(errors, [
-    'npm does not support Node.js 12.6.0',
-    'You should probably upgrade to a newer version of node as we',
-    'can\'t make any promises that npm will work with this version.',
-  ])
+  t.match(
+    logs.warn[0][1],
+    /npm v.* does not support Node\.js 12\.6\.0\./
+  )
 })

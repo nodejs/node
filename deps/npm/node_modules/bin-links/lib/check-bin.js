@@ -4,9 +4,7 @@ const isWindows = require('./is-windows.js')
 const binTarget = require('./bin-target.js')
 const { resolve, dirname } = require('path')
 const readCmdShim = require('read-cmd-shim')
-const fs = require('fs')
-const { promisify } = require('util')
-const readlink = promisify(fs.readlink)
+const { readlink } = require('fs/promises')
 
 const checkBin = async ({ bin, path, top, global, force }) => {
   // always ok to clobber when forced

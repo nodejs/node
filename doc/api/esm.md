@@ -486,9 +486,9 @@ These CommonJS variables are not available in ES modules.
 `__filename` and `__dirname` use cases can be replicated via
 [`import.meta.url`][].
 
-#### No Native Module Loading
+#### No Addon Loading
 
-Native modules are not currently supported with ES module imports.
+[Addons][] are not currently supported with ES module imports.
 
 They can instead be loaded with [`module.createRequire()`][] or
 [`process.dlopen`][].
@@ -701,8 +701,9 @@ changes:
 To customize the default module resolution, loader hooks can optionally be
 provided via a `--experimental-loader ./loader-name.mjs` argument to Node.js.
 
-When hooks are used they apply to the entry point and all `import` calls. They
-won't apply to `require` calls; those still follow [CommonJS][] rules.
+When hooks are used they apply to each subsequent loader, the entry point, and
+all `import` calls. They won't apply to `require` calls; those still follow
+[CommonJS][] rules.
 
 Loaders follow the pattern of `--require`:
 
@@ -753,7 +754,8 @@ changes:
 * `specifier` {string}
 * `context` {Object}
   * `conditions` {string\[]} Export conditions of the relevant `package.json`
-  * `importAssertions` {Object}
+  * `importAssertions` {Object} An object whose key-value pairs represent the
+    assertions for the module to import
   * `parentURL` {string|undefined} The module importing this one, or undefined
     if this is the Node.js entry point
 * `nextResolve` {Function} The subsequent `resolve` hook in the chain, or the
@@ -764,23 +766,24 @@ changes:
   * `format` {string|null|undefined} A hint to the load hook (it might be
     ignored)
     `'builtin' | 'commonjs' | 'json' | 'module' | 'wasm'`
+  * `importAssertions` {Object|undefined} The import assertions to use when
+    caching the module (optional; if excluded the input will be used)
   * `shortCircuit` {undefined|boolean} A signal that this hook intends to
     terminate the chain of `resolve` hooks. **Default:** `false`
   * `url` {string} The absolute URL to which this input resolves
 
-The `resolve` hook chain is responsible for resolving file URL for a given
-module specifier and parent URL, and optionally its format (such as `'module'`)
-as a hint to the `load` hook. If a format is specified, the `load` hook is
-ultimately responsible for providing the final `format` value (and it is free to
-ignore the hint provided by `resolve`); if `resolve` provides a `format`, a
-custom `load` hook is required even if only to pass the value to the Node.js
-default `load` hook.
+The `resolve` hook chain is responsible for telling Node.js where to find and
+how to cache a given `import` statement or expression. It can optionally return
+its format (such as `'module'`) as a hint to the `load` hook. If a format is
+specified, the `load` hook is ultimately responsible for providing the final
+`format` value (and it is free to ignore the hint provided by `resolve`); if
+`resolve` provides a `format`, a custom `load` hook is required even if only to
+pass the value to the Node.js default `load` hook.
 
-The module specifier is the string in an `import` statement or
-`import()` expression.
-
-The parent URL is the URL of the module that imported this one, or `undefined`
-if this is the main entry point for the application.
+Import type assertions are part of the cache key for saving loaded modules into
+the internal module cache. The `resolve` hook is responsible for
+returning an `importAssertions` object if the module should be cached with
+different assertions than were present in the source code.
 
 The `conditions` property in `context` is an array of conditions for
 [package exports conditions][Conditional Exports] that apply to this resolution
@@ -1525,6 +1528,7 @@ for ESM specifiers is [commonjs-extension-resolution-loader][].
 <!-- Note: The cjs-module-lexer link should be kept in-sync with the deps version -->
 
 [6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
+[Addons]: addons.md
 [CommonJS]: modules.md
 [Conditional exports]: packages.md#conditional-exports
 [Core modules]: modules.md#core-modules

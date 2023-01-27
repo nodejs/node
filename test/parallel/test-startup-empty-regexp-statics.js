@@ -42,6 +42,23 @@ const allRegExpStatics =
 
 {
   const child = spawnSync(process.execPath,
+                          [ '--expose-internals', '-p', `const {
+                            SideEffectFreeRegExpPrototypeExec,
+                            SideEffectFreeRegExpPrototypeSymbolReplace,
+                            SideEffectFreeRegExpPrototypeSymbolSplit,
+                          } = require("internal/util");
+                          SideEffectFreeRegExpPrototypeExec(/foo/, "foo");
+                          SideEffectFreeRegExpPrototypeSymbolReplace(/o/, "foo", "a");
+                          SideEffectFreeRegExpPrototypeSymbolSplit(/o/, "foo");
+                          ${allRegExpStatics}` ],
+                          { stdio: ['inherit', 'pipe', 'inherit'] });
+  assert.match(child.stdout.toString(), /^undefined\r?\n$/);
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
+}
+
+{
+  const child = spawnSync(process.execPath,
                           [ '-e', `console.log(${allRegExpStatics})`, '--input-type=module' ],
                           { stdio: ['inherit', 'pipe', 'inherit'] });
   assert.match(child.stdout.toString(), /^undefined\r?\n$/);

@@ -73,7 +73,7 @@ module.exports = {
                                 end: lastTokenOfTest.loc.end
                             },
                             messageId: "unexpectedTestCons",
-                            fix: fixer => {
+                            fix(fixer) {
                                 if (hasComments) {
                                     return null;
                                 }
@@ -101,7 +101,7 @@ module.exports = {
                                 end: lastTokenOfConsequent.loc.end
                             },
                             messageId: "unexpectedConsAlt",
-                            fix: fixer => {
+                            fix(fixer) {
                                 if (hasComments) {
                                     return null;
                                 }

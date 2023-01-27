@@ -76,13 +76,9 @@ NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
                                              isolate_params_.get());
   }
 
-  isolate_ = Isolate::Allocate();
+  isolate_ = NewIsolate(
+      isolate_params_.get(), event_loop, platform, snapshot_data != nullptr);
   CHECK_NOT_NULL(isolate_);
-  // Register the isolate on the platform before the isolate gets initialized,
-  // so that the isolate can access the platform during initialization.
-  platform->RegisterIsolate(isolate_, event_loop);
-  SetIsolateCreateParamsForNode(isolate_params_.get());
-  Isolate::Initialize(isolate_, *isolate_params_);
 
   // If the indexes are not nullptr, we are not deserializing
   isolate_data_ = std::make_unique<IsolateData>(
@@ -91,13 +87,7 @@ NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
       platform,
       array_buffer_allocator_.get(),
       snapshot_data == nullptr ? nullptr : &(snapshot_data->isolate_data_info));
-  IsolateSettings s;
-  SetIsolateMiscHandlers(isolate_, s);
-  if (snapshot_data == nullptr) {
-    // If in deserialize mode, delay until after the deserialization is
-    // complete.
-    SetIsolateErrorHandlers(isolate_, s);
-  }
+
   isolate_data_->max_young_gen_size =
       isolate_params_->constraints.max_young_generation_size_in_bytes();
 }
@@ -169,6 +159,11 @@ NodeMainInstance::CreateMainEnvironment(ExitCode* exit_code) {
                               &(snapshot_data_->env_info),
                               EnvironmentFlags::kDefaultFlags,
                               {}));
+#ifdef NODE_V8_SHARED_RO_HEAP
+    // TODO(addaleax): Do this as part of creating the Environment
+    // once we store the SnapshotData* itself on IsolateData.
+    env->builtin_loader()->RefreshCodeCache(snapshot_data_->code_cache);
+#endif
     context = Context::FromSnapshot(isolate_,
                                     SnapshotData::kNodeMainContextIndex,
                                     {DeserializeNodeInternalFields, env.get()})
@@ -191,19 +186,8 @@ NodeMainInstance::CreateMainEnvironment(ExitCode* exit_code) {
     context = NewContext(isolate_);
     CHECK(!context.IsEmpty());
     Context::Scope context_scope(context);
-    env.reset(new Environment(isolate_data_.get(),
-                              context,
-                              args_,
-                              exec_args_,
-                              nullptr,
-                              EnvironmentFlags::kDefaultFlags,
-                              {}));
-#if HAVE_INSPECTOR
-    env->InitializeInspector({});
-#endif
-    if (env->principal_realm()->RunBootstrapping().IsEmpty()) {
-      return nullptr;
-    }
+    env.reset(
+        CreateEnvironment(isolate_data_.get(), context, args_, exec_args_));
   }
 
   return env;

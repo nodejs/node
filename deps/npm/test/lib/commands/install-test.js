@@ -23,6 +23,15 @@ const installTest = new InstallTest({
       testCalled = true
     }
   },
+  config: {
+    validate: () => {},
+    get: (key) => {
+      if (key === 'location') {
+        return 'project'
+      }
+    },
+    isDefault: () => {},
+  },
 })
 
 t.test('the install-test command', t => {

@@ -57,8 +57,7 @@ Object {
   "auth": "author",
   "autho": "author",
   "author": "author",
-  "bi": "bin",
-  "bin": "bin",
+  "b": "bugs",
   "bu": "bugs",
   "bug": "bugs",
   "bugs": "bugs",
@@ -288,13 +287,6 @@ Object {
   "searc": "search",
   "search": "search",
   "set": "set",
-  "set-": "set-script",
-  "set-s": "set-script",
-  "set-sc": "set-script",
-  "set-scr": "set-script",
-  "set-scri": "set-script",
-  "set-scrip": "set-script",
-  "set-script": "set-script",
   "sho": "show",
   "show": "show",
   "shr": "shrinkwrap",
@@ -419,7 +411,6 @@ Object {
   "la": "ll",
   "list": "ls",
   "ln": "link",
-  "login": "adduser",
   "ogr": "org",
   "r": "uninstall",
   "rb": "rebuild",
@@ -451,8 +442,6 @@ Array [
   "access",
   "adduser",
   "audit",
-  "bin",
-  "birthday",
   "bugs",
   "cache",
   "ci",
@@ -501,7 +490,6 @@ Array [
   "run-script",
   "search",
   "set",
-  "set-script",
   "shrinkwrap",
   "star",
   "stars",
@@ -525,7 +513,6 @@ Array [
   "access",
   "adduser",
   "audit",
-  "bin",
   "bugs",
   "cache",
   "ci",
@@ -573,7 +560,6 @@ Array [
   "run-script",
   "search",
   "set",
-  "set-script",
   "shrinkwrap",
   "star",
   "stars",
@@ -594,7 +580,6 @@ Array [
 
 exports[`test/lib/docs.js TAP command list > plumbing 1`] = `
 Array [
-  "birthday",
   "help-search",
 ]
 `
@@ -615,19 +600,19 @@ safer to use a registry-provided authentication bearer token stored in the
 
 #### \`access\`
 
-* Default: 'restricted' for scoped packages, 'public' for unscoped packages
+* Default: 'public' for new packages, existing packages it will not change the
+  current level
 * Type: null, "restricted", or "public"
 
-When publishing scoped packages, the access level defaults to \`restricted\`.
-If you want your scoped package to be publicly viewable (and installable)
-set \`--access=public\`. The only valid values for \`access\` are \`public\` and
-\`restricted\`. Unscoped packages _always_ have an access level of \`public\`.
+If you do not want your scoped package to be publicly viewable (and
+installable) set \`--access=restricted\`.
 
-Note: Using the \`--access\` flag on the \`npm publish\` command will only set
-the package access level on the initial publish of the package. Any
-subsequent \`npm publish\` commands using the \`--access\` flag will not have an
-effect to the access level. To make changes to the access level after the
-initial publish use \`npm access\`.
+Unscoped packages can not be set to \`restricted\`.
+
+Note: This defaults to not changing the current access level for existing
+packages. Specifying a value of \`restricted\` or \`public\` during publish will
+change the access for an existing package the same way that \`npm access set
+status\` would.
 
 #### \`all\`
 
@@ -666,13 +651,11 @@ exit code.
 
 #### \`auth-type\`
 
-* Default: "legacy"
-* Type: "legacy", "web", "sso", "saml", "oauth", or "webauthn"
+* Default: "web"
+* Type: "legacy" or "web"
 
-NOTE: auth-type values "sso", "saml", "oauth", and "webauthn" will be
-removed in a future version.
-
-What authentication strategy to use with \`login\`.
+What authentication strategy to use with \`login\`. Note that if an \`otp\`
+config is given, this value will always be set to \`legacy\`.
 
 #### \`before\`
 
@@ -744,8 +727,7 @@ See also the \`strict-ssl\` config.
 * Default: Windows: \`%LocalAppData%\\npm-cache\`, Posix: \`~/.npm\`
 * Type: Path
 
-The location of npm's cache directory. See [\`npm
-cache\`](/commands/npm-cache)
+The location of npm's cache directory.
 
 #### \`cafile\`
 
@@ -769,23 +751,6 @@ npm exec --package yo --package generator-node --call "yo node"
 \`\`\`
 
 
-#### \`cert\`
-
-* Default: null
-* Type: null or String
-
-A client certificate to pass when accessing the registry. Values should be
-in PEM format (Windows calls it "Base-64 encoded X.509 (.CER)") with
-newlines replaced by the string "\\n". For example:
-
-\`\`\`ini
-cert="-----BEGIN CERTIFICATE-----\\nXXXX\\nXXXX\\n-----END CERTIFICATE-----"
-\`\`\`
-
-It is _not_ the path to a certificate file, though you can set a
-registry-scoped "certfile" path like
-"//other-registry.tld/:certfile=/path/to/cert.pem".
-
 #### \`ci-name\`
 
 * Default: The name of the current CI system, or \`null\` when not on a known CI
@@ -794,7 +759,7 @@ registry-scoped "certfile" path like
 
 The name of a continuous integration system. If not set explicitly, npm will
 detect the current CI environment using the
-[\`@npmcli/ci-detect\`](http://npm.im/@npmcli/ci-detect) module.
+[\`ci-info\`](http://npm.im/ci-info) module.
 
 #### \`cidr\`
 
@@ -910,8 +875,8 @@ Note: This is NOT honored by other network related commands, eg \`dist-tags\`,
 
 #### \`editor\`
 
-* Default: The EDITOR or VISUAL environment variables, or 'notepad.exe' on
-  Windows, or 'vim' on Unix systems
+* Default: The EDITOR or VISUAL environment variables, or
+  '%SYSTEMROOT%\\notepad.exe' on Windows, or 'vi' on Unix systems
 * Type: String
 
 The command to run for \`npm edit\` and \`npm config edit\`.
@@ -1053,18 +1018,6 @@ folder instead of the current working directory. See
 * bin files are linked to \`{prefix}/bin\`
 * man pages are linked to \`{prefix}/share/man\`
 
-#### \`global-style\`
-
-* Default: false
-* Type: Boolean
-
-Causes npm to install the package into your local \`node_modules\` folder with
-the same layout it uses with the global \`node_modules\` folder. Only your
-direct dependencies will show in \`node_modules\` and everything they depend
-on will be flattened in their \`node_modules\` folders. This obviously will
-eliminate some deduping. If used with \`legacy-bundling\`, \`legacy-bundling\`
-will be preferred.
-
 #### \`globalconfig\`
 
 * Default: The global --prefix setting plus 'etc/npmrc'. For example,
@@ -1200,12 +1153,24 @@ number, if not already set in package.json.
 
 #### \`install-links\`
 
-* Default: false
+* Default: true
 * Type: Boolean
 
-When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.
+When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.
+
+#### \`install-strategy\`
+
+* Default: "hoisted"
+* Type: "hoisted", "nested", or "shallow"
+
+Sets the strategy for installing packages in node_modules. hoisted
+(default): Install non-duplicated in top-level, and duplicated as necessary
+within directory structure. nested: (formerly --legacy-bundling) install in
+place, no hoisting. shallow (formerly --global-style) only install direct
+deps at top-level. linked: (coming soon) install in node_modules/.store,
+link in place, unhoisted.
 
 #### \`json\`
 
@@ -1218,31 +1183,6 @@ Whether or not to output JSON data, rather than the normal output.
   saving them to your \`package.json\`.
 
 Not supported by all npm commands.
-
-#### \`key\`
-
-* Default: null
-* Type: null or String
-
-A client key to pass when accessing the registry. Values should be in PEM
-format with newlines replaced by the string "\\n". For example:
-
-\`\`\`ini
-key="-----BEGIN PRIVATE KEY-----\\nXXXX\\nXXXX\\n-----END PRIVATE KEY-----"
-\`\`\`
-
-It is _not_ the path to a key file, though you can set a registry-scoped
-"keyfile" path like "//other-registry.tld/:keyfile=/path/to/key.pem".
-
-#### \`legacy-bundling\`
-
-* Default: false
-* Type: Boolean
-
-Causes npm to install the package such that versions of npm prior to 1.4,
-such as the one included with node 0.8, can install the package. This
-eliminates all automatic deduping. If used with \`global-style\` this option
-will be preferred.
 
 #### \`legacy-peer-deps\`
 
@@ -1296,8 +1236,8 @@ instead of the current working directory. See
 
 #### \`lockfile-version\`
 
-* Default: Version 2 if no lockfile or current lockfile version less than or
-  equal to 2, otherwise maintain current lockfile version
+* Default: Version 3 if no lockfile, auto-converting v1 lockfiles to v3,
+  otherwise maintain current lockfile version.
 * Type: null, 1, 2, 3, "1", "2", or "3"
 
 Set the lockfile format version to be used in package-lock.json and
@@ -1308,9 +1248,9 @@ is used during the install, resulting in slower and possibly less
 deterministic installs. Prevents lockfile churn when interoperating with
 older npm versions.
 
-2: The default lockfile version used by npm version 7. Includes both the
-version 1 lockfile data and version 3 lockfile data, for maximum determinism
-and interoperability, at the expense of more bytes on disk.
+2: The default lockfile version used by npm version 7 and 8. Includes both
+the version 1 lockfile data and version 3 lockfile data, for maximum
+determinism and interoperability, at the expense of more bytes on disk.
 
 3: Only the new lockfile information introduced in npm version 7. Smaller on
 disk than lockfile version 2, but not interoperable with older npm versions.
@@ -1319,8 +1259,8 @@ Ideal if all users are on npm version 7 and higher.
 #### \`loglevel\`
 
 * Default: "notice"
-* Type: "silent", "error", "warn", "notice", "http", "timing", "info",
-  "verbose", or "silly"
+* Type: "silent", "error", "warn", "notice", "http", "info", "verbose", or
+  "silly"
 
 What level of logs to report. All logs are written to a debug log, with the
 path to that file printed if the execution of a command fails.
@@ -1380,13 +1320,6 @@ Options to pass through to Node.js via the \`NODE_OPTIONS\` environment
 variable. This does not impact how npm itself is executed but it does impact
 how lifecycle scripts are called.
 
-#### \`node-version\`
-
-* Default: Node.js \`process.version\` value
-* Type: SemVer string
-
-The node version to use when checking a package's \`engines\` setting.
-
 #### \`noproxy\`
 
 * Default: The value of the NO_PROXY environment variable
@@ -1395,13 +1328,6 @@ The node version to use when checking a package's \`engines\` setting.
 Domain extensions that should bypass any proxies.
 
 Also accepts a comma-delimited string.
-
-#### \`npm-version\`
-
-* Default: Output of \`npm --version\`
-* Type: SemVer string
-
-The npm version to use when checking a package's \`engines\` setting.
 
 #### \`offline\`
 
@@ -1516,8 +1442,8 @@ look for updates immediately even for fresh package data.
 #### \`prefix\`
 
 * Default: In global mode, the folder where the node executable is installed.
-  In local mode, the nearest parent folder containing either a package.json
-  file or a node_modules folder.
+  Otherwise, the nearest parent folder containing either a package.json file
+  or a node_modules folder.
 * Type: Path
 
 The location to install global items. If set on the command line, then it
@@ -1777,7 +1703,7 @@ be resolved using the nearest non-peer dependency specification, even if
 doing so will result in some packages receiving a peer dependency outside
 the range set in their package's \`peerDependencies\` object.
 
-When such and override is performed, a warning is printed, explaining the
+When such an override is performed, a warning is printed, explaining the
 conflict and the packages involved. If \`--strict-peer-deps\` is set, then
 this warning is treated as a failure.
 
@@ -1811,7 +1737,7 @@ tarball that will be compared with the local files by default.
 * Type: String
 
 If set, alters the prefix used when tagging a new version when performing a
-version increment using \`npm-version\`. To remove the prefix altogether, set
+version increment using \`npm version\`. To remove the prefix altogether, set
 it to the empty string: \`""\`.
 
 Because other tools may rely on the convention that npm version tags look
@@ -1823,12 +1749,14 @@ particular, use care when overriding this setting for public packages.
 * Default: false
 * Type: Boolean
 
-If true, writes a debug log to \`logs-dir\` and timing information to
-\`_timing.json\` in the cache, even if the command completes successfully.
-\`_timing.json\` is a newline delimited list of JSON objects.
+If true, writes timing information to a process specific json file in the
+cache or \`logs-dir\`. The file name ends with \`-timing.json\`.
 
 You can quickly view it with this [json](https://npm.im/json) command line:
-\`npm exec -- json -g < ~/.npm/_timing.json\`.
+\`cat ~/.npm/_logs/*-timing.json | npm exec -- json -g\`.
+
+Timing information will also be reported in the terminal. To suppress this
+while still writing the timing file, use \`--silent\`.
 
 #### \`umask\`
 
@@ -2019,6 +1947,27 @@ When set to \`dev\` or \`development\`, this is an alias for \`--include=dev\`.
 
 \`--cache-min=9999 (or bigger)\` is an alias for \`--prefer-offline\`.
 
+#### \`cert\`
+
+* Default: null
+* Type: null or String
+* DEPRECATED: \`key\` and \`cert\` are no longer used for most registry
+  operations. Use registry scoped \`keyfile\` and \`certfile\` instead. Example:
+  //other-registry.tld/:keyfile=/path/to/key.pem
+  //other-registry.tld/:certfile=/path/to/cert.crt
+
+A client certificate to pass when accessing the registry. Values should be
+in PEM format (Windows calls it "Base-64 encoded X.509 (.CER)") with
+newlines replaced by the string "\\n". For example:
+
+\`\`\`ini
+cert="-----BEGIN CERTIFICATE-----\\nXXXX\\nXXXX\\n-----END CERTIFICATE-----"
+\`\`\`
+
+It is _not_ the path to a certificate file, though you can set a
+registry-scoped "certfile" path like
+"//other-registry.tld/:certfile=/path/to/cert.pem".
+
 #### \`dev\`
 
 * Default: false
@@ -2026,6 +1975,16 @@ When set to \`dev\` or \`development\`, this is an alias for \`--include=dev\`.
 * DEPRECATED: Please use --include=dev instead.
 
 Alias for \`--include=dev\`.
+
+#### \`global-style\`
+
+* Default: false
+* Type: Boolean
+* DEPRECATED: This option has been deprecated in favor of
+  \`--install-strategy=shallow\`
+
+Only install direct dependencies in the top level \`node_modules\`, but hoist
+on deeper dependencies. Sets \`--install-strategy=shallow\`.
 
 #### \`init.author.email\`
 
@@ -2075,6 +2034,37 @@ Alias for \`--init-module\`
 
 Alias for \`--init-version\`
 
+#### \`key\`
+
+* Default: null
+* Type: null or String
+* DEPRECATED: \`key\` and \`cert\` are no longer used for most registry
+  operations. Use registry scoped \`keyfile\` and \`certfile\` instead. Example:
+  //other-registry.tld/:keyfile=/path/to/key.pem
+  //other-registry.tld/:certfile=/path/to/cert.crt
+
+A client key to pass when accessing the registry. Values should be in PEM
+format with newlines replaced by the string "\\n". For example:
+
+\`\`\`ini
+key="-----BEGIN PRIVATE KEY-----\\nXXXX\\nXXXX\\n-----END PRIVATE KEY-----"
+\`\`\`
+
+It is _not_ the path to a key file, though you can set a registry-scoped
+"keyfile" path like "//other-registry.tld/:keyfile=/path/to/key.pem".
+
+#### \`legacy-bundling\`
+
+* Default: false
+* Type: Boolean
+* DEPRECATED: This option has been deprecated in favor of
+  \`--install-strategy=nested\`
+
+Instead of hoisting package installs in \`node_modules\`, install packages in
+the same manner that they are depended on. This may cause very deep
+directory structures and duplicate package installs as there is no
+de-duplicating. Sets \`--install-strategy=nested\`.
+
 #### \`only\`
 
 * Default: null
@@ -2109,25 +2099,6 @@ Alias for \`--omit=dev\`
 * DEPRECATED: Use the --package-lock setting instead.
 
 Alias for --package-lock
-
-#### \`sso-poll-frequency\`
-
-* Default: 500
-* Type: Number
-* DEPRECATED: The --auth-type method of SSO/SAML/OAuth will be removed in a
-  future version of npm in favor of web-based login.
-
-When used with SSO-enabled \`auth-type\`s, configures how regularly the
-registry should be polled while the user is completing authentication.
-
-#### \`sso-type\`
-
-* Default: "oauth"
-* Type: null, "oauth", or "saml"
-* DEPRECATED: The --auth-type method of SSO/SAML/OAuth will be removed in a
-  future version of npm in favor of web-based login.
-
-If \`--auth-type=sso\`, the type of SSO type to use.
 
 #### \`tmp\`
 
@@ -2192,8 +2163,8 @@ Array [
   "git",
   "git-tag-version",
   "global",
-  "global-style",
   "globalconfig",
+  "global-style",
   "heading",
   "https-proxy",
   "if-present",
@@ -2214,6 +2185,7 @@ Array [
   "init.module",
   "init.version",
   "install-links",
+  "install-strategy",
   "json",
   "key",
   "legacy-bundling",
@@ -2229,9 +2201,7 @@ Array [
   "maxsockets",
   "message",
   "node-options",
-  "node-version",
   "noproxy",
-  "npm-version",
   "offline",
   "omit",
   "omit-lockfile-registry-resolved",
@@ -2272,8 +2242,6 @@ Array [
   "shrinkwrap",
   "sign-git-commit",
   "sign-git-tag",
-  "sso-poll-frequency",
-  "sso-type",
   "strict-peer-deps",
   "strict-ssl",
   "tag",
@@ -2347,8 +2315,8 @@ Array [
   "git",
   "git-tag-version",
   "global",
-  "global-style",
   "globalconfig",
+  "global-style",
   "heading",
   "https-proxy",
   "if-present",
@@ -2357,6 +2325,7 @@ Array [
   "include-staged",
   "include-workspace-root",
   "install-links",
+  "install-strategy",
   "json",
   "key",
   "legacy-bundling",
@@ -2367,9 +2336,7 @@ Array [
   "loglevel",
   "maxsockets",
   "message",
-  "node-version",
   "noproxy",
-  "npm-version",
   "offline",
   "omit",
   "omit-lockfile-registry-resolved",
@@ -2409,13 +2376,12 @@ Array [
   "shrinkwrap",
   "sign-git-commit",
   "sign-git-tag",
-  "sso-poll-frequency",
-  "sso-type",
   "strict-peer-deps",
   "strict-ssl",
   "tag",
   "tag-version-prefix",
   "umask",
+  "unicode",
   "user-agent",
   "workspace",
   "workspaces",
@@ -2445,7 +2411,6 @@ Array [
   "prefix",
   "timing",
   "tmp",
-  "unicode",
   "update-notifier",
   "usage",
   "userconfig",
@@ -2504,35 +2469,34 @@ exports[`test/lib/docs.js TAP usage access > must match snapshot 1`] = `
 Set access level on published packages
 
 Usage:
-npm access public [<package>]
-npm access restricted [<package>]
+npm access list packages [<user>|<scope>|<scope:team> [<package>]
+npm access list collaborators [<package> [<user>]]
+npm access get status [<package>]
+npm access set status=public|private [<package>]
+npm access set mfa=none|publish|automation [<package>]
 npm access grant <read-only|read-write> <scope:team> [<package>]
 npm access revoke <scope:team> [<package>]
-npm access 2fa-required [<package>]
-npm access 2fa-not-required [<package>]
-npm access ls-packages [<user>|<scope>|<scope:team>]
-npm access ls-collaborators [<package> [<user>]]
-npm access edit [<package>]
 
 Options:
-[--registry <registry>] [--otp <otp>]
+[--json] [--otp <otp>] [--registry <registry>]
 
 Run "npm help access" for more info
 
 \`\`\`bash
-npm access public [<package>]
-npm access restricted [<package>]
+npm access list packages [<user>|<scope>|<scope:team> [<package>]
+npm access list collaborators [<package> [<user>]]
+npm access get status [<package>]
+npm access set status=public|private [<package>]
+npm access set mfa=none|publish|automation [<package>]
 npm access grant <read-only|read-write> <scope:team> [<package>]
 npm access revoke <scope:team> [<package>]
-npm access 2fa-required [<package>]
-npm access 2fa-not-required [<package>]
-npm access ls-packages [<user>|<scope>|<scope:team>]
-npm access ls-collaborators [<package> [<user>]]
-npm access edit [<package>]
 \`\`\`
 
-#### \`registry\`
+Note: This command is unaware of workspaces.
+
+#### \`json\`
 #### \`otp\`
+#### \`registry\`
 `
 
 exports[`test/lib/docs.js TAP usage adduser > must match snapshot 1`] = `
@@ -2542,18 +2506,19 @@ Usage:
 npm adduser
 
 Options:
-[--registry <registry>] [--scope <@scope>]
-[--auth-type <legacy|web|sso|saml|oauth|webauthn>]
+[--registry <registry>] [--scope <@scope>] [--auth-type <legacy|web>]
 
-aliases: login, add-user
+alias: add-user
 
 Run "npm help adduser" for more info
 
 \`\`\`bash
 npm adduser
 
-aliases: login, add-user
+alias: add-user
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`registry\`
 #### \`scope\`
@@ -2572,7 +2537,7 @@ Options:
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--foreground-scripts] [--ignore-scripts]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
 Run "npm help audit" for more info
 
@@ -2592,24 +2557,6 @@ npm audit [fix|signatures]
 #### \`workspaces\`
 #### \`include-workspace-root\`
 #### \`install-links\`
-`
-
-exports[`test/lib/docs.js TAP usage bin > must match snapshot 1`] = `
-Display npm bin folder
-
-Usage:
-npm bin
-
-Options:
-[-g|--global]
-
-Run "npm help bin" for more info
-
-\`\`\`bash
-npm bin
-\`\`\`
-
-#### \`global\`
 `
 
 exports[`test/lib/docs.js TAP usage bugs > must match snapshot 1`] = `
@@ -2661,6 +2608,8 @@ npm cache ls [<name>@<version>]
 npm cache verify
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`cache\`
 `
 
@@ -2672,12 +2621,13 @@ npm ci
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-E|--save-exact] [-g|--global] [--global-style] [--legacy-bundling]
+[-E|--save-exact] [-g|--global] [--install-strategy <hoisted|nested|shallow>]
+[--legacy-bundling] [--global-style]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
 aliases: clean-install, ic, install-clean, isntall-clean
 
@@ -2692,8 +2642,9 @@ aliases: clean-install, ic, install-clean, isntall-clean
 #### \`save\`
 #### \`save-exact\`
 #### \`global\`
-#### \`global-style\`
+#### \`install-strategy\`
 #### \`legacy-bundling\`
+#### \`global-style\`
 #### \`omit\`
 #### \`strict-peer-deps\`
 #### \`package-lock\`
@@ -2721,6 +2672,8 @@ Run "npm help completion" for more info
 npm completion
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 NO PARAMS
 `
 
@@ -2733,6 +2686,7 @@ npm config get [<key> [<key> ...]]
 npm config delete <key> [<key> ...]
 npm config list [--json]
 npm config edit
+npm config fix
 
 Options:
 [--json] [-g|--global] [--editor <editor>] [-L|--location <global|user|project>]
@@ -2748,9 +2702,12 @@ npm config get [<key> [<key> ...]]
 npm config delete <key> [<key> ...]
 npm config list [--json]
 npm config edit
+npm config fix
 
 alias: c
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`json\`
 #### \`global\`
@@ -2766,11 +2723,12 @@ Usage:
 npm dedupe
 
 Options:
-[--global-style] [--legacy-bundling] [--strict-peer-deps] [--no-package-lock]
+[--install-strategy <hoisted|nested|shallow>] [--legacy-bundling]
+[--global-style] [--strict-peer-deps] [--no-package-lock]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
 [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
 alias: ddp
 
@@ -2782,8 +2740,9 @@ npm dedupe
 alias: ddp
 \`\`\`
 
-#### \`global-style\`
+#### \`install-strategy\`
 #### \`legacy-bundling\`
+#### \`global-style\`
 #### \`strict-peer-deps\`
 #### \`package-lock\`
 #### \`omit\`
@@ -2812,6 +2771,8 @@ Run "npm help deprecate" for more info
 \`\`\`bash
 npm deprecate <package-spec> <message>
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`registry\`
 #### \`otp\`
@@ -2913,7 +2874,7 @@ exports[`test/lib/docs.js TAP usage doctor > must match snapshot 1`] = `
 Check your npm environment
 
 Usage:
-npm doctor
+npm doctor [ping] [registry] [versions] [environment] [permissions] [cache]
 
 Options:
 [--registry <registry>]
@@ -2921,8 +2882,10 @@ Options:
 Run "npm help doctor" for more info
 
 \`\`\`bash
-npm doctor
+npm doctor [ping] [registry] [versions] [environment] [permissions] [cache]
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`registry\`
 `
@@ -2941,6 +2904,8 @@ Run "npm help edit" for more info
 \`\`\`bash
 npm edit <pkg>[/<subpkg>...]
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`editor\`
 `
@@ -3017,6 +2982,8 @@ Run "npm help explore" for more info
 npm explore <pkg> [ -- <command>]
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`shell\`
 `
 
@@ -3027,11 +2994,12 @@ Usage:
 npm find-dupes
 
 Options:
-[--global-style] [--legacy-bundling] [--strict-peer-deps] [--no-package-lock]
+[--install-strategy <hoisted|nested|shallow>] [--legacy-bundling]
+[--global-style] [--strict-peer-deps] [--no-package-lock]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
 [--no-audit] [--no-bin-links] [--no-fund]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
 Run "npm help find-dupes" for more info
 
@@ -3039,8 +3007,9 @@ Run "npm help find-dupes" for more info
 npm find-dupes
 \`\`\`
 
-#### \`global-style\`
+#### \`install-strategy\`
 #### \`legacy-bundling\`
+#### \`global-style\`
 #### \`strict-peer-deps\`
 #### \`package-lock\`
 #### \`omit\`
@@ -3090,6 +3059,8 @@ Run "npm help get" for more info
 npm get [<key> ...] (See \`npm config\`)
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 NO PARAMS
 `
 
@@ -3112,6 +3083,8 @@ npm help <term> [<terms..>]
 alias: hlep
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`viewer\`
 `
 
@@ -3129,6 +3102,8 @@ Run "npm help help-search" for more info
 \`\`\`bash
 npm help-search <text>
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`long\`
 `
@@ -3154,6 +3129,8 @@ npm hook rm <id>
 npm hook update <id> <url> <secret>
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`registry\`
 #### \`otp\`
 `
@@ -3162,7 +3139,7 @@ exports[`test/lib/docs.js TAP usage init > must match snapshot 1`] = `
 Create a package.json file
 
 Usage:
-npm init <package-spec> (same as \`npx <package-spec>)
+npm init <package-spec> (same as \`npx <package-spec>\`)
 npm init <@scope> (same as \`npx <@scope>/create\`)
 
 Options:
@@ -3175,7 +3152,7 @@ aliases: create, innit
 Run "npm help init" for more info
 
 \`\`\`bash
-npm init <package-spec> (same as \`npx <package-spec>)
+npm init <package-spec> (same as \`npx <package-spec>\`)
 npm init <@scope> (same as \`npx <@scope>/create\`)
 
 aliases: create, innit
@@ -3198,12 +3175,13 @@ npm install [<package-spec> ...]
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-E|--save-exact] [-g|--global] [--global-style] [--legacy-bundling]
+[-E|--save-exact] [-g|--global] [--install-strategy <hoisted|nested|shallow>]
+[--legacy-bundling] [--global-style]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
 aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 
@@ -3218,8 +3196,9 @@ aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 #### \`save\`
 #### \`save-exact\`
 #### \`global\`
-#### \`global-style\`
+#### \`install-strategy\`
 #### \`legacy-bundling\`
+#### \`global-style\`
 #### \`omit\`
 #### \`strict-peer-deps\`
 #### \`package-lock\`
@@ -3243,12 +3222,13 @@ npm install-ci-test
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-E|--save-exact] [-g|--global] [--global-style] [--legacy-bundling]
+[-E|--save-exact] [-g|--global] [--install-strategy <hoisted|nested|shallow>]
+[--legacy-bundling] [--global-style]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
 alias: cit
 
@@ -3263,8 +3243,9 @@ alias: cit
 #### \`save\`
 #### \`save-exact\`
 #### \`global\`
-#### \`global-style\`
+#### \`install-strategy\`
 #### \`legacy-bundling\`
+#### \`global-style\`
 #### \`omit\`
 #### \`strict-peer-deps\`
 #### \`package-lock\`
@@ -3288,12 +3269,13 @@ npm install-test [<package-spec> ...]
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-E|--save-exact] [-g|--global] [--global-style] [--legacy-bundling]
+[-E|--save-exact] [-g|--global] [--install-strategy <hoisted|nested|shallow>]
+[--legacy-bundling] [--global-style]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
 alias: it
 
@@ -3308,8 +3290,9 @@ alias: it
 #### \`save\`
 #### \`save-exact\`
 #### \`global\`
-#### \`global-style\`
+#### \`install-strategy\`
 #### \`legacy-bundling\`
+#### \`global-style\`
 #### \`omit\`
 #### \`strict-peer-deps\`
 #### \`package-lock\`
@@ -3333,12 +3316,12 @@ npm link [<package-spec>]
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-E|--save-exact] [-g|--global] [--global-style] [--legacy-bundling]
-[--strict-peer-deps] [--no-package-lock]
+[-E|--save-exact] [-g|--global] [--install-strategy <hoisted|nested|shallow>]
+[--legacy-bundling] [--global-style] [--strict-peer-deps] [--no-package-lock]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
 [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
 alias: ln
 
@@ -3353,8 +3336,9 @@ alias: ln
 #### \`save\`
 #### \`save-exact\`
 #### \`global\`
-#### \`global-style\`
+#### \`install-strategy\`
 #### \`legacy-bundling\`
+#### \`global-style\`
 #### \`strict-peer-deps\`
 #### \`package-lock\`
 #### \`omit\`
@@ -3380,7 +3364,7 @@ Options:
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--link]
 [--package-lock-only] [--unicode]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
 alias: la
 
@@ -3408,6 +3392,28 @@ alias: la
 #### \`install-links\`
 `
 
+exports[`test/lib/docs.js TAP usage login > must match snapshot 1`] = `
+Login to a registry user account
+
+Usage:
+npm login
+
+Options:
+[--registry <registry>] [--scope <@scope>] [--auth-type <legacy|web>]
+
+Run "npm help login" for more info
+
+\`\`\`bash
+npm login
+\`\`\`
+
+Note: This command is unaware of workspaces.
+
+#### \`registry\`
+#### \`scope\`
+#### \`auth-type\`
+`
+
 exports[`test/lib/docs.js TAP usage logout > must match snapshot 1`] = `
 Log out of the registry
 
@@ -3422,6 +3428,8 @@ Run "npm help logout" for more info
 \`\`\`bash
 npm logout
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`registry\`
 #### \`scope\`
@@ -3438,7 +3446,7 @@ Options:
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--link]
 [--package-lock-only] [--unicode]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
 alias: list
 
@@ -3470,6 +3478,8 @@ exports[`test/lib/docs.js TAP usage npm > must match snapshot 1`] = `
 \`\`\`bash
 npm
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 NO PARAMS
 `
@@ -3507,6 +3517,8 @@ npm org ls orgname [<username>]
 
 alias: ogr
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`registry\`
 #### \`otp\`
@@ -3609,6 +3621,8 @@ Run "npm help ping" for more info
 npm ping
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`registry\`
 `
 
@@ -3658,6 +3672,8 @@ Run "npm help prefix" for more info
 npm prefix [-g]
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`global\`
 `
 
@@ -3682,6 +3698,8 @@ npm profile get [<key>]
 npm profile set <key> <value>
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`registry\`
 #### \`json\`
 #### \`parseable\`
@@ -3698,7 +3716,7 @@ Options:
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--dry-run]
 [--json] [--foreground-scripts] [--ignore-scripts]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
 Run "npm help prune" for more info
 
@@ -3775,7 +3793,7 @@ npm rebuild [<package-spec>] ...]
 Options:
 [-g|--global] [--no-bin-links] [--foreground-scripts] [--ignore-scripts]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
 alias: rb
 
@@ -3855,6 +3873,8 @@ Run "npm help root" for more info
 npm root
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`global\`
 `
 
@@ -3909,6 +3929,8 @@ npm search [search terms ...]
 aliases: find, s, se
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`long\`
 #### \`json\`
 #### \`color\`
@@ -3934,28 +3956,9 @@ Run "npm help set" for more info
 npm set <key>=<value> [<key>=<value> ...] (See \`npm config\`)
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 NO PARAMS
-`
-
-exports[`test/lib/docs.js TAP usage set-script > must match snapshot 1`] = `
-Set tasks in the scripts section of package.json, deprecated
-
-Usage:
-npm set-script [<script>] [<command>]
-
-Options:
-[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
-
-Run "npm help set-script" for more info
-
-\`\`\`bash
-npm set-script [<script>] [<command>]
-\`\`\`
-
-#### \`workspace\`
-#### \`workspaces\`
-#### \`include-workspace-root\`
 `
 
 exports[`test/lib/docs.js TAP usage shrinkwrap > must match snapshot 1`] = `
@@ -3969,6 +3972,8 @@ Run "npm help shrinkwrap" for more info
 \`\`\`bash
 npm shrinkwrap
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 NO PARAMS
 `
@@ -3987,6 +3992,8 @@ Run "npm help star" for more info
 \`\`\`bash
 npm star [<package-spec>...]
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`registry\`
 #### \`unicode\`
@@ -4007,6 +4014,8 @@ Run "npm help stars" for more info
 \`\`\`bash
 npm stars [<user>]
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`registry\`
 `
@@ -4072,6 +4081,8 @@ npm team rm <scope:team> <user> [--otp <otpcode>]
 npm team ls <scope>|<scope:team>
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`registry\`
 #### \`otp\`
 #### \`parseable\`
@@ -4121,6 +4132,8 @@ npm token revoke <id|token>
 npm token create [--read-only] [--cidr=list]
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`read-only\`
 #### \`cidr\`
 #### \`registry\`
@@ -4136,7 +4149,7 @@ npm uninstall [<@scope>/]<pkg>...
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
 aliases: unlink, remove, rm, r, un
 
@@ -4193,6 +4206,8 @@ Run "npm help unstar" for more info
 npm unstar [<package-spec>...]
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`registry\`
 #### \`unicode\`
 #### \`otp\`
@@ -4206,12 +4221,12 @@ npm update [<pkg>...]
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-g|--global] [--global-style] [--legacy-bundling]
-[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+[-g|--global] [--install-strategy <hoisted|nested|shallow>] [--legacy-bundling]
+[--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--install-links]
+[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
 aliases: up, upgrade, udpate
 
@@ -4225,8 +4240,9 @@ aliases: up, upgrade, udpate
 
 #### \`save\`
 #### \`global\`
-#### \`global-style\`
+#### \`install-strategy\`
 #### \`legacy-bundling\`
+#### \`global-style\`
 #### \`omit\`
 #### \`strict-peer-deps\`
 #### \`package-lock\`
@@ -4316,6 +4332,8 @@ Run "npm help whoami" for more info
 \`\`\`bash
 npm whoami
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`registry\`
 `

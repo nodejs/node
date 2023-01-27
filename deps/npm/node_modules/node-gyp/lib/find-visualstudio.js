@@ -347,6 +347,11 @@ VisualStudioFinder.prototype = {
 
   // Find an installation of Visual Studio 2015 to use
   findVisualStudio2015: function findVisualStudio2015 (cb) {
+    if (this.nodeSemver.major >= 19) {
+      this.addLog(
+        'not looking for VS2015 as it is only supported up to Node.js 18')
+      return cb(null)
+    }
     return this.findOldVS({
       version: '14.0',
       versionMajor: 14,

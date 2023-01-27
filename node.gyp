@@ -96,6 +96,7 @@
         '-W',
         '-Wno-unused-parameter',
         '-Werror=undefined-inline',
+        '-Werror=extra-semi',
       ],
     },
 
@@ -455,6 +456,7 @@
         'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/simdutf/simdutf.gyp:simdutf',
       ],
 
       'sources': [
@@ -972,6 +974,7 @@
         'deps/googletest/googletest.gyp:gtest_main',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/simdutf/simdutf.gyp:simdutf',
       ],
 
       'includes': [
@@ -1003,7 +1006,6 @@
         'test/cctest/test_base_object_ptr.cc',
         'test/cctest/test_node_postmortem_metadata.cc',
         'test/cctest/test_environment.cc',
-        'test/cctest/test_js_native_api_v8.cc',
         'test/cctest/test_linked_binding.cc',
         'test/cctest/test_node_api.cc',
         'test/cctest/test_per_process.cc',

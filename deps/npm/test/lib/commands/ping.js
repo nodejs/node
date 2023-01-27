@@ -1,6 +1,6 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
-const MockRegistry = require('../../fixtures/mock-registry.js')
+const MockRegistry = require('@npmcli/mock-registry')
 
 t.test('no details', async t => {
   const { npm, logs, joinedOutput } = await loadMockNpm(t)

@@ -25,7 +25,7 @@ class OverrideSet {
       this.name = spec.name
       spec.name = ''
       this.key = key
-      this.keySpec = spec.rawSpec === '' ? '' : spec.toString()
+      this.keySpec = spec.toString()
       this.value = overrides['.'] || this.keySpec
     }
 
@@ -50,10 +50,36 @@ class OverrideSet {
         continue
       }
 
-      if (rule.keySpec === '' ||
-        semver.intersects(edge.spec, rule.keySpec)) {
+      // if keySpec is * we found our override
+      if (rule.keySpec === '*') {
         return rule
       }
+
+      let spec = npa(`${edge.name}@${edge.spec}`)
+      if (spec.type === 'alias') {
+        spec = spec.subSpec
+      }
+
+      if (spec.type === 'git') {
+        if (spec.gitRange && semver.intersects(spec.gitRange, rule.keySpec)) {
+          return rule
+        }
+
+        continue
+      }
+
+      if (spec.type === 'range' || spec.type === 'version') {
+        if (semver.intersects(spec.fetchSpec, rule.keySpec)) {
+          return rule
+        }
+
+        continue
+      }
+
+      // if we got this far, the spec type is one of tag, directory or file
+      // which means we have no real way to make version comparisons, so we
+      // just accept the override
+      return rule
     }
 
     return this
@@ -65,8 +91,7 @@ class OverrideSet {
         continue
       }
 
-      if (rule.keySpec === '' ||
-        semver.satisfies(node.version, rule.keySpec) ||
+      if (semver.satisfies(node.version, rule.keySpec) ||
         semver.satisfies(node.version, rule.value)) {
         return rule
       }
@@ -81,8 +106,7 @@ class OverrideSet {
         continue
       }
 
-      if (rule.keySpec === '' ||
-        semver.satisfies(node.version, rule.keySpec) ||
+      if (semver.satisfies(node.version, rule.keySpec) ||
         semver.satisfies(node.version, rule.value)) {
         return rule
       }

@@ -103,13 +103,13 @@ const explainDependents = ({ name, dependents }, depth, color) => {
     const maxLen = 50
     const showNames = []
     for (let i = max; i < dependents.length; i++) {
-      const { from: { name = 'the root project' } } = dependents[i]
-      len += name.length
+      const { from: { name: depName = 'the root project' } } = dependents[i]
+      len += depName.length
       if (len >= maxLen && i < dependents.length - 1) {
         showNames.push('...')
         break
       }
-      showNames.push(name)
+      showNames.push(depName)
     }
     const show = `(${showNames.join(', ')})`
     messages.push(`${dependents.length - max} more ${show}`)

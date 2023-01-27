@@ -32,6 +32,7 @@ class Owner extends BaseCommand {
     'ls <package-spec>',
   ]
 
+  static workspaces = true
   static ignoreImplicitWorkspace = false
 
   async completion (opts) {
@@ -82,8 +83,8 @@ class Owner extends BaseCommand {
     }
   }
 
-  async execWorkspaces ([action, ...args], filters) {
-    await this.setWorkspaces(filters)
+  async execWorkspaces ([action, ...args]) {
+    await this.setWorkspaces()
     // ls pkg or owner add/rm package
     if ((action === 'ls' && args.length > 0) || args.length > 1) {
       const implicitWorkspaces = this.npm.config.get('workspace', 'default')
@@ -119,7 +120,7 @@ class Owner extends BaseCommand {
         this.npm.output(maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
       }
     } catch (err) {
-      log.error('owner ls', "Couldn't get owner data", pkg)
+      log.error('owner ls', "Couldn't get owner data", npmFetch.cleanUrl(pkg))
       throw err
     }
   }

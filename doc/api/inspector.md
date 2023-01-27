@@ -144,7 +144,7 @@ try {
 } catch (error) {
   console.error(error);
 }
-// Output: { type: 'number', value: 4, description: '4' }
+// Output: { result: { type: 'number', value: 4, description: '4' } }
 ```
 
 The latest version of the V8 inspector protocol is published on the

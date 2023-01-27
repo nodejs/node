@@ -542,7 +542,7 @@ const getTSFunctionComment = function (astNode) {
   }
 };
 const invokedExpression = new Set(['CallExpression', 'OptionalCallExpression', 'NewExpression']);
-const allowableCommentNode = new Set(['AssignmentPattern', 'VariableDeclaration', 'ExpressionStatement', 'MethodDefinition', 'Property', 'ObjectProperty', 'ClassProperty', 'PropertyDefinition', 'ExportDefaultDeclaration']);
+const allowableCommentNode = new Set(['AssignmentPattern', 'VariableDeclaration', 'ExpressionStatement', 'MethodDefinition', 'Property', 'ObjectProperty', 'ClassProperty', 'PropertyDefinition', 'ExportDefaultDeclaration', 'ReturnStatement']);
 
 /**
  * Reduces the provided node to the appropriate node for evaluating

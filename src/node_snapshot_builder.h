@@ -32,8 +32,6 @@ class NODE_EXTERN_PRIVATE SnapshotBuilder {
                                       v8::Isolate::CreateParams* params);
 
  private:
-  // Used to synchronize access to the snapshot data
-  static Mutex snapshot_data_mutex_;
   static const std::vector<intptr_t>& CollectExternalReferences();
 
   static std::unique_ptr<ExternalReferenceRegistry> registry_;

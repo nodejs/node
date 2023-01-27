@@ -70,8 +70,15 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
                            UintPtrConstant(0));
   StoreSandboxedPointerToObject(buffer, JSArrayBuffer::kBackingStoreOffset,
                                 EmptyBackingStoreBufferConstant());
+#ifdef V8_COMPRESS_POINTERS
+  // When pointer compression is enabled, the extension slot contains a
+  // (lazily-initialized) external pointer handle.
+  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,
+                                 ExternalPointerHandleNullConstant());
+#else
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,
                                  IntPtrConstant(0));
+#endif
   for (int offset = JSArrayBuffer::kHeaderSize;
        offset < JSArrayBuffer::kSizeWithEmbedderFields; offset += kTaggedSize) {
     // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot

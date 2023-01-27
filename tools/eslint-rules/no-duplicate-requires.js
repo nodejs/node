@@ -52,7 +52,7 @@ module.exports = (context) => {
           context.report(
             node,
             '\'{{moduleName}}\' require is duplicated.',
-            { moduleName }
+            { moduleName },
           );
         } else {
           required.add(moduleName);

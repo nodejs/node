@@ -248,6 +248,7 @@ class CTypeInfo {
     kFloat32,
     kFloat64,
     kV8Value,
+    kSeqOneByteString,
     kApiObject,  // This will be deprecated once all users have
                  // migrated from v8::ApiObject to v8::Local<v8::Value>.
     kAny,        // This is added to enable untyped representation of fast
@@ -379,6 +380,11 @@ struct FastApiArrayBuffer {
   size_t byte_length;
 };
 
+struct FastOneByteString {
+  const char* data;
+  uint32_t length;
+};
+
 class V8_EXPORT CFunctionInfo {
  public:
   // Construct a struct to hold a CFunction's type information.
@@ -438,6 +444,7 @@ struct AnyCType {
     const FastApiTypedArray<uint64_t>* uint64_ta_value;
     const FastApiTypedArray<float>* float_ta_value;
     const FastApiTypedArray<double>* double_ta_value;
+    const FastOneByteString* string_value;
     FastApiCallbackOptions* options_value;
   };
 };
@@ -614,7 +621,7 @@ class CFunctionInfoImpl : public CFunctionInfo {
                       kReturnType == CTypeInfo::Type::kFloat32 ||
                       kReturnType == CTypeInfo::Type::kFloat64 ||
                       kReturnType == CTypeInfo::Type::kAny,
-                  "64-bit int and api object values are not currently "
+                  "64-bit int, string and api object values are not currently "
                   "supported return types.");
   }
 
@@ -729,6 +736,18 @@ struct TypeInfoHelper<FastApiCallbackOptions&> {
 
   static constexpr CTypeInfo::Type Type() {
     return CTypeInfo::kCallbackOptionsType;
+  }
+  static constexpr CTypeInfo::SequenceType SequenceType() {
+    return CTypeInfo::SequenceType::kScalar;
+  }
+};
+
+template <>
+struct TypeInfoHelper<const FastOneByteString&> {
+  static constexpr CTypeInfo::Flags Flags() { return CTypeInfo::Flags::kNone; }
+
+  static constexpr CTypeInfo::Type Type() {
+    return CTypeInfo::Type::kSeqOneByteString;
   }
   static constexpr CTypeInfo::SequenceType SequenceType() {
     return CTypeInfo::SequenceType::kScalar;

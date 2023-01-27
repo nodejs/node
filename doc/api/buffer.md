@@ -1884,6 +1884,7 @@ changes:
 -->
 
 * `value` {string|Buffer|Uint8Array|integer} The value with which to fill `buf`.
+  Empty value (string, Uint8Array, Buffer) is coerced to `0`.
 * `offset` {integer} Number of bytes to skip before starting to fill `buf`.
   **Default:** `0`.
 * `end` {integer} Where to stop filling `buf` (not inclusive). **Default:**
@@ -1904,6 +1905,12 @@ const b = Buffer.allocUnsafe(50).fill('h');
 
 console.log(b.toString());
 // Prints: hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+
+// Fill a buffer with empty string
+const c = Buffer.allocUnsafe(5).fill('');
+
+console.log(c.fill(''));
+// Prints: <Buffer 00 00 00 00 00>
 ```
 
 ```cjs
@@ -1915,6 +1922,12 @@ const b = Buffer.allocUnsafe(50).fill('h');
 
 console.log(b.toString());
 // Prints: hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+
+// Fill a buffer with empty string
+const c = Buffer.allocUnsafe(5).fill('');
+
+console.log(c.fill(''));
+// Prints: <Buffer 00 00 00 00 00>
 ```
 
 `value` is coerced to a `uint32` value if it is not a string, `Buffer`, or
@@ -5016,7 +5029,9 @@ See [`Buffer.from(string[, encoding])`][`Buffer.from(string)`].
 ## Class: `File`
 
 <!-- YAML
-added: v19.2.0
+added:
+  - v19.2.0
+  - v18.13.0
 -->
 
 > Stability: 1 - Experimental
@@ -5028,7 +5043,9 @@ A [`File`][] provides information about files.
 ### `new buffer.File(sources, fileName[, options])`
 
 <!-- YAML
-added: v19.2.0
+added:
+  - v19.2.0
+  - v18.13.0
 -->
 
 * `sources` {string\[]|ArrayBuffer\[]|TypedArray\[]|DataView\[]|Blob\[]|File\[]}
@@ -5046,7 +5063,9 @@ added: v19.2.0
 ### `file.name`
 
 <!-- YAML
-added: v19.2.0
+added:
+  - v19.2.0
+  - v18.13.0
 -->
 
 * Type: {string}
@@ -5056,7 +5075,9 @@ The name of the `File`.
 ### `file.lastModified`
 
 <!-- YAML
-added: v19.2.0
+added:
+  - v19.2.0
+  - v18.13.0
 -->
 
 * Type: {number}
@@ -5116,6 +5137,34 @@ binary data and predate the introduction of typed arrays in JavaScript.
 For code running using Node.js APIs, converting between base64-encoded strings
 and binary data should be performed using `Buffer.from(str, 'base64')` and
 `buf.toString('base64')`.**
+
+### `buffer.isAscii(input)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* input {Buffer | ArrayBuffer | TypedArray} The input to validate.
+* Returns: {boolean}
+
+This function returns `true` if `input` contains only valid ASCII-encoded data,
+including the case in which `input` is empty.
+
+Throws if the `input` is a detached array buffer.
+
+### `buffer.isUtf8(input)`
+
+<!-- YAML
+added: v19.4.0
+-->
+
+* input {Buffer | ArrayBuffer | TypedArray} The input to validate.
+* Returns: {boolean}
+
+This function returns `true` if `input` contains only valid UTF-8-encoded data,
+including the case in which `input` is empty.
+
+Throws if the `input` is a detached array buffer.
 
 ### `buffer.INSPECT_MAX_BYTES`
 

@@ -220,7 +220,8 @@ void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
   const uint64_t total_memory = constrained_memory > 0 ?
       std::min(uv_get_total_memory(), constrained_memory) :
       uv_get_total_memory();
-  if (total_memory > 0) {
+  if (total_memory > 0 &&
+      params->constraints.max_old_generation_size_in_bytes() == 0) {
     // V8 defaults to 700MB or 1.4GB on 32 and 64 bit platforms respectively.
     // This default is based on browser use-cases. Tell V8 to configure the
     // heap based on the actual physical memory.
@@ -305,9 +306,21 @@ void SetIsolateUpForNode(v8::Isolate* isolate) {
 // careful about what we override in the params.
 Isolate* NewIsolate(Isolate::CreateParams* params,
                     uv_loop_t* event_loop,
-                    MultiIsolatePlatform* platform) {
+                    MultiIsolatePlatform* platform,
+                    bool has_snapshot_data) {
   Isolate* isolate = Isolate::Allocate();
   if (isolate == nullptr) return nullptr;
+#ifdef NODE_V8_SHARED_RO_HEAP
+  {
+    // In shared-readonly-heap mode, V8 requires all snapshots used for
+    // creating Isolates to be identical. This isn't really memory-safe
+    // but also otherwise just doesn't work, and the only real alternative
+    // is disabling shared-readonly-heap mode altogether.
+    static Isolate::CreateParams first_params = *params;
+    params->snapshot_blob = first_params.snapshot_blob;
+    params->external_references = first_params.external_references;
+  }
+#endif
 
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
@@ -315,7 +328,13 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
 
   SetIsolateCreateParamsForNode(params);
   Isolate::Initialize(isolate, *params);
-  SetIsolateUpForNode(isolate);
+  if (!has_snapshot_data) {
+    // If in deserialize mode, delay until after the deserialization is
+    // complete.
+    SetIsolateUpForNode(isolate);
+  } else {
+    SetIsolateMiscHandlers(isolate, {});
+  }
 
   return isolate;
 }
@@ -375,12 +394,13 @@ Environment* CreateEnvironment(
   // options than the global parse call.
   Environment* env = new Environment(
       isolate_data, context, args, exec_args, nullptr, flags, thread_id);
+
 #if HAVE_INSPECTOR
   if (env->should_create_inspector()) {
     if (inspector_parent_handle) {
-      env->InitializeInspector(
-          std::move(static_cast<InspectorParentHandleImpl*>(
-              inspector_parent_handle.get())->impl));
+      env->InitializeInspector(std::move(
+          static_cast<InspectorParentHandleImpl*>(inspector_parent_handle.get())
+              ->impl));
     } else {
       env->InitializeInspector({});
     }
@@ -404,6 +424,9 @@ void FreeEnvironment(Environment* env) {
     Context::Scope context_scope(env->context());
     SealHandleScope seal_handle_scope(isolate);
 
+    // Set the flag in accordance with the DisallowJavascriptExecutionScope
+    // above.
+    env->set_can_call_into_js(false);
     env->set_stopping(true);
     env->stop_sub_worker_contexts();
     env->RunCleanup();
@@ -447,21 +470,10 @@ MaybeLocal<Value> LoadEnvironment(
     Environment* env,
     const char* main_script_source_utf8) {
   CHECK_NOT_NULL(main_script_source_utf8);
-  Isolate* isolate = env->isolate();
   return LoadEnvironment(
-      env,
-      [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
-        // This is a slightly hacky way to convert UTF-8 to UTF-16.
-        Local<String> str =
-            String::NewFromUtf8(isolate,
-                                main_script_source_utf8).ToLocalChecked();
-        auto main_utf16 = std::make_unique<String::Value>(isolate, str);
-
-        // TODO(addaleax): Avoid having a global table for all scripts.
+      env, [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
         std::string name = "embedder_main_" + std::to_string(env->thread_id());
-        builtins::BuiltinLoader::Add(
-            name.c_str(), UnionBytes(**main_utf16, main_utf16->length()));
-        env->set_main_utf16(std::move(main_utf16));
+        env->builtin_loader()->Add(name.c_str(), main_script_source_utf8);
         Realm* realm = env->principal_realm();
 
         return realm->ExecuteBootstrapper(name.c_str());
@@ -702,10 +714,17 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
                                         "internal/per_context/messageport",
                                         nullptr};
 
+  // We do not have access to a per-Environment BuiltinLoader instance
+  // at this point, because this code runs before an Environment exists
+  // in the first place. However, creating BuiltinLoader instances is
+  // relatively cheap and all the scripts that we may want to run at
+  // startup are always present in it.
+  thread_local builtins::BuiltinLoader builtin_loader;
   for (const char** module = context_files; *module != nullptr; module++) {
     Local<Value> arguments[] = {exports, primordials};
-    if (builtins::BuiltinLoader::CompileAndCall(
-            context, *module, arraysize(arguments), arguments, nullptr)
+    if (builtin_loader
+            .CompileAndCall(
+                context, *module, arraysize(arguments), arguments, nullptr)
             .IsEmpty()) {
       // Execution failed during context creation.
       return Nothing<bool>();

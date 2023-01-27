@@ -290,7 +290,7 @@ assert.throws(() => new Blob({}), {
 
 {
   // Testing the defaults
-  [undefined, null, Object.create(null), { type: undefined }, {
+  [undefined, null, { __proto__: null }, { type: undefined }, {
     get type() {}, // eslint-disable-line getter-return
   }].forEach((options) => {
     assert.strictEqual(

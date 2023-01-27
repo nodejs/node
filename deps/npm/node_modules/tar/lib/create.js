@@ -9,24 +9,29 @@ const t = require('./list.js')
 const path = require('path')
 
 module.exports = (opt_, files, cb) => {
-  if (typeof files === 'function')
+  if (typeof files === 'function') {
     cb = files
+  }
 
-  if (Array.isArray(opt_))
+  if (Array.isArray(opt_)) {
     files = opt_, opt_ = {}
+  }
 
-  if (!files || !Array.isArray(files) || !files.length)
+  if (!files || !Array.isArray(files) || !files.length) {
     throw new TypeError('no files or directories specified')
+  }
 
   files = Array.from(files)
 
   const opt = hlo(opt_)
 
-  if (opt.sync && typeof cb === 'function')
+  if (opt.sync && typeof cb === 'function') {
     throw new TypeError('callback not supported for sync tar functions')
+  }
 
-  if (!opt.file && typeof cb === 'function')
+  if (!opt.file && typeof cb === 'function') {
     throw new TypeError('callback only supported with file option')
+  }
 
   return opt.file && opt.sync ? createFileSync(opt, files)
     : opt.file ? createFile(opt, files, cb)
@@ -65,13 +70,14 @@ const addFilesSync = (p, files) => {
   files.forEach(file => {
     if (file.charAt(0) === '@') {
       t({
-        file: path.resolve(p.cwd, file.substr(1)),
+        file: path.resolve(p.cwd, file.slice(1)),
         sync: true,
         noResume: true,
         onentry: entry => p.add(entry),
       })
-    } else
+    } else {
       p.add(file)
+    }
   })
   p.end()
 }
@@ -81,12 +87,13 @@ const addFilesAsync = (p, files) => {
     const file = files.shift()
     if (file.charAt(0) === '@') {
       return t({
-        file: path.resolve(p.cwd, file.substr(1)),
+        file: path.resolve(p.cwd, file.slice(1)),
         noResume: true,
         onentry: entry => p.add(entry),
       }).then(_ => addFilesAsync(p, files))
-    } else
+    } else {
       p.add(file)
+    }
   }
   p.end()
 }

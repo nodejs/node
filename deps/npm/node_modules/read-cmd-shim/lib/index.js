@@ -56,8 +56,10 @@ const readCmdShim = path => {
     if (destination) {
       return destination
     }
-    return Promise.reject(notaShim(path, er))
-  }, readFileEr => Promise.reject(wrapError(readFileEr, er)))
+    throw notaShim(path, er)
+  }, readFileEr => {
+    throw wrapError(readFileEr, er)
+  })
 }
 
 const readCmdShimSync = path => {

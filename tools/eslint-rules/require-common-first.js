@@ -52,10 +52,10 @@ module.exports = function(context) {
           node,
           'Mandatory module "{{moduleName}}" must be loaded ' +
           'before any other modules.',
-          { moduleName: requiredModule }
+          { moduleName: requiredModule },
         );
       }
-    }
+    },
   };
 
   if (isESM) {

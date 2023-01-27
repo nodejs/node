@@ -3,6 +3,10 @@
 const child_process = require('child_process');
 const http_benchmarkers = require('./_http-benchmarkers.js');
 
+function allow() {
+  return true;
+}
+
 class Benchmark {
   constructor(fn, configs, options = {}) {
     // Used to make sure a benchmark only start a timer once
@@ -31,14 +35,22 @@ class Benchmark {
       this.flags = this.flags.concat(options.flags);
     }
 
+    if (typeof options.combinationFilter === 'function')
+      this.combinationFilter = options.combinationFilter;
+    else
+      this.combinationFilter = allow;
+
     // The configuration list as a queue of jobs
     this.queue = this._queue(this.options);
+
+    if (this.queue.length === 0)
+      return;
 
     // The configuration of the current job, head of the queue
     this.config = this.queue[0];
 
     process.nextTick(() => {
-      if (Object.hasOwn(process.env, 'NODE_RUN_BENCHMARK_FN')) {
+      if (process.env.NODE_RUN_BENCHMARK_FN !== undefined) {
         fn(this.config);
       } else {
         // _run will use fork() to create a new process for each configuration
@@ -91,7 +103,7 @@ class Benchmark {
         process.exit(1);
       }
       const [, key, value] = match;
-      if (Object.hasOwn(configs, key)) {
+      if (configs[key] !== undefined) {
         if (!cliOptions[key])
           cliOptions[key] = [];
         cliOptions[key].push(
@@ -108,6 +120,7 @@ class Benchmark {
   _queue(options) {
     const queue = [];
     const keys = Object.keys(options);
+    const { combinationFilter } = this;
 
     // Perform a depth-first walk through all options to generate a
     // configuration list that contains all combinations.
@@ -131,7 +144,15 @@ class Benchmark {
         if (keyIndex + 1 < keys.length) {
           recursive(keyIndex + 1, currConfig);
         } else {
-          queue.push(currConfig);
+          // Check if we should allow the current combination
+          const allowed = combinationFilter({ ...currConfig });
+          if (typeof allowed !== 'boolean') {
+            throw new TypeError(
+              'Combination filter must always return a boolean'
+            );
+          }
+          if (allowed)
+            queue.push(currConfig);
         }
       }
     }
@@ -290,10 +311,10 @@ function sendResult(data) {
   if (process.send) {
     // If forked, report by process send
     process.send(data, () => {
-      if (Object.hasOwn(process.env, 'NODE_RUN_BENCHMARK_FN')) {
+      if (process.env.NODE_RUN_BENCHMARK_FN !== undefined) {
         // If, for any reason, the process is unable to self close within
         // a second after completing, forcefully close it.
-        setTimeout(() => {
+        require('timers').setTimeout(() => {
           process.exit(0);
         }, 5000).unref();
       }

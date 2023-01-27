@@ -1,3 +1,4 @@
+#include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "inspector_agent.h"
 #include "inspector_io.h"

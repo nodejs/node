@@ -7,9 +7,8 @@
 //     <key> <value>
 //
 // Assume that any key or value might be quoted, though that's only done
-// in practice if certain chars are in the string.  Quoting unnecessarily
-// does not cause problems for yarn, so that's what we do when we write
-// it back.
+// in practice if certain chars are in the string. When writing back, we follow
+// Yarn's rules for quoting, to cause minimal friction.
 //
 // The data format would support nested objects, but at this time, it
 // appears that yarn does not use that for anything, so in the interest
@@ -33,10 +32,44 @@ const consistentResolve = require('./consistent-resolve.js')
 const { dirname } = require('path')
 const { breadth } = require('treeverse')
 
+// Sort Yarn entries respecting the yarn.lock sort order
+const yarnEntryPriorities = {
+  name: 1,
+  version: 2,
+  uid: 3,
+  resolved: 4,
+  integrity: 5,
+  registry: 6,
+  dependencies: 7,
+}
+
+const priorityThenLocaleCompare = (a, b) => {
+  if (!yarnEntryPriorities[a] && !yarnEntryPriorities[b]) {
+    return localeCompare(a, b)
+  }
+  /* istanbul ignore next */
+  return (yarnEntryPriorities[a] || 100) > (yarnEntryPriorities[b] || 100) ? 1 : -1
+}
+
+const quoteIfNeeded = val => {
+  if (
+    typeof val === 'boolean' ||
+    typeof val === 'number' ||
+    val.startsWith('true') ||
+    val.startsWith('false') ||
+    /[:\s\n\\",[\]]/g.test(val) ||
+    !/^[a-zA-Z]/g.test(val)
+  ) {
+    return JSON.stringify(val)
+  }
+
+  return val
+}
+
 // sort a key/value object into a string of JSON stringified keys and vals
 const sortKV = obj => Object.keys(obj)
   .sort(localeCompare)
-  .map(k => `    ${JSON.stringify(k)} ${JSON.stringify(obj[k])}`)
+  .map(k => `    ${quoteIfNeeded(k)} ${quoteIfNeeded(obj[k])}`)
   .join('\n')
 
 // for checking against previous entries
@@ -171,7 +204,7 @@ class YarnLock {
   toString () {
     return prefix + [...new Set([...this.entries.values()])]
       .map(e => e.toString())
-      .sort(localeCompare).join('\n\n') + '\n'
+      .sort((a, b) => localeCompare(a.replace(/"/g, ''), b.replace(/"/g, ''))).join('\n\n') + '\n'
   }
 
   fromTree (tree) {
@@ -323,19 +356,14 @@ class YarnLockEntry {
     // sort objects to the bottom, then alphabetical
     return ([...this[_specs]]
       .sort(localeCompare)
-      .map(JSON.stringify).join(', ') +
+      .map(quoteIfNeeded).join(', ') +
       ':\n' +
       Object.getOwnPropertyNames(this)
         .filter(prop => this[prop] !== null)
-        .sort(
-          (a, b) =>
-          /* istanbul ignore next - sort call order is unpredictable */
-            (typeof this[a] === 'object') === (typeof this[b] === 'object')
-              ? localeCompare(a, b)
-              : typeof this[a] === 'object' ? 1 : -1)
+        .sort(priorityThenLocaleCompare)
         .map(prop =>
           typeof this[prop] !== 'object'
-            ? `  ${JSON.stringify(prop)} ${JSON.stringify(this[prop])}\n`
+            ? `  ${prop} ${prop === 'integrity' ? this[prop] : JSON.stringify(this[prop])}\n`
             : Object.keys(this[prop]).length === 0 ? ''
             : `  ${prop}:\n` + sortKV(this[prop]) + '\n')
         .join('')).trim()

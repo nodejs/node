@@ -1,16 +1,11 @@
 const { resolve } = require('path')
 const t = require('tap')
 const { explainNode, printNode } = require('../../../lib/utils/explain-dep.js')
+const { cleanCwd } = require('../../fixtures/clean-snapshot')
+
 const testdir = t.testdirName
 
-const redactCwd = (path) => {
-  const normalizePath = p => p
-    .replace(/\\+/g, '/')
-    .replace(/\r\n/g, '\n')
-  return normalizePath(path)
-    .replace(new RegExp(normalizePath(process.cwd()), 'g'), '{CWD}')
-}
-t.cleanSnapshot = (str) => redactCwd(str)
+t.cleanSnapshot = (str) => cleanCwd(str)
 
 const cases = {
   prodDep: {

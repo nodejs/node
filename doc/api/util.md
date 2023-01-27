@@ -1027,7 +1027,9 @@ equality.
 ## Class: `util.MIMEType`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 > Stability: 1 - Experimental
@@ -1107,7 +1109,7 @@ myMIME.type = 'application';
 console.log(myMIME.type);
 // Prints: application
 console.log(String(myMIME));
-// Prints: application/javascript/javascript
+// Prints: application/javascript
 ```
 
 #### `mime.subtype`
@@ -1226,7 +1228,9 @@ console.log(JSON.stringify(myMIMES));
 ### Class: `util.MIMEParams`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 The `MIMEParams` API provides read and write access to the parameters of a
@@ -1380,7 +1384,9 @@ added:
   - v18.3.0
   - v16.17.0
 changes:
-  - version: v18.11.0
+  - version:
+    - v18.11.0
+    - v16.19.0
     pr-url: https://github.com/nodejs/node/pull/44631
     description: Add support for default values in input `config`.
   - version:

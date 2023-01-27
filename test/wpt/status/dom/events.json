@@ -8,21 +8,6 @@
       ]
     }
   },
-  "AddEventListenerOptions-signal.any.js": {
-    "fail": {
-      "expected": [
-        "Passing null as the signal should throw (listener is also null)"
-      ]
-    }
-  },
-  "Event-constructors.any.js": {
-    "fail": {
-      "expected": [
-        "Untitled 2",
-        "Untitled 3"
-      ]
-    }
-  },
   "Event-dispatch-listener-order.window.js": {
     "skip": "document is not defined"
   },

@@ -5395,6 +5395,50 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
           case CTypeInfo::Type::kFloat32: {
             return __ TruncateFloat64ToFloat32(node);
           }
+          case CTypeInfo::Type::kSeqOneByteString: {
+            // Check that the value is a HeapObject.
+            Node* value_is_smi = ObjectIsSmi(node);
+            __ GotoIf(value_is_smi, if_error);
+
+            Node* map = __ LoadField(AccessBuilder::ForMap(), node);
+            Node* instance_type =
+                __ LoadField(AccessBuilder::ForMapInstanceType(), map);
+
+            Node* encoding = __ Word32And(
+                instance_type,
+                __ Int32Constant(kStringRepresentationAndEncodingMask));
+
+            Node* is_onebytestring = __ Word32Equal(
+                encoding, __ Int32Constant(kSeqOneByteStringTag));
+            __ GotoIfNot(is_onebytestring, if_error);
+
+            Node* length_in_bytes =
+                __ LoadField(AccessBuilder::ForStringLength(), node);
+            Node* data_ptr = __ IntPtrAdd(
+                node, __ IntPtrConstant(SeqOneByteString::kHeaderSize -
+                                        kHeapObjectTag));
+
+            constexpr int kAlign = alignof(FastOneByteString);
+            constexpr int kSize = sizeof(FastOneByteString);
+            static_assert(kSize == sizeof(uintptr_t) + sizeof(size_t),
+                          "The size of "
+                          "FastOneByteString isn't equal to the sum of its "
+                          "expected members.");
+            Node* stack_slot = __ StackSlot(kSize, kAlign);
+
+            __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                                         kNoWriteBarrier),
+                     stack_slot, 0, data_ptr);
+            __ Store(StoreRepresentation(MachineRepresentation::kWord32,
+                                         kNoWriteBarrier),
+                     stack_slot, sizeof(size_t), length_in_bytes);
+
+            static_assert(sizeof(uintptr_t) == sizeof(size_t),
+                          "The string length can't "
+                          "fit the PointerRepresentation used to store it.");
+
+            return stack_slot;
+          }
           default: {
             return node;
           }
@@ -5600,6 +5644,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
           case CTypeInfo::Type::kFloat64:
             return ChangeFloat64ToTagged(
                 c_call_result, CheckForMinusZeroMode::kCheckForMinusZero);
+          case CTypeInfo::Type::kSeqOneByteString:
           case CTypeInfo::Type::kV8Value:
           case CTypeInfo::Type::kApiObject:
           case CTypeInfo::Type::kUint8:

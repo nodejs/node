@@ -24,7 +24,6 @@ not ok 3 - sync fail todo # TODO
     *
     *
     *
-    *
   ...
 # Subtest: sync fail todo with message
 not ok 4 - sync fail todo with message # TODO this is a failing todo
@@ -34,7 +33,6 @@ not ok 4 - sync fail todo with message # TODO this is a failing todo
   error: 'thrown from sync fail todo with message'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
     *
     *
     *
@@ -74,7 +72,6 @@ not ok 8 - sync throw fail
     *
     *
     *
-    *
   ...
 # Subtest: async skip pass
 ok 9 - async skip pass # SKIP
@@ -101,7 +98,6 @@ not ok 11 - async throw fail
     *
     *
     *
-    *
   ...
 # Subtest: async skip fail
 not ok 12 - async skip fail # SKIP
@@ -118,7 +114,6 @@ not ok 12 - async skip fail # SKIP
     *
     *
     *
-    *
   ...
 # Subtest: async assertion fail
 not ok 13 - async assertion fail
@@ -127,15 +122,14 @@ not ok 13 - async assertion fail
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
-    
+
     true !== false
-    
+
   code: 'ERR_ASSERTION'
   expected: false
   actual: true
   operator: 'strictEqual'
   stack: |-
-    *
     *
     *
     *
@@ -157,7 +151,6 @@ not ok 15 - reject fail
   error: 'rejected from reject fail'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    *
     *
     *
     *
@@ -353,8 +346,8 @@ ok 36 - functionAndOptions # SKIP
   ---
   duration_ms: *
   ...
-# Subtest: escaped description \\ \# \\\#\\
-ok 37 - escaped description \\ \# \\\#\\
+# Subtest: escaped description \\ \# \\\#\\ \n \t \f \v \b \r
+ok 37 - escaped description \\ \# \\\#\\ \n \t \f \v \b \r
   ---
   duration_ms: *
   ...

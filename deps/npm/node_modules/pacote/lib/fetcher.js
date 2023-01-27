@@ -7,10 +7,10 @@ const npa = require('npm-package-arg')
 const ssri = require('ssri')
 const { promisify } = require('util')
 const { basename, dirname } = require('path')
-const rimraf = promisify(require('rimraf'))
 const tar = require('tar')
 const log = require('proc-log')
 const retry = require('promise-retry')
+const fs = require('fs/promises')
 const fsm = require('fs-minipass')
 const cacache = require('cacache')
 const isPackageBin = require('./util/is-package-bin.js')
@@ -20,20 +20,11 @@ const readPackageJsonFast = require('read-package-json-fast')
 const readPackageJson = promisify(require('read-package-json'))
 const Minipass = require('minipass')
 
-// we only change ownership on unix platforms, and only if uid is 0
-const selfOwner = process.getuid && process.getuid() === 0 ? {
-  uid: 0,
-  gid: process.getgid(),
-} : null
-const chownr = selfOwner ? promisify(require('chownr')) : null
-const inferOwner = selfOwner ? require('infer-owner') : null
-const mkdirp = require('mkdirp')
 const cacheDir = require('./util/cache-dir.js')
 
 // Private methods.
 // Child classes should not have to override these.
 // Users should never call them.
-const _chown = Symbol('_chown')
 const _extract = Symbol('_extract')
 const _mkdir = Symbol('_mkdir')
 const _empty = Symbol('_empty')
@@ -359,44 +350,21 @@ class FetcherBase {
     return cacache.rm.content(this.cache, this.integrity, this.opts)
   }
 
-  async [_chown] (path, uid, gid) {
-    return selfOwner && (selfOwner.gid !== gid || selfOwner.uid !== uid)
-      ? chownr(path, uid, gid)
-      : /* istanbul ignore next - we don't test in root-owned folders */ null
-  }
-
   [_empty] (path) {
     return getContents({ path, depth: 1 }).then(contents => Promise.all(
-      contents.map(entry => rimraf(entry))))
+      contents.map(entry => fs.rm(entry, { recursive: true, force: true }))))
   }
 
-  [_mkdir] (dest) {
-    // if we're bothering to do owner inference, then do it.
-    // otherwise just make the dir, and return an empty object.
-    // always empty the dir dir to start with, but do so
-    // _after_ inferring the owner, in case there's an existing folder
-    // there that we would want to preserve which differs from the
-    // parent folder (rare, but probably happens sometimes).
-    return !inferOwner
-      ? this[_empty](dest).then(() => mkdirp(dest)).then(() => ({}))
-      : inferOwner(dest).then(({ uid, gid }) =>
-        this[_empty](dest)
-          .then(() => mkdirp(dest))
-          .then(made => {
-            // ignore the || dest part in coverage.  It's there to handle
-            // race conditions where the dir may be made by someone else
-            // after being removed by us.
-            const dir = made || /* istanbul ignore next */ dest
-            return this[_chown](dir, uid, gid)
-          })
-          .then(() => ({ uid, gid })))
+  async [_mkdir] (dest) {
+    await this[_empty](dest)
+    return await fs.mkdir(dest, { recursive: true })
   }
 
   // extraction is always the same.  the only difference is where
   // the tarball comes from.
-  extract (dest) {
-    return this[_mkdir](dest).then(({ uid, gid }) =>
-      this.tarballStream(tarball => this[_extract](dest, tarball, uid, gid)))
+  async extract (dest) {
+    await this[_mkdir](dest)
+    return this.tarballStream((tarball) => this[_extract](dest, tarball))
   }
 
   [_toFile] (dest) {
@@ -414,18 +382,14 @@ class FetcherBase {
   }
 
   // don't use this[_mkdir] because we don't want to rimraf anything
-  tarballFile (dest) {
+  async tarballFile (dest) {
     const dir = dirname(dest)
-    return !inferOwner
-      ? mkdirp(dir).then(() => this[_toFile](dest))
-      : inferOwner(dest).then(({ uid, gid }) =>
-        mkdirp(dir).then(made => this[_toFile](dest)
-          .then(res => this[_chown](made || dir, uid, gid)
-            .then(() => res))))
+    await fs.mkdir(dir, { recursive: true })
+    return this[_toFile](dest)
   }
 
-  [_extract] (dest, tarball, uid, gid) {
-    const extractor = tar.x(this[_tarxOptions]({ cwd: dest, uid, gid }))
+  [_extract] (dest, tarball) {
+    const extractor = tar.x(this[_tarxOptions]({ cwd: dest }))
     const p = new Promise((resolve, reject) => {
       extractor.on('end', () => {
         resolve({

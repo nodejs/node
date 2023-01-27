@@ -146,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm audit [fix|signatures]
+<pre><code class="language-bash">npm audit [fix|signatures]
 </code></pre>
 <h3 id="description">Description</h3>
 <p>The audit command submits a description of the dependencies configured in
@@ -167,13 +167,13 @@ output, it simply changes the command's failure threshold.</p>
 <h3 id="audit-signatures">Audit Signatures</h3>
 <p>To ensure the integrity of packages you download from the public npm registry, or any registry that supports signatures, you can verify the registry signatures of downloaded packages using the npm CLI.</p>
 <p>Registry signatures can be verified using the following <code>audit</code> command:</p>
-<pre lang="bash"><code>$ npm audit signatures
+<pre><code class="language-bash">$ npm audit signatures
 </code></pre>
 <p>The npm CLI supports registry signatures and signing keys provided by any registry if the following conventions are followed:</p>
 <ol>
 <li>Signatures are provided in the package's <code>packument</code> in each published version within the <code>dist</code> object:</li>
 </ol>
-<pre lang="json"><code>"dist":{
+<pre><code class="language-json">"dist":{
   "..omitted..": "..omitted..",
   "signatures": [{
     "keyid": "SHA256:{{SHA256_PUBLIC_KEY}}",
@@ -198,13 +198,13 @@ output, it simply changes the command's failure threshold.</p>
 </code></pre>
 <p>Keys response:</p>
 <ul>
-<li><code>expires</code>: null or a simplified extended <!-- raw HTML omitted -->ISO 8601 format<!-- raw HTML omitted -->: <code>YYYY-MM-DDTHH:mm:ss.sssZ</code></li>
+<li><code>expires</code>: null or a simplified extended ISO 8601 format: <code>YYYY-MM-DDTHH:mm:ss.sssZ</code></li>
 <li><code>keydid</code>: sha256 fingerprint of the public key</li>
 <li><code>keytype</code>: only <code>ecdsa-sha2-nistp256</code> is currently supported by the npm CLI</li>
 <li><code>scheme</code>: only <code>ecdsa-sha2-nistp256</code> is currently supported by the npm CLI</li>
 <li><code>key</code>: base64 encoded public key</li>
 </ul>
-<p>See this <!-- raw HTML omitted -->example key's response from the public npm registry<!-- raw HTML omitted -->.</p>
+<p>See this example key's response from the public npm registry.</p>
 <h3 id="audit-endpoints">Audit Endpoints</h3>
 <p>There are two audit endpoints that npm may use to fetch vulnerability
 information: the <code>Bulk Advisory</code> endpoint and the <code>Quick Audit</code> endpoint.</p>
@@ -216,9 +216,9 @@ package in the tree, and POST it to the default configured registry at
 the path <code>/-/npm/v1/security/advisories/bulk</code>.</p>
 <p>Any packages in the tree that do not have a <code>version</code> field in their
 package.json file will be ignored.  If any <code>--omit</code> options are specified
-(either via the <code>--omit</code> config, or one of the shorthands such as
-<code>--production</code>, <code>--only=dev</code>, and so on), then packages will be omitted
-from the submitted payload as appropriate.</p>
+(either via the <a href="../using-npm/config#omit.html"><code>--omit</code> config</a>, or one of the
+shorthands such as <code>--production</code>, <code>--only=dev</code>, and so on), then packages will
+be omitted from the submitted payload as appropriate.</p>
 <p>If the registry responds with an error, or with an invalid response, then
 npm will attempt to load advisory data from the <code>Quick Audit</code> endpoint.</p>
 <p>The expected result will contain a set of advisory objects for each
@@ -276,36 +276,36 @@ were found.  The <code>npm audit fix</code> command will exit with 0 exit code i
 vulnerabilities are found <em>or</em> if the remediation is able to successfully
 fix all vulnerabilities.</p>
 <p>If vulnerabilities were found the exit code will depend on the
-<code>audit-level</code> configuration setting.</p>
+<a href="../using-npm/config#audit-level.html"><code>audit-level</code> config</a>.</p>
 <h3 id="examples">Examples</h3>
 <p>Scan your project for vulnerabilities and automatically install any compatible
 updates to vulnerable dependencies:</p>
-<pre lang="bash"><code>$ npm audit fix
+<pre><code class="language-bash">$ npm audit fix
 </code></pre>
 <p>Run <code>audit fix</code> without modifying <code>node_modules</code>, but still updating the
 pkglock:</p>
-<pre lang="bash"><code>$ npm audit fix --package-lock-only
+<pre><code class="language-bash">$ npm audit fix --package-lock-only
 </code></pre>
 <p>Skip updating <code>devDependencies</code>:</p>
-<pre lang="bash"><code>$ npm audit fix --only=prod
+<pre><code class="language-bash">$ npm audit fix --only=prod
 </code></pre>
 <p>Have <code>audit fix</code> install SemVer-major updates to toplevel dependencies, not
 just SemVer-compatible ones:</p>
-<pre lang="bash"><code>$ npm audit fix --force
+<pre><code class="language-bash">$ npm audit fix --force
 </code></pre>
 <p>Do a dry run to get an idea of what <code>audit fix</code> will do, and <em>also</em> output
 install information in JSON format:</p>
-<pre lang="bash"><code>$ npm audit fix --dry-run --json
+<pre><code class="language-bash">$ npm audit fix --dry-run --json
 </code></pre>
 <p>Scan your project for vulnerabilities and just show the details, without
 fixing anything:</p>
-<pre lang="bash"><code>$ npm audit
+<pre><code class="language-bash">$ npm audit
 </code></pre>
 <p>Get the detailed audit report in JSON format:</p>
-<pre lang="bash"><code>$ npm audit --json
+<pre><code class="language-bash">$ npm audit --json
 </code></pre>
 <p>Fail an audit only if the results include a vulnerability with a level of moderate or higher:</p>
-<pre lang="bash"><code>$ npm audit --audit-level=moderate
+<pre><code class="language-bash">$ npm audit --audit-level=moderate
 </code></pre>
 <h3 id="configuration">Configuration</h3>
 <h4 id="audit-level"><code>audit-level</code></h4>
@@ -454,18 +454,17 @@ the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="install-links"><code>install-links</code></h4>
 <ul>
-<li>Default: false</li>
+<li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.</p>
+<p>When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-install.html">npm install</a></li>
 <li><a href="../using-npm/config.html">config</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-audit.md">

@@ -94,6 +94,7 @@
     "node": "16.9",
     "deno": "1.9",
     "ios": "13.4",
+    "samsung": "16",
     "electron": "13.0"
   },
   "transform-optional-chaining": {

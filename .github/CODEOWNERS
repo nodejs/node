@@ -1,9 +1,12 @@
 # Node.js Project Codeowners
 
-# 1. Codeowners must always be teams, never individuals
-# 2. Each codeowner team should contain at least one TSC member
-# 3. PRs touching any code with a codeowner must be signed off by at least one
-#    person on the code owner team.
+# This file does not define any requirements for landing PRs.
+# Its purpose is to allow automation of courtesy pings to the
+# relevant team(s) when any of the paths listed here are modified.
+# Criteria for landing PRs are defined in
+# https://github.com/nodejs/node/blob/main/doc/contributing/collaborator-guide.md#code-reviews.
+#
+# Codeowners must always be teams, never individuals.
 
 # tsc
 
@@ -71,16 +74,18 @@
 /src/node_http2* @nodejs/http2 @nodejs/net
 /src/node_mem* @nodejs/http2
 
-# modules
+# modules, including loaders
 
-/doc/api/modules.md @nodejs/modules
-/doc/api/esm.md @nodejs/modules
-/doc/api/module.md @nodejs/modules
-/doc/api/packages.md @nodejs/modules
-/lib/module.js @nodejs/modules
-/lib/internal/modules/* @nodejs/modules
-/lib/internal/bootstrap/loaders.js @nodejs/modules
-/src/module_wrap* @nodejs/modules @nodejs/vm
+/doc/api/esm.md @nodejs/modules @nodejs/loaders
+/doc/api/module.md @nodejs/modules @nodejs/loaders
+/doc/api/modules.md @nodejs/modules @nodejs/loaders
+/doc/api/packages.md @nodejs/modules @nodejs/loaders
+/lib/internal/bootstrap/loaders.js @nodejs/modules @nodejs/loaders
+/lib/internal/modules/* @nodejs/modules @nodejs/loaders
+/lib/internal/process/esm_loader.js @nodejs/modules @nodejs/loaders
+/lib/internal/process/execution.js @nodejs/modules @nodejs/loaders
+/lib/module.js @nodejs/modules @nodejs/loaders
+/src/module_wrap* @nodejs/modules @nodejs/loaders @nodejs/vm
 
 # Node-API
 
@@ -96,6 +101,7 @@
 /tools/gyp/**/* @nodejs/gyp
 
 # WASI
+
 /deps/uvwasi/ @nodejs/wasi
 /doc/api/wasi.md @nodejs/wasi
 /lib/wasi.js @nodejs/wasi
@@ -113,6 +119,7 @@
 /tools/snapshot/* @nodejs/startup
 
 # V8
+
 /deps/v8/* @nodejs/v8-update
 /tools/v8_gypfiles/* @nodejs/v8-update
 
@@ -120,3 +127,12 @@
 
 /.github/workflows/* @nodejs/actions
 /tools/actions/* @nodejs/actions
+
+# Test runner
+
+/test/message/test_runner_* @nodejs/test_runner
+/test/parallel/test-runner-* @nodejs/test_runner
+/doc/api/test.md @nodejs/test_runner
+/lib/test.js @nodejs/test_runner
+/lib/internal/main/test_runner.js @nodejs/test_runner
+/lib/internal/test_runner/* @nodejs/test_runner

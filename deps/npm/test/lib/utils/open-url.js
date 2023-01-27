@@ -1,4 +1,5 @@
 const t = require('tap')
+const tmock = require('../../fixtures/tmock')
 
 const OUTPUT = []
 const output = (...args) => OUTPUT.push(args)
@@ -19,14 +20,19 @@ const npm = {
 let openerUrl = null
 let openerOpts = null
 let openerResult = null
-const opener = (url, opts, cb) => {
+
+const open = async (url, options) => {
   openerUrl = url
-  openerOpts = opts
-  return cb(openerResult)
+  openerOpts = options
+  if (openerResult) {
+    throw openerResult
+  }
 }
 
-const openUrl = t.mock('../../../lib/utils/open-url.js', {
-  opener,
+const openUrl = tmock(t, '{LIB}/utils/open-url.js', {
+  '@npmcli/promise-spawn': {
+    open,
+  },
 })
 
 t.test('opens a url', async t => {

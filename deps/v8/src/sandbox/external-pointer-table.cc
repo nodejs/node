@@ -315,18 +315,6 @@ ExternalPointerTable::Freelist ExternalPointerTable::Grow(Isolate* isolate) {
 
   set_capacity(new_capacity);
 
-  // Schedule GC when the table's utilization crosses one of these thresholds.
-  constexpr double kGCThresholds[] = {0.5, 0.75, 0.9, 0.95, 0.99};
-  constexpr double kMaxCapacity = static_cast<double>(kMaxExternalPointers);
-  double old_utilization = static_cast<double>(old_capacity) / kMaxCapacity;
-  double new_utilization = static_cast<double>(new_capacity) / kMaxCapacity;
-  for (double threshold : kGCThresholds) {
-    if (old_utilization < threshold && new_utilization >= threshold) {
-      isolate->heap()->ReportExternalMemoryPressure();
-      break;
-    }
-  }
-
   // Build freelist bottom to top, which might be more cache friendly.
   uint32_t start = std::max<uint32_t>(old_capacity, 1);  // Skip entry zero
   uint32_t last = new_capacity - 1;

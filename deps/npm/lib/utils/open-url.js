@@ -1,4 +1,4 @@
-const opener = require('opener')
+const promiseSpawn = require('@npmcli/promise-spawn')
 
 const { URL } = require('url')
 
@@ -31,24 +31,20 @@ const open = async (npm, url, errMsg, isFile) => {
       if (!/^https?:$/.test(new URL(url).protocol)) {
         throw new Error()
       }
-    } catch (_) {
+    } catch {
       throw new Error('Invalid URL: ' + url)
     }
   }
 
   const command = browser === true ? null : browser
-  await new Promise((resolve, reject) => {
-    opener(url, { command }, (err) => {
-      if (err) {
-        if (err.code === 'ENOENT') {
-          printAlternateMsg()
-        } else {
-          return reject(err)
-        }
+  await promiseSpawn.open(url, { command })
+    .catch((err) => {
+      if (err.code !== 'ENOENT') {
+        throw err
       }
-      return resolve()
+
+      printAlternateMsg()
     })
-  })
 }
 
 module.exports = open

@@ -24,8 +24,9 @@
 #include "stream_wrap.h"
 #include "util-inl.h"
 
-#include <cstring>
+#include <climits>
 #include <cstdlib>
+#include <cstring>
 
 namespace node {
 
@@ -190,7 +191,7 @@ class ProcessWrap : public HandleWrap {
     if (!argv_v.IsEmpty() && argv_v->IsArray()) {
       Local<Array> js_argv = argv_v.As<Array>();
       int argc = js_argv->Length();
-      CHECK_GT(argc + 1, 0);  // Check for overflow.
+      CHECK_LT(argc, INT_MAX);  // Check for overflow.
 
       // Heap allocate to detect errors. +1 is for nullptr.
       options.args = new char*[argc + 1];
@@ -218,7 +219,7 @@ class ProcessWrap : public HandleWrap {
     if (!env_v.IsEmpty() && env_v->IsArray()) {
       Local<Array> env_opt = env_v.As<Array>();
       int envc = env_opt->Length();
-      CHECK_GT(envc + 1, 0);  // Check for overflow.
+      CHECK_LT(envc, INT_MAX);            // Check for overflow.
       options.env = new char*[envc + 1];  // Heap allocated to detect errors.
       for (int i = 0; i < envc; i++) {
         node::Utf8Value pair(env->isolate(),

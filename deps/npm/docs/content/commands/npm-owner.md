@@ -14,8 +14,6 @@ npm owner ls <package-spec>
 alias: author
 ```
 
-Note: This command is unaware of workspaces.
-
 ### Description
 
 Manage ownership of published packages.

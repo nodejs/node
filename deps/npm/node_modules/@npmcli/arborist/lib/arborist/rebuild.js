@@ -345,7 +345,6 @@ module.exports = cls => class Builder extends cls {
         event,
         path,
         pkg,
-        stdioString: true,
         stdio,
         env,
         scriptShell: this[_scriptShell],

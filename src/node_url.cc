@@ -6,7 +6,6 @@
 #include "util-inl.h"
 
 #include <algorithm>
-#include <cmath>
 #include <cstdio>
 #include <numeric>
 #include <string>
@@ -174,6 +173,8 @@ CHAR_TEST(8, IsC0ControlOrSpace, (ch >= '\0' && ch <= ' '))
 
 // https://infra.spec.whatwg.org/#ascii-digit
 CHAR_TEST(8, IsASCIIDigit, (ch >= '0' && ch <= '9'))
+
+CHAR_TEST(8, IsASCIIOcDigit, (ch >= '0' && ch <= '7'))
 
 // https://infra.spec.whatwg.org/#ascii-hex-digit
 CHAR_TEST(8, IsASCIIHexDigit, (IsASCIIDigit(ch) ||
@@ -407,29 +408,67 @@ int64_t ParseIPv4Number(const char* start, const char* end) {
   return strtoll(start, nullptr, R);
 }
 
-// https://url.spec.whatwg.org/#ends-in-a-number-checker
-bool EndsInANumber(const std::string& input) {
-  std::vector<std::string> parts = SplitString(input, '.', false);
-
-  if (parts.empty()) return false;
-
-  if (parts.back().empty()) {
-    if (parts.size() == 1) return false;
-    parts.pop_back();
+// https://url.spec.whatwg.org/#ipv4-number-parser
+bool IsIPv4NumberValid(const std::string_view input) {
+  if (input.empty()) {
+    return false;
   }
 
-  const std::string& last = parts.back();
+  // If a number starts with '0' it might be a number with base 8 or base
+  // 16. If not, checking if all characters are digits proves that it is a
+  // base 10 number.
+  if (input.size() >= 2 && input[0] == '0') {
+    if (input[1] == 'X' || input[1] == 'x') {
+      if (input.size() == 2) {
+        return true;
+      }
 
-  // If last is non-empty and contains only ASCII digits, then return true
-  if (!last.empty() && std::all_of(last.begin(), last.end(), ::isdigit)) {
+      return std::all_of(input.begin() + 2, input.end(), [](const char& c) {
+        return IsASCIIHexDigit(c);
+      });
+    }
+
+    return std::all_of(input.begin() + 1, input.end(), [](const char& c) {
+      return IsASCIIOcDigit(c);
+    });
+  }
+
+  return std::all_of(input.begin(), input.end(), [](const char& c) {
+    return IsASCIIDigit(c);
+  });
+}
+
+// https://url.spec.whatwg.org/#ends-in-a-number-checker
+inline bool EndsInANumber(const std::string_view input) {
+  if (input.empty()) {
+    return false;
+  }
+
+  char delimiter = '.';
+  auto last_index = input.size() - 1;
+  if (input.back() == delimiter) {
+    --last_index;
+  }
+
+  std::string_view last{};
+  auto pos = input.find_last_of(delimiter, last_index);
+  if (pos == std::string_view::npos) {
+    last = input.substr(0, last_index);
+  } else {
+    last = input.substr(pos + 1, last_index - pos);
+  }
+
+  if (last.empty()) {
+    return false;
+  }
+
+  if (std::all_of(last.begin(), last.end(), [](const char& c) {
+        return IsASCIIDigit(c);
+      })) {
     return true;
   }
 
-  const char* last_str = last.c_str();
-  int64_t num = ParseIPv4Number(last_str, last_str + last.size());
-  if (num >= 0) return true;
-
-  return false;
+  return IsIPv4NumberValid(last);
 }
 
 void URLHost::ParseIPv4Host(const char* input, size_t length) {
@@ -437,10 +476,10 @@ void URLHost::ParseIPv4Host(const char* input, size_t length) {
   const char* pointer = input;
   const char* mark = input;
   const char* end = pointer + length;
-  int parts = 0;
+  unsigned int parts = 0;
   uint32_t val = 0;
   uint64_t numbers[4];
-  int tooBigNumbers = 0;
+  unsigned int tooBigNumbers = 0;
   if (length == 0)
     return;
 
@@ -448,7 +487,7 @@ void URLHost::ParseIPv4Host(const char* input, size_t length) {
     const char ch = pointer < end ? pointer[0] : kEOL;
     int64_t remaining = end - pointer - 1;
     if (ch == '.' || ch == kEOL) {
-      if (++parts > static_cast<int>(arraysize(numbers))) return;
+      if (++parts > arraysize(numbers)) return;
       if (pointer == mark)
         return;
       int64_t n = ParseIPv4Number(mark, pointer);
@@ -470,18 +509,15 @@ void URLHost::ParseIPv4Host(const char* input, size_t length) {
   // If any but the last item in numbers is greater than 255, return failure.
   // If the last item in numbers is greater than or equal to
   // 256^(5 - the number of items in numbers), return failure.
-  if (tooBigNumbers > 1 ||
-      (tooBigNumbers == 1 && numbers[parts - 1] <= 255) ||
-      numbers[parts - 1] >= pow(256, static_cast<double>(5 - parts))) {
+  if (tooBigNumbers > 1 || (tooBigNumbers == 1 && numbers[parts - 1] <= 255) ||
+      numbers[parts - 1] >= UINT64_C(1) << (8 * (5 - parts))) {
     return;
   }
 
   type_ = HostType::H_IPV4;
   val = static_cast<uint32_t>(numbers[parts - 1]);
-  for (int n = 0; n < parts - 1; n++) {
-    double b = 3 - n;
-    val +=
-        static_cast<uint32_t>(numbers[n]) * static_cast<uint32_t>(pow(256, b));
+  for (unsigned int n = 0; n < parts - 1; n++) {
+    val += static_cast<uint32_t>(numbers[n]) << (8 * (3 - n));
   }
 
   value_.ipv4 = val;

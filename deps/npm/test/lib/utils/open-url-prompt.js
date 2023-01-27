@@ -1,6 +1,7 @@
 const t = require('tap')
 const mockGlobals = require('../../fixtures/mock-globals.js')
 const EventEmitter = require('events')
+const tmock = require('../../fixtures/tmock')
 
 const OUTPUT = []
 const output = (...args) => OUTPUT.push(args)
@@ -21,11 +22,6 @@ const npm = {
 let openerUrl = null
 let openerOpts = null
 let openerResult = null
-const opener = (url, opts, cb) => {
-  openerUrl = url
-  openerOpts = opts
-  return cb(openerResult)
-}
 
 let questionShouldResolve = true
 let openUrlPromptInterrupted = false
@@ -46,8 +42,16 @@ const readline = {
   }),
 }
 
-const openUrlPrompt = t.mock('../../../lib/utils/open-url-prompt.js', {
-  opener,
+const openUrlPrompt = tmock(t, '{LIB}/utils/open-url-prompt.js', {
+  '@npmcli/promise-spawn': {
+    open: async (url, options) => {
+      openerUrl = url
+      openerOpts = options
+      if (openerResult) {
+        throw openerResult
+      }
+    },
+  },
   readline,
 })
 

@@ -430,7 +430,7 @@ class FlatRuleTester {
         if (typeof this[DESCRIBE] === "function" || typeof this[IT] === "function") {
             throw new Error(
                 "Set `RuleTester.itOnly` to use `only` with a custom test framework.\n" +
-                "See https://eslint.org/docs/developer-guide/nodejs-api#customizing-ruletester for more."
+                "See https://eslint.org/docs/latest/integrate/nodejs-api#customizing-ruletester for more."
             );
         }
         if (typeof it === "function") {
@@ -619,15 +619,17 @@ class FlatRuleTester {
                 plugins: {
                     "rule-tester": {
                         rules: {
-                            "validate-ast"() {
-                                return {
-                                    Program(node) {
-                                        beforeAST = cloneDeeplyExcludesParent(node);
-                                    },
-                                    "Program:exit"(node) {
-                                        afterAST = node;
-                                    }
-                                };
+                            "validate-ast": {
+                                create() {
+                                    return {
+                                        Program(node) {
+                                            beforeAST = cloneDeeplyExcludesParent(node);
+                                        },
+                                        "Program:exit"(node) {
+                                            afterAST = node;
+                                        }
+                                    };
+                                }
                             }
                         }
                     }

@@ -77,12 +77,12 @@ async function checkFiles(...files) {
             (process.env.GITHUB_ACTIONS ?
               `::error file=${file},line=1,col=1::` :
               'Fixable with --fix: ') +
-              `Invalid hashbang for ${file} (expected /bin/sh).`
+              `Invalid hashbang for ${file} (expected /bin/sh).`,
           );
         }
       }
       await fd.close();
-    })
+    }),
   );
 
   const stdout = await new Promise((resolve, reject) => {
@@ -102,7 +102,7 @@ async function checkFiles(...files) {
           files.map((filePath) => relative(SPAWN_OPTIONS.cwd, filePath)) :
           files),
       ],
-      SPAWN_OPTIONS
+      SPAWN_OPTIONS,
     );
     shellcheck.once('error', reject);
 
@@ -138,7 +138,7 @@ async function checkFiles(...files) {
     const data = JSON.parse(stdout);
     for (const { file, line, column, message } of data) {
       console.error(
-        `::error file=${file},line=${line},col=${column}::${file}:${line}:${column}: ${message}`
+        `::error file=${file},line=${line},col=${column}::${file}:${line}:${column}: ${message}`,
       );
     }
   }

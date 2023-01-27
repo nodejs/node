@@ -1715,7 +1715,7 @@ DEFINE_BOOL(experimental_value_unavailable, false,
 DEFINE_BOOL(experimental_reuse_locals_blocklists, true,
             "enable reuse of local blocklists across multiple debug-evaluates")
 
-DEFINE_BOOL(experimental_remove_internal_scopes_property, true,
+DEFINE_BOOL(experimental_remove_internal_scopes_property, false,
             "don't report the artificial [[Scopes]] property for functions")
 
 // disassembler

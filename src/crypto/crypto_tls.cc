@@ -668,11 +668,6 @@ void TLSWrap::OnStreamAfterWrite(WriteWrap* req_wrap, int status) {
   EncOut();
 }
 
-int TLSWrap::GetSSLError(int status) const {
-  // ssl_ might already be destroyed for reading EOF from a close notify alert.
-  return ssl_ != nullptr ? SSL_get_error(ssl_.get(), status) : 0;
-}
-
 void TLSWrap::ClearOut() {
   Debug(this, "Trying to read cleartext output");
   // Ignore cycling data if ClientHello wasn't yet parsed
@@ -726,25 +721,23 @@ void TLSWrap::ClearOut() {
     }
   }
 
-  int flags = SSL_get_shutdown(ssl_.get());
-  if (!eof_ && flags & SSL_RECEIVED_SHUTDOWN) {
-    eof_ = true;
-    EmitRead(UV_EOF);
-  }
-
   // We need to check whether an error occurred or the connection was
   // shutdown cleanly (SSL_ERROR_ZERO_RETURN) even when read == 0.
-  // See node#1642 and SSL_read(3SSL) for details.
+  // See node#1642 and SSL_read(3SSL) for details. SSL_get_error must be
+  // called immediately after SSL_read, without calling into JS, which may
+  // change OpenSSL's error queue, modify ssl_, or even destroy ssl_
+  // altogether.
   if (read <= 0) {
     HandleScope handle_scope(env()->isolate());
     Local<Value> error;
-    int err = GetSSLError(read);
+    int err = SSL_get_error(ssl_.get(), read);
     switch (err) {
       case SSL_ERROR_ZERO_RETURN:
-        // Ignore ZERO_RETURN after EOF, it is basically not an error.
-        if (eof_) return;
-        error = env()->zero_return_string();
-        break;
+        if (!eof_) {
+          eof_ = true;
+          EmitRead(UV_EOF);
+        }
+        return;
 
       case SSL_ERROR_SSL:
       case SSL_ERROR_SYSCALL:
@@ -829,7 +822,7 @@ void TLSWrap::ClearIn() {
   }
 
   // Error or partial write
-  int err = GetSSLError(written);
+  int err = SSL_get_error(ssl_.get(), written);
   if (err == SSL_ERROR_SSL || err == SSL_ERROR_SYSCALL) {
     Debug(this, "Got SSL error (%d)", err);
     write_callback_scheduled_ = true;
@@ -1005,7 +998,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
 
   if (written == -1) {
     // If we stopped writing because of an error, it's fatal, discard the data.
-    int err = GetSSLError(written);
+    int err = SSL_get_error(ssl_.get(), written);
     if (err == SSL_ERROR_SSL || err == SSL_ERROR_SYSCALL) {
       // TODO(@jasnell): What are we doing with the error?
       Debug(this, "Got SSL error (%d), returning UV_EPROTO", err);

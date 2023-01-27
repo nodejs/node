@@ -73,8 +73,8 @@ const identifierSelector = parentSelectors.map((selector) => `[type!=${selector}
 module.exports = {
   meta: {
     messages: {
-      error: 'Use `const { {{name}} } = primordials;` instead of the global.'
-    }
+      error: 'Use `const { {{name}} } = primordials;` instead of the global.',
+    },
   },
   create(context) {
     const globalScope = context.getSourceCode().scopeManager.globalScope;
@@ -86,7 +86,7 @@ module.exports = {
       const names = option.ignore || [];
       nameMap.set(
         option.name,
-        new Map(names.map((name) => [name, { ignored: true }]))
+        new Map(names.map((name) => [name, { ignored: true }])),
       );
       if (option.into) {
         renameMap.set(option.name, option.into);
@@ -111,7 +111,7 @@ module.exports = {
         const name = node.name;
         const parent = getDestructuringAssignmentParent(
           context.getScope(),
-          node
+          node,
         );
         const parentName = parent?.name;
         if (!isTarget(nameMap, name) && !isTarget(nameMap, parentName)) {
@@ -129,8 +129,8 @@ module.exports = {
               node,
               messageId: 'error',
               data: {
-                name: getReportName({ into, parentName, name })
-              }
+                name: getReportName({ into, parentName, name }),
+              },
             });
           }
           return;
@@ -142,8 +142,8 @@ module.exports = {
             node,
             messageId: 'error',
             data: {
-              name: getReportName({ into, parentName, name })
-            }
+              name: getReportName({ into, parentName, name }),
+            },
           });
         }
       },
@@ -162,7 +162,7 @@ module.exports = {
             messageId: 'error',
             data: {
               name: toPrimordialsName(obj, prop),
-            }
+            },
           });
         }
       },
@@ -180,5 +180,5 @@ module.exports = {
         }
       },
     };
-  }
+  },
 };

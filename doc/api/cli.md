@@ -314,6 +314,15 @@ added: v6.0.0
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
 against FIPS-compatible OpenSSL.)
 
+### `--enable-network-family-autoselection`
+
+<!-- YAML
+added: v19.4.0
+-->
+
+Enables the family autoselection algorithm unless connection options explicitly
+disables it.
+
 ### `--enable-source-maps`
 
 <!-- YAML
@@ -420,10 +429,23 @@ Use this flag to disable top-level await in REPL.
 ### `--experimental-shadow-realm`
 
 <!-- YAML
-added: v19.0.0
+added:
+  - v19.0.0
+  - v18.13.0
 -->
 
 Use this flag to enable [ShadowRealm][] support.
+
+### `--experimental-test-coverage`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When used in conjunction with the `node:test` module, a code coverage report is
+generated as part of the test runner output. If no tests are run, a coverage
+report is not generated. See the documentation on
+[collecting code coverage from tests][] for more details.
 
 ### `--experimental-vm-modules`
 
@@ -1210,7 +1232,9 @@ added:
   - v18.1.0
   - v16.17.0
 changes:
-  - version: v19.2.0
+  - version:
+      - v19.2.0
+      - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/45214
     description: Test runner now supports running in watch mode.
 -->
@@ -1229,6 +1253,24 @@ added: v18.11.0
 A regular expression that configures the test runner to only execute tests
 whose name matches the provided pattern. See the documentation on
 [filtering tests by name][] for more details.
+
+### `--test-reporter`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A test reporter to use when running tests. See the documentation on
+[test reporters][] for more details.
+
+### `--test-reporter-destination`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The destination for the corresponding test reporter. See the documentation on
+[test reporters][] for more details.
 
 ### `--test-only`
 
@@ -1505,14 +1547,6 @@ occurs. One of the following modes can be chosen:
 If a rejection happens during the command line entry point's ES module static
 loading phase, it will always raise it as an uncaught exception.
 
-### `--update-assert-snapshot`
-
-<!-- YAML
-added: v18.8.0
--->
-
-Updates snapshot files used by [`assert.snapshot()`][].
-
 ### `--use-bundled-ca`, `--use-openssl-ca`
 
 <!-- YAML
@@ -1580,9 +1614,13 @@ amount of CPUs, but it may diverge in environments such as VMs or containers.
 ### `--watch`
 
 <!-- YAML
-added: v18.11.0
+added:
+  - v18.11.0
+  - v16.19.0
 changes:
-  - version: v19.2.0
+  - version:
+      - v19.2.0
+      - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/45214
     description: Test runner now supports running in watch mode.
 -->
@@ -1606,7 +1644,9 @@ $ node --watch index.js
 ### `--watch-path`
 
 <!-- YAML
-added: v18.11.0
+added:
+  - v18.11.0
+  - v16.19.0
 -->
 
 > Stability: 1 - Experimental
@@ -1627,6 +1667,14 @@ $ node --watch-path=./src --watch-path=./tests index.js
 This option is only supported on macOS and Windows.
 An `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM` exception will be thrown
 when the option is used on a platform that does not support it.
+
+### `--watch-preserve-output`
+
+Disable the clearing of the console when watch mode restarts the process.
+
+```console
+$ node --watch --watch-preserve-output test.js
+```
 
 ### `--zero-fill-buffers`
 
@@ -1840,6 +1888,7 @@ Node.js options that are allowed are:
 * `--disable-proto`
 * `--dns-result-order`
 * `--enable-fips`
+* `--enable-network-family-autoselection`
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
 * `--experimental-import-meta-resolve`
@@ -1926,12 +1975,12 @@ Node.js options that are allowed are:
 * `--trace-warnings`
 * `--track-heap-objects`
 * `--unhandled-rejections`
-* `--update-assert-snapshot`
 * `--use-bundled-ca`
 * `--use-largepages`
 * `--use-openssl-ca`
 * `--v8-pool-size`
 * `--watch-path`
+* `--watch-preserve-output`
 * `--watch`
 * `--zero-fill-buffers`
 
@@ -1943,6 +1992,7 @@ V8 options that are allowed are:
 
 * `--abort-on-uncaught-exception`
 * `--disallow-code-generation-from-strings`
+* `--enable-etw-stack-walking`
 * `--huge-max-old-generation-size`
 * `--interpreted-frames-native-stack`
 * `--jitless`
@@ -1958,6 +2008,8 @@ V8 options that are allowed are:
 
 `--perf-basic-prof-only-functions`, `--perf-basic-prof`,
 `--perf-prof-unwinding-info`, and `--perf-prof` are only available on Linux.
+
+`--enable-etw-stack-walking` is only available on Windows.
 
 ### `NODE_PATH=path[:…]`
 
@@ -2306,7 +2358,6 @@ done
 [`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#class-slowbuffer
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
-[`assert.snapshot()`]: assert.md#assertsnapshotvalue-name
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
@@ -2317,6 +2368,7 @@ done
 [`unhandledRejection`]: process.md#event-unhandledrejection
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
 [`worker_threads.threadId`]: worker_threads.md#workerthreadid
+[collecting code coverage from tests]: test.md#collecting-code-coverage
 [conditional exports]: packages.md#conditional-exports
 [context-aware]: addons.md#context-aware-addons
 [debugger]: debugger.md
@@ -2330,6 +2382,7 @@ done
 [scavenge garbage collector]: https://v8.dev/blog/orinoco-parallel-scavenger
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
 [semi-space]: https://www.memorymanagement.org/glossary/s.html#semi.space
+[test reporters]: test.md#test-reporters
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [tracking issue for user-land snapshots]: https://github.com/nodejs/node/issues/44014
 [ways that `TZ` is handled in other environments]: https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html

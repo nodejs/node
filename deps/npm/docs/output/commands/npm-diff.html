@@ -146,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm diff [...&lt;paths&gt;]
+<pre><code class="language-bash">npm diff [...&lt;paths&gt;]
 </code></pre>
 <h3 id="description">Description</h3>
 <p>Similar to its <code>git diff</code> counterpart, this command will print diff patches
@@ -163,10 +163,10 @@ directories or git repositories,
 e.g: <code>npm diff --diff=pkg@latest --diff=./packages/pkg</code></p>
 <p>Here's an example comparing two different versions of a package named
 <code>abbrev</code> from the registry:</p>
-<pre lang="bash"><code>npm diff --diff=abbrev@1.1.0 --diff=abbrev@1.1.1
+<pre><code class="language-bash">npm diff --diff=abbrev@1.1.0 --diff=abbrev@1.1.1
 </code></pre>
 <p>On success, output looks like:</p>
-<pre lang="bash"><code>diff --git a/package.json b/package.json
+<pre><code class="language-bash">diff --git a/package.json b/package.json
 index v1.1.0..v1.1.1 100644
 --- a/package.json
 +++ b/package.json
@@ -181,7 +181,7 @@ index v1.1.0..v1.1.1 100644
 </code></pre>
 <p>Given the flexible nature of npm specs, you can also target local
 directories or git repos just like when using <code>npm install</code>:</p>
-<pre lang="bash"><code>npm diff --diff=https://github.com/npm/libnpmdiff --diff=./local-path
+<pre><code class="language-bash">npm diff --diff=https://github.com/npm/libnpmdiff --diff=./local-path
 </code></pre>
 <p>In the example above we can compare the contents from the package installed
 from the git repo at <code>github.com/npm/libnpmdiff</code> with the contents of the
@@ -209,7 +209,7 @@ version is known <code>npm diff</code> will print diff patches comparing the
 current version of <code>&lt;pkg-name&gt;</code> found in the local file system with
 that specific version returned by the registry.</p>
 <p>Given a package named <code>abbrev</code> that is currently installed:</p>
-<pre lang="bash"><code>npm diff --diff=abbrev
+<pre><code class="language-bash">npm diff --diff=abbrev
 </code></pre>
 <p>That will request from the registry its most up to date version and
 will print a diff output comparing the currently installed version to this
@@ -223,7 +223,7 @@ of an installed package with the specific version/tag/semver-range provided
 in <code>&lt;spec-a&gt;</code>.</p>
 <p>An example: assuming <code>pkg@1.0.0</code> is installed in the current <code>node_modules</code>
 folder, running:</p>
-<pre lang="bash"><code>npm diff --diff=pkg@2.0.0
+<pre><code class="language-bash">npm diff --diff=pkg@2.0.0
 </code></pre>
 <p>It will effectively be an alias to
 <code>npm diff --diff=pkg@1.0.0 --diff=pkg@2.0.0</code>.</p>
@@ -239,7 +239,7 @@ to compare different versions of the current package.</p>
 file system is going to be compared against that version.</p>
 <p>Here's an example comparing two specific versions (published to the
 configured registry) of the current project directory:</p>
-<pre lang="bash"><code>npm diff --diff=1.0.0 --diff=1.1.0
+<pre><code class="language-bash">npm diff --diff=1.0.0 --diff=1.1.0
 </code></pre>
 </li>
 </ul>
@@ -249,7 +249,7 @@ compare to a published tag, you must use the <code>pkg@tagname</code> syntax.</p
 <p>It's possible to also specify positional arguments using file names or globs
 pattern matching in order to limit the result of diff patches to only a subset
 of files for a given package, e.g:</p>
-<pre lang="bash"><code>npm diff --diff=pkg@2 ./lib/ CHANGELOG.md
+<pre><code class="language-bash">npm diff --diff=pkg@2 ./lib/ CHANGELOG.md
 </code></pre>
 <p>In the example above the diff output is only going to print contents of files
 located within the folder <code>./lib/</code> and changed lines of code within the
@@ -381,8 +381,7 @@ the specified workspaces, and not on the root project.</p>
 <li><a href="../commands/npm-install.html">npm install</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-diff.md">

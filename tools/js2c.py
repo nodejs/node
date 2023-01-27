@@ -57,8 +57,14 @@ namespace builtins {{
 
 {0}
 
+namespace {{
+const ThreadsafeCopyOnWrite<BuiltinSourceMap> global_source_map {{
+  BuiltinSourceMap{{ {1} }}
+}};
+}}
+
 void BuiltinLoader::LoadJavaScriptSource() {{
-  {1}
+  source_ = global_source_map;
 }}
 
 UnionBytes BuiltinLoader::GetConfig() {{
@@ -82,7 +88,7 @@ static const uint16_t {0}[] = {{
 }};
 """
 
-INITIALIZER = 'source_.emplace("{0}", UnionBytes{{{1}, {2}}});'
+INITIALIZER = '{{"{0}", UnionBytes{{{1}, {2}}} }},'
 
 CONFIG_GYPI_ID = 'config_raw'
 

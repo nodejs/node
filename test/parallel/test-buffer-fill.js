@@ -429,3 +429,18 @@ assert.throws(() => {
   code: 'ERR_INVALID_ARG_VALUE',
   name: 'TypeError'
 });
+
+
+{
+  const bufEmptyString = Buffer.alloc(5, '');
+  assert.strictEqual(bufEmptyString.toString(), '\x00\x00\x00\x00\x00');
+
+  const bufEmptyArray = Buffer.alloc(5, []);
+  assert.strictEqual(bufEmptyArray.toString(), '\x00\x00\x00\x00\x00');
+
+  const bufEmptyBuffer = Buffer.alloc(5, Buffer.alloc(5));
+  assert.strictEqual(bufEmptyBuffer.toString(), '\x00\x00\x00\x00\x00');
+
+  const bufZero = Buffer.alloc(5, 0);
+  assert.strictEqual(bufZero.toString(), '\x00\x00\x00\x00\x00');
+}

@@ -235,9 +235,9 @@ assert.strictEqual(newObject.test_string, 'test string');
   // i.e.: includes prototypes, only enumerable properties, skips symbols,
   // and includes indices and converts them to strings.
 
-  const object = Object.create({
+  const object = { __proto__: {
     inherited: 1
-  });
+  } };
 
   const fooSymbol = Symbol('foo');
 

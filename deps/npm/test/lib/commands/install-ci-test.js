@@ -23,6 +23,15 @@ const installCITest = new InstallCITest({
       testCalled = true
     }
   },
+  config: {
+    validate: () => {},
+    get: (key) => {
+      if (key === 'location') {
+        return 'project'
+      }
+    },
+    isDefault: () => {},
+  },
 })
 
 t.test('the install-ci-test command', t => {

@@ -56,9 +56,13 @@ static std::atomic_int seq = {0};  // Sequence number for diagnostic filenames.
 namespace node {
 
 using v8::ArrayBufferView;
+using v8::Context;
+using v8::FunctionTemplate;
 using v8::Isolate;
 using v8::Local;
+using v8::Object;
 using v8::String;
+using v8::Template;
 using v8::Value;
 
 template <typename T>
@@ -356,6 +360,23 @@ void SetMethod(Local<v8::Context> context,
   function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
 }
 
+void SetMethod(v8::Isolate* isolate,
+               v8::Local<v8::Template> that,
+               const char* name,
+               v8::FunctionCallback callback) {
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name, type).ToLocalChecked();
+  that->Set(name_string, t);
+}
+
 void SetFastMethod(Local<v8::Context> context,
                    Local<v8::Object> that,
                    const char* name,
@@ -465,14 +486,95 @@ void SetConstructorFunction(Local<v8::Context> context,
       context, that, OneByteString(isolate, name), tmpl, flag);
 }
 
-void SetConstructorFunction(Local<v8::Context> context,
-                            Local<v8::Object> that,
-                            Local<v8::String> name,
-                            Local<v8::FunctionTemplate> tmpl,
+void SetConstructorFunction(Local<Context> context,
+                            Local<Object> that,
+                            Local<String> name,
+                            Local<FunctionTemplate> tmpl,
                             SetConstructorFunctionFlag flag) {
   if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
     tmpl->SetClassName(name);
   that->Set(context, name, tmpl->GetFunction(context).ToLocalChecked()).Check();
+}
+
+void SetConstructorFunction(Isolate* isolate,
+                            Local<Template> that,
+                            const char* name,
+                            Local<FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag) {
+  SetConstructorFunction(
+      isolate, that, OneByteString(isolate, name), tmpl, flag);
+}
+
+void SetConstructorFunction(Isolate* isolate,
+                            Local<Template> that,
+                            Local<String> name,
+                            Local<FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag) {
+  if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
+    tmpl->SetClassName(name);
+  that->Set(name, tmpl);
+}
+
+namespace {
+
+class NonOwningExternalOneByteResource
+    : public v8::String::ExternalOneByteStringResource {
+ public:
+  explicit NonOwningExternalOneByteResource(const UnionBytes& source)
+      : source_(source) {}
+  ~NonOwningExternalOneByteResource() override = default;
+
+  const char* data() const override {
+    return reinterpret_cast<const char*>(source_.one_bytes_data());
+  }
+  size_t length() const override { return source_.length(); }
+
+  NonOwningExternalOneByteResource(const NonOwningExternalOneByteResource&) =
+      delete;
+  NonOwningExternalOneByteResource& operator=(
+      const NonOwningExternalOneByteResource&) = delete;
+
+ private:
+  const UnionBytes source_;
+};
+
+class NonOwningExternalTwoByteResource
+    : public v8::String::ExternalStringResource {
+ public:
+  explicit NonOwningExternalTwoByteResource(const UnionBytes& source)
+      : source_(source) {}
+  ~NonOwningExternalTwoByteResource() override = default;
+
+  const uint16_t* data() const override { return source_.two_bytes_data(); }
+  size_t length() const override { return source_.length(); }
+
+  NonOwningExternalTwoByteResource(const NonOwningExternalTwoByteResource&) =
+      delete;
+  NonOwningExternalTwoByteResource& operator=(
+      const NonOwningExternalTwoByteResource&) = delete;
+
+ private:
+  const UnionBytes source_;
+};
+
+}  // anonymous namespace
+
+Local<String> UnionBytes::ToStringChecked(Isolate* isolate) const {
+  if (UNLIKELY(length() == 0)) {
+    // V8 requires non-null data pointers for empty external strings,
+    // but we don't guarantee that. Solve this by not creating an
+    // external string at all in that case.
+    return String::Empty(isolate);
+  }
+  if (is_one_byte()) {
+    NonOwningExternalOneByteResource* source =
+        new NonOwningExternalOneByteResource(*this);
+    return String::NewExternalOneByte(isolate, source).ToLocalChecked();
+  } else {
+    NonOwningExternalTwoByteResource* source =
+        new NonOwningExternalTwoByteResource(*this);
+    return String::NewExternalTwoByte(isolate, source).ToLocalChecked();
+  }
 }
 
 }  // namespace node

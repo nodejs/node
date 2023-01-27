@@ -28,7 +28,7 @@ const runScriptPkg = async options => {
     stdio = 'pipe',
     pkg,
     args = [],
-    stdioString = false,
+    stdioString,
     // note: only used when stdio:inherit
     banner = true,
     // how long to wait for a process.kill signal

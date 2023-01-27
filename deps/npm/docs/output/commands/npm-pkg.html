@@ -146,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm pkg set &lt;key&gt;=&lt;value&gt; [&lt;key&gt;=&lt;value&gt; ...]
+<pre><code class="language-bash">npm pkg set &lt;key&gt;=&lt;value&gt; [&lt;key&gt;=&lt;value&gt; ...]
 npm pkg get [&lt;key&gt; [&lt;key&gt; ...]]
 npm pkg delete &lt;key&gt; [&lt;key&gt; ...]
 npm pkg set [&lt;array&gt;[&lt;index&gt;].&lt;key&gt;=&lt;value&gt; ...]
@@ -167,29 +167,29 @@ from the registry manifest, below you can find more examples on how to use it.</
 <p>Retrieves a value <code>key</code>, defined in your <code>package.json</code> file.</p>
 <p>For example, in order to retrieve the name of the current package, you
 can run:</p>
-<pre lang="bash"><code>npm pkg get name
+<pre><code class="language-bash">npm pkg get name
 </code></pre>
 <p>It's also possible to retrieve multiple values at once:</p>
-<pre lang="bash"><code>npm pkg get name version
+<pre><code class="language-bash">npm pkg get name version
 </code></pre>
 <p>You can view child fields by separating them with a period. To retrieve
 the value of a test <code>script</code> value, you would run the following command:</p>
-<pre lang="bash"><code>npm pkg get scripts.test
+<pre><code class="language-bash">npm pkg get scripts.test
 </code></pre>
 <p>For fields that are arrays, requesting a non-numeric field will return
 all of the values from the objects in the list. For example, to get all
 the contributor emails for a package, you would run:</p>
-<pre lang="bash"><code>npm pkg get contributors.email
+<pre><code class="language-bash">npm pkg get contributors.email
 </code></pre>
 <p>You may also use numeric indices in square braces to specifically select
 an item in an array field. To just get the email address of the first
 contributor in the list, you can run:</p>
-<pre lang="bash"><code>npm pkg get contributors[0].email
+<pre><code class="language-bash">npm pkg get contributors[0].email
 </code></pre>
 <p>For complex fields you can also name a property in square brackets
 to specifically select a child field. This is especially helpful
 with the exports object:</p>
-<pre lang="bash"><code>npm pkg get "exports[.].require"
+<pre><code class="language-bash">npm pkg get "exports[.].require"
 </code></pre>
 </li>
 <li>
@@ -205,26 +205,26 @@ examples of how the dot separated syntax can be used to edit your
 <code>package.json</code> file.</p>
 <p>Defining a new bin named <code>mynewcommand</code> in your <code>package.json</code> that points
 to a file <code>cli.js</code>:</p>
-<pre lang="bash"><code>npm pkg set bin.mynewcommand=cli.js
+<pre><code class="language-bash">npm pkg set bin.mynewcommand=cli.js
 </code></pre>
 <p>Setting multiple fields at once is also possible:</p>
-<pre lang="bash"><code>npm pkg set description='Awesome package' engines.node='&gt;=10'
+<pre><code class="language-bash">npm pkg set description='Awesome package' engines.node='&gt;=10'
 </code></pre>
 <p>It's also possible to add to array values, for example to add a new
 contributor entry:</p>
-<pre lang="bash"><code>npm pkg set contributors[0].name='Foo' contributors[0].email='foo@bar.ca'
+<pre><code class="language-bash">npm pkg set contributors[0].name='Foo' contributors[0].email='foo@bar.ca'
 </code></pre>
 <p>You may also append items to the end of an array using the special
 empty bracket notation:</p>
-<pre lang="bash"><code>npm pkg set contributors[].name='Foo' contributors[].name='Bar'
+<pre><code class="language-bash">npm pkg set contributors[].name='Foo' contributors[].name='Bar'
 </code></pre>
 <p>It's also possible to parse values as json prior to saving them to your
 <code>package.json</code> file, for example in order to set a <code>"private": true</code>
 property:</p>
-<pre lang="bash"><code>npm pkg set private=true --json
+<pre><code class="language-bash">npm pkg set private=true --json
 </code></pre>
 <p>It also enables saving values as numbers:</p>
-<pre lang="bash"><code>npm pkg set tap.timeout=60 --json
+<pre><code class="language-bash">npm pkg set tap.timeout=60 --json
 </code></pre>
 </li>
 <li>
@@ -233,16 +233,17 @@ property:</p>
 <p>The same syntax used to set values from your package can also be used
 to remove existing ones. For example, in order to remove a script named
 build:</p>
-<pre lang="bash"><code>npm pkg delete scripts.build
+<pre><code class="language-bash">npm pkg delete scripts.build
 </code></pre>
 </li>
 </ul>
 <h3 id="workspaces-support">Workspaces support</h3>
 <p>You can set/get/delete items across your configured workspaces by using the
-<code>workspace</code> or <code>workspaces</code> config options.</p>
+<a href="../using-npm/config#workspace.html"><code>workspace</code></a> or
+<a href="../using-npm/config#workspaces.html"><code>workspaces</code></a> config options.</p>
 <p>For example, setting a <code>funding</code> value across all configured workspaces
 of a project:</p>
-<pre lang="bash"><code>npm pkg set funding=https://example.com --ws
+<pre><code class="language-bash">npm pkg set funding=https://example.com --ws
 </code></pre>
 <p>When using <code>npm pkg get</code> to retrieve info from your configured workspaces, the
 returned result will be in a json format in which top level keys are the
@@ -339,8 +340,7 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../commands/npm-set-script.html">npm set-script</a></li>
 <li><a href="../using-npm/workspaces.html">workspaces</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-pkg.md">

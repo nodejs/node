@@ -166,7 +166,7 @@ class Edge {
   }
 
   get spec () {
-    if (this.overrides && this.overrides.value && this.overrides.name === this.name) {
+    if (this.overrides?.value && this.overrides.value !== '*' && this.overrides.name === this.name) {
       if (this.overrides.value.startsWith('$')) {
         const ref = this.overrides.value.slice(1)
         // we may be a virtual root, if we are we want to resolve reference overrides
