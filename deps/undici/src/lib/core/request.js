@@ -65,6 +65,7 @@ class Request {
     upgrade,
     headersTimeout,
     bodyTimeout,
+    reset,
     throwOnError
   }, handler) {
     if (typeof path !== 'string') {
@@ -95,6 +96,10 @@ class Request {
 
     if (bodyTimeout != null && (!Number.isFinite(bodyTimeout) || bodyTimeout < 0)) {
       throw new InvalidArgumentError('invalid bodyTimeout')
+    }
+
+    if (reset != null && typeof reset !== 'boolean') {
+      throw new InvalidArgumentError('invalid reset')
     }
 
     this.headersTimeout = headersTimeout
@@ -138,6 +143,8 @@ class Request {
       : idempotent
 
     this.blocking = blocking == null ? false : blocking
+
+    this.reset = reset == null ? null : reset
 
     this.host = null
 
@@ -271,8 +278,17 @@ class Request {
   }
 }
 
+function processHeaderValue (key, val) {
+  if (val && (typeof val === 'object' && !Array.isArray(val))) {
+    throw new InvalidArgumentError(`invalid ${key} header`)
+  } else if (headerCharRegex.exec(val) !== null) {
+    throw new InvalidArgumentError(`invalid ${key} header`)
+  }
+  return `${key}: ${val}\r\n`
+}
+
 function processHeader (request, key, val) {
-  if (val && typeof val === 'object') {
+  if (val && (typeof val === 'object' && !Array.isArray(val))) {
     throw new InvalidArgumentError(`invalid ${key} header`)
   } else if (val === undefined) {
     return
@@ -311,7 +327,12 @@ function processHeader (request, key, val) {
     key.length === 10 &&
     key.toLowerCase() === 'connection'
   ) {
-    throw new InvalidArgumentError('invalid connection header')
+    const value = val.toLowerCase()
+    if (value !== 'close' && value !== 'keep-alive') {
+      throw new InvalidArgumentError('invalid connection header')
+    } else if (value === 'close') {
+      request.reset = true
+    }
   } else if (
     key.length === 10 &&
     key.toLowerCase() === 'keep-alive'
@@ -329,10 +350,14 @@ function processHeader (request, key, val) {
     throw new NotSupportedError('expect header not supported')
   } else if (tokenRegExp.exec(key) === null) {
     throw new InvalidArgumentError('invalid header key')
-  } else if (headerCharRegex.exec(val) !== null) {
-    throw new InvalidArgumentError(`invalid ${key} header`)
   } else {
-    request.headers += `${key}: ${val}\r\n`
+    if (Array.isArray(val)) {
+      for (let i = 0; i < val.length; i++) {
+        request.headers += processHeaderValue(key, val[i])
+      }
+    } else {
+      request.headers += processHeaderValue(key, val)
+    }
   }
 }
 

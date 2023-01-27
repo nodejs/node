@@ -103,9 +103,14 @@ interface WebidlConverters {
   ['unsigned long long'] (V: unknown): number
 
   /**
+   * @see https://webidl.spec.whatwg.org/#es-unsigned-long
+   */
+  ['unsigned long'] (V: unknown): number
+
+  /**
    * @see https://webidl.spec.whatwg.org/#es-unsigned-short
    */
-  ['unsigned short'] (V: unknown): number
+  ['unsigned short'] (V: unknown, opts?: ConvertToIntOpts): number
 
   /**
    * @see https://webidl.spec.whatwg.org/#idl-ArrayBuffer
@@ -157,7 +162,7 @@ export interface Webidl {
    * @description Performs a brand-check on {@param V} to ensure it is a
    * {@param cls} object.
    */
-  brandCheck <Interface>(V: unknown, cls: Interface): asserts V is Interface
+  brandCheck <Interface>(V: unknown, cls: Interface, opts?: { strict?: boolean }): asserts V is Interface
 
   /**
    * @see https://webidl.spec.whatwg.org/#es-sequence
