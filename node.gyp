@@ -457,6 +457,7 @@
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/simdutf/simdutf.gyp:simdutf',
+        'deps/ada/ada.gyp:ada',
       ],
 
       'sources': [
@@ -976,6 +977,7 @@
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/simdutf/simdutf.gyp:simdutf',
+        'deps/ada/ada.gyp:ada',
       ],
 
       'includes': [
@@ -1072,6 +1074,7 @@
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/ada/ada.gyp:ada',
       ],
 
       'includes': [
@@ -1141,6 +1144,7 @@
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/ada/ada.gyp:ada',
       ],
 
       'includes': [
