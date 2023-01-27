@@ -348,7 +348,10 @@ class Request {
       if (signal.aborted) {
         ac.abort(signal.reason)
       } else {
-        const abort = () => ac.abort(signal.reason)
+        const acRef = new WeakRef(ac)
+        const abort = function () {
+          acRef.deref()?.abort(this.reason)
+        }
         signal.addEventListener('abort', abort, { once: true })
         requestFinalizer.register(this, { signal, abort })
       }

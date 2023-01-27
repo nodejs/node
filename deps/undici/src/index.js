@@ -24,6 +24,14 @@ const nodeVersion = process.versions.node.split('.')
 const nodeMajor = Number(nodeVersion[0])
 const nodeMinor = Number(nodeVersion[1])
 
+let hasCrypto
+try {
+  require('crypto')
+  hasCrypto = true
+} catch {
+  hasCrypto = false
+}
+
 Object.assign(Dispatcher.prototype, api)
 
 module.exports.Dispatcher = Dispatcher
@@ -117,6 +125,21 @@ if (nodeMajor > 16 || (nodeMajor === 16 && nodeMinor >= 8)) {
 
   module.exports.setGlobalOrigin = setGlobalOrigin
   module.exports.getGlobalOrigin = getGlobalOrigin
+}
+
+if (nodeMajor >= 16) {
+  const { deleteCookie, getCookies, getSetCookies, setCookie } = require('./lib/cookies')
+
+  module.exports.deleteCookie = deleteCookie
+  module.exports.getCookies = getCookies
+  module.exports.getSetCookies = getSetCookies
+  module.exports.setCookie = setCookie
+}
+
+if (nodeMajor >= 18 && hasCrypto) {
+  const { WebSocket } = require('./lib/websocket/websocket')
+
+  module.exports.WebSocket = WebSocket
 }
 
 module.exports.request = makeDispatcher(api.request)

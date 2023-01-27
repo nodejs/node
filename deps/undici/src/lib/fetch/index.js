@@ -56,8 +56,9 @@ const { Readable, pipeline } = require('stream')
 const { isErrored, isReadable } = require('../core/util')
 const { dataURLProcessor, serializeAMimeType } = require('./dataURL')
 const { TransformStream } = require('stream/web')
-const { getGlobalDispatcher } = require('../../index')
+const { getGlobalDispatcher } = require('../global')
 const { webidl } = require('./webidl')
+const { STATUS_CODES } = require('http')
 
 /** @type {import('buffer').resolveObjectURL} */
 let resolveObjectURL
@@ -1745,12 +1746,17 @@ async function httpNetworkFetch (
   }
 
   try {
-    const { body, status, statusText, headersList } = await dispatch({ body: requestBody })
+    // socket is only provided for websockets
+    const { body, status, statusText, headersList, socket } = await dispatch({ body: requestBody })
 
-    const iterator = body[Symbol.asyncIterator]()
-    fetchParams.controller.next = () => iterator.next()
+    if (socket) {
+      response = makeResponse({ status, statusText, headersList, socket })
+    } else {
+      const iterator = body[Symbol.asyncIterator]()
+      fetchParams.controller.next = () => iterator.next()
 
-    response = makeResponse({ status, statusText, headersList })
+      response = makeResponse({ status, statusText, headersList })
+    }
   } catch (err) {
     // 10. If aborted, then:
     if (err.name === 'AbortError') {
@@ -1934,7 +1940,10 @@ async function httpNetworkFetch (
 
   async function dispatch ({ body }) {
     const url = requestCurrentURL(request)
-    return new Promise((resolve, reject) => fetchParams.controller.dispatcher.dispatch(
+    /** @type {import('../..').Agent} */
+    const agent = fetchParams.controller.dispatcher
+
+    return new Promise((resolve, reject) => agent.dispatch(
       {
         path: url.pathname + url.search,
         origin: url.origin,
@@ -1942,8 +1951,7 @@ async function httpNetworkFetch (
         body: fetchParams.controller.dispatcher.isMockActive ? request.body && request.body.source : body,
         headers: request.headersList[kHeadersCaseInsensitive],
         maxRedirections: 0,
-        bodyTimeout: 300_000,
-        headersTimeout: 300_000
+        upgrade: request.mode === 'websocket' ? 'websocket' : undefined
       },
       {
         body: null,
@@ -2062,6 +2070,30 @@ async function httpNetworkFetch (
           fetchParams.controller.terminate(error)
 
           reject(error)
+        },
+
+        onUpgrade (status, headersList, socket) {
+          if (status !== 101) {
+            return
+          }
+
+          const headers = new Headers()
+
+          for (let n = 0; n < headersList.length; n += 2) {
+            const key = headersList[n + 0].toString('latin1')
+            const val = headersList[n + 1].toString('latin1')
+
+            headers.append(key, val)
+          }
+
+          resolve({
+            status,
+            statusText: STATUS_CODES[status],
+            headersList: headers[kHeadersList],
+            socket
+          })
+
+          return true
         }
       }
     ))

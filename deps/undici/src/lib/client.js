@@ -404,8 +404,7 @@ async function lazyllhttp () {
 
 let llhttpInstance = null
 let llhttpPromise = lazyllhttp()
-  .catch(() => {
-  })
+llhttpPromise.catch()
 
 let currentParser = null
 let currentBufferRef = null
@@ -441,6 +440,7 @@ class Parser {
 
     this.keepAlive = ''
     this.contentLength = ''
+    this.connection = ''
     this.maxResponseSize = client[kMaxResponseSize]
   }
 
@@ -616,6 +616,8 @@ class Parser {
     const key = this.headers[len - 2]
     if (key.length === 10 && key.toString().toLowerCase() === 'keep-alive') {
       this.keepAlive += buf.toString()
+    } else if (key.length === 10 && key.toString().toLowerCase() === 'connection') {
+      this.connection += buf.toString()
     } else if (key.length === 14 && key.toString().toLowerCase() === 'content-length') {
       this.contentLength += buf.toString()
     }
@@ -709,7 +711,11 @@ class Parser {
     assert.strictEqual(this.timeoutType, TIMEOUT_HEADERS)
 
     this.statusCode = statusCode
-    this.shouldKeepAlive = shouldKeepAlive
+    this.shouldKeepAlive = (
+      shouldKeepAlive ||
+      // Override llhttp value which does not allow keepAlive for HEAD.
+      (request.method === 'HEAD' && !socket[kReset] && this.connection.toLowerCase() === 'keep-alive')
+    )
 
     if (this.statusCode >= 200) {
       const bodyTimeout = request.bodyTimeout != null
@@ -739,7 +745,7 @@ class Parser {
     this.headers = []
     this.headersSize = 0
 
-    if (shouldKeepAlive && client[kPipelining]) {
+    if (this.shouldKeepAlive && client[kPipelining]) {
       const keepAliveTimeout = this.keepAlive ? util.parseKeepAliveTimeout(this.keepAlive) : null
 
       if (keepAliveTimeout != null) {
@@ -769,7 +775,6 @@ class Parser {
     }
 
     if (request.method === 'HEAD') {
-      assert(socket[kReset])
       return 1
     }
 
@@ -843,6 +848,7 @@ class Parser {
     this.bytesRead = 0
     this.contentLength = ''
     this.keepAlive = ''
+    this.connection = ''
 
     assert(this.headers.length % 2 === 0)
     this.headers = []
@@ -1067,8 +1073,6 @@ async function connect (client) {
 
     assert(socket)
 
-    client[kSocket] = socket
-
     socket[kNoRef] = false
     socket[kWriting] = false
     socket[kReset] = false
@@ -1083,6 +1087,8 @@ async function connect (client) {
       .on('readable', onSocketReadable)
       .on('end', onSocketEnd)
       .on('close', onSocketClose)
+
+    client[kSocket] = socket
 
     if (channels.connected.hasSubscribers) {
       channels.connected.publish({
@@ -1169,7 +1175,7 @@ function _resume (client, sync) {
 
     const socket = client[kSocket]
 
-    if (socket) {
+    if (socket && !socket.destroyed) {
       if (client[kSize] === 0) {
         if (!socket[kNoRef] && socket.unref) {
           socket.unref()
@@ -1236,7 +1242,7 @@ function _resume (client, sync) {
 
     if (!socket) {
       connect(client)
-      continue
+      return
     }
 
     if (socket.destroyed || socket[kWriting] || socket[kReset] || socket[kBlocking]) {
@@ -1295,7 +1301,7 @@ function _resume (client, sync) {
 }
 
 function write (client, request) {
-  const { body, method, path, host, upgrade, headers, blocking } = request
+  const { body, method, path, host, upgrade, headers, blocking, reset } = request
 
   // https://tools.ietf.org/html/rfc7231#section-4.3.1
   // https://tools.ietf.org/html/rfc7231#section-4.3.2
@@ -1363,7 +1369,6 @@ function write (client, request) {
 
   if (method === 'HEAD') {
     // https://github.com/mcollina/undici/issues/258
-
     // Close after a HEAD request to interop with misbehaving servers
     // that may send a body in the response.
 
@@ -1375,6 +1380,10 @@ function write (client, request) {
     // requests on this connection.
 
     socket[kReset] = true
+  }
+
+  if (reset != null) {
+    socket[kReset] = reset
   }
 
   if (client[kMaxRequests] && socket[kCounter]++ >= client[kMaxRequests]) {
@@ -1395,7 +1404,7 @@ function write (client, request) {
 
   if (upgrade) {
     header += `connection: upgrade\r\nupgrade: ${upgrade}\r\n`
-  } else if (client[kPipelining]) {
+  } else if (client[kPipelining] && !socket[kReset]) {
     header += 'connection: keep-alive\r\n'
   } else {
     header += 'connection: close\r\n'

@@ -111,6 +111,8 @@ declare namespace Dispatcher {
     headersTimeout?: number | null;
     /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use 0 to disable it entirely. Defaults to 30 seconds. */
     bodyTimeout?: number | null;
+    /** Whether the request should stablish a keep-alive or not. Default `false` */
+    reset?: boolean;
     /** Whether Undici should throw an error upon receiving a 4xx or 5xx response from the server. Defaults to false */
     throwOnError?: boolean;
   }

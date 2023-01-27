@@ -805,48 +805,32 @@ function iteratorResult (pair, kind) {
 /**
  * @see https://fetch.spec.whatwg.org/#body-fully-read
  */
-async function fullyReadBody (body, processBody, processBodyError) {
+function fullyReadBody (body, processBody, processBodyError) {
   // 1. If taskDestination is null, then set taskDestination to
   //    the result of starting a new parallel queue.
 
-  // 2. Let promise be the result of fully reading body as promise
-  //    given body.
+  // 2. Let successSteps given a byte sequence bytes be to queue a
+  //    fetch task to run processBody given bytes, with taskDestination.
+  const successSteps = (bytes) => queueMicrotask(() => processBody(bytes))
+
+  // 3. Let errorSteps be to queue a fetch task to run processBodyError,
+  //    with taskDestination.
+  const errorSteps = (error) => queueMicrotask(() => processBodyError(error))
+
+  // 4. Let reader be the result of getting a reader for body’s stream.
+  //    If that threw an exception, then run errorSteps with that
+  //    exception and return.
+  let reader
+
   try {
-    /** @type {Uint8Array[]} */
-    const chunks = []
-    let length = 0
-
-    const reader = body.stream.getReader()
-
-    while (true) {
-      const { done, value } = await reader.read()
-
-      if (done === true) {
-        break
-      }
-
-      // read-loop chunk steps
-      assert(isUint8Array(value))
-
-      chunks.push(value)
-      length += value.byteLength
-    }
-
-    // 3. Let fulfilledSteps given a byte sequence bytes be to queue
-    //    a fetch task to run processBody given bytes, with
-    //    taskDestination.
-    const fulfilledSteps = (bytes) => queueMicrotask(() => {
-      processBody(bytes)
-    })
-
-    fulfilledSteps(Buffer.concat(chunks, length))
-  } catch (err) {
-    // 4. Let rejectedSteps be to queue a fetch task to run
-    //    processBodyError, with taskDestination.
-    queueMicrotask(() => processBodyError(err))
+    reader = body.stream.getReader()
+  } catch (e) {
+    errorSteps(e)
+    return
   }
 
-  // 5. React to promise with fulfilledSteps and rejectedSteps.
+  // 5. Read all bytes from reader, given successSteps and errorSteps.
+  readAllBytes(reader, successSteps, errorSteps)
 }
 
 /** @type {ReadableStream} */
@@ -909,6 +893,50 @@ function isomorphicEncode (input) {
   //    point length and whose bytes have the same values as the
   //    values of input’s code points, in the same order
   return input
+}
+
+/**
+ * @see https://streams.spec.whatwg.org/#readablestreamdefaultreader-read-all-bytes
+ * @see https://streams.spec.whatwg.org/#read-loop
+ * @param {ReadableStreamDefaultReader} reader
+ * @param {(bytes: Uint8Array) => void} successSteps
+ * @param {(error: Error) => void} failureSteps
+ */
+async function readAllBytes (reader, successSteps, failureSteps) {
+  const bytes = []
+  let byteLength = 0
+
+  while (true) {
+    let done
+    let chunk
+
+    try {
+      ({ done, value: chunk } = await reader.read())
+    } catch (e) {
+      // 1. Call failureSteps with e.
+      failureSteps(e)
+      return
+    }
+
+    if (done) {
+      // 1. Call successSteps with bytes.
+      successSteps(Buffer.concat(bytes, byteLength))
+      return
+    }
+
+    // 1. If chunk is not a Uint8Array object, call failureSteps
+    //    with a TypeError and abort these steps.
+    if (!isUint8Array(chunk)) {
+      failureSteps(new TypeError('Received non-Uint8Array chunk'))
+      return
+    }
+
+    // 2. Append the bytes represented by chunk to bytes.
+    bytes.push(chunk)
+    byteLength += chunk.length
+
+    // 3. Read-loop given reader, bytes, successSteps, and failureSteps.
+  }
 }
 
 /**

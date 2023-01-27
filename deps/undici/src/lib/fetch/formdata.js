@@ -259,7 +259,7 @@ function makeEntry (name, value, filename) {
         lastModified: value.lastModified
       }
 
-      value = value instanceof File
+      value = (NativeFile && value instanceof NativeFile) || value instanceof UndiciFile
         ? new File([value], filename, options)
         : new FileLike(value, filename, options)
     }

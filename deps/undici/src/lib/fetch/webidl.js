@@ -33,9 +33,11 @@ webidl.errors.invalidArgument = function (context) {
 }
 
 // https://webidl.spec.whatwg.org/#implements
-webidl.brandCheck = function (V, I) {
-  if (!(V instanceof I)) {
+webidl.brandCheck = function (V, I, opts = undefined) {
+  if (opts?.strict !== false && !(V instanceof I)) {
     throw new TypeError('Illegal invocation')
+  } else {
+    return V?.[Symbol.toStringTag] === I.prototype[Symbol.toStringTag]
   }
 }
 
@@ -472,10 +474,20 @@ webidl.converters['unsigned long long'] = function (V) {
   return x
 }
 
+// https://webidl.spec.whatwg.org/#es-unsigned-long
+webidl.converters['unsigned long'] = function (V) {
+  // 1. Let x be ? ConvertToInt(V, 32, "unsigned").
+  const x = webidl.util.ConvertToInt(V, 32, 'unsigned')
+
+  // 2. Return the IDL unsigned long value that
+  //    represents the same numeric value as x.
+  return x
+}
+
 // https://webidl.spec.whatwg.org/#es-unsigned-short
-webidl.converters['unsigned short'] = function (V) {
+webidl.converters['unsigned short'] = function (V, opts) {
   // 1. Let x be ? ConvertToInt(V, 16, "unsigned").
-  const x = webidl.util.ConvertToInt(V, 16, 'unsigned')
+  const x = webidl.util.ConvertToInt(V, 16, 'unsigned', opts)
 
   // 2. Return the IDL unsigned short value that represents
   //    the same numeric value as x.

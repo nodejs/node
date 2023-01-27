@@ -65,6 +65,9 @@ function fill (headers, object) {
 }
 
 class HeadersList {
+  /** @type {[string, string][]|null} */
+  cookies = null
+
   constructor (init) {
     if (init instanceof HeadersList) {
       this[kHeadersMap] = new Map(init[kHeadersMap])
@@ -105,12 +108,21 @@ class HeadersList {
     } else {
       this[kHeadersMap].set(lowercaseName, { name, value })
     }
+
+    if (lowercaseName === 'set-cookie') {
+      this.cookies ??= []
+      this.cookies.push([name, value])
+    }
   }
 
   // https://fetch.spec.whatwg.org/#concept-header-list-set
   set (name, value) {
     this[kHeadersSortedMap] = null
     const lowercaseName = name.toLowerCase()
+
+    if (lowercaseName === 'set-cookie') {
+      this.cookies = [[name, value]]
+    }
 
     // 1. If list contains name, then set the value of
     //    the first such header to value and remove the
@@ -124,6 +136,11 @@ class HeadersList {
     this[kHeadersSortedMap] = null
 
     name = name.toLowerCase()
+
+    if (name === 'set-cookie') {
+      this.cookies = null
+    }
+
     return this[kHeadersMap].delete(name)
   }
 

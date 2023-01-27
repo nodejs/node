@@ -354,8 +354,23 @@ function ReadableStreamFrom (iterable) {
   )
 }
 
+// The chunk should be a FormData instance and contains
+// all the required methods.
 function isFormDataLike (chunk) {
-  return chunk && chunk.constructor && chunk.constructor.name === 'FormData'
+  return (chunk &&
+    chunk.constructor && chunk.constructor.name === 'FormData' &&
+    typeof chunk === 'object' &&
+      (typeof chunk.append === 'function' &&
+        typeof chunk.delete === 'function' &&
+        typeof chunk.get === 'function' &&
+        typeof chunk.getAll === 'function' &&
+        typeof chunk.has === 'function' &&
+        typeof chunk.set === 'function' &&
+        typeof chunk.entries === 'function' &&
+        typeof chunk.keys === 'function' &&
+        typeof chunk.values === 'function' &&
+        typeof chunk.forEach === 'function')
+  )
 }
 
 const kEnumerableProperty = Object.create(null)
