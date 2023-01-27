@@ -250,13 +250,13 @@ of the current working directory.</li>
 <h4 id="install-strategy"><code>install-strategy</code></h4>
 <ul>
 <li>Default: "hoisted"</li>
-<li>Type: "hoisted", "nested", or "shallow"</li>
+<li>Type: "hoisted", "nested", "shallow", or "linked"</li>
 </ul>
 <p>Sets the strategy for installing packages in node_modules. hoisted
 (default): Install non-duplicated in top-level, and duplicated as necessary
 within directory structure. nested: (formerly --legacy-bundling) install in
 place, no hoisting. shallow (formerly --global-style) only install direct
-deps at top-level. linked: (coming soon) install in node_modules/.store,
+deps at top-level. linked: (experimental) install in node_modules/.store,
 link in place, unhoisted.</p>
 <h4 id="legacy-bundling"><code>legacy-bundling</code></h4>
 <ul>

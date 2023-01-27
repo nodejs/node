@@ -1232,6 +1232,7 @@ This is a one-time fix-up, please be patient...
     const isWorkspace = this.idealTree.workspaces && this.idealTree.workspaces.has(spec.name)
 
     // spec is a directory, link it unless installLinks is set or it's a workspace
+    // TODO post arborist refactor, will need to check for installStrategy=linked
     if (spec.type === 'directory' && (isWorkspace || !installLinks)) {
       return this[_linkFromSpec](name, spec, parent, edge)
     }

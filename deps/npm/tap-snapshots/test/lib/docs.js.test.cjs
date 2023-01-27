@@ -1163,13 +1163,13 @@ workspaces.
 #### \`install-strategy\`
 
 * Default: "hoisted"
-* Type: "hoisted", "nested", or "shallow"
+* Type: "hoisted", "nested", "shallow", or "linked"
 
 Sets the strategy for installing packages in node_modules. hoisted
 (default): Install non-duplicated in top-level, and duplicated as necessary
 within directory structure. nested: (formerly --legacy-bundling) install in
 place, no hoisting. shallow (formerly --global-style) only install direct
-deps at top-level. linked: (coming soon) install in node_modules/.store,
+deps at top-level. linked: (experimental) install in node_modules/.store,
 link in place, unhoisted.
 
 #### \`json\`
@@ -2621,9 +2621,9 @@ npm ci
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-E|--save-exact] [-g|--global] [--install-strategy <hoisted|nested|shallow>]
-[--legacy-bundling] [--global-style]
-[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+[-E|--save-exact] [-g|--global]
+[--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
+[--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
@@ -2723,7 +2723,7 @@ Usage:
 npm dedupe
 
 Options:
-[--install-strategy <hoisted|nested|shallow>] [--legacy-bundling]
+[--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
 [--global-style] [--strict-peer-deps] [--no-package-lock]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
 [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
@@ -2994,7 +2994,7 @@ Usage:
 npm find-dupes
 
 Options:
-[--install-strategy <hoisted|nested|shallow>] [--legacy-bundling]
+[--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
 [--global-style] [--strict-peer-deps] [--no-package-lock]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
 [--no-audit] [--no-bin-links] [--no-fund]
@@ -3175,9 +3175,9 @@ npm install [<package-spec> ...]
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-E|--save-exact] [-g|--global] [--install-strategy <hoisted|nested|shallow>]
-[--legacy-bundling] [--global-style]
-[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+[-E|--save-exact] [-g|--global]
+[--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
+[--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
@@ -3222,9 +3222,9 @@ npm install-ci-test
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-E|--save-exact] [-g|--global] [--install-strategy <hoisted|nested|shallow>]
-[--legacy-bundling] [--global-style]
-[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+[-E|--save-exact] [-g|--global]
+[--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
+[--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
@@ -3269,9 +3269,9 @@ npm install-test [<package-spec> ...]
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-E|--save-exact] [-g|--global] [--install-strategy <hoisted|nested|shallow>]
-[--legacy-bundling] [--global-style]
-[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+[-E|--save-exact] [-g|--global]
+[--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
+[--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
@@ -3316,8 +3316,9 @@ npm link [<package-spec>]
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-E|--save-exact] [-g|--global] [--install-strategy <hoisted|nested|shallow>]
-[--legacy-bundling] [--global-style] [--strict-peer-deps] [--no-package-lock]
+[-E|--save-exact] [-g|--global]
+[--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
+[--global-style] [--strict-peer-deps] [--no-package-lock]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
 [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
@@ -4221,8 +4222,9 @@ npm update [<pkg>...]
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-g|--global] [--install-strategy <hoisted|nested|shallow>] [--legacy-bundling]
-[--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+[-g|--global] [--install-strategy <hoisted|nested|shallow|linked>]
+[--legacy-bundling] [--global-style]
+[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]

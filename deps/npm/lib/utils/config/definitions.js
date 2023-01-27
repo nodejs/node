@@ -1090,14 +1090,14 @@ define('install-links', {
 
 define('install-strategy', {
   default: 'hoisted',
-  type: ['hoisted', 'nested', 'shallow'],
+  type: ['hoisted', 'nested', 'shallow', 'linked'],
   description: `
     Sets the strategy for installing packages in node_modules.
     hoisted (default): Install non-duplicated in top-level, and duplicated as
       necessary within directory structure.
     nested: (formerly --legacy-bundling) install in place, no hoisting.
     shallow (formerly --global-style) only install direct deps at top-level.
-    linked: (coming soon) install in node_modules/.store, link in place,
+    linked: (experimental) install in node_modules/.store, link in place,
       unhoisted.
   `,
   flatten,

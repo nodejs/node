@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/arborist",
-  "version": "6.1.6",
+  "version": "6.2.0",
   "description": "Manage node_modules trees",
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",
@@ -39,16 +39,18 @@
   },
   "devDependencies": {
     "@npmcli/eslint-config": "^4.0.0",
-    "@npmcli/template-oss": "4.11.0",
+    "@npmcli/template-oss": "4.11.1",
     "benchmark": "^2.1.4",
     "chalk": "^4.1.0",
     "minify-registry-metadata": "^3.0.0",
     "nock": "^13.2.0",
     "tap": "^16.3.2",
+    "tar-stream": "^3.0.0",
     "tcompare": "^5.0.6"
   },
   "scripts": {
     "test": "tap",
+    "test-only": "tap --only",
     "posttest": "node ../.. run lint",
     "snap": "tap",
     "postsnap": "npm run lintfix",
@@ -100,7 +102,7 @@
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.11.0",
+    "version": "4.11.1",
     "content": "../../scripts/template-oss/index.js"
   }
 }
