@@ -144,6 +144,16 @@ jobs:
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
                 ./tools/dep_updaters/update-simdutf.sh "$NEW_VERSION"
               fi
+          - id: ada
+            subsystem: deps
+            label: dependencies
+            run: |
+              NEW_VERSION=$(gh api repos/ada-url/ada/releases/latest -q '.tag_name|ltrimstr("v")')
+              CURRENT_VERSION=$(grep "#define ADA_VERSION" ./deps/ada/ada.h | sed -n "s/^.*VERSION \(.*\)/\1/p")
+              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                ./tools/dep_updaters/update-ada.sh "$NEW_VERSION"
+              fi
     steps:
       - uses: actions/checkout@v3
         with:
