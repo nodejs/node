@@ -5,6 +5,12 @@ const { isValidHTTPToken, isomorphicDecode } = require('./util')
 
 const encoder = new TextEncoder()
 
+// Regex
+const HTTP_TOKEN_CODEPOINTS = /^[!#$%&'*+-.^_|~A-z0-9]+$/
+const HTTP_WHITESPACE_REGEX = /(\u000A|\u000D|\u0009|\u0020)/ // eslint-disable-line
+// https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
+const HTTP_QUOTED_STRING_TOKENS = /^(\u0009|\x{0020}-\x{007E}|\x{0080}-\x{00FF})+$/ // eslint-disable-line
+
 // https://fetch.spec.whatwg.org/#data-url-processor
 /** @param {URL} dataURL */
 function dataURLProcessor (dataURL) {
@@ -217,7 +223,7 @@ function parseMIMEType (input) {
   // 4. If type is the empty string or does not solely
   // contain HTTP token code points, then return failure.
   // https://mimesniff.spec.whatwg.org/#http-token-code-point
-  if (type.length === 0 || !/^[!#$%&'*+-.^_|~A-z0-9]+$/.test(type)) {
+  if (type.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(type)) {
     return 'failure'
   }
 
@@ -244,7 +250,7 @@ function parseMIMEType (input) {
 
   // 9. If subtype is the empty string or does not solely
   // contain HTTP token code points, then return failure.
-  if (subtype.length === 0 || !/^[!#$%&'*+-.^_|~A-z0-9]+$/.test(subtype)) {
+  if (subtype.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(subtype)) {
     return 'failure'
   }
 
@@ -258,9 +264,7 @@ function parseMIMEType (input) {
     /** @type {Map<string, string>} */
     parameters: new Map(),
     // https://mimesniff.spec.whatwg.org/#mime-type-essence
-    get essence () {
-      return `${this.type}/${this.subtype}`
-    }
+    essence: `${type}/${subtype}`
   }
 
   // 11. While position is not past the end of input:
@@ -272,7 +276,7 @@ function parseMIMEType (input) {
     // whitespace from input given position.
     collectASequenceOfCodePoints(
       // https://fetch.spec.whatwg.org/#http-whitespace
-      (char) => /(\u000A|\u000D|\u0009|\u0020)/.test(char), // eslint-disable-line
+      char => HTTP_WHITESPACE_REGEX.test(char),
       input,
       position
     )
@@ -355,9 +359,8 @@ function parseMIMEType (input) {
     // then set mimeType’s parameters[parameterName] to parameterValue.
     if (
       parameterName.length !== 0 &&
-      /^[!#$%&'*+-.^_|~A-z0-9]+$/.test(parameterName) &&
-      // https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
-      !/^(\u0009|\x{0020}-\x{007E}|\x{0080}-\x{00FF})+$/.test(parameterValue) &&  // eslint-disable-line
+      HTTP_TOKEN_CODEPOINTS.test(parameterName) &&
+      !HTTP_QUOTED_STRING_TOKENS.test(parameterValue) &&
       !mimeType.parameters.has(parameterName)
     ) {
       mimeType.parameters.set(parameterName, parameterValue)
