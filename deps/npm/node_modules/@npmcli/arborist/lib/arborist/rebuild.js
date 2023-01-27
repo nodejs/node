@@ -89,6 +89,7 @@ module.exports = cls => class Builder extends cls {
     const {
       depNodes,
       linkNodes,
+      storeNodes,
     } = this[_retrieveNodesByType](nodes)
 
     // build regular deps
@@ -98,6 +99,10 @@ module.exports = cls => class Builder extends cls {
     if (linkNodes.size) {
       this[_resetQueues]()
       await this[_build](linkNodes, { type: 'links' })
+    }
+    if (storeNodes.size) {
+      this[_resetQueues]()
+      await this[_build](storeNodes, { type: 'storelinks' })
     }
 
     process.emit('timeEnd', 'build')
@@ -130,9 +135,12 @@ module.exports = cls => class Builder extends cls {
   [_retrieveNodesByType] (nodes) {
     const depNodes = new Set()
     const linkNodes = new Set()
+    const storeNodes = new Set()
 
     for (const node of nodes) {
-      if (node.isLink) {
+      if (node.isStoreLink) {
+        storeNodes.add(node)
+      } else if (node.isLink) {
         linkNodes.add(node)
       } else {
         depNodes.add(node)
@@ -154,6 +162,7 @@ module.exports = cls => class Builder extends cls {
     return {
       depNodes,
       linkNodes,
+      storeNodes,
     }
   }
 

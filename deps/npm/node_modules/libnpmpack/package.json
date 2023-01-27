@@ -1,6 +1,6 @@
 {
   "name": "libnpmpack",
-  "version": "5.0.7",
+  "version": "5.0.8",
   "description": "Programmatic API for the bits behind npm pack",
   "author": "GitHub Inc.",
   "main": "lib/index.js",
@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "@npmcli/eslint-config": "^4.0.0",
-    "@npmcli/template-oss": "4.11.0",
+    "@npmcli/template-oss": "4.11.1",
     "nock": "^13.0.7",
     "spawk": "^1.7.1",
     "tap": "^16.3.2"
@@ -36,7 +36,7 @@
   "bugs": "https://github.com/npm/libnpmpack/issues",
   "homepage": "https://npmjs.com/package/libnpmpack",
   "dependencies": {
-    "@npmcli/arborist": "^6.1.6",
+    "@npmcli/arborist": "^6.2.0",
     "@npmcli/run-script": "^6.0.0",
     "npm-package-arg": "^10.1.0",
     "pacote": "^15.0.7"
@@ -46,7 +46,7 @@
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.11.0",
+    "version": "4.11.1",
     "content": "../../scripts/template-oss/index.js"
   },
   "tap": {

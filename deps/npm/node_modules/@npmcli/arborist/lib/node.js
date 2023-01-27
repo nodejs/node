@@ -91,6 +91,7 @@ class Node {
       installLinks = false,
       legacyPeerDeps = false,
       linksIn,
+      isInStore = false,
       hasShrinkwrap,
       overrides,
       loadOverrides = false,
@@ -113,6 +114,7 @@ class Node {
     this[_workspaces] = null
 
     this.errors = error ? [error] : []
+    this.isInStore = isInStore
 
     // this will usually be null, except when modeling a
     // package's dependencies in a virtual root.
