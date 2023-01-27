@@ -78,8 +78,8 @@ jobs:
                 ./tools/update-undici.sh
               fi
           - id: postject
-            subsystem: deps
-            label: dependencies
+            subsystem: test
+            label: test
             run: |
               NEW_VERSION=$(npm view postject dist-tags.latest)
               CURRENT_VERSION=$(node -p "require('./test/fixtures/postject-copy/node_modules/postject/package.json').version")
