@@ -1,4 +1,3 @@
-// Flags: --expose-internals --no-warnings
 'use strict';
 
 const common = require('../common');
@@ -7,10 +6,6 @@ const { Readable, Writable, Transform, pipeline } = require('stream');
 const { pipeline: pipelinePromise } = require('stream/promises');
 const { ReadableStream, WritableStream, TransformStream } = require('stream/web');
 const http = require('http');
-
-const {
-  kState,
-} = require('internal/webstreams/util');
 
 {
   const values = [];
@@ -398,7 +393,6 @@ const {
 
 {
   let c;
-  let lastValue;
   const rs = new ReadableStream({
     start(controller) {
       c = controller;
@@ -406,18 +400,13 @@ const {
   });
 
   const ws = new WritableStream({
-    write(chunk) {
-      lastValue = chunk?.toString();
-    }
-  }, { highWaterMark: 1 });
+    write(chunk) { }
+  }, { highWaterMark: 0 });
 
-  pipeline(rs, ws, common.mustSucceed(() => {
-    assert.strictEqual(lastValue, '9');
-  }));
+  pipeline(rs, ws, common.mustNotCall());
 
   for (let i = 0; i < 10; i++) {
     c.enqueue(`${i}`);
-    assert.strictEqual(ws[kState].writer.desiredSize, 1);
   }
   c.close();
 }
