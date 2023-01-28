@@ -33,7 +33,7 @@ const { inspect } = require('util');
 const { isMainThread } = require('worker_threads');
 
 const tmpdir = require('./tmpdir');
-const bits = ['arm64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x', 'x64']
+const bits = ['arm64', 'loong64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x', 'x64']
   .includes(process.arch) ? 64 : 32;
 const hasIntl = !!process.config.variables.v8_enable_i18n_support;
 
