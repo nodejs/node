@@ -122,9 +122,9 @@ TAP version 13
       failureType: 'testCodeFailure'
       error: |-
         Expected values to be strictly equal:
-        
+
         true !== false
-        
+
       code: 'ERR_ASSERTION'
       expected: false
       actual: true
@@ -345,8 +345,8 @@ TAP version 13
       ---
       duration_ms: *
       ...
-    # Subtest: escaped description \\ \# \\\#\\ n \\t f \\v b \\r
-    ok 37 - escaped description \\ \# \\\#\\ n \\t f \\v b \\r
+    # Subtest: escaped description \\ \# \\\#\\ \\n \\t \\f \\v \\b \\r
+    ok 37 - escaped description \\ \# \\\#\\ \\n \\t \\f \\v \\b \\r
       ---
       duration_ms: *
       ...
