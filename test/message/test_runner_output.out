@@ -346,8 +346,8 @@ ok 36 - functionAndOptions # SKIP
   ---
   duration_ms: *
   ...
-# Subtest: escaped description \\ \# \\\#\\ \n \t \f \v \b \r
-ok 37 - escaped description \\ \# \\\#\\ \n \t \f \v \b \r
+# Subtest: escaped description \\ \# \\\#\\ \\n \\t \\f \\v \\b \\r
+ok 37 - escaped description \\ \# \\\#\\ \\n \\t \\f \\v \\b \\r
   ---
   duration_ms: *
   ...
