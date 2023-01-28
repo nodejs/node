@@ -5129,7 +5129,7 @@ and binary data should be performed using `Buffer.from(str, 'base64')` and
 ### `buffer.isUtf8(input)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.14.0
 -->
 
 * input {Buffer | ArrayBuffer | TypedArray} The input to validate.

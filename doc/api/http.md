@@ -1503,7 +1503,7 @@ added:
  - v11.3.0
  - v10.14.0
 changes:
-  - version: REPLACEME
+  - version: v18.14.0
     pr-url: https://github.com/nodejs/node/pull/45778
     description: The default is now set to the minimum between 60000 (60 seconds) or `requestTimeout`.
 -->
@@ -2413,7 +2413,7 @@ as an argument to any listeners on the event.
 <!-- YAML
 added: v0.1.5
 changes:
-  - version: REPLACEME
+  - version: v18.14.0
     pr-url: https://github.com/nodejs/node/pull/45982
     description: >-
      The `joinDuplicateHeaders` option in the `http.request()`
@@ -3624,7 +3624,7 @@ request itself.
 <!-- YAML
 added: v14.3.0
 changes:
-  - version: REPLACEME
+  - version: v18.14.0
     pr-url: https://github.com/nodejs/node/pull/46143
     description: The `label` parameter is added.
 -->
