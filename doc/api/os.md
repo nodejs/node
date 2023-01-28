@@ -29,7 +29,9 @@ The operating system-specific end-of-line marker.
 ## `os.availableParallelism()`
 
 <!-- YAML
-added: v19.4.0
+added:
+  - v19.4.0
+  - v18.14.0
 -->
 
 * Returns: {integer}
