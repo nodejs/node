@@ -2341,9 +2341,7 @@ added: v15.2.0
 -->
 
 * `type` {string}
-
 * `arg` {any}
-
 * Returns: {boolean} `true` if event listeners registered for the `type` exist,
   otherwise `false`.
 
