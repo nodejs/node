@@ -27,6 +27,7 @@ const {
   rename,
   rmdir,
   stat,
+  statfs,
   symlink,
   truncate,
   unlink,
@@ -79,6 +80,19 @@ function verifyStatObject(stat) {
   assert.strictEqual(typeof stat, 'object');
   assert.strictEqual(typeof stat.dev, 'number');
   assert.strictEqual(typeof stat.mode, 'number');
+}
+
+function verifyStatFsObject(stat, isBigint = false) {
+  const valueType = isBigint ? 'bigint' : 'number';
+
+  assert.strictEqual(typeof stat, 'object');
+  assert.strictEqual(typeof stat.type, valueType);
+  assert.strictEqual(typeof stat.bsize, valueType);
+  assert.strictEqual(typeof stat.blocks, valueType);
+  assert.strictEqual(typeof stat.bfree, valueType);
+  assert.strictEqual(typeof stat.bavail, valueType);
+  assert.strictEqual(typeof stat.files, valueType);
+  assert.strictEqual(typeof stat.ffree, valueType);
 }
 
 async function getHandle(dest) {
@@ -135,6 +149,18 @@ async function executeOnHandle(dest, func) {
         await handle.datasync();
         await handle.sync();
       });
+    }
+
+    // File system stats
+    {
+      const statFs = await statfs(dest);
+      verifyStatFsObject(statFs);
+    }
+
+    // File system stats bigint
+    {
+      const statFs = await statfs(dest, { bigint: true });
+      verifyStatFsObject(statFs, true);
     }
 
     // Test fs.read promises when length to read is zero bytes

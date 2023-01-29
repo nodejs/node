@@ -40,12 +40,29 @@ enum class FsStatsOffset {
 constexpr size_t kFsStatsBufferLength =
     static_cast<size_t>(FsStatsOffset::kFsStatsFieldsNumber) * 2;
 
+enum class FsStatFsOffset {
+  kType = 0,
+  kBSize,
+  kBlocks,
+  kBFree,
+  kBAvail,
+  kFiles,
+  kFFree,
+  kFsStatFsFieldsNumber
+};
+
+constexpr size_t kFsStatFsBufferLength =
+    static_cast<size_t>(FsStatFsOffset::kFsStatFsFieldsNumber);
+
 class BindingData : public SnapshotableObject {
  public:
   explicit BindingData(Environment* env, v8::Local<v8::Object> wrap);
 
   AliasedFloat64Array stats_field_array;
   AliasedBigInt64Array stats_field_bigint_array;
+
+  AliasedFloat64Array statfs_field_array;
+  AliasedBigInt64Array statfs_field_bigint_array;
 
   std::vector<BaseObjectPtr<FileHandleReadWrap>>
       file_handle_read_wrap_freelist;
@@ -109,6 +126,7 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   virtual void Reject(v8::Local<v8::Value> reject) = 0;
   virtual void Resolve(v8::Local<v8::Value> value) = 0;
   virtual void ResolveStat(const uv_stat_t* stat) = 0;
+  virtual void ResolveStatFs(const uv_statfs_t* stat) = 0;
   virtual void SetReturnValue(
       const v8::FunctionCallbackInfo<v8::Value>& args) = 0;
 
@@ -165,6 +183,7 @@ class FSReqCallback final : public FSReqBase {
   void Reject(v8::Local<v8::Value> reject) override;
   void Resolve(v8::Local<v8::Value> value) override;
   void ResolveStat(const uv_stat_t* stat) override;
+  void ResolveStatFs(const uv_statfs_t* stat) override;
   void SetReturnValue(const v8::FunctionCallbackInfo<v8::Value>& args) override;
 
   SET_MEMORY_INFO_NAME(FSReqCallback)
@@ -184,6 +203,14 @@ inline v8::Local<v8::Value> FillGlobalStatsArray(BindingData* binding_data,
                                                  const uv_stat_t* s,
                                                  const bool second = false);
 
+template <typename NativeT, typename V8T>
+void FillStatFsArray(AliasedBufferBase<NativeT, V8T>* fields,
+                     const uv_statfs_t* s);
+
+inline v8::Local<v8::Value> FillGlobalStatFsArray(BindingData* binding_data,
+                                                  const bool use_bigint,
+                                                  const uv_statfs_t* s);
+
 template <typename AliasedBufferT>
 class FSReqPromise final : public FSReqBase {
  public:
@@ -194,6 +221,7 @@ class FSReqPromise final : public FSReqBase {
   inline void Reject(v8::Local<v8::Value> reject) override;
   inline void Resolve(v8::Local<v8::Value> value) override;
   inline void ResolveStat(const uv_stat_t* stat) override;
+  inline void ResolveStatFs(const uv_statfs_t* stat) override;
   inline void SetReturnValue(
       const v8::FunctionCallbackInfo<v8::Value>& args) override;
   inline void MemoryInfo(MemoryTracker* tracker) const override;
@@ -213,6 +241,7 @@ class FSReqPromise final : public FSReqBase {
 
   bool finished_ = false;
   AliasedBufferT stats_field_array_;
+  AliasedBufferT statfs_field_array_;
 };
 
 class FSReqAfterScope final {
