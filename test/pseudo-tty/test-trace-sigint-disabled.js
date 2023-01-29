@@ -14,7 +14,7 @@ if (process.env.CHILD === 'true') {
     ['--trace-sigint', __filename],
     {
       env: { ...process.env, CHILD: 'true' },
-      stdio: 'inherit'
+      stdio: 'inherit',
     });
   cp.on('exit', mustCall((code, signal) => {
     assert.strictEqual(signal, null);
