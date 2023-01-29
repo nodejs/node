@@ -2009,6 +2009,49 @@ if (process.getgroups) {
 This function is only available on POSIX platforms (i.e. not Windows or
 Android).
 
+## `process.getOptionValue(option)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `option` {string}
+* Returns: {any}
+
+The `process.getOptionValue()` method returns the parsed value of
+that command line option. This method respects [`NODE_OPTIONS`][] value.
+
+For example, assuming the following script for `process-getoptionvalue.js`:
+
+```mjs
+import process from 'node:process';
+
+console.log('--pending-deprecation:', process.getOptionValue('--pending-deprecation'));
+console.log('--conditions:', process.getOptionValue('--conditions'));
+```
+
+```cjs
+const process = require('node:process');
+
+console.log('--pending-deprecation:', process.getOptionValue('--pending-deprecation'));
+console.log('--conditions:', process.getOptionValue('--conditions'));
+```
+
+Launching the Node.js process as:
+
+```console
+$ node --pending-deprecation -C additional process-getoptionvalue.js
+```
+
+Would generate the output:
+
+```text
+--pending-deprecation: true
+--conditions: [ 'additional' ]
+```
+
 ## `process.getuid()`
 
 <!-- YAML
