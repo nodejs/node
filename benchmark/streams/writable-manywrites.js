@@ -8,7 +8,7 @@ const bench = common.createBenchmark(main, {
   sync: ['yes', 'no'],
   writev: ['yes', 'no'],
   callback: ['yes', 'no'],
-  len: [1024, 32 * 1024]
+  len: [1024, 32 * 1024],
 });
 
 function main({ n, sync, writev, callback, len }) {

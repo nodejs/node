@@ -5,7 +5,7 @@ const v8 = require('v8');
 
 const bench = common.createBenchmark(main, {
   len: [256, 1024 * 16, 1024 * 512],
-  n: [1e6]
+  n: [1e6],
 });
 
 function main({ n, len }) {

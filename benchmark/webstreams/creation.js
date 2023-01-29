@@ -9,7 +9,7 @@ const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   n: [50e3],
-  kind: ['ReadableStream', 'TransformStream', 'WritableStream']
+  kind: ['ReadableStream', 'TransformStream', 'WritableStream'],
 });
 
 let rs, ws, ts;
