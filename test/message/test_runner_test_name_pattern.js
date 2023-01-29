@@ -28,7 +28,7 @@ test('top level test enabled', common.mustCall(async (t) => {
   t.afterEach(common.mustCall());
   await t.test(
     'nested test runs because name includes PATTERN',
-    common.mustCall()
+    common.mustCall(),
   );
 }));
 
