@@ -23,7 +23,7 @@ async function main({ n, highWaterMarkR, highWaterMarkW }) {
       } else {
         controller.close();
       }
-    }
+    },
   });
   const ws = new WritableStream({
     highWaterMark: highWaterMarkW,

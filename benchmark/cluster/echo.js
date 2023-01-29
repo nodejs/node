@@ -8,7 +8,7 @@ if (cluster.isMaster) {
     payload: ['string', 'object'],
     sendsPerBroadcast: [1, 10],
     serialization: ['json', 'advanced'],
-    n: [1e5]
+    n: [1e5],
   });
 
   function main({
@@ -16,7 +16,7 @@ if (cluster.isMaster) {
     workers,
     sendsPerBroadcast,
     payload,
-    serialization
+    serialization,
   }) {
     const expectedPerBroadcast = sendsPerBroadcast * workers;
     let readies = 0;

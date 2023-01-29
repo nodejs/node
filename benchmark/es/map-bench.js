@@ -8,7 +8,7 @@ const bench = common.createBenchmark(main, {
     'object', 'nullProtoObject', 'nullProtoLiteralObject', 'storageObject',
     'fakeMap', 'map',
   ],
-  n: [1e6]
+  n: [1e6],
 });
 
 function runObject(n) {
@@ -72,7 +72,7 @@ function fakeMap() {
     get(key) { return m[`$${key}`]; },
     set(key, val) { m[`$${key}`] = val; },
     get size() { return Object.keys(m).length; },
-    has(key) { return Object.hasOwn(m, `$${key}`); }
+    has(key) { return Object.hasOwn(m, `$${key}`); },
   };
 }
 

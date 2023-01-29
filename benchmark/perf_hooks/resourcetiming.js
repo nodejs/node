@@ -18,7 +18,7 @@ function createTimingInfo({
   endTime = 0,
   encodedBodySize = 0,
   decodedBodySize = 0,
-  finalConnectionTimingInfo = null
+  finalConnectionTimingInfo = null,
 }) {
   if (finalConnectionTimingInfo !== null) {
     finalConnectionTimingInfo.domainLookupStartTime =
@@ -61,7 +61,7 @@ function test() {
     'http://localhost:8080',
     'fetch',
     {},
-    ''
+    '',
   );
 }
 

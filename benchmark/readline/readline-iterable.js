@@ -27,7 +27,7 @@ function getLoremIpsumStream(repetitions) {
   });
   let i = 0;
   readable._read = () => readable.push(
-    i++ >= repetitions ? null : loremIpsum
+    i++ >= repetitions ? null : loremIpsum,
   );
   return readable;
 }

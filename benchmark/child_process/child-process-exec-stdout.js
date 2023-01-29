@@ -9,7 +9,7 @@ if (!isWindows) messagesLength.push(32768);
 
 const bench = common.createBenchmark(childProcessExecStdout, {
   len: messagesLength,
-  dur: [5]
+  dur: [5],
 });
 
 function childProcessExecStdout({ dur, len }) {

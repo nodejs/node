@@ -5,7 +5,7 @@ const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   method: ['swap', 'destructure'],
-  n: [1e8]
+  n: [1e8],
 });
 
 function runSwapManual(n) {

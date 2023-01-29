@@ -5,7 +5,7 @@ const Readable = require('stream').Readable;
 
 const bench = common.createBenchmark(main, {
   n: [200e1],
-  type: ['string', 'buffer']
+  type: ['string', 'buffer'],
 });
 
 function main({ n, type }) {

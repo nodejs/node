@@ -5,11 +5,29 @@ env:
   es6: true
 
 rules:
-  comma-dangle: [error, {
-    arrays: always-multiline,
-    exports: always-multiline,
-    functions: only-multiline,
-    imports: always-multiline,
-    objects: only-multiline,
-  }]
   prefer-arrow-callback: error
+
+overrides:
+  - files:
+      - async_hooks/*.js
+      - buffers/*.js
+      - buffers-fill/*.js
+      - crypto/*.js
+      - fs/*.js
+      - http/*.js
+      - http2/*.js
+      - misc/*.js
+      - module/*.js
+      - net/*.js
+      - path/*.js
+      - process/*.js
+      - url/*.js
+      - util/*.js
+    rules:
+      comma-dangle: [error, {
+        arrays: always-multiline,
+        exports: always-multiline,
+        functions: only-multiline,
+        imports: always-multiline,
+        objects: only-multiline,
+      }]

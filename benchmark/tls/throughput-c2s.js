@@ -3,7 +3,7 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   dur: [5],
   type: ['buf', 'asc', 'utf'],
-  size: [100, 1024, 1024 * 1024, 4 * 1024 * 1024, 16 * 1024 * 1024]
+  size: [100, 1024, 1024 * 1024, 4 * 1024 * 1024, 16 * 1024 * 1024],
 });
 
 const fixtures = require('../../test/common/fixtures');

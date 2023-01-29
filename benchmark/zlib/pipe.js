@@ -7,12 +7,12 @@ const bench = common.createBenchmark(main, {
   inputLen: [1024],
   duration: [5],
   type: ['string', 'buffer'],
-  algorithm: ['gzip', 'brotli']
+  algorithm: ['gzip', 'brotli'],
 }, {
   test: {
     inputLen: 1024,
-    duration: 0.2
-  }
+    duration: 0.2,
+  },
 });
 
 function main({ inputLen, duration, type, algorithm }) {

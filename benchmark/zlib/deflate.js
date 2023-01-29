@@ -5,7 +5,7 @@ const zlib = require('zlib');
 const bench = common.createBenchmark(main, {
   method: ['createDeflate', 'deflate', 'deflateSync'],
   inputLen: [1024],
-  n: [4e5]
+  n: [4e5],
 });
 
 function main({ n, method, inputLen }) {

@@ -9,7 +9,7 @@ const {
 
 const bench = common.createBenchmark(main, {
   n: [1e6],
-  kind: ['duplex', 'readable', 'transform', 'writable']
+  kind: ['duplex', 'readable', 'transform', 'writable'],
 });
 
 function main({ n, kind }) {

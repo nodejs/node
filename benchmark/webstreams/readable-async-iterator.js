@@ -13,7 +13,7 @@ async function main({ n }) {
   const rs = new ReadableStream({
     pull: function(controller) {
       controller.enqueue(1);
-    }
+    },
   });
 
   let x = 0;
