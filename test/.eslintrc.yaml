@@ -83,7 +83,6 @@ overrides:
       - node-api/*/*.js
       - parallel/*.js
       - parallel/*.mjs
-      - pseudo-tty/*.js
       - pummel/*.js
       - sequential/*.js
       - sequential/*.mjs
