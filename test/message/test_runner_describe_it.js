@@ -270,7 +270,7 @@ it('custom inspect symbol fail', () => {
     [util.inspect.custom]() {
       return 'customized';
     },
-    foo: 1
+    foo: 1,
   };
 
   throw obj;
@@ -281,7 +281,7 @@ it('custom inspect symbol that throws fail', () => {
     [util.inspect.custom]() {
       throw new Error('bad-inspect');
     },
-    foo: 1
+    foo: 1,
   };
 
   throw obj;

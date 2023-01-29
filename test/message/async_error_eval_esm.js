@@ -31,7 +31,7 @@ main();
     '-e',
     main,
   ], {
-    env: { ...process.env }
+    env: { ...process.env },
   });
 
   if (child.status !== 0) {
