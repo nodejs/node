@@ -108,7 +108,7 @@ class Benchmark {
           cliOptions[key] = [];
         cliOptions[key].push(
           // Infer the type from the config object and parse accordingly
-          typeof configs[key][0] === 'number' ? +value : value
+          typeof configs[key][0] === 'number' ? +value : value,
         );
       } else {
         extraOptions[key] = value;
@@ -148,7 +148,7 @@ class Benchmark {
           const allowed = combinationFilter({ ...currConfig });
           if (typeof allowed !== 'boolean') {
             throw new TypeError(
-              'Combination filter must always return a boolean'
+              'Combination filter must always return a boolean',
             );
           }
           if (allowed)
@@ -183,7 +183,7 @@ class Benchmark {
         }
         this.config.benchmarker = used_benchmarker;
         this.report(result, elapsed);
-      }
+      },
     );
   }
 

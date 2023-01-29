@@ -6,7 +6,7 @@ const bench = common.createBenchmark(main, {
   encoding: ['ascii', 'utf8', 'base64-utf8', 'base64-ascii', 'utf16le'],
   inLen: [32, 128, 1024, 4096],
   chunkLen: [16, 64, 256, 1024],
-  n: [25e5]
+  n: [25e5],
 });
 
 const UTF8_ALPHA = 'Blåbærsyltetøy';

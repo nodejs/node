@@ -4,11 +4,11 @@
 const common = require('../common.js');
 
 const configs = {
-  n: [1024]
+  n: [1024],
 };
 
 const options = {
-  flags: ['--expose-internals']
+  flags: ['--expose-internals'],
 };
 
 const bench = common.createBenchmark(main, configs, options);
@@ -25,12 +25,12 @@ function main(conf) {
         integrity: `sha256-${hash(`// ./_${i}`, 'sha256')}`,
         dependencies: Object.fromEntries(Array.from({
           // Average 3 deps per 4 modules
-          length: Math.floor((i % 4) / 2)
+          length: Math.floor((i % 4) / 2),
         }, (_, ii) => {
           return [`_${ii}`, `./_${i - ii}`];
         })),
       }];
-    })
+    }),
   );
   const json = JSON.parse(JSON.stringify({ resources }), (_, o) => {
     if (o && typeof o === 'object') {
