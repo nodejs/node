@@ -208,7 +208,11 @@ by V8. Chrome DevTools Protocol domain provides an interface for interacting
 with one of the runtime agents used to inspect the application state and listen
 to the run-time events.
 
-## Example usage
+You can not set `reportProgress` to `true` when sending a
+`HeapProfiler.takeHeapSnapshot` or `HeapProfiler.stopTrackingHeapObjects`
+command to V8.
+
+#### Example usage
 
 Apart from the debugger, various V8 Profilers are available through the DevTools
 protocol.
