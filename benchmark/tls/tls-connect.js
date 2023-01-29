@@ -5,7 +5,7 @@ const tls = require('tls');
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   concurrency: [1, 10],
-  dur: [5]
+  dur: [5],
 });
 
 let clientConn = 0;
@@ -43,7 +43,7 @@ function onConnection(conn) {
 function makeConnection() {
   const options = {
     port: common.PORT,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   };
   const conn = tls.connect(options, () => {
     clientConn++;
