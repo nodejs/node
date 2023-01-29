@@ -208,15 +208,15 @@ function stringifyPosition(value) {
     return position(value)
   }
   if ('line' in value || 'column' in value) {
-    return point$1(value)
+    return point$2(value)
   }
   return ''
 }
-function point$1(point) {
+function point$2(point) {
   return index(point && point.line) + ':' + index(point && point.column)
 }
 function position(pos) {
-  return point$1(pos && pos.start) + '-' + point$1(pos && pos.end)
+  return point$2(pos && pos.start) + '-' + point$2(pos && pos.end)
 }
 function index(value) {
   return value && typeof value === 'number' ? value : 1
@@ -729,28 +729,33 @@ function looksLikeAVFileValue(value) {
   return typeof value === 'string' || isBuffer(value)
 }
 
-function toString(node, options) {
-  var {includeImageAlt = true} = options || {};
-  return one(node, includeImageAlt)
+function toString(value, options) {
+  const includeImageAlt = (options || {}).includeImageAlt;
+  return one(
+    value,
+    typeof includeImageAlt === 'boolean' ? includeImageAlt : true
+  )
 }
-function one(node, includeImageAlt) {
+function one(value, includeImageAlt) {
   return (
-    (node &&
-      typeof node === 'object' &&
-      (node.value ||
-        (includeImageAlt ? node.alt : '') ||
-        ('children' in node && all(node.children, includeImageAlt)) ||
-        (Array.isArray(node) && all(node, includeImageAlt)))) ||
+    (node(value) &&
+      (('value' in value && value.value) ||
+        (includeImageAlt && 'alt' in value && value.alt) ||
+        ('children' in value && all(value.children, includeImageAlt)))) ||
+    (Array.isArray(value) && all(value, includeImageAlt)) ||
     ''
   )
 }
 function all(values, includeImageAlt) {
-  var result = [];
-  var index = -1;
+  const result = [];
+  let index = -1;
   while (++index < values.length) {
     result[index] = one(values[index], includeImageAlt);
   }
   return result.join('')
+}
+function node(value) {
+  return Boolean(value && typeof value === 'object')
 }
 
 function splice(list, start, remove, items) {
@@ -6975,113 +6980,105 @@ const fromMarkdown =
       )
     )
   };
-function compiler(options = {}) {
-  const config = configure$1(
-    {
-      transforms: [],
-      canContainEols: [
-        'emphasis',
-        'fragment',
-        'heading',
-        'paragraph',
-        'strong'
-      ],
-      enter: {
-        autolink: opener(link),
-        autolinkProtocol: onenterdata,
-        autolinkEmail: onenterdata,
-        atxHeading: opener(heading),
-        blockQuote: opener(blockQuote),
-        characterEscape: onenterdata,
-        characterReference: onenterdata,
-        codeFenced: opener(codeFlow),
-        codeFencedFenceInfo: buffer,
-        codeFencedFenceMeta: buffer,
-        codeIndented: opener(codeFlow, buffer),
-        codeText: opener(codeText, buffer),
-        codeTextData: onenterdata,
-        data: onenterdata,
-        codeFlowValue: onenterdata,
-        definition: opener(definition),
-        definitionDestinationString: buffer,
-        definitionLabelString: buffer,
-        definitionTitleString: buffer,
-        emphasis: opener(emphasis),
-        hardBreakEscape: opener(hardBreak),
-        hardBreakTrailing: opener(hardBreak),
-        htmlFlow: opener(html, buffer),
-        htmlFlowData: onenterdata,
-        htmlText: opener(html, buffer),
-        htmlTextData: onenterdata,
-        image: opener(image),
-        label: buffer,
-        link: opener(link),
-        listItem: opener(listItem),
-        listItemValue: onenterlistitemvalue,
-        listOrdered: opener(list, onenterlistordered),
-        listUnordered: opener(list),
-        paragraph: opener(paragraph),
-        reference: onenterreference,
-        referenceString: buffer,
-        resourceDestinationString: buffer,
-        resourceTitleString: buffer,
-        setextHeading: opener(heading),
-        strong: opener(strong),
-        thematicBreak: opener(thematicBreak)
-      },
-      exit: {
-        atxHeading: closer(),
-        atxHeadingSequence: onexitatxheadingsequence,
-        autolink: closer(),
-        autolinkEmail: onexitautolinkemail,
-        autolinkProtocol: onexitautolinkprotocol,
-        blockQuote: closer(),
-        characterEscapeValue: onexitdata,
-        characterReferenceMarkerHexadecimal: onexitcharacterreferencemarker,
-        characterReferenceMarkerNumeric: onexitcharacterreferencemarker,
-        characterReferenceValue: onexitcharacterreferencevalue,
-        codeFenced: closer(onexitcodefenced),
-        codeFencedFence: onexitcodefencedfence,
-        codeFencedFenceInfo: onexitcodefencedfenceinfo,
-        codeFencedFenceMeta: onexitcodefencedfencemeta,
-        codeFlowValue: onexitdata,
-        codeIndented: closer(onexitcodeindented),
-        codeText: closer(onexitcodetext),
-        codeTextData: onexitdata,
-        data: onexitdata,
-        definition: closer(),
-        definitionDestinationString: onexitdefinitiondestinationstring,
-        definitionLabelString: onexitdefinitionlabelstring,
-        definitionTitleString: onexitdefinitiontitlestring,
-        emphasis: closer(),
-        hardBreakEscape: closer(onexithardbreak),
-        hardBreakTrailing: closer(onexithardbreak),
-        htmlFlow: closer(onexithtmlflow),
-        htmlFlowData: onexitdata,
-        htmlText: closer(onexithtmltext),
-        htmlTextData: onexitdata,
-        image: closer(onexitimage),
-        label: onexitlabel,
-        labelText: onexitlabeltext,
-        lineEnding: onexitlineending,
-        link: closer(onexitlink),
-        listItem: closer(),
-        listOrdered: closer(),
-        listUnordered: closer(),
-        paragraph: closer(),
-        referenceString: onexitreferencestring,
-        resourceDestinationString: onexitresourcedestinationstring,
-        resourceTitleString: onexitresourcetitlestring,
-        resource: onexitresource,
-        setextHeading: closer(onexitsetextheading),
-        setextHeadingLineSequence: onexitsetextheadinglinesequence,
-        setextHeadingText: onexitsetextheadingtext,
-        strong: closer(),
-        thematicBreak: closer()
-      }
+function compiler(options) {
+  const config = {
+    transforms: [],
+    canContainEols: ['emphasis', 'fragment', 'heading', 'paragraph', 'strong'],
+    enter: {
+      autolink: opener(link),
+      autolinkProtocol: onenterdata,
+      autolinkEmail: onenterdata,
+      atxHeading: opener(heading),
+      blockQuote: opener(blockQuote),
+      characterEscape: onenterdata,
+      characterReference: onenterdata,
+      codeFenced: opener(codeFlow),
+      codeFencedFenceInfo: buffer,
+      codeFencedFenceMeta: buffer,
+      codeIndented: opener(codeFlow, buffer),
+      codeText: opener(codeText, buffer),
+      codeTextData: onenterdata,
+      data: onenterdata,
+      codeFlowValue: onenterdata,
+      definition: opener(definition),
+      definitionDestinationString: buffer,
+      definitionLabelString: buffer,
+      definitionTitleString: buffer,
+      emphasis: opener(emphasis),
+      hardBreakEscape: opener(hardBreak),
+      hardBreakTrailing: opener(hardBreak),
+      htmlFlow: opener(html, buffer),
+      htmlFlowData: onenterdata,
+      htmlText: opener(html, buffer),
+      htmlTextData: onenterdata,
+      image: opener(image),
+      label: buffer,
+      link: opener(link),
+      listItem: opener(listItem),
+      listItemValue: onenterlistitemvalue,
+      listOrdered: opener(list, onenterlistordered),
+      listUnordered: opener(list),
+      paragraph: opener(paragraph),
+      reference: onenterreference,
+      referenceString: buffer,
+      resourceDestinationString: buffer,
+      resourceTitleString: buffer,
+      setextHeading: opener(heading),
+      strong: opener(strong),
+      thematicBreak: opener(thematicBreak)
     },
-    options.mdastExtensions || []
-  );
+    exit: {
+      atxHeading: closer(),
+      atxHeadingSequence: onexitatxheadingsequence,
+      autolink: closer(),
+      autolinkEmail: onexitautolinkemail,
+      autolinkProtocol: onexitautolinkprotocol,
+      blockQuote: closer(),
+      characterEscapeValue: onexitdata,
+      characterReferenceMarkerHexadecimal: onexitcharacterreferencemarker,
+      characterReferenceMarkerNumeric: onexitcharacterreferencemarker,
+      characterReferenceValue: onexitcharacterreferencevalue,
+      codeFenced: closer(onexitcodefenced),
+      codeFencedFence: onexitcodefencedfence,
+      codeFencedFenceInfo: onexitcodefencedfenceinfo,
+      codeFencedFenceMeta: onexitcodefencedfencemeta,
+      codeFlowValue: onexitdata,
+      codeIndented: closer(onexitcodeindented),
+      codeText: closer(onexitcodetext),
+      codeTextData: onexitdata,
+      data: onexitdata,
+      definition: closer(),
+      definitionDestinationString: onexitdefinitiondestinationstring,
+      definitionLabelString: onexitdefinitionlabelstring,
+      definitionTitleString: onexitdefinitiontitlestring,
+      emphasis: closer(),
+      hardBreakEscape: closer(onexithardbreak),
+      hardBreakTrailing: closer(onexithardbreak),
+      htmlFlow: closer(onexithtmlflow),
+      htmlFlowData: onexitdata,
+      htmlText: closer(onexithtmltext),
+      htmlTextData: onexitdata,
+      image: closer(onexitimage),
+      label: onexitlabel,
+      labelText: onexitlabeltext,
+      lineEnding: onexitlineending,
+      link: closer(onexitlink),
+      listItem: closer(),
+      listOrdered: closer(),
+      listUnordered: closer(),
+      paragraph: closer(),
+      referenceString: onexitreferencestring,
+      resourceDestinationString: onexitresourcedestinationstring,
+      resourceTitleString: onexitresourcetitlestring,
+      resource: onexitresource,
+      setextHeading: closer(onexitsetextheading),
+      setextHeadingLineSequence: onexitsetextheadinglinesequence,
+      setextHeadingText: onexitsetextheadingtext,
+      strong: closer(),
+      thematicBreak: closer()
+    }
+  };
+  configure$1(config, (options || {}).mdastExtensions || []);
   const data = {};
   return compile
   function compile(events) {
@@ -7089,12 +7086,9 @@ function compiler(options = {}) {
       type: 'root',
       children: []
     };
-    const stack = [tree];
-    const tokenStack = [];
-    const listStack = [];
     const context = {
-      stack,
-      tokenStack,
+      stack: [tree],
+      tokenStack: [],
       config,
       enter,
       exit,
@@ -7103,6 +7097,7 @@ function compiler(options = {}) {
       setData,
       getData
     };
+    const listStack = [];
     let index = -1;
     while (++index < events.length) {
       if (
@@ -7132,13 +7127,13 @@ function compiler(options = {}) {
         );
       }
     }
-    if (tokenStack.length > 0) {
-      const tail = tokenStack[tokenStack.length - 1];
+    if (context.tokenStack.length > 0) {
+      const tail = context.tokenStack[context.tokenStack.length - 1];
       const handler = tail[1] || defaultOnError;
       handler.call(context, undefined, tail[0]);
     }
     tree.position = {
-      start: point(
+      start: point$1(
         events.length > 0
           ? events[0][1].start
           : {
@@ -7147,7 +7142,7 @@ function compiler(options = {}) {
               offset: 0
             }
       ),
-      end: point(
+      end: point$1(
         events.length > 0
           ? events[events.length - 2][1].end
           : {
@@ -7277,13 +7272,6 @@ function compiler(options = {}) {
   function getData(key) {
     return data[key]
   }
-  function point(d) {
-    return {
-      line: d.line,
-      column: d.column,
-      offset: d.offset
-    }
-  }
   function opener(create, and) {
     return open
     function open(token) {
@@ -7303,7 +7291,7 @@ function compiler(options = {}) {
     this.stack.push(node);
     this.tokenStack.push([token, errorHandler]);
     node.position = {
-      start: point(token.start)
+      start: point$1(token.start)
     };
     return node
   }
@@ -7336,7 +7324,7 @@ function compiler(options = {}) {
         handler.call(this, token, open[0]);
       }
     }
-    node.position.end = point(token.end);
+    node.position.end = point$1(token.end);
     return node
   }
   function resume() {
@@ -7347,22 +7335,19 @@ function compiler(options = {}) {
   }
   function onenterlistitemvalue(token) {
     if (getData('expectingFirstListItemValue')) {
-      const ancestor =
-        this.stack[this.stack.length - 2];
+      const ancestor = this.stack[this.stack.length - 2];
       ancestor.start = Number.parseInt(this.sliceSerialize(token), 10);
       setData('expectingFirstListItemValue');
     }
   }
   function onexitcodefencedfenceinfo() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.lang = data;
   }
   function onexitcodefencedfencemeta() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.meta = data;
   }
   function onexitcodefencedfence() {
@@ -7372,21 +7357,18 @@ function compiler(options = {}) {
   }
   function onexitcodefenced() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.value = data.replace(/^(\r?\n|\r)|(\r?\n|\r)$/g, '');
     setData('flowCodeInside');
   }
   function onexitcodeindented() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.value = data.replace(/(\r?\n|\r)$/g, '');
   }
   function onexitdefinitionlabelstring(token) {
     const label = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.label = label;
     node.identifier = normalizeIdentifier(
       this.sliceSerialize(token)
@@ -7394,19 +7376,16 @@ function compiler(options = {}) {
   }
   function onexitdefinitiontitlestring() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.title = data;
   }
   function onexitdefinitiondestinationstring() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.url = data;
   }
   function onexitatxheadingsequence(token) {
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     if (!node.depth) {
       const depth = this.sliceSerialize(token).length;
       node.depth = depth;
@@ -7416,36 +7395,34 @@ function compiler(options = {}) {
     setData('setextHeadingSlurpLineEnding', true);
   }
   function onexitsetextheadinglinesequence(token) {
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.depth = this.sliceSerialize(token).charCodeAt(0) === 61 ? 1 : 2;
   }
   function onexitsetextheading() {
     setData('setextHeadingSlurpLineEnding');
   }
   function onenterdata(token) {
-    const parent =
-      this.stack[this.stack.length - 1];
-    let tail = parent.children[parent.children.length - 1];
+    const node = this.stack[this.stack.length - 1];
+    let tail = node.children[node.children.length - 1];
     if (!tail || tail.type !== 'text') {
       tail = text();
       tail.position = {
-        start: point(token.start)
+        start: point$1(token.start)
       };
-      parent.children.push(tail);
+      node.children.push(tail);
     }
     this.stack.push(tail);
   }
   function onexitdata(token) {
     const tail = this.stack.pop();
     tail.value += this.sliceSerialize(token);
-    tail.position.end = point(token.end);
+    tail.position.end = point$1(token.end);
   }
   function onexitlineending(token) {
     const context = this.stack[this.stack.length - 1];
     if (getData('atHardBreak')) {
       const tail = context.children[context.children.length - 1];
-      tail.position.end = point(token.end);
+      tail.position.end = point$1(token.end);
       setData('atHardBreak');
       return
     }
@@ -7462,80 +7439,73 @@ function compiler(options = {}) {
   }
   function onexithtmlflow() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.value = data;
   }
   function onexithtmltext() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.value = data;
   }
   function onexitcodetext() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.value = data;
   }
   function onexitlink() {
-    const context =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     if (getData('inReference')) {
-      context.type += 'Reference';
-      context.referenceType = getData('referenceType') || 'shortcut';
-      delete context.url;
-      delete context.title;
+      const referenceType = getData('referenceType') || 'shortcut';
+      node.type += 'Reference';
+      node.referenceType = referenceType;
+      delete node.url;
+      delete node.title;
     } else {
-      delete context.identifier;
-      delete context.label;
+      delete node.identifier;
+      delete node.label;
     }
     setData('referenceType');
   }
   function onexitimage() {
-    const context =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     if (getData('inReference')) {
-      context.type += 'Reference';
-      context.referenceType = getData('referenceType') || 'shortcut';
-      delete context.url;
-      delete context.title;
+      const referenceType = getData('referenceType') || 'shortcut';
+      node.type += 'Reference';
+      node.referenceType = referenceType;
+      delete node.url;
+      delete node.title;
     } else {
-      delete context.identifier;
-      delete context.label;
+      delete node.identifier;
+      delete node.label;
     }
     setData('referenceType');
   }
   function onexitlabeltext(token) {
-    const ancestor =
-      this.stack[this.stack.length - 2];
     const string = this.sliceSerialize(token);
+    const ancestor = this.stack[this.stack.length - 2];
     ancestor.label = decodeString(string);
     ancestor.identifier = normalizeIdentifier(string).toLowerCase();
   }
   function onexitlabel() {
-    const fragment =
-      this.stack[this.stack.length - 1];
+    const fragment = this.stack[this.stack.length - 1];
     const value = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     setData('inReference', true);
     if (node.type === 'link') {
-      node.children = fragment.children;
+      const children = fragment.children;
+      node.children = children;
     } else {
       node.alt = value;
     }
   }
   function onexitresourcedestinationstring() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.url = data;
   }
   function onexitresourcetitlestring() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.title = data;
   }
   function onexitresource() {
@@ -7546,8 +7516,7 @@ function compiler(options = {}) {
   }
   function onexitreferencestring(token) {
     const label = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.label = label;
     node.identifier = normalizeIdentifier(
       this.sliceSerialize(token)
@@ -7568,22 +7537,21 @@ function compiler(options = {}) {
       );
       setData('characterReferenceType');
     } else {
-      value = decodeNamedCharacterReference(data);
+      const result = decodeNamedCharacterReference(data);
+      value = result;
     }
     const tail = this.stack.pop();
     tail.value += value;
-    tail.position.end = point(token.end);
+    tail.position.end = point$1(token.end);
   }
   function onexitautolinkprotocol(token) {
     onexitdata.call(this, token);
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.url = this.sliceSerialize(token);
   }
   function onexitautolinkemail(token) {
     onexitdata.call(this, token);
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.url = 'mailto:' + this.sliceSerialize(token);
   }
   function blockQuote() {
@@ -7696,6 +7664,13 @@ function compiler(options = {}) {
     }
   }
 }
+function point$1(d) {
+  return {
+    line: d.line,
+    column: d.column,
+    offset: d.offset
+  }
+}
 function configure$1(combined, extensions) {
   let index = -1;
   while (++index < extensions.length) {
@@ -7706,21 +7681,25 @@ function configure$1(combined, extensions) {
       extension(combined, value);
     }
   }
-  return combined
 }
 function extension(combined, extension) {
   let key;
   for (key in extension) {
     if (own$5.call(extension, key)) {
-      const list = key === 'canContainEols' || key === 'transforms';
-      const maybe = own$5.call(combined, key) ? combined[key] : undefined;
-      const left = maybe || (combined[key] = list ? [] : {});
-      const right = extension[key];
-      if (right) {
-        if (list) {
-          combined[key] = [...left, ...right];
-        } else {
-          Object.assign(left, right);
+      if (key === 'canContainEols') {
+        const right = extension[key];
+        if (right) {
+          combined[key].push(...right);
+        }
+      } else if (key === 'transforms') {
+        const right = extension[key];
+        if (right) {
+          combined[key].push(...right);
+        }
+      } else if (key === 'enter' || key === 'exit') {
+        const right = extension[key];
+        if (right) {
+          Object.assign(combined[key], right);
         }
       }
     }
@@ -7820,12 +7799,12 @@ function blockquote(node, _, state, info) {
   tracker.shift(2);
   const value = state.indentLines(
     state.containerFlow(node, tracker.current()),
-    map$2
+    map$3
   );
   exit();
   return value
 }
-function map$2(line, _, blank) {
+function map$3(line, _, blank) {
   return '>' + (blank ? '' : ' ') + line
 }
 
@@ -7915,7 +7894,7 @@ function code$1(node, _, state, info) {
   const suffix = marker === '`' ? 'GraveAccent' : 'Tilde';
   if (formatCodeAsIndented(node, state)) {
     const exit = state.enter('codeIndented');
-    const value = state.indentLines(raw, map$1);
+    const value = state.indentLines(raw, map$2);
     exit();
     return value
   }
@@ -7956,7 +7935,7 @@ function code$1(node, _, state, info) {
   exit();
   return value
 }
-function map$1(line, _, blank) {
+function map$2(line, _, blank) {
   return (blank ? '' : '    ') + line
 }
 
@@ -8110,8 +8089,13 @@ function typeFactory(check) {
 }
 function castFactory(check) {
   return assertion
-  function assertion(...parameters) {
-    return Boolean(check.call(this, ...parameters))
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
   }
 }
 function ok() {
@@ -8123,8 +8107,8 @@ function color$2(d) {
 }
 
 const CONTINUE$1 = true;
-const SKIP$1 = 'skip';
 const EXIT$1 = false;
+const SKIP$1 = 'skip';
 const visitParents$1 =
   (
     function (tree, test, visitor, reverse) {
@@ -8135,22 +8119,20 @@ const visitParents$1 =
       }
       const is = convert(test);
       const step = reverse ? -1 : 1;
-      factory(tree, null, [])();
+      factory(tree, undefined, [])();
       function factory(node, index, parents) {
-        const value = typeof node === 'object' && node !== null ? node : {};
-        let name;
+        const value = node && typeof node === 'object' ? node : {};
         if (typeof value.type === 'string') {
-          name =
+          const name =
             typeof value.tagName === 'string'
               ? value.tagName
-              : typeof value.name === 'string'
+              :
+              typeof value.name === 'string'
               ? value.name
               : undefined;
           Object.defineProperty(visit, 'name', {
             value:
-              'node (' +
-              color$2(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
+              'node (' + color$2(node.type + (name ? '<' + name + '>' : '')) + ')'
           });
         }
         return visit
@@ -8773,20 +8755,22 @@ function paragraph(node, _, state, info) {
   return value
 }
 
-const phrasing = convert([
-  'break',
-  'delete',
-  'emphasis',
-  'footnote',
-  'footnoteReference',
-  'image',
-  'imageReference',
-  'inlineCode',
-  'link',
-  'linkReference',
-  'strong',
-  'text'
-]);
+const phrasing =  (
+  convert([
+    'break',
+    'delete',
+    'emphasis',
+    'footnote',
+    'footnoteReference',
+    'image',
+    'imageReference',
+    'inlineCode',
+    'link',
+    'linkReference',
+    'strong',
+    'text'
+  ])
+);
 
 function root(node, _, state, info) {
   const hasPhrasing = node.children.some((d) => phrasing(d));
@@ -10766,7 +10750,7 @@ const findAndReplace =
         let index = -1;
         let grandparent;
         while (++index < parents.length) {
-          const parent =  (parents[index]);
+          const parent = parents[index];
           if (
             ignored(
               parent,
@@ -10790,11 +10774,10 @@ const findAndReplace =
         const index = parent.children.indexOf(node);
         let change = false;
         let nodes = [];
-        let position;
         find.lastIndex = 0;
         let match = find.exec(node.value);
         while (match) {
-          position = match.index;
+          const position = match.index;
           const matchObject = {
             index: match.index,
             input: match.input,
@@ -11018,6 +11001,7 @@ function previous(match, email) {
   )
 }
 
+footnoteReference.peek = footnoteReferencePeek;
 function gfmFootnoteFromMarkdown() {
   return {
     enter: {
@@ -11033,103 +11017,102 @@ function gfmFootnoteFromMarkdown() {
       gfmFootnoteCallString: exitFootnoteCallString
     }
   }
-  function enterFootnoteDefinition(token) {
-    this.enter(
-      {type: 'footnoteDefinition', identifier: '', label: '', children: []},
-      token
-    );
-  }
-  function enterFootnoteDefinitionLabelString() {
-    this.buffer();
-  }
-  function exitFootnoteDefinitionLabelString(token) {
-    const label = this.resume();
-    const node =  (
-      this.stack[this.stack.length - 1]
-    );
-    node.label = label;
-    node.identifier = normalizeIdentifier(
-      this.sliceSerialize(token)
-    ).toLowerCase();
-  }
-  function exitFootnoteDefinition(token) {
-    this.exit(token);
-  }
-  function enterFootnoteCall(token) {
-    this.enter({type: 'footnoteReference', identifier: '', label: ''}, token);
-  }
-  function enterFootnoteCallString() {
-    this.buffer();
-  }
-  function exitFootnoteCallString(token) {
-    const label = this.resume();
-    const node =  (
-      this.stack[this.stack.length - 1]
-    );
-    node.label = label;
-    node.identifier = normalizeIdentifier(
-      this.sliceSerialize(token)
-    ).toLowerCase();
-  }
-  function exitFootnoteCall(token) {
-    this.exit(token);
-  }
 }
 function gfmFootnoteToMarkdown() {
-  footnoteReference.peek = footnoteReferencePeek;
   return {
     unsafe: [{character: '[', inConstruct: ['phrasing', 'label', 'reference']}],
     handlers: {footnoteDefinition, footnoteReference}
   }
-  function footnoteReference(node, _, context, safeOptions) {
-    const tracker = track(safeOptions);
-    let value = tracker.move('[^');
-    const exit = context.enter('footnoteReference');
-    const subexit = context.enter('reference');
-    value += tracker.move(
-      safe(context, association(node), {
-        ...tracker.current(),
-        before: value,
-        after: ']'
-      })
-    );
-    subexit();
-    exit();
-    value += tracker.move(']');
-    return value
+}
+function enterFootnoteDefinition(token) {
+  this.enter(
+    {type: 'footnoteDefinition', identifier: '', label: '', children: []},
+    token
+  );
+}
+function enterFootnoteDefinitionLabelString() {
+  this.buffer();
+}
+function exitFootnoteDefinitionLabelString(token) {
+  const label = this.resume();
+  const node =  (
+    this.stack[this.stack.length - 1]
+  );
+  node.label = label;
+  node.identifier = normalizeIdentifier(
+    this.sliceSerialize(token)
+  ).toLowerCase();
+}
+function exitFootnoteDefinition(token) {
+  this.exit(token);
+}
+function enterFootnoteCall(token) {
+  this.enter({type: 'footnoteReference', identifier: '', label: ''}, token);
+}
+function enterFootnoteCallString() {
+  this.buffer();
+}
+function exitFootnoteCallString(token) {
+  const label = this.resume();
+  const node =  (
+    this.stack[this.stack.length - 1]
+  );
+  node.label = label;
+  node.identifier = normalizeIdentifier(
+    this.sliceSerialize(token)
+  ).toLowerCase();
+}
+function exitFootnoteCall(token) {
+  this.exit(token);
+}
+function footnoteReference(node, _, context, safeOptions) {
+  const tracker = track(safeOptions);
+  let value = tracker.move('[^');
+  const exit = context.enter('footnoteReference');
+  const subexit = context.enter('reference');
+  value += tracker.move(
+    safe(context, association(node), {
+      ...tracker.current(),
+      before: value,
+      after: ']'
+    })
+  );
+  subexit();
+  exit();
+  value += tracker.move(']');
+  return value
+}
+function footnoteReferencePeek() {
+  return '['
+}
+function footnoteDefinition(node, _, context, safeOptions) {
+  const tracker = track(safeOptions);
+  let value = tracker.move('[^');
+  const exit = context.enter('footnoteDefinition');
+  const subexit = context.enter('label');
+  value += tracker.move(
+    safe(context, association(node), {
+      ...tracker.current(),
+      before: value,
+      after: ']'
+    })
+  );
+  subexit();
+  value += tracker.move(
+    ']:' + (node.children && node.children.length > 0 ? ' ' : '')
+  );
+  tracker.shift(4);
+  value += tracker.move(
+    indentLines(containerFlow(node, context, tracker.current()), map$1)
+  );
+  exit();
+  return value
+}
+function map$1(line, index, blank) {
+  if (index === 0) {
+    return line
   }
-  function footnoteReferencePeek() {
-    return '['
-  }
-  function footnoteDefinition(node, _, context, safeOptions) {
-    const tracker = track(safeOptions);
-    let value = tracker.move('[^');
-    const exit = context.enter('footnoteDefinition');
-    const subexit = context.enter('label');
-    value += tracker.move(
-      safe(context, association(node), {
-        ...tracker.current(),
-        before: value,
-        after: ']'
-      })
-    );
-    subexit();
-    value += tracker.move(
-      ']:' + (node.children && node.children.length > 0 ? ' ' : '')
-    );
-    tracker.shift(4);
-    value += tracker.move(
-      indentLines(containerFlow(node, context, tracker.current()), map)
-    );
-    exit();
-    return value
-    function map(line, index, blank) {
-      if (index) {
-        return (blank ? '' : '    ') + line
-      }
-      return line
-    }
-  }
+  return (blank ? '' : '    ') + line
 }
 
 const gfmStrikethroughFromMarkdown = {
@@ -11500,37 +11483,37 @@ function exitCheck(token) {
 }
 function exitParagraphWithTaskListItem(token) {
   const parent =  (this.stack[this.stack.length - 2]);
-  const node =  (this.stack[this.stack.length - 1]);
-  const siblings = parent.children;
-  const head = node.children[0];
-  let index = -1;
-  let firstParaghraph;
   if (
     parent &&
     parent.type === 'listItem' &&
-    typeof parent.checked === 'boolean' &&
-    head &&
-    head.type === 'text'
+    typeof parent.checked === 'boolean'
   ) {
-    while (++index < siblings.length) {
-      const sibling = siblings[index];
-      if (sibling.type === 'paragraph') {
-        firstParaghraph = sibling;
-        break
+    const node =  (this.stack[this.stack.length - 1]);
+    const head = node.children[0];
+    if (head && head.type === 'text') {
+      const siblings = parent.children;
+      let index = -1;
+      let firstParaghraph;
+      while (++index < siblings.length) {
+        const sibling = siblings[index];
+        if (sibling.type === 'paragraph') {
+          firstParaghraph = sibling;
+          break
+        }
       }
-    }
-    if (firstParaghraph === node) {
-      head.value = head.value.slice(1);
-      if (head.value.length === 0) {
-        node.children.shift();
-      } else if (
-        node.position &&
-        head.position &&
-        typeof head.position.start.offset === 'number'
-      ) {
-        head.position.start.column++;
-        head.position.start.offset++;
-        node.position.start = Object.assign({}, head.position.start);
+      if (firstParaghraph === node) {
+        head.value = head.value.slice(1);
+        if (head.value.length === 0) {
+          node.children.shift();
+        } else if (
+          node.position &&
+          head.position &&
+          typeof head.position.start.offset === 'number'
+        ) {
+          head.position.start.column++;
+          head.position.start.offset++;
+          node.position.start = Object.assign({}, head.position.start);
+        }
       }
     }
   }
@@ -11979,12 +11962,13 @@ function parseParameters(value) {
     : parameters
   function replacer(_, $1, $2, $3, $4) {
     let value = $2 || $3 || $4 || '';
+    const number = Number(value);
     if (value === 'true' || value === '') {
       value = true;
     } else if (value === 'false') {
       value = false;
-    } else if (!Number.isNaN(Number(value))) {
-      value = Number(value);
+    } else if (!Number.isNaN(number)) {
+      value = number;
     }
     parameters[$1] = value;
     return ''
@@ -13228,10 +13212,10 @@ const remarkLintNoDuplicateDefinitions = lintRule(
 var remarkLintNoDuplicateDefinitions$1 = remarkLintNoDuplicateDefinitions;
 
 function headingStyle(node, relative) {
-  var last = node.children[node.children.length - 1];
-  var depth = node.depth;
-  var pos = node && node.position && node.position.end;
-  var final = last && last.position && last.position.end;
+  const last = node.children[node.children.length - 1];
+  const depth = node.depth;
+  const pos = node.position && node.position.end;
+  const final = last && last.position && last.position.end;
   if (!pos) {
     return null
   }
@@ -13241,10 +13225,10 @@ function headingStyle(node, relative) {
     }
     return 'atx-closed'
   }
-  if (final.line + 1 === pos.line) {
+  if (final && final.line + 1 === pos.line) {
     return 'setext'
   }
-  if (final.column + depth < pos.column) {
+  if (final && final.column + depth < pos.column) {
     return 'atx-closed'
   }
   return consolidate(depth, relative)
