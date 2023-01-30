@@ -9,7 +9,7 @@ const benchmarkDirectory = path.join(tmpdir.path, 'nodejs-benchmark-module');
 const bench = common.createBenchmark(main, {
   ext: ['', '.js'],
   files: [1e3],
-  cache: ['true', 'false']
+  cache: ['true', 'false'],
 });
 
 function main({ ext, cache, files }) {
@@ -17,17 +17,17 @@ function main({ ext, cache, files }) {
   fs.mkdirSync(benchmarkDirectory);
   fs.writeFileSync(
     `${benchmarkDirectory}/a.js`,
-    'module.exports = {};'
+    'module.exports = {};',
   );
   for (let i = 0; i <= files; i++) {
     fs.mkdirSync(`${benchmarkDirectory}/${i}`);
     fs.writeFileSync(
       `${benchmarkDirectory}/${i}/package.json`,
-      '{"main": "index.js"}'
+      '{"main": "index.js"}',
     );
     fs.writeFileSync(
       `${benchmarkDirectory}/${i}/index.js`,
-      `require('../a${ext}');`
+      `require('../a${ext}');`,
     );
   }
 

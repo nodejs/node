@@ -15,7 +15,7 @@ const bench = common.createBenchmark(main, {
   dir: ['rel', 'abs'],
   files: [5e2],
   n: [1, 1e3],
-  cache: ['true', 'false']
+  cache: ['true', 'false'],
 });
 
 function main({ n, name, cache, files, dir }) {
@@ -25,11 +25,11 @@ function main({ n, name, cache, files, dir }) {
     fs.mkdirSync(`${benchmarkDirectory}${i}`);
     fs.writeFileSync(
       `${benchmarkDirectory}${i}/package.json`,
-      '{"main": "index.js"}'
+      '{"main": "index.js"}',
     );
     fs.writeFileSync(
       `${benchmarkDirectory}${i}/index.js`,
-      'module.exports = "";'
+      'module.exports = "";',
     );
   }
 
