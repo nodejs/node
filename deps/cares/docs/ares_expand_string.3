@@ -18,11 +18,11 @@
 ares_expand_string \- Expand a length encoded string
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B int ares_expand_string(const unsigned char *\fIencoded\fP,
-.B      const unsigned char *\fIabuf\fP, int \fIalen\fP, unsigned char **\fIs\fP,
-.B 	long *\fIenclen\fP)
+#include <ares.h>
+
+int ares_expand_string(const unsigned char *\fIencoded\fP,
+                       const unsigned char *\fIabuf\fP, int \fIalen\fP,
+                       unsigned char **\fIs\fP, long *\fIenclen\fP)
 .fi
 .SH DESCRIPTION
 The

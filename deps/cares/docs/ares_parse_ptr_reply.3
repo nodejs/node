@@ -18,11 +18,11 @@
 ares_parse_ptr_reply \- Parse a reply to a DNS query of type PTR into a hostent
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B int ares_parse_ptr_reply(const unsigned char *\fIabuf\fP, int \fIalen\fP,
-.B 	const void *\fIaddr\fP, int \fIaddrlen\fP, int \fIfamily\fP,
-.B	struct hostent **\fIhost\fP);
+#include <ares.h>
+
+int ares_parse_ptr_reply(const unsigned char *\fIabuf\fP, int \fIalen\fP,
+                         const void *\fIaddr\fP, int \fIaddrlen\fP,
+                         int \fIfamily\fP, struct hostent **\fIhost\fP);
 .fi
 .SH DESCRIPTION
 The

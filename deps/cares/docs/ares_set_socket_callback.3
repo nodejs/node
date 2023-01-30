@@ -4,15 +4,15 @@
 ares_set_socket_callback \- Set a socket creation callback
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B typedef int (*ares_sock_create_callback)(ares_socket_t \fIsocket_fd\fP,
+#include <ares.h>
+
+typedef int (*ares_sock_create_callback)(ares_socket_t \fIsocket_fd\fP,
                                          int \fItype\fP,
                                          void *\fIuserdata\fP)
-.PP
-.B void ares_set_socket_callback(ares_channel \fIchannel\fP,
-                             ares_sock_create_callback \fIcallback\fP,
-                             void *\fIuserdata\fP)
+
+void ares_set_socket_callback(ares_channel \fIchannel\fP,
+                              ares_sock_create_callback \fIcallback\fP,
+                              void *\fIuserdata\fP)
 .PP
 .B cc file.c -lcares
 .fi
