@@ -9,8 +9,6 @@ rules:
 
 overrides:
   - files:
-      - buffers/*.js
-      - buffers-fill/*.js
       - crypto/*.js
       - http/*.js
       - http2/*.js
