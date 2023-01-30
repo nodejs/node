@@ -1,8 +1,8 @@
+#include <assert.h>
+#include <node.h>
 #include <openssl/md5.h>
 #include <openssl/rand.h>
 #include <openssl/ssl.h>
-#include <node.h>
-#include <assert.h>
 
 namespace {
 
