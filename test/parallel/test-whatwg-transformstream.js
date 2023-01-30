@@ -201,6 +201,6 @@ class Source {
       controller.terminate();
     }
   });
-  
-  delete Object.prototype.type;
+
+  Reflect.deleteProperty(Object.prototype, 'type');
 }
