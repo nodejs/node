@@ -408,7 +408,7 @@ class WPTRunner {
     this.resource = new ResourceLoader(path);
 
     this.flags = [];
-    this.dummyGlobalThisScript = null;
+    this.globalThisInitScripts = [];
     this.initScript = null;
 
     this.status = new StatusLoader(path);
@@ -463,17 +463,17 @@ class WPTRunner {
       initScript = `${initScript}\n\n//===\nglobalThis.location.search = "${locationSearchString}";`;
     }
 
-    if (initScript === null && this.dummyGlobalThisScript === null) {
-      return null;
-    }
-
-    if (initScript === null) {
-      return this.dummyGlobalThisScript;
-    } else if (this.dummyGlobalThisScript === null) {
+    if (this.globalThisInitScripts.length === null) {
       return initScript;
     }
 
-    return `${this.dummyGlobalThisScript}\n\n//===\n${initScript}`;
+    const globalThisInitScript = this.globalThisInitScripts.join('\n\n//===\n');
+
+    if (initScript === null) {
+      return globalThisInitScript;
+    }
+
+    return `${globalThisInitScript}\n\n//===\n${initScript}`;
   }
 
   /**
@@ -484,8 +484,9 @@ class WPTRunner {
   pretendGlobalThisAs(name) {
     switch (name) {
       case 'Window': {
-        this.dummyGlobalThisScript =
-          'global.Window = Object.getPrototypeOf(globalThis).constructor;';
+        this.globalThisInitScripts.push(
+          `global.Window = Object.getPrototypeOf(globalThis).constructor;
+          self.GLOBAL.isWorker = () => false;`);
         break;
       }
 
