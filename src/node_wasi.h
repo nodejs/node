@@ -71,6 +71,7 @@ class WASI : public BaseObject,
   static void ProcRaise(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RandomGet(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SchedYield(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SockAccept(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SockRecv(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SockSend(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SockShutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
