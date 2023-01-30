@@ -131,6 +131,7 @@ class WASI : public BaseObject,
   static uint32_t ProcRaise(WASI&, WasmMemory, uint32_t);
   static uint32_t RandomGet(WASI&, WasmMemory, uint32_t, uint32_t);
   static uint32_t SchedYield(WASI&, WasmMemory);
+  static uint32_t SockAccept(WASI&, WasmMemory, uint32_t, uint32_t, uint32_t);
   static uint32_t SockRecv(WASI&,
                            WasmMemory,
                            uint32_t,
