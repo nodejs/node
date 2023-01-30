@@ -3339,6 +3339,20 @@ In a future version of Node.js, [`message.headers`][],
 [`message.headersDistinct`][], [`message.trailers`][], and
 [`message.trailersDistinct`][] will be read-only.
 
+### DEP0172: The `asyncResource` property of `AsyncResource` bound functions
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46432
+    description: Runtime-deprecation.
+-->
+
+Type: Runtime
+
+In a future version of Node.js, the `asyncResource` property will no longer
+be added when a function is bound to an `AsyncResource`.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
