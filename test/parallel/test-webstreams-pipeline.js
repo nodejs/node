@@ -17,7 +17,7 @@ const http = require('http');
   });
   const ws = new WritableStream({
     write(chunk) {
-      values.push(chunk?.toString());
+      values.push(chunk);
     }
   });
 
