@@ -70,11 +70,11 @@ function createEntryPoint(n) {
     fs.mkdirSync(`${benchmarkDirectory}${i}`);
     fs.writeFileSync(
       `${benchmarkDirectory}${i}/package.json`,
-      '{"main": "index.js"}'
+      '{"main": "index.js"}',
     );
     fs.writeFileSync(
       `${benchmarkDirectory}${i}/index.js`,
-      JSFileContent
+      JSFileContent,
     );
   }
 }
