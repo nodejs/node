@@ -201,4 +201,6 @@ class Source {
       controller.terminate();
     }
   });
+  
+  delete Object.prototype.type;
 }
