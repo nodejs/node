@@ -1482,7 +1482,7 @@ const { Readable } = require('node:stream');
 const { TextEncoder } = require('node:util');
 
 const encoder = new TextEncoder();
-const dataArray = encoder.encode(['hello world from consumers!']);
+const dataArray = encoder.encode('hello world from consumers!');
 const readable = Readable.from(dataArray);
 arrayBuffer(readable).then((data) => {
   console.log(`from readable: ${data.byteLength}`);
