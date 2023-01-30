@@ -1148,6 +1148,21 @@ uint32_t WASI::SchedYield(WASI& wasi, WasmMemory) {
   return uvwasi_sched_yield(&wasi.uvw_);
 }
 
+uint32_t WASI::SockAccept(WASI& wasi,
+                          WasmMemory memory,
+                          uint32_t sock,
+                          uint32_t flags,
+                          uint32_t fd_ptr) {
+  Debug(wasi, "sock_accept(%d, %d, %d)\n", sock, flags, fd_ptr);
+  uvwasi_fd_t fd;
+  uvwasi_errno_t err = uvwasi_sock_accept(&wasi.uvw_, sock, flags, &fd);
+
+  if (err == UVWASI_ESUCCESS)
+    uvwasi_serdes_write_size_t(memory.data, fd_ptr, fd);
+
+  return err;
+}
+
 uint32_t WASI::SockRecv(WASI& wasi,
                         WasmMemory memory,
                         uint32_t sock,
@@ -1303,6 +1318,7 @@ static void InitializePreview1(Local<Object> target,
   V(ProcRaise, "proc_raise")
   V(RandomGet, "random_get")
   V(SchedYield, "sched_yield")
+  V(SockAccept, "sock_accept")
   V(SockRecv, "sock_recv")
   V(SockSend, "sock_send")
   V(SockShutdown, "sock_shutdown")
