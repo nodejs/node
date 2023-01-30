@@ -432,6 +432,9 @@ void ResetSignalHandlers() {
 }
 
 static std::atomic<uint32_t> init_process_flags = 0;
+static_assert(
+    std::is_same_v<std::underlying_type_t<ProcessInitializationFlags::Flags>,
+                   uint32_t>);
 
 static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   // init_process_flags is accessed in ResetStdio(),
@@ -1057,7 +1060,7 @@ std::unique_ptr<InitializationResult> InitializeOncePerProcess(
 }
 
 void TearDownOncePerProcess() {
-  const uint64_t flags = init_process_flags.load();
+  const uint32_t flags = init_process_flags.load();
   ResetStdio();
   if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
     ResetSignalHandlers();
