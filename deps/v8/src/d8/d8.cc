@@ -465,6 +465,8 @@ CounterCollection* Shell::counters_ = &local_counters_;
 base::LazyMutex Shell::context_mutex_;
 const base::TimeTicks Shell::kInitialTicks = base::TimeTicks::Now();
 Global<Function> Shell::stringify_function_;
+std::map<Isolate*, std::pair<Global<Function>, Global<Context>>>
+    Shell::profiler_end_callback_;
 base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 std::unordered_set<std::shared_ptr<Worker>> Shell::running_workers_;
@@ -1763,7 +1765,7 @@ uint64_t Shell::GetTracingTimestampFromPerformanceTimestamp(
       base::TimeDelta::FromMillisecondsD(performance_timestamp);
   // See TracingController::CurrentTimestampMicroseconds().
   int64_t internal_value = (delta + kInitialTicks).ToInternalValue();
-  DCHECK(internal_value >= 0);
+  DCHECK_GE(internal_value, 0);
   return internal_value;
 }
 
@@ -2507,6 +2509,48 @@ void Shell::SerializerDeserialize(
   Local<Value> result;
   if (!deserializer.ReadValue(context).ToLocal(&result)) return;
   args.GetReturnValue().Set(result);
+}
+
+void Shell::ProfilerSetOnProfileEndListener(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+  if (!args[0]->IsFunction()) {
+    isolate->ThrowError("The OnProfileEnd listener has to be a function");
+    return;
+  }
+  profiler_end_callback_[isolate] =
+      std::make_pair(Global<Function>(isolate, args[0].As<Function>()),
+                     Global<Context>(isolate, isolate->GetCurrentContext()));
+}
+
+bool Shell::HasOnProfileEndListener(Isolate* isolate) {
+  return profiler_end_callback_.find(isolate) != profiler_end_callback_.end();
+}
+
+void Shell::ResetOnProfileEndListener(Isolate* isolate) {
+  profiler_end_callback_.erase(isolate);
+}
+
+void Shell::ProfilerTriggerSample(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  D8Console* console =
+      reinterpret_cast<D8Console*>(i_isolate->console_delegate());
+  if (console->profiler()) console->profiler()->CollectSample(isolate);
+}
+
+void Shell::TriggerOnProfileEndListener(Isolate* isolate, std::string profile) {
+  CHECK(HasOnProfileEndListener(isolate));
+  Local<Value> argv[1] = {
+      String::NewFromUtf8(isolate, profile.c_str()).ToLocalChecked()};
+  auto& callback_pair = profiler_end_callback_[isolate];
+  Local<Function> callback = callback_pair.first.Get(isolate);
+  Local<Context> context = callback_pair.second.Get(isolate);
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
+  USE(callback->Call(context, Undefined(isolate), 1, argv));
 }
 
 void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -3535,6 +3579,16 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
                               Local<Signature>(), 1));
     d8_template->Set(isolate, "serializer", serializer_template);
   }
+  {
+    Local<ObjectTemplate> profiler_template = ObjectTemplate::New(isolate);
+    profiler_template->Set(
+        isolate, "setOnProfileEndListener",
+        FunctionTemplate::New(isolate, ProfilerSetOnProfileEndListener));
+    profiler_template->Set(
+        isolate, "triggerSample",
+        FunctionTemplate::New(isolate, ProfilerTriggerSample));
+    d8_template->Set(isolate, "profiler", profiler_template);
+  }
   return d8_template;
 }
 
@@ -3823,7 +3877,9 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
 
 void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
   platform::NotifyIsolateShutdown(g_default_platform, isolate);
-  isolate->Dispose();
+  if (dispose) {
+    isolate->Dispose();
+  }
 
   // Simulate errors before disposing V8, as that resets flags (via
   // FlagList::ResetAllFlags()), but error simulation reads the random seed.
@@ -4175,7 +4231,8 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
     inspector_ = v8_inspector::V8Inspector::create(isolate_, this);
     session_ =
         inspector_->connect(1, channel_.get(), v8_inspector::StringView(),
-                            v8_inspector::V8Inspector::kFullyTrusted);
+                            v8_inspector::V8Inspector::kFullyTrusted,
+                            v8_inspector::V8Inspector::kNotWaitingForDebugger);
     context->SetAlignedPointerInEmbedderData(kInspectorClientIndex, this);
     inspector_->contextCreated(v8_inspector::V8ContextInfo(
         context, kContextGroupId, v8_inspector::StringView()));
@@ -4426,6 +4483,7 @@ void SourceGroup::ExecuteInThread() {
     done_semaphore_.Signal();
   }
 
+  Shell::ResetOnProfileEndListener(isolate);
   isolate->Dispose();
 }
 
@@ -4710,6 +4768,7 @@ void Worker::ExecuteInThread() {
     task_manager_ = nullptr;
   }
 
+  Shell::ResetOnProfileEndListener(isolate_);
   context_.Reset();
   platform::NotifyIsolateShutdown(g_default_platform, isolate_);
   isolate_->Dispose();
@@ -5865,11 +5924,12 @@ int Shell::Main(int argc, char* argv[]) {
           {
             D8Console console2(isolate2);
             Initialize(isolate2, &console2);
-            PerIsolateData data2(isolate2);
             Isolate::Scope isolate_scope(isolate2);
+            PerIsolateData data2(isolate2);
 
             result = RunMain(isolate2, false);
           }
+          ResetOnProfileEndListener(isolate2);
           isolate2->Dispose();
         }
 
@@ -5918,6 +5978,7 @@ int Shell::Main(int argc, char* argv[]) {
       cached_code_map_.clear();
       evaluation_context_.Reset();
       stringify_function_.Reset();
+      ResetOnProfileEndListener(isolate);
       CollectGarbage(isolate);
 #ifdef V8_FUZZILLI
       // Send result to parent (fuzzilli) and reset edge guards.

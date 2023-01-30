@@ -89,6 +89,11 @@ class Deoptimizer : public Malloced {
   // refer to that code.
   static void DeoptimizeMarkedCode(Isolate* isolate);
 
+  // Deoptimizes all optimized code that implements the given function (whether
+  // directly or inlined).
+  static void DeoptimizeAllOptimizedCodeWithFunction(
+      Handle<SharedFunctionInfo> function);
+
   // Check the given address against a list of allowed addresses, to prevent a
   // potential attacker from using the frame creation process in the
   // deoptimizer, in particular the signing process, to gain control over the
@@ -119,8 +124,6 @@ class Deoptimizer : public Malloced {
   static int caller_frame_top_offset() {
     return offsetof(Deoptimizer, caller_frame_top_);
   }
-
-  V8_EXPORT_PRIVATE static int GetDeoptimizedCodeCount(Isolate* isolate);
 
   Isolate* isolate() const { return isolate_; }
 

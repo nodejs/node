@@ -6,6 +6,7 @@
 #define V8_BASE_CONTAINER_UTILS_H_
 
 #include <algorithm>
+#include <iterator>
 #include <optional>
 #include <vector>
 
@@ -14,16 +15,16 @@ namespace v8::base {
 // Returns true iff the {element} is found in the {container}.
 template <typename C, typename T>
 bool contains(const C& container, const T& element) {
-  const auto e = end(container);
-  return std::find(begin(container), e, element) != e;
+  const auto e = std::end(container);
+  return std::find(std::begin(container), e, element) != e;
 }
 
 // Returns the first index of {element} in {container}. Returns std::nullopt if
 // {container} does not contain {element}.
 template <typename C, typename T>
 std::optional<size_t> index_of(const C& container, const T& element) {
-  const auto b = begin(container);
-  const auto e = end(container);
+  const auto b = std::begin(container);
+  const auto e = std::end(container);
   if (auto it = std::find(b, e, element); it != e) {
     return {std::distance(b, it)};
   }
@@ -34,8 +35,8 @@ std::optional<size_t> index_of(const C& container, const T& element) {
 // {predicate}. Returns std::nullopt if no element satisfies {predicate}.
 template <typename C, typename P>
 std::optional<size_t> index_of_if(const C& container, const P& predicate) {
-  const auto b = begin(container);
-  const auto e = end(container);
+  const auto b = std::begin(container);
+  const auto e = std::end(container);
   if (auto it = std::find_if(b, e, predicate); it != e) {
     return {std::distance(b, it)};
   }
@@ -48,9 +49,9 @@ std::optional<size_t> index_of_if(const C& container, const P& predicate) {
 template <typename C>
 inline size_t erase_at(C& container, size_t index, size_t count = 1) {
   // TODO(C++20): Replace with std::erase.
-  if (size(container) <= index) return 0;
-  auto start = begin(container) + index;
-  count = std::min<size_t>(count, std::distance(start, end(container)));
+  if (std::size(container) <= index) return 0;
+  auto start = std::begin(container) + index;
+  count = std::min<size_t>(count, std::distance(start, std::end(container)));
   container.erase(start, start + count);
   return count;
 }
@@ -60,43 +61,48 @@ inline size_t erase_at(C& container, size_t index, size_t count = 1) {
 // TODO(C++20): Replace with std::erase_if.
 template <typename C, typename P>
 inline size_t erase_if(C& container, const P& predicate) {
-  size_t count = 0;
-  auto e = end(container);
-  for (auto it = begin(container); it != e;) {
-    it = std::find_if(it, e, predicate);
-    if (it == e) break;
-    it = container.erase(it);
-    e = end(container);
-    ++count;
-  }
+  auto it =
+      std::remove_if(std::begin(container), std::end(container), predicate);
+  auto count = std::distance(it, std::end(container));
+  container.erase(it, std::end(container));
   return count;
 }
 
 // Helper for std::count_if.
 template <typename C, typename P>
 inline size_t count_if(const C& container, const P& predicate) {
-  return std::count_if(begin(container), end(container), predicate);
+  return std::count_if(std::begin(container), std::end(container), predicate);
 }
 
 // Helper for std::all_of.
 template <typename C, typename P>
 inline bool all_of(const C& container, const P& predicate) {
-  return std::all_of(begin(container), end(container), predicate);
+  return std::all_of(std::begin(container), std::end(container), predicate);
 }
 
 // Helper for std::none_of.
 template <typename C, typename P>
 inline bool none_of(const C& container, const P& predicate) {
-  return std::none_of(begin(container), end(container), predicate);
+  return std::none_of(std::begin(container), std::end(container), predicate);
+}
+
+// Helper for std::sort.
+template <typename C>
+inline void sort(C& container) {
+  std::sort(std::begin(container), std::end(container));
+}
+template <typename C, typename Comp>
+inline void sort(C& container, Comp comp) {
+  std::sort(std::begin(container), std::end(container), comp);
 }
 
 // Returns true iff all elements of {container} compare equal using operator==.
 template <typename C>
 inline bool all_equal(const C& container) {
-  if (size(container) <= 1) return true;
-  auto b = begin(container);
+  if (std::size(container) <= 1) return true;
+  auto b = std::begin(container);
   const auto& value = *b;
-  return std::all_of(++b, end(container),
+  return std::all_of(++b, std::end(container),
                      [&](const auto& v) { return v == value; });
 }
 
@@ -104,15 +110,15 @@ inline bool all_equal(const C& container) {
 // operator==.
 template <typename C, typename T>
 inline bool all_equal(const C& container, const T& value) {
-  return std::all_of(begin(container), end(container),
+  return std::all_of(std::begin(container), std::end(container),
                      [&](const auto& v) { return v == value; });
 }
 
-// Appends to vector {v} all the elements in the range {begin(container)} and
-// {end(container)}.
-template <typename T, typename A, typename C>
-inline void vector_append(std::vector<T, A>& v, const C& container) {
-  v.insert(end(v), begin(container), end(container));
+// Appends to vector {v} all the elements in the range {std::begin(container)}
+// and {std::end(container)}.
+template <typename V, typename C>
+inline void vector_append(V& v, const C& container) {
+  v.insert(std::end(v), std::begin(container), std::end(container));
 }
 
 }  // namespace v8::base

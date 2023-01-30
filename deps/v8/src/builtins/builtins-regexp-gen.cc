@@ -712,7 +712,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
                                 var_to_offset.value(), smi_value);
             Increment(&var_to_offset, kTaggedSize);
           },
-          kInt32Size, IndexAdvanceMode::kPost);
+          kInt32Size, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
     }
 
     var_result = match_info;
@@ -779,10 +779,8 @@ TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(
   Label out(this);
   TVARIABLE(BoolT, var_result);
 
-#ifdef V8_ENABLE_FORCE_SLOW_PATH
   var_result = Int32FalseConstant();
   GotoIfForceSlowPath(&out);
-#endif
 
   const TNode<NativeContext> native_context = LoadNativeContext(context);
   const TNode<HeapObject> regexp_fun =
@@ -1132,7 +1130,6 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
 #undef CASE_FOR_FLAG
 
     if (is_fastpath) {
-#ifdef V8_ENABLE_FORCE_SLOW_PATH
       result = string;
       Goto(&done);
 
@@ -1145,9 +1142,6 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
 
       BIND(&done);
       return result.value();
-#else
-      return string;
-#endif
     } else {
       return string;
     }

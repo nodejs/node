@@ -425,8 +425,6 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   // Equivalent struct type.
   let builder = new WasmModuleBuilder();
-  // Force type canonicalization for struct_type
-  builder.setSingletonRecGroups();
   let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
   let struct_type_invalid = builder.addStruct([makeField(kWasmI64, false)]);
   let struct_type_sub = builder.addStruct(
@@ -473,7 +471,6 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let exporting_instance = (() => {
     let builder = new WasmModuleBuilder();
-    builder.setSingletonRecGroups();
     let struct_type_base = builder.addStruct([makeField(kWasmI32, false)]);
     let struct_type =
         builder.addStruct([makeField(kWasmI32, false)], struct_type_base);
@@ -482,7 +479,6 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   })();
 
   let builder = new WasmModuleBuilder();
-  builder.setSingletonRecGroups();
   let struct_type_base = builder.addStruct([makeField(kWasmI32, false)]);
   let struct_type =
       builder.addStruct([makeField(kWasmI32, false)], struct_type_base);

@@ -495,13 +495,6 @@ class CFGBuilder : public ZoneObject {
         break;
     }
 
-    if (v8_flags.warn_about_builtin_profile_data &&
-        hint_from_profile != BranchHint::kNone &&
-        BranchHintOf(branch->op()) != BranchHint::kNone &&
-        hint_from_profile != BranchHintOf(branch->op())) {
-      PrintF("Warning: profiling data overrode manual branch hint.\n");
-    }
-
     if (branch == component_entry_) {
       TraceConnect(branch, component_start_, successor_blocks[0]);
       TraceConnect(branch, component_start_, successor_blocks[1]);
@@ -1615,6 +1608,7 @@ class ScheduleLateNodeVisitor {
     if (!node->op()->HasProperty(Operator::kPure)) return block;
     // TODO(titzer): fix the special case of splitting of projections.
     if (node->opcode() == IrOpcode::kProjection) return block;
+    // Wasm-gc uses LoadImmutable for things that we want deduplicated.
 
     // The {block} is common dominator of all uses of {node}, so we cannot
     // split anything unless the {block} has at least two successors.
@@ -1647,10 +1641,12 @@ class ScheduleLateNodeVisitor {
       marking_queue_.pop_front();
       if (IsMarked(top_block)) continue;
       bool marked = true;
-      for (BasicBlock* successor : top_block->successors()) {
-        if (!IsMarked(successor)) {
-          marked = false;
-          break;
+      if (top_block->loop_depth() == block->loop_depth()) {
+        for (BasicBlock* successor : top_block->successors()) {
+          if (!IsMarked(successor)) {
+            marked = false;
+            break;
+          }
         }
       }
       if (marked) MarkBlock(top_block);

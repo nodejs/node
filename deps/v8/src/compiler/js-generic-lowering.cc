@@ -63,6 +63,8 @@ Reduction JSGenericLowering::Reduce(Node* node) {
 REPLACE_STUB_CALL(ToLength)
 REPLACE_STUB_CALL(ToNumber)
 REPLACE_STUB_CALL(ToNumberConvertBigInt)
+REPLACE_STUB_CALL(ToBigInt)
+REPLACE_STUB_CALL(ToBigIntConvertNumber)
 REPLACE_STUB_CALL(ToNumeric)
 REPLACE_STUB_CALL(ToName)
 REPLACE_STUB_CALL(ToObject)

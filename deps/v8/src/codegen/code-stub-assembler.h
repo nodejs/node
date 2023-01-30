@@ -501,6 +501,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // TODO(v8:9708): Define BInt operations once all uses are ported.
   PARAMETER_BINOP(IntPtrOrSmiEqual, WordEqual, SmiEqual)
   PARAMETER_BINOP(IntPtrOrSmiNotEqual, WordNotEqual, SmiNotEqual)
+  PARAMETER_BINOP(IntPtrOrSmiLessThan, IntPtrLessThan, SmiLessThan)
   PARAMETER_BINOP(IntPtrOrSmiLessThanOrEqual, IntPtrLessThanOrEqual,
                   SmiLessThanOrEqual)
   PARAMETER_BINOP(IntPtrOrSmiGreaterThan, IntPtrGreaterThan, SmiGreaterThan)
@@ -781,6 +782,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // BigInt operations.
   void GotoIfLargeBigInt(TNode<BigInt> bigint, Label* true_label);
 
+  TNode<Word32T> NormalizeShift32OperandIfNecessary(TNode<Word32T> right32);
   TNode<Number> BitwiseOp(TNode<Word32T> left32, TNode<Word32T> right32,
                           Operation bitwise_op);
   TNode<Number> BitwiseSmiOp(TNode<Smi> left32, TNode<Smi> right32,
@@ -909,11 +911,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<Object> CallApiCallback(TNode<Object> context, TNode<RawPtrT> callback,
-                                TNode<IntPtrT> argc, TNode<Object> data,
+                                TNode<Int32T> argc, TNode<Object> data,
                                 TNode<Object> holder, TNode<Object> receiver);
 
   TNode<Object> CallApiCallback(TNode<Object> context, TNode<RawPtrT> callback,
-                                TNode<IntPtrT> argc, TNode<Object> data,
+                                TNode<Int32T> argc, TNode<Object> data,
                                 TNode<Object> holder, TNode<Object> receiver,
                                 TNode<Object> value);
 
@@ -1864,13 +1866,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreJSSharedStructPropertyArrayElement(TNode<PropertyArray> array,
                                                TNode<IntPtrT> index,
                                                TNode<Object> value) {
-    // JSSharedStructs are allocated in the shared old space, which is currently
-    // collected by stopping the world, so the incremental write barrier is not
-    // needed. They can only store Smis and other HeapObjects in the shared old
-    // space, so the generational write barrier is also not needed.
-    // TODO(v8:12547): Add a safer, shared variant of SKIP_WRITE_BARRIER.
-    StoreFixedArrayOrPropertyArrayElement(array, index, value,
-                                          UNSAFE_SKIP_WRITE_BARRIER);
+    StoreFixedArrayOrPropertyArrayElement(array, index, value);
   }
 
   // EnsureArrayPushable verifies that receiver with this map is:
@@ -2468,17 +2464,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                         TNode<Object> value);
   void TaggedToWord32OrBigInt(TNode<Context> context, TNode<Object> value,
                               Label* if_number, TVariable<Word32T>* var_word32,
-                              Label* if_bigint,
+                              Label* if_bigint, Label* if_bigint64,
                               TVariable<BigInt>* var_maybe_bigint);
   void TaggedToWord32OrBigIntWithFeedback(TNode<Context> context,
                                           TNode<Object> value, Label* if_number,
                                           TVariable<Word32T>* var_word32,
-                                          Label* if_bigint,
+                                          Label* if_bigint, Label* if_bigint64,
                                           TVariable<BigInt>* var_maybe_bigint,
                                           TVariable<Smi>* var_feedback);
   void TaggedPointerToWord32OrBigIntWithFeedback(
       TNode<Context> context, TNode<HeapObject> pointer, Label* if_number,
-      TVariable<Word32T>* var_word32, Label* if_bigint,
+      TVariable<Word32T>* var_word32, Label* if_bigint, Label* if_bigint64,
       TVariable<BigInt>* var_maybe_bigint, TVariable<Smi>* var_feedback);
 
   TNode<Int32T> TruncateNumberToWord32(TNode<Number> value);
@@ -2508,11 +2504,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Int32T> ChangeBoolToInt32(TNode<BoolT> b);
 
-  void TaggedToNumeric(TNode<Context> context, TNode<Object> value,
-                       TVariable<Numeric>* var_numeric);
-  void TaggedToNumericWithFeedback(TNode<Context> context, TNode<Object> value,
-                                   TVariable<Numeric>* var_numeric,
-                                   TVariable<Smi>* var_feedback);
+  void TaggedToBigIntWithFeedback(TNode<Context> context, TNode<Object> value,
+                                  Label* if_not_bigint, Label* if_bigint,
+                                  Label* if_bigint64,
+                                  TVariable<BigInt>* var_bigint,
+                                  TVariable<Smi>* var_feedback);
 
   // Ensures that {var_shared_value} is shareable across Isolates, and throws if
   // not.
@@ -2875,6 +2871,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Try to convert an object to a BigInt. Throws on failure (e.g. for Numbers).
   // https://tc39.github.io/proposal-bigint/#sec-to-bigint
   TNode<BigInt> ToBigInt(TNode<Context> context, TNode<Object> input);
+  // Try to convert any object to a BigInt, including Numbers.
+  TNode<BigInt> ToBigIntConvertNumber(TNode<Context> context,
+                                      TNode<Object> input);
 
   // Converts |input| to one of 2^32 integer values in the range 0 through
   // 2^32-1, inclusive.
@@ -3313,6 +3312,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                          TVariable<Object>* var_raw_value, Label* if_not_found,
                          Label* if_bailout, GetOwnPropertyMode mode);
 
+  TNode<PropertyDescriptorObject> AllocatePropertyDescriptorObject(
+      TNode<Context> context);
+  void InitializePropertyDescriptorObject(
+      TNode<PropertyDescriptorObject> descriptor, TNode<Object> value,
+      TNode<Uint32T> details, Label* if_bailout);
+
   TNode<Object> GetProperty(TNode<Context> context, TNode<Object> receiver,
                             Handle<Name> name) {
     return GetProperty(context, receiver, HeapConstant(name));
@@ -3593,6 +3598,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Int32T> LoadElementsKind(TNode<AllocationSite> allocation_site);
 
   enum class IndexAdvanceMode { kPre, kPost };
+  enum class LoopUnrollingMode { kNo, kYes };
 
   template <typename TIndex>
   using FastLoopBody = std::function<void(TNode<TIndex> index)>;
@@ -3601,15 +3607,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<TIndex> BuildFastLoop(
       const VariableList& var_list, TNode<TIndex> start_index,
       TNode<TIndex> end_index, const FastLoopBody<TIndex>& body, int increment,
+      LoopUnrollingMode unrolling_mode,
       IndexAdvanceMode advance_mode = IndexAdvanceMode::kPre);
 
   template <typename TIndex>
   TNode<TIndex> BuildFastLoop(
       TNode<TIndex> start_index, TNode<TIndex> end_index,
       const FastLoopBody<TIndex>& body, int increment,
+      LoopUnrollingMode unrolling_mode,
       IndexAdvanceMode advance_mode = IndexAdvanceMode::kPre) {
     return BuildFastLoop(VariableList(0, zone()), start_index, end_index, body,
-                         increment, advance_mode);
+                         increment, unrolling_mode, advance_mode);
   }
 
   enum class ForEachDirection { kForward, kReverse };
@@ -3622,6 +3630,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<UnionT<UnionT<FixedArray, PropertyArray>, HeapObject>> array,
       ElementsKind kind, TNode<TIndex> first_element_inclusive,
       TNode<TIndex> last_element_exclusive, const FastArrayForEachBody& body,
+      LoopUnrollingMode loop_unrolling_mode,
       ForEachDirection direction = ForEachDirection::kReverse);
 
   template <typename TIndex>
@@ -4311,9 +4320,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Context> context, TNode<HeapObject> input, Object::Conversion mode,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
 
-  void TaggedToNumeric(TNode<Context> context, TNode<Object> value,
-                       TVariable<Numeric>* var_numeric,
-                       TVariable<Smi>* var_feedback);
+  void TaggedToBigInt(TNode<Context> context, TNode<Object> value,
+                      Label* if_not_bigint, Label* if_bigint,
+                      Label* if_bigint64, TVariable<BigInt>* var_bigint,
+                      TVariable<Smi>* var_feedback);
 
   enum IsKnownTaggedPointer { kNo, kYes };
   template <Object::Conversion conversion>
@@ -4322,6 +4332,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   TVariable<Word32T>* var_word32,
                                   IsKnownTaggedPointer is_known_tagged_pointer,
                                   Label* if_bigint = nullptr,
+                                  Label* if_bigint64 = nullptr,
                                   TVariable<BigInt>* var_maybe_bigint = nullptr,
                                   TVariable<Smi>* var_feedback = nullptr);
 

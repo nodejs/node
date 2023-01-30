@@ -60,8 +60,8 @@ class HeapObject : public Object {
 
   // Compare-and-swaps map word using release store, returns true if the map
   // word was actually swapped.
-  inline bool release_compare_and_swap_map_word(MapWord old_map_word,
-                                                MapWord new_map_word);
+  inline bool release_compare_and_swap_map_word_forwarded(
+      MapWord old_map_word, HeapObject new_target_object);
 
   // Initialize the map immediately after the object is allocated.
   // Do not use this outside Heap.
@@ -71,11 +71,13 @@ class HeapObject : public Object {
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.
   DECL_RELAXED_GETTER(map_word, MapWord)
-  inline void set_map_word(MapWord map_word, RelaxedStoreTag);
+  inline void set_map_word(Map map, RelaxedStoreTag);
+  inline void set_map_word_forwarded(HeapObject target_object, RelaxedStoreTag);
 
   // Access the map word using acquire load and release store.
   DECL_ACQUIRE_GETTER(map_word, MapWord)
-  inline void set_map_word(MapWord map_word, ReleaseStoreTag);
+  inline void set_map_word(Map map, ReleaseStoreTag);
+  inline void set_map_word_forwarded(HeapObject target_object, ReleaseStoreTag);
 
   // This method exists to help remove GetIsolate/GetHeap from HeapObject, in a
   // way that doesn't require passing Isolate/Heap down huge call chains or to

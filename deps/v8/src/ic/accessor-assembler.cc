@@ -187,7 +187,7 @@ void AccessorAssembler::TryMegaDOMCase(TNode<Object> lookup_start_object,
   // we should miss to the runtime.
   exit_point->Return(
       CallBuiltin(Builtin::kCallFunctionTemplate_CheckCompatibleReceiver,
-                  context, getter, IntPtrConstant(0), lookup_start_object));
+                  context, getter, IntPtrConstant(1), lookup_start_object));
 }
 
 void AccessorAssembler::HandleLoadICHandlerCase(
@@ -291,7 +291,7 @@ void AccessorAssembler::HandleLoadAccessor(
   Goto(&load);
 
   BIND(&load);
-  TNode<IntPtrT> argc = IntPtrConstant(0);
+  TNode<Int32T> argc = Int32Constant(0);
   exit_point->Return(CallApiCallback(context, callback, argc, data,
                                      api_holder.value(), p->receiver()));
 }
@@ -1304,25 +1304,12 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
         if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
-          GotoIf(IsPropertyDetailsConst(details), &if_constant);
+          GotoIf(IsPropertyDetailsConst(details), miss);
         }
 
         StoreValueByKeyIndex<PropertyDictionary>(
             properties, var_name_index.value(), p->value());
         Return(p->value());
-
-        if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
-          BIND(&if_constant);
-          {
-            TNode<Object> prev_value =
-                LoadValueByKeyIndex(properties, var_name_index.value());
-            BranchIfSameValue(prev_value, p->value(), &done, miss,
-                              SameValueMode::kNumbersOnly);
-          }
-
-          BIND(&done);
-          Return(p->value());
-        }
       }
     }
     BIND(&if_fast_smi);
@@ -1613,14 +1600,9 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
           StoreMap(object, object_map);
           StoreObjectField(object, field_offset, heap_number);
         } else {
+          GotoIf(IsPropertyDetailsConst(details), slow);
           TNode<HeapNumber> heap_number =
               CAST(LoadObjectField(object, field_offset));
-          Label store_value(this);
-          GotoIfNot(IsPropertyDetailsConst(details), &store_value);
-          TNode<Float64T> current_value = LoadHeapNumberValue(heap_number);
-          BranchIfSameNumberValue(current_value, double_value, &store_value,
-                                  slow);
-          BIND(&store_value);
           StoreHeapNumberValue(heap_number, double_value);
         }
         Goto(&done);
@@ -1631,12 +1613,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
         if (do_transitioning_store) {
           StoreMap(object, object_map);
         } else {
-          Label if_mutable(this);
-          GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
-          TNode<Object> current_value = LoadObjectField(object, field_offset);
-          BranchIfSameValue(current_value, value, &done, slow,
-                            SameValueMode::kNumbersOnly);
-          BIND(&if_mutable);
+          GotoIf(IsPropertyDetailsConst(details), slow);
         }
         StoreObjectField(object, field_offset, value);
         Goto(&done);
@@ -1684,29 +1661,16 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
             &double_rep, &tagged_rep);
         BIND(&double_rep);
         {
+          GotoIf(IsPropertyDetailsConst(details), slow);
           TNode<HeapNumber> heap_number =
               CAST(LoadPropertyArrayElement(properties, backing_store_index));
           TNode<Float64T> double_value = ChangeNumberToFloat64(CAST(value));
-
-          Label if_mutable(this);
-          GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
-          TNode<Float64T> current_value = LoadHeapNumberValue(heap_number);
-          BranchIfSameNumberValue(current_value, double_value, &done, slow);
-
-          BIND(&if_mutable);
           StoreHeapNumberValue(heap_number, double_value);
           Goto(&done);
         }
         BIND(&tagged_rep);
         {
-          Label if_mutable(this);
-          GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
-          TNode<Object> current_value =
-              LoadPropertyArrayElement(properties, backing_store_index);
-          BranchIfSameValue(current_value, value, &done, slow,
-                            SameValueMode::kNumbersOnly);
-
-          BIND(&if_mutable);
+          GotoIf(IsPropertyDetailsConst(details), slow);
           StorePropertyArrayElement(properties, backing_store_index, value);
           Goto(&done);
         }
@@ -1982,7 +1946,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       BIND(&store);
       {
         GotoIf(IsSideEffectFreeDebuggingActive(), &if_slow);
-        TNode<IntPtrT> argc = IntPtrConstant(1);
+        TNode<Int32T> argc = Int32Constant(1);
         Return(CallApiCallback(context, callback, argc, data,
                                api_holder.value(), p->receiver(), p->value()));
       }
@@ -2149,6 +2113,18 @@ void AccessorAssembler::CheckDescriptorConsidersNumbersMutable(
             bailout);
 }
 
+void AccessorAssembler::GotoIfNotSameNumberBitPattern(TNode<Float64T> left,
+                                                      TNode<Float64T> right,
+                                                      Label* miss) {
+  // TODO(verwaest): Use a single compare on 64bit archs.
+  const TNode<Uint32T> lhs_hi = Float64ExtractHighWord32(left);
+  const TNode<Uint32T> rhs_hi = Float64ExtractHighWord32(right);
+  GotoIfNot(Word32Equal(lhs_hi, rhs_hi), miss);
+  const TNode<Uint32T> lhs_lo = Float64ExtractLowWord32(left);
+  const TNode<Uint32T> rhs_lo = Float64ExtractLowWord32(right);
+  GotoIfNot(Word32Equal(lhs_lo, rhs_lo), miss);
+}
+
 void AccessorAssembler::HandleStoreFieldAndReturn(
     TNode<Word32T> handler_word, TNode<JSObject> holder, TNode<Object> value,
     base::Optional<TNode<Float64T>> double_value, Representation representation,
@@ -2192,11 +2168,9 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
             &do_store);
   {
     if (store_value_as_double) {
-      Label done(this);
       TNode<Float64T> current_value =
           LoadObjectField<Float64T>(property_storage, offset);
-      BranchIfSameNumberValue(current_value, *double_value, &done, miss);
-      BIND(&done);
+      GotoIfNotSameNumberBitPattern(current_value, *double_value, miss);
       Return(value);
     } else {
       TNode<Object> current_value = LoadObjectField(property_storage, offset);
@@ -3357,7 +3331,9 @@ void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
 
   BIND(&if_property_cell);
   {
-    // Load value or try handler case if the weak reference is cleared.
+    // This branch also handles the "handler mode": the weak reference is
+    // cleared, the feedback extra is the handler. In that case we jump to
+    // try_handler. (See FeedbackNexus::ConfigureHandlerMode.)
     CSA_DCHECK(this, IsWeakOrCleared(maybe_weak_ref));
     TNode<PropertyCell> property_cell =
         CAST(GetHeapObjectAssumeWeak(maybe_weak_ref, try_handler));
@@ -3369,6 +3345,9 @@ void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
 
   BIND(&if_lexical_var);
   {
+    // This branch handles the "lexical variable mode": the feedback is a SMI
+    // encoding the variable location. (See
+    // FeedbackNexus::ConfigureLexicalVarMode.)
     Comment("Load lexical variable");
     TNode<IntPtrT> lexical_handler = SmiUntag(CAST(maybe_weak_ref));
     TNode<IntPtrT> context_index =
@@ -3797,6 +3776,9 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
   {
     Label try_handler(this), miss(this, Label::kDeferred);
 
+    // This branch also handles the "handler mode": the weak reference is
+    // cleared, the feedback extra is the handler. In that case we jump to
+    // try_handler. (See FeedbackNexus::ConfigureHandlerMode.)
     CSA_DCHECK(this, IsWeakOrCleared(maybe_weak_ref));
     TNode<PropertyCell> property_cell =
         CAST(GetHeapObjectAssumeWeak(maybe_weak_ref, &try_handler));
@@ -3833,6 +3815,9 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
 
   BIND(&if_lexical_var);
   {
+    // This branch handles the "lexical variable mode": the feedback is a SMI
+    // encoding the variable location. (See
+    // FeedbackNexus::ConfigureLexicalVarMode.)
     Comment("Store lexical variable");
     TNode<IntPtrT> lexical_handler = SmiUntag(CAST(maybe_weak_ref));
     TNode<IntPtrT> context_index =
@@ -4959,7 +4944,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
               IntPtrAdd(field_offset, field_offset_difference);
           StoreObjectFieldNoWriteBarrier(object, result_offset, field);
         },
-        1, IndexAdvanceMode::kPost);
+        1, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
 
     // We need to go through the {object} again here and properly clone them. We
     // use a second loop here to ensure that the GC (and heap verifier) always

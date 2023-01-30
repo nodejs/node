@@ -187,6 +187,9 @@ DEFINE_GETTER(
         graph()->zone()->New<ZoneVector<MachineType>>(0, graph()->zone()),
         SparseInputMask(SparseInputMask::kEndMarker << 1))))
 
+DEFINE_GETTER(ExternalObjectMapConstant,
+              HeapConstant(factory()->external_map()))
+
 #undef DEFINE_GETTER
 #undef GET_CACHED_FIELD
 

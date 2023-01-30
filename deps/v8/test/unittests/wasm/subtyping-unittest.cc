@@ -27,7 +27,7 @@ FieldInit immut(ValueType type) { return FieldInit(type, false); }
 void DefineStruct(WasmModule* module, std::initializer_list<FieldInit> fields,
                   uint32_t supertype = kNoSuperType,
                   bool in_singleton_rec_group = true) {
-  StructType::Builder builder(module->signature_zone.get(),
+  StructType::Builder builder(&module->signature_zone,
                               static_cast<uint32_t>(fields.size()));
   for (FieldInit field : fields) {
     builder.AddField(field.first, field.second);
@@ -41,7 +41,7 @@ void DefineStruct(WasmModule* module, std::initializer_list<FieldInit> fields,
 void DefineArray(WasmModule* module, FieldInit element_type,
                  uint32_t supertype = kNoSuperType,
                  bool in_singleton_rec_group = true) {
-  module->add_array_type(module->signature_zone->New<ArrayType>(
+  module->add_array_type(module->signature_zone.New<ArrayType>(
                              element_type.first, element_type.second),
                          supertype);
   if (in_singleton_rec_group) {
@@ -55,8 +55,7 @@ void DefineSignature(WasmModule* module,
                      uint32_t supertype = kNoSuperType,
                      bool in_singleton_rec_group = true) {
   module->add_signature(
-      FunctionSig::Build(module->signature_zone.get(), returns, params),
-      supertype);
+      FunctionSig::Build(&module->signature_zone, returns, params), supertype);
   if (in_singleton_rec_group) {
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 1);
   }
@@ -66,8 +65,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   FLAG_SCOPE(experimental_wasm_gc);
   FLAG_VALUE_SCOPE(wasm_gc_structref_as_dataref, false);
   v8::internal::AccountingAllocator allocator;
-  WasmModule module1_(std::make_unique<Zone>(&allocator, ZONE_NAME));
-  WasmModule module2_(std::make_unique<Zone>(&allocator, ZONE_NAME));
+  WasmModule module1_;
+  WasmModule module2_;
 
   WasmModule* module1 = &module1_;
   WasmModule* module2 = &module2_;

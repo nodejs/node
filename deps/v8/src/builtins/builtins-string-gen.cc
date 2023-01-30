@@ -1289,7 +1289,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
 
           StoreFixedArrayElement(elements, index, entry);
         },
-        1, IndexAdvanceMode::kPost);
+        1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
 
     TNode<Map> array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, context);
     result_array = AllocateJSArray(array_map, elements, length_smi);
@@ -1573,7 +1573,7 @@ void StringBuiltinsAssembler::CopyStringCharacters(
           Increment(&current_to_offset, to_increment);
         }
       },
-      from_increment, IndexAdvanceMode::kPost);
+      from_increment, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
 }
 
 // A wrapper around CopyStringCharacters which determines the correct string

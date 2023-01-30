@@ -935,6 +935,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ToName();
   const Operator* ToNumber();
   const Operator* ToNumberConvertBigInt();
+  const Operator* ToBigInt();
+  const Operator* ToBigIntConvertNumber();
   const Operator* ToNumeric();
   const Operator* ToObject();
   const Operator* ToString();

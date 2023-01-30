@@ -10,6 +10,7 @@
 #include "src/handles/handles.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/cell.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/heap-number.h"

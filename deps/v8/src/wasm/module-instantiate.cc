@@ -1125,8 +1125,11 @@ bool InstanceBuilder::ProcessImportedFunction(
   }
   auto js_receiver = Handle<JSReceiver>::cast(value);
   const FunctionSig* expected_sig = module_->functions[func_index].sig;
-  auto resolved = compiler::ResolveWasmImportCall(js_receiver, expected_sig,
-                                                  module_, enabled_);
+  uint32_t sig_index = module_->functions[func_index].sig_index;
+  uint32_t canonical_type_index =
+      module_->isorecursive_canonical_type_ids[sig_index];
+  auto resolved = compiler::ResolveWasmImportCall(
+      js_receiver, expected_sig, canonical_type_index, module_, enabled_);
   compiler::WasmImportCallKind kind = resolved.kind;
   js_receiver = resolved.callable;
   switch (kind) {
@@ -1589,8 +1592,11 @@ void InstanceBuilder::CompileImportWrappers(
     auto js_receiver = Handle<JSReceiver>::cast(value);
     uint32_t func_index = module_->import_table[index].index;
     const FunctionSig* sig = module_->functions[func_index].sig;
-    auto resolved =
-        compiler::ResolveWasmImportCall(js_receiver, sig, module_, enabled_);
+    uint32_t sig_index = module_->functions[func_index].sig_index;
+    uint32_t canonical_type_index =
+        module_->isorecursive_canonical_type_ids[sig_index];
+    auto resolved = compiler::ResolveWasmImportCall(
+        js_receiver, sig, canonical_type_index, module_, enabled_);
     compiler::WasmImportCallKind kind = resolved.kind;
     if (kind == compiler::WasmImportCallKind::kWasmToWasm ||
         kind == compiler::WasmImportCallKind::kLinkError ||
@@ -1607,9 +1613,6 @@ void InstanceBuilder::CompileImportWrappers(
       expected_arity =
           shared.internal_formal_parameter_count_without_receiver();
     }
-    uint32_t canonical_type_index =
-        module_->isorecursive_canonical_type_ids[module_->functions[func_index]
-                                                     .sig_index];
     WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
                                          expected_arity, resolved.suspend);
     if (cache_scope[key] != nullptr) {

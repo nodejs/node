@@ -30,7 +30,7 @@ class ThreadLocalTop {
   // TODO(all): This is not particularly beautiful. We should probably
   // refactor this to really consist of just Addresses and 32-bit
   // integer fields.
-  static constexpr uint32_t kSizeInBytes = 27 * kSystemPointerSize;
+  static constexpr uint32_t kSizeInBytes = 30 * kSystemPointerSize;
 
   // Does early low-level initialization that does not depend on the
   // isolate being present.

@@ -1263,8 +1263,9 @@ Declaration* DeclarationScope::CheckConflictingVarDeclarations(
     if (decl->IsVariableDeclaration() &&
         decl->AsVariableDeclaration()->AsNested() != nullptr) {
       Scope* current = decl->AsVariableDeclaration()->AsNested()->scope();
-      DCHECK(decl->var()->mode() == VariableMode::kVar ||
-             decl->var()->mode() == VariableMode::kDynamic);
+      if (decl->var()->mode() != VariableMode::kVar &&
+          decl->var()->mode() != VariableMode::kDynamic)
+        continue;
       // Iterate through all scopes until the declaration scope.
       do {
         // There is a conflict if there exists a non-VAR binding.

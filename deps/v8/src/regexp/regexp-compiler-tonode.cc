@@ -535,9 +535,145 @@ RegExpNode* RegExpClassRanges::ToNode(RegExpCompiler* compiler,
   return result;
 }
 
+RegExpNode* RegExpClassSetOperand::ToNode(RegExpCompiler* compiler,
+                                          RegExpNode* on_success) {
+  Zone* zone = compiler->zone();
+  const int size = (has_strings() ? static_cast<int>(strings()->size()) : 0) +
+                   (ranges()->is_empty() ? 0 : 1);
+  if (size == 0) {
+    // If neither ranges nor strings are present, the operand is equal to an
+    // empty range (matching nothing).
+    ZoneList<CharacterRange>* empty =
+        zone->template New<ZoneList<CharacterRange>>(0, zone);
+    return zone->template New<RegExpClassRanges>(zone, empty)
+        ->ToNode(compiler, on_success);
+  }
+  ZoneList<RegExpTree*>* alternatives =
+      zone->template New<ZoneList<RegExpTree*>>(size, zone);
+  // Strings are sorted by length first (larger strings before shorter ones).
+  // See the comment on CharacterClassStrings.
+  // Empty strings (if present) are added after character ranges.
+  RegExpTree* empty_string = nullptr;
+  if (has_strings()) {
+    for (auto string : *strings()) {
+      if (string.second->IsEmpty()) {
+        empty_string = string.second;
+      } else {
+        alternatives->Add(string.second, zone);
+      }
+    }
+  }
+  if (!ranges()->is_empty()) {
+    alternatives->Add(zone->template New<RegExpClassRanges>(zone, ranges()),
+                      zone);
+  }
+  if (empty_string != nullptr) {
+    alternatives->Add(empty_string, zone);
+  }
+
+  RegExpTree* node = nullptr;
+  if (size == 1) {
+    DCHECK_EQ(alternatives->length(), 1);
+    node = alternatives->first();
+  } else {
+    node = zone->template New<RegExpDisjunction>(alternatives);
+  }
+  return node->ToNode(compiler, on_success);
+}
+
 RegExpNode* RegExpClassSetExpression::ToNode(RegExpCompiler* compiler,
                                              RegExpNode* on_success) {
-  return ToCharacterClass(compiler->zone())->ToNode(compiler, on_success);
+  Zone* zone = compiler->zone();
+  ZoneList<CharacterRange>* temp_ranges =
+      zone->template New<ZoneList<CharacterRange>>(4, zone);
+  RegExpClassSetOperand* root = ComputeExpression(this, temp_ranges, zone);
+  return root->ToNode(compiler, on_success);
+}
+
+void RegExpClassSetOperand::Union(RegExpClassSetOperand* other, Zone* zone) {
+  ranges()->AddAll(*other->ranges(), zone);
+  strings()->insert(other->strings()->begin(), other->strings()->end());
+}
+
+void RegExpClassSetOperand::Intersect(RegExpClassSetOperand* other,
+                                      ZoneList<CharacterRange>* temp_ranges,
+                                      Zone* zone) {
+  CharacterRange::Intersect(ranges(), other->ranges(), temp_ranges, zone);
+  std::swap(*ranges(), *temp_ranges);
+  temp_ranges->Rewind(0);
+  for (auto iter = strings()->begin(); iter != strings()->end();) {
+    if (other->strings()->find(iter->first) == other->strings()->end()) {
+      iter = strings()->erase(iter);
+    } else {
+      iter++;
+    }
+  }
+}
+
+void RegExpClassSetOperand::Subtract(RegExpClassSetOperand* other,
+                                     ZoneList<CharacterRange>* temp_ranges,
+                                     Zone* zone) {
+  CharacterRange::Subtract(ranges(), other->ranges(), temp_ranges, zone);
+  std::swap(*ranges(), *temp_ranges);
+  temp_ranges->Rewind(0);
+  for (auto iter = strings()->begin(); iter != strings()->end();) {
+    if (other->strings()->find(iter->first) != other->strings()->end()) {
+      iter = strings()->erase(iter);
+    } else {
+      iter++;
+    }
+  }
+}
+
+// static
+RegExpClassSetOperand* RegExpClassSetExpression::ComputeExpression(
+    RegExpTree* root, ZoneList<CharacterRange>* temp_ranges, Zone* zone) {
+  DCHECK(temp_ranges->is_empty());
+  if (root->IsClassSetOperand()) {
+    return root->AsClassSetOperand();
+  }
+  DCHECK(root->IsClassSetExpression());
+  RegExpClassSetExpression* node = root->AsClassSetExpression();
+  RegExpClassSetOperand* result =
+      ComputeExpression(node->operands()->at(0), temp_ranges, zone);
+  switch (node->operation()) {
+    case OperationType::kUnion: {
+      for (int i = 1; i < node->operands()->length(); i++) {
+        RegExpClassSetOperand* op =
+            ComputeExpression(node->operands()->at(i), temp_ranges, zone);
+        result->Union(op, zone);
+      }
+      CharacterRange::Canonicalize(result->ranges());
+      break;
+    }
+    case OperationType::kIntersection: {
+      for (int i = 1; i < node->operands()->length(); i++) {
+        RegExpClassSetOperand* op =
+            ComputeExpression(node->operands()->at(i), temp_ranges, zone);
+        result->Intersect(op, temp_ranges, zone);
+      }
+      break;
+    }
+    case OperationType::kSubtraction: {
+      for (int i = 1; i < node->operands()->length(); i++) {
+        RegExpClassSetOperand* op =
+            ComputeExpression(node->operands()->at(i), temp_ranges, zone);
+        result->Subtract(op, temp_ranges, zone);
+      }
+      break;
+    }
+  }
+  if (node->is_negated()) {
+    DCHECK(!result->has_strings());
+    CharacterRange::Negate(result->ranges(), temp_ranges, zone);
+    std::swap(*result->ranges(), *temp_ranges);
+    temp_ranges->Rewind(0);
+  }
+  // Store the result as single operand of the current node.
+  node->operands()->Set(0, result);
+  node->operands()->Rewind(1);
+
+  return result;
 }
 
 namespace {
@@ -1498,128 +1634,6 @@ void CharacterSet::Canonicalize() {
   CharacterRange::Canonicalize(ranges_);
 }
 
-RegExpClassRanges* RegExpClassSetExpression::ToCharacterClass(Zone* zone) {
-  ZoneList<CharacterRange>* result_ranges =
-      zone->template New<ZoneList<CharacterRange>>(2, zone);
-  ZoneList<CharacterRange>* temp_ranges =
-      zone->template New<ZoneList<CharacterRange>>(2, zone);
-  ComputeCharacterRanges(this, result_ranges, temp_ranges, zone);
-  return zone->template New<RegExpClassRanges>(zone, result_ranges);
-}
-
-// static
-void RegExpClassSetExpression::ComputeCharacterRanges(
-    RegExpTree* root, ZoneList<CharacterRange>* result_ranges,
-    ZoneList<CharacterRange>* temp_ranges, Zone* zone) {
-  DCHECK_EQ(temp_ranges->length(), 0);
-  DCHECK(root->IsClassRanges() || root->IsClassSetExpression());
-  if (root->IsClassRanges()) {
-    DCHECK(!root->AsClassRanges()->is_negated());
-    ZoneList<CharacterRange>* ranges = root->AsClassRanges()->ranges(zone);
-    CharacterRange::Canonicalize(ranges);
-    result_ranges->AddAll(*ranges, zone);
-    return;
-  }
-  RegExpClassSetExpression* node = root->AsClassSetExpression();
-  switch (node->operation()) {
-    case OperationType::kUnion: {
-      ZoneList<CharacterRange>* op_ranges =
-          zone->template New<ZoneList<CharacterRange>>(2, zone);
-      for (int i = 0; i < node->operands()->length(); i++) {
-        RegExpTree* op = node->operands()->at(i);
-        ComputeCharacterRanges(op, op_ranges, temp_ranges, zone);
-        result_ranges->AddAll(*op_ranges, zone);
-        op_ranges->Rewind(0);
-      }
-      CharacterRange::Canonicalize(result_ranges);
-      break;
-    }
-    case OperationType::kIntersection: {
-      ZoneList<CharacterRange>* op_ranges =
-          zone->template New<ZoneList<CharacterRange>>(2, zone);
-      ComputeCharacterRanges(node->operands()->at(0), op_ranges, temp_ranges,
-                             zone);
-      result_ranges->AddAll(*op_ranges, zone);
-      op_ranges->Rewind(0);
-      for (int i = 1; i < node->operands()->length(); i++) {
-        ComputeCharacterRanges(node->operands()->at(i), op_ranges, temp_ranges,
-                               zone);
-        CharacterRange::Intersect(result_ranges, op_ranges, temp_ranges, zone);
-        std::swap(*result_ranges, *temp_ranges);
-        temp_ranges->Rewind(0);
-        op_ranges->Rewind(0);
-      }
-      break;
-    }
-    case OperationType::kSubtraction: {
-      ZoneList<CharacterRange>* op_ranges =
-          zone->template New<ZoneList<CharacterRange>>(2, zone);
-      ComputeCharacterRanges(node->operands()->at(0), op_ranges, temp_ranges,
-                             zone);
-      result_ranges->AddAll(*op_ranges, zone);
-      op_ranges->Rewind(0);
-      for (int i = 1; i < node->operands()->length(); i++) {
-        ComputeCharacterRanges(node->operands()->at(i), op_ranges, temp_ranges,
-                               zone);
-        CharacterRange::Subtract(result_ranges, op_ranges, temp_ranges, zone);
-        std::swap(*result_ranges, *temp_ranges);
-        temp_ranges->Rewind(0);
-        op_ranges->Rewind(0);
-      }
-#ifdef ENABLE_SLOW_DCHECKS
-      // Check that the result is equal to subtracting the union of all RHS
-      // operands from the LHS operand.
-      // TODO(pthier): It is unclear whether this variant is faster or slower
-      // than subtracting multiple ranges in practice.
-      ZoneList<CharacterRange>* lhs_range =
-          node->operands()->at(0)->IsClassRanges()
-              ? node->operands()->at(0)->AsClassRanges()->ranges(zone)
-              : node->operands()->at(0)->AsClassSetExpression()->ranges_;
-      ZoneList<CharacterRange>* rhs_union =
-          zone->template New<ZoneList<CharacterRange>>(2, zone);
-      for (int i = 1; i < node->operands()->length(); i++) {
-        ZoneList<CharacterRange>* op_range =
-            node->operands()->at(i)->IsClassRanges()
-                ? node->operands()->at(i)->AsClassRanges()->ranges(zone)
-                : node->operands()->at(i)->AsClassSetExpression()->ranges_;
-        rhs_union->AddAll(*op_range, zone);
-      }
-      CharacterRange::Canonicalize(rhs_union);
-      ZoneList<CharacterRange>* ranges_check =
-          zone->template New<ZoneList<CharacterRange>>(2, zone);
-      CharacterRange::Subtract(lhs_range, rhs_union, ranges_check, zone);
-      DCHECK(CharacterRange::Equals(result_ranges, ranges_check));
-
-      // Check that the result is equal to intersecting the LHS operand with the
-      // complemented union of all RHS operands
-      ZoneList<CharacterRange>* rhs_union_negated =
-          zone->template New<ZoneList<CharacterRange>>(rhs_union->length(),
-                                                       zone);
-      CharacterRange::Negate(rhs_union, rhs_union_negated, zone);
-      ranges_check->Rewind(0);
-      CharacterRange::Intersect(lhs_range, rhs_union_negated, ranges_check,
-                                zone);
-      DCHECK(CharacterRange::Equals(result_ranges, ranges_check));
-#endif
-      break;
-    }
-  }
-
-  if (node->is_negated()) {
-    CharacterRange::Negate(result_ranges, temp_ranges, zone);
-    std::swap(*result_ranges, *temp_ranges);
-    temp_ranges->Rewind(0);
-  }
-
-  DCHECK_EQ(temp_ranges->length(), 0);
-
-#ifdef ENABLE_SLOW_DCHECKS
-  // Cache results for DCHECKs.
-  node->ranges_ =
-      zone->template New<ZoneList<CharacterRange>>(*result_ranges, zone);
-#endif
-}
-
 // static
 void CharacterRange::Canonicalize(ZoneList<CharacterRange>* character_ranges) {
   if (character_ranges->length() <= 1) return;
@@ -1740,6 +1754,9 @@ void CharacterRange::Subtract(const ZoneList<CharacterRange>* src,
   DCHECK(CharacterRange::IsCanonical(src));
   DCHECK(CharacterRange::IsCanonical(to_remove));
   DCHECK_EQ(0, result->length());
+
+  if (src->is_empty()) return;
+
   int src_index = 0;
   int to_remove_index = 0;
   base::uc32 from = src->at(src_index).from();

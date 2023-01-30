@@ -837,6 +837,10 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
       }
     }
     handler = ComputeHandler(lookup);
+    auto holder = lookup->GetHolder<Object>();
+    CHECK(*holder == *(lookup->lookup_start_object()) ||
+          LoadHandler::CanHandleHolderNotLookupStart(*handler.object()) ||
+          holder->IsJSPrimitiveWrapper());
   }
   // Can't use {lookup->name()} because the LookupIterator might be in
   // "elements" mode for keys that are strings representing integers above

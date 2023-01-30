@@ -741,6 +741,8 @@ Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
   V(ToName, Operator::kNoProperties, 1, 1)                               \
   V(ToNumber, Operator::kNoProperties, 1, 1)                             \
   V(ToNumberConvertBigInt, Operator::kNoProperties, 1, 1)                \
+  V(ToBigInt, Operator::kNoProperties, 1, 1)                             \
+  V(ToBigIntConvertNumber, Operator::kNoProperties, 1, 1)                \
   V(ToNumeric, Operator::kNoProperties, 1, 1)                            \
   V(ToObject, Operator::kFoldable, 1, 1)                                 \
   V(ToString, Operator::kNoProperties, 1, 1)                             \

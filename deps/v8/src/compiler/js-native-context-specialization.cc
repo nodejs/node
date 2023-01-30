@@ -13,6 +13,7 @@
 #include "src/compiler/access-info.h"
 #include "src/compiler/allocation-builder-inl.h"
 #include "src/compiler/allocation-builder.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/frame-states.h"
 #include "src/compiler/graph-assembler.h"
@@ -1744,6 +1745,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         // trimming.
         return NoChange();
       }
+
       values.push_back(continuation->value());
       effects.push_back(continuation->effect());
       controls.push_back(continuation->control());
@@ -2897,9 +2899,14 @@ JSNativeContextSpecialization::BuildPropertyStore(
               AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer()),
           storage, effect, control);
     }
-    bool store_to_existing_constant_field = access_info.IsFastDataConstant() &&
-                                            access_mode == AccessMode::kStore &&
-                                            !access_info.HasTransitionMap();
+    if (access_info.IsFastDataConstant() && access_mode == AccessMode::kStore &&
+        !access_info.HasTransitionMap()) {
+      Node* deoptimize = graph()->NewNode(
+          simplified()->CheckIf(DeoptimizeReason::kStoreToConstant),
+          jsgraph()->FalseConstant(), effect, control);
+      return ValueEffectControl(jsgraph()->UndefinedConstant(), deoptimize,
+                                control);
+    }
     FieldAccess field_access = {
         kTaggedBase,
         field_index.offset(),
@@ -2952,40 +2959,11 @@ JSNativeContextSpecialization::BuildPropertyStore(
           field_access.name = MaybeHandle<Name>();
           field_access.machine_type = MachineType::Float64();
         }
-        if (store_to_existing_constant_field) {
-          DCHECK(!access_info.HasTransitionMap());
-          // If the field is constant check that the value we are going
-          // to store matches current value.
-          Node* current_value = effect = graph()->NewNode(
-              simplified()->LoadField(field_access), storage, effect, control);
-
-          Node* check =
-              graph()->NewNode(simplified()->SameValue(), current_value, value);
-          effect = graph()->NewNode(
-              simplified()->CheckIf(DeoptimizeReason::kWrongValue), check,
-              effect, control);
-          return ValueEffectControl(value, effect, control);
-        }
         break;
       }
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTagged:
-        if (store_to_existing_constant_field) {
-          DCHECK(!access_info.HasTransitionMap());
-          // If the field is constant check that the value we are going
-          // to store matches current value.
-          Node* current_value = effect = graph()->NewNode(
-              simplified()->LoadField(field_access), storage, effect, control);
-
-          Node* check = graph()->NewNode(simplified()->SameValueNumbersOnly(),
-                                         current_value, value);
-          effect = graph()->NewNode(
-              simplified()->CheckIf(DeoptimizeReason::kWrongValue), check,
-              effect, control);
-          return ValueEffectControl(value, effect, control);
-        }
-
         if (field_representation == MachineRepresentation::kTaggedSigned) {
           value = effect = graph()->NewNode(
               simplified()->CheckSmi(FeedbackSource()), value, effect, control);
@@ -3155,18 +3133,30 @@ JSNativeContextSpecialization::BuildElementAccess(
     base::Optional<JSTypedArrayRef> typed_array =
         GetTypedArrayConstant(broker(), receiver);
     if (typed_array.has_value() &&
+        // TODO(v8:11111): Add support for rab/gsab here.
         !IsRabGsabTypedArrayElementsKind(elements_kind)) {
-      // TODO(v8:11111): Add support for rab/gsab here.
-      length = jsgraph()->Constant(static_cast<double>(typed_array->length()));
+      if (typed_array->map().elements_kind() != elements_kind) {
+        // This case should never be reachable at runtime.
+        JSGraphAssembler assembler(jsgraph_, zone(), BranchSemantics::kJS,
+                                   [this](Node* n) { this->Revisit(n); });
+        assembler.InitializeEffectControl(effect, control);
+        assembler.Unreachable();
+        ReleaseEffectAndControlFromAssembler(&assembler);
+        Node* dead = jsgraph_->Dead();
+        return ValueEffectControl{dead, dead, dead};
+      } else {
+        length =
+            jsgraph()->Constant(static_cast<double>(typed_array->length()));
 
-      DCHECK(!typed_array->is_on_heap());
-      // Load the (known) data pointer for the {receiver} and set {base_pointer}
-      // and {external_pointer} to the values that will allow to generate typed
-      // element accesses using the known data pointer.
-      // The data pointer might be invalid if the {buffer} was detached,
-      // so we need to make sure that any access is properly guarded.
-      base_pointer = jsgraph()->ZeroConstant();
-      external_pointer = jsgraph()->PointerConstant(typed_array->data_ptr());
+        DCHECK(!typed_array->is_on_heap());
+        // Load the (known) data pointer for the {receiver} and set
+        // {base_pointer} and {external_pointer} to the values that will allow
+        // to generate typed element accesses using the known data pointer. The
+        // data pointer might be invalid if the {buffer} was detached, so we
+        // need to make sure that any access is properly guarded.
+        base_pointer = jsgraph()->ZeroConstant();
+        external_pointer = jsgraph()->PointerConstant(typed_array->data_ptr());
+      }
     } else {
       // Load the {receiver}s length.
       JSGraphAssembler assembler(jsgraph_, zone(), BranchSemantics::kJS,

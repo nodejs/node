@@ -1,4 +1,4 @@
-You can modify this file to create no-op changelists.
+You can modify this file to create no-op changelists...
 
 Try to write something funny. And please don't add trailing whitespace.
 
@@ -16,4 +16,4 @@ Today's answer to life the universe and everything is 12950!
 Today's answer to life the universe and everything is 6728!
 Today's answer to life the universe and everything is 6728!!
 Off-course, this is wrong ...
-.
+..

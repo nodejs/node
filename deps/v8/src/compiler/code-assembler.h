@@ -508,6 +508,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #endif
 
   // Constants.
+  TNode<Int32T> UniqueInt32Constant(int32_t value);
   TNode<Int32T> Int32Constant(int32_t value);
   TNode<Int64T> Int64Constant(int64_t value);
   TNode<Uint64T> Uint64Constant(uint64_t value) {

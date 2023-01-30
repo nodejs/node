@@ -152,6 +152,14 @@ def _default_args():
             ],
             "//conditions:default": [],
         }),
+        cxxopts = select({
+            "//third_party/v8/HEAD/google3/config:is_opt": [
+                "-fvisibility=hidden",
+                "-fvisibility-inlines-hidden",
+            ],
+            "//conditions:default": [
+            ],
+        }),
         includes = ["include"],
         linkopts = select({
             "@v8//bazel/config:is_windows": [

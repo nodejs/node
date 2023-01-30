@@ -252,7 +252,7 @@ class V8_EXPORT_PRIVATE Zone final {
   std::atomic<size_t> allocation_size_for_tracing_ = {0};
 
   // The number of bytes freed in this zone so far.
-  stdd::atomic<size_t> freed_size_for_tracing_ = {0};
+  std::atomic<size_t> freed_size_for_tracing_ = {0};
 #endif
 
   friend class ZoneScope;

@@ -7,6 +7,10 @@
 
 #include "src/base/base-export.h"
 
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
+#include "third_party/glibc/src/sysdeps/ieee754/dbl-64/trig.h"  // nogncheck
+#endif
+
 namespace v8 {
 namespace base {
 namespace ieee754 {
@@ -34,7 +38,15 @@ V8_BASE_EXPORT double atan(double x);
 V8_BASE_EXPORT double atan2(double y, double x);
 
 // Returns the cosine of |x|, where |x| is given in radians.
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS) && \
+    !defined(BUILDING_V8_BASE_SHARED) && \
+    !defined(USING_V8_BASE_SHARED)
+inline double cos(double x) {
+  return glibc_cos(x);
+}
+#else
 V8_BASE_EXPORT double cos(double x);
+#endif
 
 // Returns the base-e exponential of |x|.
 V8_BASE_EXPORT double exp(double x);
@@ -68,8 +80,16 @@ V8_BASE_EXPORT double expm1(double x);
 // behaviour is preserved for compatibility reasons.
 V8_BASE_EXPORT double pow(double x, double y);
 
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS) && \
+    !defined(BUILDING_V8_BASE_SHARED) && \
+    !defined(USING_V8_BASE_SHARED)
+inline double sin(double x) {
+  return glibc_sin(x);
+}
+#else
 // Returns the sine of |x|, where |x| is given in radians.
 V8_BASE_EXPORT double sin(double x);
+#endif
 
 // Returns the tangent of |x|, where |x| is given in radians.
 V8_BASE_EXPORT double tan(double x);

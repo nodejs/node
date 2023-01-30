@@ -761,13 +761,25 @@ builtin BitwiseAnd(implicit context: Context)(
 }
 
 builtin BitwiseOr(implicit context: Context)(
-    left: JSAny, right: JSAny): Object {
-  return Generate_BitwiseBinaryOp(Operation::kBitwiseOr, left, right, context);
+    left: JSAny, right: JSAny): Numeric {
+  try {
+    BinaryOp1(left, right) otherwise Number, AtLeastOneBigInt;
+  } label Number(left: Number, right: Number) {
+    tail BitwiseOr(left, right);
+  } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
+    tail bigint::BigIntBitwiseOr(left, right);
+  }
 }
 
 builtin BitwiseXor(implicit context: Context)(
-    left: JSAny, right: JSAny): Object {
-  return Generate_BitwiseBinaryOp(Operation::kBitwiseXor, left, right, context);
+    left: JSAny, right: JSAny): Numeric {
+  try {
+    BinaryOp1(left, right) otherwise Number, AtLeastOneBigInt;
+  } label Number(left: Number, right: Number) {
+    tail BitwiseXor(left, right);
+  } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
+    tail bigint::BigIntBitwiseXor(left, right);
+  }
 }
 
 // Relational builtins.

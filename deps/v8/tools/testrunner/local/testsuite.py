@@ -115,8 +115,9 @@ class TestLoader(object):
 
   def _create_test(self, path, suite, **kwargs):
     """Converts paths into test objects using the given options"""
-    return self.test_class(
-      suite, path, self._path_to_name(path), self.test_config, **kwargs)
+    return self.test_class(suite, path, self._path_to_name(path),
+                           self.test_config, self.suite.framework_name,
+                           **kwargs)
 
   def list_tests(self):
     """Loads and returns the test objects for a TestSuite"""
@@ -265,6 +266,9 @@ class TestSuite(object):
 
   def status_file(self):
     return "%s/%s.status" % (self.root, self.name)
+
+  def statusfile_outcomes(self, test_name, variant):
+    return self.statusfile.get_outcomes(test_name, variant)
 
   @property
   def _test_loader_class(self):

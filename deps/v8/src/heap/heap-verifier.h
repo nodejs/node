@@ -7,6 +7,7 @@
 
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/map.h"
 
@@ -15,6 +16,22 @@ namespace internal {
 
 class Heap;
 class ReadOnlyHeap;
+
+// Interface for verifying spaces in the heap.
+class SpaceVerificationVisitor {
+ public:
+  virtual ~SpaceVerificationVisitor() = default;
+
+  // This method will be invoked for every object in the space.
+  virtual void VerifyObject(HeapObject object) = 0;
+
+  // This method will be invoked for each page in the space before verifying an
+  // object on it.
+  virtual void VerifyPage(const BasicMemoryChunk* chunk) = 0;
+
+  // This method will be invoked after verifying all objects on that page.
+  virtual void VerifyPageDone(const BasicMemoryChunk* chunk) = 0;
+};
 
 class HeapVerifier final {
  public:
@@ -29,9 +46,6 @@ class HeapVerifier final {
   // Verify the shared heap, initiating from a client heap. This performs a
   // global safepoint, then the normal heap verification.
   static void VerifySharedHeap(Heap* heap, Isolate* initiator);
-
-  // Verifies OLD_TO_NEW and OLD_TO_SHARED remembered sets for this object.
-  static void VerifyRememberedSetFor(Heap* heap, HeapObject object);
 
   // Checks that this is a safe map transition.
   V8_EXPORT_PRIVATE static void VerifySafeMapTransition(Heap* heap,

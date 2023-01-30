@@ -3984,7 +3984,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     // Overflow occurs if overflow register is negative
     __ slt(result, kScratchReg, zero_reg);
   } else if (instr->arch_opcode() == kMips64MulOvf ||
-             instr->arch_opcode() == kMips64MulOvf) {
+             instr->arch_opcode() == kMips64DMulOvf) {
     // Overflow occurs if overflow register is not zero
     __ Sgtu(result, kScratchReg, zero_reg);
   } else if (instr->arch_opcode() == kMips64Cmp) {
@@ -4371,6 +4371,66 @@ void CodeGenerator::FinishCode() {}
 void CodeGenerator::PrepareForDeoptimizationExits(
     ZoneDeque<DeoptimizationExit*>* exits) {}
 
+AllocatedOperand CodeGenerator::Push(InstructionOperand* source) {
+  auto rep = LocationOperand::cast(source)->representation();
+  int new_slots = ElementSizeInPointers(rep);
+  MipsOperandConverter g(this, nullptr);
+  int last_frame_slot_id =
+      frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+  int sp_delta = frame_access_state_->sp_delta();
+  int slot_id = last_frame_slot_id + sp_delta + new_slots;
+  AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
+  if (source->IsRegister()) {
+    __ Push(g.ToRegister(source));
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  } else if (source->IsStackSlot()) {
+    UseScratchRegisterScope temps(tasm());
+    Register scratch = temps.Acquire();
+    __ Ld(scratch, g.ToMemOperand(source));
+    __ Push(scratch);
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  } else {
+    // No push instruction for this operand type. Bump the stack pointer and
+    // assemble the move.
+    __ Dsubu(sp, sp, Operand(new_slots * kSystemPointerSize));
+    frame_access_state()->IncreaseSPDelta(new_slots);
+    AssembleMove(source, &stack_slot);
+  }
+  temp_slots_ += new_slots;
+  return stack_slot;
+}
+
+void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
+  MipsOperandConverter g(this, nullptr);
+  int new_slots = ElementSizeInPointers(rep);
+  frame_access_state()->IncreaseSPDelta(-new_slots);
+  if (dest->IsRegister()) {
+    __ Pop(g.ToRegister(dest));
+  } else if (dest->IsStackSlot()) {
+    UseScratchRegisterScope temps(tasm());
+    Register scratch = temps.Acquire();
+    __ Pop(scratch);
+    __ Sd(scratch, g.ToMemOperand(dest));
+  } else {
+    int last_frame_slot_id =
+        frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+    int sp_delta = frame_access_state_->sp_delta();
+    int slot_id = last_frame_slot_id + sp_delta + new_slots;
+    AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
+    AssembleMove(&stack_slot, dest);
+    __ Daddu(sp, sp, Operand(new_slots * kSystemPointerSize));
+  }
+  temp_slots_ -= new_slots;
+}
+
+void CodeGenerator::PopTempStackSlots() {
+  if (temp_slots_ > 0) {
+    frame_access_state()->IncreaseSPDelta(-temp_slots_);
+    __ Daddu(sp, sp, Operand(temp_slots_ * kSystemPointerSize));
+    temp_slots_ = 0;
+  }
+}
+
 void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
   // Must be kept in sync with {MoveTempLocationTo}.
   DCHECK(!source->IsImmediate());
@@ -4399,27 +4459,7 @@ void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
   } else {
     // The scratch registers are blocked by pending moves. Use the stack
     // instead.
-    int new_slots = ElementSizeInPointers(rep);
-    MipsOperandConverter g(this, nullptr);
-    if (source->IsRegister()) {
-      __ Push(g.ToRegister(source));
-    } else if (source->IsStackSlot()) {
-      UseScratchRegisterScope temps2(tasm());
-      Register scratch = temps2.Acquire();
-      __ Ld(scratch, g.ToMemOperand(source));
-      __ Push(scratch);
-    } else {
-      // No push instruction for this operand type. Bump the stack pointer and
-      // assemble the move.
-      int last_frame_slot_id =
-          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
-      int sp_delta = frame_access_state_->sp_delta();
-      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
-      __ Dsubu(sp, sp, Operand(new_slots * kSystemPointerSize));
-      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
-      AssembleMove(source, &temp);
-    }
-    frame_access_state()->IncreaseSPDelta(new_slots);
+    Push(source);
   }
 }
 
@@ -4431,25 +4471,7 @@ void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
                              move_cycle_.scratch_reg->code());
     AssembleMove(&scratch, dest);
   } else {
-    int new_slots = ElementSizeInPointers(rep);
-    frame_access_state()->IncreaseSPDelta(-new_slots);
-    MipsOperandConverter g(this, nullptr);
-    if (dest->IsRegister()) {
-      __ Pop(g.ToRegister(dest));
-    } else if (dest->IsStackSlot()) {
-      UseScratchRegisterScope temps2(tasm());
-      Register scratch = temps2.Acquire();
-      __ Pop(scratch);
-      __ Sd(scratch, g.ToMemOperand(dest));
-    } else {
-      int last_frame_slot_id =
-          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
-      int sp_delta = frame_access_state_->sp_delta();
-      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
-      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
-      AssembleMove(&temp, dest);
-      __ Daddu(sp, sp, Operand(new_slots * kSystemPointerSize));
-    }
+    Pop(dest, rep);
   }
   // Restore the default state to release the {UseScratchRegisterScope} and to
   // prepare for the next cycle.

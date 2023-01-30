@@ -204,7 +204,10 @@ int BreakLocation::BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info,
 bool BreakLocation::HasBreakPoint(Isolate* isolate,
                                   Handle<DebugInfo> debug_info) const {
   // First check whether there is a break point with the same source position.
-  if (!debug_info->HasBreakPoint(isolate, position_)) return false;
+  if (!debug_info->HasBreakInfo() ||
+      !debug_info->HasBreakPoint(isolate, position_)) {
+    return false;
+  }
   if (debug_info->CanBreakAtEntry()) {
     DCHECK_EQ(Debug::kBreakAtEntryPosition, position_);
     return debug_info->BreakAtEntry();
@@ -480,11 +483,12 @@ void Debug::Unload() {
   debug_delegate_ = nullptr;
 }
 
-debug::DebugDelegate::PauseAfterInstrumentation
+debug::DebugDelegate::ActionAfterInstrumentation
 Debug::OnInstrumentationBreak() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   if (!debug_delegate_) {
-    return debug::DebugDelegate::kNoPauseAfterInstrumentationRequested;
+    return debug::DebugDelegate::ActionAfterInstrumentation::
+        kPauseIfBreakpointsHit;
   }
   DCHECK(in_debug_scope());
   HandleScope scope(isolate_);
@@ -517,11 +521,19 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
       IsBreakOnInstrumentation(debug_info, location);
   bool shouldPauseAfterInstrumentation = false;
   if (hitInstrumentationBreak) {
-    debug::DebugDelegate::PauseAfterInstrumentation pauseDuringInstrumentation =
+    debug::DebugDelegate::ActionAfterInstrumentation action =
         OnInstrumentationBreak();
-    shouldPauseAfterInstrumentation =
-        pauseDuringInstrumentation ==
-        debug::DebugDelegate::kPauseAfterInstrumentationRequested;
+    switch (action) {
+      case debug::DebugDelegate::ActionAfterInstrumentation::kPause:
+        shouldPauseAfterInstrumentation = true;
+        break;
+      case debug::DebugDelegate::ActionAfterInstrumentation::
+          kPauseIfBreakpointsHit:
+        shouldPauseAfterInstrumentation = false;
+        break;
+      case debug::DebugDelegate::ActionAfterInstrumentation::kContinue:
+        return;
+    }
   }
 
   // Find actual break points, if any, and trigger debug break event.
@@ -1526,29 +1538,11 @@ void Debug::DiscardAllBaselineCode() {
 
 void Debug::DeoptimizeFunction(Handle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  // Deoptimize all code compiled from this shared function info including
-  // inlining.
-  isolate_->AbortConcurrentOptimization(BlockingBehavior::kBlock);
 
   if (shared->HasBaselineCode()) {
     DiscardBaselineCode(*shared);
   }
-
-  bool found_something = false;
-  Code::OptimizedCodeIterator iterator(isolate_);
-  do {
-    Code code = iterator.Next();
-    if (code.is_null()) break;
-    if (code.Inlines(*shared)) {
-      code.set_marked_for_deoptimization(true);
-      found_something = true;
-    }
-  } while (true);
-
-  if (found_something) {
-    // Only go through with the deoptimization if something was found.
-    Deoptimizer::DeoptimizeMarkedCode(isolate_);
-  }
+  Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(shared);
 }
 
 void Debug::PrepareFunctionForDebugExecution(

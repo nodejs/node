@@ -142,6 +142,12 @@ InspectorTest.ContextGroup = class {
     this.id = utils.createContextGroup();
   }
 
+  waitForDebugger() {
+    return new Promise(resolve => {
+      utils.waitForDebugger(this.id, resolve);
+    });
+  }
+
   createContext(name) {
     utils.createContext(this.id, name || '');
   }
@@ -256,6 +262,10 @@ InspectorTest.Session = class {
       utils.print("frontend: " + command);
     this._dispatchTable.set(requestId, handler);
     utils.sendMessageToBackend(this.id, command);
+  }
+
+  stop() {
+    utils.stop(this.id);
   }
 
   setupScriptMap() {

@@ -9,6 +9,7 @@
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-verifier.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-state-inl.h"
@@ -357,7 +358,7 @@ void SemiSpace::Print() {}
 #endif
 
 #ifdef VERIFY_HEAP
-void SemiSpace::Verify() const {
+void SemiSpace::VerifyPageMetadata() const {
   bool is_from_space = (id_ == kFromSpace);
   size_t external_backing_store_bytes[kNumTypes];
 
@@ -436,10 +437,6 @@ NewSpace::NewSpace(Heap* heap, LinearAllocationArea& allocation_info)
                           allocation_counter_, allocation_info,
                           linear_area_original_data_) {}
 
-void NewSpace::ResetParkedAllocationBuffers() {
-  parked_allocation_buffers_.clear();
-}
-
 void NewSpace::MaybeFreeUnusedLab(LinearAllocationArea info) {
   if (allocation_info_.MergeIfAdjacent(info)) {
     linear_area_original_data_.set_original_top_release(allocation_info_.top());
@@ -464,82 +461,6 @@ void NewSpace::VerifyTop() const {
             linear_area_original_data_.get_original_limit_relaxed());
 }
 #endif  // DEBUG
-
-#ifdef VERIFY_HEAP
-// We do not use the SemiSpaceObjectIterator because verification doesn't assume
-// that it works (it depends on the invariants we are checking).
-void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
-                          Address current_address) const {
-  DCHECK(current_page->ContainsLimit(current_address));
-
-  size_t external_space_bytes[kNumTypes];
-  for (int i = 0; i < kNumTypes; i++) {
-    external_space_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
-  }
-
-  CHECK(!current_page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
-  CHECK(!current_page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
-
-  PtrComprCageBase cage_base(isolate);
-  VerifyPointersVisitor visitor(heap());
-  const Page* page = current_page;
-  while (true) {
-    if (!Page::IsAlignedToPageSize(current_address)) {
-      HeapObject object = HeapObject::FromAddress(current_address);
-
-      // The first word should be a map, and we expect all map pointers to
-      // be in map space or read-only space.
-      Map map = object.map(cage_base);
-      CHECK(map.IsMap(cage_base));
-      CHECK(ReadOnlyHeap::Contains(map) ||
-            isolate->heap()->old_space()->Contains(map));
-
-      // The object should not be code or a map.
-      CHECK(!object.IsMap(cage_base));
-      CHECK(!object.IsAbstractCode(cage_base));
-
-      // The object itself should look OK.
-      object.ObjectVerify(isolate);
-
-      // All the interior pointers should be contained in the heap.
-      int size = object.Size(cage_base);
-      object.IterateBody(map, size, &visitor);
-
-      if (object.IsExternalString(cage_base)) {
-        ExternalString external_string = ExternalString::cast(object);
-        size_t string_size = external_string.ExternalPayloadSize();
-        external_space_bytes[ExternalBackingStoreType::kExternalString] +=
-            string_size;
-      }
-
-      current_address += ALIGN_TO_ALLOCATION_ALIGNMENT(size);
-    } else {
-      // At end of page, switch to next page.
-      page = page->next_page();
-      if (!page) break;
-      CHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
-      CHECK(!page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
-      current_address = page->area_start();
-    }
-  }
-
-  for (int i = 0; i < kNumTypes; i++) {
-    if (i == ExternalBackingStoreType::kArrayBuffer) continue;
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    CHECK_EQ(external_space_bytes[t], ExternalBackingStoreBytes(t));
-  }
-
-  if (!v8_flags.concurrent_array_buffer_sweeping) {
-    size_t bytes = heap()->array_buffer_sweeper()->young().BytesSlow();
-    CHECK_EQ(bytes,
-             ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));
-  }
-
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-  current_page->object_start_bitmap()->Verify();
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-}
-#endif  // VERIFY_HEAP
 
 void NewSpace::PromotePageToOldSpace(Page* page) {
   DCHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
@@ -734,6 +655,10 @@ bool SemiSpaceNewSpace::AddParkedAllocationBuffer(
   return false;
 }
 
+void SemiSpaceNewSpace::ResetParkedAllocationBuffers() {
+  parked_allocation_buffers_.clear();
+}
+
 void SemiSpaceNewSpace::FreeLinearAllocationArea() {
   AdvanceAllocationObservers();
   MakeLinearAllocationAreaIterable();
@@ -753,22 +678,69 @@ void SemiSpaceNewSpace::VerifyTop() const {
 #ifdef VERIFY_HEAP
 // We do not use the SemiSpaceObjectIterator because verification doesn't assume
 // that it works (it depends on the invariants we are checking).
-void SemiSpaceNewSpace::Verify(Isolate* isolate) const {
+void SemiSpaceNewSpace::Verify(Isolate* isolate,
+                               SpaceVerificationVisitor* visitor) const {
   // The allocation pointer should be in the space or at the very end.
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
-  // There should be objects packed in from the low address up to the
-  // allocation pointer.
-  Address current = to_space_.first_page()->area_start();
-  CHECK_EQ(current, to_space_.space_start());
-
-  VerifyImpl(isolate, Page::FromAllocationAreaAddress(current), current);
+  VerifyObjects(isolate, visitor);
 
   // Check semi-spaces.
   CHECK_EQ(from_space_.id(), kFromSpace);
   CHECK_EQ(to_space_.id(), kToSpace);
-  from_space_.Verify();
-  to_space_.Verify();
+  from_space_.VerifyPageMetadata();
+  to_space_.VerifyPageMetadata();
+}
+
+// We do not use the SemiSpaceObjectIterator because verification doesn't assume
+// that it works (it depends on the invariants we are checking).
+void SemiSpaceNewSpace::VerifyObjects(Isolate* isolate,
+                                      SpaceVerificationVisitor* visitor) const {
+  size_t external_space_bytes[kNumTypes];
+  for (int i = 0; i < kNumTypes; i++) {
+    external_space_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
+  }
+
+  PtrComprCageBase cage_base(isolate);
+  for (const Page* page = to_space_.first_page(); page;
+       page = page->next_page()) {
+    visitor->VerifyPage(page);
+
+    Address current_address = page->area_start();
+
+    while (!Page::IsAlignedToPageSize(current_address)) {
+      HeapObject object = HeapObject::FromAddress(current_address);
+
+      // The first word should be a map, and we expect all map pointers to
+      // be in map space or read-only space.
+      int size = object.Size(cage_base);
+
+      visitor->VerifyObject(object);
+
+      if (object.IsExternalString(cage_base)) {
+        ExternalString external_string = ExternalString::cast(object);
+        size_t string_size = external_string.ExternalPayloadSize();
+        external_space_bytes[ExternalBackingStoreType::kExternalString] +=
+            string_size;
+      }
+
+      current_address += ALIGN_TO_ALLOCATION_ALIGNMENT(size);
+    }
+
+    visitor->VerifyPageDone(page);
+  }
+
+  for (int i = 0; i < kNumTypes; i++) {
+    if (i == ExternalBackingStoreType::kArrayBuffer) continue;
+    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
+    CHECK_EQ(external_space_bytes[t], ExternalBackingStoreBytes(t));
+  }
+
+  if (!v8_flags.concurrent_array_buffer_sweeping) {
+    size_t bytes = heap()->array_buffer_sweeper()->young().BytesSlow();
+    CHECK_EQ(bytes,
+             ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));
+  }
 }
 #endif  // VERIFY_HEAP
 
@@ -1030,16 +1002,6 @@ void PagedSpaceForNewSpace::FreeLinearAllocationArea() {
   PagedSpaceBase::FreeLinearAllocationArea();
 }
 
-#ifdef VERIFY_HEAP
-void PagedSpaceForNewSpace::Verify(Isolate* isolate,
-                                   ObjectVisitor* visitor) const {
-  PagedSpaceBase::Verify(isolate, visitor);
-
-  DCHECK_EQ(current_capacity_, target_capacity_);
-  DCHECK_EQ(current_capacity_, Page::kPageSize * CountTotalPages());
-}
-#endif  // VERIFY_HEAP
-
 bool PagedSpaceForNewSpace::ShouldReleasePage() const {
   return current_capacity_ > target_capacity_;
 }
@@ -1061,18 +1023,6 @@ PagedNewSpace::~PagedNewSpace() {
 
   paged_space_.TearDown();
 }
-
-#ifdef VERIFY_HEAP
-void PagedNewSpace::Verify(Isolate* isolate) const {
-  const Page* first_page = paged_space_.first_page();
-
-  if (first_page) VerifyImpl(isolate, first_page, first_page->area_start());
-
-  // Check paged-spaces.
-  VerifyPointersVisitor visitor(heap());
-  paged_space_.Verify(isolate, &visitor);
-}
-#endif  // VERIFY_HEAP
 
 }  // namespace internal
 }  // namespace v8

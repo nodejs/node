@@ -305,6 +305,7 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
 Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
   DCHECK_EQ(IrOpcode::kReturn, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
+  // TODO(mslekova): Port this to Turboshaft.
   if (effect->opcode() == IrOpcode::kCheckpoint) {
     // Any {Return} node can never be used to insert a deoptimization point,
     // hence checkpoints can be cut out of the effect chain flowing into it.

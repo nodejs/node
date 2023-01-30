@@ -679,6 +679,7 @@ class BigIntRef : public HeapObjectRef {
   Handle<BigInt> object() const;
 
   uint64_t AsUint64() const;
+  int64_t AsInt64(bool* lossless) const;
 };
 
 class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
@@ -949,6 +950,7 @@ class StringRef : public NameRef {
   base::Optional<uint16_t> GetFirstChar() const;
   base::Optional<uint16_t> GetChar(int index) const;
   base::Optional<double> ToNumber();
+  base::Optional<double> ToInt(int radix);
 
   bool IsSeqString() const;
   bool IsExternalString() const;

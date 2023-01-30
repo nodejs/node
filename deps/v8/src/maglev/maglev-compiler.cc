@@ -13,6 +13,7 @@
 #include "src/base/threaded-list.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
+#include "src/codegen/register-configuration.h"
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/common/globals.h"
@@ -37,8 +38,8 @@
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-regalloc-data.h"
 #include "src/maglev/maglev-regalloc.h"
-#include "src/maglev/maglev-vreg-allocator.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/js-function.h"
 #include "src/utils/identity-map.h"
@@ -47,6 +48,93 @@
 namespace v8 {
 namespace internal {
 namespace maglev {
+
+class ValueLocationConstraintProcessor {
+ public:
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PreProcessBasicBlock(BasicBlock* block) {}
+
+#define DEF_PROCESS_NODE(NAME)                             \
+  void Process(NAME* node, const ProcessingState& state) { \
+    node->SetValueLocationConstraints();                   \
+  }
+  NODE_BASE_LIST(DEF_PROCESS_NODE)
+#undef DEF_PROCESS_NODE
+};
+
+class MaxCallDepthProcessor {
+ public:
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {
+    graph->set_max_call_stack_args(max_call_stack_args_);
+    graph->set_max_deopted_stack_size(max_deopted_stack_size_);
+  }
+  void PreProcessBasicBlock(BasicBlock* block) {}
+
+  template <typename NodeT>
+  void Process(NodeT* node, const ProcessingState& state) {
+    if constexpr (NodeT::kProperties.is_call() ||
+                  NodeT::kProperties.needs_register_snapshot()) {
+      int node_stack_args = node->MaxCallStackArgs();
+      if constexpr (NodeT::kProperties.needs_register_snapshot()) {
+        // Pessimistically assume that we'll push all registers in deferred
+        // calls.
+        node_stack_args +=
+            kAllocatableGeneralRegisterCount + kAllocatableDoubleRegisterCount;
+      }
+      max_call_stack_args_ = std::max(max_call_stack_args_, node_stack_args);
+    }
+    if constexpr (NodeT::kProperties.can_eager_deopt()) {
+      UpdateMaxDeoptedStackSize(node->eager_deopt_info());
+    }
+    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+      UpdateMaxDeoptedStackSize(node->lazy_deopt_info());
+    }
+  }
+
+ private:
+  void UpdateMaxDeoptedStackSize(DeoptInfo* deopt_info) {
+    const DeoptFrame* deopt_frame = &deopt_info->top_frame();
+    if (deopt_frame->type() == DeoptFrame::FrameType::kInterpretedFrame) {
+      if (&deopt_frame->as_interpreted().unit() == last_seen_unit_) return;
+      last_seen_unit_ = &deopt_frame->as_interpreted().unit();
+    }
+
+    int frame_size = 0;
+    do {
+      frame_size += ConservativeFrameSize(deopt_frame);
+      deopt_frame = deopt_frame->parent();
+    } while (deopt_frame != nullptr);
+    max_deopted_stack_size_ = std::max(frame_size, max_deopted_stack_size_);
+  }
+  int ConservativeFrameSize(const DeoptFrame* deopt_frame) {
+    switch (deopt_frame->type()) {
+      case DeoptFrame::FrameType::kInterpretedFrame: {
+        auto info = UnoptimizedFrameInfo::Conservative(
+            deopt_frame->as_interpreted().unit().parameter_count(),
+            deopt_frame->as_interpreted().unit().register_count());
+        return info.frame_size_in_bytes();
+      }
+      case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
+        // PC + FP + Closure + Params + Context
+        const RegisterConfiguration* config = RegisterConfiguration::Default();
+        auto info = BuiltinContinuationFrameInfo::Conservative(
+            deopt_frame->as_builtin_continuation().parameters().length(),
+            Builtins::CallInterfaceDescriptorFor(
+                deopt_frame->as_builtin_continuation().builtin_id()),
+            config);
+        return info.frame_size_in_bytes();
+      }
+    }
+  }
+
+  int max_call_stack_args_ = 0;
+  int max_deopted_stack_size_ = 0;
+  // Optimize UpdateMaxDeoptedStackSize to not re-calculate if it sees the same
+  // compilation unit multiple times in a row.
+  const MaglevCompilationUnit* last_seen_unit_ = nullptr;
+};
 
 class UseMarkingProcessor {
  public:
@@ -74,12 +162,68 @@ class UseMarkingProcessor {
   template <typename NodeT>
   void MarkInputUses(NodeT* node, const ProcessingState& state) {
     LoopUsedNodes* loop_used_nodes = GetCurrentLoopUsedNodes();
+    // Mark input uses in the same order as inputs are assigned in the register
+    // allocator (see StraightForwardRegisterAllocator::AssignInputs).
+    for (Input& input : *node) {
+      switch (compiler::UnallocatedOperand::cast(input.operand())
+                  .extended_policy()) {
+        case compiler::UnallocatedOperand::MUST_HAVE_REGISTER:
+        case compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
+          break;
+
+        case compiler::UnallocatedOperand::FIXED_REGISTER:
+        case compiler::UnallocatedOperand::FIXED_FP_REGISTER:
+          MarkUse(input.node(), node->id(), &input, loop_used_nodes);
+          break;
+
+        case compiler::UnallocatedOperand::REGISTER_OR_SLOT:
+        case compiler::UnallocatedOperand::SAME_AS_INPUT:
+        case compiler::UnallocatedOperand::NONE:
+        case compiler::UnallocatedOperand::MUST_HAVE_SLOT:
+          UNREACHABLE();
+      }
+    }
+    for (Input& input : *node) {
+      switch (compiler::UnallocatedOperand::cast(input.operand())
+                  .extended_policy()) {
+        case compiler::UnallocatedOperand::MUST_HAVE_REGISTER:
+          MarkUse(input.node(), node->id(), &input, loop_used_nodes);
+          break;
+
+        case compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
+        case compiler::UnallocatedOperand::FIXED_REGISTER:
+        case compiler::UnallocatedOperand::FIXED_FP_REGISTER:
+          break;
+
+        case compiler::UnallocatedOperand::REGISTER_OR_SLOT:
+        case compiler::UnallocatedOperand::SAME_AS_INPUT:
+        case compiler::UnallocatedOperand::NONE:
+        case compiler::UnallocatedOperand::MUST_HAVE_SLOT:
+          UNREACHABLE();
+      }
+    }
+    for (Input& input : *node) {
+      switch (compiler::UnallocatedOperand::cast(input.operand())
+                  .extended_policy()) {
+        case compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
+          MarkUse(input.node(), node->id(), &input, loop_used_nodes);
+          break;
+
+        case compiler::UnallocatedOperand::MUST_HAVE_REGISTER:
+        case compiler::UnallocatedOperand::FIXED_REGISTER:
+        case compiler::UnallocatedOperand::FIXED_FP_REGISTER:
+          break;
+
+        case compiler::UnallocatedOperand::REGISTER_OR_SLOT:
+        case compiler::UnallocatedOperand::SAME_AS_INPUT:
+        case compiler::UnallocatedOperand::NONE:
+        case compiler::UnallocatedOperand::MUST_HAVE_SLOT:
+          UNREACHABLE();
+      }
+    }
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
       MarkCheckpointNodes(node, node->eager_deopt_info(), loop_used_nodes,
                           state);
-    }
-    for (Input& input : *node) {
-      MarkUse(input.node(), node->id(), &input, loop_used_nodes);
     }
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {
       MarkCheckpointNodes(node, node->lazy_deopt_info(), loop_used_nodes,
@@ -201,7 +345,7 @@ class UseMarkingProcessor {
 };
 
 // static
-void MaglevCompiler::Compile(LocalIsolate* local_isolate,
+bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                              MaglevCompilationInfo* compilation_info) {
   Graph* graph = Graph::New(compilation_info->zone());
 
@@ -245,15 +389,28 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
   }
 #endif
 
+#ifdef V8_TARGET_ARCH_ARM64
   {
-    GraphMultiProcessor<UseMarkingProcessor, MaglevVregAllocator> processor(
-        UseMarkingProcessor{compilation_info});
+    extern bool MaglevGraphHasUnimplementedNode(Graph*);
+    // TODO(v8:7700): Remove return type once all nodes are implemented.
+    if (MaglevGraphHasUnimplementedNode(graph)) return false;
+  }
+#endif
+
+  {
+    // Preprocessing for register allocation and code gen:
+    //   - Collect input/output location constraints
+    //   - Find the maximum number of stack arguments passed to calls
+    //   - Collect use information, for SSA liveness and next-use distance.
+    GraphMultiProcessor<ValueLocationConstraintProcessor, MaxCallDepthProcessor,
+                        UseMarkingProcessor>
+        processor(UseMarkingProcessor{compilation_info});
     processor.ProcessGraph(graph);
   }
 
   if (v8_flags.print_maglev_graph) {
     UnparkedScope unparked_scope(local_isolate->heap());
-    std::cout << "After node processor" << std::endl;
+    std::cout << "After register allocation pre-processing" << std::endl;
     PrintGraph(std::cout, compilation_info, graph);
   }
 
@@ -275,6 +432,8 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
     // Stash the compiled code_generator on the compilation info.
     compilation_info->set_code_generator(std::move(code_generator));
   }
+
+  return true;
 }
 
 // static
@@ -304,7 +463,6 @@ MaybeHandle<CodeT> MaglevCompiler::GenerateCode(
     code->Print();
   }
 
-  isolate->native_context()->AddOptimizedCode(ToCodeT(*code));
   return ToCodeT(code, isolate);
 }
 

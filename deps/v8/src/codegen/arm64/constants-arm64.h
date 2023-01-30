@@ -300,25 +300,25 @@ SYSTEM_REGISTER_FIELDS_LIST(DECLARE_FIELDS_OFFSETS, NOTHING)
 constexpr int ImmPCRel_mask = ImmPCRelLo_mask | ImmPCRelHi_mask;
 
 // Condition codes.
-enum Condition {
-  eq = 0,
-  ne = 1,
-  hs = 2,
-  cs = hs,
-  lo = 3,
-  cc = lo,
-  mi = 4,
-  pl = 5,
-  vs = 6,
-  vc = 7,
-  hi = 8,
-  ls = 9,
-  ge = 10,
-  lt = 11,
-  gt = 12,
-  le = 13,
-  al = 14,
-  nv = 15  // Behaves as always/al.
+enum Condition : uint8_t {
+  eq = 0,   // Equal
+  ne = 1,   // Not equal
+  hs = 2,   // Unsigned higher or same (or carry set)
+  cs = hs,  //   --
+  lo = 3,   // Unsigned lower (or carry clear)
+  cc = lo,  //   --
+  mi = 4,   // Negative
+  pl = 5,   // Positive or zero
+  vs = 6,   // Signed overflow
+  vc = 7,   // No signed overflow
+  hi = 8,   // Unsigned higher
+  ls = 9,   // Unsigned lower or same
+  ge = 10,  // Signed greater than or equal
+  lt = 11,  // Signed less than
+  gt = 12,  // Signed greater than
+  le = 13,  // Signed less than or equal
+  al = 14,  // Always executed
+  nv = 15   // Behaves as always/al.
 };
 
 inline Condition NegateCondition(Condition cond) {

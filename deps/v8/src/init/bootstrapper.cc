@@ -523,28 +523,24 @@ V8_NOINLINE Handle<JSFunction> InstallFunction(
 
 V8_NOINLINE Handle<JSFunction> CreateSharedObjectConstructor(
     Isolate* isolate, Handle<String> name, InstanceType type, int instance_size,
-    ElementsKind element_kind, Builtin builtin) {
+    int inobject_properties, ElementsKind element_kind, Builtin builtin) {
   Factory* factory = isolate->factory();
   Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
       name, builtin, FunctionKind::kNormalFunction);
   info->set_language_mode(LanguageMode::kStrict);
   Handle<JSFunction> constructor =
       Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
-          .set_map(isolate->strict_function_map())
+          .set_map(isolate->strict_function_with_readonly_prototype_map())
           .Build();
-  constexpr int in_object_properties = 0;
   Handle<Map> instance_map =
-      factory->NewMap(type, instance_size, element_kind, in_object_properties,
+      factory->NewMap(type, instance_size, element_kind, inobject_properties,
                       AllocationType::kSharedMap);
   // Shared objects have fixed layout ahead of time, so there's no slack.
   instance_map->SetInObjectUnusedPropertyFields(0);
   // Shared objects are not extensible and have a null prototype.
   instance_map->set_is_extensible(false);
   JSFunction::SetInitialMap(isolate, constructor, instance_map,
-                            factory->null_value());
-  // The constructor itself is not a shared object, so the shared map should not
-  // point to it.
-  instance_map->set_constructor_or_back_pointer(*factory->null_value());
+                            factory->null_value(), factory->null_value());
   return constructor;
 }
 
@@ -4510,6 +4506,7 @@ void Genesis::InitializeConsole(Handle<JSObject> extras_binding) {
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_assertions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_static_blocks)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_symbol_as_weakmap_key)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_rab_gsab_transfer)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
@@ -4686,8 +4683,8 @@ void Genesis::InitializeGlobal_harmony_struct() {
     Handle<String> shared_array_str =
         isolate()->factory()->InternalizeUtf8String("SharedArray");
     Handle<JSFunction> shared_array_fun = CreateSharedObjectConstructor(
-        isolate(), shared_array_str, JS_SHARED_ARRAY_TYPE,
-        JSSharedArray::kHeaderSize, SHARED_ARRAY_ELEMENTS,
+        isolate(), shared_array_str, JS_SHARED_ARRAY_TYPE, JSSharedArray::kSize,
+        JSSharedArray::kInObjectFieldCount, SHARED_ARRAY_ELEMENTS,
         Builtin::kSharedArrayConstructor);
     shared_array_fun->shared().set_internal_formal_parameter_count(
         JSParameterCount(0));
@@ -4697,14 +4694,12 @@ void Genesis::InitializeGlobal_harmony_struct() {
     Handle<DescriptorArray> descriptors =
         isolate()->factory()->NewDescriptorArray(1, 0,
                                                  AllocationType::kSharedOld);
-    Descriptor descriptor = Descriptor::AccessorConstant(
+    Descriptor length_descriptor = Descriptor::DataField(
         isolate()->shared_heap_isolate()->factory()->length_string(),
-        isolate()
-            ->shared_heap_isolate()
-            ->factory()
-            ->shared_array_length_accessor(),
-        ALL_ATTRIBUTES_MASK);
-    descriptors->Set(InternalIndex(0), &descriptor);
+        JSSharedArray::kLengthFieldIndex, ALL_ATTRIBUTES_MASK,
+        PropertyConstness::kConst, Representation::Smi(),
+        MaybeObjectHandle(FieldType::Any(isolate())));
+    descriptors->Set(InternalIndex(0), &length_descriptor);
     shared_array_fun->initial_map().InitializeDescriptors(isolate(),
                                                           *descriptors);
 
@@ -4721,7 +4716,7 @@ void Genesis::InitializeGlobal_harmony_struct() {
         isolate()->factory()->InternalizeUtf8String("Mutex");
     Handle<JSFunction> mutex_fun = CreateSharedObjectConstructor(
         isolate(), mutex_str, JS_ATOMICS_MUTEX_TYPE,
-        JSAtomicsMutex::kHeaderSize, TERMINAL_FAST_ELEMENTS_KIND,
+        JSAtomicsMutex::kHeaderSize, 0, TERMINAL_FAST_ELEMENTS_KIND,
         Builtin::kAtomicsMutexConstructor);
     mutex_fun->shared().set_internal_formal_parameter_count(
         JSParameterCount(0));
@@ -4741,7 +4736,7 @@ void Genesis::InitializeGlobal_harmony_struct() {
         isolate()->factory()->InternalizeUtf8String("Condition");
     Handle<JSFunction> condition_fun = CreateSharedObjectConstructor(
         isolate(), condition_str, JS_ATOMICS_CONDITION_TYPE,
-        JSAtomicsCondition::kHeaderSize, TERMINAL_FAST_ELEMENTS_KIND,
+        JSAtomicsCondition::kHeaderSize, 0, TERMINAL_FAST_ELEMENTS_KIND,
         Builtin::kAtomicsConditionConstructor);
     condition_fun->shared().set_internal_formal_parameter_count(
         JSParameterCount(0));
@@ -4877,8 +4872,10 @@ void Genesis::InitializeGlobal_harmony_rab_gsab() {
                       Builtin::kArrayBufferPrototypeGetResizable, false);
   SimpleInstallFunction(isolate(), array_buffer_prototype, "resize",
                         Builtin::kArrayBufferPrototypeResize, 1, true);
-  SimpleInstallFunction(isolate(), array_buffer_prototype, "transfer",
-                        Builtin::kArrayBufferPrototypeTransfer, 0, false);
+  if (v8_flags.harmony_rab_gsab_transfer) {
+    SimpleInstallFunction(isolate(), array_buffer_prototype, "transfer",
+                          Builtin::kArrayBufferPrototypeTransfer, 0, false);
+  }
 
   Handle<JSObject> shared_array_buffer_prototype(
       JSObject::cast(

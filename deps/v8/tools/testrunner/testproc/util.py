@@ -54,10 +54,6 @@ def kill_processes_linux():
       logging.exception('Failed to kill process')
 
 
-def strip_ascii_control_characters(unicode_string):
-  return re.sub(r'[^\x20-\x7E]', '?', str(unicode_string))
-
-
 def base_test_record(test, result, run):
   record = {
       'name': test.full_name,
@@ -68,6 +64,7 @@ def base_test_record(test, result, run):
       'target_name': test.get_shell(),
       'variant': test.variant,
       'variant_flags': test.variant_flags,
+      'framework_name': test.framework_name,
   }
   if result.output:
     record.update(
@@ -75,20 +72,6 @@ def base_test_record(test, result, run):
         duration=result.output.duration,
     )
   return record
-
-
-def extract_tags(record):
-  tags = []
-  for k, v in record.items():
-    if type(v) == list:
-      tags += [sanitized_kv_dict(k, e) for e in v]
-    else:
-      tags.append(sanitized_kv_dict(k, v))
-  return tags
-
-
-def sanitized_kv_dict(k, v):
-  return dict(key=k, value=strip_ascii_control_characters(v))
 
 
 class FixedSizeTopList():

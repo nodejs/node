@@ -10,9 +10,21 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 
+ADDITIONAL_VARIANTS = set(["minor_mc"])
+
+
 class VariantsGenerator(testsuite.VariantsGenerator):
+
+  def __init__(self, variants):
+    super().__init__(variants)
+    self._supported_variants = self._standard_variant + [
+        v for v in variants if v in ADDITIONAL_VARIANTS
+    ]
+
   def _get_variants(self, test):
-    return self._standard_variant
+    if test.only_standard_variant:
+      return self._standard_variant
+    return self._supported_variants
 
 
 class TestLoader(testsuite.TestLoader):

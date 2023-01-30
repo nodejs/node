@@ -8,14 +8,14 @@ let noon = new Date(2019, 3, 4, 12);
 let df_11_dt = new Intl.DateTimeFormat(
     "en", {timeStyle: "short", dateStyle: "short", hourCycle: "h11"})
 assertEquals("h11", df_11_dt.resolvedOptions().hourCycle);
-assertEquals("4/4/19, 0:00 AM", df_11_dt.format(midnight));
-assertEquals("4/4/19, 0:00 PM", df_11_dt.format(noon));
+assertEquals("4/4/19, 0:00\u202fAM", df_11_dt.format(midnight));
+assertEquals("4/4/19, 0:00\u202fPM", df_11_dt.format(noon));
 
 let df_12_dt = new Intl.DateTimeFormat(
     "en", {timeStyle: "short", dateStyle: "short", hourCycle: "h12"})
 assertEquals("h12", df_12_dt.resolvedOptions().hourCycle);
-assertEquals("4/4/19, 12:00 AM", df_12_dt.format(midnight));
-assertEquals("4/4/19, 12:00 PM", df_12_dt.format(noon));
+assertEquals("4/4/19, 12:00\u202fAM", df_12_dt.format(midnight));
+assertEquals("4/4/19, 12:00\u202fPM", df_12_dt.format(noon));
 
 let df_23_dt = new Intl.DateTimeFormat(
     "en", {timeStyle: "short", dateStyle: "short", hourCycle: "h23"})

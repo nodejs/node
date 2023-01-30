@@ -192,11 +192,11 @@ function encodeWtf16LE(str) {
   return out;
 }
 
-function makeWtf16TestDataSegment() {
+function makeWtf16TestDataSegment(strings) {
   let data = []
   let valid = {};
 
-  for (let str of interestingStrings) {
+  for (let str of strings) {
     valid[str] = { offset: data.length, length: str.length };
     for (let byte of encodeWtf16LE(str)) {
       data.push(byte);
@@ -209,7 +209,15 @@ function makeWtf16TestDataSegment() {
 (function TestStringNewWtf16Array() {
   let builder = new WasmModuleBuilder();
 
-  let data = makeWtf16TestDataSegment();
+  // string.new_wtf16_array switches to a different implementation (runtime
+  // instead of Torque) for more than 32 characters, so provide some coverage
+  // for that case.
+  let strings = interestingStrings.concat([
+    "String with more than 32 characters, all of which are ASCII",
+    "Two-byte string with more than 32 characters \ucccc \ud800\udc00 \xa9?"
+  ]);
+
+  let data = makeWtf16TestDataSegment(strings);
   let data_index = builder.addPassiveDataSegment(data.data);
   let ascii_data_index =
       builder.addPassiveDataSegment(Uint8Array.from(encodeWtf16LE("ascii")));

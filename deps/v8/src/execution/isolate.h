@@ -661,6 +661,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool InitializeCounters();  // Returns false if already initialized.
 
   bool InitWithoutSnapshot();
+  bool InitWithReadOnlySnapshot(SnapshotData* read_only_snapshot_data);
   bool InitWithSnapshot(SnapshotData* startup_snapshot_data,
                         SnapshotData* read_only_snapshot_data,
                         SnapshotData* shared_heap_snapshot_data,
@@ -2023,6 +2024,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::StackMemory*& wasm_stacks() { return wasm_stacks_; }
+  // Update the thread local's Stack object so that it is aware of the new stack
+  // start and the inactive stacks.
+  void RecordStackSwitchForScanning();
 #endif
 
   // Access to the global "locals block list cache". Caches outer-stack
@@ -2036,6 +2040,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Object LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info);
 
  private:
+  void VerifyStaticRoots();
+
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator,
                    bool is_shared);
   ~Isolate();

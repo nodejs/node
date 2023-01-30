@@ -257,26 +257,6 @@ class IncrementalStringBuilder {
   };
 
   template <typename DestChar>
-  class NoExtendString : public NoExtend<DestChar> {
-   public:
-    NoExtendString(Handle<String> string, int required_length)
-        : NoExtend<DestChar>(string, 0), string_(string) {
-      DCHECK(string->length() >= required_length);
-    }
-
-    Handle<String> Finalize() {
-      Handle<SeqString> string = Handle<SeqString>::cast(string_);
-      int length = NoExtend<DestChar>::written();
-      Handle<String> result = SeqString::Truncate(string, length);
-      string_ = Handle<String>();
-      return result;
-    }
-
-   private:
-    Handle<String> string_;
-  };
-
-  template <typename DestChar>
   class NoExtendBuilder : public NoExtend<DestChar> {
    public:
     NoExtendBuilder(IncrementalStringBuilder* builder, int required_length,
@@ -325,7 +305,7 @@ class IncrementalStringBuilder {
   void ShrinkCurrentPart() {
     DCHECK(current_index_ < part_length_);
     set_current_part(SeqString::Truncate(
-        Handle<SeqString>::cast(current_part()), current_index_));
+        isolate_, Handle<SeqString>::cast(current_part()), current_index_));
   }
 
   void AppendStringByCopy(Handle<String> string);

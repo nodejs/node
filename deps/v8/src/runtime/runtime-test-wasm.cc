@@ -439,13 +439,6 @@ RUNTIME_FUNCTION(Runtime_WasmTierDown) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmTierUp) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  wasm::GetWasmEngine()->TierUpAllModulesPerIsolate(isolate);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

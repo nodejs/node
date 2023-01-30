@@ -190,9 +190,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
-  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
+  static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;
   void GetCode(Isolate* isolate, CodeDesc* desc,
-               SafepointTableBuilder* safepoint_table_builder,
+               SafepointTableBuilderBase* safepoint_table_builder,
                int handler_table_offset);
 
   // Convenience wrapper for code without safepoint or handler tables.

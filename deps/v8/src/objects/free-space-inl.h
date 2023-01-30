@@ -25,15 +25,36 @@ RELAXED_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
 int FreeSpace::Size() { return size(kRelaxedLoad); }
 
-FreeSpace FreeSpace::next() {
+FreeSpace FreeSpace::next() const {
   DCHECK(IsValid());
+#ifdef V8_EXTERNAL_CODE_SPACE
+  intptr_t diff_to_next =
+      static_cast<intptr_t>(TaggedField<Smi, kNextOffset>::load(*this).value());
+  if (diff_to_next == 0) {
+    return FreeSpace();
+  }
+  Address next_ptr = ptr() + diff_to_next * kObjectAlignment;
+  return FreeSpace::unchecked_cast(Object(next_ptr));
+#else
   return FreeSpace::unchecked_cast(
       TaggedField<Object, kNextOffset>::load(*this));
+#endif  // V8_EXTERNAL_CODE_SPACE
 }
 
 void FreeSpace::set_next(FreeSpace next) {
   DCHECK(IsValid());
-  RELAXED_WRITE_FIELD(*this, kNextOffset, next);
+#ifdef V8_EXTERNAL_CODE_SPACE
+  if (next.is_null()) {
+    TaggedField<Smi, kNextOffset>::Relaxed_Store(*this, Smi::zero());
+    return;
+  }
+  intptr_t diff_to_next = next.ptr() - ptr();
+  DCHECK(IsAligned(diff_to_next, kObjectAlignment));
+  TaggedField<Smi, kNextOffset>::Relaxed_Store(
+      *this, Smi::FromIntptr(diff_to_next / kObjectAlignment));
+#else
+  TaggedField<Object, kNextOffset>::Relaxed_Store(*this, next);
+#endif  // V8_EXTERNAL_CODE_SPACE
 }
 
 FreeSpace FreeSpace::cast(HeapObject o) {
@@ -46,7 +67,7 @@ FreeSpace FreeSpace::unchecked_cast(const Object o) {
   return base::bit_cast<FreeSpace>(o);
 }
 
-bool FreeSpace::IsValid() {
+bool FreeSpace::IsValid() const {
   Heap* heap = GetHeapFromWritableObject(*this);
   Object free_space_map =
       Isolate::FromHeap(heap)->root(RootIndex::kFreeSpaceMap);

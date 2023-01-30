@@ -285,8 +285,7 @@ void Deserializer<IsolateT>::WeakenDescriptorArrays() {
 template <typename IsolateT>
 void Deserializer<IsolateT>::LogScriptEvents(Script script) {
   DisallowGarbageCollection no_gc;
-  LOG(isolate(),
-      ScriptEvent(V8FileLogger::ScriptEventType::kDeserialize, script.id()));
+  LOG(isolate(), ScriptEvent(ScriptEventType::kDeserialize, script.id()));
   LOG(isolate(), ScriptDetails(script));
 }
 
@@ -912,6 +911,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
     // object.
     case CASE_RANGE_ALL_SPACES(kNewObject): {
       SnapshotSpace space = NewObject::Decode(data);
+      DCHECK_IMPLIES(V8_STATIC_ROOTS_BOOL,
+                     space != SnapshotSpace::kReadOnlyHeap);
       // Save the reference type before recursing down into reading the object.
       HeapObjectReferenceType ref_type = GetAndResetNextReferenceType();
       Handle<HeapObject> heap_object = ReadObject(space);
@@ -926,9 +927,12 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
     }
 
     // Reference an object in the read-only heap. This should be used when an
-    // object is read-only, but is not a root.
+    // object is read-only, but is not a root. Except with static roots we
+    // always use this reference to refer to read only objects since they are
+    // created by loading a memory dump of r/o space.
     case kReadOnlyHeapRef: {
-      DCHECK(isolate()->heap()->deserialization_complete());
+      DCHECK(isolate()->heap()->deserialization_complete() ||
+             V8_STATIC_ROOTS_BOOL);
       uint32_t chunk_index = source_.GetInt();
       uint32_t chunk_offset = source_.GetInt();
 
@@ -965,6 +969,7 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
     // Find an object in the read-only object cache and write a pointer to it
     // to the current object.
     case kReadOnlyObjectCache: {
+      DCHECK(!V8_STATIC_ROOTS_BOOL);
       int cache_index = source_.GetInt();
       // TODO(leszeks): Could we use the address of the cached_read_only_object
       // entry as a Handle backing?

@@ -200,8 +200,9 @@ class UseInfo {
     return UseInfo(MachineRepresentation::kWord64, Truncation::Any(),
                    TypeCheckKind::kBigInt64, feedback);
   }
-  static UseInfo Word64() {
-    return UseInfo(MachineRepresentation::kWord64, Truncation::Any());
+  static UseInfo Word64(IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return UseInfo(MachineRepresentation::kWord64,
+                   Truncation::Any(identify_zeros));
   }
   static UseInfo Word() {
     return UseInfo(MachineType::PointerRepresentation(), Truncation::Any());

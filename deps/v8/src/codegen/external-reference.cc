@@ -338,6 +338,9 @@ struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
 FUNCTION_REFERENCE(write_barrier_marking_from_code_function,
                    WriteBarrier::MarkingFromCode)
 
+FUNCTION_REFERENCE(write_barrier_shared_marking_from_code_function,
+                   WriteBarrier::SharedMarkingFromCode)
+
 FUNCTION_REFERENCE(shared_barrier_from_code_function,
                    WriteBarrier::SharedFromCode)
 
@@ -349,6 +352,19 @@ FUNCTION_REFERENCE(delete_handle_scope_extensions,
 
 FUNCTION_REFERENCE(ephemeron_key_write_barrier_function,
                    Heap::EphemeronKeyWriteBarrierFromCode)
+
+ExternalPointerHandle AllocateAndInitializeExternalPointerTableEntry(
+    Isolate* isolate, Address pointer) {
+#ifdef V8_ENABLE_SANDBOX
+  return isolate->external_pointer_table().AllocateAndInitializeEntry(
+      isolate, pointer, kExternalObjectValueTag);
+#else
+  return 0;
+#endif  // V8_ENABLE_SANDBOX
+}
+
+FUNCTION_REFERENCE(allocate_and_initialize_external_pointer_table_entry,
+                   AllocateAndInitializeExternalPointerTableEntry)
 
 FUNCTION_REFERENCE(get_date_field_function, JSDate::GetField)
 
@@ -512,6 +528,18 @@ ExternalReference ExternalReference::heap_is_marking_flag_address(
 ExternalReference ExternalReference::heap_is_minor_marking_flag_address(
     Isolate* isolate) {
   return ExternalReference(isolate->heap()->IsMinorMarkingFlagAddress());
+}
+
+ExternalReference ExternalReference::is_shared_space_isolate_flag_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->isolate_data()->is_shared_space_isolate_flag_address());
+}
+
+ExternalReference ExternalReference::uses_shared_heap_flag_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->isolate_data()->uses_shared_heap_flag_address());
 }
 
 ExternalReference ExternalReference::new_space_allocation_top_address(
@@ -1129,6 +1157,33 @@ FUNCTION_REFERENCE(mutable_big_int_bitwise_and_nn_and_canonicalize_function,
 
 FUNCTION_REFERENCE(mutable_big_int_bitwise_and_pn_and_canonicalize_function,
                    MutableBigInt_BitwiseAndPosNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_or_pp_and_canonicalize_function,
+                   MutableBigInt_BitwiseOrPosPosAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_or_nn_and_canonicalize_function,
+                   MutableBigInt_BitwiseOrNegNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_or_pn_and_canonicalize_function,
+                   MutableBigInt_BitwiseOrPosNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_xor_pp_and_canonicalize_function,
+                   MutableBigInt_BitwiseXorPosPosAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_xor_nn_and_canonicalize_function,
+                   MutableBigInt_BitwiseXorNegNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_xor_pn_and_canonicalize_function,
+                   MutableBigInt_BitwiseXorPosNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_left_shift_and_canonicalize_function,
+                   MutableBigInt_LeftShiftAndCanonicalize)
+
+FUNCTION_REFERENCE(big_int_right_shift_result_length_function,
+                   RightShiftResultLength)
+
+FUNCTION_REFERENCE(mutable_big_int_right_shift_and_canonicalize_function,
+                   MutableBigInt_RightShiftAndCanonicalize)
 
 FUNCTION_REFERENCE(check_object_type, CheckObjectType)
 

@@ -24,20 +24,6 @@ function checkTieredDown(instance) {
   }
 }
 
-function checkTieredUp(instance) {
-  // Busy waiting until all functions are tiered up.
-  let num_liftoff_functions;
-  while (true) {
-    num_liftoff_functions = 0;
-    for (let i = 0; i < num_functions; ++i) {
-      if (%IsLiftoffFunction(instance.exports['f' + i])) {
-        num_liftoff_functions++;
-      }
-    }
-    if (num_liftoff_functions == 0) return;
-  }
-}
-
 function check(instance) {
   %WasmTierDown();
   checkTieredDown(instance);
@@ -46,9 +32,6 @@ function check(instance) {
     %WasmTierUpFunction(instance, i);
   }
   checkTieredDown(instance);
-
-  %WasmTierUp();
-  checkTieredUp(instance);
 }
 
 (function testTierDownToLiftoff() {

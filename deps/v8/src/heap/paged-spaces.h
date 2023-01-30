@@ -18,6 +18,7 @@
 #include "src/flags/flags.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-stats.h"
+#include "src/heap/heap-verifier.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/spaces.h"
@@ -184,13 +185,10 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
 #ifdef VERIFY_HEAP
   // Verify integrity of this space.
-  virtual void Verify(Isolate* isolate, ObjectVisitor* visitor) const;
+  void Verify(Isolate* isolate,
+              SpaceVerificationVisitor* visitor) const override;
 
   void VerifyLiveBytes() const;
-
-  // Overridden by subclasses to verify space-specific object
-  // properties (e.g., only maps or free-list nodes are in map space).
-  virtual void VerifyObject(HeapObject obj) const {}
 #endif
 
 #ifdef DEBUG

@@ -74,95 +74,84 @@ const char* SectionName(SectionCode code) {
 // but that doesn't work with the forward declaration in the header file.
 class ModuleDecoderImpl : public ModuleDecoderTemplate<NoTracer> {
  public:
-  ModuleDecoderImpl(const WasmFeatures& enabled, ModuleOrigin origin)
-      : ModuleDecoderTemplate<NoTracer>(enabled, origin, no_tracer_) {}
-
-  ModuleDecoderImpl(const WasmFeatures& enabled, const byte* module_start,
-                    const byte* module_end, ModuleOrigin origin)
-      : ModuleDecoderTemplate<NoTracer>(enabled, module_start, module_end,
-                                        origin, no_tracer_) {}
+  ModuleDecoderImpl(WasmFeatures enabled_features,
+                    base::Vector<const uint8_t> wire_bytes, ModuleOrigin origin)
+      : ModuleDecoderTemplate<NoTracer>(enabled_features, wire_bytes, origin,
+                                        no_tracer_) {}
 
  private:
   NoTracer no_tracer_;
 };
 
 ModuleResult DecodeWasmModule(
-    const WasmFeatures& enabled, const byte* module_start,
-    const byte* module_end, bool validate_functions, ModuleOrigin origin,
-    Counters* counters, std::shared_ptr<metrics::Recorder> metrics_recorder,
-    v8::metrics::Recorder::ContextId context_id, DecodingMethod decoding_method,
-    AccountingAllocator* allocator) {
-  size_t size = module_end - module_start;
-  CHECK_LE(module_start, module_end);
+    WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
+    bool validate_functions, ModuleOrigin origin, Counters* counters,
+    std::shared_ptr<metrics::Recorder> metrics_recorder,
+    v8::metrics::Recorder::ContextId context_id,
+    DecodingMethod decoding_method) {
   size_t max_size = max_module_size();
-  if (size > max_size) {
-    return ModuleResult{
-        WasmError{0, "size > maximum module size (%zu): %zu", max_size, size}};
+  if (wire_bytes.size() > max_size) {
+    return ModuleResult{WasmError{0, "size > maximum module size (%zu): %zu",
+                                  max_size, wire_bytes.size()}};
   }
-  // TODO(bradnelson): Improve histogram handling of size_t.
-  auto size_counter =
-      SELECT_WASM_COUNTER(counters, origin, wasm, module_size_bytes);
-  size_counter->AddSample(static_cast<int>(size));
-  // Signatures are stored in zone memory, which have the same lifetime
-  // as the {module}.
-  ModuleDecoderImpl decoder(enabled, module_start, module_end, origin);
+  if (counters) {
+    auto size_counter =
+        SELECT_WASM_COUNTER(counters, origin, wasm, module_size_bytes);
+    static_assert(kV8MaxWasmModuleSize < kMaxInt);
+    size_counter->AddSample(static_cast<int>(wire_bytes.size()));
+  }
+
   v8::metrics::WasmModuleDecoded metrics_event;
   base::ElapsedTimer timer;
   timer.Start();
-  base::ThreadTicks thread_ticks = base::ThreadTicks::IsSupported()
-                                       ? base::ThreadTicks::Now()
-                                       : base::ThreadTicks();
-  ModuleResult result =
-      decoder.DecodeModule(counters, allocator, validate_functions);
+  ModuleResult result = DecodeWasmModule(enabled_features, wire_bytes,
+                                         validate_functions, origin);
+  if (counters && result.ok()) {
+    auto counter =
+        SELECT_WASM_COUNTER(counters, origin, wasm_functions_per, module);
+    counter->AddSample(
+        static_cast<int>(result.value()->num_declared_functions));
+  }
 
   // Record event metrics.
   metrics_event.wall_clock_duration_in_us = timer.Elapsed().InMicroseconds();
   timer.Stop();
-  if (!thread_ticks.IsNull()) {
-    metrics_event.cpu_duration_in_us =
-        (base::ThreadTicks::Now() - thread_ticks).InMicroseconds();
-  }
-  metrics_event.success = decoder.ok() && result.ok();
+  metrics_event.success = result.ok();
   metrics_event.async = decoding_method == DecodingMethod::kAsync ||
                         decoding_method == DecodingMethod::kAsyncStream;
   metrics_event.streamed = decoding_method == DecodingMethod::kSyncStream ||
                            decoding_method == DecodingMethod::kAsyncStream;
   if (result.ok()) {
     metrics_event.function_count = result.value()->num_declared_functions;
-  } else if (auto&& module = decoder.shared_module()) {
-    metrics_event.function_count = module->num_declared_functions;
   }
-  metrics_event.module_size_in_bytes = size;
+  metrics_event.module_size_in_bytes = wire_bytes.size();
   metrics_recorder->DelayMainThreadEvent(metrics_event, context_id);
 
   return result;
 }
 
-ModuleResult DecodeWasmModuleForDisassembler(const byte* module_start,
-                                             const byte* module_end,
-                                             AccountingAllocator* allocator) {
-  constexpr bool validate_functions = false;
-  ModuleDecoderImpl decoder(WasmFeatures::All(), module_start, module_end,
-                            kWasmOrigin);
-  return decoder.DecodeModule(nullptr, allocator, validate_functions);
+ModuleResult DecodeWasmModule(WasmFeatures enabled_features,
+                              base::Vector<const uint8_t> wire_bytes,
+                              bool validate_functions, ModuleOrigin origin) {
+  ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin};
+  return decoder.DecodeModule(validate_functions);
 }
 
-ModuleDecoder::ModuleDecoder(const WasmFeatures& enabled)
-    : enabled_features_(enabled) {}
+ModuleResult DecodeWasmModuleForDisassembler(
+    base::Vector<const uint8_t> wire_bytes) {
+  constexpr bool kNoValidateFunctions = false;
+  ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin};
+  return decoder.DecodeModule(kNoValidateFunctions);
+}
+
+ModuleDecoder::ModuleDecoder(WasmFeatures enabled_features)
+    : impl_(std::make_unique<ModuleDecoderImpl>(
+          enabled_features, base::Vector<const uint8_t>{}, kWasmOrigin)) {}
 
 ModuleDecoder::~ModuleDecoder() = default;
 
 const std::shared_ptr<WasmModule>& ModuleDecoder::shared_module() const {
   return impl_->shared_module();
-}
-
-void ModuleDecoder::StartDecoding(
-    Counters* counters, std::shared_ptr<metrics::Recorder> metrics_recorder,
-    v8::metrics::Recorder::ContextId context_id, AccountingAllocator* allocator,
-    ModuleOrigin origin) {
-  DCHECK_NULL(impl_);
-  impl_.reset(new ModuleDecoderImpl(enabled_features_, origin));
-  impl_->StartDecoding(counters, allocator);
 }
 
 void ModuleDecoder::DecodeModuleHeader(base::Vector<const uint8_t> bytes,
@@ -206,35 +195,28 @@ size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
 bool ModuleDecoder::ok() { return impl_->ok(); }
 
 Result<const FunctionSig*> DecodeWasmSignatureForTesting(
-    const WasmFeatures& enabled, Zone* zone, const byte* start,
-    const byte* end) {
-  ModuleDecoderImpl decoder(enabled, start, end, kWasmOrigin);
-  return decoder.toResult(decoder.DecodeFunctionSignature(zone, start));
+    WasmFeatures enabled_features, Zone* zone,
+    base::Vector<const uint8_t> bytes) {
+  ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin};
+  return decoder.toResult(decoder.DecodeFunctionSignature(zone, bytes.begin()));
 }
 
-ConstantExpression DecodeWasmInitExprForTesting(const WasmFeatures& enabled,
-                                                const byte* start,
-                                                const byte* end,
-                                                ValueType expected) {
-  ModuleDecoderImpl decoder(enabled, start, end, kWasmOrigin);
-  AccountingAllocator allocator;
-  decoder.StartDecoding(nullptr, &allocator);
+ConstantExpression DecodeWasmInitExprForTesting(
+    WasmFeatures enabled_features, base::Vector<const uint8_t> bytes,
+    ValueType expected) {
+  ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin};
   return decoder.DecodeInitExprForTesting(expected);
 }
 
 FunctionResult DecodeWasmFunctionForTesting(
-    const WasmFeatures& enabled, Zone* zone, const ModuleWireBytes& wire_bytes,
-    const WasmModule* module, const byte* function_start,
-    const byte* function_end, Counters* counters) {
-  size_t size = function_end - function_start;
-  CHECK_LE(function_start, function_end);
-  if (size > kV8MaxWasmFunctionSize) {
-    return FunctionResult{WasmError{0,
-                                    "size > maximum function size (%zu): %zu",
-                                    kV8MaxWasmFunctionSize, size}};
+    WasmFeatures enabled_features, Zone* zone, ModuleWireBytes wire_bytes,
+    const WasmModule* module, base::Vector<const uint8_t> function_bytes) {
+  if (function_bytes.size() > kV8MaxWasmFunctionSize) {
+    return FunctionResult{
+        WasmError{0, "size > maximum function size (%zu): %zu",
+                  kV8MaxWasmFunctionSize, function_bytes.size()}};
   }
-  ModuleDecoderImpl decoder(enabled, function_start, function_end, kWasmOrigin);
-  decoder.SetCounters(counters);
+  ModuleDecoderImpl decoder{enabled_features, function_bytes, kWasmOrigin};
   return decoder.DecodeSingleFunctionForTesting(zone, wire_bytes, module);
 }
 
@@ -294,9 +276,9 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(
   return decoder.toResult(AsmJsOffsets{std::move(functions)});
 }
 
-std::vector<CustomSectionOffset> DecodeCustomSections(const byte* start,
-                                                      const byte* end) {
-  Decoder decoder(start, end);
+std::vector<CustomSectionOffset> DecodeCustomSections(
+    base::Vector<const uint8_t> bytes) {
+  Decoder decoder(bytes);
   decoder.consume_bytes(4, "wasm magic");
   decoder.consume_bytes(4, "wasm version");
 
@@ -383,9 +365,9 @@ void DecodeIndirectNameMap(IndirectNameMap& target, Decoder& decoder) {
 
 }  // namespace
 
-void DecodeFunctionNames(const byte* module_start, const byte* module_end,
+void DecodeFunctionNames(base::Vector<const uint8_t> wire_bytes,
                          NameMap& names) {
-  Decoder decoder(module_start, module_end);
+  Decoder decoder(wire_bytes);
   if (FindNameSection(&decoder)) {
     while (decoder.ok() && decoder.more()) {
       uint8_t name_type = decoder.consume_u8("name type");
@@ -408,6 +390,145 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
       // subsection.
       return;
     }
+  }
+}
+
+namespace {
+// A task that validates multiple functions in parallel, storing the earliest
+// validation error in {this} decoder.
+class ValidateFunctionsTask : public JobTask {
+ public:
+  explicit ValidateFunctionsTask(base::Vector<const uint8_t> wire_bytes,
+                                 const WasmModule* module,
+                                 WasmFeatures enabled_features,
+                                 std::function<bool(int)> filter,
+                                 WasmError* error_out)
+      : wire_bytes_(wire_bytes),
+        module_(module),
+        enabled_features_(enabled_features),
+        filter_(std::move(filter)),
+        next_function_(module->num_imported_functions),
+        after_last_function_(next_function_ + module->num_declared_functions),
+        error_out_(error_out) {
+    DCHECK(error_out->empty());
+  }
+
+  void Run(JobDelegate* delegate) override {
+    do {
+      // Get the index of the next function to validate.
+      // {fetch_add} might overrun {after_last_function_} by a bit. Since the
+      // number of functions is limited to a value much smaller than the
+      // integer range, this is near impossible to happen.
+      static_assert(kV8MaxWasmFunctions < kMaxInt / 2);
+      int func_index;
+      do {
+        func_index = next_function_.fetch_add(1, std::memory_order_relaxed);
+        if (V8_UNLIKELY(func_index >= after_last_function_)) return;
+        DCHECK_LE(0, func_index);
+      } while ((filter_ && !filter_(func_index)) ||
+               module_->function_was_validated(func_index));
+
+      if (!ValidateFunction(func_index)) {
+        // No need to validate any more functions.
+        next_function_.store(after_last_function_, std::memory_order_relaxed);
+        return;
+      }
+    } while (!delegate->ShouldYield());
+  }
+
+  size_t GetMaxConcurrency(size_t /* worker_count */) const override {
+    int next_func = next_function_.load(std::memory_order_relaxed);
+    return std::max(0, after_last_function_ - next_func);
+  }
+
+ private:
+  bool ValidateFunction(int func_index) {
+    WasmFeatures unused_detected_features;
+    const WasmFunction& function = module_->functions[func_index];
+    FunctionBody body{function.sig, function.code.offset(),
+                      wire_bytes_.begin() + function.code.offset(),
+                      wire_bytes_.begin() + function.code.end_offset()};
+    DecodeResult validation_result = ValidateFunctionBody(
+        enabled_features_, module_, &unused_detected_features, body);
+    if (V8_UNLIKELY(validation_result.failed())) {
+      SetError(func_index, std::move(validation_result).error());
+      return false;
+    }
+    module_->set_function_validated(func_index);
+    return true;
+  }
+
+  // Set the error from the argument if it's earlier than the error we already
+  // have (or if we have none yet). Thread-safe.
+  void SetError(int func_index, WasmError error) {
+    base::MutexGuard mutex_guard{&set_error_mutex_};
+    if (!error_out_->empty() && error_out_->offset() <= error.offset()) {
+      return;
+    }
+    *error_out_ = GetWasmErrorWithName(wire_bytes_, func_index, module_, error);
+  }
+
+  const base::Vector<const uint8_t> wire_bytes_;
+  const WasmModule* const module_;
+  const WasmFeatures enabled_features_;
+  const std::function<bool(int)> filter_;
+  std::atomic<int> next_function_;
+  const int after_last_function_;
+  base::Mutex set_error_mutex_;
+  WasmError* const error_out_;
+};
+}  // namespace
+
+WasmError ValidateFunctions(const WasmModule* module,
+                            WasmFeatures enabled_features,
+                            base::Vector<const uint8_t> wire_bytes,
+                            std::function<bool(int)> filter) {
+  DCHECK_EQ(kWasmOrigin, module->origin);
+
+  class NeverYieldDelegate final : public JobDelegate {
+   public:
+    bool ShouldYield() override { return false; }
+
+    bool IsJoiningThread() const override { UNIMPLEMENTED(); }
+    void NotifyConcurrencyIncrease() override { UNIMPLEMENTED(); }
+    uint8_t GetTaskId() override { UNIMPLEMENTED(); }
+  };
+
+  // Create a {ValidateFunctionsTask} to validate all functions. The earliest
+  // error found will be set on this decoder.
+  WasmError validation_error;
+  std::unique_ptr<JobTask> validate_job =
+      std::make_unique<ValidateFunctionsTask>(
+          wire_bytes, module, enabled_features, std::move(filter),
+          &validation_error);
+
+  if (v8_flags.single_threaded) {
+    // In single-threaded mode, run the {ValidateFunctionsTask} synchronously.
+    NeverYieldDelegate delegate;
+    validate_job->Run(&delegate);
+  } else {
+    // Spawn the task and join it.
+    std::unique_ptr<JobHandle> job_handle = V8::GetCurrentPlatform()->CreateJob(
+        TaskPriority::kUserVisible, std::move(validate_job));
+    job_handle->Join();
+  }
+
+  return validation_error;
+}
+
+WasmError GetWasmErrorWithName(base::Vector<const uint8_t> wire_bytes,
+                               int func_index, const WasmModule* module,
+                               WasmError error) {
+  WasmName name = ModuleWireBytes{wire_bytes}.GetNameOrNull(func_index, module);
+  if (name.begin() == nullptr) {
+    return WasmError(error.offset(), "Compiling function #%d failed: %s",
+                     func_index, error.message().c_str());
+  } else {
+    TruncatedUserString<> truncated_name(name);
+    return WasmError(error.offset(),
+                     "Compiling function #%d:\"%.*s\" failed: %s", func_index,
+                     truncated_name.length(), truncated_name.start(),
+                     error.message().c_str());
   }
 }
 

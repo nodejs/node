@@ -17,6 +17,7 @@
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-console-agent-impl.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
+#include "src/inspector/v8-debugger-barrier.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-heap-profiler-agent-impl.h"
 #include "src/inspector/v8-inspector-impl.h"
@@ -90,15 +91,18 @@ int V8ContextInfo::executionContextId(v8::Local<v8::Context> context) {
 std::unique_ptr<V8InspectorSessionImpl> V8InspectorSessionImpl::create(
     V8InspectorImpl* inspector, int contextGroupId, int sessionId,
     V8Inspector::Channel* channel, StringView state,
-    V8Inspector::ClientTrustLevel clientTrustLevel) {
+    V8Inspector::ClientTrustLevel clientTrustLevel,
+    std::shared_ptr<V8DebuggerBarrier> debuggerBarrier) {
   return std::unique_ptr<V8InspectorSessionImpl>(new V8InspectorSessionImpl(
-      inspector, contextGroupId, sessionId, channel, state, clientTrustLevel));
+      inspector, contextGroupId, sessionId, channel, state, clientTrustLevel,
+      std::move(debuggerBarrier)));
 }
 
 V8InspectorSessionImpl::V8InspectorSessionImpl(
     V8InspectorImpl* inspector, int contextGroupId, int sessionId,
     V8Inspector::Channel* channel, StringView savedState,
-    V8Inspector::ClientTrustLevel clientTrustLevel)
+    V8Inspector::ClientTrustLevel clientTrustLevel,
+    std::shared_ptr<V8DebuggerBarrier> debuggerBarrier)
     : m_contextGroupId(contextGroupId),
       m_sessionId(sessionId),
       m_inspector(inspector),
@@ -116,7 +120,8 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(
   m_state->getBoolean("use_binary_protocol", &use_binary_protocol_);
 
   m_runtimeAgent.reset(new V8RuntimeAgentImpl(
-      this, this, agentState(protocol::Runtime::Metainfo::domainName)));
+      this, this, agentState(protocol::Runtime::Metainfo::domainName),
+      std::move(debuggerBarrier)));
   protocol::Runtime::Dispatcher::wire(&m_dispatcher, m_runtimeAgent.get());
 
   m_debuggerAgent.reset(new V8DebuggerAgentImpl(
@@ -505,5 +510,7 @@ void V8InspectorSessionImpl::triggerPreciseCoverageDeltaUpdate(
     StringView occasion) {
   m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occasion));
 }
+
+void V8InspectorSessionImpl::stop() { m_debuggerAgent->stop(); }
 
 }  // namespace v8_inspector

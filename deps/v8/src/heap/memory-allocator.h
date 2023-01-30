@@ -194,7 +194,8 @@ class MemoryAllocator {
                                                  size_t object_size,
                                                  Executability executable);
 
-  ReadOnlyPage* AllocateReadOnlyPage(ReadOnlySpace* space);
+  ReadOnlyPage* AllocateReadOnlyPage(ReadOnlySpace* space,
+                                     Address hint = kNullAddress);
 
   std::unique_ptr<::v8::PageAllocator::SharedMemoryMapping> RemapSharedPage(
       ::v8::PageAllocator::SharedMemory* shared_memory, Address new_address);
@@ -260,6 +261,7 @@ class MemoryAllocator {
   Unmapper* unmapper() { return &unmapper_; }
 
   void UnregisterReadOnlyPage(ReadOnlyPage* page);
+  void TakeOverLargePage(LargePage* page, MemoryAllocator* current_owner);
 
   Address HandleAllocationFailure(Executability executable);
 
@@ -293,7 +295,14 @@ class MemoryAllocator {
   // the unintialized memory region.
   V8_WARN_UNUSED_RESULT base::Optional<MemoryChunkAllocationResult>
   AllocateUninitializedChunk(BaseSpace* space, size_t area_size,
-                             Executability executable, PageSize page_size);
+                             Executability executable, PageSize page_size) {
+    return AllocateUninitializedChunkAt(space, area_size, executable,
+                                        kNullAddress, page_size);
+  }
+  V8_WARN_UNUSED_RESULT base::Optional<MemoryChunkAllocationResult>
+  AllocateUninitializedChunkAt(BaseSpace* space, size_t area_size,
+                               Executability executable, Address hint,
+                               PageSize page_size);
 
   // Internal raw allocation method that allocates an aligned MemoryChunk and
   // sets the right memory permissions.

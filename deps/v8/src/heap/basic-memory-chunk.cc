@@ -84,6 +84,19 @@ void BasicMemoryChunk::SynchronizedHeapLoad() const {
 }
 #endif
 
+// static
+MarkBit BasicMemoryChunk::ComputeMarkBit(HeapObject object) {
+  return BasicMemoryChunk::ComputeMarkBit(object.address());
+}
+
+// static
+MarkBit BasicMemoryChunk::ComputeMarkBit(Address address) {
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(address);
+  int index = chunk->AddressToMarkbitIndex(address);
+  return chunk->marking_bitmap<AccessMode::NON_ATOMIC>()->MarkBitFromIndex(
+      index);
+}
+
 class BasicMemoryChunkValidator {
   // Computed offsets should match the compiler generated ones.
   static_assert(BasicMemoryChunk::kSizeOffset ==

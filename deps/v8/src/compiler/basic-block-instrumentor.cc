@@ -59,7 +59,7 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
   AllowHandleDereference allow_handle_dereference;
   // Skip the exit block in profiles, since the register allocator can't handle
   // it and entry into it means falling off the end of the function anyway.
-  size_t n_blocks = schedule->RpoBlockCount() - 1;
+  size_t n_blocks = schedule->RpoBlockCount();
   BasicBlockProfilerData* data = BasicBlockProfiler::Get()->NewData(n_blocks);
   // Set the function name.
   data->SetFunctionName(info->GetDebugName());
@@ -99,6 +99,7 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
   for (BasicBlockVector::iterator it = blocks->begin(); block_number < n_blocks;
        ++it, ++block_number) {
     BasicBlock* block = (*it);
+    if (block == schedule->end()) continue;
     // Iteration is already in reverse post-order.
     DCHECK_EQ(block->rpo_number(), block_number);
     data->SetBlockId(block_number, block->id().ToInt());
@@ -146,10 +147,8 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
     // The exit block is not instrumented and so we must ignore that block
     // count.
     if (block->control() == BasicBlock::kBranch &&
-        block->successors()[0]->rpo_number() !=
-            static_cast<int32_t>(n_blocks) &&
-        block->successors()[1]->rpo_number() !=
-            static_cast<int32_t>(n_blocks)) {
+        block->successors()[0] != schedule->end() &&
+        block->successors()[1] != schedule->end()) {
       data->AddBranch(block->successors()[0]->id().ToInt(),
                       block->successors()[1]->id().ToInt());
     }

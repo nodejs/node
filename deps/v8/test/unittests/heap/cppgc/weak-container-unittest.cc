@@ -29,7 +29,9 @@ class WeakContainerTest : public testing::TestWithHeap {
   }
 
   void FinishMarking(StackState stack_state) {
+    Heap::From(GetHeap())->stack()->SaveContext();
     GetMarkerRef()->FinishMarking(stack_state);
+    Heap::From(GetHeap())->stack()->ClearContext();
     marked_bytes_ =
         Heap::From(GetHeap())->AsBase().stats_collector()->marked_bytes();
     GetMarkerRef().reset();

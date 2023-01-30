@@ -197,6 +197,7 @@ var V8OptimizationStatus = {
   kTopmostFrameIsInterpreted: 1 << 16,
   kTopmostFrameIsBaseline: 1 << 17,
   kIsLazy: 1 << 18,
+  kTopmostFrameIsMaglev: 1 << 19,
 };
 
 // Returns true if --lite-mode is on and we can't ever turn on optimization.
@@ -431,6 +432,7 @@ var prettyPrinted;
         return false;
       }
       for (var i = 0; i < a.length; i++) {
+        if ((i in a) !== (i in b)) return false;
         if (!deepEquals(a[i], b[i])) return false;
       }
       return true;

@@ -3208,6 +3208,31 @@ void Simulator::SoftwareInterrupt() {
     if (code != -1 && static_cast<uint32_t>(code) <= kMaxStopCode) {
       if (IsWatchpoint(code)) {
         PrintWatchpoint(code);
+      } else if (IsTracepoint(code)) {
+        if (!v8_flags.debug_sim) {
+          PrintF("Add --debug-sim when tracepoint instruction is used.\n");
+          abort();
+        }
+        printf("%d %d %d %d\n", code, code & LOG_TRACE, code & LOG_REGS,
+               code & kDebuggerTracingDirectivesMask);
+        switch (code & kDebuggerTracingDirectivesMask) {
+          case TRACE_ENABLE:
+            if (code & LOG_TRACE) {
+              v8_flags.trace_sim = true;
+            }
+            if (code & LOG_REGS) {
+              RiscvDebugger dbg(this);
+              dbg.PrintAllRegs();
+            }
+            break;
+          case TRACE_DISABLE:
+            if (code & LOG_TRACE) {
+              v8_flags.trace_sim = false;
+            }
+            break;
+          default:
+            UNREACHABLE();
+        }
       } else {
         IncreaseStopCounter(code);
         HandleStop(code);
@@ -3225,6 +3250,10 @@ void Simulator::SoftwareInterrupt() {
 // Stop helper functions.
 bool Simulator::IsWatchpoint(reg_t code) {
   return (code <= kMaxWatchpointCode);
+}
+
+bool Simulator::IsTracepoint(reg_t code) {
+  return (code <= kMaxTracepointCode && code > kMaxWatchpointCode);
 }
 
 void Simulator::PrintWatchpoint(reg_t code) {
@@ -4105,7 +4134,7 @@ void Simulator::DecodeRVRFPType() {
         case 0b000: {
           if (instr_.Rs2Value() == 0b00000) {
             // RO_FMV_X_W
-            set_rd(sext_xlen(get_fpu_register_word(rs1_reg())));
+            set_rd(sext32(get_fpu_register_word(rs1_reg())));
           } else {
             UNSUPPORTED();
           }
@@ -7185,7 +7214,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
 
   v8::base::EmbeddedVector<char, 256> buffer;
 
-  if (v8_flags.trace_sim) {
+  if (v8_flags.trace_sim || v8_flags.debug_sim) {
     SNPrintF(trace_buf_, " ");
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
@@ -7195,7 +7224,6 @@ void Simulator::InstructionDecode(Instruction* instr) {
     // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
     //        reinterpret_cast<intptr_t>(instr), buffer.begin());
   }
-
   instr_ = instr;
   switch (instr_.InstructionType()) {
     case Instruction::kRType:

@@ -142,8 +142,8 @@ class Vector {
   static Vector<T> cast(Vector<S> input) {
     // Casting is potentially dangerous, so be really restrictive here. This
     // might be lifted once we have use cases for that.
-    static_assert(std::is_pod<S>::value);
-    static_assert(std::is_pod<T>::value);
+    static_assert(std::is_trivial_v<S> && std::is_standard_layout_v<S>);
+    static_assert(std::is_trivial_v<T> && std::is_standard_layout_v<T>);
     DCHECK_EQ(0, (input.size() * sizeof(S)) % sizeof(T));
     DCHECK_EQ(0, reinterpret_cast<uintptr_t>(input.begin()) % alignof(T));
     return Vector<T>(reinterpret_cast<T*>(input.begin()),
@@ -193,22 +193,40 @@ class V8_NODISCARD ScopedVector : public Vector<T> {
 template <typename T>
 class OwnedVector {
  public:
-  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(OwnedVector);
+  OwnedVector() = default;
+
   OwnedVector(std::unique_ptr<T[]> data, size_t length)
       : data_(std::move(data)), length_(length) {
     DCHECK_IMPLIES(length_ > 0, data_ != nullptr);
   }
 
-  // Implicit conversion from {OwnedVector<U>} to {OwnedVector<T>}, instantiable
-  // if {std::unique_ptr<U>} can be converted to {std::unique_ptr<T>}.
-  // Can be used to convert {OwnedVector<T>} to {OwnedVector<const T>}.
+  // Disallow copying.
+  OwnedVector(const OwnedVector&) = delete;
+  OwnedVector& operator=(const OwnedVector&) = delete;
+
+  // Move construction and move assignment from {OwnedVector<U>} to
+  // {OwnedVector<T>}, instantiable if {std::unique_ptr<U>} can be converted to
+  // {std::unique_ptr<T>}. Can also be used to convert {OwnedVector<T>} to
+  // {OwnedVector<const T>}.
+  // These also function as the standard move construction/assignment operator.
+  // {other} is left as an empty vector.
   template <typename U,
             typename = typename std::enable_if<std::is_convertible<
                 std::unique_ptr<U>, std::unique_ptr<T>>::value>::type>
-  OwnedVector(OwnedVector<U>&& other)
-      : data_(std::move(other.data_)), length_(other.length_) {
+  OwnedVector(OwnedVector<U>&& other) V8_NOEXCEPT {
+    *this = std::move(other);
+  }
+
+  template <typename U,
+            typename = typename std::enable_if<std::is_convertible<
+                std::unique_ptr<U>, std::unique_ptr<T>>::value>::type>
+  OwnedVector& operator=(OwnedVector<U>&& other) V8_NOEXCEPT {
     static_assert(sizeof(U) == sizeof(T));
+    data_ = std::move(other.data_);
+    length_ = other.length_;
+    DCHECK_NULL(other.data_);
     other.length_ = 0;
+    return *this;
   }
 
   // Returns the length of the vector as a size_t.
@@ -217,14 +235,12 @@ class OwnedVector {
   // Returns whether or not the vector is empty.
   constexpr bool empty() const { return length_ == 0; }
 
-  // Returns the pointer to the start of the data in the vector.
-  T* start() const {
+  constexpr T* begin() const {
     DCHECK_IMPLIES(length_ > 0, data_ != nullptr);
     return data_.get();
   }
 
-  constexpr T* begin() const { return start(); }
-  constexpr T* end() const { return start() + size(); }
+  constexpr T* end() const { return begin() + length_; }
 
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](size_t index) const {
@@ -233,7 +249,7 @@ class OwnedVector {
   }
 
   // Returns a {Vector<T>} view of the data in this vector.
-  Vector<T> as_vector() const { return Vector<T>(start(), size()); }
+  Vector<T> as_vector() const { return {begin(), size()}; }
 
   // Releases the backing data from this vector and transfers ownership to the
   // caller. This vector will be empty afterwards.
@@ -269,7 +285,7 @@ class OwnedVector {
     using non_const_t = typename std::remove_const<T>::type;
     auto vec =
         OwnedVector<non_const_t>::NewForOverwrite(std::distance(begin, end));
-    std::copy(begin, end, vec.start());
+    std::copy(begin, end, vec.begin());
     return vec;
   }
 

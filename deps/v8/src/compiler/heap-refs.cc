@@ -503,12 +503,19 @@ class BigIntData : public HeapObjectData {
   BigIntData(JSHeapBroker* broker, ObjectData** storage, Handle<BigInt> object,
              ObjectDataKind kind)
       : HeapObjectData(broker, storage, object, kind),
-        as_uint64_(object->AsUint64(nullptr)) {}
+        as_uint64_(object->AsUint64(nullptr)),
+        as_int64_(object->AsInt64(&lossless_)) {}
 
   uint64_t AsUint64() const { return as_uint64_; }
+  int64_t AsInt64(bool* lossless) const {
+    *lossless = lossless_;
+    return as_int64_;
+  }
 
  private:
   const uint64_t as_uint64_;
+  const int64_t as_int64_;
+  bool lossless_;
 };
 
 struct PropertyDescriptor {
@@ -1346,6 +1353,17 @@ base::Optional<double> StringRef::ToNumber() {
   return TryStringToDouble(broker()->local_isolate(), object());
 }
 
+base::Optional<double> StringRef::ToInt(int radix) {
+  if (!IsContentAccessible()) {
+    TRACE_BROKER_MISSING(
+        broker(),
+        "toInt for kNeverSerialized unsupported string kind " << *this);
+    return base::nullopt;
+  }
+
+  return TryStringToInt(broker()->local_isolate(), object(), radix);
+}
+
 int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
   return object()->constant_elements().length();
 }
@@ -1435,6 +1453,12 @@ HEAP_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
 HEAP_ACCESSOR_C(AllocationSite, AllocationType, GetAllocationType)
 
 BIMODAL_ACCESSOR_C(BigInt, uint64_t, AsUint64)
+int64_t BigIntRef::AsInt64(bool* lossless) const {
+  if (data_->should_access_heap()) {
+    return object()->AsInt64(lossless);
+  }
+  return ObjectRef::data()->AsBigInt()->AsInt64(lossless);
+}
 
 int BytecodeArrayRef::register_count() const {
   return object()->register_count();

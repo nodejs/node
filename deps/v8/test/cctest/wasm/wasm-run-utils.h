@@ -111,12 +111,10 @@ bool IsSameNan(double expected, double actual);
 // the interpreter.
 class TestingModuleBuilder {
  public:
-  TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, TestExecutionTier,
-                       RuntimeExceptionSupport, TestingModuleMemoryType,
-                       Isolate* isolate);
+  TestingModuleBuilder(Zone*, ModuleOrigin origin, ManuallyImportedJSFunction*,
+                       TestExecutionTier, RuntimeExceptionSupport,
+                       TestingModuleMemoryType, Isolate* isolate);
   ~TestingModuleBuilder();
-
-  void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsSloppyOrigin; }
 
   byte* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared);
 
@@ -406,7 +404,7 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
 // code, and run that code.
 class WasmRunnerBase : public InitializedHandleScope {
  public:
-  WasmRunnerBase(ManuallyImportedJSFunction* maybe_import,
+  WasmRunnerBase(ManuallyImportedJSFunction* maybe_import, ModuleOrigin origin,
                  TestExecutionTier execution_tier, int num_params,
                  RuntimeExceptionSupport runtime_exception_support =
                      kNoRuntimeExceptionSupport,
@@ -414,7 +412,7 @@ class WasmRunnerBase : public InitializedHandleScope {
                  Isolate* isolate = nullptr)
       : InitializedHandleScope(isolate),
         zone_(&allocator_, ZONE_NAME, kCompressGraphZone),
-        builder_(&zone_, maybe_import, execution_tier,
+        builder_(&zone_, origin, maybe_import, execution_tier,
                  runtime_exception_support, mem_type, isolate),
         wrapper_(&zone_, num_params) {}
 
@@ -574,14 +572,16 @@ template <typename ReturnType, typename... ParamTypes>
 class WasmRunner : public WasmRunnerBase {
  public:
   explicit WasmRunner(TestExecutionTier execution_tier,
+                      ModuleOrigin origin = kWasmOrigin,
                       ManuallyImportedJSFunction* maybe_import = nullptr,
                       const char* main_fn_name = "main",
                       RuntimeExceptionSupport runtime_exception_support =
                           kNoRuntimeExceptionSupport,
                       TestingModuleMemoryType mem_type = kMemory32,
                       Isolate* isolate = nullptr)
-      : WasmRunnerBase(maybe_import, execution_tier, sizeof...(ParamTypes),
-                       runtime_exception_support, mem_type, isolate) {
+      : WasmRunnerBase(maybe_import, origin, execution_tier,
+                       sizeof...(ParamTypes), runtime_exception_support,
+                       mem_type, isolate) {
     WasmFunctionCompiler& main_fn =
         NewFunction<ReturnType, ParamTypes...>(main_fn_name);
     // Non-zero if there is an import.

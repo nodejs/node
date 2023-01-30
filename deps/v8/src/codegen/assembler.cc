@@ -102,11 +102,11 @@ class DefaultAssemblerBuffer : public AssemblerBuffer {
       : buffer_(base::OwnedVector<uint8_t>::NewForOverwrite(
             std::max(AssemblerBase::kMinimalBufferSize, size))) {
 #ifdef DEBUG
-    ZapCode(reinterpret_cast<Address>(buffer_.start()), buffer_.size());
+    ZapCode(reinterpret_cast<Address>(buffer_.begin()), buffer_.size());
 #endif
   }
 
-  byte* start() const override { return buffer_.start(); }
+  byte* start() const override { return buffer_.begin(); }
 
   int size() const override { return static_cast<int>(buffer_.size()); }
 

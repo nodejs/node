@@ -14,7 +14,6 @@
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-debug.h"
-#include "src/wasm/wasm-engine.h"
 
 namespace v8::internal::wasm {
 
@@ -133,9 +132,8 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       // Before executing TurboFan compilation, make sure that the function was
       // validated (because TurboFan compilation assumes valid input).
       if (V8_UNLIKELY(!env->module->function_was_validated(func_index_))) {
-        AccountingAllocator allocator;
-        if (ValidateFunctionBody(&allocator, env->enabled_features, env->module,
-                                 detected, func_body)
+        if (ValidateFunctionBody(env->enabled_features, env->module, detected,
+                                 func_body)
                 .failed()) {
           return {};
         }

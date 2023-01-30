@@ -92,7 +92,7 @@ class Sweeper {
                          int required_freed_bytes, int max_pages = 0);
   int ParallelSweepPage(
       Page* page, AllocationSpace identity,
-      PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
+      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
       SweepingMode sweeping_mode);
 
   void EnsurePageIsSwept(Page* page);
@@ -100,7 +100,7 @@ class Sweeper {
   int RawSweep(
       Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
       SweepingMode sweeping_mode, const base::MutexGuard& page_guard,
-      PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback);
+      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback);
 
   // After calling this function sweeping is considered to be in progress
   // and the main thread can sweep lazily, but the background sweeper tasks
@@ -208,8 +208,8 @@ class Sweeper {
   std::atomic<bool> sweeping_in_progress_;
   bool should_reduce_memory_;
   bool should_sweep_non_new_spaces_ = false;
-  PretenturingHandler* const pretenuring_handler_;
-  PretenturingHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
+  PretenuringHandler* const pretenuring_handler_;
+  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   base::Optional<GarbageCollector> current_new_space_collector_;
 };
 

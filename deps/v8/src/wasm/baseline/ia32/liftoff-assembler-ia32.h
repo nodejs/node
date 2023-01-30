@@ -439,8 +439,8 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   bind(&write_barrier);
   JumpIfSmi(src.gp(), &exit, Label::kNear);
   CheckPageFlag(src.gp(), scratch,
-                MemoryChunk::kPointersToHereAreInterestingMask, zero, &exit,
-                Label::kNear);
+                MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
+                zero, &exit, Label::kNear);
   lea(scratch, dst_op);
   CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
@@ -3697,7 +3697,13 @@ void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
                                                         LiftoffRegister lhs,
                                                         LiftoffRegister rhs,
                                                         LiftoffRegister acc) {
-  bailout(kSimd, "emit_i32x4_dot_i8x16_i7x16_add_s");
+  static constexpr RegClass tmp_rc = reg_class_for(kS128);
+  LiftoffRegister tmp1 =
+      GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs});
+  LiftoffRegister tmp2 =
+      GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs, tmp1});
+  I32x4DotI8x16I7x16AddS(dst.fp(), lhs.fp(), rhs.fp(), acc.fp(), tmp1.fp(),
+                         tmp2.fp());
 }
 
 void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,

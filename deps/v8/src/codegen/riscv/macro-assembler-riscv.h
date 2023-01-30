@@ -123,7 +123,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Trap();
   void DebugBreak();
-
+#ifdef USE_SIMULATOR
+  // See src/codegen/riscv/base-constants-riscv.h DebugParameters.
+  void Debug(uint32_t parameters) { break_(parameters, false); }
+#endif
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
   void Assert(Condition cc, AbortReason reason, Register rs, Operand rt);
@@ -228,6 +231,30 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     auipc(rd, Hi20);  // Read PC + Hi20 into scratch.
     jalr(rd, Lo12);   // jump PC + Hi20 + Lo12
   }
+
+  // Generate a B immediate instruction with the corresponding relocation info.
+  // 'offset' is the immediate to encode in the B instruction (so it is the
+  // difference between the target and the PC of the instruction, divided by
+  // the instruction size).
+  void near_jump(int offset, RelocInfo::Mode rmode) {
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.Acquire();
+    if (!RelocInfo::IsNoInfo(rmode)) RecordRelocInfo(rmode, offset);
+    GenPCRelativeJump(temp, offset);
+  }
+  // Generate a BL immediate instruction with the corresponding relocation info.
+  // As for near_jump, 'offset' is the immediate to encode in the BL
+  // instruction.
+  void near_call(int offset, RelocInfo::Mode rmode) {
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.Acquire();
+    if (!RelocInfo::IsNoInfo(rmode)) RecordRelocInfo(rmode, offset);
+    GenPCRelativeJumpAndLink(temp, offset);
+  }
+  // Generate a BL immediate instruction with the corresponding relocation info
+  // for the input HeapNumberRequest.
+  void near_call(HeapNumberRequest request) { UNIMPLEMENTED(); }
+
 // Jump, Call, and Ret pseudo instructions implementing inter-working.
 #define COND_ARGS                              \
   Condition cond = al, Register rs = zero_reg, \

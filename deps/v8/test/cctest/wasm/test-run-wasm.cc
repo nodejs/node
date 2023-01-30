@@ -2519,7 +2519,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Factorial) {
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
                                    kRuntimeExceptionSupport, kMemory32,
                                    isolate_scope.i_isolate());
 
@@ -2557,7 +2557,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
                                    kRuntimeExceptionSupport, kMemory32,
                                    isolate_scope.i_isolate());
 
@@ -2604,7 +2604,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
 
-  WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
                                    kRuntimeExceptionSupport, kMemory32,
                                    isolate_scope.i_isolate());
 
@@ -2653,7 +2653,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Sum) {
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
 
-  WasmRunner<int32_t, int32_t> r(execution_tier, nullptr, "main",
+  WasmRunner<int32_t, int32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
                                  kRuntimeExceptionSupport, kMemory32,
                                  isolate_scope.i_isolate());
   TestSignatures sigs;
@@ -2695,7 +2695,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
 
-  WasmRunner<int32_t, int32_t> r(execution_tier, nullptr, "main",
+  WasmRunner<int32_t, int32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
                                  kRuntimeExceptionSupport, kMemory32,
                                  isolate_scope.i_isolate());
   TestSignatures sigs;

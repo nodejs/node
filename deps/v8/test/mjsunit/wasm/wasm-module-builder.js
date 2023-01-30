@@ -515,8 +515,10 @@ let kExprRefTestDeprecated = 0x44;
 let kExprRefCast = 0x41;
 let kExprRefCastNull = 0x49;
 let kExprRefCastDeprecated = 0x45;
-let kExprBrOnCast = 0x46;
-let kExprBrOnCastFail = 0x47;
+let kExprBrOnCast = 0x42;
+let kExprBrOnCastNull = 0x4a;
+let kExprBrOnCastDeprecated = 0x46;
+let kExprBrOnCastFail = 0x43;
 let kExprRefCastNop = 0x4c;
 let kExprRefIsData = 0x51;
 let kExprRefIsI31 = 0x52;
@@ -1121,9 +1123,8 @@ class WasmFunctionBuilder {
 
   addBody(body) {
     checkExpr(body);
-    this.body = body.slice();
-    // Automatically add the end for the function block to the body.
-    this.body.push(kExprEnd);
+    // Store a copy of the body, and automatically add the end opcode.
+    this.body = body.concat([kExprEnd]);
     return this;
   }
 
@@ -1273,16 +1274,11 @@ class WasmModuleBuilder {
     this.element_segments = [];
     this.data_segments = [];
     this.explicit = [];
+    this.rec_groups = [];
     this.num_imported_funcs = 0;
     this.num_imported_globals = 0;
     this.num_imported_tables = 0;
     this.num_imported_tags = 0;
-    // If a wasm-gc type is detected, all types are put by default into a single
-    // recursive group. This field overrides this behavior and puts each type in
-    // a separate rec. group instead.
-    // TODO(7748): Support more flexible rec. groups.
-    this.singleton_rec_groups = false;
-    this.early_data_count_section = false;
     return this;
   }
 
@@ -1341,13 +1337,12 @@ class WasmModuleBuilder {
     this.explicit.push(this.createCustomSection(name, bytes));
   }
 
-  // TODO(7748): Support recursive groups.
-
   addType(type, supertype_idx = kNoSuperType) {
     var pl = type.params.length;   // should have params
     var rl = type.results.length;  // should have results
-    type.supertype = supertype_idx;
-    this.types.push(type);
+    var type_copy = {params: type.params, results: type.results,
+                     supertype: supertype_idx};
+    this.types.push(type_copy);
     return this.types.length - 1;
   }
 
@@ -1609,12 +1604,19 @@ class WasmModuleBuilder {
     return this;
   }
 
-  setSingletonRecGroups() {
-    this.singleton_rec_groups = true;
+  startRecGroup() {
+    this.rec_groups.push({start: this.types.length, size: 0});
   }
 
-  setEarlyDataCountSection() {
-    this.early_data_count_section = true;
+  endRecGroup() {
+    if (this.rec_groups.length == 0) {
+      throw new Error("Did not start a recursive group before ending one")
+    }
+    let last_element = this.rec_groups[this.rec_groups.length - 1]
+    if (last_element.size != 0) {
+      throw new Error("Did not start a recursive group before ending one")
+    }
+    last_element.size = this.types.length - last_element.start;
   }
 
   setName(name) {
@@ -1633,17 +1635,23 @@ class WasmModuleBuilder {
     if (wasm.types.length > 0) {
       if (debug) print('emitting types @ ' + binary.length);
       binary.emit_section(kTypeSectionCode, section => {
-        // If any type is a wasm-gc type, wrap everything in a recursive group.
-        // TODO(7748): Support more flexible rec. groups.
-        if (!this.singleton_rec_groups &&
-            wasm.types.findIndex(type => type instanceof WasmStruct ||
-                                         type instanceof WasmArray) >= 0) {
-          section.emit_u32v(1);
-          section.emit_u8(kWasmRecursiveTypeGroupForm);
+        let length_with_groups = wasm.types.length;
+        for (let group of wasm.rec_groups) {
+          length_with_groups -= group.size - 1;
         }
-        section.emit_u32v(wasm.types.length);
+        section.emit_u32v(length_with_groups);
 
-        for (let type of wasm.types) {
+        let rec_group_index = 0;
+
+        for (let i = 0; i < wasm.types.length; i++) {
+          if (rec_group_index < wasm.rec_groups.length &&
+              wasm.rec_groups[rec_group_index].start == i) {
+            section.emit_u8(kWasmRecursiveTypeGroupForm);
+            section.emit_u32v(wasm.rec_groups[rec_group_index].size);
+            rec_group_index++;
+          }
+
+          let type = wasm.types[i];
           if (type.supertype != kNoSuperType) {
             section.emit_u8(kWasmSubtypeForm);
             section.emit_u8(1);  // supertype count
@@ -1724,14 +1732,6 @@ class WasmModuleBuilder {
         for (let func of wasm.functions) {
           section.emit_u32v(func.type_index);
         }
-      });
-    }
-
-    // If there are any passive data segments, add the DataCount section.
-    if (this.early_data_count_section &&
-        wasm.data_segments.some(seg => !seg.is_active)) {
-      binary.emit_section(kDataCountSectionCode, section => {
-        section.emit_u32v(wasm.data_segments.length);
       });
     }
 
@@ -1900,8 +1900,7 @@ class WasmModuleBuilder {
     }
 
     // If there are any passive data segments, add the DataCount section.
-    if (!this.early_data_count_section &&
-        wasm.data_segments.some(seg => !seg.is_active)) {
+    if (wasm.data_segments.some(seg => !seg.is_active)) {
       binary.emit_section(kDataCountSectionCode, section => {
         section.emit_u32v(wasm.data_segments.length);
       });
@@ -1948,18 +1947,24 @@ class WasmModuleBuilder {
       let section_length = 0;
       binary.emit_section(kCodeSectionCode, section => {
         section.emit_u32v(wasm.functions.length);
-        let header = new Binary;
+        let header;
         for (let func of wasm.functions) {
-          header.reset();
-          // Function body length will be patched later.
-          let local_decls = func.locals || [];
-          header.emit_u32v(local_decls.length);
-          for (let decl of local_decls) {
-            header.emit_u32v(decl.count);
-            header.emit_type(decl.type);
+          if (func.locals.length == 0) {
+            // Fast path for functions without locals.
+            section.emit_u32v(func.body.length + 1);
+            section.emit_u8(0);  // 0 locals.
+          } else {
+            // Build the locals declarations in separate buffer first.
+            if (!header) header = new Binary;
+            header.reset();
+            header.emit_u32v(func.locals.length);
+            for (let decl of func.locals) {
+              header.emit_u32v(decl.count);
+              header.emit_type(decl.type);
+            }
+            section.emit_u32v(header.length + func.body.length);
+            section.emit_bytes(header.trunc_buffer());
           }
-          section.emit_u32v(header.length + func.body.length);
-          section.emit_bytes(header.trunc_buffer());
           // Set to section offset for now, will update.
           func.body_offset = section.length;
           section.emit_bytes(func.body);

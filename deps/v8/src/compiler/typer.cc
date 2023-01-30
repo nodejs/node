@@ -341,6 +341,8 @@ class Typer::Visitor : public Reducer {
   static Type ToName(Type, Typer*);
   static Type ToNumber(Type, Typer*);
   static Type ToNumberConvertBigInt(Type, Typer*);
+  static Type ToBigInt(Type, Typer*);
+  static Type ToBigIntConvertNumber(Type, Typer*);
   static Type ToNumeric(Type, Typer*);
   static Type ToObject(Type, Typer*);
   static Type ToString(Type, Typer*);
@@ -415,6 +417,7 @@ class Typer::Visitor : public Reducer {
   static Type NumberEqualTyper(Type, Type, Typer*);
   static Type NumberLessThanTyper(Type, Type, Typer*);
   static Type NumberLessThanOrEqualTyper(Type, Type, Typer*);
+  static Type BigIntEqualTyper(Type, Type, Typer*);
   static Type ReferenceEqualTyper(Type, Type, Typer*);
   static Type SameValueTyper(Type, Type, Typer*);
   static Type SameValueNumbersOnlyTyper(Type, Type, Typer*);
@@ -672,6 +675,16 @@ Type Typer::Visitor::ToNumber(Type type, Typer* t) {
 // static
 Type Typer::Visitor::ToNumberConvertBigInt(Type type, Typer* t) {
   return t->operation_typer_.ToNumberConvertBigInt(type);
+}
+
+// static
+Type Typer::Visitor::ToBigInt(Type type, Typer* t) {
+  return t->operation_typer_.ToBigInt(type);
+}
+
+// static
+Type Typer::Visitor::ToBigIntConvertNumber(Type type, Typer* t) {
+  return t->operation_typer_.ToBigIntConvertNumber(type);
 }
 
 // static
@@ -1361,6 +1374,8 @@ DEFINE_METHOD(ToLength)
 DEFINE_METHOD(ToName)
 DEFINE_METHOD(ToNumber)
 DEFINE_METHOD(ToNumberConvertBigInt)
+DEFINE_METHOD(ToBigInt)
+DEFINE_METHOD(ToBigIntConvertNumber)
 DEFINE_METHOD(ToNumeric)
 DEFINE_METHOD(ToObject)
 DEFINE_METHOD(ToString)
@@ -2124,6 +2139,14 @@ Type Typer::Visitor::NumberLessThanOrEqualTyper(Type lhs, Type rhs, Typer* t) {
       Invert(JSCompareTyper(ToNumber(rhs, t), ToNumber(lhs, t), t), t), t);
 }
 
+// static
+Type Typer::Visitor::BigIntEqualTyper(Type lhs, Type rhs, Typer* t) {
+  if (lhs.IsNone() || rhs.IsNone()) {
+    return Type::None();
+  }
+  return Type::Boolean();
+}
+
 Type Typer::Visitor::TypeNumberEqual(Node* node) {
   return TypeBinaryOp(node, NumberEqualTyper);
 }
@@ -2146,6 +2169,14 @@ Type Typer::Visitor::TypeSpeculativeNumberLessThan(Node* node) {
 
 Type Typer::Visitor::TypeSpeculativeNumberLessThanOrEqual(Node* node) {
   return TypeBinaryOp(node, NumberLessThanOrEqualTyper);
+}
+
+Type Typer::Visitor::TypeBigIntEqual(Node* node) {
+  return TypeBinaryOp(node, BigIntEqualTyper);
+}
+
+Type Typer::Visitor::TypeSpeculativeBigIntEqual(Node* node) {
+  return TypeBinaryOp(node, BigIntEqualTyper);
 }
 
 Type Typer::Visitor::TypeStringConcat(Node* node) { return Type::String(); }

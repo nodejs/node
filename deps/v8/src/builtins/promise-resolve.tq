@@ -162,6 +162,8 @@ ResolvePromise(implicit context: Context)(
     goto Slow;
   } label Slow deferred {
     // Skip "then" lookup for Wasm objects as they are opaque.
+    // TODO(v8:13523): Drop this special case after changing what [[Get]]
+    // does in general.
     @if(V8_ENABLE_WEBASSEMBLY)
     if (Is<WasmObject>(resolution)) {
       return FulfillPromise(promise, resolution);

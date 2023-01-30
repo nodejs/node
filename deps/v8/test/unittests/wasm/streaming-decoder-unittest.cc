@@ -20,10 +20,10 @@ namespace wasm {
 struct MockStreamingResult {
   size_t num_sections = 0;
   size_t num_functions = 0;
-  WasmError error;
-  base::OwnedVector<uint8_t> received_bytes;
+  bool error;
+  base::OwnedVector<const uint8_t> received_bytes;
 
-  bool ok() const { return !error.has_error(); }
+  bool ok() const { return !error; }
 
   MockStreamingResult() = default;
 };
@@ -72,22 +72,19 @@ class MockStreamingProcessor : public StreamingProcessor {
   }
 
   // Process a function body.
-  void ProcessFunctionBody(base::Vector<const uint8_t> bytes,
+  bool ProcessFunctionBody(base::Vector<const uint8_t> bytes,
                            uint32_t offset) override {
     ++result_->num_functions;
+    return true;
   }
 
   void OnFinishedChunk() override {}
 
   // Finish the processing of the stream.
-  void OnFinishedStream(base::OwnedVector<uint8_t> bytes) override {
+  void OnFinishedStream(base::OwnedVector<const uint8_t> bytes,
+                        bool after_error) override {
     result_->received_bytes = std::move(bytes);
-  }
-
-  // Report an error detected in the StreamingDecoder.
-  void OnError(const WasmError& error) override {
-    result_->error = error;
-    CHECK(!result_->ok());
+    result_->error = after_error;
   }
 
   void OnAbort() override {}
@@ -119,8 +116,7 @@ class WasmStreamingDecoderTest : public ::testing::Test {
     }
   }
 
-  void ExpectFailure(base::Vector<const uint8_t> data, uint32_t error_offset,
-                     const char* message) {
+  void ExpectFailure(base::Vector<const uint8_t> data) {
     for (int split = 0; split <= data.length(); ++split) {
       MockStreamingResult result;
       auto stream = StreamingDecoder::CreateAsyncStreamingDecoder(
@@ -129,8 +125,7 @@ class WasmStreamingDecoderTest : public ::testing::Test {
       stream->OnBytesReceived(data.SubVector(split, data.length()));
       stream->Finish();
       EXPECT_FALSE(result.ok());
-      EXPECT_EQ(error_offset, result.error.offset());
-      EXPECT_EQ(message, result.error.message());
+      EXPECT_TRUE(result.error);
     }
   }
 };
@@ -154,8 +149,7 @@ TEST_F(WasmStreamingDecoderTest, IncompleteModuleHeader) {
     EXPECT_FALSE(result.ok());
   }
   for (uint32_t length = 1; length < sizeof(data); ++length) {
-    ExpectFailure(base::VectorOf(data, length), length - 1,
-                  "unexpected end of stream");
+    ExpectFailure(base::VectorOf(data, length));
   }
 }
 
@@ -167,14 +161,14 @@ TEST_F(WasmStreamingDecoderTest, MagicAndVersion) {
 TEST_F(WasmStreamingDecoderTest, BadMagic) {
   for (uint32_t x = 1; x; x <<= 1) {
     const uint8_t data[] = {U32_LE(kWasmMagic ^ x), U32_LE(kWasmVersion)};
-    ExpectFailure(base::ArrayVector(data), 0, "expected wasm magic");
+    ExpectFailure(base::ArrayVector(data));
   }
 }
 
 TEST_F(WasmStreamingDecoderTest, BadVersion) {
   for (uint32_t x = 1; x; x <<= 1) {
     const uint8_t data[] = {U32_LE(kWasmMagic), U32_LE(kWasmVersion ^ x)};
-    ExpectFailure(base::ArrayVector(data), 4, "expected wasm version");
+    ExpectFailure(base::ArrayVector(data));
   }
 }
 
@@ -261,8 +255,7 @@ TEST_F(WasmStreamingDecoderTest, OneSectionNotEnoughPayload1) {
       0x0,                   // 4
       0x0                    // 5
   };
-  ExpectFailure(base::ArrayVector(data), sizeof(data) - 1,
-                "unexpected end of stream");
+  ExpectFailure(base::ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, OneSectionNotEnoughPayload2) {
@@ -273,8 +266,7 @@ TEST_F(WasmStreamingDecoderTest, OneSectionNotEnoughPayload2) {
       0x6,                   // Section Length
       0x0                    // Payload
   };
-  ExpectFailure(base::ArrayVector(data), sizeof(data) - 1,
-                "unexpected end of stream");
+  ExpectFailure(base::ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, OneSectionInvalidLength) {
@@ -288,8 +280,7 @@ TEST_F(WasmStreamingDecoderTest, OneSectionInvalidLength) {
       0x80,                  // --
       0x80,                  // --
   };
-  ExpectFailure(base::ArrayVector(data), sizeof(data) - 1,
-                "expected section length");
+  ExpectFailure(base::ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, TwoLongSections) {
@@ -404,8 +395,7 @@ TEST_F(WasmStreamingDecoderTest, EmptyFunction) {
       0x1,                   // Number of Functions
       0x0,                   // Function Length  -- ERROR
   };
-  ExpectFailure(base::ArrayVector(data), sizeof(data) - 1,
-                "invalid function length (0)");
+  ExpectFailure(base::ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, TwoFunctions) {
@@ -462,8 +452,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthZero) {
       kCodeSectionCode,      // Section ID
       0x0,                   // Section Length
   };
-  ExpectFailure(base::ArrayVector(data), sizeof(data) - 1,
-                "code section cannot have size 0");
+  ExpectFailure(base::ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHigh) {
@@ -484,8 +473,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHigh) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(base::ArrayVector(data), sizeof(data) - 1,
-                "not all code section bytes were used");
+  ExpectFailure(base::ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHighZeroFunctions) {
@@ -496,8 +484,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHighZeroFunctions) {
       0xD,                   // Section Length
       0x0,                   // Number of Functions
   };
-  ExpectFailure(base::ArrayVector(data), sizeof(data) - 1,
-                "not all code section bytes were used");
+  ExpectFailure(base::ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLow) {
@@ -518,8 +505,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLow) {
       0x1,                   // Function Length      <8> -- ERROR
       0x0,                   // Function
   };
-  ExpectFailure(base::ArrayVector(data), sizeof(data) - 2,
-                "read past code section end");
+  ExpectFailure(base::ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLowEndsInNumFunctions) {
@@ -542,7 +528,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLowEndsInNumFunctions) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(base::ArrayVector(data), 12, "invalid code section length");
+  ExpectFailure(base::ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLowEndsInFunctionLength) {
@@ -567,7 +553,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooLowEndsInFunctionLength) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(base::ArrayVector(data), 15, "read past code section end");
+  ExpectFailure(base::ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooHigh) {
@@ -588,8 +574,7 @@ TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooHigh) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(base::ArrayVector(data), sizeof(data) - 1,
-                "unexpected end of stream");
+  ExpectFailure(base::ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooLow) {
@@ -607,8 +592,7 @@ TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooLow) {
       0x1,                   // Function Length
       0x0                    // Function
   };
-  ExpectFailure(base::ArrayVector(data), sizeof(data) - 3,
-                "not all code section bytes were used");
+  ExpectFailure(base::ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, TwoCodeSections) {
@@ -626,8 +610,7 @@ TEST_F(WasmStreamingDecoderTest, TwoCodeSections) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(base::ArrayVector(data), sizeof(data) - 5,
-                "code section can only appear once");
+  ExpectFailure(base::ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, UnknownSection) {
@@ -668,14 +651,13 @@ TEST_F(WasmStreamingDecoderTest, UnknownSectionSandwich) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(base::ArrayVector(data), sizeof(data) - 5,
-                "code section can only appear once");
+  ExpectFailure(base::ArrayVector(data));
 }
 
 TEST_F(WasmStreamingDecoderTest, InvalidSectionCode) {
   uint8_t kInvalidSectionCode = 61;
   const uint8_t data[] = {WASM_MODULE_HEADER, SECTION(Invalid)};
-  ExpectFailure(base::ArrayVector(data), 8, "invalid section code");
+  ExpectFailure(base::ArrayVector(data));
 }
 
 }  // namespace wasm

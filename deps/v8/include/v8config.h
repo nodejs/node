@@ -308,6 +308,9 @@ path. Add it with -I<path> to the command line
 //  V8_HAS_BUILTIN_EXPECT               - __builtin_expect() supported
 //  V8_HAS_BUILTIN_FRAME_ADDRESS        - __builtin_frame_address() supported
 //  V8_HAS_BUILTIN_POPCOUNT             - __builtin_popcount() supported
+//  V8_HAS_BUILTIN_ADD_OVERFLOW         - __builtin_add_overflow() supported
+//  V8_HAS_BUILTIN_SUB_OVERFLOW         - __builtin_sub_overflow() supported
+//  V8_HAS_BUILTIN_MUL_OVERFLOW         - __builtin_mul_overflow() supported
 //  V8_HAS_BUILTIN_SADD_OVERFLOW        - __builtin_sadd_overflow() supported
 //  V8_HAS_BUILTIN_SSUB_OVERFLOW        - __builtin_ssub_overflow() supported
 //  V8_HAS_BUILTIN_UADD_OVERFLOW        - __builtin_uadd_overflow() supported
@@ -339,6 +342,7 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
 # define V8_HAS_ATTRIBUTE_CONSTINIT \
     (__has_attribute(require_constant_initialization))
+# define V8_HAS_ATTRIBUTE_CONST (__has_attribute(const))
 # define V8_HAS_ATTRIBUTE_NONNULL (__has_attribute(nonnull))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
@@ -360,6 +364,9 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_BUILTIN_EXPECT (__has_builtin(__builtin_expect))
 # define V8_HAS_BUILTIN_FRAME_ADDRESS (__has_builtin(__builtin_frame_address))
 # define V8_HAS_BUILTIN_POPCOUNT (__has_builtin(__builtin_popcount))
+# define V8_HAS_BUILTIN_ADD_OVERFLOW (__has_builtin(__builtin_add_overflow))
+# define V8_HAS_BUILTIN_SUB_OVERFLOW (__has_builtin(__builtin_sub_overflow))
+# define V8_HAS_BUILTIN_MUL_OVERFLOW (__has_builtin(__builtin_mul_overflow))
 # define V8_HAS_BUILTIN_SADD_OVERFLOW (__has_builtin(__builtin_sadd_overflow))
 # define V8_HAS_BUILTIN_SSUB_OVERFLOW (__has_builtin(__builtin_ssub_overflow))
 # define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
@@ -454,6 +461,16 @@ path. Add it with -I<path> to the command line
 # define V8_ASSUME_ALIGNED(ptr, alignment) (ptr)
 #endif
 
+
+// A macro to mark functions whose values don't change (e.g. across calls)
+// and thereby compiler is free to hoist and fold multiple calls together.
+// Use like:
+//   V8_CONST int foo() { ... }
+#if V8_HAS_ATTRIBUTE_CONST
+# define V8_CONST __attribute__((const))
+#else
+# define V8_CONST
+#endif
 
 // A macro to mark a declaration as requiring constant initialization.
 // Use like:

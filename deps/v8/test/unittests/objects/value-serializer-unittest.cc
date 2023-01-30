@@ -22,6 +22,7 @@
 #include "src/objects/backing-store.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -1884,16 +1885,40 @@ TEST_F(ValueSerializerTest, RoundTripArrayBuffer) {
   ASSERT_TRUE(value->IsArrayBuffer());
   EXPECT_EQ(0u, ArrayBuffer::Cast(*value)->ByteLength());
   ExpectScriptTrue("Object.getPrototypeOf(result) === ArrayBuffer.prototype");
+  // TODO(v8:11111): Use API functions for testing max_byte_length and resizable
+  // once they're exposed via the API.
+  i::Handle<i::JSArrayBuffer> array_buffer =
+      Utils::OpenHandle(ArrayBuffer::Cast(*value));
+  EXPECT_EQ(0u, array_buffer->max_byte_length());
+  EXPECT_EQ(false, array_buffer->is_resizable_by_js());
 
   value = RoundTripTest("new Uint8Array([0, 128, 255]).buffer");
   ASSERT_TRUE(value->IsArrayBuffer());
   EXPECT_EQ(3u, ArrayBuffer::Cast(*value)->ByteLength());
   ExpectScriptTrue("new Uint8Array(result).toString() === '0,128,255'");
+  array_buffer = Utils::OpenHandle(ArrayBuffer::Cast(*value));
+  EXPECT_EQ(3u, array_buffer->max_byte_length());
+  EXPECT_EQ(false, array_buffer->is_resizable_by_js());
 
   value =
       RoundTripTest("({ a: new ArrayBuffer(), get b() { return this.a; }})");
   ExpectScriptTrue("result.a instanceof ArrayBuffer");
   ExpectScriptTrue("result.a === result.b");
+}
+
+TEST_F(ValueSerializerTest, RoundTripResizableArrayBuffer) {
+  FLAG_SCOPE(harmony_rab_gsab);
+  Local<Value> value =
+      RoundTripTest("new ArrayBuffer(100, {maxByteLength: 200})");
+  ASSERT_TRUE(value->IsArrayBuffer());
+  EXPECT_EQ(100u, ArrayBuffer::Cast(*value)->ByteLength());
+
+  // TODO(v8:11111): Use API functions for testing max_byte_length and resizable
+  // once they're exposed via the API.
+  i::Handle<i::JSArrayBuffer> array_buffer =
+      Utils::OpenHandle(ArrayBuffer::Cast(*value));
+  EXPECT_EQ(200u, array_buffer->max_byte_length());
+  EXPECT_EQ(true, array_buffer->is_resizable_by_js());
 }
 
 TEST_F(ValueSerializerTest, DecodeArrayBuffer) {
@@ -1925,6 +1950,13 @@ TEST_F(ValueSerializerTest, DecodeArrayBuffer) {
 
 TEST_F(ValueSerializerTest, DecodeInvalidArrayBuffer) {
   InvalidDecodeTest({0xFF, 0x09, 0x42, 0xFF, 0xFF, 0x00});
+}
+
+TEST_F(ValueSerializerTest, DecodeInvalidResizableArrayBuffer) {
+  FLAG_SCOPE(harmony_rab_gsab);
+  // Enough bytes available after reading the length, but not anymore when
+  // reading the max byte length.
+  InvalidDecodeTest({0xFF, 0x09, 0x7E, 0x2, 0x10, 0x00});
 }
 
 // An array buffer allocator that never has available memory.
@@ -2026,14 +2058,20 @@ TEST_F(ValueSerializerTestWithArrayBufferTransfer,
 TEST_F(ValueSerializerTest, RoundTripTypedArray) {
   // Check that the right type comes out the other side for every kind of typed
   // array.
+  // TODO(v8:11111): Use API functions for testing is_length_tracking and
+  // is_backed_by_rab, once they're exposed via the API.
   Local<Value> value;
+  i::Handle<i::JSTypedArray> i_ta;
 #define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype)             \
   value = RoundTripTest("new " #Type "Array(2)");                        \
   ASSERT_TRUE(value->Is##Type##Array());                                 \
   EXPECT_EQ(2u * sizeof(ctype), TypedArray::Cast(*value)->ByteLength()); \
   EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());                     \
   ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type            \
-                   "Array.prototype");
+                   "Array.prototype");                                   \
+  i_ta = v8::Utils::OpenHandle(TypedArray::Cast(*value));                \
+  EXPECT_EQ(false, i_ta->is_length_tracking());                          \
+  EXPECT_EQ(false, i_ta->is_backed_by_rab());
 
   TYPED_ARRAYS(TYPED_ARRAY_ROUND_TRIP_TEST)
 #undef TYPED_ARRAY_ROUND_TRIP_TEST
@@ -2064,6 +2102,56 @@ TEST_F(ValueSerializerTest, RoundTripTypedArray) {
   ExpectScriptTrue("result.u8.buffer === result.f32.buffer");
   ExpectScriptTrue("result.f32.byteOffset === 4");
   ExpectScriptTrue("result.f32.length === 5");
+}
+
+TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingTypedArray) {
+  FLAG_SCOPE(harmony_rab_gsab);
+  // Check that the right type comes out the other side for every kind of typed
+  // array.
+  // TODO(v8:11111): Use API functions for testing is_length_tracking and
+  // is_backed_by_rab, once they're exposed via the API.
+  Local<Value> value;
+  i::Handle<i::JSTypedArray> i_ta;
+#define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype)          \
+  value = RoundTripTest("new " #Type                                  \
+                        "Array(new ArrayBuffer(80, "                  \
+                        "{maxByteLength: 160}))");                    \
+  ASSERT_TRUE(value->Is##Type##Array());                              \
+  EXPECT_EQ(80u, TypedArray::Cast(*value)->ByteLength());             \
+  EXPECT_EQ(80u / sizeof(ctype), TypedArray::Cast(*value)->Length()); \
+  ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type         \
+                   "Array.prototype");                                \
+  i_ta = v8::Utils::OpenHandle(TypedArray::Cast(*value));             \
+  EXPECT_EQ(true, i_ta->is_length_tracking());                        \
+  EXPECT_EQ(true, i_ta->is_backed_by_rab());
+
+  TYPED_ARRAYS(TYPED_ARRAY_ROUND_TRIP_TEST)
+#undef TYPED_ARRAY_ROUND_TRIP_TEST
+}
+
+TEST_F(ValueSerializerTest, RoundTripRabBackedNonLengthTrackingTypedArray) {
+  FLAG_SCOPE(harmony_rab_gsab);
+  // Check that the right type comes out the other side for every kind of typed
+  // array.
+  // TODO(v8:11111): Use API functions for testing is_length_tracking and
+  // is_backed_by_rab, once they're exposed via the API.
+  Local<Value> value;
+  i::Handle<i::JSTypedArray> i_ta;
+#define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype)             \
+  value = RoundTripTest("new " #Type                                     \
+                        "Array(new ArrayBuffer(80, "                     \
+                        "{maxByteLength: 160}), 8, 4)");                 \
+  ASSERT_TRUE(value->Is##Type##Array());                                 \
+  EXPECT_EQ(4u * sizeof(ctype), TypedArray::Cast(*value)->ByteLength()); \
+  EXPECT_EQ(4u, TypedArray::Cast(*value)->Length());                     \
+  ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type            \
+                   "Array.prototype");                                   \
+  i_ta = v8::Utils::OpenHandle(TypedArray::Cast(*value));                \
+  EXPECT_EQ(false, i_ta->is_length_tracking());                          \
+  EXPECT_EQ(true, i_ta->is_backed_by_rab());
+
+  TYPED_ARRAYS(TYPED_ARRAY_ROUND_TRIP_TEST)
+#undef TYPED_ARRAY_ROUND_TRIP_TEST
 }
 
 TEST_F(ValueSerializerTest, DecodeTypedArray) {
@@ -2414,6 +2502,40 @@ TEST_F(ValueSerializerTest, DecodeDataView) {
         ExpectScriptTrue(
             "Object.getPrototypeOf(result) === DataView.prototype");
       });
+}
+
+TEST_F(ValueSerializerTest, RoundTripRabBackedDataView) {
+  FLAG_SCOPE(harmony_rab_gsab);
+
+  Local<Value> value = RoundTripTest(
+      "new DataView(new ArrayBuffer(4, {maxByteLength: 8}), 1, 2)");
+  ASSERT_TRUE(value->IsDataView());
+  EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
+  EXPECT_EQ(2u, DataView::Cast(*value)->ByteLength());
+  EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
+  ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
+  // TODO(v8:11111): Use API functions for testing is_length_tracking and
+  // is_backed_by_rab, once they're exposed via the API.
+  i::Handle<i::JSDataView> i_dv = v8::Utils::OpenHandle(DataView::Cast(*value));
+  EXPECT_EQ(false, i_dv->is_length_tracking());
+  EXPECT_EQ(true, i_dv->is_backed_by_rab());
+}
+
+TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingDataView) {
+  FLAG_SCOPE(harmony_rab_gsab);
+
+  Local<Value> value =
+      RoundTripTest("new DataView(new ArrayBuffer(4, {maxByteLength: 8}), 1)");
+  ASSERT_TRUE(value->IsDataView());
+  EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
+  EXPECT_EQ(3u, DataView::Cast(*value)->ByteLength());
+  EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
+  ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
+  // TODO(v8:11111): Use API functions for testing is_length_tracking and
+  // is_backed_by_rab, once they're exposed via the API.
+  i::Handle<i::JSDataView> i_dv = v8::Utils::OpenHandle(DataView::Cast(*value));
+  EXPECT_EQ(true, i_dv->is_length_tracking());
+  EXPECT_EQ(true, i_dv->is_backed_by_rab());
 }
 
 TEST_F(ValueSerializerTest, DecodeDataViewBackwardsCompatibility) {

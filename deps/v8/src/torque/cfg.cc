@@ -144,7 +144,7 @@ void CfgAssembler::Poke(StackRange destination, StackRange origin,
 }
 
 void CfgAssembler::Print(std::string s) {
-  Emit(PrintConstantStringInstruction{std::move(s)});
+  Emit(PrintErrorInstruction{std::move(s)});
 }
 
 void CfgAssembler::AssertionFailure(std::string message) {

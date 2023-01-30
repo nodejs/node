@@ -5,6 +5,7 @@
 #include "src/compiler/memory-lowering.h"
 
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/common/globals.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
@@ -440,56 +441,56 @@ Reduction MemoryLowering::ReduceLoadExternalPointerField(Node* node) {
 
 #ifdef V8_ENABLE_SANDBOX
   ExternalPointerTag tag = access.external_pointer_tag;
-  if (IsSandboxedExternalPointerType(tag)) {
-    // Fields for sandboxed external pointer contain a 32-bit handle, not a
-    // 64-bit raw pointer.
-    NodeProperties::ChangeOp(node, machine()->Load(MachineType::Uint32()));
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  // Fields for sandboxed external pointer contain a 32-bit handle, not a
+  // 64-bit raw pointer.
+  NodeProperties::ChangeOp(node, machine()->Load(MachineType::Uint32()));
 
-    Node* effect = NodeProperties::GetEffectInput(node);
-    Node* control = NodeProperties::GetControlInput(node);
-    __ InitializeEffectControl(effect, control);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  __ InitializeEffectControl(effect, control);
 
-    // Clone the load node and put it here.
-    // TODO(turbofan): consider adding GraphAssembler::Clone() suitable for
-    // cloning nodes from arbitrary locations in effect/control chains.
-    static_assert(kExternalPointerIndexShift > kSystemPointerSizeLog2);
-    Node* handle = __ AddNode(graph()->CloneNode(node));
-    Node* shift_amount =
-        __ Int32Constant(kExternalPointerIndexShift - kSystemPointerSizeLog2);
-    Node* offset = __ Word32Shr(handle, shift_amount);
+  // Clone the load node and put it here.
+  // TODO(turbofan): consider adding GraphAssembler::Clone() suitable for
+  // cloning nodes from arbitrary locations in effect/control chains.
+  static_assert(kExternalPointerIndexShift > kSystemPointerSizeLog2);
+  Node* handle = __ AddNode(graph()->CloneNode(node));
+  Node* shift_amount =
+      __ Int32Constant(kExternalPointerIndexShift - kSystemPointerSizeLog2);
+  Node* offset = __ Word32Shr(handle, shift_amount);
 
-    // Uncomment this to generate a breakpoint for debugging purposes.
-    // __ DebugBreak();
+  // Uncomment this to generate a breakpoint for debugging purposes.
+  // __ DebugBreak();
 
-    // Decode loaded external pointer.
-    //
-    // Here we access the external pointer table through an ExternalReference.
-    // Alternatively, we could also hardcode the address of the table since it
-    // is never reallocated. However, in that case we must be able to guarantee
-    // that the generated code is never executed under a different Isolate, as
-    // that would allow access to external objects from different Isolates. It
-    // also would break if the code is serialized/deserialized at some point.
-    Node* table_address =
-        IsSharedExternalPointerType(tag)
-            ? __
-              Load(MachineType::Pointer(),
-                   __ ExternalConstant(
-                       ExternalReference::
-                           shared_external_pointer_table_address_address(
-                               isolate())),
-                   __ IntPtrConstant(0))
-            : __ ExternalConstant(
-                  ExternalReference::external_pointer_table_address(isolate()));
-    Node* table = __ Load(MachineType::Pointer(), table_address,
-                          Internals::kExternalPointerTableBufferOffset);
-    Node* pointer =
-        __ Load(MachineType::Pointer(), table, __ ChangeUint32ToUint64(offset));
-    pointer = __ WordAnd(pointer, __ IntPtrConstant(~tag));
-    return Replace(pointer);
-  }
-#endif
+  // Decode loaded external pointer.
+  //
+  // Here we access the external pointer table through an ExternalReference.
+  // Alternatively, we could also hardcode the address of the table since it
+  // is never reallocated. However, in that case we must be able to guarantee
+  // that the generated code is never executed under a different Isolate, as
+  // that would allow access to external objects from different Isolates. It
+  // also would break if the code is serialized/deserialized at some point.
+  Node* table_address =
+      IsSharedExternalPointerType(tag)
+          ? __
+            Load(MachineType::Pointer(),
+                 __ ExternalConstant(
+                     ExternalReference::
+                         shared_external_pointer_table_address_address(
+                             isolate())),
+                 __ IntPtrConstant(0))
+          : __ ExternalConstant(
+                ExternalReference::external_pointer_table_address(isolate()));
+  Node* table = __ Load(MachineType::Pointer(), table_address,
+                        Internals::kExternalPointerTableBufferOffset);
+  Node* pointer =
+      __ Load(MachineType::Pointer(), table, __ ChangeUint32ToUint64(offset));
+  pointer = __ WordAnd(pointer, __ IntPtrConstant(~tag));
+  return Replace(pointer);
+#else
   NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
   return Changed(node);
+#endif  // V8_ENABLE_SANDBOX
 }
 
 Reduction MemoryLowering::ReduceLoadBoundedSize(Node* node) {
@@ -595,8 +596,9 @@ Reduction MemoryLowering::ReduceStoreField(Node* node,
                                            AllocationState const* state) {
   DCHECK_EQ(IrOpcode::kStoreField, node->opcode());
   FieldAccess const& access = FieldAccessOf(node->op());
-  // External pointer must never be stored by optimized code.
-  DCHECK(!access.type.Is(Type::ExternalPointer()));
+  // External pointer must never be stored by optimized code when sandbox is
+  // turned on
+  DCHECK(!access.type.Is(Type::ExternalPointer()) || !V8_ENABLE_SANDBOX_BOOL);
   // SandboxedPointers are not currently stored by optimized code.
   DCHECK(!access.type.Is(Type::SandboxedPointer()));
   // Bounded size fields are not currently stored by optimized code.

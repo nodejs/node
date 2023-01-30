@@ -30,6 +30,7 @@
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-cell.h"
+#include "src/objects/property-descriptor-object.h"
 #include "src/roots/roots.h"
 
 namespace v8 {
@@ -356,163 +357,107 @@ TNode<Float64T> CodeStubAssembler::Float64Round(TNode<Float64T> x) {
 }
 
 TNode<Float64T> CodeStubAssembler::Float64Ceil(TNode<Float64T> x) {
-  if (IsFloat64RoundUpSupported()) {
-    return Float64RoundUp(x);
-  }
-
-  TNode<Float64T> one = Float64Constant(1.0);
-  TNode<Float64T> zero = Float64Constant(0.0);
-  TNode<Float64T> two_52 = Float64Constant(4503599627370496.0E0);
-  TNode<Float64T> minus_two_52 = Float64Constant(-4503599627370496.0E0);
-
   TVARIABLE(Float64T, var_x, x);
-  Label return_x(this), return_minus_x(this);
+  Label round_op_supported(this), round_op_fallback(this), return_x(this);
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  Branch(UniqueInt32Constant(IsFloat64RoundUpSupported()), &round_op_supported,
+         &round_op_fallback);
 
-  // Check if {x} is greater than zero.
-  Label if_xgreaterthanzero(this), if_xnotgreaterthanzero(this);
-  Branch(Float64GreaterThan(x, zero), &if_xgreaterthanzero,
-         &if_xnotgreaterthanzero);
-
-  BIND(&if_xgreaterthanzero);
+  BIND(&round_op_supported);
   {
-    // Just return {x} unless it's in the range ]0,2^52[.
-    GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
-
-    // Round positive {x} towards Infinity.
-    var_x = Float64Sub(Float64Add(two_52, x), two_52);
-    GotoIfNot(Float64LessThan(var_x.value(), x), &return_x);
-    var_x = Float64Add(var_x.value(), one);
+    // This optional operation is used behind a static check and we rely
+    // on the dead code elimination to remove this unused unsupported
+    // instruction. We generate builtins this way in order to ensure that
+    // builtins PGO profiles are interchangeable between architectures.
+    var_x = Float64RoundUp(x);
     Goto(&return_x);
   }
 
-  BIND(&if_xnotgreaterthanzero);
+  BIND(&round_op_fallback);
   {
-    // Just return {x} unless it's in the range ]-2^52,0[
-    GotoIf(Float64LessThanOrEqual(x, minus_two_52), &return_x);
-    GotoIfNot(Float64LessThan(x, zero), &return_x);
+    TNode<Float64T> one = Float64Constant(1.0);
+    TNode<Float64T> zero = Float64Constant(0.0);
+    TNode<Float64T> two_52 = Float64Constant(4503599627370496.0E0);
+    TNode<Float64T> minus_two_52 = Float64Constant(-4503599627370496.0E0);
 
-    // Round negated {x} towards Infinity and return the result negated.
-    TNode<Float64T> minus_x = Float64Neg(x);
-    var_x = Float64Sub(Float64Add(two_52, minus_x), two_52);
-    GotoIfNot(Float64GreaterThan(var_x.value(), minus_x), &return_minus_x);
-    var_x = Float64Sub(var_x.value(), one);
-    Goto(&return_minus_x);
+    Label return_minus_x(this);
+
+    // Check if {x} is greater than zero.
+    Label if_xgreaterthanzero(this), if_xnotgreaterthanzero(this);
+    Branch(Float64GreaterThan(x, zero), &if_xgreaterthanzero,
+           &if_xnotgreaterthanzero);
+
+    BIND(&if_xgreaterthanzero);
+    {
+      // Just return {x} unless it's in the range ]0,2^52[.
+      GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
+
+      // Round positive {x} towards Infinity.
+      var_x = Float64Sub(Float64Add(two_52, x), two_52);
+      GotoIfNot(Float64LessThan(var_x.value(), x), &return_x);
+      var_x = Float64Add(var_x.value(), one);
+      Goto(&return_x);
+    }
+
+    BIND(&if_xnotgreaterthanzero);
+    {
+      // Just return {x} unless it's in the range ]-2^52,0[
+      GotoIf(Float64LessThanOrEqual(x, minus_two_52), &return_x);
+      GotoIfNot(Float64LessThan(x, zero), &return_x);
+
+      // Round negated {x} towards Infinity and return the result negated.
+      TNode<Float64T> minus_x = Float64Neg(x);
+      var_x = Float64Sub(Float64Add(two_52, minus_x), two_52);
+      GotoIfNot(Float64GreaterThan(var_x.value(), minus_x), &return_minus_x);
+      var_x = Float64Sub(var_x.value(), one);
+      Goto(&return_minus_x);
+    }
+
+    BIND(&return_minus_x);
+    var_x = Float64Neg(var_x.value());
+    Goto(&return_x);
   }
-
-  BIND(&return_minus_x);
-  var_x = Float64Neg(var_x.value());
-  Goto(&return_x);
-
   BIND(&return_x);
   return var_x.value();
 }
 
 TNode<Float64T> CodeStubAssembler::Float64Floor(TNode<Float64T> x) {
-  if (IsFloat64RoundDownSupported()) {
-    return Float64RoundDown(x);
-  }
-
-  TNode<Float64T> one = Float64Constant(1.0);
-  TNode<Float64T> zero = Float64Constant(0.0);
-  TNode<Float64T> two_52 = Float64Constant(4503599627370496.0E0);
-  TNode<Float64T> minus_two_52 = Float64Constant(-4503599627370496.0E0);
-
   TVARIABLE(Float64T, var_x, x);
-  Label return_x(this), return_minus_x(this);
+  Label round_op_supported(this), round_op_fallback(this), return_x(this);
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  Branch(UniqueInt32Constant(IsFloat64RoundDownSupported()),
+         &round_op_supported, &round_op_fallback);
 
-  // Check if {x} is greater than zero.
-  Label if_xgreaterthanzero(this), if_xnotgreaterthanzero(this);
-  Branch(Float64GreaterThan(x, zero), &if_xgreaterthanzero,
-         &if_xnotgreaterthanzero);
-
-  BIND(&if_xgreaterthanzero);
+  BIND(&round_op_supported);
   {
-    // Just return {x} unless it's in the range ]0,2^52[.
-    GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
-
-    // Round positive {x} towards -Infinity.
-    var_x = Float64Sub(Float64Add(two_52, x), two_52);
-    GotoIfNot(Float64GreaterThan(var_x.value(), x), &return_x);
-    var_x = Float64Sub(var_x.value(), one);
+    // This optional operation is used behind a static check and we rely
+    // on the dead code elimination to remove this unused unsupported
+    // instruction. We generate builtins this way in order to ensure that
+    // builtins PGO profiles are interchangeable between architectures.
+    var_x = Float64RoundDown(x);
     Goto(&return_x);
   }
 
-  BIND(&if_xnotgreaterthanzero);
+  BIND(&round_op_fallback);
   {
-    // Just return {x} unless it's in the range ]-2^52,0[
-    GotoIf(Float64LessThanOrEqual(x, minus_two_52), &return_x);
-    GotoIfNot(Float64LessThan(x, zero), &return_x);
+    TNode<Float64T> one = Float64Constant(1.0);
+    TNode<Float64T> zero = Float64Constant(0.0);
+    TNode<Float64T> two_52 = Float64Constant(4503599627370496.0E0);
+    TNode<Float64T> minus_two_52 = Float64Constant(-4503599627370496.0E0);
 
-    // Round negated {x} towards -Infinity and return the result negated.
-    TNode<Float64T> minus_x = Float64Neg(x);
-    var_x = Float64Sub(Float64Add(two_52, minus_x), two_52);
-    GotoIfNot(Float64LessThan(var_x.value(), minus_x), &return_minus_x);
-    var_x = Float64Add(var_x.value(), one);
-    Goto(&return_minus_x);
-  }
+    Label return_minus_x(this);
 
-  BIND(&return_minus_x);
-  var_x = Float64Neg(var_x.value());
-  Goto(&return_x);
+    // Check if {x} is greater than zero.
+    Label if_xgreaterthanzero(this), if_xnotgreaterthanzero(this);
+    Branch(Float64GreaterThan(x, zero), &if_xgreaterthanzero,
+           &if_xnotgreaterthanzero);
 
-  BIND(&return_x);
-  return var_x.value();
-}
-
-TNode<Float64T> CodeStubAssembler::Float64RoundToEven(TNode<Float64T> x) {
-  if (IsFloat64RoundTiesEvenSupported()) {
-    return Float64RoundTiesEven(x);
-  }
-  // See ES#sec-touint8clamp for details.
-  TNode<Float64T> f = Float64Floor(x);
-  TNode<Float64T> f_and_half = Float64Add(f, Float64Constant(0.5));
-
-  TVARIABLE(Float64T, var_result);
-  Label return_f(this), return_f_plus_one(this), done(this);
-
-  GotoIf(Float64LessThan(f_and_half, x), &return_f_plus_one);
-  GotoIf(Float64LessThan(x, f_and_half), &return_f);
-  {
-    TNode<Float64T> f_mod_2 = Float64Mod(f, Float64Constant(2.0));
-    Branch(Float64Equal(f_mod_2, Float64Constant(0.0)), &return_f,
-           &return_f_plus_one);
-  }
-
-  BIND(&return_f);
-  var_result = f;
-  Goto(&done);
-
-  BIND(&return_f_plus_one);
-  var_result = Float64Add(f, Float64Constant(1.0));
-  Goto(&done);
-
-  BIND(&done);
-  return var_result.value();
-}
-
-TNode<Float64T> CodeStubAssembler::Float64Trunc(TNode<Float64T> x) {
-  if (IsFloat64RoundTruncateSupported()) {
-    return Float64RoundTruncate(x);
-  }
-
-  TNode<Float64T> one = Float64Constant(1.0);
-  TNode<Float64T> zero = Float64Constant(0.0);
-  TNode<Float64T> two_52 = Float64Constant(4503599627370496.0E0);
-  TNode<Float64T> minus_two_52 = Float64Constant(-4503599627370496.0E0);
-
-  TVARIABLE(Float64T, var_x, x);
-  Label return_x(this), return_minus_x(this);
-
-  // Check if {x} is greater than 0.
-  Label if_xgreaterthanzero(this), if_xnotgreaterthanzero(this);
-  Branch(Float64GreaterThan(x, zero), &if_xgreaterthanzero,
-         &if_xnotgreaterthanzero);
-
-  BIND(&if_xgreaterthanzero);
-  {
-    if (IsFloat64RoundDownSupported()) {
-      var_x = Float64RoundDown(x);
-    } else {
+    BIND(&if_xgreaterthanzero);
+    {
       // Just return {x} unless it's in the range ]0,2^52[.
       GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
 
@@ -520,33 +465,171 @@ TNode<Float64T> CodeStubAssembler::Float64Trunc(TNode<Float64T> x) {
       var_x = Float64Sub(Float64Add(two_52, x), two_52);
       GotoIfNot(Float64GreaterThan(var_x.value(), x), &return_x);
       var_x = Float64Sub(var_x.value(), one);
-    }
-    Goto(&return_x);
-  }
-
-  BIND(&if_xnotgreaterthanzero);
-  {
-    if (IsFloat64RoundUpSupported()) {
-      var_x = Float64RoundUp(x);
       Goto(&return_x);
-    } else {
-      // Just return {x} unless its in the range ]-2^52,0[.
+    }
+
+    BIND(&if_xnotgreaterthanzero);
+    {
+      // Just return {x} unless it's in the range ]-2^52,0[
       GotoIf(Float64LessThanOrEqual(x, minus_two_52), &return_x);
       GotoIfNot(Float64LessThan(x, zero), &return_x);
 
-      // Round negated {x} towards -Infinity and return result negated.
+      // Round negated {x} towards -Infinity and return the result negated.
       TNode<Float64T> minus_x = Float64Neg(x);
       var_x = Float64Sub(Float64Add(two_52, minus_x), two_52);
-      GotoIfNot(Float64GreaterThan(var_x.value(), minus_x), &return_minus_x);
-      var_x = Float64Sub(var_x.value(), one);
+      GotoIfNot(Float64LessThan(var_x.value(), minus_x), &return_minus_x);
+      var_x = Float64Add(var_x.value(), one);
       Goto(&return_minus_x);
     }
+
+    BIND(&return_minus_x);
+    var_x = Float64Neg(var_x.value());
+    Goto(&return_x);
+  }
+  BIND(&return_x);
+  return var_x.value();
+}
+
+TNode<Float64T> CodeStubAssembler::Float64RoundToEven(TNode<Float64T> x) {
+  TVARIABLE(Float64T, var_result);
+  Label round_op_supported(this), round_op_fallback(this), done(this);
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  Branch(UniqueInt32Constant(IsFloat64RoundTiesEvenSupported()),
+         &round_op_supported, &round_op_fallback);
+
+  BIND(&round_op_supported);
+  {
+    // This optional operation is used behind a static check and we rely
+    // on the dead code elimination to remove this unused unsupported
+    // instruction. We generate builtins this way in order to ensure that
+    // builtins PGO profiles are interchangeable between architectures.
+    var_result = Float64RoundTiesEven(x);
+    Goto(&done);
   }
 
-  BIND(&return_minus_x);
-  var_x = Float64Neg(var_x.value());
-  Goto(&return_x);
+  BIND(&round_op_fallback);
+  {
+    // See ES#sec-touint8clamp for details.
+    TNode<Float64T> f = Float64Floor(x);
+    TNode<Float64T> f_and_half = Float64Add(f, Float64Constant(0.5));
 
+    Label return_f(this), return_f_plus_one(this);
+
+    GotoIf(Float64LessThan(f_and_half, x), &return_f_plus_one);
+    GotoIf(Float64LessThan(x, f_and_half), &return_f);
+    {
+      TNode<Float64T> f_mod_2 = Float64Mod(f, Float64Constant(2.0));
+      Branch(Float64Equal(f_mod_2, Float64Constant(0.0)), &return_f,
+             &return_f_plus_one);
+    }
+
+    BIND(&return_f);
+    var_result = f;
+    Goto(&done);
+
+    BIND(&return_f_plus_one);
+    var_result = Float64Add(f, Float64Constant(1.0));
+    Goto(&done);
+  }
+  BIND(&done);
+  return var_result.value();
+}
+
+TNode<Float64T> CodeStubAssembler::Float64Trunc(TNode<Float64T> x) {
+  TVARIABLE(Float64T, var_x, x);
+  Label trunc_op_supported(this), trunc_op_fallback(this), return_x(this);
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  Branch(UniqueInt32Constant(IsFloat64RoundTruncateSupported()),
+         &trunc_op_supported, &trunc_op_fallback);
+
+  BIND(&trunc_op_supported);
+  {
+    // This optional operation is used behind a static check and we rely
+    // on the dead code elimination to remove this unused unsupported
+    // instruction. We generate builtins this way in order to ensure that
+    // builtins PGO profiles are interchangeable between architectures.
+    var_x = Float64RoundTruncate(x);
+    Goto(&return_x);
+  }
+
+  BIND(&trunc_op_fallback);
+  {
+    TNode<Float64T> one = Float64Constant(1.0);
+    TNode<Float64T> zero = Float64Constant(0.0);
+    TNode<Float64T> two_52 = Float64Constant(4503599627370496.0E0);
+    TNode<Float64T> minus_two_52 = Float64Constant(-4503599627370496.0E0);
+
+    Label return_minus_x(this);
+
+    // Check if {x} is greater than 0.
+    Label if_xgreaterthanzero(this), if_xnotgreaterthanzero(this);
+    Branch(Float64GreaterThan(x, zero), &if_xgreaterthanzero,
+           &if_xnotgreaterthanzero);
+
+    BIND(&if_xgreaterthanzero);
+    {
+      Label round_op_supported(this), round_op_fallback(this);
+      Branch(UniqueInt32Constant(IsFloat64RoundDownSupported()),
+             &round_op_supported, &round_op_fallback);
+      BIND(&round_op_supported);
+      {
+        // This optional operation is used behind a static check and we rely
+        // on the dead code elimination to remove this unused unsupported
+        // instruction. We generate builtins this way in order to ensure that
+        // builtins PGO profiles are interchangeable between architectures.
+        var_x = Float64RoundDown(x);
+        Goto(&return_x);
+      }
+      BIND(&round_op_fallback);
+      {
+        // Just return {x} unless it's in the range ]0,2^52[.
+        GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
+
+        // Round positive {x} towards -Infinity.
+        var_x = Float64Sub(Float64Add(two_52, x), two_52);
+        GotoIfNot(Float64GreaterThan(var_x.value(), x), &return_x);
+        var_x = Float64Sub(var_x.value(), one);
+        Goto(&return_x);
+      }
+    }
+
+    BIND(&if_xnotgreaterthanzero);
+    {
+      Label round_op_supported(this), round_op_fallback(this);
+      Branch(UniqueInt32Constant(IsFloat64RoundUpSupported()),
+             &round_op_supported, &round_op_fallback);
+      BIND(&round_op_supported);
+      {
+        // This optional operation is used behind a static check and we rely
+        // on the dead code elimination to remove this unused unsupported
+        // instruction. We generate builtins this way in order to ensure that
+        // builtins PGO profiles are interchangeable between architectures.
+        var_x = Float64RoundUp(x);
+        Goto(&return_x);
+      }
+      BIND(&round_op_fallback);
+      {
+        // Just return {x} unless its in the range ]-2^52,0[.
+        GotoIf(Float64LessThanOrEqual(x, minus_two_52), &return_x);
+        GotoIfNot(Float64LessThan(x, zero), &return_x);
+
+        // Round negated {x} towards -Infinity and return result negated.
+        TNode<Float64T> minus_x = Float64Neg(x);
+        var_x = Float64Sub(Float64Add(two_52, minus_x), two_52);
+        GotoIfNot(Float64GreaterThan(var_x.value(), minus_x), &return_minus_x);
+        var_x = Float64Sub(var_x.value(), one);
+        Goto(&return_minus_x);
+      }
+    }
+
+    BIND(&return_minus_x);
+    var_x = Float64Neg(var_x.value());
+    Goto(&return_x);
+  }
   BIND(&return_x);
   return var_x.value();
 }
@@ -1220,12 +1303,27 @@ void CodeStubAssembler::BranchIfJSReceiver(TNode<Object> object, Label* if_true,
 
 void CodeStubAssembler::GotoIfForceSlowPath(Label* if_true) {
 #ifdef V8_ENABLE_FORCE_SLOW_PATH
-  const TNode<ExternalReference> force_slow_path_addr =
-      ExternalConstant(ExternalReference::force_slow_path(isolate()));
-  const TNode<Uint8T> force_slow = Load<Uint8T>(force_slow_path_addr);
-
-  GotoIf(force_slow, if_true);
+  bool enable_force_slow_path = true;
+#else
+  bool enable_force_slow_path = false;
 #endif
+
+  Label done(this);
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  GotoIf(UniqueInt32Constant(!enable_force_slow_path), &done);
+  {
+    // This optional block is used behind a static check and we rely
+    // on the dead code elimination to remove it. We generate builtins this
+    // way in order to ensure that builtins PGO profiles are agnostic to
+    // V8_ENABLE_FORCE_SLOW_PATH value.
+    const TNode<ExternalReference> force_slow_path_addr =
+        ExternalConstant(ExternalReference::force_slow_path(isolate()));
+    const TNode<Uint8T> force_slow = Load<Uint8T>(force_slow_path_addr);
+    Branch(force_slow, if_true, &done);
+  }
+  BIND(&done);
 }
 
 TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
@@ -1613,28 +1711,28 @@ TNode<RawPtrT> CodeStubAssembler::ExternalPointerTableAddress(
 TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
     TNode<HeapObject> object, TNode<IntPtrT> offset, ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  if (IsSandboxedExternalPointerType(tag)) {
-    TNode<RawPtrT> external_pointer_table_address =
-        ExternalPointerTableAddress(tag);
-    TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
-        Load(MachineType::Pointer(), external_pointer_table_address,
-             UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  TNode<RawPtrT> external_pointer_table_address =
+      ExternalPointerTableAddress(tag);
+  TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
+      Load(MachineType::Pointer(), external_pointer_table_address,
+           UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
 
-    TNode<ExternalPointerHandleT> handle =
-        LoadObjectField<ExternalPointerHandleT>(object, offset);
-    TNode<Uint32T> index =
-        Word32Shr(handle, Uint32Constant(kExternalPointerIndexShift));
-    // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
-    // that does one shift right instead of two shifts (right and then left).
-    TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
-        ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
+  TNode<ExternalPointerHandleT> handle =
+      LoadObjectField<ExternalPointerHandleT>(object, offset);
+  TNode<Uint32T> index =
+      Word32Shr(handle, Uint32Constant(kExternalPointerIndexShift));
+  // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
+  // that does one shift right instead of two shifts (right and then left).
+  TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
+      ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 
-    TNode<UintPtrT> entry = Load<UintPtrT>(table, table_offset);
-    entry = UncheckedCast<UintPtrT>(WordAnd(entry, UintPtrConstant(~tag)));
-    return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
-  }
-#endif  // V8_ENABLE_SANDBOX
+  TNode<UintPtrT> entry = Load<UintPtrT>(table, table_offset);
+  entry = UncheckedCast<UintPtrT>(WordAnd(entry, UintPtrConstant(~tag)));
+  return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
+#else
   return LoadObjectField<RawPtrT>(object, offset);
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
@@ -1642,30 +1740,29 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
                                                      TNode<RawPtrT> pointer,
                                                      ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  if (IsSandboxedExternalPointerType(tag)) {
-    TNode<RawPtrT> external_pointer_table_address =
-        ExternalPointerTableAddress(tag);
-    TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
-        Load(MachineType::Pointer(), external_pointer_table_address,
-             UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  TNode<RawPtrT> external_pointer_table_address =
+      ExternalPointerTableAddress(tag);
+  TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
+      Load(MachineType::Pointer(), external_pointer_table_address,
+           UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
 
-    TNode<ExternalPointerHandleT> handle =
-        LoadObjectField<ExternalPointerHandleT>(object, offset);
-    TNode<Uint32T> index =
-        Word32Shr(handle, Uint32Constant(kExternalPointerIndexShift));
-    // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
-    // that does one shift right instead of two shifts (right and then left).
-    TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
-        ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
+  TNode<ExternalPointerHandleT> handle =
+      LoadObjectField<ExternalPointerHandleT>(object, offset);
+  TNode<Uint32T> index =
+      Word32Shr(handle, Uint32Constant(kExternalPointerIndexShift));
+  // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
+  // that does one shift right instead of two shifts (right and then left).
+  TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
+      ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 
-    TNode<UintPtrT> value = UncheckedCast<UintPtrT>(pointer);
-    value = UncheckedCast<UintPtrT>(WordOr(pointer, UintPtrConstant(tag)));
-    StoreNoWriteBarrier(MachineType::PointerRepresentation(), table,
-                        table_offset, value);
-    return;
-  }
-#endif  // V8_ENABLE_SANDBOX
+  TNode<UintPtrT> value = UncheckedCast<UintPtrT>(pointer);
+  value = UncheckedCast<UintPtrT>(WordOr(pointer, UintPtrConstant(tag)));
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), table, table_offset,
+                      value);
+#else
   StoreObjectFieldNoWriteBarrier<RawPtrT>(object, offset, pointer);
+#endif  // V8_ENABLE_SANDBOX
 }
 
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
@@ -3115,19 +3212,11 @@ void CodeStubAssembler::StoreSharedObjectField(TNode<HeapObject> object,
       WordNotEqual(WordAnd(LoadBasicMemoryChunkFlags(object),
                            IntPtrConstant(BasicMemoryChunk::IN_SHARED_HEAP)),
                    IntPtrConstant(0)));
-  // JSSharedStructs are allocated in the shared old space, which is currently
-  // collected by stopping the world, so the incremental write barrier is not
-  // needed. They can only store Smis and other HeapObjects in the shared old
-  // space, so the generational write barrier is also not needed.
-  // TODO(v8:12547): Add a safer, shared variant of NoWriteBarrier instead of
-  // using Unsafe.
   int const_offset;
   if (TryToInt32Constant(offset, &const_offset)) {
-    UnsafeStoreObjectFieldNoWriteBarrier(object, const_offset, value);
+    StoreObjectField(object, const_offset, value);
   } else {
-    UnsafeStoreNoWriteBarrier(MachineRepresentation::kTagged, object,
-                              IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)),
-                              value);
+    Store(object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
   }
 }
 
@@ -4040,7 +4129,7 @@ void CodeStubAssembler::StoreFieldsNoWriteBarrier(TNode<IntPtrT> start_address,
         UnsafeStoreNoWriteBarrier(MachineRepresentation::kTagged, current,
                                   value);
       },
-      kTaggedSize, IndexAdvanceMode::kPost);
+      kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
 }
 
 void CodeStubAssembler::MakeFixedArrayCOW(TNode<FixedArray> array) {
@@ -4784,7 +4873,8 @@ void CodeStubAssembler::FillPropertyArrayWithUndefined(
       [this, value](TNode<HeapObject> array, TNode<IntPtrT> offset) {
         StoreNoWriteBarrier(MachineRepresentation::kTagged, array, offset,
                             value);
-      });
+      },
+      LoopUnrollingMode::kYes);
 }
 
 template <typename TIndex>
@@ -4819,7 +4909,8 @@ void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
           StoreNoWriteBarrier(MachineRepresentation::kTagged, array, offset,
                               value);
         }
-      });
+      },
+      LoopUnrollingMode::kYes);
 }
 
 template V8_EXPORT_PRIVATE void
@@ -5003,6 +5094,7 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
       {
         // Make a loop for the stores.
         BuildFastArrayForEach(elements, kind, begin, end, loop_body,
+                              LoopUnrollingMode::kYes,
                               ForEachDirection::kForward);
         Goto(&finished);
       }
@@ -5010,6 +5102,7 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
       BIND(&iterate_backward);
       {
         BuildFastArrayForEach(elements, kind, begin, end, loop_body,
+                              LoopUnrollingMode::kYes,
                               ForEachDirection::kReverse);
         Goto(&finished);
       }
@@ -5094,7 +5187,7 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
               Store(dst_elements, delta_offset, element);
             }
           },
-          ForEachDirection::kForward);
+          LoopUnrollingMode::kYes, ForEachDirection::kForward);
       Goto(&finished);
     }
     BIND(&finished);
@@ -5328,7 +5421,8 @@ void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
           StoreNoWriteBarrier(MachineRepresentation::kTagged, to_array, offset,
                               value);
         }
-      });
+      },
+      LoopUnrollingMode::kYes);
 
 #ifdef DEBUG
   // Zap {from_array} if the copying above has made it invalid.
@@ -5595,11 +5689,11 @@ TNode<Word32T> CodeStubAssembler::TruncateTaggedToWord32(TNode<Context> context,
 // or find that it is a BigInt and jump to {if_bigint}.
 void CodeStubAssembler::TaggedToWord32OrBigInt(
     TNode<Context> context, TNode<Object> value, Label* if_number,
-    TVariable<Word32T>* var_word32, Label* if_bigint,
+    TVariable<Word32T>* var_word32, Label* if_bigint, Label* if_bigint64,
     TVariable<BigInt>* var_maybe_bigint) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
       context, value, if_number, var_word32, IsKnownTaggedPointer::kNo,
-      if_bigint, var_maybe_bigint);
+      if_bigint, if_bigint64, var_maybe_bigint);
 }
 
 // Truncate {value} to word32 and jump to {if_number} if it is a Number,
@@ -5607,11 +5701,11 @@ void CodeStubAssembler::TaggedToWord32OrBigInt(
 // store the type feedback in {var_feedback}.
 void CodeStubAssembler::TaggedToWord32OrBigIntWithFeedback(
     TNode<Context> context, TNode<Object> value, Label* if_number,
-    TVariable<Word32T>* var_word32, Label* if_bigint,
+    TVariable<Word32T>* var_word32, Label* if_bigint, Label* if_bigint64,
     TVariable<BigInt>* var_maybe_bigint, TVariable<Smi>* var_feedback) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
       context, value, if_number, var_word32, IsKnownTaggedPointer::kNo,
-      if_bigint, var_maybe_bigint, var_feedback);
+      if_bigint, if_bigint64, var_maybe_bigint, var_feedback);
 }
 
 // Truncate {pointer} to word32 and jump to {if_number} if it is a Number,
@@ -5619,11 +5713,11 @@ void CodeStubAssembler::TaggedToWord32OrBigIntWithFeedback(
 // store the type feedback in {var_feedback}.
 void CodeStubAssembler::TaggedPointerToWord32OrBigIntWithFeedback(
     TNode<Context> context, TNode<HeapObject> pointer, Label* if_number,
-    TVariable<Word32T>* var_word32, Label* if_bigint,
+    TVariable<Word32T>* var_word32, Label* if_bigint, Label* if_bigint64,
     TVariable<BigInt>* var_maybe_bigint, TVariable<Smi>* var_feedback) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
       context, pointer, if_number, var_word32, IsKnownTaggedPointer::kYes,
-      if_bigint, var_maybe_bigint, var_feedback);
+      if_bigint, if_bigint64, var_maybe_bigint, var_feedback);
 }
 
 template <Object::Conversion conversion>
@@ -5631,7 +5725,8 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
     TNode<Context> context, TNode<Object> value, Label* if_number,
     TVariable<Word32T>* var_word32,
     IsKnownTaggedPointer is_known_tagged_pointer, Label* if_bigint,
-    TVariable<BigInt>* var_maybe_bigint, TVariable<Smi>* var_feedback) {
+    Label* if_bigint64, TVariable<BigInt>* var_maybe_bigint,
+    TVariable<Smi>* var_feedback) {
   // We might need to loop after conversion.
   TVARIABLE(Object, var_value, value);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kNone);
@@ -5652,14 +5747,18 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
   {
     value = var_value.value();
     Label not_smi(this), is_heap_number(this), is_oddball(this),
-        is_bigint(this), check_if_smi(this);
+        maybe_bigint64(this), is_bigint(this), check_if_smi(this);
 
     TNode<HeapObject> value_heap_object = CAST(value);
     TNode<Map> map = LoadMap(value_heap_object);
     GotoIf(IsHeapNumberMap(map), &is_heap_number);
     TNode<Uint16T> instance_type = LoadMapInstanceType(map);
     if (conversion == Object::Conversion::kToNumeric) {
-      GotoIf(IsBigIntInstanceType(instance_type), &is_bigint);
+      if (Is64() && if_bigint64) {
+        GotoIf(IsBigIntInstanceType(instance_type), &maybe_bigint64);
+      } else {
+        GotoIf(IsBigIntInstanceType(instance_type), &is_bigint);
+      }
     }
 
     // Not HeapNumber (or BigInt if conversion == kToNumeric).
@@ -5693,8 +5792,20 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
     Goto(if_number);
 
     if (conversion == Object::Conversion::kToNumeric) {
+      if (Is64() && if_bigint64) {
+        BIND(&maybe_bigint64);
+        GotoIfLargeBigInt(CAST(value), &is_bigint);
+        if (var_maybe_bigint) {
+          *var_maybe_bigint = CAST(value);
+        }
+        CombineFeedback(var_feedback, BinaryOperationFeedback::kBigInt64);
+        Goto(if_bigint64);
+      }
+
       BIND(&is_bigint);
-      *var_maybe_bigint = CAST(value);
+      if (var_maybe_bigint) {
+        *var_maybe_bigint = CAST(value);
+      }
       CombineFeedback(var_feedback, BinaryOperationFeedback::kBigInt);
       Goto(if_bigint);
     }
@@ -7849,61 +7960,90 @@ TNode<BigInt> CodeStubAssembler::ToBigInt(TNode<Context> context,
   return var_result.value();
 }
 
-void CodeStubAssembler::TaggedToNumeric(TNode<Context> context,
-                                        TNode<Object> value,
-                                        TVariable<Numeric>* var_numeric) {
-  TaggedToNumeric(context, value, var_numeric, nullptr);
-}
+TNode<BigInt> CodeStubAssembler::ToBigIntConvertNumber(TNode<Context> context,
+                                                       TNode<Object> input) {
+  TVARIABLE(BigInt, var_result);
+  Label if_bigint(this), if_not_bigint(this), done(this);
 
-void CodeStubAssembler::TaggedToNumericWithFeedback(
-    TNode<Context> context, TNode<Object> value,
-    TVariable<Numeric>* var_numeric, TVariable<Smi>* var_feedback) {
-  DCHECK_NOT_NULL(var_feedback);
-  TaggedToNumeric(context, value, var_numeric, var_feedback);
-}
-
-void CodeStubAssembler::TaggedToNumeric(TNode<Context> context,
-                                        TNode<Object> value,
-                                        TVariable<Numeric>* var_numeric,
-                                        TVariable<Smi>* var_feedback) {
-  Label done(this), if_smi(this), if_heapnumber(this), if_bigint(this),
-      if_oddball(this);
-  GotoIf(TaggedIsSmi(value), &if_smi);
-  TNode<HeapObject> heap_object_value = CAST(value);
-  TNode<Map> map = LoadMap(heap_object_value);
-  GotoIf(IsHeapNumberMap(map), &if_heapnumber);
-  TNode<Uint16T> instance_type = LoadMapInstanceType(map);
-  GotoIf(IsBigIntInstanceType(instance_type), &if_bigint);
-
-  // {heap_object_value} is not a Numeric yet.
-  GotoIf(Word32Equal(instance_type, Int32Constant(ODDBALL_TYPE)), &if_oddball);
-  *var_numeric = CAST(
-      CallBuiltin(Builtin::kNonNumberToNumeric, context, heap_object_value));
-  OverwriteFeedback(var_feedback, BinaryOperationFeedback::kAny);
-  Goto(&done);
-
-  BIND(&if_smi);
-  *var_numeric = CAST(value);
-  OverwriteFeedback(var_feedback, BinaryOperationFeedback::kSignedSmall);
-  Goto(&done);
-
-  BIND(&if_heapnumber);
-  *var_numeric = CAST(value);
-  OverwriteFeedback(var_feedback, BinaryOperationFeedback::kNumber);
-  Goto(&done);
+  GotoIf(TaggedIsSmi(input), &if_not_bigint);
+  GotoIf(IsBigInt(CAST(input)), &if_bigint);
+  Goto(&if_not_bigint);
 
   BIND(&if_bigint);
-  *var_numeric = CAST(value);
+  var_result = CAST(input);
+  Goto(&done);
+
+  BIND(&if_not_bigint);
+  var_result =
+      CAST(CallRuntime(Runtime::kToBigIntConvertNumber, context, input));
+  Goto(&done);
+
+  BIND(&done);
+  return var_result.value();
+}
+
+void CodeStubAssembler::TaggedToBigIntWithFeedback(
+    TNode<Context> context, TNode<Object> value, Label* if_not_bigint,
+    Label* if_bigint, Label* if_bigint64, TVariable<BigInt>* var_bigint,
+    TVariable<Smi>* var_feedback) {
+  DCHECK_NOT_NULL(var_feedback);
+  TaggedToBigInt(context, value, if_not_bigint, if_bigint, if_bigint64,
+                 var_bigint, var_feedback);
+}
+
+void CodeStubAssembler::TaggedToBigInt(TNode<Context> context,
+                                       TNode<Object> value,
+                                       Label* if_not_bigint, Label* if_bigint,
+                                       Label* if_bigint64,
+                                       TVariable<BigInt>* var_bigint,
+                                       TVariable<Smi>* var_feedback) {
+  Label done(this), is_smi(this), is_heapnumber(this), maybe_bigint64(this),
+      is_bigint(this), is_oddball(this);
+  GotoIf(TaggedIsSmi(value), &is_smi);
+  TNode<HeapObject> heap_object_value = CAST(value);
+  TNode<Map> map = LoadMap(heap_object_value);
+  GotoIf(IsHeapNumberMap(map), &is_heapnumber);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(map);
+  if (Is64() && if_bigint64) {
+    GotoIf(IsBigIntInstanceType(instance_type), &maybe_bigint64);
+  } else {
+    GotoIf(IsBigIntInstanceType(instance_type), &is_bigint);
+  }
+
+  // {heap_object_value} is not a Numeric yet.
+  GotoIf(Word32Equal(instance_type, Int32Constant(ODDBALL_TYPE)), &is_oddball);
+  TNode<Numeric> numeric_value = CAST(
+      CallBuiltin(Builtin::kNonNumberToNumeric, context, heap_object_value));
+  OverwriteFeedback(var_feedback, BinaryOperationFeedback::kAny);
+  GotoIf(TaggedIsSmi(numeric_value), if_not_bigint);
+  GotoIfNot(IsBigInt(CAST(numeric_value)), if_not_bigint);
+  *var_bigint = CAST(numeric_value);
+  Goto(if_bigint);
+
+  BIND(&is_smi);
+  OverwriteFeedback(var_feedback, BinaryOperationFeedback::kSignedSmall);
+  Goto(if_not_bigint);
+
+  BIND(&is_heapnumber);
+  OverwriteFeedback(var_feedback, BinaryOperationFeedback::kNumber);
+  Goto(if_not_bigint);
+
+  if (Is64() && if_bigint64) {
+    BIND(&maybe_bigint64);
+    GotoIfLargeBigInt(CAST(value), &is_bigint);
+    *var_bigint = CAST(value);
+    OverwriteFeedback(var_feedback, BinaryOperationFeedback::kBigInt64);
+    Goto(if_bigint64);
+  }
+
+  BIND(&is_bigint);
+  *var_bigint = CAST(value);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kBigInt);
-  Goto(&done);
+  Goto(if_bigint);
 
-  BIND(&if_oddball);
+  BIND(&is_oddball);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kNumberOrOddball);
-  *var_numeric =
-      CAST(LoadObjectField(heap_object_value, Oddball::kToNumberOffset));
-  Goto(&done);
-
-  Bind(&done);
+  Goto(if_not_bigint);
 }
 
 // ES#sec-touint32
@@ -9110,7 +9250,7 @@ void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
         *var_name_index = name_index;
         GotoIf(TaggedEqual(candidate_name, unique_name), if_found);
       },
-      -Array::kEntrySize, IndexAdvanceMode::kPre);
+      -Array::kEntrySize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPre);
   Goto(if_not_found);
 }
 
@@ -9437,7 +9577,8 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
         }
         BIND(&next_iteration);
       },
-      DescriptorArray::kEntrySize, IndexAdvanceMode::kPost);
+      DescriptorArray::kEntrySize, LoopUnrollingMode::kNo,
+      IndexAdvanceMode::kPost);
 
   if (mode == kEnumerationOrder) {
     Label done(this);
@@ -10146,6 +10287,130 @@ void CodeStubAssembler::TryGetOwnProperty(
     *var_value = value;
     Goto(if_found_value);
   }
+}
+
+void CodeStubAssembler::InitializePropertyDescriptorObject(
+    TNode<PropertyDescriptorObject> descriptor, TNode<Object> value,
+    TNode<Uint32T> details, Label* if_bailout) {
+  Label if_data_property(this), if_accessor_property(this),
+      test_configurable(this), test_property_type(this), done(this);
+  TVARIABLE(Smi, flags,
+            SmiConstant(PropertyDescriptorObject::HasEnumerableBit::kMask |
+                        PropertyDescriptorObject::HasConfigurableBit::kMask));
+
+  {  // test enumerable
+    TNode<Uint32T> dont_enum =
+        Uint32Constant(DONT_ENUM << PropertyDetails::AttributesField::kShift);
+    GotoIf(Word32And(details, dont_enum), &test_configurable);
+    flags =
+        SmiOr(flags.value(),
+              SmiConstant(PropertyDescriptorObject::IsEnumerableBit::kMask));
+    Goto(&test_configurable);
+  }
+
+  BIND(&test_configurable);
+  {
+    TNode<Uint32T> dont_delete =
+        Uint32Constant(DONT_DELETE << PropertyDetails::AttributesField::kShift);
+    GotoIf(Word32And(details, dont_delete), &test_property_type);
+    flags =
+        SmiOr(flags.value(),
+              SmiConstant(PropertyDescriptorObject::IsConfigurableBit::kMask));
+    Goto(&test_property_type);
+  }
+
+  BIND(&test_property_type);
+  BranchIfAccessorPair(value, &if_accessor_property, &if_data_property);
+
+  BIND(&if_accessor_property);
+  {
+    Label done_get(this), store_fields(this);
+    TNode<AccessorPair> accessor_pair = CAST(value);
+
+    auto BailoutIfTemplateInfo = [this, &if_bailout](TNode<HeapObject> value) {
+      TVARIABLE(HeapObject, result);
+
+      Label bind_undefined(this), return_result(this);
+      GotoIf(IsNull(value), &bind_undefined);
+      result = value;
+      TNode<Map> map = LoadMap(value);
+      // TODO(ishell): probe template instantiations cache.
+      GotoIf(IsFunctionTemplateInfoMap(map), if_bailout);
+      Goto(&return_result);
+
+      BIND(&bind_undefined);
+      result = UndefinedConstant();
+      Goto(&return_result);
+
+      BIND(&return_result);
+      return result.value();
+    };
+
+    TNode<HeapObject> getter =
+        LoadObjectField<HeapObject>(accessor_pair, AccessorPair::kGetterOffset);
+    TNode<HeapObject> setter =
+        LoadObjectField<HeapObject>(accessor_pair, AccessorPair::kSetterOffset);
+    getter = BailoutIfTemplateInfo(getter);
+    setter = BailoutIfTemplateInfo(setter);
+
+    Label bind_undefined(this, Label::kDeferred), return_result(this);
+    flags = SmiOr(flags.value(),
+                  SmiConstant(PropertyDescriptorObject::HasGetBit::kMask |
+                              PropertyDescriptorObject::HasSetBit::kMask));
+    StoreObjectField(descriptor, PropertyDescriptorObject::kFlagsOffset,
+                     flags.value());
+    StoreObjectField(descriptor, PropertyDescriptorObject::kValueOffset,
+                     NullConstant());
+    StoreObjectField(descriptor, PropertyDescriptorObject::kGetOffset,
+                     BailoutIfTemplateInfo(getter));
+    StoreObjectField(descriptor, PropertyDescriptorObject::kSetOffset,
+                     BailoutIfTemplateInfo(setter));
+    Goto(&done);
+  }
+
+  BIND(&if_data_property);
+  {
+    Label store_fields(this);
+    flags = SmiOr(flags.value(),
+                  SmiConstant(PropertyDescriptorObject::HasValueBit::kMask |
+                              PropertyDescriptorObject::HasWritableBit::kMask));
+    TNode<Uint32T> read_only =
+        Uint32Constant(READ_ONLY << PropertyDetails::AttributesField::kShift);
+    GotoIf(Word32And(details, read_only), &store_fields);
+    flags = SmiOr(flags.value(),
+                  SmiConstant(PropertyDescriptorObject::IsWritableBit::kMask));
+    Goto(&store_fields);
+
+    BIND(&store_fields);
+    StoreObjectField(descriptor, PropertyDescriptorObject::kFlagsOffset,
+                     flags.value());
+    StoreObjectField(descriptor, PropertyDescriptorObject::kValueOffset, value);
+    StoreObjectField(descriptor, PropertyDescriptorObject::kGetOffset,
+                     NullConstant());
+    StoreObjectField(descriptor, PropertyDescriptorObject::kSetOffset,
+                     NullConstant());
+    Goto(&done);
+  }
+
+  BIND(&done);
+}
+
+TNode<PropertyDescriptorObject>
+CodeStubAssembler::AllocatePropertyDescriptorObject(TNode<Context> context) {
+  TNode<HeapObject> result = Allocate(PropertyDescriptorObject::kSize);
+  TNode<Map> map = GetInstanceTypeMap(PROPERTY_DESCRIPTOR_OBJECT_TYPE);
+  StoreMapNoWriteBarrier(result, map);
+  TNode<Smi> zero = SmiConstant(0);
+  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kFlagsOffset,
+                                 zero);
+  TNode<Oddball> the_hole = TheHoleConstant();
+  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kValueOffset,
+                                 the_hole);
+  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kGetOffset,
+                                 the_hole);
+  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kSetOffset,
+                                 the_hole);
+  return CAST(result);
 }
 
 void CodeStubAssembler::TryLookupElement(
@@ -11924,62 +12189,111 @@ TNode<Int32T> CodeStubAssembler::LoadElementsKind(
 }
 
 template <typename TIndex>
-TNode<TIndex> CodeStubAssembler::BuildFastLoop(const VariableList& vars,
-                                               TNode<TIndex> start_index,
-                                               TNode<TIndex> end_index,
-                                               const FastLoopBody<TIndex>& body,
-                                               int increment,
-                                               IndexAdvanceMode advance_mode) {
-  TVARIABLE(TIndex, var, start_index);
+TNode<TIndex> CodeStubAssembler::BuildFastLoop(
+    const VariableList& vars, TNode<TIndex> start_index,
+    TNode<TIndex> end_index, const FastLoopBody<TIndex>& body, int increment,
+    LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode) {
+  TVARIABLE(TIndex, var_index, start_index);
   VariableList vars_copy(vars.begin(), vars.end(), zone());
-  vars_copy.push_back(&var);
+  vars_copy.push_back(&var_index);
   Label loop(this, vars_copy);
-  Label after_loop(this);
-  // Introduce an explicit second check of the termination condition before the
-  // loop that helps turbofan generate better code. If there's only a single
-  // check, then the CodeStubAssembler forces it to be at the beginning of the
-  // loop requiring a backwards branch at the end of the loop (it's not possible
-  // to force the loop header check at the end of the loop and branch forward to
-  // it from the pre-header). The extra branch is slower in the case that the
-  // loop actually iterates.
-  TNode<BoolT> first_check = IntPtrOrSmiEqual(var.value(), end_index);
-  int32_t first_check_val;
-  if (TryToInt32Constant(first_check, &first_check_val)) {
-    if (first_check_val) return var.value();
-    Goto(&loop);
-  } else {
-    Branch(first_check, &after_loop, &loop);
-  }
+  Label after_loop(this), done(this);
 
-  BIND(&loop);
-  {
+  auto loop_body = [&]() {
     if (advance_mode == IndexAdvanceMode::kPre) {
-      Increment(&var, increment);
+      Increment(&var_index, increment);
     }
-    body(var.value());
+    body(var_index.value());
     if (advance_mode == IndexAdvanceMode::kPost) {
-      Increment(&var, increment);
+      Increment(&var_index, increment);
     }
-    Branch(IntPtrOrSmiNotEqual(var.value(), end_index), &loop, &after_loop);
+  };
+  // The loops below are generated using the following trick:
+  // Introduce an explicit second check of the termination condition before
+  // the loop that helps turbofan generate better code. If there's only a
+  // single check, then the CodeStubAssembler forces it to be at the beginning
+  // of the loop requiring a backwards branch at the end of the loop (it's not
+  // possible to force the loop header check at the end of the loop and branch
+  // forward to it from the pre-header). The extra branch is slower in the
+  // case that the loop actually iterates.
+  if (unrolling_mode == LoopUnrollingMode::kNo) {
+    TNode<BoolT> first_check = IntPtrOrSmiEqual(var_index.value(), end_index);
+    int32_t first_check_val;
+    if (TryToInt32Constant(first_check, &first_check_val)) {
+      if (first_check_val) return var_index.value();
+      Goto(&loop);
+    } else {
+      Branch(first_check, &done, &loop);
+    }
+
+    BIND(&loop);
+    {
+      loop_body();
+      Branch(IntPtrOrSmiNotEqual(var_index.value(), end_index), &loop, &done);
+    }
+    BIND(&done);
+  } else {
+    // Check if there are at least two elements between start_index and
+    // end_index.
+    DCHECK_EQ(unrolling_mode, LoopUnrollingMode::kYes);
+    CSA_DCHECK(this, increment > 0
+                         ? IntPtrOrSmiLessThanOrEqual(start_index, end_index)
+                         : IntPtrOrSmiLessThanOrEqual(end_index, start_index));
+    TNode<TIndex> next_index =
+        IntPtrOrSmiAdd(start_index, IntPtrOrSmiConstant<TIndex>(increment));
+    TNode<BoolT> first_check =
+        increment > 0 ? IntPtrOrSmiLessThan(next_index, end_index)
+                      : IntPtrOrSmiGreaterThan(next_index, end_index);
+    int32_t first_check_val;
+    if (TryToInt32Constant(first_check, &first_check_val)) {
+      if (first_check_val) {
+        Goto(&loop);
+      } else {
+        Goto(&after_loop);
+      }
+    } else {
+      Branch(first_check, &loop, &after_loop);
+    }
+
+    BIND(&loop);
+    {
+      Comment("Unrolled Loop");
+      loop_body();
+      loop_body();
+      TNode<TIndex> next_index = IntPtrOrSmiAdd(
+          var_index.value(), IntPtrOrSmiConstant<TIndex>(increment));
+      TNode<BoolT> loop_check =
+          increment > 0 ? IntPtrOrSmiLessThan(next_index, end_index)
+                        : IntPtrOrSmiGreaterThan(next_index, end_index);
+      Branch(loop_check, &loop, &after_loop);
+    }
+    BIND(&after_loop);
+    {
+      TNode<TIndex> next_index = IntPtrOrSmiAdd(
+          var_index.value(), IntPtrOrSmiConstant<TIndex>(increment));
+      GotoIfNot(IntPtrOrSmiEqual(next_index, end_index), &done);
+      // Iteration count is odd.
+      loop_body();
+      Goto(&done);
+    }
+    BIND(&done);
   }
-  BIND(&after_loop);
-  return var.value();
+  return var_index.value();
 }
 
 // Instantiate BuildFastLoop for IntPtrT and UintPtrT.
 template V8_EXPORT_PRIVATE TNode<IntPtrT>
-CodeStubAssembler::BuildFastLoop<IntPtrT>(const VariableList& vars,
-                                          TNode<IntPtrT> start_index,
-                                          TNode<IntPtrT> end_index,
-                                          const FastLoopBody<IntPtrT>& body,
-                                          int increment,
-                                          IndexAdvanceMode advance_mode);
+CodeStubAssembler::BuildFastLoop<IntPtrT>(
+    const VariableList& vars, TNode<IntPtrT> start_index,
+    TNode<IntPtrT> end_index, const FastLoopBody<IntPtrT>& body, int increment,
+    LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode);
 template V8_EXPORT_PRIVATE TNode<UintPtrT>
 CodeStubAssembler::BuildFastLoop<UintPtrT>(const VariableList& vars,
                                            TNode<UintPtrT> start_index,
                                            TNode<UintPtrT> end_index,
                                            const FastLoopBody<UintPtrT>& body,
                                            int increment,
+                                           LoopUnrollingMode unrolling_mode,
                                            IndexAdvanceMode advance_mode);
 
 template <typename TIndex>
@@ -11987,7 +12301,7 @@ void CodeStubAssembler::BuildFastArrayForEach(
     TNode<UnionT<UnionT<FixedArray, PropertyArray>, HeapObject>> array,
     ElementsKind kind, TNode<TIndex> first_element_inclusive,
     TNode<TIndex> last_element_exclusive, const FastArrayForEachBody& body,
-    ForEachDirection direction) {
+    LoopUnrollingMode loop_unrolling_mode, ForEachDirection direction) {
   static_assert(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
   CSA_SLOW_DCHECK(this, Word32Or(IsFixedArrayWithKind(array, kind),
                                  IsPropertyArray(array)));
@@ -12030,6 +12344,7 @@ void CodeStubAssembler::BuildFastArrayForEach(
   BuildFastLoop<IntPtrT>(
       start, limit, [&](TNode<IntPtrT> offset) { body(array, offset); },
       direction == ForEachDirection::kReverse ? -increment : increment,
+      loop_unrolling_mode,
       direction == ForEachDirection::kReverse ? IndexAdvanceMode::kPre
                                               : IndexAdvanceMode::kPost);
 }
@@ -12060,7 +12375,7 @@ void CodeStubAssembler::InitializeFieldsWithRoot(TNode<HeapObject> object,
         StoreNoWriteBarrier(MachineRepresentation::kTagged, object, current,
                             root_value);
       },
-      -kTaggedSize, CodeStubAssembler::IndexAdvanceMode::kPre);
+      -kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPre);
 }
 
 void CodeStubAssembler::BranchIfNumberRelationalComparison(Operation op,
@@ -12972,9 +13287,30 @@ TNode<Oddball> CodeStubAssembler::Equal(TNode<Object> left, TNode<Object> right,
 
         BIND(&if_right_bigint);
         {
-          // We already have BigInt feedback.
-          result = CAST(CallRuntime(Runtime::kBigIntEqualToBigInt,
-                                    NoContextConstant(), left, right));
+          if (Is64()) {
+            Label if_both_bigint(this);
+
+            GotoIfLargeBigInt(CAST(left), &if_both_bigint);
+            GotoIfLargeBigInt(CAST(right), &if_both_bigint);
+
+            OverwriteFeedback(var_type_feedback,
+                              CompareOperationFeedback::kBigInt64);
+
+            TVARIABLE(UintPtrT, left_raw);
+            TVARIABLE(UintPtrT, right_raw);
+            BigIntToRawBytes(CAST(left), &left_raw, &left_raw);
+            BigIntToRawBytes(CAST(right), &right_raw, &right_raw);
+
+            Branch(WordEqual(UncheckedCast<WordT>(left_raw.value()),
+                             UncheckedCast<WordT>(right_raw.value())),
+                   &if_equal, &if_notequal);
+
+            BIND(&if_both_bigint);
+          }
+
+          CombineFeedback(var_type_feedback, CompareOperationFeedback::kBigInt);
+          result = CAST(CallBuiltin(Builtin::kBigIntEqual, NoContextConstant(),
+                                    left, right));
           Goto(&end);
         }
 
@@ -13394,9 +13730,30 @@ TNode<Oddball> CodeStubAssembler::StrictEqual(
 
               BIND(&if_rhsisbigint);
               {
+                if (Is64()) {
+                  Label if_both_bigint(this);
+
+                  GotoIfLargeBigInt(CAST(lhs), &if_both_bigint);
+                  GotoIfLargeBigInt(CAST(rhs), &if_both_bigint);
+
+                  OverwriteFeedback(var_type_feedback,
+                                    CompareOperationFeedback::kBigInt64);
+
+                  TVARIABLE(UintPtrT, lhs_raw);
+                  TVARIABLE(UintPtrT, rhs_raw);
+                  BigIntToRawBytes(CAST(lhs), &lhs_raw, &lhs_raw);
+                  BigIntToRawBytes(CAST(rhs), &rhs_raw, &rhs_raw);
+
+                  Branch(WordEqual(UncheckedCast<WordT>(lhs_raw.value()),
+                                   UncheckedCast<WordT>(rhs_raw.value())),
+                         &if_equal, &if_notequal);
+
+                  BIND(&if_both_bigint);
+                }
+
                 CombineFeedback(var_type_feedback,
                                 CompareOperationFeedback::kBigInt);
-                result = CAST(CallRuntime(Runtime::kBigIntEqualToBigInt,
+                result = CAST(CallBuiltin(Builtin::kBigIntEqual,
                                           NoContextConstant(), lhs, rhs));
                 Goto(&end);
               }
@@ -14259,6 +14616,22 @@ void CodeStubAssembler::GotoIfNumber(TNode<Object> input, Label* is_number) {
   GotoIf(IsHeapNumber(CAST(input)), is_number);
 }
 
+TNode<Word32T> CodeStubAssembler::NormalizeShift32OperandIfNecessary(
+    TNode<Word32T> right32) {
+  TVARIABLE(Word32T, result, right32);
+  Label done(this);
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  GotoIf(UniqueInt32Constant(Word32ShiftIsSafe()), &done);
+  {
+    result = Word32And(right32, Int32Constant(0x1F));
+    Goto(&done);
+  }
+  BIND(&done);
+  return result.value();
+}
+
 TNode<Number> CodeStubAssembler::BitwiseOp(TNode<Word32T> left32,
                                            TNode<Word32T> right32,
                                            Operation bitwise_op) {
@@ -14270,19 +14643,13 @@ TNode<Number> CodeStubAssembler::BitwiseOp(TNode<Word32T> left32,
     case Operation::kBitwiseXor:
       return ChangeInt32ToTagged(Signed(Word32Xor(left32, right32)));
     case Operation::kShiftLeft:
-      if (!Word32ShiftIsSafe()) {
-        right32 = Word32And(right32, Int32Constant(0x1F));
-      }
+      right32 = NormalizeShift32OperandIfNecessary(right32);
       return ChangeInt32ToTagged(Signed(Word32Shl(left32, right32)));
     case Operation::kShiftRight:
-      if (!Word32ShiftIsSafe()) {
-        right32 = Word32And(right32, Int32Constant(0x1F));
-      }
+      right32 = NormalizeShift32OperandIfNecessary(right32);
       return ChangeInt32ToTagged(Signed(Word32Sar(left32, right32)));
     case Operation::kShiftRightLogical:
-      if (!Word32ShiftIsSafe()) {
-        right32 = Word32And(right32, Int32Constant(0x1F));
-      }
+      right32 = NormalizeShift32OperandIfNecessary(right32);
       return ChangeUint32ToTagged(Unsigned(Word32Shr(left32, right32)));
     default:
       break;
@@ -14308,10 +14675,8 @@ TNode<Number> CodeStubAssembler::BitwiseSmiOp(TNode<Smi> left, TNode<Smi> right,
     // perform int32 operation but don't check for overflow.
     case Operation::kShiftRight: {
       TNode<Int32T> left32 = SmiToInt32(left);
-      TNode<Int32T> right32 = SmiToInt32(right);
-      if (!Word32ShiftIsSafe()) {
-        right32 = Word32And(right32, Int32Constant(0x1F));
-      }
+      TNode<Int32T> right32 =
+          Signed(NormalizeShift32OperandIfNecessary(SmiToInt32(right)));
       return ChangeInt32ToTaggedNoOverflow(Word32Sar(left32, right32));
     }
     default:
@@ -14822,7 +15187,8 @@ void CodeStubArguments::ForEach(
         TNode<Object> arg = assembler_->LoadFullTagged(current);
         body(arg);
       },
-      increment, CodeStubAssembler::IndexAdvanceMode::kPost);
+      increment, CodeStubAssembler::LoopUnrollingMode::kNo,
+      CodeStubAssembler::IndexAdvanceMode::kPost);
 }
 
 void CodeStubArguments::PopAndReturn(TNode<Object> value) {
@@ -15387,14 +15753,14 @@ void CodeStubAssembler::PerformStackCheck(TNode<Context> context) {
 }
 
 TNode<Object> CodeStubAssembler::CallApiCallback(
-    TNode<Object> context, TNode<RawPtrT> callback, TNode<IntPtrT> argc,
+    TNode<Object> context, TNode<RawPtrT> callback, TNode<Int32T> argc,
     TNode<Object> data, TNode<Object> holder, TNode<Object> receiver) {
   Callable callable = CodeFactory::CallApiCallback(isolate());
   return CallStub(callable, context, callback, argc, data, holder, receiver);
 }
 
 TNode<Object> CodeStubAssembler::CallApiCallback(
-    TNode<Object> context, TNode<RawPtrT> callback, TNode<IntPtrT> argc,
+    TNode<Object> context, TNode<RawPtrT> callback, TNode<Int32T> argc,
     TNode<Object> data, TNode<Object> holder, TNode<Object> receiver,
     TNode<Object> value) {
   Callable callable = CodeFactory::CallApiCallback(isolate());
@@ -15983,7 +16349,7 @@ CodeStubAssembler::AllocateSwissNameDictionaryWithCapacity(
         UnsafeStoreNoWriteBarrier(MachineRepresentation::kWord32, current,
                                   empty32);
       },
-      sizeof(uint32_t), IndexAdvanceMode::kPost);
+      sizeof(uint32_t), LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
 
   Comment("Initialize the data table.");
 
@@ -16078,7 +16444,7 @@ TNode<SwissNameDictionary> CodeStubAssembler::CopySwissNameDictionary(
           TNode<Object> table_field = LoadObjectField(original, offset);
           StoreObjectField(table, offset, table_field);
         },
-        kTaggedSize, IndexAdvanceMode::kPost);
+        kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
   }
 
   Comment("Copy the meta table");
@@ -16148,7 +16514,7 @@ TNode<SwissNameDictionary> CodeStubAssembler::CopySwissNameDictionary(
               IntPtrAdd(details_table_offset_minus_tag.value(),
                         IntPtrConstant(kOneByteSize));
         },
-        kOneByteSize, IndexAdvanceMode::kPost);
+        kOneByteSize, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
   }
 
   Comment("CopySwissNameDictionary ]");

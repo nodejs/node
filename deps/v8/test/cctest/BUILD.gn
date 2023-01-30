@@ -207,7 +207,8 @@ v8_source_set("cctest_sources") {
   ]
 
   if (v8_current_cpu == "arm") {
-    sources += [  ### gcmole(arch:arm) ###
+    sources += [
+      ### gcmole(arm) ###
       "assembler-helper-arm.cc",
       "assembler-helper-arm.h",
       "test-assembler-arm.cc",
@@ -215,7 +216,8 @@ v8_source_set("cctest_sources") {
       "test-sync-primitives-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
-    sources += [  ### gcmole(arch:arm64) ###
+    sources += [
+      ### gcmole(arm64) ###
       "test-assembler-arm64.cc",
       "test-fuzz-arm64.cc",
       "test-javascript-arm64.cc",
@@ -228,48 +230,60 @@ v8_source_set("cctest_sources") {
       sources += [ "test-stack-unwinding-win64.cc" ]
     }
   } else if (v8_current_cpu == "x86") {
-    sources += [  ### gcmole(arch:ia32) ###
+    sources += [
+      ### gcmole(ia32) ###
       "test-assembler-ia32.cc",
       "test-log-stack-tracer.cc",
     ]
   } else if (v8_current_cpu == "mips64") {
-    sources += [  ### gcmole(arch:mips64) ###
+    sources += [
+      ### gcmole(mips64) ###
       "test-assembler-mips64.cc",
       "test-macro-assembler-mips64.cc",
     ]
   } else if (v8_current_cpu == "mips64el") {
-    sources += [  ### gcmole(arch:mips64el) ###
+    sources += [
+      ### gcmole(mips64el) ###
       "test-assembler-mips64.cc",
       "test-macro-assembler-mips64.cc",
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [
-      ### gcmole(arch:x64) ###
+      ### gcmole(x64) ###
       "test-log-stack-tracer.cc",
     ]
     if (is_win) {
       sources += [ "test-stack-unwinding-win64.cc" ]
     }
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
-    sources += [ "test-assembler-ppc.cc" ]  ### gcmole(arch:ppc) ###
+    sources += [
+      ### gcmole(ppc) ###
+      "test-assembler-ppc.cc",
+    ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
-    sources += [ "test-assembler-s390.cc" ]  ### gcmole(arch:s390) ###
+    sources += [
+      ### gcmole(s390) ###
+      "test-assembler-s390.cc",
+    ]
   } else if (v8_current_cpu == "riscv64") {
-    sources += [  ### gcmole(arch:riscv64) ###
+    sources += [
+      ### gcmole(riscv64) ###
       "test-assembler-riscv64.cc",
       "test-helper-riscv64.cc",
       "test-macro-assembler-riscv64.cc",
       "test-simple-riscv64.cc",
     ]
   } else if (v8_current_cpu == "riscv32") {
-    sources += [  ### gcmole(arch:riscv32) ###
+    sources += [
+      ### gcmole(riscv32) ###
       "test-assembler-riscv32.cc",
       "test-helper-riscv32.cc",
       "test-macro-assembler-riscv32.cc",
       "test-simple-riscv32.cc",
     ]
   } else if (v8_current_cpu == "loong64") {
-    sources += [  ### gcmole(arch:loong64) ###
+    sources += [
+      ### gcmole(loong64) ###
       "test-assembler-loong64.cc",
       "test-macro-assembler-loong64.cc",
     ]
@@ -352,6 +366,7 @@ v8_source_set("cctest_sources") {
   deps = [
     "../..:run_torque",
     "../..:v8_shared_internal_headers",
+    "../..:v8_tracing",
   ]
 
   if (v8_enable_i18n_support) {

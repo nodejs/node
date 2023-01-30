@@ -32,6 +32,7 @@ class Graph final : public ZoneObject {
         smi_(zone),
         int_(zone),
         float_(zone),
+        external_references_(zone),
         parameters_(zone),
         constants_(zone) {}
 
@@ -51,6 +52,8 @@ class Graph final : public ZoneObject {
 
   uint32_t tagged_stack_slots() const { return tagged_stack_slots_; }
   uint32_t untagged_stack_slots() const { return untagged_stack_slots_; }
+  uint32_t max_call_stack_args() const { return max_call_stack_args_; }
+  uint32_t max_deopted_stack_size() const { return max_deopted_stack_size_; }
   void set_tagged_stack_slots(uint32_t stack_slots) {
     DCHECK_EQ(kMaxUInt32, tagged_stack_slots_);
     DCHECK_NE(kMaxUInt32, stack_slots);
@@ -61,11 +64,24 @@ class Graph final : public ZoneObject {
     DCHECK_NE(kMaxUInt32, stack_slots);
     untagged_stack_slots_ = stack_slots;
   }
+  void set_max_call_stack_args(uint32_t stack_slots) {
+    DCHECK_EQ(kMaxUInt32, max_call_stack_args_);
+    DCHECK_NE(kMaxUInt32, stack_slots);
+    max_call_stack_args_ = stack_slots;
+  }
+  void set_max_deopted_stack_size(uint32_t size) {
+    DCHECK_EQ(kMaxUInt32, max_deopted_stack_size_);
+    DCHECK_NE(kMaxUInt32, size);
+    max_deopted_stack_size_ = size;
+  }
 
   ZoneMap<RootIndex, RootConstant*>& root() { return root_; }
   ZoneMap<int, SmiConstant*>& smi() { return smi_; }
   ZoneMap<int, Int32Constant*>& int32() { return int_; }
   ZoneMap<double, Float64Constant*>& float64() { return float_; }
+  ZoneMap<Address, ExternalConstant*>& external_references() {
+    return external_references_;
+  }
   ZoneVector<InitialValue*>& parameters() { return parameters_; }
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*>& constants() {
     return constants_;
@@ -79,11 +95,14 @@ class Graph final : public ZoneObject {
  private:
   uint32_t tagged_stack_slots_ = kMaxUInt32;
   uint32_t untagged_stack_slots_ = kMaxUInt32;
+  uint32_t max_call_stack_args_ = kMaxUInt32;
+  uint32_t max_deopted_stack_size_ = kMaxUInt32;
   ZoneVector<BasicBlock*> blocks_;
   ZoneMap<RootIndex, RootConstant*> root_;
   ZoneMap<int, SmiConstant*> smi_;
   ZoneMap<int, Int32Constant*> int_;
   ZoneMap<double, Float64Constant*> float_;
+  ZoneMap<Address, ExternalConstant*> external_references_;
   ZoneVector<InitialValue*> parameters_;
   compiler::ZoneRefMap<compiler::ObjectRef, Constant*> constants_;
   Float64Constant* nan_ = nullptr;

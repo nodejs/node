@@ -148,6 +148,9 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
 
   int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
   int VisitWeakCell(Map map, WeakCell weak_cell);
+
+  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
+  int VisitJSObjectSubclass(Map map, T object);
 };
 
 class WeakObjectRetainer;

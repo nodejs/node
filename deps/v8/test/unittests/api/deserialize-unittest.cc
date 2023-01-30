@@ -359,8 +359,6 @@ class MergeDeserializedCodeTest : public DeserializeTest {
       }
     }
 
-    i::ScanStackModeScopeForTesting no_stack_scanning(
-        i_isolate->heap(), i::Heap::ScanStackMode::kNone);
     i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
                                          i::GarbageCollectionReason::kTesting);
 
@@ -411,6 +409,8 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
     IsolateAndContextScope scope(this);
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        i_isolate->heap());
     ScriptOrigin default_origin(isolate(), NewString(""));
 
     i::Handle<i::WeakFixedArray> original_objects =
@@ -509,8 +509,6 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     // At this point, the original_objects array might still have pointers to
     // some old discarded content, such as UncompiledData from flushed
     // functions. GC again to clear it all out.
-    i::ScanStackModeScopeForTesting no_stack_scanning(
-        i_isolate->heap(), i::Heap::ScanStackMode::kNone);
     i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
                                          i::GarbageCollectionReason::kTesting);
 
@@ -645,6 +643,9 @@ TEST_F(MergeDeserializedCodeTest, MergeWithNoFollowUpWork) {
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate->heap());
+
   ScriptOrigin default_origin(isolate(), NewString(""));
 
   constexpr char kSourceCode[] = "function f() {}";
@@ -727,6 +728,8 @@ TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate->heap());
   ScriptOrigin default_origin(isolate(), NewString(""));
 
   constexpr char kSourceCode[] =

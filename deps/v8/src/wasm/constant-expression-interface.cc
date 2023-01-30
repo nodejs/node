@@ -236,6 +236,9 @@ void ConstantExpressionInterface::ArrayNewFixed(
                 ValueType::Ref(HeapType(imm.index)));
 }
 
+// TODO(7748): These expressions are non-constant for now. There are plans to
+// make them constant in the future, so we retain the required infrastructure
+// here.
 void ConstantExpressionInterface::ArrayNewSegment(
     FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
     const IndexImmediate& segment_imm, const Value& offset_value,
@@ -306,9 +309,13 @@ void ConstantExpressionInterface::RttCanon(FullDecoder* decoder,
 void ConstantExpressionInterface::I31New(FullDecoder* decoder,
                                          const Value& input, Value* result) {
   if (!generate_value()) return;
-  Address raw = static_cast<Address>(input.runtime_value.to_i32());
-  // 33 = 1 (Smi tag) + 31 (Smi shift) + 1 (i31ref high-bit truncation).
-  Address shifted = raw << (SmiValuesAre31Bits() ? 1 : 33);
+  Address raw = input.runtime_value.to_i32();
+  // We have to craft the Smi manually because we accept out-of-bounds inputs.
+  // For 32-bit Smi builds, set the topmost bit to sign-extend the second bit.
+  // This way, interpretation in JS (if this value escapes there) will be the
+  // same as i31.get_s.
+  intptr_t shifted =
+      static_cast<intptr_t>(raw << (kSmiTagSize + kSmiShiftSize + 1)) >> 1;
   result->runtime_value =
       WasmValue(handle(Smi(shifted), isolate_), wasm::kWasmI31Ref.AsNonNull());
 }

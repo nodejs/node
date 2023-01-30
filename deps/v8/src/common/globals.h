@@ -122,6 +122,12 @@ namespace internal {
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL false
 #endif
 
+#if defined(V8_STATIC_ROOTS)
+#define V8_STATIC_ROOTS_BOOL true
+#else
+#define V8_STATIC_ROOTS_BOOL false
+#endif
+
 #ifdef V8_ENABLE_SANDBOX
 #define V8_ENABLE_SANDBOX_BOOL true
 #else
@@ -380,9 +386,26 @@ constexpr int kMaxDoubleStringLength = 24;
 
 // Total wasm code space per engine (i.e. per process) is limited to make
 // certain attacks that rely on heap spraying harder.
+// Do not access directly, but via the {--wasm-max-committed-code-mb} flag.
 // Just below 4GB, such that {kMaxWasmCodeMemory} fits in a 32-bit size_t.
-constexpr size_t kMaxWasmCodeMB = 4095;
-constexpr size_t kMaxWasmCodeMemory = kMaxWasmCodeMB * MB;
+constexpr uint32_t kMaxCommittedWasmCodeMB = 4095;
+
+// The actual maximum code space size used can be configured with
+// --max-wasm-code-space-size. This constant is the default value, and at the
+// same time the maximum allowed value (checked by the WasmCodeManager).
+#if V8_TARGET_ARCH_ARM64
+// ARM64 only supports direct calls within a 128 MB range.
+constexpr uint32_t kDefaultMaxWasmCodeSpaceSizeMb = 128;
+#elif V8_TARGET_ARCH_PPC64
+// Branches only take 26 bits.
+constexpr uint32_t kDefaultMaxWasmCodeSpaceSizeMb = 32;
+#else
+// Use 1024 MB limit for code spaces on other platforms. This is smaller than
+// the total allowed code space (kMaxWasmCodeMemory) to avoid unnecessarily
+// big reservations, and to ensure that distances within a code space fit
+// within a 32-bit signed integer.
+constexpr uint32_t kDefaultMaxWasmCodeSpaceSizeMb = 1024;
+#endif
 
 #if V8_HOST_ARCH_64_BIT
 constexpr int kSystemPointerSizeLog2 = 3;
@@ -903,6 +926,7 @@ class CompressedMaybeObjectSlot;
 class CompressedMapWordSlot;
 class CompressedHeapObjectSlot;
 class V8HeapCompressionScheme;
+class ExternalCodeCompressionScheme;
 template <typename CompressionScheme>
 class OffHeapCompressedObjectSlot;
 class FullObjectSlot;
@@ -934,7 +958,12 @@ struct SlotTraits {
   using THeapObjectSlot = CompressedHeapObjectSlot;
   using TOffHeapObjectSlot =
       OffHeapCompressedObjectSlot<V8HeapCompressionScheme>;
-  using TCodeObjectSlot = OffHeapCompressedObjectSlot<V8HeapCompressionScheme>;
+#ifdef V8_EXTERNAL_CODE_SPACE
+  using TCodeObjectSlot =
+      OffHeapCompressedObjectSlot<ExternalCodeCompressionScheme>;
+#else
+  using TCodeObjectSlot = TObjectSlot;
+#endif  // V8_EXTERNAL_CODE_SPACE
 #else
   using TObjectSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
@@ -1164,6 +1193,15 @@ enum NativesFlag { NOT_NATIVES_CODE, EXTENSION_CODE, INSPECTOR_CODE };
 enum ParseRestriction : bool {
   NO_PARSE_RESTRICTION,         // All expressions are allowed.
   ONLY_SINGLE_FUNCTION_LITERAL  // Only a single FunctionLiteral expression.
+};
+
+enum class ScriptEventType {
+  kReserveId,
+  kCreate,
+  kDeserialize,
+  kBackgroundCompile,
+  kStreamingCompileBackground,
+  kStreamingCompileForeground
 };
 
 // State for inline cache call sites. Aliased as IC::State.
@@ -1699,9 +1737,10 @@ class CompareOperationFeedback {
     kInternalizedStringFlag = 1 << 4,
     kOtherStringFlag = 1 << 5,
     kSymbolFlag = 1 << 6,
-    kBigIntFlag = 1 << 7,
-    kReceiverFlag = 1 << 8,
-    kAnyMask = 0x1FF,
+    kBigInt64Flag = 1 << 7,
+    kOtherBigIntFlag = 1 << 8,
+    kReceiverFlag = 1 << 9,
+    kAnyMask = 0x3FF,
   };
 
  public:
@@ -1723,7 +1762,8 @@ class CompareOperationFeedback {
     kReceiver = kReceiverFlag,
     kReceiverOrNullOrUndefined = kReceiver | kNullOrUndefined,
 
-    kBigInt = kBigIntFlag,
+    kBigInt64 = kBigInt64Flag,
+    kBigInt = kBigInt64Flag | kOtherBigIntFlag,
     kSymbol = kSymbolFlag,
 
     kAny = kAnyMask,
@@ -2065,7 +2105,7 @@ class PtrComprCageBase {
   // NOLINTNEXTLINE
   inline PtrComprCageBase(const LocalIsolate* isolate);
 
-  inline Address address() const;
+  inline Address address() const { return address_; }
 
   bool operator==(const PtrComprCageBase& other) const {
     return address_ == other.address_;

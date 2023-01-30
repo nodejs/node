@@ -152,6 +152,8 @@ void WeakHandleTest(v8::Isolate* isolate, ConstructFunction construct_function,
                     ModifierFunction modifier_function, GCFunction gc_function,
                     SurvivalMode survives) {
   v8::HandleScope scope(isolate);
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      reinterpret_cast<i::Isolate*>(isolate)->heap());
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
 
@@ -176,6 +178,8 @@ class GlobalHandlesTest : public TestWithContext {
                                        ModifierFunction modifier_function,
                                        SurvivalMode survives) {
     v8::Isolate* isolate = v8_isolate();
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        i_isolate()->heap());
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(context);
@@ -202,6 +206,8 @@ TEST_F(GlobalHandlesTest, EternalHandles) {
   Isolate* isolate = i_isolate();
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   EternalHandles* eternal_handles = isolate->eternal_handles();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      isolate->heap());
 
   // Create a number of handles that will not be on a block boundary
   const int kArrayLength = 2048 - 1;
@@ -293,6 +299,8 @@ START_ALLOW_USE_DEPRECATED()
 
 TEST_F(GlobalHandlesTest, PhantomHandlesWithoutCallbacks) {
   v8::Isolate* isolate = v8_isolate();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate()->heap());
 
   v8::Global<v8::Object> g1, g2;
   {
@@ -490,6 +498,8 @@ void ForceMarkSweep1(const v8::WeakCallbackInfo<FlagAndGlobal>& data) {
 
 TEST_F(GlobalHandlesTest, GCFromWeakCallbacks) {
   v8::Isolate* isolate = v8_isolate();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate()->heap());
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
@@ -547,6 +557,8 @@ void FirstPassCallback(const v8::WeakCallbackInfo<FlagAndGlobal>& data) {
 
 TEST_F(GlobalHandlesTest, SecondPassPhantomCallbacks) {
   v8::Isolate* isolate = v8_isolate();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate()->heap());
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);

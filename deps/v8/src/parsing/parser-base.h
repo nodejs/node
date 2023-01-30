@@ -1286,7 +1286,6 @@ class ParserBase {
   // a scope where the name has also been let bound or the var declaration is
   // hoisted over such a scope.
   void CheckConflictingVarDeclarations(DeclarationScope* scope) {
-    if (has_error()) return;
     bool allowed_catch_binding_var_redeclaration = false;
     Declaration* decl = scope->CheckConflictingVarDeclarations(
         &allowed_catch_binding_var_redeclaration);

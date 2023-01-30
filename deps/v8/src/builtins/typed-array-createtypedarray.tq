@@ -59,13 +59,14 @@ transitioning macro AllocateTypedArray(implicit context: Context)(
   typedArray.byte_offset = byteOffset;
   if (isLengthTracking) {
     dcheck(IsResizableArrayBuffer(buffer));
-    // Make the byte_length of length-tracking TAs zero, so that we won't
-    // accidentally use it and access invalid data.
+    // Set the byte_length and length fields of length-tracking TAs to zero, so
+    // that we won't accidentally use them and access invalid data.
     typedArray.byte_length = 0;
+    typedArray.length = 0;
   } else {
     typedArray.byte_length = byteLength;
+    typedArray.length = length;
   }
-  typedArray.length = length;
   typedArray.bit_field.is_length_tracking = isLengthTracking;
   typedArray.bit_field.is_backed_by_rab =
       IsResizableArrayBuffer(buffer) && !IsSharedArrayBuffer(buffer);
@@ -477,9 +478,16 @@ transitioning macro TypedArraySpeciesCreateByLength(implicit context: Context)(
   const typedArray: JSTypedArray = TypedArraySpeciesCreate(
       methodName, numArgs, exemplar, Convert<Number>(length), Undefined,
       Undefined);
-  if (typedArray.length < length) deferred {
-      ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
-    }
+  try {
+    const createdArrayLength =
+        LoadJSTypedArrayLengthAndCheckDetached(typedArray)
+        otherwise DetachedOrOutOfBounds;
+    if (createdArrayLength < length) deferred {
+        ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
+      }
+  } label DetachedOrOutOfBounds {
+    ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
+  }
   return typedArray;
 }
 

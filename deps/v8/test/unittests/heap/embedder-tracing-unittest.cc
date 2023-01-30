@@ -566,6 +566,8 @@ TEST_F(EmbedderTracingTest, TracedReferenceCopyReferences) {
     EXPECT_FALSE(tmp.IsEmpty());
     // Conservative scanning may find stale pointers to on-stack handles.
     // Disable scanning, assuming the slots are overwritten.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        i_isolate()->heap());
     EmbedderStackStateScope stack_scope =
         EmbedderStackStateScope::ExplicitScopeForTesting(
             reinterpret_cast<i::Isolate*>(v8_isolate())
@@ -690,6 +692,8 @@ TEST_F(EmbedderTracingTest, TracedReferenceHandlesMarking) {
     {
       // Conservative scanning may find stale pointers to on-stack handles.
       // Disable scanning, assuming the slots are overwritten.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+          i_isolate()->heap());
       EmbedderStackStateScope scope =
           EmbedderStackStateScope::ExplicitScopeForTesting(
               reinterpret_cast<i::Isolate*>(v8_isolate())
@@ -811,6 +815,8 @@ TEST_F(EmbedderTracingTest, BasicTracedReference) {
   {
     // Conservative scanning may find stale pointers to on-stack handles.
     // Disable scanning, assuming the slots are overwritten.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        i_isolate()->heap());
     EmbedderStackStateScope scope =
         EmbedderStackStateScope::ExplicitScopeForTesting(
             reinterpret_cast<i::Isolate*>(v8_isolate())
@@ -1017,6 +1023,8 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate,
   {
     // Conservative scanning may find stale pointers to on-stack handles.
     // Disable scanning, assuming the slots are overwritten.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        reinterpret_cast<i::Isolate*>(v8_isolate)->heap());
     EmbedderStackStateScope scope =
         EmbedderStackStateScope::ExplicitScopeForTesting(
             reinterpret_cast<i::Isolate*>(v8_isolate)
@@ -1185,6 +1193,8 @@ V8_NOINLINE void TracedReferenceOnStackReferencesAreTemporaryTest(
   {
     // Conservative scanning may find stale pointers to on-stack handles.
     // Disable scanning, assuming the slots are overwritten.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        reinterpret_cast<Isolate*>(v8_isolate)->heap());
     EmbedderStackStateScope scope =
         EmbedderStackStateScope::ExplicitScopeForTesting(
             reinterpret_cast<i::Isolate*>(v8_isolate)

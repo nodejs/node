@@ -4098,22 +4098,22 @@ void InstructionSelector::VisitI8x16Swizzle(Node* node) {
 }
 
 namespace {
-// pblendvb is a correct implementation for all the various relaxed lane select,
-// see https://github.com/WebAssembly/relaxed-simd/issues/17.
-void VisitRelaxedLaneSelect(InstructionSelector* selector, Node* node) {
+void VisitRelaxedLaneSelect(InstructionSelector* selector, Node* node,
+                            InstructionCode code = kX64Pblendvb) {
   X64OperandGenerator g(selector);
-  // pblendvb copies src2 when mask is set, opposite from Wasm semantics.
-  // node's inputs are: mask, lhs, rhs (determined in wasm-compiler.cc).
+  // pblendvb/blendvps/blendvpd copies src2 when mask is set, opposite from Wasm
+  // semantics. Node's inputs are: mask, lhs, rhs (determined in
+  // wasm-compiler.cc).
   if (selector->IsSupported(AVX)) {
     selector->Emit(
-        kX64Pblendvb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(2)),
+        code, g.DefineAsRegister(node), g.UseRegister(node->InputAt(2)),
         g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
   } else {
-    // SSE4.1 pblendvb requires xmm0 to hold the mask as an implicit operand.
-    selector->Emit(kX64Pblendvb, g.DefineSameAsFirst(node),
-                   g.UseRegister(node->InputAt(2)),
-                   g.UseRegister(node->InputAt(1)),
-                   g.UseFixed(node->InputAt(0), xmm0));
+    // SSE4.1 pblendvb/blendvps/blendvpd requires xmm0 to hold the mask as an
+    // implicit operand.
+    selector->Emit(
+        code, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(2)),
+        g.UseRegister(node->InputAt(1)), g.UseFixed(node->InputAt(0), xmm0));
   }
 }
 }  // namespace
@@ -4125,10 +4125,11 @@ void InstructionSelector::VisitI16x8RelaxedLaneSelect(Node* node) {
   VisitRelaxedLaneSelect(this, node);
 }
 void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
-  VisitRelaxedLaneSelect(this, node);
+  VisitRelaxedLaneSelect(this, node, kX64Blendvps);
 }
+
 void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
-  VisitRelaxedLaneSelect(this, node);
+  VisitRelaxedLaneSelect(this, node, kX64Blendvpd);
 }
 #else
 void InstructionSelector::VisitI8x16Swizzle(Node* node) { UNREACHABLE(); }
@@ -4345,6 +4346,15 @@ void InstructionSelector::VisitI16x8DotI8x16I7x16S(Node* node) {
   X64OperandGenerator g(this);
   Emit(kX64I16x8DotI8x16I7x16S, g.DefineAsRegister(node),
        g.UseUniqueRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  Emit(kX64I32x4DotI8x16I7x16AddS, g.DefineSameAsInput(node, 2),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)),
+       g.UseUniqueRegister(node->InputAt(2)), arraysize(temps), temps);
 }
 
 void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,

@@ -102,6 +102,31 @@ void SharedTurboAssembler::Movlps(XMMRegister dst, XMMRegister src1,
     movlps(dst, src2);
   }
 }
+void SharedTurboAssembler::Blendvpd(XMMRegister dst, XMMRegister src1,
+                                    XMMRegister src2, XMMRegister mask) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vblendvpd(dst, src1, src2, mask);
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    DCHECK_EQ(mask, xmm0);
+    DCHECK_EQ(dst, src1);
+    blendvpd(dst, src2);
+  }
+}
+
+void SharedTurboAssembler::Blendvps(XMMRegister dst, XMMRegister src1,
+                                    XMMRegister src2, XMMRegister mask) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vblendvps(dst, src1, src2, mask);
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    DCHECK_EQ(mask, xmm0);
+    DCHECK_EQ(dst, src1);
+    blendvps(dst, src2);
+  }
+}
 
 void SharedTurboAssembler::Pblendvb(XMMRegister dst, XMMRegister src1,
                                     XMMRegister src2, XMMRegister mask) {
@@ -716,6 +741,30 @@ void SharedTurboAssembler::I16x8DotI8x16I7x16S(XMMRegister dst,
       movdqa(dst, src2);
     }
     pmaddubsw(dst, src1);
+  }
+}
+
+void SharedTurboAssembler::I32x4DotI8x16I7x16AddS(
+    XMMRegister dst, XMMRegister src1, XMMRegister src2, XMMRegister src3,
+    XMMRegister scratch, XMMRegister splat_reg) {
+  ASM_CODE_COMMENT(this);
+  // k = i16x8.splat(1)
+  Pcmpeqd(splat_reg, splat_reg);
+  Psrlw(splat_reg, splat_reg, byte{15});
+
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpmaddubsw(scratch, src2, src1);
+  } else {
+    movdqa(scratch, src2);
+    pmaddubsw(scratch, src1);
+  }
+  Pmaddwd(scratch, splat_reg);
+  if (dst == src3) {
+    Paddd(dst, scratch);
+  } else {
+    Movdqa(dst, src3);
+    Paddd(dst, scratch);
   }
 }
 

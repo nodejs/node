@@ -110,6 +110,15 @@ class SmallVector {
   bool empty() const { return end_ == begin_; }
   size_t capacity() const { return end_of_storage_ - begin_; }
 
+  T& front() {
+    DCHECK_NE(0, size());
+    return begin_[0];
+  }
+  const T& front() const {
+    DCHECK_NE(0, size());
+    return begin_[0];
+  }
+
   T& back() {
     DCHECK_NE(0, size());
     return end_[-1];
@@ -144,6 +153,30 @@ class SmallVector {
   void pop_back(size_t count = 1) {
     DCHECK_GE(size(), count);
     end_ -= count;
+  }
+
+  T* insert(T* pos, const T& value) { return insert(pos, 1, value); }
+  T* insert(T* pos, size_t count, const T& value) {
+    DCHECK_LE(pos, end_);
+    size_t offset = pos - begin_;
+    size_t elements_to_move = end_ - pos;
+    resize_no_init(size() + count);
+    pos = begin_ + offset;
+    std::memmove(pos + count, pos, elements_to_move);
+    std::fill_n(pos, count, value);
+    return pos;
+  }
+  template <typename It>
+  T* insert(T* pos, It begin, It end) {
+    DCHECK_LE(pos, end_);
+    size_t offset = pos - begin_;
+    size_t count = std::distance(begin, end);
+    size_t elements_to_move = end_ - pos;
+    resize_no_init(size() + count);
+    pos = begin_ + offset;
+    std::memmove(pos + count, pos, elements_to_move);
+    std::copy(begin, end, pos);
+    return pos;
   }
 
   void resize_no_init(size_t new_size) {

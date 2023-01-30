@@ -28,42 +28,36 @@
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
-namespace fuzzer {
+namespace v8::internal::wasm::fuzzer {
 
 // Compile a baseline module. We pass a pointer to a max step counter and a
 // nondeterminsm flag that are updated during execution by Liftoff.
-Handle<WasmModuleObject> CompileReferenceModule(Zone* zone, Isolate* isolate,
-                                                ModuleWireBytes wire_bytes,
-                                                ErrorThrower* thrower,
-                                                int32_t* max_steps,
-                                                int32_t* nondeterminism) {
+Handle<WasmModuleObject> CompileReferenceModule(
+    Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
+    int32_t* max_steps, int32_t* nondeterminism) {
   // Create the native module.
   std::shared_ptr<NativeModule> native_module;
   constexpr bool kNoVerifyFunctions = false;
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(isolate);
-  ModuleResult module_res = DecodeWasmModule(
-      enabled_features, wire_bytes.start(), wire_bytes.end(),
-      kNoVerifyFunctions, ModuleOrigin::kWasmOrigin, isolate->counters(),
-      isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
-      DecodingMethod::kSync, GetWasmEngine()->allocator());
+  auto enabled_features = WasmFeatures::FromIsolate(isolate);
+  ModuleResult module_res =
+      DecodeWasmModule(enabled_features, wire_bytes, kNoVerifyFunctions,
+                       ModuleOrigin::kWasmOrigin);
   CHECK(module_res.ok());
   std::shared_ptr<WasmModule> module = module_res.value();
   CHECK_NOT_NULL(module);
   native_module =
       GetWasmEngine()->NewNativeModule(isolate, enabled_features, module, 0);
-  native_module->SetWireBytes(
-      base::OwnedVector<uint8_t>::Of(wire_bytes.module_bytes()));
+  native_module->SetWireBytes(base::OwnedVector<uint8_t>::Of(wire_bytes));
 
   // Compile all functions with Liftoff.
   WasmCodeRefScope code_ref_scope;
   auto env = native_module->CreateCompilationEnv();
+  ModuleWireBytes wire_bytes_accessor{wire_bytes};
   for (size_t i = module->num_imported_functions; i < module->functions.size();
        ++i) {
     auto& func = module->functions[i];
-    base::Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
+    base::Vector<const uint8_t> func_code =
+        wire_bytes_accessor.GetFunctionBytes(&func);
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
                            func_code.end());
     auto result =
@@ -86,27 +80,29 @@ Handle<WasmModuleObject> CompileReferenceModule(Zone* zone, Isolate* isolate,
   return WasmModuleObject::New(isolate, std::move(native_module), script);
 }
 
-void InterpretAndExecuteModule(i::Isolate* isolate,
-                               Handle<WasmModuleObject> module_object,
-                               Handle<WasmModuleObject> module_ref,
-                               int32_t* max_steps, int32_t* nondeterminism) {
+void ExecuteAgainstReference(Isolate* isolate,
+                             Handle<WasmModuleObject> module_object,
+                             int32_t max_executed_instructions) {
   // We do not instantiate the module if there is a start function, because a
   // start function can contain an infinite loop which we cannot handle.
   if (module_object->module()->start_function_index >= 0) return;
 
+  int32_t max_steps = max_executed_instructions;
+  int32_t nondeterminism = 0;
+
   HandleScope handle_scope(isolate);  // Avoid leaking handles.
+  Zone reference_module_zone(isolate->allocator(), "wasm reference module");
+  Handle<WasmModuleObject> module_ref = CompileReferenceModule(
+      isolate, module_object->native_module()->wire_bytes(), &max_steps,
+      &nondeterminism);
   Handle<WasmInstanceObject> instance_ref;
 
-  // Try to instantiate the reference instance, return if it fails. Use
-  // {module_ref} if provided (for "Liftoff as reference"), {module_object}
-  // otherwise (for "interpreter as reference").
+  // Try to instantiate the reference instance, return if it fails.
   {
-    ErrorThrower thrower(isolate, "InterpretAndExecuteModule");
+    ErrorThrower thrower(isolate, "ExecuteAgainstReference");
     if (!GetWasmEngine()
-             ->SyncInstantiate(
-                 isolate, &thrower,
-                 module_ref.is_null() ? module_object : module_ref, {},
-                 {})  // no imports & memory
+             ->SyncInstantiate(isolate, &thrower, module_ref, {},
+                               {})  // no imports & memory
              .ToHandle(&instance_ref)) {
       isolate->clear_pending_exception();
       thrower.Reset();  // Ignore errors.
@@ -124,49 +120,20 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
   base::OwnedVector<Handle<Object>> compiled_args =
       testing::MakeDefaultArguments(isolate, main_function->sig());
   bool exception_ref = false;
-  int32_t result_ref = 0;
-
-  if (module_ref.is_null()) {
-    // Use the interpreter as reference.
-    base::OwnedVector<WasmValue> arguments =
-        testing::MakeDefaultInterpreterArguments(isolate, main_function->sig());
-
-    testing::WasmInterpretationResult interpreter_result =
-        testing::InterpretWasmModule(isolate, instance_ref,
-                                     main_function->function_index(),
-                                     arguments.begin());
-    if (interpreter_result.failed()) return;
-
-    // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
-    // This sign bit can make the difference between an infinite loop and
-    // terminating code. With possible non-determinism we cannot guarantee that
-    // the generated code will not go into an infinite loop and cause a timeout
-    // in Clusterfuzz. Therefore we do not execute the generated code if the
-    // result may be non-deterministic.
-    if (interpreter_result.possible_nondeterminism()) return;
-    if (interpreter_result.finished()) {
-      result_ref = interpreter_result.result();
-    } else {
-      DCHECK(interpreter_result.trapped());
-      exception_ref = true;
-    }
-  } else {
-    // Use Liftoff code as reference.
-    result_ref = testing::CallWasmFunctionForTesting(
-        isolate, instance_ref, "main", static_cast<int>(compiled_args.size()),
-        compiled_args.begin(), &exception_ref);
-    // Reached max steps, do not try to execute the test module as it might
-    // never terminate.
-    if (*max_steps == 0) return;
-    // If there is nondeterminism, we cannot guarantee the behavior of the test
-    // module, and in particular it may not terminate.
-    if (*nondeterminism != 0) return;
-  }
+  int32_t result_ref = testing::CallWasmFunctionForTesting(
+      isolate, instance_ref, "main", static_cast<int>(compiled_args.size()),
+      compiled_args.begin(), &exception_ref);
+  // Reached max steps, do not try to execute the test module as it might
+  // never terminate.
+  if (max_steps == 0) return;
+  // If there is nondeterminism, we cannot guarantee the behavior of the test
+  // module, and in particular it may not terminate.
+  if (nondeterminism != 0) return;
 
   // Instantiate a fresh instance for the actual (non-ref) execution.
   Handle<WasmInstanceObject> instance;
   {
-    ErrorThrower thrower(isolate, "InterpretAndExecuteModule (second)");
+    ErrorThrower thrower(isolate, "ExecuteAgainstReference (second)");
     // We instantiated before, so the second instantiation must also succeed.
     if (!GetWasmEngine()
              ->SyncInstantiate(isolate, &thrower, module_object, {},
@@ -506,12 +473,10 @@ void DecodeAndAppendInitExpr(StdoutStream& os, Zone* zone,
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles) {
   constexpr bool kVerifyFunctions = false;
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(isolate);
-  ModuleResult module_res = DecodeWasmModule(
-      enabled_features, wire_bytes.start(), wire_bytes.end(), kVerifyFunctions,
-      ModuleOrigin::kWasmOrigin, isolate->counters(),
-      isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
-      DecodingMethod::kSync, GetWasmEngine()->allocator());
+  auto enabled_features = WasmFeatures::FromIsolate(isolate);
+  ModuleResult module_res =
+      DecodeWasmModule(enabled_features, wire_bytes.module_bytes(),
+                       kVerifyFunctions, ModuleOrigin::kWasmOrigin);
   CHECK_WITH_MSG(module_res.ok(), module_res.error().message().c_str());
   WasmModule* module = module_res.value().get();
   CHECK_NOT_NULL(module);
@@ -717,18 +682,29 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
 }
 
-void OneTimeEnableStagedWasmFeatures(v8::Isolate* isolate) {
-  struct EnableStagedWasmFeatures {
-    explicit EnableStagedWasmFeatures(v8::Isolate* isolate) {
-#define ENABLE_STAGED_FEATURES(feat, desc, val) \
+void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
+  struct EnableExperimentalWasmFeatures {
+    explicit EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
+      // Enable all staged features.
+#define ENABLE_STAGED_FEATURES(feat, ...) \
   v8_flags.experimental_wasm_##feat = true;
       FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
 #undef ENABLE_STAGED_FEATURES
+
+      // Enable non-staged experimental features that we also want to fuzz.
+      v8_flags.experimental_wasm_gc = true;
+
+      // Enforce implications from enabling features.
+      FlagList::EnforceFlagImplications();
+
+      // Last, install any conditional features. Implications are handled
+      // implicitly.
       isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
     }
   };
   // The compiler will properly synchronize the constructor call.
-  static EnableStagedWasmFeatures one_time_enable_staged_features(isolate);
+  static EnableExperimentalWasmFeatures one_time_enable_experimental_features(
+      isolate);
 }
 
 void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
@@ -741,7 +717,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // respect that limit.
   if (data.size() > max_input_size()) return;
 
-  i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   // Clear any pending exceptions from a prior run.
   i_isolate->clear_pending_exception();
@@ -753,7 +729,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // We explicitly enable staged WebAssembly features here to increase fuzzer
   // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
   // the flag by itself.
-  OneTimeEnableStagedWasmFeatures(isolate);
+  EnableExperimentalWasmFeatures(isolate);
 
   v8::TryCatch try_catch(isolate);
   HandleScope scope(i_isolate);
@@ -782,19 +758,10 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   }
   // Note: After dividing by 3 for 4 times, configuration_byte is within [0, 3].
 
-// Control whether Liftoff or the interpreter will be used as the reference
-// tier.
-// TODO(thibaudm): Port nondeterminism detection to arm.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_X86) || \
-    defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_ARM)
-  bool liftoff_as_reference = configuration_byte & 1;
-#else
-  bool liftoff_as_reference = false;
-#endif
   FlagScope<bool> turbo_mid_tier_regalloc(
       &v8_flags.turbo_force_mid_tier_regalloc, configuration_byte == 0);
 
-  if (!GenerateModule(i_isolate, &zone, data, &buffer, liftoff_as_reference)) {
+  if (!GenerateModule(i_isolate, &zone, data, &buffer)) {
     return;
   }
 
@@ -807,7 +774,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
     GenerateTestCase(i_isolate, wire_bytes, true);
   }
 
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  auto enabled_features = WasmFeatures::FromIsolate(i_isolate);
   MaybeHandle<WasmModuleObject> compiled_module;
   {
     // Explicitly enable Liftoff, disable tiering and set the tier_mask. This
@@ -837,19 +804,8 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
 
   if (!compiles) return;
 
-  int32_t max_steps = 16 * 1024;
-  int32_t nondeterminism = false;
-  Handle<WasmModuleObject> module_ref;
-  if (liftoff_as_reference) {
-    module_ref = CompileReferenceModule(&zone, i_isolate, wire_bytes,
-                                        &interpreter_thrower, &max_steps,
-                                        &nondeterminism);
-  }
-  InterpretAndExecuteModule(i_isolate, compiled_module.ToHandleChecked(),
-                            module_ref, &max_steps, &nondeterminism);
+  ExecuteAgainstReference(i_isolate, compiled_module.ToHandleChecked(),
+                          kDefaultMaxFuzzerExecutedInstructions);
 }
 
-}  // namespace fuzzer
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm::fuzzer

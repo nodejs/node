@@ -108,28 +108,6 @@ AlignedCachedData* CodeSerializer::SerializeSharedFunctionInfo(
   return data.GetScriptData();
 }
 
-bool CodeSerializer::SerializeReadOnlyObject(
-    HeapObject obj, const DisallowGarbageCollection& no_gc) {
-  if (!ReadOnlyHeap::Contains(obj)) return false;
-
-  // For objects on the read-only heap, never serialize the object, but instead
-  // create a back reference that encodes the page number as the chunk_index and
-  // the offset within the page as the chunk_offset.
-  Address address = obj.address();
-  BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(address);
-  uint32_t chunk_index = 0;
-  ReadOnlySpace* const read_only_space = isolate()->heap()->read_only_space();
-  for (ReadOnlyPage* page : read_only_space->pages()) {
-    if (chunk == page) break;
-    ++chunk_index;
-  }
-  uint32_t chunk_offset = static_cast<uint32_t>(chunk->Offset(address));
-  sink_.Put(kReadOnlyHeapRef, "ReadOnlyHeapRef");
-  sink_.PutInt(chunk_index, "ReadOnlyHeapRefChunkIndex");
-  sink_.PutInt(chunk_offset, "ReadOnlyHeapRefChunkOffset");
-  return true;
-}
-
 void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   ReadOnlyRoots roots(isolate());
   InstanceType instance_type;
@@ -139,7 +117,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     if (SerializeHotObject(raw)) return;
     if (SerializeRoot(raw)) return;
     if (SerializeBackReference(raw)) return;
-    if (SerializeReadOnlyObject(raw, no_gc)) return;
+    if (SerializeReadOnlyObjectReference(raw, &sink_)) return;
 
     instance_type = raw.map().instance_type();
     CHECK(!InstanceTypeChecker::IsCode(instance_type));
@@ -429,7 +407,8 @@ void BaselineBatchCompileIfSparkplugCompiled(Isolate* isolate, Script script) {
 
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
-    ScriptOriginOptions origin_options) {
+    ScriptOriginOptions origin_options,
+    MaybeHandle<Script> maybe_cached_script) {
   if (v8_flags.stress_background_compile) {
     StressOffThreadDeserializeThread thread(isolate, cached_data);
     CHECK(thread.Start());
@@ -468,6 +447,22 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     if (v8_flags.profile_deserialization) PrintF("[Deserializing failed]\n");
     return MaybeHandle<SharedFunctionInfo>();
   }
+
+  // Check whether the newly deserialized data should be merged into an
+  // existing Script from the Isolate compilation cache. If so, perform
+  // the merge in a single-threaded manner since this deserialization was
+  // single-threaded.
+  if (Handle<Script> cached_script;
+      maybe_cached_script.ToHandle(&cached_script)) {
+    BackgroundMergeTask merge;
+    merge.SetUpOnMainThread(isolate, cached_script);
+    CHECK(merge.HasPendingBackgroundWork());
+    Handle<Script> new_script = handle(Script::cast(result->script()), isolate);
+    merge.BeginMergeInBackground(isolate->AsLocalIsolate(), new_script);
+    CHECK(merge.HasPendingForegroundWork());
+    result = merge.CompleteMergeInForeground(isolate, new_script);
+  }
+
   BaselineBatchCompileIfSparkplugCompiled(isolate,
                                           Script::cast(result->script()));
   if (v8_flags.profile_deserialization) {

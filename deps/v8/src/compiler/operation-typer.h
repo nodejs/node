@@ -54,6 +54,8 @@ class V8_EXPORT_PRIVATE OperationTyper {
   Type ToPrimitive(Type type);
   Type ToNumber(Type type);
   Type ToNumberConvertBigInt(Type type);
+  Type ToBigInt(Type type);
+  Type ToBigIntConvertNumber(Type type);
   Type ToNumeric(Type type);
   Type ToBoolean(Type type);
 

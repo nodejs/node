@@ -114,11 +114,10 @@ class LiftoffAssembler : public TurboAssembler {
   // Each slot in our stack frame currently has exactly 8 bytes.
   static constexpr int kStackSlotSize = 8;
 
-  static constexpr ValueKind kPointerKind =
+  static constexpr ValueKind kIntPtrKind =
       kSystemPointerSize == kInt32Size ? kI32 : kI64;
-  static constexpr ValueKind kTaggedKind =
-      kTaggedSize == kInt32Size ? kI32 : kI64;
-  static constexpr ValueKind kSmiKind = kTaggedKind;
+  // A tagged value known to be a Smi can be treated like a ptr-sized int.
+  static constexpr ValueKind kSmiKind = kTaggedSize == kInt32Size ? kI32 : kI64;
 
   using ValueKindSig = Signature<ValueKind>;
 
@@ -771,8 +770,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void LoadTaggedPointerFromInstance(Register dst, Register instance,
                                             int offset);
   inline void LoadExternalPointer(Register dst, Register instance, int offset,
-                                  ExternalPointerTag tag,
-                                  Register isolate_root);
+                                  ExternalPointerTag tag, Register scratch);
   inline void SpillInstance(Register instance);
   inline void ResetOSRTarget();
   inline void LoadTaggedPointer(Register dst, Register src_addr,
@@ -1852,7 +1850,7 @@ class LiftoffStackSlots {
 };
 
 #if DEBUG
-bool CheckCompatibleStackSlotTypes(ValueKind a, ValueKind b);
+bool CompatibleStackSlotTypes(ValueKind a, ValueKind b);
 #endif
 
 }  // namespace wasm

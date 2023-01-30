@@ -46,11 +46,11 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 // Decode and compile the given module with no imports.
 MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
                                                 ErrorThrower* thrower,
-                                                const ModuleWireBytes& bytes);
+                                                ModuleWireBytes bytes);
 
 // Decode, compile, and instantiate the given module with no imports.
 MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes);
+    Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes);
 
 class WasmInterpretationResult {
  public:

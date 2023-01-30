@@ -196,7 +196,6 @@ Handle<JSFunction> FunctionTester::Optimize(
       compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)
           .ToHandleChecked(),
       isolate);
-  info.native_context().AddOptimizedCode(*code);
   function->set_code(*code, v8::kReleaseStore);
   return function;
 }

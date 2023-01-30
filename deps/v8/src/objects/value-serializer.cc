@@ -157,6 +157,8 @@ enum class SerializationTag : uint8_t {
   kEndJSSet = ',',
   // Array buffer. byteLength:uint32_t, then raw data.
   kArrayBuffer = 'B',
+  // Resizable ArrayBuffer.
+  kResizableArrayBuffer = '~',
   // Array buffer (transferred). transferID:uint32_t
   kArrayBufferTransfer = 't',
   // View into an array buffer.
@@ -933,14 +935,25 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
     return ThrowDataCloneError(
         MessageTemplate::kDataCloneErrorDetachedArrayBuffer);
   }
-  double byte_length = array_buffer->byte_length();
+  size_t byte_length = array_buffer->byte_length();
   if (byte_length > std::numeric_limits<uint32_t>::max()) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, array_buffer);
   }
-  // TODO(v8:11111): Support RAB / GSAB. The wire version will need to be
-  // bumped.
+  if (array_buffer->is_resizable_by_js()) {
+    size_t max_byte_length = array_buffer->max_byte_length();
+    if (max_byte_length > std::numeric_limits<uint32_t>::max()) {
+      return ThrowDataCloneError(MessageTemplate::kDataCloneError,
+                                 array_buffer);
+    }
+
+    WriteTag(SerializationTag::kResizableArrayBuffer);
+    WriteVarint<uint32_t>(static_cast<uint32_t>(byte_length));
+    WriteVarint<uint32_t>(static_cast<uint32_t>(max_byte_length));
+    WriteRawBytes(array_buffer->backing_store(), byte_length);
+    return ThrowIfOutOfMemory();
+  }
   WriteTag(SerializationTag::kArrayBuffer);
-  WriteVarint<uint32_t>(byte_length);
+  WriteVarint<uint32_t>(static_cast<uint32_t>(byte_length));
   WriteRawBytes(array_buffer->backing_store(), byte_length);
   return ThrowIfOutOfMemory();
 }
@@ -952,6 +965,11 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView view) {
   WriteTag(SerializationTag::kArrayBufferView);
   ArrayBufferViewTag tag = ArrayBufferViewTag::kInt8Array;
   if (view.IsJSTypedArray()) {
+    if (JSTypedArray::cast(view).IsOutOfBounds()) {
+      DCHECK(v8_flags.harmony_rab_gsab);
+      return ThrowDataCloneError(MessageTemplate::kDataCloneError,
+                                 handle(view, isolate_));
+    }
     switch (JSTypedArray::cast(view).type()) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
   case kExternal##Type##Array:                    \
@@ -962,6 +980,12 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView view) {
     }
   } else {
     DCHECK(view.IsJSDataView());
+    if (JSDataView::cast(view).IsOutOfBounds()) {
+      DCHECK(v8_flags.harmony_rab_gsab);
+      return ThrowDataCloneError(MessageTemplate::kDataCloneError,
+                                 handle(view, isolate_));
+    }
+
     tag = ArrayBufferViewTag::kDataView;
   }
   WriteVarint(static_cast<uint8_t>(tag));
@@ -1277,9 +1301,8 @@ Maybe<T> ValueDeserializer::ReadVarint() {
   // same end state and result.
   auto previous_position = position_;
   Maybe<T> maybe_expected_value = ReadVarintLoop<T>();
-  if (v8_flags.fuzzing && maybe_expected_value.IsNothing()) {
-    return maybe_expected_value;
-  }
+  // ReadVarintLoop can't return Nothing here; all such conditions have been
+  // checked above.
   T expected_value = maybe_expected_value.ToChecked();
   auto expected_position = position_;
   position_ = previous_position;
@@ -1331,12 +1354,11 @@ Maybe<T> ValueDeserializer::ReadVarintLoop() {
       value |= static_cast<T>(byte & 0x7F) << shift;
       shift += 7;
     } else {
-      // We allow arbitrary data to be deserialized when fuzzing.
-      // Since {value} is not modified in this branch we can safely skip the
-      // DCHECK when fuzzing.
-      DCHECK_IMPLIES(!v8_flags.fuzzing, !has_another_byte);
       // For consistency with the fast unrolled loop in ReadVarint we return
       // after we have read size(T) + 1 bytes.
+#ifdef V8_VALUE_DESERIALIZER_HARD_FAIL
+      CHECK(!has_another_byte);
+#endif  // V8_VALUE_DESERIALIZER_HARD_FAIL
       return Just(value);
     }
     position_++;
@@ -1549,15 +1571,22 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
     case SerializationTag::kBeginJSSet:
       return ReadJSSet();
     case SerializationTag::kArrayBuffer: {
-      const bool is_shared = false;
-      return ReadJSArrayBuffer(is_shared);
+      constexpr bool is_shared = false;
+      constexpr bool is_resizable = false;
+      return ReadJSArrayBuffer(is_shared, is_resizable);
+    }
+    case SerializationTag::kResizableArrayBuffer: {
+      constexpr bool is_shared = false;
+      constexpr bool is_resizable = true;
+      return ReadJSArrayBuffer(is_shared, is_resizable);
     }
     case SerializationTag::kArrayBufferTransfer: {
       return ReadTransferredJSArrayBuffer();
     }
     case SerializationTag::kSharedArrayBuffer: {
-      const bool is_shared = true;
-      return ReadJSArrayBuffer(is_shared);
+      constexpr bool is_shared = true;
+      constexpr bool is_resizable = false;
+      return ReadJSArrayBuffer(is_shared, is_resizable);
     }
     case SerializationTag::kError:
       return ReadJSError();
@@ -1666,9 +1695,10 @@ bool ValueDeserializer::ReadExpectedString(Handle<String> expected) {
     return {};
   }
   // Length is also checked in ReadRawBytes.
-  DCHECK_IMPLIES(!v8_flags.fuzzing,
-                 byte_length <= static_cast<uint32_t>(
-                                    std::numeric_limits<int32_t>::max()));
+#ifdef V8_VALUE_DESERIALIZER_HARD_FAIL
+  CHECK_LE(byte_length,
+           static_cast<uint32_t>(std::numeric_limits<int32_t>::max()));
+#endif  // V8_VALUE_DESERIALIZER_HARD_FAIL
   if (!ReadRawBytes(byte_length).To(&bytes)) {
     position_ = original_position;
     return false;
@@ -1982,7 +2012,7 @@ MaybeHandle<JSSet> ValueDeserializer::ReadJSSet() {
 }
 
 MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
-    bool is_shared) {
+    bool is_shared, bool is_resizable) {
   uint32_t id = next_id_++;
   if (is_shared) {
     uint32_t clone_id;
@@ -2001,13 +2031,34 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
     return array_buffer;
   }
   uint32_t byte_length;
-  if (!ReadVarint<uint32_t>().To(&byte_length) ||
-      byte_length > static_cast<size_t>(end_ - position_)) {
+  if (!ReadVarint<uint32_t>().To(&byte_length)) {
+    return MaybeHandle<JSArrayBuffer>();
+  }
+  uint32_t max_byte_length = byte_length;
+  if (is_resizable) {
+    if (!ReadVarint<uint32_t>().To(&max_byte_length)) {
+      return MaybeHandle<JSArrayBuffer>();
+    }
+    if (byte_length > max_byte_length) {
+      return MaybeHandle<JSArrayBuffer>();
+    }
+    if (!v8_flags.harmony_rab_gsab) {
+      // Disable resizability. This ensures that no resizable buffers are
+      // created in a version which has the harmony_rab_gsab turned off, even if
+      // such a version is reading data containing resizable buffers from disk.
+      is_resizable = false;
+      max_byte_length = byte_length;
+    }
+  }
+  if (byte_length > static_cast<size_t>(end_ - position_)) {
     return MaybeHandle<JSArrayBuffer>();
   }
   MaybeHandle<JSArrayBuffer> result =
       isolate_->factory()->NewJSArrayBufferAndBackingStore(
-          byte_length, InitializedFlag::kUninitialized);
+          byte_length, max_byte_length, InitializedFlag::kUninitialized,
+          is_resizable ? ResizableFlag::kResizable
+                       : ResizableFlag::kNotResizable);
+
   Handle<JSArrayBuffer> array_buffer;
   if (!result.ToHandle(&array_buffer)) return result;
 
@@ -2061,12 +2112,17 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
 
   switch (static_cast<ArrayBufferViewTag>(tag)) {
     case ArrayBufferViewTag::kDataView: {
-      Handle<JSDataView> data_view =
-          isolate_->factory()->NewJSDataView(buffer, byte_offset, byte_length);
-      AddObjectWithID(id, data_view);
-      if (!ValidateAndSetJSArrayBufferViewFlags(*data_view, *buffer, flags)) {
+      bool is_length_tracking = false;
+      bool is_backed_by_rab = false;
+      if (!ValidateJSArrayBufferViewFlags(*buffer, flags, is_length_tracking,
+                                          is_backed_by_rab)) {
         return MaybeHandle<JSArrayBufferView>();
       }
+      Handle<JSDataView> data_view = isolate_->factory()->NewJSDataView(
+          buffer, byte_offset, byte_length, is_length_tracking);
+      CHECK_EQ(is_backed_by_rab, data_view->is_backed_by_rab());
+      CHECK_EQ(is_length_tracking, data_view->is_length_tracking());
+      AddObjectWithID(id, data_view);
       return data_view;
     }
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
@@ -2081,29 +2137,42 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
       byte_length % element_size != 0) {
     return MaybeHandle<JSArrayBufferView>();
   }
-  Handle<JSTypedArray> typed_array = isolate_->factory()->NewJSTypedArray(
-      external_array_type, buffer, byte_offset, byte_length / element_size);
-  if (!ValidateAndSetJSArrayBufferViewFlags(*typed_array, *buffer, flags)) {
+  bool is_length_tracking = false;
+  bool is_backed_by_rab = false;
+  if (!ValidateJSArrayBufferViewFlags(*buffer, flags, is_length_tracking,
+                                      is_backed_by_rab)) {
     return MaybeHandle<JSArrayBufferView>();
   }
+  Handle<JSTypedArray> typed_array = isolate_->factory()->NewJSTypedArray(
+      external_array_type, buffer, byte_offset, byte_length / element_size,
+      is_length_tracking);
+  CHECK_EQ(is_length_tracking, typed_array->is_length_tracking());
+  CHECK_EQ(is_backed_by_rab, typed_array->is_backed_by_rab());
   AddObjectWithID(id, typed_array);
   return typed_array;
 }
 
-bool ValueDeserializer::ValidateAndSetJSArrayBufferViewFlags(
-    JSArrayBufferView view, JSArrayBuffer buffer, uint32_t serialized_flags) {
-  bool is_length_tracking =
+bool ValueDeserializer::ValidateJSArrayBufferViewFlags(
+    JSArrayBuffer buffer, uint32_t serialized_flags, bool& is_length_tracking,
+    bool& is_backed_by_rab) {
+  is_length_tracking =
       JSArrayBufferViewIsLengthTracking::decode(serialized_flags);
-  bool is_backed_by_rab =
-      JSArrayBufferViewIsBackedByRab::decode(serialized_flags);
+  is_backed_by_rab = JSArrayBufferViewIsBackedByRab::decode(serialized_flags);
 
   // TODO(marja): When the version number is bumped the next time, check that
   // serialized_flags doesn't contain spurious 1-bits.
 
+  if (!v8_flags.harmony_rab_gsab) {
+    // Disable resizability. This ensures that no resizable buffers are
+    // created in a version which has the harmony_rab_gsab turned off, even if
+    // such a version is reading data containing resizable buffers from disk.
+    is_length_tracking = false;
+    is_backed_by_rab = false;
+    // The resizability of the buffer was already disabled.
+    CHECK(!buffer.is_resizable_by_js());
+  }
+
   if (is_backed_by_rab || is_length_tracking) {
-    if (!v8_flags.harmony_rab_gsab) {
-      return false;
-    }
     if (!buffer.is_resizable_by_js()) {
       return false;
     }
@@ -2111,8 +2180,11 @@ bool ValueDeserializer::ValidateAndSetJSArrayBufferViewFlags(
       return false;
     }
   }
-  view.set_is_length_tracking(is_length_tracking);
-  view.set_is_backed_by_rab(is_backed_by_rab);
+  // The RAB-ness of the buffer and the TA's "is_backed_by_rab" need to be in
+  // sync.
+  if (buffer.is_resizable_by_js() && !buffer.is_shared() && !is_backed_by_rab) {
+    return false;
+  }
   return true;
 }
 
@@ -2233,9 +2305,10 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
     return MaybeHandle<WasmMemoryObject>();
   }
 
-  const bool is_shared = true;
+  constexpr bool is_shared = true;
+  constexpr bool is_resizable = false;
   Handle<JSArrayBuffer> buffer;
-  if (!ReadJSArrayBuffer(is_shared).ToHandle(&buffer)) {
+  if (!ReadJSArrayBuffer(is_shared, is_resizable).ToHandle(&buffer)) {
     return MaybeHandle<WasmMemoryObject>();
   }
 

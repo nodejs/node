@@ -183,11 +183,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
     stack_state_of_prev_gc_ = stack_state;
   }
 
-  uintptr_t stack_end_of_current_gc() const { return stack_end_of_current_gc_; }
-  void SetStackEndOfCurrentGC(uintptr_t stack_end) {
-    stack_end_of_current_gc_ = stack_end;
-  }
-
   void SetInAtomicPauseForTesting(bool value) { in_atomic_pause_ = value; }
 
   virtual void StartIncrementalGarbageCollectionForTesting() = 0;
@@ -288,10 +283,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   EmbedderStackState stack_state_of_prev_gc_ =
       EmbedderStackState::kNoHeapPointers;
   std::unique_ptr<EmbedderStackState> override_stack_state_;
-
-  // Marker that signals end of the interesting stack region in which on-heap
-  // pointers can be found.
-  uintptr_t stack_end_of_current_gc_ = 0;
 
   bool in_atomic_pause_ = false;
 

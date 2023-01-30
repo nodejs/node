@@ -22,6 +22,18 @@ class JSSharedArray
   DECL_PRINTER(JSSharedArray)
   EXPORT_DECL_VERIFIER(JSSharedArray)
 
+  // In-object fields.
+  enum {
+    // The length field is constant and is equal to elements().length().
+    //
+    // TODO(v8:12547): We can save the space for this field by making it
+    // possible to put AccessorInfo in shared or RO space.
+    kLengthFieldIndex = 0,
+    kInObjectFieldCount,
+  };
+  static constexpr int kSize =
+      kHeaderSize + (kTaggedSize * kInObjectFieldCount);
+
   class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(JSSharedArray)

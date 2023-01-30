@@ -561,6 +561,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void SmiTag(Register smi);
 
   inline void SmiToInt32(Register smi);
+  inline void SmiToInt32(Register dst, Register smi);
 
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
@@ -576,6 +577,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Like Assert(), but always enabled.
   void Check(Condition cond, AbortReason reason);
+
+  // Functions performing a check on a known or potential smi. Returns
+  // a condition that is satisfied if the check is successful.
+  Condition CheckSmi(Register src);
 
   inline void Debug(const char* message, uint32_t code, Instr params = BREAK);
 
@@ -1003,6 +1008,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
 
+  void BailoutIfDeoptimized();
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
@@ -1796,6 +1802,37 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     PopSizeRegList(regs, kSRegSizeInBits);
   }
 
+  inline void PushAll(RegList registers) {
+    if (registers.Count() % 2 != 0) {
+      DCHECK(!registers.has(xzr));
+      registers.set(xzr);
+    }
+    PushXRegList(registers);
+  }
+  inline void PopAll(RegList registers) {
+    if (registers.Count() % 2 != 0) {
+      DCHECK(!registers.has(xzr));
+      registers.set(xzr);
+    }
+    PopXRegList(registers);
+  }
+  inline void PushAll(DoubleRegList registers,
+                      int stack_slot_size = kDoubleSize) {
+    if (registers.Count() % 2 != 0) {
+      DCHECK(!registers.has(fp_zero));
+      registers.set(fp_zero);
+    }
+    PushDRegList(registers);
+  }
+  inline void PopAll(DoubleRegList registers,
+                     int stack_slot_size = kDoubleSize) {
+    if (registers.Count() % 2 != 0) {
+      DCHECK(!registers.has(fp_zero));
+      registers.set(fp_zero);
+    }
+    PopDRegList(registers);
+  }
+
   // Push the specified register 'count' times.
   void PushMultipleTimes(CPURegister src, Register count);
 
@@ -1963,6 +2000,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // other registers.
   void CompareObjectType(Register heap_object, Register map, Register type_reg,
                          InstanceType type);
+  // A version of CompareObjectType which does not set the {type_reg} and has
+  // the same signatureas the x64 version of CmpObjectType.
+  void CmpObjectType(Register heap_object, InstanceType type, Register map) {
+    CompareObjectType(heap_object, map, xzr, type);
+  }
 
   // Compare object type for heap object, and branch if equal (or not.)
   // heap_object contains a non-Smi whose object type should be compared with

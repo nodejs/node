@@ -23,7 +23,7 @@ namespace {
 void TestStubCacheOffsetCalculation(StubCache::Table table) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;
-  CodeAssemblerTester data(isolate, kNumParams + 1);  // Include receiver.
+  CodeAssemblerTester data(isolate, JSParameterCount(kNumParams));
   AccessorAssembler m(data.state());
 
   {
@@ -119,7 +119,7 @@ TEST(TryProbeStubCache) {
   using Label = CodeStubAssembler::Label;
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 3;
-  CodeAssemblerTester data(isolate, kNumParams + 1);  // Include receiver.
+  CodeAssemblerTester data(isolate, JSParameterCount(kNumParams));
   AccessorAssembler m(data.state());
 
   StubCache stub_cache(isolate);

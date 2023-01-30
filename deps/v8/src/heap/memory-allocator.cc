@@ -345,26 +345,28 @@ size_t MemoryAllocator::ComputeChunkSize(size_t area_size,
 }
 
 base::Optional<MemoryAllocator::MemoryChunkAllocationResult>
-MemoryAllocator::AllocateUninitializedChunk(BaseSpace* space, size_t area_size,
-                                            Executability executable,
-                                            PageSize page_size) {
-#ifdef V8_COMPRESS_POINTERS
+MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
+                                              size_t area_size,
+                                              Executability executable,
+                                              Address hint,
+                                              PageSize page_size) {
+#ifndef V8_COMPRESS_POINTERS
   // When pointer compression is enabled, spaces are expected to be at a
   // predictable address (see mkgrokdump) so we don't supply a hint and rely on
   // the deterministic behaviour of the BoundedPageAllocator.
-  void* address_hint = nullptr;
-#else
-  void* address_hint = AlignedAddress(isolate_->heap()->GetRandomMmapAddr(),
-                                      MemoryChunk::kAlignment);
+  if (hint == kNullAddress) {
+    hint = reinterpret_cast<Address>(AlignedAddress(
+        isolate_->heap()->GetRandomMmapAddr(), MemoryChunk::kAlignment));
+  }
 #endif
 
   VirtualMemory reservation;
   size_t chunk_size = ComputeChunkSize(area_size, executable);
   DCHECK_EQ(chunk_size % GetCommitPageSize(), 0);
 
-  Address base =
-      AllocateAlignedMemory(chunk_size, area_size, MemoryChunk::kAlignment,
-                            executable, address_hint, &reservation);
+  Address base = AllocateAlignedMemory(
+      chunk_size, area_size, MemoryChunk::kAlignment, executable,
+      reinterpret_cast<void*>(hint), &reservation);
   if (base == kNullAddress) return {};
 
   size_ += reservation.size();
@@ -423,8 +425,8 @@ void MemoryAllocator::PartialFreeMemory(BasicMemoryChunk* chunk,
       DCHECK(isolate_->RequiresCodeRange());
       reservation->DiscardSystemPages(chunk->area_end(), page_size);
     } else {
-      reservation->SetPermissions(chunk->area_end(), page_size,
-                                  PageAllocator::kNoAccess);
+      CHECK(reservation->SetPermissions(chunk->area_end(), page_size,
+                                        PageAllocator::kNoAccess));
     }
   }
   // On e.g. Windows, a reservation may be larger than a page and releasing
@@ -472,6 +474,17 @@ void MemoryAllocator::UnregisterMemoryChunk(MemoryChunk* chunk) {
 void MemoryAllocator::UnregisterReadOnlyPage(ReadOnlyPage* page) {
   DCHECK(!page->executable());
   UnregisterBasicMemoryChunk(page, NOT_EXECUTABLE);
+}
+
+void MemoryAllocator::TakeOverLargePage(LargePage* page,
+                                        MemoryAllocator* current_owner) {
+  DCHECK_EQ(page->executable(), NOT_EXECUTABLE);
+  if (this == current_owner) return;
+  current_owner->size_ -= page->size();
+  current_owner->RecordLargePageDestroyed(*page);
+
+  size_ += page->size();
+  RecordLargePageCreated(*page);
 }
 
 void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPage* chunk) {
@@ -587,12 +600,13 @@ Page* MemoryAllocator::AllocatePage(MemoryAllocator::AllocationMode alloc_mode,
   return page;
 }
 
-ReadOnlyPage* MemoryAllocator::AllocateReadOnlyPage(ReadOnlySpace* space) {
+ReadOnlyPage* MemoryAllocator::AllocateReadOnlyPage(ReadOnlySpace* space,
+                                                    Address hint) {
   DCHECK_EQ(space->identity(), RO_SPACE);
   size_t size = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE);
   base::Optional<MemoryChunkAllocationResult> chunk_info =
-      AllocateUninitializedChunk(space, size, NOT_EXECUTABLE,
-                                 PageSize::kRegular);
+      AllocateUninitializedChunkAt(space, size, NOT_EXECUTABLE, hint,
+                                   PageSize::kRegular);
   if (!chunk_info) return nullptr;
   return new (chunk_info->start) ReadOnlyPage(
       isolate_->heap(), space, chunk_info->size, chunk_info->area_start,
@@ -760,10 +774,12 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
             return true;
           }
 
-          vm->SetPermissions(code_area, area_size, PageAllocator::kNoAccess);
+          CHECK(vm->SetPermissions(code_area, area_size,
+                                   PageAllocator::kNoAccess));
         }
       }
-      vm->SetPermissions(start, pre_guard_offset, PageAllocator::kNoAccess);
+      CHECK(vm->SetPermissions(start, pre_guard_offset,
+                               PageAllocator::kNoAccess));
     }
   }
   return false;

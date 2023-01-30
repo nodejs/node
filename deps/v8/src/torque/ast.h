@@ -724,13 +724,10 @@ struct ReturnStatement : Statement {
 
 struct DebugStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(DebugStatement)
-  DebugStatement(SourcePosition pos, const std::string& reason,
-                 bool never_continues)
-      : Statement(kKind, pos),
-        reason(reason),
-        never_continues(never_continues) {}
-  std::string reason;
-  bool never_continues;
+  enum class Kind { kUnreachable, kDebug };
+  DebugStatement(SourcePosition pos, Kind kind)
+      : Statement(kKind, pos), kind(kind) {}
+  Kind kind;
 };
 
 struct AssertStatement : Statement {
@@ -1083,10 +1080,13 @@ struct TorqueBuiltinDeclaration : BuiltinDeclaration {
                            bool javascript_linkage, Identifier* name,
                            ParameterList parameters,
                            TypeExpression* return_type,
+                           bool has_custom_interface_descriptor,
                            base::Optional<Statement*> body)
       : BuiltinDeclaration(kKind, pos, javascript_linkage, transitioning, name,
                            std::move(parameters), return_type),
+        has_custom_interface_descriptor(has_custom_interface_descriptor),
         body(body) {}
+  bool has_custom_interface_descriptor;
   base::Optional<Statement*> body;
 };
 

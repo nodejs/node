@@ -110,6 +110,10 @@ class BasicMemoryChunk {
 
     // A Page with code objects.
     IS_EXECUTABLE = 1u << 21,
+
+    // Page will be promoted directly from the new space to the shared heap in a
+    // minor GC.
+    SHARED_HEAP_PROMOTION = 1u << 22,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;
@@ -136,6 +140,8 @@ class BasicMemoryChunk {
   static constexpr MainThreadFlags kIsLargePageMask = LARGE_PAGE;
 
   static constexpr MainThreadFlags kInSharedHeap = IN_SHARED_HEAP;
+
+  static constexpr MainThreadFlags kIncrementalMarking = INCREMENTAL_MARKING;
 
   static constexpr MainThreadFlags kSkipEvacuationSlotsRecordingMask =
       MainThreadFlags(kEvacuationCandidateMask) |
@@ -184,6 +190,11 @@ class BasicMemoryChunk {
   Heap* heap() const {
     DCHECK_NOT_NULL(heap_);
     return heap_;
+  }
+
+  void set_heap(Heap* heap) {
+    DCHECK_NOT_NULL(heap);
+    heap_ = heap;
   }
 
   // Gets the chunk's owner or null if the space has been detached.
@@ -242,6 +253,7 @@ class BasicMemoryChunk {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }
 
+  bool IsMarking() const { return IsFlagSet(INCREMENTAL_MARKING); }
   bool IsFromPage() const { return IsFlagSet(FROM_PAGE); }
   bool IsToPage() const { return IsFlagSet(TO_PAGE); }
   bool IsLargePage() const { return IsFlagSet(LARGE_PAGE); }
@@ -347,6 +359,10 @@ class BasicMemoryChunk {
   // release store.
   void SynchronizedHeapLoad() const;
 #endif
+
+  // Computes position of object in marking bitmap. Useful for debugging.
+  V8_ALLOW_UNUSED static MarkBit ComputeMarkBit(HeapObject object);
+  V8_ALLOW_UNUSED static MarkBit ComputeMarkBit(Address address);
 
  protected:
   // Overall size of the chunk, including the header and guards.

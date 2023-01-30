@@ -608,14 +608,8 @@ void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
 void BaselineAssembler::StaContextSlot(Register context, Register value,
                                        uint32_t index, uint32_t depth) {
   ASM_CODE_COMMENT(masm_);
-  if (depth > 0) {
-    for (; depth > 0; --depth) {
-      LoadTaggedPointerField(context, context, Context::kPreviousOffset);
-    }
-    if (COMPRESS_POINTERS_BOOL) {
-      // Decompress tagged pointer.
-      __ AddS64(context, context, kPtrComprCageBaseRegister);
-    }
+  for (; depth > 0; --depth) {
+    LoadTaggedPointerField(context, context, Context::kPreviousOffset);
   }
   StoreTaggedFieldWithWriteBarrier(context, Context::OffsetOfElementAt(index),
                                    value);

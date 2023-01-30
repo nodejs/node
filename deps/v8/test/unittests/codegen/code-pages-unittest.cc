@@ -268,6 +268,8 @@ TEST_F(CodePagesTest, LargeCodeObject) {
   // We don't want incremental marking to start which could cause the code to
   // not be collected on the CollectGarbage() call.
   ManualGCScope manual_gc_scope(i_isolate());
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate()->heap());
 
   if (!i_isolate()->RequiresCodeRange() && !kHaveCodePages) return;
 
@@ -383,6 +385,8 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
   // We don't want incremental marking to start which could cause the code to
   // not be collected on the CollectGarbage() call.
   ManualGCScope manual_gc_scope(i_isolate());
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate()->heap());
 
   if (!i_isolate()->RequiresCodeRange() && !kHaveCodePages) return;
 
@@ -459,6 +463,8 @@ TEST_F(CodePagesTest, Sorted) {
   // We don't want incremental marking to start which could cause the code to
   // not be collected on the CollectGarbage() call.
   ManualGCScope manual_gc_scope(i_isolate());
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate()->heap());
 
   if (!i_isolate()->RequiresCodeRange() && !kHaveCodePages) return;
 

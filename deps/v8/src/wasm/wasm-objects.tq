@@ -71,6 +71,7 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   @if(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: CodeDataContainer;
   @ifnot(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: Code;
   packed_args_size: Smi;
+  canonical_type_index: Smi;
   sig: ExternalPointer;  // wasm::FunctionSig*
 }
 

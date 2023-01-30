@@ -28,6 +28,8 @@ class ByteArray;
 class BytecodeArray;
 class CodeDataContainer;
 class CodeDesc;
+class ObjectIterator;
+class IsolateSafepointScope;
 
 class LocalFactory;
 template <typename Impl>
@@ -47,7 +49,6 @@ class Register;
 class CodeDataContainer : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_ACCESSORS(next_code_link, Object)
   DECL_RELAXED_INT32_ACCESSORS(kind_specific_flags)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
@@ -241,9 +242,6 @@ class CodeDataContainer : public HeapObject {
 #define CODE_DATA_FIELDS(V)                                         \
   /* Strong pointer fields. */                                      \
   V(kPointerFieldsStrongEndOffset, 0)                               \
-  /* Weak pointer fields. */                                        \
-  V(kNextCodeLinkOffset, kTaggedSize)                               \
-  V(kPointerFieldsWeakEndOffset, 0)                                 \
   /* Strong Code pointer fields. */                                 \
   V(kCodeOffset, V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0)     \
   V(kCodePointerFieldsStrongEndOffset, 0)                           \
@@ -261,8 +259,9 @@ class CodeDataContainer : public HeapObject {
 #undef CODE_DATA_FIELDS
 
 #ifdef V8_EXTERNAL_CODE_SPACE
+  template <typename T>
   using ExternalCodeField =
-      TaggedField<Object, kCodeOffset, ExternalCodeCompressionScheme>;
+      TaggedField<T, kCodeOffset, ExternalCodeCompressionScheme>;
 #endif
 
   class BodyDescriptor;
@@ -491,11 +490,6 @@ class Code : public HeapObject {
 
   // [code_data_container]: A container indirection for all mutable fields.
   DECL_RELEASE_ACQUIRE_ACCESSORS(code_data_container, CodeDataContainer)
-
-  // [next_code_link]: Link for lists of optimized or deoptimized code.
-  // Note that this field is stored in the {CodeDataContainer} to be mutable.
-  inline Object next_code_link() const;
-  inline void set_next_code_link(Object value);
 
   // Unchecked accessors to be used during GC.
   inline ByteArray unchecked_relocation_info() const;
@@ -998,9 +992,10 @@ class Code::OptimizedCodeIterator {
   Code Next();
 
  private:
-  NativeContext next_context_;
-  Code current_code_;
   Isolate* isolate_;
+  std::unique_ptr<IsolateSafepointScope> safepoint_scope_;
+  std::unique_ptr<ObjectIterator> object_iterator_;
+  enum { kIteratingCodeSpace, kIteratingCodeLOSpace, kDone } state_;
 
   DISALLOW_GARBAGE_COLLECTION(no_gc)
 };

@@ -126,6 +126,21 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
                           Int32Constant(0));
   }
 
+  TNode<BoolT> IsSharedSpaceIsolate() {
+    TNode<ExternalReference> is_shared_space_isolate_addr = ExternalConstant(
+        ExternalReference::is_shared_space_isolate_flag_address(
+            this->isolate()));
+    return Word32NotEqual(Load<Uint8T>(is_shared_space_isolate_addr),
+                          Int32Constant(0));
+  }
+
+  TNode<BoolT> UsesSharedHeap() {
+    TNode<ExternalReference> uses_shared_heap_addr = ExternalConstant(
+        ExternalReference::uses_shared_heap_flag_address(this->isolate()));
+    return Word32NotEqual(Load<Uint8T>(uses_shared_heap_addr),
+                          Int32Constant(0));
+  }
+
   TNode<BoolT> IsPageFlagSet(TNode<IntPtrT> object, int mask) {
     TNode<IntPtrT> page = PageFromAddress(object);
     TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
@@ -314,8 +329,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
                                              fp_mode);
 
     BIND(&incremental_barrier);
-    TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
-    IncrementalWriteBarrier(slot, value, fp_mode);
+    IncrementalWriteBarrier(slot, fp_mode);
     Goto(next);
   }
 
@@ -389,25 +403,11 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
 
   void IncrementalWriteBarrierMajor(TNode<IntPtrT> slot, TNode<IntPtrT> value,
                                     SaveFPRegsMode fp_mode, Label* next) {
-    Label call_incremental_wb(this);
+    Label marking_cpp_slow_path(this);
 
-    // There are two cases we need to call incremental write barrier.
-    // 1) value_is_white
-    GotoIf(IsWhite(value), &call_incremental_wb);
+    IsValueUnmarkedOrRecordSlot(value, &marking_cpp_slow_path, next);
 
-    // 2) is_compacting && value_in_EC && obj_isnt_skip
-    // is_compacting = true when is_marking = true
-    GotoIfNot(IsPageFlagSet(value, MemoryChunk::kEvacuationCandidateMask),
-              next);
-
-    {
-      TNode<IntPtrT> object = BitcastTaggedToWord(
-          UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
-      Branch(
-          IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
-          next, &call_incremental_wb);
-    }
-    BIND(&call_incremental_wb);
+    BIND(&marking_cpp_slow_path);
     {
       TNode<ExternalReference> function = ExternalConstant(
           ExternalReference::write_barrier_marking_from_code_function());
@@ -421,19 +421,105 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     }
   }
 
-  void IncrementalWriteBarrier(TNode<IntPtrT> slot, TNode<IntPtrT> value,
-                               SaveFPRegsMode fp_mode) {
-    Label call_incremental_wb(this), is_minor(this), is_major(this), next(this);
+  void IsValueUnmarkedOrRecordSlot(TNode<IntPtrT> value, Label* true_label,
+                                   Label* false_label) {
+    // This code implements the following condition:
+    // IsWhite(value) ||
+    //   OnEvacuationCandidate(value) &&
+    //   !SkipEvacuationCandidateRecording(value)
 
+    // 1) IsWhite(value) || ....
+    GotoIf(IsWhite(value), true_label);
+
+    // 2) OnEvacuationCandidate(value) &&
+    //    !SkipEvacuationCandidateRecording(value)
+    GotoIfNot(IsPageFlagSet(value, MemoryChunk::kEvacuationCandidateMask),
+              false_label);
+
+    {
+      TNode<IntPtrT> object = BitcastTaggedToWord(
+          UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+      Branch(
+          IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
+          false_label, true_label);
+    }
+  }
+
+  void IncrementalWriteBarrier(TNode<IntPtrT> slot, SaveFPRegsMode fp_mode) {
+    Label next(this), write_into_shared_object(this),
+        write_into_local_object(this), local_object_and_value(this);
+
+    TNode<IntPtrT> object = BitcastTaggedToWord(
+        UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+    TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
+
+    // Without a shared heap, all objects are local. This is the fast path
+    // always used when no shared heap exists.
+    GotoIfNot(UsesSharedHeap(), &local_object_and_value);
+
+    // From the point-of-view of the shared space isolate (= the main isolate)
+    // shared heap objects are just local objects.
+    GotoIf(IsSharedSpaceIsolate(), &local_object_and_value);
+
+    // These checks here are now only reached by client isolates (= worker
+    // isolates). Now first check whether incremental marking is activated for
+    // that particular object's space. Incrementally marking might only be
+    // enabled for either local or shared objects on client isolates.
+    GotoIfNot(IsPageFlagSet(object, MemoryChunk::kIncrementalMarking), &next);
+
+    // We now know that incremental marking is enabled for the given object.
+    // Decide whether to run the shared or local incremental marking barrier.
+    InSharedHeap(object, &write_into_shared_object, &write_into_local_object);
+
+    BIND(&write_into_shared_object);
+
+    // Run the shared incremental marking barrier.
+    IncrementalWriteBarrierShared(object, slot, value, fp_mode, &next);
+
+    BIND(&write_into_local_object);
+
+    // When writing into a local object we can ignore stores of shared object
+    // values since for those no slot recording or marking is required.
+    InSharedHeap(value, &next, &local_object_and_value);
+
+    // Both object and value are now guaranteed to be local objects, run the
+    // local incremental marking barrier.
+    BIND(&local_object_and_value);
+    IncrementalWriteBarrierLocal(slot, value, fp_mode, &next);
+
+    BIND(&next);
+  }
+
+  void IncrementalWriteBarrierShared(TNode<IntPtrT> object, TNode<IntPtrT> slot,
+                                     TNode<IntPtrT> value,
+                                     SaveFPRegsMode fp_mode, Label* next) {
+    Label shared_marking_cpp_slow_path(this);
+
+    IsValueUnmarkedOrRecordSlot(value, &shared_marking_cpp_slow_path, next);
+
+    BIND(&shared_marking_cpp_slow_path);
+    {
+      TNode<ExternalReference> function = ExternalConstant(
+          ExternalReference::write_barrier_shared_marking_from_code_function());
+      CallCFunctionWithCallerSavedRegisters(
+          function, MachineTypeOf<Int32T>::value, fp_mode,
+          std::make_pair(MachineTypeOf<IntPtrT>::value, object),
+          std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
+
+      Goto(next);
+    }
+  }
+
+  void IncrementalWriteBarrierLocal(TNode<IntPtrT> slot, TNode<IntPtrT> value,
+                                    SaveFPRegsMode fp_mode, Label* next) {
+    Label is_minor(this), is_major(this);
     Branch(IsMinorMarking(), &is_minor, &is_major);
 
     BIND(&is_minor);
-    IncrementalWriteBarrierMinor(slot, value, fp_mode, &next);
+    IncrementalWriteBarrierMinor(slot, value, fp_mode, next);
 
     BIND(&is_major);
-    IncrementalWriteBarrierMajor(slot, value, fp_mode, &next);
-
-    BIND(&next);
+    IncrementalWriteBarrierMajor(slot, value, fp_mode, next);
   }
 
   void GenerateRecordWrite(SaveFPRegsMode fp_mode) {
@@ -908,7 +994,7 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
                       BranchIfSameValue(key, property, &skip, &continue_label);
                       Bind(&continue_label);
                     },
-                    1, IndexAdvanceMode::kPost);
+                    1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
               }
 
               CallBuiltin(Builtin::kCreateDataProperty, context, target, key,
@@ -1535,6 +1621,28 @@ TF_BUILTIN(FindNonDefaultConstructorOrConstruct, CodeStubAssembler) {
     // Not a base ctor (or bailed out).
     Return(FalseConstant(), constructor.value());
   }
+}
+
+// Dispatcher for different implementations of the [[GetOwnProperty]] internal
+// method, returning a PropertyDescriptorObject (a Struct representation of the
+// spec PropertyDescriptor concept)
+TF_BUILTIN(GetOwnPropertyDescriptor, CodeStubAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto receiver = Parameter<JSReceiver>(Descriptor::kReceiver);
+  auto key = Parameter<Name>(Descriptor::kKey);
+
+  Label call_runtime(this);
+
+  TNode<Map> map = LoadMap(receiver);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(map);
+
+  GotoIf(IsSpecialReceiverInstanceType(instance_type), &call_runtime);
+  TailCallBuiltin(Builtin::kOrdinaryGetOwnPropertyDescriptor, context, receiver,
+                  key);
+
+  BIND(&call_runtime);
+  TailCallRuntime(Runtime::kGetOwnPropertyDescriptorObject, context, receiver,
+                  key);
 }
 
 }  // namespace internal

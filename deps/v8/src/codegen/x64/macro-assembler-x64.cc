@@ -441,30 +441,28 @@ void TurboAssembler::LoadExternalPointerField(
     Register scratch, IsolateRootLocation isolateRootLocation) {
   DCHECK(!AreAliased(destination, scratch));
 #ifdef V8_ENABLE_SANDBOX
-  if (IsSandboxedExternalPointerType(tag)) {
-    DCHECK_NE(kExternalPointerNullTag, tag);
-    DCHECK(!IsSharedExternalPointerType(tag));
-    DCHECK(!field_operand.AddressUsesRegister(scratch));
-    if (isolateRootLocation == IsolateRootLocation::kInRootRegister) {
-      DCHECK(root_array_available_);
-      movq(scratch, Operand(kRootRegister,
-                            IsolateData::external_pointer_table_offset() +
-                                Internals::kExternalPointerTableBufferOffset));
-    } else {
-      DCHECK(isolateRootLocation == IsolateRootLocation::kInScratchRegister);
-      movq(scratch,
-           Operand(scratch, IsolateData::external_pointer_table_offset() +
-                                Internals::kExternalPointerTableBufferOffset));
-    }
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  DCHECK(!IsSharedExternalPointerType(tag));
+  DCHECK(!field_operand.AddressUsesRegister(scratch));
+  if (isolateRootLocation == IsolateRootLocation::kInRootRegister) {
+    DCHECK(root_array_available_);
+    movq(scratch, Operand(kRootRegister,
+                          IsolateData::external_pointer_table_offset() +
+                              Internals::kExternalPointerTableBufferOffset));
+  } else {
+    DCHECK(isolateRootLocation == IsolateRootLocation::kInScratchRegister);
+    movq(scratch,
+         Operand(scratch, IsolateData::external_pointer_table_offset() +
+                              Internals::kExternalPointerTableBufferOffset));
+  }
     movl(destination, field_operand);
     shrq(destination, Immediate(kExternalPointerIndexShift));
     movq(destination, Operand(scratch, destination, times_8, 0));
     movq(scratch, Immediate64(~tag));
     andq(destination, scratch);
-    return;
-  }
-#endif  // V8_ENABLE_SANDBOX
+#else
   movq(destination, field_operand);
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void TurboAssembler::CallEphemeronKeyBarrier(Register object,

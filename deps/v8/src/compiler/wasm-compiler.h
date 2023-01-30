@@ -120,7 +120,8 @@ struct WasmImportData {
 // is why the ultimate target is returned as well.
 V8_EXPORT_PRIVATE WasmImportData ResolveWasmImportCall(
     Handle<JSReceiver> callable, const wasm::FunctionSig* sig,
-    const wasm::WasmModule* module, const wasm::WasmFeatures& enabled_features);
+    uint32_t expected_canonical_type_index, const wasm::WasmModule* module,
+    const wasm::WasmFeatures& enabled_features);
 
 // Compiles an import call wrapper, which allows Wasm to call imports.
 V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(
@@ -255,7 +256,9 @@ class WasmGraphBuilder {
   Node* EffectPhi(unsigned count, Node** effects_and_control);
   Node* RefNull();
   Node* RefFunc(uint32_t function_index);
-  Node* AssertNotNull(Node* object, wasm::WasmCodePosition position);
+  Node* AssertNotNull(
+      Node* object, wasm::WasmCodePosition position,
+      wasm::TrapReason reason = wasm::TrapReason::kTrapNullDereference);
   Node* TraceInstruction(uint32_t mark_id);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
@@ -505,6 +508,9 @@ class WasmGraphBuilder {
   Node* RefIsEq(Node* object, bool object_can_be_null, bool null_succeeds);
   Node* RefAsEq(Node* object, bool object_can_be_null,
                 wasm::WasmCodePosition position, bool null_succeeds);
+  void BrOnEq(Node* object, Node* rtt, WasmTypeCheckConfig config,
+              Node** match_control, Node** match_effect,
+              Node** no_match_control, Node** no_match_effect);
   Node* RefIsStruct(Node* object, bool object_can_be_null, bool null_succeeds);
   Node* RefAsStruct(Node* object, bool object_can_be_null,
                     wasm::WasmCodePosition position, bool null_succeeds);

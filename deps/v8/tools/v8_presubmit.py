@@ -719,6 +719,45 @@ class StatusFilesProcessor(SourceFileProcessor):
     return status_files
 
 
+class GCMoleProcessor(SourceFileProcessor):
+  """Check relevant BUILD.gn files for correct gcmole file pattern.
+
+  The pattern must match the algorithm used in:
+  tools/gcmole/gcmole.py::build_file_list()
+  """
+  gcmole_re = re.compile('### gcmole(.*)')
+  arch_re = re.compile('\((.+)\) ###')
+
+  def IsRelevant(self, name):
+    return True
+
+  def GetPathsToSearch(self):
+    # TODO(https://crbug.com/v8/12660): These should be directories according
+    # to the API, but in order to find the toplevel BUILD.gn, we'd need to walk
+    # the entire project.
+    return ['BUILD.gn', 'test/cctest/BUILD.gn']
+
+  def ProcessFiles(self, files):
+    success = True
+    for path in files:
+      with open(path) as f:
+        gn_file_text = f.read()
+      for suffix in self.gcmole_re.findall(gn_file_text):
+        arch_match = self.arch_re.match(suffix)
+        if not arch_match:
+          print(f'{path}: Malformed gcmole suffix: {suffix}')
+          success = False
+          continue
+        arch = arch_match.group(1)
+        if arch not in [
+            'all', 'ia32', 'x64', 'arm', 'arm64', 's390', 'ppc', 'ppc64',
+            'mips64', 'mips64el', 'riscv32', 'riscv64', 'loong64'
+        ]:
+          print(f'{path}: Unknown architecture for gcmole: {arch}')
+          success = False
+    return success
+
+
 def CheckDeps(workspace):
   checkdeps_py = join(workspace, 'buildtools', 'checkdeps', 'checkdeps.py')
   return subprocess.call([sys.executable, checkdeps_py, workspace]) == 0
@@ -751,8 +790,7 @@ def PyTests(workspace):
   result = True
   for script in FindTests(workspace):
     print('Running ' + script)
-    result &= subprocess.call(
-        [sys.executable, script], stdout=subprocess.PIPE) == 0
+    result &= subprocess.call(['vpython3', script], stdout=subprocess.PIPE) == 0
 
   return result
 
@@ -792,6 +830,8 @@ def Main():
   success &= StatusFilesProcessor().RunOnPath(workspace)
   print("Running python tests...")
   success &= PyTests(workspace)
+  print("Running gcmole pattern check...")
+  success &= GCMoleProcessor().RunOnPath(workspace)
   if success:
     return 0
   else:

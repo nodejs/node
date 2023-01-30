@@ -60,7 +60,7 @@ bool InDeadBranch(Node* node) {
 
 Node* GetAlias(Node* node) {
   switch (node->opcode()) {
-    case IrOpcode::kWasmTypeCheck:
+    case IrOpcode::kWasmTypeCast:
     case IrOpcode::kTypeGuard:
     case IrOpcode::kAssertNotNull:
       return NodeProperties::GetValueInput(node, 0);
@@ -265,7 +265,9 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
       return Replace(object);
     } else {
       gasm_.InitializeEffectControl(effect, control);
-      return Replace(gasm_.AssertNotNull(object));
+      return Replace(
+          SetType(gasm_.AssertNotNull(object, TrapId::kTrapIllegalCast),
+                  object_type.type.AsNonNull()));
     }
   }
 

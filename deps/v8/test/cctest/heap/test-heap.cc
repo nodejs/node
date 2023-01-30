@@ -34,6 +34,7 @@
 #include "src/base/strings.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
+#include "src/codegen/compiler.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/script-details.h"
 #include "src/common/globals.h"
@@ -537,6 +538,8 @@ TEST(WeakGlobalHandlesMark) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   GlobalHandles* global_handles = isolate->global_handles();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   WeakPointerCleared = false;
 
@@ -578,6 +581,8 @@ TEST(DeleteWeakGlobalHandle) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   GlobalHandles* global_handles = isolate->global_handles();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   WeakPointerCleared = false;
   Handle<Object> h;
@@ -1088,6 +1093,8 @@ TEST(TestBytecodeFlushing) {
   v8::Isolate* isolate = CcTest::isolate();
   Isolate* i_isolate = CcTest::i_isolate();
   Factory* factory = i_isolate->factory();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   {
     v8::HandleScope scope(isolate);
@@ -1136,7 +1143,7 @@ TEST(TestBytecodeFlushing) {
   }
 }
 
-TEST(TestMultiReferencedBytecodeFlushing) {
+static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
 #ifndef V8_LITE_MODE
   v8_flags.turbofan = false;
   v8_flags.always_turbofan = false;
@@ -1144,6 +1151,9 @@ TEST(TestMultiReferencedBytecodeFlushing) {
 #endif  // V8_LITE_MODE
 #if ENABLE_SPARKPLUG
   v8_flags.always_sparkplug = false;
+  v8_flags.flush_baseline_code = true;
+#else
+  if (sparkplug_compile) return;
 #endif  // ENABLE_SPARKPLUG
   i::v8_flags.flush_bytecode = true;
   i::v8_flags.allow_natives_syntax = true;
@@ -1152,6 +1162,8 @@ TEST(TestMultiReferencedBytecodeFlushing) {
   v8::Isolate* isolate = CcTest::isolate();
   Isolate* i_isolate = CcTest::i_isolate();
   Factory* factory = i_isolate->factory();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   {
     v8::HandleScope scope(isolate);
@@ -1184,6 +1196,13 @@ TEST(TestMultiReferencedBytecodeFlushing) {
     Handle<SharedFunctionInfo> copy =
         i_isolate->factory()->CloneSharedFunctionInfo(shared);
 
+    if (sparkplug_compile) {
+      v8::HandleScope baseline_compilation_scope(isolate);
+      IsCompiledScope is_compiled_scope = copy->is_compiled_scope(i_isolate);
+      Compiler::CompileSharedWithBaseline(
+          i_isolate, copy, Compiler::CLEAR_EXCEPTION, &is_compiled_scope);
+    }
+
     // Simulate several GCs that use full marking.
     const int kAgingThreshold = 7;
     for (int i = 0; i < kAgingThreshold; i++) {
@@ -1200,6 +1219,14 @@ TEST(TestMultiReferencedBytecodeFlushing) {
     CHECK(!shared->HasFeedbackMetadata());
     CHECK(!copy->HasFeedbackMetadata());
   }
+}
+
+TEST(TestMultiReferencedBytecodeFlushing) {
+  TestMultiReferencedBytecodeFlushing(/*sparkplug_compile=*/false);
+}
+
+TEST(TestMultiReferencedBytecodeFlushingWithSparkplug) {
+  TestMultiReferencedBytecodeFlushing(/*sparkplug_compile=*/true);
 }
 
 HEAP_TEST(Regress10560) {
@@ -1394,6 +1421,8 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   v8::HandleScope outer_scope(CcTest::isolate());
   const char* source =
       "function foo() {"
@@ -1519,6 +1548,8 @@ void CompilationCacheCachingBehavior(bool retain_script) {
   Factory* factory = isolate->factory();
   CompilationCache* compilation_cache = isolate->compilation_cache();
   LanguageMode language_mode = LanguageMode::kSloppy;
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   v8::HandleScope outer_scope(CcTest::isolate());
   const char* raw_source = retain_script ? "function foo() {"
@@ -1625,6 +1656,8 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   const char* source =
       "({"
@@ -1859,6 +1892,8 @@ TEST(TestInternalWeakLists) {
   HandleScope scope(isolate);
   v8::Local<v8::Context> ctx[kNumTestContexts];
   if (!isolate->use_optimizer()) return;
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   CHECK_EQ(0, CountNativeContexts());
 
@@ -1998,6 +2033,8 @@ HEAP_TEST(TestSizeOfObjects) {
   v8_flags.stress_concurrent_allocation = false;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = CcTest::heap();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   // Disable LAB, such that calculations with SizeOfObjects() and object size
   // are correct.
   heap->DisableInlineAllocation();
@@ -4110,6 +4147,8 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
   GlobalHandles* global_handles = isolate->global_handles();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   if (!isolate->use_optimizer()) return;
 
@@ -4321,6 +4360,8 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(heap->isolate());
@@ -4366,6 +4407,8 @@ TEST(NewSpaceObjectsInOptimizedCode) {
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(isolate);
@@ -4429,6 +4472,8 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(heap->isolate());
@@ -4470,96 +4515,6 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
   CHECK(code->embedded_objects_cleared());
 }
 
-static Handle<JSFunction> OptimizeDummyFunction(v8::Isolate* isolate,
-                                                const char* name) {
-  base::EmbeddedVector<char, 256> source;
-  base::SNPrintF(source,
-                 "function %s() { return 0; }"
-                 "%%PrepareFunctionForOptimization(%s);"
-                 "%s(); %s();"
-                 "%%OptimizeFunctionOnNextCall(%s);"
-                 "%s();",
-                 name, name, name, name, name, name);
-  CompileRun(source.begin());
-  i::Handle<JSFunction> fun = Handle<JSFunction>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-          CcTest::global()
-              ->Get(isolate->GetCurrentContext(), v8_str(name))
-              .ToLocalChecked())));
-  return fun;
-}
-
-static int GetCodeChainLength(Code code) {
-  int result = 0;
-  while (code.next_code_link().IsCodeT()) {
-    result++;
-    code = FromCodeT(CodeT::cast(code.next_code_link()));
-  }
-  return result;
-}
-
-
-TEST(NextCodeLinkIsWeak) {
-  v8_flags.always_turbofan = false;
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.stress_concurrent_inlining =
-      false;  // Test needs deterministic timing.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  v8::internal::Heap* heap = CcTest::heap();
-
-  if (!isolate->use_optimizer()) return;
-  HandleScope outer_scope(heap->isolate());
-  Handle<Code> code;
-  CcTest::CollectAllAvailableGarbage();
-  int code_chain_length_before, code_chain_length_after;
-  {
-    HandleScope scope(heap->isolate());
-    Handle<JSFunction> mortal =
-        OptimizeDummyFunction(CcTest::isolate(), "mortal");
-    Handle<JSFunction> immortal =
-        OptimizeDummyFunction(CcTest::isolate(), "immortal");
-    CHECK_EQ(immortal->code().next_code_link(), mortal->code());
-    code_chain_length_before = GetCodeChainLength(FromCodeT(immortal->code()));
-    // Keep the immortal code and let the mortal code die.
-    code = handle(FromCodeT(immortal->code()), isolate);
-    code = scope.CloseAndEscape(code);
-    CompileRun("mortal = null; immortal = null;");
-  }
-  CcTest::CollectAllAvailableGarbage();
-  // Now mortal code should be dead.
-  code_chain_length_after = GetCodeChainLength(*code);
-  CHECK_EQ(code_chain_length_before - 1, code_chain_length_after);
-}
-
-TEST(NextCodeLinkInCodeDataContainerIsCleared) {
-  v8_flags.always_turbofan = false;
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.stress_concurrent_inlining =
-      false;  // Test needs deterministic timing.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  v8::internal::Heap* heap = CcTest::heap();
-
-  if (!isolate->use_optimizer()) return;
-  HandleScope outer_scope(heap->isolate());
-  Handle<CodeDataContainer> code_data_container;
-  {
-    HandleScope scope(heap->isolate());
-    Handle<JSFunction> mortal1 =
-        OptimizeDummyFunction(CcTest::isolate(), "mortal1");
-    Handle<JSFunction> mortal2 =
-        OptimizeDummyFunction(CcTest::isolate(), "mortal2");
-    CHECK_EQ(mortal2->code().next_code_link(), mortal1->code());
-    code_data_container =
-        handle(CodeDataContainerFromCodeT(mortal2->code()), isolate);
-    code_data_container = scope.CloseAndEscape(code_data_container);
-    CompileRun("mortal1 = null; mortal2 = null;");
-  }
-  CcTest::CollectAllAvailableGarbage();
-  CHECK(code_data_container->next_code_link().IsUndefined(isolate));
-}
-
 static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   i::byte buffer[i::Assembler::kDefaultBufferSize];
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -4582,37 +4537,6 @@ static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   CHECK(code->IsCode());
   return code;
 }
-
-
-TEST(NextCodeLinkIsWeak2) {
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.stress_concurrent_inlining =
-      false;  // Test needs deterministic timing.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  v8::internal::Heap* heap = CcTest::heap();
-
-  if (!isolate->use_optimizer()) return;
-  HandleScope outer_scope(heap->isolate());
-  CcTest::CollectAllAvailableGarbage();
-  Handle<NativeContext> context(
-      NativeContext::cast(heap->native_contexts_list()), isolate);
-  Handle<Code> new_head;
-  Handle<Object> old_head(context->get(Context::OPTIMIZED_CODE_LIST), isolate);
-  {
-    HandleScope scope(heap->isolate());
-    Handle<Code> immortal = DummyOptimizedCode(isolate);
-    Handle<Code> mortal = DummyOptimizedCode(isolate);
-    mortal->set_next_code_link(*old_head);
-    immortal->set_next_code_link(ToCodeT(*mortal));
-    context->SetOptimizedCodeListHead(ToCodeT(*immortal));
-    new_head = scope.CloseAndEscape(immortal);
-  }
-  CcTest::CollectAllAvailableGarbage();
-  // Now mortal code should be dead.
-  CHECK_EQ(*old_head, new_head->next_code_link());
-}
-
 
 static bool weak_ic_cleared = false;
 
@@ -5250,6 +5174,8 @@ TEST(Regress3877) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   HandleScope scope(isolate);
   CompileRun("function cls() { this.x = 10; }");
   Handle<WeakFixedArray> weak_prototype_holder = factory->NewWeakFixedArray(1);
@@ -5297,6 +5223,8 @@ void CheckMapRetainingFor(int n) {
   v8_flags.retain_maps_for_n_gc = n;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   v8::Local<v8::Context> ctx = v8::Context::New(CcTest::isolate());
   Handle<Context> context = Utils::OpenHandle(*ctx);
   CHECK(context->IsNativeContext());

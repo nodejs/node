@@ -317,6 +317,20 @@ constexpr auto NewHeapNumberDescriptor::registers() {
   return RegisterArray(ecx);
 }
 
+// static
+constexpr auto CheckTurboshaftFloat32TypeDescriptor::registers() {
+  // Work around using eax, whose register code is 0, and leads to the FP
+  // parameter being passed via xmm0, which is not allocatable on ia32.
+  return RegisterArray(ecx);
+}
+
+// static
+constexpr auto CheckTurboshaftFloat64TypeDescriptor::registers() {
+  // Work around using eax, whose register code is 0, and leads to the FP
+  // parameter being passed via xmm0, which is not allocatable on ia32.
+  return RegisterArray(ecx);
+}
+
 }  // namespace internal
 }  // namespace v8
 

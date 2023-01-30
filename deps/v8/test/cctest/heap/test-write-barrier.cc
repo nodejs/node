@@ -44,7 +44,7 @@ HEAP_TEST(WriteBarrier_Marking) {
   CHECK(heap->marking_state()->IsWhite(host));
   CHECK(heap->marking_state()->IsWhite(value1));
   WriteBarrier::Marking(host, host.RawFieldOfElementAt(0), value1);
-  CHECK_EQ(V8_CONCURRENT_MARKING_BOOL, heap->marking_state()->IsGrey(value1));
+  CHECK(heap->marking_state()->IsGrey(value1));
   heap->marking_state()->WhiteToGrey(host);
   heap->marking_state()->GreyToBlack(host);
   CHECK(heap->marking_state()->IsWhite(value2));
@@ -79,7 +79,7 @@ HEAP_TEST(WriteBarrier_MarkingExtension) {
   CHECK(!extension->IsMarked());
   WriteBarrier::Marking(host, extension);
   // Concurrent marking barrier should mark this object.
-  CHECK_EQ(V8_CONCURRENT_MARKING_BOOL, extension->IsMarked());
+  CHECK(extension->IsMarked());
   // Keep object alive using the global handle.
   v8::Global<ArrayBuffer> global_host(CcTest::isolate(),
                                       Utils::ToLocal(handle(host, isolate)));

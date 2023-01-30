@@ -156,6 +156,35 @@ FieldAccess AccessBuilder::ForJSCollectionIteratorIndex() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSExternalObjectValue() {
+  FieldAccess access = {
+      kTaggedBase,
+      JSExternalObject::kValueOffset,
+      MaybeHandle<Name>(),
+      MaybeHandle<Map>(),
+      Type::ExternalPointer(),
+      MachineType::Pointer(),
+      kNoWriteBarrier,
+      "JSExternalObjectValue",
+      ConstFieldInfo::None(),
+      false,
+      kExternalObjectValueTag,
+  };
+  return access;
+}
+
+#ifdef V8_ENABLE_SANDBOX
+// static
+FieldAccess AccessBuilder::ForJSExternalObjectPointerHandle() {
+  FieldAccess access = {
+      kTaggedBase,        JSExternalObject::kValueOffset, MaybeHandle<Name>(),
+      MaybeHandle<Map>(), TypeCache::Get()->kUint32,      MachineType::Uint32(),
+      kNoWriteBarrier,    "JSExternalObjectPointerHandle"};
+  return access;
+}
+#endif
+
+// static
 FieldAccess AccessBuilder::ForJSFunctionPrototypeOrInitialMap() {
   FieldAccess access = {
       kTaggedBase,          JSFunction::kPrototypeOrInitialMapOffset,

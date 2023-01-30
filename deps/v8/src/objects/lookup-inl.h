@@ -211,8 +211,11 @@ Handle<T> LookupIterator::GetHolder() const {
 
 bool LookupIterator::ExtendingNonExtensible(Handle<JSReceiver> receiver) {
   DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
+  // Shared objects have fixed layout. No properties may be added to them, not
+  // even private symbols.
   return !receiver->map(isolate_).is_extensible() &&
-         (IsElement() || !name_->IsPrivate(isolate_));
+         (IsElement() ||
+          (!name_->IsPrivate(isolate_) || receiver->InSharedWritableHeap()));
 }
 
 bool LookupIterator::IsCacheableTransition() {

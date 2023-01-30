@@ -286,7 +286,7 @@ struct ModuleWireBytes;
 
 class V8_EXPORT_PRIVATE LazilyGeneratedNames {
  public:
-  WireBytesRef LookupFunctionName(const ModuleWireBytes& wire_bytes,
+  WireBytesRef LookupFunctionName(ModuleWireBytes wire_bytes,
                                   uint32_t function_index);
 
   void AddForTesting(int function_index, WireBytesRef name);
@@ -480,7 +480,8 @@ struct WasmTable;
 
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
-  std::unique_ptr<Zone> signature_zone;
+  // ================ Fields ===================================================
+  Zone signature_zone;
   uint32_t initial_pages = 0;      // initial size of the memory in 64k pages
   uint32_t maximum_pages = 0;      // maximum size of the memory in 64k pages
   bool has_shared_memory = false;  // true if memory is a SharedArrayBuffer
@@ -510,8 +511,45 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // ID and length).
   WireBytesRef name_section = {0, 0};
 
-  AccountingAllocator* allocator() const { return signature_zone->allocator(); }
+  std::vector<TypeDefinition> types;  // by type index
+  // Maps each type index to its global (cross-module) canonical index as per
+  // isorecursive type canonicalization.
+  std::vector<uint32_t> isorecursive_canonical_type_ids;
+  std::vector<WasmFunction> functions;
+  std::vector<WasmGlobal> globals;
+  std::vector<WasmDataSegment> data_segments;
+  std::vector<WasmTable> tables;
+  std::vector<WasmImport> import_table;
+  std::vector<WasmExport> export_table;
+  std::vector<WasmTag> tags;
+  std::vector<WasmStringRefLiteral> stringref_literals;
+  std::vector<WasmElemSegment> elem_segments;
+  std::vector<WasmCompilationHint> compilation_hints;
+  BranchHintInfo branch_hints;
+  // Pairs of module offsets and mark id.
+  std::vector<std::pair<uint32_t, uint32_t>> inst_traces;
+  mutable TypeFeedbackStorage type_feedback;
 
+  const ModuleOrigin origin;
+  mutable LazilyGeneratedNames lazily_generated_names;
+  WasmDebugSymbols debug_symbols;
+
+  // Asm.js source position information. Only available for modules compiled
+  // from asm.js.
+  std::unique_ptr<AsmJsOffsetInformation> asm_js_offset_information;
+
+  // {validated_functions} is atomically updated when functions get validated
+  // (during compilation, streaming decoding, or via explicit validation).
+  static_assert(sizeof(std::atomic<uint8_t>) == 1);
+  static_assert(alignof(std::atomic<uint8_t>) == 1);
+  mutable std::unique_ptr<std::atomic<uint8_t>[]> validated_functions;
+
+  // ================ Constructors =============================================
+  explicit WasmModule(ModuleOrigin = kWasmOrigin);
+  WasmModule(const WasmModule&) = delete;
+  WasmModule& operator=(const WasmModule&) = delete;
+
+  // ================ Accessors ================================================
   void add_type(TypeDefinition type) {
     types.push_back(type);
     // Isorecursive canonical type will be computed later.
@@ -580,10 +618,12 @@ struct V8_EXPORT_PRIVATE WasmModule {
     DCHECK_LE(pos, num_declared_functions);
     uint8_t byte =
         validated_functions[pos >> 3].load(std::memory_order_relaxed);
+    DCHECK_IMPLIES(origin != kWasmOrigin, byte == 0xff);
     return byte & (1 << (pos & 7));
   }
 
   void set_function_validated(int func_index) const {
+    DCHECK_EQ(kWasmOrigin, origin);
     DCHECK_NOT_NULL(validated_functions);
     DCHECK_LE(num_imported_functions, func_index);
     int pos = func_index - num_imported_functions;
@@ -601,43 +641,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   base::Vector<const WasmFunction> declared_functions() const {
     return base::VectorOf(functions) + num_imported_functions;
   }
-
-  std::vector<TypeDefinition> types;  // by type index
-  // Maps each type index to its global (cross-module) canonical index as per
-  // isorecursive type canonicalization.
-  std::vector<uint32_t> isorecursive_canonical_type_ids;
-  std::vector<WasmFunction> functions;
-  std::vector<WasmGlobal> globals;
-  std::vector<WasmDataSegment> data_segments;
-  std::vector<WasmTable> tables;
-  std::vector<WasmImport> import_table;
-  std::vector<WasmExport> export_table;
-  std::vector<WasmTag> tags;
-  std::vector<WasmStringRefLiteral> stringref_literals;
-  std::vector<WasmElemSegment> elem_segments;
-  std::vector<WasmCompilationHint> compilation_hints;
-  BranchHintInfo branch_hints;
-  // Pairs of module offsets and mark id.
-  std::vector<std::pair<uint32_t, uint32_t>> inst_traces;
-  mutable TypeFeedbackStorage type_feedback;
-
-  ModuleOrigin origin = kWasmOrigin;  // origin of the module
-  mutable LazilyGeneratedNames lazily_generated_names;
-  WasmDebugSymbols debug_symbols;
-
-  // Asm.js source position information. Only available for modules compiled
-  // from asm.js.
-  std::unique_ptr<AsmJsOffsetInformation> asm_js_offset_information;
-
-  // {validated_functions} is atomically updated when functions get validated
-  // (during compilation, streaming decoding, or via explicit validation).
-  static_assert(sizeof(std::atomic<uint8_t>) == 1);
-  static_assert(alignof(std::atomic<uint8_t>) == 1);
-  mutable std::unique_ptr<std::atomic<uint8_t>[]> validated_functions;
-
-  explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
-  WasmModule(const WasmModule&) = delete;
-  WasmModule& operator=(const WasmModule&) = delete;
 };
 
 // Static representation of a wasm indirect call table.
@@ -689,6 +692,8 @@ V8_EXPORT_PRIVATE int GetSubtypingDepth(const WasmModule* module,
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based
 // on module_bytes, as this storage is only guaranteed to be alive as long as
 // this struct is alive.
+// As {ModuleWireBytes} is just a wrapper around a {base::Vector<const byte>},
+// it should generally be passed by value.
 struct V8_EXPORT_PRIVATE ModuleWireBytes {
   explicit ModuleWireBytes(base::Vector<const byte> module_bytes)
       : module_bytes_(module_bytes) {}
@@ -701,8 +706,7 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
   WasmName GetNameOrNull(WireBytesRef ref) const;
 
   // Get a string stored in the module bytes representing a function name.
-  WasmName GetNameOrNull(const WasmFunction* function,
-                         const WasmModule* module) const;
+  WasmName GetNameOrNull(int func_index, const WasmModule* module) const;
 
   // Checks the given reference is contained within the module bytes.
   bool BoundsCheck(WireBytesRef ref) const {
@@ -724,13 +728,14 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
  private:
   base::Vector<const byte> module_bytes_;
 };
+ASSERT_TRIVIALLY_COPYABLE(ModuleWireBytes);
 
 // A helper for printing out the names of functions.
 struct WasmFunctionName {
-  WasmFunctionName(const WasmFunction* function, WasmName name)
-      : function_(function), name_(name) {}
+  WasmFunctionName(int func_index, WasmName name)
+      : func_index_(func_index), name_(name) {}
 
-  const WasmFunction* function_;
+  const int func_index_;
   const WasmName name_;
 };
 

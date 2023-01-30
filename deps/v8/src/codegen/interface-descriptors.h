@@ -1656,7 +1656,7 @@ class ApiCallbackDescriptor
   //                           receiver is implicit stack argument 1
   //                           argv are implicit stack arguments [2, 2 + kArgc[
   DEFINE_PARAMETER_TYPES(MachineType::Pointer(),    // kApiFunctionAddress
-                         MachineType::IntPtr(),     // kActualArgumentsCount
+                         MachineType::Int32(),      // kActualArgumentsCount
                          MachineType::AnyTagged(),  // kCallData
                          MachineType::AnyTagged())  // kHolder
   DECLARE_DESCRIPTOR(ApiCallbackDescriptor)
@@ -2118,6 +2118,40 @@ class UnaryOp_BaselineDescriptor
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
                          MachineType::UintPtr())    // kSlot
   DECLARE_DESCRIPTOR(UnaryOp_BaselineDescriptor)
+};
+
+class CheckTurboshaftFloat32TypeDescriptor
+    : public StaticCallInterfaceDescriptor<
+          CheckTurboshaftFloat32TypeDescriptor> {
+ public:
+  DEFINE_RESULT_AND_PARAMETERS(1, kValue, kExpectedType, kNodeId)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
+                                    MachineTypeOf<Float32T>::value,
+                                    MachineType::TaggedPointer(),
+                                    MachineType::TaggedSigned())
+  DECLARE_DEFAULT_DESCRIPTOR(CheckTurboshaftFloat32TypeDescriptor)
+
+#if V8_TARGET_ARCH_IA32
+  // We need a custom descriptor on ia32 to avoid using xmm0.
+  static constexpr inline auto registers();
+#endif
+};
+
+class CheckTurboshaftFloat64TypeDescriptor
+    : public StaticCallInterfaceDescriptor<
+          CheckTurboshaftFloat64TypeDescriptor> {
+ public:
+  DEFINE_RESULT_AND_PARAMETERS(1, kValue, kExpectedType, kNodeId)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
+                                    MachineTypeOf<Float64T>::value,
+                                    MachineType::TaggedPointer(),
+                                    MachineType::TaggedSigned())
+  DECLARE_DEFAULT_DESCRIPTOR(CheckTurboshaftFloat64TypeDescriptor)
+
+#if V8_TARGET_ARCH_IA32
+  // We need a custom descriptor on ia32 to avoid using xmm0.
+  static constexpr inline auto registers();
+#endif
 };
 
 #define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, ...)                 \

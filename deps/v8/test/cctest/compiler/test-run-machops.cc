@@ -937,6 +937,76 @@ TEST(RunInt64SubWithOverflowInBranchP) {
   }
 }
 
+TEST(RunInt64MulWithOverflowImm) {
+  int64_t actual_val = -1, expected_val = 0;
+  FOR_INT64_INPUTS(i) {
+    {
+      RawMachineAssemblerTester<int32_t> m(MachineType::Int64());
+      Node* mul = m.Int64MulWithOverflow(m.Int64Constant(i), m.Parameter(0));
+      Node* val = m.Projection(0, mul);
+      Node* ovf = m.Projection(1, mul);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord64, val);
+      m.Return(ovf);
+      FOR_INT64_INPUTS(j) {
+        int expected_ovf = base::bits::SignedMulOverflow64(i, j, &expected_val);
+        CHECK_EQ(expected_ovf, m.Call(j));
+        CHECK_EQ(expected_val, actual_val);
+      }
+    }
+    {
+      RawMachineAssemblerTester<int32_t> m(MachineType::Int64());
+      Node* mul = m.Int64MulWithOverflow(m.Parameter(0), m.Int64Constant(i));
+      Node* val = m.Projection(0, mul);
+      Node* ovf = m.Projection(1, mul);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord64, val);
+      m.Return(ovf);
+      FOR_INT64_INPUTS(j) {
+        int expected_ovf = base::bits::SignedMulOverflow64(j, i, &expected_val);
+        CHECK_EQ(expected_ovf, m.Call(j));
+        CHECK_EQ(expected_val, actual_val);
+      }
+    }
+    FOR_INT64_INPUTS(j) {
+      RawMachineAssemblerTester<int32_t> m;
+      Node* mul =
+          m.Int64MulWithOverflow(m.Int64Constant(i), m.Int64Constant(j));
+      Node* val = m.Projection(0, mul);
+      Node* ovf = m.Projection(1, mul);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord64, val);
+      m.Return(ovf);
+      int expected_ovf = base::bits::SignedMulOverflow64(i, j, &expected_val);
+      CHECK_EQ(expected_ovf, m.Call());
+      CHECK_EQ(expected_val, actual_val);
+    }
+  }
+}
+
+TEST(RunInt64MulWithOverflowInBranchP) {
+  int constant = 911999;
+  RawMachineLabel blocka, blockb;
+  RawMachineAssemblerTester<int32_t> m;
+  Int64BinopTester bt(&m);
+  Node* mul = m.Int64MulWithOverflow(bt.param0, bt.param1);
+  Node* ovf = m.Projection(1, mul);
+  m.Branch(ovf, &blocka, &blockb);
+  m.Bind(&blocka);
+  bt.AddReturn(m.Int64Constant(constant));
+  m.Bind(&blockb);
+  Node* val = m.Projection(0, mul);
+  Node* truncated = m.TruncateInt64ToInt32(val);
+  bt.AddReturn(truncated);
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      int32_t expected = constant;
+      int64_t result;
+      if (!base::bits::SignedMulOverflow64(i, j, &result)) {
+        expected = static_cast<int32_t>(result);
+      }
+      CHECK_EQ(expected, static_cast<int32_t>(bt.call(i, j)));
+    }
+  }
+}
+
 static int64_t RunInt64AddShift(bool is_left, int64_t add_left,
                                 int64_t add_right, int64_t shift_left,
                                 int64_t shift_right) {

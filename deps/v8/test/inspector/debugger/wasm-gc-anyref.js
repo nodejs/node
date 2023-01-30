@@ -66,6 +66,7 @@ async function printPauseLocationsAndContinue(msg) {
 
 async function instantiateWasm() {
   var builder = new WasmModuleBuilder();
+  builder.startRecGroup();
   let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
   let array_type = builder.addArray(kWasmI32);
   let imported_ref_table =
@@ -88,13 +89,8 @@ async function instantiateWasm() {
       ...wasmI32Const(1), ...wasmI32Const(20), ...wasmI32Const(21),
       kGCPrefix, kExprArrayNewFixed, array_type, 2,
       kExprTableSet, ref_table.index,
-      // TODO(7748): Reactivate this test when JS interop between i31refs and
-      // JS SMIs is fixed. The problem right now is the 33-bit shift for i31ref
-      // values on non-pointer-compressed platforms, which means i31refs and
-      // Smis have different encodings there but it's impossible to tell them
-      // apart.
-      // ...wasmI32Const(2), ...wasmI32Const(30),
-      // kGCPrefix, kExprI31New, kExprTableSet, ref_table.index,
+      ...wasmI32Const(2), ...wasmI32Const(30),
+      kGCPrefix, kExprI31New, kExprTableSet, ref_table.index,
 
       // Fill imported any table.
       ...wasmI32Const(1),
@@ -121,12 +117,9 @@ async function instantiateWasm() {
     ...wasmI32Const(21),
     kGCPrefix, kExprArrayNewFixed, array_type, 1,
     kExprLocalSet, 1,
-    // Set local anyref_local_i31.
-    // TODO(7748): Reactivate this test when JS interop between i31refs and JS
-    // SMIs is fixed (same issue as above).
-    // ...wasmI32Const(30),
-    // kGCPrefix, kExprI31New,
-    // kExprLocalSet, 2,
+    ...wasmI32Const(30),
+    kGCPrefix, kExprI31New,
+    kExprLocalSet, 2,
     kExprNop,
   ];
   let main = builder.addFunction('main', kSig_v_v)
@@ -136,7 +129,7 @@ async function instantiateWasm() {
       .addLocals(kWasmAnyRef, 1, ['anyref_local_null'])
       .addBody(body)
       .exportFunc();
-
+  builder.endRecGroup();
   var module_bytes = builder.toArray();
   breakpointLocation = main.body_offset + body.length - 1;
 

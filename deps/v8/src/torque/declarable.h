@@ -498,22 +498,30 @@ class Method : public TorqueMacro {
 class Builtin : public Callable {
  public:
   enum Kind { kStub, kFixedArgsJavaScript, kVarArgsJavaScript };
+  enum class Flag { kNone = 0, kCustomInterfaceDescriptor = 1 << 0 };
+  using Flags = base::Flags<Flag>;
   DECLARE_DECLARABLE_BOILERPLATE(Builtin, builtin)
   Kind kind() const { return kind_; }
+  Flags flags() const { return flags_; }
   bool IsStub() const { return kind_ == kStub; }
   bool IsVarArgsJavaScript() const { return kind_ == kVarArgsJavaScript; }
   bool IsFixedArgsJavaScript() const { return kind_ == kFixedArgsJavaScript; }
+  bool HasCustomInterfaceDescriptor() const {
+    return flags_ & Flag::kCustomInterfaceDescriptor;
+  }
 
  private:
   friend class Declarations;
   Builtin(std::string external_name, std::string readable_name,
-          Builtin::Kind kind, const Signature& signature,
+          Builtin::Kind kind, Flags flags, const Signature& signature,
           base::Optional<Statement*> body)
       : Callable(Declarable::kBuiltin, std::move(external_name),
                  std::move(readable_name), signature, body),
-        kind_(kind) {}
+        kind_(kind),
+        flags_(flags) {}
 
   Kind kind_;
+  Flags flags_;
 };
 
 class RuntimeFunction : public Callable {

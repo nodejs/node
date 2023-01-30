@@ -60,7 +60,7 @@ Handle<Code> BuildCaller(Isolate* isolate, CallDescriptor* call_descriptor,
 Handle<Code> BuildSetupFunction(Isolate* isolate,
                                 CallDescriptor* caller_descriptor,
                                 CallDescriptor* callee_descriptor) {
-  CodeAssemblerTester tester(isolate, 0);
+  CodeAssemblerTester tester(isolate, JSParameterCount(0));
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.

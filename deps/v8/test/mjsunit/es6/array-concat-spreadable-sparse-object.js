@@ -5,7 +5,7 @@
 "use strict";
 var obj = { length: 5 };
 obj[Symbol.isConcatSpreadable] = true;
-assertEquals([void 0, void 0, void 0, void 0, void 0], [].concat(obj));
+assertEquals(new Array(5), [].concat(obj));
 
 obj.length = 4000;
 assertEquals(new Array(4000), [].concat(obj));

@@ -382,6 +382,7 @@ void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object,
                                                      int new_size) {
   // ByteArray and FixedArray are still invalidated in tests.
   DCHECK(object.IsString() || object.IsByteArray() || object.IsFixedArray());
+  DCHECK(!object.InSharedWritableHeap());
   bool skip_slot_recording;
 
   switch (type) {
@@ -428,6 +429,7 @@ MemoryChunk::UpdateInvalidatedObjectSize<OLD_TO_SHARED>(HeapObject object,
 
 template <RememberedSetType type>
 void MemoryChunk::UpdateInvalidatedObjectSize(HeapObject object, int new_size) {
+  DCHECK(!object.InSharedWritableHeap());
   DCHECK_GT(new_size, 0);
 
   if (invalidated_slots<type>() == nullptr) return;

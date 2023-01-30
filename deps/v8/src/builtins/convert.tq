@@ -263,6 +263,9 @@ Convert<int32, intptr>(i: intptr): int32 {
 Convert<int32, int64>(i: int64): int32 {
   return TruncateInt64ToInt32(i);
 }
+Convert<uint32, uint64>(i: uint64): uint32 {
+  return Unsigned(TruncateInt64ToInt32(Signed(i)));
+}
 Convert<int32, Number>(n: Number): int32 {
   typeswitch (n) {
     case (s: Smi): {

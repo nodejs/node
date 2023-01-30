@@ -54,7 +54,8 @@ RELEASE_ACQUIRE_WEAK_ACCESSORS(Map, raw_transitions,
 ACCESSORS_CHECKED2(Map, prototype, HeapObject, kPrototypeOffset, true,
                    value.IsNull() || value.IsJSProxy() ||
                        value.IsWasmObject() ||
-                       (value.IsJSObject() && value.map().is_prototype_map()))
+                       (value.IsJSObject() && (value.InSharedWritableHeap() ||
+                                               value.map().is_prototype_map())))
 
 DEF_GETTER(Map, prototype_info, Object) {
   Object value = TaggedField<Object, kTransitionsOrPrototypeInfoOffset>::load(

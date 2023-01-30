@@ -249,7 +249,7 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* IsNotNull(Node* object);
 
-  Node* AssertNotNull(Node* object);
+  Node* AssertNotNull(Node* object, TrapId trap_id);
 
   Node* WasmExternInternalize(Node* object);
 

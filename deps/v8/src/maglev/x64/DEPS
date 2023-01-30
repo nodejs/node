@@ -1,0 +1,8 @@
+specific_include_rules = {
+  "maglev-ir-x64\.cc": [
+    # Allow Maglev to reuse the baseline assembler.
+    # TODO(v8:7700): Clean up these dependencies by extracting common code to a
+    # separate directory.
+    "+src/baseline/baseline-assembler-inl.h",
+  ],
+}

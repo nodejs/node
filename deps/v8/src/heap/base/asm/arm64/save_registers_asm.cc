@@ -19,7 +19,7 @@
 // https://en.wikipedia.org/wiki/Calling_convention#ARM_(A64)
 
 // 11 64-bit registers = 11 intprt_t
-static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters == 11,
+static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters() == 11,
               "Mismatch in the number of callee-saved registers");
 static_assert(sizeof(intptr_t) == 8, "Mismatch in word size");
 

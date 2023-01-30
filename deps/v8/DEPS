@@ -30,8 +30,15 @@ vars = {
 
   'checkout_instrumented_libraries': False,
   'checkout_ittapi': False,
+
+  # Fetch the prebuilt binaries for llvm-cov and llvm-profdata. Needed to
+  # process the raw profiles produced by instrumented targets (built with
+  # the gn arg 'use_clang_coverage').
+  'checkout_clang_coverage_tools': False,
+
   # Fetch clang-tidy into the same bin/ directory as our clang binary.
   'checkout_clang_tidy': False,
+
   'chromium_url': 'https://chromium.googlesource.com',
   'android_url': 'https://android.googlesource.com',
   'download_gcmole': False,
@@ -43,22 +50,22 @@ vars = {
   'fuchsia_sdk_cipd_prefix': 'fuchsia/sdk/gn/',
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.83.0.da55f4f-gomaip',
+  'reclient_version': 're_client_version:0.87.0.b6908b3-gomaip',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:a4d67be044b42963de801001e7146f9657c7fad4',
+  'gn_version': 'git_revision:70d6c60823c0233a0f35eccc25b2b640d2980bdc',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
   'ninja_version': 'version:2@1.8.2.chromium.3',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:f8f64a8c560d2bf68a3ad1137979d17cffb36d30',
+  'luci_go': 'git_revision:bac571b5399502fa16ac48a1d3820e1117505085',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:10.20221109.1.1',
+  'fuchsia_version': 'version:11.20221209.0.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -91,16 +98,16 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_tools-lint_version
   # and whatever else without interference from each other.
-  'android_sdk_cmdline-tools_version': 'IPzAG-uU5zVMxohpg9-7-N0tQC1TCSW1VbrBFw7Ld04C',
+  'android_sdk_cmdline-tools_version': 'oWlET2yQhaPKQ66tYNuSPaueU78Z9VlxpyxOoUjwRuIC',
 }
 
 deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '521ac34ebd795939c7e16b37d9d3ddb40e8ed556',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '875cb19167f2e0d7b1eca89a4d5b5693421424c6',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3d4b0c1e773d659da18710fc4984b8195f6d5aea',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '49ac7cf34ab2e59a10629a7a722cfb94348c4996',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '202b660eb577da482fdec18173379df77147a394',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '8b525d2747f2584fc35d8c7e612e66f377858df7',
   'buildtools/linux64': {
@@ -124,11 +131,11 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '4218f3525ad438b22b0e173d963515a09d143398',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '52399655fdafdd14ade17ab12ddc9e955423aa5a',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '1a32724f721e1c3b6c590a07fe4a954344f15e48',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '25a3d07096374aeeffa3dab8b582143dde5a9ca9',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'a318d6a4c283a9d342d2a1e20292c1496fe12997',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '09a1f53060bc601b5ee821d7ab52071eed096fda',
   'buildtools/win': {
     'packages': [
       {
@@ -154,7 +161,7 @@ deps = {
   'test/mozilla/data':
     Var('chromium_url') + '/v8/deps/third_party/mozilla-tests.git' + '@' + 'f6c578a10ea707b1a8ab0b88943fe5115ce2b9be',
   'test/test262/data':
-    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + 'ade328d530525333751e8a3b58f02e18624da085',
+    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + 'e6c6460a5b94e32e01ce9a9d236f3148d4648ce5',
   'third_party/android_ndk': {
     'url': Var('chromium_url') + '/android_ndk.git' + '@' + '8388a2be5421311dc75c5f937aae13d821a27f3d',
     'condition': 'checkout_android',
@@ -202,7 +209,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f0b11967c94cba8f7cca91d2da20c98d4420fc25',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '2f1cf6121c17b31d4607afbaec37f33b0526cfc4',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -210,7 +217,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ae1a70891738fb14f64fbb884e00b87ac663aa15',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a964ca1296b9238d0797aa5f25597efa7b897515',
   'third_party/fuchsia-sdk/sdk': {
     'packages': [
         {
@@ -227,9 +234,9 @@ deps = {
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'af29db7ec28d6df1c7f0f745186884091e602e07',
   'third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'da07448619763d1cde255b361324242646f5b268',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '1b7d391f0528fb3a4976b7541b387ee04f915f83',
   'third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '7bb87a375ffc3effd17a50f690099dcfb9ee280b',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '09ba70cfb2c0d01c60684660e357ae200caf2968',
   'third_party/ittapi': {
     # Force checkout ittapi libraries to pass v8 header includes check on
     # bots that has check_v8_header_includes enabled.
@@ -263,9 +270,9 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '8bbd6c3129b5146489f2321f054e855c347857f4',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '18d27fa10b237fdfcbd8f0c65c19fe009981a3bc',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'd3df9cc5362e0af4cda798b0612dde39783b3dc0',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '3344dd8997f422862a1c5477b490b3611be31351',
   'tools/luci-go': {
       'packages': [
         {
@@ -499,7 +506,7 @@ hooks = [
                '--arch=x64'],
   },
   {
-    'name': 'msan_chained_origins',
+    'name': 'msan_chained_origins_xenial',
     'pattern': '.',
     'condition': 'checkout_instrumented_libraries',
     'action': [ 'python3',
@@ -507,11 +514,11 @@ hooks = [
                 '--no_resume',
                 '--no_auth',
                 '--bucket', 'chromium-instrumented-libraries',
-                '-s', 'third_party/instrumented_libraries/binaries/msan-chained-origins.tgz.sha1',
+                '-s', 'third_party/instrumented_libraries/binaries/msan-chained-origins-xenial.tgz.sha1',
               ],
   },
   {
-    'name': 'msan_no_origins',
+    'name': 'msan_no_origins_xenial',
     'pattern': '.',
     'condition': 'checkout_instrumented_libraries',
     'action': [ 'python3',
@@ -519,7 +526,7 @@ hooks = [
                 '--no_resume',
                 '--no_auth',
                 '--bucket', 'chromium-instrumented-libraries',
-                '-s', 'third_party/instrumented_libraries/binaries/msan-no-origins.tgz.sha1',
+                '-s', 'third_party/instrumented_libraries/binaries/msan-no-origins-xenial.tgz.sha1',
               ],
   },
   {
@@ -556,6 +563,14 @@ hooks = [
     # clang not supported on aix
     'condition': 'host_os != "aix"',
     'action': ['python3', 'tools/clang/scripts/update.py'],
+  },
+  {
+    # This is supposed to support the same set of platforms as 'clang' above.
+    'name': 'clang_coverage',
+    'pattern': '.',
+    'condition': 'checkout_clang_coverage_tools',
+    'action': ['python3', 'tools/clang/scripts/update.py',
+               '--package=coverage_tools'],
   },
   {
     'name': 'clang_tidy',

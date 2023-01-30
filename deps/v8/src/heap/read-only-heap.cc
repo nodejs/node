@@ -99,6 +99,9 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
       artifacts = InitializeSharedReadOnlyArtifacts();
 
       ro_heap = CreateInitalHeapForBootstrapping(isolate, artifacts);
+
+      // Ensure the first read-only page ends up first in the cage.
+      ro_heap->read_only_space()->EnsurePage();
       artifacts->VerifyChecksum(read_only_snapshot_data, true);
     }
   } else {
@@ -145,7 +148,8 @@ ReadOnlyHeap* ReadOnlyHeap::CreateInitalHeapForBootstrapping(
   } else {
     std::unique_ptr<SoleReadOnlyHeap> sole_ro_heap(
         new SoleReadOnlyHeap(ro_space));
-    // The global shared ReadOnlyHeap is only used without pointer compression.
+    // The global shared ReadOnlyHeap is used with shared cage and if pointer
+    // compression is disabled.
     SoleReadOnlyHeap::shared_ro_heap_ = sole_ro_heap.get();
     ro_heap = std::move(sole_ro_heap);
   }

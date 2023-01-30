@@ -23,6 +23,13 @@ config_setting(
 )
 
 config_setting(
+    name = "is_opt",
+    values = {
+        "compilation_mode": "opt",
+    },
+)
+
+config_setting(
     name = "is_debug",
     values = {
         "compilation_mode": "dbg",

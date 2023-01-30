@@ -33,7 +33,7 @@ class Sweeper::ConcurrentSweeper final {
   explicit ConcurrentSweeper(Sweeper* sweeper)
       : sweeper_(sweeper),
         local_pretenuring_feedback_(
-            PretenturingHandler::kInitialFeedbackCapacity) {}
+            PretenuringHandler::kInitialFeedbackCapacity) {}
 
   bool ConcurrentSweepSpace(AllocationSpace identity, JobDelegate* delegate) {
     DCHECK(IsValidSweepingSpace(identity));
@@ -46,13 +46,13 @@ class Sweeper::ConcurrentSweeper final {
     return false;
   }
 
-  PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback() {
+  PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback() {
     return &local_pretenuring_feedback_;
   }
 
  private:
   Sweeper* const sweeper_;
-  PretenturingHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
+  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
 };
 
 class Sweeper::SweeperJob final : public JobTask {
@@ -134,7 +134,7 @@ Sweeper::Sweeper(Heap* heap)
       should_reduce_memory_(false),
       pretenuring_handler_(heap_->pretenuring_handler()),
       local_pretenuring_feedback_(
-          PretenturingHandler::kInitialFeedbackCapacity) {}
+          PretenuringHandler::kInitialFeedbackCapacity) {}
 
 Sweeper::~Sweeper() {
   DCHECK(concurrent_sweepers_.empty());
@@ -247,9 +247,17 @@ void Sweeper::EnsureCompleted() {
 
   // If sweeping is not completed or not running at all, we try to complete it
   // here.
-  ForAllSweepingSpaces([this](AllocationSpace space) {
-    ParallelSweepSpace(space, SweepingMode::kLazyOrConcurrent, 0);
-  });
+  if (should_sweep_non_new_spaces_) {
+    TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
+                   ThreadKind::kMain);
+    ForAllSweepingSpaces([this](AllocationSpace space) {
+      if (space == NEW_SPACE) return;
+      ParallelSweepSpace(space, SweepingMode::kLazyOrConcurrent, 0);
+    });
+  }
+  TRACE_GC_EPOCH(heap_->tracer(), GetTracingScopeForCompleteYoungSweep(),
+                 ThreadKind::kMain);
+  ParallelSweepSpace(NEW_SPACE, SweepingMode::kLazyOrConcurrent, 0);
 
   if (job_handle_ && job_handle_->IsValid()) job_handle_->Join();
 
@@ -303,6 +311,22 @@ bool Sweeper::AreSweeperTasksRunning() {
   return job_handle_ && job_handle_->IsValid() && job_handle_->IsActive();
 }
 
+namespace {
+// Atomically zap the specified area.
+V8_INLINE void AtomicZapBlock(Address addr, size_t size_in_bytes) {
+  static_assert(sizeof(Tagged_t) == kTaggedSize);
+  static constexpr Tagged_t kZapTagged = static_cast<Tagged_t>(kZapValue);
+  DCHECK(IsAligned(addr, kTaggedSize));
+  DCHECK(IsAligned(size_in_bytes, kTaggedSize));
+  const size_t size_in_tagged = size_in_bytes / kTaggedSize;
+  Tagged_t* current_addr = reinterpret_cast<Tagged_t*>(addr);
+  for (size_t i = 0; i < size_in_tagged; ++i) {
+    base::AsAtomicPtr(current_addr++)
+        ->store(kZapTagged, std::memory_order_relaxed);
+  }
+}
+}  // namespace
+
 V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
     Address free_start, Address free_end, Page* page, Space* space,
     FreeSpaceTreatmentMode free_space_treatment_mode) {
@@ -310,7 +334,7 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
   size_t freed_bytes = 0;
   size_t size = static_cast<size_t>(free_end - free_start);
   if (free_space_treatment_mode == FreeSpaceTreatmentMode::kZapFreeSpace) {
-    ZapCode(free_start, size);
+    AtomicZapBlock(free_start, size);
   }
   page->heap()->CreateFillerObjectAtSweeper(free_start, static_cast<int>(size));
   freed_bytes = reinterpret_cast<PagedSpaceBase*>(space)->UnaccountedFree(
@@ -394,7 +418,7 @@ void Sweeper::ClearMarkBitsAndHandleLivenessStatistics(Page* page,
 int Sweeper::RawSweep(
     Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
     SweepingMode sweeping_mode, const base::MutexGuard& page_guard,
-    PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback) {
+    PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback) {
   Space* space = p->owner();
   DCHECK_NOT_NULL(space);
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
@@ -563,7 +587,7 @@ int Sweeper::ParallelSweepSpace(AllocationSpace identity,
 
 int Sweeper::ParallelSweepPage(
     Page* page, AllocationSpace identity,
-    PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
+    PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
     SweepingMode sweeping_mode) {
   DCHECK(IsValidSweepingSpace(identity));
 

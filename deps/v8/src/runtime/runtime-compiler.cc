@@ -540,7 +540,18 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglev) {
   DCHECK_EQ(frame->LookupCodeT().kind(), CodeKind::MAGLEV);
   Handle<JSFunction> function = handle(frame->function(), isolate);
 
-  return CompileOptimizedOSR(isolate, function, osr_offset);
+  if (V8_UNLIKELY(function->ActiveTierIsTurbofan())) {
+    return function->code();
+  }
+
+  if (V8_LIKELY(isolate->concurrent_recompilation_enabled() &&
+                v8_flags.concurrent_osr && v8_flags.turbofan)) {
+    return CompileOptimizedOSR(isolate, function, osr_offset);
+  } else {
+    function->MarkForOptimization(isolate, CodeKind::TURBOFAN,
+                                  ConcurrencyMode::kSynchronous);
+    return function->code();
+  }
 }
 
 RUNTIME_FUNCTION(Runtime_LogOrTraceOptimizedOSREntry) {

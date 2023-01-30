@@ -98,12 +98,8 @@ class V8_EXPORT_PRIVATE StubCache {
   static int PrimaryOffsetForTesting(Name name, Map map);
   static int SecondaryOffsetForTesting(Name name, Map map);
 
-  static void ClearCallback(v8::Isolate* isolate, v8::GCType type,
-                            v8::GCCallbackFlags flags, void* data);
-
   // The constructor is made public only for the purposes of testing.
   explicit StubCache(Isolate* isolate);
-  ~StubCache();
   StubCache(const StubCache&) = delete;
   StubCache& operator=(const StubCache&) = delete;
 

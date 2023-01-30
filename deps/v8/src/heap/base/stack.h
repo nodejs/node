@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_BASE_STACK_H_
 #define V8_HEAP_BASE_STACK_H_
 
+#include <memory>
+
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 
@@ -20,53 +22,20 @@ class StackVisitor {
 // - native stack;
 // - ASAN/MSAN;
 // - SafeStack: https://releases.llvm.org/10.0.0/tools/clang/docs/SafeStack.html
+//
+// Stacks grow down, so throughout this class "start" refers the highest
+// address of the stack, and top/marker the lowest.
+//
+// TODO(chromium:1056170): Consider adding a component that keeps track
+// of relevant GC stack regions where interesting pointers can be found.
 class V8_EXPORT_PRIVATE Stack final {
  public:
-  // The following constant is architecture-specific. The size of the buffer
-  // for storing the callee-saved registers is going to be equal to
-  // NumberOfCalleeSavedRegisters * sizeof(intptr_t).
-
-#if V8_HOST_ARCH_IA32
-  // Must be consistent with heap/base/asm/ia32/.
-  static constexpr int NumberOfCalleeSavedRegisters = 3;
-#elif V8_HOST_ARCH_X64
-#ifdef _WIN64
-  // Must be consistent with heap/base/asm/x64/.
-  static constexpr int NumberOfCalleeSavedRegisters = 28;
-#else   // !_WIN64
-  // Must be consistent with heap/base/asm/x64/.
-  static constexpr int NumberOfCalleeSavedRegisters = 5;
-#endif  // !_WIN64
-#elif V8_HOST_ARCH_ARM64
-  // Must be consistent with heap/base/asm/arm64/.
-  static constexpr int NumberOfCalleeSavedRegisters = 11;
-#elif V8_HOST_ARCH_ARM
-  // Must be consistent with heap/base/asm/arm/.
-  static constexpr int NumberOfCalleeSavedRegisters = 8;
-#elif V8_HOST_ARCH_PPC64
-  // Must be consistent with heap/base/asm/ppc/.
-  static constexpr int NumberOfCalleeSavedRegisters = 20;
-#elif V8_HOST_ARCH_PPC
-  // Must be consistent with heap/base/asm/ppc/.
-  static constexpr int NumberOfCalleeSavedRegisters = 20;
-#elif V8_HOST_ARCH_MIPS64
-  // Must be consistent with heap/base/asm/mips64el/.
-  static constexpr int NumberOfCalleeSavedRegisters = 9;
-#elif V8_HOST_ARCH_LOONG64
-  // Must be consistent with heap/base/asm/loong64/.
-  static constexpr int NumberOfCalleeSavedRegisters = 11;
-#elif V8_HOST_ARCH_S390
-  // Must be consistent with heap/base/asm/s390/.
-  static constexpr int NumberOfCalleeSavedRegisters = 10;
-#elif V8_HOST_ARCH_RISCV32
-  // Must be consistent with heap/base/asm/riscv/.
-  static constexpr int NumberOfCalleeSavedRegisters = 12;
-#elif V8_HOST_ARCH_RISCV64
-  // Must be consistent with heap/base/asm/riscv/.
-  static constexpr int NumberOfCalleeSavedRegisters = 12;
-#else
-#error Unknown architecture.
-#endif
+  // The size of the buffer for storing the callee-saved registers is going to
+  // be equal to kNumberOfCalleeSavedRegisters * sizeof(intptr_t).
+  // This is architecture-specific.
+  static constexpr int NumberOfCalleeSavedRegisters() {
+    return Context::kNumberOfCalleeSavedRegisters;
+  }
 
   explicit Stack(const void* stack_start = nullptr);
 
@@ -76,48 +45,86 @@ class V8_EXPORT_PRIVATE Stack final {
   // Returns true if |slot| is part of the stack and false otherwise.
   bool IsOnStack(const void* slot) const;
 
-  // Word-aligned iteration of the stack. Callee-saved registers are pushed to
-  // the stack before iterating pointers. Slot values are passed on to
-  // `visitor`.
+  // Word-aligned iteration of the stack and the saved registers.
+  // Slot values are passed on to `visitor`.
   void IteratePointers(StackVisitor* visitor) const;
 
-  // Word-aligned iteration of the stack, starting at `stack_end`. Slot values
-  // are passed on to `visitor`. This is intended to be used with verifiers that
-  // only visit a subset of the stack of IteratePointers().
-  //
-  // **Ignores:**
-  // - Callee-saved registers.
-  // - SafeStack.
-  void IteratePointersUnsafe(StackVisitor* visitor,
-                             const void* stack_end) const;
+  // Saves and clears the stack context, i.e., it sets the stack marker and
+  // saves the registers.
+  // TODO(v8:13493): The parameter is for suppressing the invariant check in
+  // the case of WASM stack switching. It will be removed as soon as context
+  // saving becomes compatible with stack switching.
+  void SaveContext(bool check_invariant = true);
+  void ClearContext(bool check_invariant = true);
 
-  // Returns the start of the stack.
-  const void* stack_start() const { return stack_start_; }
+  void AddStackSegment(const void* start, const void* top);
+  void ClearStackSegments();
 
-  // Sets, clears and gets the stack marker.
-  void set_marker(const void* stack_marker);
-  void clear_marker();
-  const void* get_marker() const;
+ private:
+  struct Context {
+    // The following constant is architecture-specific.
+#if V8_HOST_ARCH_IA32
+    // Must be consistent with heap/base/asm/ia32/.
+    static constexpr int kNumberOfCalleeSavedRegisters = 3;
+#elif V8_HOST_ARCH_X64
+#ifdef _WIN64
+    // Must be consistent with heap/base/asm/x64/.
+    static constexpr int kNumberOfCalleeSavedRegisters = 28;
+#else   // !_WIN64
+    // Must be consistent with heap/base/asm/x64/.
+    static constexpr int kNumberOfCalleeSavedRegisters = 5;
+#endif  // !_WIN64
+#elif V8_HOST_ARCH_ARM64
+    // Must be consistent with heap/base/asm/arm64/.
+    static constexpr int kNumberOfCalleeSavedRegisters = 11;
+#elif V8_HOST_ARCH_ARM
+    // Must be consistent with heap/base/asm/arm/.
+    static constexpr int kNumberOfCalleeSavedRegisters = 8;
+#elif V8_HOST_ARCH_PPC64
+    // Must be consistent with heap/base/asm/ppc/.
+    static constexpr int kNumberOfCalleeSavedRegisters = 20;
+#elif V8_HOST_ARCH_PPC
+    // Must be consistent with heap/base/asm/ppc/.
+    static constexpr int kNumberOfCalleeSavedRegisters = 20;
+#elif V8_HOST_ARCH_MIPS64
+    // Must be consistent with heap/base/asm/mips64el/.
+    static constexpr int kNumberOfCalleeSavedRegisters = 9;
+#elif V8_HOST_ARCH_LOONG64
+    // Must be consistent with heap/base/asm/loong64/.
+    static constexpr int kNumberOfCalleeSavedRegisters = 11;
+#elif V8_HOST_ARCH_S390
+    // Must be consistent with heap/base/asm/s390/.
+    static constexpr int kNumberOfCalleeSavedRegisters = 10;
+#elif V8_HOST_ARCH_RISCV32
+    // Must be consistent with heap/base/asm/riscv/.
+    static constexpr int kNumberOfCalleeSavedRegisters = 12;
+#elif V8_HOST_ARCH_RISCV64
+    // Must be consistent with heap/base/asm/riscv/.
+    static constexpr int kNumberOfCalleeSavedRegisters = 12;
+#else
+#error Unknown architecture.
+#endif
 
-  // Mechanism for saving the callee-saved registers, required for conservative
-  // stack scanning.
+    explicit Context(const void* marker) : stack_marker(marker) {}
 
-  struct CalleeSavedRegisters {
+    int nesting_counter = 0;
+    const void* stack_marker;
     // We always double-align this buffer, to support for longer registers,
     // e.g., 128-bit registers in WIN64.
     alignas(2 * sizeof(intptr_t))
-        std::array<intptr_t, NumberOfCalleeSavedRegisters> buffer;
+        std::array<intptr_t, kNumberOfCalleeSavedRegisters> registers;
   };
 
-  using Callback = void (*)(StackVisitor*, const void*, const void*,
-                            const CalleeSavedRegisters* registers);
-
-  static V8_NOINLINE void PushAllRegistersAndInvokeCallback(
-      StackVisitor* visitor, const void* stack_start, Callback callback);
-
- private:
   const void* stack_start_;
-  const void* stack_marker_ = nullptr;
+  std::unique_ptr<Context> context_;
+
+  // Stack segments that may also contain pointers and should be
+  // scanned.
+  struct StackSegments {
+    const void* start;
+    const void* top;
+  };
+  std::vector<StackSegments> inactive_stacks_;
 };
 
 }  // namespace heap::base

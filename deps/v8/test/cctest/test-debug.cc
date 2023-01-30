@@ -165,6 +165,8 @@ void CheckDebuggerUnloaded() {
   CHECK(!CcTest::i_isolate()->debug()->debug_info_list_);
 
   // Collect garbage to ensure weak handles are cleared.
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();
 

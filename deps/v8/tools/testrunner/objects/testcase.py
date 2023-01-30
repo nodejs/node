@@ -78,18 +78,21 @@ def read_file(file):
     return f.read()
 
 class TestCase(object):
-  def __init__(self, suite, path, name, test_config):
+
+  def __init__(self, suite, path, name, test_config, framework_name):
     self.suite = suite        # TestSuite object
 
     self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
     self.name = name          # string that identifies test in the status file
+    self.subtest_id = None    # string that identifies subtests
 
     self.variant = None       # name of the used testing variant
     self.variant_flags = []   # list of strings, flags specific to this test
 
     # Fields used by the test processors.
     self.origin = None # Test that this test is subtest of.
-    self.processor = None # Processor that created this subtest.
+    # Processor that created this subtest, initialised to a default value
+    self.processor = DuckProcessor()
     self.procid = '%s/%s' % (self.suite.name, self.name) # unique id
     self.keep_output = False # Can output of this test be dropped
 
@@ -104,6 +107,8 @@ class TestCase(object):
     self._statusfile_flags = None
     self.expected_failure_reason = None
 
+    self.framework_name = framework_name
+
     self._prepare_outcomes()
 
   def create_subtest(self, processor, subtest_id, variant=None, flags=None,
@@ -111,7 +116,8 @@ class TestCase(object):
     subtest = copy.copy(self)
     subtest.origin = self
     subtest.processor = processor
-    subtest.procid += '.%s' % subtest_id
+    subtest.subtest_id = subtest_id
+    subtest.procid += f'.{subtest.processor_name}-{subtest_id}'
     subtest.keep_output |= keep_output
     if random_seed:
       subtest._random_seed = random_seed
@@ -130,7 +136,7 @@ class TestCase(object):
       def not_flag(outcome):
         return not is_flag(outcome)
 
-      outcomes = self.suite.statusfile.get_outcomes(self.name, self.variant)
+      outcomes = self.suite.statusfile_outcomes(self.name, self.variant)
       self._statusfile_outcomes = list(filter(not_flag, outcomes))
       self._statusfile_flags = list(filter(is_flag, outcomes))
     self._expected_outcomes = (
@@ -453,6 +459,34 @@ class TestCase(object):
 
   def __str__(self):
     return self.full_name
+
+  def test_suffixes(self):
+    suffixes = self.origin.test_suffixes() if self.origin else []
+    current_suffix = self.processor.test_suffix(self)
+    if current_suffix:
+      suffixes.append(str(current_suffix))
+    return suffixes
+
+  @property
+  def rdb_test_id(self):
+    suffixes = '/'.join(self.test_suffixes())
+    full_suffix = ('//' + suffixes) if suffixes else ''
+    return self.full_name + full_suffix
+
+  @property
+  def processor_name(self):
+    return self.processor.name
+
+
+class DuckProcessor:
+  """Dummy default processor for original tests implemented by duck-typing."""
+
+  def test_suffix(self, test):
+    return None
+
+  @property
+  def name(self):
+    return None
 
 
 class D8TestCase(TestCase):

@@ -230,6 +230,10 @@ bool CodeAssembler::IsWord64CtzSupported() const {
   return raw_assembler()->machine()->Word64Ctz().IsSupported();
 }
 
+TNode<Int32T> CodeAssembler::UniqueInt32Constant(int32_t value) {
+  return UncheckedCast<Int32T>(jsgraph()->UniqueInt32Constant(value));
+}
+
 TNode<Int32T> CodeAssembler::Int32Constant(int32_t value) {
   return UncheckedCast<Int32T>(jsgraph()->Int32Constant(value));
 }

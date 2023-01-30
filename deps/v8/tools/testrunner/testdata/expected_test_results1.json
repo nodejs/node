@@ -3,6 +3,8 @@
   "results": [
     {
       "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner", 
+      "crash_state": "",
+      "crash_type": "",
       "duration": 1, 
       "error_details": "+Mock diff",
       "exit_code": 1, 
@@ -29,6 +31,8 @@
     }, 
     {
       "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner", 
+      "crash_state": "",
+      "crash_type": "",
       "duration": 1, 
       "error_details": "+Mock diff",
       "exit_code": 1, 
@@ -55,6 +59,8 @@
     }, 
     {
       "command": "/usr/bin/python out/build/d8_mocked.py --test strawberries --random-seed=123 --nohard-abort --testing-d8-test-runner", 
+      "crash_state": "",
+      "crash_type": "",
       "duration": 1, 
       "error_details": "+Mock diff",
       "exit_code": 1, 

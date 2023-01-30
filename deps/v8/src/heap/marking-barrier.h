@@ -8,6 +8,7 @@
 #include "include/v8-internal.h"
 #include "src/common/globals.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-worklist.h"
 
 namespace v8 {
 namespace internal {
@@ -27,7 +28,11 @@ class MarkingBarrier {
 
   void Activate(bool is_compacting, MarkingBarrierType marking_barrier_type);
   void Deactivate();
-  void Publish();
+  void PublishIfNeeded();
+
+  void ActivateShared();
+  void DeactivateShared();
+  void PublishSharedIfNeeded();
 
   static void ActivateAll(Heap* heap, bool is_compacting,
                           MarkingBarrierType marking_barrier_type);
@@ -42,20 +47,28 @@ class MarkingBarrier {
   // value is held alive from a global handle.
   void WriteWithoutHost(HeapObject value);
 
-  // Returns true if the slot needs to be recorded.
-  inline bool MarkValue(HeapObject host, HeapObject value);
+  inline void MarkValue(HeapObject host, HeapObject value);
 
   bool is_minor() const {
     return marking_barrier_type_ == MarkingBarrierType::kMinor;
   }
 
+  Heap* heap() const { return heap_; }
+
+#if DEBUG
+  void AssertMarkingIsActivated() const;
+  void AssertSharedMarkingIsActivated() const;
+#endif  // DEBUG
+
  private:
-  inline bool ShouldMarkObject(HeapObject value) const;
+  inline void MarkValueShared(HeapObject value);
+  inline void MarkValueLocal(HeapObject value);
+
   inline bool WhiteToGreyAndPush(HeapObject value);
 
   void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);
 
-  bool IsCurrentMarkingBarrier();
+  bool IsCurrentMarkingBarrier(HeapObject verification_candidate);
 
   template <typename TSlot>
   inline void MarkRange(HeapObject value, TSlot start, TSlot end);
@@ -64,6 +77,8 @@ class MarkingBarrier {
     return marking_barrier_type_ == MarkingBarrierType::kMajor;
   }
 
+  Isolate* isolate() const;
+
   Heap* heap_;
   MarkCompactCollector* major_collector_;
   MinorMarkCompactCollector* minor_collector_;
@@ -71,16 +86,17 @@ class MarkingBarrier {
   MarkingWorklist::Local major_worklist_;
   MarkingWorklist::Local minor_worklist_;
   MarkingWorklist::Local* current_worklist_;
+  base::Optional<MarkingWorklist::Local> shared_heap_worklist_;
   MarkingState marking_state_;
   std::unordered_map<MemoryChunk*, std::unique_ptr<TypedSlots>,
                      MemoryChunk::Hasher>
       typed_slots_map_;
   bool is_compacting_ = false;
   bool is_activated_ = false;
-  bool is_main_thread_barrier_;
+  const bool is_main_thread_barrier_;
   const bool uses_shared_heap_;
-  const bool is_shared_heap_isolate_;
-  MarkingBarrierType marking_barrier_type_;
+  const bool is_shared_space_isolate_;
+  MarkingBarrierType marking_barrier_type_ = MarkingBarrierType::kMajor;
 };
 
 }  // namespace internal

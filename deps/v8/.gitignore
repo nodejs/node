@@ -67,6 +67,7 @@
 /third_party/jsoncpp/source
 !/third_party/colorama
 /third_party/colorama/src
+!/third_party/glibc
 !/third_party/googletest
 /third_party/googletest/src/*
 !/third_party/googletest/src/googletest

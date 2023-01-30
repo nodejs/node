@@ -38,6 +38,10 @@ class V8_EXPORT_PRIVATE DefaultEmbedderRootsHandler final
 
 class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
  public:
+  enum class CollectionType : uint8_t {
+    kMinor,
+    kMajor,
+  };
   using WrapperInfo = std::pair<void*, void*>;
   using WrapperCache = std::vector<WrapperInfo>;
 
@@ -102,7 +106,8 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
 
   void SetRemoteTracer(EmbedderHeapTracer* tracer);
   void SetCppHeap(CppHeap* cpp_heap);
-  void PrepareForTrace(EmbedderHeapTracer::TraceFlags flags);
+  void PrepareForTrace(EmbedderHeapTracer::TraceFlags flags,
+                       CollectionType type);
   void TracePrologue(EmbedderHeapTracer::TraceFlags flags);
   void TraceEpilogue();
   void EnterFinalPause();

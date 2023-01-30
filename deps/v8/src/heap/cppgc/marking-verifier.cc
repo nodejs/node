@@ -45,8 +45,7 @@ MarkingVerifierBase::MarkingVerifierBase(
       collection_type_(collection_type) {}
 
 void MarkingVerifierBase::Run(
-    StackState stack_state, uintptr_t stack_end,
-    v8::base::Optional<size_t> expected_marked_bytes) {
+    StackState stack_state, v8::base::Optional<size_t> expected_marked_bytes) {
   Traverse(heap_.raw_heap());
 // Avoid verifying the stack when running with TSAN as the TSAN runtime changes
 // stack contents when e.g. working with locks. Specifically, the marker uses
@@ -63,8 +62,7 @@ void MarkingVerifierBase::Run(
 #if !defined(THREAD_SANITIZER) && !defined(CPPGC_POINTER_COMPRESSION)
   if (stack_state == StackState::kMayContainHeapPointers) {
     in_construction_objects_ = &in_construction_objects_stack_;
-    heap_.stack()->IteratePointersUnsafe(
-        this, reinterpret_cast<const void*>(stack_end));
+    heap_.stack()->IteratePointers(this);
     // The objects found through the unsafe iteration are only a subset of the
     // regular iteration as they miss objects held alive only from callee-saved
     // registers that are never pushed on the stack and SafeStack.

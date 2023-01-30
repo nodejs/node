@@ -60,6 +60,11 @@ struct has_output_operator<
     T, TStream, decltype(void(std::declval<TStream&>() << std::declval<T>()))>
     : std::true_type {};
 
+// turn std::tuple<A...> into std::tuple<A..., T>.
+template <class Tuple, class T>
+using append_tuple_type = decltype(std::tuple_cat(
+    std::declval<Tuple>(), std::declval<std::tuple<T>>()));
+
 }  // namespace base
 }  // namespace v8
 

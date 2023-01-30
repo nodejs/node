@@ -2606,6 +2606,8 @@ void LiveRangeBuilder::Verify() const {
       for (const UseInterval* i = first->next(); i != nullptr; i = i->next()) {
         // Except for the first interval, the other intevals must start at
         // a block boundary, otherwise data wouldn't flow to them.
+        // You might trigger this CHECK if your SSA is not valid. For instance,
+        // if the inputs of a Phi node are in the wrong order.
         CHECK(IntervalStartsAtBlockBoundary(i));
         // The last instruction of the predecessors of the block the interval
         // starts must be covered by the range.

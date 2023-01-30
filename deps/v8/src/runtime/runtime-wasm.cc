@@ -121,33 +121,33 @@ Object ThrowWasmError(Isolate* isolate, MessageTemplate message,
 // type; if the check succeeds, returns the object in its wasm representation;
 // otherwise throws a type error.
 RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
-  // This code is called from wrappers, so the "thread is wasm" flag is not set.
-  DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
-                 !trap_handler::IsThreadInWasm());
+  // TODO(manoskouk): Use {SaveAndClearThreadInWasmFlag} in runtime-internal.cc
+  // and runtime-strings.cc.
+  bool thread_in_wasm = trap_handler::IsThreadInWasm();
+  if (thread_in_wasm) trap_handler::ClearThreadInWasm();
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(2, args.length());
   // 'raw_instance' can be either a WasmInstanceObject or undefined.
-  Object raw_instance = args[0];
-  Handle<Object> value(args[1], isolate);
+  Handle<Object> value(args[0], isolate);
   // Make sure ValueType fits properly in a Smi.
   static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
-  int raw_type = args.smi_value_at(2);
+  int raw_type = args.smi_value_at(1);
 
-  const wasm::WasmModule* module =
-      raw_instance.IsWasmInstanceObject()
-          ? WasmInstanceObject::cast(raw_instance).module()
-          : nullptr;
-
-  wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type);
+  wasm::ValueType expected_canonical =
+      wasm::ValueType::FromRawBitField(raw_type);
   const char* error_message;
 
   Handle<Object> result;
-  bool success = internal::wasm::JSToWasmObject(isolate, module, value, type,
-                                                &error_message)
+  bool success = internal::wasm::JSToWasmObject(
+                     isolate, value, expected_canonical, &error_message)
                      .ToHandle(&result);
-  if (success) return *result;
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kWasmTrapJSTypeError));
+  Object ret = success ? *result
+                       : isolate->Throw(*isolate->factory()->NewTypeError(
+                             MessageTemplate::kWasmTrapJSTypeError));
+  if (thread_in_wasm && !isolate->has_pending_exception()) {
+    trap_handler::SetThreadInWasm();
+  }
+  return ret;
 }
 
 RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
@@ -828,6 +828,7 @@ void SyncStackLimit(Isolate* isolate) {
   }
   uintptr_t limit = reinterpret_cast<uintptr_t>(stack->jmpbuf()->stack_limit);
   isolate->stack_guard()->SetStackLimit(limit);
+  isolate->RecordStackSwitchForScanning();
 }
 }  // namespace
 

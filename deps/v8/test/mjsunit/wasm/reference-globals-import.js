@@ -13,7 +13,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let exporting_instance = (function() {
     let builder = new WasmModuleBuilder();
-    builder.setSingletonRecGroups();
     let type_super = builder.addStruct([makeField(kWasmI32, false)]);
     let type_sub =
         builder.addStruct([makeField(kWasmI32, false)], type_super);
@@ -64,7 +63,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   for (let[expected_valid, type, global] of tests) {
     print(`test ${type} imports ${global}`);
     let builder = new WasmModuleBuilder();
-    builder.setSingletonRecGroups();
     let type_super = builder.addStruct([makeField(kWasmI32, false)]);
     let type_sub =
       builder.addStruct([makeField(kWasmI32, false)], type_super);
@@ -105,7 +103,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let exporting_instance = (function() {
     let builder = new WasmModuleBuilder();
-    builder.setSingletonRecGroups();
     let type_super = builder.addStruct([makeField(kWasmI32, false)]);
     let type_sub =
         builder.addStruct([makeField(kWasmI32, false)], type_super);
@@ -156,7 +153,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   for (let[expected_valid, type, imported_value] of tests) {
     print(`test ${type} imports ${imported_value}`);
     let builder = new WasmModuleBuilder();
-    builder.setSingletonRecGroups();
     let type_super = builder.addStruct([makeField(kWasmI32, false)]);
     let type_sub =
       builder.addStruct([makeField(kWasmI32, false)], type_super);
@@ -214,7 +210,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let exporting_instance = (function() {
     let builder = new WasmModuleBuilder();
-    builder.setSingletonRecGroups();
     let type_struct = builder.addStruct([makeField(kWasmI32, false)]);
     let type_array = builder.addArray(kWasmI32);
 

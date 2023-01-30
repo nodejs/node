@@ -409,6 +409,8 @@ class V8_EXPORT_PRIVATE GCTracer {
     return current_.gc_reason == GarbageCollectionReason::kAllocationFailure;
   }
 
+  GarbageCollector GetCurrentCollector() const;
+
  private:
   FRIEND_TEST(GCTracer, AverageSpeed);
   FRIEND_TEST(GCTracerTest, AllocationThroughput);

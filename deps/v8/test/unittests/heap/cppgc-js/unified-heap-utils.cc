@@ -49,6 +49,27 @@ void UnifiedHeapTest::CollectGarbageWithoutEmbedderStack(
   }
 }
 
+void UnifiedHeapTest::CollectYoungGarbageWithEmbedderStack(
+    cppgc::Heap::SweepingType sweeping_type) {
+  EmbedderStackStateScope stack_scope(
+      heap(), EmbedderStackStateScope::kExplicitInvocation,
+      StackState::kMayContainHeapPointers);
+  CollectGarbage(NEW_SPACE);
+  if (sweeping_type == cppgc::Heap::SweepingType::kAtomic) {
+    cpp_heap().AsBase().sweeper().FinishIfRunning();
+  }
+}
+void UnifiedHeapTest::CollectYoungGarbageWithoutEmbedderStack(
+    cppgc::Heap::SweepingType sweeping_type) {
+  EmbedderStackStateScope stack_scope(
+      heap(), EmbedderStackStateScope::kExplicitInvocation,
+      StackState::kNoHeapPointers);
+  CollectGarbage(NEW_SPACE);
+  if (sweeping_type == cppgc::Heap::SweepingType::kAtomic) {
+    cpp_heap().AsBase().sweeper().FinishIfRunning();
+  }
+}
+
 CppHeap& UnifiedHeapTest::cpp_heap() const {
   return *CppHeap::From(isolate()->heap()->cpp_heap());
 }

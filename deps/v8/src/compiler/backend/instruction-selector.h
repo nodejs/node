@@ -621,6 +621,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitStaticAssert(Node* node);
   void VisitDeadValue(Node* node);
 
+  void TryPrepareScheduleFirstProjection(Node* maybe_projection);
+
   void VisitStackPointerGreaterThan(Node* node, FlagsContinuation* cont);
 
   void VisitWordCompareZero(Node* user, Node* value, FlagsContinuation* cont);

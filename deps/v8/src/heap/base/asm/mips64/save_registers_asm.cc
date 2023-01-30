@@ -14,7 +14,7 @@
 // GN toolchain (e.g. ChromeOS) and not provide them.
 
 // 9 64-bit registers = 9 intprt_t
-static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters == 9,
+static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters() == 9,
               "Mismatch in the number of callee-saved registers");
 static_assert(sizeof(intptr_t) == 8, "Mismatch in word size");
 

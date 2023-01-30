@@ -99,6 +99,7 @@
   'test-jump-table-assembler/JumpTablePatchingStress': [PASS, SLOW],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/CreateIsolateFromReadOnlySnapshot': [PASS, SLOW],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'test-accessors/HandleScopePop': [PASS, HEAVY],
@@ -125,6 +126,9 @@
 ['mode == debug', {
   # BUG(v8:10996): Flaky on Linux64 - debug
   'test-cpu-profiler/StartProfilingAfterOsr': [SKIP],
+
+  'test-concurrent-allocation/ConcurrentAllocationWhileMainThreadParksAndUnparks': [PASS, SLOW],
+  'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [PASS, SLOW],
 }],
 
 ##############################################################################
@@ -298,6 +302,9 @@
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
+
+  # Test too slow with ASan
+  'test-serialize/CreateIsolateFromReadOnlySnapshot': [SKIP],
 }],  # 'system == windows and arch == x64 and mode == debug'
 
 ##############################################################################
@@ -510,9 +517,7 @@
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
 ['not has_webassembly or variant == jitless', {
   'test-api/TurboAsmDisablesDetach': [SKIP],
-  'test-api/WasmI32AtomicWaitCallback': [SKIP],
-  'test-api/WasmI64AtomicWaitCallback': [SKIP],
-  'test-api/WasmSetJitCodeEventHandler': [SKIP],
+  'test-api/Wasm*': [SKIP],
   'test-api-array-buffer/ArrayBuffer_NonDetachableWasDetached': [SKIP],
   'test-backing-store/Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree': [SKIP],
   'test-c-wasm-entry/*': [SKIP],

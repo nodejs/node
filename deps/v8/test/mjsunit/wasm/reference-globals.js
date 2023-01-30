@@ -12,8 +12,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var exporting_instance = (function() {
     var builder = new WasmModuleBuilder();
 
+    builder.startRecGroup();
     var sig_index = builder.addType(kSig_i_ii);
+    builder.endRecGroup();
+    builder.startRecGroup();
     var wrong_sig_index = builder.addType(kSig_i_i);
+    builder.endRecGroup();
 
     var addition_index = builder.addFunction("addition", sig_index)
       .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add])
@@ -63,7 +67,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                                 false);
       builder.instantiate({imports: { global: 42 }})},
     WebAssembly.LinkError,
-    /function-typed object must be null \(if nullable\) or a Wasm function object/
+    /JS object does not match expected wasm type/
   );
 
   // Mistyped function import.
@@ -110,7 +114,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   var builder = new WasmModuleBuilder();
+  builder.startRecGroup();
   var struct_index = builder.addStruct([{type: kWasmI32, mutability: true}]);
+  builder.endRecGroup();
   var composite_struct_index = builder.addStruct(
       [{type: kWasmI32, mutability: true},
        {type: wasmRefNullType(struct_index), mutability: true},

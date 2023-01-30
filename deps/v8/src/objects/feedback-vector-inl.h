@@ -360,7 +360,9 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
     return CompareOperationHint::kReceiverOrNullOrUndefined;
   }
 
-  if (Is<CompareOperationFeedback::kBigInt>(type_feedback)) {
+  if (Is<CompareOperationFeedback::kBigInt64>(type_feedback)) {
+    return CompareOperationHint::kBigInt64;
+  } else if (Is<CompareOperationFeedback::kBigInt>(type_feedback)) {
     return CompareOperationHint::kBigInt;
   }
 

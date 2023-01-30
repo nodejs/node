@@ -25,8 +25,7 @@ namespace wasm {
 using VarState = LiftoffAssembler::VarState;
 using ValueKindSig = LiftoffAssembler::ValueKindSig;
 
-constexpr ValueKind LiftoffAssembler::kPointerKind;
-constexpr ValueKind LiftoffAssembler::kTaggedKind;
+constexpr ValueKind LiftoffAssembler::kIntPtrKind;
 constexpr ValueKind LiftoffAssembler::kSmiKind;
 
 namespace {
@@ -94,7 +93,7 @@ class StackTransferRecipe {
   }
 
   V8_INLINE void TransferStackSlot(const VarState& dst, const VarState& src) {
-    DCHECK(CheckCompatibleStackSlotTypes(dst.kind(), src.kind()));
+    DCHECK(CompatibleStackSlotTypes(dst.kind(), src.kind()));
     if (dst.is_reg()) {
       LoadIntoRegister(dst.reg(), src, src.offset());
       return;
@@ -860,7 +859,7 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
       // If the source has the content but in the wrong register, execute a
       // register move as part of the stack transfer.
       transfers.MoveRegister(LiftoffRegister{*dst_reg},
-                             LiftoffRegister{src_reg}, kPointerKind);
+                             LiftoffRegister{src_reg}, kIntPtrKind);
     } else {
       // Otherwise (the source state has no cached content), we reload later.
       *reload = true;
@@ -952,7 +951,7 @@ void LiftoffAssembler::ClearRegister(
     if (reg != *use) continue;
     if (replacement == no_reg) {
       replacement = GetUnusedRegister(kGpReg, pinned).gp();
-      Move(replacement, reg, kPointerKind);
+      Move(replacement, reg, kIntPtrKind);
     }
     // We cannot leave this loop early. There may be multiple uses of {reg}.
     *use = replacement;
@@ -979,6 +978,7 @@ void PrepareStackTransfers(const ValueKindSig* sig,
     const int num_lowered_params = is_gp_pair ? 2 : 1;
     const VarState& slot = slots[param];
     const uint32_t stack_offset = slot.offset();
+    DCHECK(CompatibleStackSlotTypes(slot.kind(), kind));
     // Process both halfs of a register pair separately, because they are passed
     // as separate parameters. One or both of them could end up on the stack.
     for (int lowered_idx = 0; lowered_idx < num_lowered_params; ++lowered_idx) {
@@ -1064,7 +1064,7 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
   if (target_instance && *target_instance != instance_reg) {
     stack_transfers.MoveRegister(LiftoffRegister(instance_reg),
                                  LiftoffRegister(*target_instance),
-                                 kPointerKind);
+                                 kIntPtrKind);
   }
 
   int param_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
@@ -1083,10 +1083,10 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
     if (!free_regs.is_empty()) {
       LiftoffRegister new_target = free_regs.GetFirstRegSet();
       stack_transfers.MoveRegister(new_target, LiftoffRegister(*target),
-                                   kPointerKind);
+                                   kIntPtrKind);
       *target = new_target.gp();
     } else {
-      stack_slots.Add(VarState(kPointerKind, LiftoffRegister(*target), 0),
+      stack_slots.Add(VarState(kIntPtrKind, LiftoffRegister(*target), 0),
                       param_slots);
       param_slots++;
       *target = no_reg;
@@ -1426,20 +1426,11 @@ std::ostream& operator<<(std::ostream& os, VarState slot) {
 }
 
 #if DEBUG
-bool CheckCompatibleStackSlotTypes(ValueKind a, ValueKind b) {
-  if (is_object_reference(a)) {
-    // Since Liftoff doesn't do accurate type tracking (e.g. on loop back
-    // edges), we only care that pointer types stay amongst pointer types.
-    // It's fine if ref/ref null overwrite each other.
-    DCHECK(is_object_reference(b));
-  } else if (is_rtt(a)) {
-    // Same for rtt/rtt_with_depth.
-    DCHECK(is_rtt(b));
-  } else {
-    // All other types (primitive numbers, bottom/stmt) must be equal.
-    DCHECK_EQ(a, b);
-  }
-  return true;  // Dummy so this can be called via DCHECK.
+bool CompatibleStackSlotTypes(ValueKind a, ValueKind b) {
+  // Since Liftoff doesn't do accurate type tracking (e.g. on loop back edges,
+  // ref.as_non_null/br_on_cast results), we only care that pointer types stay
+  // amongst pointer types. It's fine if ref/ref null overwrite each other.
+  return a == b || (is_object_reference(a) && is_object_reference(b));
 }
 #endif
 

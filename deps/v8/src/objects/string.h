@@ -701,7 +701,8 @@ class SeqString : public TorqueGeneratedSeqString<SeqString, String> {
   // Truncate the string in-place if possible and return the result.
   // In case of new_length == 0, the empty string is returned without
   // truncating the original string.
-  V8_WARN_UNUSED_RESULT static Handle<String> Truncate(Handle<SeqString> string,
+  V8_WARN_UNUSED_RESULT static Handle<String> Truncate(Isolate* isolate,
+                                                       Handle<SeqString> string,
                                                        int new_length);
 
   struct DataAndPaddingSizes {

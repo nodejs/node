@@ -347,8 +347,10 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
       // Collect garbage and retry.
       did_retry = true;
       // TODO(wasm): try Heap::EagerlyFreeExternalMemory() first?
-      isolate->heap()->MemoryPressureNotification(
-          MemoryPressureLevel::kCritical, true);
+      if (isolate != nullptr) {
+        isolate->heap()->MemoryPressureNotification(
+            MemoryPressureLevel::kCritical, true);
+      }
     }
     return false;
   };
@@ -368,7 +370,9 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   };
   if (!gc_retry(allocate_pages)) {
     // Page allocator could not reserve enough pages.
-    RecordStatus(isolate, AllocationStatus::kOtherFailure);
+    if (isolate != nullptr) {
+      RecordStatus(isolate, AllocationStatus::kOtherFailure);
+    }
     TRACE_BS("BSw:try   failed to allocate pages\n");
     return {};
   }
@@ -403,8 +407,10 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
 
   DebugCheckZero(buffer_start, byte_length);  // touch the bytes.
 
-  RecordStatus(isolate, did_retry ? AllocationStatus::kSuccessAfterRetry
-                                  : AllocationStatus::kSuccess);
+  if (isolate != nullptr) {
+    RecordStatus(isolate, did_retry ? AllocationStatus::kSuccessAfterRetry
+                                    : AllocationStatus::kSuccess);
+  }
 
   const bool is_wasm_memory = wasm_memory != WasmMemoryFlag::kNotWasm;
   ResizableFlag resizable =

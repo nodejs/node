@@ -79,7 +79,7 @@ class RememberedSetOperations {
       slot_set->Iterate(
           chunk->address(), start_bucket, end_bucket,
           [start, end](MaybeObjectSlot slot) {
-            CHECK(!base::IsInRange(slot.address(), start, end + 1));
+            CHECK(slot.address() < start || slot.address() >= end);
             return KEEP_SLOT;
           },
           SlotSet::KEEP_EMPTY_BUCKETS);

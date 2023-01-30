@@ -17,7 +17,7 @@
 // Source: https://en.wikipedia.org/wiki/X86_calling_conventions#cdecl
 
 // 3 32-bit registers = 3 intprt_t
-static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters == 3,
+static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters() == 3,
               "Mismatch in the number of callee-saved registers");
 static_assert(sizeof(intptr_t) == 4, "Mismatch in word size");
 

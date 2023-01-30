@@ -215,8 +215,6 @@ void DecodeError(Decoder* decoder, const char* str) {
 
 namespace value_type_reader {
 
-// If {module} is not null, the read index will be checked against the module's
-// type capacity.
 template <typename ValidationTag>
 HeapType read_heap_type(Decoder* decoder, const byte* pc,
                         uint32_t* const length, const WasmFeatures& enabled) {
@@ -392,8 +390,7 @@ bool ValidateHeapType(Decoder* decoder, const byte* pc,
   // A {nullptr} module is accepted if we are not validating anyway (e.g. for
   // opcode length computation).
   if (!ValidationTag::validate && module == nullptr) return true;
-  // We use capacity over size so this works mid-DecodeTypeSection.
-  if (!VALIDATE(type.ref_index() < module->types.capacity())) {
+  if (!VALIDATE(type.ref_index() < module->types.size())) {
     DecodeError<ValidationTag>(decoder, pc, "Type index %u is out of bounds",
                                type.ref_index());
     return false;
@@ -561,9 +558,19 @@ struct SelectTypeImmediate {
 
 struct BlockTypeImmediate {
   uint32_t length = 1;
-  ValueType type = kWasmVoid;
-  uint32_t sig_index = 0;
-  const FunctionSig* sig = nullptr;
+  // After decoding, either {sig_index} is set XOR {sig} points to
+  // {single_return_sig_storage}.
+  uint32_t sig_index;
+  FunctionSig sig{0, 0, single_return_sig_storage};
+  // Internal field, potentially pointed to by {sig}. Do not access directly.
+  ValueType single_return_sig_storage[1];
+
+  // Do not copy or move, as {sig} might point to {single_return_sig_storage} so
+  // this cannot trivially be copied. If needed, define those operators later.
+  BlockTypeImmediate(const BlockTypeImmediate&) = delete;
+  BlockTypeImmediate(BlockTypeImmediate&&) = delete;
+  BlockTypeImmediate& operator=(const BlockTypeImmediate&) = delete;
+  BlockTypeImmediate& operator=(BlockTypeImmediate&&) = delete;
 
   template <typename ValidationTag>
   BlockTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
@@ -579,34 +586,26 @@ struct BlockTypeImmediate {
                                    block_type);
         return;
       }
-      if (static_cast<ValueTypeCode>(block_type & 0x7F) == kVoidCode) return;
-      type = value_type_reader::read_value_type<ValidationTag>(
-          decoder, pc, &length, enabled);
+      if (static_cast<ValueTypeCode>(block_type & 0x7F) != kVoidCode) {
+        sig = FunctionSig{1, 0, single_return_sig_storage};
+        single_return_sig_storage[0] =
+            value_type_reader::read_value_type<ValidationTag>(decoder, pc,
+                                                              &length, enabled);
+      }
     } else {
-      type = kWasmBottom;
+      sig = FunctionSig{0, 0, nullptr};
       sig_index = static_cast<uint32_t>(block_type);
     }
   }
 
   uint32_t in_arity() const {
-    if (type != kWasmBottom) return 0;
-    return static_cast<uint32_t>(sig->parameter_count());
+    return static_cast<uint32_t>(sig.parameter_count());
   }
   uint32_t out_arity() const {
-    if (type == kWasmVoid) return 0;
-    if (type != kWasmBottom) return 1;
-    return static_cast<uint32_t>(sig->return_count());
+    return static_cast<uint32_t>(sig.return_count());
   }
-  ValueType in_type(uint32_t index) {
-    DCHECK_EQ(kWasmBottom, type);
-    return sig->GetParam(index);
-  }
-  ValueType out_type(uint32_t index) {
-    if (type == kWasmBottom) return sig->GetReturn(index);
-    DCHECK_NE(kWasmVoid, type);
-    DCHECK_EQ(0, index);
-    return type;
-  }
+  ValueType in_type(uint32_t index) { return sig.GetParam(index); }
+  ValueType out_type(uint32_t index) { return sig.GetReturn(index); }
 };
 
 struct BranchDepthImmediate {
@@ -1094,11 +1093,15 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
     bool null_succeeds)                                                        \
   F(RefCastAbstract, const Value& obj, HeapType type, Value* result,           \
     bool null_succeeds)                                                        \
-  F(AssertNull, const Value& obj, Value* result)                               \
-  F(AssertNotNull, const Value& obj, Value* result)                            \
+  F(AssertNullTypecheck, const Value& obj, Value* result)                      \
+  F(AssertNotNullTypecheck, const Value& obj, Value* result)                   \
   F(BrOnCast, const Value& obj, const Value& rtt, Value* result_on_branch,     \
-    uint32_t depth)                                                            \
+    uint32_t depth, bool null_succeeds)                                        \
   F(BrOnCastFail, const Value& obj, const Value& rtt,                          \
+    Value* result_on_fallthrough, uint32_t depth)                              \
+  F(BrOnCastAbstract, const Value& obj, HeapType type,                         \
+    Value* result_on_branch, uint32_t depth, bool null_succeeds)               \
+  F(BrOnCastFailAbstract, const Value& obj, HeapType type,                     \
     Value* result_on_fallthrough, uint32_t depth)                              \
   F(RefIsStruct, const Value& object, Value* result)                           \
   F(RefIsEq, const Value& object, Value* result)                               \
@@ -1108,9 +1111,11 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(RefAsI31, const Value& object, Value* result)                              \
   F(RefAsArray, const Value& object, Value* result)                            \
   F(BrOnStruct, const Value& object, Value* value_on_branch,                   \
-    uint32_t br_depth)                                                         \
-  F(BrOnI31, const Value& object, Value* value_on_branch, uint32_t br_depth)   \
-  F(BrOnArray, const Value& object, Value* value_on_branch, uint32_t br_depth) \
+    uint32_t br_depth, bool null_succeeds)                                     \
+  F(BrOnI31, const Value& object, Value* value_on_branch, uint32_t br_depth,   \
+    bool null_succeeds)                                                        \
+  F(BrOnArray, const Value& object, Value* value_on_branch, uint32_t br_depth, \
+    bool null_succeeds)                                                        \
   F(BrOnNonStruct, const Value& object, Value* value_on_fallthrough,           \
     uint32_t br_depth)                                                         \
   F(BrOnNonI31, const Value& object, Value* value_on_fallthrough,              \
@@ -1653,14 +1658,21 @@ class WasmDecoder : public Decoder {
   }
 
   bool Validate(const byte* pc, BlockTypeImmediate& imm) {
-    if (!ValidateValueType(pc, imm.type)) return false;
-    if (imm.type == kWasmBottom) {
+    if (imm.sig.all().begin() == nullptr) {
+      // Then use {sig_index} to initialize the signature.
       if (!VALIDATE(module_->has_signature(imm.sig_index))) {
         DecodeError(pc, "block type index %u is not a signature definition",
                     imm.sig_index);
         return false;
       }
-      imm.sig = module_->signature(imm.sig_index);
+      imm.sig = *module_->signature(imm.sig_index);
+    } else {
+      // Then it's an MVP immediate with 0 parameters and 0-1 returns.
+      DCHECK_EQ(0, imm.sig.parameter_count());
+      DCHECK_GE(1, imm.sig.return_count());
+      if (imm.sig.return_count()) {
+        if (!ValidateValueType(pc, imm.sig.GetReturn(0))) return false;
+      }
     }
     return true;
   }
@@ -2188,7 +2200,17 @@ class WasmDecoder : public Decoder {
             return length + imm.length;
           }
           case kExprBrOnCast:
+          case kExprBrOnCastNull:
           case kExprBrOnCastFail: {
+            BranchDepthImmediate branch(decoder, pc + length, validate);
+            HeapTypeImmediate imm(WasmFeatures::All(), decoder,
+                                  pc + length + branch.length, validate);
+            (ios.BranchDepth(branch), ...);
+            (ios.HeapType(imm), ...);
+            return length + branch.length + imm.length;
+          }
+          case kExprBrOnCastFailDeprecated:
+          case kExprBrOnCastDeprecated: {
             BranchDepthImmediate branch(decoder, pc + length, validate);
             IndexImmediate index(decoder, pc + length + branch.length,
                                  "type index", validate);
@@ -2290,7 +2312,7 @@ class WasmDecoder : public Decoder {
   }
 
   // TODO(clemensb): This is only used by the interpreter; move there.
-  std::pair<uint32_t, uint32_t> StackEffect(const byte* pc) {
+  V8_EXPORT_PRIVATE std::pair<uint32_t, uint32_t> StackEffect(const byte* pc) {
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
     // Handle "simple" opcodes with a fixed signature first.
     const FunctionSig* sig = WasmOpcodes::Signature(opcode);
@@ -2416,7 +2438,10 @@ class WasmDecoder : public Decoder {
           case kExprRefCastDeprecated:
           case kExprRefCastNop:
           case kExprBrOnCast:
+          case kExprBrOnCastNull:
           case kExprBrOnCastFail:
+          case kExprBrOnCastFailDeprecated:
+          case kExprBrOnCastDeprecated:
             return {1, 1};
           case kExprStructSet:
             return {2, 0};
@@ -3000,11 +3025,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   DECODE(Block) {
     BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    ArgVector args = PeekArgs(imm.sig);
+    ArgVector args = PeekArgs(&imm.sig);
     Control* block = PushControl(kControlBlock, args.length());
     SetBlockType(block, imm, args.begin());
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Block, block);
-    DropArgs(imm.sig);
+    DropArgs(&imm.sig);
     PushMergeValues(block, &block->start_merge);
     return 1 + imm.length;
   }
@@ -3038,13 +3063,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     this->detected_->Add(kFeature_eh);
     BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    ArgVector args = PeekArgs(imm.sig);
+    ArgVector args = PeekArgs(&imm.sig);
     Control* try_block = PushControl(kControlTry, args.length());
     SetBlockType(try_block, imm, args.begin());
     try_block->previous_catch = current_catch_;
     current_catch_ = static_cast<int>(control_depth() - 1);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Try, try_block);
-    DropArgs(imm.sig);
+    DropArgs(&imm.sig);
     PushMergeValues(try_block, &try_block->start_merge);
     return 1 + imm.length;
   }
@@ -3225,11 +3250,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   DECODE(Loop) {
     BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    ArgVector args = PeekArgs(imm.sig);
+    ArgVector args = PeekArgs(&imm.sig);
     Control* block = PushControl(kControlLoop, args.length());
     SetBlockType(&control_.back(), imm, args.begin());
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Loop, block);
-    DropArgs(imm.sig);
+    DropArgs(&imm.sig);
     PushMergeValues(block, &block->start_merge);
     return 1 + imm.length;
   }
@@ -3238,13 +3263,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     Value cond = Peek(0, 0, kWasmI32);
-    ArgVector args = PeekArgs(imm.sig, 1);
+    ArgVector args = PeekArgs(&imm.sig, 1);
     if (!VALIDATE(this->ok())) return 0;
     Control* if_block = PushControl(kControlIf, 1 + args.length());
     SetBlockType(if_block, imm, args.begin());
     CALL_INTERFACE_IF_OK_AND_REACHABLE(If, cond, if_block);
     Drop(cond);
-    DropArgs(imm.sig);  // Drop {args}.
+    DropArgs(&imm.sig);
     PushMergeValues(if_block, &if_block->start_merge);
     return 1 + imm.length;
   }
@@ -4033,7 +4058,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   // Peeks arguments as required by signature.
   V8_INLINE ArgVector PeekArgs(const FunctionSig* sig, int depth = 0) {
-    int count = sig ? static_cast<int>(sig->parameter_count()) : 0;
+    int count = static_cast<int>(sig->parameter_count());
     if (count == 0) return {};
     EnsureStackArguments(depth + count);
     ArgVector args(stack_value(depth + count), count);
@@ -4045,7 +4070,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   // Drops a number of stack elements equal to the {sig}'s parameter count (0 if
   // {sig} is null), or all of them if less are present.
   V8_INLINE void DropArgs(const FunctionSig* sig) {
-    int count = sig ? static_cast<int>(sig->parameter_count()) : 0;
+    int count = static_cast<int>(sig->parameter_count());
     Drop(count);
   }
 
@@ -4427,6 +4452,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   int DecodeGCOpcode(WasmOpcode opcode, uint32_t opcode_length) {
+    // Bigger GC opcodes are handled via {DecodeStringRefOpcode}, so we can
+    // assume here that opcodes are within [0xfb00, 0xfbff].
     // This assumption might help the big switch below.
     V8_ASSUME(opcode >> 8 == kGCPrefix);
     switch (opcode) {
@@ -4577,6 +4604,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length + imm.length;
       }
       case kExprArrayNewData: {
+        NON_CONST_ONLY
         ArrayIndexImmediate array_imm(this, this->pc_ + opcode_length,
                                       validate);
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
@@ -4619,6 +4647,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length + array_imm.length + data_segment.length;
       }
       case kExprArrayNewElem: {
+        NON_CONST_ONLY
         ArrayIndexImmediate array_imm(this, this->pc_ + opcode_length,
                                       validate);
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
@@ -4860,18 +4889,16 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                       obj.type.is_bottom())) {
           this->DecodeError(
               obj.pc(),
-              "Invalid types for ref.cast: %s of type %s has to "
+              "Invalid types for %s: %s of type %s has to "
               "be in the same reference type hierarchy as (ref %s)",
-              SafeOpcodeNameAt(obj.pc()), obj.type.name().c_str(),
-              target_type.name().c_str());
+              WasmOpcodes::OpcodeName(opcode), SafeOpcodeNameAt(obj.pc()),
+              obj.type.name().c_str(), target_type.name().c_str());
           return 0;
         }
 
         bool null_succeeds = opcode == kExprRefCastNull;
         Value value = CreateValue(ValueType::RefMaybeNull(
-            imm.type, (obj.type.is_bottom() || !null_succeeds)
-                          ? kNonNullable
-                          : obj.type.nullability()));
+            target_type, null_succeeds ? kNullable : kNonNullable));
         if (current_code_reachable_and_ok_) {
           // This logic ensures that code generation can assume that functions
           // can only be cast to function types, and data objects to data types.
@@ -4882,7 +4909,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               CALL_INTERFACE(Drop);
             }
             if (obj.type.is_nullable() && !null_succeeds) {
-              CALL_INTERFACE(AssertNotNull, obj, &value);
+              CALL_INTERFACE(AssertNotNullTypecheck, obj, &value);
             } else {
               CALL_INTERFACE(Forward, obj, &value);
             }
@@ -4895,7 +4922,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             // is null.
             if (obj.type.is_nullable() && null_succeeds) {
               // Drop rtt from the stack, then assert that obj is null.
-              CALL_INTERFACE(AssertNull, obj, &value);
+              CALL_INTERFACE(AssertNullTypecheck, obj, &value);
             } else {
               CALL_INTERFACE(Trap, TrapReason::kTrapIllegalCast);
               // We know that the following code is not reachable, but according
@@ -4942,10 +4969,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                       obj.type.is_bottom())) {
           this->DecodeError(
               obj.pc(),
-              "Invalid types for ref.test: %s of type %s has to "
+              "Invalid types for %s: %s of type %s has to "
               "be in the same reference type hierarchy as (ref %s)",
-              SafeOpcodeNameAt(obj.pc()), obj.type.name().c_str(),
-              target_type.name().c_str());
+              WasmOpcodes::OpcodeName(opcode), SafeOpcodeNameAt(obj.pc()),
+              obj.type.name().c_str(), target_type.name().c_str());
           return 0;
         }
         bool null_succeeds = opcode == kExprRefTestNull;
@@ -5037,6 +5064,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length;
       }
       case kExprRefCastNop: {
+        NON_CONST_ONLY
         // Temporary non-standard instruction, for performance experiments.
         if (!VALIDATE(this->enabled_.has_ref_cast_nop())) {
           this->DecodeError(
@@ -5104,7 +5132,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             if (obj.type.is_nullable()) {
               // Drop rtt from the stack, then assert that obj is null.
               CALL_INTERFACE(Drop);
-              CALL_INTERFACE(AssertNull, obj, &value);
+              CALL_INTERFACE(AssertNullTypecheck, obj, &value);
             } else {
               CALL_INTERFACE(Trap, TrapReason::kTrapIllegalCast);
               // We know that the following code is not reachable, but according
@@ -5120,7 +5148,108 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         Push(value);
         return opcode_length;
       }
-      case kExprBrOnCast: {
+      case kExprBrOnCast:
+      case kExprBrOnCastNull: {
+        NON_CONST_ONLY
+        BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
+                                          validate);
+        if (!this->Validate(this->pc_ + opcode_length, branch_depth,
+                            control_.size())) {
+          return 0;
+        }
+        uint32_t pc_offset = opcode_length + branch_depth.length;
+
+        HeapTypeImmediate imm(this->enabled_, this, this->pc_ + pc_offset,
+                              validate);
+        this->Validate(this->pc_ + opcode_length, imm);
+        if (!VALIDATE(this->ok())) return 0;
+        pc_offset += imm.length;
+
+        std::optional<Value> rtt;
+        HeapType target_type = imm.type;
+        if (imm.type.is_index()) {
+          rtt = CreateValue(ValueType::Rtt(imm.type.ref_index()));
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.type.ref_index(),
+                                             &rtt.value());
+          // Differently to other instructions we don't push the RTT yet.
+        }
+
+        Value obj = Peek(0);
+
+        if (!VALIDATE((obj.type.is_object_reference() &&
+                       IsSameTypeHierarchy(obj.type.heap_type(), target_type,
+                                           this->module_)) ||
+                      obj.type.is_bottom())) {
+          this->DecodeError(
+              obj.pc(),
+              "Invalid types for %s: %s of type %s has to "
+              "be in the same reference type hierarchy as (ref %s)",
+              WasmOpcodes::OpcodeName(opcode), SafeOpcodeNameAt(obj.pc()),
+              obj.type.name().c_str(), target_type.name().c_str());
+          return 0;
+        }
+
+        Control* c = control_at(branch_depth.depth);
+        if (c->br_merge()->arity == 0) {
+          this->DecodeError("%s must target a branch of arity at least 1",
+                            WasmOpcodes::OpcodeName(opcode));
+          return 0;
+        }
+        // Attention: contrary to most other instructions, we modify the
+        // stack before calling the interface function. This makes it
+        // significantly more convenient to pass around the values that
+        // will be on the stack when the branch is taken.
+        // TODO(jkummerow): Reconsider this choice.
+        Drop(obj);
+        bool null_succeeds = opcode == kExprBrOnCastNull;
+        Push(CreateValue(ValueType::RefMaybeNull(
+            imm.type, (obj.type.is_bottom() || !null_succeeds)
+                          ? kNonNullable
+                          : obj.type.nullability())));
+        // The {value_on_branch} parameter we pass to the interface must
+        // be pointer-identical to the object on the stack.
+        Value* value_on_branch = stack_value(1);
+        if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
+        if (V8_LIKELY(current_code_reachable_and_ok_)) {
+          // This logic ensures that code generation can assume that functions
+          // can only be cast to function types, and data objects to data types.
+          if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, target_type))) {
+            if (rtt.has_value()) {
+              CALL_INTERFACE(Drop);  // rtt
+            }
+            // The branch will still not be taken on null if not
+            // {null_succeeds}.
+            if (obj.type.is_nullable() && !null_succeeds) {
+              CALL_INTERFACE(BrOnNonNull, obj, value_on_branch,
+                             branch_depth.depth, false);
+            } else {
+              CALL_INTERFACE(Forward, obj, value_on_branch);
+              CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
+              // We know that the following code is not reachable, but according
+              // to the spec it technically is. Set it to spec-only reachable.
+              SetSucceedingCodeDynamicallyUnreachable();
+            }
+            c->br_merge()->reached = true;
+          } else if (V8_LIKELY(!TypeCheckAlwaysFails(obj, target_type,
+                                                     null_succeeds))) {
+            if (rtt.has_value()) {
+              CALL_INTERFACE(BrOnCast, obj, rtt.value(), value_on_branch,
+                             branch_depth.depth, null_succeeds);
+            } else {
+              CALL_INTERFACE(BrOnCastAbstract, obj, target_type,
+                             value_on_branch, branch_depth.depth,
+                             null_succeeds);
+            }
+            c->br_merge()->reached = true;
+          }
+          // Otherwise the types are unrelated. Do not branch.
+        }
+
+        Drop(1);    // value_on_branch
+        Push(obj);  // Restore stack state on fallthrough.
+        return pc_offset;
+      }
+      case kExprBrOnCastDeprecated: {
         NON_CONST_ONLY
         BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
                                           validate);
@@ -5181,8 +5310,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             }
             c->br_merge()->reached = true;
           } else if (V8_LIKELY(!TypeCheckAlwaysFails(obj, rtt))) {
+            bool null_succeeds = false;
             CALL_INTERFACE(BrOnCast, obj, rtt, value_on_branch,
-                           branch_depth.depth);
+                           branch_depth.depth, null_succeeds);
             c->br_merge()->reached = true;
           }
           // Otherwise the types are unrelated. Do not branch.
@@ -5193,6 +5323,98 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return pc_offset;
       }
       case kExprBrOnCastFail: {
+        NON_CONST_ONLY
+        BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
+                                          validate);
+        if (!this->Validate(this->pc_ + opcode_length, branch_depth,
+                            control_.size())) {
+          return 0;
+        }
+        uint32_t pc_offset = opcode_length + branch_depth.length;
+        HeapTypeImmediate imm(this->enabled_, this, this->pc_ + pc_offset,
+                              validate);
+        this->Validate(this->pc_ + opcode_length, imm);
+        if (!VALIDATE(this->ok())) return 0;
+        pc_offset += imm.length;
+
+        std::optional<Value> rtt;
+        HeapType target_type = imm.type;
+        if (imm.type.is_index()) {
+          rtt = CreateValue(ValueType::Rtt(imm.type.ref_index()));
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.type.ref_index(),
+                                             &rtt.value());
+          // Differently to other instructions we don't push the RTT yet.
+        }
+
+        Value obj = Peek(0);
+
+        if (!VALIDATE((obj.type.is_object_reference() &&
+                       IsSameTypeHierarchy(obj.type.heap_type(), target_type,
+                                           this->module_)) ||
+                      obj.type.is_bottom())) {
+          this->DecodeError(
+              obj.pc(),
+              "Invalid types for br_on_cast_fail: %s of type %s has to "
+              "be in the same reference type hierarchy as (ref %s)",
+              SafeOpcodeNameAt(obj.pc()), obj.type.name().c_str(),
+              target_type.name().c_str());
+          return 0;
+        }
+
+        Control* c = control_at(branch_depth.depth);
+        if (c->br_merge()->arity == 0) {
+          this->DecodeError(
+              "br_on_cast_fail must target a branch of arity at least 1");
+          return 0;
+        }
+
+        if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
+        bool null_succeeds = false;
+        Value result_on_fallthrough = CreateValue(ValueType::Ref(target_type));
+        if (V8_LIKELY(current_code_reachable_and_ok_)) {
+          // This logic ensures that code generation can assume that functions
+          // can only be cast between compatible types.
+          if (V8_UNLIKELY(
+                  TypeCheckAlwaysFails(obj, target_type, null_succeeds))) {
+            if (rtt.has_value()) {
+              CALL_INTERFACE(Drop);  // rtt
+            }
+            // The types are incompatible (i.e. neither of the two types is a
+            // subtype of the other). Always branch.
+            CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
+            // We know that the following code is not reachable, but according
+            // to the spec it technically is. Set it to spec-only reachable.
+            SetSucceedingCodeDynamicallyUnreachable();
+            c->br_merge()->reached = true;
+          } else if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, target_type))) {
+            if (rtt.has_value()) {
+              CALL_INTERFACE(Drop);  // rtt
+            }
+            // The branch can still be taken on null.
+            if (obj.type.is_nullable()) {
+              CALL_INTERFACE(BrOnNull, obj, branch_depth.depth, true,
+                             &result_on_fallthrough);
+              c->br_merge()->reached = true;
+            }
+            // Otherwise, the type check always succeeds. Do not branch. Also,
+            // the object is already on the stack; do not manipulate the stack.
+          } else {
+            if (rtt.has_value()) {
+              CALL_INTERFACE(BrOnCastFail, obj, rtt.value(),
+                             &result_on_fallthrough, branch_depth.depth);
+            } else {
+              CALL_INTERFACE(BrOnCastFailAbstract, obj, target_type,
+                             &result_on_fallthrough, branch_depth.depth);
+            }
+            c->br_merge()->reached = true;
+          }
+        }
+        // Make sure the correct value is on the stack state on fallthrough.
+        Drop(obj);
+        Push(result_on_fallthrough);
+        return pc_offset;
+      }
+      case kExprBrOnCastFailDeprecated: {
         NON_CONST_ONLY
         BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
                                           validate);
@@ -5222,12 +5444,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               "br_on_cast_fail must target a branch of arity at least 1");
           return 0;
         }
-        // Attention: contrary to most other instructions, we modify the stack
-        // before calling the interface function. This makes it significantly
-        // more convenient to pass around the values that will be on the stack
-        // when the branch is taken. In this case, we leave {obj} on the stack
-        // to type check the branch.
-        // TODO(jkummerow): Reconsider this choice.
+
         if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
         Value result_on_fallthrough = CreateValue(ValueType::Ref(imm.index));
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
@@ -5369,13 +5586,16 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         // {result_on_branch} which was passed-by-value to {Push}.
         Value* value_on_branch = stack_value(1);
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
+          bool null_succeeds = false;
           if (opcode == kExprBrOnStruct) {
-            CALL_INTERFACE(BrOnStruct, obj, value_on_branch,
-                           branch_depth.depth);
+            CALL_INTERFACE(BrOnStruct, obj, value_on_branch, branch_depth.depth,
+                           null_succeeds);
           } else if (opcode == kExprBrOnArray) {
-            CALL_INTERFACE(BrOnArray, obj, value_on_branch, branch_depth.depth);
+            CALL_INTERFACE(BrOnArray, obj, value_on_branch, branch_depth.depth,
+                           null_succeeds);
           } else {
-            CALL_INTERFACE(BrOnI31, obj, value_on_branch, branch_depth.depth);
+            CALL_INTERFACE(BrOnI31, obj, value_on_branch, branch_depth.depth,
+                           null_succeeds);
           }
           c->br_merge()->reached = true;
         }
@@ -5427,6 +5647,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length + branch_depth.length;
       }
       case kExprExternInternalize: {
+        NON_CONST_ONLY
         Value extern_val = Peek(0, 0, kWasmExternRef);
         ValueType intern_type = ValueType::RefMaybeNull(
             HeapType::kAny, Nullability(extern_val.type.is_nullable()));
@@ -5438,6 +5659,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length;
       }
       case kExprExternExternalize: {
+        NON_CONST_ONLY
         Value val = Peek(0, 0, kWasmAnyRef);
         ValueType extern_type = ValueType::RefMaybeNull(
             HeapType::kExtern, Nullability(val.type.is_nullable()));
@@ -5550,8 +5772,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   int DecodeStringRefOpcode(WasmOpcode opcode, uint32_t opcode_length) {
-    // This assumption might help the big switch below.
-    V8_ASSUME(opcode >> 8 == kGCPrefix);
+    // Fast check for out-of-range opcodes (only allow 0xfbXX).
+    // This might help the big switch below.
+    if (!VALIDATE((opcode >> 8) == kGCPrefix)) {
+      this->DecodeError("invalid stringref opcode: %x", opcode);
+      return 0;
+    }
+
     switch (opcode) {
       case kExprStringNewUtf8:
         return DecodeStringNewWtf8(unibrow::Utf8Variant::kUtf8, opcode_length);

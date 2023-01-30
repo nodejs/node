@@ -80,7 +80,8 @@ namespace internal {
   F(BigIntToBoolean, 1, 1)              \
   F(BigIntToNumber, 1, 1)               \
   F(BigIntUnaryOp, 2, 1)                \
-  F(ToBigInt, 1, 1)
+  F(ToBigInt, 1, 1)                     \
+  F(ToBigIntConvertNumber, 1, 1)
 
 #define FOR_EACH_INTRINSIC_CLASSES(F, I)    \
   F(DefineClass, -1 /* >= 3 */, 1)          \
@@ -314,6 +315,7 @@ namespace internal {
   F(GetDerivedMap, 2, 1)                                               \
   F(GetFunctionName, 1, 1)                                             \
   F(GetOwnPropertyDescriptor, 2, 1)                                    \
+  F(GetOwnPropertyDescriptorObject, 2, 1)                              \
   F(GetOwnPropertyKeys, 2, 1)                                          \
   F(GetProperty, -1 /* [2, 3] */, 1)                                   \
   F(HasFastPackedElements, 1, 1)                                       \
@@ -542,6 +544,7 @@ namespace internal {
   F(HeapObjectVerify, 1, 1)                   \
   F(ICsAreEnabled, 0, 1)                      \
   F(InLargeObjectSpace, 1, 1)                 \
+  F(InSharedHeap, 1, 1)                       \
   F(InYoungGeneration, 1, 1)                  \
   F(Is64Bit, 0, 1)                            \
   F(IsAtomicsWaitAllowed, 0, 1)               \
@@ -619,7 +622,7 @@ namespace internal {
   F(WasmTableCopy, 6, 1)              \
   F(WasmTableGrow, 3, 1)              \
   F(WasmTableFill, 5, 1)              \
-  F(WasmJSToWasmObject, 3, 1)         \
+  F(WasmJSToWasmObject, 2, 1)         \
   F(WasmCompileLazy, 2, 1)            \
   F(WasmAllocateFeedbackVector, 3, 1) \
   F(WasmCompileWrapper, 2, 1)         \
@@ -663,7 +666,6 @@ namespace internal {
   F(WasmGetNumberOfInstances, 1, 1)        \
   F(WasmNumCodeSpaces, 1, 1)               \
   F(WasmTierDown, 0, 1)                    \
-  F(WasmTierUp, 0, 1)                      \
   F(WasmTierUpFunction, 2, 1)              \
   F(WasmTraceEnter, 0, 1)                  \
   F(WasmTraceExit, 1, 1)                   \
@@ -944,6 +946,7 @@ enum class OptimizationStatus {
   kTopmostFrameIsInterpreted = 1 << 16,
   kTopmostFrameIsBaseline = 1 << 17,
   kIsLazy = 1 << 18,
+  kTopmostFrameIsMaglev = 1 << 19,
 };
 
 }  // namespace internal

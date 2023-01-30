@@ -31,6 +31,8 @@ TEST(WeakReferencesBasic) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   HandleScope outer_scope(isolate);
 
   Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
@@ -185,6 +187,7 @@ TEST(ObjectMovesBeforeClearingWeakField) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   HandleScope outer_scope(isolate);
   Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
@@ -356,6 +359,7 @@ TEST(WeakArraysBasic) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   HandleScope outer_scope(isolate);
 
   const int length = 4;
@@ -427,6 +431,7 @@ TEST(WeakArrayListBasic) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   HandleScope outer_scope(isolate);
 
   Handle<WeakArrayList> array(ReadOnlyRoots(heap).empty_weak_array_list(),
@@ -723,6 +728,7 @@ TEST(PrototypeUsersCompacted) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   HandleScope outer_scope(isolate);
 
   Handle<WeakArrayList> array(ReadOnlyRoots(heap).empty_weak_array_list(),

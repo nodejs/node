@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 import * as C from "../common/constants";
-import { createElement, getNumericCssValue, storageGetItem, storageSetItem } from "../common/util";
+import { createElement, getNumericCssValue,
+         setCssValue, storageGetItem, storageSetItem } from "../common/util";
 import { SequenceView } from "./sequence-view";
 import { Interval } from "../interval";
 import { ChildRange, Range, SequenceBlock } from "../phases/sequence-phase";
@@ -103,11 +104,20 @@ class IntervalElementsAccessor {
 // A number of css variables regarding dimensions of HTMLElements are required by RangeView.
 class CSSVariables {
   positionWidth: number;
+  positionBorder: number;
   blockBorderWidth: number;
+  flippedPositionHeight: number;
 
   constructor() {
     this.positionWidth = getNumericCssValue("--range-position-width");
+    this.positionBorder = getNumericCssValue("--range-position-border");
     this.blockBorderWidth = getNumericCssValue("--range-block-border");
+    this.flippedPositionHeight = getNumericCssValue("--range-flipped-position-height");
+  }
+
+  setVariables(numPositions: number, numRegisters: number) {
+    setCssValue("--range-num-positions", String(numPositions));
+    setCssValue("--range-num-registers", String(numRegisters));
   }
 }
 
@@ -150,8 +160,9 @@ class UserSettings {
 
   public reset(settingName: string): void {
     const settingObject = this.settings.get(settingName);
-    storageSetItem(this.getSettingKey(settingName), settingObject.value);
     settingObject.resetFunction(settingObject.value);
+    storageSetItem(this.getSettingKey(settingName), settingObject.value);
+    window.dispatchEvent(new Event("resize"));
   }
 
   public get(settingName: string): boolean {
@@ -220,6 +231,7 @@ class Divs {
   xAxisLabel: HTMLElement;
   yAxisLabel: HTMLElement;
   registerHeaders: HTMLElement;
+  registersTypeHeader: HTMLElement;
   registers: HTMLElement;
 
   // Assigned from RangeView.
@@ -241,10 +253,14 @@ class Divs {
     this.content.appendChild(this.showOnLoad);
 
     this.xAxisLabel = createElement("div", "range-header-label-x");
-    this.xAxisLabel.innerText = "Blocks, Instructions, and Positions";
+    this.xAxisLabel.dataset.notFlipped = "Blocks, Instructions, and Positions";
+    this.xAxisLabel.dataset.flipped = "Registers";
+    this.xAxisLabel.innerText = this.xAxisLabel.dataset.notFlipped;
     this.showOnLoad.appendChild(this.xAxisLabel);
     this.yAxisLabel = createElement("div", "range-header-label-y");
-    this.yAxisLabel.innerText = "Registers";
+    this.yAxisLabel.dataset.notFlipped = "Registers";
+    this.yAxisLabel.dataset.flipped = "Positions";
+    this.yAxisLabel.innerText = this.yAxisLabel.dataset.notFlipped;
     this.showOnLoad.appendChild(this.yAxisLabel);
 
     this.registerHeaders = createElement("div", "range-register-labels");
@@ -264,6 +280,7 @@ class Divs {
     titleEl.appendChild(titleBar);
     titleEl.appendChild(titleHelp);
     titleEl.appendChild(userSettings.getToggleElement("landscapeMode", "Landscape Mode"));
+    titleEl.appendChild(userSettings.getToggleElement("flipped", "Switched Axes"));
     return titleEl;
   }
 }
@@ -273,6 +290,18 @@ class RowConstructor {
 
   constructor(view: RangeView) {
     this.view = view;
+  }
+
+  getGridTemplateRowsValueForGroupDiv(length) {
+    return `repeat(${length},calc(${this.view.cssVariables.positionWidth}ch +
+            ${2 * this.view.cssVariables.positionBorder}px))`;
+  }
+
+  getGridTemplateColumnsValueForInterval(length) {
+    const positionSize = (this.view.userSettings.get("flipped")
+                          ? `${this.view.cssVariables.flippedPositionHeight}em`
+                          : `${this.view.cssVariables.positionWidth}ch`);
+    return `repeat(${length},calc(${positionSize} + ${this.view.cssVariables.blockBorderWidth}px))`;
   }
 
   // Constructs the row of HTMLElements for grid while providing a callback for each position
@@ -292,7 +321,7 @@ class RowConstructor {
       } else {
         callbackForInterval(position, interval);
         this.view.intervalsAccessor.addInterval(interval);
-        const intervalPositionElements = this.getPositionElementsFromInterval(interval);
+        const intervalPositionElements = this.view.getPositionElementsFromInterval(interval);
         for (let j = 0; j < intervalPositionElements.length; ++j) {
           // Point positionsArray to the new elements.
           positions[position + j] = (intervalPositionElements[j] as HTMLElement);
@@ -307,10 +336,6 @@ class RowConstructor {
       if (!range) continue;
       this.setUses(grid, row, range);
     }
-  }
-
-  private getPositionElementsFromInterval(interval: HTMLElement): HTMLCollection {
-    return interval.children[1].children;
   }
 
   // This is the main function used to build new intervals.
@@ -336,18 +361,19 @@ class RowConstructor {
   private elementForInterval(childRange: ChildRange, interval: Interval,
                              tooltip: string, index: number, isDeferred: boolean): HTMLElement {
     const intervalEl = createElement("div", "range-interval");
+    intervalEl.dataset.tooltip = tooltip;
     const title = `${childRange.id}:${index} ${tooltip}`;
     intervalEl.setAttribute("title", isDeferred ? `deferred: ${title}` : title);
     this.setIntervalColor(intervalEl, tooltip);
 
     const intervalInnerWrapper = createElement("div", "range-interval-wrapper");
     intervalEl.style.gridColumn = `${(interval.start + 1)} / ${(interval.end + 1)}`;
-    intervalInnerWrapper.style.gridTemplateColumns = `repeat(${(interval.end - interval.start)}`
-      + `,calc(${this.view.cssVariables.positionWidth}ch + `
-      + `${this.view.cssVariables.blockBorderWidth}px)`;
-
-    const intervalTextEl = this.elementForIntervalString(tooltip, interval.end - interval.start);
-    intervalEl.appendChild(intervalTextEl);
+    const intervalLength = interval.end - interval.start;
+    intervalInnerWrapper.style.gridTemplateColumns =
+      this.getGridTemplateColumnsValueForInterval(intervalLength);
+    const intervalStringEls = this.elementsForIntervalString(tooltip, intervalLength);
+    intervalEl.appendChild(intervalStringEls.main);
+    intervalEl.appendChild(intervalStringEls.behind);
 
     for (let i = interval.start; i < interval.end; ++i) {
       const classes = "range-position range-interval-position range-empty" +
@@ -376,30 +402,13 @@ class RowConstructor {
     }
   }
 
-  private elementForIntervalString(tooltip: string, numCells: number): HTMLElement {
+  private elementsForIntervalString(tooltip: string, numCells: number):
+                                                        { main: HTMLElement, behind: HTMLElement } {
     const spanEl = createElement("span", "range-interval-text");
-    this.setIntervalString(spanEl, tooltip, numCells);
-    return spanEl;
-  }
-
-  // Each interval displays a string of information about it.
-  private setIntervalString(spanEl: HTMLElement, tooltip: string, numCells: number): void {
-    const spacePerCell = this.view.cssVariables.positionWidth;
-    // One character space is removed to accommodate for padding.
-    const spaceAvailable = (numCells * spacePerCell) - 0.5;
-    let intervalStr = tooltip;
-    const length = tooltip.length;
-    spanEl.style.width = null;
-    let paddingLeft = null;
-    // Add padding if possible
-    if (length <= spaceAvailable) {
-      paddingLeft = (length == spaceAvailable) ? "0.5ch" : "1ch";
-    } else {
-      intervalStr = "";
-    }
-    spanEl.style.paddingTop = null;
-    spanEl.style.paddingLeft = paddingLeft;
-    spanEl.innerHTML = intervalStr;
+    // Allows a cleaner display of the interval text when displayed vertically.
+    const spanElBehind = createElement("span", "range-interval-text range-interval-text-behind");
+    this.view.stringConstructor.setIntervalString(spanEl, spanElBehind, tooltip, numCells);
+    return {main: spanEl, behind: spanElBehind};
   }
 
   private setUses(grid: Grid, row: number, range: Range): void {
@@ -412,22 +421,136 @@ class RowConstructor {
   }
 }
 
+// A simple storage class for the data used when constructing an interval string.
+class IntervalStringData {
+  mainString: string;
+  textLength: number;
+  paddingLeft: string;
+
+  constructor(tooltip: string) {
+    this.mainString = tooltip;
+    this.textLength = tooltip.length;
+    this.paddingLeft = null;
+  }
+}
+
+class StringConstructor {
+  view: RangeView;
+
+  intervalStringData: IntervalStringData;
+
+  constructor(view: RangeView) {
+    this.view = view;
+  }
+
+  public setRegisterString(registerName: string, isVirtual: boolean, regEl: HTMLElement) {
+    if (this.view.userSettings.get("flipped")) {
+      const nums = registerName.match(/\d+/);
+      const num = nums ? nums[0] : registerName.substring(1);
+      let str = num[num.length - 1];
+      for (let i = 2; i <= Math.max(this.view.maxLengthVirtualRegisterNumber, 2); ++i) {
+        const addition = num.length < i ? "<span class='range-transparent'>_</span>"
+                                        : num[num.length - i];
+        str = `${addition} ${str}`;
+      }
+      regEl.innerHTML = str;
+    } else if (!isVirtual) {
+      const span = "".padEnd(C.FIXED_REGISTER_LABEL_WIDTH - registerName.length, "_");
+      regEl.innerHTML = `HW - <span class='range-transparent'>${span}</span>${registerName}`;
+    } else {
+      regEl.innerText = registerName;
+    }
+  }
+
+  // Each interval displays a string of information about it.
+  public setIntervalString(spanEl: HTMLElement,
+                            spanElBehind: HTMLElement, tooltip: string, numCells: number): void {
+    const isFlipped = this.view.userSettings.get("flipped");
+    const spacePerCell = isFlipped ? 1 : this.view.cssVariables.positionWidth + 0.25;
+    // One character space is removed to accommodate for padding.
+    const totalSpaceAvailable = (numCells * spacePerCell) - (isFlipped ? 0 : 0.5);
+    this.intervalStringData = new IntervalStringData(tooltip);
+    spanElBehind.innerHTML = "";
+    spanEl.style.width = null;
+
+    this.setIntervalStringPadding(spanEl, spanElBehind, totalSpaceAvailable, isFlipped);
+    if (this.intervalStringData.textLength > totalSpaceAvailable) {
+      this.intervalStringData.mainString = "";
+      spanElBehind.innerHTML = "";
+    }
+    spanEl.innerHTML = this.intervalStringData.mainString;
+  }
+
+  private setIntervalStringPadding(spanEl: HTMLElement, spanElBehind: HTMLElement,
+                                   totalSpaceAvailable: number, isFlipped: boolean) {
+    // Add padding at start of text if possible
+    if (this.intervalStringData.textLength <= totalSpaceAvailable) {
+      if (isFlipped) {
+        spanEl.style.paddingTop =
+          this.intervalStringData.textLength == totalSpaceAvailable ? "0.25em" : "1em";
+        spanEl.style.paddingLeft = null;
+      } else {
+        this.intervalStringData.paddingLeft =
+          (this.intervalStringData.textLength == totalSpaceAvailable) ? "0.5ch" : "1ch";
+        spanEl.style.paddingTop = null;
+      }
+    } else {
+      spanEl.style.paddingTop = null;
+    }
+    if (spanElBehind.innerHTML.length > 0) {
+      // Apply same styling to spanElBehind as to spanEl.
+      spanElBehind.setAttribute("style", spanEl.getAttribute("style"));
+      spanElBehind.style.paddingLeft = this.intervalStringData.paddingLeft;
+    } else {
+      spanEl.style.paddingLeft = this.intervalStringData.paddingLeft;
+    }
+  }
+}
+
+// A simple class to tally the total number of each type of register and store
+// the register prefixes for use in the register type header.
+class RegisterTypeHeaderData {
+  virtualCount: number;
+  generalCount: number;
+  floatCount: number;
+
+  generalPrefix: string;
+  floatPrefix: string;
+
+  constructor() {
+    this.virtualCount = 0;
+    this.generalCount = 0;
+    this.floatCount = 0;
+    this.generalPrefix = "x";
+    this.floatPrefix = "fp";
+  }
+
+  public countFixedRegister(registerName: string, ranges: [Range, Range]) {
+    const range = ranges[0] ? ranges[0] : ranges[1];
+    if (range.childRanges[0].isFloatingPoint()) {
+      ++(this.floatCount);
+      this.floatPrefix = this.floatPrefix == "fp" ? registerName.match(/\D+/)[0] : this.floatPrefix;
+    } else {
+      ++(this.generalCount);
+      this.generalPrefix = this.generalPrefix == "x" ? registerName[0] : this.generalPrefix;
+    }
+  }
+}
+
 class RangeViewConstructor {
   view: RangeView;
-  gridTemplateColumns: string;
   grid: Grid;
+  registerTypeHeaderData: RegisterTypeHeaderData;
   // Group the rows in divs to make hiding/showing divs more efficient.
   currentGroup: HTMLElement;
   currentPlaceholderGroup: HTMLElement;
 
   constructor(rangeView: RangeView) {
     this.view = rangeView;
+    this.registerTypeHeaderData = new RegisterTypeHeaderData();
   }
 
   public construct(): void {
-    this.gridTemplateColumns = `repeat(${this.view.numPositions}`
-      + `,calc(${this.view.cssVariables.positionWidth}ch + `
-      + `${this.view.cssVariables.blockBorderWidth}px)`;
     this.grid = new Grid();
     this.view.gridAccessor.addGrid(this.grid);
 
@@ -448,6 +571,10 @@ class RangeViewConstructor {
 
     this.resetGroups();
     this.addFixedRanges(this.addVirtualRanges(0));
+
+    this.view.divs.registersTypeHeader = this.elementForRegisterTypeHeader();
+    this.view.divs.registerHeaders.insertBefore(this.view.divs.registersTypeHeader,
+                                                this.view.divs.registers);
   }
 
   // The following three functions are for constructing the groups which the rows are contained
@@ -462,7 +589,14 @@ class RangeViewConstructor {
     this.currentPlaceholderGroup = createElement("div", "range-positions-group");
   }
 
-  private appendGroupsToGrid(): void {
+  private appendGroupsToGrid(row: number): void {
+    const endRow = row + 2;
+    const numRows = this.currentPlaceholderGroup.children.length;
+    this.currentGroup.style.gridRow = `${endRow - numRows} / ${numRows == 1 ? "auto" : endRow}`;
+    this.currentPlaceholderGroup.style.gridRow = this.currentGroup.style.gridRow;
+    this.currentGroup.style.gridTemplateRows =
+    this.view.rowConstructor.getGridTemplateRowsValueForGroupDiv(numRows);
+    this.currentPlaceholderGroup.style.gridTemplateRows = this.currentGroup.style.gridTemplateRows;
     this.view.divs.grid.appendChild(this.currentPlaceholderGroup);
     this.view.divs.grid.appendChild(this.currentGroup);
   }
@@ -473,7 +607,7 @@ class RangeViewConstructor {
       createElement("div", "range-positions range-positions-placeholder", "_"));
 
     if ((row + 1) % C.ROW_GROUP_SIZE == 0) {
-      this.appendGroupsToGrid();
+      this.appendGroupsToGrid(row);
       this.resetGroups();
     }
   }
@@ -483,9 +617,10 @@ class RangeViewConstructor {
     for (const [registerIndex, range] of source.liveRanges.entries()) {
       if (!range) continue;
       const registerName = this.virtualRegisterName(registerIndex);
-      const registerEl = this.elementForVirtualRegister(registerName);
+      const registerEl = this.elementForRegister(row, registerName, true);
       this.addRowToGroup(row, this.elementForRow(row, registerIndex, [range, undefined]));
       this.view.divs.registers.appendChild(registerEl);
+      ++(this.registerTypeHeaderData.virtualCount);
       ++row;
     }
     return row;
@@ -498,13 +633,14 @@ class RangeViewConstructor {
   private addFixedRanges(row: number): void {
     row = this.view.sequenceView.sequence.registerAllocation.forEachFixedRange(row,
       (registerIndex: number, row: number, registerName: string, ranges: [Range, Range]) => {
-        const registerEl = this.elementForFixedRegister(registerName);
+        this.registerTypeHeaderData.countFixedRegister(registerName, ranges);
+        const registerEl = this.elementForRegister(row, registerName, false);
         this.addRowToGroup(row, this.elementForRow(row, registerIndex, ranges));
         this.view.divs.registers.appendChild(registerEl);
       });
 
     if (row % C.ROW_GROUP_SIZE != 0) {
-      this.appendGroupsToGrid();
+      this.appendGroupsToGrid(row - 1);
     }
   }
 
@@ -513,7 +649,6 @@ class RangeViewConstructor {
   // deferred to be easily combined into a single row.
   private elementForRow(row: number, registerIndex: number, ranges: [Range, Range]): HTMLElement {
     const rowEl = createElement("div", "range-positions");
-    rowEl.style.gridTemplateColumns = this.gridTemplateColumns;
 
     const getElementForEmptyPosition = (position: number) => {
       const blockBorder = this.view.blocksData.isBlockBorder(position);
@@ -537,20 +672,43 @@ class RangeViewConstructor {
     return rowEl;
   }
 
-  private elementForVirtualRegister(registerName: string): HTMLElement {
-    const regEl = createElement("div", "range-reg", registerName);
+  private elementForRegister(row: number, registerName: string, isVirtual: boolean) {
+    const regEl = createElement("div", "range-reg");
+    this.view.stringConstructor.setRegisterString(registerName, isVirtual, regEl);
+    regEl.dataset.virtual = isVirtual.toString();
     regEl.setAttribute("title", registerName);
+    regEl.style.gridColumn = String(row + 1);
     return regEl;
   }
 
-  private elementForFixedRegister(registerName: string): HTMLElement {
-    let text = registerName;
-    const span = "".padEnd(C.FIXED_REGISTER_LABEL_WIDTH - text.length, "_");
-    text = "HW - <span class='range-transparent'>" + span + "</span>" + text;
-    const regEl = createElement("div", "range-reg");
-    regEl.innerHTML = text;
-    regEl.setAttribute("title", registerName);
-    return regEl;
+  private elementForRegisterTypeHeader() {
+    let column = 1;
+    const addTypeHeader = (container: HTMLElement, count: number,
+                           textOptions: {max: string, med: string, min: string}) => {
+      if (count) {
+        const element = createElement("div", "range-type-header");
+        element.setAttribute("title", textOptions.max);
+        element.style.gridColumn = column + " / " + (column + count);
+        column += count;
+        element.dataset.count = String(count);
+        element.dataset.max = textOptions.max;
+        element.dataset.med = textOptions.med;
+        element.dataset.min = textOptions.min;
+        container.appendChild(element);
+      }
+    };
+    const registerTypeHeaderEl = createElement("div", "range-registers-type range-hidden");
+    addTypeHeader(registerTypeHeaderEl, this.registerTypeHeaderData.virtualCount,
+          {max: "virtual registers", med: "virtual", min: "v"});
+    addTypeHeader(registerTypeHeaderEl, this.registerTypeHeaderData.generalCount,
+          { max: "general registers",
+            med: "general",
+            min: this.registerTypeHeaderData.generalPrefix });
+    addTypeHeader(registerTypeHeaderEl, this.registerTypeHeaderData.floatCount,
+          { max: "floating point registers",
+            med: "floating point",
+            min: this.registerTypeHeaderData.floatPrefix});
+    return registerTypeHeaderEl;
   }
 
   // The header element contains the three headers for the LifeTimePosition axis.
@@ -576,7 +734,6 @@ class RangeViewConstructor {
 
   private elementForBlockHeader(): HTMLElement {
     const headerEl = createElement("div", "range-block-ids");
-    headerEl.style.gridTemplateColumns = this.gridTemplateColumns;
 
     let blockIndex = 0;
     for (let i = 0; i < this.view.sequenceView.numInstructions;) {
@@ -591,19 +748,26 @@ class RangeViewConstructor {
 
   private elementForBlockIndex(index: number, firstInstruction: number, instrCount: number):
     HTMLElement {
-    const str = `B${index}`;
     const element =
-      createElement("div", "range-block-id range-header-element range-block-border", str);
+      createElement("div", "range-block-id range-header-element range-block-border");
+    const str = `B${index}`;
+    const idEl = createElement("span", "range-block-id-number", str);
+    const centre = instrCount * C.POSITIONS_PER_INSTRUCTION;
+    idEl.style.gridRow = `${centre} / ${centre + 1}`;
+    element.appendChild(idEl);
     element.setAttribute("title", str);
+    element.dataset.instrCount = String(instrCount);
     const firstGridCol = (firstInstruction * C.POSITIONS_PER_INSTRUCTION) + 1;
     const lastGridCol = firstGridCol + (instrCount * C.POSITIONS_PER_INSTRUCTION);
     element.style.gridColumn = `${firstGridCol} / ${lastGridCol}`;
+    element.style.gridTemplateRows = `repeat(${8 * instrCount},
+      calc((${this.view.cssVariables.flippedPositionHeight}em +
+            ${this.view.cssVariables.blockBorderWidth}px)/2))`;
     return element;
   }
 
   private elementForInstructionHeader(): HTMLElement {
     const headerEl = createElement("div", "range-instruction-ids");
-    headerEl.style.gridTemplateColumns = this.gridTemplateColumns;
 
     for (let i = 0; i < this.view.sequenceView.numInstructions; ++i) {
       headerEl.appendChild(this.elementForInstructionIndex(i));
@@ -617,7 +781,8 @@ class RangeViewConstructor {
     const classes = "range-instruction-id range-header-element "
       + (isBlockBorder ? "range-block-border" : "range-instr-border");
 
-    const element = createElement("div", classes, String(index));
+    const element = createElement("div", classes);
+    element.appendChild(createElement("span", "range-instruction-id-number", String(index)));
     element.setAttribute("title", String(index));
     const firstGridCol = (index * C.POSITIONS_PER_INSTRUCTION) + 1;
     element.style.gridColumn = `${firstGridCol} / ${(firstGridCol + C.POSITIONS_PER_INSTRUCTION)}`;
@@ -626,7 +791,6 @@ class RangeViewConstructor {
 
   private elementForPositionHeader(): HTMLElement {
     const headerEl = createElement("div", "range-positions range-positions-header");
-    headerEl.style.gridTemplateColumns = this.gridTemplateColumns;
 
     for (let i = 0; i < this.view.numPositions; ++i) {
       headerEl.appendChild(this.elementForPositionIndex(i));
@@ -642,8 +806,8 @@ class RangeViewConstructor {
         : this.view.blocksData.isInstructionBorder(index) ? "range-instr-border"
           : "range-position-border");
 
-    const element = createElement("div", classes, "" + index);
-    element.setAttribute("title", "" + index);
+    const element = createElement("div", classes, String(index));
+    element.setAttribute("title", String(index));
     return element;
   }
 
@@ -734,6 +898,98 @@ class PhaseChangeHandler {
   }
 }
 
+class DisplayResetter {
+  view: RangeView;
+  isFlipped: boolean;
+
+  constructor(view: RangeView) {
+    this.view = view;
+  }
+
+  // Allow much of the changes required to be done in the css.
+  public updateClassesOnContainer(): void {
+    this.isFlipped = this.view.userSettings.get("flipped");
+    this.view.divs.container.classList.toggle("not_flipped", !this.isFlipped);
+    this.view.divs.container.classList.toggle("flipped", this.isFlipped);
+  }
+
+  public resetLandscapeMode(isInLandscapeMode: boolean): void {
+    // Used to communicate the setting to Resizer.
+    this.view.divs.container.dataset.landscapeMode =
+                                                  isInLandscapeMode.toString();
+
+    window.dispatchEvent(new Event('resize'));
+    // Required to adjust scrollbar spacing.
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 100);
+  }
+
+  public resetFlipped(): void {
+    this.updateClassesOnContainer();
+    // Appending the HTMLElement removes it from it's current position.
+    this.view.divs.wholeHeader.appendChild(this.isFlipped ? this.view.divs.registerHeaders
+                                                          : this.view.divs.positionHeaders);
+    this.view.divs.yAxis.appendChild(this.isFlipped ? this.view.divs.positionHeaders
+                                                    : this.view.divs.registerHeaders);
+    this.resetLayout();
+    // Set the label text appropriately.
+    this.view.divs.xAxisLabel.innerText = this.isFlipped
+                                          ? this.view.divs.xAxisLabel.dataset.flipped
+                                          : this.view.divs.xAxisLabel.dataset.notFlipped;
+    this.view.divs.yAxisLabel.innerText = this.isFlipped
+                                          ? this.view.divs.yAxisLabel.dataset.flipped
+                                          : this.view.divs.yAxisLabel.dataset.notFlipped;
+  }
+
+  private resetLayout(): void {
+    this.resetRegisters();
+    this.resetIntervals();
+  }
+
+  private resetRegisters(): void {
+    // Reset register strings.
+    for (const regNode of this.view.divs.registers.childNodes) {
+      const regEl = regNode as HTMLElement;
+      const registerName = regEl.getAttribute("title");
+      this.view.stringConstructor.setRegisterString(registerName,
+                                                    regEl.dataset.virtual == "true", regEl);
+    }
+
+    // registerTypeHeader is only displayed when the axes are switched.
+    this.view.divs.registersTypeHeader.classList.toggle("range-hidden", !this.isFlipped);
+    if (this.isFlipped) {
+      for (const typeHeader of this.view.divs.registersTypeHeader.children) {
+        const element = (typeHeader as HTMLElement);
+        const regCount = parseInt(element.dataset.count, 10);
+        const spaceAvailable = regCount * Math.floor(this.view.cssVariables.positionWidth);
+        // The more space available the longer the header text can be.
+        if (spaceAvailable > element.dataset.max.length) {
+          element.innerText = element.dataset.max;
+        } else if (spaceAvailable > element.dataset.med.length) {
+          element.innerText = element.dataset.med;
+        } else {
+          element.innerText = element.dataset.min;
+        }
+      }
+    }
+  }
+
+  private resetIntervals(): void {
+    this.view.intervalsAccessor.forEachInterval((_, interval) => {
+      const intervalEl = interval as HTMLElement;
+      const spanEl = intervalEl.children[0] as HTMLElement;
+      const spanElBehind = intervalEl.children[1] as HTMLElement;
+      const intervalLength = this.view.getPositionElementsFromInterval(interval).length;
+      this.view.stringConstructor.setIntervalString(spanEl, spanElBehind,
+                                                    intervalEl.dataset.tooltip, intervalLength);
+      const intervalInnerWrapper = intervalEl.children[2] as HTMLElement;
+      intervalInnerWrapper.style.gridTemplateColumns =
+        this.view.rowConstructor.getGridTemplateColumnsValueForInterval(intervalLength);
+    });
+  }
+}
+
 enum ToSync {
   LEFT,
   TOP
@@ -741,7 +997,7 @@ enum ToSync {
 
 // Handles saving and syncing the scroll positions of the grid.
 class ScrollHandler {
-  divs: Divs;
+  view: RangeView;
   scrollTop: number;
   scrollLeft: number;
   scrollTopTimeout: NodeJS.Timeout;
@@ -749,19 +1005,24 @@ class ScrollHandler {
   scrollTopFunc: (this: GlobalEventHandlers, ev: Event) => any;
   scrollLeftFunc: (this: GlobalEventHandlers, ev: Event) => any;
 
-  constructor(divs: Divs) {
-    this.divs = divs;
+  constructor(view: RangeView) {
+    this.view = view;
   }
 
   // This function is used to hide the rows which are not currently in view and
   // so reduce the performance cost of things like hit tests and scrolling.
   public syncHidden(): void {
+    const isFlipped = this.view.userSettings.get("flipped");
     const toHide = new Array<[HTMLElement, HTMLElement]>();
 
-    const sampleCell = this.divs.registers.children[1] as HTMLElement;
-    const buffer = sampleCell.clientHeight * 2;
-    const min = this.divs.grid.offsetTop + this.divs.grid.scrollTop - buffer;
-    const max = min + this.divs.grid.clientHeight + buffer;
+    const sampleCell = this.view.divs.registers.children[1] as HTMLElement;
+    const buffer = 2 * (isFlipped ? sampleCell.clientWidth : sampleCell.clientHeight);
+    const min = (isFlipped ? this.view.divs.grid.offsetLeft + this.view.divs.grid.scrollLeft
+                           : this.view.divs.grid.offsetTop + this.view.divs.grid.scrollTop)
+                - buffer;
+    const max = (isFlipped ? min + this.view.divs.grid.clientWidth
+                           : min + this.view.divs.grid.clientHeight)
+                + buffer;
 
     // The rows are grouped by being contained within a group div. This is so as to allow
     // groups of rows to easily be displayed and hidden with less of a performance cost.
@@ -769,16 +1030,16 @@ class ScrollHandler {
     // the placeholderGroup div that will be shown when mainGroup is hidden so as to maintain
     // the dimensions and scroll positions of the grid.
 
-    const rangeGroups = this.divs.grid.children;
+    const rangeGroups = this.view.divs.grid.children;
     for (let i = 1; i < rangeGroups.length; i += 2) {
       const mainGroup = rangeGroups[i] as HTMLElement;
       const placeholderGroup = rangeGroups[i - 1] as HTMLElement;
       const isHidden = mainGroup.classList.contains("range-hidden");
       // The offsets are used to calculate whether the group is in view.
       const offsetMin = this.getOffset(mainGroup.firstChild as HTMLElement,
-        placeholderGroup.firstChild as HTMLElement, isHidden);
+        placeholderGroup.firstChild as HTMLElement, isHidden, isFlipped);
       const offsetMax = this.getOffset(mainGroup.lastChild as HTMLElement,
-        placeholderGroup.lastChild as HTMLElement, isHidden);
+        placeholderGroup.lastChild as HTMLElement, isHidden, isFlipped);
 
       if (offsetMax > min && offsetMin < max) {
         if (isHidden) {
@@ -838,19 +1099,21 @@ class ScrollHandler {
   }
 
   public saveScroll(): void {
-    this.scrollLeft = this.divs.grid.scrollLeft;
-    this.scrollTop = this.divs.grid.scrollTop;
+    this.scrollLeft = this.view.divs.grid.scrollLeft;
+    this.scrollTop = this.view.divs.grid.scrollTop;
   }
 
   public restoreScroll(): void {
     if (this.scrollLeft) {
-      this.divs.grid.scrollLeft = this.scrollLeft;
-      this.divs.grid.scrollTop = this.scrollTop;
+      this.view.divs.grid.scrollLeft = this.scrollLeft;
+      this.view.divs.grid.scrollTop = this.scrollTop;
     }
   }
 
-  private getOffset(rowEl: HTMLElement, placeholderRowEl: HTMLElement, isHidden: boolean): number {
-    return isHidden ? placeholderRowEl.offsetTop : rowEl.offsetTop;
+  private getOffset(rowEl: HTMLElement, placeholderRowEl: HTMLElement,
+                    isHidden: boolean, isFlipped: boolean): number {
+    const element = isHidden ? placeholderRowEl : rowEl;
+    return isFlipped ? element.offsetLeft : element.offsetTop;
   }
 }
 
@@ -872,10 +1135,13 @@ export class RangeView {
   divs: Divs;
   scrollHandler: ScrollHandler;
   phaseChangeHandler: PhaseChangeHandler;
+  displayResetter: DisplayResetter;
   rowConstructor: RowConstructor;
+  stringConstructor: StringConstructor;
   initialized: boolean;
   isShown: boolean;
   numPositions: number;
+  maxLengthVirtualRegisterNumber: number;
 
   constructor(sequence: SequenceView) {
     this.sequenceView = sequence;
@@ -889,16 +1155,31 @@ export class RangeView {
       this.intervalsAccessor = new IntervalElementsAccessor(this.sequenceView);
       this.cssVariables = new CSSVariables();
       this.userSettings = new UserSettings();
+      this.displayResetter = new DisplayResetter(this);
       // Indicates whether the RangeView is displayed beside or below the SequenceView.
-      this.userSettings.addSetting("landscapeMode", false, this.resetLandscapeMode.bind(this));
+      this.userSettings.addSetting("landscapeMode", false,
+      this.displayResetter.resetLandscapeMode.bind(this.displayResetter));
+      // Indicates whether the grid axes are switched.
+      this.userSettings.addSetting("flipped", false,
+      this.displayResetter.resetFlipped.bind(this.displayResetter));
       this.blocksData = new BlocksData(blocks);
       this.divs = new Divs(this.userSettings);
-      this.scrollHandler = new ScrollHandler(this.divs);
+      this.displayResetter.updateClassesOnContainer();
+      this.scrollHandler = new ScrollHandler(this);
       this.numPositions = this.sequenceView.numInstructions * C.POSITIONS_PER_INSTRUCTION;
       this.rowConstructor = new RowConstructor(this);
+      this.stringConstructor = new StringConstructor(this);
       const constructor = new RangeViewConstructor(this);
       constructor.construct();
+      this.cssVariables.setVariables(this.numPositions, this.divs.registers.children.length);
       this.phaseChangeHandler = new PhaseChangeHandler(this);
+      let maxVirtualRegisterNumber = 0;
+      for (const register of this.divs.registers.children) {
+        const registerEl = register as HTMLElement;
+        maxVirtualRegisterNumber = Math.max(maxVirtualRegisterNumber,
+                                            parseInt(registerEl.title.substring(1), 10));
+      }
+      this.maxLengthVirtualRegisterNumber = Math.floor(Math.log10(maxVirtualRegisterNumber)) + 1;
       this.initialized = true;
     } else {
       // If the RangeView has already been initialized then the phase must have
@@ -947,14 +1228,7 @@ export class RangeView {
     if (this.isShown) this.scrollHandler.syncHidden();
   }
 
-  public resetLandscapeMode(isInLandscapeMode: boolean): void {
-    // Used to communicate the setting to Resizer.
-    this.divs.container.dataset.landscapeMode = isInLandscapeMode.toString();
-
-    window.dispatchEvent(new Event("resize"));
-    // Required to adjust scrollbar spacing.
-    setTimeout(() => {
-      window.dispatchEvent(new Event("resize"));
-    }, 100);
+  public getPositionElementsFromInterval(interval: HTMLElement): HTMLCollection {
+    return interval.children[2].children;
   }
 }

@@ -48,7 +48,7 @@ FEATURE_FLAGS = {
     'host-gc-required': '--expose-gc-as=v8GC',
     'IsHTMLDDA': '--allow-natives-syntax',
     'import-assertions': '--harmony-import-assertions',
-    'resizable-arraybuffer': '--harmony-rab-gsab',
+    'resizable-arraybuffer': '--harmony-rab-gsab-transfer',
     'Temporal': '--harmony-temporal',
     'array-find-from-last': '--harmony-array-find-last',
     'ShadowRealm': '--harmony-shadow-realm',

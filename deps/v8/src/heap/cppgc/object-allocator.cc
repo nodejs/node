@@ -283,6 +283,26 @@ void ObjectAllocator::ResetLinearAllocationBuffers() {
   visitor.Traverse(raw_heap_);
 }
 
+void ObjectAllocator::MarkAllPagesAsYoung() {
+  class YoungMarker : public HeapVisitor<YoungMarker> {
+   public:
+    bool VisitNormalPage(NormalPage& page) {
+      MarkRangeAsYoung(page, page.PayloadStart(), page.PayloadEnd());
+      return true;
+    }
+
+    bool VisitLargePage(LargePage& page) {
+      MarkRangeAsYoung(page, page.PayloadStart(), page.PayloadEnd());
+      return true;
+    }
+  } visitor;
+  USE(visitor);
+
+#if defined(CPPGC_YOUNG_GENERATION)
+  visitor.Traverse(raw_heap_);
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+}
+
 bool ObjectAllocator::in_disallow_gc_scope() const {
   return raw_heap_.heap()->in_disallow_gc_scope();
 }

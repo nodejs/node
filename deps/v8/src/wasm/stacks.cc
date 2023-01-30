@@ -4,12 +4,17 @@
 
 #include "src/wasm/stacks.h"
 
+#include "src/base/platform/platform.h"
+
 namespace v8::internal::wasm {
 
 // static
 StackMemory* StackMemory::GetCurrentStackView(Isolate* isolate) {
-  byte* limit = reinterpret_cast<byte*>(isolate->stack_guard()->real_jslimit());
-  return new StackMemory(isolate, limit);
+  uintptr_t limit = isolate->stack_guard()->real_jslimit();
+  uintptr_t stack_start = base::Stack::GetStackStart();
+  DCHECK_LE(limit, stack_start);
+  size_t size = stack_start - limit;
+  return new StackMemory(isolate, reinterpret_cast<byte*>(limit), size);
 }
 
 StackMemory::~StackMemory() {
@@ -50,11 +55,8 @@ StackMemory::StackMemory(Isolate* isolate) : isolate_(isolate), owned_(true) {
 }
 
 // Overload to represent a view of the libc stack.
-StackMemory::StackMemory(Isolate* isolate, byte* limit)
-    : isolate_(isolate),
-      limit_(limit),
-      size_(v8_flags.stack_size * KB),
-      owned_(false) {
+StackMemory::StackMemory(Isolate* isolate, byte* limit, size_t size)
+    : isolate_(isolate), limit_(limit), size_(size), owned_(false) {
   id_ = 0;
 }
 

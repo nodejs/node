@@ -1228,6 +1228,9 @@ MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
       CompilationJob::Status status =
           job->ExecuteJob(isolate->counters()->runtime_call_stats(),
                           isolate->main_thread_local_isolate());
+      if (status == CompilationJob::FAILED) {
+        return {};
+      }
       CHECK_EQ(status, CompilationJob::SUCCEEDED);
     }
 
@@ -1585,7 +1588,9 @@ BackgroundCompileTask::BackgroundCompileTask(
       timer_(isolate->counters()->compile_script_on_background()),
       start_position_(0),
       end_position_(0),
-      function_literal_id_(kFunctionLiteralIdTopLevel) {}
+      function_literal_id_(kFunctionLiteralIdTopLevel) {
+  DCHECK(is_streaming_compilation());
+}
 
 BackgroundCompileTask::BackgroundCompileTask(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
@@ -1606,6 +1611,7 @@ BackgroundCompileTask::BackgroundCompileTask(
       end_position_(shared_info->EndPosition()),
       function_literal_id_(shared_info->function_literal_id()) {
   DCHECK(!shared_info->is_toplevel());
+  DCHECK(!is_streaming_compilation());
 
   character_stream_->Seek(start_position_);
 
@@ -1758,6 +1764,10 @@ class MergeAssumptionChecker final : public ObjectVisitor {
 
 }  // namespace
 
+bool BackgroundCompileTask::is_streaming_compilation() const {
+  return function_literal_id_ == kFunctionLiteralIdTopLevel;
+}
+
 void BackgroundCompileTask::Run() {
   RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
   DCHECK_NE(ThreadId::Current(), isolate_for_local_isolate_->thread_id());
@@ -1790,6 +1800,7 @@ void BackgroundCompileTask::Run(
   ParseInfo info(isolate, flags_, &compile_state_, reusable_state,
                  GetCurrentStackPosition() - stack_size_ * KB);
   info.set_character_stream(std::move(character_stream_));
+  if (is_streaming_compilation()) info.set_is_streaming_compilation();
 
   if (toplevel_script_compilation) {
     DCHECK_NULL(persistent_handles_);
@@ -1900,6 +1911,7 @@ class ConstantPoolPointerForwarder {
       : cage_base_(cage_base), local_heap_(local_heap) {}
 
   void AddBytecodeArray(BytecodeArray bytecode_array) {
+    CHECK(bytecode_array.IsBytecodeArray());
     bytecode_arrays_to_update_.push_back(handle(bytecode_array, local_heap_));
   }
 
@@ -1972,9 +1984,6 @@ void BackgroundMergeTask::SetUpOnMainThread(Isolate* isolate,
     return;
   }
 
-  // Any data sent to the background thread will need to be a persistent handle.
-  persistent_handles_ = std::make_unique<PersistentHandles>(isolate);
-
   if (lookup_result.is_compiled_scope().is_compiled()) {
     // There already exists a compiled top-level SFI, so the main thread will
     // discard the background serialization results and use the top-level SFI
@@ -1985,9 +1994,16 @@ void BackgroundMergeTask::SetUpOnMainThread(Isolate* isolate,
   } else {
     DCHECK(lookup_result.toplevel_sfi().is_null());
     // A background merge is required.
-    state_ = kPendingBackgroundWork;
-    cached_script_ = persistent_handles_->NewHandle(*script);
+    SetUpOnMainThread(isolate, script);
   }
+}
+
+void BackgroundMergeTask::SetUpOnMainThread(Isolate* isolate,
+                                            Handle<Script> cached_script) {
+  // Any data sent to the background thread will need to be a persistent handle.
+  persistent_handles_ = std::make_unique<PersistentHandles>(isolate);
+  state_ = kPendingBackgroundWork;
+  cached_script_ = persistent_handles_->NewHandle(*cached_script);
 }
 
 void BackgroundMergeTask::BeginMergeInBackground(LocalIsolate* isolate,
@@ -2030,8 +2046,8 @@ void BackgroundMergeTask::BeginMergeInBackground(LocalIsolate* isolate,
         SharedFunctionInfo old_sfi =
             SharedFunctionInfo::cast(maybe_old_sfi.GetHeapObjectAssumeWeak());
         forwarder.Forward(new_sfi, old_sfi);
-        if (new_sfi.is_compiled()) {
-          if (old_sfi.is_compiled()) {
+        if (new_sfi.HasBytecodeArray()) {
+          if (old_sfi.HasBytecodeArray()) {
             // Reset the old SFI's bytecode age so that it won't likely get
             // flushed right away. This operation might be racing against
             // concurrent modification by another thread, but such a race is not
@@ -2051,7 +2067,7 @@ void BackgroundMergeTask::BeginMergeInBackground(LocalIsolate* isolate,
         DCHECK_EQ(i, new_sfi.function_literal_id());
         new_sfi.set_script(*old_script);
         used_new_sfis_.push_back(local_heap->NewPersistentHandle(new_sfi));
-        if (new_sfi.is_compiled()) {
+        if (new_sfi.HasBytecodeArray()) {
           forwarder.AddBytecodeArray(new_sfi.GetBytecodeArray(isolate));
         }
       }
@@ -2144,7 +2160,8 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
 
 MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
     Isolate* isolate, Handle<String> source,
-    const ScriptDetails& script_details) {
+    const ScriptDetails& script_details,
+    MaybeHandle<Script> maybe_cached_script) {
   ScriptOriginOptions origin_options = script_details.origin_options;
 
   DCHECK(flags_.is_toplevel());
@@ -2162,11 +2179,15 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
     maybe_result = outer_function_sfi_;
   }
 
-  if (!maybe_result.is_null() &&
-      background_merge_task_.HasPendingForegroundWork()) {
-    DCHECK(flags().is_toplevel());
+  if (Handle<Script> cached_script;
+      maybe_cached_script.ToHandle(&cached_script) && !maybe_result.is_null()) {
+    BackgroundMergeTask merge;
+    merge.SetUpOnMainThread(isolate, cached_script);
+    CHECK(merge.HasPendingBackgroundWork());
+    merge.BeginMergeInBackground(isolate->AsLocalIsolate(), script);
+    CHECK(merge.HasPendingForegroundWork());
     Handle<SharedFunctionInfo> result =
-        background_merge_task_.CompleteMergeInForeground(isolate, script);
+        merge.CompleteMergeInForeground(isolate, script);
     maybe_result = result;
     script = handle(Script::cast(result->script()), isolate);
     DCHECK(script->source().StrictEquals(*source));
@@ -2209,7 +2230,6 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
 bool BackgroundCompileTask::FinalizeFunction(
     Isolate* isolate, Compiler::ClearExceptionFlag flag) {
   DCHECK(!flags_.is_toplevel());
-  DCHECK(!background_merge_task_.HasPendingForegroundWork());
 
   MaybeHandle<SharedFunctionInfo> maybe_result;
   Handle<SharedFunctionInfo> input_shared_info =
@@ -2302,31 +2322,10 @@ void BackgroundDeserializeTask::SourceTextAvailable(
                                            language_mode);
 }
 
-void BackgroundCompileTask::SourceTextAvailable(
-    Isolate* isolate, Handle<String> source_text,
-    const ScriptDetails& script_details) {
-  DCHECK_EQ(isolate, isolate_for_local_isolate_);
-
-  // Non-toplevel compilations already refer to an existing Script; there is no
-  // need to look anything up in the compilation cache.
-  if (!flags().is_toplevel()) return;
-
-  LanguageMode language_mode = flags().outer_language_mode();
-  background_merge_task_.SetUpOnMainThread(isolate, source_text, script_details,
-                                           language_mode);
-}
-
 bool BackgroundDeserializeTask::ShouldMergeWithExistingScript() const {
   DCHECK(v8_flags.merge_background_deserialized_script_with_compilation_cache);
   return background_merge_task_.HasPendingBackgroundWork() &&
          off_thread_data_.HasResult();
-}
-
-bool BackgroundCompileTask::ShouldMergeWithExistingScript() const {
-  DCHECK(v8_flags.stress_background_compile);
-  DCHECK(!script_.is_null());
-  return background_merge_task_.HasPendingBackgroundWork() &&
-         jobs_to_retry_finalization_on_main_thread_.empty();
 }
 
 void BackgroundDeserializeTask::MergeWithExistingScript() {
@@ -2338,21 +2337,6 @@ void BackgroundDeserializeTask::MergeWithExistingScript() {
 
   background_merge_task_.BeginMergeInBackground(
       &isolate, off_thread_data_.GetOnlyScript(isolate.heap()));
-}
-
-void BackgroundCompileTask::MergeWithExistingScript() {
-  DCHECK(ShouldMergeWithExistingScript());
-
-  LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
-  UnparkedScope unparked_scope(&isolate);
-  LocalHandleScope handle_scope(isolate.heap());
-
-  // Get a non-persistent handle to the newly compiled script.
-  isolate.heap()->AttachPersistentHandles(std::move(persistent_handles_));
-  Handle<Script> script = handle(*script_, &isolate);
-  persistent_handles_ = isolate.heap()->DetachPersistentHandles();
-
-  background_merge_task_.BeginMergeInBackground(&isolate, script);
 }
 
 MaybeHandle<SharedFunctionInfo> BackgroundDeserializeTask::Finish(
@@ -3302,15 +3286,9 @@ class StressBackgroundCompileThread : public base::Thread {
     data()->task = std::make_unique<i::BackgroundCompileTask>(
         data(), isolate, type,
         ScriptCompiler::CompileOptions::kNoCompileOptions);
-    data()->task->SourceTextAvailable(isolate, source, script_details);
   }
 
-  void Run() override {
-    data()->task->Run();
-    if (data()->task->ShouldMergeWithExistingScript()) {
-      data()->task->MergeWithExistingScript();
-    }
-  }
+  void Run() override { data()->task->Run(); }
 
   ScriptStreamingData* data() { return streamed_source_.impl(); }
 
@@ -3530,9 +3508,8 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
         // would be non-trivial.
       } else {
         maybe_result = CodeSerializer::Deserialize(
-            isolate, cached_data, source, script_details.origin_options);
-        // TODO(v8:12808): Merge the newly deserialized code into a preexisting
-        // Script if one was found in the compilation cache.
+            isolate, cached_data, source, script_details.origin_options,
+            maybe_script);
       }
 
       bool consuming_code_cache_succeeded = false;
@@ -3745,6 +3722,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   BackgroundCompileTask* task = streaming_data->task.get();
 
   MaybeHandle<SharedFunctionInfo> maybe_result;
+  MaybeHandle<Script> maybe_cached_script;
   // Check if compile cache already holds the SFI, if so no need to finalize
   // the code compiled on the background thread.
   CompilationCache* compilation_cache = isolate->compilation_cache();
@@ -3755,16 +3733,14 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
         compilation_cache->LookupScript(source, script_details,
                                         task->flags().outer_language_mode());
 
-    // TODO(v8:12808): Determine what to do if we finish streaming and find that
-    // another copy of the Script already exists but has no root
-    // SharedFunctionInfo or has an uncompiled SharedFunctionInfo. For now, we
-    // just ignore it and create a new Script.
     if (!lookup_result.toplevel_sfi().is_null()) {
       maybe_result = lookup_result.toplevel_sfi();
     }
 
     if (!maybe_result.is_null()) {
       compile_timer.set_hit_isolate_cache();
+    } else {
+      maybe_cached_script = lookup_result.script();
     }
   }
 
@@ -3776,7 +3752,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.OffThreadFinalization.Publish");
 
-    maybe_result = task->FinalizeScript(isolate, source, script_details);
+    maybe_result = task->FinalizeScript(isolate, source, script_details,
+                                        maybe_cached_script);
 
     Handle<SharedFunctionInfo> result;
     if (maybe_result.ToHandle(&result)) {
@@ -4020,6 +3997,7 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     ResetProfilerTicks(*function, osr_offset);
 
     RecordMaglevFunctionCompilation(isolate, function);
+    job->RecordCompilationStats(isolate);
     double ms_prepare = job->time_taken_to_prepare().InMillisecondsF();
     double ms_optimize = job->time_taken_to_execute().InMillisecondsF();
     double ms_codegen = job->time_taken_to_finalize().InMillisecondsF();

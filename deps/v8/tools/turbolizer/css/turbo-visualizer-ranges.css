@@ -3,10 +3,11 @@
 
 :root {
   --range-y-axis-width: 18ch;
-  --range-position-width: 3.5ch;
+  --range-position-width: 1.5ch;
   --range-block-border: 6px;
   --range-instr-border: 3px;
   --range-position-border: 1px;
+  --range-flipped-position-height: 1em;
 }
 
 .range-bold {
@@ -25,6 +26,7 @@
 }
 
 .range-title-div {
+  box-sizing: border-box;
   padding: 2ch 2ch 2ch 2ch;
   white-space: nowrap;
   overflow: auto;
@@ -90,36 +92,73 @@ input.range-toggle-setting {
   background-color: lightgray;
 }
 
-.range-register-labels {
+#ranges.not_flipped .range-register-labels,
+#ranges.flipped .range-position-labels {
   float: right;
 }
 
-.range-position-labels {
+#ranges.not_flipped .range-position-labels,
+#ranges.flipped .range-register-labels {
   margin-top: auto;
 }
 
-.range-registers {
+#ranges.flipped .range-register-labels {
+  border-right: 2px solid white;
+}
+
+#ranges.not_flipped .range-registers {
   float: right;
   overflow: hidden;
   text-align: right;
 }
 
-.range-positions-header,
-.range-instruction-ids,
-.range-block-ids {
+#ranges.not_flipped .range-positions-header,
+#ranges.not_flipped .range-instruction-ids,
+#ranges.not_flipped .range-block-ids,
+#ranges.flipped .range-registers,
+#ranges.flipped .range-registers-type {
   overflow: hidden;
   white-space: nowrap;
+}
+
+#ranges .range-positions-header,
+#ranges .range-instruction-ids,
+#ranges .range-block-ids,
+#ranges.flipped .range-registers,
+#ranges.flipped .range-registers-type {
   display: grid;
   grid-gap: 0;
 }
 
-.range-reg {
+#ranges.not_flipped .range-registers-type {
+  width: 0ch;
+}
+
+.range-type-header {
+  display: inline-block;
+  text-align: center;
+}
+
+.range-type-header::after {
+  float: right;
+}
+
+#ranges.not_flipped .range-reg {
   width: 13ch;
   text-align: right;
 }
 
-.range-reg::after {
+#ranges.not_flipped .range-reg::after {
   content: ":";
+}
+
+#ranges.flipped .range-reg {
+  display: inline-block;
+  text-align: center;
+}
+
+#ranges.flipped .range-registers .range-reg {
+  white-space: pre-line;
 }
 
 .range-grid {
@@ -142,11 +181,56 @@ input.range-toggle-setting {
   display: inline-block;
   text-align: center;
   z-index: 1;
+  color: transparent;
+}
+
+#ranges.flipped .range-position {
+  color: inherit;
 }
 
 .range-transparent,
-.range-position.range-empty {
+.range-position.range-empty,
+#ranges.flipped .range-position.range-empty {
   color: transparent;
+}
+
+#ranges.flipped .range-interval-text {
+  writing-mode: horizontal-tb;
+}
+
+#ranges.flipped .range-interval-wrapper {
+  writing-mode: vertical-lr;
+}
+
+#ranges.flipped .range-registers,
+#ranges.flipped .range-registers-type,
+#ranges.flipped .range-grid,
+#ranges.flipped .range-positions-group  {
+  display: inline-grid;
+  grid-gap: 0;
+}
+
+#ranges.flipped .range-grid {
+  writing-mode: vertical-lr;
+  grid-template-rows: repeat(var(--range-num-registers, 0), calc(var(--range-position-width) + (2 * var(--range-position-border))));
+}
+
+#ranges.flipped .range-registers,
+#ranges.flipped .range-registers-type {
+  grid-template-columns: repeat(var(--range-num-registers, 0), calc(var(--range-position-width) + (2 * var(--range-position-border))));
+}
+
+#ranges.flipped .range-position-labels {
+  display: grid;
+  grid-gap: 0;
+  writing-mode: vertical-lr;
+  grid-template-rows: repeat(3, calc(3.5ch + (2 * var(--range-position-border))));
+  border-bottom: 2px solid white;
+}
+
+#ranges.flipped .range-interval-wrapper,
+#ranges.flipped .range-grid .range-positions {
+  grid-template-rows: calc(var(--range-position-width) + (2 * var(--range-position-border)));
 }
 
 .range-block-id:hover,
@@ -156,10 +240,15 @@ input.range-toggle-setting {
   background-color: rgba(0, 0, 255, 0.10);
 }
 
-.range-position.range-header-element {
+#ranges.not_flipped .range-position.range-header-element {
   border-bottom: 2px solid rgb(109, 107, 107);
 }
 
+#ranges.flipped .range-position.range-header-element {
+  border-right: 2px solid rgb(109, 107, 107);
+}
+
+.range-type-header,
 .range-block-id,
 .range-instruction-id,
 .range-reg,
@@ -169,21 +258,42 @@ input.range-toggle-setting {
   border: var(--range-position-border) solid rgb(109, 107, 107);
 }
 
-.range-block-id,
-.range-instruction-id,
-.range-interval,
-.range-position {
+#ranges.not_flipped .range-block-id,
+#ranges.not_flipped .range-instruction-id,
+#ranges.not_flipped .range-interval,
+#ranges.not_flipped .range-position {
   border-left: 0;
 }
 
-.range-block-ids > .range-block-id:first-child,
-.range-instruction-ids > .range-instruction-id:first-child,
-.range-positions > .range-position:first-child {
+#ranges.flipped .range-block-id,
+#ranges.flipped .range-instruction-id,
+#ranges.flipped .range-interval,
+#ranges.flipped .range-position {
+  border-top: 0;
+}
+
+#ranges.not_flipped .range-block-ids > .range-block-id:first-child,
+#ranges.not_flipped .range-instruction-ids > .range-instruction-id:first-child,
+#ranges.not_flipped .range-positions > .range-position:first-child {
   border-left: var(--range-position-border) solid rgb(109, 107, 107);
+}
+
+#ranges.flipped .range-block-ids > .range-block-id:first-child,
+#ranges.flipped .range-instruction-ids > .range-instruction-id:first-child,
+#ranges.flipped .range-positions > .range-position:first-child {
+  border-top: var(--range-position-border) solid rgb(109, 107, 107);
 }
 
 .range-position.range-interval-position {
   border: none;
+}
+
+#ranges.flipped .range-interval-position:first-child {
+  padding-top: 0px;
+}
+
+#ranges.flipped .range-interval-position:last-child {
+  padding-bottom: 0px;
 }
 
 .range-interval-text {
@@ -193,26 +303,60 @@ input.range-toggle-setting {
   pointer-events: none
 }
 
-.range-position.range-use {
+#ranges.flipped .range-interval-text {
+  width: 1ch;
+  overflow-wrap: break-word;
+  white-space: normal;
+  /* padding + border + 1ch + border + padding = width */
+  padding-left: calc(((var(--range-position-width) - 1ch) / 2.0) - var(--range-position-border));
+}
+
+#ranges.flipped .range-interval-text-behind {
+  overflow-wrap: normal;
+}
+
+#ranges.not_flipped .range-position.range-use {
   border-left: var(--range-instr-border) solid red;
 }
 
-.range-block-border,
-.range-block-border.range-position.range-interval-position:last-child {
+#ranges.flipped .range-position.range-use {
+  border-top: var(--range-instr-border) solid red;
+}
+
+#ranges.not_flipped .range-block-border,
+#ranges.not_flipped .range-block-border.range-position.range-interval-position:last-child {
   border-right: var(--range-block-border) solid rgb(109, 107, 107);
 }
 
-.range-block-border.range-position.range-interval-position {
+#ranges.flipped .range-block-border,
+#ranges.flipped .range-block-border.range-position.range-interval-position:last-child {
+  border-bottom: var(--range-block-border) solid rgb(109, 107, 107);
+}
+
+#ranges.not_flipped .range-block-border.range-position.range-interval-position {
   border-right: var(--range-block-border) solid transparent;
 }
 
-.range-instr-border,
-.range-instr-border.range-position.range-interval-position:last-child {
+#ranges.flipped .range-block-border.range-position.range-interval-position {
+  border-bottom: var(--range-block-border) solid transparent;
+}
+
+#ranges.not_flipped .range-instr-border,
+#ranges.not_flipped .range-instr-border.range-position.range-interval-position:last-child {
   border-right: var(--range-instr-border) solid rgb(109, 107, 107);
 }
 
-.range-instr-border.range-position.range-interval-position {
+#ranges.flipped .range-instr-border,
+#ranges.flipped .range-instr-border.range-position.range-interval-position:last-child {
+  border-bottom: var(--range-instr-border) solid rgb(109, 107, 107);
+}
+
+#ranges.not_flipped .range-instr-border.range-position.range-interval-position {
   border-right: var(--range-instr-border) solid transparent;
+}
+
+#ranges.flipped .range-instr-border.range-position.range-interval-position {
+  border-bottom: var(--range-instr-border) solid transparent;
 }
 
 .range,
@@ -229,8 +373,49 @@ input.range-toggle-setting {
   grid-gap: 0;
 }
 
+#ranges.not_flipped .range-instruction-ids,
+#ranges.not_flipped .range-block-ids,
+#ranges.not_flipped .range-positions {
+  grid-template-columns: repeat(var(--range-num-positions, 0), calc(var(--range-position-width) + var(--range-block-border)));
+}
+
+#ranges.flipped .range-instruction-ids,
+#ranges.flipped .range-block-ids,
+#ranges.flipped .range-positions {
+  writing-mode: vertical-lr;
+  grid-template-columns: repeat(var(--range-num-positions, 0), calc(var(--range-flipped-position-height) + var(--range-block-border)));
+}
+
+#ranges.flipped .range-instruction-id {
+  display: grid;
+  grid-gap: 0;
+  grid-template-rows: repeat(8, calc((var(--range-flipped-position-height) + var(--range-block-border)) / 2));
+}
+
+#ranges.flipped .range-instruction-id-number {
+  grid-row: 4 / 5;
+  height: 100%;
+}
+
+#ranges.flipped .range-block-id {
+  display: grid;
+  grid-gap: 0;
+}
+
+#ranges.flipped .range-block-id-number {
+  height: 100%;
+}
+
+#ranges.flipped .range-header-element {
+  writing-mode: horizontal-tb;
+}
+
 .range-interval {
   background-color: rgb(153, 158, 168);
+}
+
+#ranges.flipped .range-interval {
+  display: block;
 }
 
 .range-hidden {

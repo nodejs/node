@@ -382,7 +382,7 @@ TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
       [=](TNode<IntPtrT> offset) {
         StoreObjectFieldNoWriteBarrier(function_context, offset, undefined);
       },
-      kTaggedSize, IndexAdvanceMode::kPost);
+      kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
   return function_context;
 }
 
@@ -664,7 +664,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
             TNode<Object> field = LoadObjectField(boilerplate, offset);
             StoreObjectFieldNoWriteBarrier(copy, offset, field);
           },
-          kTaggedSize, IndexAdvanceMode::kPost);
+          kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
       CopyMutableHeapNumbersInObject(copy, offset.value(), instance_size);
       Goto(&done_init);
     }
@@ -714,7 +714,7 @@ void ConstructorBuiltinsAssembler::CopyMutableHeapNumbersInObject(
         }
         BIND(&continue_loop);
       },
-      kTaggedSize, IndexAdvanceMode::kPost);
+      kTaggedSize, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
 }
 
 }  // namespace internal

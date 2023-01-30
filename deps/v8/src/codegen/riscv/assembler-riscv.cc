@@ -1250,8 +1250,8 @@ void Assembler::break_(uint32_t code, bool break_as_stop) {
   // simulator expects a char pointer after the stop instruction.
   // See constants-mips.h for explanation.
   DCHECK(
-      (break_as_stop && code <= kMaxStopCode && code > kMaxWatchpointCode) ||
-      (!break_as_stop && (code > kMaxStopCode || code <= kMaxWatchpointCode)));
+      (break_as_stop && code <= kMaxStopCode && code > kMaxTracepointCode) ||
+      (!break_as_stop && (code > kMaxStopCode || code <= kMaxTracepointCode)));
 
   // since ebreak does not allow additional immediate field, we use the
   // immediate field of lui instruction immediately following the ebreak to

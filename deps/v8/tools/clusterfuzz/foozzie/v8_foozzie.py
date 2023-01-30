@@ -177,6 +177,9 @@ DISALLOWED_FLAGS = [
 
   # Bails out when sorting, leading to differences in sorted output.
   '--multi-mapped-mock-allocator',
+
+  # TODO(https://crbug.com/1393020): Changes the global object.
+  '--harmony-struct',
 ]
 
 # List pairs of flags that lead to contradictory cycles, i.e.:

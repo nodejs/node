@@ -86,6 +86,7 @@ TEST_F(ConservativeStackVisitorTest, DirectBasePointer) {
     volatile Address ptr = recorder->base_address();
 
     ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
+    SaveStackContextScope stack_context_scope(&heap()->stack());
     isolate()->heap()->stack().IteratePointers(&stack_visitor);
 
     // Make sure to keep the pointer alive.
@@ -107,6 +108,7 @@ TEST_F(ConservativeStackVisitorTest, TaggedBasePointer) {
     volatile Address ptr = recorder->tagged_address();
 
     ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
+    SaveStackContextScope stack_context_scope(&heap()->stack());
     isolate()->heap()->stack().IteratePointers(&stack_visitor);
 
     // Make sure to keep the pointer alive.
@@ -128,6 +130,7 @@ TEST_F(ConservativeStackVisitorTest, InnerPointer) {
     volatile Address ptr = recorder->inner_address();
 
     ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
+    SaveStackContextScope stack_context_scope(&heap()->stack());
     isolate()->heap()->stack().IteratePointers(&stack_visitor);
 
     // Make sure to keep the pointer alive.
@@ -151,6 +154,7 @@ TEST_F(ConservativeStackVisitorTest, HalfWord1) {
     volatile uint32_t ptr[] = {recorder->compr_address(), 0};
 
     ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
+    SaveStackContextScope stack_context_scope(&heap()->stack());
     isolate()->heap()->stack().IteratePointers(&stack_visitor);
 
     // Make sure to keep the pointer alive.
@@ -172,6 +176,7 @@ TEST_F(ConservativeStackVisitorTest, HalfWord2) {
     volatile uint32_t ptr[] = {0, recorder->compr_address()};
 
     ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
+    SaveStackContextScope stack_context_scope(&heap()->stack());
     isolate()->heap()->stack().IteratePointers(&stack_visitor);
 
     // Make sure to keep the pointer alive.
@@ -193,6 +198,7 @@ TEST_F(ConservativeStackVisitorTest, InnerHalfWord1) {
     volatile uint32_t ptr[] = {recorder->compr_inner(), 0};
 
     ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
+    SaveStackContextScope stack_context_scope(&heap()->stack());
     isolate()->heap()->stack().IteratePointers(&stack_visitor);
 
     // Make sure to keep the pointer alive.
@@ -214,6 +220,7 @@ TEST_F(ConservativeStackVisitorTest, InnerHalfWord2) {
     volatile uint32_t ptr[] = {0, recorder->compr_inner()};
 
     ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
+    SaveStackContextScope stack_context_scope(&heap()->stack());
     isolate()->heap()->stack().IteratePointers(&stack_visitor);
 
     // Make sure to keep the pointer alive.

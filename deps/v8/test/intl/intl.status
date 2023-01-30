@@ -29,7 +29,7 @@
 ################################################################################
 [ALWAYS, {
 # TODO(ftang,jshin): The following test is flaky.
-  'overrides/caching': [PASS, FAIL],
+  'overrides/caching': [PASS, FAIL, SLOW],
 }],  # ALWAYS
 
 ################################################################################

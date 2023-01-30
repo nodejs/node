@@ -53,7 +53,9 @@ IsolateWrapper::IsolateWrapper(CountersMode counters_mode)
 IsolateWrapper::~IsolateWrapper() {
   v8::Platform* platform = internal::V8::GetCurrentPlatform();
   CHECK_NOT_NULL(platform);
+  isolate_->Enter();
   while (platform::PumpMessageLoop(platform, isolate())) continue;
+  isolate_->Exit();
   isolate_->Dispose();
   if (counter_map_) {
     CHECK_EQ(kCurrentCounterMap, counter_map_.get());
@@ -89,8 +91,6 @@ ManualGCScope::ManualGCScope(i::Isolate* isolate) {
   // running by the time a ManualGCScope is created. Finalizing existing marking
   // prevents any undefined/unexpected behavior.
   if (isolate && isolate->heap()->incremental_marking()->IsMarking()) {
-    ScanStackModeScopeForTesting no_stack_scanning(isolate->heap(),
-                                                   Heap::ScanStackMode::kNone);
     isolate->heap()->CollectGarbage(OLD_SPACE,
                                     GarbageCollectionReason::kTesting);
     // Make sure there is no concurrent sweeping running in the background.

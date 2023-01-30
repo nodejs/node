@@ -133,6 +133,8 @@
   V(JSToName)                      \
   V(JSToNumber)                    \
   V(JSToNumberConvertBigInt)       \
+  V(JSToBigInt)                    \
+  V(JSToBigIntConvertNumber)       \
   V(JSToNumeric)                   \
   V(JSToObject)                    \
   V(JSToString)                    \
@@ -327,7 +329,9 @@
   V(NumberSameValue)                     \
   V(StringEqual)                         \
   V(StringLessThan)                      \
-  V(StringLessThanOrEqual)
+  V(StringLessThanOrEqual)               \
+  V(BigIntEqual)                         \
+  V(SpeculativeBigIntEqual)
 
 #define SIMPLIFIED_NUMBER_BINOP_LIST(V) \
   V(NumberAdd)                          \
@@ -353,7 +357,11 @@
   V(BigIntMultiply)                     \
   V(BigIntDivide)                       \
   V(BigIntModulus)                      \
-  V(BigIntBitwiseAnd)
+  V(BigIntBitwiseAnd)                   \
+  V(BigIntBitwiseOr)                    \
+  V(BigIntBitwiseXor)                   \
+  V(BigIntShiftLeft)                    \
+  V(BigIntShiftRight)
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
   V(SpeculativeNumberAdd)                           \
@@ -405,6 +413,7 @@
   V(NumberToString)                    \
   V(NumberToUint32)                    \
   V(NumberToUint8Clamped)              \
+  V(Integral32OrMinusZeroToBigInt)     \
   V(NumberSilenceNaN)
 
 #define SIMPLIFIED_BIGINT_UNOP_LIST(V) \
@@ -524,7 +533,11 @@
   V(SpeculativeBigIntMultiply)                      \
   V(SpeculativeBigIntDivide)                        \
   V(SpeculativeBigIntModulus)                       \
-  V(SpeculativeBigIntBitwiseAnd)
+  V(SpeculativeBigIntBitwiseAnd)                    \
+  V(SpeculativeBigIntBitwiseOr)                     \
+  V(SpeculativeBigIntBitwiseXor)                    \
+  V(SpeculativeBigIntShiftLeft)                     \
+  V(SpeculativeBigIntShiftRight)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(V) \
   V(SpeculativeBigIntAsIntN)                       \

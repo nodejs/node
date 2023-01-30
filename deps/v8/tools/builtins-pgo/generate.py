@@ -42,7 +42,7 @@ if args.target_cpu == None:
 
 def run(cmd, **kwargs):
   print(f"# CMD: {cmd} {kwargs}")
-  return subprocess.run(cmd, **kwargs)
+  return subprocess.run(cmd, **kwargs, check=True)
 
 
 def try_start_goma():
@@ -84,6 +84,7 @@ if args.use_qemu:
 
 GN_ARGS_TEMPLATE = f"""\
 is_debug = false
+is_clang = true
 target_cpu = "{args.target_cpu}"
 v8_target_cpu = "{args.v8_target_cpu}"
 use_goma = {has_goma_str}

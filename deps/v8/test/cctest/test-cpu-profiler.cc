@@ -4581,6 +4581,8 @@ TEST(BytecodeFlushEventsEagerLogging) {
   v8::Isolate* isolate = CcTest::isolate();
   Isolate* i_isolate = CcTest::i_isolate();
   Factory* factory = i_isolate->factory();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   CpuProfiler profiler(i_isolate, kDebugNaming, kEagerLogging);
   CodeMap* code_map = profiler.code_map_for_test();
@@ -4642,6 +4644,8 @@ TEST(ClearUnusedWithEagerLogging) {
   TestSetup test_setup;
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   CodeEntryStorage storage;
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);

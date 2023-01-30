@@ -240,6 +240,16 @@ class ZoneForwardList;
   V(TemplateLiteralObject)                      \
   V(ThinString)                                 \
   V(TransitionArray)                            \
+  V(TurboshaftFloat64RangeType)                 \
+  V(TurboshaftFloat64SetType)                   \
+  V(TurboshaftFloat64Type)                      \
+  V(TurboshaftType)                             \
+  V(TurboshaftWord32RangeType)                  \
+  V(TurboshaftWord32SetType)                    \
+  V(TurboshaftWord32Type)                       \
+  V(TurboshaftWord64RangeType)                  \
+  V(TurboshaftWord64SetType)                    \
+  V(TurboshaftWord64Type)                       \
   V(UncompiledData)                             \
   V(UncompiledDataWithPreparseData)             \
   V(UncompiledDataWithoutPreparseData)          \

@@ -1106,16 +1106,18 @@ void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
 
 void TurboAssembler::SmiUntag(Register smi) { SmiUntag(smi, smi); }
 
-void TurboAssembler::SmiToInt32(Register smi) {
-  DCHECK(smi.Is64Bits());
+void TurboAssembler::SmiToInt32(Register smi) { SmiToInt32(smi, smi); }
+
+void TurboAssembler::SmiToInt32(Register dst, Register smi) {
+  DCHECK(dst.Is64Bits());
   if (v8_flags.enable_slow_asserts) {
     AssertSmi(smi);
   }
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   if (COMPRESS_POINTERS_BOOL) {
-    Asr(smi.W(), smi.W(), kSmiShift);
+    Asr(dst.W(), smi.W(), kSmiShift);
   } else {
-    Lsr(smi, smi, kSmiShift);
+    Lsr(dst, smi, kSmiShift);
   }
 }
 

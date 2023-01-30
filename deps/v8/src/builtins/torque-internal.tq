@@ -119,6 +119,11 @@ struct Slice<T: type, Reference: type> {
     return this.TryAtIndex(i) otherwise unreachable;
   }
 
+  macro AtIndex(index: uint32): Reference {
+    const i: intptr = Convert<intptr>(index);
+    return this.TryAtIndex(i) otherwise unreachable;
+  }
+
   macro Iterator(): SliceIterator<T, Reference> {
     const end = this.offset + TimesSizeOf<T>(this.length);
     return SliceIterator<T, Reference>{

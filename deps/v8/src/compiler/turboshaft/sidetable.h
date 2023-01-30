@@ -22,13 +22,18 @@ namespace v8::internal::compiler::turboshaft {
 // This sidetable is a conceptually infinite mapping from Turboshaft operation
 // indices to values. It grows automatically and default-initializes the table
 // when accessed out-of-bounds.
-template <class T>
+template <class T, class Key = OpIndex>
 class GrowingSidetable {
  public:
+  static_assert(std::is_same_v<Key, OpIndex> ||
+                std::is_same_v<Key, BlockIndex>);
   explicit GrowingSidetable(Zone* zone) : table_(zone) {}
 
-  T& operator[](OpIndex op) {
-    size_t i = op.id();
+  GrowingSidetable(size_t size, const T& initial_value, Zone* zone)
+      : table_(size, initial_value, zone) {}
+
+  T& operator[](Key index) {
+    size_t i = index.id();
     if (V8_UNLIKELY(i >= table_.size())) {
       table_.resize(NextSize(i));
       // Make sure we also get access to potential over-allocation by
@@ -38,8 +43,8 @@ class GrowingSidetable {
     return table_[i];
   }
 
-  const T& operator[](OpIndex op) const {
-    size_t i = op.id();
+  const T& operator[](Key index) const {
+    size_t i = index.id();
     if (V8_UNLIKELY(i >= table_.size())) {
       table_.resize(NextSize(i));
       // Make sure we also get access to potential over-allocation by
@@ -66,19 +71,21 @@ class GrowingSidetable {
   }
 };
 
-// A fixed-size sidetable mapping from `OpIndex` to `T`.
+// A fixed-size sidetable mapping from `Key` to `T`.
 // Elements are default-initialized.
-template <class T>
+template <class T, class Key = OpIndex>
 class FixedSidetable {
  public:
+  static_assert(std::is_same_v<Key, OpIndex> ||
+                std::is_same_v<Key, BlockIndex>);
   explicit FixedSidetable(size_t size, Zone* zone) : table_(size, zone) {}
 
-  T& operator[](OpIndex op) {
+  T& operator[](Key op) {
     DCHECK_LT(op.id(), table_.size());
     return table_[op.id()];
   }
 
-  const T& operator[](OpIndex op) const {
+  const T& operator[](Key op) const {
     DCHECK_LT(op.id(), table_.size());
     return table_[op.id()];
   }
@@ -86,6 +93,11 @@ class FixedSidetable {
  private:
   ZoneVector<T> table_;
 };
+
+template <typename T>
+using GrowingBlockSidetable = GrowingSidetable<T, BlockIndex>;
+template <typename T>
+using FixedBlockSidetable = FixedSidetable<T, BlockIndex>;
 
 }  // namespace v8::internal::compiler::turboshaft
 

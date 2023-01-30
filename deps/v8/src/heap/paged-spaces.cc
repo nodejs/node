@@ -707,7 +707,8 @@ void PagedSpaceBase::Print() {}
 #endif
 
 #ifdef VERIFY_HEAP
-void PagedSpaceBase::Verify(Isolate* isolate, ObjectVisitor* visitor) const {
+void PagedSpaceBase::Verify(Isolate* isolate,
+                            SpaceVerificationVisitor* visitor) const {
   bool allocation_pointer_found_in_space =
       (allocation_info_.top() == allocation_info_.limit());
   size_t external_space_bytes[kNumTypes];
@@ -721,6 +722,7 @@ void PagedSpaceBase::Verify(Isolate* isolate, ObjectVisitor* visitor) const {
   for (const Page* page : *this) {
     CHECK_EQ(page->owner(), this);
     CHECK_IMPLIES(identity() != NEW_SPACE, !page->WasUsedForAllocation());
+    visitor->VerifyPage(page);
 
     for (int i = 0; i < kNumTypes; i++) {
       external_page_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
@@ -737,26 +739,11 @@ void PagedSpaceBase::Verify(Isolate* isolate, ObjectVisitor* visitor) const {
     for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
       CHECK(end_of_previous_object <= object.address());
 
-      // The first word should be a map, and we expect all map pointers to
-      // be in map space.
-      Map map = object.map(cage_base);
-      CHECK(map.IsMap(cage_base));
-      CHECK(ReadOnlyHeap::Contains(map) ||
-            isolate->heap()->old_space()->Contains(map));
-
-      // Perform space-specific object verification.
-      VerifyObject(object);
-
-      // The object itself should look OK.
-      object.ObjectVerify(isolate);
-
-      if (identity() != RO_SPACE && !v8_flags.verify_heap_skip_remembered_set) {
-        HeapVerifier::VerifyRememberedSetFor(isolate->heap(), object);
-      }
+      // Invoke verification method for each object.
+      visitor->VerifyObject(object);
 
       // All the interior pointers should be contained in the heap.
       int size = object.Size(cage_base);
-      object.IterateBody(map, size, visitor);
       CHECK(object.address() + size <= top);
       end_of_previous_object = object.address() + size;
 
@@ -773,12 +760,7 @@ void PagedSpaceBase::Verify(Isolate* isolate, ObjectVisitor* visitor) const {
       external_space_bytes[t] += external_page_bytes[t];
     }
 
-    CHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
-    CHECK(!page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
-
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-    page->object_start_bitmap()->Verify();
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+    visitor->VerifyPageDone(page);
   }
   for (int i = 0; i < kNumTypes; i++) {
     if (i == ExternalBackingStoreType::kArrayBuffer) continue;

@@ -343,6 +343,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                      LazyNode<TaggedIndex> lazy_slot, TNode<Context> context,
                      TypeofMode typeof_mode);
 
+  void GotoIfNotSameNumberBitPattern(TNode<Float64T> left,
+                                     TNode<Float64T> right, Label* miss);
+
   // IC dispatcher behavior.
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.

@@ -70,6 +70,32 @@ class V8_NODISCARD ParkedMutexGuard {
   base::Mutex* mutex_;
 };
 
+// Scope that automatically parks the thread while blocking on the given
+// base::RecursiveMutex.
+class V8_NODISCARD ParkedRecursiveMutexGuard {
+ public:
+  explicit ParkedRecursiveMutexGuard(LocalIsolate* local_isolate,
+                                     base::RecursiveMutex* mutex)
+      : ParkedRecursiveMutexGuard(local_isolate->heap(), mutex) {}
+  explicit ParkedRecursiveMutexGuard(LocalHeap* local_heap,
+                                     base::RecursiveMutex* mutex)
+      : mutex_(mutex) {
+    DCHECK(AllowGarbageCollection::IsAllowed());
+    if (!mutex_->TryLock()) {
+      ParkedScope scope(local_heap);
+      mutex_->Lock();
+    }
+  }
+
+  ParkedRecursiveMutexGuard(const ParkedMutexGuard&) = delete;
+  ParkedRecursiveMutexGuard& operator=(const ParkedMutexGuard&) = delete;
+
+  ~ParkedRecursiveMutexGuard() { mutex_->Unlock(); }
+
+ private:
+  base::RecursiveMutex* mutex_;
+};
+
 template <base::MutexSharedType kIsShared,
           base::NullBehavior Behavior = base::NullBehavior::kRequireNotNull>
 class V8_NODISCARD ParkedSharedMutexGuardIf final {

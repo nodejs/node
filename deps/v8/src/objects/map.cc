@@ -2253,7 +2253,10 @@ Handle<Object> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
     maybe_prototype =
         handle(map->GetPrototypeChainRootMap(isolate).prototype(), isolate);
   }
-  if (!maybe_prototype->IsJSObject()) {
+  if (!maybe_prototype->IsJSObject() ||
+      maybe_prototype->InSharedWritableHeap()) {
+    // Objects in the shared heap have fixed layouts and their maps
+    // never change.
     return handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
   }
   Handle<JSObject> prototype = Handle<JSObject>::cast(maybe_prototype);

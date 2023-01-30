@@ -83,7 +83,9 @@ TEST_F(GCStackTest, IteratePointersFindsOnStackValue) {
   {
     int* volatile tmp = scanner->needle();
     USE(tmp);
+    GetStack()->SaveContext();
     GetStack()->IteratePointers(scanner.get());
+    GetStack()->ClearContext();
     EXPECT_TRUE(scanner->found());
   }
 }
@@ -98,7 +100,9 @@ TEST_F(GCStackTest, IteratePointersFindsOnStackValuePotentiallyUnaligned) {
     USE(a);
     int* volatile tmp = scanner->needle();
     USE(tmp);
+    GetStack()->SaveContext();
     GetStack()->IteratePointers(scanner.get());
+    GetStack()->ClearContext();
     EXPECT_TRUE(scanner->found());
   }
 }
@@ -143,7 +147,9 @@ V8_NOINLINE void* RecursivelyPassOnParameterImpl(void* p1, void* p2, void* p3,
                                           nullptr, nullptr, nullptr, p7, stack,
                                           visitor);
   } else if (p8) {
+    stack->SaveContext();
     stack->IteratePointers(visitor);
+    stack->ClearContext();
     return p8;
   }
   return nullptr;
@@ -154,7 +160,9 @@ V8_NOINLINE void* RecursivelyPassOnParameter(size_t num, void* parameter,
                                              StackVisitor* visitor) {
   switch (num) {
     case 0:
+      stack->SaveContext();
       stack->IteratePointers(visitor);
+      stack->ClearContext();
       return parameter;
     case 1:
       return RecursivelyPassOnParameterImpl(nullptr, nullptr, nullptr, nullptr,
@@ -290,7 +298,9 @@ extern "C" V8_NOINLINE
 #endif  // defined(__clang__)
     void
     IteratePointersNoMangling(Stack* stack, StackVisitor* visitor) {
+  stack->SaveContext();
   stack->IteratePointers(visitor);
+  stack->ClearContext();
 }
 }  // namespace
 
@@ -468,7 +478,9 @@ class CheckStackAlignmentVisitor final : public StackVisitor {
 
 TEST_F(GCStackTest, StackAlignment) {
   auto checker = std::make_unique<CheckStackAlignmentVisitor>();
+  GetStack()->SaveContext();
   GetStack()->IteratePointers(checker.get());
+  GetStack()->ClearContext();
 }
 #endif  // V8_OS_LINUX && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 

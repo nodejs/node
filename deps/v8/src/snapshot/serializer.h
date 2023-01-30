@@ -266,6 +266,8 @@ class Serializer : public SerializerDeserializer {
     return external_reference_encoder_.TryEncode(addr);
   }
 
+  bool SerializeReadOnlyObjectReference(HeapObject obj, SnapshotByteSink* sink);
+
   // GetInt reads 4 bytes at once, requiring padding at the end.
   // Use padding_offset to specify the space you want to use after padding.
   void Pad(int padding_offset = 0);
@@ -316,6 +318,8 @@ class Serializer : public SerializerDeserializer {
     return (flags_ &
             Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting) != 0;
   }
+
+  bool deferred_objects_empty() { return deferred_objects_.size() == 0; }
 
  private:
   // A circular queue of hot objects. This is added to in the same order as in

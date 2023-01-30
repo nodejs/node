@@ -36,6 +36,7 @@
 #include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions.h"
 #include "src/objects/turbofan-types-inl.h"
+#include "src/objects/turboshaft-types-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects-inl.h"
@@ -1051,17 +1052,16 @@ class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     return offset >= HeapObject::kHeaderSize &&
-           offset <= CodeDataContainer::kPointerFieldsWeakEndOffset;
+           offset <= CodeDataContainer::kPointerFieldsStrongEndOffset;
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, HeapObject::kHeaderSize,
-                    CodeDataContainer::kPointerFieldsStrongEndOffset, v);
-    IterateCustomWeakPointers(
-        obj, CodeDataContainer::kPointerFieldsStrongEndOffset,
-        CodeDataContainer::kPointerFieldsWeakEndOffset, v);
+    // No strong pointers to iterate.
+    static_assert(
+        static_cast<int>(HeapObject::kHeaderSize) ==
+        static_cast<int>(CodeDataContainer::kPointerFieldsStrongEndOffset));
 
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
       v->VisitCodePointer(obj, obj.RawCodeField(kCodeOffset));

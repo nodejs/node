@@ -195,7 +195,9 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
     // Deal with indentation.
     if (opcode == kExprEnd || opcode == kExprElse || opcode == kExprCatch ||
         opcode == kExprCatchAll || opcode == kExprDelegate) {
-      indentation.decrease();
+      if (indentation.current() >= base_indentation) {
+        indentation.decrease();
+      }
     }
     out << indentation;
     if (opcode == kExprElse || opcode == kExprCatch ||
@@ -206,7 +208,9 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
 
     // Print the opcode and its immediates.
     if (opcode == kExprEnd) {
-      if (indentation.current() == base_indentation) {
+      if (indentation.current() < base_indentation) {
+        out << ";; Unexpected end byte";
+      } else if (indentation.current() == base_indentation) {
         out << ")";  // End of the function.
       } else {
         out << "end";
@@ -310,16 +314,7 @@ class ImmediatesPrinter {
   }
 
   void BlockType(BlockTypeImmediate& imm) {
-    if (imm.type == kWasmBottom) {
-      const FunctionSig* sig = owner_->module_->signature(imm.sig_index);
-      PrintSignatureOneLine(out_, sig, 0 /* ignored */, names(), false);
-    } else if (imm.type == kWasmVoid) {
-      // Just be silent.
-    } else {
-      out_ << " (result ";
-      names()->PrintValueType(out_, imm.type);
-      out_ << ")";
-    }
+    PrintSignatureOneLine(out_, &imm.sig, 0 /* ignored */, names(), false);
   }
 
   void HeapType(HeapTypeImmediate& imm) {
@@ -563,8 +558,8 @@ class OffsetsProvider {
  public:
   OffsetsProvider() = default;
 
-  void CollectOffsets(const WasmModule* module, const byte* start,
-                      const byte* end, AccountingAllocator* allocator) {
+  void CollectOffsets(const WasmModule* module,
+                      base::Vector<const uint8_t> wire_bytes) {
     num_imported_tables_ = module->num_imported_tables;
     num_imported_globals_ = module->num_imported_globals;
     num_imported_tags_ = module->num_imported_tags;
@@ -577,10 +572,10 @@ class OffsetsProvider {
     data_offsets_.reserve(module->data_segments.size());
 
     using OffsetsCollectingDecoder = ModuleDecoderTemplate<OffsetsProvider>;
-    OffsetsCollectingDecoder decoder(WasmFeatures::All(), start, end,
-                                     kWasmOrigin, *this);
-    constexpr bool verify_functions = false;
-    decoder.DecodeModule(nullptr, allocator, verify_functions);
+    OffsetsCollectingDecoder decoder{WasmFeatures::All(), wire_bytes,
+                                     kWasmOrigin, *this};
+    constexpr bool kNoVerifyFunctions = false;
+    decoder.DecodeModule(kNoVerifyFunctions);
 
     enabled_ = true;
   }
@@ -682,8 +677,7 @@ ModuleDisassembler::ModuleDisassembler(MultiLineStringBuilder& out,
       offsets_(new OffsetsProvider()),
       function_body_offsets_(function_body_offsets) {
   if (function_body_offsets != nullptr) {
-    offsets_->CollectOffsets(module, wire_bytes_.start(), wire_bytes_.end(),
-                             allocator);
+    offsets_->CollectOffsets(module, wire_bytes_.module_bytes());
   }
 }
 
@@ -703,12 +697,11 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
     // types; update this for isorecursive hybrid types.
     out_ << (has_super ? " (array_subtype (field " : " (array (field ");
     PrintMutableType(type->mutability(), type->element_type());
-    out_ << ")";
+    out_ << ")";  // Closes `(field ...`
     if (has_super) {
       out_ << " ";
       names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
     }
-    out_ << ")";
   } else if (module_->has_struct(type_index)) {
     const StructType* type = module_->struct_type(type_index);
     out_ << (has_super ? " (struct_subtype" : " (struct");
@@ -725,7 +718,6 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
       LineBreakOrSpace(break_lines, indentation, offset);
       names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
     }
-    out_ << ")";
   } else if (module_->has_signature(type_index)) {
     const FunctionSig* sig = module_->signature(type_index);
     out_ << (has_super ? " (func_subtype" : " (func");
@@ -748,8 +740,8 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
       LineBreakOrSpace(break_lines, indentation, offset);
       names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
     }
-    out_ << ")";
   }
+  out_ << "))";  // Closes "(type" and "(array" / "(struct" / "(func".
 }
 
 void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {

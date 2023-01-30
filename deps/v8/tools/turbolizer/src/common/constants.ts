@@ -32,6 +32,7 @@ export const RESIZER_RANGES_HEIGHT_BUFFER_PERCENTAGE = 5;
 export const ROW_GROUP_SIZE = 20;
 export const POSITIONS_PER_INSTRUCTION = 4;
 export const FIXED_REGISTER_LABEL_WIDTH = 6;
+export const FLIPPED_REGISTER_WIDTH_BUFFER = 5;
 export const SESSION_STORAGE_PREFIX = "ranges-setting-";
 export const INTERVAL_TEXT_FOR_NONE = "none";
 export const INTERVAL_TEXT_FOR_CONST = "const";

@@ -618,8 +618,7 @@ class WasmExportedFunction : public JSFunction {
 
   V8_EXPORT_PRIVATE const wasm::FunctionSig* sig();
 
-  bool MatchesSignature(const wasm::WasmModule* other_module,
-                        const wasm::FunctionSig* other_sig);
+  bool MatchesSignature(uint32_t other_canonical_sig_index);
 
   // Return a null-terminated string with the debug name in the form
   // 'js-to-wasm:<sig>'.
@@ -644,8 +643,8 @@ class WasmJSFunction : public JSFunction {
   wasm::Suspend GetSuspend() const;
   // Deserializes the signature of this function using the provided zone. Note
   // that lifetime of the signature is hence directly coupled to the zone.
-  const wasm::FunctionSig* GetSignature(Zone* zone);
-  bool MatchesSignature(const wasm::FunctionSig* sig);
+  const wasm::FunctionSig* GetSignature(Zone* zone) const;
+  bool MatchesSignature(uint32_t other_canonical_sig_index) const;
 
   DECL_CAST(WasmJSFunction)
   OBJECT_CONSTRUCTORS(WasmJSFunction, JSFunction);
@@ -663,7 +662,8 @@ class WasmCapiFunction : public JSFunction {
   PodArray<wasm::ValueType> GetSerializedSignature() const;
   // Checks whether the given {sig} has the same parameter types as the
   // serialized signature stored within this C-API function object.
-  bool MatchesSignature(const wasm::FunctionSig* sig) const;
+  bool MatchesSignature(uint32_t other_canonical_sig_index) const;
+  const wasm::FunctionSig* GetSignature(Zone* zone) const;
 
   DECL_CAST(WasmCapiFunction)
   OBJECT_CONSTRUCTORS(WasmCapiFunction, JSFunction);
@@ -1066,11 +1066,15 @@ namespace wasm {
 // Takes a {value} in the JS representation and typechecks it according to
 // {expected}. If the typecheck succeeds, returns the wasm representation of the
 // object; otherwise, returns the empty handle.
+MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
+                                   ValueType expected_canonical,
+                                   const char** error_message);
+
+// Utility which canonicalizes {expected} in addition.
 MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
                                    Handle<Object> value, ValueType expected,
                                    const char** error_message);
 }  // namespace wasm
-
 }  // namespace internal
 }  // namespace v8
 

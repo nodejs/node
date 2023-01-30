@@ -58,32 +58,75 @@ std::unique_ptr<StringForwardingTable::Block> StringForwardingTable::Block::New(
   return std::unique_ptr<Block>(new (capacity) Block(capacity));
 }
 
-void StringForwardingTable::Block::UpdateAfterEvacuation(
+void StringForwardingTable::Block::UpdateAfterYoungEvacuation(
     PtrComprCageBase cage_base) {
-  UpdateAfterEvacuation(cage_base, capacity_);
+  UpdateAfterYoungEvacuation(cage_base, capacity_);
 }
 
-void StringForwardingTable::Block::UpdateAfterEvacuation(
+void StringForwardingTable::Block::UpdateAfterFullEvacuation(
+    PtrComprCageBase cage_base) {
+  UpdateAfterFullEvacuation(cage_base, capacity_);
+}
+
+namespace {
+
+bool UpdateForwardedSlot(HeapObject object, OffHeapObjectSlot slot) {
+  MapWord map_word = object.map_word(kRelaxedLoad);
+  if (map_word.IsForwardingAddress()) {
+    HeapObject forwarded_object = map_word.ToForwardingAddress(object);
+    slot.Release_Store(forwarded_object);
+    return true;
+  }
+  return false;
+}
+
+bool UpdateForwardedSlot(Object object, OffHeapObjectSlot slot) {
+  if (!object.IsHeapObject()) return false;
+  return UpdateForwardedSlot(HeapObject::cast(object), slot);
+}
+
+}  // namespace
+
+void StringForwardingTable::Block::UpdateAfterYoungEvacuation(
     PtrComprCageBase cage_base, int up_to_index) {
-  // This is only used for Scavenger.
-  DCHECK(!v8_flags.minor_mc);
-  DCHECK(v8_flags.always_use_string_forwarding_table);
   for (int index = 0; index < up_to_index; ++index) {
-    Object original = record(index)->OriginalStringObject(cage_base);
+    OffHeapObjectSlot slot = record(index)->OriginalStringSlot();
+    Object original = slot.Acquire_Load(cage_base);
     if (!original.IsHeapObject()) continue;
     HeapObject object = HeapObject::cast(original);
     if (Heap::InFromPage(object)) {
       DCHECK(!object.InSharedWritableHeap());
-      MapWord map_word = object.map_word(kRelaxedLoad);
-      if (map_word.IsForwardingAddress()) {
-        HeapObject forwarded_object = map_word.ToForwardingAddress();
-        record(index)->set_original_string(forwarded_object);
-      } else {
-        record(index)->set_original_string(deleted_element());
+      const bool was_forwarded = UpdateForwardedSlot(object, slot);
+      if (!was_forwarded) {
+        // The object died in young space.
+        slot.Release_Store(deleted_element());
       }
     } else {
       DCHECK(!object.map_word(kRelaxedLoad).IsForwardingAddress());
     }
+// No need to update forwarded (internalized) strings as they are never
+// in young space.
+#ifdef DEBUG
+    Object forward = record(index)->ForwardStringObjectOrHash(cage_base);
+    if (forward.IsHeapObject()) {
+      DCHECK(!Heap::InYoungGeneration(HeapObject::cast(forward)));
+    }
+#endif
+  }
+}
+
+void StringForwardingTable::Block::UpdateAfterFullEvacuation(
+    PtrComprCageBase cage_base, int up_to_index) {
+  for (int index = 0; index < up_to_index; ++index) {
+    OffHeapObjectSlot original_slot = record(index)->OriginalStringSlot();
+    Object original = original_slot.Acquire_Load(cage_base);
+    if (!original.IsHeapObject()) continue;
+    UpdateForwardedSlot(HeapObject::cast(original), original_slot);
+    // During mark compact the forwarded (internalized) string may have been
+    // evacuated.
+    OffHeapObjectSlot forward_slot = record(index)->ForwardStringOrHashSlot();
+    Object forward = forward_slot.Acquire_Load(cage_base);
+    UpdateForwardedSlot(forward, forward_slot);
   }
 }
 
@@ -295,7 +338,9 @@ void StringForwardingTable::Reset() {
   next_free_index_ = 0;
 }
 
-void StringForwardingTable::UpdateAfterEvacuation() {
+void StringForwardingTable::UpdateAfterYoungEvacuation() {
+  // This is only used for the Scavenger.
+  DCHECK(!v8_flags.minor_mc);
   DCHECK(v8_flags.always_use_string_forwarding_table);
 
   if (empty()) return;
@@ -306,12 +351,29 @@ void StringForwardingTable::UpdateAfterEvacuation() {
   for (unsigned int block_index = 0; block_index < last_block_index;
        ++block_index) {
     Block* block = blocks->LoadBlock(block_index, kAcquireLoad);
-    block->UpdateAfterEvacuation(isolate_);
+    block->UpdateAfterYoungEvacuation(isolate_);
   }
   // Handle last block separately, as it is not filled to capacity.
   const int max_index = IndexInBlock(size() - 1, last_block_index) + 1;
   blocks->LoadBlock(last_block_index, kAcquireLoad)
-      ->UpdateAfterEvacuation(isolate_, max_index);
+      ->UpdateAfterYoungEvacuation(isolate_, max_index);
+}
+
+void StringForwardingTable::UpdateAfterFullEvacuation() {
+  if (empty()) return;
+
+  BlockVector* blocks = blocks_.load(std::memory_order_relaxed);
+  const unsigned int last_block_index =
+      static_cast<unsigned int>(blocks->size() - 1);
+  for (unsigned int block_index = 0; block_index < last_block_index;
+       ++block_index) {
+    Block* block = blocks->LoadBlock(block_index, kAcquireLoad);
+    block->UpdateAfterFullEvacuation(isolate_);
+  }
+  // Handle last block separately, as it is not filled to capacity.
+  const int max_index = IndexInBlock(size() - 1, last_block_index) + 1;
+  blocks->LoadBlock(last_block_index, kAcquireLoad)
+      ->UpdateAfterFullEvacuation(isolate_, max_index);
 }
 
 }  // namespace internal

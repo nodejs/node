@@ -63,7 +63,7 @@ class MaglevSafepointTableBuilder;
 
 // Utility functions
 
-enum Condition {
+enum Condition : uint8_t {
   overflow = 0,
   no_overflow = 1,
   below = 2,
@@ -161,11 +161,22 @@ enum ScaleFactor : int8_t {
 class V8_EXPORT_PRIVATE Operand {
  public:
   struct Data {
-    byte rex = 0;
-    byte buf[9] = {0};
-    byte len = 1;       // number of bytes of buf_ in use.
-    int8_t addend = 0;  // for rip + offset + addend.
+    union {
+      // {label} is set if {is_label_operand} is true.
+      Label* label;
+
+      // Buffer for encoded memory operand:
+      // Register (1 byte) + SIB (0 or 1 byte) + displacement (0, 1, or 4 byte).
+      byte buf[6] = {0};
+    };
+
+    byte len = 1;  // Number of bytes of buf in use.
+    bool is_label_operand = false;
+    byte rex = 0;       // Rex prefix, only for memory operands.
+    int8_t addend = 0;  // For label-relative operand: rip + offset + addend.
   };
+  // {Data::len} is 8-byte aligned, which makes it fast to access.
+  static_assert(offsetof(Data, len) % kSystemPointerSize == 0);
 
   // [base + disp/r]
   V8_INLINE constexpr Operand(Register base, int32_t disp) {
@@ -221,8 +232,8 @@ class V8_EXPORT_PRIVATE Operand {
     data_.addend = addend;
     DCHECK_NOT_NULL(label);
     DCHECK(addend == 0 || (is_int8(addend) && label->is_bound()));
-    set_modrm(0, rbp);
-    set_disp64(reinterpret_cast<intptr_t>(label));
+    data_.is_label_operand = true;
+    data_.label = label;
   }
 
   Operand(const Operand&) V8_NOEXCEPT = default;
@@ -266,13 +277,6 @@ class V8_EXPORT_PRIVATE Operand {
     Address p = reinterpret_cast<Address>(&data_.buf[data_.len]);
     WriteUnalignedValue(p, disp);
     data_.len += sizeof(int32_t);
-  }
-
-  V8_INLINE void set_disp64(int64_t disp) {
-    DCHECK_EQ(1, data_.len);
-    Address p = reinterpret_cast<Address>(&data_.buf[data_.len]);
-    WriteUnalignedValue(p, disp);
-    data_.len += sizeof(disp);
   }
 
   Data data_;
@@ -2287,9 +2291,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // Emit the ModR/M byte, and optionally the SIB byte and
-  // 1- or 4-byte offset for a memory operand.  Also used to encode
-  // a three-bit opcode extension into the ModR/M byte.
+  // 1- or 4-byte offset for a memory operand.
+  // Also used to encode a three-bit opcode extension into the ModR/M byte.
   void emit_operand(int rm, Operand adr);
+
+  // Emit a RIP-relative operand.
+  // Also used to encode a three-bit opcode extension into the ModR/M byte.
+  V8_NOINLINE void emit_label_operand(int rm, Label* label, int addend = 0);
 
   // Emit a ModR/M byte with registers coded in the reg and rm_reg fields.
   void emit_modrm(Register reg, Register rm_reg) {

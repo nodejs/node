@@ -16,6 +16,9 @@ out = """
 #include <cstdint>
 #include <string>
 
+// Don't bother initializing global cage base value, compute it from any
+// on heap address instead.
+#define V8_COMPRESS_POINTERS_DONT_USE_GLOBAL_BASE
 #include "src/common/ptr-compr-inl.h"
 #include "tools/debug_helper/debug-helper-internal.h"
 

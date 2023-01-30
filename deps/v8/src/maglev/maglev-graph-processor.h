@@ -91,6 +91,11 @@ class GraphProcessor {
       USE(index);
     }
 
+    for (const auto& [address, constant] : graph->external_references()) {
+      node_processor_.Process(constant, GetCurrentState());
+      USE(address);
+    }
+
     for (block_it_ = graph->begin(); block_it_ != graph->end(); ++block_it_) {
       BasicBlock* block = *block_it_;
 

@@ -713,8 +713,8 @@ def load_fields_from_file(filename):
 #
 # Emit a block of constants.
 #
-def emit_set(out, consts):
-  lines = set()  # To remove duplicates.
+def emit_constants(out, consts):
+  lines = []
 
   # Fix up overzealous parses.  This could be done inside the
   # parsers but as there are several, it's easiest to do it here.
@@ -722,10 +722,10 @@ def emit_set(out, consts):
   for const in consts:
     name = ws.sub('', const['name'])
     value = ws.sub('', str(const['value']))  # Can be a number.
-    lines.add('V8_EXPORT int v8dbg_%s = %s;\n' % (name, value))
+    lines.append('V8_EXPORT int v8dbg_%s = %s;' % (name, value))
 
-  for line in lines:
-    out.write(line);
+  # Generate without duplicates and with preserved order.
+  out.write('\n'.join(dict.fromkeys(lines)))
   out.write('\n');
 
 #
@@ -737,7 +737,7 @@ def emit_config():
   out.write(header);
 
   out.write('/* miscellaneous constants */\n');
-  emit_set(out, consts_misc);
+  emit_constants(out, consts_misc);
 
   out.write('/* class type information */\n');
   consts = [];
@@ -748,7 +748,7 @@ def emit_config():
         'value': typename
     });
 
-  emit_set(out, consts);
+  emit_constants(out, consts);
 
   out.write('/* class hierarchy information */\n');
   consts = [];
@@ -765,10 +765,10 @@ def emit_config():
         'value': 0
     });
 
-  emit_set(out, consts);
+  emit_constants(out, consts);
 
   out.write('/* field information */\n');
-  emit_set(out, fields);
+  emit_constants(out, fields);
 
   out.write(footer);
 

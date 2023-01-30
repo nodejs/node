@@ -231,6 +231,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceNumberParseInt(Node* node);
 
   Reduction ReduceNumberConstructor(Node* node);
+  Reduction ReduceBigIntConstructor(Node* node);
   Reduction ReduceBigIntAsN(Node* node, Builtin builtin);
 
   base::Optional<Reduction> TryReduceJSCallMathMinMaxWithArrayLike(Node* node);

@@ -151,7 +151,11 @@ TEST_F(HeapTest, HeapLayout) {
   EXPECT_TRUE(IsAligned(cage_base, size_t{4} * GB));
 
   Address code_cage_base = i_isolate()->code_cage_base();
-  EXPECT_TRUE(IsAligned(code_cage_base, size_t{4} * GB));
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    EXPECT_TRUE(IsAligned(code_cage_base, kMinExpectedOSPageSize));
+  } else {
+    EXPECT_TRUE(IsAligned(code_cage_base, size_t{4} * GB));
+  }
 
 #ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
   Address isolate_root = i_isolate()->isolate_root();
@@ -189,7 +193,9 @@ void ShrinkNewSpace(NewSpace* new_space) {
   }
   // MinorMC shrinks the space as part of sweeping.
   PagedNewSpace* paged_new_space = PagedNewSpace::From(new_space);
-  GCTracer* tracer = paged_new_space->heap()->tracer();
+  Heap* heap = paged_new_space->heap();
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
+  GCTracer* tracer = heap->tracer();
   tracer->StartObservablePause();
   tracer->StartCycle(GarbageCollector::MARK_COMPACTOR,
                      GarbageCollectionReason::kTesting, "heap unittest",

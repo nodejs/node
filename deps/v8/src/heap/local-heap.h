@@ -310,6 +310,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   void SetUpMainThread();
   void SetUp();
+  void SetUpSharedMarking();
 
   Heap* heap_;
   bool is_main_thread_;
@@ -334,6 +335,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
   std::unique_ptr<ConcurrentAllocator> old_space_allocator_;
   std::unique_ptr<ConcurrentAllocator> code_space_allocator_;
   std::unique_ptr<ConcurrentAllocator> shared_old_space_allocator_;
+
+  MarkingBarrier* saved_marking_barrier_ = nullptr;
 
   friend class CollectionBarrier;
   friend class ConcurrentAllocator;

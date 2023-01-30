@@ -624,14 +624,16 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
                                                               *function);
   }
 
-  if (function->HasAvailableOptimizedCode()) {
+  if (function->HasAvailableOptimizedCode() &&
+      !function->code().is_maglevved()) {
     DCHECK(function->HasAttachedOptimizedCode() ||
            function->ChecksTieringState());
     // If function is already optimized, return.
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  if (!it.frame()->is_unoptimized()) {
+  DCHECK(it.frame()->is_java_script());
+  if (it.frame()->is_turbofan()) {
     // Nothing to be done.
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -651,7 +653,9 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // If not (e.g. because we enter a nested loop first), the next JumpLoop will
   // see the cached OSR code with a mismatched offset, and trigger
   // non-concurrent OSR compilation and installation.
-  if (isolate->concurrent_recompilation_enabled() && v8_flags.concurrent_osr) {
+  // TODO(v8:7700): Support spawning a concurrent job when OSRing from Maglev.
+  if (it.frame()->is_unoptimized() &&
+      isolate->concurrent_recompilation_enabled() && v8_flags.concurrent_osr) {
     const BytecodeOffset osr_offset =
         OffsetOfNextJumpLoop(isolate, UnoptimizedFrame::cast(it.frame()));
     if (osr_offset.IsNone()) {
@@ -816,6 +820,8 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
           static_cast<int>(OptimizationStatus::kTopmostFrameIsInterpreted);
     } else if (frame->is_baseline()) {
       status |= static_cast<int>(OptimizationStatus::kTopmostFrameIsBaseline);
+    } else if (frame->is_maglev()) {
+      status |= static_cast<int>(OptimizationStatus::kTopmostFrameIsMaglev);
     }
   }
 
@@ -1195,6 +1201,7 @@ RUNTIME_FUNCTION(Runtime_GlobalPrint) {
     uint16_t character = stream.GetNext();
     PrintF(output_stream, "%c", character);
   }
+  fflush(output_stream);
   return string;
 }
 
@@ -1365,11 +1372,11 @@ RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
   }
 
-  PretenturingHandler* pretenuring_handler = heap->pretenuring_handler();
+  PretenuringHandler* pretenuring_handler = heap->pretenuring_handler();
   AllocationMemento memento =
       pretenuring_handler
-          ->FindAllocationMemento<PretenturingHandler::kForRuntime>(
-              object.map(), object);
+          ->FindAllocationMemento<PretenuringHandler::kForRuntime>(object.map(),
+                                                                   object);
   if (memento.is_null())
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
   AllocationSite site = memento.GetAllocationSite();
@@ -1706,6 +1713,13 @@ RUNTIME_FUNCTION(Runtime_IsSharedString) {
   Handle<HeapObject> obj = args.at<HeapObject>(0);
   return isolate->heap()->ToBoolean(obj->IsString() &&
                                     Handle<String>::cast(obj)->IsShared());
+}
+
+RUNTIME_FUNCTION(Runtime_InSharedHeap) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<HeapObject> obj = args.at<HeapObject>(0);
+  return isolate->heap()->ToBoolean(obj->InSharedWritableHeap());
 }
 
 RUNTIME_FUNCTION(Runtime_IsInPlaceInternalizableString) {

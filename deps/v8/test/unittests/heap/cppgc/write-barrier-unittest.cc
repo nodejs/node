@@ -26,7 +26,9 @@ class V8_NODISCARD IncrementalMarkingScope {
   explicit IncrementalMarkingScope(MarkerBase* marker) : marker_(marker) {}
 
   ~IncrementalMarkingScope() V8_NOEXCEPT {
+    marker_->heap().stack()->SaveContext();
     marker_->FinishMarking(kIncrementalConfig.stack_state);
+    marker_->heap().stack()->ClearContext();
   }
 
   static constexpr MarkingConfig kIncrementalConfig{

@@ -17,6 +17,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-shared-array-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/prototype.h"
@@ -227,27 +228,6 @@ void Accessors::ArrayLengthSetter(
 Handle<AccessorInfo> Accessors::MakeArrayLengthInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
                       &ArrayLengthGetter, &ArrayLengthSetter);
-}
-
-//
-// Accessors::SharedArrayLength
-//
-
-void Accessors::SharedArrayLengthGetter(
-    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
-  DisallowGarbageCollection no_gc;
-  HandleScope scope(isolate);
-
-  Object value = *Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
-
-  Object result = Smi::FromInt(JSObject::cast(value).elements().length());
-  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
-}
-
-Handle<AccessorInfo> Accessors::MakeSharedArrayLengthInfo(Isolate* isolate) {
-  return MakeAccessor(isolate, isolate->factory()->length_string(),
-                      &SharedArrayLengthGetter, nullptr);
 }
 
 //

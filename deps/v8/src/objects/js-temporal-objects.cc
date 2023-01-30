@@ -4614,7 +4614,8 @@ bool IsBuiltinCalendar(Isolate* isolate, Handle<String> id) {
   // 1. Let calendars be AvailableCalendars().
   // 2. If calendars contains the ASCII-lowercase of id, return true.
   // 3. Return false.
-  id = Intl::ConvertToLower(isolate, id).ToHandleChecked();
+  id = Intl::ConvertToLower(isolate, String::Flatten(isolate, id))
+           .ToHandleChecked();
   return GetCalendarMap()->Contains(id->ToCString().get());
 }
 
@@ -4624,7 +4625,8 @@ Handle<String> CalendarIdentifier(Isolate* isolate, int32_t index) {
 }
 
 int32_t CalendarIndex(Isolate* isolate, Handle<String> id) {
-  id = Intl::ConvertToLower(isolate, id).ToHandleChecked();
+  id = Intl::ConvertToLower(isolate, String::Flatten(isolate, id))
+           .ToHandleChecked();
   return GetCalendarMap()->Index(id->ToCString().get());
 }
 

@@ -31,6 +31,13 @@ class UnifiedHeapTest : public TestWithHeapInternals {
       cppgc::Heap::SweepingType sweeping_type =
           cppgc::Heap::SweepingType::kAtomic);
 
+  void CollectYoungGarbageWithEmbedderStack(
+      cppgc::Heap::SweepingType sweeping_type =
+          cppgc::Heap::SweepingType::kAtomic);
+  void CollectYoungGarbageWithoutEmbedderStack(
+      cppgc::Heap::SweepingType sweeping_type =
+          cppgc::Heap::SweepingType::kAtomic);
+
   CppHeap& cpp_heap() const;
   cppgc::AllocationHandle& allocation_handle();
 

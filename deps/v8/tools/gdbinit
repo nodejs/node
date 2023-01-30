@@ -180,7 +180,7 @@ def v8_stop_handler(event):
   count = 0
   # Limit stack scanning since the frames we look for are near the top anyway,
   # and otherwise stack overflows can be very slow.
-  while frame is not None and count < 7:
+  while frame is not None and count < 10:
     count += 1
     # If we are in a frame created by gdb (e.g. for `(gdb) call foo()`), gdb
     # emits a dummy frame between its stack and the program's stack. Abort the

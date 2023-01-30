@@ -15,7 +15,7 @@
 
 #if V8_HOST_ARCH_RISCV64
 // 12 64-bit registers = 12 intprt_t
-static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters == 12,
+static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters() == 12,
               "Mismatch in the number of callee-saved registers");
 static_assert(sizeof(intptr_t) == 8, "Mismatch in word size");
 
@@ -41,7 +41,7 @@ asm(".global SaveCalleeSavedRegisters             \n"
     "  jr ra                                      \n");
 #elif V8_HOST_ARCH_RISCV32
 // 12 32-bit registers = 12 intprt_t
-static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters == 12,
+static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters() == 12,
               "Mismatch in the number of callee-saved registers");
 static_assert(sizeof(intptr_t) == 4, "Mismatch in word size");
 

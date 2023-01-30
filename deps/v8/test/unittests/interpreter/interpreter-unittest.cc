@@ -1841,8 +1841,10 @@ TEST_F(InterpreterTest, InterpreterBigIntComparisons) {
         if (tester.HasFeedbackMetadata()) {
           MaybeObject feedback = callable.vector().Get(slot);
           CHECK(feedback->IsSmi());
-          CHECK_EQ(CompareOperationFeedback::kBigInt,
-                   feedback->ToSmi().value());
+          // TODO(panq): Create a standalone unit test for kBigInt64.
+          CHECK(CompareOperationFeedback::kBigInt64 ==
+                    feedback->ToSmi().value() ||
+                CompareOperationFeedback::kBigInt == feedback->ToSmi().value());
         }
       }
     }

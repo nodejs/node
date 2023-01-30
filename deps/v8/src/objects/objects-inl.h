@@ -725,34 +725,41 @@ Map MapWord::ToMap() const {
 }
 
 bool MapWord::IsForwardingAddress() const {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  // When external code space is enabled forwarding pointers are encoded as
+  // Smi representing a diff from the source object address in kObjectAlignment
+  // chunks.
+  return HAS_SMI_TAG(value_);
+#else
   return (value_ & kForwardingTagMask) == kForwardingTag;
+#endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-MapWord MapWord::FromForwardingAddress(HeapObject object) {
+MapWord MapWord::FromForwardingAddress(HeapObject map_word_host,
+                                       HeapObject object) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  // When external code space is enabled forwarding pointers are encoded as
+  // Smi representing a diff from the source object address in kObjectAlignment
+  // chunks.
+  intptr_t diff = static_cast<intptr_t>(object.ptr() - map_word_host.ptr());
+  DCHECK(IsAligned(diff, kObjectAlignment));
+  MapWord map_word(Smi::FromIntptr(diff / kObjectAlignment).ptr());
+  DCHECK(map_word.IsForwardingAddress());
+  return map_word;
+#else
   return MapWord(object.ptr() - kHeapObjectTag);
+#endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-HeapObject MapWord::ToForwardingAddress() {
-  DCHECK(IsForwardingAddress());
-  HeapObject obj = HeapObject::FromAddress(value_);
-  // For objects allocated outside of the main pointer compression cage the
-  // variant with explicit cage base must be used.
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(obj));
-  return obj;
-}
-
-HeapObject MapWord::ToForwardingAddress(PtrComprCageBase host_cage_base) {
+HeapObject MapWord::ToForwardingAddress(HeapObject map_word_host) {
   DCHECK(IsForwardingAddress());
 #ifdef V8_EXTERNAL_CODE_SPACE
-  // Recompress value_ using proper host_cage_base and compression scheme
-  // since the map word is decompressed using the default compression scheme
-  // in an assumption it'll contain Map pointer.
-  // TODO(v8:11880): this code must be updated once a different scheme is used
-  // for external code fields.
-  Tagged_t compressed = V8HeapCompressionScheme::CompressTagged(value_);
-  Address value = V8HeapCompressionScheme::DecompressTaggedPointer(
-      host_cage_base, compressed);
-  return HeapObject::FromAddress(value);
+  // When external code space is enabled forwarding pointers are encoded as
+  // Smi representing a diff from the source object address in kObjectAlignment
+  // chunks.
+  intptr_t diff = static_cast<intptr_t>(Smi(value_).value()) * kObjectAlignment;
+  Address address = map_word_host.address() + diff;
+  return HeapObject::FromAddress(address);
 #else
   return HeapObject::FromAddress(value_);
 #endif  // V8_EXTERNAL_CODE_SPACE
@@ -866,7 +873,7 @@ void HeapObject::set_map(Map value, MemoryOrder order, VerificationMode mode) {
       HeapVerifier::VerifyObjectLayoutChange(heap, *this, value);
     }
   }
-  set_map_word(MapWord::FromMap(value), order);
+  set_map_word(value, order);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (!value.is_null()) {
     if (emit_write_barrier == EmitWriteBarrier::kYes) {
@@ -880,8 +887,7 @@ void HeapObject::set_map(Map value, MemoryOrder order, VerificationMode mode) {
 }
 
 void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
-  MapWord mapword = MapWord::FromMap(value);
-  set_map_word(mapword, kRelaxedStore);
+  set_map_word(value, kRelaxedStore);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (mode != SKIP_WRITE_BARRIER) {
     DCHECK(!value.is_null());
@@ -913,8 +919,14 @@ MapWord HeapObject::map_word(PtrComprCageBase cage_base,
   return MapField::Relaxed_Load_Map_Word(cage_base, *this);
 }
 
-void HeapObject::set_map_word(MapWord map_word, RelaxedStoreTag) {
-  MapField::Relaxed_Store_Map_Word(*this, map_word);
+void HeapObject::set_map_word(Map map, RelaxedStoreTag) {
+  MapField::Relaxed_Store_Map_Word(*this, MapWord::FromMap(map));
+}
+
+void HeapObject::set_map_word_forwarded(HeapObject target_object,
+                                        RelaxedStoreTag) {
+  MapField::Relaxed_Store_Map_Word(
+      *this, MapWord::FromForwardingAddress(*this, target_object));
 }
 
 MapWord HeapObject::map_word(AcquireLoadTag tag) const {
@@ -930,14 +942,21 @@ MapWord HeapObject::map_word(PtrComprCageBase cage_base,
   return MapField::Acquire_Load_No_Unpack(cage_base, *this);
 }
 
-void HeapObject::set_map_word(MapWord map_word, ReleaseStoreTag) {
-  MapField::Release_Store_Map_Word(*this, map_word);
+void HeapObject::set_map_word(Map map, ReleaseStoreTag) {
+  MapField::Release_Store_Map_Word(*this, MapWord::FromMap(map));
 }
 
-bool HeapObject::release_compare_and_swap_map_word(MapWord old_map_word,
-                                                   MapWord new_map_word) {
-  Tagged_t result =
-      MapField::Release_CompareAndSwap(*this, old_map_word, new_map_word);
+void HeapObject::set_map_word_forwarded(HeapObject target_object,
+                                        ReleaseStoreTag) {
+  MapField::Release_Store_Map_Word(
+      *this, MapWord::FromForwardingAddress(*this, target_object));
+}
+
+bool HeapObject::release_compare_and_swap_map_word_forwarded(
+    MapWord old_map_word, HeapObject new_target_object) {
+  Tagged_t result = MapField::Release_CompareAndSwap(
+      *this, old_map_word,
+      MapWord::FromForwardingAddress(*this, new_target_object));
   return result == static_cast<Tagged_t>(old_map_word.ptr());
 }
 

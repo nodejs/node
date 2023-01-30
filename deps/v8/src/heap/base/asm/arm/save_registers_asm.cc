@@ -21,7 +21,7 @@
 // http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.faqs/ka4127.html
 
 // 8 32-bit registers = 8 intprt_t
-static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters == 8,
+static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters() == 8,
               "Mismatch in the number of callee-saved registers");
 static_assert(sizeof(intptr_t) == 4, "Mismatch in word size");
 

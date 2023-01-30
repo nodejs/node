@@ -490,9 +490,7 @@ WASM_RELAXED_SIMD_TEST(I16x8DotI8x16I7x16S) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 
-#if V8_TARGET_ARCH_ARM64
 WASM_RELAXED_SIMD_TEST(I32x4DotI8x16I7x16AddS) {
   WasmRunner<int32_t, int8_t, int8_t, int32_t> r(execution_tier);
   int32_t* g = r.builder().template AddGlobal<int32_t>(kWasmS128);
@@ -512,9 +510,9 @@ WASM_RELAXED_SIMD_TEST(I32x4DotI8x16I7x16AddS) {
   for (int8_t x : compiler::ValueHelper::GetVector<int8_t>()) {
     for (int8_t y : compiler::ValueHelper::GetVector<int8_t>()) {
       for (int32_t z : compiler::ValueHelper::GetVector<int32_t>()) {
-        r.Call(x, y & 0x7F, z);
         int32_t expected = base::AddWithWraparound(
             base::MulWithWraparound(x * (y & 0x7F), 4), z);
+        r.Call(x, y & 0x7F, z);
         for (int i = 0; i < 4; i++) {
           CHECK_EQ(expected, LANE(g, i));
         }
@@ -522,7 +520,7 @@ WASM_RELAXED_SIMD_TEST(I32x4DotI8x16I7x16AddS) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 
 #undef WASM_RELAXED_SIMD_TEST
 }  // namespace test_run_wasm_relaxed_simd

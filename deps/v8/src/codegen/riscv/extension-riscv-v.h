@@ -425,25 +425,25 @@ class AssemblerRISCVV : public AssemblerRiscvBase {
   // vsetvli
   void GenInstrV(Register rd, Register rs1, uint32_t zimm);
   // OPIVV OPFVV OPMVV
-  void GenInstrV(uint8_t funct6, OpcodeRISCVV opcode, VRegister vd,
-                 VRegister vs1, VRegister vs2, MaskType mask = NoMask);
-  void GenInstrV(uint8_t funct6, OpcodeRISCVV opcode, VRegister vd, int8_t vs1,
+  void GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd, VRegister vs1,
                  VRegister vs2, MaskType mask = NoMask);
-  void GenInstrV(uint8_t funct6, OpcodeRISCVV opcode, VRegister vd,
+  void GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd, int8_t vs1,
                  VRegister vs2, MaskType mask = NoMask);
+  void GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd, VRegister vs2,
+                 MaskType mask = NoMask);
   // OPMVV OPFVV
-  void GenInstrV(uint8_t funct6, OpcodeRISCVV opcode, Register rd,
-                 VRegister vs1, VRegister vs2, MaskType mask = NoMask);
+  void GenInstrV(uint8_t funct6, Opcode opcode, Register rd, VRegister vs1,
+                 VRegister vs2, MaskType mask = NoMask);
   // OPFVV
-  void GenInstrV(uint8_t funct6, OpcodeRISCVV opcode, FPURegister fd,
-                 VRegister vs1, VRegister vs2, MaskType mask = NoMask);
+  void GenInstrV(uint8_t funct6, Opcode opcode, FPURegister fd, VRegister vs1,
+                 VRegister vs2, MaskType mask = NoMask);
 
   // OPIVX OPMVX
-  void GenInstrV(uint8_t funct6, OpcodeRISCVV opcode, VRegister vd,
-                 Register rs1, VRegister vs2, MaskType mask = NoMask);
+  void GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd, Register rs1,
+                 VRegister vs2, MaskType mask = NoMask);
   // OPFVF
-  void GenInstrV(uint8_t funct6, OpcodeRISCVV opcode, VRegister vd,
-                 FPURegister fs1, VRegister vs2, MaskType mask = NoMask);
+  void GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd, FPURegister fs1,
+                 VRegister vs2, MaskType mask = NoMask);
   // OPMVX
   void GenInstrV(uint8_t funct6, Register rd, Register rs1, VRegister vs2,
                  MaskType mask = NoMask);
@@ -464,7 +464,7 @@ class AssemblerRISCVV : public AssemblerRiscvBase {
                  VRegister vs2, MaskType mask, uint8_t IsMop, bool IsMew,
                  uint8_t Nf);
   // vmv_xs vcpop_m vfirst_m
-  void GenInstrV(uint8_t funct6, OpcodeRISCVV opcode, Register rd, uint8_t vs1,
+  void GenInstrV(uint8_t funct6, Opcode opcode, Register rd, uint8_t vs1,
                  VRegister vs2, MaskType mask);
 };
 

@@ -132,6 +132,8 @@ v8_flag(name = "v8_enable_snapshot_code_comments")
 
 v8_flag(name = "v8_enable_snapshot_native_code_counters")
 
+v8_flag(name = "v8_enable_static_roots")
+
 v8_flag(name = "v8_enable_trace_maps")
 
 v8_flag(name = "v8_enable_v8_checks")
@@ -316,6 +318,7 @@ v8_config(
         "v8_enable_slow_dchecks": "ENABLE_SLOW_DCHECKS",
         "v8_enable_runtime_call_stats": "V8_RUNTIME_CALL_STATS",
         "v8_enable_snapshot_native_code_counters": "V8_SNAPSHOT_NATIVE_CODE_COUNTERS",
+        "v8_enable_static_roots": "V8_STATIC_ROOTS",
         "v8_enable_trace_maps": "V8_TRACE_MAPS",
         "v8_enable_v8_checks": "V8_ENABLE_CHECKS",
         "v8_enable_verify_csa": "ENABLE_VERIFY_CSA",
@@ -325,7 +328,6 @@ v8_config(
     },
     defines = [
         "GOOGLE3",
-        "ENABLE_DEBUGGER_SUPPORT",
         "V8_ADVANCED_BIGINT_ALGORITHMS",
         "V8_CONCURRENT_MARKING",
     ] + select({
@@ -963,6 +965,7 @@ filegroup(
         "src/objects/templates.tq",
         "src/objects/torque-defined-classes.tq",
         "src/objects/turbofan-types.tq",
+        "src/objects/turboshaft-types.tq",
         "test/torque/test-torque.tq",
         "third_party/v8/builtins/array-sort.tq",
     ] + select({
@@ -1245,6 +1248,7 @@ filegroup(
         "src/common/message-template.h",
         "src/common/operation.h",
         "src/common/ptr-compr-inl.h",
+        "src/common/ptr-compr.cc",
         "src/common/ptr-compr.h",
         "src/compiler-dispatcher/lazy-compile-dispatcher.cc",
         "src/compiler-dispatcher/lazy-compile-dispatcher.h",
@@ -1429,6 +1433,8 @@ filegroup(
         "src/heap/cppgc-js/cpp-marking-state-inl.h",
         "src/heap/cppgc-js/cpp-snapshot.cc",
         "src/heap/cppgc-js/cpp-snapshot.h",
+        "src/heap/cppgc-js/cross-heap-remembered-set.cc",
+        "src/heap/cppgc-js/cross-heap-remembered-set.h",
         "src/heap/cppgc-js/unified-heap-marking-state.cc",
         "src/heap/cppgc-js/unified-heap-marking-state.h",
         "src/heap/cppgc-js/unified-heap-marking-state-inl.h",
@@ -1459,8 +1465,6 @@ filegroup(
         "src/heap/gc-tracer.cc",
         "src/heap/gc-tracer-inl.h",
         "src/heap/gc-tracer.h",
-        "src/heap/global-handle-marking-visitor.cc",
-        "src/heap/global-handle-marking-visitor.h",
         "src/heap/heap-allocator-inl.h",
         "src/heap/heap-allocator.cc",
         "src/heap/heap-allocator.h",
@@ -1567,6 +1571,8 @@ filegroup(
         "src/heap/stress-scavenge-observer.h",
         "src/heap/sweeper.cc",
         "src/heap/sweeper.h",
+        "src/heap/traced-handles-marking-visitor.cc",
+        "src/heap/traced-handles-marking-visitor.h",
         "src/heap/weak-object-worklists.cc",
         "src/heap/weak-object-worklists.h",
         "src/ic/call-optimization.cc",
@@ -1915,6 +1921,8 @@ filegroup(
         "src/objects/transitions.h",
         "src/objects/turbofan-types-inl.h",
         "src/objects/turbofan-types.h",
+        "src/objects/turboshaft-types-inl.h",
+        "src/objects/turboshaft-types.h",
         "src/objects/type-hints.cc",
         "src/objects/type-hints.h",
         "src/objects/value-serializer.cc",
@@ -2031,6 +2039,7 @@ filegroup(
         "src/roots/roots-inl.h",
         "src/roots/roots.cc",
         "src/roots/roots.h",
+        "src/roots/static-roots.h",
         "src/runtime/runtime-array.cc",
         "src/runtime/runtime-atomics.cc",
         "src/runtime/runtime-bigint.cc",
@@ -2882,7 +2891,10 @@ filegroup(
         "src/compiler/state-values-utils.h",
         "src/compiler/store-store-elimination.cc",
         "src/compiler/store-store-elimination.h",
+        "src/compiler/turboshaft/assembler.cc",
         "src/compiler/turboshaft/assembler.h",
+        "src/compiler/turboshaft/assert-types-reducer.h",
+        "src/compiler/turboshaft/branch-elimination-reducer.h",
         "src/compiler/turboshaft/decompression-optimization.cc",
         "src/compiler/turboshaft/decompression-optimization.h",
         "src/compiler/turboshaft/deopt-data.h",
@@ -2891,9 +2903,15 @@ filegroup(
         "src/compiler/turboshaft/graph-builder.h",
         "src/compiler/turboshaft/graph.cc",
         "src/compiler/turboshaft/graph.h",
+        "src/compiler/turboshaft/index.h",
         "src/compiler/turboshaft/graph-visualizer.cc",
         "src/compiler/turboshaft/graph-visualizer.h",
+        "src/compiler/turboshaft/late-escape-analysis-reducer.h",
+        "src/compiler/turboshaft/late-escape-analysis-reducer.cc",
+        "src/compiler/turboshaft/layered-hash-map.h",
         "src/compiler/turboshaft/machine-optimization-reducer.h",
+        "src/compiler/turboshaft/memory-optimization.cc",
+        "src/compiler/turboshaft/memory-optimization.h",
         "src/compiler/turboshaft/operations.cc",
         "src/compiler/turboshaft/operations.h",
         "src/compiler/turboshaft/operation-matching.h",
@@ -2908,9 +2926,13 @@ filegroup(
         "src/compiler/turboshaft/simplify-tf-loops.cc",
         "src/compiler/turboshaft/simplify-tf-loops.h",
         "src/compiler/turboshaft/snapshot-table.h",
+        "src/compiler/turboshaft/type-inference-reducer.h",
+        "src/compiler/turboshaft/types.cc",
+        "src/compiler/turboshaft/types.h",
         "src/compiler/turboshaft/utils.cc",
         "src/compiler/turboshaft/utils.h",
         "src/compiler/turboshaft/value-numbering-reducer.h",
+        "src/compiler/turboshaft/variable-reducer.h",
         "src/compiler/type-cache.cc",
         "src/compiler/type-cache.h",
         "src/compiler/type-narrowing-reducer.cc",
@@ -2990,6 +3012,7 @@ filegroup(
         "src/builtins/builtins-microtask-queue-gen.cc",
         "src/builtins/builtins-number-gen.cc",
         "src/builtins/builtins-object-gen.cc",
+        "src/builtins/builtins-object-gen.h",
         "src/builtins/builtins-promise-gen.cc",
         "src/builtins/builtins-promise-gen.h",
         "src/builtins/builtins-proxy-gen.cc",
@@ -3215,6 +3238,8 @@ filegroup(
         "src/snapshot/embedded/platform-embedded-file-writer-mac.h",
         "src/snapshot/embedded/platform-embedded-file-writer-win.cc",
         "src/snapshot/embedded/platform-embedded-file-writer-win.h",
+        "src/snapshot/static-roots-gen.cc",
+        "src/snapshot/static-roots-gen.h",
         "src/snapshot/mksnapshot.cc",
         "src/snapshot/snapshot-empty.cc",
     ],
@@ -3249,6 +3274,8 @@ filegroup(
         "src/inspector/v8-debugger.h",
         "src/inspector/v8-debugger-agent-impl.cc",
         "src/inspector/v8-debugger-agent-impl.h",
+        "src/inspector/v8-debugger-barrier.cc",
+        "src/inspector/v8-debugger-barrier.h",
         "src/inspector/v8-debugger-id.cc",
         "src/inspector/v8-debugger-id.h",
         "src/inspector/v8-debugger-script.cc",
@@ -3549,12 +3576,14 @@ v8_mksnapshot(
 cc_library(
     name = "icu/generated_torque_headers",
     hdrs = [":icu/generated_torque_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     strip_include_prefix = "icu",
 )
 
 cc_library(
     name = "noicu/generated_torque_headers",
     hdrs = [":noicu/generated_torque_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     strip_include_prefix = "noicu",
 )
 
@@ -3564,6 +3593,7 @@ v8_library(
         ":v8_libbase_files",
         ":v8_shared_internal_headers",
     ],
+    copts = ["-Wno-implicit-fallthrough"],
 )
 
 cc_library(
@@ -3572,6 +3602,7 @@ cc_library(
         "src/torque/kythe-data.h",
         "src/torque/torque-compiler.h",
     ],
+    copts = ["-Wno-implicit-fallthrough"],
     include_prefix = "third_party/v8",
     includes = ["."],
 )
@@ -3581,7 +3612,7 @@ cc_library(
     srcs = [
         ":torque_base_files",
     ],
-    copts = select({
+    copts = ["-Wno-implicit-fallthrough"] + select({
         "@v8//bazel/config:is_posix": ["-fexceptions"],
         "//conditions:default": [],
     }),
@@ -3598,6 +3629,7 @@ v8_library(
         ":v8_base_without_compiler_files",
         ":v8_common_libshared_files",
     ],
+    copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [
         ":icu/generated_torque_headers",
         "//external:icu",
@@ -3623,6 +3655,7 @@ v8_library(
     name = "v8",
     srcs = [":v8_inspector_files"],
     hdrs = [":public_header_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [":icu/v8_libshared"],
     icu_srcs = [":icu/snapshot_files"],
     noicu_deps = [":noicu/v8_libshared"],
@@ -3635,6 +3668,7 @@ v8_library(
     name = "wee8",
     srcs = [":wee8_files"],
     hdrs = [":public_wasm_c_api_header_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     strip_include_prefix = "third_party",
     visibility = ["//visibility:public"],
     deps = [":noicu/v8"],
@@ -3664,6 +3698,7 @@ v8_binary(
         "src/interpreter/bytecodes.cc",
         "src/interpreter/bytecodes.h",
     ],
+    copts = ["-Wno-implicit-fallthrough"],
     deps = ["v8_libbase"],
 )
 
@@ -3675,6 +3710,7 @@ v8_binary(
         ":v8_libbase_files",
         ":v8_shared_internal_headers",
     ],
+    copts = ["-Wno-implicit-fallthrough"],
     defines = [
         "V8_INTL_SUPPORT",
         "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC",
@@ -3693,7 +3729,7 @@ v8_binary(
         "src/torque/torque.cc",
         ":torque_base_files",
     ],
-    copts = select({
+    copts = ["-Wno-implicit-fallthrough"] + select({
         "@v8//bazel/config:is_posix": ["-fexceptions"],
         "//conditions:default": [],
     }),
@@ -3708,6 +3744,7 @@ v8_binary(
 v8_binary(
     name = "mksnapshot",
     srcs = [":mksnapshot_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [":icu/v8_libshared"],
     linkopts = select({
         "@v8//bazel/config:is_android": ["-llog"],
@@ -3719,6 +3756,7 @@ v8_binary(
 v8_binary(
     name = "d8",
     srcs = [":d8_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [":icu/v8"],
     noicu_deps = [":noicu/v8"],
 )

@@ -24,7 +24,7 @@
 
 // 7 64-bit registers + 1 for alignment purposes = 8 * 1 = 8 intprt_t
 // 10 128-bit registers = 10 * 2 = 20 intptr_t
-static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters == 28,
+static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters() == 28,
               "Mismatch in the number of callee-saved registers");
 static_assert(sizeof(intptr_t) == 8, "Mismatch in word size");
 
@@ -62,7 +62,7 @@ asm(".globl SaveCalleeSavedRegisters             \n"
 // Source: https://github.com/hjl-tools/x86-psABI/wiki/x86-64-psABI-1.0.pdf
 
 // 5 64-bit registers = 5 intprt_t
-static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters == 5,
+static_assert(heap::base::Stack::NumberOfCalleeSavedRegisters() == 5,
               "Mismatch in the number of callee-saved registers");
 static_assert(sizeof(intptr_t) == 8, "Mismatch in word size");
 

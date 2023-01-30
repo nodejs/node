@@ -29,7 +29,8 @@ class CsaLoadEliminationTest : public GraphTest {
                  machine()),
         reducer_(zone(), graph(), tick_counter(), broker()),
         csa_(reducer(), jsgraph(), zone()),
-        mcr_(reducer(), jsgraph()) {
+        mcr_(reducer(), jsgraph(),
+             MachineOperatorReducer::kPropagateSignallingNan) {
     reducer()->AddReducer(&csa_);
     reducer()->AddReducer(&mcr_);
   }

@@ -55,8 +55,15 @@ std::ostream& operator<<(std::ostream& os, TrapId trap_id) {
 }
 
 TrapId TrapIdOf(const Operator* const op) {
+#if V8_ENABLE_WEBASSEMBLY
+  // Combining this with the #else into a single DCHECK() does not with MSVC.
+  DCHECK(op->opcode() == IrOpcode::kTrapIf ||
+         op->opcode() == IrOpcode::kTrapUnless ||
+         op->opcode() == IrOpcode::kAssertNotNull);
+#else
   DCHECK(op->opcode() == IrOpcode::kTrapIf ||
          op->opcode() == IrOpcode::kTrapUnless);
+#endif
   return OpParameter<TrapId>(op);
 }
 

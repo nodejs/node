@@ -37,6 +37,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/turbofan-types-inl.h"
+#include "src/objects/turboshaft-types-inl.h"
 #include "src/roots/roots.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator-inl.h"
@@ -1090,8 +1091,6 @@ void PropertyCell::PropertyCellVerify(Isolate* isolate) {
 
 void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
   CHECK(IsCodeDataContainer());
-  VerifyObjectField(isolate, kNextCodeLinkOffset);
-  CHECK(next_code_link().IsCodeT() || next_code_link().IsUndefined(isolate));
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     if (raw_code() != Smi::zero()) {
       Code code = this->code();

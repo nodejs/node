@@ -1550,7 +1550,10 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
           (args.Length() < 2) ? i_isolate->factory()->null_value()
                               : Utils::OpenHandle(*value);
       const char* error_message;
-      if (!i::wasm::JSToWasmObject(i_isolate, nullptr, value_handle, type,
+      // The JS API does not allow for indexed types.
+      // TODO(7748): Fix this if that changes.
+      DCHECK(!type.has_index());
+      if (!i::wasm::JSToWasmObject(i_isolate, value_handle, type,
                                    &error_message)
                .ToHandle(&value_handle)) {
         thrower.TypeError("%s", error_message);
@@ -2028,7 +2031,10 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   bool is_wasm_js_function = i::WasmJSFunction::IsWasmJSFunction(*callable);
 
   if (is_wasm_exported_function && !suspend && !promise) {
-    if (*i::Handle<i::WasmExportedFunction>::cast(callable)->sig() == *sig) {
+    uint32_t canonical_sig_index =
+        i::wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig);
+    if (i::Handle<i::WasmExportedFunction>::cast(callable)->MatchesSignature(
+            canonical_sig_index)) {
       args.GetReturnValue().Set(Utils::ToLocal(callable));
       return;
     }
@@ -2040,7 +2046,10 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   if (is_wasm_js_function && !suspend && !promise) {
-    if (i::Handle<i::WasmJSFunction>::cast(callable)->MatchesSignature(sig)) {
+    uint32_t canonical_sig_index =
+        i::wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig);
+    if (i::Handle<i::WasmJSFunction>::cast(callable)->MatchesSignature(
+            canonical_sig_index)) {
       args.GetReturnValue().Set(Utils::ToLocal(callable));
       return;
     }
@@ -3151,6 +3160,19 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
                                         Handle<Context> context) {
   // This space left blank for future origin trials.
 }
+
+namespace wasm {
+// static
+std::unique_ptr<WasmStreaming> StartStreamingForTesting(
+    Isolate* isolate,
+    std::shared_ptr<wasm::CompilationResultResolver> resolver) {
+  return std::make_unique<WasmStreaming>(
+      std::make_unique<WasmStreaming::WasmStreamingImpl>(
+          reinterpret_cast<v8::Isolate*>(isolate), "StartStreamingForTesting",
+          resolver));
+}
+}  // namespace wasm
+
 #undef ASSIGN
 #undef EXTRACT_THIS
 

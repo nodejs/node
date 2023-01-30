@@ -178,6 +178,8 @@ class HeapType {
         return std::string("noextern");
       case kNoFunc:
         return std::string("nofunc");
+      case kBottom:
+        return std::string("<bot>");
       default:
         return std::to_string(representation_);
     }
@@ -608,11 +610,20 @@ class ValueType {
         break;
       case kRefNull:
         if (heap_type().is_generic()) {
-          // TODO(mliedtke): Adapt short names:
-          // noneref     -> nullref
-          // nofuncref   -> nullfuncref
-          // noexternref -> nullexternref
-          buf << heap_type().name() << "ref";
+          switch (heap_type().representation()) {
+            case HeapType::kNone:
+              buf << "nullref";
+              break;
+            case HeapType::kNoExtern:
+              buf << "nullexternref";
+              break;
+            case HeapType::kNoFunc:
+              buf << "nullfuncref";
+              break;
+            default:
+              buf << heap_type().name() << "ref";
+              break;
+          }
         } else {
           buf << "(ref null " << heap_type().name() << ")";
         }
@@ -721,9 +732,6 @@ constexpr ValueType kWasmNullFuncRef = ValueType::RefNull(HeapType::kNoFunc);
 
 // Constants used by the generic js-to-wasm wrapper.
 constexpr int kWasmValueKindBitsMask = (1u << ValueType::kKindBits) - 1;
-
-// This is used in wasm.tq.
-constexpr ValueType kWasmAnyNonNullableRef = ValueType::Ref(HeapType::kAny);
 
 #define FOREACH_WASMVALUE_CTYPES(V) \
   V(kI32, int32_t)                  \

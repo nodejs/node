@@ -11,6 +11,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/utils/allocation.h"
+#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {
@@ -129,12 +130,12 @@ class CodeRange final : public VirtualMemoryCage {
                                  const uint8_t* embedded_blob_code,
                                  size_t embedded_blob_code_size);
 
-  static std::shared_ptr<CodeRange> EnsureProcessWideCodeRange(
+  static CodeRange* EnsureProcessWideCodeRange(
       v8::PageAllocator* page_allocator, size_t requested_size);
 
   // If InitializeProcessWideCodeRangeOnce has been called, returns the
-  // initialized CodeRange. Otherwise returns an empty std::shared_ptr.
-  V8_EXPORT_PRIVATE static std::shared_ptr<CodeRange> GetProcessWideCodeRange();
+  // initialized CodeRange. Otherwise returns a null pointer.
+  V8_EXPORT_PRIVATE static CodeRange* GetProcessWideCodeRange();
 
  private:
   // Used when short builtin calls are enabled, where embedded builtins are

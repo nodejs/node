@@ -288,6 +288,7 @@ namespace compiler {
   V(X64I32x4Abs)                                     \
   V(X64I32x4BitMask)                                 \
   V(X64I32x4DotI16x8S)                               \
+  V(X64I32x4DotI8x16I7x16AddS)                       \
   V(X64I32x4ExtMulLowI16x8S)                         \
   V(X64I32x4ExtMulHighI16x8S)                        \
   V(X64I32x4ExtMulLowI16x8U)                         \
@@ -409,6 +410,8 @@ namespace compiler {
   V(X64I32x4AllTrue)                                 \
   V(X64I16x8AllTrue)                                 \
   V(X64I8x16AllTrue)                                 \
+  V(X64Blendvpd)                                     \
+  V(X64Blendvps)                                     \
   V(X64Pblendvb)                                     \
   V(X64TraceInstruction)
 

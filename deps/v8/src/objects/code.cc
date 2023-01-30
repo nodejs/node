@@ -6,6 +6,7 @@
 
 #include <iomanip>
 
+#include "src/base/v8-fallthrough.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/reloc-info.h"
@@ -49,7 +50,7 @@ inline EmbeddedData EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(
   // copy of the re-embedded builtins in the shared CodeRange, so use that if
   // it's present.
   if (v8_flags.jitless) return EmbeddedData::FromBlob();
-  CodeRange* code_range = CodeRange::GetProcessWideCodeRange().get();
+  CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
   return (code_range && code_range->embedded_blob_code_copy() != nullptr)
              ? EmbeddedData::FromBlob(code_range)
              : EmbeddedData::FromBlob();
@@ -417,35 +418,45 @@ bool Code::Inlines(SharedFunctionInfo sfi) {
   return false;
 }
 
-Code::OptimizedCodeIterator::OptimizedCodeIterator(Isolate* isolate) {
-  isolate_ = isolate;
-  Object list = isolate->heap()->native_contexts_list();
-  next_context_ =
-      list.IsUndefined(isolate_) ? NativeContext() : NativeContext::cast(list);
-}
+Code::OptimizedCodeIterator::OptimizedCodeIterator(Isolate* isolate)
+    : isolate_(isolate),
+      safepoint_scope_(
+          std::make_unique<IsolateSafepointScope>(isolate->heap())),
+      object_iterator_(
+          isolate->heap()->code_space()->GetObjectIterator(isolate->heap())),
+      state_(kIteratingCodeSpace) {}
 
 Code Code::OptimizedCodeIterator::Next() {
-  do {
-    Object next;
-    if (!current_code_.is_null()) {
-      // Get next code in the linked list.
-      next = current_code_.next_code_link();
-    } else if (!next_context_.is_null()) {
-      // Linked list of code exhausted. Get list of next context.
-      next = next_context_.OptimizedCodeListHead();
-      Object next_context = next_context_.next_context_link();
-      next_context_ = next_context.IsUndefined(isolate_)
-                          ? NativeContext()
-                          : NativeContext::cast(next_context);
-    } else {
-      // Exhausted contexts.
-      return Code();
+  while (true) {
+    HeapObject object = object_iterator_->Next();
+    if (object.is_null()) {
+      // No objects left in the current iterator, try to move to the next space
+      // based on the state.
+      switch (state_) {
+        case kIteratingCodeSpace: {
+          object_iterator_ =
+              isolate_->heap()->code_lo_space()->GetObjectIterator(
+                  isolate_->heap());
+          state_ = kIteratingCodeLOSpace;
+          continue;
+        }
+        case kIteratingCodeLOSpace:
+          // No other spaces to iterate, so clean up and we're done. Keep the
+          // object iterator so that it keeps returning null on Next(), to avoid
+          // needing to branch on state_ before the while loop, but drop the
+          // safepoint scope since we no longer need to stop the heap from
+          // moving.
+          safepoint_scope_.reset();
+          state_ = kDone;
+          V8_FALLTHROUGH;
+        case kDone:
+          return Code();
+      }
     }
-    current_code_ =
-        next.IsUndefined(isolate_) ? Code() : FromCodeT(CodeT::cast(next));
-  } while (current_code_.is_null());
-  DCHECK(CodeKindCanDeoptimize(current_code_.kind()));
-  return current_code_;
+    Code code = Code::cast(object);
+    if (!CodeKindCanDeoptimize(code.kind())) continue;
+    return code;
+  }
 }
 
 Handle<DeoptimizationData> DeoptimizationData::New(Isolate* isolate,

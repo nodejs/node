@@ -52,6 +52,7 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
                               GCInfoIndex gcinfo, CustomSpaceIndex space_index);
 
   void ResetLinearAllocationBuffers();
+  void MarkAllPagesAsYoung();
 
  private:
   bool in_disallow_gc_scope() const;

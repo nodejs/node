@@ -278,6 +278,10 @@ export class ChildRange {
     }
     return "";
   }
+
+  public isFloatingPoint(): boolean {
+    return this.op instanceof SequenceBlockOperand && this.op.tooltip.includes("Float");
+  }
 }
 
 export class SequenceBlockOperand {

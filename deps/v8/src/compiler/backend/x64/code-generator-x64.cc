@@ -3447,6 +3447,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_BINOP(pmaddwd);
       break;
     }
+    case kX64I32x4DotI8x16I7x16AddS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(2));
+      __ I32x4DotI8x16I7x16AddS(
+          i.OutputSimd128Register(), i.InputSimd128Register(0),
+          i.InputSimd128Register(1), i.InputSimd128Register(2),
+          kScratchDoubleReg, i.TempSimd128Register(0));
+      break;
+    }
     case kX64I32x4ExtAddPairwiseI16x8S: {
       __ I32x4ExtAddPairwiseI16x8S(i.OutputSimd128Register(),
                                    i.InputSimd128Register(0), kScratchRegister);
@@ -4348,6 +4356,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqb);
       break;
     }
+    case kX64Blendvpd: {
+      __ Blendvpd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), i.InputSimd128Register(2));
+      break;
+    }
+    case kX64Blendvps: {
+      __ Blendvps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), i.InputSimd128Register(2));
+      break;
+    }
     case kX64Pblendvb: {
       __ Pblendvb(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1), i.InputSimd128Register(2));
@@ -5085,6 +5103,62 @@ void CodeGenerator::IncrementStackAccessCounter(
   }
 }
 
+AllocatedOperand CodeGenerator::Push(InstructionOperand* source) {
+  auto rep = LocationOperand::cast(source)->representation();
+  int new_slots = ElementSizeInPointers(rep);
+  X64OperandConverter g(this, nullptr);
+  int last_frame_slot_id =
+      frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+  int sp_delta = frame_access_state_->sp_delta();
+  int slot_id = last_frame_slot_id + sp_delta + new_slots;
+  AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
+  if (source->IsRegister()) {
+    __ pushq(g.ToRegister(source));
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  } else if (source->IsStackSlot() || source->IsFloatStackSlot() ||
+             source->IsDoubleStackSlot()) {
+    __ pushq(g.ToOperand(source));
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  } else {
+    // No push instruction for xmm registers / 128-bit memory operands. Bump
+    // the stack pointer and assemble the move.
+    __ subq(rsp, Immediate(new_slots * kSystemPointerSize));
+    frame_access_state()->IncreaseSPDelta(new_slots);
+    AssembleMove(source, &stack_slot);
+  }
+  temp_slots_ += new_slots;
+  return stack_slot;
+}
+
+void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
+  X64OperandConverter g(this, nullptr);
+  int new_slots = ElementSizeInPointers(rep);
+  frame_access_state()->IncreaseSPDelta(-new_slots);
+  if (dest->IsRegister()) {
+    __ popq(g.ToRegister(dest));
+  } else if (dest->IsStackSlot() || dest->IsFloatStackSlot() ||
+             dest->IsDoubleStackSlot()) {
+    __ popq(g.ToOperand(dest));
+  } else {
+    int last_frame_slot_id =
+        frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+    int sp_delta = frame_access_state_->sp_delta();
+    int slot_id = last_frame_slot_id + sp_delta + new_slots;
+    AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
+    AssembleMove(&stack_slot, dest);
+    __ addq(rsp, Immediate(new_slots * kSystemPointerSize));
+  }
+  temp_slots_ -= new_slots;
+}
+
+void CodeGenerator::PopTempStackSlots() {
+  if (temp_slots_ > 0) {
+    frame_access_state()->IncreaseSPDelta(-temp_slots_);
+    __ addq(rsp, Immediate(temp_slots_ * kSystemPointerSize));
+    temp_slots_ = 0;
+  }
+}
+
 void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
   // Must be kept in sync with {MoveTempLocationTo}.
   DCHECK(!source->IsImmediate());
@@ -5099,25 +5173,7 @@ void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
     AssembleMove(source, &scratch);
   } else {
     // The scratch register is blocked by pending moves. Use the stack instead.
-    int new_slots = ElementSizeInPointers(rep);
-    X64OperandConverter g(this, nullptr);
-    if (source->IsRegister()) {
-      __ pushq(g.ToRegister(source));
-    } else if (source->IsStackSlot() || source->IsFloatStackSlot() ||
-               source->IsDoubleStackSlot()) {
-      __ pushq(g.ToOperand(source));
-    } else {
-      // No push instruction for xmm registers / 128-bit memory operands. Bump
-      // the stack pointer and assemble the move.
-      int last_frame_slot_id =
-          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
-      int sp_delta = frame_access_state_->sp_delta();
-      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
-      __ subq(rsp, Immediate(new_slots * kSystemPointerSize));
-      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
-      AssembleMove(source, &temp);
-    }
-    frame_access_state()->IncreaseSPDelta(new_slots);
+    Push(source);
   }
 }
 
@@ -5131,23 +5187,7 @@ void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
     AllocatedOperand scratch(LocationOperand::REGISTER, rep, scratch_reg_code);
     AssembleMove(&scratch, dest);
   } else {
-    X64OperandConverter g(this, nullptr);
-    int new_slots = ElementSizeInPointers(rep);
-    frame_access_state()->IncreaseSPDelta(-new_slots);
-    if (dest->IsRegister()) {
-      __ popq(g.ToRegister(dest));
-    } else if (dest->IsStackSlot() || dest->IsFloatStackSlot() ||
-               dest->IsDoubleStackSlot()) {
-      __ popq(g.ToOperand(dest));
-    } else {
-      int last_frame_slot_id =
-          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
-      int sp_delta = frame_access_state_->sp_delta();
-      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
-      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
-      AssembleMove(&temp, dest);
-      __ addq(rsp, Immediate(new_slots * kSystemPointerSize));
-    }
+    Pop(dest, rep);
   }
   move_cycle_ = MoveCycleState();
 }

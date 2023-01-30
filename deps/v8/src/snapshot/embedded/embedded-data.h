@@ -108,7 +108,7 @@ class EmbeddedData final {
       // isolate uses it or knows about it or not (see
       // Code::OffHeapInstructionStart()).
       // So, this blob has to be checked too.
-      CodeRange* code_range = CodeRange::GetProcessWideCodeRange().get();
+      CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
       if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
         EmbeddedData remapped_d = EmbeddedData::FromBlob(code_range);
         // If the pc does not belong to the embedded code blob we should be

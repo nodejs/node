@@ -366,9 +366,9 @@ Node* WasmGraphAssembler::IsNotNull(Node* object) {
   return AddNode(graph()->NewNode(simplified_.IsNotNull(), object, control()));
 }
 
-Node* WasmGraphAssembler::AssertNotNull(Node* object) {
-  return AddNode(graph()->NewNode(simplified_.AssertNotNull(), object, effect(),
-                                  control()));
+Node* WasmGraphAssembler::AssertNotNull(Node* object, TrapId trap_id) {
+  return AddNode(graph()->NewNode(simplified_.AssertNotNull(trap_id), object,
+                                  effect(), control()));
 }
 
 Node* WasmGraphAssembler::WasmExternInternalize(Node* object) {

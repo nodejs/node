@@ -64,9 +64,6 @@ namespace internal {
   HR(wasm_memory_allocation_result, V8.WasmMemoryAllocationResult, 0, 3, 4)    \
   /* committed code size per module, collected on GC */                        \
   HR(wasm_module_code_size_mb, V8.WasmModuleCodeSizeMiB, 0, 1024, 64)          \
-  /* code size per module after baseline compilation */                        \
-  HR(wasm_module_code_size_mb_after_baseline,                                  \
-     V8.WasmModuleCodeSizeBaselineMiB, 0, 1024, 64)                            \
   /* percent of freed code size per module, collected on GC */                 \
   HR(wasm_module_freed_code_size_percent, V8.WasmModuleCodeSizePercentFreed,   \
      0, 100, 32)                                                               \
@@ -171,6 +168,12 @@ namespace internal {
   HT(gc_time_to_safepoint, V8.GC.TimeToSafepoint, 10000000, MICROSECOND)       \
   HT(gc_time_to_collection_on_background, V8.GC.TimeToCollectionOnBackground,  \
      10000000, MICROSECOND)                                                    \
+  /* Maglev timers. */                                                         \
+  HT(maglev_optimize_prepare, V8.MaglevOptimizePrepare, 100000, MICROSECOND)   \
+  HT(maglev_optimize_execute, V8.MaglevOptimizeExecute, 100000, MICROSECOND)   \
+  HT(maglev_optimize_finalize, V8.MaglevOptimizeFinalize, 100000, MICROSECOND) \
+  HT(maglev_optimize_total_time, V8.MaglevOptimizeTotalTime, 1000000,          \
+     MICROSECOND)                                                              \
   /* TurboFan timers. */                                                       \
   HT(turbofan_optimize_prepare, V8.TurboFanOptimizePrepare, 1000000,           \
      MICROSECOND)                                                              \

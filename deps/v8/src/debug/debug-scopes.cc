@@ -921,7 +921,16 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
       case VariableLocation::CONTEXT:
         if (mode == Mode::STACK) continue;
         DCHECK(var->IsContextSlot());
-        value = handle(context_->get(index), isolate_);
+
+        // We know of at least one open bug where the context and scope chain
+        // don't match (https://crbug.com/753338).
+        // Return `undefined` if the context's ScopeInfo doesn't know anything
+        // about this variable.
+        if (context_->scope_info().ContextSlotIndex(var->name()) != index) {
+          value = isolate_->factory()->undefined_value();
+        } else {
+          value = handle(context_->get(index), isolate_);
+        }
         break;
 
       case VariableLocation::MODULE: {
@@ -1069,6 +1078,14 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
 
         case VariableLocation::CONTEXT:
           DCHECK(var->IsContextSlot());
+
+          // We know of at least one open bug where the context and scope chain
+          // don't match (https://crbug.com/753338).
+          // Skip the write if the context's ScopeInfo doesn't know anything
+          // about this variable.
+          if (context_->scope_info().ContextSlotIndex(variable_name) != index) {
+            return false;
+          }
           context_->set(index, *new_value);
           return true;
 

@@ -134,7 +134,7 @@ CallDescriptor* CreateRandomCallDescriptor(Zone* zone, size_t return_count,
 
 std::shared_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
                                                          size_t code_size) {
-  std::shared_ptr<wasm::WasmModule> module(new wasm::WasmModule);
+  auto module = std::make_shared<wasm::WasmModule>(wasm::kWasmOrigin);
   module->num_declared_functions = 1;
 
   // We have to add the code object to a NativeModule, because the

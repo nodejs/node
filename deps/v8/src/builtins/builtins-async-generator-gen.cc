@@ -598,8 +598,9 @@ TF_BUILTIN(AsyncGeneratorReject, AsyncGeneratorBuiltinsAssembler) {
       TakeFirstAsyncGeneratorRequestFromQueue(generator);
   TNode<JSPromise> promise = LoadPromiseFromAsyncGeneratorRequest(next);
 
+  // No debug event needed, there was already a debug event that got us here.
   Return(CallBuiltin(Builtin::kRejectPromise, context, promise, value,
-                     TrueConstant()));
+                     FalseConstant()));
 }
 
 TF_BUILTIN(AsyncGeneratorYieldWithAwait, AsyncGeneratorBuiltinsAssembler) {

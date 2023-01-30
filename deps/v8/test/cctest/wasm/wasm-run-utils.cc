@@ -44,10 +44,10 @@ bool IsSameNan(double expected, double actual) {
 }
 
 TestingModuleBuilder::TestingModuleBuilder(
-    Zone* zone, ManuallyImportedJSFunction* maybe_import,
+    Zone* zone, ModuleOrigin origin, ManuallyImportedJSFunction* maybe_import,
     TestExecutionTier tier, RuntimeExceptionSupport exception_support,
     TestingModuleMemoryType mem_type, Isolate* isolate)
-    : test_module_(std::make_shared<WasmModule>()),
+    : test_module_(std::make_shared<WasmModule>(origin)),
       isolate_(isolate ? isolate : CcTest::InitIsolateOnce()),
       enabled_features_(WasmFeatures::FromIsolate(isolate_)),
       execution_tier_(tier),
@@ -75,15 +75,15 @@ TestingModuleBuilder::TestingModuleBuilder(
 
   if (maybe_import) {
     // Manually compile an import wrapper and insert it into the instance.
+    uint32_t canonical_type_index =
+        GetTypeCanonicalizer()->AddRecursiveGroup(maybe_import->sig);
     auto resolved = compiler::ResolveWasmImportCall(
-        maybe_import->js_function, maybe_import->sig,
+        maybe_import->js_function, maybe_import->sig, canonical_type_index,
         instance_object_->module(), enabled_features_);
     compiler::WasmImportCallKind kind = resolved.kind;
     Handle<JSReceiver> callable = resolved.callable;
     WasmImportWrapperCache::ModificationScope cache_scope(
         native_module_->import_wrapper_cache());
-    uint32_t canonical_type_index =
-        GetTypeCanonicalizer()->AddRecursiveGroup(maybe_import->sig);
     WasmImportWrapperCache::CacheKey key(
         kind, canonical_type_index,
         static_cast<int>(maybe_import->sig->parameter_count()), kNoSuspend);
@@ -155,6 +155,11 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
     DCHECK_NULL(test_module_->validated_functions);
     test_module_->validated_functions =
         std::make_unique<std::atomic<uint8_t>[]>((kMaxFunctions + 7) / 8);
+    if (is_asmjs_module(test_module_.get())) {
+      // All asm.js functions are valid by design.
+      std::fill_n(test_module_->validated_functions.get(),
+                  (kMaxFunctions + 7) / 8, 0xff);
+    }
   }
   uint32_t index = static_cast<uint32_t>(test_module_->functions.size());
   test_module_->functions.push_back({sig,      // sig
@@ -185,7 +190,7 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
   }
   DCHECK_LT(index, kMaxFunctions);  // limited for testing.
   if (!instance_object_.is_null()) {
-    Handle<FixedArray> funcs = isolate_->factory()->NewFixedArray(
+    Handle<FixedArray> funcs = isolate_->factory()->NewFixedArrayWithZeroes(
         static_cast<int>(test_module_->functions.size()));
     instance_object_->set_wasm_internal_functions(*funcs);
   }
@@ -273,13 +278,13 @@ uint32_t TestingModuleBuilder::AddBytes(base::Vector<const byte> bytes) {
   base::OwnedVector<uint8_t> new_bytes =
       base::OwnedVector<uint8_t>::New(new_size);
   if (old_size > 0) {
-    memcpy(new_bytes.start(), old_bytes.begin(), old_size);
+    memcpy(new_bytes.begin(), old_bytes.begin(), old_size);
   } else {
     // Set the unused byte. It is never decoded, but the bytes are used as the
     // key in the native module cache.
     new_bytes[0] = 0;
   }
-  memcpy(new_bytes.start() + bytes_offset, bytes.begin(), bytes.length());
+  memcpy(new_bytes.begin() + bytes_offset, bytes.begin(), bytes.length());
   native_module_->SetWireBytes(std::move(new_bytes));
   return bytes_offset;
 }
@@ -419,9 +424,10 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
   WasmFeatures unused_detected_features;
   FunctionBody body(sig, 0, start, end);
   std::vector<compiler::WasmLoopInfo> loops;
-  DecodeResult result = BuildTFGraph(
-      zone->allocator(), WasmFeatures::All(), nullptr, builder,
-      &unused_detected_features, body, &loops, nullptr, 0, kRegularFunction);
+  DecodeResult result =
+      BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr, builder,
+                   &unused_detected_features, body, &loops, nullptr, nullptr, 0,
+                   kRegularFunction);
   if (result.failed()) {
 #ifdef DEBUG
     if (!v8_flags.trace_wasm_decoder) {
@@ -429,7 +435,7 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
       v8_flags.trace_wasm_decoder = true;
       result = BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr,
                             builder, &unused_detected_features, body, &loops,
-                            nullptr, 0, kRegularFunction);
+                            nullptr, nullptr, 0, kRegularFunction);
     }
 #endif
 

@@ -62,6 +62,8 @@ class MaglevCompilationJob final : public OptimizedCompilationJob {
   base::TimeDelta time_taken_to_execute() { return time_taken_to_execute_; }
   base::TimeDelta time_taken_to_finalize() { return time_taken_to_finalize_; }
 
+  void RecordCompilationStats(Isolate* isolate) const;
+
  private:
   explicit MaglevCompilationJob(std::unique_ptr<MaglevCompilationInfo>&& info);
 

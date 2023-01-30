@@ -398,6 +398,7 @@ v8_source_set("unittests_sources") {
     "heap/cppgc-js/unified-heap-unittest.cc",
     "heap/cppgc-js/unified-heap-utils.cc",
     "heap/cppgc-js/unified-heap-utils.h",
+    "heap/cppgc-js/young-unified-heap-unittest.cc",
     "heap/embedder-tracing-unittest.cc",
     "heap/gc-idle-time-handler-unittest.cc",
     "heap/gc-tracer-unittest.cc",
@@ -567,12 +568,16 @@ v8_source_set("unittests_sources") {
       "wasm/subtyping-unittest.cc",
       "wasm/wasm-code-manager-unittest.cc",
       "wasm/wasm-compiler-unittest.cc",
+      "wasm/wasm-disassembler-unittest-gc.wasm.inc",
+      "wasm/wasm-disassembler-unittest-gc.wat.inc",
       "wasm/wasm-disassembler-unittest-mvp.wasm.inc",
       "wasm/wasm-disassembler-unittest-mvp.wat.inc",
       "wasm/wasm-disassembler-unittest-names.wasm.inc",
       "wasm/wasm-disassembler-unittest-names.wat.inc",
       "wasm/wasm-disassembler-unittest-simd.wasm.inc",
       "wasm/wasm-disassembler-unittest-simd.wat.inc",
+      "wasm/wasm-disassembler-unittest-too-many-ends.wasm.inc",
+      "wasm/wasm-disassembler-unittest-too-many-ends.wat.inc",
       "wasm/wasm-disassembler-unittest.cc",
       "wasm/wasm-macro-gen-unittest.cc",
       "wasm/wasm-module-builder-unittest.cc",
@@ -621,6 +626,9 @@ v8_source_set("unittests_sources") {
       "codegen/pointer-auth-arm64-unittest.cc",
       "compiler/arm64/instruction-selector-arm64-unittest.cc",
     ]
+    if (v8_enable_webassembly && current_cpu == "arm64") {
+      sources += [ "wasm/trap-handler-x64-arm64-unittest.cc" ]
+    }
   } else if (v8_current_cpu == "x86") {
     sources += [
       "assembler/disasm-ia32-unittest.cc",
@@ -654,7 +662,7 @@ v8_source_set("unittests_sources") {
       "compiler/x64/instruction-selector-x64-unittest.cc",
     ]
     if (v8_enable_webassembly) {
-      sources += [ "wasm/trap-handler-x64-unittest.cc" ]
+      sources += [ "wasm/trap-handler-x64-arm64-unittest.cc" ]
     }
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [

@@ -17,12 +17,11 @@
 #include "src/wasm/constant-expression-interface.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-subtyping.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 #define TRACE(...)                                        \
   do {                                                    \
@@ -263,11 +262,14 @@ class WasmSectionIterator {
     tracer_.NextLine();
 
     payload_start_ = decoder_->pc();
-    if (decoder_->checkAvailable(section_length)) {
-      // Get the limit of the section within the module.
-      section_end_ = payload_start_ + section_length;
-    } else {
-      // The section would extend beyond the end of the module.
+    section_end_ = payload_start_ + section_length;
+    if (section_length > decoder_->available_bytes()) {
+      decoder_->errorf(
+          section_start_,
+          "section (code %u, \"%s\") extends past end of the module "
+          "(length %u, remaining bytes %u)",
+          section_code, SectionName(static_cast<SectionCode>(section_code)),
+          section_length, decoder_->available_bytes());
       section_end_ = payload_start_;
     }
 
@@ -307,27 +309,15 @@ WasmSectionIterator(Decoder*, T&) -> WasmSectionIterator<T>;
 template <class Tracer>
 class ModuleDecoderTemplate : public Decoder {
  public:
-  explicit ModuleDecoderTemplate(const WasmFeatures& enabled,
-                                 ModuleOrigin origin, Tracer& tracer)
-      : Decoder(nullptr, nullptr),
-        enabled_features_(enabled),
-        tracer_(tracer),
-        origin_(origin) {}
-
-  ModuleDecoderTemplate(const WasmFeatures& enabled, const byte* module_start,
-                        const byte* module_end, ModuleOrigin origin,
-                        Tracer& tracer)
-      : Decoder(module_start, module_end),
-        enabled_features_(enabled),
-        module_start_(module_start),
-        module_end_(module_end),
-        tracer_(tracer),
-        origin_(origin) {
-    if (end_ < start_) {
-      error(start_, "end is less than start");
-      end_ = start_;
-    }
-  }
+  ModuleDecoderTemplate(WasmFeatures enabled_features,
+                        base::Vector<const uint8_t> wire_bytes,
+                        ModuleOrigin origin, Tracer& tracer)
+      : Decoder(wire_bytes),
+        enabled_features_(enabled_features),
+        module_(std::make_shared<WasmModule>(origin)),
+        module_start_(wire_bytes.begin()),
+        module_end_(wire_bytes.end()),
+        tracer_(tracer) {}
 
   void onFirstError() override {
     pc_ = end_;  // On error, terminate section decoding loop.
@@ -357,17 +347,6 @@ class ModuleDecoderTemplate : public Decoder {
       OFStream os(stderr);
       os << "Error while dumping wasm file to " << path << std::endl;
     }
-  }
-
-  void StartDecoding(Counters* counters, AccountingAllocator* allocator) {
-    CHECK_NULL(module_);
-    SetCounters(counters);
-    module_.reset(
-        new WasmModule(std::make_unique<Zone>(allocator, "signatures")));
-    module_->initial_pages = 0;
-    module_->maximum_pages = 0;
-    module_->mem_export = false;
-    module_->origin = origin_;
   }
 
   void DecodeModuleHeader(base::Vector<const uint8_t> bytes, uint8_t offset) {
@@ -447,9 +426,6 @@ class ModuleDecoderTemplate : public Decoder {
     // Now check the ordering constraints of specific unordered sections.
     switch (section_code) {
       case kDataCountSectionCode:
-        // If wasm-gc is enabled, we allow the data count section anywhere in
-        // the module.
-        if (enabled_features_.has_gc()) return true;
         return check_order(kElementSectionCode, kCodeSectionCode);
       case kTagSectionCode:
         return check_order(kMemorySectionCode, kGlobalSectionCode);
@@ -604,15 +580,15 @@ class ModuleDecoderTemplate : public Decoder {
     tracer_.Description(TypeKindName(kind));
     switch (kind) {
       case kWasmFunctionTypeCode: {
-        const FunctionSig* sig = consume_sig(module_->signature_zone.get());
+        const FunctionSig* sig = consume_sig(&module_->signature_zone);
         return {sig, kNoSuperType};
       }
       case kWasmStructTypeCode: {
-        const StructType* type = consume_struct(module_->signature_zone.get());
+        const StructType* type = consume_struct(&module_->signature_zone);
         return {type, kNoSuperType};
       }
       case kWasmArrayTypeCode: {
-        const ArrayType* type = consume_array(module_->signature_zone.get());
+        const ArrayType* type = consume_array(&module_->signature_zone);
         return {type, kNoSuperType};
       }
       default:
@@ -620,15 +596,6 @@ class ModuleDecoderTemplate : public Decoder {
         errorf(pc() - 1, "unknown type form: %d", kind);
         return {};
     }
-  }
-
-  bool check_supertype(uint32_t supertype) {
-    if (V8_UNLIKELY(supertype >= module_->types.size())) {
-      errorf(pc(), "type %zu: forward-declared supertype %d",
-             module_->types.size(), supertype);
-      return false;
-    }
-    return true;
   }
 
   TypeDefinition consume_subtype_definition() {
@@ -646,7 +613,6 @@ class ModuleDecoderTemplate : public Decoder {
         tracer_.Description(supertype);
         tracer_.NextLine();
       }
-      if (!check_supertype(supertype)) return {};
       TypeDefinition type = consume_base_type_definition();
       type.supertype = supertype;
       return type;
@@ -661,7 +627,8 @@ class ModuleDecoderTemplate : public Decoder {
 
     // Non wasm-gc type section decoding.
     if (!enabled_features_.has_gc()) {
-      module_->types.reserve(types_count);
+      module_->types.resize(types_count);
+      module_->isorecursive_canonical_type_ids.resize(types_count);
       for (uint32_t i = 0; i < types_count; ++i) {
         TRACE("DecodeSignature[%d] module+%d\n", i,
               static_cast<int>(pc_ - start_));
@@ -675,10 +642,10 @@ class ModuleDecoderTemplate : public Decoder {
         switch (opcode) {
           case kWasmFunctionTypeCode: {
             consume_bytes(1, "function");
-            const FunctionSig* sig = consume_sig(module_->signature_zone.get());
+            const FunctionSig* sig = consume_sig(&module_->signature_zone);
             if (!ok()) break;
-            module_->add_signature(sig, kNoSuperType);
-            type_canon->AddRecursiveGroup(module_.get(), 1);
+            module_->types[i] = {sig, kNoSuperType};
+            type_canon->AddRecursiveGroup(module_.get(), 1, i);
             break;
           }
           case kWasmArrayTypeCode:
@@ -704,22 +671,26 @@ class ModuleDecoderTemplate : public Decoder {
       if (kind == kWasmRecursiveTypeGroupCode) {
         consume_bytes(1, "rec. group definition", tracer_);
         tracer_.NextLine();
+        size_t initial_size = module_->types.size();
         uint32_t group_size =
             consume_count("recursive group size", kV8MaxWasmTypes);
-        if (module_->types.size() + group_size > kV8MaxWasmTypes) {
+        if (initial_size + group_size > kV8MaxWasmTypes) {
           errorf(pc(), "Type definition count exceeds maximum %zu",
                  kV8MaxWasmTypes);
           return;
         }
-        // Reserve space for the current recursive group, so we are
-        // allowed to reference its elements.
-        module_->types.reserve(module_->types.size() + group_size);
+        module_->types.resize(initial_size + group_size);
+        module_->isorecursive_canonical_type_ids.resize(initial_size +
+                                                        group_size);
         for (uint32_t j = 0; j < group_size; j++) {
           tracer_.TypeOffset(pc_offset());
           TypeDefinition type = consume_subtype_definition();
-          if (ok()) module_->add_type(type);
+          if (ok()) module_->types[initial_size + j] = type;
         }
-        if (ok()) type_canon->AddRecursiveGroup(module_.get(), group_size);
+        if (ok()) {
+          type_canon->AddRecursiveGroup(module_.get(), group_size,
+                                        static_cast<uint32_t>(initial_size));
+        }
       } else {
         tracer_.TypeOffset(pc_offset());
         TypeDefinition type = consume_subtype_definition();
@@ -735,16 +706,22 @@ class ModuleDecoderTemplate : public Decoder {
     for (uint32_t i = 0; ok() && i < module_->types.size(); ++i) {
       uint32_t explicit_super = module_->supertype(i);
       if (explicit_super == kNoSuperType) continue;
-      // {consume_super_type} has checked this.
-      DCHECK_LT(explicit_super, module_->types.size());
+      if (explicit_super >= module_->types.size()) {
+        errorf("type %u: supertype %u out of bounds", i, explicit_super);
+        continue;
+      }
+      if (explicit_super >= i) {
+        errorf("type %u: forward-declared supertype %u", i, explicit_super);
+        continue;
+      }
       int depth = GetSubtypingDepth(module, i);
       DCHECK_GE(depth, 0);
       if (depth > static_cast<int>(kV8MaxRttSubtypingDepth)) {
-        errorf("type %d: subtyping depth is greater than allowed", i);
+        errorf("type %u: subtyping depth is greater than allowed", i);
         continue;
       }
       if (!ValidSubtypeDefinition(i, explicit_super, module, module)) {
-        errorf("type %d has invalid explicit supertype %d", i, explicit_super);
+        errorf("type %u has invalid explicit supertype %u", i, explicit_super);
         continue;
       }
     }
@@ -859,20 +836,24 @@ class ModuleDecoderTemplate : public Decoder {
 
   void DecodeFunctionSection() {
     uint32_t functions_count =
-        consume_count("functions count", kV8MaxWasmFunctions);
-    if (counters_ != nullptr) {
-      auto counter = SELECT_WASM_COUNTER(GetCounters(), origin_,
-                                         wasm_functions_per, module);
-      counter->AddSample(static_cast<int>(functions_count));
-    }
+        consume_count("functions count", v8_flags.max_wasm_functions);
     DCHECK_EQ(module_->functions.size(), module_->num_imported_functions);
     uint32_t total_function_count =
         module_->num_imported_functions + functions_count;
     module_->functions.resize(total_function_count);
     module_->num_declared_functions = functions_count;
+    // Also initialize the {validated_functions} bitset here, now that we know
+    // the number of declared functions.
     DCHECK_NULL(module_->validated_functions);
     module_->validated_functions =
         std::make_unique<std::atomic<uint8_t>[]>((functions_count + 7) / 8);
+    if (is_asmjs_module(module_.get())) {
+      // Mark all asm.js functions as valid by design (it's faster to do this
+      // here than to check this in {WasmModule::function_was_validated}).
+      std::fill_n(module_->validated_functions.get(), (functions_count + 7) / 8,
+                  0xff);
+    }
+
     for (uint32_t func_index = module_->num_imported_functions;
          func_index < total_function_count; ++func_index) {
       WasmFunction* function = &module_->functions[func_index];
@@ -1035,7 +1016,8 @@ class ModuleDecoderTemplate : public Decoder {
       tracer_.NextLine();
     }
     // Check for duplicate exports (except for asm.js).
-    if (ok() && origin_ == kWasmOrigin && module_->export_table.size() > 1) {
+    if (ok() && module_->origin == kWasmOrigin &&
+        module_->export_table.size() > 1) {
       std::vector<WasmExport> sorted_exports(module_->export_table);
 
       auto cmp_less = [this](const WasmExport& a, const WasmExport& b) {
@@ -1620,26 +1602,25 @@ class ModuleDecoderTemplate : public Decoder {
   }
 
   void ValidateAllFunctions() {
-    DCHECK(ok());
-
-    // Spawn a {ValidateFunctionsTask} and join it. The earliest error found
-    // will be set on this decoder.
-    std::unique_ptr<JobHandle> job_handle = V8::GetCurrentPlatform()->CreateJob(
-        TaskPriority::kUserVisible,
-        std::make_unique<ValidateFunctionsTask>(this));
-    job_handle->Join();
+    DCHECK(error_.empty());
+    // Pass nullptr for an "empty" filter function.
+    error_ = ValidateFunctions(module_.get(), enabled_features_,
+                               base::VectorOf(start_, end_ - start_), nullptr);
   }
 
   // Decodes an entire module.
-  ModuleResult DecodeModule(Counters* counters, AccountingAllocator* allocator,
-                            bool validate_functions) {
-    StartDecoding(counters, allocator);
-    uint32_t offset = 0;
-    base::Vector<const byte> orig_bytes(start(), end() - start());
-    DecodeModuleHeader(base::VectorOf(start(), end() - start()), offset);
-    if (failed()) {
-      return FinishDecoding();
+  ModuleResult DecodeModule(bool validate_functions) {
+    base::Vector<const byte> wire_bytes(start_, end_ - start_);
+    size_t max_size = max_module_size();
+    if (wire_bytes.size() > max_size) {
+      return ModuleResult{WasmError{0, "size > maximum module size (%zu): %zu",
+                                    max_size, wire_bytes.size()}};
     }
+
+    uint32_t offset = 0;
+    DecodeModuleHeader(wire_bytes, offset);
+    if (failed()) return toResult(nullptr);
+
     // Size of the module header.
     offset += 8;
     Decoder decoder(start_ + offset, end_, offset);
@@ -1647,35 +1628,36 @@ class ModuleDecoderTemplate : public Decoder {
     WasmSectionIterator section_iter(&decoder, tracer_);
 
     while (ok()) {
-      // Shift the offset by the section header length
+      // Shift the offset by the section header length.
       offset += section_iter.payload_start() - section_iter.section_start();
       if (section_iter.section_code() != SectionCode::kUnknownSectionCode) {
         DecodeSection(section_iter.section_code(), section_iter.payload(),
                       offset);
       }
-      // Shift the offset by the remaining section payload
+      // Shift the offset by the remaining section payload.
       offset += section_iter.payload_length();
       if (!section_iter.more() || !ok()) break;
       section_iter.advance(true);
     }
 
     if (ok() && validate_functions) {
-      Reset(orig_bytes);
+      Reset(wire_bytes);
       ValidateAllFunctions();
     }
 
-    if (v8_flags.dump_wasm_module) DumpModule(orig_bytes);
+    if (v8_flags.dump_wasm_module) DumpModule(wire_bytes);
 
     if (decoder.failed()) {
-      return decoder.toResult<std::shared_ptr<WasmModule>>(nullptr);
+      return decoder.toResult(nullptr);
     }
 
     return FinishDecoding();
   }
 
   // Decodes a single anonymous function starting at {start_}.
-  FunctionResult DecodeSingleFunctionForTesting(
-      Zone* zone, const ModuleWireBytes& wire_bytes, const WasmModule* module) {
+  FunctionResult DecodeSingleFunctionForTesting(Zone* zone,
+                                                ModuleWireBytes wire_bytes,
+                                                const WasmModule* module) {
     DCHECK(ok());
     pc_ = start_;
     expect_u8("type form", kWasmFunctionTypeCode);
@@ -1685,13 +1667,11 @@ class ModuleDecoderTemplate : public Decoder {
 
     if (!ok()) return FunctionResult{std::move(error_)};
 
-    AccountingAllocator* allocator = zone->allocator();
-
     FunctionBody body{function.sig, off(pc_), pc_, end_};
 
     WasmFeatures unused_detected_features;
-    DecodeResult result = ValidateFunctionBody(
-        allocator, enabled_features_, module, &unused_detected_features, body);
+    DecodeResult result = ValidateFunctionBody(enabled_features_, module,
+                                               &unused_detected_features, body);
 
     if (result.failed()) return FunctionResult{std::move(result).error()};
 
@@ -1712,46 +1692,7 @@ class ModuleDecoderTemplate : public Decoder {
 
   const std::shared_ptr<WasmModule>& shared_module() const { return module_; }
 
-  Counters* GetCounters() const {
-    DCHECK_NOT_NULL(counters_);
-    return counters_;
-  }
-
-  void SetCounters(Counters* counters) {
-    DCHECK_NULL(counters_);
-    counters_ = counters;
-  }
-
  private:
-  const WasmFeatures enabled_features_;
-  std::shared_ptr<WasmModule> module_;
-  const byte* module_start_ = nullptr;
-  const byte* module_end_ = nullptr;
-  Counters* counters_ = nullptr;
-  Tracer& tracer_;
-  // The type section is the first section in a module.
-  uint8_t next_ordered_section_ = kFirstSectionInModule;
-  // We store next_ordered_section_ as uint8_t instead of SectionCode so that
-  // we can increment it. This static_assert should make sure that SectionCode
-  // does not get bigger than uint8_t accidentally.
-  static_assert(sizeof(ModuleDecoderTemplate::next_ordered_section_) ==
-                    sizeof(SectionCode),
-                "type mismatch");
-  uint32_t seen_unordered_sections_ = 0;
-  static_assert(
-      kBitsPerByte * sizeof(ModuleDecoderTemplate::seen_unordered_sections_) >
-          kLastKnownModuleSection,
-      "not enough bits");
-  ModuleOrigin origin_;
-  AccountingAllocator allocator_;
-  Zone init_expr_zone_{&allocator_, "constant expr. zone"};
-
-  // Instruction traces are decoded in DecodeInstTraceSection as a 3-tuple
-  // of the function index, function offset, and mark_id. In DecodeCodeSection,
-  // after the functions have been decoded this is translated to pairs of module
-  // offsets and mark ids.
-  std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> inst_traces_;
-
   bool has_seen_unordered_section(SectionCode section_code) {
     return seen_unordered_sections_ & (1 << section_code);
   }
@@ -2107,7 +2048,8 @@ class ModuleDecoderTemplate : public Decoder {
     uint32_t type_length;
     ValueType result = value_type_reader::read_value_type<FullValidationTag>(
         this, pc_, &type_length,
-        origin_ == kWasmOrigin ? enabled_features_ : WasmFeatures::None());
+        module_->origin == kWasmOrigin ? enabled_features_
+                                       : WasmFeatures::None());
     value_type_reader::ValidateValueType<FullValidationTag>(
         this, pc_, module_.get(), result);
     tracer_.Bytes(pc_, type_length);
@@ -2288,7 +2230,7 @@ class ModuleDecoderTemplate : public Decoder {
       } else {
         tracer_.Description(" element type:");
         type = consume_value_type();
-        if (type == kWasmBottom) return {};
+        if (failed()) return {};
       }
       if (V8_UNLIKELY(is_active &&
                       !IsSubtypeOf(type, table_type, this->module_.get()))) {
@@ -2399,89 +2341,34 @@ class ModuleDecoderTemplate : public Decoder {
     return index;
   }
 
-  // A task that validates multiple functions in parallel, storing the earliest
-  // validation error in {this} decoder.
-  class ValidateFunctionsTask : public JobTask {
-   public:
-    ValidateFunctionsTask(ModuleDecoderTemplate* decoder)
-        : decoder_(decoder),
-          next_function_(decoder->module_->num_imported_functions),
-          after_last_function_(next_function_ +
-                               decoder->module_->num_declared_functions) {}
+  const WasmFeatures enabled_features_;
+  const std::shared_ptr<WasmModule> module_;
+  const byte* module_start_ = nullptr;
+  const byte* module_end_ = nullptr;
+  Tracer& tracer_;
+  // The type section is the first section in a module.
+  uint8_t next_ordered_section_ = kFirstSectionInModule;
+  // We store next_ordered_section_ as uint8_t instead of SectionCode so that
+  // we can increment it. This static_assert should make sure that SectionCode
+  // does not get bigger than uint8_t accidentally.
+  static_assert(sizeof(ModuleDecoderTemplate::next_ordered_section_) ==
+                    sizeof(SectionCode),
+                "type mismatch");
+  uint32_t seen_unordered_sections_ = 0;
+  static_assert(
+      kBitsPerByte * sizeof(ModuleDecoderTemplate::seen_unordered_sections_) >
+          kLastKnownModuleSection,
+      "not enough bits");
+  AccountingAllocator allocator_;
+  Zone init_expr_zone_{&allocator_, "constant expr. zone"};
 
-    void Run(JobDelegate* delegate) override {
-      AccountingAllocator* allocator = decoder_->module_->allocator();
-      do {
-        // Get the index of the next function to validate.
-        // {fetch_add} might overrun {after_last_function_} by a bit. Since the
-        // number of functions is limited to a value much smaller than the
-        // integer range, this is highly unlikely.
-        static_assert(kV8MaxWasmFunctions < kMaxInt / 2);
-        int func_index = next_function_.fetch_add(1, std::memory_order_relaxed);
-        if (V8_UNLIKELY(func_index >= after_last_function_)) return;
-        DCHECK_LE(0, func_index);
-
-        if (!ValidateFunction(allocator, func_index)) {
-          // No need to validate any more functions.
-          next_function_.store(after_last_function_, std::memory_order_relaxed);
-          return;
-        }
-      } while (!delegate->ShouldYield());
-    }
-
-    size_t GetMaxConcurrency(size_t /* worker_count */) const override {
-      int next_func = next_function_.load(std::memory_order_relaxed);
-      return std::max(0, after_last_function_ - next_func);
-    }
-
-   private:
-    // Validate a single function; use {SetError} on errors.
-    bool ValidateFunction(AccountingAllocator* allocator, int func_index) {
-      DCHECK(!decoder_->module_->function_was_validated(func_index));
-      WasmFeatures unused_detected_features;
-      const WasmFunction& function = decoder_->module_->functions[func_index];
-      FunctionBody body{function.sig, function.code.offset(),
-                        decoder_->start_ + function.code.offset(),
-                        decoder_->start_ + function.code.end_offset()};
-      DecodeResult validation_result = ValidateFunctionBody(
-          allocator, decoder_->enabled_features_, decoder_->module_.get(),
-          &unused_detected_features, body);
-      if (V8_UNLIKELY(validation_result.failed())) {
-        SetError(func_index, std::move(validation_result).error());
-        return false;
-      }
-      decoder_->module_->set_function_validated(func_index);
-      return true;
-    }
-
-    // Set the error from the argument if it's earlier than the error we already
-    // have (or if we have none yet). Thread-safe.
-    void SetError(int func_index, WasmError error) {
-      base::MutexGuard mutex_guard{&set_error_mutex_};
-      if (decoder_->error_.empty() ||
-          decoder_->error_.offset() > error.offset()) {
-        // Wrap the error message from the function decoder.
-        const WasmFunction& function = decoder_->module_->functions[func_index];
-        WasmFunctionName func_name{
-            &function,
-            ModuleWireBytes{decoder_->start_, decoder_->end_}.GetNameOrNull(
-                &function, decoder_->module_.get())};
-        std::ostringstream error_msg;
-        error_msg << "in function " << func_name << ": " << error.message();
-        decoder_->error_ = WasmError{error.offset(), error_msg.str()};
-      }
-      DCHECK(!decoder_->ok());
-    }
-
-    ModuleDecoderTemplate* decoder_;
-    base::Mutex set_error_mutex_;
-    std::atomic<int> next_function_;
-    const int after_last_function_;
-  };
+  // Instruction traces are decoded in DecodeInstTraceSection as a 3-tuple
+  // of the function index, function offset, and mark_id. In DecodeCodeSection,
+  // after the functions have been decoded this is translated to pairs of module
+  // offsets and mark ids.
+  std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> inst_traces_;
 };
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_MODULE_DECODER_IMPL_H_

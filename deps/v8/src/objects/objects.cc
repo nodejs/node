@@ -5595,6 +5595,13 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
     // is intact, as that guards the lookup path for the "then" property
     // on JSPromise instances which have the (initial) %PromisePrototype%.
     then = isolate->promise_then();
+  } else if (receiver->IsWasmObject()) {
+    // Special case: [[Get]] throws an exception for Wasm objects, but we want
+    // to be able to resolve promises with them, so pretend that we looked
+    // up "then" and it was undefined.
+    // TODO(v8:13523): Drop this special case after changing what [[Get]]
+    // does in general.
+    then = isolate->factory()->undefined_value();
   } else {
     then = JSReceiver::GetProperty(isolate, receiver,
                                    isolate->factory()->then_string());

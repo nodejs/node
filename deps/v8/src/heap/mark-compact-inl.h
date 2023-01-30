@@ -25,6 +25,7 @@ namespace v8 {
 namespace internal {
 
 void MarkCompactCollector::MarkObject(HeapObject host, HeapObject obj) {
+  DCHECK(ReadOnlyHeap::Contains(obj) || heap()->Contains(obj));
   if (marking_state()->WhiteToGrey(obj)) {
     local_marking_worklists()->Push(obj);
     if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
@@ -34,6 +35,7 @@ void MarkCompactCollector::MarkObject(HeapObject host, HeapObject obj) {
 }
 
 void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
+  DCHECK(ReadOnlyHeap::Contains(obj) || heap()->Contains(obj));
   if (marking_state()->WhiteToGrey(obj)) {
     local_marking_worklists()->Push(obj);
     if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
@@ -50,6 +52,7 @@ void MinorMarkCompactCollector::MarkRootObject(HeapObject obj) {
 }
 
 void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject obj) {
+  DCHECK(ReadOnlyHeap::Contains(obj) || heap()->Contains(obj));
   if (marking_state()->WhiteToGrey(obj)) {
     local_marking_worklists()->Push(obj);
     if (V8_UNLIKELY(v8_flags.track_retaining_path)) {

@@ -159,13 +159,9 @@ class BackgroundThreadForGCEpilogue final : public v8::base::Thread {
 
 TEST_F(LocalHeapTest, GCEpilogue) {
   Heap* heap = i_isolate()->heap();
-  LocalHeap lh(heap, ThreadKind::kMain);
-  lh.SetUpMainThreadForTesting();
+  LocalHeap* lh = heap->main_thread_local_heap();
   std::array<GCEpilogue, 3> epilogue;
-  {
-    UnparkedScope unparked(&lh);
-    lh.AddGCEpilogueCallback(&GCEpilogue::Callback, &epilogue[0]);
-  }
+  lh->AddGCEpilogueCallback(&GCEpilogue::Callback, &epilogue[0]);
   auto thread1 =
       std::make_unique<BackgroundThreadForGCEpilogue>(heap, true, &epilogue[1]);
   auto thread2 = std::make_unique<BackgroundThreadForGCEpilogue>(heap, false,
@@ -174,18 +170,12 @@ TEST_F(LocalHeapTest, GCEpilogue) {
   CHECK(thread2->Start());
   epilogue[1].WaitUntilStarted();
   epilogue[2].WaitUntilStarted();
-  {
-    UnparkedScope scope(&lh);
-    PreciseCollectAllGarbage(i_isolate());
-  }
+  PreciseCollectAllGarbage(i_isolate());
   epilogue[1].RequestStop();
   epilogue[2].RequestStop();
   thread1->Join();
   thread2->Join();
-  {
-    UnparkedScope unparked(&lh);
-    lh.RemoveGCEpilogueCallback(&GCEpilogue::Callback, &epilogue[0]);
-  }
+  lh->RemoveGCEpilogueCallback(&GCEpilogue::Callback, &epilogue[0]);
   for (auto& e : epilogue) {
     CHECK(e.WasInvoked());
   }

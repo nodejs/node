@@ -161,9 +161,12 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<TemplateObjectDescription> NewTemplateObjectDescription(
       Handle<FixedArray> raw_strings, Handle<FixedArray> cooked_strings);
 
-  Handle<Script> NewScript(Handle<PrimitiveHeapObject> source);
-  Handle<Script> NewScriptWithId(Handle<PrimitiveHeapObject> source,
-                                 int script_id);
+  Handle<Script> NewScript(
+      Handle<PrimitiveHeapObject> source,
+      ScriptEventType event_type = ScriptEventType::kCreate);
+  Handle<Script> NewScriptWithId(
+      Handle<PrimitiveHeapObject> source, int script_id,
+      ScriptEventType event_type = ScriptEventType::kCreate);
 
   Handle<ArrayList> NewArrayList(
       int size, AllocationType allocation = AllocationType::kYoung);

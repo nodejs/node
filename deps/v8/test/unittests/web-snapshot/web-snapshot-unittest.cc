@@ -506,6 +506,8 @@ TEST_F(WebSnapshotTest, SFIDeduplicationAfterBytecodeFlushing) {
   v8_flags.stress_flush_code = true;
   v8_flags.flush_bytecode = true;
   v8::Isolate* isolate = v8_isolate();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate()->heap());
 
   WebSnapshotData snapshot_data;
   {
@@ -590,6 +592,8 @@ TEST_F(WebSnapshotTest, SFIDeduplicationAfterBytecodeFlushingClasses) {
   v8_flags.stress_flush_code = true;
   v8_flags.flush_bytecode = true;
   v8::Isolate* isolate = v8_isolate();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate()->heap());
 
   WebSnapshotData snapshot_data;
   {

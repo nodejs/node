@@ -48,10 +48,38 @@ assertEarlyError('/[~~]/v');
 assertEarlyError('/[a&&&]/v');
 assertEarlyError('/[&&&a]/v');
 
+// Unterminated string disjunction.
+assertEarlyError('/[\q{foo]/v');
+assertEarlyError('/[\q{foo|]/v');
+
+// Negating classes containing strings is not allowed.
+assertEarlyError('/[^\q{foo}]/v');
+assertEarlyError('/[^\q{}]/v');  // Empty string counts as string.
+assertEarlyError('/[^[\q{foo}]]/v');
+assertEarlyError('/[^[\p{Basic_Emoji}]/v');
+assertEarlyError('/[^\q{foo}&&\q{bar}]/v');
+assertEarlyError('/[^\q{foo}--\q{bar}]/v');
+// Exceptions when negating the class is allowed:
+// The "string" contains only single characters.
+/[^\q{a|b|c}]/v;
+// Not all operands of an intersection contain strings.
+/[^\q{foo}&&\q{bar}&&a]/v;
+// The first operand of a subtraction doesn't contain strings.
+/[^a--\q{foo}--\q{bar}]/v;
+
+// Negated properties of strings are not allowed.
+assertEarlyError('/\P{Basic_Emoji}/v');
+assertEarlyError('/\P{Emoji_Keycap_Sequence}/v');
+assertEarlyError('/\P{RGI_Emoji_Modifier_Sequence}/v');
+assertEarlyError('/\P{RGI_Emoji_Flag_Sequence}/v');
+assertEarlyError('/\P{RGI_Emoji_Tag_Sequence}/v');
+assertEarlyError('/\P{RGI_Emoji_ZWJ_Sequence}/v');
+assertEarlyError('/\P{RGI_Emoji}/v');
+
 const allAscii = Array.from(
     {length: 127}, (v, i) => { return String.fromCharCode(i); });
 
-function check(re, expectMatch, expectNoMatch) {
+function check(re, expectMatch, expectNoMatch = [], negationValid = true) {
   if (expectNoMatch === undefined) {
     const expectSet = new Set(expectMatch.map(val => {
       return (typeof val == 'number') ? String(val) : val; }));
@@ -63,14 +91,22 @@ function check(re, expectMatch, expectNoMatch) {
   for (const noMatch of expectNoMatch) {
     assertFalse(re.test(noMatch), `${re}.test(${noMatch})`);
   }
-  // Nest the current RegExp in a negated class and check expectations are
-  // inversed.
-  const inverted = new RegExp(`[^${re.source}]`, re.flags);
-  for (const match of expectMatch) {
-    assertFalse(inverted.test(match), `${inverted}.test(${match})`);
-  }
-  for (const noMatch of expectNoMatch) {
-    assertTrue(inverted.test(noMatch), `${inverted}.test(${noMatch})`);
+  if (!negationValid) {
+    // Negation of classes containing strings is an error.
+    const negated = `[^${re.source}]`;
+    assertThrows(() => { new RegExp(negated, `${re.flags}`); }, SyntaxError,
+        `Invalid regular expression: /${negated}/: ` +
+        `Negated character class may contain strings`);
+  } else {
+    // Nest the current RegExp in a negated class and check expectations are
+    // inversed.
+    const inverted = new RegExp(`[^${re.source}]`, re.flags);
+    for (const match of expectMatch) {
+      assertFalse(inverted.test(match), `${inverted}.test(${match})`);
+    }
+    for (const noMatch of expectNoMatch) {
+      assertTrue(inverted.test(noMatch), `${inverted}.test(${noMatch})`);
+    }
   }
 }
 
@@ -126,18 +162,80 @@ check(/[Ā-č]/v, Array.from('ĀāĂăĄąĆć'), Array.from('abc'));
 check(/[ĀĂĄĆ]/vi, Array.from('ĀāĂăĄąĆć'), Array.from('abc'));
 check(/[āăąć]/vi, Array.from('ĀāĂăĄąĆć'), Array.from('abc'));
 
+// String disjunctions
+check(/[\q{foo|bar|0|5}]/v, ['foo', 'bar', 0, 5], ['fo', 'baz'], false)
+check(/[\q{foo|bar}[05]]/v, ['foo', 'bar', 0, 5], ['fo', 'baz'], false)
+check(/[\q{foo|bar|0|5}&&\q{bar}]/v, ['bar'], ['foo', 0, 5, 'fo', 'baz'], false)
+// The second operand of the intersection doesn't contain strings, so the result
+// will not contain strings and therefore negation is valid.
+check(/[\q{foo|bar|0|5}&&\d]/v, [0, 5], ['foo', 'bar', 'fo', 'baz'], true)
+check(/[\q{foo|bar|0|5}--\q{foo}]/v, ['bar', 0, 5], ['foo', 'fo', 'baz'], false)
+check(/[\q{foo|bar|0|5}--\d]/v, ['foo', 'bar'], [0, 5, 'fo', 'baz'], false)
+
+check(
+    /[\q{foo|bar|0|5}&&\q{bAr}]/vi, ['bar', 'bAr', 'BAR'],
+    ['foo', 0, 5, 'fo', 'baz'], false)
+check(
+    /[\q{foo|bar|0|5}--\q{FoO}]/vi, ['bar', 'bAr', 'BAR', 0, 5],
+    ['foo', 'FOO', 'fo', 'baz'], false)
+
+check(/[\q{ĀĂĄĆ|AaAc}&&\q{āăąć}]/vi, ['ĀĂĄĆ', 'āăąć'], ['AaAc'], false);
+check(
+    /[\q{ĀĂĄĆ|AaAc}--\q{āăąć}]/vi, ['AaAc', 'aAaC'], ['ĀĂĄĆ', 'āăąć'],
+    false);
+
+// Empty string disjunctions matches nothing, but succeeds.
+let res = /[\q{}]/v.exec('foo');
+assertNotNull(res);
+assertEquals(1, res.length);
+assertEquals('', res[0]);
+
+// Ensure longest strings are matched first.
+assertEquals(['xyz'], /[a-c\q{W|xy|xyz}]/v.exec('xyzabc'))
+assertEquals(['xyz'], /[a-c\q{W|xyz|xy}]/v.exec('xyzabc'))
+assertEquals(['xyz'], /[\q{W|xyz|xy}a-c]/v.exec('xyzabc'))
+// Empty string is last.
+assertEquals(['a'], /[\q{W|}a-c]/v.exec('abc'))
+
 // Some more sophisticated tests taken from
 // https://v8.dev/features/regexp-v-flag
+assertTrue(/^\p{RGI_Emoji}$/v.test('⚽'));
+assertTrue(/^\p{RGI_Emoji}$/v.test('👨🏾‍⚕️'));
 assertFalse(/[\p{Script_Extensions=Greek}--π]/v.test('π'));
 assertFalse(/[\p{Script_Extensions=Greek}--[αβγ]]/v.test('α'));
 assertFalse(/[\p{Script_Extensions=Greek}--[α-γ]]/v.test('β'));
 assertTrue(/[\p{Decimal_Number}--[0-9]]/v.test('𑜹'));
 assertFalse(/[\p{Decimal_Number}--[0-9]]/v.test('4'));
+assertTrue(
+    /^\p{RGI_Emoji_Tag_Sequence}$/v.test('🏴󠁧󠁢󠁳󠁣󠁴󠁿'));
+assertFalse(
+    /^[\p{RGI_Emoji_Tag_Sequence}--\q{🏴󠁧󠁢󠁳󠁣󠁴󠁿}]$/v.test(
+        '🏴󠁧󠁢󠁳󠁣󠁴󠁿'));
 assertTrue(/[\p{Script_Extensions=Greek}&&\p{Letter}]/v.test('π'));
 assertFalse(/[\p{Script_Extensions=Greek}&&\p{Letter}]/v.test('𐆊'));
 assertTrue(/[\p{White_Space}&&\p{ASCII}]/v.test('\n'));
 assertFalse(/[\p{White_Space}&&\p{ASCII}]/v.test('\u2028'));
 assertTrue(/[\p{Script_Extensions=Mongolian}&&\p{Number}]/v.test('᠗'));
 assertFalse(/[\p{Script_Extensions=Mongolian}&&\p{Number}]/v.test('ᠴ'));
+assertTrue(/^[\p{Emoji_Keycap_Sequence}\p{ASCII}\q{🇧🇪|abc}xyz0-9]$/v.test(
+    '4️⃣'));
+assertTrue(
+    /^[\p{Emoji_Keycap_Sequence}\p{ASCII}\q{🇧🇪|abc}xyz0-9]$/v.test('_'));
+assertTrue(
+    /^[\p{Emoji_Keycap_Sequence}\p{ASCII}\q{🇧🇪|abc}xyz0-9]$/v.test('🇧🇪'));
+assertTrue(/^[\p{Emoji_Keycap_Sequence}\p{ASCII}\q{🇧🇪|abc}xyz0-9]$/v.test(
+    'abc'));
+assertTrue(
+    /^[\p{Emoji_Keycap_Sequence}\p{ASCII}\q{🇧🇪|abc}xyz0-9]$/v.test('x'));
+assertTrue(
+    /^[\p{Emoji_Keycap_Sequence}\p{ASCII}\q{🇧🇪|abc}xyz0-9]$/v.test('4'));
+assertTrue(
+    /[\p{RGI_Emoji_Flag_Sequence}\p{RGI_Emoji_Tag_Sequence}]/v.test('🇧🇪'));
+assertTrue(/[\p{RGI_Emoji_Flag_Sequence}\p{RGI_Emoji_Tag_Sequence}]/v.test(
+    '🏴󠁧󠁢󠁥󠁮󠁧󠁿'));
+assertTrue(
+    /[\p{RGI_Emoji_Flag_Sequence}\p{RGI_Emoji_Tag_Sequence}]/v.test('🇨🇭'));
+assertTrue(/[\p{RGI_Emoji_Flag_Sequence}\p{RGI_Emoji_Tag_Sequence}]/v.test(
+    '🏴󠁧󠁢󠁷󠁬󠁳󠁿'));
 assertEquals('XXXXXX4#', 'aAbBcC4#'.replaceAll(/\p{Lowercase_Letter}/giv, 'X'));
 assertEquals('XXXXXX4#', 'aAbBcC4#'.replaceAll(/[^\P{Lowercase_Letter}]/giv, 'X'));

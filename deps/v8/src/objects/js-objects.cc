@@ -1532,8 +1532,7 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
        desc->enumerable() == current->enumerable()) &&
       (!desc->has_configurable() ||
        desc->configurable() == current->configurable()) &&
-      (!desc->has_value() ||
-       (current->has_value() && current->value()->SameValue(*desc->value()))) &&
+      !desc->has_value() &&
       (!desc->has_writable() ||
        (current->has_writable() && current->writable() == desc->writable())) &&
       (!desc->has_get() ||
@@ -1613,7 +1612,11 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
       }
       // 7a ii. If Desc.[[Value]] is present and SameValue(Desc.[[Value]],
       // current.[[Value]]) is false, return false.
-      if (desc->has_value() && !desc->value()->SameValue(*current->value())) {
+      if (desc->has_value()) {
+        // We'll succeed applying the property, but the value is already the
+        // same and the property is read-only, so skip actually writing the
+        // property. Otherwise we may try to e.g., write to frozen elements.
+        if (desc->value()->SameValue(*current->value())) return Just(true);
         RETURN_FAILURE(
             isolate, GetShouldThrow(isolate, should_throw),
             NewTypeError(MessageTemplate::kRedefineDisallowed,
@@ -4807,8 +4810,12 @@ static bool PrototypeBenefitsFromNormalization(Handle<JSObject> object) {
 // static
 void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
                                    bool enable_setup_mode) {
-  Isolate* isolate = object->GetIsolate();
   if (object->IsJSGlobalObject()) return;
+  // Do not optimize objects in the shared heap because it is not
+  // threadsafe. Objects in the shared heap have fixed layouts and their maps
+  // never change.
+  if (object->InSharedWritableHeap()) return;
+  Isolate* isolate = object->GetIsolate();
   if (object->map(isolate).is_prototype_map()) {
     if (enable_setup_mode && PrototypeBenefitsFromNormalization(object)) {
       // This is the only way PrototypeBenefitsFromNormalization can be true:
@@ -4995,7 +5002,10 @@ void InvalidateOnePrototypeValidityCellInternal(Map map) {
   if (maybe_cell.IsCell()) {
     // Just set the value; the cell will be replaced lazily.
     Cell cell = Cell::cast(maybe_cell);
-    cell.set_value(Smi::FromInt(Map::kPrototypeChainInvalid));
+    Smi invalid_value = Smi::FromInt(Map::kPrototypeChainInvalid);
+    if (cell.value() != invalid_value) {
+      cell.set_value(invalid_value);
+    }
   }
   Object maybe_prototype_info = map.prototype_info();
   if (maybe_prototype_info.IsPrototypeInfo()) {
@@ -5333,10 +5343,10 @@ bool JSObject::UpdateAllocationSite(Handle<JSObject> object,
     DisallowGarbageCollection no_gc;
 
     Heap* heap = object->GetHeap();
-    PretenturingHandler* pretunring_handler = heap->pretenuring_handler();
+    PretenuringHandler* pretunring_handler = heap->pretenuring_handler();
     AllocationMemento memento =
         pretunring_handler
-            ->FindAllocationMemento<PretenturingHandler::kForRuntime>(
+            ->FindAllocationMemento<PretenuringHandler::kForRuntime>(
                 object->map(), *object);
     if (memento.is_null()) return false;
 

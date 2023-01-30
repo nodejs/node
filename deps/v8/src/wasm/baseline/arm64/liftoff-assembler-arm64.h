@@ -468,9 +468,9 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
 
 void LiftoffAssembler::LoadExternalPointer(Register dst, Register instance,
                                            int offset, ExternalPointerTag tag,
-                                           Register isolate_root) {
+                                           Register /* scratch */) {
   LoadExternalPointerField(dst, FieldMemOperand(instance, offset), tag,
-                           isolate_root);
+                           kRootRegister);
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {
@@ -529,8 +529,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   if (COMPRESS_POINTERS_BOOL) {
     DecompressTaggedPointer(src.gp(), src.gp());
   }
-  CheckPageFlag(src.gp(), MemoryChunk::kPointersToHereAreInterestingMask, ne,
-                &exit);
+  CheckPageFlag(src.gp(),
+                MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
+                ne, &exit);
   CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
