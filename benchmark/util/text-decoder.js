@@ -8,7 +8,7 @@ const bench = common.createBenchmark(main, {
   fatal: [0, 1],
   len: [256, 1024 * 16, 1024 * 512],
   n: [1e2],
-  type: ['SharedArrayBuffer', 'ArrayBuffer', 'Buffer']
+  type: ['SharedArrayBuffer', 'ArrayBuffer', 'Buffer'],
 });
 
 function main({ encoding, len, n, ignoreBOM, type, fatal }) {

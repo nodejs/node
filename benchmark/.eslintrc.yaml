@@ -22,7 +22,6 @@ overrides:
       - path/*.js
       - process/*.js
       - url/*.js
-      - util/*.js
     rules:
       comma-dangle: [error, {
         arrays: always-multiline,
