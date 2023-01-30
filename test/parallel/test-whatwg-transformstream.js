@@ -189,7 +189,8 @@ class Source {
 
 {
   Object.defineProperty(Object.prototype, 'type', {
-    get: common.mustNotCall()
+    get: common.mustNotCall('get %Object.prototype%.type'),
+    set: common.mustNotCall('set %Object.prototype%.type'),
   });
 
   new TransformStream({
