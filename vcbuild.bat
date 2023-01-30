@@ -242,12 +242,12 @@ if defined noprojgen if defined nobuild goto :after-build
 set msvs_host_arch=x86
 if _%PROCESSOR_ARCHITECTURE%_==_AMD64_ set msvs_host_arch=amd64
 if _%PROCESSOR_ARCHITEW6432%_==_AMD64_ set msvs_host_arch=amd64
+if _%PROCESSOR_ARCHITECTURE%_==_ARM64_ set msvs_host_arch=arm64
 @rem usually vcvarsall takes an argument: host + '_' + target
 set vcvarsall_arg=%msvs_host_arch%_%target_arch%
-@rem unless both host and target are x64
+@rem unless both the host and the target are the same
 if %target_arch%==x64 if %msvs_host_arch%==amd64 set vcvarsall_arg=amd64
-@rem also if both are x86
-if %target_arch%==x86 if %msvs_host_arch%==x86 set vcvarsall_arg=x86
+if %target_arch%==%msvs_host_arch% set vcvarsall_arg=%target_arch%
 
 @rem Look for Visual Studio 2022
 :vs-set-2022
@@ -257,7 +257,7 @@ echo Looking for Visual Studio 2022
 @rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
 @rem detect the version searched for
 if not defined target_env set "VCINSTALLDIR="
-call tools\msvs\vswhere_usability_wrapper.cmd "[17.0,18.0)" "prerelease"
+call tools\msvs\vswhere_usability_wrapper.cmd "[17.0,18.0)" %target_arch% "prerelease"
 if "_%VCINSTALLDIR%_" == "__" goto vs-set-2019
 set "WIXSDKDIR=%WIX%\SDK\VS2017"
 if defined msi (
@@ -297,7 +297,7 @@ echo Looking for Visual Studio 2019
 @rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
 @rem detect the version searched for
 if not defined target_env set "VCINSTALLDIR="
-call tools\msvs\vswhere_usability_wrapper.cmd "[16.0,17.0)" "prerelease"
+call tools\msvs\vswhere_usability_wrapper.cmd "[16.0,17.0)" %target_arch% "prerelease"
 if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
 set "WIXSDKDIR=%WIX%\SDK\VS2017"
 if defined msi (
