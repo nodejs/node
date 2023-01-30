@@ -24,7 +24,7 @@ const bench = common.createBenchmark(main, {
     16 * 1024 ** 2,
     32 * 1024 ** 2,
   ],
-  concurrent: [1, 10]
+  concurrent: [1, 10],
 });
 
 function main({ len, duration, concurrent, encoding }) {
