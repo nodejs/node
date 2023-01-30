@@ -167,6 +167,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   inline v8::Local<v8::String> async_wrap_provider(int index) const;
 
   size_t max_young_gen_size = 1;
+  size_t max_old_gen_size = 1;
   std::unordered_map<const char*, v8::Eternal<v8::String>> static_str_map;
 
   inline v8::Isolate* isolate() const;

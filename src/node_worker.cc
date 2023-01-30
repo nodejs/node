@@ -186,6 +186,8 @@ class WorkerThreadData {
       isolate_data_->set_worker_context(w_);
       isolate_data_->max_young_gen_size =
           params.constraints.max_young_generation_size_in_bytes();
+      isolate_data_->max_old_gen_size =
+          params.constraints.max_old_generation_size_in_bytes();
     }
 
     Mutex::ScopedLock lock(w_->mutex_);

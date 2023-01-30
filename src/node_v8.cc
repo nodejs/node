@@ -389,6 +389,18 @@ void GCProfiler::Stop(const FunctionCallbackInfo<v8::Value>& args) {
                                 .ToLocalChecked());
 }
 
+void GetMaxYoungGenerationSize(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  size_t value = env->isolate_data()->max_young_gen_size;
+  args.GetReturnValue().Set(v8::Number::New(env->isolate(), value));
+}
+
+void GetMaxOldGenerationSize(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  size_t value = env->isolate_data()->max_old_gen_size;
+  args.GetReturnValue().Set(v8::Number::New(env->isolate(), value));
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -451,6 +463,10 @@ void Initialize(Local<Object> target,
 
   // Export symbols used by v8.setFlagsFromString()
   SetMethod(context, target, "setFlagsFromString", SetFlagsFromString);
+  SetMethod(
+      context, target, "getMaxYoungGenerationSize", GetMaxYoungGenerationSize);
+  SetMethod(
+      context, target, "getMaxOldGenerationSize", GetMaxOldGenerationSize);
 
   // GCProfiler
   Local<FunctionTemplate> t =
@@ -468,6 +484,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(UpdateHeapSpaceStatisticsBuffer);
   registry->Register(SetFlagsFromString);
   registry->Register(SetHeapSnapshotNearHeapLimit);
+  registry->Register(GetMaxYoungGenerationSize);
+  registry->Register(GetMaxOldGenerationSize);
   registry->Register(GCProfiler::New);
   registry->Register(GCProfiler::Start);
   registry->Register(GCProfiler::Stop);

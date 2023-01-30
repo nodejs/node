@@ -90,6 +90,8 @@ NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
 
   isolate_data_->max_young_gen_size =
       isolate_params_->constraints.max_young_generation_size_in_bytes();
+  isolate_data_->max_old_gen_size =
+      isolate_params_->constraints.max_old_generation_size_in_bytes();
 }
 
 void NodeMainInstance::Dispose() {
