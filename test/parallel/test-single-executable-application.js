@@ -1,17 +1,15 @@
 'use strict';
 const common = require('../common');
+const os = require('os');
 
 if (!process.config.variables.single_executable_application)
   common.skip('Single Executable Application support has been disabled.');
 
+if (['darwin', 'win32', 'linux'].indexOf(process.platform) === -1)
+  common.skip(`Unsupported platform ${process.platform}.`);
+
 if (process.config.variables.asan)
   common.skip('Running the resultant binary fails with `Segmentation fault (core dumped)`.');
-
-if (process.platform === 'aix')
-  common.skip('XCOFF binary format not supported.');
-
-if (process.platform === 'freebsd')
-  common.skip('Running the resultant binary fails with `Exec format error`.');
 
 if (process.platform === 'linux' && process.config.variables.is_debug === 1)
   common.skip('Running the resultant binary fails with `Couldn\'t read target executable"`.');
@@ -24,14 +22,14 @@ if (process.config.variables.node_shared)
 if (!process.config.variables.node_use_openssl || process.config.variables.node_shared_openssl)
   common.skip('Running the resultant binary fails with `Node.js is not compiled with OpenSSL crypto support`.');
 
-if (process.env.NODE_NAME === 'test-ibm-rhel8-s390x-1')
-  common.skip('Running the resultant binary fails with `memory access out of bounds`.');
-
-if (process.env.NODE_NAME === 'test-equinix_mnx-smartos20-x64-4')
-  common.skip('Injection fails with `Can\'t convert PT_NOTE.virtual_address into an offset (0x0)`.');
-
 if (process.config.variables.want_separate_host_toolset !== 0)
   common.skip('Running the resultant binary fails with `Segmentation fault (core dumped)`.');
+
+if (process.platform === 'linux') {
+  if (!/Ubuntu/.test(os.version())) {
+    common.skip('Only supported Linux distribution is Ubuntu.');
+  }
+}
 
 // This tests the creation of a single executable application.
 
