@@ -4204,6 +4204,12 @@ class ArchiveRestoreThread : public v8::base::Thread,
       // child.GetBreakCount() will return 1 if the debugger fails to stop
       // on the `next()` line after the grandchild thread returns.
       CHECK_EQ(child.GetBreakCount(), 5);
+
+      // This test on purpose unlocks the isolate without exiting and
+      // re-entering. It must however update the stack start, which would have
+      // been done automatically if the isolate was properly re-entered.
+      reinterpret_cast<i::Isolate*>(isolate_)->heap()->SetStackStart(
+          v8::base::Stack::GetStackStart());
     }
   }
 

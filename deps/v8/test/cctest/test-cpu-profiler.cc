@@ -3448,8 +3448,12 @@ TEST(MultipleThreadsSingleIsolate) {
       env, "YieldIsolate", [](const v8::FunctionCallbackInfo<v8::Value>& info) {
         v8::Isolate* isolate = info.GetIsolate();
         if (!info[0]->IsTrue()) return;
-        v8::Unlocker unlocker(isolate);
-        v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
+        isolate->Exit();
+        {
+          v8::Unlocker unlocker(isolate);
+          v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
+        }
+        isolate->Enter();
       });
 
   CompileRun(varying_frame_size_script);
@@ -3461,11 +3465,13 @@ TEST(MultipleThreadsSingleIsolate) {
 
   // For good measure, profile on our own thread
   UnlockingThread::Profile(env, 0);
+  isolate->Exit();
   {
     v8::Unlocker unlocker(isolate);
     thread1.Join();
     thread2.Join();
   }
+  isolate->Enter();
 }
 
 // Tests that StopProfiling doesn't wait for the next sample tick in order to

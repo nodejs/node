@@ -32,6 +32,7 @@
 #include "src/execution/stack-guard.h"
 #include "src/handles/handles.h"
 #include "src/handles/traced-handles.h"
+#include "src/heap/base/stack.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
@@ -2022,6 +2023,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   SimulatorData* simulator_data() { return simulator_data_; }
 #endif
 
+  ::heap::base::Stack& stack() { return stack_; }
+
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::StackMemory*& wasm_stacks() { return wasm_stacks_; }
   // Update the thread local's Stack object so that it is aware of the new stack
@@ -2519,6 +2522,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::vector<MemoryRange> code_pages_buffer2_;
   // The mutex only guards adding pages, the retrieval is signal safe.
   base::Mutex code_pages_mutex_;
+
+  // Stack information for the main thread.
+  ::heap::base::Stack stack_;
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::StackMemory* wasm_stacks_;

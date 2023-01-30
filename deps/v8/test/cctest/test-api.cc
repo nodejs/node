@@ -13043,12 +13043,13 @@ bool ApiTestFuzzer::NextThread() {
 
 
 void ApiTestFuzzer::Run() {
-  // When it is our turn...
+  // Wait until it is our turn.
   gate_.Wait();
   {
-    // ... get the V8 lock
+    // Get the V8 lock.
     v8::Locker locker(CcTest::isolate());
-    // ... and start running the test.
+    // Start running the test, which will enter the isolate and exit it when it
+    // finishes.
     CallTest();
   }
   // This test finished.
@@ -13089,11 +13090,18 @@ static void CallTestNumber(int test_number) {
 
 
 void ApiTestFuzzer::RunAllTests() {
+  // This method is called when running each THREADING_TEST, which is an
+  // initialized test and has entered the isolate at this point. We need to exit
+  // the isolate, so that the fuzzer threads can enter it in turn, while running
+  // their tests.
+  CcTest::isolate()->Exit();
   // Set off the first test.
   current_ = -1;
   NextThread();
   // Wait till they are all done.
   all_tests_done_.Wait();
+  // We enter the isolate again, to prepare for teardown.
+  CcTest::isolate()->Enter();
 }
 
 
@@ -13111,10 +13119,16 @@ int ApiTestFuzzer::GetNextTestNumber() {
 void ApiTestFuzzer::ContextSwitch() {
   // If the new thread is the same as the current thread there is nothing to do.
   if (NextThread()) {
-    // Now it can start.
-    v8::Unlocker unlocker(CcTest::isolate());
-    // Wait till someone starts us again.
-    gate_.Wait();
+    // Exit the isolate from this thread.
+    CcTest::i_isolate()->Exit();
+    {
+      // Now the new thread can start.
+      v8::Unlocker unlocker(CcTest::isolate());
+      // Wait till someone starts us again.
+      gate_.Wait();
+    }
+    // Enter the isolate from this thread again.
+    CcTest::i_isolate()->Enter();
     // And we're off.
   }
 }

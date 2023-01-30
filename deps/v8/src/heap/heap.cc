@@ -5851,9 +5851,7 @@ void Heap::SetStackStart(void* stack_start) {
   stack().SetStackStart(stack_start);
 }
 
-::heap::base::Stack& Heap::stack() {
-  return isolate_->thread_local_top()->stack_;
-}
+::heap::base::Stack& Heap::stack() { return isolate_->stack(); }
 
 void Heap::RegisterExternallyReferencedObject(Address* location) {
   Object object = TracedHandles::Mark(location, TracedHandles::MarkMode::kAll);

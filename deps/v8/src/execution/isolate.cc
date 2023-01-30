@@ -3074,22 +3074,23 @@ void Isolate::AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object) {
 void Isolate::RecordStackSwitchForScanning() {
   Object current = root(RootIndex::kActiveContinuation);
   DCHECK(!current.IsUndefined());
-  thread_local_top()->stack_.ClearStackSegments();
-  wasm::StackMemory* stack = Managed<wasm::StackMemory>::cast(
-                                 WasmContinuationObject::cast(current).stack())
-                                 .get()
-                                 .get();
+  stack().ClearStackSegments();
+  wasm::StackMemory* wasm_stack =
+      Managed<wasm::StackMemory>::cast(
+          WasmContinuationObject::cast(current).stack())
+          .get()
+          .get();
   current = WasmContinuationObject::cast(current).parent();
-  thread_local_top()->stack_.SetStackStart(
-      reinterpret_cast<void*>(stack->base()));
+  heap()->SetStackStart(reinterpret_cast<void*>(wasm_stack->base()));
   // We don't need to add all inactive stacks. Only the ones in the active chain
   // may contain cpp heap pointers.
   while (!current.IsUndefined()) {
     auto cont = WasmContinuationObject::cast(current);
-    auto* stack = Managed<wasm::StackMemory>::cast(cont.stack()).get().get();
-    thread_local_top()->stack_.AddStackSegment(
-        reinterpret_cast<const void*>(stack->base()),
-        reinterpret_cast<const void*>(stack->jmpbuf()->sp));
+    auto* wasm_stack =
+        Managed<wasm::StackMemory>::cast(cont.stack()).get().get();
+    stack().AddStackSegment(
+        reinterpret_cast<const void*>(wasm_stack->base()),
+        reinterpret_cast<const void*>(wasm_stack->jmpbuf()->sp));
     current = cont.parent();
   }
 }
@@ -3377,19 +3378,12 @@ void Isolate::Delete(Isolate* isolate) {
   Isolate* saved_isolate = isolate->TryGetCurrent();
   SetIsolateThreadLocals(isolate, nullptr);
   isolate->set_thread_id(ThreadId::Current());
-  isolate->thread_local_top()->stack_ =
-      saved_isolate ? std::move(saved_isolate->thread_local_top()->stack_)
-                    : ::heap::base::Stack(base::Stack::GetStackStart());
+  isolate->heap()->SetStackStart(base::Stack::GetStackStart());
 
   bool owns_shared_isolate = isolate->owns_shared_isolate_;
   Isolate* maybe_shared_isolate = isolate->shared_isolate_;
 
   isolate->Deinit();
-
-  // Restore the saved isolate's stack.
-  if (saved_isolate)
-    saved_isolate->thread_local_top()->stack_ =
-        std::move(isolate->thread_local_top()->stack_);
 
 #ifdef DEBUG
   non_disposed_isolates_--;
@@ -4647,6 +4641,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 void Isolate::Enter() {
   Isolate* current_isolate = nullptr;
   PerIsolateThreadData* current_data = CurrentPerIsolateThreadData();
+
+  // Set the stack start for the main thread that enters the isolate.
+  heap()->SetStackStart(base::Stack::GetStackStart());
+
   if (current_data != nullptr) {
     current_isolate = current_data->isolate_;
     DCHECK_NOT_NULL(current_isolate);
