@@ -383,3 +383,9 @@ test('unfinished test with unhandledRejection', async () => {
     setTimeout(() => Promise.reject(new Error('bar')));
   });
 });
+
+test('should not omit top-level diagnostics', () => {
+  setImmediate(() => {
+    done();
+  });
+});
