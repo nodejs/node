@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const os = require('os');
 
 if (!process.config.variables.single_executable_application)
   common.skip('Single Executable Application support has been disabled.');
@@ -24,8 +25,15 @@ if (!process.config.variables.node_use_openssl || process.config.variables.node_
 if (process.config.variables.want_separate_host_toolset !== 0)
   common.skip('Running the resultant binary fails with `Segmentation fault (core dumped)`.');
 
-if (process.platform === 'linux' && process.arch !== 'x64')
-  common.skip(`Unsupported architecture for Linux - ${process.arch}.`);
+if (process.platform === 'linux') {
+  if (!/Ubuntu/.test(os.version())) {
+    common.skip('Only supported Linux distribution is Ubuntu.');
+  }
+
+  if (process.arch !== 'x64') {
+    common.skip(`Unsupported architecture for Linux - ${process.arch}.`);
+  }
+}
 
 // This tests the creation of a single executable application.
 
