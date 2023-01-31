@@ -45,6 +45,8 @@
     'inspector_all_sources': [
       '<(V8_ROOT)/include/v8-inspector.h',
       '<(V8_ROOT)/include/v8-inspector-protocol.h',
+      '<(V8_ROOT)/src/inspector/crc32.cc',
+      '<(V8_ROOT)/src/inspector/crc32.h',
       '<(V8_ROOT)/src/inspector/custom-preview.cc',
       '<(V8_ROOT)/src/inspector/custom-preview.h',
       '<(V8_ROOT)/src/inspector/injected-script.cc',
