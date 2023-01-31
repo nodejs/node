@@ -428,6 +428,12 @@ and substitute this node version with
 sed -i "s/REPLACEME/$VERSION/g" doc/api/*.md
 ```
 
+For macOS requires the extension to be specified.
+
+```bash
+sed -i "" "s/REPLACEME/$VERSION/g" doc/api/*.md
+```
+
 or
 
 ```console
