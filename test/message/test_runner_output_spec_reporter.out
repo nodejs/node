@@ -262,7 +262,6 @@
   *
   *
 
- should not omit top-level diagnostics (*ms)
  invalid subtest fail (*ms)
   'test could not be started because its parent finished'
 
@@ -272,9 +271,8 @@
  Warning: Test "immediate reject - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from immediate reject fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
  Warning: Test "callback called twice in different ticks" generated asynchronous activity after the test ended. This activity created the error "Error [ERR_TEST_FAILURE]: callback invoked multiple times" and would have caused the test to fail, but instead triggered an uncaughtException event.
  Warning: Test "callback async throw after done" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
- Warning: Test "should not omit top-level diagnostics" generated asynchronous activity after the test ended. This activity created the error "ReferenceError: done is not defined" and would have caused the test to fail, but instead triggered an uncaughtException event.
- tests 66
- pass 28
+ tests 65
+ pass 27
  fail 21
  cancelled 2
  skipped 10
