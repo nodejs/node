@@ -798,6 +798,10 @@ void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code) {
   env->set_can_call_into_js(false);
   env->stop_sub_worker_contexts();
   env->isolate()->DumpAndResetStats();
+  // The tracing agent could be in the process of writing data using the
+  // threadpool. Stop it before shutting down libuv. The rest of the tracing
+  // agent disposal will be performed in DisposePlatform().
+  per_process::v8_platform.StopTracingAgent();
   // When the process exits, the tasks in the thread pool may also need to
   // access the data of V8Platform, such as trace agent, or a field
   // added in the future. So make sure the thread pool exits first.
