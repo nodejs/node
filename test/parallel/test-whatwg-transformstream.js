@@ -191,6 +191,7 @@ class Source {
   Object.defineProperty(Object.prototype, 'type', {
     get: common.mustNotCall('get %Object.prototype%.type'),
     set: common.mustNotCall('set %Object.prototype%.type'),
+    configurable: true,
   });
 
   new TransformStream({
@@ -202,5 +203,5 @@ class Source {
     }
   });
 
-  Reflect.deleteProperty(Object.prototype, 'type');
+  delete Object.prototype.type;
 }
