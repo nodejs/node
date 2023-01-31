@@ -1455,10 +1455,6 @@ int Assembler::branch_offset(Label* L) {
     L->link_to(pc_offset());
   }
 
-  // Block the emission of the constant pool, since the branch instruction must
-  // be emitted at the pc offset recorded by the label.
-  if (!is_const_pool_blocked()) BlockConstPoolFor(1);
-
   return target_pos - (pc_offset() + Instruction::kPcLoadDelta);
 }
 
@@ -1469,6 +1465,11 @@ void Assembler::b(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
   int imm24 = branch_offset >> 2;
   const bool b_imm_check = is_int24(imm24);
   CHECK(b_imm_check);
+
+  // Block the emission of the constant pool before the next instruction.
+  // Otherwise the passed-in branch offset would be off.
+  BlockConstPoolFor(1);
+
   emit(cond | B27 | B25 | (imm24 & kImm24Mask));
 
   if (cond == al) {
@@ -1483,6 +1484,11 @@ void Assembler::bl(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
   int imm24 = branch_offset >> 2;
   const bool bl_imm_check = is_int24(imm24);
   CHECK(bl_imm_check);
+
+  // Block the emission of the constant pool before the next instruction.
+  // Otherwise the passed-in branch offset would be off.
+  BlockConstPoolFor(1);
+
   emit(cond | B27 | B25 | B24 | (imm24 & kImm24Mask));
 }
 
@@ -1492,6 +1498,11 @@ void Assembler::blx(int branch_offset) {
   int imm24 = branch_offset >> 2;
   const bool blx_imm_check = is_int24(imm24);
   CHECK(blx_imm_check);
+
+  // Block the emission of the constant pool before the next instruction.
+  // Otherwise the passed-in branch offset would be off.
+  BlockConstPoolFor(1);
+
   emit(kSpecialCondition | B27 | B25 | h | (imm24 & kImm24Mask));
 }
 
