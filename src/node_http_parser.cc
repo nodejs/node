@@ -1043,6 +1043,7 @@ void ConnectionsList::All(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
 
   std::vector<Local<Value>> result;
+  result.reserve(list->all_connections_.size());
   for (auto parser : list->all_connections_) {
     result.emplace_back(parser->object());
   }
@@ -1060,6 +1061,7 @@ void ConnectionsList::Idle(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
 
   std::vector<Local<Value>> result;
+  result.reserve(list->all_connections_.size());
   for (auto parser : list->all_connections_) {
     if (parser->last_message_start_ == 0) {
       result.emplace_back(parser->object());
@@ -1079,6 +1081,7 @@ void ConnectionsList::Active(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
 
   std::vector<Local<Value>> result;
+  result.reserve(list->active_connections_.size());
   for (auto parser : list->active_connections_) {
     result.emplace_back(parser->object());
   }
@@ -1117,6 +1120,7 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
   auto end = list->active_connections_.end();
 
   std::vector<Local<Value>> result;
+  result.reserve(list->active_connections_.size());
   while (iter != end) {
     Parser* parser = *iter;
     iter++;
