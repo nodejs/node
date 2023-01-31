@@ -1247,10 +1247,10 @@ void WASI::_SetMemory(const FunctionCallbackInfo<Value>& args) {
   wasi->memory_.Reset(wasi->env()->isolate(), args[0].As<WasmMemoryObject>());
 }
 
-static void Initialize(Local<Object> target,
-                       Local<Value> unused,
-                       Local<Context> context,
-                       void* priv) {
+static void InitializePreview1(Local<Object> target,
+                               Local<Value> unused,
+                               Local<Context> context,
+                               void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
@@ -1313,8 +1313,7 @@ static void Initialize(Local<Object> target,
   SetConstructorFunction(context, target, "WASI", tmpl);
 }
 
-
 }  // namespace wasi
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(wasi, node::wasi::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(wasi, node::wasi::InitializePreview1)
