@@ -12,7 +12,7 @@ const assert = require('assert');
     type: 'bytes',
   });
 
-  const clone = structuredClone(stream);
+  const clone = structuredClone(stream, { transfer: [stream] });
 
   assert(clone instanceof ReadableStream);
 }
