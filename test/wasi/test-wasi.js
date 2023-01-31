@@ -1,7 +1,8 @@
 'use strict';
 const common = require('../common');
 
-if (process.argv[2] === 'wasi-child') {
+if (process.argv[2] === 'wasi-child-default') {
+  // test default case
   const fixtures = require('../common/fixtures');
   const tmpdir = require('../common/tmpdir');
   const fs = require('fs');
@@ -30,12 +31,49 @@ if (process.argv[2] === 'wasi-child') {
 
     wasi.start(instance);
   })().then(common.mustCall());
+} else if (process.argv[2] === 'wasi-child-preview1') {
+  // Test version set to preview1
+  const assert = require('assert');
+  const fixtures = require('../common/fixtures');
+  const tmpdir = require('../common/tmpdir');
+  const fs = require('fs');
+  const path = require('path');
+
+  common.expectWarning('ExperimentalWarning',
+                       'WASI is an experimental feature and might change at any time');
+
+  const { WASI } = require('wasi');
+  tmpdir.refresh();
+  const wasmDir = path.join(__dirname, 'wasm');
+  const wasiPreview1 = new WASI({
+    version: 'preview1',
+    args: ['foo', '-bar', '--baz=value'],
+    env: process.env,
+    preopens: {
+      '/sandbox': fixtures.path('wasi'),
+      '/tmp': tmpdir.path,
+    },
+  });
+
+  // Validate the getImportObject helper
+  assert.strictEqual(wasiPreview1.wasiImport,
+                     wasiPreview1.getImportObject().wasi_snapshot_preview1);
+  const modulePathPreview1 = path.join(wasmDir, `${process.argv[3]}.wasm`);
+  const bufferPreview1 = fs.readFileSync(modulePathPreview1);
+
+  (async () => {
+    const { instance: instancePreview1 } =
+      await WebAssembly.instantiate(bufferPreview1,
+                                    wasiPreview1.getImportObject());
+
+    wasiPreview1.start(instancePreview1);
+  })().then(common.mustCall());
 } else {
   const assert = require('assert');
   const cp = require('child_process');
   const { checkoutEOL } = common;
 
-  function innerRunWASI(options, args) {
+  function innerRunWASI(options, args, flavor = 'default') {
     console.log('executing', options.test);
     const opts = {
       env: {
@@ -52,7 +90,7 @@ if (process.argv[2] === 'wasi-child') {
       ...args,
       '--experimental-wasi-unstable-preview1',
       __filename,
-      'wasi-child',
+      'wasi-child-' + flavor,
       options.test,
     ], opts);
     console.log(child.stderr.toString());
@@ -64,6 +102,7 @@ if (process.argv[2] === 'wasi-child') {
   function runWASI(options) {
     innerRunWASI(options, ['--no-turbo-fast-api-calls']);
     innerRunWASI(options, ['--turbo-fast-api-calls']);
+    innerRunWASI(options, ['--turbo-fast-api-calls'], 'preview1');
   }
 
   runWASI({ test: 'cant_dotdot' });

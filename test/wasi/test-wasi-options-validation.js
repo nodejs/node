@@ -47,3 +47,12 @@ assert.throws(() => { new WASI({ stderr: 'fhqwhgads' }); },
 assert.throws(() => {
   new WASI({ preopens: { '/sandbox': '__/not/real/path' } });
 }, { code: 'UVWASI_ENOENT', message: /uvwasi_init/ });
+
+// If version is not a string, it should throw
+assert.throws(() => { new WASI({ version: { x: 'y' } }); },
+              { code: 'ERR_INVALID_ARG_TYPE', message: /\bversion\b/ });
+
+
+// If version is an unsupported version, it should throw
+assert.throws(() => { new WASI({ version: 'not_a_version' }); },
+              { code: 'ERR_INVALID_ARG_VALUE', message: /\bversion\b/ });
