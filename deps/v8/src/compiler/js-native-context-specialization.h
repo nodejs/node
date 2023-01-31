@@ -193,6 +193,10 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                         Node* control, Node* context,
                                         ElementAccessInfo const& access_info,
                                         KeyedAccessMode const& keyed_mode);
+  ValueEffectControl BuildElementAccessForTypedArrayOrRabGsabTypedArray(
+      Node* receiver, Node* index, Node* value, Node* effect, Node* control,
+      Node* context, ElementsKind elements_kind,
+      KeyedAccessMode const& keyed_mode);
 
   // Construct appropriate subgraph to load from a String.
   Node* BuildIndexedStringLoad(Node* receiver, Node* index, Node* length,

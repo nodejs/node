@@ -228,19 +228,22 @@ TEST(GetObjectProperties) {
   // its properties should match what we read last time.
   d::ObjectPropertiesResultPtr props2;
   {
-    heap_addresses.read_only_space_first_page = 0;
+    d::HeapAddresses heap_addresses_without_ro_space = heap_addresses;
+    heap_addresses_without_ro_space.read_only_space_first_page = 0;
     uintptr_t map_ptr = props->properties[0]->address;
     uintptr_t map_map_ptr = *reinterpret_cast<i::Tagged_t*>(map_ptr);
 #if V8_MAP_PACKING
     map_map_ptr = reinterpret_cast<i::MapWord*>(&map_map_ptr)->ToMap().ptr();
 #endif
     uintptr_t map_address =
-        d::GetObjectProperties(map_map_ptr, &ReadMemory, heap_addresses)
+        d::GetObjectProperties(map_map_ptr, &ReadMemory,
+                               heap_addresses_without_ro_space)
             ->properties[0]
             ->address;
     MemoryFailureRegion failure(map_address, map_address + i::Map::kSize);
     props2 = d::GetObjectProperties(second_string_address, &ReadMemory,
-                                    heap_addresses, "v8::internal::String");
+                                    heap_addresses_without_ro_space,
+                                    "v8::internal::String");
     if (COMPRESS_POINTERS_BOOL) {
       // The first page of each heap space can be automatically detected when
       // pointer compression is active, so we expect to use known maps instead

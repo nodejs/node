@@ -36,7 +36,7 @@
 namespace v8 {
 namespace internal {
 
-class Code;
+class InstructionStream;
 class ExternalReference;
 class StatsCounter;
 
@@ -107,11 +107,11 @@ class V8_EXPORT_PRIVATE TurboAssembler
 
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cc, AbortReason reason) NOOP_UNLESS_DEBUG_CODE
+  void Assert(Condition cc, AbortReason reason) NOOP_UNLESS_DEBUG_CODE;
 
   // Like Assert(), but without condition.
   // Use --debug_code to enable.
-  void AssertUnreachable(AbortReason reason) NOOP_UNLESS_DEBUG_CODE
+  void AssertUnreachable(AbortReason reason) NOOP_UNLESS_DEBUG_CODE;
 
   // Like Assert(), but always enabled.
   void Check(Condition cc, AbortReason reason);
@@ -158,12 +158,19 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void CallBuiltin(Builtin builtin);
   void TailCallBuiltin(Builtin builtin);
 
-  void LoadCodeObjectEntry(Register destination, Register code_object);
+  // Load the code entry point from the Code object.
+  void LoadCodeEntry(Register destination, Register code_object);
+  // Load code entry point from the Code object and compute
+  // InstructionStream object pointer out of it. Must not be used for
+  // Codes corresponding to builtins, because their entry points
+  // values point to the embedded instruction stream in .text section.
+  void LoadCodeInstructionStreamNonBuiltin(Register destination,
+                                           Register code_object);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
-  void Jump(const ExternalReference& reference);
 
+  void Jump(const ExternalReference& reference);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   void LoadMap(Register destination, Register object);
@@ -466,14 +473,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // arguments in register eax and sets up the number of arguments in
   // register edi and the pointer to the first argument in register
   // esi.
-  void EnterExitFrame(int argc, bool save_doubles, StackFrame::Type frame_type);
+  void EnterExitFrame(int argc, StackFrame::Type frame_type);
 
   void EnterApiExitFrame(int argc, Register scratch);
 
   // Leave the current exit frame. Expects the return value in
   // register eax:edx (untouched) and the pointer to the first
   // argument in register esi (if pop_arguments == true).
-  void LeaveExitFrame(bool save_doubles, bool pop_arguments = true);
+  void LeaveExitFrame(bool pop_arguments);
 
   // Leave the current exit frame. Expects the return value in
   // register eax (untouched).
@@ -551,12 +558,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     and_(reg, Immediate(mask));
   }
 
-  void TestCodeTIsMarkedForDeoptimization(Register codet, Register scratch);
+  void TestCodeIsMarkedForDeoptimization(Register code);
   Immediate ClearedValue() const;
 
   // Tiering support.
   void AssertFeedbackVector(Register object,
-                            Register scratch) NOOP_UNLESS_DEBUG_CODE
+                            Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
                                            Register closure, Register scratch1,
                                            Register slot_address);
@@ -568,34 +575,34 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
       Register flags, XMMRegister saved_feedback_vector);
 
   // Abort execution if argument is not a smi, enabled via --debug-code.
-  void AssertSmi(Register object) NOOP_UNLESS_DEBUG_CODE
+  void AssertSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is a smi, enabled via --debug-code.
-  void AssertNotSmi(Register object) NOOP_UNLESS_DEBUG_CODE
+  void AssertNotSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
-  void AssertFunction(Register object, Register scratch) NOOP_UNLESS_DEBUG_CODE
+  void AssertFunction(Register object, Register scratch) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not a callable JSFunction, enabled via
   // --debug-code.
   void AssertCallableFunction(Register object,
-                              Register scratch) NOOP_UNLESS_DEBUG_CODE
+                              Register scratch) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
-  void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE
+  void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.
-  void AssertBoundFunction(Register object) NOOP_UNLESS_DEBUG_CODE
+  void AssertBoundFunction(Register object) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not a JSGeneratorObject (or subclass),
   // enabled via --debug-code.
-  void AssertGeneratorObject(Register object) NOOP_UNLESS_DEBUG_CODE
+  void AssertGeneratorObject(Register object) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object,
-                                       Register scratch) NOOP_UNLESS_DEBUG_CODE
+                                       Register scratch) NOOP_UNLESS_DEBUG_CODE;
 
   // ---------------------------------------------------------------------------
   // Exception handling
@@ -610,20 +617,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Runtime calls
 
   // Call a runtime routine.
-  void CallRuntime(const Runtime::Function* f, int num_arguments,
-                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore);
+  void CallRuntime(const Runtime::Function* f, int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId fid,
-                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore) {
+  void CallRuntime(Runtime::FunctionId fid) {
     const Runtime::Function* function = Runtime::FunctionForId(fid);
-    CallRuntime(function, function->nargs, save_doubles);
+    CallRuntime(function, function->nargs);
   }
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId fid, int num_arguments,
-                   SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore) {
-    CallRuntime(Runtime::FunctionForId(fid), num_arguments, save_doubles);
+  void CallRuntime(Runtime::FunctionId fid, int num_arguments) {
+    CallRuntime(Runtime::FunctionForId(fid), num_arguments);
   }
 
   // Convenience function: tail call a runtime routine (jump).
@@ -674,7 +678,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                       InvokeType type);
 
   void EnterExitFramePrologue(StackFrame::Type frame_type, Register scratch);
-  void EnterExitFrameEpilogue(int argc, bool save_doubles);
+  void EnterExitFrameEpilogue(int argc);
 
   void LeaveExitFrameEpilogue();
 

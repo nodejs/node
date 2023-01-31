@@ -91,14 +91,12 @@ class TestSerializer {
  public:
   static v8::Isolate* NewIsolateInitialized() {
     const bool kEnableSerializer = true;
-    const bool kGenerateHeap = true;
     const bool kIsShared = false;
     DisableEmbeddedBlobRefcounting();
-    v8::Isolate* v8_isolate =
-        NewIsolate(kEnableSerializer, kGenerateHeap, kIsShared);
+    v8::Isolate* v8_isolate = NewIsolate(kEnableSerializer, kIsShared);
     v8::Isolate::Scope isolate_scope(v8_isolate);
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    isolate->Init(nullptr, nullptr, nullptr, false);
+    isolate->InitWithoutSnapshot();
     return v8_isolate;
   }
 
@@ -107,10 +105,8 @@ class TestSerializer {
   // the production Isolate class has one or the other behavior baked in.
   static v8::Isolate* NewIsolate(const v8::Isolate::CreateParams& params) {
     const bool kEnableSerializer = false;
-    const bool kGenerateHeap = params.snapshot_blob == nullptr;
     const bool kIsShared = false;
-    v8::Isolate* v8_isolate =
-        NewIsolate(kEnableSerializer, kGenerateHeap, kIsShared);
+    v8::Isolate* v8_isolate = NewIsolate(kEnableSerializer, kIsShared);
     v8::Isolate::Initialize(v8_isolate, params);
     return v8_isolate;
   }
@@ -120,14 +116,12 @@ class TestSerializer {
     SnapshotData read_only_snapshot(blobs.read_only);
     SnapshotData shared_space_snapshot(blobs.shared_space);
     const bool kEnableSerializer = false;
-    const bool kGenerateHeap = false;
     const bool kIsShared = false;
-    v8::Isolate* v8_isolate =
-        NewIsolate(kEnableSerializer, kGenerateHeap, kIsShared);
+    v8::Isolate* v8_isolate = NewIsolate(kEnableSerializer, kIsShared);
     v8::Isolate::Scope isolate_scope(v8_isolate);
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    isolate->Init(&startup_snapshot, &read_only_snapshot,
-                  &shared_space_snapshot, false);
+    isolate->InitWithSnapshot(&startup_snapshot, &read_only_snapshot,
+                              &shared_space_snapshot, false);
     return v8_isolate;
   }
 
@@ -141,14 +135,12 @@ class TestSerializer {
     SnapshotData read_only_snapshot(blobs.read_only);
     SnapshotData shared_space_snapshot(blobs.shared_space);
     const bool kEnableSerializer = false;
-    const bool kGenerateHeap = false;
     const bool kIsShared = true;
-    v8::Isolate* v8_isolate =
-        NewIsolate(kEnableSerializer, kGenerateHeap, kIsShared);
+    v8::Isolate* v8_isolate = NewIsolate(kEnableSerializer, kIsShared);
     v8::Isolate::Scope isolate_scope(v8_isolate);
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    isolate->Init(&startup_snapshot, &read_only_snapshot,
-                  &shared_space_snapshot, false);
+    isolate->InitWithSnapshot(&startup_snapshot, &read_only_snapshot,
+                              &shared_space_snapshot, false);
     i::Isolate::process_wide_shared_isolate_ = isolate;
   }
 
@@ -158,8 +150,7 @@ class TestSerializer {
 
  private:
   // Creates an Isolate instance configured for testing.
-  static v8::Isolate* NewIsolate(bool with_serializer, bool generate_heap,
-                                 bool is_shared) {
+  static v8::Isolate* NewIsolate(bool with_serializer, bool is_shared) {
     i::Isolate* isolate;
     if (is_shared) {
       isolate = i::Isolate::Allocate(true);
@@ -170,7 +161,7 @@ class TestSerializer {
 
     if (with_serializer) isolate->enable_serializer();
     isolate->set_array_buffer_allocator(CcTest::array_buffer_allocator());
-    isolate->setup_delegate_ = new SetupIsolateDelegateForTests(generate_heap);
+    isolate->setup_delegate_ = new SetupIsolateDelegateForTests;
 
     return v8_isolate;
   }
@@ -1637,7 +1628,9 @@ int CountBuiltins() {
   int counter = 0;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (obj.IsCode() && Code::cast(obj).kind() == CodeKind::BUILTIN) counter++;
+    if (obj.IsInstructionStream() &&
+        InstructionStream::cast(obj).kind() == CodeKind::BUILTIN)
+      counter++;
   }
   return counter;
 }
@@ -2865,6 +2858,66 @@ TEST(Regress503552) {
   v8::ScriptCompiler::CachedData* cache_data =
       CodeSerializer::Serialize(shared);
   delete cache_data;
+}
+
+static void CodeSerializerMergeDeserializedScript(bool retain_toplevel_sfi) {
+  v8_flags.stress_background_compile = false;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+
+  HandleScope outer_scope(isolate);
+  Handle<String> source = isolate->factory()->NewStringFromAsciiChecked(
+      "(function () {return 123;})");
+  AlignedCachedData* cached_data = nullptr;
+  Handle<Script> script;
+  {
+    HandleScope first_compilation_scope(isolate);
+    Handle<SharedFunctionInfo> shared = CompileScriptAndProduceCache(
+        isolate, source, ScriptDetails(), &cached_data,
+        v8::ScriptCompiler::kNoCompileOptions);
+    Handle<BytecodeArray> bytecode =
+        handle(shared->GetBytecodeArray(isolate), isolate);
+    for (int i = 0; i <= v8_flags.bytecode_old_age; ++i) {
+      bytecode->MakeOlder();
+    }
+    Handle<Script> local_script =
+        handle(Script::cast(shared->script()), isolate);
+    script = first_compilation_scope.CloseAndEscape(local_script);
+  }
+
+  Handle<HeapObject> retained_toplevel_sfi;
+  if (retain_toplevel_sfi) {
+    retained_toplevel_sfi =
+        handle(script->shared_function_infos().Get(0).GetHeapObjectAssumeWeak(),
+               isolate);
+  }
+
+  // GC twice in case incremental marking had already marked the bytecode array.
+  // After this, the Isolate compilation cache contains a weak reference to the
+  // Script but not the top-level SharedFunctionInfo.
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
+
+  Handle<SharedFunctionInfo> copy =
+      CompileScript(isolate, source, ScriptDetails(), cached_data,
+                    v8::ScriptCompiler::kConsumeCodeCache);
+  delete cached_data;
+
+  // The existing Script was reused.
+  CHECK_EQ(*script, copy->script());
+
+  // The existing top-level SharedFunctionInfo was also reused.
+  if (retain_toplevel_sfi) {
+    CHECK_EQ(*retained_toplevel_sfi, *copy);
+  }
+}
+
+TEST(CodeSerializerMergeDeserializedScript) {
+  CodeSerializerMergeDeserializedScript(/*retain_toplevel_sfi=*/false);
+}
+
+TEST(CodeSerializerMergeDeserializedScriptRetainingToplevelSfi) {
+  CodeSerializerMergeDeserializedScript(/*retain_toplevel_sfi=*/true);
 }
 
 UNINITIALIZED_TEST(SnapshotCreatorBlobNotCreated) {
@@ -5244,6 +5297,37 @@ UNINITIALIZED_TEST(BreakPointAccessorContextSnapshot) {
   delete[] blob.data;
   FreeCurrentEmbeddedBlob();
 }
+
+// These two flags are preconditions for static roots to work. We don't check
+// for V8_STATIC_ROOTS_BOOL since the test targets mksnapshot built without
+// static roots, to be able to generate the static-roots.h file.
+#if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) && defined(V8_SHARED_RO_HEAP)
+UNINITIALIZED_TEST(StaticRootsPredictableSnapshot) {
+  if (v8_flags.random_seed == 0) {
+    return;
+  }
+
+  v8::Isolate* isolate1 = TestSerializer::NewIsolateInitialized();
+  StartupBlobs blobs1 = Serialize(isolate1);
+  isolate1->Dispose();
+
+  v8::Isolate* isolate2 = TestSerializer::NewIsolateInitialized();
+  StartupBlobs blobs2 = Serialize(isolate2);
+  isolate2->Dispose();
+
+  // We want to ensure that setup-heap-internal.cc creates a predictable heap.
+  // For static roots it would be sufficient to check that the root pointers
+  // relative to the cage base are identical. However, we can't test this, since
+  // when we create two isolates in the same process, the offsets will actually
+  // be different.
+  CHECK_EQ(blobs1.read_only, blobs2.read_only);
+
+  blobs1.Dispose();
+  blobs2.Dispose();
+  FreeCurrentEmbeddedBlob();
+}
+#endif  // defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) &&
+        // defined(V8_SHARED_RO_HEAP)
 
 }  // namespace internal
 }  // namespace v8

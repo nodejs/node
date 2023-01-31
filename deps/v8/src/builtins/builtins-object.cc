@@ -148,11 +148,7 @@ Object ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
         }
         return ObjectLookupAccessor(isolate, prototype, key, component);
       }
-
       case LookupIterator::WASM_OBJECT:
-        THROW_NEW_ERROR_RETURN_FAILURE(
-            isolate, NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
-
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
       case LookupIterator::DATA:
         return ReadOnlyRoots(isolate).undefined_value();

@@ -667,10 +667,11 @@ IGNITION_HANDLER(SetKeyedProperty, InterpreterAssembler) {
   Dispatch();
 }
 
-// DefineKeyedOwnProperty <object> <key> <slot>
+// DefineKeyedOwnProperty <object> <key> <flags> <slot>
 //
 // Calls the DefineKeyedOwnIC at FeedbackVector slot <slot> for <object> and
-// the key <key> with the value in the accumulator.
+// the key <key> with the value in the accumulator. Whether set_function_name
+// is stored in DefineKeyedOwnPropertyFlags <flags>.
 //
 // This is similar to SetKeyedProperty, but avoids checking the prototype
 // chain, and in the case of private names, throws if the private name already
@@ -679,13 +680,15 @@ IGNITION_HANDLER(DefineKeyedOwnProperty, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> name = LoadRegisterAtOperandIndex(1);
   TNode<Object> value = GetAccumulator();
-  TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(2);
+  TNode<Smi> flags =
+      SmiFromInt32(UncheckedCast<Int32T>(BytecodeOperandFlag8(2)));
+  TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(3);
   TNode<HeapObject> maybe_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
   TVARIABLE(Object, var_result);
   var_result = CallBuiltin(Builtin::kDefineKeyedOwnIC, context, object, name,
-                           value, slot, maybe_vector);
+                           value, flags, slot, maybe_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in
   // the accumulator, we overwrite the accumulator after the IC call. It
   // doesn't really matter what we write to the accumulator here, since we
@@ -2175,7 +2178,7 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
       LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
   TNode<HeapObject> sfi_data =
       LoadObjectField<HeapObject>(sfi, SharedFunctionInfo::kFunctionDataOffset);
-  Branch(InstanceTypeEqual(LoadInstanceType(sfi_data), CODET_TYPE),
+  Branch(InstanceTypeEqual(LoadInstanceType(sfi_data), CODE_TYPE),
          &maybe_osr_because_baseline, &ok);
 
   BIND(&ok);

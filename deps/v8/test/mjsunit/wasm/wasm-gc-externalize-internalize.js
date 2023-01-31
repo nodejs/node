@@ -221,6 +221,5 @@ for (let type of ["struct", "i31", "array"]) {
 
 // Differently to structs and arrays, the i31 value is directly accessible in
 // JavaScript. Similarly, a JS smi can be internalized as an i31ref.
-// TODO(7748): Fix i31 interop with disabled pointer compression.
-// assertEquals(12345, instance.exports.i31_externalize(12345));
-// assertEquals([12345, 0], instance.exports.i31_internalize(12345));
+assertEquals(12345, instance.exports.i31_externalize(12345));
+assertEquals([12345, 0], instance.exports.i31_internalize(12345));

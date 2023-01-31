@@ -28,7 +28,7 @@ class TieringManager {
 
   void OnInterruptTick(Handle<JSFunction> function, CodeKind code_kind);
 
-  void NotifyICChanged() { any_ic_changed_ = true; }
+  void NotifyICChanged(FeedbackVector vector);
 
   // After this request, the next JumpLoop will perform OSR.
   void RequestOsrAtNextOpportunity(JSFunction function);

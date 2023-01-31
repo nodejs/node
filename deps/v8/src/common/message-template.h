@@ -13,6 +13,9 @@ namespace internal {
 #define MESSAGE_TEMPLATES(T)                                                   \
   /* Error */                                                                  \
   T(None, "")                                                                  \
+  T(ConflictingPrivateName,                                                    \
+    "Operation is ambiguous because there are more than one private name"      \
+    "'%' on the object")                                                       \
   T(CyclicProto, "Cyclic __proto__ value")                                     \
   T(Debugger, "Debugger: %")                                                   \
   T(DebuggerLoading, "Error loading debugger")                                 \
@@ -61,11 +64,14 @@ namespace internal {
   T(CalledNonCallable, "% is not a function")                                  \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
-  T(CallShadowRealmFunctionThrown, "Called throwing ShadowRealm function")     \
+  T(CallShadowRealmEvaluateThrew, "ShadowRealm evaluate threw (%)")            \
   T(CallSiteExpectsFunction,                                                   \
     "CallSite expects wasm object as first or function as second argument, "   \
     "got <%, %>")                                                              \
   T(CallSiteMethod, "CallSite method % expects CallSite as receiver")          \
+  T(CallSiteMethodUnsupportedInShadowRealm,                                    \
+    "CallSite method % is unsupported inside ShadowRealms")                    \
+  T(CallWrappedFunctionThrew, "WrappedFunction threw (%)")                     \
   T(CannotBeShared, "% cannot be shared")                                      \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
   T(CannotPreventExt, "Cannot prevent extensions")                             \
@@ -73,7 +79,7 @@ namespace internal {
   T(CannotFreezeArrayBufferView,                                               \
     "Cannot freeze array buffer views with elements")                          \
   T(CannotSeal, "Cannot seal")                                                 \
-  T(CannotWrap, "Cannot wrap target callable")                                 \
+  T(CannotWrap, "Cannot wrap target callable (%)")                             \
   T(CircularStructure, "Converting circular structure to JSON%")               \
   T(ConstructAbstractClass, "Abstract class % not directly constructable")     \
   T(ConstAssign, "Assignment to constant variable.")                           \
@@ -110,7 +116,7 @@ namespace internal {
   T(ImportOutsideModule, "Cannot use import statement outside a module")       \
   T(ImportMetaOutsideModule, "Cannot use 'import.meta' outside a module")      \
   T(ImportMissingSpecifier, "import() requires a specifier")                   \
-  T(ImportShadowRealmRejected, "Cannot import in the ShadowRealm")             \
+  T(ImportShadowRealmRejected, "Cannot import in ShadowRealm (%)")             \
   T(IncompatibleMethodReceiver, "Method % called on incompatible receiver %")  \
   T(InstanceofNonobjectProto,                                                  \
     "Function has non-object prototype '%' in instanceof check")               \
@@ -146,6 +152,7 @@ namespace internal {
   T(NonObjectAssertOption, "The 'assert' option must be an object")            \
   T(NonObjectInInstanceOfCheck,                                                \
     "Right-hand side of 'instanceof' is not an object")                        \
+  T(NonObjectPrivateNameAccess, "Cannot access private name % from %")         \
   T(NonObjectPropertyLoad, "Cannot read properties of %")                      \
   T(NonObjectPropertyLoadWithProperty,                                         \
     "Cannot read properties of % (reading '%')")                               \

@@ -415,8 +415,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
     BuildInlinedJSToWasmWrapper(
         graph()->zone(), jsgraph(), wasm_call_params.signature(),
         wasm_call_params.module(), isolate(), source_positions_,
-        StubCallMode::kCallBuiltinPointer, wasm::WasmFeatures::FromFlags(),
-        continuation_frame_state);
+        wasm::WasmFeatures::FromFlags(), continuation_frame_state);
 
     // Extract the inlinee start/end nodes.
     start_node = graph()->start();

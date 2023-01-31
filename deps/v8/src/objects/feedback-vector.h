@@ -25,6 +25,7 @@ namespace v8 {
 namespace internal {
 
 class IsCompiledScope;
+class FeedbackVectorSpec;
 
 enum class UpdateFeedbackMode { kOptionalFeedback, kGuaranteedFeedback };
 
@@ -254,7 +255,7 @@ class FeedbackVector
   // The `osr_state` contains the osr_urgency and maybe_has_optimized_osr_code.
   inline void reset_osr_state();
 
-  inline CodeT optimized_code() const;
+  inline Code optimized_code() const;
   // Whether maybe_optimized_code contains a cached Code object.
   inline bool has_optimized_code() const;
 
@@ -268,16 +269,16 @@ class FeedbackVector
   inline bool maybe_has_turbofan_code() const;
   inline void set_maybe_has_turbofan_code(bool value);
 
-  void SetOptimizedCode(CodeT code);
+  void SetOptimizedCode(Code code);
   void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo shared,
                                                  const char* reason);
   void ClearOptimizedCode();
 
   // Optimized OSR'd code is cached in JumpLoop feedback vector slots. The
   // slots either contain a Code object or the ClearedValue.
-  inline base::Optional<CodeT> GetOptimizedOsrCode(Isolate* isolate,
-                                                   FeedbackSlot slot);
-  void SetOptimizedOsrCode(FeedbackSlot slot, CodeT code);
+  inline base::Optional<Code> GetOptimizedOsrCode(Isolate* isolate,
+                                                  FeedbackSlot slot);
+  void SetOptimizedOsrCode(FeedbackSlot slot, Code code);
 
   inline TieringState tiering_state() const;
   void set_tiering_state(TieringState state);
@@ -319,8 +320,11 @@ class FeedbackVector
   V8_EXPORT_PRIVATE static Handle<FeedbackVector> New(
       Isolate* isolate, Handle<SharedFunctionInfo> shared,
       Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
+      Handle<FeedbackCell> parent_feedback_cell,
       IsCompiledScope* is_compiled_scope);
 
+  V8_EXPORT_PRIVATE static Handle<FeedbackVector> NewForTesting(
+      Isolate* isolate, const FeedbackVectorSpec* spec);
   V8_EXPORT_PRIVATE static Handle<FeedbackVector>
   NewWithOneBinarySlotForTesting(Zone* zone, Isolate* isolate);
   V8_EXPORT_PRIVATE static Handle<FeedbackVector>

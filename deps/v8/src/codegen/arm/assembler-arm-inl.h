@@ -190,8 +190,8 @@ void Assembler::emit(Instr x) {
 }
 
 void Assembler::deserialization_set_special_target_at(
-    Address constant_pool_entry, Code code, Address target) {
-  DCHECK(!Builtins::IsIsolateIndependentBuiltin(code));
+    Address constant_pool_entry, InstructionStream code, Address target) {
+  DCHECK(!Builtins::IsIsolateIndependentBuiltin(code.code(kAcquireLoad)));
   Memory<Address>(constant_pool_entry) = target;
 }
 

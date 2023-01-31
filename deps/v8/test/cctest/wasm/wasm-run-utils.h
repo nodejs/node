@@ -82,12 +82,6 @@ using compiler::Node;
 
 #define WASM_WRAPPER_RETURN_VALUE 8754
 
-#define BUILD(r, ...)                            \
-  do {                                           \
-    byte __code[] = {__VA_ARGS__};               \
-    r.Build(__code, __code + arraysize(__code)); \
-  } while (false)
-
 #define ADD_CODE(vec, ...)                           \
   do {                                               \
     byte __buf[] = {__VA_ARGS__};                    \
@@ -111,12 +105,10 @@ bool IsSameNan(double expected, double actual);
 // the interpreter.
 class TestingModuleBuilder {
  public:
-  TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, TestExecutionTier,
-                       RuntimeExceptionSupport, TestingModuleMemoryType,
-                       Isolate* isolate);
+  TestingModuleBuilder(Zone*, ModuleOrigin origin, ManuallyImportedJSFunction*,
+                       TestExecutionTier, RuntimeExceptionSupport,
+                       TestingModuleMemoryType, Isolate* isolate);
   ~TestingModuleBuilder();
-
-  void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsSloppyOrigin; }
 
   byte* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared);
 
@@ -134,8 +126,9 @@ class TestingModuleBuilder {
     return reinterpret_cast<T*>(globals_data_ + global->offset);
   }
 
+  // TODO(7748): Allow selecting type finality.
   byte AddSignature(const FunctionSig* sig) {
-    test_module_->add_signature(sig, kNoSuperType);
+    test_module_->add_signature(sig, kNoSuperType, v8_flags.wasm_final_types);
     GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);
     instance_object_->set_isorecursive_canonical_types(
         test_module_->isorecursive_canonical_type_ids.data());
@@ -244,14 +237,15 @@ class TestingModuleBuilder {
     return reinterpret_cast<Address>(globals_data_);
   }
 
-  void SetTieredDown() {
-    native_module_->SetTieringState(kTieredDown);
+  void SetDebugState() {
+    native_module_->SetDebugState(kDebugging);
     execution_tier_ = TestExecutionTier::kLiftoff;
   }
 
-  void TierDown() {
-    SetTieredDown();
-    native_module_->RecompileForTiering();
+  void SwitchToDebug() {
+    SetDebugState();
+    native_module_->RemoveCompiledCode(
+        NativeModule::RemoveFilter::kRemoveNonDebugCode);
   }
 
   CompilationEnv CreateCompilationEnv();
@@ -374,7 +368,10 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
   uint32_t function_index() { return function_->func_index; }
   uint32_t sig_index() { return function_->sig_index; }
 
-  void Build(const byte* start, const byte* end);
+  void Build(std::initializer_list<const uint8_t> bytes) {
+    Build(base::VectorOf(bytes));
+  }
+  void Build(base::Vector<const uint8_t> bytes);
 
   byte AllocateLocal(ValueType type) {
     uint32_t index = local_decls.AddLocals(1, type);
@@ -406,7 +403,7 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
 // code, and run that code.
 class WasmRunnerBase : public InitializedHandleScope {
  public:
-  WasmRunnerBase(ManuallyImportedJSFunction* maybe_import,
+  WasmRunnerBase(ManuallyImportedJSFunction* maybe_import, ModuleOrigin origin,
                  TestExecutionTier execution_tier, int num_params,
                  RuntimeExceptionSupport runtime_exception_support =
                      kNoRuntimeExceptionSupport,
@@ -414,7 +411,7 @@ class WasmRunnerBase : public InitializedHandleScope {
                  Isolate* isolate = nullptr)
       : InitializedHandleScope(isolate),
         zone_(&allocator_, ZONE_NAME, kCompressGraphZone),
-        builder_(&zone_, maybe_import, execution_tier,
+        builder_(&zone_, origin, maybe_import, execution_tier,
                  runtime_exception_support, mem_type, isolate),
         wrapper_(&zone_, num_params) {}
 
@@ -430,10 +427,16 @@ class WasmRunnerBase : public InitializedHandleScope {
   // Builds a graph from the given Wasm code and generates the machine
   // code and call wrapper for that graph. This method must not be called
   // more than once.
-  void Build(const byte* start, const byte* end) {
+  void Build(const uint8_t* start, const uint8_t* end) {
+    Build(base::VectorOf(start, end - start));
+  }
+  void Build(std::initializer_list<const uint8_t> bytes) {
+    Build(base::VectorOf(bytes));
+  }
+  void Build(base::Vector<const uint8_t> bytes) {
     CHECK(!compiled_);
     compiled_ = true;
-    functions_[0]->Build(start, end);
+    functions_[0]->Build(bytes);
   }
 
   // Resets the state for building the next function.
@@ -471,7 +474,7 @@ class WasmRunnerBase : public InitializedHandleScope {
 
   bool interpret() { return builder_.interpret(); }
 
-  void TierDown() { builder_.TierDown(); }
+  void SwitchToDebug() { builder_.SwitchToDebug(); }
 
   template <typename ReturnType, typename... ParamTypes>
   FunctionSig* CreateSig() {
@@ -574,14 +577,16 @@ template <typename ReturnType, typename... ParamTypes>
 class WasmRunner : public WasmRunnerBase {
  public:
   explicit WasmRunner(TestExecutionTier execution_tier,
+                      ModuleOrigin origin = kWasmOrigin,
                       ManuallyImportedJSFunction* maybe_import = nullptr,
                       const char* main_fn_name = "main",
                       RuntimeExceptionSupport runtime_exception_support =
                           kNoRuntimeExceptionSupport,
                       TestingModuleMemoryType mem_type = kMemory32,
                       Isolate* isolate = nullptr)
-      : WasmRunnerBase(maybe_import, execution_tier, sizeof...(ParamTypes),
-                       runtime_exception_support, mem_type, isolate) {
+      : WasmRunnerBase(maybe_import, origin, execution_tier,
+                       sizeof...(ParamTypes), runtime_exception_support,
+                       mem_type, isolate) {
     WasmFunctionCompiler& main_fn =
         NewFunction<ReturnType, ParamTypes...>(main_fn_name);
     // Non-zero if there is an import.

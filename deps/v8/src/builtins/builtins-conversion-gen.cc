@@ -21,6 +21,13 @@ TF_BUILTIN(ToNumber, CodeStubAssembler) {
   Return(ToNumber(context, input));
 }
 
+TF_BUILTIN(ToBigInt, CodeStubAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto input = Parameter<Object>(Descriptor::kArgument);
+
+  Return(ToBigInt(context, input));
+}
+
 TF_BUILTIN(ToNumber_Baseline, CodeStubAssembler) {
   auto input = Parameter<Object>(Descriptor::kArgument);
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
@@ -61,6 +68,13 @@ TF_BUILTIN(ToNumberConvertBigInt, CodeStubAssembler) {
   auto input = Parameter<Object>(Descriptor::kArgument);
 
   Return(ToNumber(context, input, BigIntHandling::kConvertToNumber));
+}
+
+TF_BUILTIN(ToBigIntConvertNumber, CodeStubAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto input = Parameter<Object>(Descriptor::kArgument);
+
+  Return(ToBigIntConvertNumber(context, input));
 }
 
 // ES6 section 7.1.2 ToBoolean ( argument )

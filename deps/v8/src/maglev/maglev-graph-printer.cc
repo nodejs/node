@@ -371,7 +371,16 @@ void PrintSingleDeoptFrame(
     LazyDeoptInfo* lazy_deopt_info_if_top_frame = nullptr) {
   switch (frame.type()) {
     case DeoptFrame::FrameType::kInterpretedFrame: {
-      os << "@" << frame.as_interpreted().bytecode_position() << " : {";
+      os << "@" << frame.as_interpreted().bytecode_position();
+      if (!v8_flags.print_maglev_deopt_verbose) {
+        int count = 0;
+        frame.as_interpreted().frame_state()->ForEachValue(
+            frame.as_interpreted().unit(),
+            [&](ValueNode* node, interpreter::Register reg) { count++; });
+        os << " (" << count << " live vars)";
+        return;
+      }
+      os << " : {";
       bool first = true;
       frame.as_interpreted().frame_state()->ForEachValue(
           frame.as_interpreted().unit(),
@@ -395,8 +404,9 @@ void PrintSingleDeoptFrame(
       break;
     }
     case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
-      os << "@" << Builtins::name(frame.as_builtin_continuation().builtin_id())
-         << " : {";
+      os << "@" << Builtins::name(frame.as_builtin_continuation().builtin_id());
+      if (!v8_flags.print_maglev_deopt_verbose) return;
+      os << " : {";
       int arg_index = 0;
       for (ValueNode* node : frame.as_builtin_continuation().parameters()) {
         os << "a" << arg_index << ":" << PrintNodeLabel(graph_labeller, node)

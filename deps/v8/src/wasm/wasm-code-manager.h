@@ -34,7 +34,7 @@
 namespace v8 {
 namespace internal {
 
-class Code;
+class InstructionStream;
 class CodeDesc;
 class Isolate;
 
@@ -148,8 +148,8 @@ struct WasmModule;
   V(WasmStringViewIterAdvance)           \
   V(WasmStringViewIterRewind)            \
   V(WasmStringViewIterSlice)             \
-  V(WasmExternInternalize)               \
-  V(WasmExternExternalize)
+  V(WasmStringCompare)                   \
+  V(WasmExternInternalize)
 
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
 // form [start, end). So there's no [start, end), [end, other_end),
@@ -439,8 +439,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // back to the function index. Return value is guaranteed to not be empty.
   std::string DebugName() const;
 
-  // Code objects that have been registered with the global trap handler within
-  // this process, will have a {trap_handler_index} associated with them.
+  // Code objects that have been registered with the global trap
+  // handler within this process, will have a {trap_handler_index} associated
+  // with them.
   int trap_handler_index() const {
     CHECK(has_trap_handler_index());
     return trap_handler_index_;
@@ -521,20 +522,6 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind);
 // Manages the code reservations and allocations of a single {NativeModule}.
 class WasmCodeAllocator {
  public:
-#if V8_TARGET_ARCH_ARM64
-  // ARM64 only supports direct calls within a 128 MB range.
-  static constexpr size_t kMaxCodeSpaceSize = 128 * MB;
-#elif V8_TARGET_ARCH_PPC64
-  // branches only takes 26 bits
-  static constexpr size_t kMaxCodeSpaceSize = 32 * MB;
-#else
-  // Use 1024 MB limit for code spaces on other platforms. This is smaller than
-  // the total allowed code space (kMaxWasmCodeMemory) to avoid unnecessarily
-  // big reservations, and to ensure that distances within a code space fit
-  // within a 32-bit signed integer.
-  static constexpr size_t kMaxCodeSpaceSize = 1024 * MB;
-#endif
-
   explicit WasmCodeAllocator(std::shared_ptr<Counters> async_counters);
   ~WasmCodeAllocator();
 
@@ -561,20 +548,6 @@ class WasmCodeAllocator {
   base::Vector<byte> AllocateForCodeInRegion(NativeModule*, size_t size,
                                              base::AddressRegion);
 
-  // Increases or decreases the {writers_count_} field. While there is at least
-  // one writer, it is allowed to call {MakeWritable} to make regions writable.
-  // When the last writer is removed, all code is switched back to
-  // write-protected.
-  // Hold the {NativeModule}'s {allocation_mutex_} when calling one of these
-  // methods. The methods should only be called via {CodeSpaceWriteScope}.
-  V8_EXPORT_PRIVATE void AddWriter();
-  V8_EXPORT_PRIVATE void RemoveWriter();
-
-  // Make a code region writable. Only allowed if there is at lease one writer
-  // (see above).
-  // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
-  V8_EXPORT_PRIVATE void MakeWritable(base::AddressRegion);
-
   // Free memory pages of all given code objects. Used for wasm code GC.
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
   void FreeCode(base::Vector<WasmCode* const>);
@@ -586,32 +559,21 @@ class WasmCodeAllocator {
   Counters* counters() const { return async_counters_.get(); }
 
  private:
-  void InsertIntoWritableRegions(base::AddressRegion region,
-                                 bool switch_to_writable);
-
   //////////////////////////////////////////////////////////////////////////////
   // These fields are protected by the mutex in {NativeModule}.
 
-  // Code space that was reserved and is available for allocations (subset of
-  // {owned_code_space_}).
+  // Code space that was reserved and is available for allocations
+  // (subset of {owned_code_space_}).
   DisjointAllocationPool free_code_space_;
-  // Code space that was allocated before but is dead now. Full pages within
-  // this region are discarded. It's still a subset of {owned_code_space_}.
+  // Code space that was allocated before but is dead now. Full
+  // pages within this region are discarded. It's still a subset of
+  // {owned_code_space_}.
   DisjointAllocationPool freed_code_space_;
   std::vector<VirtualMemory> owned_code_space_;
-
-  // The following two fields are only used if {protect_code_memory_} is true.
-  int writers_count_{0};
-  std::set<base::AddressRegion, base::AddressRegion::StartAddressLess>
-      writable_memory_;
 
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  // {protect_code_memory_} is true if traditional memory permission switching
-  // is used to protect code space. It is false if {MAP_JIT} on Mac or PKU is
-  // being used, or protection is completely disabled.
-  const bool protect_code_memory_;
   std::atomic<size_t> committed_code_space_{0};
   std::atomic<size_t> generated_code_size_{0};
   std::atomic<size_t> freed_code_size_{0};
@@ -676,12 +638,16 @@ class V8_EXPORT_PRIVATE NativeModule final {
       ExecutionTier tier);
 
   // Adds anonymous code for testing purposes.
-  WasmCode* AddCodeForTesting(Handle<Code> code);
+  WasmCode* AddCodeForTesting(Handle<InstructionStream> code);
 
-  // Use {UseLazyStub} to setup lazy compilation per function. It will use the
-  // existing {WasmCode::kWasmCompileLazy} runtime stub and populate the jump
-  // table with trampolines accordingly.
-  void UseLazyStub(uint32_t func_index);
+  // Allocates and initializes the {lazy_compile_table_} and initializes the
+  // first jump table with jumps to the {lazy_compile_table_}.
+  void InitializeJumpTableForLazyCompilation(uint32_t num_wasm_functions);
+
+  // Use {UseLazyStubLocked} to setup lazy compilation per function. It will use
+  // the existing {WasmCode::kWasmCompileLazy} runtime stub and populate the
+  // jump table with trampolines accordingly.
+  void UseLazyStubLocked(uint32_t func_index);
 
   // Creates a snapshot of the current state of the code table. This is useful
   // to get a consistent view of the table (e.g. used by the serializer).
@@ -702,12 +668,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
                             : kNullAddress;
   }
 
-  // Finds the jump tables that should be used for given code region. This
-  // information is then passed to {GetNearCallTargetForFunction} and
-  // {GetNearRuntimeStubEntry} to avoid the overhead of looking this information
-  // up there. Return an empty struct if no suitable jump tables exist.
-  JumpTablesRef FindJumpTablesForRegionLocked(base::AddressRegion) const;
-
   // Get the call target in the jump table previously looked up via
   // {FindJumpTablesForRegionLocked}.
   Address GetNearCallTargetForFunction(uint32_t func_index,
@@ -721,21 +681,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Reverse lookup from a given call target (which must be a jump table slot)
   // to a function index.
   uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address) const;
-
-  void AddWriter() {
-    base::RecursiveMutexGuard guard{&allocation_mutex_};
-    code_allocator_.AddWriter();
-  }
-
-  void RemoveWriter() {
-    base::RecursiveMutexGuard guard{&allocation_mutex_};
-    code_allocator_.RemoveWriter();
-  }
-
-  void MakeWritable(base::AddressRegion region) {
-    base::RecursiveMutexGuard guard{&allocation_mutex_};
-    code_allocator_.MakeWritable(region);
-  }
 
   // For cctests, where we build both WasmModule and the runtime objects
   // on the fly, and bypass the instance builder pipeline.
@@ -781,12 +726,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   size_t turbofan_code_size() const {
     return turbofan_code_size_.load(std::memory_order_relaxed);
   }
-  size_t baseline_compilation_cpu_duration() const {
-    return baseline_compilation_cpu_duration_.load();
-  }
-  size_t tier_up_cpu_duration() const {
-    return tier_up_cpu_duration_.load(std::memory_order_relaxed);
-  }
 
   void AddLazyCompilationTimeSample(int64_t sample);
 
@@ -819,7 +758,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   }
   void SetWireBytes(base::OwnedVector<const uint8_t> wire_bytes);
 
-  void UpdateCPUDuration(size_t cpu_duration, ExecutionTier tier);
   void AddLiftoffBailout() {
     liftoff_bailout_count_.fetch_add(1, std::memory_order_relaxed);
   }
@@ -837,32 +775,32 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode::RuntimeStubId GetRuntimeStubId(Address runtime_stub_target) const;
 
   // Sample the current code size of this modules to the given counters.
-  enum CodeSamplingTime : int8_t { kAfterBaseline, kSampling };
-  void SampleCodeSize(Counters*, CodeSamplingTime) const;
+  void SampleCodeSize(Counters*) const;
 
   V8_WARN_UNUSED_RESULT std::unique_ptr<WasmCode> AddCompiledCode(
       WasmCompilationResult);
   V8_WARN_UNUSED_RESULT std::vector<std::unique_ptr<WasmCode>> AddCompiledCode(
       base::Vector<WasmCompilationResult>);
 
-  // Set a new tiering state, but don't trigger any recompilation yet; use
-  // {RecompileForTiering} for that. The two steps are split because In some
-  // scenarios we need to drop locks before triggering recompilation.
-  void SetTieringState(TieringState);
+  // Set a new debugging state, but don't trigger any recompilation;
+  // recompilation happens lazily.
+  void SetDebugState(DebugState);
 
-  // Check whether this modules is tiered down for debugging.
-  bool IsTieredDown();
+  // Check whether this modules is in debug state.
+  DebugState IsInDebugState() const {
+    base::RecursiveMutexGuard lock(&allocation_mutex_);
+    return debug_state_;
+  }
 
-  // Fully recompile this module in the tier set previously via
-  // {SetTieringState}. The calling thread contributes to compilation and only
-  // returns once recompilation is done.
-  void RecompileForTiering();
-
-  // Find all functions that need to be recompiled for a new tier. Note that
-  // compilation jobs might run concurrently, so this method only considers the
-  // compilation state of this native module at the time of the call.
-  // Returns a vector of function indexes to recompile.
-  std::vector<int> FindFunctionsToRecompile(TieringState);
+  enum class RemoveFilter {
+    kRemoveDebugCode,
+    kRemoveNonDebugCode,
+    kRemoveLiftoffCode,
+    kRemoveAllCode,
+  };
+  // Remove all compiled code from the {NativeModule} and replace it with
+  // {CompileLazy} builtins.
+  void RemoveCompiledCode(RemoveFilter filter);
 
   // Free a set of functions of this module. Uncommits whole pages if possible.
   // The given vector must be ordered by the instruction start address, and all
@@ -883,7 +821,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Get or create the NamesProvider. Requires {HasWireBytes()}.
   NamesProvider* GetNamesProvider();
 
-  uint32_t* tiering_budget_array() { return tiering_budgets_.get(); }
+  uint32_t* tiering_budget_array() const { return tiering_budgets_.get(); }
 
   Counters* counters() const { return code_allocator_.counters(); }
 
@@ -919,6 +857,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* CreateEmptyJumpTableInRegionLocked(int jump_table_size,
                                                base::AddressRegion);
 
+  // Finds the jump tables that should be used for given code region. This
+  // information is then passed to {GetNearCallTargetForFunction} and
+  // {GetNearRuntimeStubEntry} to avoid the overhead of looking this information
+  // up there. Return an empty struct if no suitable jump tables exist.
+  JumpTablesRef FindJumpTablesForRegionLocked(base::AddressRegion) const;
+
   void UpdateCodeSize(size_t, ExecutionTier, ForDebugging);
 
   // Hold the {allocation_mutex_} when calling one of these methods.
@@ -940,6 +884,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Add code to the code cache, if it meets criteria for being cached and we do
   // not have code in the cache yet.
   void InsertToCodeCache(WasmCode* code);
+
+  bool should_update_code_table(WasmCode* new_code, WasmCode* prior_code) const;
 
   // -- Fields of {NativeModule} start here.
 
@@ -1030,7 +976,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   std::unique_ptr<NamesProvider> names_provider_;
 
-  TieringState tiering_state_ = kTieredUp;
+  DebugState debug_state_ = kNotDebugging;
 
   // Cache both baseline and top-tier code if we are debugging, to speed up
   // repeated enabling/disabling of the debugger or profiler.
@@ -1046,8 +992,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::atomic<size_t> liftoff_bailout_count_{0};
   std::atomic<size_t> liftoff_code_size_{0};
   std::atomic<size_t> turbofan_code_size_{0};
-  std::atomic<size_t> baseline_compilation_cpu_duration_{0};
-  std::atomic<size_t> tier_up_cpu_duration_{0};
 
   // Metrics for lazy compilation.
   std::atomic<int> num_lazy_compilations_{0};

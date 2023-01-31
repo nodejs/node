@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-extern class JSSharedStruct extends JSObject {
-  // escaped_local_thread: Smi;
+// AlwaysSharedSpaceJSObject are JSObjects that must always be allocated in the
+// shared space. Its instance type range is used to fast path the shared value
+// barrier.
+@abstract
+@highestInstanceTypeWithinParentClassRange
+extern class AlwaysSharedSpaceJSObject extends JSObject {
 }
+
+extern class JSSharedStruct extends AlwaysSharedSpaceJSObject {}

@@ -415,6 +415,7 @@
   V(_, string_string, "string")                                      \
   V(_, string_to_string, "[object String]")                          \
   V(_, Symbol_iterator_string, "Symbol.iterator")                    \
+  V(_, Symbol_replace_string, "Symbol.replace")                      \
   V(_, symbol_species_string, "[Symbol.species]")                    \
   V(_, Symbol_species_string, "Symbol.species")                      \
   V(_, Symbol_string, "Symbol")                                      \
@@ -501,7 +502,6 @@
   V(_, intl_fallback_symbol, IntlLegacyConstructedSymbol) \
   V(_, match_all_symbol, Symbol.matchAll)                 \
   V(_, match_symbol, Symbol.match)                        \
-  V(_, replace_symbol, Symbol.replace)                    \
   V(_, search_symbol, Symbol.search)                      \
   V(_, split_symbol, Symbol.split)                        \
   V(_, to_primitive_symbol, Symbol.toPrimitive)           \
@@ -523,11 +523,12 @@
   V(_, resolve_string, "resolve")                              \
   V(_, then_string, "then")
 
-// Note that the descriptioon string should be part of the internalized
+// Note that the description string should be part of the internalized
 // string roots to make sure we don't accidentally end up allocating the
 // description in between the symbols during deserialization.
 #define SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
   V(_, iterator_symbol, Symbol.iterator)          \
+  V(_, replace_symbol, Symbol.replace)            \
   V(_, species_symbol, Symbol.species)
 
 #define WELL_KNOWN_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
@@ -568,7 +569,7 @@
   MINOR_INCREMENTAL_SCOPES(F)                        \
   F(HEAP_EMBEDDER_TRACING_EPILOGUE)                  \
   F(HEAP_EPILOGUE)                                   \
-  F(HEAP_EPILOGUE_ADJUST_NEW_SPACE)                  \
+  F(HEAP_EPILOGUE_REDUCE_NEW_SPACE)                  \
   F(HEAP_EPILOGUE_SAFEPOINT)                         \
   F(HEAP_EXTERNAL_EPILOGUE)                          \
   F(HEAP_EXTERNAL_NEAR_HEAP_LIMIT)                   \
@@ -631,6 +632,7 @@
   F(MINOR_MC)                                        \
   TOP_MINOR_MC_SCOPES(F)                             \
   F(MINOR_MC_CLEAR_STRING_TABLE)                     \
+  F(MINOR_MC_CLEAR_WEAK_GLOBAL_HANDLES)              \
   F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)           \
   F(MINOR_MC_COMPLETE_SWEEPING)                      \
   F(MINOR_MC_EVACUATE_CLEAN_UP)                      \
@@ -651,6 +653,8 @@
   F(MINOR_MC_MARK_ROOTS)                             \
   F(MINOR_MC_MARK_CLOSURE_PARALLEL)                  \
   F(MINOR_MC_MARK_CLOSURE)                           \
+  F(MINOR_MC_MARK_EMBEDDER_PROLOGUE)                 \
+  F(MINOR_MC_MARK_EMBEDDER_TRACING)                  \
   F(MINOR_MC_SWEEP_NEW)                              \
   F(MINOR_MC_SWEEP_NEW_LO)                           \
   F(SAFEPOINT)                                       \
@@ -694,6 +698,7 @@
   F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)          \
   F(MINOR_MARK_COMPACTOR)                         \
   F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)        \
+  F(MINOR_MC_COMPLETE_SWEEPING)                   \
   F(MINOR_MC_BACKGROUND_EVACUATE_COPY)            \
   F(MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS) \
   F(MINOR_MC_BACKGROUND_MARKING)                  \

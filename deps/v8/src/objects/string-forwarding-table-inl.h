@@ -203,9 +203,8 @@ bool StringForwardingTable::Record::TryUpdateExternalResource(Address address) {
 void StringForwardingTable::Record::DisposeExternalResource() {
   bool is_one_byte;
   auto resource = external_resource(&is_one_byte);
-  if (resource != nullptr) {
-    resource->Dispose();
-  }
+  DCHECK_NOT_NULL(resource);
+  resource->Dispose();
 }
 
 void StringForwardingTable::Record::DisposeUnusedExternalResource(
@@ -248,8 +247,10 @@ class StringForwardingTable::Block {
     return &elements_[index];
   }
 
-  void UpdateAfterEvacuation(PtrComprCageBase cage_base);
-  void UpdateAfterEvacuation(PtrComprCageBase cage_base, int up_to_index);
+  void UpdateAfterYoungEvacuation(PtrComprCageBase cage_base);
+  void UpdateAfterYoungEvacuation(PtrComprCageBase cage_base, int up_to_index);
+  void UpdateAfterFullEvacuation(PtrComprCageBase cage_base);
+  void UpdateAfterFullEvacuation(PtrComprCageBase cage_base, int up_to_index);
 
  private:
   const int capacity_;

@@ -224,11 +224,6 @@
 // variable a unique name based on the line number to prevent name collisions.
 #define INTERNAL_TRACE_EVENT_UID(name_prefix) PERFETTO_UID(name_prefix)
 
-// Special trace event macro to trace log messages.
-// TODO(skyostil): Convert this into a regular typed trace event.
-#define TRACE_LOG_MESSAGE(file, message, line) \
-  INTERNAL_TRACE_LOG_MESSAGE(file, message, line)
-
 // Declare debug annotation converters for base time types, so they can be
 // passed as trace event arguments.
 // TODO(skyostil): Serialize timestamps using perfetto::TracedValue instead.
@@ -982,10 +977,6 @@ struct BASE_EXPORT TraceTimestampTraits<::base::TimeTicks> {
   INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_NESTABLE_ASYNC_END, \
                                    category_group, name, id,             \
                                    TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val)
-
-// Special trace event macro to trace log messages.
-#define TRACE_LOG_MESSAGE(file, message, line) \
-  INTERNAL_TRACE_LOG_MESSAGE(file, message, line)
 
 // TRACE_EVENT_METADATA* events are information related to other
 // injected events, not events in their own right.

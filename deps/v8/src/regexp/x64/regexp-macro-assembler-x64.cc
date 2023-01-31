@@ -34,9 +34,10 @@ namespace internal {
  * - rsp : Points to tip of C stack.
  * - rcx : Points to tip of backtrack stack.  The backtrack stack contains
  *         only 32-bit values.  Most are offsets from some base (e.g., character
- *         positions from end of string or code location from Code pointer).
- * - r8  : Code object pointer.  Used to convert between absolute and
- *         code-object-relative addresses.
+ *         positions from end of string or code location from InstructionStream
+ * pointer).
+ * - r8  : InstructionStream object pointer.  Used to convert between absolute
+ * and code-object-relative addresses.
  *
  * The registers rax, rbx, r9 and r11 are free to use for computations.
  * If changed to use r12+, they should be saved as callee-save registers.
@@ -165,7 +166,8 @@ void RegExpMacroAssemblerX64::Backtrack() {
 
     __ bind(&next);
   }
-  // Pop Code offset from backtrack stack, add Code and jump to location.
+  // Pop InstructionStream offset from backtrack stack, add InstructionStream
+  // and jump to location.
   Pop(rbx);
   __ addq(rbx, code_object_pointer());
   __ jmp(rbx);
@@ -1099,9 +1101,10 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   Handle<Code> code = Factory::CodeBuilder(isolate, code_desc, CodeKind::REGEXP)
                           .set_self_reference(masm_.CodeObject())
                           .Build();
+  Handle<InstructionStream> istream(code->instruction_stream(), isolate);
   PROFILE(isolate,
           RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
-  return Handle<HeapObject>::cast(code);
+  return Handle<HeapObject>::cast(istream);
 }
 
 void RegExpMacroAssemblerX64::GoTo(Label* to) { BranchOrBacktrack(to); }
@@ -1244,7 +1247,8 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
   static const int num_arguments = 3;
   __ PrepareCallCFunction(num_arguments);
 #ifdef V8_TARGET_OS_WIN
-  // Second argument: Code of self. (Do this before overwriting r8).
+  // Second argument: InstructionStream of self. (Do this before overwriting
+  // r8).
   __ movq(rdx, code_object_pointer());
   // Third argument: RegExp code frame pointer.
   __ movq(r8, rbp);
@@ -1254,7 +1258,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
 #else
   // Third argument: RegExp code frame pointer.
   __ movq(rdx, rbp);
-  // Second argument: Code of self.
+  // Second argument: InstructionStream of self.
   __ movq(rsi, code_object_pointer());
   // First argument: Next address on the stack (will be address of
   // return address).
@@ -1281,7 +1285,7 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
 int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
                                                   Address raw_code,
                                                   Address re_frame) {
-  Code re_code = Code::cast(Object(raw_code));
+  InstructionStream re_code = InstructionStream::cast(Object(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate),
       frame_entry<int>(re_frame, kStartIndex),
@@ -1362,15 +1366,13 @@ void RegExpMacroAssemblerX64::Push(Immediate value) {
 void RegExpMacroAssemblerX64::FixupCodeRelativePositions() {
   for (int position : code_relative_fixup_positions_) {
     // The position succeeds a relative label offset from position.
-    // Patch the relative offset to be relative to the Code object pointer
-    // instead.
+    // Patch the relative offset to be relative to the InstructionStream object
+    // pointer instead.
     int patch_position = position - kIntSize;
     int offset = masm_.long_at(patch_position);
-    masm_.long_at_put(patch_position,
-                       offset
-                       + position
-                       + Code::kHeaderSize
-                       - kHeapObjectTag);
+    masm_.long_at_put(
+        patch_position,
+        offset + position + InstructionStream::kHeaderSize - kHeapObjectTag);
   }
   code_relative_fixup_positions_.Rewind(0);
 }

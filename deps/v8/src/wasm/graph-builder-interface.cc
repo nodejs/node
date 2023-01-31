@@ -4,6 +4,7 @@
 
 #include "src/wasm/graph-builder-interface.h"
 
+#include "src/base/vector.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/flags/flags.h"
@@ -25,11 +26,54 @@ namespace {
 
 // Expose {compiler::Node} opaquely as {wasm::TFNode}.
 using TFNode = compiler::Node;
+using LocalsAllocator = RecyclingZoneAllocator<TFNode*>;
+
+class LocalsVector {
+ public:
+  LocalsVector(LocalsAllocator* allocator, size_t size)
+      : allocator_(allocator), data_(allocator->allocate(size), size) {
+    std::fill(data_.begin(), data_.end(), nullptr);
+  }
+  LocalsVector(const LocalsVector& other) V8_NOEXCEPT
+      : allocator_(other.allocator_),
+        data_(allocator_->allocate(other.size()), other.size()) {
+    data_.OverwriteWith(other.data_);
+  }
+  LocalsVector(LocalsVector&& other) V8_NOEXCEPT
+      : allocator_(other.allocator_),
+        data_(other.data_.begin(), other.size()) {
+    other.data_.Truncate(0);
+  }
+  ~LocalsVector() { Clear(); }
+
+  LocalsVector& operator=(const LocalsVector& other) V8_NOEXCEPT {
+    allocator_ = other.allocator_;
+    if (!data_.size()) {
+      data_ = base::Vector<TFNode*>(allocator_->allocate(other.size()),
+                                    other.size());
+    }
+    data_.OverwriteWith(other.data_);
+    return *this;
+  }
+  TFNode*& operator[](size_t index) { return data_[index]; }
+  size_t size() const { return data_.size(); }
+
+  void Clear() {
+    if (size()) allocator_->deallocate(data_.begin(), size());
+    data_.Truncate(0);
+  }
+
+ private:
+  LocalsAllocator* allocator_ = nullptr;
+  base::Vector<TFNode*> data_;
+};
 
 // An SsaEnv environment carries the current local variable renaming
 // as well as the current effect and control dependency in the TF graph.
 // It maintains a control state that tracks whether the environment
 // is reachable, has reached a control end, or has been merged.
+// It's encouraged to manage lifetime of SsaEnv by `ScopedSsaEnv` or
+// `Control` (`block_env`, `false_env`, or `try_info->catch_env`).
 struct SsaEnv : public ZoneObject {
   enum State { kUnreachable, kReached, kMerged };
 
@@ -37,14 +81,14 @@ struct SsaEnv : public ZoneObject {
   TFNode* control;
   TFNode* effect;
   compiler::WasmInstanceCacheNodes instance_cache;
-  ZoneVector<TFNode*> locals;
+  LocalsVector locals;
 
-  SsaEnv(Zone* zone, State state, TFNode* control, TFNode* effect,
+  SsaEnv(LocalsAllocator* alloc, State state, TFNode* control, TFNode* effect,
          uint32_t locals_size)
       : state(state),
         control(control),
         effect(effect),
-        locals(locals_size, zone) {}
+        locals(alloc, locals_size) {}
 
   SsaEnv(const SsaEnv& other) V8_NOEXCEPT = default;
   SsaEnv(SsaEnv&& other) V8_NOEXCEPT : state(other.state),
@@ -57,12 +101,10 @@ struct SsaEnv : public ZoneObject {
 
   void Kill() {
     state = kUnreachable;
-    for (TFNode*& local : locals) {
-      local = nullptr;
-    }
     control = nullptr;
     effect = nullptr;
     instance_cache = {};
+    locals.Clear();
   }
   void SetNotMerged() {
     if (state == kMerged) state = kReached;
@@ -100,20 +142,46 @@ class WasmGraphBuildingInterface {
   struct Control : public ControlBase<Value, ValidationTag> {
     SsaEnv* merge_env = nullptr;  // merge environment for the construct.
     SsaEnv* false_env = nullptr;  // false environment (only for if).
+    SsaEnv* block_env = nullptr;  // environment that dies with this block.
     TryInfo* try_info = nullptr;  // information about try statements.
     int32_t previous_catch = -1;  // previous Control with a catch.
+    bool loop_innermost = false;  // whether this loop can be innermost.
     BitVector* loop_assignments = nullptr;  // locals assigned in this loop.
     TFNode* loop_node = nullptr;            // loop header of this loop.
-    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(Control);
 
     template <typename... Args>
     explicit Control(Args&&... args) V8_NOEXCEPT
         : ControlBase(std::forward<Args>(args)...) {}
+    Control(Control&& other) V8_NOEXCEPT
+        : ControlBase(std::move(other)),
+          merge_env(other.merge_env),
+          false_env(other.false_env),
+          block_env(other.block_env),
+          try_info(other.try_info),
+          previous_catch(other.previous_catch),
+          loop_innermost(other.loop_innermost),
+          loop_assignments(other.loop_assignments),
+          loop_node(other.loop_node) {
+      // The `control_` vector in WasmFullDecoder calls destructor of this when
+      // growing capacity. Nullify these pointers to avoid destroying
+      // environments before used.
+      other.false_env = nullptr;
+      other.block_env = nullptr;
+      other.try_info = nullptr;
+    }
+    ~Control() {
+      if (false_env) false_env->Kill();
+      if (block_env) block_env->Kill();
+      if (try_info) try_info->catch_env->Kill();
+    }
+    DISALLOW_IMPLICIT_CONSTRUCTORS(Control);
   };
 
   WasmGraphBuildingInterface(compiler::WasmGraphBuilder* builder,
-                             int func_index, InlinedStatus inlined_status)
-      : builder_(builder),
+                             int func_index, InlinedStatus inlined_status,
+                             Zone* zone)
+      : locals_allocator_(zone),
+        builder_(builder),
         func_index_(func_index),
         inlined_status_(inlined_status) {}
 
@@ -148,7 +216,7 @@ class WasmGraphBuildingInterface {
     builder_->Start(static_cast<int>(decoder->sig_->parameter_count() + 1 + 1));
     uint32_t num_locals = decoder->num_locals();
     SsaEnv* ssa_env = decoder->zone()->New<SsaEnv>(
-        decoder->zone(), SsaEnv::kReached, effect(), control(), num_locals);
+        &locals_allocator_, SsaEnv::kReached, effect(), control(), num_locals);
     SetEnv(ssa_env);
 
     // Initialize local variables. Parameters are shifted by 1 because of the
@@ -213,36 +281,18 @@ class WasmGraphBuildingInterface {
     // The branch environment is the outer environment.
     block->merge_env = ssa_env_;
     SetEnv(Steal(decoder->zone(), ssa_env_));
+    block->block_env = ssa_env_;
   }
 
   void Loop(FullDecoder* decoder, Control* block) {
     // This is the merge environment at the beginning of the loop.
     SsaEnv* merge_env = Steal(decoder->zone(), ssa_env_);
-    block->merge_env = merge_env;
+    block->merge_env = block->block_env = merge_env;
     SetEnv(merge_env);
 
     ssa_env_->state = SsaEnv::kMerged;
 
     TFNode* loop_node = builder_->Loop(control());
-
-    if (emit_loop_exits()) {
-      uint32_t nesting_depth = 0;
-      for (uint32_t depth = 1; depth < decoder->control_depth(); depth++) {
-        if (decoder->control_at(depth)->is_loop()) {
-          nesting_depth++;
-        }
-      }
-      // If this loop is nested, the parent loop's can_be_innermost field needs
-      // to be false. If the last loop in loop_infos_ has less depth, it has to
-      // be the parent loop. If it does not, it means another loop has been
-      // found within the parent loop, and that loop will have set the parent's
-      // can_be_innermost to false, so we do not need to do anything.
-      if (nesting_depth > 0 &&
-          loop_infos_.back().nesting_depth < nesting_depth) {
-        loop_infos_.back().can_be_innermost = false;
-      }
-      loop_infos_.emplace_back(loop_node, nesting_depth, true);
-    }
 
     builder_->SetControl(loop_node);
     decoder->control_at(0)->loop_node = loop_node;
@@ -252,8 +302,10 @@ class WasmGraphBuildingInterface {
     builder_->TerminateLoop(effect(), control());
     // Doing a preprocessing pass to analyze loop assignments seems to pay off
     // compared to reallocating Nodes when rearranging Phis in Goto.
+    bool can_be_innermost = false;
     BitVector* assigned = WasmDecoder<ValidationTag>::AnalyzeLoopAssignment(
-        decoder, decoder->pc(), decoder->num_locals(), decoder->zone());
+        decoder, decoder->pc(), decoder->num_locals(), decoder->zone(),
+        &can_be_innermost);
     if (decoder->failed()) return;
     int instance_cache_index = decoder->num_locals();
     // If the module has shared memory, the stack guard might reallocate the
@@ -263,6 +315,19 @@ class WasmGraphBuildingInterface {
     }
     DCHECK_NOT_NULL(assigned);
     decoder->control_at(0)->loop_assignments = assigned;
+
+    if (emit_loop_exits()) {
+      uint32_t nesting_depth = 0;
+      for (uint32_t depth = 1; depth < decoder->control_depth(); depth++) {
+        if (decoder->control_at(depth)->is_loop()) {
+          nesting_depth++;
+        }
+      }
+      loop_infos_.emplace_back(loop_node, nesting_depth, can_be_innermost);
+      // Only innermost loops can be unrolled. We can avoid allocating
+      // unnecessary nodes if this loop can not be innermost.
+      decoder->control_at(0)->loop_innermost = can_be_innermost;
+    }
 
     // Only introduce phis for variables assigned in this loop.
     for (int i = decoder->num_locals() - 1; i >= 0; i--) {
@@ -279,6 +344,7 @@ class WasmGraphBuildingInterface {
     }
 
     // Now we setup a new environment for the inside of the loop.
+    // TODO(choongwoo): Clear locals of the following SsaEnv after use.
     SetEnv(Split(decoder->zone(), ssa_env_));
     builder_->StackCheck(decoder->module_->has_shared_memory
                              ? &ssa_env_->instance_cache
@@ -296,15 +362,15 @@ class WasmGraphBuildingInterface {
 
   void Try(FullDecoder* decoder, Control* block) {
     SsaEnv* outer_env = ssa_env_;
-    SsaEnv* catch_env = Split(decoder->zone(), outer_env);
-    // Mark catch environment as unreachable, since only accessable
-    // through catch unwinding (i.e. landing pads).
-    catch_env->state = SsaEnv::kUnreachable;
-    SsaEnv* try_env = Steal(decoder->zone(), outer_env);
+    SsaEnv* catch_env = Steal(decoder->zone(), outer_env);
+    // Steal catch_env to make catch_env unreachable and clear locals.
+    // The unreachable catch_env will create and copy locals in `Goto`.
+    SsaEnv* try_env = Steal(decoder->zone(), catch_env);
     SetEnv(try_env);
     TryInfo* try_info = decoder->zone()->New<TryInfo>(catch_env);
     block->merge_env = outer_env;
     block->try_info = try_info;
+    block->block_env = try_env;
   }
 
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
@@ -332,6 +398,7 @@ class WasmGraphBuildingInterface {
     true_env->control = if_true;
     if_block->merge_env = merge_env;
     if_block->false_env = false_env;
+    if_block->block_env = true_env;
     SetEnv(true_env);
   }
 
@@ -345,7 +412,7 @@ class WasmGraphBuildingInterface {
     // However, if loop unrolling is enabled, we must create a loop exit and
     // wrap the fallthru values on the stack.
     if (block->is_loop()) {
-      if (emit_loop_exits() && block->reachable()) {
+      if (emit_loop_exits() && block->reachable() && block->loop_innermost) {
         BuildLoopExits(decoder, block);
         WrapLocalsAtLoopExit(decoder, block);
         uint32_t arity = block->end_merge.arity;
@@ -469,16 +536,18 @@ class WasmGraphBuildingInterface {
     builder_->Trap(reason, decoder->position());
   }
 
-  void AssertNull(FullDecoder* decoder, const Value& obj, Value* result) {
+  void AssertNullTypecheck(FullDecoder* decoder, const Value& obj,
+                           Value* result) {
     builder_->TrapIfFalse(wasm::TrapReason::kTrapIllegalCast,
                           builder_->IsNull(obj.node), decoder->position());
     Forward(decoder, obj, result);
   }
 
-  void AssertNotNull(FullDecoder* decoder, const Value& obj, Value* result) {
-    builder_->TrapIfTrue(wasm::TrapReason::kTrapIllegalCast,
-                         builder_->IsNull(obj.node), decoder->position());
-    Forward(decoder, obj, result);
+  void AssertNotNullTypecheck(FullDecoder* decoder, const Value& obj,
+                              Value* result) {
+    SetAndTypeNode(result,
+                   builder_->AssertNotNull(obj.node, decoder->position(),
+                                           TrapReason::kTrapIllegalCast));
   }
 
   void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {}
@@ -504,8 +573,9 @@ class WasmGraphBuildingInterface {
     uint32_t ret_count = static_cast<uint32_t>(decoder->sig_->return_count());
     NodeVector values(ret_count);
     SsaEnv* internal_env = ssa_env_;
+    SsaEnv* exit_env = nullptr;
     if (emit_loop_exits()) {
-      SsaEnv* exit_env = Split(decoder->zone(), ssa_env_);
+      exit_env = Split(decoder->zone(), ssa_env_);
       SetEnv(exit_env);
       auto stack_values = CopyStackValues(decoder, ret_count, drop_values);
       BuildNestedLoopExits(decoder, decoder->control_depth() - 1, false,
@@ -521,6 +591,7 @@ class WasmGraphBuildingInterface {
       builder_->TraceFunctionExit(base::VectorOf(values), decoder->position());
     }
     builder_->Return(base::VectorOf(values));
+    if (exit_env) exit_env->Kill();
     SetEnv(internal_env);
   }
 
@@ -530,15 +601,12 @@ class WasmGraphBuildingInterface {
     } else {
       Control* target = decoder->control_at(depth);
       if (emit_loop_exits()) {
-        SsaEnv* internal_env = ssa_env_;
-        SsaEnv* exit_env = Split(decoder->zone(), ssa_env_);
-        SetEnv(exit_env);
+        ScopedSsaEnv exit_env(this, Split(decoder->zone(), ssa_env_));
         uint32_t value_count = target->br_merge()->arity;
         auto stack_values = CopyStackValues(decoder, value_count, drop_values);
         BuildNestedLoopExits(decoder, depth, true, stack_values);
         MergeValuesInto(decoder, target, target->br_merge(),
                         stack_values.data());
-        SetEnv(internal_env);
       } else {
         MergeValuesInto(decoder, target, target->br_merge(), drop_values);
       }
@@ -565,9 +633,8 @@ class WasmGraphBuildingInterface {
         break;
     }
     builder_->SetControl(fenv->control);
-    SetEnv(tenv);
+    ScopedSsaEnv scoped_env(this, tenv);
     BrOrRet(decoder, depth, 1);
-    SetEnv(fenv);
   }
 
   void BrTable(FullDecoder* decoder, const BranchTableImmediate& imm,
@@ -579,23 +646,19 @@ class WasmGraphBuildingInterface {
       return;
     }
 
-    SsaEnv* branch_env = ssa_env_;
     // Build branches to the various blocks based on the table.
     TFNode* sw = builder_->Switch(imm.table_count + 1, key.node);
 
-    SsaEnv* copy = Steal(decoder->zone(), branch_env);
-    SetEnv(copy);
     BranchTableIterator<ValidationTag> iterator(decoder, imm);
     while (iterator.has_next()) {
       uint32_t i = iterator.cur_index();
       uint32_t target = iterator.next();
-      SetEnv(Split(decoder->zone(), copy));
+      ScopedSsaEnv env(this, Split(decoder->zone(), ssa_env_));
       builder_->SetControl(i == imm.table_count ? builder_->IfDefault(sw)
                                                 : builder_->IfValue(i, sw));
       BrOrRet(decoder, target, 1);
     }
     DCHECK(decoder->ok());
-    SetEnv(branch_env);
   }
 
   void Else(FullDecoder* decoder, Control* if_block) {
@@ -855,9 +918,10 @@ class WasmGraphBuildingInterface {
     builder_->BrOnNull(ref_object.node, &true_env->control,
                        &false_env->control);
     builder_->SetControl(false_env->control);
-    SetEnv(true_env);
-    BrOrRet(decoder, depth, pass_null_along_branch ? 0 : 1);
-    SetEnv(false_env);
+    {
+      ScopedSsaEnv scoped_env(this, true_env);
+      BrOrRet(decoder, depth, pass_null_along_branch ? 0 : 1);
+    }
     SetAndTypeNode(
         result_on_fallthrough,
         builder_->TypeGuard(ref_object.node, result_on_fallthrough->type));
@@ -873,9 +937,8 @@ class WasmGraphBuildingInterface {
     builder_->BrOnNull(ref_object.node, &false_env->control,
                        &true_env->control);
     builder_->SetControl(false_env->control);
-    SetEnv(true_env);
+    ScopedSsaEnv scoped_env(this, true_env);
     BrOrRet(decoder, depth, 0);
-    SetEnv(false_env);
   }
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, base::Vector<Value> args,
@@ -955,6 +1018,7 @@ class WasmGraphBuildingInterface {
     SsaEnv* if_catch_env = Steal(decoder->zone(), ssa_env_);
     if_catch_env->control = if_catch;
     block->try_info->catch_env = if_no_catch_env;
+    block->block_env = if_catch_env;
 
     // If the tags match we extract the values from the exception object and
     // push them onto the operand stack using the passed {values} vector.
@@ -1259,13 +1323,16 @@ class WasmGraphBuildingInterface {
       TFNode**)>
   void BrOnCastAbs(FullDecoder* decoder, const Value& object, const Value& rtt,
                    Value* forwarding_value, uint32_t br_depth,
-                   bool branch_on_match) {
-    // TODO(mliedtke): Add generic br_on_cast instructions where null succeeds.
-    WasmTypeCheckConfig config = {object.type,
-                                  !rtt.type.is_bottom()
-                                      ? ValueType::Ref(rtt.type.ref_index())
-                                      : kWasmBottom};
+                   bool branch_on_match, bool null_succeeds) {
+    // If the type is bottom (used for abstract types), set HeapType to None.
+    // The heap type is not read but the null information is needed for the
+    // cast.
+    ValueType to_type = ValueType::RefMaybeNull(
+        !rtt.type.is_bottom() ? rtt.type.ref_index() : HeapType::kNone,
+        null_succeeds ? kNullable : kNonNullable);
+    WasmTypeCheckConfig config = {object.type, to_type};
     SsaEnv* branch_env = Split(decoder->zone(), ssa_env_);
+    // TODO(choongwoo): Clear locals of `no_branch_env` after use.
     SsaEnv* no_branch_env = Steal(decoder->zone(), ssa_env_);
     no_branch_env->SetNotMerged();
     SsaEnv* match_env = branch_on_match ? branch_env : no_branch_env;
@@ -1274,25 +1341,115 @@ class WasmGraphBuildingInterface {
                                  &match_env->control, &match_env->effect,
                                  &no_match_env->control, &no_match_env->effect);
     builder_->SetControl(no_branch_env->control);
-    SetEnv(branch_env);
-    SetAndTypeNode(forwarding_value,
-                   builder_->TypeGuard(object.node, forwarding_value->type));
-    // Currently, br_on_* instructions modify the value stack before calling
-    // the interface function, so we don't need to drop any values here.
-    BrOrRet(decoder, br_depth, 0);
-    SetEnv(no_branch_env);
+
+    if (branch_on_match) {
+      ScopedSsaEnv scoped_env(this, branch_env, no_branch_env);
+      // Narrow type for the successful cast target branch.
+      Forward(decoder, object, forwarding_value);
+      // Currently, br_on_* instructions modify the value stack before calling
+      // the interface function, so we don't need to drop any values here.
+      BrOrRet(decoder, br_depth, 0);
+      // Note: Differently to below for !{branch_on_match}, we do not Forward
+      // the value here to perform a TypeGuard. It can't be done here due to
+      // asymmetric decoder code. A Forward here would be poped from the stack
+      // and ignored by the decoder. Therefore the decoder has to call Forward
+      // itself.
+    } else {
+      {
+        ScopedSsaEnv scoped_env(this, branch_env, no_branch_env);
+        // It is necessary in case of {null_succeeds} to forward the value.
+        // This will add a TypeGuard to the non-null type (as in this case the
+        // object is non-nullable).
+        Forward(decoder, object, decoder->stack_value(1));
+        BrOrRet(decoder, br_depth, 0);
+      }
+      // Narrow type for the successful cast fallthrough branch.
+      Forward(decoder, object, forwarding_value);
+    }
   }
 
   void BrOnCast(FullDecoder* decoder, const Value& object, const Value& rtt,
-                Value* value_on_branch, uint32_t br_depth) {
+                Value* value_on_branch, uint32_t br_depth, bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnCast>(
-        decoder, object, rtt, value_on_branch, br_depth, true);
+        decoder, object, rtt, value_on_branch, br_depth, true, null_succeeds);
   }
 
   void BrOnCastFail(FullDecoder* decoder, const Value& object, const Value& rtt,
-                    Value* value_on_fallthrough, uint32_t br_depth) {
+                    Value* value_on_fallthrough, uint32_t br_depth,
+                    bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnCast>(
-        decoder, object, rtt, value_on_fallthrough, br_depth, false);
+        decoder, object, rtt, value_on_fallthrough, br_depth, false,
+        null_succeeds);
+  }
+
+  void BrOnCastAbstract(FullDecoder* decoder, const Value& object,
+                        HeapType type, Value* value_on_branch,
+                        uint32_t br_depth, bool null_succeeds) {
+    switch (type.representation()) {
+      case HeapType::kEq:
+        return BrOnEq(decoder, object, value_on_branch, br_depth,
+                      null_succeeds);
+      case HeapType::kI31:
+        return BrOnI31(decoder, object, value_on_branch, br_depth,
+                       null_succeeds);
+      case HeapType::kStruct:
+        return BrOnStruct(decoder, object, value_on_branch, br_depth,
+                          null_succeeds);
+      case HeapType::kArray:
+        return BrOnArray(decoder, object, value_on_branch, br_depth,
+                         null_succeeds);
+      case HeapType::kNone:
+      case HeapType::kNoExtern:
+      case HeapType::kNoFunc:
+        DCHECK(null_succeeds);
+        // This is needed for BrOnNull. {value_on_branch} is on the value stack
+        // and BrOnNull interacts with the values on the stack.
+        // TODO(7748): The compiler shouldn't have to access the stack used by
+        // the decoder ideally.
+        SetAndTypeNode(value_on_branch,
+                       builder_->TypeGuard(object.node, value_on_branch->type));
+        return BrOnNull(decoder, object, br_depth, true, value_on_branch);
+      case HeapType::kAny:
+        // Any may never need a cast as it is either implicitly convertible or
+        // never convertible for any given type.
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  void BrOnCastFailAbstract(FullDecoder* decoder, const Value& object,
+                            HeapType type, Value* value_on_fallthrough,
+                            uint32_t br_depth, bool null_succeeds) {
+    switch (type.representation()) {
+      case HeapType::kEq:
+        return BrOnNonEq(decoder, object, value_on_fallthrough, br_depth,
+                         null_succeeds);
+      case HeapType::kI31:
+        return BrOnNonI31(decoder, object, value_on_fallthrough, br_depth,
+                          null_succeeds);
+      case HeapType::kStruct:
+        return BrOnNonStruct(decoder, object, value_on_fallthrough, br_depth,
+                             null_succeeds);
+      case HeapType::kArray:
+        return BrOnNonArray(decoder, object, value_on_fallthrough, br_depth,
+                            null_succeeds);
+      case HeapType::kNone:
+      case HeapType::kNoExtern:
+      case HeapType::kNoFunc:
+        DCHECK(null_succeeds);
+        // We need to store a node in the stack where the decoder so far only
+        // pushed a value and expects the `BrOnCastFailAbstract` to set it.
+        // TODO(7748): The compiler shouldn't have to access the stack used by
+        // the decoder ideally.
+        Forward(decoder, object, decoder->stack_value(1));
+        return BrOnNonNull(decoder, object, value_on_fallthrough, br_depth,
+                           true);
+      case HeapType::kAny:
+        // Any may never need a cast as it is either implicitly convertible or
+        // never convertible for any given type.
+      default:
+        UNREACHABLE();
+    }
   }
 
   void RefIsEq(FullDecoder* decoder, const Value& object, Value* result) {
@@ -1300,6 +1457,24 @@ class WasmGraphBuildingInterface {
     SetAndTypeNode(result,
                    builder_->RefIsEq(object.node, object.type.is_nullable(),
                                      null_succeeds));
+  }
+
+  void BrOnEq(FullDecoder* decoder, const Value& object, Value* value_on_branch,
+              uint32_t br_depth, bool null_succeeds) {
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnEq>(
+        decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
+        true, null_succeeds);
+  }
+
+  void BrOnNonEq(FullDecoder* decoder, const Value& object,
+                 Value* value_on_fallthrough, uint32_t br_depth,
+                 bool null_succeeds) {
+    // TODO(7748): Merge BrOn* and BrOnNon* instructions as their only
+    // difference is a boolean flag passed to BrOnCastAbs. This could also be
+    // leveraged to merge BrOnCastFailAbstract and BrOnCastAbstract.
+    BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnEq>(
+        decoder, object, Value{nullptr, kWasmBottom}, value_on_fallthrough,
+        br_depth, false, null_succeeds);
   }
 
   void RefIsStruct(FullDecoder* decoder, const Value& object, Value* result) {
@@ -1319,17 +1494,19 @@ class WasmGraphBuildingInterface {
   }
 
   void BrOnStruct(FullDecoder* decoder, const Value& object,
-                  Value* value_on_branch, uint32_t br_depth) {
+                  Value* value_on_branch, uint32_t br_depth,
+                  bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnStruct>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
-        true);
+        true, null_succeeds);
   }
 
   void BrOnNonStruct(FullDecoder* decoder, const Value& object,
-                     Value* value_on_fallthrough, uint32_t br_depth) {
+                     Value* value_on_fallthrough, uint32_t br_depth,
+                     bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnStruct>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_fallthrough,
-        br_depth, false);
+        br_depth, false, null_succeeds);
   }
 
   void RefIsArray(FullDecoder* decoder, const Value& object, Value* result) {
@@ -1349,17 +1526,19 @@ class WasmGraphBuildingInterface {
   }
 
   void BrOnArray(FullDecoder* decoder, const Value& object,
-                 Value* value_on_branch, uint32_t br_depth) {
+                 Value* value_on_branch, uint32_t br_depth,
+                 bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnArray>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
-        true);
+        true, null_succeeds);
   }
 
   void BrOnNonArray(FullDecoder* decoder, const Value& object,
-                    Value* value_on_fallthrough, uint32_t br_depth) {
+                    Value* value_on_fallthrough, uint32_t br_depth,
+                    bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnArray>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_fallthrough,
-        br_depth, false);
+        br_depth, false, null_succeeds);
   }
 
   void RefIsI31(FullDecoder* decoder, const Value& object, Value* result) {
@@ -1376,17 +1555,18 @@ class WasmGraphBuildingInterface {
   }
 
   void BrOnI31(FullDecoder* decoder, const Value& object,
-               Value* value_on_branch, uint32_t br_depth) {
+               Value* value_on_branch, uint32_t br_depth, bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnI31>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_branch, br_depth,
-        true);
+        true, null_succeeds);
   }
 
   void BrOnNonI31(FullDecoder* decoder, const Value& object,
-                  Value* value_on_fallthrough, uint32_t br_depth) {
+                  Value* value_on_fallthrough, uint32_t br_depth,
+                  bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnI31>(
         decoder, object, Value{nullptr, kWasmBottom}, value_on_fallthrough,
-        br_depth, false);
+        br_depth, false, null_succeeds);
   }
 
   void StringNewWtf8(FullDecoder* decoder, const MemoryIndexImmediate& memory,
@@ -1427,54 +1607,62 @@ class WasmGraphBuildingInterface {
                          Value* result) {
     switch (variant) {
       case unibrow::Utf8Variant::kUtf8:
-        result->node = builder_->StringMeasureUtf8(
-            str.node, NullCheckFor(str.type), decoder->position());
+        SetAndTypeNode(
+            result, builder_->StringMeasureUtf8(
+                        str.node, NullCheckFor(str.type), decoder->position()));
         break;
       case unibrow::Utf8Variant::kLossyUtf8:
       case unibrow::Utf8Variant::kWtf8:
-        result->node = builder_->StringMeasureWtf8(
-            str.node, NullCheckFor(str.type), decoder->position());
+        SetAndTypeNode(
+            result, builder_->StringMeasureWtf8(
+                        str.node, NullCheckFor(str.type), decoder->position()));
         break;
+      case unibrow::Utf8Variant::kUtf8NoTrap:
+        UNREACHABLE();
     }
   }
 
   void StringMeasureWtf16(FullDecoder* decoder, const Value& str,
                           Value* result) {
-    result->node = builder_->StringMeasureWtf16(
-        str.node, NullCheckFor(str.type), decoder->position());
+    SetAndTypeNode(
+        result, builder_->StringMeasureWtf16(str.node, NullCheckFor(str.type),
+                                             decoder->position()));
   }
 
   void StringEncodeWtf8(FullDecoder* decoder,
                         const MemoryIndexImmediate& memory,
                         const unibrow::Utf8Variant variant, const Value& str,
                         const Value& offset, Value* result) {
-    result->node = builder_->StringEncodeWtf8(memory.index, variant, str.node,
-                                              NullCheckFor(str.type),
-                                              offset.node, decoder->position());
+    SetAndTypeNode(
+        result, builder_->StringEncodeWtf8(memory.index, variant, str.node,
+                                           NullCheckFor(str.type), offset.node,
+                                           decoder->position()));
   }
 
   void StringEncodeWtf8Array(FullDecoder* decoder,
                              const unibrow::Utf8Variant variant,
                              const Value& str, const Value& array,
                              const Value& start, Value* result) {
-    result->node = builder_->StringEncodeWtf8Array(
-        variant, str.node, NullCheckFor(str.type), array.node,
-        NullCheckFor(array.type), start.node, decoder->position());
+    SetAndTypeNode(
+        result, builder_->StringEncodeWtf8Array(
+                    variant, str.node, NullCheckFor(str.type), array.node,
+                    NullCheckFor(array.type), start.node, decoder->position()));
   }
 
   void StringEncodeWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                          const Value& str, const Value& offset, Value* result) {
-    result->node =
-        builder_->StringEncodeWtf16(imm.index, str.node, NullCheckFor(str.type),
-                                    offset.node, decoder->position());
+    SetAndTypeNode(result, builder_->StringEncodeWtf16(
+                               imm.index, str.node, NullCheckFor(str.type),
+                               offset.node, decoder->position()));
   }
 
   void StringEncodeWtf16Array(FullDecoder* decoder, const Value& str,
                               const Value& array, const Value& start,
                               Value* result) {
-    result->node = builder_->StringEncodeWtf16Array(
-        str.node, NullCheckFor(str.type), array.node, NullCheckFor(array.type),
-        start.node, decoder->position());
+    SetAndTypeNode(
+        result, builder_->StringEncodeWtf16Array(
+                    str.node, NullCheckFor(str.type), array.node,
+                    NullCheckFor(array.type), start.node, decoder->position()));
   }
 
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
@@ -1486,15 +1674,16 @@ class WasmGraphBuildingInterface {
 
   void StringEq(FullDecoder* decoder, const Value& a, const Value& b,
                 Value* result) {
-    result->node =
-        builder_->StringEqual(a.node, NullCheckFor(a.type), b.node,
-                              NullCheckFor(b.type), decoder->position());
+    SetAndTypeNode(result, builder_->StringEqual(a.node, NullCheckFor(a.type),
+                                                 b.node, NullCheckFor(b.type),
+                                                 decoder->position()));
   }
 
   void StringIsUSVSequence(FullDecoder* decoder, const Value& str,
                            Value* result) {
-    result->node = builder_->StringIsUSVSequence(
-        str.node, NullCheckFor(str.type), decoder->position());
+    SetAndTypeNode(
+        result, builder_->StringIsUSVSequence(str.node, NullCheckFor(str.type),
+                                              decoder->position()));
   }
 
   void StringAsWtf8(FullDecoder* decoder, const Value& str, Value* result) {
@@ -1506,9 +1695,9 @@ class WasmGraphBuildingInterface {
   void StringViewWtf8Advance(FullDecoder* decoder, const Value& view,
                              const Value& pos, const Value& bytes,
                              Value* result) {
-    result->node = builder_->StringViewWtf8Advance(
-        view.node, NullCheckFor(view.type), pos.node, bytes.node,
-        decoder->position());
+    SetAndTypeNode(result, builder_->StringViewWtf8Advance(
+                               view.node, NullCheckFor(view.type), pos.node,
+                               bytes.node, decoder->position()));
   }
 
   void StringViewWtf8Encode(FullDecoder* decoder,
@@ -1521,6 +1710,8 @@ class WasmGraphBuildingInterface {
                                    NullCheckFor(view.type), addr.node, pos.node,
                                    bytes.node, &next_pos->node,
                                    &bytes_written->node, decoder->position());
+    builder_->SetType(next_pos->node, next_pos->type);
+    builder_->SetType(bytes_written->node, bytes_written->type);
   }
 
   void StringViewWtf8Slice(FullDecoder* decoder, const Value& view,
@@ -1542,17 +1733,19 @@ class WasmGraphBuildingInterface {
 
   void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,
                                   const Value& pos, Value* result) {
-    result->node = builder_->StringViewWtf16GetCodeUnit(
-        view.node, NullCheckFor(view.type), pos.node, decoder->position());
+    SetAndTypeNode(result, builder_->StringViewWtf16GetCodeUnit(
+                               view.node, NullCheckFor(view.type), pos.node,
+                               decoder->position()));
   }
 
   void StringViewWtf16Encode(FullDecoder* decoder,
                              const MemoryIndexImmediate& imm, const Value& view,
                              const Value& offset, const Value& pos,
                              const Value& codeunits, Value* result) {
-    result->node = builder_->StringViewWtf16Encode(
-        imm.index, view.node, NullCheckFor(view.type), offset.node, pos.node,
-        codeunits.node, decoder->position());
+    SetAndTypeNode(
+        result, builder_->StringViewWtf16Encode(
+                    imm.index, view.node, NullCheckFor(view.type), offset.node,
+                    pos.node, codeunits.node, decoder->position()));
   }
 
   void StringViewWtf16Slice(FullDecoder* decoder, const Value& view,
@@ -1571,22 +1764,23 @@ class WasmGraphBuildingInterface {
 
   void StringViewIterNext(FullDecoder* decoder, const Value& view,
                           Value* result) {
-    result->node = builder_->StringViewIterNext(
-        view.node, NullCheckFor(view.type), decoder->position());
+    SetAndTypeNode(
+        result, builder_->StringViewIterNext(view.node, NullCheckFor(view.type),
+                                             decoder->position()));
   }
 
   void StringViewIterAdvance(FullDecoder* decoder, const Value& view,
                              const Value& codepoints, Value* result) {
-    result->node =
-        builder_->StringViewIterAdvance(view.node, NullCheckFor(view.type),
-                                        codepoints.node, decoder->position());
+    SetAndTypeNode(result, builder_->StringViewIterAdvance(
+                               view.node, NullCheckFor(view.type),
+                               codepoints.node, decoder->position()));
   }
 
   void StringViewIterRewind(FullDecoder* decoder, const Value& view,
                             const Value& codepoints, Value* result) {
-    result->node =
-        builder_->StringViewIterRewind(view.node, NullCheckFor(view.type),
-                                       codepoints.node, decoder->position());
+    SetAndTypeNode(result, builder_->StringViewIterRewind(
+                               view.node, NullCheckFor(view.type),
+                               codepoints.node, decoder->position()));
   }
 
   void StringViewIterSlice(FullDecoder* decoder, const Value& view,
@@ -1594,6 +1788,13 @@ class WasmGraphBuildingInterface {
     SetAndTypeNode(result, builder_->StringViewIterSlice(
                                view.node, NullCheckFor(view.type),
                                codepoints.node, decoder->position()));
+  }
+
+  void StringCompare(FullDecoder* decoder, const Value& lhs, const Value& rhs,
+                     Value* result) {
+    SetAndTypeNode(result, builder_->StringCompare(
+                               lhs.node, NullCheckFor(lhs.type), rhs.node,
+                               NullCheckFor(rhs.type), decoder->position()));
   }
 
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {
@@ -1604,20 +1805,43 @@ class WasmGraphBuildingInterface {
     }
   }
 
-  std::vector<compiler::WasmLoopInfo> loop_infos() { return loop_infos_; }
+  std::vector<compiler::WasmLoopInfo>& loop_infos() { return loop_infos_; }
+  DanglingExceptions& dangling_exceptions() { return dangling_exceptions_; }
 
  private:
+  LocalsAllocator locals_allocator_;
   SsaEnv* ssa_env_ = nullptr;
   compiler::WasmGraphBuilder* builder_;
   int func_index_;
   const BranchHintMap* branch_hints_ = nullptr;
   // Tracks loop data for loop unrolling.
   std::vector<compiler::WasmLoopInfo> loop_infos_;
+  // When inlining, tracks exception handlers that are left dangling and must be
+  // handled by the callee.
+  DanglingExceptions dangling_exceptions_;
   InlinedStatus inlined_status_;
   // The entries in {type_feedback_} are indexed by the position of feedback-
   // consuming instructions (currently only calls).
   int feedback_instruction_index_ = 0;
   std::vector<CallSiteFeedback> type_feedback_;
+
+  class V8_NODISCARD ScopedSsaEnv {
+   public:
+    ScopedSsaEnv(WasmGraphBuildingInterface* interface, SsaEnv* env,
+                 SsaEnv* next_env = nullptr)
+        : interface_(interface),
+          next_env_(next_env ? next_env : interface->ssa_env_) {
+      interface_->SetEnv(env);
+    }
+    ~ScopedSsaEnv() {
+      interface_->ssa_env_->Kill();
+      interface_->SetEnv(next_env_);
+    }
+
+   private:
+    WasmGraphBuildingInterface* interface_;
+    SsaEnv* next_env_;
+  };
 
   TFNode* effect() { return builder_->effect(); }
 
@@ -1707,13 +1931,15 @@ class WasmGraphBuildingInterface {
       return node;
     }
 
+    // TODO(choongwoo): Clear locals of `success_env` after use.
     SsaEnv* success_env = Steal(decoder->zone(), ssa_env_);
     success_env->control = if_success;
 
     SsaEnv* exception_env = Split(decoder->zone(), success_env);
     exception_env->control = if_exception;
     exception_env->effect = if_exception;
-    SetEnv(exception_env);
+
+    ScopedSsaEnv scoped_env(this, exception_env, success_env);
 
     // If the exceptional operation could have modified memory size, we need to
     // reload the memory context into the exceptional control path.
@@ -1744,13 +1970,13 @@ class WasmGraphBuildingInterface {
       }
     } else {
       DCHECK_EQ(inlined_status_, kInlinedHandledCall);
-      // Leave the IfException/LoopExit node dangling. We will connect it during
-      // inlining to the handler of the inlined call.
+      // We leave the IfException/LoopExit node dangling, and record the
+      // exception/effect/control here. We will connect them to the handler of
+      // the inlined call during inlining.
       // Note: We have to generate the handler now since we have no way of
       // generating a LoopExit if needed in the inlining code.
+      dangling_exceptions_.Add(if_exception, effect(), control());
     }
-
-    SetEnv(success_env);
     return node;
   }
 
@@ -1875,8 +2101,6 @@ class WasmGraphBuildingInterface {
       ssa_env_->effect = effect();
     }
     SsaEnv* result = zone->New<SsaEnv>(std::move(*from));
-    // Restore the length of {from->locals} after applying move-constructor.
-    from->locals.resize(result->locals.size());
     result->state = SsaEnv::kReached;
     return result;
   }
@@ -2087,7 +2311,7 @@ class WasmGraphBuildingInterface {
         break;
       }
     }
-    if (control != nullptr) {
+    if (control != nullptr && control->loop_innermost) {
       BuildLoopExits(decoder, control);
       for (Value& value : stack_values) {
         if (value.node != nullptr) {
@@ -2127,12 +2351,13 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                           compiler::WasmGraphBuilder* builder,
                           WasmFeatures* detected, const FunctionBody& body,
                           std::vector<compiler::WasmLoopInfo>* loop_infos,
+                          DanglingExceptions* dangling_exceptions,
                           compiler::NodeOriginTable* node_origins,
                           int func_index, InlinedStatus inlined_status) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::NoValidationTag, WasmGraphBuildingInterface> decoder(
       &zone, module, enabled, detected, body, builder, func_index,
-      inlined_status);
+      inlined_status, &zone);
   if (node_origins) {
     builder->AddBytecodePositionDecorator(node_origins, &decoder);
   }
@@ -2140,7 +2365,10 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
   if (node_origins) {
     builder->RemoveBytecodePositionDecorator();
   }
-  *loop_infos = decoder.interface().loop_infos();
+  *loop_infos = std::move(decoder.interface().loop_infos());
+  if (dangling_exceptions != nullptr) {
+    *dangling_exceptions = std::move(decoder.interface().dangling_exceptions());
+  }
 
   return decoder.toResult(nullptr);
 }

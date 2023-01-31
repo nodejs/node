@@ -8,7 +8,9 @@ const { session, contextGroup, Protocol } = InspectorTest.start(
 function handlePause(
     noInstrumentationStepAction, options,
     {params: {reason, data, callFrames}}) {
-  const scriptId = callFrames[0].functionLocation.scriptId;
+  const scriptId = reason === 'instrumentation' ?
+      data.scriptId :
+      callFrames[0].functionLocation.scriptId;
   InspectorTest.log(`Paused with reason ${reason}, data ${
       data ? JSON.stringify(data) : '{}'} and scriptId: ${scriptId}.`);
 

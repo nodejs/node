@@ -490,6 +490,14 @@ InspectorTest.runAsyncTestSuite([
       expression: '({e: new Proxy({a: 1}, {b: 2})})',
       generatePreview: true
     })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: 'new Proxy([1, 2], {})',
+      generatePreview: true
+    })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: 'revocable = Proxy.revocable({}, {}); revocable.revoke(); revocable.proxy',
+      generatePreview: true
+    })).result);
   },
   async function testPromise() {
     InspectorTest.logMessage((await evaluate({

@@ -1402,6 +1402,13 @@ domain Runtime
       optional string objectGroup
       # Whether to throw an exception if side effect cannot be ruled out during evaluation.
       experimental optional boolean throwOnSideEffect
+      # An alternative way to specify the execution context to call function on.
+      # Compared to contextId that may be reused across processes, this is guaranteed to be
+      # system-unique, so it can be used to prevent accidental function call
+      # in context different than intended (e.g. as a result of navigation across process
+      # boundaries).
+      # This is mutually exclusive with `executionContextId`.
+      experimental optional string uniqueContextId
       # Whether the result should contain `webDriverValue`, serialized according to
       # https://w3c.github.io/webdriver-bidi. This is mutually exclusive with `returnByValue`, but
       # resulting `objectId` is still provided.
@@ -1734,7 +1741,9 @@ domain Runtime
   event executionContextDestroyed
     parameters
       # Id of the destroyed context
-      ExecutionContextId executionContextId
+      deprecated ExecutionContextId executionContextId
+      # Unique Id of the destroyed context
+      experimental string executionContextUniqueId
 
   # Issued when all executionContexts were cleared in browser
   event executionContextsCleared

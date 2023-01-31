@@ -92,6 +92,7 @@
 #include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/objects/turbofan-types-inl.h"
+#include "src/objects/turboshaft-types-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator-inl.h"

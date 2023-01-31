@@ -64,9 +64,6 @@ namespace internal {
   HR(wasm_memory_allocation_result, V8.WasmMemoryAllocationResult, 0, 3, 4)    \
   /* committed code size per module, collected on GC */                        \
   HR(wasm_module_code_size_mb, V8.WasmModuleCodeSizeMiB, 0, 1024, 64)          \
-  /* code size per module after baseline compilation */                        \
-  HR(wasm_module_code_size_mb_after_baseline,                                  \
-     V8.WasmModuleCodeSizeBaselineMiB, 0, 1024, 64)                            \
   /* percent of freed code size per module, collected on GC */                 \
   HR(wasm_module_freed_code_size_percent, V8.WasmModuleCodeSizePercentFreed,   \
      0, 100, 32)                                                               \
@@ -117,7 +114,8 @@ namespace internal {
   /* kPartialSuccessor kAbortedDuringSweeping. See */                          \
   /* ExternalPointerTable::TableCompactionOutcome enum for more details */     \
   HR(external_pointer_table_compaction_outcome,                                \
-     V8.ExternalPointerTableCompactionOutcome, 0, 2, 3)
+     V8.ExternalPointerTableCompactionOutcome, 0, 2, 3)                        \
+  HR(wasm_compilation_method, V8.WasmCompilationMethod, 0, 4, 5)
 
 #define NESTED_TIMED_HISTOGRAM_LIST(HT)                                       \
   /* Nested timer histograms allow distributions of nested timed results. */  \
@@ -171,6 +169,12 @@ namespace internal {
   HT(gc_time_to_safepoint, V8.GC.TimeToSafepoint, 10000000, MICROSECOND)       \
   HT(gc_time_to_collection_on_background, V8.GC.TimeToCollectionOnBackground,  \
      10000000, MICROSECOND)                                                    \
+  /* Maglev timers. */                                                         \
+  HT(maglev_optimize_prepare, V8.MaglevOptimizePrepare, 100000, MICROSECOND)   \
+  HT(maglev_optimize_execute, V8.MaglevOptimizeExecute, 100000, MICROSECOND)   \
+  HT(maglev_optimize_finalize, V8.MaglevOptimizeFinalize, 100000, MICROSECOND) \
+  HT(maglev_optimize_total_time, V8.MaglevOptimizeTotalTime, 1000000,          \
+     MICROSECOND)                                                              \
   /* TurboFan timers. */                                                       \
   HT(turbofan_optimize_prepare, V8.TurboFanOptimizePrepare, 1000000,           \
      MICROSECOND)                                                              \
@@ -339,7 +343,8 @@ namespace internal {
   SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)                           \
   SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)                      \
   SC(wasm_reloc_size, V8.WasmRelocBytes)                                       \
-  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)
+  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)           \
+  SC(wasm_compiled_export_wrapper, V8.WasmCompiledExportWrappers)
 
 // List of counters that can be incremented from generated code. We need them in
 // a separate list to be able to relocate them.

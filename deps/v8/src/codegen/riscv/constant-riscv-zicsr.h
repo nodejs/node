@@ -16,15 +16,13 @@ const uint32_t kFcsrFrmMask = ((1 << kFcsrFrmBits) - 1) << kFcsrFrmShift;
 const int kFcsrBits = kFcsrFlagsBits + kFcsrFrmBits;
 const uint32_t kFcsrMask = kFcsrFlagsMask | kFcsrFrmMask;
 
-enum OpcodeRISCVZICSR : uint32_t {
-  // RV32/RV64 Zicsr Standard Extension
-  RO_CSRRW = SYSTEM | (0b001 << kFunct3Shift),
-  RO_CSRRS = SYSTEM | (0b010 << kFunct3Shift),
-  RO_CSRRC = SYSTEM | (0b011 << kFunct3Shift),
-  RO_CSRRWI = SYSTEM | (0b101 << kFunct3Shift),
-  RO_CSRRSI = SYSTEM | (0b110 << kFunct3Shift),
-  RO_CSRRCI = SYSTEM | (0b111 << kFunct3Shift),
-};
+// RV32/RV64 Zicsr Standard Extension
+constexpr Opcode RO_CSRRW = SYSTEM | (0b001 << kFunct3Shift);
+constexpr Opcode RO_CSRRS = SYSTEM | (0b010 << kFunct3Shift);
+constexpr Opcode RO_CSRRC = SYSTEM | (0b011 << kFunct3Shift);
+constexpr Opcode RO_CSRRWI = SYSTEM | (0b101 << kFunct3Shift);
+constexpr Opcode RO_CSRRSI = SYSTEM | (0b110 << kFunct3Shift);
+constexpr Opcode RO_CSRRCI = SYSTEM | (0b111 << kFunct3Shift);
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_CODEGEN_RISCV_CONSTANT_RISCV_ZICSR_H_

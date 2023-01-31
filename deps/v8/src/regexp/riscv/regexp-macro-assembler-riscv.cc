@@ -18,7 +18,7 @@ namespace internal {
 
 /* clang-format off
  * This assembler uses the following register assignment convention
- * - s1 : Pointer to current Code object including heap object tag.
+ * - s1 : Pointer to current InstructionStream object including heap object tag.
  * - s2 : Current position in input, as negative offset from end of string.
  *        Please notice that this is the byte offset, not the character offset!
  * - s5 : Currently loaded character. Must be loaded using
@@ -981,9 +981,10 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
       Factory::CodeBuilder(isolate(), code_desc, CodeKind::REGEXP)
           .set_self_reference(masm_->CodeObject())
           .Build();
+  Handle<InstructionStream> istream(code->instruction_stream(), isolate());
   LOG(masm_->isolate(),
-      RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
-  return Handle<HeapObject>::cast(code);
+      RegExpCodeCreateEvent(Handle<AbstractCode>::cast(istream), source));
+  return Handle<HeapObject>::cast(istream);
 }
 
 void RegExpMacroAssemblerRISCV::GoTo(Label* to) {
@@ -1029,13 +1030,14 @@ void RegExpMacroAssemblerRISCV::PopRegister(int register_index) {
 void RegExpMacroAssemblerRISCV::PushBacktrack(Label* label) {
   if (label->is_bound()) {
     int target = label->pos();
-    __ li(a0, Operand(target + Code::kHeaderSize - kHeapObjectTag));
+    __ li(a0,
+          Operand(target + InstructionStream::kHeaderSize - kHeapObjectTag));
   } else {
     Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_.get());
     Label after_constant;
     __ BranchShort(&after_constant);
     int offset = masm_->pc_offset();
-    int cp_offset = offset + Code::kHeaderSize - kHeapObjectTag;
+    int cp_offset = offset + InstructionStream::kHeaderSize - kHeapObjectTag;
     __ emit(0);
     masm_->label_at_put(label, offset);
     __ bind(&after_constant);
@@ -1142,7 +1144,7 @@ void RegExpMacroAssemblerRISCV::CallCheckStackGuardState(Register scratch) {
   __ StoreWord(scratch, MemOperand(sp));
 
   __ mv(a2, frame_pointer());
-  // Code of self.
+  // InstructionStream of self.
   __ li(a1, Operand(masm_->CodeObject()), CONSTANT_SIZE);
 
   // We need to make room for the return address on the stack.
@@ -1202,7 +1204,7 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
 int64_t RegExpMacroAssemblerRISCV::CheckStackGuardState(Address* return_address,
                                                         Address raw_code,
                                                         Address re_frame) {
-  Code re_code = Code::cast(Object(raw_code));
+  InstructionStream re_code = InstructionStream::cast(Object(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate),
       static_cast<int>(frame_entry<int64_t>(re_frame, kStartIndex)),

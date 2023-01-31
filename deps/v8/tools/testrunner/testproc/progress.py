@@ -57,7 +57,7 @@ class ResultsTracker(base.TestProcObserver):
 
 class ProgressProc(base.TestProcObserver):
 
-  def __init__(self, context, options, framework_name, test_count):
+  def __init__(self, context, options, test_count):
     super(ProgressProc, self).__init__()
     self.procs = [
         PROGRESS_INDICATORS[options.progress](context, options, test_count)
@@ -65,8 +65,7 @@ class ProgressProc(base.TestProcObserver):
     if options.json_test_results:
       self.procs.insert(
           0,
-          JsonTestProgressIndicator(context, options, test_count,
-                                    framework_name))
+          JsonTestProgressIndicator(context, options, test_count))
     sink = rdb_sink()
     if sink:
       self.procs.append(ResultDBIndicator(context, options, test_count, sink))

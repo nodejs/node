@@ -12,6 +12,7 @@
 
 #include "v8-internal.h"      // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
+#include "v8config.h"         // NOLINT(build/include_directory)
 
 namespace v8 {
 
@@ -96,16 +97,88 @@ struct GarbageCollectionYoungCycle {
 };
 
 struct WasmModuleDecoded {
+  WasmModuleDecoded() = default;
+  WasmModuleDecoded(bool async, bool streamed, bool success,
+                    size_t module_size_in_bytes, size_t function_count,
+                    int64_t wall_clock_duration_in_us)
+      : async(async),
+        streamed(streamed),
+        success(success),
+        module_size_in_bytes(module_size_in_bytes),
+        function_count(function_count),
+        wall_clock_duration_in_us(wall_clock_duration_in_us) {}
+
+  V8_DEPRECATED("Use the version without cpu_duration_in_us")
+  WasmModuleDecoded(bool async, bool streamed, bool success,
+                    size_t module_size_in_bytes, size_t function_count,
+                    int64_t wall_clock_duration_in_us,
+                    int64_t cpu_duration_in_us)
+      : async(async),
+        streamed(streamed),
+        success(success),
+        module_size_in_bytes(module_size_in_bytes),
+        function_count(function_count),
+        wall_clock_duration_in_us(wall_clock_duration_in_us),
+        cpu_duration_in_us(cpu_duration_in_us) {}
+
+  START_ALLOW_USE_DEPRECATED()
+  // Copy constructor and copy assignment operator are allowed to copy the
+  // {cpu_duration_in_us} field.
+  WasmModuleDecoded(const WasmModuleDecoded&) = default;
+  WasmModuleDecoded& operator=(const WasmModuleDecoded&) = default;
+  END_ALLOW_USE_DEPRECATED()
+
   bool async = false;
   bool streamed = false;
   bool success = false;
   size_t module_size_in_bytes = 0;
   size_t function_count = 0;
   int64_t wall_clock_duration_in_us = -1;
+  V8_DEPRECATED("We do not collect cpu times any more")
   int64_t cpu_duration_in_us = -1;
 };
 
 struct WasmModuleCompiled {
+  WasmModuleCompiled() = default;
+
+  WasmModuleCompiled(bool async, bool streamed, bool cached, bool deserialized,
+                     bool lazy, bool success, size_t code_size_in_bytes,
+                     size_t liftoff_bailout_count,
+                     int64_t wall_clock_duration_in_us)
+      : async(async),
+        streamed(streamed),
+        cached(cached),
+        deserialized(deserialized),
+        lazy(lazy),
+        success(success),
+        code_size_in_bytes(code_size_in_bytes),
+        liftoff_bailout_count(liftoff_bailout_count),
+        wall_clock_duration_in_us(wall_clock_duration_in_us) {}
+
+  V8_DEPRECATED("Use the version without cpu_duration_in_us")
+  WasmModuleCompiled(bool async, bool streamed, bool cached, bool deserialized,
+                     bool lazy, bool success, size_t code_size_in_bytes,
+                     size_t liftoff_bailout_count,
+                     int64_t wall_clock_duration_in_us,
+                     int64_t cpu_duration_in_us)
+      : async(async),
+        streamed(streamed),
+        cached(cached),
+        deserialized(deserialized),
+        lazy(lazy),
+        success(success),
+        code_size_in_bytes(code_size_in_bytes),
+        liftoff_bailout_count(liftoff_bailout_count),
+        wall_clock_duration_in_us(wall_clock_duration_in_us),
+        cpu_duration_in_us(cpu_duration_in_us) {}
+
+  START_ALLOW_USE_DEPRECATED()
+  // Copy constructor and copy assignment operator are allowed to copy the
+  // {cpu_duration_in_us} field.
+  WasmModuleCompiled(const WasmModuleCompiled&) = default;
+  WasmModuleCompiled& operator=(const WasmModuleCompiled&) = default;
+  END_ALLOW_USE_DEPRECATED()
+
   bool async = false;
   bool streamed = false;
   bool cached = false;
@@ -115,6 +188,7 @@ struct WasmModuleCompiled {
   size_t code_size_in_bytes = 0;
   size_t liftoff_bailout_count = 0;
   int64_t wall_clock_duration_in_us = -1;
+  V8_DEPRECATED("We do not collect cpu times any more")
   int64_t cpu_duration_in_us = -1;
 };
 

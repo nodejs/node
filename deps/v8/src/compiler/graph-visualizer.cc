@@ -770,6 +770,10 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
         os_ << " \"" << DoubleRegister::from_code(op.register_code()) << "\"";
       } else if (op.IsFloatRegister()) {
         os_ << " \"" << FloatRegister::from_code(op.register_code()) << "\"";
+#if defined(V8_TARGET_ARCH_X64)
+      } else if (op.IsSimd256Register()) {
+        os_ << " \"" << Simd256Register::from_code(op.register_code()) << "\"";
+#endif
       } else {
         DCHECK(op.IsSimd128Register());
         os_ << " \"" << Simd128Register::from_code(op.register_code()) << "\"";
@@ -1047,6 +1051,7 @@ std::ostream& operator<<(
     const TopLevelLiveRangeAsJSON& top_level_live_range_json) {
   int vreg = top_level_live_range_json.range_.vreg();
   bool first = true;
+  int instruction_range[2] = {INT32_MAX, -1};
   os << "\"" << (vreg > 0 ? vreg : -vreg) << "\":{ \"child_ranges\":[";
   for (const LiveRange* child = &(top_level_live_range_json.range_);
        child != nullptr; child = child->next()) {
@@ -1057,6 +1062,15 @@ std::ostream& operator<<(
         os << ",";
       }
       os << LiveRangeAsJSON{*child, top_level_live_range_json.code_};
+      // Record the minimum and maximum positions observed within this
+      // TopLevelLiveRange
+      for (const UseInterval* interval = child->first_interval();
+           interval != nullptr; interval = interval->next()) {
+        if (interval->start().value() < instruction_range[0])
+          instruction_range[0] = interval->start().value();
+        if (interval->end().value() > instruction_range[1])
+          instruction_range[1] = interval->end().value();
+      }
     }
   }
   os << "]";
@@ -1065,7 +1079,8 @@ std::ostream& operator<<(
        << (top_level_live_range_json.range_.IsDeferredFixed() ? "true"
                                                               : "false");
   }
-  os << "}";
+  os << ", \"instruction_range\": [" << instruction_range[0] << ","
+     << instruction_range[1] << "]}";
   return os;
 }
 
@@ -1224,6 +1239,10 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
         os << DoubleRegister::from_code(allocated->register_code());
       } else if (op->IsFloatRegister()) {
         os << FloatRegister::from_code(allocated->register_code());
+#if defined(V8_TARGET_ARCH_X64)
+      } else if (op->IsSimd256Register()) {
+        os << Simd256Register::from_code(allocated->register_code());
+#endif
       } else {
         DCHECK(op->IsSimd128Register());
         os << Simd128Register::from_code(allocated->register_code());

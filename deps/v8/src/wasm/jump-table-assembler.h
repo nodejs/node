@@ -57,7 +57,7 @@ namespace wasm {
 // execute the old code afterwards, which is no problem, since that code remains
 // available until it is garbage collected. Garbage collection itself is a
 // synchronization barrier though.
-class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
+class V8_EXPORT_PRIVATE JumpTableAssembler : public TurboAssembler {
  public:
   // Translate an offset into the continuous jump table to a jump table index.
   static uint32_t SlotOffsetToIndex(uint32_t slot_offset) {
@@ -127,6 +127,11 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
     FlushInstructionCache(base, lazy_compile_table_size);
   }
 
+  // Initializes the jump table starting at {base} with jumps to the lazy
+  // compile table starting at {lazy_compile_table_start}.
+  static void InitializeJumpsToLazyCompileTable(
+      Address base, uint32_t num_slots, Address lazy_compile_table_start);
+
   static void GenerateFarJumpTable(Address base, Address* stub_targets,
                                    int num_runtime_slots,
                                    int num_function_slots) {
@@ -160,6 +165,9 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
       JumpTableAssembler::PatchFarJumpSlot(far_jump_table_slot, target);
       CHECK(jtasm.EmitJumpSlot(far_jump_table_slot));
     }
+    // We write nops here instead of skipping to avoid partial instructions in
+    // the jump table. Partial instructions can cause problems for the
+    // disassembler.
     jtasm.NopBytes(kJumpTableSlotSize - jtasm.pc_offset());
     FlushInstructionCache(jump_table_slot, kJumpTableSlotSize);
   }
@@ -167,7 +175,7 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
  private:
   // Instantiate a {JumpTableAssembler} for patching.
   explicit JumpTableAssembler(Address slot_addr, int size = 256)
-      : MacroAssembler(nullptr, JumpTableAssemblerOptions(),
+      : TurboAssembler(nullptr, JumpTableAssemblerOptions(),
                        CodeObjectRequired::kNo,
                        ExternalAssemblerBuffer(
                            reinterpret_cast<uint8_t*>(slot_addr), size)) {}
@@ -262,6 +270,8 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
   static void PatchFarJumpSlot(Address slot, Address target);
 
   void NopBytes(int bytes);
+
+  void SkipUntil(int offset);
 };
 
 }  // namespace wasm

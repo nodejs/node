@@ -79,7 +79,7 @@ class Reducer;
   V(Float64Sub)                                     \
   V(Int32Add)                                       \
   V(Int32LessThan)                                  \
-  V(Int32LessThanOrEqual)                           \
+  T(Int32LessThanOrEqual, BoolT, Int32T, Int32T)    \
   V(Int32Mul)                                       \
   V(Int32Sub)                                       \
   V(Int64Add)                                       \
@@ -88,7 +88,7 @@ class Reducer;
   V(IntLessThan)                                    \
   V(IntMul)                                         \
   V(IntSub)                                         \
-  V(Uint32LessThan)                                 \
+  T(Uint32LessThan, BoolT, Uint32T, Uint32T)        \
   T(Uint32LessThanOrEqual, BoolT, Uint32T, Uint32T) \
   V(Uint64LessThan)                                 \
   T(Uint64LessThanOrEqual, BoolT, Uint64T, Uint64T) \
@@ -134,29 +134,30 @@ class Reducer;
   V(Uint64Div)                               \
   V(Uint64Mod)
 
-#define JSGRAPH_SINGLETON_CONSTANT_LIST(V)      \
-  V(AllocateInOldGenerationStub, Code)          \
-  V(AllocateInYoungGenerationStub, Code)        \
-  V(AllocateRegularInOldGenerationStub, Code)   \
-  V(AllocateRegularInYoungGenerationStub, Code) \
-  V(BigIntMap, Map)                             \
-  V(BooleanMap, Map)                            \
-  V(EmptyString, String)                        \
-  V(False, Boolean)                             \
-  V(FixedArrayMap, Map)                         \
-  V(FixedDoubleArrayMap, Map)                   \
-  V(WeakFixedArrayMap, Map)                     \
-  V(HeapNumberMap, Map)                         \
-  V(MinusOne, Number)                           \
-  V(NaN, Number)                                \
-  V(NoContext, Object)                          \
-  V(Null, Oddball)                              \
-  V(One, Number)                                \
-  V(TheHole, Oddball)                           \
-  V(ToNumberBuiltin, Code)                      \
-  V(PlainPrimitiveToNumberBuiltin, Code)        \
-  V(True, Boolean)                              \
-  V(Undefined, Oddball)                         \
+#define JSGRAPH_SINGLETON_CONSTANT_LIST(V)                   \
+  V(AllocateInOldGenerationStub, InstructionStream)          \
+  V(AllocateInYoungGenerationStub, InstructionStream)        \
+  V(AllocateRegularInOldGenerationStub, InstructionStream)   \
+  V(AllocateRegularInYoungGenerationStub, InstructionStream) \
+  V(BigIntMap, Map)                                          \
+  V(BooleanMap, Map)                                         \
+  V(EmptyString, String)                                     \
+  V(ExternalObjectMap, Map)                                  \
+  V(False, Boolean)                                          \
+  V(FixedArrayMap, Map)                                      \
+  V(FixedDoubleArrayMap, Map)                                \
+  V(WeakFixedArrayMap, Map)                                  \
+  V(HeapNumberMap, Map)                                      \
+  V(MinusOne, Number)                                        \
+  V(NaN, Number)                                             \
+  V(NoContext, Object)                                       \
+  V(Null, Oddball)                                           \
+  V(One, Number)                                             \
+  V(TheHole, Oddball)                                        \
+  V(ToNumberBuiltin, InstructionStream)                      \
+  V(PlainPrimitiveToNumberBuiltin, InstructionStream)        \
+  V(True, Boolean)                                           \
+  V(Undefined, Oddball)                                      \
   V(Zero, Number)
 
 class GraphAssembler;
@@ -369,14 +370,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   Node* DebugBreak();
 
-  // Unreachable nodes are similar to Goto in that they reset effect/control to
-  // nullptr and it's thus not possible to append other nodes without first
-  // binding a new label.
-  // The block_updater_successor label is a crutch to work around block updater
-  // weaknesses (see the related comment in ConnectUnreachableToEnd); if the
-  // block updater exists, we cannot connect unreachable to end, instead we
-  // must preserve the Goto pattern.
-  Node* Unreachable(GraphAssemblerLabel<0u>* block_updater_successor = nullptr);
+  Node* Unreachable();
   // This special variant doesn't connect the Unreachable node to end, and does
   // not reset current effect/control. Intended only for special use-cases like
   // lowering DeadValue.

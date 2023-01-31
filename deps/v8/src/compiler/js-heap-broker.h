@@ -118,7 +118,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   Isolate* isolate() const { return isolate_; }
 
   // The pointer compression cage base value used for decompression of all
-  // tagged values except references to Code objects.
+  // tagged values except references to InstructionStream objects.
   PtrComprCageBase cage_base() const {
 #if V8_COMPRESS_POINTERS
     return cage_base_;
@@ -245,6 +245,17 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   LocalIsolate* local_isolate_or_isolate() const {
     return local_isolate() != nullptr ? local_isolate()
                                       : isolate()->AsLocalIsolate();
+  }
+
+  base::Optional<RootIndex> FindRootIndex(const HeapObjectRef& object) {
+    // No root constant is a JSReceiver.
+    if (object.IsJSReceiver()) return {};
+    Address address = object.object()->ptr();
+    RootIndex root_index;
+    if (root_index_map_.Lookup(address, &root_index)) {
+      return root_index;
+    }
+    return {};
   }
 
   // Return the corresponding canonical persistent handle for {object}. Create

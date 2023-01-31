@@ -1,0 +1,8 @@
+Name: glibc
+URL: https://www.gnu.org/software/libc/
+License: LGPL 2.1
+License File: LICENSE
+Upstream Git: https://sourceware.org/git/?p=glibc.git;a=summary
+Last Upstream Merge: 985ff73ad29bc4cc4e15ce6d182ecd808b7b02d7, Nov 1 2022
+
+This directory contains a handful of files that are forked from glibc.

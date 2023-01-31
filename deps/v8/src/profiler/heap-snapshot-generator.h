@@ -120,6 +120,8 @@ class HeapEntry {
     kSymbol = v8::HeapGraphNode::kSymbol,
     kBigInt = v8::HeapGraphNode::kBigInt,
     kObjectShape = v8::HeapGraphNode::kObjectShape,
+    kWasmObject = v8::HeapGraphNode::kWasmObject,
+    kNumTypes,
   };
 
   HeapEntry(HeapSnapshot* snapshot, int index, Type type, const char* name,
@@ -189,7 +191,8 @@ class HeapEntry {
   V8_INLINE std::vector<HeapGraphEdge*>::iterator children_end() const;
   const char* TypeAsString() const;
 
-  unsigned type_: 4;
+  static_assert(kNumTypes <= 1 << 4);
+  unsigned type_ : 4;
   unsigned index_ : 28;  // Supports up to ~250M objects.
   union {
     // The count is used during the snapshot build phase,
@@ -391,7 +394,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
   void CollectGlobalObjectsTags();
   void MakeGlobalObjectTagMap(const IsolateSafepointScope& safepoint_scope);
-  void TagBuiltinCodeObject(CodeT code, const char* name);
+  void TagBuiltinCodeObject(Code code, const char* name);
   HeapEntry* AddEntry(Address address,
                       HeapEntry::Type type,
                       const char* name,
@@ -430,7 +433,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractAccessorInfoReferences(HeapEntry* entry,
                                      AccessorInfo accessor_info);
   void ExtractAccessorPairReferences(HeapEntry* entry, AccessorPair accessors);
-  void ExtractCodeReferences(HeapEntry* entry, Code code);
+  void ExtractCodeReferences(HeapEntry* entry, InstructionStream code);
   void ExtractCellReferences(HeapEntry* entry, Cell cell);
   void ExtractJSWeakRefReferences(HeapEntry* entry, JSWeakRef js_weak_ref);
   void ExtractWeakCellReferences(HeapEntry* entry, WeakCell weak_cell);
@@ -466,6 +469,11 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractElementReferences(JSObject js_obj, HeapEntry* entry);
   void ExtractInternalReferences(JSObject js_obj, HeapEntry* entry);
 
+#if V8_ENABLE_WEBASSEMBLY
+  void ExtractWasmStructReferences(WasmStruct obj, HeapEntry* entry);
+  void ExtractWasmArrayReferences(WasmArray obj, HeapEntry* entry);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   bool IsEssentialObject(Object object);
   bool IsEssentialHiddenReference(Object parent, int field_offset);
 
@@ -500,7 +508,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void SetGcRootsReference(Root root);
   void SetGcSubrootReference(Root root, const char* description, bool is_weak,
                              Object child);
-  const char* GetStrongGcSubrootName(Object object);
+  const char* GetStrongGcSubrootName(HeapObject object);
   void TagObject(Object obj, const char* tag,
                  base::Optional<HeapEntry::Type> type = {});
   void RecursivelyTagConstantPool(Object obj, const char* tag,
@@ -518,8 +526,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
       global_object_tag_pairs_;
   std::unordered_map<JSGlobalObject, const char*, Object::Hasher>
       global_object_tag_map_;
-  std::unordered_map<Object, const char*, Object::Hasher>
-      strong_gc_subroot_names_;
+  UnorderedHeapObjectMap<const char*> strong_gc_subroot_names_;
   std::unordered_set<JSGlobalObject, Object::Hasher> user_roots_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 

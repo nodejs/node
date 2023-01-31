@@ -14,6 +14,7 @@
 #include "include/v8-microtask-queue.h"
 #include "src/base/safe_conversions.h"
 #include "src/debug/debug-interface.h"
+#include "src/inspector/crc32.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Debugger.h"
@@ -55,6 +56,9 @@ static const char breakpointsByRegex[] = "breakpointsByRegex";
 static const char breakpointsByUrl[] = "breakpointsByUrl";
 static const char breakpointsByScriptHash[] = "breakpointsByScriptHash";
 static const char breakpointHints[] = "breakpointHints";
+static const char breakpointHintText[] = "text";
+static const char breakpointHintPrefixHash[] = "prefixHash";
+static const char breakpointHintPrefixLength[] = "prefixLen";
 static const char instrumentationBreakpoints[] = "instrumentationBreakpoints";
 
 }  // namespace DebuggerAgentState
@@ -179,23 +183,49 @@ bool positionComparator(const std::pair<int, int>& a,
   return a.second < b.second;
 }
 
-String16 breakpointHint(const V8DebuggerScript& script, int lineNumber,
-                        int columnNumber) {
-  int offset;
-  if (!script.offset(lineNumber, columnNumber).To(&offset)) return String16();
+std::unique_ptr<protocol::DictionaryValue> breakpointHint(
+    const V8DebuggerScript& script, int breakpointLineNumber,
+    int breakpointColumnNumber, int actualLineNumber, int actualColumnNumber) {
+  int actualOffset;
+  int breakpointOffset;
+  if (!script.offset(actualLineNumber, actualColumnNumber).To(&actualOffset) ||
+      !script.offset(breakpointLineNumber, breakpointColumnNumber)
+           .To(&breakpointOffset)) {
+    return {};
+  }
+
+  auto hintObject = protocol::DictionaryValue::create();
+  String16 rawHint = script.source(actualOffset, kBreakpointHintMaxLength);
+  std::pair<size_t, size_t> offsetAndLength =
+      rawHint.getTrimmedOffsetAndLength();
   String16 hint =
-      script.source(offset, kBreakpointHintMaxLength).stripWhiteSpace();
+      rawHint.substring(offsetAndLength.first, offsetAndLength.second);
   for (size_t i = 0; i < hint.length(); ++i) {
     if (hint[i] == '\r' || hint[i] == '\n' || hint[i] == ';') {
-      return hint.substring(0, i);
+      hint = hint.substring(0, i);
+      break;
     }
   }
-  return hint;
+  hintObject->setString(DebuggerAgentState::breakpointHintText, hint);
+
+  // Also store the hash of the text between the requested breakpoint location
+  // and the actual breakpoint location. If we see the same prefix text next
+  // time, we will keep the breakpoint at the same location (so that
+  // breakpoints do not slide around on reloads without any edits).
+  if (breakpointOffset <= actualOffset) {
+    size_t length = actualOffset - breakpointOffset + offsetAndLength.first;
+    String16 prefix = script.source(breakpointOffset, length);
+    int crc32 = computeCrc32(prefix);
+    hintObject->setInteger(DebuggerAgentState::breakpointHintPrefixHash, crc32);
+    hintObject->setInteger(DebuggerAgentState::breakpointHintPrefixLength,
+                           v8::base::checked_cast<int32_t>(length));
+  }
+  return hintObject;
 }
 
 void adjustBreakpointLocation(const V8DebuggerScript& script,
-                              const String16& hint, int* lineNumber,
-                              int* columnNumber) {
+                              const protocol::DictionaryValue* hintObject,
+                              int* lineNumber, int* columnNumber) {
   if (*lineNumber < script.startLine() || *lineNumber > script.endLine())
     return;
   if (*lineNumber == script.startLine() &&
@@ -206,15 +236,41 @@ void adjustBreakpointLocation(const V8DebuggerScript& script,
     return;
   }
 
-  if (hint.isEmpty()) return;
   int sourceOffset;
   if (!script.offset(*lineNumber, *columnNumber).To(&sourceOffset)) return;
+
+  int prefixLength = 0;
+  hintObject->getInteger(DebuggerAgentState::breakpointHintPrefixLength,
+                         &prefixLength);
+  String16 hint;
+  if (!hintObject->getString(DebuggerAgentState::breakpointHintText, &hint) ||
+      hint.isEmpty())
+    return;
 
   intptr_t searchRegionOffset = std::max(
       sourceOffset - kBreakpointHintMaxSearchOffset, static_cast<intptr_t>(0));
   size_t offset = sourceOffset - searchRegionOffset;
-  String16 searchArea = script.source(searchRegionOffset,
-                                      offset + kBreakpointHintMaxSearchOffset);
+  size_t searchRegionSize =
+      offset + std::max(kBreakpointHintMaxSearchOffset,
+                        static_cast<intptr_t>(prefixLength + hint.length()));
+
+  String16 searchArea = script.source(searchRegionOffset, searchRegionSize);
+
+  // Let us see if the breakpoint hint text appears at the same location
+  // as before, with the same prefix text in between. If yes, then we just use
+  // that position.
+  int prefixHash;
+  if (hintObject->getInteger(DebuggerAgentState::breakpointHintPrefixHash,
+                             &prefixHash) &&
+      offset + prefixLength + hint.length() <= searchArea.length() &&
+      searchArea.substring(offset + prefixLength, hint.length()) == hint &&
+      computeCrc32(searchArea.substring(offset, prefixLength)) == prefixHash) {
+    v8::debug::Location hintPosition = script.location(
+        static_cast<int>(searchRegionOffset + offset + prefixLength));
+    *lineNumber = hintPosition.GetLineNumber();
+    *columnNumber = hintPosition.GetColumnNumber();
+    return;
+  }
 
   size_t nextMatch = searchArea.find(hint, offset);
   size_t prevMatch = searchArea.reverseFind(hint, offset);
@@ -222,7 +278,8 @@ void adjustBreakpointLocation(const V8DebuggerScript& script,
     return;
   }
   size_t bestMatch;
-  if (nextMatch == String16::kNotFound) {
+  if (nextMatch == String16::kNotFound ||
+      nextMatch > offset + kBreakpointHintMaxSearchOffset) {
     bestMatch = prevMatch;
   } else if (prevMatch == String16::kNotFound) {
     bestMatch = nextMatch;
@@ -371,7 +428,7 @@ V8DebuggerAgentImpl::V8DebuggerAgentImpl(
     : m_inspector(session->inspector()),
       m_debugger(m_inspector->debugger()),
       m_session(session),
-      m_enabled(false),
+      m_enableState(kDisabled),
       m_state(state),
       m_frontend(frontendChannel),
       m_isolate(m_inspector->isolate()) {}
@@ -379,7 +436,7 @@ V8DebuggerAgentImpl::V8DebuggerAgentImpl(
 V8DebuggerAgentImpl::~V8DebuggerAgentImpl() = default;
 
 void V8DebuggerAgentImpl::enableImpl() {
-  m_enabled = true;
+  m_enableState = kEnabled;
   m_state->setBoolean(DebuggerAgentState::debuggerEnabled, true);
   m_debugger->enable();
 
@@ -401,6 +458,8 @@ void V8DebuggerAgentImpl::enableImpl() {
 
 Response V8DebuggerAgentImpl::enable(Maybe<double> maxScriptsCacheSize,
                                      String16* outDebuggerId) {
+  if (m_enableState == kStopping)
+    return Response::ServerError("Debugger is stopping");
   m_maxScriptCacheSize = v8::base::saturated_cast<size_t>(
       maxScriptsCacheSize.fromMaybe(std::numeric_limits<double>::max()));
   *outDebuggerId =
@@ -449,14 +508,15 @@ Response V8DebuggerAgentImpl::disable() {
   m_skipAllPauses = false;
   m_state->setBoolean(DebuggerAgentState::skipAllPauses, false);
   m_state->remove(DebuggerAgentState::blackboxPattern);
-  m_enabled = false;
+  m_enableState = kDisabled;
+  m_instrumentationFinished = true;
   m_state->setBoolean(DebuggerAgentState::debuggerEnabled, false);
   m_debugger->disable();
   return Response::Success();
 }
 
 void V8DebuggerAgentImpl::restore() {
-  DCHECK(!m_enabled);
+  DCHECK(m_enableState == kDisabled);
   if (!m_state->booleanProperty(DebuggerAgentState::debuggerEnabled, false))
     return;
   if (!m_inspector->client()->canExecuteScripts(m_session->contextGroupId()))
@@ -585,26 +645,30 @@ Response V8DebuggerAgentImpl::setBreakpointByUrl(
         "Breakpoint at specified location already exists.");
   }
 
-  String16 hint;
+  std::unique_ptr<protocol::DictionaryValue> hint;
   for (const auto& script : m_scripts) {
     if (!matches(m_inspector, *script.second, type, selector)) continue;
-    if (!hint.isEmpty()) {
-      adjustBreakpointLocation(*script.second, hint, &lineNumber,
-                               &columnNumber);
+    int adjustedLineNumber = lineNumber;
+    int adjustedColumnNumber = columnNumber;
+    if (hint) {
+      adjustBreakpointLocation(*script.second, hint.get(), &adjustedLineNumber,
+                               &adjustedColumnNumber);
     }
-    std::unique_ptr<protocol::Debugger::Location> location = setBreakpointImpl(
-        breakpointId, script.first, condition, lineNumber, columnNumber);
+    std::unique_ptr<protocol::Debugger::Location> location =
+        setBreakpointImpl(breakpointId, script.first, condition,
+                          adjustedLineNumber, adjustedColumnNumber);
     if (location && type != BreakpointType::kByUrlRegex) {
-      hint = breakpointHint(*script.second, location->getLineNumber(),
-                            location->getColumnNumber(columnNumber));
+      hint = breakpointHint(*script.second, lineNumber, columnNumber,
+                            location->getLineNumber(),
+                            location->getColumnNumber(adjustedColumnNumber));
     }
     if (location) (*locations)->emplace_back(std::move(location));
   }
   breakpoints->setString(breakpointId, condition);
-  if (!hint.isEmpty()) {
+  if (hint) {
     protocol::DictionaryValue* breakpointHints =
         getOrCreateObject(m_state, DebuggerAgentState::breakpointHints);
-    breakpointHints->setString(breakpointId, hint);
+    breakpointHints->setObject(breakpointId, std::move(hint));
   }
   *outBreakpointId = breakpointId;
   return Response::Success();
@@ -1350,6 +1414,8 @@ Response V8DebuggerAgentImpl::pause() {
 Response V8DebuggerAgentImpl::resume(Maybe<bool> terminateOnResume) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
+
+  m_instrumentationFinished = true;
   m_debugger->continueProgram(m_session->contextGroupId(),
                               terminateOnResume.fromMaybe(false));
   return Response::Success();
@@ -1887,10 +1953,9 @@ void V8DebuggerAgentImpl::didParseSource(
       if (!matches(m_inspector, *scriptRef, type, selector)) continue;
       String16 condition;
       breakpointWithCondition.second->asString(&condition);
-      String16 hint;
-      bool hasHint =
-          breakpointHints && breakpointHints->getString(breakpointId, &hint);
-      if (hasHint) {
+      protocol::DictionaryValue* hint =
+          breakpointHints ? breakpointHints->getObject(breakpointId) : nullptr;
+      if (hint) {
         adjustBreakpointLocation(*scriptRef, hint, &lineNumber, &columnNumber);
       }
       std::unique_ptr<protocol::Debugger::Location> location =
@@ -1935,18 +2000,15 @@ void V8DebuggerAgentImpl::didPauseOnInstrumentation(
   String16 breakReason = protocol::Debugger::Paused::ReasonEnum::Other;
   std::unique_ptr<protocol::DictionaryValue> breakAuxData;
 
-  std::unique_ptr<Array<CallFrame>> protocolCallFrames;
-  Response response = currentCallFrames(&protocolCallFrames);
-  if (!response.IsSuccess())
-    protocolCallFrames = std::make_unique<Array<CallFrame>>();
-
   if (m_debuggerBreakpointIdToBreakpointId.find(instrumentationId) !=
       m_debuggerBreakpointIdToBreakpointId.end()) {
-    DCHECK_GT(protocolCallFrames->size(), 0);
-    if (protocolCallFrames->size() > 0) {
+    std::unique_ptr<V8StackTraceImpl> stack =
+        V8StackTraceImpl::capture(m_inspector->debugger(), 1);
+    DCHECK(stack && !stack->isEmpty());
+    if (stack && !stack->isEmpty()) {
+      m_instrumentationFinished = false;
       breakReason = protocol::Debugger::Paused::ReasonEnum::Instrumentation;
-      const String16 scriptId =
-          protocolCallFrames->at(0)->getLocation()->getScriptId();
+      const String16 scriptId = String16::fromInteger(stack->topScriptId());
       DCHECK_NE(m_scripts.find(scriptId), m_scripts.end());
       const auto& script = m_scripts[scriptId];
 
@@ -1959,6 +2021,8 @@ void V8DebuggerAgentImpl::didPauseOnInstrumentation(
     }
   }
 
+  std::unique_ptr<Array<CallFrame>> protocolCallFrames =
+      std::make_unique<Array<CallFrame>>();
   m_frontend.paused(std::move(protocolCallFrames), breakReason,
                     std::move(breakAuxData),
                     std::make_unique<Array<String16>>(),
@@ -2196,5 +2260,10 @@ Response V8DebuggerAgentImpl::processSkipList(
 
   m_skipList = std::move(skipListInit);
   return Response::Success();
+}
+
+void V8DebuggerAgentImpl::stop() {
+  disable();
+  m_enableState = kStopping;
 }
 }  // namespace v8_inspector

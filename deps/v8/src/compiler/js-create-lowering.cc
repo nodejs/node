@@ -1720,7 +1720,8 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     if ((*max_properties)-- == 0) return {};
 
     NameRef property_name = boilerplate_map.GetPropertyKey(i);
-    FieldIndex index = boilerplate_map.GetFieldIndexFor(i);
+    FieldIndex index =
+        FieldIndex::ForDetails(*boilerplate_map.object(), property_details);
     ConstFieldInfo const_field_info(boilerplate_map.object());
     FieldAccess access = {kTaggedBase,
                           index.offset(),

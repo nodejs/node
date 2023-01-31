@@ -11,19 +11,19 @@
 namespace v8 {
 namespace internal {
 
-class Code;
+class InstructionStream;
 
 // Associates a body of code with an interface descriptor.
 class Callable final {
  public:
-  Callable(Handle<CodeT> code, CallInterfaceDescriptor descriptor)
+  Callable(Handle<Code> code, CallInterfaceDescriptor descriptor)
       : code_(code), descriptor_(descriptor) {}
 
-  Handle<CodeT> code() const { return code_; }
+  Handle<Code> code() const { return code_; }
   CallInterfaceDescriptor descriptor() const { return descriptor_; }
 
  private:
-  const Handle<CodeT> code_;
+  const Handle<Code> code_;
   const CallInterfaceDescriptor descriptor_;
 };
 

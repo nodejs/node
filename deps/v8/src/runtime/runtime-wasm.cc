@@ -121,33 +121,33 @@ Object ThrowWasmError(Isolate* isolate, MessageTemplate message,
 // type; if the check succeeds, returns the object in its wasm representation;
 // otherwise throws a type error.
 RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
-  // This code is called from wrappers, so the "thread is wasm" flag is not set.
-  DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
-                 !trap_handler::IsThreadInWasm());
+  // TODO(manoskouk): Use {SaveAndClearThreadInWasmFlag} in runtime-internal.cc
+  // and runtime-strings.cc.
+  bool thread_in_wasm = trap_handler::IsThreadInWasm();
+  if (thread_in_wasm) trap_handler::ClearThreadInWasm();
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(2, args.length());
   // 'raw_instance' can be either a WasmInstanceObject or undefined.
-  Object raw_instance = args[0];
-  Handle<Object> value(args[1], isolate);
+  Handle<Object> value(args[0], isolate);
   // Make sure ValueType fits properly in a Smi.
   static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
-  int raw_type = args.smi_value_at(2);
+  int raw_type = args.smi_value_at(1);
 
-  const wasm::WasmModule* module =
-      raw_instance.IsWasmInstanceObject()
-          ? WasmInstanceObject::cast(raw_instance).module()
-          : nullptr;
-
-  wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type);
+  wasm::ValueType expected_canonical =
+      wasm::ValueType::FromRawBitField(raw_type);
   const char* error_message;
 
   Handle<Object> result;
-  bool success = internal::wasm::JSToWasmObject(isolate, module, value, type,
-                                                &error_message)
+  bool success = internal::wasm::JSToWasmObject(
+                     isolate, value, expected_canonical, &error_message)
                      .ToHandle(&result);
-  if (success) return *result;
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kWasmTrapJSTypeError));
+  Object ret = success ? *result
+                       : isolate->Throw(*isolate->factory()->NewTypeError(
+                             MessageTemplate::kWasmTrapJSTypeError));
+  if (thread_in_wasm && !isolate->has_pending_exception()) {
+    trap_handler::SetThreadInWasm();
+  }
+  return ret;
 }
 
 RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
@@ -288,7 +288,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
 
 namespace {
 void ReplaceWrapper(Isolate* isolate, Handle<WasmInstanceObject> instance,
-                    int function_index, Handle<CodeT> wrapper_code) {
+                    int function_index, Handle<Code> wrapper_code) {
   Handle<WasmInternalFunction> internal =
       WasmInstanceObject::GetWasmInternalFunction(isolate, instance,
                                                   function_index)
@@ -330,7 +330,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  Handle<CodeT> wrapper_code =
+  Handle<Code> wrapper_code =
       wasm::JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
           isolate, sig, canonical_sig_index, module);
 
@@ -361,7 +361,12 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
 
   // We're reusing this interrupt mechanism to interrupt long-running loops.
   StackLimitCheck check(isolate);
-  DCHECK(!check.JsHasOverflowed());
+  // We don't need to handle stack overflows here, because the function that
+  // performed this runtime call did its own stack check at its beginning.
+  // However, we can't DCHECK(!check.JsHasOverflowed()) here, because the
+  // additional stack space used by the CEntryStub and this runtime function
+  // itself might have pushed us above the limit where a stack check would
+  // fail.
   if (check.InterruptRequested()) {
     Object result = isolate->stack_guard()->HandleInterrupts();
     if (result.IsException()) return result;
@@ -828,6 +833,7 @@ void SyncStackLimit(Isolate* isolate) {
   }
   uintptr_t limit = reinterpret_cast<uintptr_t>(stack->jmpbuf()->stack_limit);
   isolate->stack_guard()->SetStackLimit(limit);
+  isolate->RecordStackSwitchForScanning();
 }
 }  // namespace
 
@@ -940,8 +946,16 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
 
   const base::Vector<const uint8_t> bytes{instance.memory_start() + offset,
                                           size};
-  RETURN_RESULT_OR_TRAP(
-      isolate->factory()->NewStringFromUtf8(bytes, utf8_variant));
+  MaybeHandle<v8::internal::String> result_string =
+      isolate->factory()->NewStringFromUtf8(bytes, utf8_variant);
+  if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
+    DCHECK(!isolate->has_pending_exception());
+    if (result_string.is_null()) {
+      return *isolate->factory()->null_value();
+    }
+    return *result_string.ToHandleChecked();
+  }
+  RETURN_RESULT_OR_TRAP(result_string);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
@@ -957,8 +971,16 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
          static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
   auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
 
-  RETURN_RESULT_OR_TRAP(
-      isolate->factory()->NewStringFromUtf8(array, start, end, utf8_variant));
+  MaybeHandle<v8::internal::String> result_string =
+      isolate->factory()->NewStringFromUtf8(array, start, end, utf8_variant);
+  if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
+    DCHECK(!isolate->has_pending_exception());
+    if (result_string.is_null()) {
+      return *isolate->factory()->null_value();
+    }
+    return *result_string.ToHandleChecked();
+  }
+  RETURN_RESULT_OR_TRAP(result_string);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
@@ -1338,6 +1360,25 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Slice) {
               ->NewStringFromUtf8(array, start, end,
                                   unibrow::Utf8Variant::kWtf8)
               .ToHandleChecked();
+}
+
+RUNTIME_FUNCTION(Runtime_WasmStringCompare) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+  Handle<String> lhs(String::cast(args[0]), isolate);
+  Handle<String> rhs(String::cast(args[1]), isolate);
+  ComparisonResult result = String::Compare(isolate, lhs, rhs);
+  switch (result) {
+    case ComparisonResult::kEqual:
+      return Smi::FromInt(0);
+    case ComparisonResult::kGreaterThan:
+      return Smi::FromInt(1);
+    case ComparisonResult::kLessThan:
+      return Smi::FromInt(-1);
+    case ComparisonResult::kUndefined:
+      UNREACHABLE();
+  }
 }
 
 }  // namespace internal

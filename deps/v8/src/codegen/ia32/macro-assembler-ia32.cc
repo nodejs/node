@@ -706,11 +706,9 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
   CompareRange(instance_type_out, lower_limit, higher_limit, scratch);
 }
 
-void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
-                                                        Register scratch) {
-  mov(scratch, FieldOperand(codet, Code::kCodeDataContainerOffset));
-  test(FieldOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset),
-       Immediate(1 << Code::kMarkedForDeoptimizationBit));
+void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code) {
+  test(FieldOperand(code, Code::kKindSpecificFlagsOffset),
+       Immediate(1 << InstructionStream::kMarkedForDeoptimizationBit));
 }
 
 Immediate MacroAssembler::ClearedValue() const {
@@ -742,7 +740,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
   // Check if the optimized code is marked for deopt. If it is, bailout to a
   // given label.
-  __ TestCodeTIsMarkedForDeoptimization(optimized_code_entry, eax);
+  __ TestCodeIsMarkedForDeoptimization(optimized_code_entry);
   __ j(not_zero, &heal_optimized_code_slot);
 
   // Optimized code is good, get it into the closure and link the closure
@@ -752,7 +750,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                          ecx);
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
   __ Pop(optimized_code_entry);
-  __ LoadCodeObjectEntry(ecx, optimized_code_entry);
+  __ LoadCodeEntry(ecx, optimized_code_entry);
   __ Pop(edx);
   __ Pop(eax);
   __ jmp(ecx);
@@ -1163,21 +1161,10 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type,
   mov(ExternalReferenceAsOperand(c_function_address, scratch), edx);
 }
 
-void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
+void MacroAssembler::EnterExitFrameEpilogue(int argc) {
   ASM_CODE_COMMENT(this);
-  // Optionally save all XMM registers.
-  if (save_doubles) {
-    int space =
-        XMMRegister::kNumRegisters * kDoubleSize + argc * kSystemPointerSize;
-    AllocateStackSpace(space);
-    const int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-      XMMRegister reg = XMMRegister::from_code(i);
-      movsd(Operand(ebp, offset - ((i + 1) * kDoubleSize)), reg);
-    }
-  } else {
-    AllocateStackSpace(argc * kSystemPointerSize);
-  }
+
+  AllocateStackSpace(argc * kSystemPointerSize);
 
   // Get the required frame alignment for the OS.
   const int kFrameAlignment = base::OS::ActivationFrameAlignment();
@@ -1190,8 +1177,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
   mov(Operand(ebp, ExitFrameConstants::kSPOffset), esp);
 }
 
-void MacroAssembler::EnterExitFrame(int argc, bool save_doubles,
-                                    StackFrame::Type frame_type) {
+void MacroAssembler::EnterExitFrame(int argc, StackFrame::Type frame_type) {
   ASM_CODE_COMMENT(this);
   EnterExitFramePrologue(frame_type, edi);
 
@@ -1201,25 +1187,16 @@ void MacroAssembler::EnterExitFrame(int argc, bool save_doubles,
   lea(esi, Operand(ebp, eax, times_system_pointer_size, offset));
 
   // Reserve space for argc, argv and isolate.
-  EnterExitFrameEpilogue(argc, save_doubles);
+  EnterExitFrameEpilogue(argc);
 }
 
 void MacroAssembler::EnterApiExitFrame(int argc, Register scratch) {
   EnterExitFramePrologue(StackFrame::EXIT, scratch);
-  EnterExitFrameEpilogue(argc, false);
+  EnterExitFrameEpilogue(argc);
 }
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
+void MacroAssembler::LeaveExitFrame(bool pop_arguments) {
   ASM_CODE_COMMENT(this);
-  // Optionally restore all XMM registers.
-  if (save_doubles) {
-    const int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-      XMMRegister reg = XMMRegister::from_code(i);
-      movsd(reg, Operand(ebp, offset - ((i + 1) * kDoubleSize)));
-    }
-  }
-
   if (pop_arguments) {
     // Get the return address from the stack and restore the frame pointer.
     mov(ecx, Operand(ebp, 1 * kSystemPointerSize));
@@ -1291,8 +1268,8 @@ void MacroAssembler::PopStackHandler(Register scratch) {
   add(esp, Immediate(StackHandlerConstants::kSize - kSystemPointerSize));
 }
 
-void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
-                                 SaveFPRegsMode save_doubles) {
+void MacroAssembler::CallRuntime(const Runtime::Function* f,
+                                 int num_arguments) {
   ASM_CODE_COMMENT(this);
   // If the expected number of arguments of the runtime function is
   // constant, we check that the actual number of arguments match the
@@ -1305,8 +1282,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
   // smarter.
   Move(kRuntimeCallArgCountRegister, Immediate(num_arguments));
   Move(kRuntimeCallFunctionRegister, Immediate(ExternalReference::Create(f)));
-  Handle<Code> code =
-      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), f->result_size);
   Call(code, RelocInfo::CODE_TARGET);
 }
 
@@ -1338,8 +1314,8 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
   ASM_CODE_COMMENT(this);
   // Set the entry point and jump to the C entry runtime stub.
   Move(kRuntimeCallFunctionRegister, Immediate(ext));
-  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
-                                          ArgvMode::kStack, builtin_exit_frame);
+  Handle<Code> code =
+      CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }
 
@@ -2036,7 +2012,7 @@ void TurboAssembler::CallBuiltin(Builtin builtin) {
       call(EntryFromBuiltinAsOperand(builtin));
       break;
     case BuiltinCallJumpMode::kForMksnapshot: {
-      Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+      Handle<Code> code = isolate()->builtins()->code_handle(builtin);
       call(code, RelocInfo::CODE_TARGET);
       break;
     }
@@ -2057,7 +2033,7 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin) {
       jmp(EntryFromBuiltinAsOperand(builtin));
       break;
     case BuiltinCallJumpMode::kForMksnapshot: {
-      Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+      Handle<Code> code = isolate()->builtins()->code_handle(builtin);
       jmp(code, RelocInfo::CODE_TARGET);
       break;
     }
@@ -2069,59 +2045,26 @@ Operand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
   return Operand(kRootRegister, IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
-void TurboAssembler::LoadCodeObjectEntry(Register destination,
-                                         Register code_object) {
+void TurboAssembler::LoadCodeEntry(Register destination, Register code_object) {
   ASM_CODE_COMMENT(this);
-  // Code objects are called differently depending on whether we are generating
-  // builtin code (which will later be embedded into the binary) or compiling
-  // user JS code at runtime.
-  // * Builtin code runs in --jitless mode and thus must not call into on-heap
-  //   Code targets. Instead, we dispatch through the builtins entry table.
-  // * Codegen at runtime does not have this restriction and we can use the
-  //   shorter, branchless instruction sequence. The assumption here is that
-  //   targets are usually generated code and not builtin Code objects.
+  mov(destination, FieldOperand(code_object, Code::kCodeEntryPointOffset));
+}
 
-  if (options().isolate_independent_code) {
-    DCHECK(root_array_available());
-    Label if_code_is_off_heap, out;
-
-    // Check whether the Code object is an off-heap trampoline. If so, call its
-    // (off-heap) entry point directly without going through the (on-heap)
-    // trampoline.  Otherwise, just call the Code object as always.
-    test(FieldOperand(code_object, Code::kFlagsOffset),
-         Immediate(Code::IsOffHeapTrampoline::kMask));
-    j(not_equal, &if_code_is_off_heap);
-
-    // Not an off-heap trampoline, the entry point is at
-    // Code::raw_instruction_start().
-    Move(destination, code_object);
-    add(destination, Immediate(Code::kHeaderSize - kHeapObjectTag));
-    jmp(&out);
-
-    // An off-heap trampoline, the entry point is loaded from the builtin entry
-    // table.
-    bind(&if_code_is_off_heap);
-    mov(destination, FieldOperand(code_object, Code::kBuiltinIndexOffset));
-    mov(destination,
-        Operand(kRootRegister, destination, times_system_pointer_size,
-                IsolateData::builtin_entry_table_offset()));
-
-    bind(&out);
-  } else {
-    Move(destination, code_object);
-    add(destination, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  }
+void TurboAssembler::LoadCodeInstructionStreamNonBuiltin(Register destination,
+                                                         Register code_object) {
+  ASM_CODE_COMMENT(this);
+  // Compute the InstructionStream object pointer from the code entry point.
+  mov(destination, FieldOperand(code_object, Code::kCodeEntryPointOffset));
+  sub(destination, Immediate(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 
 void TurboAssembler::CallCodeObject(Register code_object) {
-  ASM_CODE_COMMENT(this);
-  LoadCodeObjectEntry(code_object, code_object);
+  LoadCodeEntry(code_object, code_object);
   call(code_object);
 }
 
 void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
-  ASM_CODE_COMMENT(this);
-  LoadCodeObjectEntry(code_object, code_object);
+  LoadCodeEntry(code_object, code_object);
   switch (jump_mode) {
     case JumpMode::kJump:
       jmp(code_object);

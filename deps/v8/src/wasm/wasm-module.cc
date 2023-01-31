@@ -14,6 +14,7 @@
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-init-expr.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module-builder.h"  // For {ZoneBuffer}.
@@ -47,11 +48,11 @@ template void NameMap::FinishInitialization();
 template void IndirectNameMap::FinishInitialization();
 
 WireBytesRef LazilyGeneratedNames::LookupFunctionName(
-    const ModuleWireBytes& wire_bytes, uint32_t function_index) {
+    ModuleWireBytes wire_bytes, uint32_t function_index) {
   base::MutexGuard lock(&mutex_);
   if (!has_functions_) {
     has_functions_ = true;
-    DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(), function_names_);
+    DecodeFunctionNames(wire_bytes.module_bytes(), function_names_);
   }
   const WireBytesRef* result = function_names_.Get(function_index);
   if (!result) return WireBytesRef();
@@ -194,14 +195,14 @@ WasmName ModuleWireBytes::GetNameOrNull(WireBytesRef ref) const {
 }
 
 // Get a string stored in the module bytes representing a function name.
-WasmName ModuleWireBytes::GetNameOrNull(const WasmFunction* function,
+WasmName ModuleWireBytes::GetNameOrNull(int func_index,
                                         const WasmModule* module) const {
-  return GetNameOrNull(module->lazily_generated_names.LookupFunctionName(
-      *this, function->func_index));
+  return GetNameOrNull(
+      module->lazily_generated_names.LookupFunctionName(*this, func_index));
 }
 
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
-  os << "#" << name.function_->func_index;
+  os << "#" << name.func_index_;
   if (!name.name_.empty()) {
     if (name.name_.begin()) {
       os << ":";
@@ -213,8 +214,9 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
   return os;
 }
 
-WasmModule::WasmModule(std::unique_ptr<Zone> signature_zone)
-    : signature_zone(std::move(signature_zone)) {}
+WasmModule::WasmModule(ModuleOrigin origin)
+    : signature_zone(GetWasmEngine()->allocator(), "signature zone"),
+      origin(origin) {}
 
 bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
   // TODO(wasm): Once wasm has its own CSP policy, we should introduce a
@@ -555,7 +557,7 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
   base::Vector<const uint8_t> wire_bytes =
       module_object->native_module()->wire_bytes();
   std::vector<CustomSectionOffset> custom_sections =
-      DecodeCustomSections(wire_bytes.begin(), wire_bytes.end());
+      DecodeCustomSections(wire_bytes);
 
   std::vector<Handle<Object>> matching_sections;
 
@@ -624,9 +626,7 @@ inline size_t VectorSize(const std::vector<T>& vector) {
 
 size_t EstimateStoredSize(const WasmModule* module) {
   return sizeof(WasmModule) + VectorSize(module->globals) +
-         (module->signature_zone ? module->signature_zone->allocation_size()
-                                 : 0) +
-         VectorSize(module->types) +
+         module->signature_zone.allocation_size() + VectorSize(module->types) +
          VectorSize(module->isorecursive_canonical_type_ids) +
          VectorSize(module->functions) + VectorSize(module->data_segments) +
          VectorSize(module->tables) + VectorSize(module->import_table) +

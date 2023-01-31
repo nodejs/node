@@ -85,7 +85,7 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
                                             &is_compiled_scope);
   {
     DisallowGarbageCollection no_gc;
-    CodeT baseline_code = sfi->baseline_code(kAcquireLoad);
+    Code baseline_code = sfi->baseline_code(kAcquireLoad);
     function->set_code(baseline_code);
     if V8_LIKELY (!v8_flags.log_function_events) return baseline_code;
   }
@@ -126,7 +126,8 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   }
 
   // As a pre- and post-condition of CompileOptimized, the function *must* be
-  // compiled, i.e. the installed Code object must not be CompileLazy.
+  // compiled, i.e. the installed InstructionStream object must not be
+  // CompileLazy.
   IsCompiledScope is_compiled_scope(function->shared(), isolate);
   DCHECK(is_compiled_scope.is_compiled());
 
@@ -250,8 +251,8 @@ bool DeoptExitIsInsideOsrLoop(Isolate* isolate, JSFunction function,
 
 bool TryGetOptimizedOsrCode(Isolate* isolate, FeedbackVector vector,
                             const interpreter::BytecodeArrayIterator& it,
-                            CodeT* code_out) {
-  base::Optional<CodeT> maybe_code =
+                            Code* code_out) {
+  base::Optional<Code> maybe_code =
       vector.GetOptimizedOsrCode(isolate, it.GetSlotOperand(2));
   if (maybe_code.has_value()) {
     *code_out = maybe_code.value();
@@ -289,8 +290,8 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate, JSFunction function,
                                         deopt_exit_offset.ToInt());
 
   FeedbackVector vector = function.feedback_vector();
-  CodeT code;
-  base::SmallVector<CodeT, 8> osr_codes;
+  Code code;
+  base::SmallVector<Code, 8> osr_codes;
   // Visit before the first loop-with-deopt is found
   for (; !it.done(); it.Advance()) {
     // We're only interested in loop ranges.
@@ -368,7 +369,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   Handle<JSFunction> function = deoptimizer->function();
   // For OSR the optimized code isn't installed on the function, so get the
   // code object from deoptimizer.
-  Handle<Code> optimized_code = deoptimizer->compiled_code();
+  Handle<InstructionStream> optimized_code = deoptimizer->compiled_code();
   const DeoptimizeKind deopt_kind = deoptimizer->deopt_kind();
   const DeoptimizeReason deopt_reason =
       deoptimizer->GetDeoptInfo().deopt_reason;
@@ -395,8 +396,8 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  // Some eager deopts also don't invalidate Code (e.g. when preparing for OSR
-  // from Maglev to Turbofan).
+  // Some eager deopts also don't invalidate InstructionStream (e.g. when
+  // preparing for OSR from Maglev to Turbofan).
   if (IsDeoptimizationWithoutCodeInvalidation(deopt_reason)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -414,11 +415,11 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // the loop should pay for the deoptimization costs.
   const BytecodeOffset osr_offset = optimized_code->osr_offset();
   if (osr_offset.IsNone()) {
-    Deoptimizer::DeoptimizeFunction(*function, ToCodeT(*optimized_code));
+    Deoptimizer::DeoptimizeFunction(*function, ToCode(*optimized_code));
     DeoptAllOsrLoopsContainingDeoptExit(isolate, *function, deopt_exit_offset);
   } else if (DeoptExitIsInsideOsrLoop(isolate, *function, deopt_exit_offset,
                                       osr_offset)) {
-    Deoptimizer::DeoptimizeFunction(*function, ToCodeT(*optimized_code));
+    Deoptimizer::DeoptimizeFunction(*function, ToCode(*optimized_code));
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -441,6 +442,14 @@ RUNTIME_FUNCTION(Runtime_VerifyType) {
   return *obj;
 }
 
+RUNTIME_FUNCTION(Runtime_CheckTurboshaftTypeOf) {
+  // %CheckTurboshaftTypeOf has no effect in the interpreter.
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<Object> obj = args.at(0);
+  return *obj;
+}
+
 namespace {
 
 void GetOsrOffsetAndFunctionForOSR(Isolate* isolate, BytecodeOffset* osr_offset,
@@ -452,9 +461,9 @@ void GetOsrOffsetAndFunctionForOSR(Isolate* isolate, BytecodeOffset* osr_offset,
   JavaScriptFrameIterator it(isolate);
   UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
   DCHECK_IMPLIES(frame->is_interpreted(),
-                 frame->LookupCodeT().is_interpreter_trampoline_builtin());
+                 frame->LookupCode().is_interpreter_trampoline_builtin());
   DCHECK_IMPLIES(frame->is_baseline(),
-                 frame->LookupCodeT().kind() == CodeKind::BASELINE);
+                 frame->LookupCode().kind() == CodeKind::BASELINE);
 
   *osr_offset = BytecodeOffset(frame->GetBytecodeOffset());
   *function = handle(frame->function(), isolate);
@@ -471,7 +480,7 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
           ? ConcurrencyMode::kConcurrent
           : ConcurrencyMode::kSynchronous;
 
-  Handle<CodeT> result;
+  Handle<Code> result;
   if (!Compiler::CompileOptimizedOSR(isolate, function, osr_offset, mode)
            .ToHandle(&result)) {
     // An empty result can mean one of two things:
@@ -537,8 +546,29 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglev) {
 
   JavaScriptFrameIterator it(isolate);
   MaglevFrame* frame = MaglevFrame::cast(it.frame());
-  DCHECK_EQ(frame->LookupCodeT().kind(), CodeKind::MAGLEV);
+  DCHECK_EQ(frame->LookupCode().kind(), CodeKind::MAGLEV);
   Handle<JSFunction> function = handle(frame->function(), isolate);
+
+  // This path is only relevant for tests (all production configurations enable
+  // concurrent OSR). It's quite subtle, if interested read on:
+  if (V8_UNLIKELY(!isolate->concurrent_recompilation_enabled() ||
+                  !v8_flags.concurrent_osr)) {
+    // - Synchronous Turbofan compilation may trigger lazy deoptimization (e.g.
+    //   through compilation dependency finalization actions).
+    // - Maglev (currently) disallows marking an opcode as both can_lazy_deopt
+    //   and can_eager_deopt.
+    // - Maglev's JumpLoop opcode (the logical caller of this runtime function)
+    //   is marked as can_eager_deopt since OSR'ing to Turbofan involves
+    //   deoptimizing to Ignition under the hood.
+    // - Thus this runtime function *must not* trigger a lazy deopt, and
+    //   therefore cannot trigger synchronous Turbofan compilation (see above).
+    //
+    // We solve this synchronous OSR case by bailing out early to Ignition, and
+    // letting it handle OSR. How do we trigger the early bailout? Returning
+    // any non-null InstructionStream from this function triggers the deopt in
+    // JumpLoop.
+    return function->code();
+  }
 
   return CompileOptimizedOSR(isolate, function, osr_offset);
 }

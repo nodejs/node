@@ -229,7 +229,8 @@ class V8_EXPORT Visitor {
   }
 
   /**
-   * Trace method for retaining containers weakly.
+   * Trace method for retaining containers weakly. Note that weak containers
+   * should emit write barriers.
    *
    * \param object reference to the container.
    * \param callback to be invoked.

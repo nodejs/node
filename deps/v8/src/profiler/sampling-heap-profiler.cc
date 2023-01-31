@@ -81,7 +81,12 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
   HeapObject heap_object = HeapObject::FromAddress(soon_object);
   Handle<Object> obj(heap_object, isolate_);
 
-  Local<v8::Value> loc = v8::Utils::ToLocal(obj);
+  // Since soon_object can be in code space we can't use v8::Utils::ToLocal.
+  DCHECK(obj.is_null() ||
+         (obj->IsSmi() ||
+          (V8_EXTERNAL_CODE_SPACE_BOOL && IsCodeSpaceObject(heap_object)) ||
+          !obj->IsTheHole()));
+  Local<v8::Value> loc(reinterpret_cast<v8::Value*>(obj.location()));
 
   AllocationNode* node = AddStack();
   node->allocations_[size]++;

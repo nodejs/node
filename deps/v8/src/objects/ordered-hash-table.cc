@@ -52,7 +52,7 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::AllocateEmpty(
   // This is only supposed to be used to create the canonical empty versions
   // of each ordered structure, and should not be used afterwards.
   // Requires that the map has already been set up in the roots table.
-  DCHECK(ReadOnlyRoots(isolate).at(root_index) == kNullAddress);
+  DCHECK(!ReadOnlyRoots(isolate).is_initialized(root_index));
 
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArrayWithMap(
       Derived::GetMap(ReadOnlyRoots(isolate)), HashTableStartIndex(),

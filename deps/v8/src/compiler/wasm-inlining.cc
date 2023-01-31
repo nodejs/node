@@ -113,6 +113,9 @@ Reduction WasmInliner::ReduceCall(Node* call) {
 }
 
 bool SmallEnoughToInline(size_t current_graph_size, uint32_t candidate_size) {
+  if (candidate_size > v8_flags.wasm_inlining_max_size) {
+    return false;
+  }
   if (WasmInliner::graph_size_allows_inlining(current_graph_size +
                                               candidate_size)) {
     return true;
@@ -152,20 +155,16 @@ void WasmInliner::Finalize() {
     const wasm::WasmFunction* inlinee =
         &module()->functions[candidate.inlinee_index];
 
-    const wasm::FunctionSig* lowered_sig =
-        mcgraph_->machine()->Is64() ? inlinee->sig
-                                    : GetI32Sig(zone(), inlinee->sig);
-
-    DCHECK_EQ(lowered_sig->parameter_count(),
+    DCHECK_EQ(inlinee->sig->parameter_count(),
               call->op()->ValueInputCount() - 2);
 #if DEBUG
     // The two first parameters in the call are the function and instance, and
     // then come the wasm function parameters.
-    for (uint32_t i = 0; i < lowered_sig->parameter_count(); i++) {
+    for (uint32_t i = 0; i < inlinee->sig->parameter_count(); i++) {
       if (!NodeProperties::IsTyped(call->InputAt(i + 2))) continue;
       wasm::TypeInModule param_type =
           NodeProperties::GetType(call->InputAt(i + 2)).AsWasm();
-      CHECK(IsSubtypeOf(param_type.type, lowered_sig->GetParam(i),
+      CHECK(IsSubtypeOf(param_type.type, inlinee->sig->GetParam(i),
                         param_type.module, module()));
     }
 #endif
@@ -173,22 +172,16 @@ void WasmInliner::Finalize() {
     base::Vector<const byte> function_bytes =
         wire_bytes_->GetCode(inlinee->code);
 
-    wasm::WasmFeatures detected;
-    std::vector<WasmLoopInfo> inlinee_loop_infos;
-
-    size_t subgraph_min_node_id = graph()->NodeCount();
-    Node* inlinee_start;
-    Node* inlinee_end;
     const wasm::FunctionBody inlinee_body{inlinee->sig, inlinee->code.offset(),
                                           function_bytes.begin(),
                                           function_bytes.end()};
 
     // If the inlinee was not validated before, do that now.
-    if (!module()->function_was_validated(candidate.inlinee_index)) {
+    if (V8_UNLIKELY(
+            !module()->function_was_validated(candidate.inlinee_index))) {
       wasm::WasmFeatures unused_detected_features;
-      if (ValidateFunctionBody(zone()->allocator(), env_->enabled_features,
-                               module(), &unused_detected_features,
-                               inlinee_body)
+      if (ValidateFunctionBody(env_->enabled_features, module(),
+                               &unused_detected_features, inlinee_body)
               .failed()) {
         Trace(candidate, "function is invalid");
         // At this point we cannot easily raise a compilation error any more.
@@ -200,19 +193,25 @@ void WasmInliner::Finalize() {
       module()->set_function_validated(candidate.inlinee_index);
     }
 
+    wasm::WasmFeatures detected;
+    std::vector<WasmLoopInfo> inlinee_loop_infos;
+    wasm::DanglingExceptions dangling_exceptions;
+
+    size_t subgraph_min_node_id = graph()->NodeCount();
+    Node* inlinee_start;
+    Node* inlinee_end;
     WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig,
                              source_positions_);
     {
       Graph::SubgraphScope scope(graph());
       wasm::DecodeResult result = wasm::BuildTFGraph(
           zone()->allocator(), env_->enabled_features, module(), &builder,
-          &detected, inlinee_body, &inlinee_loop_infos, node_origins_,
-          candidate.inlinee_index,
+          &detected, inlinee_body, &inlinee_loop_infos, &dangling_exceptions,
+          node_origins_, candidate.inlinee_index,
           NodeProperties::IsExceptionalCall(call)
               ? wasm::kInlinedHandledCall
               : wasm::kInlinedNonHandledCall);
       CHECK(result.ok());
-      builder.LowerInt64(WasmGraphBuilder::kCalledFromWasm);
       inlinee_start = graph()->start();
       inlinee_end = graph()->end();
     }
@@ -224,8 +223,8 @@ void WasmInliner::Finalize() {
     function_inlining_count_[candidate.inlinee_index]++;
 
     if (call->opcode() == IrOpcode::kCall) {
-      InlineCall(call, inlinee_start, inlinee_end, lowered_sig,
-                 subgraph_min_node_id);
+      InlineCall(call, inlinee_start, inlinee_end, inlinee->sig,
+                 subgraph_min_node_id, &dangling_exceptions);
     } else {
       InlineTailCall(call, inlinee_start, inlinee_end);
     }
@@ -291,62 +290,14 @@ void WasmInliner::InlineTailCall(Node* call, Node* callee_start,
   Revisit(graph()->end());
 }
 
-namespace {
-// graph-builder-interface generates a dangling exception handler for each
-// throwing call in the inlinee. This might be followed by a LoopExit node.
-Node* DanglingHandler(Node* call) {
-  Node* if_exception = nullptr;
-  for (Node* use : call->uses()) {
-    if (use->opcode() == IrOpcode::kIfException) {
-      if_exception = use;
-      break;
-    }
-  }
-  DCHECK_NOT_NULL(if_exception);
-
-  // If this handler is dangling, return it.
-  if (if_exception->UseCount() == 0) return if_exception;
-
-  for (Node* use : if_exception->uses()) {
-    // Otherwise, look for a LoopExit use of this handler.
-    if (use->opcode() == IrOpcode::kLoopExit) {
-      for (Node* loop_exit_use : use->uses()) {
-        if (loop_exit_use->opcode() != IrOpcode::kLoopExitEffect &&
-            loop_exit_use->opcode() != IrOpcode::kLoopExitValue) {
-          // This LoopExit has a use other than LoopExitEffect/Value, so it is
-          // not dangling.
-          return nullptr;
-        }
-      }
-      return use;
-    }
-  }
-
-  return nullptr;
-}
-}  // namespace
-
 void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
                              const wasm::FunctionSig* inlinee_sig,
-                             size_t subgraph_min_node_id) {
+                             size_t subgraph_min_node_id,
+                             wasm::DanglingExceptions* dangling_exceptions) {
   DCHECK_EQ(call->opcode(), IrOpcode::kCall);
 
-  // 0) Before doing anything, if {call} has an exception handler, collect all
-  // unhandled calls in the subgraph.
   Node* handler = nullptr;
-  std::vector<Node*> dangling_handlers;
-  if (NodeProperties::IsExceptionalCall(call, &handler)) {
-    AllNodes subgraph_nodes(zone(), callee_end, graph());
-    for (Node* node : subgraph_nodes.reachable) {
-      if (node->id() >= subgraph_min_node_id &&
-          !node->op()->HasProperty(Operator::kNoThrow)) {
-        Node* dangling_handler = DanglingHandler(node);
-        if (dangling_handler != nullptr) {
-          dangling_handlers.push_back(dangling_handler);
-        }
-      }
-    }
-  }
+  bool is_exceptional_call = NodeProperties::IsExceptionalCall(call, &handler);
 
   // 1) Rewire function entry.
   RewireFunctionEntry(call, callee_start);
@@ -378,6 +329,8 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
         return_inputs.push_back(graph()->NewNode(common()->Int32Constant(0)));
         if (return_arity == 1) {
           // Tail calls are untyped; we have to type the node here.
+          // TODO(manoskouk): Try to compute a more precise type from the callee
+          // node.
           NodeProperties::SetType(
               input, Type::Wasm({inlinee_sig->GetReturn(0), module()},
                                 graph()->zone()));
@@ -416,42 +369,28 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
   callee_end->Kill();
 
   // 3) Rewire unhandled calls to the handler.
-  int handler_count = static_cast<int>(dangling_handlers.size());
+  if (is_exceptional_call) {
+    int handler_count = static_cast<int>(dangling_exceptions->Size());
+    if (handler_count > 0) {
+      Node* control_output =
+          graph()->NewNode(common()->Merge(handler_count), handler_count,
+                           dangling_exceptions->controls.data());
+      std::vector<Node*>& effects(dangling_exceptions->effects);
+      std::vector<Node*>& values(dangling_exceptions->exception_values);
 
-  if (handler_count > 0) {
-    Node* control_output =
-        graph()->NewNode(common()->Merge(handler_count), handler_count,
-                         dangling_handlers.data());
-    std::vector<Node*> effects;
-    std::vector<Node*> values;
-    for (Node* control : dangling_handlers) {
-      if (control->opcode() == IrOpcode::kIfException) {
-        effects.push_back(control);
-        values.push_back(control);
-      } else {
-        DCHECK_EQ(control->opcode(), IrOpcode::kLoopExit);
-        Node* if_exception = control->InputAt(0);
-        DCHECK_EQ(if_exception->opcode(), IrOpcode::kIfException);
-        effects.push_back(graph()->NewNode(common()->LoopExitEffect(),
-                                           if_exception, control));
-        values.push_back(graph()->NewNode(
-            common()->LoopExitValue(MachineRepresentation::kTagged),
-            if_exception, control));
-      }
+      effects.push_back(control_output);
+      values.push_back(control_output);
+      Node* value_output = graph()->NewNode(
+          common()->Phi(MachineRepresentation::kTagged, handler_count),
+          handler_count + 1, values.data());
+      Node* effect_output = graph()->NewNode(common()->EffectPhi(handler_count),
+                                             handler_count + 1, effects.data());
+      ReplaceWithValue(handler, value_output, effect_output, control_output);
+    } else {
+      // Nothing in the inlined function can throw. Remove the handler.
+      ReplaceWithValue(handler, mcgraph()->Dead(), mcgraph()->Dead(),
+                       mcgraph()->Dead());
     }
-
-    effects.push_back(control_output);
-    values.push_back(control_output);
-    Node* value_output = graph()->NewNode(
-        common()->Phi(MachineRepresentation::kTagged, handler_count),
-        handler_count + 1, values.data());
-    Node* effect_output = graph()->NewNode(common()->EffectPhi(handler_count),
-                                           handler_count + 1, effects.data());
-    ReplaceWithValue(handler, value_output, effect_output, control_output);
-  } else if (handler != nullptr) {
-    // Nothing in the inlined function can throw. Remove the handler.
-    ReplaceWithValue(handler, mcgraph()->Dead(), mcgraph()->Dead(),
-                     mcgraph()->Dead());
   }
 
   if (return_nodes.size() > 0) {
@@ -506,6 +445,8 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
       ReplaceWithValue(call, mcgraph()->Dead(), effect_output, control_output);
     } else if (return_arity == 1) {
       // One return value. Just replace value uses of the call node with it.
+      // Note: This will automatically detect and replace the IfSuccess node
+      // correctly.
       ReplaceWithValue(call, values[0], effect_output, control_output);
     } else {
       // Multiple returns. We have to find the projections of the call node and
@@ -513,12 +454,8 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
       for (Edge use_edge : call->use_edges()) {
         if (NodeProperties::IsValueEdge(use_edge)) {
           Node* use = use_edge.from();
-          // Other nodes are unreachable leftovers from Int32Lowering.
-          if (use->opcode() == IrOpcode::kProjection) {
-            ReplaceWithValue(use, values[ProjectionIndexOf(use->op())]);
-          } else {
-            DCHECK(mcgraph()->machine()->Is32());
-          }
+          DCHECK_EQ(use->opcode(), IrOpcode::kProjection);
+          ReplaceWithValue(use, values[ProjectionIndexOf(use->op())]);
         }
       }
       // All value inputs are replaced by the above loop, so it is ok to use

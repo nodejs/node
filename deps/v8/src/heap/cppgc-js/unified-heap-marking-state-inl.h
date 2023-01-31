@@ -19,21 +19,11 @@
 namespace v8 {
 namespace internal {
 
-class BasicTracedReferenceExtractor {
+class BasicTracedReferenceExtractor final {
  public:
-  static Object GetObjectForMarking(const TracedReferenceBase& ref) {
-    Address* traced_handle_location = const_cast<Address*>(
+  static Address* GetObjectSlotForMarking(const TracedReferenceBase& ref) {
+    return const_cast<Address*>(
         reinterpret_cast<const Address*>(ref.GetSlotThreadSafe()));
-    // We cannot assume that the reference is non-null as we may get here by
-    // tracing an ephemeron which doesn't have early bailouts, see
-    // `cppgc::Visitor::TraceEphemeron()` for non-Member values.
-    if (!traced_handle_location) return Object();
-
-    // The load synchronizes internal bitfields that are also read atomically
-    // from the concurrent marker.
-    Object object = TracedHandles::Acquire(traced_handle_location);
-    TracedHandles::Mark(traced_handle_location);
-    return object;
   }
 };
 
@@ -41,13 +31,18 @@ void UnifiedHeapMarkingState::MarkAndPush(
     const TracedReferenceBase& reference) {
   // The following code will crash with null pointer derefs when finding a
   // non-empty `TracedReferenceBase` when `CppHeap` is in detached mode.
-
-  Object object = BasicTracedReferenceExtractor::GetObjectForMarking(reference);
+  Address* traced_handle_location =
+      BasicTracedReferenceExtractor::GetObjectSlotForMarking(reference);
+  // We cannot assume that the reference is non-null as we may get here by
+  // tracing an ephemeron which doesn't have early bailouts, see
+  // `cppgc::Visitor::TraceEphemeron()` for non-Member values.
+  if (!traced_handle_location) {
+    return;
+  }
+  Object object = TracedHandles::Mark(traced_handle_location, mark_mode_);
   if (!object.IsHeapObject()) {
     // The embedder is not aware of whether numbers are materialized as heap
-    // objects are just passed around as Smis. This branch also filters out
-    // intentionally passed `Smi::zero()` that indicate that there's no object
-    // to mark.
+    // objects are just passed around as Smis.
     return;
   }
   HeapObject heap_object = HeapObject::cast(object);

@@ -15,7 +15,7 @@ namespace internal {
 
 class EntryFrameConstants : public AllStatic {
  public:
-  static constexpr int kCallerFPOffset = -3 * kSystemPointerSize;
+  static constexpr int kNextExitFrameFPOffset = -3 * kSystemPointerSize;
 
   // Stack offsets for arguments passed to JSEntry.
   static constexpr int kArgvOffset = 20 * kSystemPointerSize;

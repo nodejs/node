@@ -126,6 +126,11 @@ std::ostream& operator<<(std::ostream& os, LoadTransformation rep) {
       return os << "kS128Load32Zero";
     case LoadTransformation::kS128Load64Zero:
       return os << "kS128Load64Zero";
+    // Simd256
+    case LoadTransformation::kS256Load32Splat:
+      return os << "kS256Load32Splat";
+    case LoadTransformation::kS256Load64Splat:
+      return os << "kS256Load64Splat";
   }
   UNREACHABLE();
 }
@@ -637,7 +642,18 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I32x4RelaxedTruncF64x2UZero, Operator::kNoProperties, 1, 0, 1)         \
   V(I16x8RelaxedQ15MulRS, Operator::kCommutative, 2, 0, 1)                 \
   V(I16x8DotI8x16I7x16S, Operator::kCommutative, 2, 0, 1)                  \
-  V(I32x4DotI8x16I7x16AddS, Operator::kNoProperties, 3, 0, 1)
+  V(I32x4DotI8x16I7x16AddS, Operator::kNoProperties, 3, 0, 1)              \
+  V(F32x8Add, Operator::kCommutative, 2, 0, 1)                             \
+  V(F32x8Sub, Operator::kNoProperties, 2, 0, 1)                            \
+  V(F32x8Mul, Operator::kCommutative, 2, 0, 1)                             \
+  V(F32x8Div, Operator::kNoProperties, 2, 0, 1)                            \
+  V(F32x8Pmin, Operator::kNoProperties, 2, 0, 1)                           \
+  V(F32x8Pmax, Operator::kNoProperties, 2, 0, 1)                           \
+  V(F32x8Eq, Operator::kCommutative, 2, 0, 1)                              \
+  V(F32x8Ne, Operator::kCommutative, 2, 0, 1)                              \
+  V(F32x8Lt, Operator::kNoProperties, 2, 0, 1)                             \
+  V(F32x8Le, Operator::kNoProperties, 2, 0, 1)                             \
+  V(S256Select, Operator::kNoProperties, 3, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)
@@ -729,7 +745,9 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(S128Load32x2S)             \
   V(S128Load32x2U)             \
   V(S128Load32Zero)            \
-  V(S128Load64Zero)
+  V(S128Load64Zero)            \
+  V(S256Load32Splat)           \
+  V(S256Load64Splat)
 
 #if TAGGED_SIZE_8_BYTES
 
@@ -2224,6 +2242,21 @@ const Operator* MachineOperatorBuilder::I8x16Swizzle(bool relaxed) {
 StackCheckKind StackCheckKindOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kStackPointerGreaterThan, op->opcode());
   return OpParameter<StackCheckKind>(op);
+}
+
+const Operator* MachineOperatorBuilder::ExtractF128(int32_t lane_index) {
+  DCHECK(0 <= lane_index && lane_index < 2);
+  class ExtractF128Operator final : public Operator1<int32_t> {
+   public:
+    explicit ExtractF128Operator(int32_t lane_index)
+        : Operator1<int32_t>(IrOpcode::kExtractF128, Operator::kPure,
+                             "ExtractF128", 1, 0, 0, 1, 0, 0, lane_index) {
+      lane_index_ = lane_index;
+    }
+
+    int32_t lane_index_;
+  };
+  return zone_->New<ExtractF128Operator>(lane_index);
 }
 
 #undef PURE_BINARY_OP_LIST_32

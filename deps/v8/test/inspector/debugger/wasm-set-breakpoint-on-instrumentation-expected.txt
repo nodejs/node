@@ -10,7 +10,6 @@ Paused at v8://test/instantiate with reason "instrumentation".
 Hit breakpoints: []
 Setting breakpoint at instrumentation break location
 Paused at wasm://wasm/20da547a with reason "instrumentation".
-Script wasm://wasm/20da547a byte offset 26: Wasm opcode 0x01 (kExprNop)
 Hit breakpoints: []
 Paused at wasm://wasm/20da547a with reason "other".
 Script wasm://wasm/20da547a byte offset 26: Wasm opcode 0x01 (kExprNop)
@@ -27,7 +26,6 @@ Paused at v8://test/instantiate with reason "instrumentation".
 Hit breakpoints: []
 Setting breakpoint at instrumentation break location
 Paused at wasm://wasm/20da547a with reason "instrumentation".
-Script wasm://wasm/20da547a byte offset 26: Wasm opcode 0x01 (kExprNop)
 Hit breakpoints: []
 Paused at wasm://wasm/20da547a with reason "other".
 Script wasm://wasm/20da547a byte offset 26: Wasm opcode 0x01 (kExprNop)
@@ -44,6 +42,5 @@ Paused at v8://test/instantiate with reason "instrumentation".
 Hit breakpoints: []
 Setting breakpoint at instrumentation break location
 Paused at wasm://wasm/20da547a with reason "instrumentation".
-Script wasm://wasm/20da547a byte offset 26: Wasm opcode 0x01 (kExprNop)
 Hit breakpoints: []
 Done.

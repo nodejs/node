@@ -287,14 +287,15 @@ class DebugDelegate {
       v8::Local<v8::Context> paused_context,
       const std::vector<debug::BreakpointId>& inspector_break_points_hit,
       base::EnumSet<BreakReason> break_reasons = {}) {}
-  enum PauseAfterInstrumentation {
-    kPauseAfterInstrumentationRequested,
-    kNoPauseAfterInstrumentationRequested
+  enum class ActionAfterInstrumentation {
+    kPause,
+    kPauseIfBreakpointsHit,
+    kContinue
   };
-  virtual PauseAfterInstrumentation BreakOnInstrumentation(
+  virtual ActionAfterInstrumentation BreakOnInstrumentation(
       v8::Local<v8::Context> paused_context,
       const debug::BreakpointId instrumentationId) {
-    return kNoPauseAfterInstrumentationRequested;
+    return ActionAfterInstrumentation::kPauseIfBreakpointsHit;
   }
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Value> exception,
@@ -315,8 +316,8 @@ V8_EXPORT_PRIVATE void SetDebugDelegate(Isolate* isolate,
                                         DebugDelegate* listener);
 
 #if V8_ENABLE_WEBASSEMBLY
-V8_EXPORT_PRIVATE void TierDownAllModulesPerIsolate(Isolate* isolate);
-V8_EXPORT_PRIVATE void TierUpAllModulesPerIsolate(Isolate* isolate);
+V8_EXPORT_PRIVATE void EnterDebuggingForIsolate(Isolate* isolate);
+V8_EXPORT_PRIVATE void LeaveDebuggingForIsolate(Isolate* isolate);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 class AsyncEventDelegate {
@@ -677,8 +678,6 @@ AccessorPair* AccessorPair::Cast(v8::Value* value) {
 }
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> promise);
-
-bool isExperimentalRemoveInternalScopesPropertyEnabled();
 
 void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* isolate);
 

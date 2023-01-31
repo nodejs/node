@@ -751,6 +751,14 @@ class SideTable : public ZoneObject {
             max_exception_arity, static_cast<int>(tag.sig->parameter_count()));
       }
     }
+    WasmFeatures unused_detected_features;
+    WasmDecoder<Decoder::NoValidationTag> decoder{zone,
+                                                  module,
+                                                  WasmFeatures::All(),
+                                                  &unused_detected_features,
+                                                  code->function->sig,
+                                                  code->start,
+                                                  code->end};
     for (BytecodeIterator i(code->start, code->end, &code->locals, zone);
          i.has_next(); i.next()) {
       WasmOpcode opcode = i.current();
@@ -794,11 +802,9 @@ class SideTable : public ZoneObject {
         case kExprBlock:
         case kExprLoop: {
           bool is_loop = opcode == kExprLoop;
-          BlockTypeImmediate imm(WasmFeatures::All(), &i, i.pc() + 1,
+          BlockTypeImmediate imm(WasmFeatures::All(), &decoder, i.pc() + 1,
                                  kNoValidate);
-          if (imm.type == kWasmBottom) {
-            imm.sig = module->signature(imm.sig_index);
-          }
+          CHECK(decoder.Validate(i.pc() + 1, imm));
           TRACE("control @%u: %s, arity %d->%d\n", i.pc_offset(),
                 is_loop ? "Loop" : "Block", imm.in_arity(), imm.out_arity());
           DCHECK_IMPLIES(!unreachable,
@@ -816,11 +822,9 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprIf: {
-          BlockTypeImmediate imm(WasmFeatures::All(), &i, i.pc() + 1,
+          BlockTypeImmediate imm(WasmFeatures::All(), &decoder, i.pc() + 1,
                                  kNoValidate);
-          if (imm.type == kWasmBottom) {
-            imm.sig = module->signature(imm.sig_index);
-          }
+          CHECK(decoder.Validate(i.pc() + 1, imm));
           TRACE("control @%u: If, arity %d->%d\n", i.pc_offset(),
                 imm.in_arity(), imm.out_arity());
           DCHECK_IMPLIES(!unreachable,
@@ -877,11 +881,9 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprTry: {
-          BlockTypeImmediate imm(WasmFeatures::All(), &i, i.pc() + 1,
+          BlockTypeImmediate imm(WasmFeatures::All(), &decoder, i.pc() + 1,
                                  kNoValidate);
-          if (imm.type == kWasmBottom) {
-            imm.sig = module->signature(imm.sig_index);
-          }
+          CHECK(decoder.Validate(i.pc() + 1, imm));
           TRACE("control @%u: Try, arity %d->%d\n", i.pc_offset(),
                 imm.in_arity(), imm.out_arity());
           int target_stack_height = stack_height - imm.in_arity();
@@ -901,7 +903,7 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprRethrow: {
-          BranchDepthImmediate imm(&i, i.pc() + 1, kNoValidate);
+          BranchDepthImmediate imm(&decoder, i.pc() + 1, kNoValidate);
           int index = static_cast<int>(control_stack.size()) - 1 - imm.depth;
           rethrow_map_.emplace(i.pc() - i.start(), index);
           break;
@@ -912,7 +914,7 @@ class SideTable : public ZoneObject {
             // Only pop the exception stack once when we enter the first catch.
             exception_stack.pop_back();
           }
-          TagIndexImmediate imm(&i, i.pc() + 1, kNoValidate);
+          TagIndexImmediate imm(&decoder, i.pc() + 1, kNoValidate);
           Control* c = &control_stack.back();
           copy_unreachable();
           TRACE("control @%u: Catch\n", i.pc_offset());
@@ -980,7 +982,7 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprDelegate: {
-          BranchDepthImmediate imm(&i, i.pc() + 1, kNoValidate);
+          BranchDepthImmediate imm(&decoder, i.pc() + 1, kNoValidate);
           TRACE("control @%u: Delegate[depth=%u]\n", i.pc_offset(), imm.depth);
           Control* c = &control_stack.back();
           const size_t new_stack_size = control_stack.size() - 1;
@@ -1018,21 +1020,21 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprBr: {
-          BranchDepthImmediate imm(&i, i.pc() + 1, kNoValidate);
+          BranchDepthImmediate imm(&decoder, i.pc() + 1, kNoValidate);
           TRACE("control @%u: Br[depth=%u]\n", i.pc_offset(), imm.depth);
           Control* c = &control_stack[control_stack.size() - imm.depth - 1];
           if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
           break;
         }
         case kExprBrIf: {
-          BranchDepthImmediate imm(&i, i.pc() + 1, kNoValidate);
+          BranchDepthImmediate imm(&decoder, i.pc() + 1, kNoValidate);
           TRACE("control @%u: BrIf[depth=%u]\n", i.pc_offset(), imm.depth);
           Control* c = &control_stack[control_stack.size() - imm.depth - 1];
           if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
           break;
         }
         case kExprBrTable: {
-          BranchTableImmediate imm(&i, i.pc() + 1, kNoValidate);
+          BranchTableImmediate imm(&decoder, i.pc() + 1, kNoValidate);
           BranchTableIterator<Decoder::NoValidationTag> iterator(&i, imm);
           TRACE("control @%u: BrTable[count=%u]\n", i.pc_offset(),
                 imm.table_count);
@@ -1208,7 +1210,7 @@ V8_INLINE bool has_nondeterminism<double>(double val) {
 class WasmInterpreterInternals {
  public:
   WasmInterpreterInternals(Zone* zone, const WasmModule* module,
-                           const ModuleWireBytes& wire_bytes,
+                           ModuleWireBytes wire_bytes,
                            Handle<WasmInstanceObject> instance_object)
       : module_bytes_(wire_bytes.start(), wire_bytes.end(), zone),
         codemap_(module, module_bytes_.data(), zone),
@@ -2863,18 +2865,19 @@ class WasmInterpreterInternals {
         REDUCTION_CASE(I16x8AllTrue, i16x8, int8, 8, &)
         REDUCTION_CASE(I8x16AllTrue, i8x16, int16, 16, &)
 #undef REDUCTION_CASE
-#define QFM_CASE(op, name, stype, count, operation)                           \
-  case kExpr##op: {                                                           \
-    stype c = Pop().to_s128().to_##name();                                    \
-    stype b = Pop().to_s128().to_##name();                                    \
-    stype a = Pop().to_s128().to_##name();                                    \
-    stype res;                                                                \
-    for (size_t i = 0; i < count; i++) {                                      \
-      res.val[LANE(i, res)] =                                                 \
-          a.val[LANE(i, a)] operation(b.val[LANE(i, b)] * c.val[LANE(i, c)]); \
-    }                                                                         \
-    Push(WasmValue(Simd128(res)));                                            \
-    return true;                                                              \
+#define QFM_CASE(op, name, stype, count, operation)          \
+  case kExpr##op: {                                          \
+    stype c = Pop().to_s128().to_##name();                   \
+    stype b = Pop().to_s128().to_##name();                   \
+    stype a = Pop().to_s128().to_##name();                   \
+    stype res;                                               \
+    for (size_t i = 0; i < count; i++) {                     \
+      res.val[LANE(i, res)] =                                \
+          operation(a.val[LANE(i, a)] * b.val[LANE(i, b)]) + \
+          c.val[LANE(i, c)];                                 \
+    }                                                        \
+    Push(WasmValue(Simd128(res)));                           \
+    return true;                                             \
   }
         QFM_CASE(F32x4Qfma, f32x4, float4, 4, +)
         QFM_CASE(F32x4Qfms, f32x4, float4, 4, -)
@@ -4147,7 +4150,7 @@ Handle<WasmInstanceObject> MakeWeak(
 // Implementation of the public interface of the interpreter.
 //============================================================================
 WasmInterpreter::WasmInterpreter(Isolate* isolate, const WasmModule* module,
-                                 const ModuleWireBytes& wire_bytes,
+                                 ModuleWireBytes wire_bytes,
                                  Handle<WasmInstanceObject> instance_object)
     : zone_(isolate->allocator(), ZONE_NAME),
       internals_(new WasmInterpreterInternals(

@@ -53,6 +53,7 @@ class Utils;
 namespace internal {
 template <typename T>
 class CustomArguments;
+class SamplingHeapProfiler;
 }  // namespace internal
 
 namespace api_internal {
@@ -313,6 +314,7 @@ class Local {
   friend class BasicTracedReference;
   template <class F>
   friend class TracedReference;
+  friend class v8::internal::SamplingHeapProfiler;
 
   explicit V8_INLINE Local(T* that) : val_(that) {}
   V8_INLINE static Local<T> New(Isolate* isolate, T* that) {

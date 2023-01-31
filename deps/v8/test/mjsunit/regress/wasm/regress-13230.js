@@ -26,5 +26,5 @@ let instance = builder.instantiate();
 let main = instance.exports.main;
 
 for (let i = 0; i < 20; i++) main();
-%WasmTierUpFunction(instance, main_func.index);
+%WasmTierUpFunction(main);
 main();

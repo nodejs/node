@@ -392,15 +392,13 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
 
   for (auto const& group : feedback.transition_groups()) {
     DCHECK(!group.empty());
-    base::Optional<MapRef> target =
-        MakeRefAssumeMemoryFence(broker(), group.front());
+    base::Optional<MapRef> target = group.front();
     base::Optional<ElementAccessInfo> access_info =
         ComputeElementAccessInfo(target.value(), access_mode);
     if (!access_info.has_value()) return false;
 
     for (size_t i = 1; i < group.size(); ++i) {
-      base::Optional<MapRef> map_ref =
-          MakeRefAssumeMemoryFence(broker(), group[i]);
+      base::Optional<MapRef> map_ref = group[i];
       if (!map_ref.has_value()) continue;
       access_info->AddTransitionSource(map_ref.value());
     }
@@ -1012,26 +1010,22 @@ base::Optional<ElementAccessInfo> AccessInfoFactory::ConsolidateElementLoad(
   if (feedback.transition_groups().empty()) return {};
 
   DCHECK(!feedback.transition_groups().front().empty());
-  Handle<Map> first_map = feedback.transition_groups().front().front();
-  base::Optional<MapRef> first_map_ref = TryMakeRef(broker(), first_map);
-  if (!first_map_ref.has_value()) return {};
-  InstanceType instance_type = first_map_ref->instance_type();
-  ElementsKind elements_kind = first_map_ref->elements_kind();
+  MapRef first_map = feedback.transition_groups().front().front();
+  InstanceType instance_type = first_map.instance_type();
+  ElementsKind elements_kind = first_map.elements_kind();
 
   ZoneVector<MapRef> maps(zone());
   for (auto const& group : feedback.transition_groups()) {
-    for (Handle<Map> map_handle : group) {
-      base::Optional<MapRef> map = TryMakeRef(broker(), map_handle);
-      if (!map.has_value()) return {};
-      if (map->instance_type() != instance_type ||
-          !map->CanInlineElementAccess()) {
+    for (MapRef map : group) {
+      if (map.instance_type() != instance_type ||
+          !map.CanInlineElementAccess()) {
         return {};
       }
-      if (!GeneralizeElementsKind(elements_kind, map->elements_kind())
+      if (!GeneralizeElementsKind(elements_kind, map.elements_kind())
                .To(&elements_kind)) {
         return {};
       }
-      maps.push_back(map.value());
+      maps.push_back(map);
     }
   }
 

@@ -347,6 +347,12 @@ class V8_EXPORT Script {
    * ScriptOrigin. This can be either a v8::String or v8::Undefined.
    */
   Local<Value> GetResourceName();
+
+  /**
+   * If the script was compiled, returns the positions of lazy functions which
+   * were eventually compiled and executed.
+   */
+  std::vector<int> GetProducedCompileHints() const;
 };
 
 enum class ScriptType { kClassic, kModule };
@@ -562,7 +568,8 @@ class V8_EXPORT ScriptCompiler {
   enum CompileOptions {
     kNoCompileOptions = 0,
     kConsumeCodeCache,
-    kEagerCompile
+    kEagerCompile,
+    kProduceCompileHints
   };
 
   /**

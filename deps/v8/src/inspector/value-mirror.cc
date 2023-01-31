@@ -308,6 +308,15 @@ String16 descriptionForObject(v8::Isolate* isolate,
   return toProtocolString(isolate, object->GetConstructorName());
 }
 
+String16 descriptionForProxy(v8::Isolate* isolate, v8::Local<v8::Proxy> proxy) {
+  v8::Local<v8::Value> target = proxy->GetTarget();
+  if (target->IsObject()) {
+    return String16::concat(
+        "Proxy(", descriptionForObject(isolate, target.As<v8::Object>()), ")");
+  }
+  return String16("Proxy");
+}
+
 String16 descriptionForDate(v8::Local<v8::Context> context,
                             v8::Local<v8::Date> date) {
   v8::Isolate* isolate = context->GetIsolate();
@@ -1688,7 +1697,8 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
   }
   if (value->IsProxy()) {
     return std::make_unique<ObjectMirror>(
-        value, RemoteObject::SubtypeEnum::Proxy, "Proxy");
+        value, RemoteObject::SubtypeEnum::Proxy,
+        descriptionForProxy(isolate, value.As<v8::Proxy>()));
   }
   if (value->IsFunction()) {
     return std::make_unique<FunctionMirror>(value);

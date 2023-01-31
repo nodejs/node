@@ -153,12 +153,12 @@ MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
 Object JSRegExp::code(bool is_latin1) const {
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   Object value = DataAt(code_index(is_latin1));
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, value.IsSmi() || value.IsCodeT());
+  DCHECK(value.IsSmi() || value.IsCode());
   return value;
 }
 
-void JSRegExp::set_code(bool is_latin1, Handle<Code> code) {
-  SetDataAt(code_index(is_latin1), ToCodeT(*code));
+void JSRegExp::set_code(bool is_latin1, Handle<InstructionStream> code) {
+  SetDataAt(code_index(is_latin1), ToCode(*code));
 }
 
 Object JSRegExp::bytecode(bool is_latin1) const {
@@ -172,8 +172,7 @@ void JSRegExp::set_bytecode_and_trampoline(Isolate* isolate,
   SetDataAt(kIrregexpLatin1BytecodeIndex, *bytecode);
   SetDataAt(kIrregexpUC16BytecodeIndex, *bytecode);
 
-  Handle<CodeT> trampoline =
-      BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
+  Handle<Code> trampoline = BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
   SetDataAt(JSRegExp::kIrregexpLatin1CodeIndex, *trampoline);
   SetDataAt(JSRegExp::kIrregexpUC16CodeIndex, *trampoline);
 }

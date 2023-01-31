@@ -15,6 +15,9 @@ EXTRA_FLAGS = [
     (0.1, '--cache=code'),
     (0.1, '--force-slow-path'),
     (0.2, '--future'),
+    # TODO(v8:13524): Enable when issue is fixed
+    # TODO(v8:13528): Enable when issue is fixed
+    # (0.1, '--harmony-struct'),
     (0.1, '--interrupt-budget=100'),
     (0.1, '--interrupt-budget-for-maglev=100'),
     (0.1, '--liftoff'),
@@ -42,6 +45,8 @@ EXTRA_FLAGS = [
     (0.1, '--regexp-interpret-all'),
     (0.1, '--regexp-tier-up-ticks=10'),
     (0.1, '--regexp-tier-up-ticks=100'),
+    (0.1, '--shared-string-table'),
+    (0.1, '--shared-string-table-using-shared-space'),
     (0.1, '--stress-background-compile'),
     (0.1, '--stress-flush-code'),
     (0.1, '--stress-lazy-source-positions'),
@@ -53,6 +58,7 @@ EXTRA_FLAGS = [
 
 MIN_DEOPT = 1
 MAX_DEOPT = 10**9
+ANALYSIS_SUFFIX = 'analysis'
 
 
 def random_extra_flags(rng):
@@ -167,6 +173,9 @@ class FuzzerProc(base.TestProcProducer):
     self._disable_analysis = disable_analysis
     self._gens = {}
 
+  def test_suffix(self, test):
+    return test.subtest_id
+
   def _next_test(self, test):
     if self.is_stopped:
       return False
@@ -189,12 +198,13 @@ class FuzzerProc(base.TestProcProducer):
 
     if analysis_flags:
       analysis_flags = list(set(analysis_flags))
-      return self._create_subtest(test, 'analysis', flags=analysis_flags,
-                                  keep_output=True)
+      return test.create_subtest(
+          self, ANALYSIS_SUFFIX, flags=analysis_flags, keep_output=True)
 
   def _result_for(self, test, subtest, result):
     if not self._disable_analysis:
-      if result is not None and subtest.procid.endswith('Fuzzer-analysis'):
+      if result is not None and subtest.procid.endswith(
+          f'{self.name}-{ANALYSIS_SUFFIX}'):
         # Analysis phase, for fuzzing we drop the result.
         if result.has_unexpected_output:
           self._send_result(test, None)
@@ -241,7 +251,7 @@ class FuzzerProc(base.TestProcProducer):
       flags.append('--fuzzer-random-seed=%s' % self._next_seed())
 
       flags = _drop_contradictory_flags(flags, test.get_flags())
-      yield self._create_subtest(test, str(i), flags=flags)
+      yield test.create_subtest(self, str(i), flags=flags)
 
       i += 1
 

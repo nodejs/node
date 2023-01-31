@@ -4,7 +4,15 @@
 
 #include "src/heap/base/worklist.h"
 
-namespace heap::base::internal {
+namespace heap::base {
+
+// static
+bool WorklistBase::predictable_order_ = false;
+
+// static
+void WorklistBase::EnforcePredictableOrder() { predictable_order_ = true; }
+
+namespace internal {
 
 // static
 SegmentBase* SegmentBase::GetSentinelSegmentAddress() {
@@ -12,4 +20,5 @@ SegmentBase* SegmentBase::GetSentinelSegmentAddress() {
   return &sentinel_segment;
 }
 
-}  // namespace heap::base::internal
+}  // namespace internal
+}  // namespace heap::base

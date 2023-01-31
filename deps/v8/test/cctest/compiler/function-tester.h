@@ -25,9 +25,11 @@ class FunctionTester : public InitializedHandleScope {
 
   FunctionTester(Graph* graph, int param_count);
 
+  FunctionTester(Handle<InstructionStream> code, int param_count);
   FunctionTester(Handle<Code> code, int param_count);
 
   // Assumes VoidDescriptor call interface.
+  explicit FunctionTester(Handle<InstructionStream> code);
   explicit FunctionTester(Handle<Code> code);
 
   Isolate* isolate;

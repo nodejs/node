@@ -64,7 +64,7 @@ TEST(LA0) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(0xAB0, 0, 0, 0, 0));
@@ -98,7 +98,7 @@ TEST(LA1) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F1>::FromCode(*code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(50, 0, 0, 0, 0));
@@ -144,7 +144,7 @@ TEST(LA2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0));
@@ -273,7 +273,7 @@ TEST(LA3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0));
@@ -393,7 +393,7 @@ TEST(LA4) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0));
@@ -508,7 +508,7 @@ TEST(LA5) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0));
@@ -606,7 +606,7 @@ TEST(LA6) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.si1 = 0x11223344;
@@ -739,7 +739,7 @@ TEST(LA7) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.si1 = 0x11223344;
@@ -794,7 +794,7 @@ TEST(LDPTR_STPTR) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   test[0] = 0x11223344;
@@ -960,7 +960,7 @@ TEST(LA8) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.input = 0x12345678;
@@ -1158,7 +1158,7 @@ TEST(LA9) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.input = 0x51F4B764A26E7412;
@@ -1323,7 +1323,7 @@ TEST(LA10) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.si1 = 0x51F4B764A26E7412;
@@ -1511,7 +1511,7 @@ TEST(LA11) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   t.si1 = 0x10C021098B710CDE;
@@ -1590,7 +1590,7 @@ uint64_t run_beq(int64_t value1, int64_t value2, int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
@@ -1664,7 +1664,7 @@ uint64_t run_bne(int64_t value1, int64_t value2, int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
@@ -1738,7 +1738,7 @@ uint64_t run_blt(int64_t value1, int64_t value2, int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
@@ -1813,7 +1813,7 @@ uint64_t run_bge(uint64_t value1, uint64_t value2, int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
@@ -1887,7 +1887,7 @@ uint64_t run_bltu(int64_t value1, int64_t value2, int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
@@ -1961,7 +1961,7 @@ uint64_t run_bgeu(int64_t value1, int64_t value2, int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
@@ -2035,7 +2035,7 @@ uint64_t run_beqz(int64_t value, int32_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
@@ -2109,7 +2109,7 @@ uint64_t run_bnez_b(int64_t value, int32_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
@@ -2184,7 +2184,7 @@ uint64_t run_bl(int32_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
@@ -2324,7 +2324,7 @@ TEST(PCADD) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0));
@@ -2373,7 +2373,7 @@ uint64_t run_jirl(int16_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
   auto f = GeneratedCode<F2>::FromCode(*code);
@@ -2493,7 +2493,7 @@ TEST(LA12) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   // Double test values.
@@ -2605,7 +2605,7 @@ TEST(LA13) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   // Float test values.
@@ -2866,7 +2866,7 @@ TEST(FCMP_COND) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   test.dTrue = 1234.0;
@@ -3058,7 +3058,7 @@ TEST(FCVT) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   test.fcsr = kRoundToNearest;
@@ -3134,7 +3134,7 @@ TEST(FFINT) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   test.fcsr = kRoundToNearest;
@@ -3271,7 +3271,7 @@ TEST(FTINT) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int j = 0; j < 4; j++) {
@@ -3343,7 +3343,7 @@ TEST(FTINTRM) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
@@ -3412,7 +3412,7 @@ TEST(FTINTRP) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
@@ -3481,7 +3481,7 @@ TEST(FTINTRZ) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
@@ -3550,7 +3550,7 @@ TEST(FTINTRNE) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
@@ -3756,7 +3756,7 @@ TEST(FRINT) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int j = 0; j < 4; j++) {
@@ -3822,7 +3822,7 @@ TEST(FMOV) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
@@ -3876,7 +3876,7 @@ TEST(LA14) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
 
@@ -3949,7 +3949,7 @@ uint64_t run_bceqz(int fcc_value, int32_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
@@ -4030,7 +4030,7 @@ uint64_t run_bcnez(int fcc_value, int32_t offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
@@ -4113,7 +4113,7 @@ TEST(jump_tables1) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
@@ -4176,7 +4176,7 @@ TEST(jump_tables2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
@@ -4246,7 +4246,7 @@ TEST(jump_tables3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
@@ -4281,7 +4281,7 @@ uint64_t run_li_macro(int64_t imm, LiFlags mode, int32_t num_instr = 0) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
@@ -4425,7 +4425,7 @@ TEST(FMIN_FMAX) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 4; i < kTableLength; i++) {
@@ -4511,7 +4511,7 @@ TEST(FMINA_FMAXA) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
@@ -4564,7 +4564,7 @@ TEST(FADD) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   test.a = 2.0;
@@ -4657,7 +4657,7 @@ TEST(FSUB) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
@@ -4715,7 +4715,7 @@ TEST(FMUL) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   for (int i = 0; i < kTableLength; i++) {
@@ -4763,7 +4763,7 @@ TEST(FDIV) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   f.Call(&test, 0, 0, 0, 0);
@@ -4855,7 +4855,7 @@ TEST(FABS) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
   test.a = -2.0;
@@ -4970,7 +4970,7 @@ void helper_fmadd_fmsub_fnmadd_fnmsub(F func) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F3>::FromCode(*code);
 
@@ -5084,7 +5084,7 @@ TEST(FSQRT_FRSQRT_FRECIP) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc,
+  Handle<InstructionStream> code = Factory::CodeBuilder(isolate, desc,
 CodeKind::STUB).Build(); auto f = GeneratedCode<F3>::FromCode(*code);
 
   for (int i = 0; i < kTableLength; i++) {
@@ -5138,7 +5138,7 @@ TEST(LA15) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
   f.Call(1, 1, 0, 0, 0);
@@ -5166,7 +5166,7 @@ TEST(Trampoline) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
+  Handle<InstructionStream> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F2>::FromCode(*code);
 

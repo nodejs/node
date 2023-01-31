@@ -814,7 +814,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     uint32_t canonical_sig_index =
         module_->isorecursive_canonical_type_ids[module_->functions[start_index]
                                                      .sig_index];
-    Handle<CodeT> wrapper_code =
+    Handle<Code> wrapper_code =
         JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
             isolate_, function.sig, canonical_sig_index, module_,
             function.imported);
@@ -1125,8 +1125,11 @@ bool InstanceBuilder::ProcessImportedFunction(
   }
   auto js_receiver = Handle<JSReceiver>::cast(value);
   const FunctionSig* expected_sig = module_->functions[func_index].sig;
+  uint32_t sig_index = module_->functions[func_index].sig_index;
+  uint32_t canonical_type_index =
+      module_->isorecursive_canonical_type_ids[sig_index];
   auto resolved = compiler::ResolveWasmImportCall(js_receiver, expected_sig,
-                                                  module_, enabled_);
+                                                  canonical_type_index);
   compiler::WasmImportCallKind kind = resolved.kind;
   js_receiver = resolved.callable;
   switch (kind) {
@@ -1589,8 +1592,11 @@ void InstanceBuilder::CompileImportWrappers(
     auto js_receiver = Handle<JSReceiver>::cast(value);
     uint32_t func_index = module_->import_table[index].index;
     const FunctionSig* sig = module_->functions[func_index].sig;
+    uint32_t sig_index = module_->functions[func_index].sig_index;
+    uint32_t canonical_type_index =
+        module_->isorecursive_canonical_type_ids[sig_index];
     auto resolved =
-        compiler::ResolveWasmImportCall(js_receiver, sig, module_, enabled_);
+        compiler::ResolveWasmImportCall(js_receiver, sig, canonical_type_index);
     compiler::WasmImportCallKind kind = resolved.kind;
     if (kind == compiler::WasmImportCallKind::kWasmToWasm ||
         kind == compiler::WasmImportCallKind::kLinkError ||
@@ -1607,9 +1613,6 @@ void InstanceBuilder::CompileImportWrappers(
       expected_arity =
           shared.internal_formal_parameter_count_without_receiver();
     }
-    uint32_t canonical_type_index =
-        module_->isorecursive_canonical_type_ids[module_->functions[func_index]
-                                                     .sig_index];
     WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
                                          expected_arity, resolved.suspend);
     if (cache_scope[key] != nullptr) {
@@ -1689,7 +1692,9 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           return -1;
         }
         Handle<WasmTagObject> imported_tag = Handle<WasmTagObject>::cast(value);
-        if (!imported_tag->MatchesSignature(module_->tags[import.index].sig)) {
+        if (!imported_tag->MatchesSignature(
+                module_->isorecursive_canonical_type_ids
+                    [module_->tags[import.index].sig_index])) {
           ReportLinkError("imported tag does not match the expected type",
                           index, module_name, import_name);
           return -1;
@@ -1903,7 +1908,10 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
           Handle<HeapObject> tag_object(
               HeapObject::cast(instance->tags_table().get(exp.index)),
               isolate_);
-          wrapper = WasmTagObject::New(isolate_, tag.sig, tag_object);
+          uint32_t canonical_sig_index =
+              module_->isorecursive_canonical_type_ids[tag.sig_index];
+          wrapper = WasmTagObject::New(isolate_, tag.sig, canonical_sig_index,
+                                       tag_object);
           tags_wrappers_[exp.index] = wrapper;
         }
         desc.set_value(wrapper);

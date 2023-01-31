@@ -38,7 +38,8 @@ TEST_F(ApiIcuTest, LocaleConfigurationChangeNotification) {
 
   SetIcuLocale("en_US");
   isolate()->LocaleConfigurationChangeNotification();
-  CheckLocaleSpecificValues("en-US", "2/14/2020, 1:45:00 PM", "10,000.3");
+  CheckLocaleSpecificValues("en-US", "2/14/2020, 1:45:00\xE2\x80\xAFPM",
+                            "10,000.3");
 
   SetIcuLocale("ru_RU");
   isolate()->LocaleConfigurationChangeNotification();

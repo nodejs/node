@@ -215,6 +215,7 @@ Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
 Handle<FeedbackVector> FeedbackVector::New(
     Isolate* isolate, Handle<SharedFunctionInfo> shared,
     Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
+    Handle<FeedbackCell> parent_feedback_cell,
     IsCompiledScope* is_compiled_scope) {
   DCHECK(is_compiled_scope->is_compiled());
   Factory* factory = isolate->factory();
@@ -223,8 +224,8 @@ Handle<FeedbackVector> FeedbackVector::New(
                                              isolate);
   const int slot_count = feedback_metadata->slot_count();
 
-  Handle<FeedbackVector> vector =
-      factory->NewFeedbackVector(shared, closure_feedback_cell_array);
+  Handle<FeedbackVector> vector = factory->NewFeedbackVector(
+      shared, closure_feedback_cell_array, parent_feedback_cell);
 
   DCHECK_EQ(vector->length(), slot_count);
 
@@ -292,16 +293,15 @@ Handle<FeedbackVector> FeedbackVector::New(
     i += entry_size;
   }
 
-  Handle<FeedbackVector> result = Handle<FeedbackVector>::cast(vector);
   if (!isolate->is_best_effort_code_coverage()) {
-    AddToVectorsForProfilingTools(isolate, result);
+    AddToVectorsForProfilingTools(isolate, vector);
   }
-  return result;
+  parent_feedback_cell->set_value(*vector, kReleaseStore);
+  return vector;
 }
 
-namespace {
-
-Handle<FeedbackVector> NewFeedbackVectorForTesting(
+// static
+Handle<FeedbackVector> FeedbackVector::NewForTesting(
     Isolate* isolate, const FeedbackVectorSpec* spec) {
   Handle<FeedbackMetadata> metadata = FeedbackMetadata::New(isolate, spec);
   Handle<SharedFunctionInfo> shared =
@@ -312,20 +312,20 @@ Handle<FeedbackVector> NewFeedbackVectorForTesting(
   shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
   Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
       ClosureFeedbackCellArray::New(isolate, shared);
+  Handle<FeedbackCell> parent_cell = isolate->factory()->NewNoClosuresCell(
+      isolate->factory()->undefined_value());
 
   IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
   return FeedbackVector::New(isolate, shared, closure_feedback_cell_array,
-                             &is_compiled_scope);
+                             parent_cell, &is_compiled_scope);
 }
-
-}  // namespace
 
 // static
 Handle<FeedbackVector> FeedbackVector::NewWithOneBinarySlotForTesting(
     Zone* zone, Isolate* isolate) {
   FeedbackVectorSpec one_slot(zone);
   one_slot.AddBinaryOpICSlot();
-  return NewFeedbackVectorForTesting(isolate, &one_slot);
+  return NewForTesting(isolate, &one_slot);
 }
 
 // static
@@ -333,7 +333,7 @@ Handle<FeedbackVector> FeedbackVector::NewWithOneCompareSlotForTesting(
     Zone* zone, Isolate* isolate) {
   FeedbackVectorSpec one_slot(zone);
   one_slot.AddCompareICSlot();
-  return NewFeedbackVectorForTesting(isolate, &one_slot);
+  return NewForTesting(isolate, &one_slot);
 }
 
 // static
@@ -352,7 +352,7 @@ void FeedbackVector::SaturatingIncrementProfilerTicks() {
   if (ticks < Smi::kMaxValue) set_profiler_ticks(ticks + 1);
 }
 
-void FeedbackVector::SetOptimizedCode(CodeT code) {
+void FeedbackVector::SetOptimizedCode(Code code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
   // We should set optimized code only when there is no valid optimized code.
   DCHECK(!has_optimized_code() ||
@@ -390,7 +390,7 @@ void FeedbackVector::ClearOptimizedCode() {
   set_maybe_has_turbofan_code(false);
 }
 
-void FeedbackVector::SetOptimizedOsrCode(FeedbackSlot slot, CodeT code) {
+void FeedbackVector::SetOptimizedOsrCode(FeedbackSlot slot, Code code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
   DCHECK(!slot.IsInvalid());
   Set(slot, HeapObjectReference::Weak(code));
@@ -438,7 +438,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     return;
   }
 
-  CodeT code = CodeT::cast(slot->GetHeapObject());
+  Code code = Code::cast(slot->GetHeapObject());
   if (code.marked_for_deoptimization()) {
     Deoptimizer::TraceEvictFromOptimizedCodeCache(shared, reason);
     ClearOptimizedCode();
@@ -1224,7 +1224,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
         if (mode != STANDARD_STORE) return mode;
         continue;
       } else {
-        CodeT code = CodeT::cast(data_handler->smi_handler());
+        Code code = Code::cast(data_handler->smi_handler());
         builtin_handler = code.builtin_id();
       }
 
@@ -1243,7 +1243,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
       continue;
     } else {
       // Element store without prototype chain check.
-      CodeT code = CodeT::cast(*maybe_code_handler.object());
+      Code code = Code::cast(*maybe_code_handler.object());
       builtin_handler = code.builtin_id();
     }
 

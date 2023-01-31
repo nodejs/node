@@ -53,7 +53,7 @@ const uint32_t kLessSignificantWordInDoublewordOffset = 4;
 // Try https://content.riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf.
 namespace v8 {
 namespace internal {
-
+using Opcode = uint32_t;
 // Actual value of root register is offset from the root array's start
 // to take advantage of negative displacement values.
 // TODO(sigurds): Choose best value.
@@ -198,9 +198,33 @@ enum SoftwareInterruptCodes {
 //   instructions (see Assembler::stop()).
 // - Breaks larger than kMaxStopCode are simple breaks, dropping you into the
 //   debugger.
+const uint32_t kMaxTracepointCode = 63;
 const uint32_t kMaxWatchpointCode = 31;
 const uint32_t kMaxStopCode = 127;
 static_assert(kMaxWatchpointCode < kMaxStopCode);
+static_assert(kMaxTracepointCode < kMaxStopCode);
+
+// Debug parameters.
+//
+// For example:
+//
+// __ Debug(TRACE_ENABLE | LOG_TRACE);
+// starts tracing: set v8_flags.trace-sim is true.
+// __ Debug(TRACE_ENABLE | LOG_REGS);
+// PrintAllregs.
+// __ Debug(TRACE_DISABLE | LOG_TRACE);
+// stops tracing: set v8_flags.trace-sim is false.
+const unsigned kDebuggerTracingDirectivesMask = 0b111 << 3;
+enum DebugParameters : uint32_t {
+  NO_PARAM = 1 << 5,
+  BREAK = 1 << 0,
+  LOG_TRACE = 1 << 1,
+  LOG_REGS = 1 << 2,
+  LOG_ALL = LOG_TRACE,
+  // Trace control.
+  TRACE_ENABLE = 1 << 3 | NO_PARAM,
+  TRACE_DISABLE = 1 << 4 | NO_PARAM,
+};
 
 // ----- Fields offset and length.
 // RISCV constants

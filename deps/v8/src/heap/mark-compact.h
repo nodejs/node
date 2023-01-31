@@ -191,11 +191,11 @@ class MainMarkingVisitor final
                      WeakObjects::Local* local_weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
-                     bool embedder_tracing_enabled,
+                     bool trace_embedder_fields,
                      bool should_keep_ages_unchanged)
       : MarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
             local_marking_worklists, local_weak_objects, heap,
-            mark_compact_epoch, code_flush_mode, embedder_tracing_enabled,
+            mark_compact_epoch, code_flush_mode, trace_embedder_fields,
             should_keep_ages_unchanged),
         marking_state_(marking_state) {}
 
@@ -216,7 +216,8 @@ class MainMarkingVisitor final
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target);
 
-  void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);
+  void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
+                       HeapObject target);
 
   MarkingState* marking_state() { return marking_state_; }
 
@@ -263,7 +264,7 @@ class CollectorBase {
 
   MarkingWorklists* marking_worklists() { return &marking_worklists_; }
 
-  MarkingWorklists::Local* local_marking_worklists() {
+  MarkingWorklists::Local* local_marking_worklists() const {
     return local_marking_worklists_.get();
   }
 
@@ -300,6 +301,8 @@ class CollectorBase {
   void StartSweepNewSpace();
   void SweepLargeSpace(LargeObjectSpace* space);
 
+  bool IsCppHeapMarkingFinished() const;
+
   Heap* heap_;
   GarbageCollector garbage_collector_;
   MarkingWorklists marking_worklists_;
@@ -321,6 +324,7 @@ class MarkCompactCollector final : public CollectorBase {
   using MarkingVisitor = MainMarkingVisitor<MarkingState>;
 
   class CustomRootBodyMarkingVisitor;
+  class ClientCustomRootBodyMarkingVisitor;
   class SharedHeapObjectVisitor;
   class RootMarkingVisitor;
 
@@ -337,6 +341,11 @@ class MarkCompactCollector final : public CollectorBase {
   static MarkCompactCollector* From(CollectorBase* collector) {
     return static_cast<MarkCompactCollector*>(collector);
   }
+
+  // Callback function for telling whether the object *p is an unmarked
+  // heap object.
+  static bool IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p);
+  static bool IsUnmarkedSharedHeapObject(Heap* heap, FullObjectSlot p);
 
   std::pair<size_t, size_t> ProcessMarkingWorklist(
       size_t bytes_to_process) final;
@@ -383,12 +392,14 @@ class MarkCompactCollector final : public CollectorBase {
 
   static V8_EXPORT_PRIVATE bool IsMapOrForwarded(Map map);
 
-  static bool ShouldRecordRelocSlot(Code host, RelocInfo* rinfo,
+  static bool ShouldRecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
                                     HeapObject target);
-  static RecordRelocSlotInfo ProcessRelocInfo(Code host, RelocInfo* rinfo,
+  static RecordRelocSlotInfo ProcessRelocInfo(InstructionStream host,
+                                              RelocInfo* rinfo,
                                               HeapObject target);
 
-  static void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);
+  static void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
+                              HeapObject target);
   V8_INLINE static void RecordSlot(HeapObject object, ObjectSlot slot,
                                    HeapObject target);
   V8_INLINE static void RecordSlot(HeapObject object, HeapObjectSlot slot,
@@ -446,9 +457,6 @@ class MarkCompactCollector final : public CollectorBase {
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector() final;
 
-  // Used by wrapper tracing.
-  V8_INLINE void MarkExternallyReferencedObject(HeapObject obj);
-
   std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
       MemoryChunk* chunk);
 
@@ -486,8 +494,7 @@ class MarkCompactCollector final : public CollectorBase {
   V8_INLINE void MarkRootObject(Root root, HeapObject obj);
 
   // Mark the heap roots and all objects reachable from them.
-  void MarkRoots(RootVisitor* root_visitor,
-                 ObjectVisitor* custom_root_body_visitor);
+  void MarkRoots(RootVisitor* root_visitor);
 
   // Mark the stack roots and all objects reachable from them.
   void MarkRootsFromStack(RootVisitor* root_visitor);
@@ -496,6 +503,10 @@ class MarkCompactCollector final : public CollectorBase {
   // heaps.
   void MarkObjectsFromClientHeaps();
   void MarkObjectsFromClientHeap(Isolate* client);
+
+  // Mark the entry in the external pointer table for the given isolates
+  // WaiterQueueNode.
+  void MarkWaiterQueueNode(Isolate* isolate);
 
   // Updates pointers to shared objects from client heaps.
   void UpdatePointersInClientHeaps();
@@ -531,10 +542,6 @@ class MarkCompactCollector final : public CollectorBase {
 
   // Perform Wrapper Tracing if in use.
   void PerformWrapperTracing();
-
-  // Callback function for telling whether the object *p is an unmarked
-  // heap object.
-  static bool IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p);
 
   // Retain dying maps for `v8_flags.retain_maps_for_n_gc` garbage collections
   // to increase chances of reusing of map transition tree in future.
@@ -706,6 +713,11 @@ class MinorMarkCompactCollector final : public CollectorBase {
   void Finish() final;
 
   void VisitObject(HeapObject obj) final;
+
+  // Perform Wrapper Tracing if in use.
+  void PerformWrapperTracing();
+
+  static bool IsUnmarkedYoungHeapObject(Heap* heap, FullObjectSlot p);
 
  private:
   class RootMarkingVisitor;

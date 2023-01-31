@@ -321,6 +321,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
         case kS390_Abs64:
         case kS390_Abs32:
         case kS390_Mul32:
+        case kS390_Mul64WithOverflow:
           return nooverflow;
         default:
           break;
@@ -1121,7 +1122,7 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 // jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
 // to:
 //    1. read from memory the word that contains that bit, which can be found in
-//       the flags in the referenced {CodeDataContainer} object;
+//       the flags in the referenced {Code} object;
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
@@ -1132,12 +1133,11 @@ void CodeGenerator::BailoutIfDeoptimized() {
     __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
   }
 
-  int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
+  int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ LoadTaggedPointerField(
       ip, MemOperand(kJavaScriptCallCodeStartRegister, offset), r0);
-  __ LoadS32(ip,
-           FieldMemOperand(ip, CodeDataContainer::kKindSpecificFlagsOffset));
-  __ TestBit(ip, Code::kMarkedForDeoptimizationBit);
+  __ LoadS32(ip, FieldMemOperand(ip, Code::kKindSpecificFlagsOffset));
+  __ TestBit(ip, InstructionStream::kMarkedForDeoptimizationBit);
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne);
 }
@@ -3300,7 +3300,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   // Overflow checked for add/sub only.
   DCHECK((condition != kOverflow && condition != kNotOverflow) ||
          (op == kS390_Add32 || op == kS390_Add64 || op == kS390_Sub32 ||
-          op == kS390_Sub64 || op == kS390_Mul32));
+          op == kS390_Sub64 || op == kS390_Mul32 ||
+          op == kS390_Mul64WithOverflow));
 
   // Materialize a full 32-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
@@ -3404,6 +3405,10 @@ void CodeGenerator::AssembleConstructFrame() {
       if (call_descriptor->IsWasmFunctionCall() ||
           call_descriptor->IsWasmImportWrapper() ||
           call_descriptor->IsWasmCapiFunction()) {
+        // For import wrappers and C-API functions, this stack slot is only used
+        // for printing stack traces in V8. Also, it holds a WasmApiFunctionRef
+        // instead of the instance itself, which is taken care of in the frames
+        // accessors.
         __ Push(kWasmInstanceRegister);
       }
       if (call_descriptor->IsWasmCapiFunction()) {
@@ -3596,9 +3601,59 @@ void CodeGenerator::FinishCode() {}
 void CodeGenerator::PrepareForDeoptimizationExits(
     ZoneDeque<DeoptimizationExit*>* exits) {}
 
-void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
-  // Must be kept in sync with {MoveTempLocationTo}.
+AllocatedOperand CodeGenerator::Push(InstructionOperand* source) {
   auto rep = LocationOperand::cast(source)->representation();
+  int new_slots = ElementSizeInPointers(rep);
+  S390OperandConverter g(this, nullptr);
+  int last_frame_slot_id =
+      frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+  int sp_delta = frame_access_state_->sp_delta();
+  int slot_id = last_frame_slot_id + sp_delta + new_slots;
+  AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
+  if (source->IsFloatStackSlot() || source->IsDoubleStackSlot()) {
+    __ LoadU64(r1, g.ToMemOperand(source));
+    __ Push(r1);
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  } else {
+    // Bump the stack pointer and assemble the move.
+    __ lay(sp, MemOperand(sp, -(new_slots * kSystemPointerSize)));
+    frame_access_state()->IncreaseSPDelta(new_slots);
+    AssembleMove(source, &stack_slot);
+  }
+  temp_slots_ += new_slots;
+  return stack_slot;
+}
+
+void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
+  int new_slots = ElementSizeInPointers(rep);
+  frame_access_state()->IncreaseSPDelta(-new_slots);
+  S390OperandConverter g(this, nullptr);
+  if (dest->IsFloatStackSlot() || dest->IsDoubleStackSlot()) {
+    __ Pop(r1);
+    __ StoreU64(r1, g.ToMemOperand(dest));
+  } else {
+    int last_frame_slot_id =
+        frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+    int sp_delta = frame_access_state_->sp_delta();
+    int slot_id = last_frame_slot_id + sp_delta + new_slots;
+    AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
+    AssembleMove(&stack_slot, dest);
+    __ lay(sp, MemOperand(sp, new_slots * kSystemPointerSize));
+  }
+  temp_slots_ -= new_slots;
+}
+
+void CodeGenerator::PopTempStackSlots() {
+  if (temp_slots_ > 0) {
+    frame_access_state()->IncreaseSPDelta(-temp_slots_);
+    __ lay(sp, MemOperand(sp, temp_slots_ * kSystemPointerSize));
+    temp_slots_ = 0;
+  }
+}
+
+void CodeGenerator::MoveToTempLocation(InstructionOperand* source,
+                                       MachineRepresentation rep) {
+  // Must be kept in sync with {MoveTempLocationTo}.
   if (!IsFloatingPoint(rep) ||
       ((IsFloatingPoint(rep) &&
         !move_cycle_.pending_double_scratch_register_use))) {
@@ -3609,24 +3664,8 @@ void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
     DCHECK(!AreAliased(kScratchReg, r0, r1));
     AssembleMove(source, &scratch);
   } else {
-    DCHECK(!source->IsRegister() && !source->IsStackSlot());
     // The scratch register is blocked by pending moves. Use the stack instead.
-    int new_slots = ElementSizeInPointers(rep);
-    S390OperandConverter g(this, nullptr);
-    if (source->IsFloatStackSlot() || source->IsDoubleStackSlot()) {
-      __ LoadU64(r1, g.ToMemOperand(source));
-      __ Push(r1);
-    } else {
-      // Bump the stack pointer and assemble the move.
-      int last_frame_slot_id =
-          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
-      int sp_delta = frame_access_state_->sp_delta();
-      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
-      __ lay(sp, MemOperand(sp, -(new_slots * kSystemPointerSize)));
-      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
-      AssembleMove(source, &temp);
-    }
-    frame_access_state()->IncreaseSPDelta(new_slots);
+    Push(source);
   }
 }
 
@@ -3641,32 +3680,14 @@ void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
     DCHECK(!AreAliased(kScratchReg, r0, r1));
     AssembleMove(&scratch, dest);
   } else {
-    DCHECK(!dest->IsRegister() && !dest->IsStackSlot());
-    S390OperandConverter g(this, nullptr);
-    int new_slots = ElementSizeInPointers(rep);
-    frame_access_state()->IncreaseSPDelta(-new_slots);
-    if (dest->IsFloatStackSlot() || dest->IsDoubleStackSlot()) {
-      __ Pop(r1);
-      __ StoreU64(r1, g.ToMemOperand(dest));
-    } else {
-      int last_frame_slot_id =
-          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
-      int sp_delta = frame_access_state_->sp_delta();
-      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
-      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
-      AssembleMove(&temp, dest);
-      __ lay(sp, MemOperand(sp, new_slots * kSystemPointerSize));
-    }
+    Pop(dest, rep);
   }
   move_cycle_ = MoveCycleState();
 }
 
 void CodeGenerator::SetPendingMove(MoveOperands* move) {
-  if (move->source().IsFPStackSlot() && !move->destination().IsFPRegister()) {
-    move_cycle_.pending_double_scratch_register_use = true;
-  } else if (move->source().IsConstant() &&
-             (move->destination().IsDoubleStackSlot() ||
-              move->destination().IsFloatStackSlot())) {
+  if ((move->source().IsConstant() || move->source().IsFPStackSlot()) &&
+      !move->destination().IsFPRegister()) {
     move_cycle_.pending_double_scratch_register_use = true;
   }
 }
@@ -3736,7 +3757,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           Handle<HeapObject> src_object = src.ToHeapObject();
           RootIndex index;
           if (IsMaterializableFromRoot(src_object, &index)) {
-            __ LoadRoot(dst, index);
+            __ LoadTaggedRoot(dst, index);
           } else {
             __ Move(dst, src_object, RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
           }

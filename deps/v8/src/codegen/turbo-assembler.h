@@ -76,6 +76,7 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   // Corresponds to: destination = [kRootRegister + offset].
   virtual void LoadRootRelative(Register destination, int32_t offset) = 0;
 
+  Tagged_t ReadOnlyRootPtr(RootIndex index);
   virtual void LoadRoot(Register destination, RootIndex index) = 0;
 
   static int32_t RootRegisterOffsetForRootIndex(RootIndex root_index);

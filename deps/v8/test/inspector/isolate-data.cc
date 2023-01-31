@@ -62,6 +62,7 @@ InspectorIsolateData::InspectorIsolateData(
         &InspectorIsolateData::PromiseRejectHandler);
     inspector_ = v8_inspector::V8Inspector::create(isolate_.get(), this);
   }
+  v8::Isolate::Scope isolate_scope(isolate_.get());
   v8::HandleScope handle_scope(isolate_.get());
   not_inspectable_private_.Reset(
       isolate_.get(),
@@ -163,9 +164,12 @@ int InspectorIsolateData::ConnectSession(
     v8_inspector::V8Inspector::Channel* channel) {
   v8::SealHandleScope seal_handle_scope(isolate());
   int session_id = ++last_session_id_;
-  sessions_[session_id] =
-      inspector_->connect(context_group_id, channel, state,
-                          v8_inspector::V8Inspector::kFullyTrusted);
+  sessions_[session_id] = inspector_->connect(
+      context_group_id, channel, state,
+      v8_inspector::V8Inspector::kFullyTrusted,
+      waiting_for_debugger_
+          ? v8_inspector::V8Inspector::kWaitingForDebugger
+          : v8_inspector::V8Inspector::kNotWaitingForDebugger);
   context_group_by_session_[sessions_[session_id].get()] = context_group_id;
   return session_id;
 }
@@ -195,6 +199,12 @@ void InspectorIsolateData::BreakProgram(
     auto it = sessions_.find(session_id);
     if (it != sessions_.end()) it->second->breakProgram(reason, details);
   }
+}
+
+void InspectorIsolateData::Stop(int session_id) {
+  v8::SealHandleScope seal_handle_scope(isolate());
+  auto it = sessions_.find(session_id);
+  if (it != sessions_.end()) it->second->stop();
 }
 
 void InspectorIsolateData::SchedulePauseOnNextStatement(
@@ -438,6 +448,10 @@ void InspectorIsolateData::runMessageLoopOnPause(int) {
   task_runner_->RunMessageLoop(true);
 }
 
+void InspectorIsolateData::runIfWaitingForDebugger(int) {
+  quitMessageLoopOnPause();
+}
+
 void InspectorIsolateData::quitMessageLoopOnPause() {
   v8::SealHandleScope seal_handle_scope(isolate());
   task_runner_->QuitMessageLoop();
@@ -505,6 +519,13 @@ bool InspectorIsolateData::AssociateExceptionData(
     v8::Local<v8::Value> value) {
   return inspector_->associateExceptionData(
       this->isolate()->GetCurrentContext(), exception, key, value);
+}
+
+void InspectorIsolateData::WaitForDebugger(int context_group_id) {
+  DCHECK(!waiting_for_debugger_);
+  waiting_for_debugger_ = true;
+  runMessageLoopOnPause(context_group_id);
+  waiting_for_debugger_ = false;
 }
 
 namespace {

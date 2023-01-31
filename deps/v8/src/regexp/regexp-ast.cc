@@ -193,6 +193,22 @@ void* RegExpUnparser::VisitClassRanges(RegExpClassRanges* that, void* data) {
   return nullptr;
 }
 
+void* RegExpUnparser::VisitClassSetOperand(RegExpClassSetOperand* that,
+                                           void* data) {
+  os_ << "![";
+  for (int i = 0; i < that->ranges()->length(); i++) {
+    if (i > 0) os_ << " ";
+    VisitCharacterRange(that->ranges()->at(i));
+  }
+  for (auto iter : *that->strings()) {
+    os_ << " '";
+    os_ << std::string(iter.first.begin(), iter.first.end());
+    os_ << "'";
+  }
+  os_ << "]";
+  return nullptr;
+}
+
 void* RegExpUnparser::VisitClassSetExpression(RegExpClassSetExpression* that,
                                               void* data) {
   switch (that->operation()) {
@@ -362,6 +378,37 @@ RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
   }
 }
 
+RegExpClassSetOperand::RegExpClassSetOperand(ZoneList<CharacterRange>* ranges,
+                                             CharacterClassStrings* strings)
+    : ranges_(ranges), strings_(strings) {
+  DCHECK_NOT_NULL(ranges);
+  DCHECK_NOT_NULL(strings);
+  min_match_ = 0;
+  max_match_ = 0;
+  if (!ranges->is_empty()) {
+    min_match_ = 1;
+    max_match_ = 2;
+  }
+  for (auto string : *strings) {
+    min_match_ = std::min(min_match_, string.second->min_match());
+    max_match_ = std::max(max_match_, string.second->max_match());
+  }
+}
+
+RegExpClassSetExpression::RegExpClassSetExpression(
+    OperationType op, bool is_negated, bool may_contain_strings,
+    ZoneList<RegExpTree*>* operands)
+    : operation_(op),
+      is_negated_(is_negated),
+      may_contain_strings_(may_contain_strings),
+      operands_(operands) {
+  DCHECK_NOT_NULL(operands);
+  DCHECK_IMPLIES(is_negated_, !may_contain_strings_);
+  max_match_ = 0;
+  for (auto op : *operands) {
+    max_match_ = std::max(max_match_, op->max_match());
+  }
+}
 
 }  // namespace internal
 }  // namespace v8

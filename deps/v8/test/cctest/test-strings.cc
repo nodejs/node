@@ -1393,6 +1393,49 @@ TEST(InternalizeExternal) {
   CcTest::CollectGarbage(i::OLD_SPACE);
 }
 
+TEST(Regress1402187) {
+  CcTest::InitializeVM();
+  i::Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  // This won't leak; the external string mechanism will call Dispose() on it.
+  const char ext_string_content[] = "prop-1234567890asdf";
+  OneByteVectorResource* resource =
+      new OneByteVectorResource(v8::base::Vector<const char>(
+          ext_string_content, strlen(ext_string_content)));
+  const uint32_t fake_hash =
+      String::CreateHashFieldValue(4711, String::HashFieldType::kHash);
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    // Internalize a string with the same hash to ensure collision.
+    Handle<String> intern = isolate->factory()->NewStringFromAsciiChecked(
+        "internalized1234567", AllocationType::kOld);
+    intern->set_raw_hash_field(fake_hash);
+    factory->InternalizeName(intern);
+    CHECK(intern->IsInternalizedString());
+
+    v8::Local<v8::String> ext_string =
+        v8::String::NewFromUtf8Literal(CcTest::isolate(), ext_string_content);
+    ext_string->MakeExternal(resource);
+    Handle<String> string = v8::Utils::OpenHandle(*ext_string);
+    string->set_raw_hash_field(fake_hash);
+    CHECK(string->IsExternalString());
+    CHECK(!StringShape(*string).IsUncachedExternal());
+    CHECK(!string->IsInternalizedString());
+    CHECK(!String::Equals(isolate, string, intern));
+    CHECK_EQ(string->hash(), intern->hash());
+    CHECK_EQ(string->length(), intern->length());
+
+    CHECK_EQ(isolate->string_table()->TryStringToIndexOrLookupExisting(
+                 isolate, string->ptr()),
+             Smi::FromInt(ResultSentinel::kNotFound).ptr());
+    string = factory->InternalizeString(string);
+    CHECK(string->IsExternalString());
+    CHECK(string->IsInternalizedString());
+  }
+  CcTest::CollectGarbage(i::OLD_SPACE);
+  CcTest::CollectGarbage(i::OLD_SPACE);
+}
+
 TEST(SliceFromExternal) {
   if (!v8_flags.string_slices) return;
   CcTest::InitializeVM();

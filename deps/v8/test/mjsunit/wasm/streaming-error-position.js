@@ -59,10 +59,13 @@ function testErrorPosition(bytes, pos, message) {
 (function testSectionLengthTooBig() {
   let bytes = new Binary;
   bytes.emit_header();
+  let pos = bytes.length;
   bytes.emit_u8(kTypeSectionCode);
   bytes.emit_u32v(0xffffff23);
-  let pos = bytes.length - 1;
-  testErrorPositionAsyncOnly(bytes, pos, 'section length');
+  testErrorPositionAsyncOnly(
+      bytes, pos,
+      'section \\(code 1, "Type"\\) extends past end of the module ' +
+          '\\(length 4294967075, remaining bytes 0\\)');
 })();
 
 (function testFunctionsCountInvalidVarint() {
@@ -78,6 +81,7 @@ function testErrorPosition(bytes, pos, message) {
       1,                     // section length
       0                      // number of functions
   ]);
+  let pos = bytes.length;
   bytes.emit_bytes([
       kCodeSectionCode,  // section id
       20,                // section length (arbitrary value > 6)
@@ -85,8 +89,10 @@ function testErrorPosition(bytes, pos, message) {
   // Functions count
   bytes.emit_bytes([0x80, 0x80, 0x80, 0x80, 0x80, 0x00]);
 
-  let pos = bytes.length - 1 - 1;
-  testErrorPositionAsyncOnly(bytes, pos, 'expected functions count');
+  testErrorPositionAsyncOnly(
+      bytes, pos,
+      'section \\(code 10, "Code"\\) extends past end of the module ' +
+          '\\(length 20, remaining bytes 6\\)');
 })();
 
 (function testFunctionsCountTooBig() {
@@ -102,6 +108,7 @@ function testErrorPosition(bytes, pos, message) {
       1,                     // section length
       0                      // number of functions
   ]);
+  let pos = bytes.length;
   bytes.emit_bytes([
       kCodeSectionCode,  // section id
       20,                // section length (arbitrary value > 6)
@@ -109,8 +116,10 @@ function testErrorPosition(bytes, pos, message) {
   // Functions count
   bytes.emit_u32v(0xffffff23);
 
-  let pos = bytes.length - 1;
-  testErrorPositionAsyncOnly(bytes, pos, 'functions count');
+  testErrorPositionAsyncOnly(
+      bytes, pos,
+      'section \\(code 10, "Code"\\) extends past end of the module ' +
+          '\\(length 20, remaining bytes 5\\)');
 })();
 
 (function testFunctionsCountDoesNotMatch() {
@@ -126,6 +135,7 @@ function testErrorPosition(bytes, pos, message) {
       1,                     // section length
       0                      // number of functions
   ]);
+  let pos = bytes.length;
   bytes.emit_bytes([
       kCodeSectionCode,  // section id
       20,                // section length (arbitrary value > 6)
@@ -133,8 +143,10 @@ function testErrorPosition(bytes, pos, message) {
   // Functions count (different than the count in the functions section.
   bytes.emit_u32v(5);
 
-  let pos = bytes.length - 1;
-  testErrorPositionAsyncOnly(bytes, pos, 'function body count 5 mismatch');
+  testErrorPositionAsyncOnly(
+      bytes, pos,
+      'section \\(code 10, "Code"\\) extends past end of the module ' +
+          '\\(length 20, remaining bytes 1\\)');
 })();
 
 (function testBodySizeInvalidVarint() {
@@ -154,6 +166,7 @@ function testErrorPosition(bytes, pos, message) {
       1,                     // number of functions
       0                      // signature index
   ]);
+  let pos = bytes.length;
   bytes.emit_bytes([
       kCodeSectionCode,  // section id
       20,                // section length (arbitrary value > 6)
@@ -162,8 +175,10 @@ function testErrorPosition(bytes, pos, message) {
   // Invalid function body size.
   bytes.emit_bytes([0x80, 0x80, 0x80, 0x80, 0x80, 0x00]);
 
-  let pos = bytes.length - 1 - 1;
-  testErrorPositionAsyncOnly(bytes, pos, 'function body size');
+  testErrorPositionAsyncOnly(
+      bytes, pos,
+      'section \\(code 10, "Code"\\) extends past end of the module ' +
+          '\\(length 20, remaining bytes 7\\)');
 })();
 
 (function testBodySizeTooBig() {
@@ -183,6 +198,7 @@ function testErrorPosition(bytes, pos, message) {
       1,                     // number of functions
       0                      // signature index
   ]);
+  let pos = bytes.length;
   bytes.emit_bytes([
       kCodeSectionCode,  // section id
       20,                // section length (arbitrary value > 6)
@@ -191,8 +207,10 @@ function testErrorPosition(bytes, pos, message) {
   // Invalid function body size.
   bytes.emit_u32v(0xffffff23);
 
-  let pos = bytes.length - 1;
-  testErrorPositionAsyncOnly(bytes, pos, 'function body size');
+  testErrorPositionAsyncOnly(
+      bytes, pos,
+      'section \\(code 10, "Code"\\) extends past end of the module ' +
+          '\\(length 20, remaining bytes 6\\)');
 })();
 
 (function testBodySizeDoesNotFit() {
@@ -212,6 +230,7 @@ function testErrorPosition(bytes, pos, message) {
       1,                     // number of functions
       0                      // signature index
   ]);
+  let pos = bytes.length;
   bytes.emit_bytes([
       kCodeSectionCode,  // section id
       20,                // section length (arbitrary value > 6)
@@ -220,8 +239,10 @@ function testErrorPosition(bytes, pos, message) {
   // Invalid function body size (does not fit into the code section).
   bytes.emit_u32v(20);
 
-  let pos = bytes.length - 1;
-  testErrorPositionAsyncOnly(bytes, pos, 'not enough code section bytes');
+  testErrorPositionAsyncOnly(
+      bytes, pos,
+      'section \\(code 10, "Code"\\) extends past end of the module ' +
+          '\\(length 20, remaining bytes 2\\)');
 })();
 
 (function testBodySizeIsZero() {
@@ -241,6 +262,7 @@ function testErrorPosition(bytes, pos, message) {
       1,                     // number of functions
       0                      // signature index
   ]);
+  let pos = bytes.length;
   bytes.emit_bytes([
       kCodeSectionCode,  // section id
       20,                // section length (arbitrary value > 6)
@@ -249,8 +271,10 @@ function testErrorPosition(bytes, pos, message) {
   // Invalid function body size (body size of 0 is invalid).
   bytes.emit_u32v(0);
 
-  let pos = bytes.length - 1;
-  testErrorPositionAsyncOnly(bytes, pos, 'invalid function length');
+  testErrorPositionAsyncOnly(
+      bytes, pos,
+      'section \\(code 10, "Code"\\) extends past end of the module ' +
+          '\\(length 20, remaining bytes 2\\)');
 })();
 
 (function testStaleCodeSectionBytes() {
@@ -272,15 +296,21 @@ function testErrorPosition(bytes, pos, message) {
   ]);
   bytes.emit_bytes([
       kCodeSectionCode,  // section id
-      20,                // section length (too big)
+      10,                // section length (too big)
       1,                 // functions count
       2,                 // body size
       0,                 // locals count
       kExprEnd           // body
   ]);
+  let pos = bytes.length;
+  // Add some more bytes to avoid early error detection for too big section
+  // length.
+  bytes.emit_bytes([0, 0, 0, 0, 0, 0, 0, 0]);
 
-  let pos = bytes.length - 1;
-  testErrorPositionAsyncOnly(bytes, pos, 'not all code section bytes were used');
+  testErrorPositionAsyncOnly(
+      bytes, pos,
+      'section was shorter than expected size ' +
+          '\\(10 bytes expected, 4 decoded\\)');
 })();
 
 (function testInvalidCode() {
@@ -340,7 +370,9 @@ function testErrorPosition(bytes, pos, message) {
       0,                 // locals count
       kExprEnd           // body
   ]);
-  let pos = bytes.length;
+  // TODO(clemensb): Fix error reporting to point to the section start, not the
+  // payload start.
+  let pos = bytes.length + 2;
   bytes.emit_bytes([
       kCodeSectionCode,  // section id (repeating)
       4,                 // section length
@@ -351,7 +383,7 @@ function testErrorPosition(bytes, pos, message) {
   ]);
 
   // Find error at the second kCodeSectionCode.
-  testErrorPositionAsyncOnly(bytes, pos, 'code section can only appear once');
+  testErrorPositionAsyncOnly(bytes, pos, 'unexpected section <Code>');
 })();
 
 (function testCodeSectionSizeZero() {
@@ -377,8 +409,8 @@ function testErrorPosition(bytes, pos, message) {
   ]);
 
   // Find error at the code section length.
-  let pos = bytes.length - 1;
-  testErrorPositionAsyncOnly(bytes, pos, 'code section cannot have size 0');
+  let pos = bytes.length;
+  testErrorPositionAsyncOnly(bytes, pos, 'expected functions count');
 })();
 
 (function testInvalidSection() {

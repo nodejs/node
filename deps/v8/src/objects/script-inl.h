@@ -44,6 +44,9 @@ SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
                       CHECK_SCRIPT_NOT_WASM)
 #undef CHECK_SCRIPT_NOT_WASM
 
+ACCESSORS(Script, compiled_lazy_function_positions, Object,
+          kCompiledLazyFunctionPositionsOffset)
+
 bool Script::is_wrapped() const {
   return eval_from_shared_or_wrapped_arguments_or_sfi_table().IsFixedArray() &&
          type() != TYPE_WEB_SNAPSHOT;
@@ -146,6 +149,14 @@ Script::CompilationState Script::compilation_state() {
 }
 void Script::set_compilation_state(CompilationState state) {
   set_flags(CompilationStateBit::update(flags(), state));
+}
+
+bool Script::produce_compile_hints() const {
+  return ProduceCompileHintsBit::decode(flags());
+}
+
+void Script::set_produce_compile_hints(bool produce_compile_hints) {
+  set_flags(ProduceCompileHintsBit::update(flags(), produce_compile_hints));
 }
 
 bool Script::is_repl_mode() const { return IsReplModeBit::decode(flags()); }

@@ -587,7 +587,8 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   // A special {Parameter} index for JSCalls that represents the closure.
-  static constexpr int kJSCallClosureParamIndex = -1;
+  static constexpr int kJSCallClosureParamIndex = kJSCallClosureParameterIndex;
+  static_assert(kJSCallClosureParamIndex == -1);
 
   // A special {OsrValue} index to indicate the context spill slot.
   static const int kOsrContextSpillSlotIndex = -1;

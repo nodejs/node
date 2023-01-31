@@ -15,8 +15,17 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-struct-tq.inc"
 
+class AlwaysSharedSpaceJSObject
+    : public TorqueGeneratedAlwaysSharedSpaceJSObject<AlwaysSharedSpaceJSObject,
+                                                      JSObject> {
+ public:
+  static_assert(kHeaderSize == JSObject::kHeaderSize);
+  TQ_OBJECT_CONSTRUCTORS(AlwaysSharedSpaceJSObject)
+};
+
 class JSSharedStruct
-    : public TorqueGeneratedJSSharedStruct<JSSharedStruct, JSObject> {
+    : public TorqueGeneratedJSSharedStruct<JSSharedStruct,
+                                           AlwaysSharedSpaceJSObject> {
  public:
   DECL_CAST(JSSharedStruct)
   DECL_PRINTER(JSSharedStruct)

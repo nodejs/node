@@ -84,8 +84,14 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
 V8Debugger::~V8Debugger() {
   m_isolate->RemoveCallCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallback);
-  m_isolate->RemoveMicrotasksCompletedCallback(
-      &V8Debugger::terminateExecutionCompletedCallbackIgnoringData);
+  if (!m_terminateExecutionCallbackContext.IsEmpty()) {
+    v8::HandleScope handles(m_isolate);
+    v8::MicrotaskQueue* microtask_queue =
+        m_terminateExecutionCallbackContext.Get(m_isolate)->GetMicrotaskQueue();
+    microtask_queue->RemoveMicrotasksCompletedCallback(
+        &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
+        microtask_queue);
+  }
 }
 
 void V8Debugger::enable() {
@@ -96,7 +102,7 @@ void V8Debugger::enable() {
   v8::debug::ChangeBreakOnException(m_isolate, v8::debug::NoBreakOnException);
   m_pauseOnExceptionsState = v8::debug::NoBreakOnException;
 #if V8_ENABLE_WEBASSEMBLY
-  v8::debug::TierDownAllModulesPerIsolate(m_isolate);
+  v8::debug::EnterDebuggingForIsolate(m_isolate);
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
@@ -104,14 +110,20 @@ void V8Debugger::disable() {
   if (isPaused()) {
     bool scheduledOOMBreak = m_scheduledOOMBreak;
     bool hasAgentAcceptsPause = false;
-    m_inspector->forEachSession(
-        m_pausedContextGroupId, [&scheduledOOMBreak, &hasAgentAcceptsPause](
-                                    V8InspectorSessionImpl* session) {
-          if (session->debuggerAgent()->acceptsPause(scheduledOOMBreak)) {
-            hasAgentAcceptsPause = true;
-          }
-        });
-    if (!hasAgentAcceptsPause) m_inspector->client()->quitMessageLoopOnPause();
+
+    if (m_instrumentationPause) {
+      quitMessageLoopIfAgentsFinishedInstrumentation();
+    } else {
+      m_inspector->forEachSession(
+          m_pausedContextGroupId, [&scheduledOOMBreak, &hasAgentAcceptsPause](
+                                      V8InspectorSessionImpl* session) {
+            if (session->debuggerAgent()->acceptsPause(scheduledOOMBreak)) {
+              hasAgentAcceptsPause = true;
+            }
+          });
+      if (!hasAgentAcceptsPause)
+        m_inspector->client()->quitMessageLoopOnPause();
+    }
   }
   if (--m_enableCount) return;
   clearContinueToLocation();
@@ -121,7 +133,7 @@ void V8Debugger::disable() {
   m_pauseOnNextCallRequested = false;
   m_pauseOnAsyncCall = false;
 #if V8_ENABLE_WEBASSEMBLY
-  v8::debug::TierUpAllModulesPerIsolate(m_isolate);
+  v8::debug::LeaveDebuggingForIsolate(m_isolate);
 #endif  // V8_ENABLE_WEBASSEMBLY
   v8::debug::SetDebugDelegate(m_isolate, nullptr);
   m_isolate->RemoveNearHeapLimitCallback(&V8Debugger::nearHeapLimitCallback,
@@ -233,14 +245,32 @@ void V8Debugger::requestPauseAfterInstrumentation() {
   m_requestedPauseAfterInstrumentation = true;
 }
 
+void V8Debugger::quitMessageLoopIfAgentsFinishedInstrumentation() {
+  bool allAgentsFinishedInstrumentation = true;
+  m_inspector->forEachSession(
+      m_pausedContextGroupId,
+      [&allAgentsFinishedInstrumentation](V8InspectorSessionImpl* session) {
+        if (!session->debuggerAgent()->instrumentationFinished()) {
+          allAgentsFinishedInstrumentation = false;
+        }
+      });
+  if (allAgentsFinishedInstrumentation) {
+    m_inspector->client()->quitMessageLoopOnPause();
+  }
+}
+
 void V8Debugger::continueProgram(int targetContextGroupId,
                                  bool terminateOnResume) {
   if (m_pausedContextGroupId != targetContextGroupId) return;
   if (isPaused()) {
-    if (terminateOnResume) {
+    if (m_instrumentationPause) {
+      quitMessageLoopIfAgentsFinishedInstrumentation();
+    } else if (terminateOnResume) {
       v8::debug::SetTerminateOnResume(m_isolate);
+      m_inspector->client()->quitMessageLoopOnPause();
+    } else {
+      m_inspector->client()->quitMessageLoopOnPause();
     }
-    m_inspector->client()->quitMessageLoopOnPause();
   }
 }
 
@@ -283,6 +313,7 @@ void V8Debugger::stepOutOfFunction(int targetContextGroupId) {
 }
 
 void V8Debugger::terminateExecution(
+    v8::Local<v8::Context> context,
     std::unique_ptr<TerminateExecutionCallback> callback) {
   if (m_terminateExecutionCallback) {
     if (callback) {
@@ -291,23 +322,38 @@ void V8Debugger::terminateExecution(
     }
     return;
   }
+  v8::HandleScope handles(m_isolate);
   m_terminateExecutionCallback = std::move(callback);
+  m_terminateExecutionCallbackContext.Reset(m_isolate, context);
+  m_terminateExecutionCallbackContext.SetWeak();
   m_isolate->AddCallCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallback);
-  m_isolate->AddMicrotasksCompletedCallback(
-      &V8Debugger::terminateExecutionCompletedCallbackIgnoringData);
+  v8::MicrotaskQueue* microtask_queue = context->GetMicrotaskQueue();
+  microtask_queue->AddMicrotasksCompletedCallback(
+      &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
+      microtask_queue);
   m_isolate->TerminateExecution();
 }
 
 void V8Debugger::reportTermination() {
-  if (!m_terminateExecutionCallback) return;
+  if (!m_terminateExecutionCallback) {
+    DCHECK(m_terminateExecutionCallbackContext.IsEmpty());
+    return;
+  }
+  v8::HandleScope handles(m_isolate);
   m_isolate->RemoveCallCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallback);
-  m_isolate->RemoveMicrotasksCompletedCallback(
-      &V8Debugger::terminateExecutionCompletedCallbackIgnoringData);
+  if (!m_terminateExecutionCallbackContext.IsEmpty()) {
+    v8::MicrotaskQueue* microtask_queue =
+        m_terminateExecutionCallbackContext.Get(m_isolate)->GetMicrotaskQueue();
+    microtask_queue->RemoveMicrotasksCompletedCallback(
+        &V8Debugger::terminateExecutionCompletedCallbackIgnoringData,
+        microtask_queue);
+  }
   m_isolate->CancelTerminateExecution();
   m_terminateExecutionCallback->sendSuccess();
   m_terminateExecutionCallback.reset();
+  m_terminateExecutionCallbackContext.Reset();
 }
 
 void V8Debugger::terminateExecutionCompletedCallback(v8::Isolate* isolate) {
@@ -318,7 +364,12 @@ void V8Debugger::terminateExecutionCompletedCallback(v8::Isolate* isolate) {
 }
 
 void V8Debugger::terminateExecutionCompletedCallbackIgnoringData(
-    v8::Isolate* isolate, void*) {
+    v8::Isolate* isolate, void* data) {
+  DCHECK(data);
+  // Ensure that after every microtask completed callback we remove the
+  // callback regardless of how `terminateExecutionCompletedCallback` behaves.
+  static_cast<v8::MicrotaskQueue*>(data)->RemoveMicrotasksCompletedCallback(
+      &V8Debugger::terminateExecutionCompletedCallbackIgnoringData, data);
   terminateExecutionCompletedCallback(isolate);
 }
 
@@ -518,11 +569,11 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
       });
 }
 
-V8Debugger::PauseAfterInstrumentation V8Debugger::BreakOnInstrumentation(
+V8Debugger::ActionAfterInstrumentation V8Debugger::BreakOnInstrumentation(
     v8::Local<v8::Context> pausedContext,
     v8::debug::BreakpointId instrumentationId) {
   // Don't allow nested breaks.
-  if (isPaused()) return kNoPauseAfterInstrumentationRequested;
+  if (isPaused()) return ActionAfterInstrumentation::kPauseIfBreakpointsHit;
 
   int contextGroupId = m_inspector->contextGroupId(pausedContext);
   bool hasAgents = false;
@@ -531,7 +582,7 @@ V8Debugger::PauseAfterInstrumentation V8Debugger::BreakOnInstrumentation(
         if (session->debuggerAgent()->acceptsPause(false /* isOOMBreak */))
           hasAgents = true;
       });
-  if (!hasAgents) return kNoPauseAfterInstrumentationRequested;
+  if (!hasAgents) return ActionAfterInstrumentation::kPauseIfBreakpointsHit;
 
   m_pausedContextGroupId = contextGroupId;
   m_instrumentationPause = true;
@@ -553,14 +604,21 @@ V8Debugger::PauseAfterInstrumentation V8Debugger::BreakOnInstrumentation(
   m_pausedContextGroupId = 0;
   m_instrumentationPause = false;
 
-  m_inspector->forEachSession(contextGroupId,
-                              [](V8InspectorSessionImpl* session) {
-                                if (session->debuggerAgent()->enabled())
-                                  session->debuggerAgent()->didContinue();
-                              });
-  return requestedPauseAfterInstrumentation
-             ? kPauseAfterInstrumentationRequested
-             : kNoPauseAfterInstrumentationRequested;
+  hasAgents = false;
+  m_inspector->forEachSession(
+      contextGroupId, [&hasAgents](V8InspectorSessionImpl* session) {
+        if (session->debuggerAgent()->enabled())
+          session->debuggerAgent()->didContinue();
+        if (session->debuggerAgent()->acceptsPause(false /* isOOMBreak */))
+          hasAgents = true;
+      });
+  if (!hasAgents) {
+    return ActionAfterInstrumentation::kContinue;
+  } else if (requestedPauseAfterInstrumentation) {
+    return ActionAfterInstrumentation::kPause;
+  } else {
+    return ActionAfterInstrumentation::kPauseIfBreakpointsHit;
+  }
 }
 
 void V8Debugger::BreakProgramRequested(
@@ -802,10 +860,6 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
     createDataProperty(context, properties, properties->Length(),
                        toV8StringInternalized(m_isolate, "[[Entries]]"));
     createDataProperty(context, properties, properties->Length(), entries);
-  }
-
-  if (v8::debug::isExperimentalRemoveInternalScopesPropertyEnabled()) {
-    return properties;
   }
 
   if (value->IsGeneratorObject()) {

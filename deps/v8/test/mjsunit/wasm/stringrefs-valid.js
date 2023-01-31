@@ -77,6 +77,11 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
       kExprLocalGet, 0, kExprLocalGet, 1,
       ...GCInstr(kExprStringNewUtf8), 0
     ]);
+  builder.addFunction("string.new_utf8_try", kSig_w_ii)
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1,
+      ...GCInstr(kExprStringNewUtf8Try), 0
+    ]);
   builder.addFunction("string.new_lossy_utf8", kSig_w_ii)
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
@@ -253,7 +258,14 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
       kExprRefNull, i8_array,
       kExprI32Const, 0,
       kExprI32Const, 0,
-      ...GCInstr(kExprStringNewWtf8Array)
+      ...GCInstr(kExprStringNewUtf8Array)
+    ]);
+  builder.addFunction("string.new_utf8_array_try", kSig_w_v)
+    .addBody([
+      kExprRefNull, i8_array,
+      kExprI32Const, 0,
+      kExprI32Const, 0,
+      ...GCInstr(kExprStringNewUtf8ArrayTry)
     ]);
   builder.addFunction("string.new_lossy_utf8_array", kSig_w_v)
     .addBody([
@@ -421,3 +433,7 @@ assertInvalid(
       ]);
   },
   /string.encode_wtf16_array\[1\] expected array of mutable i16, found local.get of type \(ref 0\)/);
+
+assertInvalid(builder => {
+  builder.addFunction(undefined, kSig_v_v).addBody([...GCInstr(0x790)]);
+}, /invalid stringref opcode: fb790/);

@@ -586,7 +586,7 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
         isolate()->factory()->many_closures_cell();
     Callable const callable =
         Builtins::CallableFor(isolate(), shared.builtin_id());
-    CodeTRef code = MakeRef(broker_, *callable.code());
+    CodeRef code = MakeRef(broker_, *callable.code());
     return AddNode<JSFunction>(graph()->NewNode(
         javascript()->CreateClosure(shared, code), HeapConstant(feedback_cell),
         context, effect(), control()));
@@ -2507,11 +2507,13 @@ void JSCallReducer::Finalize() {
   std::set<Node*> const waitlist = std::move(waitlist_);
   for (Node* node : waitlist) {
     if (!node->IsDead()) {
+      // Remember the max node id before reduction.
+      NodeId const max_id = static_cast<NodeId>(graph()->NodeCount() - 1);
       Reduction const reduction = Reduce(node);
       if (reduction.Changed()) {
         Node* replacement = reduction.replacement();
         if (replacement != node) {
-          Replace(node, replacement);
+          Replace(node, replacement, max_id);
         }
       }
     }
@@ -4890,6 +4892,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceDateNow(node);
     case Builtin::kNumberConstructor:
       return ReduceNumberConstructor(node);
+    case Builtin::kBigIntConstructor:
+      return ReduceBigIntConstructor(node);
     case Builtin::kBigIntAsIntN:
     case Builtin::kBigIntAsUintN:
       return ReduceBigIntAsN(node, builtin);
@@ -5968,8 +5972,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
             graph()->zone(), 1, BuiltinArguments::kNumExtraArgsWithReceiver,
             Builtins::name(builtin), node->op()->properties(),
             CallDescriptor::kNeedsFrameState);
-        Node* stub_code = jsgraph()->CEntryStubConstant(
-            1, SaveFPRegsMode::kIgnore, ArgvMode::kStack, true);
+        Node* stub_code =
+            jsgraph()->CEntryStubConstant(1, ArgvMode::kStack, true);
         Address builtin_entry = Builtins::CppEntryOf(builtin);
         Node* entry = jsgraph()->ExternalConstant(
             ExternalReference::Create(builtin_entry));
@@ -6905,7 +6909,7 @@ Node* JSCallReducer::CreateClosureFromBuiltinSharedFunctionInfo(
       isolate()->factory()->many_closures_cell();
   Callable const callable =
       Builtins::CallableFor(isolate(), shared.builtin_id());
-  CodeTRef code = MakeRef(broker(), *callable.code());
+  CodeRef code = MakeRef(broker(), *callable.code());
   return graph()->NewNode(javascript()->CreateClosure(shared, code),
                           jsgraph()->HeapConstant(feedback_cell), context,
                           effect, control);
@@ -8170,6 +8174,34 @@ Reduction JSCallReducer::ReduceNumberParseInt(Node* node) {
   FrameState frame_state = n.frame_state();
   Node* object = n.Argument(0);
   Node* radix = n.ArgumentOrUndefined(1, jsgraph());
+
+  // Try constant-folding when input is a string constant.
+  HeapObjectMatcher object_matcher(object);
+  HeapObjectMatcher radix_object_matcher(radix);
+  NumberMatcher radix_number_matcher(radix);
+  if (object_matcher.HasResolvedValue() &&
+      object_matcher.Ref(broker()).IsString() &&
+      (radix_object_matcher.Is(factory()->undefined_value()) ||
+       radix_number_matcher.HasResolvedValue())) {
+    StringRef input_value = object_matcher.Ref(broker()).AsString();
+    // {undefined} is treated same as 0.
+    int radix_value = radix_object_matcher.Is(factory()->undefined_value())
+                          ? 0
+                          : DoubleToInt32(radix_number_matcher.ResolvedValue());
+    if (radix_value != 0 && (radix_value < 2 || radix_value > 36)) {
+      Node* value = jsgraph()->NaNConstant();
+      ReplaceWithValue(node, value);
+      return Replace(value);
+    }
+
+    base::Optional<double> number = input_value.ToInt(radix_value);
+    if (number.has_value()) {
+      Node* result = graph()->NewNode(common()->NumberConstant(number.value()));
+      ReplaceWithValue(node, result);
+      return Replace(result);
+    }
+  }
+
   node->ReplaceInput(0, object);
   node->ReplaceInput(1, radix);
   node->ReplaceInput(2, context);
@@ -8294,6 +8326,39 @@ Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
   // Convert the {value} to a Number.
   NodeProperties::ReplaceValueInputs(node, value);
   NodeProperties::ChangeOp(node, javascript()->ToNumberConvertBigInt());
+  NodeProperties::ReplaceFrameStateInput(node, continuation_frame_state);
+  return Changed(node);
+}
+
+// ES section #sec-bigint-constructor
+Reduction JSCallReducer::ReduceBigIntConstructor(Node* node) {
+  if (!jsgraph()->machine()->Is64()) return NoChange();
+
+  JSCallNode n(node);
+  if (n.ArgumentCount() < 1) {
+    return NoChange();
+  }
+
+  Node* target = n.target();
+  Node* receiver = n.receiver();
+  Node* value = n.Argument(0);
+  Node* context = n.context();
+  FrameState frame_state = n.frame_state();
+
+  // Create the artificial frame state in the middle of the BigInt constructor.
+  SharedFunctionInfoRef shared_info =
+      native_context().bigint_function().shared();
+  Node* stack_parameters[] = {receiver};
+  int stack_parameter_count = arraysize(stack_parameters);
+  Node* continuation_frame_state =
+      CreateJavaScriptBuiltinContinuationFrameState(
+          jsgraph(), shared_info, Builtin::kGenericLazyDeoptContinuation,
+          target, context, stack_parameters, stack_parameter_count, frame_state,
+          ContinuationFrameStateMode::LAZY);
+
+  // Convert the {value} to a BigInt.
+  NodeProperties::ReplaceValueInputs(node, value);
+  NodeProperties::ChangeOp(node, javascript()->ToBigIntConvertNumber());
   NodeProperties::ReplaceFrameStateInput(node, continuation_frame_state);
   return Changed(node);
 }

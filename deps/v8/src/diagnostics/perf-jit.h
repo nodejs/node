@@ -44,7 +44,10 @@ class LinuxPerfJitLogger : public CodeEventLogger {
   explicit LinuxPerfJitLogger(Isolate* isolate);
   ~LinuxPerfJitLogger() override;
 
-  void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
+  void CodeMoveEvent(InstructionStream from, InstructionStream to) override {
+    UNREACHABLE();  // Unsupported.
+  }
+  void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) override {}
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override {}
 

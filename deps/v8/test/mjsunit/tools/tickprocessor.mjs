@@ -241,8 +241,8 @@ await (async function testWindowsCppEntriesProvider() {
   WindowsCppEntriesProvider.prototype.loadSymbols = function(libName) {
     this.symbols = [
       ' Start         Length     Name                   Class',
-      ' 0001:00000000 000ac902H .text                   CODE',
-      ' 0001:000ac910 000005e2H .text$yc                CODE',
+      ' 0001:00000000 000ac902H .text                   INSTRUCTION_STREAM',
+      ' 0001:000ac910 000005e2H .text$yc                INSTRUCTION_STREAM',
       '  Address         Publics by Value              Rva+Base       Lib:Object',
       ' 0000:00000000       __except_list              00000000     <absolute>',
       ' 0001:00000000       ?ReadFile@@YA?AV?$Handle@VString@v8@@@v8@@PBD@Z 00401000 f   shell.obj',

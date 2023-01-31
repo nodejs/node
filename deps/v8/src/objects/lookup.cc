@@ -324,6 +324,18 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
         receiver->IsJSPromisePrototype()) {
       Protectors::InvalidatePromiseThenLookupChain(isolate);
     }
+  } else if (*name == roots.replace_symbol()) {
+    if (!Protectors::IsNumberStringPrototypeNoReplaceIntact(isolate)) return;
+    // We need to protect the prototype chains of `Number.prototype` and
+    // `String.prototype`: that `Symbol.replace` is not added as a property on
+    // any object on these prototype chains.
+    // We detect `Number.prototype` and `String.prototype` by checking for a
+    // prototype that is a JSPrimitiveWrapper. This is a safe approximation.
+    // Using JSPrimitiveWrapper as prototype should be sufficiently rare.
+    if (receiver->map().is_prototype_map() &&
+        (receiver->IsJSPrimitiveWrapper() || receiver->IsJSObjectPrototype())) {
+      Protectors::InvalidateNumberStringPrototypeNoReplace(isolate);
+    }
   }
 }
 
@@ -375,11 +387,9 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     // Check that current value matches new value otherwise we should make
     // the property mutable.
     if (holder->HasFastProperties(isolate_)) {
-      if (!IsConstFieldValueEqualTo(*value)) {
-        new_constness = PropertyConstness::kMutable;
-      }
+      if (!CanStayConst(*value)) new_constness = PropertyConstness::kMutable;
     } else if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
-      if (!IsConstDictValueEqualTo(*value)) {
+      if (!DictCanStayConst(*value)) {
         property_details_ =
             property_details_.CopyWithConstness(PropertyConstness::kMutable);
 
@@ -561,6 +571,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
   DCHECK_IMPLIES(receiver->IsJSProxy(isolate_), name()->IsPrivate(isolate_));
   DCHECK_IMPLIES(!receiver.is_identical_to(GetStoreTarget<JSReceiver>()),
                  name()->IsPrivateName());
+  DCHECK(!receiver->IsAlwaysSharedSpaceJSObject());
   if (state_ == TRANSITION) return;
 
   if (!IsElement() && name()->IsPrivate(isolate_)) {
@@ -887,7 +898,7 @@ Handle<Object> LookupIterator::FetchValue(
     DCHECK_EQ(PropertyKind::kData, property_details_.kind());
     Handle<JSObject> holder = GetHolder<JSObject>();
     FieldIndex field_index =
-        FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+        FieldIndex::ForDetails(holder->map(isolate_), property_details_);
     if (allocation_policy == AllocationPolicy::kAllocationDisallowed &&
         field_index.is_inobject() && field_index.is_double()) {
       return isolate_->factory()->undefined_value();
@@ -902,7 +913,7 @@ Handle<Object> LookupIterator::FetchValue(
   return handle(result, isolate_);
 }
 
-bool LookupIterator::IsConstFieldValueEqualTo(Object value) const {
+bool LookupIterator::CanStayConst(Object value) const {
   DCHECK(!IsElement(*holder_));
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(PropertyLocation::kField, property_details_.location());
@@ -915,7 +926,7 @@ bool LookupIterator::IsConstFieldValueEqualTo(Object value) const {
   }
   Handle<JSObject> holder = GetHolder<JSObject>();
   FieldIndex field_index =
-      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+      FieldIndex::ForDetails(holder->map(isolate_), property_details_);
   if (property_details_.representation().IsDouble()) {
     if (!value.IsNumber(isolate_)) return false;
     uint64_t bits;
@@ -927,23 +938,15 @@ bool LookupIterator::IsConstFieldValueEqualTo(Object value) const {
     // base::bit_cast or value(), will change its value on ia32 (the x87
     // stack is used to return values and stores to the stack silently clear the
     // signalling bit).
-    if (bits == kHoleNanInt64) {
-      // Uninitialized double field.
-      return true;
-    }
-    return Object::SameNumberValue(base::bit_cast<double>(bits),
-                                   value.Number());
-  } else {
-    Object current_value = holder->RawFastPropertyAt(isolate_, field_index);
-    if (current_value.IsUninitialized(isolate()) || current_value == value) {
-      return true;
-    }
-    return current_value.IsNumber(isolate_) && value.IsNumber(isolate_) &&
-           Object::SameNumberValue(current_value.Number(), value.Number());
+    // Only allow initializing stores to double to stay constant.
+    return bits == kHoleNanInt64;
   }
+
+  Object current_value = holder->RawFastPropertyAt(isolate_, field_index);
+  return current_value.IsUninitialized(isolate());
 }
 
-bool LookupIterator::IsConstDictValueEqualTo(Object value) const {
+bool LookupIterator::DictCanStayConst(Object value) const {
   DCHECK(!IsElement(*holder_));
   DCHECK(!holder_->HasFastProperties(isolate_));
   DCHECK(!holder_->IsJSGlobalObject());
@@ -968,11 +971,7 @@ bool LookupIterator::IsConstDictValueEqualTo(Object value) const {
     current_value = dict.ValueAt(dictionary_entry());
   }
 
-  if (current_value.IsUninitialized(isolate()) || current_value == value) {
-    return true;
-  }
-  return current_value.IsNumber(isolate_) && value.IsNumber(isolate_) &&
-         Object::SameNumberValue(current_value.Number(), value.Number());
+  return current_value.IsUninitialized(isolate());
 }
 
 int LookupIterator::GetFieldDescriptorIndex() const {
@@ -997,7 +996,7 @@ FieldIndex LookupIterator::GetFieldIndex() const {
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(PropertyLocation::kField, property_details_.location());
   DCHECK(!IsElement(*holder_));
-  return FieldIndex::ForDescriptor(holder_->map(isolate_), descriptor_number());
+  return FieldIndex::ForDetails(holder_->map(isolate_), property_details_);
 }
 
 Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
@@ -1029,7 +1028,7 @@ Handle<Object> LookupIterator::GetDataValue(SeqCstAccessTag tag) const {
     DCHECK_EQ(PropertyKind::kData, property_details_.kind());
     Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
     FieldIndex field_index =
-        FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+        FieldIndex::ForDetails(holder->map(isolate_), property_details_);
     return JSObject::FastPropertyAt(
         isolate_, holder, property_details_.representation(), field_index, tag);
   }
@@ -1059,7 +1058,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
       // equal to |value|.
       DCHECK_IMPLIES(!initializing_store && property_details_.constness() ==
                                                 PropertyConstness::kConst,
-                     IsConstFieldValueEqualTo(*value));
+                     CanStayConst(*value));
       JSObject::cast(*holder).WriteToField(descriptor_number(),
                                            property_details_, *value);
     } else {
@@ -1083,7 +1082,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
     DCHECK_IMPLIES(
         V8_DICT_PROPERTY_CONST_TRACKING_BOOL && !initializing_store &&
             property_details_.constness() == PropertyConstness::kConst,
-        holder->IsJSProxy(isolate_) || IsConstDictValueEqualTo(*value));
+        holder->IsJSProxy(isolate_) || DictCanStayConst(*value));
 
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       SwissNameDictionary dictionary =

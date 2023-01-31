@@ -144,8 +144,6 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadIsParked) {
   const int kThreads = 4;
 
   {
-    ScanStackModeScopeForTesting no_stack_scanning(i_isolate->heap(),
-                                                   Heap::ScanStackMode::kNone);
     ParkedScope scope(i_isolate->main_thread_local_isolate());
 
     for (int i = 0; i < kThreads; i++) {
@@ -177,9 +175,6 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadParksAndUnparks) {
   const int kThreads = 4;
 
   {
-    ScanStackModeScopeForTesting no_stack_scanning(i_isolate->heap(),
-                                                   Heap::ScanStackMode::kNone);
-
     for (int i = 0; i < kThreads; i++) {
       auto thread =
           std::make_unique<ConcurrentAllocationThread>(i_isolate->heap());
@@ -217,9 +212,6 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadRunsWithSafepoints) {
   const int kThreads = 4;
 
   {
-    ScanStackModeScopeForTesting no_stack_scanning(i_isolate->heap(),
-                                                   Heap::ScanStackMode::kNone);
-
     for (int i = 0; i < kThreads; i++) {
       auto thread =
           std::make_unique<ConcurrentAllocationThread>(i_isolate->heap());
@@ -457,7 +449,7 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
 
 class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
  public:
-  explicit ConcurrentRecordRelocSlotThread(Heap* heap, Code code,
+  explicit ConcurrentRecordRelocSlotThread(Heap* heap, InstructionStream code,
                                            HeapObject value)
       : v8::base::Thread(base::Thread::Options("ThreadWithLocalHeap")),
         heap_(heap),
@@ -468,7 +460,7 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
     RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
     LocalHeap local_heap(heap_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_heap);
-    // Modification of Code object requires write access.
+    // Modification of InstructionStream object requires write access.
     RwxMemoryWriteScopeForTesting rwx_write_scope;
     int mode_mask = RelocInfo::EmbeddedObjectModeMask();
     for (RelocIterator it(code_, mode_mask); !it.done(); it.next()) {
@@ -478,7 +470,7 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
   }
 
   Heap* heap_;
-  Code code_;
+  InstructionStream code_;
   HeapObject value_;
 };
 
@@ -497,7 +489,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Heap* heap = i_isolate->heap();
   {
-    Code code;
+    InstructionStream code;
     HeapObject value;
     CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
     {
@@ -516,8 +508,11 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
 #endif
       CodeDesc desc;
       masm.GetCode(i_isolate, &desc);
-      Handle<Code> code_handle =
-          Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
+      Handle<InstructionStream> code_handle(
+          Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING)
+              .Build()
+              ->instruction_stream(),
+          i_isolate);
       heap::AbandonCurrentlyFreeMemory(heap->old_space());
       Handle<HeapNumber> value_handle(
           i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));

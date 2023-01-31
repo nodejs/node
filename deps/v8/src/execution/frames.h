@@ -297,16 +297,15 @@ class StackFrame {
   // Get the type of this frame.
   virtual Type type() const = 0;
 
-  // Get the code associated with this frame. The result might be a Code object,
-  // a CodeT object or an empty value.
+  // Get the code associated with this frame. The result might be a
+  // InstructionStream object, a Code object or an empty value.
   // This method is used by Isolate::PushStackTraceAndDie() for collecting a
   // stack trace on fatal error and thus it might be called in the middle of GC
   // and should be as safe as possible.
   virtual HeapObject unchecked_code() const = 0;
 
   // Search for the code associated with this frame.
-  // TODO(v8:11880): rename to LookupCode()
-  V8_EXPORT_PRIVATE CodeLookupResult LookupCodeT() const;
+  V8_EXPORT_PRIVATE CodeLookupResult LookupCode() const;
 
   virtual void Iterate(RootVisitor* v) const = 0;
   void IteratePc(RootVisitor* v, Address* pc_address,
@@ -857,8 +856,7 @@ class OptimizedFrame : public JavaScriptFrame {
   int LookupExceptionHandlerInTable(
       int* data, HandlerTable::CatchPrediction* prediction) override;
 
-  virtual int FindReturnPCForTrampoline(CodeT code,
-                                        int trampoline_pc) const = 0;
+  virtual int FindReturnPCForTrampoline(Code code, int trampoline_pc) const = 0;
 
  protected:
   inline explicit OptimizedFrame(StackFrameIteratorBase* iterator);
@@ -969,9 +967,11 @@ class MaglevFrame : public OptimizedFrame {
 
   void Iterate(RootVisitor* v) const override;
 
-  int FindReturnPCForTrampoline(CodeT code, int trampoline_pc) const override;
+  int FindReturnPCForTrampoline(Code code, int trampoline_pc) const override;
 
   BytecodeOffset GetBytecodeOffsetForOSR() const;
+
+  static intptr_t StackGuardFrameSize(int register_input_count);
 
  protected:
   inline explicit MaglevFrame(StackFrameIteratorBase* iterator);
@@ -988,7 +988,7 @@ class TurbofanFrame : public OptimizedFrame {
 
   void Iterate(RootVisitor* v) const override;
 
-  int FindReturnPCForTrampoline(CodeT code, int trampoline_pc) const override;
+  int FindReturnPCForTrampoline(Code code, int trampoline_pc) const override;
 
  protected:
   inline explicit TurbofanFrame(StackFrameIteratorBase* iterator);
@@ -1035,7 +1035,7 @@ class WasmFrame : public TypedFrame {
   void Iterate(RootVisitor* v) const override;
 
   // Accessors.
-  V8_EXPORT_PRIVATE WasmInstanceObject wasm_instance() const;
+  virtual V8_EXPORT_PRIVATE WasmInstanceObject wasm_instance() const;
   V8_EXPORT_PRIVATE wasm::NativeModule* native_module() const;
   wasm::WasmCode* wasm_code() const;
   int function_index() const;
@@ -1100,6 +1100,9 @@ class WasmDebugBreakFrame final : public TypedFrame {
 class WasmToJsFrame : public WasmFrame {
  public:
   Type type() const override { return WASM_TO_JS; }
+
+  int position() const override { return 0; }
+  WasmInstanceObject wasm_instance() const override;
 
  protected:
   inline explicit WasmToJsFrame(StackFrameIteratorBase* iterator);

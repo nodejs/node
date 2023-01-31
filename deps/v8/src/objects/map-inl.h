@@ -54,7 +54,8 @@ RELEASE_ACQUIRE_WEAK_ACCESSORS(Map, raw_transitions,
 ACCESSORS_CHECKED2(Map, prototype, HeapObject, kPrototypeOffset, true,
                    value.IsNull() || value.IsJSProxy() ||
                        value.IsWasmObject() ||
-                       (value.IsJSObject() && value.map().is_prototype_map()))
+                       (value.IsJSObject() && (value.InSharedWritableHeap() ||
+                                               value.map().is_prototype_map())))
 
 DEF_GETTER(Map, prototype_info, Object) {
   Object value = TaggedField<Object, kTransitionsOrPrototypeInfoOffset>::load(
@@ -64,6 +65,14 @@ DEF_GETTER(Map, prototype_info, Object) {
 }
 RELEASE_ACQUIRE_ACCESSORS(Map, prototype_info, Object,
                           kTransitionsOrPrototypeInfoOffset)
+
+void Map::init_prototype_and_constructor_or_back_pointer(ReadOnlyRoots roots) {
+  HeapObject null = roots.null_value();
+  TaggedField<HeapObject,
+              kConstructorOrBackPointerOrNativeContextOffset>::store(*this,
+                                                                     null);
+  TaggedField<HeapObject, kPrototypeOffset>::store(*this, null);
+}
 
 // |bit_field| fields.
 // Concurrent access to |has_prototype_slot| and |has_non_instance_prototype|
@@ -680,12 +689,12 @@ void Map::NotifyLeafMapLayoutChange(Isolate* isolate) {
 
 bool Map::CanTransition() const {
   // Only JSObject and subtypes have map transitions and back pointers.
-  return InstanceTypeChecker::IsJSObject(instance_type());
+  return InstanceTypeChecker::IsJSObject(*this);
 }
 
-#define DEF_TESTER(Type, ...)                              \
-  bool Map::Is##Type##Map() const {                        \
-    return InstanceTypeChecker::Is##Type(instance_type()); \
+#define DEF_TESTER(Type, ...)                    \
+  bool Map::Is##Type##Map() const {              \
+    return InstanceTypeChecker::Is##Type(*this); \
   }
 INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 #undef DEF_TESTER

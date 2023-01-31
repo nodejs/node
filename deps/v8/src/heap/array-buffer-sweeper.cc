@@ -161,6 +161,7 @@ void ArrayBufferSweeper::RequestSweep(SweepingType type) {
               ? GCTracer::Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP
               : GCTracer::Scope::BACKGROUND_FULL_ARRAY_BUFFER_SWEEP;
       TRACE_GC_EPOCH(heap_->tracer(), scope_id, ThreadKind::kBackground);
+      heap_->sweeper()->WaitForPromotedPagesIteration();
       base::MutexGuard guard(&sweeping_mutex_);
       job_->Sweep();
       job_finished_.NotifyAll();
@@ -168,6 +169,7 @@ void ArrayBufferSweeper::RequestSweep(SweepingType type) {
     job_->id_ = task->id();
     V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
   } else {
+    heap_->sweeper()->WaitForPromotedPagesIteration();
     job_->Sweep();
     Finalize();
   }

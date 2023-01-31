@@ -244,11 +244,11 @@ class ReadStringVisitor : public TqObjectVisitor {
     return std::string(result.data(), write_index);
   }
 
-  template <typename TChar>
-  Value<TChar> ReadCharacter(uintptr_t data_address, int32_t index) {
-    TChar value{};
+  template <typename T>
+  Value<T> ReadValue(uintptr_t data_address, int32_t index = 0) {
+    T value{};
     d::MemoryAccessResult validity =
-        accessor_(data_address + index * sizeof(TChar),
+        accessor_(data_address + index * sizeof(T),
                   reinterpret_cast<uint8_t*>(&value), sizeof(value));
     return {validity, value};
   }
@@ -259,7 +259,7 @@ class ReadStringVisitor : public TqObjectVisitor {
     for (; index_ < length && index_ < limit_ && !done_; ++index_) {
       static_assert(sizeof(TChar) <= sizeof(char16_t));
       char16_t c = static_cast<char16_t>(
-          GetOrFinish(ReadCharacter<TChar>(data_address, index_)));
+          GetOrFinish(ReadValue<TChar>(data_address, index_)));
       if (!done_) AddCharacter(c);
     }
   }
@@ -350,13 +350,22 @@ class ReadStringVisitor : public TqObjectVisitor {
       ExternalPointer_t resource_data =
           GetOrFinish(object->GetResourceDataValue(accessor_));
 #ifdef V8_ENABLE_SANDBOX
-      Isolate* isolate = GetIsolateForSandbox(
-          HeapObject::unchecked_cast(Object(heap_addresses_.any_heap_pointer)));
-      ExternalPointerHandle handle =
-          static_cast<ExternalPointerHandle>(resource_data);
-      uintptr_t data_address =
-          static_cast<uintptr_t>(isolate->shared_external_pointer_table().Get(
-              handle, kExternalStringResourceDataTag));
+      Address memory_chunk =
+          BasicMemoryChunk::BaseAddress(object->GetMapAddress());
+      Address heap = GetOrFinish(
+          ReadValue<Address>(memory_chunk + BasicMemoryChunk::kHeapOffset));
+      Isolate* isolate = Isolate::FromHeap(reinterpret_cast<Heap*>(heap));
+      Address external_pointer_table_address_address =
+          isolate->shared_external_pointer_table_address_address();
+      Address external_pointer_table_address = GetOrFinish(
+          ReadValue<Address>(external_pointer_table_address_address));
+      Address external_pointer_table =
+          GetOrFinish(ReadValue<Address>(external_pointer_table_address));
+      int32_t index =
+          static_cast<int32_t>(resource_data >> kExternalPointerIndexShift);
+      Address tagged_data =
+          GetOrFinish(ReadValue<Address>(external_pointer_table, index));
+      Address data_address = tagged_data & ~kExternalStringResourceDataTag;
 #else
       uintptr_t data_address = static_cast<uintptr_t>(resource_data);
 #endif  // V8_ENABLE_SANDBOX

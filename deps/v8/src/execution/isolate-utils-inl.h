@@ -115,8 +115,8 @@ V8_INLINE PtrComprCageBase GetPtrComprCageBaseSlow(HeapObject object) {
       return PtrComprCageBase{isolate};
     }
     // If the Isolate can't be obtained then the heap object is a read-only
-    // one and therefore not a Code object, so fallback to auto-computing cage
-    // base value.
+    // one and therefore not a InstructionStream object, so fallback to
+    // auto-computing cage base value.
   }
   return GetPtrComprCageBase(object);
 }

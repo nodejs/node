@@ -49,7 +49,7 @@ using DisasmX64Test = TestWithIsolate;
 
 namespace {
 
-Handle<CodeT> CreateDummyCode(Isolate* isolate) {
+Handle<Code> CreateDummyCode(Isolate* isolate) {
   i::byte buffer[128];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof(buffer)));
@@ -59,7 +59,7 @@ Handle<CodeT> CreateDummyCode(Isolate* isolate) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  return ToCodeT(code, isolate);
+  return code;
 }
 
 }  // namespace
@@ -82,7 +82,7 @@ TEST_F(DisasmX64Test, DisasmX64) {
   __ bind(&L2);
   __ call(rcx);
   __ nop();
-  Handle<CodeT> ic = CreateDummyCode(isolate());
+  Handle<Code> ic = CreateDummyCode(isolate());
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
 
@@ -568,6 +568,8 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
   COMPARE("4885948b10270000     REX.W testq rdx,[rbx+rcx*4+0x2710]",
           testq(Operand(rbx, rcx, times_4, 10000), rdx));
 
+  COMPARE("48f7ac8b10270000     REX.W imulq [rbx+rcx*4+0x2710]",
+          imulq(Operand(rbx, rcx, times_4, 10000)));
   COMPARE("486bd10c             REX.W imulq rdx,rcx,0xc",
           imulq(rdx, rcx, Immediate(12)));
   COMPARE("4869d1e8030000       REX.W imulq rdx,rcx,0x3e8",

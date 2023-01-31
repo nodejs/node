@@ -295,6 +295,68 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(20, instance.exports.main(10, 20));
 })();
 
+// Inlining should behave correctly when there are no throwing nodes in the
+// callee.
+(function NoThrowInHandledTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let tag = builder.addTag(kSig_v_i);
+
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0, kExprI32Const, 0, kExprI32GeS,
+      kExprIf, kWasmI32,
+        kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add,
+      kExprElse,
+        kExprLocalGet, 0, kExprI32Const, 2, kExprI32Sub,
+      kExprEnd]);
+
+  builder.addFunction("main", kSig_i_ii)
+    .addBody([kExprTry, kWasmI32,
+                kExprLocalGet, 0,
+                kExprCallFunction, callee.index,
+              kExprCatchAll,
+                kExprLocalGet, 1,
+              kExprEnd])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(11, instance.exports.main(10, 20));
+})();
+
+// Things get more complex if we also need to reload the memory context.
+(function UnandledInHandledWithMemoryTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let sig = builder.addType(kSig_i_i);
+
+  builder.addMemory(10, 100);
+
+  let inner_callee = builder.addFunction("inner_callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0]).exportFunc();
+
+  // f(x, y) = { do { y += 1; x -= 1; } while (x > 0); return y; }
+  let callee = builder.addFunction("callee", kSig_i_ii)
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add,
+      kExprRefFunc, inner_callee.index, kExprCallRef, sig]);
+  // g(x) = f(5, x) + x
+  builder.addFunction("main", kSig_i_i)
+    .addBody([kExprTry, kWasmI32,
+                kExprI32Const, 5, kExprLocalGet, 0,
+                kExprCallFunction, callee.index,
+              kExprCatchAll,
+                kExprI32Const, 0,
+              kExprEnd,
+              kExprLocalGet, 0, kExprI32Add,
+              kExprI32Const, 10, kExprI32LoadMem, 0, 0, kExprI32Add])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(25, instance.exports.main(10));
+})();
+
 (function LoopUnrollingTest() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();

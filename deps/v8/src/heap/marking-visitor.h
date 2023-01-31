@@ -6,6 +6,7 @@
 #define V8_HEAP_MARKING_VISITOR_H_
 
 #include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/objects-visiting.h"
@@ -42,7 +43,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
                      WeakObjects::Local* local_weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
-                     bool is_embedder_tracing_enabled,
+                     bool trace_embedder_fields,
                      bool should_keep_ages_unchanged)
       : HeapVisitor<int, ConcreteVisitor>(heap),
         local_marking_worklists_(local_marking_worklists),
@@ -50,7 +51,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
         heap_(heap),
         mark_compact_epoch_(mark_compact_epoch),
         code_flush_mode_(code_flush_mode),
-        is_embedder_tracing_enabled_(is_embedder_tracing_enabled),
+        trace_embedder_fields_(trace_embedder_fields),
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
         should_mark_shared_heap_(heap->ShouldMarkSharedHeap())
 #ifdef V8_ENABLE_SANDBOX
@@ -81,8 +82,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   // ObjectVisitor overrides.
   void VisitMapPointer(HeapObject host) final {
     Map map = host.map(ObjectVisitorWithCageBases::cage_base());
-    MarkObject(host, map);
-    concrete_visitor()->RecordSlot(host, host.map_slot(), map);
+    ProcessStrongHeapObject(host, host.map_slot(), map);
   }
   V8_INLINE void VisitPointer(HeapObject host, ObjectSlot p) final {
     VisitPointersImpl(host, p, p + 1);
@@ -101,8 +101,10 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   V8_INLINE void VisitCodePointer(HeapObject host, CodeObjectSlot slot) final {
     VisitCodePointerImpl(host, slot);
   }
-  V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final;
-  V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final;
+  V8_INLINE void VisitEmbeddedPointer(InstructionStream host,
+                                      RelocInfo* rinfo) final;
+  V8_INLINE void VisitCodeTarget(InstructionStream host,
+                                 RelocInfo* rinfo) final;
   void VisitCustomWeakPointers(HeapObject host, ObjectSlot start,
                                ObjectSlot end) final {
     // Weak list pointers should be ignored during marking. The lists are
@@ -189,7 +191,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   Heap* const heap_;
   const unsigned mark_compact_epoch_;
   const base::EnumSet<CodeFlushMode> code_flush_mode_;
-  const bool is_embedder_tracing_enabled_;
+  const bool trace_embedder_fields_;
   const bool should_keep_ages_unchanged_;
   const bool should_mark_shared_heap_;
 #ifdef V8_ENABLE_SANDBOX
@@ -218,9 +220,9 @@ class YoungGenerationMarkingVisitorBase
   V8_INLINE void VisitCodePointer(HeapObject host,
                                   CodeObjectSlot slot) override {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    // Code slots never appear in new space because CodeDataContainers, the
-    // only object that can contain code pointers, are always allocated in
-    // the old space.
+    // InstructionStream slots never appear in new space because
+    // Code objects, the only object that can contain code pointers, are
+    // always allocated in the old space.
     UNREACHABLE();
   }
 
@@ -232,22 +234,30 @@ class YoungGenerationMarkingVisitorBase
     VisitPointerImpl(host, slot);
   }
 
-  V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
-    // Code objects are not expected in new space.
+  V8_INLINE void VisitCodeTarget(InstructionStream host,
+                                 RelocInfo* rinfo) final {
+    // InstructionStream objects are not expected in new space.
     UNREACHABLE();
   }
 
-  V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
-    // Code objects are not expected in new space.
+  V8_INLINE void VisitEmbeddedPointer(InstructionStream host,
+                                      RelocInfo* rinfo) final {
+    // InstructionStream objects are not expected in new space.
     UNREACHABLE();
   }
 
+  V8_INLINE int VisitJSApiObject(Map map, JSObject object);
   V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
+  V8_INLINE int VisitJSDataView(Map map, JSDataView object);
+  V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray object);
 
  protected:
   ConcreteVisitor* concrete_visitor() {
     return static_cast<ConcreteVisitor*>(this);
   }
+
+  template <typename T>
+  int VisitEmbedderTracingSubClassWithEmbedderTracing(Map map, T object);
 
   inline void MarkObjectViaMarkingWorklist(HeapObject object);
 

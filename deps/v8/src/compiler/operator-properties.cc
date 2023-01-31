@@ -126,7 +126,8 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
       COMMON_OP_LIST(CASE)
       CONTROL_OP_LIST(CASE)
       MACHINE_OP_LIST(CASE)
-      MACHINE_SIMD_OP_LIST(CASE)
+      MACHINE_SIMD128_OP_LIST(CASE)
+      MACHINE_SIMD256_OP_LIST(CASE)
       SIMPLIFIED_OP_LIST(CASE)
       break;
 #undef CASE
@@ -213,6 +214,8 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSToName:
     case IrOpcode::kJSToNumber:
     case IrOpcode::kJSToNumberConvertBigInt:
+    case IrOpcode::kJSToBigInt:
+    case IrOpcode::kJSToBigIntConvertNumber:
     case IrOpcode::kJSToNumeric:
     case IrOpcode::kJSToObject:
     case IrOpcode::kJSToString:

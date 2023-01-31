@@ -13,6 +13,7 @@
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/handles/global-handles.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -154,6 +155,35 @@ TEST_F(ApiWasmTest, WasmCompileToWasmModuleObject) {
 TEST_F(ApiWasmTest, WasmStreamingSetCallback) {
   TestWasmStreaming(WasmStreamingMoreFunctionsCanBeSerializedCallback,
                     Promise::kPending);
+}
+
+TEST_F(ApiWasmTest, WasmEnableDisableGC) {
+  Local<Context> context_local = Context::New(isolate());
+  Context::Scope context_scope(context_local);
+  i::Handle<i::Context> context = v8::Utils::OpenHandle(*context_local);
+  // When using the flags, stringref and GC are controlled independently.
+  {
+    i::FlagScope<bool> flag_gc(&i::v8_flags.experimental_wasm_gc, false);
+    i::FlagScope<bool> flag_stringref(&i::v8_flags.experimental_wasm_stringref,
+                                      true);
+    EXPECT_FALSE(i_isolate()->IsWasmGCEnabled(context));
+    EXPECT_TRUE(i_isolate()->IsWasmStringRefEnabled(context));
+  }
+  {
+    i::FlagScope<bool> flag_gc(&i::v8_flags.experimental_wasm_gc, true);
+    i::FlagScope<bool> flag_stringref(&i::v8_flags.experimental_wasm_stringref,
+                                      false);
+    EXPECT_TRUE(i_isolate()->IsWasmGCEnabled(context));
+    EXPECT_FALSE(i_isolate()->IsWasmStringRefEnabled(context));
+  }
+  // When providing a callback, the callback will control GC and stringref.
+  isolate()->SetWasmGCEnabledCallback([](auto) { return true; });
+  EXPECT_TRUE(i_isolate()->IsWasmGCEnabled(context));
+  EXPECT_TRUE(i_isolate()->IsWasmStringRefEnabled(context));
+  isolate()->SetWasmGCEnabledCallback([](auto) { return false; });
+  EXPECT_FALSE(i_isolate()->IsWasmGCEnabled(context));
+  EXPECT_FALSE(i_isolate()->IsWasmStringRefEnabled(context));
+  isolate()->SetWasmGCEnabledCallback(nullptr);
 }
 
 }  // namespace v8

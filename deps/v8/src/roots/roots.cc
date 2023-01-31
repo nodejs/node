@@ -4,9 +4,11 @@
 
 #include "src/roots/roots.h"
 
+#include "src/common/globals.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/visitors.h"
+#include "src/roots/static-roots.h"
 
 namespace v8 {
 namespace internal {
@@ -55,6 +57,33 @@ void ReadOnlyRoots::VerifyNameForProtectors() {
 READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
 #undef ROOT_TYPE_CHECK
 #endif
+
+Handle<HeapNumber> ReadOnlyRoots::FindHeapNumber(double value) {
+  auto bits = base::bit_cast<uint64_t>(value);
+  for (auto pos = RootIndex::kFirstHeapNumberRoot;
+       pos <= RootIndex::kLastHeapNumberRoot; ++pos) {
+    auto root = HeapNumber::cast(Object(at(pos)));
+    if (base::bit_cast<uint64_t>(root.value()) == bits) {
+      return Handle<HeapNumber>(GetLocation(pos));
+    }
+  }
+  return Handle<HeapNumber>();
+}
+
+void ReadOnlyRoots::InitFromStaticRootsTable(Address cage_base) {
+  CHECK(V8_STATIC_ROOTS_BOOL);
+#if V8_STATIC_ROOTS_BOOL
+  RootIndex pos = RootIndex::kFirstReadOnlyRoot;
+  for (auto element : StaticReadOnlyRootsPointerTable) {
+    auto ptr =
+        V8HeapCompressionScheme::DecompressTaggedPointer(cage_base, element);
+    DCHECK(!is_initialized(pos));
+    read_only_roots_[static_cast<size_t>(pos)] = ptr;
+    ++pos;
+  }
+  DCHECK_EQ(static_cast<int>(pos) - 1, RootIndex::kLastReadOnlyRoot);
+#endif  // V8_STATIC_ROOTS_BOOL
+}
 
 }  // namespace internal
 }  // namespace v8

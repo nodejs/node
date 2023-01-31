@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Don't bother initializing global cage base value, compute it from any
+// on heap address instead.
+#define V8_COMPRESS_POINTERS_DONT_USE_GLOBAL_BASE
 #include "debug-helper-internal.h"
 #include "src/common/ptr-compr-inl.h"
 #include "torque-generated/class-debug-readers.h"

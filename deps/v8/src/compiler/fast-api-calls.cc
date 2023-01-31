@@ -31,6 +31,7 @@ ElementsKind GetTypedArrayElementsKind(CTypeInfo::Type type) {
     case CTypeInfo::Type::kVoid:
     case CTypeInfo::Type::kSeqOneByteString:
     case CTypeInfo::Type::kBool:
+    case CTypeInfo::Type::kPointer:
     case CTypeInfo::Type::kV8Value:
     case CTypeInfo::Type::kApiObject:
     case CTypeInfo::Type::kAny:
@@ -199,7 +200,7 @@ Node* FastApiCallBuilder::WrapFastCall(const CallDescriptor* call_descriptor,
     __ GotoIf(__ Word32Equal(old_scope_value, __ Int32Constant(1)), &do_store);
 
     // We expect that JS execution is enabled, otherwise assert.
-    __ Unreachable(&do_store);
+    __ Unreachable();
     __ Bind(&do_store);
   }
   __ Store(StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),

@@ -10,8 +10,7 @@ extern class PreparseData extends HeapObject {
 
 extern class InterpreterData extends Struct {
   bytecode_array: BytecodeArray;
-  @if(V8_EXTERNAL_CODE_SPACE) interpreter_trampoline: CodeDataContainer;
-  @ifnot(V8_EXTERNAL_CODE_SPACE) interpreter_trampoline: Code;
+  interpreter_trampoline: Code;
 }
 
 type FunctionKind extends uint8 constexpr 'FunctionKind';

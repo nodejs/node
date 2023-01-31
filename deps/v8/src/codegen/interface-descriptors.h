@@ -55,6 +55,7 @@ namespace internal {
   V(CloneObjectBaseline)                             \
   V(CloneObjectWithVector)                           \
   V(Compare)                                         \
+  V(StringEqual)                                     \
   V(Compare_Baseline)                                \
   V(Compare_WithFeedback)                            \
   V(Construct_Baseline)                              \
@@ -71,6 +72,10 @@ namespace internal {
   V(CopyDataPropertiesWithExcludedProperties)        \
   V(CopyDataPropertiesWithExcludedPropertiesOnStack) \
   V(CppBuiltinAdaptor)                               \
+  V(DataViewGetVariableLength)                       \
+  V(DefineKeyedOwn)                                  \
+  V(DefineKeyedOwnBaseline)                          \
+  V(DefineKeyedOwnWithVector)                        \
   V(FastNewObject)                                   \
   V(FindNonDefaultConstructorOrConstruct)            \
   V(ForInPrepare)                                    \
@@ -965,6 +970,54 @@ class StoreGlobalWithVectorDescriptor
   static constexpr auto registers();
 };
 
+class DefineKeyedOwnDescriptor
+    : public StaticCallInterfaceDescriptor<DefineKeyedOwnDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kName, kValue, kFlags, kSlot)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::AnyTagged(),     // kValue
+                         MachineType::TaggedSigned(),  // kFlags
+                         MachineType::TaggedSigned())  // kSlot
+  DECLARE_DESCRIPTOR(DefineKeyedOwnDescriptor)
+
+  static constexpr inline Register FlagsRegister();
+
+  static constexpr auto registers();
+};
+
+class DefineKeyedOwnBaselineDescriptor
+    : public StaticCallInterfaceDescriptor<DefineKeyedOwnBaselineDescriptor> {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kValue, kFlags, kSlot)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::AnyTagged(),     // kValue
+                         MachineType::TaggedSigned(),  // kFlags
+                         MachineType::TaggedSigned())  // kSlot
+  DECLARE_DESCRIPTOR(DefineKeyedOwnBaselineDescriptor)
+
+  static constexpr auto registers();
+};
+
+class DefineKeyedOwnWithVectorDescriptor
+    : public StaticCallInterfaceDescriptor<DefineKeyedOwnWithVectorDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kName, kValue, kFlags,
+                    kSlot,   // register argument
+                    kVector  // stack argument
+  )
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::AnyTagged(),     // kValue
+                         MachineType::TaggedSigned(),  // kFlags
+                         MachineType::TaggedSigned(),  // kSlot
+                         MachineType::AnyTagged())     // kVector
+  DECLARE_DESCRIPTOR(DefineKeyedOwnWithVectorDescriptor)
+
+  static constexpr auto registers();
+};
+
 class LoadWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<LoadWithVectorDescriptor> {
  public:
@@ -1563,6 +1616,16 @@ class CompareDescriptor
   static constexpr inline auto registers();
 };
 
+class StringEqualDescriptor
+    : public StaticCallInterfaceDescriptor<StringEqualDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kLeft, kRight, kLength)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
+                         MachineType::AnyTagged(),  // kRight
+                         MachineType::IntPtr())     // kLength
+  DECLARE_DEFAULT_DESCRIPTOR(StringEqualDescriptor)
+};
+
 class BinaryOpDescriptor
     : public StaticCallInterfaceDescriptor<BinaryOpDescriptor> {
  public:
@@ -1628,6 +1691,16 @@ class CppBuiltinAdaptorDescriptor
   DECLARE_JS_COMPATIBLE_DESCRIPTOR(CppBuiltinAdaptorDescriptor)
 };
 
+class DataViewGetVariableLengthDescriptor
+    : public StaticCallInterfaceDescriptor<
+          DataViewGetVariableLengthDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kDataView)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::IntPtr(),     // Byte Length
+                                    MachineType::AnyTagged())  // kDataView
+  DECLARE_DESCRIPTOR(DataViewGetVariableLengthDescriptor)
+};
+
 class CEntry1ArgvOnStackDescriptor
     : public StaticCallInterfaceDescriptor<CEntry1ArgvOnStackDescriptor> {
  public:
@@ -1656,7 +1729,7 @@ class ApiCallbackDescriptor
   //                           receiver is implicit stack argument 1
   //                           argv are implicit stack arguments [2, 2 + kArgc[
   DEFINE_PARAMETER_TYPES(MachineType::Pointer(),    // kApiFunctionAddress
-                         MachineType::IntPtr(),     // kActualArgumentsCount
+                         MachineType::Int32(),      // kActualArgumentsCount
                          MachineType::AnyTagged(),  // kCallData
                          MachineType::AnyTagged())  // kHolder
   DECLARE_DESCRIPTOR(ApiCallbackDescriptor)
@@ -2118,6 +2191,40 @@ class UnaryOp_BaselineDescriptor
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
                          MachineType::UintPtr())    // kSlot
   DECLARE_DESCRIPTOR(UnaryOp_BaselineDescriptor)
+};
+
+class CheckTurboshaftFloat32TypeDescriptor
+    : public StaticCallInterfaceDescriptor<
+          CheckTurboshaftFloat32TypeDescriptor> {
+ public:
+  DEFINE_RESULT_AND_PARAMETERS(1, kValue, kExpectedType, kNodeId)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
+                                    MachineTypeOf<Float32T>::value,
+                                    MachineType::TaggedPointer(),
+                                    MachineType::TaggedSigned())
+  DECLARE_DEFAULT_DESCRIPTOR(CheckTurboshaftFloat32TypeDescriptor)
+
+#if V8_TARGET_ARCH_IA32
+  // We need a custom descriptor on ia32 to avoid using xmm0.
+  static constexpr inline auto registers();
+#endif
+};
+
+class CheckTurboshaftFloat64TypeDescriptor
+    : public StaticCallInterfaceDescriptor<
+          CheckTurboshaftFloat64TypeDescriptor> {
+ public:
+  DEFINE_RESULT_AND_PARAMETERS(1, kValue, kExpectedType, kNodeId)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
+                                    MachineTypeOf<Float64T>::value,
+                                    MachineType::TaggedPointer(),
+                                    MachineType::TaggedSigned())
+  DECLARE_DEFAULT_DESCRIPTOR(CheckTurboshaftFloat64TypeDescriptor)
+
+#if V8_TARGET_ARCH_IA32
+  // We need a custom descriptor on ia32 to avoid using xmm0.
+  static constexpr inline auto registers();
+#endif
 };
 
 #define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, ...)                 \

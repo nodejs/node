@@ -192,7 +192,8 @@ InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(IsolateT* isolate,
 template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::IsKey(ReadOnlyRoots roots, Object k) {
   // TODO(leszeks): Dictionaries that don't delete could skip the hole check.
-  return k != roots.undefined_value() && k != roots.the_hole_value();
+  return k != roots.unchecked_undefined_value() &&
+         k != roots.unchecked_the_hole_value();
 }
 
 template <typename Derived, typename Shape>

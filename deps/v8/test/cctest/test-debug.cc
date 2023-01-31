@@ -165,6 +165,8 @@ void CheckDebuggerUnloaded() {
   CHECK(!CcTest::i_isolate()->debug()->debug_info_list_);
 
   // Collect garbage to ensure weak handles are cleared.
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();
 
@@ -253,8 +255,9 @@ class DebugEventBreak : public v8::debug::DebugDelegate {
   }
 };
 
+v8::debug::BreakReasons break_right_now_reasons = {};
 static void BreakRightNow(v8::Isolate* isolate, void*) {
-  v8::debug::BreakRightNow(isolate);
+  v8::debug::BreakRightNow(isolate, break_right_now_reasons);
 }
 
 // Debug event handler which re-issues a debug break until a limit has been
@@ -3828,6 +3831,12 @@ void DebugBreakLoop(const char* loop_header, const char** loop_bodies,
 
   TestDebugBreakInLoop(loop_header, loop_bodies, loop_footer);
 
+  // Also test with "Scheduled" break reason.
+  break_right_now_reasons =
+      v8::debug::BreakReasons{v8::debug::BreakReason::kScheduled};
+  TestDebugBreakInLoop(loop_header, loop_bodies, loop_footer);
+  break_right_now_reasons = v8::debug::BreakReasons{};
+
   // Get rid of the debug event listener.
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
@@ -4202,6 +4211,12 @@ class ArchiveRestoreThread : public v8::base::Thread,
       // child.GetBreakCount() will return 1 if the debugger fails to stop
       // on the `next()` line after the grandchild thread returns.
       CHECK_EQ(child.GetBreakCount(), 5);
+
+      // This test on purpose unlocks the isolate without exiting and
+      // re-entering. It must however update the stack start, which would have
+      // been done automatically if the isolate was properly re-entered.
+      reinterpret_cast<i::Isolate*>(isolate_)->heap()->SetStackStart(
+          v8::base::Stack::GetStackStart());
     }
   }
 
@@ -4565,7 +4580,7 @@ TEST(BuiltinsExceptionPrediction) {
   bool fail = false;
   for (i::Builtin builtin = i::Builtins::kFirst; builtin <= i::Builtins::kLast;
        ++builtin) {
-    i::CodeT code = builtins->code(builtin);
+    i::Code code = builtins->code(builtin);
     if (code.kind() != i::CodeKind::BUILTIN) continue;
     auto prediction = code.GetBuiltinCatchPrediction();
     USE(prediction);
@@ -5944,8 +5959,6 @@ class ScopeListener : public v8::debug::DebugDelegate {
 }  // namespace
 
 TEST(ScopeIteratorDoesNotCreateBlocklistForScriptScope) {
-  i::v8_flags.experimental_reuse_locals_blocklists = true;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -5987,8 +6000,6 @@ class DebugEvaluateListener : public v8::debug::DebugDelegate {
 // scope nested inside an eval scope with the exact same source positions.
 // This can confuse the blocklist mechanism if not handled correctly.
 TEST(DebugEvaluateInWrappedScript) {
-  i::v8_flags.experimental_reuse_locals_blocklists = true;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);

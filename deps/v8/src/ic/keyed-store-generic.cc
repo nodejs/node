@@ -969,8 +969,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
             TNode<Object> prev_value =
                 LoadValueByKeyIndex(properties, var_name_index.value());
 
-            BranchIfSameValue(prev_value, p->value(), &done, slow,
-                              SameValueMode::kNumbersOnly);
+            Branch(TaggedEqual(prev_value, p->value()), &done, slow);
           } else {
             Goto(&overwrite);
           }
@@ -1120,8 +1119,9 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
   BIND(&if_unique_name);
   {
     Comment("key is unique name");
-    StoreICParameters p(context, receiver, var_unique.value(), value, {},
-                        UndefinedConstant(), StoreICMode::kDefault);
+    StoreICParameters p(context, receiver, var_unique.value(), value,
+                        base::nullopt, {}, UndefinedConstant(),
+                        StoreICMode::kDefault);
     ExitPoint direct_exit(this);
     EmitGenericPropertyStore(CAST(receiver), receiver_map, instance_type, &p,
                              &direct_exit, &slow, language_mode);
@@ -1196,7 +1196,7 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
     // checks, strings and string wrappers, proxies) are handled in the runtime.
     GotoIf(IsSpecialReceiverInstanceType(instance_type), &miss);
     {
-      StoreICParameters p(context, receiver, name, value, slot,
+      StoreICParameters p(context, receiver, name, value, base::nullopt, slot,
                           UndefinedConstant(),
                           IsDefineNamedOwn() ? StoreICMode::kDefineNamedOwn
                                              : StoreICMode::kDefault);
@@ -1220,7 +1220,7 @@ void KeyedStoreGenericAssembler::StoreProperty(TNode<Context> context,
                                                TNode<Name> unique_name,
                                                TNode<Object> value,
                                                LanguageMode language_mode) {
-  StoreICParameters p(context, receiver, unique_name, value, {},
+  StoreICParameters p(context, receiver, unique_name, value, base::nullopt, {},
                       UndefinedConstant(), StoreICMode::kDefault);
 
   Label done(this), slow(this, Label::kDeferred);

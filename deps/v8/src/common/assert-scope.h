@@ -25,6 +25,7 @@ enum PerThreadAssertType {
   HEAP_ALLOCATION_ASSERT,
   HANDLE_ALLOCATION_ASSERT,
   HANDLE_DEREFERENCE_ASSERT,
+  HANDLE_DEREFERENCE_ALL_THREADS_ASSERT,
   CODE_DEPENDENCY_CHANGE_ASSERT,
   CODE_ALLOCATION_ASSERT,
   // Dummy type for disabling GC mole.
@@ -230,6 +231,11 @@ using DisallowHandleDereference =
 // Scope to introduce an exception to DisallowHandleDereference.
 using AllowHandleDereference =
     PerThreadAssertScopeDebugOnly<HANDLE_DEREFERENCE_ASSERT, true>;
+
+// Explicitly allow handle dereference for all threads/isolates on one
+// particular thread.
+using AllowHandleDereferenceAllThreads =
+    PerThreadAssertScopeDebugOnly<HANDLE_DEREFERENCE_ALL_THREADS_ASSERT, true>;
 
 // Scope to document where we do not expect code dependencies to change.
 using DisallowCodeDependencyChange =

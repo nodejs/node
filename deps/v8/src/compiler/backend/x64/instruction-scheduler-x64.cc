@@ -167,7 +167,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F32x4Neg:
     case kX64F32x4Sqrt:
     case kX64F32x4Add:
+    case kX64F32x8Add:
     case kX64F32x4Sub:
+    case kX64F32x8Sub:
     case kX64F32x4Mul:
     case kX64F32x4Div:
     case kX64F32x4Min:
@@ -233,6 +235,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I32x4Abs:
     case kX64I32x4BitMask:
     case kX64I32x4DotI16x8S:
+    case kX64I32x4DotI8x16I7x16AddS:
     case kX64I32x4ExtMulLowI16x8S:
     case kX64I32x4ExtMulHighI16x8S:
     case kX64I32x4ExtMulLowI16x8U:
@@ -354,6 +357,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64S8x2Reverse:
     case kX64V128AnyTrue:
     case kX64I8x16AllTrue:
+    case kX64Blendvpd:
+    case kX64Blendvps:
     case kX64Pblendvb:
       return (instr->addressing_mode() == kMode_None)
                  ? kNoOpcodeFlags
@@ -407,10 +412,13 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Movsd:
     case kX64Movss:
     case kX64Movdqu:
+    case kX64Movdqu256:
     case kX64S128Load8Splat:
     case kX64S128Load16Splat:
     case kX64S128Load32Splat:
+    case kX64S256Load32Splat:
     case kX64S128Load64Splat:
+    case kX64S256Load64Splat:
     case kX64S128Load8x8S:
     case kX64S128Load8x8U:
     case kX64S128Load16x4S:

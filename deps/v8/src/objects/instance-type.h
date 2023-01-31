@@ -191,12 +191,6 @@ enum InstanceType : uint16_t {
   FIRST_TYPE = FIRST_HEAP_OBJECT_TYPE,
   LAST_TYPE = LAST_HEAP_OBJECT_TYPE,
   BIGINT_TYPE = BIG_INT_BASE_TYPE,
-
-#ifdef V8_EXTERNAL_CODE_SPACE
-  CODET_TYPE = CODE_DATA_CONTAINER_TYPE,
-#else
-  CODET_TYPE = CODE_TYPE,
-#endif
 };
 
 // This constant is defined outside of the InstanceType enum because the
@@ -291,12 +285,11 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   INSTANCE_TYPE_CHECKERS_CUSTOM(V)
 
 namespace InstanceTypeChecker {
-#define IS_TYPE_FUNCTION_DECL(Type, ...) \
-  V8_INLINE constexpr bool Is##Type(InstanceType instance_type);
+#define IS_TYPE_FUNCTION_DECL(Type, ...)                         \
+  V8_INLINE constexpr bool Is##Type(InstanceType instance_type); \
+  V8_INLINE bool Is##Type(Map map);
 
 INSTANCE_TYPE_CHECKERS(IS_TYPE_FUNCTION_DECL)
-
-IS_TYPE_FUNCTION_DECL(CodeT)
 
 #undef IS_TYPE_FUNCTION_DECL
 }  // namespace InstanceTypeChecker
@@ -317,8 +310,8 @@ IS_TYPE_FUNCTION_DECL(CodeT)
   V(_, BytecodeArrayMap, bytecode_array_map, BytecodeArray)                    \
   V(_, CellMap, cell_map, Cell)                                                \
   V(_, WeakCellMap, weak_cell_map, WeakCell)                                   \
+  V(_, InstructionStreamMap, instruction_stream_map, InstructionStream)        \
   V(_, CodeMap, code_map, Code)                                                \
-  V(_, CodeDataContainerMap, code_data_container_map, CodeDataContainer)       \
   V(_, CoverageInfoMap, coverage_info_map, CoverageInfo)                       \
   V(_, DebugInfoMap, debug_info_map, DebugInfo)                                \
   V(_, FreeSpaceMap, free_space_map, FreeSpace)                                \

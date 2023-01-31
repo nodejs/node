@@ -344,6 +344,15 @@ Handle<Object> StoreHandler::StoreProxy(Isolate* isolate,
                                MaybeObjectHandle::Weak(proxy));
 }
 
+bool LoadHandler::CanHandleHolderNotLookupStart(Object handler) {
+  if (handler.IsSmi()) {
+    auto kind = LoadHandler::KindBits::decode(handler.ToSmi().value());
+    return kind == LoadHandler::Kind::kSlow ||
+           kind == LoadHandler::Kind::kNonExistent;
+  }
+  return handler.IsLoadHandler();
+}
+
 #if defined(OBJECT_PRINT)
 namespace {
 void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
@@ -514,9 +523,9 @@ void LoadHandler::PrintHandler(Object handler, std::ostream& os) {
     os << "LoadHandler(Smi)(";
     PrintSmiLoadHandler(raw_handler, os);
     os << ")";
-  } else if (handler.IsCodeT()) {
+  } else if (handler.IsCode()) {
     os << "LoadHandler(Code)("
-       << Builtins::name(CodeT::cast(handler).builtin_id()) << ")";
+       << Builtins::name(Code::cast(handler).builtin_id()) << ")";
   } else if (handler.IsSymbol()) {
     os << "LoadHandler(Symbol)(" << Brief(Symbol::cast(handler)) << ")";
   } else if (handler.IsLoadHandler()) {
@@ -557,8 +566,8 @@ void StoreHandler::PrintHandler(Object handler, std::ostream& os) {
   } else if (handler.IsStoreHandler()) {
     os << "StoreHandler(";
     StoreHandler store_handler = StoreHandler::cast(handler);
-    if (store_handler.smi_handler().IsCodeT()) {
-      CodeT code = CodeT::cast(store_handler.smi_handler());
+    if (store_handler.smi_handler().IsCode()) {
+      Code code = Code::cast(store_handler.smi_handler());
       os << "builtin = ";
       code.ShortPrint(os);
     } else {

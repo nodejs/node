@@ -126,6 +126,8 @@ enum class LoadTransformation {
   kS128Load32x2U,
   kS128Load32Zero,
   kS128Load64Zero,
+  kS256Load32Splat,
+  kS256Load64Splat,
 };
 
 size_t hash_value(LoadTransformation);
@@ -963,6 +965,22 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x4DotI8x16I7x16AddS();
 
   const Operator* TraceInstruction(uint32_t markid);
+
+  // SIMD256
+  const Operator* F32x8Add();
+  const Operator* F32x8Sub();
+  const Operator* F32x8Mul();
+  const Operator* F32x8Div();
+  const Operator* F32x8Min();
+  const Operator* F32x8Max();
+  const Operator* F32x8Pmin();
+  const Operator* F32x8Pmax();
+  const Operator* F32x8Eq();
+  const Operator* F32x8Ne();
+  const Operator* F32x8Lt();
+  const Operator* F32x8Le();
+  const Operator* S256Select();
+  const Operator* ExtractF128(int32_t lane_index);
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);

@@ -780,7 +780,7 @@ void WebSnapshotSerializer::SerializeFunctionProperties(
             handle(map->instance_descriptors().GetKey(i), isolate_))) {
       continue;
     }
-    FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+    FieldIndex field_index = FieldIndex::ForDetails(*map, details);
     Handle<Object> value = JSObject::FastPropertyAt(
         isolate_, function, details.representation(), field_index);
     WriteValue(value, serializer);
@@ -1340,7 +1340,7 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
     for (InternalIndex i : map->IterateOwnDescriptors()) {
       PropertyDetails details =
           map->instance_descriptors(kRelaxedLoad).GetDetails(i);
-      FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+      FieldIndex field_index = FieldIndex::ForDetails(*map, details);
       Handle<Object> value = JSObject::FastPropertyAt(
           isolate_, object, details.representation(), field_index);
       if (!value->IsHeapObject()) continue;
@@ -2879,8 +2879,8 @@ Handle<JSFunction> WebSnapshotDeserializer::CreateJSFunction(
   // TODO(v8:11525): Deduplicate the SFIs for class methods.
   FunctionKind kind = FunctionFlagsToFunctionKind(flags);
   Handle<SharedFunctionInfo> shared = factory()->NewSharedFunctionInfo(
-      factory()->empty_string(), MaybeHandle<Code>(), Builtin::kCompileLazy,
-      kind);
+      factory()->empty_string(), MaybeHandle<InstructionStream>(),
+      Builtin::kCompileLazy, kind);
   Handle<UncompiledData> uncompiled_data =
       factory()->NewUncompiledDataWithoutPreparseData(
           roots_.empty_string_handle(), start_position,

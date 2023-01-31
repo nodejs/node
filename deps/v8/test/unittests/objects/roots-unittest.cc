@@ -93,6 +93,17 @@ TEST_F(RootsTest, TestHeapRootsNotReadOnly) {
   MUTABLE_ROOT_LIST(CHECK_NOT_IN_RO_SPACE)
 }
 
+TEST_F(RootsTest, TestHeapNumberList) {
+  ReadOnlyRoots roots(isolate());
+  for (auto pos = RootIndex::kFirstReadOnlyRoot;
+       pos <= RootIndex::kLastReadOnlyRoot; ++pos) {
+    auto obj = Object(roots.at(pos));
+    bool in_nr_range = pos >= RootIndex::kFirstHeapNumberRoot &&
+                       pos <= RootIndex::kLastHeapNumberRoot;
+    CHECK_EQ(obj.IsHeapNumber(), in_nr_range);
+  }
+}
+
 #undef CHECK_NOT_IN_RO_SPACE
 
 }  // namespace internal

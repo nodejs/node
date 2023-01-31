@@ -75,9 +75,11 @@ enum MemoryType { kMemory32, kMemory64 };
 // globals, or memories.
 class TestModuleBuilder {
  public:
-  explicit TestModuleBuilder(ModuleOrigin origin = kWasmOrigin)
-      : allocator(), mod(std::make_unique<Zone>(&allocator, ZONE_NAME)) {
-    mod.origin = origin;
+  explicit TestModuleBuilder(ModuleOrigin origin = kWasmOrigin) : mod(origin) {
+    mod.num_declared_functions = 1;
+    mod.validated_functions = std::make_unique<std::atomic<uint8_t>[]>(1);
+    // Asm.js functions are valid by design.
+    if (is_asmjs_module(&mod)) mod.validated_functions[0] = 0xff;
   }
   byte AddGlobal(ValueType type, bool mutability = true) {
     mod.globals.push_back({type, mutability, {}, {0}, false, false});
@@ -85,7 +87,7 @@ class TestModuleBuilder {
     return static_cast<byte>(mod.globals.size() - 1);
   }
   byte AddSignature(const FunctionSig* sig, uint32_t supertype = kNoSuperType) {
-    mod.add_signature(sig, supertype);
+    mod.add_signature(sig, supertype, v8_flags.wasm_final_types);
     CHECK_LE(mod.types.size(), kMaxByteSizedLeb128);
     GetTypeCanonicalizer()->AddRecursiveGroup(module(), 1);
     return static_cast<byte>(mod.types.size() - 1);
@@ -105,7 +107,7 @@ class TestModuleBuilder {
     return result;
   }
   byte AddException(WasmTagSig* sig) {
-    mod.tags.emplace_back(sig);
+    mod.tags.emplace_back(sig, AddSignature(sig));
     CHECK_LE(mod.types.size(), kMaxByteSizedLeb128);
     return static_cast<byte>(mod.tags.size() - 1);
   }
@@ -124,19 +126,20 @@ class TestModuleBuilder {
 
   byte AddStruct(std::initializer_list<F> fields,
                  uint32_t supertype = kNoSuperType) {
-    StructType::Builder type_builder(mod.signature_zone.get(),
+    StructType::Builder type_builder(&mod.signature_zone,
                                      static_cast<uint32_t>(fields.size()));
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }
-    mod.add_struct_type(type_builder.Build(), supertype);
+    mod.add_struct_type(type_builder.Build(), supertype,
+                        v8_flags.wasm_final_types);
     GetTypeCanonicalizer()->AddRecursiveGroup(module(), 1);
     return static_cast<byte>(mod.types.size() - 1);
   }
 
   byte AddArray(ValueType type, bool mutability) {
-    ArrayType* array = mod.signature_zone->New<ArrayType>(type, mutability);
-    mod.add_array_type(array, kNoSuperType);
+    ArrayType* array = mod.signature_zone.New<ArrayType>(type, mutability);
+    mod.add_array_type(array, kNoSuperType, v8_flags.wasm_final_types);
     GetTypeCanonicalizer()->AddRecursiveGroup(module(), 1);
     return static_cast<byte>(mod.types.size() - 1);
   }
@@ -191,7 +194,6 @@ class TestModuleBuilder {
     return static_cast<byte>(mod.functions.size() - 1);
   }
 
-  AccountingAllocator allocator;
   WasmModule mod;
 };
 
@@ -260,9 +262,8 @@ class FunctionBodyDecoderTestBase : public WithZoneMixin<BaseTest> {
     // Validate the code.
     FunctionBody body(sig, 0, code.begin(), code.end());
     WasmFeatures unused_detected_features = WasmFeatures::None();
-    DecodeResult result =
-        ValidateFunctionBody(this->zone()->allocator(), enabled_features_,
-                             module, &unused_detected_features, body);
+    DecodeResult result = ValidateFunctionBody(enabled_features_, module,
+                                               &unused_detected_features, body);
 
     std::ostringstream str;
     if (result.failed()) {
@@ -1718,7 +1719,7 @@ TEST_F(FunctionBodyDecoderTest, ReturnCallWithSubtype) {
   WASM_FEATURE_SCOPE(return_call);
 
   auto sig = MakeSig::Returns(kWasmAnyRef);
-  auto callee_sig = MakeSig::Returns(kWasmAnyNonNullableRef);
+  auto callee_sig = MakeSig::Returns(kWasmAnyRef.AsNonNull());
   builder.AddFunction(&callee_sig);
 
   ExpectValidates(&sig, {WASM_RETURN_CALL_FUNCTION0(0)});
@@ -2352,97 +2353,6 @@ TEST_F(FunctionBodyDecoderTest, WasmMemoryGrow) {
   byte code[] = {WASM_LOCAL_GET(0), kExprMemoryGrow, 0};
   ExpectValidates(sigs.i_i(), code);
   ExpectFailure(sigs.i_d(), code);
-}
-
-TEST_F(FunctionBodyDecoderTest, AsmJsBinOpsCheckOrigin) {
-  ValueType float32int32float32[] = {kWasmF32, kWasmI32, kWasmF32};
-  FunctionSig sig_f_if(1, 2, float32int32float32);
-  ValueType float64int32float64[] = {kWasmF64, kWasmI32, kWasmF64};
-  FunctionSig sig_d_id(1, 2, float64int32float64);
-  struct {
-    WasmOpcode op;
-    const FunctionSig* sig;
-  } AsmJsBinOps[] = {
-      {kExprF64Atan2, sigs.d_dd()},
-      {kExprF64Pow, sigs.d_dd()},
-      {kExprF64Mod, sigs.d_dd()},
-      {kExprI32AsmjsDivS, sigs.i_ii()},
-      {kExprI32AsmjsDivU, sigs.i_ii()},
-      {kExprI32AsmjsRemS, sigs.i_ii()},
-      {kExprI32AsmjsRemU, sigs.i_ii()},
-      {kExprI32AsmjsStoreMem8, sigs.i_ii()},
-      {kExprI32AsmjsStoreMem16, sigs.i_ii()},
-      {kExprI32AsmjsStoreMem, sigs.i_ii()},
-      {kExprF32AsmjsStoreMem, &sig_f_if},
-      {kExprF64AsmjsStoreMem, &sig_d_id},
-  };
-
-  {
-    TestModuleBuilder builder(kAsmJsSloppyOrigin);
-    module = builder.module();
-    builder.InitializeMemory();
-    for (size_t i = 0; i < arraysize(AsmJsBinOps); i++) {
-      TestBinop(AsmJsBinOps[i].op, AsmJsBinOps[i].sig);
-    }
-  }
-
-  {
-    TestModuleBuilder builder;
-    module = builder.module();
-    builder.InitializeMemory();
-    for (size_t i = 0; i < arraysize(AsmJsBinOps); i++) {
-      ExpectFailure(AsmJsBinOps[i].sig,
-                    {WASM_BINOP(AsmJsBinOps[i].op, WASM_LOCAL_GET(0),
-                                WASM_LOCAL_GET(1))});
-    }
-  }
-}
-
-TEST_F(FunctionBodyDecoderTest, AsmJsUnOpsCheckOrigin) {
-  ValueType float32int32[] = {kWasmF32, kWasmI32};
-  FunctionSig sig_f_i(1, 1, float32int32);
-  ValueType float64int32[] = {kWasmF64, kWasmI32};
-  FunctionSig sig_d_i(1, 1, float64int32);
-  struct {
-    WasmOpcode op;
-    const FunctionSig* sig;
-  } AsmJsUnOps[] = {{kExprF64Acos, sigs.d_d()},
-                    {kExprF64Asin, sigs.d_d()},
-                    {kExprF64Atan, sigs.d_d()},
-                    {kExprF64Cos, sigs.d_d()},
-                    {kExprF64Sin, sigs.d_d()},
-                    {kExprF64Tan, sigs.d_d()},
-                    {kExprF64Exp, sigs.d_d()},
-                    {kExprF64Log, sigs.d_d()},
-                    {kExprI32AsmjsLoadMem8S, sigs.i_i()},
-                    {kExprI32AsmjsLoadMem8U, sigs.i_i()},
-                    {kExprI32AsmjsLoadMem16S, sigs.i_i()},
-                    {kExprI32AsmjsLoadMem16U, sigs.i_i()},
-                    {kExprI32AsmjsLoadMem, sigs.i_i()},
-                    {kExprF32AsmjsLoadMem, &sig_f_i},
-                    {kExprF64AsmjsLoadMem, &sig_d_i},
-                    {kExprI32AsmjsSConvertF32, sigs.i_f()},
-                    {kExprI32AsmjsUConvertF32, sigs.i_f()},
-                    {kExprI32AsmjsSConvertF64, sigs.i_d()},
-                    {kExprI32AsmjsUConvertF64, sigs.i_d()}};
-  {
-    TestModuleBuilder builder(kAsmJsSloppyOrigin);
-    module = builder.module();
-    builder.InitializeMemory();
-    for (size_t i = 0; i < arraysize(AsmJsUnOps); i++) {
-      TestUnop(AsmJsUnOps[i].op, AsmJsUnOps[i].sig);
-    }
-  }
-
-  {
-    TestModuleBuilder builder;
-    module = builder.module();
-    builder.InitializeMemory();
-    for (size_t i = 0; i < arraysize(AsmJsUnOps); i++) {
-      ExpectFailure(AsmJsUnOps[i].sig,
-                    {WASM_UNOP(AsmJsUnOps[i].op, WASM_LOCAL_GET(0))});
-    }
-  }
 }
 
 TEST_F(FunctionBodyDecoderTest, BreakEnd) {
@@ -3289,9 +3199,8 @@ TEST_F(FunctionBodyDecoderTest, Regression709741) {
   for (size_t i = 0; i < arraysize(code); ++i) {
     FunctionBody body(sigs.v_v(), 0, code, code + i);
     WasmFeatures unused_detected_features;
-    DecodeResult result =
-        ValidateFunctionBody(this->zone()->allocator(), WasmFeatures::All(),
-                             nullptr, &unused_detected_features, body);
+    DecodeResult result = ValidateFunctionBody(WasmFeatures::All(), module,
+                                               &unused_detected_features, body);
     if (result.ok()) {
       std::ostringstream str;
       str << "Expected verification to fail";
@@ -4361,6 +4270,10 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
                                                 WASM_HEAP_TYPE(to_heap))});
       ExpectValidates(&cast_sig, {WASM_REF_CAST(WASM_LOCAL_GET(0),
                                                 WASM_HEAP_TYPE(to_heap))});
+      ExpectValidates(&test_sig, {WASM_REF_TEST_NULL(WASM_LOCAL_GET(0),
+                                                     WASM_HEAP_TYPE(to_heap))});
+      ExpectValidates(&cast_sig, {WASM_REF_CAST_NULL(WASM_LOCAL_GET(0),
+                                                     WASM_HEAP_TYPE(to_heap))});
     } else {
       std::string error_message =
           "local.get of type " + cast_reps[1].name() +
@@ -4374,6 +4287,16 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
                     {WASM_REF_CAST(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
                     kAppendEnd,
                     ("Invalid types for ref.cast: " + error_message).c_str());
+      ExpectFailure(
+          &test_sig,
+          {WASM_REF_TEST_NULL(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
+          kAppendEnd,
+          ("Invalid types for ref.test null: " + error_message).c_str());
+      ExpectFailure(
+          &cast_sig,
+          {WASM_REF_CAST_NULL(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
+          kAppendEnd,
+          ("Invalid types for ref.cast null: " + error_message).c_str());
     }
   }
 
@@ -4407,6 +4330,7 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
   byte super_struct = builder.AddStruct({F(kWasmI16, true)});
   byte sub_struct =
       builder.AddStruct({F(kWasmI16, true), F(kWasmI32, false)}, super_struct);
+  byte fct_type = builder.AddSignature(sigs.i_i(), kNoSuperType);
 
   ValueType supertype = ValueType::RefNull(super_struct);
   ValueType subtype = ValueType::RefNull(sub_struct);
@@ -4422,6 +4346,10 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmI32, supertype}, {supertype}),
       {WASM_I32V(42), WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, sub_struct)});
+  ExpectValidates(
+      FunctionSig::Build(this->zone(), {kWasmI32, supertype}, {supertype}),
+      {WASM_I32V(42), WASM_LOCAL_GET(0),
+       WASM_BR_ON_CAST_FAIL_NULL(0, sub_struct)});
 
   // Wrong branch type.
   ExpectFailure(
@@ -4433,6 +4361,11 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
       {WASM_I32V(42), WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, sub_struct)},
       kAppendEnd,
       "type error in branch[0] (expected (ref null 1), got (ref null 0))");
+  ExpectFailure(FunctionSig::Build(this->zone(), {subtype}, {supertype}),
+                {WASM_I32V(42), WASM_LOCAL_GET(0),
+                 WASM_BR_ON_CAST_FAIL_NULL(0, sub_struct)},
+                kAppendEnd,
+                "type error in branch[0] (expected (ref null 1), got (ref 0))");
 
   // Wrong fallthrough type.
   ExpectFailure(
@@ -4443,20 +4376,44 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
       FunctionSig::Build(this->zone(), {supertype}, {supertype}),
       {WASM_BLOCK_I(WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, sub_struct))},
       kAppendEnd, "type error in branch[0] (expected i32, got (ref null 0))");
+  ExpectFailure(FunctionSig::Build(this->zone(), {supertype}, {supertype}),
+                {WASM_BLOCK_I(WASM_LOCAL_GET(0),
+                              WASM_BR_ON_CAST_FAIL_NULL(0, sub_struct))},
+                kAppendEnd,
+                "type error in branch[0] (expected i32, got (ref 0))");
 
   // Argument type error.
+  ExpectFailure(FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
+                {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, sub_struct),
+                 WASM_GC_OP(kExprRefCast), sub_struct},
+                kAppendEnd,
+                "Invalid types for br_on_cast: local.get of type externref has "
+                "to be in the same reference type hierarchy as (ref 1)");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, sub_struct),
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_NULL(0, sub_struct),
        WASM_GC_OP(kExprRefCast), sub_struct},
       kAppendEnd,
-      "br_on_cast[0] expected subtype of (ref null func), (ref null struct) or "
-      "(ref null array), found local.get of type externref");
+      "Invalid types for br_on_cast null: local.get of type externref has "
+      "to be in the same reference type hierarchy as (ref 1)");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, sub_struct)}, kAppendEnd,
-      "br_on_cast_fail[0] expected subtype of (ref null func), (ref null "
-      "struct) or (ref null array), found local.get of type externref");
+      "Invalid types for br_on_cast_fail: local.get of type externref has to "
+      "be in the same reference type hierarchy as (ref 1)");
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {supertype}, {kWasmExternRef}),
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL_NULL(0, sub_struct)}, kAppendEnd,
+      "Invalid types for br_on_cast_fail null: local.get of type "
+      "externref has to be in the same reference type hierarchy as (ref 1)");
+
+  // Cast between types of different type hierarchies is invalid.
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {subtype}, {supertype}),
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, fct_type), WASM_UNREACHABLE},
+      kAppendEnd,
+      "Invalid types for br_on_cast: local.get of type (ref null 0) has "
+      "to be in the same reference type hierarchy as (ref 2)");
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {
@@ -4933,7 +4890,7 @@ TEST_F(WasmOpcodeLengthTest, IllegalRefIndices) {
 
 TEST_F(WasmOpcodeLengthTest, GCOpcodes) {
   // br_on_cast{,_fail}: prefix + opcode + br_depth + type_index
-  ExpectLength(4, 0xfb, kExprBrOnCast & 0xFF);
+  ExpectLength(4, 0xfb, kExprBrOnCastDeprecated & 0xFF);
   ExpectLength(4, 0xfb, kExprBrOnCastFail & 0xFF);
 
   // struct.new, with leb immediate operand.
@@ -5025,7 +4982,6 @@ TEST_F(TypeReaderTest, HeapTypeDecodingTest) {
 
 class LocalDeclDecoderTest : public TestWithZone {
  public:
-  v8::internal::AccountingAllocator allocator;
   WasmFeatures enabled_features_;
 
   size_t ExpectRun(ValueType* local_types, size_t pos, ValueType expected,

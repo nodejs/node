@@ -125,7 +125,8 @@ class Typer::Visitor : public Reducer {
       SIMPLIFIED_CHANGE_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
       SIMPLIFIED_CHECKED_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
       IF_WASM(SIMPLIFIED_WASM_OP_LIST, DECLARE_IMPOSSIBLE_CASE)
-      MACHINE_SIMD_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
+      MACHINE_SIMD128_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
+      MACHINE_SIMD256_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
       MACHINE_UNOP_32_LIST(DECLARE_IMPOSSIBLE_CASE)
       DECLARE_IMPOSSIBLE_CASE(Word32Xor)
       DECLARE_IMPOSSIBLE_CASE(Word32Sar)
@@ -158,7 +159,6 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(Uint64MulHigh)
       DECLARE_IMPOSSIBLE_CASE(Word64Equal)
       DECLARE_IMPOSSIBLE_CASE(Int32LessThan)
-      DECLARE_IMPOSSIBLE_CASE(Int32LessThanOrEqual)
       DECLARE_IMPOSSIBLE_CASE(Int64LessThan)
       DECLARE_IMPOSSIBLE_CASE(Int64LessThanOrEqual)
       DECLARE_IMPOSSIBLE_CASE(Uint64LessThan)
@@ -341,6 +341,8 @@ class Typer::Visitor : public Reducer {
   static Type ToName(Type, Typer*);
   static Type ToNumber(Type, Typer*);
   static Type ToNumberConvertBigInt(Type, Typer*);
+  static Type ToBigInt(Type, Typer*);
+  static Type ToBigIntConvertNumber(Type, Typer*);
   static Type ToNumeric(Type, Typer*);
   static Type ToObject(Type, Typer*);
   static Type ToString(Type, Typer*);
@@ -415,6 +417,7 @@ class Typer::Visitor : public Reducer {
   static Type NumberEqualTyper(Type, Type, Typer*);
   static Type NumberLessThanTyper(Type, Type, Typer*);
   static Type NumberLessThanOrEqualTyper(Type, Type, Typer*);
+  static Type BigIntCompareTyper(Type, Type, Typer*);
   static Type ReferenceEqualTyper(Type, Type, Typer*);
   static Type SameValueTyper(Type, Type, Typer*);
   static Type SameValueNumbersOnlyTyper(Type, Type, Typer*);
@@ -672,6 +675,16 @@ Type Typer::Visitor::ToNumber(Type type, Typer* t) {
 // static
 Type Typer::Visitor::ToNumberConvertBigInt(Type type, Typer* t) {
   return t->operation_typer_.ToNumberConvertBigInt(type);
+}
+
+// static
+Type Typer::Visitor::ToBigInt(Type type, Typer* t) {
+  return t->operation_typer_.ToBigInt(type);
+}
+
+// static
+Type Typer::Visitor::ToBigIntConvertNumber(Type type, Typer* t) {
+  return t->operation_typer_.ToBigIntConvertNumber(type);
 }
 
 // static
@@ -1361,6 +1374,8 @@ DEFINE_METHOD(ToLength)
 DEFINE_METHOD(ToName)
 DEFINE_METHOD(ToNumber)
 DEFINE_METHOD(ToNumberConvertBigInt)
+DEFINE_METHOD(ToBigInt)
+DEFINE_METHOD(ToBigIntConvertNumber)
 DEFINE_METHOD(ToNumeric)
 DEFINE_METHOD(ToObject)
 DEFINE_METHOD(ToString)
@@ -2124,6 +2139,14 @@ Type Typer::Visitor::NumberLessThanOrEqualTyper(Type lhs, Type rhs, Typer* t) {
       Invert(JSCompareTyper(ToNumber(rhs, t), ToNumber(lhs, t), t), t), t);
 }
 
+// static
+Type Typer::Visitor::BigIntCompareTyper(Type lhs, Type rhs, Typer* t) {
+  if (lhs.IsNone() || rhs.IsNone()) {
+    return Type::None();
+  }
+  return Type::Boolean();
+}
+
 Type Typer::Visitor::TypeNumberEqual(Node* node) {
   return TypeBinaryOp(node, NumberEqualTyper);
 }
@@ -2147,6 +2170,18 @@ Type Typer::Visitor::TypeSpeculativeNumberLessThan(Node* node) {
 Type Typer::Visitor::TypeSpeculativeNumberLessThanOrEqual(Node* node) {
   return TypeBinaryOp(node, NumberLessThanOrEqualTyper);
 }
+
+#define BIGINT_COMPARISON_BINOP(Name)              \
+  Type Typer::Visitor::Type##Name(Node* node) {    \
+    return TypeBinaryOp(node, BigIntCompareTyper); \
+  }
+BIGINT_COMPARISON_BINOP(BigIntEqual)
+BIGINT_COMPARISON_BINOP(BigIntLessThan)
+BIGINT_COMPARISON_BINOP(BigIntLessThanOrEqual)
+BIGINT_COMPARISON_BINOP(SpeculativeBigIntEqual)
+BIGINT_COMPARISON_BINOP(SpeculativeBigIntLessThan)
+BIGINT_COMPARISON_BINOP(SpeculativeBigIntLessThanOrEqual)
+#undef BIGINT_COMPARISON_BINOP
 
 Type Typer::Visitor::TypeStringConcat(Node* node) { return Type::String(); }
 
@@ -2541,6 +2576,10 @@ Type Typer::Visitor::TypeRuntimeAbort(Node* node) { UNREACHABLE(); }
 Type Typer::Visitor::TypeAssertType(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeVerifyType(Node* node) {
+  return TypeOrNone(node->InputAt(0));
+}
+
+Type Typer::Visitor::TypeCheckTurboshaftTypeOf(Node* node) {
   return TypeOrNone(node->InputAt(0));
 }
 

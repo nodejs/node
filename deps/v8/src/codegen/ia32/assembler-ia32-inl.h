@@ -188,7 +188,7 @@ void Assembler::emit(const Immediate& x) {
 void Assembler::emit_code_relative_offset(Label* label) {
   if (label->is_bound()) {
     int32_t pos;
-    pos = label->pos() + Code::kHeaderSize - kHeapObjectTag;
+    pos = label->pos() + InstructionStream::kHeaderSize - kHeapObjectTag;
     emit(pos);
   } else {
     emit_disp(label, Displacement::CODE_RELATIVE);
@@ -222,7 +222,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 }
 
 void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Code code, Address target) {
+    Address instruction_payload, InstructionStream code, Address target) {
   set_target_address_at(instruction_payload,
                         !code.is_null() ? code.constant_pool() : kNullAddress,
                         target);

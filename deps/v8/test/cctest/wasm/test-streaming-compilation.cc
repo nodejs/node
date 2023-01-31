@@ -381,13 +381,10 @@ STREAM_TEST(TestAllBytesArriveAOTCompilerFinishesFirst) {
   CHECK(tester.IsPromiseFulfilled());
 }
 
-size_t GetFunctionOffset(i::Isolate* isolate, const uint8_t* buffer,
-                         size_t size, size_t index) {
-  ModuleResult result = DecodeWasmModule(
-      WasmFeatures::All(), buffer, buffer + size, false,
-      ModuleOrigin::kWasmOrigin, isolate->counters(),
-      isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
-      DecodingMethod::kSyncStream, GetWasmEngine()->allocator());
+size_t GetFunctionOffset(i::Isolate* isolate, base::Vector<const uint8_t> bytes,
+                         size_t index) {
+  ModuleResult result = DecodeWasmModule(WasmFeatures::All(), bytes, false,
+                                         ModuleOrigin::kWasmOrigin);
   CHECK(result.ok());
   const WasmFunction* func = &result.value()->functions[index];
   return func->code.offset();
@@ -400,8 +397,7 @@ STREAM_TEST(TestCutAfterOneFunctionStreamFinishesFirst) {
   ZoneBuffer buffer = GetValidModuleBytes(tester.zone());
 
   Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  size_t offset =
-      GetFunctionOffset(i_isolate, buffer.begin(), buffer.size(), 1);
+  size_t offset = GetFunctionOffset(i_isolate, base::VectorOf(buffer), 1);
   tester.OnBytesReceived(buffer.begin(), offset);
   tester.RunCompilerTasks();
   CHECK(tester.IsPromisePending());
@@ -419,8 +415,7 @@ STREAM_TEST(TestCutAfterOneFunctionCompilerFinishesFirst) {
   ZoneBuffer buffer = GetValidModuleBytes(tester.zone());
 
   Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  size_t offset =
-      GetFunctionOffset(i_isolate, buffer.begin(), buffer.size(), 1);
+  size_t offset = GetFunctionOffset(i_isolate, base::VectorOf(buffer), 1);
   tester.OnBytesReceived(buffer.begin(), offset);
   tester.RunCompilerTasks();
   CHECK(tester.IsPromisePending());
@@ -1606,7 +1601,7 @@ STREAM_TEST(TierDownWithError) {
     builder.WriteTo(&buffer);
   }
 
-  GetWasmEngine()->TierDownAllModulesPerIsolate(i_isolate);
+  GetWasmEngine()->EnterDebuggingForIsolate(i_isolate);
 
   tester.OnBytesReceived(buffer.begin(), buffer.size());
   tester.FinishStream();

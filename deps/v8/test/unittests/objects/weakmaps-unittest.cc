@@ -58,6 +58,8 @@ TEST_F(WeakMapsTest, Weakness) {
   v8_flags.incremental_marking = false;
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      isolate->heap());
   HandleScope scope(isolate);
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
   GlobalHandles* global_handles = isolate->global_handles();
@@ -117,6 +119,8 @@ TEST_F(WeakMapsTest, Weakness) {
 TEST_F(WeakMapsTest, Shrinking) {
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      isolate->heap());
   HandleScope scope(isolate);
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
@@ -329,6 +333,8 @@ TEST_F(WeakMapsTest, Regress399527) {
 TEST_F(WeakMapsTest, WeakMapsWithChainedEntries) {
   ManualGCScope manual_gc_scope(i_isolate());
   v8::Isolate* isolate = v8_isolate();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate()->heap());
   v8::HandleScope scope(isolate);
 
   const int initial_gc_count = i_isolate()->heap()->gc_count();

@@ -3587,10 +3587,13 @@ class TypedElementsAccessor
     }
 
     size_t typed_array_length = typed_array.GetLength();
-    if (start_from >= typed_array_length) {
+    if (V8_UNLIKELY(start_from >= typed_array_length)) {
       // This can happen if the TypedArray got resized when we did ToInteger
       // on the last parameter of lastIndexOf.
       DCHECK(typed_array.IsVariableLength());
+      if (typed_array_length == 0) {
+        return Just<int64_t>(-1);
+      }
       start_from = typed_array_length - 1;
     }
 

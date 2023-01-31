@@ -6,7 +6,7 @@ Setting breakpoint at instrumentation break location
 Paused at foo.js with reason "instrumentation".
 Hit breakpoints: []
 Paused at foo.js with reason "other".
-Hit breakpoints: ["4:0:20:3"]
+Hit breakpoints: ["4:0:0:3"]
 Done.
 
 Running test: testSetConditionalBreakpointTrueConditionOnInstrumentationPause
@@ -15,7 +15,7 @@ Setting breakpoint at instrumentation break location
 Paused at foo.js with reason "instrumentation".
 Hit breakpoints: []
 Paused at foo.js with reason "other".
-Hit breakpoints: ["4:0:20:4"]
+Hit breakpoints: ["4:0:0:4"]
 Done.
 
 Running test: testSetConditionalBreakpointFalseConditionOnInstrumentationPause

@@ -211,6 +211,9 @@ class WasmGraphAssembler : public GraphAssembler {
         ObjectAccess(MachineType::AnyTagged(), kFullWriteBarrier));
   }
 
+  Node* LoadWeakArrayListElement(Node* fixed_array, Node* index_intptr,
+                                 MachineType type = MachineType::AnyTagged());
+
   // Functions, SharedFunctionInfos, FunctionData.
 
   Node* LoadSharedFunctionInfo(Node* js_function);
@@ -231,11 +234,7 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* FieldOffset(const wasm::StructType* type, uint32_t field_index);
 
-  Node* StoreStructField(Node* struct_object, const wasm::StructType* type,
-                         uint32_t field_index, Node* value);
   Node* WasmArrayElementOffset(Node* index, wasm::ValueType element_type);
-
-  Node* LoadWasmArrayLength(Node* array);
 
   Node* IsDataRefMap(Node* map);
 
@@ -249,11 +248,27 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* IsNotNull(Node* object);
 
-  Node* AssertNotNull(Node* object);
+  Node* AssertNotNull(Node* object, TrapId trap_id);
 
   Node* WasmExternInternalize(Node* object);
 
   Node* WasmExternExternalize(Node* object);
+
+  Node* StructGet(Node* object, const wasm::StructType* type, int field_index,
+                  bool is_signed);
+
+  void StructSet(Node* object, Node* value, const wasm::StructType* type,
+                 int field_index);
+
+  Node* ArrayGet(Node* array, Node* index, const wasm::ArrayType* type,
+                 bool is_signed);
+
+  void ArraySet(Node* array, Node* index, Node* value,
+                const wasm::ArrayType* type);
+
+  Node* ArrayLength(Node* array);
+
+  void ArrayInitializeLength(Node* array, Node* length);
 
   // Generic helpers.
 

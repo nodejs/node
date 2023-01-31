@@ -288,13 +288,9 @@ TEST_F(DisasmIa320Test, DisasmIa320) {
   __ bind(&L2);
   __ call(Operand(ebx, ecx, times_4, 10000));
   __ nop();
-  Handle<Code> ic = BUILTIN_CODE(isolate(), ArrayFrom);
-  __ call(ic, RelocInfo::CODE_TARGET);
-  __ nop();
 
   __ jmp(&L1);
   __ jmp(Operand(ebx, ecx, times_4, 10000));
-  __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();
 
   Label Ljcc;

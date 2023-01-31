@@ -101,6 +101,8 @@ namespace compiler {
   V(IA32Movhps)                    \
   V(IA32BitcastFI)                 \
   V(IA32BitcastIF)                 \
+  V(IA32Blendvpd)                  \
+  V(IA32Blendvps)                  \
   V(IA32Lea)                       \
   V(IA32Pblendvb)                  \
   V(IA32Push)                      \
@@ -208,6 +210,7 @@ namespace compiler {
   V(IA32I32x4Abs)                  \
   V(IA32I32x4BitMask)              \
   V(IA32I32x4DotI16x8S)            \
+  V(IA32I32x4DotI8x16I7x16AddS)    \
   V(IA32I32x4ExtMulLowI16x8S)      \
   V(IA32I32x4ExtMulHighI16x8S)     \
   V(IA32I32x4ExtMulLowI16x8U)      \

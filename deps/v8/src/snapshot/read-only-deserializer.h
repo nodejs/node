@@ -22,6 +22,8 @@ class ReadOnlyDeserializer final : public Deserializer<Isolate> {
 
   // Deserialize the snapshot into an empty heap.
   void DeserializeIntoIsolate();
+
+  void RehashReadOnly();
 };
 
 }  // namespace internal

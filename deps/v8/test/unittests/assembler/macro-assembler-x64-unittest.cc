@@ -468,7 +468,7 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
   code->Print(os);
 #endif
   using myF0 = Address();
-  auto f = GeneratedCode<myF0>::FromAddress(isolate, code->entry());
+  auto f = GeneratedCode<myF0>::FromAddress(isolate, code->code_entry_point());
   Object result = Object(f.Call());
   CHECK_EQ(old_array->ptr(), result.ptr());
 
@@ -481,7 +481,8 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
 
   // Test the user-facing reloc interface.
   const int mode_mask = RelocInfo::EmbeddedObjectModeMask();
-  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+  for (RelocIterator it(code->instruction_stream(), mode_mask); !it.done();
+       it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsCompressedEmbeddedObject(mode)) {
       CHECK_EQ(*my_array, it.rinfo()->target_object(cage_base));

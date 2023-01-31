@@ -205,7 +205,7 @@ class SharedFunctionInfo
   inline void SetName(String name);
 
   // Get the code object which represents the execution of this function.
-  V8_EXPORT_PRIVATE CodeT GetCode() const;
+  V8_EXPORT_PRIVATE Code GetCode() const;
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
@@ -332,12 +332,12 @@ class SharedFunctionInfo
   inline BytecodeArray GetBytecodeArray(IsolateT* isolate) const;
 
   inline void set_bytecode_array(BytecodeArray bytecode);
-  DECL_GETTER(InterpreterTrampoline, CodeT)
+  DECL_GETTER(InterpreterTrampoline, Code)
   DECL_GETTER(HasInterpreterData, bool)
   DECL_GETTER(interpreter_data, InterpreterData)
   inline void set_interpreter_data(InterpreterData interpreter_data);
   DECL_GETTER(HasBaselineCode, bool)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(baseline_code, CodeT)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(baseline_code, Code)
   inline void FlushBaselineCode();
   inline BytecodeArray GetActiveBytecodeArray() const;
   inline void SetActiveBytecodeArray(BytecodeArray bytecode);

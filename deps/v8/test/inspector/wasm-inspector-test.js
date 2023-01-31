@@ -160,7 +160,11 @@ async function dumpTables(tablesObj) {
         let referencedObj = await Protocol.Runtime.getProperties(
           {objectId: entry.value.objectId});
         let value = referencedObj.result.result
-            .filter(prop => prop.name == "value")[0].value.description;
+            .filter(prop => prop.name == "value")[0].value;
+        // If the value doesn't have a description, fall back to its value
+        // property. (For null this makes sure to print "null", as the null
+        // value doesn't have a description.)
+        value = value.description ?? value.value;
         description = `${value} (${description})`;
       }
       functions.push(`${entry.name}: ${description}`);

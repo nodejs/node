@@ -505,8 +505,9 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 // TODO(erikchen): Fix this to only call MADV_FREE_REUSE when necessary.
 // https://crbug.com/823915
 #if defined(V8_OS_DARWIN)
-  if (access != OS::MemoryPermission::kNoAccess)
+  if (access != OS::MemoryPermission::kNoAccess) {
     madvise(address, size, MADV_FREE_REUSE);
+  }
 #endif
 
   return ret == 0;
@@ -554,14 +555,19 @@ bool OS::DiscardSystemPages(void* address, size_t size) {
   }
 #elif defined(_AIX) || defined(V8_OS_SOLARIS)
   int ret = madvise(reinterpret_cast<caddr_t>(address), size, MADV_FREE);
-  if (ret != 0 && errno == ENOSYS)
+  if (ret != 0 && errno == ENOSYS) {
     return true;  // madvise is not available on all systems.
-  if (ret != 0 && errno == EINVAL)
+  }
+  if (ret != 0 && errno == EINVAL) {
     ret = madvise(reinterpret_cast<caddr_t>(address), size, MADV_DONTNEED);
+  }
 #else
   int ret = madvise(address, size, MADV_DONTNEED);
 #endif
-  return ret == 0;
+  // madvise with MADV_DONTNEED only fails on illegal parameters. That's a bug
+  // in the caller.
+  CHECK_EQ(0, ret);
+  return true;
 }
 
 #if !defined(_AIX)
@@ -576,9 +582,14 @@ bool OS::DecommitPages(void* address, size_t size) {
   // shall be removed, as if by an appropriate call to munmap(), before the new
   // mapping is established." As a consequence, the memory will be
   // zero-initialized on next access.
-  void* ptr = mmap(address, size, PROT_NONE,
+  void* ret = mmap(address, size, PROT_NONE,
                    MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-  return ptr == address;
+  if (V8_UNLIKELY(ret == MAP_FAILED)) {
+    CHECK_EQ(ENOMEM, errno);
+    return false;
+  }
+  CHECK_EQ(ret, address);
+  return true;
 }
 #endif  // !defined(_AIX)
 

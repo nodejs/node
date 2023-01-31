@@ -33,6 +33,7 @@ ReadOnlySerializer::~ReadOnlySerializer() {
 void ReadOnlySerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   CHECK(ReadOnlyHeap::Contains(*obj));
   CHECK_IMPLIES(obj->IsString(), obj->IsInternalizedString());
+  DCHECK(!V8_STATIC_ROOTS_BOOL);
 
   // There should be no references to the not_mapped_symbol except for the entry
   // in the root table, so don't try to serialize a reference and rely on the
@@ -73,36 +74,62 @@ void ReadOnlySerializer::SerializeReadOnlyRoots() {
   CHECK_IMPLIES(!allow_active_isolate_for_testing(),
                 isolate()->handle_scope_implementer()->blocks()->empty());
 
-  ReadOnlyRoots(isolate()).Iterate(this);
-
-  if (reconstruct_read_only_and_shared_object_caches_for_testing()) {
-    ReconstructReadOnlyObjectCacheForTesting();
+  if (!V8_STATIC_ROOTS_BOOL) {
+    ReadOnlyRoots(isolate()).Iterate(this);
+    if (reconstruct_read_only_and_shared_object_caches_for_testing()) {
+      ReconstructReadOnlyObjectCacheForTesting();
+    }
   }
 }
 
 void ReadOnlySerializer::FinalizeSerialization() {
-  // This comes right after serialization of the other snapshots, where we
-  // add entries to the read-only object cache. Add one entry with 'undefined'
-  // to terminate the read-only object cache.
-  Object undefined = ReadOnlyRoots(isolate()).undefined_value();
-  VisitRootPointer(Root::kReadOnlyObjectCache, nullptr,
-                   FullObjectSlot(&undefined));
-  SerializeDeferredObjects();
-  Pad();
+  if (V8_STATIC_ROOTS_BOOL) {
+    DCHECK(object_cache_empty());
+    DCHECK(deferred_objects_empty());
+    DCHECK_EQ(sink_.Position(), 0);
+
+    auto space = isolate()->read_only_heap()->read_only_space();
+    size_t num_pages = space->pages().size();
+    sink_.PutInt(num_pages, "num pages");
+    Tagged_t pos = V8HeapCompressionScheme::CompressTagged(
+        reinterpret_cast<Address>(space->pages()[0]));
+    sink_.PutInt(pos, "first page offset");
+    for (auto p : space->pages()) {
+      // Pages are shrunk, but memory at the end of the area is still
+      // uninitialized and we do not want to include it in the snapshot.
+      size_t page_content_bytes = p->HighWaterMark() - p->area_start();
+      sink_.PutInt(page_content_bytes, "page content bytes");
+#ifdef MEMORY_SANITIZER
+      __msan_check_mem_is_initialized(reinterpret_cast<void*>(p->area_start()),
+                                      static_cast<int>(page_content_bytes));
+#endif
+      sink_.PutRaw(reinterpret_cast<const byte*>(p->area_start()),
+                   static_cast<int>(page_content_bytes), "page");
+    }
+  } else {
+    // This comes right after serialization of the other snapshots, where we
+    // add entries to the read-only object cache. Add one entry with 'undefined'
+    // to terminate the read-only object cache.
+    Object undefined = ReadOnlyRoots(isolate()).undefined_value();
+    VisitRootPointer(Root::kReadOnlyObjectCache, nullptr,
+                     FullObjectSlot(&undefined));
+    SerializeDeferredObjects();
 
 #ifdef DEBUG
-  // Check that every object on read-only heap is reachable (and was
-  // serialized).
-  ReadOnlyHeapObjectIterator iterator(isolate()->read_only_heap());
-  for (HeapObject object = iterator.Next(); !object.is_null();
-       object = iterator.Next()) {
-    if (IsNotMappedSymbol(object)) {
-      CHECK(did_serialize_not_mapped_symbol_);
-    } else {
-      CHECK_NOT_NULL(serialized_objects_.Find(object));
+    // Check that every object on read-only heap is reachable (and was
+    // serialized).
+    ReadOnlyHeapObjectIterator iterator(isolate()->read_only_heap());
+    for (HeapObject object = iterator.Next(); !object.is_null();
+         object = iterator.Next()) {
+      if (IsNotMappedSymbol(object)) {
+        CHECK(did_serialize_not_mapped_symbol_);
+      } else {
+        CHECK_NOT_NULL(serialized_objects_.Find(object));
+      }
     }
+#endif  // DEBUG
   }
-#endif
+  Pad();
 }
 
 bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {
@@ -122,13 +149,16 @@ bool ReadOnlySerializer::SerializeUsingReadOnlyObjectCache(
     SnapshotByteSink* sink, Handle<HeapObject> obj) {
   if (!ReadOnlyHeap::Contains(*obj)) return false;
 
-  // Get the cache index and serialize it into the read-only snapshot if
-  // necessary.
-  int cache_index = SerializeInObjectCache(obj);
-
-  // Writing out the cache entry into the calling serializer's sink.
-  sink->Put(kReadOnlyObjectCache, "ReadOnlyObjectCache");
-  sink->PutInt(cache_index, "read_only_object_cache_index");
+  if (V8_STATIC_ROOTS_BOOL) {
+    SerializeReadOnlyObjectReference(*obj, sink);
+  } else {
+    // Get the cache index and serialize it into the read-only snapshot if
+    // necessary.
+    int cache_index = SerializeInObjectCache(obj);
+    // Writing out the cache entry into the calling serializer's sink.
+    sink->Put(kReadOnlyObjectCache, "ReadOnlyObjectCache");
+    sink->PutInt(cache_index, "read_only_object_cache_index");
+  }
 
   return true;
 }

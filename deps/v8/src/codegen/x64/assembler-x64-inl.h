@@ -20,35 +20,6 @@ bool CpuFeatures::SupportsOptimizer() { return true; }
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
 
-void Assembler::emitl(uint32_t x) {
-  WriteUnalignedValue(reinterpret_cast<Address>(pc_), x);
-  pc_ += sizeof(uint32_t);
-}
-
-void Assembler::emitq(uint64_t x) {
-  WriteUnalignedValue(reinterpret_cast<Address>(pc_), x);
-  pc_ += sizeof(uint64_t);
-}
-
-void Assembler::emitw(uint16_t x) {
-  WriteUnalignedValue(reinterpret_cast<Address>(pc_), x);
-  pc_ += sizeof(uint16_t);
-}
-
-void Assembler::emit(Immediate x) {
-  if (!RelocInfo::IsNoInfo(x.rmode_)) {
-    RecordRelocInfo(x.rmode_);
-  }
-  emitl(x.value_);
-}
-
-void Assembler::emit(Immediate64 x) {
-  if (!RelocInfo::IsNoInfo(x.rmode_)) {
-    RecordRelocInfo(x.rmode_);
-  }
-  emitq(static_cast<uint64_t>(x.value_));
-}
-
 void Assembler::emit_rex_64(Register reg, Register rm_reg) {
   emit(0x48 | reg.high_bit() << 2 | rm_reg.high_bit());
 }
@@ -244,7 +215,7 @@ void Assembler::deserialization_set_target_internal_reference_at(
 }
 
 void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Code code, Address target) {
+    Address instruction_payload, InstructionStream code, Address target) {
   set_target_address_at(instruction_payload,
                         !code.is_null() ? code.constant_pool() : kNullAddress,
                         target);
@@ -255,7 +226,7 @@ int Assembler::deserialization_special_target_size(
   return kSpecialTargetSize;
 }
 
-Handle<CodeT> Assembler::code_target_object_handle_at(Address pc) {
+Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
   return GetCodeTarget(ReadUnalignedValue<int32_t>(pc));
 }
 
@@ -314,8 +285,9 @@ HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
     DCHECK(!HAS_SMI_TAG(compressed));
     Object obj(V8HeapCompressionScheme::DecompressTaggedPointer(cage_base,
                                                                 compressed));
-    // Embedding of compressed Code objects must not happen when external code
-    // space is enabled, because CodeDataContainers must be used instead.
+    // Embedding of compressed InstructionStream objects must not happen when
+    // external code space is enabled, because Codes must be used
+    // instead.
     DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
                    !IsCodeSpaceObject(HeapObject::cast(obj)));
     return HeapObject::cast(obj);

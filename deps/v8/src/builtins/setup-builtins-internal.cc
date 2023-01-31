@@ -52,8 +52,9 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate, Builtin builtin) {
   // PC-relative call/jump instructions can be used for builtin to builtin
   // calls/tail calls. The embedded builtins blob generator also ensures that.
   // However, there are serializer tests, where we force isolate creation at
-  // runtime and at this point, Code space isn't restricted to a size s.t.
-  // PC-relative calls may be used. So, we fall back to an indirect mode.
+  // runtime and at this point, Code space isn't restricted to a
+  // size s.t. PC-relative calls may be used. So, we fall back to an indirect
+  // mode.
   options.use_pc_relative_calls_and_jumps_for_mksnapshot =
       pc_relative_calls_fit_in_code_range;
 
@@ -211,7 +212,7 @@ Code BuildWithCodeStubAssemblerCS(Isolate* isolate, Builtin builtin,
 void SetupIsolateDelegate::AddBuiltin(Builtins* builtins, Builtin builtin,
                                       Code code) {
   DCHECK_EQ(builtin, code.builtin_id());
-  builtins->set_code(builtin, ToCodeT(code));
+  builtins->set_code(builtin, code);
 }
 
 // static
@@ -242,27 +243,28 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   PtrComprCageBase cage_base(isolate);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = FromCodeT(builtins->code(builtin));
+    InstructionStream code = FromCode(builtins->code(builtin));
     isolate->heap()->UnprotectAndRegisterMemoryChunk(
         code, UnprotectMemoryOrigin::kMainThread);
     bool flush_icache = false;
     for (RelocIterator it(code, kRelocMask); !it.done(); it.next()) {
       RelocInfo* rinfo = it.rinfo();
       if (RelocInfo::IsCodeTargetMode(rinfo->rmode())) {
-        Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+        InstructionStream target = InstructionStream::GetCodeFromTargetAddress(
+            rinfo->target_address());
         DCHECK_IMPLIES(RelocInfo::IsRelativeCodeTarget(rinfo->rmode()),
                        Builtins::IsIsolateIndependent(target.builtin_id()));
         if (!target.is_builtin()) continue;
-        CodeT new_target = builtins->code(target.builtin_id());
+        Code new_target = builtins->code(target.builtin_id());
         rinfo->set_target_address(new_target.raw_instruction_start(),
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
         DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
         Object object = rinfo->target_object(cage_base);
-        if (!object.IsCodeT(cage_base)) continue;
-        CodeT target = CodeT::cast(object);
+        if (!object.IsCode(cage_base)) continue;
+        Code target = Code::cast(object);
         if (!target.is_builtin()) continue;
-        CodeT new_target = builtins->code(target.builtin_id());
+        Code new_target = builtins->code(target.builtin_id());
         rinfo->set_target_object(isolate->heap(), new_target,
                                  UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       }

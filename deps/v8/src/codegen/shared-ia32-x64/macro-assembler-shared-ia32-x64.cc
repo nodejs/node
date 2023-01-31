@@ -102,6 +102,31 @@ void SharedTurboAssembler::Movlps(XMMRegister dst, XMMRegister src1,
     movlps(dst, src2);
   }
 }
+void SharedTurboAssembler::Blendvpd(XMMRegister dst, XMMRegister src1,
+                                    XMMRegister src2, XMMRegister mask) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vblendvpd(dst, src1, src2, mask);
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    DCHECK_EQ(mask, xmm0);
+    DCHECK_EQ(dst, src1);
+    blendvpd(dst, src2);
+  }
+}
+
+void SharedTurboAssembler::Blendvps(XMMRegister dst, XMMRegister src1,
+                                    XMMRegister src2, XMMRegister mask) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vblendvps(dst, src1, src2, mask);
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    DCHECK_EQ(mask, xmm0);
+    DCHECK_EQ(dst, src1);
+    blendvps(dst, src2);
+  }
+}
 
 void SharedTurboAssembler::Pblendvb(XMMRegister dst, XMMRegister src1,
                                     XMMRegister src2, XMMRegister mask) {
@@ -719,6 +744,30 @@ void SharedTurboAssembler::I16x8DotI8x16I7x16S(XMMRegister dst,
   }
 }
 
+void SharedTurboAssembler::I32x4DotI8x16I7x16AddS(
+    XMMRegister dst, XMMRegister src1, XMMRegister src2, XMMRegister src3,
+    XMMRegister scratch, XMMRegister splat_reg) {
+  ASM_CODE_COMMENT(this);
+  // k = i16x8.splat(1)
+  Pcmpeqd(splat_reg, splat_reg);
+  Psrlw(splat_reg, splat_reg, byte{15});
+
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpmaddubsw(scratch, src2, src1);
+  } else {
+    movdqa(scratch, src2);
+    pmaddubsw(scratch, src1);
+  }
+  Pmaddwd(scratch, splat_reg);
+  if (dst == src3) {
+    Paddd(dst, scratch);
+  } else {
+    Movdqa(dst, src3);
+    Paddd(dst, scratch);
+  }
+}
+
 void SharedTurboAssembler::I32x4ExtAddPairwiseI16x8U(XMMRegister dst,
                                                      XMMRegister src,
                                                      XMMRegister tmp) {
@@ -1230,37 +1279,37 @@ void SharedTurboAssembler::S128Store64Lane(Operand dst, XMMRegister src,
   if (CpuFeatures::IsSupported(FMA3)) {       \
     CpuFeatureScope fma3_scope(this, FMA3);   \
     if (dst == src1) {                        \
-      vfmadd231##ps_or_pd(dst, src2, src3);   \
+      vfmadd213##ps_or_pd(dst, src2, src3);   \
     } else if (dst == src2) {                 \
-      vfmadd132##ps_or_pd(dst, src1, src3);   \
+      vfmadd213##ps_or_pd(dst, src1, src3);   \
     } else if (dst == src3) {                 \
-      vfmadd213##ps_or_pd(dst, src2, src1);   \
+      vfmadd231##ps_or_pd(dst, src2, src1);   \
     } else {                                  \
       CpuFeatureScope avx_scope(this, AVX);   \
       vmovups(dst, src1);                     \
-      vfmadd231##ps_or_pd(dst, src2, src3);   \
+      vfmadd213##ps_or_pd(dst, src2, src3);   \
     }                                         \
   } else if (CpuFeatures::IsSupported(AVX)) { \
     CpuFeatureScope avx_scope(this, AVX);     \
-    vmul##ps_or_pd(tmp, src2, src3);          \
-    vadd##ps_or_pd(dst, src1, tmp);           \
+    vmul##ps_or_pd(tmp, src1, src2);          \
+    vadd##ps_or_pd(dst, tmp, src3);           \
   } else {                                    \
     if (dst == src1) {                        \
-      movaps(tmp, src2);                      \
-      mul##ps_or_pd(tmp, src3);               \
-      add##ps_or_pd(dst, tmp);                \
+      mul##ps_or_pd(dst, src2);               \
+      add##ps_or_pd(dst, src3);               \
     } else if (dst == src2) {                 \
       DCHECK_NE(src2, src1);                  \
-      mul##ps_or_pd(src2, src3);              \
-      add##ps_or_pd(src2, src1);              \
+      mul##ps_or_pd(dst, src1);               \
+      add##ps_or_pd(dst, src3);               \
     } else if (dst == src3) {                 \
       DCHECK_NE(src3, src1);                  \
-      mul##ps_or_pd(src3, src2);              \
-      add##ps_or_pd(src3, src1);              \
+      movaps(tmp, src1);                      \
+      mul##ps_or_pd(tmp, src2);               \
+      add##ps_or_pd(dst, tmp);                \
     } else {                                  \
-      movaps(dst, src2);                      \
-      mul##ps_or_pd(dst, src3);               \
-      add##ps_or_pd(dst, src1);               \
+      movaps(dst, src1);                      \
+      mul##ps_or_pd(dst, src2);               \
+      add##ps_or_pd(dst, src3);               \
     }                                         \
   }
 
@@ -1270,25 +1319,25 @@ void SharedTurboAssembler::S128Store64Lane(Operand dst, XMMRegister src,
   if (CpuFeatures::IsSupported(FMA3)) {       \
     CpuFeatureScope fma3_scope(this, FMA3);   \
     if (dst == src1) {                        \
-      vfnmadd231##ps_or_pd(dst, src2, src3);  \
+      vfnmadd213##ps_or_pd(dst, src2, src3);  \
     } else if (dst == src2) {                 \
-      vfnmadd132##ps_or_pd(dst, src1, src3);  \
+      vfnmadd213##ps_or_pd(dst, src1, src3);  \
     } else if (dst == src3) {                 \
-      vfnmadd213##ps_or_pd(dst, src2, src1);  \
+      vfnmadd231##ps_or_pd(dst, src2, src1);  \
     } else {                                  \
       CpuFeatureScope avx_scope(this, AVX);   \
       vmovups(dst, src1);                     \
-      vfnmadd231##ps_or_pd(dst, src2, src3);  \
+      vfnmadd213##ps_or_pd(dst, src2, src3);  \
     }                                         \
   } else if (CpuFeatures::IsSupported(AVX)) { \
     CpuFeatureScope avx_scope(this, AVX);     \
-    vmul##ps_or_pd(tmp, src2, src3);          \
-    vsub##ps_or_pd(dst, src1, tmp);           \
+    vmul##ps_or_pd(tmp, src1, src2);          \
+    vsub##ps_or_pd(dst, src3, tmp);           \
   } else {                                    \
-    movaps(tmp, src2);                        \
-    mul##ps_or_pd(tmp, src3);                 \
-    if (dst != src1) {                        \
-      movaps(dst, src1);                      \
+    movaps(tmp, src1);                        \
+    mul##ps_or_pd(tmp, src2);                 \
+    if (dst != src3) {                        \
+      movaps(dst, src3);                      \
     }                                         \
     sub##ps_or_pd(dst, tmp);                  \
   }

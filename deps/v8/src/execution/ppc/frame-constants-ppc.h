@@ -16,9 +16,9 @@ namespace internal {
 class EntryFrameConstants : public AllStatic {
  public:
   // Need to take constant pool into account.
-  static constexpr int kCallerFPOffset = V8_EMBEDDED_CONSTANT_POOL_BOOL
-                                             ? -4 * kSystemPointerSize
-                                             : -3 * kSystemPointerSize;
+  static constexpr int kNextExitFrameFPOffset = V8_EMBEDDED_CONSTANT_POOL_BOOL
+                                                    ? -4 * kSystemPointerSize
+                                                    : -3 * kSystemPointerSize;
 };
 
 class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {

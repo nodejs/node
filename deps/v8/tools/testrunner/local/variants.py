@@ -27,8 +27,14 @@ ALL_VARIANT_FLAGS = {
     # https://chromium-review.googlesource.com/c/452620/ for more discussion.
     # For WebAssembly, we test "Liftoff-only" in the nooptimization variant and
     # "TurboFan-only" in the stress variant. The WebAssembly configuration is
-    # independent of JS optimizations, so we can combine those configs.
-    "nooptimization": [["--no-turbofan", "--liftoff", "--no-wasm-tier-up"]],
+    # independent of JS optimizations, so we can combine those configs. We
+    # disable lazy compilation to have one test variant that tests eager
+    # compilation. "Liftoff-only" and eager compilation is not a problem,
+    # because test functions do typically not get optimized to TurboFan anyways.
+    "nooptimization": [[
+        "--no-turbofan", "--liftoff", "--no-wasm-tier-up",
+        "--no-wasm-lazy-compilation"
+    ]],
     "slow_path": [["--force-slow-path"]],
     "stress": [[
         "--no-liftoff", "--stress-lazy-source-positions",
@@ -47,27 +53,40 @@ ALL_VARIANT_FLAGS = {
     "instruction_scheduling": [["--turbo-instruction-scheduling"]],
     "stress_instruction_scheduling": [["--turbo-stress-instruction-scheduling"]
                                      ],
-    "wasm_write_protect_code": [["--wasm-write-protect-code-memory"]],
     # Google3 variants.
     "google3_icu": [[]],
     "google3_noicu": [[]],
 }
 
+# Note these are specifically for the case when Turbofan is either fully
+# disabled (i.e. not part of the binary), or when all codegen is disallowed (in
+# jitless mode).
+kIncompatibleFlagsForNoTurbofan = [
+    "--turbofan", "--always-turbofan", "--liftoff", "--validate-asm",
+    "--maglev", "--stress-concurrent-inlining"
+]
+
 # Flags that lead to a contradiction with the flags provided by the respective
 # variant. This depends on the flags specified in ALL_VARIANT_FLAGS and on the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_VARIANT = {
-    "jitless": [
-        "--turbofan", "--always-turbofan", "--liftoff", "--track-field-types",
-        "--validate-asm", "--sparkplug", "--concurrent-sparkplug", "--maglev",
-        "--always-sparkplug", "--regexp-tier-up", "--no-regexp-interpret-all"
+    "jitless":
+        kIncompatibleFlagsForNoTurbofan + [
+            "--track-field-types", "--sparkplug", "--concurrent-sparkplug",
+            "--always-sparkplug", "--regexp-tier-up",
+            "--no-regexp-interpret-all"
+        ],
+    "nooptimization": [
+        "--turbofan", "--always-turbofan", "--stress-concurrent-inlining"
     ],
-    "nooptimization": ["--always-turbofan"],
     "slow_path": ["--no-force-slow-path"],
-    "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
+    "stress_concurrent_allocation": [
+        "--single-threaded", "--single-threaded-gc", "--predictable"
+    ],
     "stress_concurrent_inlining": [
         "--single-threaded", "--predictable", "--lazy-feedback-allocation",
-        "--assert-types", "--no-concurrent-recompilation"
+        "--assert-types", "--no-concurrent-recompilation", "--no-turbofan",
+        "--jitless"
     ],
     # The fast API tests initialize an embedder object that never needs to be
     # serialized to the snapshot, so we don't have a
@@ -87,9 +106,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--cache=after-execute", "--cache=full-code-cache", "--cache=none"
     ],
     "experimental_regexp": ["--no-enable-experimental-regexp-engine"],
-    # There is a negative implication: --perf-prof disables
-    # --wasm-write-protect-code-memory.
-    "wasm_write_protect_code": ["--perf-prof"],
     "assert_types": [
         "--concurrent-recompilation", "--stress_concurrent_inlining",
         "--no-assert-types"
@@ -101,17 +117,63 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
 # in _get_statusfile_variables in base_runner.py.
 # The conflicts might be directly contradictory flags or be caused by the
 # implications defined in flag-definitions.h.
+# The keys of the following map support negation through '!', e.g. rule
+#
+#   "!code_comments": [...]
+#
+# applies when the code_comments build variable is NOT set.
 INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
-  "lite_mode": ["--no-lazy-feedback-allocation", "--max-semi-space-size=*",
-                "--stress-concurrent-inlining"]
-               + INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
-  "predictable": ["--parallel-compile-tasks-for-eager-toplevel",
-                  "--parallel-compile-tasks-for-lazy",
-                  "--concurrent-recompilation",
-                  "--stress-concurrent-allocation",
-                  "--stress-concurrent-inlining"],
-  "dict_property_const_tracking": [
-                  "--stress-concurrent-inlining"],
+    "!code_comments": ["--code-comments"],
+    "!is_DEBUG_defined": [
+        "--check_handle_count",
+        "--code_stats",
+        "--dump_wasm_module",
+        "--enable_testing_opcode_in_wasm",
+        "--gc_verbose",
+        "--print_ast",
+        "--print_break_location",
+        "--print_global_handles",
+        "--print_handles",
+        "--print_scopes",
+        "--regexp_possessive_quantifier",
+        "--trace_backing_store",
+        "--trace_contexts",
+        "--trace_isolates",
+        "--trace_lazy",
+        "--trace_liftoff",
+        "--trace_module_status",
+        "--trace_normalization",
+        "--trace_turbo_escape",
+        "--trace_wasm_compiler",
+        "--trace_wasm_decoder",
+        "--trace_wasm_instances",
+        "--trace_wasm_interpreter",
+        "--trace_wasm_lazy_compilation",
+        "--trace_wasm_native_heap",
+        "--trace_wasm_serialization",
+        "--trace_wasm_stack_switching",
+        "--trace_wasm_streaming",
+        "--trap_on_abort",
+    ],
+    "!verify_heap": ["--verify-heap"],
+    "!debug_code": ["--debug-code"],
+    "!disassembler": [
+        "--print_all_code", "--print_code", "--print_opt_code",
+        "--print_code_verbose", "--print_builtin_code", "--print_regexp_code"
+    ],
+    "!slow_dchecks": ["--enable-slow-asserts"],
+    "!gdbjit": ["--gdbjit", "--gdbjit_full", "--gdbjit_dump"],
+    "!has_maglev": ["--maglev"],
+    "!has_turbofan":
+        kIncompatibleFlagsForNoTurbofan,
+    "lite_mode": ["--no-lazy-feedback-allocation", "--max-semi-space-size=*"] +
+                 INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
+    "predictable": [
+        "--parallel-compile-tasks-for-eager-toplevel",
+        "--parallel-compile-tasks-for-lazy", "--concurrent-recompilation",
+        "--stress-concurrent-allocation", "--stress-concurrent-inlining"
+    ],
+    "dict_property_const_tracking": ["--stress-concurrent-inlining"],
 }
 
 # Flags that lead to a contradiction when a certain extra-flag is present.
@@ -120,15 +182,21 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
 # The conflicts might be directly contradictory flags or be caused by the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
-  "--concurrent-recompilation": ["--predictable", "--assert-types"],
-  "--parallel-compile-tasks-for-eager-toplevel": ["--predictable"],
-  "--parallel-compile-tasks-for-lazy": ["--predictable"],
-  "--gc-interval=*": ["--gc-interval=*"],
-  "--optimize-for-size": ["--max-semi-space-size=*"],
-  "--stress_concurrent_allocation":
+    "--concurrent-recompilation": [
+        "--predictable", "--assert-types", "--turboshaft-assert-types",
+        "--single-threaded"
+    ],
+    "--parallel-compile-tasks-for-eager-toplevel": ["--predictable"],
+    "--parallel-compile-tasks-for-lazy": ["--predictable"],
+    "--gc-interval=*": ["--gc-interval=*"],
+    "--optimize-for-size": ["--max-semi-space-size=*"],
+    "--stress_concurrent_allocation":
         INCOMPATIBLE_FLAGS_PER_VARIANT["stress_concurrent_allocation"],
-  "--stress-concurrent-inlining":
+    "--stress-concurrent-inlining":
         INCOMPATIBLE_FLAGS_PER_VARIANT["stress_concurrent_inlining"],
+    "--turboshaft-assert-types": [
+        "--concurrent-recompilation", "--stress-concurrent-inlining"
+    ],
 }
 
 SLOW_VARIANTS = set([

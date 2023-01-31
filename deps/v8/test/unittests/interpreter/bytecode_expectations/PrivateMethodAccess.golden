@@ -18,12 +18,12 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 24
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star0),
                 B(Ldar), R(context),
-  /*   44 E> */ B(DefineKeyedOwnProperty), R(this), R(0), U8(0),
+  /*   44 E> */ B(DefineKeyedOwnProperty), R(this), R(0), U8(0), U8(0),
   /*   49 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
   /*   61 E> */ B(GetKeyedProperty), R(this), U8(2),
                 B(LdaImmutableCurrentContextSlot), U8(2),
@@ -48,17 +48,17 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 31
+bytecode array length: 32
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star0),
                 B(Ldar), R(context),
-  /*   44 E> */ B(DefineKeyedOwnProperty), R(this), R(0), U8(0),
+  /*   44 E> */ B(DefineKeyedOwnProperty), R(this), R(0), U8(0), U8(0),
   /*   49 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star2),
                 B(LdaImmutableCurrentContextSlot), U8(3),
   /*   54 E> */ B(GetKeyedProperty), R(this), U8(2),
-                B(Wide), B(LdaSmi), I16(304),
+                B(Wide), B(LdaSmi), I16(308),
                 B(Star3),
                 B(LdaConstant), U8(0),
                 B(Star4),
@@ -83,15 +83,15 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 28
+bytecode array length: 29
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star0),
                 B(Ldar), R(context),
-  /*   44 E> */ B(DefineKeyedOwnProperty), R(this), R(0), U8(0),
+  /*   44 E> */ B(DefineKeyedOwnProperty), R(this), R(0), U8(0), U8(0),
   /*   49 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
   /*   54 E> */ B(GetKeyedProperty), R(this), U8(2),
-                B(Wide), B(LdaSmi), I16(304),
+                B(Wide), B(LdaSmi), I16(308),
                 B(Star2),
                 B(LdaConstant), U8(0),
                 B(Star3),
@@ -116,7 +116,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 48
+bytecode array length: 49
 bytecodes: [
   /*   44 E> */ B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(0),
@@ -125,7 +125,7 @@ bytecodes: [
                 B(LdaImmutableContextSlot), R(0), U8(3), U8(0),
                 B(Star1),
                 B(Ldar), R(0),
-                B(DefineKeyedOwnProperty), R(this), R(1), U8(0),
+                B(DefineKeyedOwnProperty), R(this), R(1), U8(0), U8(0),
   /*   49 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
                 B(Star3),
   /*   61 E> */ B(CallUndefinedReceiver0), R(3), U8(2),

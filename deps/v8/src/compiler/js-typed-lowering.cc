@@ -58,12 +58,38 @@ class JSBinopReduction final {
       case CompareOperationHint::kString:
       case CompareOperationHint::kSymbol:
       case CompareOperationHint::kBigInt:
+      case CompareOperationHint::kBigInt64:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
       case CompareOperationHint::kInternalizedString:
         break;
     }
     return false;
+  }
+
+  bool GetCompareBigIntOperationHint(BigIntOperationHint* hint) {
+    DCHECK_EQ(1, node_->op()->EffectOutputCount());
+    switch (GetCompareOperationHint(node_)) {
+      case CompareOperationHint::kSignedSmall:
+      case CompareOperationHint::kNumber:
+      case CompareOperationHint::kNumberOrBoolean:
+      case CompareOperationHint::kNumberOrOddball:
+      case CompareOperationHint::kAny:
+      case CompareOperationHint::kNone:
+      case CompareOperationHint::kString:
+      case CompareOperationHint::kSymbol:
+      case CompareOperationHint::kReceiver:
+      case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kInternalizedString:
+        return false;
+      case CompareOperationHint::kBigInt:
+        *hint = BigIntOperationHint::kBigInt;
+        return true;
+      case CompareOperationHint::kBigInt64:
+        *hint = BigIntOperationHint::kBigInt64;
+        return true;
+    }
+    UNREACHABLE();
   }
 
   bool IsInternalizedStringCompareOperation() {
@@ -911,6 +937,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
   }
 
   NumberOperationHint hint;
+  BigIntOperationHint hint_bigint;
   if (r.BothInputsAre(Type::Signed32()) ||
       r.BothInputsAre(Type::Unsigned32())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual());
@@ -926,6 +953,11 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
         simplified()->SpeculativeNumberEqual(hint), Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual());
+  } else if (r.GetCompareBigIntOperationHint(&hint_bigint)) {
+    DCHECK(hint_bigint == BigIntOperationHint::kBigInt ||
+           hint_bigint == BigIntOperationHint::kBigInt64);
+    return r.ChangeToSpeculativeOperator(
+        simplified()->SpeculativeBigIntEqual(hint_bigint), Type::Boolean());
   } else if (r.IsReceiverCompareOperation()) {
     // For strict equality, it's enough to know that one input is a Receiver,
     // as a strict equality comparison with a Receiver can only yield true if
@@ -1039,6 +1071,38 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
     NodeProperties::SetType(
         node, Type::Intersect(node_type, Type::Number(), graph()->zone()));
     NodeProperties::ChangeOp(node, simplified()->PlainPrimitiveToNumber());
+    return Changed(node);
+  }
+  return NoChange();
+}
+
+Reduction JSTypedLowering::ReduceJSToBigInt(Node* node) {
+  // TODO(panq): Reduce constant inputs.
+  Node* const input = node->InputAt(0);
+  Type const input_type = NodeProperties::GetType(input);
+  if (input_type.Is(Type::BigInt())) {
+    ReplaceWithValue(node, input);
+    return Changed(input);
+  }
+  return NoChange();
+}
+
+Reduction JSTypedLowering::ReduceJSToBigIntConvertNumber(Node* node) {
+  // TODO(panq): Reduce constant inputs.
+  Node* const input = node->InputAt(0);
+  Type const input_type = NodeProperties::GetType(input);
+  if (input_type.Is(Type::BigInt())) {
+    ReplaceWithValue(node, input);
+    return Changed(input);
+  } else if (input_type.Is(Type::Signed32OrMinusZero()) ||
+             input_type.Is(Type::Unsigned32OrMinusZero())) {
+    RelaxEffectsAndControls(node);
+    node->TrimInputCount(1);
+    Type node_type = NodeProperties::GetType(node);
+    NodeProperties::SetType(
+        node, Type::Intersect(node_type, Type::BigInt(), graph()->zone()));
+    NodeProperties::ChangeOp(node,
+                             simplified()->Integral32OrMinusZeroToBigInt());
     return Changed(node);
   }
   return NoChange();
@@ -1540,8 +1604,8 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
   DCHECK(Builtins::IsCpp(builtin));
   const bool has_builtin_exit_frame = true;
 
-  Node* stub = jsgraph->CEntryStubConstant(
-      1, SaveFPRegsMode::kIgnore, ArgvMode::kStack, has_builtin_exit_frame);
+  Node* stub =
+      jsgraph->CEntryStubConstant(1, ArgvMode::kStack, has_builtin_exit_frame);
   node->ReplaceInput(0, stub);
 
   const int argc = arity + BuiltinArguments::kNumExtraArgsWithReceiver;
@@ -2395,6 +2459,10 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSToNumber:
     case IrOpcode::kJSToNumberConvertBigInt:
       return ReduceJSToNumber(node);
+    case IrOpcode::kJSToBigInt:
+      return ReduceJSToBigInt(node);
+    case IrOpcode::kJSToBigIntConvertNumber:
+      return ReduceJSToBigIntConvertNumber(node);
     case IrOpcode::kJSToNumeric:
       return ReduceJSToNumeric(node);
     case IrOpcode::kJSToString:

@@ -27,6 +27,7 @@ function OptimizeAndTest(fn) {
   assertEquals(0b1000n, fn(0b1100n, -0b110n));
   // The result grows out of one digit
   assertEquals(-(2n ** 64n), fn(-(2n ** 63n + 1n), -(2n ** 63n)));
+  assertOptimized(fn);
 
   assertEquals(0b1000, fn(0b1100, 0b1010));
   assertUnoptimized(fn);

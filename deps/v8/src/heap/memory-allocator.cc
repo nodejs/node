@@ -345,26 +345,28 @@ size_t MemoryAllocator::ComputeChunkSize(size_t area_size,
 }
 
 base::Optional<MemoryAllocator::MemoryChunkAllocationResult>
-MemoryAllocator::AllocateUninitializedChunk(BaseSpace* space, size_t area_size,
-                                            Executability executable,
-                                            PageSize page_size) {
-#ifdef V8_COMPRESS_POINTERS
+MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
+                                              size_t area_size,
+                                              Executability executable,
+                                              Address hint,
+                                              PageSize page_size) {
+#ifndef V8_COMPRESS_POINTERS
   // When pointer compression is enabled, spaces are expected to be at a
   // predictable address (see mkgrokdump) so we don't supply a hint and rely on
   // the deterministic behaviour of the BoundedPageAllocator.
-  void* address_hint = nullptr;
-#else
-  void* address_hint = AlignedAddress(isolate_->heap()->GetRandomMmapAddr(),
-                                      MemoryChunk::kAlignment);
+  if (hint == kNullAddress) {
+    hint = reinterpret_cast<Address>(AlignedAddress(
+        isolate_->heap()->GetRandomMmapAddr(), MemoryChunk::kAlignment));
+  }
 #endif
 
   VirtualMemory reservation;
   size_t chunk_size = ComputeChunkSize(area_size, executable);
   DCHECK_EQ(chunk_size % GetCommitPageSize(), 0);
 
-  Address base =
-      AllocateAlignedMemory(chunk_size, area_size, MemoryChunk::kAlignment,
-                            executable, address_hint, &reservation);
+  Address base = AllocateAlignedMemory(
+      chunk_size, area_size, MemoryChunk::kAlignment, executable,
+      reinterpret_cast<void*>(hint), &reservation);
   if (base == kNullAddress) return {};
 
   size_ += reservation.size();
@@ -423,8 +425,8 @@ void MemoryAllocator::PartialFreeMemory(BasicMemoryChunk* chunk,
       DCHECK(isolate_->RequiresCodeRange());
       reservation->DiscardSystemPages(chunk->area_end(), page_size);
     } else {
-      reservation->SetPermissions(chunk->area_end(), page_size,
-                                  PageAllocator::kNoAccess);
+      CHECK(reservation->SetPermissions(chunk->area_end(), page_size,
+                                        PageAllocator::kNoAccess));
     }
   }
   // On e.g. Windows, a reservation may be larger than a page and releasing
@@ -587,12 +589,13 @@ Page* MemoryAllocator::AllocatePage(MemoryAllocator::AllocationMode alloc_mode,
   return page;
 }
 
-ReadOnlyPage* MemoryAllocator::AllocateReadOnlyPage(ReadOnlySpace* space) {
+ReadOnlyPage* MemoryAllocator::AllocateReadOnlyPage(ReadOnlySpace* space,
+                                                    Address hint) {
   DCHECK_EQ(space->identity(), RO_SPACE);
   size_t size = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE);
   base::Optional<MemoryChunkAllocationResult> chunk_info =
-      AllocateUninitializedChunk(space, size, NOT_EXECUTABLE,
-                                 PageSize::kRegular);
+      AllocateUninitializedChunkAt(space, size, NOT_EXECUTABLE, hint,
+                                   PageSize::kRegular);
   if (!chunk_info) return nullptr;
   return new (chunk_info->start) ReadOnlyPage(
       isolate_->heap(), space, chunk_info->size, chunk_info->area_start,
@@ -760,28 +763,31 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
             return true;
           }
 
-          vm->SetPermissions(code_area, area_size, PageAllocator::kNoAccess);
+          CHECK(vm->SetPermissions(code_area, area_size,
+                                   PageAllocator::kNoAccess));
         }
       }
-      vm->SetPermissions(start, pre_guard_offset, PageAllocator::kNoAccess);
+      CHECK(vm->SetPermissions(start, pre_guard_offset,
+                               PageAllocator::kNoAccess));
     }
   }
   return false;
 }
 
+// static
 const MemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
-    Address addr) const {
-  base::MutexGuard guard(&pages_mutex_);
+    const NormalPagesSet& normal_pages, const LargePagesSet& large_pages,
+    Address addr) {
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(addr);
-  if (auto it = normal_pages_.find(static_cast<Page*>(chunk));
-      it != normal_pages_.end()) {
+  if (auto it = normal_pages.find(static_cast<Page*>(chunk));
+      it != normal_pages.end()) {
     // The chunk is a normal page.
     DCHECK_LE(chunk->address(), addr);
     if (chunk->Contains(addr)) return *it;
-  } else if (auto it = large_pages_.upper_bound(static_cast<LargePage*>(chunk));
-             it != large_pages_.begin()) {
+  } else if (auto it = large_pages.upper_bound(static_cast<LargePage*>(chunk));
+             it != large_pages.begin()) {
     // The chunk could be inside a large page.
-    DCHECK_IMPLIES(it != large_pages_.end(), addr < (*it)->address());
+    DCHECK_IMPLIES(it != large_pages.end(), addr < (*it)->address());
     auto* large_page = *std::next(it, -1);
     DCHECK_NOT_NULL(large_page);
     DCHECK_LE(large_page->address(), addr);
@@ -789,6 +795,14 @@ const MemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
   }
   // Not found in any page.
   return nullptr;
+}
+
+const MemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
+    Address addr) const {
+  // All threads should be either parked or in a safepoint whenever this method
+  // is called, thus pages cannot be allocated or freed at the same time and a
+  // mutex is not required here,
+  return LookupChunkContainingAddress(normal_pages_, large_pages_, addr);
 }
 
 void MemoryAllocator::RecordNormalPageCreated(const Page& page) {
@@ -800,6 +814,8 @@ void MemoryAllocator::RecordNormalPageCreated(const Page& page) {
 
 void MemoryAllocator::RecordNormalPageDestroyed(const Page& page) {
   base::MutexGuard guard(&pages_mutex_);
+  DCHECK_IMPLIES(v8_flags.minor_mc && isolate_->heap()->sweeping_in_progress(),
+                 isolate_->heap()->tracer()->IsInAtomicPause());
   auto size = normal_pages_.erase(&page);
   USE(size);
   DCHECK_EQ(1u, size);
@@ -814,6 +830,8 @@ void MemoryAllocator::RecordLargePageCreated(const LargePage& page) {
 
 void MemoryAllocator::RecordLargePageDestroyed(const LargePage& page) {
   base::MutexGuard guard(&pages_mutex_);
+  DCHECK_IMPLIES(v8_flags.minor_mc && isolate_->heap()->sweeping_in_progress(),
+                 isolate_->heap()->tracer()->IsInAtomicPause());
   auto size = large_pages_.erase(&page);
   USE(size);
   DCHECK_EQ(1u, size);

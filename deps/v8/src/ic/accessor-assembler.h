@@ -209,12 +209,13 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     StoreICParameters(TNode<Context> context,
                       base::Optional<TNode<Object>> receiver,
                       TNode<Object> name, TNode<Object> value,
-                      TNode<TaggedIndex> slot, TNode<HeapObject> vector,
-                      StoreICMode mode)
+                      base::Optional<TNode<Smi>> flags, TNode<TaggedIndex> slot,
+                      TNode<HeapObject> vector, StoreICMode mode)
         : context_(context),
           receiver_(receiver),
           name_(name),
           value_(value),
+          flags_(flags),
           slot_(slot),
           vector_(vector),
           mode_(mode) {}
@@ -223,12 +224,14 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<Object> receiver() const { return receiver_.value(); }
     TNode<Object> name() const { return name_; }
     TNode<Object> value() const { return value_; }
+    TNode<Smi> flags() const { return flags_.value(); }
     TNode<TaggedIndex> slot() const { return slot_; }
     TNode<HeapObject> vector() const { return vector_; }
 
     TNode<Object> lookup_start_object() const { return receiver(); }
 
     bool receiver_is_null() const { return !receiver_.has_value(); }
+    bool flags_is_null() const { return !flags_.has_value(); }
 
     bool IsDefineNamedOwn() const {
       return mode_ == StoreICMode::kDefineNamedOwn;
@@ -245,6 +248,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     base::Optional<TNode<Object>> receiver_;
     TNode<Object> name_;
     TNode<Object> value_;
+    base::Optional<TNode<Smi>> flags_;
     TNode<TaggedIndex> slot_;
     TNode<HeapObject> vector_;
     StoreICMode mode_;
@@ -342,6 +346,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void LookupContext(LazyNode<Object> lazy_name, TNode<TaggedIndex> depth,
                      LazyNode<TaggedIndex> lazy_slot, TNode<Context> context,
                      TypeofMode typeof_mode);
+
+  void GotoIfNotSameNumberBitPattern(TNode<Float64T> left,
+                                     TNode<Float64T> right, Label* miss);
 
   // IC dispatcher behavior.
 
@@ -496,7 +503,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   // Low-level helpers.
 
-  using OnCodeHandler = std::function<void(TNode<CodeT> code_handler)>;
+  using OnCodeHandler = std::function<void(TNode<Code> code_handler)>;
   using OnFoundOnLookupStartObject = std::function<void(
       TNode<PropertyDictionary> properties, TNode<IntPtrT> name_index)>;
 
@@ -603,7 +610,7 @@ class ExitPoint {
 
   template <class... TArgs>
   void ReturnCallStub(const CallInterfaceDescriptor& descriptor,
-                      TNode<CodeT> target, TNode<Context> context,
+                      TNode<Code> target, TNode<Context> context,
                       TArgs... args) {
     if (IsDirect()) {
       asm_->TailCallStub(descriptor, target, context, args...);

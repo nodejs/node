@@ -36,7 +36,8 @@ InspectorTest.logMessage = function(originalMessage) {
   const nonStableFields = new Set([
     'objectId', 'scriptId', 'exceptionId', 'timestamp', 'executionContextId',
     'callFrameId', 'breakpointId', 'bindRemoteObjectFunctionId',
-    'formatterObjectId', 'debuggerId', 'bodyGetterId', 'uniqueId'
+    'formatterObjectId', 'debuggerId', 'bodyGetterId', 'uniqueId',
+    'executionContextUniqueId'
   ]);
   const message = JSON.parse(JSON.stringify(originalMessage, replacer.bind(null, Symbol(), nonStableFields)));
   if (message.id)
@@ -140,6 +141,12 @@ InspectorTest.trimErrorMessage = function(message) {
 InspectorTest.ContextGroup = class {
   constructor() {
     this.id = utils.createContextGroup();
+  }
+
+  waitForDebugger() {
+    return new Promise(resolve => {
+      utils.waitForDebugger(this.id, resolve);
+    });
   }
 
   createContext(name) {
@@ -258,6 +265,10 @@ InspectorTest.Session = class {
     utils.sendMessageToBackend(this.id, command);
   }
 
+  stop() {
+    utils.stop(this.id);
+  }
+
   setupScriptMap() {
     if (this._scriptMap)
       return;
@@ -267,6 +278,16 @@ InspectorTest.Session = class {
   getCallFrameUrl(frame) {
     const {scriptId} = frame.location ? frame.location : frame;
     return (this._scriptMap.get(scriptId) ?? frame).url;
+  }
+
+  getPausedUrl(msg) {
+    const reason = msg.params.reason;
+    if (reason === 'instrumentation') {
+      return msg.params.data.url;
+    } else {
+      const top_frame = msg.params.callFrames[0];
+      return this.getCallFrameUrl(top_frame);
+    }
   }
 
   logCallFrames(callFrames) {

@@ -41,8 +41,6 @@ class Operator;
 struct SimplifiedOperatorGlobalCache;
 struct WasmTypeCheckConfig;
 
-enum BaseTaggedness : uint8_t { kUntaggedBase, kTaggedBase };
-
 size_t hash_value(BaseTaggedness);
 
 std::ostream& operator<<(std::ostream&, BaseTaggedness);
@@ -67,6 +65,33 @@ size_t hash_value(ConstFieldInfo const&);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
                                            ConstFieldInfo const&);
+
+#if V8_ENABLE_WEBASSEMBLY
+struct WasmFieldInfo {
+  const wasm::StructType* type;
+  int field_index;
+  bool is_signed;
+};
+
+V8_EXPORT_PRIVATE bool operator==(WasmFieldInfo const&, WasmFieldInfo const&);
+
+size_t hash_value(WasmFieldInfo const&);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, WasmFieldInfo const&);
+
+struct WasmElementInfo {
+  const wasm::ArrayType* type;
+  bool is_signed;
+};
+
+V8_EXPORT_PRIVATE bool operator==(WasmElementInfo const&,
+                                  WasmElementInfo const&);
+
+size_t hash_value(WasmElementInfo const&);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           WasmElementInfo const&);
+#endif
 
 // An access descriptor for loads/stores of fixed structures like field
 // accesses of heap objects. Accesses from either tagged or untagged base
@@ -565,6 +590,28 @@ bool operator==(NumberOperationParameters const&,
 const NumberOperationParameters& NumberOperationParametersOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
+class BigIntOperationParameters {
+ public:
+  BigIntOperationParameters(BigIntOperationHint hint,
+                            const FeedbackSource& feedback)
+      : hint_(hint), feedback_(feedback) {}
+
+  BigIntOperationHint hint() const { return hint_; }
+  const FeedbackSource& feedback() const { return feedback_; }
+
+ private:
+  BigIntOperationHint hint_;
+  FeedbackSource feedback_;
+};
+
+size_t hash_value(BigIntOperationParameters const&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           const BigIntOperationParameters&);
+bool operator==(BigIntOperationParameters const&,
+                BigIntOperationParameters const&);
+const BigIntOperationParameters& BigIntOperationParametersOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
+
 class SpeculativeBigIntAsNParameters {
  public:
   SpeculativeBigIntAsNParameters(int bits, const FeedbackSource& feedback)
@@ -781,6 +828,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* NumberToString();
   const Operator* NumberToUint32();
   const Operator* NumberToUint8Clamped();
+  const Operator* Integral32OrMinusZeroToBigInt();
 
   const Operator* NumberSilenceNaN();
 
@@ -790,7 +838,15 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* BigIntDivide();
   const Operator* BigIntModulus();
   const Operator* BigIntBitwiseAnd();
+  const Operator* BigIntBitwiseOr();
+  const Operator* BigIntBitwiseXor();
+  const Operator* BigIntShiftLeft();
+  const Operator* BigIntShiftRight();
   const Operator* BigIntNegate();
+
+  const Operator* BigIntEqual();
+  const Operator* BigIntLessThan();
+  const Operator* BigIntLessThanOrEqual();
 
   const Operator* SpeculativeSafeIntegerAdd(NumberOperationHint hint);
   const Operator* SpeculativeSafeIntegerSubtract(NumberOperationHint hint);
@@ -818,11 +874,19 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SpeculativeBigIntDivide(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntModulus(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntBitwiseAnd(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntBitwiseOr(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntBitwiseXor(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntShiftLeft(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntShiftRight(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntNegate(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntAsIntN(int bits,
                                           const FeedbackSource& feedback);
   const Operator* SpeculativeBigIntAsUintN(int bits,
                                            const FeedbackSource& feedback);
+
+  const Operator* SpeculativeBigIntEqual(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntLessThan(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntLessThanOrEqual(BigIntOperationHint hint);
 
   const Operator* ReferenceEqual();
   const Operator* SameValue();
@@ -851,6 +915,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* FindOrderedCollectionEntry(CollectionKind collection_kind);
 
   const Operator* SpeculativeToNumber(NumberOperationHint hint,
+                                      const FeedbackSource& feedback);
+
+  const Operator* SpeculativeToBigInt(BigIntOperationHint hint,
                                       const FeedbackSource& feedback);
 
   const Operator* StringToNumber();
@@ -1076,9 +1143,10 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // Abort if the value does not match the node's computed type after
   // SimplifiedLowering.
   const Operator* VerifyType();
+  const Operator* CheckTurboshaftTypeOf();
 
 #if V8_ENABLE_WEBASSEMBLY
-  const Operator* AssertNotNull();
+  const Operator* AssertNotNull(TrapId trap_id);
   const Operator* IsNull();
   const Operator* IsNotNull();
   const Operator* Null();
@@ -1087,6 +1155,13 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* WasmTypeCast(WasmTypeCheckConfig config);
   const Operator* WasmExternInternalize();
   const Operator* WasmExternExternalize();
+  const Operator* WasmStructGet(const wasm::StructType* type, int field_index,
+                                bool is_signed);
+  const Operator* WasmStructSet(const wasm::StructType* type, int field_index);
+  const Operator* WasmArrayGet(const wasm::ArrayType* type, bool is_signed);
+  const Operator* WasmArraySet(const wasm::ArrayType* type);
+  const Operator* WasmArrayLength();
+  const Operator* WasmArrayInitializeLength();
 #endif
 
   const Operator* DateNow();

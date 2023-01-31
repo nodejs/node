@@ -101,7 +101,7 @@ class PlatformWithPageAllocator final : public cppgc::Platform {
         page_allocator_(GetGlobalPageAllocator()) {
     // This platform wrapper should only be used if the platform doesn't provide
     // a `PageAllocator`.
-    CHECK_NULL(delegate->GetPageAllocator());
+    CHECK_NULL(delegate_->GetPageAllocator());
   }
   ~PlatformWithPageAllocator() override = default;
 
@@ -212,10 +212,13 @@ size_t HeapBase::ExecutePreFinalizers() {
 #if defined(CPPGC_YOUNG_GENERATION)
 void HeapBase::EnableGenerationalGC() {
   DCHECK(in_atomic_pause());
+  if (HeapHandle::is_young_generation_enabled_) return;
   // Notify the global flag that the write barrier must always be enabled.
   YoungGenerationEnabler::Enable();
   // Enable young generation for the current heap.
   HeapHandle::is_young_generation_enabled_ = true;
+  // Assume everything that has so far been allocated is young.
+  object_allocator_.MarkAllPagesAsYoung();
 }
 
 void HeapBase::ResetRememberedSet() {

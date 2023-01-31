@@ -1,0 +1,55 @@
+
+
+#
+# Fatal error in , line 0
+# Check failed: JSFunctionRef construction failed.
+#
+#
+#
+#FailureMessage Object: 0x7fe2840bb790Received signal 6
+
+==== C stack trace ===============================
+
+ [0x560fb0a62e08]
+ [0x560fb1e5dbdc]
+ [0x560fb0a4be9c]
+ [0x560fb0a83a8c]
+ [0x7fe288cdf980]
+ [0x7fe28815cfb7]
+ [0x7fe28815e921]
+ [0x560fb0a4ae48]
+ [0x560fb1e5a0d7]
+ [0x560fb1e4dd5f]
+ [0x560fb19082b3]
+ [0x560fb19c1975]
+ [0x560fb1917895]
+ [0x560fb190b1b4]
+ [0x560fb1935a48]
+ [0x560fb1aab7de]
+ [0x560fb1aac3d2]
+ [0x560fb19f6cb0]
+ [0x560fb19ed1eb]
+ [0x560fb19e96f5]
+ [0x560fb19ed32e]
+ [0x560fb19e4111]
+ [0x560fb19def82]
+ [0x560fb18f6cee]
+ [0x560fb18f6348]
+ [0x560fb18f5b69]
+ [0x560fb18f6be5]
+ [0x560fb1aa51ed]
+ [0x560fb1a96dea]
+ [0x560fb1a9259d]
+ [0x560fb1a92825]
+ [0x560fb0bfc5d0]
+ [0x560fb0c3812e]
+ [0x560fb0c3b775]
+ [0x560fb0ae4046]
+ [0x560fb0abdbd2]
+ [0x560fb1e67121]
+ [0x560fb1e5afb3]
+ [0x560fb0a4526d]
+ [0x7fe288cd46db]
+ [0x7fe28823f71f]
+[end of stack trace]
+Aborted (core dumped)

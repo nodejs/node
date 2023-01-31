@@ -210,11 +210,11 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
       WasmExceptionPackage::cast(*this).WasmExceptionPackagePrint(os);
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
+    case INSTRUCTION_STREAM_TYPE:
+      InstructionStream::cast(*this).InstructionStreamPrint(os);
+      break;
     case CODE_TYPE:
       Code::cast(*this).CodePrint(os);
-      break;
-    case CODE_DATA_CONTAINER_TYPE:
-      CodeDataContainer::cast(*this).CodeDataContainerPrint(os);
       break;
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
@@ -321,7 +321,7 @@ bool JSObject::PrintProperties(std::ostream& os) {
       PropertyDetails details = descs.GetDetails(i);
       switch (details.location()) {
         case PropertyLocation::kField: {
-          FieldIndex field_index = FieldIndex::ForDescriptor(map(), i);
+          FieldIndex field_index = FieldIndex::ForDetails(map(), details);
           os << Brief(RawFastPropertyAt(field_index));
           break;
         }
@@ -1259,29 +1259,45 @@ void FeedbackVector::FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot) {
 }
 
 void FeedbackNexus::Print(std::ostream& os) {
-  switch (kind()) {
+  auto slot_kind = kind();
+  switch (slot_kind) {
     case FeedbackSlotKind::kCall:
     case FeedbackSlotKind::kCloneObject:
     case FeedbackSlotKind::kDefineKeyedOwn:
     case FeedbackSlotKind::kHasKeyed:
     case FeedbackSlotKind::kInstanceOf:
     case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
-    case FeedbackSlotKind::kStoreGlobalSloppy:
-    case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kDefineNamedOwn: {
       os << InlineCacheState2String(ic_state());
       break;
     }
     case FeedbackSlotKind::kLoadGlobalInsideTypeof:
-    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof: {
+    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
+    case FeedbackSlotKind::kStoreGlobalSloppy:
+    case FeedbackSlotKind::kStoreGlobalStrict: {
       os << InlineCacheState2String(ic_state());
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         os << "\n   ";
-        if (GetFeedback().GetHeapObjectOrSmi().IsPropertyCell()) {
+        if (GetFeedback().IsCleared()) {
+          // Handler mode: feedback is the cleared value, extra is the handler.
+          if (IsLoadGlobalICKind(slot_kind)) {
+            LoadHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(),
+                                      os);
+          } else {
+            StoreHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(),
+                                       os);
+          }
+        } else if (GetFeedback().GetHeapObjectOrSmi().IsPropertyCell()) {
           os << Brief(GetFeedback());
         } else {
-          LoadHandler::PrintHandler(GetFeedback().GetHeapObjectOrSmi(), os);
+          // Lexical variable mode: the variable location is encoded in the SMI.
+          int handler = GetFeedback().GetHeapObjectOrSmi().ToSmi().value();
+          os << (IsLoadGlobalICKind(slot_kind) ? "Load" : "Store");
+          os << "Handler(Lexical variable mode)(context ix = "
+             << FeedbackNexus::ContextIndexBits::decode(handler)
+             << ", slot ix = " << FeedbackNexus::SlotIndexBits::decode(handler)
+             << ")";
         }
       }
       break;
@@ -1597,6 +1613,8 @@ void JSDataView::JSDataViewPrint(std::ostream& os) {
   os << "\n - buffer =" << Brief(buffer());
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
+  if (is_length_tracking()) os << "\n - length-tracking";
+  if (is_backed_by_rab()) os << "\n - backed-by-rab";
   if (!buffer().IsJSArrayBuffer()) {
     os << "\n <invalid buffer>";
     return;
@@ -1774,10 +1792,9 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {
   os << "\n";
 }
 
-void Code::CodePrint(std::ostream& os) {
-  PrintHeader(os, "Code");
-  os << "\n - code_data_container: "
-     << Brief(code_data_container(kAcquireLoad));
+void InstructionStream::InstructionStreamPrint(std::ostream& os) {
+  PrintHeader(os, "InstructionStream");
+  os << "\n - code: " << Brief(code(kAcquireLoad));
   if (is_builtin()) {
     os << "\n - builtin_id: " << Builtins::name(builtin_id());
   }
@@ -1787,20 +1804,21 @@ void Code::CodePrint(std::ostream& os) {
 #endif
 }
 
-void CodeDataContainer::CodeDataContainerPrint(std::ostream& os) {
-  PrintHeader(os, "CodeDataContainer");
-#ifdef V8_EXTERNAL_CODE_SPACE
+void Code::CodePrint(std::ostream& os) {
+  PrintHeader(os, "Code");
   os << "\n - kind: " << CodeKindToString(kind());
   if (is_builtin()) {
     os << "\n - builtin: " << Builtins::name(builtin_id());
   }
   os << "\n - is_off_heap_trampoline: " << is_off_heap_trampoline();
-  os << "\n - code: " << Brief(raw_code());
+  os << "\n - instruction_stream: " << Brief(raw_instruction_stream());
   os << "\n - code_entry_point: "
      << reinterpret_cast<void*>(code_entry_point());
-#endif  // V8_EXTERNAL_CODE_SPACE
   os << "\n - kind_specific_flags: " << kind_specific_flags(kRelaxedLoad);
   os << "\n";
+  if (!is_off_heap_trampoline()) {
+    instruction_stream().Print(os);
+  }
 }
 
 void Foreign::ForeignPrint(std::ostream& os) {
@@ -2138,6 +2156,7 @@ void WasmApiFunctionRef::WasmApiFunctionRefPrint(std::ostream& os) {
   os << "\n - isolate_root: " << reinterpret_cast<void*>(isolate_root());
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - callable: " << Brief(callable());
+  os << "\n - instance: " << Brief(instance());
   os << "\n - suspend: " << suspend();
   os << "\n";
 }
@@ -2340,6 +2359,8 @@ void Script::ScriptPrint(std::ostream& os) {
   os << "\n - source_mapping_url: " << Brief(source_mapping_url());
   os << "\n - host_defined_options: " << Brief(host_defined_options());
   os << "\n - compilation type: " << compilation_type();
+  os << "\n - compiled lazy function positions: "
+     << compiled_lazy_function_positions();
   bool is_wasm = false;
 #if V8_ENABLE_WEBASSEMBLY
   if ((is_wasm = (type() == TYPE_WASM))) {
@@ -2642,9 +2663,13 @@ void HeapNumber::HeapNumberShortPrint(std::ostream& os) {
   static constexpr int64_t kMaxSafeInteger = -(kMinSafeInteger + 1);
 
   double val = value();
-  if (val == DoubleToInteger(val) &&
-      val >= static_cast<double>(kMinSafeInteger) &&
-      val <= static_cast<double>(kMaxSafeInteger)) {
+  if (i::IsMinusZero(val)) {
+    os << "-0.0";
+  } else if (val == DoubleToInteger(val) &&
+             val >= static_cast<double>(kMinSafeInteger) &&
+             val <= static_cast<double>(kMaxSafeInteger)) {
+    // Print integer HeapNumbers in safe integer range with max precision: as
+    // 9007199254740991.0 instead of 9.0072e+15
     int64_t i = static_cast<int64_t>(val);
     os << i << ".0";
   } else {
@@ -3026,17 +3051,18 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 
 #ifdef ENABLE_DISASSEMBLER
   i::StdoutStream os;
-  if (lookup_result.IsCodeDataContainer()) {
-    i::CodeT code = i::CodeT::cast(lookup_result.code_data_container());
+  if (lookup_result.IsCode()) {
+    i::Code code = i::Code::cast(lookup_result.code());
     code.Disassemble(nullptr, os, isolate, address);
   } else {
-    lookup_result.code().Disassemble(nullptr, os, isolate, address);
+    lookup_result.instruction_stream().Disassemble(nullptr, os, isolate,
+                                                   address);
   }
 #else   // ENABLE_DISASSEMBLER
-  if (lookup_result.IsCodeDataContainer()) {
-    lookup_result.code_data_container().Print();
-  } else {
+  if (lookup_result.IsCode()) {
     lookup_result.code().Print();
+  } else {
+    lookup_result.instruction_stream().Print();
   }
 #endif  // ENABLE_DISASSEMBLER
 }

@@ -19,15 +19,13 @@
 namespace v8 {
 namespace internal {
 
-HandlerTable::HandlerTable(Code code)
+HandlerTable::HandlerTable(InstructionStream code)
     : HandlerTable(code.HandlerTableAddress(), code.handler_table_size(),
                    kReturnAddressBasedEncoding) {}
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-HandlerTable::HandlerTable(CodeDataContainer code)
+HandlerTable::HandlerTable(Code code)
     : HandlerTable(code.HandlerTableAddress(), code.handler_table_size(),
                    kReturnAddressBasedEncoding) {}
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 #if V8_ENABLE_WEBASSEMBLY
 HandlerTable::HandlerTable(const wasm::WasmCode* code)
@@ -153,7 +151,7 @@ int HandlerTable::LengthForRange(int entries) {
 
 // static
 int HandlerTable::EmitReturnTableStart(Assembler* masm) {
-  masm->DataAlign(Code::kMetadataAlignment);
+  masm->DataAlign(InstructionStream::kMetadataAlignment);
   masm->RecordComment(";;; Exception handler table.");
   int table_start = masm->pc_offset();
   return table_start;

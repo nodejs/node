@@ -21,7 +21,7 @@ std::string DisassembleFunction(const char* function) {
           CcTest::global()->Get(context, v8_str(function)).ToLocalChecked())));
 
   Isolate* isolate = CcTest::i_isolate();
-  Handle<Code> code(FromCodeT(f->code()), isolate);
+  Handle<InstructionStream> code(FromCode(f->code()), isolate);
   Address begin = code->raw_instruction_start();
   Address end = code->raw_instruction_end();
   std::ostringstream os;

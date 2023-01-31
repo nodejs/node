@@ -22,6 +22,7 @@ namespace internal {
   VISIT(Alternative)                      \
   VISIT(Assertion)                        \
   VISIT(ClassRanges)                      \
+  VISIT(ClassSetOperand)                  \
   VISIT(ClassSetExpression)               \
   VISIT(Atom)                             \
   VISIT(Quantifier)                       \
@@ -365,45 +366,101 @@ class RegExpClassRanges final : public RegExpTree {
   ClassRangesFlags class_ranges_flags_;
 };
 
+struct CharacterClassStringLess {
+  bool operator()(const base::Vector<const base::uc32>& lhs,
+                  const base::Vector<const base::uc32>& rhs) const {
+    // Longer strings first so we generate matches for the largest string
+    // possible.
+    if (lhs.length() != rhs.length()) {
+      return lhs.length() > rhs.length();
+    }
+    for (int i = 0; i < lhs.length(); i++) {
+      if (lhs[i] != rhs[i]) {
+        return lhs[i] < rhs[i];
+      }
+    }
+    return false;
+  }
+};
+
+// A type used for strings as part of character classes (only possible in
+// unicode sets mode).
+// We use a ZoneMap instead of an UnorderedZoneMap because we need to match
+// the longest alternatives first. By using a ZoneMap with the custom comparator
+// we can avoid sorting before assembling the code.
+// Strings are likely short (the largest string in current unicode properties
+// consists of 10 code points).
+using CharacterClassStrings = ZoneMap<base::Vector<const base::uc32>,
+                                      RegExpTree*, CharacterClassStringLess>;
+
+// TODO(pthier): If we are sure we don't want to use icu::UnicodeSets
+// (performance evaluation pending), this class can be merged with
+// RegExpClassRanges.
+class RegExpClassSetOperand final : public RegExpTree {
+ public:
+  RegExpClassSetOperand(ZoneList<CharacterRange>* ranges,
+                        CharacterClassStrings* strings);
+
+  DECL_BOILERPLATE(ClassSetOperand);
+
+  bool IsTextElement() override { return true; }
+  int min_match() override { return min_match_; }
+  int max_match() override { return max_match_; }
+
+  void Union(RegExpClassSetOperand* other, Zone* zone);
+  void Intersect(RegExpClassSetOperand* other,
+                 ZoneList<CharacterRange>* temp_ranges, Zone* zone);
+  void Subtract(RegExpClassSetOperand* other,
+                ZoneList<CharacterRange>* temp_ranges, Zone* zone);
+
+  bool has_strings() const { return !strings_->empty(); }
+  ZoneList<CharacterRange>* ranges() { return ranges_; }
+  CharacterClassStrings* strings() { return strings_; }
+
+ private:
+  ZoneList<CharacterRange>* ranges_;
+  CharacterClassStrings* strings_;
+  int min_match_;
+  int max_match_;
+};
+
 class RegExpClassSetExpression final : public RegExpTree {
  public:
   enum class OperationType { kUnion, kIntersection, kSubtraction };
 
   RegExpClassSetExpression(OperationType op, bool is_negated,
-                           ZoneList<RegExpTree*>* operands)
-      : operation_(op), is_negated_(is_negated), operands_(operands) {}
+                           bool may_contain_strings,
+                           ZoneList<RegExpTree*>* operands);
 
   DECL_BOILERPLATE(ClassSetExpression);
 
   bool IsTextElement() override { return true; }
-  // At least 1 character is consumed.
-  int min_match() override { return 1; }
-  // Up to two code points might be consumed.
-  int max_match() override { return 2; }
+  int min_match() override { return 0; }
+  int max_match() override { return max_match_; }
 
   OperationType operation() const { return operation_; }
   bool is_negated() const { return is_negated_; }
+  bool may_contain_strings() const { return may_contain_strings_; }
   const ZoneList<RegExpTree*>* operands() const { return operands_; }
+  ZoneList<RegExpTree*>* operands() { return operands_; }
 
  private:
-  RegExpClassRanges* ToCharacterClass(Zone* zone);
-
   // Recursively evaluates the tree rooted at |root|, computing the valid
-  // CharacterRanges after applying all set operations and storing the result in
-  // |result_ranges|. |temp_ranges| is list used for intermediate results,
-  // passed as parameter to avoid allocating new lists all the time.
-  static void ComputeCharacterRanges(RegExpTree* root,
-                                     ZoneList<CharacterRange>* result_ranges,
-                                     ZoneList<CharacterRange>* temp_ranges,
-                                     Zone* zone);
+  // CharacterRanges and strings after applying all set operations.
+  // The original tree will be modified by this method, so don't store pointers
+  // to inner nodes of the tree somewhere else!
+  // Modifying the tree in-place saves memory and speeds up multiple calls of
+  // the method (e.g. when unrolling quantifiers).
+  // |temp_ranges| is used for intermediate results, passed as parameter to
+  // avoid allocating new lists all the time.
+  static RegExpClassSetOperand* ComputeExpression(
+      RegExpTree* root, ZoneList<CharacterRange>* temp_ranges, Zone* zone);
 
   const OperationType operation_;
   const bool is_negated_;
+  const bool may_contain_strings_;
   ZoneList<RegExpTree*>* operands_ = nullptr;
-#ifdef ENABLE_SLOW_DCHECKS
-  // Cache ranges for each node during computation for (slow) DCHECKs.
-  ZoneList<CharacterRange>* ranges_ = nullptr;
-#endif
+  int max_match_;
 };
 
 class RegExpAtom final : public RegExpTree {

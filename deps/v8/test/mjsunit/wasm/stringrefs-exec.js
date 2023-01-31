@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-stringref
+// Flags: --experimental-wasm-stringref --experimental-wasm-typed-funcref
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -165,6 +165,13 @@ function makeWtf8TestDataSegment() {
       ...GCInstr(kExprStringNewUtf8), 0
     ]);
 
+  builder.addFunction("string_new_utf8_try", kSig_w_ii)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1,
+      ...GCInstr(kExprStringNewUtf8Try), 0
+    ]);
+
   builder.addFunction("string_new_wtf8", kSig_w_ii)
     .exportFunc()
     .addBody([
@@ -185,6 +192,7 @@ function makeWtf8TestDataSegment() {
     if (HasIsolatedSurrogate(str)) {
       assertThrows(() => instance.exports.string_new_utf8(offset, length),
                    WebAssembly.RuntimeError, "invalid UTF-8 string");
+      assertEquals(null, instance.exports.string_new_utf8_try(offset, length));
 
       // Isolated surrogates have the three-byte pattern ED [A0,BF]
       // [80,BF].  When the sloppy decoder gets to the second byte, it
@@ -197,6 +205,7 @@ function makeWtf8TestDataSegment() {
                    instance.exports.string_new_utf8_sloppy(offset, length));
     } else {
       assertEquals(str, instance.exports.string_new_utf8(offset, length));
+      assertEquals(str, instance.exports.string_new_utf8_try(offset, length));
       assertEquals(str,
                    instance.exports.string_new_utf8_sloppy(offset, length));
     }
@@ -206,6 +215,34 @@ function makeWtf8TestDataSegment() {
                  WebAssembly.RuntimeError, "invalid WTF-8 string");
     assertThrows(() => instance.exports.string_new_utf8(offset, length),
                  WebAssembly.RuntimeError, "invalid UTF-8 string");
+    assertEquals(null, instance.exports.string_new_utf8_try(offset, length));
+  }
+})();
+
+(function TestStringNewUtf8TryNullCheck() {
+  let builder = new WasmModuleBuilder();
+
+  builder.addMemory(1, undefined, false, false);
+  let data = makeWtf8TestDataSegment();
+  builder.addDataSegment(0, data.data);
+
+  builder.addFunction("is_null_new_utf8_try", kSig_i_ii)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1,
+      ...GCInstr(kExprStringNewUtf8Try), 0,
+      kExprRefIsNull,
+    ]);
+
+  let instance = builder.instantiate();
+  for (let [str, {offset, length}] of Object.entries(data.valid)) {
+    print(offset, length);
+    assertEquals(
+        +HasIsolatedSurrogate(str),
+        instance.exports.is_null_new_utf8_try(offset, length));
+  }
+  for (let [str, {offset, length}] of Object.entries(data.invalid)) {
+    assertEquals(1, instance.exports.is_null_new_utf8_try(offset, length));
   }
 })();
 
@@ -1173,5 +1210,69 @@ function makeWtf16TestDataSegment() {
   assertThrows(() => instance.exports.rewind_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
   assertThrows(() => instance.exports.slice_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+})();
+
+(function TestStringCompare() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  builder.addFunction("compare",
+                      makeSig([kWasmStringRef, kWasmStringRef], [kWasmI32]))
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      ...GCInstr(kExprStringCompare)
+    ]);
+
+  let instance = builder.instantiate();
+  for (let lhs of interestingStrings) {
+    for (let rhs of interestingStrings) {
+      print(`"${lhs}" <=> "${rhs}"`);
+      const expected = lhs < rhs ? -1 : lhs > rhs ? 1 : 0;
+      assertEquals(expected, instance.exports.compare(lhs, rhs));
+    }
+  }
+
+  assertThrows(() => instance.exports.compare(null, "abc"),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.compare("abc", null),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+})();
+
+(function TestStringCompareNullCheckStaticType() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  // Use a mix of nullable and non-nullable input types to the compare.
+  builder.addFunction("compareLhsNullable",
+                      makeSig([kWasmStringRef, kWasmStringRef], [kWasmI32]))
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprRefAsNonNull,
+      kExprLocalGet, 1,
+      ...GCInstr(kExprStringCompare)
+    ]);
+
+  builder.addFunction("compareRhsNullable",
+                      makeSig([kWasmStringRef, kWasmStringRef], [kWasmI32]))
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprRefAsNonNull,
+      ...GCInstr(kExprStringCompare)
+    ]);
+
+  let instance = builder.instantiate();
+  assertThrows(() => instance.exports.compareLhsNullable(null, "abc"),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.compareLhsNullable("abc", null),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.compareRhsNullable(null, "abc"),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.compareRhsNullable("abc", null),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();

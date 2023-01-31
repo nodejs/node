@@ -62,6 +62,18 @@ Reduction WasmGCLowering::Reduce(Node* node) {
       return ReduceWasmExternInternalize(node);
     case IrOpcode::kWasmExternExternalize:
       return ReduceWasmExternExternalize(node);
+    case IrOpcode::kWasmStructGet:
+      return ReduceWasmStructGet(node);
+    case IrOpcode::kWasmStructSet:
+      return ReduceWasmStructSet(node);
+    case IrOpcode::kWasmArrayGet:
+      return ReduceWasmArrayGet(node);
+    case IrOpcode::kWasmArraySet:
+      return ReduceWasmArraySet(node);
+    case IrOpcode::kWasmArrayLength:
+      return ReduceWasmArrayLength(node);
+    case IrOpcode::kWasmArrayInitializeLength:
+      return ReduceWasmArrayInitializeLength(node);
     default:
       return NoChange();
   }
@@ -121,40 +133,44 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
 
   Node* map = gasm_.LoadMap(object);
 
-  // First, check if types happen to be equal. This has been shown to give large
-  // speedups.
-  gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue,
-               gasm_.Int32Constant(1));
+  if (module_->types[config.to.ref_index()].is_final) {
+    gasm_.Goto(&end_label, gasm_.TaggedEqual(map, rtt));
+  } else {
+    // First, check if types happen to be equal. This has been shown to give
+    // large speedups.
+    gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue,
+                 gasm_.Int32Constant(1));
 
-  // Check if map instance type identifies a wasm object.
-  if (is_cast_from_any) {
-    Node* is_wasm_obj = gasm_.IsDataRefMap(map);
-    gasm_.GotoIfNot(is_wasm_obj, &end_label, BranchHint::kTrue,
-                    gasm_.Int32Constant(0));
+    // Check if map instance type identifies a wasm object.
+    if (is_cast_from_any) {
+      Node* is_wasm_obj = gasm_.IsDataRefMap(map);
+      gasm_.GotoIfNot(is_wasm_obj, &end_label, BranchHint::kTrue,
+                      gasm_.Int32Constant(0));
+    }
+
+    Node* type_info = gasm_.LoadWasmTypeInfo(map);
+    DCHECK_GE(rtt_depth, 0);
+    // If the depth of the rtt is known to be less that the minimum supertype
+    // array length, we can access the supertype without bounds-checking the
+    // supertype array.
+    if (static_cast<uint32_t>(rtt_depth) >= wasm::kMinimumSupertypeArraySize) {
+      Node* supertypes_length =
+          gasm_.BuildChangeSmiToIntPtr(gasm_.LoadImmutableFromObject(
+              MachineType::TaggedSigned(), type_info,
+              wasm::ObjectAccess::ToTagged(
+                  WasmTypeInfo::kSupertypesLengthOffset)));
+      gasm_.GotoIfNot(gasm_.UintLessThan(gasm_.IntPtrConstant(rtt_depth),
+                                         supertypes_length),
+                      &end_label, BranchHint::kTrue, gasm_.Int32Constant(0));
+    }
+
+    Node* maybe_match = gasm_.LoadImmutableFromObject(
+        MachineType::TaggedPointer(), type_info,
+        wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
+                                     kTaggedSize * rtt_depth));
+
+    gasm_.Goto(&end_label, gasm_.TaggedEqual(maybe_match, rtt));
   }
-
-  Node* type_info = gasm_.LoadWasmTypeInfo(map);
-  DCHECK_GE(rtt_depth, 0);
-  // If the depth of the rtt is known to be less that the minimum supertype
-  // array length, we can access the supertype without bounds-checking the
-  // supertype array.
-  if (static_cast<uint32_t>(rtt_depth) >= wasm::kMinimumSupertypeArraySize) {
-    Node* supertypes_length =
-        gasm_.BuildChangeSmiToIntPtr(gasm_.LoadImmutableFromObject(
-            MachineType::TaggedSigned(), type_info,
-            wasm::ObjectAccess::ToTagged(
-                WasmTypeInfo::kSupertypesLengthOffset)));
-    gasm_.GotoIfNot(
-        gasm_.UintLessThan(gasm_.IntPtrConstant(rtt_depth), supertypes_length),
-        &end_label, BranchHint::kTrue, gasm_.Int32Constant(0));
-  }
-
-  Node* maybe_match = gasm_.LoadImmutableFromObject(
-      MachineType::TaggedPointer(), type_info,
-      wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
-                                   kTaggedSize * rtt_depth));
-
-  gasm_.Goto(&end_label, gasm_.TaggedEqual(maybe_match, rtt));
 
   gasm_.Bind(&end_label);
 
@@ -199,40 +215,45 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
 
   Node* map = gasm_.LoadMap(object);
 
-  // First, check if types happen to be equal. This has been shown to give large
-  // speedups.
-  gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue);
+  if (module_->types[config.to.ref_index()].is_final) {
+    gasm_.TrapUnless(gasm_.TaggedEqual(map, rtt), TrapId::kTrapIllegalCast);
+    gasm_.Goto(&end_label);
+  } else {
+    // First, check if types happen to be equal. This has been shown to give
+    // large speedups.
+    gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue);
 
-  // Check if map instance type identifies a wasm object.
-  if (is_cast_from_any) {
-    Node* is_wasm_obj = gasm_.IsDataRefMap(map);
-    gasm_.TrapUnless(is_wasm_obj, TrapId::kTrapIllegalCast);
+    // Check if map instance type identifies a wasm object.
+    if (is_cast_from_any) {
+      Node* is_wasm_obj = gasm_.IsDataRefMap(map);
+      gasm_.TrapUnless(is_wasm_obj, TrapId::kTrapIllegalCast);
+    }
+
+    Node* type_info = gasm_.LoadWasmTypeInfo(map);
+    DCHECK_GE(rtt_depth, 0);
+    // If the depth of the rtt is known to be less that the minimum supertype
+    // array length, we can access the supertype without bounds-checking the
+    // supertype array.
+    if (static_cast<uint32_t>(rtt_depth) >= wasm::kMinimumSupertypeArraySize) {
+      Node* supertypes_length =
+          gasm_.BuildChangeSmiToIntPtr(gasm_.LoadImmutableFromObject(
+              MachineType::TaggedSigned(), type_info,
+              wasm::ObjectAccess::ToTagged(
+                  WasmTypeInfo::kSupertypesLengthOffset)));
+      gasm_.TrapUnless(gasm_.UintLessThan(gasm_.IntPtrConstant(rtt_depth),
+                                          supertypes_length),
+                       TrapId::kTrapIllegalCast);
+    }
+
+    Node* maybe_match = gasm_.LoadImmutableFromObject(
+        MachineType::TaggedPointer(), type_info,
+        wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
+                                     kTaggedSize * rtt_depth));
+
+    gasm_.TrapUnless(gasm_.TaggedEqual(maybe_match, rtt),
+                     TrapId::kTrapIllegalCast);
+    gasm_.Goto(&end_label);
   }
-
-  Node* type_info = gasm_.LoadWasmTypeInfo(map);
-  DCHECK_GE(rtt_depth, 0);
-  // If the depth of the rtt is known to be less that the minimum supertype
-  // array length, we can access the supertype without bounds-checking the
-  // supertype array.
-  if (static_cast<uint32_t>(rtt_depth) >= wasm::kMinimumSupertypeArraySize) {
-    Node* supertypes_length =
-        gasm_.BuildChangeSmiToIntPtr(gasm_.LoadImmutableFromObject(
-            MachineType::TaggedSigned(), type_info,
-            wasm::ObjectAccess::ToTagged(
-                WasmTypeInfo::kSupertypesLengthOffset)));
-    gasm_.TrapUnless(
-        gasm_.UintLessThan(gasm_.IntPtrConstant(rtt_depth), supertypes_length),
-        TrapId::kTrapIllegalCast);
-  }
-
-  Node* maybe_match = gasm_.LoadImmutableFromObject(
-      MachineType::TaggedPointer(), type_info,
-      wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
-                                   kTaggedSize * rtt_depth));
-
-  gasm_.TrapUnless(gasm_.TaggedEqual(maybe_match, rtt),
-                   TrapId::kTrapIllegalCast);
-  gasm_.Goto(&end_label);
 
   gasm_.Bind(&end_label);
 
@@ -248,7 +269,7 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
   Node* object = NodeProperties::GetValueInput(node, 0);
   gasm_.InitializeEffectControl(effect, control);
   if (!v8_flags.experimental_wasm_skip_null_checks) {
-    gasm_.TrapIf(IsNull(object), TrapId::kTrapNullDereference);
+    gasm_.TrapIf(IsNull(object), TrapIdOf(node->op()));
   }
 
   ReplaceWithValue(node, object, gasm_.effect(), gasm_.control());
@@ -293,12 +314,10 @@ Reduction WasmGCLowering::ReduceTypeGuard(Node* node) {
 }
 
 Reduction WasmGCLowering::ReduceWasmExternInternalize(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternInternalize);
-  Node* object = NodeProperties::GetValueInput(node, 0);
-  // TODO(7748): Canonicalize HeapNumbers.
-  ReplaceWithValue(node, object);
-  node->Kill();
-  return Replace(object);
+  // TODO(7748): This is not used right now. Either use the
+  // WasmExternInternalize operator and implement its lowering here, or remove
+  // it entirely.
+  UNREACHABLE();
 }
 
 // TODO(7748): WasmExternExternalize is a no-op. Consider removing it.
@@ -308,6 +327,122 @@ Reduction WasmGCLowering::ReduceWasmExternExternalize(Node* node) {
   ReplaceWithValue(node, object);
   node->Kill();
   return Replace(object);
+}
+
+Reduction WasmGCLowering::ReduceWasmStructGet(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmStructGet);
+  WasmFieldInfo info = OpParameter<WasmFieldInfo>(node->op());
+
+  gasm_.InitializeEffectControl(NodeProperties::GetEffectInput(node),
+                                NodeProperties::GetControlInput(node));
+
+  MachineType type = MachineType::TypeForRepresentation(
+      info.type->field(info.field_index).machine_representation(),
+      info.is_signed);
+
+  Node* load =
+      info.type->mutability(info.field_index)
+          ? gasm_.LoadFromObject(type, NodeProperties::GetValueInput(node, 0),
+                                 gasm_.FieldOffset(info.type, info.field_index))
+          : gasm_.LoadImmutableFromObject(
+                type, NodeProperties::GetValueInput(node, 0),
+                gasm_.FieldOffset(info.type, info.field_index));
+  return Replace(load);
+}
+
+Reduction WasmGCLowering::ReduceWasmStructSet(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmStructSet);
+  WasmFieldInfo info = OpParameter<WasmFieldInfo>(node->op());
+
+  gasm_.InitializeEffectControl(NodeProperties::GetEffectInput(node),
+                                NodeProperties::GetControlInput(node));
+
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  Node* value = NodeProperties::GetValueInput(node, 1);
+
+  Node* store =
+      info.type->mutability(info.field_index)
+          ? gasm_.StoreToObject(
+                ObjectAccessForGCStores(info.type->field(info.field_index)),
+                object, gasm_.FieldOffset(info.type, info.field_index), value)
+          : gasm_.InitializeImmutableInObject(
+                ObjectAccessForGCStores(info.type->field(info.field_index)),
+                object, gasm_.FieldOffset(info.type, info.field_index), value);
+  return Replace(store);
+}
+
+Reduction WasmGCLowering::ReduceWasmArrayGet(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmArrayGet);
+  WasmElementInfo info = OpParameter<WasmElementInfo>(node->op());
+
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  Node* index = NodeProperties::GetValueInput(node, 1);
+
+  gasm_.InitializeEffectControl(NodeProperties::GetEffectInput(node),
+                                NodeProperties::GetControlInput(node));
+
+  Node* offset = gasm_.WasmArrayElementOffset(index, info.type->element_type());
+
+  MachineType type = MachineType::TypeForRepresentation(
+      info.type->element_type().machine_representation(), info.is_signed);
+
+  Node* value = info.type->mutability()
+                    ? gasm_.LoadFromObject(type, object, offset)
+                    : gasm_.LoadImmutableFromObject(type, object, offset);
+
+  return Replace(value);
+}
+
+Reduction WasmGCLowering::ReduceWasmArraySet(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmArraySet);
+  const wasm::ArrayType* type = OpParameter<const wasm::ArrayType*>(node->op());
+
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  Node* index = NodeProperties::GetValueInput(node, 1);
+  Node* value = NodeProperties::GetValueInput(node, 2);
+
+  gasm_.InitializeEffectControl(NodeProperties::GetEffectInput(node),
+                                NodeProperties::GetControlInput(node));
+
+  Node* offset = gasm_.WasmArrayElementOffset(index, type->element_type());
+
+  ObjectAccess access = ObjectAccessForGCStores(type->element_type());
+
+  Node* store =
+      type->mutability()
+          ? gasm_.StoreToObject(access, object, offset, value)
+          : gasm_.InitializeImmutableInObject(access, object, offset, value);
+
+  return Replace(store);
+}
+
+Reduction WasmGCLowering::ReduceWasmArrayLength(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmArrayLength);
+  Node* object = NodeProperties::GetValueInput(node, 0);
+
+  gasm_.InitializeEffectControl(NodeProperties::GetEffectInput(node),
+                                NodeProperties::GetControlInput(node));
+
+  Node* length = gasm_.LoadImmutableFromObject(
+      MachineType::Uint32(), object,
+      wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset));
+
+  return Replace(length);
+}
+
+Reduction WasmGCLowering::ReduceWasmArrayInitializeLength(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmArrayInitializeLength);
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  Node* length = NodeProperties::GetValueInput(node, 1);
+
+  gasm_.InitializeEffectControl(NodeProperties::GetEffectInput(node),
+                                NodeProperties::GetControlInput(node));
+
+  Node* set_length = gasm_.InitializeImmutableInObject(
+      ObjectAccess{MachineType::Uint32(), kNoWriteBarrier}, object,
+      wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset), length);
+
+  return Replace(set_length);
 }
 
 }  // namespace compiler

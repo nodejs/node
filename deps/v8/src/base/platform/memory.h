@@ -126,8 +126,8 @@ inline size_t MallocUsableSize(void* ptr) {
 // Mimics C++23 `allocation_result`.
 template <class Pointer>
 struct AllocationResult {
-  Pointer ptr;
-  size_t count;
+  Pointer ptr = nullptr;
+  size_t count = 0;
 };
 
 // Allocates at least `n * sizeof(T)` uninitialized storage but may allocate

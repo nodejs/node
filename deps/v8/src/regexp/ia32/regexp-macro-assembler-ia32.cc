@@ -154,7 +154,8 @@ void RegExpMacroAssemblerIA32::Backtrack() {
 
     __ bind(&next);
   }
-  // Pop Code offset from backtrack stack, add Code and jump to location.
+  // Pop InstructionStream offset from backtrack stack, add InstructionStream
+  // and jump to location.
   Pop(ebx);
   __ add(ebx, Immediate(masm_->CodeObject()));
   __ jmp(ebx);
@@ -1048,9 +1049,10 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
       Factory::CodeBuilder(isolate(), code_desc, CodeKind::REGEXP)
           .set_self_reference(masm_->CodeObject())
           .Build();
+  Handle<InstructionStream> istream(code->instruction_stream(), isolate());
   PROFILE(masm_->isolate(),
           RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
-  return Handle<HeapObject>::cast(code);
+  return Handle<HeapObject>::cast(istream);
 }
 
 void RegExpMacroAssemblerIA32::GoTo(Label* to) { BranchOrBacktrack(to); }
@@ -1186,7 +1188,7 @@ void RegExpMacroAssemblerIA32::CallCheckStackGuardState(Register scratch) {
   __ PrepareCallCFunction(num_arguments, scratch);
   // RegExp code frame pointer.
   __ mov(Operand(esp, 2 * kSystemPointerSize), ebp);
-  // Code of self.
+  // InstructionStream of self.
   __ mov(Operand(esp, 1 * kSystemPointerSize), Immediate(masm_->CodeObject()));
   // Next address on the stack (will be address of return address).
   __ lea(eax, Operand(esp, -kSystemPointerSize));
@@ -1215,7 +1217,7 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
 int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
                                                    Address raw_code,
                                                    Address re_frame) {
-  Code re_code = Code::cast(Object(raw_code));
+  InstructionStream re_code = InstructionStream::cast(Object(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate),
       frame_entry<int>(re_frame, kStartIndex),

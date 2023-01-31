@@ -44,7 +44,9 @@
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
+#ifdef V8_ENABLE_TURBOFAN
 #include "src/compiler/pipeline.h"
+#endif  // V8_ENABLE_TURBOFAN
 #include "src/flags/flags.h"
 #include "src/objects/objects-inl.h"
 #include "src/trap-handler/trap-handler.h"
@@ -197,40 +199,30 @@ void CcTest::AddGlobalFunction(v8::Local<v8::Context> env, const char* name,
   env->Global()->Set(env, v8_str(name), func).FromJust();
 }
 
-void CcTest::CollectGarbage(i::AllocationSpace space, i::Isolate* isolate,
-                            i::Heap::ScanStackMode mode) {
+void CcTest::CollectGarbage(i::AllocationSpace space, i::Isolate* isolate) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
-  i::ScanStackModeScopeForTesting scope(iso->heap(), mode);
   iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
 }
 
-void CcTest::CollectAllGarbage(i::Isolate* isolate,
-                               i::Heap::ScanStackMode mode) {
+void CcTest::CollectAllGarbage(i::Isolate* isolate) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
-  i::ScanStackModeScopeForTesting scope(iso->heap(), mode);
   iso->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
                                  i::GarbageCollectionReason::kTesting);
 }
 
-void CcTest::CollectAllAvailableGarbage(i::Isolate* isolate,
-                                        i::Heap::ScanStackMode mode) {
+void CcTest::CollectAllAvailableGarbage(i::Isolate* isolate) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
-  i::ScanStackModeScopeForTesting scope(iso->heap(), mode);
   iso->heap()->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
 }
 
-void CcTest::PreciseCollectAllGarbage(i::Isolate* isolate,
-                                      i::Heap::ScanStackMode mode) {
+void CcTest::PreciseCollectAllGarbage(i::Isolate* isolate) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
-  i::ScanStackModeScopeForTesting scope(iso->heap(), mode);
   iso->heap()->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
                                         i::GarbageCollectionReason::kTesting);
 }
 
-void CcTest::CollectSharedGarbage(i::Isolate* isolate,
-                                  i::Heap::ScanStackMode mode) {
+void CcTest::CollectSharedGarbage(i::Isolate* isolate) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
-  i::ScanStackModeScopeForTesting scope(iso->heap(), mode);
   iso->heap()->CollectGarbageShared(iso->main_thread_local_heap(),
                                     i::GarbageCollectionReason::kTesting);
 }
@@ -321,6 +313,7 @@ HandleAndZoneScope::HandleAndZoneScope(bool support_zone_compression)
 
 HandleAndZoneScope::~HandleAndZoneScope() = default;
 
+#ifdef V8_ENABLE_TURBOFAN
 i::Handle<i::JSFunction> Optimize(
     i::Handle<i::JSFunction> function, i::Zone* zone, i::Isolate* isolate,
     uint32_t flags, std::unique_ptr<i::compiler::JSHeapBroker>* out_broker) {
@@ -343,14 +336,13 @@ i::Handle<i::JSFunction> Optimize(
   CHECK(info.shared_info()->HasBytecodeArray());
   i::JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
 
-  i::Handle<i::CodeT> code = i::ToCodeT(
+  i::Handle<i::Code> code =
       i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)
-          .ToHandleChecked(),
-      isolate);
-  info.native_context().AddOptimizedCode(*code);
+          .ToHandleChecked();
   function->set_code(*code, v8::kReleaseStore);
   return function;
 }
+#endif  // V8_ENABLE_TURBOFAN
 
 static void PrintTestList() {
   int test_num = 0;

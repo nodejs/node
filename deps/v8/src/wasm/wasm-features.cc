@@ -33,6 +33,12 @@ WasmFeatures WasmFeatures::FromIsolate(Isolate* isolate) {
 WasmFeatures WasmFeatures::FromContext(Isolate* isolate,
                                        Handle<Context> context) {
   WasmFeatures features = WasmFeatures::FromFlags();
+  if (isolate->IsWasmGCEnabled(handle(isolate->context(), isolate))) {
+    features.Add(kFeature_gc);
+  }
+  if (isolate->IsWasmStringRefEnabled(handle(isolate->context(), isolate))) {
+    features.Add(kFeature_stringref);
+  }
   // This space intentionally left blank for future Wasm origin trials.
   return features;
 }

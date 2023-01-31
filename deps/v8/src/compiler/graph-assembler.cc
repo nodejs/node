@@ -856,8 +856,7 @@ Node* GraphAssembler::DebugBreak() {
       graph()->NewNode(machine()->DebugBreak(), effect(), control()));
 }
 
-Node* GraphAssembler::Unreachable(
-    GraphAssemblerLabel<0u>* block_updater_successor) {
+Node* GraphAssembler::Unreachable() {
   Node* result = UnreachableWithoutConnectToEnd();
   ConnectUnreachableToEnd();
   InitializeEffectControl(nullptr, nullptr);

@@ -9,12 +9,12 @@ const {session, contextGroup, Protocol} =
 session.setupScriptMap();
 
 Protocol.Debugger.onPaused(async msg => {
-  let top_frame = msg.params.callFrames[0];
   let reason = msg.params.reason;
   let hitBreakpoints = msg.params.hitBreakpoints;
-  const url = session.getCallFrameUrl(top_frame);
+  const url = session.getPausedUrl(msg);
   InspectorTest.log(`Paused at ${url} with reason "${reason}".`);
-  if (!url.startsWith('v8://test/')) {
+  if (!url.startsWith('v8://test/') && msg.params.callFrames.length > 0) {
+    let top_frame = msg.params.callFrames[0];
     await session.logSourceLocation(top_frame.location);
   }
   // Report the hit breakpoints to make sure that it is empty, as

@@ -305,6 +305,8 @@ class ParserBase {
   // The current Zone, which might be the main zone or a temporary Zone.
   Zone* zone() const { return zone_; }
 
+  V8_INLINE bool IsExtraordinaryPrivateNameAccessAllowed() const;
+
  protected:
   friend class v8::internal::ExpressionScope<ParserTypes<Impl>>;
   friend class v8::internal::ExpressionParsingScope<ParserTypes<Impl>>;
@@ -1286,7 +1288,6 @@ class ParserBase {
   // a scope where the name has also been let bound or the var declaration is
   // hoisted over such a scope.
   void CheckConflictingVarDeclarations(DeclarationScope* scope) {
-    if (has_error()) return;
     bool allowed_catch_binding_var_redeclaration = false;
     Declaration* decl = scope->CheckConflictingVarDeclarations(
         &allowed_catch_binding_var_redeclaration);
@@ -1761,6 +1762,39 @@ typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParsePropertyName() {
 }
 
 template <typename Impl>
+bool ParserBase<Impl>::IsExtraordinaryPrivateNameAccessAllowed() const {
+  if (flags().parsing_while_debugging() != ParsingWhileDebugging::kYes &&
+      !flags().is_repl_mode()) {
+    return false;
+  }
+  Scope* current_scope = scope();
+  while (current_scope != nullptr) {
+    switch (current_scope->scope_type()) {
+      case CLASS_SCOPE:
+      case CATCH_SCOPE:
+      case BLOCK_SCOPE:
+      case WITH_SCOPE:
+      case SHADOW_REALM_SCOPE:
+        return false;
+      // Top-level scopes.
+      case SCRIPT_SCOPE:
+      case MODULE_SCOPE:
+        return true;
+      // Top-level wrapper function scopes.
+      case FUNCTION_SCOPE:
+        return function_literal_id_ == kFunctionLiteralIdTopLevel;
+      // Used by debug-evaluate. If the outer scope is top-level,
+      // extraordinary private name access is allowed.
+      case EVAL_SCOPE:
+        current_scope = current_scope->outer_scope();
+        DCHECK_NOT_NULL(current_scope);
+        break;
+    }
+  }
+  UNREACHABLE();
+}
+
+template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
   int pos = position();
@@ -1781,7 +1815,10 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
     PrivateNameScopeIterator private_name_scope_iter(scope());
     // Parse the identifier so that we can display it in the error message
     name = impl()->GetIdentifier();
-    if (private_name_scope_iter.Done()) {
+    // In debug-evaluate, we relax the private name resolution to enable
+    // evaluation of obj.#member outside the class bodies in top-level scopes.
+    if (private_name_scope_iter.Done() &&
+        !IsExtraordinaryPrivateNameAccessAllowed()) {
       impl()->ReportMessageAt(Scanner::Location(pos, pos + 1),
                               MessageTemplate::kInvalidPrivateFieldResolution,
                               impl()->GetRawNameFromIdentifier(name));
@@ -2826,7 +2863,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral() {
   // this runtime function. Here, we make sure that the number of
   // properties is less than number of arguments allowed for a runtime
   // call.
-  if (has_rest_property && properties.length() > Code::kMaxArguments) {
+  if (has_rest_property &&
+      properties.length() > InstructionStream::kMaxArguments) {
     expression_scope()->RecordPatternError(Scanner::Location(pos, position()),
                                            MessageTemplate::kTooManyArguments);
   }
@@ -2882,7 +2920,7 @@ void ParserBase<Impl>::ParseArguments(
     if (!Check(Token::COMMA)) break;
   }
 
-  if (args->length() > Code::kMaxArguments) {
+  if (args->length() > InstructionStream::kMaxArguments) {
     ReportMessage(MessageTemplate::kTooManyArguments);
     return;
   }
@@ -3929,7 +3967,7 @@ void ParserBase<Impl>::ParseFormalParameterList(FormalParametersT* parameters) {
   if (peek() != Token::RPAREN) {
     while (true) {
       // Add one since we're going to be adding a parameter.
-      if (parameters->arity + 1 > Code::kMaxArguments) {
+      if (parameters->arity + 1 > InstructionStream::kMaxArguments) {
         ReportMessage(MessageTemplate::kTooManyParameters);
         return;
       }
@@ -4317,6 +4355,8 @@ void ParserBase<Impl>::ParseFunctionBody(
     StatementListT* body, IdentifierT function_name, int pos,
     const FormalParametersT& parameters, FunctionKind kind,
     FunctionSyntaxKind function_syntax_kind, FunctionBodyType body_type) {
+  CheckStackOverflow();
+
   if (IsResumableFunction(kind)) impl()->PrepareGeneratorVariables();
 
   DeclarationScope* function_scope = parameters.scope;
@@ -4737,8 +4777,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     if (Check(Token::SEMICOLON)) continue;
 
     // Either we're parsing a `static { }` initialization block or a property.
-    if (v8_flags.harmony_class_static_blocks && peek() == Token::STATIC &&
-        PeekAhead() == Token::LBRACE) {
+    if (peek() == Token::STATIC && PeekAhead() == Token::LBRACE) {
       BlockT static_block = ParseClassStaticBlock(&class_info);
       impl()->AddClassStaticBlock(static_block, &class_info);
       continue;

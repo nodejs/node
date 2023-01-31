@@ -5,7 +5,11 @@
 import optparse
 import os
 import random
+
+from functools import cached_property
+
 from testrunner.testproc import fuzzer
+
 
 class AugmentedOptions(optparse.Values):
   """This class will augment exiting options object with
@@ -21,6 +25,7 @@ class AugmentedOptions(optparse.Values):
       self._fuzzer_rng = random.Random(self.fuzzer_random_seed)
     return self._fuzzer_rng
 
+  @cached_property
   def shard_info(self):
     """
     Returns pair:

@@ -942,7 +942,8 @@ void BaselineCompiler::VisitDefineKeyedOwnProperty() {
       RegisterOperand(0),               // object
       RegisterOperand(1),               // key
       kInterpreterAccumulatorRegister,  // value
-      IndexAsTagged(2));                // slot
+      Flag8AsSmi(2),                    // flags
+      IndexAsTagged(3));                // slot
 }
 
 void BaselineCompiler::VisitStaInArrayLiteral() {

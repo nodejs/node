@@ -6,6 +6,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/once.h"
 #include "src/codegen/constants-arch.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
@@ -17,19 +18,10 @@ namespace internal {
 
 namespace {
 
-// Mutex for creating process_wide_code_range_.
-base::LazyMutex process_wide_code_range_creation_mutex_ =
-    LAZY_MUTEX_INITIALIZER;
-
-// Weak pointer holding the process-wide CodeRange, if one has been created. All
-// Heaps hold a std::shared_ptr to this, so this is destroyed when no Heaps
-// remain.
-base::LazyInstance<std::weak_ptr<CodeRange>>::type process_wide_code_range_ =
-    LAZY_INSTANCE_INITIALIZER;
-
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(CodeRangeAddressHint, GetCodeRangeAddressHint)
 
 void FunctionInStaticBinaryForAddressHint() {}
+
 }  // anonymous namespace
 
 Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size,
@@ -97,6 +89,9 @@ size_t CodeRange::GetWritableReservedAreaSize() {
   return kReservedCodeRangePages * MemoryAllocator::GetCommitPageSize();
 }
 
+#define TRACE(...) \
+  if (v8_flags.trace_code_range_allocation) PrintF(__VA_ARGS__)
+
 bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
                                 size_t requested) {
   DCHECK_NE(requested, 0);
@@ -110,10 +105,10 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
 
   // When V8_EXTERNAL_CODE_SPACE_BOOL is enabled the allocatable region must
   // not cross the 4Gb boundary and thus the default compression scheme of
-  // truncating the Code pointers to 32-bits still works. It's achieved by
-  // specifying base_alignment parameter.
-  // Note that the alignment is calculated before adjusting the requested size
-  // for GetWritableReservedAreaSize(). The reasons are:
+  // truncating the InstructionStream pointers to 32-bits still works. It's
+  // achieved by specifying base_alignment parameter. Note that the alignment is
+  // calculated before adjusting the requested size for
+  // GetWritableReservedAreaSize(). The reasons are:
   //  - this extra page is used by breakpad on Windows and it's allowed to cross
   //    the 4Gb boundary,
   //  - rounding up the adjusted size would result in requresting unnecessarily
@@ -137,24 +132,99 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   params.page_allocator = page_allocator;
   params.reservation_size = requested;
   const size_t allocate_page_size = page_allocator->AllocatePageSize();
-  params.base_alignment = base_alignment;
   params.base_bias_size = RoundUp(reserved_area, allocate_page_size);
   params.page_size = MemoryChunk::kPageSize;
-  params.requested_start_hint =
-      GetCodeRangeAddressHint()->GetAddressHint(requested, allocate_page_size);
   params.jit =
       v8_flags.jitless ? JitPermission::kNoJit : JitPermission::kMapAsJittable;
 
-  if (!VirtualMemoryCage::InitReservation(params)) return false;
+  Address the_hint =
+      GetCodeRangeAddressHint()->GetAddressHint(requested, allocate_page_size);
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-  // Ensure that ExternalCodeCompressionScheme is applicable to all objects
-  // stored in the code range.
-  Address base = page_allocator_->begin();
-  Address last = base + page_allocator_->size() - 1;
-  CHECK_EQ(ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(base),
-           ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(last));
-#endif  // V8_EXTERNAL_CODE_SPACE
+  constexpr size_t kRadiusInMB =
+      kMaxPCRelativeCodeRangeInMB > 1024 ? kMaxPCRelativeCodeRangeInMB : 4096;
+  auto preferred_region = GetPreferredRegion(kRadiusInMB, allocate_page_size);
+
+  TRACE("=== Preferred region: [%p, %p)\n",
+        reinterpret_cast<void*>(preferred_region.begin()),
+        reinterpret_cast<void*>(preferred_region.end()));
+
+  // For configurations with enabled pointer compression and shared external
+  // code range we can afford trying harder to allocate code range near .text
+  // section.
+  const bool kShouldTryHarder = V8_EXTERNAL_CODE_SPACE_BOOL &&
+                                COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL &&
+                                v8_flags.better_code_range_allocation;
+
+  if (kShouldTryHarder) {
+    // Relax alignment requirement while trying to allocate code range inside
+    // preferred region.
+    params.base_alignment =
+        VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
+
+    // TODO(v8:11880): consider using base::OS::GetFreeMemoryRangesWithin()
+    // to avoid attempts that's going to fail anyway.
+
+    VirtualMemoryCage candidate_cage;
+
+    // Most of the times using existing function as a hint might give us the
+    // best region from the first attempt.
+    params.requested_start_hint = the_hint;
+
+    if (candidate_cage.InitReservation(params)) {
+      TRACE("=== First attempt, hint=%p: [%p, %p)\n",
+            reinterpret_cast<void*>(params.requested_start_hint),
+            reinterpret_cast<void*>(candidate_cage.region().begin()),
+            reinterpret_cast<void*>(candidate_cage.region().end()));
+      if (!preferred_region.contains(candidate_cage.region())) {
+        // Keep trying.
+        candidate_cage.Free();
+      }
+    }
+    if (!candidate_cage.IsReserved()) {
+      // Try to allocate code range at the end of preferred region, by going
+      // towards the start in steps.
+      const int kAllocationTries = 16;
+      params.requested_start_hint =
+          RoundDown(preferred_region.end() - requested, allocate_page_size);
+      Address step = RoundDown(preferred_region.size() / kAllocationTries,
+                               allocate_page_size);
+      for (int i = 0; i < kAllocationTries; i++) {
+        TRACE("=== Attempt #%d, hint=%p\n", i,
+              reinterpret_cast<void*>(params.requested_start_hint));
+        if (candidate_cage.InitReservation(params)) {
+          TRACE("=== Attempt #%d (%p): [%p, %p)\n", i,
+                reinterpret_cast<void*>(params.requested_start_hint),
+                reinterpret_cast<void*>(candidate_cage.region().begin()),
+                reinterpret_cast<void*>(candidate_cage.region().end()));
+          // Allocation succeeded, check if it's in the preferred range.
+          if (preferred_region.contains(candidate_cage.region())) break;
+          // This allocation is not the one we are searhing for.
+          candidate_cage.Free();
+        }
+        if (step == 0) break;
+        params.requested_start_hint -= step;
+      }
+    }
+    if (candidate_cage.IsReserved()) {
+      *static_cast<VirtualMemoryCage*>(this) = std::move(candidate_cage);
+    }
+  }
+  if (!IsReserved()) {
+    // Last resort, use whatever region we get.
+    params.base_alignment = base_alignment;
+    params.requested_start_hint = the_hint;
+    if (!VirtualMemoryCage::InitReservation(params)) return false;
+    TRACE("=== Fallback attempt, hint=%p: [%p, %p)\n",
+          reinterpret_cast<void*>(params.requested_start_hint),
+          reinterpret_cast<void*>(region().begin()),
+          reinterpret_cast<void*>(region().end()));
+  }
+
+  if (v8_flags.abort_on_far_code_range &&
+      !preferred_region.contains(region())) {
+    // We didn't manage to allocate the code range close enough.
+    FATAL("Failed to allocate code range close to the .text section");
+  }
 
   // On some platforms, specifically Win64, we need to reserve some pages at
   // the beginning of an executable space. See
@@ -176,6 +246,75 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
     CHECK(params.page_allocator->DiscardSystemPages(base, size));
   }
   return true;
+}
+
+// Preferred region for the code range is an intersection of the following
+// regions:
+// a) [builtins - kMaxPCRelativeDistance, builtins + kMaxPCRelativeDistance)
+// b) [RoundDown(builtins, 4GB), RoundUp(builtins, 4GB)) in order to ensure
+// Requirement (a) is there to avoid remaping of embedded builtins into
+// the code for architectures where PC-relative jump/call distance is big
+// enough.
+// Requirement (b) is aiming at helping CPU branch predictors in general and
+// in case V8_EXTERNAL_CODE_SPACE is enabled it ensures that
+// ExternalCodeCompressionScheme works for all pointers in the code range.
+// static
+base::AddressRegion CodeRange::GetPreferredRegion(size_t radius_in_megabytes,
+                                                  size_t allocate_page_size) {
+#ifdef V8_TARGET_ARCH_64_BIT
+  // Compute builtins location.
+  Address embedded_blob_code_start =
+      reinterpret_cast<Address>(Isolate::CurrentEmbeddedBlobCode());
+  Address embedded_blob_code_end;
+  if (embedded_blob_code_start == kNullAddress) {
+    // When there's no embedded blob use address of a function from the binary
+    // as an approximation.
+    embedded_blob_code_start =
+        FUNCTION_ADDR(&FunctionInStaticBinaryForAddressHint);
+    embedded_blob_code_end = embedded_blob_code_start + 1;
+  } else {
+    embedded_blob_code_end =
+        embedded_blob_code_start + Isolate::CurrentEmbeddedBlobCodeSize();
+  }
+
+  // Fulfil requirement (a).
+  constexpr size_t max_size = std::numeric_limits<size_t>::max();
+  size_t radius = radius_in_megabytes * MB;
+
+  Address region_start =
+      RoundUp(embedded_blob_code_end - radius, allocate_page_size);
+  if (region_start > embedded_blob_code_end) {
+    // |region_start| underflowed.
+    region_start = 0;
+  }
+  Address region_end =
+      RoundDown(embedded_blob_code_start + radius, allocate_page_size);
+  if (region_end < embedded_blob_code_start) {
+    // |region_end| overflowed.
+    region_end = RoundDown(max_size, allocate_page_size);
+  }
+
+  // Fulfil requirement (b).
+  constexpr size_t k4GB = size_t{4} * GB;
+  Address four_gb_cage_start = RoundDown(embedded_blob_code_start, k4GB);
+  Address four_gb_cage_end = four_gb_cage_start + k4GB;
+
+  region_start = std::max(region_start, four_gb_cage_start);
+  region_end = std::min(region_end, four_gb_cage_end);
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+  // If ExternalCodeCompressionScheme ever changes then the requirements might
+  // need to be updated.
+  static_assert(k4GB <= kPtrComprCageReservationSize);
+  DCHECK_EQ(four_gb_cage_start,
+            ExternalCodeCompressionScheme::PrepareCageBaseAddress(
+                embedded_blob_code_start));
+#endif  // V8_EXTERNAL_CODE_SPACE
+
+  return base::AddressRegion(region_start, region_end - region_start);
+#else
+  return {};
+#endif  // V8_TARGET_ARCH_64_BIT
 }
 
 void CodeRange::Free() {
@@ -307,25 +446,40 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
   return embedded_blob_code_copy;
 }
 
-// static
-std::shared_ptr<CodeRange> CodeRange::EnsureProcessWideCodeRange(
-    v8::PageAllocator* page_allocator, size_t requested_size) {
-  base::MutexGuard guard(process_wide_code_range_creation_mutex_.Pointer());
-  std::shared_ptr<CodeRange> code_range = process_wide_code_range_.Get().lock();
-  if (!code_range) {
-    code_range = std::make_shared<CodeRange>();
-    if (!code_range->InitReservation(page_allocator, requested_size)) {
-      V8::FatalProcessOutOfMemory(
-          nullptr, "Failed to reserve virtual memory for CodeRange");
-    }
-    *process_wide_code_range_.Pointer() = code_range;
+namespace {
+
+CodeRange* process_wide_code_range_ = nullptr;
+
+V8_DECLARE_ONCE(init_code_range_once);
+void InitProcessWideCodeRange(v8::PageAllocator* page_allocator,
+                              size_t requested_size) {
+  CodeRange* code_range = new CodeRange();
+  if (!code_range->InitReservation(page_allocator, requested_size)) {
+    V8::FatalProcessOutOfMemory(
+        nullptr, "Failed to reserve virtual memory for CodeRange");
   }
-  return code_range;
+  process_wide_code_range_ = code_range;
+#ifdef V8_EXTERNAL_CODE_SPACE
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  ExternalCodeCompressionScheme::InitBase(
+      ExternalCodeCompressionScheme::PrepareCageBaseAddress(
+          code_range->base()));
+#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+#endif  // V8_EXTERNAL_CODE_SPACE
+}
+}  // namespace
+
+// static
+CodeRange* CodeRange::EnsureProcessWideCodeRange(
+    v8::PageAllocator* page_allocator, size_t requested_size) {
+  base::CallOnce(&init_code_range_once, InitProcessWideCodeRange,
+                 page_allocator, requested_size);
+  return process_wide_code_range_;
 }
 
 // static
-std::shared_ptr<CodeRange> CodeRange::GetProcessWideCodeRange() {
-  return process_wide_code_range_.Get().lock();
+CodeRange* CodeRange::GetProcessWideCodeRange() {
+  return process_wide_code_range_;
 }
 
 }  // namespace internal

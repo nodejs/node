@@ -60,6 +60,10 @@ bool HandleBase::IsDereferenceAllowed() const {
   // Allocations in the shared heap may be dereferenced by multiple threads.
   if (heap_object.InSharedWritableHeap()) return true;
 
+  // Deref is explicitly allowed from any thread. Used for running internal GC
+  // epilogue callbacks in the safepoint after a GC.
+  if (AllowHandleDereferenceAllThreads::IsAllowed()) return true;
+
   LocalHeap* local_heap = isolate->CurrentLocalHeap();
 
   // Local heap can't access handles when parked

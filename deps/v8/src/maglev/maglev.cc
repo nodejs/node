@@ -11,13 +11,15 @@
 namespace v8 {
 namespace internal {
 
-MaybeHandle<CodeT> Maglev::Compile(Isolate* isolate,
-                                   Handle<JSFunction> function) {
+MaybeHandle<Code> Maglev::Compile(Isolate* isolate,
+                                  Handle<JSFunction> function) {
   DCHECK(v8_flags.maglev);
   std::unique_ptr<maglev::MaglevCompilationInfo> info =
       maglev::MaglevCompilationInfo::New(isolate, function);
-  maglev::MaglevCompiler::Compile(isolate->main_thread_local_isolate(),
-                                  info.get());
+  if (!maglev::MaglevCompiler::Compile(isolate->main_thread_local_isolate(),
+                                       info.get())) {
+    return {};
+  }
   return maglev::MaglevCompiler::GenerateCode(isolate, info.get());
 }
 

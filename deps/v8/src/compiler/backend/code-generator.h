@@ -375,7 +375,11 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
                     InstructionOperand* destination) final;
   void AssembleSwap(InstructionOperand* source,
                     InstructionOperand* destination) final;
-  void MoveToTempLocation(InstructionOperand* src) final;
+  AllocatedOperand Push(InstructionOperand* src) final;
+  void Pop(InstructionOperand* src, MachineRepresentation rep) final;
+  void PopTempStackSlots() final;
+  void MoveToTempLocation(InstructionOperand* src,
+                          MachineRepresentation rep) final;
   void MoveTempLocationTo(InstructionOperand* dst,
                           MachineRepresentation rep) final;
   void SetPendingMove(MoveOperands* move) final;
@@ -463,8 +467,8 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // with function size. {jump_deoptimization_entry_labels_} is an optimization
   // to that effect, which extracts the (potentially large) instruction
   // sequence for the final jump to the deoptimization entry into a single spot
-  // per Code object. All deopt exits can then near-call to this label. Note:
-  // not used on all architectures.
+  // per InstructionStream object. All deopt exits can then near-call to this
+  // label. Note: not used on all architectures.
   Label jump_deoptimization_entry_labels_[kDeoptimizeKindCount];
 
   // The maximal combined height of all frames produced upon deoptimization, and

@@ -286,15 +286,31 @@ bool TryEmitExtendingLoad(InstructionSelector* selector, Node* node) {
   return false;
 }
 
-template <typename Matcher>
 bool TryMatchAnyShift(InstructionSelector* selector, Node* node,
-                      Node* input_node, InstructionCode* opcode, bool try_ror) {
+                      Node* input_node, InstructionCode* opcode, bool try_ror,
+                      MachineRepresentation rep) {
   Arm64OperandGenerator g(selector);
 
   if (!selector->CanCover(node, input_node)) return false;
   if (input_node->InputCount() != 2) return false;
-  Matcher shift(input_node);
-  if (!shift.right().HasResolvedValue()) return false;
+  if (!g.IsIntegerConstant(input_node->InputAt(1))) return false;
+
+  switch (input_node->opcode()) {
+    case IrOpcode::kWord32Shl:
+    case IrOpcode::kWord32Shr:
+    case IrOpcode::kWord32Sar:
+    case IrOpcode::kWord32Ror:
+      if (rep != MachineRepresentation::kWord32) return false;
+      break;
+    case IrOpcode::kWord64Shl:
+    case IrOpcode::kWord64Shr:
+    case IrOpcode::kWord64Sar:
+    case IrOpcode::kWord64Ror:
+      if (rep != MachineRepresentation::kWord64) return false;
+      break;
+    default:
+      return false;
+  }
 
   switch (input_node->opcode()) {
     case IrOpcode::kWord32Shl:
@@ -320,7 +336,7 @@ bool TryMatchAnyShift(InstructionSelector* selector, Node* node,
       }
       return false;
     default:
-      return false;
+      UNREACHABLE();
   }
 }
 
@@ -490,23 +506,24 @@ void VisitBinop(InstructionSelector* selector, Node* node,
                                &inputs[0], &inputs[1], &opcode)) {
     if (must_commute_cond) cont->Commute();
     input_count += 2;
-  } else if (TryMatchAnyShift<Matcher>(selector, node, right_node, &opcode,
-                                       !is_add_sub)) {
+  } else if (TryMatchAnyShift(selector, node, right_node, &opcode, !is_add_sub,
+                              Matcher::representation)) {
     Matcher m_shift(right_node);
     inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
     // We only need at most the last 6 bits of the shift.
-    inputs[input_count++] = g.UseImmediate(
-        static_cast<int>(m_shift.right().ResolvedValue() & 0x3F));
-  } else if (can_commute && TryMatchAnyShift<Matcher>(selector, node, left_node,
-                                                      &opcode, !is_add_sub)) {
+    inputs[input_count++] = g.UseImmediate(static_cast<int>(
+        g.GetIntegerConstantValue(m_shift.right().node()) & 0x3F));
+  } else if (can_commute &&
+             TryMatchAnyShift(selector, node, left_node, &opcode, !is_add_sub,
+                              Matcher::representation)) {
     if (must_commute_cond) cont->Commute();
     Matcher m_shift(left_node);
     inputs[input_count++] = g.UseRegisterOrImmediateZero(right_node);
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
     // We only need at most the last 6 bits of the shift.
-    inputs[input_count++] = g.UseImmediate(
-        static_cast<int>(m_shift.right().ResolvedValue() & 0x3F));
+    inputs[input_count++] = g.UseImmediate(static_cast<int>(
+        g.GetIntegerConstantValue(m_shift.right().node()) & 0x3F));
   } else {
     inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
     inputs[input_count++] = g.UseRegister(right_node);
@@ -3945,7 +3962,8 @@ SIMD_UNOP_LANE_SIZE_LIST(SIMD_VISIT_UNOP_LANE_SIZE)
 
 using ShuffleMatcher =
     ValueMatcher<S128ImmediateParameter, IrOpcode::kI8x16Shuffle>;
-using BinopWithShuffleMatcher = BinopMatcher<ShuffleMatcher, ShuffleMatcher>;
+using BinopWithShuffleMatcher = BinopMatcher<ShuffleMatcher, ShuffleMatcher,
+                                             MachineRepresentation::kSimd128>;
 
 namespace {
 // Struct holding the result of pattern-matching a mul+dup.
@@ -4285,7 +4303,7 @@ void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
 #define VISIT_SIMD_QFMOP(op)                                               \
   void InstructionSelector::Visit##op(Node* node) {                        \
     Arm64OperandGenerator g(this);                                         \
-    Emit(kArm64##op, g.DefineSameAsFirst(node),                            \
+    Emit(kArm64##op, g.DefineSameAsInput(node, 2),                         \
          g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), \
          g.UseRegister(node->InputAt(2)));                                 \
   }

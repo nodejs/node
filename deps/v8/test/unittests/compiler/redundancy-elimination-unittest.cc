@@ -31,16 +31,8 @@ class RedundancyEliminationTest : public GraphTest {
     FeedbackVectorSpec spec(zone());
     FeedbackSlot slot1 = spec.AddCallICSlot();
     FeedbackSlot slot2 = spec.AddCallICSlot();
-    Handle<FeedbackMetadata> metadata = FeedbackMetadata::New(isolate(), &spec);
-    Handle<SharedFunctionInfo> shared =
-        isolate()->factory()->NewSharedFunctionInfoForBuiltin(
-            isolate()->factory()->empty_string(), Builtin::kIllegal);
-    shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
-    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
-        ClosureFeedbackCellArray::New(isolate(), shared);
-    IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate()));
-    Handle<FeedbackVector> feedback_vector = FeedbackVector::New(
-        isolate(), shared, closure_feedback_cell_array, &is_compiled_scope);
+    Handle<FeedbackVector> feedback_vector =
+        FeedbackVector::NewForTesting(isolate(), &spec);
     vector_slot_pairs_.push_back(FeedbackSource());
     vector_slot_pairs_.push_back(FeedbackSource(feedback_vector, slot1));
     vector_slot_pairs_.push_back(FeedbackSource(feedback_vector, slot2));

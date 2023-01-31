@@ -81,7 +81,7 @@
 // exposed as chrome://flags/#enable-experimental-webassembly-features). Staged
 // features get limited fuzzer coverage, and should come with their own tests.
 // They are not run through all fuzzers though and don't get much exposure in
-// the wild. Staged features do not necessarily be fully stabilized. They should
+// the wild. Staged features are not necessarily fully stabilized. They should
 // be shipped with enough lead time to the next branch to allow for
 // stabilization.
 #define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \

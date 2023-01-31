@@ -2062,28 +2062,36 @@ void LiftoffAssembler::emit_f32x4_qfma(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f32x4_qfma");
+  VU.set(kScratchReg, E32, m1);
+  vfmadd_vv(src1.fp().toV(), src2.fp().toV(), src3.fp().toV());
+  vmv_vv(dst.fp().toV(), src1.fp().toV());
 }
 
 void LiftoffAssembler::emit_f32x4_qfms(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f32x4_qfms");
+  VU.set(kScratchReg, E32, m1);
+  vfnmsub_vv(src1.fp().toV(), src2.fp().toV(), src3.fp().toV());
+  vmv_vv(dst.fp().toV(), src1.fp().toV());
 }
 
 void LiftoffAssembler::emit_f64x2_qfma(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f64x2_qfma");
+  VU.set(kScratchReg, E64, m1);
+  vfmadd_vv(src1.fp().toV(), src2.fp().toV(), src3.fp().toV());
+  vmv_vv(dst.fp().toV(), src1.fp().toV());
 }
 
 void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f64x2_qfms");
+  VU.set(kScratchReg, E64, m1);
+  vfnmsub_vv(src1.fp().toV(), src2.fp().toV(), src3.fp().toV());
+  vmv_vv(dst.fp().toV(), src1.fp().toV());
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {

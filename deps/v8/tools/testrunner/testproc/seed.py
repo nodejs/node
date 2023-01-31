@@ -45,7 +45,7 @@ class SeedProc(base.TestProcProducer):
   def _try_send_next_test(self, test):
     def create_subtest(idx):
       seed = self._seed or random_utils.random_seed()
-      return self._create_subtest(test, idx, random_seed=seed)
+      return test.create_subtest(self, idx, random_seed=seed)
 
     num = self._last_idx[test.procid]
     if not self._count or num < self._count:

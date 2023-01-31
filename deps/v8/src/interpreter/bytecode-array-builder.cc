@@ -922,13 +922,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::SetKeyedProperty(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::DefineKeyedOwnProperty(
-    Register object, Register key, int feedback_slot) {
+    Register object, Register key, DefineKeyedOwnPropertyFlags flags,
+    int feedback_slot) {
   // Ensure that the IC uses a strict language mode, as this is the only
   // supported mode for this use case.
   DCHECK_EQ(GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(
                 FeedbackVector::ToSlot(feedback_slot))),
             LanguageMode::kStrict);
-  OutputDefineKeyedOwnProperty(object, key, feedback_slot);
+  OutputDefineKeyedOwnProperty(object, key, flags, feedback_slot);
   return *this;
 }
 

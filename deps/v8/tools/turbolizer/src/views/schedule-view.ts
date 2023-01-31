@@ -28,7 +28,7 @@ export class ScheduleView extends TextView {
   public initializeContent(schedule: SchedulePhase, rememberedSelection: SelectionStorage): void {
     this.divNode.innerHTML = "";
     this.schedule = schedule;
-    this.addBlocks(schedule.data.blocks);
+    this.addBlocks(schedule.data.blocksRpo);
     this.show();
     if (rememberedSelection) {
       const adaptedSelection = this.adaptSelection(rememberedSelection);
@@ -85,15 +85,15 @@ export class ScheduleView extends TextView {
     scheduleBlock.classList.toggle("deferred", block.deferred);
 
     const [start, end] = this.sourceResolver.instructionsPhase
-      .getInstructionRangeForBlock(block.id);
+      .getInstructionRangeForBlock(block.rpo);
     const instrMarker = this.createElement("div", "instr-marker com", "&#8857;");
     instrMarker.setAttribute("title", `Instructions range for this block is [${start}, ${end})`);
-    instrMarker.onclick = this.mkBlockLinkHandler(block.id);
+    instrMarker.onclick = this.mkBlockLinkHandler(block.rpo);
     scheduleBlock.appendChild(instrMarker);
 
-    const blockId = this.createElement("div", "block-id com clickable", String(block.id));
-    blockId.onclick = this.mkBlockLinkHandler(block.id);
-    scheduleBlock.appendChild(blockId);
+    const blocksRpoId = this.createElement("div", "block-id com clickable", String(block.rpo) + " Id:" + String(block.id));
+    blocksRpoId.onclick = this.mkBlockLinkHandler(block.rpo);
+    scheduleBlock.appendChild(blocksRpoId);
     const blockPred = this.createElement("div", "predecessor-list block-list comma-sep-list");
     for (const pred of block.predecessors) {
       const predEl = this.createElement("div", "block-id com clickable", String(pred));
@@ -114,7 +114,7 @@ export class ScheduleView extends TextView {
       blockSucc.appendChild(succEl);
     }
     if (block.successors.length) scheduleBlock.appendChild(blockSucc);
-    this.addHtmlElementForBlockId(block.id, scheduleBlock);
+    this.addHtmlElementForBlockId(block.rpo, scheduleBlock);
     return scheduleBlock;
   }
 

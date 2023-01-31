@@ -69,7 +69,7 @@ Address RelocInfo::constant_pool_entry_address() { UNREACHABLE(); }
 int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
 
 void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Code code, Address target) {
+    Address instruction_payload, InstructionStream code, Address target) {
   set_target_address_at(instruction_payload,
                         !code.is_null() ? code.constant_pool() : kNullAddress,
                         target);
@@ -137,7 +137,7 @@ Address RelocInfo::target_internal_reference_address() {
   return pc_;
 }
 
-Handle<Code> Assembler::relative_code_target_object_handle_at(
+Handle<CodeDataContainer> Assembler::relative_code_target_object_handle_at(
     Address pc) const {
   Instr instr = Assembler::instr_at(pc);
   int32_t code_target_index = instr & kImm26Mask;

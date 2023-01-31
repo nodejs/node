@@ -128,6 +128,9 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   inline CompilationType compilation_type();
   inline void set_compilation_type(CompilationType type);
 
+  inline bool produce_compile_hints() const;
+  inline void set_produce_compile_hints(bool produce_compile_hints);
+
   // [compilation_state]: determines whether the script has already been
   // compiled. Encoded in the 'flags' field.
   inline CompilationState compilation_state();
@@ -143,6 +146,8 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // this through. Encoded in the 'flags' field.
   inline v8::ScriptOriginOptions origin_options();
   inline void set_origin_options(ScriptOriginOptions origin_options);
+
+  DECL_ACCESSORS(compiled_lazy_function_positions, Object)
 
   // If script source is an external string, check that the underlying
   // resource is accessible. Otherwise, always return true.

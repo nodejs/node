@@ -65,15 +65,7 @@ enum ObjectDataKind {
 
 namespace {
 
-bool IsReadOnlyHeapObjectForCompiler(PtrComprCageBase cage_base,
-                                     HeapObject object) {
-  DisallowGarbageCollection no_gc;
-  // TODO(jgruber): Remove this compiler-specific predicate and use the plain
-  // heap predicate instead. This would involve removing the special cases for
-  // builtins.
-  return (object.IsCode(cage_base) && Code::cast(object).is_builtin()) ||
-         ReadOnlyHeap::Contains(object);
-}
+bool Is64() { return kSystemPointerSize == 8; }
 
 }  // namespace
 
@@ -110,10 +102,9 @@ class ObjectData : public ZoneObject {
                   kind == kUnserializedReadOnlyHeapObject || kind == kSmi ||
                       kind == kNeverSerializedHeapObject ||
                       kind == kBackgroundSerializedHeapObject);
-    CHECK_IMPLIES(
-        kind == kUnserializedReadOnlyHeapObject,
-        object->IsHeapObject() && IsReadOnlyHeapObjectForCompiler(
-                                      isolate, HeapObject::cast(*object)));
+    CHECK_IMPLIES(kind == kUnserializedReadOnlyHeapObject,
+                  object->IsHeapObject() &&
+                      ReadOnlyHeap::Contains(HeapObject::cast(*object)));
   }
 
 #define DECLARE_IS(Name) bool Is##Name() const;
@@ -503,12 +494,19 @@ class BigIntData : public HeapObjectData {
   BigIntData(JSHeapBroker* broker, ObjectData** storage, Handle<BigInt> object,
              ObjectDataKind kind)
       : HeapObjectData(broker, storage, object, kind),
-        as_uint64_(object->AsUint64(nullptr)) {}
+        as_uint64_(object->AsUint64(nullptr)),
+        as_int64_(object->AsInt64(&lossless_)) {}
 
   uint64_t AsUint64() const { return as_uint64_; }
+  int64_t AsInt64(bool* lossless) const {
+    *lossless = lossless_;
+    return as_int64_;
+  }
 
  private:
   const uint64_t as_uint64_;
+  const int64_t as_int64_;
+  bool lossless_;
 };
 
 struct PropertyDescriptor {
@@ -1005,7 +1003,7 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
     return nullptr;
   }
 
-  if (IsReadOnlyHeapObjectForCompiler(isolate(), HeapObject::cast(*object))) {
+  if (ReadOnlyHeap::Contains(HeapObject::cast(*object))) {
     entry = refs_->LookupOrInsert(object.address());
     return zone()->New<ObjectData>(this, &entry->value, object,
                                    kUnserializedReadOnlyHeapObject);
@@ -1039,22 +1037,6 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS_AND_AS)
 #undef DEFINE_IS_AND_AS
 
-bool ObjectRef::IsCodeT() const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  return IsCodeDataContainer();
-#else
-  return IsCode();
-#endif
-}
-
-CodeTRef ObjectRef::AsCodeT() const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  return AsCodeDataContainer();
-#else
-  return AsCode();
-#endif
-}
-
 bool ObjectRef::IsSmi() const { return data()->is_smi(); }
 
 int ObjectRef::AsSmi() const {
@@ -1076,9 +1058,8 @@ bool MapRef::CanInlineElementAccess() const {
   if (has_indexed_interceptor()) return false;
   ElementsKind kind = elements_kind();
   if (IsFastElementsKind(kind)) return true;
-  if (IsSharedArrayElementsKind(kind)) return true;
-  if (IsTypedArrayElementsKind(kind) && kind != BIGUINT64_ELEMENTS &&
-      kind != BIGINT64_ELEMENTS) {
+  if (IsTypedArrayElementsKind(kind) &&
+      (Is64() || (kind != BIGINT64_ELEMENTS && kind != BIGUINT64_ELEMENTS))) {
     return true;
   }
   if (v8_flags.turbo_rab_gsab && IsRabGsabTypedArrayElementsKind(kind) &&
@@ -1346,6 +1327,17 @@ base::Optional<double> StringRef::ToNumber() {
   return TryStringToDouble(broker()->local_isolate(), object());
 }
 
+base::Optional<double> StringRef::ToInt(int radix) {
+  if (!IsContentAccessible()) {
+    TRACE_BROKER_MISSING(
+        broker(),
+        "toInt for kNeverSerialized unsupported string kind " << *this);
+    return base::nullopt;
+  }
+
+  return TryStringToInt(broker()->local_isolate(), object(), radix);
+}
+
 int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
   return object()->constant_elements().length();
 }
@@ -1435,6 +1427,12 @@ HEAP_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
 HEAP_ACCESSOR_C(AllocationSite, AllocationType, GetAllocationType)
 
 BIMODAL_ACCESSOR_C(BigInt, uint64_t, AsUint64)
+int64_t BigIntRef::AsInt64(bool* lossless) const {
+  if (data_->should_access_heap()) {
+    return object()->AsInt64(lossless);
+  }
+  return ObjectRef::data()->AsBigInt()->AsInt64(lossless);
+}
 
 int BytecodeArrayRef::register_count() const {
   return object()->register_count();
@@ -2191,8 +2189,8 @@ BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C
 
-CodeTRef JSFunctionRef::code() const {
-  CodeT code = object()->code(kAcquireLoad);
+CodeRef JSFunctionRef::code() const {
+  Code code = object()->code(kAcquireLoad);
   return MakeRefAssumeMemoryFence(broker(), code);
 }
 
@@ -2277,7 +2275,7 @@ std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {
 
 namespace {
 
-unsigned GetInlinedBytecodeSizeImpl(Code code) {
+unsigned GetInlinedBytecodeSizeImpl(InstructionStream code) {
   unsigned value = code.inlined_bytecode_size();
   if (value > 0) {
     // Don't report inlined bytecode size if the code object was already
@@ -2289,24 +2287,20 @@ unsigned GetInlinedBytecodeSizeImpl(Code code) {
 
 }  // namespace
 
-unsigned CodeRef::GetInlinedBytecodeSize() const {
+unsigned InstructionStreamRef::GetInlinedBytecodeSize() const {
   return GetInlinedBytecodeSizeImpl(*object());
 }
 
-unsigned CodeDataContainerRef::GetInlinedBytecodeSize() const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  CodeDataContainer codet = *object();
-  if (codet.is_off_heap_trampoline()) {
+unsigned CodeRef::GetInlinedBytecodeSize() const {
+  Code code = *object();
+  if (code.is_off_heap_trampoline()) {
     return 0;
   }
 
-  // Safe to do a relaxed conversion to Code here since CodeT::code field is
-  // modified only by GC and the CodeT was acquire-loaded.
-  Code code = codet.code(kRelaxedLoad);
-  return GetInlinedBytecodeSizeImpl(code);
-#else
-  UNREACHABLE();
-#endif  // V8_EXTERNAL_CODE_SPACE
+  // Safe to do a relaxed conversion to InstructionStream here since
+  // Code::instruction_stream field is modified only by GC and the
+  // Code was acquire-loaded.
+  return GetInlinedBytecodeSizeImpl(code.instruction_stream(kRelaxedLoad));
 }
 
 #undef BIMODAL_ACCESSOR

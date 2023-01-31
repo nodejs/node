@@ -141,9 +141,9 @@ class IsolateSafepoint final {
   // Mutex is used both for safepointing and adding/removing threads. A
   // RecursiveMutex is needed since we need to support nested SafepointScopes.
   base::RecursiveMutex local_heaps_mutex_;
-  LocalHeap* local_heaps_head_;
+  LocalHeap* local_heaps_head_ = nullptr;
 
-  int active_safepoint_scopes_;
+  int active_safepoint_scopes_ = 0;
 
   friend class GlobalSafepoint;
   friend class GlobalSafepointScope;
@@ -187,8 +187,11 @@ class GlobalSafepoint final {
   void LeaveGlobalSafepointScope(Isolate* initiator);
 
   Isolate* const shared_heap_isolate_;
-  base::Mutex clients_mutex_;
+  // RecursiveMutex is needed since we need to support nested
+  // GlobalSafepointScopes.
+  base::RecursiveMutex clients_mutex_;
   Isolate* clients_head_ = nullptr;
+  int active_safepoint_scopes_ = 0;
 
   friend class GlobalSafepointScope;
   friend class Isolate;

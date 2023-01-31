@@ -134,7 +134,7 @@ type DirectString extends String;
 macro AllocateNonEmptySeqOneByteString<Iterator: type>(
     length: uint32, content: Iterator): SeqOneByteString {
   dcheck(length != 0 && length <= kStringMaxLength);
-  return new SeqOneByteString{
+  return new (ClearPadding) SeqOneByteString{
     map: kOneByteStringMap,
     raw_hash_field: kNameEmptyHashField,
     length: Signed(length),
@@ -145,7 +145,7 @@ macro AllocateNonEmptySeqOneByteString<Iterator: type>(
 macro AllocateNonEmptySeqTwoByteString<Iterator: type>(
     length: uint32, content: Iterator): SeqTwoByteString {
   dcheck(length > 0 && length <= kStringMaxLength);
-  return new SeqTwoByteString{
+  return new (ClearPadding) SeqTwoByteString{
     map: kStringMap,
     raw_hash_field: kNameEmptyHashField,
     length: Signed(length),

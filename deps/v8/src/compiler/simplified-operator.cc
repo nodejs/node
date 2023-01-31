@@ -153,6 +153,40 @@ std::ostream& operator<<(std::ostream& os, ObjectAccess const& access) {
   return os;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+
+V8_EXPORT_PRIVATE bool operator==(WasmFieldInfo const& lhs,
+                                  WasmFieldInfo const& rhs) {
+  return lhs.field_index == rhs.field_index && lhs.type == rhs.type &&
+         lhs.is_signed == rhs.is_signed;
+}
+
+size_t hash_value(WasmFieldInfo const& info) {
+  return base::hash_combine(info.field_index, info.type, info.is_signed);
+}
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           WasmFieldInfo const& info) {
+  return os << info.field_index << ", "
+            << (info.is_signed ? "signed" : "unsigned");
+}
+
+V8_EXPORT_PRIVATE bool operator==(WasmElementInfo const& lhs,
+                                  WasmElementInfo const& rhs) {
+  return lhs.type == rhs.type && lhs.is_signed == rhs.is_signed;
+}
+
+size_t hash_value(WasmElementInfo const& info) {
+  return base::hash_combine(info.type, info.is_signed);
+}
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           WasmElementInfo const& info) {
+  return os << (info.is_signed ? "signed" : "unsigned");
+}
+
+#endif
+
 const FieldAccess& FieldAccessOf(const Operator* op) {
   DCHECK_NOT_NULL(op);
   DCHECK(op->opcode() == IrOpcode::kLoadField ||
@@ -548,7 +582,15 @@ BigIntOperationHint BigIntOperationHintOf(const Operator* op) {
          op->opcode() == IrOpcode::kSpeculativeBigIntSubtract ||
          op->opcode() == IrOpcode::kSpeculativeBigIntMultiply ||
          op->opcode() == IrOpcode::kSpeculativeBigIntDivide ||
-         op->opcode() == IrOpcode::kSpeculativeBigIntModulus);
+         op->opcode() == IrOpcode::kSpeculativeBigIntModulus ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntBitwiseAnd ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntBitwiseOr ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntBitwiseXor ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntShiftLeft ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntShiftRight ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntEqual ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntLessThan ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntLessThanOrEqual);
   return OpParameter<BigIntOperationHint>(op);
 }
 
@@ -570,6 +612,26 @@ NumberOperationParameters const& NumberOperationParametersOf(
     Operator const* op) {
   DCHECK_EQ(IrOpcode::kSpeculativeToNumber, op->opcode());
   return OpParameter<NumberOperationParameters>(op);
+}
+
+bool operator==(BigIntOperationParameters const& lhs,
+                BigIntOperationParameters const& rhs) {
+  return lhs.hint() == rhs.hint() && lhs.feedback() == rhs.feedback();
+}
+
+size_t hash_value(BigIntOperationParameters const& p) {
+  FeedbackSource::Hash feedback_hash;
+  return base::hash_combine(p.hint(), feedback_hash(p.feedback()));
+}
+
+std::ostream& operator<<(std::ostream& os, BigIntOperationParameters const& p) {
+  return os << p.hint() << ", " << p.feedback();
+}
+
+BigIntOperationParameters const& BigIntOperationParametersOf(
+    Operator const* op) {
+  DCHECK_EQ(IrOpcode::kSpeculativeToBigInt, op->opcode());
+  return OpParameter<BigIntOperationParameters>(op);
 }
 
 bool operator==(SpeculativeBigIntAsNParameters const& lhs,
@@ -678,129 +740,133 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   return lhs.mode() == rhs.mode() && lhs.feedback() == rhs.feedback();
 }
 
-#define PURE_OP_LIST(V)                                          \
-  V(BooleanNot, Operator::kNoProperties, 1, 0)                   \
-  V(NumberEqual, Operator::kCommutative, 2, 0)                   \
-  V(NumberLessThan, Operator::kNoProperties, 2, 0)               \
-  V(NumberLessThanOrEqual, Operator::kNoProperties, 2, 0)        \
-  V(NumberAdd, Operator::kCommutative, 2, 0)                     \
-  V(NumberSubtract, Operator::kNoProperties, 2, 0)               \
-  V(NumberMultiply, Operator::kCommutative, 2, 0)                \
-  V(NumberDivide, Operator::kNoProperties, 2, 0)                 \
-  V(NumberModulus, Operator::kNoProperties, 2, 0)                \
-  V(NumberBitwiseOr, Operator::kCommutative, 2, 0)               \
-  V(NumberBitwiseXor, Operator::kCommutative, 2, 0)              \
-  V(NumberBitwiseAnd, Operator::kCommutative, 2, 0)              \
-  V(NumberShiftLeft, Operator::kNoProperties, 2, 0)              \
-  V(NumberShiftRight, Operator::kNoProperties, 2, 0)             \
-  V(NumberShiftRightLogical, Operator::kNoProperties, 2, 0)      \
-  V(NumberImul, Operator::kCommutative, 2, 0)                    \
-  V(NumberAbs, Operator::kNoProperties, 1, 0)                    \
-  V(NumberClz32, Operator::kNoProperties, 1, 0)                  \
-  V(NumberCeil, Operator::kNoProperties, 1, 0)                   \
-  V(NumberFloor, Operator::kNoProperties, 1, 0)                  \
-  V(NumberFround, Operator::kNoProperties, 1, 0)                 \
-  V(NumberAcos, Operator::kNoProperties, 1, 0)                   \
-  V(NumberAcosh, Operator::kNoProperties, 1, 0)                  \
-  V(NumberAsin, Operator::kNoProperties, 1, 0)                   \
-  V(NumberAsinh, Operator::kNoProperties, 1, 0)                  \
-  V(NumberAtan, Operator::kNoProperties, 1, 0)                   \
-  V(NumberAtan2, Operator::kNoProperties, 2, 0)                  \
-  V(NumberAtanh, Operator::kNoProperties, 1, 0)                  \
-  V(NumberCbrt, Operator::kNoProperties, 1, 0)                   \
-  V(NumberCos, Operator::kNoProperties, 1, 0)                    \
-  V(NumberCosh, Operator::kNoProperties, 1, 0)                   \
-  V(NumberExp, Operator::kNoProperties, 1, 0)                    \
-  V(NumberExpm1, Operator::kNoProperties, 1, 0)                  \
-  V(NumberLog, Operator::kNoProperties, 1, 0)                    \
-  V(NumberLog1p, Operator::kNoProperties, 1, 0)                  \
-  V(NumberLog10, Operator::kNoProperties, 1, 0)                  \
-  V(NumberLog2, Operator::kNoProperties, 1, 0)                   \
-  V(NumberMax, Operator::kNoProperties, 2, 0)                    \
-  V(NumberMin, Operator::kNoProperties, 2, 0)                    \
-  V(NumberPow, Operator::kNoProperties, 2, 0)                    \
-  V(NumberRound, Operator::kNoProperties, 1, 0)                  \
-  V(NumberSign, Operator::kNoProperties, 1, 0)                   \
-  V(NumberSin, Operator::kNoProperties, 1, 0)                    \
-  V(NumberSinh, Operator::kNoProperties, 1, 0)                   \
-  V(NumberSqrt, Operator::kNoProperties, 1, 0)                   \
-  V(NumberTan, Operator::kNoProperties, 1, 0)                    \
-  V(NumberTanh, Operator::kNoProperties, 1, 0)                   \
-  V(NumberTrunc, Operator::kNoProperties, 1, 0)                  \
-  V(NumberToBoolean, Operator::kNoProperties, 1, 0)              \
-  V(NumberToInt32, Operator::kNoProperties, 1, 0)                \
-  V(NumberToString, Operator::kNoProperties, 1, 0)               \
-  V(NumberToUint32, Operator::kNoProperties, 1, 0)               \
-  V(NumberToUint8Clamped, Operator::kNoProperties, 1, 0)         \
-  V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)             \
-  V(BigIntNegate, Operator::kNoProperties, 1, 0)                 \
-  V(StringConcat, Operator::kNoProperties, 3, 0)                 \
-  V(StringToNumber, Operator::kNoProperties, 1, 0)               \
-  V(StringFromSingleCharCode, Operator::kNoProperties, 1, 0)     \
-  V(StringFromSingleCodePoint, Operator::kNoProperties, 1, 0)    \
-  V(StringIndexOf, Operator::kNoProperties, 3, 0)                \
-  V(StringLength, Operator::kNoProperties, 1, 0)                 \
-  V(StringToLowerCaseIntl, Operator::kNoProperties, 1, 0)        \
-  V(StringToUpperCaseIntl, Operator::kNoProperties, 1, 0)        \
-  V(TypeOf, Operator::kNoProperties, 1, 1)                       \
-  V(PlainPrimitiveToNumber, Operator::kNoProperties, 1, 0)       \
-  V(PlainPrimitiveToWord32, Operator::kNoProperties, 1, 0)       \
-  V(PlainPrimitiveToFloat64, Operator::kNoProperties, 1, 0)      \
-  V(ChangeTaggedSignedToInt32, Operator::kNoProperties, 1, 0)    \
-  V(ChangeTaggedSignedToInt64, Operator::kNoProperties, 1, 0)    \
-  V(ChangeTaggedToInt32, Operator::kNoProperties, 1, 0)          \
-  V(ChangeTaggedToInt64, Operator::kNoProperties, 1, 0)          \
-  V(ChangeTaggedToUint32, Operator::kNoProperties, 1, 0)         \
-  V(ChangeTaggedToFloat64, Operator::kNoProperties, 1, 0)        \
-  V(ChangeTaggedToTaggedSigned, Operator::kNoProperties, 1, 0)   \
-  V(ChangeFloat64ToTaggedPointer, Operator::kNoProperties, 1, 0) \
-  V(ChangeInt31ToTaggedSigned, Operator::kNoProperties, 1, 0)    \
-  V(ChangeInt32ToTagged, Operator::kNoProperties, 1, 0)          \
-  V(ChangeInt64ToTagged, Operator::kNoProperties, 1, 0)          \
-  V(ChangeUint32ToTagged, Operator::kNoProperties, 1, 0)         \
-  V(ChangeUint64ToTagged, Operator::kNoProperties, 1, 0)         \
-  V(ChangeTaggedToBit, Operator::kNoProperties, 1, 0)            \
-  V(ChangeBitToTagged, Operator::kNoProperties, 1, 0)            \
-  V(TruncateBigIntToWord64, Operator::kNoProperties, 1, 0)       \
-  V(ChangeInt64ToBigInt, Operator::kNoProperties, 1, 0)          \
-  V(ChangeUint64ToBigInt, Operator::kNoProperties, 1, 0)         \
-  V(TruncateTaggedToBit, Operator::kNoProperties, 1, 0)          \
-  V(TruncateTaggedPointerToBit, Operator::kNoProperties, 1, 0)   \
-  V(TruncateTaggedToWord32, Operator::kNoProperties, 1, 0)       \
-  V(TruncateTaggedToFloat64, Operator::kNoProperties, 1, 0)      \
-  V(ObjectIsArrayBufferView, Operator::kNoProperties, 1, 0)      \
-  V(ObjectIsBigInt, Operator::kNoProperties, 1, 0)               \
-  V(ObjectIsCallable, Operator::kNoProperties, 1, 0)             \
-  V(ObjectIsConstructor, Operator::kNoProperties, 1, 0)          \
-  V(ObjectIsDetectableCallable, Operator::kNoProperties, 1, 0)   \
-  V(ObjectIsMinusZero, Operator::kNoProperties, 1, 0)            \
-  V(NumberIsMinusZero, Operator::kNoProperties, 1, 0)            \
-  V(ObjectIsNaN, Operator::kNoProperties, 1, 0)                  \
-  V(NumberIsNaN, Operator::kNoProperties, 1, 0)                  \
-  V(ObjectIsNonCallable, Operator::kNoProperties, 1, 0)          \
-  V(ObjectIsNumber, Operator::kNoProperties, 1, 0)               \
-  V(ObjectIsReceiver, Operator::kNoProperties, 1, 0)             \
-  V(ObjectIsSmi, Operator::kNoProperties, 1, 0)                  \
-  V(ObjectIsString, Operator::kNoProperties, 1, 0)               \
-  V(ObjectIsSymbol, Operator::kNoProperties, 1, 0)               \
-  V(ObjectIsUndetectable, Operator::kNoProperties, 1, 0)         \
-  V(NumberIsFloat64Hole, Operator::kNoProperties, 1, 0)          \
-  V(NumberIsFinite, Operator::kNoProperties, 1, 0)               \
-  V(ObjectIsFiniteNumber, Operator::kNoProperties, 1, 0)         \
-  V(NumberIsInteger, Operator::kNoProperties, 1, 0)              \
-  V(ObjectIsSafeInteger, Operator::kNoProperties, 1, 0)          \
-  V(NumberIsSafeInteger, Operator::kNoProperties, 1, 0)          \
-  V(ObjectIsInteger, Operator::kNoProperties, 1, 0)              \
-  V(ConvertTaggedHoleToUndefined, Operator::kNoProperties, 1, 0) \
-  V(SameValue, Operator::kCommutative, 2, 0)                     \
-  V(SameValueNumbersOnly, Operator::kCommutative, 2, 0)          \
-  V(NumberSameValue, Operator::kCommutative, 2, 0)               \
-  V(ReferenceEqual, Operator::kCommutative, 2, 0)                \
-  V(StringEqual, Operator::kCommutative, 2, 0)                   \
-  V(StringLessThan, Operator::kNoProperties, 2, 0)               \
-  V(StringLessThanOrEqual, Operator::kNoProperties, 2, 0)        \
-  V(ToBoolean, Operator::kNoProperties, 1, 0)                    \
-  V(NewConsString, Operator::kNoProperties, 3, 0)                \
+#define PURE_OP_LIST(V)                                           \
+  V(BooleanNot, Operator::kNoProperties, 1, 0)                    \
+  V(NumberEqual, Operator::kCommutative, 2, 0)                    \
+  V(NumberLessThan, Operator::kNoProperties, 2, 0)                \
+  V(NumberLessThanOrEqual, Operator::kNoProperties, 2, 0)         \
+  V(NumberAdd, Operator::kCommutative, 2, 0)                      \
+  V(NumberSubtract, Operator::kNoProperties, 2, 0)                \
+  V(NumberMultiply, Operator::kCommutative, 2, 0)                 \
+  V(NumberDivide, Operator::kNoProperties, 2, 0)                  \
+  V(NumberModulus, Operator::kNoProperties, 2, 0)                 \
+  V(NumberBitwiseOr, Operator::kCommutative, 2, 0)                \
+  V(NumberBitwiseXor, Operator::kCommutative, 2, 0)               \
+  V(NumberBitwiseAnd, Operator::kCommutative, 2, 0)               \
+  V(NumberShiftLeft, Operator::kNoProperties, 2, 0)               \
+  V(NumberShiftRight, Operator::kNoProperties, 2, 0)              \
+  V(NumberShiftRightLogical, Operator::kNoProperties, 2, 0)       \
+  V(NumberImul, Operator::kCommutative, 2, 0)                     \
+  V(NumberAbs, Operator::kNoProperties, 1, 0)                     \
+  V(NumberClz32, Operator::kNoProperties, 1, 0)                   \
+  V(NumberCeil, Operator::kNoProperties, 1, 0)                    \
+  V(NumberFloor, Operator::kNoProperties, 1, 0)                   \
+  V(NumberFround, Operator::kNoProperties, 1, 0)                  \
+  V(NumberAcos, Operator::kNoProperties, 1, 0)                    \
+  V(NumberAcosh, Operator::kNoProperties, 1, 0)                   \
+  V(NumberAsin, Operator::kNoProperties, 1, 0)                    \
+  V(NumberAsinh, Operator::kNoProperties, 1, 0)                   \
+  V(NumberAtan, Operator::kNoProperties, 1, 0)                    \
+  V(NumberAtan2, Operator::kNoProperties, 2, 0)                   \
+  V(NumberAtanh, Operator::kNoProperties, 1, 0)                   \
+  V(NumberCbrt, Operator::kNoProperties, 1, 0)                    \
+  V(NumberCos, Operator::kNoProperties, 1, 0)                     \
+  V(NumberCosh, Operator::kNoProperties, 1, 0)                    \
+  V(NumberExp, Operator::kNoProperties, 1, 0)                     \
+  V(NumberExpm1, Operator::kNoProperties, 1, 0)                   \
+  V(NumberLog, Operator::kNoProperties, 1, 0)                     \
+  V(NumberLog1p, Operator::kNoProperties, 1, 0)                   \
+  V(NumberLog10, Operator::kNoProperties, 1, 0)                   \
+  V(NumberLog2, Operator::kNoProperties, 1, 0)                    \
+  V(NumberMax, Operator::kNoProperties, 2, 0)                     \
+  V(NumberMin, Operator::kNoProperties, 2, 0)                     \
+  V(NumberPow, Operator::kNoProperties, 2, 0)                     \
+  V(NumberRound, Operator::kNoProperties, 1, 0)                   \
+  V(NumberSign, Operator::kNoProperties, 1, 0)                    \
+  V(NumberSin, Operator::kNoProperties, 1, 0)                     \
+  V(NumberSinh, Operator::kNoProperties, 1, 0)                    \
+  V(NumberSqrt, Operator::kNoProperties, 1, 0)                    \
+  V(NumberTan, Operator::kNoProperties, 1, 0)                     \
+  V(NumberTanh, Operator::kNoProperties, 1, 0)                    \
+  V(NumberTrunc, Operator::kNoProperties, 1, 0)                   \
+  V(NumberToBoolean, Operator::kNoProperties, 1, 0)               \
+  V(NumberToInt32, Operator::kNoProperties, 1, 0)                 \
+  V(NumberToString, Operator::kNoProperties, 1, 0)                \
+  V(NumberToUint32, Operator::kNoProperties, 1, 0)                \
+  V(NumberToUint8Clamped, Operator::kNoProperties, 1, 0)          \
+  V(Integral32OrMinusZeroToBigInt, Operator::kNoProperties, 1, 0) \
+  V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)              \
+  V(BigIntEqual, Operator::kNoProperties, 2, 0)                   \
+  V(BigIntLessThan, Operator::kNoProperties, 2, 0)                \
+  V(BigIntLessThanOrEqual, Operator::kNoProperties, 2, 0)         \
+  V(BigIntNegate, Operator::kNoProperties, 1, 0)                  \
+  V(StringConcat, Operator::kNoProperties, 3, 0)                  \
+  V(StringToNumber, Operator::kNoProperties, 1, 0)                \
+  V(StringFromSingleCharCode, Operator::kNoProperties, 1, 0)      \
+  V(StringFromSingleCodePoint, Operator::kNoProperties, 1, 0)     \
+  V(StringIndexOf, Operator::kNoProperties, 3, 0)                 \
+  V(StringLength, Operator::kNoProperties, 1, 0)                  \
+  V(StringToLowerCaseIntl, Operator::kNoProperties, 1, 0)         \
+  V(StringToUpperCaseIntl, Operator::kNoProperties, 1, 0)         \
+  V(TypeOf, Operator::kNoProperties, 1, 1)                        \
+  V(PlainPrimitiveToNumber, Operator::kNoProperties, 1, 0)        \
+  V(PlainPrimitiveToWord32, Operator::kNoProperties, 1, 0)        \
+  V(PlainPrimitiveToFloat64, Operator::kNoProperties, 1, 0)       \
+  V(ChangeTaggedSignedToInt32, Operator::kNoProperties, 1, 0)     \
+  V(ChangeTaggedSignedToInt64, Operator::kNoProperties, 1, 0)     \
+  V(ChangeTaggedToInt32, Operator::kNoProperties, 1, 0)           \
+  V(ChangeTaggedToInt64, Operator::kNoProperties, 1, 0)           \
+  V(ChangeTaggedToUint32, Operator::kNoProperties, 1, 0)          \
+  V(ChangeTaggedToFloat64, Operator::kNoProperties, 1, 0)         \
+  V(ChangeTaggedToTaggedSigned, Operator::kNoProperties, 1, 0)    \
+  V(ChangeFloat64ToTaggedPointer, Operator::kNoProperties, 1, 0)  \
+  V(ChangeInt31ToTaggedSigned, Operator::kNoProperties, 1, 0)     \
+  V(ChangeInt32ToTagged, Operator::kNoProperties, 1, 0)           \
+  V(ChangeInt64ToTagged, Operator::kNoProperties, 1, 0)           \
+  V(ChangeUint32ToTagged, Operator::kNoProperties, 1, 0)          \
+  V(ChangeUint64ToTagged, Operator::kNoProperties, 1, 0)          \
+  V(ChangeTaggedToBit, Operator::kNoProperties, 1, 0)             \
+  V(ChangeBitToTagged, Operator::kNoProperties, 1, 0)             \
+  V(TruncateBigIntToWord64, Operator::kNoProperties, 1, 0)        \
+  V(ChangeInt64ToBigInt, Operator::kNoProperties, 1, 0)           \
+  V(ChangeUint64ToBigInt, Operator::kNoProperties, 1, 0)          \
+  V(TruncateTaggedToBit, Operator::kNoProperties, 1, 0)           \
+  V(TruncateTaggedPointerToBit, Operator::kNoProperties, 1, 0)    \
+  V(TruncateTaggedToWord32, Operator::kNoProperties, 1, 0)        \
+  V(TruncateTaggedToFloat64, Operator::kNoProperties, 1, 0)       \
+  V(ObjectIsArrayBufferView, Operator::kNoProperties, 1, 0)       \
+  V(ObjectIsBigInt, Operator::kNoProperties, 1, 0)                \
+  V(ObjectIsCallable, Operator::kNoProperties, 1, 0)              \
+  V(ObjectIsConstructor, Operator::kNoProperties, 1, 0)           \
+  V(ObjectIsDetectableCallable, Operator::kNoProperties, 1, 0)    \
+  V(ObjectIsMinusZero, Operator::kNoProperties, 1, 0)             \
+  V(NumberIsMinusZero, Operator::kNoProperties, 1, 0)             \
+  V(ObjectIsNaN, Operator::kNoProperties, 1, 0)                   \
+  V(NumberIsNaN, Operator::kNoProperties, 1, 0)                   \
+  V(ObjectIsNonCallable, Operator::kNoProperties, 1, 0)           \
+  V(ObjectIsNumber, Operator::kNoProperties, 1, 0)                \
+  V(ObjectIsReceiver, Operator::kNoProperties, 1, 0)              \
+  V(ObjectIsSmi, Operator::kNoProperties, 1, 0)                   \
+  V(ObjectIsString, Operator::kNoProperties, 1, 0)                \
+  V(ObjectIsSymbol, Operator::kNoProperties, 1, 0)                \
+  V(ObjectIsUndetectable, Operator::kNoProperties, 1, 0)          \
+  V(NumberIsFloat64Hole, Operator::kNoProperties, 1, 0)           \
+  V(NumberIsFinite, Operator::kNoProperties, 1, 0)                \
+  V(ObjectIsFiniteNumber, Operator::kNoProperties, 1, 0)          \
+  V(NumberIsInteger, Operator::kNoProperties, 1, 0)               \
+  V(ObjectIsSafeInteger, Operator::kNoProperties, 1, 0)           \
+  V(NumberIsSafeInteger, Operator::kNoProperties, 1, 0)           \
+  V(ObjectIsInteger, Operator::kNoProperties, 1, 0)               \
+  V(ConvertTaggedHoleToUndefined, Operator::kNoProperties, 1, 0)  \
+  V(SameValue, Operator::kCommutative, 2, 0)                      \
+  V(SameValueNumbersOnly, Operator::kCommutative, 2, 0)           \
+  V(NumberSameValue, Operator::kCommutative, 2, 0)                \
+  V(ReferenceEqual, Operator::kCommutative, 2, 0)                 \
+  V(StringEqual, Operator::kCommutative, 2, 0)                    \
+  V(StringLessThan, Operator::kNoProperties, 2, 0)                \
+  V(StringLessThanOrEqual, Operator::kNoProperties, 2, 0)         \
+  V(ToBoolean, Operator::kNoProperties, 1, 0)                     \
+  V(NewConsString, Operator::kNoProperties, 3, 0)                 \
   V(Unsigned32Divide, Operator::kNoProperties, 2, 0)
 
 #define EFFECT_DEPENDENT_OP_LIST(V)                       \
@@ -810,6 +876,10 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(BigIntDivide, Operator::kNoProperties, 2, 1)          \
   V(BigIntModulus, Operator::kNoProperties, 2, 1)         \
   V(BigIntBitwiseAnd, Operator::kNoProperties, 2, 1)      \
+  V(BigIntBitwiseOr, Operator::kNoProperties, 2, 1)       \
+  V(BigIntBitwiseXor, Operator::kNoProperties, 2, 1)      \
+  V(BigIntShiftLeft, Operator::kNoProperties, 2, 1)       \
+  V(BigIntShiftRight, Operator::kNoProperties, 2, 1)      \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)      \
   V(StringCodePointAt, Operator::kNoProperties, 2, 1)     \
   V(StringFromCodePointAt, Operator::kNoProperties, 2, 1) \
@@ -1191,14 +1261,31 @@ struct SimplifiedOperatorGlobalCache final {
   };
   NullOperator kNull;
 
-  struct AssertNotNullOperator final : public Operator {
-    AssertNotNullOperator()
-        : Operator(
+  struct AssertNotNullOperator final : public Operator1<TrapId> {
+    explicit AssertNotNullOperator(TrapId trap_id)
+        : Operator1(
               IrOpcode::kAssertNotNull,
               Operator::kNoWrite | Operator::kNoThrow | Operator::kIdempotent,
-              "AssertNotNull", 1, 1, 1, 1, 1, 1) {}
+              "AssertNotNull", 1, 1, 1, 1, 1, 1, trap_id) {}
   };
-  AssertNotNullOperator kAssertNotNull;
+  AssertNotNullOperator kAssertNotNullIllegalCast{TrapId::kTrapIllegalCast};
+  AssertNotNullOperator kAssertNotNullNullDereference{
+      TrapId::kTrapNullDereference};
+
+  struct WasmArrayLengthOperator final : public Operator {
+    WasmArrayLengthOperator()
+        : Operator(IrOpcode::kWasmArrayLength, Operator::kEliminatable,
+                   "WasmArrayLength", 1, 1, 1, 1, 1, 0) {}
+  };
+  WasmArrayLengthOperator kWasmArrayLength;
+
+  struct WasmArrayInitializeLengthOperator final : public Operator {
+    WasmArrayInitializeLengthOperator()
+        : Operator(IrOpcode::kWasmArrayInitializeLength,
+                   Operator::kNoThrow | Operator::kNoRead | Operator::kNoDeopt,
+                   "WasmArrayInitializeLength", 2, 1, 1, 0, 1, 0) {}
+  };
+  WasmArrayInitializeLengthOperator kWasmArrayInitializeLength;
 #endif
 
 #define SPECULATIVE_NUMBER_BINOP(Name)                                      \
@@ -1237,6 +1324,21 @@ struct SimplifiedOperatorGlobalCache final {
       kSpeculativeToNumberNumberOperator;
   SpeculativeToNumberOperator<NumberOperationHint::kNumberOrOddball>
       kSpeculativeToNumberNumberOrOddballOperator;
+
+  template <BigIntOperationHint kHint>
+  struct SpeculativeToBigIntOperator final
+      : public Operator1<BigIntOperationParameters> {
+    SpeculativeToBigIntOperator()
+        : Operator1<BigIntOperationParameters>(
+              IrOpcode::kSpeculativeToBigInt,
+              Operator::kFoldable | Operator::kNoThrow, "SpeculativeToBigInt",
+              1, 1, 1, 1, 1, 0,
+              BigIntOperationParameters(kHint, FeedbackSource())) {}
+  };
+  SpeculativeToBigIntOperator<BigIntOperationHint::kBigInt64>
+      kSpeculativeToBigIntBigInt64Operator;
+  SpeculativeToBigIntOperator<BigIntOperationHint::kBigInt>
+      kSpeculativeToBigIntBigIntOperator;
 };
 
 namespace {
@@ -1372,6 +1474,12 @@ const Operator* SimplifiedOperatorBuilder::VerifyType() {
                                "VerifyType", 1, 0, 0, 1, 0, 0);
 }
 
+const Operator* SimplifiedOperatorBuilder::CheckTurboshaftTypeOf() {
+  return zone()->New<Operator>(IrOpcode::kCheckTurboshaftTypeOf,
+                               Operator::kNoThrow | Operator::kNoDeopt,
+                               "CheckTurboshaftTypeOf", 2, 1, 1, 1, 1, 0);
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 const Operator* SimplifiedOperatorBuilder::WasmTypeCheck(
     WasmTypeCheckConfig config) {
@@ -1395,8 +1503,15 @@ const Operator* SimplifiedOperatorBuilder::RttCanon(int index) {
 
 const Operator* SimplifiedOperatorBuilder::Null() { return &cache_.kNull; }
 
-const Operator* SimplifiedOperatorBuilder::AssertNotNull() {
-  return &cache_.kAssertNotNull;
+const Operator* SimplifiedOperatorBuilder::AssertNotNull(TrapId trap_id) {
+  switch (trap_id) {
+    case TrapId::kTrapNullDereference:
+      return &cache_.kAssertNotNullNullDereference;
+    case TrapId::kTrapIllegalCast:
+      return &cache_.kAssertNotNullIllegalCast;
+    default:
+      UNREACHABLE();
+  }
 }
 
 const Operator* SimplifiedOperatorBuilder::IsNull() { return &cache_.kIsNull; }
@@ -1415,6 +1530,46 @@ const Operator* SimplifiedOperatorBuilder::WasmExternExternalize() {
                                Operator::kEliminatable, "WasmExternExternalize",
                                1, 1, 1, 1, 1, 1);
 }
+
+const Operator* SimplifiedOperatorBuilder::WasmStructGet(
+    const wasm::StructType* type, int field_index, bool is_signed) {
+  return zone()->New<Operator1<WasmFieldInfo>>(
+      IrOpcode::kWasmStructGet, Operator::kEliminatable, "WasmStructGet", 1, 1,
+      1, 1, 1, 0, WasmFieldInfo{type, field_index, is_signed});
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmStructSet(
+    const wasm::StructType* type, int field_index) {
+  return zone()->New<Operator1<WasmFieldInfo>>(
+      IrOpcode::kWasmStructSet,
+      Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoRead,
+      "WasmStructSet", 2, 1, 1, 0, 1, 0,
+      WasmFieldInfo{type, field_index, true /* unused */});
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmArrayGet(
+    const wasm::ArrayType* type, bool is_signed) {
+  return zone()->New<Operator1<WasmElementInfo>>(
+      IrOpcode::kWasmArrayGet, Operator::kEliminatable, "WasmArrayGet", 2, 1, 1,
+      1, 1, 0, WasmElementInfo{type, is_signed});
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmArraySet(
+    const wasm::ArrayType* type) {
+  return zone()->New<Operator1<const wasm::ArrayType*>>(
+      IrOpcode::kWasmArraySet,
+      Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoRead,
+      "WasmArraySet", 3, 1, 1, 0, 1, 0, type);
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmArrayLength() {
+  return &cache_.kWasmArrayLength;
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmArrayInitializeLength() {
+  return &cache_.kWasmArrayInitializeLength;
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 const Operator* SimplifiedOperatorBuilder::CheckIf(
@@ -1618,52 +1773,18 @@ const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
       CheckFloat64HoleParameters(mode, feedback));
 }
 
-const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntAdd(
-    BigIntOperationHint hint) {
-  return zone()->New<Operator1<BigIntOperationHint>>(
-      IrOpcode::kSpeculativeBigIntAdd, Operator::kFoldable | Operator::kNoThrow,
-      "SpeculativeBigIntAdd", 2, 1, 1, 1, 1, 0, hint);
-}
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntSubtract(
-    BigIntOperationHint hint) {
-  return zone()->New<Operator1<BigIntOperationHint>>(
-      IrOpcode::kSpeculativeBigIntSubtract,
-      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntSubtract", 2,
-      1, 1, 1, 1, 0, hint);
-}
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntMultiply(
-    BigIntOperationHint hint) {
-  return zone()->New<Operator1<BigIntOperationHint>>(
-      IrOpcode::kSpeculativeBigIntMultiply,
-      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntMultiply", 2,
-      1, 1, 1, 1, 0, hint);
-}
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntDivide(
-    BigIntOperationHint hint) {
-  return zone()->New<Operator1<BigIntOperationHint>>(
-      IrOpcode::kSpeculativeBigIntDivide,
-      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntDivide", 2, 1,
-      1, 1, 1, 0, hint);
-}
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntModulus(
-    BigIntOperationHint hint) {
-  return zone()->New<Operator1<BigIntOperationHint>>(
-      IrOpcode::kSpeculativeBigIntModulus,
-      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntModulus", 2,
-      1, 1, 1, 1, 0, hint);
-}
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntBitwiseAnd(
-    BigIntOperationHint hint) {
-  return zone()->New<Operator1<BigIntOperationHint>>(
-      IrOpcode::kSpeculativeBigIntBitwiseAnd,
-      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntBitwiseAnd",
-      2, 1, 1, 1, 1, 0, hint);
-}
+// TODO(panq): Cache speculative bigint operators.
+#define SPECULATIVE_BIGINT_BINOP(Name)                                         \
+  const Operator* SimplifiedOperatorBuilder::Name(BigIntOperationHint hint) {  \
+    return zone()->New<Operator1<BigIntOperationHint>>(                        \
+        IrOpcode::k##Name, Operator::kFoldable | Operator::kNoThrow, #Name, 2, \
+        1, 1, 1, 1, 0, hint);                                                  \
+  }
+SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(SPECULATIVE_BIGINT_BINOP)
+SPECULATIVE_BIGINT_BINOP(SpeculativeBigIntEqual)
+SPECULATIVE_BIGINT_BINOP(SpeculativeBigIntLessThan)
+SPECULATIVE_BIGINT_BINOP(SpeculativeBigIntLessThanOrEqual)
+#undef SPECULATIVE_BIGINT_BINOP
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntNegate(
     BigIntOperationHint hint) {
@@ -1671,6 +1792,22 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntNegate(
       IrOpcode::kSpeculativeBigIntNegate,
       Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntNegate", 1, 1,
       1, 1, 1, 0, hint);
+}
+
+const Operator* SimplifiedOperatorBuilder::SpeculativeToBigInt(
+    BigIntOperationHint hint, const FeedbackSource& feedback) {
+  if (!feedback.IsValid()) {
+    switch (hint) {
+      case BigIntOperationHint::kBigInt64:
+        return &cache_.kSpeculativeToBigIntBigInt64Operator;
+      case BigIntOperationHint::kBigInt:
+        return &cache_.kSpeculativeToBigIntBigIntOperator;
+    }
+  }
+  return zone()->New<Operator1<BigIntOperationParameters>>(
+      IrOpcode::kSpeculativeToBigInt, Operator::kFoldable | Operator::kNoThrow,
+      "SpeculativeToBigInt", 1, 1, 1, 1, 1, 0,
+      BigIntOperationParameters(hint, feedback));
 }
 
 const Operator* SimplifiedOperatorBuilder::CheckClosure(

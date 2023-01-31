@@ -958,14 +958,14 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* v8_isolate,
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void TierDownAllModulesPerIsolate(Isolate* v8_isolate) {
+void EnterDebuggingForIsolate(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::wasm::GetWasmEngine()->TierDownAllModulesPerIsolate(isolate);
+  i::wasm::GetWasmEngine()->EnterDebuggingForIsolate(isolate);
 }
 
-void TierUpAllModulesPerIsolate(Isolate* v8_isolate) {
+void LeaveDebuggingForIsolate(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::wasm::GetWasmEngine()->TierUpAllModulesPerIsolate(isolate);
+  i::wasm::GetWasmEngine()->LeaveDebuggingForIsolate(isolate);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1387,10 +1387,6 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
   if (!maybeMessage->IsJSMessageObject(isolate)) return MaybeLocal<Message>();
   return ToApiHandle<Message>(
       i::Handle<i::JSMessageObject>::cast(maybeMessage));
-}
-
-bool isExperimentalRemoveInternalScopesPropertyEnabled() {
-  return i::v8_flags.experimental_remove_internal_scopes_property;
 }
 
 void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* v8_isolate) {

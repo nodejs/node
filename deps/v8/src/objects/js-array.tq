@@ -87,6 +87,21 @@ macro NewJSArray(implicit context: Context)(): JSArray {
   };
 }
 
+macro NewJSArrayFilledWithZero(implicit context: Context)(length: intptr):
+    JSArray labels Slow {
+  if (length == 0) return NewJSArray();
+  if (length > kMaxFastArrayLength) goto Slow;
+
+  const map: Map = GetFastPackedSmiElementsJSArrayMap();
+  const elements: FixedArrayBase = AllocateFixedArray(
+      ElementsKind::PACKED_SMI_ELEMENTS, length,
+      AllocationFlag::kAllowLargeObjectAllocation);
+  FillFixedArrayWithSmiZero(
+      ElementsKind::PACKED_SMI_ELEMENTS, UnsafeCast<FixedArray>(elements), 0,
+      length);
+  return NewJSArray(map, elements);
+}
+
 // A HeapObject with a JSArray map, and either fast packed elements, or fast
 // holey elements when the global NoElementsProtector is not invalidated.
 transient type FastJSArray extends JSArray;

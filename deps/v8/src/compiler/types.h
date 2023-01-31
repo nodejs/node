@@ -205,7 +205,7 @@ namespace compiler {
   V(NonCallableOrNull,            kNonCallable | kNull) \
   V(DetectableObject,             kArray | kFunction | kBoundFunction | \
                                   kOtherCallable | kOtherObject) \
-  V(DetectableReceiver,           kDetectableObject | kProxy) \
+  V(DetectableReceiver,           kDetectableObject | kProxy | kWasmObject) \
   V(DetectableReceiverOrNull,     kDetectableReceiver | kNull) \
   V(Object,                       kDetectableObject | kOtherUndetectable) \
   V(Receiver,                     kObject | kProxy | kWasmObject) \

@@ -720,7 +720,8 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
         // TODO(nicohartmann@): These operators might need to be supported.
         break;
       }
-      MACHINE_SIMD_OP_LIST(CASE)
+      MACHINE_SIMD128_OP_LIST(CASE)
+      MACHINE_SIMD256_OP_LIST(CASE)
       IF_WASM(SIMPLIFIED_WASM_OP_LIST, CASE) {
         // SIMD operators should not be in the graph, yet.
         UNREACHABLE();

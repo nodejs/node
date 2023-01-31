@@ -481,7 +481,6 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     CallBuiltin(builtin);
     return;
   }
-  DCHECK(code->IsExecutable());
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   call(code, rmode);
 }
@@ -503,7 +502,7 @@ void TurboAssembler::CallBuiltin(Builtin builtin, Condition cond) {
       Call(ip);
       break;
     case BuiltinCallJumpMode::kForMksnapshot: {
-      Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+      Handle<Code> code = isolate()->builtins()->code_handle(builtin);
       call(code, RelocInfo::CODE_TARGET);
       break;
     }
@@ -529,7 +528,7 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
       break;
     case BuiltinCallJumpMode::kForMksnapshot: {
       if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
-        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        Handle<Code> code = isolate()->builtins()->code_handle(builtin);
         jump(code, RelocInfo::RELATIVE_CODE_TARGET, cond);
       } else {
         LoadU64(ip, EntryFromBuiltinAsOperand(builtin));
@@ -558,13 +557,10 @@ void TurboAssembler::Drop(Register count, Register scratch) {
   AddS64(sp, sp, scratch);
 }
 
-void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
-                                                        Register scratch) {
-  LoadTaggedPointerField(
-      scratch, FieldMemOperand(codet, Code::kCodeDataContainerOffset));
-  LoadS32(scratch, FieldMemOperand(
-                       scratch, CodeDataContainer::kKindSpecificFlagsOffset));
-  TestBit(scratch, Code::kMarkedForDeoptimizationBit, scratch);
+void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
+                                                       Register scratch) {
+  LoadS32(scratch, FieldMemOperand(code, Code::kKindSpecificFlagsOffset));
+  TestBit(scratch, InstructionStream::kMarkedForDeoptimizationBit, scratch);
 }
 
 Operand MacroAssembler::ClearedValue() const {
@@ -854,8 +850,21 @@ void TurboAssembler::MultiPopF64OrV128(DoubleRegList dregs, Register scratch,
 #endif
 }
 
+void TurboAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
+  ASM_CODE_COMMENT(this);
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+    mov(destination, Operand(ReadOnlyRootPtr(index), RelocInfo::Mode::NO_INFO));
+    return;
+  }
+  LoadRoot(destination, index);
+}
+
 void TurboAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition) {
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+    DecompressTaggedPointer(destination, ReadOnlyRootPtr(index));
+    return;
+  }
   LoadU64(destination,
           MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)), r0);
 }
@@ -933,6 +942,13 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
   llgf(destination, field_operand);
   agr(destination, kRootRegister);
   RecordComment("]");
+}
+
+void TurboAssembler::DecompressTaggedPointer(const Register& destination,
+                                             Tagged_t immediate) {
+  ASM_CODE_COMMENT(this);
+  mov(destination, Operand(immediate, RelocInfo::NO_INFO));
+  agr(destination, kRootRegister);
 }
 
 void TurboAssembler::DecompressAnyTagged(Register destination,
@@ -1542,7 +1558,7 @@ int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
 // gaps
 // Args
 // ABIRes <- newSP
-void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
+void MacroAssembler::EnterExitFrame(int stack_space,
                                     StackFrame::Type frame_type) {
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT);
@@ -1573,15 +1589,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   Move(r1,
        ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
   StoreU64(cp, MemOperand(r1));
-
-  // Optionally save all volatile double registers.
-  if (save_doubles) {
-    MultiPushDoubles(kCallerSavedDoubles);
-    // Note that d0 will be accessible at
-    //   fp - ExitFrameConstants::kFrameSize -
-    //   kNumCallerSavedDoubles * kDoubleSize,
-    // since the sp slot and code slot were pushed after the fp.
-  }
 
   lay(sp, MemOperand(sp, -stack_space * kSystemPointerSize));
 
@@ -1617,17 +1624,8 @@ int TurboAssembler::ActivationFrameAlignment() {
 #endif
 }
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
+void MacroAssembler::LeaveExitFrame(Register argument_count,
                                     bool argument_count_is_length) {
-  // Optionally restore all double registers.
-  if (save_doubles) {
-    // Calculate the stack location of the saved doubles and restore them.
-    const int kNumRegs = kNumCallerSavedDoubles;
-    lay(r5, MemOperand(fp, -(ExitFrameConstants::kFixedFrameSizeFromFp +
-                             kNumRegs * kDoubleSize)));
-    MultiPopDoubles(kCallerSavedDoubles, r5);
-  }
-
   // Clear top frame.
   Move(ip, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
                                      isolate()));
@@ -1961,6 +1959,10 @@ void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
 }
 
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+    CompareTagged(obj, Operand(ReadOnlyRootPtr(index)));
+    return;
+  }
   int32_t offset = RootRegisterOffsetForRootIndex(index);
 #ifdef V8_TARGET_BIG_ENDIAN
   offset += (COMPRESS_POINTERS_BOOL ? kTaggedSize : 0);
@@ -2040,7 +2042,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
   {
-    __ TestCodeTIsMarkedForDeoptimization(optimized_code_entry, scratch);
+    __ TestCodeIsMarkedForDeoptimization(optimized_code_entry, scratch);
     __ bne(&heal_optimized_code_slot);
   }
 
@@ -2049,7 +2051,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ ReplaceClosureCodeWithOptimizedCode(optimized_code_entry, closure, scratch,
                                          r7);
   static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
-  __ LoadCodeObjectEntry(r4, optimized_code_entry);
+  __ LoadCodeEntry(r4, optimized_code_entry);
   __ Jump(r4);
 
   // Optimized code slot contains deoptimized code or code is cleared and
@@ -2163,8 +2165,8 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
   TailCallOptimizedCodeSlot(this, optimized_code_entry, r8);
 }
 
-void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
-                                 SaveFPRegsMode save_doubles) {
+void MacroAssembler::CallRuntime(const Runtime::Function* f,
+                                 int num_arguments) {
   // All parameters are on the stack.  r2 has the return value after call.
 
   // If the expected number of arguments of the runtime function is
@@ -2179,10 +2181,9 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
   mov(r2, Operand(num_arguments));
   Move(r3, ExternalReference::Create(f));
 #if V8_TARGET_ARCH_S390X
-  Handle<Code> code =
-      CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), f->result_size);
 #else
-  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, save_doubles);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), 1);
 #endif
 
   Call(code, RelocInfo::CODE_TARGET);
@@ -2200,8 +2201,8 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              bool builtin_exit_frame) {
   Move(r3, builtin);
-  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
-                                          ArgvMode::kStack, builtin_exit_frame);
+  Handle<Code> code =
+      CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }
 
@@ -4969,63 +4970,32 @@ MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
                     IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
-void TurboAssembler::LoadCodeObjectEntry(Register destination,
-                                         Register code_object) {
-  // Code objects are called differently depending on whether we are generating
-  // builtin code (which will later be embedded into the binary) or compiling
-  // user JS code at runtime.
-  // * Builtin code runs in --jitless mode and thus must not call into on-heap
-  //   Code targets. Instead, we dispatch through the builtins entry table.
-  // * Codegen at runtime does not have this restriction and we can use the
-  //   shorter, branchless instruction sequence. The assumption here is that
-  //   targets are usually generated code and not builtin Code objects.
+void TurboAssembler::LoadCodeEntry(Register destination, Register code_object) {
+  ASM_CODE_COMMENT(this);
+  LoadU64(destination,
+          FieldMemOperand(code_object, Code::kCodeEntryPointOffset));
+}
 
-  if (options().isolate_independent_code) {
-    DCHECK(root_array_available());
-    Label if_code_is_off_heap, out;
-
-    Register scratch = r1;
-
-    DCHECK(!AreAliased(destination, scratch));
-    DCHECK(!AreAliased(code_object, scratch));
-
-    // Check whether the Code object is an off-heap trampoline. If so, call its
-    // (off-heap) entry point directly without going through the (on-heap)
-    // trampoline.  Otherwise, just call the Code object as always.
-    LoadS32(scratch, FieldMemOperand(code_object, Code::kFlagsOffset));
-    tmlh(scratch, Operand(Code::IsOffHeapTrampoline::kMask >> 16));
-    bne(&if_code_is_off_heap);
-
-    // Not an off-heap trampoline, the entry point is at
-    // Code::raw_instruction_start().
-    AddS64(destination, code_object,
-           Operand(Code::kHeaderSize - kHeapObjectTag));
-    b(&out);
-
-    // An off-heap trampoline, the entry point is loaded from the builtin entry
-    // table.
-    bind(&if_code_is_off_heap);
-    LoadS32(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
-    ShiftLeftU64(destination, scratch, Operand(kSystemPointerSizeLog2));
-    AddS64(destination, destination, kRootRegister);
-    LoadU64(destination,
-            MemOperand(destination, IsolateData::builtin_entry_table_offset()));
-
-    bind(&out);
-  } else {
-    AddS64(destination, code_object,
-           Operand(Code::kHeaderSize - kHeapObjectTag));
-  }
+void TurboAssembler::LoadCodeInstructionStreamNonBuiltin(Register destination,
+                                                         Register code_object) {
+  ASM_CODE_COMMENT(this);
+  // Compute the InstructionStream object pointer from the code entry point.
+  LoadU64(destination,
+          FieldMemOperand(code_object, Code::kCodeEntryPointOffset));
+  SubS64(destination, destination,
+         Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 
 void TurboAssembler::CallCodeObject(Register code_object) {
-  LoadCodeObjectEntry(code_object, code_object);
+  ASM_CODE_COMMENT(this);
+  LoadCodeEntry(code_object, code_object);
   Call(code_object);
 }
 
 void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
+  ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
-  LoadCodeObjectEntry(code_object, code_object);
+  LoadCodeEntry(code_object, code_object);
   Jump(code_object);
 }
 
@@ -5033,9 +5003,9 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   // This generates the final instruction sequence for calls to C functions
   // once an exit frame has been constructed.
   //
-  // Note that this assumes the caller code (i.e. the Code object currently
-  // being generated) is immovable or that the callee function cannot trigger
-  // GC, since the callee function will return to it.
+  // Note that this assumes the caller code (i.e. the InstructionStream object
+  // currently being generated) is immovable or that the callee function cannot
+  // trigger GC, since the callee function will return to it.
 
   Label return_label;
   larl(r14, &return_label);  // Generate the return addr of call later.
@@ -5685,7 +5655,7 @@ SIMD_ALL_TRUE_LIST(EMIT_SIMD_ALL_TRUE)
 #define EMIT_SIMD_QFM(name, op, c1)                                       \
   void TurboAssembler::name(Simd128Register dst, Simd128Register src1,    \
                             Simd128Register src2, Simd128Register src3) { \
-    op(dst, src2, src3, src1, Condition(c1), Condition(0));               \
+    op(dst, src1, src2, src3, Condition(c1), Condition(0));               \
   }
 SIMD_QFM_LIST(EMIT_SIMD_QFM)
 #undef EMIT_SIMD_QFM

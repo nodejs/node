@@ -387,9 +387,7 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
   // Is it marked_for_deoptimization? If yes, clear the slot.
   {
     ScratchRegisterScope temps(this);
-    Register scratch2 = temps.AcquireScratch();
-    DCHECK(!AreAliased(scratch_and_result, scratch2));
-    __ TestCodeTIsMarkedForDeoptimization(scratch_and_result, scratch2);
+    __ TestCodeIsMarkedForDeoptimization(scratch_and_result);
     __ j(equal, on_result, distance);
     __ mov(FieldOperand(feedback_vector,
                         FeedbackVector::OffsetOfElementAt(slot.ToInt())),

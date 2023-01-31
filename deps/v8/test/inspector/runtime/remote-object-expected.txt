@@ -1598,7 +1598,7 @@ Running test: testProxy
 {
     result : {
         className : Object
-        description : Proxy
+        description : Proxy(Object)
         objectId : <objectId>
         subtype : proxy
         type : object
@@ -1608,7 +1608,7 @@ Running test: testProxy
 {
     result : {
         className : Object
-        description : Proxy
+        description : Proxy(Error)
         objectId : <objectId>
         subtype : proxy
         type : object
@@ -1626,10 +1626,10 @@ Running test: testProxy
 {
     result : {
         className : Object
-        description : Proxy
+        description : Proxy(Object)
         objectId : <objectId>
         preview : {
-            description : Proxy
+            description : Proxy(Object)
             overflow : false
             properties : [
                 [0] : {
@@ -1659,11 +1659,57 @@ Running test: testProxy
                     name : e
                     subtype : proxy
                     type : object
-                    value : Proxy
+                    value : Proxy(Object)
                 }
             ]
             type : object
         }
+        type : object
+    }
+}
+'new Proxy([1, 2], {})', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Object
+        description : Proxy(Array)
+        objectId : <objectId>
+        preview : {
+            description : Proxy(Array)
+            overflow : false
+            properties : [
+                [0] : {
+                    name : 0
+                    type : number
+                    value : 1
+                }
+                [1] : {
+                    name : 1
+                    type : number
+                    value : 2
+                }
+            ]
+            subtype : proxy
+            type : object
+        }
+        subtype : proxy
+        type : object
+    }
+}
+'revocable = Proxy.revocable({}, {}); revocable.revoke(); revocable.proxy', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Object
+        description : Proxy
+        objectId : <objectId>
+        preview : {
+            description : Proxy
+            overflow : false
+            properties : [
+            ]
+            subtype : proxy
+            type : object
+        }
+        subtype : proxy
         type : object
     }
 }
@@ -2405,6 +2451,16 @@ Running test: testArrayBuffer
                     type : number
                     value : 0
                 }
+                [1] : {
+                    name : maxByteLength
+                    type : number
+                    value : 0
+                }
+                [2] : {
+                    name : resizable
+                    type : boolean
+                    value : false
+                }
             ]
             subtype : arraybuffer
             type : object
@@ -2427,6 +2483,16 @@ Running test: testArrayBuffer
                     name : byteLength
                     type : number
                     value : 400
+                }
+                [1] : {
+                    name : maxByteLength
+                    type : number
+                    value : 400
+                }
+                [2] : {
+                    name : resizable
+                    type : boolean
+                    value : false
                 }
             ]
             subtype : arraybuffer

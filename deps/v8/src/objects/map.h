@@ -38,8 +38,8 @@ enum InstanceType : uint16_t;
   V(BytecodeArray)                      \
   V(CallHandlerInfo)                    \
   V(Cell)                               \
+  V(InstructionStream)                  \
   V(Code)                               \
-  V(CodeDataContainer)                  \
   V(DataHandler)                        \
   V(EmbedderDataArray)                  \
   V(EphemeronHashTable)                 \
@@ -567,6 +567,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   V8_EXPORT_PRIVATE static void SetPrototype(
       Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype,
       bool enable_prototype_setup_mode = true);
+
+  // Sets prototype and constructor fields to null. Can be called during
+  // bootstrapping.
+  inline void init_prototype_and_constructor_or_back_pointer(
+      ReadOnlyRoots roots);
 
   // [constructor]: points back to the function or FunctionTemplateInfo
   // responsible for this map.

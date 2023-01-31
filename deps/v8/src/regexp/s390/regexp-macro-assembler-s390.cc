@@ -22,7 +22,7 @@ namespace internal {
  * This assembler uses the following register assignment convention
  * - r6: Temporarily stores the index of capture start after a matching pass
  *        for a global regexp.
- * - r7: Pointer to current Code object including heap object tag.
+ * - r7: Pointer to current InstructionStream object including heap object tag.
  * - r8: Current position in input, as negative offset from end of string.
  *        Please notice that this is the byte offset, not the character offset!
  * - r9: Currently loaded character. Must be loaded using
@@ -183,7 +183,8 @@ void RegExpMacroAssemblerS390::Backtrack() {
 
     __ bind(&next);
   }
-  // Pop Code offset from backtrack stack, add Code and jump to location.
+  // Pop InstructionStream offset from backtrack stack, add InstructionStream
+  // and jump to location.
   Pop(r2);
   __ AddS64(r2, code_pointer());
   __ b(r2);
@@ -1065,9 +1066,10 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
       Factory::CodeBuilder(isolate(), code_desc, CodeKind::REGEXP)
           .set_self_reference(masm_->CodeObject())
           .Build();
+  Handle<InstructionStream> istream(code->instruction_stream(), isolate());
   PROFILE(masm_->isolate(),
           RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
-  return Handle<HeapObject>::cast(code);
+  return Handle<HeapObject>::cast(istream);
 }
 
 void RegExpMacroAssemblerS390::GoTo(Label* to) { BranchOrBacktrack(al, to); }
@@ -1109,7 +1111,8 @@ void RegExpMacroAssemblerS390::PopRegister(int register_index) {
 void RegExpMacroAssemblerS390::PushBacktrack(Label* label) {
   if (label->is_bound()) {
     int target = label->pos();
-    __ mov(r2, Operand(target + Code::kHeaderSize - kHeapObjectTag));
+    __ mov(r2,
+           Operand(target + InstructionStream::kHeaderSize - kHeapObjectTag));
   } else {
     masm_->load_label_offset(r2, label);
   }
@@ -1201,7 +1204,7 @@ void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch) {
   __ PrepareCallCFunction(num_arguments, scratch);
   // RegExp code frame pointer.
   __ mov(r4, frame_pointer());
-  // Code of self.
+  // InstructionStream of self.
   __ mov(r3, Operand(masm_->CodeObject()));
   // r2 becomes return address pointer.
   __ lay(r2, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
@@ -1241,7 +1244,7 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
 int RegExpMacroAssemblerS390::CheckStackGuardState(Address* return_address,
                                                    Address raw_code,
                                                    Address re_frame) {
-  Code re_code = Code::cast(Object(raw_code));
+  InstructionStream re_code = InstructionStream::cast(Object(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate),
       frame_entry<intptr_t>(re_frame, kStartIndex),

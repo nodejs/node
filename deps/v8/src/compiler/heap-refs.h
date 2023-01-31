@@ -111,8 +111,8 @@ enum class RefSerializationKind {
   BACKGROUND_SERIALIZED(BigInt)                                               \
   NEVER_SERIALIZED(CallHandlerInfo)                                           \
   NEVER_SERIALIZED(Cell)                                                      \
+  NEVER_SERIALIZED(InstructionStream)                                         \
   NEVER_SERIALIZED(Code)                                                      \
-  NEVER_SERIALIZED(CodeDataContainer)                                         \
   NEVER_SERIALIZED(Context)                                                   \
   NEVER_SERIALIZED(DescriptorArray)                                           \
   NEVER_SERIALIZED(FeedbackCell)                                              \
@@ -208,14 +208,6 @@ class TinyRef {
 HEAP_BROKER_OBJECT_LIST(V)
 #undef V
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-using CodeTRef = CodeDataContainerRef;
-using CodeTTinyRef = CodeDataContainerTinyRef;
-#else
-using CodeTRef = CodeRef;
-using CodeTTinyRef = CodeTinyRef;
-#endif
-
 class V8_EXPORT_PRIVATE ObjectRef {
  public:
   ObjectRef(JSHeapBroker* broker, ObjectData* data, bool check_type = true)
@@ -237,14 +229,6 @@ class V8_EXPORT_PRIVATE ObjectRef {
 #define HEAP_AS_METHOD_DECL(Name) Name##Ref As##Name() const;
   HEAP_BROKER_OBJECT_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
-
-  // CodeT is defined as an alias to either CodeDataContainer or Code, depending
-  // on the architecture. We can't put it in HEAP_BROKER_OBJECT_LIST, because
-  // this list already contains CodeDataContainer and Code. Still, defining
-  // IsCodeT and AsCodeT is useful to write code that is independent of
-  // V8_EXTERNAL_CODE_SPACE.
-  bool IsCodeT() const;
-  CodeTRef AsCodeT() const;
 
   bool IsNull() const;
   bool IsNullOrUndefined() const;
@@ -475,7 +459,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   ContextRef context() const;
   NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
-  CodeTRef code() const;
+  CodeRef code() const;
 
   bool has_initial_map(CompilationDependencies* dependencies) const;
   bool PrototypeRequiresRuntimeLookup(
@@ -679,6 +663,7 @@ class BigIntRef : public HeapObjectRef {
   Handle<BigInt> object() const;
 
   uint64_t AsUint64() const;
+  int64_t AsInt64(bool* lossless) const;
 };
 
 class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
@@ -949,6 +934,7 @@ class StringRef : public NameRef {
   base::Optional<uint16_t> GetFirstChar() const;
   base::Optional<uint16_t> GetChar(int index) const;
   base::Optional<double> ToNumber();
+  base::Optional<double> ToInt(int radix);
 
   bool IsSeqString() const;
   bool IsExternalString() const;
@@ -1024,22 +1010,20 @@ class JSGlobalProxyRef : public JSObjectRef {
   Handle<JSGlobalProxy> object() const;
 };
 
+class InstructionStreamRef : public HeapObjectRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(InstructionStream, HeapObjectRef)
+
+  Handle<InstructionStream> object() const;
+
+  unsigned GetInlinedBytecodeSize() const;
+};
+
 class CodeRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(Code, HeapObjectRef)
 
   Handle<Code> object() const;
-
-  unsigned GetInlinedBytecodeSize() const;
-};
-
-// CodeDataContainerRef doesn't appear to be used directly, but it is used via
-// CodeTRef when V8_EXTERNAL_CODE_SPACE is enabled.
-class CodeDataContainerRef : public HeapObjectRef {
- public:
-  DEFINE_REF_CONSTRUCTOR(CodeDataContainer, HeapObjectRef)
-
-  Handle<CodeDataContainer> object() const;
 
   unsigned GetInlinedBytecodeSize() const;
 };

@@ -388,19 +388,19 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ Unreachable();
 }
 
-static void AssertCodeTIsBaselineAllowClobber(MacroAssembler* masm,
-                                              Register code, Register scratch) {
+static void AssertCodeIsBaselineAllowClobber(MacroAssembler* masm,
+                                             Register code, Register scratch) {
   // Verify that the code kind is baseline code via the CodeKind.
-  __ Ldr(scratch, FieldMemOperand(code, CodeT::kFlagsOffset));
-  __ DecodeField<CodeT::KindField>(scratch);
+  __ Ldr(scratch, FieldMemOperand(code, Code::kFlagsOffset));
+  __ DecodeField<Code::KindField>(scratch);
   __ Cmp(scratch, Operand(static_cast<int>(CodeKind::BASELINE)));
   __ Assert(eq, AbortReason::kExpectedBaselineData);
 }
 
-static void AssertCodeTIsBaseline(MacroAssembler* masm, Register code,
-                                  Register scratch) {
+static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
+                                 Register scratch) {
   DCHECK(!AreAliased(code, scratch));
-  return AssertCodeTIsBaselineAllowClobber(masm, code, scratch);
+  return AssertCodeIsBaselineAllowClobber(masm, code, scratch);
 }
 
 // TODO(v8:11429): Add a path for "not_compiled" and unify the two uses under
@@ -411,11 +411,11 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
                                                     Label* is_baseline) {
   ASM_CODE_COMMENT(masm);
   Label done;
-  __ CompareObjectType(sfi_data, scratch1, scratch1, CODET_TYPE);
+  __ CompareObjectType(sfi_data, scratch1, scratch1, CODE_TYPE);
   if (v8_flags.debug_code) {
     Label not_baseline;
     __ B(ne, &not_baseline);
-    AssertCodeTIsBaseline(masm, sfi_data, scratch1);
+    AssertCodeIsBaseline(masm, sfi_data, scratch1);
     __ B(eq, is_baseline);
     __ Bind(&not_baseline);
   } else {
@@ -550,7 +550,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Mov(x1, x4);
     static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
     __ LoadTaggedPointerField(x2, FieldMemOperand(x1, JSFunction::kCodeOffset));
-    __ JumpCodeTObject(x2);
+    __ JumpCodeObject(x2);
   }
 
   __ Bind(&prepare_step_in_if_stepping);
@@ -758,7 +758,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   //
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return.
-  Handle<CodeT> trampoline_code =
+  Handle<Code> trampoline_code =
       masm->isolate()->builtins()->code_handle(entry_trampoline);
   __ Call(trampoline_code, RelocInfo::CODE_TARGET);
 
@@ -932,9 +932,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // x28 : pointer cage base register (kPtrComprCageBaseRegister).
     // x29 : frame pointer (fp).
 
-    Handle<CodeT> builtin = is_construct
-                                ? BUILTIN_CODE(masm->isolate(), Construct)
-                                : masm->isolate()->builtins()->Call();
+    Handle<Code> builtin = is_construct
+                               ? BUILTIN_CODE(masm->isolate(), Construct)
+                               : masm->isolate()->builtins()->Call();
     __ Call(builtin, RelocInfo::CODE_TARGET);
 
     // Exit the JS internal frame and remove the parameters (except function),
@@ -1503,7 +1503,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ Move(x2, kInterpreterBytecodeArrayRegister);
     static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
     __ ReplaceClosureCodeWithOptimizedCode(x2, closure);
-    __ JumpCodeTObject(x2);
+    __ JumpCodeObject(x2);
 
     __ bind(&install_baseline_code);
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
@@ -1743,7 +1743,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ LoadTaggedPointerField(
       x1, FieldMemOperand(x1, InterpreterData::kInterpreterTrampolineOffset));
-  __ LoadCodeTEntry(x1, x1);
+  __ LoadCodeEntry(x1, x1);
   __ B(&trampoline_loaded);
 
   __ Bind(&builtin_trampoline);
@@ -1951,8 +1951,8 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   Label jump_to_optimized_code;
   {
     // If maybe_target_code is not null, no need to call into runtime. A
-    // precondition here is: if maybe_target_code is a Code object, it must NOT
-    // be marked_for_deoptimization (callers must ensure this).
+    // precondition here is: if maybe_target_code is a InstructionStream object,
+    // it must NOT be marked_for_deoptimization (callers must ensure this).
     __ CompareTaggedAndBranch(x0, Smi::zero(), ne, &jump_to_optimized_code);
   }
 
@@ -1993,15 +1993,14 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ LeaveFrame(StackFrame::STUB);
   }
 
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    __ LoadCodeDataContainerCodeNonBuiltin(x0, x0);
-  }
+  __ LoadCodeInstructionStreamNonBuiltin(x0, x0);
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
   __ LoadTaggedPointerField(
       x1,
-      FieldMemOperand(x0, Code::kDeoptimizationDataOrInterpreterDataOffset));
+      FieldMemOperand(
+          x0, InstructionStream::kDeoptimizationDataOrInterpreterDataOffset));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
@@ -2012,7 +2011,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   // Compute the target address = code_obj + header_size + osr_offset
   // <entry_addr> = <code_obj> + #header_size + <osr_offset>
   __ Add(x0, x0, x1);
-  Generate_OSREntry(masm, x0, Code::kHeaderSize - kHeapObjectTag);
+  Generate_OSREntry(masm, x0, InstructionStream::kHeaderSize - kHeapObjectTag);
 }
 
 }  // namespace
@@ -2334,9 +2333,10 @@ void Generate_PrepareForCopyingVarargs(MacroAssembler* masm, Register argc,
 }  // namespace
 
 // static
-// TODO(v8:11615): Observe Code::kMaxArguments in CallOrConstructVarargs
+// TODO(v8:11615): Observe InstructionStream::kMaxArguments in
+// CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
-                                               Handle<CodeT> code) {
+                                               Handle<Code> code) {
   // ----------- S t a t e -------------
   //  -- x1 : target
   //  -- x0 : number of parameters on the stack
@@ -2411,7 +2411,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 // static
 void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                                                       CallOrConstructMode mode,
-                                                      Handle<CodeT> code) {
+                                                      Handle<Code> code) {
   // ----------- S t a t e -------------
   //  -- x0 : the number of arguments
   //  -- x3 : the new.target (for [[Construct]] calls)
@@ -4751,8 +4751,7 @@ void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
-                               SaveFPRegsMode save_doubles, ArgvMode argv_mode,
-                               bool builtin_exit_frame) {
+                               ArgvMode argv_mode, bool builtin_exit_frame) {
   // The Abort mechanism relies on CallRuntime, which in turn relies on
   // CEntry, so until this stub has been generated, we have to use a
   // fall-back Abort mechanism.
@@ -4808,7 +4807,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // Enter the exit frame.
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(
-      save_doubles == SaveFPRegsMode::kSave, x10, extra_stack_space,
+      x10, extra_stack_space,
       builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
 
   // Poke callee-saved registers into reserved space.
@@ -4889,7 +4888,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ Peek(argc, 2 * kSystemPointerSize);
   __ Peek(target, 3 * kSystemPointerSize);
 
-  __ LeaveExitFrame(save_doubles == SaveFPRegsMode::kSave, x10, x9);
+  __ LeaveExitFrame(x10, x9);
   if (argv_mode == ArgvMode::kStack) {
     // Drop the remaining stack slots and return from the stub.
     __ DropArguments(x11);
@@ -5137,7 +5136,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     __ Ldr(x19, *stack_space_operand);
   }
 
-  __ LeaveExitFrame(false, x1, x5);
+  __ LeaveExitFrame(x1, x5);
 
   // Check if the function scheduled an exception.
   __ Mov(x5, ExternalReference::scheduled_exception_address(isolate));
@@ -5249,11 +5248,10 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // Allocate the v8::Arguments structure in the arguments' space, since it's
   // not controlled by GC.
   static constexpr int kApiStackSpace = 4;
-  static constexpr bool kDontSaveDoubles = false;
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(kDontSaveDoubles, x10,
-                    kApiStackSpace + kCallApiFunctionSpillSpace);
+  __ EnterExitFrame(x10, kApiStackSpace + kCallApiFunctionSpillSpace,
+                    StackFrame::EXIT);
 
   // FunctionCallbackInfo::implicit_args_ (points at kHolder as set up above).
   // Arguments are after the return address (pushed by EnterExitFrame()).
@@ -5349,7 +5347,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   const int kApiStackSpace = 1;
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(false, x10, kApiStackSpace + kCallApiFunctionSpillSpace);
+  __ EnterExitFrame(x10, kApiStackSpace + kCallApiFunctionSpillSpace,
+                    StackFrame::EXIT);
 
   // Create v8::PropertyCallbackInfo object on the stack and initialize
   // it's args_ field.
@@ -5379,8 +5378,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
 void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   // The sole purpose of DirectCEntry is for movable callers (e.g. any general
-  // purpose Code object) to be able to call into C functions that may trigger
-  // GC and thus move the caller.
+  // purpose InstructionStream object) to be able to call into C functions that
+  // may trigger GC and thus move the caller.
   //
   // DirectCEntry places the return address on the stack (updated by the GC),
   // making the call GC safe. The irregexp backend relies on this.
@@ -5695,7 +5694,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   Register closure = x1;
   __ Ldr(closure, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
 
-  // Get the Code object from the shared function info.
+  // Get the InstructionStream object from the shared function info.
   Register code_obj = x22;
   __ LoadTaggedPointerField(
       code_obj,
@@ -5708,7 +5707,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   // always have baseline code.
   if (!is_osr) {
     Label start_with_baseline;
-    __ CompareObjectType(code_obj, x3, x3, CODET_TYPE);
+    __ CompareObjectType(code_obj, x3, x3, CODE_TYPE);
     __ B(eq, &start_with_baseline);
 
     // Start with bytecode as there is no baseline code.
@@ -5721,16 +5720,14 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     // Start with baseline code.
     __ bind(&start_with_baseline);
   } else if (v8_flags.debug_code) {
-    __ CompareObjectType(code_obj, x3, x3, CODET_TYPE);
+    __ CompareObjectType(code_obj, x3, x3, CODE_TYPE);
     __ Assert(eq, AbortReason::kExpectedBaselineData);
   }
 
   if (v8_flags.debug_code) {
-    AssertCodeTIsBaseline(masm, code_obj, x3);
+    AssertCodeIsBaseline(masm, code_obj, x3);
   }
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
-  }
+  __ LoadCodeInstructionStreamNonBuiltin(code_obj, code_obj);
 
   // Load the feedback vector.
   Register feedback_vector = x2;
@@ -5803,9 +5800,10 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
 
   if (is_osr) {
     ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister);
-    Generate_OSREntry(masm, code_obj, Code::kHeaderSize - kHeapObjectTag);
+    Generate_OSREntry(masm, code_obj,
+                      InstructionStream::kHeaderSize - kHeapObjectTag);
   } else {
-    __ Add(code_obj, code_obj, Code::kHeaderSize - kHeapObjectTag);
+    __ Add(code_obj, code_obj, InstructionStream::kHeaderSize - kHeapObjectTag);
     __ Jump(code_obj);
   }
   __ Trap();  // Unreachable.

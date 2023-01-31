@@ -10,15 +10,14 @@ include_rules = [
   "-src/bigint",
   "+src/bigint/bigint.h",
   "-src/compiler",
-  "+src/compiler/pipeline.h",
   "+src/compiler/code-assembler.h",
+  "+src/compiler/turbofan.h",
   "+src/compiler/wasm-compiler-definitions.h",
   "+src/compiler/wasm-compiler.h",
   "-src/heap",
   "+src/heap/basic-memory-chunk.h",
   "+src/heap/code-range.h",
   "+src/heap/combined-heap.h",
-  "+src/heap/embedder-tracing.h",
   "+src/heap/factory.h",
   "+src/heap/factory-inl.h",
   # TODO(v8:10496): Don't expose so much (through transitive includes) outside
@@ -76,6 +75,7 @@ include_rules = [
   "+starboard",
   # Using cppgc inside v8 is not (yet) allowed.
   "-include/cppgc",
+  "+include/cppgc/common.h",
   "+include/cppgc/platform.h",
   "+include/cppgc/source-location.h",
 ]

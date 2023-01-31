@@ -1106,16 +1106,18 @@ void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
 
 void TurboAssembler::SmiUntag(Register smi) { SmiUntag(smi, smi); }
 
-void TurboAssembler::SmiToInt32(Register smi) {
-  DCHECK(smi.Is64Bits());
+void TurboAssembler::SmiToInt32(Register smi) { SmiToInt32(smi, smi); }
+
+void TurboAssembler::SmiToInt32(Register dst, Register smi) {
+  DCHECK(dst.Is64Bits());
   if (v8_flags.enable_slow_asserts) {
     AssertSmi(smi);
   }
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   if (COMPRESS_POINTERS_BOOL) {
-    Asr(smi.W(), smi.W(), kSmiShift);
+    Asr(dst.W(), smi.W(), kSmiShift);
   } else {
-    Lsr(smi, smi, kSmiShift);
+    Lsr(dst, smi, kSmiShift);
   }
 }
 
@@ -1144,6 +1146,12 @@ void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
 
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
   JumpIfSmi(value, nullptr, not_smi_label);
+}
+
+inline void MacroAssembler::AssertFeedbackVector(Register object) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  AssertFeedbackVector(object, scratch);
 }
 
 void TurboAssembler::jmp(Label* L) { B(L); }
@@ -1419,6 +1427,10 @@ void TurboAssembler::TestAndBranchIfAllClear(const Register& reg,
     Tst(reg, bit_pattern);
     B(eq, label);
   }
+}
+
+void TurboAssembler::MoveHeapNumber(Register dst, double value) {
+  Mov(dst, Operand::EmbeddedHeapNumber(value));
 }
 
 }  // namespace internal

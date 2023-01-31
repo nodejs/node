@@ -282,5 +282,16 @@ bool IsNewObjectInCorrectGeneration(HeapObject object) {
                                     : i::Heap::InYoungGeneration(object);
 }
 
+void FinalizeGCIfRunning(Isolate* isolate) {
+  if (!isolate) {
+    return;
+  }
+  auto* heap = isolate->heap();
+  if (heap->incremental_marking()->IsMarking()) {
+    heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+    heap->CompleteSweepingFull();
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

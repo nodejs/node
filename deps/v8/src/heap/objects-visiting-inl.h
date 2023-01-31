@@ -6,7 +6,6 @@
 #define V8_HEAP_OBJECTS_VISITING_INL_H_
 
 #include "src/base/logging.h"
-#include "src/heap/embedder-tracing.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/objects-visiting.h"
 #include "src/objects/arguments.h"
@@ -216,7 +215,7 @@ template <typename ConcreteVisitor>
 int NewSpaceVisitor<ConcreteVisitor>::VisitJSApiObject(Map map,
                                                        JSObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  return visitor->VisitJSObject(map, object);
+  return visitor->VisitJSApiObject(map, object);
 }
 
 template <typename ConcreteVisitor>
@@ -231,6 +230,16 @@ int NewSpaceVisitor<ConcreteVisitor>::VisitWeakCell(Map map,
                                                     WeakCell weak_cell) {
   UNREACHABLE();
   return 0;
+}
+
+template <typename ConcreteVisitor>
+template <typename T, typename TBodyDescriptor>
+int NewSpaceVisitor<ConcreteVisitor>::VisitJSObjectSubclass(Map map, T object) {
+  if (!static_cast<ConcreteVisitor*>(this)->ShouldVisit(object)) return 0;
+  this->VisitMapPointer(object);
+  int size = TBodyDescriptor::SizeOf(map, object);
+  TBodyDescriptor::IterateBody(map, object, size, this);
+  return size;
 }
 
 }  // namespace internal

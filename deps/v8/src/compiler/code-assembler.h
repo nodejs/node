@@ -508,6 +508,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #endif
 
   // Constants.
+  TNode<Int32T> UniqueInt32Constant(int32_t value);
   TNode<Int32T> Int32Constant(int32_t value);
   TNode<Int64T> Int64Constant(int64_t value);
   TNode<Uint64T> Uint64Constant(uint64_t value) {
@@ -582,7 +583,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<UintPtrT>(x);
   }
 
-  static constexpr int kTargetParameterIndex = -1;
+  static constexpr int kTargetParameterIndex = kJSCallClosureParameterIndex;
+  static_assert(kTargetParameterIndex == -1);
 
   template <class T>
   TNode<T> Parameter(
@@ -1168,13 +1170,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   template <class T = Object, class... TArgs>
   TNode<T> CallStub(Callable const& callable, TNode<Object> context,
                     TArgs... args) {
-    TNode<CodeT> target = HeapConstant(callable.code());
+    TNode<Code> target = HeapConstant(callable.code());
     return CallStub<T>(callable.descriptor(), target, context, args...);
   }
 
   template <class T = Object, class... TArgs>
   TNode<T> CallStub(const CallInterfaceDescriptor& descriptor,
-                    TNode<CodeT> target, TNode<Object> context, TArgs... args) {
+                    TNode<Code> target, TNode<Object> context, TArgs... args) {
     return UncheckedCast<T>(CallStubR(StubCallMode::kCallCodeObject, descriptor,
                                       target, context, args...));
   }
@@ -1190,13 +1192,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   template <class... TArgs>
   void TailCallStub(Callable const& callable, TNode<Object> context,
                     TArgs... args) {
-    TNode<CodeT> target = HeapConstant(callable.code());
+    TNode<Code> target = HeapConstant(callable.code());
     TailCallStub(callable.descriptor(), target, context, args...);
   }
 
   template <class... TArgs>
   void TailCallStub(const CallInterfaceDescriptor& descriptor,
-                    TNode<CodeT> target, TNode<Object> context, TArgs... args) {
+                    TNode<Code> target, TNode<Object> context, TArgs... args) {
     TailCallStubImpl(descriptor, target, context, {args...});
   }
 
@@ -1219,7 +1221,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Note that no arguments adaption is going on here - all the JavaScript
   // arguments are left on the stack unmodified. Therefore, this tail call can
   // only be used after arguments adaptation has been performed already.
-  void TailCallJSCode(TNode<CodeT> code, TNode<Context> context,
+  void TailCallJSCode(TNode<Code> code, TNode<Context> context,
                       TNode<JSFunction> function, TNode<Object> new_target,
                       TNode<Int32T> arg_count);
 
@@ -1228,7 +1230,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                        Node* receiver, TArgs... args) {
     int argc = JSParameterCount(static_cast<int>(sizeof...(args)));
     TNode<Int32T> arity = Int32Constant(argc);
-    TNode<CodeT> target = HeapConstant(callable.code());
+    TNode<Code> target = HeapConstant(callable.code());
     return CAST(CallJSStubImpl(callable.descriptor(), target, CAST(context),
                                CAST(function), {}, arity, {receiver, args...}));
   }
@@ -1239,7 +1241,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     int argc = JSParameterCount(static_cast<int>(sizeof...(args)));
     TNode<Int32T> arity = Int32Constant(argc);
     TNode<Object> receiver = LoadRoot(RootIndex::kUndefinedValue);
-    TNode<CodeT> target = HeapConstant(callable.code());
+    TNode<Code> target = HeapConstant(callable.code());
     return CallJSStubImpl(callable.descriptor(), target, CAST(context),
                           CAST(function), CAST(new_target), arity,
                           {receiver, args...});
@@ -1338,7 +1340,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                            std::initializer_list<TNode<Object>> args);
 
   void TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
-                        TNode<CodeT> target, TNode<Object> context,
+                        TNode<Code> target, TNode<Object> context,
                         std::initializer_list<Node*> args);
 
   void TailCallStubThenBytecodeDispatchImpl(

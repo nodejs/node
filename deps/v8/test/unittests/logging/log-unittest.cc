@@ -444,7 +444,10 @@ TEST_F(LogTest, Issue539892) {
     explicit FakeCodeEventLogger(i::Isolate* isolate)
         : CodeEventLogger(isolate) {}
 
-    void CodeMoveEvent(i::AbstractCode from, i::AbstractCode to) override {}
+    void CodeMoveEvent(i::InstructionStream from,
+                       i::InstructionStream to) override {}
+    void BytecodeMoveEvent(i::BytecodeArray from,
+                           i::BytecodeArray to) override {}
     void CodeDisableOptEvent(i::Handle<i::AbstractCode> code,
                              i::Handle<i::SharedFunctionInfo> shared) override {
     }
@@ -1214,7 +1217,7 @@ TEST_F(LogTest, BuiltinsNotLoggedAsLazyCompile) {
     logger.StopLogging();
 
     i::Isolate* i_isolate = logger.i_isolate();
-    i::Handle<i::CodeT> builtin = BUILTIN_CODE(i_isolate, BooleanConstructor);
+    i::Handle<i::Code> builtin = BUILTIN_CODE(i_isolate, BooleanConstructor);
     v8::base::EmbeddedVector<char, 100> buffer;
 
     // Should only be logged as "Builtin" with a name, never as "Function".

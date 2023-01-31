@@ -16,7 +16,6 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/optional.h"
-#include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
@@ -44,13 +43,11 @@
 #include "src/heap/cppgc/sweeper.h"
 #include "src/heap/cppgc/unmarker.h"
 #include "src/heap/cppgc/visitor.h"
-#include "src/heap/embedder-tracing-inl.h"
-#include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-tracer.h"
-#include "src/heap/global-handle-marking-visitor.h"
 #include "src/heap/heap.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/sweeper.h"
+#include "src/heap/traced-handles-marking-visitor.h"
 #include "src/init/v8.h"
 #include "src/profiler/heap-profiler.h"
 
@@ -98,64 +95,6 @@ class MinorGCHeapGrowing
 };
 
 }  // namespace internal
-
-namespace {
-
-START_ALLOW_USE_DEPRECATED()
-
-class V8ToCppGCReferencesVisitor final
-    : public v8::EmbedderHeapTracer::TracedGlobalHandleVisitor {
- public:
-  V8ToCppGCReferencesVisitor(
-      cppgc::internal::MutatorMarkingState& marking_state,
-      v8::internal::Isolate* isolate,
-      const v8::WrapperDescriptor& wrapper_descriptor)
-      : marking_state_(marking_state),
-        isolate_(isolate),
-        wrapper_descriptor_(wrapper_descriptor) {}
-
-  void VisitTracedReference(const v8::TracedReference<v8::Value>& value) final {
-    VisitHandle(value, value.WrapperClassId());
-  }
-
- private:
-  void VisitHandle(const v8::TracedReference<v8::Value>& value,
-                   uint16_t class_id) {
-    DCHECK(!value.IsEmpty());
-
-    const internal::JSObject js_object =
-        *reinterpret_cast<const internal::JSObject* const&>(value);
-    if (!js_object.ptr() || js_object.IsSmi() ||
-        !js_object.MayHaveEmbedderFields())
-      return;
-
-    internal::LocalEmbedderHeapTracer::WrapperInfo info;
-    if (!internal::LocalEmbedderHeapTracer::ExtractWrappableInfo(
-            isolate_, js_object, wrapper_descriptor_, &info))
-      return;
-
-    marking_state_.MarkAndPush(
-        cppgc::internal::HeapObjectHeader::FromObject(info.second));
-  }
-
-  cppgc::internal::MutatorMarkingState& marking_state_;
-  v8::internal::Isolate* isolate_;
-  const v8::WrapperDescriptor& wrapper_descriptor_;
-};
-
-END_ALLOW_USE_DEPRECATED()
-
-void TraceV8ToCppGCReferences(
-    v8::internal::Isolate* isolate,
-    cppgc::internal::MutatorMarkingState& marking_state,
-    const v8::WrapperDescriptor& wrapper_descriptor) {
-  DCHECK(isolate);
-  V8ToCppGCReferencesVisitor forwarding_visitor(marking_state, isolate,
-                                                wrapper_descriptor);
-  isolate->traced_handles()->Iterate(&forwarding_visitor);
-}
-
-}  // namespace
 
 // static
 constexpr uint16_t WrapperDescriptor::kUnknownEmbedderId;
@@ -279,12 +218,8 @@ class UnifiedHeapConcurrentMarker
 std::unique_ptr<cppgc::Visitor>
 UnifiedHeapConcurrentMarker::CreateConcurrentMarkingVisitor(
     cppgc::internal::ConcurrentMarkingState& marking_state) const {
-  if (collection_type_ == CppHeap::CollectionType::kMajor)
-    return std::make_unique<ConcurrentUnifiedHeapMarkingVisitor>(
-        heap(), v8_heap_, marking_state);
-  else
-    return std::make_unique<ConcurrentMinorGCMarkingVisitor>(heap(), v8_heap_,
-                                                             marking_state);
+  return std::make_unique<ConcurrentUnifiedHeapMarkingVisitor>(
+      heap(), v8_heap_, marking_state, collection_type_);
 }
 
 void FatalOutOfMemoryHandlerImpl(const std::string& reason,
@@ -307,22 +242,21 @@ class UnifiedHeapConservativeMarkingVisitor final
       : ConservativeMarkingVisitor(heap, mutator_marking_state, visitor) {}
   ~UnifiedHeapConservativeMarkingVisitor() override = default;
 
-  void SetGlobalHandlesMarkingVisitor(
-      std::unique_ptr<GlobalHandleMarkingVisitor>
+  void SetConservativeTracedHandlesMarkingVisitor(
+      std::unique_ptr<ConservativeTracedHandlesMarkingVisitor>
           global_handle_marking_visitor) {
-    global_handle_marking_visitor_ = std::move(global_handle_marking_visitor);
+    marking_visitor_ = std::move(global_handle_marking_visitor);
   }
 
   void TraceConservativelyIfNeeded(const void* address) override {
     ConservativeMarkingVisitor::TraceConservativelyIfNeeded(address);
-    if (global_handle_marking_visitor_) {
-      global_handle_marking_visitor_->VisitPointer(address);
+    if (marking_visitor_) {
+      marking_visitor_->VisitPointer(address);
     }
   }
 
  private:
-  std::unique_ptr<GlobalHandleMarkingVisitor> global_handle_marking_visitor_ =
-      nullptr;
+  std::unique_ptr<ConservativeTracedHandlesMarkingVisitor> marking_visitor_;
 };
 
 }  // namespace
@@ -371,14 +305,10 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
                                      cppgc::Platform* platform,
                                      cppgc::internal::MarkingConfig config)
     : cppgc::internal::MarkerBase(heap, platform, config),
-      mutator_unified_heap_marking_state_(v8_heap, nullptr),
-      marking_visitor_(config.collection_type == CppHeap::CollectionType::kMajor
-                           ? std::make_unique<MutatorUnifiedHeapMarkingVisitor>(
-                                 heap, mutator_marking_state_,
-                                 mutator_unified_heap_marking_state_)
-                           : std::make_unique<MutatorMinorGCMarkingVisitor>(
-                                 heap, mutator_marking_state_,
-                                 mutator_unified_heap_marking_state_)),
+      mutator_unified_heap_marking_state_(v8_heap, nullptr,
+                                          config.collection_type),
+      marking_visitor_(std::make_unique<MutatorUnifiedHeapMarkingVisitor>(
+          heap, mutator_marking_state_, mutator_unified_heap_marking_state_)),
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     *marking_visitor_) {
   concurrent_marker_ = std::make_unique<UnifiedHeapConcurrentMarker>(
@@ -534,6 +464,7 @@ CppHeap::CppHeap(
           marking_support, sweeping_support, *this),
       minor_gc_heap_growing_(
           std::make_unique<MinorGCHeapGrowing>(*stats_collector())),
+      cross_heap_remembered_set_(*this),
       wrapper_descriptor_(wrapper_descriptor) {
   CHECK_NE(WrapperDescriptor::kUnknownEmbedderId,
            wrapper_descriptor_.embedder_id_for_garbage_collected);
@@ -595,6 +526,7 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   CHECK(!in_detached_testing_mode_);
   CHECK_NULL(isolate_);
   isolate_ = isolate;
+  heap_ = isolate->heap();
   static_cast<CppgcPlatformAdapter*>(platform())
       ->SetIsolate(reinterpret_cast<v8::Isolate*>(isolate_));
   if (isolate_->heap_profiler()) {
@@ -603,7 +535,7 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   }
   SetMetricRecorder(std::make_unique<MetricRecorderAdapter>(*this));
   oom_handler().SetCustomHandler(&FatalOutOfMemoryHandlerImpl);
-  ReduceGCCapabilititesFromFlags();
+  ReduceGCCapabilitiesFromFlags();
   sweeping_on_mutator_thread_observer_ =
       std::make_unique<SweepingOnMutatorThreadForGlobalHandlesObserver>(
           *this, *isolate_->traced_handles());
@@ -615,8 +547,7 @@ void CppHeap::DetachIsolate() {
   // CHECK across all relevant embedders and setups.
   if (!isolate_) return;
 
-  // Delegate to existing EmbedderHeapTracer API to finish any ongoing garbage
-  // collection.
+  // Finish any ongoing garbage collection.
   if (isolate_->heap()->incremental_marking()->IsMarking()) {
     isolate_->heap()->FinalizeIncrementalMarkingAtomically(
         i::GarbageCollectionReason::kExternalFinalize);
@@ -632,6 +563,7 @@ void CppHeap::DetachIsolate() {
   }
   SetMetricRecorder(nullptr);
   isolate_ = nullptr;
+  heap_ = nullptr;
   // Any future garbage collections will ignore the V8->C++ references.
   oom_handler().SetCustomHandler(nullptr);
   // Enter no GC scope.
@@ -656,6 +588,8 @@ bool ShouldReduceMemory(CppHeap::GarbageCollectionFlags flags) {
   return IsMemoryReducingGC(flags) || IsForceGC(flags);
 }
 
+constexpr size_t kIncrementalMarkingCheckInterval = 128 * KB;
+
 }  // namespace
 
 CppHeap::MarkingType CppHeap::SelectMarkingType() const {
@@ -674,7 +608,7 @@ CppHeap::SweepingType CppHeap::SelectSweepingType() const {
   return sweeping_support();
 }
 
-void CppHeap::ReduceGCCapabilititesFromFlags() {
+void CppHeap::ReduceGCCapabilitiesFromFlags() {
   CHECK_IMPLIES(v8_flags.cppheap_concurrent_marking,
                 v8_flags.cppheap_incremental_marking);
   if (v8_flags.cppheap_concurrent_marking) {
@@ -694,6 +628,16 @@ void CppHeap::ReduceGCCapabilititesFromFlags() {
 
 void CppHeap::InitializeTracing(CollectionType collection_type,
                                 GarbageCollectionFlags gc_flags) {
+  DCHECK(!collection_type_);
+
+  if (collection_type == CollectionType::kMinor) {
+    if (!generational_gc_supported()) return;
+    // Notify GC tracer that CppGC started young GC cycle.
+    isolate_->heap()->tracer()->NotifyYoungCppGCRunning();
+  }
+
+  collection_type_ = collection_type;
+
   CHECK(!sweeper_.IsSweepingInProgress());
 
   // Check that previous cycle metrics for the same collection type have been
@@ -705,18 +649,24 @@ void CppHeap::InitializeTracing(CollectionType collection_type,
       DCHECK(!GetMetricRecorder()->YoungGCMetricsReportPending());
   }
 
-  DCHECK(!collection_type_);
-  collection_type_ = collection_type;
-
 #if defined(CPPGC_YOUNG_GENERATION)
   if (generational_gc_supported() &&
       *collection_type_ == CollectionType::kMajor) {
+    stats_collector()->NotifyUnmarkingStarted(*collection_type_);
     cppgc::internal::StatsCollector::EnabledScope stats_scope(
         stats_collector(), cppgc::internal::StatsCollector::kUnmark);
     cppgc::internal::SequentialUnmarker unmarker(raw_heap());
   }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
+  if (gc_flags == GarbageCollectionFlagValues::kNoFlags) {
+    if (heap()->is_current_gc_forced()) {
+      gc_flags |= CppHeap::GarbageCollectionFlagValues::kForced;
+    }
+    if (heap()->ShouldReduceMemory()) {
+      gc_flags |= CppHeap::GarbageCollectionFlagValues::kReduceMemory;
+    }
+  }
   current_gc_flags_ = gc_flags;
 
   const cppgc::internal::MarkingConfig marking_config{
@@ -738,7 +688,21 @@ void CppHeap::InitializeTracing(CollectionType collection_type,
       marking_config);
 }
 
+namespace {
+MarkingWorklists::Local* GetV8MarkingWorklists(
+    Isolate* isolate, cppgc::internal::CollectionType collection_type) {
+  auto* heap = isolate->heap();
+  if (collection_type == cppgc::internal::CollectionType::kMajor) {
+    return heap->mark_compact_collector()->local_marking_worklists();
+  } else {
+    return heap->minor_mark_compact_collector()->local_marking_worklists();
+  }
+}
+}  // namespace
+
 void CppHeap::StartTracing() {
+  CHECK(marking_done_);
+  if (!TracingInitialized()) return;
   if (isolate_) {
     // Reuse the same local worklist for the mutator marking state which results
     // in directly processing the objects by the JS logic. Also avoids
@@ -746,15 +710,14 @@ void CppHeap::StartTracing() {
     marker_.get()
         ->To<UnifiedHeapMarker>()
         .GetMutatorUnifiedHeapMarkingState()
-        .Update(isolate_->heap()
-                    ->mark_compact_collector()
-                    ->local_marking_worklists());
+        .Update(GetV8MarkingWorklists(isolate_, *collection_type_));
   }
   marker_->StartMarking();
   marking_done_ = false;
 }
 
 bool CppHeap::AdvanceTracing(double max_duration) {
+  if (!TracingInitialized()) return true;
   is_in_v8_marking_step_ = true;
   cppgc::internal::StatsCollector::EnabledScope stats_scope(
       stats_collector(),
@@ -778,32 +741,65 @@ bool CppHeap::AdvanceTracing(double max_duration) {
   return marking_done_;
 }
 
-bool CppHeap::IsTracingDone() { return marking_done_; }
+bool CppHeap::IsTracingDone() const {
+  return !TracingInitialized() || marking_done_;
+}
+
+bool CppHeap::ShouldFinalizeIncrementalMarking() const {
+  return !incremental_marking_supported() || IsTracingDone();
+}
 
 void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   CHECK(!in_disallow_gc_scope());
+  // Enter atomic pause even if tracing is not initialized. This is needed to
+  // make sure that we always enable young generation from the atomic pause.
   in_atomic_pause_ = true;
+  if (!TracingInitialized()) return;
   auto& marker = marker_.get()->To<UnifiedHeapMarker>();
   // Scan global handles conservatively in case we are attached to an Isolate.
   // TODO(1029379): Support global handle marking visitors with minor GC.
-  if (isolate_ && !generational_gc_supported()) {
+  if (isolate_) {
     auto& heap = *isolate()->heap();
-    marker.conservative_visitor().SetGlobalHandlesMarkingVisitor(
-        std::make_unique<GlobalHandleMarkingVisitor>(
-            heap, *heap.mark_compact_collector()->local_marking_worklists()));
+    marker.conservative_visitor().SetConservativeTracedHandlesMarkingVisitor(
+        std::make_unique<ConservativeTracedHandlesMarkingVisitor>(
+            heap, *GetV8MarkingWorklists(isolate_, *collection_type_),
+            *collection_type_));
   }
   marker.EnterAtomicPause(stack_state);
-  if (isolate_ && *collection_type_ == CollectionType::kMinor) {
-    // Visit V8 -> cppgc references.
-    TraceV8ToCppGCReferences(isolate_, marker.GetMutatorMarkingState(),
-                             wrapper_descriptor_);
-  }
   compactor_.CancelIfShouldNotCompact(MarkingType::kAtomic, stack_state);
 }
 
 bool CppHeap::FinishConcurrentMarkingIfNeeded() {
+  if (!TracingInitialized()) return true;
   return marker_->JoinConcurrentMarkingIfNeeded();
 }
+
+void CppHeap::WriteBarrier(JSObject js_object) {
+  DCHECK(js_object.MayHaveEmbedderFields());
+  DCHECK_NOT_NULL(isolate()->heap()->mark_compact_collector());
+  auto descriptor = wrapper_descriptor();
+  const EmbedderDataSlot type_slot(js_object, descriptor.wrappable_type_index);
+  const EmbedderDataSlot instance_slot(js_object,
+                                       descriptor.wrappable_instance_index);
+  isolate()
+      ->heap()
+      ->mark_compact_collector()
+      ->local_marking_worklists()
+      ->cpp_marking_state()
+      ->MarkAndPush(type_slot, instance_slot);
+}
+
+namespace {
+
+void RecordEmbedderSpeed(GCTracer* tracer, base::TimeDelta marking_time,
+                         size_t marked_bytes) {
+  constexpr auto kMinReportingTime = base::TimeDelta::FromMillisecondsD(0.5);
+  if (marking_time > kMinReportingTime) {
+    tracer->RecordEmbedderSpeed(marked_bytes, marking_time.InMillisecondsF());
+  }
+}
+
+}  // namespace
 
 void CppHeap::TraceEpilogue() {
   CHECK(in_atomic_pause_);
@@ -817,17 +813,25 @@ void CppHeap::TraceEpilogue() {
     EnableGenerationalGC();
   }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
+
+  if (!TracingInitialized()) {
+    in_atomic_pause_ = false;
+    return;
+  }
+
   {
     cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(*this);
     marker_->LeaveAtomicPause();
   }
   marker_.reset();
   if (isolate_) {
-    auto* tracer = isolate_->heap()->local_embedder_heap_tracer();
-    DCHECK_NOT_NULL(tracer);
-    tracer->UpdateRemoteStats(
-        stats_collector_->marked_bytes(),
-        stats_collector_->marking_time().InMillisecondsF());
+    used_size_ = stats_collector_->marked_bytes();
+    // Force a check next time increased memory is reported. This allows for
+    // setting limits close to actual heap sizes.
+    allocated_size_limit_for_check_ = 0;
+
+    RecordEmbedderSpeed(isolate_->heap()->tracer(),
+                        stats_collector_->marking_time(), used_size_);
   }
   // The allocated bytes counter in v8 was reset to the current marked bytes, so
   // any pending allocated bytes updates should be discarded.
@@ -835,7 +839,7 @@ void CppHeap::TraceEpilogue() {
   const size_t bytes_allocated_in_prefinalizers = ExecutePreFinalizers();
 #if CPPGC_VERIFY_HEAP
   UnifiedHeapMarkingVerifier verifier(*this, *collection_type_);
-  verifier.Run(stack_state_of_prev_gc(), stack_end_of_current_gc(),
+  verifier.Run(stack_state_of_prev_gc(),
                stats_collector()->marked_bytes_on_current_cycle() +
                    bytes_allocated_in_prefinalizers);
 #endif  // CPPGC_VERIFY_HEAP
@@ -843,6 +847,9 @@ void CppHeap::TraceEpilogue() {
 
 #if defined(CPPGC_YOUNG_GENERATION)
   ResetRememberedSet();
+  // We can reset the remembered set on each GC because surviving Oilpan objects
+  // are immediately considered old.
+  ResetCrossHeapRememberedSet();
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   {
@@ -874,35 +881,6 @@ void CppHeap::TraceEpilogue() {
   sweeper().NotifyDoneIfNeeded();
 }
 
-void CppHeap::RunMinorGCIfNeeded() {
-  if (!generational_gc_supported()) return;
-  if (in_no_gc_scope()) return;
-  // Minor GC does not support nesting in full GCs.
-  if (IsMarking()) return;
-  // Run only when the limit is reached.
-  if (!minor_gc_heap_growing_->LimitReached()) return;
-
-  DCHECK(!sweeper_.IsSweepingInProgress());
-
-  // Notify GC tracer that CppGC started young GC cycle.
-  isolate_->heap()->tracer()->NotifyYoungCppGCRunning();
-
-  SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
-
-  // Perform an atomic GC, with starting incremental/concurrent marking and
-  // immediately finalizing the garbage collection.
-  InitializeTracing(CollectionType::kMinor,
-                    GarbageCollectionFlagValues::kNoFlags);
-  StartTracing();
-  // TODO(chromium:1029379): Should be safe to run without stack.
-  EnterFinalPause(cppgc::EmbedderStackState::kMayContainHeapPointers);
-  CHECK(AdvanceTracing(std::numeric_limits<double>::infinity()));
-  if (FinishConcurrentMarkingIfNeeded()) {
-    CHECK(AdvanceTracing(std::numeric_limits<double>::infinity()));
-  }
-  TraceEpilogue();
-}
-
 void CppHeap::AllocatedObjectSizeIncreased(size_t bytes) {
   buffered_allocated_bytes_ += static_cast<int64_t>(bytes);
   ReportBufferedAllocationSizeIfPossible();
@@ -922,18 +900,38 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
     return;
   }
 
+  // We are in attached state.
+  DCHECK_NOT_NULL(isolate_);
+
   // The calls below may trigger full GCs that are synchronous and also execute
   // epilogue callbacks. Since such callbacks may allocate, the counter must
   // already be zeroed by that time.
   const int64_t bytes_to_report = buffered_allocated_bytes_;
   buffered_allocated_bytes_ = 0;
 
-  auto* const tracer = isolate_->heap()->local_embedder_heap_tracer();
-  DCHECK_NOT_NULL(tracer);
   if (bytes_to_report < 0) {
-    tracer->DecreaseAllocatedSize(static_cast<size_t>(-bytes_to_report));
+    DCHECK_GE(used_size_.load(std::memory_order_relaxed), bytes_to_report);
+    used_size_.fetch_sub(static_cast<size_t>(-bytes_to_report),
+                         std::memory_order_relaxed);
   } else {
-    tracer->IncreaseAllocatedSize(static_cast<size_t>(bytes_to_report));
+    used_size_.fetch_add(static_cast<size_t>(bytes_to_report),
+                         std::memory_order_relaxed);
+    allocated_size_ += bytes_to_report;
+
+    if (v8_flags.incremental_marking) {
+      if (allocated_size_ > allocated_size_limit_for_check_) {
+        Heap* heap = isolate_->heap();
+        heap->StartIncrementalMarkingIfAllocationLimitIsReached(
+            heap->GCFlagsForIncrementalMarking(),
+            kGCCallbackScheduleIdleGarbageCollection);
+        if (heap->AllocationLimitOvershotByLargeMargin()) {
+          heap->FinalizeIncrementalMarkingAtomically(
+              i::GarbageCollectionReason::kExternalFinalize);
+        }
+        allocated_size_limit_for_check_ =
+            allocated_size_ + kIncrementalMarkingCheckInterval;
+      }
+    }
   }
 }
 
@@ -944,7 +942,7 @@ void CppHeap::CollectGarbageForTesting(CollectionType collection_type,
   // Finish sweeping in case it is still running.
   sweeper().FinishIfRunning();
 
-  SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
+  stack()->SetMarkerToCurrentStackPosition();
 
   if (isolate_) {
     reinterpret_cast<v8::Isolate*>(isolate_)
@@ -1089,6 +1087,7 @@ void CppHeap::FinishSweepingIfRunning() {
 void CppHeap::FinishSweepingIfOutOfWork() { sweeper_.FinishIfOutOfWork(); }
 
 std::unique_ptr<CppMarkingState> CppHeap::CreateCppMarkingState() {
+  if (!TracingInitialized()) return {};
   DCHECK(IsMarking());
   return std::make_unique<CppMarkingState>(
       isolate(), wrapper_descriptor_,
@@ -1098,6 +1097,7 @@ std::unique_ptr<CppMarkingState> CppHeap::CreateCppMarkingState() {
 
 std::unique_ptr<CppMarkingState>
 CppHeap::CreateCppMarkingStateForMutatorThread() {
+  if (!TracingInitialized()) return {};
   DCHECK(IsMarking());
   return std::make_unique<CppMarkingState>(
       isolate(), wrapper_descriptor_,
@@ -1131,7 +1131,21 @@ const cppgc::EmbedderStackState* CppHeap::override_stack_state() const {
 void CppHeap::StartIncrementalGarbageCollection(cppgc::internal::GCConfig) {
   UNIMPLEMENTED();
 }
+
 size_t CppHeap::epoch() const { UNIMPLEMENTED(); }
+
+void CppHeap::ResetCrossHeapRememberedSet() {
+  if (!generational_gc_supported()) {
+    DCHECK(cross_heap_remembered_set_.IsEmpty());
+    return;
+  }
+  DCHECK(isolate_);
+  cross_heap_remembered_set_.Reset(*isolate_);
+}
+
+void CppHeap::ReduceGCCapabilitiesFromFlagsForTesting() {
+  ReduceGCCapabilitiesFromFlags();
+}
 
 }  // namespace internal
 }  // namespace v8

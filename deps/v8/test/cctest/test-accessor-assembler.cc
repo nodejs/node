@@ -23,7 +23,7 @@ namespace {
 void TestStubCacheOffsetCalculation(StubCache::Table table) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;
-  CodeAssemblerTester data(isolate, kNumParams + 1);  // Include receiver.
+  CodeAssemblerTester data(isolate, JSParameterCount(kNumParams));
   AccessorAssembler m(data.state());
 
   {
@@ -59,16 +59,11 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
   };
 
   Handle<Map> maps[] = {
-      factory->cell_map(),
-      Map::Create(isolate, 0),
-      factory->meta_map(),
-      factory->code_map(),
-      Map::Create(isolate, 0),
-      factory->hash_table_map(),
-      factory->symbol_map(),
-      factory->string_map(),
-      Map::Create(isolate, 0),
-      factory->sloppy_arguments_elements_map(),
+      factory->cell_map(),     Map::Create(isolate, 0),
+      factory->meta_map(),     factory->instruction_stream_map(),
+      Map::Create(isolate, 0), factory->hash_table_map(),
+      factory->symbol_map(),   factory->string_map(),
+      Map::Create(isolate, 0), factory->sloppy_arguments_elements_map(),
   };
 
   for (size_t name_index = 0; name_index < arraysize(names); name_index++) {
@@ -119,7 +114,7 @@ TEST(TryProbeStubCache) {
   using Label = CodeStubAssembler::Label;
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 3;
-  CodeAssemblerTester data(isolate, kNumParams + 1);  // Include receiver.
+  CodeAssemblerTester data(isolate, JSParameterCount(kNumParams));
   AccessorAssembler m(data.state());
 
   StubCache stub_cache(isolate);
@@ -215,8 +210,7 @@ TEST(TryProbeStubCache) {
     Handle<Name> name = names[index % names.size()];
     Handle<JSObject> receiver = receivers[index % receivers.size()];
     Handle<Code> handler = handlers[index % handlers.size()];
-    stub_cache.Set(*name, receiver->map(),
-                   MaybeObject::FromObject(ToCodeT(*handler)));
+    stub_cache.Set(*name, receiver->map(), MaybeObject::FromObject(*handler));
   }
 
   // Perform some queries.

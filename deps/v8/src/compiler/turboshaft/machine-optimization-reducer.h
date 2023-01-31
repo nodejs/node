@@ -20,8 +20,10 @@
 #include "src/base/overflowing-math.h"
 #include "src/base/template-utils.h"
 #include "src/base/vector.h"
+#include "src/builtins/builtins.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction.h"
+#include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -43,10 +45,23 @@ using MachineOptimizationReducerSignallingNanImpossible =
 // operations that can be performed on-the-fly, without requiring type analysis
 // or analyzing uses. It largely corresponds to MachineOperatorReducer in
 // sea-of-nodes Turbofan.
+//
+// Additional optimizations include some of the control-flow reductions that
+// were previously done in CommonOperatorReducer, including:
+//    1- Reducing Phis, whose all inputs are the same, replace
+//      them with their input.
+
 template <bool signalling_nan_possible, class Next>
 class MachineOptimizationReducer : public Next {
  public:
   using Next::Asm;
+
+  template <class... Args>
+  explicit MachineOptimizationReducer(const std::tuple<Args...>& args)
+      : Next(args) {}
+
+  // TODO(mslekova): Implement ReduceSelect and ReducePhi,
+  // by reducing `(f > 0) ? f : -f` to `fabs(f)`.
 
   OpIndex ReduceChange(OpIndex input, ChangeOp::Kind kind,
                        ChangeOp::Assumption assumption,
@@ -236,9 +251,9 @@ class MachineOptimizationReducer : public Next {
         case FloatUnaryOp::Kind::kExpm1:
           return Asm().Float32Constant(base::ieee754::expm1(k));
         case FloatUnaryOp::Kind::kSin:
-          return Asm().Float32Constant(base::ieee754::sin(k));
+          return Asm().Float32Constant(SIN_IMPL(k));
         case FloatUnaryOp::Kind::kCos:
-          return Asm().Float32Constant(base::ieee754::cos(k));
+          return Asm().Float32Constant(COS_IMPL(k));
         case FloatUnaryOp::Kind::kSinh:
           return Asm().Float32Constant(base::ieee754::sinh(k));
         case FloatUnaryOp::Kind::kCosh:
@@ -300,9 +315,9 @@ class MachineOptimizationReducer : public Next {
         case FloatUnaryOp::Kind::kExpm1:
           return Asm().Float64Constant(base::ieee754::expm1(k));
         case FloatUnaryOp::Kind::kSin:
-          return Asm().Float64Constant(base::ieee754::sin(k));
+          return Asm().Float64Constant(SIN_IMPL(k));
         case FloatUnaryOp::Kind::kCos:
-          return Asm().Float64Constant(base::ieee754::cos(k));
+          return Asm().Float64Constant(COS_IMPL(k));
         case FloatUnaryOp::Kind::kSinh:
           return Asm().Float64Constant(base::ieee754::sinh(k));
         case FloatUnaryOp::Kind::kCosh:
@@ -528,13 +543,12 @@ class MachineOptimizationReducer : public Next {
         if (Asm().MatchFloat(rhs, 0.5)) {
           // lhs ** 0.5  ==>  sqrt(lhs)
           // (unless if lhs is -infinity)
-          Block* if_neg_infinity = Asm().NewBlock(Block::Kind::kBranchTarget);
-          if_neg_infinity->SetDeferred(true);
-          Block* otherwise = Asm().NewBlock(Block::Kind::kBranchTarget);
-          Block* merge = Asm().NewBlock(Block::Kind::kMerge);
+          Block* if_neg_infinity = Asm().NewBlock();
+          Block* otherwise = Asm().NewBlock();
+          Block* merge = Asm().NewBlock();
           Asm().Branch(Asm().FloatLessThanOrEqual(
                            lhs, Asm().FloatConstant(-V8_INFINITY, rep), rep),
-                       if_neg_infinity, otherwise);
+                       if_neg_infinity, otherwise, BranchHint::kFalse);
 
           // TODO(dmercadier,tebbi): once the VariableAssembler has landed, and
           // use only one AutoVariable both both {infty} and {sqrt} to avoid the
@@ -964,13 +978,6 @@ class MachineOptimizationReducer : public Next {
     }
   }
 
-  OpIndex ReduceProjection(OpIndex tuple, uint16_t index) {
-    if (auto* tuple_op = Asm().template TryCast<TupleOp>(tuple)) {
-      return tuple_op->input(index);
-    }
-    return Next::ReduceProjection(tuple, index);
-  }
-
   OpIndex ReduceOverflowCheckedBinop(OpIndex left, OpIndex right,
                                      OverflowCheckedBinopOp::Kind kind,
                                      WordRepresentation rep) {
@@ -1018,7 +1025,8 @@ class MachineOptimizationReducer : public Next {
             overflow = base::bits::SignedAddOverflow64(k1, k2, &res);
             break;
           case OverflowCheckedBinopOp::Kind::kSignedMul:
-            UNREACHABLE();
+            overflow = base::bits::SignedMulOverflow64(k1, k2, &res);
+            break;
           case OverflowCheckedBinopOp::Kind::kSignedSub:
             overflow = base::bits::SignedSubOverflow64(k1, k2, &res);
             break;
@@ -1146,6 +1154,19 @@ class MachineOptimizationReducer : public Next {
             return Asm().Equal(
                 x, Asm().WordConstant(base::bits::Unsigned(k2) << k1, rep_w),
                 rep_w);
+          }
+        }
+        // Map 64bit to 32bit equals.
+        if (rep_w == WordRepresentation::Word64()) {
+          base::Optional<bool> left_sign_extended;
+          base::Optional<bool> right_sign_extended;
+          if (IsWord32ConvertedToWord64(left, &left_sign_extended) &&
+              IsWord32ConvertedToWord64(right, &right_sign_extended)) {
+            if (left_sign_extended == right_sign_extended) {
+              return Asm().Equal(UndoWord32ToWord64Conversion(left),
+                                 UndoWord32ToWord64Conversion(right),
+                                 WordRepresentation::Word32());
+            }
           }
         }
       }
@@ -1483,9 +1504,10 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceShift(left, right, kind, rep);
   }
 
-  OpIndex ReduceBranch(OpIndex condition, Block* if_true, Block* if_false) {
+  OpIndex ReduceBranch(OpIndex condition, Block* if_true, Block* if_false,
+                       BranchHint hint) {
     if (ShouldSkipOptimizationStep()) {
-      return Next::ReduceBranch(condition, if_true, if_false);
+      return Next::ReduceBranch(condition, if_true, if_false, hint);
     }
     if (base::Optional<bool> decision = DecideBranchCondition(condition)) {
       Asm().Goto(*decision ? if_true : if_false);
@@ -1494,10 +1516,14 @@ class MachineOptimizationReducer : public Next {
     bool negated = false;
     if (base::Optional<OpIndex> new_condition =
             ReduceBranchCondition(condition, &negated)) {
-      if (negated) std::swap(if_true, if_false);
-      return Asm().ReduceBranch(new_condition.value(), if_true, if_false);
+      if (negated) {
+        std::swap(if_true, if_false);
+        hint = NegateBranchHint(hint);
+      }
+
+      return Asm().ReduceBranch(new_condition.value(), if_true, if_false, hint);
     } else {
-      return Next::ReduceBranch(condition, if_true, if_false);
+      return Next::ReduceBranch(condition, if_true, if_false, hint);
     }
   }
 
@@ -1523,6 +1549,62 @@ class MachineOptimizationReducer : public Next {
       return Next::ReduceDeoptimizeIf(condition, frame_state, negated,
                                       parameters);
     }
+  }
+
+  OpIndex ReduceTrapIf(OpIndex condition, bool negated, TrapId trap_id) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceTrapIf(condition, negated, trap_id);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+    if (base::Optional<bool> decision = DecideBranchCondition(condition)) {
+      if (*decision != negated) {
+        Next::ReduceTrapIf(condition, negated, trap_id);
+        Asm().Unreachable();
+      }
+      // `TrapIf` doesn't produce a value.
+      return OpIndex::Invalid();
+    }
+    if (base::Optional<OpIndex> new_condition =
+            ReduceBranchCondition(condition, &negated)) {
+      return Asm().ReduceTrapIf(new_condition.value(), negated, trap_id);
+    } else {
+      goto no_change;
+    }
+  }
+
+  OpIndex ReduceStaticAssert(OpIndex condition, const char* source) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceStaticAssert(condition, source);
+    }
+    if (base::Optional<bool> decision = DecideBranchCondition(condition)) {
+      if (decision) {
+        // Drop the assert, the condition holds true.
+        return OpIndex::Invalid();
+      } else {
+        // Leave the assert, as the condition is not true.
+        goto no_change;
+      }
+    }
+    goto no_change;
+  }
+
+  OpIndex ReduceSwitch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
+                       Block* default_case, BranchHint default_hint) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceSwitch(input, cases, default_case, default_hint);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+    if (int32_t value; Asm().MatchWord32Constant(input, &value)) {
+      for (const SwitchOp::Case& if_value : cases) {
+        if (if_value.value == value) {
+          Asm().Goto(if_value.destination);
+          return OpIndex::Invalid();
+        }
+      }
+      Asm().Goto(default_case);
+      return OpIndex::Invalid();
+    }
+    goto no_change;
   }
 
   OpIndex ReduceStore(OpIndex base, OpIndex index, OpIndex value,
@@ -1583,6 +1665,17 @@ class MachineOptimizationReducer : public Next {
                             element_scale);
   }
 
+  OpIndex ReducePhi(base::Vector<const OpIndex> inputs,
+                    RegisterRepresentation rep) {
+    LABEL_BLOCK(no_change) { return Next::ReducePhi(inputs, rep); }
+    if (inputs.size() == 0) goto no_change;
+    OpIndex first = inputs.first();
+    for (const OpIndex& input : inputs) {
+      if (input != first) goto no_change;
+    }
+    return first;
+  }
+
  private:
   // Try to match a constant and add it to `offset`. Return `true` if
   // successful.
@@ -1590,7 +1683,7 @@ class MachineOptimizationReducer : public Next {
                        uint8_t element_scale) {
     if (!maybe_constant.Is<ConstantOp>()) return false;
     const ConstantOp& constant = maybe_constant.Cast<ConstantOp>();
-    if (constant.Representation() != WordRepresentation::PointerSized()) {
+    if (constant.rep != WordRepresentation::PointerSized()) {
       // This can only happen in unreachable code. Ideally, we identify this
       // situation and use `Asm().Unreachable()`. However, this is difficult to
       // do from within this helper, so we just don't perform the reduction.
@@ -1851,7 +1944,7 @@ class MachineOptimizationReducer : public Next {
             Asm().ShiftRightArithmetic(quotient, rep.bit_width() - 1, rep);
       }
       quotient =
-          Asm().ShiftRightArithmetic(quotient, rep.bit_width() - shift, rep);
+          Asm().ShiftRightLogical(quotient, rep.bit_width() - shift, rep);
       quotient = Asm().WordAdd(quotient, left, rep);
       quotient = Asm().ShiftRightArithmetic(quotient, shift, rep);
       return quotient;

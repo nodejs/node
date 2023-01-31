@@ -92,7 +92,8 @@ class SimCommand(gdb.Command):
     super (SimCommand, self).__init__ ("sim", gdb.COMMAND_SUPPORT)
 
   def invoke (self, arg, from_tty):
-    arg_c_string = gdb.Value(arg)
+    arg_bytes = arg.encode("utf-8") + b'\0'
+    arg_c_string = gdb.Value(arg_bytes, gdb.lookup_type('char').array(len(arg_bytes) - 1))
     cmd_func = gdb.selected_frame().read_var("_v8_internal_Simulator_ExecDebugCommand")
     cmd_func(arg_c_string)
 
@@ -180,7 +181,7 @@ def v8_stop_handler(event):
   count = 0
   # Limit stack scanning since the frames we look for are near the top anyway,
   # and otherwise stack overflows can be very slow.
-  while frame is not None and count < 7:
+  while frame is not None and count < 10:
     count += 1
     # If we are in a frame created by gdb (e.g. for `(gdb) call foo()`), gdb
     # emits a dummy frame between its stack and the program's stack. Abort the

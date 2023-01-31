@@ -39,6 +39,12 @@ class WasmGCLowering final : public AdvancedReducer {
   Reduction ReduceTypeGuard(Node* node);
   Reduction ReduceWasmExternInternalize(Node* node);
   Reduction ReduceWasmExternExternalize(Node* node);
+  Reduction ReduceWasmStructGet(Node* node);
+  Reduction ReduceWasmStructSet(Node* node);
+  Reduction ReduceWasmArrayGet(Node* node);
+  Reduction ReduceWasmArraySet(Node* node);
+  Reduction ReduceWasmArrayLength(Node* node);
+  Reduction ReduceWasmArrayInitializeLength(Node* node);
   Node* RootNode(RootIndex index);
   Node* Null();
   Node* IsNull(Node* object);

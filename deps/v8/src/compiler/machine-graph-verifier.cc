@@ -9,6 +9,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
 #include "src/zone/zone.h"
@@ -39,52 +40,6 @@ class MachineRepresentationInferrer {
   }
 
  private:
-  MachineRepresentation GetProjectionType(Node const* projection) {
-    size_t index = ProjectionIndexOf(projection->op());
-    Node* input = projection->InputAt(0);
-    switch (input->opcode()) {
-      case IrOpcode::kInt32AddWithOverflow:
-      case IrOpcode::kInt32SubWithOverflow:
-      case IrOpcode::kInt32MulWithOverflow:
-        CHECK_LE(index, static_cast<size_t>(1));
-        return index == 0 ? MachineRepresentation::kWord32
-                          : MachineRepresentation::kBit;
-      case IrOpcode::kInt64AddWithOverflow:
-      case IrOpcode::kInt64SubWithOverflow:
-      case IrOpcode::kInt64MulWithOverflow:
-        CHECK_LE(index, static_cast<size_t>(1));
-        return index == 0 ? MachineRepresentation::kWord64
-                          : MachineRepresentation::kBit;
-      case IrOpcode::kTryTruncateFloat64ToInt32:
-      case IrOpcode::kTryTruncateFloat64ToUint32:
-        CHECK_LE(index, static_cast<size_t>(1));
-        return index == 0 ? MachineRepresentation::kWord32
-                          : MachineRepresentation::kBit;
-      case IrOpcode::kTryTruncateFloat32ToInt64:
-      case IrOpcode::kTryTruncateFloat64ToInt64:
-      case IrOpcode::kTryTruncateFloat32ToUint64:
-        CHECK_LE(index, static_cast<size_t>(1));
-        return index == 0 ? MachineRepresentation::kWord64
-                          : MachineRepresentation::kBit;
-      case IrOpcode::kCall: {
-        auto call_descriptor = CallDescriptorOf(input->op());
-        return call_descriptor->GetReturnType(index).representation();
-      }
-      case IrOpcode::kWord32AtomicPairLoad:
-      case IrOpcode::kWord32AtomicPairAdd:
-      case IrOpcode::kWord32AtomicPairSub:
-      case IrOpcode::kWord32AtomicPairAnd:
-      case IrOpcode::kWord32AtomicPairOr:
-      case IrOpcode::kWord32AtomicPairXor:
-      case IrOpcode::kWord32AtomicPairExchange:
-      case IrOpcode::kWord32AtomicPairCompareExchange:
-        CHECK_LE(index, static_cast<size_t>(1));
-        return MachineRepresentation::kWord32;
-      default:
-        return MachineRepresentation::kNone;
-    }
-  }
-
   MachineRepresentation PromoteRepresentation(MachineRepresentation rep) {
     switch (rep) {
       case MachineRepresentation::kWord8:
@@ -124,7 +79,8 @@ class MachineRepresentationInferrer {
             break;
           }
           case IrOpcode::kProjection: {
-            representation_vector_[node->id()] = GetProjectionType(node);
+            representation_vector_[node->id()] =
+                NodeProperties::GetProjectionType(node);
           } break;
           case IrOpcode::kTypedStateValues:
             representation_vector_[node->id()] = MachineRepresentation::kNone;

@@ -17,7 +17,6 @@
 #include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/base/stack.h"
-#include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap-write-barrier.h"

@@ -127,5 +127,21 @@ int64_t SysInfo::AmountOfVirtualMemory() {
 #endif
 }
 
+// static
+uintptr_t SysInfo::AddressSpaceEnd() {
+#if V8_OS_WIN
+  SYSTEM_INFO info;
+  GetSystemInfo(&info);
+  uintptr_t max_address =
+      reinterpret_cast<uintptr_t>(info.lpMaximumApplicationAddress);
+  return max_address + 1;
+#else
+  // We don't query POSIX rlimits here (e.g. RLIMIT_AS) as they limit the size
+  // of memory mappings, but not the address space (e.g. even with a small
+  // RLIMIT_AS, a process can still map pages at high addresses).
+  return std::numeric_limits<uintptr_t>::max();
+#endif
+}
+
 }  // namespace base
 }  // namespace v8

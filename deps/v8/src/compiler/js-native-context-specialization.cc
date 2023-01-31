@@ -13,6 +13,7 @@
 #include "src/compiler/access-info.h"
 #include "src/compiler/allocation-builder-inl.h"
 #include "src/compiler/allocation-builder.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/frame-states.h"
 #include "src/compiler/graph-assembler.h"
@@ -1514,9 +1515,10 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     for (const MapRef& map : inferred_maps) {
       if (map.is_deprecated()) continue;
 
-      // TODO(v8:12547): Support writing to shared structs, which needs a write
-      // barrier that calls Object::Share to ensure the RHS is shared.
-      if (InstanceTypeChecker::IsJSSharedStruct(map.instance_type()) &&
+      // TODO(v8:12547): Support writing to objects in shared space, which need
+      // a write barrier that calls Object::Share to ensure the RHS is shared.
+      if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
+              map.instance_type()) &&
           access_mode == AccessMode::kStore) {
         return NoChange();
       }
@@ -1744,6 +1746,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         // trimming.
         return NoChange();
       }
+
       values.push_back(continuation->value());
       effects.push_back(continuation->effect());
       controls.push_back(continuation->control());
@@ -2176,9 +2179,10 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
           return NoChange();
         }
 
-        // TODO(v8:12547): Support writing to shared structs, which needs a
-        // write barrier that calls Object::Share to ensure the RHS is shared.
-        if (InstanceTypeChecker::IsJSSharedStruct(
+        // TODO(v8:12547): Support writing to objects in shared space, which
+        // need a write barrier that calls Object::Share to ensure the RHS is
+        // shared.
+        if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(
                 receiver_map.instance_type())) {
           return NoChange();
         }
@@ -2897,9 +2901,14 @@ JSNativeContextSpecialization::BuildPropertyStore(
               AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer()),
           storage, effect, control);
     }
-    bool store_to_existing_constant_field = access_info.IsFastDataConstant() &&
-                                            access_mode == AccessMode::kStore &&
-                                            !access_info.HasTransitionMap();
+    if (access_info.IsFastDataConstant() && access_mode == AccessMode::kStore &&
+        !access_info.HasTransitionMap()) {
+      Node* deoptimize = graph()->NewNode(
+          simplified()->CheckIf(DeoptimizeReason::kStoreToConstant),
+          jsgraph()->FalseConstant(), effect, control);
+      return ValueEffectControl(jsgraph()->UndefinedConstant(), deoptimize,
+                                control);
+    }
     FieldAccess field_access = {
         kTaggedBase,
         field_index.offset(),
@@ -2952,40 +2961,11 @@ JSNativeContextSpecialization::BuildPropertyStore(
           field_access.name = MaybeHandle<Name>();
           field_access.machine_type = MachineType::Float64();
         }
-        if (store_to_existing_constant_field) {
-          DCHECK(!access_info.HasTransitionMap());
-          // If the field is constant check that the value we are going
-          // to store matches current value.
-          Node* current_value = effect = graph()->NewNode(
-              simplified()->LoadField(field_access), storage, effect, control);
-
-          Node* check =
-              graph()->NewNode(simplified()->SameValue(), current_value, value);
-          effect = graph()->NewNode(
-              simplified()->CheckIf(DeoptimizeReason::kWrongValue), check,
-              effect, control);
-          return ValueEffectControl(value, effect, control);
-        }
         break;
       }
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTagged:
-        if (store_to_existing_constant_field) {
-          DCHECK(!access_info.HasTransitionMap());
-          // If the field is constant check that the value we are going
-          // to store matches current value.
-          Node* current_value = effect = graph()->NewNode(
-              simplified()->LoadField(field_access), storage, effect, control);
-
-          Node* check = graph()->NewNode(simplified()->SameValueNumbersOnly(),
-                                         current_value, value);
-          effect = graph()->NewNode(
-              simplified()->CheckIf(DeoptimizeReason::kWrongValue), check,
-              effect, control);
-          return ValueEffectControl(value, effect, control);
-        }
-
         if (field_representation == MachineRepresentation::kTaggedSigned) {
           value = effect = graph()->NewNode(
               simplified()->CheckSmi(FeedbackSource()), value, effect, control);
@@ -3145,347 +3125,519 @@ JSNativeContextSpecialization::BuildElementAccess(
 
   if (IsTypedArrayElementsKind(elements_kind) ||
       IsRabGsabTypedArrayElementsKind(elements_kind)) {
-    Node* buffer_or_receiver = receiver;
-    Node* length;
-    Node* base_pointer;
-    Node* external_pointer;
+    return BuildElementAccessForTypedArrayOrRabGsabTypedArray(
+        receiver, index, value, effect, control, context, elements_kind,
+        keyed_mode);
+  }
 
-    // Check if we can constant-fold information about the {receiver} (e.g.
-    // for asm.js-like code patterns).
-    base::Optional<JSTypedArrayRef> typed_array =
-        GetTypedArrayConstant(broker(), receiver);
-    if (typed_array.has_value() &&
-        !IsRabGsabTypedArrayElementsKind(elements_kind)) {
-      // TODO(v8:11111): Add support for rab/gsab here.
-      length = jsgraph()->Constant(static_cast<double>(typed_array->length()));
+  // Load the elements for the {receiver}.
+  Node* elements = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
+      effect, control);
 
-      DCHECK(!typed_array->is_on_heap());
-      // Load the (known) data pointer for the {receiver} and set {base_pointer}
-      // and {external_pointer} to the values that will allow to generate typed
-      // element accesses using the known data pointer.
-      // The data pointer might be invalid if the {buffer} was detached,
-      // so we need to make sure that any access is properly guarded.
-      base_pointer = jsgraph()->ZeroConstant();
-      external_pointer = jsgraph()->PointerConstant(typed_array->data_ptr());
-    } else {
-      // Load the {receiver}s length.
-      JSGraphAssembler assembler(jsgraph_, zone(), BranchSemantics::kJS,
-                                 [this](Node* n) { this->Revisit(n); });
-      assembler.InitializeEffectControl(effect, control);
-      length = assembler.TypedArrayLength(
-          TNode<JSTypedArray>::UncheckedCast(receiver), {elements_kind},
-          TNode<Context>::UncheckedCast(context));
-      std::tie(effect, control) =
-          ReleaseEffectAndControlFromAssembler(&assembler);
+  // Don't try to store to a copy-on-write backing store (unless supported by
+  // the store mode).
+  if (IsAnyStore(keyed_mode.access_mode()) &&
+      IsSmiOrObjectElementsKind(elements_kind) &&
+      !IsCOWHandlingStoreMode(keyed_mode.store_mode())) {
+    effect =
+        graph()->NewNode(simplified()->CheckMaps(
+                             CheckMapsFlag::kNone,
+                             ZoneHandleSet<Map>(factory()->fixed_array_map())),
+                         elements, effect, control);
+  }
 
-      // Load the base pointer for the {receiver}. This will always be Smi
-      // zero unless we allow on-heap TypedArrays, which is only the case
-      // for Chrome. Node and Electron both set this limit to 0. Setting
-      // the base to Smi zero here allows the EffectControlLinearizer to
-      // optimize away the tricky part of the access later.
-      if (JSTypedArray::kMaxSizeInHeap == 0) {
-        base_pointer = jsgraph()->ZeroConstant();
-      } else {
-        base_pointer = effect =
-            graph()->NewNode(simplified()->LoadField(
-                                 AccessBuilder::ForJSTypedArrayBasePointer()),
-                             receiver, effect, control);
-      }
+  // Check if the {receiver} is a JSArray.
+  bool receiver_is_jsarray = HasOnlyJSArrayMaps(broker(), receiver_maps);
 
-      // Load the external pointer for the {receiver}.
-      external_pointer = effect =
-          graph()->NewNode(simplified()->LoadField(
-                               AccessBuilder::ForJSTypedArrayExternalPointer()),
-                           receiver, effect, control);
-    }
+  // Load the length of the {receiver}.
+  Node* length = effect =
+      receiver_is_jsarray
+          ? graph()->NewNode(
+                simplified()->LoadField(
+                    AccessBuilder::ForJSArrayLength(elements_kind)),
+                receiver, effect, control)
+          : graph()->NewNode(
+                simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
+                elements, effect, control);
 
-    // See if we can skip the detaching check.
-    if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
-      // Load the buffer for the {receiver}.
-      Node* buffer =
-          typed_array.has_value()
-              ? jsgraph()->Constant(typed_array->buffer())
-              : (effect = graph()->NewNode(
-                     simplified()->LoadField(
-                         AccessBuilder::ForJSArrayBufferViewBuffer()),
-                     receiver, effect, control));
-
-      // Deopt if the {buffer} was detached.
-      // Note: A detached buffer leads to megamorphic feedback.
-      Node* buffer_bit_field = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
-          buffer, effect, control);
-      Node* check = graph()->NewNode(
-          simplified()->NumberEqual(),
-          graph()->NewNode(
-              simplified()->NumberBitwiseAnd(), buffer_bit_field,
-              jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
-          jsgraph()->ZeroConstant());
-      effect = graph()->NewNode(
-          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached),
-          check, effect, control);
-
-      // Retain the {buffer} instead of {receiver} to reduce live ranges.
-      buffer_or_receiver = buffer;
-    }
-
-    enum Situation { kBoundsCheckDone, kHandleOOB_SmiCheckDone };
-    Situation situation;
-    if ((keyed_mode.IsLoad() &&
-         keyed_mode.load_mode() == LOAD_IGNORE_OUT_OF_BOUNDS) ||
-        (keyed_mode.IsStore() &&
-         keyed_mode.store_mode() == STORE_IGNORE_OUT_OF_BOUNDS)) {
-      // Only check that the {index} is in SignedSmall range. We do the actual
-      // bounds check below and just skip the property access if it's out of
-      // bounds for the {receiver}.
-      index = effect = graph()->NewNode(
-          simplified()->CheckSmi(FeedbackSource()), index, effect, control);
-
-      // Cast the {index} to Unsigned32 range, so that the bounds checks
-      // below are performed on unsigned values, which means that all the
-      // Negative32 values are treated as out-of-bounds.
-      index = graph()->NewNode(simplified()->NumberToUint32(), index);
-      situation = kHandleOOB_SmiCheckDone;
-    } else {
-      // Check that the {index} is in the valid range for the {receiver}.
-      index = effect = graph()->NewNode(
-          simplified()->CheckBounds(
-              FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero),
-          index, length, effect, control);
-      situation = kBoundsCheckDone;
-    }
-
-    // Access the actual element.
-    ExternalArrayType external_array_type =
-        GetArrayTypeFromElementsKind(elements_kind);
-    switch (keyed_mode.access_mode()) {
-      case AccessMode::kLoad: {
-        // Check if we can return undefined for out-of-bounds loads.
-        if (situation == kHandleOOB_SmiCheckDone) {
-          Node* check =
-              graph()->NewNode(simplified()->NumberLessThan(), index, length);
-          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                          check, control);
-
-          Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-          Node* etrue = effect;
-          Node* vtrue;
-          {
-            // Do a real bounds check against {length}. This is in order to
-            // protect against a potential typer bug leading to the elimination
-            // of the NumberLessThan above.
-            index = etrue = graph()->NewNode(
-                simplified()->CheckBounds(
-                    FeedbackSource(),
-                    CheckBoundsFlag::kConvertStringAndMinusZero |
-                        CheckBoundsFlag::kAbortOnOutOfBounds),
-                index, length, etrue, if_true);
-
-            // Perform the actual load
-            vtrue = etrue = graph()->NewNode(
-                simplified()->LoadTypedElement(external_array_type),
-                buffer_or_receiver, base_pointer, external_pointer, index,
-                etrue, if_true);
-          }
-
-          Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-          Node* efalse = effect;
-          Node* vfalse;
-          {
-            // Materialize undefined for out-of-bounds loads.
-            vfalse = jsgraph()->UndefinedConstant();
-          }
-
-          control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-          effect =
-              graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-          value =
-              graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                               vtrue, vfalse, control);
-        } else {
-          // Perform the actual load.
-          DCHECK_EQ(kBoundsCheckDone, situation);
-          value = effect = graph()->NewNode(
-              simplified()->LoadTypedElement(external_array_type),
-              buffer_or_receiver, base_pointer, external_pointer, index, effect,
-              control);
-        }
-        break;
-      }
-      case AccessMode::kStoreInLiteral:
-      case AccessMode::kDefine:
-        UNREACHABLE();
-      case AccessMode::kStore: {
-        // Ensure that the {value} is actually a Number or an Oddball,
-        // and truncate it to a Number appropriately.
-        value = effect = graph()->NewNode(
-            simplified()->SpeculativeToNumber(
-                NumberOperationHint::kNumberOrOddball, FeedbackSource()),
-            value, effect, control);
-
-        // Introduce the appropriate truncation for {value}. Currently we
-        // only need to do this for ClamedUint8Array {receiver}s, as the
-        // other truncations are implicit in the StoreTypedElement, but we
-        // might want to change that at some point.
-        if (external_array_type == kExternalUint8ClampedArray) {
-          value = graph()->NewNode(simplified()->NumberToUint8Clamped(), value);
-        }
-
-        if (situation == kHandleOOB_SmiCheckDone) {
-          // We have to detect OOB stores and handle them without deopt (by
-          // simply not performing them).
-          Node* check =
-              graph()->NewNode(simplified()->NumberLessThan(), index, length);
-          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                          check, control);
-
-          Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-          Node* etrue = effect;
-          {
-            // Do a real bounds check against {length}. This is in order to
-            // protect against a potential typer bug leading to the elimination
-            // of the NumberLessThan above.
-            index = etrue = graph()->NewNode(
-                simplified()->CheckBounds(
-                    FeedbackSource(),
-                    CheckBoundsFlag::kConvertStringAndMinusZero |
-                        CheckBoundsFlag::kAbortOnOutOfBounds),
-                index, length, etrue, if_true);
-
-            // Perform the actual store.
-            etrue = graph()->NewNode(
-                simplified()->StoreTypedElement(external_array_type),
-                buffer_or_receiver, base_pointer, external_pointer, index,
-                value, etrue, if_true);
-          }
-
-          Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-          Node* efalse = effect;
-          {
-            // Just ignore the out-of-bounds write.
-          }
-
-          control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-          effect =
-              graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-        } else {
-          // Perform the actual store
-          DCHECK_EQ(kBoundsCheckDone, situation);
-          effect = graph()->NewNode(
-              simplified()->StoreTypedElement(external_array_type),
-              buffer_or_receiver, base_pointer, external_pointer, index, value,
-              effect, control);
-        }
-        break;
-      }
-      case AccessMode::kHas:
-        if (situation == kHandleOOB_SmiCheckDone) {
-          value = effect =
-              graph()->NewNode(simplified()->SpeculativeNumberLessThan(
-                                   NumberOperationHint::kSignedSmall),
-                               index, length, effect, control);
-        } else {
-          DCHECK_EQ(kBoundsCheckDone, situation);
-          // For has-property on a typed array, all we need is a bounds check.
-          value = jsgraph()->TrueConstant();
-        }
-        break;
-    }
+  // Check if we might need to grow the {elements} backing store.
+  if (keyed_mode.IsStore() && IsGrowStoreMode(keyed_mode.store_mode())) {
+    // For growing stores we validate the {index} below.
+  } else if (keyed_mode.IsLoad() &&
+             keyed_mode.load_mode() == LOAD_IGNORE_OUT_OF_BOUNDS &&
+             CanTreatHoleAsUndefined(receiver_maps)) {
+    // Check that the {index} is a valid array index, we do the actual
+    // bounds check below and just skip the store below if it's out of
+    // bounds for the {receiver}.
+    index = effect = graph()->NewNode(
+        simplified()->CheckBounds(FeedbackSource(),
+                                  CheckBoundsFlag::kConvertStringAndMinusZero),
+        index, jsgraph()->Constant(Smi::kMaxValue), effect, control);
   } else {
-    // Load the elements for the {receiver}.
-    Node* elements = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
-        effect, control);
+    // Check that the {index} is in the valid range for the {receiver}.
+    index = effect = graph()->NewNode(
+        simplified()->CheckBounds(FeedbackSource(),
+                                  CheckBoundsFlag::kConvertStringAndMinusZero),
+        index, length, effect, control);
+  }
 
-    // Don't try to store to a copy-on-write backing store (unless supported by
-    // the store mode).
-    if (IsAnyStore(keyed_mode.access_mode()) &&
-        IsSmiOrObjectElementsKind(elements_kind) &&
-        !IsCOWHandlingStoreMode(keyed_mode.store_mode())) {
-      effect = graph()->NewNode(
-          simplified()->CheckMaps(
-              CheckMapsFlag::kNone,
-              ZoneHandleSet<Map>(factory()->fixed_array_map())),
-          elements, effect, control);
+  // Compute the element access.
+  Type element_type = Type::NonInternal();
+  MachineType element_machine_type = MachineType::AnyTagged();
+  if (IsDoubleElementsKind(elements_kind)) {
+    element_type = Type::Number();
+    element_machine_type = MachineType::Float64();
+  } else if (IsSmiElementsKind(elements_kind)) {
+    element_type = Type::SignedSmall();
+    element_machine_type = MachineType::TaggedSigned();
+  }
+  ElementAccess element_access = {kTaggedBase, FixedArray::kHeaderSize,
+                                  element_type, element_machine_type,
+                                  kFullWriteBarrier};
+
+  // Access the actual element.
+  if (keyed_mode.access_mode() == AccessMode::kLoad) {
+    // Compute the real element access type, which includes the hole in case
+    // of holey backing stores.
+    if (IsHoleyElementsKind(elements_kind)) {
+      element_access.type =
+          Type::Union(element_type, Type::Hole(), graph()->zone());
+    }
+    if (elements_kind == HOLEY_ELEMENTS ||
+        elements_kind == HOLEY_SMI_ELEMENTS) {
+      element_access.machine_type = MachineType::AnyTagged();
     }
 
-    // Check if the {receiver} is a JSArray.
-    bool receiver_is_jsarray = HasOnlyJSArrayMaps(broker(), receiver_maps);
+    // Check if we can return undefined for out-of-bounds loads.
+    if (keyed_mode.load_mode() == LOAD_IGNORE_OUT_OF_BOUNDS &&
+        CanTreatHoleAsUndefined(receiver_maps)) {
+      Node* check =
+          graph()->NewNode(simplified()->NumberLessThan(), index, length);
+      Node* branch =
+          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 
-    // Load the length of the {receiver}.
-    Node* length = effect =
-        receiver_is_jsarray
-            ? graph()->NewNode(
-                  simplified()->LoadField(
-                      AccessBuilder::ForJSArrayLength(elements_kind)),
-                  receiver, effect, control)
-            : graph()->NewNode(
-                  simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
-                  elements, effect, control);
+      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+      Node* etrue = effect;
+      Node* vtrue;
+      {
+        // Do a real bounds check against {length}. This is in order to
+        // protect against a potential typer bug leading to the elimination of
+        // the NumberLessThan above.
+        index = etrue = graph()->NewNode(
+            simplified()->CheckBounds(
+                FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero |
+                                      CheckBoundsFlag::kAbortOnOutOfBounds),
+            index, length, etrue, if_true);
 
-    // Check if we might need to grow the {elements} backing store.
-    if (keyed_mode.IsStore() && IsGrowStoreMode(keyed_mode.store_mode())) {
-      // For growing stores we validate the {index} below.
-    } else if (keyed_mode.IsLoad() &&
-               keyed_mode.load_mode() == LOAD_IGNORE_OUT_OF_BOUNDS &&
-               CanTreatHoleAsUndefined(receiver_maps)) {
-      // Check that the {index} is a valid array index, we do the actual
-      // bounds check below and just skip the store below if it's out of
-      // bounds for the {receiver}.
-      index = effect = graph()->NewNode(
-          simplified()->CheckBounds(
-              FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero),
-          index, jsgraph()->Constant(Smi::kMaxValue), effect, control);
-    } else {
-      // Check that the {index} is in the valid range for the {receiver}.
-      index = effect = graph()->NewNode(
-          simplified()->CheckBounds(
-              FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero),
-          index, length, effect, control);
-    }
+        // Perform the actual load
+        vtrue = etrue =
+            graph()->NewNode(simplified()->LoadElement(element_access),
+                             elements, index, etrue, if_true);
 
-    // Compute the element access.
-    Type element_type = Type::NonInternal();
-    MachineType element_machine_type = MachineType::AnyTagged();
-    if (IsDoubleElementsKind(elements_kind)) {
-      element_type = Type::Number();
-      element_machine_type = MachineType::Float64();
-    } else if (IsSmiElementsKind(elements_kind)) {
-      element_type = Type::SignedSmall();
-      element_machine_type = MachineType::TaggedSigned();
-    }
-    ElementAccess element_access = {kTaggedBase, FixedArray::kHeaderSize,
-                                    element_type, element_machine_type,
-                                    kFullWriteBarrier};
-
-    // Access the actual element.
-    if (keyed_mode.access_mode() == AccessMode::kLoad) {
-      // Compute the real element access type, which includes the hole in case
-      // of holey backing stores.
-      if (IsHoleyElementsKind(elements_kind)) {
-        element_access.type =
-            Type::Union(element_type, Type::Hole(), graph()->zone());
+        // Handle loading from holey backing stores correctly, by either
+        // mapping the hole to undefined if possible, or deoptimizing
+        // otherwise.
+        if (elements_kind == HOLEY_ELEMENTS ||
+            elements_kind == HOLEY_SMI_ELEMENTS) {
+          // Turn the hole into undefined.
+          vtrue = graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(),
+                                   vtrue);
+        } else if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+          // Return the signaling NaN hole directly if all uses are
+          // truncating.
+          vtrue = etrue = graph()->NewNode(
+              simplified()->CheckFloat64Hole(
+                  CheckFloat64HoleMode::kAllowReturnHole, FeedbackSource()),
+              vtrue, etrue, if_true);
+        }
       }
+
+      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      Node* efalse = effect;
+      Node* vfalse;
+      {
+        // Materialize undefined for out-of-bounds loads.
+        vfalse = jsgraph()->UndefinedConstant();
+      }
+
+      control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+      effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+      value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                               vtrue, vfalse, control);
+    } else {
+      // Perform the actual load.
+      value = effect =
+          graph()->NewNode(simplified()->LoadElement(element_access), elements,
+                           index, effect, control);
+
+      // Handle loading from holey backing stores correctly, by either mapping
+      // the hole to undefined if possible, or deoptimizing otherwise.
+      if (elements_kind == HOLEY_ELEMENTS ||
+          elements_kind == HOLEY_SMI_ELEMENTS) {
+        // Check if we are allowed to turn the hole into undefined.
+        if (CanTreatHoleAsUndefined(receiver_maps)) {
+          // Turn the hole into undefined.
+          value = graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(),
+                                   value);
+        } else {
+          // Bailout if we see the hole.
+          value = effect = graph()->NewNode(simplified()->CheckNotTaggedHole(),
+                                            value, effect, control);
+        }
+      } else if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+        // Perform the hole check on the result.
+        CheckFloat64HoleMode mode = CheckFloat64HoleMode::kNeverReturnHole;
+        // Check if we are allowed to return the hole directly.
+        if (CanTreatHoleAsUndefined(receiver_maps)) {
+          // Return the signaling NaN hole directly if all uses are
+          // truncating.
+          mode = CheckFloat64HoleMode::kAllowReturnHole;
+        }
+        value = effect = graph()->NewNode(
+            simplified()->CheckFloat64Hole(mode, FeedbackSource()), value,
+            effect, control);
+      }
+    }
+  } else if (keyed_mode.access_mode() == AccessMode::kHas) {
+    // For packed arrays with NoElementsProctector valid, a bound check
+    // is equivalent to HasProperty.
+    value = effect = graph()->NewNode(simplified()->SpeculativeNumberLessThan(
+                                          NumberOperationHint::kSignedSmall),
+                                      index, length, effect, control);
+    if (IsHoleyElementsKind(elements_kind)) {
+      // If the index is in bounds, do a load and hole check.
+
+      Node* branch = graph()->NewNode(common()->Branch(), value, control);
+
+      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      Node* efalse = effect;
+      Node* vfalse = jsgraph()->FalseConstant();
+
+      element_access.type =
+          Type::Union(element_type, Type::Hole(), graph()->zone());
+
       if (elements_kind == HOLEY_ELEMENTS ||
           elements_kind == HOLEY_SMI_ELEMENTS) {
         element_access.machine_type = MachineType::AnyTagged();
       }
 
-      // Check if we can return undefined for out-of-bounds loads.
-      if (keyed_mode.load_mode() == LOAD_IGNORE_OUT_OF_BOUNDS &&
-          CanTreatHoleAsUndefined(receiver_maps)) {
+      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+      Node* etrue = effect;
+
+      Node* checked = etrue = graph()->NewNode(
+          simplified()->CheckBounds(
+              FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero),
+          index, length, etrue, if_true);
+
+      Node* element = etrue =
+          graph()->NewNode(simplified()->LoadElement(element_access), elements,
+                           checked, etrue, if_true);
+
+      Node* vtrue;
+      if (CanTreatHoleAsUndefined(receiver_maps)) {
+        if (elements_kind == HOLEY_ELEMENTS ||
+            elements_kind == HOLEY_SMI_ELEMENTS) {
+          // Check if we are allowed to turn the hole into undefined.
+          // Turn the hole into undefined.
+          vtrue = graph()->NewNode(simplified()->ReferenceEqual(), element,
+                                   jsgraph()->TheHoleConstant());
+        } else {
+          vtrue =
+              graph()->NewNode(simplified()->NumberIsFloat64Hole(), element);
+        }
+
+        // has == !IsHole
+        vtrue = graph()->NewNode(simplified()->BooleanNot(), vtrue);
+      } else {
+        if (elements_kind == HOLEY_ELEMENTS ||
+            elements_kind == HOLEY_SMI_ELEMENTS) {
+          // Bailout if we see the hole.
+          etrue = graph()->NewNode(simplified()->CheckNotTaggedHole(), element,
+                                   etrue, if_true);
+        } else {
+          etrue = graph()->NewNode(
+              simplified()->CheckFloat64Hole(
+                  CheckFloat64HoleMode::kNeverReturnHole, FeedbackSource()),
+              element, etrue, if_true);
+        }
+
+        vtrue = jsgraph()->TrueConstant();
+      }
+
+      control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+      effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+      value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                               vtrue, vfalse, control);
+    }
+  } else {
+    DCHECK(keyed_mode.access_mode() == AccessMode::kStore ||
+           keyed_mode.access_mode() == AccessMode::kStoreInLiteral ||
+           keyed_mode.access_mode() == AccessMode::kDefine);
+
+    if (IsSmiElementsKind(elements_kind)) {
+      value = effect = graph()->NewNode(
+          simplified()->CheckSmi(FeedbackSource()), value, effect, control);
+    } else if (IsDoubleElementsKind(elements_kind)) {
+      value = effect = graph()->NewNode(
+          simplified()->CheckNumber(FeedbackSource()), value, effect, control);
+      // Make sure we do not store signalling NaNs into double arrays.
+      value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+    }
+
+    // Ensure that copy-on-write backing store is writable.
+    if (IsSmiOrObjectElementsKind(elements_kind) &&
+        keyed_mode.store_mode() == STORE_HANDLE_COW) {
+      elements = effect =
+          graph()->NewNode(simplified()->EnsureWritableFastElements(), receiver,
+                           elements, effect, control);
+    } else if (IsGrowStoreMode(keyed_mode.store_mode())) {
+      // Determine the length of the {elements} backing store.
+      Node* elements_length = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
+          elements, effect, control);
+
+      // Validate the {index} depending on holeyness:
+      //
+      // For HOLEY_*_ELEMENTS the {index} must not exceed the {elements}
+      // backing store capacity plus the maximum allowed gap, as otherwise
+      // the (potential) backing store growth would normalize and thus
+      // the elements kind of the {receiver} would change to slow mode.
+      //
+      // For PACKED_*_ELEMENTS the {index} must be within the range
+      // [0,length+1[ to be valid. In case {index} equals {length},
+      // the {receiver} will be extended, but kept packed.
+      Node* limit =
+          IsHoleyElementsKind(elements_kind)
+              ? graph()->NewNode(simplified()->NumberAdd(), elements_length,
+                                 jsgraph()->Constant(JSObject::kMaxGap))
+              : graph()->NewNode(simplified()->NumberAdd(), length,
+                                 jsgraph()->OneConstant());
+      index = effect = graph()->NewNode(
+          simplified()->CheckBounds(
+              FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero),
+          index, limit, effect, control);
+
+      // Grow {elements} backing store if necessary.
+      GrowFastElementsMode mode =
+          IsDoubleElementsKind(elements_kind)
+              ? GrowFastElementsMode::kDoubleElements
+              : GrowFastElementsMode::kSmiOrObjectElements;
+      elements = effect = graph()->NewNode(
+          simplified()->MaybeGrowFastElements(mode, FeedbackSource()), receiver,
+          elements, index, elements_length, effect, control);
+
+      // If we didn't grow {elements}, it might still be COW, in which case we
+      // copy it now.
+      if (IsSmiOrObjectElementsKind(elements_kind) &&
+          keyed_mode.store_mode() == STORE_AND_GROW_HANDLE_COW) {
+        elements = effect =
+            graph()->NewNode(simplified()->EnsureWritableFastElements(),
+                             receiver, elements, effect, control);
+      }
+
+      // Also update the "length" property if {receiver} is a JSArray.
+      if (receiver_is_jsarray) {
         Node* check =
             graph()->NewNode(simplified()->NumberLessThan(), index, length);
-        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                        check, control);
+        Node* branch = graph()->NewNode(common()->Branch(), check, control);
+
+        Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+        Node* etrue = effect;
+        {
+          // We don't need to do anything, the {index} is within
+          // the valid bounds for the JSArray {receiver}.
+        }
+
+        Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+        Node* efalse = effect;
+        {
+          // Update the JSArray::length field. Since this is observable,
+          // there must be no other check after this.
+          Node* new_length = graph()->NewNode(simplified()->NumberAdd(), index,
+                                              jsgraph()->OneConstant());
+          efalse = graph()->NewNode(
+              simplified()->StoreField(
+                  AccessBuilder::ForJSArrayLength(elements_kind)),
+              receiver, new_length, efalse, if_false);
+        }
+
+        control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+        effect =
+            graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+      }
+    }
+
+    // Perform the actual element access.
+    effect = graph()->NewNode(simplified()->StoreElement(element_access),
+                              elements, index, value, effect, control);
+  }
+
+  return ValueEffectControl(value, effect, control);
+}
+
+JSNativeContextSpecialization::ValueEffectControl
+JSNativeContextSpecialization::
+    BuildElementAccessForTypedArrayOrRabGsabTypedArray(
+        Node* receiver, Node* index, Node* value, Node* effect, Node* control,
+        Node* context, ElementsKind elements_kind,
+        KeyedAccessMode const& keyed_mode) {
+  DCHECK(IsTypedArrayElementsKind(elements_kind) ||
+         IsRabGsabTypedArrayElementsKind(elements_kind));
+  DCHECK_IMPLIES(IsRabGsabTypedArrayElementsKind(elements_kind),
+                 v8_flags.turbo_rab_gsab);
+
+  Node* buffer_or_receiver = receiver;
+  Node* length;
+  Node* base_pointer;
+  Node* external_pointer;
+
+  // Check if we can constant-fold information about the {receiver} (e.g.
+  // for asm.js-like code patterns).
+  base::Optional<JSTypedArrayRef> typed_array =
+      GetTypedArrayConstant(broker(), receiver);
+  if (typed_array.has_value() &&
+      // TODO(v8:11111): Add support for rab/gsab here.
+      !IsRabGsabTypedArrayElementsKind(elements_kind)) {
+    if (typed_array->map().elements_kind() != elements_kind) {
+      // This case should never be reachable at runtime.
+      JSGraphAssembler assembler(jsgraph_, zone(), BranchSemantics::kJS,
+                                 [this](Node* n) { this->Revisit(n); });
+      assembler.InitializeEffectControl(effect, control);
+      assembler.Unreachable();
+      ReleaseEffectAndControlFromAssembler(&assembler);
+      Node* dead = jsgraph_->Dead();
+      return ValueEffectControl{dead, dead, dead};
+    } else {
+      length = jsgraph()->Constant(static_cast<double>(typed_array->length()));
+
+      DCHECK(!typed_array->is_on_heap());
+      // Load the (known) data pointer for the {receiver} and set
+      // {base_pointer} and {external_pointer} to the values that will allow
+      // to generate typed element accesses using the known data pointer. The
+      // data pointer might be invalid if the {buffer} was detached, so we
+      // need to make sure that any access is properly guarded.
+      base_pointer = jsgraph()->ZeroConstant();
+      external_pointer = jsgraph()->PointerConstant(typed_array->data_ptr());
+    }
+  } else {
+    // Load the {receiver}s length.
+    JSGraphAssembler assembler(jsgraph_, zone(), BranchSemantics::kJS,
+                               [this](Node* n) { this->Revisit(n); });
+    assembler.InitializeEffectControl(effect, control);
+    length = assembler.TypedArrayLength(
+        TNode<JSTypedArray>::UncheckedCast(receiver), {elements_kind},
+        TNode<Context>::UncheckedCast(context));
+    std::tie(effect, control) =
+        ReleaseEffectAndControlFromAssembler(&assembler);
+
+    // Load the base pointer for the {receiver}. This will always be Smi
+    // zero unless we allow on-heap TypedArrays, which is only the case
+    // for Chrome. Node and Electron both set this limit to 0. Setting
+    // the base to Smi zero here allows the EffectControlLinearizer to
+    // optimize away the tricky part of the access later.
+    if (JSTypedArray::kMaxSizeInHeap == 0) {
+      base_pointer = jsgraph()->ZeroConstant();
+    } else {
+      base_pointer = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSTypedArrayBasePointer()),
+          receiver, effect, control);
+    }
+
+    // Load the external pointer for the {receiver}.
+    external_pointer = effect =
+        graph()->NewNode(simplified()->LoadField(
+                             AccessBuilder::ForJSTypedArrayExternalPointer()),
+                         receiver, effect, control);
+  }
+
+  // See if we can skip the detaching check.
+  if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
+    // Load the buffer for the {receiver}.
+    Node* buffer = typed_array.has_value()
+                       ? jsgraph()->Constant(typed_array->buffer())
+                       : (effect = graph()->NewNode(
+                              simplified()->LoadField(
+                                  AccessBuilder::ForJSArrayBufferViewBuffer()),
+                              receiver, effect, control));
+
+    // Deopt if the {buffer} was detached.
+    // Note: A detached buffer leads to megamorphic feedback.
+    Node* buffer_bit_field = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
+        buffer, effect, control);
+    Node* check = graph()->NewNode(
+        simplified()->NumberEqual(),
+        graph()->NewNode(
+            simplified()->NumberBitwiseAnd(), buffer_bit_field,
+            jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
+        jsgraph()->ZeroConstant());
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached), check,
+        effect, control);
+
+    // Retain the {buffer} instead of {receiver} to reduce live ranges.
+    buffer_or_receiver = buffer;
+  }
+
+  enum Situation { kBoundsCheckDone, kHandleOOB_SmiAndRangeCheckComputed };
+  Situation situation;
+  TNode<BoolT> check;
+  if ((keyed_mode.IsLoad() &&
+       keyed_mode.load_mode() == LOAD_IGNORE_OUT_OF_BOUNDS) ||
+      (keyed_mode.IsStore() &&
+       keyed_mode.store_mode() == STORE_IGNORE_OUT_OF_BOUNDS)) {
+    // Only check that the {index} is in SignedSmall range. We do the actual
+    // bounds check below and just skip the property access if it's out of
+    // bounds for the {receiver}.
+    index = effect = graph()->NewNode(simplified()->CheckSmi(FeedbackSource()),
+                                      index, effect, control);
+    TNode<Boolean> compare_length = TNode<Boolean>::UncheckedCast(
+        graph()->NewNode(simplified()->NumberLessThan(), index, length));
+
+    JSGraphAssembler assembler(jsgraph_, zone(), BranchSemantics::kJS,
+                               [this](Node* n) { this->Revisit(n); });
+    assembler.InitializeEffectControl(effect, control);
+    TNode<BoolT> check_less_than_length =
+        assembler.EnterMachineGraph<BoolT>(compare_length, UseInfo::Bool());
+    TNode<Int32T> index_int32 = assembler.EnterMachineGraph<Int32T>(
+        TNode<Smi>::UncheckedCast(index), UseInfo::TruncatingWord32());
+    TNode<BoolT> check_non_negative =
+        assembler.Int32LessThanOrEqual(assembler.Int32Constant(0), index_int32);
+    check = TNode<BoolT>::UncheckedCast(
+        assembler.Word32And(check_less_than_length, check_non_negative));
+    std::tie(effect, control) =
+        ReleaseEffectAndControlFromAssembler(&assembler);
+
+    situation = kHandleOOB_SmiAndRangeCheckComputed;
+  } else {
+    // Check that the {index} is in the valid range for the {receiver}.
+    index = effect = graph()->NewNode(
+        simplified()->CheckBounds(FeedbackSource(),
+                                  CheckBoundsFlag::kConvertStringAndMinusZero),
+        index, length, effect, control);
+    situation = kBoundsCheckDone;
+  }
+
+  // Access the actual element.
+  ExternalArrayType external_array_type =
+      GetArrayTypeFromElementsKind(elements_kind);
+  switch (keyed_mode.access_mode()) {
+    case AccessMode::kLoad: {
+      // Check if we can return undefined for out-of-bounds loads.
+      if (situation == kHandleOOB_SmiAndRangeCheckComputed) {
+        DCHECK_NE(check, nullptr);
+        Node* branch = graph()->NewNode(
+            common()->Branch(BranchHint::kTrue, BranchSemantics::kMachine),
+            check, control);
 
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
         Node* etrue = effect;
         Node* vtrue;
         {
           // Do a real bounds check against {length}. This is in order to
-          // protect against a potential typer bug leading to the elimination of
-          // the NumberLessThan above.
+          // protect against a potential typer bug leading to the elimination
+          // of the NumberLessThan above.
           index = etrue =
               graph()->NewNode(simplified()->CheckBounds(
                                    FeedbackSource(),
@@ -3494,26 +3646,10 @@ JSNativeContextSpecialization::BuildElementAccess(
                                index, length, etrue, if_true);
 
           // Perform the actual load
-          vtrue = etrue =
-              graph()->NewNode(simplified()->LoadElement(element_access),
-                               elements, index, etrue, if_true);
-
-          // Handle loading from holey backing stores correctly, by either
-          // mapping the hole to undefined if possible, or deoptimizing
-          // otherwise.
-          if (elements_kind == HOLEY_ELEMENTS ||
-              elements_kind == HOLEY_SMI_ELEMENTS) {
-            // Turn the hole into undefined.
-            vtrue = graph()->NewNode(
-                simplified()->ConvertTaggedHoleToUndefined(), vtrue);
-          } else if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-            // Return the signaling NaN hole directly if all uses are
-            // truncating.
-            vtrue = etrue = graph()->NewNode(
-                simplified()->CheckFloat64Hole(
-                    CheckFloat64HoleMode::kAllowReturnHole, FeedbackSource()),
-                vtrue, etrue, if_true);
-          }
+          vtrue = etrue = graph()->NewNode(
+              simplified()->LoadTypedElement(external_array_type),
+              buffer_or_receiver, base_pointer, external_pointer, index, etrue,
+              if_true);
         }
 
         Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
@@ -3532,214 +3668,108 @@ JSNativeContextSpecialization::BuildElementAccess(
                              vtrue, vfalse, control);
       } else {
         // Perform the actual load.
-        value = effect =
-            graph()->NewNode(simplified()->LoadElement(element_access),
-                             elements, index, effect, control);
-
-        // Handle loading from holey backing stores correctly, by either mapping
-        // the hole to undefined if possible, or deoptimizing otherwise.
-        if (elements_kind == HOLEY_ELEMENTS ||
-            elements_kind == HOLEY_SMI_ELEMENTS) {
-          // Check if we are allowed to turn the hole into undefined.
-          if (CanTreatHoleAsUndefined(receiver_maps)) {
-            // Turn the hole into undefined.
-            value = graph()->NewNode(
-                simplified()->ConvertTaggedHoleToUndefined(), value);
-          } else {
-            // Bailout if we see the hole.
-            value = effect = graph()->NewNode(
-                simplified()->CheckNotTaggedHole(), value, effect, control);
-          }
-        } else if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-          // Perform the hole check on the result.
-          CheckFloat64HoleMode mode = CheckFloat64HoleMode::kNeverReturnHole;
-          // Check if we are allowed to return the hole directly.
-          if (CanTreatHoleAsUndefined(receiver_maps)) {
-            // Return the signaling NaN hole directly if all uses are
-            // truncating.
-            mode = CheckFloat64HoleMode::kAllowReturnHole;
-          }
-          value = effect = graph()->NewNode(
-              simplified()->CheckFloat64Hole(mode, FeedbackSource()), value,
-              effect, control);
-        }
+        DCHECK_EQ(kBoundsCheckDone, situation);
+        value = effect = graph()->NewNode(
+            simplified()->LoadTypedElement(external_array_type),
+            buffer_or_receiver, base_pointer, external_pointer, index, effect,
+            control);
       }
-    } else if (keyed_mode.access_mode() == AccessMode::kHas) {
-      // For packed arrays with NoElementsProctector valid, a bound check
-      // is equivalent to HasProperty.
-      value = effect = graph()->NewNode(simplified()->SpeculativeNumberLessThan(
-                                            NumberOperationHint::kSignedSmall),
-                                        index, length, effect, control);
-      if (IsHoleyElementsKind(elements_kind)) {
-        // If the index is in bounds, do a load and hole check.
+      break;
+    }
+    case AccessMode::kStoreInLiteral:
+    case AccessMode::kDefine:
+      UNREACHABLE();
+    case AccessMode::kStore: {
+      if (external_array_type == kExternalBigInt64Array ||
+          external_array_type == kExternalBigUint64Array) {
+        value = effect = graph()->NewNode(
+            simplified()->SpeculativeToBigInt(BigIntOperationHint::kBigInt,
+                                              FeedbackSource()),
+            value, effect, control);
+      } else {
+        // Ensure that the {value} is actually a Number or an Oddball,
+        // and truncate it to a Number appropriately.
+        // TODO(panq): Eliminate the deopt loop introduced by the speculation.
+        value = effect = graph()->NewNode(
+            simplified()->SpeculativeToNumber(
+                NumberOperationHint::kNumberOrOddball, FeedbackSource()),
+            value, effect, control);
+      }
 
-        Node* branch = graph()->NewNode(common()->Branch(), value, control);
+      // Introduce the appropriate truncation for {value}. Currently we
+      // only need to do this for ClamedUint8Array {receiver}s, as the
+      // other truncations are implicit in the StoreTypedElement, but we
+      // might want to change that at some point.
+      if (external_array_type == kExternalUint8ClampedArray) {
+        value = graph()->NewNode(simplified()->NumberToUint8Clamped(), value);
+      }
 
-        Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-        Node* efalse = effect;
-        Node* vfalse = jsgraph()->FalseConstant();
-
-        element_access.type =
-            Type::Union(element_type, Type::Hole(), graph()->zone());
-
-        if (elements_kind == HOLEY_ELEMENTS ||
-            elements_kind == HOLEY_SMI_ELEMENTS) {
-          element_access.machine_type = MachineType::AnyTagged();
-        }
+      if (situation == kHandleOOB_SmiAndRangeCheckComputed) {
+        // We have to detect OOB stores and handle them without deopt (by
+        // simply not performing them).
+        DCHECK_NE(check, nullptr);
+        Node* branch = graph()->NewNode(
+            common()->Branch(BranchHint::kTrue, BranchSemantics::kMachine),
+            check, control);
 
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
         Node* etrue = effect;
+        {
+          // Do a real bounds check against {length}. This is in order to
+          // protect against a potential typer bug leading to the elimination
+          // of the NumberLessThan above.
+          index = etrue =
+              graph()->NewNode(simplified()->CheckBounds(
+                                   FeedbackSource(),
+                                   CheckBoundsFlag::kConvertStringAndMinusZero |
+                                       CheckBoundsFlag::kAbortOnOutOfBounds),
+                               index, length, etrue, if_true);
 
-        Node* checked = etrue = graph()->NewNode(
-            simplified()->CheckBounds(
-                FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero),
-            index, length, etrue, if_true);
+          // Perform the actual store.
+          etrue = graph()->NewNode(
+              simplified()->StoreTypedElement(external_array_type),
+              buffer_or_receiver, base_pointer, external_pointer, index, value,
+              etrue, if_true);
+        }
 
-        Node* element = etrue =
-            graph()->NewNode(simplified()->LoadElement(element_access),
-                             elements, checked, etrue, if_true);
-
-        Node* vtrue;
-        if (CanTreatHoleAsUndefined(receiver_maps)) {
-          if (elements_kind == HOLEY_ELEMENTS ||
-              elements_kind == HOLEY_SMI_ELEMENTS) {
-            // Check if we are allowed to turn the hole into undefined.
-            // Turn the hole into undefined.
-            vtrue = graph()->NewNode(simplified()->ReferenceEqual(), element,
-                                     jsgraph()->TheHoleConstant());
-          } else {
-            vtrue =
-                graph()->NewNode(simplified()->NumberIsFloat64Hole(), element);
-          }
-
-          // has == !IsHole
-          vtrue = graph()->NewNode(simplified()->BooleanNot(), vtrue);
-        } else {
-          if (elements_kind == HOLEY_ELEMENTS ||
-              elements_kind == HOLEY_SMI_ELEMENTS) {
-            // Bailout if we see the hole.
-            etrue = graph()->NewNode(simplified()->CheckNotTaggedHole(),
-                                     element, etrue, if_true);
-          } else {
-            etrue = graph()->NewNode(
-                simplified()->CheckFloat64Hole(
-                    CheckFloat64HoleMode::kNeverReturnHole, FeedbackSource()),
-                element, etrue, if_true);
-          }
-
-          vtrue = jsgraph()->TrueConstant();
+        Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+        Node* efalse = effect;
+        {
+          // Just ignore the out-of-bounds write.
         }
 
         control = graph()->NewNode(common()->Merge(2), if_true, if_false);
         effect =
             graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-        value =
-            graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                             vtrue, vfalse, control);
+      } else {
+        // Perform the actual store
+        DCHECK_EQ(kBoundsCheckDone, situation);
+        effect = graph()->NewNode(
+            simplified()->StoreTypedElement(external_array_type),
+            buffer_or_receiver, base_pointer, external_pointer, index, value,
+            effect, control);
       }
-    } else {
-      DCHECK(keyed_mode.access_mode() == AccessMode::kStore ||
-             keyed_mode.access_mode() == AccessMode::kStoreInLiteral ||
-             keyed_mode.access_mode() == AccessMode::kDefine);
-
-      if (IsSmiElementsKind(elements_kind)) {
-        value = effect = graph()->NewNode(
-            simplified()->CheckSmi(FeedbackSource()), value, effect, control);
-      } else if (IsDoubleElementsKind(elements_kind)) {
-        value = effect =
-            graph()->NewNode(simplified()->CheckNumber(FeedbackSource()), value,
-                             effect, control);
-        // Make sure we do not store signalling NaNs into double arrays.
-        value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
-      }
-
-      // Ensure that copy-on-write backing store is writable.
-      if (IsSmiOrObjectElementsKind(elements_kind) &&
-          keyed_mode.store_mode() == STORE_HANDLE_COW) {
-        elements = effect =
-            graph()->NewNode(simplified()->EnsureWritableFastElements(),
-                             receiver, elements, effect, control);
-      } else if (IsGrowStoreMode(keyed_mode.store_mode())) {
-        // Determine the length of the {elements} backing store.
-        Node* elements_length = effect = graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
-            elements, effect, control);
-
-        // Validate the {index} depending on holeyness:
-        //
-        // For HOLEY_*_ELEMENTS the {index} must not exceed the {elements}
-        // backing store capacity plus the maximum allowed gap, as otherwise
-        // the (potential) backing store growth would normalize and thus
-        // the elements kind of the {receiver} would change to slow mode.
-        //
-        // For PACKED_*_ELEMENTS the {index} must be within the range
-        // [0,length+1[ to be valid. In case {index} equals {length},
-        // the {receiver} will be extended, but kept packed.
-        Node* limit =
-            IsHoleyElementsKind(elements_kind)
-                ? graph()->NewNode(simplified()->NumberAdd(), elements_length,
-                                   jsgraph()->Constant(JSObject::kMaxGap))
-                : graph()->NewNode(simplified()->NumberAdd(), length,
-                                   jsgraph()->OneConstant());
-        index = effect = graph()->NewNode(
-            simplified()->CheckBounds(
-                FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero),
-            index, limit, effect, control);
-
-        // Grow {elements} backing store if necessary.
-        GrowFastElementsMode mode =
-            IsDoubleElementsKind(elements_kind)
-                ? GrowFastElementsMode::kDoubleElements
-                : GrowFastElementsMode::kSmiOrObjectElements;
-        elements = effect = graph()->NewNode(
-            simplified()->MaybeGrowFastElements(mode, FeedbackSource()),
-            receiver, elements, index, elements_length, effect, control);
-
-        // If we didn't grow {elements}, it might still be COW, in which case we
-        // copy it now.
-        if (IsSmiOrObjectElementsKind(elements_kind) &&
-            keyed_mode.store_mode() == STORE_AND_GROW_HANDLE_COW) {
-          elements = effect =
-              graph()->NewNode(simplified()->EnsureWritableFastElements(),
-                               receiver, elements, effect, control);
-        }
-
-        // Also update the "length" property if {receiver} is a JSArray.
-        if (receiver_is_jsarray) {
-          Node* check =
-              graph()->NewNode(simplified()->NumberLessThan(), index, length);
-          Node* branch = graph()->NewNode(common()->Branch(), check, control);
-
-          Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-          Node* etrue = effect;
-          {
-            // We don't need to do anything, the {index} is within
-            // the valid bounds for the JSArray {receiver}.
-          }
-
-          Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-          Node* efalse = effect;
-          {
-            // Update the JSArray::length field. Since this is observable,
-            // there must be no other check after this.
-            Node* new_length = graph()->NewNode(
-                simplified()->NumberAdd(), index, jsgraph()->OneConstant());
-            efalse = graph()->NewNode(
-                simplified()->StoreField(
-                    AccessBuilder::ForJSArrayLength(elements_kind)),
-                receiver, new_length, efalse, if_false);
-          }
-
-          control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-          effect =
-              graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-        }
-      }
-
-      // Perform the actual element access.
-      effect = graph()->NewNode(simplified()->StoreElement(element_access),
-                                elements, index, value, effect, control);
+      break;
     }
+    case AccessMode::kHas:
+      if (situation == kHandleOOB_SmiAndRangeCheckComputed) {
+        DCHECK_NE(check, nullptr);
+        JSGraphAssembler assembler(jsgraph_, zone(), BranchSemantics::kJS,
+                                   [this](Node* n) { this->Revisit(n); });
+        assembler.InitializeEffectControl(effect, control);
+        value = assembler.MachineSelectIf<Boolean>(check)
+                    .Then([&]() { return assembler.TrueConstant(); })
+                    .Else([&]() { return assembler.FalseConstant(); })
+                    .ExpectTrue()
+                    .Value();
+        std::tie(effect, control) =
+            ReleaseEffectAndControlFromAssembler(&assembler);
+      } else {
+        DCHECK_EQ(kBoundsCheckDone, situation);
+        // For has-property on a typed array, all we need is a bounds check.
+        value = jsgraph()->TrueConstant();
+      }
+      break;
   }
 
   return ValueEffectControl(value, effect, control);

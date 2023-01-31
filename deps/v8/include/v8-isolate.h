@@ -233,7 +233,7 @@ class V8_EXPORT Isolate {
      * Explicitly specify a startup snapshot blob. The embedder owns the blob.
      * The embedder *must* ensure that the snapshot is from a trusted source.
      */
-    StartupData* snapshot_blob = nullptr;
+    const StartupData* snapshot_blob = nullptr;
 
     /**
      * Enables the host application to provide a mechanism for recording
@@ -537,6 +537,7 @@ class V8_EXPORT Isolate {
     kTurboFanOsrCompileStarted = 115,
     kAsyncStackTaggingCreateTaskCall = 116,
     kDurationFormat = 117,
+    kInvalidatedNumberStringPrototypeNoReplaceProtector = 118,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -924,27 +925,10 @@ class V8_EXPORT Isolate {
   void RemoveGCPrologueCallback(GCCallbackWithData, void* data = nullptr);
   void RemoveGCPrologueCallback(GCCallback callback);
 
-  START_ALLOW_USE_DEPRECATED()
-  /**
-   * Sets the embedder heap tracer for the isolate.
-   * SetEmbedderHeapTracer cannot be used simultaneously with AttachCppHeap.
-   */
-  void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
-
-  /*
-   * Gets the currently active heap tracer for the isolate that was set with
-   * SetEmbedderHeapTracer.
-   */
-  EmbedderHeapTracer* GetEmbedderHeapTracer();
-  END_ALLOW_USE_DEPRECATED()
-
   /**
    * Sets an embedder roots handle that V8 should consider when performing
-   * non-unified heap garbage collections.
-   *
-   * Using only EmbedderHeapTracer automatically sets up a default handler.
-   * The intended use case is for setting a custom handler after invoking
-   * `AttachCppHeap()`.
+   * non-unified heap garbage collections. The intended use case is for setting
+   * a custom handler after invoking `AttachCppHeap()`.
    *
    * V8 does not take ownership of the handler.
    */
@@ -954,8 +938,6 @@ class V8_EXPORT Isolate {
    * Attaches a managed C++ heap as an extension to the JavaScript heap. The
    * embedder maintains ownership of the CppHeap. At most one C++ heap can be
    * attached to V8.
-   *
-   * AttachCppHeap cannot be used simultaneously with SetEmbedderHeapTracer.
    *
    * Multi-threaded use requires the use of v8::Locker/v8::Unlocker, see
    * CppHeap.
@@ -1346,11 +1328,13 @@ class V8_EXPORT Isolate {
    * V8 uses this notification to guide heuristics which may result in a
    * smaller memory footprint at the cost of reduced runtime performance.
    */
+  V8_DEPRECATED("Use IsolateInBackgroundNotification() instead")
   void EnableMemorySavingsMode();
 
   /**
    * Optional notification which will disable the memory savings mode.
    */
+  V8_DEPRECATED("Use IsolateInBackgroundNotification() instead")
   void DisableMemorySavingsMode();
 
   /**
@@ -1529,6 +1513,13 @@ class V8_EXPORT Isolate {
 
   V8_DEPRECATED("Wasm exceptions are always enabled")
   void SetWasmExceptionsEnabledCallback(WasmExceptionsEnabledCallback callback);
+
+  /**
+   * Register callback to control whehter Wasm GC is enabled.
+   * The callback overwrites the value of the flag.
+   * If the callback returns true, it will also enable Wasm stringrefs.
+   */
+  void SetWasmGCEnabledCallback(WasmGCEnabledCallback callback);
 
   void SetSharedArrayBufferConstructorEnabledCallback(
       SharedArrayBufferConstructorEnabledCallback callback);

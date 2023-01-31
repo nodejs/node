@@ -12,6 +12,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects.h"
+#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {
@@ -338,6 +339,7 @@ class JsonParser final {
 
   inline Isolate* isolate() { return isolate_; }
   inline Factory* factory() { return isolate_->factory(); }
+  inline ReadOnlyRoots roots() { return ReadOnlyRoots(isolate_); }
   inline Handle<JSFunction> object_constructor() { return object_constructor_; }
 
   static const int kInitialSpecialStringLength = 32;

@@ -117,11 +117,11 @@ class TracedReferenceBase {
 
 /**
  * A traced handle with copy and move semantics. The handle is to be used
- * together with |v8::EmbedderHeapTracer| or as part of GarbageCollected objects
- * (see v8-cppgc.h) and specifies edges from C++ objects to JavaScript.
+ * together as part of GarbageCollected objects (see v8-cppgc.h) or from stack
+ * and specifies edges from C++ objects to JavaScript.
  *
  * The exact semantics are:
- * - Tracing garbage collections use |v8::EmbedderHeapTracer| or cppgc.
+ * - Tracing garbage collections using CppHeap.
  * - Non-tracing garbage collections refer to
  *   |v8::EmbedderRootsHandler::IsRoot()| whether the handle should
  * be treated as root or not.
@@ -166,7 +166,6 @@ class BasicTracedReference : public TracedReferenceBase {
       Isolate* isolate, T* that, void* slot,
       internal::GlobalHandleStoreMode store_mode);
 
-  friend class EmbedderHeapTracer;
   template <typename F>
   friend class Local;
   friend class Object;
@@ -181,13 +180,7 @@ class BasicTracedReference : public TracedReferenceBase {
 /**
  * A traced handle without destructor that clears the handle. The embedder needs
  * to ensure that the handle is not accessed once the V8 object has been
- * reclaimed. This can happen when the handle is not passed through the
- * EmbedderHeapTracer. For more details see BasicTracedReference.
- *
- * The reference assumes the embedder has precise knowledge about references at
- * all times. In case V8 needs to separately handle on-stack references, the
- * embedder is required to set the stack start through
- * |EmbedderHeapTracer::SetStackStart|.
+ * reclaimed. For more details see BasicTracedReference.
  */
 template <typename T>
 class TracedReference : public BasicTracedReference<T> {

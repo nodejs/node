@@ -99,7 +99,6 @@ template <typename ConcreteVisitor, typename MarkingState>
 V8_INLINE void
 MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodePointerImpl(
     HeapObject host, CodeObjectSlot slot) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   Object object =
       slot.Relaxed_Load(ObjectVisitorWithCageBases::code_cage_base());
   HeapObject heap_object;
@@ -113,7 +112,7 @@ MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodePointerImpl(
 
 template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
-    Code host, RelocInfo* rinfo) {
+    InstructionStream host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
   HeapObject object =
       rinfo->target_object(ObjectVisitorWithCageBases::cage_base());
@@ -133,9 +132,10 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
 
 template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodeTarget(
-    Code host, RelocInfo* rinfo) {
+    InstructionStream host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
-  Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  InstructionStream target =
+      InstructionStream::GetCodeFromTargetAddress(rinfo->target_address());
 
   if (!ShouldMarkObject(target)) return;
   MarkObject(host, target);
@@ -146,13 +146,12 @@ template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitExternalPointer(
     HeapObject host, ExternalPointerSlot slot, ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  if (IsSandboxedExternalPointerType(tag)) {
-    ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-    ExternalPointerTable* table = IsSharedExternalPointerType(tag)
-                                      ? shared_external_pointer_table_
-                                      : external_pointer_table_;
-    table->Mark(handle, slot.address());
-  }
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+  ExternalPointerTable* table = IsSharedExternalPointerType(tag)
+                                    ? shared_external_pointer_table_
+                                    : external_pointer_table_;
+  table->Mark(handle, slot.address());
 #endif  // V8_ENABLE_SANDBOX
 }
 
@@ -211,15 +210,17 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
     // If bytecode flushing is disabled but baseline code flushing is enabled
     // then we have to visit the bytecode but not the baseline code.
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
-    CodeT baseline_codet = CodeT::cast(shared_info.function_data(kAcquireLoad));
-    // Safe to do a relaxed load here since the CodeT was acquire-loaded.
-    Code baseline_code =
-        FromCodeT(baseline_codet, ObjectVisitorWithCageBases::code_cage_base(),
-                  kRelaxedLoad);
+    Code baseline_code = Code::cast(shared_info.function_data(kAcquireLoad));
+    // Safe to do a relaxed load here since the Code was
+    // acquire-loaded.
+    InstructionStream baseline_istream =
+        FromCode(baseline_code, ObjectVisitorWithCageBases::code_cage_base(),
+                 kRelaxedLoad);
     // Visit the bytecode hanging off baseline code.
-    VisitPointer(baseline_code,
-                 baseline_code.RawField(
-                     Code::kDeoptimizationDataOrInterpreterDataOffset));
+    VisitPointer(
+        baseline_istream,
+        baseline_istream.RawField(
+            InstructionStream::kDeoptimizationDataOrInterpreterDataOffset));
     local_weak_objects_->code_flushing_candidates_local.Push(shared_info);
   } else {
     // In other cases, record as a flushing candidate since we have old
@@ -302,15 +303,8 @@ inline int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
       requires_snapshot &&
       local_marking_worklists_->ExtractWrapper(map, object, wrapper_snapshot);
   const int size = concrete_visitor()->VisitJSObjectSubclass(map, object);
-  if (size) {
-    if (valid_snapshot) {
-      // Success: The object needs to be processed for embedder references.
-      local_marking_worklists_->PushExtractedWrapper(wrapper_snapshot);
-    } else if (!requires_snapshot) {
-      // Snapshot not supported. Just fall back to pushing the wrapper itself
-      // instead which will be processed on the main thread.
-      local_marking_worklists_->PushWrapper(object);
-    }
+  if (size && valid_snapshot) {
+    local_marking_worklists_->PushExtractedWrapper(wrapper_snapshot);
   }
   return size;
 }
@@ -321,7 +315,7 @@ int MarkingVisitorBase<ConcreteVisitor,
                        MarkingState>::VisitEmbedderTracingSubclass(Map map,
                                                                    T object) {
   DCHECK(object.MayHaveEmbedderFields());
-  if (V8_LIKELY(is_embedder_tracing_enabled_)) {
+  if (V8_LIKELY(trace_embedder_fields_)) {
     return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
   }
   return VisitEmbedderTracingSubClassNoEmbedderTracing(map, object);
@@ -374,8 +368,11 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
     ObjectSlot value_slot =
         table.RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
 
-    if (!ShouldMarkObject(key) ||
-        concrete_visitor()->marking_state()->IsBlackOrGrey(key)) {
+    // Objects in the shared heap are prohibited from being used as keys in
+    // WeakMaps and WeakSets and therefore cannot be ephemeron keys. See also
+    // MarkCompactCollector::ProcessEphemeron.
+    DCHECK(!key.InSharedWritableHeap());
+    if (concrete_visitor()->marking_state()->IsBlackOrGrey(key)) {
       VisitPointer(table, value_slot);
     } else {
       Object value_obj = table.ValueAt(i);
@@ -582,14 +579,48 @@ YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
       worklists_local_(worklists_local) {}
 
 template <typename ConcreteVisitor, typename MarkingState>
+template <typename T>
+int YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitEmbedderTracingSubClassWithEmbedderTracing(Map map, T object) {
+  const bool requires_snapshot = worklists_local_->SupportsExtractWrapper();
+  MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
+  const bool valid_snapshot =
+      requires_snapshot &&
+      worklists_local_->ExtractWrapper(map, object, wrapper_snapshot);
+  const int size = concrete_visitor()->VisitJSObjectSubclass(map, object);
+  if (size && valid_snapshot) {
+    // Success: The object needs to be processed for embedder references.
+    worklists_local_->PushExtractedWrapper(wrapper_snapshot);
+  }
+  return size;
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
 int YoungGenerationMarkingVisitorBase<
     ConcreteVisitor, MarkingState>::VisitJSArrayBuffer(Map map,
                                                        JSArrayBuffer object) {
-  if (!concrete_visitor()->ShouldVisit(object)) return 0;
   object.YoungMarkExtension();
-  int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
-  JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
-  return size;
+  return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSApiObject(Map map, JSObject object) {
+  return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSDataView(Map map,
+                                                    JSDataView object) {
+  return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSTypedArray(Map map,
+                                                      JSTypedArray object) {
+  return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
 }
 
 template <typename ConcreteVisitor, typename MarkingState>

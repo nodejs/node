@@ -126,5 +126,12 @@ bool TurboAssemblerBase::IsAddressableThroughRootRegister(
   return isolate->root_register_addressable_region().contains(address);
 }
 
+Tagged_t TurboAssemblerBase::ReadOnlyRootPtr(RootIndex index) {
+  DCHECK(RootsTable::IsReadOnly(index));
+  CHECK(V8_STATIC_ROOTS_BOOL);
+  CHECK(isolate_->root(index).IsHeapObject());
+  return V8HeapCompressionScheme::CompressTagged(isolate_->root(index).ptr());
+}
+
 }  // namespace internal
 }  // namespace v8

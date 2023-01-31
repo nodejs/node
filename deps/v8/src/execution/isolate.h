@@ -32,6 +32,7 @@
 #include "src/execution/stack-guard.h"
 #include "src/handles/handles.h"
 #include "src/handles/traced-handles.h"
+#include "src/heap/base/stack.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
@@ -510,6 +511,7 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)        \
   V(WasmSimdEnabledCallback, wasm_simd_enabled_callback, nullptr)             \
   V(WasmExceptionsEnabledCallback, wasm_exceptions_enabled_callback, nullptr) \
+  V(WasmGCEnabledCallback, wasm_gc_enabled_callback, nullptr)                 \
   /* State for Relocatable. */                                                \
   V(Relocatable*, relocatable_top, nullptr)                                   \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
@@ -553,7 +555,7 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   inline type name() const { return thread_local_top()->name##_; }
 
 #define THREAD_LOCAL_TOP_ADDRESS(type, name) \
-  type* name##_address() { return &thread_local_top()->name##_; }
+  inline type* name##_address() { return &thread_local_top()->name##_; }
 
 // HiddenFactory exists so Isolate can privately inherit from it without making
 // Factory's members available to Isolate directly.
@@ -680,7 +682,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // at the same time, this should be prevented using external locking.
   void Enter();
 
-  // Exits the current thread. The previosuly entered Isolate is restored
+  // Exits the current thread. The previously entered Isolate is restored
   // for the thread.
   // Not thread-safe. Multiple threads should not Enter/Exit the same isolate
   // at the same time, this should be prevented using external locking.
@@ -767,6 +769,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void InstallConditionalFeatures(Handle<Context> context);
 
   bool IsSharedArrayBufferConstructorEnabled(Handle<Context> context);
+
+  bool IsWasmGCEnabled(Handle<Context> context);
+  bool IsWasmStringRefEnabled(Handle<Context> context);
 
   THREAD_LOCAL_TOP_ADDRESS(Context, pending_handler_context)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_entrypoint)
@@ -1478,6 +1483,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
   void UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
       Handle<JSObject> object);
+  void UpdateNumberStringPrototypeNoReplaceProtectorOnSetPrototype(
+      Handle<JSObject> object);
   void UpdateNoElementsProtectorOnNormalizeElements(Handle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
@@ -1518,7 +1525,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     DCHECK_NOT_NULL(optimizing_compile_dispatcher_);
     return optimizing_compile_dispatcher_;
   }
-  // Flushes all pending concurrent optimzation jobs from the optimizing
+  // Flushes all pending concurrent optimization jobs from the optimizing
   // compile dispatcher's queue.
   void AbortConcurrentOptimization(BlockingBehavior blocking_behavior);
 
@@ -1710,8 +1717,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   // Hashes bits of the Isolate that are relevant for embedded builtins. In
-  // particular, the embedded blob requires builtin Code object layout and the
-  // builtins constants table to remain unchanged from build-time.
+  // particular, the embedded blob requires builtin InstructionStream object
+  // layout and the builtins constants table to remain unchanged from
+  // build-time.
   size_t HashIsolateForEmbeddedBlob();
 
   static const uint8_t* CurrentEmbeddedBlobCode();
@@ -1727,7 +1735,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   const uint8_t* embedded_blob_data() const;
   uint32_t embedded_blob_data_size() const;
 
-  // Returns true if short bultin calls optimization is enabled for the Isolate.
+  // Returns true if short builtin calls optimization is enabled for the
+  // Isolate.
   bool is_short_builtin_calls_enabled() const {
     return V8_SHORT_BUILTIN_CALLS_BOOL && is_short_builtin_calls_enabled_;
   }
@@ -2021,8 +2030,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   SimulatorData* simulator_data() { return simulator_data_; }
 #endif
 
+  ::heap::base::Stack& stack() { return stack_; }
+
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::StackMemory*& wasm_stacks() { return wasm_stacks_; }
+  // Update the thread local's Stack object so that it is aware of the new stack
+  // start and the inactive stacks.
+  void RecordStackSwitchForScanning();
 #endif
 
   // Access to the global "locals block list cache". Caches outer-stack
@@ -2034,6 +2048,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                                Handle<StringSet> locals_blocklist);
   // Returns either `TheHole` or `StringSet`.
   Object LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info);
+
+  void VerifyStaticRoots();
 
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator,
@@ -2291,7 +2307,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // True if this isolate was initialized from a snapshot.
   bool initialized_from_snapshot_ = false;
 
-  // True if short bultin calls optimization is enabled.
+  // True if short builtin calls optimization is enabled.
   bool is_short_builtin_calls_enabled_ = false;
 
   // True if the isolate is in background. This flag is used
@@ -2514,6 +2530,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // The mutex only guards adding pages, the retrieval is signal safe.
   base::Mutex code_pages_mutex_;
 
+  // Stack information for the main thread.
+  ::heap::base::Stack stack_;
+
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::StackMemory* wasm_stacks_;
 #endif
@@ -2549,6 +2568,7 @@ extern thread_local Isolate* g_current_isolate_ V8_CONSTINIT;
 
 #undef FIELD_ACCESSOR
 #undef THREAD_LOCAL_TOP_ACCESSOR
+#undef THREAD_LOCAL_TOP_ADDRESS
 
 // SaveContext scopes save the current context on the Isolate on creation, and
 // restore it on destruction.
@@ -2629,34 +2649,33 @@ class StackLimitCheck {
   }
   static bool HasOverflowed(LocalIsolate* local_isolate);
 
+  // Use this to check for stack-overflow when entering runtime from JS code.
+  bool JsHasOverflowed(uintptr_t gap = 0) const;
+
   // Use this to check for interrupt request in C++ code.
   V8_INLINE bool InterruptRequested() {
     StackGuard* stack_guard = isolate_->stack_guard();
     return GetCurrentStackPosition() < stack_guard->climit();
   }
 
-  // Handle interripts if InterruptRequested was true.
+  // Precondition: InterruptRequested == true.
   // Returns true if any interrupt (overflow or termination) was handled, in
-  // which case the caller should prevent further JS execution.
-  V8_EXPORT_PRIVATE bool HandleInterrupt(Isolate* isolate);
-
-  // Use this to check for stack-overflow when entering runtime from JS code.
-  bool JsHasOverflowed(uintptr_t gap = 0) const;
+  // which case the caller must prevent further JS execution.
+  V8_EXPORT_PRIVATE bool HandleStackOverflowAndTerminationRequest();
 
  private:
-  Isolate* isolate_;
+  Isolate* const isolate_;
 };
 
 // This macro may be used in context that disallows JS execution.
 // That is why it checks only for a stack overflow and termination.
-#define STACK_CHECK(isolate, result_value)        \
-  do {                                            \
-    StackLimitCheck stack_check(isolate);         \
-    if (stack_check.InterruptRequested()) {       \
-      if (stack_check.HandleInterrupt(isolate)) { \
-        return result_value;                      \
-      }                                           \
-    }                                             \
+#define STACK_CHECK(isolate, result_value)                                     \
+  do {                                                                         \
+    StackLimitCheck stack_check(isolate);                                      \
+    if (V8_UNLIKELY(stack_check.InterruptRequested()) &&                       \
+        V8_UNLIKELY(stack_check.HandleStackOverflowAndTerminationRequest())) { \
+      return result_value;                                                     \
+    }                                                                          \
   } while (false)
 
 class StackTraceFailureMessage {

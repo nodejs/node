@@ -36,6 +36,13 @@
 ['system == android', {
   # https://crbug.com/v8/8197
   'debugger/get-possible-breakpoints-class-fields': [SKIP],
+
+  # https://crbug.com/v8/13686
+  'debugger/evaluate-on-call-frame-private-class-member': [SKIP],
+  'debugger/evaluate-on-call-frame-private-class-member-conflict': [SKIP],
+  'runtime/evaluate-private-class-member': [SKIP],
+  'runtime/evaluate-private-class-member-conflict': [SKIP],
+  'runtime/evaluate-private-class-member-static': [SKIP],
 }],  # 'system == android'
 
 ##############################################################################

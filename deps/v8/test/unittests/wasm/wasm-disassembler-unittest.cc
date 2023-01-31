@@ -24,8 +24,7 @@ void CheckDisassemblerOutput(base::Vector<const byte> module_bytes,
                              std::string expected_output) {
   AccountingAllocator allocator;
 
-  ModuleResult module_result = DecodeWasmModuleForDisassembler(
-      module_bytes.begin(), module_bytes.end(), &allocator);
+  ModuleResult module_result = DecodeWasmModuleForDisassembler(module_bytes);
   DCHECK(module_result.ok());
   WasmModule* module = module_result.value().get();
 
@@ -44,10 +43,11 @@ void CheckDisassemblerOutput(base::Vector<const byte> module_bytes,
   // Remove comment lines from expected output since they cannot be recovered
   // by a disassembler.
   // They were also used as part of the C++/WAT polyglot trick described below.
-  expected_output =
-      std::regex_replace(expected_output, std::regex(" *;;[^\\n]*\\n?"), "");
+  std::regex comment_regex(" *;;[^\\n]*\\n?");
+  expected_output = std::regex_replace(expected_output, comment_regex, "");
+  std::string output_str = std::regex_replace(output.str(), comment_regex, "");
 
-  EXPECT_EQ(output.str(), expected_output);
+  EXPECT_EQ(expected_output, output_str);
 }
 
 TEST_F(WasmDisassemblerTest, Mvp) {
@@ -98,6 +98,34 @@ TEST_F(WasmDisassemblerTest, Simd) {
 #include "wasm-disassembler-unittest-simd.wat.inc"
   CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
 }
+
+TEST_F(WasmDisassemblerTest, Gc) {
+  // Since WABT's `wat2wasm` didn't support some GC features yet, I used
+  // Binaryen's `wasm-as --enable-gc --hybrid` here to produce the binary.
+  constexpr byte module_bytes[] = {
+#include "wasm-disassembler-unittest-gc.wasm.inc"
+  };
+  std::string expected;
+#include "wasm-disassembler-unittest-gc.wat.inc"
+  CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
+}
+
+TEST_F(WasmDisassemblerTest, TooManyends) {
+  constexpr byte module_bytes[] = {
+#include "wasm-disassembler-unittest-too-many-ends.wasm.inc"
+  };
+  std::string expected;
+#include "wasm-disassembler-unittest-too-many-ends.wat.inc"
+  CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
+}
+
+// TODO(dlehmann): Add tests for the following Wasm features and extensions:
+// - custom name section for Wasm GC constructs (struct and array type names,
+// struct fields).
+// - exception-related instructions (try, catch, catch_all, delegate) and named
+// exception tags.
+// - atomic instructions (threads proposal, 0xfe prefix).
+// - some "numeric" instructions (0xfc prefix).
 
 }  // namespace wasm
 }  // namespace internal

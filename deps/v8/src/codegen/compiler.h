@@ -95,7 +95,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Generate and return optimized code for OSR. The empty handle is returned
   // either on failure, or after spawning a concurrent OSR task (in which case
   // a future OSR request will pick up the resulting code object).
-  V8_WARN_UNUSED_RESULT static MaybeHandle<CodeT> CompileOptimizedOSR(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Code> CompileOptimizedOSR(
       Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
       ConcurrencyMode mode);
 
@@ -384,6 +384,16 @@ class OptimizedCompilationJob : public CompilationJob {
 
   const char* compiler_name() const { return compiler_name_; }
 
+  double prepare_in_ms() const {
+    return time_taken_to_prepare_.InMillisecondsF();
+  }
+  double execute_in_ms() const {
+    return time_taken_to_execute_.InMillisecondsF();
+  }
+  double finalize_in_ms() const {
+    return time_taken_to_finalize_.InMillisecondsF();
+  }
+
  protected:
   // Overridden by the actual implementation.
   virtual Status PrepareJobImpl(Isolate* isolate) = 0;
@@ -520,7 +530,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   BackgroundCompileTask& operator=(const BackgroundCompileTask&) = delete;
   ~BackgroundCompileTask();
 
-  // Creates a new task that when run will parse and compile the top-level
+  // Creates a new task that when run will parse and compile the non-top-level
   // |shared_info| and can be finalized with FinalizeFunction in
   // Compiler::FinalizeBackgroundCompileTask.
   BackgroundCompileTask(
@@ -534,28 +544,10 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   void Run(LocalIsolate* isolate,
            ReusableUnoptimizedCompileState* reusable_state);
 
-  // Checks the Isolate compilation cache to see whether it will be necessary to
-  // merge the newly compiled objects into an existing Script. This can change
-  // the value of ShouldMergeWithExistingScript, and embedders should check the
-  // latter after calling this. May only be called on a thread where the Isolate
-  // is currently entered.
-  void SourceTextAvailable(Isolate* isolate, Handle<String> source_text,
-                           const ScriptDetails& script_details);
-
-  // Returns whether the embedder should call MergeWithExistingScript. This
-  // function may be called from any thread, any number of times, but its return
-  // value is only meaningful after SourceTextAvailable has completed.
-  bool ShouldMergeWithExistingScript() const;
-
-  // Partially merges newly compiled objects into an existing Script with the
-  // same source, and generates a list of follow-up work for the main thread.
-  // May be called from any thread, only once, and only if
-  // ShouldMergeWithExistingScript returned true.
-  void MergeWithExistingScript();
-
   MaybeHandle<SharedFunctionInfo> FinalizeScript(
       Isolate* isolate, Handle<String> source,
-      const ScriptDetails& script_details);
+      const ScriptDetails& script_details,
+      MaybeHandle<Script> maybe_cached_script);
 
   bool FinalizeFunction(Isolate* isolate, Compiler::ClearExceptionFlag flag);
 
@@ -567,6 +559,8 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   void ReportStatistics(Isolate* isolate);
 
   void ClearFunctionJobPointer();
+
+  bool is_streaming_compilation() const;
 
   // Data needed for parsing and compilation. These need to be initialized
   // before the compilation starts.
@@ -593,10 +587,6 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   int start_position_;
   int end_position_;
   int function_literal_id_;
-
-  // Task that merges newly compiled content into an existing Script from the
-  // Isolate compilation cache, if necessary.
-  BackgroundMergeTask background_merge_task_;
 };
 
 // Contains all data which needs to be transmitted between threads for

@@ -73,17 +73,18 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
 void ProfilerListener::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                        Handle<SharedFunctionInfo> shared,
                                        Handle<Name> script_name) {
+  PtrComprCageBase cage_base(isolate_);
+  DCHECK(code->IsBytecodeArray(cage_base) ||
+         Builtins::IsBuiltinId(code->builtin_id(cage_base)) ||
+         code->kind(cage_base) == CodeKind::BASELINE);
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  PtrComprCageBase cage_base(isolate_);
   rec->instruction_start = code->InstructionStart(cage_base);
   rec->entry =
       code_entries_.Create(tag, GetName(shared->DebugNameCStr().get()),
                            GetName(InferScriptName(*script_name, *shared)),
                            CpuProfileNode::kNoLineNumberInfo,
                            CpuProfileNode::kNoColumnNumberInfo, nullptr);
-  DCHECK_IMPLIES(code->IsCode(cage_base),
-                 code->kind(cage_base) == CodeKind::BASELINE);
   rec->entry->FillFunctionInfo(*shared);
   rec->instruction_size = code->InstructionSize(cage_base);
   weak_code_registry_.Track(rec->entry, code);
@@ -136,8 +137,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
       Handle<BytecodeArray> bytecodes(shared->GetBytecodeArray(isolate_),
                                       isolate_);
       Handle<ByteArray> bytecode_offsets(
-          abstract_code->ToCode(cage_base).bytecode_offset_table(cage_base),
-          isolate_);
+          abstract_code->GetCode().bytecode_offset_table(cage_base), isolate_);
       baseline_iterator = std::make_unique<baseline::BytecodeOffsetIterator>(
           bytecode_offsets, bytecodes);
     }
@@ -164,9 +164,9 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
       } else {
         DCHECK(!is_baseline);
         DCHECK(abstract_code->IsCode(cage_base));
-        Handle<Code> code = handle(abstract_code->GetCode(), isolate_);
         std::vector<SourcePositionInfo> stack =
-            it.source_position().InliningStack(code);
+            it.source_position().InliningStack(isolate_,
+                                               abstract_code->GetCode());
         DCHECK(!stack.empty());
 
         // When we have an inlining id and we are doing cross-script inlining,
@@ -297,13 +297,22 @@ void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeMoveEvent(AbstractCode from, AbstractCode to) {
+void ProfilerListener::CodeMoveEvent(InstructionStream from,
+                                     InstructionStream to) {
   DisallowGarbageCollection no_gc;
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeMove);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
-  PtrComprCageBase cage_base(isolate_);
-  rec->from_instruction_start = from.InstructionStart(cage_base);
-  rec->to_instruction_start = to.InstructionStart(cage_base);
+  rec->from_instruction_start = from.InstructionStart();
+  rec->to_instruction_start = to.InstructionStart();
+  DispatchCodeEvent(evt_rec);
+}
+
+void ProfilerListener::BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) {
+  DisallowGarbageCollection no_gc;
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeMove);
+  CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
+  rec->from_instruction_start = from.GetFirstBytecodeAddress();
+  rec->to_instruction_start = to.GetFirstBytecodeAddress();
   DispatchCodeEvent(evt_rec);
 }
 
@@ -325,8 +334,9 @@ void ProfilerListener::CodeDisableOptEvent(Handle<AbstractCode> code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
-                                      Address pc, int fp_to_sp_delta) {
+void ProfilerListener::CodeDeoptEvent(Handle<InstructionStream> code,
+                                      DeoptimizeKind kind, Address pc,
+                                      int fp_to_sp_delta) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeDeopt);
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
@@ -379,7 +389,7 @@ const char* ProfilerListener::GetFunctionName(SharedFunctionInfo shared) {
   }
 }
 
-void ProfilerListener::AttachDeoptInlinedFrames(Handle<Code> code,
+void ProfilerListener::AttachDeoptInlinedFrames(Handle<InstructionStream> code,
                                                 CodeDeoptEventRecord* rec) {
   int deopt_id = rec->deopt_id;
   SourcePosition last_position = SourcePosition::Unknown();
@@ -408,7 +418,8 @@ void ProfilerListener::AttachDeoptInlinedFrames(Handle<Code> code,
       // frame. These don't escape this function, but quickly add up. This
       // scope limits their lifetime.
       HandleScope scope(isolate_);
-      std::vector<SourcePositionInfo> stack = last_position.InliningStack(code);
+      std::vector<SourcePositionInfo> stack =
+          last_position.InliningStack(isolate_, code->code(kAcquireLoad));
       CpuProfileDeoptFrame* deopt_frames =
           new CpuProfileDeoptFrame[stack.size()];
 

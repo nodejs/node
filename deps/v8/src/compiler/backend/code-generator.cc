@@ -411,7 +411,7 @@ void CodeGenerator::AssembleCode() {
   unwinding_info_writer_.Finish(tasm()->pc_offset());
 
   // Final alignment before starting on the metadata section.
-  tasm()->Align(Code::kMetadataAlignment);
+  tasm()->Align(InstructionStream::kMetadataAlignment);
 
   safepoints()->Emit(tasm(), frame()->GetTotalFrameSlotCount());
 
@@ -470,7 +470,7 @@ base::OwnedVector<byte> CodeGenerator::GetProtectedInstructionsData() {
 MaybeHandle<Code> CodeGenerator::FinalizeCode() {
   if (result_ != kSuccess) {
     tasm()->AbortedCodeGeneration();
-    return MaybeHandle<Code>();
+    return {};
   }
 
   // Allocate the source position table.
@@ -509,7 +509,7 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     tasm()->AbortedCodeGeneration();
-    return MaybeHandle<Code>();
+    return {};
   }
 
   LOG_CODE_EVENT(isolate(), CodeLinePosInfoRecordEvent(
@@ -1129,10 +1129,10 @@ DeoptimizationExit* CodeGenerator::BuildTranslation(
   FrameStateDescriptor* const descriptor = entry.descriptor();
   frame_state_offset++;
 
-  const int update_feedback_count = entry.feedback().IsValid() ? 1 : 0;
   const int translation_index = translations_.BeginTranslation(
       static_cast<int>(descriptor->GetFrameCount()),
-      static_cast<int>(descriptor->GetJSFrameCount()), update_feedback_count);
+      static_cast<int>(descriptor->GetJSFrameCount()),
+      entry.feedback().IsValid());
   if (entry.feedback().IsValid()) {
     DeoptimizationLiteral literal =
         DeoptimizationLiteral(entry.feedback().vector);

@@ -218,6 +218,9 @@ class DebugInfoImpl {
 
     // Debug side tables for stepping are generated lazily.
     bool generate_debug_sidetable = for_debugging == kWithBreakpoints;
+    // Debugging with lazy validation is not supported yet. Fix this when
+    // needed.
+    CHECK(native_module_->module()->function_was_validated(func_index));
     WasmCompilationResult result = ExecuteLiftoffCompilation(
         &env, body,
         LiftoffOptions{}

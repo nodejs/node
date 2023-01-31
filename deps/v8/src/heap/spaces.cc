@@ -14,9 +14,7 @@
 #include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
 #include "src/heap/base/active-system-pages.h"
-#include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
-#include "src/heap/heap-controller.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/invalidated-slots-inl.h"
@@ -456,6 +454,29 @@ int MemoryChunk::FreeListsLength() {
     }
   }
   return length;
+}
+
+SpaceIterator::SpaceIterator(Heap* heap)
+    : heap_(heap), current_space_(FIRST_MUTABLE_SPACE) {}
+
+SpaceIterator::~SpaceIterator() = default;
+
+bool SpaceIterator::HasNext() {
+  while (current_space_ <= LAST_MUTABLE_SPACE) {
+    Space* space = heap_->space(current_space_);
+    if (space) return true;
+    ++current_space_;
+  }
+
+  // No more spaces left.
+  return false;
+}
+
+Space* SpaceIterator::Next() {
+  DCHECK_LE(current_space_, LAST_MUTABLE_SPACE);
+  Space* space = heap_->space(current_space_++);
+  DCHECK_NOT_NULL(space);
+  return space;
 }
 
 }  // namespace internal

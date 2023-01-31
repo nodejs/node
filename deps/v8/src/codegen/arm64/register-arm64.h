@@ -45,6 +45,9 @@ namespace internal {
   ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V) \
   MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V)
 
+#define MAGLEV_SCRATCH_GENERAL_REGISTERS(R)               \
+  R(x16) R(x17)
+
 #define FLOAT_REGISTERS(V)                                \
   V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  \
   V(s8)  V(s9)  V(s10) V(s11) V(s12) V(s13) V(s14) V(s15) \
@@ -76,6 +79,10 @@ namespace internal {
   R(d8)  R(d9)  R(d10) R(d11) R(d12) R(d13) R(d14) R(d16) \
   R(d17) R(d18) R(d19) R(d20) R(d21) R(d22) R(d23) R(d24) \
   R(d25) R(d26) R(d27) R(d28)
+
+#define MAGLEV_SCRATCH_DOUBLE_REGISTERS(R)                \
+  R(d30) R(d31)
+
 // clang-format on
 
 // Some CPURegister methods can return Register and VRegister types, so we

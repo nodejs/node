@@ -161,6 +161,26 @@ export abstract class TextView extends PhaseView {
 
   public onresize(): void {}
 
+  private removeHtmlElementFromMapIf(condition: (e: HTMLElement) => boolean,
+                                     map: Map<string, Array<HTMLElement>>): void {
+    for (const [nodeId, elements] of map) {
+      let i = elements.length;
+      while (i--) {
+        if (condition(elements[i])) {
+          elements.splice(i, 1);
+        }
+      }
+      if (elements.length == 0) {
+        map.delete(nodeId);
+      }
+    }
+  }
+
+  public removeHtmlElementFromAllMapsIf(condition: (e: HTMLElement) => boolean): void {
+    this.removeHtmlElementFromMapIf(condition, this.nodeIdToHtmlElementsMap);
+    this.removeHtmlElementFromMapIf(condition, this.blockIdToHtmlElementsMap);
+  }
+
   // instruction-id are the divs for the register allocator phase
   protected addHtmlElementForInstructionId(anyInstructionId: any, htmlElement: HTMLElement): void {
     const instructionId = String(anyInstructionId);

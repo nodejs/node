@@ -5,6 +5,7 @@
 #include "src/heap/cppgc/write-barrier.h"
 
 #include "include/cppgc/heap-consistency.h"
+#include "include/cppgc/internal/member-storage.h"
 #include "include/cppgc/internal/pointer-policies.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -221,6 +222,38 @@ bool YoungGenerationEnabler::IsEnabled() {
 }
 
 #endif  // defined(CPPGC_YOUNG_GENERATION)
+
+#ifdef CPPGC_SLIM_WRITE_BARRIER
+
+// static
+void WriteBarrier::CombinedWriteBarrierSlow(const void* slot) {
+#if defined(CPPGC_POINTER_COMPRESSION)
+  using MemberStorage = CompressedPointer;
+#else   // !defined(CPPGC_POINTER_COMPRESSION)
+  using MemberStorage = RawPointer;
+#endif  // !defined(CPPGC_POINTER_COMPRESSION)
+  const auto* storage = reinterpret_cast<const MemberStorage*>(slot);
+  const void* value = storage->Load();
+  WriteBarrier::Params params;
+  const WriteBarrier::Type type =
+      WriteBarrier::GetWriteBarrierType(slot, value, params);
+  switch (type) {
+    case WriteBarrier::Type::kGenerational:
+      WriteBarrier::GenerationalBarrier<
+          WriteBarrier::GenerationalBarrierType::kPreciseSlot>(params, slot);
+      break;
+    case WriteBarrier::Type::kMarking:
+      WriteBarrier::DijkstraMarkingBarrier(params, value);
+      break;
+    case WriteBarrier::Type::kNone:
+      // The fast checks are approximate and may trigger spuriously if any heap
+      // has marking in progress. `GetWriteBarrierType()` above is exact which
+      // is the reason we could still observe a bailout here.
+      break;
+  }
+}
+
+#endif  // CPPGC_SLIM_WRITE_BARRIER
 
 }  // namespace internal
 }  // namespace cppgc

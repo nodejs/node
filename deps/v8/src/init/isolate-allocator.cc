@@ -5,6 +5,7 @@
 #include "src/init/isolate-allocator.h"
 
 #include "src/base/bounded-page-allocator.h"
+#include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/code-range.h"
 #include "src/sandbox/sandbox.h"
@@ -63,8 +64,7 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(VirtualMemoryCage, GetProcessWidePtrComprCage)
 
 // static
 void IsolateAllocator::FreeProcessWidePtrComprCageForTesting() {
-  if (std::shared_ptr<CodeRange> code_range =
-          CodeRange::GetProcessWideCodeRange()) {
+  if (CodeRange* code_range = CodeRange::GetProcessWideCodeRange()) {
     code_range->Free();
   }
   GetProcessWidePtrComprCage()->Free();
@@ -94,7 +94,14 @@ void IsolateAllocator::InitializeOncePerProcess() {
         "Failed to reserve virtual memory for process-wide V8 "
         "pointer compression cage");
   }
-#endif
+  V8HeapCompressionScheme::InitBase(GetProcessWidePtrComprCage()->base());
+#ifdef V8_EXTERNAL_CODE_SPACE
+  // Speculatively set the code cage base to the same value in case jitless
+  // mode will be used. Once the process-wide CodeRange instance is created
+  // the code cage base will be set accordingly.
+  ExternalCodeCompressionScheme::InitBase(V8HeapCompressionScheme::base());
+#endif  // V8_EXTERNAL_CODE_SPACE
+#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 }
 
 IsolateAllocator::IsolateAllocator() {

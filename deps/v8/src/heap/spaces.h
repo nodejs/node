@@ -16,7 +16,6 @@
 #include "src/heap/base/active-system-pages.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/free-list.h"
-#include "src/heap/heap.h"
 #include "src/heap/linear-allocation-area.h"
 #include "src/heap/list.h"
 #include "src/heap/memory-chunk-layout.h"
@@ -37,9 +36,11 @@ class TestCodePageAllocatorScope;
 
 class AllocationObserver;
 class FreeList;
+class Heap;
 class Isolate;
 class LargeObjectSpace;
 class LargePage;
+class ObjectIterator;
 class Page;
 class PagedSpaceBase;
 class SemiSpace;
@@ -648,6 +649,19 @@ class SpaceWithLinearArea : public Space {
 
   size_t allocations_origins_[static_cast<int>(
       AllocationOrigin::kNumberOfAllocationOrigins)] = {0};
+};
+
+class V8_EXPORT_PRIVATE SpaceIterator : public Malloced {
+ public:
+  explicit SpaceIterator(Heap* heap);
+  virtual ~SpaceIterator();
+
+  bool HasNext();
+  Space* Next();
+
+ private:
+  Heap* heap_;
+  int current_space_;  // from enum AllocationSpace.
 };
 
 // Iterates over all memory chunks in the heap (across all spaces).

@@ -311,8 +311,6 @@ transitioning javascript builtin NumberParseInt(
 }
 
 extern builtin NonNumberToNumeric(implicit context: Context)(JSAny): Numeric;
-extern builtin BitwiseAnd(implicit context: Context)(Number, Number): Number;
-extern builtin BitwiseXor(implicit context: Context)(Number, Number): Number;
 extern builtin Subtract(implicit context: Context)(Number, Number): Number;
 extern builtin Add(implicit context: Context)(Number, Number): Number;
 extern builtin StringAddConvertLeft(implicit context: Context)(
@@ -323,6 +321,7 @@ extern builtin StringAddConvertRight(implicit context: Context)(
 extern macro BitwiseOp(int32, int32, constexpr Operation): Number;
 extern macro RelationalComparison(
     constexpr Operation, JSAny, JSAny, Context): Boolean;
+extern macro TruncateNumberToWord32(Number): int32;
 
 // TODO(bbudge) Use a simpler macro structure that doesn't loop when converting
 // non-numbers, if such a code sequence doesn't make the builtin bigger.
@@ -699,7 +698,7 @@ builtin BitwiseNot(implicit context: Context)(value: JSAny): Numeric {
   try {
     UnaryOp1(value) otherwise Number, BigInt;
   } label Number(n: Number) {
-    tail BitwiseXor(n, -1);
+    return BitwiseOp(TruncateNumberToWord32(n), -1, Operation::kBitwiseXor);
   } label BigInt(b: BigInt) {
     return runtime::BigIntUnaryOp(
         context, b, SmiTag<Operation>(Operation::kBitwiseNot));
@@ -754,20 +753,38 @@ builtin BitwiseAnd(implicit context: Context)(
   try {
     BinaryOp1(left, right) otherwise Number, AtLeastOneBigInt;
   } label Number(left: Number, right: Number) {
-    tail BitwiseAnd(left, right);
+    return BitwiseOp(
+        TruncateNumberToWord32(left), TruncateNumberToWord32(right),
+        Operation::kBitwiseAnd);
   } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
     tail bigint::BigIntBitwiseAnd(left, right);
   }
 }
 
 builtin BitwiseOr(implicit context: Context)(
-    left: JSAny, right: JSAny): Object {
-  return Generate_BitwiseBinaryOp(Operation::kBitwiseOr, left, right, context);
+    left: JSAny, right: JSAny): Numeric {
+  try {
+    BinaryOp1(left, right) otherwise Number, AtLeastOneBigInt;
+  } label Number(left: Number, right: Number) {
+    return BitwiseOp(
+        TruncateNumberToWord32(left), TruncateNumberToWord32(right),
+        Operation::kBitwiseOr);
+  } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
+    tail bigint::BigIntBitwiseOr(left, right);
+  }
 }
 
 builtin BitwiseXor(implicit context: Context)(
-    left: JSAny, right: JSAny): Object {
-  return Generate_BitwiseBinaryOp(Operation::kBitwiseXor, left, right, context);
+    left: JSAny, right: JSAny): Numeric {
+  try {
+    BinaryOp1(left, right) otherwise Number, AtLeastOneBigInt;
+  } label Number(left: Number, right: Number) {
+    return BitwiseOp(
+        TruncateNumberToWord32(left), TruncateNumberToWord32(right),
+        Operation::kBitwiseXor);
+  } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
+    tail bigint::BigIntBitwiseXor(left, right);
+  }
 }
 
 // Relational builtins.

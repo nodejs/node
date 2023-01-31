@@ -81,6 +81,7 @@ class Operand {
   inline Operand(Register reg, Extend extend, unsigned shift_amount = 0);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
+  static Operand EmbeddedHeapNumber(double number);
 
   inline bool IsHeapNumberRequest() const;
   inline HeapNumberRequest heap_number_request() const;
@@ -190,9 +191,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
-  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
+  static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;
   void GetCode(Isolate* isolate, CodeDesc* desc,
-               SafepointTableBuilder* safepoint_table_builder,
+               SafepointTableBuilderBase* safepoint_table_builder,
                int handler_table_offset);
 
   // Convenience wrapper for code without safepoint or handler tables.
@@ -261,7 +262,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Returns the handle for the code object called at 'pc'.
   // This might need to be temporarily encoded as an offset into code_targets_.
-  inline Handle<CodeT> code_target_object_handle_at(Address pc);
+  inline Handle<Code> code_target_object_handle_at(Address pc);
   inline EmbeddedObjectIndex embedded_object_index_referenced_from(Address pc);
   inline void set_embedded_object_index_referenced_from(
       Address p, EmbeddedObjectIndex index);
@@ -276,9 +277,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This sets the branch destination. 'location' here can be either the pc of
   // an immediate branch or the address of an entry in the constant pool.
   // This is for calls and branches within generated code.
-  inline static void deserialization_set_special_target_at(Address location,
-                                                           Code code,
-                                                           Address target);
+  inline static void deserialization_set_special_target_at(
+      Address location, InstructionStream code, Address target);
 
   // Get the size of the special target encoded at 'location'.
   inline static int deserialization_special_target_size(Address location);
@@ -779,12 +779,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void clz(const Register& rd, const Register& rn);
   void cls(const Register& rd, const Register& rn);
 
-  // Pointer Authentication Code for Instruction address, using key B, with
-  // address in x17 and modifier in x16 [Armv8.3].
+  // Pointer Authentication InstructionStream for Instruction address, using key
+  // B, with address in x17 and modifier in x16 [Armv8.3].
   void pacib1716();
 
-  // Pointer Authentication Code for Instruction address, using key B, with
-  // address in LR and modifier in SP [Armv8.3].
+  // Pointer Authentication InstructionStream for Instruction address, using key
+  // B, with address in LR and modifier in SP [Armv8.3].
   void pacibsp();
 
   // Authenticate Instruction address, using key B, with address in x17 and
@@ -2087,7 +2087,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     dc64(data);
   }
 
-  // Code generation helpers --------------------------------------------------
+  // InstructionStream generation helpers
+  // --------------------------------------------------
 
   Instruction* pc() const { return Instruction::Cast(pc_); }
 
@@ -2662,7 +2663,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   std::deque<int> internal_reference_positions_;
 
  protected:
-  // Code generation
+  // InstructionStream generation
   // The relocation writer's position is at least kGap bytes below the end of
   // the generated instructions. This is so that multi-instruction sequences do
   // not have to check for overflow. The same is true for writes of large

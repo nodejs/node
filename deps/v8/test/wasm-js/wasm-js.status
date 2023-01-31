@@ -8,7 +8,6 @@
   # This test can only be executed in the browser
   'wpt/idlharness': [SKIP],
   # Failing WPT tests
-  'wpt/exception/getArg.tentative': [FAIL],
   'wpt/exception/type.tentative': [FAIL],
   'wpt/function/constructor.tentative': [FAIL],
   'wpt/function/table.tentative': [FAIL],

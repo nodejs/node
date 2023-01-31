@@ -67,12 +67,12 @@ class ArrayBufferSweeper final {
   // Bytes accounted in the old generation. Rebuilt during sweeping.
   size_t OldBytes() const { return old().ApproximateBytes(); }
 
+  bool sweeping_in_progress() const { return job_.get(); }
+
  private:
   struct SweepingJob;
 
   enum class SweepingState { kInProgress, kDone };
-
-  bool sweeping_in_progress() const { return job_.get(); }
 
   // Finishes sweeping if it is already done.
   void FinishIfDone();

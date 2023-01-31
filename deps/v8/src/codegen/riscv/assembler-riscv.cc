@@ -225,13 +225,13 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
   // As a crutch to avoid having to add manual Align calls wherever we use a
-  // raw workflow to create Code objects (mostly in tests), add another Align
-  // call here. It does no harm - the end of the Code object is aligned to the
-  // (larger) kCodeAlignment anyways.
+  // raw workflow to create InstructionStream objects (mostly in tests), add
+  // another Align call here. It does no harm - the end of the InstructionStream
+  // object is aligned to the (larger) kCodeAlignment anyways.
   // TODO(jgruber): Consider moving responsibility for proper alignment to
   // metadata table builders (safepoint, handler, constant pool, code
   // comments).
-  DataAlign(Code::kMetadataAlignment);
+  DataAlign(InstructionStream::kMetadataAlignment);
 
   ForceConstantPoolEmissionWithoutJump();
 
@@ -564,8 +564,10 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal,
     } break;
     default: {
       // Emitted label constant, not part of a branch.
-      // Make label relative to Code pointer of generated Code object.
-      instr_at_put(pos, target_pos + (Code::kHeaderSize - kHeapObjectTag));
+      // Make label relative to Code pointer of generated InstructionStream
+      // object.
+      instr_at_put(
+          pos, target_pos + (InstructionStream::kHeaderSize - kHeapObjectTag));
     } break;
   }
   disassembleInstr(instr);
@@ -839,7 +841,8 @@ void Assembler::label_at_put(Label* L, int at_offset) {
                reinterpret_cast<Instr*>(buffer_start_ + at_offset), at_offset);
   if (L->is_bound()) {
     target_pos = L->pos();
-    instr_at_put(at_offset, target_pos + (Code::kHeaderSize - kHeapObjectTag));
+    instr_at_put(at_offset, target_pos + (InstructionStream::kHeaderSize -
+                                          kHeapObjectTag));
   } else {
     if (L->is_linked()) {
       target_pos = L->pos();  // L's link.
@@ -1250,8 +1253,8 @@ void Assembler::break_(uint32_t code, bool break_as_stop) {
   // simulator expects a char pointer after the stop instruction.
   // See constants-mips.h for explanation.
   DCHECK(
-      (break_as_stop && code <= kMaxStopCode && code > kMaxWatchpointCode) ||
-      (!break_as_stop && (code > kMaxStopCode || code <= kMaxWatchpointCode)));
+      (break_as_stop && code <= kMaxStopCode && code > kMaxTracepointCode) ||
+      (!break_as_stop && (code > kMaxStopCode || code <= kMaxTracepointCode)));
 
   // since ebreak does not allow additional immediate field, we use the
   // immediate field of lui instruction immediately following the ebreak to
@@ -1451,7 +1454,8 @@ void Assembler::dd(Label* label) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code());
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data,
+                  InstructionStream());
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // Too late to grow buffer here.
   reloc_info_writer.Write(&rinfo);
 }

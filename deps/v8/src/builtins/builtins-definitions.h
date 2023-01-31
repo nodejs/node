@@ -160,7 +160,7 @@ namespace internal {
                                                                                \
   /* String helpers */                                                         \
   TFC(StringFromCodePointAt, StringAtAsString)                                 \
-  TFC(StringEqual, Compare)                                                    \
+  TFC(StringEqual, StringEqual)                                                \
   TFC(StringGreaterThan, Compare)                                              \
   TFC(StringGreaterThanOrEqual, Compare)                                       \
   TFC(StringLessThan, Compare)                                                 \
@@ -257,10 +257,12 @@ namespace internal {
                                                                                \
   /* Type conversions */                                                       \
   TFC(ToNumber, TypeConversion)                                                \
+  TFC(ToBigInt, TypeConversion)                                                \
   TFC(ToNumber_Baseline, TypeConversion_Baseline)                              \
   TFC(ToNumeric_Baseline, TypeConversion_Baseline)                             \
   TFC(PlainPrimitiveToNumber, TypeConversionNoContext)                         \
   TFC(ToNumberConvertBigInt, TypeConversion)                                   \
+  TFC(ToBigIntConvertNumber, TypeConversion)                                   \
   TFC(Typeof, Typeof)                                                          \
   TFC(BigIntToI64, BigIntToI64)                                                \
   TFC(BigIntToI32Pair, BigIntToI32Pair)                                        \
@@ -500,6 +502,7 @@ namespace internal {
   /* DataView */                                                               \
   /* ES #sec-dataview-constructor */                                           \
   CPP(DataViewConstructor)                                                     \
+  TFC(DataViewGetVariableLength, DataViewGetVariableLength)                    \
                                                                                \
   /* Date */                                                                   \
   /* ES #sec-date-constructor */                                               \
@@ -653,9 +656,9 @@ namespace internal {
   TFH(KeyedStoreIC, StoreWithVector)                                           \
   TFH(KeyedStoreICTrampoline, Store)                                           \
   TFH(KeyedStoreICBaseline, StoreBaseline)                                     \
-  TFH(DefineKeyedOwnIC, StoreWithVector)                                       \
-  TFH(DefineKeyedOwnICTrampoline, Store)                                       \
-  TFH(DefineKeyedOwnICBaseline, StoreBaseline)                                 \
+  TFH(DefineKeyedOwnIC, DefineKeyedOwnWithVector)                              \
+  TFH(DefineKeyedOwnICTrampoline, DefineKeyedOwn)                              \
+  TFH(DefineKeyedOwnICBaseline, DefineKeyedOwnBaseline)                        \
   TFH(StoreInArrayLiteralIC, StoreWithVector)                                  \
   TFH(StoreInArrayLiteralICBaseline, StoreBaseline)                            \
   TFH(LookupContextTrampoline, LookupTrampoline)                               \
@@ -834,7 +837,6 @@ namespace internal {
   ASM(ReflectApply, JSTrampoline)                                              \
   ASM(ReflectConstruct, JSTrampoline)                                          \
   CPP(ReflectDefineProperty)                                                   \
-  CPP(ReflectGetOwnPropertyDescriptor)                                         \
   CPP(ReflectOwnKeys)                                                          \
   CPP(ReflectSet)                                                              \
                                                                                \
@@ -895,7 +897,8 @@ namespace internal {
       kSpecifier, kExportName)                                                 \
   TFJ(ShadowRealmImportValueFulfilled, kJSArgcReceiverSlots + 1, kReceiver,    \
       kExports)                                                                \
-  TFJ(ShadowRealmImportValueRejected, kDontAdaptArgumentsSentinel)             \
+  TFJ(ShadowRealmImportValueRejected, kJSArgcReceiverSlots + 1, kReceiver,     \
+      kException)                                                              \
                                                                                \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \
@@ -1071,17 +1074,12 @@ namespace internal {
   TFJ(AsyncIteratorValueUnwrap, kJSArgcReceiverSlots + 1, kReceiver, kValue)   \
                                                                                \
   /* CEntry */                                                                 \
-  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit, CEntryDummy)    \
-  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit,                   \
-      CEntry1ArgvOnStack)                                                      \
-  ASM(CEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit, CEntryDummy) \
-  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit, CEntryDummy)        \
-  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit, CEntryDummy)          \
-  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit, CEntryDummy)    \
-  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit, CEntryDummy)      \
-  ASM(CEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit, CEntryDummy) \
-  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit, CEntryDummy)        \
-  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit, CEntryDummy)          \
+  ASM(CEntry_Return1_ArgvInRegister_NoBuiltinExit, CEntryDummy)                \
+  ASM(CEntry_Return1_ArgvOnStack_BuiltinExit, CEntry1ArgvOnStack)              \
+  ASM(CEntry_Return1_ArgvOnStack_NoBuiltinExit, CEntryDummy)                   \
+  ASM(CEntry_Return2_ArgvInRegister_NoBuiltinExit, CEntryDummy)                \
+  ASM(CEntry_Return2_ArgvOnStack_BuiltinExit, CEntryDummy)                     \
+  ASM(CEntry_Return2_ArgvOnStack_NoBuiltinExit, CEntryDummy)                   \
   ASM(DirectCEntry, CEntryDummy)                                               \
                                                                                \
   /* String helpers */                                                         \
@@ -1094,10 +1092,12 @@ namespace internal {
   TFS(GetPropertyWithReceiver, kObject, kKey, kReceiver, kOnNonExistent)       \
   TFS(SetProperty, kReceiver, kKey, kValue)                                    \
   TFS(CreateDataProperty, kReceiver, kKey, kValue)                             \
+  TFS(GetOwnPropertyDescriptor, kReceiver, kKey)                               \
   ASM(MemCopyUint8Uint8, CCall)                                                \
   ASM(MemMove, CCall)                                                          \
   TFC(FindNonDefaultConstructorOrConstruct,                                    \
       FindNonDefaultConstructorOrConstruct)                                    \
+  TFS(OrdinaryGetOwnPropertyDescriptor, kReceiver, kKey)                       \
                                                                                \
   /* Trace */                                                                  \
   CPP(IsTraceCategoryEnabled)                                                  \

@@ -531,7 +531,7 @@ MaybeHandle<JSArray> JSLocale::Collations(Isolate* isolate,
   icu::Locale icu_locale(*(locale->icu_locale().raw()));
   return GetKeywordValuesFromLocale<icu::Collator>(
       isolate, "collations", "co", icu_locale, Intl::RemoveCollation, true,
-      false);
+      true);
 }
 
 MaybeHandle<JSArray> JSLocale::HourCycles(Isolate* isolate,

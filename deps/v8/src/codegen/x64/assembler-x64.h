@@ -63,7 +63,7 @@ class MaglevSafepointTableBuilder;
 
 // Utility functions
 
-enum Condition {
+enum Condition : uint8_t {
   overflow = 0,
   no_overflow = 1,
   below = 2,
@@ -161,11 +161,23 @@ enum ScaleFactor : int8_t {
 class V8_EXPORT_PRIVATE Operand {
  public:
   struct Data {
-    byte rex = 0;
-    byte buf[9] = {0};
-    byte len = 1;       // number of bytes of buf_ in use.
-    int8_t addend = 0;  // for rip + offset + addend.
+    union {
+      // {label} is set if {is_label_operand} is true.
+      Label* label;
+
+      // Buffer for encoded memory operand:
+      // Register (1 byte) + SIB (0 or 1 byte) + displacement (0, 1, or 4 byte).
+      byte buf[6] = {0};
+    };
+
+    byte len = 1;  // Number of bytes of buf in use.
+    bool is_label_operand = false;
+    byte rex = 0;       // Rex prefix, only for memory operands.
+    int8_t addend = 0;  // For label-relative operand: rip + offset + addend.
   };
+  // {Data::len} is 8-byte aligned, which makes it fast to access.
+  static_assert(offsetof(Data, len) % kSystemPointerSize == 0);
+  static_assert(sizeof(Data) == 2 * kSystemPointerSize);
 
   // [base + disp/r]
   V8_INLINE constexpr Operand(Register base, int32_t disp) {
@@ -221,8 +233,8 @@ class V8_EXPORT_PRIVATE Operand {
     data_.addend = addend;
     DCHECK_NOT_NULL(label);
     DCHECK(addend == 0 || (is_int8(addend) && label->is_bound()));
-    set_modrm(0, rbp);
-    set_disp64(reinterpret_cast<intptr_t>(label));
+    data_.is_label_operand = true;
+    data_.label = label;
   }
 
   Operand(const Operand&) V8_NOEXCEPT = default;
@@ -266,13 +278,6 @@ class V8_EXPORT_PRIVATE Operand {
     Address p = reinterpret_cast<Address>(&data_.buf[data_.len]);
     WriteUnalignedValue(p, disp);
     data_.len += sizeof(int32_t);
-  }
-
-  V8_INLINE void set_disp64(int64_t disp) {
-    DCHECK_EQ(1, data_.len);
-    Address p = reinterpret_cast<Address>(&data_.buf[data_.len]);
-    WriteUnalignedValue(p, disp);
-    data_.len += sizeof(disp);
   }
 
   Data data_;
@@ -379,8 +384,7 @@ class ConstPool {
   Assembler* assm_;
 
   // Values, pc offsets of entries.
-  using EntryMap = std::multimap<uint64_t, int>;
-  EntryMap entries_;
+  std::multimap<uint64_t, int> entries_;
 
   // Number of bytes taken up by the displacement of rip-relative addressing.
   static constexpr int kRipRelativeDispSize = 4;  // 32-bit displacement.
@@ -443,12 +447,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Read/Modify the code target in the relative branch/call instruction at pc.
   // On the x64 architecture, we use relative jumps with a 32-bit displacement
-  // to jump to other Code objects in the Code space in the heap.
-  // Jumps to C functions are done indirectly through a 64-bit register holding
-  // the absolute address of the target.
-  // These functions convert between absolute Addresses of Code objects and
-  // the relative displacements stored in the code.
-  // The isolate argument is unused (and may be nullptr) when skipping flushing.
+  // to jump to other InstructionStream objects in the InstructionStream space
+  // in the heap. Jumps to C functions are done indirectly through a 64-bit
+  // register holding the absolute address of the target. These functions
+  // convert between absolute Addresses of InstructionStream objects and the
+  // relative displacements stored in the code. The isolate argument is unused
+  // (and may be nullptr) when skipping flushing.
   static inline Address target_address_at(Address pc, Address constant_pool);
   static inline void set_target_address_at(
       Address pc, Address constant_pool, Address target,
@@ -463,7 +467,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the instruction on x64).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code code, Address target);
+      Address instruction_payload, InstructionStream code, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -474,7 +478,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
-  inline Handle<CodeT> code_target_object_handle_at(Address pc);
+  inline Handle<Code> code_target_object_handle_at(Address pc);
   inline Handle<HeapObject> compressed_embedded_object_handle_at(Address pc);
 
   // Number of bytes taken up by the branch target in the code.
@@ -501,7 +505,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x3 };
 
   // ---------------------------------------------------------------------------
-  // Code generation
+  // InstructionStream generation
   //
   // Function names correspond one-to-one to x64 instruction mnemonics.
   // Unless specified otherwise, instructions operate on 64-bit operands.
@@ -823,7 +827,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void near_jmp(intptr_t disp, RelocInfo::Mode rmode);
   void near_j(Condition cc, intptr_t disp, RelocInfo::Mode rmode);
 
-  void call(Handle<CodeT> target,
+  void call(Handle<Code> target,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
 
   // Call near absolute indirect, address in register
@@ -834,7 +838,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Use a 32-bit signed displacement.
   // Unconditional jump to L
   void jmp(Label* L, Label::Distance distance = Label::kFar);
-  void jmp(Handle<CodeT> target, RelocInfo::Mode rmode);
+  void jmp(Handle<Code> target, RelocInfo::Mode rmode);
 
   // Jump near absolute indirect (r64)
   void jmp(Register adr);
@@ -847,7 +851,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Conditional jumps
   void j(Condition cc, Label* L, Label::Distance distance = Label::kFar);
   void j(Condition cc, Address entry, RelocInfo::Mode rmode);
-  void j(Condition cc, Handle<CodeT> target, RelocInfo::Mode rmode);
+  void j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode);
 
   // Floating-point operations
   void fld(int i);
@@ -2088,12 +2092,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
   // an instruction or relocation information.
-  inline bool buffer_overflow() const {
-    return pc_ >= reloc_info_writer.pos() - kGap;
-  }
+  bool buffer_overflow() const { return available_space() < kGap; }
 
   // Get the number of bytes available in the buffer.
-  inline int available_space() const {
+  int available_space() const {
+    DCHECK_GE(reloc_info_writer.pos(), pc_);
+    DCHECK_GE(kMaxInt, reloc_info_writer.pos() - pc_);
     return static_cast<int>(reloc_info_writer.pos() - pc_);
   }
 
@@ -2126,15 +2130,29 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     WriteUnalignedValue(addr_at(pos), x);
   }
 
-  // code emission
-  void GrowBuffer();
+  // InstructionStream emission.
+  V8_NOINLINE V8_PRESERVE_MOST void GrowBuffer();
 
-  void emit(byte x) { *pc_++ = x; }
-  inline void emitl(uint32_t x);
-  inline void emitq(uint64_t x);
-  inline void emitw(uint16_t x);
-  inline void emit(Immediate x);
-  inline void emit(Immediate64 x);
+  template <typename T>
+  static uint8_t* emit(uint8_t* __restrict pc, T t) {
+    WriteUnalignedValue(reinterpret_cast<Address>(pc), t);
+    return pc + sizeof(T);
+  }
+
+  void emit(uint8_t x) { pc_ = emit(pc_, x); }
+  void emitw(uint16_t x) { pc_ = emit(pc_, x); }
+  void emitl(uint32_t x) { pc_ = emit(pc_, x); }
+  void emitq(uint64_t x) { pc_ = emit(pc_, x); }
+
+  void emit(Immediate x) {
+    if (!RelocInfo::IsNoInfo(x.rmode_)) RecordRelocInfo(x.rmode_);
+    emitl(x.value_);
+  }
+
+  void emit(Immediate64 x) {
+    if (!RelocInfo::IsNoInfo(x.rmode_)) RecordRelocInfo(x.rmode_);
+    emitq(static_cast<uint64_t>(x.value_));
+  }
 
   // Emits a REX prefix that encodes a 64-bit operand size and
   // the top bit of both register codes.
@@ -2287,9 +2305,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // Emit the ModR/M byte, and optionally the SIB byte and
-  // 1- or 4-byte offset for a memory operand.  Also used to encode
-  // a three-bit opcode extension into the ModR/M byte.
+  // 1- or 4-byte offset for a memory operand.
+  // Also used to encode a three-bit opcode extension into the ModR/M byte.
   void emit_operand(int rm, Operand adr);
+
+  // Emit a RIP-relative operand.
+  // Also used to encode a three-bit opcode extension into the ModR/M byte.
+  V8_NOINLINE void emit_label_operand(int rm, Label* label, int addend = 0);
 
   // Emit a ModR/M byte with registers coded in the reg and rm_reg fields.
   void emit_modrm(Register reg, Register rm_reg) {

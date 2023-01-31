@@ -5,8 +5,8 @@
 #ifndef V8_HEAP_MEMORY_CHUNK_LAYOUT_H_
 #define V8_HEAP_MEMORY_CHUNK_LAYOUT_H_
 
+#include "src/common/globals.h"
 #include "src/heap/base/active-system-pages.h"
-#include "src/heap/heap.h"
 #include "src/heap/list.h"
 #include "src/heap/progress-bar.h"
 #include "src/heap/slot-set.h"
@@ -29,7 +29,7 @@ enum RememberedSetType {
   OLD_TO_NEW,
   OLD_TO_OLD,
   OLD_TO_SHARED,
-  OLD_TO_CODE = V8_EXTERNAL_CODE_SPACE_BOOL ? OLD_TO_SHARED + 1 : OLD_TO_SHARED,
+  OLD_TO_CODE,
   NUMBER_OF_REMEMBERED_SET_TYPES
 };
 

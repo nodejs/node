@@ -187,7 +187,8 @@ uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
 #endif
 }
 
-constexpr size_t kHeaderSize = sizeof(size_t);  // total code size
+constexpr size_t kHeaderSize = sizeof(size_t) +  // total code size
+                               sizeof(bool);     // all functions validated
 
 constexpr size_t kCodeHeaderSize = sizeof(uint8_t) +  // code kind
                                    sizeof(int) +      // offset of constant pool
@@ -286,6 +287,7 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   size_t MeasureCode(const WasmCode*) const;
   void WriteHeader(Writer*, size_t total_code_size);
   void WriteCode(const WasmCode*, Writer*);
+  void WriteTieringBudget(Writer* writer);
 
   const NativeModule* const native_module_;
   const base::Vector<WasmCode* const> code_table_;
@@ -318,6 +320,9 @@ size_t NativeModuleSerializer::Measure() const {
   for (WasmCode* code : code_table_) {
     size += MeasureCode(code);
   }
+  // Add the size of the tiering budget.
+  size += native_module_->module()->num_declared_functions * sizeof(uint32_t);
+
   return size;
 }
 
@@ -327,6 +332,20 @@ void NativeModuleSerializer::WriteHeader(Writer* writer,
   // handler was used or not when serializing.
 
   writer->Write(total_code_size);
+
+  // We do not ship lazy validation, so in most cases all functions will be
+  // validated. Thus only write out a single bit instead of serializing the
+  // information per function.
+  const bool fully_validated = !v8_flags.wasm_lazy_validation;
+  writer->Write(fully_validated);
+#ifdef DEBUG
+  if (fully_validated) {
+    const WasmModule* module = native_module_->module();
+    for (auto& function : module->declared_functions()) {
+      DCHECK(module->function_was_validated(function.func_index));
+    }
+  }
+#endif
 }
 
 void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
@@ -446,6 +465,12 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   total_written_code_ += code_size;
 }
 
+void NativeModuleSerializer::WriteTieringBudget(Writer* writer) {
+  writer->WriteVector(base::Vector<const byte>::cast(
+      base::VectorOf(native_module_->tiering_budget_array(),
+                     native_module_->module()->num_declared_functions)));
+}
+
 bool NativeModuleSerializer::Write(Writer* writer) {
   DCHECK(!write_called_);
   write_called_ = true;
@@ -468,6 +493,7 @@ bool NativeModuleSerializer::Write(Writer* writer) {
   // Make sure that the serialized total code size was correct.
   CHECK_EQ(total_written_code_, total_code_size);
 
+  WriteTieringBudget(writer);
   return true;
 }
 
@@ -561,6 +587,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
 
   void ReadHeader(Reader* reader);
   DeserializationUnit ReadCode(int fn_index, Reader* reader);
+  void ReadTieringBudget(Reader* reader);
   void CopyAndRelocate(const DeserializationUnit& unit);
   void Publish(std::vector<DeserializationUnit> batch);
 
@@ -571,6 +598,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
 
   // Updated in {ReadCode}.
   size_t remaining_code_size_ = 0;
+  bool all_functions_validated_ = false;
   base::Vector<byte> current_code_space_;
   NativeModule::JumpTablesRef current_jump_tables_;
   std::vector<int> lazy_functions_;
@@ -653,6 +681,10 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
   uint32_t total_fns = native_module_->num_functions();
   uint32_t first_wasm_fn = native_module_->num_imported_functions();
 
+  if (all_functions_validated_) {
+    native_module_->module()->set_all_functions_validated();
+  }
+
   WasmCodeRefScope wasm_code_ref_scope;
 
   DeserializationQueue reloc_queue;
@@ -700,11 +732,13 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
   // Wait for all tasks to finish, while participating in their work.
   job_handle->Join();
 
+  ReadTieringBudget(reader);
   return reader->current_size() == 0;
 }
 
 void NativeModuleDeserializer::ReadHeader(Reader* reader) {
   remaining_code_size_ = reader->Read<size_t>();
+  all_functions_validated_ = reader->Read<bool>();
 }
 
 DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
@@ -738,13 +772,13 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   if (current_code_space_.size() < static_cast<size_t>(code_size)) {
     // Allocate the next code space. Don't allocate more than 90% of
     // {kMaxCodeSpaceSize}, to leave some space for jump tables.
-    constexpr size_t kMaxReservation =
-        RoundUp<kCodeAlignment>(WasmCodeAllocator::kMaxCodeSpaceSize * 9 / 10);
-    size_t code_space_size = std::min(kMaxReservation, remaining_code_size_);
+    size_t max_reservation = RoundUp<kCodeAlignment>(
+        v8_flags.wasm_max_code_space_size_mb * MB * 9 / 10);
+    size_t code_space_size = std::min(max_reservation, remaining_code_size_);
     std::tie(current_code_space_, current_jump_tables_) =
         native_module_->AllocateForDeserializedCode(code_space_size);
     DCHECK_EQ(current_code_space_.size(), code_space_size);
-    DCHECK(current_jump_tables_.is_valid());
+    CHECK(current_jump_tables_.is_valid());
   }
 
   DeserializationUnit unit;
@@ -823,6 +857,19 @@ void NativeModuleDeserializer::CopyAndRelocate(
                         unit.code->instructions().size());
 }
 
+void NativeModuleDeserializer::ReadTieringBudget(Reader* reader) {
+  size_t size_of_tiering_budget =
+      native_module_->module()->num_declared_functions * sizeof(uint32_t);
+  if (size_of_tiering_budget > reader->current_size()) {
+    return;
+  }
+  base::Vector<const byte> serialized_budget =
+      reader->ReadVector<const byte>(size_of_tiering_budget);
+
+  memcpy(native_module_->tiering_budget_array(), serialized_budget.begin(),
+         size_of_tiering_budget);
+}
+
 void NativeModuleDeserializer::Publish(std::vector<DeserializationUnit> batch) {
   DCHECK(!batch.empty());
   std::vector<std::unique_ptr<WasmCode>> codes;
@@ -858,17 +905,17 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   auto owned_wire_bytes = base::OwnedVector<uint8_t>::Of(wire_bytes_vec);
 
   // TODO(titzer): module features should be part of the serialization format.
-  WasmEngine* wasm_engine = GetWasmEngine();
   WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult decode_result = DecodeWasmModule(
-      enabled_features, owned_wire_bytes.start(), owned_wire_bytes.end(), false,
+      enabled_features, owned_wire_bytes.as_vector(), false,
       i::wasm::kWasmOrigin, isolate->counters(), isolate->metrics_recorder(),
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
-      DecodingMethod::kDeserialize, wasm_engine->allocator());
+      DecodingMethod::kDeserialize);
   if (decode_result.failed()) return {};
   std::shared_ptr<WasmModule> module = std::move(decode_result).value();
   CHECK_NOT_NULL(module);
 
+  WasmEngine* wasm_engine = GetWasmEngine();
   auto shared_native_module = wasm_engine->MaybeGetNativeModule(
       module->origin, owned_wire_bytes.as_vector(), isolate);
   if (shared_native_module == nullptr) {
@@ -881,7 +928,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
         isolate, enabled_features, std::move(module), code_size_estimate);
     // We have to assign a compilation ID here, as it is required for a
     // potential re-compilation, e.g. triggered by
-    // {TierDownAllModulesPerIsolate}. The value is -2 so that it is different
+    // {EnterDebuggingForIsolate}. The value is -2 so that it is different
     // than the compilation ID of actual compilations, and also different than
     // the sentinel value of the CompilationState.
     shared_native_module->compilation_state()->set_compilation_id(-2);
@@ -891,13 +938,13 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     Reader reader(data + WasmSerializer::kHeaderSize);
     bool error = !deserializer.Read(&reader);
     if (error) {
-      wasm_engine->UpdateNativeModuleCache(error, &shared_native_module,
-                                           isolate);
+      wasm_engine->UpdateNativeModuleCache(
+          error, std::move(shared_native_module), isolate);
       return {};
     }
     shared_native_module->compilation_state()->InitializeAfterDeserialization(
         deserializer.lazy_functions(), deserializer.eager_functions());
-    wasm_engine->UpdateNativeModuleCache(error, &shared_native_module, isolate);
+    wasm_engine->UpdateNativeModuleCache(error, shared_native_module, isolate);
   }
 
   Handle<Script> script =
