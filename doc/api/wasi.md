@@ -16,6 +16,7 @@ import { WASI } from 'wasi';
 import { argv, env } from 'node:process';
 
 const wasi = new WASI({
+  version: 'wasi_snapshot_preview1',
   args: argv,
   env,
   preopens: {
@@ -23,14 +24,10 @@ const wasi = new WASI({
   },
 });
 
-// Some WASI binaries require:
-//   const importObject = { wasi_unstable: wasi.wasiImport };
-const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
-
 const wasm = await WebAssembly.compile(
   await readFile(new URL('./demo.wasm', import.meta.url)),
 );
-const instance = await WebAssembly.instantiate(wasm, importObject);
+const instance = await WebAssembly.instantiate(wasm, wasi.getImportObject());
 
 wasi.start(instance);
 ```
@@ -43,6 +40,7 @@ const { argv, env } = require('node:process');
 const { join } = require('node:path');
 
 const wasi = new WASI({
+  version: 'wasi_snapshot_preview1',
   args: argv,
   env,
   preopens: {
@@ -50,15 +48,11 @@ const wasi = new WASI({
   },
 });
 
-// Some WASI binaries require:
-//   const importObject = { wasi_unstable: wasi.wasiImport };
-const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
-
 (async () => {
   const wasm = await WebAssembly.compile(
     await readFile(join(__dirname, 'demo.wasm')),
   );
-  const instance = await WebAssembly.instantiate(wasm, importObject);
+  const instance = await WebAssembly.instantiate(wasm, wasi.getImportObject());
 
   wasi.start(instance);
 })();
@@ -126,6 +120,10 @@ sandbox directory structure configured explicitly.
 added:
  - v13.3.0
  - v12.16.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/
+   description: version field added to options.
 -->
 
 * `options` {Object}
@@ -148,6 +146,19 @@ added:
     WebAssembly application. **Default:** `1`.
   * `stderr` {integer} The file descriptor used as standard error in the
     WebAssembly application. **Default:** `2`.
+  * `version` {string} The version of wasi requested. Currently the only
+    supported version is `wasi_snapshot_preview1`
+
+### `wasi.getImportObject()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Return an import object that can be passed to `wasi.start` if
+no other WASM imports are needed beyond those provided by wasi. It
+will reflect the version of wasi requested when `new WASI` was
+called.
 
 ### `wasi.start(instance)`
 
