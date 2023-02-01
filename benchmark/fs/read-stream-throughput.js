@@ -15,7 +15,7 @@ const bench = common.createBenchmark(main, {
   encodingType: ['buf', 'asc', 'utf'],
   filesize: [1000 * 1024],
   highWaterMark: [1024, 4096, 65535, 1024 * 1024],
-  n: 1024
+  n: 1024,
 });
 
 function main(conf) {
@@ -72,7 +72,7 @@ function runTest(filesize, highWaterMark, encoding, n) {
   assert(fs.statSync(filename).size === filesize * n);
   const rs = fs.createReadStream(filename, {
     highWaterMark,
-    encoding
+    encoding,
   });
 
   rs.on('open', () => {

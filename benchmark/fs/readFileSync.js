@@ -4,7 +4,7 @@ const common = require('../common.js');
 const fs = require('fs');
 
 const bench = common.createBenchmark(main, {
-  n: [60e4]
+  n: [60e4],
 });
 
 function main({ n }) {
