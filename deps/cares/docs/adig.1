@@ -18,34 +18,40 @@ This utility comes with the \fBc\-ares\fR asynchronous resolver library.
 \fB\-c\fR class
 Set the query class.
 Possible values for class are
-NY, CHAOS, HS, IN (default).
+ANY, CHAOS, HS and IN (default).
 .TP
 \fB\-d\fR
 Print some extra debugging output.
 .TP
 \fB\-f\fR flag
-Add a flag.
+Add a behavior control flag.
 Possible values for flag are
-igntc, noaliases, norecurse, primary, stayopen, usevc.
+ igntc - ignore to query in TCP to get truncated UDP answer,
+ noaliases - don't honor the HOSTALIASES environment variable,
+ norecurse - don't query upstream servers recursively,
+ primary - use the first server,
+ stayopen - don't close the communication sockets, and
+ usevc - always use TCP.
 .TP
-\fB\-h\fR, \fB\-\-help\fR
+\fB\-h\fR, \fB\-?\fR
 Display this help and exit.
-.TP
-\fB\-T\fR port
-Use specified TCP port to connect to DNS server.
 .TP
 \fB\-s\fR server
 Connect to specified DNS server, instead of the system's default one(s).
+Servers are tried in round-robin, if the previous one failed.
 .TP
 \fB\-t\fR type
 Query records of specified type.
 Possible values for type are
 A (default), AAAA, AFSDB, ANY, AXFR, CNAME, GPOS, HINFO, ISDN, KEY, LOC, MAILA,
 MAILB, MB, MD, MF, MG, MINFO, MR, MX, NAPTR, NS, NSAP, NSAP_PTR, NULL,
-PTR, PX, RP, RT, SIG, SOA, SRV, TXT, URI, WKS, X25,
+PTR, PX, RP, RT, SIG, SOA, SRV, TXT, URI, WKS and X25.
+.TP
+\fB\-T\fR port
+Connect to the specified TCP port of DNS server.
 .TP
 \fB\-U\fR port
-Use specified UDP port to connect to DNS server.
+Connect to the specified UDP port of DNS server.
 .TP
 \fB\-x\fR
 For an IPv4 \fB-t PTR a.b.c.d\fR lookup, query for

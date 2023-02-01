@@ -326,7 +326,7 @@ static int fake_addrinfo(const char *name,
         }
     }
 
-  if (family == AF_INET6 || family == AF_UNSPEC)
+  if (!result && (family == AF_INET6 || family == AF_UNSPEC))
     {
       struct ares_in6_addr addr6;
       result = ares_inet_pton(AF_INET6, name, &addr6) < 1 ? 0 : 1;
@@ -404,6 +404,27 @@ static void end_hquery(struct host_query *hquery, int status)
   ares_free(hquery);
 }
 
+static int is_localhost(const char *name)
+{
+  /* RFC6761 6.3 says : The domain "localhost." and any names falling within ".localhost." */
+  size_t len;
+
+  if (name == NULL)
+    return 0;
+
+  if (strcmp(name, "localhost") == 0)
+    return 1;
+
+  len = strlen(name);
+  if (len < 10 /* strlen(".localhost") */)
+    return 0;
+
+  if (strcmp(name + (len - 10 /* strlen(".localhost") */), ".localhost") == 0)
+    return 1;
+
+  return 0;
+}
+
 static int file_lookup(struct host_query *hquery)
 {
   FILE *fp;
@@ -414,6 +435,11 @@ static int file_lookup(struct host_query *hquery)
   if (hquery->hints.ai_flags & ARES_AI_ENVHOSTS)
     {
       path_hosts = getenv("CARES_HOSTS");
+    }
+
+  if (hquery->channel->hosts_path)
+    {
+      path_hosts = hquery->channel->hosts_path;
     }
 
   if (!path_hosts)
@@ -466,21 +492,28 @@ static int file_lookup(struct host_query *hquery)
         {
         case ENOENT:
         case ESRCH:
-          return ARES_ENOTFOUND;
+          status = ARES_ENOTFOUND;
+          break;
         default:
           DEBUGF(fprintf(stderr, "fopen() failed with error: %d %s\n", error,
                          strerror(error)));
           DEBUGF(fprintf(stderr, "Error opening file: %s\n", path_hosts));
-          return ARES_EFILE;
+          status = ARES_EFILE;
+          break;
         }
     }
-  status = ares__readaddrinfo(fp, hquery->name, hquery->port, &hquery->hints, hquery->ai);
-  fclose(fp);
+  else
+    {
+      status = ares__readaddrinfo(fp, hquery->name, hquery->port, &hquery->hints, hquery->ai);
+      fclose(fp);
+    }
 
   /* RFC6761 section 6.3 #3 states that "Name resolution APIs and libraries
    * SHOULD recognize localhost names as special and SHOULD always return the
-   * IP loopback address for address queries" */
-  if (status == ARES_ENOTFOUND && strcmp(hquery->name, "localhost") == 0)
+   * IP loopback address for address queries".
+   * We will also ignore ALL errors when trying to resolve localhost, such
+   * as permissions errors reading /etc/hosts or a malformed /etc/hosts */
+  if (status != ARES_SUCCESS && is_localhost(hquery->name))
     {
       return ares__addrinfo_localhost(hquery->name, hquery->port,
                                       &hquery->hints, hquery->ai);
@@ -497,7 +530,7 @@ static void next_lookup(struct host_query *hquery, int status)
           /* RFC6761 section 6.3 #3 says "Name resolution APIs SHOULD NOT send
            * queries for localhost names to their configured caching DNS
            * server(s)." */
-          if (strcmp(hquery->name, "localhost") != 0)
+          if (!is_localhost(hquery->name))
             {
               /* DNS lookup */
               if (next_dns_lookup(hquery))
@@ -543,7 +576,16 @@ static void host_callback(void *arg, int status, int timeouts,
       if (addinfostatus != ARES_SUCCESS && addinfostatus != ARES_ENODATA)
         {
           /* error in parsing result e.g. no memory */
-          end_hquery(hquery, addinfostatus);
+          if (addinfostatus == ARES_EBADRESP && hquery->ai->nodes)
+            {
+              /* We got a bad response from server, but at least one query
+               * ended with ARES_SUCCESS */
+              end_hquery(hquery, ARES_SUCCESS);
+            }
+          else
+            {
+              end_hquery(hquery, addinfostatus);
+            }
         }
       else if (hquery->ai->nodes)
         {

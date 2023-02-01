@@ -21,7 +21,9 @@ endif
 
 include Makefile.inc
 
-LDADD = $(top_builddir)/src/lib/libcares.la
+# We're not interested in code coverage of the test apps themselves, but need
+# to link with gcov if building with code coverage enabled
+LDADD = $(top_builddir)/src/lib/libcares.la $(CODE_COVERAGE_LIBS)
 
 ahost_SOURCES = ahost.c $(SAMPLESOURCES) $(SAMPLEHEADERS)
 ahost_CFLAGS = $(AM_CFLAGS)

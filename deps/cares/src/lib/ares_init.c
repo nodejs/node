@@ -47,15 +47,30 @@
 #include <resolv.h>
 #endif
 
+#if defined(USE_WINSOCK)
+#  include <iphlpapi.h>
+#endif
+
 #include "ares.h"
 #include "ares_inet_net_pton.h"
-#include "ares_library_init.h"
 #include "ares_nowarn.h"
 #include "ares_platform.h"
 #include "ares_private.h"
 
 #ifdef WATT32
 #undef WIN32  /* Redefined in MingW/MSVC headers */
+#endif
+
+/* Define RtlGenRandom = SystemFunction036.  This is in advapi32.dll.  There is
+ * no need to dynamically load this, other software used widely does not.
+ * http://blogs.msdn.com/michael_howard/archive/2005/01/14/353379.aspx
+ * https://docs.microsoft.com/en-us/windows/win32/api/ntsecapi/nf-ntsecapi-rtlgenrandom
+ */
+#ifdef _WIN32
+BOOLEAN WINAPI SystemFunction036(PVOID RandomBuffer, ULONG RandomBufferLength);
+#  ifndef RtlGenRandom
+#    define RtlGenRandom(a,b) SystemFunction036(a,b)
+#  endif
 #endif
 
 static int init_by_options(ares_channel channel,
@@ -149,6 +164,7 @@ int ares_init_options(ares_channel *channelptr, struct ares_options *options,
   channel->sock_funcs = NULL;
   channel->sock_func_cb_data = NULL;
   channel->resolvconf_path = NULL;
+  channel->hosts_path = NULL;
 
   channel->last_server = 0;
   channel->last_timeout_processed = (time_t)now.tv_sec;
@@ -217,13 +233,15 @@ done:
       if (channel->servers)
         ares_free(channel->servers);
       if (channel->ndomains != -1)
-        ares_strsplit_free(channel->domains, channel->ndomains);
+        ares__strsplit_free(channel->domains, channel->ndomains);
       if (channel->sortlist)
         ares_free(channel->sortlist);
       if(channel->lookups)
         ares_free(channel->lookups);
       if(channel->resolvconf_path)
         ares_free(channel->resolvconf_path);
+      if(channel->hosts_path)
+        ares_free(channel->hosts_path);
       ares_free(channel);
       return status;
     }
@@ -335,6 +353,9 @@ int ares_save_options(ares_channel channel, struct ares_options *options,
   if (channel->resolvconf_path)
     (*optmask) |= ARES_OPT_RESOLVCONF;
 
+  if (channel->hosts_path)
+    (*optmask) |= ARES_OPT_HOSTS_FILE;
+
   /* Copy easy stuff */
   options->flags   = channel->flags;
 
@@ -411,6 +432,13 @@ int ares_save_options(ares_channel channel, struct ares_options *options,
   if (channel->resolvconf_path) {
     options->resolvconf_path = ares_strdup(channel->resolvconf_path);
     if (!options->resolvconf_path)
+      return ARES_ENOMEM;
+  }
+
+  /* copy path for hosts file */
+  if (channel->hosts_path) {
+    options->hosts_path = ares_strdup(channel->hosts_path);
+    if (!options->hosts_path)
       return ARES_ENOMEM;
   }
 
@@ -530,6 +558,14 @@ static int init_by_options(ares_channel channel,
         return ARES_ENOMEM;
     }
 
+  /* Set path for hosts file, if given. */
+  if ((optmask & ARES_OPT_HOSTS_FILE) && !channel->hosts_path)
+    {
+      channel->hosts_path = ares_strdup(options->hosts_path);
+      if (!channel->hosts_path && options->hosts_path)
+        return ARES_ENOMEM;
+    }
+
   channel->optmask = optmask;
 
   return ARES_SUCCESS;
@@ -608,227 +644,6 @@ static int get_REG_SZ(HKEY hKey, const char *leafKeyName, char **outptr)
   return 1;
 }
 
-/*
- * get_REG_SZ_9X()
- *
- * Functionally identical to get_REG_SZ()
- *
- * Supported on Windows 95, 98 and ME.
- */
-static int get_REG_SZ_9X(HKEY hKey, const char *leafKeyName, char **outptr)
-{
-  DWORD dataType = 0;
-  DWORD size = 0;
-  int   res;
-
-  *outptr = NULL;
-
-  /* Find out size of string stored in registry */
-  res = RegQueryValueExA(hKey, leafKeyName, 0, &dataType, NULL, &size);
-  if ((res != ERROR_SUCCESS && res != ERROR_MORE_DATA) || !size)
-    return 0;
-
-  /* Allocate buffer of indicated size plus one given that string
-     might have been stored without null termination */
-  *outptr = ares_malloc(size+1);
-  if (!*outptr)
-    return 0;
-
-  /* Get the value for real */
-  res = RegQueryValueExA(hKey, leafKeyName, 0, &dataType,
-                        (unsigned char *)*outptr, &size);
-  if ((res != ERROR_SUCCESS) || (size == 1))
-  {
-    ares_free(*outptr);
-    *outptr = NULL;
-    return 0;
-  }
-
-  /* Null terminate buffer allways */
-  *(*outptr + size) = '\0';
-
-  return 1;
-}
-
-/*
- * get_enum_REG_SZ()
- *
- * Given a 'hKeyParent' handle to an open registry key and a 'leafKeyName'
- * pointer to the name of the registry leaf key to be queried, parent key
- * is enumerated searching in child keys for given leaf key name and its
- * associated string value. When located, this returns a pointer in *outptr
- * to a newly allocated memory area holding it as a null-terminated string.
- *
- * Returns 0 and nullifies *outptr upon inability to return a string value.
- *
- * Returns 1 and sets *outptr when returning a dynamically allocated string.
- *
- * Supported on Windows NT 3.5 and newer.
- */
-static int get_enum_REG_SZ(HKEY hKeyParent, const char *leafKeyName,
-                           char **outptr)
-{
-  char  enumKeyName[256];
-  DWORD enumKeyNameBuffSize;
-  DWORD enumKeyIdx = 0;
-  HKEY  hKeyEnum;
-  int   gotString;
-  int   res;
-
-  *outptr = NULL;
-
-  for(;;)
-  {
-    enumKeyNameBuffSize = sizeof(enumKeyName);
-    res = RegEnumKeyExA(hKeyParent, enumKeyIdx++, enumKeyName,
-                       &enumKeyNameBuffSize, 0, NULL, NULL, NULL);
-    if (res != ERROR_SUCCESS)
-      break;
-    res = RegOpenKeyExA(hKeyParent, enumKeyName, 0, KEY_QUERY_VALUE,
-                       &hKeyEnum);
-    if (res != ERROR_SUCCESS)
-      continue;
-    gotString = get_REG_SZ(hKeyEnum, leafKeyName, outptr);
-    RegCloseKey(hKeyEnum);
-    if (gotString)
-      break;
-  }
-
-  if (!*outptr)
-    return 0;
-
-  return 1;
-}
-
-/*
- * get_DNS_Registry_9X()
- *
- * Functionally identical to get_DNS_Registry()
- *
- * Implementation supports Windows 95, 98 and ME.
- */
-static int get_DNS_Registry_9X(char **outptr)
-{
-  HKEY hKey_VxD_MStcp;
-  int  gotString;
-  int  res;
-
-  *outptr = NULL;
-
-  res = RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_NS_9X, 0, KEY_READ,
-                     &hKey_VxD_MStcp);
-  if (res != ERROR_SUCCESS)
-    return 0;
-
-  gotString = get_REG_SZ_9X(hKey_VxD_MStcp, NAMESERVER, outptr);
-  RegCloseKey(hKey_VxD_MStcp);
-
-  if (!gotString || !*outptr)
-    return 0;
-
-  return 1;
-}
-
-/*
- * get_DNS_Registry_NT()
- *
- * Functionally identical to get_DNS_Registry()
- *
- * Refs: Microsoft Knowledge Base articles KB120642 and KB314053.
- *
- * Implementation supports Windows NT 3.5 and newer.
- */
-static int get_DNS_Registry_NT(char **outptr)
-{
-  HKEY hKey_Interfaces = NULL;
-  HKEY hKey_Tcpip_Parameters;
-  int  gotString;
-  int  res;
-
-  *outptr = NULL;
-
-  res = RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0, KEY_READ,
-                     &hKey_Tcpip_Parameters);
-  if (res != ERROR_SUCCESS)
-    return 0;
-
-  /*
-  ** Global DNS settings override adapter specific parameters when both
-  ** are set. Additionally static DNS settings override DHCP-configured
-  ** parameters when both are set.
-  */
-
-  /* Global DNS static parameters */
-  gotString = get_REG_SZ(hKey_Tcpip_Parameters, NAMESERVER, outptr);
-  if (gotString)
-    goto done;
-
-  /* Global DNS DHCP-configured parameters */
-  gotString = get_REG_SZ(hKey_Tcpip_Parameters, DHCPNAMESERVER, outptr);
-  if (gotString)
-    goto done;
-
-  /* Try adapter specific parameters */
-  res = RegOpenKeyExA(hKey_Tcpip_Parameters, "Interfaces", 0,
-                     KEY_QUERY_VALUE | KEY_ENUMERATE_SUB_KEYS,
-                     &hKey_Interfaces);
-  if (res != ERROR_SUCCESS)
-  {
-    hKey_Interfaces = NULL;
-    goto done;
-  }
-
-  /* Adapter specific DNS static parameters */
-  gotString = get_enum_REG_SZ(hKey_Interfaces, NAMESERVER, outptr);
-  if (gotString)
-    goto done;
-
-  /* Adapter specific DNS DHCP-configured parameters */
-  gotString = get_enum_REG_SZ(hKey_Interfaces, DHCPNAMESERVER, outptr);
-
-done:
-  if (hKey_Interfaces)
-    RegCloseKey(hKey_Interfaces);
-
-  RegCloseKey(hKey_Tcpip_Parameters);
-
-  if (!gotString || !*outptr)
-    return 0;
-
-  return 1;
-}
-
-/*
- * get_DNS_Registry()
- *
- * Locates DNS info in the registry. When located, this returns a pointer
- * in *outptr to a newly allocated memory area holding a null-terminated
- * string with a space or comma seperated list of DNS IP addresses.
- *
- * Returns 0 and nullifies *outptr upon inability to return DNSes string.
- *
- * Returns 1 and sets *outptr when returning a dynamically allocated string.
- */
-static int get_DNS_Registry(char **outptr)
-{
-  win_platform platform;
-  int gotString = 0;
-
-  *outptr = NULL;
-
-  platform = ares__getplatform();
-
-  if (platform == WIN_NT)
-    gotString = get_DNS_Registry_NT(outptr);
-  else if (platform == WIN_9X)
-    gotString = get_DNS_Registry_9X(outptr);
-
-  if (!gotString)
-    return 0;
-
-  return 1;
-}
-
 static void commanjoin(char** dst, const char* const src, const size_t len)
 {
   char *newbuf;
@@ -857,106 +672,6 @@ static void commajoin(char **dst, const char *src)
   commanjoin(dst, src, strlen(src));
 }
 
-/*
- * get_DNS_NetworkParams()
- *
- * Locates DNS info using GetNetworkParams() function from the Internet
- * Protocol Helper (IP Helper) API. When located, this returns a pointer
- * in *outptr to a newly allocated memory area holding a null-terminated
- * string with a space or comma seperated list of DNS IP addresses.
- *
- * Returns 0 and nullifies *outptr upon inability to return DNSes string.
- *
- * Returns 1 and sets *outptr when returning a dynamically allocated string.
- *
- * Implementation supports Windows 98 and newer.
- *
- * Note: Ancient PSDK required in order to build a W98 target.
- */
-static int get_DNS_NetworkParams(char **outptr)
-{
-  FIXED_INFO       *fi, *newfi;
-  struct ares_addr namesrvr;
-  char             *txtaddr;
-  IP_ADDR_STRING   *ipAddr;
-  int              res;
-  DWORD            size = sizeof (*fi);
-
-  *outptr = NULL;
-
-  /* Verify run-time availability of GetNetworkParams() */
-  if (ares_fpGetNetworkParams == ZERO_NULL)
-    return 0;
-
-  fi = ares_malloc(size);
-  if (!fi)
-    return 0;
-
-  res = (*ares_fpGetNetworkParams) (fi, &size);
-  if ((res != ERROR_BUFFER_OVERFLOW) && (res != ERROR_SUCCESS))
-    goto done;
-
-  newfi = ares_realloc(fi, size);
-  if (!newfi)
-    goto done;
-
-  fi = newfi;
-  res = (*ares_fpGetNetworkParams) (fi, &size);
-  if (res != ERROR_SUCCESS)
-    goto done;
-
-  for (ipAddr = &fi->DnsServerList; ipAddr; ipAddr = ipAddr->Next)
-  {
-    txtaddr = &ipAddr->IpAddress.String[0];
-
-    /* Validate converting textual address to binary format. */
-    if (ares_inet_pton(AF_INET, txtaddr, &namesrvr.addrV4) == 1)
-    {
-      if ((namesrvr.addrV4.S_un.S_addr == INADDR_ANY) ||
-          (namesrvr.addrV4.S_un.S_addr == INADDR_NONE))
-        continue;
-    }
-    else if (ares_inet_pton(AF_INET6, txtaddr, &namesrvr.addrV6) == 1)
-    {
-      if (memcmp(&namesrvr.addrV6, &ares_in6addr_any,
-                 sizeof(namesrvr.addrV6)) == 0)
-        continue;
-    }
-    else
-      continue;
-
-    commajoin(outptr, txtaddr);
-
-    if (!*outptr)
-      break;
-  }
-
-done:
-  if (fi)
-    ares_free(fi);
-
-  if (!*outptr)
-    return 0;
-
-  return 1;
-}
-
-static BOOL ares_IsWindowsVistaOrGreater(void)
-{
-  OSVERSIONINFO vinfo;
-  memset(&vinfo, 0, sizeof(vinfo));
-  vinfo.dwOSVersionInfoSize = sizeof(vinfo);
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4996) /* warning C4996: 'GetVersionExW': was declared deprecated */
-#endif
-  if (!GetVersionEx(&vinfo) || vinfo.dwMajorVersion < 6)
-    return FALSE;
-  return TRUE;
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-}
 
 /* A structure to hold the string form of IPv4 and IPv6 addresses so we can
  * sort them by a metric.
@@ -1033,21 +748,20 @@ static ULONG getBestRouteMetric(IF_LUID * const luid, /* Can't be const :( */
   /* On this interface, get the best route to that destination. */
   MIB_IPFORWARD_ROW2 row;
   SOCKADDR_INET ignored;
-  if(!ares_fpGetBestRoute2 ||
-     ares_fpGetBestRoute2(/* The interface to use.  The index is ignored since we are
-                           * passing a LUID.
-                           */
-                           luid, 0,
-                           /* No specific source address. */
-                           NULL,
-                           /* Our destination address. */
-                           dest,
-                           /* No options. */
-                           0,
-                           /* The route row. */
-                           &row,
-                           /* The best source address, which we don't need. */
-                           &ignored) != NO_ERROR
+  if(GetBestRoute2(/* The interface to use.  The index is ignored since we are
+                    * passing a LUID.
+                    */
+                   luid, 0,
+                   /* No specific source address. */
+                   NULL,
+                   /* Our destination address. */
+                   dest,
+                   /* No options. */
+                   0,
+                   /* The route row. */
+                   &row,
+                   /* The best source address, which we don't need. */
+                   &ignored) != NO_ERROR
      /* If the metric is "unused" (-1) or too large for us to add the two
       * metrics, use the worst possible, thus sorting this last.
       */
@@ -1067,7 +781,7 @@ static ULONG getBestRouteMetric(IF_LUID * const luid, /* Can't be const :( */
 }
 
 /*
- * get_DNS_AdaptersAddresses()
+ * get_DNS_Windows()
  *
  * Locates DNS info using GetAdaptersAddresses() function from the Internet
  * Protocol Helper (IP Helper) API. When located, this returns a pointer
@@ -1082,7 +796,7 @@ static ULONG getBestRouteMetric(IF_LUID * const luid, /* Can't be const :( */
  */
 #define IPAA_INITIAL_BUF_SZ 15 * 1024
 #define IPAA_MAX_TRIES 3
-static int get_DNS_AdaptersAddresses(char **outptr)
+static int get_DNS_Windows(char **outptr)
 {
   IP_ADAPTER_DNS_SERVER_ADDRESS *ipaDNSAddr;
   IP_ADAPTER_ADDRESSES *ipaa, *newipaa, *ipaaEntry;
@@ -1107,10 +821,6 @@ static int get_DNS_AdaptersAddresses(char **outptr)
 
   *outptr = NULL;
 
-  /* Verify run-time availability of GetAdaptersAddresses() */
-  if (ares_fpGetAdaptersAddresses == ZERO_NULL)
-    return 0;
-
   ipaa = ares_malloc(Bufsz);
   if (!ipaa)
     return 0;
@@ -1127,8 +837,7 @@ static int get_DNS_AdaptersAddresses(char **outptr)
   }
 
   /* Usually this call suceeds with initial buffer size */
-  res = (*ares_fpGetAdaptersAddresses) (AF_UNSPEC, AddrFlags, NULL,
-                                        ipaa, &ReqBufsz);
+  res = GetAdaptersAddresses(AF_UNSPEC, AddrFlags, NULL, ipaa, &ReqBufsz);
   if ((res != ERROR_BUFFER_OVERFLOW) && (res != ERROR_SUCCESS))
     goto done;
 
@@ -1142,8 +851,7 @@ static int get_DNS_AdaptersAddresses(char **outptr)
       Bufsz = ReqBufsz;
       ipaa = newipaa;
     }
-    res = (*ares_fpGetAdaptersAddresses) (AF_UNSPEC, AddrFlags, NULL,
-                                          ipaa, &ReqBufsz);
+    res = GetAdaptersAddresses(AF_UNSPEC, AddrFlags, NULL, ipaa, &ReqBufsz);
     if (res == ERROR_SUCCESS)
       break;
   }
@@ -1185,26 +893,17 @@ static int get_DNS_AdaptersAddresses(char **outptr)
           addressesSize = newSize;
         }
 
-        /* Vista required for Luid or Ipv4Metric */
-        if (ares_IsWindowsVistaOrGreater())
-        {
-          /* Save the address as the next element in addresses. */
-          addresses[addressesIndex].metric =
-            getBestRouteMetric(&ipaaEntry->Luid,
-                               (SOCKADDR_INET*)(namesrvr.sa),
-                               ipaaEntry->Ipv4Metric);
-        }
-        else
-        {
-          addresses[addressesIndex].metric = (ULONG)-1;
-        }
+        addresses[addressesIndex].metric =
+          getBestRouteMetric(&ipaaEntry->Luid,
+                             (SOCKADDR_INET*)(namesrvr.sa),
+                             ipaaEntry->Ipv4Metric);
 
         /* Record insertion index to make qsort stable */
         addresses[addressesIndex].orig_idx = addressesIndex;
 
-        if (! ares_inet_ntop(AF_INET, &namesrvr.sa4->sin_addr,
-                             addresses[addressesIndex].text,
-                             sizeof(addresses[0].text))) {
+        if (!ares_inet_ntop(AF_INET, &namesrvr.sa4->sin_addr,
+                            addresses[addressesIndex].text,
+                            sizeof(addresses[0].text))) {
           continue;
         }
         ++addressesIndex;
@@ -1227,26 +926,17 @@ static int get_DNS_AdaptersAddresses(char **outptr)
           addressesSize = newSize;
         }
 
-        /* Vista required for Luid or Ipv4Metric */
-        if (ares_IsWindowsVistaOrGreater())
-        {
-          /* Save the address as the next element in addresses. */
-          addresses[addressesIndex].metric =
-            getBestRouteMetric(&ipaaEntry->Luid,
-                               (SOCKADDR_INET*)(namesrvr.sa),
-                               ipaaEntry->Ipv6Metric);
-        }
-        else
-        {
-          addresses[addressesIndex].metric = (ULONG)-1;
-        }
+        addresses[addressesIndex].metric =
+          getBestRouteMetric(&ipaaEntry->Luid,
+                             (SOCKADDR_INET*)(namesrvr.sa),
+                             ipaaEntry->Ipv6Metric);
 
         /* Record insertion index to make qsort stable */
         addresses[addressesIndex].orig_idx = addressesIndex;
 
-        if (! ares_inet_ntop(AF_INET6, &namesrvr.sa6->sin6_addr,
-                             addresses[addressesIndex].text,
-                             sizeof(addresses[0].text))) {
+        if (!ares_inet_ntop(AF_INET6, &namesrvr.sa6->sin6_addr,
+                            addresses[addressesIndex].text,
+                            sizeof(addresses[0].text))) {
           continue;
         }
         ++addressesIndex;
@@ -1292,35 +982,6 @@ done:
   }
 
   return 1;
-}
-
-/*
- * get_DNS_Windows()
- *
- * Locates DNS info from Windows employing most suitable methods available at
- * run-time no matter which Windows version it is. When located, this returns
- * a pointer in *outptr to a newly allocated memory area holding a string with
- * a space or comma seperated list of DNS IP addresses, null-terminated.
- *
- * Returns 0 and nullifies *outptr upon inability to return DNSes string.
- *
- * Returns 1 and sets *outptr when returning a dynamically allocated string.
- *
- * Implementation supports Windows 95 and newer.
- */
-static int get_DNS_Windows(char **outptr)
-{
-  /* Try using IP helper API GetAdaptersAddresses(). IPv4 + IPv6, also sorts
-   * DNS servers by interface route metrics to try to use the best DNS server. */
-  if (get_DNS_AdaptersAddresses(outptr))
-    return 1;
-
-  /* Try using IP helper API GetNetworkParams(). IPv4 only. */
-  if (get_DNS_NetworkParams(outptr))
-    return 1;
-
-  /* Fall-back to registry information */
-  return get_DNS_Registry(outptr);
 }
 
 /*
@@ -1686,8 +1347,12 @@ static int init_by_resolv_conf(ares_channel channel)
       channel->tries = res.retry;
     if (channel->rotate == -1)
       channel->rotate = res.options & RES_ROTATE;
-    if (channel->timeout == -1)
+    if (channel->timeout == -1) {
       channel->timeout = res.retrans * 1000;
+#ifdef __APPLE__
+      channel->timeout /= (res.retry + 1) * (res.nscount > 0 ? res.nscount : 1);
+#endif
+    }
 
     res_ndestroy(&res);
   }
@@ -2021,6 +1686,11 @@ static int init_by_defaults(ares_channel channel)
       ares_free(channel->resolvconf_path);
       channel->resolvconf_path = NULL;
     }
+
+    if(channel->hosts_path) {
+      ares_free(channel->hosts_path);
+      channel->hosts_path = NULL;
+    }
   }
 
   if(hostname)
@@ -2243,6 +1913,8 @@ static int config_sortlist(struct apattern **sortlist, int *nsort,
       q = str;
       while (*q && *q != '/' && *q != ';' && !ISSPACE(*q))
         q++;
+      if (q-str >= 16)
+        return ARES_EBADSTR;
       memcpy(ipbuf, str, q-str);
       ipbuf[q-str] = '\0';
       /* Find the prefix */
@@ -2251,6 +1923,8 @@ static int config_sortlist(struct apattern **sortlist, int *nsort,
           const char *str2 = q+1;
           while (*q && *q != ';' && !ISSPACE(*q))
             q++;
+          if (q-str >= 32)
+            return ARES_EBADSTR;
           memcpy(ipbufpfx, str, q-str);
           ipbufpfx[q-str] = '\0';
           str = str2;
@@ -2325,12 +1999,12 @@ static int set_search(ares_channel channel, const char *str)
   if(channel->ndomains != -1) {
     /* LCOV_EXCL_START: all callers check ndomains == -1 */
     /* if we already have some domains present, free them first */
-    ares_strsplit_free(channel->domains, channel->ndomains);
+    ares__strsplit_free(channel->domains, channel->ndomains);
     channel->domains = NULL;
     channel->ndomains = -1;
   } /* LCOV_EXCL_STOP */
 
-  channel->domains  = ares_strsplit(str, ", ", 1, &cnt);
+  channel->domains  = ares__strsplit(str, ", ", &cnt);
   channel->ndomains = (int)cnt;
   if (channel->domains == NULL || channel->ndomains == 0) {
     channel->domains  = NULL;
@@ -2495,12 +2169,10 @@ static int sortlist_alloc(struct apattern **sortlist, int *nsort,
   return 1;
 }
 
+
 /* initialize an rc4 key. If possible a cryptographically secure random key
-   is generated using a suitable function (for example win32's RtlGenRandom as
-   described in
-   http://blogs.msdn.com/michael_howard/archive/2005/01/14/353379.aspx
-   otherwise the code defaults to cross-platform albeit less secure mechanism
-   using rand
+   is generated using a suitable function otherwise the code defaults to
+   cross-platform albeit less secure mechanism using rand
 */
 static void randomize_key(unsigned char* key,int key_data_len)
 {
@@ -2508,21 +2180,20 @@ static void randomize_key(unsigned char* key,int key_data_len)
   int counter=0;
 #ifdef WIN32
   BOOLEAN res;
-  if (ares_fpSystemFunction036)
-    {
-      res = (*ares_fpSystemFunction036) (key, key_data_len);
-      if (res)
-        randomized = 1;
-    }
+
+  res = RtlGenRandom(key, key_data_len);
+  if (res)
+    randomized = 1;
+
 #else /* !WIN32 */
-#ifdef CARES_RANDOM_FILE
+#  ifdef CARES_RANDOM_FILE
   FILE *f = fopen(CARES_RANDOM_FILE, "rb");
   if(f) {
     setvbuf(f, NULL, _IONBF, 0);
     counter = aresx_uztosi(fread(key, 1, key_data_len, f));
     fclose(f);
   }
-#endif
+#  endif
 #endif /* WIN32 */
 
   if (!randomized) {
