@@ -1257,7 +1257,7 @@ whose name matches the provided pattern. See the documentation on
 ### `--test-reporter`
 
 <!-- YAML
-added: REPLACEME
+added: v19.6.0
 -->
 
 A test reporter to use when running tests. See the documentation on
@@ -1266,7 +1266,7 @@ A test reporter to use when running tests. See the documentation on
 ### `--test-reporter-destination`
 
 <!-- YAML
-added: REPLACEME
+added: v19.6.0
 -->
 
 The destination for the corresponding test reporter. See the documentation on
