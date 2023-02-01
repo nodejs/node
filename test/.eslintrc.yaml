@@ -77,7 +77,6 @@ overrides:
       - es-module/*.js
       - es-module/*.mjs
       - js-native-api/*/*.js
-      - known_issues/*.js
       - parallel/*.js
       - parallel/*.mjs
       - pummel/*.js
