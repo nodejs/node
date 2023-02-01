@@ -9,7 +9,6 @@ rules:
 
 overrides:
   - files:
-      - async_hooks/*.js
       - buffers/*.js
       - buffers-fill/*.js
       - crypto/*.js

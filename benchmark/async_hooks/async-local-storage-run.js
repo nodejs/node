@@ -3,7 +3,7 @@ const common = require('../common.js');
 const { AsyncLocalStorage } = require('async_hooks');
 
 const bench = common.createBenchmark(main, {
-  n: [1e7]
+  n: [1e7],
 });
 
 async function run(store, n) {
