@@ -11,5 +11,5 @@ Object.defineProperty(global, totoSymbol, {
   value: 4,
   configurable: true,
 });
-assert.ok(global[totoSymbol] === 4);
+assert.strictEqual(global[totoSymbol], 4);
 assert.ok(Object.getOwnPropertySymbols(global).includes(totoSymbol));
