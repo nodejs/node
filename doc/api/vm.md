@@ -965,7 +965,7 @@ const vm = require('node:vm');
 added: v10.10.0
 changes:
   - version:
-    - REPLACEME
+    - v19.6.0
     pr-url: https://github.com/nodejs/node/pull/46320
     description: The return value now includes `cachedDataRejected`
                  with the same semantics as the `vm.Script` version

@@ -506,7 +506,7 @@ test('spies on an object method', (t) => {
 ## Test reporters
 
 <!-- YAML
-added: REPLACEME
+added: v19.6.0
 -->
 
 The `node:test` module supports passing [`--test-reporter`][]
