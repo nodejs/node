@@ -304,10 +304,10 @@ class EmbeddedEnvironment : public node::EmbeddedEnvironment {
 
 class HandleScopeWrapper {
  public:
-  explicit HandleScopeWrapper(v8::Isolate* isolate) : scope_(isolate) {}
+  explicit HandleScopeWrapper(v8::Isolate* isolate) : scope(isolate) {}
 
  private:
-  v8::HandleScope scope_;
+  v8::HandleScope scope;
 };
 
 // In node v0.10 version of v8, there is no EscapableHandleScope and the
