@@ -36,11 +36,11 @@ for (let i = 0; i < 4; i++) {
       {
         hrtime,
         nextTick,
-        loop
+        loop,
       },
-      { timeout: common.platformTimeout(10) }
+      { timeout: common.platformTimeout(10) },
     );
   }, {
-    code: 'ERR_SCRIPT_EXECUTION_TIMEOUT'
+    code: 'ERR_SCRIPT_EXECUTION_TIMEOUT',
   });
 }
