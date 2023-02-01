@@ -18,14 +18,15 @@
 ares_getnameinfo \- Address-to-nodename translation in protocol-independent manner
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B typedef void (*ares_nameinfo_callback)(void *\fIarg\fP, int \fIstatus\fP,
-.B	int \fItimeouts\fP, char *\fInode\fP, char *\fIservice\fP)
-.PP
-.B void ares_getnameinfo(ares_channel \fIchannel\fP, const struct sockaddr *\fIsa\fP,
-.B 	ares_socklen_t \fIsalen\fP, int \fIflags\fP, ares_nameinfo_callback \fIcallback\fP,
-.B 	void *\fIarg\fP)
+#include <ares.h>
+
+typedef void (*ares_nameinfo_callback)(void *\fIarg\fP, int \fIstatus\fP,
+                                       int \fItimeouts\fP, char *\fInode\fP,
+                                       char *\fIservice\fP)
+
+void ares_getnameinfo(ares_channel \fIchannel\fP, const struct sockaddr *\fIsa\fP,
+                      ares_socklen_t \fIsalen\fP, int \fIflags\fP,
+                      ares_nameinfo_callback \fIcallback\fP, void *\fIarg\fP)
 .fi
 .SH DESCRIPTION
 The

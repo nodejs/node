@@ -296,6 +296,7 @@ int main(int argc, char **argv)
           if (!ISDIGIT(*optarg))
             usage();
           options.tcp_port = (unsigned short)strtol(optarg, NULL, 0);
+          options.flags |= ARES_FLAG_USEVC;
           optmask |= ARES_OPT_TCP_PORT;
           break;
 
@@ -959,23 +960,27 @@ static void append_addr_list(struct ares_addr_node **head,
 
 /* Information from the man page. Formatting taken from man -h */
 static void print_help_info_adig(void) {
-    printf("adig, version %s \n\n", ARES_VERSION_STR);
-    printf("usage: adig [-h] [-d] [-f flag] [-s server] [-c class] [-t type] [-T|U port] [-x | -xx] name ...\n\n"
-    "  d : Print some extra debugging output.\n"
-    "  f : Add a flag. Possible values for flag are igntc, noaliases, norecurse, primary, stayopen, usevc.\n"
-    "  h : Display this help and exit.\n\n"
-    "  T port   : Use specified TCP port to connect to DNS server.\n"
-    "  U port   : Use specified UDP port to connect to DNS server.\n"
-    "  c class  : Set the query class. Possible values for class are NY, CHAOS, HS, IN  (default).\n"
-    "  s server : Connect to specified DNS server, instead of the system's default one(s).\n"
-    "  t type   : Query records of specified type.  \n"
-    "              Possible values for type are A  \n"
-    "              (default), AAAA, AFSDB,  ANY,\n"
-    "              AXFR, CNAME, GPOS, HINFO, ISDN,\n"
-    "              KEY, LOC, MAILA, MAILB, MB, MD,\n"
-    "              MF, MG, MINFO, MR, MX, NAPTR, NS,\n"
-    "              NSAP, NSAP_PTR, NULL, PTR, PX, RP,\n"
-    "              RT,  SIG,  SOA, SRV, TXT, URI, WKS, X25\n\n"
+    printf("adig, version %s\n\n", ARES_VERSION_STR);
+    printf("usage: adig [-h] [-d] [-f flag] [[-s server] ...] [-T|U port] [-c class] [-t type] [-x|-xx] name ...\n\n"
+    "  h : Display this help and exit.\n"
+    "  d : Print some extra debugging output.\n\n"
+    "  f flag   : Add a behavior control flag. Possible values are\n"
+    "              igntc - ignore to query in TCP to get truncated UDP answer,\n"
+    "              noaliases - don't honor the HOSTALIASES environment variable,\n"
+    "              norecurse - don't query upstream servers recursively,\n"
+    "              primary - use the first server,\n"
+    "              stayopen - don't close the communication sockets, and\n"
+    "              usevc - use TCP only.\n"
+    "  s server : Connect to the specified DNS server, instead of the system's default one(s).\n"
+    "              Servers are tried in round-robin, if the previous one failed.\n"
+    "  T port   : Connect to the specified TCP port of DNS server.\n"
+    "  U port   : Connect to the specified UDP port of DNS server.\n"
+    "  c class  : Set the query class. Possible values for class are ANY, CHAOS, HS and IN (default)\n"
+    "  t type   : Query records of the specified type.\n"
+    "              Possible values for type are A (default), AAAA, AFSDB, ANY, AXFR,\n"
+    "              CNAME, GPOS, HINFO, ISDN, KEY, LOC, MAILA, MAILB, MB, MD, MF, MG,\n"
+    "              MINFO, MR, MX, NAPTR, NS, NSAP, NSAP_PTR, NULL, PTR, PX, RP, RT,\n"
+    "              SIG, SOA, SRV, TXT, URI, WKS and X25.\n\n"
     " -x  : For a '-t PTR a.b.c.d' lookup, query for 'd.c.b.a.in-addr.arpa.'\n"
     " -xx : As above, but for IPv6, compact the format into a bitstring like\n"
     "       '[xabcdef00000000000000000000000000].IP6.ARPA.'\n");

@@ -8,10 +8,10 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.18.0" )
+PROJECT (c-ares LANGUAGES C VERSION "1.19.0" )
 
 # Set this version before release
-SET (CARES_VERSION "1.18.1")
+SET (CARES_VERSION "1.19.0")
 
 INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are wrong.
 
@@ -26,7 +26,7 @@ INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are w
 # For example, a version of 4:0:2 would generate output such as:
 #    libname.so   -> libname.so.2
 #    libname.so.2 -> libname.so.2.2.0
-SET (CARES_LIB_VERSIONINFO "7:1:5")
+SET (CARES_LIB_VERSIONINFO "8:0:6")
 
 
 OPTION (CARES_STATIC     "Build as a static library"                                             OFF)
@@ -82,9 +82,14 @@ SET (TARGETS_INST_DEST
 
 # Function in Library
 # CHECK_LIBRARY_EXISTS can't be used as it will return true if the function
-# is found in a different dependent library.
+# is found in a different required/dependent library.
 MACRO (CARES_FUNCTION_IN_LIBRARY func lib var)
+
+	SET (_ORIG_CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES}")
+	SET (CMAKE_REQUIRED_LIBRARIES )
 	CHECK_FUNCTION_EXISTS ("${func}" "_CARES_FUNC_IN_LIB_GLOBAL_${func}")
+	SET (CMAKE_REQUIRED_LIBRARIES "${_ORIG_CMAKE_REQUIRED_LIBRARIES}")
+
 	IF ("${_CARES_FUNC_IN_LIB_GLOBAL_${func}}")
 		SET (${var} FALSE)
 	ELSE ()
@@ -689,6 +694,12 @@ IF (CARES_INSTALL)
     if( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
 
         if ( "${CPACK_PACKAGE_ARCHITECTURE}" STREQUAL "" )
+            set( CPACK_PACKAGE_ARCHITECTURE "${CMAKE_SYSTEM_PROCESSOR}" )
+        endif()
+        if ( "${CPACK_PACKAGE_ARCHITECTURE}" STREQUAL "" )
+            if ( "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Windows" )
+                message( FATAL_ERROR "Failed to determine CPACK_PACKAGE_ARCHITECTURE. Is CMAKE_SYSTEM_PROCESSOR set?" )
+            endif()
             # Note: the architecture should default to the local architecture, but it
             # in fact comes up empty.  We call `uname -m` to ask the kernel instead.
             EXECUTE_PROCESS( COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE CPACK_PACKAGE_ARCHITECTURE )

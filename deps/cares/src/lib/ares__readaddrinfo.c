@@ -234,12 +234,19 @@ int ares__readaddrinfo(FILE *fp,
       goto fail;
     }
 
+  /* If no results, its a failure */
+  if (!nodes)
+    {
+      status = ARES_ENOTFOUND;
+      goto fail;
+    }
+
   /* Free line buffer. */
   ares_free(line);
   ares__addrinfo_cat_cnames(&ai->cnames, cnames);
   ares__addrinfo_cat_nodes(&ai->nodes, nodes);
 
-  return nodes ? ARES_SUCCESS : ARES_ENOTFOUND;
+  return ARES_SUCCESS;
 
 fail:
   ares_free(line);

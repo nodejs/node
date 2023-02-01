@@ -18,10 +18,10 @@
 ares_parse_soa_reply \- Parse a reply to a DNS query of type SOA
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B int ares_parse_soa_reply(const unsigned char* \fIabuf\fP, int \fIalen\fP,
-.B				struct ares_soa_reply** \fIsoa_out\fP);
+#include <ares.h>
+
+int ares_parse_soa_reply(const unsigned char* \fIabuf\fP, int \fIalen\fP,
+                         struct ares_soa_reply** \fIsoa_out\fP);
 .fi
 .SH DESCRIPTION
 The

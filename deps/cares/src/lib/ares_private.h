@@ -339,6 +339,9 @@ struct ares_channeldata {
 
   /* Path for resolv.conf file, configurable via ares_options */
   char *resolvconf_path;
+
+  /* Path for hosts file, configurable via ares_options */
+  char *hosts_path;
 };
 
 /* Does the domain end in ".onion" or ".onion."? Case-insensitive. */

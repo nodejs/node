@@ -18,14 +18,15 @@
 ares_gethostbyaddr \- Initiate a host query by address
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B typedef void (*ares_host_callback)(void *\fIarg\fP, int \fIstatus\fP,
-.B	int \fItimeouts\fP, struct hostent *\fIhostent\fP)
-.PP
-.B void ares_gethostbyaddr(ares_channel \fIchannel\fP, const void *\fIaddr\fP,
-.B 	int \fIaddrlen\fP, int \fIfamily\fP, ares_host_callback \fIcallback\fP,
-.B 	void *\fIarg\fP)
+#include <ares.h>
+
+typedef void (*ares_host_callback)(void *\fIarg\fP, int \fIstatus\fP,
+                                   int \fItimeouts\fP,
+                                   struct hostent *\fIhostent\fP)
+
+void ares_gethostbyaddr(ares_channel \fIchannel\fP, const void *\fIaddr\fP,
+                        int \fIaddrlen\fP, int \fIfamily\fP,
+                        ares_host_callback \fIcallback\fP, void *\fIarg\fP)
 .fi
 .SH DESCRIPTION
 The

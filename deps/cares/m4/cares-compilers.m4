@@ -609,12 +609,12 @@ AC_DEFUN([CARES_SET_COMPILER_BASIC_OPTS], [
         dnl #147: declaration is incompatible with 'previous one'
         dnl #165: too few arguments in function call
         dnl #266: function declared implicitly
-        tmp_CPPFLAGS="$tmp_CPPFLAGS -we 140,147,165,266"
+        tmp_CPPFLAGS="$tmp_CPPFLAGS -diag-error 140,147,165,266"
         dnl Disable some remarks
         dnl #279: controlling expression is constant
         dnl #981: operands are evaluated in unspecified order
         dnl #1469: "cc" clobber ignored
-        tmp_CPPFLAGS="$tmp_CPPFLAGS -wd 279,981,1469"
+        tmp_CPPFLAGS="$tmp_CPPFLAGS -diag-disable 279,981,1469"
         ;;
         #
       INTEL_WINDOWS_C)

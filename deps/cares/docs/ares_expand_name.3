@@ -18,11 +18,11 @@
 ares_expand_name \- Expand a DNS-encoded domain name
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B int ares_expand_name(const unsigned char *\fIencoded\fP,
-.B      const unsigned char *\fIabuf\fP, int \fIalen\fP, char **\fIs\fP,
-.B 	long *\fIenclen\fP)
+#include <ares.h>
+
+int ares_expand_name(const unsigned char *\fIencoded\fP,
+                     const unsigned char *\fIabuf\fP, int \fIalen\fP,
+                     char **\fIs\fP, long *\fIenclen\fP)
 .fi
 .SH DESCRIPTION
 The

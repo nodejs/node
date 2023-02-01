@@ -44,7 +44,7 @@ if they complete successfully or fail.
 \fBares_process_fd(3)\fP works the same way but acts and operates only on the
 specific file descriptors (sockets) you pass in to the function. Use
 ARES_SOCKET_BAD for "no action". This function is provided to allow users of
-c-ares to void \fIselect(3)\fP in their applications and within c-ares.
+c-ares to avoid \fIselect(3)\fP in their applications and within c-ares.
 
 To only process possible timeout conditions without a socket event occurring,
 one may pass NULL as the values for both \fIread_fds\fP and \fIwrite_fds\fP for

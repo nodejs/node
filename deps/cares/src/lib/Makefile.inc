@@ -65,7 +65,6 @@ HHEADERS = ares_android.h                        \
   ares_inet_net_pton.h			\
   ares_iphlpapi.h			\
   ares_ipv6.h				\
-  ares_library_init.h			\
   ares_llist.h				\
   ares_nowarn.h				\
   ares_platform.h			\

@@ -18,9 +18,9 @@
 ares_inet_pton \- convert an IPv4 or IPv6 address from text to binary form
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B const char *ares_inet_pton(int af, const char *src, void *dst);
+#include <ares.h>
+
+const char *ares_inet_pton(int \fIaf\fP, const char *\fIsrc\fP, void *\fIdst\fP);
 .fi
 .SH DESCRIPTION
 This is a portable version with the identical functionality of the commonly

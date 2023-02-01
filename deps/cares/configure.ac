@@ -1,9 +1,9 @@
 AC_PREREQ([2.60])
 
-AC_INIT([c-ares], [1.18.1],
+AC_INIT([c-ares], [1.19.0],
   [c-ares mailing list: http://lists.haxx.se/listinfo/c-ares])
 
-CARES_VERSION_INFO="7:1:5"
+CARES_VERSION_INFO="8:0:6"
 dnl This flag accepts an argument of the form current[:revision[:age]]. So,
 dnl passing -version-info 3:12:1 sets current to 3, revision to 12, and age to
 dnl 1.
@@ -493,7 +493,7 @@ dnl Back to "normal" configuring
 dnl **********************************************************************
 
 dnl Checks for header files.
-STDC_HEADERS
+AC_HEADER_STDC
 
 AC_PROG_EGREP
 

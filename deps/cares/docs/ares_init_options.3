@@ -41,6 +41,7 @@ struct ares_options {
   int nsort;
   int ednspsz;
   char *resolvconf_path;
+  char *hosts_path;
 };
 
 int ares_init_options(ares_channel *\fIchannelptr\fP,
@@ -101,16 +102,14 @@ resolv.conf or the RES_OPTIONS environment variable.
 .B ARES_OPT_UDP_PORT
 .B unsigned short \fIudp_port\fP;
 .br
-The port to use for queries over UDP, in network byte order.
-The default value is 53 (in network byte order), the standard name
-service port.
+The port to use for queries over UDP, in host byte order.
+The default value is 53, the standard name service port.
 .TP 18
 .B ARES_OPT_TCP_PORT
 .B unsigned short \fItcp_port\fP;
 .br
-The port to use for queries over TCP, in network byte order.
-The default value is 53 (in network byte order), the standard name
-service port.
+The port to use for queries over TCP, in host byte order.
+The default value is 53, the standard name service port.
 .TP 18
 .B ARES_OPT_SERVERS
 .B struct in_addr *\fIservers\fP;
@@ -194,6 +193,16 @@ The path to use for reading the resolv.conf file. The
 should be set to a path string, and will be honoured on *nix like systems. The
 default is
 .B /etc/resolv.conf
+.br
+.TP 18
+.B ARES_OPT_HOSTS_FILE
+.B char *\fIhosts_path\fP;
+.br
+The path to use for reading the hosts file. The
+.I hosts_path
+should be set to a path string, and will be honoured on *nix like systems. The
+default is
+.B /etc/hosts
 .br
 .PP
 The \fIoptmask\fP parameter also includes options without a corresponding
