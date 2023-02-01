@@ -4,6 +4,7 @@
 #include "js_native_api_v8.h"
 #include "memory_tracker-inl.h"
 #include "node_api.h"
+#include "node_api_embedding.h"
 #include "node_api_internals.h"
 #include "node_binding.h"
 #include "node_buffer.h"
