@@ -34,7 +34,7 @@ dns.lookup(
     }
     assert.ifError(err);
     assert.strictEqual(address, fixture.expectedAddress);
-  })
+  }),
 );
 
 dns.promises.lookup(fixture.hostname, { family: fixture.family })

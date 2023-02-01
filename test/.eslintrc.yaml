@@ -76,7 +76,6 @@ overrides:
   - files:
       - es-module/*.js
       - es-module/*.mjs
-      - internet/*.js
       - js-native-api/*/*.js
       - known_issues/*.js
       - parallel/*.js

@@ -37,7 +37,7 @@ const tests = {
   'resolveSrv': 'dns.resolveSrv("example.com", (err, res) => {});',
   'resolvePtr': 'dns.resolvePtr("example.com", (err, res) => {});',
   'resolveNaptr': 'dns.resolveNaptr("example.com", (err, res) => {});',
-  'resolveSoa': 'dns.resolveSoa("example.com", (err, res) => {});'
+  'resolveSoa': 'dns.resolveSoa("example.com", (err, res) => {});',
 };
 
 for (const tr in tests) {
