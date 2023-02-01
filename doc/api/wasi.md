@@ -122,7 +122,7 @@ added:
  - v12.16.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/
+   pr-url: https://github.com/nodejs/node/pull/46469
    description: version field added to options.
 -->
 
