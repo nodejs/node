@@ -128,7 +128,9 @@ const testResBody = 'response content';
 
     debug('Client sending request...');
 
-    req.on('headers', common.mustNotCall());
+    req.on('headers', common.mustCall((headers) => {
+      assert.strictEqual(headers[':status'], 103);
+    }));
 
     req.on('response', common.mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
