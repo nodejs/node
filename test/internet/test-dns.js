@@ -97,11 +97,11 @@ TEST(async function test_resolve4_ttl(done) {
   }
 
   validateResult(await dnsPromises.resolve4(addresses.INET4_HOST, {
-    ttl: true
+    ttl: true,
   }));
 
   const req = dns.resolve4(addresses.INET4_HOST, {
-    ttl: true
+    ttl: true,
   }, function(err, result) {
     assert.ifError(err);
     validateResult(result);
@@ -125,11 +125,11 @@ TEST(async function test_resolve6_ttl(done) {
   }
 
   validateResult(await dnsPromises.resolve6(addresses.INET6_HOST, {
-    ttl: true
+    ttl: true,
   }));
 
   const req = dns.resolve6(addresses.INET6_HOST, {
-    ttl: true
+    ttl: true,
   }, function(err, result) {
     assert.ifError(err);
     validateResult(result);
@@ -555,7 +555,7 @@ TEST(async function test_lookup_ip_all(done) {
       assert.strictEqual(family, undefined);
       validateResult(ips);
       done();
-    }
+    },
   );
 
   checkWrap(req);
@@ -621,7 +621,7 @@ TEST(async function test_lookup_all_mixed(done) {
   validateResult(await dnsPromises.lookup(addresses.INET_HOST, { all: true }));
 
   const req = dns.lookup(addresses.INET_HOST, {
-    all: true
+    all: true,
   }, function(err, ips) {
     assert.ifError(err);
     validateResult(ips);
@@ -654,7 +654,7 @@ TEST(function test_reverse_failure(done) {
     .then(common.mustNotCall())
     .catch(common.expectsError({
       code: 'ENOTFOUND',
-      hostname: '203.0.113.0'
+      hostname: '203.0.113.0',
     }));
 
   // 203.0.113.0/24 are addresses reserved for (RFC) documentation use only
@@ -676,7 +676,7 @@ TEST(function test_lookup_failure(done) {
     .then(common.mustNotCall())
     .catch(common.expectsError({
       code: 'ENOTFOUND',
-      hostname: addresses.NOT_FOUND
+      hostname: addresses.NOT_FOUND,
     }));
 
   const req = dns.lookup(addresses.NOT_FOUND, (err) => {
