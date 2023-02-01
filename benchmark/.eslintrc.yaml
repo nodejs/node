@@ -13,7 +13,6 @@ overrides:
       - buffers/*.js
       - buffers-fill/*.js
       - crypto/*.js
-      - fs/*.js
       - http/*.js
       - http2/*.js
       - misc/*.js
