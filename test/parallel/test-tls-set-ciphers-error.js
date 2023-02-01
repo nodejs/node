@@ -15,11 +15,11 @@ const fixtures = require('../common/fixtures');
     ciphers: 'aes256-sha'
   };
   assert.throws(() => tls.createServer(options, common.mustNotCall()),
-                /no cipher match/i);
+                /no[_ ]cipher[_ ]match/i);
   options.ciphers = 'FOOBARBAZ';
   assert.throws(() => tls.createServer(options, common.mustNotCall()),
-                /no cipher match/i);
+                /no[_ ]cipher[_ ]match/i);
   options.ciphers = 'TLS_not_a_cipher';
   assert.throws(() => tls.createServer(options, common.mustNotCall()),
-                /no cipher match/i);
+                /no[_ ]cipher[_ ]match/i);
 }
