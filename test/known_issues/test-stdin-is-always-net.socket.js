@@ -14,7 +14,7 @@ if (process.argv[2] === 'child') {
 const proc = spawn(
   process.execPath,
   [__filename, 'child'],
-  { stdio: 'ignore' }
+  { stdio: 'ignore' },
 );
 // To double-check this test, set stdio to 'pipe' and uncomment the line below.
 // proc.stderr.pipe(process.stderr);
