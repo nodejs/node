@@ -18,11 +18,11 @@
 ares_parse_aaaa_reply \- Parse a reply to a DNS query of type AAAA
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B int ares_parse_aaaa_reply(const unsigned char *\fIabuf\fP, int \fIalen\fP,
-.B 	struct hostent **\fIhost\fP,         
-.B      struct ares_addr6ttl *\fIaddrttls\fP, int *\fInaddrttls\fP);
+#include <ares.h>
+
+int ares_parse_aaaa_reply(const unsigned char *\fIabuf\fP, int \fIalen\fP,
+                          struct hostent **\fIhost\fP,         
+                          struct ares_addr6ttl *\fIaddrttls\fP, int *\fInaddrttls\fP);
 .fi
 .SH DESCRIPTION
 The

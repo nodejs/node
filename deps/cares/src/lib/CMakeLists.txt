@@ -10,6 +10,11 @@ CONFIGURE_FILE (ares_config.h.cmake ${PROJECT_BINARY_DIR}/ares_config.h)
 IF (CARES_SHARED)
 	ADD_LIBRARY (${PROJECT_NAME} SHARED ${CSOURCES})
 
+	# Include resource file in windows builds for versioned DLLs
+	IF (WIN32)
+		TARGET_SOURCES (${PROJECT_NAME} PRIVATE cares.rc)
+	ENDIF()
+
 	# Convert CARES_LIB_VERSIONINFO libtool version format into VERSION and SOVERSION
 	# Convert from ":" separated into CMake list format using ";"
 	STRING (REPLACE ":" ";" CARES_LIB_VERSIONINFO ${CARES_LIB_VERSIONINFO})
