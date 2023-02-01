@@ -18,14 +18,16 @@
 ares_getaddrinfo \- Initiate a host query by name and service
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B typedef void (*ares_addrinfo_callback)(void *\fIarg\fP, int \fIstatus\fP,
-.B 	int \fItimeouts\fP, struct ares_addrinfo *\fIresult\fP)
-.PP
-.B void ares_getaddrinfo(ares_channel \fIchannel\fP, const char *\fIname\fP,
-.B 	const char* \fIservice\fP, const struct ares_addrinfo_hints *\fIhints\fP,
-.B 	ares_addrinfo_callback \fIcallback\fP, void *\fIarg\fP)
+#include <ares.h>
+
+typedef void (*ares_addrinfo_callback)(void *\fIarg\fP, int \fIstatus\fP,
+                                       int \fItimeouts\fP,
+                                       struct ares_addrinfo *\fIresult\fP)
+
+void ares_getaddrinfo(ares_channel \fIchannel\fP, const char *\fIname\fP,
+                      const char* \fIservice\fP,
+                      const struct ares_addrinfo_hints *\fIhints\fP,
+                      ares_addrinfo_callback \fIcallback\fP, void *\fIarg\fP)
 .fi
 .SH DESCRIPTION
 The

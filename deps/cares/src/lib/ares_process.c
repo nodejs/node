@@ -209,6 +209,17 @@ static void write_tcp_data(ares_channel channel,
   ares_ssize_t scount;
   ares_ssize_t wcount;
   size_t n;
+  /* From writev manpage: An implementation can advertise its limit by defining
+     IOV_MAX in <limits.h> or at run time via the return value from
+     sysconf(_SC_IOV_MAX). On modern Linux systems, the limit is 1024. Back in
+     Linux 2.0 days, this limit was 16. */
+#if defined(IOV_MAX)
+  const size_t maxn = IOV_MAX;   /* FreeBSD */
+#elif defined(_SC_IOV_MAX)
+  const size_t maxn = sysconf(_SC_IOV_MAX);   /* Linux */
+#else
+  const size_t maxn = 16;   /* Safe default */
+#endif
 
   if(!write_fds && (write_fd == ARES_SOCKET_BAD))
     /* no possible action */
@@ -256,6 +267,8 @@ static void write_tcp_data(ares_channel channel,
               vec[n].iov_base = (char *) sendreq->data;
               vec[n].iov_len = sendreq->len;
               n++;
+              if(n >= maxn)
+                break;
             }
           wcount = socket_writev(channel, server->tcp_socket, vec, (int)n);
           ares_free(vec);
