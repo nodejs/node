@@ -18,9 +18,10 @@
 ares_save_options \- Save configuration values obtained from initialized ares_channel
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B int ares_save_options(ares_channel \fIchannel\fP, struct ares_options *\fIoptions\fP, int *\fIoptmask\fP)
+#include <ares.h>
+
+int ares_save_options(ares_channel \fIchannel\fP,
+                      struct ares_options *\fIoptions\fP, int *\fIoptmask\fP)
 .fi
 .SH DESCRIPTION
 The \fBares_save_options(3)\fP function saves the channel data identified by

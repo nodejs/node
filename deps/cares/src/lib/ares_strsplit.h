@@ -18,25 +18,24 @@
 
 #include "ares_setup.h"
 
-/* Split a string on delem skipping empty elements.
+/* Split a string on delms skipping empty or duplicate elements.
  *
  * param in String to split.
- * param delims String of characters to treat as a delimitor.
- *              Each character in the string is a delimitor so
- *              there can be multiple delimitors to split on.
- *              E.g. ", " will split on all comma's and spaces.
- * param make_set Have the list be a Set where there are no
- *                duplicate entries. 1 for true, 0 or false.
+ * param delms String of characters to treat as a delimitor.
+ *             Each character in the string is a delimitor so
+ *             there can be multiple delimitors to split on.
+ *             E.g. ", " will split on all comma's and spaces.
+ *             Duplicate entries are removed.
  * param num_elm Return parameter of the number of elements
  *               in the result array.
  *
  * returns an allocated array of allocated string elements.
  *
  */
-char **ares_strsplit(const char *in, const char *delms, int make_set, size_t *num_elm);
+char **ares__strsplit(const char *in, const char *delms, size_t *num_elm);
 
-/* Frees the result returned from ares_strsplit(). */
-void ares_strsplit_free(char **elms, size_t num_elm);
+/* Frees the result returned from ares__strsplit(). */
+void ares__strsplit_free(char **elms, size_t num_elm);
 
 
 #endif /* HEADER_CARES_STRSPLIT_H */

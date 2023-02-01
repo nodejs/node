@@ -18,13 +18,13 @@
 ares_parse_txt_reply \- Parse a reply to a DNS query of type TXT
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B int ares_parse_txt_reply(const unsigned char* \fIabuf\fP, int \fIalen\fP,
-.B                         struct ares_txt_reply **\fItxt_out\fP);
-.PP
-.B int ares_parse_txt_reply_ext(const unsigned char* \fIabuf\fP, int \fIalen\fP,
-.B                              struct ares_txt_ext **\fItxt_out\fP);
+#include <ares.h>
+
+int ares_parse_txt_reply(const unsigned char* \fIabuf\fP, int \fIalen\fP,
+                         struct ares_txt_reply **\fItxt_out\fP);
+
+int ares_parse_txt_reply_ext(const unsigned char* \fIabuf\fP, int \fIalen\fP,
+                             struct ares_txt_ext **\fItxt_out\fP);
 .fi
 .SH DESCRIPTION
 The

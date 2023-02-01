@@ -382,6 +382,20 @@ sure that the var `OSTYPE` contains the string 'linux'; set the var
 `NDKBASE` to point to the base of your Novell NDK; and then type
 `make -f Makefile.netware` from the top source directory;
 
+VCPKG
+=====
+
+You can build and install c-ares using [vcpkg](https://github.com/Microsoft/vcpkg/) dependency manager:
+
+```sh or powershell
+    git clone https://github.com/Microsoft/vcpkg.git
+    cd vcpkg
+    ./bootstrap-vcpkg.sh
+    ./vcpkg integrate install
+    ./vcpkg install c-ares
+```
+
+The c-ares port in vcpkg is kept up to date by Microsoft team members and community contributors. If the version is out of date, please [create an issue or pull request](https://github.com/Microsoft/vcpkg) on the vcpkg repository.
 
 PORTS
 =====
