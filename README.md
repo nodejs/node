@@ -346,8 +346,6 @@ For information about the governance of the Node.js project, see
   **Zeyu "Alex" Yang** <<himself65@outlook.com>> (he/him)
 * [iansu](https://github.com/iansu) -
   **Ian Sutherland** <<ian@iansutherland.ca>>
-* [indutny](https://github.com/indutny) -
-  **Fedor Indutny** <<fedor@indutny.com>>
 * [JacksonTian](https://github.com/JacksonTian) -
   **Jackson Tian** <<shyvo1987@gmail.com>>
 * [JakobJingleheimer](https://github.com/JakobJingleheimer) -
@@ -534,6 +532,8 @@ For information about the governance of the Node.js project, see
   **Imran Iqbal** <<imran@imraniqbal.org>>
 * [imyller](https://github.com/imyller) -
   **Ilkka Myller** <<ilkka.myller@nodefield.com>>
+* [indutny](https://github.com/indutny) -
+  **Fedor Indutny** <<fedor@indutny.com>>
 * [isaacs](https://github.com/isaacs) -
   **Isaac Z. Schlueter** <<i@izs.me>>
 * [italoacasas](https://github.com/italoacasas) -
