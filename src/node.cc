@@ -312,23 +312,25 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   }
 
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  size_t single_executable_application_size = 0;
-  const char* single_executable_application_code =
-      FindSingleExecutableCode(&single_executable_application_size);
-  if (single_executable_application_code != nullptr) {
-    Local<Value> buffer =
-        Buffer::New(
-            env->isolate(),
-            const_cast<char*>(single_executable_application_code),
-            single_executable_application_size,
-            [](char* data, void* hint) {},
-            nullptr)
-            .ToLocalChecked();
-    env->process_object()
-        ->SetPrivate(
-            env->context(), env->single_executable_application_code(), buffer)
-        .Check();
-    return StartExecution(env, "internal/main/single_executable_application");
+  if (IsSingleExecutable()) {
+    size_t single_executable_application_size = 0;
+    const char* single_executable_application_code =
+        FindSingleExecutableCode(&single_executable_application_size);
+    if (single_executable_application_code != nullptr) {
+      Local<Value> buffer =
+          Buffer::New(
+              env->isolate(),
+              const_cast<char*>(single_executable_application_code),
+              single_executable_application_size,
+              [](char* data, void* hint) {},
+              nullptr)
+              .ToLocalChecked();
+      env->process_object()
+          ->SetPrivate(
+              env->context(), env->single_executable_application_code(), buffer)
+          .Check();
+      return StartExecution(env, "internal/main/single_executable_application");
+    }
   }
 #endif
 
