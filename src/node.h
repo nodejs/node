@@ -227,10 +227,8 @@ class Environment;
 class MultiIsolatePlatform;
 class InitializationResultImpl;
 
-namespace ProcessFlags {
-// TODO(addaleax): Switch to uint32_t to match std::atomic<uint32_t>
-// init_process_flags in node.cc
-enum Flags : uint64_t {
+namespace ProcessInitializationFlags {
+enum Flags : uint32_t {
   kNoFlags = 0,
   // Enable stdio inheritance, which is disabled by default.
   // This flag is also implied by kNoStdioInitialization.
@@ -270,9 +268,8 @@ enum Flags : uint64_t {
       kNoParseGlobalDebugVariables | kNoAdjustResourceLimits |
       kNoUseLargePages | kNoPrintHelpOrVersionOutput,
 };
-}  // namespace ProcessFlags
-// TODO(addaleax): Make this the canonical name, as it is more descriptive.
-namespace ProcessInitializationFlags = ProcessFlags;
+}  // namespace ProcessInitializationFlags
+namespace ProcessFlags = ProcessInitializationFlags;  // Legacy alias.
 
 class NODE_EXTERN InitializationResult {
  public:
