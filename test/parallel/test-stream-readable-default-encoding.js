@@ -22,13 +22,7 @@ const { Readable } = require('stream');
 
   r.push('ab');
 
-  const chunks = [];
-  r.on('data', (chunk) => chunks.push(chunk));
-
-  process.nextTick(common.mustCall(() => {
-    assert.strictEqual(Buffer.concat(chunks).toString('hex'), 'ab');
-  }), 1);
-
+  r.on('data', common.mustCall((chunk) => assert.strictEqual(chunk.toString('hex'), 'ab')), 1);
 }
 
 {
@@ -37,12 +31,7 @@ const { Readable } = require('stream');
     defaultEncoding: 'hex',
   });
 
-  r.push('ab', 'utf-8');
+  r.push('xy', 'utf-8');
 
-  const chunks = [];
-  r.on('data', (chunk) => chunks.push(chunk));
-
-  process.nextTick(common.mustCall(() => {
-    assert.strictEqual(Buffer.concat(chunks).toString('utf-8'), 'ab');
-  }), 1);
+  r.on('data', common.mustCall((chunk) => assert.strictEqual(chunk.toString('utf-8'), 'xy')), 1);
 }
