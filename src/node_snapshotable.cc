@@ -1429,16 +1429,16 @@ void GetEmbedderEntryFunction(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   if (!env->embedder_mksnapshot_entry_point()) return;
-  MaybeLocal<Function> jsfn = Function::New(
-      isolate->GetCurrentContext(),
-      [](const FunctionCallbackInfo<Value>& args) {
-        Environment* env = Environment::GetCurrent(args);
-        Local<Value> require_fn = args[0];
-        CHECK(require_fn->IsFunction());
-        CHECK(env->embedder_mksnapshot_entry_point());
-        env->embedder_mksnapshot_entry_point()(
-            {env->process_object(), require_fn.As<Function>()});
-      });
+  MaybeLocal<Function> jsfn =
+      Function::New(isolate->GetCurrentContext(),
+                    [](const FunctionCallbackInfo<Value>& args) {
+                      Environment* env = Environment::GetCurrent(args);
+                      Local<Value> require_fn = args[0];
+                      CHECK(require_fn->IsFunction());
+                      CHECK(env->embedder_mksnapshot_entry_point());
+                      env->embedder_mksnapshot_entry_point()(
+                          {env->process_object(), require_fn.As<Function>()});
+                    });
   if (!jsfn.IsEmpty()) args.GetReturnValue().Set(jsfn.ToLocalChecked());
 }
 
