@@ -216,7 +216,7 @@ const testResBody = 'response content\n';
     debug('Client sending request...');
 
     req.on('information', common.mustCall((info) => {
-      assert.strictEqual(info.statusCode, 103)
+      assert.strictEqual(info.statusCode, 103);
     }));
 
     req.on('response', common.mustCall((res) => {
