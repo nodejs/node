@@ -36,9 +36,43 @@ Hello, world!
 
 This currently only supports running a single embedded [CommonJS][] file.
 
+## Notes
+
+### `require(id)` in the injected module is not file based
+
+This is not the same as [`require()`][]. This also does not have any of the
+properties that [`require()`][] has except [`require.main`][]. It is used to
+import only built-in modules. Attempting to import a module available on the
+file system will throw an error.
+
+Since the injected JavaScript file would be bundled into a standalone module by
+default in most cases, there shouldn't be any need for a file based `require()`
+API. Not having a file based `require()` API in the single-executable
+application should also safeguard users from some security vulnerabilities.
+
+However, if a file based `require()` is still needed, that can also be achieved:
+
+```js
+const { Module: { createRequire } } = require('module');
+require = createRequire(__filename);
+```
+
+### `__filename` and `module.filename` in the injected module
+
+The values of `__filename` and `module.filename` in the injected module are
+equal to [`process.execPath`][].
+
+### `__dirname` in the injected module
+
+The value of `__dirname` in the injected module is equal to the directory name
+of [`process.execPath`][].
+
 [CommonJS]: modules.md#modules-commonjs-modules
 [ELF]: https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
+[`process.execPath`]: process.md#processexecpath
+[`require()`]: modules.md#requireid
+[`require.main`]: modules.md#accessing-the-main-module
 [postject]: https://github.com/nodejs/postject
 [single executable applications]: https://github.com/nodejs/single-executable
