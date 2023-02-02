@@ -230,3 +230,93 @@ const { finished: finishedPromise } = require('stream/promises');
     assert.strictEqual(err?.message, 'asd');
   });
 }
+
+{
+  // Check pre-cancelled
+  const signal = new EventTarget();
+  signal.aborted = true;
+
+  const rs = new ReadableStream({
+    start() {}
+  });
+  finished(rs, { signal }, common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+}
+
+{
+  // Check cancelled before the stream ends sync.
+  const ac = new AbortController();
+  const { signal } = ac;
+
+  const rs = new ReadableStream({
+    start() {}
+  });
+  finished(rs, { signal }, common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+
+  ac.abort();
+}
+
+{
+  // Check cancelled before the stream ends async.
+  const ac = new AbortController();
+  const { signal } = ac;
+
+  const rs = new ReadableStream({
+    start() {}
+  });
+  setTimeout(() => ac.abort(), 1);
+  finished(rs, { signal }, common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+}
+
+{
+  // Check cancelled after doesn't throw.
+  const ac = new AbortController();
+  const { signal } = ac;
+
+  const rs = new ReadableStream({
+    start(controller) {
+      controller.enqueue('asd');
+      controller.close();
+    }
+  });
+  finished(rs, { signal }, common.mustSucceed());
+
+  rs.getReader().read().then(common.mustCall((chunk) => {
+    assert.strictEqual(chunk.value, 'asd');
+    setImmediate(() => ac.abort());
+  }));
+}
+
+{
+  // Promisified abort works
+  async function run() {
+    const ac = new AbortController();
+    const { signal } = ac;
+    const rs = new ReadableStream({
+      start() {}
+    });
+    setImmediate(() => ac.abort());
+    await finishedPromise(rs, { signal });
+  }
+
+  assert.rejects(run, { name: 'AbortError' }).then(common.mustCall());
+}
+
+{
+  // Promisified pre-aborted works
+  async function run() {
+    const signal = new EventTarget();
+    signal.aborted = true;
+    const rs = new ReadableStream({
+      start() {}
+    });
+    await finishedPromise(rs, { signal });
+  }
+
+  assert.rejects(run, { name: 'AbortError' }).then(common.mustCall());
+}
