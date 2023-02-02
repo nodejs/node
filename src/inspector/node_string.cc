@@ -1,5 +1,6 @@
 #include "node_string.h"
 #include "node/inspector/protocol/Protocol.h"
+#include "simdutf.h"
 
 #include <unicode/unistr.h>
 
@@ -118,9 +119,8 @@ const uint8_t* CharactersUTF8(const String& s) {
 }
 
 size_t CharacterCount(const String& s) {
-  icu::UnicodeString utf16 =
-      icu::UnicodeString::fromUTF8(icu::StringPiece(s.data(), s.length()));
-  return utf16.countChar32();
+  // TODO(@anonrig): Test to make sure CharacterCount returns correctly.
+  return simdutf::utf32_length_from_utf8(s.data(), s.length());
 }
 
 }  // namespace StringUtil
