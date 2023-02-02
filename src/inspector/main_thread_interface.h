@@ -34,7 +34,7 @@ class Deletable {
 };
 
 std::unique_ptr<v8_inspector::StringBuffer> Utf8ToStringView(
-    const std::string& message);
+    const std::string_view message);
 
 using MessageQueue = std::deque<std::unique_ptr<Request>>;
 
