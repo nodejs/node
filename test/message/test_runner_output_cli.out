@@ -57,6 +57,7 @@ TAP version 13
       ---
       duration_ms: *
       ...
+    # this test should pass
     # Subtest: sync throw fail
     not ok 8 - sync throw fail
       ---
@@ -204,6 +205,7 @@ TAP version 13
             *
             *
           ...
+        # this subtest should make its parent test fail
         1..1
     not ok 21 - subtest sync throw fail
       ---
@@ -365,6 +367,7 @@ TAP version 13
       ---
       duration_ms: *
       ...
+    # \#diagnostic
     # Subtest: callback pass
     ok 41 - callback pass
       ---
