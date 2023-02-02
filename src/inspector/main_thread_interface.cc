@@ -289,7 +289,7 @@ Deletable* MainThreadInterface::GetObjectIfExists(int id) {
   return iterator->second.get();
 }
 
-std::unique_ptr<StringBuffer> Utf8ToStringView(const std::string& message) {
+std::unique_ptr<StringBuffer> Utf8ToStringView(const std::string_view message) {
   size_t expected_u16_length =
       simdutf::utf16_length_from_utf8(message.data(), message.length());
   MaybeStackBuffer<char16_t> buffer(expected_u16_length);
