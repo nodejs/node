@@ -1132,6 +1132,10 @@ Major releases should be targeted for the third Tuesday of the release month.
 A major release must not slip beyond the release month. In other words, major
 releases must not slip into May or November.
 
+The @nodejs/releasers make a call for releasers 3 months in advance.
+Currently, this call is automated in the `#nodejs-release-private`
+Slack channel.
+
 The release date for the next major release should be announced immediately
 following the current release (e.g. the release date for 13.0.0 should be
 announced immediately following the release of 12.0.0).
