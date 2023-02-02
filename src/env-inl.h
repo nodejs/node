@@ -444,13 +444,13 @@ inline builtins::BuiltinLoader* Environment::builtin_loader() {
   return &builtin_loader_;
 }
 
-inline const Environment::EmbedderMksnapshotEntryFn&
+inline const StartExecutionCallback&
 Environment::embedder_mksnapshot_entry_point() const {
   return embedder_mksnapshot_entry_point_;
 }
 
 inline void Environment::set_embedder_mksnapshot_entry_point(
-    Environment::EmbedderMksnapshotEntryFn&& fn) {
+    StartExecutionCallback&& fn) {
   embedder_mksnapshot_entry_point_ = std::move(fn);
 }
 

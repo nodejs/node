@@ -1436,7 +1436,8 @@ void GetEmbedderEntryFunction(const FunctionCallbackInfo<Value>& args) {
         Local<Value> require_fn = args[0];
         CHECK(require_fn->IsFunction());
         CHECK(env->embedder_mksnapshot_entry_point());
-        env->embedder_mksnapshot_entry_point()(require_fn.As<Function>());
+        env->embedder_mksnapshot_entry_point()(
+            {env->process_object(), require_fn.As<Function>()});
       });
   if (!jsfn.IsEmpty()) args.GetReturnValue().Set(jsfn.ToLocalChecked());
 }

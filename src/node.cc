@@ -127,7 +127,6 @@
 namespace node {
 
 using v8::EscapableHandleScope;
-using v8::Function;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
@@ -277,18 +276,10 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   if (cb != nullptr) {
     EscapableHandleScope scope(env->isolate());
 
-    StartExecutionCallbackInfo info = {
-        env->process_object(),
-        env->builtin_module_require(),
-    };
-
     if (env->isolate_data()->options()->build_snapshot) {
       // TODO(addaleax): pass the callback to the main script more directly,
       // e.g. by making StartExecution(env, builtin) parametrizable
-      env->set_embedder_mksnapshot_entry_point([&](Local<Function> require_fn) {
-        info.native_require = require_fn;
-        cb(info);
-      });
+      env->set_embedder_mksnapshot_entry_point(std::move(cb));
       auto reset_entry_point =
           OnScopeLeave([&]() { env->set_embedder_mksnapshot_entry_point({}); });
 
@@ -296,7 +287,10 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     }
 
     if (StartExecution(env, "internal/main/environment").IsEmpty()) return {};
-    return scope.EscapeMaybe(cb(info));
+    return scope.EscapeMaybe(cb({
+        env->process_object(),
+        env->builtin_module_require(),
+    }));
   }
 
   // TODO(joyeecheung): move these conditions into JS land and let the
