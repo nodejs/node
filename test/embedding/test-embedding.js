@@ -50,13 +50,17 @@ assert.strictEqual(
   child_process.spawnSync(binary, [`require(${fixturePath})`, 92]).status,
   92);
 
+function getReadFileCodeForPath(path) {
+  return `(require("fs").readFileSync(${JSON.stringify(path)}, "utf8"))`;
+}
+
 // Basic snapshot support
 {
   // readSync + eval since snapshots don't support userland require() (yet)
-  const snapshotFixture = fixtures.readSync(['snapshot', 'echo-args.js'], 'utf8');
+  const snapshotFixture = fixtures.path('snapshot', 'echo-args.js');
   const blobPath = path.join(tmpdir.path, 'embedder-snapshot.blob');
   const buildSnapshotArgs = [
-    `eval(${JSON.stringify(snapshotFixture)})`, 'arg1', 'arg2',
+    `eval(${getReadFileCodeForPath(snapshotFixture)})`, 'arg1', 'arg2',
     '--embedder-snapshot-blob', blobPath, '--embedder-snapshot-create',
   ];
   const runEmbeddedArgs = ['--embedder-snapshot-blob', blobPath, 'arg3', 'arg4'];
@@ -76,10 +80,10 @@ assert.strictEqual(
 
 // Create workers and vm contexts after deserialization
 {
-  const snapshotFixture = fixtures.readSync(['snapshot', 'create-worker-and-vm.js'], 'utf8');
+  const snapshotFixture = fixtures.path('snapshot', 'create-worker-and-vm.js');
   const blobPath = path.join(tmpdir.path, 'embedder-snapshot.blob');
   const buildSnapshotArgs = [
-    `eval(${JSON.stringify(snapshotFixture)})`,
+    `eval(${getReadFileCodeForPath(snapshotFixture)})`,
     '--embedder-snapshot-blob', blobPath, '--embedder-snapshot-create',
   ];
 

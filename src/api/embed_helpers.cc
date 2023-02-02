@@ -90,7 +90,7 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
     MultiIsolatePlatform* platform,
     std::vector<std::string>* errors,
     const EmbedderSnapshotData* snapshot_data,
-    bool is_snapshotting,
+    uint32_t flags,
     std::function<Environment*(const CommonEnvironmentSetup*)> make_env)
     : impl_(new Impl()) {
   CHECK_NOT_NULL(platform);
@@ -109,7 +109,7 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
   loop->data = this;
 
   Isolate* isolate;
-  if (is_snapshotting) {
+  if (flags & Flags::kIsForSnapshotting) {
     const std::vector<intptr_t>& external_references =
         SnapshotBuilder::CollectExternalReferences();
     isolate = impl_->isolate = Isolate::Allocate();
@@ -131,7 +131,8 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
     Isolate::Scope isolate_scope(isolate);
     impl_->isolate_data.reset(CreateIsolateData(
         isolate, loop, platform, impl_->allocator.get(), snapshot_data));
-    impl_->isolate_data->options()->build_snapshot = is_snapshotting;
+    impl_->isolate_data->options()->build_snapshot =
+        !!(flags & Flags::kIsForSnapshotting);
 
     HandleScope handle_scope(isolate);
     if (snapshot_data) {

@@ -864,8 +864,14 @@ class NODE_EXTERN CommonEnvironmentSetup {
   CommonEnvironmentSetup& operator=(CommonEnvironmentSetup&&) = delete;
 
  private:
+  enum Flags : uint32_t {
+    kNoFlags = 0,
+    kIsForSnapshotting = 1,
+  };
+
   struct Impl;
   Impl* impl_;
+
   CommonEnvironmentSetup(
       MultiIsolatePlatform*,
       std::vector<std::string>*,
@@ -874,7 +880,7 @@ class NODE_EXTERN CommonEnvironmentSetup {
       MultiIsolatePlatform*,
       std::vector<std::string>*,
       const EmbedderSnapshotData*,
-      bool is_snapshotting,
+      uint32_t flags,
       std::function<Environment*(const CommonEnvironmentSetup*)>);
 };
 
@@ -907,7 +913,7 @@ CommonEnvironmentSetup::CreateWithSnapshot(
       platform,
       errors,
       snapshot_data,
-      false,
+      Flags::kNoFlags,
       [&](const CommonEnvironmentSetup* setup) -> Environment* {
         return CreateEnvironment(setup->isolate_data(),
                                  setup->context(),

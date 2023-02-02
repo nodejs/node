@@ -102,7 +102,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     } else {
       loadenv_ret = node::LoadEnvironment(
           env,
-          // Snapshots do not support fs require()s (yet)
+          // Snapshots do not support userland require()s (yet)
           "if (!require('v8').startupSnapshot.isBuildingSnapshot()) {"
           "  const publicRequire ="
           "    require('module').createRequire(process.cwd() + '/');"
