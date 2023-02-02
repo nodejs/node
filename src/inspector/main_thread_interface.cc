@@ -2,8 +2,9 @@
 
 #include "env-inl.h"
 #include "node_mutex.h"
-#include "v8-inspector.h"
+#include "simdutf.h"
 #include "util-inl.h"
+#include "v8-inspector.h"
 
 #include <unicode/unistr.h>
 
@@ -289,10 +290,12 @@ Deletable* MainThreadInterface::GetObjectIfExists(int id) {
 }
 
 std::unique_ptr<StringBuffer> Utf8ToStringView(const std::string& message) {
-  icu::UnicodeString utf16 = icu::UnicodeString::fromUTF8(
-      icu::StringPiece(message.data(), message.length()));
-  StringView view(reinterpret_cast<const uint16_t*>(utf16.getBuffer()),
-                  utf16.length());
+  size_t expected_u16_length =
+      simdutf::utf16_length_from_utf8(message.data(), message.length());
+  MaybeStackBuffer<char16_t> buffer(expected_u16_length);
+  size_t utf16_length = simdutf::convert_utf8_to_utf16(
+      message.data(), message.length(), buffer.out());
+  StringView view(reinterpret_cast<uint16_t*>(buffer.out()), utf16_length);
   return StringBuffer::create(view);
 }
 
