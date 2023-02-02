@@ -2698,6 +2698,9 @@ const cleanup = finished(rs, (err) => {
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46307
+    description: Added support for webstreams.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -2714,13 +2717,14 @@ changes:
     description: Add support for async generators.
 -->
 
-* `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]}
-* `source` {Stream|Iterable|AsyncIterable|Function}
+* `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]|
+  ReadableStream\[]|WritableStream\[]|TransformStream\[]}
+* `source` {Stream|Iterable|AsyncIterable|Function|ReadableStream}
   * Returns: {Iterable|AsyncIterable}
-* `...transforms` {Stream|Function}
+* `...transforms` {Stream|Function|TransformStream}
   * `source` {AsyncIterable}
   * Returns: {AsyncIterable}
-* `destination` {Stream|Function}
+* `destination` {Stream|Function|WritableStream}
   * `source` {AsyncIterable}
   * Returns: {AsyncIterable|Promise}
 * `callback` {Function} Called when the pipeline is fully done.
