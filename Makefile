@@ -595,6 +595,12 @@ test-message: test-build
 test-wpt: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) wpt
 
+.PHONY: test-wpt-report
+test-wpt-report:
+	$(RM) -r out/wpt
+	mkdir -p out/wpt
+	WPT_REPORT=1 $(PYTHON) tools/test.py --shell $(NODE) $(PARALLEL_ARGS) wpt
+
 .PHONY: test-simple
 test-simple: | cctest # Depends on 'all'.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) parallel sequential
