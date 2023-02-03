@@ -1049,8 +1049,7 @@ void ConnectionsList::All(const FunctionCallbackInfo<Value>& args) {
   }
 
   return args.GetReturnValue().Set(
-    Array::New(isolate, result.data(), result.size())
-  );
+      Array::New(isolate, result.data(), result.size()));
 }
 
 void ConnectionsList::Idle(const FunctionCallbackInfo<Value>& args) {
@@ -1069,8 +1068,7 @@ void ConnectionsList::Idle(const FunctionCallbackInfo<Value>& args) {
   }
 
   return args.GetReturnValue().Set(
-    Array::New(isolate, result.data(), result.size())
-  );
+      Array::New(isolate, result.data(), result.size()));
 }
 
 void ConnectionsList::Active(const FunctionCallbackInfo<Value>& args) {
@@ -1087,8 +1085,7 @@ void ConnectionsList::Active(const FunctionCallbackInfo<Value>& args) {
   }
 
   return args.GetReturnValue().Set(
-    Array::New(isolate, result.data(), result.size())
-  );
+      Array::New(isolate, result.data(), result.size()));
 }
 
 void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
@@ -1140,8 +1137,7 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
   }
 
   return args.GetReturnValue().Set(
-    Array::New(isolate, result.data(), result.size())
-  );
+      Array::New(isolate, result.data(), result.size()));
 }
 
 const llhttp_settings_t Parser::settings = {
