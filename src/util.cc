@@ -610,12 +610,18 @@ bool IsSingleExecutable() {
 
 const char* FindSingleExecutableCode(size_t* size) {
   if (single_executable_application_code_loaded == false) {
+#ifdef __APPLE__
     postject_options options;
     postject_options_init(&options);
     options.macho_segment_name = "NODE_JS";
     single_executable_application_code =
         static_cast<const char*>(postject_find_resource(
             "NODE_JS_CODE", &single_executable_application_size, &options));
+#else
+    single_executable_application_code =
+        static_cast<const char*>(postject_find_resource(
+            "NODE_JS_CODE", &single_executable_application_size, nullptr));
+#endif
     single_executable_application_code_loaded = true;
   }
 
