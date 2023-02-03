@@ -12,8 +12,8 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 [ -x "$NODE" ] || NODE=$(command -v node)
 NPM="$ROOT/deps/npm/bin/npm-cli.js"
 
-NEW_VERSION=$(npm view postject dist-tags.latest)
-CURRENT_VERSION=$(node -p "require('./test/fixtures/postject-copy/node_modules/postject/package.json').version")
+NEW_VERSION=$("$NODE" "$NPM" view postject dist-tags.latest)
+CURRENT_VERSION=$("$NODE" -p "require('./test/fixtures/postject-copy/node_modules/postject/package.json').version")
 
 if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
   echo "Skipped because Postject is on the latest version."
