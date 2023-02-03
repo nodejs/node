@@ -1058,12 +1058,20 @@ napi_create_environment(napi_platform platform,
   auto env = emb_env->setup()->env();
   if (main_script == nullptr) main_script = "";
 
-  auto ret = node::LoadEnvironment(env, main_script);
-  if (ret.IsEmpty()) return napi_pending_exception;
+  auto ret = node::LoadEnvironment(
+      env,
+      [main_script, env](const node::StartExecutionCallbackInfo& info)
+          -> v8::MaybeLocal<v8::Value> {
+        node::Realm* realm = env->principal_realm();
+        auto ret = realm->ExecuteBootstrapper(
+            "internal/bootstrap/switches/is_embedded_env");
+        if (ret.IsEmpty()) return ret;
 
-  node::Realm* realm = env->principal_realm();
-  ret =
-      realm->ExecuteBootstrapper("internal/bootstrap/switches/is_embedded_env");
+        std::string name =
+            "embedder_main_napi_" + std::to_string(env->thread_id());
+        env->builtin_loader()->Add(name.c_str(), main_script);
+        return realm->ExecuteBootstrapper(name.c_str());
+      });
   if (ret.IsEmpty()) return napi_pending_exception;
 
   emb_env->seal();
