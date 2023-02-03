@@ -18,10 +18,15 @@
 
 namespace node {
 
-struct BlobEntry {
+struct BlobEntry : public MemoryRetainer {
+  BlobEntry(std::shared_ptr<v8::BackingStore> s, size_t l, size_t o) :
+    store(s), length(l), offset(o) {}
   std::shared_ptr<v8::BackingStore> store;
   size_t length;
   size_t offset;
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(BlobEntry)
+  SET_SELF_SIZE(BlobEntry)
 };
 
 class Blob : public BaseObject {

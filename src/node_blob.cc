@@ -32,6 +32,13 @@ using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
+
+void BlobEntry::MemoryInfo(MemoryTracker* tracker) const {
+  if (store) {
+    tracker->TrackField("store", store.get());
+  }
+}
+
 void Blob::Initialize(
     Local<Object> target,
     Local<Value> unused,
@@ -150,7 +157,7 @@ void Blob::ToSlice(const FunctionCallbackInfo<Value>& args) {
 }
 
 void Blob::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackFieldWithSize("store", length_);
+  tracker->TrackField("store", store_, "std::vector<BlobEntry>");
 }
 
 MaybeLocal<Value> Blob::GetArrayBuffer(Environment* env) {
@@ -356,10 +363,10 @@ void FixedSizeBlobCopyJob::DoThreadPoolWork() {
 }
 
 void FixedSizeBlobCopyJob::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackFieldWithSize("source", length_);
-  tracker->TrackFieldWithSize(
-      "destination",
-      destination_ ? destination_->ByteLength() : 0);
+  tracker->TrackField("source", source_, "std::vector<BlobEntry>");
+  if (destination_) {
+    tracker->TrackField("destination", destination_.get());
+  }
 }
 
 void FixedSizeBlobCopyJob::Initialize(Environment* env, Local<Object> target) {
@@ -419,7 +426,7 @@ void FixedSizeBlobCopyJob::RegisterExternalReferences(
 void BlobBindingData::StoredDataObject::MemoryInfo(
     MemoryTracker* tracker) const {
   tracker->TrackField("blob", blob);
-  tracker->TrackFieldWithSize("type", type.length());
+  tracker->TrackField("type", type);
 }
 
 BlobBindingData::StoredDataObject::StoredDataObject(
