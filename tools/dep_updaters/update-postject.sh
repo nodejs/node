@@ -20,7 +20,6 @@ if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
   exit 0
 fi
 
-echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 cd "$( dirname "$0" )/../.." || exit
 rm -rf test/fixtures/postject-copy
 mkdir test/fixtures/postject-copy
