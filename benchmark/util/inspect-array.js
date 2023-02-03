@@ -11,7 +11,7 @@ const bench = common.createBenchmark(main, {
     'sparseArray',
     'mixedArray',
     'denseArray_showHidden',
-  ]
+  ],
 });
 
 function main({ n, len, type }) {
