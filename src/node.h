@@ -823,7 +823,7 @@ class NODE_EXTERN CommonEnvironmentSetup {
       std::vector<std::string>* errors,
       EnvironmentArgs&&... env_args);
   template <typename... EnvironmentArgs>
-  static std::unique_ptr<CommonEnvironmentSetup> CreateWithSnapshot(
+  static std::unique_ptr<CommonEnvironmentSetup> CreateFromSnapshot(
       MultiIsolatePlatform* platform,
       std::vector<std::string>* errors,
       const EmbedderSnapshotData* snapshot_data,
@@ -900,11 +900,11 @@ std::unique_ptr<CommonEnvironmentSetup> CommonEnvironmentSetup::Create(
   if (!errors->empty()) ret.reset();
   return ret;
 }
-// Implementation for ::CreateWithSnapshot -- the ::Create() method
+// Implementation for ::CreateFromSnapshot -- the ::Create() method
 // could call this with a nullptr snapshot_data in a major version.
 template <typename... EnvironmentArgs>
 std::unique_ptr<CommonEnvironmentSetup>
-CommonEnvironmentSetup::CreateWithSnapshot(
+CommonEnvironmentSetup::CreateFromSnapshot(
     MultiIsolatePlatform* platform,
     std::vector<std::string>* errors,
     const EmbedderSnapshotData* snapshot_data,

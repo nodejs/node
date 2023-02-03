@@ -75,7 +75,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 
   std::vector<std::string> errors;
   std::unique_ptr<CommonEnvironmentSetup> setup =
-      snapshot ? CommonEnvironmentSetup::CreateWithSnapshot(
+      snapshot ? CommonEnvironmentSetup::CreateFromSnapshot(
                      platform, &errors, snapshot.get(), args, exec_args)
       : snapshot_build_mode_it != args.end()
           ? CommonEnvironmentSetup::CreateForSnapshotting(

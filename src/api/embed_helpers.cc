@@ -132,7 +132,7 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
     impl_->isolate_data.reset(CreateIsolateData(
         isolate, loop, platform, impl_->allocator.get(), snapshot_data));
     impl_->isolate_data->options()->build_snapshot =
-        !!(flags & Flags::kIsForSnapshotting);
+        impl_->snapshot_creator.has_value();
 
     HandleScope handle_scope(isolate);
     if (snapshot_data) {
