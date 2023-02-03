@@ -109,20 +109,25 @@ MaybeLocal<Object> CreateProcessObject(Realm* realm) {
   // Node.js version is always on the top
   READONLY_STRING_PROPERTY(
       versions, "node", per_process::metadata.versions.node);
-  std::vector<std::pair<std::string_view, std::string_view>> versions_vec;
+
+#define V(key) +1
+  std::pair<std::string_view, std::string_view>
+      versions_array[NODE_VERSIONS_KEYS(V)];
+#undef V
+  auto* slot = &versions_array[0];
 
 #define V(key)                                                                 \
   do {                                                                         \
-    versions_vec.emplace_back(#key, per_process::metadata.versions.key);       \
+    *slot++ = std::make_pair(#key, per_process::metadata.versions.key);        \
   } while (0);
   NODE_VERSIONS_KEYS(V)
 #undef V
 
-  std::sort(versions_vec.begin(), versions_vec.end(), [](auto& a, auto& b) {
-    return a.first < b.first;
-  });
+  std::sort(&versions_array[0],
+            &versions_array[arraysize(versions_array)],
+            [](auto& a, auto& b) { return a.first < b.first; });
 
-  for (const auto& version : versions_vec) {
+  for (const auto& version : versions_array) {
     versions
         ->DefineOwnProperty(
             context,
