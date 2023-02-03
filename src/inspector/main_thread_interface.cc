@@ -1,12 +1,8 @@
 #include "main_thread_interface.h"
 
 #include "env-inl.h"
-#include "node_mutex.h"
 #include "simdutf.h"
-#include "util-inl.h"
 #include "v8-inspector.h"
-
-#include <unicode/unistr.h>
 
 #include <functional>
 #include <memory>
