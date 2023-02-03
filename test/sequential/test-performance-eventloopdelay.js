@@ -91,7 +91,7 @@ const { sleep } = require('internal/util');
           () => histogram.percentile(i),
           {
             name: 'RangeError',
-            code: 'ERR_INVALID_ARG_VALUE'
+            code: 'ERR_OUT_OF_RANGE'
           }
         );
       });
