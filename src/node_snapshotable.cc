@@ -186,7 +186,7 @@ class SnapshotSerializerDeserializer {
 
 class SnapshotDeserializer : public SnapshotSerializerDeserializer {
  public:
-  explicit SnapshotDeserializer(const std::vector<char>* s)
+  explicit SnapshotDeserializer(const std::vector<char>& s)
       : SnapshotSerializerDeserializer(), sink(s) {}
   ~SnapshotDeserializer() {}
 
@@ -233,7 +233,7 @@ class SnapshotDeserializer : public SnapshotSerializerDeserializer {
 
     CHECK_GT(length, 0);  // There should be no empty strings.
     MallocedBuffer<char> buf(length + 1);
-    memcpy(buf.data, sink->data() + read_total, length + 1);
+    memcpy(buf.data, sink.data() + read_total, length + 1);
     std::string result(buf.data, length);  // This creates a copy of buf.data.
 
     if (is_debug) {
@@ -245,7 +245,7 @@ class SnapshotDeserializer : public SnapshotSerializerDeserializer {
   }
 
   size_t read_total = 0;
-  const std::vector<char>* sink = nullptr;
+  const std::vector<char>& sink;
 
  private:
   // Helper for reading an array of numeric types.
@@ -259,7 +259,7 @@ class SnapshotDeserializer : public SnapshotSerializerDeserializer {
     }
 
     size_t size = sizeof(T) * count;
-    memcpy(out, sink->data() + read_total, size);
+    memcpy(out, sink.data() + read_total, size);
 
     if (is_debug) {
       std::string str =
@@ -358,8 +358,9 @@ class SnapshotSerializer : public SnapshotSerializerDeserializer {
     }
 
     // Write the null-terminated string.
-    sink.insert(sink.end(), data.c_str(), data.c_str() + data.size() + 1);
-    written_total += data.size();
+    size_t length = data.size() + 1;
+    sink.insert(sink.end(), data.c_str(), data.c_str() + length);
+    written_total += length;
 
     if (is_debug) {
       Debug("WriteString() wrote %zu bytes\n", written_total);
@@ -386,7 +387,7 @@ class SnapshotSerializer : public SnapshotSerializerDeserializer {
 
     size_t size = sizeof(T) * count;
     const char* pos = reinterpret_cast<const char*>(data);
-    sink.insert(sink.end(), pos, pos + (sizeof(T) * count));
+    sink.insert(sink.end(), pos, pos + size);
 
     if (is_debug) {
       Debug(", wrote %zu bytes\n", size);
@@ -873,7 +874,7 @@ bool SnapshotData::FromBlob(SnapshotData* out, FILE* in) {
   size_t num_read = fread(sink.data(), size, 1, in);
   CHECK_EQ(num_read, 1);
 
-  SnapshotDeserializer r(&sink);
+  SnapshotDeserializer r(sink);
   r.Debug("SnapshotData::FromBlob()\n");
 
   DCHECK_EQ(out->data_ownership, SnapshotData::DataOwnership::kOwned);
