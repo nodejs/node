@@ -7,8 +7,15 @@
 
 set -ex
 
-NEW_VERSION=$(npm view eslint dist-tags.latest)
-CURRENT_VERSION=$(node -p "require('./tools/node_modules/eslint/package.json').version")
+ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+DEPS_DIR="$ROOT/deps"
+
+[ -z "$NODE" ] && NODE="$ROOT/out/Release/node"
+[ -x "$NODE" ] || NODE=$(command -v node)
+NPM="$DEPS_DIR/npm/bin/npm-cli.js"
+
+NEW_VERSION=$("$NODE" "$NPM" view eslint dist-tags.latest)
+CURRENT_VERSION=$("$NODE" -p "require('./tools/node_modules/eslint/package.json').version")
 
 if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
   echo "Skipped because ESlint is on the latest version."
@@ -21,11 +28,6 @@ rm -rf ../node_modules/eslint
     rm -rf eslint-tmp
     mkdir eslint-tmp
     cd eslint-tmp || exit
-
-    ROOT="$PWD/../../.."
-    [ -z "$NODE" ] && NODE="$ROOT/out/Release/node"
-    [ -x "$NODE" ] || NODE=$(command -v node)
-    NPM="$ROOT/deps/npm/bin/npm-cli.js"
 
     "$NODE" "$NPM" init --yes
 
