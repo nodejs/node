@@ -3,7 +3,7 @@ set -e
 # Shell script to update libuv in the source tree to a specific version
 
 if [ "$#" -le 0 ]; then
-  echo "Error: please provide an libuv version to update"
+  echo "Error: please provide an libuv version to update to"
   echo "	e.g. $0 1.44.2"
   exit 1
 fi
