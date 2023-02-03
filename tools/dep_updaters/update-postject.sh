@@ -7,6 +7,15 @@
 
 set -ex
 
+NEW_VERSION=$(npm view postject dist-tags.latest)
+CURRENT_VERSION=$(node -p "require('./test/fixtures/postject-copy/node_modules/postject/package.json').version")
+
+if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
+  echo "Skipped because Postject is on the latest version."
+  exit 0
+fi
+
+echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 cd "$( dirname "$0" )/../.." || exit
 rm -rf test/fixtures/postject-copy
 mkdir test/fixtures/postject-copy

@@ -7,6 +7,14 @@
 
 set -ex
 
+NEW_VERSION=$(npm view eslint dist-tags.latest)
+CURRENT_VERSION=$(node -p "require('./tools/node_modules/eslint/package.json').version")
+
+if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
+  echo "Skipped because ESlint is on the latest version."
+  exit 0
+fi
+
 cd "$( dirname "$0" )" || exit
 rm -rf ../node_modules/eslint
 (
