@@ -16,7 +16,6 @@ overrides:
       - http2/*.js
       - misc/*.js
       - module/*.js
-      - net/*.js
       - path/*.js
       - process/*.js
       - url/*.js
