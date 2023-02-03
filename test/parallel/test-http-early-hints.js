@@ -100,6 +100,47 @@ const testResBody = 'response content\n';
 }
 
 {
+  // Happy flow - empty array
+
+  const server = http.createServer(common.mustCall((req, res) => {
+    debug('Server sending early hints...');
+    res.writeEarlyHints({
+      link: []
+    });
+
+    debug('Server sending full response...');
+    res.end(testResBody);
+  }));
+
+  server.listen(0, common.mustCall(() => {
+    const req = http.request({
+      port: server.address().port, path: '/'
+    });
+    debug('Client sending request...');
+
+    req.on('information', common.mustNotCall());
+
+    req.on('response', common.mustCall((res) => {
+      let body = '';
+
+      assert.strictEqual(res.statusCode, 200, `Final status code was ${res.statusCode}, not 200.`);
+
+      res.on('data', (chunk) => {
+        body += chunk;
+      });
+
+      res.on('end', common.mustCall(() => {
+        debug('Got full response.');
+        assert.strictEqual(body, testResBody);
+        server.close();
+      }));
+    }));
+
+    req.end();
+  }));
+}
+
+{
   // Happy flow - object argument with string
 
   const server = http.createServer(common.mustCall((req, res) => {
@@ -215,8 +256,94 @@ const testResBody = 'response content\n';
     });
     debug('Client sending request...');
 
-    req.on('information', common.mustCall((info) => {
-      assert.strictEqual(info.statusCode, 103);
+    req.on('information', common.mustNotCall());
+
+    req.on('response', common.mustCall((res) => {
+      let body = '';
+
+      assert.strictEqual(res.statusCode, 200, `Final status code was ${res.statusCode}, not 200.`);
+
+      res.on('data', (chunk) => {
+        body += chunk;
+      });
+
+      res.on('end', common.mustCall(() => {
+        debug('Got full response.');
+        assert.strictEqual(body, testResBody);
+        server.close();
+      }));
+    }));
+
+    req.end();
+  }));
+}
+
+{
+  // Happy flow - capitalized header name
+
+  const server = http.createServer(common.mustCall((req, res) => {
+    debug('Server sending early hints...');
+    res.writeEarlyHints({
+      Link: '</styles.css>; rel=preload; as=style'
+    });
+
+    debug('Server sending full response...');
+    res.end(testResBody);
+  }));
+
+  server.listen(0, common.mustCall(() => {
+    const req = http.request({
+      port: server.address().port, path: '/'
+    });
+
+    debug('Client sending request...');
+
+    req.on('information', common.mustCall((res) => {
+      assert.strictEqual(res.headers.link, '</styles.css>; rel=preload; as=style');
+    }));
+
+    req.on('response', common.mustCall((res) => {
+      let body = '';
+
+      assert.strictEqual(res.statusCode, 200, `Final status code was ${res.statusCode}, not 200.`);
+
+      res.on('data', (chunk) => {
+        body += chunk;
+      });
+
+      res.on('end', common.mustCall(() => {
+        debug('Got full response.');
+        assert.strictEqual(body, testResBody);
+        server.close();
+      }));
+    }));
+
+    req.end();
+  }));
+}
+
+{
+  // Happy flow - non-link header
+
+  const server = http.createServer(common.mustCall((req, res) => {
+    debug('Server sending early hints...');
+    res.writeEarlyHints({
+      'x-hint': 'value'
+    });
+
+    debug('Server sending full response...');
+    res.end(testResBody);
+  }));
+
+  server.listen(0, common.mustCall(() => {
+    const req = http.request({
+      port: server.address().port, path: '/'
+    });
+
+    debug('Client sending request...');
+
+    req.on('information', common.mustCall((res) => {
+      assert.strictEqual(res.headers['x-hint'], 'value');
     }));
 
     req.on('response', common.mustCall((res) => {
