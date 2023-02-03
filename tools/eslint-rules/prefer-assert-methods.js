@@ -19,30 +19,29 @@ const preferredAssertMethod = {
   '!=': 'notEqual',
 };
 
-module.exports = function(context) {
-  return {
-    [astSelector]: function(node) {
-      const arg = node.expression.arguments[0];
-      const assertMethod = preferredAssertMethod[arg.operator];
-      if (assertMethod) {
-        context.report({
-          node,
-          message: parseError(assertMethod, arg.operator),
-          fix: (fixer) => {
-            const sourceCode = context.getSourceCode();
-            const left = sourceCode.getText(arg.left);
-            const right = sourceCode.getText(arg.right);
-            return fixer.replaceText(
-              node,
-              `assert.${assertMethod}(${left}, ${right});`,
-            );
-          },
-        });
-      }
-    },
-  };
-};
-
-module.exports.meta = {
-  fixable: 'code',
+module.exports = {
+  meta: { fixable: 'code' },
+  create(context) {
+    return {
+      [astSelector]: function(node) {
+        const arg = node.expression.arguments[0];
+        const assertMethod = preferredAssertMethod[arg.operator];
+        if (assertMethod) {
+          context.report({
+            node,
+            message: parseError(assertMethod, arg.operator),
+            fix: (fixer) => {
+              const sourceCode = context.getSourceCode();
+              const left = sourceCode.getText(arg.left);
+              const right = sourceCode.getText(arg.right);
+              return fixer.replaceText(
+                node,
+                `assert.${assertMethod}(${left}, ${right});`,
+              );
+            },
+          });
+        }
+      },
+    };
+  },
 };
