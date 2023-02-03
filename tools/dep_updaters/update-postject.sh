@@ -7,6 +7,11 @@
 
 set -ex
 
+ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+[ -z "$NODE" ] && NODE="$ROOT/out/Release/node"
+[ -x "$NODE" ] || NODE=$(command -v node)
+NPM="$ROOT/deps/npm/bin/npm-cli.js"
+
 NEW_VERSION=$(npm view postject dist-tags.latest)
 CURRENT_VERSION=$(node -p "require('./test/fixtures/postject-copy/node_modules/postject/package.json').version")
 
@@ -20,11 +25,6 @@ cd "$( dirname "$0" )/../.." || exit
 rm -rf test/fixtures/postject-copy
 mkdir test/fixtures/postject-copy
 cd test/fixtures/postject-copy || exit
-
-ROOT="$PWD/../../.."
-[ -z "$NODE" ] && NODE="$ROOT/out/Release/node"
-[ -x "$NODE" ] || NODE=$(command -v node)
-NPM="$ROOT/deps/npm/bin/npm-cli.js"
 
 "$NODE" "$NPM" init --yes
 

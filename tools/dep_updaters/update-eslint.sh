@@ -8,11 +8,10 @@
 set -ex
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-DEPS_DIR="$ROOT/deps"
 
 [ -z "$NODE" ] && NODE="$ROOT/out/Release/node"
 [ -x "$NODE" ] || NODE=$(command -v node)
-NPM="$DEPS_DIR/npm/bin/npm-cli.js"
+NPM="$ROOT/deps/npm/bin/npm-cli.js"
 
 NEW_VERSION=$("$NODE" "$NPM" view eslint dist-tags.latest)
 CURRENT_VERSION=$("$NODE" -p "require('./tools/node_modules/eslint/package.json').version")
