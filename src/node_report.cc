@@ -793,10 +793,23 @@ static void PrintComponentVersions(JSONWriter* writer) {
   std::stringstream buf;
 
   writer->json_objectstart("componentVersions");
+  std::vector<std::pair<std::string, std::string>> versions_vec;
 
-#define V(key) writer->json_keyvalue(#key, per_process::metadata.versions.key);
+#define V(key)                                                                 \
+  do {                                                                         \
+    versions_vec.emplace_back(                                                 \
+        std::make_pair(#key, per_process::metadata.versions.key));             \
+  } while (0);
   NODE_VERSIONS_KEYS(V)
 #undef V
+
+  std::sort(versions_vec.begin(), versions_vec.end(), [](auto& a, auto& b) {
+    return a.first < b.first;
+  });
+
+  for (const auto& version : versions_vec) {
+    writer->json_keyvalue(version.first, version.second);
+  }
 
   writer->json_objectend();
 }
