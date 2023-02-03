@@ -1,6 +1,13 @@
 'use strict';
 const common = require('../common');
-const os = require('os');
+
+// This tests the creation of a single executable application.
+
+const tmpdir = require('../common/tmpdir');
+const { copyFileSync, readFileSync, writeFileSync } = require('fs');
+const { execSync } = require('child_process');
+const { join } = require('path');
+const { strictEqual } = require('assert');
 
 if (!process.config.variables.single_executable_application)
   common.skip('Single Executable Application support has been disabled.');
@@ -26,7 +33,12 @@ if (process.config.variables.want_separate_host_toolset !== 0)
   common.skip('Running the resultant binary fails with `Segmentation fault (core dumped)`.');
 
 if (process.platform === 'linux') {
-  if (!/Ubuntu/.test(os.version())) {
+  try {
+    const osReleaseText = readFileSync('/etc/os-release');
+    if (/^NAME="Ubuntu"/.test(osReleaseText)) {
+      throw new Error('Not Ubuntu.');
+    }
+  } catch {
     common.skip('Only supported Linux distribution is Ubuntu.');
   }
 
@@ -34,14 +46,6 @@ if (process.platform === 'linux') {
     common.skip(`Unsupported architecture for Linux - ${process.arch}.`);
   }
 }
-
-// This tests the creation of a single executable application.
-
-const tmpdir = require('../common/tmpdir');
-const { copyFileSync, writeFileSync } = require('fs');
-const { execSync } = require('child_process');
-const { join } = require('path');
-const { strictEqual } = require('assert');
 
 const inputFile = join(tmpdir.path, 'sea.js');
 const requirableFile = join(tmpdir.path, 'requirable.js');
