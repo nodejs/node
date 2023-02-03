@@ -34,7 +34,7 @@ if (process.config.variables.want_separate_host_toolset !== 0)
 
 if (process.platform === 'linux') {
   try {
-    const osReleaseText = readFileSync('/etc/os-release');
+    const osReleaseText = readFileSync('/etc/os-release', { encoding: 'utf-8' });
     if (/^NAME="Ubuntu"/.test(osReleaseText)) {
       throw new Error('Not Ubuntu.');
     }
