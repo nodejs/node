@@ -3239,6 +3239,7 @@ changes:
   * `requestTimeout`: Sets the timeout value in milliseconds for receiving
     the entire request from the client.
     See [`server.requestTimeout`][] for more information.
+    **Default:** `300000`.
   * `requireHostHeader` {boolean} It forces the server to respond with
     a 400 (Bad Request) status code to any HTTP/1.1 request message
     that lacks a Host header (as mandated by the specification).
@@ -3250,7 +3251,6 @@ changes:
   * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
     to be used. Useful for extending the original `ServerResponse`. **Default:**
     `ServerResponse`.
-    **Default:** `300000`.
   * `uniqueHeaders` {Array} A list of response headers that should be sent only
     once. If the header's value is an array, the items will be joined
     using `; `.
