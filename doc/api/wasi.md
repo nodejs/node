@@ -155,9 +155,9 @@ changes:
 added: REPLACEME
 -->
 
-Return an import object that can be passed to `wasi.start` if
+Return an import object that can be passed to `WebAssembly.instantiate()` if
 no other WASM imports are needed beyond those provided by WASI. It
-will reflect the version of wasi requested when `new WASI` was
+will reflect the version of WASI requested when the WASI constructor was
 called.
 
 ### `wasi.start(instance)`
