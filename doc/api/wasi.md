@@ -156,7 +156,7 @@ added: REPLACEME
 -->
 
 Return an import object that can be passed to `wasi.start` if
-no other WASM imports are needed beyond those provided by wasi. It
+no other WASM imports are needed beyond those provided by WASI. It
 will reflect the version of wasi requested when `new WASI` was
 called.
 
