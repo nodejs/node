@@ -8,7 +8,6 @@
 #include <atomic>
 
 #include "src/base/platform/platform.h"
-#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {

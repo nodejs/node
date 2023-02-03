@@ -142,20 +142,14 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#workspaces-support">Workspaces support</a></li><ul><li><a href="#filtering-workspaces">Filtering workspaces</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#if-present"><code>if-present</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#script-shell"><code>script-shell</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#workspaces-support">Workspaces support</a></li><ul><li><a href="#filtering-workspaces">Filtering workspaces</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#if-present"><code>if-present</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#script-shell"><code>script-shell</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<pre lang="bash"><code>npm run-script &lt;command&gt; [-- &lt;args&gt;]
+<pre><code class="language-bash">npm run-script &lt;command&gt; [-- &lt;args&gt;]
 
 aliases: run, rum, urn
 </code></pre>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>This runs an arbitrary command from a package's <code>"scripts"</code> object.  If no
 <code>"command"</code> is provided, it will list the available scripts.</p>
@@ -166,7 +160,7 @@ directly-run scripts.</p>
 <p>Any positional arguments are passed to the specified script.  Use <code>--</code> to
 pass <code>-</code>-prefixed flags and options which would otherwise be parsed by npm.</p>
 <p>For example:</p>
-<pre lang="bash"><code>npm run test -- --grep="pattern"
+<pre><code class="language-bash">npm run test -- --grep="pattern"
 </code></pre>
 <p>The arguments will only be passed to the script specified after <code>npm run</code>
 and not to any <code>pre</code> or <code>post</code> script.</p>
@@ -179,16 +173,17 @@ built-in.</p>
 provided by locally-installed dependencies can be used without the
 <code>node_modules/.bin</code> prefix. For example, if there is a <code>devDependency</code> on
 <code>tap</code> in your package, you should write:</p>
-<pre lang="bash"><code>"scripts": {"test": "tap test/*.js"}
+<pre><code class="language-bash">"scripts": {"test": "tap test/*.js"}
 </code></pre>
 <p>instead of</p>
-<pre lang="bash"><code>"scripts": {"test": "node_modules/.bin/tap test/*.js"}
+<pre><code class="language-bash">"scripts": {"test": "node_modules/.bin/tap test/*.js"}
 </code></pre>
 <p>The actual shell your script is run within is platform dependent. By default,
 on Unix-like systems it is the <code>/bin/sh</code> command, on Windows it is
 <code>cmd.exe</code>.
 The actual shell referred to by <code>/bin/sh</code> also depends on the system.
-You can customize the shell with the <code>script-shell</code> configuration.</p>
+You can customize the shell with the
+<a href="../using-npm/config#script-shell.html"><code>script-shell</code> config</a>.</p>
 <p>Scripts are run from the root of the package folder, regardless of what the
 current working directory is when <code>npm run</code> is called. If you want your
 script to use different behavior based on what subdirectory you're in, you
@@ -200,7 +195,8 @@ with which <code>npm</code> is executed.</p>
 fails, you will be given a warning to run <code>npm install</code>, just in case you've
 forgotten.</p>
 <h3 id="workspaces-support">Workspaces support</h3>
-<p>You may use the <code>workspace</code> or <code>workspaces</code> configs in order to run an
+<p>You may use the <a href="../using-npm/config#workspace.html"><code>workspace</code></a> or
+<a href="../using-npm/config#workspaces.html"><code>workspaces</code></a> configs in order to run an
 arbitrary command from a package's <code>"scripts"</code> object in the context of the
 specified workspaces. If no <code>"command"</code> is provided, it will list the available
 scripts for each of these configured workspaces.</p>
@@ -222,7 +218,8 @@ scripts for each of these configured workspaces.</p>
 }
 </code></pre>
 <p>And that each of the configured workspaces has a configured <code>test</code> script,
-we can run tests in all of them using the <code>workspaces</code> config:</p>
+we can run tests in all of them using the
+<a href="../using-npm/config#workspaces.html"><code>workspaces</code> config</a>:</p>
 <pre><code>npm test --workspaces
 </code></pre>
 <h4 id="filtering-workspaces">Filtering workspaces</h4>
@@ -239,9 +236,6 @@ shorthand, e.g:</p>
 <p>This last command will run <code>test</code> in both <code>./packages/a</code> and <code>./packages/b</code>
 packages.</p>
 <h3 id="configuration">Configuration</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>
 <li>Default:</li>
@@ -261,8 +255,6 @@ workspaces within that folder)</li>
 workspace which does not yet exist, to create the folder and set it up as a
 brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
 <li>Default: null</li>
@@ -279,8 +271,6 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
 </ul>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
 <ul>
 <li>Default: false</li>
@@ -290,8 +280,7 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <p>When false, specifying individual workspaces via the <code>workspace</code> config, or
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
+<p>This value is not exported to the environment for child processes.</p>
 <h4 id="if-present"><code>if-present</code></h4>
 <ul>
 <li>Default: false</li>
@@ -303,8 +292,7 @@ This option can be used when it's desirable to optionally run a script when
 it's present and fail if the script fails. This is useful, for example, when
 running scripts that may only apply for some builds in an otherwise generic
 CI setup.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
+<p>This value is not exported to the environment for child processes.</p>
 <h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
 <ul>
 <li>Default: false</li>
@@ -315,17 +303,22 @@ CI setup.</p>
 <code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
 will still run their intended script if <code>ignore-scripts</code> is set, but they
 will <em>not</em> run any pre- or post-scripts.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
+<h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Run all build scripts (ie, <code>preinstall</code>, <code>install</code>, and <code>postinstall</code>)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process.</p>
+<p>Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging.</p>
 <h4 id="script-shell"><code>script-shell</code></h4>
 <ul>
 <li>Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows</li>
 <li>Type: null or String</li>
 </ul>
-<p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and <code>npm init &lt;pkg&gt;</code> commands.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
+<p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and <code>npm init &lt;package-spec&gt;</code> commands.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/scripts.html">npm scripts</a></li>
@@ -335,8 +328,7 @@ will <em>not</em> run any pre- or post-scripts.</p>
 <li><a href="../commands/npm-stop.html">npm stop</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../using-npm/workspaces.html">npm workspaces</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-run-script.md">

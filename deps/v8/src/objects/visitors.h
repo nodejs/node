@@ -30,6 +30,7 @@ class CodeDataContainer;
   V(kHandleScope, "(Handle scope)")                     \
   V(kBuiltins, "(Builtins)")                            \
   V(kGlobalHandles, "(Global handles)")                 \
+  V(kTracedHandles, "(Traced handles)")                 \
   V(kEternalHandles, "(Eternal handles)")               \
   V(kThreadManager, "(Thread manager)")                 \
   V(kStrongRoots, "(Strong roots)")                     \
@@ -42,6 +43,7 @@ class CodeDataContainer;
   V(kWrapperTracing, "(Wrapper tracing)")               \
   V(kWriteBarrier, "(Write barrier)")                   \
   V(kRetainMaps, "(Retain maps)")                       \
+  V(kClientHeap, "(Client heap)")                       \
   V(kUnknown, "(Unknown)")
 
 class VisitorSynchronization : public AllStatic {
@@ -160,19 +162,18 @@ class ObjectVisitor {
   // Visit pointer embedded into a code object.
   virtual void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) = 0;
 
-  // Visits a runtime entry in the instruction stream.
-  virtual void VisitRuntimeEntry(Code host, RelocInfo* rinfo) {}
-
   // Visits an external reference embedded into a code object.
   virtual void VisitExternalReference(Code host, RelocInfo* rinfo) {}
 
-  // Visits an external reference.
-  virtual void VisitExternalReference(Foreign host, Address* p) {}
+  // Visits an external pointer.
+  virtual void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
+                                    ExternalPointerTag tag) {}
 
   // Visits an (encoded) internal reference.
   virtual void VisitInternalReference(Code host, RelocInfo* rinfo) {}
 
-  // Visits an off-heap target in the instruction stream.
+  // Visits an off-heap target or near builtin entry in the instruction stream.
+  // TODO(ishell): rename to VisitBuiltinEntry.
   virtual void VisitOffHeapTarget(Code host, RelocInfo* rinfo) {}
 
   // Visits the relocation info using the given iterator.

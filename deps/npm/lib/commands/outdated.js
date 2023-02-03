@@ -1,9 +1,8 @@
 const os = require('os')
-const path = require('path')
+const { resolve } = require('path')
 const pacote = require('pacote')
 const table = require('text-table')
-const color = require('chalk')
-const styles = require('ansistyles')
+const chalk = require('chalk')
 const npa = require('npm-package-arg')
 const pickManifest = require('npm-pick-manifest')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
@@ -16,7 +15,7 @@ const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 class Outdated extends ArboristWorkspaceCmd {
   static description = 'Check for outdated packages'
   static name = 'outdated'
-  static usage = ['[[<@scope>/]<pkg> ...]']
+  static usage = ['[<package-spec> ...]']
   static params = [
     'all',
     'json',
@@ -27,8 +26,8 @@ class Outdated extends ArboristWorkspaceCmd {
   ]
 
   async exec (args) {
-    const global = path.resolve(this.npm.globalDir, '..')
-    const where = this.npm.config.get('global')
+    const global = resolve(this.npm.globalDir, '..')
+    const where = this.npm.global
       ? global
       : this.npm.prefix
 
@@ -106,7 +105,7 @@ class Outdated extends ArboristWorkspaceCmd {
       const outTable = [outHead].concat(outList)
 
       if (this.npm.color) {
-        outTable[0] = outTable[0].map(heading => styles.underline(heading))
+        outTable[0] = outTable[0].map(heading => chalk.underline(heading))
       }
 
       const tableOpts = {
@@ -141,7 +140,7 @@ class Outdated extends ArboristWorkspaceCmd {
 
   getEdgesOut (node) {
     // TODO: normalize usage of edges and avoid looping through nodes here
-    if (this.npm.config.get('global')) {
+    if (this.npm.global) {
       for (const child of node.children.values()) {
         this.trackEdge(child)
       }
@@ -167,7 +166,7 @@ class Outdated extends ArboristWorkspaceCmd {
   }
 
   getWorkspacesEdges (node) {
-    if (this.npm.config.get('global')) {
+    if (this.npm.global) {
       return
     }
 
@@ -197,6 +196,7 @@ class Outdated extends ArboristWorkspaceCmd {
     try {
       alias = npa(edge.spec).subSpec
     } catch (err) {
+      // ignore errors, no alias
     }
     const spec = npa(alias ? alias.name : edge.name)
     const node = edge.to || edge
@@ -208,7 +208,7 @@ class Outdated extends ArboristWorkspaceCmd {
       : edge.dev ? 'devDependencies'
       : 'dependencies'
 
-    for (const omitType of this.npm.config.get('omit')) {
+    for (const omitType of this.npm.flatOptions.omit) {
       if (node[omitType]) {
         return
       }
@@ -282,7 +282,7 @@ class Outdated extends ArboristWorkspaceCmd {
         : node.name
 
     return this.npm.color && humanOutput
-      ? color.green(workspaceName)
+      ? chalk.green(workspaceName)
       : workspaceName
   }
 
@@ -307,9 +307,9 @@ class Outdated extends ArboristWorkspaceCmd {
     }
 
     if (this.npm.color) {
-      columns[0] = color[current === wanted ? 'yellow' : 'red'](columns[0]) // current
-      columns[2] = color.green(columns[2]) // wanted
-      columns[3] = color.magenta(columns[3]) // latest
+      columns[0] = chalk[current === wanted ? 'yellow' : 'red'](columns[0]) // current
+      columns[2] = chalk.green(columns[2]) // wanted
+      columns[3] = chalk.magenta(columns[3]) // latest
     }
 
     return columns

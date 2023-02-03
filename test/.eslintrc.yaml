@@ -8,6 +8,7 @@ rules:
   multiline-comment-style: [error, separate-lines]
   prefer-const: error
   symbol-description: off
+  comma-dangle: [error, always-multiline]
 
   no-restricted-syntax:
     # Config copied from .eslintrc.js
@@ -46,6 +47,10 @@ rules:
       message: Use Number.isNaN() instead of the global isNaN() function.
     - selector: VariableDeclarator > CallExpression:matches([callee.name='debuglog'], [callee.property.name='debuglog']):not([arguments.0.value='test'])
       message: Use 'test' as debuglog value in tests.
+    - selector: CallExpression:matches([callee.object.name="common"][callee.property.name=/^mustCall/],[callee.name="mustCall"],[callee.name="mustCallAtLeast"])>:first-child[type=/FunctionExpression$/][body.body.length=0]
+      message: Do not use an empty function, omit the parameter altogether.
+    - selector: Identifier[name='webcrypto']
+      message: Use `globalThis.crypto`.
 
   # Custom rules in tools/eslint-rules
   node-core/prefer-assert-iferror: error
@@ -66,3 +71,22 @@ rules:
 # Global scoped methods and vars
 globals:
   WebAssembly: false
+
+overrides:
+  - files:
+      - es-module/*.js
+      - es-module/*.mjs
+      - js-native-api/*/*.js
+      - parallel/*.js
+      - parallel/*.mjs
+      - pummel/*.js
+      - sequential/*.js
+      - sequential/*.mjs
+    rules:
+      comma-dangle: [error, {
+        arrays: always-multiline,
+        exports: always-multiline,
+        functions: only-multiline,
+        imports: always-multiline,
+        objects: only-multiline,
+      }]

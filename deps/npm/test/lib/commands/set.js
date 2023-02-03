@@ -1,56 +1,49 @@
 const t = require('tap')
+const fs = require('fs/promises')
+const mockNpm = require('../../fixtures/mock-npm')
+const { join } = require('path')
+const { cleanNewlines } = require('../../fixtures/clean-snapshot')
 
-// can't run this until npm set can save to project level npmrc
-t.skip('npm set', async t => {
-  // XXX: convert to loadMockNpm
-  const { real: mockNpm } = require('../../fixtures/mock-npm')
-  const { joinedOutput, Npm } = mockNpm(t)
-  const npm = new Npm()
-  await npm.load()
-
-  t.test('no args', async t => {
-    t.rejects(npm.exec('set', []), /Usage:/, 'prints usage')
-  })
-
-  t.test('test-config-item', async t => {
-    npm.localPrefix = t.testdir({})
-    t.not(
-      npm.config.get('test-config-item', 'project'),
-      'test config value',
-      'config is not already new value'
-    )
-    // This will write to ~/.npmrc!
-    // Don't unskip until we can write to project level
-    await npm.exec('set', ['test-config-item=test config value'])
-    t.equal(joinedOutput(), '', 'outputs nothing')
-    t.equal(
-      npm.config.get('test-config-item', 'project'),
-      'test config value',
-      'config is set to new value'
-    )
-  })
+t.test('no args', async t => {
+  const { npm } = await mockNpm(t)
+  t.rejects(npm.exec('set', []), /Usage:/, 'prints usage')
 })
 
-// Everything after this can go away once the above test is unskipped
+t.test('test-config-item', async t => {
+  const { npm, home, joinedOutput } = await mockNpm(t, {
+    homeDir: {
+      '.npmrc': 'original-config-test=original value',
+    },
+  })
 
-let configArgs = null
-const npm = {
-  exec: async (cmd, args) => {
-    if (cmd === 'config') {
-      configArgs = args
-    }
-  },
-}
+  t.equal(
+    npm.config.get('original-config-test'),
+    'original value',
+    'original config is set from npmrc'
+  )
 
-const Set = t.mock('../../../lib/commands/set.js')
-const set = new Set(npm)
+  t.not(
+    npm.config.get('fund'),
+    false,
+    'config is not already new value'
+  )
 
-t.test('npm set - no args', async t => {
-  await t.rejects(set.exec([]), set.usage)
-})
+  await npm.exec('set', ['fund=true'])
+  t.equal(joinedOutput(), '', 'outputs nothing')
 
-t.test('npm set', async t => {
-  await set.exec(['email', 'me@me.me'])
+  t.equal(
+    npm.config.get('fund'),
+    true,
+    'config is set to new value'
+  )
 
-  t.strictSame(configArgs, ['set', 'email', 'me@me.me'], 'passed the correct arguments to config')
+  t.equal(
+    cleanNewlines(await fs.readFile(join(home, '.npmrc'), 'utf-8')),
+    [
+      'original-config-test=original value',
+      'fund=true',
+      '',
+    ].join('\n'),
+    'npmrc is written with new value'
+  )
 })

@@ -1,5 +1,5 @@
-*%(basename)s:5: TypeError: Found non-callable @@iterator
+*%(basename)s:5: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function
 console.log(1, ...x);
                   ^
-TypeError: Found non-callable @@iterator
+TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function
     at *%(basename)s:5:9

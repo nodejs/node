@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
+#define V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
+
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
-
-#ifndef V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
-#define V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
 
 #include <set>
 #include <string>
@@ -25,6 +25,7 @@ namespace U_ICU_NAMESPACE {
 class DateIntervalFormat;
 class Locale;
 class SimpleDateFormat;
+class TimeZone;
 }  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
@@ -42,6 +43,12 @@ class JSDateTimeFormat
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format);
 
+  V8_WARN_UNUSED_RESULT static Handle<String> Calendar(
+      Isolate* isolate, Handle<JSDateTimeFormat> date_time_format);
+
+  V8_WARN_UNUSED_RESULT static Handle<Object> TimeZone(
+      Isolate* isolate, Handle<JSDateTimeFormat> date_time_format);
+
   // ecma402/#sec-unwrapdatetimeformat
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSDateTimeFormat>
   UnwrapDateTimeFormat(Isolate* isolate, Handle<JSReceiver> format_holder);
@@ -54,22 +61,24 @@ class JSDateTimeFormat
   // DateTime Format Functions
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> DateTimeFormat(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-      Handle<Object> date);
+      Handle<Object> date, const char* method_name);
 
   // ecma402/#sec-Intl.DateTimeFormat.prototype.formatToParts
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatToParts(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-      double date_value, bool output_source);
+      Handle<Object> x, bool output_source, const char* method_name);
 
   // ecma402/#sec-intl.datetimeformat.prototype.formatRange
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatRange(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-      double x_date_value, double y_date_value);
+      Handle<Object> x_date_value, Handle<Object> y_date_value,
+      const char* method_name);
 
   // ecma402/sec-Intl.DateTimeFormat.prototype.formatRangeToParts
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatRangeToParts(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-      double x_date_value, double y_date_value);
+      Handle<Object> x_date_value, Handle<Object> y_date_value,
+      const char* method_name);
 
   // ecma-402/#sec-todatetimeoptions
   enum class RequiredOption { kDate, kTime, kAny };
@@ -83,7 +92,21 @@ class JSDateTimeFormat
       Handle<Object> options, RequiredOption required, DefaultsOption defaults,
       const char* method_name);
 
+  // Function to support Temporal
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> TemporalToLocaleString(
+      Isolate* isolate, Handle<JSReceiver> temporal, Handle<Object> locales,
+      Handle<Object> options, const char* method_name);
+
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
+
+  Handle<Object> static TimeZoneId(Isolate* isolate, const icu::TimeZone& tz);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> TimeZoneIdToString(
+      Isolate* isolate, const icu::UnicodeString& id);
+
+  std::unique_ptr<icu::TimeZone> static CreateTimeZone(const char* timezone);
+
+  V8_EXPORT_PRIVATE static std::string CanonicalizeTimeZoneID(
+      const std::string& input);
 
   Handle<String> HourCycleAsString() const;
 
@@ -105,23 +128,23 @@ class JSDateTimeFormat
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_JS_DATE_TIME_FORMAT_FLAGS()
 
-  STATIC_ASSERT(HourCycle::kUndefined <= HourCycleBits::kMax);
-  STATIC_ASSERT(HourCycle::kH11 <= HourCycleBits::kMax);
-  STATIC_ASSERT(HourCycle::kH12 <= HourCycleBits::kMax);
-  STATIC_ASSERT(HourCycle::kH23 <= HourCycleBits::kMax);
-  STATIC_ASSERT(HourCycle::kH24 <= HourCycleBits::kMax);
+  static_assert(HourCycle::kUndefined <= HourCycleBits::kMax);
+  static_assert(HourCycle::kH11 <= HourCycleBits::kMax);
+  static_assert(HourCycle::kH12 <= HourCycleBits::kMax);
+  static_assert(HourCycle::kH23 <= HourCycleBits::kMax);
+  static_assert(HourCycle::kH24 <= HourCycleBits::kMax);
 
-  STATIC_ASSERT(DateTimeStyle::kUndefined <= DateStyleBits::kMax);
-  STATIC_ASSERT(DateTimeStyle::kFull <= DateStyleBits::kMax);
-  STATIC_ASSERT(DateTimeStyle::kLong <= DateStyleBits::kMax);
-  STATIC_ASSERT(DateTimeStyle::kMedium <= DateStyleBits::kMax);
-  STATIC_ASSERT(DateTimeStyle::kShort <= DateStyleBits::kMax);
+  static_assert(DateTimeStyle::kUndefined <= DateStyleBits::kMax);
+  static_assert(DateTimeStyle::kFull <= DateStyleBits::kMax);
+  static_assert(DateTimeStyle::kLong <= DateStyleBits::kMax);
+  static_assert(DateTimeStyle::kMedium <= DateStyleBits::kMax);
+  static_assert(DateTimeStyle::kShort <= DateStyleBits::kMax);
 
-  STATIC_ASSERT(DateTimeStyle::kUndefined <= TimeStyleBits::kMax);
-  STATIC_ASSERT(DateTimeStyle::kFull <= TimeStyleBits::kMax);
-  STATIC_ASSERT(DateTimeStyle::kLong <= TimeStyleBits::kMax);
-  STATIC_ASSERT(DateTimeStyle::kMedium <= TimeStyleBits::kMax);
-  STATIC_ASSERT(DateTimeStyle::kShort <= TimeStyleBits::kMax);
+  static_assert(DateTimeStyle::kUndefined <= TimeStyleBits::kMax);
+  static_assert(DateTimeStyle::kFull <= TimeStyleBits::kMax);
+  static_assert(DateTimeStyle::kLong <= TimeStyleBits::kMax);
+  static_assert(DateTimeStyle::kMedium <= TimeStyleBits::kMax);
+  static_assert(DateTimeStyle::kShort <= TimeStyleBits::kMax);
 
   DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
   DECL_ACCESSORS(icu_simple_date_format, Managed<icu::SimpleDateFormat>)

@@ -31,8 +31,11 @@ void Locker::Initialize(v8::Isolate* isolate) {
   has_lock_ = false;
   top_level_ = true;
   isolate_ = reinterpret_cast<i::Isolate*>(isolate);
+
   // Record that the Locker has been used at least once.
   base::Relaxed_Store(&g_locker_was_ever_used_, 1);
+  isolate_->set_was_locker_ever_used();
+
   // Get the big lock if necessary.
   if (!isolate_->thread_manager()->IsLockedByCurrentThread()) {
     isolate_->thread_manager()->Lock();
@@ -49,16 +52,8 @@ void Locker::Initialize(v8::Isolate* isolate) {
 
 bool Locker::IsLocked(v8::Isolate* isolate) {
   DCHECK_NOT_NULL(isolate);
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  return internal_isolate->thread_manager()->IsLockedByCurrentThread();
-}
-
-// static
-bool Locker::IsActive() { return WasEverUsed(); }
-
-// static
-bool Locker::WasEverUsed() {
-  return base::Relaxed_Load(&g_locker_was_ever_used_) != 0;
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  return i_isolate->thread_manager()->IsLockedByCurrentThread();
 }
 
 Locker::~Locker() {

@@ -10,11 +10,17 @@ on:
 
 concurrency: ${{ github.workflow }}
 
+# todo (node-fetch not working on 18, waiting for node-core-utils to fix)
 env:
-  NODE_VERSION: lts/*
+  NODE_VERSION: 16
+
+permissions:
+  contents: read
 
 jobs:
   get-prs-for-ci:
+    permissions:
+      pull-requests: read
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     outputs:
@@ -23,15 +29,19 @@ jobs:
       - name: Get Pull Requests
         id: get_prs_for_ci
         run: >
-          gh pr list \
+          numbers=$(gh pr list \
                   --repo ${{ github.repository }} \
                   --label 'request-ci' \
                   --json 'number' \
-                  -t '::set-output name=numbers::{{ range . }}{{ .number }} {{ end }}' \
-                  --limit 100
+                  -t '{{ range . }}{{ .number }} {{ end }}' \
+                  --limit 100)
+          echo "numbers=$numbers" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   start-ci:
+    permissions:
+      contents: read
+      pull-requests: write
     needs: get-prs-for-ci
     if: needs.get-prs-for-ci.outputs.numbers != ''
     runs-on: ubuntu-latest
@@ -51,7 +61,7 @@ jobs:
       - name: Setup node-core-utils
         run: |
           ncu-config set username ${{ secrets.JENKINS_USER }}
-          ncu-config set token none
+          ncu-config set token "${{ secrets.GH_USER_TOKEN }}"
           ncu-config set jenkins_token ${{ secrets.JENKINS_TOKEN }}
           ncu-config set owner "${{ github.repository_owner }}"
           ncu-config set repo "$(echo ${{ github.repository }} | cut -d/ -f2)"

@@ -346,9 +346,7 @@ static void AnalyzeStackInNativeCode(
   }
 }
 
-// TODO(3074796): Reenable this as a THREADED_TEST once it passes.
-// THREADED_TEST(CaptureStackTrace) {
-TEST(CaptureStackTrace) {
+THREADED_TEST(CaptureStackTrace) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::String> origin = v8_str("capture-stack-trace-test");
@@ -869,8 +867,8 @@ TEST(DynamicWithSourceURLInStackTraceString) {
 }
 
 UNINITIALIZED_TEST(CaptureStackTraceForStackOverflow) {
-  // We must set FLAG_stack_size before initializing the isolate.
-  v8::internal::FLAG_stack_size = 150;
+  // We must set v8_flags.stack_size before initializing the isolate.
+  v8::internal::v8_flags.stack_size = 150;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -886,4 +884,59 @@ UNINITIALIZED_TEST(CaptureStackTraceForStackOverflow) {
   }
   isolate->Exit();
   isolate->Dispose();
+}
+
+void AnalyzeScriptNameInStack(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::HandleScope scope(args.GetIsolate());
+  v8::Local<v8::String> name =
+      v8::StackTrace::CurrentScriptNameOrSourceURL(args.GetIsolate());
+  CHECK(!name.IsEmpty());
+  CHECK(name->StringEquals(v8_str("test.js")));
+}
+
+TEST(CurrentScriptNameOrSourceURL_Name) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(
+      isolate, "AnalyzeScriptNameInStack",
+      v8::FunctionTemplate::New(CcTest::isolate(), AnalyzeScriptNameInStack));
+  LocalContext context(nullptr, templ);
+
+  const char* source = R"(
+    function foo() {
+      AnalyzeScriptNameInStack();
+    }
+    foo();
+  )";
+
+  CHECK(CompileRunWithOrigin(source, "test.js")->IsUndefined());
+}
+
+void AnalyzeScriptURLInStack(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::HandleScope scope(args.GetIsolate());
+  v8::Local<v8::String> name =
+      v8::StackTrace::CurrentScriptNameOrSourceURL(args.GetIsolate());
+  CHECK(!name.IsEmpty());
+  CHECK(name->StringEquals(v8_str("foo.js")));
+}
+
+TEST(CurrentScriptNameOrSourceURL_SourceURL) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(
+      isolate, "AnalyzeScriptURLInStack",
+      v8::FunctionTemplate::New(CcTest::isolate(), AnalyzeScriptURLInStack));
+  LocalContext context(nullptr, templ);
+
+  const char* source = R"(
+    function foo() {
+      AnalyzeScriptURLInStack();
+    }
+    foo();
+    //# sourceURL=foo.js
+  )";
+
+  CHECK(CompileRunWithOrigin(source, "")->IsUndefined());
 }

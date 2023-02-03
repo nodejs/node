@@ -25,16 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --always-opt --expose-gc
+// Flags: --allow-natives-syntax --always-turbofan --expose-gc
 
 // Test that the elements kind of the boilerplate object is sufficiently
 // checked in LFastLiteral, so that unoptimized code can transition the
-// boilerplate. The --always-opt flag makes sure that optimized code is
+// boilerplate. The --always-turbofan flag makes sure that optimized code is
 // not thrown away at deoptimization.
 
-// The switch statement in f() makes sure that f() is not inlined. If we
-// start inlining switch statements, we will still catch the bug on the
-// final --stress-opt run.
+// The switch statement in f() makes sure that f() is not inlined.
 
 function f(x) {
   switch (x) {

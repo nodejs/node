@@ -1,3 +1,55 @@
+## 8.8.2 (2023-01-23)
+
+### Bug fixes
+
+Fix a bug that caused `allowHashBang` to be set to false when not provided, even with `ecmaVersion >= 14`.
+
+Fix an exception when passing no option object to `parse` or `new Parser`.
+
+Fix incorrect parse error on `if (0) let\n[astral identifier char]`.
+
+## 8.8.1 (2022-10-24)
+
+### Bug fixes
+
+Make type for `Comment` compatible with estree types.
+
+## 8.8.0 (2022-07-21)
+
+### Bug fixes
+
+Allow parentheses around spread args in destructuring object assignment.
+
+Fix an issue where the tree contained `directive` properties in when parsing with a language version that doesn't support them.
+
+### New features
+
+Support hashbang comments by default in ECMAScript 2023 and later.
+
+## 8.7.1 (2021-04-26)
+
+### Bug fixes
+
+Stop handling `"use strict"` directives in ECMAScript versions before 5.
+
+Fix an issue where duplicate quoted export names in `export *` syntax were incorrectly checked.
+
+Add missing type for `tokTypes`.
+
+## 8.7.0 (2021-12-27)
+
+### New features
+
+Support quoted export names.
+
+Upgrade to Unicode 14.
+
+Add support for Unicode 13 properties in regular expressions.
+
+### Bug fixes
+
+Use a loop to find line breaks, because the existing regexp search would overrun the end of the searched range and waste a lot of time in minified code.
+
 ## 8.6.0 (2021-11-18)
 
 ### Bug fixes

@@ -29,24 +29,25 @@
 // as an array.
 //
 
-const { definitions, shorthands } = require('../utils/config/index.js')
-const { aliases, cmdList, plumbing } = require('../utils/cmd-list.js')
-const aliasNames = Object.keys(aliases)
-const fullList = cmdList.concat(aliasNames).filter(c => !plumbing.includes(c))
+const fs = require('fs/promises')
 const nopt = require('nopt')
+const { resolve } = require('path')
+
+const { definitions, shorthands } = require('../utils/config/index.js')
+const { aliases, commands, plumbing } = require('../utils/cmd-list.js')
+const aliasNames = Object.keys(aliases)
+const fullList = commands.concat(aliasNames).filter(c => !plumbing.includes(c))
 const configNames = Object.keys(definitions)
 const shorthandNames = Object.keys(shorthands)
 const allConfs = configNames.concat(shorthandNames)
 const { isWindowsShell } = require('../utils/is-windows.js')
-const fileExists = require('../utils/file-exists.js')
+const fileExists = (file) => fs.stat(file).then(s => s.isFile()).catch(() => false)
 
-const { promisify } = require('util')
 const BaseCommand = require('../base-command.js')
 
 class Completion extends BaseCommand {
   static description = 'Tab Completion for npm'
   static name = 'completion'
-  static ignoreImplicitWorkspace = false
 
   // completion for the completion command
   async completion (opts) {
@@ -54,7 +55,6 @@ class Completion extends BaseCommand {
       return
     }
 
-    const { resolve } = require('path')
     const [bashExists, zshExists] = await Promise.all([
       fileExists(resolve(process.env.HOME, '.bashrc')),
       fileExists(resolve(process.env.HOME, '.zshrc')),
@@ -85,7 +85,7 @@ class Completion extends BaseCommand {
     if (COMP_CWORD === undefined ||
       COMP_LINE === undefined ||
       COMP_POINT === undefined) {
-      return dumpScript()
+      return dumpScript(resolve(this.npm.npmRoot, 'lib', 'utils', 'completion.sh'))
     }
 
     // ok we're actually looking at the envs and outputting the suggestions
@@ -97,17 +97,17 @@ class Completion extends BaseCommand {
     const word = words[w]
     const line = COMP_LINE
     const point = +COMP_POINT
-    const partialLine = line.substr(0, point)
+    const partialLine = line.slice(0, point)
     const partialWords = words.slice(0, w)
 
     // figure out where in that last word the point is.
     const partialWordRaw = args[w]
     let i = partialWordRaw.length
-    while (partialWordRaw.substr(0, i) !== partialLine.substr(-1 * i) && i > 0) {
+    while (partialWordRaw.slice(0, i) !== partialLine.slice(-1 * i) && i > 0) {
       i--
     }
 
-    const partialWord = unescape(partialWordRaw.substr(0, i))
+    const partialWord = unescape(partialWordRaw.slice(0, i))
     partialWords.push(partialWord)
 
     const opts = {
@@ -142,9 +142,9 @@ class Completion extends BaseCommand {
     // take a little shortcut and use npm's arg parsing logic.
     // don't have to worry about the last arg being implicitly
     // boolean'ed, since the last block will catch that.
-    const types = Object.entries(definitions).reduce((types, [key, def]) => {
-      types[key] = def.type
-      return types
+    const types = Object.entries(definitions).reduce((acc, [key, def]) => {
+      acc[key] = def.type
+      return acc
     }, {})
     const parsed = opts.conf =
       nopt(types, shorthands, partialWords.slice(0, -1), 0)
@@ -188,13 +188,8 @@ class Completion extends BaseCommand {
   }
 }
 
-const dumpScript = async () => {
-  const fs = require('fs')
-  const readFile = promisify(fs.readFile)
-  const { resolve } = require('path')
-  const p = resolve(__dirname, '..', 'utils', 'completion.sh')
-
-  const d = (await readFile(p, 'utf8')).replace(/^#!.*?\n/, '')
+const dumpScript = async (p) => {
+  const d = (await fs.readFile(p, 'utf8')).replace(/^#!.*?\n/, '')
   await new Promise((res, rej) => {
     let done = false
     process.stdout.on('error', er => {

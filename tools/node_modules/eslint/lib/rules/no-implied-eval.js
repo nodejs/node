@@ -22,7 +22,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow the use of `eval()`-like methods",
+            description: "Disallow the use of `eval()`-like methods",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-implied-eval"
         },

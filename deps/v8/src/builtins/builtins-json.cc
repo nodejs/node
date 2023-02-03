@@ -7,6 +7,7 @@
 #include "src/json/json-parser.h"
 #include "src/json/json-stringifier.h"
 #include "src/logging/counters.h"
+#include "src/objects/js-raw-json.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -35,6 +36,20 @@ BUILTIN(JsonStringify) {
   Handle<Object> indent = args.atOrUndefined(isolate, 3);
   RETURN_RESULT_OR_FAILURE(isolate,
                            JsonStringify(isolate, object, replacer, indent));
+}
+
+// https://tc39.es/proposal-json-parse-with-source/#sec-json.rawjson
+BUILTIN(JsonRawJson) {
+  HandleScope scope(isolate);
+  Handle<Object> text = args.atOrUndefined(isolate, 1);
+  RETURN_RESULT_OR_FAILURE(isolate, JSRawJson::Create(isolate, text));
+}
+
+// https://tc39.es/proposal-json-parse-with-source/#sec-json.israwjson
+BUILTIN(JsonIsRawJson) {
+  HandleScope scope(isolate);
+  Handle<Object> text = args.atOrUndefined(isolate, 1);
+  return isolate->heap()->ToBoolean(text->IsJSRawJson());
 }
 
 }  // namespace internal

@@ -1,8 +1,7 @@
 #include "crypto/crypto_util.h"
+#include "async_wrap-inl.h"
 #include "crypto/crypto_bio.h"
 #include "crypto/crypto_keys.h"
-#include "allocated_buffer-inl.h"
-#include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
@@ -61,26 +60,28 @@ int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
   return 1;
 }
 
-void CheckEntropy() {
-  for (;;) {
-    int status = RAND_status();
-    CHECK_GE(status, 0);  // Cannot fail.
-    if (status != 0)
-      break;
+MUST_USE_RESULT CSPRNGResult CSPRNG(void* buffer, size_t length) {
+  do {
+    if (1 == RAND_status())
+      if (1 == RAND_bytes(static_cast<unsigned char*>(buffer), length))
+        return {true};
+#if OPENSSL_VERSION_MAJOR >= 3
+    const auto code = ERR_peek_last_error();
+    // A misconfigured OpenSSL 3 installation may report 1 from RAND_poll()
+    // and RAND_status() but fail in RAND_bytes() if it cannot look up
+    // a matching algorithm for the CSPRNG.
+    if (ERR_GET_LIB(code) == ERR_LIB_RAND) {
+      const auto reason = ERR_GET_REASON(code);
+      if (reason == RAND_R_ERROR_INSTANTIATING_DRBG ||
+          reason == RAND_R_UNABLE_TO_FETCH_DRBG ||
+          reason == RAND_R_UNABLE_TO_CREATE_DRBG) {
+        return {false};
+      }
+    }
+#endif
+  } while (1 == RAND_poll());
 
-    // Give up, RAND_poll() not supported.
-    if (RAND_poll() == 0)
-      break;
-  }
-}
-
-bool EntropySource(unsigned char* buffer, size_t length) {
-  // Ensure that OpenSSL's PRNG is properly seeded.
-  CheckEntropy();
-  // RAND_bytes() can return 0 to indicate that the entropy data is not truly
-  // random. That's okay, it's still better than V8's stock source of entropy,
-  // which is /dev/urandom on UNIX platforms and the current time on Windows.
-  return RAND_bytes(buffer, length) != -1;
+  return {false};
 }
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u) {
@@ -90,7 +91,7 @@ int PasswordCallback(char* buf, int size, int rwflag, void* u) {
     size_t len = passphrase->size();
     if (buflen < len)
       return -1;
-    memcpy(buf, passphrase->get(), len);
+    memcpy(buf, passphrase->data(), len);
     return len;
   }
 
@@ -197,8 +198,6 @@ void InitCryptoOnce() {
   ERR_load_ENGINE_strings();
   ENGINE_load_builtin_engines();
 #endif  // !OPENSSL_NO_ENGINE
-
-  NodeBIO::GetMethod();
 }
 
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
@@ -219,8 +218,7 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(!per_process::cli_options->force_fips_crypto);
   Environment* env = Environment::GetCurrent(args);
-  // TODO(addaleax): This should not be possible to set from worker threads.
-  // CHECK(env->owns_process_state());
+  CHECK(env->owns_process_state());
   bool enable = args[0]->BooleanValue(env->isolate());
 
 #if OPENSSL_VERSION_MAJOR >= 3
@@ -328,12 +326,6 @@ ByteSource::~ByteSource() {
   OPENSSL_clear_free(allocated_data_, size_);
 }
 
-void ByteSource::reset() {
-  OPENSSL_clear_free(allocated_data_, size_);
-  data_ = nullptr;
-  size_ = 0;
-}
-
 ByteSource& ByteSource::operator=(ByteSource&& other) noexcept {
   if (&other != this) {
     OPENSSL_clear_free(allocated_data_, size_);
@@ -372,45 +364,29 @@ MaybeLocal<Uint8Array> ByteSource::ToBuffer(Environment* env) {
   return Buffer::New(env, ab, 0, ab->ByteLength());
 }
 
-const char* ByteSource::get() const {
-  return data_;
-}
-
-size_t ByteSource::size() const {
-  return size_;
-}
-
 ByteSource ByteSource::FromBIO(const BIOPointer& bio) {
   CHECK(bio);
   BUF_MEM* bptr;
   BIO_get_mem_ptr(bio.get(), &bptr);
-  char* data = MallocOpenSSL<char>(bptr->length);
-  memcpy(data, bptr->data, bptr->length);
-  return Allocated(data, bptr->length);
+  ByteSource::Builder out(bptr->length);
+  memcpy(out.data<void>(), bptr->data, bptr->length);
+  return std::move(out).release();
 }
 
 ByteSource ByteSource::FromEncodedString(Environment* env,
                                          Local<String> key,
                                          enum encoding enc) {
   size_t length = 0;
-  size_t actual = 0;
-  char* data = nullptr;
+  ByteSource out;
 
   if (StringBytes::Size(env->isolate(), key, enc).To(&length) && length > 0) {
-    data = MallocOpenSSL<char>(length);
-    actual = StringBytes::Write(env->isolate(), data, length, key, enc);
-
-    CHECK(actual <= length);
-
-    if (actual == 0) {
-      OPENSSL_clear_free(data, length);
-      data = nullptr;
-    } else if (actual < length) {
-      data = reinterpret_cast<char*>(OPENSSL_realloc(data, actual));
-    }
+    ByteSource::Builder buf(length);
+    size_t actual =
+        StringBytes::Write(env->isolate(), buf.data<char>(), length, key, enc);
+    out = std::move(buf).release(actual);
   }
 
-  return Allocated(data, actual);
+  return out;
 }
 
 ByteSource ByteSource::FromStringOrBuffer(Environment* env,
@@ -424,11 +400,11 @@ ByteSource ByteSource::FromString(Environment* env, Local<String> str,
   CHECK(str->IsString());
   size_t size = str->Utf8Length(env->isolate());
   size_t alloc_size = ntc ? size + 1 : size;
-  char* data = MallocOpenSSL<char>(alloc_size);
+  ByteSource::Builder out(alloc_size);
   int opts = String::NO_OPTIONS;
   if (!ntc) opts |= String::NO_NULL_TERMINATION;
-  str->WriteUtf8(env->isolate(), data, alloc_size, nullptr, opts);
-  return Allocated(data, size);
+  str->WriteUtf8(env->isolate(), out.data<char>(), alloc_size, nullptr, opts);
+  return std::move(out).release();
 }
 
 ByteSource ByteSource::FromBuffer(Local<Value> buffer, bool ntc) {
@@ -461,16 +437,11 @@ ByteSource ByteSource::FromSymmetricKeyObjectHandle(Local<Value> handle) {
                  key->Data()->GetSymmetricKeySize());
 }
 
-ByteSource::ByteSource(const char* data, char* allocated_data, size_t size)
-    : data_(data),
-      allocated_data_(allocated_data),
-      size_(size) {}
-
-ByteSource ByteSource::Allocated(char* data, size_t size) {
+ByteSource ByteSource::Allocated(void* data, size_t size) {
   return ByteSource(data, data, size);
 }
 
-ByteSource ByteSource::Foreign(const char* data, size_t size) {
+ByteSource ByteSource::Foreign(const void* data, size_t size) {
   return ByteSource(data, nullptr, size);
 }
 
@@ -694,6 +665,21 @@ Maybe<bool> SetEncodedValue(
   return target->Set(env->context(), name, value);
 }
 
+bool SetRsaOaepLabel(const EVPKeyCtxPointer& ctx, const ByteSource& label) {
+  if (label.size() != 0) {
+    // OpenSSL takes ownership of the label, so we need to create a copy.
+    void* label_copy = OPENSSL_memdup(label.data(), label.size());
+    CHECK_NOT_NULL(label_copy);
+    int ret = EVP_PKEY_CTX_set0_rsa_oaep_label(
+        ctx.get(), static_cast<unsigned char*>(label_copy), label.size());
+    if (ret <= 0) {
+      OPENSSL_free(label_copy);
+      return false;
+    }
+  }
+  return true;
+}
+
 CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args) {
   CHECK(args->IsUint32());
   uint32_t mode = args.As<v8::Uint32>()->Value();
@@ -702,22 +688,21 @@ CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args) {
 }
 
 namespace {
-// SecureBuffer uses openssl to allocate a Uint8Array using
-// OPENSSL_secure_malloc. Because we do not yet actually
-// make use of secure heap, this has the same semantics as
+// SecureBuffer uses OPENSSL_secure_malloc to allocate a Uint8Array.
+// Without --secure-heap, OpenSSL's secure heap is disabled,
+// in which case this has the same semantics as
 // using OPENSSL_malloc. However, if the secure heap is
 // initialized, SecureBuffer will automatically use it.
 void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsUint32());
   Environment* env = Environment::GetCurrent(args);
   uint32_t len = args[0].As<Uint32>()->Value();
-  char* data = static_cast<char*>(OPENSSL_secure_malloc(len));
+  void* data = OPENSSL_secure_zalloc(len);
   if (data == nullptr) {
     // There's no memory available for the allocation.
     // Return nothing.
     return;
   }
-  memset(data, 0, len);
   std::shared_ptr<BackingStore> store =
       ArrayBuffer::NewBackingStore(
           data,
@@ -740,19 +725,20 @@ void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
 
 namespace Util {
 void Initialize(Environment* env, Local<Object> target) {
+  Local<Context> context = env->context();
 #ifndef OPENSSL_NO_ENGINE
-  env->SetMethod(target, "setEngine", SetEngine);
+  SetMethod(context, target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE
 
-  env->SetMethodNoSideEffect(target, "getFipsCrypto", GetFipsCrypto);
-  env->SetMethod(target, "setFipsCrypto", SetFipsCrypto);
-  env->SetMethodNoSideEffect(target, "testFipsCrypto", TestFipsCrypto);
+  SetMethodNoSideEffect(context, target, "getFipsCrypto", GetFipsCrypto);
+  SetMethod(context, target, "setFipsCrypto", SetFipsCrypto);
+  SetMethodNoSideEffect(context, target, "testFipsCrypto", TestFipsCrypto);
 
   NODE_DEFINE_CONSTANT(target, kCryptoJobAsync);
   NODE_DEFINE_CONSTANT(target, kCryptoJobSync);
 
-  env->SetMethod(target, "secureBuffer", SecureBuffer);
-  env->SetMethod(target, "secureHeapUsed", SecureHeapUsed);
+  SetMethod(context, target, "secureBuffer", SecureBuffer);
+  SetMethod(context, target, "secureHeapUsed", SecureHeapUsed);
 }
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 #ifndef OPENSSL_NO_ENGINE

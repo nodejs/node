@@ -90,8 +90,15 @@ typedef enum {
   NGHTTP2_STREAM_FLAG_DEFERRED_USER = 0x08,
   /* bitwise OR of NGHTTP2_STREAM_FLAG_DEFERRED_FLOW_CONTROL and
      NGHTTP2_STREAM_FLAG_DEFERRED_USER. */
-  NGHTTP2_STREAM_FLAG_DEFERRED_ALL = 0x0c
-
+  NGHTTP2_STREAM_FLAG_DEFERRED_ALL = 0x0c,
+  /* Indicates that this stream is not subject to RFC7540
+     priorities scheme. */
+  NGHTTP2_STREAM_FLAG_NO_RFC7540_PRIORITIES = 0x10,
+  /* Ignore client RFC 9218 priority signal. */
+  NGHTTP2_STREAM_FLAG_IGNORE_CLIENT_PRIORITIES = 0x20,
+  /* Indicates that RFC 9113 leading and trailing white spaces
+     validation against a field value is not performed. */
+  NGHTTP2_STREAM_FLAG_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION = 0x40,
 } nghttp2_stream_flag;
 
 /* HTTP related flags to enforce HTTP semantics */
@@ -132,6 +139,11 @@ typedef enum {
   /* set if final response is expected */
   NGHTTP2_HTTP_FLAG_EXPECT_FINAL_RESPONSE = 1 << 14,
   NGHTTP2_HTTP_FLAG__PROTOCOL = 1 << 15,
+  /* set if priority header field is received */
+  NGHTTP2_HTTP_FLAG_PRIORITY = 1 << 16,
+  /* set if an error is encountered while parsing priority header
+     field */
+  NGHTTP2_HTTP_FLAG_BAD_PRIORITY = 1 << 17,
 } nghttp2_http_flag;
 
 struct nghttp2_stream {
@@ -204,7 +216,7 @@ struct nghttp2_stream {
   /* status code from remote server */
   int16_t status_code;
   /* Bitwise OR of zero or more nghttp2_http_flag values */
-  uint16_t http_flags;
+  uint32_t http_flags;
   /* This is bitwise-OR of 0 or more of nghttp2_stream_flag. */
   uint8_t flags;
   /* Bitwise OR of zero or more nghttp2_shut_flag values */
@@ -218,6 +230,12 @@ struct nghttp2_stream {
      this stream.  The nonzero does not necessarily mean WINDOW_UPDATE
      is not queued. */
   uint8_t window_update_queued;
+  /* extpri is a stream priority produced by nghttp2_extpri_to_uint8
+     used by RFC 9218 extensible priorities. */
+  uint8_t extpri;
+  /* http_extpri is a stream priority received in HTTP request header
+     fields and produced by nghttp2_extpri_to_uint8. */
+  uint8_t http_extpri;
 };
 
 void nghttp2_stream_init(nghttp2_stream *stream, int32_t stream_id,

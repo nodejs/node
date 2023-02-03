@@ -1,27 +1,37 @@
-import { URL } from 'url'
-import { TLSSocket, TlsOptions } from 'tls'
-import { Socket } from 'net'
+import { TLSSocket, ConnectionOptions } from 'tls'
+import { IpcNetConnectOpts, Socket, TcpNetConnectOpts } from 'net'
 
-export = buildConnector
-declare function buildConnector (options?: buildConnector.BuildOptions): typeof buildConnector.connector
+export default buildConnector
+declare function buildConnector (options?: buildConnector.BuildOptions): buildConnector.connector
 
 declare namespace buildConnector {
-  export interface BuildOptions extends TlsOptions {
+  export type BuildOptions = (ConnectionOptions | TcpNetConnectOpts | IpcNetConnectOpts) & {
     maxCachedSessions?: number | null;
     socketPath?: string | null;
     timeout?: number | null;
-    servername?: string | null;
+    port?: number;
   }
 
   export interface Options {
     hostname: string
     host?: string
     protocol: string
-    port: number
+    port: string
     servername?: string
+    localAddress?: string | null
+    httpSocket?: Socket
   }
 
-  export type Callback = (err: Error | null, socket: Socket | TLSSocket | null) => void
+  export type Callback = (...args: CallbackArgs) => void
+  type CallbackArgs = [null, Socket | TLSSocket] | [Error, null]
 
-  export function connector (options: buildConnector.Options, callback: buildConnector.Callback): Socket | TLSSocket;
+  export type connector = connectorAsync | connectorSync
+
+  interface connectorSync {
+    (options: buildConnector.Options): Socket | TLSSocket
+  }
+
+  interface connectorAsync {
+    (options: buildConnector.Options, callback: buildConnector.Callback): void
+  }
 }

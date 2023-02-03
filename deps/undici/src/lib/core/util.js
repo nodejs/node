@@ -8,6 +8,7 @@ const net = require('net')
 const { InvalidArgumentError } = require('./errors')
 const { Blob } = require('buffer')
 const nodeUtil = require('util')
+const { stringify } = require('querystring')
 
 function nop () {}
 
@@ -24,6 +25,20 @@ function isBlobLike (object) {
       typeof object.arrayBuffer === 'function') &&
     /^(Blob|File)$/.test(object[Symbol.toStringTag])
   )
+}
+
+function buildURL (url, queryParams) {
+  if (url.includes('?') || url.includes('#')) {
+    throw new Error('Query params cannot be passed when url already contains "?" or "#".')
+  }
+
+  const stringified = stringify(queryParams)
+
+  if (stringified) {
+    url += '?' + stringified
+  }
+
+  return url
 }
 
 function parseURL (url) {
@@ -63,14 +78,25 @@ function parseURL (url) {
     const port = url.port != null
       ? url.port
       : (url.protocol === 'https:' ? 443 : 80)
-    const origin = url.origin != null
+    let origin = url.origin != null
       ? url.origin
       : `${url.protocol}//${url.hostname}:${port}`
-    const path = url.path != null
+    let path = url.path != null
       ? url.path
       : `${url.pathname || ''}${url.search || ''}`
 
-    url = new URL(path, origin)
+    if (origin.endsWith('/')) {
+      origin = origin.substring(0, origin.length - 1)
+    }
+
+    if (path && !path.startsWith('/')) {
+      path = `/${path}`
+    }
+    // new URL(path, origin) is unsafe when `path` contains an absolute URL
+    // From https://developer.mozilla.org/en-US/docs/Web/API/URL/URL:
+    // If first parameter is a relative URL, second param is required, and will be used as the base URL.
+    // If first parameter is an absolute URL, a given second param will be ignored.
+    url = new URL(origin + path)
   }
 
   return url
@@ -188,7 +214,11 @@ function parseHeaders (headers, obj = {}) {
     const key = headers[i].toString().toLowerCase()
     let val = obj[key]
     if (!val) {
-      obj[key] = headers[i + 1].toString()
+      if (Array.isArray(headers[i + 1])) {
+        obj[key] = headers[i + 1]
+      } else {
+        obj[key] = headers[i + 1].toString()
+      }
     } else {
       if (!Array.isArray(val)) {
         val = [val]
@@ -324,6 +354,25 @@ function ReadableStreamFrom (iterable) {
   )
 }
 
+// The chunk should be a FormData instance and contains
+// all the required methods.
+function isFormDataLike (chunk) {
+  return (chunk &&
+    chunk.constructor && chunk.constructor.name === 'FormData' &&
+    typeof chunk === 'object' &&
+      (typeof chunk.append === 'function' &&
+        typeof chunk.delete === 'function' &&
+        typeof chunk.get === 'function' &&
+        typeof chunk.getAll === 'function' &&
+        typeof chunk.has === 'function' &&
+        typeof chunk.set === 'function' &&
+        typeof chunk.entries === 'function' &&
+        typeof chunk.keys === 'function' &&
+        typeof chunk.values === 'function' &&
+        typeof chunk.forEach === 'function')
+  )
+}
+
 const kEnumerableProperty = Object.create(null)
 kEnumerableProperty.enumerable = true
 
@@ -352,5 +401,7 @@ module.exports = {
   ReadableStreamFrom,
   isBuffer,
   validateHandler,
-  getSocketInfo
+  getSocketInfo,
+  isFormDataLike,
+  buildURL
 }

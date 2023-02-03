@@ -87,8 +87,8 @@ static void ClearWeakList(Heap* heap, Object list) {
 template <>
 struct WeakListVisitor<CodeT> {
   static void SetWeakNext(CodeT code, Object next) {
-    CodeDataContainerFromCodeT(code).set_next_code_link(
-        next, UPDATE_WEAK_WRITE_BARRIER);
+    CodeDataContainerFromCodeT(code).set_next_code_link(next,
+                                                        UPDATE_WRITE_BARRIER);
   }
 
   static Object WeakNext(CodeT code) {
@@ -113,7 +113,7 @@ struct WeakListVisitor<CodeT> {
 template <>
 struct WeakListVisitor<Context> {
   static void SetWeakNext(Context context, Object next) {
-    context.set(Context::NEXT_CONTEXT_LINK, next, UPDATE_WEAK_WRITE_BARRIER);
+    context.set(Context::NEXT_CONTEXT_LINK, next, UPDATE_WRITE_BARRIER);
   }
 
   static Object WeakNext(Context context) {
@@ -171,7 +171,7 @@ struct WeakListVisitor<Context> {
 template <>
 struct WeakListVisitor<AllocationSite> {
   static void SetWeakNext(AllocationSite obj, Object next) {
-    obj.set_weak_next(next, UPDATE_WEAK_WRITE_BARRIER);
+    obj.set_weak_next(next, UPDATE_WRITE_BARRIER);
   }
 
   static Object WeakNext(AllocationSite obj) { return obj.weak_next(); }
@@ -188,7 +188,7 @@ struct WeakListVisitor<AllocationSite> {
 template <>
 struct WeakListVisitor<JSFinalizationRegistry> {
   static void SetWeakNext(JSFinalizationRegistry obj, HeapObject next) {
-    obj.set_next_dirty(next, UPDATE_WEAK_WRITE_BARRIER);
+    obj.set_next_dirty(next, UPDATE_WRITE_BARRIER);
   }
 
   static Object WeakNext(JSFinalizationRegistry obj) {

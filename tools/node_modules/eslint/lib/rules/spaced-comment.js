@@ -39,7 +39,7 @@ function escapeAndRepeat(s) {
 function parseMarkersOption(markers) {
 
     // `*` is a marker for JSDoc comments.
-    if (markers.indexOf("*") === -1) {
+    if (!markers.includes("*")) {
         return markers.concat("*");
     }
 
@@ -152,7 +152,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce consistent spacing after the `//` or `/*` in a comment",
+            description: "Enforce consistent spacing after the `//` or `/*` in a comment",
             recommended: false,
             url: "https://eslint.org/docs/rules/spaced-comment"
         },

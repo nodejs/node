@@ -52,7 +52,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow negating the left operand of relational operators",
+            description: "Disallow negating the left operand of relational operators",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-unsafe-negation"
         },

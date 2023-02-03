@@ -20,13 +20,12 @@ ReqWrap<T>::ReqWrap(Environment* env,
                     AsyncWrap::ProviderType provider)
     : AsyncWrap(env, object, provider),
       ReqWrapBase(env) {
+  MakeWeak();
   Reset();
 }
 
 template <typename T>
-ReqWrap<T>::~ReqWrap() {
-  CHECK_EQ(false, persistent().IsEmpty());
-}
+ReqWrap<T>::~ReqWrap() {}
 
 template <typename T>
 void ReqWrap<T>::Dispatched() {
@@ -120,7 +119,8 @@ struct MakeLibuvRequestCallback<ReqT, void(*)(ReqT*, Args...)> {
   using F = void(*)(ReqT* req, Args... args);
 
   static void Wrapper(ReqT* req, Args... args) {
-    ReqWrap<ReqT>* req_wrap = ReqWrap<ReqT>::from_req(req);
+    BaseObjectPtr<ReqWrap<ReqT>> req_wrap{ReqWrap<ReqT>::from_req(req)};
+    req_wrap->Detach();
     req_wrap->env()->DecreaseWaitingRequestCounter();
     F original_callback = reinterpret_cast<F>(req_wrap->original_callback_);
     original_callback(req, args...);
@@ -138,7 +138,6 @@ template <typename T>
 template <typename LibuvFunction, typename... Args>
 int ReqWrap<T>::Dispatch(LibuvFunction fn, Args... args) {
   Dispatched();
-
   // This expands as:
   //
   // int err = fn(env()->event_loop(), req(), arg1, arg2, Wrapper, arg3, ...)
@@ -158,8 +157,10 @@ int ReqWrap<T>::Dispatch(LibuvFunction fn, Args... args) {
       env()->event_loop(),
       req(),
       MakeLibuvRequestCallback<T, Args>::For(this, args)...);
-  if (err >= 0)
+  if (err >= 0) {
+    ClearWeak();
     env()->IncreaseWaitingRequestCounter();
+  }
   return err;
 }
 

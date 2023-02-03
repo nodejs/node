@@ -12,7 +12,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const createTree = require("functional-red-black-tree");
+const { OrderedMap } = require("js-sdsl");
 
 const astUtils = require("./utils/ast-utils");
 
@@ -135,7 +135,8 @@ class BinarySearchTree {
      * Creates an empty tree
      */
     constructor() {
-        this._rbTree = createTree();
+        this._orderedMap = new OrderedMap();
+        this._orderedMapEnd = this._orderedMap.end();
     }
 
     /**
@@ -145,13 +146,7 @@ class BinarySearchTree {
      * @returns {void}
      */
     insert(key, value) {
-        const iterator = this._rbTree.find(key);
-
-        if (iterator.valid) {
-            this._rbTree = iterator.update(value);
-        } else {
-            this._rbTree = this._rbTree.insert(key, value);
-        }
+        this._orderedMap.setElement(key, value);
     }
 
     /**
@@ -160,9 +155,13 @@ class BinarySearchTree {
      * @returns {{key: number, value: *}|null} The found entry, or null if no such entry exists.
      */
     findLe(key) {
-        const iterator = this._rbTree.le(key);
+        const iterator = this._orderedMap.reverseLowerBound(key);
 
-        return iterator && { key: iterator.key, value: iterator.value };
+        if (iterator.equals(this._orderedMapEnd)) {
+            return {};
+        }
+
+        return { key: iterator.pointer[0], value: iterator.pointer[1] };
     }
 
     /**
@@ -177,11 +176,20 @@ class BinarySearchTree {
         if (start === end) {
             return;
         }
-        const iterator = this._rbTree.ge(start);
+        const iterator = this._orderedMap.lowerBound(start);
 
-        while (iterator.valid && iterator.key < end) {
-            this._rbTree = this._rbTree.remove(iterator.key);
-            iterator.next();
+        if (iterator.equals(this._orderedMapEnd)) {
+            return;
+        }
+
+        if (end > this._orderedMap.back()[0]) {
+            while (!iterator.equals(this._orderedMapEnd)) {
+                this._orderedMap.eraseElementByIterator(iterator);
+            }
+        } else {
+            while (iterator.pointer[0] < end) {
+                this._orderedMap.eraseElementByIterator(iterator);
+            }
         }
     }
 }
@@ -500,7 +508,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent indentation",
+            description: "Enforce consistent indentation",
             recommended: false,
             url: "https://eslint.org/docs/rules/indent"
         },
@@ -796,7 +804,7 @@ module.exports = {
             let statement = node.parent && node.parent.parent;
 
             while (
-                statement.type === "UnaryExpression" && ["!", "~", "+", "-"].indexOf(statement.operator) > -1 ||
+                statement.type === "UnaryExpression" && ["!", "~", "+", "-"].includes(statement.operator) ||
                 statement.type === "AssignmentExpression" ||
                 statement.type === "LogicalExpression" ||
                 statement.type === "SequenceExpression" ||
@@ -916,18 +924,6 @@ module.exports = {
                 }
 
                 offsets.setDesiredOffsets([firstBodyToken.range[0], lastBodyToken.range[1]], lastParentToken, 1);
-
-                /*
-                 * For blockless nodes with semicolon-first style, don't indent the semicolon.
-                 * e.g.
-                 * if (foo) bar()
-                 * ; [1, 2, 3].map(foo)
-                 */
-                const lastToken = sourceCode.getLastToken(node);
-
-                if (node.type !== "EmptyStatement" && astUtils.isSemicolonToken(lastToken)) {
-                    offsets.setDesiredOffset(lastToken, lastParentToken, 0);
-                }
             }
         }
 
@@ -1223,7 +1219,7 @@ module.exports = {
                 }
             },
 
-            "DoWhileStatement, WhileStatement, ForInStatement, ForOfStatement": node => addBlocklessNodeIndent(node.body),
+            "DoWhileStatement, WhileStatement, ForInStatement, ForOfStatement, WithStatement": node => addBlocklessNodeIndent(node.body),
 
             ExportNamedDeclaration(node) {
                 if (node.declaration === null) {
@@ -1268,6 +1264,50 @@ module.exports = {
                 addBlocklessNodeIndent(node.consequent);
                 if (node.alternate && node.alternate.type !== "IfStatement") {
                     addBlocklessNodeIndent(node.alternate);
+                }
+            },
+
+            /*
+             * For blockless nodes with semicolon-first style, don't indent the semicolon.
+             * e.g.
+             * if (foo)
+             *     bar()
+             * ; [1, 2, 3].map(foo)
+             *
+             * Traversal into the node sets indentation of the semicolon, so we need to override it on exit.
+             */
+            ":matches(DoWhileStatement, ForStatement, ForInStatement, ForOfStatement, IfStatement, WhileStatement, WithStatement):exit"(node) {
+                let nodesToCheck;
+
+                if (node.type === "IfStatement") {
+                    nodesToCheck = [node.consequent];
+                    if (node.alternate) {
+                        nodesToCheck.push(node.alternate);
+                    }
+                } else {
+                    nodesToCheck = [node.body];
+                }
+
+                for (const nodeToCheck of nodesToCheck) {
+                    const lastToken = sourceCode.getLastToken(nodeToCheck);
+
+                    if (astUtils.isSemicolonToken(lastToken)) {
+                        const tokenBeforeLast = sourceCode.getTokenBefore(lastToken);
+                        const tokenAfterLast = sourceCode.getTokenAfter(lastToken);
+
+                        // override indentation of `;` only if its line looks like a semicolon-first style line
+                        if (
+                            !astUtils.isTokenOnSameLine(tokenBeforeLast, lastToken) &&
+                            tokenAfterLast &&
+                            astUtils.isTokenOnSameLine(lastToken, tokenAfterLast)
+                        ) {
+                            offsets.setDesiredOffset(
+                                lastToken,
+                                sourceCode.getFirstToken(node),
+                                0
+                            );
+                        }
+                    }
                 }
             },
 

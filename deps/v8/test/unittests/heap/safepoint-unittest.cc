@@ -21,7 +21,7 @@ TEST_F(SafepointTest, ReachSafepointWithoutLocalHeaps) {
   Heap* heap = i_isolate()->heap();
   bool run = false;
   {
-    SafepointScope scope(heap);
+    IsolateSafepointScope scope(heap);
     run = true;
   }
   CHECK(run);
@@ -68,7 +68,7 @@ TEST_F(SafepointTest, StopParkedThreads) {
     }
 
     {
-      SafepointScope scope(heap);
+      IsolateSafepointScope scope(heap);
       safepoints++;
     }
     mutex.Unlock();
@@ -124,7 +124,7 @@ TEST_F(SafepointTest, StopRunningThreads) {
     }
 
     for (int i = 0; i < kSafepoints; i++) {
-      SafepointScope scope(heap);
+      IsolateSafepointScope scope(heap);
       safepoint_count++;
     }
 

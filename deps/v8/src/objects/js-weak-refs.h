@@ -37,16 +37,20 @@ class JSFinalizationRegistry
       Handle<WeakCell> weak_cell, Isolate* isolate);
   inline static bool Unregister(
       Handle<JSFinalizationRegistry> finalization_registry,
-      Handle<JSReceiver> unregister_token, Isolate* isolate);
+      Handle<HeapObject> unregister_token, Isolate* isolate);
 
   // RemoveUnregisterToken is called from both Unregister and during GC. Since
   // it modifies slots in key_map and WeakCells and the normal write barrier is
   // disabled during GC, we need to tell the GC about the modified slots via the
   // gc_notify_updated_slot function.
-  template <typename MatchCallback, typename GCNotifyUpdatedSlotCallback>
+  enum RemoveUnregisterTokenMode {
+    kRemoveMatchedCellsFromRegistry,
+    kKeepMatchedCellsInRegistry
+  };
+  template <typename GCNotifyUpdatedSlotCallback>
   inline bool RemoveUnregisterToken(
-      JSReceiver unregister_token, Isolate* isolate,
-      MatchCallback match_callback,
+      HeapObject unregister_token, Isolate* isolate,
+      RemoveUnregisterTokenMode removal_mode,
       GCNotifyUpdatedSlotCallback gc_notify_updated_slot);
 
   // Returns true if the cleared_cells list is non-empty.

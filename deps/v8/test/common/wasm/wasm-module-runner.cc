@@ -66,14 +66,13 @@ base::OwnedVector<WasmValue> MakeDefaultInterpreterArguments(
         arguments[i] = WasmValue(Simd128{s128_bytes});
         break;
       }
-      case kOptRef:
+      case kRefNull:
         arguments[i] =
             WasmValue(Handle<Object>::cast(isolate->factory()->null_value()),
                       sig->GetParam(i));
         break;
       case kRef:
       case kRtt:
-      case kRttWithDepth:
       case kI8:
       case kI16:
       case kVoid:
@@ -103,12 +102,11 @@ base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
       case kI64:
         arguments[i] = BigInt::FromInt64(isolate, static_cast<int64_t>(i));
         break;
-      case kOptRef:
+      case kRefNull:
         arguments[i] = isolate->factory()->null_value();
         break;
       case kRef:
       case kRtt:
-      case kRttWithDepth:
       case kI8:
       case kI16:
       case kVoid:

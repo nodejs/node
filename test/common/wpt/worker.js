@@ -8,7 +8,8 @@ const resource = new ResourceLoader(workerData.wptPath);
 
 global.self = global;
 global.GLOBAL = {
-  isWindow() { return false; }
+  isWindow() { return false; },
+  isShadowRealm() { return false; },
 };
 global.require = require;
 
@@ -24,7 +25,7 @@ if (workerData.initScript) {
 }
 
 runInThisContext(workerData.harness.code, {
-  filename: workerData.harness.filename
+  filename: workerData.harness.filename,
 });
 
 // eslint-disable-next-line no-undef

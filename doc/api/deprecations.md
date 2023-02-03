@@ -217,7 +217,7 @@ provide an indication of how and why the `Worker` instance exited. In Node.js
 [`worker.exitedAfterDisconnect`][] property. The old property name did not
 precisely describe the actual semantics and was unnecessarily emotion-laden.
 
-### DEP0008: `require('constants')`
+### DEP0008: `require('node:constants')`
 
 <!-- YAML
 changes:
@@ -231,10 +231,10 @@ changes:
 
 Type: Documentation-only
 
-The `constants` module is deprecated. When requiring access to constants
+The `node:constants` module is deprecated. When requiring access to constants
 relevant to specific Node.js builtin modules, developers should instead refer
 to the `constants` property exposed by the relevant module. For instance,
-`require('fs').constants` and `require('os').constants`.
+`require('node:fs').constants` and `require('node:os').constants`.
 
 ### DEP0009: `crypto.pbkdf2` without digest
 
@@ -581,7 +581,7 @@ Type: End-of-Life
 
 The `REPLServer.prototype.convertToContext()` API has been removed.
 
-### DEP0025: `require('sys')`
+### DEP0025: `require('node:sys')`
 
 <!-- YAML
 changes:
@@ -597,7 +597,7 @@ changes:
 
 Type: Runtime
 
-The `sys` module is deprecated. Please use the [`util`][] module instead.
+The `node:sys` module is deprecated. Please use the [`util`][] module instead.
 
 ### DEP0026: `util.print()`
 
@@ -717,7 +717,7 @@ Type: Documentation-only
 The [`ecdh.setPublicKey()`][] method is now deprecated as its inclusion in the
 API is not useful.
 
-### DEP0032: `domain` module
+### DEP0032: `node:domain` module
 
 <!-- YAML
 changes:
@@ -868,7 +868,7 @@ Type: Documentation-only
 
 The [`require.extensions`][] property is deprecated.
 
-### DEP0040: `punycode` module
+### DEP0040: `node:punycode` module
 
 <!-- YAML
 changes:
@@ -1341,7 +1341,7 @@ changes:
 
 Type: Documentation-only
 
-The `http` module `ServerResponse.prototype.writeHeader()` API is
+The `node:http` module `ServerResponse.prototype.writeHeader()` API is
 deprecated. Please use `ServerResponse.prototype.writeHead()` instead.
 
 The `ServerResponse.prototype.writeHeader()` method was never documented as an
@@ -1389,8 +1389,8 @@ changes:
 
 Type: End-of-Life
 
-The `repl` module's `REPL_MODE_MAGIC` constant, used for `replMode` option, has
-been removed. Its behavior has been functionally identical to that of
+The `node:repl` module's `REPL_MODE_MAGIC` constant, used for `replMode` option,
+has been removed. Its behavior has been functionally identical to that of
 `REPL_MODE_SLOPPY` since Node.js 6.0.0, when V8 5.0 was imported. Please use
 `REPL_MODE_SLOPPY` instead.
 
@@ -1412,7 +1412,7 @@ changes:
 
 Type: Runtime
 
-The `http` module `OutgoingMessage.prototype._headers` and
+The `node:http` module `OutgoingMessage.prototype._headers` and
 `OutgoingMessage.prototype._headerNames` properties are deprecated. Use one of
 the public methods (e.g. `OutgoingMessage.prototype.getHeader()`,
 `OutgoingMessage.prototype.getHeaders()`,
@@ -1437,7 +1437,7 @@ changes:
 
 Type: Documentation-only
 
-The `http` module `OutgoingMessage.prototype._renderHeaders()` API is
+The `node:http` module `OutgoingMessage.prototype._renderHeaders()` API is
 deprecated.
 
 The `OutgoingMessage.prototype._renderHeaders` property was never documented as
@@ -1595,7 +1595,7 @@ Type: End-of-Life
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41479
     description: End-of-Life.
   - version: v9.0.0
@@ -1819,7 +1819,7 @@ cause a lot of issues. See <https://github.com/nodejs/node/issues/14328>.
 
 <!-- md-lint skip-deprecation DEP0088 -->
 
-### DEP0089: `require('assert')`
+### DEP0089: `require('node:assert')`
 
 <!-- YAML
 changes:
@@ -1836,8 +1836,9 @@ changes:
 Type: Deprecation revoked
 
 Importing assert directly was not recommended as the exposed functions use
-loose equality checks. The deprecation was revoked because use of the `assert`
-module is not discouraged, and the deprecation caused developer confusion.
+loose equality checks. The deprecation was revoked because use of the
+`node:assert` module is not discouraged, and the deprecation caused developer
+confusion.
 
 ### DEP0090: Invalid GCM authentication tag lengths
 
@@ -1913,7 +1914,7 @@ changes:
 Type: Runtime
 
 Using `assert.fail()` with more than one argument is deprecated. Use
-`assert.fail()` with only one argument or use a different `assert` module
+`assert.fail()` with only one argument or use a different `node:assert` module
 method.
 
 ### DEP0095: `timers.enroll()`
@@ -1995,7 +1996,7 @@ changes:
 
 Type: Compile-time
 
-Certain versions of `node::MakeCallback` APIs available to native modules are
+Certain versions of `node::MakeCallback` APIs available to native addons are
 deprecated. Please use the versions of the API that accept an `async_context`
 parameter.
 
@@ -2113,10 +2114,10 @@ changes:
 
 Type: Runtime
 
-Using [`crypto.createCipher()`][] and [`crypto.createDecipher()`][] should be
+Using [`crypto.createCipher()`][] and [`crypto.createDecipher()`][] must be
 avoided as they use a weak key derivation function (MD5 with no salt) and static
 initialization vectors. It is recommended to derive a key using
-[`crypto.pbkdf2()`][] or [`crypto.scrypt()`][] and to use
+[`crypto.pbkdf2()`][] or [`crypto.scrypt()`][] with random salts and to use
 [`crypto.createCipheriv()`][] and [`crypto.createDecipheriv()`][] to obtain the
 [`Cipher`][] and [`Decipher`][] objects respectively.
 
@@ -2218,8 +2219,8 @@ changes:
 
 Type: Runtime
 
-The `dgram` module previously contained several APIs that were never meant to
-accessed outside of Node.js core: `Socket.prototype._handle`,
+The `node:dgram` module previously contained several APIs that were never meant
+to accessed outside of Node.js core: `Socket.prototype._handle`,
 `Socket.prototype._receiving`, `Socket.prototype._bindState`,
 `Socket.prototype._queue`, `Socket.prototype._reuseAddr`,
 `Socket.prototype._healthCheck()`, `Socket.prototype._stopReceiving()`, and
@@ -2288,6 +2289,11 @@ future release.
 <!-- YAML
 changes:
   - version:
+      - v19.0.0
+      - v18.13.0
+    pr-url: https://github.com/nodejs/node/pull/44919
+    description: \`url.parse()` is deprecated again in DEP0169.
+  - version:
       - v15.13.0
       - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/37784
@@ -2299,7 +2305,7 @@ changes:
 
 Type: Deprecation revoked
 
-The [Legacy URL API][] is deprecated. This includes [`url.format()`][],
+The [legacy URL API][] is deprecated. This includes [`url.format()`][],
 [`url.parse()`][], [`url.resolve()`][], and the [legacy `urlObject`][]. Please
 use the [WHATWG URL API][] instead.
 
@@ -2385,9 +2391,9 @@ changes:
 Type: Runtime
 
 The undocumented `net._setSimultaneousAccepts()` function was originally
-intended for debugging and performance tuning when using the `child_process`
-and `cluster` modules on Windows. The function is not generally useful and
-is being removed. See discussion here:
+intended for debugging and performance tuning when using the
+`node:child_process` and `node:cluster` modules on Windows. The function is not
+generally useful and is being removed. See discussion here:
 <https://github.com/nodejs/node/issues/18391>
 
 ### DEP0122: `tls` `Server.prototype.setOptions()`
@@ -2433,7 +2439,7 @@ Type: End-of-Life
 
 This property is a reference to the instance itself.
 
-### DEP0125: `require('_stream_wrap')`
+### DEP0125: `require('node:_stream_wrap')`
 
 <!-- YAML
 changes:
@@ -2444,7 +2450,7 @@ changes:
 
 Type: Runtime
 
-The `_stream_wrap` module is deprecated.
+The `node:_stream_wrap` module is deprecated.
 
 ### DEP0126: `timers.active()`
 
@@ -2568,7 +2574,7 @@ changes:
 Type: Runtime
 
 Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
-`Promise` instead, or a listener to the worker’s `'exit'` event.
+`Promise` instead, or a listener to the worker's `'exit'` event.
 
 ### DEP0133: `http` `connection`
 
@@ -2656,7 +2662,7 @@ Please ensure that all `fs.FileHandle` objects are explicitly closed using
 `FileHandle.prototype.close()` when the `fs.FileHandle` is no longer needed:
 
 ```js
-const fsPromises = require('fs').promises;
+const fsPromises = require('node:fs').promises;
 async function openAndClose() {
   let filehandle;
   try {
@@ -2730,7 +2736,7 @@ changes:
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
 
-The `repl` module exported the input and output stream twice. Use `.input`
+The `node:repl` module exported the input and output stream twice. Use `.input`
 instead of `.inputStream` and `.output` instead of `.outputStream`.
 
 ### DEP0142: `repl._builtinLibs`
@@ -2744,9 +2750,9 @@ changes:
 
 Type: Documentation-only
 
-The `repl` module exports a `_builtinLibs` property that contains an array with
-native modules. It was incomplete so far and instead it's better to rely upon
-`require('module').builtinModules`.
+The `node:repl` module exports a `_builtinLibs` property that contains an array
+of built-in modules. It was incomplete so far and instead it's better to rely
+upon `require('node:module').builtinModules`.
 
 ### DEP0143: `Transform._transformState`
 
@@ -2888,12 +2894,15 @@ Prefer [`message.socket`][] over [`message.connection`][].
 
 <!-- YAML
 changes:
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/43627
+    description: End-of-Life.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36902
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `process.config` property provides access to Node.js compile-time settings.
 However, the property is mutable and therefore subject to tampering. The ability
@@ -2943,6 +2952,9 @@ deprecated and should no longer be used.
 
 <!-- YAML
 changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41431
+    description: End-of-Life.
   - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/39793
     description: Runtime deprecation.
@@ -2951,23 +2963,27 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Using a non-nullish non-integer value for `family` option, a non-nullish
 non-number value for `hints` option, a non-nullish non-boolean value for `all`
 option, or a non-nullish non-boolean value for `verbatim` option in
-[`dns.lookup()`][] and [`dnsPromises.lookup()`][] is deprecated.
+[`dns.lookup()`][] and [`dnsPromises.lookup()`][] throws an
+`ERR_INVALID_ARG_TYPE` error.
 
 ### DEP0154: RSA-PSS generate key pair options
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45653
+    description: Runtime deprecation.
   - version: v16.10.0
     pr-url: https://github.com/nodejs/node/pull/39927
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 The `'hash'` and `'mgf1Hash'` options are replaced with `'hashAlgorithm'`
 and `'mgf1HashAlgorithm'`.
@@ -3019,7 +3035,7 @@ it was an aborted or graceful destroy.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/40773
     description: End-of-life.
   - version:
@@ -3044,7 +3060,7 @@ const w = new Writable({
   async final(callback) {
     await someOp();
     callback();
-  }
+  },
 });
 ```
 
@@ -3052,7 +3068,9 @@ const w = new Writable({
 
 <!-- YAML
 changes:
-  - version: v17.5.0
+  - version:
+    - v17.5.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41596
     description: Documentation-only deprecation.
 -->
@@ -3068,7 +3086,7 @@ Use [`buffer.subarray`][] which does the same thing instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: End-of-Life.
 -->
@@ -3082,10 +3100,12 @@ the errors used for value type validation.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41896
     description: Runtime deprecation.
-  - version: v17.6.0
+  - version:
+    - v17.6.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41872
     description: Documentation-only deprecation.
 -->
@@ -3099,7 +3119,9 @@ which diminished its usefulness.
 
 <!-- YAML
 changes:
-  - version: v17.6.0
+  - version:
+    - v17.6.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41587
     description: Documentation-only deprecation.
 -->
@@ -3117,28 +3139,230 @@ resources and not the actual references.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/42796
+    description: End-of-Life.
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42607
     description: Runtime deprecation.
-  - version: v17.8.0
+  - version:
+    - v17.8.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/42149
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Implicit coercion of objects with own `toString` property, passed as second
 parameter in [`fs.write()`][], [`fs.writeFile()`][], [`fs.appendFile()`][],
 [`fs.writeFileSync()`][], and [`fs.appendFileSync()`][] is deprecated.
 Convert them to primitive strings.
 
-[Legacy URL API]: url.md#legacy-url-api
+### DEP0163: `channel.subscribe(onMessage)`, `channel.unsubscribe(onMessage)`
+
+<!-- YAML
+changes:
+  - version:
+    - v18.7.0
+    - v16.17.0
+    pr-url: https://github.com/nodejs/node/pull/42714
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+These methods were deprecated because they can be used in a way which does not
+hold the channel reference alive long enough to receive the events.
+
+Use [`diagnostics_channel.subscribe(name, onMessage)`][] or
+[`diagnostics_channel.unsubscribe(name, onMessage)`][] which does the same
+thing instead.
+
+### DEP0164: `process.exit(code)`, `process.exitCode` coercion to integer
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43716
+    description: End-of-Life.
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/44711
+    description: Runtime deprecation.
+  - version:
+    - v18.10.0
+    - v16.18.0
+    pr-url: https://github.com/nodejs/node/pull/44714
+    description: Documentation-only deprecation of `process.exitCode` integer
+                 coercion.
+  - version:
+    - v18.7.0
+    - v16.17.0
+    pr-url: https://github.com/nodejs/node/pull/43738
+    description: Documentation-only deprecation of `process.exit(code)` integer
+                 coercion.
+-->
+
+Type: End-of-Life
+
+Values other than `undefined`, `null`, integer numbers, and integer strings
+(e.g., `'1'`) are deprecated as value for the `code` parameter in
+[`process.exit()`][] and as value to assign to [`process.exitCode`][].
+
+### DEP0165: `--trace-atomics-wait`
+
+<!-- YAML
+changes:
+  - version:
+    - v18.8.0
+    - v16.18.0
+    pr-url: https://github.com/nodejs/node/pull/44093
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The [`--trace-atomics-wait`][] flag is deprecated.
+
+### DEP0166: Double slashes in imports and exports targets
+
+<!-- YAML
+changes:
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/44495
+    description: Runtime deprecation.
+  - version: v18.10.0
+    pr-url: https://github.com/nodejs/node/pull/44477
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
+-->
+
+Type: Runtime
+
+Package imports and exports targets mapping into paths including a double slash
+(of _"/"_ or _"\\"_) are deprecated and will fail with a resolution validation
+error in a future release. This same deprecation also applies to pattern matches
+starting or ending in a slash.
+
+### DEP0167: Weak `DiffieHellmanGroup` instances (`modp1`, `modp2`, `modp5`)
+
+<!-- YAML
+changes:
+  - version:
+    - v18.10.0
+    - v16.18.0
+    pr-url: https://github.com/nodejs/node/pull/44588
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The well-known MODP groups `modp1`, `modp2`, and `modp5` are deprecated because
+they are not secure against practical attacks. See [RFC 8247 Section 2.4][] for
+details.
+
+These groups might be removed in future versions of Node.js. Applications that
+rely on these groups should evaluate using stronger MODP groups instead.
+
+### DEP0168: Unhandled exception in Node-API callbacks
+
+<!-- YAML
+changes:
+  - version:
+    - v18.3.0
+    - v16.17.0
+    pr-url: https://github.com/nodejs/node/pull/36510
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The implicit suppression of uncaught exceptions in Node-API callbacks is now
+deprecated.
+
+Set the flag [`--force-node-api-uncaught-exceptions-policy`][] to force Node.js
+to emit an [`'uncaughtException'`][] event if the exception is not handled in
+Node-API callbacks.
+
+### DEP0169: Insecure url.parse()
+
+<!-- YAML
+changes:
+  - version:
+      - v19.0.0
+      - v18.13.0
+    pr-url: https://github.com/nodejs/node/pull/44919
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+[`url.parse()`][] behavior is not standardized and prone to errors that
+have security implications. Use the [WHATWG URL API][] instead. CVEs are not
+issued for `url.parse()` vulnerabilities.
+
+### DEP0170: Invalid port when using `url.parse()`
+
+<!-- YAML
+changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45526
+    description: Runtime deprecation.
+  - version:
+      - v19.2.0
+      - v18.13.0
+    pr-url: https://github.com/nodejs/node/pull/45576
+    description: Documentation-only deprecation.
+-->
+
+Type: Runtime
+
+[`url.parse()`][] accepts URLs with ports that are not numbers. This behavior
+might result in host name spoofing with unexpected input. These URLs will throw
+an error in future versions of Node.js, as the [WHATWG URL API][] does already.
+
+### DEP0171: Setters for `http.IncomingMessage` headers and trailers
+
+<!-- YAML
+changes:
+  - version:
+      - v19.3.0
+      - v18.13.0
+    pr-url: https://github.com/nodejs/node/pull/45697
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+In a future version of Node.js, [`message.headers`][],
+[`message.headersDistinct`][], [`message.trailers`][], and
+[`message.trailersDistinct`][] will be read-only.
+
+### DEP0172: The `asyncResource` property of `AsyncResource` bound functions
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46432
+    description: Runtime-deprecation.
+-->
+
+Type: Runtime
+
+In a future version of Node.js, the `asyncResource` property will no longer
+be added when a function is bound to an `AsyncResource`.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
+[RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
 [WHATWG URL API]: url.md#the-whatwg-url-api
 [`"exports"` or `"main"` entry]: packages.md#main-entry-point-export
+[`'uncaughtException'`]: process.md#event-uncaughtexception
+[`--force-node-api-uncaught-exceptions-policy`]: cli.md#--force-node-api-uncaught-exceptions-policy
 [`--pending-deprecation`]: cli.md#--pending-deprecation
 [`--throw-deprecation`]: cli.md#--throw-deprecation
+[`--trace-atomics-wait`]: cli.md#--trace-atomics-wait
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Buffer.allocUnsafeSlow(size)`]: buffer.md#static-method-bufferallocunsafeslowsize
 [`Buffer.from(array)`]: buffer.md#static-method-bufferfromarray
@@ -3172,6 +3396,8 @@ Convert them to primitive strings.
 [`crypto.scrypt()`]: crypto.md#cryptoscryptpassword-salt-keylen-options-callback
 [`decipher.final()`]: crypto.md#decipherfinaloutputencoding
 [`decipher.setAuthTag()`]: crypto.md#deciphersetauthtagbuffer-encoding
+[`diagnostics_channel.subscribe(name, onMessage)`]: diagnostics_channel.md#diagnostics_channelsubscribename-onmessage
+[`diagnostics_channel.unsubscribe(name, onMessage)`]: diagnostics_channel.md#diagnostics_channelunsubscribename-onmessage
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`domain`]: domain.md
@@ -3203,11 +3429,17 @@ Convert them to primitive strings.
 [`https.get()`]: https.md#httpsgetoptions-callback
 [`https.request()`]: https.md#httpsrequestoptions-callback
 [`message.connection`]: http.md#messageconnection
+[`message.headersDistinct`]: http.md#messageheadersdistinct
+[`message.headers`]: http.md#messageheaders
 [`message.socket`]: http.md#messagesocket
+[`message.trailersDistinct`]: http.md#messagetrailersdistinct
+[`message.trailers`]: http.md#messagetrailers
 [`module.createRequire()`]: module.md#modulecreaterequirefilename
 [`os.networkInterfaces()`]: os.md#osnetworkinterfaces
 [`os.tmpdir()`]: os.md#ostmpdir
 [`process.env`]: process.md#processenv
+[`process.exit()`]: process.md#processexitcode
+[`process.exitCode`]: process.md#processexitcode_1
 [`process.getActiveResourcesInfo()`]: process.md#processgetactiveresourcesinfo
 [`process.mainModule`]: process.md#processmainmodule
 [`punycode`]: punycode.md
@@ -3270,6 +3502,7 @@ Convert them to primitive strings.
 [alloc_unsafe_size]: buffer.md#static-method-bufferallocunsafesize
 [from_arraybuffer]: buffer.md#static-method-bufferfromarraybuffer-byteoffset-length
 [from_string_encoding]: buffer.md#static-method-bufferfromstring-encoding
+[legacy URL API]: url.md#legacy-url-api
 [legacy `urlObject`]: url.md#legacy-urlobject
 [static methods of `crypto.Certificate()`]: crypto.md#class-certificate
 [subpath exports]: packages.md#subpath-exports

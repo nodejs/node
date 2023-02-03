@@ -10,6 +10,11 @@ class C {
     assertEquals((C?.#m)(), C);
     assertEquals(C?.#c?.#m(), C);
     assertEquals((C?.#c?.#m)(), C);
+
+    assertEquals(C?.#m(42), C);
+    assertEquals((C?.#m)(42), C);
+    assertEquals(C?.#c?.#m(42), C);
+    assertEquals((C?.#c?.#m)(42), C);
   }
 }
 

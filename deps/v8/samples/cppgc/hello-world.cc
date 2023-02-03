@@ -2,16 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <cppgc/allocation.h>
-#include <cppgc/default-platform.h>
-#include <cppgc/garbage-collected.h>
-#include <cppgc/heap.h>
-#include <cppgc/member.h>
-#include <cppgc/visitor.h>
-
 #include <iostream>
 #include <memory>
 #include <string>
+
+#include "include/cppgc/allocation.h"
+#include "include/cppgc/default-platform.h"
+#include "include/cppgc/garbage-collected.h"
+#include "include/cppgc/heap.h"
+#include "include/cppgc/member.h"
+#include "include/cppgc/visitor.h"
+
+#if !CPPGC_IS_STANDALONE
+#include "include/v8-initialization.h"
+#endif  // !CPPGC_IS_STANDALONE
 
 /**
  * This sample program shows how to set up a stand-alone cppgc heap.
@@ -45,9 +49,15 @@ int main(int argc, char* argv[]) {
   // Create a default platform that is used by cppgc::Heap for execution and
   // backend allocation.
   auto cppgc_platform = std::make_shared<cppgc::DefaultPlatform>();
+#if !CPPGC_IS_STANDALONE
+  // When initializing a stand-alone cppgc heap in a regular V8 build, the
+  // internal V8 platform will be reused. Reusing the V8 platform requires
+  // initializing it properly.
+  v8::V8::InitializePlatform(cppgc_platform->GetV8Platform());
+#endif  // !CPPGC_IS_STANDALONE
   // Initialize the process. This must happen before any cppgc::Heap::Create()
   // calls.
-  cppgc::DefaultPlatform::InitializeProcess(cppgc_platform.get());
+  cppgc::InitializeProcess(cppgc_platform->GetPageAllocator());
   {
     // Create a managed heap.
     std::unique_ptr<cppgc::Heap> heap = cppgc::Heap::Create(cppgc_platform);

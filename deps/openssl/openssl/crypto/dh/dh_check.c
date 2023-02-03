@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -257,22 +257,43 @@ int ossl_dh_check_priv_key(const DH *dh, const BIGNUM *priv_key, int *ret)
     two_powN = BN_new();
     if (two_powN == NULL)
         return 0;
-    if (dh->params.q == NULL)
-        goto err;
-    upper = dh->params.q;
+
+    if (dh->params.q != NULL) {
+        upper = dh->params.q;
+#ifndef FIPS_MODULE
+    } else if (dh->params.p != NULL) {
+        /*
+         * We do not have q so we just check the key is within some
+         * reasonable range, or the number of bits is equal to dh->length.
+         */
+        int length = dh->length;
+
+        if (length == 0) {
+            length = BN_num_bits(dh->params.p) - 1;
+            if (BN_num_bits(priv_key) <= length
+                && BN_num_bits(priv_key) > 1)
+                ok = 1;
+        } else if (BN_num_bits(priv_key) == length) {
+            ok = 1;
+        }
+        goto end;
+#endif
+    } else {
+        goto end;
+    }
 
     /* Is it from an approved Safe prime group ?*/
     if (DH_get_nid((DH *)dh) != NID_undef && dh->length != 0) {
         if (!BN_lshift(two_powN, BN_value_one(), dh->length))
-            goto err;
+            goto end;
         if (BN_cmp(two_powN, dh->params.q) < 0)
             upper = two_powN;
     }
     if (!ossl_ffc_validate_private_key(upper, priv_key, ret))
-        goto err;
+        goto end;
 
     ok = 1;
-err:
+end:
     BN_free(two_powN);
     return ok;
 }

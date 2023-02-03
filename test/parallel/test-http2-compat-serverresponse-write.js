@@ -71,3 +71,21 @@ const assert = require('assert');
     }));
   }));
 }
+
+{
+  const server = createServer();
+  server.listen(0, mustCall(() => {
+    const port = server.address().port;
+    const url = `http://localhost:${port}`;
+    const client = connect(url, mustCall(() => {
+      client.request();
+    }));
+
+    server.once('request', mustCall((request, response) => {
+      response.destroy();
+      assert.strictEqual(response.write('asd', mustNotCall()), false);
+      client.destroy();
+      server.close();
+    }));
+  }));
+}

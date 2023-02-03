@@ -53,7 +53,7 @@ const input = Buffer.from([0x78, 0xBB, 0x04, 0x09, 0x01, 0xA5]);
   stream.on('error', common.mustCall(function(err) {
     // It's not possible to separate invalid dict and invalid data when using
     // the raw format
-    assert.match(err.message, /invalid/);
+    assert.match(err.message, /(invalid|Operation-Ending-Supplemental Code is 0x12)/);
   }));
 
   stream.write(input);

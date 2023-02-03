@@ -297,7 +297,7 @@ enum SoftwareInterruptCodes {
 //   debugger.
 const uint32_t kMaxWatchpointCode = 31;
 const uint32_t kMaxStopCode = 127;
-STATIC_ASSERT(kMaxWatchpointCode < kMaxStopCode);
+static_assert(kMaxWatchpointCode < kMaxStopCode);
 
 // ----- Fields offset and length.
 const int kOpcodeShift = 26;
@@ -418,88 +418,88 @@ const int32_t kJumpRawMask = 0xf0000000;
 // ----- MIPS Opcodes and Function Fields.
 // We use this presentation to stay close to the table representation in
 // MIPS32 Architecture For Programmers, Volume II: The MIPS32 Instruction Set.
-enum Opcode : uint32_t {
-  SPECIAL = 0U << kOpcodeShift,
-  REGIMM = 1U << kOpcodeShift,
+using Opcode = uint32_t;
+constexpr Opcode SPECIAL = 0U << kOpcodeShift;
+constexpr Opcode REGIMM = 1U << kOpcodeShift;
 
-  J = ((0U << 3) + 2) << kOpcodeShift,
-  JAL = ((0U << 3) + 3) << kOpcodeShift,
-  BEQ = ((0U << 3) + 4) << kOpcodeShift,
-  BNE = ((0U << 3) + 5) << kOpcodeShift,
-  BLEZ = ((0U << 3) + 6) << kOpcodeShift,
-  BGTZ = ((0U << 3) + 7) << kOpcodeShift,
+constexpr Opcode J = ((0U << 3) + 2) << kOpcodeShift;
+constexpr Opcode JAL = ((0U << 3) + 3) << kOpcodeShift;
+constexpr Opcode BEQ = ((0U << 3) + 4) << kOpcodeShift;
+constexpr Opcode BNE = ((0U << 3) + 5) << kOpcodeShift;
+constexpr Opcode BLEZ = ((0U << 3) + 6) << kOpcodeShift;
+constexpr Opcode BGTZ = ((0U << 3) + 7) << kOpcodeShift;
 
-  ADDI = ((1U << 3) + 0) << kOpcodeShift,
-  ADDIU = ((1U << 3) + 1) << kOpcodeShift,
-  SLTI = ((1U << 3) + 2) << kOpcodeShift,
-  SLTIU = ((1U << 3) + 3) << kOpcodeShift,
-  ANDI = ((1U << 3) + 4) << kOpcodeShift,
-  ORI = ((1U << 3) + 5) << kOpcodeShift,
-  XORI = ((1U << 3) + 6) << kOpcodeShift,
-  LUI = ((1U << 3) + 7) << kOpcodeShift,  // LUI/AUI family.
-  DAUI = ((3U << 3) + 5) << kOpcodeShift,
+constexpr Opcode ADDI = ((1U << 3) + 0) << kOpcodeShift;
+constexpr Opcode ADDIU = ((1U << 3) + 1) << kOpcodeShift;
+constexpr Opcode SLTI = ((1U << 3) + 2) << kOpcodeShift;
+constexpr Opcode SLTIU = ((1U << 3) + 3) << kOpcodeShift;
+constexpr Opcode ANDI = ((1U << 3) + 4) << kOpcodeShift;
+constexpr Opcode ORI = ((1U << 3) + 5) << kOpcodeShift;
+constexpr Opcode XORI = ((1U << 3) + 6) << kOpcodeShift;
+constexpr Opcode LUI = ((1U << 3) + 7) << kOpcodeShift;  // LUI/AUI family.
+constexpr Opcode DAUI = ((3U << 3) + 5) << kOpcodeShift;
 
-  BEQC = ((2U << 3) + 0) << kOpcodeShift,
-  COP1 = ((2U << 3) + 1) << kOpcodeShift,  // Coprocessor 1 class.
-  BEQL = ((2U << 3) + 4) << kOpcodeShift,
-  BNEL = ((2U << 3) + 5) << kOpcodeShift,
-  BLEZL = ((2U << 3) + 6) << kOpcodeShift,
-  BGTZL = ((2U << 3) + 7) << kOpcodeShift,
+constexpr Opcode BEQC = ((2U << 3) + 0) << kOpcodeShift;
+constexpr Opcode COP1 = ((2U << 3) + 1)
+                        << kOpcodeShift;  // Coprocessor 1 class.
+constexpr Opcode BEQL = ((2U << 3) + 4) << kOpcodeShift;
+constexpr Opcode BNEL = ((2U << 3) + 5) << kOpcodeShift;
+constexpr Opcode BLEZL = ((2U << 3) + 6) << kOpcodeShift;
+constexpr Opcode BGTZL = ((2U << 3) + 7) << kOpcodeShift;
 
-  DADDI = ((3U << 3) + 0) << kOpcodeShift,  // This is also BNEC.
-  DADDIU = ((3U << 3) + 1) << kOpcodeShift,
-  LDL = ((3U << 3) + 2) << kOpcodeShift,
-  LDR = ((3U << 3) + 3) << kOpcodeShift,
-  SPECIAL2 = ((3U << 3) + 4) << kOpcodeShift,
-  MSA = ((3U << 3) + 6) << kOpcodeShift,
-  SPECIAL3 = ((3U << 3) + 7) << kOpcodeShift,
+constexpr Opcode DADDI = ((3U << 3) + 0) << kOpcodeShift;  // This is also BNEC.
+constexpr Opcode DADDIU = ((3U << 3) + 1) << kOpcodeShift;
+constexpr Opcode LDL = ((3U << 3) + 2) << kOpcodeShift;
+constexpr Opcode LDR = ((3U << 3) + 3) << kOpcodeShift;
+constexpr Opcode SPECIAL2 = ((3U << 3) + 4) << kOpcodeShift;
+constexpr Opcode MSA = ((3U << 3) + 6) << kOpcodeShift;
+constexpr Opcode SPECIAL3 = ((3U << 3) + 7) << kOpcodeShift;
 
-  LB = ((4U << 3) + 0) << kOpcodeShift,
-  LH = ((4U << 3) + 1) << kOpcodeShift,
-  LWL = ((4U << 3) + 2) << kOpcodeShift,
-  LW = ((4U << 3) + 3) << kOpcodeShift,
-  LBU = ((4U << 3) + 4) << kOpcodeShift,
-  LHU = ((4U << 3) + 5) << kOpcodeShift,
-  LWR = ((4U << 3) + 6) << kOpcodeShift,
-  LWU = ((4U << 3) + 7) << kOpcodeShift,
+constexpr Opcode LB = ((4U << 3) + 0) << kOpcodeShift;
+constexpr Opcode LH = ((4U << 3) + 1) << kOpcodeShift;
+constexpr Opcode LWL = ((4U << 3) + 2) << kOpcodeShift;
+constexpr Opcode LW = ((4U << 3) + 3) << kOpcodeShift;
+constexpr Opcode LBU = ((4U << 3) + 4) << kOpcodeShift;
+constexpr Opcode LHU = ((4U << 3) + 5) << kOpcodeShift;
+constexpr Opcode LWR = ((4U << 3) + 6) << kOpcodeShift;
+constexpr Opcode LWU = ((4U << 3) + 7) << kOpcodeShift;
 
-  SB = ((5U << 3) + 0) << kOpcodeShift,
-  SH = ((5U << 3) + 1) << kOpcodeShift,
-  SWL = ((5U << 3) + 2) << kOpcodeShift,
-  SW = ((5U << 3) + 3) << kOpcodeShift,
-  SDL = ((5U << 3) + 4) << kOpcodeShift,
-  SDR = ((5U << 3) + 5) << kOpcodeShift,
-  SWR = ((5U << 3) + 6) << kOpcodeShift,
+constexpr Opcode SB = ((5U << 3) + 0) << kOpcodeShift;
+constexpr Opcode SH = ((5U << 3) + 1) << kOpcodeShift;
+constexpr Opcode SWL = ((5U << 3) + 2) << kOpcodeShift;
+constexpr Opcode SW = ((5U << 3) + 3) << kOpcodeShift;
+constexpr Opcode SDL = ((5U << 3) + 4) << kOpcodeShift;
+constexpr Opcode SDR = ((5U << 3) + 5) << kOpcodeShift;
+constexpr Opcode SWR = ((5U << 3) + 6) << kOpcodeShift;
 
-  LL = ((6U << 3) + 0) << kOpcodeShift,
-  LWC1 = ((6U << 3) + 1) << kOpcodeShift,
-  BC = ((6U << 3) + 2) << kOpcodeShift,
-  LLD = ((6U << 3) + 4) << kOpcodeShift,
-  LDC1 = ((6U << 3) + 5) << kOpcodeShift,
-  POP66 = ((6U << 3) + 6) << kOpcodeShift,
-  LD = ((6U << 3) + 7) << kOpcodeShift,
+constexpr Opcode LL = ((6U << 3) + 0) << kOpcodeShift;
+constexpr Opcode LWC1 = ((6U << 3) + 1) << kOpcodeShift;
+constexpr Opcode BC = ((6U << 3) + 2) << kOpcodeShift;
+constexpr Opcode LLD = ((6U << 3) + 4) << kOpcodeShift;
+constexpr Opcode LDC1 = ((6U << 3) + 5) << kOpcodeShift;
+constexpr Opcode POP66 = ((6U << 3) + 6) << kOpcodeShift;
+constexpr Opcode LD = ((6U << 3) + 7) << kOpcodeShift;
 
-  PREF = ((6U << 3) + 3) << kOpcodeShift,
+constexpr Opcode PREF = ((6U << 3) + 3) << kOpcodeShift;
 
-  SC = ((7U << 3) + 0) << kOpcodeShift,
-  SWC1 = ((7U << 3) + 1) << kOpcodeShift,
-  BALC = ((7U << 3) + 2) << kOpcodeShift,
-  PCREL = ((7U << 3) + 3) << kOpcodeShift,
-  SCD = ((7U << 3) + 4) << kOpcodeShift,
-  SDC1 = ((7U << 3) + 5) << kOpcodeShift,
-  POP76 = ((7U << 3) + 6) << kOpcodeShift,
-  SD = ((7U << 3) + 7) << kOpcodeShift,
+constexpr Opcode SC = ((7U << 3) + 0) << kOpcodeShift;
+constexpr Opcode SWC1 = ((7U << 3) + 1) << kOpcodeShift;
+constexpr Opcode BALC = ((7U << 3) + 2) << kOpcodeShift;
+constexpr Opcode PCREL = ((7U << 3) + 3) << kOpcodeShift;
+constexpr Opcode SCD = ((7U << 3) + 4) << kOpcodeShift;
+constexpr Opcode SDC1 = ((7U << 3) + 5) << kOpcodeShift;
+constexpr Opcode POP76 = ((7U << 3) + 6) << kOpcodeShift;
+constexpr Opcode SD = ((7U << 3) + 7) << kOpcodeShift;
 
-  COP1X = ((1U << 4) + 3) << kOpcodeShift,
+constexpr Opcode COP1X = ((1U << 4) + 3) << kOpcodeShift;
 
-  // New r6 instruction.
-  POP06 = BLEZ,   // bgeuc/bleuc, blezalc, bgezalc
-  POP07 = BGTZ,   // bltuc/bgtuc, bgtzalc, bltzalc
-  POP10 = ADDI,   // beqzalc, bovc, beqc
-  POP26 = BLEZL,  // bgezc, blezc, bgec/blec
-  POP27 = BGTZL,  // bgtzc, bltzc, bltc/bgtc
-  POP30 = DADDI,  // bnezalc, bnvc, bnec
-};
+// New r6 instruction.
+constexpr Opcode POP06 = BLEZ;   // bgeuc/bleuc, blezalc, bgezalc
+constexpr Opcode POP07 = BGTZ;   // bltuc/bgtuc, bgtzalc, bltzalc
+constexpr Opcode POP10 = ADDI;   // beqzalc, bovc, beqc
+constexpr Opcode POP26 = BLEZL;  // bgezc, blezc, bgec/blec
+constexpr Opcode POP27 = BGTZL;  // bgtzc, bltzc, bltc/bgtc
+constexpr Opcode POP30 = DADDI;  // bnezalc, bnvc, bnec
 
 enum SecondaryField : uint32_t {
   // SPECIAL Encoding of Function Field.
@@ -1055,8 +1055,6 @@ enum MSAMinorOpcode : uint32_t {
 // Opposite conditions must be paired as odd/even numbers
 // because 'NegateCondition' function flips LSB to negate condition.
 enum Condition {
-  // Any value < 0 is considered no_condition.
-  kNoCondition = -1,
   overflow = 0,
   no_overflow = 1,
   Uless = 2,
@@ -1102,13 +1100,9 @@ enum Condition {
   uge = Ugreater_equal,
   ule = Uless_equal,
   ugt = Ugreater,
-  cc_default = kNoCondition
 };
 
 // Returns the equivalent of !cc.
-// Negation of the default kNoCondition (-1) results in a non-default
-// no_condition value (-2). As long as tests for no_condition check
-// for condition < 0, this will work as expected.
 inline Condition NegateCondition(Condition cc) {
   DCHECK(cc != cc_always);
   return static_cast<Condition>(cc ^ 1);

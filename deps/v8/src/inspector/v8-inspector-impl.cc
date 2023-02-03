@@ -44,11 +44,13 @@
 #include "src/inspector/v8-console-message.h"
 #include "src/inspector/v8-console.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
+#include "src/inspector/v8-debugger-id.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-session-impl.h"
 #include "src/inspector/v8-profiler-agent-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
+#include "src/inspector/value-mirror.h"
 
 namespace v8_inspector {
 
@@ -62,7 +64,6 @@ V8InspectorImpl::V8InspectorImpl(v8::Isolate* isolate,
     : m_isolate(isolate),
       m_client(client),
       m_debugger(new V8Debugger(isolate, this)),
-      m_capturingStackTracesCount(0),
       m_lastExceptionId(0),
       m_lastContextId(0),
       m_isolateId(generateUniqueId()) {
@@ -84,7 +85,8 @@ int V8InspectorImpl::contextGroupId(int contextId) const {
   return it != m_contextIdToGroupIdMap.end() ? it->second : 0;
 }
 
-int V8InspectorImpl::resolveUniqueContextId(V8DebuggerId uniqueId) const {
+int V8InspectorImpl::resolveUniqueContextId(
+    internal::V8DebuggerId uniqueId) const {
   auto it = m_uniqueIdToContextId.find(uniqueId.pair());
   return it == m_uniqueIdToContextId.end() ? 0 : it->second;
 }
@@ -95,7 +97,7 @@ v8::MaybeLocal<v8::Value> V8InspectorImpl::compileAndRunInternalScript(
   if (!v8::debug::CompileInspectorScript(m_isolate, source)
            .ToLocal(&unboundScript))
     return v8::MaybeLocal<v8::Value>();
-  v8::MicrotasksScope microtasksScope(m_isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Context::Scope contextScope(context);
   v8::Isolate::SafeForTerminationScope allowTermination(m_isolate);
@@ -110,19 +112,6 @@ v8::MaybeLocal<v8::Script> V8InspectorImpl::compileScript(
   v8::ScriptCompiler::Source source(toV8String(m_isolate, code), origin);
   return v8::ScriptCompiler::Compile(context, &source,
                                      v8::ScriptCompiler::kNoCompileOptions);
-}
-
-void V8InspectorImpl::enableStackCapturingIfNeeded() {
-  if (!m_capturingStackTracesCount)
-    V8StackTraceImpl::setCaptureStackTraceForUncaughtExceptions(m_isolate,
-                                                                true);
-  ++m_capturingStackTracesCount;
-}
-
-void V8InspectorImpl::disableStackCapturingIfNeeded() {
-  if (!(--m_capturingStackTracesCount))
-    V8StackTraceImpl::setCaptureStackTraceForUncaughtExceptions(m_isolate,
-                                                                false);
 }
 
 void V8InspectorImpl::muteExceptions(int contextGroupId) {
@@ -157,11 +146,12 @@ std::unique_ptr<V8StackTrace> V8InspectorImpl::createStackTrace(
 }
 
 std::unique_ptr<V8InspectorSession> V8InspectorImpl::connect(
-    int contextGroupId, V8Inspector::Channel* channel, StringView state) {
+    int contextGroupId, V8Inspector::Channel* channel, StringView state,
+    ClientTrustLevel client_trust_level) {
   int sessionId = ++m_lastSessionId;
   std::unique_ptr<V8InspectorSessionImpl> session =
       V8InspectorSessionImpl::create(this, contextGroupId, sessionId, channel,
-                                     state);
+                                     state, client_trust_level);
   m_sessions[contextGroupId][sessionId] = session.get();
   return std::move(session);
 }
@@ -192,6 +182,14 @@ InspectedContext* V8InspectorImpl::getContext(int contextId) const {
 v8::MaybeLocal<v8::Context> V8InspectorImpl::contextById(int contextId) {
   InspectedContext* context = getContext(contextId);
   return context ? context->context() : v8::MaybeLocal<v8::Context>();
+}
+
+V8DebuggerId V8InspectorImpl::uniqueDebuggerId(int contextId) {
+  InspectedContext* context = getContext(contextId);
+  internal::V8DebuggerId unique_id;
+  if (context) unique_id = m_debugger->debuggerIdFor(context->contextGroupId());
+
+  return unique_id.toV8DebuggerId();
 }
 
 void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
@@ -523,4 +521,24 @@ v8::MaybeLocal<v8::Object> V8InspectorImpl::getAssociatedExceptionData(
     return v8::MaybeLocal<v8::Object>();
   return scope.Escape(object.As<v8::Object>());
 }
+
+std::unique_ptr<protocol::DictionaryValue>
+V8InspectorImpl::getAssociatedExceptionDataForProtocol(
+    v8::Local<v8::Value> exception) {
+  v8::MaybeLocal<v8::Object> maybeData = getAssociatedExceptionData(exception);
+  v8::Local<v8::Object> data;
+  if (!maybeData.ToLocal(&data)) return nullptr;
+
+  v8::Local<v8::Context> context;
+  if (!exceptionMetaDataContext().ToLocal(&context)) return nullptr;
+
+  v8::TryCatch tryCatch(m_isolate);
+  v8::MicrotasksScope microtasksScope(context,
+                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::Context::Scope contextScope(context);
+  std::unique_ptr<protocol::DictionaryValue> jsonObject;
+  objectToProtocolValue(context, data, 2, &jsonObject);
+  return jsonObject;
+}
+
 }  // namespace v8_inspector

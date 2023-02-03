@@ -6,7 +6,6 @@
 #define V8_TORQUE_TYPES_H_
 
 #include <algorithm>
-#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -522,6 +521,8 @@ class V8_EXPORT_PRIVATE BitFieldStructType final : public Type {
 
   const BitField& LookupField(const std::string& name) const;
 
+  const SourcePosition GetPosition() const { return decl_->pos; }
+
  private:
   friend class TypeOracle;
   BitFieldStructType(Namespace* nspace, const Type* parent,
@@ -669,16 +670,21 @@ class ClassType final : public AggregateType {
   std::string GetGeneratedTNodeTypeNameImpl() const override;
   bool IsExtern() const { return flags_ & ClassFlag::kExtern; }
   bool ShouldGeneratePrint() const {
-    return !IsExtern() || (ShouldGenerateCppClassDefinitions() &&
-                           !IsAbstract() && !HasUndefinedLayout());
+    if (flags_ & ClassFlag::kCppObjectDefinition) return false;
+    if (!IsExtern()) return true;
+    if (!ShouldGenerateCppClassDefinitions()) return false;
+    return !IsAbstract() && !HasUndefinedLayout();
   }
   bool ShouldGenerateVerify() const {
-    return !IsExtern() || (ShouldGenerateCppClassDefinitions() &&
-                           !HasUndefinedLayout() && !IsShape());
+    if (flags_ & ClassFlag::kCppObjectDefinition) return false;
+    if (!IsExtern()) return true;
+    if (!ShouldGenerateCppClassDefinitions()) return false;
+    return !HasUndefinedLayout() && !IsShape();
   }
   bool ShouldGenerateBodyDescriptor() const {
-    return flags_ & ClassFlag::kGenerateBodyDescriptor ||
-           (!IsAbstract() && !IsExtern());
+    if (flags_ & ClassFlag::kCppObjectDefinition) return false;
+    if (flags_ & ClassFlag::kGenerateBodyDescriptor) return true;
+    return !IsAbstract() && !IsExtern();
   }
   bool DoNotGenerateCast() const {
     return flags_ & ClassFlag::kDoNotGenerateCast;
@@ -689,7 +695,11 @@ class ClassType final : public AggregateType {
     return flags_ & ClassFlag::kHasSameInstanceTypeAsParent;
   }
   bool ShouldGenerateCppClassDefinitions() const {
+    if (flags_ & ClassFlag::kCppObjectDefinition) return false;
     return (flags_ & ClassFlag::kGenerateCppClassDefinitions) || !IsExtern();
+  }
+  bool ShouldGenerateCppObjectDefinitionAsserts() const {
+    return flags_ & ClassFlag::kCppObjectDefinition;
   }
   bool ShouldGenerateFullClassDefinition() const { return !IsExtern(); }
   bool ShouldGenerateUniqueMap() const {

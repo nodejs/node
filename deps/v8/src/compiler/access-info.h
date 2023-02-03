@@ -22,7 +22,6 @@ class CompilationDependencies;
 class CompilationDependency;
 class ElementAccessFeedback;
 class JSHeapBroker;
-class MinimorphicLoadPropertyAccessFeedback;
 class TypeCache;
 struct ConstFieldInfo;
 
@@ -86,8 +85,9 @@ class PropertyAccessInfo final {
       base::Optional<JSObjectRef> holder,
       base::Optional<MapRef> transition_map);
   static PropertyAccessInfo FastAccessorConstant(
-      Zone* zone, MapRef receiver_map, base::Optional<ObjectRef> constant,
-      base::Optional<JSObjectRef> holder);
+      Zone* zone, MapRef receiver_map, base::Optional<JSObjectRef> holder,
+      base::Optional<ObjectRef> constant,
+      base::Optional<JSObjectRef> api_holder);
   static PropertyAccessInfo ModuleExport(Zone* zone, MapRef receiver_map,
                                          CellRef cell);
   static PropertyAccessInfo StringLength(Zone* zone, MapRef receiver_map);
@@ -97,7 +97,7 @@ class PropertyAccessInfo final {
       InternalIndex dict_index, NameRef name);
   static PropertyAccessInfo DictionaryProtoAccessorConstant(
       Zone* zone, MapRef receiver_map, base::Optional<JSObjectRef> holder,
-      ObjectRef constant, NameRef name);
+      ObjectRef constant, base::Optional<JSObjectRef> api_holder, NameRef name);
 
   bool Merge(PropertyAccessInfo const* that, AccessMode access_mode,
              Zone* zone) V8_WARN_UNUSED_RESULT;
@@ -128,12 +128,20 @@ class PropertyAccessInfo final {
   ConstFieldInfo GetConstFieldInfo() const;
 
   Kind kind() const { return kind_; }
+
+  // The object where the property definition was found.
   base::Optional<JSObjectRef> holder() const {
     // TODO(neis): There was a CHECK here that tries to protect against
     // using the access info without recording its dependencies first.
     // Find a more suitable place for it.
     return holder_;
   }
+  // For accessor properties when the callback is an API function with a
+  // signature, this is the value that will be passed to the callback as
+  // FunctionCallbackInfo::Holder().
+  // Don't mix it up with holder in a "object where the property was found"
+  // sense.
+  base::Optional<JSObjectRef> api_holder() const { return api_holder_; }
   base::Optional<MapRef> transition_map() const {
     DCHECK(!HasDictionaryHolder());
     return transition_map_;
@@ -181,6 +189,7 @@ class PropertyAccessInfo final {
                      ZoneVector<MapRef>&& lookup_start_object_maps);
   PropertyAccessInfo(Zone* zone, Kind kind, base::Optional<JSObjectRef> holder,
                      base::Optional<ObjectRef> constant,
+                     base::Optional<JSObjectRef> api_holder,
                      base::Optional<NameRef> name,
                      ZoneVector<MapRef>&& lookup_start_object_maps);
   PropertyAccessInfo(Kind kind, base::Optional<JSObjectRef> holder,
@@ -199,6 +208,7 @@ class PropertyAccessInfo final {
   ZoneVector<MapRef> lookup_start_object_maps_;
   base::Optional<ObjectRef> constant_;
   base::Optional<JSObjectRef> holder_;
+  base::Optional<JSObjectRef> api_holder_;
 
   // Members only used for fast mode holders:
   ZoneVector<CompilationDependency const*> unrecorded_dependencies_;
@@ -212,36 +222,6 @@ class PropertyAccessInfo final {
   // Members only used for dictionary mode holders:
   InternalIndex dictionary_index_;
   base::Optional<NameRef> name_;
-};
-
-// This class encapsulates information required to generate load properties
-// by only using the information from handlers. This information is used with
-// dynamic map checks.
-class MinimorphicLoadPropertyAccessInfo final {
- public:
-  enum Kind { kInvalid, kDataField };
-  static MinimorphicLoadPropertyAccessInfo DataField(
-      int offset, bool is_inobject, Representation field_representation,
-      Type field_type);
-  static MinimorphicLoadPropertyAccessInfo Invalid();
-
-  bool IsInvalid() const { return kind_ == kInvalid; }
-  bool IsDataField() const { return kind_ == kDataField; }
-  int offset() const { return offset_; }
-  int is_inobject() const { return is_inobject_; }
-  Type field_type() const { return field_type_; }
-  Representation field_representation() const { return field_representation_; }
-
- private:
-  MinimorphicLoadPropertyAccessInfo(Kind kind, int offset, bool is_inobject,
-                                    Representation field_representation,
-                                    Type field_type);
-
-  Kind kind_;
-  bool is_inobject_;
-  int offset_;
-  Representation field_representation_;
-  Type field_type_;
 };
 
 // Factory class for {ElementAccessInfo}s and {PropertyAccessInfo}s.
@@ -263,9 +243,6 @@ class AccessInfoFactory final {
       MapRef receiver_map, NameRef name, JSObjectRef holder,
       InternalIndex dict_index, AccessMode access_mode,
       PropertyDetails details) const;
-
-  MinimorphicLoadPropertyAccessInfo ComputePropertyAccessInfo(
-      MinimorphicLoadPropertyAccessFeedback const& feedback) const;
 
   // Merge as many of the given {infos} as possible and record any dependencies.
   // Return false iff any of them was invalid, in which case no dependencies are

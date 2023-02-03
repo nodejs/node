@@ -1550,7 +1550,7 @@ int dtls1_process_record(SSL *s, DTLS1_BITMAP *bitmap)
             imac_size = EVP_MD_get_size(tmpmd);
             if (!ossl_assert(imac_size >= 0 && imac_size <= EVP_MAX_MD_SIZE)) {
                     SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_EVP_LIB);
-                    return -1;
+                    return 0;
             }
             mac_size = (size_t)imac_size;
         }

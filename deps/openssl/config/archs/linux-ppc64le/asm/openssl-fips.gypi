@@ -279,7 +279,6 @@
       './config/archs/linux-ppc64le/asm/crypto/aes/vpaes-ppc.s',
       './config/archs/linux-ppc64le/asm/crypto/bn/bn-ppc.s',
       './config/archs/linux-ppc64le/asm/crypto/bn/ppc-mont.s',
-      './config/archs/linux-ppc64le/asm/crypto/bn/ppc64-mont-fixed.s',
       './config/archs/linux-ppc64le/asm/crypto/chacha/chacha-ppc.s',
       './config/archs/linux-ppc64le/asm/crypto/ec/ecp_nistz256-ppc64.s',
       './config/archs/linux-ppc64le/asm/crypto/ec/x25519-ppc64.s',
@@ -302,7 +301,6 @@
       './config/archs/linux-ppc64le/asm/providers/common/der/der_wrap_gen.c',
       './config/archs/linux-ppc64le/asm/crypto/bn/bn-ppc.s',
       './config/archs/linux-ppc64le/asm/crypto/bn/ppc-mont.s',
-      './config/archs/linux-ppc64le/asm/crypto/bn/ppc64-mont-fixed.s',
       './config/archs/linux-ppc64le/asm/providers/legacy.ld',
       './config/archs/linux-ppc64le/asm/providers/fips.ld',
 

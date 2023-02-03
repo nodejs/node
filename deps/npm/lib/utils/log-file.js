@@ -1,28 +1,16 @@
 const os = require('os')
-const path = require('path')
+const { join, dirname, basename } = require('path')
 const { format, promisify } = require('util')
-const rimraf = promisify(require('rimraf'))
 const glob = promisify(require('glob'))
 const MiniPass = require('minipass')
 const fsMiniPass = require('fs-minipass')
-const fs = require('@npmcli/fs')
+const fs = require('fs/promises')
 const log = require('./log-shim')
 
 const padZero = (n, length) => n.toString().padStart(length.toString().length, '0')
-
-const _logHandler = Symbol('logHandler')
-const _formatLogItem = Symbol('formatLogItem')
-const _getLogFilePath = Symbol('getLogFilePath')
-const _openLogFile = Symbol('openLogFile')
-const _cleanLogs = Symbol('cleanlogs')
-const _endStream = Symbol('endStream')
-const _isBuffered = Symbol('isBuffered')
+const globify = pattern => pattern.split('\\').join('/')
 
 class LogFiles {
-  // If we write multiple log files we want them all to have the same
-  // identifier for sorting and matching purposes
-  #logId = null
-
   // Default to a plain minipass stream so we can buffer
   // initial writes before we know the cache location
   #logStream = null
@@ -40,7 +28,7 @@ class LogFiles {
 
   #fileLogCount = 0
   #totalLogCount = 0
-  #dir = null
+  #path = null
   #logsMax = null
   #files = []
 
@@ -48,14 +36,9 @@ class LogFiles {
     maxLogsPerFile = 50_000,
     maxFilesPerProcess = 5,
   } = {}) {
-    this.#logId = LogFiles.logId(new Date())
     this.#MAX_LOGS_PER_FILE = maxLogsPerFile
     this.#MAX_FILES_PER_PROCESS = maxFilesPerProcess
     this.on()
-  }
-
-  static logId (d) {
-    return d.toISOString().replace(/[.:]/g, '_')
   }
 
   static format (count, level, title, ...args) {
@@ -74,18 +57,18 @@ class LogFiles {
 
   on () {
     this.#logStream = new MiniPass()
-    process.on('log', this[_logHandler])
+    process.on('log', this.#logHandler)
   }
 
   off () {
-    process.off('log', this[_logHandler])
-    this[_endStream]()
+    process.off('log', this.#logHandler)
+    this.#endStream()
   }
 
-  load ({ dir, logsMax = Infinity } = {}) {
+  load ({ path, logsMax = Infinity } = {}) {
     // dir is user configurable and is required to exist so
     // this can error if the dir is missing or not configured correctly
-    this.#dir = dir
+    this.#path = path
     this.#logsMax = logsMax
 
     // Log stream has already ended
@@ -93,13 +76,13 @@ class LogFiles {
       return
     }
 
-    log.verbose('logfile', `logs-max:${logsMax} dir:${dir}`)
+    log.verbose('logfile', `logs-max:${logsMax} dir:${this.#path}`)
 
     // Pipe our initial stream to our new file stream and
     // set that as the new log logstream for future writes
     // if logs max is 0 then the user does not want a log file
     if (this.#logsMax > 0) {
-      const initialFile = this[_openLogFile]()
+      const initialFile = this.#openLogFile()
       if (initialFile) {
         this.#logStream = this.#logStream.pipe(initialFile)
       }
@@ -108,29 +91,29 @@ class LogFiles {
     // Kickoff cleaning process, even if we aren't writing a logfile.
     // This is async but it will always ignore the current logfile
     // Return the result so it can be awaited in tests
-    return this[_cleanLogs]()
+    return this.#cleanLogs()
   }
 
   log (...args) {
-    this[_logHandler](...args)
+    this.#logHandler(...args)
   }
 
   get files () {
     return this.#files
   }
 
-  get [_isBuffered] () {
+  get #isBuffered () {
     return this.#logStream instanceof MiniPass
   }
 
-  [_endStream] (output) {
+  #endStream (output) {
     if (this.#logStream) {
       this.#logStream.end(output)
       this.#logStream = null
     }
   }
 
-  [_logHandler] = (level, ...args) => {
+  #logHandler = (level, ...args) => {
     // Ignore pause and resume events since we
     // write everything to the log file
     if (level === 'pause' || level === 'resume') {
@@ -142,9 +125,9 @@ class LogFiles {
       return
     }
 
-    const logOutput = this[_formatLogItem](level, ...args)
+    const logOutput = this.#formatLogItem(level, ...args)
 
-    if (this[_isBuffered]) {
+    if (this.#isBuffered) {
       // Cant do anything but buffer the output if we dont
       // have a file stream yet
       this.#logStream.write(logOutput)
@@ -154,29 +137,29 @@ class LogFiles {
     // Open a new log file if we've written too many logs to this one
     if (this.#fileLogCount >= this.#MAX_LOGS_PER_FILE) {
       // Write last chunk to the file and close it
-      this[_endStream](logOutput)
+      this.#endStream(logOutput)
       if (this.#files.length >= this.#MAX_FILES_PER_PROCESS) {
         // but if its way too many then we just stop listening
         this.off()
       } else {
         // otherwise we are ready for a new file for the next event
-        this.#logStream = this[_openLogFile]()
+        this.#logStream = this.#openLogFile()
       }
     } else {
       this.#logStream.write(logOutput)
     }
   }
 
-  [_formatLogItem] (...args) {
+  #formatLogItem (...args) {
     this.#fileLogCount += 1
     return LogFiles.format(this.#totalLogCount++, ...args)
   }
 
-  [_getLogFilePath] (count = '') {
-    return path.resolve(this.#dir, `${this.#logId}-debug-${count}.log`)
+  #getLogFilePath (count = '') {
+    return `${this.#path}debug-${count}.log`
   }
 
-  [_openLogFile] () {
+  #openLogFile () {
     // Count in filename will be 0 indexed
     const count = this.#files.length
 
@@ -185,16 +168,12 @@ class LogFiles {
       // We never want to write files ending in `-9.log` and `-10.log` because
       // log file cleaning is done by deleting the oldest so in this example
       // `-10.log` would be deleted next
-      const f = this[_getLogFilePath](padZero(count, this.#MAX_FILES_PER_PROCESS))
+      const f = this.#getLogFilePath(padZero(count, this.#MAX_FILES_PER_PROCESS))
       // Some effort was made to make the async, but we need to write logs
       // during process.on('exit') which has to be synchronous. So in order
       // to never drop log messages, it is easiest to make it sync all the time
       // and this was measured to be about 1.5% slower for 40k lines of output
-      const logStream = fs.withOwnerSync(
-        f,
-        () => new fsMiniPass.WriteStreamSync(f, { flags: 'a' }),
-        { owner: 'inherit' }
-      )
+      const logStream = new fsMiniPass.WriteStreamSync(f, { flags: 'a' })
       if (count > 0) {
         // Reset file log count if we are opening
         // after our first file
@@ -203,11 +182,13 @@ class LogFiles {
       this.#files.push(logStream.path)
       return logStream
     } catch (e) {
-      log.warn('logfile', `could not be created: ${e}`)
+      // If the user has a readonly logdir then we don't want to
+      // warn this on every command so it should be verbose
+      log.verbose('logfile', `could not be created: ${e}`)
     }
   }
 
-  async [_cleanLogs] () {
+  async #cleanLogs () {
     // module to clean out the old log files
     // this is a best-effort attempt.  if a rm fails, we just
     // log a message about it and move on.  We do return a
@@ -215,8 +196,8 @@ class LogFiles {
     // just for the benefit of testing this function properly.
 
     try {
-      const logPath = this[_getLogFilePath]()
-      const logGlob = path.join(path.dirname(logPath), path.basename(logPath)
+      const logPath = this.#getLogFilePath()
+      const logGlob = join(dirname(logPath), basename(logPath)
         // tell glob to only match digits
         .replace(/\d/g, '[0123456789]')
         // Handle the old (prior to 8.2.0) log file names which did not have a
@@ -225,7 +206,7 @@ class LogFiles {
       )
 
       // Always ignore the currently written files
-      const files = await glob(logGlob, { ignore: this.#files })
+      const files = await glob(globify(logGlob), { ignore: this.#files.map(globify), silent: true })
       const toDelete = files.length - this.#logsMax
 
       if (toDelete <= 0) {
@@ -236,7 +217,7 @@ class LogFiles {
 
       for (const file of files.slice(0, toDelete)) {
         try {
-          await rimraf(file)
+          await fs.rm(file, { force: true })
         } catch (e) {
           log.silly('logfile', 'error removing log file', file, e)
         }

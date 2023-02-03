@@ -48,15 +48,23 @@ void Initialize(Local<Object> target,
                        void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-  env->SetMethod(target, "getLibuvNow", GetLibuvNow);
-  env->SetMethod(target, "setupTimers", SetupTimers);
-  env->SetMethod(target, "scheduleTimer", ScheduleTimer);
-  env->SetMethod(target, "toggleTimerRef", ToggleTimerRef);
-  env->SetMethod(target, "toggleImmediateRef", ToggleImmediateRef);
+  SetMethod(context, target, "getLibuvNow", GetLibuvNow);
+  SetMethod(context, target, "setupTimers", SetupTimers);
+  SetMethod(context, target, "scheduleTimer", ScheduleTimer);
+  SetMethod(context, target, "toggleTimerRef", ToggleTimerRef);
+  SetMethod(context, target, "toggleImmediateRef", ToggleImmediateRef);
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "immediateInfo"),
-              env->immediate_info()->fields().GetJSArray()).Check();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(env->isolate(), "immediateInfo"),
+            env->immediate_info()->fields().GetJSArray())
+      .Check();
+
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(env->isolate(), "timeoutInfo"),
+            env->timeout_info().GetJSArray())
+      .Check();
 }
 }  // anonymous namespace
 void RegisterTimerExternalReferences(ExternalReferenceRegistry* registry) {
@@ -69,5 +77,5 @@ void RegisterTimerExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(timers, node::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(timers, node::RegisterTimerExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(timers, node::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(timers, node::RegisterTimerExternalReferences)

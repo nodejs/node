@@ -2,14 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/logging/counters.h"
-#include "src/objects/elements.h"
 #include "src/objects/keys.h"
 #include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
@@ -82,6 +77,10 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
           return it.GetName();
         }
       }
+      case LookupIterator::WASM_OBJECT:
+        THROW_NEW_ERROR(isolate,
+                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque),
+                        Object);
       case LookupIterator::INTERCEPTOR: {
         result = JSObject::GetPropertyAttributesWithInterceptor(&it);
         if (result.IsNothing()) return MaybeHandle<Object>();
@@ -119,7 +118,7 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_ForInEnumerate) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  Handle<JSReceiver> receiver = args.at<JSReceiver>(0);
   RETURN_RESULT_OR_FAILURE(isolate, Enumerate(isolate, receiver));
 }
 
@@ -127,8 +126,8 @@ RUNTIME_FUNCTION(Runtime_ForInEnumerate) {
 RUNTIME_FUNCTION(Runtime_ForInHasProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  Handle<JSReceiver> receiver = args.at<JSReceiver>(0);
+  Handle<Object> key = args.at(1);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, HasEnumerableProperty(isolate, receiver, key));

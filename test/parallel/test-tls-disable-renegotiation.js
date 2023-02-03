@@ -88,9 +88,7 @@ server.listen(0, common.mustCall(() => {
       }));
     }));
     assert.strictEqual(ok, true);
-    client.on('secureConnect', common.mustCall(() => {
-    }));
-    client.on('secure', common.mustCall(() => {
-    }));
+    client.on('secureConnect', common.mustCall());
+    client.on('secure', common.mustCall());
   }));
 }));

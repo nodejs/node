@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-threads
-
 assertThrows(() => new WebAssembly.Module(
     new Uint8Array([
       0x00, 0x61, 0x73, 0x6d,     // wasm magic

@@ -20,7 +20,7 @@ namespace internal {
 
 WeakObjects::Local::Local(WeakObjects* weak_objects)
     : WeakObjects::UnusedBase()
-#define INIT_LOCAL_WORKLIST(_, name, __) , name##_local(&weak_objects->name)
+#define INIT_LOCAL_WORKLIST(_, name, __) , name##_local(weak_objects->name)
           WEAK_OBJECT_WORKLISTS(INIT_LOCAL_WORKLIST)
 #undef INIT_LOCAL_WORKLIST
 {

@@ -8,12 +8,24 @@ test(function() {
     }, "Float64Array")
 
     assert_throws_dom("TypeMismatchError", function() {
-        self.crypto.getRandomValues(new Float32Array(65537))
+        const len = 65536 / Float32Array.BYTES_PER_ELEMENT + 1;
+        self.crypto.getRandomValues(new Float32Array(len));
     }, "Float32Array (too long)")
     assert_throws_dom("TypeMismatchError", function() {
-        self.crypto.getRandomValues(new Float64Array(65537))
+        const len = 65536 / Float64Array.BYTES_PER_ELEMENT + 1;
+        self.crypto.getRandomValues(new Float64Array(len))
     }, "Float64Array (too long)")
-}, "Float arrays")
+}, "Float arrays");
+
+test(function() {
+    assert_throws_dom("TypeMismatchError", function() {
+        self.crypto.getRandomValues(new DataView(new ArrayBuffer(6)))
+    }, "DataView")
+
+    assert_throws_dom("TypeMismatchError", function() {
+        self.crypto.getRandomValues(new DataView(new ArrayBuffer(65536 + 1)))
+    }, "DataView (too long)")
+}, "DataView");
 
 const arrays = [
     'Int8Array',

@@ -57,6 +57,15 @@ ExternalizeStringExtension::GetNativeFunctionTemplate(
   }
 }
 
+namespace {
+
+bool HasExternalForwardingIndex(Isolate* isolate, Handle<String> string) {
+  if (!string->IsShared(isolate)) return false;
+  uint32_t raw_hash = string->raw_hash_field(kAcquireLoad);
+  return Name::IsExternalForwardingIndex(raw_hash);
+}
+
+}  // namespace
 
 void ExternalizeStringExtension::Externalize(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -96,7 +105,13 @@ void ExternalizeStringExtension::Externalize(
     result = Utils::ToLocal(string)->MakeExternal(resource);
     if (!result) delete resource;
   }
-  if (!result) {
+  // If the string is shared, testing with the combination of
+  // --shared-string-table and --isolate in d8 may result in races to
+  // externalize the same string. Those races manifest as externalization
+  // sometimes failing if another thread won and already forwarded the string to
+  // the external resource. Don't consider those races as failures.
+  if (!result && !HasExternalForwardingIndex(
+                     reinterpret_cast<Isolate*>(args.GetIsolate()), string)) {
     args.GetIsolate()->ThrowError("externalizeString() failed.");
     return;
   }

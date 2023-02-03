@@ -128,7 +128,7 @@ _iterate(UCharIterator *src, UBool forward,
     }
 
     if(pNeededToNormalize!=NULL) {
-        *pNeededToNormalize=FALSE;
+        *pNeededToNormalize=false;
     }
     if(!(forward ? src->hasNext(src) : src->hasPrevious(src))) {
         return u_terminateUChars(dest, destCapacity, 0, pErrorCode);
@@ -199,7 +199,7 @@ unorm_previous(UCharIterator *src,
                UNormalizationMode mode, int32_t options,
                UBool doNormalize, UBool *pNeededToNormalize,
                UErrorCode *pErrorCode) {
-    return unorm_iterate(src, FALSE,
+    return unorm_iterate(src, false,
                          dest, destCapacity,
                          mode, options,
                          doNormalize, pNeededToNormalize,
@@ -212,7 +212,7 @@ unorm_next(UCharIterator *src,
            UNormalizationMode mode, int32_t options,
            UBool doNormalize, UBool *pNeededToNormalize,
            UErrorCode *pErrorCode) {
-    return unorm_iterate(src, TRUE,
+    return unorm_iterate(src, true,
                          dest, destCapacity,
                          mode, options,
                          doNormalize, pNeededToNormalize,

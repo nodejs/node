@@ -6,10 +6,10 @@
 #define V8_INTERPRETER_BYTECODE_GENERATOR_H_
 
 #include "src/ast/ast.h"
+#include "src/execution/isolate.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register.h"
-#include "src/interpreter/bytecodes.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/function-kind.h"
 
@@ -128,7 +128,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
       return object_;
     }
     Register key() const {
-      DCHECK(assign_type_ == KEYED_PROPERTY ||
+      DCHECK(assign_type_ == KEYED_PROPERTY || assign_type_ == PRIVATE_METHOD ||
+             assign_type_ == PRIVATE_GETTER_ONLY ||
              assign_type_ == PRIVATE_SETTER_ONLY ||
              assign_type_ == PRIVATE_GETTER_AND_SETTER);
       return key_;
@@ -248,9 +249,13 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   void BuildLoadNamedProperty(const Expression* object_expr, Register object,
                               const AstRawString* name);
-  void BuildStoreNamedProperty(const Expression* object_expr, Register object,
-                               const AstRawString* name);
+  void BuildSetNamedProperty(const Expression* object_expr, Register object,
+                             const AstRawString* name);
   void BuildStoreGlobal(Variable* variable);
+
+  bool IsVariableInRegister(Variable* var, Register reg);
+
+  void SetVariableInRegister(Variable* var, Register reg);
 
   void BuildVariableLoad(Variable* variable, HoleCheckMode hole_check_mode,
                          TypeofMode typeof_mode = TypeofMode::kNotInside);
@@ -262,6 +267,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
       LookupHoistingMode lookup_hoisting_mode = LookupHoistingMode::kNormal);
   void BuildLiteralCompareNil(Token::Value compare_op,
                               BytecodeArrayBuilder::NilValue nil);
+  void BuildLiteralStrictCompareBoolean(Literal* literal);
   void BuildReturn(int source_position);
   void BuildAsyncReturn(int source_position);
   void BuildAsyncGeneratorReturn();
@@ -333,7 +339,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitClassLiteral(ClassLiteral* expr, Register name);
   void VisitNewTargetVariable(Variable* variable);
   void VisitThisFunctionVariable(Variable* variable);
-  void BuildPrivateBrandInitialization(Register receiver);
+  void BuildPrivateBrandInitialization(Register receiver, Variable* brand);
   void BuildInstanceMemberInitialization(Register constructor,
                                          Register instance);
   void BuildGeneratorObjectVariableInitialization();
@@ -399,6 +405,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   template <typename ExpressionFunc>
   void BuildOptionalChain(ExpressionFunc expression_func);
+
+  void BuildSuperCallOptimization(Register this_function, Register new_target,
+                                  Register constructor_then_instance,
+                                  BytecodeLabel* super_ctor_call_done);
 
   // Visitors for obtaining expression result in the accumulator, in a
   // register, or just getting the effect. Some visitors return a TypeHint which
@@ -519,8 +529,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ZoneVector<std::pair<FunctionLiteral*, size_t>> function_literals_;
   ZoneVector<std::pair<NativeFunctionLiteral*, size_t>>
       native_function_literals_;
-  ZoneVector<std::pair<ObjectLiteral*, size_t>> object_literals_;
-  ZoneVector<std::pair<ArrayLiteral*, size_t>> array_literals_;
+  ZoneVector<std::pair<ObjectLiteralBoilerplateBuilder*, size_t>>
+      object_literals_;
+  ZoneVector<std::pair<ArrayLiteralBoilerplateBuilder*, size_t>>
+      array_literals_;
   ZoneVector<std::pair<ClassLiteral*, size_t>> class_literals_;
   ZoneVector<std::pair<GetTemplateObject*, size_t>> template_objects_;
 

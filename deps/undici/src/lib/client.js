@@ -7,11 +7,9 @@ const net = require('net')
 const util = require('./core/util')
 const Request = require('./core/request')
 const DispatcherBase = require('./dispatcher-base')
-const RedirectHandler = require('./handler/redirect')
 const {
   RequestContentLengthMismatchError,
   ResponseContentLengthMismatchError,
-  TrailerMismatchError,
   InvalidArgumentError,
   RequestAbortedError,
   HeadersTimeoutError,
@@ -19,7 +17,8 @@ const {
   SocketError,
   InformationalError,
   BodyTimeoutError,
-  HTTPParserError
+  HTTPParserError,
+  ResponseExceededMaxSizeError
 } = require('./core/errors')
 const buildConnector = require('./core/connect')
 const {
@@ -61,7 +60,10 @@ const {
   kCounter,
   kClose,
   kDestroy,
-  kDispatch
+  kDispatch,
+  kInterceptors,
+  kLocalAddress,
+  kMaxResponseSize
 } = require('./core/symbols')
 
 const kClosedResolve = Symbol('kClosedResolve')
@@ -83,6 +85,7 @@ try {
 
 class Client extends DispatcherBase {
   constructor (url, {
+    interceptors,
     maxHeaderSize,
     headersTimeout,
     socketTimeout,
@@ -102,7 +105,9 @@ class Client extends DispatcherBase {
     maxCachedSessions,
     maxRedirections,
     connect,
-    maxRequestsPerClient
+    maxRequestsPerClient,
+    localAddress,
+    maxResponseSize
   } = {}) {
     super()
 
@@ -170,6 +175,14 @@ class Client extends DispatcherBase {
       throw new InvalidArgumentError('maxRequestsPerClient must be a positive number')
     }
 
+    if (localAddress != null && (typeof localAddress !== 'string' || net.isIP(localAddress) === 0)) {
+      throw new InvalidArgumentError('localAddress must be valid string IP address')
+    }
+
+    if (maxResponseSize != null && (!Number.isInteger(maxResponseSize) || maxResponseSize < -1)) {
+      throw new InvalidArgumentError('maxResponseSize must be a positive number')
+    }
+
     if (typeof connect !== 'function') {
       connect = buildConnector({
         ...tls,
@@ -180,6 +193,9 @@ class Client extends DispatcherBase {
       })
     }
 
+    this[kInterceptors] = interceptors && interceptors.Client && Array.isArray(interceptors.Client)
+      ? interceptors.Client
+      : [createRedirectInterceptor({ maxRedirections })]
     this[kUrl] = util.parseOrigin(url)
     this[kConnector] = connect
     this[kSocket] = null
@@ -190,6 +206,7 @@ class Client extends DispatcherBase {
     this[kKeepAliveTimeoutThreshold] = keepAliveTimeoutThreshold == null ? 1e3 : keepAliveTimeoutThreshold
     this[kKeepAliveTimeoutValue] = this[kKeepAliveDefaultTimeout]
     this[kServerName] = null
+    this[kLocalAddress] = localAddress != null ? localAddress : null
     this[kResuming] = 0 // 0, idle, 1, scheduled, 2 resuming
     this[kNeedDrain] = 0 // 0, idle, 1, scheduled, 2 resuming
     this[kHostHeader] = `host: ${this[kUrl].hostname}${this[kUrl].port ? `:${this[kUrl].port}` : ''}\r\n`
@@ -199,6 +216,7 @@ class Client extends DispatcherBase {
     this[kMaxRedirections] = maxRedirections
     this[kMaxRequests] = maxRequestsPerClient
     this[kClosedResolve] = null
+    this[kMaxResponseSize] = maxResponseSize > -1 ? maxResponseSize : -1
 
     // kQueue is built up of 3 sections separated by
     // the kRunningIdx and kPendingIdx indices.
@@ -255,11 +273,6 @@ class Client extends DispatcherBase {
   }
 
   [kDispatch] (opts, handler) {
-    const { maxRedirections = this[kMaxRedirections] } = opts
-    if (maxRedirections) {
-      handler = new RedirectHandler(this, maxRedirections, opts, handler)
-    }
-
     const origin = opts.origin || this[kUrl].origin
 
     const request = new Request(origin, opts, handler)
@@ -320,6 +333,7 @@ class Client extends DispatcherBase {
 }
 
 const constants = require('./llhttp/constants')
+const createRedirectInterceptor = require('./interceptor/redirectInterceptor')
 const EMPTY_BUF = Buffer.alloc(0)
 
 async function lazyllhttp () {
@@ -390,8 +404,7 @@ async function lazyllhttp () {
 
 let llhttpInstance = null
 let llhttpPromise = lazyllhttp()
-  .catch(() => {
-  })
+llhttpPromise.catch()
 
 let currentParser = null
 let currentBufferRef = null
@@ -425,9 +438,10 @@ class Parser {
 
     this.bytesRead = 0
 
-    this.trailer = ''
     this.keepAlive = ''
     this.contentLength = ''
+    this.connection = ''
+    this.maxResponseSize = client[kMaxResponseSize]
   }
 
   setTimeout (value, type) {
@@ -544,19 +558,6 @@ class Parser {
     }
   }
 
-  finish () {
-    try {
-      try {
-        currentParser = this
-      } finally {
-        currentParser = null
-      }
-    } catch (err) {
-      /* istanbul ignore next: difficult to make a test case for */
-      util.destroy(this.socket, err)
-    }
-  }
-
   destroy () {
     assert(this.ptr != null)
     assert(currentParser == null)
@@ -615,8 +616,8 @@ class Parser {
     const key = this.headers[len - 2]
     if (key.length === 10 && key.toString().toLowerCase() === 'keep-alive') {
       this.keepAlive += buf.toString()
-    } else if (key.length === 7 && key.toString().toLowerCase() === 'trailer') {
-      this.trailer += buf.toString()
+    } else if (key.length === 10 && key.toString().toLowerCase() === 'connection') {
+      this.connection += buf.toString()
     } else if (key.length === 14 && key.toString().toLowerCase() === 'content-length') {
       this.contentLength += buf.toString()
     }
@@ -710,7 +711,11 @@ class Parser {
     assert.strictEqual(this.timeoutType, TIMEOUT_HEADERS)
 
     this.statusCode = statusCode
-    this.shouldKeepAlive = shouldKeepAlive
+    this.shouldKeepAlive = (
+      shouldKeepAlive ||
+      // Override llhttp value which does not allow keepAlive for HEAD.
+      (request.method === 'HEAD' && !socket[kReset] && this.connection.toLowerCase() === 'keep-alive')
+    )
 
     if (this.statusCode >= 200) {
       const bodyTimeout = request.bodyTimeout != null
@@ -724,7 +729,7 @@ class Parser {
       }
     }
 
-    if (request.method === 'CONNECT' && statusCode >= 200 && statusCode < 300) {
+    if (request.method === 'CONNECT') {
       assert(client[kRunning] === 1)
       this.upgrade = true
       return 2
@@ -740,7 +745,7 @@ class Parser {
     this.headers = []
     this.headersSize = 0
 
-    if (shouldKeepAlive && client[kPipelining]) {
+    if (this.shouldKeepAlive && client[kPipelining]) {
       const keepAliveTimeout = this.keepAlive ? util.parseKeepAliveTimeout(this.keepAlive) : null
 
       if (keepAliveTimeout != null) {
@@ -770,7 +775,6 @@ class Parser {
     }
 
     if (request.method === 'HEAD') {
-      assert(socket[kReset])
       return 1
     }
 
@@ -787,7 +791,7 @@ class Parser {
   }
 
   onBody (buf) {
-    const { client, socket, statusCode } = this
+    const { client, socket, statusCode, maxResponseSize } = this
 
     if (socket.destroyed) {
       return -1
@@ -806,6 +810,11 @@ class Parser {
 
     assert(statusCode >= 200)
 
+    if (maxResponseSize > -1 && this.bytesRead + buf.length > maxResponseSize) {
+      util.destroy(socket, new ResponseExceededMaxSizeError())
+      return -1
+    }
+
     this.bytesRead += buf.length
 
     try {
@@ -819,7 +828,7 @@ class Parser {
   }
 
   onMessageComplete () {
-    const { client, socket, statusCode, upgrade, trailer, headers, contentLength, bytesRead, shouldKeepAlive } = this
+    const { client, socket, statusCode, upgrade, headers, contentLength, bytesRead, shouldKeepAlive } = this
 
     if (socket.destroyed && (!statusCode || shouldKeepAlive)) {
       return -1
@@ -838,8 +847,8 @@ class Parser {
     this.statusText = ''
     this.bytesRead = 0
     this.contentLength = ''
-    this.trailer = ''
     this.keepAlive = ''
+    this.connection = ''
 
     assert(this.headers.length % 2 === 0)
     this.headers = []
@@ -847,23 +856,6 @@ class Parser {
 
     if (statusCode < 200) {
       return
-    }
-
-    const trailers = trailer ? trailer.split(/,\s*/) : []
-    for (let i = 0; i < trailers.length; i++) {
-      const trailer = trailers[i]
-      let found = false
-      for (let n = 0; n < headers.length; n += 2) {
-        const key = headers[n]
-        if (key.length === trailer.length && key.toString().toLowerCase() === trailer.toLowerCase()) {
-          found = true
-          break
-        }
-      }
-      if (!found) {
-        util.destroy(socket, new TrailerMismatchError())
-        return -1
-      }
     }
 
     /* istanbul ignore next: should be handled by llhttp? */
@@ -895,6 +887,11 @@ class Parser {
       // have been queued since then.
       util.destroy(socket, new InformationalError('reset'))
       return constants.ERROR.PAUSED
+    } else if (client[kPipelining] === 1) {
+      // We must wait a full event loop cycle to reuse this socket to make sure
+      // that non-spec compliant servers are not closing the connection even if they
+      // said they won't.
+      setImmediate(resume, client)
     } else {
       resume(client)
     }
@@ -906,7 +903,7 @@ function onParserTimeout (parser) {
 
   /* istanbul ignore else */
   if (timeoutType === TIMEOUT_HEADERS) {
-    if (!socket[kWriting]) {
+    if (!socket[kWriting] || socket.writableNeedDrain || client[kRunning] > 1) {
       assert(!parser.paused, 'cannot be paused while waiting for headers')
       util.destroy(socket, new HeadersTimeoutError())
     }
@@ -934,7 +931,7 @@ function onSocketError (err) {
   // to the user.
   if (err.code === 'ECONNRESET' && parser.statusCode && !parser.shouldKeepAlive) {
     // We treat all incoming data so for as a valid response.
-    parser.finish()
+    parser.onMessageComplete()
     return
   }
 
@@ -968,7 +965,7 @@ function onSocketEnd () {
 
   if (parser.statusCode && !parser.shouldKeepAlive) {
     // We treat all incoming data so far as a valid response.
-    parser.finish()
+    parser.onMessageComplete()
     return
   }
 
@@ -977,6 +974,11 @@ function onSocketEnd () {
 
 function onSocketClose () {
   const { [kClient]: client } = this
+
+  if (!this[kError] && this[kParser].statusCode && !this[kParser].shouldKeepAlive) {
+    // We treat all incoming data so far as a valid response.
+    this[kParser].onMessageComplete()
+  }
 
   this[kParser].destroy()
   this[kParser] = null
@@ -1037,7 +1039,8 @@ async function connect (client) {
         hostname,
         protocol,
         port,
-        servername: client[kServerName]
+        servername: client[kServerName],
+        localAddress: client[kLocalAddress]
       },
       connector: client[kConnector]
     })
@@ -1050,7 +1053,8 @@ async function connect (client) {
         hostname,
         protocol,
         port,
-        servername: client[kServerName]
+        servername: client[kServerName],
+        localAddress: client[kLocalAddress]
       }, (err, socket) => {
         if (err) {
           reject(err)
@@ -1069,8 +1073,6 @@ async function connect (client) {
 
     assert(socket)
 
-    client[kSocket] = socket
-
     socket[kNoRef] = false
     socket[kWriting] = false
     socket[kReset] = false
@@ -1086,6 +1088,8 @@ async function connect (client) {
       .on('end', onSocketEnd)
       .on('close', onSocketClose)
 
+    client[kSocket] = socket
+
     if (channels.connected.hasSubscribers) {
       channels.connected.publish({
         connectParams: {
@@ -1093,7 +1097,8 @@ async function connect (client) {
           hostname,
           protocol,
           port,
-          servername: client[kServerName]
+          servername: client[kServerName],
+          localAddress: client[kLocalAddress]
         },
         connector: client[kConnector],
         socket
@@ -1110,7 +1115,8 @@ async function connect (client) {
           hostname,
           protocol,
           port,
-          servername: client[kServerName]
+          servername: client[kServerName],
+          localAddress: client[kLocalAddress]
         },
         connector: client[kConnector],
         error: err
@@ -1169,7 +1175,7 @@ function _resume (client, sync) {
 
     const socket = client[kSocket]
 
-    if (socket) {
+    if (socket && !socket.destroyed) {
       if (client[kSize] === 0) {
         if (!socket[kNoRef] && socket.unref) {
           socket.unref()
@@ -1236,7 +1242,7 @@ function _resume (client, sync) {
 
     if (!socket) {
       connect(client)
-      continue
+      return
     }
 
     if (socket.destroyed || socket[kWriting] || socket[kReset] || socket[kBlocking]) {
@@ -1295,7 +1301,7 @@ function _resume (client, sync) {
 }
 
 function write (client, request) {
-  const { body, method, path, host, upgrade, headers, blocking } = request
+  const { body, method, path, host, upgrade, headers, blocking, reset } = request
 
   // https://tools.ietf.org/html/rfc7231#section-4.3.1
   // https://tools.ietf.org/html/rfc7231#section-4.3.2
@@ -1363,7 +1369,6 @@ function write (client, request) {
 
   if (method === 'HEAD') {
     // https://github.com/mcollina/undici/issues/258
-
     // Close after a HEAD request to interop with misbehaving servers
     // that may send a body in the response.
 
@@ -1375,6 +1380,10 @@ function write (client, request) {
     // requests on this connection.
 
     socket[kReset] = true
+  }
+
+  if (reset != null) {
+    socket[kReset] = reset
   }
 
   if (client[kMaxRequests] && socket[kCounter]++ >= client[kMaxRequests]) {
@@ -1395,7 +1404,7 @@ function write (client, request) {
 
   if (upgrade) {
     header += `connection: upgrade\r\nupgrade: ${upgrade}\r\n`
-  } else if (client[kPipelining]) {
+  } else if (client[kPipelining] && !socket[kReset]) {
     header += 'connection: keep-alive\r\n'
   } else {
     header += 'connection: close\r\n'
@@ -1660,7 +1669,18 @@ class AsyncWriter {
     this.bytesWritten += len
 
     const ret = socket.write(chunk)
+
     request.onBodySent(chunk)
+
+    if (!ret) {
+      if (socket[kParser].timeout && socket[kParser].timeoutType === TIMEOUT_HEADERS) {
+        // istanbul ignore else: only for jest
+        if (socket[kParser].timeout.refresh) {
+          socket[kParser].timeout.refresh()
+        }
+      }
+    }
+
     return ret
   }
 

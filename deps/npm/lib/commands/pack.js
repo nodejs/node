@@ -17,7 +17,8 @@ class Pack extends BaseCommand {
     'include-workspace-root',
   ]
 
-  static usage = ['[[<@scope>/]<pkg>...]']
+  static usage = ['<package-spec>']
+  static workspaces = true
   static ignoreImplicitWorkspace = false
 
   async exec (args) {
@@ -44,7 +45,11 @@ class Pack extends BaseCommand {
     // noise generated during packing
     const tarballs = []
     for (const { arg, manifest } of manifests) {
-      const tarballData = await libpack(arg, this.npm.flatOptions)
+      const tarballData = await libpack(arg, {
+        ...this.npm.flatOptions,
+        prefix: this.npm.localPrefix,
+        workspaces: this.workspacePaths,
+      })
       const pkgContents = await getContents(manifest, tarballData)
       tarballs.push(pkgContents)
     }
@@ -60,7 +65,7 @@ class Pack extends BaseCommand {
     }
   }
 
-  async execWorkspaces (args, filters) {
+  async execWorkspaces (args) {
     // If they either ask for nothing, or explicitly include '.' in the args,
     // we effectively translate that into each workspace requested
 
@@ -71,7 +76,7 @@ class Pack extends BaseCommand {
       return this.exec(args)
     }
 
-    await this.setWorkspaces(filters)
+    await this.setWorkspaces()
     return this.exec([...this.workspacePaths, ...args.filter(a => a !== '.')])
   }
 }

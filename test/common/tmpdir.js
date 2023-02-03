@@ -19,8 +19,8 @@ const tmpPath = path.join(testRoot, tmpdirName);
 
 let firstRefresh = true;
 function refresh() {
-  rmSync(this.path);
-  fs.mkdirSync(this.path);
+  rmSync(tmpPath);
+  fs.mkdirSync(tmpPath);
 
   if (firstRefresh) {
     firstRefresh = false;
@@ -57,5 +57,5 @@ function onexit() {
 
 module.exports = {
   path: tmpPath,
-  refresh
+  refresh,
 };

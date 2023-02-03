@@ -21,7 +21,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow labels that share a name with a variable",
+            description: "Disallow labels that share a name with a variable",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-label-var"
         },

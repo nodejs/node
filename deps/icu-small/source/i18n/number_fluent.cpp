@@ -288,6 +288,34 @@ Derived NumberFormatterSettings<Derived>::usage(const StringPiece usage)&& {
     return move;
 }
 
+template <typename Derived>
+Derived NumberFormatterSettings<Derived>::displayOptions(const DisplayOptions &displayOptions) const & {
+    Derived copy(*this);
+    // `displayCase` does not recognise the `undefined`
+    if (displayOptions.getGrammaticalCase() == UDISPOPT_GRAMMATICAL_CASE_UNDEFINED) {
+        copy.fMacros.unitDisplayCase.set(nullptr);
+        return copy;
+    }
+
+    copy.fMacros.unitDisplayCase.set(
+        udispopt_getGrammaticalCaseIdentifier(displayOptions.getGrammaticalCase()));
+    return copy;
+}
+
+template <typename Derived>
+Derived NumberFormatterSettings<Derived>::displayOptions(const DisplayOptions &displayOptions) && {
+    Derived move(std::move(*this));
+    // `displayCase` does not recognise the `undefined`
+    if (displayOptions.getGrammaticalCase() == UDISPOPT_GRAMMATICAL_CASE_UNDEFINED) {
+        move.fMacros.unitDisplayCase.set(nullptr);
+        return move;
+    }
+
+    move.fMacros.unitDisplayCase.set(
+        udispopt_getGrammaticalCaseIdentifier(displayOptions.getGrammaticalCase()));
+    return move;
+}
+
 template<typename Derived>
 Derived NumberFormatterSettings<Derived>::unitDisplayCase(const StringPiece unitDisplayCase) const& {
     Derived copy(*this);

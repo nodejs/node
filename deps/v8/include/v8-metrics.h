@@ -21,6 +21,7 @@ class Isolate;
 namespace metrics {
 
 struct GarbageCollectionPhases {
+  int64_t total_wall_clock_duration_in_us = -1;
   int64_t compact_wall_clock_duration_in_us = -1;
   int64_t mark_wall_clock_duration_in_us = -1;
   int64_t sweep_wall_clock_duration_in_us = -1;
@@ -34,6 +35,7 @@ struct GarbageCollectionSizes {
 };
 
 struct GarbageCollectionFullCycle {
+  int reason = -1;
   GarbageCollectionPhases total;
   GarbageCollectionPhases total_cpp;
   GarbageCollectionPhases main_thread;
@@ -59,25 +61,38 @@ struct GarbageCollectionFullMainThreadIncrementalMark {
   int64_t cpp_wall_clock_duration_in_us = -1;
 };
 
-struct GarbageCollectionFullMainThreadBatchedIncrementalMark {
-  std::vector<GarbageCollectionFullMainThreadIncrementalMark> events;
-};
-
 struct GarbageCollectionFullMainThreadIncrementalSweep {
   int64_t wall_clock_duration_in_us = -1;
   int64_t cpp_wall_clock_duration_in_us = -1;
 };
 
-struct GarbageCollectionFullMainThreadBatchedIncrementalSweep {
-  std::vector<GarbageCollectionFullMainThreadIncrementalSweep> events;
+template <typename EventType>
+struct GarbageCollectionBatchedEvents {
+  std::vector<EventType> events;
 };
 
+using GarbageCollectionFullMainThreadBatchedIncrementalMark =
+    GarbageCollectionBatchedEvents<
+        GarbageCollectionFullMainThreadIncrementalMark>;
+using GarbageCollectionFullMainThreadBatchedIncrementalSweep =
+    GarbageCollectionBatchedEvents<
+        GarbageCollectionFullMainThreadIncrementalSweep>;
+
 struct GarbageCollectionYoungCycle {
+  int reason = -1;
   int64_t total_wall_clock_duration_in_us = -1;
   int64_t main_thread_wall_clock_duration_in_us = -1;
-  double collection_rate_in_percent;
-  double efficiency_in_bytes_per_us;
-  double main_thread_efficiency_in_bytes_per_us;
+  double collection_rate_in_percent = -1.0;
+  double efficiency_in_bytes_per_us = -1.0;
+  double main_thread_efficiency_in_bytes_per_us = -1.0;
+#if defined(CPPGC_YOUNG_GENERATION)
+  GarbageCollectionPhases total_cpp;
+  GarbageCollectionSizes objects_cpp;
+  GarbageCollectionSizes memory_cpp;
+  double collection_rate_cpp_in_percent = -1.0;
+  double efficiency_cpp_in_bytes_per_us = -1.0;
+  double main_thread_efficiency_cpp_in_bytes_per_us = -1.0;
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 };
 
 struct WasmModuleDecoded {
@@ -110,30 +125,9 @@ struct WasmModuleInstantiated {
   int64_t wall_clock_duration_in_us = -1;
 };
 
-struct WasmModuleTieredUp {
-  bool lazy = false;
-  size_t code_size_in_bytes = 0;
-  int64_t wall_clock_duration_in_us = -1;
-  int64_t cpu_duration_in_us = -1;
-};
-
 struct WasmModulesPerIsolate {
   size_t count = 0;
 };
-
-#define V8_MAIN_THREAD_METRICS_EVENTS(V)                    \
-  V(GarbageCollectionFullCycle)                             \
-  V(GarbageCollectionFullMainThreadIncrementalMark)         \
-  V(GarbageCollectionFullMainThreadBatchedIncrementalMark)  \
-  V(GarbageCollectionFullMainThreadIncrementalSweep)        \
-  V(GarbageCollectionFullMainThreadBatchedIncrementalSweep) \
-  V(GarbageCollectionYoungCycle)                            \
-  V(WasmModuleDecoded)                                      \
-  V(WasmModuleCompiled)                                     \
-  V(WasmModuleInstantiated)                                 \
-  V(WasmModuleTieredUp)
-
-#define V8_THREAD_SAFE_METRICS_EVENTS(V) V(WasmModulesPerIsolate)
 
 /**
  * This class serves as a base class for recording event-based metrics in V8.
@@ -143,19 +137,6 @@ struct WasmModulesPerIsolate {
  * executable on the main thread. If such an event is triggered from a
  * background thread, it will be delayed and executed by the foreground task
  * runner.
- *
- * The thread-safe events are listed in the V8_THREAD_SAFE_METRICS_EVENTS
- * macro above while the main thread event are listed in
- * V8_MAIN_THREAD_METRICS_EVENTS above. For the former, a virtual method
- * AddMainThreadEvent(const E& event, v8::Context::Token token) will be
- * generated and for the latter AddThreadSafeEvent(const E& event).
- *
- * Thread-safe events are not allowed to access the context and therefore do
- * not carry a context ID with them. These IDs can be generated using
- * Recorder::GetContextId() and the ID will be valid throughout the lifetime
- * of the isolate. It is not guaranteed that the ID will still resolve to
- * a valid context using Recorder::GetContext() at the time the metric is
- * recorded. In this case, an empty handle will be returned.
  *
  * The embedder is expected to call v8::Isolate::SetMetricsRecorder()
  * providing its implementation and have the virtual methods overwritten
@@ -187,14 +168,30 @@ class V8_EXPORT Recorder {
 
   virtual ~Recorder() = default;
 
+  // Main thread events. Those are only triggered on the main thread, and hence
+  // can access the context.
 #define ADD_MAIN_THREAD_EVENT(E) \
-  virtual void AddMainThreadEvent(const E& event, ContextId context_id) {}
-  V8_MAIN_THREAD_METRICS_EVENTS(ADD_MAIN_THREAD_EVENT)
+  virtual void AddMainThreadEvent(const E&, ContextId) {}
+  ADD_MAIN_THREAD_EVENT(GarbageCollectionFullCycle)
+  ADD_MAIN_THREAD_EVENT(GarbageCollectionFullMainThreadIncrementalMark)
+  ADD_MAIN_THREAD_EVENT(GarbageCollectionFullMainThreadBatchedIncrementalMark)
+  ADD_MAIN_THREAD_EVENT(GarbageCollectionFullMainThreadIncrementalSweep)
+  ADD_MAIN_THREAD_EVENT(GarbageCollectionFullMainThreadBatchedIncrementalSweep)
+  ADD_MAIN_THREAD_EVENT(GarbageCollectionYoungCycle)
+  ADD_MAIN_THREAD_EVENT(WasmModuleDecoded)
+  ADD_MAIN_THREAD_EVENT(WasmModuleCompiled)
+  ADD_MAIN_THREAD_EVENT(WasmModuleInstantiated)
 #undef ADD_MAIN_THREAD_EVENT
 
+  // Thread-safe events are not allowed to access the context and therefore do
+  // not carry a context ID with them. These IDs can be generated using
+  // Recorder::GetContextId() and the ID will be valid throughout the lifetime
+  // of the isolate. It is not guaranteed that the ID will still resolve to
+  // a valid context using Recorder::GetContext() at the time the metric is
+  // recorded. In this case, an empty handle will be returned.
 #define ADD_THREAD_SAFE_EVENT(E) \
-  virtual void AddThreadSafeEvent(const E& event) {}
-  V8_THREAD_SAFE_METRICS_EVENTS(ADD_THREAD_SAFE_EVENT)
+  virtual void AddThreadSafeEvent(const E&) {}
+  ADD_THREAD_SAFE_EVENT(WasmModulesPerIsolate)
 #undef ADD_THREAD_SAFE_EVENT
 
   virtual void NotifyIsolateDisposal() {}
@@ -230,6 +227,8 @@ struct V8_EXPORT LongTaskStats {
   int64_t gc_full_atomic_wall_clock_duration_us = 0;
   int64_t gc_full_incremental_wall_clock_duration_us = 0;
   int64_t gc_young_wall_clock_duration_us = 0;
+  // Only collected with --slow-histograms
+  int64_t v8_execute_us = 0;
 };
 
 }  // namespace metrics

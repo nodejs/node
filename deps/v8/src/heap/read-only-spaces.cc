@@ -14,15 +14,13 @@
 #include "src/execution/isolate.h"
 #include "src/heap/allocation-stats.h"
 #include "src/heap/basic-memory-chunk.h"
-#include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
-#include "src/heap/memory-chunk.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/property-details.h"
-#include "src/objects/string.h"
-#include "src/snapshot/read-only-deserializer.h"
+#include "src/snapshot/snapshot-data.h"
+#include "src/snapshot/snapshot-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -56,7 +54,7 @@ void ReadOnlyArtifacts::VerifyChecksum(SnapshotData* read_only_snapshot_data,
     CHECK_WITH_MSG(snapshot_checksum,
                    "Attempt to create the read-only heap after already "
                    "creating from a snapshot.");
-    if (!FLAG_stress_snapshot) {
+    if (!v8_flags.stress_snapshot) {
       // --stress-snapshot is only intended to check how well the
       // serializer/deserializer copes with unexpected objects, and is not
       // intended to test whether the newly deserialized Isolate would actually
@@ -64,7 +62,7 @@ void ReadOnlyArtifacts::VerifyChecksum(SnapshotData* read_only_snapshot_data,
       // supported. As a result, it's possible that it will create a new
       // read-only snapshot that is not compatible with the original one (for
       // instance due to the string table being re-ordered). Since we won't
-      // acutally use that new Isoalte, we're ok with any potential corruption.
+      // actually use that new Isolate, we're ok with any potential corruption.
       // See crbug.com/1043058.
       CHECK_EQ(read_only_blob_checksum_, snapshot_checksum);
     }
@@ -188,7 +186,9 @@ ReadOnlyHeap* PointerCompressedReadOnlyArtifacts::GetReadOnlyHeapForIsolate(
   Address isolate_root = isolate->isolate_root();
   for (Object original_object : original_cache) {
     Address original_address = original_object.ptr();
-    Address new_address = isolate_root + CompressTagged(original_address);
+    Address new_address =
+        isolate_root +
+        V8HeapCompressionScheme::CompressTagged(original_address);
     Object new_object = Object(new_address);
     cache.push_back(new_object);
   }
@@ -238,7 +238,8 @@ void PointerCompressedReadOnlyArtifacts::Initialize(
     pages_.push_back(new_page);
     shared_memory_.push_back(std::move(shared_memory));
     // This is just CompressTagged but inlined so it will always compile.
-    Tagged_t compressed_address = CompressTagged(page->address());
+    Tagged_t compressed_address =
+        V8HeapCompressionScheme::CompressTagged(page->address());
     page_offsets_.push_back(compressed_address);
 
     // 3. Update the accounting stats so the allocated bytes are for the new
@@ -290,7 +291,6 @@ ReadOnlySpace::ReadOnlySpace(Heap* heap)
     : BaseSpace(heap, RO_SPACE),
       top_(kNullAddress),
       limit_(kNullAddress),
-      is_string_padding_cleared_(heap->isolate()->initialized_from_snapshot()),
       capacity_(0),
       area_size_(MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE)) {}
 
@@ -329,6 +329,16 @@ void ReadOnlySpace::DetachPagesAndAddToArtifacts(
   artifacts->Initialize(heap->isolate(), std::move(pages_), accounting_stats_);
 }
 
+ReadOnlyPage::ReadOnlyPage(Heap* heap, BaseSpace* space, size_t chunk_size,
+                           Address area_start, Address area_end,
+                           VirtualMemory reservation)
+    : BasicMemoryChunk(heap, space, chunk_size, area_start, area_end,
+                       std::move(reservation)) {
+  allocated_bytes_ = 0;
+  SetFlags(Flag::NEVER_EVACUATE | Flag::READ_ONLY_HEAP);
+  heap->non_atomic_marking_state()->bitmap(this)->MarkAllBits();
+}
+
 void ReadOnlyPage::MakeHeaderRelocatable() {
   heap_ = nullptr;
   owner_ = nullptr;
@@ -362,28 +372,9 @@ void ReadOnlySpace::RepairFreeSpacesAfterDeserialization() {
     // Put a filler object in the gap between the end of the allocated objects
     // and the end of the allocatable area.
     if (start < end) {
-      heap()->CreateFillerObjectAt(start, static_cast<int>(end - start),
-                                   ClearRecordedSlots::kNo);
+      heap()->CreateFillerObjectAt(start, static_cast<int>(end - start));
     }
   }
-}
-
-void ReadOnlySpace::ClearStringPaddingIfNeeded() {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    // TODO(v8:11641): Revisit this once third-party heap supports iteration.
-    return;
-  }
-  if (is_string_padding_cleared_) return;
-
-  ReadOnlyHeapObjectIterator iterator(this);
-  for (HeapObject o = iterator.Next(); !o.is_null(); o = iterator.Next()) {
-    if (o.IsSeqOneByteString()) {
-      SeqOneByteString::cast(o).clear_padding();
-    } else if (o.IsSeqTwoByteString()) {
-      SeqTwoByteString::cast(o).clear_padding();
-    }
-  }
-  is_string_padding_cleared_ = true;
 }
 
 void ReadOnlySpace::Seal(SealMode ro_mode) {
@@ -397,7 +388,7 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
     DetachFromHeap();
     for (ReadOnlyPage* p : pages_) {
       if (ro_mode == SealMode::kDetachFromHeapAndUnregisterMemory) {
-        memory_allocator->UnregisterMemory(p);
+        memory_allocator->UnregisterReadOnlyPage(p);
       }
       if (ReadOnlyHeap::IsReadOnlySpaceShared()) {
         p->MakeHeaderRelocatable();
@@ -417,7 +408,7 @@ void ReadOnlySpace::Unseal() {
   is_marked_read_only_ = false;
 }
 
-bool ReadOnlySpace::ContainsSlow(Address addr) {
+bool ReadOnlySpace::ContainsSlow(Address addr) const {
   BasicMemoryChunk* c = BasicMemoryChunk::FromAddress(addr);
   for (BasicMemoryChunk* chunk : pages_) {
     if (chunk == c) return true;
@@ -429,21 +420,16 @@ namespace {
 // Only iterates over a single chunk as the chunk iteration is done externally.
 class ReadOnlySpaceObjectIterator : public ObjectIterator {
  public:
-  ReadOnlySpaceObjectIterator(Heap* heap, ReadOnlySpace* space,
+  ReadOnlySpaceObjectIterator(const Heap* heap, const ReadOnlySpace* space,
                               BasicMemoryChunk* chunk)
-      : cur_addr_(kNullAddress), cur_end_(kNullAddress), space_(space) {}
+      : cur_addr_(chunk->area_start()),
+        cur_end_(chunk->area_end()),
+        space_(space) {}
 
   // Advance to the next object, skipping free spaces and other fillers and
   // skipping the special garbage section of which there is one per space.
-  // Returns nullptr when the iteration has ended.
+  // Returns a null object when the iteration has ended.
   HeapObject Next() override {
-    HeapObject next_obj = FromCurrentPage();
-    if (!next_obj.is_null()) return next_obj;
-    return HeapObject();
-  }
-
- private:
-  HeapObject FromCurrentPage() {
     while (cur_addr_ != cur_end_) {
       if (cur_addr_ == space_->top() && cur_addr_ != space_->limit()) {
         cur_addr_ = space_->limit();
@@ -451,7 +437,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
       }
       HeapObject obj = HeapObject::FromAddress(cur_addr_);
       const int obj_size = obj.Size();
-      cur_addr_ += obj_size;
+      cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(obj_size);
       DCHECK_LE(cur_addr_, cur_end_);
       if (!obj.IsFreeSpaceOrFiller()) {
         if (obj.IsCode()) {
@@ -468,7 +454,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
 
   Address cur_addr_;  // Current iteration point.
   Address cur_end_;   // End iteration point.
-  ReadOnlySpace* space_;
+  const ReadOnlySpace* const space_;
 };
 }  // namespace
 
@@ -497,7 +483,7 @@ class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
 };
 }  // namespace
 
-void ReadOnlySpace::Verify(Isolate* isolate) {
+void ReadOnlySpace::Verify(Isolate* isolate) const {
   bool allocation_pointer_found_in_space = top_ == limit_;
   VerifyReadOnlyPointersVisitor visitor(isolate->heap());
 
@@ -533,6 +519,9 @@ void ReadOnlySpace::Verify(Isolate* isolate) {
       CHECK(!object.IsExternalString());
       CHECK(!object.IsJSArrayBuffer());
     }
+
+    CHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
+    CHECK(!page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
   }
   CHECK(allocation_pointer_found_in_space);
 
@@ -542,7 +531,7 @@ void ReadOnlySpace::Verify(Isolate* isolate) {
 }
 
 #ifdef DEBUG
-void ReadOnlySpace::VerifyCounters(Heap* heap) {
+void ReadOnlySpace::VerifyCounters(Heap* heap) const {
   size_t total_capacity = 0;
   size_t total_allocated = 0;
   for (BasicMemoryChunk* page : pages_) {
@@ -566,7 +555,7 @@ void ReadOnlySpace::VerifyCounters(Heap* heap) {
 #endif  // DEBUG
 #endif  // VERIFY_HEAP
 
-size_t ReadOnlySpace::CommittedPhysicalMemory() {
+size_t ReadOnlySpace::CommittedPhysicalMemory() const {
   if (!base::OS::HasLazyCommits()) return CommittedMemory();
   BasicMemoryChunk::UpdateHighWaterMark(top_);
   size_t size = 0;
@@ -587,11 +576,10 @@ void ReadOnlySpace::FreeLinearAllocationArea() {
 
   // Clear the bits in the unused black area.
   ReadOnlyPage* page = pages_.back();
-  heap()->incremental_marking()->marking_state()->bitmap(page)->ClearRange(
+  heap()->marking_state()->bitmap(page)->ClearRange(
       page->AddressToMarkbitIndex(top_), page->AddressToMarkbitIndex(limit_));
 
-  heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_),
-                               ClearRecordedSlots::kNo);
+  heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_));
 
   BasicMemoryChunk::UpdateHighWaterMark(top_);
 
@@ -609,7 +597,7 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
   FreeLinearAllocationArea();
 
   BasicMemoryChunk* chunk =
-      heap()->memory_allocator()->AllocateReadOnlyPage(AreaSize(), this);
+      heap()->memory_allocator()->AllocateReadOnlyPage(this);
   capacity_ += AreaSize();
 
   accounting_stats_.IncreaseCapacity(chunk->area_size());
@@ -618,8 +606,7 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
   pages_.push_back(static_cast<ReadOnlyPage*>(chunk));
 
   heap()->CreateFillerObjectAt(chunk->area_start(),
-                               static_cast<int>(chunk->area_size()),
-                               ClearRecordedSlots::kNo);
+                               static_cast<int>(chunk->area_size()));
 
   top_ = chunk->area_start();
   limit_ = chunk->area_end();
@@ -628,6 +615,7 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
 
 HeapObject ReadOnlySpace::TryAllocateLinearlyAligned(
     int size_in_bytes, AllocationAlignment alignment) {
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   Address current_top = top_;
   int filler_size = Heap::GetFillToAlign(current_top, alignment);
 
@@ -651,8 +639,9 @@ HeapObject ReadOnlySpace::TryAllocateLinearlyAligned(
 
 AllocationResult ReadOnlySpace::AllocateRawAligned(
     int size_in_bytes, AllocationAlignment alignment) {
-  DCHECK(!FLAG_enable_third_party_heap);
+  DCHECK(!v8_flags.enable_third_party_heap);
   DCHECK(!IsDetached());
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   int allocation_size = size_in_bytes;
 
   HeapObject object = TryAllocateLinearlyAligned(allocation_size, alignment);
@@ -667,11 +656,12 @@ AllocationResult ReadOnlySpace::AllocateRawAligned(
   }
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object.address(), size_in_bytes);
 
-  return object;
+  return AllocationResult::FromObject(object);
 }
 
 AllocationResult ReadOnlySpace::AllocateRawUnaligned(int size_in_bytes) {
   DCHECK(!IsDetached());
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   EnsureSpaceForAllocation(size_in_bytes);
   Address current_top = top_;
   Address new_top = current_top + size_in_bytes;
@@ -687,7 +677,7 @@ AllocationResult ReadOnlySpace::AllocateRawUnaligned(int size_in_bytes) {
   accounting_stats_.IncreaseAllocatedBytes(size_in_bytes, chunk);
   chunk->IncreaseAllocatedBytes(size_in_bytes);
 
-  return object;
+  return AllocationResult::FromObject(object);
 }
 
 AllocationResult ReadOnlySpace::AllocateRaw(int size_in_bytes,
@@ -697,8 +687,8 @@ AllocationResult ReadOnlySpace::AllocateRaw(int size_in_bytes,
           ? AllocateRawAligned(size_in_bytes, alignment)
           : AllocateRawUnaligned(size_in_bytes);
   HeapObject heap_obj;
-  if (!result.IsRetry() && result.To(&heap_obj)) {
-    DCHECK(heap()->incremental_marking()->marking_state()->IsBlack(heap_obj));
+  if (result.To(&heap_obj)) {
+    DCHECK(heap()->marking_state()->IsBlack(heap_obj));
   }
   return result;
 }
@@ -715,7 +705,7 @@ size_t ReadOnlyPage::ShrinkToHighWaterMark() {
                             MemoryAllocator::GetCommitPageSize());
   if (unused > 0) {
     DCHECK_EQ(0u, unused % MemoryAllocator::GetCommitPageSize());
-    if (FLAG_trace_gc_verbose) {
+    if (v8_flags.trace_gc_verbose) {
       PrintIsolate(heap()->isolate(), "Shrinking page %p: end %p -> %p\n",
                    reinterpret_cast<void*>(this),
                    reinterpret_cast<void*>(area_end()),
@@ -723,8 +713,7 @@ size_t ReadOnlyPage::ShrinkToHighWaterMark() {
     }
     heap()->CreateFillerObjectAt(
         filler.address(),
-        static_cast<int>(area_end() - filler.address() - unused),
-        ClearRecordedSlots::kNo);
+        static_cast<int>(area_end() - filler.address() - unused));
     heap()->memory_allocator()->PartialFreeMemory(
         this, address() + size() - unused, unused, area_end() - unused);
     if (filler.address() != area_end()) {
@@ -738,8 +727,7 @@ size_t ReadOnlyPage::ShrinkToHighWaterMark() {
 void ReadOnlySpace::ShrinkPages() {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
   BasicMemoryChunk::UpdateHighWaterMark(top_);
-  heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_),
-                               ClearRecordedSlots::kNo);
+  heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_));
 
   for (ReadOnlyPage* chunk : pages_) {
     DCHECK(chunk->IsFlagSet(Page::NEVER_EVACUATE));
@@ -749,20 +737,6 @@ void ReadOnlySpace::ShrinkPages() {
     AccountUncommitted(unused);
   }
   limit_ = pages_.back()->area_end();
-}
-
-ReadOnlyPage* ReadOnlySpace::InitializePage(BasicMemoryChunk* chunk) {
-  ReadOnlyPage* page = reinterpret_cast<ReadOnlyPage*>(chunk);
-  page->allocated_bytes_ = 0;
-  page->SetFlag(BasicMemoryChunk::Flag::NEVER_EVACUATE);
-  heap()
-      ->incremental_marking()
-      ->non_atomic_marking_state()
-      ->bitmap(chunk)
-      ->MarkAllBits();
-  chunk->SetFlag(BasicMemoryChunk::READ_ONLY_HEAP);
-
-  return page;
 }
 
 SharedReadOnlySpace::SharedReadOnlySpace(

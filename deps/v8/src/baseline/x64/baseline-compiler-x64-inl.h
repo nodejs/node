@@ -15,6 +15,11 @@ namespace baseline {
 
 #define __ basm_.
 
+// A builtin call/jump mode that is used then short builtin calls feature is
+// not enabled.
+constexpr BuiltinCallJumpMode kFallbackBuiltinCallJumpModeForBaseline =
+    BuiltinCallJumpMode::kIndirect;
+
 void BaselineCompiler::Prologue() {
   ASM_CODE_COMMENT(&masm_);
   DCHECK_EQ(kJSFunctionRegister, kJavaScriptCallTargetRegister);
@@ -32,7 +37,7 @@ void BaselineCompiler::PrologueFillFrame() {
   // Inlined register frame fill
   interpreter::Register new_target_or_generator_register =
       bytecode_->incoming_new_target_or_generator_register();
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ masm()->Cmp(kInterpreterAccumulatorRegister,
                    handle(ReadOnlyRoots(local_isolate_).undefined_value(),
                           local_isolate_));

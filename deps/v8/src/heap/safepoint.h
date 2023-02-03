@@ -26,9 +26,6 @@ class IsolateSafepoint final {
  public:
   explicit IsolateSafepoint(Heap* heap);
 
-  V8_EXPORT_PRIVATE bool ContainsLocalHeap(LocalHeap* local_heap);
-  V8_EXPORT_PRIVATE bool ContainsAnyLocalHeap();
-
   // Iterate handles in local heaps
   void Iterate(RootVisitor* visitor);
 
@@ -44,7 +41,7 @@ class IsolateSafepoint final {
 
   void AssertActive() { local_heaps_mutex_.AssertHeld(); }
 
-  void AssertMainThreadIsOnlyThread();
+  V8_EXPORT_PRIVATE void AssertMainThreadIsOnlyThread();
 
  private:
   class Barrier {
@@ -97,7 +94,7 @@ class IsolateSafepoint final {
   void WaitUntilRunningThreadsInSafepoint(
       const PerClientSafepointData* client_data);
 
-  IncludeMainThread IncludeMainThreadUnlessInitiator(Isolate* initiator);
+  IncludeMainThread ShouldIncludeMainThread(Isolate* initiator);
 
   void LockMutex(LocalHeap* local_heap);
 
@@ -135,6 +132,9 @@ class IsolateSafepoint final {
       local_heaps_head_ = local_heap->next_;
   }
 
+  Isolate* isolate() const;
+  Isolate* shared_heap_isolate() const;
+
   Barrier barrier_;
   Heap* heap_;
 
@@ -145,18 +145,17 @@ class IsolateSafepoint final {
 
   int active_safepoint_scopes_;
 
-  friend class Heap;
   friend class GlobalSafepoint;
   friend class GlobalSafepointScope;
+  friend class Isolate;
+  friend class IsolateSafepointScope;
   friend class LocalHeap;
-  friend class PersistentHandles;
-  friend class SafepointScope;
 };
 
-class V8_NODISCARD SafepointScope {
+class V8_NODISCARD IsolateSafepointScope {
  public:
-  V8_EXPORT_PRIVATE explicit SafepointScope(Heap* heap);
-  V8_EXPORT_PRIVATE ~SafepointScope();
+  V8_EXPORT_PRIVATE explicit IsolateSafepointScope(Heap* heap);
+  V8_EXPORT_PRIVATE ~IsolateSafepointScope();
 
  private:
   IsolateSafepoint* safepoint_;
@@ -179,14 +178,15 @@ class GlobalSafepoint final {
     }
   }
 
-  void AssertNoClients();
+  void AssertNoClientsOnTearDown();
+
+  void AssertActive() { clients_mutex_.AssertHeld(); }
 
  private:
   void EnterGlobalSafepointScope(Isolate* initiator);
   void LeaveGlobalSafepointScope(Isolate* initiator);
 
-  Isolate* const shared_isolate_;
-  Heap* const shared_heap_;
+  Isolate* const shared_heap_isolate_;
   base::Mutex clients_mutex_;
   Isolate* clients_head_ = nullptr;
 
@@ -201,7 +201,19 @@ class V8_NODISCARD GlobalSafepointScope {
 
  private:
   Isolate* const initiator_;
-  Isolate* const shared_isolate_;
+  Isolate* const shared_heap_isolate_;
+};
+
+enum class SafepointKind { kIsolate, kGlobal };
+
+class V8_NODISCARD SafepointScope {
+ public:
+  V8_EXPORT_PRIVATE explicit SafepointScope(Isolate* initiator,
+                                            SafepointKind kind);
+
+ private:
+  base::Optional<IsolateSafepointScope> isolate_safepoint_;
+  base::Optional<GlobalSafepointScope> global_safepoint_;
 };
 
 }  // namespace internal

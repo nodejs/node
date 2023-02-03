@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow ternary operators",
+            description: "Disallow ternary operators",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-ternary"
         },

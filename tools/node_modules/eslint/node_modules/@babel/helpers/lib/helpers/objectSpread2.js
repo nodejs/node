@@ -4,31 +4,23 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = _objectSpread2;
-
 var _defineProperty = require("defineProperty");
-
 function ownKeys(object, enumerableOnly) {
   var keys = Object.keys(object);
-
   if (Object.getOwnPropertySymbols) {
     var symbols = Object.getOwnPropertySymbols(object);
-
     if (enumerableOnly) {
       symbols = symbols.filter(function (sym) {
         return Object.getOwnPropertyDescriptor(object, sym).enumerable;
       });
     }
-
     keys.push.apply(keys, symbols);
   }
-
   return keys;
 }
-
 function _objectSpread2(target) {
   for (var i = 1; i < arguments.length; i++) {
     var source = arguments[i] != null ? arguments[i] : {};
-
     if (i % 2) {
       ownKeys(Object(source), true).forEach(function (key) {
         _defineProperty(target, key, source[key]);
@@ -41,6 +33,7 @@ function _objectSpread2(target) {
       });
     }
   }
-
   return target;
 }
+
+//# sourceMappingURL=objectSpread2.js.map

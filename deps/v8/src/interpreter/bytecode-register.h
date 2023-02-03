@@ -26,8 +26,11 @@ class V8_EXPORT_PRIVATE Register final {
   bool is_parameter() const { return index() < 0; }
   bool is_valid() const { return index_ != kInvalidIndex; }
 
-  static Register FromParameterIndex(int index, int parameter_count);
-  int ToParameterIndex(int parameter_count) const;
+  static Register FromParameterIndex(int index);
+  int ToParameterIndex() const;
+
+  static Register receiver() { return FromParameterIndex(0); }
+  bool is_receiver() const { return ToParameterIndex() == 0; }
 
   // Returns an invalid register.
   static Register invalid_value() { return Register(); }
@@ -65,7 +68,7 @@ class V8_EXPORT_PRIVATE Register final {
     return Register(kRegisterFileStartOffset - operand);
   }
 
-  static Register FromShortStar(Bytecode bytecode) {
+  static constexpr Register FromShortStar(Bytecode bytecode) {
     DCHECK(Bytecodes::IsShortStar(bytecode));
     return Register(static_cast<int>(Bytecode::kStar0) -
                     static_cast<int>(bytecode));
@@ -87,7 +90,7 @@ class V8_EXPORT_PRIVATE Register final {
                             Register reg4 = invalid_value(),
                             Register reg5 = invalid_value());
 
-  std::string ToString(int parameter_count) const;
+  std::string ToString() const;
 
   bool operator==(const Register& other) const {
     return index() == other.index();
@@ -132,7 +135,7 @@ class RegisterList {
     DCHECK_LT(new_count, register_count_);
     return RegisterList(first_reg_index_, new_count);
   }
-  const RegisterList PopLeft() {
+  const RegisterList PopLeft() const {
     DCHECK_GE(register_count_, 0);
     return RegisterList(first_reg_index_ + 1, register_count_ - 1);
   }
@@ -158,6 +161,7 @@ class RegisterList {
   friend class InterpreterTester;
   friend class BytecodeUtils;
   friend class BytecodeArrayIterator;
+  friend class CallArguments;
 
   RegisterList(int first_reg_index, int register_count)
       : first_reg_index_(first_reg_index), register_count_(register_count) {}

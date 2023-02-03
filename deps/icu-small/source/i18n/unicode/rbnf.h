@@ -54,9 +54,27 @@ class RuleBasedCollator;
  * @stable ICU 2.2
  */
 enum URBNFRuleSetTag {
+    /**
+     * Requests predefined ruleset for spelling out numeric values in words.
+     * @stable ICU 2.2
+     */
     URBNF_SPELLOUT,
+    /**
+     * Requests predefined ruleset for the ordinal form of a number.
+     * @stable ICU 2.2
+     */
     URBNF_ORDINAL,
+    /**
+     * Requests predefined ruleset for formatting a value as a duration in hours, minutes, and seconds.
+     * @stable ICU 2.2
+     */
     URBNF_DURATION,
+    /**
+     * Requests predefined ruleset for various non-place-value numbering systems.
+     * WARNING: The same resource contains rule sets for a variety of different numbering systems.
+     * You need to call setDefaultRuleSet() on the formatter to choose the actual numbering system.
+     * @stable ICU 2.2
+     */
     URBNF_NUMBERING_SYSTEM,
 #ifndef U_HIDE_DEPRECATED_API
     /**
@@ -662,6 +680,9 @@ public:
    * URBNF_DURATION, which formats a duration in seconds as hours, minutes, and seconds always rounding down,
    * and URBNF_NUMBERING_SYSTEM, which is used to invoke rules for alternate numbering
    * systems such as the Hebrew numbering system, or for Roman Numerals, etc.
+   * NOTE: If you use URBNF_NUMBERING_SYSTEM, you must also call setDefaultRuleSet() to
+   * specify the exact numbering system you want to use.  If you want the default numbering system
+   * for the locale, call NumberFormat::createInstance() instead of creating a RuleBasedNumberFormat directly.
    * @param locale The locale for the formatter.
    * @param status The status indicating whether the constructor succeeded.
    * @stable ICU 2.0
@@ -1040,7 +1061,7 @@ public:
     virtual void setDecimalFormatSymbols(const DecimalFormatSymbols& symbols);
 
 private:
-    RuleBasedNumberFormat(); // default constructor not implemented
+    RuleBasedNumberFormat() = delete; // default constructor not implemented
 
     // this will ref the localizations if they are not NULL
     // caller must deref to get adoption

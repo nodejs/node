@@ -52,7 +52,9 @@ using v8_inspector::StringView;
 using v8_inspector::V8Inspector;
 using v8_inspector::V8InspectorClient;
 
+#ifdef __POSIX__
 static uv_sem_t start_io_thread_semaphore;
+#endif  // __POSIX__
 static uv_async_t start_io_thread_async;
 // This is just an additional check to make sure start_io_thread_async
 // is not accidentally re-used or used when uninitialized.
@@ -97,11 +99,11 @@ static int StartDebugSignalHandler() {
   pthread_attr_t attr;
   CHECK_EQ(0, pthread_attr_init(&attr));
 #if defined(PTHREAD_STACK_MIN) && !defined(__FreeBSD__)
-  // PTHREAD_STACK_MIN is 2 KB with musl libc, which is too small to safely
-  // receive signals. PTHREAD_STACK_MIN + MINSIGSTKSZ is 8 KB on arm64, which
+  // PTHREAD_STACK_MIN is 2 KiB with musl libc, which is too small to safely
+  // receive signals. PTHREAD_STACK_MIN + MINSIGSTKSZ is 8 KiB on arm64, which
   // is the musl architecture with the biggest MINSIGSTKSZ so let's use that
   // as a lower bound and let's quadruple it just in case. The goal is to avoid
-  // creating a big 2 or 4 MB address space gap (problematic on 32 bits
+  // creating a big 2 or 4 MiB address space gap (problematic on 32 bits
   // because of fragmentation), not squeeze out every last byte.
   // Omitted on FreeBSD because it doesn't seem to like small stacks.
   const size_t stack_size = std::max(static_cast<size_t>(4 * 8192),
@@ -217,7 +219,10 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
                        bool prevent_shutdown)
       : delegate_(std::move(delegate)), prevent_shutdown_(prevent_shutdown),
         retaining_context_(false) {
-    session_ = inspector->connect(CONTEXT_GROUP_ID, this, StringView());
+    session_ = inspector->connect(CONTEXT_GROUP_ID,
+                                  this,
+                                  StringView(),
+                                  V8Inspector::ClientTrustLevel::kFullyTrusted);
     node_dispatcher_ = std::make_unique<protocol::UberDispatcher>(this);
     tracing_agent_ =
         std::make_unique<protocol::TracingAgent>(env, main_thread_);
@@ -719,7 +724,8 @@ bool Agent::Start(const std::string& path,
   if (parent_handle_) {
     wait_for_connect = parent_handle_->WaitForConnect();
     parent_handle_->WorkerStarted(client_->getThreadHandle(), wait_for_connect);
-  } else if (!options.inspector_enabled || !StartIoThread()) {
+  } else if (!options.inspector_enabled || !options.allow_attaching_debugger ||
+             !StartIoThread()) {
     return false;
   }
 
@@ -914,6 +920,9 @@ void Agent::RequestIoThreadStart() {
   // We need to attempt to interrupt V8 flow (in case Node is running
   // continuous JS code) and to wake up libuv thread (in case Node is waiting
   // for IO events)
+  if (!options().allow_attaching_debugger) {
+    return;
+  }
   CHECK(start_io_thread_async_initialized);
   uv_async_send(&start_io_thread_async);
   parent_env_->RequestInterrupt([this](Environment*) {

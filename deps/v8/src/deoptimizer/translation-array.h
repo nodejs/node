@@ -5,7 +5,7 @@
 #ifndef V8_DEOPTIMIZER_TRANSLATION_ARRAY_H_
 #define V8_DEOPTIMIZER_TRANSLATION_ARRAY_H_
 
-#include "src/codegen/register-arch.h"
+#include "src/codegen/register.h"
 #include "src/deoptimizer/translation-opcode.h"
 #include "src/objects/fixed-array.h"
 #include "src/zone/zone-containers.h"
@@ -32,6 +32,8 @@ class TranslationArrayIterator {
 
   int32_t Next();
 
+  uint32_t NextUnsigned();
+
   bool HasNext() const;
 
   void Skip(int n) {
@@ -55,7 +57,7 @@ class TranslationArrayBuilder {
                        int update_feedback_count) {
     int start_index = Size();
     auto opcode = TranslationOpcode::BEGIN;
-    Add(opcode);
+    AddOpcode(opcode);
     Add(frame_count);
     Add(jsframe_count);
     Add(update_feedback_count);
@@ -66,7 +68,7 @@ class TranslationArrayBuilder {
   void BeginInterpretedFrame(BytecodeOffset bytecode_offset, int literal_id,
                              unsigned height, int return_value_offset,
                              int return_value_count);
-  void BeginArgumentsAdaptorFrame(int literal_id, unsigned height);
+  void BeginInlinedExtraArguments(int literal_id, unsigned height);
   void BeginConstructStubFrame(BytecodeOffset bailout_id, int literal_id,
                                unsigned height);
   void BeginBuiltinContinuationFrame(BytecodeOffset bailout_id, int literal_id,
@@ -88,6 +90,8 @@ class TranslationArrayBuilder {
   void StoreRegister(Register reg);
   void StoreInt32Register(Register reg);
   void StoreInt64Register(Register reg);
+  void StoreSignedBigInt64Register(Register reg);
+  void StoreUnsignedBigInt64Register(Register reg);
   void StoreUint32Register(Register reg);
   void StoreBoolRegister(Register reg);
   void StoreFloatRegister(FloatRegister reg);
@@ -95,24 +99,30 @@ class TranslationArrayBuilder {
   void StoreStackSlot(int index);
   void StoreInt32StackSlot(int index);
   void StoreInt64StackSlot(int index);
+  void StoreSignedBigInt64StackSlot(int index);
+  void StoreUnsignedBigInt64StackSlot(int index);
   void StoreUint32StackSlot(int index);
   void StoreBoolStackSlot(int index);
   void StoreFloatStackSlot(int index);
   void StoreDoubleStackSlot(int index);
   void StoreLiteral(int literal_id);
+  void StoreOptimizedOut();
   void StoreJSFrameFunction();
 
  private:
   void Add(int32_t value);
-  void Add(TranslationOpcode opcode) { Add(static_cast<int32_t>(opcode)); }
+  void AddOpcode(TranslationOpcode opcode);
+  void AddRegister(Register reg);
+  void AddFloatRegister(FloatRegister reg);
+  void AddDoubleRegister(DoubleRegister reg);
 
   int Size() const {
-    return V8_UNLIKELY(FLAG_turbo_compress_translation_arrays)
+    return V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)
                ? static_cast<int>(contents_for_compression_.size())
                : static_cast<int>(contents_.size());
   }
   int SizeInBytes() const {
-    return V8_UNLIKELY(FLAG_turbo_compress_translation_arrays)
+    return V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)
                ? Size() * kInt32Size
                : Size();
   }

@@ -26,8 +26,8 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-if (process.config.variables.arm_version === '7') {
-  common.skip('Too slow for armv7 bots');
+if (common.isPi) {
+  common.skip('Too slow for Raspberry Pi devices');
 }
 
 const assert = require('assert');

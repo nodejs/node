@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require variables within the same declaration block to be sorted",
+            description: "Require variables within the same declaration block to be sorted",
             recommended: false,
             url: "https://eslint.org/docs/rules/sort-vars"
         },

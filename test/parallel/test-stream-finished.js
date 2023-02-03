@@ -660,8 +660,24 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
       { method: 'GET', port: this.address().port },
       common.mustCall(function(res) {
         res.resume();
-        server.close();
+        finished(res, common.mustCall(() => {
+          server.close();
+        }));
       })
     ).end();
   });
+}
+
+{
+  const stream = new Duplex({
+    write(chunk, enc, cb) {
+      setImmediate(cb);
+    }
+  });
+
+  stream.end('foo');
+
+  finished(stream, { readable: false }, common.mustCall((err) => {
+    assert(!err);
+  }));
 }

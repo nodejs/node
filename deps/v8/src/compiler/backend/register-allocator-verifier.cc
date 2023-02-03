@@ -362,7 +362,7 @@ bool BlockAssessments::IsStaleReferenceStackSlot(InstructionOperand op) {
 
 void BlockAssessments::Print() const {
   StdoutStream os;
-  for (const auto pair : map()) {
+  for (const auto& pair : map()) {
     const InstructionOperand op = pair.first;
     const Assessment* assessment = pair.second;
     // Use operator<< so we can write the assessment on the same

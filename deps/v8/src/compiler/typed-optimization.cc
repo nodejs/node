@@ -328,16 +328,14 @@ Reduction TypedOptimization::ReduceNumberFloor(Node* node) {
       //
       // with
       //
-      //   NumberToUint32(NumberDivide(lhs, rhs))
+      //   Unsigned32Divide(lhs, rhs)
       //
-      // and just smash the type [0...lhs.Max] on the {node},
+      // and have the new node typed to [0...lhs.Max],
       // as the truncated result must be lower than {lhs}'s maximum
       // value (note that {rhs} cannot be less than 1 due to the
       // plain-number type constraint on the {node}).
-      NodeProperties::ChangeOp(node, simplified()->NumberToUint32());
-      NodeProperties::SetType(node,
-                              Type::Range(0, lhs_type.Max(), graph()->zone()));
-      return Changed(node);
+      node = graph()->NewNode(simplified()->Unsigned32Divide(), lhs, rhs);
+      return Replace(node);
     }
   }
   return NoChange();
@@ -410,6 +408,20 @@ Reduction TypedOptimization::ReduceReferenceEqual(Node* node) {
       return Replace(jsgraph()->FalseConstant());
     }
   }
+  if (rhs_type.Is(Type::Boolean()) && rhs_type.IsHeapConstant() &&
+      lhs_type.Is(Type::Boolean())) {
+    base::Optional<bool> maybe_result =
+        rhs_type.AsHeapConstant()->Ref().TryGetBooleanValue();
+    if (maybe_result.has_value()) {
+      if (maybe_result.value()) {
+        return Replace(node->InputAt(0));
+      } else {
+        node->TrimInputCount(1);
+        NodeProperties::ChangeOp(node, simplified()->BooleanNot());
+        return Changed(node);
+      }
+    }
+  }
   return NoChange();
 }
 
@@ -432,7 +444,7 @@ Reduction TypedOptimization::
         Node* comparison, const StringRef& string, bool inverted) {
   switch (comparison->opcode()) {
     case IrOpcode::kStringEqual:
-      if (string.length().has_value() && string.length().value() != 1) {
+      if (string.length() != 1) {
         // String.fromCharCode(x) always has length 1.
         return Replace(jsgraph()->BooleanConstant(false));
       }
@@ -440,7 +452,7 @@ Reduction TypedOptimization::
     case IrOpcode::kStringLessThan:
       V8_FALLTHROUGH;
     case IrOpcode::kStringLessThanOrEqual:
-      if (string.length().has_value() && string.length().value() == 0) {
+      if (string.length() == 0) {
         // String.fromCharCode(x) <= "" is always false,
         // "" < String.fromCharCode(x) is always true.
         return Replace(jsgraph()->BooleanConstant(inverted));
@@ -488,7 +500,7 @@ TypedOptimization::TryReduceStringComparisonOfStringFromSingleCharCode(
   Node* number_comparison = nullptr;
   if (inverted) {
     // "x..." <= String.fromCharCode(z) is true if x < z.
-    if (string.length().has_value() && string.length().value() > 1 &&
+    if (string.length() > 1 &&
         comparison->opcode() == IrOpcode::kStringLessThanOrEqual) {
       comparison_op = simplified()->NumberLessThan();
     }
@@ -496,7 +508,7 @@ TypedOptimization::TryReduceStringComparisonOfStringFromSingleCharCode(
         graph()->NewNode(comparison_op, constant_repl, from_char_code_repl);
   } else {
     // String.fromCharCode(z) < "x..." is true if z <= x.
-    if (string.length().has_value() && string.length().value() > 1 &&
+    if (string.length() > 1 &&
         comparison->opcode() == IrOpcode::kStringLessThan) {
       comparison_op = simplified()->NumberLessThanOrEqual();
     }
@@ -558,17 +570,20 @@ Reduction TypedOptimization::ReduceStringLength(Node* node) {
       // Constant-fold the String::length of the {input}.
       HeapObjectMatcher m(input);
       if (m.Ref(broker()).IsString()) {
-        if (m.Ref(broker()).AsString().length().has_value()) {
-          uint32_t const length = m.Ref(broker()).AsString().length().value();
-          Node* value = jsgraph()->Constant(length);
-          return Replace(value);
-        }
+        uint32_t const length = m.Ref(broker()).AsString().length();
+        Node* value = jsgraph()->Constant(length);
+        return Replace(value);
       }
       break;
     }
     case IrOpcode::kStringConcat: {
       // The first value input to the {input} is the resulting length.
       return Replace(input->InputAt(0));
+    }
+    case IrOpcode::kStringFromSingleCharCode: {
+      // Note that this isn't valid for StringFromCodePointAt, since it the
+      // string it returns can be 1 or 2 characters long.
+      return Replace(jsgraph()->Constant(1));
     }
     default:
       break;

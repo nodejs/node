@@ -5,10 +5,12 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "bytesinkutil.h"
 #include "cstring.h"
 #include "number_decimalquantity.h"
 #include "resource.h"
 #include "uassert.h"
+#include "unicode/locid.h"
 #include "unicode/unistr.h"
 #include "unicode/ures.h"
 #include "units_data.h"
@@ -387,24 +389,97 @@ U_I18N_API UnitPreferences::UnitPreferences(UErrorCode &status) {
     ures_getAllItemsWithFallback(unitsBundle.getAlias(), "unitPreferenceData", sink, status);
 }
 
-// TODO: make outPreferences const?
-//
-// TODO: consider replacing `UnitPreference **&outPreferences` with slice class
-// of some kind.
-void U_I18N_API UnitPreferences::getPreferencesFor(StringPiece category, StringPiece usage,
-                                                   StringPiece region,
-                                                   const UnitPreference *const *&outPreferences,
-                                                   int32_t &preferenceCount, UErrorCode &status) const {
-    int32_t idx = getPreferenceMetadataIndex(&metadata_, category, usage, region, status);
-    if (U_FAILURE(status)) {
-        outPreferences = nullptr;
-        preferenceCount = 0;
-        return;
+CharString getKeyWordValue(const Locale &locale, StringPiece kw, UErrorCode &status) {
+    CharString result;
+    if (U_FAILURE(status)) { return result; }
+    {
+        CharStringByteSink sink(&result);
+        locale.getKeywordValue(kw, sink, status);
     }
+    if (U_SUCCESS(status) && result.isEmpty()) {
+        status = U_MISSING_RESOURCE_ERROR;
+    }
+    return result;
+}
+
+MaybeStackVector<UnitPreference>
+    U_I18N_API UnitPreferences::getPreferencesFor(StringPiece category, StringPiece usage,
+                                                  const Locale &locale, UErrorCode &status) const {
+
+    MaybeStackVector<UnitPreference> result;
+
+    // TODO: remove this once all the categories are allowed.
+    UErrorCode internalMuStatus = U_ZERO_ERROR;
+    if (category.compare("temperature") == 0) {
+        CharString localeUnitCharString = getKeyWordValue(locale, "mu", internalMuStatus);
+        if (U_SUCCESS(internalMuStatus)) {
+            // TODO: use the unit category as Java especially when all the categories are allowed..
+            if (localeUnitCharString == "celsius"       //
+                || localeUnitCharString == "fahrenheit" //
+                || localeUnitCharString == "kelvin"     //
+            ) {
+                UnitPreference unitPref;
+                unitPref.unit.append(localeUnitCharString, status);
+                result.emplaceBackAndCheckErrorCode(status, unitPref);
+                return result;
+            }
+        }
+    }
+
+    CharString region(locale.getCountry(), status);
+
+    // Check the locale system tag, e.g `ms=metric`.
+    UErrorCode internalMeasureTagStatus = U_ZERO_ERROR;
+    CharString localeSystem = getKeyWordValue(locale, "measure", internalMeasureTagStatus);
+    bool isLocaleSystem = false;
+    if (U_SUCCESS(internalMeasureTagStatus)) {
+        if (localeSystem == "metric") {
+            region.clear();
+            region.append("001", status);
+            isLocaleSystem = true;
+        } else if (localeSystem == "ussystem") {
+            region.clear();
+            region.append("US", status);
+            isLocaleSystem = true;
+        } else if (localeSystem == "uksystem") {
+            region.clear();
+            region.append("GB", status);
+            isLocaleSystem = true;
+        }
+    }
+
+    // Check the region tag, e.g. `rg=uszzz`.
+    if (!isLocaleSystem) {
+        UErrorCode internalRgTagStatus = U_ZERO_ERROR;
+        CharString localeRegion = getKeyWordValue(locale, "rg", internalRgTagStatus);
+        if (U_SUCCESS(internalRgTagStatus) && localeRegion.length() >= 3) {
+            if (localeRegion == "default") {
+                region.clear();
+                region.append(localeRegion, status);
+            } else if (localeRegion[0] >= '0' && localeRegion[0] <= '9') {
+                region.clear();
+                region.append(localeRegion.data(), 3, status);
+            } else {
+                // Take the first two character and capitalize them.
+                region.clear();
+                region.append(uprv_toupper(localeRegion[0]), status);
+                region.append(uprv_toupper(localeRegion[1]), status);
+            }
+        }
+    }
+
+    int32_t idx =
+        getPreferenceMetadataIndex(&metadata_, category, usage, region.toStringPiece(), status);
+    if (U_FAILURE(status)) {
+        return result;
+    }
+
     U_ASSERT(idx >= 0); // Failures should have been taken care of by `status`.
     const UnitPreferenceMetadata *m = metadata_[idx];
-    outPreferences = unitPrefs_.getAlias() + m->prefsOffset;
-    preferenceCount = m->prefsCount;
+    for (int32_t i = 0; i < m->prefsCount; i++) {
+        result.emplaceBackAndCheckErrorCode(status, *(unitPrefs_[i + m->prefsOffset]));
+    }
+    return result;
 }
 
 } // namespace units

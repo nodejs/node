@@ -15,9 +15,13 @@
         }
         mq.addEventListener('change', mqChangeListener);
         if (themeToggleButton) {
-          themeToggleButton.addEventListener('click', function() {
-            mq.removeEventListener('change', mqChangeListener);
-          }, { once: true });
+          themeToggleButton.addEventListener(
+            'click',
+            function() {
+              mq.removeEventListener('change', mqChangeListener);
+            },
+            { once: true },
+          );
         }
       }
 
@@ -33,7 +37,7 @@
       themeToggleButton.addEventListener('click', function() {
         sessionStorage.setItem(
           kCustomPreference,
-          document.documentElement.classList.toggle('dark-mode')
+          document.documentElement.classList.toggle('dark-mode'),
         );
       });
     }
@@ -60,7 +64,7 @@
     for (const picker of pickers) {
       const parentNode = picker.parentNode;
 
-      picker.addEventListener('click', (e) => {
+      picker.addEventListener('click', function(e) {
         e.preventDefault();
 
         /*
@@ -76,7 +80,7 @@
           to close pickers if needed.
         */
 
-        requestAnimationFrame(() => {
+        requestAnimationFrame(function() {
           parentNode.classList.add('expanded');
           window.addEventListener('click', closeAllPickers);
           window.addEventListener('keydown', onKeyDown);
@@ -90,9 +94,9 @@
     let ignoreNextIntersection = false;
 
     new IntersectionObserver(
-      ([e]) => {
+      function(e) {
         const currentStatus = header.classList.contains('is-pinned');
-        const newStatus = e.intersectionRatio < 1;
+        const newStatus = e[0].intersectionRatio < 1;
 
         // Same status, do nothing
         if (currentStatus === newStatus) {
@@ -109,28 +113,44 @@
           The timer is reset anyway after few milliseconds.
         */
         ignoreNextIntersection = true;
-        setTimeout(() => {
+        setTimeout(function() {
           ignoreNextIntersection = false;
         }, 50);
 
         header.classList.toggle('is-pinned', newStatus);
       },
-      { threshold: [1] }
+      { threshold: [1] },
     ).observe(header);
   }
 
+  function setupAltDocsLink() {
+    const linkWrapper = document.getElementById('alt-docs');
+
+    function updateHashes() {
+      for (const link of linkWrapper.querySelectorAll('a')) {
+        link.hash = location.hash;
+      }
+    }
+
+    addEventListener('hashchange', updateHashes);
+    updateHashes();
+  }
+
   function bootstrap() {
-    // Check if we have JavaScript support
+    // Check if we have JavaScript support.
     document.documentElement.classList.add('has-js');
 
-    // Restore user mode preferences
+    // Restore user mode preferences.
     setupTheme();
 
-    // Handle pickers with click/taps rather than hovers
+    // Handle pickers with click/taps rather than hovers.
     setupPickers();
 
-    // Track when the header is in sticky position
+    // Track when the header is in sticky position.
     setupStickyHeaders();
+
+    // Make link to other versions of the doc open to the same hash target (if it exists).
+    setupAltDocsLink();
   }
 
   if (document.readyState === 'loading') {

@@ -1,4 +1,4 @@
-# Modules: `module` API
+# Modules: `node:module` API
 
 <!--introduced_in=v12.20.0-->
 
@@ -12,7 +12,7 @@ added: v0.3.7
 
 Provides general utility methods when interacting with instances of
 `Module`, the [`module`][] variable often seen in [CommonJS][] modules. Accessed
-via `import 'module'` or `require('module')`.
+via `import 'node:module'` or `require('node:module')`.
 
 ### `module.builtinModules`
 
@@ -34,13 +34,13 @@ by the [module wrapper][]. To access it, require the `Module` module:
 ```mjs
 // module.mjs
 // In an ECMAScript module
-import { builtinModules as builtin } from 'module';
+import { builtinModules as builtin } from 'node:module';
 ```
 
 ```cjs
 // module.cjs
 // In a CommonJS module
-const builtin = require('module').builtinModules;
+const builtin = require('node:module').builtinModules;
 ```
 
 ### `module.createRequire(filename)`
@@ -55,11 +55,29 @@ added: v12.2.0
 * Returns: {require} Require function
 
 ```mjs
-import { createRequire } from 'module';
+import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 
 // sibling-module.js is a CommonJS module.
 const siblingModule = require('./sibling-module');
+```
+
+### `module.isBuiltin(moduleName)`
+
+<!-- YAML
+added:
+  - v18.6.0
+  - v16.17.0
+-->
+
+* `moduleName` {string} name of the module
+* Returns: {boolean} returns true if the module is builtin else returns false
+
+```mjs
+import { isBuiltin } from 'node:module';
+isBuiltin('node:fs'); // true
+isBuiltin('fs'); // true
+isBuiltin('wss'); // false
 ```
 
 ### `module.syncBuiltinESMExports()`
@@ -73,9 +91,9 @@ builtin [ES Modules][] to match the properties of the [CommonJS][] exports. It
 does not add or remove exported names from the [ES Modules][].
 
 ```js
-const fs = require('fs');
-const assert = require('assert');
-const { syncBuiltinESMExports } = require('module');
+const fs = require('node:fs');
+const assert = require('node:assert');
+const { syncBuiltinESMExports } = require('node:module');
 
 fs.readFile = newAPI;
 
@@ -89,7 +107,7 @@ fs.newAPI = newAPI;
 
 syncBuiltinESMExports();
 
-import('fs').then((esmFS) => {
+import('node:fs').then((esmFS) => {
   // It syncs the existing readFile property with the new value
   assert.strictEqual(esmFS.readFile, newAPI);
   // readFileSync has been deleted from the required fs
@@ -122,13 +140,13 @@ To enable source map parsing, Node.js must be run with the flag
 ```mjs
 // module.mjs
 // In an ECMAScript module
-import { findSourceMap, SourceMap } from 'module';
+import { findSourceMap, SourceMap } from 'node:module';
 ```
 
 ```cjs
 // module.cjs
 // In a CommonJS module
-const { findSourceMap, SourceMap } = require('module');
+const { findSourceMap, SourceMap } = require('node:module');
 ```
 
 <!-- Anchors to make sure old links find a target -->
@@ -144,7 +162,8 @@ added:
 -->
 
 * `path` {string}
-* Returns: {module.SourceMap}
+* Returns: {module.SourceMap|undefined} Returns `module.SourceMap` if a source
+  map is found, `undefined` otherwise.
 
 `path` is the resolved path for the file for which a corresponding source map
 should be fetched.

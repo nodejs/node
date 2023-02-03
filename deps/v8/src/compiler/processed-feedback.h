@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_PROCESSED_FEEDBACK_H_
 #define V8_COMPILER_PROCESSED_FEEDBACK_H_
 
-#include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
 
 namespace v8 {
@@ -20,7 +19,7 @@ class ForInFeedback;
 class GlobalAccessFeedback;
 class InstanceOfFeedback;
 class LiteralFeedback;
-class MinimorphicLoadPropertyAccessFeedback;
+class MegaDOMPropertyAccessFeedback;
 class NamedAccessFeedback;
 class RegExpLiteralFeedback;
 class TemplateObjectFeedback;
@@ -37,7 +36,7 @@ class ProcessedFeedback : public ZoneObject {
     kGlobalAccess,
     kInstanceOf,
     kLiteral,
-    kMinimorphicPropertyAccess,
+    kMegaDOMPropertyAccess,
     kNamedAccess,
     kRegExpLiteral,
     kTemplateObject,
@@ -55,8 +54,7 @@ class ProcessedFeedback : public ZoneObject {
   GlobalAccessFeedback const& AsGlobalAccess() const;
   InstanceOfFeedback const& AsInstanceOf() const;
   NamedAccessFeedback const& AsNamedAccess() const;
-  MinimorphicLoadPropertyAccessFeedback const& AsMinimorphicPropertyAccess()
-      const;
+  MegaDOMPropertyAccessFeedback const& AsMegaDOMPropertyAccess() const;
   LiteralFeedback const& AsLiteral() const;
   RegExpLiteralFeedback const& AsRegExpLiteral() const;
   TemplateObjectFeedback const& AsTemplateObject() const;
@@ -173,25 +171,15 @@ class NamedAccessFeedback : public ProcessedFeedback {
   ZoneVector<MapRef> const maps_;
 };
 
-class MinimorphicLoadPropertyAccessFeedback : public ProcessedFeedback {
+class MegaDOMPropertyAccessFeedback : public ProcessedFeedback {
  public:
-  MinimorphicLoadPropertyAccessFeedback(NameRef const& name,
-                                        FeedbackSlotKind slot_kind,
-                                        Handle<Object> handler,
-                                        ZoneVector<MapRef> const& maps,
-                                        bool has_migration_target_maps);
+  MegaDOMPropertyAccessFeedback(FunctionTemplateInfoRef info_ref,
+                                FeedbackSlotKind slot_kind);
 
-  NameRef const& name() const { return name_; }
-  bool is_monomorphic() const { return maps_.size() == 1; }
-  Handle<Object> handler() const { return handler_; }
-  ZoneVector<MapRef> const& maps() const { return maps_; }
-  bool has_migration_target_maps() const { return has_migration_target_maps_; }
+  FunctionTemplateInfoRef const& info() const { return info_; }
 
  private:
-  NameRef const name_;
-  Handle<Object> const handler_;
-  ZoneVector<MapRef> const maps_;
-  bool const has_migration_target_maps_;
+  FunctionTemplateInfoRef const info_;
 };
 
 class CallFeedback : public ProcessedFeedback {

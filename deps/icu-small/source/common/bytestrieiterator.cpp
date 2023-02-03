@@ -101,12 +101,12 @@ BytesTrie::Iterator::hasNext() const { return pos_!=NULL || !stack_->isEmpty(); 
 UBool
 BytesTrie::Iterator::next(UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) {
-        return FALSE;
+        return false;
     }
     const uint8_t *pos=pos_;
     if(pos==NULL) {
         if(stack_->isEmpty()) {
-            return FALSE;
+            return false;
         }
         // Pop the state off the stack and continue with the next outbound edge of
         // the branch node.
@@ -119,7 +119,7 @@ BytesTrie::Iterator::next(UErrorCode &errorCode) {
         if(length>1) {
             pos=branchNext(pos, length, errorCode);
             if(pos==NULL) {
-                return TRUE;  // Reached a final value.
+                return true;  // Reached a final value.
             }
         } else {
             str_->append((char)*pos++, errorCode);
@@ -141,7 +141,7 @@ BytesTrie::Iterator::next(UErrorCode &errorCode) {
             } else {
                 pos_=skipValue(pos, node);
             }
-            return TRUE;
+            return true;
         }
         if(maxLength_>0 && str_->length()==maxLength_) {
             return truncateAndStop();
@@ -152,7 +152,7 @@ BytesTrie::Iterator::next(UErrorCode &errorCode) {
             }
             pos=branchNext(pos, node+1, errorCode);
             if(pos==NULL) {
-                return TRUE;  // Reached a final value.
+                return true;  // Reached a final value.
             }
         } else {
             // Linear-match node, append length bytes to str_.
@@ -177,7 +177,7 @@ UBool
 BytesTrie::Iterator::truncateAndStop() {
     pos_=NULL;
     value_=-1;  // no real value for str
-    return TRUE;
+    return true;
 }
 
 // Branch node, needs to take the first outbound edge and push state for the rest.

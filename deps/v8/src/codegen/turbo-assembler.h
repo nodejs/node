@@ -80,7 +80,6 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
 
   static int32_t RootRegisterOffsetForRootIndex(RootIndex root_index);
   static int32_t RootRegisterOffsetForBuiltin(Builtin builtin);
-  static int32_t RootRegisterOffsetForBuiltinCodeDataContainer(Builtin builtin);
 
   // Returns the root-relative offset to reference.address().
   static intptr_t RootRegisterOffsetForExternalReference(
@@ -96,7 +95,7 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   static bool IsAddressableThroughRootRegister(
       Isolate* isolate, const ExternalReference& reference);
 
-#if defined(V8_TARGET_OS_WIN) || defined(V8_TARGET_OS_MACOSX)
+#if defined(V8_TARGET_OS_WIN) || defined(V8_TARGET_OS_MACOS)
   // Minimum page size. We must touch memory once per page when expanding the
   // stack, to avoid access violations.
   static constexpr int kStackPageSize = 4 * KB;
@@ -104,18 +103,11 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
 
   V8_INLINE std::string CommentForOffHeapTrampoline(const char* prefix,
                                                     Builtin builtin) {
-    if (!FLAG_code_comments) return "";
+    if (!v8_flags.code_comments) return "";
     std::ostringstream str;
     str << "Inlined  Trampoline for " << prefix << " to "
         << Builtins::name(builtin);
     return str.str();
-  }
-
-  V8_INLINE void RecordCommentForOffHeapTrampoline(Builtin builtin) {
-    if (!FLAG_code_comments) return;
-    std::ostringstream str;
-    str << "[ Inlined Trampoline to " << Builtins::name(builtin);
-    RecordComment(str.str().c_str());
   }
 
   enum class RecordWriteCallMode { kDefault, kWasm };
@@ -130,7 +122,7 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   bool root_array_available_ = true;
 
   // Immediately trap instead of calling {Abort} when debug code fails.
-  bool trap_on_abort_ = FLAG_trap_on_abort;
+  bool trap_on_abort_ = v8_flags.trap_on_abort;
 
   // Emit a C call to abort instead of a runtime call.
   bool hard_abort_ = false;

@@ -1,9 +1,7 @@
 Breakpoint in liveedited script
 Update script source
 {
-    callFrames : [
-    ]
-    stackChanged : false
+    status : Ok
 }
 Set breakpoint
 {

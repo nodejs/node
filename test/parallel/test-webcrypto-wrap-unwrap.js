@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 const kWrappingData = {
   'RSA-OAEP': {
@@ -108,6 +108,38 @@ async function generateKeysToWrap() {
       algorithm: {
         name: 'ECDH',
         namedCurve: 'P-384'
+      },
+      privateUsages: ['deriveBits'],
+      publicUsages: [],
+      pair: true,
+    },
+    {
+      algorithm: {
+        name: 'Ed25519',
+      },
+      privateUsages: ['sign'],
+      publicUsages: ['verify'],
+      pair: true,
+    },
+    {
+      algorithm: {
+        name: 'Ed448',
+      },
+      privateUsages: ['sign'],
+      publicUsages: ['verify'],
+      pair: true,
+    },
+    {
+      algorithm: {
+        name: 'X25519',
+      },
+      privateUsages: ['deriveBits'],
+      publicUsages: [],
+      pair: true,
+    },
+    {
+      algorithm: {
+        name: 'X448',
       },
       privateUsages: ['deriveBits'],
       publicUsages: [],

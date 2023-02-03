@@ -11,6 +11,9 @@ let contextGroup2 = new InspectorTest.ContextGroup();
 let session2 = contextGroup2.connect();
 let Protocol2 = session2.Protocol;
 
+session1.setupScriptMap();
+session2.setupScriptMap();
+
 let utilsScript = `
 function store(description) {
   let buffer = inspector.storeCurrentStackTrace(description);
@@ -23,11 +26,10 @@ function started(id) {
 
 function finished(id) {
   inspector.externalAsyncTaskFinished(Int32Array.from(JSON.parse(id)).buffer);
-}
-//# sourceURL=utils.js`;
+}`;
 
-contextGroup1.addScript(utilsScript);
-contextGroup2.addScript(utilsScript);
+contextGroup1.addScript(utilsScript, 0, 0, 'utils.js');
+contextGroup2.addScript(utilsScript, 0, 0, 'utils.js');
 
 InspectorTest.runAsyncTestSuite([
   async function testDebuggerId() {

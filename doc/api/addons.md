@@ -9,7 +9,7 @@ _Addons_ are dynamically-linked shared objects written in C++. The
 Addons provide an interface between JavaScript and C/C++ libraries.
 
 There are three options for implementing addons: Node-API, nan, or direct
-use of internal V8, libuv and Node.js libraries. Unless there is a need for
+use of internal V8, libuv, and Node.js libraries. Unless there is a need for
 direct access to functionality which is not exposed by Node-API, use Node-API.
 Refer to [C/C++ addons with Node-API](n-api.md) for more information on
 Node-API.
@@ -27,7 +27,7 @@ involving knowledge of several components and APIs:
   threads and all of the asynchronous behaviors of the platform. It also
   serves as a cross-platform abstraction library, giving easy, POSIX-like
   access across all major operating systems to many common system tasks, such
-  as interacting with the filesystem, sockets, timers, and system events. libuv
+  as interacting with the file system, sockets, timers, and system events. libuv
   also provides a threading abstraction similar to POSIX threads for
   more sophisticated asynchronous addons that need to move beyond the
   standard event loop. Addon authors should
@@ -40,7 +40,7 @@ involving knowledge of several components and APIs:
 
 * Node.js includes other statically linked libraries including OpenSSL. These
   other libraries are located in the `deps/` directory in the Node.js source
-  tree. Only the libuv, OpenSSL, V8 and zlib symbols are purposefully
+  tree. Only the libuv, OpenSSL, V8, and zlib symbols are purposefully
   re-exported by Node.js and may be used to various extents by addons. See
   [Linking to libraries included with Node.js][] for additional information.
 
@@ -106,6 +106,9 @@ and the addon module name is `addon`.
 When building addons with `node-gyp`, using the macro `NODE_GYP_MODULE_NAME` as
 the first parameter of `NODE_MODULE()` will ensure that the name of the final
 binary will be passed to `NODE_MODULE()`.
+
+Addons defined with `NODE_MODULE()` can not be loaded in multiple contexts or
+multiple threads at the same time.
 
 ### Context-aware addons
 
@@ -393,7 +396,7 @@ try {
 
 ### Linking to libraries included with Node.js
 
-Node.js uses statically linked libraries such as V8, libuv and OpenSSL. All
+Node.js uses statically linked libraries such as V8, libuv, and OpenSSL. All
 addons are required to link to V8 and may link to any of the other dependencies
 as well. Typically, this is as simple as including the appropriate
 `#include <...>` statements (e.g. `#include <v8.h>`) and `node-gyp` will locate

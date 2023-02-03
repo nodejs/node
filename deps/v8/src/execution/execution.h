@@ -68,9 +68,8 @@ class Execution final : public AllStatic {
       bool reschedule_terminate = true);
 
   // Convenience method for performing RunMicrotasks
-  static MaybeHandle<Object> TryRunMicrotasks(
-      Isolate* isolate, MicrotaskQueue* microtask_queue,
-      MaybeHandle<Object>* exception_out);
+  static MaybeHandle<Object> TryRunMicrotasks(Isolate* isolate,
+                                              MicrotaskQueue* microtask_queue);
 
 #if V8_ENABLE_WEBASSEMBLY
   // Call a Wasm function identified by {wasm_call_target} through the

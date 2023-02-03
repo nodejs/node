@@ -8,6 +8,9 @@ on:
 env:
   NODE_VERSION: lts/*
 
+permissions:
+  contents: read
+
 jobs:
   build-lto:
     runs-on: ubuntu-latest

@@ -119,7 +119,7 @@ auto GdbServer::RunSyncTask(Functor&& callback) const {
 
 // static
 std::unique_ptr<GdbServer> GdbServer::Create() {
-  DCHECK(FLAG_wasm_gdb_remote);
+  DCHECK(v8_flags.wasm_gdb_remote);
 
   std::unique_ptr<GdbServer> gdb_server(new GdbServer());
 
@@ -377,7 +377,7 @@ void GdbServer::AddWasmModule(uint32_t module_id,
       std::make_pair(module_id, WasmModuleDebug(isolate, wasm_script)));
   has_module_list_changed_ = true;
 
-  if (FLAG_wasm_pause_waiting_for_debugger && scripts_.size() == 1) {
+  if (v8_flags.wasm_pause_waiting_for_debugger && scripts_.size() == 1) {
     TRACE_GDB_REMOTE("Paused, waiting for a debugger to attach...\n");
     Suspend();
   }

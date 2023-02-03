@@ -8,12 +8,8 @@
 #include <map>
 #include <memory>
 
-#include "include/v8-inspector.h"
-#include "include/v8-platform.h"
-#include "src/base/macros.h"
 #include "src/base/platform/platform.h"
-#include "src/base/vector.h"
-#include "src/utils/locked-queue-inl.h"
+#include "src/utils/locked-queue.h"
 #include "test/inspector/isolate-data.h"
 
 namespace v8 {

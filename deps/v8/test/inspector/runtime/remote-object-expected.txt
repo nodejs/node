@@ -395,6 +395,23 @@ Running test: testBigInt
         unserializableValue : -5n
     }
 }
+'1n << 9_999_999n', returnByValue: false, generatePreview: false
+{
+    result : {
+        description : 0x800000000000000000000000000000000000000000000000…000000000000000000000000000000000000000000000000n
+        type : bigint
+        unserializableValue : <expected unserializableValue>
+    }
+}
+'-1n << 9_999_999n', returnByValue: false, generatePreview: false
+100
+{
+    result : {
+        description : -0x80000000000000000000000000000000000000000000000…000000000000000000000000000000000000000000000000n
+        type : bigint
+        unserializableValue : <expected unserializableValue>
+    }
+}
 
 Running test: testRegExp
 '/w+/d', returnByValue: false, generatePreview: false
@@ -618,6 +635,47 @@ Running test: testDate
                     type : number
                     value : 2
                 }
+            ]
+            subtype : date
+            type : object
+        }
+        subtype : date
+        type : object
+    }
+}
+'a = new Date(2018, 9, 31); a.toString = date => 'bar'; a', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Date
+        description : <expected description>
+        objectId : <objectId>
+        preview : {
+            description : <expected description>
+            overflow : false
+            properties : [
+                [0] : {
+                    name : toString
+                    type : function
+                    value : 
+                }
+            ]
+            subtype : date
+            type : object
+        }
+        subtype : date
+        type : object
+    }
+}
+'a = new Date(2018, 9, 31); a[Symbol.toPrimitive] = date => 'bar'; a', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Date
+        description : <expected description>
+        objectId : <objectId>
+        preview : {
+            description : <expected description>
+            overflow : false
+            properties : [
             ]
             subtype : date
             type : object
@@ -1224,7 +1282,7 @@ Running test: testWeakMap
                             [0] : {
                                 name : setTimeout
                                 type : function
-                                value :
+                                value : 
                             }
                             [1] : {
                                 name : inspector
@@ -1308,7 +1366,7 @@ Running test: testWeakSet
                             [0] : {
                                 name : setTimeout
                                 type : function
-                                value :
+                                value : 
                             }
                             [1] : {
                                 name : inspector
@@ -2693,7 +2751,7 @@ Running test: testOtherObjects
                     [0] : {
                         name : a
                         type : function
-                        value :
+                        value : 
                     }
                 ]
                 type : object
@@ -2883,12 +2941,12 @@ Running test: testOtherObjects
                     [0] : {
                         name : a1
                         type : function
-                        value :
+                        value : 
                     }
                     [1] : {
                         name : a2
                         type : function
-                        value :
+                        value : 
                     }
                 ]
                 type : object

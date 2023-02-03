@@ -107,7 +107,7 @@ appendResult(UChar *dest, int32_t destIndex, int32_t destCapacity,
         /* append the result */
         if(c>=0) {
             /* code point */
-            UBool isError=FALSE;
+            UBool isError=false;
             U16_APPEND(dest, destIndex, destCapacity, c, isError);
             if(isError) {
                 /* overflow, nothing written */
@@ -1087,12 +1087,12 @@ UBool isFollowedByCasedLetter(const UChar *s, int32_t i, int32_t length) {
         if ((type & UCASE_IGNORABLE) != 0) {
             // Case-ignorable, continue with the loop.
         } else if (type != UCASE_NONE) {
-            return TRUE;  // Followed by cased letter.
+            return true;  // Followed by cased letter.
         } else {
-            return FALSE;  // Uncased and not case-ignorable.
+            return false;  // Uncased and not case-ignorable.
         }
     }
-    return FALSE;  // Not followed by cased letter.
+    return false;  // Not followed by cased letter.
 }
 
 /**
@@ -1155,7 +1155,7 @@ int32_t toUpper(uint32_t options,
                 nextState |= AFTER_VOWEL_WITH_ACCENT;
             }
             // Map according to Greek rules.
-            UBool addTonos = FALSE;
+            UBool addTonos = false;
             if (upper == 0x397 &&
                     (data & HAS_ACCENT) != 0 &&
                     numYpogegrammeni == 0 &&
@@ -1166,7 +1166,7 @@ int32_t toUpper(uint32_t options,
                 if (i == nextIndex) {
                     upper = 0x389;  // Preserve the precomposed form.
                 } else {
-                    addTonos = TRUE;
+                    addTonos = true;
                 }
             } else if ((data & HAS_DIALYTIKA) != 0) {
                 // Preserve a vowel with dialytika in precomposed form if it exists.
@@ -1181,7 +1181,7 @@ int32_t toUpper(uint32_t options,
 
             UBool change;
             if (edits == nullptr && (options & U_OMIT_UNCHANGED_TEXT) == 0) {
-                change = TRUE;  // common, simple usage
+                change = true;  // common, simple usage
             } else {
                 // Find out first whether we are changing the text.
                 change = src[i] != upper || numYpogegrammeni > 0;

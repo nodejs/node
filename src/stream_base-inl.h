@@ -160,11 +160,11 @@ int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
   return err;
 }
 
-StreamWriteResult StreamBase::Write(
-    uv_buf_t* bufs,
-    size_t count,
-    uv_stream_t* send_handle,
-    v8::Local<v8::Object> req_wrap_obj) {
+StreamWriteResult StreamBase::Write(uv_buf_t* bufs,
+                                    size_t count,
+                                    uv_stream_t* send_handle,
+                                    v8::Local<v8::Object> req_wrap_obj,
+                                    bool skip_try_write) {
   Environment* env = stream_env();
   int err;
 
@@ -173,7 +173,7 @@ StreamWriteResult StreamBase::Write(
     total_bytes += bufs[i].len;
   bytes_written_ += total_bytes;
 
-  if (send_handle == nullptr) {
+  if (send_handle == nullptr && !skip_try_write) {
     err = DoTryWrite(&bufs, &count);
     if (err != 0 || count == 0) {
       return StreamWriteResult { false, err, nullptr, total_bytes, {} };

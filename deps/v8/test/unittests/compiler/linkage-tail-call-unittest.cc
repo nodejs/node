@@ -42,15 +42,12 @@ class LinkageTailCall : public TestWithZone {
         LinkageLocation::ForAnyRegister(MachineType::Pointer()),
         locations,  // location_sig
         stack_arguments,
-        Operator::kNoProperties,   // properties
-        0,                         // callee-saved
-        0,                         // callee-saved fp
-        CallDescriptor::kNoFlags,  // flags,
-        "", StackArgumentOrder::kDefault,
-#if V8_ENABLE_WEBASSEMBLY
-        nullptr,  // wasm function sig
-#endif
-        0,  // allocatable_registers
+        Operator::kNoProperties,           // properties
+        kNoCalleeSaved,                    // callee-saved
+        kNoCalleeSavedFp,                  // callee-saved fp
+        CallDescriptor::kNoFlags,          // flags,
+        "", StackArgumentOrder::kDefault,  // --
+        RegList{},                         // allocatable_registers
         stack_returns);
   }
 

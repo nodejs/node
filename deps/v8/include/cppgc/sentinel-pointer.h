@@ -13,9 +13,9 @@ namespace internal {
 // Special tag type used to denote some sentinel member. The semantics of the
 // sentinel is defined by the embedder.
 struct SentinelPointer {
+  static constexpr intptr_t kSentinelValue = 0b10;
   template <typename T>
   operator T*() const {
-    static constexpr intptr_t kSentinelValue = 1;
     return reinterpret_cast<T*>(kSentinelValue);
   }
   // Hidden friends.

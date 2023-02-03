@@ -11,7 +11,7 @@
 #include "src/compiler/typer.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
+#include "test/common/value-helper.h"
 
 namespace v8 {
 namespace internal {
@@ -19,29 +19,29 @@ namespace compiler {
 
 template <typename T>
 const Operator* NewConstantOperator(CommonOperatorBuilder* common,
-                                    volatile T value);
+                                    T value);
 
 template <>
 const Operator* NewConstantOperator<int32_t>(CommonOperatorBuilder* common,
-                                             volatile int32_t value) {
+                                             int32_t value) {
   return common->Int32Constant(value);
 }
 
 template <>
 const Operator* NewConstantOperator<int64_t>(CommonOperatorBuilder* common,
-                                             volatile int64_t value) {
+                                             int64_t value) {
   return common->Int64Constant(value);
 }
 
 template <>
 const Operator* NewConstantOperator<double>(CommonOperatorBuilder* common,
-                                            volatile double value) {
+                                            double value) {
   return common->Float64Constant(value);
 }
 
 template <>
 const Operator* NewConstantOperator<float>(CommonOperatorBuilder* common,
-                                           volatile float value) {
+                                           float value) {
   return common->Float32Constant(value);
 }
 
@@ -107,7 +107,7 @@ class ReducerTester : public HandleAndZoneScope {
   GraphReducer graph_reducer;
 
   template <typename T>
-  Node* Constant(volatile T value) {
+  Node* Constant(T value) {
     return graph.NewNode(NewConstantOperator<T>(&common, value));
   }
 
@@ -119,14 +119,14 @@ class ReducerTester : public HandleAndZoneScope {
   // Check that the reduction of this binop applied to constants {a} and {b}
   // yields the {expect} value.
   template <typename T>
-  void CheckFoldBinop(volatile T expect, volatile T a, volatile T b) {
+  void CheckFoldBinop(T expect, T a, T b) {
     CheckFoldBinop<T>(expect, Constant<T>(a), Constant<T>(b));
   }
 
   // Check that the reduction of this binop applied to {a} and {b} yields
   // the {expect} value.
   template <typename T>
-  void CheckFoldBinop(volatile T expect, Node* a, Node* b) {
+  void CheckFoldBinop(T expect, Node* a, Node* b) {
     CHECK(binop);
     Node* n = CreateBinopNode(a, b);
     MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
@@ -172,7 +172,7 @@ class ReducerTester : public HandleAndZoneScope {
   // Check that the reduction of this binop applied to {left} and {right} yields
   // the {op_expect} applied to {left_expect} and {right_expect}.
   template <typename T>
-  void CheckFoldBinop(volatile T left_expect, const Operator* op_expect,
+  void CheckFoldBinop(T left_expect, const Operator* op_expect,
                       Node* right_expect, Node* left, Node* right) {
     CHECK(binop);
     Node* n = CreateBinopNode(left, right);
@@ -188,7 +188,7 @@ class ReducerTester : public HandleAndZoneScope {
   // the {op_expect} applied to {left_expect} and {right_expect}.
   template <typename T>
   void CheckFoldBinop(Node* left_expect, const Operator* op_expect,
-                      volatile T right_expect, Node* left, Node* right) {
+                      T right_expect, Node* left, Node* right) {
     CHECK(binop);
     Node* n = CreateBinopNode(left, right);
     MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
@@ -204,7 +204,7 @@ class ReducerTester : public HandleAndZoneScope {
   // Check that if the given constant appears on the left, the reducer will
   // swap it to be on the right.
   template <typename T>
-  void CheckPutConstantOnRight(volatile T constant) {
+  void CheckPutConstantOnRight(T constant) {
     // TODO(titzer): CHECK(binop->HasProperty(Operator::kCommutative));
     Node* p = Parameter();
     Node* k = Constant<T>(constant);
@@ -229,7 +229,7 @@ class ReducerTester : public HandleAndZoneScope {
   // Check that if the given constant appears on the left, the reducer will
   // *NOT* swap it to be on the right.
   template <typename T>
-  void CheckDontPutConstantOnRight(volatile T constant) {
+  void CheckDontPutConstantOnRight(T constant) {
     CHECK(!binop->HasProperty(Operator::kCommutative));
     Node* p = Parameter();
     Node* k = Constant<T>(constant);

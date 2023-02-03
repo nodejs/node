@@ -63,10 +63,6 @@ class StreamTester {
 
   void FinishStream() { stream_->Finish(); }
 
-  void SetCompiledModuleBytes(const uint8_t* start, size_t length) {
-    stream_->SetCompiledModuleBytes(base::Vector<const uint8_t>(start, length));
-  }
-
  private:
   i::HandleScope internal_scope_;
   std::shared_ptr<StreamingDecoder> stream_;
@@ -303,11 +299,13 @@ void TestModuleSharingBetweenIsolates() {
 }
 
 UNINITIALIZED_TEST(TwoIsolatesShareNativeModule) {
+  v8_flags.wasm_lazy_compilation = false;
   TestModuleSharingBetweenIsolates();
 }
 
 UNINITIALIZED_TEST(TwoIsolatesShareNativeModuleWithPku) {
-  FLAG_wasm_memory_protection_keys = true;
+  v8_flags.wasm_lazy_compilation = false;
+  v8_flags.wasm_memory_protection_keys = true;
   TestModuleSharingBetweenIsolates();
 }
 

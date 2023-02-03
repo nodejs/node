@@ -550,7 +550,8 @@ const char *EVP_KEYEXCH_get0_description(const EVP_KEYEXCH *keyexch)
 
 int EVP_KEYEXCH_is_a(const EVP_KEYEXCH *keyexch, const char *name)
 {
-    return evp_is_a(keyexch->prov, keyexch->name_id, NULL, name);
+    return keyexch != NULL
+           && evp_is_a(keyexch->prov, keyexch->name_id, NULL, name);
 }
 
 void EVP_KEYEXCH_do_all_provided(OSSL_LIB_CTX *libctx,

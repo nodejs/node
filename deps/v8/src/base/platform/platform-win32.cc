@@ -19,7 +19,8 @@
 
 // This has to come after windows.h.
 #include <VersionHelpers.h>
-#include <dbghelp.h>   // For SymLoadModule64 and al.
+#include <dbghelp.h>  // For SymLoadModule64 and al.
+#include <malloc.h>   // For _msize()
 #include <mmsystem.h>  // For timeGetTime().
 #include <tlhelp32.h>  // For Module32First and al.
 
@@ -39,25 +40,25 @@
 #endif               // defined(_MSC_VER)
 
 // Check that type sizes and alignments match.
-STATIC_ASSERT(sizeof(V8_CONDITION_VARIABLE) == sizeof(CONDITION_VARIABLE));
-STATIC_ASSERT(alignof(V8_CONDITION_VARIABLE) == alignof(CONDITION_VARIABLE));
-STATIC_ASSERT(sizeof(V8_SRWLOCK) == sizeof(SRWLOCK));
-STATIC_ASSERT(alignof(V8_SRWLOCK) == alignof(SRWLOCK));
-STATIC_ASSERT(sizeof(V8_CRITICAL_SECTION) == sizeof(CRITICAL_SECTION));
-STATIC_ASSERT(alignof(V8_CRITICAL_SECTION) == alignof(CRITICAL_SECTION));
+static_assert(sizeof(V8_CONDITION_VARIABLE) == sizeof(CONDITION_VARIABLE));
+static_assert(alignof(V8_CONDITION_VARIABLE) == alignof(CONDITION_VARIABLE));
+static_assert(sizeof(V8_SRWLOCK) == sizeof(SRWLOCK));
+static_assert(alignof(V8_SRWLOCK) == alignof(SRWLOCK));
+static_assert(sizeof(V8_CRITICAL_SECTION) == sizeof(CRITICAL_SECTION));
+static_assert(alignof(V8_CRITICAL_SECTION) == alignof(CRITICAL_SECTION));
 
 // Check that CRITICAL_SECTION offsets match.
-STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, DebugInfo) ==
+static_assert(offsetof(V8_CRITICAL_SECTION, DebugInfo) ==
               offsetof(CRITICAL_SECTION, DebugInfo));
-STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, LockCount) ==
+static_assert(offsetof(V8_CRITICAL_SECTION, LockCount) ==
               offsetof(CRITICAL_SECTION, LockCount));
-STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, RecursionCount) ==
+static_assert(offsetof(V8_CRITICAL_SECTION, RecursionCount) ==
               offsetof(CRITICAL_SECTION, RecursionCount));
-STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, OwningThread) ==
+static_assert(offsetof(V8_CRITICAL_SECTION, OwningThread) ==
               offsetof(CRITICAL_SECTION, OwningThread));
-STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, LockSemaphore) ==
+static_assert(offsetof(V8_CRITICAL_SECTION, LockSemaphore) ==
               offsetof(CRITICAL_SECTION, LockSemaphore));
-STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, SpinCount) ==
+static_assert(offsetof(V8_CRITICAL_SECTION, SpinCount) ==
               offsetof(CRITICAL_SECTION, SpinCount));
 
 // Extra functions for MinGW. Most of these are the _s functions which are in
@@ -87,6 +88,11 @@ int localtime_s(tm* out_tm, const time_t* time) {
 
 int fopen_s(FILE** pFile, const char* filename, const char* mode) {
   *pFile = fopen(filename, mode);
+  return *pFile != nullptr ? 0 : 1;
+}
+
+int _wfopen_s(FILE** pFile, const wchar_t* filename, const wchar_t* mode) {
+  *pFile = _wfopen(filename, mode);
   return *pFile != nullptr ? 0 : 1;
 }
 
@@ -593,10 +599,25 @@ static void VPrintHelper(FILE* stream, const char* format, va_list args) {
   }
 }
 
+// Convert utf-8 encoded string to utf-16 encoded.
+static std::wstring ConvertUtf8StringToUtf16(const char* str) {
+  // On Windows wchar_t must be a 16-bit value.
+  static_assert(sizeof(wchar_t) == 2, "wrong wchar_t size");
+  std::wstring utf16_str;
+  int name_length = static_cast<int>(strlen(str));
+  int len = MultiByteToWideChar(CP_UTF8, 0, str, name_length, nullptr, 0);
+  if (len > 0) {
+    utf16_str.resize(len);
+    MultiByteToWideChar(CP_UTF8, 0, str, name_length, &utf16_str[0], len);
+  }
+  return utf16_str;
+}
 
 FILE* OS::FOpen(const char* path, const char* mode) {
   FILE* result;
-  if (fopen_s(&result, path, mode) == 0) {
+  std::wstring utf16_path = ConvertUtf8StringToUtf16(path);
+  std::wstring utf16_mode = ConvertUtf8StringToUtf16(mode);
+  if (_wfopen_s(&result, utf16_path.c_str(), utf16_mode.c_str()) == 0) {
     return result;
   } else {
     return nullptr;
@@ -722,15 +743,29 @@ void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
   g_hard_abort = hard_abort;
 }
 
-typedef PVOID (*VirtualAlloc2_t)(HANDLE, PVOID, SIZE_T, ULONG, ULONG,
-                                 MEM_EXTENDED_PARAMETER*, ULONG);
-VirtualAlloc2_t VirtualAlloc2;
+typedef PVOID(__stdcall* VirtualAlloc2_t)(HANDLE, PVOID, SIZE_T, ULONG, ULONG,
+                                          MEM_EXTENDED_PARAMETER*, ULONG);
+VirtualAlloc2_t VirtualAlloc2 = nullptr;
+
+typedef PVOID(__stdcall* MapViewOfFile3_t)(HANDLE, HANDLE, PVOID, ULONG64,
+                                           SIZE_T, ULONG, ULONG,
+                                           MEM_EXTENDED_PARAMETER*, ULONG);
+MapViewOfFile3_t MapViewOfFile3 = nullptr;
+
+typedef PVOID(__stdcall* UnmapViewOfFile2_t)(HANDLE, PVOID, ULONG);
+UnmapViewOfFile2_t UnmapViewOfFile2 = nullptr;
 
 void OS::EnsureWin32MemoryAPILoaded() {
   static bool loaded = false;
   if (!loaded) {
     VirtualAlloc2 = (VirtualAlloc2_t)GetProcAddress(
         GetModuleHandle(L"kernelbase.dll"), "VirtualAlloc2");
+
+    MapViewOfFile3 = (MapViewOfFile3_t)GetProcAddress(
+        GetModuleHandle(L"kernelbase.dll"), "MapViewOfFile3");
+
+    UnmapViewOfFile2 = (UnmapViewOfFile2_t)GetProcAddress(
+        GetModuleHandle(L"kernelbase.dll"), "UnmapViewOfFile2");
 
     loaded = true;
   }
@@ -815,43 +850,48 @@ DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   UNREACHABLE();
 }
 
-void* VirtualAllocWrapper(void* hint, size_t size, DWORD flags, DWORD protect) {
+// Desired access parameter for MapViewOfFile
+DWORD GetFileViewAccessFromMemoryPermission(OS::MemoryPermission access) {
+  switch (access) {
+    case OS::MemoryPermission::kNoAccess:
+    case OS::MemoryPermission::kNoAccessWillJitLater:
+    case OS::MemoryPermission::kRead:
+      return FILE_MAP_READ;
+    case OS::MemoryPermission::kReadWrite:
+      return FILE_MAP_READ | FILE_MAP_WRITE;
+    default:
+      // Execute access is not supported
+      break;
+  }
+  UNREACHABLE();
+}
+
+void* VirtualAllocWrapper(void* address, size_t size, DWORD flags,
+                          DWORD protect) {
   if (VirtualAlloc2) {
-    return VirtualAlloc2(nullptr, hint, size, flags, protect, NULL, 0);
+    return VirtualAlloc2(GetCurrentProcess(), address, size, flags, protect,
+                         NULL, 0);
   } else {
-    return VirtualAlloc(hint, size, flags, protect);
+    return VirtualAlloc(address, size, flags, protect);
   }
 }
 
-uint8_t* RandomizedVirtualAlloc(size_t size, DWORD flags, DWORD protect,
-                                void* hint) {
-  LPVOID base = nullptr;
-  static BOOL use_aslr = -1;
-#ifdef V8_HOST_ARCH_32_BIT
-  // Don't bother randomizing on 32-bit hosts, because they lack the room and
-  // don't have viable ASLR anyway.
-  if (use_aslr == -1 && !IsWow64Process(GetCurrentProcess(), &use_aslr))
-    use_aslr = FALSE;
-#else
-  use_aslr = TRUE;
-#endif
-
-  if (use_aslr && protect != PAGE_READWRITE) {
-    // For executable or reserved pages try to randomize the allocation address.
-    base = VirtualAllocWrapper(hint, size, flags, protect);
-  }
+uint8_t* VirtualAllocWithHint(size_t size, DWORD flags, DWORD protect,
+                              void* hint) {
+  LPVOID base = VirtualAllocWrapper(hint, size, flags, protect);
 
   // On failure, let the OS find an address to use.
-  if (base == nullptr) {
+  if (hint && base == nullptr) {
     base = VirtualAllocWrapper(nullptr, size, flags, protect);
   }
+
   return reinterpret_cast<uint8_t*>(base);
 }
 
 void* AllocateInternal(void* hint, size_t size, size_t alignment,
                        size_t page_size, DWORD flags, DWORD protect) {
   // First, try an exact size aligned allocation.
-  uint8_t* base = RandomizedVirtualAlloc(size, flags, protect, hint);
+  uint8_t* base = VirtualAllocWithHint(size, flags, protect, hint);
   if (base == nullptr) return nullptr;  // Can't allocate, we're OOM.
 
   // If address is suitably aligned, we're done.
@@ -871,7 +911,7 @@ void* AllocateInternal(void* hint, size_t size, size_t alignment,
   const int kMaxAttempts = 3;
   aligned_base = nullptr;
   for (int i = 0; i < kMaxAttempts; ++i) {
-    base = RandomizedVirtualAlloc(padded_size, flags, protect, hint);
+    base = VirtualAllocWithHint(padded_size, flags, protect, hint);
     if (base == nullptr) return nullptr;  // Can't allocate, we're OOM.
 
     // Try to trim the allocation by freeing the padded allocation and then
@@ -887,6 +927,13 @@ void* AllocateInternal(void* hint, size_t size, size_t alignment,
   }
   DCHECK_IMPLIES(base, base == aligned_base);
   return reinterpret_cast<void*>(base);
+}
+
+void CheckIsOOMError(int error) {
+  // We expect one of ERROR_NOT_ENOUGH_MEMORY or ERROR_COMMITMENT_LIMIT. We'd
+  // still like to get the actual error code when its not one of the expected
+  // errors, so use the construct below to achieve that.
+  if (error != ERROR_NOT_ENOUGH_MEMORY) CHECK_EQ(ERROR_COMMITMENT_LIMIT, error);
 }
 
 }  // namespace
@@ -909,18 +956,46 @@ void* OS::Allocate(void* hint, size_t size, size_t alignment,
 }
 
 // static
-bool OS::Free(void* address, const size_t size) {
+void OS::Free(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % AllocatePageSize());
   DCHECK_EQ(0, size % AllocatePageSize());
   USE(size);
-  return VirtualFree(address, 0, MEM_RELEASE) != 0;
+  CHECK_NE(0, VirtualFree(address, 0, MEM_RELEASE));
 }
 
 // static
-bool OS::Release(void* address, size_t size) {
+void* OS::AllocateShared(void* hint, size_t size, MemoryPermission permission,
+                         PlatformSharedMemoryHandle handle, uint64_t offset) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(hint) % AllocatePageSize());
+  DCHECK_EQ(0, size % AllocatePageSize());
+  DCHECK_EQ(0, offset % AllocatePageSize());
+
+  DWORD off_hi = static_cast<DWORD>(offset >> 32);
+  DWORD off_lo = static_cast<DWORD>(offset);
+  DWORD access = GetFileViewAccessFromMemoryPermission(permission);
+
+  HANDLE file_mapping = FileMappingFromSharedMemoryHandle(handle);
+  void* result =
+      MapViewOfFileEx(file_mapping, access, off_hi, off_lo, size, hint);
+
+  if (!result) {
+    // Retry without hint.
+    result = MapViewOfFile(file_mapping, access, off_hi, off_lo, size);
+  }
+
+  return result;
+}
+
+// static
+void OS::FreeShared(void* address, size_t size) {
+  CHECK(UnmapViewOfFile(address));
+}
+
+// static
+void OS::Release(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
-  return VirtualFree(address, size, MEM_DECOMMIT) != 0;
+  CHECK_NE(0, VirtualFree(address, size, MEM_DECOMMIT));
 }
 
 // static
@@ -931,7 +1006,28 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
     return VirtualFree(address, size, MEM_DECOMMIT) != 0;
   }
   DWORD protect = GetProtectionFromMemoryPermission(access);
-  return VirtualAllocWrapper(address, size, MEM_COMMIT, protect) != nullptr;
+  void* result = VirtualAllocWrapper(address, size, MEM_COMMIT, protect);
+
+  // Any failure that's not OOM likely indicates a bug in the caller (e.g.
+  // using an invalid mapping) so attempt to catch that here to facilitate
+  // debugging of these failures.
+  if (!result) CheckIsOOMError(GetLastError());
+
+  return result != nullptr;
+}
+
+void OS::SetDataReadOnly(void* address, size_t size) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+
+  unsigned long old_protection;
+  CHECK(VirtualProtect(address, size, PAGE_READONLY, &old_protection));
+  CHECK_EQ(PAGE_READWRITE, old_protection);
+}
+
+// static
+bool OS::RecommitPages(void* address, size_t size, MemoryPermission access) {
+  return SetPermissions(address, size, access);
 }
 
 // static
@@ -977,7 +1073,10 @@ bool OS::DecommitPages(void* address, size_t size) {
 }
 
 // static
-bool OS::CanReserveAddressSpace() { return VirtualAlloc2 != nullptr; }
+bool OS::CanReserveAddressSpace() {
+  return VirtualAlloc2 != nullptr && MapViewOfFile3 != nullptr &&
+         UnmapViewOfFile2 != nullptr;
+}
 
 // static
 Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
@@ -1001,8 +1100,23 @@ Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
 }
 
 // static
-bool OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
-  return OS::Free(reservation.base(), reservation.size());
+void OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
+  OS::Free(reservation.base(), reservation.size());
+}
+
+// static
+PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
+  HANDLE handle = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr,
+                                    PAGE_READWRITE, 0, size, nullptr);
+  if (!handle) return kInvalidSharedMemoryHandle;
+  return SharedMemoryHandleFromFileMapping(handle);
+}
+
+// static
+void OS::DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle) {
+  DCHECK_NE(kInvalidSharedMemoryHandle, handle);
+  HANDLE file_mapping = FileMappingFromSharedMemoryHandle(handle);
+  CHECK(CloseHandle(file_mapping));
 }
 
 // static
@@ -1077,8 +1191,11 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
   if (mode == FileMode::kReadWrite) {
     access |= GENERIC_WRITE;
   }
-  HANDLE file = CreateFileA(name, access, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                            nullptr, OPEN_EXISTING, 0, nullptr);
+
+  std::wstring utf16_name = ConvertUtf8StringToUtf16(name);
+  HANDLE file = CreateFileW(utf16_name.c_str(), access,
+                            FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                            OPEN_EXISTING, 0, nullptr);
   if (file == INVALID_HANDLE_VALUE) return nullptr;
 
   DWORD size = GetFileSize(file, nullptr);
@@ -1101,8 +1218,9 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
 // static
 OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
                                                    size_t size, void* initial) {
+  std::wstring utf16_name = ConvertUtf8StringToUtf16(name);
   // Open a physical file.
-  HANDLE file = CreateFileA(name, GENERIC_READ | GENERIC_WRITE,
+  HANDLE file = CreateFileW(utf16_name.c_str(), GENERIC_READ | GENERIC_WRITE,
                             FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                             OPEN_ALWAYS, 0, nullptr);
   if (file == nullptr) return nullptr;
@@ -1159,7 +1277,8 @@ bool AddressSpaceReservation::Allocate(void* address, size_t size,
                     ? MEM_RESERVE | MEM_REPLACE_PLACEHOLDER
                     : MEM_RESERVE | MEM_COMMIT | MEM_REPLACE_PLACEHOLDER;
   DWORD protect = GetProtectionFromMemoryPermission(access);
-  return VirtualAlloc2(nullptr, address, size, flags, protect, NULL, 0);
+  return VirtualAlloc2(GetCurrentProcess(), address, size, flags, protect,
+                       nullptr, 0);
 }
 
 bool AddressSpaceReservation::Free(void* address, size_t size) {
@@ -1167,10 +1286,37 @@ bool AddressSpaceReservation::Free(void* address, size_t size) {
   return VirtualFree(address, size, MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER);
 }
 
+bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
+                                             OS::MemoryPermission access,
+                                             PlatformSharedMemoryHandle handle,
+                                             uint64_t offset) {
+  DCHECK(Contains(address, size));
+  CHECK(MapViewOfFile3);
+
+  DWORD protect = GetProtectionFromMemoryPermission(access);
+  HANDLE file_mapping = FileMappingFromSharedMemoryHandle(handle);
+  return MapViewOfFile3(file_mapping, GetCurrentProcess(), address, offset,
+                        size, MEM_REPLACE_PLACEHOLDER, protect, nullptr, 0);
+}
+
+bool AddressSpaceReservation::FreeShared(void* address, size_t size) {
+  DCHECK(Contains(address, size));
+  CHECK(UnmapViewOfFile2);
+
+  return UnmapViewOfFile2(GetCurrentProcess(), address,
+                          MEM_PRESERVE_PLACEHOLDER);
+}
+
 bool AddressSpaceReservation::SetPermissions(void* address, size_t size,
                                              OS::MemoryPermission access) {
   DCHECK(Contains(address, size));
   return OS::SetPermissions(address, size, access);
+}
+
+bool AddressSpaceReservation::RecommitPages(void* address, size_t size,
+                                            OS::MemoryPermission access) {
+  DCHECK(Contains(address, size));
+  return OS::RecommitPages(address, size, access);
 }
 
 bool AddressSpaceReservation::DiscardSystemPages(void* address, size_t size) {

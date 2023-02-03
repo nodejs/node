@@ -39,15 +39,13 @@ There are some special life cycle scripts that happen only in certain
 situations. These scripts happen in addition to the `pre<event>`, `post<event>`, and
 `<event>` scripts.
 
-* `prepare`, `prepublish`, `prepublishOnly`, `prepack`, `postpack`
+* `prepare`, `prepublish`, `prepublishOnly`, `prepack`, `postpack`, `dependencies`
 
 **prepare** (since `npm@4.0.0`)
-* Runs any time before the package is packed, i.e. during `npm publish`
+* Runs BEFORE the package is packed, i.e. during `npm publish`
     and `npm pack`
-* Runs BEFORE the package is packed
-* Runs BEFORE the package is published
 * Runs on local `npm install` without any arguments
-* Run AFTER `prepublish`, but BEFORE `prepublishOnly`
+* Runs AFTER `prepublish`, but BEFORE `prepublishOnly`
 
 * NOTE: If a package being installed through git contains a `prepare`
  script, its `dependencies` and `devDependencies` will be installed, and
@@ -65,11 +63,15 @@ situations. These scripts happen in addition to the `pre<event>`, `post<event>`,
 * Runs BEFORE the package is prepared and packed, ONLY on `npm publish`.
 
 **prepack**
-* Runs BEFORE a tarball is packed (on "`npm pack`", "`npm publish`", and when installing a git dependencies).
+* Runs BEFORE a tarball is packed (on "`npm pack`", "`npm publish`", and when installing a git dependency).
 * NOTE: "`npm run pack`" is NOT the same as "`npm pack`". "`npm run pack`" is an arbitrary user defined script name, where as, "`npm pack`" is a CLI defined command.
 
 **postpack**
 * Runs AFTER the tarball has been generated but before it is moved to its final destination (if at all, publish does not save the tarball locally)
+
+**dependencies**
+* Runs AFTER any operations that modify the `node_modules` directory IF changes occurred.
+* Does NOT run in global mode
 
 #### Prepare and Prepublish
 
@@ -95,6 +97,10 @@ The advantage of doing these things at `prepublish` time is that they can be don
   the size for your users.
 * You don't need to rely on your users having `curl` or `wget` or
   other system tools on the target machines.
+
+#### Dependencies
+
+The `dependencies` script is run any time an `npm` command causes changes to the `node_modules` directory. It is run AFTER the changes have been applied and the `package.json` and `package-lock.json` files have been updated.
 
 ### Life Cycle Operation Order
 
@@ -202,6 +208,12 @@ will default the `start` command to `node server.js`.  `prestart` and
 * `pretest`
 * `test`
 * `posttest`
+
+#### [`npm version`](/commands/npm-version)
+
+* `preversion`
+* `version`
+* `postversion`
 
 #### A Note on a lack of [`npm uninstall`](/commands/npm-uninstall) scripts
 

@@ -1018,7 +1018,7 @@ Handle<ByteArray> RegExpBytecodePeepholeOptimization::OptimizeBytecode(
   Handle<ByteArray> array = isolate->factory()->NewByteArray(peephole.Length());
   peephole.CopyOptimizedBytecode(array->GetDataStartAddress());
 
-  if (did_optimize && FLAG_trace_regexp_peephole_optimization) {
+  if (did_optimize && v8_flags.trace_regexp_peephole_optimization) {
     PrintF("Original Bytecode:\n");
     RegExpBytecodeDisassemble(bytecode, length, source->ToCString().get());
     PrintF("Optimized Bytecode:\n");

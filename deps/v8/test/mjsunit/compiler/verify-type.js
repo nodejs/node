@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-stress-opt --no-always-opt --no-concurrent-recompilation
+// Flags: --allow-natives-syntax --no-always-turbofan --no-concurrent-recompilation
 
 function foo(x) {
   return %VerifyType(x * x);

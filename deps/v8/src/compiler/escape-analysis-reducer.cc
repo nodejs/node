@@ -6,8 +6,8 @@
 
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/operation-typer.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/type-cache.h"
 #include "src/execution/frame-constants.h"
 
 namespace v8 {
@@ -15,19 +15,20 @@ namespace internal {
 namespace compiler {
 
 #ifdef DEBUG
-#define TRACE(...)                                    \
-  do {                                                \
-    if (FLAG_trace_turbo_escape) PrintF(__VA_ARGS__); \
+#define TRACE(...)                                        \
+  do {                                                    \
+    if (v8_flags.trace_turbo_escape) PrintF(__VA_ARGS__); \
   } while (false)
 #else
 #define TRACE(...)
 #endif  // DEBUG
 
 EscapeAnalysisReducer::EscapeAnalysisReducer(
-    Editor* editor, JSGraph* jsgraph, EscapeAnalysisResult analysis_result,
-    Zone* zone)
+    Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker,
+    EscapeAnalysisResult analysis_result, Zone* zone)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
+      broker_(broker),
       analysis_result_(analysis_result),
       object_id_cache_(zone),
       node_cache_(jsgraph->graph(), zone),
@@ -221,6 +222,7 @@ void EscapeAnalysisReducer::VerifyReplacement() const {
 }
 
 void EscapeAnalysisReducer::Finalize() {
+  OperationTyper op_typer(broker_, jsgraph()->graph()->zone());
   for (Node* node : arguments_elements_) {
     const NewArgumentsElementsParameters& params =
         NewArgumentsElementsParametersOf(node->op());
@@ -318,17 +320,21 @@ void EscapeAnalysisReducer::Finalize() {
             Node* offset = jsgraph()->graph()->NewNode(
                 jsgraph()->simplified()->NumberAdd(), index,
                 offset_to_first_elem);
+            Type offset_type = op_typer.NumberAdd(
+                NodeProperties::GetType(index),
+                NodeProperties::GetType(offset_to_first_elem));
+            NodeProperties::SetType(offset, offset_type);
             if (type == CreateArgumentsType::kRestParameter) {
               // In the case of rest parameters we should skip the formal
               // parameters.
-              NodeProperties::SetType(offset,
-                                      TypeCache::Get()->kArgumentsLengthType);
               offset = jsgraph()->graph()->NewNode(
                   jsgraph()->simplified()->NumberAdd(), offset,
                   formal_parameter_count);
+              NodeProperties::SetType(
+                  offset, op_typer.NumberAdd(
+                              offset_type,
+                              NodeProperties::GetType(formal_parameter_count)));
             }
-            NodeProperties::SetType(offset,
-                                    TypeCache::Get()->kArgumentsLengthType);
             Node* frame = jsgraph()->graph()->NewNode(
                 jsgraph()->machine()->LoadFramePointer());
             NodeProperties::SetType(frame, Type::ExternalPointer());

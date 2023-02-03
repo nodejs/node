@@ -1,8 +1,9 @@
 const updateScripts = ({ content, originalContent = {} }) => {
   const newScripts = content.scripts
 
-  if (!newScripts)
+  if (!newScripts) {
     return originalContent
+  }
 
   // validate scripts content being appended
   const hasInvalidScripts = () =>

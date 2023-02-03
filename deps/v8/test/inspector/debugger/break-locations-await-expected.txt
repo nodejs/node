@@ -5,11 +5,11 @@ Running test: testBreakLocations
 function testFunction() {
   async function f1() {
     for (let x = |_|0; x |_|< 1; ++|_|x) |_|await x;
-    |_|return |_|await Promise.|C|resolve(2);|R|
+    |_|return await Promise.|C|resolve(2);|R|
   }
 
   async function f2() {
-    let r = |_|await |C|f1() + |_|await |C|f1();
+    let r = |_|await |C|f1() + await |C|f1();
     |_|await |C|f1();
     |_|await |C|f1().|C|then(x => x |_|* 2|R|);
     |_|await [1].|C|map(x => Promise.|C|resolve(x)|R|)[0];

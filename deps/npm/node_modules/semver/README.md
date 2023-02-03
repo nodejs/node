@@ -264,7 +264,9 @@ provided tuple parts.
 Any of `X`, `x`, or `*` may be used to "stand in" for one of the
 numeric values in the `[major, minor, patch]` tuple.
 
-* `*` := `>=0.0.0` (Any version satisfies)
+* `*` := `>=0.0.0` (Any non-prerelease version satisfies, unless
+  `includePrerelease` is specified, in which case any version at all
+  satisfies)
 * `1.x` := `>=1.0.0 <2.0.0-0` (Matching major version)
 * `1.2.x` := `>=1.2.0 <1.3.0-0` (Matching major and minor versions)
 

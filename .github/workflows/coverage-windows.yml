@@ -12,7 +12,8 @@ on:
       - .github/**
       - '!.github/workflows/coverage-windows.yml'
   push:
-    branches: [master, main]
+    branches:
+      - main
     paths-ignore:
       - '**.md'
       - benchmark/**
@@ -27,19 +28,22 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: '3.10'
-  FLAKY_TESTS: dontcare
+  PYTHON_VERSION: '3.11'
+  FLAKY_TESTS: keep_retrying
+
+permissions:
+  contents: read
 
 jobs:
   coverage-windows:
     if: github.event.pull_request.draft == false
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install deps
@@ -61,6 +65,6 @@ jobs:
       - name: Clean tmp
         run: npx rimraf ./coverage/tmp
       - name: Upload
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v3
         with:
           directory: ./coverage

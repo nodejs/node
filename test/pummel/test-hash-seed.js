@@ -3,8 +3,8 @@
 // Check that spawn child doesn't create duplicated entries
 const common = require('../common');
 
-if (process.config.variables.arm_version === '7') {
-  common.skip('Too slow for armv7 bots');
+if (common.isPi) {
+  common.skip('Too slow for Raspberry Pi devices');
 }
 
 const kRepetitions = 2;
@@ -24,7 +24,14 @@ const requiredCallback = common.mustCall((results) => {
   assert.strictEqual(seeds.length, kRepetitions);
 });
 
-const generateSeed = () => execFilePromise(process.execPath, [targetScript]);
+function generateSeed() {
+  return execFilePromise(process.execPath, [
+    // Needed for %NeverOptimizeFunction.
+    '--allow-natives-syntax',
+    targetScript,
+  ]);
+}
+
 const subprocesses = [...new Array(kRepetitions)].map(generateSeed);
 
 Promise.all(subprocesses)

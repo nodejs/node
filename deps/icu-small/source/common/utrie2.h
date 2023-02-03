@@ -591,8 +591,8 @@ U_CDECL_END
 
 #ifdef __cplusplus
 
+#include "unicode/uobject.h"
 #include "unicode/utf.h"
-#include "mutex.h"
 
 U_NAMESPACE_BEGIN
 

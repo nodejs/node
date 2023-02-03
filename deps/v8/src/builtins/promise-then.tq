@@ -4,7 +4,15 @@
 
 #include 'src/builtins/builtins-promise-gen.h'
 
+namespace runtime {
+extern transitioning runtime
+DebugPromiseThen(implicit context: Context)(JSAny): JSAny;
+}
+
 namespace promise {
+
+extern macro
+CodeStubAssembler::HasAsyncEventDelegate(): bool;
 
 macro
 IsPromiseSpeciesLookupChainIntact(
@@ -68,6 +76,14 @@ PromisePrototypeThen(js-implicit context: NativeContext, receiver: JSAny)(
   //    resultCapability).
   PerformPromiseThenImpl(
       promise, onFulfilled, onRejected, resultPromiseOrCapability);
+
+  // Async instrumentation for Promise#then(), Promise#catch() and
+  // Promise#finally(), where the latter two both call eventually
+  // call into Promise#then().
+  if (HasAsyncEventDelegate()) {
+    return runtime::DebugPromiseThen(resultPromise);
+  }
+
   return resultPromise;
 }
 }

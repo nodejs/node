@@ -9,7 +9,7 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-/* istanbul ignore next */
+/* c8 ignore next */
 /**
  * Align the string to left
  * @param {string} str string to evaluate
@@ -22,7 +22,7 @@ function alignLeft(str, len, ch) {
     return str + new Array(len - str.length + 1).join(ch || " ");
 }
 
-/* istanbul ignore next */
+/* c8 ignore next */
 /**
  * Align the string to right
  * @param {string} str string to evaluate
@@ -64,7 +64,7 @@ function getListSize() {
     return TIMING_ENV_VAR_AS_INTEGER > 10 ? TIMING_ENV_VAR_AS_INTEGER : MINIMUM_SIZE;
 }
 
-/* istanbul ignore next */
+/* c8 ignore next */
 /**
  * display the data
  * @param {Object} data Data object to be displayed
@@ -119,7 +119,7 @@ function display(data) {
     console.log(table.join("\n")); // eslint-disable-line no-console -- Debugging function
 }
 
-/* istanbul ignore next */
+/* c8 ignore next */
 module.exports = (function() {
 
     const data = Object.create(null);
@@ -138,10 +138,11 @@ module.exports = (function() {
 
         return function(...args) {
             let t = process.hrtime();
+            const result = fn(...args);
 
-            fn(...args);
             t = process.hrtime(t);
             data[key] += t[0] * 1e3 + t[1] / 1e6;
+            return result;
         };
     }
 

@@ -2,13 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import itertools
+from itertools import zip_longest
 
 from ..testproc.base import (
     DROP_RESULT, DROP_OUTPUT, DROP_PASS_OUTPUT, DROP_PASS_STDOUT)
 from ..local import statusfile
 from ..testproc.result import Result
 
+import difflib
 
 OUTCOMES_PASS = [statusfile.PASS]
 OUTCOMES_FAIL = [statusfile.FAIL]
@@ -38,15 +39,17 @@ class BaseOutProc(object):
     """
     if reduction == DROP_RESULT:
       return None
+    error_details = \
+      self._get_error_details(output) if has_unexpected_output else None
     if reduction == DROP_OUTPUT:
-      return Result(has_unexpected_output, None)
+      return Result(has_unexpected_output, None, error_details=error_details)
     if not has_unexpected_output:
       if reduction == DROP_PASS_OUTPUT:
         return Result(has_unexpected_output, None)
       if reduction == DROP_PASS_STDOUT:
         return Result(has_unexpected_output, output.without_text())
 
-    return Result(has_unexpected_output, output)
+    return Result(has_unexpected_output, output, error_details=error_details)
 
   def get_outcome(self, output):
     if output.HasCrashed():
@@ -66,6 +69,9 @@ class BaseOutProc(object):
 
   def _is_failure_output(self, output):
     return output.exit_code != 0
+
+  def _get_error_details(self, output):
+    return None
 
   @property
   def negative(self):
@@ -140,13 +146,13 @@ class ExpectedOutProc(OutProc):
 
   def _is_failure_output(self, output):
     if output.exit_code != 0:
-        return True
+      return True
 
-    with open(self._expected_filename, 'r') as f:
+    with open(self._expected_filename, 'r', encoding='utf-8') as f:
       expected_lines = f.readlines()
 
     for act_iterator in self._act_block_iterator(output):
-      for expected, actual in itertools.izip_longest(
+      for expected, actual in zip_longest(
           self._expected_iterator(expected_lines),
           act_iterator,
           fillvalue=''
@@ -162,6 +168,16 @@ class ExpectedOutProc(OutProc):
     with open(self._expected_filename, 'w') as f:
       for _, line in enumerate(lines):
         f.write(line+'\n')
+
+  def _get_error_details(self, output):
+    """Return diff between expected and actual output."""
+    expected = open(self._expected_filename, 'r', encoding='utf-8').readlines()
+    actual = output.stdout.splitlines(True)
+    if expected == actual:
+      return None
+    lines = difflib.unified_diff(
+        expected, actual, fromfile=self._expected_filename, tofile='<actual>')
+    return 'Output does not match expectation:\n' + ''.join(lines)
 
   def _act_block_iterator(self, output):
     """Iterates over blocks of actual output lines."""

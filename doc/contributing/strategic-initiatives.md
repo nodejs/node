@@ -6,14 +6,15 @@ agenda to ensure they are active and have the support they need.
 
 ## Current initiatives
 
-| Initiative                | Champion                    | Links                                                                                        |
-| ------------------------- | --------------------------- | -------------------------------------------------------------------------------------------- |
-| Core Promise APIs         | [Antoine du Hamel][aduh95]  | <https://github.com/nodejs/TSC/issues/1094>                                                  |
-| Future of Build Toolchain | [Mary Marchini][mmarchini]  | <https://github.com/nodejs/TSC/issues/901>, <https://github.com/nodejs/build-toolchain-next> |
-| QUIC / HTTP3              | [James M Snell][jasnell]    | <https://github.com/nodejs/quic>                                                             |
-| Startup performance       | [Joyee Cheung][joyeecheung] | <https://github.com/nodejs/node/issues/35711>                                                |
-| V8 Currency               | [Michaël Zasso][targos]     |                                                                                              |
-| Next-10                   | [Michael Dawson][mhdawson]  | <https://github.com/nodejs/next-10>                                                          |
+| Initiative             | Champion                    | Links                                         |
+| ---------------------- | --------------------------- | --------------------------------------------- |
+| Core Promise APIs      | [Antoine du Hamel][aduh95]  | <https://github.com/nodejs/TSC/issues/1094>   |
+| QUIC / HTTP3           | [James M Snell][jasnell]    | <https://github.com/nodejs/quic>              |
+| Shadow Realm           | [Chengzhong Wu][legendecas] | <https://github.com/nodejs/node/issues/42528> |
+| Startup performance    | [Joyee Cheung][joyeecheung] | <https://github.com/nodejs/node/issues/35711> |
+| V8 Currency            | [Michaël Zasso][targos]     |                                               |
+| Next-10                | [Michael Dawson][mhdawson]  | <https://github.com/nodejs/next-10>           |
+| Single executable apps | [Darshan Sen][RaisinTen]    | <https://github.com/nodejs/node/issues/43432> |
 
 <details>
 <summary>List of completed initiatives</summary>
@@ -36,9 +37,10 @@ agenda to ensure they are active and have the support they need.
 
 </details>
 
+[RaisinTen]: https://github.com/RaisinTen
 [aduh95]: https://github.com/aduh95
 [jasnell]: https://github.com/jasnell
 [joyeecheung]: https://github.com/joyeecheung
+[legendecas]: https://github.com/legendecas
 [mhdawson]: https://github.com/mhdawson
-[mmarchini]: https://github.com/mmarchini
 [targos]: https://github.com/targos

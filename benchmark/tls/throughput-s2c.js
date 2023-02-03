@@ -5,7 +5,7 @@ const bench = common.createBenchmark(main, {
   type: ['buf', 'asc', 'utf'],
   sendchunklen: [256, 32 * 1024, 128 * 1024, 16 * 1024 * 1024],
   recvbuflen: [0, 64 * 1024, 1024 * 1024],
-  recvbufgenfn: ['true', 'false']
+  recvbufgenfn: ['true', 'false'],
 });
 
 const fixtures = require('../../test/common/fixtures');
@@ -40,7 +40,8 @@ function main({ dur, type, sendchunklen, recvbuflen, recvbufgenfn }) {
     key: fixtures.readKey('rsa_private.pem'),
     cert: fixtures.readKey('rsa_cert.crt'),
     ca: fixtures.readKey('rsa_ca.crt'),
-    ciphers: 'AES256-GCM-SHA384'
+    ciphers: 'AES256-GCM-SHA384',
+    maxVersion: 'TLSv1.2',
   };
 
   let socketOpts;
@@ -67,8 +68,8 @@ function main({ dur, type, sendchunklen, recvbuflen, recvbufgenfn }) {
         buffer,
         callback: function(nread, buf) {
           received += nread;
-        }
-      }
+        },
+      },
     };
   }
 

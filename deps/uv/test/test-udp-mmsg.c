@@ -29,14 +29,15 @@
 #define CHECK_HANDLE(handle) \
   ASSERT((uv_udp_t*)(handle) == &recver || (uv_udp_t*)(handle) == &sender)
 
-#define BUFFER_MULTIPLIER 4
+#define BUFFER_MULTIPLIER 20
 #define MAX_DGRAM_SIZE (64 * 1024)
-#define NUM_SENDS 8
+#define NUM_SENDS 40
 #define EXPECTED_MMSG_ALLOCS (NUM_SENDS / BUFFER_MULTIPLIER)
 
 static uv_udp_t recver;
 static uv_udp_t sender;
 static int recv_cb_called;
+static int received_datagrams;
 static int close_cb_called;
 static int alloc_cb_called;
 
@@ -68,10 +69,10 @@ static void close_cb(uv_handle_t* handle) {
 
 
 static void recv_cb(uv_udp_t* handle,
-                       ssize_t nread,
-                       const uv_buf_t* rcvbuf,
-                       const struct sockaddr* addr,
-                       unsigned flags) {
+                    ssize_t nread,
+                    const uv_buf_t* rcvbuf,
+                    const struct sockaddr* addr,
+                    unsigned flags) {
   ASSERT_GE(nread, 0);
 
   /* free and return if this is a mmsg free-only callback invocation */
@@ -82,14 +83,20 @@ static void recv_cb(uv_udp_t* handle,
     return;
   }
 
-  ASSERT_EQ(nread, 4);
-  ASSERT_NOT_NULL(addr);
-  ASSERT_MEM_EQ("PING", rcvbuf->base, nread);
+  if (nread == 0) {
+    /* There can be no more available data for the time being. */
+    ASSERT_NULL(addr);
+  } else {
+    ASSERT_EQ(nread, 4);
+    ASSERT_NOT_NULL(addr);
+    ASSERT_MEM_EQ("PING", rcvbuf->base, nread);
+    received_datagrams++;
+  }
 
   recv_cb_called++;
-  if (recv_cb_called == NUM_SENDS) {
-    uv_close((uv_handle_t*)handle, close_cb);
-    uv_close((uv_handle_t*)&sender, close_cb);
+  if (received_datagrams == NUM_SENDS) {
+    uv_close((uv_handle_t*) handle, close_cb);
+    uv_close((uv_handle_t*) &sender, close_cb);
   }
 
   /* Don't free if the buffer could be reused via mmsg */
@@ -124,7 +131,7 @@ TEST_IMPL(udp_mmsg) {
   ASSERT_EQ(0, uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
   ASSERT_EQ(close_cb_called, 2);
-  ASSERT_EQ(recv_cb_called, NUM_SENDS);
+  ASSERT_EQ(received_datagrams, NUM_SENDS);
 
   ASSERT_EQ(sender.send_queue_size, 0);
   ASSERT_EQ(recver.send_queue_size, 0);

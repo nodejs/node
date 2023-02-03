@@ -1,4 +1,6 @@
 /// <reference types="node" />
+/// <reference types="node" />
+/// <reference types="node" />
 import { EventEmitter } from 'events';
 import { SocksClientOptions, SocksClientChainOptions, SocksRemoteHost, SocksProxy, SocksClientBoundEvent, SocksClientEstablishedEvent, SocksUDPFrameDetails } from '../common/constants';
 import { SocksClientError } from '../common/util';
@@ -7,11 +9,11 @@ declare interface SocksClient {
     on(event: 'error', listener: (err: SocksClientError) => void): this;
     on(event: 'bound', listener: (info: SocksClientBoundEvent) => void): this;
     on(event: 'established', listener: (info: SocksClientEstablishedEvent) => void): this;
-    once(event: string, listener: (...args: any[]) => void): this;
+    once(event: string, listener: (...args: unknown[]) => void): this;
     once(event: 'error', listener: (err: SocksClientError) => void): this;
     once(event: 'bound', listener: (info: SocksClientBoundEvent) => void): this;
     once(event: 'established', listener: (info: SocksClientEstablishedEvent) => void): this;
-    emit(event: string | symbol, ...args: any[]): boolean;
+    emit(event: string | symbol, ...args: unknown[]): boolean;
     emit(event: 'error', err: SocksClientError): boolean;
     emit(event: 'bound', info: SocksClientBoundEvent): boolean;
     emit(event: 'established', info: SocksClientEstablishedEvent): boolean;
@@ -36,7 +38,7 @@ declare class SocksClient extends EventEmitter implements SocksClient {
      * @param callback { Function } An optional callback function.
      * @returns { Promise }
      */
-    static createConnection(options: SocksClientOptions, callback?: Function): Promise<SocksClientEstablishedEvent>;
+    static createConnection(options: SocksClientOptions, callback?: (error: Error | null, info?: SocksClientEstablishedEvent) => void): Promise<SocksClientEstablishedEvent>;
     /**
      * Creates a new SOCKS connection chain to a destination host through 2 or more SOCKS proxies.
      *
@@ -46,7 +48,7 @@ declare class SocksClient extends EventEmitter implements SocksClient {
      * @param callback { Function } An optional callback function.
      * @returns { Promise }
      */
-    static createConnectionChain(options: SocksClientChainOptions, callback?: Function): Promise<SocksClientEstablishedEvent>;
+    static createConnectionChain(options: SocksClientChainOptions, callback?: (error: Error | null, socket?: SocksClientEstablishedEvent) => void): Promise<SocksClientEstablishedEvent>;
     /**
      * Creates a SOCKS UDP Frame.
      * @param options

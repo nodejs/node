@@ -2,21 +2,22 @@
 
 <!--introduced_in=v0.1.25-->
 
-> Stability: 3 - Legacy
+> Stability: 2 - Stable
 
 <!--name=querystring-->
 
 <!-- source_link=lib/querystring.js -->
 
-The `querystring` module provides utilities for parsing and formatting URL
+The `node:querystring` module provides utilities for parsing and formatting URL
 query strings. It can be accessed using:
 
 ```js
-const querystring = require('querystring');
+const querystring = require('node:querystring');
 ```
 
-The `querystring` API is considered Legacy. While it is still maintained,
-new code should use the {URLSearchParams} API instead.
+`querystring` is more performant than {URLSearchParams} but is not a
+standardized API. Use {URLSearchParams} when performance is not critical or
+when compatibility with browser code is desirable.
 
 ## `querystring.decode()`
 

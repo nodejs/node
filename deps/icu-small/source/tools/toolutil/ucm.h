@@ -207,7 +207,7 @@ ucm_checkValidity(UCMTable *ext, UCMStates *baseStates);
  *
  * Sort both tables, and then for each mapping direction:
  *
- * If intersectBase is TRUE and the base table contains a mapping
+ * If intersectBase is true and the base table contains a mapping
  * that does not exist in the extension table, then this mapping is moved
  * to moveTarget.
  *
@@ -223,7 +223,7 @@ ucm_checkValidity(UCMTable *ext, UCMStates *baseStates);
  * - if moveTarget!=NULL: move the base mapping to the moveTarget table
  * - else: error
  *
- * @return FALSE in case of an irreparable error
+ * @return false in case of an irreparable error
  */
 U_CAPI UBool U_EXPORT2
 ucm_checkBaseExt(UCMStates *baseStates, UCMTable *base, UCMTable *ext,

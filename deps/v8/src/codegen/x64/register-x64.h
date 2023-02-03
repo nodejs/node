@@ -5,8 +5,7 @@
 #ifndef V8_CODEGEN_X64_REGISTER_X64_H_
 #define V8_CODEGEN_X64_REGISTER_X64_H_
 
-#include "src/codegen/register.h"
-#include "src/codegen/reglist.h"
+#include "src/codegen/register-base.h"
 
 namespace v8 {
 namespace internal {
@@ -61,21 +60,32 @@ enum RegisterCode {
 
 class Register : public RegisterBase<Register, kRegAfterLast> {
  public:
-  bool is_byte_register() const { return code() <= 3; }
+  constexpr bool is_byte_register() const { return code() <= 3; }
   // Return the high bit of the register code as a 0 or 1.  Used often
   // when constructing the REX prefix byte.
-  int high_bit() const { return code() >> 3; }
+  constexpr int high_bit() const { return code() >> 3; }
   // Return the 3 low bits of the register code.  Used when encoding registers
   // in modR/M, SIB, and opcode bytes.
-  int low_bits() const { return code() & 0x7; }
+  constexpr int low_bits() const { return code() & 0x7; }
 
  private:
   friend class RegisterBase<Register, kRegAfterLast>;
   explicit constexpr Register(int code) : RegisterBase(code) {}
 };
 
+// Register that store tagged value. Tagged value is in compressed form when
+// pointer compression is enabled.
+class TaggedRegister {
+ public:
+  explicit TaggedRegister(Register reg) : reg_(reg) {}
+  Register reg() { return reg_; }
+
+ private:
+  Register reg_;
+};
+
 ASSERT_TRIVIALLY_COPYABLE(Register);
-static_assert(sizeof(Register) == sizeof(int),
+static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
 #define DECLARE_REGISTER(R) \
@@ -85,23 +95,6 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 constexpr Register no_reg = Register::no_reg();
 
 constexpr int kNumRegs = 16;
-
-constexpr RegList kJSCallerSaved =
-    Register::ListOf(rax, rcx, rdx,
-                     rbx,  // used as a caller-saved register in JavaScript code
-                     rdi);  // callee function
-
-constexpr RegList kCallerSaved =
-#ifdef V8_TARGET_OS_WIN
-    Register::ListOf(rax, rcx, rdx, r8, r9, r10, r11);
-#else
-    Register::ListOf(rax, rcx, rdx, rdi, rsi, r8, r9, r10, r11);
-#endif  // V8_TARGET_OS_WIN
-
-constexpr int kNumJSCallerSaved = 5;
-
-// Number of registers for which space is reserved in safepoints.
-constexpr int kNumSafepointRegisters = 16;
 
 #ifdef V8_TARGET_OS_WIN
 // Windows calling convention
@@ -179,7 +172,7 @@ constexpr int ArgumentPaddingSlots(int argument_count) {
   return 0;
 }
 
-constexpr bool kSimpleFPAliasing = true;
+constexpr AliasingKind kFPAliasing = AliasingKind::kOverlap;
 constexpr bool kSimdMaskRegisters = false;
 
 enum DoubleRegisterCode {
@@ -215,13 +208,13 @@ class XMMRegister : public RegisterBase<XMMRegister, kDoubleAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(XMMRegister);
-static_assert(sizeof(XMMRegister) == sizeof(int),
+static_assert(sizeof(XMMRegister) <= sizeof(int),
               "XMMRegister can efficiently be passed by value");
 
 class YMMRegister : public XMMRegister {
  public:
   static constexpr YMMRegister from_code(int code) {
-    DCHECK(base::IsInRange(code, 0, XMMRegister::kNumRegisters - 1));
+    V8_ASSUME(code >= 0 && code < XMMRegister::kNumRegisters);
     return YMMRegister(code);
   }
 
@@ -231,7 +224,7 @@ class YMMRegister : public XMMRegister {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(YMMRegister);
-static_assert(sizeof(YMMRegister) == sizeof(int),
+static_assert(sizeof(YMMRegister) <= sizeof(int),
               "YMMRegister can efficiently be passed by value");
 
 using FloatRegister = XMMRegister;
@@ -239,6 +232,8 @@ using FloatRegister = XMMRegister;
 using DoubleRegister = XMMRegister;
 
 using Simd128Register = XMMRegister;
+
+using Simd256Register = YMMRegister;
 
 #define DECLARE_REGISTER(R) \
   constexpr DoubleRegister R = DoubleRegister::from_code(kDoubleCode_##R);

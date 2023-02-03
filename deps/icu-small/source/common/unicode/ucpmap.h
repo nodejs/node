@@ -13,8 +13,7 @@ U_CDECL_BEGIN
 
 /**
  * \file
- *
- * This file defines an abstract map from Unicode code points to integer values.
+ * \brief C API: This file defines an abstract map from Unicode code points to integer values.
  *
  * @see UCPMap
  * @see UCPTrie

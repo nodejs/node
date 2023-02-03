@@ -27,6 +27,7 @@ enum CpuFeature {
   LZCNT,
   POPCNT,
   INTEL_ATOM,
+  CETSS,
 
 #elif V8_TARGET_ARCH_ARM
   // - Standard configurations. The baseline is ARMv6+VFPv2.
@@ -43,7 +44,7 @@ enum CpuFeature {
 #elif V8_TARGET_ARCH_ARM64
   JSCVT,
 
-#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#elif V8_TARGET_ARCH_MIPS64
   FPU,
   FP64FPU,
   MIPSr1,
@@ -75,6 +76,10 @@ enum CpuFeature {
   FPU,
   FP64FPU,
   RISCV_SIMD,
+#elif V8_TARGET_ARCH_RISCV32
+  FPU,
+  FP64FPU,
+  RISCV_SIMD,
 #endif
 
   NUMBER_OF_CPU_FEATURES
@@ -95,7 +100,7 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   CpuFeatures& operator=(const CpuFeatures&) = delete;
 
   static void Probe(bool cross_compile) {
-    STATIC_ASSERT(NUMBER_OF_CPU_FEATURES <= kBitsPerInt);
+    static_assert(NUMBER_OF_CPU_FEATURES <= kBitsPerInt);
     if (initialized_) return;
     initialized_ = true;
     ProbeImpl(cross_compile);
@@ -147,6 +152,7 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   // at runtime in builtins using an extern ref. Other callers should use
   // CpuFeatures::SupportWasmSimd128().
   static bool supports_wasm_simd_128_;
+  static bool supports_cetss_;
 };
 
 }  // namespace internal

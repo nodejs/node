@@ -4,84 +4,96 @@
 
 # Use this to run several variants of the tests.
 ALL_VARIANT_FLAGS = {
-  "assert_types": [["--assert-types"]],
-  "code_serializer": [["--cache=code"]],
-  "default": [[]],
-  "future": [["--future"]],
-  "gc_stats": [["--gc-stats=1"]],
-  # Alias of exhaustive variants, but triggering new test framework features.
-  "infra_staging": [[]],
-  "interpreted_regexp": [["--regexp-interpret-all"]],
-  "experimental_regexp":  [["--default-to-experimental-regexp-engine"]],
-  "jitless": [["--jitless"]],
-  "sparkplug": [["--sparkplug"]],
-  "always_sparkplug": [[ "--always-sparkplug", "--sparkplug"]],
-  "minor_mc": [["--minor-mc"]],
-  "no_concurrent_inlining":  [["--no-concurrent-inlining",
-                               "--no-stress-concurrent-inlining"]],
-  "no_lfa": [["--no-lazy-feedback-allocation"]],
-  # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
-  # would not force optimization too. It turns into a Nop. Please see
-  # https://chromium-review.googlesource.com/c/452620/ for more discussion.
-  # For WebAssembly, we test "Liftoff-only" in the nooptimization variant and
-  # "TurboFan-only" in the stress variant. The WebAssembly configuration is
-  # independent of JS optimizations, so we can combine those configs.
-  "nooptimization": [["--no-opt", "--liftoff", "--no-wasm-tier-up"]],
-  "slow_path": [["--force-slow-path"]],
-  "stress": [["--stress-opt", "--no-liftoff", "--stress-lazy-source-positions",
-              "--no-wasm-generic-wrapper"]],
-  "stress_concurrent_allocation": [["--stress-concurrent-allocation"]],
-  "stress_concurrent_inlining": [["--stress-concurrent-inlining",
-                                  "--concurrent-inlining"]],
-  "stress_js_bg_compile_wasm_code_gc": [["--stress-background-compile",
-                                         "--stress-wasm-code-gc"]],
-  "stress_incremental_marking": [["--stress-incremental-marking"]],
-  "stress_snapshot": [["--stress-snapshot"]],
-  # Trigger stress sampling allocation profiler with sample interval = 2^14
-  "stress_sampling": [["--stress-sampling-allocation-profiler=16384"]],
-  "no_wasm_traps": [["--no-wasm-trap-handler"]],
-  "turboprop": [["--turboprop"]],
-  "turboprop_as_toptier": [["--turboprop-as-toptier", "--turboprop"]],
-  "instruction_scheduling": [["--turbo-instruction-scheduling"]],
-  "stress_instruction_scheduling": [["--turbo-stress-instruction-scheduling"]],
-  "wasm_write_protect_code": [["--wasm-write-protect-code-memory"]],
-  # Google3 variants.
-  "google3_icu": [[]],
-  "google3_noicu": [[]],
+    "assert_types": [["--assert-types"]],
+    "code_serializer": [["--cache=code"]],
+    "default": [[]],
+    "future": [["--future"]],
+    "gc_stats": [["--gc-stats=1"]],
+    # Alias of exhaustive variants, but triggering new test framework features.
+    "infra_staging": [[]],
+    "interpreted_regexp": [["--regexp-interpret-all"]],
+    "experimental_regexp": [["--default-to-experimental-regexp-engine"]],
+    "jitless": [["--jitless"]],
+    "sparkplug": [["--sparkplug"]],
+    "maglev": [["--maglev"]],
+    "stress_maglev": [["--maglev", "--stress-maglev"]],
+    "turboshaft": [["--turboshaft"]],
+    "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
+    "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],
+    "minor_mc": [["--minor-mc"]],
+    "no_lfa": [["--no-lazy-feedback-allocation"]],
+    # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
+    # would not force optimization too. It turns into a Nop. Please see
+    # https://chromium-review.googlesource.com/c/452620/ for more discussion.
+    # For WebAssembly, we test "Liftoff-only" in the nooptimization variant and
+    # "TurboFan-only" in the stress variant. The WebAssembly configuration is
+    # independent of JS optimizations, so we can combine those configs.
+    "nooptimization": [["--no-turbofan", "--liftoff", "--no-wasm-tier-up"]],
+    "slow_path": [["--force-slow-path"]],
+    "stress": [[
+        "--no-liftoff", "--stress-lazy-source-positions",
+        "--no-wasm-generic-wrapper", "--no-wasm-lazy-compilation"
+    ]],
+    "stress_concurrent_allocation": [["--stress-concurrent-allocation"]],
+    "stress_concurrent_inlining": [["--stress-concurrent-inlining"]],
+    "stress_js_bg_compile_wasm_code_gc": [[
+        "--stress-background-compile", "--stress-wasm-code-gc"
+    ]],
+    "stress_incremental_marking": [["--stress-incremental-marking"]],
+    "stress_snapshot": [["--stress-snapshot"]],
+    # Trigger stress sampling allocation profiler with sample interval = 2^14
+    "stress_sampling": [["--stress-sampling-allocation-profiler=16384"]],
+    "no_wasm_traps": [["--no-wasm-trap-handler"]],
+    "instruction_scheduling": [["--turbo-instruction-scheduling"]],
+    "stress_instruction_scheduling": [["--turbo-stress-instruction-scheduling"]
+                                     ],
+    "wasm_write_protect_code": [["--wasm-write-protect-code-memory"]],
+    # Google3 variants.
+    "google3_icu": [[]],
+    "google3_noicu": [[]],
 }
 
 # Flags that lead to a contradiction with the flags provided by the respective
 # variant. This depends on the flags specified in ALL_VARIANT_FLAGS and on the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_VARIANT = {
-  "jitless": ["--opt", "--always-opt", "--liftoff", "--track-field-types",
-              "--validate-asm", "--sparkplug", "--always-sparkplug",
-              "--regexp-tier-up", "--no-regexp-interpret-all"],
-  "nooptimization": ["--always-opt"],
-  "slow_path": ["--no-force-slow-path"],
-  "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
-  "stress_concurrent_inlining": ["--single-threaded", "--predictable",
-                                 "--turboprop", "--lazy-feedback-allocation",
-                                 "--assert-types"],
-  "turboprop": ["--stress_concurrent_inlining"],
-  # The fast API tests initialize an embedder object that never needs to be
-  # serialized to the snapshot, so we don't have a
-  # SerializeInternalFieldsCallback for it, so they are incompatible with
-  # stress_snapshot.
-  "stress_snapshot": ["--expose-fast-api"],
-  "stress": ["--always-opt", "--no-always-opt",
-             "--max-inlined-bytecode-size=*",
-             "--max-inlined-bytecode-size-cumulative=*", "--stress-inline",
-             "--liftoff-only", "--wasm-speculative-inlining"],
-  "sparkplug": ["--jitless"],
-  "always_sparkplug": ["--jitless"],
-  "code_serializer": ["--cache=after-execute", "--cache=full-code-cache",
-                      "--cache=none"],
-  "experimental_regexp": ["--no-enable-experimental-regexp-engine"],
-  # There is a negative implication: --perf-prof disables
-  # --wasm-write-protect-code-memory.
-  "wasm_write_protect_code": ["--perf-prof"],
-  "assert_types": ["--concurrent-recompilation", "--concurrent-inlining", "--stress_concurrent_inlining", "--no-assert-types"],
+    "jitless": [
+        "--turbofan", "--always-turbofan", "--liftoff", "--track-field-types",
+        "--validate-asm", "--sparkplug", "--concurrent-sparkplug", "--maglev",
+        "--always-sparkplug", "--regexp-tier-up", "--no-regexp-interpret-all"
+    ],
+    "nooptimization": ["--always-turbofan"],
+    "slow_path": ["--no-force-slow-path"],
+    "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
+    "stress_concurrent_inlining": [
+        "--single-threaded", "--predictable", "--lazy-feedback-allocation",
+        "--assert-types", "--no-concurrent-recompilation"
+    ],
+    # The fast API tests initialize an embedder object that never needs to be
+    # serialized to the snapshot, so we don't have a
+    # SerializeInternalFieldsCallback for it, so they are incompatible with
+    # stress_snapshot.
+    "stress_snapshot": ["--expose-fast-api"],
+    "stress": [
+        "--liftoff-only", "--wasm-speculative-inlining",
+        "--wasm-dynamic-tiering"
+    ],
+    "sparkplug": ["--jitless", "--no-sparkplug"],
+    "concurrent_sparkplug": ["--jitless"],
+    "maglev": ["--jitless", "--no-maglev"],
+    "stress_maglev": ["--jitless"],
+    "always_sparkplug": ["--jitless", "--no-sparkplug"],
+    "code_serializer": [
+        "--cache=after-execute", "--cache=full-code-cache", "--cache=none"
+    ],
+    "experimental_regexp": ["--no-enable-experimental-regexp-engine"],
+    # There is a negative implication: --perf-prof disables
+    # --wasm-write-protect-code-memory.
+    "wasm_write_protect_code": ["--perf-prof"],
+    "assert_types": [
+        "--concurrent-recompilation", "--stress_concurrent_inlining",
+        "--no-assert-types"
+    ],
 }
 
 # Flags that lead to a contradiction under certain build variables.
@@ -99,8 +111,6 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
                   "--stress-concurrent-allocation",
                   "--stress-concurrent-inlining"],
   "dict_property_const_tracking": [
-                  "--concurrent-inlining",
-                  "--turboprop",
                   "--stress-concurrent-inlining"],
 }
 

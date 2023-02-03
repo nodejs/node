@@ -11,16 +11,6 @@ I<command>
 [ I<options> ... ]
 [ I<parameters> ... ]
 
-B<openssl>
-B<list>
-B<standard-commands> |
-B<digest-commands> |
-B<cipher-commands> |
-B<cipher-algorithms> |
-B<digest-algorithms> |
-B<mac-algorithms> |
-B<public-key-algorithms>
-
 B<openssl> B<no->I<XXX> [ I<options> ]
 
 =head1 DESCRIPTION
@@ -50,21 +40,8 @@ Each command can have many options and argument parameters, shown above as
 I<options> and I<parameters>.
 
 Detailed documentation and use cases for most standard subcommands are available
-(e.g., L<openssl-x509(1)>).
-
-The list options B<-standard-commands>, B<-digest-commands>,
-and B<-cipher-commands> output a list (one entry per line) of the names
-of all standard commands, message digest commands, or cipher commands,
-respectively, that are available.
-
-The list parameters B<-cipher-algorithms>, B<-digest-algorithms>,
-and B<-mac-algorithms> list all cipher, message digest, and message
-authentication code names, one entry per line. Aliases are listed as:
-
- from => to
-
-The list parameter B<-public-key-algorithms> lists all supported public
-key algorithms.
+(e.g., L<openssl-x509(1)>). The subcommand L<openssl-list(1)> may be used to list
+subcommands.
 
 The command B<no->I<XXX> tests whether a command of the
 specified name is available.  If no command named I<XXX> exists, it
@@ -704,15 +681,19 @@ available:
 
 =item B<TRACE>
 
-The tracing functionality.
+Traces the OpenSSL trace API itself.
+
+=item B<INIT>
+
+Traces OpenSSL library initialization and cleanup.
 
 =item B<TLS>
 
-General SSL/TLS.
+Traces the TLS/SSL protocol.
 
 =item B<TLS_CIPHER>
 
-SSL/TLS cipher.
+Traces the ciphers used by the TLS/SSL protocol.
 
 =item B<CONF>
 
@@ -731,24 +712,44 @@ of generated for each change.
 
 =item B<PKCS5V2>
 
-PKCS#5 v2 keygen.
+Traces PKCS#5 v2 key generation.
 
 =item B<PKCS12_KEYGEN>
 
-PKCS#12 key generation.
+Traces PKCS#12 key generation.
 
 =item B<PKCS12_DECRYPT>
 
-PKCS#12 decryption.
+Traces PKCS#12 decryption.
 
 =item B<X509V3_POLICY>
 
-Generates the complete policy tree at various point during X.509 v3
+Generates the complete policy tree at various points during X.509 v3
 policy evaluation.
 
 =item B<BN_CTX>
 
-BIGNUM context.
+Traces BIGNUM context operations.
+
+=item B<CMP>
+
+Traces CMP client and server activity.
+
+=item B<STORE>
+
+Traces STORE operations.
+
+=item B<DECODER>
+
+Traces decoder operations.
+
+=item B<ENCODER>
+
+Traces encoder operations.
+
+=item B<REF_COUNT>
+
+Traces decrementing certain ASN.1 structure references.
 
 =back
 
@@ -775,6 +776,7 @@ L<openssl-gendsa(1)>,
 L<openssl-genpkey(1)>,
 L<openssl-genrsa(1)>,
 L<openssl-kdf(1)>,
+L<openssl-list(1)>,
 L<openssl-mac(1)>,
 L<openssl-nseq(1)>,
 L<openssl-ocsp(1)>,
@@ -829,7 +831,7 @@ that program with no arguments is now equivalent to C<openssl help>.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

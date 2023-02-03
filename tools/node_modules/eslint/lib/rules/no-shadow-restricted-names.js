@@ -27,7 +27,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow identifiers from shadowing restricted names",
+            description: "Disallow identifiers from shadowing restricted names",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-shadow-restricted-names"
         },

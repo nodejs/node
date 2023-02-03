@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -61,7 +61,7 @@ const OPTIONS rsa_options[] = {
 
     OPT_SECTION("Input"),
     {"in", OPT_IN, 's', "Input file"},
-    {"inform", OPT_INFORM, 'f', "Input format (DER/PEM/P12/ENGINE"},
+    {"inform", OPT_INFORM, 'f', "Input format (DER/PEM/P12/ENGINE)"},
     {"pubin", OPT_PUBIN, '-', "Expect a public key in input file"},
     {"RSAPublicKey_in", OPT_RSAPUBKEY_IN, '-', "Input is an RSAPublicKey"},
     {"passin", OPT_PASSIN, 's', "Input file pass phrase source"},
@@ -257,7 +257,7 @@ int rsa_main(int argc, char **argv)
         ERR_print_errors(bio_err);
         goto end;
     }
-    if (!EVP_PKEY_is_a(pkey, "RSA")) {
+    if (!EVP_PKEY_is_a(pkey, "RSA") && !EVP_PKEY_is_a(pkey, "RSA-PSS")) {
         BIO_printf(bio_err, "Not an RSA key\n");
         goto end;
     }
@@ -304,7 +304,7 @@ int rsa_main(int argc, char **argv)
         } else if (r == 0) {
             BIO_printf(bio_err, "RSA key not ok\n");
             ERR_print_errors(bio_err);
-        } else if (r == -1) {
+        } else if (r < 0) {
             ERR_print_errors(bio_err);
             goto end;
         }

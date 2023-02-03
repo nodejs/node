@@ -19,6 +19,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/operations-barrier.h"
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-tier.h"
 #include "src/zone/accounting-allocator.h"
@@ -107,8 +108,6 @@ class NativeModuleCache {
   void Erase(NativeModule* native_module);
 
   bool empty() { return map_.empty(); }
-
-  static size_t WireBytesHash(base::Vector<const uint8_t> bytes);
 
   // Hash the wire bytes up to the code section header. Used as a heuristic to
   // avoid streaming compilation of modules that are likely already in the
@@ -221,8 +220,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   AccountingAllocator* allocator() { return &allocator_; }
 
-  // Compilation statistics for TurboFan compilations.
-  CompilationStatistics* GetOrCreateTurboStatistics();
+  // Compilation statistics for TurboFan compilations. Returns a shared_ptr
+  // so that background compilation jobs can hold on to it while the main thread
+  // shuts down.
+  std::shared_ptr<CompilationStatistics> GetOrCreateTurboStatistics();
 
   // Prints the gathered compilation statistics, then resets them.
   void DumpAndResetTurboStatistics();
@@ -357,6 +358,14 @@ class V8_EXPORT_PRIVATE WasmEngine {
   void SampleRethrowEvent(Isolate*);
   void SampleCatchEvent(Isolate*);
 
+  TypeCanonicalizer* type_canonicalizer() { return &type_canonicalizer_; }
+
+  // Returns either the compressed tagged pointer representing a null value or
+  // 0 if pointer compression is not available.
+  Tagged_t compressed_null_value_or_zero() const {
+    return null_tagged_compressed_;
+  }
+
   // Call on process start and exit.
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
@@ -392,6 +401,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   std::atomic<int> next_compilation_id_{0};
 
+  // Compressed tagged pointer to null value.
+  std::atomic<Tagged_t> null_tagged_compressed_{0};
+
+  TypeCanonicalizer type_canonicalizer_;
+
   // This mutex protects all information which is mutated concurrently or
   // fields that are initialized lazily on the first access.
   base::Mutex mutex_;
@@ -404,7 +418,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   std::unordered_map<AsyncCompileJob*, std::unique_ptr<AsyncCompileJob>>
       async_compile_jobs_;
 
-  std::unique_ptr<CompilationStatistics> compilation_stats_;
+  std::shared_ptr<CompilationStatistics> compilation_stats_;
   std::unique_ptr<CodeTracer> code_tracer_;
 
   // Set of isolates which use this WasmEngine.

@@ -6,14 +6,11 @@
 #include "src/common/globals.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/logging/counters.h"
 #include "src/objects/allocation-site-scopes-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -169,7 +166,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
-    case HOLEY_ELEMENTS: {
+    case HOLEY_ELEMENTS:
+    case SHARED_ARRAY_ELEMENTS: {
       Handle<FixedArray> elements(FixedArray::cast(copy->elements(isolate)),
                                   isolate);
       if (elements->map(isolate) ==
@@ -265,14 +263,14 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
       // AllocationSite.
       InitializeTraversal(isolate()->factory()->NewAllocationSite(true));
       scope_site = Handle<AllocationSite>(*top(), isolate());
-      if (FLAG_trace_creation_allocation_sites) {
+      if (v8_flags.trace_creation_allocation_sites) {
         PrintF("*** Creating top level %s AllocationSite %p\n", "Fat",
                reinterpret_cast<void*>(scope_site->ptr()));
       }
     } else {
       DCHECK(!current().is_null());
       scope_site = isolate()->factory()->NewAllocationSite(false);
-      if (FLAG_trace_creation_allocation_sites) {
+      if (v8_flags.trace_creation_allocation_sites) {
         PrintF(
             "*** Creating nested %s AllocationSite (top, current, new) (%p, "
             "%p, "
@@ -290,7 +288,7 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
   void ExitScope(Handle<AllocationSite> scope_site, Handle<JSObject> object) {
     if (object.is_null()) return;
     scope_site->set_boilerplate(*object, kReleaseStore);
-    if (FLAG_trace_creation_allocation_sites) {
+    if (v8_flags.trace_creation_allocation_sites) {
       bool top_level =
           !scope_site.is_null() && top().is_identical_to(scope_site);
       if (top_level) {
@@ -567,7 +565,7 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
     vector->SynchronizedSet(literals_slot, *site);
   }
 
-  STATIC_ASSERT(static_cast<int>(ObjectLiteral::kDisableMementos) ==
+  static_assert(static_cast<int>(ObjectLiteral::kDisableMementos) ==
                 static_cast<int>(ArrayLiteral::kDisableMementos));
   bool enable_mementos = (flags & ObjectLiteral::kDisableMementos) == 0;
 
@@ -584,10 +582,11 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 0);
-  CONVERT_TAGGED_INDEX_ARG_CHECKED(literals_index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(ObjectBoilerplateDescription, description, 2);
-  CONVERT_SMI_ARG_CHECKED(flags, 3);
+  Handle<HeapObject> maybe_vector = args.at<HeapObject>(0);
+  int literals_index = args.tagged_index_value_at(1);
+  Handle<ObjectBoilerplateDescription> description =
+      args.at<ObjectBoilerplateDescription>(2);
+  int flags = args.smi_value_at(3);
   Handle<FeedbackVector> vector;
   if (maybe_vector->IsFeedbackVector()) {
     vector = Handle<FeedbackVector>::cast(maybe_vector);
@@ -602,8 +601,9 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
 RUNTIME_FUNCTION(Runtime_CreateObjectLiteralWithoutAllocationSite) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(ObjectBoilerplateDescription, description, 0);
-  CONVERT_SMI_ARG_CHECKED(flags, 1);
+  Handle<ObjectBoilerplateDescription> description =
+      args.at<ObjectBoilerplateDescription>(0);
+  int flags = args.smi_value_at(1);
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteralWithoutAllocationSite<ObjectLiteralHelper>(
                    isolate, description, flags));
@@ -612,8 +612,9 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteralWithoutAllocationSite) {
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteralWithoutAllocationSite) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(ArrayBoilerplateDescription, description, 0);
-  CONVERT_SMI_ARG_CHECKED(flags, 1);
+  Handle<ArrayBoilerplateDescription> description =
+      args.at<ArrayBoilerplateDescription>(0);
+  int flags = args.smi_value_at(1);
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteralWithoutAllocationSite<ArrayLiteralHelper>(
                    isolate, description, flags));
@@ -622,10 +623,11 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteralWithoutAllocationSite) {
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 0);
-  CONVERT_TAGGED_INDEX_ARG_CHECKED(literals_index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(ArrayBoilerplateDescription, elements, 2);
-  CONVERT_SMI_ARG_CHECKED(flags, 3);
+  Handle<HeapObject> maybe_vector = args.at<HeapObject>(0);
+  int literals_index = args.tagged_index_value_at(1);
+  Handle<ArrayBoilerplateDescription> elements =
+      args.at<ArrayBoilerplateDescription>(2);
+  int flags = args.smi_value_at(3);
   Handle<FeedbackVector> vector;
   if (maybe_vector->IsFeedbackVector()) {
     vector = Handle<FeedbackVector>::cast(maybe_vector);
@@ -640,10 +642,10 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
 RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 0);
-  CONVERT_TAGGED_INDEX_ARG_CHECKED(index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
-  CONVERT_SMI_ARG_CHECKED(flags, 3);
+  Handle<HeapObject> maybe_vector = args.at<HeapObject>(0);
+  int index = args.tagged_index_value_at(1);
+  Handle<String> pattern = args.at<String>(2);
+  int flags = args.smi_value_at(3);
 
   if (maybe_vector->IsUndefined()) {
     // We don't have a vector; don't create a boilerplate, simply construct a

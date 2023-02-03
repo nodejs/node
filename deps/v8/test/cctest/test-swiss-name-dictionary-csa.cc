@@ -6,10 +6,10 @@
 #include "src/codegen/cpu-features.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
-#include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 #include "test/cctest/test-swiss-name-dictionary-infra.h"
 #include "test/cctest/test-swiss-name-dictionary-shared-tests.h"
+#include "test/common/code-assembler-tester.h"
 
 namespace v8 {
 namespace internal {
@@ -266,9 +266,10 @@ Handle<Code> CSATestRunner::create_find_entry(Isolate* isolate) {
   // TODO(v8:11330): Remove once CSA implementation has a fallback for
   // non-SSSE3/AVX configurations.
   if (!IsEnabled()) {
-    return isolate->builtins()->code_handle(Builtin::kIllegal);
+    return FromCodeT(isolate->builtins()->code_handle(Builtin::kIllegal),
+                     isolate);
   }
-  STATIC_ASSERT(kFindEntryParams == 2);  // (table, key)
+  static_assert(kFindEntryParams == 2);  // (table, key)
   compiler::CodeAssemblerTester asm_tester(isolate, kFindEntryParams + 1);
   CodeStubAssembler m(asm_tester.state());
   {
@@ -291,7 +292,7 @@ Handle<Code> CSATestRunner::create_find_entry(Isolate* isolate) {
 }
 
 Handle<Code> CSATestRunner::create_get_data(Isolate* isolate) {
-  STATIC_ASSERT(kGetDataParams == 2);  // (table, entry)
+  static_assert(kGetDataParams == 2);  // (table, entry)
   compiler::CodeAssemblerTester asm_tester(isolate, kGetDataParams + 1);
   CodeStubAssembler m(asm_tester.state());
   {
@@ -314,7 +315,7 @@ Handle<Code> CSATestRunner::create_get_data(Isolate* isolate) {
 }
 
 Handle<Code> CSATestRunner::create_put(Isolate* isolate) {
-  STATIC_ASSERT(kPutParams == 4);  // (table, entry, value, details)
+  static_assert(kPutParams == 4);  // (table, entry, value, details)
   compiler::CodeAssemblerTester asm_tester(isolate, kPutParams + 1);
   CodeStubAssembler m(asm_tester.state());
   {
@@ -338,9 +339,10 @@ Handle<Code> CSATestRunner::create_delete(Isolate* isolate) {
   // TODO(v8:11330): Remove once CSA implementation has a fallback for
   // non-SSSE3/AVX configurations.
   if (!IsEnabled()) {
-    return isolate->builtins()->code_handle(Builtin::kIllegal);
+    return FromCodeT(isolate->builtins()->code_handle(Builtin::kIllegal),
+                     isolate);
   }
-  STATIC_ASSERT(kDeleteParams == 2);  // (table, entry)
+  static_assert(kDeleteParams == 2);  // (table, entry)
   compiler::CodeAssemblerTester asm_tester(isolate, kDeleteParams + 1);
   CodeStubAssembler m(asm_tester.state());
   {
@@ -363,9 +365,10 @@ Handle<Code> CSATestRunner::create_add(Isolate* isolate) {
   // TODO(v8:11330): Remove once CSA implementation has a fallback for
   // non-SSSE3/AVX configurations.
   if (!IsEnabled()) {
-    return isolate->builtins()->code_handle(Builtin::kIllegal);
+    return FromCodeT(isolate->builtins()->code_handle(Builtin::kIllegal),
+                     isolate);
   }
-  STATIC_ASSERT(kAddParams == 4);  // (table, key, value, details)
+  static_assert(kAddParams == 4);  // (table, key, value, details)
   compiler::CodeAssemblerTester asm_tester(isolate, kAddParams + 1);
   CodeStubAssembler m(asm_tester.state());
   {
@@ -389,7 +392,7 @@ Handle<Code> CSATestRunner::create_add(Isolate* isolate) {
 }
 
 Handle<Code> CSATestRunner::create_allocate(Isolate* isolate) {
-  STATIC_ASSERT(kAllocateParams == 1);  // (capacity)
+  static_assert(kAllocateParams == 1);  // (capacity)
   compiler::CodeAssemblerTester asm_tester(isolate, kAllocateParams + 1);
   CodeStubAssembler m(asm_tester.state());
   {
@@ -404,7 +407,7 @@ Handle<Code> CSATestRunner::create_allocate(Isolate* isolate) {
 }
 
 Handle<Code> CSATestRunner::create_get_counts(Isolate* isolate) {
-  STATIC_ASSERT(kGetCountsParams == 1);  // (table)
+  static_assert(kGetCountsParams == 1);  // (table)
   compiler::CodeAssemblerTester asm_tester(isolate, kGetCountsParams + 1);
   CodeStubAssembler m(asm_tester.state());
   {
@@ -437,7 +440,7 @@ Handle<Code> CSATestRunner::create_get_counts(Isolate* isolate) {
 }
 
 Handle<Code> CSATestRunner::create_copy(Isolate* isolate) {
-  STATIC_ASSERT(kCopyParams == 1);  // (table)
+  static_assert(kCopyParams == 1);  // (table)
   compiler::CodeAssemblerTester asm_tester(isolate, kCopyParams + 1);
   CodeStubAssembler m(asm_tester.state());
   {

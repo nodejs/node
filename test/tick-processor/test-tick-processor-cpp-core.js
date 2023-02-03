@@ -14,5 +14,5 @@ base.runTest({
            require('vm').createContext({});
            setImmediate(function() { f(); });
          };
-         f();`
+         f();`,
 });

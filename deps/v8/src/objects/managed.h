@@ -58,7 +58,9 @@ class Managed : public Foreign {
   V8_INLINE const std::shared_ptr<CppType>& get() { return *GetSharedPtrPtr(); }
 
   static Managed cast(Object obj) { return Managed(obj.ptr()); }
-  static Managed unchecked_cast(Object obj) { return bit_cast<Managed>(obj); }
+  static Managed unchecked_cast(Object obj) {
+    return base::bit_cast<Managed>(obj);
+  }
 
   // Allocate a new {CppType} and wrap it in a {Managed<CppType>}.
   template <typename... Args>
@@ -77,12 +79,14 @@ class Managed : public Foreign {
   // the unique pointer will be released.
   static Handle<Managed<CppType>> FromUniquePtr(
       Isolate* isolate, size_t estimated_size,
-      std::unique_ptr<CppType> unique_ptr);
+      std::unique_ptr<CppType> unique_ptr,
+      AllocationType allocation_type = AllocationType::kYoung);
 
   // Create a {Managed<CppType>} from an existing {std::shared_ptr<CppType>}.
   static Handle<Managed<CppType>> FromSharedPtr(
       Isolate* isolate, size_t estimated_size,
-      std::shared_ptr<CppType> shared_ptr);
+      std::shared_ptr<CppType> shared_ptr,
+      AllocationType allocation_type = AllocationType::kYoung);
 
  private:
   // Internally this {Foreign} object stores a pointer to a new

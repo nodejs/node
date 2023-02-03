@@ -1,76 +1,116 @@
-// Flags: --expose-internals
-import { mustCall } from '../common/index.mjs';
-import esmLoaderModule from 'internal/modules/esm/loader';
-import assert from 'assert';
+import { spawnPromisified } from '../common/index.mjs';
+import * as fixtures from '../common/fixtures.mjs';
+import assert from 'node:assert';
+import { execPath } from 'node:process';
+import { describe, it } from 'node:test';
 
-const { ESMLoader } = esmLoaderModule;
-
-/**
- * Verify custom hooks are called with appropriate arguments.
- */
-{
-  const esmLoader = new ESMLoader();
-
-  const originalSpecifier = 'foo/bar';
-  const importAssertions = Object.assign(
-    Object.create(null),
-    { type: 'json' },
-  );
-  const parentURL = 'file:///entrypoint.js';
-  const resolvedURL = 'file:///foo/bar.js';
-  const suggestedFormat = 'test';
-
-  function resolve(specifier, context, defaultResolve) {
-    assert.strictEqual(specifier, originalSpecifier);
-    // Ensure `context` has all and only the properties it's supposed to
-    assert.deepStrictEqual(Object.keys(context), [
-      'conditions',
-      'importAssertions',
-      'parentURL',
+describe('Loader hooks', { concurrency: true }, () => {
+  it('are called with all expected arguments', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-loader',
+      fixtures.fileURL('/es-module-loaders/hooks-input.mjs'),
+      fixtures.path('/es-modules/json-modules.mjs'),
     ]);
-    assert.ok(Array.isArray(context.conditions));
-    assert.deepStrictEqual(context.importAssertions, importAssertions);
-    assert.strictEqual(context.parentURL, parentURL);
-    assert.strictEqual(typeof defaultResolve, 'function');
 
-    return {
-      format: suggestedFormat,
-      url: resolvedURL,
-    };
-  }
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
 
-  function load(resolvedURL, context, defaultLoad) {
-    assert.strictEqual(resolvedURL, resolvedURL);
-    assert.ok(new URL(resolvedURL));
-    // Ensure `context` has all and only the properties it's supposed to
-    assert.deepStrictEqual(Object.keys(context), [
-      'format',
-      'importAssertions',
-    ]);
-    assert.strictEqual(context.format, suggestedFormat);
-    assert.deepStrictEqual(context.importAssertions, importAssertions);
-    assert.strictEqual(typeof defaultLoad, 'function');
+    const lines = stdout.split('\n');
+    assert.match(lines[0], /{"url":"file:\/\/\/.*\/json-modules\.mjs","format":"test","shortCircuit":true}/);
+    assert.match(lines[1], /{"source":{"type":"Buffer","data":\[.*\]},"format":"module","shortCircuit":true}/);
+    assert.match(lines[2], /{"url":"file:\/\/\/.*\/experimental\.json","format":"test","shortCircuit":true}/);
+    assert.match(lines[3], /{"source":{"type":"Buffer","data":\[.*\]},"format":"json","shortCircuit":true}/);
+  });
 
-    // This doesn't matter (just to avoid errors)
-    return {
-      format: 'module',
-      source: '',
-    };
-  }
+  describe('should handle never-settling hooks in ESM files', { concurrency: true }, () => {
+    it('top-level await of a never-settling resolve', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--experimental-loader',
+        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.path('es-module-loaders/never-settling-resolve-step/never-resolve.mjs'),
+      ]);
 
-  const customLoader = {
-    // Ensure ESMLoader actually calls the custom hooks
-    resolve: mustCall(resolve),
-    load: mustCall(load),
-  };
+      assert.strictEqual(stderr, '');
+      assert.match(stdout, /^should be output\r?\n$/);
+      assert.strictEqual(code, 13);
+      assert.strictEqual(signal, null);
+    });
 
-  esmLoader.addCustomLoaders(customLoader);
+    it('top-level await of a never-settling load', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--experimental-loader',
+        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.path('es-module-loaders/never-settling-resolve-step/never-load.mjs'),
+      ]);
 
-  // Manually trigger hooks (since ESMLoader is not actually running)
-  const job = await esmLoader.getModuleJob(
-    originalSpecifier,
-    parentURL,
-    importAssertions,
-  );
-  await job.modulePromise;
-}
+      assert.strictEqual(stderr, '');
+      assert.match(stdout, /^should be output\r?\n$/);
+      assert.strictEqual(code, 13);
+      assert.strictEqual(signal, null);
+    });
+
+
+    it('top-level await of a race of never-settling hooks', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--experimental-loader',
+        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.path('es-module-loaders/never-settling-resolve-step/race.mjs'),
+      ]);
+
+      assert.strictEqual(stderr, '');
+      assert.match(stdout, /^true\r?\n$/);
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
+  });
+
+  describe('should handle never-settling hooks in CJS files', { concurrency: true }, () => {
+    it('never-settling resolve', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--experimental-loader',
+        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.path('es-module-loaders/never-settling-resolve-step/never-resolve.cjs'),
+      ]);
+
+      assert.strictEqual(stderr, '');
+      assert.match(stdout, /^should be output\r?\n$/);
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
+
+
+    it('never-settling load', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--experimental-loader',
+        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.path('es-module-loaders/never-settling-resolve-step/never-load.cjs'),
+      ]);
+
+      assert.strictEqual(stderr, '');
+      assert.match(stdout, /^should be output\r?\n$/);
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
+
+    it('race of never-settling hooks', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--experimental-loader',
+        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.path('es-module-loaders/never-settling-resolve-step/race.cjs'),
+      ]);
+
+      assert.strictEqual(stderr, '');
+      assert.match(stdout, /^true\r?\n$/);
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
+  });
+});

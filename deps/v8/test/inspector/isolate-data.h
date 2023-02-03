@@ -11,11 +11,7 @@
 #include "include/v8-array-buffer.h"
 #include "include/v8-inspector.h"
 #include "include/v8-local-handle.h"
-#include "include/v8-platform.h"
 #include "include/v8-script.h"
-#include "src/base/macros.h"
-#include "src/base/platform/platform.h"
-#include "src/base/vector.h"
 
 namespace v8 {
 

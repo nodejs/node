@@ -1,6 +1,6 @@
 const inspect = require('util').inspect
 const { URL } = require('url')
-const ansistyles = require('ansistyles')
+const chalk = require('chalk')
 const log = require('../utils/log-shim.js')
 const npmProfile = require('npm-profile')
 const qrcodeTerminal = require('qrcode-terminal')
@@ -53,8 +53,6 @@ class Profile extends BaseCommand {
     'parseable',
     'otp',
   ]
-
-  static ignoreImplicitWorkspace = true
 
   async completion (opts) {
     var argv = opts.conf.argv.remain
@@ -163,7 +161,7 @@ class Profile extends BaseCommand {
       } else {
         const table = new Table()
         for (const key of Object.keys(cleaned)) {
-          table.push({ [ansistyles.bright(key)]: cleaned[key] })
+          table.push({ [chalk.bold(key)]: cleaned[key] })
         }
 
         this.npm.output(table.toString())
@@ -221,7 +219,7 @@ class Profile extends BaseCommand {
 
     newUser[prop] = value
 
-    const result = await otplease(conf, conf => npmProfile.set(newUser, conf))
+    const result = await otplease(this.npm, conf, c => npmProfile.set(newUser, c))
 
     if (this.npm.config.get('json')) {
       this.npm.output(JSON.stringify({ [prop]: result[prop] }, null, 2))

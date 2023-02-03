@@ -24,6 +24,19 @@ class GapResolver final {
     // Assemble swap.
     virtual void AssembleSwap(InstructionOperand* source,
                               InstructionOperand* destination) = 0;
+
+    // Assemble cycles.
+    // - {SetPendingMove} reserves scratch registers needed to perform the moves
+    // in the cycle.
+    // - {MoveToTempLocation} moves an operand to a temporary location, either
+    // a scratch register or a new stack slot, depending on the platform and the
+    // reserved registers.
+    // - {MoveTempLocationTo} moves the temp location to the destination,
+    // thereby completing the cycle.
+    virtual void MoveToTempLocation(InstructionOperand* src) = 0;
+    virtual void MoveTempLocationTo(InstructionOperand* dst,
+                                    MachineRepresentation rep) = 0;
+    virtual void SetPendingMove(MoveOperands* move) = 0;
   };
 
   explicit GapResolver(Assembler* assembler)
@@ -36,6 +49,10 @@ class GapResolver final {
   // Performs the given move, possibly performing other moves to unblock the
   // destination operand.
   void PerformMove(ParallelMove* moves, MoveOperands* move);
+  // Perform the move and its non-cyclic dependencies. Return the cycle if one
+  // is found.
+  base::Optional<std::vector<MoveOperands*>> PerformMoveHelper(
+      ParallelMove* moves, MoveOperands* move);
 
   // Assembler used to emit moves and save registers.
   Assembler* const assembler_;

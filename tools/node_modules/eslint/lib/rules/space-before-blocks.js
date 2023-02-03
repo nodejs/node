@@ -40,7 +40,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing before blocks",
+            description: "Enforce consistent spacing before blocks",
             recommended: false,
             url: "https://eslint.org/docs/rules/space-before-blocks"
         },

@@ -58,7 +58,8 @@
             }
         ];
 
-        return Promise.all(parameters.map(function(params) {
+        // Using allSettled to skip unsupported test cases.
+        return Promise.allSettled(parameters.map(function(params) {
             return subtle.generateKey(params.generateParameters, true, ["wrapKey", "unwrapKey"])
             .then(function(key) {
                 var wrapper;
@@ -81,6 +82,7 @@
             {algorithm: {name: "RSA-OAEP", modulusLength: 1024, publicExponent: new Uint8Array([1,0,1]), hash: "SHA-256"}, privateUsages: ["decrypt"], publicUsages: ["encrypt"]},
             {algorithm: {name: "ECDSA", namedCurve: "P-256"}, privateUsages: ["sign"], publicUsages: ["verify"]},
             {algorithm: {name: "ECDH", namedCurve: "P-256"}, privateUsages: ["deriveBits"], publicUsages: []},
+            {algorithm: {name: "Ed25519" }, privateUsages: ["sign"], publicUsages: ["verify"]},
             {algorithm: {name: "AES-CTR", length: 128}, usages: ["encrypt", "decrypt"]},
             {algorithm: {name: "AES-CBC", length: 128}, usages: ["encrypt", "decrypt"]},
             {algorithm: {name: "AES-GCM", length: 128}, usages: ["encrypt", "decrypt"]},
@@ -88,7 +90,8 @@
             {algorithm: {name: "HMAC", length: 128, hash: "SHA-256"}, usages: ["sign", "verify"]}
         ];
 
-        return Promise.all(parameters.map(function(params) {
+        // Using allSettled to skip unsupported test cases.
+        return Promise.allSettled(parameters.map(function(params) {
             var usages;
             if ("usages" in params) {
                 usages = params.usages;
@@ -380,6 +383,9 @@
             case "ECDSA" :
                 signParams = {name: "ECDSA", hash: "SHA-256"};
                 break;
+            case "Ed25519" :
+                signParams = {name: "Ed25519"};
+                break;
             case "HMAC" :
                 signParams = {name: "HMAC"};
                 break;
@@ -416,7 +422,7 @@
                 if (expected.algorithm.name === "RSA-PSS" || expected.algorithm.name === "RSASSA-PKCS1-v1_5") {
                     ["d","p","q","dp","dq","qi","oth"].forEach(function(field){ delete jwkExpectedKey[field]; });
                 }
-                if (expected.algorithm.name === "ECDSA") {
+                if (expected.algorithm.name === "ECDSA" || expected.algorithm.name === "Ed25519") {
                     delete jwkExpectedKey["d"];
                 }
                 jwkExpectedKey.key_ops = ["verify"];

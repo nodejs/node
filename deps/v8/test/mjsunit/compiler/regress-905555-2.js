@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --noalways-opt
+// Flags: --allow-natives-syntax --noalways-turbofan
 
 global = 1;
 
@@ -22,6 +22,6 @@ delete this.global;
 %FinalizeOptimization();
 
 // boom should be deoptimized because the global property cell has changed.
-assertUnoptimized(boom, "sync");
+assertUnoptimized(boom);
 
 assertThrows(boom);

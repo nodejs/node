@@ -128,7 +128,7 @@ CollationRuleParser::parse(const UnicodeString &ruleString, UErrorCode &errorCod
 void
 CollationRuleParser::parseRuleChain(UErrorCode &errorCode) {
     int32_t resetStrength = parseResetAndPosition(errorCode);
-    UBool isFirstRelation = TRUE;
+    UBool isFirstRelation = true;
     for(;;) {
         int32_t result = parseRelationOperator(errorCode);
         if(U_FAILURE(errorCode)) { return; }
@@ -165,7 +165,7 @@ CollationRuleParser::parseRuleChain(UErrorCode &errorCode) {
             parseStarredCharacters(strength, i, errorCode);
         }
         if(U_FAILURE(errorCode)) { return; }
-        isFirstRelation = FALSE;
+        isFirstRelation = false;
     }
 }
 

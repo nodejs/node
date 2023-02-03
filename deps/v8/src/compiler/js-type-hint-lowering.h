@@ -8,7 +8,6 @@
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/deoptimizer/deoptimize-reason.h"
-#include "src/handles/handles.h"
 
 namespace v8 {
 namespace internal {
@@ -165,8 +164,9 @@ class JSTypeHintLowering {
 
   BinaryOperationHint GetBinaryOperationHint(FeedbackSlot slot) const;
   CompareOperationHint GetCompareOperationHint(FeedbackSlot slot) const;
-  Node* TryBuildSoftDeopt(FeedbackSlot slot, Node* effect, Node* control,
-                          DeoptimizeReason reson) const;
+  Node* BuildDeoptIfFeedbackIsInsufficient(FeedbackSlot slot, Node* effect,
+                                           Node* control,
+                                           DeoptimizeReason reson) const;
 
   JSHeapBroker* broker() const { return broker_; }
   JSGraph* jsgraph() const { return jsgraph_; }

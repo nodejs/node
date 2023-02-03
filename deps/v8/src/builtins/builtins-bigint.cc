@@ -27,7 +27,7 @@ BUILTIN(BigIntConstructor) {
   if (value->IsJSReceiver()) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, value,
-        JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(value),
+        JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(value),
                                 ToPrimitiveHint::kNumber));
   }
 

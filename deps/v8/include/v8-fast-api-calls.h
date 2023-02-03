@@ -240,6 +240,7 @@ class CTypeInfo {
   enum class Type : uint8_t {
     kVoid,
     kBool,
+    kUint8,
     kInt32,
     kUint32,
     kInt64,
@@ -247,6 +248,7 @@ class CTypeInfo {
     kFloat32,
     kFloat64,
     kV8Value,
+    kSeqOneByteString,
     kApiObject,  // This will be deprecated once all users have
                  // migrated from v8::ApiObject to v8::Local<v8::Value>.
     kAny,        // This is added to enable untyped representation of fast
@@ -302,8 +304,9 @@ class CTypeInfo {
   constexpr Flags GetFlags() const { return flags_; }
 
   static constexpr bool IsIntegralType(Type type) {
-    return type == Type::kInt32 || type == Type::kUint32 ||
-           type == Type::kInt64 || type == Type::kUint64;
+    return type == Type::kUint8 || type == Type::kInt32 ||
+           type == Type::kUint32 || type == Type::kInt64 ||
+           type == Type::kUint64;
   }
 
   static constexpr bool IsFloatingPointType(Type type) {
@@ -377,6 +380,11 @@ struct FastApiArrayBuffer {
   size_t byte_length;
 };
 
+struct FastOneByteString {
+  const char* data;
+  uint32_t length;
+};
+
 class V8_EXPORT CFunctionInfo {
  public:
   // Construct a struct to hold a CFunction's type information.
@@ -429,12 +437,14 @@ struct AnyCType {
     double double_value;
     Local<Object> object_value;
     Local<Array> sequence_value;
+    const FastApiTypedArray<uint8_t>* uint8_ta_value;
     const FastApiTypedArray<int32_t>* int32_ta_value;
     const FastApiTypedArray<uint32_t>* uint32_ta_value;
     const FastApiTypedArray<int64_t>* int64_ta_value;
     const FastApiTypedArray<uint64_t>* uint64_ta_value;
     const FastApiTypedArray<float>* float_ta_value;
     const FastApiTypedArray<double>* double_ta_value;
+    const FastOneByteString* string_value;
     FastApiCallbackOptions* options_value;
   };
 };
@@ -532,10 +542,6 @@ class V8_EXPORT CFunction {
   };
 };
 
-struct ApiObject {
-  uintptr_t address;
-};
-
 /**
  * A struct which may be passed to a fast call callback, like so:
  * \code
@@ -548,7 +554,7 @@ struct FastApiCallbackOptions {
    * returned instance may be filled with mock data.
    */
   static FastApiCallbackOptions CreateForTesting(Isolate* isolate) {
-    return {false, {0}};
+    return {false, {0}, nullptr};
   }
 
   /**
@@ -570,8 +576,13 @@ struct FastApiCallbackOptions {
    */
   union {
     uintptr_t data_ptr;
-    v8::Value data;
+    v8::Local<v8::Value> data;
   };
+
+  /**
+   * When called from WebAssembly, a view of the calling module's memory.
+   */
+  FastApiTypedArray<uint8_t>* const wasm_memory;
 };
 
 namespace internal {
@@ -610,7 +621,7 @@ class CFunctionInfoImpl : public CFunctionInfo {
                       kReturnType == CTypeInfo::Type::kFloat32 ||
                       kReturnType == CTypeInfo::Type::kFloat64 ||
                       kReturnType == CTypeInfo::Type::kAny,
-                  "64-bit int and api object values are not currently "
+                  "64-bit int, string and api object values are not currently "
                   "supported return types.");
   }
 
@@ -652,7 +663,8 @@ struct CTypeInfoTraits {};
   V(int64_t, kInt64)         \
   V(uint64_t, kUint64)       \
   V(float, kFloat32)         \
-  V(double, kFloat64)
+  V(double, kFloat64)        \
+  V(uint8_t, kUint8)
 
 // Same as above, but includes deprecated types for compatibility.
 #define ALL_C_TYPES(V)               \
@@ -660,7 +672,6 @@ struct CTypeInfoTraits {};
   V(void, kVoid)                     \
   V(v8::Local<v8::Value>, kV8Value)  \
   V(v8::Local<v8::Object>, kV8Value) \
-  V(ApiObject, kApiObject)           \
   V(AnyCType, kAny)
 
 // ApiObject was a temporary solution to wrap the pointer to the v8::Value.
@@ -692,7 +703,8 @@ PRIMITIVE_C_TYPES(DEFINE_TYPE_INFO_TRAITS)
   V(int64_t, kInt64)           \
   V(uint64_t, kUint64)         \
   V(float, kFloat32)           \
-  V(double, kFloat64)
+  V(double, kFloat64)          \
+  V(uint8_t, kUint8)
 
 TYPED_ARRAY_C_TYPES(SPECIALIZE_GET_TYPE_INFO_HELPER_FOR_TA)
 
@@ -724,6 +736,18 @@ struct TypeInfoHelper<FastApiCallbackOptions&> {
 
   static constexpr CTypeInfo::Type Type() {
     return CTypeInfo::kCallbackOptionsType;
+  }
+  static constexpr CTypeInfo::SequenceType SequenceType() {
+    return CTypeInfo::SequenceType::kScalar;
+  }
+};
+
+template <>
+struct TypeInfoHelper<const FastOneByteString&> {
+  static constexpr CTypeInfo::Flags Flags() { return CTypeInfo::Flags::kNone; }
+
+  static constexpr CTypeInfo::Type Type() {
+    return CTypeInfo::Type::kSeqOneByteString;
   }
   static constexpr CTypeInfo::SequenceType SequenceType() {
     return CTypeInfo::SequenceType::kScalar;
@@ -807,6 +831,16 @@ class CFunctionBuilderWithFunction {
         std::make_index_sequence<sizeof...(ArgBuilders)>());
   }
 
+  // Provided for testing purposes.
+  template <typename Ret, typename... Args>
+  auto Patch(Ret (*patching_func)(Args...)) {
+    static_assert(
+        sizeof...(Args) == sizeof...(ArgBuilders),
+        "The patching function must have the same number of arguments.");
+    fn_ = reinterpret_cast<void*>(patching_func);
+    return *this;
+  }
+
   auto Build() {
     static CFunctionInfoImpl<RetBuilder, ArgBuilders...> instance;
     return CFunction(fn_, &instance);
@@ -886,31 +920,6 @@ static constexpr CTypeInfo kTypeInfoFloat64 =
  * to the requested destination type, is considered unsupported. The operation
  * returns true on success. `type_info` will be used for conversions.
  */
-template <const CTypeInfo* type_info, typename T>
-V8_DEPRECATED(
-    "Use TryToCopyAndConvertArrayToCppBuffer<CTypeInfo::Identifier, T>()")
-bool V8_EXPORT V8_WARN_UNUSED_RESULT
-    TryCopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
-                                      uint32_t max_length);
-
-template <>
-V8_DEPRECATED(
-    "Use TryToCopyAndConvertArrayToCppBuffer<CTypeInfo::Identifier, T>()")
-inline bool V8_WARN_UNUSED_RESULT
-    TryCopyAndConvertArrayToCppBuffer<&kTypeInfoInt32, int32_t>(
-        Local<Array> src, int32_t* dst, uint32_t max_length) {
-  return false;
-}
-
-template <>
-V8_DEPRECATED(
-    "Use TryToCopyAndConvertArrayToCppBuffer<CTypeInfo::Identifier, T>()")
-inline bool V8_WARN_UNUSED_RESULT
-    TryCopyAndConvertArrayToCppBuffer<&kTypeInfoFloat64, double>(
-        Local<Array> src, double* dst, uint32_t max_length) {
-  return false;
-}
-
 template <CTypeInfo::Identifier type_info_id, typename T>
 bool V8_EXPORT V8_WARN_UNUSED_RESULT TryToCopyAndConvertArrayToCppBuffer(
     Local<Array> src, T* dst, uint32_t max_length);

@@ -12,7 +12,7 @@ namespace cppgc {
 namespace internal {
 
 MarkingVisitorBase::MarkingVisitorBase(HeapBase& heap,
-                                       MarkingStateBase& marking_state)
+                                       BasicMarkingState& marking_state)
     : marking_state_(marking_state) {}
 
 void MarkingVisitorBase::Visit(const void* object, TraceDescriptor desc) {
@@ -70,6 +70,14 @@ void ConservativeMarkingVisitor::VisitInConstructionConservatively(
   // hold a reference to themselves.
   if (!marking_state_.MarkNoPush(header)) return;
   marking_state_.AccountMarkedBytes(header);
+#if defined(CPPGC_YOUNG_GENERATION)
+  // An in-construction object can add a reference to a young object that may
+  // miss the write-barrier on an initializing store. Remember object in the
+  // root-set to be retraced on the next GC.
+  if (heap_.generational_gc_supported()) {
+    heap_.remembered_set().AddInConstructionObjectToBeRetraced(header);
+  }
+#endif  // defined(CPPGC_YOUNG_GENERATION)
   callback(this, header);
 }
 
@@ -77,18 +85,20 @@ MutatorMarkingVisitor::MutatorMarkingVisitor(HeapBase& heap,
                                              MutatorMarkingState& marking_state)
     : MarkingVisitorBase(heap, marking_state) {}
 
-void MutatorMarkingVisitor::VisitRoot(const void* object, TraceDescriptor desc,
-                                      const SourceLocation&) {
-  Visit(object, desc);
+RootMarkingVisitor::RootMarkingVisitor(MutatorMarkingState& marking_state)
+    : mutator_marking_state_(marking_state) {}
+
+void RootMarkingVisitor::VisitRoot(const void* object, TraceDescriptor desc,
+                                   const SourceLocation&) {
+  mutator_marking_state_.MarkAndPush(object, desc);
 }
 
-void MutatorMarkingVisitor::VisitWeakRoot(const void* object,
-                                          TraceDescriptor desc,
-                                          WeakCallback weak_callback,
-                                          const void* weak_root,
-                                          const SourceLocation&) {
-  static_cast<MutatorMarkingState&>(marking_state_)
-      .InvokeWeakRootsCallbackIfNeeded(object, desc, weak_callback, weak_root);
+void RootMarkingVisitor::VisitWeakRoot(const void* object, TraceDescriptor desc,
+                                       WeakCallback weak_callback,
+                                       const void* weak_root,
+                                       const SourceLocation&) {
+  mutator_marking_state_.InvokeWeakRootsCallbackIfNeeded(
+      object, desc, weak_callback, weak_root);
 }
 
 ConcurrentMarkingVisitor::ConcurrentMarkingVisitor(

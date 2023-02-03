@@ -196,9 +196,9 @@ static void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
-  env->SetMethod(target, "enqueueMicrotask", EnqueueMicrotask);
-  env->SetMethod(target, "setTickCallback", SetTickCallback);
-  env->SetMethod(target, "runMicrotasks", RunMicrotasks);
+  SetMethod(context, target, "enqueueMicrotask", EnqueueMicrotask);
+  SetMethod(context, target, "setTickCallback", SetTickCallback);
+  SetMethod(context, target, "runMicrotasks", RunMicrotasks);
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(isolate, "tickInfo"),
               env->tick_info()->fields().GetJSArray()).Check();
@@ -212,9 +212,8 @@ static void Initialize(Local<Object> target,
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(isolate, "promiseRejectEvents"),
               events).Check();
-  env->SetMethod(target,
-                 "setPromiseRejectCallback",
-                 SetPromiseRejectCallback);
+  SetMethod(
+      context, target, "setPromiseRejectCallback", SetPromiseRejectCallback);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -227,6 +226,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace task_queue
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(task_queue, node::task_queue::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(task_queue,
-                               node::task_queue::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(task_queue, node::task_queue::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(task_queue,
+                                node::task_queue::RegisterExternalReferences)

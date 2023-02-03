@@ -176,9 +176,9 @@ struct RegExpInstruction {
     // Payload of ASSERTION:
     RegExpAssertion::Type assertion_type;
   } payload;
-  STATIC_ASSERT(sizeof(payload) == 4);
+  static_assert(sizeof(payload) == 4);
 };
-STATIC_ASSERT(sizeof(RegExpInstruction) == 8);
+static_assert(sizeof(RegExpInstruction) == 8);
 // TODO(mbid,v8:10765): This is rather wasteful.  We can fit the opcode in 2-3
 // bits, so the remaining 29/30 bits can be used as payload.  Problem: The
 // payload of CONSUME_RANGE consists of two 16-bit values `min` and `max`, so

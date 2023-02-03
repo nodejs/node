@@ -29,6 +29,22 @@ For "fips186_4" this must be either 2048 or 3072.
 For "fips186_2" this must be 1024.
 For "group" this can be any one of 2048, 3072, 4096, 6144 or 8192.
 
+=head2 DSA key validation
+
+For DSA keys, L<EVP_PKEY_param_check(3)> behaves in the following way:
+The OpenSSL FIPS provider conforms to the rules within the FIPS186-4
+standard for FFC parameter validation. For backwards compatibility the OpenSSL
+default provider uses a much simpler check (see below) for parameter validation,
+unless the seed parameter is set.
+
+For DSA keys, L<EVP_PKEY_param_check_quick(3)> behaves in the following way:
+A simple check of L and N and partial g is performed. The default provider
+also supports validation of legacy "fips186_2" keys.
+
+For DSA keys, L<EVP_PKEY_public_check(3)>, L<EVP_PKEY_private_check(3)> and
+L<EVP_PKEY_pairwise_check(3)> the OpenSSL default and FIPS providers conform to
+the rules within SP800-56Ar3 for public, private and pairwise tests respectively.
+
 =head1 EXAMPLES
 
 An B<EVP_PKEY> context can be obtained by calling:
@@ -73,7 +89,7 @@ A B<DSA> key can be generated using domain parameters by calling:
 
 =head1 CONFORMING TO
 
-The following sections of FIPS 186-4:
+The following sections of FIPS186-4:
 
 =over 4
 
@@ -97,7 +113,7 @@ L<OSSL_PROVIDER-FIPS(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

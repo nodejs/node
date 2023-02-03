@@ -20,7 +20,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require braces around arrow function bodies",
+            description: "Require braces around arrow function bodies",
             recommended: false,
             url: "https://eslint.org/docs/rules/arrow-body-style"
         },

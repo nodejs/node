@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,6 +13,7 @@
 #include <openssl/params.h>
 #include <openssl/core_names.h>
 #include <openssl/evp.h>
+#include <openssl/store.h>
 #include "testutil.h"
 #include "fake_rsaprov.h"
 
@@ -115,6 +116,117 @@ end:
     return ret;
 }
 
+static int test_alternative_keygen_init(void)
+{
+    EVP_PKEY_CTX *ctx = NULL;
+    OSSL_PROVIDER *deflt = NULL;
+    OSSL_PROVIDER *fake_rsa = NULL;
+    const OSSL_PROVIDER *provider;
+    const char *provname;
+    int ret = 0;
+
+    if (!TEST_ptr(deflt = OSSL_PROVIDER_load(libctx, "default")))
+        goto end;
+
+    /* first try without the fake RSA provider loaded */
+    if (!TEST_ptr(ctx = EVP_PKEY_CTX_new_from_name(libctx, "RSA", NULL)))
+        goto end;
+
+    if (!TEST_int_gt(EVP_PKEY_keygen_init(ctx), 0))
+        goto end;
+
+    if (!TEST_ptr(provider = EVP_PKEY_CTX_get0_provider(ctx)))
+        goto end;
+
+    if (!TEST_ptr(provname = OSSL_PROVIDER_get0_name(provider)))
+        goto end;
+
+    if (!TEST_str_eq(provname, "default"))
+        goto end;
+
+    EVP_PKEY_CTX_free(ctx);
+    ctx = NULL;
+
+    /* now load fake RSA and try again */
+    if (!TEST_ptr(fake_rsa = fake_rsa_start(libctx)))
+        return 0;
+
+    if (!TEST_ptr(ctx = EVP_PKEY_CTX_new_from_name(libctx, "RSA",
+                                                   "?provider=fake-rsa")))
+        goto end;
+
+    if (!TEST_int_gt(EVP_PKEY_keygen_init(ctx), 0))
+        goto end;
+
+    if (!TEST_ptr(provider = EVP_PKEY_CTX_get0_provider(ctx)))
+        goto end;
+
+    if (!TEST_ptr(provname = OSSL_PROVIDER_get0_name(provider)))
+        goto end;
+
+    if (!TEST_str_eq(provname, "fake-rsa"))
+        goto end;
+
+    ret = 1;
+
+end:
+    fake_rsa_finish(fake_rsa);
+    OSSL_PROVIDER_unload(deflt);
+    EVP_PKEY_CTX_free(ctx);
+    return ret;
+}
+
+static int test_pkey_store(int idx)
+{
+    OSSL_PROVIDER *deflt = NULL;
+    OSSL_PROVIDER *fake_rsa = NULL;
+    int ret = 0;
+    EVP_PKEY *pkey = NULL;
+    OSSL_STORE_LOADER *loader = NULL;
+    OSSL_STORE_CTX *ctx = NULL;
+    OSSL_STORE_INFO *info;
+    const char *propq = idx == 0 ? "?provider=fake-rsa"
+                                 : "?provider=default";
+
+    /* It's important to load the default provider first for this test */
+    if (!TEST_ptr(deflt = OSSL_PROVIDER_load(libctx, "default")))
+        goto end;
+
+    if (!TEST_ptr(fake_rsa = fake_rsa_start(libctx)))
+        goto end;
+
+    if (!TEST_ptr(loader = OSSL_STORE_LOADER_fetch(libctx, "fake_rsa",
+                                                   propq)))
+        goto end;
+
+    OSSL_STORE_LOADER_free(loader);
+
+    if (!TEST_ptr(ctx = OSSL_STORE_open_ex("fake_rsa:test", libctx, propq,
+                                           NULL, NULL, NULL, NULL, NULL)))
+        goto end;
+
+    while (!OSSL_STORE_eof(ctx)
+           && (info = OSSL_STORE_load(ctx)) != NULL
+           && pkey == NULL) {
+        if (OSSL_STORE_INFO_get_type(info) == OSSL_STORE_INFO_PKEY)
+            pkey = OSSL_STORE_INFO_get1_PKEY(info);
+        OSSL_STORE_INFO_free(info);
+        info = NULL;
+    }
+
+    if (!TEST_ptr(pkey) || !TEST_int_eq(EVP_PKEY_is_a(pkey, "RSA"), 1))
+        goto end;
+
+    ret = 1;
+
+end:
+    fake_rsa_finish(fake_rsa);
+    OSSL_PROVIDER_unload(deflt);
+    OSSL_STORE_close(ctx);
+    EVP_PKEY_free(pkey);
+    return ret;
+}
+
 int setup_tests(void)
 {
     libctx = OSSL_LIB_CTX_new();
@@ -122,6 +234,8 @@ int setup_tests(void)
         return 0;
 
     ADD_TEST(test_pkey_sig);
+    ADD_TEST(test_alternative_keygen_init);
+    ADD_ALL_TESTS(test_pkey_store, 2);
 
     return 1;
 }

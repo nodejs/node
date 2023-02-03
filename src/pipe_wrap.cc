@@ -41,6 +41,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Int32;
+using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
@@ -67,31 +68,32 @@ void PipeWrap::Initialize(Local<Object> target,
                           Local<Context> context,
                           void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
   t->InstanceTemplate()
     ->SetInternalFieldCount(StreamBase::kInternalFieldCount);
 
   t->Inherit(LibuvStreamWrap::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(t, "bind", Bind);
-  env->SetProtoMethod(t, "listen", Listen);
-  env->SetProtoMethod(t, "connect", Connect);
-  env->SetProtoMethod(t, "open", Open);
+  SetProtoMethod(isolate, t, "bind", Bind);
+  SetProtoMethod(isolate, t, "listen", Listen);
+  SetProtoMethod(isolate, t, "connect", Connect);
+  SetProtoMethod(isolate, t, "open", Open);
 
 #ifdef _WIN32
-  env->SetProtoMethod(t, "setPendingInstances", SetPendingInstances);
+  SetProtoMethod(isolate, t, "setPendingInstances", SetPendingInstances);
 #endif
 
-  env->SetProtoMethod(t, "fchmod", Fchmod);
+  SetProtoMethod(isolate, t, "fchmod", Fchmod);
 
-  env->SetConstructorFunction(target, "Pipe", t);
+  SetConstructorFunction(context, target, "Pipe", t);
   env->set_pipe_constructor_template(t);
 
   // Create FunctionTemplate for PipeConnectWrap.
   auto cwt = BaseObject::MakeLazilyInitializedJSTemplate(env);
   cwt->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  env->SetConstructorFunction(target, "PipeConnectWrap", cwt);
+  SetConstructorFunction(context, target, "PipeConnectWrap", cwt);
 
   // Define constants
   Local<Object> constants = Object::New(env->isolate());
@@ -215,10 +217,9 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->Int32Value(env->context()).To(&fd)) return;
 
   int err = uv_pipe_open(&wrap->handle_, fd);
-  wrap->set_fd(fd);
+  if (err == 0) wrap->set_fd(fd);
 
-  if (err != 0)
-    env->ThrowUVException(err, "uv_pipe_open");
+  args.GetReturnValue().Set(err);
 }
 
 
@@ -241,12 +242,18 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
                      *name,
                      AfterConnect);
 
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE2(net, native),
+                                    "connect",
+                                    req_wrap,
+                                    "pipe_path",
+                                    TRACE_STR_COPY(*name));
+
   args.GetReturnValue().Set(0);  // uv_pipe_connect() doesn't return errors.
 }
 
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(pipe_wrap, node::PipeWrap::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(pipe_wrap,
-                               node::PipeWrap::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(pipe_wrap, node::PipeWrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(pipe_wrap,
+                                node::PipeWrap::RegisterExternalReferences)

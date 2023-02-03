@@ -30,10 +30,12 @@ const collector = new (class {
         }
     }
 
-    collectControlChars(regexpStr) {
+    collectControlChars(regexpStr, flags) {
+        const uFlag = typeof flags === "string" && flags.includes("u");
+
         try {
             this._source = regexpStr;
-            this._validator.validatePattern(regexpStr); // Call onCharacter hook
+            this._validator.validatePattern(regexpStr, void 0, void 0, uFlag); // Call onCharacter hook
         } catch {
 
             // Ignore syntax errors in RegExp.
@@ -52,7 +54,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow control characters in regular expressions",
+            description: "Disallow control characters in regular expressions",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-control-regex"
         },
@@ -68,13 +70,15 @@ module.exports = {
 
         /**
          * Get the regex expression
-         * @param {ASTNode} node node to evaluate
-         * @returns {RegExp|null} Regex if found else null
+         * @param {ASTNode} node `Literal` node to evaluate
+         * @returns {{ pattern: string, flags: string | null } | null} Regex if found (the given node is either a regex literal
+         * or a string literal that is the pattern argument of a RegExp constructor call). Otherwise `null`. If flags cannot be determined,
+         * the `flags` property will be `null`.
          * @private
          */
-        function getRegExpPattern(node) {
+        function getRegExp(node) {
             if (node.regex) {
-                return node.regex.pattern;
+                return node.regex;
             }
             if (typeof node.value === "string" &&
                 (node.parent.type === "NewExpression" || node.parent.type === "CallExpression") &&
@@ -82,7 +86,15 @@ module.exports = {
                 node.parent.callee.name === "RegExp" &&
                 node.parent.arguments[0] === node
             ) {
-                return node.value;
+                const pattern = node.value;
+                const flags =
+                    node.parent.arguments.length > 1 &&
+                    node.parent.arguments[1].type === "Literal" &&
+                    typeof node.parent.arguments[1].value === "string"
+                        ? node.parent.arguments[1].value
+                        : null;
+
+                return { pattern, flags };
             }
 
             return null;
@@ -90,10 +102,11 @@ module.exports = {
 
         return {
             Literal(node) {
-                const pattern = getRegExpPattern(node);
+                const regExp = getRegExp(node);
 
-                if (pattern) {
-                    const controlCharacters = collector.collectControlChars(pattern);
+                if (regExp) {
+                    const { pattern, flags } = regExp;
+                    const controlCharacters = collector.collectControlChars(pattern, flags);
 
                     if (controlCharacters.length > 0) {
                         context.report({

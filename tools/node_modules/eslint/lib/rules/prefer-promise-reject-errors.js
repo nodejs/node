@@ -16,7 +16,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require using Error objects as Promise rejection reasons",
+            description: "Require using Error objects as Promise rejection reasons",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-promise-reject-errors"
         },

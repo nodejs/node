@@ -14,10 +14,29 @@
 namespace v8 {
 namespace internal {
 
+// static
+void StubCache::ClearCallback(v8::Isolate* isolate, v8::GCType type,
+                              v8::GCCallbackFlags flags, void* data) {
+  StubCache* cache = static_cast<StubCache*>(data);
+  cache->Clear();
+}
+
 StubCache::StubCache(Isolate* isolate) : isolate_(isolate) {
   // Ensure the nullptr (aka Smi::zero()) which StubCache::Get() returns
   // when the entry is not found is not considered as a handler.
   DCHECK(!IC::IsHandler(MaybeObject()));
+
+  // The stub caches are not traversed during GC; clear them to force
+  // their lazy re-initialization. This must be done after the
+  // GC, because it relies on the new address of certain old space
+  // objects (empty string, illegal builtin).
+
+  isolate_->heap()->AddGCEpilogueCallback(ClearCallback,
+                                          kGCTypeMarkSweepCompact, this);
+}
+
+StubCache::~StubCache() {
+  isolate_->heap()->RemoveGCEpilogueCallback(ClearCallback, this);
 }
 
 void StubCache::Initialize() {
@@ -31,8 +50,8 @@ void StubCache::Initialize() {
 // is scaled by 1 << kCacheIndexShift.
 int StubCache::PrimaryOffset(Name name, Map map) {
   // Compute the hash of the name (use entire hash field).
-  DCHECK(name.HasHashCode());
-  uint32_t field = name.raw_hash_field();
+  uint32_t field = name.RawHash();
+  DCHECK(Name::IsHashFieldComputed(field));
   // Using only the low bits in 64-bit mode is unlikely to increase the
   // risk of collision even if the heap is spread over an area larger than
   // 4Gb (and not at all if it isn't).

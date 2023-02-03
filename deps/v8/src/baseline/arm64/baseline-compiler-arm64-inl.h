@@ -13,6 +13,11 @@ namespace baseline {
 
 #define __ basm_.
 
+// A builtin call/jump mode that is used then short builtin calls feature is
+// not enabled.
+constexpr BuiltinCallJumpMode kFallbackBuiltinCallJumpModeForBaseline =
+    BuiltinCallJumpMode::kIndirect;
+
 void BaselineCompiler::Prologue() {
   ASM_CODE_COMMENT(&masm_);
   // Enter the frame here, since CallBuiltin will override lr.
@@ -34,7 +39,7 @@ void BaselineCompiler::PrologueFillFrame() {
   // Inlined register frame fill
   interpreter::Register new_target_or_generator_register =
       bytecode_->incoming_new_target_or_generator_register();
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ masm()->CompareRoot(kInterpreterAccumulatorRegister,
                            RootIndex::kUndefinedValue);
     __ masm()->Assert(eq, AbortReason::kUnexpectedValue);

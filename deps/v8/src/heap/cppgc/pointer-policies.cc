@@ -4,7 +4,6 @@
 
 #include "include/cppgc/internal/pointer-policies.h"
 
-#include "include/cppgc/internal/caged-heap-local-data.h"
 #include "include/cppgc/internal/persistent-node.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -64,9 +63,10 @@ void SameThreadEnabledCheckingPolicyBase::CheckPointerImpl(
   const HeapObjectHeader* header = nullptr;
   if (points_to_payload) {
     header = &HeapObjectHeader::FromObject(ptr);
-  } else if (!heap_->sweeper().IsSweepingInProgress()) {
-    // Mixin case.
-    header = &base_page->ObjectHeaderFromInnerAddress(ptr);
+  } else {
+    // Mixin case. Access the ObjectStartBitmap atomically since sweeping can be
+    // in progress.
+    header = &base_page->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(ptr);
     DCHECK_LE(header->ObjectStart(), ptr);
     DCHECK_GT(header->ObjectEnd(), ptr);
   }

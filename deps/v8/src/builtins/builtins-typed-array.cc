@@ -183,9 +183,7 @@ BUILTIN(TypedArrayPrototypeFill) {
   }
 
   if (V8_UNLIKELY(array->IsVariableLength())) {
-    bool out_of_bounds = false;
-    array->GetLengthOrOutOfBounds(out_of_bounds);
-    if (out_of_bounds) {
+    if (array->IsOutOfBounds()) {
       const MessageTemplate message = MessageTemplate::kDetachedOperation;
       Handle<String> operation =
           isolate->factory()->NewStringFromAsciiChecked(method_name);
@@ -246,7 +244,7 @@ BUILTIN(TypedArrayPrototypeIndexOf) {
       isolate, array,
       JSTypedArray::Validate(isolate, args.receiver(), method_name));
 
-  int64_t len = array->length();
+  int64_t len = array->GetLength();
   if (len == 0) return Smi::FromInt(-1);
 
   int64_t index = 0;
@@ -258,6 +256,10 @@ BUILTIN(TypedArrayPrototypeIndexOf) {
   }
 
   if (V8_UNLIKELY(array->WasDetached())) return Smi::FromInt(-1);
+
+  if (V8_UNLIKELY(array->IsVariableLength() && array->IsOutOfBounds())) {
+    return Smi::FromInt(-1);
+  }
 
   Handle<Object> search_element = args.atOrUndefined(isolate, 1);
   ElementsAccessor* elements = array->GetElementsAccessor();
@@ -276,7 +278,7 @@ BUILTIN(TypedArrayPrototypeLastIndexOf) {
       isolate, array,
       JSTypedArray::Validate(isolate, args.receiver(), method_name));
 
-  int64_t len = array->length();
+  int64_t len = array->GetLength();
   if (len == 0) return Smi::FromInt(-1);
 
   int64_t index = len - 1;
@@ -291,8 +293,10 @@ BUILTIN(TypedArrayPrototypeLastIndexOf) {
 
   if (index < 0) return Smi::FromInt(-1);
 
-  // TODO(cwhan.tunz): throw. See the above comment in CopyWithin.
   if (V8_UNLIKELY(array->WasDetached())) return Smi::FromInt(-1);
+  if (V8_UNLIKELY(array->IsVariableLength() && array->IsOutOfBounds())) {
+    return Smi::FromInt(-1);
+  }
 
   Handle<Object> search_element = args.atOrUndefined(isolate, 1);
   ElementsAccessor* elements = array->GetElementsAccessor();

@@ -11,6 +11,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-aux-data.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -24,20 +25,24 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   MachineGraph(Graph* graph, CommonOperatorBuilder* common,
                MachineOperatorBuilder* machine)
-      : graph_(graph), common_(common), machine_(machine), cache_(zone()) {}
+      : graph_(graph),
+        common_(common),
+        machine_(machine),
+        cache_(zone()),
+        call_counts_(zone()) {}
   MachineGraph(const MachineGraph&) = delete;
   MachineGraph& operator=(const MachineGraph&) = delete;
 
   // Creates a Int32Constant node, usually canonicalized.
   Node* Int32Constant(int32_t value);
   Node* Uint32Constant(uint32_t value) {
-    return Int32Constant(bit_cast<int32_t>(value));
+    return Int32Constant(base::bit_cast<int32_t>(value));
   }
 
   // Creates a Int64Constant node, usually canonicalized.
   Node* Int64Constant(int64_t value);
   Node* Uint64Constant(uint64_t value) {
-    return Int64Constant(bit_cast<int64_t>(value));
+    return Int64Constant(base::bit_cast<int64_t>(value));
   }
 
   // Creates a Int32Constant/Int64Constant node, depending on the word size of
@@ -63,7 +68,7 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
   Node* PointerConstant(intptr_t value);
   template <typename T>
   Node* PointerConstant(T* value) {
-    return PointerConstant(bit_cast<intptr_t>(value));
+    return PointerConstant(base::bit_cast<intptr_t>(value));
   }
 
   // Creates an ExternalConstant node, usually canonicalized.
@@ -73,6 +78,16 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
   // Global cache of the dead node.
   Node* Dead() {
     return Dead_ ? Dead_ : Dead_ = graph_->NewNode(common_->Dead());
+  }
+
+  // Store and retrieve call count information.
+  void StoreCallCount(NodeId call_id, int count) {
+    call_counts_.Put(call_id, count);
+  }
+  int GetCallCount(NodeId call_id) { return call_counts_.Get(call_id); }
+  // Use this to keep the number of map rehashings to a minimum.
+  void ReserveCallCounts(size_t num_call_instructions) {
+    call_counts_.Reserve(num_call_instructions);
   }
 
   CommonOperatorBuilder* common() const { return common_; }
@@ -85,6 +100,7 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
   CommonOperatorBuilder* common_;
   MachineOperatorBuilder* machine_;
   CommonNodeCache cache_;
+  NodeAuxDataMap<int, -1> call_counts_;
   Node* Dead_ = nullptr;
 };
 

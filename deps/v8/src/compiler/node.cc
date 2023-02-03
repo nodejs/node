@@ -162,7 +162,7 @@ void Node::AppendInput(Zone* zone, Node* new_to) {
     bit_field_ = InlineCountField::update(bit_field_, inline_count + 1);
     *GetInputPtr(inline_count) = new_to;
     Use* use = GetUsePtr(inline_count);
-    STATIC_ASSERT(InlineCapacityField::kMax <= Use::InputIndexField::kMax);
+    static_assert(InlineCapacityField::kMax <= Use::InputIndexField::kMax);
     use->bit_field_ = Use::InputIndexField::encode(inline_count) |
                       Use::InlineField::encode(true);
     new_to->AppendUse(use);
@@ -293,6 +293,15 @@ int Node::UseCount() const {
   return use_count;
 }
 
+int Node::BranchUseCount() const {
+  int use_count = 0;
+  for (Use* use = first_use_; use; use = use->next) {
+    if (use->from()->opcode() == IrOpcode::kBranch) {
+      ++use_count;
+    }
+  }
+  return use_count;
+}
 
 void Node::ReplaceUses(Node* that) {
   DCHECK(this->first_use_ == nullptr || this->first_use_->prev == nullptr);
@@ -389,14 +398,13 @@ Node::Node(NodeId id, const Operator* op, int inline_count, int inline_capacity)
                  InlineCapacityField::encode(inline_capacity)),
       first_use_(nullptr) {
   // Check that the id didn't overflow.
-  STATIC_ASSERT(IdField::kMax < std::numeric_limits<NodeId>::max());
+  static_assert(IdField::kMax < std::numeric_limits<NodeId>::max());
   CHECK(IdField::is_valid(id));
 
   // Inputs must either be out of line or within the inline capacity.
   DCHECK(inline_count == kOutlineMarker || inline_count <= inline_capacity);
   DCHECK_LE(inline_capacity, kMaxInlineCapacity);
 }
-
 
 void Node::AppendUse(Use* use) {
   DCHECK(first_use_ == nullptr || first_use_->prev == nullptr);
@@ -497,6 +505,7 @@ bool Node::Uses::empty() const { return begin() == end(); }
 }  // namespace internal
 }  // namespace v8
 
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Node_Print(void* object) {
   reinterpret_cast<i::compiler::Node*>(object)->Print();
 }

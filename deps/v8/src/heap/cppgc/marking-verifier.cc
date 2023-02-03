@@ -4,13 +4,16 @@
 
 #include "src/heap/cppgc/marking-verifier.h"
 
-#include "include/cppgc/internal/caged-heap-local-data.h"
 #include "src/base/logging.h"
 #include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/object-view.h"
+
+#if defined(CPPGC_CAGED_HEAP)
+#include "include/cppgc/internal/caged-heap-local-data.h"
+#endif  // defined(CPPGC_CAGED_HEAP)
 
 namespace cppgc {
 namespace internal {
@@ -33,7 +36,7 @@ void VerificationState::VerifyMarked(const void* base_object_payload) const {
 }
 
 MarkingVerifierBase::MarkingVerifierBase(
-    HeapBase& heap, Heap::Config::CollectionType collection_type,
+    HeapBase& heap, CollectionType collection_type,
     VerificationState& verification_state,
     std::unique_ptr<cppgc::Visitor> visitor)
     : ConservativeTracingVisitor(heap, *heap.page_backend(), *visitor.get()),
@@ -42,7 +45,7 @@ MarkingVerifierBase::MarkingVerifierBase(
       collection_type_(collection_type) {}
 
 void MarkingVerifierBase::Run(
-    Heap::Config::StackState stack_state, uintptr_t stack_end,
+    StackState stack_state, uintptr_t stack_end,
     v8::base::Optional<size_t> expected_marked_bytes) {
   Traverse(heap_.raw_heap());
 // Avoid verifying the stack when running with TSAN as the TSAN runtime changes
@@ -51,10 +54,17 @@ void MarkingVerifierBase::Run(
 // marking. This means that the conservative iteration below may find more
 // objects then the regular marker. The difference is benign as the delta of
 // objects is not reachable from user code but it prevents verification.
-#if !defined(THREAD_SANITIZER)
-  if (stack_state == Heap::Config::StackState::kMayContainHeapPointers) {
+// We also avoid verifying the stack when pointer compression is enabled.
+// Currently, verification happens after compaction, V8 compaction can change
+// slots on stack, which could lead to false positives in verifier. Those are
+// more likely with checking compressed pointers on stack.
+// TODO(chromium:1325007): Investigate if Oilpan verification can be moved
+// before V8 compaction or compaction never runs with stack.
+#if !defined(THREAD_SANITIZER) && !defined(CPPGC_POINTER_COMPRESSION)
+  if (stack_state == StackState::kMayContainHeapPointers) {
     in_construction_objects_ = &in_construction_objects_stack_;
-    heap_.stack()->IteratePointersUnsafe(this, stack_end);
+    heap_.stack()->IteratePointersUnsafe(
+        this, reinterpret_cast<const void*>(stack_end));
     // The objects found through the unsafe iteration are only a subset of the
     // regular iteration as they miss objects held alive only from callee-saved
     // registers that are never pushed on the stack and SafeStack.
@@ -105,15 +115,14 @@ bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader& header) {
   DCHECK(!header.IsFree());
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  if (collection_type_ == Heap::Config::CollectionType::kMinor) {
-    const auto age = heap_.caged_heap()
-                         .local_data()
-                         .age_table[heap_.caged_heap().OffsetFromAddress(
-                             header.ObjectStart())];
+  if (collection_type_ == CollectionType::kMinor) {
+    auto& caged_heap = CagedHeap::Instance();
+    const auto age = CagedHeapLocalData::Get().age_table.GetAge(
+        caged_heap.OffsetFromAddress(header.ObjectStart()));
     if (age == AgeTable::Age::kOld) {
       // Do not verify old objects.
       return true;
-    } else if (age == AgeTable::Age::kUnknown) {
+    } else if (age == AgeTable::Age::kMixed) {
       // If the age is not known, the marked bytes may not be exact as possibly
       // old objects are verified as well.
       verifier_found_marked_bytes_are_exact_ = false;
@@ -177,7 +186,7 @@ class VerificationVisitor final : public cppgc::Visitor {
 }  // namespace
 
 MarkingVerifier::MarkingVerifier(HeapBase& heap_base,
-                                 Heap::Config::CollectionType collection_type)
+                                 CollectionType collection_type)
     : MarkingVerifierBase(heap_base, collection_type, state_,
                           std::make_unique<VerificationVisitor>(state_)) {}
 

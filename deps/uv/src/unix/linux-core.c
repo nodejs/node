@@ -45,6 +45,10 @@
 
 #define HAVE_IFADDRS_H 1
 
+# if defined(__ANDROID_API__) && __ANDROID_API__ < 24
+# undef HAVE_IFADDRS_H
+#endif
+
 #ifdef __UCLIBC__
 # if __UCLIBC_MAJOR__ < 0 && __UCLIBC_MINOR__ < 9 && __UCLIBC_SUBLEVEL__ < 32
 #  undef HAVE_IFADDRS_H
@@ -52,11 +56,7 @@
 #endif
 
 #ifdef HAVE_IFADDRS_H
-# if defined(__ANDROID__)
-#  include "uv/android-ifaddrs.h"
-# else
-#  include <ifaddrs.h>
-# endif
+# include <ifaddrs.h>
 # include <sys/socket.h>
 # include <net/ethernet.h>
 # include <netpacket/packet.h>
@@ -211,31 +211,6 @@ err:
   return UV_EINVAL;
 }
 
-static int uv__slurp(const char* filename, char* buf, size_t len) {
-  ssize_t n;
-  int fd;
-
-  assert(len > 0);
-
-  fd = uv__open_cloexec(filename, O_RDONLY);
-  if (fd < 0)
-    return fd;
-
-  do
-    n = read(fd, buf, len - 1);
-  while (n == -1 && errno == EINTR);
-
-  if (uv__close_nocheckstdio(fd))
-    abort();
-
-  if (n < 0)
-    return UV__ERR(errno);
-
-  buf[n] = '\0';
-
-  return 0;
-}
-
 int uv_uptime(double* uptime) {
   static volatile int no_clock_boottime;
   char buf[128];
@@ -243,7 +218,7 @@ int uv_uptime(double* uptime) {
   int r;
 
   /* Try /proc/uptime first, then fallback to clock_gettime(). */
-  
+
   if (0 == uv__slurp("/proc/uptime", buf, sizeof(buf)))
     if (1 == sscanf(buf, "%lf", uptime))
       return 0;
@@ -641,6 +616,7 @@ static uint64_t read_cpufreq(unsigned int cpunum) {
 }
 
 
+#ifdef HAVE_IFADDRS_H
 static int uv__ifaddr_exclude(struct ifaddrs *ent, int exclude_type) {
   if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)))
     return 1;
@@ -654,6 +630,7 @@ static int uv__ifaddr_exclude(struct ifaddrs *ent, int exclude_type) {
     return exclude_type;
   return !exclude_type;
 }
+#endif
 
 int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 #ifndef HAVE_IFADDRS_H

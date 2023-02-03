@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "node.h"
+#include "node_exit_code.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
@@ -57,20 +58,14 @@ class NodeMainInstance {
   ~NodeMainInstance();
 
   // Start running the Node.js instances, return the exit code when finished.
-  int Run();
-  void Run(int* exit_code, Environment* env);
+  ExitCode Run();
+  void Run(ExitCode* exit_code, Environment* env);
 
   IsolateData* isolate_data() { return isolate_data_.get(); }
 
   DeleteFnPtr<Environment, FreeEnvironment> CreateMainEnvironment(
-      int* exit_code);
+      ExitCode* exit_code);
 
-  // If nullptr is returned, the binary is not built with embedded
-  // snapshot.
-  static const SnapshotData* GetEmbeddedSnapshotData();
-  static const std::vector<intptr_t>& CollectExternalReferences();
-
-  static const size_t kNodeContextIndex = 0;
   NodeMainInstance(const NodeMainInstance&) = delete;
   NodeMainInstance& operator=(const NodeMainInstance&) = delete;
   NodeMainInstance(NodeMainInstance&&) = delete;
@@ -83,7 +78,6 @@ class NodeMainInstance {
                    const std::vector<std::string>& args,
                    const std::vector<std::string>& exec_args);
 
-  static std::unique_ptr<ExternalReferenceRegistry> registry_;
   std::vector<std::string> args_;
   std::vector<std::string> exec_args_;
   std::unique_ptr<ArrayBufferAllocator> array_buffer_allocator_;

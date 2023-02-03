@@ -28,6 +28,7 @@ namespace internal {
 #define ADD_ISOLATE_ADDR(Name, name) "Isolate::" #name "_address",
 #define ADD_ACCESSOR_INFO_NAME(_, __, AccessorName, ...) \
   "Accessors::" #AccessorName "Getter",
+#define ADD_ACCESSOR_GETTER_NAME(name) "Accessors::" #name,
 #define ADD_ACCESSOR_SETTER_NAME(name) "Accessors::" #name,
 #define ADD_STATS_COUNTER_NAME(name, ...) "StatsCounter::" #name,
 // static
@@ -45,6 +46,7 @@ const char* const
         FOR_EACH_INTRINSIC(ADD_RUNTIME_FUNCTION)
         // Accessors:
         ACCESSOR_INFO_LIST_GENERATOR(ADD_ACCESSOR_INFO_NAME, /* not used */)
+        ACCESSOR_GETTER_LIST(ADD_ACCESSOR_GETTER_NAME)
         ACCESSOR_SETTER_LIST(ADD_ACCESSOR_SETTER_NAME)
 
         // === Isolate dependent ===
@@ -242,9 +244,13 @@ void ExternalReferenceTable::AddAccessors(int* index) {
   FUNCTION_ADDR(&Accessors::AccessorName##Getter),
       ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_DECLARATION, /* not used */)
 #undef ACCESSOR_INFO_DECLARATION
+
+#define ACCESSOR_GETTER_DECLARATION(name) FUNCTION_ADDR(&Accessors::name),
+          ACCESSOR_GETTER_LIST(ACCESSOR_GETTER_DECLARATION)
+#undef ACCESSOR_GETTER_DECLARATION
   // Setters:
 #define ACCESSOR_SETTER_DECLARATION(name) FUNCTION_ADDR(&Accessors::name),
-          ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
+              ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
 #undef ACCESSOR_SETTER_DECLARATION
   };
 
@@ -294,7 +300,7 @@ Address ExternalReferenceTable::GetStatsCounterAddress(StatsCounter* counter) {
     return reinterpret_cast<Address>(&dummy_stats_counter_);
   }
   std::atomic<int>* address = counter->GetInternalPointer();
-  STATIC_ASSERT(sizeof(address) == sizeof(Address));
+  static_assert(sizeof(address) == sizeof(Address));
   return reinterpret_cast<Address>(address);
 }
 

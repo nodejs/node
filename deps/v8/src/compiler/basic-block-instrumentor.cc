@@ -64,7 +64,7 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
   // Set the function name.
   data->SetFunctionName(info->GetDebugName());
   // Capture the schedule string before instrumentation.
-  if (FLAG_turbo_profiling_verbose) {
+  if (v8_flags.turbo_profiling_verbose) {
     std::ostringstream os;
     os << *schedule;
     data->SetSchedule(os);
@@ -142,6 +142,16 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
     // Tell the scheduler about the new nodes.
     for (int i = insertion_start; i < kArraySize; ++i) {
       schedule->SetBlockForNode(block, to_insert[i]);
+    }
+    // The exit block is not instrumented and so we must ignore that block
+    // count.
+    if (block->control() == BasicBlock::kBranch &&
+        block->successors()[0]->rpo_number() !=
+            static_cast<int32_t>(n_blocks) &&
+        block->successors()[1]->rpo_number() !=
+            static_cast<int32_t>(n_blocks)) {
+      data->AddBranch(block->successors()[0]->id().ToInt(),
+                      block->successors()[1]->id().ToInt());
     }
   }
   return data;

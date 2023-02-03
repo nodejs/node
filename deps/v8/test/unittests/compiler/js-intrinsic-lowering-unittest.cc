@@ -2,15 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/access-builder.h"
-#include "src/compiler/diamond.h"
-#include "src/compiler/js-graph.h"
 #include "src/compiler/js-intrinsic-lowering.h"
-#include "src/compiler/js-operator.h"
-#include "test/unittests/compiler/graph-unittest.h"
-#include "test/unittests/compiler/node-test-utils.h"
-#include "testing/gmock-support.h"
 
+#include "src/compiler/js-graph.h"
+#include "src/compiler/js-operator.h"
+#include "src/compiler/simplified-operator.h"
+#include "test/unittests/compiler/graph-unittest.h"
+#include "testing/gmock-support.h"
 
 using testing::_;
 using testing::AllOf;

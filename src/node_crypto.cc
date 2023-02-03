@@ -92,5 +92,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace crypto
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(crypto, node::crypto::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(crypto, node::crypto::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(crypto, node::crypto::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(crypto,
+                                node::crypto::RegisterExternalReferences)

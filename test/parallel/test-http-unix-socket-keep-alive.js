@@ -20,7 +20,7 @@ server.listen(common.PIPE, common.mustCall(() =>
 function asyncLoop(fn, times, cb) {
   fn(function handler() {
     if (--times) {
-      fn(handler);
+      setTimeout(() => fn(handler), common.platformTimeout(10));
     } else {
       cb();
     }

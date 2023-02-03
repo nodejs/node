@@ -88,7 +88,7 @@ static UnicodeString* getUnicodeStrings(
     }
     if (stringLengths == NULL) {
         for (int32_t stringIndex = 0; stringIndex < stringCount; stringIndex++) {
-            ustrings[stringIndex].setTo(TRUE, strings[stringIndex], -1);
+            ustrings[stringIndex].setTo(true, strings[stringIndex], -1);
         }
     } else {
         for (int32_t stringIndex = 0; stringIndex < stringCount; stringIndex++) {

@@ -21,18 +21,18 @@ subSystemLabels:
   /^src\/tty_/: c++, tty
   /^src\/node_url/: c++, whatwg-url
   /^src\/node_util/: c++, util
-  /^src\/(?:node_v8|v8abbr)/: c++, v8 engine
+  /^src\/node_v8/: c++, v8 engine
   /^src\/node_contextify/: c++, vm
   /^src\/.*win32.*/: c++, windows
   /^src\/node_zlib/: c++, zlib
   /^src\/tracing/: c++, tracing
-  /^src\/node_api/: c++, node-api
+  /^src\/(?:node_api|js_native_api)/: c++, node-api
   /^src\/node_http2/: c++, http2
   /^src\/node_report/: c++, report
   /^src\/node_wasi/: c++, wasi
   /^src\/node_worker/: c++, worker
-  /^src\/quic\/*/: c++, quic, dont-land-on-v14.x, dont-land-on-v12.x
-  /^src\/node_bob*/: c++, quic, dont-land-on-v14.x, dont-land-on-v12.x
+  /^src\/quic\/*/: c++, quic, dont-land-on-v14.x
+  /^src\/node_bob*/: c++, quic, dont-land-on-v14.x
 
   # don't label python files as c++
   /^src\/.+\.py$/: python, needs-ci
@@ -54,7 +54,7 @@ subSystemLabels:
   /^vcbuild\.bat$/: build, windows, needs-ci
   /^(android-)?configure|node\.gyp|common\.gypi$/: build, needs-ci
   # more specific tools
-  /^tools\/gyp/: tools, build, gyp, needs-ci, dont-land-on-v14.x, dont-land-on-v12.x
+  /^tools\/gyp/: tools, build, gyp, needs-ci, dont-land-on-v14.x
   /^tools\/doc\//: tools, doc
   /^tools\/icu\//: tools, i18n-api, icu, needs-ci
   /^tools\/(?:osx-pkg\.pmdoc|pkgsrc)\//: tools, macos, install
@@ -67,7 +67,7 @@ subSystemLabels:
   /^tools\/make-v8/: tools, v8 engine, needs-ci
   /^tools\/v8_gypfiles/: tools, v8 engine, needs-ci
   /^tools\/(code_cache|snapshot)/: needs-ci
-  /^tools\/build-addons.js/: needs-ci
+  /^tools\/build-addons.mjs/: needs-ci
   # all other tool changes should be marked as such
   /^tools\//: tools
   /^\.eslint|\.remark|\.editorconfig/: tools
@@ -80,11 +80,11 @@ subSystemLabels:
   /^deps\/v8\/tools\/gen-postmortem-metadata\.py/: v8 engine, python, post-mortem
   /^deps\/v8\//: v8 engine
   /^deps\/uvwasi\//: wasi
-  /^deps\/npm\//: npm, fast-track, dont-land-on-v14.x, dont-land-on-v12.x
+  /^deps\/npm\//: npm, fast-track, dont-land-on-v14.x
   /^deps\/nghttp2\/nghttp2\.gyp/: build, http2
   /^deps\/nghttp2\//: http2
-  /^deps\/ngtcp2\//: quic, dont-land-on-v14.x, dont-land-on-v12.x
-  /^deps\/nghttp3\//: quic, dont-land-on-v14.x, dont-land-on-v12.x
+  /^deps\/ngtcp2\//: quic, dont-land-on-v14.x
+  /^deps\/nghttp3\//: quic, dont-land-on-v14.x
   /^deps\/([^/]+)/: dependencies, $1
 
   ## JS subsystems
@@ -99,8 +99,11 @@ subSystemLabels:
   /^lib\/\w+\/streams$/: stream
   /^lib\/.*http2/: http2
   /^lib\/worker_threads.js$/: worker
+  /^lib\/test.js$/: test_runner, dont-land-on-v14.x
   /^lib\/internal\/url\.js$/: whatwg-url
   /^lib\/internal\/modules\/esm/: esm
+  /^lib\/internal\/webstreams/: web streams
+  /^lib\/internal\/test_runner/: test_runner, dont-land-on-v14.x
 
   # All other lib/ files map directly
   /^lib\/_(\w+)_\w+\.js?$/: $1  # e.g. _(stream)_wrap
@@ -117,11 +120,13 @@ exlusiveLabels:
   /^test\/inspector\//: test, inspector
   /^test\/cctest\/test_inspector/: test, inspector
   /^test\/cctest\/test_url/: test, whatwg-url
-  /^test\/addons-napi\//: test, node-api
+  /^test\/node-api\//: test, node-api
+  /^test\/js-native-api\//: test, node-api
   /^test\/async-hooks\//: test, async_hooks
   /^test\/report\//: test, report
   /^test\/fixtures\/es-module/: test, esm
   /^test\/es-module\//: test, esm
+  /^test\/fixtures\/wpt\/streams//: test, web streams
 
   /^test\//: test
 
@@ -133,9 +138,11 @@ exlusiveLabels:
   # considered a subsystem of sorts
   /^doc\/api\/n-api.md$/: doc, node-api
   # quic
-  /^doc\/api\/quic.md$/: doc, quic, dont-land-on-v14.x, dont-land-on-v12.x
+  /^doc\/api\/quic.md$/: doc, quic, dont-land-on-v14.x
   # Add worker label to PRs that affect doc/api/worker_threads.md
   /^doc\/api\/worker_threads.md$/: doc, worker
+  # test runner documentation
+  /^doc\/api\/test.md$/: doc, test_runner, dont-land-on-v14.x
   # Automatically tag JS subsystem-specific API doc changes
   /^doc\/api\/(\w+)\.md$/: doc, $1
   # Add deprecations label to PRs that affect doc/api/deprecations.md

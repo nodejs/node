@@ -6,8 +6,8 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-if (process.config.variables.arm_version === '7') {
-  common.skip('Too slow for armv7 bots');
+if (common.isPi) {
+  common.skip('Too slow for Raspberry Pi devices');
 }
 
 common.requireNoPackageJSONAbove();
@@ -22,7 +22,7 @@ const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
-const cpus = require('os').cpus().length;
+const cpus = require('os').availableParallelism();
 
 function hash(algo, body) {
   const values = [];

@@ -17,7 +17,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow reassigning `function` declarations",
+            description: "Disallow reassigning `function` declarations",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-func-assign"
         },

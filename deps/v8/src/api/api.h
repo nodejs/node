@@ -13,7 +13,6 @@
 #include "include/v8-typed-array.h"
 #include "include/v8-wasm.h"
 #include "src/execution/isolate.h"
-#include "src/heap/factory.h"
 #include "src/objects/bigint.h"
 #include "src/objects/contexts.h"
 #include "src/objects/js-collection.h"
@@ -28,7 +27,6 @@
 
 namespace v8 {
 
-class AccessorSignature;
 class Extension;
 class Signature;
 class Template;
@@ -41,6 +39,7 @@ class JSFinalizationRegistry;
 namespace debug {
 class AccessorPair;
 class GeneratorObject;
+class ScriptSource;
 class Script;
 class EphemeronTable;
 }  // namespace debug
@@ -98,7 +97,6 @@ class RegisteredExtension {
   V(FunctionTemplate, FunctionTemplateInfo)    \
   V(ObjectTemplate, ObjectTemplateInfo)        \
   V(Signature, FunctionTemplateInfo)           \
-  V(AccessorSignature, FunctionTemplateInfo)   \
   V(Data, Object)                              \
   V(RegExp, JSRegExp)                          \
   V(Object, JSReceiver)                        \
@@ -134,6 +132,7 @@ class RegisteredExtension {
   V(StackFrame, StackFrameInfo)                \
   V(Proxy, JSProxy)                            \
   V(debug::GeneratorObject, JSGeneratorObject) \
+  V(debug::ScriptSource, HeapObject)           \
   V(debug::Script, Script)                     \
   V(debug::EphemeronTable, EphemeronHashTable) \
   V(debug::AccessorPair, AccessorPair)         \
@@ -154,7 +153,7 @@ class Utils {
     return condition;
   }
   static void ReportOOMFailure(v8::internal::Isolate* isolate,
-                               const char* location, bool is_heap_oom);
+                               const char* location, const OOMDetails& details);
 
   static inline Local<debug::AccessorPair> ToLocal(
       v8::internal::Handle<v8::internal::AccessorPair> obj);
@@ -242,8 +241,6 @@ class Utils {
       v8::internal::Handle<v8::internal::ObjectTemplateInfo> obj);
   static inline Local<Signature> SignatureToLocal(
       v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
-  static inline Local<AccessorSignature> AccessorSignatureToLocal(
-      v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
   static inline Local<External> ExternalToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
   static inline Local<Function> CallableToLocal(
@@ -268,9 +265,9 @@ class Utils {
   template <class From, class To>
   static inline Local<To> Convert(v8::internal::Handle<From> obj);
 
-  template <class T, class M>
+  template <class T>
   static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
-      const v8::Persistent<T, M>& persistent) {
+      const v8::PersistentBase<T>& persistent) {
     return v8::internal::Handle<v8::internal::Object>(
         reinterpret_cast<v8::internal::Address*>(persistent.val_));
   }
@@ -423,7 +420,7 @@ class HandleScopeImplementer {
   }
 
   void BeginDeferredScope();
-  std::unique_ptr<PersistentHandles> DetachPersistent(Address* prev_limit);
+  std::unique_ptr<PersistentHandles> DetachPersistent(Address* first_block);
 
   Isolate* isolate_;
   DetachableVector<Address*> blocks_;
@@ -467,13 +464,6 @@ bool HandleScopeImplementer::HasSavedContexts() {
   return !saved_contexts_.empty();
 }
 
-void HandleScopeImplementer::EnterContext(Context context) {
-  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
-  DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
-  entered_contexts_.push_back(context);
-  is_microtask_context_.push_back(0);
-}
-
 void HandleScopeImplementer::LeaveContext() {
   DCHECK(!entered_contexts_.empty());
   DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
@@ -484,13 +474,6 @@ void HandleScopeImplementer::LeaveContext() {
 
 bool HandleScopeImplementer::LastEnteredContextWas(Context context) {
   return !entered_contexts_.empty() && entered_contexts_.back() == context;
-}
-
-void HandleScopeImplementer::EnterMicrotaskContext(Context context) {
-  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
-  DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
-  entered_contexts_.push_back(context);
-  is_microtask_context_.push_back(1);
 }
 
 // If there's a spare block, use it for growing the current scope.

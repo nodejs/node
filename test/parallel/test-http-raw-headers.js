@@ -34,13 +34,13 @@ http.createServer(function(req, res) {
     'x-BaR',
     'yoyoyo',
     'Connection',
-    'close',
+    'keep-alive',
   ];
   const expectHeaders = {
     'host': `localhost:${this.address().port}`,
     'transfer-encoding': 'CHUNKED',
     'x-bar': 'yoyoyo',
-    'connection': 'close'
+    'connection': 'keep-alive'
   };
   const expectRawTrailers = [
     'x-bAr',
@@ -65,6 +65,7 @@ http.createServer(function(req, res) {
   });
 
   req.resume();
+  res.setHeader('Keep-Alive', 'timeout=1');
   res.setHeader('Trailer', 'x-foo');
   res.addTrailers([
     ['x-fOo', 'xOxOxOx'],
@@ -86,22 +87,25 @@ http.createServer(function(req, res) {
   req.end('y b a r');
   req.on('response', function(res) {
     const expectRawHeaders = [
+      'Keep-Alive',
+      'timeout=1',
       'Trailer',
       'x-foo',
       'Date',
       null,
       'Connection',
-      'close',
+      'keep-alive',
       'Transfer-Encoding',
       'chunked',
     ];
     const expectHeaders = {
+      'keep-alive': 'timeout=1',
       'trailer': 'x-foo',
       'date': null,
-      'connection': 'close',
+      'connection': 'keep-alive',
       'transfer-encoding': 'chunked'
     };
-    res.rawHeaders[3] = null;
+    res.rawHeaders[5] = null;
     res.headers.date = null;
     assert.deepStrictEqual(res.rawHeaders, expectRawHeaders);
     assert.deepStrictEqual(res.headers, expectHeaders);

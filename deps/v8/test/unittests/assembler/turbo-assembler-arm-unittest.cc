@@ -58,7 +58,7 @@ TEST_F(TurboAssemblerTest, TestCheck) {
   // Fail if the first parameter is 17.
   __ Move32BitImmediate(r1, Operand(17));
   __ cmp(r0, r1);  // 1st parameter is in {r0}.
-  __ Check(Condition::ne, AbortReason::kNoReason);
+  __ Check(ne, AbortReason::kNoReason);
   __ Ret();
 
   CodeDesc desc;
@@ -153,7 +153,7 @@ TEST_P(TurboAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
 
     CodeDesc desc;
     tasm.GetCode(nullptr, &desc);
-    if (FLAG_print_code) {
+    if (v8_flags.print_code) {
       Handle<Code> code =
           Factory::CodeBuilder(isolate(), desc, CodeKind::FOR_TESTING).Build();
       StdoutStream os;

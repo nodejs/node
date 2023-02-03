@@ -14,7 +14,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow using an async function as a Promise executor",
+            description: "Disallow using an async function as a Promise executor",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-async-promise-executor"
         },

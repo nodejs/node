@@ -15,6 +15,8 @@ namespace internal {
 class Assembler;
 class ByteArray;
 class BytecodeArray;
+class Code;
+class CodeDataContainer;
 
 namespace wasm {
 class WasmCode;
@@ -53,6 +55,9 @@ class V8_EXPORT_PRIVATE HandlerTable {
 
   // Constructors for the various encodings.
   explicit HandlerTable(Code code);
+#ifdef V8_EXTERNAL_CODE_SPACE
+  explicit HandlerTable(CodeDataContainer code);
+#endif
   explicit HandlerTable(ByteArray byte_array);
 #if V8_ENABLE_WEBASSEMBLY
   explicit HandlerTable(const wasm::WasmCode* code);

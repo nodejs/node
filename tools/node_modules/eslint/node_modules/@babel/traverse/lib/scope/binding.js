@@ -4,7 +4,6 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-
 class Binding {
   constructor({
     identifier,
@@ -25,51 +24,62 @@ class Binding {
     this.scope = scope;
     this.path = path;
     this.kind = kind;
+    if ((kind === "var" || kind === "hoisted") && isDeclaredInLoop(path || (() => {
+      throw new Error("Internal Babel error: unreachable ");
+    })())) {
+      this.reassign(path);
+    }
     this.clearValue();
   }
-
   deoptValue() {
     this.clearValue();
     this.hasDeoptedValue = true;
   }
-
   setValue(value) {
     if (this.hasDeoptedValue) return;
     this.hasValue = true;
     this.value = value;
   }
-
   clearValue() {
     this.hasDeoptedValue = false;
     this.hasValue = false;
     this.value = null;
   }
-
   reassign(path) {
     this.constant = false;
-
     if (this.constantViolations.indexOf(path) !== -1) {
       return;
     }
-
     this.constantViolations.push(path);
   }
-
   reference(path) {
     if (this.referencePaths.indexOf(path) !== -1) {
       return;
     }
-
     this.referenced = true;
     this.references++;
     this.referencePaths.push(path);
   }
-
   dereference() {
     this.references--;
     this.referenced = !!this.references;
   }
-
+}
+exports.default = Binding;
+function isDeclaredInLoop(path) {
+  for (let {
+    parentPath,
+    key
+  } = path; parentPath; ({
+    parentPath,
+    key
+  } = parentPath)) {
+    if (parentPath.isFunctionParent()) return false;
+    if (parentPath.isWhile() || parentPath.isForXStatement() || parentPath.isForStatement() && key === "body") {
+      return true;
+    }
+  }
+  return false;
 }
 
-exports.default = Binding;
+//# sourceMappingURL=binding.js.map

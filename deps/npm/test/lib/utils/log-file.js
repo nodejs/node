@@ -4,12 +4,13 @@ const fs = _fs.promises
 const path = require('path')
 const os = require('os')
 const fsMiniPass = require('fs-minipass')
-const rimraf = require('rimraf')
+const tmock = require('../../fixtures/tmock')
 const LogFile = require('../../../lib/utils/log-file.js')
-const { cleanCwd } = require('../../fixtures/clean-snapshot')
+const { cleanCwd, cleanDate } = require('../../fixtures/clean-snapshot')
 
-t.cleanSnapshot = (path) => cleanCwd(path)
+t.cleanSnapshot = (s) => cleanDate(cleanCwd(s))
 
+const getId = (d = new Date()) => d.toISOString().replace(/[.:]/g, '_')
 const last = arr => arr[arr.length - 1]
 const range = (n) => Array.from(Array(n).keys())
 const makeOldLogs = (count, oldStyle) => {
@@ -19,7 +20,7 @@ const makeOldLogs = (count, oldStyle) => {
   return range(oldStyle ? count : (count / 2)).reduce((acc, i) => {
     const cloneDate = new Date(d.getTime())
     cloneDate.setSeconds(i)
-    const dateId = LogFile.logId(cloneDate)
+    const dateId = getId(cloneDate)
     if (oldStyle) {
       acc[`${dateId}-debug.log`] = 'hello'
     } else {
@@ -41,10 +42,15 @@ const cleanErr = (message) => {
 
 const loadLogFile = async (t, { buffer = [], mocks, testdir = {}, ...options } = {}) => {
   const root = t.testdir(testdir)
-  const MockLogFile = t.mock('../../../lib/utils/log-file.js', mocks)
+
+  const MockLogFile = tmock(t, '{LIB}/utils/log-file.js', mocks)
   const logFile = new MockLogFile(Object.keys(options).length ? options : undefined)
+
   buffer.forEach((b) => logFile.log(...b))
-  await logFile.load({ dir: root, ...options })
+
+  const id = getId()
+  await logFile.load({ path: path.join(root, `${id}-`), ...options })
+
   t.teardown(() => logFile.off())
   return {
     root,
@@ -269,12 +275,14 @@ t.test('rimraf error', async t => {
     logsMax,
     testdir: makeOldLogs(oldLogs),
     mocks: {
-      rimraf: (...args) => {
-        if (count >= 3) {
-          throw new Error('bad rimraf')
-        }
-        count++
-        return rimraf(...args)
+      'fs/promises': {
+        rm: async (...args) => {
+          if (count >= 3) {
+            throw new Error('bad rimraf')
+          }
+          count++
+          return fs.rm(...args)
+        },
       },
     },
   })

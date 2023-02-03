@@ -60,7 +60,7 @@ function canBecomeVariableDeclaration(identifier) {
  */
 function isOuterVariableInDestructing(name, initScope) {
 
-    if (initScope.through.find(ref => ref.resolved && ref.resolved.name === name)) {
+    if (initScope.through.some(ref => ref.resolved && ref.resolved.name === name)) {
         return true;
     }
 
@@ -332,7 +332,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require `const` declarations for variables that are never reassigned after declared",
+            description: "Require `const` declarations for variables that are never reassigned after declared",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-const"
         },
@@ -446,7 +446,19 @@ module.exports = {
 
                         reportCount += nodesToReport.length;
 
-                        shouldFix = shouldFix && (reportCount === varDeclParent.declarations.length);
+                        let totalDeclarationsCount = 0;
+
+                        varDeclParent.declarations.forEach(declaration => {
+                            if (declaration.id.type === "ObjectPattern") {
+                                totalDeclarationsCount += declaration.id.properties.length;
+                            } else if (declaration.id.type === "ArrayPattern") {
+                                totalDeclarationsCount += declaration.id.elements.length;
+                            } else {
+                                totalDeclarationsCount += 1;
+                            }
+                        });
+
+                        shouldFix = shouldFix && (reportCount === totalDeclarationsCount);
                     }
                 }
 

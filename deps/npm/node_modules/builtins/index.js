@@ -46,7 +46,8 @@ const versionLockedModules = {
   http2: '>=8.4.0',
   perf_hooks: '>=8.5.0',
   trace_events: '>=10.0.0',
-  worker_threads: '>=12.0.0'
+  worker_threads: '>=12.0.0',
+  'node:test': '>=18.0.0'
 }
 
 const experimentalModules = {

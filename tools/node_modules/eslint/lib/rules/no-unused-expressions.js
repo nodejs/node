@@ -30,7 +30,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow unused expressions",
+            description: "Disallow unused expressions",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-unused-expressions"
         },
@@ -124,7 +124,7 @@ module.exports = {
              */
             return (parent.type === "Program" || parent.type === "BlockStatement" &&
                     (/Function/u.test(grandparent.type))) &&
-                    directives(parent).indexOf(node) >= 0;
+                    directives(parent).includes(node);
         }
 
         /**

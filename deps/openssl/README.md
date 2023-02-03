@@ -45,15 +45,12 @@ Here is a list of supported architectures for use of ASM in OpenSSL.
 
   | --dest-os | --dest-cpu | OpenSSL target arch  | CI  |
   | --------- | ---------- | -------------------- | --- |
-  | aix       | ppc        | aix-gcc              | o   |
   | aix       | ppc64      | aix64-gcc            | o   |
   | linux     | ia32       | linux-elf            | o   |
   | linux     | x32        | linux-x32            | -   |
   | linux     | x64        | linux-x86_64         | o   |
   | linux     | arm        | linux-armv4          | o   |
   | linux     | arm64      | linux-aarch64        | o   |
-  | linux     | ppc        | linux-ppc            | o   |
-  | linux     | ppc64      | linux-ppc64          | o   |
   | linux     | ppc64(*1)  | linux-ppc64le        | o   |
   | linux     | s390       | linux32-s390x        | o   |
   | linux     | s390x      | linux64-s390x        | o   |
@@ -74,6 +71,18 @@ little)
 
 These are listed in [config/Makefile](config/Makefile).
 Please refer [config/opensslconf_asm.h](config/opensslconf_asm.h) for details.
+
+To remove or add an architecture the templates need to be updated for which
+there are two:
+* include_asm.h.tmpl
+* include_no-asm.h.tmpl
+
+Remove the architecture in question from these files and then run:
+```console
+$ make generate-headers
+```
+Also remove the architecture from the list of supported ASM architectures in
+[README.md](../README.md#supported-architectures-for-use-of-asm)
 
 ### Upgrading OpenSSL
 

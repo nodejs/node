@@ -6,6 +6,7 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-metrics.h"
+#include "include/v8-platform.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/time.h"
 #include "src/wasm/wasm-engine.h"
@@ -24,16 +25,21 @@ namespace {
 
 class MockPlatform final : public TestPlatform {
  public:
-  MockPlatform() : task_runner_(std::make_shared<MockTaskRunner>()) {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
-  }
+  MockPlatform() : task_runner_(std::make_shared<MockTaskRunner>()) {}
 
   ~MockPlatform() override {
     for (auto* job_handle : job_handles_) job_handle->ResetPlatform();
   }
 
   std::unique_ptr<v8::JobHandle> PostJob(
+      v8::TaskPriority priority,
+      std::unique_ptr<v8::JobTask> job_task) override {
+    auto job_handle = CreateJob(priority, std::move(job_task));
+    job_handle->NotifyConcurrencyIncrease();
+    return job_handle;
+  }
+
+  std::unique_ptr<v8::JobHandle> CreateJob(
       v8::TaskPriority priority,
       std::unique_ptr<v8::JobTask> job_task) override {
     auto orig_job_handle = v8::platform::NewDefaultJobHandle(
@@ -208,35 +214,28 @@ class TestCompileResolver : public CompilationResultResolver {
 
 }  // namespace
 
-#define RUN_COMPILE(name)                                                  \
-  MockPlatform mock_platform;                                              \
-  CHECK_EQ(V8::GetCurrentPlatform(), &mock_platform);                      \
-  v8::Isolate::CreateParams create_params;                                 \
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator(); \
-  v8::Isolate* isolate = v8::Isolate::New(create_params);                  \
-  {                                                                        \
-    v8::HandleScope handle_scope(isolate);                                 \
-    v8::Local<v8::Context> context = v8::Context::New(isolate);            \
-    v8::Context::Scope context_scope(context);                             \
-    Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);           \
-    testing::SetupIsolateForWasmModule(i_isolate);                         \
-    RunCompile_##name(&mock_platform, i_isolate);                          \
-  }                                                                        \
-  isolate->Dispose();
+#define RUN_COMPILE(name)                                               \
+  v8::HandleScope handle_scope(CcTest::isolate());                      \
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate()); \
+  v8::Context::Scope context_scope(context);                            \
+  Isolate* i_isolate = CcTest::i_isolate();                             \
+  testing::SetupIsolateForWasmModule(i_isolate);                        \
+  RunCompile_##name(&platform, i_isolate);
 
-#define COMPILE_TEST(name)                                                  \
-  void RunCompile_##name(MockPlatform*, i::Isolate*);                       \
-  UNINITIALIZED_TEST(Sync##name) {                                          \
-    i::FlagScope<bool> sync_scope(&i::FLAG_wasm_async_compilation, false);  \
-    RUN_COMPILE(name);                                                      \
-  }                                                                         \
-                                                                            \
-  UNINITIALIZED_TEST(Async##name) { RUN_COMPILE(name); }                    \
-                                                                            \
-  UNINITIALIZED_TEST(Streaming##name) {                                     \
-    i::FlagScope<bool> streaming_scope(&i::FLAG_wasm_test_streaming, true); \
-    RUN_COMPILE(name);                                                      \
-  }                                                                         \
+#define COMPILE_TEST(name)                                                     \
+  void RunCompile_##name(MockPlatform*, i::Isolate*);                          \
+  TEST_WITH_PLATFORM(Sync##name, MockPlatform) {                               \
+    i::FlagScope<bool> sync_scope(&i::v8_flags.wasm_async_compilation, false); \
+    RUN_COMPILE(name);                                                         \
+  }                                                                            \
+                                                                               \
+  TEST_WITH_PLATFORM(Async##name, MockPlatform) { RUN_COMPILE(name); }         \
+                                                                               \
+  TEST_WITH_PLATFORM(Streaming##name, MockPlatform) {                          \
+    i::FlagScope<bool> streaming_scope(&i::v8_flags.wasm_test_streaming,       \
+                                       true);                                  \
+    RUN_COMPILE(name);                                                         \
+  }                                                                            \
   void RunCompile_##name(MockPlatform* platform, i::Isolate* isolate)
 
 class MetricsRecorder : public v8::metrics::Recorder {
@@ -244,7 +243,6 @@ class MetricsRecorder : public v8::metrics::Recorder {
   std::vector<v8::metrics::WasmModuleDecoded> module_decoded_;
   std::vector<v8::metrics::WasmModuleCompiled> module_compiled_;
   std::vector<v8::metrics::WasmModuleInstantiated> module_instantiated_;
-  std::vector<v8::metrics::WasmModuleTieredUp> module_tiered_up_;
 
   void AddMainThreadEvent(const v8::metrics::WasmModuleDecoded& event,
                           v8::metrics::Recorder::ContextId id) override {
@@ -261,14 +259,11 @@ class MetricsRecorder : public v8::metrics::Recorder {
     CHECK(!id.IsEmpty());
     module_instantiated_.emplace_back(event);
   }
-  void AddMainThreadEvent(const v8::metrics::WasmModuleTieredUp& event,
-                          v8::metrics::Recorder::ContextId id) override {
-    CHECK(!id.IsEmpty());
-    module_tiered_up_.emplace_back(event);
-  }
 };
 
 COMPILE_TEST(TestEventMetrics) {
+  FlagScope<bool> no_wasm_dynamic_tiering(&v8_flags.wasm_dynamic_tiering,
+                                          false);
   std::shared_ptr<MetricsRecorder> recorder =
       std::make_shared<MetricsRecorder>();
   reinterpret_cast<v8::Isolate*>(isolate)->SetMetricsRecorder(recorder);
@@ -309,27 +304,28 @@ COMPILE_TEST(TestEventMetrics) {
 
   CHECK_EQ(1, recorder->module_decoded_.size());
   CHECK(recorder->module_decoded_.back().success);
-  CHECK_EQ(i::FLAG_wasm_async_compilation,
+  CHECK_EQ(i::v8_flags.wasm_async_compilation,
            recorder->module_decoded_.back().async);
-  CHECK_EQ(i::FLAG_wasm_test_streaming,
+  CHECK_EQ(i::v8_flags.wasm_test_streaming,
            recorder->module_decoded_.back().streamed);
   CHECK_EQ(buffer.size(),
            recorder->module_decoded_.back().module_size_in_bytes);
   CHECK_EQ(1, recorder->module_decoded_.back().function_count);
   CHECK_LE(0, recorder->module_decoded_.back().wall_clock_duration_in_us);
   CHECK_IMPLIES(
-      v8::base::ThreadTicks::IsSupported() && !i::FLAG_wasm_test_streaming,
+      v8::base::ThreadTicks::IsSupported() && !i::v8_flags.wasm_test_streaming,
       recorder->module_decoded_.back().cpu_duration_in_us > 0);
 
   CHECK_EQ(1, recorder->module_compiled_.size());
   CHECK(recorder->module_compiled_.back().success);
-  CHECK_EQ(i::FLAG_wasm_async_compilation,
+  CHECK_EQ(i::v8_flags.wasm_async_compilation,
            recorder->module_compiled_.back().async);
-  CHECK_EQ(i::FLAG_wasm_test_streaming,
+  CHECK_EQ(i::v8_flags.wasm_test_streaming,
            recorder->module_compiled_.back().streamed);
   CHECK(!recorder->module_compiled_.back().cached);
   CHECK(!recorder->module_compiled_.back().deserialized);
-  CHECK(!recorder->module_compiled_.back().lazy);
+  CHECK_EQ(v8_flags.wasm_lazy_compilation,
+           recorder->module_compiled_.back().lazy);
   CHECK_LT(0, recorder->module_compiled_.back().code_size_in_bytes);
   // We currently cannot ensure that no code is attributed to Liftoff after the
   // WasmModuleCompiled event has been emitted. We therefore only assume the
@@ -341,9 +337,10 @@ COMPILE_TEST(TestEventMetrics) {
   CHECK_LE(0, recorder->module_compiled_.back().wall_clock_duration_in_us);
   CHECK_EQ(native_module->baseline_compilation_cpu_duration(),
            recorder->module_compiled_.back().cpu_duration_in_us);
-  CHECK_IMPLIES(
-      v8::base::ThreadTicks::IsSupported() && !i::FLAG_wasm_test_streaming,
-      recorder->module_compiled_.back().cpu_duration_in_us > 0);
+  CHECK_IMPLIES(v8::base::ThreadTicks::IsSupported() &&
+                    !i::v8_flags.wasm_test_streaming &&
+                    !i::v8_flags.wasm_lazy_compilation,
+                recorder->module_compiled_.back().cpu_duration_in_us > 0);
 
   CHECK_EQ(1, recorder->module_instantiated_.size());
   CHECK(recorder->module_instantiated_.back().success);
@@ -351,24 +348,6 @@ COMPILE_TEST(TestEventMetrics) {
   CHECK(!recorder->module_instantiated_.back().async);
   CHECK_EQ(0, recorder->module_instantiated_.back().imported_function_count);
   CHECK_LE(0, recorder->module_instantiated_.back().wall_clock_duration_in_us);
-
-  CHECK_EQ(1, recorder->module_tiered_up_.size());
-  CHECK(!recorder->module_tiered_up_.back().lazy);
-  CHECK_LT(0, recorder->module_tiered_up_.back().code_size_in_bytes);
-  CHECK_GE(native_module->turbofan_code_size(),
-           recorder->module_tiered_up_.back().code_size_in_bytes);
-  CHECK_GE(native_module->generated_code_size(),
-           recorder->module_tiered_up_.back().code_size_in_bytes);
-  CHECK_GE(native_module->committed_code_space(),
-           recorder->module_tiered_up_.back().code_size_in_bytes);
-  CHECK_LE(0, recorder->module_tiered_up_.back().wall_clock_duration_in_us);
-  CHECK_EQ(native_module->tier_up_cpu_duration(),
-           recorder->module_tiered_up_.back().cpu_duration_in_us);
-  CHECK_IMPLIES(
-      v8::base::ThreadTicks::IsSupported() && i::FLAG_wasm_tier_up &&
-          i::FLAG_liftoff &&
-          recorder->module_compiled_.back().liftoff_bailout_count == 0,
-      recorder->module_tiered_up_.back().cpu_duration_in_us > 0);
 }
 
 }  // namespace wasm

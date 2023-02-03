@@ -20,7 +20,14 @@ function parseRuleId(ruleId) {
 
     // distinguish between core rules and plugin rules
     if (ruleId.includes("/")) {
-        pluginName = ruleId.slice(0, ruleId.lastIndexOf("/"));
+
+        // mimic scoped npm packages
+        if (ruleId.startsWith("@")) {
+            pluginName = ruleId.slice(0, ruleId.lastIndexOf("/"));
+        } else {
+            pluginName = ruleId.slice(0, ruleId.indexOf("/"));
+        }
+
         ruleName = ruleId.slice(pluginName.length + 1);
     } else {
         pluginName = "@";
@@ -46,6 +53,7 @@ function getRuleFromConfig(ruleId, config) {
 
     const plugin = config.plugins && config.plugins[pluginName];
     let rule = plugin && plugin.rules && plugin.rules[ruleName];
+
 
     // normalize function rules into objects
     if (rule && typeof rule === "function") {

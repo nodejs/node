@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
 // Flags: --no-stress-background-compile --trace-opt --trace-deopt
 
 let id = 0;
@@ -35,7 +35,7 @@ function runTest(f, message, mkICTraining, deoptArg, speculationCheck) {
       for (let a of t3) {
         message += " for args " + JSON.stringify(a) + " should have been optimized";
         f(a.arr, () => a.el);
-        assertOptimized(f, undefined, message);
+        assertOptimized(f, message);
       }
     } else {
       // Trigger deopt, causing no-speculation bit to be set.
@@ -46,18 +46,18 @@ function runTest(f, message, mkICTraining, deoptArg, speculationCheck) {
       message_unoptimized = message + " should have been unoptimized"
       message_optimized = message + " should have been optimized"
       f(a1.darr, () => a1.del);
-      assertUnoptimized(f, undefined, message_unoptimized);
+      assertUnoptimized(f, message_unoptimized);
       if (speculationCheck) {
         %PrepareFunctionForOptimization(f);
         %OptimizeFunctionOnNextCall(f);
         f(a2.darr, () => a2.del);
-        assertUnoptimized(f, undefined, message_unoptimized);
+        assertUnoptimized(f, message_unoptimized);
       }
       %PrepareFunctionForOptimization(f);
       %OptimizeFunctionOnNextCall(f);
       // No speculation should protect against further deopts.
       f(a3.darr, () => a3.del);
-      assertOptimized(f, undefined,  message_optimized);
+      assertOptimized(f,  message_optimized);
     }
   }
 

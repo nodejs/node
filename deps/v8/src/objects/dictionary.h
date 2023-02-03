@@ -172,6 +172,10 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
       Handle<Object> value, PropertyDetails details,
       InternalIndex* entry_out = nullptr);
 
+  // Exposed for NameDictionaryLookupForwardedString slow path for forwarded
+  // strings.
+  using Dictionary<Derived, Shape>::FindInsertionEntry;
+
   OBJECT_CONSTRUCTORS(BaseNameDictionary, Dictionary<Derived, Shape>);
 };
 

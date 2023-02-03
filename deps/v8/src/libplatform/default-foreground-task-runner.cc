@@ -5,7 +5,7 @@
 #include "src/libplatform/default-foreground-task-runner.h"
 
 #include "src/base/platform/mutex.h"
-#include "src/libplatform/default-platform.h"
+#include "src/base/platform/time.h"
 
 namespace v8 {
 namespace platform {
@@ -27,13 +27,24 @@ DefaultForegroundTaskRunner::DefaultForegroundTaskRunner(
     : idle_task_support_(idle_task_support), time_function_(time_function) {}
 
 void DefaultForegroundTaskRunner::Terminate() {
-  base::MutexGuard guard(&lock_);
-  terminated_ = true;
-
   // Drain the task queues.
-  while (!task_queue_.empty()) task_queue_.pop_front();
-  while (!delayed_task_queue_.empty()) delayed_task_queue_.pop();
-  while (!idle_task_queue_.empty()) idle_task_queue_.pop();
+  // We make sure to delete tasks outside the TaskRunner lock, to avoid
+  // potential deadlocks.
+  std::deque<TaskQueueEntry> obsolete_tasks;
+  std::priority_queue<DelayedEntry, std::vector<DelayedEntry>,
+                      DelayedEntryCompare>
+      obsolete_delayed_tasks;
+  std::queue<std::unique_ptr<IdleTask>> obsolete_idle_tasks;
+  {
+    base::MutexGuard guard(&lock_);
+    terminated_ = true;
+    task_queue_.swap(obsolete_tasks);
+    delayed_task_queue_.swap(obsolete_delayed_tasks);
+    idle_task_queue_.swap(obsolete_idle_tasks);
+  }
+  while (!obsolete_tasks.empty()) obsolete_tasks.pop_front();
+  while (!obsolete_delayed_tasks.empty()) obsolete_delayed_tasks.pop();
+  while (!obsolete_idle_tasks.empty()) obsolete_idle_tasks.pop();
 }
 
 void DefaultForegroundTaskRunner::PostTaskLocked(std::unique_ptr<Task> task,

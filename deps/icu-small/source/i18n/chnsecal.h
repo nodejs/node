@@ -274,7 +274,7 @@ class U_I18N_API ChineseCalendar : public Calendar {
    */
   int32_t          internalGetDefaultCenturyStartYear(void) const;
 
-  ChineseCalendar(); // default constructor not implemented
+  ChineseCalendar() = delete; // default constructor not implemented
 };
 
 U_NAMESPACE_END

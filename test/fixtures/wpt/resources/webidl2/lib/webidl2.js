@@ -7,7 +7,7 @@
 		exports["WebIDL2"] = factory();
 	else
 		root["WebIDL2"] = factory();
-})(globalThis, function() {
+})(globalThis, () => {
 return /******/ (() => { // webpackBootstrap
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ([
@@ -31,6 +31,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _productions_namespace_js__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(28);
 /* harmony import */ var _productions_callback_interface_js__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(29);
 /* harmony import */ var _productions_helpers_js__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(4);
+/* harmony import */ var _productions_token_js__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(10);
+
 
 
 
@@ -48,6 +50,7 @@ __webpack_require__.r(__webpack_exports__);
  * @param {Tokeniser} tokeniser
  * @param {object} options
  * @param {boolean} [options.concrete]
+ * @param {Function[]} [options.productions]
  */
 function parseByTokens(tokeniser, options) {
   const source = tokeniser.source;
@@ -91,6 +94,15 @@ function parseByTokens(tokeniser, options) {
   }
 
   function definition() {
+    if (options.productions) {
+      for (const production of options.productions) {
+        const result = production(tokeniser);
+        if (result) {
+          return result;
+        }
+      }
+    }
+
     return (
       callback() ||
       interface_() ||
@@ -116,7 +128,7 @@ function parseByTokens(tokeniser, options) {
       (0,_productions_helpers_js__WEBPACK_IMPORTED_MODULE_11__.autoParenter)(def).extAttrs = ea;
       defs.push(def);
     }
-    const eof = tokeniser.consumeType("eof");
+    const eof = _productions_token_js__WEBPACK_IMPORTED_MODULE_12__.Eof.parse(tokeniser);
     if (options.concrete) {
       defs.push(eof);
     }
@@ -132,10 +144,13 @@ function parseByTokens(tokeniser, options) {
  * @param {object} [options]
  * @param {*} [options.sourceName]
  * @param {boolean} [options.concrete]
+ * @param {Function[]} [options.productions]
+ * @return {import("./productions/base.js").Base[]}
  */
 function parse(str, options = {}) {
   const tokeniser = new _tokeniser_js__WEBPACK_IMPORTED_MODULE_0__.Tokeniser(str);
   if (typeof options.sourceName !== "undefined") {
+    // @ts-ignore (See Tokeniser.source in supplement.d.ts)
     tokeniser.source.name = options.sourceName;
   }
   return parseByTokens(tokeniser, options);
@@ -148,11 +163,11 @@ function parse(str, options = {}) {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "typeNameKeywords": () => (/* binding */ typeNameKeywords),
-/* harmony export */   "stringTypes": () => (/* binding */ stringTypes),
-/* harmony export */   "argumentNameKeywords": () => (/* binding */ argumentNameKeywords),
 /* harmony export */   "Tokeniser": () => (/* binding */ Tokeniser),
-/* harmony export */   "WebIDLParseError": () => (/* binding */ WebIDLParseError)
+/* harmony export */   "WebIDLParseError": () => (/* binding */ WebIDLParseError),
+/* harmony export */   "argumentNameKeywords": () => (/* binding */ argumentNameKeywords),
+/* harmony export */   "stringTypes": () => (/* binding */ stringTypes),
+/* harmony export */   "typeNameKeywords": () => (/* binding */ typeNameKeywords)
 /* harmony export */ });
 /* harmony import */ var _error_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
 /* harmony import */ var _productions_helpers_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
@@ -170,7 +185,7 @@ const tokenRe = {
   identifier: /[_-]?[A-Za-z][0-9A-Z_a-z-]*/y,
   string: /"[^"]*"/y,
   whitespace: /[\t\n\r ]+/y,
-  comment: /\/\/.*|\/\*(.|\n)*?\*\//y,
+  comment: /\/\/.*|\/\*[\s\S]*?\*\//y,
   other: /[^\t\n\r 0-9A-Za-z]/y,
 };
 
@@ -184,6 +199,8 @@ const typeNameKeywords = [
   "Uint16Array",
   "Uint32Array",
   "Uint8ClampedArray",
+  "BigInt64Array",
+  "BigUint64Array",
   "Float32Array",
   "Float64Array",
   "any",
@@ -259,6 +276,7 @@ const punctuations = [
   "=",
   ">",
   "?",
+  "*",
   "[",
   "]",
   "{",
@@ -355,6 +373,8 @@ function tokenise(str) {
     type: "eof",
     value: "",
     trivia,
+    line,
+    index,
   });
 
   return tokens;
@@ -401,7 +421,7 @@ class Tokeniser {
   /**
    * @param {string} type
    */
-  probeType(type) {
+  probeKind(type) {
     return (
       this.source.length > this.position &&
       this.source[this.position].type === type
@@ -413,16 +433,16 @@ class Tokeniser {
    */
   probe(value) {
     return (
-      this.probeType("inline") && this.source[this.position].value === value
+      this.probeKind("inline") && this.source[this.position].value === value
     );
   }
 
   /**
-   * @param  {...string} candidates
+   * @param {...string} candidates
    */
-  consumeType(...candidates) {
+  consumeKind(...candidates) {
     for (const type of candidates) {
-      if (!this.probeType(type)) continue;
+      if (!this.probeKind(type)) continue;
       const token = this.source[this.position];
       this.position++;
       return token;
@@ -430,16 +450,29 @@ class Tokeniser {
   }
 
   /**
-   * @param  {...string} candidates
+   * @param {...string} candidates
    */
   consume(...candidates) {
-    if (!this.probeType("inline")) return;
+    if (!this.probeKind("inline")) return;
     const token = this.source[this.position];
     for (const value of candidates) {
       if (token.value !== value) continue;
       this.position++;
       return token;
     }
+  }
+
+  /**
+   * @param {string} value
+   */
+  consumeIdentifier(value) {
+    if (!this.probeKind("identifier")) {
+      return;
+    }
+    if (this.source[this.position].value !== value) {
+      return;
+    }
+    return this.consumeKind("identifier");
   }
 
   /**
@@ -522,10 +555,16 @@ function contextAsText(node) {
  * @typedef {object} WebIDL2ErrorOptions
  * @property {"error" | "warning"} [level]
  * @property {Function} [autofix]
+ * @property {string} [ruleName]
+ *
+ * @typedef {ReturnType<typeof error>} WebIDLErrorData
  *
  * @param {string} message error message
+ * @param {*} position
+ * @param {*} current
+ * @param {*} message
  * @param {"Syntax" | "Validation"} kind error type
- * @param {WebIDL2ErrorOptions} [options]
+ * @param {WebIDL2ErrorOptions=} options
  */
 function error(
   source,
@@ -544,6 +583,12 @@ function error(
       : source.slice(Math.max(position + count, 0), position);
   }
 
+  /**
+   * @param {import("./tokeniser.js").Token[]} inputs
+   * @param {object} [options]
+   * @param {boolean} [options.precedes]
+   * @returns
+   */
   function tokensToText(inputs, { precedes } = {}) {
     const text = inputs.map((t) => t.trivia + t.value).join("");
     const nextToken = source[position];
@@ -634,21 +679,21 @@ function validationError(
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "unescape": () => (/* binding */ unescape),
-/* harmony export */   "list": () => (/* binding */ list),
-/* harmony export */   "const_value": () => (/* binding */ const_value),
-/* harmony export */   "const_data": () => (/* binding */ const_data),
-/* harmony export */   "primitive_type": () => (/* binding */ primitive_type),
 /* harmony export */   "argument_list": () => (/* binding */ argument_list),
-/* harmony export */   "type_with_extended_attributes": () => (/* binding */ type_with_extended_attributes),
-/* harmony export */   "return_type": () => (/* binding */ return_type),
-/* harmony export */   "stringifier": () => (/* binding */ stringifier),
+/* harmony export */   "autoParenter": () => (/* binding */ autoParenter),
+/* harmony export */   "autofixAddExposedWindow": () => (/* binding */ autofixAddExposedWindow),
+/* harmony export */   "const_data": () => (/* binding */ const_data),
+/* harmony export */   "const_value": () => (/* binding */ const_value),
+/* harmony export */   "findLastIndex": () => (/* binding */ findLastIndex),
+/* harmony export */   "getFirstToken": () => (/* binding */ getFirstToken),
 /* harmony export */   "getLastIndentation": () => (/* binding */ getLastIndentation),
 /* harmony export */   "getMemberIndentation": () => (/* binding */ getMemberIndentation),
-/* harmony export */   "autofixAddExposedWindow": () => (/* binding */ autofixAddExposedWindow),
-/* harmony export */   "getFirstToken": () => (/* binding */ getFirstToken),
-/* harmony export */   "findLastIndex": () => (/* binding */ findLastIndex),
-/* harmony export */   "autoParenter": () => (/* binding */ autoParenter)
+/* harmony export */   "list": () => (/* binding */ list),
+/* harmony export */   "primitive_type": () => (/* binding */ primitive_type),
+/* harmony export */   "return_type": () => (/* binding */ return_type),
+/* harmony export */   "stringifier": () => (/* binding */ stringifier),
+/* harmony export */   "type_with_extended_attributes": () => (/* binding */ type_with_extended_attributes),
+/* harmony export */   "unescape": () => (/* binding */ unescape)
 /* harmony export */ });
 /* harmony import */ var _type_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5);
 /* harmony import */ var _argument_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(11);
@@ -672,7 +717,7 @@ function unescape(identifier) {
 
 /**
  * Parses comma-separated list
- * @param {import("../tokeniser").Tokeniser} tokeniser
+ * @param {import("../tokeniser.js").Tokeniser} tokeniser
  * @param {object} args
  * @param {Function} args.parser parser function for each item
  * @param {boolean} [args.allowDangler] whether to allow dangling comma
@@ -701,11 +746,11 @@ function list(tokeniser, { parser, allowDangler, listName = "list" }) {
 }
 
 /**
- * @param {import("../tokeniser").Tokeniser} tokeniser
+ * @param {import("../tokeniser.js").Tokeniser} tokeniser
  */
 function const_value(tokeniser) {
   return (
-    tokeniser.consumeType("decimal", "integer") ||
+    tokeniser.consumeKind("decimal", "integer") ||
     tokeniser.consume("true", "false", "Infinity", "-Infinity", "NaN")
   );
 }
@@ -741,7 +786,7 @@ function const_data({ type, value }) {
 }
 
 /**
- * @param {import("../tokeniser").Tokeniser} tokeniser
+ * @param {import("../tokeniser.js").Tokeniser} tokeniser
  */
 function primitive_type(tokeniser) {
   function integer_type() {
@@ -764,7 +809,7 @@ function primitive_type(tokeniser) {
   }
 
   const { source } = tokeniser;
-  const num_type = integer_type(tokeniser) || decimal_type(tokeniser);
+  const num_type = integer_type() || decimal_type();
   if (num_type) return num_type;
   const base = tokeniser.consume(
     "bigint",
@@ -779,7 +824,7 @@ function primitive_type(tokeniser) {
 }
 
 /**
- * @param {import("../tokeniser").Tokeniser} tokeniser
+ * @param {import("../tokeniser.js").Tokeniser} tokeniser
  */
 function argument_list(tokeniser) {
   return list(tokeniser, {
@@ -789,8 +834,8 @@ function argument_list(tokeniser) {
 }
 
 /**
- * @param {import("../tokeniser").Tokeniser} tokeniser
- * @param {string} typeName
+ * @param {import("../tokeniser.js").Tokeniser} tokeniser
+ * @param {string=} typeName (TODO: See Type.type for more details)
  */
 function type_with_extended_attributes(tokeniser, typeName) {
   const extAttrs = _extended_attributes_js__WEBPACK_IMPORTED_MODULE_2__.ExtendedAttributes.parse(tokeniser);
@@ -800,8 +845,8 @@ function type_with_extended_attributes(tokeniser, typeName) {
 }
 
 /**
- * @param {import("../tokeniser").Tokeniser} tokeniser
- * @param {string} typeName
+ * @param {import("../tokeniser.js").Tokeniser} tokeniser
+ * @param {string=} typeName (TODO: See Type.type for more details)
  */
 function return_type(tokeniser, typeName) {
   const typ = _type_js__WEBPACK_IMPORTED_MODULE_0__.Type.parse(tokeniser, typeName || "return-type");
@@ -820,7 +865,7 @@ function return_type(tokeniser, typeName) {
 }
 
 /**
- * @param {import("../tokeniser").Tokeniser} tokeniser
+ * @param {import("../tokeniser.js").Tokeniser} tokeniser
  */
 function stringifier(tokeniser) {
   const special = tokeniser.consume("stringifier");
@@ -857,8 +902,7 @@ function getMemberIndentation(parentTrivia) {
 }
 
 /**
- * @param {object} def
- * @param {import("./extended-attributes.js").ExtendedAttributes} def.extAttrs
+ * @param {import("./interface.js").Interface} def
  */
 function autofixAddExposedWindow(def) {
   return () => {
@@ -912,7 +956,7 @@ function findLastIndex(array, predicate) {
 
 /**
  * Returns a proxy that auto-assign `parent` field.
- * @template T
+ * @template {Record<string | symbol, any>} T
  * @param {T} data
  * @param {*} [parent] The object that will be assigned to `parent`.
  *                     If absent, it will be `data` by default.
@@ -928,10 +972,10 @@ function autoParenter(data, parent) {
     // `autoParenter(parse())` where the function may return nothing.
     return data;
   }
-  return new Proxy(data, {
+  const proxy = new Proxy(data, {
     get(target, p) {
       const value = target[p];
-      if (Array.isArray(value)) {
+      if (Array.isArray(value) && p !== "source") {
         // Wraps the array so that any added items will also automatically
         // get their `parent` values.
         return autoParenter(value, target);
@@ -939,6 +983,7 @@ function autoParenter(data, parent) {
       return value;
     },
     set(target, p, value) {
+      // @ts-ignore https://github.com/microsoft/TypeScript/issues/47357
       target[p] = value;
       if (!value) {
         return true;
@@ -955,6 +1000,7 @@ function autoParenter(data, parent) {
       return true;
     },
   });
+  return proxy;
 }
 
 
@@ -980,7 +1026,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /**
- * @param {import("../tokeniser").Tokeniser} tokeniser
+ * @param {import("../tokeniser.js").Tokeniser} tokeniser
  * @param {string} typeName
  */
 function generic_type(tokeniser, typeName) {
@@ -1048,7 +1094,7 @@ function generic_type(tokeniser, typeName) {
 }
 
 /**
- * @param {import("../tokeniser").Tokeniser} tokeniser
+ * @param {import("../tokeniser.js").Tokeniser} tokeniser
  */
 function type_suffix(tokeniser, obj) {
   const nullable = tokeniser.consume("?");
@@ -1059,14 +1105,14 @@ function type_suffix(tokeniser, obj) {
 }
 
 /**
- * @param {import("../tokeniser").Tokeniser} tokeniser
+ * @param {import("../tokeniser.js").Tokeniser} tokeniser
  * @param {string} typeName
  */
 function single_type(tokeniser, typeName) {
   let ret = generic_type(tokeniser, typeName) || (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.primitive_type)(tokeniser);
   if (!ret) {
     const base =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.consume(..._tokeniser_js__WEBPACK_IMPORTED_MODULE_2__.stringTypes, ..._tokeniser_js__WEBPACK_IMPORTED_MODULE_2__.typeNameKeywords);
     if (!base) {
       return;
@@ -1086,7 +1132,7 @@ function single_type(tokeniser, typeName) {
 }
 
 /**
- * @param {import("../tokeniser").Tokeniser} tokeniser
+ * @param {import("../tokeniser.js").Tokeniser} tokeniser
  * @param {string} type
  */
 function union_type(tokeniser, type) {
@@ -1122,7 +1168,7 @@ function union_type(tokeniser, type) {
 
 class Type extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    * @param {string} typeName
    */
   static parse(tokeniser, typeName) {
@@ -1132,7 +1178,7 @@ class Type extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
   constructor({ source, tokens }) {
     super({ source, tokens });
     Object.defineProperty(this, "subtype", { value: [], writable: true });
-    this.extAttrs = new _extended_attributes_js__WEBPACK_IMPORTED_MODULE_5__.ExtendedAttributes({});
+    this.extAttrs = new _extended_attributes_js__WEBPACK_IMPORTED_MODULE_5__.ExtendedAttributes({ source, tokens: {} });
   }
 
   get generic() {
@@ -1164,7 +1210,7 @@ class Type extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
 
     if (this.idlType === "void") {
       const message = `\`void\` is now replaced by \`undefined\`. Refer to the \
-[relevant GitHub issue](https://github.com/heycam/webidl/issues/60) \
+[relevant GitHub issue](https://github.com/whatwg/webidl/issues/60) \
 for more information.`;
       yield (0,_error_js__WEBPACK_IMPORTED_MODULE_3__.validationError)(this.tokens.base, this, "replace-void", message, {
         autofix: replaceVoid(this),
@@ -1202,7 +1248,7 @@ for more information.`;
     }
   }
 
-  /** @param {import("../writer.js").Writer)} w */
+  /** @param {import("../writer.js").Writer} w */
   write(w) {
     const type_body = () => {
       if (this.union || this.generic) {
@@ -1223,7 +1269,12 @@ for more information.`;
           this.tokens.base.value,
           w.token(this.tokens.postfix),
         ]),
-        { unescaped: this.idlType, context: this }
+        {
+          unescaped: /** @type {string} (because it's not union) */ (
+            this.idlType
+          ),
+          context: this,
+        }
       );
       return w.ts.wrap([w.ts.trivia(firstToken.trivia), ref]);
     };
@@ -1254,8 +1305,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "Base": () => (/* binding */ Base)
 /* harmony export */ });
-// @ts-check
-
 class Base {
   /**
    * @param {object} initializer
@@ -1295,11 +1344,9 @@ class Base {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "idlTypeIncludesDictionary": () => (/* binding */ idlTypeIncludesDictionary),
-/* harmony export */   "dictionaryIncludesRequiredField": () => (/* binding */ dictionaryIncludesRequiredField)
+/* harmony export */   "dictionaryIncludesRequiredField": () => (/* binding */ dictionaryIncludesRequiredField),
+/* harmony export */   "idlTypeIncludesDictionary": () => (/* binding */ idlTypeIncludesDictionary)
 /* harmony export */ });
-// @ts-check
-
 /**
  * @typedef {import("../productions/dictionary.js").Dictionary} Dictionary
  *
@@ -1390,8 +1437,9 @@ function dictionaryIncludesRequiredField(dict, defs) {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "SimpleExtendedAttribute": () => (/* binding */ SimpleExtendedAttribute),
-/* harmony export */   "ExtendedAttributes": () => (/* binding */ ExtendedAttributes)
+/* harmony export */   "ExtendedAttributeParameters": () => (/* binding */ ExtendedAttributeParameters),
+/* harmony export */   "ExtendedAttributes": () => (/* binding */ ExtendedAttributes),
+/* harmony export */   "SimpleExtendedAttribute": () => (/* binding */ SimpleExtendedAttribute)
 /* harmony export */ });
 /* harmony import */ var _base_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(6);
 /* harmony import */ var _array_base_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(9);
@@ -1405,7 +1453,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /**
- * @param {import("../tokeniser").Tokeniser} tokeniser
+ * @param {import("../tokeniser.js").Tokeniser} tokeniser
  * @param {string} tokenName
  */
 function tokens(tokeniser, tokenName) {
@@ -1426,7 +1474,9 @@ const shouldBeLegacyPrefixed = [
 ];
 
 const renamedLegacies = new Map([
-  ...shouldBeLegacyPrefixed.map((name) => [name, `Legacy${name}`]),
+  .../** @type {[string, string][]} */ (
+    shouldBeLegacyPrefixed.map((name) => [name, `Legacy${name}`])
+  ),
   ["NamedConstructor", "LegacyFactoryFunction"],
   ["OverrideBuiltins", "LegacyOverrideBuiltIns"],
   ["TreatNullAs", "LegacyNullToEmptyString"],
@@ -1434,7 +1484,7 @@ const renamedLegacies = new Map([
 
 /**
  * This will allow a set of extended attribute values to be parsed.
- * @param {import("../tokeniser").Tokeniser} tokeniser
+ * @param {import("../tokeniser.js").Tokeniser} tokeniser
  */
 function extAttrListItems(tokeniser) {
   for (const syntax of extAttrValueSyntax) {
@@ -1450,15 +1500,20 @@ function extAttrListItems(tokeniser) {
 
 class ExtendedAttributeParameters extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    */
   static parse(tokeniser) {
     const tokens = { assign: tokeniser.consume("=") };
     const ret = (0,_helpers_js__WEBPACK_IMPORTED_MODULE_3__.autoParenter)(
       new ExtendedAttributeParameters({ source: tokeniser.source, tokens })
     );
+    ret.list = [];
     if (tokens.assign) {
-      tokens.secondaryName = tokeniser.consumeType(...extAttrValueSyntax);
+      tokens.asterisk = tokeniser.consume("*");
+      if (tokens.asterisk) {
+        return ret.this;
+      }
+      tokens.secondaryName = tokeniser.consumeKind(...extAttrValueSyntax);
     }
     tokens.open = tokeniser.consume("(");
     if (tokens.open) {
@@ -1470,19 +1525,24 @@ class ExtendedAttributeParameters extends _base_js__WEBPACK_IMPORTED_MODULE_0__.
       tokens.close =
         tokeniser.consume(")") ||
         tokeniser.error("Unexpected token in extended attribute argument list");
-    } else if (ret.hasRhs && !tokens.secondaryName) {
+    } else if (tokens.assign && !tokens.secondaryName) {
       tokeniser.error("No right hand side to extended attribute assignment");
     }
     return ret.this;
   }
 
   get rhsIsList() {
-    return this.tokens.assign && !this.tokens.secondaryName;
+    return (
+      this.tokens.assign && !this.tokens.asterisk && !this.tokens.secondaryName
+    );
   }
 
   get rhsType() {
     if (this.rhsIsList) {
       return this.list[0].tokens.value.type + "-list";
+    }
+    if (this.tokens.asterisk) {
+      return "*";
     }
     if (this.tokens.secondaryName) {
       return this.tokens.secondaryName.type;
@@ -1490,28 +1550,19 @@ class ExtendedAttributeParameters extends _base_js__WEBPACK_IMPORTED_MODULE_0__.
     return null;
   }
 
-  /** @param {import("../writer.js").Writer)} w */
+  /** @param {import("../writer.js").Writer} w */
   write(w) {
-    function extended_attribute_listitem(item) {
-      return w.ts.wrap([
-        w.token(item.tokens.value),
-        w.token(item.tokens.separator),
-      ]);
-    }
     const { rhsType } = this;
     return w.ts.wrap([
       w.token(this.tokens.assign),
+      w.token(this.tokens.asterisk),
       w.reference_token(this.tokens.secondaryName, this.parent),
       w.token(this.tokens.open),
-      ...(!this.list
-        ? []
-        : this.list.map((p) => {
-            return rhsType === "identifier-list"
-              ? w.identifier(p, this.parent)
-              : rhsType && rhsType.endsWith("-list")
-              ? extended_attribute_listitem(p)
-              : p.write(w);
-          })),
+      ...this.list.map((p) => {
+        return rhsType === "identifier-list"
+          ? w.identifier(p, this.parent)
+          : p.write(w);
+      }),
       w.token(this.tokens.close),
     ]);
   }
@@ -1519,10 +1570,10 @@ class ExtendedAttributeParameters extends _base_js__WEBPACK_IMPORTED_MODULE_0__.
 
 class SimpleExtendedAttribute extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    */
   static parse(tokeniser) {
-    const name = tokeniser.consumeType("identifier");
+    const name = tokeniser.consumeKind("identifier");
     if (name) {
       return new SimpleExtendedAttribute({
         source: tokeniser.source,
@@ -1551,7 +1602,9 @@ class SimpleExtendedAttribute extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base
     }
     const value = this.params.rhsIsList
       ? list
-      : (0,_helpers_js__WEBPACK_IMPORTED_MODULE_3__.unescape)(tokens.secondaryName.value);
+      : this.params.tokens.secondaryName
+      ? (0,_helpers_js__WEBPACK_IMPORTED_MODULE_3__.unescape)(tokens.secondaryName.value)
+      : null;
     return { type, value };
   }
   get arguments() {
@@ -1567,7 +1620,7 @@ class SimpleExtendedAttribute extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base
     if (name === "LegacyNoInterfaceObject") {
       const message = `\`[LegacyNoInterfaceObject]\` extended attribute is an \
 undesirable feature that may be removed from Web IDL in the future. Refer to the \
-[relevant upstream PR](https://github.com/heycam/webidl/pull/609) for more \
+[relevant upstream PR](https://github.com/whatwg/webidl/pull/609) for more \
 information.`;
       yield (0,_error_js__WEBPACK_IMPORTED_MODULE_4__.validationError)(
         this.tokens.name,
@@ -1579,7 +1632,7 @@ information.`;
     } else if (renamedLegacies.has(name)) {
       const message = `\`[${name}]\` extended attribute is a legacy feature \
 that is now renamed to \`[${renamedLegacies.get(name)}]\`. Refer to the \
-[relevant upstream PR](https://github.com/heycam/webidl/pull/870) for more \
+[relevant upstream PR](https://github.com/whatwg/webidl/pull/870) for more \
 information.`;
       yield (0,_error_js__WEBPACK_IMPORTED_MODULE_4__.validationError)(this.tokens.name, this, "renamed-legacy", message, {
         level: "warning",
@@ -1591,7 +1644,7 @@ information.`;
     }
   }
 
-  /** @param {import("../writer.js").Writer)} w */
+  /** @param {import("../writer.js").Writer} w */
   write(w) {
     return w.ts.wrap([
       w.ts.trivia(this.tokens.name.trivia),
@@ -1623,13 +1676,13 @@ function renameLegacyExtendedAttribute(extAttr) {
 // seems to be used
 class ExtendedAttributes extends _array_base_js__WEBPACK_IMPORTED_MODULE_1__.ArrayBase {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    */
   static parse(tokeniser) {
     const tokens = {};
     tokens.open = tokeniser.consume("[");
-    if (!tokens.open) return new ExtendedAttributes({});
     const ret = new ExtendedAttributes({ source: tokeniser.source, tokens });
+    if (!tokens.open) return ret;
     ret.push(
       ...(0,_helpers_js__WEBPACK_IMPORTED_MODULE_3__.list)(tokeniser, {
         parser: SimpleExtendedAttribute.parse,
@@ -1638,9 +1691,12 @@ class ExtendedAttributes extends _array_base_js__WEBPACK_IMPORTED_MODULE_1__.Arr
     );
     tokens.close =
       tokeniser.consume("]") ||
-      tokeniser.error("Unexpected closing token of extended attribute");
+      tokeniser.error(
+        "Expected a closing token for the extended attribute list"
+      );
     if (!ret.length) {
-      tokeniser.error("Found an empty extended attribute");
+      tokeniser.unconsume(tokens.close.index);
+      tokeniser.error("An extended attribute list must not be empty");
     }
     if (tokeniser.probe("[")) {
       tokeniser.error(
@@ -1656,7 +1712,7 @@ class ExtendedAttributes extends _array_base_js__WEBPACK_IMPORTED_MODULE_1__.Arr
     }
   }
 
-  /** @param {import("../writer.js").Writer)} w */
+  /** @param {import("../writer.js").Writer} w */
   write(w) {
     if (!this.length) return "";
     return w.ts.wrap([
@@ -1676,8 +1732,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "ArrayBase": () => (/* binding */ ArrayBase)
 /* harmony export */ });
-// @ts-check
-
 class ArrayBase extends Array {
   constructor({ source, tokens }) {
     super();
@@ -1696,23 +1750,22 @@ class ArrayBase extends Array {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "Eof": () => (/* binding */ Eof),
 /* harmony export */   "WrappedToken": () => (/* binding */ WrappedToken)
 /* harmony export */ });
 /* harmony import */ var _base_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(6);
 /* harmony import */ var _helpers_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
-// @ts-check
-
 
 
 
 class WrappedToken extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    * @param {string} type
    */
   static parser(tokeniser, type) {
     return () => {
-      const value = tokeniser.consumeType(type);
+      const value = tokeniser.consumeKind(type);
       if (value) {
         return new WrappedToken({
           source: tokeniser.source,
@@ -1724,6 +1777,30 @@ class WrappedToken extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
 
   get value() {
     return (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.unescape)(this.tokens.value.value);
+  }
+
+  /** @param {import("../writer.js").Writer} w */
+  write(w) {
+    return w.ts.wrap([
+      w.token(this.tokens.value),
+      w.token(this.tokens.separator),
+    ]);
+  }
+}
+
+class Eof extends WrappedToken {
+  /**
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
+   */
+  static parse(tokeniser) {
+    const value = tokeniser.consumeKind("eof");
+    if (value) {
+      return new Eof({ source: tokeniser.source, tokens: { value } });
+    }
+  }
+
+  get type() {
+    return "eof";
   }
 }
 
@@ -1743,8 +1820,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _tokeniser_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(2);
 /* harmony import */ var _error_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(3);
 /* harmony import */ var _validators_helpers_js__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(7);
-// @ts-check
-
 
 
 
@@ -1755,7 +1830,7 @@ __webpack_require__.r(__webpack_exports__);
 
 class Argument extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    */
   static parse(tokeniser) {
     const start_position = tokeniser.position;
@@ -1774,7 +1849,7 @@ class Argument extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
       tokens.variadic = tokeniser.consume("...");
     }
     tokens.name =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.consume(..._tokeniser_js__WEBPACK_IMPORTED_MODULE_4__.argumentNameKeywords);
     if (!tokens.name) {
       return tokeniser.unconsume(start_position);
@@ -1877,9 +1952,9 @@ function autofixDictionaryArgumentOptionality(arg) {
   return () => {
     const firstToken = (0,_helpers_js__WEBPACK_IMPORTED_MODULE_3__.getFirstToken)(arg.idlType);
     arg.tokens.optional = {
+      ...firstToken,
       type: "optional",
       value: "optional",
-      trivia: firstToken.trivia,
     };
     firstToken.trivia = " ";
     autofixOptionalDictionaryDefaultValue(arg)();
@@ -1911,7 +1986,7 @@ __webpack_require__.r(__webpack_exports__);
 
 class Default extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    */
   static parse(tokeniser) {
     const assign = tokeniser.consume("=");
@@ -1920,7 +1995,7 @@ class Default extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
     }
     const def =
       (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.const_value)(tokeniser) ||
-      tokeniser.consumeType("string") ||
+      tokeniser.consumeKind("string") ||
       tokeniser.consume("null", "[", "{") ||
       tokeniser.error("No value for default");
     const expression = [def];
@@ -1958,7 +2033,7 @@ class Default extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
     return (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.const_data)(this.expression[0]).negative;
   }
 
-  /** @param {import("../writer.js").Writer)} w */
+  /** @param {import("../writer.js").Writer} w */
   write(w) {
     return w.ts.wrap([
       w.token(this.tokens.assign),
@@ -2010,7 +2085,7 @@ class Operation extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
     ret.idlType =
       (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.return_type)(tokeniser) || tokeniser.error("Missing return type");
     tokens.name =
-      tokeniser.consumeType("identifier") || tokeniser.consume("includes");
+      tokeniser.consumeKind("identifier") || tokeniser.consume("includes");
     tokens.open =
       tokeniser.consume("(") || tokeniser.error("Invalid operation");
     ret.arguments = (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.argument_list)(tokeniser);
@@ -2092,8 +2167,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _validators_helpers_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(7);
 /* harmony import */ var _base_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(6);
 /* harmony import */ var _helpers_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(4);
-// @ts-check
-
 
 
 
@@ -2135,7 +2208,7 @@ class Attribute extends _base_js__WEBPACK_IMPORTED_MODULE_2__.Base {
       (0,_helpers_js__WEBPACK_IMPORTED_MODULE_3__.type_with_extended_attributes)(tokeniser, "attribute-type") ||
       tokeniser.error("Attribute lacks a type");
     tokens.name =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.consume("async", "required") ||
       tokeniser.error("Attribute lacks a name");
     tokens.termination =
@@ -2219,7 +2292,8 @@ class Attribute extends _base_js__WEBPACK_IMPORTED_MODULE_2__.Base {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "Enum": () => (/* binding */ Enum)
+/* harmony export */   "Enum": () => (/* binding */ Enum),
+/* harmony export */   "EnumValue": () => (/* binding */ EnumValue)
 /* harmony export */ });
 /* harmony import */ var _helpers_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(4);
 /* harmony import */ var _token_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(10);
@@ -2230,10 +2304,10 @@ __webpack_require__.r(__webpack_exports__);
 
 class EnumValue extends _token_js__WEBPACK_IMPORTED_MODULE_1__.WrappedToken {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    */
   static parse(tokeniser) {
-    const value = tokeniser.consumeType("string");
+    const value = tokeniser.consumeKind("string");
     if (value) {
       return new EnumValue({ source: tokeniser.source, tokens: { value } });
     }
@@ -2262,7 +2336,7 @@ class EnumValue extends _token_js__WEBPACK_IMPORTED_MODULE_1__.WrappedToken {
 
 class Enum extends _base_js__WEBPACK_IMPORTED_MODULE_2__.Base {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    */
   static parse(tokeniser) {
     /** @type {Base["tokens"]} */
@@ -2272,7 +2346,7 @@ class Enum extends _base_js__WEBPACK_IMPORTED_MODULE_2__.Base {
       return;
     }
     tokens.name =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.error("No name for enum");
     const ret = (0,_helpers_js__WEBPACK_IMPORTED_MODULE_0__.autoParenter)(new Enum({ source: tokeniser.source, tokens }));
     tokeniser.current = ret.this;
@@ -2282,7 +2356,7 @@ class Enum extends _base_js__WEBPACK_IMPORTED_MODULE_2__.Base {
       allowDangler: true,
       listName: "enumeration",
     });
-    if (tokeniser.probeType("string")) {
+    if (tokeniser.probeKind("string")) {
       tokeniser.error("No comma between enum values");
     }
     tokens.close =
@@ -2330,17 +2404,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _base_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(6);
 /* harmony import */ var _helpers_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
-// @ts-check
-
 
 
 
 class Includes extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    */
   static parse(tokeniser) {
-    const target = tokeniser.consumeType("identifier");
+    const target = tokeniser.consumeKind("identifier");
     if (!target) {
       return;
     }
@@ -2351,7 +2423,7 @@ class Includes extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
       return;
     }
     tokens.mixin =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.error("Incomplete includes statement");
     tokens.termination =
       tokeniser.consume(";") ||
@@ -2400,7 +2472,7 @@ __webpack_require__.r(__webpack_exports__);
 
 class Typedef extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    */
   static parse(tokeniser) {
     /** @type {Base["tokens"]} */
@@ -2414,7 +2486,7 @@ class Typedef extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
       (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.type_with_extended_attributes)(tokeniser, "typedef-type") ||
       tokeniser.error("Typedef lacks a type");
     tokens.name =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.error("Typedef lacks a name");
     tokeniser.current = ret.this;
     tokens.termination =
@@ -2473,7 +2545,7 @@ class CallbackFunction extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
       new CallbackFunction({ source: tokeniser.source, tokens })
     );
     tokens.name =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.error("Callback lacks a name");
     tokeniser.current = ret.this;
     tokens.assign =
@@ -2556,7 +2628,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /**
- * @param {import("../tokeniser").Tokeniser} tokeniser
+ * @param {import("../tokeniser.js").Tokeniser} tokeniser
  */
 function static_member(tokeniser) {
   const special = tokeniser.consume("static");
@@ -2570,7 +2642,7 @@ function static_member(tokeniser) {
 
 class Interface extends _container_js__WEBPACK_IMPORTED_MODULE_0__.Container {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    */
   static parse(tokeniser, base, { partial = null } = {}) {
     const tokens = { partial, base };
@@ -2578,7 +2650,6 @@ class Interface extends _container_js__WEBPACK_IMPORTED_MODULE_0__.Container {
       tokeniser,
       new Interface({ source: tokeniser.source, tokens }),
       {
-        type: "interface",
         inheritable: !partial,
         allowedMembers: [
           [_constant_js__WEBPACK_IMPORTED_MODULE_3__.Constant.parse],
@@ -2685,7 +2756,10 @@ function autofixConstructor(interfaceDef, constructorExtAttr) {
     const constructorOp = _constructor_js__WEBPACK_IMPORTED_MODULE_8__.Constructor.parse(
       new _tokeniser_js__WEBPACK_IMPORTED_MODULE_9__.Tokeniser(`\n${memberIndent}constructor();`)
     );
-    constructorOp.extAttrs = new _extended_attributes_js__WEBPACK_IMPORTED_MODULE_10__.ExtendedAttributes({});
+    constructorOp.extAttrs = new _extended_attributes_js__WEBPACK_IMPORTED_MODULE_10__.ExtendedAttributes({
+      source: interfaceDef.source,
+      tokens: {},
+    });
     (0,_helpers_js__WEBPACK_IMPORTED_MODULE_5__.autoParenter)(constructorOp).arguments = constructorExtAttr.arguments;
 
     const existingIndex = (0,_helpers_js__WEBPACK_IMPORTED_MODULE_5__.findLastIndex)(
@@ -2737,23 +2811,22 @@ function inheritance(tokeniser) {
     return {};
   }
   const inheritance =
-    tokeniser.consumeType("identifier") ||
+    tokeniser.consumeKind("identifier") ||
     tokeniser.error("Inheritance lacks a type");
   return { colon, inheritance };
 }
 
 class Container extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
   /**
-   * @template T
    * @param {import("../tokeniser.js").Tokeniser} tokeniser
-   * @param {T} instance
+   * @param {*} instance TODO: This should be {T extends Container}, but see https://github.com/microsoft/TypeScript/issues/4628
    * @param {*} args
    */
-  static parse(tokeniser, instance, { type, inheritable, allowedMembers }) {
-    const { tokens } = instance;
+  static parse(tokeniser, instance, { inheritable, allowedMembers }) {
+    const { tokens, type } = instance;
     tokens.name =
-      tokeniser.consumeType("identifier") ||
-      tokeniser.error(`Missing name in ${instance.type}`);
+      tokeniser.consumeKind("identifier") ||
+      tokeniser.error(`Missing name in ${type}`);
     tokeniser.current = instance;
     instance = (0,_helpers_js__WEBPACK_IMPORTED_MODULE_2__.autoParenter)(instance);
     if (inheritable) {
@@ -2870,7 +2943,7 @@ class Constant extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
     let idlType = (0,_helpers_js__WEBPACK_IMPORTED_MODULE_2__.primitive_type)(tokeniser);
     if (!idlType) {
       const base =
-        tokeniser.consumeType("identifier") ||
+        tokeniser.consumeKind("identifier") ||
         tokeniser.error("Const lacks a type");
       idlType = new _type_js__WEBPACK_IMPORTED_MODULE_1__.Type({ source: tokeniser.source, tokens: { base } });
     }
@@ -2879,7 +2952,7 @@ class Constant extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
     }
     idlType.type = "const-type";
     tokens.name =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.error("Const lacks a name");
     tokens.assign =
       tokeniser.consume("=") || tokeniser.error("Const lacks value assignment");
@@ -2941,10 +3014,10 @@ class IterableLike extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
    */
   static parse(tokeniser) {
     const start_position = tokeniser.position;
-    const tokens = {};
     const ret = (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.autoParenter)(
-      new IterableLike({ source: tokeniser.source, tokens })
+      new IterableLike({ source: tokeniser.source, tokens: {} })
     );
+    const { tokens } = ret;
     tokens.readonly = tokeniser.consume("readonly");
     if (!tokens.readonly) {
       tokens.async = tokeniser.consume("async");
@@ -3055,27 +3128,38 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "checkInterfaceMemberDuplication": () => (/* binding */ checkInterfaceMemberDuplication)
 /* harmony export */ });
 /* harmony import */ var _error_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-// @ts-check
 
 
-
+/**
+ * @param {import("../validator.js").Definitions} defs
+ * @param {import("../productions/container.js").Container} i
+ */
 function* checkInterfaceMemberDuplication(defs, i) {
-  const opNames = new Set(getOperations(i).map((op) => op.name));
+  const opNames = groupOperationNames(i);
   const partials = defs.partials.get(i.name) || [];
   const mixins = defs.mixinMap.get(i.name) || [];
   for (const ext of [...partials, ...mixins]) {
     const additions = getOperations(ext);
-    yield* forEachExtension(additions, opNames, ext, i);
-    for (const addition of additions) {
-      opNames.add(addition.name);
-    }
+    const statics = additions.filter((a) => a.special === "static");
+    const nonstatics = additions.filter((a) => a.special !== "static");
+    yield* checkAdditions(statics, opNames.statics, ext, i);
+    yield* checkAdditions(nonstatics, opNames.nonstatics, ext, i);
+    statics.forEach((op) => opNames.statics.add(op.name));
+    nonstatics.forEach((op) => opNames.nonstatics.add(op.name));
   }
 
-  function* forEachExtension(additions, existings, ext, base) {
+  /**
+   * @param {import("../productions/operation.js").Operation[]} additions
+   * @param {Set<string>} existings
+   * @param {import("../productions/container.js").Container} ext
+   * @param {import("../productions/container.js").Container} base
+   */
+  function* checkAdditions(additions, existings, ext, base) {
     for (const addition of additions) {
       const { name } = addition;
       if (name && existings.has(name)) {
-        const message = `The operation "${name}" has already been defined for the base interface "${base.name}" either in itself or in a mixin`;
+        const isStatic = addition.special === "static" ? "static " : "";
+        const message = `The ${isStatic}operation "${name}" has already been defined for the base interface "${base.name}" either in itself or in a mixin`;
         yield (0,_error_js__WEBPACK_IMPORTED_MODULE_0__.validationError)(
           addition.tokens.name,
           ext,
@@ -3086,8 +3170,27 @@ function* checkInterfaceMemberDuplication(defs, i) {
     }
   }
 
+  /**
+   * @param {import("../productions/container.js").Container} i
+   * @returns {import("../productions/operation.js").Operation[]}
+   */
   function getOperations(i) {
     return i.members.filter(({ type }) => type === "operation");
+  }
+
+  /**
+   * @param {import("../productions/container.js").Container} i
+   */
+  function groupOperationNames(i) {
+    const ops = getOperations(i);
+    return {
+      statics: new Set(
+        ops.filter((op) => op.special === "static").map((op) => op.name)
+      ),
+      nonstatics: new Set(
+        ops.filter((op) => op.special !== "static").map((op) => op.name)
+      ),
+    };
   }
 }
 
@@ -3107,7 +3210,7 @@ __webpack_require__.r(__webpack_exports__);
 
 class Constructor extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    */
   static parse(tokeniser) {
     const base = tokeniser.consume("constructor");
@@ -3135,9 +3238,6 @@ class Constructor extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
   }
 
   *validate(defs) {
-    if (this.idlType) {
-      yield* this.idlType.validate(defs);
-    }
     for (const argument of this.arguments) {
       yield* argument.validate(defs);
     }
@@ -3199,7 +3299,6 @@ class Mixin extends _container_js__WEBPACK_IMPORTED_MODULE_0__.Container {
       tokeniser,
       new Mixin({ source: tokeniser.source, tokens }),
       {
-        type: "interface mixin",
         allowedMembers: [
           [_constant_js__WEBPACK_IMPORTED_MODULE_1__.Constant.parse],
           [_helpers_js__WEBPACK_IMPORTED_MODULE_4__.stringifier],
@@ -3226,14 +3325,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _container_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(20);
 /* harmony import */ var _field_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(27);
-// @ts-check
-
 
 
 
 class Dictionary extends _container_js__WEBPACK_IMPORTED_MODULE_0__.Container {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    * @param {object} [options]
    * @param {import("../tokeniser.js").Token} [options.partial]
    */
@@ -3247,7 +3344,6 @@ class Dictionary extends _container_js__WEBPACK_IMPORTED_MODULE_0__.Container {
       tokeniser,
       new Dictionary({ source: tokeniser.source, tokens }),
       {
-        type: "dictionary",
         inheritable: !partial,
         allowedMembers: [[_field_js__WEBPACK_IMPORTED_MODULE_1__.Field.parse]],
       }
@@ -3279,7 +3375,7 @@ __webpack_require__.r(__webpack_exports__);
 
 class Field extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    */
   static parse(tokeniser) {
     /** @type {Base["tokens"]} */
@@ -3291,7 +3387,7 @@ class Field extends _base_js__WEBPACK_IMPORTED_MODULE_0__.Base {
       (0,_helpers_js__WEBPACK_IMPORTED_MODULE_1__.type_with_extended_attributes)(tokeniser, "dictionary-type") ||
       tokeniser.error("Dictionary member lacks a type");
     tokens.name =
-      tokeniser.consumeType("identifier") ||
+      tokeniser.consumeKind("identifier") ||
       tokeniser.error("Dictionary member lacks a name");
     ret.default = _default_js__WEBPACK_IMPORTED_MODULE_3__.Default.parse(tokeniser);
     if (tokens.required && ret.default)
@@ -3357,7 +3453,7 @@ __webpack_require__.r(__webpack_exports__);
 
 class Namespace extends _container_js__WEBPACK_IMPORTED_MODULE_0__.Container {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    * @param {object} [options]
    * @param {import("../tokeniser.js").Token} [options.partial]
    */
@@ -3371,7 +3467,6 @@ class Namespace extends _container_js__WEBPACK_IMPORTED_MODULE_0__.Container {
       tokeniser,
       new Namespace({ source: tokeniser.source, tokens }),
       {
-        type: "namespace",
         allowedMembers: [
           [_attribute_js__WEBPACK_IMPORTED_MODULE_1__.Attribute.parse, { noInherit: true, readonly: true }],
           [_constant_js__WEBPACK_IMPORTED_MODULE_5__.Constant.parse],
@@ -3421,15 +3516,13 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _container_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(20);
 /* harmony import */ var _operation_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(13);
 /* harmony import */ var _constant_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(21);
-// @ts-check
-
 
 
 
 
 class CallbackInterface extends _container_js__WEBPACK_IMPORTED_MODULE_0__.Container {
   /**
-   * @param {import("../tokeniser").Tokeniser} tokeniser
+   * @param {import("../tokeniser.js").Tokeniser} tokeniser
    */
   static parse(tokeniser, callback, { partial = null } = {}) {
     const tokens = { callback };
@@ -3441,7 +3534,6 @@ class CallbackInterface extends _container_js__WEBPACK_IMPORTED_MODULE_0__.Conta
       tokeniser,
       new CallbackInterface({ source: tokeniser.source, tokens }),
       {
-        type: "callback interface",
         inheritable: !partial,
         allowedMembers: [
           [_constant_js__WEBPACK_IMPORTED_MODULE_2__.Constant.parse],
@@ -3489,6 +3581,13 @@ class Writer {
     this.ts = Object.assign({}, templates, ts);
   }
 
+  /**
+   * @param {string} raw
+   * @param {object} options
+   * @param {string} [options.unescaped]
+   * @param {import("./productions/base.js").Base} [options.context]
+   * @returns
+   */
   reference(raw, { unescaped, context }) {
     if (!unescaped) {
       unescaped = raw.startsWith("_") ? raw.slice(1) : raw;
@@ -3496,6 +3595,12 @@ class Writer {
     return this.ts.reference(raw, unescaped, context);
   }
 
+  /**
+   * @param {import("./tokeniser.js").Token} t
+   * @param {Function} wrapper
+   * @param {...any} args
+   * @returns
+   */
   token(t, wrapper = noop, ...args) {
     if (!t) {
       return "";
@@ -3525,13 +3630,7 @@ function write(ast, { templates: ts = templates } = {}) {
 
   const w = new Writer(ts);
 
-  function dispatch(it) {
-    if (it.type === "eof") {
-      return ts.trivia(it.trivia);
-    }
-    return it.write(w);
-  }
-  return ts.wrap(ast.map(dispatch));
+  return ts.wrap(ast.map((it) => it.write(w)));
 }
 
 
@@ -3632,7 +3731,8 @@ function flatten(array) {
 }
 
 /**
- * @param {*} ast AST or array of ASTs
+ * @param {import("./productions/base.js").Base[]} ast
+ * @return {import("./error.js").WebIDLErrorData[]} validation errors
  */
 function validate(ast) {
   return [...validateIterable(flatten(ast))];
@@ -3701,10 +3801,10 @@ var __webpack_exports__ = {};
 (() => {
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "WebIDLParseError": () => (/* reexport safe */ _lib_tokeniser_js__WEBPACK_IMPORTED_MODULE_3__.WebIDLParseError),
 /* harmony export */   "parse": () => (/* reexport safe */ _lib_webidl2_js__WEBPACK_IMPORTED_MODULE_0__.parse),
-/* harmony export */   "write": () => (/* reexport safe */ _lib_writer_js__WEBPACK_IMPORTED_MODULE_1__.write),
 /* harmony export */   "validate": () => (/* reexport safe */ _lib_validator_js__WEBPACK_IMPORTED_MODULE_2__.validate),
-/* harmony export */   "WebIDLParseError": () => (/* reexport safe */ _lib_tokeniser_js__WEBPACK_IMPORTED_MODULE_3__.WebIDLParseError)
+/* harmony export */   "write": () => (/* reexport safe */ _lib_writer_js__WEBPACK_IMPORTED_MODULE_1__.write)
 /* harmony export */ });
 /* harmony import */ var _lib_webidl2_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(1);
 /* harmony import */ var _lib_writer_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(30);

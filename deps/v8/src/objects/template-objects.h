@@ -19,21 +19,6 @@ class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/template-objects-tq.inc"
 
-// CachedTemplateObject is a tuple used to cache a TemplateObject that has been
-// created. All the CachedTemplateObject's for a given SharedFunctionInfo form a
-// linked list via the next fields.
-class CachedTemplateObject final
-    : public TorqueGeneratedCachedTemplateObject<CachedTemplateObject, Struct> {
- public:
-  static Handle<CachedTemplateObject> New(Isolate* isolate, int slot_id,
-                                          Handle<JSArray> template_object,
-                                          Handle<HeapObject> next);
-
-  using BodyDescriptor = StructBodyDescriptor;
-
-  TQ_OBJECT_CONSTRUCTORS(CachedTemplateObject)
-};
-
 // TemplateObjectDescription is a tuple of raw strings and cooked strings for
 // tagged template literals. Used to communicate with the runtime for template
 // object creation within the {Runtime_GetTemplateObject} method.

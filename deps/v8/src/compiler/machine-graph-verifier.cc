@@ -4,11 +4,11 @@
 
 #include "src/compiler/machine-graph-verifier.h"
 
+#include "src/base/v8-fallthrough.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
 #include "src/zone/zone.h"
@@ -51,8 +51,14 @@ class MachineRepresentationInferrer {
                           : MachineRepresentation::kBit;
       case IrOpcode::kInt64AddWithOverflow:
       case IrOpcode::kInt64SubWithOverflow:
+      case IrOpcode::kInt64MulWithOverflow:
         CHECK_LE(index, static_cast<size_t>(1));
         return index == 0 ? MachineRepresentation::kWord64
+                          : MachineRepresentation::kBit;
+      case IrOpcode::kTryTruncateFloat64ToInt32:
+      case IrOpcode::kTryTruncateFloat64ToUint32:
+        CHECK_LE(index, static_cast<size_t>(1));
+        return index == 0 ? MachineRepresentation::kWord32
                           : MachineRepresentation::kBit;
       case IrOpcode::kTryTruncateFloat32ToInt64:
       case IrOpcode::kTryTruncateFloat64ToInt64:
@@ -85,6 +91,10 @@ class MachineRepresentationInferrer {
       case MachineRepresentation::kWord16:
       case MachineRepresentation::kWord32:
         return MachineRepresentation::kWord32;
+      case MachineRepresentation::kSandboxedPointer:
+        // A sandboxed pointer is a Word64 that uses an encoded representation
+        // when stored on the heap.
+        return MachineRepresentation::kWord64;
       default:
         break;
     }
@@ -203,7 +213,6 @@ class MachineRepresentationInferrer {
                 MachineRepresentation::kTaggedPointer;
             break;
           case IrOpcode::kNumberConstant:
-          case IrOpcode::kDelayedStringConstant:
           case IrOpcode::kChangeBitToTagged:
           case IrOpcode::kIfException:
           case IrOpcode::kOsrValue:
@@ -409,6 +418,8 @@ class MachineRepresentationChecker {
           case IrOpcode::kFloat64ExtractHighWord32:
           case IrOpcode::kBitcastFloat64ToInt64:
           case IrOpcode::kTryTruncateFloat64ToInt64:
+          case IrOpcode::kTryTruncateFloat64ToInt32:
+          case IrOpcode::kTryTruncateFloat64ToUint32:
             CheckValueInputForFloat64Op(node, 0);
             break;
           case IrOpcode::kWord64Equal:
@@ -813,7 +824,8 @@ class MachineRepresentationChecker {
 
   void CheckValueInputIsTaggedOrPointer(Node const* node, int index) {
     Node const* input = node->InputAt(index);
-    switch (inferrer_->GetRepresentation(input)) {
+    MachineRepresentation rep = inferrer_->GetRepresentation(input);
+    switch (rep) {
       case MachineRepresentation::kTagged:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTaggedSigned:
@@ -829,6 +841,21 @@ class MachineRepresentationChecker {
       case MachineRepresentation::kWord64:
         if (Is64()) {
           return;
+        }
+        break;
+      default:
+        break;
+    }
+    switch (node->opcode()) {
+      case IrOpcode::kLoad:
+      case IrOpcode::kProtectedLoad:
+      case IrOpcode::kUnalignedLoad:
+      case IrOpcode::kLoadImmutable:
+        if (rep == MachineRepresentation::kCompressed ||
+            rep == MachineRepresentation::kCompressedPointer) {
+          if (DECOMPRESS_POINTER_BY_ADDRESSING_MODE && index == 0) {
+            return;
+          }
         }
         break;
       default:
@@ -996,10 +1023,11 @@ class MachineRepresentationChecker {
         // happens in dead code.
         return IsAnyTagged(actual);
       case MachineRepresentation::kCompressedPointer:
-      case MachineRepresentation::kCagedPointer:
+      case MachineRepresentation::kSandboxedPointer:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:
       case MachineRepresentation::kSimd128:
+      case MachineRepresentation::kSimd256:
       case MachineRepresentation::kBit:
       case MachineRepresentation::kWord8:
       case MachineRepresentation::kWord16:

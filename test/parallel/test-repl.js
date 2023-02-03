@@ -786,7 +786,8 @@ const errorTests = [
         '  profile: [Function: profile],',
         '  profileEnd: [Function: profileEnd],',
         '  timeStamp: [Function: timeStamp],',
-        '  context: [Function: context]',
+        '  context: [Function: context],',
+        '  createTask: [Function: createTask]',
       ] : [],
       '}',
     ]
@@ -840,7 +841,8 @@ const tcpTests = [
 
     socket.end();
   }
-  common.allowGlobals(...Object.values(global));
+  common.allowGlobals(global.invoke_me, global.message, global.a, global.blah,
+                      global.I, global.f, global.path, global.x, global.name, global.foo);
 })().then(common.mustCall());
 
 function startTCPRepl() {

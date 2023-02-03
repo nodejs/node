@@ -212,9 +212,7 @@ const tests = [
     expected: [
       '\x1B[1G', '\x1B[0J',
       prompt, '\x1B[3G',
-      'f', 'u', ' // nction',
-      '\x1B[5G', '\x1B[0K',
-      '\nbck-i-search: _', '\x1B[1A', '\x1B[5G',
+      'f', 'u', '\nbck-i-search: _', '\x1B[1A', '\x1B[5G',
       '\x1B[3G', '\x1B[0J',
       '{key : {key2 :[] }}\nbck-i-search: }_', '\x1B[1A', '\x1B[21G',
       '\x1B[3G', '\x1B[0J',

@@ -19,8 +19,6 @@
 #include "internal/refcount.h"
 #include "crypto/cryptlib.h"
 
-#include "e_os.h"                /* strcasecmp for Windows */
-
 #ifndef OPENSSL_NO_TRACE
 
 static CRYPTO_RWLOCK *trace_lock = NULL;
@@ -158,7 +156,7 @@ int OSSL_trace_get_category_num(const char *name)
     size_t i;
 
     for (i = 0; i < OSSL_NELEM(trace_categories); i++)
-        if (strcasecmp(name, trace_categories[i].name) == 0)
+        if (OPENSSL_strcasecmp(name, trace_categories[i].name) == 0)
             return trace_categories[i].num;
     return -1; /* not found */
 }

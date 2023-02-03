@@ -3,9 +3,9 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   dur: [5],
   securing: ['SecurePair', 'TLSSocket', 'clear'],
-  size: [100, 1024, 1024 * 1024]
+  size: [100, 1024, 1024 * 1024],
 }, {
-  flags: ['--no-warnings']
+  flags: ['--no-warnings'],
 });
 
 const fixtures = require('../../test/common/fixtures');
@@ -25,6 +25,7 @@ function main({ dur, size, securing }) {
     isServer: true,
     requestCert: true,
     rejectUnauthorized: true,
+    maxVersion: 'TLSv1.2',
   };
 
   const server = net.createServer(onRedirectConnection);
@@ -38,6 +39,7 @@ function main({ dur, size, securing }) {
         cert: options.cert,
         isServer: false,
         rejectUnauthorized: false,
+        maxVersion: options.maxVersion,
       };
       const network = securing === 'clear' ? net : tls;
       const conn = network.connect(clientOptions, () => {

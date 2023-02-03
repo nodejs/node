@@ -5,7 +5,7 @@ const common = require('../common');
 // will not crash the process if there
 // is not enough space on the V8 stack
 
-const done = common.mustCall(() => {});
+const done = common.mustCall();
 
 async function test() {
   await test();

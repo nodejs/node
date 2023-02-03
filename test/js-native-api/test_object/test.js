@@ -19,7 +19,7 @@ const object = {
 assert.strictEqual(test_object.Get(object, 'hello'), 'world');
 assert.strictEqual(test_object.GetNamed(object, 'hello'), 'world');
 assert.deepStrictEqual(test_object.Get(object, 'array'),
-                       [ 1, 94, 'str', 12.321, { test: 'obj in arr' } ]);
+                       [1, 94, 'str', 12.321, { test: 'obj in arr' }]);
 assert.deepStrictEqual(test_object.Get(object, 'newObject'),
                        { test: 'obj in obj' });
 
@@ -54,7 +54,7 @@ assert.strictEqual(newObject.test_string, 'test string');
 
 {
   // Verify that napi_has_own_property() fails if property is not a name.
-  [true, false, null, undefined, {}, [], 0, 1, () => {}].forEach((value) => {
+  [true, false, null, undefined, {}, [], 0, 1, () => { }].forEach((value) => {
     assert.throws(() => {
       test_object.HasOwn({}, value);
     }, /^Error: A string or symbol was expected$/);
@@ -163,14 +163,23 @@ assert.strictEqual(newObject.test_string, 'test string');
   // Verify that objects can be type-tagged and type-tag-checked.
   const obj1 = test_object.TypeTaggedInstance(0);
   const obj2 = test_object.TypeTaggedInstance(1);
+  const obj3 = test_object.TypeTaggedInstance(2);
+  const obj4 = test_object.TypeTaggedInstance(3);
 
   // Verify that type tags are correctly accepted.
   assert.strictEqual(test_object.CheckTypeTag(0, obj1), true);
   assert.strictEqual(test_object.CheckTypeTag(1, obj2), true);
+  assert.strictEqual(test_object.CheckTypeTag(2, obj3), true);
+  assert.strictEqual(test_object.CheckTypeTag(3, obj4), true);
 
   // Verify that wrongly tagged objects are rejected.
   assert.strictEqual(test_object.CheckTypeTag(0, obj2), false);
   assert.strictEqual(test_object.CheckTypeTag(1, obj1), false);
+  assert.strictEqual(test_object.CheckTypeTag(0, obj3), false);
+  assert.strictEqual(test_object.CheckTypeTag(1, obj4), false);
+  assert.strictEqual(test_object.CheckTypeTag(2, obj4), false);
+  assert.strictEqual(test_object.CheckTypeTag(3, obj3), false);
+  assert.strictEqual(test_object.CheckTypeTag(4, obj3), false);
 
   // Verify that untagged objects are rejected.
   assert.strictEqual(test_object.CheckTypeTag(0, {}), false);
@@ -226,9 +235,9 @@ assert.strictEqual(newObject.test_string, 'test string');
   // i.e.: includes prototypes, only enumerable properties, skips symbols,
   // and includes indices and converts them to strings.
 
-  const object = Object.create({
+  const object = { __proto__: {
     inherited: 1
-  });
+  } };
 
   const fooSymbol = Symbol('foo');
 
@@ -240,13 +249,57 @@ assert.strictEqual(newObject.test_string, 'test string');
     writable: true,
     configurable: true
   });
+  Object.defineProperty(object, 'writable', {
+    value: 4,
+    enumerable: true,
+    writable: true,
+    configurable: false
+  });
+  Object.defineProperty(object, 'configurable', {
+    value: 4,
+    enumerable: true,
+    writable: false,
+    configurable: true
+  });
   object[5] = 5;
 
   assert.deepStrictEqual(test_object.GetPropertyNames(object),
-                         ['5', 'normal', 'inherited']);
+                         ['5',
+                          'normal',
+                          'writable',
+                          'configurable',
+                          'inherited']);
 
   assert.deepStrictEqual(test_object.GetSymbolNames(object),
                          [fooSymbol]);
+
+  assert.deepStrictEqual(test_object.GetEnumerableWritableNames(object),
+                         ['5',
+                          'normal',
+                          'writable',
+                          fooSymbol,
+                          'inherited']);
+
+  assert.deepStrictEqual(test_object.GetOwnWritableNames(object),
+                         ['5',
+                          'normal',
+                          'unenumerable',
+                          'writable',
+                          fooSymbol]);
+
+  assert.deepStrictEqual(test_object.GetEnumerableConfigurableNames(object),
+                         ['5',
+                          'normal',
+                          'configurable',
+                          fooSymbol,
+                          'inherited']);
+
+  assert.deepStrictEqual(test_object.GetOwnConfigurableNames(object),
+                         ['5',
+                          'normal',
+                          'unenumerable',
+                          'configurable',
+                          fooSymbol]);
 }
 
 // Verify that passing NULL to napi_set_property() results in the correct

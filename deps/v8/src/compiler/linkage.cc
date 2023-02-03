@@ -268,6 +268,7 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kAbort:
     case Runtime::kAllocateInOldGeneration:
     case Runtime::kCreateIterResultObject:
+    case Runtime::kGrowableSharedArrayBufferByteLength:
     case Runtime::kIncBlockCounter:
     case Runtime::kIsFunction:
     case Runtime::kNewClosure:
@@ -372,7 +373,7 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
       js_parameter_count,               // stack_parameter_count
       properties,                       // properties
       kNoCalleeSaved,                   // callee-saved
-      kNoCalleeSaved,                   // callee-saved fp
+      kNoCalleeSavedFp,                 // callee-saved fp
       flags,                            // flags
       debug_name,                       // debug name
       stack_order);                     // stack order
@@ -426,7 +427,7 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
       js_parameter_count,               // stack_parameter_count
       Operator::kNoProperties,          // properties
       kNoCalleeSaved,                   // callee-saved
-      kNoCalleeSaved,                   // callee-saved fp
+      kNoCalleeSavedFp,                 // callee-saved fp
       flags,                            // flags
       "js-call");                       // debug name
 }
@@ -470,6 +471,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       num_returns++;
     }
   }
+  USE(num_fp_returns);
 
   // Add parameters in registers and on the stack.
   for (int i = 0; i < js_parameter_count; i++) {
@@ -522,7 +524,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
   RegList callee_saved_registers = kNoCalleeSaved;
   if (descriptor.CalleeSaveRegisters()) {
     callee_saved_registers = allocatable_registers;
-    DCHECK(callee_saved_registers);
+    DCHECK(!callee_saved_registers.is_empty());
   }
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
   return zone->New<CallDescriptor>(          // --
@@ -533,13 +535,10 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       stack_parameter_count,                 // stack_parameter_count
       properties,                            // properties
       callee_saved_registers,                // callee-saved registers
-      kNoCalleeSaved,                        // callee-saved fp
+      kNoCalleeSavedFp,                      // callee-saved fp
       CallDescriptor::kCanUseRoots | flags,  // flags
       descriptor.DebugName(),                // debug name
       descriptor.GetStackArgumentOrder(),    // stack order
-#if V8_ENABLE_WEBASSEMBLY
-      nullptr,  // wasm function signature
-#endif
       allocatable_registers);
 }
 
@@ -583,7 +582,7 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
       stack_parameter_count,         // stack_parameter_count
       Operator::kNoProperties,       // properties
       kNoCalleeSaved,                // callee-saved registers
-      kNoCalleeSaved,                // callee-saved fp
+      kNoCalleeSavedFp,              // callee-saved fp
       kFlags,                        // flags
       descriptor.DebugName());
 }

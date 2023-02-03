@@ -48,19 +48,17 @@ const char* MemoryProtectionModeToString(MemoryProtectionMode mode) {
 class MemoryProtectionTest : public TestWithNativeContext {
  public:
   void Initialize(MemoryProtectionMode mode) {
+    v8_flags.wasm_lazy_compilation = false;
     mode_ = mode;
     bool enable_pku = mode == kPku || mode == kPkuWithMprotectFallback;
-    FLAG_wasm_memory_protection_keys = enable_pku;
-    if (enable_pku) {
-      GetWasmCodeManager()->InitializeMemoryProtectionKeyForTesting();
-      // The key is initially write-protected.
-      CHECK_IMPLIES(GetWasmCodeManager()->HasMemoryProtectionKeySupport(),
-                    !GetWasmCodeManager()->MemoryProtectionKeyWritable());
-    }
+    v8_flags.wasm_memory_protection_keys = enable_pku;
+    // The key is initially write-protected.
+    CHECK_IMPLIES(WasmCodeManager::HasMemoryProtectionKeySupport(),
+                  !WasmCodeManager::MemoryProtectionKeyWritable());
 
     bool enable_mprotect =
         mode == kMprotect || mode == kPkuWithMprotectFallback;
-    FLAG_wasm_write_protect_code_memory = enable_mprotect;
+    v8_flags.wasm_write_protect_code_memory = enable_mprotect;
   }
 
   void CompileModule() {
@@ -111,8 +109,7 @@ class MemoryProtectionTest : public TestWithNativeContext {
     // M1 always uses MAP_JIT.
     if (V8_HAS_PTHREAD_JIT_WRITE_PROTECT) return false;
     bool param_has_pku = mode_ == kPku || mode_ == kPkuWithMprotectFallback;
-    return param_has_pku &&
-           GetWasmCodeManager()->HasMemoryProtectionKeySupport();
+    return param_has_pku && WasmCodeManager::HasMemoryProtectionKeySupport();
   }
 
  private:
@@ -131,13 +128,13 @@ class MemoryProtectionTest : public TestWithNativeContext {
                          DecodingMethod::kSync, GetWasmEngine()->allocator());
     CHECK(result.ok());
 
-    Handle<FixedArray> export_wrappers;
     ErrorThrower thrower(isolate(), "");
     constexpr int kNoCompilationId = 0;
+    constexpr ProfileInformation* kNoProfileInformation = nullptr;
     std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
         isolate(), WasmFeatures::All(), &thrower, std::move(result).value(),
-        ModuleWireBytes{base::ArrayVector(module_bytes)}, &export_wrappers,
-        kNoCompilationId, v8::metrics::Recorder::ContextId::Empty());
+        ModuleWireBytes{base::ArrayVector(module_bytes)}, kNoCompilationId,
+        v8::metrics::Recorder::ContextId::Empty(), kNoProfileInformation);
     CHECK(!thrower.error());
     CHECK_NOT_NULL(native_module);
 

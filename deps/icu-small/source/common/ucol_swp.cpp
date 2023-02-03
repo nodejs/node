@@ -34,7 +34,7 @@ U_CAPI UBool U_EXPORT2
 ucol_looksLikeCollationBinary(const UDataSwapper *ds,
                               const void *inData, int32_t length) {
     if(ds==NULL || inData==NULL || length<-1) {
-        return FALSE;
+        return false;
     }
 
     // First check for format version 4+ which has a standard data header.
@@ -46,7 +46,7 @@ ucol_looksLikeCollationBinary(const UDataSwapper *ds,
                 info.dataFormat[1]==0x43 &&
                 info.dataFormat[2]==0x6f &&
                 info.dataFormat[3]==0x6c) {
-            return TRUE;
+            return true;
         }
     }
 
@@ -64,7 +64,7 @@ ucol_looksLikeCollationBinary(const UDataSwapper *ds,
     if(length<0) {
         header.size=udata_readInt32(ds, inHeader->size);
     } else if((length<(42*4) || length<(header.size=udata_readInt32(ds, inHeader->size)))) {
-        return FALSE;
+        return false;
     }
 
     header.magic=ds->readUInt32(inHeader->magic);
@@ -73,14 +73,14 @@ ucol_looksLikeCollationBinary(const UDataSwapper *ds,
         inHeader->formatVersion[0]==3 /*&&
         inHeader->formatVersion[1]>=0*/
     )) {
-        return FALSE;
+        return false;
     }
 
     if(inHeader->isBigEndian!=ds->inIsBigEndian || inHeader->charSetFamily!=ds->inCharset) {
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 namespace {

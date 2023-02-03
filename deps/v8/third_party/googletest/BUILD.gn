@@ -51,6 +51,7 @@ config("gmock_config") {
 source_set("gtest") {
   testonly = true
   sources = [
+    "src/googletest/include/gtest/gtest-assertion-result.h",
     "src/googletest/include/gtest/gtest-death-test.h",
     "src/googletest/include/gtest/gtest-matchers.h",
     "src/googletest/include/gtest/gtest-message.h",
@@ -70,6 +71,7 @@ source_set("gtest") {
     "src/googletest/include/gtest/internal/gtest-type-util.h",
 
     #"src/googletest/src/gtest-all.cc",  # Not needed by our build.
+    "src/googletest/src/gtest-assertion-result.cc",
     "src/googletest/src/gtest-death-test.cc",
     "src/googletest/src/gtest-filepath.cc",
     "src/googletest/src/gtest-internal-inl.h",

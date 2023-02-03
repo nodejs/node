@@ -15,7 +15,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow `new` operators with the `Symbol` object",
+            description: "Disallow `new` operators with the `Symbol` object",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-new-symbol"
         },

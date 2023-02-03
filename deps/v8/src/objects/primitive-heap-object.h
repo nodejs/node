@@ -22,7 +22,7 @@ class PrimitiveHeapObject
     : public TorqueGeneratedPrimitiveHeapObject<PrimitiveHeapObject,
                                                 HeapObject> {
  public:
-  STATIC_ASSERT(kHeaderSize == HeapObject::kHeaderSize);
+  static_assert(kHeaderSize == HeapObject::kHeaderSize);
   TQ_OBJECT_CONSTRUCTORS(PrimitiveHeapObject)
 };
 

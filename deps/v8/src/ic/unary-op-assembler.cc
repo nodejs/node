@@ -223,7 +223,7 @@ class UnaryOpAssemblerImpl final : public CodeStubAssembler {
                                      TNode<Object> value, TNode<UintPtrT> slot,
                                      TNode<HeapObject> maybe_feedback_vector,
                                      UpdateFeedbackMode update_feedback_mode) {
-    STATIC_ASSERT(kOperation == Operation::kIncrement ||
+    static_assert(kOperation == Operation::kIncrement ||
                   kOperation == Operation::kDecrement);
     static constexpr int kAddValue =
         (kOperation == Operation::kIncrement) ? 1 : -1;

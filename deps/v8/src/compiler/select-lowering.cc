@@ -5,10 +5,8 @@
 #include "src/compiler/select-lowering.h"
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/diamond.h"
 #include "src/compiler/graph-assembler.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 
 namespace v8 {
@@ -47,7 +45,7 @@ Reduction SelectLowering::LowerSelect(Node* node) {
   __ Bind(&done);
 
   if (reset_gasm) {
-    gasm()->Reset(nullptr);
+    gasm()->Reset();
   }
 
   return Changed(done.PhiAt(0));

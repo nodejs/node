@@ -142,26 +142,19 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#details">Details</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#registry"><code>registry</code></a></li><li><a href="#otp"><code>otp</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#details">Details</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#json"><code>json</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#registry"><code>registry</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<pre lang="bash"><code>npm access public [&lt;package&gt;]
-npm access restricted [&lt;package&gt;]
+<pre><code class="language-bash">npm access list packages [&lt;user&gt;|&lt;scope&gt;|&lt;scope:team&gt; [&lt;package&gt;]
+npm access list collaborators [&lt;package&gt; [&lt;user&gt;]]
+npm access get status [&lt;package&gt;]
+npm access set status=public|private [&lt;package&gt;]
+npm access set mfa=none|publish|automation [&lt;package&gt;]
 npm access grant &lt;read-only|read-write&gt; &lt;scope:team&gt; [&lt;package&gt;]
 npm access revoke &lt;scope:team&gt; [&lt;package&gt;]
-npm access 2fa-required [&lt;package&gt;]
-npm access 2fa-not-required [&lt;package&gt;]
-npm access ls-packages [&lt;user&gt;|&lt;scope&gt;|&lt;scope:team&gt;]
-npm access ls-collaborators [&lt;package&gt; [&lt;user&gt;]]
-npm access edit [&lt;package&gt;]
 </code></pre>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
+<p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
 <p>Used to set access controls on private packages.</p>
 <p>For all of the subcommands, <code>npm access</code> will perform actions on the packages
@@ -169,34 +162,33 @@ in the current working directory if no package name is passed to the
 subcommand.</p>
 <ul>
 <li>
-<p>public / restricted:
+<p>public / restricted (deprecated):
 Set a package to be either publicly accessible or restricted.</p>
 </li>
 <li>
-<p>grant / revoke:
+<p>grant / revoke (deprecated):
 Add or remove the ability of users and teams to have read-only or read-write
 access to a package.</p>
 </li>
 <li>
-<p>2fa-required / 2fa-not-required:
+<p>2fa-required / 2fa-not-required (deprecated):
 Configure whether a package requires that anyone publishing it have two-factor
 authentication enabled on their account.</p>
 </li>
 <li>
-<p>ls-packages:
+<p>ls-packages (deprecated):
 Show all of the packages a user or a team is able to access, along with the
 access level, except for read-only public packages (it won't print the whole
 registry listing)</p>
 </li>
 <li>
-<p>ls-collaborators:
+<p>ls-collaborators (deprecated):
 Show all of the access privileges for a package. Will only show permissions
 for packages to which you have at least read access. If <code>&lt;user&gt;</code> is passed in,
 the list is filtered only to teams <em>that</em> user happens to belong to.</p>
 </li>
 <li>
-<p>edit:
-Set the access privileges for a package at once using <code>$EDITOR</code>.</p>
+<p>edit (not implemented)</p>
 </li>
 </ul>
 <h3 id="details">Details</h3>
@@ -221,17 +213,17 @@ fail with an HTTP 402 status code (logically enough), unless you use
 <code>--access=public</code>.</p>
 <p>Management of teams and team memberships is done with the <code>npm team</code> command.</p>
 <h3 id="configuration">Configuration</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<h4 id="registry"><code>registry</code></h4>
+<h4 id="json"><code>json</code></h4>
 <ul>
-<li>Default: "<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>"</li>
-<li>Type: URL</li>
+<li>Default: false</li>
+<li>Type: Boolean</li>
 </ul>
-<p>The base URL of the npm registry.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
+<p>Whether or not to output JSON data, rather than the normal output.</p>
+<ul>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
+saving them to your <code>package.json</code>.</li>
+</ul>
+<p>Not supported by all npm commands.</p>
 <h4 id="otp"><code>otp</code></h4>
 <ul>
 <li>Default: null</li>
@@ -241,9 +233,12 @@ fail with an HTTP 402 status code (logically enough), unless you use
 when publishing or changing package permissions with <code>npm access</code>.</p>
 <p>If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
+<h4 id="registry"><code>registry</code></h4>
+<ul>
+<li>Default: "<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>"</li>
+<li>Type: URL</li>
+</ul>
+<p>The base URL of the npm registry.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="https://npm.im/libnpmaccess"><code>libnpmaccess</code></a></li>
@@ -251,8 +246,7 @@ password, npm will prompt on the command line for one.</p>
 <li><a href="../commands/npm-publish.html">npm publish</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-access.md">

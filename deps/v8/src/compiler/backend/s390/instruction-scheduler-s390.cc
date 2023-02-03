@@ -46,6 +46,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_Mul32:
     case kS390_Mul32WithOverflow:
     case kS390_Mul64:
+    case kS390_Mul64WithOverflow:
+    case kS390_MulHighS64:
+    case kS390_MulHighU64:
     case kS390_MulHigh32:
     case kS390_MulHighU32:
     case kS390_MulFloat:
@@ -174,8 +177,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_F32x4Le:
     case kS390_F32x4Abs:
     case kS390_F32x4Neg:
-    case kS390_F32x4RecipApprox:
-    case kS390_F32x4RecipSqrtApprox:
     case kS390_F32x4SConvertI32x4:
     case kS390_F32x4UConvertI32x4:
     case kS390_F32x4Sqrt:

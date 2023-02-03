@@ -49,12 +49,15 @@ builtinModules.forEach((moduleName) => {
     'clearImmediate',
     'clearInterval',
     'clearTimeout',
+    'atob',
+    'btoa',
     'performance',
     'setImmediate',
     'setInterval',
     'setTimeout',
     'structuredClone',
     'fetch',
+    'crypto',
   ];
   assert.deepStrictEqual(new Set(Object.keys(global)), new Set(expected));
 }

@@ -99,6 +99,7 @@ for (const file of commandFiles) {
         if (bin.loglevel !== 'silent') {
           console[process.exitCode ? 'error' : 'log'](r)
         }
+        return r
       })
   }
 }

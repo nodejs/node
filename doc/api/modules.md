@@ -90,8 +90,8 @@ By default, Node.js will treat the following as CommonJS modules:
 * Files with an extension that is not `.mjs`, `.cjs`, `.json`, `.node`, or `.js`
   (when the nearest parent `package.json` file contains a top-level field
   [`"type"`][] with a value of `"module"`, those files will be recognized as
-  CommonJS modules only if they are being `require`d, not when used as the
-  command-line entry point of the program).
+  CommonJS modules only if they are being included via `require()`, not when
+  used as the command-line entry point of the program).
 
 See [Determining module system][] for more details.
 
@@ -191,7 +191,7 @@ require(X) from module at path Y
    a. return the core module
    b. STOP
 2. If X begins with '/'
-   a. set Y to be the filesystem root
+   a. set Y to be the file system root
 3. If X begins with './' or '/' or '../'
    a. LOAD_AS_FILE(Y + X)
    b. LOAD_AS_DIRECTORY(Y + X)
@@ -272,15 +272,10 @@ LOAD_PACKAGE_SELF(X, DIR)
 6. RESOLVE_ESM_MATCH(MATCH)
 
 RESOLVE_ESM_MATCH(MATCH)
-1. let { RESOLVED, EXACT } = MATCH
-2. let RESOLVED_PATH = fileURLToPath(RESOLVED)
-3. If EXACT is true,
-   a. If the file at RESOLVED_PATH exists, load RESOLVED_PATH as its extension
-      format. STOP
-4. Otherwise, if EXACT is false,
-   a. LOAD_AS_FILE(RESOLVED_PATH)
-   b. LOAD_AS_DIRECTORY(RESOLVED_PATH)
-5. THROW "not found"
+1. let RESOLVED_PATH = fileURLToPath(MATCH)
+2. If the file at RESOLVED_PATH exists, load RESOLVED_PATH as its extension
+   format. STOP
+3. THROW "not found"
 </pre>
 
 ## Caching
@@ -333,14 +328,16 @@ described in greater detail elsewhere in this documentation.
 The core modules are defined within the Node.js source and are located in the
 `lib/` folder.
 
-Core modules are always preferentially loaded if their identifier is
-passed to `require()`. For instance, `require('http')` will always
-return the built in HTTP module, even if there is a file by that name.
-
-Core modules can also be identified using the `node:` prefix, in which case
+Core modules can be identified using the `node:` prefix, in which case
 it bypasses the `require` cache. For instance, `require('node:http')` will
 always return the built in HTTP module, even if there is `require.cache` entry
 by that name.
+
+Some core modules are always preferentially loaded if their identifier is
+passed to `require()`. For instance, `require('http')` will always
+return the built-in HTTP module, even if there is a file by that name. The list
+of core modules that can be loaded without using the `node:` prefix is exposed
+as [`module.builtinModules`][].
 
 ## Cycles
 
@@ -560,7 +557,7 @@ wrapper that looks like the following:
 
 By doing this, Node.js achieves a few things:
 
-* It keeps top-level variables (defined with `var`, `const` or `let`) scoped to
+* It keeps top-level variables (defined with `var`, `const`, or `let`) scoped to
   the module rather than the global object.
 * It helps to provide some global-looking variables that are actually specific
   to the module, such as:
@@ -688,7 +685,7 @@ const myLocalModule = require('./path/myLocalModule');
 const jsonData = require('./path/filename.json');
 
 // Importing a module from node_modules or Node.js built-in module:
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 ```
 
 #### `require.cache`
@@ -705,15 +702,15 @@ This does not apply to [native addons][], for which reloading will result in an
 error.
 
 Adding or replacing entries is also possible. This cache is checked before
-native modules and if a name matching a native module is added to the cache,
-only `node:`-prefixed require calls are going to receive the native module.
+built-in modules and if a name matching a built-in module is added to the cache,
+only `node:`-prefixed require calls are going to receive the built-in module.
 Use with care!
 
 <!-- eslint-disable node-core/no-duplicate-requires -->
 
 ```js
-const assert = require('assert');
-const realFs = require('fs');
+const assert = require('node:assert');
+const realFs = require('node:fs');
 
 const fakeFs = {};
 require.cache.fs = { exports: fakeFs };
@@ -871,7 +868,7 @@ which is probably not what is desired.
 For example, suppose we were making a module called `a.js`:
 
 ```js
-const EventEmitter = require('events');
+const EventEmitter = require('node:events');
 
 module.exports = new EventEmitter();
 
@@ -1091,7 +1088,8 @@ This section was moved to
 [`MODULE_NOT_FOUND`]: errors.md#module_not_found
 [`__dirname`]: #__dirname
 [`__filename`]: #__filename
-[`import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
+[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
+[`module.builtinModules`]: module.md#modulebuiltinmodules
 [`module.children`]: #modulechildren
 [`module.id`]: #moduleid
 [`module` core module]: module.md

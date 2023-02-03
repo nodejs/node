@@ -55,7 +55,7 @@ function onsleepClose() {
     checkInvocations(
       processwrap,
       { init: 1, before: 1, after: 1 },
-      'processwrap while in onsleepClose callback')
+      'processwrap while in onsleepClose callback'),
   );
 }
 

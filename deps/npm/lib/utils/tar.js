@@ -48,9 +48,9 @@ const logTar = (tarball, opts = {}) => {
         {
           name: 'integrity:',
           value:
-            tarball.integrity.toString().substr(0, 20) +
+            tarball.integrity.toString().slice(0, 20) +
             '[...]' +
-            tarball.integrity.toString().substr(80),
+            tarball.integrity.toString().slice(80),
         },
         tarball.bundled.length && { name: 'bundled deps:', value: tarball.bundled.length },
         tarball.bundled.length && {
@@ -120,7 +120,9 @@ const getContents = async (manifest, tarball) => {
     unpackedSize: totalEntrySize,
     shasum,
     integrity: ssri.parse(integrity.sha512[0]),
-    filename: `${manifest.name}-${manifest.version}.tgz`,
+    // @scope/packagename.tgz => scope-packagename.tgz
+    // we can safely use these global replace rules due to npm package naming rules
+    filename: `${manifest.name.replace('@', '').replace('/', '-')}-${manifest.version}.tgz`,
     files: uppers.concat(others),
     entryCount: totalEntries,
     bundled: Array.from(bundled),

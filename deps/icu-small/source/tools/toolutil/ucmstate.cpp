@@ -226,12 +226,12 @@ ucm_parseHeaderLine(UCMFile *ucm,
     /* skip leading white space and ignore empty lines */
     s=(char *)u_skipWhitespace(line);
     if(*s==0) {
-        return TRUE;
+        return true;
     }
 
     /* stop at the beginning of the mapping section */
     if(uprv_memcmp(s, "CHARMAP", 7)==0) {
-        return FALSE;
+        return false;
     }
 
     /* get the key name, bracketed in <> */
@@ -275,7 +275,7 @@ ucm_parseHeaderLine(UCMFile *ucm,
             fprintf(stderr, "ucm error: unknown <uconv_class> %s\n", *pValue);
             exit(U_INVALID_TABLE_FORMAT);
         }
-        return TRUE;
+        return true;
     } else if(uprv_strcmp(*pKey, "mb_cur_max")==0) {
         c=**pValue;
         if('1'<=c && c<='4' && (*pValue)[1]==0) {
@@ -285,7 +285,7 @@ ucm_parseHeaderLine(UCMFile *ucm,
             fprintf(stderr, "ucm error: illegal <mb_cur_max> %s\n", *pValue);
             exit(U_INVALID_TABLE_FORMAT);
         }
-        return TRUE;
+        return true;
     } else if(uprv_strcmp(*pKey, "mb_cur_min")==0) {
         c=**pValue;
         if('1'<=c && c<='4' && (*pValue)[1]==0) {
@@ -294,7 +294,7 @@ ucm_parseHeaderLine(UCMFile *ucm,
             fprintf(stderr, "ucm error: illegal <mb_cur_min> %s\n", *pValue);
             exit(U_INVALID_TABLE_FORMAT);
         }
-        return TRUE;
+        return true;
     } else if(uprv_strcmp(*pKey, "icu:state")==0) {
         /* if an SBCS/DBCS/EBCDIC_STATEFUL converter has icu:state, then turn it into MBCS */
         switch(states->conversionType) {
@@ -315,17 +315,17 @@ ucm_parseHeaderLine(UCMFile *ucm,
             exit(U_INVALID_TABLE_FORMAT);
         }
         ucm_addState(states, *pValue);
-        return TRUE;
+        return true;
     } else if(uprv_strcmp(*pKey, "icu:base")==0) {
         if(**pValue==0) {
             fprintf(stderr, "ucm error: <icu:base> without a base table name\n");
             exit(U_INVALID_TABLE_FORMAT);
         }
         uprv_strcpy(ucm->baseName, *pValue);
-        return TRUE;
+        return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 /* post-processing ---------------------------------------------------------- */
@@ -343,12 +343,12 @@ sumUpStates(UCMStates *states) {
      * the offsets sum of that state needs to be added.
      * This is achieved in at most countStates iterations.
      */
-    allStatesReady=FALSE;
+    allStatesReady=false;
     for(count=states->countStates; !allStatesReady && count>=0; --count) {
-        allStatesReady=TRUE;
+        allStatesReady=true;
         for(state=states->countStates-1; state>=0; --state) {
             if(!(states->stateFlags[state]&MBCS_STATE_FLAG_READY)) {
-                allStatesReady=FALSE;
+                allStatesReady=false;
                 sum=0;
 
                 /* at first, add up only the final delta offsets to keep them <512 */
@@ -848,7 +848,7 @@ findUnassigned(UCMStates *states,
     UBool haveAssigned;
 
     localSavings=belowSavings=0;
-    haveAssigned=FALSE;
+    haveAssigned=false;
     for(i=0; i<256; ++i) {
         entry=states->stateTable[state][i];
         if(MBCS_ENTRY_IS_TRANSITION(entry)) {
@@ -859,7 +859,7 @@ findUnassigned(UCMStates *states,
                         offset+MBCS_ENTRY_TRANSITION_OFFSET(entry),
                         (b<<8)|(uint32_t)i);
             if(savings<0) {
-                haveAssigned=TRUE;
+                haveAssigned=true;
             } else if(savings>0) {
                 printf("    all-unassigned sequences from prefix 0x%02lx state %ld use %ld bytes\n",
                     (unsigned long)((b<<8)|i), (long)state, (long)savings);
@@ -872,7 +872,7 @@ findUnassigned(UCMStates *states,
                 if(unicodeCodeUnits[entry]==0xfffe && ucm_findFallback(toUFallbacks, countToUFallbacks, entry)<0) {
                     localSavings+=2;
                 } else {
-                    haveAssigned=TRUE;
+                    haveAssigned=true;
                 }
                 break;
             case MBCS_STATE_VALID_16_PAIR:
@@ -880,7 +880,7 @@ findUnassigned(UCMStates *states,
                 if(unicodeCodeUnits[entry]==0xfffe) {
                     localSavings+=4;
                 } else {
-                    haveAssigned=TRUE;
+                    haveAssigned=true;
                 }
                 break;
             default:
@@ -968,7 +968,7 @@ ucm_optimizeStates(UCMStates *states,
         errorCode=U_ZERO_ERROR; /* nothing bad will happen... */
         uprv_sortArray(toUFallbacks, countToUFallbacks,
                        sizeof(_MBCSToUFallback),
-                       compareFallbacks, NULL, FALSE, &errorCode);
+                       compareFallbacks, NULL, false, &errorCode);
     }
 }
 

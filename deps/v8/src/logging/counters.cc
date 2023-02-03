@@ -24,8 +24,26 @@ void StatsTable::SetCounterFunction(CounterLookupCallback f) {
   lookup_function_ = f;
 }
 
-int* StatsCounter::FindLocationInStatsTable() const {
-  return counters_->FindLocation(name_);
+namespace {
+std::atomic<int> unused_counter_dump{0};
+}
+
+bool StatsCounter::Enabled() { return GetPtr() != &unused_counter_dump; }
+
+std::atomic<int>* StatsCounter::SetupPtrFromStatsTable() {
+  // {Init} must have been called.
+  DCHECK_NOT_NULL(counters_);
+  DCHECK_NOT_NULL(name_);
+  int* location = counters_->FindLocation(name_);
+  std::atomic<int>* ptr =
+      location ? base::AsAtomicPtr(location) : &unused_counter_dump;
+#ifdef DEBUG
+  std::atomic<int>* old_ptr = ptr_.exchange(ptr, std::memory_order_release);
+  DCHECK_IMPLIES(old_ptr, old_ptr == ptr);
+#else
+  ptr_.store(ptr, std::memory_order_release);
+#endif
+  return ptr;
 }
 
 void Histogram::AddSample(int sample) {
@@ -34,7 +52,7 @@ void Histogram::AddSample(int sample) {
   }
 }
 
-V8_EXPORT_PRIVATE void* Histogram::CreateHistogram() const {
+void* Histogram::CreateHistogram() const {
   return counters_->CreateHistogram(name_, min_, max_, num_buckets_);
 }
 
@@ -64,7 +82,8 @@ void TimedHistogram::RecordAbandon(base::ElapsedTimer* timer,
     AddSample(static_cast<int>(sample));
   }
   if (isolate != nullptr) {
-    Logger::CallEventLogger(isolate, name(), v8::LogEventStatus::kEnd, true);
+    V8FileLogger::CallEventLogger(isolate, name(), v8::LogEventStatus::kEnd,
+                                  true);
   }
 }
 

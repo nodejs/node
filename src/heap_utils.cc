@@ -25,6 +25,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Global;
 using v8::HandleScope;
+using v8::HeapProfiler;
 using v8::HeapSnapshot;
 using v8::Isolate;
 using v8::JustVoid;
@@ -36,6 +37,7 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::String;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace node {
@@ -245,7 +247,7 @@ class FileOutputStream : public v8::OutputStream {
         status_ = num_bytes_written;
         return kAbort;
       }
-      DCHECK_LE(num_bytes_written, buf.len);
+      DCHECK_LE(static_cast<size_t>(num_bytes_written), buf.len);
       offset += num_bytes_written;
     }
     DCHECK_EQ(offset, size);
@@ -340,15 +342,19 @@ class HeapSnapshotStream : public AsyncWrap,
   HeapSnapshotPointer snapshot_;
 };
 
-inline void TakeSnapshot(Environment* env, v8::OutputStream* out) {
-  HeapSnapshotPointer snapshot {
-      env->isolate()->GetHeapProfiler()->TakeHeapSnapshot() };
+inline void TakeSnapshot(Environment* env,
+                         v8::OutputStream* out,
+                         HeapProfiler::HeapSnapshotOptions options) {
+  HeapSnapshotPointer snapshot{
+      env->isolate()->GetHeapProfiler()->TakeHeapSnapshot(options)};
   snapshot->Serialize(out, HeapSnapshot::kJSON);
 }
 
 }  // namespace
 
-Maybe<void> WriteSnapshot(Environment* env, const char* filename) {
+Maybe<void> WriteSnapshot(Environment* env,
+                          const char* filename,
+                          HeapProfiler::HeapSnapshotOptions options) {
   uv_fs_t req;
   int err;
 
@@ -365,7 +371,7 @@ Maybe<void> WriteSnapshot(Environment* env, const char* filename) {
   }
 
   FileOutputStream stream(fd, &req);
-  TakeSnapshot(env, &stream);
+  TakeSnapshot(env, &stream, options);
   if ((err = stream.status()) < 0) {
     env->ThrowUVException(err, "write", nullptr, filename);
     return Nothing<void>();
@@ -410,10 +416,28 @@ BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
   return MakeBaseObject<HeapSnapshotStream>(env, std::move(snapshot), obj);
 }
 
+HeapProfiler::HeapSnapshotOptions GetHeapSnapshotOptions(
+    Local<Value> options_value) {
+  CHECK(options_value->IsUint8Array());
+  Local<Uint8Array> arr = options_value.As<Uint8Array>();
+  uint8_t* options =
+      static_cast<uint8_t*>(arr->Buffer()->Data()) + arr->ByteOffset();
+  HeapProfiler::HeapSnapshotOptions result;
+  result.snapshot_mode = options[0]
+                             ? HeapProfiler::HeapSnapshotMode::kExposeInternals
+                             : HeapProfiler::HeapSnapshotMode::kRegular;
+  result.numerics_mode = options[1]
+                             ? HeapProfiler::NumericsMode::kExposeNumericValues
+                             : HeapProfiler::NumericsMode::kHideNumericValues;
+  return result;
+}
+
 void CreateHeapSnapshotStream(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  HeapSnapshotPointer snapshot {
-      env->isolate()->GetHeapProfiler()->TakeHeapSnapshot() };
+  CHECK_EQ(args.Length(), 1);
+  auto options = GetHeapSnapshotOptions(args[0]);
+  HeapSnapshotPointer snapshot{
+      env->isolate()->GetHeapProfiler()->TakeHeapSnapshot(options)};
   CHECK(snapshot);
   BaseObjectPtr<AsyncWrap> stream =
       CreateHeapSnapshotStream(env, std::move(snapshot));
@@ -424,13 +448,13 @@ void CreateHeapSnapshotStream(const FunctionCallbackInfo<Value>& args) {
 void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
-
+  CHECK_EQ(args.Length(), 2);
   Local<Value> filename_v = args[0];
+  auto options = GetHeapSnapshotOptions(args[1]);
 
   if (filename_v->IsUndefined()) {
     DiagnosticFilename name(env, "Heap", "heapsnapshot");
-    if (WriteSnapshot(env, *name).IsNothing())
-      return;
+    if (WriteSnapshot(env, *name, options).IsNothing()) return;
     if (String::NewFromUtf8(isolate, *name).ToLocal(&filename_v)) {
       args.GetReturnValue().Set(filename_v);
     }
@@ -439,8 +463,7 @@ void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(isolate, filename_v);
   CHECK_NOT_NULL(*path);
-  if (WriteSnapshot(env, *path).IsNothing())
-    return;
+  if (WriteSnapshot(env, *path, options).IsNothing()) return;
   return args.GetReturnValue().Set(filename_v);
 }
 
@@ -448,11 +471,10 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-
-  env->SetMethod(target, "buildEmbedderGraph", BuildEmbedderGraph);
-  env->SetMethod(target, "triggerHeapSnapshot", TriggerHeapSnapshot);
-  env->SetMethod(target, "createHeapSnapshotStream", CreateHeapSnapshotStream);
+  SetMethod(context, target, "buildEmbedderGraph", BuildEmbedderGraph);
+  SetMethod(context, target, "triggerHeapSnapshot", TriggerHeapSnapshot);
+  SetMethod(
+      context, target, "createHeapSnapshotStream", CreateHeapSnapshotStream);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -464,6 +486,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace heap
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(heap_utils, node::heap::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(heap_utils,
-                               node::heap::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(heap_utils, node::heap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(heap_utils,
+                                node::heap::RegisterExternalReferences)

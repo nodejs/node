@@ -94,7 +94,7 @@ const char* NameForNativeContextIndex(uint32_t idx) {
 // static
 std::ostream& BytecodeDecoder::Decode(std::ostream& os,
                                       const uint8_t* bytecode_start,
-                                      int parameter_count) {
+                                      bool with_hex) {
   Bytecode bytecode = Bytecodes::FromByte(bytecode_start[0]);
   int prefix_offset = 0;
   OperandScale operand_scale = OperandScale::kSingle;
@@ -105,28 +105,31 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
   }
 
   // Prepare to print bytecode and operands as hex digits.
-  std::ios saved_format(nullptr);
-  saved_format.copyfmt(saved_format);
-  os.fill('0');
-  os.flags(std::ios::hex);
+  if (with_hex) {
+    std::ios saved_format(nullptr);
+    saved_format.copyfmt(saved_format);
+    os.fill('0');
+    os.flags(std::ios::hex);
 
-  int bytecode_size = Bytecodes::Size(bytecode, operand_scale);
-  for (int i = 0; i < prefix_offset + bytecode_size; i++) {
-    os << std::setw(2) << static_cast<uint32_t>(bytecode_start[i]) << ' ';
+    int bytecode_size = Bytecodes::Size(bytecode, operand_scale);
+    for (int i = 0; i < prefix_offset + bytecode_size; i++) {
+      os << std::setw(2) << static_cast<uint32_t>(bytecode_start[i]) << ' ';
+    }
+    os.copyfmt(saved_format);
+
+    const int kBytecodeColumnSize = 6;
+    for (int i = prefix_offset + bytecode_size; i < kBytecodeColumnSize; i++) {
+      os << "   ";
+    }
   }
-  os.copyfmt(saved_format);
 
-  const int kBytecodeColumnSize = 6;
-  for (int i = prefix_offset + bytecode_size; i < kBytecodeColumnSize; i++) {
-    os << "   ";
-  }
-
-  os << Bytecodes::ToString(bytecode, operand_scale) << " ";
+  os << Bytecodes::ToString(bytecode, operand_scale);
 
   // Operands for the debug break are from the original instruction.
   if (Bytecodes::IsDebugBreak(bytecode)) return os;
 
   int number_of_operands = Bytecodes::NumberOfOperands(bytecode);
+  if (number_of_operands > 0) os << " ";
   for (int i = 0; i < number_of_operands; i++) {
     OperandType op_type = Bytecodes::GetOperandType(bytecode, i);
     int operand_offset =
@@ -162,6 +165,7 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
            << "]";
         break;
       case interpreter::OperandType::kFlag8:
+      case interpreter::OperandType::kFlag16:
         os << "#"
            << DecodeUnsignedOperand(operand_start, op_type, operand_scale);
         break;
@@ -169,22 +173,22 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
       case interpreter::OperandType::kRegOut: {
         Register reg =
             DecodeRegisterOperand(operand_start, op_type, operand_scale);
-        os << reg.ToString(parameter_count);
+        os << reg.ToString();
         break;
       }
       case interpreter::OperandType::kRegOutTriple: {
         RegisterList reg_list =
             DecodeRegisterListOperand(operand_start, 3, op_type, operand_scale);
-        os << reg_list.first_register().ToString(parameter_count) << "-"
-           << reg_list.last_register().ToString(parameter_count);
+        os << reg_list.first_register().ToString() << "-"
+           << reg_list.last_register().ToString();
         break;
       }
       case interpreter::OperandType::kRegOutPair:
       case interpreter::OperandType::kRegPair: {
         RegisterList reg_list =
             DecodeRegisterListOperand(operand_start, 2, op_type, operand_scale);
-        os << reg_list.first_register().ToString(parameter_count) << "-"
-           << reg_list.last_register().ToString(parameter_count);
+        os << reg_list.first_register().ToString() << "-"
+           << reg_list.last_register().ToString();
         break;
       }
       case interpreter::OperandType::kRegOutList:
@@ -200,8 +204,8 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
             reg_count_operand, OperandType::kRegCount, operand_scale);
         RegisterList reg_list = DecodeRegisterListOperand(
             operand_start, count, op_type, operand_scale);
-        os << reg_list.first_register().ToString(parameter_count) << "-"
-           << reg_list.last_register().ToString(parameter_count);
+        os << reg_list.first_register().ToString() << "-"
+           << reg_list.last_register().ToString();
         i++;  // Skip kRegCount.
         break;
       }

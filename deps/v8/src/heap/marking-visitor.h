@@ -6,9 +6,8 @@
 #define V8_HEAP_MARKING_VISITOR_H_
 
 #include "src/common/globals.h"
+#include "src/heap/marking-state.h"
 #include "src/heap/marking-worklist.h"
-#include "src/heap/marking.h"
-#include "src/heap/memory-chunk.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
 #include "src/heap/weak-object-worklists.h"
@@ -22,92 +21,6 @@ struct EphemeronMarking {
   size_t newly_discovered_limit;
 };
 
-template <typename ConcreteState, AccessMode access_mode>
-class MarkingStateBase {
- public:
-  explicit MarkingStateBase(PtrComprCageBase cage_base)
-#if V8_COMPRESS_POINTERS
-      : cage_base_(cage_base)
-#endif
-  {
-  }
-
-  // The pointer compression cage base value used for decompression of all
-  // tagged values except references to Code objects.
-  V8_INLINE PtrComprCageBase cage_base() const {
-#if V8_COMPRESS_POINTERS
-    return cage_base_;
-#else
-    return PtrComprCageBase{};
-#endif  // V8_COMPRESS_POINTERS
-  }
-
-  V8_INLINE MarkBit MarkBitFrom(HeapObject obj) {
-    return MarkBitFrom(BasicMemoryChunk::FromHeapObject(obj), obj.ptr());
-  }
-
-  // {addr} may be tagged or aligned.
-  V8_INLINE MarkBit MarkBitFrom(BasicMemoryChunk* p, Address addr) {
-    return static_cast<ConcreteState*>(this)->bitmap(p)->MarkBitFromIndex(
-        p->AddressToMarkbitIndex(addr));
-  }
-
-  Marking::ObjectColor Color(HeapObject obj) {
-    return Marking::Color(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool IsImpossible(HeapObject obj) {
-    return Marking::IsImpossible<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool IsBlack(HeapObject obj) {
-    return Marking::IsBlack<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool IsWhite(HeapObject obj) {
-    return Marking::IsWhite<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool IsGrey(HeapObject obj) {
-    return Marking::IsGrey<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool IsBlackOrGrey(HeapObject obj) {
-    return Marking::IsBlackOrGrey<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool WhiteToGrey(HeapObject obj) {
-    return Marking::WhiteToGrey<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool WhiteToBlack(HeapObject obj) {
-    return WhiteToGrey(obj) && GreyToBlack(obj);
-  }
-
-  V8_INLINE bool GreyToBlack(HeapObject obj) {
-    BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(obj);
-    MarkBit markbit = MarkBitFrom(chunk, obj.address());
-    if (!Marking::GreyToBlack<access_mode>(markbit)) return false;
-    static_cast<ConcreteState*>(this)->IncrementLiveBytes(
-        MemoryChunk::cast(chunk), obj.Size(cage_base()));
-    return true;
-  }
-
-  V8_INLINE bool GreyToBlackUnaccounted(HeapObject obj) {
-    return Marking::GreyToBlack<access_mode>(MarkBitFrom(obj));
-  }
-
-  void ClearLiveness(MemoryChunk* chunk) {
-    static_cast<ConcreteState*>(this)->bitmap(chunk)->Clear();
-    static_cast<ConcreteState*>(this)->SetLiveBytes(chunk, 0);
-  }
-
- private:
-#if V8_COMPRESS_POINTERS
-  const PtrComprCageBase cage_base_;
-#endif  // V8_COMPRESS_POINTERS
-};
-
 // The base class for all marking visitors. It implements marking logic with
 // support of bytecode flushing, embedder tracing, weak and references.
 //
@@ -116,7 +29,6 @@ class MarkingStateBase {
 // - ConcreteVisitor::retaining_path_mode method,
 // - ConcreteVisitor::RecordSlot method,
 // - ConcreteVisitor::RecordRelocSlot method,
-// - ConcreteVisitor::SynchronizePageAccess method,
 // - ConcreteVisitor::VisitJSObjectSubclass method,
 // - ConcreteVisitor::VisitLeftTrimmableArray method.
 // These methods capture the difference between the concurrent and main thread
@@ -127,9 +39,8 @@ template <typename ConcreteVisitor, typename MarkingState>
 class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
  public:
   MarkingVisitorBase(MarkingWorklists::Local* local_marking_worklists,
-                     WeakObjects::Local* local_weak_objects,
-                     //  WeakObjects* weak_objects,
-                     Heap* heap, unsigned mark_compact_epoch,
+                     WeakObjects::Local* local_weak_objects, Heap* heap,
+                     unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
                      bool is_embedder_tracing_enabled,
                      bool should_keep_ages_unchanged)
@@ -141,7 +52,15 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
         code_flush_mode_(code_flush_mode),
         is_embedder_tracing_enabled_(is_embedder_tracing_enabled),
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
-        is_shared_heap_(heap->IsShared()) {}
+        should_mark_shared_heap_(heap->ShouldMarkSharedHeap())
+#ifdef V8_ENABLE_SANDBOX
+        ,
+        external_pointer_table_(&heap->isolate()->external_pointer_table()),
+        shared_external_pointer_table_(
+            &heap->isolate()->shared_external_pointer_table())
+#endif  // V8_ENABLE_SANDBOX
+  {
+  }
 
   V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray object);
   V8_INLINE int VisitDescriptorArray(Map map, DescriptorArray object);
@@ -161,10 +80,9 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
 
   // ObjectVisitor overrides.
   void VisitMapPointer(HeapObject host) final {
-    // Note that we are skipping the recording the slot because map objects
-    // can't move, so this is safe (see ProcessStrongHeapObject for comparison)
-    MarkObject(host, HeapObject::cast(
-                         host.map(ObjectVisitorWithCageBases::cage_base())));
+    Map map = host.map(ObjectVisitorWithCageBases::cage_base());
+    MarkObject(host, map);
+    concrete_visitor()->RecordSlot(host, host.map_slot(), map);
   }
   V8_INLINE void VisitPointer(HeapObject host, ObjectSlot p) final {
     VisitPointersImpl(host, p, p + 1);
@@ -190,6 +108,24 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
     // Weak list pointers should be ignored during marking. The lists are
     // reconstructed after GC.
   }
+
+  V8_INLINE void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
+                                      ExternalPointerTag tag) final;
+  void SynchronizePageAccess(HeapObject heap_object) {
+#ifdef THREAD_SANITIZER
+    // This is needed because TSAN does not process the memory fence
+    // emitted after page initialization.
+    BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
+#endif
+  }
+
+  bool ShouldMarkObject(HeapObject object) const {
+    if (should_mark_shared_heap_) return true;
+    return !object.InSharedHeap();
+  }
+
+  // Marks the object grey and pushes it on the marking work list.
+  V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
 
  protected:
   ConcreteVisitor* concrete_visitor() {
@@ -219,14 +155,34 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
 
   template <typename T>
   int VisitEmbedderTracingSubclass(Map map, T object);
+  template <typename T>
+  int VisitEmbedderTracingSubClassWithEmbedderTracing(Map map, T object);
+  template <typename T>
+  int VisitEmbedderTracingSubClassNoEmbedderTracing(Map map, T object);
+
   V8_INLINE int VisitFixedArrayWithProgressBar(Map map, FixedArray object,
                                                ProgressBar& progress_bar);
   // Marks the descriptor array black without pushing it on the marking work
   // list and visits its header. Returns the size of the descriptor array
   // if it was successully marked as black.
   V8_INLINE int MarkDescriptorArrayBlack(DescriptorArray descriptors);
-  // Marks the object grey and pushes it on the marking work list.
-  V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
+
+  V8_INLINE void AddStrongReferenceForReferenceSummarizer(HeapObject host,
+                                                          HeapObject obj) {
+    concrete_visitor()
+        ->marking_state()
+        ->AddStrongReferenceForReferenceSummarizer(host, obj);
+  }
+
+  V8_INLINE void AddWeakReferenceForReferenceSummarizer(HeapObject host,
+                                                        HeapObject obj) {
+    concrete_visitor()->marking_state()->AddWeakReferenceForReferenceSummarizer(
+        host, obj);
+  }
+
+  constexpr bool CanUpdateValuesInHeap() {
+    return !MarkingState::kCollectRetainers;
+  }
 
   MarkingWorklists::Local* const local_marking_worklists_;
   WeakObjects::Local* const local_weak_objects_;
@@ -235,7 +191,78 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   const base::EnumSet<CodeFlushMode> code_flush_mode_;
   const bool is_embedder_tracing_enabled_;
   const bool should_keep_ages_unchanged_;
-  const bool is_shared_heap_;
+  const bool should_mark_shared_heap_;
+#ifdef V8_ENABLE_SANDBOX
+  ExternalPointerTable* const external_pointer_table_;
+  ExternalPointerTable* const shared_external_pointer_table_;
+#endif  // V8_ENABLE_SANDBOX
+};
+
+template <typename ConcreteVisitor, typename MarkingState>
+class YoungGenerationMarkingVisitorBase
+    : public NewSpaceVisitor<ConcreteVisitor> {
+ public:
+  YoungGenerationMarkingVisitorBase(Isolate* isolate,
+                                    MarkingWorklists::Local* worklists_local);
+
+  V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
+                               ObjectSlot end) final {
+    VisitPointersImpl(host, start, end);
+  }
+
+  V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
+                               MaybeObjectSlot end) final {
+    VisitPointersImpl(host, start, end);
+  }
+
+  V8_INLINE void VisitCodePointer(HeapObject host,
+                                  CodeObjectSlot slot) override {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    // Code slots never appear in new space because CodeDataContainers, the
+    // only object that can contain code pointers, are always allocated in
+    // the old space.
+    UNREACHABLE();
+  }
+
+  V8_INLINE void VisitPointer(HeapObject host, ObjectSlot slot) final {
+    VisitPointerImpl(host, slot);
+  }
+
+  V8_INLINE void VisitPointer(HeapObject host, MaybeObjectSlot slot) final {
+    VisitPointerImpl(host, slot);
+  }
+
+  V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
+    // Code objects are not expected in new space.
+    UNREACHABLE();
+  }
+
+  V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
+    // Code objects are not expected in new space.
+    UNREACHABLE();
+  }
+
+  V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
+
+ protected:
+  ConcreteVisitor* concrete_visitor() {
+    return static_cast<ConcreteVisitor*>(this);
+  }
+
+  inline void MarkObjectViaMarkingWorklist(HeapObject object);
+
+ private:
+  template <typename TSlot>
+  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end) {
+    for (TSlot slot = start; slot < end; ++slot) {
+      VisitPointer(host, slot);
+    }
+  }
+
+  template <typename TSlot>
+  void VisitPointerImpl(HeapObject host, TSlot slot);
+
+  MarkingWorklists::Local* worklists_local_;
 };
 
 }  // namespace internal

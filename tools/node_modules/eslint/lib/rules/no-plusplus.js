@@ -51,7 +51,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow the unary operators `++` and `--`",
+            description: "Disallow the unary operators `++` and `--`",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-plusplus"
         },

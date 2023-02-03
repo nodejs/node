@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// The test needs --wasm-tier-up because we can't serialize and deserialize
-// Liftoff code.
-// Flags: --allow-natives-syntax --experimental-wasm-reftypes --wasm-tier-up
+// Force TurboFan code for serialization.
+// Flags: --allow-natives-syntax --no-liftoff --no-wasm-lazy-compilation
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 

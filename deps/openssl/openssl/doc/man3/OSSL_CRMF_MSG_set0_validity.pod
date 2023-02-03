@@ -62,11 +62,13 @@ OSSL_CRMF_MSG_push0_extension() pushes the X509 extension I<ext> to the
 extensions in the certTemplate of I<crm>.  Consumes I<ext>.
 
 OSSL_CRMF_MSG_create_popo() creates and sets the Proof-of-Possession (POPO)
-according to the method I<meth> in I<crm>.<
+according to the method I<meth> in I<crm>.
 The library context I<libctx> and property query string I<propq>,
 may be NULL to select the defaults.
 In case the method is OSSL_CRMF_POPO_SIGNATURE the POPO is calculated
-using the private key I<pkey> and the digest method I<digest>.
+using the private key I<pkey> and the digest method I<digest>,
+where the I<digest> argument is ignored if I<pkey> is of a type (such as
+Ed25519 and Ed448) that is implicitly associated with a digest alorithm.
 
 I<meth> can be one of the following:
 
@@ -108,7 +110,7 @@ The OpenSSL CRMF support was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

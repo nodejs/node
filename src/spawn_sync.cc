@@ -363,8 +363,7 @@ void SyncProcessRunner::Initialize(Local<Object> target,
                                    Local<Value> unused,
                                    Local<Context> context,
                                    void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  env->SetMethod(target, "spawn", Spawn);
+  SetMethod(context, target, "spawn", Spawn);
 }
 
 
@@ -932,8 +931,7 @@ int SyncProcessRunner::ParseStdioOption(int child_fd,
     return AddStdioInheritFD(child_fd, inherit_fd);
 
   } else {
-    CHECK(0 && "invalid child stdio type");
-    return UV_EINVAL;
+    UNREACHABLE("invalid child stdio type");
   }
 }
 
@@ -1105,5 +1103,5 @@ void SyncProcessRunner::KillTimerCloseCallback(uv_handle_t* handle) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(spawn_sync,
-  node::SyncProcessRunner::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(spawn_sync,
+                                    node::SyncProcessRunner::Initialize)

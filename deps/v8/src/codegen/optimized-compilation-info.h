@@ -68,9 +68,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   V(TraceTurboAllocation, trace_turbo_allocation, 14)                \
   V(TraceHeapBroker, trace_heap_broker, 15)                          \
   V(WasmRuntimeExceptionSupport, wasm_runtime_exception_support, 16) \
-  V(ConcurrentInlining, concurrent_inlining, 17)                     \
-  V(DiscardResultForTesting, discard_result_for_testing, 18)         \
-  V(InlineJSWasmCalls, inline_js_wasm_calls, 19)
+  V(DiscardResultForTesting, discard_result_for_testing, 17)         \
+  V(InlineJSWasmCalls, inline_js_wasm_calls, 18)
 
   enum Flag {
 #define DEF_ENUM(Camel, Lower, Bit) k##Camel = 1 << Bit,
@@ -96,14 +95,13 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   OptimizedCompilationInfo(Zone* zone, Isolate* isolate,
                            Handle<SharedFunctionInfo> shared,
                            Handle<JSFunction> closure, CodeKind code_kind,
-                           BytecodeOffset osr_offset,
-                           JavaScriptFrame* osr_frame);
+                           BytecodeOffset osr_offset);
   // For testing.
   OptimizedCompilationInfo(Zone* zone, Isolate* isolate,
                            Handle<SharedFunctionInfo> shared,
                            Handle<JSFunction> closure, CodeKind code_kind)
       : OptimizedCompilationInfo(zone, isolate, shared, closure, code_kind,
-                                 BytecodeOffset::None(), nullptr) {}
+                                 BytecodeOffset::None()) {}
   // Construct a compilation info for stub compilation, Wasm, and testing.
   OptimizedCompilationInfo(base::Vector<const char> debug_name, Zone* zone,
                            CodeKind code_kind);
@@ -125,7 +123,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   Builtin builtin() const { return builtin_; }
   void set_builtin(Builtin builtin) { builtin_ = builtin; }
   BytecodeOffset osr_offset() const { return osr_offset_; }
-  JavaScriptFrame* osr_frame() const { return osr_frame_; }
   void SetNodeObserver(compiler::NodeObserver* observer) {
     DCHECK_NULL(node_observer_);
     node_observer_ = observer;
@@ -154,7 +151,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   bool IsOptimizing() const {
     return CodeKindIsOptimizedJSFunction(code_kind());
   }
-  bool IsTurboprop() const { return code_kind() == CodeKind::TURBOPROP; }
 #if V8_ENABLE_WEBASSEMBLY
   bool IsWasm() const { return code_kind() == CodeKind::WASM_FUNCTION; }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -276,8 +272,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // Entry point when compiling for OSR, {BytecodeOffset::None} otherwise.
   const BytecodeOffset osr_offset_ = BytecodeOffset::None();
-  // The current OSR frame for specialization or {nullptr}.
-  JavaScriptFrame* const osr_frame_ = nullptr;
 
   // The zone from which the compilation pipeline working on this
   // OptimizedCompilationInfo allocates.

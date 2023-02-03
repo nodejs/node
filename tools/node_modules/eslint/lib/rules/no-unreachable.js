@@ -111,7 +111,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow unreachable code after `return`, `throw`, `continue`, and `break` statements",
+            description: "Disallow unreachable code after `return`, `throw`, `continue`, and `break` statements",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-unreachable"
         },

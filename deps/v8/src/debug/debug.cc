@@ -8,10 +8,8 @@
 #include <unordered_set>
 
 #include "src/api/api-inl.h"
-#include "src/api/api-natives.h"
 #include "src/base/platform/mutex.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/common/assert-scope.h"
@@ -20,7 +18,6 @@
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/execution/arguments.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -29,7 +26,6 @@
 #include "src/heap/heap-inl.h"  // For NextDebuggingId.
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecode-array-iterator.h"
-#include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/api-callbacks-inl.h"
@@ -38,7 +34,6 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/embedded/embedded-data.h"
-#include "src/snapshot/snapshot.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-debug.h"
@@ -100,7 +95,7 @@ Debug::Debug(Isolate* isolate)
       is_suppressed_(false),
       break_disabled_(false),
       break_points_active_(true),
-      break_on_exception_(false),
+      break_on_caught_exception_(false),
       break_on_uncaught_exception_(false),
       side_effect_check_failed_(false),
       debug_info_list_(nullptr),
@@ -124,6 +119,35 @@ BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
   return it.GetBreakLocation();
 }
 
+MaybeHandle<FixedArray> Debug::CheckBreakPointsForLocations(
+    Handle<DebugInfo> debug_info, std::vector<BreakLocation>& break_locations,
+    bool* has_break_points) {
+  Handle<FixedArray> break_points_hit = isolate_->factory()->NewFixedArray(
+      debug_info->GetBreakPointCount(isolate_));
+  int break_points_hit_count = 0;
+  bool has_break_points_at_all = false;
+  for (size_t i = 0; i < break_locations.size(); i++) {
+    bool location_has_break_points;
+    MaybeHandle<FixedArray> check_result = CheckBreakPoints(
+        debug_info, &break_locations[i], &location_has_break_points);
+    has_break_points_at_all |= location_has_break_points;
+    if (!check_result.is_null()) {
+      Handle<FixedArray> break_points_current_hit =
+          check_result.ToHandleChecked();
+      int num_objects = break_points_current_hit->length();
+      for (int j = 0; j < num_objects; ++j) {
+        break_points_hit->set(break_points_hit_count++,
+                              break_points_current_hit->get(j));
+      }
+    }
+  }
+  *has_break_points = has_break_points_at_all;
+  if (break_points_hit_count == 0) return {};
+
+  break_points_hit->Shrink(isolate_, break_points_hit_count);
+  return break_points_hit;
+}
+
 void BreakLocation::AllAtCurrentStatement(
     Handle<DebugInfo> debug_info, JavaScriptFrame* frame,
     std::vector<BreakLocation>* result_out) {
@@ -131,7 +155,8 @@ void BreakLocation::AllAtCurrentStatement(
   auto summary = FrameSummary::GetTop(frame).AsJavaScript();
   int offset = summary.code_offset();
   Handle<AbstractCode> abstract_code = summary.abstract_code();
-  if (abstract_code->IsCode()) offset = offset - 1;
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*debug_info);
+  if (abstract_code->IsCode(cage_base)) offset = offset - 1;
   int statement_position;
   {
     BreakIterator it(debug_info);
@@ -162,7 +187,8 @@ int BreakLocation::BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info,
   // Run through all break points to locate the one closest to the address.
   int closest_break = 0;
   int distance = kMaxInt;
-  DCHECK(0 <= offset && offset < abstract_code->Size());
+  DCHECK(kFunctionEntryBytecodeOffset <= offset &&
+         offset < abstract_code->Size());
   for (BreakIterator it(debug_info); !it.Done(); it.Next()) {
     // Check if this break point is closer that what was previously found.
     if (it.code_offset() <= offset && offset - it.code_offset() < distance) {
@@ -186,7 +212,7 @@ bool BreakLocation::HasBreakPoint(Isolate* isolate,
     // Then check whether a break point at that source position would have
     // the same code offset. Otherwise it's just a break location that we can
     // step to, but not actually a location where we can put a break point.
-    DCHECK(abstract_code_->IsBytecodeArray());
+    DCHECK(abstract_code_->IsBytecodeArray(isolate));
     BreakIterator it(debug_info);
     it.SkipToPosition(position_);
     return it.code_offset() == code_offset_;
@@ -223,9 +249,11 @@ BreakIterator::BreakIterator(Handle<DebugInfo> debug_info)
 
 int BreakIterator::BreakIndexFromPosition(int source_position) {
   for (; !Done(); Next()) {
+    if (GetDebugBreakType() == DEBUG_BREAK_SLOT_AT_SUSPEND) continue;
     if (source_position <= position()) {
       int first_break = break_index();
       for (; !Done(); Next()) {
+        if (GetDebugBreakType() == DEBUG_BREAK_SLOT_AT_SUSPEND) continue;
         if (source_position == position()) return break_index();
       }
       return first_break;
@@ -271,6 +299,10 @@ DebugBreakType BreakIterator::GetDebugBreakType() {
   } else if (bytecode == interpreter::Bytecode::kReturn) {
     return DEBUG_BREAK_SLOT_AT_RETURN;
   } else if (bytecode == interpreter::Bytecode::kSuspendGenerator) {
+    // SuspendGenerator should always only carry an expression position that
+    // is used in stack trace construction, but should never be a breakable
+    // position reported to the debugger front-end.
+    DCHECK(!source_position_iterator_.is_statement());
     return DEBUG_BREAK_SLOT_AT_SUSPEND;
   } else if (interpreter::Bytecodes::IsCallOrConstruct(bytecode)) {
     return DEBUG_BREAK_SLOT_AT_CALL;
@@ -356,11 +388,14 @@ void Debug::ThreadInit() {
   thread_local_.target_frame_count_ = -1;
   thread_local_.return_value_ = Smi::zero();
   thread_local_.last_breakpoint_id_ = 0;
+  clear_restart_frame();
   clear_suspended_generator();
   base::Relaxed_Store(&thread_local_.current_debug_scope_,
                       static_cast<base::AtomicWord>(0));
   thread_local_.break_on_next_function_call_ = false;
+  thread_local_.scheduled_break_on_next_function_call_ = false;
   UpdateHookOnFunctionCall();
+  thread_local_.promise_stack_ = Smi::zero();
 }
 
 char* Debug::ArchiveDebug(char* storage) {
@@ -419,6 +454,8 @@ void Debug::Iterate(RootVisitor* v, ThreadLocal* thread_local_data) {
   v->VisitRootPointer(
       Root::kDebug, nullptr,
       FullObjectSlot(&thread_local_data->ignore_step_into_function_));
+  v->VisitRootPointer(Root::kDebug, nullptr,
+                      FullObjectSlot(&thread_local_data->promise_stack_));
 }
 
 DebugInfoListNode::DebugInfoListNode(Isolate* isolate, DebugInfo debug_info)
@@ -443,6 +480,21 @@ void Debug::Unload() {
   debug_delegate_ = nullptr;
 }
 
+debug::DebugDelegate::PauseAfterInstrumentation
+Debug::OnInstrumentationBreak() {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
+  if (!debug_delegate_) {
+    return debug::DebugDelegate::kNoPauseAfterInstrumentationRequested;
+  }
+  DCHECK(in_debug_scope());
+  HandleScope scope(isolate_);
+  DisableBreak no_recursive_break(this);
+
+  Handle<Context> native_context(isolate_->native_context());
+  return debug_delegate_->BreakOnInstrumentation(
+      v8::Utils::ToLocal(native_context), kInstrumentationId);
+}
+
 void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Just continue if breaks are disabled or debugger cannot be loaded.
@@ -461,19 +513,39 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
 
   // Find the break location where execution has stopped.
   BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
+  const bool hitInstrumentationBreak =
+      IsBreakOnInstrumentation(debug_info, location);
+  bool shouldPauseAfterInstrumentation = false;
+  if (hitInstrumentationBreak) {
+    debug::DebugDelegate::PauseAfterInstrumentation pauseDuringInstrumentation =
+        OnInstrumentationBreak();
+    shouldPauseAfterInstrumentation =
+        pauseDuringInstrumentation ==
+        debug::DebugDelegate::kPauseAfterInstrumentationRequested;
+  }
 
   // Find actual break points, if any, and trigger debug break event.
+  bool has_break_points;
+  bool scheduled_break =
+      scheduled_break_on_function_call() || shouldPauseAfterInstrumentation;
   MaybeHandle<FixedArray> break_points_hit =
-      CheckBreakPoints(debug_info, &location);
-  if (!break_points_hit.is_null() || break_on_next_function_call()) {
+      CheckBreakPoints(debug_info, &location, &has_break_points);
+  if (!break_points_hit.is_null() || break_on_next_function_call() ||
+      scheduled_break) {
     StepAction lastStepAction = last_step_action();
+    DCHECK_IMPLIES(scheduled_break_on_function_call(),
+                   lastStepAction == StepNone);
+    debug::BreakReasons break_reasons;
+    if (scheduled_break) {
+      break_reasons.Add(debug::BreakReason::kScheduled);
+    }
     // Clear all current stepping setup.
     ClearStepping();
     // Notify the debug event listeners.
     OnDebugBreak(!break_points_hit.is_null()
                      ? break_points_hit.ToHandleChecked()
                      : isolate_->factory()->empty_fixed_array(),
-                 lastStepAction);
+                 lastStepAction, break_reasons);
     return;
   }
 
@@ -494,7 +566,9 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
   // StepOut at not return position was requested and return break locations
   // were flooded with one shots.
   if (thread_local_.fast_forward_to_return_) {
-    DCHECK(location.IsReturnOrSuspend());
+    // We might hit an instrumentation breakpoint before running into a
+    // return/suspend location.
+    DCHECK(location.IsReturnOrSuspend() || hitInstrumentationBreak);
     // We have to ignore recursive calls to function.
     if (current_frame_count > target_frame_count) return;
     ClearStepping();
@@ -516,20 +590,21 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
       if (current_frame_count > target_frame_count) return;
       V8_FALLTHROUGH;
     case StepInto: {
-      // Special case StepInto and StepOver for generators that are about to
-      // suspend, in which case we go into "generator stepping" mode. The
-      // exception here is the initial implicit yield in generators (which
-      // always has a suspend ID of 0), where we return to the caller first,
-      // instead of triggering "generator stepping" mode straight away.
-      if (location.IsSuspend() && (!IsGeneratorFunction(shared->kind()) ||
-                                   location.generator_suspend_id() > 0)) {
+      // StepInto and StepOver should enter "generator stepping" mode, except
+      // for the implicit initial yield in generators, where it should simply
+      // step out of the generator function.
+      if (location.IsSuspend()) {
         DCHECK(!has_suspended_generator());
-        thread_local_.suspended_generator_ =
-            location.GetGeneratorObjectForSuspendedFrame(frame);
         ClearStepping();
+        if (!IsGeneratorFunction(shared->kind()) ||
+            location.generator_suspend_id() > 0) {
+          thread_local_.suspended_generator_ =
+              location.GetGeneratorObjectForSuspendedFrame(frame);
+        } else {
+          PrepareStep(StepOut);
+        }
         return;
       }
-
       FrameSummary summary = FrameSummary::GetTop(frame);
       step_break = step_break || location.IsReturn() ||
                    current_frame_count != last_frame_count ||
@@ -552,19 +627,51 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
   }
 }
 
+bool Debug::IsBreakOnInstrumentation(Handle<DebugInfo> debug_info,
+                                     const BreakLocation& location) {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
+  bool has_break_points_to_check =
+      break_points_active_ && location.HasBreakPoint(isolate_, debug_info);
+  if (!has_break_points_to_check) return {};
+
+  Handle<Object> break_points =
+      debug_info->GetBreakPoints(isolate_, location.position());
+  DCHECK(!break_points->IsUndefined(isolate_));
+  if (!break_points->IsFixedArray()) {
+    const Handle<BreakPoint> break_point =
+        Handle<BreakPoint>::cast(break_points);
+    return break_point->id() == kInstrumentationId;
+  }
+
+  Handle<FixedArray> array(FixedArray::cast(*break_points), isolate_);
+  for (int i = 0; i < array->length(); ++i) {
+    const Handle<BreakPoint> break_point =
+        Handle<BreakPoint>::cast(handle(array->get(i), isolate_));
+    if (break_point->id() == kInstrumentationId) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Find break point objects for this location, if any, and evaluate them.
 // Return an array of break point objects that evaluated true, or an empty
 // handle if none evaluated true.
+// has_break_points will be true, if there is any (non-instrumentation)
+// breakpoint.
 MaybeHandle<FixedArray> Debug::CheckBreakPoints(Handle<DebugInfo> debug_info,
                                                 BreakLocation* location,
                                                 bool* has_break_points) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   bool has_break_points_to_check =
       break_points_active_ && location->HasBreakPoint(isolate_, debug_info);
-  if (has_break_points) *has_break_points = has_break_points_to_check;
-  if (!has_break_points_to_check) return {};
+  if (!has_break_points_to_check) {
+    *has_break_points = false;
+    return {};
+  }
 
-  return Debug::GetHitBreakPoints(debug_info, location->position());
+  return Debug::GetHitBreakPoints(debug_info, location->position(),
+                                  has_break_points);
 }
 
 bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
@@ -595,31 +702,8 @@ MaybeHandle<FixedArray> Debug::GetHitBreakpointsAtCurrentStatement(
   DebugScope debug_scope(this);
   std::vector<BreakLocation> break_locations;
   BreakLocation::AllAtCurrentStatement(debug_info, frame, &break_locations);
-
-  Handle<FixedArray> break_points_hit = isolate_->factory()->NewFixedArray(
-      debug_info->GetBreakPointCount(isolate_));
-  int break_points_hit_count = 0;
-  bool has_break_points_at_all = false;
-  for (size_t i = 0; i < break_locations.size(); i++) {
-    bool location_has_break_points;
-    MaybeHandle<FixedArray> check_result = CheckBreakPoints(
-        debug_info, &break_locations[i], &location_has_break_points);
-    has_break_points_at_all |= location_has_break_points;
-    if (!check_result.is_null()) {
-      Handle<FixedArray> break_points_current_hit =
-          check_result.ToHandleChecked();
-      int num_objects = break_points_current_hit->length();
-      for (int j = 0; j < num_objects; ++j) {
-        break_points_hit->set(break_points_hit_count++,
-                              break_points_current_hit->get(j));
-      }
-    }
-  }
-  *has_break_points = has_break_points_at_all;
-  if (break_points_hit_count == 0) return {};
-
-  break_points_hit->Shrink(isolate_, break_points_hit_count);
-  return break_points_hit;
+  return CheckBreakPointsForLocations(debug_info, break_locations,
+                                      has_break_points);
 }
 
 // Check whether a single break point object is triggered.
@@ -627,6 +711,11 @@ bool Debug::CheckBreakPoint(Handle<BreakPoint> break_point,
                             bool is_break_at_entry) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   HandleScope scope(isolate_);
+
+  // Instrumentation breakpoints are handled separately.
+  if (break_point->id() == kInstrumentationId) {
+    return false;
+  }
 
   if (!break_point->condition().length()) return true;
   Handle<String> condition(break_point->condition(), isolate_);
@@ -805,9 +894,14 @@ int Debug::GetFunctionDebuggingId(Handle<JSFunction> function) {
 }
 
 bool Debug::SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
-                                     Handle<String> condition, int* id) {
+                                     Handle<String> condition, int* id,
+                                     BreakPointKind kind) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  *id = ++thread_local_.last_breakpoint_id_;
+  if (kind == kInstrumentation) {
+    *id = kInstrumentationId;
+  } else {
+    *id = ++thread_local_.last_breakpoint_id_;
+  }
   Handle<BreakPoint> breakpoint =
       isolate_->factory()->NewBreakPoint(*id, condition);
   int source_position = 0;
@@ -834,14 +928,16 @@ void Debug::RemoveBreakpoint(int id) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void Debug::SetOnEntryBreakpointForWasmScript(Handle<Script> script, int* id) {
+void Debug::SetInstrumentationBreakpointForWasmScript(Handle<Script> script,
+                                                      int* id) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK_EQ(Script::TYPE_WASM, script->type());
-  *id = ++thread_local_.last_breakpoint_id_;
+  *id = kInstrumentationId;
+
   Handle<BreakPoint> break_point = isolate_->factory()->NewBreakPoint(
       *id, isolate_->factory()->empty_string());
   RecordWasmScriptWithBreakpoints(script);
-  WasmScript::SetBreakPointOnEntry(script, break_point);
+  WasmScript::SetInstrumentationBreakpoint(script, break_point);
 }
 
 void Debug::RemoveBreakpointForWasmScript(Handle<Script> script, int id) {
@@ -929,7 +1025,7 @@ void Debug::ChangeBreakOnException(ExceptionBreakType type, bool enable) {
   if (type == BreakUncaughtException) {
     break_on_uncaught_exception_ = enable;
   } else {
-    break_on_exception_ = enable;
+    break_on_caught_exception_ = enable;
   }
 }
 
@@ -937,19 +1033,22 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
   if (type == BreakUncaughtException) {
     return break_on_uncaught_exception_;
   } else {
-    return break_on_exception_;
+    return break_on_caught_exception_;
   }
 }
 
 MaybeHandle<FixedArray> Debug::GetHitBreakPoints(Handle<DebugInfo> debug_info,
-                                                 int position) {
+                                                 int position,
+                                                 bool* has_break_points) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   Handle<Object> break_points = debug_info->GetBreakPoints(isolate_, position);
   bool is_break_at_entry = debug_info->BreakAtEntry();
   DCHECK(!break_points->IsUndefined(isolate_));
   if (!break_points->IsFixedArray()) {
-    if (!CheckBreakPoint(Handle<BreakPoint>::cast(break_points),
-                         is_break_at_entry)) {
+    const Handle<BreakPoint> break_point =
+        Handle<BreakPoint>::cast(break_points);
+    *has_break_points = break_point->id() != kInstrumentationId;
+    if (!CheckBreakPoint(break_point, is_break_at_entry)) {
       return {};
     }
     Handle<FixedArray> break_points_hit = isolate_->factory()->NewFixedArray(1);
@@ -962,10 +1061,12 @@ MaybeHandle<FixedArray> Debug::GetHitBreakPoints(Handle<DebugInfo> debug_info,
   Handle<FixedArray> break_points_hit =
       isolate_->factory()->NewFixedArray(num_objects);
   int break_points_hit_count = 0;
+  *has_break_points = false;
   for (int i = 0; i < num_objects; ++i) {
-    Handle<Object> break_point(array->get(i), isolate_);
-    if (CheckBreakPoint(Handle<BreakPoint>::cast(break_point),
-                        is_break_at_entry)) {
+    Handle<BreakPoint> break_point =
+        Handle<BreakPoint>::cast(handle(array->get(i), isolate_));
+    *has_break_points |= break_point->id() != kInstrumentationId;
+    if (CheckBreakPoint(break_point, is_break_at_entry)) {
       break_points_hit->set(break_points_hit_count++, *break_point);
     }
   }
@@ -992,7 +1093,8 @@ void Debug::ClearBreakOnNextFunctionCall() {
 
 void Debug::PrepareStepIn(Handle<JSFunction> function) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  CHECK(last_step_action() >= StepInto || break_on_next_function_call());
+  CHECK(last_step_action() >= StepInto || break_on_next_function_call() ||
+        scheduled_break_on_function_call());
   if (ignore_events()) return;
   if (in_debug_scope()) return;
   if (break_disabled()) return;
@@ -1062,7 +1164,7 @@ void Debug::PrepareStepOnThrow() {
         // If it only contains one function, we already found the handler.
         if (summaries.size() > 1) {
           Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
-          CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind());
+          CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind(isolate_));
           HandlerTable table(code->GetBytecodeArray());
           int code_offset = summary.code_offset();
           HandlerTable::CatchPrediction prediction;
@@ -1135,9 +1237,7 @@ void Debug::PrepareStep(StepAction step_action) {
     // Any step at a return is a step-out, and a step-out at a suspend behaves
     // like a return.
     if (location.IsReturn() ||
-        (location.IsSuspend() &&
-         (step_action == StepOut || (IsGeneratorFunction(shared->kind()) &&
-                                     location.generator_suspend_id() == 0)))) {
+        (location.IsSuspend() && step_action == StepOut)) {
       // On StepOut we'll ignore our further calls to current function in
       // PrepareStepIn callback.
       if (last_step_action() == StepOut) {
@@ -1154,7 +1254,8 @@ void Debug::PrepareStep(StepAction step_action) {
     if (step_action == StepOver && IsBlackboxed(shared)) step_action = StepOut;
 
     thread_local_.last_statement_position_ =
-        summary.abstract_code()->SourceStatementPosition(summary.code_offset());
+        summary.abstract_code()->SourceStatementPosition(isolate_,
+                                                         summary.code_offset());
     thread_local_.last_frame_count_ = current_frame_count;
     // No longer perform the current async step.
     clear_suspended_generator();
@@ -1182,14 +1283,32 @@ void Debug::PrepareStep(StepAction step_action) {
       // Clear last position info. For stepping out it does not matter.
       thread_local_.last_statement_position_ = kNoSourcePosition;
       thread_local_.last_frame_count_ = -1;
-      if (!shared.is_null() && !location.IsReturnOrSuspend() &&
-          !IsBlackboxed(shared)) {
-        // At not return position we flood return positions with one shots and
-        // will repeat StepOut automatically at next break.
-        thread_local_.target_frame_count_ = current_frame_count;
-        thread_local_.fast_forward_to_return_ = true;
-        FloodWithOneShot(shared, true);
-        return;
+      if (!shared.is_null()) {
+        if (!location.IsReturnOrSuspend() && !IsBlackboxed(shared)) {
+          // At not return position we flood return positions with one shots and
+          // will repeat StepOut automatically at next break.
+          thread_local_.target_frame_count_ = current_frame_count;
+          thread_local_.fast_forward_to_return_ = true;
+          FloodWithOneShot(shared, true);
+          return;
+        }
+        if (IsAsyncFunction(shared->kind())) {
+          // Stepping out of an async function whose implicit promise is awaited
+          // by some other async function, should resume the latter. The return
+          // value here is either a JSPromise or a JSGeneratorObject (for the
+          // initial yield of async generators).
+          Handle<JSReceiver> return_value(
+              JSReceiver::cast(thread_local_.return_value_), isolate_);
+          Handle<Object> awaited_by = JSReceiver::GetDataProperty(
+              isolate_, return_value,
+              isolate_->factory()->promise_awaited_by_symbol());
+          if (awaited_by->IsJSGeneratorObject()) {
+            DCHECK(!has_suspended_generator());
+            thread_local_.suspended_generator_ = *awaited_by;
+            ClearStepping();
+            return;
+          }
+        }
       }
       // Skip the current frame, find the first frame we want to step out to
       // and deoptimize every frame along the way.
@@ -1283,6 +1402,8 @@ void Debug::ClearStepping() {
   thread_local_.last_frame_count_ = -1;
   thread_local_.target_frame_count_ = -1;
   thread_local_.break_on_next_function_call_ = false;
+  thread_local_.scheduled_break_on_next_function_call_ = false;
+  clear_restart_frame();
   UpdateHookOnFunctionCall();
 }
 
@@ -1318,8 +1439,14 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
         BaselineFrame* frame = BaselineFrame::cast(it.frame());
         int bytecode_offset = frame->GetBytecodeOffset();
         Address* pc_addr = frame->pc_address();
-        Address advance = BUILTIN_CODE(isolate, InterpreterEnterAtNextBytecode)
-                              ->InstructionStart();
+        Address advance;
+        if (bytecode_offset == kFunctionEntryBytecodeOffset) {
+          advance = BUILTIN_CODE(isolate, BaselineOutOfLinePrologueDeopt)
+                        ->InstructionStart();
+        } else {
+          advance = BUILTIN_CODE(isolate, InterpreterEnterAtNextBytecode)
+                        ->InstructionStart();
+        }
         PointerAuthentication::ReplacePC(pc_addr, advance, kSystemPointerSize);
         InterpretedFrame::cast(it.Reframe())
             ->PatchBytecodeOffset(bytecode_offset);
@@ -1467,6 +1594,17 @@ void Debug::PrepareFunctionForDebugExecution(
       kRelaxedStore);
 }
 
+namespace {
+
+bool IsJSFunctionAndNeedsTrampoline(Object maybe_function) {
+  if (!maybe_function.IsJSFunction()) return false;
+
+  SharedFunctionInfo shared = JSFunction::cast(maybe_function).shared();
+  return shared.HasDebugInfo() && shared.GetDebugInfo().CanBreakAtEntry();
+}
+
+}  // namespace
+
 void Debug::InstallDebugBreakTrampoline() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Check the list of debug infos whether the debug break trampoline needs to
@@ -1490,26 +1628,70 @@ void Debug::InstallDebugBreakTrampoline() {
 
   if (!needs_to_use_trampoline) return;
 
-  Handle<Code> trampoline = BUILTIN_CODE(isolate_, DebugBreakTrampoline);
+  Handle<CodeT> trampoline = BUILTIN_CODE(isolate_, DebugBreakTrampoline);
   std::vector<Handle<JSFunction>> needs_compile;
+  using AccessorPairWithContext =
+      std::pair<Handle<AccessorPair>, Handle<NativeContext>>;
+  std::vector<AccessorPairWithContext> needs_instantiate;
   {
+    // Deduplicate {needs_instantiate} by recording all collected AccessorPairs.
+    std::set<AccessorPair> recorded;
     HeapObjectIterator iterator(isolate_->heap());
+    DisallowGarbageCollection no_gc;
     for (HeapObject obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       if (needs_to_clear_ic && obj.IsFeedbackVector()) {
         FeedbackVector::cast(obj).ClearSlots(isolate_);
         continue;
-      } else if (obj.IsJSFunction()) {
+      } else if (IsJSFunctionAndNeedsTrampoline(obj)) {
         JSFunction fun = JSFunction::cast(obj);
-        SharedFunctionInfo shared = fun.shared();
-        if (!shared.HasDebugInfo()) continue;
-        if (!shared.GetDebugInfo().CanBreakAtEntry()) continue;
         if (!fun.is_compiled()) {
           needs_compile.push_back(handle(fun, isolate_));
         } else {
           fun.set_code(*trampoline);
         }
+      } else if (obj.IsJSObject()) {
+        JSObject object = JSObject::cast(obj);
+        DescriptorArray descriptors =
+            object.map().instance_descriptors(kRelaxedLoad);
+
+        for (InternalIndex i : object.map().IterateOwnDescriptors()) {
+          if (descriptors.GetDetails(i).kind() == PropertyKind::kAccessor) {
+            Object value = descriptors.GetStrongValue(i);
+            if (!value.IsAccessorPair()) continue;
+
+            AccessorPair accessor_pair = AccessorPair::cast(value);
+            if (!accessor_pair.getter().IsFunctionTemplateInfo() &&
+                !accessor_pair.setter().IsFunctionTemplateInfo()) {
+              continue;
+            }
+            if (recorded.find(accessor_pair) != recorded.end()) continue;
+
+            needs_instantiate.emplace_back(
+                handle(accessor_pair, isolate_),
+                object.GetCreationContext().ToHandleChecked());
+            recorded.insert(accessor_pair);
+          }
+        }
       }
+    }
+  }
+
+  // Forcibly instantiate all lazy accessor pairs to make sure that they
+  // properly hit the debug break trampoline.
+  for (AccessorPairWithContext tuple : needs_instantiate) {
+    Handle<AccessorPair> accessor_pair = tuple.first;
+    Handle<NativeContext> native_context = tuple.second;
+    Handle<Object> getter = AccessorPair::GetComponent(
+        isolate_, native_context, accessor_pair, ACCESSOR_GETTER);
+    if (IsJSFunctionAndNeedsTrampoline(*getter)) {
+      Handle<JSFunction>::cast(getter)->set_code(*trampoline);
+    }
+
+    Handle<Object> setter = AccessorPair::GetComponent(
+        isolate_, native_context, accessor_pair, ACCESSOR_SETTER);
+    if (IsJSFunctionAndNeedsTrampoline(*setter)) {
+      Handle<JSFunction>::cast(setter)->set_code(*trampoline);
     }
   }
 
@@ -1525,23 +1707,18 @@ void Debug::InstallDebugBreakTrampoline() {
 }
 
 namespace {
-template <typename Iterator>
-void GetBreakablePositions(Iterator* it, int start_position, int end_position,
-                           std::vector<BreakLocation>* locations) {
-  while (!it->Done()) {
-    if (it->position() >= start_position && it->position() < end_position) {
-      locations->push_back(it->GetBreakLocation());
-    }
-    it->Next();
-  }
-}
-
 void FindBreakablePositions(Handle<DebugInfo> debug_info, int start_position,
                             int end_position,
                             std::vector<BreakLocation>* locations) {
   DCHECK(debug_info->HasInstrumentedBytecodeArray());
   BreakIterator it(debug_info);
-  GetBreakablePositions(&it, start_position, end_position, locations);
+  while (!it.Done()) {
+    if (it.GetDebugBreakType() != DEBUG_BREAK_SLOT_AT_SUSPEND &&
+        it.position() >= start_position && it.position() < end_position) {
+      locations->push_back(it.GetBreakLocation());
+    }
+    it.Next();
+  }
 }
 
 bool CompileTopLevel(Isolate* isolate, Handle<Script> script) {
@@ -1549,6 +1726,7 @@ bool CompileTopLevel(Isolate* isolate, Handle<Script> script) {
   ReusableUnoptimizedCompileState reusable_state(isolate);
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+  flags.set_is_reparse(true);
   ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
   IsCompiledScope is_compiled_scope;
   const MaybeHandle<SharedFunctionInfo> maybe_result =
@@ -2047,7 +2225,8 @@ void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
   // Check whether the promise has been marked as having triggered a message.
   Handle<Symbol> key = isolate_->factory()->promise_debug_marker_symbol();
   if (!promise->IsJSObject() ||
-      JSReceiver::GetDataProperty(Handle<JSObject>::cast(promise), key)
+      JSReceiver::GetDataProperty(isolate_, Handle<JSObject>::cast(promise),
+                                  key)
           ->IsUndefined(isolate_)) {
     OnException(value, promise, v8::debug::kPromiseRejection);
   }
@@ -2090,7 +2269,7 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
   if (!debug_delegate_) return;
 
   // Return if we are not interested in exception events.
-  if (!break_on_exception_ && !break_on_uncaught_exception_) return;
+  if (!break_on_caught_exception_ && !break_on_uncaught_exception_) return;
 
   Isolate::CatchType catch_type = isolate_->PredictExceptionCatcher();
 
@@ -2115,11 +2294,14 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
     }
   }
 
-  // Return if the exception is caught and we only care about uncaught
-  // exceptions.
-  if (!uncaught && !break_on_exception_) {
-    DCHECK(break_on_uncaught_exception_);
-    return;
+  if (!uncaught) {
+    if (!break_on_caught_exception_) {
+      return;
+    }
+  } else {
+    if (!break_on_uncaught_exception_) {
+      return;
+    }
   }
 
   {
@@ -2277,12 +2459,14 @@ bool Debug::CanBreakAtEntry(Handle<SharedFunctionInfo> shared) {
 }
 
 bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
-                            bool preview, debug::LiveEditResult* result) {
+                            bool preview, bool allow_top_frame_live_editing,
+                            debug::LiveEditResult* result) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DebugScope debug_scope(this);
   feature_tracker()->Track(DebugFeatureTracker::kLiveEdit);
   running_live_edit_ = true;
-  LiveEdit::PatchScript(isolate_, script, source, preview, result);
+  LiveEdit::PatchScript(isolate_, script, source, preview,
+                        allow_top_frame_live_editing, result);
   running_live_edit_ = false;
   return result->status == debug::LiveEditResult::OK;
 }
@@ -2365,7 +2549,7 @@ void Debug::UpdateState() {
 }
 
 void Debug::UpdateHookOnFunctionCall() {
-  STATIC_ASSERT(LastStepAction == StepInto);
+  static_assert(LastStepAction == StepInto);
   hook_on_function_call_ =
       thread_local_.last_step_action_ == StepInto ||
       isolate_->debug_execution_mode() == DebugInfo::kSideEffects ||
@@ -2388,23 +2572,59 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
   HandleScope scope(isolate_);
   MaybeHandle<FixedArray> break_points;
   {
-    JavaScriptFrameIterator it(isolate_);
+    StackTraceFrameIterator it(isolate_);
     DCHECK(!it.done());
-    Object fun = it.frame()->function();
-    if (fun.IsJSFunction()) {
-      Handle<JSFunction> function(JSFunction::cast(fun), isolate_);
-      // Don't stop in builtin and blackboxed functions.
+    JavaScriptFrame* frame = it.frame()->is_java_script()
+                                 ? JavaScriptFrame::cast(it.frame())
+                                 : nullptr;
+    if (frame && frame->function().IsJSFunction()) {
+      Handle<JSFunction> function(frame->function(), isolate_);
       Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
+
+      // kScheduled breaks are triggered by the stack check. While we could
+      // pause here, the JSFunction didn't have time yet to create and push
+      // it's context. Instead, we step into the function and pause at the
+      // first official breakable position.
+      // This behavior mirrors "BreakOnNextFunctionCall".
+      if (break_reasons.contains(v8::debug::BreakReason::kScheduled)) {
+        CHECK_EQ(last_step_action(), StepAction::StepNone);
+        thread_local_.scheduled_break_on_next_function_call_ = true;
+        PrepareStepIn(function);
+        return;
+      }
+
+      // Don't stop in builtin and blackboxed functions.
       bool ignore_break = ignore_break_mode == kIgnoreIfTopFrameBlackboxed
                               ? IsBlackboxed(shared)
                               : AllFramesOnStackAreBlackboxed();
       if (ignore_break) return;
-      // Don't stop if the break location is muted.
-      bool has_break_points;
-      break_points =
-          GetHitBreakpointsAtCurrentStatement(it.frame(), &has_break_points);
-      bool is_muted = has_break_points && break_points.is_null();
-      if (is_muted) return;
+      if (function->shared().HasBreakInfo()) {
+        Handle<DebugInfo> debug_info(function->shared().GetDebugInfo(),
+                                     isolate_);
+        // Enter the debugger.
+        DebugScope debug_scope(this);
+
+        std::vector<BreakLocation> break_locations;
+        BreakLocation::AllAtCurrentStatement(debug_info, frame,
+                                             &break_locations);
+
+        for (size_t i = 0; i < break_locations.size(); i++) {
+          if (IsBreakOnInstrumentation(debug_info, break_locations[i])) {
+            OnInstrumentationBreak();
+            break;
+          }
+        }
+
+        bool has_break_points;
+        break_points = CheckBreakPointsForLocations(debug_info, break_locations,
+                                                    &has_break_points);
+        bool is_muted = has_break_points && break_points.is_null();
+        // If we get to this point, a break was triggered because e.g. of a
+        // debugger statement, an assert, .. . However, we do not stop if this
+        // position "is muted", which happens if a conditional breakpoint at
+        // this point evaluates to false.
+        if (is_muted) return;
+      }
     }
   }
 
@@ -2421,7 +2641,7 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
 
 #ifdef DEBUG
 void Debug::PrintBreakLocation() {
-  if (!FLAG_print_break_location) return;
+  if (!v8_flags.print_break_location) return;
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   HandleScope scope(isolate_);
   StackTraceFrameIterator iterator(isolate_);
@@ -2468,6 +2688,7 @@ DebugScope::DebugScope(Debug* debug)
       prev_(reinterpret_cast<DebugScope*>(
           base::Relaxed_Load(&debug->thread_local_.current_debug_scope_))),
       no_interrupts_(debug_->isolate_) {
+  timer_.Start();
   // Link recursive debugger entry.
   base::Relaxed_Store(&debug_->thread_local_.current_debug_scope_,
                       reinterpret_cast<base::AtomicWord>(this));
@@ -2485,6 +2706,10 @@ DebugScope::DebugScope(Debug* debug)
 }
 
 void DebugScope::set_terminate_on_resume() { terminate_on_resume_ = true; }
+
+base::TimeDelta DebugScope::ElapsedTimeSinceCreation() {
+  return timer_.Elapsed();
+}
 
 DebugScope::~DebugScope() {
   // Terminate on resume must have been handled by retrieving it, if this is
@@ -2568,8 +2793,7 @@ void Debug::StopSideEffectCheckMode() {
   DCHECK(isolate_->debug_execution_mode() == DebugInfo::kSideEffects);
   if (side_effect_check_failed_) {
     DCHECK(isolate_->has_pending_exception());
-    DCHECK_EQ(ReadOnlyRoots(isolate_).termination_exception(),
-              isolate_->pending_exception());
+    DCHECK(isolate_->is_execution_termination_pending());
     // Convert the termination exception into a regular exception.
     isolate_->CancelTerminateExecution();
     isolate_->Throw(*isolate_->factory()->NewEvalError(
@@ -2632,7 +2856,7 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
       debug_info->GetSideEffectState(isolate_);
   switch (side_effect_state) {
     case DebugInfo::kHasSideEffects:
-      if (FLAG_trace_side_effect_free_debug_evaluate) {
+      if (v8_flags.trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] Function %s failed side effect check.\n",
                function->shared().DebugNameCStr().get());
       }
@@ -2695,7 +2919,7 @@ bool Debug::PerformSideEffectCheckForCallback(
         case SideEffectType::kHasSideEffect:
           break;
       }
-      if (FLAG_trace_side_effect_free_debug_evaluate) {
+      if (v8_flags.trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] API Callback '");
         info.name().ShortPrint();
         PrintF("' may cause side effect.\n");
@@ -2703,13 +2927,13 @@ bool Debug::PerformSideEffectCheckForCallback(
     } else if (callback_info->IsInterceptorInfo()) {
       InterceptorInfo info = InterceptorInfo::cast(*callback_info);
       if (info.has_no_side_effect()) return true;
-      if (FLAG_trace_side_effect_free_debug_evaluate) {
+      if (v8_flags.trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] API Interceptor may cause side effect.\n");
       }
     } else if (callback_info->IsCallHandlerInfo()) {
       CallHandlerInfo info = CallHandlerInfo::cast(*callback_info);
       if (info.IsSideEffectFreeCallHandlerInfo()) return true;
-      if (FLAG_trace_side_effect_free_debug_evaluate) {
+      if (v8_flags.trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] API CallHandlerInfo may cause side effect.\n");
       }
     }
@@ -2771,7 +2995,7 @@ bool Debug::PerformSideEffectCheckForObject(Handle<Object> object) {
     return true;
   }
 
-  if (FLAG_trace_side_effect_free_debug_evaluate) {
+  if (v8_flags.trace_side_effect_free_debug_evaluate) {
     PrintF("[debug-evaluate] failed runtime side effect check.\n");
   }
   side_effect_check_failed_ = true;
@@ -2791,6 +3015,27 @@ bool Debug::GetTemporaryObjectTrackingDisabled() const {
     return temporary_objects_->disabled;
   }
   return false;
+}
+
+void Debug::PrepareRestartFrame(JavaScriptFrame* frame,
+                                int inlined_frame_index) {
+  if (frame->is_optimized()) Deoptimizer::DeoptimizeFunction(frame->function());
+
+  thread_local_.restart_frame_id_ = frame->id();
+  thread_local_.restart_inline_frame_index_ = inlined_frame_index;
+
+  // TODO(crbug.com/1303521): A full "StepInto" is probably not needed. Get the
+  // necessary bits out of PrepareSTep into a separate method or fold them
+  // into Debug::PrepareRestartFrame.
+  PrepareStep(StepInto);
+}
+
+void Debug::NotifyDebuggerPausedEventSent() {
+  DebugScope* scope = reinterpret_cast<DebugScope*>(
+      base::Relaxed_Load(&thread_local_.current_debug_scope_));
+  CHECK(scope);
+  isolate_->counters()->debug_pause_to_paused_event()->AddTimedSample(
+      scope->ElapsedTimeSinceCreation());
 }
 
 }  // namespace internal

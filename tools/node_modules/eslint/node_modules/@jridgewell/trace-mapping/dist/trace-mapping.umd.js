@@ -27,6 +27,14 @@
         return path.slice(0, index + 1);
     }
 
+    const COLUMN = 0;
+    const SOURCES_INDEX = 1;
+    const SOURCE_LINE = 2;
+    const SOURCE_COLUMN = 3;
+    const NAMES_INDEX = 4;
+    const REV_GENERATED_LINE = 1;
+    const REV_GENERATED_COLUMN = 2;
+
     function maybeSort(mappings, owned) {
         const unsortedIndex = nextUnsortedSegmentLine(mappings, 0);
         if (unsortedIndex === mappings.length)
@@ -49,7 +57,7 @@
     }
     function isSorted(line) {
         for (let j = 1; j < line.length; j++) {
-            if (line[j][0] < line[j - 1][0]) {
+            if (line[j][COLUMN] < line[j - 1][COLUMN]) {
                 return false;
             }
         }
@@ -61,9 +69,10 @@
         return line.sort(sortComparator);
     }
     function sortComparator(a, b) {
-        return a[0] - b[0];
+        return a[COLUMN] - b[COLUMN];
     }
 
+    let found = false;
     /**
      * A binary search implementation that returns the index if a match is found.
      * If no match is found, then the left-index (the index associated with the item that comes just
@@ -83,8 +92,9 @@
     function binarySearch(haystack, needle, low, high) {
         while (low <= high) {
             const mid = low + ((high - low) >> 1);
-            const cmp = haystack[mid][0] - needle;
+            const cmp = haystack[mid][COLUMN] - needle;
             if (cmp === 0) {
+                found = true;
                 return mid;
             }
             if (cmp < 0) {
@@ -94,7 +104,22 @@
                 high = mid - 1;
             }
         }
+        found = false;
         return low - 1;
+    }
+    function upperBound(haystack, needle, index) {
+        for (let i = index + 1; i < haystack.length; index = i++) {
+            if (haystack[i][COLUMN] !== needle)
+                break;
+        }
+        return index;
+    }
+    function lowerBound(haystack, needle, index) {
+        for (let i = index - 1; i >= 0; index = i--) {
+            if (haystack[i][COLUMN] !== needle)
+                break;
+        }
+        return index;
     }
     function memoizedState() {
         return {
@@ -113,11 +138,12 @@
         let high = haystack.length - 1;
         if (key === lastKey) {
             if (needle === lastNeedle) {
+                found = lastIndex !== -1 && haystack[lastIndex][COLUMN] === needle;
                 return lastIndex;
             }
             if (needle >= lastNeedle) {
                 // lastIndex may be -1 if the previous needle was not found.
-                low = Math.max(lastIndex, 0);
+                low = lastIndex === -1 ? 0 : lastIndex;
             }
             else {
                 high = lastIndex;
@@ -128,12 +154,149 @@
         return (state.lastIndex = binarySearch(haystack, needle, low, high));
     }
 
-    const INVALID_MAPPING = Object.freeze({
-        source: null,
-        line: null,
-        column: null,
-        name: null,
-    });
+    // Rebuilds the original source files, with mappings that are ordered by source line/column instead
+    // of generated line/column.
+    function buildBySources(decoded, memos) {
+        const sources = memos.map(buildNullArray);
+        for (let i = 0; i < decoded.length; i++) {
+            const line = decoded[i];
+            for (let j = 0; j < line.length; j++) {
+                const seg = line[j];
+                if (seg.length === 1)
+                    continue;
+                const sourceIndex = seg[SOURCES_INDEX];
+                const sourceLine = seg[SOURCE_LINE];
+                const sourceColumn = seg[SOURCE_COLUMN];
+                const originalSource = sources[sourceIndex];
+                const originalLine = (originalSource[sourceLine] || (originalSource[sourceLine] = []));
+                const memo = memos[sourceIndex];
+                // The binary search either found a match, or it found the left-index just before where the
+                // segment should go. Either way, we want to insert after that. And there may be multiple
+                // generated segments associated with an original location, so there may need to move several
+                // indexes before we find where we need to insert.
+                const index = upperBound(originalLine, sourceColumn, memoizedBinarySearch(originalLine, sourceColumn, memo, sourceLine));
+                insert(originalLine, (memo.lastIndex = index + 1), [sourceColumn, i, seg[COLUMN]]);
+            }
+        }
+        return sources;
+    }
+    function insert(array, index, value) {
+        for (let i = array.length; i > index; i--) {
+            array[i] = array[i - 1];
+        }
+        array[index] = value;
+    }
+    // Null arrays allow us to use ordered index keys without actually allocating contiguous memory like
+    // a real array. We use a null-prototype object to avoid prototype pollution and deoptimizations.
+    // Numeric properties on objects are magically sorted in ascending order by the engine regardless of
+    // the insertion order. So, by setting any numeric keys, even out of order, we'll get ascending
+    // order when iterating with for-in.
+    function buildNullArray() {
+        return { __proto__: null };
+    }
+
+    const AnyMap = function (map, mapUrl) {
+        const parsed = typeof map === 'string' ? JSON.parse(map) : map;
+        if (!('sections' in parsed))
+            return new TraceMap(parsed, mapUrl);
+        const mappings = [];
+        const sources = [];
+        const sourcesContent = [];
+        const names = [];
+        recurse(parsed, mapUrl, mappings, sources, sourcesContent, names, 0, 0, Infinity, Infinity);
+        const joined = {
+            version: 3,
+            file: parsed.file,
+            names,
+            sources,
+            sourcesContent,
+            mappings,
+        };
+        return exports.presortedDecodedMap(joined);
+    };
+    function recurse(input, mapUrl, mappings, sources, sourcesContent, names, lineOffset, columnOffset, stopLine, stopColumn) {
+        const { sections } = input;
+        for (let i = 0; i < sections.length; i++) {
+            const { map, offset } = sections[i];
+            let sl = stopLine;
+            let sc = stopColumn;
+            if (i + 1 < sections.length) {
+                const nextOffset = sections[i + 1].offset;
+                sl = Math.min(stopLine, lineOffset + nextOffset.line);
+                if (sl === stopLine) {
+                    sc = Math.min(stopColumn, columnOffset + nextOffset.column);
+                }
+                else if (sl < stopLine) {
+                    sc = columnOffset + nextOffset.column;
+                }
+            }
+            addSection(map, mapUrl, mappings, sources, sourcesContent, names, lineOffset + offset.line, columnOffset + offset.column, sl, sc);
+        }
+    }
+    function addSection(input, mapUrl, mappings, sources, sourcesContent, names, lineOffset, columnOffset, stopLine, stopColumn) {
+        if ('sections' in input)
+            return recurse(...arguments);
+        const map = new TraceMap(input, mapUrl);
+        const sourcesOffset = sources.length;
+        const namesOffset = names.length;
+        const decoded = exports.decodedMappings(map);
+        const { resolvedSources, sourcesContent: contents } = map;
+        append(sources, resolvedSources);
+        append(names, map.names);
+        if (contents)
+            append(sourcesContent, contents);
+        else
+            for (let i = 0; i < resolvedSources.length; i++)
+                sourcesContent.push(null);
+        for (let i = 0; i < decoded.length; i++) {
+            const lineI = lineOffset + i;
+            // We can only add so many lines before we step into the range that the next section's map
+            // controls. When we get to the last line, then we'll start checking the segments to see if
+            // they've crossed into the column range. But it may not have any columns that overstep, so we
+            // still need to check that we don't overstep lines, too.
+            if (lineI > stopLine)
+                return;
+            // The out line may already exist in mappings (if we're continuing the line started by a
+            // previous section). Or, we may have jumped ahead several lines to start this section.
+            const out = getLine(mappings, lineI);
+            // On the 0th loop, the section's column offset shifts us forward. On all other lines (since the
+            // map can be multiple lines), it doesn't.
+            const cOffset = i === 0 ? columnOffset : 0;
+            const line = decoded[i];
+            for (let j = 0; j < line.length; j++) {
+                const seg = line[j];
+                const column = cOffset + seg[COLUMN];
+                // If this segment steps into the column range that the next section's map controls, we need
+                // to stop early.
+                if (lineI === stopLine && column >= stopColumn)
+                    return;
+                if (seg.length === 1) {
+                    out.push([column]);
+                    continue;
+                }
+                const sourcesIndex = sourcesOffset + seg[SOURCES_INDEX];
+                const sourceLine = seg[SOURCE_LINE];
+                const sourceColumn = seg[SOURCE_COLUMN];
+                out.push(seg.length === 4
+                    ? [column, sourcesIndex, sourceLine, sourceColumn]
+                    : [column, sourcesIndex, sourceLine, sourceColumn, namesOffset + seg[NAMES_INDEX]]);
+            }
+        }
+    }
+    function append(arr, other) {
+        for (let i = 0; i < other.length; i++)
+            arr.push(other[i]);
+    }
+    function getLine(arr, index) {
+        for (let i = arr.length; i <= index; i++)
+            arr[i] = [];
+        return arr[index];
+    }
+
+    const LINE_GTR_ZERO = '`line` must be greater than 0 (lines start at line 1)';
+    const COL_GTR_EQ_ZERO = '`column` must be greater than or equal to 0 (columns start at column 0)';
+    const LEAST_UPPER_BOUND = -1;
+    const GREATEST_LOWER_BOUND = 1;
     /**
      * Returns the encoded (VLQ string) form of the SourceMap's mappings field.
      */
@@ -154,19 +317,42 @@
      */
     exports.originalPositionFor = void 0;
     /**
+     * Finds the generated line/column position of the provided source/line/column source position.
+     */
+    exports.generatedPositionFor = void 0;
+    /**
+     * Finds all generated line/column positions of the provided source/line/column source position.
+     */
+    exports.allGeneratedPositionsFor = void 0;
+    /**
      * Iterates each mapping in generated position order.
      */
     exports.eachMapping = void 0;
+    /**
+     * Retrieves the source content for a particular source, if its found. Returns null if not.
+     */
+    exports.sourceContentFor = void 0;
     /**
      * A helper that skips sorting of the input map's mappings array, which can be expensive for larger
      * maps.
      */
     exports.presortedDecodedMap = void 0;
+    /**
+     * Returns a sourcemap object (with decoded mappings) suitable for passing to a library that expects
+     * a sourcemap, or to JSON.stringify.
+     */
+    exports.decodedMap = void 0;
+    /**
+     * Returns a sourcemap object (with encoded mappings) suitable for passing to a library that expects
+     * a sourcemap, or to JSON.stringify.
+     */
+    exports.encodedMap = void 0;
     class TraceMap {
         constructor(map, mapUrl) {
-            this._binarySearchMemo = memoizedState();
             const isString = typeof map === 'string';
-            const parsed = isString ? JSON.parse(map) : map;
+            if (!isString && map._decodedMemo)
+                return map;
+            const parsed = (isString ? JSON.parse(map) : map);
             const { version, file, names, sourceRoot, sources, sourcesContent } = parsed;
             this.version = version;
             this.file = file;
@@ -174,22 +360,20 @@
             this.sourceRoot = sourceRoot;
             this.sources = sources;
             this.sourcesContent = sourcesContent;
-            if (sourceRoot || mapUrl) {
-                const from = resolve(sourceRoot || '', stripFilename(mapUrl));
-                this.resolvedSources = sources.map((s) => resolve(s || '', from));
-            }
-            else {
-                this.resolvedSources = sources.map((s) => s || '');
-            }
+            const from = resolve(sourceRoot || '', stripFilename(mapUrl));
+            this.resolvedSources = sources.map((s) => resolve(s || '', from));
             const { mappings } = parsed;
             if (typeof mappings === 'string') {
                 this._encoded = mappings;
-                this._decoded = sourcemapCodec.decode(mappings);
+                this._decoded = undefined;
             }
             else {
                 this._encoded = undefined;
                 this._decoded = maybeSort(mappings, isString);
             }
+            this._decodedMemo = memoizedState();
+            this._bySources = undefined;
+            this._bySourceMemos = undefined;
         }
     }
     (() => {
@@ -198,42 +382,48 @@
             return ((_a = map._encoded) !== null && _a !== void 0 ? _a : (map._encoded = sourcemapCodec.encode(map._decoded)));
         };
         exports.decodedMappings = (map) => {
-            return map._decoded;
+            return (map._decoded || (map._decoded = sourcemapCodec.decode(map._encoded)));
         };
         exports.traceSegment = (map, line, column) => {
-            const decoded = map._decoded;
+            const decoded = exports.decodedMappings(map);
             // It's common for parent source maps to have pointers to lines that have no
             // mapping (like a "//# sourceMappingURL=") at the end of the child file.
             if (line >= decoded.length)
                 return null;
             const segments = decoded[line];
-            const index = memoizedBinarySearch(segments, column, map._binarySearchMemo, line);
-            // we come before any mapped segment
-            if (index < 0)
-                return null;
-            return segments[index];
+            const index = traceSegmentInternal(segments, map._decodedMemo, line, column, GREATEST_LOWER_BOUND);
+            return index === -1 ? null : segments[index];
         };
-        exports.originalPositionFor = (map, { line, column }) => {
-            if (line < 1)
-                throw new Error('`line` must be greater than 0 (lines start at line 1)');
-            if (column < 0) {
-                throw new Error('`column` must be greater than or equal to 0 (columns start at column 0)');
-            }
-            const segment = exports.traceSegment(map, line - 1, column);
-            if (segment == null)
-                return INVALID_MAPPING;
-            if (segment.length == 1)
-                return INVALID_MAPPING;
+        exports.originalPositionFor = (map, { line, column, bias }) => {
+            line--;
+            if (line < 0)
+                throw new Error(LINE_GTR_ZERO);
+            if (column < 0)
+                throw new Error(COL_GTR_EQ_ZERO);
+            const decoded = exports.decodedMappings(map);
+            // It's common for parent source maps to have pointers to lines that have no
+            // mapping (like a "//# sourceMappingURL=") at the end of the child file.
+            if (line >= decoded.length)
+                return OMapping(null, null, null, null);
+            const segments = decoded[line];
+            const index = traceSegmentInternal(segments, map._decodedMemo, line, column, bias || GREATEST_LOWER_BOUND);
+            if (index === -1)
+                return OMapping(null, null, null, null);
+            const segment = segments[index];
+            if (segment.length === 1)
+                return OMapping(null, null, null, null);
             const { names, resolvedSources } = map;
-            return {
-                source: resolvedSources[segment[1]],
-                line: segment[2] + 1,
-                column: segment[3],
-                name: segment.length === 5 ? names[segment[4]] : null,
-            };
+            return OMapping(resolvedSources[segment[SOURCES_INDEX]], segment[SOURCE_LINE] + 1, segment[SOURCE_COLUMN], segment.length === 5 ? names[segment[NAMES_INDEX]] : null);
+        };
+        exports.allGeneratedPositionsFor = (map, { source, line, column, bias }) => {
+            // SourceMapConsumer uses LEAST_UPPER_BOUND for some reason, so we follow suit.
+            return generatedPosition(map, source, line, column, bias || LEAST_UPPER_BOUND, true);
+        };
+        exports.generatedPositionFor = (map, { source, line, column, bias }) => {
+            return generatedPosition(map, source, line, column, bias || GREATEST_LOWER_BOUND, false);
         };
         exports.eachMapping = (map, cb) => {
-            const decoded = map._decoded;
+            const decoded = exports.decodedMappings(map);
             const { names, resolvedSources } = map;
             for (let i = 0; i < decoded.length; i++) {
                 const line = decoded[i];
@@ -263,15 +453,111 @@
                 }
             }
         };
+        exports.sourceContentFor = (map, source) => {
+            const { sources, resolvedSources, sourcesContent } = map;
+            if (sourcesContent == null)
+                return null;
+            let index = sources.indexOf(source);
+            if (index === -1)
+                index = resolvedSources.indexOf(source);
+            return index === -1 ? null : sourcesContent[index];
+        };
         exports.presortedDecodedMap = (map, mapUrl) => {
-            const clone = Object.assign({}, map);
-            clone.mappings = [];
-            const tracer = new TraceMap(clone, mapUrl);
+            const tracer = new TraceMap(clone(map, []), mapUrl);
             tracer._decoded = map.mappings;
             return tracer;
         };
+        exports.decodedMap = (map) => {
+            return clone(map, exports.decodedMappings(map));
+        };
+        exports.encodedMap = (map) => {
+            return clone(map, exports.encodedMappings(map));
+        };
+        function generatedPosition(map, source, line, column, bias, all) {
+            line--;
+            if (line < 0)
+                throw new Error(LINE_GTR_ZERO);
+            if (column < 0)
+                throw new Error(COL_GTR_EQ_ZERO);
+            const { sources, resolvedSources } = map;
+            let sourceIndex = sources.indexOf(source);
+            if (sourceIndex === -1)
+                sourceIndex = resolvedSources.indexOf(source);
+            if (sourceIndex === -1)
+                return all ? [] : GMapping(null, null);
+            const generated = (map._bySources || (map._bySources = buildBySources(exports.decodedMappings(map), (map._bySourceMemos = sources.map(memoizedState)))));
+            const segments = generated[sourceIndex][line];
+            if (segments == null)
+                return all ? [] : GMapping(null, null);
+            const memo = map._bySourceMemos[sourceIndex];
+            if (all)
+                return sliceGeneratedPositions(segments, memo, line, column, bias);
+            const index = traceSegmentInternal(segments, memo, line, column, bias);
+            if (index === -1)
+                return GMapping(null, null);
+            const segment = segments[index];
+            return GMapping(segment[REV_GENERATED_LINE] + 1, segment[REV_GENERATED_COLUMN]);
+        }
     })();
+    function clone(map, mappings) {
+        return {
+            version: map.version,
+            file: map.file,
+            names: map.names,
+            sourceRoot: map.sourceRoot,
+            sources: map.sources,
+            sourcesContent: map.sourcesContent,
+            mappings,
+        };
+    }
+    function OMapping(source, line, column, name) {
+        return { source, line, column, name };
+    }
+    function GMapping(line, column) {
+        return { line, column };
+    }
+    function traceSegmentInternal(segments, memo, line, column, bias) {
+        let index = memoizedBinarySearch(segments, column, memo, line);
+        if (found) {
+            index = (bias === LEAST_UPPER_BOUND ? upperBound : lowerBound)(segments, column, index);
+        }
+        else if (bias === LEAST_UPPER_BOUND)
+            index++;
+        if (index === -1 || index === segments.length)
+            return -1;
+        return index;
+    }
+    function sliceGeneratedPositions(segments, memo, line, column, bias) {
+        let min = traceSegmentInternal(segments, memo, line, column, GREATEST_LOWER_BOUND);
+        // We ignored the bias when tracing the segment so that we're guarnateed to find the first (in
+        // insertion order) segment that matched. Even if we did respect the bias when tracing, we would
+        // still need to call `lowerBound()` to find the first segment, which is slower than just looking
+        // for the GREATEST_LOWER_BOUND to begin with. The only difference that matters for us is when the
+        // binary search didn't match, in which case GREATEST_LOWER_BOUND just needs to increment to
+        // match LEAST_UPPER_BOUND.
+        if (!found && bias === LEAST_UPPER_BOUND)
+            min++;
+        if (min === -1 || min === segments.length)
+            return [];
+        // We may have found the segment that started at an earlier column. If this is the case, then we
+        // need to slice all generated segments that match _that_ column, because all such segments span
+        // to our desired column.
+        const matchedColumn = found ? column : segments[min][COLUMN];
+        // The binary search is not guaranteed to find the lower bound when a match wasn't found.
+        if (!found)
+            min = lowerBound(segments, matchedColumn, min);
+        const max = upperBound(segments, matchedColumn, min);
+        const result = [];
+        for (; min <= max; min++) {
+            const segment = segments[min];
+            result.push(GMapping(segment[REV_GENERATED_LINE] + 1, segment[REV_GENERATED_COLUMN]));
+        }
+        return result;
+    }
 
+    exports.AnyMap = AnyMap;
+    exports.GREATEST_LOWER_BOUND = GREATEST_LOWER_BOUND;
+    exports.LEAST_UPPER_BOUND = LEAST_UPPER_BOUND;
     exports.TraceMap = TraceMap;
 
     Object.defineProperty(exports, '__esModule', { value: true });

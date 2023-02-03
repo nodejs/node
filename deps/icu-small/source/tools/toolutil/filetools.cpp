@@ -39,17 +39,17 @@ static int32_t whichFileModTimeIsLater(const char *file1, const char *file2);
 
 /*
  * Goes through the given directory recursive to compare each file's modification time with that of the file given.
- * Also can be given just one file to check against. Default value for isDir is FALSE.
+ * Also can be given just one file to check against. Default value for isDir is false.
  */
 U_CAPI UBool U_EXPORT2
 isFileModTimeLater(const char *filePath, const char *checkAgainst, UBool isDir) {
-    UBool isLatest = TRUE;
+    UBool isLatest = true;
 
     if (filePath == NULL || checkAgainst == NULL) {
-        return FALSE;
+        return false;
     }
 
-    if (isDir == TRUE) {
+    if (isDir == true) {
 #if U_HAVE_DIRENT_H
         DIR *pDir = NULL;
         if ((pDir= opendir(checkAgainst)) != NULL) {
@@ -64,7 +64,7 @@ isFileModTimeLater(const char *filePath, const char *checkAgainst, UBool isDir) 
                     newpath.append(dirEntry->d_name, -1, status);
                     if (U_FAILURE(status)) {
                         fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, u_errorName(status));
-                        return FALSE;
+                        return false;
                     }
 
                     if ((subDirp = opendir(newpath.data())) != NULL) {
@@ -77,7 +77,7 @@ isFileModTimeLater(const char *filePath, const char *checkAgainst, UBool isDir) 
                     } else {
                         int32_t latest = whichFileModTimeIsLater(filePath, newpath.data());
                         if (latest < 0 || latest == 2) {
-                            isLatest = FALSE;
+                            isLatest = false;
                             break;
                         }
                     }
@@ -87,17 +87,17 @@ isFileModTimeLater(const char *filePath, const char *checkAgainst, UBool isDir) 
             closedir(pDir);
         } else {
             fprintf(stderr, "Unable to open directory: %s\n", checkAgainst);
-            return FALSE;
+            return false;
         }
 #endif
     } else {
         if (T_FileStream_file_exists(checkAgainst)) {
             int32_t latest = whichFileModTimeIsLater(filePath, checkAgainst);
             if (latest < 0 || latest == 2) {
-                isLatest = FALSE;
+                isLatest = false;
             }
         } else {
-            isLatest = FALSE;
+            isLatest = false;
         }
     }
 

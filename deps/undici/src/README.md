@@ -2,7 +2,7 @@
 
 [![Node CI](https://github.com/nodejs/undici/actions/workflows/nodejs.yml/badge.svg)](https://github.com/nodejs/undici/actions/workflows/nodejs.yml) [![js-standard-style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg?style=flat)](http://standardjs.com/) [![npm version](https://badge.fury.io/js/undici.svg)](https://badge.fury.io/js/undici) [![codecov](https://codecov.io/gh/nodejs/undici/branch/main/graph/badge.svg?token=yZL6LtXkOA)](https://codecov.io/gh/nodejs/undici)
 
-A HTTP/1.1 client, written from scratch for Node.js.
+An HTTP/1.1 client, written from scratch for Node.js.
 
 > Undici means eleven in Italian. 1.1 -> 11 -> Eleven -> Undici.
 It is also a Stranger Things reference.
@@ -65,7 +65,15 @@ for await (const data of body) {
 console.log('trailers', trailers)
 ```
 
-Using [the body mixin from the Fetch Standard](https://fetch.spec.whatwg.org/#body-mixin).
+## Body Mixins
+
+The `body` mixins are the most common way to format the request/response body. Mixins include:
+
+- [`.formData()`](https://fetch.spec.whatwg.org/#dom-body-formdata)
+- [`.json()`](https://fetch.spec.whatwg.org/#dom-body-json)
+- [`.text()`](https://fetch.spec.whatwg.org/#dom-body-text)
+
+Example usage:
 
 ```js
 import { request } from 'undici'
@@ -82,6 +90,12 @@ console.log('headers', headers)
 console.log('data', await body.json())
 console.log('trailers', trailers)
 ```
+
+_Note: Once a mixin has been called then the body cannot be reused, thus calling additional mixins on `.body`, e.g. `.body.json(); .body.text()` will result in an error `TypeError: unusable` being thrown and returned through the `Promise` rejection._
+
+Should you need to access the `body` in plain-text after using a mixin, the best practice is to use the `.text()` mixin first and then manually parse the text to the desired format.
+
+For more information about their behavior, please reference the body mixin from the [Fetch Standard](https://fetch.spec.whatwg.org/#body-mixin).
 
 ## Common API Methods
 
@@ -162,24 +176,34 @@ Implements [fetch](https://fetch.spec.whatwg.org/#fetch-method).
 * https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch
 * https://fetch.spec.whatwg.org/#fetch-method
 
-Only supported on Node 16.5+.
-
-This is [experimental](https://nodejs.org/api/documentation.html#documentation_stability_index) and is not yet fully compliant with the Fetch Standard.
-We plan to ship breaking changes to this feature until it is out of experimental.
-Help us improve the test coverage by following instructions at [nodejs/undici/#951](https://github.com/nodejs/undici/issues/951).
+Only supported on Node 16.8+.
 
 Basic usage example:
 
 ```js
-    import {fetch} from 'undici';
+import { fetch } from 'undici'
 
-    async function fetchJson() {
-        const res = await fetch('https://example.com')
-        const json = await res.json()
-        console.log(json);
-    }
+
+const res = await fetch('https://example.com')
+const json = await res.json()
+console.log(json)
 ```
 
+You can pass an optional dispatcher to `fetch` as:
+
+```js
+import { fetch, Agent } from 'undici'
+
+const res = await fetch('https://example.com', {
+  // Mocks are also supported
+  dispatcher: new Agent({
+    keepAliveTimeout: 10,
+    keepAliveMaxTimeout: 10
+  })
+})
+const json = await res.json()
+console.log(json)
+```
 
 #### `request.body`
 
@@ -197,38 +221,40 @@ A body can be of the following types:
 In this implementation of fetch, ```request.body``` now accepts ```Async Iterables```. It is not present in the [Fetch Standard.](https://fetch.spec.whatwg.org)
 
 ```js
-import { fetch } from "undici";
+import { fetch } from 'undici'
 
 const data = {
   async *[Symbol.asyncIterator]() {
-    yield "hello";
-    yield "world";
+    yield 'hello'
+    yield 'world'
   },
-};
+}
 
-(async () => {
-  await fetch("https://example.com", { body: data, method: 'POST' });
-})();
+await fetch('https://example.com', { body: data, method: 'POST', duplex: 'half' })
 ```
+
+#### `request.duplex`
+
+- half
+
+In this implementation of fetch, `request.duplex` must be set if `request.body` is `ReadableStream` or `Async Iterables`. And fetch requests are currently always be full duplex. More detail refer to [Fetch Standard.](https://fetch.spec.whatwg.org/#dom-requestinit-duplex)
 
 #### `response.body`
 
-Nodejs has two kinds of streams: [web streams](https://nodejs.org/dist/latest-v16.x/docs/api/webstreams.html) which follow the API of the WHATWG web standard found in browsers, and an older Node-specific [streams API](https://nodejs.org/api/stream.html). `response.body` returns a readable web stream. If you would prefer to work with a Node stream you can convert a web stream using `.fromWeb()`.
+Nodejs has two kinds of streams: [web streams](https://nodejs.org/dist/latest-v16.x/docs/api/webstreams.html), which follow the API of the WHATWG web standard found in browsers, and an older Node-specific [streams API](https://nodejs.org/api/stream.html). `response.body` returns a readable web stream. If you would prefer to work with a Node stream you can convert a web stream using `.fromWeb()`.
 
 ```js
-    import {fetch} from 'undici';
-    import {Readable} from 'node:stream';
+import { fetch } from 'undici'
+import { Readable } from 'node:stream'
 
-    async function fetchStream() {
-        const response = await fetch('https://example.com')
-        const readableWebStream = response.body;
-        const readableNodeStream = Readable.fromWeb(readableWebStream);
-    }
+const response = await fetch('https://example.com')
+const readableWebStream = response.body
+const readableNodeStream = Readable.fromWeb(readableWebStream)
 ```
 
 #### Specification Compliance
 
-This section documents parts of the [Fetch Standard](https://fetch.spec.whatwg.org) which Undici does
+This section documents parts of the [Fetch Standard](https://fetch.spec.whatwg.org) that Undici does
 not support or does not fully implement.
 
 ##### Garbage Collection
@@ -239,7 +265,7 @@ The [Fetch Standard](https://fetch.spec.whatwg.org) allows users to skip consumi
 [garbage collection](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Memory_Management#garbage_collection) to release connection resources. Undici does not do the same. Therefore, it is important to always either consume or cancel the response body.
 
 Garbage collection in Node is less aggressive and deterministic
-(due to the lack of clear idle periods that browser have through the rendering refresh rate)
+(due to the lack of clear idle periods that browsers have through the rendering refresh rate)
 which means that leaving the release of connection resources to the garbage collector can lead
 to excessive connection usage, reduced performance (due to less connection re-use), and even
 stalls or deadlocks when running out of connections.
@@ -258,6 +284,22 @@ const headers = await fetch(url)
 const headers = await fetch(url)
   .then(res => res.headers)
 ```
+
+However, if you want to get only headers, it might be better to use `HEAD` request method. Usage of this method will obviate the need for consumption or cancelling of the response body. See [MDN - HTTP - HTTP request methods - HEAD](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD) for more details.
+
+```js
+const headers = await fetch(url, { method: 'HEAD' })
+  .then(res => res.headers)
+```
+
+##### Forbidden and Safelisted Header Names
+
+* https://fetch.spec.whatwg.org/#cors-safelisted-response-header-name
+* https://fetch.spec.whatwg.org/#forbidden-header-name
+* https://fetch.spec.whatwg.org/#forbidden-response-header-name
+* https://github.com/wintercg/fetch/issues/6
+
+The [Fetch Standard](https://fetch.spec.whatwg.org) requires implementations to exclude certain headers from requests and responses. In browser environments, some headers are forbidden so the user agent remains in full control over them. In Undici, these constraints are removed to give more control to the user.
 
 ### `undici.upgrade([url, options]): Promise`
 
@@ -289,6 +331,28 @@ Gets the global dispatcher used by Common API Methods.
 
 Returns: `Dispatcher`
 
+### `undici.setGlobalOrigin(origin)`
+
+* origin `string | URL | undefined`
+
+Sets the global origin used in `fetch`.
+
+If `undefined` is passed, the global origin will be reset. This will cause `Response.redirect`, `new Request()`, and `fetch` to throw an error when a relative path is passed.
+
+```js
+setGlobalOrigin('http://localhost:3000')
+
+const response = await fetch('/api/ping')
+
+console.log(response.url) // http://localhost:3000/api/ping
+```
+
+### `undici.getGlobalOrigin()`
+
+Gets the global origin used in `fetch`.
+
+Returns: `URL`
+
 ### `UrlObject`
 
 * **port** `string | number` (optional)
@@ -301,7 +365,7 @@ Returns: `Dispatcher`
 
 ## Specification Compliance
 
-This section documents parts of the HTTP/1.1 specification which Undici does
+This section documents parts of the HTTP/1.1 specification that Undici does
 not support or does not fully implement.
 
 ### Expect
@@ -334,7 +398,7 @@ aborted.
 
 ### Manual Redirect
 
-Since it is not possible to manually follow an HTTP redirect on server-side,
+Since it is not possible to manually follow an HTTP redirect on the server-side,
 Undici returns the actual response instead of an `opaqueredirect` filtered one
 when invoked with a `manual` redirect. This aligns `fetch()` with the other
 implementations in Deno and Cloudflare Workers.
@@ -346,6 +410,7 @@ Refs: https://fetch.spec.whatwg.org/#atomic-http-redirect-handling
 * [__Daniele Belardi__](https://github.com/dnlup), <https://www.npmjs.com/~dnlup>
 * [__Ethan Arrowood__](https://github.com/ethan-arrowood), <https://www.npmjs.com/~ethan_arrowood>
 * [__Matteo Collina__](https://github.com/mcollina), <https://www.npmjs.com/~matteo.collina>
+* [__Matthew Aitken__](https://github.com/KhafraDev), <https://www.npmjs.com/~khaf>
 * [__Robert Nagy__](https://github.com/ronag), <https://www.npmjs.com/~ronag>
 * [__Szymon Marczak__](https://github.com/szmarczak), <https://www.npmjs.com/~szmarczak>
 * [__Tomas Della Vedova__](https://github.com/delvedor), <https://www.npmjs.com/~delvedor>

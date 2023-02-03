@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -37,7 +37,8 @@ my $proxy = TLSProxy::Proxy->new(
 
 use constant {
     CHANGE_HRR_CIPHERSUITE => 0,
-    CHANGE_CH1_CIPHERSUITE => 1
+    CHANGE_CH1_CIPHERSUITE => 1,
+    DUPLICATE_HRR => 2
 };
 
 #Test 1: A client should fail if the server changes the ciphersuite between the
@@ -50,7 +51,7 @@ if (disabled("ec")) {
 }
 my $testtype = CHANGE_HRR_CIPHERSUITE;
 $proxy->start() or plan skip_all => "Unable to start up Proxy for tests";
-plan tests => 2;
+plan tests => 3;
 ok(TLSProxy::Message->fail(), "Server ciphersuite changes");
 
 #Test 2: It is an error if the client changes the offered ciphersuites so that
@@ -65,6 +66,19 @@ $proxy->ciphersuitess("TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384");
 $testtype = CHANGE_CH1_CIPHERSUITE;
 $proxy->start();
 ok(TLSProxy::Message->fail(), "Client ciphersuite changes");
+
+#Test 3: A client should fail with unexpected_message alert if the server
+#        sends more than 1 HRR
+my $fatal_alert = 0;
+$proxy->clear();
+if (disabled("ec")) {
+    $proxy->serverflags("-curves ffdhe3072");
+} else {
+    $proxy->serverflags("-curves P-256");
+}
+$testtype = DUPLICATE_HRR;
+$proxy->start();
+ok($fatal_alert, "Server duplicated HRR");
 
 sub hrr_filter
 {
@@ -83,6 +97,39 @@ sub hrr_filter
         # the ciphersuite will change will we get the ServerHello
         $hrr->ciphersuite(TLSProxy::Message::CIPHER_TLS13_AES_256_GCM_SHA384);
         $hrr->repack();
+        return;
+    }
+
+    if ($testtype == DUPLICATE_HRR) {
+        # We're only interested in the HRR
+        # and the unexpected_message alert from client
+        if ($proxy->flight == 4) {
+            $fatal_alert = 1
+                if @{$proxy->record_list}[-1]->is_fatal_alert(0) == 10;
+            return;
+        }
+        if ($proxy->flight != 3) {
+            return;
+        }
+
+        # Find ServerHello record (HRR actually) and insert after that
+        my $i;
+        for ($i = 0; ${$proxy->record_list}[$i]->flight() < 1; $i++) {
+            next;
+        }
+        my $hrr_record = ${$proxy->record_list}[$i];
+        my $dup_hrr = TLSProxy::Record->new(3,
+            $hrr_record->content_type(),
+            $hrr_record->version(),
+            $hrr_record->len(),
+            $hrr_record->sslv2(),
+            $hrr_record->len_real(),
+            $hrr_record->decrypt_len(),
+            $hrr_record->data(),
+            $hrr_record->decrypt_data());
+
+        $i++;
+        splice @{$proxy->record_list}, $i, 0, $dup_hrr;
         return;
     }
 

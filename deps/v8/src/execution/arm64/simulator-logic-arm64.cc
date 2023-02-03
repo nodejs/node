@@ -18,7 +18,7 @@ inline double FPRoundToDouble(int64_t sign, int64_t exponent, uint64_t mantissa,
                               FPRounding round_mode) {
   uint64_t bits = FPRound<uint64_t, kDoubleExponentBits, kDoubleMantissaBits>(
       sign, exponent, mantissa, round_mode);
-  return bit_cast<double>(bits);
+  return base::bit_cast<double>(bits);
 }
 
 // See FPRound for a description of this function.
@@ -26,7 +26,7 @@ inline float FPRoundToFloat(int64_t sign, int64_t exponent, uint64_t mantissa,
                             FPRounding round_mode) {
   uint32_t bits = FPRound<uint32_t, kFloatExponentBits, kFloatMantissaBits>(
       sign, exponent, mantissa, round_mode);
-  return bit_cast<float>(bits);
+  return base::bit_cast<float>(bits);
 }
 
 // See FPRound for a description of this function.
@@ -101,7 +101,7 @@ double Simulator::FPToDouble(float value) {
       //  - The mantissa is transferred entirely, except that the top bit is
       //    forced to '1', making the result a quiet NaN. The unused (low-order)
       //    mantissa bits are set to 0.
-      uint32_t raw = bit_cast<uint32_t>(value);
+      uint32_t raw = base::bit_cast<uint32_t>(value);
 
       uint64_t sign = raw >> 31;
       uint64_t exponent = (1 << kDoubleExponentBits) - 1;
@@ -306,7 +306,7 @@ float Simulator::FPToFloat(double value, FPRounding round_mode) {
       //  - The mantissa is transferred as much as possible, except that the
       //    top bit is forced to '1', making the result a quiet NaN.
 
-      uint64_t raw = bit_cast<uint64_t>(value);
+      uint64_t raw = base::bit_cast<uint64_t>(value);
 
       uint32_t sign = raw >> 63;
       uint32_t exponent = (1 << 8) - 1;
@@ -1659,7 +1659,7 @@ LogicVRegister Simulator::suqadd(VectorFormat vform, LogicVRegister dst,
     uint64_t ub = src.UintLeftJustified(vform, i);
     uint64_t ur = sa + ub;
 
-    int64_t sr = bit_cast<int64_t>(ur);
+    int64_t sr = base::bit_cast<int64_t>(ur);
     if (sr < sa) {  // Test for signed positive saturation.
       dst.SetInt(vform, i, MaxIntFromFormat(vform));
     } else {
@@ -3446,12 +3446,12 @@ LogicVRegister Simulator::fcmp_zero(VectorFormat vform, LogicVRegister dst,
   SimVRegister temp;
   if (LaneSizeInBytesFromFormat(vform) == kSRegSize) {
     LogicVRegister zero_reg =
-        dup_immediate(vform, temp, bit_cast<uint32_t>(0.0f));
+        dup_immediate(vform, temp, base::bit_cast<uint32_t>(0.0f));
     fcmp<float>(vform, dst, src, zero_reg, cond);
   } else {
     DCHECK_EQ(LaneSizeInBytesFromFormat(vform), kDRegSize);
     LogicVRegister zero_reg =
-        dup_immediate(vform, temp, bit_cast<uint64_t>(0.0));
+        dup_immediate(vform, temp, base::bit_cast<uint64_t>(0.0));
     fcmp<double>(vform, dst, src, zero_reg, cond);
   }
   return dst;
@@ -3951,7 +3951,7 @@ T Simulator::FPRecipSqrtEstimate(T op) {
       result_exp = (3068 - exp) / 2;
     }
 
-    uint64_t estimate = bit_cast<uint64_t>(recip_sqrt_estimate(scaled));
+    uint64_t estimate = base::bit_cast<uint64_t>(recip_sqrt_estimate(scaled));
 
     if (sizeof(T) == sizeof(float)) {
       uint32_t exp_bits = static_cast<uint32_t>(Bits(result_exp, 7, 0));

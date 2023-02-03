@@ -146,21 +146,11 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<pre lang="bash"><code>npm cache add &lt;tarball file&gt;
-npm cache add &lt;folder&gt;
-npm cache add &lt;tarball url&gt;
-npm cache add &lt;git url&gt;
-npm cache add &lt;name&gt;@&lt;version&gt;
+<pre><code class="language-bash">npm cache add &lt;package-spec&gt;
 npm cache clean [&lt;key&gt;]
 npm cache ls [&lt;name&gt;@&lt;version&gt;]
 npm cache verify
 </code></pre>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
 <p>Used to add, list, or clean the npm cache folder.</p>
@@ -210,20 +200,15 @@ cache makes is that, if it does return data, that data will be exactly the
 data that was inserted.</p>
 <p>To run an offline verification of existing cache contents, use <code>npm cache verify</code>.</p>
 <h3 id="configuration">Configuration</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="cache"><code>cache</code></h4>
 <ul>
 <li>Default: Windows: <code>%LocalAppData%\npm-cache</code>, Posix: <code>~/.npm</code></li>
 <li>Type: Path</li>
 </ul>
-<p>The location of npm's cache directory. See <a href="../commands/npm-cache.html"><code>npm cache</code></a></p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
+<p>The location of npm's cache directory.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
+<li><a href="../using-npm/package-spec.html">package spec</a></li>
 <li><a href="../configuring-npm/folders.html">npm folders</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
@@ -234,8 +219,7 @@ data that was inserted.</p>
 <li><a href="https://npm.im/pacote">https://npm.im/pacote</a></li>
 <li><a href="https://npm.im/@npmcli/arborist">https://npm.im/@npmcli/arborist</a></li>
 <li><a href="https://npm.im/make-fetch-happen">https://npm.im/make-fetch-happen</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-cache.md">

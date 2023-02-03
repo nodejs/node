@@ -29,11 +29,8 @@
 
 #include <vector>
 
-#include "include/v8-initialization.h"
 #include "src/api/api-inl.h"
 #include "src/base/bit-field.h"
-#include "src/base/platform/platform.h"
-#include "src/init/v8.h"
 #include "src/numbers/conversions.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/collector.h"
@@ -181,7 +178,7 @@ TEST(MemMove) {
   static const int kMinOffset = 32;
   static const int kMaxOffset = 64;
   static const int kMaxLength = 128;
-  STATIC_ASSERT(kMaxOffset + kMaxLength < kAreaSize);
+  static_assert(kMaxOffset + kMaxLength < kAreaSize);
 
   for (int src_offset = kMinOffset; src_offset <= kMaxOffset; src_offset++) {
     for (int dst_offset = kMinOffset; dst_offset <= kMaxOffset; dst_offset++) {

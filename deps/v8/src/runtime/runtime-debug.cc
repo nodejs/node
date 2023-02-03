@@ -4,29 +4,21 @@
 
 #include <vector>
 
-#include "src/codegen/compiler.h"
 #include "src/common/globals.h"
 #include "src/debug/debug-coverage.h"
-#include "src/debug/debug-evaluate.h"
-#include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
-#include "src/deoptimizer/deoptimizer.h"
-#include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
-#include "src/logging/counters.h"
-#include "src/objects/debug-objects-inl.h"
-#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
+#include "src/objects/js-weak-refs-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded/embedded-data.h"
@@ -47,7 +39,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  Handle<Object> value = args.at(0);
   HandleScope scope(isolate);
 
   // Return value can be changed by debugger. Last set value will be used as
@@ -60,6 +52,14 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   if (isolate->debug_execution_mode() == DebugInfo::kBreakpoints) {
     isolate->debug()->Break(it.frame(),
                             handle(it.frame()->function(), isolate));
+  }
+
+  // If the user requested to restart a frame, there is no need
+  // to get the return value or check the bytecode for side-effects.
+  if (isolate->debug()->IsRestartFrameScheduled()) {
+    Object exception = isolate->TerminateExecution();
+    return MakePair(exception,
+                    Smi::FromInt(static_cast<uint8_t>(Bytecode::kIllegal)));
   }
 
   // Return the handler from the original bytecode array.
@@ -112,7 +112,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
 RUNTIME_FUNCTION(Runtime_DebugBreakAtEntry) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
   USE(function);
 
   DCHECK(function->shared().HasDebugInfo());
@@ -140,6 +140,9 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
     isolate->debug()->HandleDebugBreak(
         kIgnoreIfTopFrameBlackboxed,
         v8::debug::BreakReasons({v8::debug::BreakReason::kDebuggerStatement}));
+    if (isolate->debug()->IsRestartFrameScheduled()) {
+      return isolate->TerminateExecution();
+    }
   }
   return isolate->stack_guard()->HandleInterrupts();
 }
@@ -298,6 +301,13 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[PrimitiveValue]]"),
         handle(js_value->value(), isolate));
+  } else if (object->IsJSWeakRef()) {
+    Handle<JSWeakRef> js_weak_ref = Handle<JSWeakRef>::cast(object);
+
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[WeakRefTarget]]"),
+        handle(js_weak_ref->target(), isolate));
   } else if (object->IsJSArrayBuffer()) {
     Handle<JSArrayBuffer> js_array_buffer = Handle<JSArrayBuffer>::cast(object);
     if (js_array_buffer->was_detached()) {
@@ -354,7 +364,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
       Handle<Symbol> memory_symbol =
           isolate->factory()->array_buffer_wasm_memory_symbol();
       Handle<Object> memory_object =
-          JSObject::GetDataProperty(js_array_buffer, memory_symbol);
+          JSObject::GetDataProperty(isolate, js_array_buffer, memory_symbol);
       if (!memory_object->IsUndefined(isolate)) {
         result = ArrayList::Add(isolate, result,
                                 isolate->factory()->NewStringFromAsciiChecked(
@@ -385,7 +395,7 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeCount) {
   if (!args[0].IsJSGeneratorObject()) return Smi::zero();
 
   // Check arguments.
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
+  Handle<JSGeneratorObject> gen = args.at<JSGeneratorObject>(0);
 
   // Only inspect suspended generator scopes.
   if (!gen->is_suspended()) {
@@ -410,8 +420,8 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeDetails) {
   }
 
   // Check arguments.
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
-  CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
+  Handle<JSGeneratorObject> gen = args.at<JSGeneratorObject>(0);
+  int index = NumberToInt32(args[1]);
 
   // Only inspect suspended generator scopes.
   if (!gen->is_suspended()) {
@@ -453,10 +463,10 @@ static bool SetScopeVariableValue(ScopeIterator* it, int index,
 RUNTIME_FUNCTION(Runtime_SetGeneratorScopeVariableValue) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
-  CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
-  CONVERT_ARG_HANDLE_CHECKED(String, variable_name, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, new_value, 3);
+  Handle<JSGeneratorObject> gen = args.at<JSGeneratorObject>(0);
+  int index = NumberToInt32(args[1]);
+  Handle<String> variable_name = args.at<String>(2);
+  Handle<Object> new_value = args.at(3);
   ScopeIterator it(isolate, gen);
   bool res = SetScopeVariableValue(&it, index, variable_name, new_value);
   return isolate->heap()->ToBoolean(res);
@@ -467,7 +477,7 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CHECK(isolate->debug()->is_active());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+  Handle<JSFunction> fun = args.at<JSFunction>(0);
 
   Handle<SharedFunctionInfo> shared(fun->shared(), isolate);
   // Find the number of break points
@@ -487,7 +497,7 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
 RUNTIME_FUNCTION(Runtime_IsBreakOnException) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_NUMBER_CHECKED(uint32_t, type_arg, Uint32, args[0]);
+  uint32_t type_arg = NumberToUint32(args[0]);
 
   ExceptionBreakType type = static_cast<ExceptionBreakType>(type_arg);
   bool result = isolate->debug()->IsBreakOnException(type);
@@ -529,7 +539,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetInferredName) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
 
-  CONVERT_ARG_CHECKED(Object, f, 0);
+  Object f = args[0];
   if (f.IsJSFunction()) {
     return JSFunction::cast(f).shared().inferred_name();
   }
@@ -670,10 +680,10 @@ bool GetScriptById(Isolate* isolate, int needle, Handle<Script>* result) {
 RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine2) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_NUMBER_CHECKED(int32_t, scriptid, Int32, args[0]);
-  CONVERT_ARG_HANDLE_CHECKED(Object, opt_line, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, opt_column, 2);
-  CONVERT_NUMBER_CHECKED(int32_t, offset, Int32, args[3]);
+  int32_t scriptid = NumberToInt32(args[0]);
+  Handle<Object> opt_line = args.at(1);
+  Handle<Object> opt_column = args.at(2);
+  int32_t offset = NumberToInt32(args[3]);
 
   Handle<Script> script;
   CHECK(GetScriptById(isolate, scriptid, &script));
@@ -686,8 +696,8 @@ RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine2) {
 RUNTIME_FUNCTION(Runtime_DebugOnFunctionCall) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
+  Handle<JSFunction> fun = args.at<JSFunction>(0);
+  Handle<Object> receiver = args.at(1);
   if (isolate->debug()->needs_check_on_function_call()) {
     // Ensure that the callee will perform debug check on function call too.
     Handle<SharedFunctionInfo> shared(fun->shared(), isolate);
@@ -716,7 +726,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInSuspendedGenerator) {
 RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  Handle<JSObject> promise = args.at<JSObject>(0);
   isolate->PushPromise(promise);
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -800,7 +810,7 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
 
 RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
   SealHandleScope shs(isolate);
-  CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
+  bool enable = Oddball::cast(args[0]).ToBool(isolate);
   Coverage::SelectMode(isolate, enable ? debug::CoverageMode::kPreciseCount
                                        : debug::CoverageMode::kBestEffort);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -808,7 +818,7 @@ RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
 
 RUNTIME_FUNCTION(Runtime_DebugToggleBlockCoverage) {
   SealHandleScope shs(isolate);
-  CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
+  bool enable = Oddball::cast(args[0]).ToBool(isolate);
   Coverage::SelectMode(isolate, enable ? debug::CoverageMode::kBlockCount
                                        : debug::CoverageMode::kBestEffort);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -818,42 +828,58 @@ RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
   UNREACHABLE();  // Never called. See the IncBlockCounter builtin instead.
 }
 
-RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionEntered) {
-  DCHECK_EQ(1, args.length());
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  isolate->RunPromiseHook(PromiseHookType::kInit, promise,
-                          isolate->factory()->undefined_value());
-  if (isolate->debug()->is_active()) isolate->PushPromise(promise);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(5, args.length());
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  isolate->PopPromise();
-  isolate->OnAsyncFunctionStateChanged(promise, debug::kAsyncFunctionSuspended);
-  return ReadOnlyRoots(isolate).undefined_value();
+  Handle<JSPromise> promise = args.at<JSPromise>(0);
+  Handle<JSPromise> outer_promise = args.at<JSPromise>(1);
+  Handle<JSFunction> reject_handler = args.at<JSFunction>(2);
+  Handle<JSGeneratorObject> generator = args.at<JSGeneratorObject>(3);
+  bool is_predicted_as_caught = Oddball::cast(args[4]).ToBool(isolate);
+
+  // Allocate the throwaway promise and fire the appropriate init
+  // hook for the throwaway promise (passing the {promise} as its
+  // parent).
+  Handle<JSPromise> throwaway = isolate->factory()->NewJSPromiseWithoutHook();
+  isolate->OnAsyncFunctionSuspended(throwaway, promise);
+
+  // The Promise will be thrown away and not handled, but it
+  // shouldn't trigger unhandled reject events as its work is done
+  throwaway->set_has_handler(true);
+
+  // Enable proper debug support for promises.
+  if (isolate->debug()->is_active()) {
+    Object::SetProperty(isolate, reject_handler,
+                        isolate->factory()->promise_forwarding_handler_symbol(),
+                        isolate->factory()->true_value(),
+                        StoreOrigin::kMaybeKeyed,
+                        Just(ShouldThrow::kThrowOnError))
+        .Check();
+    promise->set_handled_hint(is_predicted_as_caught);
+
+    // Mark the dependency to {outer_promise} in case the {throwaway}
+    // Promise is found on the Promise stack
+    Object::SetProperty(isolate, throwaway,
+                        isolate->factory()->promise_handled_by_symbol(),
+                        outer_promise, StoreOrigin::kMaybeKeyed,
+                        Just(ShouldThrow::kThrowOnError))
+        .Check();
+
+    Object::SetProperty(
+        isolate, promise, isolate->factory()->promise_awaited_by_symbol(),
+        generator, StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError))
+        .Check();
+  }
+
+  return *throwaway;
 }
 
-RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionResumed) {
+RUNTIME_FUNCTION(Runtime_DebugPromiseThen) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  isolate->PushPromise(promise);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionFinished) {
-  DCHECK_EQ(2, args.length());
-  HandleScope scope(isolate);
-  CONVERT_BOOLEAN_ARG_CHECKED(has_suspend, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 1);
-  isolate->PopPromise();
-  if (has_suspend) {
-    isolate->OnAsyncFunctionStateChanged(promise,
-                                         debug::kAsyncFunctionFinished);
+  Handle<JSReceiver> promise = args.at<JSReceiver>(0);
+  if (promise->IsJSPromise()) {
+    isolate->OnPromiseThen(Handle<JSPromise>::cast(promise));
   }
   return *promise;
 }
@@ -861,13 +887,14 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionFinished) {
 RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, script_function, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, new_source, 1);
+  Handle<JSFunction> script_function = args.at<JSFunction>(0);
+  Handle<String> new_source = args.at<String>(1);
 
   Handle<Script> script(Script::cast(script_function->shared().script()),
                         isolate);
   v8::debug::LiveEditResult result;
-  LiveEdit::PatchScript(isolate, script, new_source, false, &result);
+  LiveEdit::PatchScript(isolate, script, new_source, /* preview */ false,
+                        /* allow_top_frame_live_editing */ false, &result);
   switch (result.status) {
     case v8::debug::LiveEditResult::COMPILE_ERROR:
       return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
@@ -891,7 +918,7 @@ RUNTIME_FUNCTION(Runtime_ProfileCreateSnapshotDataBlob) {
   // Used only by the test/memory/Memory.json benchmark. This creates a snapshot
   // blob and outputs various statistics around it.
 
-  DCHECK(FLAG_profile_deserialization && FLAG_serialization_statistics);
+  DCHECK(v8_flags.profile_deserialization && v8_flags.serialization_statistics);
 
   DisableEmbeddedBlobRefcounting();
 

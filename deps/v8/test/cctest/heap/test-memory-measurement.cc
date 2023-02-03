@@ -132,10 +132,7 @@ namespace {
 
 class MockPlatform : public TestPlatform {
  public:
-  MockPlatform() : TestPlatform(), mock_task_runner_(new MockTaskRunner()) {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
-  }
+  MockPlatform() : mock_task_runner_(new MockTaskRunner()) {}
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate*) override {
@@ -199,14 +196,10 @@ class MockMeasureMemoryDelegate : public v8::MeasureMemoryDelegate {
 
 }  // namespace
 
-TEST(RandomizedTimeout) {
-  MockPlatform platform;
+TEST_WITH_PLATFORM(RandomizedTimeout, MockPlatform) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  // We have to create the isolate manually here. Using CcTest::isolate() would
-  // lead to the situation when the isolate outlives MockPlatform which may lead
-  // to UAF on the background thread.
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  v8::Isolate* isolate = CcTest::isolate();
   std::vector<double> delays;
   for (int i = 0; i < 10; i++) {
     isolate->MeasureMemory(std::make_unique<MockMeasureMemoryDelegate>());
@@ -214,7 +207,6 @@ TEST(RandomizedTimeout) {
     platform.PerformTask();
   }
   std::sort(delays.begin(), delays.end());
-  isolate->Dispose();
   CHECK_LT(delays[0], delays.back());
 }
 

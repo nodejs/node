@@ -144,7 +144,7 @@ u_uastrncpy(UChar *ucs1,
                    &s2,
                    s2+u_astrnlen(s2, n),
                    NULL,
-                   TRUE,
+                   true,
                    &err);
     ucnv_reset(cnv); /* be good citizens */
     u_releaseDefaultConverter(cnv);
@@ -216,7 +216,7 @@ u_austrncpy(char *s1,
                   &ucs2,
                   ucs2+u_ustrnlen(ucs2, n),
                   NULL,
-                  TRUE,
+                  true,
                   &err);
     ucnv_reset(cnv); /* be good citizens */
     u_releaseDefaultConverter(cnv);

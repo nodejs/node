@@ -93,7 +93,7 @@ inline void CallOnce(OnceType* once, std::function<void()> init_func) {
 }
 
 template <typename... Args, typename = std::enable_if_t<
-                                conjunction<std::is_scalar<Args>...>::value>>
+                                std::conjunction_v<std::is_scalar<Args>...>>>
 inline void CallOnce(OnceType* once,
                      typename FunctionWithArgs<Args...>::type init_func,
                      Args... args) {

@@ -8,7 +8,7 @@
 
 The `timer` module exposes a global API for scheduling functions to
 be called at some future period of time. Because the timer functions are
-globals, there is no need to call `require('timers')` to use the API.
+globals, there is no need to call `require('node:timers')` to use the API.
 
 The timer functions within Node.js implement a similar API as the timers API
 provided by Web Browsers but use a different internal implementation that is
@@ -169,7 +169,7 @@ event loop is doing.
 <!-- YAML
 added: v0.9.1
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -200,7 +200,7 @@ This method has a custom variant for promises that is available using
 <!-- YAML
 added: v0.0.1
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -228,7 +228,7 @@ This method has a custom variant for promises that is available using
 <!-- YAML
 added: v0.0.1
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -269,7 +269,7 @@ returned Promises will be rejected with an `'AbortError'`.
 For `setImmediate()`:
 
 ```js
-const { setImmediate: setImmediatePromise } = require('timers/promises');
+const { setImmediate: setImmediatePromise } = require('node:timers/promises');
 
 const ac = new AbortController();
 const signal = ac.signal;
@@ -278,7 +278,7 @@ setImmediatePromise('foobar', { signal })
   .then(console.log)
   .catch((err) => {
     if (err.name === 'AbortError')
-      console.log('The immediate was aborted');
+      console.error('The immediate was aborted');
   });
 
 ac.abort();
@@ -287,7 +287,7 @@ ac.abort();
 For `setTimeout()`:
 
 ```js
-const { setTimeout: setTimeoutPromise } = require('timers/promises');
+const { setTimeout: setTimeoutPromise } = require('node:timers/promises');
 
 const ac = new AbortController();
 const signal = ac.signal;
@@ -296,7 +296,7 @@ setTimeoutPromise(1000, 'foobar', { signal })
   .then(console.log)
   .catch((err) => {
     if (err.name === 'AbortError')
-      console.log('The timeout was aborted');
+      console.error('The timeout was aborted');
   });
 
 ac.abort();
@@ -347,7 +347,7 @@ changes:
 
 The `timers/promises` API provides an alternative set of timer functions
 that return `Promise` objects. The API is accessible via
-`require('timers/promises')`.
+`require('node:timers/promises')`.
 
 ```mjs
 import {
@@ -362,7 +362,7 @@ const {
   setTimeout,
   setImmediate,
   setInterval,
-} = require('timers/promises');
+} = require('node:timers/promises');
 ```
 
 ### `timersPromises.setTimeout([delay[, value[, options]]])`
@@ -394,7 +394,7 @@ console.log(res);  // Prints 'result'
 ```cjs
 const {
   setTimeout,
-} = require('timers/promises');
+} = require('node:timers/promises');
 
 setTimeout(100, 'result').then((res) => {
   console.log(res);  // Prints 'result'
@@ -428,7 +428,7 @@ console.log(res);  // Prints 'result'
 ```cjs
 const {
   setImmediate,
-} = require('timers/promises');
+} = require('node:timers/promises');
 
 setImmediate('result').then((res) => {
   console.log(res);  // Prints 'result'
@@ -442,6 +442,8 @@ added: v15.9.0
 -->
 
 Returns an async iterator that generates values in an interval of `delay` ms.
+If `ref` is `true`, you need to call `next()` of async iterator explicitly
+or implicitly to keep the event loop alive.
 
 * `delay` {number} The number of milliseconds to wait between iterations.
   **Default:** `1`.
@@ -472,7 +474,7 @@ console.log(Date.now());
 ```cjs
 const {
   setInterval,
-} = require('timers/promises');
+} = require('node:timers/promises');
 const interval = 100;
 
 (async function() {
@@ -511,7 +513,7 @@ to calling `timersPromises.setTimeout(delay, undefined, options)` except that
 the `ref` option is not supported.
 
 ```mjs
-import { scheduler } from 'timers/promises';
+import { scheduler } from 'node:timers/promises';
 
 await scheduler.wait(1000); // Wait one second before continuing
 ```

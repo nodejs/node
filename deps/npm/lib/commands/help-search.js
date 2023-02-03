@@ -1,25 +1,26 @@
 const fs = require('fs')
 const path = require('path')
-const color = require('ansicolors')
+const chalk = require('chalk')
 const { promisify } = require('util')
 const glob = promisify(require('glob'))
 const readFile = promisify(fs.readFile)
 const BaseCommand = require('../base-command.js')
+
+const globify = pattern => pattern.split('\\').join('/')
 
 class HelpSearch extends BaseCommand {
   static description = 'Search npm help documentation'
   static name = 'help-search'
   static usage = ['<text>']
   static params = ['long']
-  static ignoreImplicitWorkspace = true
 
   async exec (args) {
     if (!args.length) {
       throw this.usageError()
     }
 
-    const docPath = path.resolve(__dirname, '..', '..', 'docs/content')
-    const files = await glob(`${docPath}/*/*.md`)
+    const docPath = path.resolve(this.npm.npmRoot, 'docs/content')
+    const files = await glob(`${globify(docPath)}/*/*.md`)
     const data = await this.readFiles(files)
     const results = await this.searchFiles(args, data, files)
     const formatted = this.formatResults(args, results)
@@ -140,7 +141,7 @@ class HelpSearch extends BaseCommand {
   formatResults (args, results) {
     const cols = Math.min(process.stdout.columns || Infinity, 80) + 1
 
-    const out = results.map(res => {
+    const output = results.map(res => {
       const out = [res.cmd]
       const r = Object.keys(res.hits)
         .map(k => `${k}:${res.hits[k]}`)
@@ -171,9 +172,9 @@ class HelpSearch extends BaseCommand {
           const finder = line.toLowerCase().split(arg.toLowerCase())
           let p = 0
           for (const f of finder) {
-            hilitLine.push(line.substr(p, f.length))
-            const word = line.substr(p + f.length, arg.length)
-            const hilit = color.bgBlack(color.red(word))
+            hilitLine.push(line.slice(p, p + f.length))
+            const word = line.slice(p + f.length, p + f.length + arg.length)
+            const hilit = chalk.bgBlack.red(word)
             hilitLine.push(hilit)
             p += f.length + arg.length
           }
@@ -187,10 +188,10 @@ class HelpSearch extends BaseCommand {
     const finalOut = results.length && !this.npm.config.get('long')
       ? 'Top hits for ' + (args.map(JSON.stringify).join(' ')) + '\n' +
       '—'.repeat(cols - 1) + '\n' +
-      out + '\n' +
+      output + '\n' +
       '—'.repeat(cols - 1) + '\n' +
       '(run with -l or --long to see more context)'
-      : out
+      : output
 
     return finalOut.trim()
   }

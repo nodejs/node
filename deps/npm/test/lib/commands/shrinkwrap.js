@@ -13,7 +13,9 @@ t.formatSnapshot = obj =>
     (k, v) => {
       try {
         return JSON.parse(v)
-      } catch {}
+      } catch {
+        // leave invalid JSON as a string
+      }
       return v
     },
     2
@@ -110,8 +112,8 @@ const NOTICES = {
 t.test('with nothing', t =>
   shrinkwrapMatrix(t, null, {
     ancient: {
-      shrinkwrap: { lockfileVersion: 2 },
-      logs: NOTICES.CREATED(2),
+      shrinkwrap: { lockfileVersion: 3 },
+      logs: NOTICES.CREATED(3),
     },
     ancientUpgrade: {
       shrinkwrap: { lockfileVersion: 3 },
@@ -123,8 +125,8 @@ t.test('with nothing', t =>
 t.test('with package-lock.json', t =>
   shrinkwrapMatrix(t, 'package-lock', {
     ancient: {
-      shrinkwrap: { lockfileVersion: 2 },
-      logs: NOTICES.RENAMED(2),
+      shrinkwrap: { lockfileVersion: 3 },
+      logs: NOTICES.RENAMED(3),
     },
     ancientUpgrade: {
       shrinkwrap: { lockfileVersion: 3 },
@@ -148,8 +150,8 @@ t.test('with package-lock.json', t =>
 t.test('with npm-shrinkwrap.json', t =>
   shrinkwrapMatrix(t, 'npm-shrinkwrap', {
     ancient: {
-      shrinkwrap: { lockfileVersion: 2 },
-      logs: NOTICES.UPDATED(2),
+      shrinkwrap: { lockfileVersion: 3 },
+      logs: NOTICES.UPDATED(3),
     },
     ancientUpgrade: {
       shrinkwrap: { lockfileVersion: 3 },

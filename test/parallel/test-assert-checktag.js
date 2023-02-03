@@ -1,5 +1,10 @@
 'use strict';
-require('../common');
+const common = require('../common');
+
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+}
+
 const assert = require('assert');
 
 // Disable colored output to prevent color codes from breaking assertion

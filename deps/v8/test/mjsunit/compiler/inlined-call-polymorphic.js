@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --opt
+// Flags: --allow-natives-syntax --turbofan
 
 function make_closure() { return () => { return 42; } }
 %PrepareFunctionForOptimization(make_closure);
@@ -19,7 +19,7 @@ inline_polymorphic(make_closure());
 // Compile using top tier since we need value numbering phase for the
 // TurbofanStaticAssert to deduce answer is 42 at compile time. In Turboprop
 // this phase is disabled.
-%OptimizeFunctionForTopTier(inline_polymorphic);
+%OptimizeFunctionOnNextCall(inline_polymorphic);
 inline_polymorphic(make_closure());
 
 try {

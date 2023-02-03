@@ -322,22 +322,22 @@ class TimeBase : public TimeConstants {
   }
 
   // Comparison operators
-  bool operator==(TimeClass other) const {
+  bool operator==(const TimeBase<TimeClass>& other) const {
     return us_ == other.us_;
   }
-  bool operator!=(TimeClass other) const {
+  bool operator!=(const TimeBase<TimeClass>& other) const {
     return us_ != other.us_;
   }
-  bool operator<(TimeClass other) const {
+  bool operator<(const TimeBase<TimeClass>& other) const {
     return us_ < other.us_;
   }
-  bool operator<=(TimeClass other) const {
+  bool operator<=(const TimeBase<TimeClass>& other) const {
     return us_ <= other.us_;
   }
-  bool operator>(TimeClass other) const {
+  bool operator>(const TimeBase<TimeClass>& other) const {
     return us_ > other.us_;
   }
-  bool operator>=(TimeClass other) const {
+  bool operator>=(const TimeBase<TimeClass>& other) const {
     return us_ >= other.us_;
   }
 
@@ -432,11 +432,6 @@ class V8_BASE_EXPORT TimeTicks final
   // microsecond.
   // This method never returns a null TimeTicks.
   static TimeTicks Now();
-
-  // This is equivalent to Now() but DCHECKs that IsHighResolution(). Useful for
-  // test frameworks that rely on high resolution clocks (in practice all
-  // platforms but low-end Windows devices have high resolution clocks).
-  static TimeTicks HighResolutionNow();
 
   // Returns true if the high-resolution clock is working on this system.
   static bool IsHighResolution();

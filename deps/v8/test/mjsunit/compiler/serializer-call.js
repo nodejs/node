@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
 
 function call(cb) {
   return cb.call(this, 42);
@@ -23,5 +23,5 @@ function bar() {
 %PrepareFunctionForOptimization(call);
 assertTrue(bar());
 assertTrue(bar());
-%OptimizeFunctionForTopTier(bar);
+%OptimizeFunctionOnNextCall(bar);
 assertFalse(bar());

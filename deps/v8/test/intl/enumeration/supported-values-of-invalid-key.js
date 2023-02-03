@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony_intl_enumeration
-
 // Test invalid keys
 ["calendars", "collations", "currencies", "numberingSystems", "timeZones", "units",
  1, 0.3, true, false, {}, [] ].forEach(

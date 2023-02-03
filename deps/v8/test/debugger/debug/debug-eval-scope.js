@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-always-opt
+// Flags: --no-always-turbofan
 
 // Test that the (strict) eval scope is visible to the debugger.
 

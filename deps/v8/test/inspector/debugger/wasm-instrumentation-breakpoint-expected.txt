@@ -82,3 +82,69 @@ Paused at wasm://wasm/c8e3a856 with reason "instrumentation".
 Script wasm://wasm/c8e3a856 byte offset 33: Wasm opcode 0x01 (kExprNop)
 Hit breakpoints: []
 Done.
+
+Running test: testRemoveBeforeCompile
+Setting instrumentation breakpoint
+{
+    id : <messageId>
+    result : {
+        breakpointId : <breakpointId>
+    }
+}
+Remove instrumentation breakpoint..
+Compiling wasm module.
+Instantiating module should not trigger a break.
+Done.
+
+Running test: testRemoveBeforeInstantiate
+Setting instrumentation breakpoint
+{
+    id : <messageId>
+    result : {
+        breakpointId : <breakpointId>
+    }
+}
+Compiling wasm module.
+Paused at v8://test/compile_module with reason "instrumentation".
+Hit breakpoints: []
+Remove instrumentation breakpoint..
+Instantiating module should not trigger a break.
+Done.
+
+Running test: testRemoveAfterOnePause
+Setting instrumentation breakpoint
+{
+    id : <messageId>
+    result : {
+        breakpointId : <breakpointId>
+    }
+}
+Compiling wasm module.
+Paused at v8://test/compile_module with reason "instrumentation".
+Hit breakpoints: []
+Instantiating module should trigger a break.
+Paused at v8://test/instantiate with reason "instrumentation".
+Hit breakpoints: []
+Paused at wasm://wasm/20da547a with reason "instrumentation".
+Script wasm://wasm/20da547a byte offset 26: Wasm opcode 0x01 (kExprNop)
+Hit breakpoints: []
+Remove instrumentation breakpoint..
+Compiling another wasm module.
+Instantiating module should not trigger a break.
+Done.
+
+Running test: testDisableEnable
+Setting instrumentation breakpoint
+{
+    id : <messageId>
+    result : {
+        breakpointId : <breakpointId>
+    }
+}
+Compiling wasm module.
+Paused at v8://test/compile_module with reason "instrumentation".
+Hit breakpoints: []
+Disable debugger..
+Enable debugger
+Instantiating module should not trigger a break.
+Done.

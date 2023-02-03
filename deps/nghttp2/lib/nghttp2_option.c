@@ -90,6 +90,10 @@ void nghttp2_option_set_builtin_recv_extension_type(nghttp2_option *option,
     option->opt_set_mask |= NGHTTP2_OPT_BUILTIN_RECV_EXT_TYPES;
     option->builtin_recv_ext_types |= NGHTTP2_TYPEMASK_ORIGIN;
     return;
+  case NGHTTP2_PRIORITY_UPDATE:
+    option->opt_set_mask |= NGHTTP2_OPT_BUILTIN_RECV_EXT_TYPES;
+    option->builtin_recv_ext_types |= NGHTTP2_TYPEMASK_PRIORITY_UPDATE;
+    return;
   default:
     return;
   }
@@ -125,4 +129,17 @@ void nghttp2_option_set_max_outbound_ack(nghttp2_option *option, size_t val) {
 void nghttp2_option_set_max_settings(nghttp2_option *option, size_t val) {
   option->opt_set_mask |= NGHTTP2_OPT_MAX_SETTINGS;
   option->max_settings = val;
+}
+
+void nghttp2_option_set_server_fallback_rfc7540_priorities(
+    nghttp2_option *option, int val) {
+  option->opt_set_mask |= NGHTTP2_OPT_SERVER_FALLBACK_RFC7540_PRIORITIES;
+  option->server_fallback_rfc7540_priorities = val;
+}
+
+void nghttp2_option_set_no_rfc9113_leading_and_trailing_ws_validation(
+    nghttp2_option *option, int val) {
+  option->opt_set_mask |=
+      NGHTTP2_OPT_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION;
+  option->no_rfc9113_leading_and_trailing_ws_validation = val;
 }

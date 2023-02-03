@@ -5,11 +5,13 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const internalUtil = require('internal/util');
 const { internalBinding } = require('internal/test/binding');
-const binding = internalBinding('util');
+const {
+  privateSymbols: {
+    arrow_message_private_symbol,
+    decorated_private_symbol,
+  }
+} = internalBinding('util');
 const spawnSync = require('child_process').spawnSync;
-
-const kArrowMessagePrivateSymbolIndex = binding.arrow_message_private_symbol;
-const kDecoratedPrivateSymbolIndex = binding.decorated_private_symbol;
 
 const decorateErrorStack = internalUtil.decorateErrorStack;
 
@@ -73,9 +75,8 @@ const arrowMessage = 'arrow_message';
 err = new Error('foo');
 originalStack = err.stack;
 
-binding.setHiddenValue(err, kArrowMessagePrivateSymbolIndex, arrowMessage);
+err[arrow_message_private_symbol] = arrowMessage;
 decorateErrorStack(err);
 
 assert.strictEqual(err.stack, `${arrowMessage}${originalStack}`);
-assert.strictEqual(
-  binding.getHiddenValue(err, kDecoratedPrivateSymbolIndex), true);
+assert.strictEqual(err[decorated_private_symbol], true);

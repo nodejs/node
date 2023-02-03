@@ -4,7 +4,6 @@
 
 #include "src/snapshot/shared-heap-serializer.h"
 
-#include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/read-only-serializer.h"
@@ -44,6 +43,9 @@ SharedHeapSerializer::SharedHeapSerializer(
       serialized_objects_(isolate->heap())
 #endif
 {
+  if (ShouldReconstructSharedHeapObjectCacheForTesting()) {
+    ReconstructSharedHeapObjectCacheForTesting();
+  }
 }
 
 SharedHeapSerializer::~SharedHeapSerializer() {
@@ -58,17 +60,13 @@ void SharedHeapSerializer::FinalizeSerialization() {
   VisitRootPointer(Root::kSharedHeapObjectCache, nullptr,
                    FullObjectSlot(&undefined));
 
-  // When FLAG_shared_string_table is true, all internalized and
+  // When v8_flags.shared_string_table is true, all internalized and
   // internalizable-in-place strings are in the shared heap.
   SerializeStringTable(isolate()->string_table());
   SerializeDeferredObjects();
   Pad();
 
 #ifdef DEBUG
-  // During snapshotting there is no shared heap.
-  CHECK(!isolate()->is_shared());
-  CHECK_NULL(isolate()->shared_isolate());
-
   // Check that all serialized object are in shared heap and not RO. RO objects
   // should be in the RO snapshot.
   IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope it_scope(
@@ -90,6 +88,26 @@ bool SharedHeapSerializer::SerializeUsingSharedHeapObjectCache(
     SnapshotByteSink* sink, Handle<HeapObject> obj) {
   if (!ShouldBeInSharedHeapObjectCache(*obj)) return false;
   int cache_index = SerializeInObjectCache(obj);
+
+  // When testing deserialization of a snapshot from a live Isolate where there
+  // is also a shared Isolate, the shared object cache needs to be extended
+  // because the live isolate may have had new internalized strings that were
+  // not present in the startup snapshot to be serialized.
+  if (ShouldReconstructSharedHeapObjectCacheForTesting()) {
+    std::vector<Object>* existing_cache =
+        isolate()->shared_heap_isolate()->shared_heap_object_cache();
+    const size_t existing_cache_size = existing_cache->size();
+    // This is strictly < because the existing cache contains the terminating
+    // undefined value, which the reconstructed cache does not.
+    DCHECK_LT(base::checked_cast<size_t>(cache_index), existing_cache_size);
+    if (base::checked_cast<size_t>(cache_index) == existing_cache_size - 1) {
+      ReadOnlyRoots roots(isolate());
+      DCHECK(existing_cache->back().IsUndefined(roots));
+      existing_cache->back() = *obj;
+      existing_cache->push_back(roots.undefined_value());
+    }
+  }
+
   sink->Put(kSharedHeapObjectCache, "SharedHeapObjectCache");
   sink->PutInt(cache_index, "shared_heap_object_cache_index");
   return true;
@@ -150,15 +168,22 @@ void SharedHeapSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   // Objects in the shared heap cannot depend on per-Isolate roots but can
   // depend on RO roots since sharing objects requires sharing the RO space.
   DCHECK(CanBeInSharedOldSpace(*obj) || ReadOnlyHeap::Contains(*obj));
-
-  if (SerializeHotObject(obj)) return;
-  if (IsRootAndHasBeenSerialized(*obj) && SerializeRoot(obj)) return;
+  {
+    DisallowGarbageCollection no_gc;
+    HeapObject raw = *obj;
+    if (SerializeHotObject(raw)) return;
+    if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
+  }
   if (SerializeUsingReadOnlyObjectCache(&sink_, obj)) return;
-  if (SerializeBackReference(obj)) return;
+  {
+    DisallowGarbageCollection no_gc;
+    HeapObject raw = *obj;
+    if (SerializeBackReference(raw)) return;
+    CheckRehashability(raw);
 
-  CheckRehashability(*obj);
+    DCHECK(!ReadOnlyHeap::Contains(raw));
+  }
 
-  DCHECK(!ReadOnlyHeap::Contains(*obj));
   ObjectSerializer object_serializer(this, obj, &sink_);
   object_serializer.Serialize();
 
@@ -168,6 +193,31 @@ void SharedHeapSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   // later ignored.
   serialized_objects_.Insert(obj, 0);
 #endif
+}
+
+bool SharedHeapSerializer::ShouldReconstructSharedHeapObjectCacheForTesting()
+    const {
+  // When the live Isolate being serialized is not a client Isolate, there's no
+  // need to reconstruct the shared heap object cache because it is not actually
+  // shared.
+  return reconstruct_read_only_and_shared_object_caches_for_testing() &&
+         isolate()->has_shared_heap();
+}
+
+void SharedHeapSerializer::ReconstructSharedHeapObjectCacheForTesting() {
+  std::vector<Object>* cache =
+      isolate()->shared_heap_isolate()->shared_heap_object_cache();
+  // Don't reconstruct the final element, which is always undefined and marks
+  // the end of the cache, since serializing the live Isolate may extend the
+  // shared object cache.
+  for (size_t i = 0, size = cache->size(); i < size - 1; i++) {
+    Handle<HeapObject> obj(HeapObject::cast(cache->at(i)), isolate());
+    DCHECK(ShouldBeInSharedHeapObjectCache(*obj));
+    int cache_index = SerializeInObjectCache(obj);
+    USE(cache_index);
+    DCHECK_EQ(cache_index, i);
+  }
+  DCHECK(cache->back().IsUndefined(isolate()));
 }
 
 }  // namespace internal

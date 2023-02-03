@@ -5,8 +5,8 @@
 #ifndef V8_HEAP_CPPGC_GARBAGE_COLLECTOR_H_
 #define V8_HEAP_CPPGC_GARBAGE_COLLECTOR_H_
 
-#include "src/heap/cppgc/marker.h"
-#include "src/heap/cppgc/sweeper.h"
+#include "include/cppgc/common.h"
+#include "src/heap/cppgc/heap-config.h"
 
 namespace cppgc {
 namespace internal {
@@ -15,61 +15,16 @@ namespace internal {
 // needed to mock/fake GC for testing.
 class GarbageCollector {
  public:
-  struct Config {
-    using CollectionType = Marker::MarkingConfig::CollectionType;
-    using StackState = cppgc::Heap::StackState;
-    using MarkingType = Marker::MarkingConfig::MarkingType;
-    using SweepingType = Sweeper::SweepingConfig::SweepingType;
-    using FreeMemoryHandling = Sweeper::SweepingConfig::FreeMemoryHandling;
-    using IsForcedGC = Marker::MarkingConfig::IsForcedGC;
-
-    static constexpr Config ConservativeAtomicConfig() {
-      return {CollectionType::kMajor, StackState::kMayContainHeapPointers,
-              MarkingType::kAtomic, SweepingType::kAtomic};
-    }
-
-    static constexpr Config PreciseAtomicConfig() {
-      return {CollectionType::kMajor, StackState::kNoHeapPointers,
-              MarkingType::kAtomic, SweepingType::kAtomic};
-    }
-
-    static constexpr Config ConservativeIncrementalConfig() {
-      return {CollectionType::kMajor, StackState::kMayContainHeapPointers,
-              MarkingType::kIncremental, SweepingType::kAtomic};
-    }
-
-    static constexpr Config PreciseIncrementalConfig() {
-      return {CollectionType::kMajor, StackState::kNoHeapPointers,
-              MarkingType::kIncremental, SweepingType::kAtomic};
-    }
-
-    static constexpr Config
-    PreciseIncrementalMarkingConcurrentSweepingConfig() {
-      return {CollectionType::kMajor, StackState::kNoHeapPointers,
-              MarkingType::kIncremental,
-              SweepingType::kIncrementalAndConcurrent};
-    }
-
-    static constexpr Config MinorPreciseAtomicConfig() {
-      return {CollectionType::kMinor, StackState::kNoHeapPointers,
-              MarkingType::kAtomic, SweepingType::kAtomic};
-    }
-
-    CollectionType collection_type = CollectionType::kMajor;
-    StackState stack_state = StackState::kMayContainHeapPointers;
-    MarkingType marking_type = MarkingType::kAtomic;
-    SweepingType sweeping_type = SweepingType::kAtomic;
-    FreeMemoryHandling free_memory_handling = FreeMemoryHandling::kDoNotDiscard;
-    IsForcedGC is_forced_gc = IsForcedGC::kNotForced;
-  };
-
   // Executes a garbage collection specified in config.
-  virtual void CollectGarbage(Config) = 0;
-  virtual void StartIncrementalGarbageCollection(Config) = 0;
+  virtual void CollectGarbage(GCConfig) = 0;
+  virtual void StartIncrementalGarbageCollection(GCConfig) = 0;
 
   // The current epoch that the GC maintains. The epoch is increased on every
   // GC invocation.
   virtual size_t epoch() const = 0;
+
+  // Returns a non-null state if the stack state if overriden.
+  virtual const EmbedderStackState* override_stack_state() const = 0;
 };
 
 }  // namespace internal

@@ -128,7 +128,7 @@ bool AllocationSite::ShouldTrack(ElementsKind boilerplate_elements_kind) {
 
 inline bool AllocationSite::CanTrack(InstanceType type) {
   if (!V8_ALLOCATION_SITE_TRACKING_BOOL) return false;
-  if (FLAG_allocation_site_pretenuring) {
+  if (v8_flags.allocation_site_pretenuring) {
     // TurboFan doesn't care at all about String pretenuring feedback,
     // so don't bother even trying to track that.
     return type == JS_ARRAY_TYPE || type == JS_OBJECT_TYPE;
@@ -189,7 +189,7 @@ bool AllocationSite::IncrementMementoFoundCount(int increment) {
 }
 
 inline void AllocationSite::IncrementMementoCreateCount() {
-  DCHECK(FLAG_allocation_site_pretenuring);
+  DCHECK(v8_flags.allocation_site_pretenuring);
   int value = memento_create_count();
   set_memento_create_count(value + 1);
 }
@@ -230,7 +230,7 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
         if (update_or_check == AllocationSiteUpdateMode::kCheckOnly) {
           return true;
         }
-        if (FLAG_trace_track_allocation_sites) {
+        if (v8_flags.trace_track_allocation_sites) {
           bool is_nested = site->IsNested();
           PrintF("AllocationSite: JSArray %p boilerplate %supdated %s->%s\n",
                  reinterpret_cast<void*>(site->ptr()),
@@ -239,8 +239,9 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
         }
         CHECK_NE(to_kind, DICTIONARY_ELEMENTS);
         JSObject::TransitionElementsKind(boilerplate, to_kind);
-        site->dependent_code().DeoptimizeDependentCodeGroup(
-            isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
+        DependentCode::DeoptimizeDependencyGroups(
+            isolate, *site,
+            DependentCode::kAllocationSiteTransitionChangedGroup);
         result = true;
       }
     }
@@ -253,14 +254,14 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
     }
     if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {
       if (update_or_check == AllocationSiteUpdateMode::kCheckOnly) return true;
-      if (FLAG_trace_track_allocation_sites) {
+      if (v8_flags.trace_track_allocation_sites) {
         PrintF("AllocationSite: JSArray %p site updated %s->%s\n",
                reinterpret_cast<void*>(site->ptr()), ElementsKindToString(kind),
                ElementsKindToString(to_kind));
       }
       site->SetElementsKind(to_kind);
-      site->dependent_code().DeoptimizeDependentCodeGroup(
-          isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
+      DependentCode::DeoptimizeDependencyGroups(
+          isolate, *site, DependentCode::kAllocationSiteTransitionChangedGroup);
       result = true;
     }
   }

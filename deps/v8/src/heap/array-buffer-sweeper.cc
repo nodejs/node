@@ -7,8 +7,10 @@
 #include <atomic>
 #include <memory>
 
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/task-utils.h"
@@ -107,7 +109,6 @@ ArrayBufferSweeper::~ArrayBufferSweeper() {
 void ArrayBufferSweeper::EnsureFinished() {
   if (!sweeping_in_progress()) return;
 
-  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS);
   TryAbortResult abort_result =
       heap_->isolate()->cancelable_task_manager()->TryAbort(job_->id_);
 
@@ -153,7 +154,7 @@ void ArrayBufferSweeper::RequestSweep(SweepingType type) {
 
   Prepare(type);
   if (!heap_->IsTearingDown() && !heap_->ShouldReduceMemory() &&
-      FLAG_concurrent_array_buffer_sweeping) {
+      v8_flags.concurrent_array_buffer_sweeping) {
     auto task = MakeCancelableTask(heap_->isolate(), [this, type] {
       GCTracer::Scope::ScopeId scope_id =
           type == SweepingType::kYoung

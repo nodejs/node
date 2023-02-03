@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -50,7 +50,7 @@ int EVP_OpenInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
     if (EVP_PKEY_decrypt(pctx, key, &keylen, ek, ekl) <= 0)
         goto err;
 
-    if (!EVP_CIPHER_CTX_set_key_length(ctx, keylen)
+    if (EVP_CIPHER_CTX_set_key_length(ctx, keylen) <= 0
         || !EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv))
         goto err;
 

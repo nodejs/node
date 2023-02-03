@@ -21,7 +21,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require or disallow spacing around embedded expressions of template strings",
+            description: "Require or disallow spacing around embedded expressions of template strings",
             recommended: false,
             url: "https://eslint.org/docs/rules/template-curly-spacing"
         },

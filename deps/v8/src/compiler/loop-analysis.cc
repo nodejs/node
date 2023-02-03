@@ -5,6 +5,7 @@
 #include "src/compiler/loop-analysis.h"
 
 #include "src/codegen/tick-counter.h"
+#include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-marker.h"
@@ -542,7 +543,7 @@ LoopTree* LoopFinder::BuildLoopTree(Graph* graph, TickCounter* tick_counter,
       graph->zone()->New<LoopTree>(graph->NodeCount(), graph->zone());
   LoopFinderImpl finder(graph, loop_tree, tick_counter, zone);
   finder.Run();
-  if (FLAG_trace_turbo_loop) {
+  if (v8_flags.trace_turbo_loop) {
     finder.Print();
   }
   return loop_tree;
@@ -550,49 +551,64 @@ LoopTree* LoopFinder::BuildLoopTree(Graph* graph, TickCounter* tick_counter,
 
 #if V8_ENABLE_WEBASSEMBLY
 // static
-ZoneUnorderedSet<Node*>* LoopFinder::FindSmallUnnestedLoopFromHeader(
-    Node* loop_header, Zone* zone, size_t max_size) {
+ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
+    Node* loop_header, AllNodes& all_nodes, Zone* zone, size_t max_size,
+    bool calls_are_large) {
   auto* visited = zone->New<ZoneUnorderedSet<Node*>>(zone);
   std::vector<Node*> queue;
 
-  DCHECK(loop_header->opcode() == IrOpcode::kLoop);
+  DCHECK_EQ(loop_header->opcode(), IrOpcode::kLoop);
 
   queue.push_back(loop_header);
+
+#define ENQUEUE_USES(use_name, condition)                                      \
+  for (Node * use_name : node->uses()) {                                       \
+    if (condition && visited->count(use_name) == 0) queue.push_back(use_name); \
+  }
 
   while (!queue.empty()) {
     Node* node = queue.back();
     queue.pop_back();
-    // Terminate is not part of the loop, and neither are its uses.
-    if (node->opcode() == IrOpcode::kTerminate) {
-      DCHECK_EQ(node->InputAt(1), loop_header);
+    if (node->opcode() == IrOpcode::kEnd) {
+      // We reached the end of the graph. The end node is not part of the loop.
       continue;
     }
     visited->insert(node);
     if (visited->size() > max_size) return nullptr;
     switch (node->opcode()) {
+      case IrOpcode::kLoop:
+        // Found nested loop.
+        if (node != loop_header) return nullptr;
+        ENQUEUE_USES(use, true);
+        break;
       case IrOpcode::kLoopExit:
-        DCHECK_EQ(node->InputAt(1), loop_header);
+        // Found nested loop.
+        if (node->InputAt(1) != loop_header) return nullptr;
         // LoopExitValue/Effect uses are inside the loop. The rest are not.
-        for (Node* use : node->uses()) {
-          if (use->opcode() == IrOpcode::kLoopExitEffect ||
-              use->opcode() == IrOpcode::kLoopExitValue) {
-            if (visited->count(use) == 0) queue.push_back(use);
-          }
-        }
+        ENQUEUE_USES(use, (use->opcode() == IrOpcode::kLoopExitEffect ||
+                           use->opcode() == IrOpcode::kLoopExitValue))
         break;
       case IrOpcode::kLoopExitEffect:
       case IrOpcode::kLoopExitValue:
-        DCHECK_EQ(NodeProperties::GetControlInput(node)->InputAt(1),
-                  loop_header);
+        if (NodeProperties::GetControlInput(node)->InputAt(1) != loop_header) {
+          // Found nested loop.
+          return nullptr;
+        }
         // All uses are outside the loop, do nothing.
         break;
+      // If {calls_are_large}, call nodes are considered to have unbounded size,
+      // i.e. >max_size, with the exception of certain wasm builtins.
       case IrOpcode::kTailCall:
       case IrOpcode::kJSWasmCall:
       case IrOpcode::kJSCall:
-        // Call nodes are considered to have unbounded size, i.e. >max_size,
-        // with the exception of certain wasm builtins.
-        return nullptr;
+        if (calls_are_large) return nullptr;
+        ENQUEUE_USES(use, true)
+        break;
       case IrOpcode::kCall: {
+        if (!calls_are_large) {
+          ENQUEUE_USES(use, true);
+          break;
+        }
         Node* callee = node->InputAt(0);
         if (callee->opcode() != IrOpcode::kRelocatableInt32Constant &&
             callee->opcode() != IrOpcode::kRelocatableInt64Constant) {
@@ -602,27 +618,30 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallUnnestedLoopFromHeader(
             OpParameter<RelocatablePtrConstantInfo>(callee->op()).value();
         using WasmCode = v8::internal::wasm::WasmCode;
         constexpr intptr_t unrollable_builtins[] = {
+            // Exists in every stack check.
             WasmCode::kWasmStackGuard,
-            WasmCode::kWasmTableGet,
-            WasmCode::kWasmTableSet,
+            // Fast table operations.
+            WasmCode::kWasmTableGet, WasmCode::kWasmTableSet,
+            WasmCode::kWasmTableGetFuncRef, WasmCode::kWasmTableSetFuncRef,
             WasmCode::kWasmTableGrow,
-            WasmCode::kWasmThrow,
-            WasmCode::kWasmRethrow,
-            WasmCode::kWasmRethrowExplicitContext,
-            WasmCode::kWasmRefFunc,
-            WasmCode::kWasmAllocateRtt,
-            WasmCode::kWasmAllocateFreshRtt};
+            // Atomics.
+            WasmCode::kWasmAtomicNotify, WasmCode::kWasmI32AtomicWait,
+            WasmCode::kWasmI64AtomicWait,
+            // Exceptions.
+            WasmCode::kWasmAllocateFixedArray, WasmCode::kWasmThrow,
+            WasmCode::kWasmRethrow, WasmCode::kWasmRethrowExplicitContext,
+            // Fast wasm-gc operations.
+            WasmCode::kWasmRefFunc};
         if (std::count(unrollable_builtins,
                        unrollable_builtins + arraysize(unrollable_builtins),
                        info) == 0) {
           return nullptr;
         }
-        V8_FALLTHROUGH;
+        ENQUEUE_USES(use, true)
+        break;
       }
       default:
-        for (Node* use : node->uses()) {
-          if (visited->count(use) == 0) queue.push_back(use);
-        }
+        ENQUEUE_USES(use, true)
         break;
     }
   }
@@ -636,6 +655,8 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallUnnestedLoopFromHeader(
   for (Node* node : *visited) {
     // The loop header is allowed to point outside the loop.
     if (node == loop_header) continue;
+
+    if (!all_nodes.IsLive(node)) continue;
 
     for (Edge edge : node->input_edges()) {
       Node* input = edge.to();
@@ -676,7 +697,7 @@ bool LoopFinder::HasMarkedExits(LoopTree* loop_tree,
             unmarked_exit = (use->opcode() != IrOpcode::kTerminate);
         }
         if (unmarked_exit) {
-          if (FLAG_trace_turbo_loop) {
+          if (v8_flags.trace_turbo_loop) {
             PrintF(
                 "Cannot peel loop %i. Loop exit without explicit mark: Node %i "
                 "(%s) is inside loop, but its use %i (%s) is outside.\n",

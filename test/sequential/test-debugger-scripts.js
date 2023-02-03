@@ -13,15 +13,11 @@ const assert = require('assert');
   const script = fixtures.path('debugger', 'three-lines.js');
   const cli = startCLI([script]);
 
-  function onFatal(error) {
-    cli.quit();
-    throw error;
-  }
-
-  return cli.waitForInitialBreak()
-    .then(() => cli.waitForPrompt())
-    .then(() => cli.command('scripts'))
-    .then(() => {
+  (async () => {
+    try {
+      await cli.waitForInitialBreak();
+      await cli.waitForPrompt();
+      await cli.command('scripts');
       assert.match(
         cli.output,
         /^\* \d+: \S+debugger(?:\/|\\)three-lines\.js/m,
@@ -30,9 +26,7 @@ const assert = require('assert');
         cli.output,
         /\d+: node:internal\/buffer/,
         'omits node-internal scripts');
-    })
-    .then(() => cli.command('scripts(true)'))
-    .then(() => {
+      await cli.command('scripts(true)');
       assert.match(
         cli.output,
         /\* \d+: \S+debugger(?:\/|\\)three-lines\.js/,
@@ -41,7 +35,8 @@ const assert = require('assert');
         cli.output,
         /\d+: node:internal\/buffer/,
         'includes node-internal scripts');
-    })
-    .then(() => cli.quit())
-    .then(null, onFatal);
+    } finally {
+      await cli.quit();
+    }
+  })().then(common.mustCall());
 }

@@ -16,7 +16,9 @@ const serverOptions = {
 let requests = 0;
 let responses = 0;
 
-const headers = {};
+const headers = {
+  host: 'example.com'
+};
 const N = 100;
 for (let i = 0; i < N; ++i) {
   headers[`key${i}`] = i;
@@ -37,7 +39,7 @@ const server = https.createServer(serverOptions, common.mustCall((req, res) => {
     expected = maxAndExpected[requests][1];
     server.maxHeadersCount = max;
   }
-  res.writeHead(200, headers);
+  res.writeHead(200, { ...headers, 'Connection': 'close' });
   res.end();
 }, 3));
 server.maxHeadersCount = max;
@@ -45,8 +47,8 @@ server.maxHeadersCount = max;
 server.listen(0, common.mustCall(() => {
   const maxAndExpected = [ // for client
     [20, 20],
-    [1200, 103],
-    [0, N + 3], // Connection, Date and Transfer-Encoding
+    [1200, 104],
+    [0, N + 4], // Host and Connection
   ];
   const doRequest = common.mustCall(() => {
     const max = maxAndExpected[responses][0];

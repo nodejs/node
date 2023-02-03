@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --noenable-sudiv --noenable-armv8
-// Flags: --opt --noturbo-inlining
+// Flags: --turbofan --noturbo-inlining
 
 // Use this function as reference. Make sure it is not inlined.
 function div(a, b) {

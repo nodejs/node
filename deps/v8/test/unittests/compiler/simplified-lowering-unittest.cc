@@ -50,7 +50,8 @@ class SimplifiedLoweringTest : public GraphTest {
     Linkage* linkage = zone()->New<Linkage>(Linkage::GetJSCallDescriptor(
         zone(), false, num_parameters_ + 1, CallDescriptor::kCanUseRoots));
     SimplifiedLowering lowering(jsgraph(), broker(), zone(), source_positions(),
-                                node_origins(), tick_counter(), linkage);
+                                node_origins(), tick_counter(), linkage,
+                                nullptr);
     lowering.LowerAllNodes();
   }
 
@@ -82,7 +83,7 @@ const int kSmiValues[] = {Smi::kMinValue,
 TEST_F(SimplifiedLoweringTest, SmiConstantToIntPtrConstant) {
   TRACED_FOREACH(int, x, kSmiValues) {
     LowerGraph(jsgraph()->Constant(x));
-    intptr_t smi = bit_cast<intptr_t>(Smi::FromInt(x));
+    intptr_t smi = base::bit_cast<intptr_t>(Smi::FromInt(x));
     EXPECT_THAT(graph()->end()->InputAt(1),
                 IsReturn(IsIntPtrConstant(smi), start(), start()));
   }

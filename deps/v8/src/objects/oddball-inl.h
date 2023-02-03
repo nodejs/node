@@ -17,18 +17,30 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/oddball-tq-inl.inc"
+TQ_CPP_OBJECT_DEFINITION_ASSERTS(Oddball, PrimitiveHeapObject)
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(Oddball)
+OBJECT_CONSTRUCTORS_IMPL(Oddball, PrimitiveHeapObject)
+
+CAST_ACCESSOR(Oddball)
+
+DEF_PRIMITIVE_ACCESSORS(Oddball, to_number_raw, kToNumberRawOffset, double)
 
 void Oddball::set_to_number_raw_as_bits(uint64_t bits) {
   // Bug(v8:8875): HeapNumber's double may be unaligned.
   base::WriteUnalignedValue<uint64_t>(field_address(kToNumberRawOffset), bits);
 }
 
-byte Oddball::kind() const { return TorqueGeneratedOddball::kind(); }
+ACCESSORS(Oddball, to_string, String, kToStringOffset)
+ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
+ACCESSORS(Oddball, type_of, String, kTypeOfOffset)
 
-void Oddball::set_kind(byte value) { TorqueGeneratedOddball::set_kind(value); }
+byte Oddball::kind() const {
+  return Smi::ToInt(TaggedField<Smi>::load(*this, kKindOffset));
+}
+
+void Oddball::set_kind(byte value) {
+  WRITE_FIELD(*this, kKindOffset, Smi::FromInt(value));
+}
 
 // static
 Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
@@ -38,6 +50,11 @@ Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
 DEF_GETTER(HeapObject, IsBoolean, bool) {
   return IsOddball(cage_base) &&
          ((Oddball::cast(*this).kind() & Oddball::kNotBooleanMask) == 0);
+}
+
+bool Oddball::ToBool(Isolate* isolate) const {
+  DCHECK(IsBoolean(isolate));
+  return IsTrue(isolate);
 }
 
 }  // namespace internal

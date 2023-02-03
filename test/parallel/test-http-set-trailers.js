@@ -59,7 +59,7 @@ function testHttp11(port, callback) {
 
   let tid;
   c.on('connect', function() {
-    c.write('GET / HTTP/1.1\r\n\r\n');
+    c.write('GET / HTTP/1.1\r\nHost: example.com\r\n\r\n');
     tid = setTimeout(common.mustNotCall(), 2000, 'Couldn\'t find last chunk.');
   });
 
@@ -96,7 +96,7 @@ const server = http.createServer((req, res) => {
 });
 server.listen(0, () => {
   Promise.all([testHttp10, testHttp11, testClientTrailers]
-    .map(util.promisify)
+    .map((f) => util.promisify(f))
     .map((f) => f(server.address().port)))
     .then(() => server.close());
 });

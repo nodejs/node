@@ -15,8 +15,7 @@ are:
   - Strongtalk assembler, the basis of the files assembler-arm-inl.h,
     assembler-arm.cc, assembler-arm.h, assembler-ia32-inl.h,
     assembler-ia32.cc, assembler-ia32.h, assembler-x64-inl.h,
-    assembler-x64.cc, assembler-x64.h, assembler-mips-inl.h,
-    assembler-mips.cc, assembler-mips.h, assembler.cc and assembler.h.
+    assembler-x64.cc, assembler-x64.h, assembler.cc and assembler.h.
     This code is copyrighted by Sun Microsystems Inc. and released
     under a 3-clause BSD license.
 

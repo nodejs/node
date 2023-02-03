@@ -1,7 +1,15 @@
 const assert = require('assert')
 const { atob } = require('buffer')
+const { format } = require('url')
+const { isValidHTTPToken, isomorphicDecode } = require('./util')
 
 const encoder = new TextEncoder()
+
+// Regex
+const HTTP_TOKEN_CODEPOINTS = /^[!#$%&'*+-.^_|~A-z0-9]+$/
+const HTTP_WHITESPACE_REGEX = /(\u000A|\u000D|\u0009|\u0020)/ // eslint-disable-line
+// https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
+const HTTP_QUOTED_STRING_TOKENS = /^(\u0009|\x{0020}-\x{007E}|\x{0080}-\x{00FF})+$/ // eslint-disable-line
 
 // https://fetch.spec.whatwg.org/#data-url-processor
 /** @param {URL} dataURL */
@@ -53,7 +61,6 @@ function dataURLProcessor (dataURL) {
   const encodedBody = input.slice(mimeTypeLength + 1)
 
   // 10. Let body be the percent-decoding of encodedBody.
-  /** @type {Uint8Array|string} */
   let body = stringPercentDecode(encodedBody)
 
   // 11. If mimeType ends with U+003B (;), followed by
@@ -61,7 +68,8 @@ function dataURLProcessor (dataURL) {
   // case-insensitive match for "base64", then:
   if (/;(\u0020){0,}base64$/i.test(mimeType)) {
     // 1. Let stringBody be the isomorphic decode of body.
-    const stringBody = decodeURIComponent(new TextDecoder('utf-8').decode(body))
+    const stringBody = isomorphicDecode(body)
+
     // 2. Set body to the forgiving-base64 decode of
     // stringBody.
     body = forgivingBase64(stringBody)
@@ -110,73 +118,7 @@ function dataURLProcessor (dataURL) {
  * @param {boolean} excludeFragment
  */
 function URLSerializer (url, excludeFragment = false) {
-  // 1. Let output be url’s scheme and U+003A (:) concatenated.
-  let output = url.protocol
-
-  // 2. If url’s host is non-null:
-  if (url.host.length > 0) {
-    // 1. Append "//" to output.
-    output += '//'
-
-    // 2. If url includes credentials, then:
-    if (url.username.length > 0 || url.password.length > 0) {
-      // 1. Append url’s username to output.
-      output += url.username
-
-      // 2. If url’s password is not the empty string, then append U+003A (:),
-      // followed by url’s password, to output.
-      if (url.password.length > 0) {
-        output += ':' + url.password
-      }
-
-      // 3. Append U+0040 (@) to output.
-      output += '@'
-    }
-
-    // 3. Append url’s host, serialized, to output.
-    output += decodeURIComponent(url.host)
-
-    // 4. If url’s port is non-null, append U+003A (:) followed by url’s port,
-    // serialized, to output.
-    if (url.port.length > 0) {
-      output += ':' + url.port
-    }
-  }
-
-  // 3. If url’s host is null, url does not have an opaque path,
-  // url’s path’s size is greater than 1, and url’s path[0]
-  // is the empty string, then append U+002F (/) followed by
-  // U+002E (.) to output.
-  // Note: This prevents web+demo:/.//not-a-host/ or web+demo:/path/..//not-a-host/,
-  // when parsed and then serialized, from ending up as web+demo://not-a-host/
-  // (they end up as web+demo:/.//not-a-host/).
-  // Undici implementation note: url's path[0] can never be an
-  // empty string, so we have to slightly alter what the spec says.
-  if (
-    url.host.length === 0 &&
-    url.pathname.length > 1 &&
-    url.href.slice(url.protocol.length + 1)[0] === '.'
-  ) {
-    output += '/.'
-  }
-
-  // 4. Append the result of URL path serializing url to output.
-  output += url.pathname
-
-  // 5. If url’s query is non-null, append U+003F (?),
-  // followed by url’s query, to output.
-  if (url.search.length > 0) {
-    output += url.search
-  }
-
-  // 6. If exclude fragment is false and url’s fragment is non-null,
-  // then append U+0023 (#), followed by url’s fragment, to output.
-  if (excludeFragment === false && url.hash.length > 0) {
-    output += url.hash
-  }
-
-  // 7. Return output.
-  return output
+  return format(url, { fragment: !excludeFragment })
 }
 
 // https://infra.spec.whatwg.org/#collect-a-sequence-of-code-points
@@ -255,7 +197,7 @@ function percentDecode (input) {
   }
 
   // 3. Return output.
-  return Uint8Array.of(...output)
+  return Uint8Array.from(output)
 }
 
 // https://mimesniff.spec.whatwg.org/#parse-a-mime-type
@@ -281,7 +223,7 @@ function parseMIMEType (input) {
   // 4. If type is the empty string or does not solely
   // contain HTTP token code points, then return failure.
   // https://mimesniff.spec.whatwg.org/#http-token-code-point
-  if (type.length === 0 || !/^[!#$%&'*+-.^_|~A-z0-9]+$/.test(type)) {
+  if (type.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(type)) {
     return 'failure'
   }
 
@@ -304,11 +246,11 @@ function parseMIMEType (input) {
   )
 
   // 8. Remove any trailing HTTP whitespace from subtype.
-  subtype = subtype.trim()
+  subtype = subtype.trimEnd()
 
   // 9. If subtype is the empty string or does not solely
   // contain HTTP token code points, then return failure.
-  if (subtype.length === 0 || !/^[!#$%&'*+-.^_|~A-z0-9]+$/.test(subtype)) {
+  if (subtype.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(subtype)) {
     return 'failure'
   }
 
@@ -320,7 +262,9 @@ function parseMIMEType (input) {
     type: type.toLowerCase(),
     subtype: subtype.toLowerCase(),
     /** @type {Map<string, string>} */
-    parameters: new Map()
+    parameters: new Map(),
+    // https://mimesniff.spec.whatwg.org/#mime-type-essence
+    essence: `${type}/${subtype}`
   }
 
   // 11. While position is not past the end of input:
@@ -332,7 +276,7 @@ function parseMIMEType (input) {
     // whitespace from input given position.
     collectASequenceOfCodePoints(
       // https://fetch.spec.whatwg.org/#http-whitespace
-      (char) => /(\u000A|\u000D|\u0009|\u0020)/.test(char), // eslint-disable-line
+      char => HTTP_WHITESPACE_REGEX.test(char),
       input,
       position
     )
@@ -376,9 +320,7 @@ function parseMIMEType (input) {
       // 1. Set parameterValue to the result of collecting
       // an HTTP quoted string from input, given position
       // and the extract-value flag.
-      // Undici implementation note: extract-value is never
-      // defined or mentioned anywhere.
-      parameterValue = collectAnHTTPQuotedString(input, position/*, extractValue */)
+      parameterValue = collectAnHTTPQuotedString(input, position, true)
 
       // 2. Collect a sequence of code points that are not
       // U+003B (;) from input, given position.
@@ -400,7 +342,8 @@ function parseMIMEType (input) {
       )
 
       // 2. Remove any trailing HTTP whitespace from parameterValue.
-      parameterValue = parameterValue.trim()
+      // Note: it says "trailing" whitespace; leading is fine.
+      parameterValue = parameterValue.trimEnd()
 
       // 3. If parameterValue is the empty string, then continue.
       if (parameterValue.length === 0) {
@@ -416,9 +359,8 @@ function parseMIMEType (input) {
     // then set mimeType’s parameters[parameterName] to parameterValue.
     if (
       parameterName.length !== 0 &&
-      /^[!#$%&'*+-.^_|~A-z0-9]+$/.test(parameterName) &&
-      // https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
-      !/^(\u0009|\x{0020}-\x{007E}|\x{0080}-\x{00FF})+$/.test(parameterValue) &&  // eslint-disable-line
+      HTTP_TOKEN_CODEPOINTS.test(parameterName) &&
+      !HTTP_QUOTED_STRING_TOKENS.test(parameterValue) &&
       !mimeType.parameters.has(parameterName)
     ) {
       mimeType.parameters.set(parameterName, parameterValue)
@@ -547,11 +489,56 @@ function collectAnHTTPQuotedString (input, position, extractValue) {
   return input.slice(positionStart, position.position)
 }
 
+/**
+ * @see https://mimesniff.spec.whatwg.org/#serialize-a-mime-type
+ */
+function serializeAMimeType (mimeType) {
+  assert(mimeType !== 'failure')
+  const { type, subtype, parameters } = mimeType
+
+  // 1. Let serialization be the concatenation of mimeType’s
+  //    type, U+002F (/), and mimeType’s subtype.
+  let serialization = `${type}/${subtype}`
+
+  // 2. For each name → value of mimeType’s parameters:
+  for (let [name, value] of parameters.entries()) {
+    // 1. Append U+003B (;) to serialization.
+    serialization += ';'
+
+    // 2. Append name to serialization.
+    serialization += name
+
+    // 3. Append U+003D (=) to serialization.
+    serialization += '='
+
+    // 4. If value does not solely contain HTTP token code
+    //    points or value is the empty string, then:
+    if (!isValidHTTPToken(value)) {
+      // 1. Precede each occurence of U+0022 (") or
+      //    U+005C (\) in value with U+005C (\).
+      value = value.replace(/(\\|")/g, '\\$1')
+
+      // 2. Prepend U+0022 (") to value.
+      value = '"' + value
+
+      // 3. Append U+0022 (") to value.
+      value += '"'
+    }
+
+    // 5. Append value to serialization.
+    serialization += value
+  }
+
+  // 3. Return serialization.
+  return serialization
+}
+
 module.exports = {
   dataURLProcessor,
   URLSerializer,
   collectASequenceOfCodePoints,
   stringPercentDecode,
   parseMIMEType,
-  collectAnHTTPQuotedString
+  collectAnHTTPQuotedString,
+  serializeAMimeType
 }

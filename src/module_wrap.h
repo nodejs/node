@@ -11,6 +11,7 @@
 namespace node {
 
 class Environment;
+class ExternalReferenceRegistry;
 
 namespace contextify {
 class ContextifyContext;
@@ -44,6 +45,7 @@ class ModuleWrap : public BaseObject {
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context,
                          void* priv);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static void HostInitializeImportMetaObjectCallback(
       v8::Local<v8::Context> context,
       v8::Local<v8::Module> module,

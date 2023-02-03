@@ -18,6 +18,42 @@ OpenSSL Releases
 OpenSSL 3.0
 -----------
 
+### Major changes between OpenSSL 3.0.6 and OpenSSL 3.0.7 [1 Nov 2022]
+
+  * Added RIPEMD160 to the default provider.
+  * Fixed regressions introduced in 3.0.6 version.
+  * Fixed two buffer overflows in punycode decoding functions.
+    ([CVE-2022-3786]) and ([CVE-2022-3602])
+
+### Major changes between OpenSSL 3.0.5 and OpenSSL 3.0.6 [11 Oct 2022]
+
+  * Fix for custom ciphers to prevent accidental use of NULL encryption
+    ([CVE-2022-3358])
+
+### Major changes between OpenSSL 3.0.4 and OpenSSL 3.0.5 [5 Jul 2022]
+
+  * Fixed heap memory corruption with RSA private key operation
+    ([CVE-2022-2274])
+  * Fixed AES OCB failure to encrypt some bytes on 32-bit x86 platforms
+    ([CVE-2022-2097])
+
+### Major changes between OpenSSL 3.0.3 and OpenSSL 3.0.4 [21 Jun 2022]
+
+  * Fixed additional bugs in the c_rehash script which was not properly
+    sanitising shell metacharacters to prevent command injection
+    ([CVE-2022-2068])
+
+### Major changes between OpenSSL 3.0.2 and OpenSSL 3.0.3 [3 May 2022]
+
+  * Fixed a bug in the c_rehash script which was not properly sanitising shell
+    metacharacters to prevent command injection ([CVE-2022-1292])
+  * Fixed a bug in the function `OCSP_basic_verify` that verifies the signer
+    certificate on an OCSP response ([CVE-2022-1343])
+  * Fixed a bug where the RC4-MD5 ciphersuite incorrectly used the
+    AAD data as the MAC key ([CVE-2022-1434])
+  * Fix a bug in the OPENSSL_LH_flush() function that breaks reuse of the memory
+    occuppied by the removed hash table entries ([CVE-2022-1473])
+
 ### Major changes between OpenSSL 3.0.1 and OpenSSL 3.0.2 [15 Mar 2022]
 
   * Fixed a bug in the BN_mod_sqrt() function that can cause it to loop forever
@@ -100,7 +136,8 @@ OpenSSL 3.0
     RC4, RC5 and SEED cipher functions have been deprecated.
   * All of the low-level DH, DSA, ECDH, ECDSA and RSA public key functions
     have been deprecated.
-  * SSL 3, TLS 1.0, TLS 1.1, and DTLS 1.0 only work at security level 0.
+  * SSL 3, TLS 1.0, TLS 1.1, and DTLS 1.0 only work at security level 0,
+    except when RSA key exchange without SHA1 is used.
   * Added providers, a new pluggability concept that will replace the
     ENGINE API and ENGINE implementations.
 
@@ -1382,6 +1419,8 @@ OpenSSL 0.9.x
 
 <!-- Links -->
 
+[CVE-2022-2274]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-2274
+[CVE-2022-2097]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-2274
 [CVE-2020-1971]: https://www.openssl.org/news/vulnerabilities.html#CVE-2020-1971
 [CVE-2020-1967]: https://www.openssl.org/news/vulnerabilities.html#CVE-2020-1967
 [CVE-2019-1563]: https://www.openssl.org/news/vulnerabilities.html#CVE-2019-1563

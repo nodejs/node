@@ -169,13 +169,6 @@ class V8_EXPORT TryCatch {
    */
   void SetCaptureMessage(bool value);
 
-  V8_DEPRECATED(
-      "This is private information that should not be exposed by the API")
-  static void* JSStackComparableAddress(TryCatch* handler) {
-    if (handler == nullptr) return nullptr;
-    return reinterpret_cast<void*>(handler->JSStackComparableAddressPrivate());
-  }
-
   TryCatch(const TryCatch&) = delete;
   void operator=(const TryCatch&) = delete;
 
@@ -204,7 +197,7 @@ class V8_EXPORT TryCatch {
 
   void ResetInternal();
 
-  internal::Isolate* isolate_;
+  internal::Isolate* i_isolate_;
   TryCatch* next_;
   void* exception_;
   void* message_obj_;

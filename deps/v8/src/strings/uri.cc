@@ -285,6 +285,7 @@ MaybeHandle<String> Uri::Encode(Isolate* isolate, Handle<String> uri,
   std::vector<uint8_t> buffer;
   buffer.reserve(uri_length);
 
+  bool throw_error = false;
   {
     DisallowGarbageCollection no_gc;
     String::FlatContent uri_content = uri->GetFlatContent(no_gc);
@@ -310,11 +311,15 @@ MaybeHandle<String> Uri::Encode(Isolate* isolate, Handle<String> uri,
         continue;
       }
 
-      AllowGarbageCollection allocate_error_and_return;
-      THROW_NEW_ERROR(isolate, NewURIError(), String);
+      // String::FlatContent DCHECKs its contents did not change during its
+      // lifetime. Throwing the error inside the loop may cause GC and move the
+      // string contents.
+      throw_error = true;
+      break;
     }
   }
 
+  if (throw_error) THROW_NEW_ERROR(isolate, NewURIError(), String);
   return isolate->factory()->NewStringFromOneByte(base::VectorOf(buffer));
 }
 

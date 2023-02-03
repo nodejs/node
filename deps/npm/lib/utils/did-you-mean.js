@@ -1,10 +1,10 @@
 const { distance } = require('fastest-levenshtein')
 const readJson = require('read-package-json-fast')
-const { cmdList } = require('./cmd-list.js')
+const { commands } = require('./cmd-list.js')
 
 const didYouMean = async (npm, path, scmd) => {
   // const cmd = await npm.cmd(str)
-  const close = cmdList.filter(cmd => distance(scmd, cmd) < scmd.length * 0.4 && scmd !== cmd)
+  const close = commands.filter(cmd => distance(scmd, cmd) < scmd.length * 0.4 && scmd !== cmd)
   let best = []
   for (const str of close) {
     const cmd = await npm.cmd(str)

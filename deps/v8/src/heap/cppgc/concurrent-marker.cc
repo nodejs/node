@@ -75,7 +75,6 @@ void ConcurrentMarkingTask::Run(JobDelegate* job_delegate) {
   StatsCollector::EnabledConcurrentScope stats_scope(
       concurrent_marker_.heap().stats_collector(),
       StatsCollector::kConcurrentMark);
-
   if (!HasWorkForConcurrentMarking(concurrent_marker_.marking_worklists()))
     return;
   ConcurrentMarkingState concurrent_marking_state(
@@ -203,14 +202,20 @@ void ConcurrentMarkerBase::Start() {
                          std::make_unique<ConcurrentMarkingTask>(*this));
 }
 
-void ConcurrentMarkerBase::Cancel() {
-  if (concurrent_marking_handle_ && concurrent_marking_handle_->IsValid())
-    concurrent_marking_handle_->Cancel();
+bool ConcurrentMarkerBase::Join() {
+  if (!concurrent_marking_handle_ || !concurrent_marking_handle_->IsValid())
+    return false;
+
+  concurrent_marking_handle_->Join();
+  return true;
 }
 
-void ConcurrentMarkerBase::JoinForTesting() {
-  if (concurrent_marking_handle_ && concurrent_marking_handle_->IsValid())
-    concurrent_marking_handle_->Join();
+bool ConcurrentMarkerBase::Cancel() {
+  if (!concurrent_marking_handle_ || !concurrent_marking_handle_->IsValid())
+    return false;
+
+  concurrent_marking_handle_->Cancel();
+  return true;
 }
 
 bool ConcurrentMarkerBase::IsActive() const {
@@ -228,6 +233,13 @@ void ConcurrentMarkerBase::NotifyIncrementalMutatorStepCompleted() {
     // Notifies the scheduler that max concurrency might have increased.
     // This will adjust the number of markers if necessary.
     IncreaseMarkingPriorityIfNeeded();
+    concurrent_marking_handle_->NotifyConcurrencyIncrease();
+  }
+}
+
+void ConcurrentMarkerBase::NotifyOfWorkIfNeeded(cppgc::TaskPriority priority) {
+  if (HasWorkForConcurrentMarking(marking_worklists_)) {
+    concurrent_marking_handle_->UpdatePriority(priority);
     concurrent_marking_handle_->NotifyConcurrencyIncrease();
   }
 }

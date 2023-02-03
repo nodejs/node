@@ -37,8 +37,9 @@ const main = () => {
     let a = argv.shift()
     const indexOfEqualSign = a.indexOf('=')
     if (indexOfEqualSign !== -1) {
+      const value = a.slice(indexOfEqualSign + 1)
       a = a.slice(0, indexOfEqualSign)
-      argv.unshift(a.slice(indexOfEqualSign + 1))
+      argv.unshift(value)
     }
     switch (a) {
       case '-rv': case '-rev': case '--rev': case '--reverse':

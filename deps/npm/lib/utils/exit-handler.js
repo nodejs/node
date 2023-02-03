@@ -1,10 +1,10 @@
 const os = require('os')
+const fs = require('fs')
 
 const log = require('./log-shim.js')
 const errorMessage = require('./error-message.js')
 const replaceInfo = require('./replace-info.js')
 
-const messageText = msg => msg.map(line => line.slice(1).join(' ')).join('\n')
 const indent = (val) => Array.isArray(val) ? val.map(v => indent(v)) : `    ${val}`
 
 let npm = null // set by the cli
@@ -18,11 +18,10 @@ process.on('exit', code => {
   // unfinished timer check below
   process.emit('timeEnd', 'npm')
 
-  const hasNpm = !!npm
-  const hasLoadedNpm = hasNpm && npm.config.loaded
+  const hasLoadedNpm = npm?.config.loaded
 
   // Unfinished timers can be read before config load
-  if (hasNpm) {
+  if (npm) {
     for (const [name, timer] of npm.unfinishedTimers) {
       log.verbose('unfinished npm timer', name, timer)
     }
@@ -111,10 +110,9 @@ const exitHandler = err => {
 
   log.disableProgress()
 
-  const hasNpm = !!npm
-  const hasLoadedNpm = hasNpm && npm.config.loaded
+  const hasLoadedNpm = npm?.config.loaded
 
-  if (!hasNpm) {
+  if (!npm) {
     err = err || new Error('Exit prior to setting npm in exit handler')
     // eslint-disable-next-line no-console
     console.error(err.stack || err.message)
@@ -137,6 +135,7 @@ const exitHandler = err => {
 
   let exitCode
   let noLogMessage
+  let jsonError
 
   if (err) {
     exitCode = 1
@@ -144,7 +143,7 @@ const exitHandler = err => {
     // will presumably print its own errors and exit with a proper status
     // code if there's a problem.  If we got an error with a code=0, then...
     // something else went wrong along the way, so maybe an npm problem?
-    const isShellout = npm.commandInstance && npm.commandInstance.constructor.isShellout
+    const isShellout = npm.isShellout
     const quietShellout = isShellout && typeof err.code === 'number' && err.code
     if (quietShellout) {
       exitCode = err.code
@@ -181,20 +180,22 @@ const exitHandler = err => {
         }
       }
 
-      const msg = errorMessage(err, npm)
-      for (const errline of [...msg.summary, ...msg.detail]) {
-        log.error(...errline)
+      const { summary, detail, json, files = [] } = errorMessage(err, npm)
+      jsonError = json
+
+      for (let [file, content] of files) {
+        file = `${npm.logPath}${file}`
+        content = `'Log files:\n${npm.logFiles.join('\n')}\n\n${content.trim()}\n`
+        try {
+          fs.writeFileSync(file, content)
+          detail.push(['', `\n\nFor a full report see:\n${file}`])
+        } catch (logFileErr) {
+          log.warn('', `Could not write error message to ${file} due to ${logFileErr}`)
+        }
       }
 
-      if (hasLoadedNpm && npm.config.get('json')) {
-        const error = {
-          error: {
-            code: err.code,
-            summary: messageText(msg.summary),
-            detail: messageText(msg.detail),
-          },
-        }
-        npm.outputError(JSON.stringify(error, null, 2))
+      for (const errline of [...summary, ...detail]) {
+        log.error(...errline)
       }
 
       if (typeof err.errno === 'number') {
@@ -203,6 +204,10 @@ const exitHandler = err => {
         exitCode = err.code
       }
     }
+  }
+
+  if (hasLoadedNpm) {
+    npm.flushOutput(jsonError)
   }
 
   log.verbose('exit', exitCode || 0)

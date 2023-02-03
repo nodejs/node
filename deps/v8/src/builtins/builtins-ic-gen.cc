@@ -109,19 +109,19 @@ void Builtins::Generate_StoreICBaseline(compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateStoreICBaseline();
 }
-void Builtins::Generate_StoreOwnIC(compiler::CodeAssemblerState* state) {
+void Builtins::Generate_DefineNamedOwnIC(compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateStoreOwnIC();
+  assembler.GenerateDefineNamedOwnIC();
 }
-void Builtins::Generate_StoreOwnICTrampoline(
+void Builtins::Generate_DefineNamedOwnICTrampoline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateStoreOwnICTrampoline();
+  assembler.GenerateDefineNamedOwnICTrampoline();
 }
-void Builtins::Generate_StoreOwnICBaseline(
+void Builtins::Generate_DefineNamedOwnICBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateStoreOwnICBaseline();
+  assembler.GenerateDefineNamedOwnICBaseline();
 }
 void Builtins::Generate_KeyedStoreIC(compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
@@ -137,19 +137,19 @@ void Builtins::Generate_KeyedStoreICBaseline(
   AccessorAssembler assembler(state);
   assembler.GenerateKeyedStoreICBaseline();
 }
-void Builtins::Generate_KeyedDefineOwnIC(compiler::CodeAssemblerState* state) {
+void Builtins::Generate_DefineKeyedOwnIC(compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateKeyedDefineOwnIC();
+  assembler.GenerateDefineKeyedOwnIC();
 }
-void Builtins::Generate_KeyedDefineOwnICTrampoline(
+void Builtins::Generate_DefineKeyedOwnICTrampoline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateKeyedDefineOwnICTrampoline();
+  assembler.GenerateDefineKeyedOwnICTrampoline();
 }
-void Builtins::Generate_KeyedDefineOwnICBaseline(
+void Builtins::Generate_DefineKeyedOwnICBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateKeyedDefineOwnICBaseline();
+  assembler.GenerateDefineKeyedOwnICBaseline();
 }
 void Builtins::Generate_StoreInArrayLiteralIC(
     compiler::CodeAssemblerState* state) {
@@ -230,10 +230,22 @@ void Builtins::Generate_LoadGlobalICInsideTypeofBaseline(
   assembler.GenerateLoadGlobalICBaseline(TypeofMode::kInside);
 }
 
+void Builtins::Generate_LookupGlobalICTrampoline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLookupGlobalICTrampoline(TypeofMode::kNotInside);
+}
+
 void Builtins::Generate_LookupGlobalICBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateLookupGlobalICBaseline(TypeofMode::kNotInside);
+}
+
+void Builtins::Generate_LookupGlobalICInsideTypeofTrampoline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLookupGlobalICTrampoline(TypeofMode::kInside);
 }
 
 void Builtins::Generate_LookupGlobalICInsideTypeofBaseline(
@@ -242,34 +254,28 @@ void Builtins::Generate_LookupGlobalICInsideTypeofBaseline(
   assembler.GenerateLookupGlobalICBaseline(TypeofMode::kInside);
 }
 
+void Builtins::Generate_LookupContextTrampoline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLookupContextTrampoline(TypeofMode::kNotInside);
+}
+
 void Builtins::Generate_LookupContextBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateLookupContextBaseline(TypeofMode::kNotInside);
 }
 
+void Builtins::Generate_LookupContextInsideTypeofTrampoline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLookupContextTrampoline(TypeofMode::kInside);
+}
+
 void Builtins::Generate_LookupContextInsideTypeofBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateLookupContextBaseline(TypeofMode::kInside);
-}
-
-TF_BUILTIN(DynamicCheckMaps, CodeStubAssembler) {
-  auto map = Parameter<Map>(Descriptor::kMap);
-  auto slot = UncheckedParameter<IntPtrT>(Descriptor::kSlot);
-  auto handler = Parameter<Object>(Descriptor::kHandler);
-  TNode<Int32T> status = DynamicCheckMaps(map, slot, handler);
-  Return(status);
-}
-
-TF_BUILTIN(DynamicCheckMapsWithFeedbackVector, CodeStubAssembler) {
-  auto map = Parameter<Map>(Descriptor::kMap);
-  auto slot = UncheckedParameter<IntPtrT>(Descriptor::kSlot);
-  auto handler = Parameter<Object>(Descriptor::kHandler);
-  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
-  TNode<Int32T> status =
-      DynamicCheckMapsWithFeedbackVector(map, slot, handler, feedback_vector);
-  Return(status);
 }
 
 }  // namespace internal

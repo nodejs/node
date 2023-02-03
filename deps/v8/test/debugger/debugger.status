@@ -36,10 +36,6 @@
 
 ##############################################################################
 ['variant == stress', {
-  # TODO(turbofan): Functions with eval or debugger now get optimized
-  # with Turbofan, which has issues with the debugger issues.
-  'debug/debug-evaluate-locals': [FAIL],
-
   # Very slow in stress mode.
   'regress/regress-2318': [SKIP],
 
@@ -136,16 +132,10 @@
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################
-['variant == turboprop or variant == turboprop_as_toptier', {
-  # Deopts differently than TurboFan.
-  'debug/debug-optimize': [SKIP],
-  'debug/debug-compile-optimized': [SKIP],
-}],  # variant == turboprop or variant == turboprop_as_toptier
-
-##############################################################################
 # Tests requiring Sparkplug.
-['arch not in (x64, arm64, ia32, arm, mips64el, mipsel, loong64)', {
+['arch not in (x64, arm64, ia32, arm, mips64el, loong64)', {
   'regress/regress-crbug-1199681': [SKIP],
+  'debug/regress/regress-crbug-1357554': [SKIP]
 }],
 
 ################################################################################

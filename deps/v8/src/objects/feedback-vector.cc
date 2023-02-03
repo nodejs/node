@@ -31,20 +31,6 @@ FeedbackSlot FeedbackVectorSpec::AddSlot(FeedbackSlotKind kind) {
   return FeedbackSlot(slot);
 }
 
-FeedbackSlot FeedbackVectorSpec::AddTypeProfileSlot() {
-  FeedbackSlot slot = AddSlot(FeedbackSlotKind::kTypeProfile);
-  CHECK_EQ(FeedbackVectorSpec::kTypeProfileSlotIndex,
-           FeedbackVector::GetIndex(slot));
-  return slot;
-}
-
-bool FeedbackVectorSpec::HasTypeProfileSlot() const {
-  FeedbackSlot slot =
-      FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);
-  if (slot_count() <= slot.ToInt()) return false;
-  return GetKind(slot) == FeedbackSlotKind::kTypeProfile;
-}
-
 static bool IsPropertyNameFeedback(MaybeObject feedback) {
   HeapObject heap_object;
   if (!feedback->GetHeapObjectIfStrong(&heap_object)) return false;
@@ -158,21 +144,21 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "LoadKeyed";
     case FeedbackSlotKind::kHasKeyed:
       return "HasKeyed";
-    case FeedbackSlotKind::kStoreNamedSloppy:
-      return "StoreNamedSloppy";
-    case FeedbackSlotKind::kStoreNamedStrict:
-      return "StoreNamedStrict";
-    case FeedbackSlotKind::kStoreOwnNamed:
-      return "StoreOwnNamed";
-    case FeedbackSlotKind::kDefineOwnKeyed:
-      return "DefineOwnKeyed";
+    case FeedbackSlotKind::kSetNamedSloppy:
+      return "SetNamedSloppy";
+    case FeedbackSlotKind::kSetNamedStrict:
+      return "SetNamedStrict";
+    case FeedbackSlotKind::kDefineNamedOwn:
+      return "DefineNamedOwn";
+    case FeedbackSlotKind::kDefineKeyedOwn:
+      return "DefineKeyedOwn";
     case FeedbackSlotKind::kStoreGlobalSloppy:
       return "StoreGlobalSloppy";
     case FeedbackSlotKind::kStoreGlobalStrict:
       return "StoreGlobalStrict";
-    case FeedbackSlotKind::kStoreKeyedSloppy:
+    case FeedbackSlotKind::kSetKeyedSloppy:
       return "StoreKeyedSloppy";
-    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kSetKeyedStrict:
       return "StoreKeyedStrict";
     case FeedbackSlotKind::kStoreInArrayLiteral:
       return "StoreInArrayLiteral";
@@ -180,29 +166,19 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "BinaryOp";
     case FeedbackSlotKind::kCompareOp:
       return "CompareOp";
-    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
-      return "StoreDataPropertyInLiteral";
+    case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
+      return "DefineKeyedOwnPropertyInLiteral";
     case FeedbackSlotKind::kLiteral:
       return "Literal";
-    case FeedbackSlotKind::kTypeProfile:
-      return "TypeProfile";
     case FeedbackSlotKind::kForIn:
       return "ForIn";
     case FeedbackSlotKind::kInstanceOf:
       return "InstanceOf";
     case FeedbackSlotKind::kCloneObject:
       return "CloneObject";
-    case FeedbackSlotKind::kKindsNumber:
-      break;
+    case FeedbackSlotKind::kJumpLoop:
+      return "JumpLoop";
   }
-  UNREACHABLE();
-}
-
-bool FeedbackMetadata::HasTypeProfileSlot() const {
-  FeedbackSlot slot =
-      FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);
-  return slot.ToInt() < slot_count() &&
-         GetKind(slot) == FeedbackSlotKind::kTypeProfile;
 }
 
 FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot) const {
@@ -214,14 +190,6 @@ FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot,
                                          AcquireLoadTag tag) const {
   DCHECK(!is_empty());
   return metadata(tag).GetKind(slot);
-}
-
-FeedbackSlot FeedbackVector::GetTypeProfileSlot() const {
-  DCHECK(metadata().HasTypeProfileSlot());
-  FeedbackSlot slot =
-      FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);
-  DCHECK_EQ(FeedbackSlotKind::kTypeProfile, GetKind(slot));
-  return slot;
 }
 
 // static
@@ -261,10 +229,9 @@ Handle<FeedbackVector> FeedbackVector::New(
   DCHECK_EQ(vector->length(), slot_count);
 
   DCHECK_EQ(vector->shared_function_info(), *shared);
-  DCHECK_EQ(vector->optimization_marker(),
-            FLAG_log_function_events ? OptimizationMarker::kLogFirstExecution
-                                     : OptimizationMarker::kNone);
-  DCHECK_EQ(vector->optimization_tier(), OptimizationTier::kNone);
+  DCHECK_EQ(vector->tiering_state(), TieringState::kNone);
+  DCHECK(!vector->maybe_has_maglev_code());
+  DCHECK(!vector->maybe_has_turbofan_code());
   DCHECK_EQ(vector->invocation_count(), 0);
   DCHECK_EQ(vector->profiler_ticks(), 0);
   DCHECK(vector->maybe_optimized_code()->IsCleared());
@@ -284,6 +251,7 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
       case FeedbackSlotKind::kStoreGlobalSloppy:
       case FeedbackSlotKind::kStoreGlobalStrict:
+      case FeedbackSlotKind::kJumpLoop:
         vector->Set(slot, HeapObjectReference::ClearedValue(isolate),
                     SKIP_WRITE_BARRIER);
         break;
@@ -303,21 +271,19 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kLoadProperty:
       case FeedbackSlotKind::kLoadKeyed:
       case FeedbackSlotKind::kHasKeyed:
-      case FeedbackSlotKind::kStoreNamedSloppy:
-      case FeedbackSlotKind::kStoreNamedStrict:
-      case FeedbackSlotKind::kStoreOwnNamed:
-      case FeedbackSlotKind::kDefineOwnKeyed:
-      case FeedbackSlotKind::kStoreKeyedSloppy:
-      case FeedbackSlotKind::kStoreKeyedStrict:
+      case FeedbackSlotKind::kSetNamedSloppy:
+      case FeedbackSlotKind::kSetNamedStrict:
+      case FeedbackSlotKind::kDefineNamedOwn:
+      case FeedbackSlotKind::kDefineKeyedOwn:
+      case FeedbackSlotKind::kSetKeyedSloppy:
+      case FeedbackSlotKind::kSetKeyedStrict:
       case FeedbackSlotKind::kStoreInArrayLiteral:
-      case FeedbackSlotKind::kStoreDataPropertyInLiteral:
-      case FeedbackSlotKind::kTypeProfile:
+      case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
       case FeedbackSlotKind::kInstanceOf:
         vector->Set(slot, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
         break;
 
       case FeedbackSlotKind::kInvalid:
-      case FeedbackSlotKind::kKindsNumber:
         UNREACHABLE();
     }
     for (int j = 1; j < entry_size; j++) {
@@ -327,8 +293,7 @@ Handle<FeedbackVector> FeedbackVector::New(
   }
 
   Handle<FeedbackVector> result = Handle<FeedbackVector>::cast(vector);
-  if (!isolate->is_best_effort_code_coverage() ||
-      isolate->is_collecting_type_profile()) {
+  if (!isolate->is_best_effort_code_coverage()) {
     AddToVectorsForProfilingTools(isolate, result);
   }
   return result;
@@ -374,8 +339,7 @@ Handle<FeedbackVector> FeedbackVector::NewWithOneCompareSlotForTesting(
 // static
 void FeedbackVector::AddToVectorsForProfilingTools(
     Isolate* isolate, Handle<FeedbackVector> vector) {
-  DCHECK(!isolate->is_best_effort_code_coverage() ||
-         isolate->is_collecting_type_profile());
+  DCHECK(!isolate->is_best_effort_code_coverage());
   if (!vector->shared_function_info().IsSubjectToDebugging()) return;
   Handle<ArrayList> list = Handle<ArrayList>::cast(
       isolate->factory()->feedback_vectors_for_profiling_tools());
@@ -388,114 +352,100 @@ void FeedbackVector::SaturatingIncrementProfilerTicks() {
   if (ticks < Smi::kMaxValue) set_profiler_ticks(ticks + 1);
 }
 
-// static
-void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
-                                      Handle<Code> code,
-                                      FeedbackCell feedback_cell) {
-  DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
-  // We should set optimized code only when there is no valid optimized code or
-  // we are tiering up.
-  DCHECK(!vector->has_optimized_code() ||
-         vector->optimized_code().marked_for_deoptimization() ||
-         (vector->optimized_code().kind() == CodeKind::TURBOPROP &&
-          code->kind() == CodeKind::TURBOFAN) ||
-         FLAG_stress_concurrent_inlining_attach_code);
-  // TODO(mythria): We could see a CompileOptimized marker here either from
-  // tests that use %OptimizeFunctionOnNextCall, --always-opt or because we
+void FeedbackVector::SetOptimizedCode(CodeT code) {
+  DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
+  // We should set optimized code only when there is no valid optimized code.
+  DCHECK(!has_optimized_code() ||
+         optimized_code().marked_for_deoptimization() ||
+         (CodeKindCanTierUp(optimized_code().kind()) &&
+          optimized_code().kind() < code.kind()) ||
+         v8_flags.stress_concurrent_inlining_attach_code);
+  // TODO(mythria): We could see a CompileOptimized state here either from
+  // tests that use %OptimizeFunctionOnNextCall, --always-turbofan or because we
   // re-mark the function for non-concurrent optimization after an OSR. We
   // should avoid these cases and also check that marker isn't
-  // kCompileOptimized or kCompileOptimizedConcurrent.
-  vector->set_maybe_optimized_code(HeapObjectReference::Weak(ToCodeT(*code)),
-                                   kReleaseStore);
-  int32_t state = vector->flags();
-  state = OptimizationTierBits::update(state, GetTierForCodeKind(code->kind()));
-  state = OptimizationMarkerBits::update(state, OptimizationMarker::kNone);
-  vector->set_flags(state);
-  // With FLAG_turboprop, we would have an interrupt budget necessary for
-  // tiering up to Turboprop code. Once we install turboprop code, set it to a
-  // higher value as required for tiering up from Turboprop to TurboFan.
-  if (FLAG_turboprop) {
-    FeedbackVector::SetInterruptBudget(feedback_cell);
-  }
-}
-
-// static
-void FeedbackVector::SetInterruptBudget(FeedbackCell feedback_cell) {
-  DCHECK(feedback_cell.value().IsFeedbackVector());
-  FeedbackVector vector = FeedbackVector::cast(feedback_cell.value());
-  // Set the interrupt budget as required for tiering up to next level. Without
-  // Turboprop, this is used only to tier up to TurboFan and hence always set to
-  // FLAG_interrupt_budget. With Turboprop, we use this budget to both tier up
-  // to Turboprop and TurboFan. When there is no optimized code, set it to
-  // FLAG_interrupt_budget required for tiering up to Turboprop. When there is
-  // optimized code, set it to a higher value required for tiering up from
-  // Turboprop to TurboFan.
-  if (FLAG_turboprop && vector.has_optimized_code()) {
-    feedback_cell.set_interrupt_budget(
-        FLAG_interrupt_budget *
-        FLAG_interrupt_budget_scale_factor_for_top_tier);
+  // TieringState::kRequestTurbofan*.
+  set_maybe_optimized_code(HeapObjectReference::Weak(code), kReleaseStore);
+  int32_t state = flags();
+  // TODO(leszeks): Reconsider whether this could clear the tiering state vs.
+  // the callers doing so.
+  state = TieringStateBits::update(state, TieringState::kNone);
+  if (code.is_maglevved()) {
+    DCHECK(!MaybeHasTurbofanCodeBit::decode(state));
+    state = MaybeHasMaglevCodeBit::update(state, true);
   } else {
-    feedback_cell.set_interrupt_budget(FLAG_interrupt_budget);
+    DCHECK(code.is_turbofanned());
+    state = MaybeHasTurbofanCodeBit::update(state, true);
+    state = MaybeHasMaglevCodeBit::update(state, false);
   }
+  set_flags(state);
 }
 
-void FeedbackVector::ClearOptimizedCode(FeedbackCell feedback_cell) {
+void FeedbackVector::ClearOptimizedCode() {
   DCHECK(has_optimized_code());
-  DCHECK_NE(optimization_tier(), OptimizationTier::kNone);
+  DCHECK(maybe_has_maglev_code() || maybe_has_turbofan_code());
   set_maybe_optimized_code(HeapObjectReference::ClearedValue(GetIsolate()),
                            kReleaseStore);
-  ClearOptimizationTier(feedback_cell);
+  set_maybe_has_maglev_code(false);
+  set_maybe_has_turbofan_code(false);
 }
 
-void FeedbackVector::ClearOptimizationMarker() {
-  SetOptimizationMarker(OptimizationMarker::kNone);
+void FeedbackVector::SetOptimizedOsrCode(FeedbackSlot slot, CodeT code) {
+  DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
+  DCHECK(!slot.IsInvalid());
+  Set(slot, HeapObjectReference::Weak(code));
+  set_maybe_has_optimized_osr_code(true);
 }
 
-void FeedbackVector::SetOptimizationMarker(OptimizationMarker marker) {
+void FeedbackVector::reset_tiering_state() {
+  set_tiering_state(TieringState::kNone);
+}
+
+void FeedbackVector::set_tiering_state(TieringState state) {
+  int32_t new_flags = flags();
+  new_flags = TieringStateBits::update(new_flags, state);
+  set_flags(new_flags);
+}
+
+void FeedbackVector::reset_flags() {
+  set_flags(TieringStateBits::encode(TieringState::kNone) |
+            LogNextExecutionBit::encode(false) |
+            MaybeHasMaglevCodeBit::encode(false) |
+            MaybeHasTurbofanCodeBit::encode(false) |
+            OsrTieringStateBit::encode(TieringState::kNone) |
+            MaybeHasOptimizedOsrCodeBit::encode(false));
+}
+
+TieringState FeedbackVector::osr_tiering_state() {
+  return OsrTieringStateBit::decode(flags());
+}
+
+void FeedbackVector::set_osr_tiering_state(TieringState marker) {
+  DCHECK(marker == TieringState::kNone || marker == TieringState::kInProgress);
+  static_assert(TieringState::kNone <= OsrTieringStateBit::kMax);
+  static_assert(TieringState::kInProgress <= OsrTieringStateBit::kMax);
   int32_t state = flags();
-  state = OptimizationMarkerBits::update(state, marker);
-  set_flags(state);
-}
-
-void FeedbackVector::ClearOptimizationTier(FeedbackCell feedback_cell) {
-  int32_t state = flags();
-  state = OptimizationTierBits::update(state, OptimizationTier::kNone);
-  set_flags(state);
-  // We are discarding the optimized code, adjust the interrupt budget
-  // so we have the correct budget required for the tier up.
-  if (FLAG_turboprop) {
-    FeedbackVector::SetInterruptBudget(feedback_cell);
-  }
-}
-
-void FeedbackVector::InitializeOptimizationState() {
-  int32_t state = 0;
-  state = OptimizationMarkerBits::update(
-      state, FLAG_log_function_events ? OptimizationMarker::kLogFirstExecution
-                                      : OptimizationMarker::kNone);
-  state = OptimizationTierBits::update(state, OptimizationTier::kNone);
+  state = OsrTieringStateBit::update(state, marker);
   set_flags(state);
 }
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
-    FeedbackCell feedback_cell, SharedFunctionInfo shared, const char* reason) {
+    SharedFunctionInfo shared, const char* reason) {
   MaybeObject slot = maybe_optimized_code(kAcquireLoad);
   if (slot->IsCleared()) {
-    ClearOptimizationTier(feedback_cell);
+    set_maybe_has_maglev_code(false);
+    set_maybe_has_turbofan_code(false);
     return;
   }
 
-  Code code = FromCodeT(CodeT::cast(slot->GetHeapObject()));
+  CodeT code = CodeT::cast(slot->GetHeapObject());
   if (code.marked_for_deoptimization()) {
     Deoptimizer::TraceEvictFromOptimizedCodeCache(shared, reason);
-    if (!code.deopt_already_counted()) {
-      code.set_deopt_already_counted(true);
-    }
-    ClearOptimizedCode(feedback_cell);
+    ClearOptimizedCode();
   }
 }
 
-bool FeedbackVector::ClearSlots(Isolate* isolate) {
+bool FeedbackVector::ClearSlots(Isolate* isolate, ClearBehavior behavior) {
   if (!shared_function_info().HasFeedbackMetadata()) return false;
   MaybeObject uninitialized_sentinel = MaybeObject::FromObject(
       FeedbackVector::RawUninitializedSentinel(isolate));
@@ -508,7 +458,7 @@ bool FeedbackVector::ClearSlots(Isolate* isolate) {
     MaybeObject obj = Get(slot);
     if (obj != uninitialized_sentinel) {
       FeedbackNexus nexus(*this, slot);
-      feedback_updated |= nexus.Clear();
+      feedback_updated |= nexus.Clear(behavior);
     }
   }
   return feedback_updated;
@@ -589,68 +539,72 @@ void FeedbackNexus::ConfigureUninitialized() {
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
-    case FeedbackSlotKind::kLoadGlobalInsideTypeof: {
+    case FeedbackSlotKind::kLoadGlobalInsideTypeof:
       SetFeedback(HeapObjectReference::ClearedValue(isolate),
                   SKIP_WRITE_BARRIER, UninitializedSentinel(),
                   SKIP_WRITE_BARRIER);
       break;
-    }
     case FeedbackSlotKind::kCloneObject:
-    case FeedbackSlotKind::kCall: {
+    case FeedbackSlotKind::kCall:
       SetFeedback(UninitializedSentinel(), SKIP_WRITE_BARRIER, Smi::zero(),
                   SKIP_WRITE_BARRIER);
       break;
-    }
-    case FeedbackSlotKind::kInstanceOf: {
+    case FeedbackSlotKind::kInstanceOf:
       SetFeedback(UninitializedSentinel(), SKIP_WRITE_BARRIER);
       break;
-    }
-    case FeedbackSlotKind::kStoreNamedSloppy:
-    case FeedbackSlotKind::kStoreNamedStrict:
-    case FeedbackSlotKind::kStoreKeyedSloppy:
-    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kSetNamedSloppy:
+    case FeedbackSlotKind::kSetNamedStrict:
+    case FeedbackSlotKind::kSetKeyedSloppy:
+    case FeedbackSlotKind::kSetKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
-    case FeedbackSlotKind::kStoreOwnNamed:
-    case FeedbackSlotKind::kDefineOwnKeyed:
+    case FeedbackSlotKind::kDefineNamedOwn:
+    case FeedbackSlotKind::kDefineKeyedOwn:
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kHasKeyed:
-    case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
+    case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
       SetFeedback(UninitializedSentinel(), SKIP_WRITE_BARRIER,
                   UninitializedSentinel(), SKIP_WRITE_BARRIER);
       break;
-    }
+    case FeedbackSlotKind::kJumpLoop:
+      SetFeedback(HeapObjectReference::ClearedValue(isolate),
+                  SKIP_WRITE_BARRIER);
+      break;
     default:
       UNREACHABLE();
   }
 }
 
-bool FeedbackNexus::Clear() {
+bool FeedbackNexus::Clear(ClearBehavior behavior) {
   bool feedback_updated = false;
 
   switch (kind()) {
-    case FeedbackSlotKind::kTypeProfile:
-      // We don't clear these kinds ever.
-      break;
-
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kForIn:
     case FeedbackSlotKind::kBinaryOp:
-      // We don't clear these, either.
+      if (V8_LIKELY(behavior == ClearBehavior::kDefault)) {
+        // We don't clear these, either.
+      } else if (!IsCleared()) {
+        DCHECK_EQ(behavior, ClearBehavior::kClearAll);
+        SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER);
+        feedback_updated = true;
+      }
       break;
 
     case FeedbackSlotKind::kLiteral:
-      SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER);
-      feedback_updated = true;
+      if (!IsCleared()) {
+        SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER);
+        feedback_updated = true;
+      }
       break;
 
-    case FeedbackSlotKind::kStoreNamedSloppy:
-    case FeedbackSlotKind::kStoreNamedStrict:
-    case FeedbackSlotKind::kStoreKeyedSloppy:
-    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kSetNamedSloppy:
+    case FeedbackSlotKind::kSetNamedStrict:
+    case FeedbackSlotKind::kSetKeyedSloppy:
+    case FeedbackSlotKind::kSetKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
-    case FeedbackSlotKind::kStoreOwnNamed:
-    case FeedbackSlotKind::kDefineOwnKeyed:
+    case FeedbackSlotKind::kDefineNamedOwn:
+    case FeedbackSlotKind::kDefineKeyedOwn:
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kHasKeyed:
@@ -660,8 +614,9 @@ bool FeedbackNexus::Clear() {
     case FeedbackSlotKind::kLoadGlobalInsideTypeof:
     case FeedbackSlotKind::kCall:
     case FeedbackSlotKind::kInstanceOf:
-    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
+    case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
     case FeedbackSlotKind::kCloneObject:
+    case FeedbackSlotKind::kJumpLoop:
       if (!IsCleared()) {
         ConfigureUninitialized();
         feedback_updated = true;
@@ -669,7 +624,6 @@ bool FeedbackNexus::Clear() {
       break;
 
     case FeedbackSlotKind::kInvalid:
-    case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
   }
   return feedback_updated;
@@ -731,7 +685,8 @@ InlineCacheState FeedbackNexus::ic_state() const {
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
-    case FeedbackSlotKind::kLoadGlobalInsideTypeof: {
+    case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+    case FeedbackSlotKind::kJumpLoop: {
       if (feedback->IsSmi()) return InlineCacheState::MONOMORPHIC;
 
       DCHECK(feedback->IsWeakOrCleared());
@@ -741,13 +696,13 @@ InlineCacheState FeedbackNexus::ic_state() const {
       return InlineCacheState::UNINITIALIZED;
     }
 
-    case FeedbackSlotKind::kStoreNamedSloppy:
-    case FeedbackSlotKind::kStoreNamedStrict:
-    case FeedbackSlotKind::kStoreKeyedSloppy:
-    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kSetNamedSloppy:
+    case FeedbackSlotKind::kSetNamedStrict:
+    case FeedbackSlotKind::kSetKeyedSloppy:
+    case FeedbackSlotKind::kSetKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
-    case FeedbackSlotKind::kStoreOwnNamed:
-    case FeedbackSlotKind::kDefineOwnKeyed:
+    case FeedbackSlotKind::kDefineNamedOwn:
+    case FeedbackSlotKind::kDefineKeyedOwn:
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kHasKeyed: {
@@ -774,7 +729,7 @@ InlineCacheState FeedbackNexus::ic_state() const {
         }
         if (heap_object.IsName()) {
           DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
-                 IsKeyedHasICKind(kind()) || IsDefineOwnICKind(kind()));
+                 IsKeyedHasICKind(kind()) || IsDefineKeyedOwnICKind(kind()));
           Object extra_object = extra->GetHeapObjectAssumeStrong();
           WeakFixedArray extra_array = WeakFixedArray::cast(extra_object);
           return extra_array.length() > 2 ? InlineCacheState::POLYMORPHIC
@@ -840,7 +795,7 @@ InlineCacheState FeedbackNexus::ic_state() const {
       }
       return InlineCacheState::MONOMORPHIC;
     }
-    case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
+    case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral: {
       if (feedback == UninitializedSentinel()) {
         return InlineCacheState::UNINITIALIZED;
       } else if (feedback->IsWeakOrCleared()) {
@@ -849,12 +804,6 @@ InlineCacheState FeedbackNexus::ic_state() const {
       }
 
       return InlineCacheState::MEGAMORPHIC;
-    }
-    case FeedbackSlotKind::kTypeProfile: {
-      if (feedback == UninitializedSentinel()) {
-        return InlineCacheState::UNINITIALIZED;
-      }
-      return InlineCacheState::MONOMORPHIC;
     }
 
     case FeedbackSlotKind::kCloneObject: {
@@ -873,7 +822,6 @@ InlineCacheState FeedbackNexus::ic_state() const {
     }
 
     case FeedbackSlotKind::kInvalid:
-    case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
   }
   return InlineCacheState::UNINITIALIZED;
@@ -940,16 +888,18 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
         // Transition to POLYMORPHIC.
         Handle<WeakFixedArray> array =
             CreateArrayOfSize(2 * kCloneObjectPolymorphicEntrySize);
-        array->Set(0, HeapObjectReference::Weak(*feedback));
-        array->Set(1, GetFeedbackExtra());
-        array->Set(2, HeapObjectReference::Weak(*source_map));
-        array->Set(3, MaybeObject::FromObject(*result_map));
-        SetFeedback(*array, UPDATE_WRITE_BARRIER,
+        DisallowGarbageCollection no_gc;
+        auto raw_array = *array;
+        raw_array.Set(0, HeapObjectReference::Weak(*feedback));
+        raw_array.Set(1, GetFeedbackExtra());
+        raw_array.Set(2, HeapObjectReference::Weak(*source_map));
+        raw_array.Set(3, MaybeObject::FromObject(*result_map));
+        SetFeedback(raw_array, UPDATE_WRITE_BARRIER,
                     HeapObjectReference::ClearedValue(isolate));
       }
       break;
     case InlineCacheState::POLYMORPHIC: {
-      const int kMaxElements = FLAG_max_valid_polymorphic_map_count *
+      const int kMaxElements = v8_flags.max_valid_polymorphic_map_count *
                                kCloneObjectPolymorphicEntrySize;
       Handle<WeakFixedArray> array = Handle<WeakFixedArray>::cast(feedback);
       int i = 0;
@@ -1009,8 +959,9 @@ void FeedbackNexus::SetSpeculationMode(SpeculationMode mode) {
   uint32_t count = static_cast<uint32_t>(Smi::ToInt(call_count));
   count = SpeculationModeField::update(count, mode);
   MaybeObject feedback = GetFeedback();
-  // We can skip the write barrier for {feedback} because it's not changing.
-  SetFeedback(feedback, SKIP_WRITE_BARRIER, Smi::FromInt(count),
+  // We could've skipped WB here (since we set the slot to the same value again)
+  // but we don't to make WB verification happy.
+  SetFeedback(feedback, UPDATE_WRITE_BARRIER, Smi::FromInt(count),
               SKIP_WRITE_BARRIER);
 }
 
@@ -1047,7 +998,7 @@ void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
                                          Handle<Map> receiver_map,
                                          const MaybeObjectHandle& handler) {
   DCHECK(handler.is_null() || IC::IsHandler(*handler));
-  if (kind() == FeedbackSlotKind::kStoreDataPropertyInLiteral) {
+  if (kind() == FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral) {
     SetFeedback(HeapObjectReference::Weak(*receiver_map), UPDATE_WRITE_BARRIER,
                 *name);
   } else {
@@ -1106,7 +1057,7 @@ int FeedbackNexus::ExtractMapsAndFeedback(
     MaybeObject maybe_handler = it.handler();
     if (!maybe_handler->IsCleared()) {
       DCHECK(IC::IsHandler(maybe_handler) ||
-             IsStoreDataPropertyInLiteralKind(kind()));
+             IsDefineKeyedOwnPropertyInLiteralKind(kind()));
       MaybeObjectHandle handler = config()->NewHandle(maybe_handler);
       maps_and_feedback->push_back(MapAndHandler(map, handler));
       found++;
@@ -1116,10 +1067,24 @@ int FeedbackNexus::ExtractMapsAndFeedback(
   return found;
 }
 
+MaybeObjectHandle FeedbackNexus::ExtractMegaDOMHandler() {
+  DCHECK(ic_state() == InlineCacheState::MEGADOM);
+  DisallowGarbageCollection no_gc;
+
+  auto pair = GetFeedbackPair();
+  MaybeObject maybe_handler = pair.second;
+  if (!maybe_handler->IsCleared()) {
+    MaybeObjectHandle handler = config()->NewHandle(maybe_handler);
+    return handler;
+  }
+
+  return MaybeObjectHandle();
+}
+
 int FeedbackNexus::ExtractMapsAndHandlers(
     std::vector<MapAndHandler>* maps_and_handlers,
     TryUpdateHandler map_handler) const {
-  DCHECK(!IsStoreDataPropertyInLiteralKind(kind()));
+  DCHECK(!IsDefineKeyedOwnPropertyInLiteralKind(kind()));
   DisallowGarbageCollection no_gc;
   int found = 0;
 
@@ -1153,13 +1118,13 @@ MaybeObjectHandle FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
 
 Name FeedbackNexus::GetName() const {
   if (IsKeyedStoreICKind(kind()) || IsKeyedLoadICKind(kind()) ||
-      IsKeyedHasICKind(kind()) || IsKeyedDefineOwnICKind(kind())) {
+      IsKeyedHasICKind(kind()) || IsDefineKeyedOwnICKind(kind())) {
     MaybeObject feedback = GetFeedback();
     if (IsPropertyNameFeedback(feedback)) {
       return Name::cast(feedback->GetHeapObjectAssumeStrong());
     }
   }
-  if (IsStoreDataPropertyInLiteralKind(kind())) {
+  if (IsDefineKeyedOwnPropertyInLiteralKind(kind())) {
     MaybeObject extra = GetFeedbackExtra();
     if (IsPropertyNameFeedback(extra)) {
       return Name::cast(extra->GetHeapObjectAssumeStrong());
@@ -1236,7 +1201,8 @@ KeyedAccessStoreMode KeyedAccessStoreModeForBuiltin(Builtin builtin) {
 
 KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
   DCHECK(IsKeyedStoreICKind(kind()) || IsStoreInArrayLiteralICKind(kind()) ||
-         IsStoreDataPropertyInLiteralKind(kind()) || IsDefineOwnICKind(kind()));
+         IsDefineKeyedOwnPropertyInLiteralKind(kind()) ||
+         IsDefineKeyedOwnICKind(kind()));
   KeyedAccessStoreMode mode = STANDARD_STORE;
 
   if (GetKeyType() == IcCheckType::kProperty) return mode;
@@ -1246,7 +1212,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
   for (const MapAndHandler& map_and_handler : maps_and_handlers) {
     const MaybeObjectHandle maybe_code_handler = map_and_handler.second;
     // The first handler that isn't the slow handler will have the bits we need.
-    Handle<Code> handler;
+    Builtin builtin_handler = Builtin::kNoBuiltinId;
     if (maybe_code_handler.object()->IsStoreHandler()) {
       Handle<StoreHandler> data_handler =
           Handle<StoreHandler>::cast(maybe_code_handler.object());
@@ -1258,8 +1224,8 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
         if (mode != STANDARD_STORE) return mode;
         continue;
       } else {
-        Code code = FromCodeT(CodeT::cast(data_handler->smi_handler()));
-        handler = config()->NewHandle(code);
+        CodeT code = CodeT::cast(data_handler->smi_handler());
+        builtin_handler = code.builtin_id();
       }
 
     } else if (maybe_code_handler.object()->IsSmi()) {
@@ -1271,25 +1237,20 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
       mode = StoreHandler::GetKeyedAccessStoreMode(*maybe_code_handler);
       if (mode != STANDARD_STORE) return mode;
       continue;
-    } else if (IsDefineOwnICKind(kind())) {
+    } else if (IsDefineKeyedOwnICKind(kind())) {
       mode = StoreHandler::GetKeyedAccessStoreMode(*maybe_code_handler);
       if (mode != STANDARD_STORE) return mode;
       continue;
     } else {
       // Element store without prototype chain check.
-      if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-        Code code = FromCodeT(CodeT::cast(*maybe_code_handler.object()));
-        handler = config()->NewHandle(code);
-      } else {
-        handler = Handle<Code>::cast(maybe_code_handler.object());
-      }
+      CodeT code = CodeT::cast(*maybe_code_handler.object());
+      builtin_handler = code.builtin_id();
     }
 
-    if (handler->is_builtin()) {
-      Builtin builtin = handler->builtin_id();
-      if (!BuiltinHasKeyedAccessStoreMode(builtin)) continue;
+    if (Builtins::IsBuiltinId(builtin_handler)) {
+      if (!BuiltinHasKeyedAccessStoreMode(builtin_handler)) continue;
 
-      mode = KeyedAccessStoreModeForBuiltin(builtin);
+      mode = KeyedAccessStoreModeForBuiltin(builtin_handler);
       break;
     }
   }
@@ -1300,17 +1261,18 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 IcCheckType FeedbackNexus::GetKeyType() const {
   DCHECK(IsKeyedStoreICKind(kind()) || IsKeyedLoadICKind(kind()) ||
          IsStoreInArrayLiteralICKind(kind()) || IsKeyedHasICKind(kind()) ||
-         IsStoreDataPropertyInLiteralKind(kind()) || IsDefineOwnICKind(kind()));
+         IsDefineKeyedOwnPropertyInLiteralKind(kind()) ||
+         IsDefineKeyedOwnICKind(kind()));
   auto pair = GetFeedbackPair();
   MaybeObject feedback = pair.first;
   if (feedback == MegamorphicSentinel()) {
     return static_cast<IcCheckType>(
         Smi::ToInt(pair.second->template cast<Object>()));
   }
-  MaybeObject maybe_name =
-      IsStoreDataPropertyInLiteralKind(kind()) || IsDefineOwnICKind(kind())
-          ? pair.second
-          : feedback;
+  MaybeObject maybe_name = IsDefineKeyedOwnPropertyInLiteralKind(kind()) ||
+                                   IsDefineKeyedOwnICKind(kind())
+                               ? pair.second
+                               : feedback;
   return IsPropertyNameFeedback(maybe_name) ? IcCheckType::kProperty
                                             : IcCheckType::kElement;
 }
@@ -1343,128 +1305,15 @@ MaybeHandle<JSObject> FeedbackNexus::GetConstructorFeedback() const {
   return MaybeHandle<JSObject>();
 }
 
-namespace {
-
-bool InList(Handle<ArrayList> types, Handle<String> type) {
-  for (int i = 0; i < types->Length(); i++) {
-    Object obj = types->Get(i);
-    if (String::cast(obj).Equals(*type)) {
-      return true;
-    }
-  }
-  return false;
-}
-}  // anonymous namespace
-
-void FeedbackNexus::Collect(Handle<String> type, int position) {
-  DCHECK(IsTypeProfileKind(kind()));
-  DCHECK_GE(position, 0);
-  DCHECK(config()->can_write());
-  Isolate* isolate = GetIsolate();
-
-  MaybeObject const feedback = GetFeedback();
-
-  // Map source position to collection of types
-  Handle<SimpleNumberDictionary> types;
-
-  if (feedback == UninitializedSentinel()) {
-    types = SimpleNumberDictionary::New(isolate, 1);
-  } else {
-    types = handle(
-        SimpleNumberDictionary::cast(feedback->GetHeapObjectAssumeStrong()),
-        isolate);
-  }
-
-  Handle<ArrayList> position_specific_types;
-
-  InternalIndex entry = types->FindEntry(isolate, position);
-  if (entry.is_not_found()) {
-    position_specific_types = ArrayList::New(isolate, 1);
-    types = SimpleNumberDictionary::Set(
-        isolate, types, position,
-        ArrayList::Add(isolate, position_specific_types, type));
-  } else {
-    DCHECK(types->ValueAt(entry).IsArrayList());
-    position_specific_types =
-        handle(ArrayList::cast(types->ValueAt(entry)), isolate);
-    if (!InList(position_specific_types, type)) {  // Add type
-      types = SimpleNumberDictionary::Set(
-          isolate, types, position,
-          ArrayList::Add(isolate, position_specific_types, type));
-    }
-  }
-  SetFeedback(*types);
-}
-
-std::vector<int> FeedbackNexus::GetSourcePositions() const {
-  DCHECK(IsTypeProfileKind(kind()));
-  std::vector<int> source_positions;
-  Isolate* isolate = GetIsolate();
-
-  MaybeObject const feedback = GetFeedback();
-
-  if (feedback == UninitializedSentinel()) {
-    return source_positions;
-  }
-
-  Handle<SimpleNumberDictionary> types(
-      SimpleNumberDictionary::cast(feedback->GetHeapObjectAssumeStrong()),
-      isolate);
-
-  for (int index = SimpleNumberDictionary::kElementsStartIndex;
-       index < types->length(); index += SimpleNumberDictionary::kEntrySize) {
-    int key_index = index + SimpleNumberDictionary::kEntryKeyIndex;
-    Object key = types->get(key_index);
-    if (key.IsSmi()) {
-      int position = Smi::cast(key).value();
-      source_positions.push_back(position);
-    }
-  }
-  return source_positions;
-}
-
-std::vector<Handle<String>> FeedbackNexus::GetTypesForSourcePositions(
-    uint32_t position) const {
-  DCHECK(IsTypeProfileKind(kind()));
-  Isolate* isolate = GetIsolate();
-
-  MaybeObject const feedback = GetFeedback();
-  std::vector<Handle<String>> types_for_position;
-  if (feedback == UninitializedSentinel()) {
-    return types_for_position;
-  }
-
-  Handle<SimpleNumberDictionary> types(
-      SimpleNumberDictionary::cast(feedback->GetHeapObjectAssumeStrong()),
-      isolate);
-
-  InternalIndex entry = types->FindEntry(isolate, position);
-  if (entry.is_not_found()) return types_for_position;
-
-  DCHECK(types->ValueAt(entry).IsArrayList());
-  Handle<ArrayList> position_specific_types =
-      Handle<ArrayList>(ArrayList::cast(types->ValueAt(entry)), isolate);
-  for (int i = 0; i < position_specific_types->Length(); i++) {
-    Object t = position_specific_types->Get(i);
-    types_for_position.push_back(Handle<String>(String::cast(t), isolate));
-  }
-
-  return types_for_position;
-}
-
-void FeedbackNexus::ResetTypeProfile() {
-  DCHECK(IsTypeProfileKind(kind()));
-  SetFeedback(UninitializedSentinel());
-}
-
 FeedbackIterator::FeedbackIterator(const FeedbackNexus* nexus)
     : done_(false), index_(-1), state_(kOther) {
-  DCHECK(IsLoadICKind(nexus->kind()) || IsStoreICKind(nexus->kind()) ||
-         IsKeyedLoadICKind(nexus->kind()) ||
-         IsKeyedStoreICKind(nexus->kind()) || IsStoreOwnICKind(nexus->kind()) ||
-         IsStoreDataPropertyInLiteralKind(nexus->kind()) ||
-         IsStoreInArrayLiteralICKind(nexus->kind()) ||
-         IsKeyedHasICKind(nexus->kind()) || IsDefineOwnICKind(nexus->kind()));
+  DCHECK(
+      IsLoadICKind(nexus->kind()) || IsSetNamedICKind(nexus->kind()) ||
+      IsKeyedLoadICKind(nexus->kind()) || IsKeyedStoreICKind(nexus->kind()) ||
+      IsDefineNamedOwnICKind(nexus->kind()) ||
+      IsDefineKeyedOwnPropertyInLiteralKind(nexus->kind()) ||
+      IsStoreInArrayLiteralICKind(nexus->kind()) ||
+      IsKeyedHasICKind(nexus->kind()) || IsDefineKeyedOwnICKind(nexus->kind()));
 
   DisallowGarbageCollection no_gc;
   auto pair = nexus->GetFeedbackPair();

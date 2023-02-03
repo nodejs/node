@@ -133,7 +133,7 @@ U_CAPI void *udbg_knownIssue_open(void *ptr, const char *ticket, char *where, co
 /**
  * Print 'known issue' table, to std::cout.
  * @param ptr pointer from udbg_knownIssue
- * @return TRUE if there were any issues.
+ * @return true if there were any issues.
  */
 U_CAPI UBool udbg_knownIssue_print(void *ptr);
 

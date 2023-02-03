@@ -1,16 +1,11 @@
 const { resolve } = require('path')
 const t = require('tap')
 const { explainNode, printNode } = require('../../../lib/utils/explain-dep.js')
+const { cleanCwd } = require('../../fixtures/clean-snapshot')
+
 const testdir = t.testdirName
 
-const redactCwd = (path) => {
-  const normalizePath = p => p
-    .replace(/\\+/g, '/')
-    .replace(/\r\n/g, '\n')
-  return normalizePath(path)
-    .replace(new RegExp(normalizePath(process.cwd()), 'g'), '{CWD}')
-}
-t.cleanSnapshot = (str) => redactCwd(str)
+t.cleanSnapshot = (str) => cleanCwd(str)
 
 const cases = {
   prodDep: {
@@ -128,6 +123,23 @@ const cases = {
     location: 'node_modules/extra-neos',
     dependents: [],
     extraneous: true,
+  },
+
+  overridden: {
+    name: 'overridden-root',
+    version: '1.0.0',
+    location: 'node_modules/overridden-root',
+    overridden: true,
+    dependents: [{
+      type: 'prod',
+      name: 'overridden-dep',
+      spec: '1.0.0',
+      rawSpec: '^2.0.0',
+      overridden: true,
+      from: {
+        location: '/path/to/project',
+      },
+    }],
   },
 }
 

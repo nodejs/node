@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -54,7 +54,7 @@ unzFile PrepareMemoryForUnzipping(const std::string& data);
 // Windows. |append_flag| will be passed to zipOpen2().
 zipFile OpenForZipping(const std::string& file_name_utf8, int append_flag);
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 // Opens the file referred to by |zip_fd| for zipping. |append_flag| will be
 // passed to zipOpen2().
 zipFile OpenFdForZipping(int zip_fd, int append_flag);

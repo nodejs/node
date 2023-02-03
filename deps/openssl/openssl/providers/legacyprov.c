@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -95,8 +95,8 @@ static const OSSL_ALGORITHM legacy_ciphers[] = {
 #ifndef OPENSSL_NO_BF
     ALG(PROV_NAMES_BF_ECB, ossl_blowfish128ecb_functions),
     ALG(PROV_NAMES_BF_CBC, ossl_blowfish128cbc_functions),
-    ALG(PROV_NAMES_BF_OFB, ossl_blowfish64ofb64_functions),
-    ALG(PROV_NAMES_BF_CFB, ossl_blowfish64cfb64_functions),
+    ALG(PROV_NAMES_BF_OFB, ossl_blowfish128ofb64_functions),
+    ALG(PROV_NAMES_BF_CFB, ossl_blowfish128cfb64_functions),
 #endif /* OPENSSL_NO_BF */
 #ifndef OPENSSL_NO_IDEA
     ALG(PROV_NAMES_IDEA_ECB, ossl_idea128ecb_functions),

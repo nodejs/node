@@ -4,7 +4,7 @@
 //
 // Flags: --expose-gc --allow-natives-syntax
 // Flags: --gc-interval=207 --stress-compaction --validate-asm
-// Flags: --opt --no-always-opt
+// Flags: --turbofan --no-always-turbofan
 //
 // /v8/test/mjsunit/wasm/grow-memory.js
 // /v8/test/mjsunit/regress/regress-540.js

@@ -22,7 +22,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow extending native types",
+            description: "Disallow extending native types",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-extend-native"
         },

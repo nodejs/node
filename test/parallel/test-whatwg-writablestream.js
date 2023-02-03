@@ -199,12 +199,6 @@ class Sink {
   });
 
   assert.throws(() => {
-    Reflect.get(WritableStreamDefaultController.prototype, 'abortReason', {});
-  }, {
-    code: 'ERR_INVALID_THIS',
-  });
-
-  assert.throws(() => {
     Reflect.get(WritableStreamDefaultController.prototype, 'signal', {});
   }, {
     code: 'ERR_INVALID_THIS',

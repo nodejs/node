@@ -71,7 +71,6 @@ U_NAMESPACE_BEGIN
  ****************************************************************************/
 
 typedef std::atomic<int32_t> u_atomic_int32_t;
-#define ATOMIC_INT32_T_INITIALIZER(val) ATOMIC_VAR_INIT(val)
 
 inline int32_t umtx_loadAcquire(u_atomic_int32_t &var) {
     return var.load(std::memory_order_acquire);
@@ -96,17 +95,14 @@ inline int32_t umtx_atomic_dec(u_atomic_int32_t *var) {
  *
  *************************************************************************************************/
 
-struct UInitOnce {
-    u_atomic_int32_t   fState;
-    UErrorCode       fErrCode;
+struct U_COMMON_API UInitOnce {
+    u_atomic_int32_t   fState {0};
+    UErrorCode       fErrCode {U_ZERO_ERROR};
     void reset() {fState = 0;}
     UBool isReset() {return umtx_loadAcquire(fState) == 0;}
 // Note: isReset() is used by service registration code.
 //                 Thread safety of this usage needs review.
 };
-
-#define U_INITONCE_INITIALIZER {ATOMIC_INT32_T_INITIALIZER(0), U_ZERO_ERROR}
-
 
 U_COMMON_API UBool U_EXPORT2 umtx_initImplPreInit(UInitOnce &);
 U_COMMON_API void  U_EXPORT2 umtx_initImplPostInit(UInitOnce &);

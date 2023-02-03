@@ -36,6 +36,12 @@ existing query strings that have been set via EVP_set_default_properties().
 EVP_default_properties_is_fips_enabled() indicates if 'fips=yes' is a default
 property for the given I<libctx>.
 
+=head1 NOTES
+
+EVP_set_default_properties() and  EVP_default_properties_enable_fips() are not
+thread safe. They are intended to be called only during the initialisation
+phase of a I<libctx>.
+
 =head1 RETURN VALUES
 
 EVP_set_default_properties() and  EVP_default_properties_enable_fips() return 1
@@ -55,7 +61,7 @@ The functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -16,7 +16,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing inside parentheses",
+            description: "Enforce consistent spacing inside parentheses",
             recommended: false,
             url: "https://eslint.org/docs/rules/space-in-parens"
         },

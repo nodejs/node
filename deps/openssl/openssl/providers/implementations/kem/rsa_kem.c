@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,8 +12,8 @@
  * internal use.
  */
 #include "internal/deprecated.h"
+#include "internal/nelem.h"
 
-#include "e_os.h"  /* strcasecmp */
 #include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/core_dispatch.h>
@@ -69,7 +69,7 @@ static int name2id(const char *name, const OSSL_ITEM *map, size_t sz)
         return -1;
 
     for (i = 0; i < sz; ++i) {
-        if (strcasecmp(map[i].ptr, name) == 0)
+        if (OPENSSL_strcasecmp(map[i].ptr, name) == 0)
             return map[i].id;
     }
     return -1;

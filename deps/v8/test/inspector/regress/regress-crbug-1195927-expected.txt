@@ -15,12 +15,7 @@ foo (foo.js:2:2)
 (anonymous) (:0:0)
 Debugger.setScriptSource result:
 {
-    exceptionDetails : {
-        columnNumber : 0
-        exceptionId : <exceptionId>
-        lineNumber : 0
-        text : 
-    }
+    status : BlockedByActiveFunction
 }
 foo(42) result:
 {

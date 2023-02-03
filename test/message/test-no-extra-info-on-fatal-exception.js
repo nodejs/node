@@ -2,5 +2,6 @@
 
 'use strict';
 require('../common');
+Error.stackTraceLimit = 1;
 
 throw new Error('foo');

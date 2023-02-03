@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/execution/isolate.h"
-#include "src/execution/microtask-queue.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
@@ -712,7 +711,7 @@ TEST(TestJSWeakRef) {
 }
 
 TEST(TestJSWeakRefIncrementalMarking) {
-  if (!FLAG_incremental_marking) {
+  if (!v8_flags.incremental_marking) {
     return;
   }
   ManualGCScope manual_gc_scope;
@@ -784,7 +783,7 @@ TEST(TestJSWeakRefKeepDuringJob) {
 }
 
 TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
-  if (!FLAG_incremental_marking) {
+  if (!v8_flags.incremental_marking) {
     return;
   }
   ManualGCScope manual_gc_scope;
@@ -853,9 +852,7 @@ TEST(TestRemoveUnregisterToken) {
 
   finalization_registry->RemoveUnregisterToken(
       JSReceiver::cast(*token2), isolate,
-      [undefined](WeakCell matched_cell) {
-        matched_cell.set_unregister_token(*undefined);
-      },
+      JSFinalizationRegistry::kKeepMatchedCellsInRegistry,
       [](HeapObject, ObjectSlot, Object) {});
 
   // Both weak_cell2a and weak_cell2b remain on the weak cell chains.
@@ -875,7 +872,7 @@ TEST(TestRemoveUnregisterToken) {
 }
 
 TEST(JSWeakRefScavengedInWorklist) {
-  if (!FLAG_incremental_marking || FLAG_single_generation) {
+  if (!v8_flags.incremental_marking || v8_flags.single_generation) {
     return;
   }
 
@@ -925,7 +922,8 @@ TEST(JSWeakRefScavengedInWorklist) {
 }
 
 TEST(JSWeakRefTenuredInWorklist) {
-  if (!FLAG_incremental_marking || FLAG_single_generation) {
+  if (!v8_flags.incremental_marking || v8_flags.single_generation ||
+      v8_flags.separate_gc_phases) {
     return;
   }
 
@@ -977,10 +975,10 @@ TEST(JSWeakRefTenuredInWorklist) {
 }
 
 TEST(UnregisterTokenHeapVerifier) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
   ManualGCScope manual_gc_scope;
 #ifdef VERIFY_HEAP
-  FLAG_verify_heap = true;
+  v8_flags.verify_heap = true;
 #endif
 
   CcTest::InitializeVM();
@@ -1021,6 +1019,53 @@ TEST(UnregisterTokenHeapVerifier) {
   // should make the unregister_token slot undefined. That slot is iterated as a
   // custom weak pointer, so if it is not made undefined, the verifier as part
   // of the incremental marking task will crash.
+  EmptyMessageQueues(isolate);
+}
+
+TEST(UnregisteredAndUnclearedCellHeapVerifier) {
+  if (!v8_flags.incremental_marking) return;
+  ManualGCScope manual_gc_scope;
+#ifdef VERIFY_HEAP
+  v8_flags.verify_heap = true;
+#endif
+
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Heap* heap = CcTest::heap();
+  v8::HandleScope outer_scope(isolate);
+
+  {
+    // Make a new FinalizationRegistry and register an object with a token.
+    v8::HandleScope scope(isolate);
+    CompileRun(
+        "var token = {}; "
+        "var registry = new FinalizationRegistry(function () {}); "
+        "registry.register({}, undefined, token);");
+  }
+
+  // Start incremental marking to activate the marking barrier.
+  heap::SimulateIncrementalMarking(heap, false);
+
+  {
+    // Make a WeakCell list with length >1, then unregister with the token to
+    // the WeakCell from the registry. The linked list manipulation keeps the
+    // unregistered WeakCell alive (i.e. not put into cleared_cells) due to the
+    // marking barrier from incremental marking. Then make the original token
+    // collectible.
+    v8::HandleScope scope(isolate);
+    CompileRun(
+        "registry.register({}); "
+        "registry.unregister(token); "
+        "token = 0;");
+  }
+
+  // Trigger GC.
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
+
+  // Pump message loop to run the finalizer task, then the incremental marking
+  // task. The verifier will verify that live WeakCells don't point to dead
+  // unregister tokens.
   EmptyMessageQueues(isolate);
 }
 

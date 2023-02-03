@@ -436,7 +436,7 @@ utrace_cleanup() {
     pTraceDataFunc  = NULL;
     utrace_level    = UTRACE_OFF;
     gTraceContext   = NULL;
-    return TRUE;
+    return true;
 }
 
 

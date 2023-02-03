@@ -12,6 +12,17 @@
 
 #include <cstdio>
 
+// EVP_PKEY_CTX_set_dsa_paramgen_q_bits was added in OpenSSL 1.1.1e.
+#if OPENSSL_VERSION_NUMBER < 0x1010105fL
+#define EVP_PKEY_CTX_set_dsa_paramgen_q_bits(ctx, qbits)                       \
+  EVP_PKEY_CTX_ctrl((ctx),                                                     \
+                    EVP_PKEY_DSA,                                              \
+                    EVP_PKEY_OP_PARAMGEN,                                      \
+                    EVP_PKEY_CTRL_DSA_PARAMGEN_Q_BITS,                         \
+                    (qbits),                                                   \
+                    nullptr)
+#endif
+
 namespace node {
 
 using v8::FunctionCallbackInfo;
@@ -39,13 +50,8 @@ EVPKeyCtxPointer DsaKeyGenTraits::Setup(DsaKeyPairGenConfig* params) {
   }
 
   if (params->params.divisor_bits != -1) {
-    if (EVP_PKEY_CTX_ctrl(
-            param_ctx.get(),
-            EVP_PKEY_DSA,
-            EVP_PKEY_OP_PARAMGEN,
-            EVP_PKEY_CTRL_DSA_PARAMGEN_Q_BITS,
-            params->params.divisor_bits,
-            nullptr) <= 0) {
+    if (EVP_PKEY_CTX_set_dsa_paramgen_q_bits(
+            param_ctx.get(), params->params.divisor_bits) <= 0) {
       return EVPKeyCtxPointer();
     }
   }
@@ -141,8 +147,8 @@ Maybe<bool> GetDsaKeyDetail(
 
   DSA_get0_pqg(dsa, &p, &q, nullptr);
 
-  size_t modulus_length = BN_num_bytes(p) * CHAR_BIT;
-  size_t divisor_length = BN_num_bytes(q) * CHAR_BIT;
+  size_t modulus_length = BN_num_bits(p);
+  size_t divisor_length = BN_num_bits(q);
 
   if (target
           ->Set(

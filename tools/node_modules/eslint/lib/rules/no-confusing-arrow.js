@@ -31,7 +31,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow arrow functions where they could be confused with comparisons",
+            description: "Disallow arrow functions where they could be confused with comparisons",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-confusing-arrow"
         },

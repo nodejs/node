@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2014 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -7,9 +7,6 @@
 This file emits the list of reasons why a particular build needs to be clobbered
 (or a list of 'landmines').
 """
-
-# for py2/py3 compatibility
-from __future__ import print_function
 
 import os
 import sys

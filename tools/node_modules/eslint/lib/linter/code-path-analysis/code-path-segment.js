@@ -88,10 +88,10 @@ class CodePathSegment {
             }
         });
 
-        /* istanbul ignore if */
+        /* c8 ignore start */
         if (debug.enabled) {
             this.internal.nodes = [];
-        }
+        }/* c8 ignore stop */
     }
 
     /**
@@ -100,7 +100,7 @@ class CodePathSegment {
      * @returns {boolean} `true` if the segment is coming from the end of a loop.
      */
     isLoopedPrevSegment(segment) {
-        return this.internal.loopedPrevSegments.indexOf(segment) !== -1;
+        return this.internal.loopedPrevSegments.includes(segment);
     }
 
     /**

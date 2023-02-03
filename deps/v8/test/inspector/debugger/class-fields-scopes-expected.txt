@@ -4,6 +4,7 @@ Running test: testScopesPaused
 [
     [0] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 14
             lineNumber : 2
@@ -76,6 +77,7 @@ Running test: testScopesPaused
     }
     [1] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 12
             lineNumber : 1
@@ -148,6 +150,7 @@ Running test: testScopesPaused
     }
     [2] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 0
             lineNumber : 0
@@ -182,6 +185,7 @@ Running test: testScopesPaused
 [
     [0] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 2
             lineNumber : 11
@@ -194,6 +198,55 @@ Running test: testScopesPaused
             scriptId : <scriptId>
         }
         scopeChain : [
+            [0] : {
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : <instance_members_initializer>
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : local
+            }
+            [1] : {
+                endLocation : {
+                    columnNumber : 1
+                    lineNumber : 19
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 12
+                    lineNumber : 1
+                    scriptId : <scriptId>
+                }
+                type : closure
+            }
+            [2] : {
+                object : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+                type : global
+            }
         ]
         this : {
             className : X
@@ -205,6 +258,7 @@ Running test: testScopesPaused
     }
     [1] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 2
             lineNumber : 11
@@ -277,6 +331,7 @@ Running test: testScopesPaused
     }
     [2] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 12
             lineNumber : 1
@@ -329,6 +384,7 @@ Running test: testScopesPaused
     }
     [3] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 0
             lineNumber : 0
@@ -363,6 +419,7 @@ Running test: testScopesPaused
 [
     [0] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 2
             lineNumber : 11
@@ -375,6 +432,55 @@ Running test: testScopesPaused
             scriptId : <scriptId>
         }
         scopeChain : [
+            [0] : {
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : <instance_members_initializer>
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : local
+            }
+            [1] : {
+                endLocation : {
+                    columnNumber : 1
+                    lineNumber : 19
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 12
+                    lineNumber : 1
+                    scriptId : <scriptId>
+                }
+                type : closure
+            }
+            [2] : {
+                object : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+                type : global
+            }
         ]
         this : {
             className : X
@@ -386,6 +492,7 @@ Running test: testScopesPaused
     }
     [1] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 2
             lineNumber : 11
@@ -458,6 +565,7 @@ Running test: testScopesPaused
     }
     [2] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 12
             lineNumber : 1
@@ -510,6 +618,7 @@ Running test: testScopesPaused
     }
     [3] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 0
             lineNumber : 0
@@ -544,6 +653,7 @@ Running test: testScopesPaused
 [
     [0] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 2
             lineNumber : 11
@@ -556,6 +666,55 @@ Running test: testScopesPaused
             scriptId : <scriptId>
         }
         scopeChain : [
+            [0] : {
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : <instance_members_initializer>
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : local
+            }
+            [1] : {
+                endLocation : {
+                    columnNumber : 1
+                    lineNumber : 19
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 12
+                    lineNumber : 1
+                    scriptId : <scriptId>
+                }
+                type : closure
+            }
+            [2] : {
+                object : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+                type : global
+            }
         ]
         this : {
             className : X
@@ -567,6 +726,7 @@ Running test: testScopesPaused
     }
     [1] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 2
             lineNumber : 11
@@ -639,6 +799,7 @@ Running test: testScopesPaused
     }
     [2] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 12
             lineNumber : 1
@@ -691,6 +852,7 @@ Running test: testScopesPaused
     }
     [3] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 0
             lineNumber : 0
@@ -725,6 +887,7 @@ Running test: testScopesPaused
 [
     [0] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 14
             lineNumber : 7
@@ -797,6 +960,7 @@ Running test: testScopesPaused
     }
     [1] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 2
             lineNumber : 11
@@ -809,6 +973,55 @@ Running test: testScopesPaused
             scriptId : <scriptId>
         }
         scopeChain : [
+            [0] : {
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : <instance_members_initializer>
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : local
+            }
+            [1] : {
+                endLocation : {
+                    columnNumber : 1
+                    lineNumber : 19
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 12
+                    lineNumber : 1
+                    scriptId : <scriptId>
+                }
+                type : closure
+            }
+            [2] : {
+                object : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+                type : global
+            }
         ]
         this : {
             className : X
@@ -820,6 +1033,7 @@ Running test: testScopesPaused
     }
     [2] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 2
             lineNumber : 11
@@ -892,6 +1106,7 @@ Running test: testScopesPaused
     }
     [3] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 12
             lineNumber : 1
@@ -944,6 +1159,7 @@ Running test: testScopesPaused
     }
     [4] : {
         callFrameId : <callFrameId>
+        canBeRestarted : true
         functionLocation : {
             columnNumber : 0
             lineNumber : 0

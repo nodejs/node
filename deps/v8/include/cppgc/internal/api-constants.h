@@ -32,17 +32,30 @@ static constexpr uint16_t kFullyConstructedBitMask = uint16_t{1};
 
 static constexpr size_t kPageSize = size_t{1} << 17;
 
+#if defined(V8_TARGET_ARCH_ARM64) && defined(V8_OS_MACOS)
+constexpr size_t kGuardPageSize = 0;
+#else
+constexpr size_t kGuardPageSize = 4096;
+#endif
+
 static constexpr size_t kLargeObjectSizeThreshold = kPageSize / 2;
 
 #if defined(CPPGC_CAGED_HEAP)
+#if defined(CPPGC_2GB_CAGE)
+constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(2) * kGB;
+#else   // !defined(CPPGC_2GB_CAGE)
 constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(4) * kGB;
+#endif  // !defined(CPPGC_2GB_CAGE)
 constexpr size_t kCagedHeapReservationAlignment = kCagedHeapReservationSize;
-#endif
+#endif  // defined(CPPGC_CAGED_HEAP)
 
 static constexpr size_t kDefaultAlignment = sizeof(void*);
 
 // Maximum support alignment for a type as in `alignof(T)`.
 static constexpr size_t kMaxSupportedAlignment = 2 * kDefaultAlignment;
+
+// Granularity of heap allocations.
+constexpr size_t kAllocationGranularity = sizeof(void*);
 
 }  // namespace api_constants
 

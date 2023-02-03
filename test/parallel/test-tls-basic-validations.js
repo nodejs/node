@@ -103,8 +103,11 @@ assert.throws(
   const inputBuffer = Buffer.from(arrayBufferViewStr.repeat(8), 'utf8');
   for (const expectView of common.getArrayBufferViews(inputBuffer)) {
     const out = {};
+    const expected = Buffer.from(expectView.buffer.slice(),
+                                 expectView.byteOffset,
+                                 expectView.byteLength);
     tls.convertALPNProtocols(expectView, out);
-    assert(out.ALPNProtocols.equals(Buffer.from(expectView)));
+    assert(out.ALPNProtocols.equals(expected));
   }
 }
 

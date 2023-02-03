@@ -3,7 +3,7 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   dur: [5],
   type: ['buf', 'asc', 'utf'],
-  size: [100, 1024, 1024 * 1024, 4 * 1024 * 1024, 16 * 1024 * 1024]
+  size: [100, 1024, 1024 * 1024, 4 * 1024 * 1024, 16 * 1024 * 1024],
 });
 
 const fixtures = require('../../test/common/fixtures');
@@ -33,7 +33,8 @@ function main({ dur, type, size }) {
     key: fixtures.readKey('rsa_private.pem'),
     cert: fixtures.readKey('rsa_cert.crt'),
     ca: fixtures.readKey('rsa_ca.crt'),
-    ciphers: 'AES256-GCM-SHA384'
+    ciphers: 'AES256-GCM-SHA384',
+    maxVersion: 'TLSv1.2',
   };
 
   const server = tls.createServer(options, onConnection);

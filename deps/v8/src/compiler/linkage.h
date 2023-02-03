@@ -9,7 +9,7 @@
 #include "src/base/flags.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/machine-type.h"
-#include "src/codegen/register-arch.h"
+#include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/codegen/signature.h"
 #include "src/common/globals.h"
@@ -36,7 +36,8 @@ class OptimizedCompilationInfo;
 
 namespace compiler {
 
-const RegList kNoCalleeSaved = 0;
+constexpr RegList kNoCalleeSaved;
+constexpr DoubleRegList kNoCalleeSavedFp;
 
 class OsrHelper;
 
@@ -63,6 +64,11 @@ class LinkageLocation {
                       b.machine_type_.representation()) ||
             IsSubtype(b.machine_type_.representation(),
                       a.machine_type_.representation()));
+  }
+
+  static LinkageLocation ForNullRegister(
+      int32_t reg, MachineType type = MachineType::None()) {
+    return LinkageLocation(REGISTER, reg, type);
   }
 
   static LinkageLocation ForAnyRegister(
@@ -102,7 +108,7 @@ class LinkageLocation {
   }
 
   static LinkageLocation ForSavedCallerConstantPool() {
-    DCHECK(V8_EMBEDDED_CONSTANT_POOL);
+    DCHECK(V8_EMBEDDED_CONSTANT_POOL_BOOL);
     return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
                                StandardFrameConstants::kConstantPoolOffset) /
                                   kSystemPointerSize,
@@ -139,6 +145,9 @@ class LinkageLocation {
            LocationField::kShift;
   }
 
+  bool IsNullRegister() const {
+    return IsRegister() && GetLocation() < ANY_REGISTER;
+  }
   NO_INLINE_FOR_ARM64_MSVC bool IsRegister() const {
     return TypeField::decode(bit_field_) == REGISTER;
   }
@@ -253,13 +262,10 @@ class V8_EXPORT_PRIVATE CallDescriptor final
                  LocationSignature* location_sig, size_t param_slot_count,
                  Operator::Properties properties,
                  RegList callee_saved_registers,
-                 RegList callee_saved_fp_registers, Flags flags,
+                 DoubleRegList callee_saved_fp_registers, Flags flags,
                  const char* debug_name = "",
                  StackArgumentOrder stack_order = StackArgumentOrder::kDefault,
-#if V8_ENABLE_WEBASSEMBLY
-                 const wasm::FunctionSig* wasm_sig = nullptr,
-#endif
-                 const RegList allocatable_registers = 0,
+                 const RegList allocatable_registers = {},
                  size_t return_slot_count = 0)
       : kind_(kind),
         target_type_(target_type),
@@ -273,11 +279,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
         allocatable_registers_(allocatable_registers),
         flags_(flags),
         stack_order_(stack_order),
-#if V8_ENABLE_WEBASSEMBLY
-        wasm_sig_(wasm_sig),
-#endif
-        debug_name_(debug_name) {
-  }
+        debug_name_(debug_name) {}
 
   CallDescriptor(const CallDescriptor&) = delete;
   CallDescriptor& operator=(const CallDescriptor&) = delete;
@@ -300,9 +302,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   // Returns {true} if this descriptor is a call to a Wasm C API function.
   bool IsWasmCapiFunction() const { return kind_ == kCallWasmCapiFunction; }
-
-  // Returns the wasm signature for this call based on the real parameter types.
-  const wasm::FunctionSig* wasm_sig() const { return wasm_sig_; }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool RequiresFrameAsIncoming() const {
@@ -310,6 +309,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 #if V8_ENABLE_WEBASSEMBLY
     if (IsWasmFunctionCall()) return true;
 #endif  // V8_ENABLE_WEBASSEMBLY
+    if (CalleeSavedRegisters() != kNoCalleeSaved) return true;
     return false;
   }
 
@@ -413,7 +413,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   RegList CalleeSavedRegisters() const { return callee_saved_registers_; }
 
   // Get the callee-saved FP registers, if any, across this call.
-  RegList CalleeSavedFPRegisters() const { return callee_saved_fp_registers_; }
+  DoubleRegList CalleeSavedFPRegisters() const {
+    return callee_saved_fp_registers_;
+  }
 
   const char* debug_name() const { return debug_name_; }
 
@@ -442,7 +444,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   RegList AllocatableRegisters() const { return allocatable_registers_; }
 
   bool HasRestrictedAllocatableRegisters() const {
-    return allocatable_registers_ != 0;
+    return !allocatable_registers_.is_empty();
   }
 
   EncodedCSignature ToEncodedCSignature() const;
@@ -460,15 +462,12 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const size_t return_slot_count_;
   const Operator::Properties properties_;
   const RegList callee_saved_registers_;
-  const RegList callee_saved_fp_registers_;
+  const DoubleRegList callee_saved_fp_registers_;
   // Non-zero value means restricting the set of allocatable registers for
   // register allocator to use.
   const RegList allocatable_registers_;
   const Flags flags_;
   const StackArgumentOrder stack_order_;
-#if V8_ENABLE_WEBASSEMBLY
-  const wasm::FunctionSig* wasm_sig_;
-#endif
   const char* const debug_name_;
 
   mutable base::Optional<size_t> gp_param_count_;

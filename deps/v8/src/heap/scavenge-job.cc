@@ -30,7 +30,7 @@ class ScavengeJob::Task : public CancelableTask {
 };
 
 size_t ScavengeJob::YoungGenerationTaskTriggerSize(Heap* heap) {
-  return heap->new_space()->Capacity() * FLAG_scavenge_task_trigger / 100;
+  return heap->new_space()->Capacity() * v8_flags.scavenge_task_trigger / 100;
 }
 
 bool ScavengeJob::YoungGenerationSizeTaskTriggerReached(Heap* heap) {
@@ -38,13 +38,16 @@ bool ScavengeJob::YoungGenerationSizeTaskTriggerReached(Heap* heap) {
 }
 
 void ScavengeJob::ScheduleTaskIfNeeded(Heap* heap) {
-  if (FLAG_scavenge_task && !task_pending_ && !heap->IsTearingDown() &&
+  if (v8_flags.scavenge_task && !task_pending_ && !heap->IsTearingDown() &&
       YoungGenerationSizeTaskTriggerReached(heap)) {
     v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap->isolate());
     auto taskrunner =
         V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate);
-    taskrunner->PostTask(std::make_unique<Task>(heap->isolate(), this));
-    task_pending_ = true;
+    if (taskrunner->NonNestableTasksEnabled()) {
+      taskrunner->PostNonNestableTask(
+          std::make_unique<Task>(heap->isolate(), this));
+      task_pending_ = true;
+    }
   }
 }
 

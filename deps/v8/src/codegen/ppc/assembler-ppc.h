@@ -43,7 +43,6 @@
 #include <stdio.h>
 
 #include <memory>
-#include <vector>
 
 #include "src/base/numbers/double.h"
 #include "src/codegen/assembler.h"
@@ -84,7 +83,6 @@ class V8_EXPORT_PRIVATE Operand {
   V8_INLINE explicit Operand(Register rm);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
-  static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   // Return true if this is a register operand.
   V8_INLINE bool is_reg() const { return rm_.is_valid(); }
@@ -93,34 +91,34 @@ class V8_EXPORT_PRIVATE Operand {
 
   inline intptr_t immediate() const {
     DCHECK(IsImmediate());
-    DCHECK(!IsHeapObjectRequest());
+    DCHECK(!IsHeapNumberRequest());
     return value_.immediate;
   }
   bool IsImmediate() const { return !rm_.is_valid(); }
 
-  HeapObjectRequest heap_object_request() const {
-    DCHECK(IsHeapObjectRequest());
-    return value_.heap_object_request;
+  HeapNumberRequest heap_number_request() const {
+    DCHECK(IsHeapNumberRequest());
+    return value_.heap_number_request;
   }
 
   Register rm() const { return rm_; }
 
-  bool IsHeapObjectRequest() const {
-    DCHECK_IMPLIES(is_heap_object_request_, IsImmediate());
-    DCHECK_IMPLIES(is_heap_object_request_,
+  bool IsHeapNumberRequest() const {
+    DCHECK_IMPLIES(is_heap_number_request_, IsImmediate());
+    DCHECK_IMPLIES(is_heap_number_request_,
                    rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT ||
                        rmode_ == RelocInfo::CODE_TARGET);
-    return is_heap_object_request_;
+    return is_heap_number_request_;
   }
 
  private:
   Register rm_ = no_reg;
   union Value {
     Value() {}
-    HeapObjectRequest heap_object_request;  // if is_heap_object_request_
+    HeapNumberRequest heap_number_request;  // if is_heap_number_request_
     intptr_t immediate;                     // otherwise
   } value_;                                 // valid if rm_ == no_reg
-  bool is_heap_object_request_ = false;
+  bool is_heap_number_request_ = false;
 
   RelocInfo::Mode rmode_;
 
@@ -311,7 +309,7 @@ class Assembler : public AssemblerBase {
   static constexpr int kMovInstructionsNoConstantPool = 2;
   static constexpr int kTaggedLoadInstructions = 1;
 #endif
-  static constexpr int kMovInstructions = FLAG_enable_embedded_constant_pool
+  static constexpr int kMovInstructions = V8_EMBEDDED_CONSTANT_POOL_BOOL
                                               ? kMovInstructionsConstantPool
                                               : kMovInstructionsNoConstantPool;
 
@@ -605,6 +603,22 @@ class Assembler : public AssemblerBase {
   PPC_VC_OPCODE_LIST(DECLARE_PPC_VC_INSTRUCTIONS)
 #undef DECLARE_PPC_VC_INSTRUCTIONS
 
+#define DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_00(name, instr_name, instr_value) \
+  inline void name(const Operand& imm, const PRBit pr = LeavePR) {             \
+    prefix_form(instr_name, imm, pr);                                          \
+  }
+#define DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_10(name, instr_name, instr_value) \
+  inline void name(const Operand& imm, const PRBit pr = LeavePR) {             \
+    prefix_form(instr_name, imm, pr);                                          \
+  }
+  inline void prefix_form(Instr instr, const Operand& imm, int pr) {
+    emit_prefix(instr | pr * B20 | (imm.immediate() & kImm18Mask));
+  }
+  PPC_PREFIX_OPCODE_TYPE_00_LIST(DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_00)
+  PPC_PREFIX_OPCODE_TYPE_10_LIST(DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_10)
+#undef DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_00
+#undef DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_10
+
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
   // ---------------------------------------------------------------------------
   // Code generation
@@ -806,7 +820,7 @@ class Assembler : public AssemblerBase {
       return;
     }
 
-    if ((L->is_bound() && is_near(L, cond)) || !is_trampoline_emitted()) {
+    if ((L->is_bound() && is_near(L, cond))) {
       bc_short(cond, L, cr, lk);
       return;
     }
@@ -880,6 +894,8 @@ class Assembler : public AssemblerBase {
 
   void mulhw(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
   void mulhwu(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
+  void mulhd(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
+  void mulhdu(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
   void mulli(Register dst, Register src, const Operand& imm);
 
   void divw(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
@@ -1120,6 +1136,25 @@ class Assembler : public AssemblerBase {
   void stxvx(const Simd128Register rt, const MemOperand& dst);
   void xxspltib(const Simd128Register rt, const Operand& imm);
 
+  // Prefixed instructioons.
+  void paddi(Register dst, Register src, const Operand& imm);
+  void pli(Register dst, const Operand& imm);
+  void psubi(Register dst, Register src, const Operand& imm);
+  void plbz(Register dst, const MemOperand& src);
+  void plhz(Register dst, const MemOperand& src);
+  void plha(Register dst, const MemOperand& src);
+  void plwz(Register dst, const MemOperand& src);
+  void plwa(Register dst, const MemOperand& src);
+  void pld(Register dst, const MemOperand& src);
+  void plfs(DoubleRegister dst, const MemOperand& src);
+  void plfd(DoubleRegister dst, const MemOperand& src);
+  void pstb(Register src, const MemOperand& dst);
+  void psth(Register src, const MemOperand& dst);
+  void pstw(Register src, const MemOperand& dst);
+  void pstd(Register src, const MemOperand& dst);
+  void pstfs(const DoubleRegister src, const MemOperand& dst);
+  void pstfd(const DoubleRegister src, const MemOperand& dst);
+
   // Pseudo instructions
 
   // Different nop operations are used by the code generator to detect certain
@@ -1354,7 +1389,7 @@ class Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
   static constexpr int kGap = 32;
-  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
+  static_assert(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
   RelocInfoWriter reloc_info_writer;
 
@@ -1404,6 +1439,21 @@ class Assembler : public AssemblerBase {
     pc_ += kInstrSize;
     CheckTrampolinePoolQuick();
   }
+
+  void emit_prefix(Instr x) {
+    // Prefixed instructions cannot cross 64-byte boundaries. Add a nop if the
+    // boundary will be crossed mid way.
+    // Code is set to be 64-byte aligned on PPC64 after relocation (look for
+    // kCodeAlignment). We use pc_offset() instead of pc_ as current pc_
+    // alignment could be different after relocation.
+    if (((pc_offset() + sizeof(Instr)) & 63) == 0) {
+      nop();
+    }
+    // Do not emit trampoline pool in between prefix and suffix.
+    CHECK(is_trampoline_pool_blocked());
+    emit(x);
+  }
+
   void TrackBranch() {
     DCHECK(!trampoline_emitted_);
     int count = tracked_branch_count_++;
@@ -1483,7 +1533,7 @@ class Assembler : public AssemblerBase {
   Trampoline trampoline_;
   bool internal_trampoline_exception_;
 
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
 
   int WriteCodeComments();
 
@@ -1514,7 +1564,9 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
   Register Acquire();
 
   // Check if we have registers available to acquire.
-  bool CanAcquire() const { return *assembler_->GetScratchRegisterList() != 0; }
+  bool CanAcquire() const {
+    return !assembler_->GetScratchRegisterList()->is_empty();
+  }
 
  private:
   friend class Assembler;

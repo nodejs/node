@@ -53,17 +53,13 @@ assert.throws(() => {
 
 // Passing -0 shouldn't crash the process
 // Refs: https://github.com/nodejs/node/issues/32750
-try { process.setuid(-0); } catch {
-  // Continue regardless of error.
-}
-try { process.seteuid(-0); } catch {
-  // Continue regardless of error.
-}
-try { process.setgid(-0); } catch {
-  // Continue regardless of error.
-}
-try { process.setegid(-0); } catch {
-  // Continue regardless of error.
+// And neither should values exceeding 2 ** 31 - 1.
+for (const id of [-0, 2 ** 31, 2 ** 32 - 1]) {
+  for (const fn of [process.setuid, process.setuid, process.setgid, process.setegid]) {
+    try { fn(id); } catch {
+      // Continue regardless of error.
+    }
+  }
 }
 
 // If we're not running as super user...

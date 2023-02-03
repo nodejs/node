@@ -303,7 +303,7 @@ FCDUIterCollationIterator::switchToForward() {
 
 UBool
 FCDUIterCollationIterator::nextSegment(UErrorCode &errorCode) {
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if(U_FAILURE(errorCode)) { return false; }
     U_ASSERT(state == ITER_CHECK_FWD);
     // The input text [start..(iter index)[ passes the FCD check.
     pos = iter.getIndex(&iter, UITER_CURRENT);
@@ -333,12 +333,12 @@ FCDUIterCollationIterator::nextSegment(UErrorCode &errorCode) {
                 }
                 s.append(c);
             }
-            if(!normalize(s, errorCode)) { return FALSE; }
+            if(!normalize(s, errorCode)) { return false; }
             start = pos;
             limit = pos + s.length();
             state = IN_NORM_ITER_AT_LIMIT;
             pos = 0;
-            return TRUE;
+            return true;
         }
         prevCC = (uint8_t)fcd16;
         if(prevCC == 0) {
@@ -350,7 +350,7 @@ FCDUIterCollationIterator::nextSegment(UErrorCode &errorCode) {
     U_ASSERT(pos != limit);
     iter.move(&iter, -s.length(), UITER_CURRENT);
     state = ITER_IN_FCD_SEGMENT;
-    return TRUE;
+    return true;
 }
 
 void
@@ -384,7 +384,7 @@ FCDUIterCollationIterator::switchToBackward() {
 
 UBool
 FCDUIterCollationIterator::previousSegment(UErrorCode &errorCode) {
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if(U_FAILURE(errorCode)) { return false; }
     U_ASSERT(state == ITER_CHECK_BWD);
     // The input text [(iter index)..limit[ passes the FCD check.
     pos = iter.getIndex(&iter, UITER_CURRENT);
@@ -417,12 +417,12 @@ FCDUIterCollationIterator::previousSegment(UErrorCode &errorCode) {
                 s.append(c);
             }
             s.reverse();
-            if(!normalize(s, errorCode)) { return FALSE; }
+            if(!normalize(s, errorCode)) { return false; }
             limit = pos;
             start = pos - s.length();
             state = IN_NORM_ITER_AT_START;
             pos = normalized.length();
-            return TRUE;
+            return true;
         }
         nextCC = (uint8_t)(fcd16 >> 8);
         if(nextCC == 0) {
@@ -434,7 +434,7 @@ FCDUIterCollationIterator::previousSegment(UErrorCode &errorCode) {
     U_ASSERT(pos != start);
     iter.move(&iter, s.length(), UITER_CURRENT);
     state = ITER_IN_FCD_SEGMENT;
-    return TRUE;
+    return true;
 }
 
 UBool

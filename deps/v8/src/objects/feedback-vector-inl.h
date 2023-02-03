@@ -70,7 +70,7 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kBinaryOp:
     case FeedbackSlotKind::kLiteral:
-    case FeedbackSlotKind::kTypeProfile:
+    case FeedbackSlotKind::kJumpLoop:
       return 1;
 
     case FeedbackSlotKind::kCall:
@@ -80,23 +80,21 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kHasKeyed:
-    case FeedbackSlotKind::kStoreNamedSloppy:
-    case FeedbackSlotKind::kStoreNamedStrict:
-    case FeedbackSlotKind::kStoreOwnNamed:
-    case FeedbackSlotKind::kDefineOwnKeyed:
+    case FeedbackSlotKind::kSetNamedSloppy:
+    case FeedbackSlotKind::kSetNamedStrict:
+    case FeedbackSlotKind::kDefineNamedOwn:
+    case FeedbackSlotKind::kDefineKeyedOwn:
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
-    case FeedbackSlotKind::kStoreKeyedSloppy:
-    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kSetKeyedSloppy:
+    case FeedbackSlotKind::kSetKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
-    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
+    case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
       return 2;
 
     case FeedbackSlotKind::kInvalid:
-    case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
   }
-  return 1;
 }
 
 Handle<FeedbackCell> ClosureFeedbackCellArray::GetFeedbackCell(int index) {
@@ -124,42 +122,100 @@ void FeedbackVector::clear_invocation_count(RelaxedStoreTag tag) {
   set_invocation_count(0, tag);
 }
 
-Code FeedbackVector::optimized_code() const {
+int FeedbackVector::osr_urgency() const {
+  return OsrUrgencyBits::decode(osr_state());
+}
+
+void FeedbackVector::set_osr_urgency(int urgency) {
+  DCHECK(0 <= urgency && urgency <= FeedbackVector::kMaxOsrUrgency);
+  static_assert(FeedbackVector::kMaxOsrUrgency <= OsrUrgencyBits::kMax);
+  set_osr_state(OsrUrgencyBits::update(osr_state(), urgency));
+}
+
+void FeedbackVector::reset_osr_urgency() { set_osr_urgency(0); }
+
+void FeedbackVector::RequestOsrAtNextOpportunity() {
+  set_osr_urgency(kMaxOsrUrgency);
+}
+
+void FeedbackVector::reset_osr_state() { set_osr_state(0); }
+
+bool FeedbackVector::maybe_has_optimized_osr_code() const {
+  return MaybeHasOptimizedOsrCodeBit::decode(osr_state());
+}
+
+void FeedbackVector::set_maybe_has_optimized_osr_code(bool value) {
+  set_osr_state(MaybeHasOptimizedOsrCodeBit::update(osr_state(), value));
+}
+
+CodeT FeedbackVector::optimized_code() const {
   MaybeObject slot = maybe_optimized_code(kAcquireLoad);
   DCHECK(slot->IsWeakOrCleared());
   HeapObject heap_object;
-  Code code;
+  CodeT code;
   if (slot->GetHeapObject(&heap_object)) {
-    code = FromCodeT(CodeT::cast(heap_object));
+    code = CodeT::cast(heap_object);
   }
-  // It is possible that the maybe_optimized_code slot is cleared but the
-  // optimization tier hasn't been updated yet. We update the tier when we
-  // execute the function next time / when we create new closure.
-  DCHECK_IMPLIES(!code.is_null(), OptimizationTierBits::decode(flags()) ==
-                                      GetTierForCodeKind(code.kind()));
+  // It is possible that the maybe_optimized_code slot is cleared but the flags
+  // haven't been updated yet. We update them when we execute the function next
+  // time / when we create new closure.
+  DCHECK_IMPLIES(!code.is_null(),
+                 maybe_has_maglev_code() || maybe_has_turbofan_code());
+  DCHECK_IMPLIES(!code.is_null() && code.is_maglevved(),
+                 maybe_has_maglev_code());
+  DCHECK_IMPLIES(!code.is_null() && code.is_turbofanned(),
+                 maybe_has_turbofan_code());
   return code;
 }
 
-OptimizationMarker FeedbackVector::optimization_marker() const {
-  return OptimizationMarkerBits::decode(flags());
-}
-
-OptimizationTier FeedbackVector::optimization_tier() const {
-  OptimizationTier tier = OptimizationTierBits::decode(flags());
-  // It is possible that the optimization tier bits aren't updated when the code
-  // was cleared due to a GC.
-  DCHECK_IMPLIES(tier == OptimizationTier::kNone,
-                 maybe_optimized_code(kAcquireLoad)->IsCleared());
-  return tier;
+TieringState FeedbackVector::tiering_state() const {
+  return TieringStateBits::decode(flags());
 }
 
 bool FeedbackVector::has_optimized_code() const {
+  DCHECK_IMPLIES(!optimized_code().is_null(),
+                 maybe_has_maglev_code() || maybe_has_turbofan_code());
   return !optimized_code().is_null();
 }
 
-bool FeedbackVector::has_optimization_marker() const {
-  return optimization_marker() != OptimizationMarker::kLogFirstExecution &&
-         optimization_marker() != OptimizationMarker::kNone;
+bool FeedbackVector::maybe_has_maglev_code() const {
+  return MaybeHasMaglevCodeBit::decode(flags());
+}
+
+void FeedbackVector::set_maybe_has_maglev_code(bool value) {
+  set_flags(MaybeHasMaglevCodeBit::update(flags(), value));
+}
+
+bool FeedbackVector::maybe_has_turbofan_code() const {
+  return MaybeHasTurbofanCodeBit::decode(flags());
+}
+
+void FeedbackVector::set_maybe_has_turbofan_code(bool value) {
+  set_flags(MaybeHasTurbofanCodeBit::update(flags(), value));
+}
+
+bool FeedbackVector::log_next_execution() const {
+  return LogNextExecutionBit::decode(flags());
+}
+
+void FeedbackVector::set_log_next_execution(bool value) {
+  set_flags(LogNextExecutionBit::update(flags(), value));
+}
+
+base::Optional<CodeT> FeedbackVector::GetOptimizedOsrCode(Isolate* isolate,
+                                                          FeedbackSlot slot) {
+  MaybeObject maybe_code = Get(isolate, slot);
+  if (maybe_code->IsCleared()) return {};
+
+  CodeT codet = CodeT::cast(maybe_code->GetHeapObject());
+  if (codet.marked_for_deoptimization()) {
+    // Clear the cached Code object if deoptimized.
+    // TODO(jgruber): Add tracing.
+    Set(slot, HeapObjectReference::ClearedValue(isolate));
+    return {};
+  }
+
+  return codet;
 }
 
 // Conversion from an integer index to either a slot or an ic slot.
@@ -264,6 +320,8 @@ BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
       return BinaryOperationHint::kString;
     case BinaryOperationFeedback::kBigInt:
       return BinaryOperationHint::kBigInt;
+    case BinaryOperationFeedback::kBigInt64:
+      return BinaryOperationHint::kBigInt64;
     default:
       return BinaryOperationHint::kAny;
   }

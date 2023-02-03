@@ -19,7 +19,7 @@ using LocalHeapTest = TestWithIsolate;
 
 TEST_F(LocalHeapTest, Initialize) {
   Heap* heap = i_isolate()->heap();
-  CHECK(heap->safepoint()->ContainsAnyLocalHeap());
+  heap->safepoint()->AssertMainThreadIsOnlyThread();
 }
 
 TEST_F(LocalHeapTest, Current) {
@@ -83,7 +83,7 @@ namespace {
 
 class GCEpilogue {
  public:
-  static void Callback(void* data) {
+  static void Callback(LocalIsolate*, GCType, GCCallbackFlags, void* data) {
     reinterpret_cast<GCEpilogue*>(data)->was_invoked_ = true;
   }
 
@@ -176,8 +176,7 @@ TEST_F(LocalHeapTest, GCEpilogue) {
   epilogue[2].WaitUntilStarted();
   {
     UnparkedScope scope(&lh);
-    heap->PreciseCollectAllGarbage(Heap::kNoGCFlags,
-                                   GarbageCollectionReason::kTesting);
+    PreciseCollectAllGarbage(i_isolate());
   }
   epilogue[1].RequestStop();
   epilogue[2].RequestStop();

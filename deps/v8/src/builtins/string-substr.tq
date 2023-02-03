@@ -20,7 +20,7 @@ transitioning javascript builtin StringPrototypeSubstr(
   // 6. If intStart < 0, set intStart to max(size + intStart, 0).
   const start = arguments[0];
   const initStart: uintptr =
-      start != Undefined ? ConvertToRelativeIndex(start, size) : 0;
+      start != Undefined ? ConvertAndClampRelativeIndex(start, size) : 0;
 
   // 4. If length is undefined,
   //   let end be +∞; otherwise let end be ? ToInteger(length).

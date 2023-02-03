@@ -12,7 +12,7 @@
 const log = require('./log-shim.js')
 const { depth } = require('treeverse')
 const ms = require('ms')
-const auditReport = require('npm-audit-report')
+const npmAuditReport = require('npm-audit-report')
 const { readTree: getFundingInfo } = require('libnpmfund')
 const auditError = require('./audit-error.js')
 
@@ -112,7 +112,7 @@ const getAuditReport = (npm, report) => {
   const defaultAuditLevel = npm.command !== 'audit' ? 'none' : 'low'
   const auditLevel = npm.flatOptions.auditLevel || defaultAuditLevel
 
-  const res = auditReport(report, {
+  const res = npmAuditReport(report, {
     reporter,
     ...npm.flatOptions,
     auditLevel,

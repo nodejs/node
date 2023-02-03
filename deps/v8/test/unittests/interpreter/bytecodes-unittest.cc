@@ -41,10 +41,10 @@ TEST(OperandConversion, Parameters) {
   for (size_t p = 0; p < count; p++) {
     int parameter_count = parameter_counts[p];
     for (int i = 0; i < parameter_count; i++) {
-      Register r = Register::FromParameterIndex(i, parameter_count);
+      Register r = Register::FromParameterIndex(i);
       uint32_t operand_value = r.ToOperand();
       Register s = Register::FromOperand(operand_value);
-      CHECK_EQ(i, s.ToParameterIndex(parameter_count));
+      CHECK_EQ(i, s.ToParameterIndex());
     }
   }
 }
@@ -67,7 +67,7 @@ TEST(OperandConversion, RegistersParametersNoOverlap) {
   }
 
   for (int i = 0; i < parameter_count; i += 1) {
-    Register r = Register::FromParameterIndex(i, parameter_count);
+    Register r = Register::FromParameterIndex(i);
     uint32_t operand = r.ToOperand();
     uint8_t index = static_cast<uint8_t>(operand);
     CHECK_LT(index, operand_count.size());

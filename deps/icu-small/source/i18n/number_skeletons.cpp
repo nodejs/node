@@ -33,7 +33,7 @@ using namespace icu::number::impl::skeleton;
 
 namespace {
 
-icu::UInitOnce gNumberSkeletonsInitOnce = U_INITONCE_INITIALIZER;
+icu::UInitOnce gNumberSkeletonsInitOnce {};
 
 char16_t* kSerializedStemTrie = nullptr;
 
@@ -41,7 +41,7 @@ UBool U_CALLCONV cleanupNumberSkeletons() {
     uprv_free(kSerializedStemTrie);
     kSerializedStemTrie = nullptr;
     gNumberSkeletonsInitOnce.reset();
-    return TRUE;
+    return true;
 }
 
 void U_CALLCONV initNumberSkeletons(UErrorCode& status) {

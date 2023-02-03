@@ -3,5 +3,5 @@ export function resolve(specifier, context, next) {
     url: 'node:unknown-builtin-module'
   };
 
-  return next(specifier, context, next);
+  return next(specifier);
 }

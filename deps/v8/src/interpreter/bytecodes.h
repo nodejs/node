@@ -8,7 +8,6 @@
 #include <cstdint>
 #include <iosfwd>
 #include <string>
-#include <vector>
 
 #include "src/common/globals.h"
 #include "src/interpreter/bytecode-operands.h"
@@ -131,11 +130,11 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kFlag8)                                    \
                                                                                \
   /* Property loads (LoadIC) operations */                                     \
-  V(LdaNamedProperty, ImplicitRegisterUse::kWriteAccumulator,                  \
+  V(GetNamedProperty, ImplicitRegisterUse::kWriteAccumulator,                  \
     OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
-  V(LdaNamedPropertyFromSuper, ImplicitRegisterUse::kReadWriteAccumulator,     \
+  V(GetNamedPropertyFromSuper, ImplicitRegisterUse::kReadWriteAccumulator,     \
     OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
-  V(LdaKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
+  V(GetKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
     OperandType::kReg, OperandType::kIdx)                                      \
                                                                                \
   /* Operations on module variables */                                         \
@@ -145,21 +144,19 @@ namespace interpreter {
     OperandType::kImm, OperandType::kUImm)                                     \
                                                                                \
   /* Propery stores (StoreIC) operations */                                    \
-  V(StaNamedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
+  V(SetNamedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
     OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
-  V(StaNamedOwnProperty, ImplicitRegisterUse::kReadWriteAccumulator,           \
+  V(DefineNamedOwnProperty, ImplicitRegisterUse::kReadWriteAccumulator,        \
     OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
-  V(StaKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
+  V(SetKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
     OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
-  V(StaKeyedPropertyAsDefine, ImplicitRegisterUse::kReadWriteAccumulator,      \
+  V(DefineKeyedOwnProperty, ImplicitRegisterUse::kReadWriteAccumulator,        \
     OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
   V(StaInArrayLiteral, ImplicitRegisterUse::kReadWriteAccumulator,             \
     OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
-  V(StaDataPropertyInLiteral, ImplicitRegisterUse::kReadAccumulator,           \
+  V(DefineKeyedOwnPropertyInLiteral, ImplicitRegisterUse::kReadAccumulator,    \
     OperandType::kReg, OperandType::kReg, OperandType::kFlag8,                 \
     OperandType::kIdx)                                                         \
-  V(CollectTypeProfile, ImplicitRegisterUse::kReadAccumulator,                 \
-    OperandType::kImm)                                                         \
                                                                                \
   /* Binary Operators */                                                       \
   V(Add, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,        \
@@ -229,6 +226,8 @@ namespace interpreter {
   /* GetSuperConstructor operator */                                           \
   V(GetSuperConstructor, ImplicitRegisterUse::kReadAccumulator,                \
     OperandType::kRegOut)                                                      \
+  V(FindNonDefaultConstructorOrConstruct, ImplicitRegisterUse::kNone,          \
+    OperandType::kReg, OperandType::kReg, OperandType::kRegOutPair)            \
                                                                                \
   /* Call operations */                                                        \
   V(CallAnyReceiver, ImplicitRegisterUse::kWriteAccumulator,                   \
@@ -301,7 +300,7 @@ namespace interpreter {
                                                                                \
   /* Literals */                                                               \
   V(CreateRegExpLiteral, ImplicitRegisterUse::kWriteAccumulator,               \
-    OperandType::kIdx, OperandType::kIdx, OperandType::kFlag8)                 \
+    OperandType::kIdx, OperandType::kIdx, OperandType::kFlag16)                \
   V(CreateArrayLiteral, ImplicitRegisterUse::kWriteAccumulator,                \
     OperandType::kIdx, OperandType::kIdx, OperandType::kFlag8)                 \
   V(CreateArrayFromIterable, ImplicitRegisterUse::kReadWriteAccumulator)       \
@@ -341,7 +340,7 @@ namespace interpreter {
   /* Control Flow -- carefully ordered for efficient checks */                 \
   /* - [Unconditional jumps] */                                                \
   V(JumpLoop, ImplicitRegisterUse::kNone, OperandType::kUImm,                  \
-    OperandType::kImm)                                                         \
+    OperandType::kImm, OperandType::kIdx)                                      \
   /* - [Forward jumps] */                                                      \
   V(Jump, ImplicitRegisterUse::kNone, OperandType::kUImm)                      \
   /* - [Start constant jumps] */                                               \
@@ -538,6 +537,10 @@ namespace interpreter {
   V(Return)                     \
   V(SuspendGenerator)
 
+#define UNCONDITIONAL_THROW_BYTECODE_LIST(V) \
+  V(Throw)                                   \
+  V(ReThrow)
+
 // Enumeration of interpreter bytecodes.
 enum class Bytecode : uint8_t {
 #define DECLARE_BYTECODE(Name, ...) k##Name,
@@ -606,6 +609,22 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // Returns the scaling applied to scalable operands if bytecode is
   // is a scaling prefix.
   static OperandScale PrefixBytecodeToOperandScale(Bytecode bytecode) {
+#ifdef V8_TARGET_OS_ANDROID
+    // The compiler is very smart, turning the switch into branchless code.
+    // However this triggers a CPU bug on some android devices (see
+    // crbug.com/1379788). We therefore intentionally use code the compiler has
+    // a harder time optimizing on Android. At least until clang 15.0 the
+    // current workaround prevents hitting the CPU bug.
+    // TODO(chromium:1379788): Remove this hack if we get an external fix.
+    if (bytecode == Bytecode::kWide || bytecode == Bytecode::kDebugBreakWide) {
+      return OperandScale::kDouble;
+    } else if (bytecode == Bytecode::kExtraWide ||
+               bytecode == Bytecode::kDebugBreakExtraWide) {
+      return OperandScale::kQuadruple;
+    } else {
+      UNREACHABLE();
+    }
+#else
     switch (bytecode) {
       case Bytecode::kExtraWide:
       case Bytecode::kDebugBreakExtraWide:
@@ -616,6 +635,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
       default:
         UNREACHABLE();
     }
+#endif
   }
 
   // Returns how accumulator is used by |bytecode|.
@@ -645,7 +665,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // Return true if |bytecode| is an accumulator load without effects,
   // e.g. LdaConstant, LdaTrue, Ldar.
   static constexpr bool IsAccumulatorLoadWithoutEffects(Bytecode bytecode) {
-    STATIC_ASSERT(Bytecode::kLdar < Bytecode::kLdaImmutableCurrentContextSlot);
+    static_assert(Bytecode::kLdar < Bytecode::kLdaImmutableCurrentContextSlot);
     return bytecode >= Bytecode::kLdar &&
            bytecode <= Bytecode::kLdaImmutableCurrentContextSlot;
   }
@@ -653,7 +673,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // Returns true if |bytecode| is a compare operation without external effects
   // (e.g., Type cooersion).
   static constexpr bool IsCompareWithoutEffects(Bytecode bytecode) {
-    STATIC_ASSERT(Bytecode::kTestReferenceEqual < Bytecode::kTestTypeOf);
+    static_assert(Bytecode::kTestReferenceEqual < Bytecode::kTestTypeOf);
     return bytecode >= Bytecode::kTestReferenceEqual &&
            bytecode <= Bytecode::kTestTypeOf;
   }
@@ -802,6 +822,13 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
 #undef OR_BYTECODE
   }
 
+  // Returns true if the bytecode unconditionally throws.
+  static constexpr bool UnconditionallyThrows(Bytecode bytecode) {
+#define OR_BYTECODE(NAME) || bytecode == Bytecode::k##NAME
+    return false UNCONDITIONAL_THROW_BYTECODE_LIST(OR_BYTECODE);
+#undef OR_BYTECODE
+  }
+
   // Returns the number of operands expected by |bytecode|.
   static int NumberOfOperands(Bytecode bytecode) {
     DCHECK_LE(bytecode, Bytecode::kLast);
@@ -858,7 +885,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
     DCHECK_LE(bytecode, Bytecode::kLast);
     DCHECK_GE(operand_scale, OperandScale::kSingle);
     DCHECK_LE(operand_scale, OperandScale::kLast);
-    STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
+    static_assert(static_cast<int>(OperandScale::kQuadruple) == 4 &&
                   OperandScale::kLast == OperandScale::kQuadruple);
     int scale_index = static_cast<int>(operand_scale) >> 1;
     return kOperandSizes[scale_index][static_cast<size_t>(bytecode)];
@@ -873,7 +900,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // given |operand_scale|.
   static int Size(Bytecode bytecode, OperandScale operand_scale) {
     DCHECK_LE(bytecode, Bytecode::kLast);
-    STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
+    static_assert(static_cast<int>(OperandScale::kQuadruple) == 4 &&
                   OperandScale::kLast == OperandScale::kQuadruple);
     int scale_index = static_cast<int>(operand_scale) >> 1;
     return kBytecodeSizes[scale_index][static_cast<size_t>(bytecode)];
@@ -964,7 +991,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
     DCHECK_LE(operand_type, OperandType::kLast);
     DCHECK_GE(operand_scale, OperandScale::kSingle);
     DCHECK_LE(operand_scale, OperandScale::kLast);
-    STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
+    static_assert(static_cast<int>(OperandScale::kQuadruple) == 4 &&
                   OperandScale::kLast == OperandScale::kQuadruple);
     int scale_index = static_cast<int>(operand_scale) >> 1;
     return kOperandKindSizes[scale_index][static_cast<size_t>(operand_type)];

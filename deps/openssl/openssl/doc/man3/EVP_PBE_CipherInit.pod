@@ -3,7 +3,8 @@
 =head1 NAME
 
 EVP_PBE_CipherInit, EVP_PBE_CipherInit_ex,
-EVP_PBE_find, EVP_PBE_find_ex - Password based encryption routines
+EVP_PBE_find, EVP_PBE_find_ex,
+EVP_PBE_alg_add_type, EVP_PBE_alg_add - Password based encryption routines
 
 =head1 SYNOPSIS
 
@@ -19,6 +20,11 @@ EVP_PBE_find, EVP_PBE_find_ex - Password based encryption routines
                   EVP_PBE_KEYGEN **pkeygen);
  int EVP_PBE_find_ex(int type, int pbe_nid, int *pcnid, int *pmnid,
                      EVP_PBE_KEYGEN **pkeygen, EVP_PBE_KEYGEN_EX **keygen_ex);
+
+ int EVP_PBE_alg_add_type(int pbe_type, int pbe_nid, int cipher_nid,
+                          int md_nid, EVP_PBE_KEYGEN *keygen);
+ int EVP_PBE_alg_add(int nid, const EVP_CIPHER *cipher, const EVP_MD *md,
+                     EVP_PBE_KEYGEN *keygen);
 
 =head1 DESCRIPTION
 
@@ -66,6 +72,12 @@ context and property query.
 If a NULL is supplied for any of I<pcnid>, I<pmnid>, I<pkeygen> or I<pkeygen_ex>
 then this parameter is not returned.
 
+=head2 PBE algorithm add
+
+EVP_PBE_alg_add_type() and EVP_PBE_alg_add() add an algorithm to the list
+of known algorithms. Their parameters have the same meaning as for
+EVP_PBE_find() and EVP_PBE_find_ex() functions.
+
 =head1 NOTES
 
 The arguments I<pbe_obj> and I<param> to EVP_PBE_CipherInit() and EVP_PBE_CipherInit_ex()
@@ -89,7 +101,7 @@ EVP_PBE_CipherInit_ex() and EVP_PBE_find_ex() were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

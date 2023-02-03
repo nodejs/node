@@ -14,11 +14,11 @@
 #include "src/execution/isolate.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/logging/code-events.h"  // For CodeCreateEvent.
-#include "src/logging/log.h"          // For Logger.
+#include "src/logging/log.h"          // For V8FileLogger.
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/visitors.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -42,9 +42,9 @@ struct BuiltinMetadata {
     interpreter::OperandScale scale : 8;
   };
 
-  STATIC_ASSERT(sizeof(interpreter::Bytecode) == 1);
-  STATIC_ASSERT(sizeof(interpreter::OperandScale) == 1);
-  STATIC_ASSERT(sizeof(BytecodeAndScale) <= sizeof(Address));
+  static_assert(sizeof(interpreter::Bytecode) == 1);
+  static_assert(sizeof(interpreter::OperandScale) == 1);
+  static_assert(sizeof(BytecodeAndScale) <= sizeof(Address));
 
   // The `data` field has kind-specific contents.
   union KindSpecificData {
@@ -114,12 +114,14 @@ const char* Builtins::Lookup(Address pc) {
   if (!initialized_) return nullptr;
   for (Builtin builtin_ix = Builtins::kFirst; builtin_ix <= Builtins::kLast;
        ++builtin_ix) {
-    if (code(builtin_ix).contains(isolate_, pc)) return name(builtin_ix);
+    if (code(builtin_ix).contains(isolate_, pc)) {
+      return name(builtin_ix);
+    }
   }
   return nullptr;
 }
 
-Handle<Code> Builtins::CallFunction(ConvertReceiverMode mode) {
+Handle<CodeT> Builtins::CallFunction(ConvertReceiverMode mode) {
   switch (mode) {
     case ConvertReceiverMode::kNullOrUndefined:
       return code_handle(Builtin::kCallFunction_ReceiverIsNullOrUndefined);
@@ -131,7 +133,7 @@ Handle<Code> Builtins::CallFunction(ConvertReceiverMode mode) {
   UNREACHABLE();
 }
 
-Handle<Code> Builtins::Call(ConvertReceiverMode mode) {
+Handle<CodeT> Builtins::Call(ConvertReceiverMode mode) {
   switch (mode) {
     case ConvertReceiverMode::kNullOrUndefined:
       return code_handle(Builtin::kCall_ReceiverIsNullOrUndefined);
@@ -143,7 +145,7 @@ Handle<Code> Builtins::Call(ConvertReceiverMode mode) {
   UNREACHABLE();
 }
 
-Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
+Handle<CodeT> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
   switch (hint) {
     case ToPrimitiveHint::kDefault:
       return code_handle(Builtin::kNonPrimitiveToPrimitive_Default);
@@ -155,7 +157,7 @@ Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
   UNREACHABLE();
 }
 
-Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
+Handle<CodeT> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
   switch (hint) {
     case OrdinaryToPrimitiveHint::kNumber:
       return code_handle(Builtin::kOrdinaryToPrimitive_Number);
@@ -177,53 +179,20 @@ FullObjectSlot Builtins::builtin_tier0_slot(Builtin builtin) {
   return FullObjectSlot(location);
 }
 
-void Builtins::set_code(Builtin builtin, Code code) {
+void Builtins::set_code(Builtin builtin, CodeT code) {
   DCHECK_EQ(builtin, code.builtin_id());
   DCHECK(Internals::HasHeapObjectTag(code.ptr()));
   // The given builtin may be uninitialized thus we cannot check its type here.
   isolate_->builtin_table()[Builtins::ToInt(builtin)] = code.ptr();
 }
 
-Code Builtins::code(Builtin builtin) {
+CodeT Builtins::code(Builtin builtin) {
   Address ptr = isolate_->builtin_table()[Builtins::ToInt(builtin)];
-  return Code::cast(Object(ptr));
-}
-
-Handle<Code> Builtins::code_handle(Builtin builtin) {
-  Address* location = &isolate_->builtin_table()[Builtins::ToInt(builtin)];
-  return Handle<Code>(location);
-}
-
-FullObjectSlot Builtins::builtin_code_data_container_slot(Builtin builtin) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  Address* location =
-      &isolate_->builtin_code_data_container_table()[Builtins::ToInt(builtin)];
-  return FullObjectSlot(location);
-}
-
-void Builtins::set_codet(Builtin builtin, CodeT code) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  // TODO(v8:11880): add DCHECK_EQ(builtin, code.builtin_id()); once CodeT
-  // has respective field.
-  DCHECK(Internals::HasHeapObjectTag(code.ptr()));
-  // The given builtin may be uninitialized thus we cannot check its type here.
-  isolate_->builtin_code_data_container_table()[Builtins::ToInt(builtin)] =
-      code.ptr();
-}
-
-CodeT Builtins::codet(Builtin builtin) {
-  Address* table = V8_EXTERNAL_CODE_SPACE_BOOL
-                       ? isolate_->builtin_code_data_container_table()
-                       : isolate_->builtin_table();
-  Address ptr = table[Builtins::ToInt(builtin)];
   return CodeT::cast(Object(ptr));
 }
 
-Handle<CodeT> Builtins::codet_handle(Builtin builtin) {
-  Address* table = V8_EXTERNAL_CODE_SPACE_BOOL
-                       ? isolate_->builtin_code_data_container_table()
-                       : isolate_->builtin_table();
-  Address* location = &table[Builtins::ToInt(builtin)];
+Handle<CodeT> Builtins::code_handle(Builtin builtin) {
+  Address* location = &isolate_->builtin_table()[Builtins::ToInt(builtin)];
   return Handle<CodeT>(location);
 }
 
@@ -260,7 +229,7 @@ CallInterfaceDescriptor Builtins::CallInterfaceDescriptorFor(Builtin builtin) {
 
 // static
 Callable Builtins::CallableFor(Isolate* isolate, Builtin builtin) {
-  Handle<Code> code = isolate->builtins()->code_handle(builtin);
+  Handle<CodeT> code = isolate->builtins()->code_handle(builtin);
   return Callable{code, CallInterfaceDescriptorFor(builtin)};
 }
 
@@ -278,17 +247,17 @@ const char* Builtins::name(Builtin builtin) {
 }
 
 void Builtins::PrintBuiltinCode() {
-  DCHECK(FLAG_print_builtin_code);
+  DCHECK(v8_flags.print_builtin_code);
 #ifdef ENABLE_DISASSEMBLER
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     const char* builtin_name = name(builtin);
-    Handle<Code> code = code_handle(builtin);
     if (PassesFilter(base::CStrVector(builtin_name),
-                     base::CStrVector(FLAG_print_builtin_code_filter))) {
+                     base::CStrVector(v8_flags.print_builtin_code_filter))) {
       CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
       OFStream os(trace_scope.file());
-      code->Disassemble(builtin_name, os, isolate_);
+      CodeT builtin_code = code(builtin);
+      builtin_code.Disassemble(builtin_name, os, isolate_);
       os << "\n";
     }
   }
@@ -296,12 +265,12 @@ void Builtins::PrintBuiltinCode() {
 }
 
 void Builtins::PrintBuiltinSize() {
-  DCHECK(FLAG_print_builtin_size);
+  DCHECK(v8_flags.print_builtin_size);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     const char* builtin_name = name(builtin);
     const char* kind = KindNameOf(builtin);
-    Code code = Builtins::code(builtin);
+    CodeT code = Builtins::code(builtin);
     PrintF(stdout, "%s Builtin, %s, %d\n", kind, builtin_name,
            code.InstructionSize());
   }
@@ -329,24 +298,6 @@ bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
   return true;
 }
 
-bool Builtins::IsBuiltinCodeDataContainerHandle(Handle<HeapObject> maybe_code,
-                                                Builtin* builtin) const {
-  Address* handle_location = maybe_code.location();
-  Address* builtins_table = isolate_->builtin_code_data_container_table();
-  if (handle_location < builtins_table) return false;
-  Address* builtins_table_end = &builtins_table[Builtins::kBuiltinCount];
-  if (handle_location >= builtins_table_end) return false;
-  *builtin = FromInt(static_cast<int>(handle_location - builtins_table));
-  return true;
-}
-
-// static
-bool Builtins::IsIsolateIndependentBuiltin(const Code code) {
-  const Builtin builtin = code.builtin_id();
-  return Builtins::IsBuiltinId(builtin) &&
-         Builtins::IsIsolateIndependent(builtin);
-}
-
 // static
 void Builtins::InitializeIsolateDataTables(Isolate* isolate) {
   EmbeddedData embedded_data = EmbeddedData::FromBlob(isolate);
@@ -371,7 +322,7 @@ void Builtins::InitializeIsolateDataTables(Isolate* isolate) {
 
 // static
 void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
-  if (!isolate->logger()->is_listening_to_code_events() &&
+  if (!isolate->v8_file_logger()->is_listening_to_code_events() &&
       !isolate->is_profiling()) {
     return;  // No need to iterate the entire table in this case.
   }
@@ -380,21 +331,23 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
   int i = 0;
   HandleScope scope(isolate);
   for (; i < ToInt(Builtin::kFirstBytecodeHandler); i++) {
-    Handle<AbstractCode> code(AbstractCode::cast(Object(builtins[i])), isolate);
-    PROFILE(isolate, CodeCreateEvent(CodeEventListener::BUILTIN_TAG, code,
+    Handle<CodeT> builtin_code(&builtins[i]);
+    Handle<AbstractCode> code = ToAbstractCode(builtin_code, isolate);
+    PROFILE(isolate, CodeCreateEvent(LogEventListener::CodeTag::kBuiltin, code,
                                      Builtins::name(FromInt(i))));
   }
 
-  STATIC_ASSERT(kLastBytecodeHandlerPlusOne == kBuiltinCount);
+  static_assert(kLastBytecodeHandlerPlusOne == kBuiltinCount);
   for (; i < kBuiltinCount; i++) {
-    Handle<AbstractCode> code(AbstractCode::cast(Object(builtins[i])), isolate);
+    Handle<CodeT> builtin_code(&builtins[i]);
+    Handle<AbstractCode> code = ToAbstractCode(builtin_code, isolate);
     interpreter::Bytecode bytecode =
         builtin_metadata[i].data.bytecode_and_scale.bytecode;
     interpreter::OperandScale scale =
         builtin_metadata[i].data.bytecode_and_scale.scale;
     PROFILE(isolate,
             CodeCreateEvent(
-                CodeEventListener::BYTECODE_HANDLER_TAG, code,
+                LogEventListener::CodeTag::kBytecodeHandler, code,
                 interpreter::Bytecodes::ToString(bytecode, scale).c_str()));
   }
 }
@@ -445,7 +398,7 @@ constexpr int OffHeapTrampolineGenerator::kBufferSize;
 
 // static
 Handle<Code> Builtins::GenerateOffHeapTrampolineFor(
-    Isolate* isolate, Address off_heap_entry, int32_t kind_specfic_flags,
+    Isolate* isolate, Address off_heap_entry, int32_t kind_specific_flags,
     bool generate_jump_to_instruction_stream) {
   DCHECK_NOT_NULL(isolate->embedded_blob_code());
   DCHECK_NE(0, isolate->embedded_blob_code_size());
@@ -458,7 +411,7 @@ Handle<Code> Builtins::GenerateOffHeapTrampolineFor(
                                              : TrampolineType::kAbort);
 
   return Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
-      .set_kind_specific_flags(kind_specfic_flags)
+      .set_kind_specific_flags(kind_specific_flags)
       .set_read_only_data_container(!V8_EXTERNAL_CODE_SPACE_BOOL)
       .set_self_reference(generator.CodeObject())
       .set_is_executable(generate_jump_to_instruction_stream)
@@ -478,6 +431,58 @@ Handle<ByteArray> Builtins::GenerateOffHeapTrampolineRelocInfo(
   Code::CopyRelocInfoToByteArray(*reloc_info, desc);
 
   return reloc_info;
+}
+
+// static
+Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
+    Isolate* isolate) {
+  DCHECK_NOT_NULL(isolate->embedded_blob_code());
+  DCHECK_NE(0, isolate->embedded_blob_code_size());
+
+  EmbeddedData d = EmbeddedData::FromBlob(isolate);
+  const Builtin builtin = Builtin::kInterpreterEntryTrampolineForProfiling;
+
+  CodeDesc desc;
+  desc.buffer = reinterpret_cast<byte*>(d.InstructionStartOfBuiltin(builtin));
+
+  int instruction_size = d.InstructionSizeOfBuiltin(builtin);
+  desc.buffer_size = instruction_size;
+  desc.instr_size = instruction_size;
+
+  // Ensure the code doesn't require creation of metadata, otherwise respective
+  // fields of CodeDesc should be initialized.
+  DCHECK_EQ(d.SafepointTableSizeOf(builtin), 0);
+  DCHECK_EQ(d.HandlerTableSizeOf(builtin), 0);
+  DCHECK_EQ(d.ConstantPoolSizeOf(builtin), 0);
+  // TODO(v8:11036): currently the CodeDesc can't represent the state when the
+  // code metadata is stored separately from the instruction stream, therefore
+  // it cannot recreate code comments in the trampoline copy.
+  // The following DCHECK currently fails if the mksnapshot is run with enabled
+  // code comments.
+  DCHECK_EQ(d.CodeCommentsSizeOf(builtin), 0);
+  DCHECK_EQ(d.UnwindingInfoSizeOf(builtin), 0);
+
+  desc.safepoint_table_offset = instruction_size;
+  desc.handler_table_offset = instruction_size;
+  desc.constant_pool_offset = instruction_size;
+  desc.code_comments_offset = instruction_size;
+
+  CodeDesc::Verify(&desc);
+
+  int kind_specific_flags;
+  {
+    CodeT code = isolate->builtins()->code(builtin);
+    kind_specific_flags =
+        CodeDataContainerFromCodeT(code).kind_specific_flags(kRelaxedLoad);
+  }
+
+  return Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
+      .set_kind_specific_flags(kind_specific_flags)
+      .set_read_only_data_container(false)
+      // Mimic the InterpreterEntryTrampoline.
+      .set_builtin(Builtin::kInterpreterEntryTrampoline)
+      .set_is_executable(true)
+      .Build();
 }
 
 Builtins::Kind Builtins::KindOf(Builtin builtin) {
@@ -510,10 +515,10 @@ bool Builtins::IsCpp(Builtin builtin) {
 // static
 bool Builtins::AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
                                     Handle<JSObject> target_global_proxy) {
-  if (FLAG_allow_unsafe_function_constructor) return true;
+  if (v8_flags.allow_unsafe_function_constructor) return true;
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
   Handle<Context> responsible_context = impl->LastEnteredOrMicrotaskContext();
-  // TODO(jochen): Remove this.
+  // TODO(verwaest): Remove this.
   if (responsible_context.is_null()) {
     return true;
   }
@@ -560,6 +565,7 @@ bool Builtins::CodeObjectIsExecutable(Builtin builtin) {
     case Builtin::kInstantiateAsmJs:
 #if V8_ENABLE_WEBASSEMBLY
     case Builtin::kGenericJSToWasmWrapper:
+    case Builtin::kWasmReturnPromiseOnSuspend:
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // TODO(delphick): Remove this when calls to it have the trampoline inlined
@@ -567,14 +573,14 @@ bool Builtins::CodeObjectIsExecutable(Builtin builtin) {
     case Builtin::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
       return true;
     default:
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#if V8_TARGET_ARCH_MIPS64
       // TODO(Loongson): Move non-JS linkage builtins code objects into RO_SPACE
       // caused MIPS platform to crash, and we need some time to handle it. Now
       // disable this change temporarily on MIPS platform.
       return true;
 #else
       return false;
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#endif  // V8_TARGET_ARCH_MIPS64
   }
 }
 

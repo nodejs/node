@@ -22,7 +22,7 @@ const astUtils = require("./utils/ast-utils");
  *     shorthand form.
  */
 function isCommutativeOperatorWithShorthand(operator) {
-    return ["*", "&", "^", "|"].indexOf(operator) >= 0;
+    return ["*", "&", "^", "|"].includes(operator);
 }
 
 /**
@@ -33,7 +33,7 @@ function isCommutativeOperatorWithShorthand(operator) {
  *     a shorthand form.
  */
 function isNonCommutativeOperatorWithShorthand(operator) {
-    return ["+", "-", "/", "%", "<<", ">>", ">>>", "**"].indexOf(operator) >= 0;
+    return ["+", "-", "/", "%", "<<", ">>", ">>>", "**"].includes(operator);
 }
 
 //------------------------------------------------------------------------------
@@ -63,7 +63,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require or disallow assignment operator shorthand where possible",
+            description: "Require or disallow assignment operator shorthand where possible",
             recommended: false,
             url: "https://eslint.org/docs/rules/operator-assignment"
         },

@@ -17,17 +17,30 @@
 namespace v8_fuzzer {
 
 FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
-  v8::internal::FLAG_expose_gc = true;
+  // Disable hard abort, which generates a trap instead of a proper abortion.
+  // Traps by default do not cause libfuzzer to generate a crash file.
+  i::v8_flags.hard_abort = false;
+
+  i::v8_flags.expose_gc = true;
+
+  // Allow changing flags in fuzzers.
+  // TODO(12887): Refactor fuzzers to not change flags after initialization.
+  i::v8_flags.freeze_flags_after_init = false;
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (V8_TRAP_HANDLER_SUPPORTED) {
+    constexpr bool kUseDefaultTrapHandler = true;
+    if (!v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler)) {
+      FATAL("Could not register trap handler");
+    }
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   v8::V8::SetFlagsFromCommandLine(argc, *argv, true);
   v8::V8::InitializeICUDefaultLocation((*argv)[0]);
   v8::V8::InitializeExternalStartupData((*argv)[0]);
   platform_ = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform_.get());
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  if (!v8::V8::InitializeVirtualMemoryCage()) {
-    FATAL("Could not initialize the virtual memory cage");
-  }
-#endif
   v8::V8::Initialize();
 
   allocator_ = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
@@ -69,14 +82,6 @@ std::unique_ptr<FuzzerSupport> FuzzerSupport::fuzzer_support_;
 
 // static
 void FuzzerSupport::InitializeFuzzerSupport(int* argc, char*** argv) {
-#if V8_ENABLE_WEBASSEMBLY
-  if (V8_TRAP_HANDLER_SUPPORTED) {
-    constexpr bool kUseDefaultTrapHandler = true;
-    if (!v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler)) {
-      FATAL("Could not register trap handler");
-    }
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK_NULL(FuzzerSupport::fuzzer_support_);
   FuzzerSupport::fuzzer_support_ =
       std::make_unique<v8_fuzzer::FuzzerSupport>(argc, argv);
@@ -106,9 +111,9 @@ bool FuzzerSupport::PumpMessageLoop(
 // Explicitly specify some attributes to avoid issues with the linker dead-
 // stripping the following function on macOS, as it is not called directly
 // by fuzz target. LibFuzzer runtime uses dlsym() to resolve that function.
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 __attribute__((used)) __attribute__((visibility("default")))
-#endif  // V8_OS_MACOSX
+#endif  // V8_OS_DARWIN
 extern "C" int
 LLVMFuzzerInitialize(int* argc, char*** argv) {
   v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);

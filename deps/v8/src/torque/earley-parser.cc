@@ -127,6 +127,7 @@ LexerResult Lexer::RunLexer(const std::string& input) {
   while (pos != end) {
     token_start = pos;
     Symbol* symbol = MatchToken(&pos, end);
+    DCHECK_IMPLIES(symbol != nullptr, pos != token_start);
     InputPosition token_end = pos;
     line_column_tracker.Advance(token_start, token_end);
     if (!symbol) {

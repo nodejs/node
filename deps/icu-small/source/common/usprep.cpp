@@ -45,7 +45,7 @@ U_CDECL_BEGIN
 Static cache for already opened StringPrep profiles
 */
 static UHashtable *SHARED_DATA_HASHTABLE = NULL;
-static icu::UInitOnce gSharedDataInitOnce = U_INITONCE_INITIALIZER;
+static icu::UInitOnce gSharedDataInitOnce {};
 
 static UMutex usprepMutex;
 /* format version of spp file */
@@ -91,9 +91,9 @@ isSPrepAcceptable(void * /* context */,
     ) {
         //uprv_memcpy(formatVersion, pInfo->formatVersion, 4);
         uprv_memcpy(dataVersion, pInfo->dataVersion, 4);
-        return TRUE;
+        return true;
     } else {
-        return FALSE;
+        return false;
     }
 }
 
@@ -159,8 +159,8 @@ usprep_internal_flushCache(UBool noRefCount){
         profile = (UStringPrepProfile *) e->value.pointer;
         key  = (UStringPrepKey *) e->key.pointer;
 
-        if ((noRefCount== FALSE && profile->refCount == 0) || 
-             noRefCount== TRUE) {
+        if ((noRefCount== false && profile->refCount == 0) || 
+             noRefCount== true) {
             deletedNum++;
             uhash_removeElement(SHARED_DATA_HASHTABLE, e);
 
@@ -188,13 +188,13 @@ usprep_internal_flushCache(UBool noRefCount){
 /* Works just like ucnv_flushCache() 
 static int32_t 
 usprep_flushCache(){
-    return usprep_internal_flushCache(FALSE);
+    return usprep_internal_flushCache(false);
 }
 */
 
 static UBool U_CALLCONV usprep_cleanup(void){
     if (SHARED_DATA_HASHTABLE != NULL) {
-        usprep_internal_flushCache(TRUE);
+        usprep_internal_flushCache(true);
         if (SHARED_DATA_HASHTABLE != NULL && uhash_count(SHARED_DATA_HASHTABLE) == 0) {
             uhash_close(SHARED_DATA_HASHTABLE);
             SHARED_DATA_HASHTABLE = NULL;
@@ -243,7 +243,7 @@ loadData(UStringPrepProfile* profile,
     //TODO: change the path
     dataMemory=udata_openChoice(path, type, name, isSPrepAcceptable, NULL, errorCode);
     if(U_FAILURE(*errorCode)) {
-        return FALSE;
+        return false;
     }
 
     p=(const int32_t *)udata_getMemory(dataMemory);
@@ -254,7 +254,7 @@ loadData(UStringPrepProfile* profile,
 
     if(U_FAILURE(*errorCode)) {
         udata_close(dataMemory);
-        return FALSE;
+        return false;
     }
 
     /* in the mutex block, set the data for this process */
@@ -280,7 +280,7 @@ loadData(UStringPrepProfile* profile,
     
     if(U_FAILURE(*errorCode)){
         udata_close(dataMemory);
-        return FALSE;
+        return false;
     }
     if( normUniVer < sprepUniVer && /* the Unicode version of SPREP file must be less than the Unicode Version of the normalization data */
         normUniVer < normCorrVer && /* the Unicode version of the NormalizationCorrections.txt file should be less than the Unicode Version of the normalization data */
@@ -288,9 +288,9 @@ loadData(UStringPrepProfile* profile,
       ){
         *errorCode = U_INVALID_FORMAT_ERROR;
         udata_close(dataMemory);
-        return FALSE;
+        return false;
     }
-    profile->isDataLoaded = TRUE;
+    profile->isDataLoaded = true;
 
     /* if a different thread set it first, then close the extra data */
     if(dataMemory!=NULL) {
@@ -474,28 +474,28 @@ getValues(uint16_t trieWord, int16_t& value, UBool& isIndex){
          * the source codepoint is copied to the destination
          */
         type = USPREP_TYPE_LIMIT;
-        isIndex =FALSE;
+        isIndex =false;
         value = 0;
     }else if(trieWord >= _SPREP_TYPE_THRESHOLD){
         type = (UStringPrepType) (trieWord - _SPREP_TYPE_THRESHOLD);
-        isIndex =FALSE;
+        isIndex =false;
         value = 0;
     }else{
         /* get the type */
         type = USPREP_MAP;
         /* ascertain if the value is index or delta */
         if(trieWord & 0x02){
-            isIndex = TRUE;
+            isIndex = true;
             value = trieWord  >> 2; //mask off the lower 2 bits and shift
         }else{
-            isIndex = FALSE;
+            isIndex = false;
             value = (int16_t)trieWord;
             value =  (value >> 2);
         }
  
         if((trieWord>>2) == _SPREP_MAX_INDEX_VALUE){
             type = USPREP_DELETE;
-            isIndex =FALSE;
+            isIndex =false;
             value = 0;
         }
     }
@@ -535,7 +535,7 @@ usprep_map(  const UStringPrepProfile* profile,
         type = getValues(result, value, isIndex);
 
         // check if the source codepoint is unassigned
-        if(type == USPREP_UNASSIGNED && allowUnassigned == FALSE){
+        if(type == USPREP_UNASSIGNED && allowUnassigned == false){
 
             uprv_syntaxError(src,srcIndex-U16_LENGTH(ch), srcLength,parseError);
             *status = U_STRINGPREP_UNASSIGNED_ERROR;
@@ -709,7 +709,7 @@ usprep_prepare(   const UStringPrepProfile* profile,
     const UChar *b2 = s2.getBuffer();
     int32_t b2Len = s2.length();
     UCharDirection direction=U_CHAR_DIRECTION_COUNT, firstCharDir=U_CHAR_DIRECTION_COUNT;
-    UBool leftToRight=FALSE, rightToLeft=FALSE;
+    UBool leftToRight=false, rightToLeft=false;
     int32_t rtlPos =-1, ltrPos =-1;
 
     for(int32_t b2Index=0; b2Index<b2Len;){
@@ -737,31 +737,31 @@ usprep_prepare(   const UStringPrepProfile* profile,
                 firstCharDir = direction;
             }
             if(direction == U_LEFT_TO_RIGHT){
-                leftToRight = TRUE;
+                leftToRight = true;
                 ltrPos = b2Index-1;
             }
             if(direction == U_RIGHT_TO_LEFT || direction == U_RIGHT_TO_LEFT_ARABIC){
-                rightToLeft = TRUE;
+                rightToLeft = true;
                 rtlPos = b2Index-1;
             }
         }
     }
-    if(profile->checkBiDi == TRUE){
+    if(profile->checkBiDi == true){
         // satisfy 2
-        if( leftToRight == TRUE && rightToLeft == TRUE){
+        if( leftToRight == true && rightToLeft == true){
             *status = U_STRINGPREP_CHECK_BIDI_ERROR;
             uprv_syntaxError(b2,(rtlPos>ltrPos) ? rtlPos : ltrPos, b2Len, parseError);
             return 0;
         }
 
         //satisfy 3
-        if( rightToLeft == TRUE && 
+        if( rightToLeft == true && 
             !((firstCharDir == U_RIGHT_TO_LEFT || firstCharDir == U_RIGHT_TO_LEFT_ARABIC) &&
               (direction == U_RIGHT_TO_LEFT || direction == U_RIGHT_TO_LEFT_ARABIC))
            ){
             *status = U_STRINGPREP_CHECK_BIDI_ERROR;
             uprv_syntaxError(b2, rtlPos, b2Len, parseError);
-            return FALSE;
+            return false;
         }
     }
     return s2.extract(dest, destCapacity, *status);

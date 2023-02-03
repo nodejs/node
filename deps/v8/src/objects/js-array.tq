@@ -56,6 +56,14 @@ extern class JSArray extends JSObject {
   length: Number;
 }
 
+@hasSameInstanceTypeAsParent
+@doNotGenerateCast
+extern class TemplateLiteralObject extends JSArray {
+  raw: JSArray;
+  function_literal_id: Smi;
+  slot_id: Smi;
+}
+
 @doNotGenerateCast
 extern class JSArrayConstructor extends JSFunction
     generates 'TNode<JSFunction>';

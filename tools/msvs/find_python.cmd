@@ -46,7 +46,7 @@ exit /b 1
 
 :found-python
 echo Python found in %p%\python.exe
-call :check-python %p%\python.exe
+call :check-python "%p%\python.exe"
 if errorlevel 1 goto :no-python
 endlocal ^
   & set "pt=%p%" ^
@@ -57,7 +57,7 @@ set "need_path_ext="
 exit /b 0
 
 :check-python
-%~1 -V
+%1 -V
 :: 9009 means error file not found
 if %errorlevel% equ 9009 (
   echo Not an executable Python program

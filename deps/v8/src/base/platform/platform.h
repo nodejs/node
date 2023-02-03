@@ -26,16 +26,23 @@
 #include <string>
 #include <vector>
 
+#include "include/v8-platform.h"
 #include "src/base/base-export.h"
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/macros.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 #if V8_OS_QNX
 #include "src/base/qnx-math.h"
 #endif
+
+#if V8_CC_MSVC
+#include <intrin.h>
+#endif  // V8_CC_MSVC
 
 #if V8_OS_FUCHSIA
 #include <zircon/types.h>
@@ -69,9 +76,7 @@ namespace base {
 
 #define V8_FAST_TLS_SUPPORTED 1
 
-V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index);
-
-inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
+V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   const intptr_t kTibInlineTlsOffset = 0xE10;
   const intptr_t kTibExtraTlsOffset = 0xF94;
   const intptr_t kMaxInlineSlots = 64;
@@ -84,11 +89,13 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
         __readfsdword(kTibInlineTlsOffset + kSystemPointerSize * index));
   }
   intptr_t extra = static_cast<intptr_t>(__readfsdword(kTibExtraTlsOffset));
-  DCHECK_NE(extra, 0);
+  if (!extra) return 0;
   return *reinterpret_cast<intptr_t*>(extra + kSystemPointerSize *
                                                   (index - kMaxInlineSlots));
 }
 
+// Not possible on ARM64, the register holding the base pointer is not stable
+// across major releases.
 #elif defined(__APPLE__) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 
 // tvOS simulator does not use intptr_t as TLS key.
@@ -96,20 +103,14 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 
 #define V8_FAST_TLS_SUPPORTED 1
 
-extern V8_BASE_EXPORT intptr_t kMacTlsBaseOffset;
-
-V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index);
-
-inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
+V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   intptr_t result;
 #if V8_HOST_ARCH_IA32
-  asm("movl %%gs:(%1,%2,4), %0;"
-      :"=r"(result)  // Output must be a writable register.
-      :"r"(kMacTlsBaseOffset), "r"(index));
+  asm("movl %%gs:(,%1,4), %0;"
+      : "=r"(result)  // Output must be a writable register.
+      : "r"(index));
 #else
-  asm("movq %%gs:(%1,%2,8), %0;"
-      :"=r"(result)
-      :"r"(kMacTlsBaseOffset), "r"(index));
+  asm("movq %%gs:(,%1,8), %0;" : "=r"(result) : "r"(index));
 #endif
   return result;
 }
@@ -144,10 +145,10 @@ class V8_BASE_EXPORT OS {
   // On Windows, ensure the newer memory API is loaded if available.  This
   // includes function like VirtualAlloc2 and MapViewOfFile3.
   // TODO(chromium:1218005) this should probably happen as part of Initialize,
-  // but that is currently invoked too late, after the virtual memory cage
-  // is initialized. However, eventually the virtual memory cage initialization
-  // will happen as part of V8::Initialize, at which point this function can
-  // probably be merged into OS::Initialize.
+  // but that is currently invoked too late, after the sandbox is initialized.
+  // However, eventually the sandbox initialization will probably happen as
+  // part of V8::Initialize, at which point this function can probably be
+  // merged into OS::Initialize.
   static void EnsureWin32MemoryAPILoaded();
 #endif
 
@@ -196,18 +197,22 @@ class V8_BASE_EXPORT OS {
   static PRINTF_FORMAT(1, 0) void VPrintError(const char* format, va_list args);
 
   // Memory permissions. These should be kept in sync with the ones in
-  // v8::PageAllocator.
+  // v8::PageAllocator and v8::PagePermissions.
   enum class MemoryPermission {
     kNoAccess,
     kRead,
     kReadWrite,
-    // TODO(hpayer): Remove this flag. Memory should never be rwx.
     kReadWriteExecute,
     kReadExecute,
     // TODO(jkummerow): Remove this when Wasm has a platform-independent
     // w^x implementation.
     kNoAccessWillJitLater
   };
+
+  // Helpers to create shared memory objects. Currently only used for testing.
+  static PlatformSharedMemoryHandle CreateSharedMemoryHandleForTesting(
+      size_t size);
+  static void DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle);
 
   static bool HasLazyCommits();
 
@@ -308,6 +313,35 @@ class V8_BASE_EXPORT OS {
 
   [[noreturn]] static void ExitProcess(int exit_code);
 
+  // Whether the platform supports mapping a given address in another location
+  // in the address space.
+  V8_WARN_UNUSED_RESULT static constexpr bool IsRemapPageSupported() {
+#if (defined(V8_OS_MACOS) || defined(V8_OS_LINUX)) && \
+    !(defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X))
+    return true;
+#else
+    return false;
+#endif
+  }
+
+  // Remaps already-mapped memory at |new_address| with |access| permissions.
+  //
+  // Both the source and target addresses must be page-aligned, and |size| must
+  // be a multiple of the system page size.  If there is already memory mapped
+  // at the target address, it is replaced by the new mapping.
+  //
+  // In addition, this is only meant to remap memory which is file-backed, and
+  // mapped from a file which is still accessible.
+  //
+  // Must not be called if |IsRemapPagesSupported()| return false.
+  // Returns true for success.
+  V8_WARN_UNUSED_RESULT static bool RemapPages(const void* address, size_t size,
+                                               void* new_address,
+                                               MemoryPermission access);
+
+  // Make part of the process's data memory read-only.
+  static void SetDataReadOnly(void* address, size_t size);
+
  private:
   // These classes use the private memory management API below.
   friend class AddressSpaceReservation;
@@ -316,6 +350,7 @@ class V8_BASE_EXPORT OS {
   friend class v8::base::PageAllocator;
   friend class v8::base::VirtualAddressSpace;
   friend class v8::base::VirtualAddressSubspace;
+  FRIEND_TEST(OS, RemapPages);
 
   static size_t AllocatePageSize();
 
@@ -336,12 +371,21 @@ class V8_BASE_EXPORT OS {
                                                  void* new_address,
                                                  size_t size);
 
-  V8_WARN_UNUSED_RESULT static bool Free(void* address, const size_t size);
+  static void Free(void* address, size_t size);
 
-  V8_WARN_UNUSED_RESULT static bool Release(void* address, size_t size);
+  V8_WARN_UNUSED_RESULT static void* AllocateShared(
+      void* address, size_t size, OS::MemoryPermission access,
+      PlatformSharedMemoryHandle handle, uint64_t offset);
+
+  static void FreeShared(void* address, size_t size);
+
+  static void Release(void* address, size_t size);
 
   V8_WARN_UNUSED_RESULT static bool SetPermissions(void* address, size_t size,
                                                    MemoryPermission access);
+
+  V8_WARN_UNUSED_RESULT static bool RecommitPages(void* address, size_t size,
+                                                  MemoryPermission access);
 
   V8_WARN_UNUSED_RESULT static bool DiscardSystemPages(void* address,
                                                        size_t size);
@@ -354,8 +398,7 @@ class V8_BASE_EXPORT OS {
   CreateAddressSpaceReservation(void* hint, size_t size, size_t alignment,
                                 MemoryPermission max_permission);
 
-  V8_WARN_UNUSED_RESULT static bool FreeAddressSpaceReservation(
-      AddressSpaceReservation reservation);
+  static void FreeAddressSpaceReservation(AddressSpaceReservation reservation);
 
   static const int msPerSecond = 1000;
 
@@ -383,6 +426,10 @@ inline void EnsureConsoleOutput() {
 //
 // This class provides the same memory management functions as OS but operates
 // inside a previously reserved contiguous region of virtual address space.
+//
+// Reserved address space in which no pages have been allocated is guaranteed
+// to be inaccessible and cause a fault on access. As such, creating guard
+// regions requires no further action.
 class V8_BASE_EXPORT AddressSpaceReservation {
  public:
   using Address = uintptr_t;
@@ -402,8 +449,18 @@ class V8_BASE_EXPORT AddressSpaceReservation {
 
   V8_WARN_UNUSED_RESULT bool Free(void* address, size_t size);
 
+  V8_WARN_UNUSED_RESULT bool AllocateShared(void* address, size_t size,
+                                            OS::MemoryPermission access,
+                                            PlatformSharedMemoryHandle handle,
+                                            uint64_t offset);
+
+  V8_WARN_UNUSED_RESULT bool FreeShared(void* address, size_t size);
+
   V8_WARN_UNUSED_RESULT bool SetPermissions(void* address, size_t size,
                                             OS::MemoryPermission access);
+
+  V8_WARN_UNUSED_RESULT bool RecommitPages(void* address, size_t size,
+                                           OS::MemoryPermission access);
 
   V8_WARN_UNUSED_RESULT bool DiscardSystemPages(void* address, size_t size);
 
@@ -570,10 +627,21 @@ class V8_BASE_EXPORT Stack {
   static StackSlot GetStackStart();
 
   // Returns the current stack top. Works correctly with ASAN and SafeStack.
+  //
   // GetCurrentStackPosition() should not be inlined, because it works on stack
   // frames if it were inlined into a function with a huge stack frame it would
   // return an address significantly above the actual current stack position.
   static V8_NOINLINE StackSlot GetCurrentStackPosition();
+
+  // Same as `GetCurrentStackPosition()` with the difference that it is always
+  // inlined and thus always returns the current frame's stack top.
+  static V8_INLINE StackSlot GetCurrentFrameAddress() {
+#if V8_CC_MSVC
+    return _AddressOfReturnAddress();
+#else
+    return __builtin_frame_address(0);
+#endif
+  }
 
   // Returns the real stack frame if slot is part of a fake frame, and slot
   // otherwise.

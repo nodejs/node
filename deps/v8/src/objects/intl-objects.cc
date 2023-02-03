@@ -15,6 +15,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
+#include "src/date/date.h"
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/global-handles.h"
@@ -24,6 +25,7 @@
 #include "src/objects/js-locale-inl.h"
 #include "src/objects/js-locale.h"
 #include "src/objects/js-number-format-inl.h"
+#include "src/objects/js-temporal-objects.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
@@ -225,14 +227,13 @@ icu::StringPiece ToICUStringPiece(Isolate* isolate, Handle<String> string,
   DisallowGarbageCollection no_gc;
 
   const String::FlatContent& flat = string->GetFlatContent(no_gc);
-  if (!flat.IsOneByte()) return icu::StringPiece(nullptr, 0);
+  if (!flat.IsOneByte()) return icu::StringPiece();
 
   int32_t length = string->length();
-  DCHECK_LT(offset, length);
   const char* char_buffer =
       reinterpret_cast<const char*>(flat.ToOneByteVector().begin());
   if (!String::IsAscii(char_buffer, length)) {
-    return icu::StringPiece(nullptr, 0);
+    return icu::StringPiece();
   }
 
   return icu::StringPiece(char_buffer + offset, length - offset);
@@ -1070,7 +1071,7 @@ constexpr uint8_t kCollationWeightsL3[256] = {
     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  0,
 };
 constexpr int kCollationWeightsLength = arraysize(kCollationWeightsL1);
-STATIC_ASSERT(kCollationWeightsLength == arraysize(kCollationWeightsL3));
+static_assert(kCollationWeightsLength == arraysize(kCollationWeightsL3));
 // clang-format on
 
 // Normalize a comparison delta (usually `lhs - rhs`) to UCollationResult
@@ -1416,10 +1417,8 @@ int Intl::CompareStrings(Isolate* isolate, const icu::Collator& icu_collator,
     return UCollationResult::UCOL_EQUAL;
   }
 
-  // Early return for empty strings.
-  if (string1->length() == 0 || string2->length() == 0) {
-    return ToUCollationResult(string1->length() - string2->length());
-  }
+  // We cannot return early for 0-length strings because of Unicode
+  // ignorable characters. See also crbug.com/1347690.
 
   string1 = String::Flatten(isolate, string1);
   string2 = String::Flatten(isolate, string2);
@@ -1487,6 +1486,13 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
       isolate);
   Handle<JSNumberFormat> number_format;
   // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
+  StackLimitCheck stack_check(isolate);
+  // New<JSNumberFormat>() requires a lot of stack space.
+  const int kStackSpaceRequiredForNewJSNumberFormat = 16 * KB;
+  if (stack_check.JsHasOverflowed(kStackSpaceRequiredForNewJSNumberFormat)) {
+    isolate->StackOverflow();
+    return MaybeHandle<String>();
+  }
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, number_format,
       New<JSNumberFormat>(isolate, constructor, locales, options, method_name),
@@ -1521,150 +1527,194 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
     return Nothing<NumberFormatDigitOptions>();
   }
 
-  int mnfd = 0;
-  int mxfd = 0;
-  Handle<Object> mnfd_obj;
-  Handle<Object> mxfd_obj;
-
   // 6. Let mnfd be ? Get(options, "minimumFractionDigits").
-  Handle<String> mnfd_str = factory->minimumFractionDigits_string();
+  Handle<Object> mnfd_obj;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, mnfd_obj, JSReceiver::GetProperty(isolate, options, mnfd_str),
+      isolate, mnfd_obj,
+      JSReceiver::GetProperty(isolate, options,
+                              factory->minimumFractionDigits_string()),
       Nothing<NumberFormatDigitOptions>());
 
-  // 8. Let mxfd be ? Get(options, "maximumFractionDigits").
-  Handle<String> mxfd_str = factory->maximumFractionDigits_string();
+  // 7. Let mxfd be ? Get(options, "maximumFractionDigits").
+  Handle<Object> mxfd_obj;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, mxfd_obj, JSReceiver::GetProperty(isolate, options, mxfd_str),
+      isolate, mxfd_obj,
+      JSReceiver::GetProperty(isolate, options,
+                              factory->maximumFractionDigits_string()),
       Nothing<NumberFormatDigitOptions>());
 
-  // 9.  Let mnsd be ? Get(options, "minimumSignificantDigits").
+  // 8.  Let mnsd be ? Get(options, "minimumSignificantDigits").
   Handle<Object> mnsd_obj;
-  Handle<String> mnsd_str = factory->minimumSignificantDigits_string();
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, mnsd_obj, JSReceiver::GetProperty(isolate, options, mnsd_str),
+      isolate, mnsd_obj,
+      JSReceiver::GetProperty(isolate, options,
+                              factory->minimumSignificantDigits_string()),
       Nothing<NumberFormatDigitOptions>());
 
-  // 10. Let mxsd be ? Get(options, "maximumSignificantDigits").
+  // 9. Let mxsd be ? Get(options, "maximumSignificantDigits").
   Handle<Object> mxsd_obj;
-  Handle<String> mxsd_str = factory->maximumSignificantDigits_string();
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, mxsd_obj, JSReceiver::GetProperty(isolate, options, mxsd_str),
+      isolate, mxsd_obj,
+      JSReceiver::GetProperty(isolate, options,
+                              factory->maximumSignificantDigits_string()),
       Nothing<NumberFormatDigitOptions>());
 
-  // 11. Set intlObj.[[MinimumIntegerDigits]] to mnid.
+  digit_options.rounding_priority = RoundingPriority::kAuto;
+  digit_options.minimum_significant_digits = 0;
+  digit_options.maximum_significant_digits = 0;
+
+  // 10. Set intlObj.[[MinimumIntegerDigits]] to mnid.
   digit_options.minimum_integer_digits = mnid;
 
-  // 12. Set intlObj.[[MinimumFractionDigits]] to mnfd.
-  digit_options.minimum_fraction_digits = mnfd;
+  if (v8_flags.harmony_intl_number_format_v3) {
+    // 11. Let roundingPriority be ? GetOption(options, "roundingPriority",
+    // "string", « "auto", "morePrecision", "lessPrecision" », "auto").
 
-  // 13. Set intlObj.[[MaximumFractionDigits]] to mxfd.
-  digit_options.maximum_fraction_digits = mxfd;
+    Maybe<RoundingPriority> maybe_rounding_priority =
+        GetStringOption<RoundingPriority>(
+            isolate, options, "roundingPriority", "SetNumberFormatDigitOptions",
+            {"auto", "morePrecision", "lessPrecision"},
+            {RoundingPriority::kAuto, RoundingPriority::kMorePrecision,
+             RoundingPriority::kLessPrecision},
+            RoundingPriority::kAuto);
+    MAYBE_RETURN(maybe_rounding_priority, Nothing<NumberFormatDigitOptions>());
+    digit_options.rounding_priority = maybe_rounding_priority.FromJust();
+  }
 
-  // 14. If mnsd is not undefined or mxsd is not undefined, then
-  if (!mnsd_obj->IsUndefined(isolate) || !mxsd_obj->IsUndefined(isolate)) {
-    // 14. a. Let mnsd be ? DefaultNumberOption(mnsd, 1, 21, 1).
-    int mnsd;
-    if (!DefaultNumberOption(isolate, mnsd_obj, 1, 21, 1, mnsd_str).To(&mnsd)) {
-      return Nothing<NumberFormatDigitOptions>();
+  // 12. If mnsd is not undefined or mxsd is not undefined, then
+  // a. Set hasSd to true.
+  // 13. Else,
+  // a. Set hasSd to false.
+  bool has_sd =
+      (!mnsd_obj->IsUndefined(isolate)) || (!mxsd_obj->IsUndefined(isolate));
+
+  // 14. If mnfd is not undefined or mxfd is not undefined, then
+  // a. Set hasFd to true.
+  // 15. Else,
+  // a. Set hasFd to false.
+  bool has_fd =
+      (!mnfd_obj->IsUndefined(isolate)) || (!mxfd_obj->IsUndefined(isolate));
+
+  // 17. If hasSd or roundingPriority is not "auto", set needSd to true; else,
+  // set needSd to false.
+  bool need_sd =
+      has_sd || (RoundingPriority::kAuto != digit_options.rounding_priority);
+
+  // 18. If ( not hasSd and (hasFd or notation is not "compact") ) or
+  // roundingPriority is not "auto", then a. Set needFd to true.
+  // 19. Else,
+  // a. Set needFd to false.
+  bool need_fd = ((!has_sd) && (has_fd || !notation_is_compact)) ||
+                 (RoundingPriority::kAuto != digit_options.rounding_priority);
+
+  // 20. If needSd, then
+  if (need_sd) {
+    // 20.b If hasSd, then
+    if (has_sd) {
+      // 20.b.i Let mnsd be ? DefaultNumberOption(mnsd, 1, 21, 1).
+      int mnsd;
+      if (!DefaultNumberOption(isolate, mnsd_obj, 1, 21, 1,
+                               factory->minimumSignificantDigits_string())
+               .To(&mnsd)) {
+        return Nothing<NumberFormatDigitOptions>();
+      }
+      // 20.b.ii Let mxsd be ? DefaultNumberOption(mxsd, mnsd, 21, 21).
+      int mxsd;
+      if (!DefaultNumberOption(isolate, mxsd_obj, mnsd, 21, 21,
+                               factory->maximumSignificantDigits_string())
+               .To(&mxsd)) {
+        return Nothing<NumberFormatDigitOptions>();
+      }
+      // 20.b.iii Set intlObj.[[MinimumSignificantDigits]] to mnsd.
+      digit_options.minimum_significant_digits = mnsd;
+      // 20.b.iv Set intlObj.[[MaximumSignificantDigits]] to mxsd.
+      digit_options.maximum_significant_digits = mxsd;
+    } else {
+      // 20.c Else
+      // 20.c.i Set intlObj.[[MinimumSignificantDigits]] to 1.
+      digit_options.minimum_significant_digits = 1;
+      // 20.c.ii Set intlObj.[[MaximumSignificantDigits]] to 21.
+      digit_options.maximum_significant_digits = 21;
     }
+  }
 
-    // 14. b. Let mxsd be ? DefaultNumberOption(mxsd, mnsd, 21, 21).
-    int mxsd;
-    if (!DefaultNumberOption(isolate, mxsd_obj, mnsd, 21, 21, mxsd_str)
-             .To(&mxsd)) {
-      return Nothing<NumberFormatDigitOptions>();
-    }
-
-    // 14. c. Set intlObj.[[MinimumSignificantDigits]] to mnsd.
-    digit_options.minimum_significant_digits = mnsd;
-
-    // 14. d. Set intlObj.[[MaximumSignificantDigits]] to mxsd.
-    digit_options.maximum_significant_digits = mxsd;
-  } else {
-    digit_options.minimum_significant_digits = 0;
-    digit_options.maximum_significant_digits = 0;
-
-    // 15. Else If mnfd is not undefined or mxfd is not undefined, then
-    if (!mnfd_obj->IsUndefined(isolate) || !mxfd_obj->IsUndefined(isolate)) {
-      int specified_mnfd;
-      int specified_mxfd;
-
-      // a. Let _specifiedMnfd_ be ? DefaultNumberOption(_mnfd_, 0, 20,
-      // *undefined*).
+  // 21. If needFd, then
+  if (need_fd) {
+    // 21.a If hasFd, then
+    if (has_fd) {
+      Handle<String> mnfd_str = factory->minimumFractionDigits_string();
+      Handle<String> mxfd_str = factory->maximumFractionDigits_string();
+      // 21.a.i Let mnfd be ? DefaultNumberOption(mnfd, 0, 20, undefined).
+      int mnfd;
       if (!DefaultNumberOption(isolate, mnfd_obj, 0, 20, -1, mnfd_str)
-               .To(&specified_mnfd)) {
-        return Nothing<NumberFormatDigitOptions>();
-      }
-      Handle<Object> specifiedMnfd_obj;
-      if (specified_mnfd < 0) {
-        specifiedMnfd_obj = factory->undefined_value();
-      } else {
-        specifiedMnfd_obj = handle(Smi::FromInt(specified_mnfd), isolate);
-      }
-
-      // b.  Let _specifiedMxfd_ be ? DefaultNumberOption(_mxfd_, 0, 20,
-      // *undefined*).
-      if (!DefaultNumberOption(isolate, mxfd_obj, 0, 20, -1, mxfd_str)
-               .To(&specified_mxfd)) {
-        return Nothing<NumberFormatDigitOptions>();
-      }
-      Handle<Object> specifiedMxfd_obj;
-      if (specified_mxfd < 0) {
-        specifiedMxfd_obj = factory->undefined_value();
-      } else {
-        specifiedMxfd_obj = handle(Smi::FromInt(specified_mxfd), isolate);
-      }
-
-      // c. If _specifiedMxfd_ is not *undefined*, set _mnfdDefault_ to
-      // min(_mnfdDefault_, _specifiedMxfd_).
-      if (specified_mxfd >= 0) {
-        mnfd_default = std::min(mnfd_default, specified_mxfd);
-      }
-
-      // d. Set _mnfd_ to ! DefaultNumberOption(_specifiedMnfd_, 0, 20,
-      // _mnfdDefault_).
-      if (!DefaultNumberOption(isolate, specifiedMnfd_obj, 0, 20, mnfd_default,
-                               mnfd_str)
                .To(&mnfd)) {
         return Nothing<NumberFormatDigitOptions>();
       }
-
-      // e. Set _mxfd_ to ! DefaultNumberOption(_specifiedMxfd_, 0, 20,
-      // max(_mxfdDefault_, _mnfd_)).
-      if (!DefaultNumberOption(isolate, specifiedMxfd_obj, 0, 20,
-                               std::max(mxfd_default, mnfd), mxfd_str)
+      // 21.a.ii Let mxfd be ? DefaultNumberOption(mxfd, 0, 20, undefined).
+      int mxfd;
+      if (!DefaultNumberOption(isolate, mxfd_obj, 0, 20, -1, mxfd_str)
                .To(&mxfd)) {
         return Nothing<NumberFormatDigitOptions>();
       }
-
-      // f. If _mnfd_ is greater than _mxfd_, throw a *RangeError* exception.
-      if (mnfd > mxfd) {
+      // 21.a.iii If mnfd is undefined, set mnfd to min(mnfdDefault, mxfd).
+      if (mnfd_obj->IsUndefined(isolate)) {
+        mnfd = std::min(mnfd_default, mxfd);
+      } else if (mxfd_obj->IsUndefined(isolate)) {
+        // 21.a.iv Else if mxfd is undefined, set mxfd to max(mxfdDefault,
+        // mnfd).
+        mxfd = std::max(mxfd_default, mnfd);
+      } else if (mnfd > mxfd) {
+        // 21.a.v Else if mnfd is greater than mxfd, throw a RangeError
+        // exception.
         THROW_NEW_ERROR_RETURN_VALUE(
             isolate,
             NewRangeError(MessageTemplate::kPropertyValueOutOfRange, mxfd_str),
             Nothing<NumberFormatDigitOptions>());
       }
-
-      // g. Set intlObj.[[MinimumFractionDigits]] to mnfd.
+      // 21.a.vi Set intlObj.[[MinimumFractionDigits]] to mnfd.
       digit_options.minimum_fraction_digits = mnfd;
-
-      // h. Set intlObj.[[MaximumFractionDigits]] to mxfd.
+      // 21.a.vii Set intlObj.[[MaximumFractionDigits]] to mxfd.
       digit_options.maximum_fraction_digits = mxfd;
-      // Else If intlObj.[[Notation]] is "compact", then
-    } else if (notation_is_compact) {
-      // a. Set intlObj.[[RoundingType]] to "compact-rounding".
-      // Set minimum_significant_digits to -1 to represent roundingtype is
-      // "compact-rounding".
-      digit_options.minimum_significant_digits = -1;
-      // 17. Else,
-    } else {
-      // 17. b. Set intlObj.[[MinimumFractionDigits]] to mnfdDefault.
+    } else {  // 17.b Else
+      // 21.b.i Set intlObj.[[MinimumFractionDigits]] to mnfdDefault.
       digit_options.minimum_fraction_digits = mnfd_default;
-
-      // 17. c. Set intlObj.[[MaximumFractionDigits]] to mxfdDefault.
+      // 21.b.ii Set intlObj.[[MaximumFractionDigits]] to mxfdDefault.
       digit_options.maximum_fraction_digits = mxfd_default;
     }
+  }
+
+  // 22. If needSd or needFd, then
+  if (need_sd || need_fd) {
+    // a. If roundingPriority is "morePrecision", then
+    if (digit_options.rounding_priority == RoundingPriority::kMorePrecision) {
+      // i. Set intlObj.[[RoundingType]] to morePrecision.
+      digit_options.rounding_type = RoundingType::kMorePrecision;
+      // b. Else if roundingPriority is "lessPrecision", then
+    } else if (digit_options.rounding_priority ==
+               RoundingPriority::kLessPrecision) {
+      // i. Set intlObj.[[RoundingType]] to lessPrecision.
+      digit_options.rounding_type = RoundingType::kLessPrecision;
+      // c. Else if hasSd, then
+    } else if (has_sd) {
+      // i. Set intlObj.[[RoundingType]] to significantDigits.
+      digit_options.rounding_type = RoundingType::kSignificantDigits;
+      // d. Else,
+    } else {
+      // i.Set intlObj.[[RoundingType]] to fractionDigits.
+      digit_options.rounding_type = RoundingType::kFractionDigits;
+    }
+    // 23. Else
+  } else {
+    // a. Set intlObj.[[RoundingType]] to morePrecision.
+    digit_options.rounding_type = RoundingType::kMorePrecision;
+    // b. Set intlObj.[[MinimumFractionDigits]] to 0.
+    digit_options.minimum_fraction_digits = 0;
+    // c. Set intlObj.[[MaximumFractionDigits]] to 0.
+    digit_options.maximum_fraction_digits = 0;
+    // d. Set intlObj.[[MinimumSignificantDigits]] to 1.
+    digit_options.minimum_significant_digits = 1;
+    // e. Set intlObj.[[MaximumSignificantDigits]] to 2.
+    digit_options.maximum_significant_digits = 2;
   }
   return Just(digit_options);
 }
@@ -1955,7 +2005,7 @@ MaybeHandle<JSObject> SupportedLocales(
   //    a. Let supportedLocales be BestFitSupportedLocales(availableLocales,
   //       requestedLocales).
   if (matcher == Intl::MatcherOption::kBestFit &&
-      FLAG_harmony_intl_best_fit_matcher) {
+      v8_flags.harmony_intl_best_fit_matcher) {
     supported_locales =
         BestFitSupportedLocales(isolate, available_locales, requested_locales);
   } else {
@@ -1967,8 +2017,8 @@ MaybeHandle<JSObject> SupportedLocales(
   }
 
   // 5. Return CreateArrayFromList(supportedLocales).
-  PropertyAttributes attr = static_cast<PropertyAttributes>(NONE);
-  return CreateArrayFromList(isolate, supported_locales, attr);
+  return CreateArrayFromList(isolate, supported_locales,
+                             PropertyAttributes::NONE);
 }
 
 }  // namespace
@@ -1982,8 +2032,8 @@ MaybeHandle<JSArray> Intl::GetCanonicalLocales(Isolate* isolate,
   MAYBE_RETURN(maybe_ll, MaybeHandle<JSArray>());
 
   // 2. Return CreateArrayFromList(ll).
-  PropertyAttributes attr = static_cast<PropertyAttributes>(NONE);
-  return CreateArrayFromList(isolate, maybe_ll.FromJust(), attr);
+  return CreateArrayFromList(isolate, maybe_ll.FromJust(),
+                             PropertyAttributes::NONE);
 }
 
 namespace {
@@ -2395,7 +2445,7 @@ Maybe<Intl::ResolvedLocale> Intl::ResolveLocale(
     const std::set<std::string>& relevant_extension_keys) {
   std::string locale;
   if (matcher == Intl::MatcherOption::kBestFit &&
-      FLAG_harmony_intl_best_fit_matcher) {
+      v8_flags.harmony_intl_best_fit_matcher) {
     locale = BestFitMatcher(isolate, available_locales, requested_locales);
   } else {
     locale = LookupMatcher(isolate, available_locales, requested_locales);
@@ -2586,8 +2636,8 @@ void ICUTimezoneCache::Clear(TimeZoneDetection time_zone_detection) {
 }
 
 base::TimezoneCache* Intl::CreateTimeZoneCache() {
-  return FLAG_icu_timezone_data ? new ICUTimezoneCache()
-                                : base::OS::CreateTimezoneCache();
+  return v8_flags.icu_timezone_data ? new ICUTimezoneCache()
+                                    : base::OS::CreateTimezoneCache();
 }
 
 Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(Isolate* isolate,
@@ -2643,22 +2693,22 @@ const std::set<std::string>& Intl::GetAvailableLocalesForDateFormat() {
   return available_locales.Pointer()->Get();
 }
 
+constexpr uint16_t kInfinityChar = 0x221e;
+
 Handle<String> Intl::NumberFieldToType(Isolate* isolate,
-                                       Handle<Object> numeric_obj,
-                                       int32_t field_id) {
-  DCHECK(numeric_obj->IsNumeric());
-  switch (static_cast<UNumberFormatFields>(field_id)) {
+                                       const NumberFormatSpan& part,
+                                       const icu::UnicodeString& text,
+                                       bool is_nan) {
+  switch (static_cast<UNumberFormatFields>(part.field_id)) {
     case UNUM_INTEGER_FIELD:
-      if (numeric_obj->IsBigInt()) {
-        // Neither NaN nor Infinite could be stored into BigInt
-        // so just return integer.
-        return isolate->factory()->integer_string();
-      } else {
-        double number = numeric_obj->Number();
-        if (std::isfinite(number)) return isolate->factory()->integer_string();
-        if (std::isnan(number)) return isolate->factory()->nan_string();
+      if (is_nan) return isolate->factory()->nan_string();
+      if (text.charAt(part.begin_pos) == kInfinityChar ||
+          // en-US-POSIX output "INF" for Infinity
+          (part.end_pos - part.begin_pos == 3 &&
+           text.tempSubString(part.begin_pos, 3) == "INF")) {
         return isolate->factory()->infinity_string();
       }
+      return isolate->factory()->integer_string();
     case UNUM_FRACTION_FIELD:
       return isolate->factory()->fraction_string();
     case UNUM_DECIMAL_SEPARATOR_FIELD:
@@ -2670,15 +2720,9 @@ Handle<String> Intl::NumberFieldToType(Isolate* isolate,
     case UNUM_PERCENT_FIELD:
       return isolate->factory()->percentSign_string();
     case UNUM_SIGN_FIELD:
-      if (numeric_obj->IsBigInt()) {
-        Handle<BigInt> big_int = Handle<BigInt>::cast(numeric_obj);
-        return big_int->IsNegative() ? isolate->factory()->minusSign_string()
-                                     : isolate->factory()->plusSign_string();
-      } else {
-        double number = numeric_obj->Number();
-        return std::signbit(number) ? isolate->factory()->minusSign_string()
-                                    : isolate->factory()->plusSign_string();
-      }
+      return (text.charAt(part.begin_pos) == '+')
+                 ? isolate->factory()->plusSign_string()
+                 : isolate->factory()->minusSign_string();
     case UNUM_EXPONENT_SYMBOL_FIELD:
       return isolate->factory()->exponentSeparator_string();
 
@@ -2697,6 +2741,9 @@ Handle<String> Intl::NumberFieldToType(Isolate* isolate,
       return isolate->factory()->compact_string();
     case UNUM_MEASURE_UNIT_FIELD:
       return isolate->factory()->unit_string();
+
+    case UNUM_APPROXIMATELY_SIGN_FIELD:
+      return isolate->factory()->approximatelySign_string();
 
     default:
       UNREACHABLE();
@@ -2758,6 +2805,312 @@ std::set<std::string> Intl::SanctionedSimpleUnits() {
                                 "second",     "stone",      "terabit",
                                 "terabyte",   "week",       "yard",
                                 "year"});
+}
+
+// ecma-402/#sec-isvalidtimezonename
+
+namespace {
+bool IsUnicodeStringValidTimeZoneName(const icu::UnicodeString& id) {
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString canonical;
+  icu::TimeZone::getCanonicalID(id, canonical, status);
+  return U_SUCCESS(status) &&
+         canonical != icu::UnicodeString("Etc/Unknown", -1, US_INV);
+}
+}  // namespace
+
+MaybeHandle<String> Intl::CanonicalizeTimeZoneName(Isolate* isolate,
+                                                   Handle<String> identifier) {
+  UErrorCode status = U_ZERO_ERROR;
+  std::string time_zone =
+      JSDateTimeFormat::CanonicalizeTimeZoneID(identifier->ToCString().get());
+  icu::UnicodeString time_zone_ustring =
+      icu::UnicodeString(time_zone.c_str(), -1, US_INV);
+  icu::UnicodeString canonical;
+  icu::TimeZone::getCanonicalID(time_zone_ustring, canonical, status);
+  CHECK(U_SUCCESS(status));
+
+  return JSDateTimeFormat::TimeZoneIdToString(isolate, canonical);
+}
+
+bool Intl::IsValidTimeZoneName(Isolate* isolate, Handle<String> id) {
+  std::string time_zone =
+      JSDateTimeFormat::CanonicalizeTimeZoneID(id->ToCString().get());
+  icu::UnicodeString time_zone_ustring =
+      icu::UnicodeString(time_zone.c_str(), -1, US_INV);
+  return IsUnicodeStringValidTimeZoneName(time_zone_ustring);
+}
+
+bool Intl::IsValidTimeZoneName(const icu::TimeZone& tz) {
+  icu::UnicodeString id;
+  tz.getID(id);
+  return IsUnicodeStringValidTimeZoneName(id);
+}
+
+// Function to support Temporal
+std::string Intl::TimeZoneIdFromIndex(int32_t index) {
+  if (index == JSTemporalTimeZone::kUTCTimeZoneIndex) {
+    return "UTC";
+  }
+  std::unique_ptr<icu::StringEnumeration> enumeration(
+      icu::TimeZone::createEnumeration());
+  int32_t curr = 0;
+  const char* id;
+
+  UErrorCode status = U_ZERO_ERROR;
+  while (U_SUCCESS(status) && curr < index &&
+         ((id = enumeration->next(nullptr, status)) != nullptr)) {
+    CHECK(U_SUCCESS(status));
+    curr++;
+  }
+  CHECK(U_SUCCESS(status));
+  CHECK(id != nullptr);
+  return id;
+}
+
+int32_t Intl::GetTimeZoneIndex(Isolate* isolate, Handle<String> identifier) {
+  if (identifier->Equals(*isolate->factory()->UTC_string())) {
+    return 0;
+  }
+
+  std::string identifier_str(identifier->ToCString().get());
+  std::unique_ptr<icu::TimeZone> tz(
+      icu::TimeZone::createTimeZone(identifier_str.c_str()));
+  if (!IsValidTimeZoneName(*tz)) {
+    return -1;
+  }
+
+  std::unique_ptr<icu::StringEnumeration> enumeration(
+      icu::TimeZone::createEnumeration());
+  int32_t curr = 0;
+  const char* id;
+
+  UErrorCode status = U_ZERO_ERROR;
+  while (U_SUCCESS(status) &&
+         (id = enumeration->next(nullptr, status)) != nullptr) {
+    curr++;
+    if (identifier_str == id) {
+      return curr;
+    }
+  }
+  CHECK(U_SUCCESS(status));
+  // We should not reach here, the !IsValidTimeZoneName should return earlier
+  UNREACHABLE();
+}
+
+Intl::FormatRangeSourceTracker::FormatRangeSourceTracker() {
+  start_[0] = start_[1] = limit_[0] = limit_[1] = 0;
+}
+
+void Intl::FormatRangeSourceTracker::Add(int32_t field, int32_t start,
+                                         int32_t limit) {
+  DCHECK_LT(field, 2);
+  start_[field] = start;
+  limit_[field] = limit;
+}
+
+Intl::FormatRangeSource Intl::FormatRangeSourceTracker::GetSource(
+    int32_t start, int32_t limit) const {
+  FormatRangeSource source = FormatRangeSource::kShared;
+  if (FieldContains(0, start, limit)) {
+    source = FormatRangeSource::kStartRange;
+  } else if (FieldContains(1, start, limit)) {
+    source = FormatRangeSource::kEndRange;
+  }
+  return source;
+}
+
+bool Intl::FormatRangeSourceTracker::FieldContains(int32_t field, int32_t start,
+                                                   int32_t limit) const {
+  DCHECK_LT(field, 2);
+  return (start_[field] <= start) && (start <= limit_[field]) &&
+         (start_[field] <= limit) && (limit <= limit_[field]);
+}
+
+Handle<String> Intl::SourceString(Isolate* isolate, FormatRangeSource source) {
+  switch (source) {
+    case FormatRangeSource::kShared:
+      return ReadOnlyRoots(isolate).shared_string_handle();
+    case FormatRangeSource::kStartRange:
+      return ReadOnlyRoots(isolate).startRange_string_handle();
+    case FormatRangeSource::kEndRange:
+      return ReadOnlyRoots(isolate).endRange_string_handle();
+  }
+}
+
+Handle<String> Intl::DefaultTimeZone(Isolate* isolate) {
+  icu::UnicodeString id;
+  {
+    std::unique_ptr<icu::TimeZone> tz(icu::TimeZone::createDefault());
+    tz->getID(id);
+  }
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString canonical;
+  icu::TimeZone::getCanonicalID(id, canonical, status);
+  DCHECK(U_SUCCESS(status));
+  return JSDateTimeFormat::TimeZoneIdToString(isolate, canonical)
+      .ToHandleChecked();
+}
+
+namespace {
+
+const icu::BasicTimeZone* CreateBasicTimeZoneFromIndex(
+    int32_t time_zone_index) {
+  DCHECK_NE(time_zone_index, 0);
+  return static_cast<const icu::BasicTimeZone*>(
+      icu::TimeZone::createTimeZone(icu::UnicodeString(
+          Intl::TimeZoneIdFromIndex(time_zone_index).c_str(), -1, US_INV)));
+}
+
+// ICU only support TimeZone information in millisecond but Temporal require
+// nanosecond. For most of the case, we find a approximate millisecond by
+// floor to the millisecond just past the nanosecond_epoch. For negative epoch
+// value, the BigInt Divide will floor closer to zero so we need to minus 1 if
+// the remainder is not zero. For the case of finding previous transition, we
+// need to ceil to the millisecond in the near future of the nanosecond_epoch.
+enum class Direction { kPast, kFuture };
+int64_t ApproximateMillisecondEpoch(Isolate* isolate,
+                                    Handle<BigInt> nanosecond_epoch,
+                                    Direction direction = Direction::kPast) {
+  Handle<BigInt> one_million = BigInt::FromUint64(isolate, 1000000);
+  int64_t ms = BigInt::Divide(isolate, nanosecond_epoch, one_million)
+                   .ToHandleChecked()
+                   ->AsInt64();
+  Handle<BigInt> remainder =
+      BigInt::Remainder(isolate, nanosecond_epoch, one_million)
+          .ToHandleChecked();
+  // If the nanosecond_epoch is not on the exact millisecond
+  if (remainder->ToBoolean()) {
+    if (direction == Direction::kPast) {
+      if (remainder->IsNegative()) {
+        // If the remaninder is negative, we know we have an negative epoch
+        // We need to decrease one millisecond.
+        // Move to the previous millisecond
+        ms -= 1;
+      }
+    } else {
+      if (!remainder->IsNegative()) {
+        // Move to the future millisecond
+        ms += 1;
+      }
+    }
+  }
+  return ms;
+}
+
+// Helper function to convert the milliseconds in int64_t
+// to a BigInt in nanoseconds.
+Handle<BigInt> MillisecondToNanosecond(Isolate* isolate, int64_t ms) {
+  return BigInt::Multiply(isolate, BigInt::FromInt64(isolate, ms),
+                          BigInt::FromUint64(isolate, 1000000))
+      .ToHandleChecked();
+}
+
+}  // namespace
+
+Handle<Object> Intl::GetTimeZoneOffsetTransitionNanoseconds(
+    Isolate* isolate, int32_t time_zone_index, Handle<BigInt> nanosecond_epoch,
+    Intl::Transition transition) {
+  std::unique_ptr<const icu::BasicTimeZone> basic_time_zone(
+      CreateBasicTimeZoneFromIndex(time_zone_index));
+
+  icu::TimeZoneTransition icu_transition;
+  UBool has_transition;
+  switch (transition) {
+    case Intl::Transition::kNext:
+      has_transition = basic_time_zone->getNextTransition(
+          ApproximateMillisecondEpoch(isolate, nanosecond_epoch), false,
+          icu_transition);
+      break;
+    case Intl::Transition::kPrevious:
+      has_transition = basic_time_zone->getPreviousTransition(
+          ApproximateMillisecondEpoch(isolate, nanosecond_epoch,
+                                      Direction::kFuture),
+          false, icu_transition);
+      break;
+  }
+
+  if (!has_transition) {
+    return isolate->factory()->null_value();
+  }
+  // #sec-temporal-getianatimezonenexttransition and
+  // #sec-temporal-getianatimezoneprevioustransition states:
+  // "The operation returns null if no such transition exists for which t ≤
+  // ℤ(nsMaxInstant)." and "The operation returns null if no such transition
+  // exists for which t ≥ ℤ(nsMinInstant)."
+  //
+  // nsMinInstant = -nsMaxInstant = -8.64 × 10^21 => msMinInstant = -8.64 x
+  // 10^15
+  constexpr int64_t kMsMinInstant = -8.64e15;
+  // nsMaxInstant = 10^8 × nsPerDay = 8.64 × 10^21 => msMaxInstant = 8.64 x
+  // 10^15
+  constexpr int64_t kMsMaxInstant = 8.64e15;
+  int64_t time_ms = static_cast<int64_t>(icu_transition.getTime());
+  if (time_ms < kMsMinInstant || time_ms > kMsMaxInstant) {
+    return isolate->factory()->null_value();
+  }
+  return MillisecondToNanosecond(isolate, time_ms);
+}
+
+std::vector<Handle<BigInt>> Intl::GetTimeZonePossibleOffsetNanoseconds(
+    Isolate* isolate, int32_t time_zone_index,
+    Handle<BigInt> nanosecond_epoch) {
+  std::unique_ptr<const icu::BasicTimeZone> basic_time_zone(
+      CreateBasicTimeZoneFromIndex(time_zone_index));
+  int64_t time_ms = ApproximateMillisecondEpoch(isolate, nanosecond_epoch);
+  int32_t raw_offset;
+  int32_t dst_offset;
+  UErrorCode status = U_ZERO_ERROR;
+  basic_time_zone->getOffsetFromLocal(time_ms, UCAL_TZ_LOCAL_FORMER,
+                                      UCAL_TZ_LOCAL_FORMER, raw_offset,
+                                      dst_offset, status);
+  DCHECK(U_SUCCESS(status));
+  // offset for time_ms interpretted as before a time zone
+  // transition
+  int64_t offset_former = raw_offset + dst_offset;
+
+  basic_time_zone->getOffsetFromLocal(time_ms, UCAL_TZ_LOCAL_LATTER,
+                                      UCAL_TZ_LOCAL_LATTER, raw_offset,
+                                      dst_offset, status);
+  DCHECK(U_SUCCESS(status));
+  // offset for time_ms interpretted as after a time zone
+  // transition
+  int64_t offset_latter = raw_offset + dst_offset;
+
+  std::vector<Handle<BigInt>> result;
+  if (offset_former == offset_latter) {
+    // For most of the time, when either interpretation are the same, we are not
+    // in a moment of offset transition based on rule changing: Just return that
+    // value.
+    result.push_back(MillisecondToNanosecond(isolate, offset_former));
+  } else if (offset_former > offset_latter) {
+    // When the input represents a local time repeating multiple times at a
+    // negative time zone transition (e.g. when the daylight saving time ends
+    // or the time zone offset is decreased due to a time zone rule change).
+    result.push_back(MillisecondToNanosecond(isolate, offset_former));
+    result.push_back(MillisecondToNanosecond(isolate, offset_latter));
+  } else {
+    // If the offset after the transition is greater than the offset before the
+    // transition, that mean it is in the moment the time "skip" an hour, or two
+    // (or six in a Time Zone in south pole) in that case there are no possible
+    // Time Zone offset for that moment and nothing will be added to the result.
+  }
+  return result;
+}
+
+int64_t Intl::GetTimeZoneOffsetNanoseconds(Isolate* isolate,
+                                           int32_t time_zone_index,
+                                           Handle<BigInt> nanosecond_epoch) {
+  std::unique_ptr<const icu::BasicTimeZone> basic_time_zone(
+      CreateBasicTimeZoneFromIndex(time_zone_index));
+  int64_t time_ms = ApproximateMillisecondEpoch(isolate, nanosecond_epoch);
+  int32_t raw_offset;
+  int32_t dst_offset;
+  UErrorCode status = U_ZERO_ERROR;
+  basic_time_zone->getOffset(time_ms, false, raw_offset, dst_offset, status);
+  DCHECK(U_SUCCESS(status));
+  // Turn ms into ns
+  return static_cast<int64_t>(raw_offset + dst_offset) * 1000000;
 }
 
 }  // namespace internal

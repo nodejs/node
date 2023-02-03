@@ -19,8 +19,13 @@ class HeapHandle;
 namespace testing {
 
 /**
- * Overrides the state of the stack with the provided value. Takes precedence
- * over other parameters that set the stack state. Must no be nested.
+ * Overrides the state of the stack with the provided value. Parameters passed
+ * to explicit garbage collection calls still take precedence. Must not be
+ * nested.
+ *
+ * This scope is useful to make the garbage collector consider the stack when
+ * tasks that invoke garbage collection (through the provided platform) contain
+ * interesting pointers on its stack.
  */
 class V8_EXPORT V8_NODISCARD OverrideEmbedderStackStateScope final {
   CPPGC_STACK_ALLOCATED();
@@ -92,6 +97,8 @@ class V8_EXPORT StandaloneTestingHeap final {
  private:
   HeapHandle& heap_handle_;
 };
+
+V8_EXPORT bool IsHeapObjectOld(void*);
 
 }  // namespace testing
 }  // namespace cppgc

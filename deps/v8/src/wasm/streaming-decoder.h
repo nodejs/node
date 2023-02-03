@@ -10,7 +10,6 @@
 #define V8_WASM_STREAMING_DECODER_H_
 
 #include <memory>
-#include <vector>
 
 #include "src/base/macros.h"
 #include "src/base/vector.h"
@@ -47,9 +46,8 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
                                         int code_section_start,
                                         int code_section_length) = 0;
 
-  // Process a function body. Returns true if the processing finished
-  // successfully and the decoding should continue.
-  virtual bool ProcessFunctionBody(base::Vector<const uint8_t> bytes,
+  // Process a function body.
+  virtual void ProcessFunctionBody(base::Vector<const uint8_t> bytes,
                                    uint32_t offset) = 0;
 
   // Report the end of a chunk.
@@ -87,29 +85,30 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   virtual void NotifyCompilationEnded() = 0;
 
   // Caching support.
-  // Sets the callback that is called after the module is fully compiled.
-  using ModuleCompiledCallback =
+  // Sets the callback that is called after a new chunk of the module is tiered
+  // up.
+  using MoreFunctionsCanBeSerializedCallback =
       std::function<void(const std::shared_ptr<NativeModule>&)>;
 
-  void SetModuleCompiledCallback(ModuleCompiledCallback callback) {
-    module_compiled_callback_ = callback;
+  void SetMoreFunctionsCanBeSerializedCallback(
+      MoreFunctionsCanBeSerializedCallback callback) {
+    more_functions_can_be_serialized_callback_ = std::move(callback);
   }
 
   // Passes previously compiled module bytes from the embedder's cache.
   // The content shouldn't be used until Finish(true) is called.
-  bool SetCompiledModuleBytes(
-      base::Vector<const uint8_t> compiled_module_bytes) {
-    compiled_module_bytes_ = compiled_module_bytes;
-    return true;
+  void SetCompiledModuleBytes(base::Vector<const uint8_t> bytes) {
+    compiled_module_bytes_ = bytes;
   }
 
   virtual void NotifyNativeModuleCreated(
       const std::shared_ptr<NativeModule>& native_module) = 0;
 
-  base::Vector<const char> url() { return base::VectorOf(url_); }
+  const std::string& url() const { return *url_; }
+  std::shared_ptr<const std::string> shared_url() const { return url_; }
 
   void SetUrl(base::Vector<const char> url) {
-    url_.assign(url.begin(), url.length());
+    url_->assign(url.begin(), url.size());
   }
 
   static std::unique_ptr<StreamingDecoder> CreateAsyncStreamingDecoder(
@@ -123,8 +122,9 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
  protected:
   bool deserializing() const { return !compiled_module_bytes_.empty(); }
 
-  std::string url_;
-  ModuleCompiledCallback module_compiled_callback_;
+  const std::shared_ptr<std::string> url_ = std::make_shared<std::string>();
+  MoreFunctionsCanBeSerializedCallback
+      more_functions_can_be_serialized_callback_;
   // The content of `compiled_module_bytes_` shouldn't be used until
   // Finish(true) is called.
   base::Vector<const uint8_t> compiled_module_bytes_;

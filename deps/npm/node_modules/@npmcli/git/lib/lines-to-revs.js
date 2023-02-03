@@ -98,19 +98,19 @@ const lineToRevDoc = line => {
     // ignore the pointer.
     // For now, though, we have to save both, because some tags
     // don't have peels, if they were not annotated.
-    const ref = rawRef.substr('refs/tags/'.length)
+    const ref = rawRef.slice('refs/tags/'.length)
     return { sha, ref, rawRef, type }
   }
 
   if (type === 'branch') {
-    const ref = rawRef.substr('refs/heads/'.length)
+    const ref = rawRef.slice('refs/heads/'.length)
     return { sha, ref, rawRef, type }
   }
 
   if (type === 'pull') {
     // NB: merged pull requests installable with #pull/123/merge
     // for the merged pr, or #pull/123 for the PR head
-    const ref = rawRef.substr('refs/'.length).replace(/\/head$/, '')
+    const ref = rawRef.slice('refs/'.length).replace(/\/head$/, '')
     return { sha, ref, rawRef, type }
   }
 

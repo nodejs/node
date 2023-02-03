@@ -105,7 +105,7 @@ typedef struct {
 
 static UDataMemory *uCharNamesData=NULL;
 static UCharNames *uCharNames=NULL;
-static icu::UInitOnce gCharNamesInitOnce = U_INITONCE_INITIALIZER;
+static icu::UInitOnce gCharNamesInitOnce {};
 
 /*
  * Maximum length of character names (regular & 1.0).
@@ -173,7 +173,7 @@ static UBool U_CALLCONV unames_cleanup(void)
     }
     gCharNamesInitOnce.reset();
     gMaxNameLength=0;
-    return TRUE;
+    return true;
 }
 
 static UBool U_CALLCONV
@@ -371,7 +371,7 @@ compareName(UCharNames *names,
             if(c!=';') {
                 /* implicit letter */
                 if((char)c!=*otherName++) {
-                    return FALSE;
+                    return false;
                 }
             } else {
                 /* finished */
@@ -388,7 +388,7 @@ compareName(UCharNames *names,
                 if(c!=';') {
                     /* explicit letter */
                     if((char)c!=*otherName++) {
-                        return FALSE;
+                        return false;
                     }
                 } else {
                     /* stop, but skip the semicolon if we are seeking
@@ -407,7 +407,7 @@ compareName(UCharNames *names,
                 uint8_t *tokenString=tokenStrings+token;
                 while((c=*tokenString++)!=0) {
                     if((char)c!=*otherName++) {
-                        return FALSE;
+                        return false;
                     }
                 }
             }
@@ -616,7 +616,7 @@ enumGroupNames(UCharNames *names, const uint16_t *group,
             /* here, we assume that the buffer is large enough */
             if(length>0) {
                 if(!fn(context, start, nameChoice, buffer, length)) {
-                    return FALSE;
+                    return false;
                 }
             }
             ++start;
@@ -626,12 +626,12 @@ enumGroupNames(UCharNames *names, const uint16_t *group,
         while(start<=end) {
             if(compareName(names, s+offsets[start&GROUP_MASK], lengths[start&GROUP_MASK], nameChoice, otherName)) {
                 ((FindName *)context)->code=start;
-                return FALSE;
+                return false;
             }
             ++start;
         }
     }
-    return TRUE;
+    return true;
 }
 
 /*
@@ -653,14 +653,14 @@ enumExtNames(UChar32 start, UChar32 end,
             /* here, we assume that the buffer is large enough */
             if(length>0) {
                 if(!fn(context, start, U_EXTENDED_CHAR_NAME, buffer, length)) {
-                    return FALSE;
+                    return false;
                 }
             }
             ++start;
         }
     }
 
-    return TRUE;
+    return true;
 }
 
 static UBool
@@ -684,7 +684,7 @@ enumNames(UCharNames *names,
             extLimit=limit;
         }
         if(!enumExtNames(start, extLimit-1, fn, context)) {
-            return FALSE;
+            return false;
         }
         start=extLimit;
     }
@@ -705,7 +705,7 @@ enumNames(UCharNames *names,
                 if(!enumGroupNames(names, group,
                                    start, ((UChar32)startGroupMSB<<GROUP_SHIFT)+LINES_PER_GROUP-1,
                                    fn, context, nameChoice)) {
-                    return FALSE;
+                    return false;
                 }
                 group=NEXT_GROUP(group); /* continue with the next group */
             }
@@ -718,7 +718,7 @@ enumNames(UCharNames *names,
                     end = limit;
                 }
                 if (!enumExtNames(start, end - 1, fn, context)) {
-                    return FALSE;
+                    return false;
                 }
             }
             group=nextGroup;
@@ -729,7 +729,7 @@ enumNames(UCharNames *names,
             const uint16_t *nextGroup;
             start=(UChar32)group[GROUP_MSB]<<GROUP_SHIFT;
             if(!enumGroupNames(names, group, start, start+LINES_PER_GROUP-1, fn, context, nameChoice)) {
-                return FALSE;
+                return false;
             }
             nextGroup=NEXT_GROUP(group);
             if (nextGroup < groupLimit && nextGroup[GROUP_MSB] > group[GROUP_MSB] + 1 && nameChoice == U_EXTENDED_CHAR_NAME) {
@@ -738,7 +738,7 @@ enumNames(UCharNames *names,
                     end = limit;
                 }
                 if (!enumExtNames((group[GROUP_MSB] + 1) << GROUP_SHIFT, end - 1, fn, context)) {
-                    return FALSE;
+                    return false;
                 }
             }
             group=nextGroup;
@@ -753,7 +753,7 @@ enumNames(UCharNames *names,
                 start = next;
             }
         } else {
-            return TRUE;
+            return true;
         }
     }
 
@@ -766,7 +766,7 @@ enumNames(UCharNames *names,
         return enumExtNames(start, limit - 1, fn, context);
     }
     
-    return TRUE;
+    return true;
 }
 
 static uint16_t
@@ -941,7 +941,7 @@ enumAlgNames(AlgorithmicRange *range,
     uint16_t length;
 
     if(nameChoice!=U_UNICODE_CHAR_NAME && nameChoice!=U_EXTENDED_CHAR_NAME) {
-        return TRUE;
+        return true;
     }
 
     switch(range->type) {
@@ -952,12 +952,12 @@ enumAlgNames(AlgorithmicRange *range,
         /* get the full name of the start character */
         length=getAlgName(range, (uint32_t)start, nameChoice, buffer, sizeof(buffer));
         if(length<=0) {
-            return TRUE;
+            return true;
         }
 
         /* call the enumerator function with this first character */
         if(!fn(context, start, nameChoice, buffer, length)) {
-            return FALSE;
+            return false;
         }
 
         /* go to the end of the name; all these names have the same length */
@@ -984,7 +984,7 @@ enumAlgNames(AlgorithmicRange *range,
             }
 
             if(!fn(context, start, nameChoice, buffer, length)) {
-                return FALSE;
+                return false;
             }
         }
         break;
@@ -1018,7 +1018,7 @@ enumAlgNames(AlgorithmicRange *range,
 
         /* call the enumerator function with this first character */
         if(!fn(context, start, nameChoice, buffer, length)) {
-            return FALSE;
+            return false;
         }
 
         /* enumerate the rest of the names */
@@ -1056,7 +1056,7 @@ enumAlgNames(AlgorithmicRange *range,
             *t=0;
 
             if(!fn(context, start, nameChoice, buffer, length)) {
-                return FALSE;
+                return false;
             }
         }
         break;
@@ -1066,7 +1066,7 @@ enumAlgNames(AlgorithmicRange *range,
         break;
     }
 
-    return TRUE;
+    return true;
 }
 
 /*
@@ -1416,11 +1416,11 @@ calcNameSetsLengths(UErrorCode *pErrorCode) {
     int32_t i, maxNameLength;
 
     if(gMaxNameLength!=0) {
-        return TRUE;
+        return true;
     }
 
     if(!isDataLoaded(pErrorCode)) {
-        return FALSE;
+        return false;
     }
 
     /* set hex digits, used in various names, and <>-, used in extended names */
@@ -1437,7 +1437,7 @@ calcNameSetsLengths(UErrorCode *pErrorCode) {
     /* set sets and lengths from group names, set global maximum values */
     calcGroupNameSetsLengths(maxNameLength);
 
-    return TRUE;
+    return true;
 }
 
 U_NAMESPACE_END
@@ -1809,7 +1809,7 @@ makeTokenMap(const UDataSwapper *ds,
 
                 /* enter the converted character into the map and mark it used */
                 map[c1]=c2;
-                usedOutChar[c2]=TRUE;
+                usedOutChar[c2]=true;
             }
         }
 

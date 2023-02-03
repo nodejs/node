@@ -4,8 +4,6 @@
     'v8_trace_maps%': 0,
     'v8_enable_pointer_compression%': 0,
     'v8_enable_31bit_smis_on_64bit_arch%': 0,
-    'node_use_dtrace%': 'false',
-    'node_use_etw%': 'false',
     'node_no_browser_globals%': 'false',
     'node_snapshot_main%': '',
     'node_use_node_snapshot%': 'false',
@@ -24,6 +22,7 @@
     'node_use_openssl%': 'true',
     'node_shared_openssl%': 'false',
     'node_v8_options%': '',
+    'node_enable_v8_vtunejit%': 'false',
     'node_core_target_name%': 'node',
     'node_lib_target_name%': 'libnode',
     'node_intermediate_lib_type%': 'static_library',
@@ -50,12 +49,9 @@
       'deps/v8/tools/tickprocessor-driver.mjs',
       'deps/acorn/acorn/dist/acorn.js',
       'deps/acorn/acorn-walk/dist/walk.js',
-      'deps/cjs-module-lexer/lexer.js',
-      'deps/cjs-module-lexer/dist/lexer.js',
-      'deps/undici/undici.js',
+      '<@(node_builtin_shareable_builtins)',
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
-    'mkcodecache_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mkcodecache<(EXECUTABLE_SUFFIX)',
     'conditions': [
       ['GENERATOR == "ninja"', {
         'node_text_start_object_path': 'src/large_pages/node_text_start.node_text_start.o'
@@ -100,6 +96,7 @@
         '-W',
         '-Wno-unused-parameter',
         '-Werror=undefined-inline',
+        '-Werror=extra-semi',
       ],
     },
 
@@ -173,6 +170,12 @@
           'RandomizedBaseAddress': 2, # enable ASLR
           'DataExecutionPrevention': 2, # enable DEP
           'AllowIsolation': 'true',
+          # By default, the MSVC linker only reserves 1 MiB of stack memory for
+          # each thread, whereas other platforms typically allow much larger
+          # stack memory sections. We raise the limit to make it more consistent
+          # across platforms and to support the few use cases that require large
+          # amounts of stack memory, without having to modify the node binary.
+          'StackReserveSize': 0x800000,
         },
       },
 
@@ -196,6 +199,16 @@
           'dependencies': [ 'node_aix_shared' ],
         }, {
           'dependencies': [ '<(node_lib_target_name)' ],
+          'conditions': [
+            ['OS=="win" and node_shared=="true"', {
+              'dependencies': ['generate_node_def'],
+              'msvs_settings': {
+                'VCLinkerTool': {
+                  'ModuleDefinitionFile': '<(PRODUCT_DIR)/<(node_core_target_name).def',
+                },
+              },
+            }],
+          ],
         }],
         [ 'node_intermediate_lib_type=="static_library" and node_shared=="false"', {
           'xcode_settings': {
@@ -213,7 +226,7 @@
             },
           },
           'conditions': [
-            ['OS != "aix" and OS != "os400" and OS != "mac"', {
+            ['OS != "aix" and OS != "os400" and OS != "mac" and OS != "ios"', {
               'ldflags': [
                 '-Wl,--whole-archive',
                 '<(obj_dir)/<(STATIC_LIB_PREFIX)<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
@@ -223,20 +236,20 @@
             }],
             [ 'OS=="win"', {
               'sources': [ 'src/res/node.rc' ],
-              'conditions': [
-                [ 'node_use_etw=="true"', {
-                  'sources': [
-                    'tools/msvs/genfiles/node_etw_provider.rc'
-                  ],
-                }],
-              ],
             }],
           ],
         }],
         [ 'node_shared=="true"', {
           'xcode_settings': {
-            'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
+            'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', '-Wl,-rpath,@loader_path/../lib'],
           },
+          'conditions': [
+            ['OS=="linux"', {
+               'ldflags': [
+                 '-Wl,-rpath,\\$$ORIGIN/../lib'
+               ],
+            }],
+          ],
         }],
         [ 'enable_lto=="true"', {
           'xcode_settings': {
@@ -287,32 +300,7 @@
             },
           },
          }],
-        ['node_use_node_code_cache=="true"', {
-          'dependencies': [
-            'mkcodecache',
-          ],
-          'actions': [
-            {
-              'action_name': 'run_mkcodecache',
-              'process_outputs_as_sources': 1,
-              'inputs': [
-                '<(mkcodecache_exec)',
-              ],
-              'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/node_code_cache.cc',
-              ],
-              'action': [
-                '<@(_inputs)',
-                '<@(_outputs)',
-              ],
-            },
-          ],
-        }, {
-          'sources': [
-            'src/node_code_cache_stub.cc'
-          ],
-        }],
-        ['node_use_node_snapshot=="true"', {
+         ['node_use_node_snapshot=="true"', {
           'dependencies': [
             'node_mksnapshot',
           ],
@@ -373,7 +361,7 @@
           'variables': {
             'openssl-cli': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)openssl-cli<(EXECUTABLE_SUFFIX)',
             'provider_name': 'libopenssl-fipsmodule',
-            'opensslconfig': './deps/openssl/openssl/apps/openssl.cnf',
+            'opensslconfig': './deps/openssl/nodejs-openssl.cnf',
             'conditions': [
               ['GENERATOR == "ninja"', {
 	        'fipsmodule_internal': '<(PRODUCT_DIR)/lib/<(provider_name).so',
@@ -383,7 +371,7 @@
              }, {
 	        'fipsmodule_internal': '<(PRODUCT_DIR)/obj.target/deps/openssl/<(provider_name).so',
                 'fipsmodule': '<(PRODUCT_DIR)/obj.target/deps/openssl/lib/openssl-modules/fips.so',
-                'fipsconfig': '<(PRODUCT_DIR)/obj/deps/openssl/fipsmodule.cnf',
+                'fipsconfig': '<(PRODUCT_DIR)/obj.target/deps/openssl/fipsmodule.cnf',
                 'opensslconfig_internal': '<(PRODUCT_DIR)/obj.target/deps/openssl/openssl.cnf',
              }],
             ],
@@ -435,7 +423,7 @@
          }, {
            'variables': {
               'opensslconfig_internal': '<(obj_dir)/deps/openssl/openssl.cnf',
-              'opensslconfig': './deps/openssl/openssl/apps/openssl.cnf',
+              'opensslconfig': './deps/openssl/nodejs-openssl.cnf',
            },
            'actions': [
              {
@@ -443,9 +431,9 @@
                'inputs': [ '<(opensslconfig)', ],
                'outputs': [ '<(opensslconfig_internal)', ],
                'action': [
-                 'python', 'tools/copyfile.py',
-                 './deps/openssl/openssl/apps/openssl.cnf',
-                 '<(obj_dir)/deps/openssl/openssl.cnf',
+                 '<(python)', 'tools/copyfile.py',
+                 '<(opensslconfig)',
+                 '<(opensslconfig_internal)',
                ],
              },
            ],
@@ -464,9 +452,11 @@
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
       'dependencies': [
+        'deps/base64/base64.gyp:base64',
         'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/simdutf/simdutf.gyp:simdutf',
       ],
 
       'sources': [
@@ -479,7 +469,9 @@
         'src/api/hooks.cc',
         'src/api/utils.cc',
         'src/async_wrap.cc',
+        'src/base_object.cc',
         'src/cares_wrap.cc',
+        'src/cleanup_queue.cc',
         'src/connect_wrap.cc',
         'src/connection_wrap.cc',
         'src/debug_utils.cc',
@@ -502,6 +494,7 @@
         'src/node_binding.cc',
         'src/node_blob.cc',
         'src/node_buffer.cc',
+        'src/node_builtins.cc',
         'src/node_config.cc',
         'src/node_constants.cc',
         'src/node_contextify.cc',
@@ -517,8 +510,6 @@
         'src/node_main_instance.cc',
         'src/node_messaging.cc',
         'src/node_metadata.cc',
-        'src/node_native_module.cc',
-        'src/node_native_module_env.cc',
         'src/node_options.cc',
         'src/node_os.cc',
         'src/node_perf.cc',
@@ -527,10 +518,12 @@
         'src/node_process_events.cc',
         'src/node_process_methods.cc',
         'src/node_process_object.cc',
+        'src/node_realm.cc',
         'src/node_report.cc',
         'src/node_report_module.cc',
         'src/node_report_utils.cc',
         'src/node_serdes.cc',
+        'src/node_shadow_realm.cc',
         'src/node_snapshotable.cc',
         'src/node_sockaddr.cc',
         'src/node_stat_watcher.cc',
@@ -543,6 +536,7 @@
         'src/node_util.cc',
         'src/node_v8.cc',
         'src/node_wasi.cc',
+        'src/node_wasm_web_api.cc',
         'src/node_watchdog.cc',
         'src/node_worker.cc',
         'src/node_zlib.cc',
@@ -571,8 +565,6 @@
         'src/aliased_buffer.h',
         'src/aliased_struct.h',
         'src/aliased_struct-inl.h',
-        'src/allocated_buffer.h',
-        'src/allocated_buffer-inl.h',
         'src/async_wrap.h',
         'src/async_wrap-inl.h',
         'src/base_object.h',
@@ -581,10 +573,13 @@
         'src/base64-inl.h',
         'src/callback_queue.h',
         'src/callback_queue-inl.h',
+        'src/cleanup_queue.h',
+        'src/cleanup_queue-inl.h',
         'src/connect_wrap.h',
         'src/connection_wrap.h',
         'src/debug_utils.h',
         'src/debug_utils-inl.h',
+        'src/env_properties.h',
         'src/env.h',
         'src/env-inl.h',
         'src/handle_wrap.h',
@@ -603,11 +598,13 @@
         'src/node_binding.h',
         'src/node_blob.h',
         'src/node_buffer.h',
+        'src/node_builtins.h',
         'src/node_constants.h',
         'src/node_context_data.h',
         'src/node_contextify.h',
         'src/node_dir.h',
         'src/node_errors.h',
+        'src/node_exit_code.h',
         'src/node_external_reference.h',
         'src/node_file.h',
         'src/node_file-inl.h',
@@ -623,8 +620,6 @@
         'src/node_messaging.h',
         'src/node_metadata.h',
         'src/node_mutex.h',
-        'src/node_native_module.h',
-        'src/node_native_module_env.h',
         'src/node_object_wrap.h',
         'src/node_options.h',
         'src/node_options-inl.h',
@@ -633,15 +628,20 @@
         'src/node_platform.h',
         'src/node_process.h',
         'src/node_process-inl.h',
+        'src/node_realm.h',
+        'src/node_realm-inl.h',
         'src/node_report.h',
         'src/node_revert.h',
         'src/node_root_certs.h',
+        'src/node_shadow_realm.h',
         'src/node_snapshotable.h',
+        'src/node_snapshot_builder.h',
         'src/node_sockaddr.h',
         'src/node_sockaddr-inl.h',
         'src/node_stat_watcher.h',
         'src/node_union_bytes.h',
         'src/node_url.h',
+        'src/node_util.h',
         'src/node_version.h',
         'src/node_v8.h',
         'src/node_v8_platform-inl.h',
@@ -687,6 +687,8 @@
         'openssl_default_cipher_list%': '',
       },
 
+      'cflags': ['-Werror=unused-result'],
+
       'defines': [
         'NODE_ARCH="<(target_arch)"',
         'NODE_PLATFORM="<(OS)"',
@@ -718,7 +720,6 @@
         [ 'node_shared=="true"', {
           'sources': [
             'src/node_snapshot_stub.cc',
-            'src/node_code_cache_stub.cc',
           ]
         }],
         [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
@@ -727,6 +728,11 @@
             'LD_DYLIB_INSTALL_NAME':
               '@rpath/lib<(node_core_target_name).<(shlib_suffix)'
           },
+        }],
+        [ 'node_use_node_code_cache=="true"', {
+          'defines': [
+            'NODE_USE_NODE_CODE_CACHE=1',
+          ],
         }],
         ['node_shared=="true" and OS in "aix os400"', {
           'product_name': 'node_base',
@@ -747,75 +753,10 @@
           'libraries': [
             'Dbghelp',
             'Psapi',
+            'Winmm',
             'Ws2_32',
           ],
         }],
-        [ 'node_use_etw=="true"', {
-          'defines': [ 'HAVE_ETW=1' ],
-          'dependencies': [ 'node_etw' ],
-          'include_dirs': [
-            'src',
-            'tools/msvs/genfiles',
-            '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
-          ],
-          'sources': [
-            'src/node_win32_etw_provider.h',
-            'src/node_win32_etw_provider-inl.h',
-            'src/node_win32_etw_provider.cc',
-            'src/node_dtrace.h',
-            'src/node_dtrace.cc',
-            'tools/msvs/genfiles/node_etw_provider.h',
-          ],
-          'conditions': [
-            ['node_intermediate_lib_type != "static_library"', {
-              'sources': [
-                'tools/msvs/genfiles/node_etw_provider.rc',
-              ],
-            }],
-          ],
-        }],
-        [ 'node_use_dtrace=="true"', {
-          'defines': [ 'HAVE_DTRACE=1' ],
-          'dependencies': [
-            'node_dtrace_header',
-            'specialize_node_d',
-          ],
-          'include_dirs': [ '<(SHARED_INTERMEDIATE_DIR)' ],
-          #
-          # DTrace is supported on linux, solaris, mac, and bsd.  There are
-          # three object files associated with DTrace support, but they're
-          # not all used all the time:
-          #
-          #   node_dtrace.o           all configurations
-          #   node_dtrace_ustack.o    not supported on mac and linux
-          #   node_dtrace_provider.o  All except OS X.  "dtrace -G" is not
-          #                           used on OS X.
-          #
-          # Note that node_dtrace_provider.cc and node_dtrace_ustack.cc do not
-          # actually exist.  They're listed here to trick GYP into linking the
-          # corresponding object files into the final "node" executable.  These
-          # object files are generated by "dtrace -G" using custom actions
-          # below, and the GYP-generated Makefiles will properly build them when
-          # needed.
-          #
-          'sources': [
-            'src/node_dtrace.h',
-            'src/node_dtrace.cc',
-          ],
-          'conditions': [
-            [ 'OS=="linux"', {
-              'sources': [
-                '<(SHARED_INTERMEDIATE_DIR)/node_dtrace_provider.o'
-              ],
-            }],
-            [ 'OS!="mac" and OS!="linux"', {
-              'sources': [
-                'src/node_dtrace_ustack.cc',
-                'src/node_dtrace_provider.cc',
-              ]
-            }
-          ] ]
-        } ],
         [ 'node_use_openssl=="true"', {
           'sources': [
             'src/crypto/crypto_aes.cc',
@@ -846,7 +787,6 @@
             'src/crypto/crypto_bio.h',
             'src/crypto/crypto_clienthello-inl.h',
             'src/crypto/crypto_dh.h',
-            'src/crypto/crypto_groups.h',
             'src/crypto/crypto_hmac.h',
             'src/crypto/crypto_rsa.h',
             'src/crypto/crypto_spkac.h',
@@ -886,7 +826,8 @@
               '-CAES,BF,BIO,DES,DH,DSA,EC,ECDH,ECDSA,ENGINE,EVP,HMAC,MD4,MD5,'
               'PSK,RC2,RC4,RSA,SHA,SHA0,SHA1,SHA256,SHA512,SOCK,STDIO,TLSEXT,'
               'UI,FP_API,TLS1_METHOD,TLS1_1_METHOD,TLS1_2_METHOD,SCRYPT,OCSP,'
-              'NEXTPROTONEG,RMD160,CAST,DEPRECATEDIN_1_1_0,DEPRECATEDIN_1_2_0',
+              'NEXTPROTONEG,RMD160,CAST,DEPRECATEDIN_1_1_0,DEPRECATEDIN_1_2_0,'
+              'DEPRECATEDIN_3_0',
               # Defines.
               '-DWIN32',
               # Symbols to filter from the export list.
@@ -922,6 +863,9 @@
             },
           ],
         }],
+        [ 'debug_nghttp2==1', {
+          'defines': [ 'NODE_DEBUG_NGHTTP2=1' ]
+        }],
       ],
       'actions': [
         {
@@ -950,164 +894,6 @@
         },
       ],
     }, # node_lib_target_name
-    {
-       # generate ETW header and resource files
-      'target_name': 'node_etw',
-      'type': 'none',
-      'conditions': [
-        [ 'node_use_etw=="true"', {
-          'actions': [
-            {
-              'action_name': 'node_etw',
-              'inputs': [ 'src/res/node_etw_provider.man' ],
-              'outputs': [
-                'tools/msvs/genfiles/node_etw_provider.rc',
-                'tools/msvs/genfiles/node_etw_provider.h',
-                'tools/msvs/genfiles/node_etw_providerTEMP.BIN',
-              ],
-              'action': [ 'mc <@(_inputs) -h tools/msvs/genfiles -r tools/msvs/genfiles' ]
-            }
-          ]
-        } ]
-      ]
-    }, # node_etw
-    {
-      'target_name': 'node_dtrace_header',
-      'type': 'none',
-      'conditions': [
-        [ 'node_use_dtrace=="true" and OS!="linux"', {
-          'actions': [
-            {
-              'action_name': 'node_dtrace_header',
-              'inputs': [ 'src/node_provider.d' ],
-              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_provider.h' ],
-              'action': [ 'dtrace', '-h', '-xnolibs', '-s', '<@(_inputs)',
-                '-o', '<@(_outputs)' ]
-            }
-          ]
-        } ],
-        [ 'node_use_dtrace=="true" and OS=="linux"', {
-          'actions': [
-            {
-              'action_name': 'node_dtrace_header',
-              'inputs': [ 'src/node_provider.d' ],
-              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/node_provider.h' ],
-              'action': [ 'dtrace', '-h', '-s', '<@(_inputs)',
-                '-o', '<@(_outputs)' ]
-            }
-          ]
-        } ],
-      ]
-    }, # node_dtrace_header
-    {
-      'target_name': 'node_dtrace_provider',
-      'type': 'none',
-      'conditions': [
-        [ 'node_use_dtrace=="true" and OS!="mac" and OS!="linux"', {
-          'actions': [
-            {
-              'action_name': 'node_dtrace_provider_o',
-              'inputs': [
-                '<(obj_dir)/<(node_lib_target_name)/src/node_dtrace.o',
-              ],
-              'outputs': [
-                '<(obj_dir)/<(node_lib_target_name)/src/node_dtrace_provider.o'
-              ],
-              'action': [ 'dtrace', '-G', '-xnolibs', '-s', 'src/node_provider.d',
-                '<@(_inputs)', '-o', '<@(_outputs)' ]
-            }
-          ]
-        }],
-        [ 'node_use_dtrace=="true" and OS=="linux"', {
-          'actions': [
-            {
-              'action_name': 'node_dtrace_provider_o',
-              'inputs': [ 'src/node_provider.d' ],
-              'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/node_dtrace_provider.o'
-              ],
-              'action': [
-                'dtrace', '-C', '-G', '-s', '<@(_inputs)', '-o', '<@(_outputs)'
-              ],
-            }
-          ],
-        }],
-      ]
-    }, # node_dtrace_provider
-    {
-      'target_name': 'node_dtrace_ustack',
-      'type': 'none',
-      'conditions': [
-        [ 'node_use_dtrace=="true" and OS!="mac" and OS!="linux"', {
-          'actions': [
-            {
-              'action_name': 'node_dtrace_ustack_constants',
-              'inputs': [
-                '<(obj_dir)/tools/v8_gypfiles/<(STATIC_LIB_PREFIX)v8_base_without_compiler<(STATIC_LIB_SUFFIX)'
-              ],
-              'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/v8constants.h'
-              ],
-              'action': [
-                'tools/genv8constants.py',
-                '<@(_outputs)',
-                '<@(_inputs)'
-              ]
-            },
-            {
-              'action_name': 'node_dtrace_ustack',
-              'inputs': [
-                'src/v8ustack.d',
-                '<(SHARED_INTERMEDIATE_DIR)/v8constants.h'
-              ],
-              'outputs': [
-                '<(obj_dir)/<(node_lib_target_name)/src/node_dtrace_ustack.o'
-              ],
-              'conditions': [
-                [ 'target_arch=="ia32" or target_arch=="arm"', {
-                  'action': [
-                    'dtrace', '-32', '-I<(SHARED_INTERMEDIATE_DIR)', '-Isrc',
-                    '-C', '-G', '-s', 'src/v8ustack.d', '-o', '<@(_outputs)',
-                  ]
-                } ],
-                [ 'target_arch=="x64"', {
-                  'action': [
-                    'dtrace', '-64', '-I<(SHARED_INTERMEDIATE_DIR)', '-Isrc',
-                    '-C', '-G', '-s', 'src/v8ustack.d', '-o', '<@(_outputs)',
-                  ]
-                } ],
-              ]
-            },
-          ]
-        } ],
-      ]
-    }, # node_dtrace_ustack
-    {
-      'target_name': 'specialize_node_d',
-      'type': 'none',
-      'conditions': [
-        [ 'node_use_dtrace=="true"', {
-          'actions': [
-            {
-              'action_name': 'specialize_node_d',
-              'inputs': [
-                'src/node.d'
-              ],
-              'outputs': [
-                '<(PRODUCT_DIR)/node.d',
-              ],
-              'action': [
-                'tools/specialize_node_d.py',
-                '<@(_outputs)',
-                '<@(_inputs)',
-                '<@(OS)',
-                '<@(target_arch)',
-              ],
-            },
-          ],
-        } ],
-      ]
-    }, # specialize_node_d
     { # fuzz_url
       'target_name': 'fuzz_url',
       'type': 'executable',
@@ -1127,7 +913,6 @@
       ],
       'sources': [
         'src/node_snapshot_stub.cc',
-        'src/node_code_cache_stub.cc',
         'test/fuzzers/fuzz_url.cc',
       ],
       'conditions': [
@@ -1147,9 +932,6 @@
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
-        'node_dtrace_header',
-        'node_dtrace_ustack',
-        'node_dtrace_provider',
       ],
       'includes': [
         'node.gypi'
@@ -1170,7 +952,6 @@
       ],
       'sources': [
         'src/node_snapshot_stub.cc',
-        'src/node_code_cache_stub.cc',
         'test/fuzzers/fuzz_env.cc',
       ],
       'conditions': [
@@ -1189,13 +970,12 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
+        'deps/base64/base64.gyp:base64',
         'deps/googletest/googletest.gyp:gtest',
         'deps/googletest/googletest.gyp:gtest_main',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
-        'node_dtrace_header',
-        'node_dtrace_ustack',
-        'node_dtrace_provider',
+        'deps/simdutf/simdutf.gyp:simdutf',
       ],
 
       'includes': [
@@ -1220,7 +1000,6 @@
 
       'sources': [
         'src/node_snapshot_stub.cc',
-        'src/node_code_cache_stub.cc',
         'test/cctest/node_test_fixture.cc',
         'test/cctest/node_test_fixture.h',
         'test/cctest/test_aliased_buffer.cc',
@@ -1228,11 +1007,11 @@
         'test/cctest/test_base_object_ptr.cc',
         'test/cctest/test_node_postmortem_metadata.cc',
         'test/cctest/test_environment.cc',
-        'test/cctest/test_js_native_api_v8.cc',
         'test/cctest/test_linked_binding.cc',
         'test/cctest/test_node_api.cc',
         'test/cctest/test_per_process.cc',
         'test/cctest/test_platform.cc',
+        'test/cctest/test_report.cc',
         'test/cctest/test_json_utils.cc',
         'test/cctest/test_sockaddr.cc',
         'test/cctest/test_traced_value.cc',
@@ -1246,6 +1025,7 @@
             'HAVE_OPENSSL=1',
           ],
           'sources': [
+            'test/cctest/test_crypto_clienthello.cc',
             'test/cctest/test_node_crypto.cc',
           ]
         }],
@@ -1292,9 +1072,6 @@
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
-        'node_dtrace_header',
-        'node_dtrace_ustack',
-        'node_dtrace_provider',
       ],
 
       'includes': [
@@ -1313,7 +1090,6 @@
 
       'sources': [
         'src/node_snapshot_stub.cc',
-        'src/node_code_cache_stub.cc',
         'test/embedding/embedtest.cc',
       ],
 
@@ -1357,68 +1133,6 @@
         }],
       ]
     }, # overlapped-checker
-
-    # TODO(joyeecheung): do not depend on node_lib,
-    # instead create a smaller static library node_lib_base that does
-    # just enough for node_native_module.cc and the cache builder to
-    # compile without compiling the generated code cache C++ file.
-    # So generate_code_cache -> mkcodecache -> node_lib_base,
-    #    node_lib -> node_lib_base & generate_code_cache
-    {
-      'target_name': 'mkcodecache',
-      'type': 'executable',
-
-      'dependencies': [
-        '<(node_lib_target_name)',
-        'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
-      ],
-
-      'includes': [
-        'node.gypi'
-      ],
-
-      'include_dirs': [
-        'src',
-        'tools/msvs/genfiles',
-        'deps/v8/include',
-        'deps/cares/include',
-        'deps/uv/include',
-        'deps/uvwasi/include',
-      ],
-
-      'defines': [
-        'NODE_WANT_INTERNALS=1'
-      ],
-      'sources': [
-        'src/node_snapshot_stub.cc',
-        'src/node_code_cache_stub.cc',
-        'tools/code_cache/mkcodecache.cc',
-        'tools/code_cache/cache_builder.cc',
-        'tools/code_cache/cache_builder.h',
-      ],
-
-      'conditions': [
-        [ 'node_use_openssl=="true"', {
-          'defines': [
-            'HAVE_OPENSSL=1',
-          ],
-        }],
-        ['v8_enable_inspector==1', {
-          'defines': [
-            'HAVE_INSPECTOR=1',
-          ],
-        }],
-        ['OS=="win"', {
-          'libraries': [
-            'dbghelp.lib',
-            'PsApi.lib',
-            'winmm.lib',
-            'Ws2_32.lib',
-          ],
-        }],
-      ],
-    }, # mkcodecache
     {
       'target_name': 'node_mksnapshot',
       'type': 'executable',
@@ -1446,7 +1160,6 @@
 
       'sources': [
         'src/node_snapshot_stub.cc',
-        'src/node_code_cache_stub.cc',
         'tools/snapshot/node_mksnapshot.cc',
       ],
 
@@ -1454,6 +1167,11 @@
         [ 'node_use_openssl=="true"', {
           'defines': [
             'HAVE_OPENSSL=1',
+          ],
+        }],
+        [ 'node_use_node_code_cache=="true"', {
+          'defines': [
+            'NODE_USE_NODE_CODE_CACHE=1',
           ],
         }],
         ['v8_enable_inspector==1', {
@@ -1500,5 +1218,40 @@
         },
       ]
     }], # end aix section
+    ['OS=="win" and node_shared=="true"', {
+     'targets': [
+       {
+         'target_name': 'gen_node_def',
+         'type': 'executable',
+         'sources': [
+           'tools/gen_node_def.cc'
+         ],
+       },
+       {
+         'target_name': 'generate_node_def',
+         'dependencies': [
+           'gen_node_def',
+           '<(node_lib_target_name)',
+         ],
+         'type': 'none',
+         'actions': [
+           {
+             'action_name': 'generate_node_def_action',
+             'inputs': [
+               '<(PRODUCT_DIR)/<(node_lib_target_name).dll'
+             ],
+             'outputs': [
+               '<(PRODUCT_DIR)/<(node_core_target_name).def',
+             ],
+             'action': [
+               '<(PRODUCT_DIR)/gen_node_def.exe',
+               '<@(_inputs)',
+               '<@(_outputs)',
+             ],
+           },
+         ],
+       },
+     ],
+   }], # end win section
   ], # end conditions block
 }

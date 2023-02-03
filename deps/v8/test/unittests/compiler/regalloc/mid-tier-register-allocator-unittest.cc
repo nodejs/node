@@ -400,7 +400,7 @@ TEST_F(MidTierRegisterAllocatorTest, SpillPhiDueToRegisterPressure) {
 }
 
 TEST_F(MidTierRegisterAllocatorTest, MoveLotsOfConstants) {
-  FLAG_trace_turbo = true;
+  v8_flags.trace_turbo = true;
   StartBlock();
   VReg constants[Register::kNumRegisters];
   for (size_t i = 0; i < arraysize(constants); ++i) {
@@ -816,7 +816,7 @@ class MidTierRegAllocSlotConstraintTest
 }  // namespace
 
 TEST_P(MidTierRegAllocSlotConstraintTest, SlotConstraint) {
-  FLAG_trace_turbo = true;
+  v8_flags.trace_turbo = true;
   StartBlock();
   VReg p_0;
   switch (parameter_type()) {

@@ -835,6 +835,7 @@
       'openssl/providers/implementations/digests/md5_prov.c',
       'openssl/providers/implementations/digests/md5_sha1_prov.c',
       'openssl/providers/implementations/digests/null_prov.c',
+      'openssl/providers/implementations/digests/ripemd_prov.c',
       'openssl/providers/implementations/digests/sha2_prov.c',
       'openssl/providers/implementations/digests/sha3_prov.c',
       'openssl/providers/implementations/digests/sm3_prov.c',
@@ -999,8 +1000,6 @@
       './config/archs/VC-WIN64A/asm_avx2/crypto/bn/x86_64-mont.asm',
       './config/archs/VC-WIN64A/asm_avx2/crypto/bn/x86_64-mont5.asm',
       './config/archs/VC-WIN64A/asm_avx2/crypto/md5/md5-x86_64.asm',
-      './config/archs/VC-WIN64A/asm_avx2/providers/legacy.ld',
-      './config/archs/VC-WIN64A/asm_avx2/providers/fips.ld',
     ],
     'openssl_defines_VC-WIN64A': [
       'NDEBUG',

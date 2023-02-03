@@ -13,11 +13,11 @@ async_hooks.createHook({
       nestedCall = true;
       fs.access(__filename, common.mustCall());
     }
-  }, 2)
+  }, 2),
 }).enable();
 
 const nestedHook = async_hooks.createHook({
-  init: common.mustCall(2)
+  init: common.mustCall(2),
 }).enable();
 
 fs.access(__filename, common.mustCall());

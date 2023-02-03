@@ -158,19 +158,28 @@ try:
 except gdb.error:
   pass
 end
-set disable-randomization off
+
+# Configuring ASLR may not be possible on some platforms, such running via the
+# `rr` debuggger.
+python
+try:
+  gdb.execute("set disable-randomization off")
+except gdb.error:
+  pass
+end
 
 # Install a handler whenever the debugger stops due to a signal. It walks up the
-# stack looking for V8_Dcheck and moves the frame to the one above it so it's
-# immediately at the line of code that triggered the DCHECK.
+# stack looking for V8_Dcheck / V8_Fatal / OS::DebugBreak frame and moves the
+# frame to the one above it so it's immediately at the line of code that
+# triggered the stop condition.
 python
-def dcheck_stop_handler(event):
+def v8_stop_handler(event):
   frame = gdb.selected_frame()
   select_frame = None
   message = None
   count = 0
-  # limit stack scanning since they're usually shallow and otherwise stack
-  # overflows can be very slow.
+  # Limit stack scanning since the frames we look for are near the top anyway,
+  # and otherwise stack overflows can be very slow.
   while frame is not None and count < 7:
     count += 1
     # If we are in a frame created by gdb (e.g. for `(gdb) call foo()`), gdb
@@ -186,6 +195,8 @@ def dcheck_stop_handler(event):
       break
     if frame.name() is not None and frame.name().startswith('V8_Fatal'):
       select_frame = frame.older()
+    if frame.name() == 'v8::base::OS::DebugBreak':
+      select_frame = frame.older()
     frame = frame.older()
 
   if select_frame is not None:
@@ -194,7 +205,7 @@ def dcheck_stop_handler(event):
     if message:
       print('DCHECK error: {}'.format(message))
 
-gdb.events.stop.connect(dcheck_stop_handler)
+gdb.events.stop.connect(v8_stop_handler)
 end
 
 # Code imported from chromium/src/tools/gdb/gdbinit
@@ -246,5 +257,66 @@ def newobj_handler(event):
 gdb.events.new_objfile.connect(newobj_handler)
 
 gdb.execute("set environment V8_GDBINIT_SOURCED=1")
+
+end
+
+### CppGC helpers.
+
+# Print compressed pointer.
+define cpcp
+call _cppgc_internal_Decompress_Compressed_Pointer((unsigned)($arg0))
+end
+document cpcp
+Prints compressed pointer (raw value) after decompression.
+Usage: cpcp compressed_pointer
+end
+
+# Print member.
+define cpm
+call _cppgc_internal_Print_Member((cppgc::internal::MemberBase*)(&$arg0))
+end
+document cpm
+Prints member, compressed or not.
+Usage: cpm member
+end
+
+# Pretty printer for cppgc::Member.
+python
+
+import re
+
+
+class CppGCMemberPrinter(object):
+  """Print cppgc Member types."""
+
+  def __init__(self, val, category, pointee_type):
+    self.val = val
+    self.category = category
+    self.pointee_type = pointee_type
+
+  def to_string(self):
+    pointer = gdb.parse_and_eval(
+        "_cppgc_internal_Print_Member((cppgc::internal::MemberBase*){})".format(
+            self.val.address))
+    return "{}Member<{}> pointing to {}".format(
+        '' if self.category is None else self.category, self.pointee_type,
+        pointer)
+
+  def display_hint(self):
+    return "{}Member<{}>".format('' if self.category is None else self.category,
+                                 self.pointee_type)
+
+
+def cppgc_pretty_printers(val):
+  typename = val.type.name or val.type.tag or str(val.type)
+  regex = re.compile("^(cppgc|blink)::(Weak|Untraced)?Member<(.*)>$")
+  match = regex.match(typename)
+  if match is None:
+    return None
+  return CppGCMemberPrinter(
+      val, category=match.group(2), pointee_type=match.group(3))
+
+
+gdb.pretty_printers.append(cppgc_pretty_printers)
 
 end

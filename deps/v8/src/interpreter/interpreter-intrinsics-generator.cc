@@ -5,16 +5,11 @@
 #include "src/interpreter/interpreter-intrinsics-generator.h"
 
 #include "src/builtins/builtins.h"
-#include "src/codegen/code-factory.h"
-#include "src/execution/frames.h"
 #include "src/heap/factory-inl.h"
-#include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-assembler.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/source-text-module.h"
-#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -87,7 +82,7 @@ TNode<Object> IntrinsicsGenerator::InvokeIntrinsic(
 #define HANDLE_CASE(name, lower_case, expected_arg_count)            \
   __ BIND(&lower_case);                                              \
   {                                                                  \
-    if (FLAG_debug_code && expected_arg_count >= 0) {                \
+    if (v8_flags.debug_code && expected_arg_count >= 0) {            \
       AbortIfArgCountMismatch(expected_arg_count, args.reg_count()); \
     }                                                                \
     TNode<Object> value = name(args, context, expected_arg_count);   \
@@ -137,6 +132,21 @@ TNode<Object> IntrinsicsGenerator::CopyDataProperties(
     int arg_count) {
   return IntrinsicAsBuiltinCall(args, context, Builtin::kCopyDataProperties,
                                 arg_count);
+}
+
+TNode<Object>
+IntrinsicsGenerator::CopyDataPropertiesWithExcludedPropertiesOnStack(
+    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
+    int arg_count) {
+  TNode<IntPtrT> offset = __ TimesSystemPointerSize(__ IntPtrConstant(1));
+  auto base = __ Signed(__ IntPtrSub(args.base_reg_location(), offset));
+  Callable callable = Builtins::CallableFor(
+      isolate_, Builtin::kCopyDataPropertiesWithExcludedPropertiesOnStack);
+  TNode<IntPtrT> excluded_property_count = __ IntPtrSub(
+      __ ChangeInt32ToIntPtr(args.reg_count()), __ IntPtrConstant(1));
+  return __ CallStub(callable, context,
+                     __ LoadRegisterFromRegisterList(args, 0),
+                     excluded_property_count, base);
 }
 
 TNode<Object> IntrinsicsGenerator::CreateIterResultObject(
@@ -251,11 +261,11 @@ TNode<Object> IntrinsicsGenerator::AsyncGeneratorResolve(
                                 arg_count);
 }
 
-TNode<Object> IntrinsicsGenerator::AsyncGeneratorYield(
+TNode<Object> IntrinsicsGenerator::AsyncGeneratorYieldWithAwait(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
     int arg_count) {
-  return IntrinsicAsBuiltinCall(args, context, Builtin::kAsyncGeneratorYield,
-                                arg_count);
+  return IntrinsicAsBuiltinCall(
+      args, context, Builtin::kAsyncGeneratorYieldWithAwait, arg_count);
 }
 
 void IntrinsicsGenerator::AbortIfArgCountMismatch(int expected,

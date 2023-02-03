@@ -47,11 +47,10 @@
 
 (function TestRegisterWithNonObjectTarget() {
   let fg = new FinalizationRegistry(() => {});
-  let message = "FinalizationRegistry.prototype.register: target must be an object";
+  let message = "FinalizationRegistry.prototype.register: invalid target";
   assertThrows(() => fg.register(1, "holdings"), TypeError, message);
   assertThrows(() => fg.register(false, "holdings"), TypeError, message);
   assertThrows(() => fg.register("foo", "holdings"), TypeError, message);
-  assertThrows(() => fg.register(Symbol(), "holdings"), TypeError, message);
   assertThrows(() => fg.register(null, "holdings"), TypeError, message);
   assertThrows(() => fg.register(undefined, "holdings"), TypeError, message);
 })();
@@ -97,7 +96,6 @@
   assertThrows(() => fg.unregister(1), TypeError);
   assertThrows(() => fg.unregister(1n), TypeError);
   assertThrows(() => fg.unregister('one'), TypeError);
-  assertThrows(() => fg.unregister(Symbol()), TypeError);
   assertThrows(() => fg.unregister(true), TypeError);
   assertThrows(() => fg.unregister(false), TypeError);
   assertThrows(() => fg.unregister(undefined), TypeError);
@@ -116,12 +114,11 @@
 })();
 
 (function TestWeakRefConstructorWithNonObject() {
-  let message = "WeakRef: target must be an object";
+  let message = "WeakRef: invalid target";
   assertThrows(() => new WeakRef(), TypeError, message);
   assertThrows(() => new WeakRef(1), TypeError, message);
   assertThrows(() => new WeakRef(false), TypeError, message);
   assertThrows(() => new WeakRef("foo"), TypeError, message);
-  assertThrows(() => new WeakRef(Symbol()), TypeError, message);
   assertThrows(() => new WeakRef(null), TypeError, message);
   assertThrows(() => new WeakRef(undefined), TypeError, message);
 })();

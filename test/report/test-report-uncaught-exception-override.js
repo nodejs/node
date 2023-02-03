@@ -12,9 +12,7 @@ process.report.directory = tmpdir.path;
 
 // First, install an uncaught exception hook.
 process.setUncaughtExceptionCaptureCallback(common.mustCall());
-
-// Make sure this is ignored due to the above override.
-process.on('uncaughtException', common.mustNotCall());
+// Do not install process uncaughtException handler.
 
 process.on('exit', (code) => {
   assert.strictEqual(code, 0);

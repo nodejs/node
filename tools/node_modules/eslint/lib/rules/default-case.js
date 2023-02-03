@@ -16,7 +16,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require `default` cases in `switch` statements",
+            description: "Require `default` cases in `switch` statements",
             recommended: false,
             url: "https://eslint.org/docs/rules/default-case"
         },

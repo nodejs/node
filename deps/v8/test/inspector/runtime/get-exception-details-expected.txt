@@ -1,0 +1,112 @@
+Tests that Runtime.getExceptionDetails works
+
+Running test: itShouldReturnExceptionDetailsForJSErrorObjects
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 9
+            exception : {
+                className : Error
+                description : Error: error 1     at foo (<anonymous>:3:10)     at <anonymous>:5:1
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 2
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 9
+                        functionName : foo
+                        lineNumber : 2
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 0
+                        functionName : 
+                        lineNumber : 4
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Error: error 1
+        }
+    }
+}
+
+Running test: itShouldReturnIncompleteDetailsForJSErrorWithNoStack
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : -1
+            exception : {
+                className : Error
+                description : Error: error 1     at foo (<anonymous>:3:10)     at <anonymous>:5:1
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : -1
+            scriptId : <scriptId>
+            text : Error: error 1
+        }
+    }
+}
+
+Running test: itShouldReportAnErrorForNonJSErrorObjects
+{
+    error : {
+        code : -32000
+        message : errorObjectId is not a JS error object
+    }
+    id : <messageId>
+}
+
+Running test: itShouldIncludeMetaData
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 9
+            exception : {
+                className : Error
+                description : Error: myerror     at foo (<anonymous>:3:10)     at <anonymous>:5:1
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            exceptionMetaData : {
+                foo : bar
+            }
+            lineNumber : 2
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 9
+                        functionName : foo
+                        lineNumber : 2
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 0
+                        functionName : 
+                        lineNumber : 4
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Error: myerror
+        }
+    }
+}

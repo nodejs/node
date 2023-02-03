@@ -47,6 +47,24 @@ process.chdir(tmpdir.path);
   });
 });
 
+[1, true, [], null, Infinity, NaN].forEach((i) => {
+  assert.throws(() => writeHeapSnapshot('test.heapsnapshot', i), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "options" argument must be of type object.' +
+             common.invalidArgTypeHelper(i)
+  });
+});
+
+[1, true, [], null, Infinity, NaN].forEach((i) => {
+  assert.throws(() => getHeapSnapshot(i), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "options" argument must be of type object.' +
+             common.invalidArgTypeHelper(i)
+  });
+});
+
 {
   let data = '';
   const snapshot = getHeapSnapshot();

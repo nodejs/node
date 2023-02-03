@@ -30,16 +30,22 @@ function collectStability(data) {
     if (mod.displayName && mod.stability >= 0) {
       const link = mod.source.replace('doc/api/', '').replace('.md', '.html');
 
+      let { stabilityText } = mod;
+      if (stabilityText.includes('. ')) {
+        stabilityText = stabilityText.slice(0, stabilityText.indexOf('.'));
+      }
+
       stability.push({
         api: mod.name,
+        displayName: mod.textRaw,
         link: link,
         stability: mod.stability,
-        stabilityText: `(${mod.stability}) ${mod.stabilityText}`,
+        stabilityText: `(${mod.stability}) ${stabilityText}`,
       });
     }
   }
 
-  stability.sort((a, b) => a.api.localeCompare(b.api));
+  stability.sort((a, b) => a.displayName.localeCompare(b.displayName));
   return stability;
 }
 
@@ -47,7 +53,7 @@ function createMarkdownTable(data) {
   const md = ['| API | Stability |', '| --- | --------- |'];
 
   for (const mod of data) {
-    md.push(`| [${mod.api}](${mod.link}) | ${mod.stabilityText} |`);
+    md.push(`| [${mod.displayName}](${mod.link}) | ${mod.stabilityText} |`);
   }
 
   return md.join('\n');

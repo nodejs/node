@@ -6,7 +6,7 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/cpu-features.h"
-#include "src/codegen/register-arch.h"
+#include "src/codegen/register.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/codegen/ia32/register-ia32.h"
@@ -67,7 +67,11 @@ void SharedTurboAssembler::And(Register dst, Immediate src) {
 #if V8_TARGET_ARCH_IA32
   and_(dst, src);
 #elif V8_TARGET_ARCH_X64
-  andq(dst, src);
+  if (is_uint32(src.value())) {
+    andl(dst, src);
+  } else {
+    andq(dst, src);
+  }
 #else
 #error Unsupported target architecture.
 #endif
@@ -698,6 +702,21 @@ void SharedTurboAssembler::I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1,
   Pmulhrsw(dst, src1, src2);
   Pcmpeqw(scratch, dst);
   Pxor(dst, scratch);
+}
+
+void SharedTurboAssembler::I16x8DotI8x16I7x16S(XMMRegister dst,
+                                               XMMRegister src1,
+                                               XMMRegister src2) {
+  ASM_CODE_COMMENT(this);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpmaddubsw(dst, src2, src1);
+  } else {
+    if (dst != src2) {
+      movdqa(dst, src2);
+    }
+    pmaddubsw(dst, src1);
+  }
 }
 
 void SharedTurboAssembler::I32x4ExtAddPairwiseI16x8U(XMMRegister dst,

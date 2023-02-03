@@ -20,7 +20,7 @@ const resData = 'HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
 
 function main({ n }) {
   const server = require('../fixtures/simple-http-server.js')
-    .listen(common.PORT)
+    .listen(0)
     .on('listening', () => {
       bench.start();
       doBench(server.address(), n, () => {

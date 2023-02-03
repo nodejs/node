@@ -52,7 +52,7 @@ compilation result:
             columnNumber : 13
             exception : {
                 className : SyntaxError
-                description : SyntaxError: Unexpected identifier
+                description : SyntaxError: Unexpected identifier 'f'
                 objectId : <objectId>
                 subtype : error
                 type : object

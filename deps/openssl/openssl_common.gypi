@@ -49,6 +49,7 @@
         'WARNING_CFLAGS': ['-Wno-missing-field-initializers']
       },
       'defines': [
+        'OPENSSLDIR="/System/Library/OpenSSL/"',
         'ENGINESDIR="/dev/null"',
       ],
     }, 'OS=="solaris"', {
@@ -61,6 +62,7 @@
       # linux and others
       'cflags': ['-Wno-missing-field-initializers',],
       'defines': [
+        'OPENSSLDIR="/etc/ssl"',
         'ENGINESDIR="/dev/null"',
         'TERMIOS',
       ],

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -402,7 +402,7 @@ PKCS7_SIGNER_INFO *PKCS7_add_signature(PKCS7 *p7, X509 *x509, EVP_PKEY *pkey,
 
     if ((si = PKCS7_SIGNER_INFO_new()) == NULL)
         goto err;
-    if (!PKCS7_SIGNER_INFO_set(si, x509, pkey, dgst))
+    if (PKCS7_SIGNER_INFO_set(si, x509, pkey, dgst) <= 0)
         goto err;
     if (!PKCS7_add_signer(p7, si))
         goto err;
@@ -560,7 +560,7 @@ PKCS7_RECIP_INFO *PKCS7_add_recipient(PKCS7 *p7, X509 *x509)
 
     if ((ri = PKCS7_RECIP_INFO_new()) == NULL)
         goto err;
-    if (!PKCS7_RECIP_INFO_set(ri, x509))
+    if (PKCS7_RECIP_INFO_set(ri, x509) <= 0)
         goto err;
     if (!PKCS7_add_recipient_info(p7, ri))
         goto err;

@@ -50,7 +50,7 @@ Some extremely popular modules in the ecosystem monkey patch some
 internals, making it impossible for us to update and improve those
 areas without causing issues for a significant amount of users.
 
-## `Symbol.for`
+## `Symbol.for(string)`
 
 Symbols created with `Symbol.for(string)` are global and unique to the
 same V8 Isolate. On the first call to `Symbol.for(string)` a symbol is
@@ -61,7 +61,7 @@ for different reasons.
 
 ```js
 const s = Symbol.for('hello');
-console.log(s === Symbol.for('hello'));
+console.log(s === Symbol.for('hello')); // true
 ```
 
 In the Node.js runtime we prefix all our global symbols with `nodejs.`,

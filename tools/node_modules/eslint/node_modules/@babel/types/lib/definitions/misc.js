@@ -1,9 +1,7 @@
 "use strict";
 
 var _utils = require("./utils");
-
 var _placeholders = require("./placeholders");
-
 const defineType = (0, _utils.defineAliasedType)("Miscellaneous");
 {
   defineType("Noop", {
@@ -30,3 +28,5 @@ defineType("V8IntrinsicIdentifier", {
     }
   }
 });
+
+//# sourceMappingURL=misc.js.map

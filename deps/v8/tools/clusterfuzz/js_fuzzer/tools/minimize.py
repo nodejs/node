@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2020 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -23,7 +23,7 @@ OUT_PATH = os.path.join(BASE_PATH, 'out.js')
 FAILURES_JSON_PATH = os.path.join(
     BASE_PATH, 'workdir', 'output', 'failures.json')
 
-assert(len(sys.argv) > 1, 'Need to specify minimizer path.')
+assert len(sys.argv) > 1, 'Need to specify minimizer path.'
 minimizer_path = sys.argv[1]
 
 def getcmd(command):

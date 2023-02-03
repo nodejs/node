@@ -22,7 +22,7 @@ U_NAMESPACE_BEGIN
 namespace {
 
 EmojiProps *singleton = nullptr;
-icu::UInitOnce emojiInitOnce = U_INITONCE_INITIALIZER;
+icu::UInitOnce emojiInitOnce {};
 
 UBool U_CALLCONV emojiprops_cleanup() {
     delete singleton;

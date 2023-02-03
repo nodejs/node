@@ -67,7 +67,7 @@ void AsmJsScanner::Next() {
   }
 
 #if DEBUG
-  if (FLAG_trace_asm_scanner) {
+  if (v8_flags.trace_asm_scanner) {
     if (Token() == kDouble) {
       PrintF("%lf ", AsDouble());
     } else if (Token() == kUnsigned) {

@@ -358,27 +358,24 @@ const assert = require('assert');
 }
 
 {
-  try {
-    compose();
-  } catch (err) {
-    assert.strictEqual(err.code, 'ERR_MISSING_ARGS');
-  }
+  assert.throws(
+    () => compose(),
+    { code: 'ERR_MISSING_ARGS' }
+  );
 }
 
 {
-  try {
-    compose(new Writable(), new PassThrough());
-  } catch (err) {
-    assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
-  }
+  assert.throws(
+    () => compose(new Writable(), new PassThrough()),
+    { code: 'ERR_INVALID_ARG_VALUE' }
+  );
 }
 
 {
-  try {
-    compose(new PassThrough(), new Readable({ read() {} }), new PassThrough());
-  } catch (err) {
-    assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
-  }
+  assert.throws(
+    () => compose(new PassThrough(), new Readable({ read() {} }), new PassThrough()),
+    { code: 'ERR_INVALID_ARG_VALUE' }
+  );
 }
 
 {

@@ -43,24 +43,24 @@ static const int32_t gOffsets[] = {
     17,
     27,
     31,
-    330,
-    341,
-    357,
-    361,
-    370,
+    332,
+    343,
+    360,
+    364,
     373,
-    377,
-    385,
-    407,
-    411,
-    426,
-    427,
-    433,
-    443,
-    447,
-    451,
-    453,
-    487
+    376,
+    380,
+    388,
+    410,
+    414,
+    429,
+    430,
+    436,
+    446,
+    450,
+    454,
+    456,
+    490
 };
 
 static const int32_t kCurrencyOffset = 5;
@@ -345,6 +345,7 @@ static const char * const gSubTypes[] = {
     "SHP",
     "SIT",
     "SKK",
+    "SLE",
     "SLL",
     "SOS",
     "SRD",
@@ -384,6 +385,7 @@ static const char * const gSubTypes[] = {
     "UYW",
     "UZS",
     "VEB",
+    "VED",
     "VEF",
     "VES",
     "VNC",
@@ -446,6 +448,7 @@ static const char * const gSubTypes[] = {
     "month",
     "month-person",
     "nanosecond",
+    "quarter",
     "second",
     "week",
     "week-person",
@@ -511,7 +514,6 @@ static const char * const gSubTypes[] = {
     "grain",
     "gram",
     "kilogram",
-    "metric-ton",
     "microgram",
     "milligram",
     "ounce",
@@ -520,6 +522,7 @@ static const char * const gSubTypes[] = {
     "solar-mass",
     "stone",
     "ton",
+    "tonne",
     "",
     "gigawatt",
     "horsepower",
@@ -1011,44 +1014,52 @@ MeasureUnit MeasureUnit::getNanosecond() {
     return MeasureUnit(7, 10);
 }
 
-MeasureUnit *MeasureUnit::createSecond(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createQuarter(UErrorCode &status) {
     return MeasureUnit::create(7, 11, status);
 }
 
-MeasureUnit MeasureUnit::getSecond() {
+MeasureUnit MeasureUnit::getQuarter() {
     return MeasureUnit(7, 11);
 }
 
-MeasureUnit *MeasureUnit::createWeek(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createSecond(UErrorCode &status) {
     return MeasureUnit::create(7, 12, status);
 }
 
-MeasureUnit MeasureUnit::getWeek() {
+MeasureUnit MeasureUnit::getSecond() {
     return MeasureUnit(7, 12);
 }
 
-MeasureUnit *MeasureUnit::createWeekPerson(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createWeek(UErrorCode &status) {
     return MeasureUnit::create(7, 13, status);
 }
 
-MeasureUnit MeasureUnit::getWeekPerson() {
+MeasureUnit MeasureUnit::getWeek() {
     return MeasureUnit(7, 13);
 }
 
-MeasureUnit *MeasureUnit::createYear(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createWeekPerson(UErrorCode &status) {
     return MeasureUnit::create(7, 14, status);
 }
 
-MeasureUnit MeasureUnit::getYear() {
+MeasureUnit MeasureUnit::getWeekPerson() {
     return MeasureUnit(7, 14);
 }
 
-MeasureUnit *MeasureUnit::createYearPerson(UErrorCode &status) {
+MeasureUnit *MeasureUnit::createYear(UErrorCode &status) {
     return MeasureUnit::create(7, 15, status);
 }
 
-MeasureUnit MeasureUnit::getYearPerson() {
+MeasureUnit MeasureUnit::getYear() {
     return MeasureUnit(7, 15);
+}
+
+MeasureUnit *MeasureUnit::createYearPerson(UErrorCode &status) {
+    return MeasureUnit::create(7, 16, status);
+}
+
+MeasureUnit MeasureUnit::getYearPerson() {
+    return MeasureUnit(7, 16);
 }
 
 MeasureUnit *MeasureUnit::createAmpere(UErrorCode &status) {
@@ -1532,74 +1543,82 @@ MeasureUnit MeasureUnit::getKilogram() {
 }
 
 MeasureUnit *MeasureUnit::createMetricTon(UErrorCode &status) {
-    return MeasureUnit::create(15, 6, status);
-}
-
-MeasureUnit MeasureUnit::getMetricTon() {
-    return MeasureUnit(15, 6);
-}
-
-MeasureUnit *MeasureUnit::createMicrogram(UErrorCode &status) {
-    return MeasureUnit::create(15, 7, status);
-}
-
-MeasureUnit MeasureUnit::getMicrogram() {
-    return MeasureUnit(15, 7);
-}
-
-MeasureUnit *MeasureUnit::createMilligram(UErrorCode &status) {
-    return MeasureUnit::create(15, 8, status);
-}
-
-MeasureUnit MeasureUnit::getMilligram() {
-    return MeasureUnit(15, 8);
-}
-
-MeasureUnit *MeasureUnit::createOunce(UErrorCode &status) {
-    return MeasureUnit::create(15, 9, status);
-}
-
-MeasureUnit MeasureUnit::getOunce() {
-    return MeasureUnit(15, 9);
-}
-
-MeasureUnit *MeasureUnit::createOunceTroy(UErrorCode &status) {
-    return MeasureUnit::create(15, 10, status);
-}
-
-MeasureUnit MeasureUnit::getOunceTroy() {
-    return MeasureUnit(15, 10);
-}
-
-MeasureUnit *MeasureUnit::createPound(UErrorCode &status) {
-    return MeasureUnit::create(15, 11, status);
-}
-
-MeasureUnit MeasureUnit::getPound() {
-    return MeasureUnit(15, 11);
-}
-
-MeasureUnit *MeasureUnit::createSolarMass(UErrorCode &status) {
-    return MeasureUnit::create(15, 12, status);
-}
-
-MeasureUnit MeasureUnit::getSolarMass() {
-    return MeasureUnit(15, 12);
-}
-
-MeasureUnit *MeasureUnit::createStone(UErrorCode &status) {
-    return MeasureUnit::create(15, 13, status);
-}
-
-MeasureUnit MeasureUnit::getStone() {
-    return MeasureUnit(15, 13);
-}
-
-MeasureUnit *MeasureUnit::createTon(UErrorCode &status) {
     return MeasureUnit::create(15, 14, status);
 }
 
+MeasureUnit MeasureUnit::getMetricTon() {
+    return MeasureUnit(15, 14);
+}
+
+MeasureUnit *MeasureUnit::createMicrogram(UErrorCode &status) {
+    return MeasureUnit::create(15, 6, status);
+}
+
+MeasureUnit MeasureUnit::getMicrogram() {
+    return MeasureUnit(15, 6);
+}
+
+MeasureUnit *MeasureUnit::createMilligram(UErrorCode &status) {
+    return MeasureUnit::create(15, 7, status);
+}
+
+MeasureUnit MeasureUnit::getMilligram() {
+    return MeasureUnit(15, 7);
+}
+
+MeasureUnit *MeasureUnit::createOunce(UErrorCode &status) {
+    return MeasureUnit::create(15, 8, status);
+}
+
+MeasureUnit MeasureUnit::getOunce() {
+    return MeasureUnit(15, 8);
+}
+
+MeasureUnit *MeasureUnit::createOunceTroy(UErrorCode &status) {
+    return MeasureUnit::create(15, 9, status);
+}
+
+MeasureUnit MeasureUnit::getOunceTroy() {
+    return MeasureUnit(15, 9);
+}
+
+MeasureUnit *MeasureUnit::createPound(UErrorCode &status) {
+    return MeasureUnit::create(15, 10, status);
+}
+
+MeasureUnit MeasureUnit::getPound() {
+    return MeasureUnit(15, 10);
+}
+
+MeasureUnit *MeasureUnit::createSolarMass(UErrorCode &status) {
+    return MeasureUnit::create(15, 11, status);
+}
+
+MeasureUnit MeasureUnit::getSolarMass() {
+    return MeasureUnit(15, 11);
+}
+
+MeasureUnit *MeasureUnit::createStone(UErrorCode &status) {
+    return MeasureUnit::create(15, 12, status);
+}
+
+MeasureUnit MeasureUnit::getStone() {
+    return MeasureUnit(15, 12);
+}
+
+MeasureUnit *MeasureUnit::createTon(UErrorCode &status) {
+    return MeasureUnit::create(15, 13, status);
+}
+
 MeasureUnit MeasureUnit::getTon() {
+    return MeasureUnit(15, 13);
+}
+
+MeasureUnit *MeasureUnit::createTonne(UErrorCode &status) {
+    return MeasureUnit::create(15, 14, status);
+}
+
+MeasureUnit MeasureUnit::getTonne() {
     return MeasureUnit(15, 14);
 }
 

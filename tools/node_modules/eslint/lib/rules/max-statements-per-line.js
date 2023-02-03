@@ -20,7 +20,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce a maximum number of statements allowed per line",
+            description: "Enforce a maximum number of statements allowed per line",
             recommended: false,
             url: "https://eslint.org/docs/rules/max-statements-per-line"
         },

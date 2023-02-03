@@ -24,6 +24,10 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
 
+namespace unibrow {
+enum class Utf8Variant : uint8_t;
+}
+
 namespace v8 {
 namespace internal {
 
@@ -36,6 +40,7 @@ class BreakPointInfo;
 class CallableTask;
 class CallbackTask;
 class CallHandlerInfo;
+class CallSiteInfo;
 class Expression;
 class EmbedderDataArray;
 class ArrayBoilerplateDescription;
@@ -75,7 +80,11 @@ class WeakCell;
 namespace wasm {
 class ArrayType;
 class StructType;
+struct WasmElemSegment;
 class WasmValue;
+enum class OnResume : int;
+enum Suspend : bool;
+enum Promise : bool;
 }  // namespace wasm
 #endif
 
@@ -103,17 +112,10 @@ enum FunctionMode {
       kWithReadonlyPrototypeBit | kWithNameBit,
 };
 
-enum class NumberCacheMode { kIgnore, kSetOnly, kBoth };
-
 // Interface for handle based allocation.
 class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
   inline ReadOnlyRoots read_only_roots() const;
-
-  template <typename T>
-  Handle<T> MakeHandle(T obj) {
-    return handle(obj, isolate());
-  }
 
   Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
                              Handle<Object> to_number, const char* type_of,
@@ -127,7 +129,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Oddball> NewBasicBlockCountersMarker();
 
   // Allocates a property array initialized with undefined values.
-  Handle<PropertyArray> NewPropertyArray(int length);
+  Handle<PropertyArray> NewPropertyArray(
+      int length, AllocationType allocation = AllocationType::kYoung);
   // Tries allocating a fixed array initialized with undefined values.
   // In case of an allocation failure (OOM) an empty handle is returned.
   // The caller has to manually signal an
@@ -180,8 +183,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<PrototypeInfo> NewPrototypeInfo();
 
   // Create a new EnumCache struct.
-  Handle<EnumCache> NewEnumCache(Handle<FixedArray> keys,
-                                 Handle<FixedArray> indices);
+  Handle<EnumCache> NewEnumCache(
+      Handle<FixedArray> keys, Handle<FixedArray> indices,
+      AllocationType allocation = AllocationType::kOld);
 
   // Create a new Tuple2 struct.
   Handle<Tuple2> NewTuple2(Handle<Object> value1, Handle<Object> value2,
@@ -223,9 +227,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // two-byte.  One should choose between the three string factory functions
   // based on the encoding of the string buffer that the string is
   // initialized from.
-  //   - ...FromOneByte initializes the string from a buffer that is Latin1
-  //     encoded (it does not check that the buffer is Latin1 encoded) and
-  //     the result will be Latin1 encoded.
+  //   - ...FromOneByte (defined in FactoryBase) initializes the string from a
+  //     buffer that is Latin1 encoded (it does not check that the buffer is
+  //     Latin1 encoded) and the result will be Latin1 encoded.
   //   - ...FromUtf8 initializes the string from a buffer that is UTF-8
   //     encoded.  If the characters are all ASCII characters, the result
   //     will be Latin1 encoded, otherwise it will converted to two-byte.
@@ -234,10 +238,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   //     will be converted to Latin1, otherwise it will be left as two-byte.
   //
   // One-byte strings are pretenured when used as keys in the SourceCodeCache.
-  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromOneByte(
-      const base::Vector<const uint8_t>& str,
-      AllocationType allocation = AllocationType::kYoung);
-
   template <size_t N>
   inline Handle<String> NewStringFromStaticChars(
       const char (&str)[N],
@@ -258,6 +258,25 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
       const base::Vector<const char>& str,
       AllocationType allocation = AllocationType::kYoung);
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
+      const base::Vector<const uint8_t>& str, unibrow::Utf8Variant utf8_variant,
+      AllocationType allocation = AllocationType::kYoung);
+
+#if V8_ENABLE_WEBASSEMBLY
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
+      Handle<WasmArray> array, uint32_t begin, uint32_t end,
+      unibrow::Utf8Variant utf8_variant,
+      AllocationType allocation = AllocationType::kYoung);
+
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
+      Handle<ByteArray> array, uint32_t start, uint32_t end,
+      unibrow::Utf8Variant utf8_variant,
+      AllocationType allocation = AllocationType::kYoung);
+
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf16(
+      Handle<WasmArray> array, uint32_t start, uint32_t end,
+      AllocationType allocation = AllocationType::kYoung);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8SubString(
       Handle<SeqOneByteString> str, int begin, int end,
@@ -271,9 +290,17 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       const ZoneVector<base::uc16>* str,
       AllocationType allocation = AllocationType::kYoung);
 
+#if V8_ENABLE_WEBASSEMBLY
+  // Usually the two-byte encodings are in the native endianness, but for
+  // WebAssembly linear memory, they are explicitly little-endian.
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByteLittleEndian(
+      const base::Vector<const base::uc16>& str,
+      AllocationType allocation = AllocationType::kYoung);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   Handle<JSStringIterator> NewJSStringIterator(Handle<String> string);
 
-  Handle<String> NewInternalizedStringImpl(Handle<String> string, int chars,
+  Handle<String> NewInternalizedStringImpl(Handle<String> string, int len,
                                            uint32_t hash_field);
 
   // Compute the internalization strategy for the input string.
@@ -309,11 +336,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   ComputeSharingStrategyForString(Handle<String> string,
                                   MaybeHandle<Map>* shared_map);
 
-  // Creates a single character string where the character has given code.
-  // A cache is used for Latin1 codes.
-  Handle<String> LookupSingleCharacterStringFromCode(uint16_t code);
-
-  // Create or lookup a single characters tring made up of a utf16 surrogate
+  // Create or lookup a single character string made up of a utf16 surrogate
   // pair.
   Handle<String> NewSurrogatePairString(uint16_t lead, uint16_t trail);
 
@@ -390,17 +413,28 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<AccessorInfo> NewAccessorInfo();
 
+  Handle<ErrorStackData> NewErrorStackData(
+      Handle<Object> call_site_infos_or_formatted_stack,
+      Handle<Object> limit_or_stack_frame_infos);
+
   Handle<Script> CloneScript(Handle<Script> script);
 
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
   Handle<BreakPoint> NewBreakPoint(int id, Handle<String> condition);
 
-  Handle<StackFrameInfo> NewStackFrameInfo(Handle<Object> receiver_or_instance,
-                                           Handle<Object> function,
-                                           Handle<HeapObject> code_object,
-                                           int code_offset_or_source_position,
-                                           int flags,
-                                           Handle<FixedArray> parameters);
+  Handle<CallSiteInfo> NewCallSiteInfo(Handle<Object> receiver_or_instance,
+                                       Handle<Object> function,
+                                       Handle<HeapObject> code_object,
+                                       int code_offset_or_source_position,
+                                       int flags,
+                                       Handle<FixedArray> parameters);
+  Handle<StackFrameInfo> NewStackFrameInfo(
+      Handle<HeapObject> shared_or_script,
+      int bytecode_offset_or_source_position, Handle<String> function_name,
+      bool is_constructor);
+
+  Handle<PromiseOnStack> NewPromiseOnStack(Handle<Object> prev,
+                                           Handle<JSObject> promise);
 
   // Allocate various microtasks.
   Handle<CallableTask> NewCallableTask(Handle<JSReceiver> callable,
@@ -412,7 +446,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<JSReceiver> then, Handle<Context> context);
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
-  Handle<Foreign> NewForeign(Address addr);
+  Handle<Foreign> NewForeign(
+      Address addr, AllocationType allocation_type = AllocationType::kYoung);
 
   Handle<Cell> NewCell(Handle<Object> value);
 
@@ -436,10 +471,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
                      int inobject_properties = 0,
                      AllocationType allocation_type = AllocationType::kMap);
-  // Initializes the fields of a newly created Map. Exposed for tests and
-  // heap setup; other code should just call NewMap which takes care of it.
+  // Initializes the fields of a newly created Map using roots from the
+  // passed-in Heap. Exposed for tests and heap setup; other code should just
+  // call NewMap which takes care of it.
   Map InitializeMap(Map map, InstanceType type, int instance_size,
-                    ElementsKind elements_kind, int inobject_properties);
+                    ElementsKind elements_kind, int inobject_properties,
+                    Heap* roots);
 
   // Allocate a block of memory of the given AllocationType (filled with a
   // filler). Used as a fall-back for generated code when the space is full.
@@ -460,8 +497,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<FixedArray> CopyFixedArrayWithMap(Handle<FixedArray> array,
                                            Handle<Map> map);
 
-  Handle<FixedArray> CopyFixedArrayAndGrow(Handle<FixedArray> array,
-                                           int grow_by);
+  Handle<FixedArray> CopyFixedArrayAndGrow(
+      Handle<FixedArray> array, int grow_by,
+      AllocationType allocation = AllocationType::kYoung);
 
   Handle<WeakArrayList> NewWeakArrayList(
       int capacity, AllocationType allocation = AllocationType::kYoung);
@@ -569,6 +607,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       AllocationType allocation = AllocationType::kYoung);
 
+  Handle<JSArray> NewJSArrayForTemplateLiteralArray(
+      Handle<FixedArray> cooked_strings, Handle<FixedArray> raw_strings,
+      int function_literal_id, int slot_id);
+
   void NewJSArrayStorage(
       Handle<JSArray> array, int length, int capacity,
       ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
@@ -579,39 +621,64 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSModuleNamespace> NewJSModuleNamespace();
 
+  Handle<JSWrappedFunction> NewJSWrappedFunction(
+      Handle<NativeContext> creation_context, Handle<Object> target);
+
 #if V8_ENABLE_WEBASSEMBLY
   Handle<WasmTypeInfo> NewWasmTypeInfo(Address type_address,
                                        Handle<Map> opt_parent,
                                        int instance_size_bytes,
-                                       Handle<WasmInstanceObject> instance);
+                                       Handle<WasmInstanceObject> instance,
+                                       uint32_t type_index);
   Handle<WasmInternalFunction> NewWasmInternalFunction(Address opt_call_target,
                                                        Handle<HeapObject> ref,
                                                        Handle<Map> rtt);
   Handle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, Handle<Foreign> embedder_data,
-      Handle<Code> wrapper_code, Handle<Map> rtt,
+      Handle<CodeT> wrapper_code, Handle<Map> rtt,
       Handle<PodArray<wasm::ValueType>> serialized_sig);
   Handle<WasmExportedFunctionData> NewWasmExportedFunctionData(
-      Handle<Code> export_wrapper, Handle<WasmInstanceObject> instance,
+      Handle<CodeT> export_wrapper, Handle<WasmInstanceObject> instance,
       Address call_target, Handle<Object> ref, int func_index,
-      Address sig_address, int wrapper_budget, Handle<Map> rtt);
-  Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(Handle<JSReceiver> callable);
+      const wasm::FunctionSig* sig, int wrapper_budget, Handle<Map> rtt,
+      wasm::Promise promise);
+  Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
+      Handle<JSReceiver> callable, wasm::Suspend suspend,
+      Handle<WasmInstanceObject> instance);
   // {opt_call_target} is kNullAddress for JavaScript functions, and
   // non-null for exported Wasm functions.
   Handle<WasmJSFunctionData> NewWasmJSFunctionData(
       Address opt_call_target, Handle<JSReceiver> callable, int return_count,
       int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
-      Handle<Code> wrapper_code, Handle<Map> rtt);
+      Handle<CodeT> wrapper_code, Handle<Map> rtt, wasm::Suspend suspend,
+      wasm::Promise promise);
+  Handle<WasmResumeData> NewWasmResumeData(
+      Handle<WasmSuspenderObject> suspender, wasm::OnResume on_resume);
   Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                    wasm::WasmValue* args, Handle<Map> map);
-  Handle<WasmArray> NewWasmArray(const wasm::ArrayType* type,
-                                 const std::vector<wasm::WasmValue>& elements,
+  Handle<WasmArray> NewWasmArray(const wasm::ArrayType* type, uint32_t length,
+                                 wasm::WasmValue initial_value,
                                  Handle<Map> map);
+  Handle<WasmArray> NewWasmArrayFromElements(
+      const wasm::ArrayType* type, const std::vector<wasm::WasmValue>& elements,
+      Handle<Map> map);
+  Handle<WasmArray> NewWasmArrayFromMemory(uint32_t length, Handle<Map> map,
+                                           Address source);
+  // Returns a handle to a WasmArray if successful, or a Smi containing a
+  // {MessageTemplate} if computing the array's elements leads to an error.
+  Handle<Object> NewWasmArrayFromElementSegment(
+      Handle<WasmInstanceObject> instance, const wasm::WasmElemSegment* segment,
+      uint32_t start_offset, uint32_t length, Handle<Map> map);
+  Handle<WasmContinuationObject> NewWasmContinuationObject(
+      Address jmpbuf, Handle<Foreign> managed_stack, Handle<HeapObject> parent,
+      AllocationType allocation = AllocationType::kYoung);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(
       Handle<String> name, Handle<WasmExportedFunctionData> data);
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmJSFunction(
       Handle<String> name, Handle<WasmJSFunctionData> data);
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmResume(
+      Handle<WasmResumeData> data);
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmCapiFunction(
       Handle<WasmCapiFunctionData> data);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -679,10 +746,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Allocates a new code object and initializes it as the trampoline to the
   // given off-heap entry point.
-  Handle<Code> NewOffHeapTrampolineFor(Handle<Code> code,
-                                       Address off_heap_entry);
-
-  Handle<Code> CopyCode(Handle<Code> code);
+  Handle<CodeT> NewOffHeapTrampolineFor(Handle<CodeT> code,
+                                        Address off_heap_entry);
 
   Handle<BytecodeArray> CopyBytecodeArray(Handle<BytecodeArray>);
 
@@ -717,14 +782,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DECLARE_ERROR(WasmExceptionError)
 #undef DECLARE_ERROR
 
-  Handle<String> NumberToString(Handle<Object> number,
-                                NumberCacheMode mode = NumberCacheMode::kBoth);
-  Handle<String> SmiToString(Smi number,
-                             NumberCacheMode mode = NumberCacheMode::kBoth);
-  Handle<String> HeapNumberToString(
-      Handle<HeapNumber> number, double value,
-      NumberCacheMode mode = NumberCacheMode::kBoth);
-
   Handle<String> SizeToString(size_t value, bool check_cache = true);
   inline Handle<String> Uint32ToString(uint32_t value,
                                        bool check_cache = true) {
@@ -732,7 +789,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   }
 
 #define ROOT_ACCESSOR(Type, name, CamelName) inline Handle<Type> name();
-  ROOT_LIST(ROOT_ACCESSOR)
+  MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
   // Allocates a new SharedFunctionInfo object.
@@ -819,6 +876,15 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     return New(map, allocation);
   }
 
+  Handle<JSSharedStruct> NewJSSharedStruct(Handle<JSFunction> constructor);
+
+  Handle<JSSharedArray> NewJSSharedArray(Handle<JSFunction> constructor,
+                                         int length);
+
+  Handle<JSAtomicsMutex> NewJSAtomicsMutex();
+
+  Handle<JSAtomicsCondition> NewJSAtomicsCondition();
+
   // Helper class for creating JSFunction objects.
   class V8_EXPORT_PRIVATE JSFunctionBuilder final {
    public:
@@ -844,7 +910,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     void PrepareMap();
     void PrepareFeedbackCell();
 
-    V8_WARN_UNUSED_RESULT Handle<JSFunction> BuildRaw(Handle<Code> code);
+    V8_WARN_UNUSED_RESULT Handle<JSFunction> BuildRaw(Handle<CodeT> code);
 
     Isolate* const isolate_;
     Handle<SharedFunctionInfo> sfi_;
@@ -892,6 +958,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     CodeBuilder& set_inlined_bytecode_size(uint32_t size) {
       DCHECK_IMPLIES(size != 0, CodeKindIsOptimizedJSFunction(kind_));
       inlined_bytecode_size_ = size;
+      return *this;
+    }
+
+    CodeBuilder& set_osr_offset(BytecodeOffset offset) {
+      DCHECK_IMPLIES(!offset.IsNone(), CodeKindCanOSR(kind_));
+      osr_offset_ = offset;
       return *this;
     }
 
@@ -972,6 +1044,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     MaybeHandle<Object> self_reference_;
     Builtin builtin_ = Builtin::kNoBuiltinId;
     uint32_t inlined_bytecode_size_ = 0;
+    BytecodeOffset osr_offset_ = BytecodeOffset::None();
     int32_t kind_specific_flags_ = 0;
     // Either source_position_table for non-baseline code
     // or bytecode_offset_table for baseline code.
@@ -988,6 +1061,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
  private:
   friend class FactoryBase<Factory>;
+  friend class WebSnapshotDeserializer;
 
   // ------
   // Customization points for FactoryBase
@@ -1003,14 +1077,16 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   }
 
   // This is the real Isolate that will be used for allocating and accessing
-  // external pointer entries when V8_HEAP_SANDBOX is enabled.
-  Isolate* isolate_for_heap_sandbox() const {
-#ifdef V8_HEAP_SANDBOX
+  // external pointer entries when the sandbox is enabled.
+  Isolate* isolate_for_sandbox() const {
+#ifdef V8_ENABLE_SANDBOX
     return isolate();
 #else
     return nullptr;
-#endif  // V8_HEAP_SANDBOX
+#endif  // V8_ENABLE_SANDBOX
   }
+
+  V8_INLINE HeapAllocator* allocator() const;
 
   bool CanAllocateInReadOnlySpace();
   bool EmptyStringRootIsInitialized();
@@ -1050,15 +1126,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<T> CopyArrayAndGrow(Handle<T> src, int grow_by,
                              AllocationType allocation);
 
-  template <bool is_one_byte, typename T>
-  Handle<String> AllocateInternalizedStringImpl(T t, int chars,
-                                                uint32_t hash_field);
-
-  Handle<String> AllocateTwoByteInternalizedString(
-      const base::Vector<const base::uc16>& str, uint32_t hash_field);
-
   MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string, int length,
                                            AllocationType allocation);
+
+  // Functions to get the hash of a number for the number_string_cache.
+  int NumberToStringCacheHash(Smi number);
+  int NumberToStringCacheHash(double number);
 
   // Attempt to find the number in a small cache.  If we finds it, return
   // the string representation of the number.  Otherwise return undefined.
@@ -1072,6 +1145,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // verification of the backing storage because it may not yet be filled.
   Handle<JSArray> NewJSArrayWithUnverifiedElements(
       Handle<FixedArrayBase> elements, ElementsKind elements_kind, int length,
+      AllocationType allocation = AllocationType::kYoung);
+  Handle<JSArray> NewJSArrayWithUnverifiedElements(
+      Handle<Map> map, Handle<FixedArrayBase> elements, int length,
       AllocationType allocation = AllocationType::kYoung);
 
   // Creates the backing storage for a JSArray. This handle must be discarded

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,7 +11,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "e_os.h" /* strcasecmp and struct stat */
+#include "e_os.h" /* struct stat */
 #ifdef __TANDEM
 # include <sys/types.h> /* needed for stat.h */
 # include <sys/stat.h> /* struct stat */
@@ -192,11 +192,11 @@ static int def_load(CONF *conf, const char *name, long *line)
 /* Parse a boolean value and fill in *flag. Return 0 on error. */
 static int parsebool(const char *pval, int *flag)
 {
-    if (strcasecmp(pval, "on") == 0
-            || strcasecmp(pval, "true") == 0) {
+    if (OPENSSL_strcasecmp(pval, "on") == 0
+            || OPENSSL_strcasecmp(pval, "true") == 0) {
         *flag = 1;
-    } else if (strcasecmp(pval, "off") == 0
-            || strcasecmp(pval, "false") == 0) {
+    } else if (OPENSSL_strcasecmp(pval, "off") == 0
+            || OPENSSL_strcasecmp(pval, "false") == 0) {
         *flag = 0;
     } else {
         ERR_raise(ERR_LIB_CONF, CONF_R_INVALID_PRAGMA);
@@ -839,8 +839,10 @@ static BIO *get_next_file(const char *path, OPENSSL_DIR_CTX **dirctx)
         namelen = strlen(filename);
 
 
-        if ((namelen > 5 && strcasecmp(filename + namelen - 5, ".conf") == 0)
-            || (namelen > 4 && strcasecmp(filename + namelen - 4, ".cnf") == 0)) {
+        if ((namelen > 5
+             && OPENSSL_strcasecmp(filename + namelen - 5, ".conf") == 0)
+             || (namelen > 4
+                 && OPENSSL_strcasecmp(filename + namelen - 4, ".cnf") == 0)) {
             size_t newlen;
             char *newpath;
             BIO *bio;

@@ -5,11 +5,11 @@
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler-inl.h"
-#include "src/objects/stack-frame-info-inl.h"
+#include "src/objects/call-site-info-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/value-helper.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
@@ -48,17 +48,16 @@ void CheckExceptionInfos(v8::internal::Isolate* isolate, Handle<Object> exc,
 
   exc->Print();
   // Extract stack frame from the exception.
-  auto stack = Handle<FixedArray>::cast(JSReceiver::GetDataProperty(
-      Handle<JSObject>::cast(exc), isolate->factory()->stack_trace_symbol()));
+  auto stack = isolate->GetSimpleStackTrace(Handle<JSObject>::cast(exc));
   CHECK_EQ(N, stack->length());
 
   for (int i = 0; i < N; ++i) {
-    Handle<StackFrameInfo> info(StackFrameInfo::cast(stack->get(i)), isolate);
-    auto func_name = Handle<String>::cast(StackFrameInfo::GetFunctionName(info))
-                         ->ToCString();
+    Handle<CallSiteInfo> info(CallSiteInfo::cast(stack->get(i)), isolate);
+    auto func_name =
+        Handle<String>::cast(CallSiteInfo::GetFunctionName(info))->ToCString();
     CHECK_CSTREQ(excInfos[i].func_name, func_name.get());
-    CHECK_EQ(excInfos[i].line_nr, StackFrameInfo::GetLineNumber(info));
-    CHECK_EQ(excInfos[i].column, StackFrameInfo::GetColumnNumber(info));
+    CHECK_EQ(excInfos[i].line_nr, CallSiteInfo::GetLineNumber(info));
+    CHECK_EQ(excInfos[i].column, CallSiteInfo::GetColumnNumber(info));
   }
 }
 

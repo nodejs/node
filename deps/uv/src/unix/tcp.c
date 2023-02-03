@@ -184,14 +184,15 @@ int uv__tcp_bind(uv_tcp_t* tcp,
 #endif
 
   errno = 0;
-  if (bind(tcp->io_watcher.fd, addr, addrlen) && errno != EADDRINUSE) {
+  err = bind(tcp->io_watcher.fd, addr, addrlen);
+  if (err == -1 && errno != EADDRINUSE) {
     if (errno == EAFNOSUPPORT)
       /* OSX, other BSDs and SunoS fail with EAFNOSUPPORT when binding a
        * socket created with AF_INET to an AF_INET6 address or vice versa. */
       return UV_EINVAL;
     return UV__ERR(errno);
   }
-  tcp->delayed_error = UV__ERR(errno);
+  tcp->delayed_error = (err == -1) ? UV__ERR(errno) : 0;
 
   tcp->flags |= UV_HANDLE_BOUND;
   if (addr->sa_family == AF_INET6)
@@ -320,15 +321,23 @@ int uv_tcp_close_reset(uv_tcp_t* handle, uv_close_cb close_cb) {
     return UV_EINVAL;
 
   fd = uv__stream_fd(handle);
-  if (0 != setsockopt(fd, SOL_SOCKET, SO_LINGER, &l, sizeof(l)))
-    return UV__ERR(errno);
+  if (0 != setsockopt(fd, SOL_SOCKET, SO_LINGER, &l, sizeof(l))) {
+    if (errno == EINVAL) {
+      /* Open Group Specifications Issue 7, 2018 edition states that
+       * EINVAL may mean the socket has been shut down already.
+       * Behavior observed on Solaris, illumos and macOS. */
+      errno = 0;
+    } else {
+      return UV__ERR(errno);
+    }
+  }
 
   uv_close((uv_handle_t*) handle, close_cb);
   return 0;
 }
 
 
-int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
+int uv__tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   static int single_accept_cached = -1;
   unsigned long flags;
   int single_accept;

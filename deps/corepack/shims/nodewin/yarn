@@ -7,6 +7,6 @@ esac
 
 if [ -x "$basedir/node" ]; then
   exec "$basedir/node"  "$basedir/node_modules/corepack/dist/yarn.js" "$@"
-else 
+else
   exec node  "$basedir/node_modules/corepack/dist/yarn.js" "$@"
 fi

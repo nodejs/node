@@ -103,7 +103,7 @@ This example derives an 8 byte IV using SHA-256 with a 1K "key" and appropriate
 
  EVP_KDF *kdf;
  EVP_KDF_CTX *kctx;
- const char type = EVP_KDF_SSHKDF_TYPE_INITIAL_IV_CLI_TO_SRV;
+ char type = EVP_KDF_SSHKDF_TYPE_INITIAL_IV_CLI_TO_SRV;
  unsigned char key[1024] = "01234...";
  unsigned char xcghash[32] = "012345...";
  unsigned char session_id[32] = "012345...";
@@ -126,7 +126,7 @@ This example derives an 8 byte IV using SHA-256 with a 1K "key" and appropriate
  *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_SSHKDF_TYPE,
                                          &type, sizeof(type));
  *p = OSSL_PARAM_construct_end();
- if (EVP_KDF_derive(kctx, out, &outlen, params) <= 0)
+ if (EVP_KDF_derive(kctx, out, outlen, params) <= 0)
      /* Error */
 
 
@@ -146,7 +146,7 @@ L<EVP_KDF(3)/PARAMETERS>
 
 =head1 COPYRIGHT
 
-Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

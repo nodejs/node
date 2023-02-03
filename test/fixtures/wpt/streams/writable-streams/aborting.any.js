@@ -1,4 +1,4 @@
-// META: global=window,worker,jsshell
+// META: global=window,worker
 // META: script=../resources/test-utils.js
 // META: script=../resources/recording-streams.js
 'use strict';
@@ -1384,10 +1384,10 @@ test(t => {
 
   assert_true(ctrl.signal instanceof AbortSignal);
   assert_false(ctrl.signal.aborted);
-  assert_equals(ctrl.abortReason, undefined);
+  assert_equals(ctrl.signal.reason, undefined, 'signal.reason before abort');
   ws.abort(e);
   assert_true(ctrl.signal.aborted);
-  assert_equals(ctrl.abortReason, e);
+  assert_equals(ctrl.signal.reason, e);
 }, 'WritableStreamDefaultController.signal');
 
 promise_test(async t => {
@@ -1405,10 +1405,11 @@ promise_test(async t => {
   await called;
 
   assert_false(ctrl.signal.aborted);
-  assert_equals(ctrl.abortReason, undefined);
+  assert_equals(ctrl.signal.reason, undefined, 'signal.reason before abort');
   writer.abort();
   assert_true(ctrl.signal.aborted);
-  assert_equals(ctrl.abortReason, undefined);
+  assert_true(ctrl.signal.reason instanceof DOMException, 'signal.reason is a DOMException');
+  assert_equals(ctrl.signal.reason.name, 'AbortError', 'signal.reason is an AbortError');
 }, 'the abort signal is signalled synchronously - write');
 
 promise_test(async t => {

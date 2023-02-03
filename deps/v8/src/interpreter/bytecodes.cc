@@ -6,7 +6,6 @@
 
 #include <iomanip>
 
-#include "src/base/bits.h"
 #include "src/interpreter/bytecode-traits.h"
 
 namespace v8 {
@@ -96,7 +95,7 @@ Bytecodes::kOperandKindSizes[3][BytecodeOperands::kOperandTypeCount] = {
 
 // Make sure kFirstShortStar and kLastShortStar are set correctly.
 #define ASSERT_SHORT_STAR_RANGE(Name, ...)                        \
-  STATIC_ASSERT(Bytecode::k##Name >= Bytecode::kFirstShortStar && \
+  static_assert(Bytecode::k##Name >= Bytecode::kFirstShortStar && \
                 Bytecode::k##Name <= Bytecode::kLastShortStar);
 SHORT_STAR_BYTECODE_LIST(ASSERT_SHORT_STAR_RANGE)
 #undef ASSERT_SHORT_STAR_RANGE
@@ -283,8 +282,8 @@ bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
       case Bytecode::kLdaConstant:
       case Bytecode::kLdaUndefined:
       case Bytecode::kLdaGlobal:
-      case Bytecode::kLdaNamedProperty:
-      case Bytecode::kLdaKeyedProperty:
+      case Bytecode::kGetNamedProperty:
+      case Bytecode::kGetKeyedProperty:
       case Bytecode::kLdaContextSlot:
       case Bytecode::kLdaImmutableContextSlot:
       case Bytecode::kLdaCurrentContextSlot:

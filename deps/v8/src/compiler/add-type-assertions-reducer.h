@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_ADD_TYPE_ASSERTIONS_REDUCER_H_
 #define V8_COMPILER_ADD_TYPE_ASSERTIONS_REDUCER_H_
 
-#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-aux-data.h"

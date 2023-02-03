@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,22 +10,11 @@
 #include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
+#include "third_party/zlib/google/redact.h"
 #include "third_party/zlib/google/zip_internal.h"
 
 namespace zip {
 namespace internal {
-
-class Redact {
- public:
-  explicit Redact(const base::FilePath& path) : path_(path) {}
-
-  friend std::ostream& operator<<(std::ostream& out, const Redact&& r) {
-    return LOG_IS_ON(INFO) ? out << "'" << r.path_ << "'" : out << "(redacted)";
-  }
-
- private:
-  const base::FilePath& path_;
-};
 
 bool ZipWriter::ShouldContinue() {
   if (!progress_callback_)
@@ -134,7 +123,7 @@ bool ZipWriter::AddDirectoryEntry(const base::FilePath& path) {
   return AddDirectoryContents(path);
 }
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 // static
 std::unique_ptr<ZipWriter> ZipWriter::CreateWithFd(
     int zip_file_fd,

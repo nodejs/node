@@ -14,7 +14,7 @@ $UPLINKSRC=
 $UPLINKDEF=
 IF[{- !$disabled{uplink} -}]
   $UPLINKSRC_common=../ms/uplink.c
-  $UPLINKSRC_x86=$UPLINKSRC_common uplink-x86.s
+  $UPLINKSRC_x86=$UPLINKSRC_common uplink-x86.S
   $UPLINKSRC_x86_64=$UPLINKSRC_common uplink-x86_64.s
   $UPLINKSRC_ia64=$UPLINKSRC_common uplink-ia64.s
 
@@ -27,7 +27,7 @@ ENDIF
 $CPUIDASM=mem_clr.c
 $CPUIDDEF=
 IF[{- !$disabled{asm} && $config{processor} ne '386' -}]
-  $CPUIDASM_x86=x86cpuid.s
+  $CPUIDASM_x86=x86cpuid.S
 
   $CPUIDASM_x86_64=x86_64cpuid.s
 
@@ -111,11 +111,11 @@ DEPEND[info.o]=buildinf.h
 DEPEND[cversion.o]=buildinf.h
 GENERATE[buildinf.h]=../util/mkbuildinf.pl "$(CC) $(LIB_CFLAGS) $(CPPFLAGS_Q)" "$(PLATFORM)"
 
-GENERATE[uplink-x86.s]=../ms/uplink-x86.pl
+GENERATE[uplink-x86.S]=../ms/uplink-x86.pl
 GENERATE[uplink-x86_64.s]=../ms/uplink-x86_64.pl
 GENERATE[uplink-ia64.s]=../ms/uplink-ia64.pl
 
-GENERATE[x86cpuid.s]=x86cpuid.pl
+GENERATE[x86cpuid.S]=x86cpuid.pl
 DEPEND[x86cpuid.s]=perlasm/x86asm.pl
 
 GENERATE[x86_64cpuid.s]=x86_64cpuid.pl

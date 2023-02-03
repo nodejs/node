@@ -18,10 +18,9 @@
 #include "src/handles/handles.h"
 
 namespace v8 {
+class Value;
+
 namespace internal {
-namespace wasm {
-class WasmCode;
-}  // namespace wasm
 
 // Forward declarations.
 class AbstractCode;
@@ -72,9 +71,9 @@ enum FrameSkipMode {
 
 class ErrorUtils : public AllStatic {
  public:
-  // |kNone| is useful when you don't need the stack information at all, for
+  // |kDisabled| is useful when you don't need the stack information at all, for
   // example when creating a deserialized error.
-  enum class StackTraceCollection { kDetailed, kSimple, kNone };
+  enum class StackTraceCollection { kEnabled, kDisabled };
   static MaybeHandle<JSObject> Construct(Isolate* isolate,
                                          Handle<JSFunction> target,
                                          Handle<Object> new_target,
@@ -112,6 +111,11 @@ class ErrorUtils : public AllStatic {
   static Object ThrowLoadFromNullOrUndefined(Isolate* isolate,
                                              Handle<Object> object,
                                              MaybeHandle<Object> key);
+
+  static MaybeHandle<Object> GetFormattedStack(Isolate* isolate,
+                                               Handle<JSObject> error_object);
+  static void SetFormattedStack(Isolate* isolate, Handle<JSObject> error_object,
+                                Handle<Object> formatted_stack);
 };
 
 class MessageFormatter {

@@ -14,7 +14,7 @@ namespace internal {
 namespace compiler {
 
 Reduction CsaLoadElimination::Reduce(Node* node) {
-  if (FLAG_trace_turbo_load_elimination) {
+  if (v8_flags.trace_turbo_load_elimination) {
     if (node->op()->EffectInputCount() > 0) {
       PrintF(" visit #%d:%s", node->id(), node->op()->mnemonic());
       if (node->op()->ValueInputCount() > 0) {
@@ -32,7 +32,8 @@ Reduction CsaLoadElimination::Reduce(Node* node) {
         if (AbstractState const* const state = node_states_.Get(effect)) {
           PrintF("  state[%i]: #%d:%s\n", i, effect->id(),
                  effect->op()->mnemonic());
-          state->Print();
+          state->mutable_state.Print();
+          state->immutable_state.Print();
         } else {
           PrintF("  no state[%i]: #%d:%s\n", i, effect->id(),
                  effect->op()->mnemonic());
@@ -42,8 +43,10 @@ Reduction CsaLoadElimination::Reduce(Node* node) {
   }
   switch (node->opcode()) {
     case IrOpcode::kLoadFromObject:
+    case IrOpcode::kLoadImmutableFromObject:
       return ReduceLoadFromObject(node, ObjectAccessOf(node->op()));
     case IrOpcode::kStoreToObject:
+    case IrOpcode::kInitializeImmutableInObject:
       return ReduceStoreToObject(node, ObjectAccessOf(node->op()));
     case IrOpcode::kDebugBreak:
     case IrOpcode::kAbortCSADcheck:
@@ -81,9 +84,8 @@ bool IsConstantObject(Node* object) {
 }
 
 bool IsFreshObject(Node* object) {
-  DCHECK_IMPLIES(NodeProperties::IsFreshObject(object),
-                 !IsConstantObject(object));
-  return NodeProperties::IsFreshObject(object);
+  return object->opcode() == IrOpcode::kAllocate ||
+         object->opcode() == IrOpcode::kAllocateRaw;
 }
 
 }  // namespace CsaLoadEliminationHelpers
@@ -92,7 +94,7 @@ namespace Helpers = CsaLoadEliminationHelpers;
 
 // static
 template <typename OuterKey>
-void CsaLoadElimination::AbstractState::IntersectWith(
+void CsaLoadElimination::HalfState::IntersectWith(
     OuterMap<OuterKey>& to, const OuterMap<OuterKey>& from) {
   FieldInfo empty_info;
   for (const std::pair<OuterKey, InnerMap>& to_map : to) {
@@ -108,8 +110,7 @@ void CsaLoadElimination::AbstractState::IntersectWith(
   }
 }
 
-void CsaLoadElimination::AbstractState::IntersectWith(
-    AbstractState const* that) {
+void CsaLoadElimination::HalfState::IntersectWith(HalfState const* that) {
   IntersectWith(fresh_entries_, that->fresh_entries_);
   IntersectWith(constant_entries_, that->constant_entries_);
   IntersectWith(arbitrary_entries_, that->arbitrary_entries_);
@@ -118,10 +119,9 @@ void CsaLoadElimination::AbstractState::IntersectWith(
   IntersectWith(arbitrary_unknown_entries_, that->arbitrary_unknown_entries_);
 }
 
-CsaLoadElimination::AbstractState const*
-CsaLoadElimination::AbstractState::KillField(Node* object, Node* offset,
-                                             MachineRepresentation repr) const {
-  AbstractState* result = zone_->New<AbstractState>(*this);
+CsaLoadElimination::HalfState const* CsaLoadElimination::HalfState::KillField(
+    Node* object, Node* offset, MachineRepresentation repr) const {
+  HalfState* result = zone_->New<HalfState>(*this);
   UnknownOffsetInfos empty_unknown(zone_, InnerMap(zone_));
   IntPtrMatcher m(offset);
   if (m.HasResolvedValue()) {
@@ -179,18 +179,16 @@ CsaLoadElimination::AbstractState::KillField(Node* object, Node* offset,
       result->arbitrary_unknown_entries_ = empty_unknown;
     } else {
       // May alias with anything. Clear the state.
-      return zone_->New<AbstractState>(zone_);
+      return zone_->New<HalfState>(zone_);
     }
   }
 
   return result;
 }
 
-CsaLoadElimination::AbstractState const*
-CsaLoadElimination::AbstractState::AddField(Node* object, Node* offset,
-                                            Node* value,
-                                            MachineRepresentation repr) const {
-  AbstractState* new_state = zone_->New<AbstractState>(*this);
+CsaLoadElimination::HalfState const* CsaLoadElimination::HalfState::AddField(
+    Node* object, Node* offset, Node* value, MachineRepresentation repr) const {
+  HalfState* new_state = zone_->New<HalfState>(*this);
   IntPtrMatcher m(offset);
   if (m.HasResolvedValue()) {
     uint32_t offset_num = static_cast<uint32_t>(m.ResolvedValue());
@@ -212,7 +210,7 @@ CsaLoadElimination::AbstractState::AddField(Node* object, Node* offset,
   return new_state;
 }
 
-CsaLoadElimination::FieldInfo CsaLoadElimination::AbstractState::Lookup(
+CsaLoadElimination::FieldInfo CsaLoadElimination::HalfState::Lookup(
     Node* object, Node* offset) const {
   IntPtrMatcher m(offset);
   if (m.HasResolvedValue()) {
@@ -236,10 +234,10 @@ CsaLoadElimination::FieldInfo CsaLoadElimination::AbstractState::Lookup(
 // static
 // Kill all elements in {infos} that overlap with an element with {offset} and
 // size {ElementSizeInBytes(repr)}.
-void CsaLoadElimination::AbstractState::KillOffset(ConstantOffsetInfos& infos,
-                                                   uint32_t offset,
-                                                   MachineRepresentation repr,
-                                                   Zone* zone) {
+void CsaLoadElimination::HalfState::KillOffset(ConstantOffsetInfos& infos,
+                                               uint32_t offset,
+                                               MachineRepresentation repr,
+                                               Zone* zone) {
   // All elements in the range [{offset}, {offset + ElementSizeInBytes(repr)})
   // are in the killed range. We do not need to traverse the inner maps, we can
   // just clear them.
@@ -270,7 +268,7 @@ void CsaLoadElimination::AbstractState::KillOffset(ConstantOffsetInfos& infos,
   }
 }
 
-void CsaLoadElimination::AbstractState::KillOffsetInFresh(
+void CsaLoadElimination::HalfState::KillOffsetInFresh(
     Node* const object, uint32_t offset, MachineRepresentation repr) {
   for (int i = 0; i < ElementSizeInBytes(repr); i++) {
     Update(fresh_entries_, offset + i, object, {});
@@ -289,15 +287,15 @@ void CsaLoadElimination::AbstractState::KillOffsetInFresh(
 }
 
 // static
-void CsaLoadElimination::AbstractState::Print(
-    const CsaLoadElimination::AbstractState::ConstantOffsetInfos& infos) {
+void CsaLoadElimination::HalfState::Print(
+    const CsaLoadElimination::HalfState::ConstantOffsetInfos& infos) {
   for (const auto outer_entry : infos) {
     for (const auto inner_entry : outer_entry.second) {
       Node* object = inner_entry.first;
       uint32_t offset = outer_entry.first;
       FieldInfo info = inner_entry.second;
-      PrintF("    #%d+#%d:%s -> #%d:%s [repr=%s]\n", object->id(), offset,
-             object->op()->mnemonic(), info.value->id(),
+      PrintF("    #%d:%s+(%d) -> #%d:%s [repr=%s]\n", object->id(),
+             object->op()->mnemonic(), offset, info.value->id(),
              info.value->op()->mnemonic(),
              MachineReprToString(info.representation));
     }
@@ -305,22 +303,22 @@ void CsaLoadElimination::AbstractState::Print(
 }
 
 // static
-void CsaLoadElimination::AbstractState::Print(
-    const CsaLoadElimination::AbstractState::UnknownOffsetInfos& infos) {
+void CsaLoadElimination::HalfState::Print(
+    const CsaLoadElimination::HalfState::UnknownOffsetInfos& infos) {
   for (const auto outer_entry : infos) {
     for (const auto inner_entry : outer_entry.second) {
       Node* object = outer_entry.first;
       Node* offset = inner_entry.first;
       FieldInfo info = inner_entry.second;
-      PrintF("    #%d+#%d:%s -> #%d:%s [repr=%s]\n", object->id(), offset->id(),
-             object->op()->mnemonic(), info.value->id(),
-             info.value->op()->mnemonic(),
+      PrintF("    #%d:%s+#%d:%s -> #%d:%s [repr=%s]\n", object->id(),
+             object->op()->mnemonic(), offset->id(), offset->op()->mnemonic(),
+             info.value->id(), info.value->op()->mnemonic(),
              MachineReprToString(info.representation));
     }
   }
 }
 
-void CsaLoadElimination::AbstractState::Print() const {
+void CsaLoadElimination::HalfState::Print() const {
   Print(fresh_entries_);
   Print(constant_entries_);
   Print(arbitrary_entries_);
@@ -329,16 +327,40 @@ void CsaLoadElimination::AbstractState::Print() const {
   Print(arbitrary_unknown_entries_);
 }
 
+// We may encounter a mutable/immutable inconsistency if the same field offset
+// is loaded/stored from the same object both as mutable and immutable. This can
+// only happen in code where the object has been cast to two different
+// incompatible types, i.e. in unreachable code. For safety, we introduce an
+// Unreachable node before the load/store.
+Reduction CsaLoadElimination::AssertUnreachable(Node* node) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* unreachable =
+      graph()->NewNode(jsgraph()->common()->Unreachable(), effect, control);
+  return Replace(unreachable);
+}
+
 Reduction CsaLoadElimination::ReduceLoadFromObject(Node* node,
                                                    ObjectAccess const& access) {
+  DCHECK(node->opcode() == IrOpcode::kLoadFromObject ||
+         node->opcode() == IrOpcode::kLoadImmutableFromObject);
   Node* object = NodeProperties::GetValueInput(node, 0);
   Node* offset = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
+  bool is_mutable = node->opcode() == IrOpcode::kLoadFromObject;
+  // We can only find the field in the wrong half-state in unreachable code.
+  if (!(is_mutable ? &state->immutable_state : &state->mutable_state)
+           ->Lookup(object, offset)
+           .IsEmpty()) {
+    return AssertUnreachable(node);
+  }
+  HalfState const* half_state =
+      is_mutable ? &state->mutable_state : &state->immutable_state;
 
   MachineRepresentation representation = access.machine_type.representation();
-  FieldInfo lookup_result = state->Lookup(object, offset);
+  FieldInfo lookup_result = half_state->Lookup(object, offset);
   if (!lookup_result.IsEmpty()) {
     // Make sure we don't reuse values that were recorded with a different
     // representation or resurrect dead {replacement} nodes.
@@ -354,25 +376,51 @@ Reduction CsaLoadElimination::ReduceLoadFromObject(Node* node,
       return Replace(replacement);
     }
   }
-  state = state->AddField(object, offset, node, representation);
+  half_state = half_state->AddField(object, offset, node, representation);
 
-  return UpdateState(node, state);
+  AbstractState const* new_state =
+      is_mutable
+          ? zone()->New<AbstractState>(*half_state, state->immutable_state)
+          : zone()->New<AbstractState>(state->mutable_state, *half_state);
+
+  return UpdateState(node, new_state);
 }
 
 Reduction CsaLoadElimination::ReduceStoreToObject(Node* node,
                                                   ObjectAccess const& access) {
+  DCHECK(node->opcode() == IrOpcode::kStoreToObject ||
+         node->opcode() == IrOpcode::kInitializeImmutableInObject);
   Node* object = NodeProperties::GetValueInput(node, 0);
   Node* offset = NodeProperties::GetValueInput(node, 1);
   Node* value = NodeProperties::GetValueInput(node, 2);
   Node* effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-
   MachineRepresentation repr = access.machine_type.representation();
-  state = state->KillField(object, offset, repr);
-  state = state->AddField(object, offset, value, repr);
-
-  return UpdateState(node, state);
+  if (node->opcode() == IrOpcode::kStoreToObject) {
+    // We can only find the field in the wrong half-state in unreachable code.
+    if (!(state->immutable_state.Lookup(object, offset).IsEmpty())) {
+      return AssertUnreachable(node);
+    }
+    HalfState const* mutable_state =
+        state->mutable_state.KillField(object, offset, repr);
+    mutable_state = mutable_state->AddField(object, offset, value, repr);
+    AbstractState const* new_state =
+        zone()->New<AbstractState>(*mutable_state, state->immutable_state);
+    return UpdateState(node, new_state);
+  } else {
+    // We can only find the field in the wrong half-state in unreachable code.
+    if (!(state->mutable_state.Lookup(object, offset).IsEmpty())) {
+      return AssertUnreachable(node);
+    }
+    // We should not initialize the same immutable field twice.
+    DCHECK(state->immutable_state.Lookup(object, offset).IsEmpty());
+    HalfState const* immutable_state =
+        state->immutable_state.AddField(object, offset, value, repr);
+    AbstractState const* new_state =
+        zone()->New<AbstractState>(state->mutable_state, *immutable_state);
+    return UpdateState(node, new_state);
+  }
 }
 
 Reduction CsaLoadElimination::ReduceEffectPhi(Node* node) {
@@ -431,10 +479,13 @@ Reduction CsaLoadElimination::ReduceOtherNode(Node* node) {
     // predecessor.
     if (state == nullptr) return NoChange();
     // If this {node} has some uncontrolled side effects, set its state to
-    // {empty_state()}, otherwise to its input state.
-    return UpdateState(node, node->op()->HasProperty(Operator::kNoWrite)
-                                 ? state
-                                 : empty_state());
+    // the immutable half-state of its input state, otherwise to its input
+    // state.
+    return UpdateState(
+        node, node->op()->HasProperty(Operator::kNoWrite)
+                  ? state
+                  : zone()->New<AbstractState>(HalfState(zone()),
+                                               state->immutable_state));
   }
   DCHECK_EQ(0, node->op()->EffectOutputCount());
   return NoChange();
@@ -464,8 +515,8 @@ Reduction CsaLoadElimination::PropagateInputState(Node* node) {
 CsaLoadElimination::AbstractState const* CsaLoadElimination::ComputeLoopState(
     Node* node, AbstractState const* state) const {
   DCHECK_EQ(node->opcode(), IrOpcode::kEffectPhi);
-  ZoneQueue<Node*> queue(zone());
-  ZoneSet<Node*> visited(zone());
+  std::queue<Node*> queue;
+  std::unordered_set<Node*> visited;
   visited.insert(node);
   for (int i = 1; i < node->InputCount() - 1; ++i) {
     queue.push(node->InputAt(i));
@@ -474,8 +525,25 @@ CsaLoadElimination::AbstractState const* CsaLoadElimination::ComputeLoopState(
     Node* const current = queue.front();
     queue.pop();
     if (visited.insert(current).second) {
-      if (!current->op()->HasProperty(Operator::kNoWrite)) {
-        return empty_state();
+      if (current->opcode() == IrOpcode::kStoreToObject) {
+        Node* object = NodeProperties::GetValueInput(current, 0);
+        Node* offset = NodeProperties::GetValueInput(current, 1);
+        MachineRepresentation repr =
+            ObjectAccessOf(current->op()).machine_type.representation();
+        const HalfState* new_mutable_state =
+            state->mutable_state.KillField(object, offset, repr);
+        state = zone()->New<AbstractState>(*new_mutable_state,
+                                           state->immutable_state);
+      } else if (current->opcode() == IrOpcode::kInitializeImmutableInObject) {
+#if DEBUG
+        // We are not allowed to reset an immutable (object, offset) pair.
+        Node* object = NodeProperties::GetValueInput(current, 0);
+        Node* offset = NodeProperties::GetValueInput(current, 1);
+        CHECK(state->immutable_state.Lookup(object, offset).IsEmpty());
+#endif
+      } else if (!current->op()->HasProperty(Operator::kNoWrite)) {
+        return zone()->New<AbstractState>(HalfState(zone()),
+                                          state->immutable_state);
       }
       for (int i = 0; i < current->op()->EffectInputCount(); ++i) {
         queue.push(NodeProperties::GetEffectInput(current, i));

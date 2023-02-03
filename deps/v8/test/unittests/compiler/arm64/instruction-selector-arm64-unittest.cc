@@ -1930,6 +1930,24 @@ TEST_F(InstructionSelectorTest, OvfBranchWithImmediateOnLeft) {
   }
 }
 
+TEST_F(InstructionSelectorTest, OvfValMulImmediateOnRight) {
+  TRACED_FORRANGE(int32_t, shift, 0, 30) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    m.Return(m.Projection(0, m.Int32MulWithOverflow(m.Int32Constant(1 << shift),
+                                                    m.Parameter(0))));
+    Stream s = m.Build();
+
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64Sbfiz, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64Cmp, s[1]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(shift, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_LE(1U, s[0]->OutputCount());
+    EXPECT_EQ(32, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Shift instructions.
 
@@ -3162,6 +3180,33 @@ TEST_F(InstructionSelectorTest, ChangeInt32ToInt64WithWord32Sar) {
     EXPECT_EQ(1U, s[0]->OutputCount());
     EXPECT_EQ(imm & 0x1f, s.ToInt32(s[0]->InputAt(1)));
     EXPECT_EQ(32 - (imm & 0x1f), s.ToInt32(s[0]->InputAt(2)));
+  }
+}
+
+TEST_F(InstructionSelectorTest, Word64SarWithChangeInt32ToInt64) {
+  TRACED_FORRANGE(int64_t, imm, -31, 63) {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    m.Return(m.Word64Sar(m.ChangeInt32ToInt64(m.Parameter(0)),
+                         m.Int64Constant(imm)));
+    Stream s = m.Build();
+    // Optimization should only be applied when 0 <= imm < 32
+    if (0 <= imm && imm < 32) {
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Sbfx, s[0]->arch_opcode());
+      EXPECT_EQ(3U, s[0]->InputCount());
+      EXPECT_EQ(1U, s[0]->OutputCount());
+      EXPECT_EQ(imm, s.ToInt64(s[0]->InputAt(1)));
+      EXPECT_EQ(32 - imm, s.ToInt64(s[0]->InputAt(2)));
+    } else {
+      ASSERT_EQ(2U, s.size());
+      EXPECT_EQ(kArm64Sxtw, s[0]->arch_opcode());
+      EXPECT_EQ(1U, s[0]->InputCount());
+      EXPECT_EQ(1U, s[0]->OutputCount());
+      EXPECT_EQ(kArm64Asr, s[1]->arch_opcode());
+      EXPECT_EQ(2U, s[1]->InputCount());
+      EXPECT_EQ(1U, s[1]->OutputCount());
+      EXPECT_EQ(imm, s.ToInt64(s[1]->InputAt(1)));
+    }
   }
 }
 
@@ -5218,7 +5263,7 @@ TEST_F(InstructionSelectorTest, ExternalReferenceLoad1) {
   TRACED_FOREACH(int64_t, offset, kOffsets) {
     StreamBuilder m(this, MachineType::Int64());
     ExternalReference reference =
-        bit_cast<ExternalReference>(isolate()->isolate_root() + offset);
+        base::bit_cast<ExternalReference>(isolate()->isolate_root() + offset);
     Node* const value =
         m.Load(MachineType::Int64(), m.ExternalConstant(reference));
     m.Return(value);
@@ -5239,7 +5284,7 @@ TEST_F(InstructionSelectorTest, ExternalReferenceLoad2) {
   StreamBuilder m(this, MachineType::Int64());
   int64_t offset = 0x100000000;
   ExternalReference reference =
-      bit_cast<ExternalReference>(isolate()->isolate_root() + offset);
+      base::bit_cast<ExternalReference>(isolate()->isolate_root() + offset);
   Node* const value =
       m.Load(MachineType::Int64(), m.ExternalConstant(reference));
   m.Return(value);
@@ -5570,6 +5615,209 @@ TEST_P(InstructionSelectorSIMDConstZeroCmTest, ConstZero) {
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorSIMDConstZeroCmTest,
                          ::testing::ValuesIn(SIMDConstZeroCmTests));
+
+struct SIMDConstAndTest {
+  const uint8_t data[16];
+  const Operator* (MachineOperatorBuilder::*simd_op)();
+  const ArchOpcode expected_op;
+  const bool symmetrical;
+  const uint8_t lane_size;
+  const uint8_t shift_amount;
+  const int32_t expected_imm;
+  const size_t size;
+};
+
+static const SIMDConstAndTest SIMDConstAndTests[] = {
+    {{0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE,
+      0xFF, 0xFE, 0xFF, 0xFE},
+     &MachineOperatorBuilder::S128And,
+     kArm64S128AndNot,
+     true,
+     16,
+     8,
+     0x01,
+     1},
+    {{0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF,
+      0xFE, 0xFF, 0xFE, 0xFF},
+     &MachineOperatorBuilder::S128And,
+     kArm64S128AndNot,
+     true,
+     16,
+     0,
+     0x01,
+     1},
+
+    {{0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFE,
+      0xFF, 0xFF, 0xFF, 0xFE},
+     &MachineOperatorBuilder::S128And,
+     kArm64S128AndNot,
+     true,
+     32,
+     24,
+     0x01,
+     1},
+    {{0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF,
+      0xFF, 0xFF, 0xFE, 0xFF},
+     &MachineOperatorBuilder::S128And,
+     kArm64S128AndNot,
+     true,
+     32,
+     16,
+     0x01,
+     1},
+    {{0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF,
+      0xFF, 0xFE, 0xFF, 0xFF},
+     &MachineOperatorBuilder::S128And,
+     kArm64S128AndNot,
+     true,
+     32,
+     8,
+     0x01,
+     1},
+    {{0xFE, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF,
+      0xFE, 0xFF, 0xFF, 0xFF},
+     &MachineOperatorBuilder::S128And,
+     kArm64S128AndNot,
+     true,
+     32,
+     0,
+     0x01,
+     1},
+
+    {{0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE,
+      0xEE, 0xEE, 0xEE, 0xEE},
+     &MachineOperatorBuilder::S128And,
+     kArm64S128And,
+     true,
+     0,
+     0,
+     0x00,
+     2},
+
+    {{0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01,
+      0x00, 0x01, 0x00, 0x01},
+     &MachineOperatorBuilder::S128AndNot,
+     kArm64S128AndNot,
+     false,
+     16,
+     8,
+     0x01,
+     1},
+    {{0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00,
+      0x01, 0x00, 0x01, 0x00},
+     &MachineOperatorBuilder::S128AndNot,
+     kArm64S128AndNot,
+     false,
+     16,
+     0,
+     0x01,
+     1},
+
+    {{0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x00, 0x00, 0x00, 0x01},
+     &MachineOperatorBuilder::S128AndNot,
+     kArm64S128AndNot,
+     false,
+     32,
+     24,
+     0x01,
+     1},
+    {{0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00,
+      0x00, 0x00, 0x01, 0x00},
+     &MachineOperatorBuilder::S128AndNot,
+     kArm64S128AndNot,
+     false,
+     32,
+     16,
+     0x01,
+     1},
+    {{0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+      0x00, 0x01, 0x00, 0x00},
+     &MachineOperatorBuilder::S128AndNot,
+     kArm64S128AndNot,
+     false,
+     32,
+     8,
+     0x01,
+     1},
+    {{0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+      0x01, 0x00, 0x00, 0x00},
+     &MachineOperatorBuilder::S128AndNot,
+     kArm64S128AndNot,
+     false,
+     32,
+     0,
+     0x01,
+     1},
+
+    {{0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE,
+      0xEE, 0xEE, 0xEE, 0xEE},
+     &MachineOperatorBuilder::S128AndNot,
+     kArm64S128AndNot,
+     false,
+     0,
+     0,
+     0x00,
+     2},
+};
+
+using InstructionSelectorSIMDConstAndTest =
+    InstructionSelectorTestWithParam<SIMDConstAndTest>;
+
+TEST_P(InstructionSelectorSIMDConstAndTest, ConstAnd) {
+  const SIMDConstAndTest param = GetParam();
+  // Const node on the left
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+    Node* cnst = m.S128Const(param.data);
+    Node* op = m.AddNode((m.machine()->*param.simd_op)(), cnst, m.Parameter(0));
+    m.Return(op);
+    Stream s = m.Build();
+
+    // Bic cannot always be applied when the immediate is on the left
+    size_t expected_size = param.symmetrical ? param.size : 2;
+    ASSERT_EQ(expected_size, s.size());
+    if (expected_size == 1) {
+      EXPECT_EQ(param.expected_op, s[0]->arch_opcode());
+      EXPECT_EQ(3U, s[0]->InputCount());
+      EXPECT_EQ(1U, s[0]->OutputCount());
+      EXPECT_EQ(param.lane_size, LaneSizeField::decode(s[0]->opcode()));
+      EXPECT_EQ(param.shift_amount, s.ToInt32(s[0]->InputAt(2)));
+      EXPECT_EQ(param.expected_imm, s.ToInt32(s[0]->InputAt(1)));
+    } else {
+      EXPECT_EQ(kArm64S128Const, s[0]->arch_opcode());
+      EXPECT_EQ(param.expected_op, s[1]->arch_opcode());
+      EXPECT_EQ(2U, s[1]->InputCount());
+      EXPECT_EQ(1U, s[1]->OutputCount());
+    }
+  }
+  //  Const node on the right
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+    Node* cnst = m.S128Const(param.data);
+    Node* op = m.AddNode((m.machine()->*param.simd_op)(), m.Parameter(0), cnst);
+    m.Return(op);
+    Stream s = m.Build();
+    ASSERT_EQ(param.size, s.size());
+    if (param.size == 1) {
+      EXPECT_EQ(param.expected_op, s[0]->arch_opcode());
+      EXPECT_EQ(3U, s[0]->InputCount());
+      EXPECT_EQ(1U, s[0]->OutputCount());
+      EXPECT_EQ(param.lane_size, LaneSizeField::decode(s[0]->opcode()));
+      EXPECT_EQ(param.shift_amount, s.ToInt32(s[0]->InputAt(2)));
+      EXPECT_EQ(param.expected_imm, s.ToInt32(s[0]->InputAt(1)));
+    } else {
+      EXPECT_EQ(kArm64S128Const, s[0]->arch_opcode());
+      EXPECT_EQ(param.expected_op, s[1]->arch_opcode());
+      EXPECT_EQ(2U, s[1]->InputCount());
+      EXPECT_EQ(1U, s[1]->OutputCount());
+    }
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorSIMDConstAndTest,
+                         ::testing::ValuesIn(SIMDConstAndTests));
 
 }  // namespace
 }  // namespace compiler

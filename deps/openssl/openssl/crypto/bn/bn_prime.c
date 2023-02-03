@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -308,9 +308,10 @@ static int bn_is_prime_int(const BIGNUM *w, int checks, BN_CTX *ctx,
         goto err;
 #endif
 
-    ret = ossl_bn_miller_rabin_is_prime(w, checks, ctx, cb, 0, &status);
-    if (!ret)
+    if (!ossl_bn_miller_rabin_is_prime(w, checks, ctx, cb, 0, &status)) {
+        ret = -1;
         goto err;
+    }
     ret = (status == BN_PRIMETEST_PROBABLY_PRIME);
 err:
 #ifndef FIPS_MODULE

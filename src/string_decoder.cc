@@ -328,8 +328,8 @@ void InitializeStringDecoder(Local<Object> target,
               FIXED_ONE_BYTE_STRING(isolate, "kSize"),
               Integer::New(isolate, sizeof(StringDecoder))).Check();
 
-  env->SetMethod(target, "decode", DecodeData);
-  env->SetMethod(target, "flush", FlushData);
+  SetMethod(context, target, "decode", DecodeData);
+  SetMethod(context, target, "flush", FlushData);
 }
 
 }  // anonymous namespace
@@ -342,7 +342,7 @@ void RegisterStringDecoderExternalReferences(
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(string_decoder,
-                                   node::InitializeStringDecoder)
-NODE_MODULE_EXTERNAL_REFERENCE(string_decoder,
-                               node::RegisterStringDecoderExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(string_decoder,
+                                    node::InitializeStringDecoder)
+NODE_BINDING_EXTERNAL_REFERENCE(string_decoder,
+                                node::RegisterStringDecoderExternalReferences)

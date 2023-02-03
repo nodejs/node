@@ -16,10 +16,11 @@ Returns: `Agent`
 
 ### Parameter: `AgentOptions`
 
-Extends: [`ClientOptions`](Pool.md#parameter-pooloptions)
+Extends: [`PoolOptions`](Pool.md#parameter-pooloptions)
 
 * **factory** `(origin: URL, opts: Object) => Dispatcher` - Default: `(origin, opts) => new Pool(origin, opts)`
 * **maxRedirections** `Integer` - Default: `0`. The number of HTTP redirection to follow unless otherwise specified in `DispatchOptions`.
+* **interceptors** `{ Agent: DispatchInterceptor[] }` - Default: `[RedirectInterceptor]` - A list of interceptors that are applied to the dispatch method. Additional logic can be applied (such as, but not limited to: 302 status code handling, authentication, cookies, compression and caching). Note that the behavior of interceptors is Experimental and might change at any given time.
 
 ## Instance Properties
 

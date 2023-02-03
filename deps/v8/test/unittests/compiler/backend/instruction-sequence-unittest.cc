@@ -24,9 +24,16 @@ InstructionSequenceTest::InstructionSequenceTest()
     : sequence_(nullptr),
       num_general_registers_(Register::kNumRegisters),
       num_double_registers_(DoubleRegister::kNumRegisters),
+      num_simd128_registers_(Simd128Register::kNumRegisters),
+#if V8_TARGET_ARCH_X64
+      num_simd256_registers_(Simd256Register::kNumRegisters),
+#else
+      num_simd256_registers_(0),
+#endif  // V8_TARGET_ARCH_X64
       instruction_blocks_(zone()),
       current_block_(nullptr),
-      block_returns_(false) {}
+      block_returns_(false) {
+}
 
 void InstructionSequenceTest::SetNumRegs(int num_general_registers,
                                          int num_double_registers) {
@@ -47,6 +54,8 @@ int InstructionSequenceTest::GetNumRegs(MachineRepresentation rep) {
       return config()->num_double_registers();
     case MachineRepresentation::kSimd128:
       return config()->num_simd128_registers();
+    case MachineRepresentation::kSimd256:
+      return config()->num_simd256_registers();
     default:
       return config()->num_general_registers();
   }
@@ -61,6 +70,8 @@ int InstructionSequenceTest::GetAllocatableCode(int index,
       return config()->GetAllocatableDoubleCode(index);
     case MachineRepresentation::kSimd128:
       return config()->GetAllocatableSimd128Code(index);
+    case MachineRepresentation::kSimd256:
+      return config()->GetAllocatableSimd256Code(index);
     default:
       return config()->GetAllocatableGeneralCode(index);
   }
@@ -69,11 +80,11 @@ int InstructionSequenceTest::GetAllocatableCode(int index,
 const RegisterConfiguration* InstructionSequenceTest::config() {
   if (!config_) {
     config_.reset(new RegisterConfiguration(
-        num_general_registers_, num_double_registers_, num_general_registers_,
-        num_double_registers_, kAllocatableCodes.data(),
-        kAllocatableCodes.data(),
-        kSimpleFPAliasing ? RegisterConfiguration::OVERLAP
-                          : RegisterConfiguration::COMBINE));
+        kFPAliasing, num_general_registers_, num_double_registers_,
+        num_simd128_registers_, num_simd256_registers_, num_general_registers_,
+        num_double_registers_, num_simd128_registers_, num_simd256_registers_,
+        kAllocatableCodes.data(), kAllocatableCodes.data(),
+        kAllocatableCodes.data()));
   }
   return config_.get();
 }

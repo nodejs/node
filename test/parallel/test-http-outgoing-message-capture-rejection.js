@@ -16,9 +16,11 @@ events.captureRejections = true;
 
     res.socket.on('error', common.mustCall((err) => {
       assert.strictEqual(err, _err);
+      server.close();
     }));
 
     // Write until there is space in the buffer
+    res.writeHead(200, { 'Connection': 'close' });
     while (res.write('hello'));
   }));
 
@@ -37,7 +39,6 @@ events.captureRejections = true;
         code: 'ECONNRESET'
       }));
       res.resume();
-      server.close();
     }));
   }));
 }

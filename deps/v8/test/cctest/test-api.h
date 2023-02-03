@@ -5,8 +5,6 @@
 #ifndef V8_TEST_CCTEST_TEST_API_H_
 #define V8_TEST_CCTEST_TEST_API_H_
 
-#include "src/init/v8.h"
-
 #include "src/api/api.h"
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state.h"

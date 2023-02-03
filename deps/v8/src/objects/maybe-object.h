@@ -36,7 +36,7 @@ class MaybeObject : public TaggedImpl<HeapObjectReferenceType::WEAK, Address> {
 #endif
 
  private:
-  template <typename TFieldType, int kFieldOffset>
+  template <typename TFieldType, int kFieldOffset, typename CompressionScheme>
   friend class TaggedField;
 };
 

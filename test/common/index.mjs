@@ -23,6 +23,7 @@ const {
   hasCrypto,
   hasIPv6,
   childShouldThrowAndAbort,
+  checkoutEOL,
   createZeroFilledFile,
   platformTimeout,
   allowGlobals,
@@ -35,6 +36,7 @@ const {
   canCreateSymLink,
   getCallSite,
   mustNotCall,
+  mustNotMutateObjectDeep,
   printSkipMessage,
   skip,
   nodeProcessAborted,
@@ -46,8 +48,11 @@ const {
   getArrayBufferViews,
   getBufferSources,
   getTTYfd,
-  runWithInvalidFD
+  runWithInvalidFD,
+  spawnPromisified,
 } = common;
+
+const getPort = () => common.PORT;
 
 export {
   isMainThread,
@@ -69,6 +74,7 @@ export {
   hasCrypto,
   hasIPv6,
   childShouldThrowAndAbort,
+  checkoutEOL,
   createZeroFilledFile,
   platformTimeout,
   allowGlobals,
@@ -81,6 +87,7 @@ export {
   canCreateSymLink,
   getCallSite,
   mustNotCall,
+  mustNotMutateObjectDeep,
   printSkipMessage,
   skip,
   nodeProcessAborted,
@@ -93,5 +100,7 @@ export {
   getBufferSources,
   getTTYfd,
   runWithInvalidFD,
-  createRequire
+  createRequire,
+  spawnPromisified,
+  getPort,
 };

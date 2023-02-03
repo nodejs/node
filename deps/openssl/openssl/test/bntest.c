@@ -10,9 +10,6 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
-#ifdef __TANDEM
-# include <strings.h> /* strcasecmp */
-#endif
 #include <ctype.h>
 
 #include <openssl/bn.h>
@@ -22,10 +19,6 @@
 #include "internal/nelem.h"
 #include "internal/numbers.h"
 #include "testutil.h"
-
-#ifdef OPENSSL_SYS_WINDOWS
-# define strcasecmp _stricmp
-#endif
 
 /*
  * Things in boring, not in openssl.
@@ -64,7 +57,7 @@ static const char *findattr(STANZA *s, const char *key)
     PAIR *pp = s->pairs;
 
     for ( ; --i >= 0; pp++)
-        if (strcasecmp(pp->key, key) == 0)
+        if (OPENSSL_strcasecmp(pp->key, key) == 0)
             return pp->value;
     return NULL;
 }

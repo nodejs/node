@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --expose-gc --noincremental-marking
-// Flags: --no-stress-opt
 
 // Since cleanup tasks are top-level tasks, errors thrown from them don't stop
 // future cleanup tasks from running.

@@ -6,23 +6,17 @@
 #define INCLUDE_CPPGC_PREFINALIZER_H_
 
 #include "cppgc/internal/compiler-specific.h"
-#include "cppgc/internal/prefinalizer-handler.h"
 #include "cppgc/liveness-broker.h"
 
 namespace cppgc {
 
 namespace internal {
 
-template <typename T>
-class PrefinalizerRegistration final {
+class V8_EXPORT PrefinalizerRegistration final {
  public:
-  explicit PrefinalizerRegistration(T* self) {
-    static_assert(sizeof(&T::InvokePreFinalizer) > 0,
-                  "USING_PRE_FINALIZER(T) must be defined.");
+  using Callback = bool (*)(const cppgc::LivenessBroker&, void*);
 
-    cppgc::internal::PreFinalizerRegistrationDispatcher::RegisterPrefinalizer(
-        {self, T::InvokePreFinalizer});
-  }
+  PrefinalizerRegistration(void*, Callback);
 
   void* operator new(size_t, void* location) = delete;
   void* operator new(size_t) = delete;
@@ -30,6 +24,35 @@ class PrefinalizerRegistration final {
 
 }  // namespace internal
 
+/**
+ * Macro must be used in the private section of `Class` and registers a
+ * prefinalization callback `void Class::PreFinalizer()`. The callback is
+ * invoked on garbage collection after the collector has found an object to be
+ * dead.
+ *
+ * Callback properties:
+ * - The callback is invoked before a possible destructor for the corresponding
+ *   object.
+ * - The callback may access the whole object graph, irrespective of whether
+ *   objects are considered dead or alive.
+ * - The callback is invoked on the same thread as the object was created on.
+ *
+ * Example:
+ * \code
+ * class WithPrefinalizer : public GarbageCollected<WithPrefinalizer> {
+ *   CPPGC_USING_PRE_FINALIZER(WithPrefinalizer, Dispose);
+ *
+ *  public:
+ *   void Trace(Visitor*) const {}
+ *   void Dispose() { prefinalizer_called = true; }
+ *   ~WithPrefinalizer() {
+ *     // prefinalizer_called == true
+ *   }
+ *  private:
+ *   bool prefinalizer_called = false;
+ * };
+ * \endcode
+ */
 #define CPPGC_USING_PRE_FINALIZER(Class, PreFinalizer)                         \
  public:                                                                       \
   static bool InvokePreFinalizer(const cppgc::LivenessBroker& liveness_broker, \
@@ -43,8 +66,8 @@ class PrefinalizerRegistration final {
   }                                                                            \
                                                                                \
  private:                                                                      \
-  CPPGC_NO_UNIQUE_ADDRESS cppgc::internal::PrefinalizerRegistration<Class>     \
-      prefinalizer_dummy_{this};                                               \
+  CPPGC_NO_UNIQUE_ADDRESS cppgc::internal::PrefinalizerRegistration            \
+      prefinalizer_dummy_{this, Class::InvokePreFinalizer};                    \
   static_assert(true, "Force semicolon.")
 
 }  // namespace cppgc

@@ -6,21 +6,18 @@
 #define V8_COMPILER_DISPATCHER_LAZY_COMPILE_DISPATCHER_H_
 
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "src/common/globals.h"
-#include "src/handles/maybe-handles.h"
 #include "src/utils/identity-map.h"
-#include "src/utils/locked-queue.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
@@ -192,7 +189,8 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
 
   std::unique_ptr<JobHandle> job_handle_;
 
-  // Copy of FLAG_trace_compiler_dispatcher to allow for access from any thread.
+  // Copy of v8_flags.trace_compiler_dispatcher to allow for access from any
+  // thread.
   bool trace_compiler_dispatcher_;
 
   std::unique_ptr<CancelableTaskManager> idle_task_manager_;
@@ -220,13 +218,16 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   std::unordered_set<Job*> all_jobs_;
 #endif
 
+  // A queue of jobs to delete on the background thread(s). Jobs in this queue
+  // are considered dead as far as the rest of the system is concerned, so they
+  // won't be pointed to by any SharedFunctionInfo and won't be in the all_jobs
+  // set above.
+  std::vector<Job*> jobs_to_dispose_;
+
   // If not nullptr, then the main thread waits for the task processing
   // this job, and blocks on the ConditionVariable main_thread_blocking_signal_.
   Job* main_thread_blocking_on_job_;
   base::ConditionVariable main_thread_blocking_signal_;
-
-  mutable base::Mutex job_dispose_mutex_;
-  std::vector<Job*> jobs_to_dispose_;
 
   // Test support.
   base::AtomicValue<bool> block_for_testing_;

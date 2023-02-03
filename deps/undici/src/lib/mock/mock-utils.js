@@ -6,9 +6,15 @@ const {
   kMockAgent,
   kOriginalDispatch,
   kOrigin,
-  kIsMockActive,
   kGetNetConnect
 } = require('./mock-symbols')
+const { buildURL, nop } = require('../core/util')
+const { STATUS_CODES } = require('http')
+const {
+  types: {
+    isPromise
+  }
+} = require('util')
 
 function matchValue (match, value) {
   if (typeof match === 'string') {
@@ -31,15 +37,40 @@ function lowerCaseEntries (headers) {
   )
 }
 
+/**
+ * @param {import('../../index').Headers|string[]|Record<string, string>} headers
+ * @param {string} key
+ */
+function getHeaderByName (headers, key) {
+  if (Array.isArray(headers)) {
+    for (let i = 0; i < headers.length; i += 2) {
+      if (headers[i].toLocaleLowerCase() === key.toLocaleLowerCase()) {
+        return headers[i + 1]
+      }
+    }
+
+    return undefined
+  } else if (typeof headers.get === 'function') {
+    return headers.get(key)
+  } else {
+    return lowerCaseEntries(headers)[key.toLocaleLowerCase()]
+  }
+}
+
+/** @param {string[]} headers */
+function buildHeadersFromArray (headers) { // fetch HeadersList
+  const clone = headers.slice()
+  const entries = []
+  for (let index = 0; index < clone.length; index += 2) {
+    entries.push([clone[index], clone[index + 1]])
+  }
+  return Object.fromEntries(entries)
+}
+
 function matchHeaders (mockDispatch, headers) {
   if (typeof mockDispatch.headers === 'function') {
     if (Array.isArray(headers)) { // fetch HeadersList
-      const clone = headers.slice()
-      const entries = []
-      for (let index = 0; index < clone.length; index += 2) {
-        entries.push([clone[index], clone[index + 1]])
-      }
-      headers = Object.fromEntries(entries)
+      headers = buildHeadersFromArray(headers)
     }
     return mockDispatch.headers(headers ? lowerCaseEntries(headers) : {})
   }
@@ -51,13 +82,29 @@ function matchHeaders (mockDispatch, headers) {
   }
 
   for (const [matchHeaderName, matchHeaderValue] of Object.entries(mockDispatch.headers)) {
-    const header = typeof headers.get === 'function' ? headers.get(matchHeaderName) : headers[matchHeaderName]
+    const headerValue = getHeaderByName(headers, matchHeaderName)
 
-    if (!matchValue(matchHeaderValue, header)) {
+    if (!matchValue(matchHeaderValue, headerValue)) {
       return false
     }
   }
   return true
+}
+
+function safeUrl (path) {
+  if (typeof path !== 'string') {
+    return path
+  }
+
+  const pathSegments = path.split('?')
+
+  if (pathSegments.length !== 2) {
+    return path
+  }
+
+  const qp = new URLSearchParams(pathSegments.pop())
+  qp.sort()
+  return [...pathSegments, qp.toString()].join('?')
 }
 
 function matchKey (mockDispatch, { path, method, body, headers }) {
@@ -79,10 +126,13 @@ function getResponseData (data) {
 }
 
 function getMockDispatch (mockDispatches, key) {
+  const basePath = key.query ? buildURL(key.path, key.query) : key.path
+  const resolvedPath = typeof basePath === 'string' ? safeUrl(basePath) : basePath
+
   // Match path
-  let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(path, key.path))
+  let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(safeUrl(path), resolvedPath))
   if (matchedMockDispatches.length === 0) {
-    throw new MockNotMatchedError(`Mock dispatch not matched for path '${key.path}'`)
+    throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`)
   }
 
   // Match method
@@ -107,9 +157,9 @@ function getMockDispatch (mockDispatches, key) {
 }
 
 function addMockDispatch (mockDispatches, key, data) {
-  const baseData = { times: null, persist: false, consumed: false }
+  const baseData = { timesInvoked: 0, times: 1, persist: false, consumed: false }
   const replyData = typeof data === 'function' ? { callback: data } : { ...data }
-  const newMockDispatch = { ...baseData, ...key, data: { error: null, ...replyData } }
+  const newMockDispatch = { ...baseData, ...key, pending: true, data: { error: null, ...replyData } }
   mockDispatches.push(newMockDispatch)
   return newMockDispatch
 }
@@ -127,17 +177,26 @@ function deleteMockDispatch (mockDispatches, key) {
 }
 
 function buildKey (opts) {
-  const { path, method, body, headers } = opts
+  const { path, method, body, headers, query } = opts
   return {
     path,
     method,
     body,
-    headers
+    headers,
+    query
   }
 }
 
 function generateKeyValues (data) {
   return Object.entries(data).reduce((keyValuePairs, [key, value]) => [...keyValuePairs, key, value], [])
+}
+
+/**
+ * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+ * @param {number} statusCode
+ */
+function getStatusText (statusCode) {
+  return STATUS_CODES[statusCode] || 'unknown'
 }
 
 async function getResponse (body) {
@@ -156,6 +215,8 @@ function mockDispatch (opts, handler) {
   const key = buildKey(opts)
   const mockDispatch = getMockDispatch(this[kDispatches], key)
 
+  mockDispatch.timesInvoked++
+
   // Here's where we resolve a callback if a callback is present for the dispatch data.
   if (mockDispatch.data.callback) {
     mockDispatch.data = { ...mockDispatch.data, ...mockDispatch.data.callback(opts) }
@@ -163,18 +224,11 @@ function mockDispatch (opts, handler) {
 
   // Parse mockDispatch data
   const { data: { statusCode, data, headers, trailers, error }, delay, persist } = mockDispatch
-  let { times } = mockDispatch
-  if (typeof times === 'number' && times > 0) {
-    times = --mockDispatch.times
-  }
+  const { timesInvoked, times } = mockDispatch
 
-  // If persist is true, skip
-  // Or if times is a number and > 0, skip
-  // Otherwise, mark as consumed
-
-  if (!(persist === true || (typeof times === 'number' && times > 0))) {
-    mockDispatch.consumed = true
-  }
+  // If it's used up and not persistent, mark as consumed
+  mockDispatch.consumed = !persist && timesInvoked >= times
+  mockDispatch.pending = timesInvoked < times
 
   // If specified, trigger dispatch error
   if (error !== null) {
@@ -192,12 +246,32 @@ function mockDispatch (opts, handler) {
     handleReply(this[kDispatches])
   }
 
-  function handleReply (mockDispatches) {
-    const responseData = getResponseData(typeof data === 'function' ? data(opts) : data)
+  function handleReply (mockDispatches, _data = data) {
+    // fetch's HeadersList is a 1D string array
+    const optsHeaders = Array.isArray(opts.headers)
+      ? buildHeadersFromArray(opts.headers)
+      : opts.headers
+    const body = typeof _data === 'function'
+      ? _data({ ...opts, headers: optsHeaders })
+      : _data
+
+    // util.types.isPromise is likely needed for jest.
+    if (isPromise(body)) {
+      // If handleReply is asynchronous, throwing an error
+      // in the callback will reject the promise, rather than
+      // synchronously throw the error, which breaks some tests.
+      // Rather, we wait for the callback to resolve if it is a
+      // promise, and then re-run handleReply with the new body.
+      body.then((newData) => handleReply(mockDispatches, newData))
+      return
+    }
+
+    const responseData = getResponseData(body)
     const responseHeaders = generateKeyValues(headers)
     const responseTrailers = generateKeyValues(trailers)
 
-    handler.onHeaders(statusCode, responseHeaders, resume)
+    handler.abort = nop
+    handler.onHeaders(statusCode, responseHeaders, resume, getStatusText(statusCode))
     handler.onData(Buffer.from(responseData))
     handler.onComplete(responseTrailers)
     deleteMockDispatch(mockDispatches, key)
@@ -214,7 +288,7 @@ function buildMockDispatch () {
   const originalDispatch = this[kOriginalDispatch]
 
   return function dispatch (opts, handler) {
-    if (agent[kIsMockActive]) {
+    if (agent.isMockActive) {
       try {
         mockDispatch.call(this, opts, handler)
       } catch (error) {
@@ -264,8 +338,10 @@ module.exports = {
   generateKeyValues,
   matchValue,
   getResponse,
+  getStatusText,
   mockDispatch,
   buildMockDispatch,
   checkNetConnect,
-  buildMockOptions
+  buildMockOptions,
+  getHeaderByName
 }

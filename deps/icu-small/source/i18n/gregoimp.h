@@ -78,7 +78,7 @@ class ClockMath {
      * @return the floor of the quotient
      */
     static int32_t floorDivide(double numerator, int32_t denominator,
-                               int32_t& remainder);
+                               int32_t* remainder);
 
     /**
      * For a positive divisor, return the quotient and remainder
@@ -91,7 +91,7 @@ class ClockMath {
      * Calling with a divisor <= 0 is disallowed.
      */
     static double floorDivide(double dividend, double divisor,
-                              double& remainder);
+                              double* remainder);
 };
 
 // Useful millisecond constants

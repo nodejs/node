@@ -1,0 +1,48 @@
+Tests that Runtime.evaluate with REPL mode correctly handles Array.prototype.join.
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Array
+            description : Array(1)
+            objectId : <objectId>
+            subtype : array
+            type : object
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : -1
+            exception : {
+                className : EvalError
+                description : EvalError: Possible side-effect in debug-evaluate
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : -1
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : EvalError
+            description : EvalError: Possible side-effect in debug-evaluate
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : /a/
+        }
+    }
+}

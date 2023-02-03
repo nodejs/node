@@ -1,10 +1,9 @@
 #include "crypto/crypto_hmac.h"
+#include "async_wrap-inl.h"
+#include "base_object-inl.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_sig.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
-#include "async_wrap-inl.h"
-#include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
@@ -17,6 +16,7 @@ namespace node {
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -38,17 +38,18 @@ void Hmac::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 void Hmac::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
   t->InstanceTemplate()->SetInternalFieldCount(
       Hmac::kInternalFieldCount);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(t, "init", HmacInit);
-  env->SetProtoMethod(t, "update", HmacUpdate);
-  env->SetProtoMethod(t, "digest", HmacDigest);
+  SetProtoMethod(isolate, t, "init", HmacInit);
+  SetProtoMethod(isolate, t, "update", HmacUpdate);
+  SetProtoMethod(isolate, t, "digest", HmacDigest);
 
-  env->SetConstructorFunction(target, "Hmac", t);
+  SetConstructorFunction(env->context(), target, "Hmac", t);
 
   HmacJob::Initialize(env, target);
 }
@@ -71,7 +72,8 @@ void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
 
   const EVP_MD* md = EVP_get_digestbyname(hash_type);
   if (md == nullptr)
-    return THROW_ERR_CRYPTO_INVALID_DIGEST(env());
+    return THROW_ERR_CRYPTO_INVALID_DIGEST(
+        env(), "Invalid digest: %s", hash_type);
   if (key_len == 0) {
     key = "";
   }
@@ -89,7 +91,7 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
 
   const node::Utf8Value hash_type(env->isolate(), args[0]);
   ByteSource key = ByteSource::FromSecretKeyBytes(env, args[1]);
-  hmac->HmacInit(*hash_type, key.get(), key.size());
+  hmac->HmacInit(*hash_type, key.data<char>(), key.size());
 }
 
 bool Hmac::HmacUpdate(const char* data, size_t len) {
@@ -188,7 +190,7 @@ Maybe<bool> HmacTraits::AdditionalConfig(
   Utf8Value digest(env->isolate(), args[offset + 1]);
   params->digest = EVP_get_digestbyname(*digest);
   if (params->digest == nullptr) {
-    THROW_ERR_CRYPTO_INVALID_DIGEST(env);
+    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
     return Nothing<bool>();
   }
 
@@ -242,17 +244,14 @@ bool HmacTraits::DeriveBits(
     return false;
   }
 
-  char* data = MallocOpenSSL<char>(EVP_MAX_MD_SIZE);
-  ByteSource buf = ByteSource::Allocated(data, EVP_MAX_MD_SIZE);
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
+  ByteSource::Builder buf(EVP_MAX_MD_SIZE);
   unsigned int len;
 
-  if (!HMAC_Final(ctx.get(), ptr, &len)) {
+  if (!HMAC_Final(ctx.get(), buf.data<unsigned char>(), &len)) {
     return false;
   }
 
-  buf.Resize(len);
-  *out = std::move(buf);
+  *out = std::move(buf).release(len);
 
   return true;
 }
@@ -268,9 +267,8 @@ Maybe<bool> HmacTraits::EncodeOutput(
       break;
     case SignConfiguration::kVerify:
       *result =
-          out->size() > 0 &&
-          out->size() == params.signature.size() &&
-          memcmp(out->get(), params.signature.get(), out->size()) == 0
+          out->size() > 0 && out->size() == params.signature.size() &&
+                  memcmp(out->data(), params.signature.data(), out->size()) == 0
               ? v8::True(env->isolate())
               : v8::False(env->isolate());
       break;

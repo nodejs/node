@@ -27,7 +27,7 @@ function execSync(command) {
   try {
     return child_process.execSync(
       command,
-      { stdio: ['ignore', null, 'ignore'] }
+      { stdio: ['ignore', null, 'ignore'] },
     ).toString().trim();
   } catch {
     return '';
@@ -41,7 +41,7 @@ const remoteUrl = execSync(`git config remote.${trackingRemote}.url`);
 const repo = (remoteUrl.match(/(\w+\/\w+)\.git\r?\n?$/) ||
              ['', 'nodejs/node'])[1];
 
-const hash = execSync('git log -1 --pretty=%H') || 'master';
+const hash = execSync('git log -1 --pretty=%H') || 'main';
 const tag = execSync(`git describe --contains ${hash}`).split('\n')[0] || hash;
 
 // Extract definitions from each file specified.

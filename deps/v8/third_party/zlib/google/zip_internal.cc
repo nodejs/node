@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -342,7 +342,7 @@ zipFile OpenForZipping(const std::string& file_name_utf8, int append_flag) {
                      zip_func_ptrs);
 }
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 zipFile OpenFdForZipping(int zip_fd, int append_flag) {
   zlib_filefunc64_def zip_funcs;
   FillFdOpenFileFunc(&zip_funcs, zip_fd);

@@ -163,7 +163,8 @@ class ConstantPoolBuilder {
 
 #endif  // defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
 
-#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_RISCV64)
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_RISCV64) || \
+    defined(V8_TARGET_ARCH_RISCV32)
 
 class ConstantPoolKey {
  public:
@@ -345,7 +346,8 @@ class ConstantPool {
   int blocked_nesting_ = 0;
 };
 
-#endif  // defined(V8_TARGET_ARCH_ARM64)
+#endif  // defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_RISCV64) ||
+        // defined(V8_TARGET_ARCH_RISCV32)
 
 }  // namespace internal
 }  // namespace v8

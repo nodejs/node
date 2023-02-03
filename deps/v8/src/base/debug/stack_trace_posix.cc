@@ -33,7 +33,7 @@
 #include <cxxabi.h>
 #include <execinfo.h>
 #endif
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #include <AvailabilityMacros.h>
 #endif
 

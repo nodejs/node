@@ -19,12 +19,12 @@ namespace internal {
 namespace {
 
 void TraceProtectorInvalidation(const char* protector_name) {
-  DCHECK(FLAG_trace_protector_invalidation);
+  DCHECK(v8_flags.trace_protector_invalidation);
   static constexpr char kInvalidateProtectorTracingCategory[] =
       "V8.InvalidateProtector";
   static constexpr char kInvalidateProtectorTracingArg[] = "protector-name";
 
-  DCHECK(FLAG_trace_protector_invalidation);
+  DCHECK(v8_flags.trace_protector_invalidation);
 
   // TODO(jgruber): Remove the PrintF once tracing can output to stdout.
   i::PrintF("Invalidating protector cell %s\n", protector_name);
@@ -38,7 +38,7 @@ void TraceProtectorInvalidation(const char* protector_name) {
 // strictly needed but clarifies the intent of the static assert.
 constexpr bool IsDefined(v8::Isolate::UseCounterFeature) { return true; }
 #define V(Name, ...) \
-  STATIC_ASSERT(IsDefined(v8::Isolate::kInvalidated##Name##Protector));
+  static_assert(IsDefined(v8::Isolate::kInvalidated##Name##Protector));
 
 DECLARED_PROTECTORS_ON_ISOLATE(V)
 #undef V
@@ -49,7 +49,7 @@ DECLARED_PROTECTORS_ON_ISOLATE(V)
   void Protectors::Invalidate##name(Isolate* isolate) {                      \
     DCHECK(isolate->factory()->cell()->value().IsSmi());                     \
     DCHECK(Is##name##Intact(isolate));                                       \
-    if (FLAG_trace_protector_invalidation) {                                 \
+    if (v8_flags.trace_protector_invalidation) {                             \
       TraceProtectorInvalidation(#name);                                     \
     }                                                                        \
     isolate->CountUsage(v8::Isolate::kInvalidated##name##Protector);         \

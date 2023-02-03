@@ -21,7 +21,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow the use of `console`",
+            description: "Disallow the use of `console`",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-console"
         },
@@ -72,7 +72,7 @@ module.exports = {
         function isAllowed(node) {
             const propertyName = astUtils.getStaticPropertyName(node);
 
-            return propertyName && allowed.indexOf(propertyName) !== -1;
+            return propertyName && allowed.includes(propertyName);
         }
 
         /**

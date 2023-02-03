@@ -233,7 +233,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow duplicate module imports",
+            description: "Disallow duplicate module imports",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-duplicate-imports"
         },

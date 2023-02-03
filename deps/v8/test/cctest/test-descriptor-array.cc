@@ -10,9 +10,9 @@
 #include "src/objects/string-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 #include "test/cctest/test-transitions.h"
+#include "test/common/code-assembler-tester.h"
 
 namespace v8 {
 namespace internal {
@@ -25,15 +25,10 @@ using TVariable = compiler::TypedCodeAssemblerVariable<T>;
 
 Handle<Name> NewNameWithHash(Isolate* isolate, const char* str, uint32_t hash,
                              bool is_integer) {
-  uint32_t hash_field = hash << Name::kHashShift;
+  uint32_t hash_field = Name::CreateHashFieldValue(
+      hash, is_integer ? Name::HashFieldType::kIntegerIndex
+                       : Name::HashFieldType::kHash);
 
-  static_assert(Name::kNofHashBitFields == 2, "This test needs updating");
-  static_assert(Name::kHashNotComputedMask == 1, "This test needs updating");
-  static_assert(Name::kIsNotIntegerIndexMask == 2, "This test needs updating");
-
-  if (!is_integer) {
-    hash_field |= Name::kIsNotIntegerIndexMask;
-  }
   Handle<Name> name = isolate->factory()->NewOneByteInternalizedString(
       base::OneByteVector(str), hash_field);
   name->set_raw_hash_field(hash_field);
@@ -69,7 +64,7 @@ void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
   }
 
   // Test CSA implementation.
-  if (!FLAG_jitless) {
+  if (!v8_flags.jitless) {
     for (size_t i = 0; i < names.size(); ++i) {
       Handle<Object> name_index =
           Call(isolate, csa_lookup, map, names[i]).ToHandleChecked();
@@ -102,7 +97,7 @@ void CheckTransitionArrayLookups(Isolate* isolate,
   }
 
   // Test CSA implementation.
-  if (!FLAG_jitless) {
+  if (!v8_flags.jitless) {
     for (size_t i = 0; i < maps.size(); ++i) {
       Handle<Map> expected_map = maps[i];
       Handle<Name> name(expected_map->instance_descriptors(isolate).GetKey(
@@ -122,7 +117,7 @@ void CheckTransitionArrayLookups(Isolate* isolate,
 // or null otherwise.
 Handle<JSFunction> CreateCsaDescriptorArrayLookup(Isolate* isolate) {
   // We are not allowed to generate code in jitless mode.
-  if (FLAG_jitless) return Handle<JSFunction>();
+  if (v8_flags.jitless) return Handle<JSFunction>();
 
   // Preallocate handle for the result in the current handle scope.
   Handle<JSFunction> result_function(JSFunction{}, isolate);
@@ -168,7 +163,7 @@ Handle<JSFunction> CreateCsaDescriptorArrayLookup(Isolate* isolate) {
 // map if transition is found or null otherwise.
 Handle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
   // We are not allowed to generate code in jitless mode.
-  if (FLAG_jitless) return Handle<JSFunction>();
+  if (v8_flags.jitless) return Handle<JSFunction>();
 
   // Preallocate handle for the result in the current handle scope.
   Handle<JSFunction> result_function(JSFunction{}, isolate);
@@ -192,8 +187,8 @@ Handle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
 
     m.BIND(&if_found);
     {
-      STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
-      STATIC_ASSERT(NONE == 0);
+      static_assert(static_cast<int>(PropertyKind::kData) == 0);
+      static_assert(NONE == 0);
       const int kKeyToTargetOffset = (TransitionArray::kEntryTargetIndex -
                                       TransitionArray::kEntryKeyIndex) *
                                      kTaggedSize;
@@ -223,13 +218,15 @@ TEST(DescriptorArrayHashCollisionMassive) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handle_scope(isolate);
 
-  static_assert(Name::kNofHashBitFields == 2, "This test needs updating");
+  static_assert(Name::HashFieldTypeBits::kSize == 2,
+                "This test might require updating if more HashFieldType values "
+                "are introduced");
 
   std::vector<Handle<Name>> names;
 
   // Use the same hash value for all names.
-  uint32_t hash =
-      static_cast<uint32_t>(isolate->GenerateIdentityHash(Name::kHashBitMask));
+  uint32_t hash = static_cast<uint32_t>(
+      isolate->GenerateIdentityHash(Name::HashBits::kMax));
 
   for (int i = 0; i < kMaxNumberOfDescriptors / 2; ++i) {
     // Add pairs of names having the same base hash value but having different
@@ -269,7 +266,9 @@ TEST(DescriptorArrayHashCollision) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handle_scope(isolate);
 
-  static_assert(Name::kNofHashBitFields == 2, "This test needs updating");
+  static_assert(Name::HashFieldTypeBits::kSize == 2,
+                "This test might require updating if more HashFieldType values "
+                "are introduced");
 
   std::vector<Handle<Name>> names;
   uint32_t hash = 0;
@@ -278,7 +277,7 @@ TEST(DescriptorArrayHashCollision) {
     if (i % 2 == 0) {
       // Change hash value for every pair of names.
       hash = static_cast<uint32_t>(
-          isolate->GenerateIdentityHash(Name::kHashBitMask));
+          isolate->GenerateIdentityHash(Name::HashBits::kMax));
     }
 
     // Add pairs of names having the same base hash value but having different
@@ -318,13 +317,15 @@ TEST(TransitionArrayHashCollisionMassive) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handle_scope(isolate);
 
-  static_assert(Name::kNofHashBitFields == 2, "This test needs updating");
+  static_assert(Name::HashFieldTypeBits::kSize == 2,
+                "This test might require updating if more HashFieldType values "
+                "are introduced");
 
   std::vector<Handle<Name>> names;
 
   // Use the same hash value for all names.
-  uint32_t hash =
-      static_cast<uint32_t>(isolate->GenerateIdentityHash(Name::kHashBitMask));
+  uint32_t hash = static_cast<uint32_t>(
+      isolate->GenerateIdentityHash(Name::HashBits::kMax));
 
   for (int i = 0; i < TransitionsAccessor::kMaxNumberOfTransitions / 2; ++i) {
     // Add pairs of names having the same base hash value but having different
@@ -369,19 +370,21 @@ TEST(TransitionArrayHashCollision) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handle_scope(isolate);
 
-  static_assert(Name::kNofHashBitFields == 2, "This test needs updating");
+  static_assert(Name::HashFieldTypeBits::kSize == 2,
+                "This test might require updating if more HashFieldType values "
+                "are introduced");
 
   std::vector<Handle<Name>> names;
 
   // Use the same hash value for all names.
-  uint32_t hash =
-      static_cast<uint32_t>(isolate->GenerateIdentityHash(Name::kHashBitMask));
+  uint32_t hash = static_cast<uint32_t>(
+      isolate->GenerateIdentityHash(Name::HashBits::kMax));
 
   for (int i = 0; i < TransitionsAccessor::kMaxNumberOfTransitions / 2; ++i) {
     if (i % 2 == 0) {
       // Change hash value for every pair of names.
       hash = static_cast<uint32_t>(
-          isolate->GenerateIdentityHash(Name::kHashBitMask));
+          isolate->GenerateIdentityHash(Name::HashBits::kMax));
     }
     // Add pairs of names having the same base hash value but having different
     // values of is_integer bit.

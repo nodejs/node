@@ -1,4 +1,3 @@
-#include "allocated_buffer-inl.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "node_buffer.h"
@@ -27,8 +26,8 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBuffer;
-using v8::ArrayBufferView;
 using v8::BackingStore;
+using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Integer;
@@ -53,13 +52,18 @@ static constexpr int kX509NameFlagsRFC2253WithinUtf8JSON =
     ~ASN1_STRFLGS_ESC_MSB &
     ~ASN1_STRFLGS_ESC_CTRL;
 
-bool SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer) {
+X509Pointer SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert) {
   X509_STORE* store = SSL_CTX_get_cert_store(ctx);
   DeleteFnPtr<X509_STORE_CTX, X509_STORE_CTX_free> store_ctx(
       X509_STORE_CTX_new());
-  return store_ctx.get() != nullptr &&
-         X509_STORE_CTX_init(store_ctx.get(), store, nullptr, nullptr) == 1 &&
-         X509_STORE_CTX_get1_issuer(issuer, store_ctx.get(), cert) == 1;
+  X509Pointer result;
+  X509* issuer;
+  if (store_ctx.get() != nullptr &&
+      X509_STORE_CTX_init(store_ctx.get(), store, nullptr, nullptr) == 1 &&
+      X509_STORE_CTX_get1_issuer(&issuer, store_ctx.get(), cert) == 1) {
+    result.reset(issuer);
+  }
+  return result;
 }
 
 void LogSecret(
@@ -68,33 +72,22 @@ void LogSecret(
     const unsigned char* secret,
     size_t secretlen) {
   auto keylog_cb = SSL_CTX_get_keylog_callback(SSL_get_SSL_CTX(ssl.get()));
-  unsigned char crandom[32];
+  // All supported versions of TLS/SSL fix the client random to the same size.
+  constexpr size_t kTlsClientRandomSize = SSL3_RANDOM_SIZE;
+  unsigned char crandom[kTlsClientRandomSize];
 
   if (keylog_cb == nullptr ||
-      SSL_get_client_random(ssl.get(), crandom, 32) != 32) {
+      SSL_get_client_random(ssl.get(), crandom, kTlsClientRandomSize) !=
+          kTlsClientRandomSize) {
     return;
   }
 
   std::string line = name;
-  line += " " + StringBytes::hex_encode(
-      reinterpret_cast<const char*>(crandom), 32);
+  line += " " + StringBytes::hex_encode(reinterpret_cast<const char*>(crandom),
+                                        kTlsClientRandomSize);
   line += " " + StringBytes::hex_encode(
       reinterpret_cast<const char*>(secret), secretlen);
   keylog_cb(ssl.get(), line.c_str());
-}
-
-bool SetALPN(const SSLPointer& ssl, const std::string& alpn) {
-  return SSL_set_alpn_protos(
-      ssl.get(),
-      reinterpret_cast<const uint8_t*>(alpn.c_str()),
-      alpn.length()) == 0;
-}
-
-bool SetALPN(const SSLPointer& ssl, Local<Value> alpn) {
-  if (!alpn->IsArrayBufferView())
-    return false;
-  ArrayBufferViewContents<unsigned char> protos(alpn.As<ArrayBufferView>());
-  return SSL_set_alpn_protos(ssl.get(), protos.data(), protos.length()) == 0;
 }
 
 MaybeLocal<Value> GetSSLOCSPResponse(
@@ -150,7 +143,7 @@ long VerifyPeerCertificate(  // NOLINT(runtime/int)
 
 bool UseSNIContext(
     const SSLPointer& ssl, BaseObjectPtr<SecureContext> context) {
-  SSL_CTX* ctx = context->ctx_.get();
+  SSL_CTX* ctx = context->ctx().get();
   X509* x509 = SSL_CTX_get0_certificate(ctx);
   EVP_PKEY* pkey = SSL_CTX_get0_privatekey(ctx);
   STACK_OF(X509)* chain;
@@ -214,7 +207,7 @@ const char* GetServerName(SSL* ssl) {
 }
 
 bool SetGroups(SecureContext* sc, const char* groups) {
-  return SSL_CTX_set1_groups_list(**sc, groups) == 1;
+  return SSL_CTX_set1_groups_list(sc->ctx().get(), groups) == 1;
 }
 
 const char* X509ErrorCode(long err) {  // NOLINT(runtime/int)
@@ -310,34 +303,24 @@ bool Set(
   return !target->Set(context, name, value).IsNothing();
 }
 
-MaybeLocal<Value> GetCipherValue(Environment* env,
-    const SSL_CIPHER* cipher,
-    const char* (*getstr)(const SSL_CIPHER* cipher)) {
+template <const char* (*getstr)(const SSL_CIPHER* cipher)>
+MaybeLocal<Value> GetCipherValue(Environment* env, const SSL_CIPHER* cipher) {
   if (cipher == nullptr)
     return Undefined(env->isolate());
 
   return OneByteString(env->isolate(), getstr(cipher));
 }
 
-MaybeLocal<Value> GetCipherName(Environment* env, const SSL_CIPHER* cipher) {
-  return GetCipherValue(env, cipher, SSL_CIPHER_get_name);
-}
-
-MaybeLocal<Value> GetCipherStandardName(
-    Environment* env,
-    const SSL_CIPHER* cipher) {
-  return GetCipherValue(env, cipher, SSL_CIPHER_standard_name);
-}
-
-MaybeLocal<Value> GetCipherVersion(Environment* env, const SSL_CIPHER* cipher) {
-  return GetCipherValue(env, cipher, SSL_CIPHER_get_version);
-}
+constexpr auto GetCipherName = GetCipherValue<SSL_CIPHER_get_name>;
+constexpr auto GetCipherStandardName = GetCipherValue<SSL_CIPHER_standard_name>;
+constexpr auto GetCipherVersion = GetCipherValue<SSL_CIPHER_get_version>;
 
 StackOfX509 CloneSSLCerts(X509Pointer&& cert,
                           const STACK_OF(X509)* const ssl_certs) {
   StackOfX509 peer_certs(sk_X509_new(nullptr));
-  if (cert)
-    sk_X509_push(peer_certs.get(), cert.release());
+  if (!peer_certs) return StackOfX509();
+  if (cert && !sk_X509_push(peer_certs.get(), cert.release()))
+    return StackOfX509();
   for (int i = 0; i < sk_X509_num(ssl_certs); i++) {
     X509Pointer cert(X509_dup(sk_X509_value(ssl_certs, i)));
     if (!cert || !sk_X509_push(peer_certs.get(), cert.get()))
@@ -391,12 +374,12 @@ MaybeLocal<Object> GetLastIssuedCert(
     Environment* const env) {
   Local<Context> context = env->isolate()->GetCurrentContext();
   while (X509_check_issued(cert->get(), cert->get()) != X509_V_OK) {
-    X509* ca;
-    if (SSL_CTX_get_issuer(SSL_get_SSL_CTX(ssl.get()), cert->get(), &ca) <= 0)
+    X509Pointer ca;
+    if (!(ca = SSL_CTX_get_issuer(SSL_get_SSL_CTX(ssl.get()), cert->get())))
       break;
 
     Local<Object> ca_info;
-    MaybeLocal<Object> maybe_ca_info = X509ToObject(env, ca);
+    MaybeLocal<Object> maybe_ca_info = X509ToObject(env, ca.get());
     if (!maybe_ca_info.ToLocal(&ca_info))
       return MaybeLocal<Object>();
 
@@ -404,16 +387,14 @@ MaybeLocal<Object> GetLastIssuedCert(
       return MaybeLocal<Object>();
     issuer_chain = ca_info;
 
-    // Take the value of cert->get() before the call to cert->reset()
-    // in order to compare it to ca after and provide a way to exit this loop
-    // in case it gets stuck.
-    X509* value_before_reset = cert->get();
+    // For self-signed certificates whose keyUsage field does not include
+    // keyCertSign, X509_check_issued() will return false. Avoid going into an
+    // infinite loop by checking if SSL_CTX_get_issuer() returned the same
+    // certificate.
+    if (cert->get() == ca.get()) break;
 
     // Delete previous cert and continue aggregating issuers.
-    cert->reset(ca);
-
-    if (value_before_reset == ca)
-      break;
+    *cert = std::move(ca);
   }
   return MaybeLocal<Object>(issuer_chain);
 }
@@ -534,8 +515,7 @@ MaybeLocal<Value> GetSerialNumber(Environment* env, X509* cert) {
     if (bn) {
       char* data = BN_bn2hex(bn.get());
       ByteSource buf = ByteSource::Allocated(data, strlen(data));
-      if (buf)
-        return OneByteString(env->isolate(), buf.get());
+      if (buf) return OneByteString(env->isolate(), buf.data<unsigned char>());
     }
   }
 
@@ -1007,17 +987,16 @@ static MaybeLocal<Value> GetX509NameObject(Environment* env, X509* cert) {
     if (value_str_size < 0) {
       return Undefined(env->isolate());
     }
+    auto free_value_str = OnScopeLeave([&]() { OPENSSL_free(value_str); });
 
     Local<String> v8_value;
     if (!String::NewFromUtf8(env->isolate(),
                              reinterpret_cast<const char*>(value_str),
                              NewStringType::kNormal,
-                             value_str_size).ToLocal(&v8_value)) {
-      OPENSSL_free(value_str);
+                             value_str_size)
+             .ToLocal(&v8_value)) {
       return MaybeLocal<Value>();
     }
-
-    OPENSSL_free(value_str);
 
     // For backward compatibility, we only create arrays if multiple values
     // exist for the same key. That is not great but there is not much we can
@@ -1050,18 +1029,10 @@ static MaybeLocal<Value> GetX509NameObject(Environment* env, X509* cert) {
   return result;
 }
 
-MaybeLocal<Value> GetCipherName(Environment* env, const SSLPointer& ssl) {
-  return GetCipherName(env, SSL_get_current_cipher(ssl.get()));
-}
-
-MaybeLocal<Value> GetCipherStandardName(
-    Environment* env,
-    const SSLPointer& ssl) {
-  return GetCipherStandardName(env, SSL_get_current_cipher(ssl.get()));
-}
-
-MaybeLocal<Value> GetCipherVersion(Environment* env, const SSLPointer& ssl) {
-  return GetCipherVersion(env, SSL_get_current_cipher(ssl.get()));
+template <MaybeLocal<Value> (*Get)(Environment* env, const SSL_CIPHER* cipher)>
+MaybeLocal<Value> GetCurrentCipherValue(Environment* env,
+                                        const SSLPointer& ssl) {
+  return Get(env, SSL_get_current_cipher(ssl.get()));
 }
 
 MaybeLocal<Array> GetClientHelloCiphers(
@@ -1107,15 +1078,15 @@ MaybeLocal<Object> GetCipherInfo(Environment* env, const SSLPointer& ssl) {
   if (!Set<Value>(env->context(),
                   info,
                   env->name_string(),
-                  GetCipherName(env, ssl)) ||
+                  GetCurrentCipherValue<GetCipherName>(env, ssl)) ||
       !Set<Value>(env->context(),
                   info,
                   env->standard_name_string(),
-                  GetCipherStandardName(env, ssl)) ||
+                  GetCurrentCipherValue<GetCipherStandardName>(env, ssl)) ||
       !Set<Value>(env->context(),
                   info,
                   env->version_string(),
-                  GetCipherVersion(env, ssl))) {
+                  GetCurrentCipherValue<GetCipherVersion>(env, ssl))) {
     return MaybeLocal<Object>();
   }
 
@@ -1290,6 +1261,8 @@ MaybeLocal<Object> X509ToObject(
   BIOPointer bio(BIO_new(BIO_s_mem()));
   CHECK(bio);
 
+  // X509_check_ca() returns a range of values. Only 1 means "is a CA"
+  auto is_ca = Boolean::New(env->isolate(), 1 == X509_check_ca(cert));
   if (!Set<Value>(context,
                   info,
                   env->subject_string(),
@@ -1305,7 +1278,8 @@ MaybeLocal<Object> X509ToObject(
       !Set<Value>(context,
                   info,
                   env->infoaccess_string(),
-                  GetInfoAccessString(env, bio, cert))) {
+                  GetInfoAccessString(env, bio, cert)) ||
+      !Set<Boolean>(context, info, env->ca_string(), is_ca)) {
     return MaybeLocal<Object>();
   }
 

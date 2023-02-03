@@ -2,6 +2,13 @@ env:
   es6: true
 
 rules:
+  comma-dangle: [error, {
+    arrays: always-multiline,
+    exports: always-multiline,
+    functions: only-multiline,
+    imports: always-multiline,
+    objects: only-multiline,
+  }]
   prefer-object-spread: error
   no-buffer-constructor: error
   no-mixed-operators:
@@ -49,6 +56,8 @@ rules:
       message: Use `const { CompressionStream } = require('internal/webstreams/compression')` instead of the global.
     - name: CountQueuingStrategy
       message: Use `const { CountQueuingStrategy } = require('internal/webstreams/queuingstrategies')` instead of the global.
+    - name: CustomEvent
+      message: Use `const { CustomEvent } = require('internal/event_target');` instead of the global.
     - name: DecompressionStream
       message: Use `const { DecompressionStream } = require('internal/webstreams/compression')` instead of the global.
     - name: DOMException
@@ -71,6 +80,18 @@ rules:
       message: Use `const { MessageEvent } = require('internal/worker/io');` instead of the global.
     - name: MessagePort
       message: Use `const { MessagePort } = require('internal/worker/io');` instead of the global.
+    - name: PerformanceEntry
+      message: Use `const { PerformanceEntry } = require('perf_hooks');` instead of the global.
+    - name: PerformanceMark
+      message: Use `const { PerformanceMark } = require('perf_hooks');` instead of the global.
+    - name: PerformanceMeasure
+      message: Use `const { PerformanceMeasure } = require('perf_hooks');` instead of the global.
+    - name: PerformanceObserverEntryList
+      message: Use `const { PerformanceObserverEntryList } = require('perf_hooks');` instead of the global.
+    - name: PerformanceObserver
+      message: Use `const { PerformanceObserver } = require('perf_hooks');` instead of the global.
+    - name: PerformanceResourceTiming
+      message: Use `const { PerformanceResourceTiming } = require('perf_hooks');` instead of the global.
     - name: ReadableStream
       message: Use `const { ReadableStream } = require('internal/webstreams/readablestream')` instead of the global.
     - name: ReadableStreamDefaultReader
@@ -87,6 +108,10 @@ rules:
       message: Use `const { Request } = require('internal/deps/undici/undici');` instead of the global.
     - name: Response
       message: Use `const { Response } = require('internal/deps/undici/undici');` instead of the global.
+      # ShadowRealm is not available in primordials because it can be
+      # disabled with --no-harmony-shadow-realm CLI flag.
+    - name: ShadowRealm
+      message: Use `const { ShadowRealm } = globalThis;` instead of the global.
       # SharedArrayBuffer is not available in primordials because it can be
       # disabled with --no-harmony-sharedarraybuffer CLI flag.
     - name: SharedArrayBuffer
@@ -128,7 +153,7 @@ rules:
     - name: clearTimeout
       message: Use `const { clearTimeout } = require('timers');` instead of the global.
     - name: console
-      message: Use `const { console } = require('internal/console/global');` instead of the global.
+      message: Use `const console = require('internal/console/global');` instead of the global.
     - name: crypto
       message: Use `const { crypto } = require('internal/crypto/webcrypto');` instead of the global.
     - name: Crypto
@@ -156,6 +181,7 @@ rules:
     - name: SubtleCrypto
       message: Use `const { SubtleCrypto } = require('internal/crypto/webcrypto');` instead of the global.
   # Custom rules in tools/eslint-rules
+  node-core/avoid-prototype-pollution: error
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
   node-core/no-array-destructuring: error

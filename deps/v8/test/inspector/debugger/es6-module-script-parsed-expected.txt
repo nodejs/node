@@ -9,13 +9,13 @@ Running test: testLoadedModulesOnDebuggerEnable
         endLine : 3
         executionContextId : <executionContextId>
         hasSourceURL : false
-        hash : 03b276dd81b75bf832afbeccbbd273c62dad100c
+        hash : 2d91bcfe883a9f0a8da29373a3160d8ddc04ba4bc50f048a2cd1d80b9057ac03
         isLiveEdit : false
         isModule : true
         length : 39
         scriptId : <scriptId>
         scriptLanguage : JavaScript
-        sourceMapURL : 
+        sourceMapURL :
         startColumn : 0
         startLine : 0
         url : module1.js
@@ -31,13 +31,13 @@ Running test: testScriptEventsWhenDebuggerIsEnabled
         endLine : 3
         executionContextId : <executionContextId>
         hasSourceURL : false
-        hash : 03b276dd81b75bf832afbeccbbd273c62dad100c
+        hash : 2d91bcfe883a9f0a8da29373a3160d8ddc04ba4bc50f048a2cd1d80b9057ac03
         isLiveEdit : false
         isModule : true
         length : 39
         scriptId : <scriptId>
         scriptLanguage : JavaScript
-        sourceMapURL : 
+        sourceMapURL :
         startColumn : 0
         startLine : 0
         url : module2.js
@@ -51,12 +51,12 @@ Running test: testScriptEventsWhenDebuggerIsEnabled
         endLine : 0
         executionContextId : <executionContextId>
         hasSourceURL : false
-        hash : 021647ffab1f4e4e82675bc4cd924d3481abe278
+        hash : d10b36aa74a59bcf4a88185837f658afaf3646eff2bb16c3928d0e9335e945d2
         isModule : true
         length : 1
         scriptId : <scriptId>
         scriptLanguage : JavaScript
-        sourceMapURL : 
+        sourceMapURL :
         startColumn : 0
         startLine : 0
         url : module-with-syntax-error-2.js

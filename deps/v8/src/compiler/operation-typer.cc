@@ -9,9 +9,8 @@
 #include "src/compiler/type-cache.h"
 #include "src/compiler/types.h"
 #include "src/execution/isolate.h"
-#include "src/heap/factory.h"
-
-#include "src/objects/objects-inl.h"
+#include "src/heap/factory-inl.h"
+#include "src/objects/oddball.h"
 
 namespace v8 {
 namespace internal {
@@ -93,7 +92,7 @@ Type OperationTyper::WeakenRange(Type previous_range, Type current_range) {
                                             140737488355327.0,
                                             281474976710655.0,
                                             562949953421311.0};
-  STATIC_ASSERT(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
+  static_assert(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
 
   double current_min = current_range.Min();
   double new_min = current_min;
@@ -585,6 +584,10 @@ Type OperationTyper::SpeculativeBigIntAsUintN(Type) {
 }
 
 Type OperationTyper::CheckBigInt(Type type) { return Type::BigInt(); }
+
+Type OperationTyper::CheckedBigIntToBigInt64(Type type) {
+  return Type::SignedBigInt64();
+}
 
 Type OperationTyper::NumberAdd(Type lhs, Type rhs) {
   DCHECK(lhs.Is(Type::Number()));
@@ -1129,17 +1132,62 @@ SPECULATIVE_NUMBER_BINOP(NumberShiftRight)
 SPECULATIVE_NUMBER_BINOP(NumberShiftRightLogical)
 #undef SPECULATIVE_NUMBER_BINOP
 
+#define MACHINE_BINOP(Name) \
+  Type OperationTyper::Name(Type, Type) { return Type::Machine(); }
+TYPER_SUPPORTED_MACHINE_BINOP_LIST(MACHINE_BINOP)
+#undef MACHINE_BINOP
+
 Type OperationTyper::BigIntAdd(Type lhs, Type rhs) {
+  DCHECK(lhs.Is(Type::BigInt()));
+  DCHECK(rhs.Is(Type::BigInt()));
+
   if (lhs.IsNone() || rhs.IsNone()) return Type::None();
   return Type::BigInt();
 }
 
 Type OperationTyper::BigIntSubtract(Type lhs, Type rhs) {
+  DCHECK(lhs.Is(Type::BigInt()));
+  DCHECK(rhs.Is(Type::BigInt()));
+
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+  return Type::BigInt();
+}
+
+Type OperationTyper::BigIntMultiply(Type lhs, Type rhs) {
+  DCHECK(lhs.Is(Type::BigInt()));
+  DCHECK(rhs.Is(Type::BigInt()));
+
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+  return Type::BigInt();
+}
+
+Type OperationTyper::BigIntDivide(Type lhs, Type rhs) {
+  DCHECK(lhs.Is(Type::BigInt()));
+  DCHECK(rhs.Is(Type::BigInt()));
+
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+  return Type::BigInt();
+}
+
+Type OperationTyper::BigIntModulus(Type lhs, Type rhs) {
+  DCHECK(lhs.Is(Type::BigInt()));
+  DCHECK(rhs.Is(Type::BigInt()));
+
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+  return Type::BigInt();
+}
+
+Type OperationTyper::BigIntBitwiseAnd(Type lhs, Type rhs) {
+  DCHECK(lhs.Is(Type::BigInt()));
+  DCHECK(rhs.Is(Type::BigInt()));
+
   if (lhs.IsNone() || rhs.IsNone()) return Type::None();
   return Type::BigInt();
 }
 
 Type OperationTyper::BigIntNegate(Type type) {
+  DCHECK(type.Is(Type::BigInt()));
+
   if (type.IsNone()) return type;
   return Type::BigInt();
 }
@@ -1150,6 +1198,26 @@ Type OperationTyper::SpeculativeBigIntAdd(Type lhs, Type rhs) {
 }
 
 Type OperationTyper::SpeculativeBigIntSubtract(Type lhs, Type rhs) {
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+  return Type::BigInt();
+}
+
+Type OperationTyper::SpeculativeBigIntMultiply(Type lhs, Type rhs) {
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+  return Type::BigInt();
+}
+
+Type OperationTyper::SpeculativeBigIntDivide(Type lhs, Type rhs) {
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+  return Type::BigInt();
+}
+
+Type OperationTyper::SpeculativeBigIntModulus(Type lhs, Type rhs) {
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+  return Type::BigInt();
+}
+
+Type OperationTyper::SpeculativeBigIntBitwiseAnd(Type lhs, Type rhs) {
   if (lhs.IsNone() || rhs.IsNone()) return Type::None();
   return Type::BigInt();
 }

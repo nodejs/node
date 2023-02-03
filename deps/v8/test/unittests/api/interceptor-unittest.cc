@@ -174,8 +174,8 @@ TEST_F(InterceptorLoggingTest, DispatchTest) {
   EXPECT_EQ(Run("obj.foo"), "named getter");
   EXPECT_EQ(Run("obj[42]"), "indexed getter");
 
-  EXPECT_EQ(Run("obj.foo = null"), "named setter");
-  EXPECT_EQ(Run("obj[42] = null"), "indexed setter");
+  EXPECT_EQ(Run("obj.foo = null"), "named setter, named descriptor");
+  EXPECT_EQ(Run("obj[42] = null"), "indexed setter, indexed descriptor");
 
   EXPECT_EQ(Run("Object.getOwnPropertyDescriptor(obj, 'foo')"),
             "named descriptor");

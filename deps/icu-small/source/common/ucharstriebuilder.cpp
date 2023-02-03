@@ -163,7 +163,7 @@ UCharsTrieBuilder::buildUnicodeString(UStringTrieBuildOption buildOption, Unicod
                                       UErrorCode &errorCode) {
     buildUChars(buildOption, errorCode);
     if(U_SUCCESS(errorCode)) {
-        result.setTo(FALSE, uchars+(ucharsCapacity-ucharsLength), ucharsLength);
+        result.setTo(false, uchars+(ucharsCapacity-ucharsLength), ucharsLength);
     }
     return result;
 }
@@ -188,7 +188,7 @@ UCharsTrieBuilder::buildUChars(UStringTrieBuildOption buildOption, UErrorCode &e
         }
         uprv_sortArray(elements, elementsLength, (int32_t)sizeof(UCharsTrieElement),
                       compareElementStrings, &strings,
-                      FALSE,  // need not be a stable sort
+                      false,  // need not be a stable sort
                       &errorCode);
         if(U_FAILURE(errorCode)) {
             return;
@@ -322,7 +322,7 @@ UCharsTrieBuilder::createLinearMatchNode(int32_t i, int32_t unitIndex, int32_t l
 UBool
 UCharsTrieBuilder::ensureCapacity(int32_t length) {
     if(uchars==NULL) {
-        return FALSE;  // previous memory allocation had failed
+        return false;  // previous memory allocation had failed
     }
     if(length>ucharsCapacity) {
         int32_t newCapacity=ucharsCapacity;
@@ -335,7 +335,7 @@ UCharsTrieBuilder::ensureCapacity(int32_t length) {
             uprv_free(uchars);
             uchars=NULL;
             ucharsCapacity=0;
-            return FALSE;
+            return false;
         }
         u_memcpy(newUChars+(newCapacity-ucharsLength),
                  uchars+(ucharsCapacity-ucharsLength), ucharsLength);
@@ -343,7 +343,7 @@ UCharsTrieBuilder::ensureCapacity(int32_t length) {
         uchars=newUChars;
         ucharsCapacity=newCapacity;
     }
-    return TRUE;
+    return true;
 }
 
 int32_t

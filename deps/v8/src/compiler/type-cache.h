@@ -5,9 +5,9 @@
 #ifndef V8_COMPILER_TYPE_CACHE_H_
 #define V8_COMPILER_TYPE_CACHE_H_
 
+#include "src/compiler/globals.h"
 #include "src/compiler/types.h"
 #include "src/date/date.h"
-#include "src/objects/code.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/string.h"
 
@@ -203,10 +203,6 @@ class V8_EXPORT_PRIVATE TypeCache final {
   }
 
   Zone* zone() { return &zone_; }
-
-  static constexpr double kMaxDoubleRepresentableInt64 = 9223372036854774784.0;
-  static constexpr double kMaxDoubleRepresentableUint64 =
-      18446744073709549568.0;
 };
 
 }  // namespace compiler

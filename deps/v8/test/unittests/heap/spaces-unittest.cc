@@ -48,8 +48,7 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
     HeapObject object =
         compaction_space->AllocateRawUnaligned(kMaxRegularHeapObjectSize)
             .ToObjectChecked();
-    heap->CreateFillerObjectAt(object.address(), kMaxRegularHeapObjectSize,
-                               ClearRecordedSlots::kNo);
+    heap->CreateFillerObjectAt(object.address(), kMaxRegularHeapObjectSize);
   }
   int pages_in_old_space = old_space->CountTotalPages();
   int pages_in_compaction_space = compaction_space->CountTotalPages();

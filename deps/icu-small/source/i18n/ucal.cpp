@@ -124,7 +124,7 @@ ucal_getDSTSavings(const UChar* zoneID, UErrorCode* ec) {
             UDate d = Calendar::getNow();
             for (int32_t i=0; i<53; ++i, d+=U_MILLIS_PER_DAY*7.0) {
                 int32_t raw, dst;
-                zone->getOffset(d, FALSE, raw, dst, *ec);
+                zone->getOffset(d, false, raw, dst, *ec);
                 if (U_FAILURE(*ec)) {
                     break;
                 } else if (dst != 0) {
@@ -263,19 +263,19 @@ ucal_getTimeZoneDisplayName(const     UCalendar*                 cal,
 
     switch(type) {
   case UCAL_STANDARD:
-      tz.getDisplayName(FALSE, TimeZone::LONG, Locale(locale), id);
+      tz.getDisplayName(false, TimeZone::LONG, Locale(locale), id);
       break;
 
   case UCAL_SHORT_STANDARD:
-      tz.getDisplayName(FALSE, TimeZone::SHORT, Locale(locale), id);
+      tz.getDisplayName(false, TimeZone::SHORT, Locale(locale), id);
       break;
 
   case UCAL_DST:
-      tz.getDisplayName(TRUE, TimeZone::LONG, Locale(locale), id);
+      tz.getDisplayName(true, TimeZone::LONG, Locale(locale), id);
       break;
 
   case UCAL_SHORT_DST:
-      tz.getDisplayName(TRUE, TimeZone::SHORT, Locale(locale), id);
+      tz.getDisplayName(true, TimeZone::SHORT, Locale(locale), id);
       break;
     }
 
@@ -594,7 +594,7 @@ ucal_getCanonicalTimeZoneID(const UChar* id, int32_t len,
         return 0;
     }
     if (isSystemID) {
-        *isSystemID = FALSE;
+        *isSystemID = false;
     }
     if (id == 0 || len == 0 || result == 0 || resultCapacity <= 0) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
@@ -602,7 +602,7 @@ ucal_getCanonicalTimeZoneID(const UChar* id, int32_t len,
     }
     int32_t reslen = 0;
     UnicodeString canonical;
-    UBool systemID = FALSE;
+    UBool systemID = false;
     TimeZone::getCanonicalID(UnicodeString(id, len), canonical, systemID, *status);
     if (U_SUCCESS(*status)) {
         if (isSystemID) {
@@ -644,7 +644,7 @@ U_CAPI UBool U_EXPORT2
 ucal_isWeekend(const UCalendar *cal, UDate date, UErrorCode *status)
 {
     if (U_FAILURE(*status)) {
-        return FALSE;
+        return false;
     }
     return ((Calendar*)cal)->isWeekend(date, *status);
 }
@@ -697,7 +697,7 @@ U_CAPI UEnumeration* U_EXPORT2
 ucal_getKeywordValuesForLocale(const char * /* key */, const char* locale, UBool commonlyUsed, UErrorCode *status) {
     // Resolve region
     char prefRegion[ULOC_COUNTRY_CAPACITY];
-    (void)ulocimp_getRegionForSupplementalData(locale, TRUE, prefRegion, sizeof(prefRegion), status);
+    (void)ulocimp_getRegionForSupplementalData(locale, true, prefRegion, sizeof(prefRegion), status);
     
     // Read preferred calendar values from supplementalData calendarPreference
     UResourceBundle *rb = ures_openDirect(nullptr, "supplementalData", status);
@@ -724,7 +724,7 @@ ucal_getKeywordValuesForLocale(const char * /* key */, const char* locale, UBool
                 u_UCharsToChars(type, caltype, len);
                 *(caltype + len) = 0;
 
-                ulist_addItemEndList(values, caltype, TRUE, status);
+                ulist_addItemEndList(values, caltype, true, status);
                 if (U_FAILURE(*status)) {
                     break;
                 }
@@ -734,7 +734,7 @@ ucal_getKeywordValuesForLocale(const char * /* key */, const char* locale, UBool
                 // If not commonlyUsed, add other available values
                 for (int32_t i = 0; CAL_TYPES[i] != nullptr; i++) {
                     if (!ulist_containsString(values, CAL_TYPES[i], (int32_t)uprv_strlen(CAL_TYPES[i]))) {
-                        ulist_addItemEndList(values, CAL_TYPES[i], FALSE, status);
+                        ulist_addItemEndList(values, CAL_TYPES[i], false, status);
                         if (U_FAILURE(*status)) {
                             break;
                         }
@@ -773,7 +773,7 @@ ucal_getTimeZoneTransitionDate(const UCalendar* cal, UTimeZoneTransitionType typ
                                UDate* transition, UErrorCode* status)
 {
     if (U_FAILURE(*status)) {
-        return FALSE;
+        return false;
     }
     UDate base = ((Calendar*)cal)->getTime(*status);
     const TimeZone& tz = ((Calendar*)cal)->getTimeZone();
@@ -786,10 +786,10 @@ ucal_getTimeZoneTransitionDate(const UCalendar* cal, UTimeZoneTransitionType typ
                         btz->getPreviousTransition(base, inclusive, tzt);
         if (result) {
             *transition = tzt.getTime();
-            return TRUE;
+            return true;
         }
     }
-    return FALSE;
+    return false;
 }
 
 U_CAPI int32_t U_EXPORT2

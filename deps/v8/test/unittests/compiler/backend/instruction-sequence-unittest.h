@@ -279,6 +279,8 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   InstructionSequence* sequence_;
   int num_general_registers_;
   int num_double_registers_;
+  int num_simd128_registers_;
+  int num_simd256_registers_;
 
   // Block building state.
   InstructionBlocks instruction_blocks_;

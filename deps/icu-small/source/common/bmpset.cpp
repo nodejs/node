@@ -309,9 +309,9 @@ BMPSet::contains(UChar32 c) const {
         // surrogate or supplementary code point
         return containsSlow(c, list4kStarts[0xd], list4kStarts[0x11]);
     } else {
-        // Out-of-range code points get FALSE, consistent with long-standing
+        // Out-of-range code points get false, consistent with long-standing
         // behavior of UnicodeSet::contains(c).
-        return FALSE;
+        return false;
     }
 }
 

@@ -1,7 +1,6 @@
 'use strict';
 var fs = require('fs');
 var path = require('path');
-var SafeBuffer = require('safe-buffer');
 
 Object.defineProperty(exports, 'commentRegex', {
   get: function getCommentRegex () {
@@ -16,9 +15,30 @@ Object.defineProperty(exports, 'mapFileCommentRegex', {
   }
 });
 
+var decodeBase64;
+if (typeof Buffer !== 'undefined') {
+  if (typeof Buffer.from === 'function') {
+    decodeBase64 = decodeBase64WithBufferFrom;
+  } else {
+    decodeBase64 = decodeBase64WithNewBuffer;
+  }
+} else {
+  decodeBase64 = decodeBase64WithAtob;
+}
 
-function decodeBase64(base64) {
-  return (SafeBuffer.Buffer.from(base64, 'base64') || "").toString();
+function decodeBase64WithBufferFrom(base64) {
+  return Buffer.from(base64, 'base64').toString();
+}
+
+function decodeBase64WithNewBuffer(base64) {
+  if (typeof value === 'number') {
+    throw new TypeError('The value to decode must not be of type number.');
+  }
+  return new Buffer(base64, 'base64').toString();
+}
+
+function decodeBase64WithAtob(base64) {
+  return decodeURIComponent(escape(atob(base64)));
 }
 
 function stripComment(sm) {
@@ -56,10 +76,33 @@ Converter.prototype.toJSON = function (space) {
   return JSON.stringify(this.sourcemap, null, space);
 };
 
-Converter.prototype.toBase64 = function () {
+if (typeof Buffer !== 'undefined') {
+  if (typeof Buffer.from === 'function') {
+    Converter.prototype.toBase64 = encodeBase64WithBufferFrom;
+  } else {
+    Converter.prototype.toBase64 = encodeBase64WithNewBuffer;
+  }
+} else {
+  Converter.prototype.toBase64 = encodeBase64WithBtoa;
+}
+
+function encodeBase64WithBufferFrom() {
   var json = this.toJSON();
-  return (SafeBuffer.Buffer.from(json, 'utf8') || "").toString('base64');
-};
+  return Buffer.from(json, 'utf8').toString('base64');
+}
+
+function encodeBase64WithNewBuffer() {
+  var json = this.toJSON();
+  if (typeof json === 'number') {
+    throw new TypeError('The json to encode must not be of type number.');
+  }
+  return new Buffer(json, 'utf8').toString('base64');
+}
+
+function encodeBase64WithBtoa() {
+  var json = this.toJSON();
+  return btoa(unescape(encodeURIComponent(json)));
+}
 
 Converter.prototype.toComment = function (options) {
   var base64 = this.toBase64();

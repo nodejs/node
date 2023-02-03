@@ -20,9 +20,8 @@ The following provide generalized utility declarations that are used throughout
 the various other crypto files and other parts of Node.js:
 
 * `crypto_util.h` / `crypto_util.cc` (Core crypto definitions)
-* `crypto_common.h` / `crypto_common.h` (Shared TLS utility functions)
-* `crypto_bio.c` / `crypto_bio.c` (Custom OpenSSL i/o implementation)
-* `crypto_groups.h` (modp group definitions)
+* `crypto_common.h` / `crypto_common.cc` (Shared TLS utility functions)
+* `crypto_bio.h` / `crypto_bio.cc` (Custom OpenSSL i/o implementation)
 
 Of these, `crypto_util.h` and `crypto_util.cc` are the most important, as
 they provide the core declarations and utility functions used most extensively
@@ -100,28 +99,27 @@ Examples of these being used are pervasive through the `src/crypto` code.
 
 The `ByteSource` class is a helper utility representing a _read-only_ byte
 array. Instances can either wrap external ("foreign") data sources, such as
-an `ArrayBuffer` (`v8::BackingStore`) or allocated data. If allocated data
-is used, then the allocation is freed automatically when the `ByteSource` is
-destroyed.
+an `ArrayBuffer` (`v8::BackingStore`), or allocated data.
+
+* If a pointer to external data is used to create a `ByteSource`, that pointer
+  must remain valid until the `ByteSource` is destroyed.
+* If allocated data is used, then it must have been allocated using OpenSSL's
+  allocator. It will be freed automatically when the `ByteSource` is destroyed.
+
+The `ByteSource::Builder` class can be used to allocate writable memory that can
+then be released as a `ByteSource`, making it read-only, or freed by destroying
+the `ByteSource::Builder` without releasing it as a `ByteSource`.
 
 ### `ArrayBufferOrViewContents`
 
-The `ArrayBufferOfViewContents` class is a helper utility that abstracts
+The `ArrayBufferOrViewContents` class is a helper utility that abstracts
 `ArrayBuffer`, `TypedArray`, or `DataView` inputs and provides access to
 their underlying data pointers. It is used extensively through `src/crypto`
 to make it easier to deal with inputs that allow any `ArrayBuffer`-backed
 object.
 
-### `AllocatedBuffer`
-
-The `AllocatedBuffer` utility is defined in `allocated_buffer.h` and is not
-specific to `src/crypto`. It is used extensively within `src/crypto` to hold
-allocated data that is intended to be output in response to various
-crypto functions (generated hash values, or ciphertext, for instance).
-
-_Currently, we are working to transition away from using `AllocatedBuffer`
-to directly using the `v8::BackingStore` API. This will take some time.
-New uses of `AllocatedBuffer` should be avoided if possible._
+The lifetime of `ArrayBufferOrViewContents` should not exceed the
+lifetime of its input.
 
 ### Key objects
 
@@ -312,12 +310,12 @@ crypto.randomFill(buf, (err, buf) => {
 For the legacy Node.js crypto API, asynchronous single-call
 operations use the traditional Node.js callback pattern, as
 illustrated in the previous `randomFill()` example. In the
-Web Crypto API (accessible via `require('crypto').webcrypto`),
+Web Crypto API (accessible via `globalThis.crypto`),
 all asynchronous single-call operations are Promise-based.
 
 ```js
 // Example Web Crypto API asynchronous single-call operation
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 subtle.generateKeys({ name: 'HMAC', length: 256 }, true, ['sign'])
   .then((key) => {

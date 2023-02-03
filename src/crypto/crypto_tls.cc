@@ -25,7 +25,6 @@
 #include "crypto/crypto_util.h"
 #include "crypto/crypto_bio.h"
 #include "crypto/crypto_clienthello-inl.h"
-#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
 #include "debug_utils-inl.h"
 #include "memory_tracker-inl.h"
@@ -226,34 +225,25 @@ int SelectALPNCallback(
     const unsigned char* in,
     unsigned int inlen,
     void* arg) {
-  TLSWrap* w = static_cast<TLSWrap*>(SSL_get_app_data(s));
-  Environment* env = w->env();
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
+  TLSWrap* w = static_cast<TLSWrap*>(arg);
+  const std::vector<unsigned char>& alpn_protos = w->alpn_protos_;
 
-  Local<Value> alpn_buffer =
-      w->object()->GetPrivate(
-          env->context(),
-          env->alpn_buffer_private_symbol()).FromMaybe(Local<Value>());
-  if (UNLIKELY(alpn_buffer.IsEmpty()) || !alpn_buffer->IsArrayBufferView())
-    return SSL_TLSEXT_ERR_NOACK;
+  if (alpn_protos.empty()) return SSL_TLSEXT_ERR_NOACK;
 
-  ArrayBufferViewContents<unsigned char> alpn_protos(alpn_buffer);
-  int status = SSL_select_next_proto(
-      const_cast<unsigned char**>(out),
-      outlen,
-      alpn_protos.data(),
-      alpn_protos.length(),
-      in,
-      inlen);
+  int status = SSL_select_next_proto(const_cast<unsigned char**>(out),
+                                     outlen,
+                                     alpn_protos.data(),
+                                     alpn_protos.size(),
+                                     in,
+                                     inlen);
 
-  // According to 3.2. Protocol Selection of RFC7301, fatal
-  // no_application_protocol alert shall be sent but OpenSSL 1.0.2 does not
-  // support it yet. See
-  // https://rt.openssl.org/Ticket/Display.html?id=3463&user=guest&pass=guest
-  return status == OPENSSL_NPN_NEGOTIATED
-      ? SSL_TLSEXT_ERR_OK
-      : SSL_TLSEXT_ERR_NOACK;
+  // Previous versions of Node.js returned SSL_TLSEXT_ERR_NOACK if no protocol
+  // match was found. This would neither cause a fatal alert nor would it result
+  // in a useful ALPN response as part of the Server Hello message.
+  // We now return SSL_TLSEXT_ERR_ALERT_FATAL in that case as per Section 3.2
+  // of RFC 7301, which causes a fatal no_application_protocol alert.
+  return status == OPENSSL_NPN_NEGOTIATED ? SSL_TLSEXT_ERR_OK
+                                          : SSL_TLSEXT_ERR_ALERT_FATAL;
 }
 
 int TLSExtStatusCallback(SSL* s, void* arg) {
@@ -296,8 +286,8 @@ int TLSExtStatusCallback(SSL* s, void* arg) {
 
 void ConfigureSecureContext(SecureContext* sc) {
   // OCSP stapling
-  SSL_CTX_set_tlsext_status_cb(sc->ctx_.get(), TLSExtStatusCallback);
-  SSL_CTX_set_tlsext_status_arg(sc->ctx_.get(), nullptr);
+  SSL_CTX_set_tlsext_status_cb(sc->ctx().get(), TLSExtStatusCallback);
+  SSL_CTX_set_tlsext_status_arg(sc->ctx().get(), nullptr);
 }
 
 inline bool Set(
@@ -678,11 +668,6 @@ void TLSWrap::OnStreamAfterWrite(WriteWrap* req_wrap, int status) {
   EncOut();
 }
 
-int TLSWrap::GetSSLError(int status) const {
-  // ssl_ might already be destroyed for reading EOF from a close notify alert.
-  return ssl_ != nullptr ? SSL_get_error(ssl_.get(), status) : 0;
-}
-
 void TLSWrap::ClearOut() {
   Debug(this, "Trying to read cleartext output");
   // Ignore cycling data if ClientHello wasn't yet parsed
@@ -736,25 +721,23 @@ void TLSWrap::ClearOut() {
     }
   }
 
-  int flags = SSL_get_shutdown(ssl_.get());
-  if (!eof_ && flags & SSL_RECEIVED_SHUTDOWN) {
-    eof_ = true;
-    EmitRead(UV_EOF);
-  }
-
   // We need to check whether an error occurred or the connection was
   // shutdown cleanly (SSL_ERROR_ZERO_RETURN) even when read == 0.
-  // See node#1642 and SSL_read(3SSL) for details.
+  // See node#1642 and SSL_read(3SSL) for details. SSL_get_error must be
+  // called immediately after SSL_read, without calling into JS, which may
+  // change OpenSSL's error queue, modify ssl_, or even destroy ssl_
+  // altogether.
   if (read <= 0) {
     HandleScope handle_scope(env()->isolate());
     Local<Value> error;
-    int err = GetSSLError(read);
+    int err = SSL_get_error(ssl_.get(), read);
     switch (err) {
       case SSL_ERROR_ZERO_RETURN:
-        // Ignore ZERO_RETURN after EOF, it is basically not an error.
-        if (eof_) return;
-        error = env()->zero_return_string();
-        break;
+        if (!eof_) {
+          eof_ = true;
+          EmitRead(UV_EOF);
+        }
+        return;
 
       case SSL_ERROR_SSL:
       case SSL_ERROR_SYSCALL:
@@ -839,7 +822,7 @@ void TLSWrap::ClearIn() {
   }
 
   // Error or partial write
-  int err = GetSSLError(written);
+  int err = SSL_get_error(ssl_.get(), written);
   if (err == SSL_ERROR_SSL || err == SSL_ERROR_SYSCALL) {
     Debug(this, "Got SSL error (%d)", err);
     write_callback_scheduled_ = true;
@@ -1015,7 +998,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
 
   if (written == -1) {
     // If we stopped writing because of an error, it's fatal, discard the data.
-    int err = GetSSLError(written);
+    int err = SSL_get_error(ssl_.get(), written);
     if (err == SSL_ERROR_SSL || err == SSL_ERROR_SYSCALL) {
       // TODO(@jasnell): What are we doing with the error?
       Debug(this, "Got SSL error (%d), returning UV_EPROTO", err);
@@ -1251,8 +1234,7 @@ void TLSWrap::GetServername(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_NOT_NULL(wrap->ssl_);
 
-  const char* servername = SSL_get_servername(wrap->ssl_.get(),
-                                              TLSEXT_NAMETYPE_host_name);
+  const char* servername = GetServerName(wrap->ssl_.get());
   if (servername != nullptr) {
     args.GetReturnValue().Set(OneByteString(env->isolate(), servername));
   } else {
@@ -1283,7 +1265,7 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  const char* servername = SSL_get_servername(s, TLSEXT_NAMETYPE_host_name);
+  const char* servername = GetServerName(s);
   if (!Set(env, p->GetOwner(), env->servername_string(), servername))
     return SSL_TLSEXT_ERR_NOACK;
 
@@ -1305,20 +1287,20 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   p->sni_context_ = BaseObjectPtr<SecureContext>(sc);
 
   ConfigureSecureContext(sc);
-  CHECK_EQ(SSL_set_SSL_CTX(p->ssl_.get(), sc->ctx_.get()), sc->ctx_.get());
+  CHECK_EQ(SSL_set_SSL_CTX(p->ssl_.get(), sc->ctx().get()), sc->ctx().get());
   p->SetCACerts(sc);
 
   return SSL_TLSEXT_ERR_OK;
 }
 
 int TLSWrap::SetCACerts(SecureContext* sc) {
-  int err = SSL_set1_verify_cert_store(
-      ssl_.get(), SSL_CTX_get_cert_store(sc->ctx_.get()));
+  int err = SSL_set1_verify_cert_store(ssl_.get(),
+                                       SSL_CTX_get_cert_store(sc->ctx().get()));
   if (err != 1)
     return err;
 
   STACK_OF(X509_NAME)* list =
-      SSL_dup_CA_list(SSL_CTX_get_client_CA_list(sc->ctx_.get()));
+      SSL_dup_CA_list(SSL_CTX_get_client_CA_list(sc->ctx().get()));
 
   // NOTE: `SSL_set_client_CA_list` takes the ownership of `list`
   SSL_set_client_CA_list(ssl_.get(), list);
@@ -1531,18 +1513,14 @@ void TLSWrap::SetALPNProtocols(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
     return env->ThrowTypeError("Must give a Buffer as first argument");
 
+  ArrayBufferViewContents<uint8_t> protos(args[0].As<ArrayBufferView>());
+  SSL* ssl = w->ssl_.get();
   if (w->is_client()) {
-    CHECK(SetALPN(w->ssl_, args[0]));
+    CHECK_EQ(0, SSL_set_alpn_protos(ssl, protos.data(), protos.length()));
   } else {
-    CHECK(
-        w->object()->SetPrivate(
-            env->context(),
-            env->alpn_buffer_private_symbol(),
-            args[0]).FromJust());
-    // Server should select ALPN protocol from list of advertised by client
-    SSL_CTX_set_alpn_select_cb(SSL_get_SSL_CTX(w->ssl_.get()),
-                               SelectALPNCallback,
-                               nullptr);
+    w->alpn_protos_ = std::vector<unsigned char>(
+        protos.data(), protos.data() + protos.length());
+    SSL_CTX_set_alpn_select_cb(SSL_get_SSL_CTX(ssl), SelectALPNCallback, w);
   }
 }
 
@@ -1611,9 +1589,19 @@ void TLSWrap::GetFinished(const FunctionCallbackInfo<Value>& args) {
   if (len == 0)
     return;
 
-  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, len);
-  CHECK_EQ(len, SSL_get_finished(w->ssl_.get(), buf.data(), len));
-  args.GetReturnValue().Set(buf.ToBuffer().FromMaybe(Local<Value>()));
+  std::unique_ptr<BackingStore> bs;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    bs = ArrayBuffer::NewBackingStore(env->isolate(), len);
+  }
+
+  CHECK_EQ(bs->ByteLength(),
+           SSL_get_finished(w->ssl_.get(), bs->Data(), bs->ByteLength()));
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  Local<Value> buffer;
+  if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&buffer)) return;
+  args.GetReturnValue().Set(buffer);
 }
 
 void TLSWrap::GetPeerFinished(const FunctionCallbackInfo<Value>& args) {
@@ -1632,9 +1620,19 @@ void TLSWrap::GetPeerFinished(const FunctionCallbackInfo<Value>& args) {
   if (len == 0)
     return;
 
-  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, len);
-  CHECK_EQ(len, SSL_get_peer_finished(w->ssl_.get(), buf.data(), len));
-  args.GetReturnValue().Set(buf.ToBuffer().FromMaybe(Local<Value>()));
+  std::unique_ptr<BackingStore> bs;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    bs = ArrayBuffer::NewBackingStore(env->isolate(), len);
+  }
+
+  CHECK_EQ(bs->ByteLength(),
+           SSL_get_peer_finished(w->ssl_.get(), bs->Data(), bs->ByteLength()));
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  Local<Value> buffer;
+  if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&buffer)) return;
+  args.GetReturnValue().Set(buffer);
 }
 
 void TLSWrap::GetSession(const FunctionCallbackInfo<Value>& args) {
@@ -1651,10 +1649,19 @@ void TLSWrap::GetSession(const FunctionCallbackInfo<Value>& args) {
   if (slen <= 0)
     return;  // Invalid or malformed session.
 
-  AllocatedBuffer sbuf = AllocatedBuffer::AllocateManaged(env, slen);
-  unsigned char* p = reinterpret_cast<unsigned char*>(sbuf.data());
+  std::unique_ptr<BackingStore> bs;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    bs = ArrayBuffer::NewBackingStore(env->isolate(), slen);
+  }
+
+  unsigned char* p = static_cast<unsigned char*>(bs->Data());
   CHECK_LT(0, i2d_SSL_SESSION(sess, &p));
-  args.GetReturnValue().Set(sbuf.ToBuffer().FromMaybe(Local<Value>()));
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  Local<Value> buffer;
+  if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&buffer)) return;
+  args.GetReturnValue().Set(buffer);
 }
 
 void TLSWrap::SetSession(const FunctionCallbackInfo<Value>& args) {
@@ -1825,7 +1832,11 @@ void TLSWrap::ExportKeyingMaterial(const FunctionCallbackInfo<Value>& args) {
   uint32_t olen = args[0].As<Uint32>()->Value();
   Utf8Value label(env->isolate(), args[1]);
 
-  AllocatedBuffer out = AllocatedBuffer::AllocateManaged(env, olen);
+  std::unique_ptr<BackingStore> bs;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    bs = ArrayBuffer::NewBackingStore(env->isolate(), olen);
+  }
 
   ByteSource context;
   bool use_context = !args[2]->IsUndefined();
@@ -1834,11 +1845,11 @@ void TLSWrap::ExportKeyingMaterial(const FunctionCallbackInfo<Value>& args) {
 
   if (SSL_export_keying_material(
           w->ssl_.get(),
-          reinterpret_cast<unsigned char*>(out.data()),
+          static_cast<unsigned char*>(bs->Data()),
           olen,
           *label,
           label.length(),
-          reinterpret_cast<const unsigned char*>(context.get()),
+          context.data<unsigned char>(),
           context.size(),
           use_context) != 1) {
     return ThrowCryptoError(
@@ -1847,7 +1858,10 @@ void TLSWrap::ExportKeyingMaterial(const FunctionCallbackInfo<Value>& args) {
          "SSL_export_keying_material");
   }
 
-  args.GetReturnValue().Set(out.ToBuffer().FromMaybe(Local<Value>()));
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  Local<Value> buffer;
+  if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&buffer)) return;
+  args.GetReturnValue().Set(buffer);
 }
 
 void TLSWrap::EndParser(const FunctionCallbackInfo<Value>& args) {
@@ -1995,8 +2009,9 @@ void TLSWrap::Initialize(
     Local<Context> context,
     void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
-  env->SetMethod(target, "wrap", TLSWrap::Wrap);
+  SetMethod(context, target, "wrap", TLSWrap::Wrap);
 
   NODE_DEFINE_CONSTANT(target, HAVE_SSL_TRACE);
 
@@ -2019,54 +2034,56 @@ void TLSWrap::Initialize(
 
   t->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(t, "certCbDone", CertCbDone);
-  env->SetProtoMethod(t, "destroySSL", DestroySSL);
-  env->SetProtoMethod(t, "enableCertCb", EnableCertCb);
-  env->SetProtoMethod(t, "endParser", EndParser);
-  env->SetProtoMethod(t, "enableKeylogCallback", EnableKeylogCallback);
-  env->SetProtoMethod(t, "enableSessionCallbacks", EnableSessionCallbacks);
-  env->SetProtoMethod(t, "enableTrace", EnableTrace);
-  env->SetProtoMethod(t, "getServername", GetServername);
-  env->SetProtoMethod(t, "loadSession", LoadSession);
-  env->SetProtoMethod(t, "newSessionDone", NewSessionDone);
-  env->SetProtoMethod(t, "receive", Receive);
-  env->SetProtoMethod(t, "renegotiate", Renegotiate);
-  env->SetProtoMethod(t, "requestOCSP", RequestOCSP);
-  env->SetProtoMethod(t, "setALPNProtocols", SetALPNProtocols);
-  env->SetProtoMethod(t, "setOCSPResponse", SetOCSPResponse);
-  env->SetProtoMethod(t, "setServername", SetServername);
-  env->SetProtoMethod(t, "setSession", SetSession);
-  env->SetProtoMethod(t, "setVerifyMode", SetVerifyMode);
-  env->SetProtoMethod(t, "start", Start);
+  SetProtoMethod(isolate, t, "certCbDone", CertCbDone);
+  SetProtoMethod(isolate, t, "destroySSL", DestroySSL);
+  SetProtoMethod(isolate, t, "enableCertCb", EnableCertCb);
+  SetProtoMethod(isolate, t, "endParser", EndParser);
+  SetProtoMethod(isolate, t, "enableKeylogCallback", EnableKeylogCallback);
+  SetProtoMethod(isolate, t, "enableSessionCallbacks", EnableSessionCallbacks);
+  SetProtoMethod(isolate, t, "enableTrace", EnableTrace);
+  SetProtoMethod(isolate, t, "getServername", GetServername);
+  SetProtoMethod(isolate, t, "loadSession", LoadSession);
+  SetProtoMethod(isolate, t, "newSessionDone", NewSessionDone);
+  SetProtoMethod(isolate, t, "receive", Receive);
+  SetProtoMethod(isolate, t, "renegotiate", Renegotiate);
+  SetProtoMethod(isolate, t, "requestOCSP", RequestOCSP);
+  SetProtoMethod(isolate, t, "setALPNProtocols", SetALPNProtocols);
+  SetProtoMethod(isolate, t, "setOCSPResponse", SetOCSPResponse);
+  SetProtoMethod(isolate, t, "setServername", SetServername);
+  SetProtoMethod(isolate, t, "setSession", SetSession);
+  SetProtoMethod(isolate, t, "setVerifyMode", SetVerifyMode);
+  SetProtoMethod(isolate, t, "start", Start);
 
-  env->SetProtoMethodNoSideEffect(t, "exportKeyingMaterial",
-                                  ExportKeyingMaterial);
-  env->SetProtoMethodNoSideEffect(t, "isSessionReused", IsSessionReused);
-  env->SetProtoMethodNoSideEffect(t, "getALPNNegotiatedProtocol",
-                                  GetALPNNegotiatedProto);
-  env->SetProtoMethodNoSideEffect(t, "getCertificate", GetCertificate);
-  env->SetProtoMethodNoSideEffect(t, "getX509Certificate", GetX509Certificate);
-  env->SetProtoMethodNoSideEffect(t, "getCipher", GetCipher);
-  env->SetProtoMethodNoSideEffect(t, "getEphemeralKeyInfo",
-                                  GetEphemeralKeyInfo);
-  env->SetProtoMethodNoSideEffect(t, "getFinished", GetFinished);
-  env->SetProtoMethodNoSideEffect(t, "getPeerCertificate", GetPeerCertificate);
-  env->SetProtoMethodNoSideEffect(t, "getPeerX509Certificate",
-                                  GetPeerX509Certificate);
-  env->SetProtoMethodNoSideEffect(t, "getPeerFinished", GetPeerFinished);
-  env->SetProtoMethodNoSideEffect(t, "getProtocol", GetProtocol);
-  env->SetProtoMethodNoSideEffect(t, "getSession", GetSession);
-  env->SetProtoMethodNoSideEffect(t, "getSharedSigalgs", GetSharedSigalgs);
-  env->SetProtoMethodNoSideEffect(t, "getTLSTicket", GetTLSTicket);
-  env->SetProtoMethodNoSideEffect(t, "verifyError", VerifyError);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "exportKeyingMaterial", ExportKeyingMaterial);
+  SetProtoMethodNoSideEffect(isolate, t, "isSessionReused", IsSessionReused);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "getALPNNegotiatedProtocol", GetALPNNegotiatedProto);
+  SetProtoMethodNoSideEffect(isolate, t, "getCertificate", GetCertificate);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "getX509Certificate", GetX509Certificate);
+  SetProtoMethodNoSideEffect(isolate, t, "getCipher", GetCipher);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "getEphemeralKeyInfo", GetEphemeralKeyInfo);
+  SetProtoMethodNoSideEffect(isolate, t, "getFinished", GetFinished);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "getPeerCertificate", GetPeerCertificate);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "getPeerX509Certificate", GetPeerX509Certificate);
+  SetProtoMethodNoSideEffect(isolate, t, "getPeerFinished", GetPeerFinished);
+  SetProtoMethodNoSideEffect(isolate, t, "getProtocol", GetProtocol);
+  SetProtoMethodNoSideEffect(isolate, t, "getSession", GetSession);
+  SetProtoMethodNoSideEffect(isolate, t, "getSharedSigalgs", GetSharedSigalgs);
+  SetProtoMethodNoSideEffect(isolate, t, "getTLSTicket", GetTLSTicket);
+  SetProtoMethodNoSideEffect(isolate, t, "verifyError", VerifyError);
 
 #ifdef SSL_set_max_send_fragment
-  env->SetProtoMethod(t, "setMaxSendFragment", SetMaxSendFragment);
+  SetProtoMethod(isolate, t, "setMaxSendFragment", SetMaxSendFragment);
 #endif  // SSL_set_max_send_fragment
 
 #ifndef OPENSSL_NO_PSK
-  env->SetProtoMethod(t, "enablePskCallback", EnablePskCallback);
-  env->SetProtoMethod(t, "setPskIdentityHint", SetPskIdentityHint);
+  SetProtoMethod(isolate, t, "enablePskCallback", EnablePskCallback);
+  SetProtoMethod(isolate, t, "setPskIdentityHint", SetPskIdentityHint);
 #endif  // !OPENSSL_NO_PSK
 
   StreamBase::AddMethods(env, t);
@@ -2131,6 +2148,6 @@ void TLSWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace crypto
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(tls_wrap, node::crypto::TLSWrap::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(tls_wrap, node::crypto::TLSWrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(
     tls_wrap, node::crypto::TLSWrap::RegisterExternalReferences)

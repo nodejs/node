@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow unnecessary nested blocks",
+            description: "Disallow unnecessary nested blocks",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-lone-blocks"
         },
@@ -91,7 +91,7 @@ module.exports = {
         };
 
         // ES6: report blocks without block-level bindings, or that's only child of another block
-        if (context.parserOptions.ecmaVersion >= 6) {
+        if (context.languageOptions.ecmaVersion >= 2015) {
             ruleDef = {
                 BlockStatement(node) {
                     if (isLoneBlock(node)) {

@@ -8,7 +8,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { subtle } = crypto.webcrypto;
+const { subtle } = globalThis.crypto;
 
 const sizes = [1024, 2048, 4096];
 
@@ -444,6 +444,57 @@ async function testImportJwk(
         message: /key is not extractable/
       });
   }
+
+  {
+    const invalidUse = name === 'RSA-OAEP' ? 'sig' : 'enc';
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, n: jwk.n, e: jwk.e, use: invalidUse },
+        { name, hash },
+        extractable,
+        publicUsages),
+      { message: 'Invalid JWK "use" Parameter' });
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, use: invalidUse },
+        { name, hash },
+        extractable,
+        privateUsages),
+      { message: 'Invalid JWK "use" Parameter' });
+  }
+
+  {
+    let invalidAlg = name === 'RSA-OAEP' ? name : name === 'RSA-PSS' ? 'PS' : 'RS';
+    switch (name) {
+      case 'RSA-OAEP':
+        if (hash === 'SHA-1')
+          invalidAlg += '-256';
+        break;
+      default:
+        if (hash === 'SHA-256')
+          invalidAlg += '384';
+        else
+          invalidAlg += '256';
+    }
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: invalidAlg },
+        { name, hash },
+        extractable,
+        publicUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: invalidAlg },
+        { name, hash },
+        extractable,
+        privateUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+  }
 }
 
 // combinations to test
@@ -482,48 +533,6 @@ const testVectors = [
 })().then(common.mustCall());
 
 {
-  const publicPem = fixtures.readKey('rsa_pss_public_2048.pem', 'ascii');
-  const privatePem = fixtures.readKey('rsa_pss_private_2048.pem', 'ascii');
-
-  const publicDer = Buffer.from(
-    publicPem.replace(
-      /(?:-----(?:BEGIN|END) PUBLIC KEY-----|\s)/g,
-      ''
-    ),
-    'base64'
-  );
-  const privateDer = Buffer.from(
-    privatePem.replace(
-      /(?:-----(?:BEGIN|END) PRIVATE KEY-----|\s)/g,
-      ''
-    ),
-    'base64'
-  );
-
-  (async () => {
-    const key = await subtle.importKey(
-      'spki',
-      publicDer,
-      { name: 'RSA-PSS', hash: 'SHA-256' },
-      true,
-      ['verify']);
-    const jwk = await subtle.exportKey('jwk', key);
-    assert.strictEqual(jwk.alg, 'PS256');
-  })().then(common.mustCall());
-
-  (async () => {
-    const key = await subtle.importKey(
-      'pkcs8',
-      privateDer,
-      { name: 'RSA-PSS', hash: 'SHA-256' },
-      true,
-      ['sign']);
-    const jwk = await subtle.exportKey('jwk', key);
-    assert.strictEqual(jwk.alg, 'PS256');
-  })().then(common.mustCall());
-}
-
-{
   const ecPublic = crypto.createPublicKey(
     fixtures.readKey('ec_p256_public.pem'));
   const ecPrivate = crypto.createPrivateKey(
@@ -534,16 +543,6 @@ const testVectors = [
     'RSASSA-PKCS1-v1_5': ['verify', 'sign'],
     'RSA-OAEP': ['encrypt', 'decrypt'],
   })) {
-    assert.rejects(subtle.importKey(
-      'node.keyObject',
-      ecPublic,
-      { name, hash: 'SHA-256' },
-      true, [publicUsage]), { message: /Invalid key type/ });
-    assert.rejects(subtle.importKey(
-      'node.keyObject',
-      ecPrivate,
-      { name, hash: 'SHA-256' },
-      true, [privateUsage]), { message: /Invalid key type/ });
     assert.rejects(subtle.importKey(
       'spki',
       ecPublic.export({ format: 'der', type: 'spki' }),

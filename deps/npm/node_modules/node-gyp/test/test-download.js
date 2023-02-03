@@ -12,6 +12,7 @@ const devDir = require('./common').devDir()
 const rimraf = require('rimraf')
 const gyp = require('../lib/node-gyp')
 const log = require('npmlog')
+const certs = require('./fixtures/certs')
 
 log.level = 'warn'
 
@@ -40,12 +41,12 @@ test('download over http', async (t) => {
 test('download over https with custom ca', async (t) => {
   t.plan(3)
 
-  const cafile = path.join(__dirname, '/fixtures/ca.crt')
-  const [cert, key, ca] = await Promise.all([
-    fs.promises.readFile(path.join(__dirname, 'fixtures/server.crt'), 'utf8'),
-    fs.promises.readFile(path.join(__dirname, 'fixtures/server.key'), 'utf8'),
-    install.test.readCAFile(cafile)
-  ])
+  const cafile = path.join(__dirname, 'fixtures/ca.crt')
+  const cacontents = certs['ca.crt']
+  const cert = certs['server.crt']
+  const key = certs['server.key']
+  await fs.promises.writeFile(cafile, cacontents, 'utf8')
+  const ca = await install.test.readCAFile(cafile)
 
   t.strictEqual(ca.length, 1)
 
@@ -55,7 +56,10 @@ test('download over https with custom ca', async (t) => {
     res.end('ok')
   })
 
-  t.tearDown(() => new Promise((resolve) => server.close(resolve)))
+  t.tearDown(async () => {
+    await new Promise((resolve) => server.close(resolve))
+    await fs.promises.unlink(cafile)
+  })
 
   server.on('clientError', (err) => { throw err })
 
@@ -150,6 +154,12 @@ test('download with missing cafile', async (t) => {
 })
 
 test('check certificate splitting', async (t) => {
+  const cafile = path.join(__dirname, 'fixtures/ca-bundle.crt')
+  const cacontents = certs['ca-bundle.crt']
+  await fs.promises.writeFile(cafile, cacontents, 'utf8')
+  t.tearDown(async () => {
+    await fs.promises.unlink(cafile)
+  })
   const cas = await install.test.readCAFile(path.join(__dirname, 'fixtures/ca-bundle.crt'))
   t.plan(2)
   t.strictEqual(cas.length, 2)

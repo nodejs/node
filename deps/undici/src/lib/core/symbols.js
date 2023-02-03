@@ -17,6 +17,7 @@ module.exports = {
   kHeadersTimeout: Symbol('headers timeout'),
   kBodyTimeout: Symbol('body timeout'),
   kServerName: Symbol('server name'),
+  kLocalAddress: Symbol('local address'),
   kHost: Symbol('host'),
   kNoRef: Symbol('no ref'),
   kBodyUsed: Symbol('used'),
@@ -31,7 +32,7 @@ module.exports = {
   kClosed: Symbol('closed'),
   kNeedDrain: Symbol('need drain'),
   kReset: Symbol('reset'),
-  kDestroyed: Symbol('destroyed'),
+  kDestroyed: Symbol.for('nodejs.stream.destroyed'),
   kMaxHeadersSize: Symbol('max headers size'),
   kRunningIdx: Symbol('running index'),
   kPendingIdx: Symbol('pending index'),
@@ -48,5 +49,7 @@ module.exports = {
   kMaxRedirections: Symbol('maxRedirections'),
   kMaxRequests: Symbol('maxRequestsPerClient'),
   kProxy: Symbol('proxy agent options'),
-  kCounter: Symbol('socket request counter')
+  kCounter: Symbol('socket request counter'),
+  kInterceptors: Symbol('dispatch interceptors'),
+  kMaxResponseSize: Symbol('max response size')
 }

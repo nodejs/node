@@ -6,7 +6,7 @@
 
 "use strict";
 
-const ACCEPTABLE_PARENTS = [
+const ACCEPTABLE_PARENTS = new Set([
     "AssignmentExpression",
     "VariableDeclarator",
     "MemberExpression",
@@ -16,7 +16,7 @@ const ACCEPTABLE_PARENTS = [
     "Program",
     "VariableDeclaration",
     "ChainExpression"
-];
+]);
 
 /**
  * Finds the eslint-scope reference in the given scope.
@@ -28,10 +28,11 @@ function findReference(scope, node) {
     const references = scope.references.filter(reference => reference.identifier.range[0] === node.range[0] &&
             reference.identifier.range[1] === node.range[1]);
 
-    /* istanbul ignore else: correctly returns null */
     if (references.length === 1) {
         return references[0];
     }
+
+    /* c8 ignore next */
     return null;
 
 }
@@ -58,7 +59,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require `require()` calls to be placed at top-level module scope",
+            description: "Require `require()` calls to be placed at top-level module scope",
             recommended: false,
             url: "https://eslint.org/docs/rules/global-require"
         },
@@ -75,7 +76,7 @@ module.exports = {
                 const currentScope = context.getScope();
 
                 if (node.callee.name === "require" && !isShadowed(currentScope, node.callee)) {
-                    const isGoodRequire = context.getAncestors().every(parent => ACCEPTABLE_PARENTS.indexOf(parent.type) > -1);
+                    const isGoodRequire = context.getAncestors().every(parent => ACCEPTABLE_PARENTS.has(parent.type));
 
                     if (!isGoodRequire) {
                         context.report({ node, messageId: "unexpected" });

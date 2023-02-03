@@ -6,11 +6,11 @@
 
 <!-- source_link=lib/os.js -->
 
-The `os` module provides operating system-related utility methods and
+The `node:os` module provides operating system-related utility methods and
 properties. It can be accessed using:
 
 ```js
-const os = require('os');
+const os = require('node:os');
 ```
 
 ## `os.EOL`
@@ -25,6 +25,21 @@ The operating system-specific end-of-line marker.
 
 * `\n` on POSIX
 * `\r\n` on Windows
+
+## `os.availableParallelism()`
+
+<!-- YAML
+added:
+  - v19.4.0
+  - v18.14.0
+-->
+
+* Returns: {integer}
+
+Returns an estimate of the default amount of parallelism a program should use.
+Always returns a value greater than zero.
+
+This function is a small wrapper about libuv's [`uv_available_parallelism()`][].
 
 ## `os.arch()`
 
@@ -85,8 +100,8 @@ The properties included on each object include:
       nice: 0,
       sys: 30340,
       idle: 1070356870,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -96,8 +111,8 @@ The properties included on each object include:
       nice: 0,
       sys: 26980,
       idle: 1071569080,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -107,8 +122,8 @@ The properties included on each object include:
       nice: 0,
       sys: 21750,
       idle: 1070919370,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -118,14 +133,18 @@ The properties included on each object include:
       nice: 0,
       sys: 19430,
       idle: 1070905480,
-      irq: 20
-    }
+      irq: 20,
+    },
   },
 ]
 ```
 
 `nice` values are POSIX-only. On Windows, the `nice` values of all processors
 are always 0.
+
+`os.cpus().length` should not be used to calculate the amount of parallelism
+available to an application. Use
+[`os.availableParallelism()`](#osavailableparallelism) for this purpose.
 
 ## `os.devNull`
 
@@ -220,10 +239,35 @@ system and expressed as a fractional number.
 The load average is a Unix-specific concept. On Windows, the return value is
 always `[0, 0, 0]`.
 
+## `os.machine()`
+
+<!-- YAML
+added:
+  - v18.9.0
+  - v16.18.0
+-->
+
+* Returns {string}
+
+Returns the machine type as a string, such as `arm`, `arm64`, `aarch64`,
+`mips`, `mips64`, `ppc64`, `ppc64le`, `s390`, `s390x`, `i386`, `i686`, `x86_64`.
+
+On POSIX systems, the machine type is determined by calling
+[`uname(3)`][]. On Windows, `RtlGetVersion()` is used, and if it is not
+available, `GetVersionExW()` will be used. See
+<https://en.wikipedia.org/wiki/Uname#Examples> for more information.
+
 ## `os.networkInterfaces()`
 
 <!-- YAML
 added: v0.6.0
+changes:
+  - version: v18.4.0
+    pr-url: https://github.com/nodejs/node/pull/43054
+    description: The `family` property now returns a string instead of a number.
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41431
+    description: The `family` property now returns a number instead of a string.
 -->
 
 * Returns: {Object}
@@ -1315,3 +1359,4 @@ The following process scheduling constants are exported by
 [`process.arch`]: process.md#processarch
 [`process.platform`]: process.md#processplatform
 [`uname(3)`]: https://linux.die.net/man/3/uname
+[`uv_available_parallelism()`]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_available_parallelism

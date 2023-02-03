@@ -1,16 +1,16 @@
+const Arborist = require('@npmcli/arborist')
 const EventEmitter = require('events')
 const { resolve, dirname, join } = require('path')
 const Config = require('@npmcli/config')
+const chalk = require('chalk')
+const which = require('which')
+const fs = require('fs/promises')
 
 // Patch the global fs module here at the app level
 require('graceful-fs').gracefulify(require('fs'))
 
 const { definitions, flatten, shorthands } = require('./utils/config/index.js')
 const usage = require('./utils/npm-usage.js')
-
-const which = require('which')
-const fs = require('@npmcli/fs')
-
 const LogFile = require('./utils/log-file.js')
 const Timers = require('./utils/timers.js')
 const Display = require('./utils/display.js')
@@ -20,24 +20,26 @@ const updateNotifier = require('./utils/update-notifier.js')
 const pkg = require('../package.json')
 const cmdList = require('./utils/cmd-list.js')
 
-let warnedNonDashArg = false
-const _load = Symbol('_load')
-
 class Npm extends EventEmitter {
   static get version () {
     return pkg.version
   }
 
-  command = null
   updateNotification = null
   loadErr = null
   argv = []
 
+  #command = null
+  #runId = new Date().toISOString().replace(/[.:]/g, '_')
   #loadPromise = null
   #tmpFolder = null
   #title = 'npm'
   #argvClean = []
+  #chalk = null
+  #npmRoot = null
+  #warnedNonDashArg = false
 
+  #outputBuffer = []
   #logFile = new LogFile()
   #display = new Display()
   #timers = new Timers({
@@ -49,12 +51,30 @@ class Npm extends EventEmitter {
     },
   })
 
-  config = new Config({
-    npmPath: dirname(__dirname),
-    definitions,
-    flatten,
-    shorthands,
-  })
+  // all these options are only used by tests in order to make testing more
+  // closely resemble real world usage. for now, npm has no programmatic API so
+  // it is ok to add stuff here, but we should not rely on it more than
+  // necessary. XXX: make these options not necessary by refactoring @npmcli/config
+  //   - npmRoot: this is where npm looks for docs files and the builtin config
+  //   - argv: this allows tests to extend argv in the same way the argv would
+  //     be passed in via a CLI arg.
+  //   - excludeNpmCwd: this is a hack to get @npmcli/config to stop walking up
+  //     dirs to set a local prefix when it encounters the `npmRoot`. this
+  //     allows tests created by tap inside this repo to not set the local
+  //     prefix to `npmRoot` since that is the first dir it would encounter when
+  //     doing implicit detection
+  constructor ({ npmRoot = dirname(__dirname), argv = [], excludeNpmCwd = false } = {}) {
+    super()
+    this.#npmRoot = npmRoot
+    this.config = new Config({
+      npmPath: this.#npmRoot,
+      definitions,
+      flatten,
+      shorthands,
+      argv: [...process.argv, ...argv],
+      excludeNpmCwd,
+    })
+  }
 
   get version () {
     return this.constructor.version
@@ -85,101 +105,60 @@ class Npm extends EventEmitter {
   // would be needed to change this
   async cmd (cmd) {
     await this.load()
-    const command = this.deref(cmd)
-    if (!command) {
+
+    const cmdId = this.deref(cmd)
+    if (!cmdId) {
       throw Object.assign(new Error(`Unknown command ${cmd}`), {
         code: 'EUNKNOWNCOMMAND',
       })
     }
-    const Impl = require(`./commands/${command}.js`)
-    const impl = new Impl(this)
-    return impl
-  }
 
-  // Call an npm command
-  async exec (cmd, args) {
-    const command = await this.cmd(cmd)
-    const timeEnd = this.time(`command:${cmd}`)
+    const Impl = require(`./commands/${cmdId}.js`)
+    const command = new Impl(this)
 
     // since 'test', 'start', 'stop', etc. commands re-enter this function
     // to call the run-script command, we need to only set it one time.
-    if (!this.command) {
-      process.env.npm_command = command.name
-      this.command = command.name
-      this.commandInstance = command
+    if (!this.#command) {
+      this.#command = command
+      process.env.npm_command = this.command
     }
+
+    return command
+  }
+
+  // Call an npm command
+  async exec (cmd, args = this.argv) {
+    const command = await this.cmd(cmd)
+    const timeEnd = this.time(`command:${cmd}`)
 
     // this is async but we dont await it, since its ok if it doesnt
     // finish before the command finishes running. it uses command and argv
     // so it must be initiated here, after the command name is set
+    // eslint-disable-next-line promise/catch-or-return
     updateNotifier(this).then((msg) => (this.updateNotification = msg))
 
     // Options are prefixed by a hyphen-minus (-, \u2d).
     // Other dash-type chars look similar but are invalid.
-    if (!warnedNonDashArg) {
-      args
-        .filter(arg => /^[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/.test(arg))
-        .forEach(arg => {
-          warnedNonDashArg = true
-          log.error(
-            'arg',
-            'Argument starts with non-ascii dash, this is probably invalid:',
-            arg
-          )
-        })
-    }
-
-    const isGlobal = this.config.get('global')
-    const workspacesEnabled = this.config.get('workspaces')
-    const implicitWorkspace = this.config.get('workspace', 'default').length > 0
-    const workspacesFilters = this.config.get('workspace')
-    const includeWorkspaceRoot = this.config.get('include-workspace-root')
-    // only call execWorkspaces when we have workspaces explicitly set
-    // or when it is implicit and not in our ignore list
-    const hasWorkspaceFilters = workspacesFilters.length > 0
-    const invalidWorkspaceConfig = workspacesEnabled === false && hasWorkspaceFilters
-    const filterByWorkspaces = (workspacesEnabled || hasWorkspaceFilters) &&
-      (!implicitWorkspace || !command.ignoreImplicitWorkspace)
-    // normally this would go in the constructor, but our tests don't
-    // actually use a real npm object so this.npm.config isn't always
-    // populated.  this is the compromise until we can make that a reality
-    // and then move this into the constructor.
-    command.workspaces = workspacesEnabled
-    command.workspacePaths = null
-    // normally this would be evaluated in base-command#setWorkspaces, see
-    // above for explanation
-    command.includeWorkspaceRoot = includeWorkspaceRoot
-
-    let execPromise = Promise.resolve()
-    if (this.config.get('usage')) {
-      this.output(command.usage)
-    } else if (invalidWorkspaceConfig) {
-      execPromise = Promise.reject(
-        new Error('Can not use --no-workspaces and --workspace at the same time'))
-    } else if (filterByWorkspaces) {
-      if (isGlobal) {
-        execPromise = Promise.reject(new Error('Workspaces not supported for global packages'))
-      } else {
-        execPromise = command.execWorkspaces(args, workspacesFilters)
+    if (!this.#warnedNonDashArg) {
+      const nonDashArgs = args.filter(a => /^[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/.test(a))
+      if (nonDashArgs.length) {
+        this.#warnedNonDashArg = true
+        log.error(
+          'arg',
+          'Argument starts with non-ascii dash, this is probably invalid:',
+          nonDashArgs.join(', ')
+        )
       }
-    } else {
-      execPromise = command.exec(args)
     }
 
-    return execPromise.finally(timeEnd)
+    return command.cmdExec(args).finally(timeEnd)
   }
 
   async load () {
     if (!this.#loadPromise) {
-      this.#loadPromise = this.time('npm:load', () => this[_load]().catch(er => er).then((er) => {
+      this.#loadPromise = this.time('npm:load', () => this.#load().catch((er) => {
         this.loadErr = er
-        if (!er) {
-          if (this.config.get('force')) {
-            log.warn('using --force', 'Recommended protections disabled.')
-          }
-        } else {
-          throw er
-        }
+        throw er
       }))
     }
     return this.#loadPromise
@@ -204,11 +183,8 @@ class Npm extends EventEmitter {
 
   writeTimingFile () {
     this.#timers.writeFile({
+      id: this.#runId,
       command: this.#argvClean,
-      // We used to only ever report a single log file
-      // so to be backwards compatible report the last logfile
-      // XXX: remove this in npm 9 or just keep it forever
-      logfile: this.logFiles[this.logFiles.length - 1],
       logfiles: this.logFiles,
       version: this.version,
     })
@@ -223,32 +199,32 @@ class Npm extends EventEmitter {
     this.#title = t
   }
 
-  async [_load] () {
-    const node = this.time('npm:load:whichnode', () => {
-      try {
-        return which.sync(process.argv[0])
-      } catch {} // TODO should we throw here?
+  async #load () {
+    await this.time('npm:load:whichnode', async () => {
+      // TODO should we throw here?
+      const node = await which(process.argv[0]).catch(() => {})
+      if (node && node.toUpperCase() !== process.execPath.toUpperCase()) {
+        log.verbose('node symlink', node)
+        process.execPath = node
+        this.config.execPath = node
+      }
     })
-
-    if (node && node.toUpperCase() !== process.execPath.toUpperCase()) {
-      log.verbose('node symlink', node)
-      process.execPath = node
-      this.config.execPath = node
-    }
 
     await this.time('npm:load:configload', () => this.config.load())
 
     // mkdir this separately since the logs dir can be set to
-    // a different location. an error here should be surfaced
-    // right away since it will error in cacache later
+    // a different location. if this fails, then we don't have
+    // a cache dir, but we don't want to fail immediately since
+    // the command might not need a cache dir (like `npm --version`)
     await this.time('npm:load:mkdirpcache', () =>
-      fs.mkdir(this.cache, { recursive: true, owner: 'inherit' }))
+      fs.mkdir(this.cache, { recursive: true })
+        .catch((e) => log.verbose('cache', `could not create cache: ${e}`)))
 
     // its ok if this fails. user might have specified an invalid dir
     // which we will tell them about at the end
     await this.time('npm:load:mkdirplogs', () =>
-      fs.mkdir(this.logsDir, { recursive: true, owner: 'inherit' })
-        .catch((e) => log.warn('logfile', `could not create logs-dir: ${e}`)))
+      fs.mkdir(this.logsDir, { recursive: true })
+        .catch((e) => log.verbose('logfile', `could not create logs-dir: ${e}`)))
 
     // note: this MUST be shorter than the actual argv length, because it
     // uses the same memory, so node will truncate it if it's too long.
@@ -284,7 +260,7 @@ class Npm extends EventEmitter {
 
     this.time('npm:load:logFile', () => {
       this.#logFile.load({
-        dir: this.logsDir,
+        path: this.logPath,
         logsMax: this.config.get('logs-max'),
       })
       log.verbose('logfile', this.#logFile.files[0] || 'no logfile created')
@@ -292,7 +268,7 @@ class Npm extends EventEmitter {
 
     this.time('npm:load:timers', () =>
       this.#timers.load({
-        dir: this.config.get('timing') ? this.timingDir : null,
+        path: this.config.get('timing') ? this.logPath : null,
       })
     )
 
@@ -302,10 +278,28 @@ class Npm extends EventEmitter {
         this.config.set('scope', `@${configScope}`, this.config.find('scope'))
       }
     })
+
+    if (this.config.get('force')) {
+      log.warn('using --force', 'Recommended protections disabled.')
+    }
+  }
+
+  get isShellout () {
+    return this.#command?.constructor?.isShellout
+  }
+
+  get command () {
+    return this.#command?.name
   }
 
   get flatOptions () {
     const { flat } = this.config
+    // the Arborist constructor is used almost everywhere we call pacote, it's
+    // easiest to attach it to flatOptions so it goes everywhere without having
+    // to touch every call
+    flat.Arborist = Arborist
+    flat.nodeVersion = process.version
+    flat.npmVersion = pkg.version
     if (this.command) {
       flat.npmCommand = this.command
     }
@@ -321,6 +315,21 @@ class Npm extends EventEmitter {
 
   get logColor () {
     return this.flatOptions.logColor
+  }
+
+  get chalk () {
+    if (!this.#chalk) {
+      let level = chalk.level
+      if (!this.color) {
+        level = 0
+      }
+      this.#chalk = new chalk.Instance({ level })
+    }
+    return this.#chalk
+  }
+
+  get global () {
+    return this.config.get('global') || this.config.get('location') === 'global'
   }
 
   get silent () {
@@ -351,13 +360,16 @@ class Npm extends EventEmitter {
     return this.config.get('logs-dir') || join(this.cache, '_logs')
   }
 
+  get logPath () {
+    return resolve(this.logsDir, `${this.#runId}-`)
+  }
+
   get timingFile () {
     return this.#timers.file
   }
 
-  get timingDir () {
-    // XXX(npm9): make this always in logs-dir
-    return this.config.get('logs-dir') || this.cache
+  get npmRoot () {
+    return this.#npmRoot
   }
 
   get cache () {
@@ -384,6 +396,10 @@ class Npm extends EventEmitter {
     this.config.localPrefix = r
   }
 
+  get localPackage () {
+    return this.config.localPackage
+  }
+
   get globalDir () {
     return process.platform !== 'win32'
       ? resolve(this.globalPrefix, 'lib', 'node_modules')
@@ -395,7 +411,7 @@ class Npm extends EventEmitter {
   }
 
   get dir () {
-    return this.config.get('global') ? this.globalDir : this.localDir
+    return this.global ? this.globalDir : this.localDir
   }
 
   get globalBin () {
@@ -408,15 +424,15 @@ class Npm extends EventEmitter {
   }
 
   get bin () {
-    return this.config.get('global') ? this.globalBin : this.localBin
+    return this.global ? this.globalBin : this.localBin
   }
 
   get prefix () {
-    return this.config.get('global') ? this.globalPrefix : this.localPrefix
+    return this.global ? this.globalPrefix : this.localPrefix
   }
 
   set prefix (r) {
-    const k = this.config.get('global') ? 'globalPrefix' : 'localPrefix'
+    const k = this.global ? 'globalPrefix' : 'localPrefix'
     this[k] = r
   }
 
@@ -439,6 +455,37 @@ class Npm extends EventEmitter {
     // eslint-disable-next-line no-console
     console.log(...msg)
     log.showProgress()
+  }
+
+  outputBuffer (item) {
+    this.#outputBuffer.push(item)
+  }
+
+  flushOutput (jsonError) {
+    if (!jsonError && !this.#outputBuffer.length) {
+      return
+    }
+
+    if (this.config.get('json')) {
+      const jsonOutput = this.#outputBuffer.reduce((acc, item) => {
+        if (typeof item === 'string') {
+          // try to parse it as json in case its a string
+          try {
+            item = JSON.parse(item)
+          } catch {
+            return acc
+          }
+        }
+        return { ...acc, ...item }
+      }, {})
+      this.output(JSON.stringify({ ...jsonOutput, ...jsonError }, null, 2))
+    } else {
+      for (const item of this.#outputBuffer) {
+        this.output(item)
+      }
+    }
+
+    this.#outputBuffer.length = 0
   }
 
   outputError (...msg) {

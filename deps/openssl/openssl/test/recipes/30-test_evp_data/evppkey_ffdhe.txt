@@ -105,6 +105,8 @@ CEKAlg=id-aes128-wrap
 Ctrl = dh_pad:1
 SharedSecret=89A249DF4EE9033B89C2B4E52072A736D94F51143A1ED5C8F1E91FCBEBE09654
 
+# FIPS(3.0.0): allows the padding to be set, later versions do not #17859
+FIPSversion = >3.0.0
 Derive=ffdhe2048-2
 PeerKey=ffdhe2048-1-pub
 KDFType=X942KDF-ASN1

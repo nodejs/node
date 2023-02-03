@@ -14,7 +14,9 @@ const cleanUrl = (str) => {
     if (url.password) {
       str = str.replace(url.password, replace)
     }
-  } catch {}
+  } catch {
+    // ignore errors
+  }
 
   return str
     .replace(tokenRegex, `npm_${replace}`)

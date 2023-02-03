@@ -48,6 +48,13 @@ EVP_PKEY_check() is an alias for the EVP_PKEY_pairwise_check() function.
 
 =head1 NOTES
 
+Key validation used by the OpenSSL FIPS provider complies with the rules
+within SP800-56A and SP800-56B. For backwards compatibility reasons the OpenSSL
+default provider may use checks that are not as restrictive for certain key types.
+For further information see L<EVP_PKEY-DSA(7)/DSA key validation>,
+L<EVP_PKEY-DH(7)/DH key validation>, L<EVP_PKEY-EC(7)/EC key validation> and
+L<EVP_PKEY-RSA(7)/RSA key validation>.
+
 Refer to SP800-56A and SP800-56B for rules relating to when these functions
 should be called during key establishment.
 It is not necessary to call these functions after locally calling an approved key
@@ -63,6 +70,11 @@ They return -2 if the operation is not supported for the specific algorithm.
 
 L<EVP_PKEY_CTX_new(3)>,
 L<EVP_PKEY_fromdata(3)>,
+L<EVP_PKEY-DH(7)>,
+L<EVP_PKEY-FFC(7)>,
+L<EVP_PKEY-DSA(7)>,
+L<EVP_PKEY-EC(7)>,
+L<EVP_PKEY-RSA(7)>,
 
 =head1 HISTORY
 
@@ -74,7 +86,7 @@ EVP_PKEY_private_check() and EVP_PKEY_pairwise_check() were added in OpenSSL 3.0
 
 =head1 COPYRIGHT
 
-Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

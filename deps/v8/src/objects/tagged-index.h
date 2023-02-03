@@ -63,7 +63,7 @@ class TaggedIndex : public Object {
   // Dispatched behavior.
   DECL_VERIFIER(TaggedIndex)
 
-  STATIC_ASSERT(kSmiTagSize == 1);
+  static_assert(kSmiTagSize == 1);
   static constexpr int kTaggedValueSize = 31;
   static constexpr intptr_t kMinValue =
       static_cast<intptr_t>(kUintptrAllBitsSet << (kTaggedValueSize - 1));

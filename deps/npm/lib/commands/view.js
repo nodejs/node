@@ -1,9 +1,4 @@
-/* eslint-disable no-console */
-// XXX: remove console.log later
-
-// npm view [pkg [pkg ...]]
-
-const color = require('ansicolors')
+const chalk = require('chalk')
 const columns = require('cli-columns')
 const fs = require('fs')
 const jsonParse = require('json-parse-even-better-errors')
@@ -13,7 +8,6 @@ const { resolve } = require('path')
 const formatBytes = require('../utils/format-bytes.js')
 const relativeDate = require('tiny-relative-date')
 const semver = require('semver')
-const style = require('ansistyles')
 const { inspect, promisify } = require('util')
 const { packument } = require('pacote')
 
@@ -32,9 +26,9 @@ class View extends BaseCommand {
     'include-workspace-root',
   ]
 
+  static workspaces = true
   static ignoreImplicitWorkspace = false
-
-  static usage = ['[<@scope>/]<pkg>[@<version>] [<field>[.subfield]...]']
+  static usage = ['[<package-spec>] [<field>[.subfield]...]']
 
   async completion (opts) {
     if (opts.conf.argv.remain.length <= 2) {
@@ -58,9 +52,6 @@ class View extends BaseCommand {
 
     function getFields (d, f, pref) {
       f = f || []
-      if (!d) {
-        return f
-      }
       pref = pref || []
       Object.keys(d).forEach((k) => {
         if (k.charAt(0) === '_' || k.indexOf('.') !== -1) {
@@ -95,7 +86,7 @@ class View extends BaseCommand {
     const local = /^\.@/.test(pkg) || pkg === '.'
 
     if (local) {
-      if (this.npm.config.get('global')) {
+      if (this.npm.global) {
         throw new Error('Cannot use view command in global mode.')
       }
       const dir = this.npm.prefix
@@ -131,12 +122,12 @@ class View extends BaseCommand {
 
       const msg = await this.jsonData(reducedData, pckmnt._id)
       if (msg !== '') {
-        console.log(msg)
+        this.npm.output(msg)
       }
     }
   }
 
-  async execWorkspaces (args, filters) {
+  async execWorkspaces (args) {
     if (!args.length) {
       args = ['.']
     }
@@ -154,7 +145,7 @@ class View extends BaseCommand {
       args = [''] // getData relies on this
     }
     const results = {}
-    await this.setWorkspaces(filters)
+    await this.setWorkspaces()
     for (const name of this.workspaceNames) {
       const wsPkg = `${name}${pkg.slice(1)}`
       const [pckmnt, data] = await this.getData(wsPkg, args)
@@ -170,10 +161,10 @@ class View extends BaseCommand {
         if (wholePackument) {
           data.map((v) => this.prettyView(pckmnt, v[Object.keys(v)[0]]['']))
         } else {
-          console.log(`${name}:`)
+          this.npm.output(`${name}:`)
           const msg = await this.jsonData(reducedData, pckmnt._id)
           if (msg !== '') {
-            console.log(msg)
+            this.npm.output(msg)
           }
         }
       } else {
@@ -184,7 +175,7 @@ class View extends BaseCommand {
       }
     }
     if (Object.keys(results).length > 0) {
-      console.log(JSON.stringify(results, null, 2))
+      this.npm.output(JSON.stringify(results, null, 2))
     }
   }
 
@@ -200,15 +191,16 @@ class View extends BaseCommand {
     // get the data about this package
     let version = this.npm.config.get('tag')
     // rawSpec is the git url if this is from git
-    if (spec.type !== 'git' && spec.type !== 'directory' && spec.rawSpec) {
+    if (spec.type !== 'git' && spec.type !== 'directory' && spec.rawSpec !== '*') {
       version = spec.rawSpec
     }
 
     const pckmnt = await packument(spec, opts)
 
-    if (pckmnt['dist-tags'] && pckmnt['dist-tags'][version]) {
+    if (pckmnt['dist-tags']?.[version]) {
       version = pckmnt['dist-tags'][version]
     }
+
     if (pckmnt.time && pckmnt.time.unpublished) {
       const u = pckmnt.time.unpublished
       const er = new Error(`Unpublished on ${u.time}`)
@@ -239,6 +231,15 @@ class View extends BaseCommand {
         })
       }
     })
+
+    // No data has been pushed because no data is matching the specified version
+    if (data.length === 0 && version !== 'latest') {
+      const er = new Error(`No match found for version ${version}`)
+      er.statusCode = 404
+      er.code = 'E404'
+      er.pkgid = `${pckmnt._id}@${version}`
+      throw er
+    }
 
     if (
       !this.npm.config.get('json') &&
@@ -311,41 +312,41 @@ class View extends BaseCommand {
     return msg.trim()
   }
 
-  prettyView (packument, manifest) {
+  prettyView (packu, manifest) {
     // More modern, pretty printing of default view
     const unicode = this.npm.config.get('unicode')
     const tags = []
 
-    Object.keys(packument['dist-tags']).forEach((t) => {
-      const version = packument['dist-tags'][t]
-      tags.push(`${style.bright(color.green(t))}: ${version}`)
+    Object.keys(packu['dist-tags']).forEach((t) => {
+      const version = packu['dist-tags'][t]
+      tags.push(`${chalk.bold.green(t)}: ${version}`)
     })
     const unpackedSize = manifest.dist.unpackedSize &&
       formatBytes(manifest.dist.unpackedSize, true)
     const licenseField = manifest.license || 'Proprietary'
     const info = {
-      name: color.green(manifest.name),
-      version: color.green(manifest.version),
-      bins: Object.keys(manifest.bin || {}).map(color.yellow),
-      versions: color.yellow(packument.versions.length + ''),
+      name: chalk.green(manifest.name),
+      version: chalk.green(manifest.version),
+      bins: Object.keys(manifest.bin || {}),
+      versions: chalk.yellow(packu.versions.length + ''),
       description: manifest.description,
       deprecated: manifest.deprecated,
-      keywords: (packument.keywords || []).map(color.yellow),
+      keywords: packu.keywords || [],
       license: typeof licenseField === 'string'
         ? licenseField
         : (licenseField.type || 'Proprietary'),
       deps: Object.keys(manifest.dependencies || {}).map((dep) => {
-        return `${color.yellow(dep)}: ${manifest.dependencies[dep]}`
+        return `${chalk.yellow(dep)}: ${manifest.dependencies[dep]}`
       }),
       publisher: manifest._npmUser && unparsePerson({
-        name: color.yellow(manifest._npmUser.name),
-        email: color.cyan(manifest._npmUser.email),
+        name: chalk.yellow(manifest._npmUser.name),
+        email: chalk.cyan(manifest._npmUser.email),
       }),
-      modified: !packument.time ? undefined
-      : color.yellow(relativeDate(packument.time[manifest.version])),
-      maintainers: (packument.maintainers || []).map((u) => unparsePerson({
-        name: color.yellow(u.name),
-        email: color.cyan(u.email),
+      modified: !packu.time ? undefined
+      : chalk.yellow(relativeDate(packu.time[manifest.version])),
+      maintainers: (packu.maintainers || []).map((u) => unparsePerson({
+        name: chalk.yellow(u.name),
+        email: chalk.cyan(u.email),
       })),
       repo: (
         manifest.bugs && (manifest.bugs.url || manifest.bugs)
@@ -356,75 +357,75 @@ class View extends BaseCommand {
         manifest.homepage && (manifest.homepage.url || manifest.homepage)
       ),
       tags,
-      tarball: color.cyan(manifest.dist.tarball),
-      shasum: color.yellow(manifest.dist.shasum),
+      tarball: chalk.cyan(manifest.dist.tarball),
+      shasum: chalk.yellow(manifest.dist.shasum),
       integrity:
-        manifest.dist.integrity && color.yellow(manifest.dist.integrity),
+        manifest.dist.integrity && chalk.yellow(manifest.dist.integrity),
       fileCount:
-        manifest.dist.fileCount && color.yellow(manifest.dist.fileCount),
-      unpackedSize: unpackedSize && color.yellow(unpackedSize),
+        manifest.dist.fileCount && chalk.yellow(manifest.dist.fileCount),
+      unpackedSize: unpackedSize && chalk.yellow(unpackedSize),
     }
     if (info.license.toLowerCase().trim() === 'proprietary') {
-      info.license = style.bright(color.red(info.license))
+      info.license = chalk.bold.red(info.license)
     } else {
-      info.license = color.green(info.license)
+      info.license = chalk.green(info.license)
     }
 
-    console.log('')
-    console.log(
-      style.underline(style.bright(`${info.name}@${info.version}`)) +
+    this.npm.output('')
+    this.npm.output(
+      chalk.underline.bold(`${info.name}@${info.version}`) +
       ' | ' + info.license +
-      ' | deps: ' + (info.deps.length ? color.cyan(info.deps.length) : color.green('none')) +
+      ' | deps: ' + (info.deps.length ? chalk.cyan(info.deps.length) : chalk.green('none')) +
       ' | versions: ' + info.versions
     )
-    info.description && console.log(info.description)
+    info.description && this.npm.output(info.description)
     if (info.repo || info.site) {
-      info.site && console.log(color.cyan(info.site))
+      info.site && this.npm.output(chalk.cyan(info.site))
     }
 
     const warningSign = unicode ? ' ⚠️ ' : '!!'
-    info.deprecated && console.log(
-      `\n${style.bright(color.red('DEPRECATED'))}${
+    info.deprecated && this.npm.output(
+      `\n${chalk.bold.red('DEPRECATED')}${
       warningSign
     } - ${info.deprecated}`
     )
 
     if (info.keywords.length) {
-      console.log('')
-      console.log('keywords:', info.keywords.join(', '))
+      this.npm.output('')
+      this.npm.output('keywords:', chalk.yellow(info.keywords.join(', ')))
     }
 
     if (info.bins.length) {
-      console.log('')
-      console.log('bin:', info.bins.join(', '))
+      this.npm.output('')
+      this.npm.output('bin:', chalk.yellow(info.bins.join(', ')))
     }
 
-    console.log('')
-    console.log('dist')
-    console.log('.tarball:', info.tarball)
-    console.log('.shasum:', info.shasum)
-    info.integrity && console.log('.integrity:', info.integrity)
-    info.unpackedSize && console.log('.unpackedSize:', info.unpackedSize)
+    this.npm.output('')
+    this.npm.output('dist')
+    this.npm.output('.tarball:', info.tarball)
+    this.npm.output('.shasum:', info.shasum)
+    info.integrity && this.npm.output('.integrity:', info.integrity)
+    info.unpackedSize && this.npm.output('.unpackedSize:', info.unpackedSize)
 
     const maxDeps = 24
     if (info.deps.length) {
-      console.log('')
-      console.log('dependencies:')
-      console.log(columns(info.deps.slice(0, maxDeps), { padding: 1 }))
+      this.npm.output('')
+      this.npm.output('dependencies:')
+      this.npm.output(columns(info.deps.slice(0, maxDeps), { padding: 1 }))
       if (info.deps.length > maxDeps) {
-        console.log(`(...and ${info.deps.length - maxDeps} more.)`)
+        this.npm.output(`(...and ${info.deps.length - maxDeps} more.)`)
       }
     }
 
     if (info.maintainers && info.maintainers.length) {
-      console.log('')
-      console.log('maintainers:')
-      info.maintainers.forEach((u) => console.log('-', u))
+      this.npm.output('')
+      this.npm.output('maintainers:')
+      info.maintainers.forEach((u) => this.npm.output('-', u))
     }
 
-    console.log('')
-    console.log('dist-tags:')
-    console.log(columns(info.tags))
+    this.npm.output('')
+    this.npm.output('dist-tags:')
+    this.npm.output(columns(info.tags))
 
     if (info.publisher || info.modified) {
       let publishInfo = 'published'
@@ -434,8 +435,8 @@ class View extends BaseCommand {
       if (info.publisher) {
         publishInfo += ` by ${info.publisher}`
       }
-      console.log('')
-      console.log(publishInfo)
+      this.npm.output('')
+      this.npm.output(publishInfo)
     }
   }
 }

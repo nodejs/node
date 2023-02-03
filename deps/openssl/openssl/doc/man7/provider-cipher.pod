@@ -74,8 +74,8 @@ function pointer from an B<OSSL_DISPATCH> element named
 B<OSSL_FUNC_{name}>.
 For example, the "function" OSSL_FUNC_cipher_newctx() has these:
 
- typedef void *(OSSL_OSSL_FUNC_cipher_newctx_fn)(void *provctx);
- static ossl_inline OSSL_OSSL_FUNC_cipher_newctx_fn
+ typedef void *(OSSL_FUNC_cipher_newctx_fn)(void *provctx);
+ static ossl_inline OSSL_FUNC_cipher_newctx_fn
      OSSL_FUNC_cipher_newctx(const OSSL_DISPATCH *opf);
 
 B<OSSL_DISPATCH> arrays are indexed by numbers that are provided as
@@ -237,7 +237,7 @@ The provider CIPHER interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

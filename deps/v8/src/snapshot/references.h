@@ -7,7 +7,6 @@
 
 #include "src/base/bit-field.h"
 #include "src/base/hashmap.h"
-#include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/utils/identity-map.h"
 
@@ -18,10 +17,9 @@ enum class SnapshotSpace : byte {
   kReadOnlyHeap,
   kOld,
   kCode,
-  kMap,
 };
 static constexpr int kNumberOfSnapshotSpaces =
-    static_cast<int>(SnapshotSpace::kMap) + 1;
+    static_cast<int>(SnapshotSpace::kCode) + 1;
 
 class SerializerReference {
  private:
@@ -98,7 +96,7 @@ class SerializerReference {
 };
 
 // SerializerReference has to fit in an IdentityMap value field.
-STATIC_ASSERT(sizeof(SerializerReference) <= sizeof(void*));
+static_assert(sizeof(SerializerReference) <= sizeof(void*));
 
 class SerializerReferenceMap {
  public:

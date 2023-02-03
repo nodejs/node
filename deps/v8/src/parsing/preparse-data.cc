@@ -8,7 +8,7 @@
 
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
-#include "src/base/platform/wrappers.h"
+#include "src/base/logging.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -40,7 +40,7 @@ using NumberOfParametersField = LengthEqualsParametersField::Next<uint16_t, 16>;
 
 using LanguageField = base::BitField8<LanguageMode, 0, 1>;
 using UsesSuperField = LanguageField::Next<bool, 1>;
-STATIC_ASSERT(LanguageModeSize <= LanguageField::kNumValues);
+static_assert(LanguageModeSize <= LanguageField::kNumValues);
 
 }  // namespace
 
@@ -529,7 +529,8 @@ class OnHeapProducedPreparseData final : public ProducedPreparseData {
 
   Handle<PreparseData> Serialize(LocalIsolate* isolate) final {
     DCHECK(!data_->is_null());
-    DCHECK(isolate->heap()->ContainsLocalHandle(data_.location()));
+    DCHECK_IMPLIES(!isolate->is_main_thread(),
+                   isolate->heap()->ContainsLocalHandle(data_.location()));
     return data_;
   }
 

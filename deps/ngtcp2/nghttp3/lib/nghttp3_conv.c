@@ -58,6 +58,7 @@ int64_t nghttp3_get_varint(size_t *plen, const uint8_t *p) {
   }
 
   assert(0);
+  abort();
 }
 
 int64_t nghttp3_get_varint_fb(const uint8_t *p) { return *p & 0x3f; }

@@ -3,7 +3,9 @@ const which = require('which')
 let gitPath
 try {
   gitPath = which.sync('git')
-} catch (e) {}
+} catch {
+  // ignore errors
+}
 
 module.exports = (opts = {}) => {
   if (opts.git) {

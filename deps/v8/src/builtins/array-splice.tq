@@ -58,6 +58,26 @@ macro DoCopyElements<FixedArrayType : type extends FixedArrayBase>(
       Convert<intptr>(srcIndex), Convert<intptr>(count));
 }
 
+macro InsertArgumentsIntoFastPackedArray<
+    FixedArrayType : type extends FixedArrayBase, ElementType: type>(
+    dst: JSArray, dstStart: Smi, args: Arguments,
+    argsStart: constexpr IntegerLiteral, insertCount: Smi): void {
+  // Copy arguments.
+  let k: Smi = dstStart;
+  if (insertCount > 0) {
+    dcheck(Convert<intptr>(insertCount) == args.length - argsStart);
+    const typedNewElements: FixedArrayType =
+        UnsafeCast<FixedArrayType>(dst.elements);
+    for (let i: intptr = ConstexprIntegerLiteralToIntptr(argsStart);
+         i < args.length; ++i) {
+      const e: JSAny = args[i];
+      // The argument elements were already validated to be an appropriate
+      // {ElementType} to store in {FixedArrayType}.
+      typedNewElements[k++] = UnsafeCast<ElementType>(e);
+    }
+  }
+}
+
 macro
 FastSplice<FixedArrayType : type extends FixedArrayBase, ElementType: type>(
     implicit context: Context)(
@@ -97,20 +117,45 @@ FastSplice<FixedArrayType : type extends FixedArrayBase, ElementType: type>(
   }
 
   // Copy arguments.
-  let k: Smi = actualStart;
-  if (insertCount > 0) {
-    const typedNewElements: FixedArrayType =
-        UnsafeCast<FixedArrayType>(a.elements);
-    for (let i: intptr = 2; i < args.length; ++i) {
-      const e: JSAny = args[i];
-      // The argument elements were already validated to be an appropriate
-      // {ElementType} to store in {FixedArrayType}.
-      typedNewElements[k++] = UnsafeCast<ElementType>(e);
-    }
-  }
+  InsertArgumentsIntoFastPackedArray<FixedArrayType, ElementType>(
+      a, actualStart, args, 2, insertCount);
 
   // Update the array's length after all the FixedArray shuffling is done.
   a.length = newLength;
+}
+
+transitioning macro TransitionElementsKindForInsertionIfNeeded(
+    context: Context, a: JSArray, originalElementsKind: ElementsKind,
+    args: Arguments, argsStart: constexpr IntegerLiteral): ElementsKind {
+  dcheck(a.map.elements_kind == originalElementsKind);
+
+  let elementsKind = originalElementsKind;
+  for (let k: intptr = ConstexprIntegerLiteralToIntptr(argsStart);
+       k < args.length; ++k) {
+    const e = args[k];
+    if (IsFastSmiElementsKind(elementsKind)) {
+      if (TaggedIsNotSmi(e)) {
+        const heapObject: HeapObject = UnsafeCast<HeapObject>(e);
+        elementsKind = IsHeapNumber(heapObject) ?
+            AllowDoubleElements(elementsKind) :
+            AllowNonNumberElements(elementsKind);
+      }
+    } else if (IsDoubleElementsKind(elementsKind)) {
+      if (!IsNumber(e)) {
+        elementsKind = AllowNonNumberElements(elementsKind);
+      }
+    } else {
+      // Already generic.
+      break;
+    }
+  }
+
+  if (elementsKind != originalElementsKind) {
+    const smiElementsKind: Smi = Convert<Smi>(Convert<int32>(elementsKind));
+    TransitionElementsKindWithKind(context, a, smiElementsKind);
+  }
+
+  return elementsKind;
 }
 
 transitioning macro FastArraySplice(
@@ -136,27 +181,8 @@ transitioning macro FastArraySplice(
   let elementsKind: ElementsKind = EnsureArrayPushable(map) otherwise Bailout;
   if (!IsFastElementsKind(elementsKind)) goto Bailout;
 
-  const oldElementsKind: ElementsKind = elementsKind;
-  for (let i: intptr = 2; i < args.length; ++i) {
-    const e: JSAny = args[i];
-    if (IsFastSmiElementsKind(elementsKind)) {
-      if (TaggedIsNotSmi(e)) {
-        const heapObject: HeapObject = UnsafeCast<HeapObject>(e);
-        elementsKind = IsHeapNumber(heapObject) ?
-            AllowDoubleElements(elementsKind) :
-            AllowNonNumberElements(elementsKind);
-      }
-    } else if (IsDoubleElementsKind(elementsKind)) {
-      if (!IsNumber(e)) {
-        elementsKind = AllowNonNumberElements(elementsKind);
-      }
-    }
-  }
-
-  if (elementsKind != oldElementsKind) {
-    const smiElementsKind: Smi = Convert<Smi>(Convert<int32>(elementsKind));
-    TransitionElementsKindWithKind(context, a, smiElementsKind);
-  }
+  elementsKind = TransitionElementsKindForInsertionIfNeeded(
+      context, a, elementsKind, args, 2);
 
   // Make sure that the length hasn't been changed by side-effect.
   const length: Smi = Cast<Smi>(a.length) otherwise Bailout;
@@ -403,7 +429,7 @@ ArrayPrototypeSplice(
   //    Bailout exception.
   const newLength: Number = len + insertCount - actualDeleteCount;
   if (newLength > kMaxSafeInteger) {
-    ThrowTypeError(MessageTemplate::kInvalidArrayLength, start);
+    ThrowTypeError(MessageTemplate::kInvalidArrayLength, newLength);
   }
 
   try {

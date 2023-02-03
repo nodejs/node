@@ -4,7 +4,7 @@
 
 #include "src/base/platform/time.h"
 
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #include <mach/mach_time.h>
 #endif
 #if V8_OS_POSIX
@@ -201,8 +201,7 @@ TEST(TimeDelta, FromAndIn) {
             TimeDelta::FromMicroseconds(13).InMicroseconds());
 }
 
-
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 TEST(TimeDelta, MachTimespec) {
   TimeDelta null = TimeDelta();
   EXPECT_EQ(null, TimeDelta::FromMachTimespec(null.ToMachTimespec()));
@@ -363,19 +362,14 @@ TEST(TimeTicks, NowResolution) {
 }
 
 TEST(TimeTicks, IsMonotonic) {
-  TimeTicks previous_normal_ticks;
-  TimeTicks previous_highres_ticks;
+  TimeTicks previous_ticks;
   ElapsedTimer timer;
   timer.Start();
   while (!timer.HasExpired(TimeDelta::FromMilliseconds(100))) {
-    TimeTicks normal_ticks = TimeTicks::Now();
-    TimeTicks highres_ticks = TimeTicks::HighResolutionNow();
-    EXPECT_GE(normal_ticks, previous_normal_ticks);
-    EXPECT_GE((normal_ticks - previous_normal_ticks).InMicroseconds(), 0);
-    EXPECT_GE(highres_ticks, previous_highres_ticks);
-    EXPECT_GE((highres_ticks - previous_highres_ticks).InMicroseconds(), 0);
-    previous_normal_ticks = normal_ticks;
-    previous_highres_ticks = highres_ticks;
+    TimeTicks ticks = TimeTicks::Now();
+    EXPECT_GE(ticks, previous_ticks);
+    EXPECT_GE((ticks - previous_ticks).InMicroseconds(), 0);
+    previous_ticks = ticks;
   }
 }
 
@@ -437,14 +431,14 @@ TEST(ElapsedTimer, StartStopArgs) {
   DCHECK(!timer1.IsStarted());
   DCHECK(!timer2.IsStarted());
 
-  TimeTicks now = TimeTicks::HighResolutionNow();
+  TimeTicks now = TimeTicks::Now();
   timer1.Start(now);
   timer2.Start(now);
   DCHECK(timer1.IsStarted());
   DCHECK(timer2.IsStarted());
 
   Sleep(wait_time);
-  now = TimeTicks::HighResolutionNow();
+  now = TimeTicks::Now();
   TimeDelta delta1 = timer1.Elapsed(now);
   Sleep(wait_time);
   TimeDelta delta2 = timer2.Elapsed(now);
@@ -454,20 +448,20 @@ TEST(ElapsedTimer, StartStopArgs) {
   Sleep(wait_time);
   EXPECT_NE(delta1, timer2.Elapsed());
 
-  TimeTicks now2 = TimeTicks::HighResolutionNow();
+  TimeTicks now2 = TimeTicks::Now();
   EXPECT_NE(timer1.Elapsed(now), timer1.Elapsed(now2));
   EXPECT_NE(delta1, timer1.Elapsed(now2));
   EXPECT_NE(delta2, timer2.Elapsed(now2));
   EXPECT_GE(timer1.Elapsed(now2), timer2.Elapsed(now2));
 
-  now = TimeTicks::HighResolutionNow();
+  now = TimeTicks::Now();
   timer1.Pause(now);
   timer2.Pause(now);
   DCHECK(timer1.IsPaused());
   DCHECK(timer2.IsPaused());
   Sleep(wait_time);
 
-  now = TimeTicks::HighResolutionNow();
+  now = TimeTicks::Now();
   timer1.Resume(now);
   DCHECK(!timer1.IsPaused());
   DCHECK(timer2.IsPaused());

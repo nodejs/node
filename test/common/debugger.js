@@ -7,7 +7,13 @@ const BREAK_MESSAGE = new RegExp('(?:' + [
   'exception', 'other', 'promiseRejection',
 ].join('|') + ') in', 'i');
 
-const TIMEOUT = common.platformTimeout(5000);
+let TIMEOUT = common.platformTimeout(5000);
+if (common.isWindows) {
+  // Some of the windows machines in the CI need more time to receive
+  // the outputs from the client.
+  // https://github.com/nodejs/build/issues/3014
+  TIMEOUT = common.platformTimeout(15000);
+}
 
 function isPreBreak(output) {
   return /Break on start/.test(output) && /1 \(function \(exports/.test(output);

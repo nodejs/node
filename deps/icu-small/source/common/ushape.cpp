@@ -354,10 +354,10 @@ _shapeToArabicDigitsWithContext(UChar *s, int32_t length,
             switch(ubidi_getClass(c)) {
             case U_LEFT_TO_RIGHT: /* L */
             case U_RIGHT_TO_LEFT: /* R */
-                lastStrongWasAL=FALSE;
+                lastStrongWasAL=false;
                 break;
             case U_RIGHT_TO_LEFT_ARABIC: /* AL */
-                lastStrongWasAL=TRUE;
+                lastStrongWasAL=true;
                 break;
             case U_EUROPEAN_NUMBER: /* EN */
                 if(lastStrongWasAL && (uint32_t)(c-0x30)<10) {
@@ -374,10 +374,10 @@ _shapeToArabicDigitsWithContext(UChar *s, int32_t length,
             switch(ubidi_getClass(c)) {
             case U_LEFT_TO_RIGHT: /* L */
             case U_RIGHT_TO_LEFT: /* R */
-                lastStrongWasAL=FALSE;
+                lastStrongWasAL=false;
                 break;
             case U_RIGHT_TO_LEFT_ARABIC: /* AL */
-                lastStrongWasAL=TRUE;
+                lastStrongWasAL=true;
                 break;
             case U_EUROPEAN_NUMBER: /* EN */
                 if(lastStrongWasAL && (uint32_t)(c-0x30)<10) {
@@ -1710,13 +1710,13 @@ u_shapeArabic(const UChar *source, int32_t sourceLength,
             _shapeToArabicDigitsWithContext(dest, destLength,
                                             digitBase,
                                             (UBool)((options&U_SHAPE_TEXT_DIRECTION_MASK)==U_SHAPE_TEXT_DIRECTION_LOGICAL),
-                                            FALSE);
+                                            false);
             break;
         case U_SHAPE_DIGITS_ALEN2AN_INIT_AL:
             _shapeToArabicDigitsWithContext(dest, destLength,
                                             digitBase,
                                             (UBool)((options&U_SHAPE_TEXT_DIRECTION_MASK)==U_SHAPE_TEXT_DIRECTION_LOGICAL),
-                                            TRUE);
+                                            true);
             break;
         default:
             /* will never occur because of validity checks above */

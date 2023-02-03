@@ -15,11 +15,19 @@ const filename = path.resolve(tmpdir.path,
 
 const bench = common.createBenchmark(main, {
   duration: [5],
-  len: [1024, 16 * 1024 * 1024],
-  concurrent: [1, 10]
+  encoding: ['', 'utf-8'],
+  len: [
+    1024,
+    512 * 1024,
+    4 * 1024 ** 2,
+    8 * 1024 ** 2,
+    16 * 1024 ** 2,
+    32 * 1024 ** 2,
+  ],
+  concurrent: [1, 10],
 });
 
-function main({ len, duration, concurrent }) {
+function main({ len, duration, concurrent, encoding }) {
   try {
     fs.unlinkSync(filename);
   } catch {
@@ -44,7 +52,7 @@ function main({ len, duration, concurrent }) {
   }, duration * 1000);
 
   function read() {
-    fs.promises.readFile(filename)
+    fs.promises.readFile(filename, encoding)
       .then((res) => afterRead(undefined, res))
       .catch((err) => afterRead(err));
   }

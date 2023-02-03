@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
 // Flags: --concurrent-recompilation
 
 function foo(x) { bar(x) }
@@ -47,7 +47,7 @@ assertOptimized(bar);
 
 // Instead we trigger optimization of foo, which will inline bar (this time
 // based on the new PACKED_ELEMENTS map.
-%OptimizeFunctionForTopTier(foo);
+%OptimizeFunctionOnNextCall(foo);
 foo(a);
 assertOptimized(foo);
 %PrepareFunctionForOptimization(foo);
@@ -63,6 +63,6 @@ assertOptimized(bar);
 // Now ensure there is no deopt-loop. There used to be a deopt-loop because, as
 // a result of over-eager checkpoint elimination, we used to deopt into foo
 // (right before the call to bar) rather than into bar (right before the load).
-%OptimizeFunctionForTopTier(foo);
+%OptimizeFunctionOnNextCall(foo);
 foo(b);
 assertOptimized(foo);

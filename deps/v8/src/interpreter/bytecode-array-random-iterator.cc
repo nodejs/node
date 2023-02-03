@@ -20,7 +20,7 @@ BytecodeArrayRandomIterator::BytecodeArrayRandomIterator(
 void BytecodeArrayRandomIterator::Initialize() {
   // Run forwards through the bytecode array to determine the offset of each
   // bytecode.
-  while (current_offset() < bytecode_array()->length()) {
+  while (!done()) {
     offsets_.push_back(current_offset());
     Advance();
   }

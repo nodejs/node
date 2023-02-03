@@ -61,8 +61,7 @@ server.listen(0, common.mustCall(function() {
       reconnect();
   }));
 
-  client1.on('data', common.mustCall((d) => {
-  }));
+  client1.on('data', common.mustCall());
 
   client1.once('session', common.mustCall((session) => {
     console.log('session1');

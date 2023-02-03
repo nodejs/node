@@ -5,7 +5,6 @@
 #include "src/base/bits.h"
 #include "src/base/enum-set.h"
 #include "src/base/iterator.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
@@ -26,7 +25,7 @@ class ArmOperandGenerator : public OperandGenerator {
   }
 
   bool CanBeImmediate(uint32_t value) const {
-    return CanBeImmediate(bit_cast<int32_t>(value));
+    return CanBeImmediate(base::bit_cast<int32_t>(value));
   }
 
   bool CanBeImmediate(Node* node, InstructionCode opcode) {
@@ -624,9 +623,10 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kSimd128:
       opcode = kArmVld1S128;
       break;
+    case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kCagedPointer:       // Fall through.
+    case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
@@ -662,9 +662,10 @@ ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
       return kArmStr;
     case MachineRepresentation::kSimd128:
       return kArmVst1S128;
+    case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kCagedPointer:       // Fall through.
+    case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
@@ -699,11 +700,12 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineRepresentation rep = store_rep.representation();
 
-  if (FLAG_enable_unconditional_write_barriers && CanBeTaggedPointer(rep)) {
+  if (v8_flags.enable_unconditional_write_barriers && CanBeTaggedPointer(rep)) {
     write_barrier_kind = kFullWriteBarrier;
   }
 
-  if (write_barrier_kind != kNoWriteBarrier && !FLAG_disable_write_barriers) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
@@ -1715,6 +1717,11 @@ void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
       ->MarkAsCall();
 }
 
+void InstructionSelector::EmitMoveParamToFPR(Node* node, int index) {}
+
+void InstructionSelector::EmitMoveFPRToParam(InstructionOperand* op,
+                                             LinkageLocation location) {}
+
 void InstructionSelector::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
     Node* node) {
@@ -2267,6 +2274,7 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
 }
 
 void InstructionSelector::VisitMemoryBarrier(Node* node) {
+  // Use DMB ISH for both acquire-release and sequentially consistent barriers.
   ArmOperandGenerator g(this);
   Emit(kArmDmbIsh, g.NoOutput());
 }
@@ -2580,18 +2588,18 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(F32x4UConvertI32x4, kArmF32x4UConvertI32x4)         \
   V(F32x4Abs, kArmF32x4Abs)                             \
   V(F32x4Neg, kArmF32x4Neg)                             \
-  V(F32x4RecipApprox, kArmF32x4RecipApprox)             \
-  V(F32x4RecipSqrtApprox, kArmF32x4RecipSqrtApprox)     \
   V(I64x2Abs, kArmI64x2Abs)                             \
   V(I64x2SConvertI32x4Low, kArmI64x2SConvertI32x4Low)   \
   V(I64x2SConvertI32x4High, kArmI64x2SConvertI32x4High) \
   V(I64x2UConvertI32x4Low, kArmI64x2UConvertI32x4Low)   \
   V(I64x2UConvertI32x4High, kArmI64x2UConvertI32x4High) \
   V(I32x4SConvertF32x4, kArmI32x4SConvertF32x4)         \
+  V(I32x4RelaxedTruncF32x4S, kArmI32x4SConvertF32x4)    \
   V(I32x4SConvertI16x8Low, kArmI32x4SConvertI16x8Low)   \
   V(I32x4SConvertI16x8High, kArmI32x4SConvertI16x8High) \
   V(I32x4Neg, kArmI32x4Neg)                             \
   V(I32x4UConvertF32x4, kArmI32x4UConvertF32x4)         \
+  V(I32x4RelaxedTruncF32x4U, kArmI32x4UConvertF32x4)    \
   V(I32x4UConvertI16x8Low, kArmI32x4UConvertI16x8Low)   \
   V(I32x4UConvertI16x8High, kArmI32x4UConvertI16x8High) \
   V(I32x4Abs, kArmI32x4Abs)                             \
@@ -2640,7 +2648,9 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(F32x4Sub, kArmF32x4Sub)                           \
   V(F32x4Mul, kArmF32x4Mul)                           \
   V(F32x4Min, kArmF32x4Min)                           \
+  V(F32x4RelaxedMin, kArmF32x4Min)                    \
   V(F32x4Max, kArmF32x4Max)                           \
+  V(F32x4RelaxedMax, kArmF32x4Max)                    \
   V(F32x4Eq, kArmF32x4Eq)                             \
   V(F32x4Ne, kArmF32x4Ne)                             \
   V(F32x4Lt, kArmF32x4Lt)                             \
@@ -2683,6 +2693,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8GeU, kArmI16x8GeU)                           \
   V(I16x8RoundingAverageU, kArmI16x8RoundingAverageU) \
   V(I16x8Q15MulRSatS, kArmI16x8Q15MulRSatS)           \
+  V(I16x8RelaxedQ15MulRS, kArmI16x8Q15MulRSatS)       \
   V(I8x16SConvertI16x8, kArmI8x16SConvertI16x8)       \
   V(I8x16Add, kArmI8x16Add)                           \
   V(I8x16AddSatS, kArmI8x16AddSatS)                   \
@@ -2889,6 +2900,22 @@ void InstructionSelector::VisitS128Select(Node* node) {
   Emit(kArmS128Select, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
        g.UseRegister(node->InputAt(2)));
+}
+
+void InstructionSelector::VisitI8x16RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
+}
+
+void InstructionSelector::VisitI16x8RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
+}
+
+void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
+}
+
+void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -3132,6 +3159,14 @@ void InstructionSelector::VisitF64x2Pmax(Node* node) {
   VisitF64x2PminOrPMax(this, kArmF64x2Pmax, node);
 }
 
+void InstructionSelector::VisitF64x2RelaxedMin(Node* node) {
+  VisitF64x2Pmin(node);
+}
+
+void InstructionSelector::VisitF64x2RelaxedMax(Node* node) {
+  VisitF64x2Pmax(node);
+}
+
 #define EXT_MUL_LIST(V)                            \
   V(I16x8ExtMulLowI8x16S, kArmVmullLow, NeonS8)    \
   V(I16x8ExtMulHighI8x16S, kArmVmullHigh, NeonS8)  \
@@ -3227,6 +3262,14 @@ void InstructionSelector::VisitF64x2PromoteLowF32x4(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmF64x2PromoteLowF32x4, g.DefineAsRegister(node),
        g.UseFixed(node->InputAt(0), q0));
+}
+
+void InstructionSelector::VisitI32x4RelaxedTruncF64x2SZero(Node* node) {
+  VisitI32x4TruncSatF64x2SZero(node);
+}
+
+void InstructionSelector::VisitI32x4RelaxedTruncF64x2UZero(Node* node) {
+  VisitI32x4TruncSatF64x2UZero(node);
 }
 
 void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,

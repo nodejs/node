@@ -22,7 +22,7 @@
 
 /**
  * \file
- * \brief  C++ API:  Regular Expressions
+ * \brief C++ API: Regular Expressions
  *
  * The ICU API for processing regular expressions consists of two classes,
  *  `RegexPattern` and `RegexMatcher`.
@@ -361,7 +361,7 @@ private:
      *
      */
     RegexMatcher *matcher(const char16_t *input,
-        UErrorCode          &status) const;
+        UErrorCode          &status) const = delete;
 public:
 
 
@@ -749,7 +749,7 @@ private:
      * `utext_openUChars(UText *ut, const char16_t *text, int64_t textLength, UErrorCode *status);`
      */
     RegexMatcher(const UnicodeString &regexp, const char16_t *input,
-        uint32_t flags, UErrorCode &status);
+        uint32_t flags, UErrorCode &status) = delete;
 public:
 
 
@@ -1157,7 +1157,7 @@ private:
      * `utext_openUChars(UText *ut, const char16_t *text, int64_t textLength, UErrorCode *status);`
      *
      */
-    RegexMatcher &reset(const char16_t *input);
+    RegexMatcher &reset(const char16_t *input) = delete;
 public:
 
    /**
@@ -1751,10 +1751,10 @@ public:
 private:
     // Constructors and other object boilerplate are private.
     // Instances of RegexMatcher can not be assigned, copied, cloned, etc.
-    RegexMatcher();                  // default constructor not implemented
+    RegexMatcher() = delete;                  // default constructor not implemented
     RegexMatcher(const RegexPattern *pat);
-    RegexMatcher(const RegexMatcher &other);
-    RegexMatcher &operator =(const RegexMatcher &rhs);
+    RegexMatcher(const RegexMatcher &other) = delete;
+    RegexMatcher &operator =(const RegexMatcher &rhs) = delete;
     void init(UErrorCode &status);                      // Common initialization
     void init2(UText *t, UErrorCode &e);  // Common initialization, part 2.
 

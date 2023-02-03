@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -111,12 +111,11 @@ static int badkeylen_test(void)
     ret = TEST_ptr(cipher = EVP_aes_192_gcm())
           && TEST_ptr(ctx = EVP_CIPHER_CTX_new())
           && TEST_true(EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL))
-          && TEST_false(EVP_CIPHER_CTX_set_key_length(ctx, 2));
+          && TEST_int_le(EVP_CIPHER_CTX_set_key_length(ctx, 2), 0);
     EVP_CIPHER_CTX_free(ctx);
     return ret;
 }
 
-#ifdef FIPS_MODULE
 static int ivgen_test(void)
 {
     unsigned char iv_gen[16];
@@ -127,14 +126,11 @@ static int ivgen_test(void)
     return do_encrypt(iv_gen, ct, &ctlen, tag, &taglen)
            && do_decrypt(iv_gen, ct, ctlen, tag, taglen);
 }
-#endif /* FIPS_MODULE */
 
 int setup_tests(void)
 {
     ADD_TEST(kat_test);
     ADD_TEST(badkeylen_test);
-#ifdef FIPS_MODULE
     ADD_TEST(ivgen_test);
-#endif /* FIPS_MODULE */
     return 1;
 }

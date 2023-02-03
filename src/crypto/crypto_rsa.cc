@@ -1,10 +1,9 @@
 #include "crypto/crypto_rsa.h"
+#include "async_wrap-inl.h"
+#include "base_object-inl.h"
 #include "crypto/crypto_bio.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
-#include "async_wrap-inl.h"
-#include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "threadpoolwork-inl.h"
@@ -15,6 +14,8 @@
 
 namespace node {
 
+using v8::ArrayBuffer;
+using v8::BackingStore;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::Just;
@@ -152,7 +153,7 @@ Maybe<bool> RsaKeyGenTraits::AdditionalConfig(
       Utf8Value digest(env->isolate(), args[*offset]);
       params->params.md = EVP_get_digestbyname(*digest);
       if (params->params.md == nullptr) {
-        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "md specifies an invalid digest");
+        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
         return Nothing<bool>();
       }
     }
@@ -162,8 +163,8 @@ Maybe<bool> RsaKeyGenTraits::AdditionalConfig(
       Utf8Value digest(env->isolate(), args[*offset + 1]);
       params->params.mgf1_md = EVP_get_digestbyname(*digest);
       if (params->params.mgf1_md == nullptr) {
-        THROW_ERR_CRYPTO_INVALID_DIGEST(env,
-          "mgf1_md specifies an invalid digest");
+        THROW_ERR_CRYPTO_INVALID_DIGEST(
+            env, "Invalid MGF1 digest: %s", *digest);
         return Nothing<bool>();
       }
     }
@@ -220,18 +221,7 @@ WebCryptoCipherStatus RSA_Cipher(
     return WebCryptoCipherStatus::FAILED;
   }
 
-  size_t label_len = params.label.size();
-  if (label_len > 0) {
-    void* label = OPENSSL_memdup(params.label.get(), label_len);
-    CHECK_NOT_NULL(label);
-    if (EVP_PKEY_CTX_set0_rsa_oaep_label(
-      ctx.get(),
-      static_cast<unsigned char*>(label),
-      label_len) <= 0) {
-      OPENSSL_free(label);
-      return WebCryptoCipherStatus::FAILED;
-    }
-  }
+  if (!SetRsaOaepLabel(ctx, params.label)) return WebCryptoCipherStatus::FAILED;
 
   size_t out_len = 0;
   if (cipher(
@@ -243,22 +233,17 @@ WebCryptoCipherStatus RSA_Cipher(
     return WebCryptoCipherStatus::FAILED;
   }
 
-  char* data = MallocOpenSSL<char>(out_len);
-  ByteSource buf = ByteSource::Allocated(data, out_len);
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
+  ByteSource::Builder buf(out_len);
 
-  if (cipher(
-          ctx.get(),
-          ptr,
-          &out_len,
-          in.data<unsigned char>(),
-          in.size()) <= 0) {
+  if (cipher(ctx.get(),
+             buf.data<unsigned char>(),
+             &out_len,
+             in.data<unsigned char>(),
+             in.size()) <= 0) {
     return WebCryptoCipherStatus::FAILED;
   }
 
-  buf.Resize(out_len);
-
-  *out = std::move(buf);
+  *out = std::move(buf).release(out_len);
   return WebCryptoCipherStatus::OK;
 }
 }  // namespace
@@ -332,7 +317,7 @@ Maybe<bool> RSACipherTraits::AdditionalConfig(
 
       params->digest = EVP_get_digestbyname(*digest);
       if (params->digest == nullptr) {
-        THROW_ERR_CRYPTO_INVALID_DIGEST(env);
+        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
         return Nothing<bool>();
       }
 
@@ -544,7 +529,7 @@ Maybe<bool> GetRsaKeyDetail(
 
   RSA_get0_key(rsa, &n, &e, nullptr);
 
-  size_t modulus_length = BN_num_bytes(n) * CHAR_BIT;
+  size_t modulus_length = BN_num_bits(n);
 
   if (target
           ->Set(
@@ -555,17 +540,21 @@ Maybe<bool> GetRsaKeyDetail(
     return Nothing<bool>();
   }
 
-  int len = BN_num_bytes(e);
-  AllocatedBuffer public_exponent = AllocatedBuffer::AllocateManaged(env, len);
-  unsigned char* data =
-      reinterpret_cast<unsigned char*>(public_exponent.data());
-  CHECK_EQ(BN_bn2binpad(e, data, len), len);
+  std::unique_ptr<BackingStore> public_exponent;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    public_exponent =
+        ArrayBuffer::NewBackingStore(env->isolate(), BN_num_bytes(e));
+  }
+  CHECK_EQ(BN_bn2binpad(e,
+                        static_cast<unsigned char*>(public_exponent->Data()),
+                        public_exponent->ByteLength()),
+           static_cast<int>(public_exponent->ByteLength()));
 
   if (target
-          ->Set(
-              env->context(),
-              env->public_exponent_string(),
-              public_exponent.ToArrayBuffer())
+          ->Set(env->context(),
+                env->public_exponent_string(),
+                ArrayBuffer::New(env->isolate(), std::move(public_exponent)))
           .IsNothing()) {
     return Nothing<bool>();
   }

@@ -285,7 +285,7 @@ public:
   virtual const char * getType() const override;
 
 private:
-  IndianCalendar(); // default constructor not implemented
+  IndianCalendar() = delete; // default constructor not implemented
 
   // Default century.
 protected:

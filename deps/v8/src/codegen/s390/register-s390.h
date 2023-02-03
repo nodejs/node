@@ -5,8 +5,7 @@
 #ifndef V8_CODEGEN_S390_REGISTER_S390_H_
 #define V8_CODEGEN_S390_REGISTER_S390_H_
 
-#include "src/codegen/register.h"
-#include "src/codegen/reglist.h"
+#include "src/codegen/register-base.h"
 
 namespace v8 {
 namespace internal {
@@ -35,56 +34,6 @@ namespace internal {
   V(cr0)  V(cr1)  V(cr2)  V(cr3)  V(cr4)  V(cr5)  V(cr6)  V(cr7)  \
   V(cr8)  V(cr9)  V(cr10) V(cr11) V(cr12) V(cr15)
 // clang-format on
-
-// Register list in load/store instructions
-// Note that the bit values must match those used in actual instruction encoding
-
-// Caller-saved/arguments registers
-const RegList kJSCallerSaved = 1 << 1 | 1 << 2 |  // r2  a1
-                               1 << 3 |           // r3  a2
-                               1 << 4 |           // r4  a3
-                               1 << 5;            // r5  a4
-
-const int kNumJSCallerSaved = 5;
-
-// Callee-saved registers preserved when switching from C to JavaScript
-const RegList kCalleeSaved =
-    1 << 6 |   // r6 (argument passing in CEntryStub)
-               //    (HandleScope logic in MacroAssembler)
-    1 << 7 |   // r7 (argument passing in CEntryStub)
-               //    (HandleScope logic in MacroAssembler)
-    1 << 8 |   // r8 (argument passing in CEntryStub)
-               //    (HandleScope logic in MacroAssembler)
-    1 << 9 |   // r9 (HandleScope logic in MacroAssembler)
-    1 << 10 |  // r10 (Roots register in Javascript)
-    1 << 11 |  // r11 (fp in Javascript)
-    1 << 12 |  // r12 (ip in Javascript)
-    1 << 13;   // r13 (cp in Javascript)
-// 1 << 15;   // r15 (sp in Javascript)
-
-const int kNumCalleeSaved = 8;
-
-const RegList kCallerSavedDoubles = 1 << 0 |  // d0
-                                    1 << 1 |  // d1
-                                    1 << 2 |  // d2
-                                    1 << 3 |  // d3
-                                    1 << 4 |  // d4
-                                    1 << 5 |  // d5
-                                    1 << 6 |  // d6
-                                    1 << 7;   // d7
-
-const int kNumCallerSavedDoubles = 8;
-
-const RegList kCalleeSavedDoubles = 1 << 8 |   // d8
-                                    1 << 9 |   // d9
-                                    1 << 10 |  // d10
-                                    1 << 11 |  // d11
-                                    1 << 12 |  // d12
-                                    1 << 13 |  // d12
-                                    1 << 14 |  // d12
-                                    1 << 15;   // d13
-
-const int kNumCalleeSavedDoubles = 8;
 
 // The following constants describe the stack frame linkage area as
 // defined by the ABI.
@@ -154,7 +103,7 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(Register);
-static_assert(sizeof(Register) == sizeof(int),
+static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
 #define DEFINE_REGISTER(R) \
@@ -173,7 +122,7 @@ constexpr int ArgumentPaddingSlots(int argument_count) {
   return 0;
 }
 
-constexpr bool kSimpleFPAliasing = true;
+constexpr AliasingKind kFPAliasing = AliasingKind::kOverlap;
 constexpr bool kSimdMaskRegisters = false;
 
 enum DoubleRegisterCode {
@@ -204,7 +153,7 @@ class DoubleRegister : public RegisterBase<DoubleRegister, kDoubleAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(DoubleRegister);
-static_assert(sizeof(DoubleRegister) == sizeof(int),
+static_assert(sizeof(DoubleRegister) <= sizeof(int),
               "DoubleRegister can efficiently be passed by value");
 
 using FloatRegister = DoubleRegister;

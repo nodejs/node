@@ -41,6 +41,15 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/a/b/dir1/dir1', { default: 'main' }],
 
     // Deprecated:
+    // Double slashes:
+    ['pkgexports/a//dir1/dir1', { default: 'main' }],
+    // double slash target
+    ['pkgexports/doubleslash', { default: 'asdf' }],
+    // Null target with several slashes
+    ['pkgexports/sub//internal/test.js', { default: 'internal only' }],
+    ['pkgexports/sub//internal//test.js', { default: 'internal only' }],
+    ['pkgexports/sub/////internal/////test.js', { default: 'internal only' }],
+    // trailing slash
     ['pkgexports/trailing-pattern-slash/',
      { default: 'trailing-pattern-slash' }],
   ]);
@@ -74,7 +83,11 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/invalid1', './invalid1'],
     ['pkgexports/invalid4', './invalid4'],
     // Null mapping
+    ['pkgexports/sub/internal/test.js', './sub/internal/test.js'],
+    ['pkgexports/sub/internal//test.js', './sub/internal//test.js'],
     ['pkgexports/null', './null'],
+    ['pkgexports//null', './/null'],
+    ['pkgexports/////null', './////null'],
     ['pkgexports/null/subpath', './null/subpath'],
     // Empty fallback
     ['pkgexports/nofallback1', './nofallback1'],
@@ -133,7 +146,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     loadFixture(specifier).catch(mustCall((err) => {
       strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
       assertStartsWith(err.message, 'Invalid module ');
-      assertIncludes(err.message, 'is not a valid subpath');
+      assertIncludes(err.message, 'is not a valid match in pattern');
       assertIncludes(err.message, subpath);
     }));
   }

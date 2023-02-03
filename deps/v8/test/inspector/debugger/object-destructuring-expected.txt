@@ -1,0 +1,124 @@
+Tests breakable locations in object destructuring.
+
+Running test: testBreakLocations
+
+function testFunction() {
+  var {a, b, c = 4} = |_|obj1;
+  |_|({d: {a, b}, c} = obj2);
+  |_|({a, ...b} = obj1);
+|R|}
+
+var obj1 = |_|{
+  get a() { |_|return 1;|R| },
+  get b() { |_|return 2;|R| },
+};
+
+var obj2 = |_|{
+  get c() { |_|return 3;|R| },
+  get d() { |_|return obj1;|R| },
+};
+|R|
+
+
+Running test: testStepping
+Execution paused in testFunction:
+function testFunction() {
+  var {a, b, c = 4} = #obj1;
+  ({d: {a, b}, c} = obj2);
+
+Execution paused in get a:
+var obj1 = {
+  get a() { #return 1; },
+  get b() { return 2; },
+
+Called from testFunction:
+function testFunction() {
+  var {#a, b, c = 4} = obj1;
+  ({d: {a, b}, c} = obj2);
+
+Execution paused in get b:
+  get a() { return 1; },
+  get b() { #return 2; },
+};
+
+Called from testFunction:
+function testFunction() {
+  var {a, #b, c = 4} = obj1;
+  ({d: {a, b}, c} = obj2);
+
+Execution paused in testFunction:
+  var {a, b, c = 4} = obj1;
+  #({d: {a, b}, c} = obj2);
+  ({a, ...b} = obj1);
+
+Execution paused in get d:
+  get c() { return 3; },
+  get d() { #return obj1; },
+};
+
+Called from testFunction:
+  var {a, b, c = 4} = obj1;
+  ({d: #{a, b}, c} = obj2);
+  ({a, ...b} = obj1);
+
+Execution paused in get a:
+var obj1 = {
+  get a() { #return 1; },
+  get b() { return 2; },
+
+Called from testFunction:
+  var {a, b, c = 4} = obj1;
+  ({d: {#a, b}, c} = obj2);
+  ({a, ...b} = obj1);
+
+Execution paused in get b:
+  get a() { return 1; },
+  get b() { #return 2; },
+};
+
+Called from testFunction:
+  var {a, b, c = 4} = obj1;
+  ({d: {a, #b}, c} = obj2);
+  ({a, ...b} = obj1);
+
+Execution paused in get c:
+var obj2 = {
+  get c() { #return 3; },
+  get d() { return obj1; },
+
+Called from testFunction:
+  var {a, b, c = 4} = obj1;
+  ({d: {a, b}, #c} = obj2);
+  ({a, ...b} = obj1);
+
+Execution paused in testFunction:
+  ({d: {a, b}, c} = obj2);
+  #({a, ...b} = obj1);
+}
+
+Execution paused in get a:
+var obj1 = {
+  get a() { #return 1; },
+  get b() { return 2; },
+
+Called from testFunction:
+  ({d: {a, b}, c} = obj2);
+  ({#a, ...b} = obj1);
+}
+
+Execution paused in get b:
+  get a() { return 1; },
+  get b() { #return 2; },
+};
+
+Called from testFunction:
+  ({d: {a, b}, c} = obj2);
+  ({a, ...#b} = obj1);
+}
+
+Execution paused in testFunction:
+  ({a, ...b} = obj1);
+#}
+
+
+Resuming and finishing...

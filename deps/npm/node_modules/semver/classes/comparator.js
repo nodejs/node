@@ -4,6 +4,7 @@ class Comparator {
   static get ANY () {
     return ANY
   }
+
   constructor (comp, options) {
     options = parseOptions(options)
 
@@ -80,7 +81,7 @@ class Comparator {
     if (!options || typeof options !== 'object') {
       options = {
         loose: !!options,
-        includePrerelease: false
+        includePrerelease: false,
       }
     }
 
@@ -128,7 +129,7 @@ class Comparator {
 module.exports = Comparator
 
 const parseOptions = require('../internal/parse-options')
-const {re, t} = require('../internal/re')
+const { re, t } = require('../internal/re')
 const cmp = require('../functions/cmp')
 const debug = require('../internal/debug')
 const SemVer = require('./semver')

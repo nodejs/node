@@ -1,4 +1,4 @@
-/* Copyright 2017 The Chromium Authors. All rights reserved.
+/* Copyright 2017 The Chromium Authors
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file. */
 
@@ -49,6 +49,9 @@
 #define crc32 Cr_z_crc32
 #define crc32_combine Cr_z_crc32_combine
 #define crc32_combine64 Cr_z_crc32_combine64
+#define crc32_combine_gen64 Cr_z_crc32_combine_gen64
+#define crc32_combine_gen Cr_z_crc32_combine_gen
+#define crc32_combine_op Cr_z_crc32_combine_op
 #define crc32_z Cr_z_crc32_z
 #define deflate Cr_z_deflate
 #define deflateBound Cr_z_deflateBound
@@ -191,6 +194,7 @@
 #define arm_cpu_enable_pmull Cr_z_arm_cpu_enable_pmull
 #define arm_check_features Cr_z_arm_check_features
 #define armv8_crc32_little Cr_z_armv8_crc32_little
+#define armv8_crc32_pmull_little Cr_z_armv8_crc32_pmull_little
 
 /* Symbols added by cpu_features.c */
 #define cpu_check_features Cr_z_cpu_check_features

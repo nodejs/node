@@ -1,6 +1,6 @@
 $DESASM=des_enc.c fcrypt_b.c
 IF[{- !$disabled{asm} -}]
-  $DESASM_x86=des-586.s crypt586.s
+  $DESASM_x86=des-586.S crypt586.S
   $DESASM_sparcv9=des_enc-sparc.S fcrypt_b.c dest4-sparcv9.S
   $DESASM_sparcv8=des_enc-sparc.S fcrypt_b.c
 
@@ -40,7 +40,7 @@ GENERATE[des_enc-sparc.S]=asm/des_enc.m4
 GENERATE[dest4-sparcv9.S]=asm/dest4-sparcv9.pl
 INCLUDE[dest4-sparcv9.o]=..
 
-GENERATE[des-586.s]=asm/des-586.pl
-DEPEND[des-586.s]=../perlasm/x86asm.pl ../perlasm/cbc.pl
-GENERATE[crypt586.s]=asm/crypt586.pl
-DEPEND[crypt586.s]=../perlasm/x86asm.pl ../perlasm/cbc.pl
+GENERATE[des-586.S]=asm/des-586.pl
+DEPEND[des-586.S]=../perlasm/x86asm.pl ../perlasm/cbc.pl
+GENERATE[crypt586.S]=asm/crypt586.pl
+DEPEND[crypt586.S]=../perlasm/x86asm.pl ../perlasm/cbc.pl

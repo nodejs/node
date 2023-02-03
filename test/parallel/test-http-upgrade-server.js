@@ -87,6 +87,7 @@ function test_upgrade_with_listener() {
   conn.on('connect', function() {
     writeReq(conn,
              'GET / HTTP/1.1\r\n' +
+             'Host: example.com\r\n' +
              'Upgrade: WebSocket\r\n' +
              'Connection: Upgrade\r\n' +
              '\r\n' +
@@ -124,6 +125,7 @@ function test_upgrade_no_listener() {
   conn.on('connect', function() {
     writeReq(conn,
              'GET / HTTP/1.1\r\n' +
+             'Host: example.com\r\n' +
              'Upgrade: WebSocket\r\n' +
              'Connection: Upgrade\r\n' +
              '\r\n');
@@ -146,7 +148,7 @@ function test_standard_http() {
   conn.setEncoding('utf8');
 
   conn.on('connect', function() {
-    writeReq(conn, 'GET / HTTP/1.1\r\n\r\n');
+    writeReq(conn, 'GET / HTTP/1.1\r\nHost: example.com\r\n\r\n');
   });
 
   conn.once('data', function(data) {

@@ -11,6 +11,7 @@
 #include "src/base/export-template.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
+#include "src/heap/heap.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/map.h"
 #include "src/objects/name.h"
@@ -61,7 +62,6 @@ class StringShape {
   V8_INLINE bool IsSequentialTwoByte() const;
   V8_INLINE bool IsInternalized() const;
   V8_INLINE bool IsShared() const;
-  V8_INLINE bool CanMigrateInParallel() const;
   V8_INLINE StringRepresentationTag representation_tag() const;
   V8_INLINE uint32_t encoding_tag() const;
   V8_INLINE uint32_t representation_and_encoding_tag() const;
@@ -116,6 +116,8 @@ class String : public TorqueGeneratedString<String, Name> {
   // FlatStringReader is relocatable.
   class FlatContent {
    public:
+    inline ~FlatContent();
+
     // Returns true if the string is flat and this structure contains content.
     bool IsFlat() const { return state_ != NON_FLAT; }
     // Returns true if the structure contains one-byte content.
@@ -147,24 +149,27 @@ class String : public TorqueGeneratedString<String, Name> {
       return onebyte_start == other.onebyte_start;
     }
 
+    // It is almost always a bug if the contents of a FlatContent changes during
+    // its lifetime, which can happen due to GC or bugs in concurrent string
+    // access. Rarely, callers need the ability to GC and have ensured safety in
+    // other ways, such as in IrregexpInterpreter. Those callers can disable the
+    // checksum verification with this call.
+    void UnsafeDisableChecksumVerification() {
+#ifdef ENABLE_SLOW_DCHECKS
+      checksum_ = kChecksumVerificationDisabled;
+#endif
+    }
+
     int length() const { return length_; }
 
    private:
     enum State { NON_FLAT, ONE_BYTE, TWO_BYTE };
 
     // Constructors only used by String::GetFlatContent().
-    FlatContent(const uint8_t* start, int length,
-                const DisallowGarbageCollection& no_gc)
-        : onebyte_start(start),
-          length_(length),
-          state_(ONE_BYTE),
-          no_gc_(no_gc) {}
-    FlatContent(const base::uc16* start, int length,
-                const DisallowGarbageCollection& no_gc)
-        : twobyte_start(start),
-          length_(length),
-          state_(TWO_BYTE),
-          no_gc_(no_gc) {}
+    inline FlatContent(const uint8_t* start, int length,
+                       const DisallowGarbageCollection& no_gc);
+    inline FlatContent(const base::uc16* start, int length,
+                       const DisallowGarbageCollection& no_gc);
     explicit FlatContent(const DisallowGarbageCollection& no_gc)
         : onebyte_start(nullptr), length_(0), state_(NON_FLAT), no_gc_(no_gc) {}
 
@@ -176,13 +181,23 @@ class String : public TorqueGeneratedString<String, Name> {
     State state_;
     const DisallowGarbageCollection& no_gc_;
 
+    static constexpr uint32_t kChecksumVerificationDisabled = 0;
+
+#ifdef ENABLE_SLOW_DCHECKS
+    inline uint32_t ComputeChecksum() const;
+
+    uint32_t checksum_;
+#endif
+
     friend class String;
     friend class IterableSubString;
   };
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  void MakeThin(IsolateT* isolate, String canonical);
+  void MakeThin(IsolateT* isolate, String canonical,
+                UpdateInvalidatedObjectSize update_invalidated_object_size =
+                    UpdateInvalidatedObjectSize::kYes);
 
   template <typename Char>
   V8_INLINE base::Vector<const Char> GetCharVector(
@@ -378,6 +393,9 @@ class String : public TorqueGeneratedString<String, Name> {
   V8_EXPORT_PRIVATE bool HasOneBytePrefix(base::Vector<const char> str);
   V8_EXPORT_PRIVATE inline bool IsOneByteEqualTo(base::Vector<const char> str);
 
+  // Returns true if the |str| is a valid ECMAScript identifier.
+  static bool IsIdentifier(Isolate* isolate, Handle<String> str);
+
   // Return a UTF8 representation of the string.  The string is null
   // terminated but may optionally contain nulls.  Length is returned
   // in length_output if length_output is not a null pointer  The string
@@ -395,6 +413,11 @@ class String : public TorqueGeneratedString<String, Name> {
       int* length_output = nullptr);
 
   // Externalization.
+  template <typename T>
+  bool MarkForExternalizationDuringGC(Isolate* isolate, T* resource);
+  template <typename T>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  void MakeExternalDuringGC(Isolate* isolate, T* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
       v8::String::ExternalStringResource* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
@@ -526,7 +549,7 @@ class String : public TorqueGeneratedString<String, Name> {
       }
 
       // Check aligned words.
-      STATIC_ASSERT(unibrow::Latin1::kMaxChar == 0xFF);
+      static_assert(unibrow::Latin1::kMaxChar == 0xFF);
 #ifdef V8_TARGET_LITTLE_ENDIAN
       const uintptr_t non_one_byte_mask = kUintptrAllBitsSet / 0xFFFF * 0xFF00;
 #else
@@ -576,6 +599,9 @@ class String : public TorqueGeneratedString<String, Name> {
   // internalized equivalent.
   static inline bool IsInPlaceInternalizable(String string);
   static inline bool IsInPlaceInternalizable(InstanceType instance_type);
+
+  static inline bool IsInPlaceInternalizableExcludingExternal(
+      InstanceType instance_type);
 
  private:
   friend class Name;
@@ -630,9 +656,11 @@ class String : public TorqueGeneratedString<String, Name> {
   V8_EXPORT_PRIVATE bool SlowAsIntegerIndex(size_t* index);
 
   // Compute and set the hash code.
-  V8_EXPORT_PRIVATE uint32_t ComputeAndSetHash();
+  // The value returned is always a computed hash, even if the value stored is
+  // a forwarding index.
+  V8_EXPORT_PRIVATE uint32_t ComputeAndSetRawHash();
   V8_EXPORT_PRIVATE uint32_t
-  ComputeAndSetHash(const SharedStringAccessGuardIfNeeded&);
+  ComputeAndSetRawHash(const SharedStringAccessGuardIfNeeded&);
 
   TQ_OBJECT_CONSTRUCTORS(String)
 };
@@ -676,6 +704,12 @@ class SeqString : public TorqueGeneratedSeqString<SeqString, String> {
   V8_WARN_UNUSED_RESULT static Handle<String> Truncate(Handle<SeqString> string,
                                                        int new_length);
 
+  struct DataAndPaddingSizes {
+    const int data_size;
+    const int padding_size;
+  };
+  DataAndPaddingSizes GetDataAndPaddingSizes() const;
+
   TQ_OBJECT_CONSTRUCTORS(SeqString)
 };
 
@@ -718,14 +752,12 @@ class SeqOneByteString
       const DisallowGarbageCollection& no_gc,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
-  // Clear uninitialized padding space. This ensures that the snapshot content
-  // is deterministic.
-  void clear_padding();
+  DataAndPaddingSizes GetDataAndPaddingSizes() const;
 
   // Maximal memory usage for a single sequential one-byte string.
   static const int kMaxCharsSize = kMaxLength;
   static const int kMaxSize = OBJECT_POINTER_ALIGN(kMaxCharsSize + kHeaderSize);
-  STATIC_ASSERT((kMaxSize - kHeaderSize) >= String::kMaxLength);
+  static_assert((kMaxSize - kHeaderSize) >= String::kMaxLength);
 
   int AllocatedSize();
 
@@ -764,14 +796,12 @@ class SeqTwoByteString
       const DisallowGarbageCollection& no_gc,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
-  // Clear uninitialized padding space. This ensures that the snapshot content
-  // is deterministic.
-  void clear_padding();
+  DataAndPaddingSizes GetDataAndPaddingSizes() const;
 
   // Maximal memory usage for a single sequential two-byte string.
   static const int kMaxCharsSize = kMaxLength * 2;
   static const int kMaxSize = OBJECT_POINTER_ALIGN(kMaxCharsSize + kHeaderSize);
-  STATIC_ASSERT(static_cast<int>((kMaxSize - kHeaderSize) / sizeof(uint16_t)) >=
+  static_assert(static_cast<int>((kMaxSize - kHeaderSize) / sizeof(uint16_t)) >=
                 String::kMaxLength);
 
   int AllocatedSize();
@@ -888,7 +918,8 @@ class ExternalString
   static const int kUncachedSize =
       kResourceOffset + FIELD_SIZE(kResourceOffset);
 
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
+  inline void InitExternalPointerFields(Isolate* isolate);
+  inline void VisitExternalPointers(ObjectVisitor* visitor) const;
 
   // Return whether the external string data pointer is not cached.
   inline bool is_uncached() const;
@@ -904,7 +935,7 @@ class ExternalString
   // Disposes string's resource object if it has not already been disposed.
   inline void DisposeResource(Isolate* isolate);
 
-  STATIC_ASSERT(kResourceOffset == Internals::kStringResourceOffset);
+  static_assert(kResourceOffset == Internals::kStringResourceOffset);
   static const int kSizeOfAllExternalStrings = kHeaderSize;
 
  private:
@@ -949,7 +980,7 @@ class ExternalOneByteString
 
   class BodyDescriptor;
 
-  STATIC_ASSERT(kSize == kSizeOfAllExternalStrings);
+  static_assert(kSize == kSizeOfAllExternalStrings);
 
   TQ_OBJECT_CONSTRUCTORS(ExternalOneByteString)
 
@@ -996,7 +1027,7 @@ class ExternalTwoByteString
 
   class BodyDescriptor;
 
-  STATIC_ASSERT(kSize == kSizeOfAllExternalStrings);
+  static_assert(kSize == kSizeOfAllExternalStrings);
 
   TQ_OBJECT_CONSTRUCTORS(ExternalTwoByteString)
 

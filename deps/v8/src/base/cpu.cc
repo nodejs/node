@@ -35,6 +35,9 @@
 #define POWER_10 0x40000
 #endif
 #endif
+#if V8_OS_DARWIN
+#include <sys/sysctl.h>  // sysctlbyname
+#endif
 #if V8_OS_POSIX
 #include <unistd.h>  // sysconf()
 #endif
@@ -50,6 +53,8 @@
 #include "src/base/logging.h"
 #include "src/base/platform/wrappers.h"
 #if V8_OS_WIN
+#include <windows.h>
+
 #include "src/base/win32-headers.h"
 #endif
 
@@ -84,8 +89,8 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 
 #endif  // !V8_LIBC_MSVCRT
 
-#elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 || V8_HOST_ARCH_MIPS || \
-    V8_HOST_ARCH_MIPS64
+#elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 || V8_HOST_ARCH_MIPS64 || \
+    V8_HOST_ARCH_RISCV64
 
 #if V8_OS_LINUX
 
@@ -192,48 +197,6 @@ static uint32_t ReadELFHWCaps() {
 }
 
 #endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64
-
-#if V8_HOST_ARCH_MIPS
-int __detect_fp64_mode(void) {
-  double result = 0;
-  // Bit representation of (double)1 is 0x3FF0000000000000.
-  __asm__ volatile(
-      ".set push\n\t"
-      ".set noreorder\n\t"
-      ".set oddspreg\n\t"
-      "lui $t0, 0x3FF0\n\t"
-      "ldc1 $f0, %0\n\t"
-      "mtc1 $t0, $f1\n\t"
-      "sdc1 $f0, %0\n\t"
-      ".set pop\n\t"
-      : "+m"(result)
-      :
-      : "t0", "$f0", "$f1", "memory");
-
-  return !(result == 1);
-}
-
-
-int __detect_mips_arch_revision(void) {
-  // TODO(dusmil): Do the specific syscall as soon as it is implemented in mips
-  // kernel.
-  uint32_t result = 0;
-  __asm__ volatile(
-      "move $v0, $zero\n\t"
-      // Encoding for "addi $v0, $v0, 1" on non-r6,
-      // which is encoding for "bovc $v0, %v0, 1" on r6.
-      // Use machine code directly to avoid compilation errors with different
-      // toolchains and maintain compatibility.
-      ".word 0x20420001\n\t"
-      "sw $v0, %0\n\t"
-      : "=m"(result)
-      :
-      : "v0", "memory");
-  // Result is 0 on r6 architectures, 1 on other architecture revisions.
-  // Fall-back to the least common denominator which is mips32 revision 1.
-  return result ? 1 : 6;
-}
-#endif  // V8_HOST_ARCH_MIPS
 
 // Extract the information exposed by the kernel via /proc/cpuinfo.
 class CPUInfo final {
@@ -354,7 +317,7 @@ static bool HasListItem(const char* list, const char* item) {
 #endif  // V8_OS_LINUX
 
 #endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 ||
-        // V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+        // V8_HOST_ARCH_MIPS64 || V8_HOST_ARCH_RISCV64
 
 #if defined(V8_OS_STARBOARD)
 
@@ -444,7 +407,8 @@ CPU::CPU()
       is_fp64_mode_(false),
       has_non_stop_time_stamp_counter_(false),
       is_running_in_vm_(false),
-      has_msa_(false) {
+      has_msa_(false),
+      has_rvv_(false) {
   memcpy(vendor_, "Unknown", 8);
 
 #if defined(V8_OS_STARBOARD)
@@ -498,6 +462,9 @@ CPU::CPU()
     has_avx_ = (cpu_info[2] & 0x10000000) != 0;
     has_avx2_ = (cpu_info7[1] & 0x00000020) != 0;
     has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
+    // CET shadow stack feature flag. See
+    // https://en.wikipedia.org/wiki/CPUID#EAX=7,_ECX=0:_Extended_Features
+    has_cetss_ = (cpu_info7[2] & 0x00000080) != 0;
     // "Hypervisor Present Bit: Bit 31 of ECX of CPUID leaf 0x1."
     // See https://lwn.net/Articles/301888/
     // This is checking for any hypervisor. Hypervisors may choose not to
@@ -733,7 +700,7 @@ CPU::CPU()
 
 #endif  // V8_OS_LINUX
 
-#elif V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+#elif V8_HOST_ARCH_MIPS64
 
   // Simple detection of FPU at runtime for Linux.
   // It is based on /proc/cpuinfo, which reveals hardware configuration
@@ -747,16 +714,21 @@ CPU::CPU()
   has_msa_ = HasListItem(ASEs, "msa");
   delete[] cpu_model;
   delete[] ASEs;
-#ifdef V8_HOST_ARCH_MIPS
-  is_fp64_mode_ = __detect_fp64_mode();
-  architecture_ = __detect_mips_arch_revision();
-#endif
 
 #elif V8_HOST_ARCH_ARM64
 #ifdef V8_OS_WIN
   // Windows makes high-resolution thread timing information available in
   // user-space.
   has_non_stop_time_stamp_counter_ = true;
+
+  // Defined in winnt.h, but only in 10.0.20348.0 version of the Windows SDK.
+  // Copy the value here to support older versions as well.
+#if !defined(PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE)
+  constexpr int PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE = 44;
+#endif
+
+  has_jscvt_ =
+      IsProcessorFeaturePresent(PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE);
 
 #elif V8_OS_LINUX
   // Try to extract the list of CPU features from ELF hwcaps.
@@ -770,9 +742,20 @@ CPU::CPU()
     has_jscvt_ = HasListItem(features, "jscvt");
     delete[] features;
   }
-#elif V8_OS_MACOSX
+#elif V8_OS_DARWIN
+#if V8_OS_IOS
+  int64_t feat_jscvt = 0;
+  size_t feat_jscvt_size = sizeof(feat_jscvt);
+  if (sysctlbyname("hw.optional.arm.FEAT_JSCVT", &feat_jscvt, &feat_jscvt_size,
+                   nullptr, 0) == -1) {
+    has_jscvt_ = false;
+  } else {
+    has_jscvt_ = feat_jscvt;
+  }
+#else
   // ARM64 Macs always have JSCVT.
   has_jscvt_ = true;
+#endif  // V8_OS_IOS
 #endif  // V8_OS_WIN
 
 #elif V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
@@ -854,7 +837,19 @@ CPU::CPU()
   }
 #endif  // V8_OS_AIX
 #endif  // !USE_SIMULATOR
-#endif  // V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
+
+#elif V8_HOST_ARCH_RISCV64
+  CPUInfo cpu_info;
+  char* features = cpu_info.ExtractField("isa");
+
+  if (HasListItem(features, "rv64imafdc")) {
+    has_fpu_ = true;
+  }
+  if (HasListItem(features, "rv64imafdcv")) {
+    has_fpu_ = true;
+    has_rvv_ = true;
+  }
+#endif  // V8_HOST_ARCH_RISCV64
 }
 
 }  // namespace base

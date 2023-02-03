@@ -75,8 +75,8 @@ action("copy_prereqs") {
   outputs = [ "$root_out_dir/dbgeng.dll" ]
 
   args = [
-    rebase_path("//build"),
-    rebase_path(root_out_dir),
+    rebase_path("//build", root_build_dir),
+    rebase_path(root_out_dir, root_build_dir),
     target_cpu,
   ]
 }

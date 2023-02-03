@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-extern class CallHandlerInfo extends Struct {
-  callback: NonNullForeign|Undefined|Zero;
-  js_callback: NonNullForeign|Undefined|Zero;
+extern class CallHandlerInfo extends HeapObject {
   data: Object;
+  // For simulator builds this field contains the address of the trampoline
+  // callable from generated code and for native builds - the address of
+  // the callback C function.
+  maybe_redirected_callback: ExternalPointer;
 }
 
 bitfield struct InterceptorInfoFlags extends uint31 {
@@ -37,7 +39,7 @@ extern class AccessCheckInfo extends Struct {
 
 type SideEffectType extends int32 constexpr 'SideEffectType';
 
-bitfield struct AccessorInfoFlags extends uint31 {
+bitfield struct AccessorInfoFlags extends uint32 {
   all_can_read: bool: 1 bit;
   all_can_write: bool: 1 bit;
   is_special_data_property: bool: 1 bit;
@@ -48,14 +50,15 @@ bitfield struct AccessorInfoFlags extends uint31 {
   initial_attributes: PropertyAttributes: 3 bit;
 }
 
-extern class AccessorInfo extends Struct {
+extern class AccessorInfo extends HeapObject {
   name: Name;
-  flags: SmiTagged<AccessorInfoFlags>;
-  expected_receiver_type: Object;
-  setter: NonNullForeign|Zero;
-  getter: NonNullForeign|Zero;
-  // This either points at the same as above, or a trampoline in case we are
-  // running with the simulator. Use these entries from generated code.
-  js_getter: NonNullForeign|Zero;
   data: Object;
+  // For simulator builds this field contains the address of the trampoline
+  // callable from generated code and for native builds - the address of
+  // the getter C function.
+  maybe_redirected_getter: ExternalPointer;
+  setter: ExternalPointer;
+  flags: AccessorInfoFlags;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }

@@ -1,6 +1,6 @@
 # Node.js C++ codebase
 
-Hi! 👋 You’ve found the C++ code backing Node.js. This README aims to help you
+Hi! 👋 You've found the C++ code backing Node.js. This README aims to help you
 get started working on it and document some idioms you may encounter while
 doing so.
 
@@ -20,9 +20,9 @@ V8 does not provide much public API documentation beyond what is
 available in its C++ header files, most importantly `v8.h`, which can be
 accessed online in the following locations:
 
-* On GitHub: [`v8.h` in Node.js master][]
-* On GitHub: [`v8.h` in V8 master][]
-* On the Chromium project’s Code Search application: [`v8.h` in Code Search][]
+* On GitHub: [`v8.h` in Node.js][]
+* On GitHub: [`v8.h` in V8][]
+* On the Chromium project's Code Search application: [`v8.h` in Code Search][]
 
 V8 also provides an [introduction for V8 embedders][],
 which can be useful for understanding some of the concepts it uses in its
@@ -31,10 +31,13 @@ embedder API.
 Important concepts when using V8 are the ones of [`Isolate`][]s and
 [JavaScript value handles][].
 
+V8 supports [fast API calls][], which can be useful for improving the
+performance in certain cases.
+
 ## libuv API documentation
 
 The other major dependency of Node.js is [libuv][], providing
-the [event loop][] and other operation system abstractions to Node.js.
+the [event loop][] and other operating system abstractions to Node.js.
 
 There is a [reference documentation for the libuv API][].
 
@@ -42,7 +45,7 @@ There is a [reference documentation for the libuv API][].
 
 The Node.js C++ files follow this structure:
 
-The `.h` header files contain declarations, and sometimes definitions that don’t
+The `.h` header files contain declarations, and sometimes definitions that don't
 require including other headers (e.g. getters, setters, etc.). They should only
 include other `.h` header files and nothing else.
 
@@ -272,7 +275,7 @@ Often, the `Context` is passed around for [exception handling][].
 Typical ways of accessing the current `Context` in the Node.js code are:
 
 * Given an [`Isolate`][], using `isolate->GetCurrentContext()`.
-* Given an [`Environment`][], using `env->context()` to get the `Environment`’s
+* Given an [`Environment`][], using `env->context()` to get the `Environment`'s
   main context.
 
 <a id="event-loop"></a>
@@ -288,7 +291,7 @@ The current event loop can be accessed using `env->event_loop()` given an
 [`Environment`][] instance. The restriction of using a single event loop
 is not inherent to the design of Node.js, and a sufficiently committed person
 could restructure Node.js to provide e.g. the ability to run parts of Node.js
-inside an event loop separate from the active thread’s event loop.
+inside an event loop separate from the active thread's event loop.
 
 <a id="environment"></a>
 
@@ -351,7 +354,7 @@ The platform can be accessed through `isolate_data->platform()` given an
 
 * The current Node.js instance was not started by an embedder; or
 * The current Node.js instance was started by an embedder whose `v8::Platform`
-  implementation also implement’s the `node::MultiIsolatePlatform` interface
+  implementation also implement's the `node::MultiIsolatePlatform` interface
   and who passed this to Node.js.
 
 <a id="binding-functions"></a>
@@ -390,37 +393,38 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-  env->SetMethod(target, "getaddrinfo", GetAddrInfo);
-  env->SetMethod(target, "getnameinfo", GetNameInfo);
+  SetMethod(context, target, "getaddrinfo", GetAddrInfo);
+  SetMethod(context, target, "getnameinfo", GetNameInfo);
 
   // 'SetMethodNoSideEffect' means that debuggers can safely execute this
   // function for e.g. previews.
-  env->SetMethodNoSideEffect(target, "canonicalizeIP", CanonicalizeIP);
+  SetMethodNoSideEffect(context, target, "canonicalizeIP", CanonicalizeIP);
 
   // ... more code ...
 
+  Isolate* isolate = env->isolate();
   // Building the `ChannelWrap` class for JS:
   Local<FunctionTemplate> channel_wrap =
-      env->NewFunctionTemplate(ChannelWrap::New);
+      NewFunctionTemplate(isolate, ChannelWrap::New);
   // Allow for 1 internal field, see `BaseObject` for details on this:
   channel_wrap->InstanceTemplate()->SetInternalFieldCount(1);
   channel_wrap->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
   // Set various methods on the class (i.e. on the prototype):
-  env->SetProtoMethod(channel_wrap, "queryAny", Query<QueryAnyWrap>);
-  env->SetProtoMethod(channel_wrap, "queryA", Query<QueryAWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryAny", Query<QueryAnyWrap>);
+  SetProtoMethod(isolate, channel_wrap, "queryA", Query<QueryAWrap>);
   // ...
-  env->SetProtoMethod(channel_wrap, "querySoa", Query<QuerySoaWrap>);
-  env->SetProtoMethod(channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
+  SetProtoMethod(isolate, channel_wrap, "querySoa", Query<QuerySoaWrap>);
+  SetProtoMethod(isolate, channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
 
-  env->SetProtoMethodNoSideEffect(channel_wrap, "getServers", GetServers);
+  SetProtoMethodNoSideEffect(isolate, channel_wrap, "getServers", GetServers);
 
-  env->SetConstructorFunction(target, "ChannelWrap", channel_wrap);
+  SetConstructorFunction(context, target, "ChannelWrap", channel_wrap);
 }
 
-// Run the `Initialize` function when loading this module through
-// `internalBinding('cares_wrap')` in Node.js’s built-in JavaScript code:
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(cares_wrap, Initialize)
+// Run the `Initialize` function when loading this binding through
+// `internalBinding('cares_wrap')` in Node.js's built-in JavaScript code:
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(cares_wrap, Initialize)
 ```
 
 If the C++ binding is loaded during bootstrap, it needs to be registered
@@ -437,10 +441,10 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace util
 }  // namespace node
 
-// The first argument passed to `NODE_MODULE_EXTERNAL_REFERENCE`,
+// The first argument passed to `NODE_BINDING_EXTERNAL_REFERENCE`,
 // which is `util` here, needs to be added to the
 // `EXTERNAL_REFERENCE_BINDING_LIST_BASE` list in node_external_reference.h
-NODE_MODULE_EXTERNAL_REFERENCE(util, node::util::RegisterExternalReferences)
+NODE_BINDING_EXTERNAL_REFERENCE(util, node::util::RegisterExternalReferences)
 ```
 
 Otherwise, you might see an error message like this when building the
@@ -484,7 +488,7 @@ That object is always a [`BaseObject`][].
 
 Its class needs to have a static `type_name` field based on a
 constant string, in order to disambiguate it from other classes of this type,
-and which could e.g. match the binding’s name (in the example above, that would
+and which could e.g. match the binding's name (in the example above, that would
 be `cares_wrap`).
 
 ```cpp
@@ -556,7 +560,7 @@ the process otherwise. `maybe.FromJust()` (aka `maybe.ToChecked()`) can be used
 to access the value and crash the process if it is not set.
 
 This should only be performed if it is actually sure that the operation has
-not failed. A lot of Node.js’s source code does **not** follow this rule, and
+not failed. A lot of the Node.js source code does **not** follow this rule, and
 can be brought to crash through this.
 
 In particular, it is often not safe to assume that an operation does not throw
@@ -619,20 +623,20 @@ v8::Maybe<double> SumNumbers(v8::Local<v8::Context> context,
 
   for (uint32_t i = 0; i < array_of_integers->Length(); i++) {
     v8::Local<v8::Value> entry;
-    if (array_of_integers->Get(context, i).ToLocal(&entry)) {
+    if (!array_of_integers->Get(context, i).ToLocal(&entry)) {
       // Oops, we might have hit a getter that throws an exception!
-      // It’s better to not continue return an empty (“nothing”) Maybe.
+      // It's better to not continue return an empty (“nothing”) Maybe.
       return v8::Nothing<double>();
     }
 
     if (!entry->IsNumber()) {
-      // Let’s just skip any non-numbers. It would also be reasonable to throw
+      // Let's just skip any non-numbers. It would also be reasonable to throw
       // an exception here, e.g. using the error system in src/node_errors.h,
       // and then to return an empty Maybe again.
       continue;
     }
 
-    // This cast is valid, because we’ve made sure it’s really a number.
+    // This cast is valid, because we've made sure it's really a number.
     v8::Local<v8::Number> entry_as_number = entry.As<v8::Number>();
 
     sum += entry_as_number->Value();
@@ -643,7 +647,7 @@ v8::Maybe<double> SumNumbers(v8::Local<v8::Context> context,
 
 // Function that is exposed to JS:
 void SumNumbers(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  // This will crash if the first argument is not an array. Let’s assume we
+  // This will crash if the first argument is not an array. Let's assume we
   // have performed type checking in a JavaScript wrapper function.
   CHECK(args[0]->IsArray());
 
@@ -859,7 +863,7 @@ this information is provided to async tracking tools.
 The `AsyncWrap` class has a set of methods called `MakeCallback()`, with the
 intention of the naming being that it is used to “make calls back into
 JavaScript” from the event loop, rather than making callbacks in some way.
-(As the naming has made its way into Node.js’s public API, it’s not worth
+(As the naming has made its way into the Node.js public API, it's not worth
 the breakage of fixing it).
 
 `MakeCallback()` generally calls a method on the JavaScript object associated
@@ -936,7 +940,7 @@ classes provide the same facilities as [`MakeCallback()`][], namely:
 
 Usually, using `AsyncWrap::MakeCallback()` or using the constructor taking
 an `AsyncWrap*` argument (i.e. used as
-`InternalCallbackScope callback_scope(this);`) suffices inside of Node.js’s
+`InternalCallbackScope callback_scope(this);`) suffices inside of the Node.js
 C++ codebase.
 
 ## C++ utilities
@@ -1047,13 +1051,14 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`req_wrap.h`]: req_wrap.h
 [`util.h`]: util.h
 [`v8.h` in Code Search]: https://cs.chromium.org/chromium/src/v8/include/v8.h
-[`v8.h` in Node.js master]: https://github.com/nodejs/node/blob/master/deps/v8/include/v8.h
-[`v8.h` in V8 master]: https://github.com/v8/v8/blob/master/include/v8.h
+[`v8.h` in Node.js]: https://github.com/nodejs/node/blob/HEAD/deps/v8/include/v8.h
+[`v8.h` in V8]: https://github.com/v8/v8/blob/HEAD/include/v8.h
 [`vm` module]: https://nodejs.org/api/vm.html
 [binding function]: #binding-functions
 [cleanup hooks]: #cleanup-hooks
 [event loop]: #event-loop
 [exception handling]: #exception-handling
+[fast API calls]: ../doc/contributing/adding-v8-fast-api.md
 [internal field]: #internal-fields
 [introduction for V8 embedders]: https://v8.dev/docs/embed
 [libuv]: https://libuv.org/

@@ -8,13 +8,13 @@ const jsPrimitives = {
   number: 'Number',
   string: 'String',
   symbol: 'Symbol',
-  undefined: 'Undefined'
+  undefined: 'Undefined',
 };
 
 const jsGlobalObjectsUrl = `${jsDocPrefix}Reference/Global_Objects/`;
 const jsGlobalTypes = [
   'AggregateError', 'Array', 'ArrayBuffer', 'DataView', 'Date', 'Error',
-  'EvalError', 'Function', 'Map', 'Object', 'Promise', 'RangeError',
+  'EvalError', 'Function', 'Map', 'Object', 'Promise', 'Proxy', 'RangeError',
   'ReferenceError', 'RegExp', 'Set', 'SharedArrayBuffer', 'SyntaxError',
   'TypeError', 'TypedArray', 'URIError', 'Uint8Array',
 ];
@@ -43,6 +43,7 @@ const customTypesMap = {
     `${jsDocPrefix}Reference/Global_Objects/WebAssembly/Instance`,
 
   'Blob': 'buffer.html#class-blob',
+  'File': 'buffer.html#class-file',
 
   'BroadcastChannel':
     'worker_threads.html#class-broadcastchannel-' +
@@ -84,10 +85,10 @@ const customTypesMap = {
   'Crypto': 'webcrypto.html#class-crypto',
   'SubtleCrypto': 'webcrypto.html#class-subtlecrypto',
   'RsaOaepParams': 'webcrypto.html#class-rsaoaepparams',
+  'AlgorithmIdentifier': 'webcrypto.html#class-algorithmidentifier',
   'AesCtrParams': 'webcrypto.html#class-aesctrparams',
   'AesCbcParams': 'webcrypto.html#class-aescbcparams',
   'AesGcmParams': 'webcrypto.html#class-aesgcmparams',
-  'AesKwParams': 'webcrypto.html#class-aeskwparams',
   'EcdhKeyDeriveParams': 'webcrypto.html#class-ecdhkeyderiveparams',
   'HkdfParams': 'webcrypto.html#class-hkdfparams',
   'Pbkdf2Params': 'webcrypto.html#class-pbkdf2params',
@@ -100,26 +101,9 @@ const customTypesMap = {
     'webcrypto.html#class-rsahashedimportparams',
   'EcKeyImportParams': 'webcrypto.html#class-eckeyimportparams',
   'HmacImportParams': 'webcrypto.html#class-hmacimportparams',
-  'AesImportParams': 'webcrypto.html#class-aesimportparams',
-  'Pbkdf2ImportParams': 'webcrypto.html#class-pbkdf2importparams',
-  'HmacParams': 'webcrypto.html#class-hmacparams',
   'EcdsaParams': 'webcrypto.html#class-ecdsaparams',
   'RsaPssParams': 'webcrypto.html#class-rsapssparams',
-  'RsaSignParams': 'webcrypto.html#class-rsasignparams',
-  'NodeDhImportParams': 'webcrypto.html#class-nodedhimportparams',
-  'NodeDhKeyGenParams': 'webcrypto.html#class-nodedhkeygenparams',
-  'NodeDhDeriveBitsParams':
-    'webcrypto.html#class-nodedhderivebitsparams',
-  'NodeDsaImportParams': 'webcrypto.html#class-nodedsaimportparams',
-  'NodeDsaKeyGenParams': 'webcrypto.html#class-nodedsakeygenparams',
-  'NodeDsaSignParams': 'webcrypto.html#class-nodedsasignparams',
-  'NodeScryptImportParams':
-    'webcrypto.html#class-nodescryptimportparams',
-  'NodeScryptParams': 'webcrypto.html#class-nodescryptparams',
-  'NodeEdKeyImportParams':
-    'webcrypto.html#class-nodeedkeyimportparams',
-  'NodeEdKeyGenParams':
-    'webcrypto.html#class-nodeedkeygenparams',
+  'Ed448Params': 'webcrypto.html#class-ed448params',
 
   'dgram.Socket': 'dgram.html#class-dgramsocket',
 
@@ -134,6 +118,7 @@ const customTypesMap = {
   'EventEmitter': 'events.html#class-eventemitter',
   'EventTarget': 'events.html#class-eventtarget',
   'Event': 'events.html#class-event',
+  'CustomEvent': 'events.html#class-customevent',
   'EventListener': 'events.html#event-listener',
 
   'FileHandle': 'fs.html#class-filehandle',
@@ -142,6 +127,7 @@ const customTypesMap = {
   'fs.FSWatcher': 'fs.html#class-fsfswatcher',
   'fs.ReadStream': 'fs.html#class-fsreadstream',
   'fs.Stats': 'fs.html#class-fsstats',
+  'fs.StatFs': 'fs.html#class-fsstatfs',
   'fs.StatWatcher': 'fs.html#class-fsstatwatcher',
   'fs.WriteStream': 'fs.html#class-fswritestream',
 
@@ -164,6 +150,7 @@ const customTypesMap = {
   'Http2Session': 'http2.html#class-http2session',
   'Http2Stream': 'http2.html#class-http2stream',
   'ServerHttp2Stream': 'http2.html#class-serverhttp2stream',
+  'ServerHttp2Session': 'http2.html#class-serverhttp2session',
 
   'https.Server': 'https.html#class-httpsserver',
 
@@ -194,7 +181,7 @@ const customTypesMap = {
   'PerformanceNodeTiming':
     'perf_hooks.html#class-performancenodetiming',
   'PerformanceObserver':
-    'perf_hooks.html#class-perf_hooksperformanceobserver',
+    'perf_hooks.html#class-performanceobserver',
   'PerformanceObserverEntryList':
     'perf_hooks.html#class-performanceobserverentrylist',
 
@@ -221,6 +208,8 @@ const customTypesMap = {
   'Timeout': 'timers.html#class-timeout',
   'Timer': 'timers.html#timers',
 
+  'TestsStream': 'test.html#class-testsstream',
+
   'tls.SecureContext': 'tls.html#tlscreatesecurecontextoptions',
   'tls.Server': 'tls.html#class-tlsserver',
   'tls.TLSSocket': 'tls.html#class-tlstlssocket',
@@ -229,6 +218,8 @@ const customTypesMap = {
 
   'URL': 'url.html#the-whatwg-url-api',
   'URLSearchParams': 'url.html#class-urlsearchparams',
+
+  'MIMEParams': 'util.html#class-utilmimeparams',
 
   'vm.Module': 'vm.html#class-vmmodule',
   'vm.Script': 'vm.html#class-vmscript',
@@ -311,7 +302,7 @@ export function toLink(typeInput) {
       } else {
         throw new Error(
           `Unrecognized type: '${typeTextFull}'.\n` +
-          `Please, edit the type or update '${import.meta.url}'.`
+          `Please, edit the type or update '${import.meta.url}'.`,
         );
       }
     } else {

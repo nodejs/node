@@ -12,14 +12,13 @@
 #include <vector>
 
 #include "include/libplatform/libplatform.h"
+#include "include/v8-exception.h"
 #include "include/v8-initialization.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-snapshot.h"
 #include "src/base/platform/platform.h"
 #include "src/base/small-vector.h"
-#include "src/base/vector.h"
 #include "src/flags/flags.h"
-#include "src/heap/read-only-heap.h"
 #include "src/utils/utils.h"
 #include "test/inspector/frontend-channel.h"
 #include "test/inspector/isolate-data.h"
@@ -418,6 +417,33 @@ bool StrictAccessCheck(v8::Local<v8::Context> accessing_context,
   return accessing_context.IsEmpty();
 }
 
+class ConsoleExtension : public InspectorIsolateData::SetupGlobalTask {
+ public:
+  ~ConsoleExtension() override = default;
+  void Run(v8::Isolate* isolate,
+           v8::Local<v8::ObjectTemplate> global) override {
+    v8::Local<v8::String> name =
+        v8::String::NewFromUtf8Literal(isolate, "console");
+    global->SetAccessor(name, &ConsoleGetterCallback, nullptr, {}, v8::DEFAULT,
+                        v8::DontEnum);
+  }
+
+ private:
+  static void ConsoleGetterCallback(
+      v8::Local<v8::String>, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    v8::Isolate* isolate = info.GetIsolate();
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    v8::Local<v8::String> name =
+        v8::String::NewFromUtf8Literal(isolate, "console");
+    v8::Local<v8::Object> console = context->GetExtrasBindingObject()
+                                        ->Get(context, name)
+                                        .ToLocalChecked()
+                                        .As<v8::Object>();
+    info.GetReturnValue().Set(console);
+  }
+};
+
 class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
  public:
   ~InspectorExtension() override = default;
@@ -483,6 +509,12 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
     inspector->Set(isolate, "newExceptionWithMetaData",
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::newExceptionWithMetaData));
+    inspector->Set(isolate, "callbackForTests",
+                   v8::FunctionTemplate::New(
+                       isolate, &InspectorExtension::CallbackForTests));
+    inspector->Set(isolate, "runNestedMessageLoop",
+                   v8::FunctionTemplate::New(
+                       isolate, &InspectorExtension::RunNestedMessageLoop));
     global->Set(isolate, "inspector", inspector);
   }
 
@@ -744,18 +776,37 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
                                        args[2].As<v8::String>()));
     args.GetReturnValue().Set(error);
   }
+
+  static void CallbackForTests(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsFunction()) {
+      FATAL("Internal error: callbackForTests(function).");
+    }
+
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+    v8::Local<v8::Function> callback = v8::Local<v8::Function>::Cast(args[0]);
+    v8::MaybeLocal<v8::Value> result =
+        callback->Call(context, v8::Undefined(isolate), 0, nullptr);
+    args.GetReturnValue().Set(result.ToLocalChecked());
+  }
+
+  static void RunNestedMessageLoop(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
+
+    data->task_runner()->RunMessageLoop(true);
+  }
 };
 
 int InspectorTestMain(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   std::unique_ptr<Platform> platform(platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  if (!v8::V8::InitializeVirtualMemoryCage()) {
-    FATAL("Could not initialize the virtual memory cage");
-  }
-#endif
-  FLAG_abort_on_contradictory_flags = true;
+  v8_flags.abort_on_contradictory_flags = true;
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
   v8::V8::Initialize();
@@ -777,6 +828,7 @@ int InspectorTestMain(int argc, char* argv[]) {
   {
     InspectorIsolateData::SetupGlobalTasks frontend_extensions;
     frontend_extensions.emplace_back(new UtilsExtension());
+    frontend_extensions.emplace_back(new ConsoleExtension());
     TaskRunner frontend_runner(std::move(frontend_extensions),
                                kFailOnUncaughtExceptions, &ready_semaphore,
                                startup_data.data ? &startup_data : nullptr,
@@ -791,6 +843,7 @@ int InspectorTestMain(int argc, char* argv[]) {
 
     InspectorIsolateData::SetupGlobalTasks backend_extensions;
     backend_extensions.emplace_back(new SetTimeoutExtension());
+    backend_extensions.emplace_back(new ConsoleExtension());
     backend_extensions.emplace_back(new InspectorExtension());
     TaskRunner backend_runner(
         std::move(backend_extensions), kStandardPropagateUncaughtExceptions,

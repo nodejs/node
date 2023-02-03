@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.TargetNames = void 0;
 const TargetNames = {
   node: "node",
+  deno: "deno",
   chrome: "chrome",
   opera: "opera",
   edge: "edge",
@@ -19,3 +20,5 @@ const TargetNames = {
   rhino: "rhino"
 };
 exports.TargetNames = TargetNames;
+
+//# sourceMappingURL=options.js.map

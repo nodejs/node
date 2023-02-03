@@ -60,6 +60,9 @@ class StructType : public ZoneObject {
   }
   bool operator!=(const StructType& other) const { return !(*this == other); }
 
+  // Returns the offset of this field in the runtime representation of the
+  // object, from the start of the object fields (disregarding the object
+  // header).
   uint32_t field_offset(uint32_t index) const {
     DCHECK_LT(index, field_count());
     if (index == 0) return 0;
@@ -71,9 +74,9 @@ class StructType : public ZoneObject {
 
   void InitializeOffsets() {
     if (field_count() == 0) return;
-    uint32_t offset = field(0).element_size_bytes();
+    uint32_t offset = field(0).value_kind_size();
     for (uint32_t i = 1; i < field_count(); i++) {
-      uint32_t field_size = field(i).element_size_bytes();
+      uint32_t field_size = field(i).value_kind_size();
       // TODO(jkummerow): Don't round up to more than kTaggedSize-alignment.
       offset = RoundUp(offset, field_size);
       field_offsets_[i - 1] = offset;
@@ -124,6 +127,15 @@ class StructType : public ZoneObject {
   const bool* const mutabilities_;
 };
 
+inline std::ostream& operator<<(std::ostream& out, StructType type) {
+  out << "[";
+  for (ValueType field : type.fields()) {
+    out << field.name() << ", ";
+  }
+  out << "]";
+  return out;
+}
+
 class ArrayType : public ZoneObject {
  public:
   constexpr explicit ArrayType(ValueType rep, bool mutability)
@@ -132,13 +144,21 @@ class ArrayType : public ZoneObject {
   ValueType element_type() const { return rep_; }
   bool mutability() const { return mutability_; }
 
-  bool operator==(const ArrayType& other) const { return rep_ == other.rep_; }
-  bool operator!=(const ArrayType& other) const { return rep_ != other.rep_; }
+  bool operator==(const ArrayType& other) const {
+    return rep_ == other.rep_ && mutability_ == other.mutability_;
+  }
+  bool operator!=(const ArrayType& other) const {
+    return rep_ != other.rep_ || mutability_ != other.mutability_;
+  }
+
+  static const intptr_t kRepOffset;
 
  private:
   const ValueType rep_;
   const bool mutability_;
 };
+
+inline constexpr intptr_t ArrayType::kRepOffset = offsetof(ArrayType, rep_);
 
 }  // namespace wasm
 }  // namespace internal

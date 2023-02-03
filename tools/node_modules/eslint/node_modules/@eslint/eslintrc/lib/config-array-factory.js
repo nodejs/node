@@ -129,6 +129,9 @@ const configFilenames = [
 /** @type {WeakMap<ConfigArrayFactory, ConfigArrayFactoryInternalSlots>} */
 const internalSlotsMap = new WeakMap();
 
+/** @type {WeakMap<object, Plugin>} */
+const normalizedPlugins = new WeakMap();
+
 /**
  * Check if a given string is a file path.
  * @param {string} nameOrPath A module name or file path.
@@ -405,12 +408,25 @@ function createContext(
  * @returns {Plugin} The normalized plugin.
  */
 function normalizePlugin(plugin) {
-    return {
+
+    // first check the cache
+    let normalizedPlugin = normalizedPlugins.get(plugin);
+
+    if (normalizedPlugin) {
+        return normalizedPlugin;
+    }
+
+    normalizedPlugin = {
         configs: plugin.configs || {},
         environments: plugin.environments || {},
         processors: plugin.processors || {},
         rules: plugin.rules || {}
     };
+
+    // save the reference for later
+    normalizedPlugins.set(plugin, normalizedPlugin);
+
+    return normalizedPlugin;
 }
 
 //------------------------------------------------------------------------------

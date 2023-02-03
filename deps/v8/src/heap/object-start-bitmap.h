@@ -5,15 +5,10 @@
 #ifndef V8_HEAP_OBJECT_START_BITMAP_H_
 #define V8_HEAP_OBJECT_START_BITMAP_H_
 
-#include <limits.h>
-#include <stdint.h>
-
 #include <array>
 
-#include "include/v8-internal.h"
-#include "src/base/bits.h"
-#include "src/base/macros.h"
 #include "src/common/globals.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 namespace internal {
@@ -41,13 +36,13 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
     return kReservedForBitmap * kBitsPerCell;
   }
 
-  explicit inline ObjectStartBitmap(size_t offset = 0);
+  inline ObjectStartBitmap(PtrComprCageBase cage_base, size_t offset);
 
-  // Finds an object header based on a maybe_inner_ptr. Will search for an
-  // object start in decreasing address order.
-  //
-  // This must only be used when there exists at least one entry in the bitmap.
-  inline Address FindBasePtr(Address maybe_inner_ptr) const;
+  // Finds an object header based on a maybe_inner_ptr. If the object start
+  // bitmap is not fully populated, this iterates through the objects of the
+  // page to recalculate the part of the bitmap that is required, for this
+  // method to return the correct result.
+  inline Address FindBasePtr(Address maybe_inner_ptr);
 
   inline void SetBit(Address);
   inline void ClearBit(Address);
@@ -64,11 +59,19 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
   // Clear the object start bitmap.
   inline void Clear();
 
+#ifdef VERIFY_HEAP
+  // This method verifies that the object start bitmap is consistent with the
+  // page's contents. That is, the bits that are set correspond to existing
+  // objects in the page.
+  inline void Verify() const;
+#endif  // VERIFY_HEAP
+
  private:
   inline void store(size_t cell_index, uint32_t value);
   inline uint32_t load(size_t cell_index) const;
 
-  inline Address offset() const;
+  PtrComprCageBase cage_base() const { return cage_base_; }
+  Address offset() const { return offset_; }
 
   static constexpr size_t kBitsPerCell = sizeof(uint32_t) * CHAR_BIT;
   static constexpr size_t kCellMask = kBitsPerCell - 1;
@@ -82,105 +85,23 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
 
   inline Address StartIndexToAddress(size_t object_start_index) const;
 
+  // Finds an object header based on a maybe_inner_ptr. Will search for an
+  // object start in decreasing address order. If the object start bitmap is
+  // not fully populated, this may incorrectly return |kNullPointer| or the base
+  // pointer of a previous object on the page.
+  inline Address FindBasePtrImpl(Address maybe_inner_ptr) const;
+
+  PtrComprCageBase cage_base_;
   size_t offset_;
 
   std::array<uint32_t, kReservedForBitmap> object_start_bit_map_;
+
+  FRIEND_TEST(V8ObjectStartBitmapTest, FindBasePtrExact);
+  FRIEND_TEST(V8ObjectStartBitmapTest, FindBasePtrApproximate);
+  FRIEND_TEST(V8ObjectStartBitmapTest, FindBasePtrIteratingWholeBitmap);
+  FRIEND_TEST(V8ObjectStartBitmapTest, FindBasePtrNextCell);
+  FRIEND_TEST(V8ObjectStartBitmapTest, FindBasePtrSameCell);
 };
-
-ObjectStartBitmap::ObjectStartBitmap(size_t offset) : offset_(offset) {
-  Clear();
-}
-
-Address ObjectStartBitmap::FindBasePtr(Address maybe_inner_ptr) const {
-  DCHECK_LE(offset(), maybe_inner_ptr);
-  size_t object_offset = maybe_inner_ptr - offset();
-  size_t object_start_number = object_offset / kAllocationGranularity;
-  size_t cell_index = object_start_number / kBitsPerCell;
-  DCHECK_GT(object_start_bit_map_.size(), cell_index);
-  const size_t bit = object_start_number & kCellMask;
-  // check if maybe_inner_ptr is the base pointer
-  uint32_t byte = load(cell_index) & ((1 << (bit + 1)) - 1);
-  while (!byte && cell_index) {
-    DCHECK_LT(0u, cell_index);
-    byte = load(--cell_index);
-  }
-  const int leading_zeroes = v8::base::bits::CountLeadingZeros(byte);
-  if (leading_zeroes == kBitsPerCell) {
-    return kNullAddress;
-  }
-
-  object_start_number =
-      (cell_index * kBitsPerCell) + (kBitsPerCell - 1) - leading_zeroes;
-  Address base_ptr = StartIndexToAddress(object_start_number);
-  return base_ptr;
-}
-
-void ObjectStartBitmap::SetBit(Address base_ptr) {
-  size_t cell_index, object_bit;
-  ObjectStartIndexAndBit(base_ptr, &cell_index, &object_bit);
-  store(cell_index,
-        static_cast<uint32_t>(load(cell_index) | (1 << object_bit)));
-}
-
-void ObjectStartBitmap::ClearBit(Address base_ptr) {
-  size_t cell_index, object_bit;
-  ObjectStartIndexAndBit(base_ptr, &cell_index, &object_bit);
-  store(cell_index,
-        static_cast<uint32_t>(load(cell_index) & ~(1 << object_bit)));
-}
-
-bool ObjectStartBitmap::CheckBit(Address base_ptr) const {
-  size_t cell_index, object_bit;
-  ObjectStartIndexAndBit(base_ptr, &cell_index, &object_bit);
-  return load(cell_index) & (1 << object_bit);
-}
-
-void ObjectStartBitmap::store(size_t cell_index, uint32_t value) {
-  object_start_bit_map_[cell_index] = value;
-  return;
-}
-
-uint32_t ObjectStartBitmap::load(size_t cell_index) const {
-  return object_start_bit_map_[cell_index];
-}
-
-Address ObjectStartBitmap::offset() const { return offset_; }
-
-void ObjectStartBitmap::ObjectStartIndexAndBit(Address base_ptr,
-                                               size_t* cell_index,
-                                               size_t* bit) const {
-  const size_t object_offset = base_ptr - offset();
-  DCHECK(!(object_offset & kAllocationMask));
-  const size_t object_start_number = object_offset / kAllocationGranularity;
-  *cell_index = object_start_number / kBitsPerCell;
-  DCHECK_GT(kBitmapSize, *cell_index);
-  *bit = object_start_number & kCellMask;
-}
-
-Address ObjectStartBitmap::StartIndexToAddress(
-    size_t object_start_index) const {
-  return offset() + (kAllocationGranularity * object_start_index);
-}
-
-template <typename Callback>
-inline void ObjectStartBitmap::Iterate(Callback callback) const {
-  for (size_t cell_index = 0; cell_index < kReservedForBitmap; cell_index++) {
-    uint32_t value = object_start_bit_map_[cell_index];
-    while (value) {
-      const int trailing_zeroes = v8::base::bits::CountTrailingZeros(value);
-      const size_t object_start_number =
-          (cell_index * kBitsPerCell) + trailing_zeroes;
-      const Address object_address = StartIndexToAddress(object_start_number);
-      callback(object_address);
-      // Clear current object bit in temporary value to advance iteration.
-      value &= ~(1 << (object_start_number & kCellMask));
-    }
-  }
-}
-
-void ObjectStartBitmap::Clear() {
-  std::fill(object_start_bit_map_.begin(), object_start_bit_map_.end(), 0);
-}
 
 }  // namespace internal
 }  // namespace v8

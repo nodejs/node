@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,7 +10,7 @@
 #include <string.h>
 #include <openssl/ec.h>
 #include "crypto/ec.h"
-#include "e_os.h" /* strcasecmp required by windows */
+#include "internal/nelem.h"
 
 typedef struct ec_name2nid_st {
     const char *name;
@@ -139,7 +139,7 @@ int ossl_ec_curve_name2nid(const char *name)
             return nid;
 
         for (i = 0; i < OSSL_NELEM(curve_list); i++) {
-            if (strcasecmp(curve_list[i].name, name) == 0)
+            if (OPENSSL_strcasecmp(curve_list[i].name, name) == 0)
                 return curve_list[i].nid;
         }
     }

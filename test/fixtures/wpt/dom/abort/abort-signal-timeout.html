@@ -1,0 +1,19 @@
+<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>AbortSignal.timeout frame detach</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<iframe id="iframe"></iframe>
+<script>
+  async_test(t => {
+    const signal = iframe.contentWindow.AbortSignal.timeout(5);
+    signal.onabort = t.unreached_func("abort must not fire");
+
+    iframe.remove();
+
+    t.step_timeout(() => {
+      assert_false(signal.aborted);
+      t.done();
+    }, 10);
+  }, "Signal returned by AbortSignal.timeout() is not aborted after frame detach");
+</script>

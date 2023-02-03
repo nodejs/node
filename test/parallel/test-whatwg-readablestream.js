@@ -32,6 +32,7 @@ const {
   readableStreamDefaultControllerCanCloseOrEnqueue,
   readableByteStreamControllerClose,
   readableByteStreamControllerRespond,
+  readableStreamReaderGenericRelease,
 } = require('internal/webstreams/readablestream');
 
 const {
@@ -327,17 +328,8 @@ assert.throws(() => {
   const read1 = reader.read();
   const read2 = reader.read();
 
-  // The stream is empty so the read will never settle.
-  read1.then(
-    common.mustNotCall(),
-    common.mustNotCall()
-  );
-
-  // The stream is empty so the read will never settle.
-  read2.then(
-    common.mustNotCall(),
-    common.mustNotCall()
-  );
+  read1.then(common.mustNotCall(), common.mustCall());
+  read2.then(common.mustNotCall(), common.mustCall());
 
   assert.notStrictEqual(read1, read2);
 
@@ -345,10 +337,9 @@ assert.throws(() => {
 
   delay().then(common.mustCall());
 
-  assert.throws(() => reader.releaseLock(), {
-    code: 'ERR_INVALID_STATE',
-  });
   assert(stream.locked);
+  reader.releaseLock();
+  assert(!stream.locked);
 }
 
 {
@@ -369,6 +360,24 @@ assert.throws(() => {
   assert.rejects(closedBefore, {
     code: 'ERR_INVALID_STATE',
   });
+}
+
+{
+  const stream = new ReadableStream();
+  const iterable = stream.values();
+  readableStreamReaderGenericRelease(stream[kState].reader);
+  assert.rejects(iterable.next(), {
+    code: 'ERR_INVALID_STATE',
+  }).then(common.mustCall());
+}
+
+{
+  const stream = new ReadableStream();
+  const iterable = stream.values();
+  readableStreamReaderGenericRelease(stream[kState].reader);
+  assert.rejects(iterable.return(), {
+    code: 'ERR_INVALID_STATE',
+  }).then(common.mustCall());
 }
 
 {
@@ -1285,7 +1294,6 @@ class Source {
   });
 
   async function read(stream) {
-    // eslint-disable-next-line no-unused-vars
     for await (const _ of stream.values({ preventCancel: true }))
       return;
   }
@@ -1300,7 +1308,6 @@ class Source {
   const stream = new ReadableStream(source);
 
   async function read(stream) {
-    // eslint-disable-next-line no-unused-vars
     for await (const _ of stream.values({ preventCancel: false }))
       return;
   }
@@ -1355,6 +1362,9 @@ class Source {
     code: 'ERR_INVALID_THIS',
   });
   assert.throws(() => ReadableStream.prototype.tee.call({}), {
+    code: 'ERR_INVALID_THIS',
+  });
+  assert.throws(() => ReadableStream.prototype.values.call({}), {
     code: 'ERR_INVALID_THIS',
   });
   assert.throws(() => ReadableStream.prototype[kTransfer].call({}), {
@@ -1551,7 +1561,7 @@ class Source {
   assert(!readableStreamDefaultControllerCanCloseOrEnqueue(controller));
   readableStreamDefaultControllerEnqueue(controller);
   readableByteStreamControllerClose(controller);
-  readableByteStreamControllerEnqueue(controller);
+  readableByteStreamControllerEnqueue(controller, new Uint8Array(1));
 }
 
 {

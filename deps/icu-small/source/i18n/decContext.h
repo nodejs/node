@@ -262,7 +262,6 @@
   U_CAPI decContext  * U_EXPORT2 uprv_decContextSetStatusFromStringQuiet(decContext *, const char *);
   U_CAPI decContext  * U_EXPORT2 uprv_decContextSetStatusQuiet(decContext *, uint32_t);
   U_CAPI const char  * U_EXPORT2 uprv_decContextStatusToString(const decContext *);
-  U_CAPI int32_t       U_EXPORT2 uprv_decContextTestEndian(uint8_t);
   U_CAPI uint32_t      U_EXPORT2 uprv_decContextTestSavedStatus(uint32_t, uint32_t);
   U_CAPI uint32_t      U_EXPORT2 uprv_decContextTestStatus(decContext *, uint32_t);
   U_CAPI decContext  * U_EXPORT2 uprv_decContextZeroStatus(decContext *);

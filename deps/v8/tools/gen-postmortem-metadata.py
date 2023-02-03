@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #
 # Copyright 2012 the V8 project authors. All rights reserved.
@@ -93,6 +93,17 @@ consts_misc = [
 
     { 'name': 'CodeKindFieldMask',      'value': 'Code::KindField::kMask' },
     { 'name': 'CodeKindFieldShift',     'value': 'Code::KindField::kShift' },
+
+    { 'name': 'DeoptimizationDataInlinedFunctionCountIndex',
+  'value': 'DeoptimizationData::kInlinedFunctionCountIndex' },
+    { 'name': 'DeoptimizationDataLiteralArrayIndex',
+  'value': 'DeoptimizationData::kLiteralArrayIndex' },
+    { 'name': 'DeoptimizationDataOptimizationIdIndex',
+  'value': 'DeoptimizationData::kOptimizationIdIndex' },
+    { 'name': 'DeoptimizationDataSharedFunctionInfoIndex',
+  'value': 'DeoptimizationData::kSharedFunctionInfoIndex' },
+    { 'name': 'DeoptimizationDataInliningPositionsIndex',
+  'value': 'DeoptimizationData::kInliningPositionsIndex' },
 
     { 'name': 'CodeKindBytecodeHandler',
       'value': 'static_cast<int>(CodeKind::BYTECODE_HANDLER)' },
@@ -266,13 +277,13 @@ extras_accessors = [
     'FixedArray, data, uintptr_t, kHeaderSize',
     'BytecodeArray, data, uintptr_t, kHeaderSize',
     'JSArrayBuffer, backing_store, uintptr_t, kBackingStoreOffset',
-    'JSArrayBuffer, byte_length, size_t, kByteLengthOffset',
-    'JSArrayBufferView, byte_length, size_t, kByteLengthOffset',
-    'JSArrayBufferView, byte_offset, size_t, kByteOffsetOffset',
+    'JSArrayBuffer, byte_length, size_t, kRawByteLengthOffset',
+    'JSArrayBufferView, byte_length, size_t, kRawByteLengthOffset',
+    'JSArrayBufferView, byte_offset, size_t, kRawByteOffsetOffset',
     'JSDate, value, Object, kValueOffset',
     'JSRegExp, source, Object, kSourceOffset',
     'JSTypedArray, external_pointer, uintptr_t, kExternalPointerOffset',
-    'JSTypedArray, length, Object, kLengthOffset',
+    'JSTypedArray, length, Object, kRawLengthOffset',
     'Map, instance_size_in_words, char, kInstanceSizeInWordsOffset',
     'Map, inobject_properties_start_or_constructor_function_index, char, kInobjectPropertiesStartOrConstructorFunctionIndexOffset',
     'Map, instance_type, uint16_t, kInstanceTypeOffset',
@@ -299,6 +310,7 @@ extras_accessors = [
     'Code, flags, uint32_t, kFlagsOffset',
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
+    'Code, deoptimization_data, FixedArray, kDeoptimizationDataOrInterpreterDataOffset',
     'String, length, int32_t, kLengthOffset',
     'DescriptorArray, header_size, uintptr_t, kHeaderSize',
     'ConsString, first, String, kFirstOffset',
@@ -307,7 +319,7 @@ extras_accessors = [
     'ThinString, actual, String, kActualOffset',
     'Symbol, name, Object, kDescriptionOffset',
     'FixedArrayBase, length, SMI, kLengthOffset',
-];
+]
 
 #
 # The following is a whitelist of classes we expect to find when scanning the
@@ -337,7 +349,7 @@ header = '''
  */
 
 #include "src/init/v8.h"
-#include "src/codegen/register-arch.h"
+#include "src/codegen/register.h"
 #include "src/execution/frames.h"
 #include "src/execution/frames-inl.h" /* for architecture-specific frame constants */
 #include "src/objects/contexts.h"
@@ -345,6 +357,7 @@ header = '''
 #include "src/objects/data-handler.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/js-regexp-string-iterator.h"
+#include "src/objects/megadom-handler.h"
 
 namespace v8 {
 namespace internal {
@@ -359,7 +372,7 @@ STACK_FRAME_TYPE_LIST(FRAME_CONST)
 
 #undef FRAME_CONST
 
-''' % sys.argv[0];
+''' % sys.argv[0]
 
 footer = '''
 }
@@ -440,12 +453,12 @@ def load_objects_from_file(objfilename, checktypes):
       continue;
 
     if (in_torque_insttype and (not line or line.isspace())):
-        in_torque_insttype = False
-        continue
+      in_torque_insttype = False
+      continue
 
     if (in_torque_fulldef and (not line or line.isspace())):
-        in_torque_fulldef = False
-        continue
+      in_torque_fulldef = False
+      continue
 
     pre = line.strip()
     line = re.sub('// .*', '', line.strip());
@@ -497,7 +510,7 @@ def load_objects_from_file(objfilename, checktypes):
   for entry in entries:
     entry = entry.strip()
     if not entry:
-        continue
+      continue
     start = entry.find('(');
     end = entry.find(')', start);
     rest = entry[start + 1: end];

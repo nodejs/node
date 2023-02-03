@@ -53,7 +53,8 @@ function test(keylen, expectedCipher, cb) {
     key: key,
     cert: cert,
     ciphers: ciphers,
-    dhparam: loadDHParam(keylen)
+    dhparam: loadDHParam(keylen),
+    maxVersion: 'TLSv1.2',
   };
 
   const server = tls.createServer(options, function(conn) {

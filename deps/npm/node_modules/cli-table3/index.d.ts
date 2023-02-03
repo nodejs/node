@@ -27,6 +27,7 @@ declare namespace CliTable3 {
         rowAligns: VerticalAlignment[];
         head: string[];
         wordWrap: boolean;
+        wrapOnWordBoundary: boolean;
     }
 
     interface TableInstanceOptions extends TableOptions {

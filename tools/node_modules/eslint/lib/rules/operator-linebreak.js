@@ -21,7 +21,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent linebreak style for operators",
+            description: "Enforce consistent linebreak style for operators",
             recommended: false,
             url: "https://eslint.org/docs/rules/operator-linebreak"
         },

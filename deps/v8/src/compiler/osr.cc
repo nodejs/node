@@ -6,9 +6,7 @@
 
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/frame.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
-#include "src/objects/shared-function-info.h"
+#include "src/objects/js-array-inl.h"
 
 namespace v8 {
 namespace internal {

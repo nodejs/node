@@ -1,8 +1,8 @@
 const cacache = require('cacache')
-const { promisify } = require('util')
+const Arborist = require('@npmcli/arborist')
 const pacote = require('pacote')
-const path = require('path')
-const rimraf = promisify(require('rimraf'))
+const fs = require('fs/promises')
+const { join } = require('path')
 const semver = require('semver')
 const BaseCommand = require('../base-command.js')
 const npa = require('npm-package-arg')
@@ -10,11 +10,7 @@ const jsonParse = require('json-parse-even-better-errors')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const log = require('../utils/log-shim')
 
-const searchCachePackage = async (path, spec, cacheKeys) => {
-  const parsed = npa(spec)
-  if (parsed.rawSpec !== '' && parsed.type === 'tag') {
-    throw new Error(`Cannot list cache keys for a tagged package.`)
-  }
+const searchCachePackage = async (path, parsed, cacheKeys) => {
   /* eslint-disable-next-line max-len */
   const searchMFH = new RegExp(`^make-fetch-happen:request-cache:.*(?<!/[@a-zA-Z]+)/${parsed.name}/-/(${parsed.name}[^/]+.tgz)$`)
   const searchPack = new RegExp(`^make-fetch-happen:request-cache:.*/${parsed.escapedName}$`)
@@ -50,6 +46,7 @@ const searchCachePackage = async (path, spec, cacheKeys) => {
     if (!packument.versions || typeof packument.versions !== 'object') {
       continue
     }
+
     // assuming this is a packument
     for (const ver of Object.keys(packument.versions)) {
       if (semver.satisfies(ver, parsed.rawSpec)) {
@@ -71,17 +68,11 @@ class Cache extends BaseCommand {
   static name = 'cache'
   static params = ['cache']
   static usage = [
-    'add <tarball file>',
-    'add <folder>',
-    'add <tarball url>',
-    'add <git url>',
-    'add <name>@<version>',
+    'add <package-spec>',
     'clean [<key>]',
     'ls [<name>@<version>]',
     'verify',
   ]
-
-  static ignoreImplicitWorkspace = true
 
   async completion (opts) {
     const argv = opts.conf.argv.remain
@@ -118,7 +109,7 @@ class Cache extends BaseCommand {
 
   // npm cache clean [pkg]*
   async clean (args) {
-    const cachePath = path.join(this.npm.cache, '_cacache')
+    const cachePath = join(this.npm.cache, '_cacache')
     if (args.length === 0) {
       if (!this.npm.config.get('force')) {
         throw new Error(`As of npm@5, the npm cache self-heals from corruption issues
@@ -136,7 +127,7 @@ class Cache extends BaseCommand {
   If you're sure you want to delete the entire cache, rerun this command
   with --force.`)
       }
-      return rimraf(cachePath)
+      return fs.rm(cachePath, { recursive: true, force: true })
     }
     for (const key of args) {
       let entry
@@ -148,6 +139,7 @@ class Cache extends BaseCommand {
       }
       this.npm.output(`Deleted: ${key}`)
       await cacache.rm.entry(cachePath, key)
+      // XXX this could leave other entries without content!
       await cacache.rm.content(cachePath, entry.integrity)
     }
   }
@@ -170,14 +162,14 @@ class Cache extends BaseCommand {
       return pacote.tarball.stream(spec, stream => {
         stream.resume()
         return stream.promise()
-      }, this.npm.flatOptions)
+      }, { ...this.npm.flatOptions, Arborist })
     }))
   }
 
   async verify () {
-    const cache = path.join(this.npm.cache, '_cacache')
+    const cache = join(this.npm.cache, '_cacache')
     const prefix = cache.indexOf(process.env.HOME) === 0
-      ? `~${cache.substr(process.env.HOME.length)}`
+      ? `~${cache.slice(process.env.HOME.length)}`
       : cache
     const stats = await cacache.verify(cache)
     this.npm.output(`Cache verified and compressed (${prefix})`)
@@ -198,13 +190,17 @@ class Cache extends BaseCommand {
 
   // npm cache ls [--package <spec> ...]
   async ls (specs) {
-    const cachePath = path.join(this.npm.cache, '_cacache')
+    const cachePath = join(this.npm.cache, '_cacache')
     const cacheKeys = Object.keys(await cacache.ls(cachePath))
     if (specs.length > 0) {
       // get results for each package spec specified
       const results = new Set()
       for (const spec of specs) {
-        const keySet = await searchCachePackage(cachePath, spec, cacheKeys)
+        const parsed = npa(spec)
+        if (parsed.rawSpec !== '' && parsed.type === 'tag') {
+          throw this.usageError('Cannot list cache keys for a tagged package.')
+        }
+        const keySet = await searchCachePackage(cachePath, parsed, cacheKeys)
         for (const key of keySet) {
           results.add(key)
         }

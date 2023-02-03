@@ -189,7 +189,7 @@ down each and finally closes both down.
 
  BIO *abio, *cbio, *cbio2;
 
- /* First call to BIO_accept() sets up accept BIO */
+ /* First call to BIO_do_accept() sets up accept BIO */
  abio = BIO_new_accept("4444");
  if (BIO_do_accept(abio) <= 0) {
      fprintf(stderr, "Error setting up accept\n");
@@ -232,7 +232,7 @@ down each and finally closes both down.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

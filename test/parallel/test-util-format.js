@@ -219,7 +219,7 @@ assert.strictEqual(util.format('%s', -Infinity), '-Infinity');
   function D() {
     C.call(this);
   }
-  D.prototype = Object.create(C.prototype);
+  D.prototype = { __proto__: C.prototype };
 
   assert.strictEqual(
     util.format('%s', new B()),
@@ -264,7 +264,7 @@ assert.strictEqual(util.format('%s', -Infinity), '-Infinity');
   );
 
   assert.strictEqual(
-    util.format('%s', Object.create(null)),
+    util.format('%s', { __proto__: null }),
     '[Object: null prototype] {}'
   );
 }

@@ -51,7 +51,7 @@ tools.
 
 ## Formatting
 
-Unfortunately, the C++ linter (based on [Google’s `cpplint`][]), which can be
+Unfortunately, the C++ linter (based on [Google's `cpplint`][]), which can be
 run explicitly via `make lint-cpp`, does not currently catch a lot of rules that
 are specific to the Node.js C++ code base. This document explains the most
 common of these rules:
@@ -117,7 +117,7 @@ void FunctionWithAVeryLongName(int parameter_with_a_very_long_name,
                                ...);
 ```
 
-If that doesn’t work, break after the `(` and use 4 spaces of indentation:
+If that doesn't work, break after the `(` and use 4 spaces of indentation:
 
 ```cpp
 void FunctionWithAReallyReallyReallyLongNameSeriouslyStopIt(
@@ -397,7 +397,7 @@ even `try` and `catch` **will** break.
 [ES.48]: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Res-casts
 [ES.49]: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Res-casts-named
 [Google C++ Style Guide]: https://google.github.io/styleguide/cppguide.html
-[Google’s `cpplint`]: https://github.com/google/styleguide
+[Google's `cpplint`]: https://github.com/google/styleguide
 [R.20]: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rr-owner
 [R.21]: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rr-unique
 [Run Time Type Information]: https://en.wikipedia.org/wiki/Run-time_type_information

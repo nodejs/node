@@ -18,6 +18,8 @@
 #include "src/compiler/schedule.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
+#include "src/execution/isolate-utils-inl.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/utils/ostreams.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -79,13 +81,13 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
 }
 
 bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
-  const bool kComplexFPAliasing = !kSimpleFPAliasing &&
+  const bool kCombineFPAliasing = kFPAliasing == AliasingKind::kCombine &&
                                   this->IsFPLocationOperand() &&
                                   other.IsFPLocationOperand();
   const bool kComplexS128SlotAliasing =
       (this->IsSimd128StackSlot() && other.IsAnyStackSlot()) ||
       (other.IsSimd128StackSlot() && this->IsAnyStackSlot());
-  if (!kComplexFPAliasing && !kComplexS128SlotAliasing) {
+  if (!kCombineFPAliasing && !kComplexS128SlotAliasing) {
     return EqualsCanonicalized(other);
   }
   const LocationOperand& loc = *LocationOperand::cast(this);
@@ -96,7 +98,7 @@ bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
   MachineRepresentation rep = loc.representation();
   MachineRepresentation other_rep = other_loc.representation();
 
-  if (kComplexFPAliasing && !kComplexS128SlotAliasing) {
+  if (kCombineFPAliasing && !kComplexS128SlotAliasing) {
     if (rep == other_rep) return EqualsCanonicalized(other);
     if (kind == LocationOperand::REGISTER) {
       // FP register-register interference.
@@ -124,7 +126,7 @@ bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
 bool LocationOperand::IsCompatible(LocationOperand* op) {
   if (IsRegister() || IsStackSlot()) {
     return op->IsRegister() || op->IsStackSlot();
-  } else if (kSimpleFPAliasing) {
+  } else if (kFPAliasing != AliasingKind::kCombine) {
     // A backend may choose to generate the same instruction sequence regardless
     // of the FP representation. As a result, we can relax the compatibility and
     // allow a Double to be moved in a Float for example. However, this is only
@@ -160,8 +162,11 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
                     << ")";
         case UnallocatedOperand::FIXED_FP_REGISTER:
           return os << "(="
-                    << DoubleRegister::from_code(
-                           unalloc->fixed_register_index())
+                    << (unalloc->IsSimd128Register()
+                            ? i::RegisterName((Simd128Register::from_code(
+                                  unalloc->fixed_register_index())))
+                            : i::RegisterName(DoubleRegister::from_code(
+                                  unalloc->fixed_register_index())))
                     << ")";
         case UnallocatedOperand::MUST_HAVE_REGISTER:
           return os << "(R)";
@@ -176,7 +181,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
       }
     }
     case InstructionOperand::CONSTANT:
-      return os << "[constant:" << ConstantOperand::cast(op).virtual_register()
+      return os << "[constant:v" << ConstantOperand::cast(op).virtual_register()
                 << "]";
     case InstructionOperand::IMMEDIATE: {
       ImmediateOperand imm = ImmediateOperand::cast(op);
@@ -244,6 +249,9 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case MachineRepresentation::kSimd128:
           os << "|s128";
           break;
+        case MachineRepresentation::kSimd256:
+          os << "|s256";
+          break;
         case MachineRepresentation::kTaggedSigned:
           os << "|ts";
           break;
@@ -259,8 +267,8 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case MachineRepresentation::kCompressed:
           os << "|c";
           break;
-        case MachineRepresentation::kCagedPointer:
-          os << "|cg";
+        case MachineRepresentation::kSandboxedPointer:
+          os << "|sb";
           break;
         case MachineRepresentation::kMapWord:
           UNREACHABLE();
@@ -282,7 +290,7 @@ std::ostream& operator<<(std::ostream& os, const MoveOperands& mo) {
   if (!mo.source().Equals(mo.destination())) {
     os << " = " << mo.source();
   }
-  return os << ";";
+  return os;
 }
 
 bool ParallelMove::IsRedundant() const {
@@ -294,8 +302,8 @@ bool ParallelMove::IsRedundant() const {
 
 void ParallelMove::PrepareInsertAfter(
     MoveOperands* move, ZoneVector<MoveOperands*>* to_eliminate) const {
-  bool no_aliasing =
-      kSimpleFPAliasing || !move->destination().IsFPLocationOperand();
+  bool no_aliasing = kFPAliasing != AliasingKind::kCombine ||
+                     !move->destination().IsFPLocationOperand();
   MoveOperands* replacement = nullptr;
   MoveOperands* eliminated = nullptr;
   for (MoveOperands* curr : *this) {
@@ -317,6 +325,20 @@ void ParallelMove::PrepareInsertAfter(
   if (replacement != nullptr) move->set_source(replacement->source());
 }
 
+bool ParallelMove::Equals(const ParallelMove& that) const {
+  if (this->size() != that.size()) return false;
+  for (size_t i = 0; i < this->size(); ++i) {
+    if (!(*this)[i]->Equals(*that[i])) return false;
+  }
+  return true;
+}
+
+void ParallelMove::Eliminate() {
+  for (MoveOperands* move : *this) {
+    move->Eliminate();
+  }
+}
+
 Instruction::Instruction(InstructionCode opcode)
     : opcode_(opcode),
       bit_field_(OutputCountField::encode(0) | InputCountField::encode(0) |
@@ -327,7 +349,7 @@ Instruction::Instruction(InstructionCode opcode)
   parallel_moves_[1] = nullptr;
 
   // PendingOperands are required to be 8 byte aligned.
-  STATIC_ASSERT(offsetof(Instruction, operands_) % 8 == 0);
+  static_assert(offsetof(Instruction, operands_) % 8 == 0);
 }
 
 Instruction::Instruction(InstructionCode opcode, size_t output_count,
@@ -371,11 +393,11 @@ bool Instruction::AreMovesRedundant() const {
 void Instruction::Print() const { StdoutStream{} << *this << std::endl; }
 
 std::ostream& operator<<(std::ostream& os, const ParallelMove& pm) {
-  const char* space = "";
+  const char* delimiter = "";
   for (MoveOperands* move : pm) {
     if (move->IsEliminated()) continue;
-    os << space << *move;
-    space = " ";
+    os << delimiter << *move;
+    delimiter = "; ";
   }
   return os;
 }
@@ -551,16 +573,11 @@ Handle<HeapObject> Constant::ToHeapObject() const {
   return value;
 }
 
-Handle<Code> Constant::ToCode() const {
+Handle<CodeT> Constant::ToCode() const {
   DCHECK_EQ(kHeapObject, type());
-  Handle<Code> value(reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
-  return value;
-}
-
-const StringConstantBase* Constant::ToDelayedStringConstant() const {
-  DCHECK_EQ(kDelayedStringConstant, type());
-  const StringConstantBase* value =
-      bit_cast<StringConstantBase*>(static_cast<intptr_t>(value_));
+  Handle<CodeT> value(
+      reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
+  DCHECK(value->IsCodeT(GetPtrComprCageBaseSlow(*value)));
   return value;
 }
 
@@ -581,9 +598,6 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
       return os << Brief(*constant.ToHeapObject());
     case Constant::kRpoNumber:
       return os << "RPO" << constant.ToRpoNumber().ToInt();
-    case Constant::kDelayedStringConstant:
-      return os << "DelayedStringConstant: "
-                << constant.ToDelayedStringConstant();
   }
   UNREACHABLE();
 }
@@ -803,7 +817,7 @@ void InstructionSequence::ComputeAssemblyOrder() {
     if (block->ao_number() != invalid) continue;  // loop rotated.
     if (block->IsLoopHeader()) {
       bool header_align = true;
-      if (FLAG_turbo_loop_rotation) {
+      if (v8_flags.turbo_loop_rotation) {
         // Perform loop rotation for non-deferred loops.
         InstructionBlock* loop_end =
             instruction_blocks_->at(block->loop_end().ToSize() - 1);
@@ -929,9 +943,10 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kFloat64:
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd256:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
-    case MachineRepresentation::kCagedPointer:
+    case MachineRepresentation::kSandboxedPointer:
       return rep;
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:
@@ -1039,9 +1054,10 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
           static_cast<int>(parameters_count), static_cast<int>(locals_count));
       return info.frame_size_in_bytes();
     }
-    case FrameStateType::kArgumentsAdaptor:
-      // The arguments adaptor frame state is only used in the deoptimizer and
-      // does not occupy any extra space in the stack. Check out the design doc:
+    case FrameStateType::kInlinedExtraArguments:
+      // The inlined extra arguments frame state is only used in the deoptimizer
+      // and does not occupy any extra space in the stack.
+      // Check out the design doc:
       // https://docs.google.com/document/d/150wGaUREaZI6YWqOQFD5l2mWQXaPbbZjcAIJLOFrzMs/edit
       // We just need to account for the additional parameters we might push
       // here.
@@ -1116,7 +1132,7 @@ size_t FrameStateDescriptor::GetHeight() const {
       // Custom, non-JS calling convention (that does not have a notion of
       // a receiver or context).
       return parameters_count();
-    case FrameStateType::kArgumentsAdaptor:
+    case FrameStateType::kInlinedExtraArguments:
     case FrameStateType::kConstructStub:
     case FrameStateType::kJavaScriptBuiltinContinuation:
     case FrameStateType::kJavaScriptBuiltinContinuationWithCatch:

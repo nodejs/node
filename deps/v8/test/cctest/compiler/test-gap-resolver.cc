@@ -17,7 +17,7 @@ const auto GetRegConfig = RegisterConfiguration::Default;
 // simplify ParallelMove equivalence testing.
 void GetCanonicalOperands(const InstructionOperand& op,
                           std::vector<InstructionOperand>* fragments) {
-  CHECK(!kSimpleFPAliasing);
+  CHECK_EQ(kFPAliasing, AliasingKind::kCombine);
   CHECK(op.IsFPLocationOperand());
   const LocationOperand& loc = LocationOperand::cast(op);
   MachineRepresentation rep = loc.representation();
@@ -51,7 +51,7 @@ class InterpreterState {
       CHECK(!m->IsRedundant());
       const InstructionOperand& src = m->source();
       const InstructionOperand& dst = m->destination();
-      if (!kSimpleFPAliasing && src.IsFPLocationOperand() &&
+      if (kFPAliasing == AliasingKind::kCombine && src.IsFPLocationOperand() &&
           dst.IsFPLocationOperand()) {
         // Canonicalize FP location-location moves by fragmenting them into
         // an equivalent sequence of float32 moves, to simplify state
@@ -71,6 +71,32 @@ class InterpreterState {
       // All other moves.
       write(dst, copy.read(src));
     }
+  }
+
+  void MoveToTempLocation(InstructionOperand& source) {
+    scratch_ = KeyFor(source);
+  }
+
+  void MoveFromTempLocation(InstructionOperand& dst) {
+    AllocatedOperand src(scratch_.kind, scratch_.rep, scratch_.index);
+    if (kFPAliasing == AliasingKind::kCombine && src.IsFPLocationOperand() &&
+        dst.IsFPLocationOperand()) {
+      // Canonicalize FP location-location moves by fragmenting them into
+      // an equivalent sequence of float32 moves, to simplify state
+      // equivalence testing.
+      std::vector<InstructionOperand> src_fragments;
+      GetCanonicalOperands(src, &src_fragments);
+      CHECK(!src_fragments.empty());
+      std::vector<InstructionOperand> dst_fragments;
+      GetCanonicalOperands(dst, &dst_fragments);
+      CHECK_EQ(src_fragments.size(), dst_fragments.size());
+
+      for (size_t i = 0; i < src_fragments.size(); ++i) {
+        write(dst_fragments[i], KeyFor(src_fragments[i]));
+      }
+      return;
+    }
+    write(dst, scratch_);
   }
 
   bool operator==(const InterpreterState& other) const {
@@ -137,8 +163,15 @@ class InterpreterState {
       // Preserve FP representation when FP register aliasing is complex.
       // Otherwise, canonicalize to kFloat64.
       if (IsFloatingPoint(loc_op.representation())) {
-        rep = kSimpleFPAliasing ? MachineRepresentation::kFloat64
-                                : loc_op.representation();
+        if (kFPAliasing == AliasingKind::kIndependent) {
+          rep = IsSimd128(loc_op.representation())
+                    ? MachineRepresentation::kSimd128
+                    : MachineRepresentation::kFloat64;
+        } else if (kFPAliasing == AliasingKind::kOverlap) {
+          rep = MachineRepresentation::kFloat64;
+        } else {
+          rep = loc_op.representation();
+        }
       }
       if (loc_op.IsAnyRegister()) {
         index = loc_op.register_code();
@@ -176,6 +209,7 @@ class InterpreterState {
   }
 
   OperandMap values_;
+  Key scratch_ = {};
 };
 
 // An abstract interpreter for moves, swaps and parallel moves.
@@ -183,13 +217,20 @@ class MoveInterpreter : public GapResolver::Assembler {
  public:
   explicit MoveInterpreter(Zone* zone) : zone_(zone) {}
 
+  void MoveToTempLocation(InstructionOperand* source) final {
+    state_.MoveToTempLocation(*source);
+  }
+  void MoveTempLocationTo(InstructionOperand* dest,
+                          MachineRepresentation rep) final {
+    state_.MoveFromTempLocation(*dest);
+  }
+  void SetPendingMove(MoveOperands* move) final {}
   void AssembleMove(InstructionOperand* source,
                     InstructionOperand* destination) override {
     ParallelMove* moves = zone_->New<ParallelMove>(zone_);
     moves->AddMove(*source, *destination);
     state_.ExecuteInParallel(moves);
   }
-
   void AssembleSwap(InstructionOperand* source,
                     InstructionOperand* destination) override {
     ParallelMove* moves = zone_->New<ParallelMove>(zone_);
@@ -197,7 +238,6 @@ class MoveInterpreter : public GapResolver::Assembler {
     moves->AddMove(*destination, *source);
     state_.ExecuteInParallel(moves);
   }
-
   void AssembleParallelMove(const ParallelMove* moves) {
     state_.ExecuteInParallel(moves);
   }
@@ -234,7 +274,8 @@ class ParallelMoveCreator : public HandleAndZoneScope {
       // On architectures where FP register aliasing is non-simple, update the
       // destinations set with the float equivalents of the operand and check
       // that all destinations are unique and do not alias each other.
-      if (!kSimpleFPAliasing && mo.destination().IsFPLocationOperand()) {
+      if (kFPAliasing == AliasingKind::kCombine &&
+          mo.destination().IsFPLocationOperand()) {
         std::vector<InstructionOperand> dst_fragments;
         GetCanonicalOperands(dst, &dst_fragments);
         CHECK(!dst_fragments.empty());
@@ -383,7 +424,7 @@ void RunTest(ParallelMove* pm, Zone* zone) {
 
 TEST(Aliasing) {
   // On platforms with simple aliasing, these parallel moves are ill-formed.
-  if (kSimpleFPAliasing) return;
+  if (kFPAliasing != AliasingKind::kCombine) return;
 
   ParallelMoveCreator pmc;
   Zone* zone = pmc.main_zone();

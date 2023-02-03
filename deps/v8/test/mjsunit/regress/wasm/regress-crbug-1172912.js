@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-reftypes --experimental-wasm-typed-funcref
+// Flags: --experimental-wasm-typed-funcref
 
 let raw = new Uint8Array([
   0x00, 0x61, 0x73, 0x6d,  // wasm magic

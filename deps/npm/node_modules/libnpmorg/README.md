@@ -2,8 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/libnpmorg.svg)](https://npm.im/libnpmorg)
 [![license](https://img.shields.io/npm/l/libnpmorg.svg)](https://npm.im/libnpmorg)
-[![GitHub Actions](https://github.com/npm/libnpmorg/workflows/Node%20CI/badge.svg)](https://github.com/npm/libnpmorg/workflows/Node%20CI/badge.svg)
-[![Coverage Status](https://coveralls.io/repos/github/npm/libnpmorg/badge.svg?branch=latest)](https://coveralls.io/github/npm/libnpmorg?branch=latest)
+[![CI - libnpmorg](https://github.com/npm/cli/actions/workflows/ci-libnpmorg.yml/badge.svg)](https://github.com/npm/cli/actions/workflows/ci-libnpmorg.yml)
 
 [`libnpmorg`](https://github.com/npm/libnpmorg) is a Node.js library for
 programmatically accessing the [npm Org membership

@@ -440,7 +440,7 @@ CollationElementIterator::computeMaxExpansions(const CollationData *data, UError
                                            uhash_compareLong, &errorCode);
     if (U_FAILURE(errorCode)) { return NULL; }
     MaxExpSink sink(maxExpansions, errorCode);
-    ContractionsAndExpansions(NULL, NULL, &sink, TRUE).forData(data, errorCode);
+    ContractionsAndExpansions(NULL, NULL, &sink, true).forData(data, errorCode);
     if (U_FAILURE(errorCode)) {
         uhash_close(maxExpansions);
         return NULL;

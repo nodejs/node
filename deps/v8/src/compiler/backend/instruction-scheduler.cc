@@ -82,9 +82,9 @@ InstructionScheduler::InstructionScheduler(Zone* zone,
       last_live_in_reg_marker_(nullptr),
       last_deopt_or_trap_(nullptr),
       operands_map_(zone) {
-  if (FLAG_turbo_stress_instruction_scheduling) {
+  if (v8_flags.turbo_stress_instruction_scheduling) {
     random_number_generator_ =
-        base::Optional<base::RandomNumberGenerator>(FLAG_random_seed);
+        base::Optional<base::RandomNumberGenerator>(v8_flags.random_seed);
   }
 }
 
@@ -99,7 +99,7 @@ void InstructionScheduler::StartBlock(RpoNumber rpo) {
 }
 
 void InstructionScheduler::EndBlock(RpoNumber rpo) {
-  if (FLAG_turbo_stress_instruction_scheduling) {
+  if (v8_flags.turbo_stress_instruction_scheduling) {
     Schedule<StressSchedulerQueue>();
   } else {
     Schedule<CriticalPathFirstQueue>();
@@ -119,7 +119,7 @@ void InstructionScheduler::AddTerminator(Instruction* instr) {
 
 void InstructionScheduler::AddInstruction(Instruction* instr) {
   if (IsBarrier(instr)) {
-    if (FLAG_turbo_stress_instruction_scheduling) {
+    if (v8_flags.turbo_stress_instruction_scheduling) {
       Schedule<StressSchedulerQueue>();
     } else {
       Schedule<CriticalPathFirstQueue>();

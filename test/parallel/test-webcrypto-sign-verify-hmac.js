@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 const vectors = require('../fixtures/crypto/hmac')();
 
@@ -91,16 +91,14 @@ async function testVerify({ hash,
   // Test failure when wrong hash is used
   {
     const otherhash = hash === 'SHA-1' ? 'SHA-256' : 'SHA-1';
-    assert(!(await subtle.verify({
-      name,
-      hash: otherhash
-    }, key, signature, copy)));
+    const keyWithOtherHash = await subtle.importKey(
+      'raw',
+      keyBuffer,
+      { name, hash: otherhash },
+      false,
+      ['verify']);
+    assert(!(await subtle.verify({ name }, keyWithOtherHash, signature, plaintext)));
   }
-
-  await assert.rejects(
-    subtle.verify({ name, hash: 'sha256' }, key, signature, copy), {
-      message: /Unrecognized name/
-    });
 }
 
 async function testSign({ hash,
@@ -153,10 +151,9 @@ async function testSign({ hash,
   }
 
   await assert.rejects(
-    subtle.generateKey({ name }, false, []), {
+    subtle.generateKey({ name }, false, ['sign', 'verify']), {
       name: 'TypeError',
       code: 'ERR_MISSING_OPTION',
-      message: 'algorithm.hash is required'
     });
 
   // Test failure when no sign usage

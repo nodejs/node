@@ -69,7 +69,7 @@ module.exports = class Cursor {
      * @returns {boolean} `true` if the next token exists.
      * @abstract
      */
-    /* istanbul ignore next */
+    /* c8 ignore next */
     moveNext() { // eslint-disable-line class-methods-use-this -- Unused
         throw new Error("Not implemented.");
     }

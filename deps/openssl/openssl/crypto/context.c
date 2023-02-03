@@ -14,6 +14,7 @@
 #include "internal/core.h"
 #include "internal/bio.h"
 #include "internal/provider.h"
+#include "crypto/ctype.h"
 
 struct ossl_lib_ctx_onfree_list_st {
     ossl_lib_ctx_onfree_fn *fn;

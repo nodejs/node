@@ -38,6 +38,7 @@ const certFixture = {
 
   serverSide.resume();  // Dump the request
   serverSide.end('HTTP/1.1 200 OK\r\n' +
+                 'Host: example.com\r\n' +
                  'Hello: ' + 'A'.repeat(http.maxHeaderSize * 3) + '\r\n' +
                  'Content-Length: 0\r\n' +
                  '\r\n\r\n');
@@ -55,6 +56,7 @@ const certFixture = {
 
   serverSide.resume();  // Dump the request
   serverSide.end('HTTP/1.1 200 OK\r\n' +
+                 'Host: example.com\r\n' +
                  'Hello: ' + 'A'.repeat(http.maxHeaderSize * 3) + '\r\n' +
                  'Content-Length: 0\r\n' +
                  '\r\n\r\n');
@@ -81,6 +83,7 @@ const certFixture = {
     });
     client.write(
       'GET / HTTP/1.1\r\n' +
+      'Host: example.com\r\n' +
       'Hello: ' + 'A'.repeat(http.maxHeaderSize * 3) + '\r\n' +
       '\r\n\r\n');
     client.end();
@@ -98,7 +101,7 @@ const certFixture = {
 
   // clientError may be emitted multiple times when header is larger than
   // maxHeaderSize.
-  server.on('clientError', common.mustCallAtLeast(() => {}, 1));
+  server.on('clientError', common.mustCallAtLeast(1));
 
   server.listen(0, common.mustCall(() => {
     const client = tls.connect({
@@ -107,6 +110,7 @@ const certFixture = {
     });
     client.write(
       'GET / HTTP/1.1\r\n' +
+      'Host: example.com\r\n' +
       'Hello: ' + 'A'.repeat(http.maxHeaderSize * 3) + '\r\n' +
       '\r\n\r\n');
     client.end();

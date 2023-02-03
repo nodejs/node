@@ -150,7 +150,7 @@ void CompileJumpTableThunk(Address thunk, Address jump_target) {
   __ lw(scratch, MemOperand(scratch, 0));
   __ Branch(&exit, ne, scratch, Operand(zero_reg));
   __ Jump(jump_target, RelocInfo::NO_INFO);
-#elif V8_TARGET_ARCH_RISCV64
+#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
   __ li(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ Lw(scratch, MemOperand(scratch, 0));
   __ Branch(&exit, ne, scratch, Operand(zero_reg));
@@ -162,7 +162,7 @@ void CompileJumpTableThunk(Address thunk, Address jump_target) {
   __ Ret();
 
   FlushInstructionCache(thunk, kThunkBufferSize);
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+#if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64)
   // MacOS on arm64 refuses {mprotect} calls to toggle permissions of RWX
   // memory. Simply do nothing here, as the space will by default be executable
   // and non-writable for the JumpTableRunner.
@@ -202,11 +202,9 @@ class JumpTablePatcher : public v8::base::Thread {
         jump_table_mutex_(jump_table_mutex) {}
 
   void Run() override {
+    RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
     TRACE("Patcher %p is starting ...\n", this);
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
-    // Make sure to switch memory to writable on M1 hardware.
-    CodeSpaceWriteScope code_space_write_scope(nullptr);
-#endif
+    RwxMemoryWriteScopeForTesting rwx_write_scope;
     Address slot_address =
         slot_start_ + JumpTableAssembler::JumpSlotIndexToOffset(slot_index_);
     // First, emit code to the two thunks.
@@ -250,9 +248,9 @@ TEST(JumpTablePatchingStress) {
   constexpr int kNumberOfRunnerThreads = 5;
   constexpr int kNumberOfPatcherThreads = 3;
 
-  STATIC_ASSERT(kAssemblerBufferSize >= kJumpTableSize);
+  static_assert(kAssemblerBufferSize >= kJumpTableSize);
   auto buffer = AllocateAssemblerBuffer(kAssemblerBufferSize, nullptr,
-                                        VirtualMemory::kMapAsJittable);
+                                        JitPermission::kMapAsJittable);
   byte* thunk_slot_buffer = buffer->start() + kBufferSlotStartOffset;
 
   std::bitset<kAvailableBufferSlots> used_thunk_slots;
@@ -267,10 +265,7 @@ TEST(JumpTablePatchingStress) {
     std::vector<std::unique_ptr<TestingAssemblerBuffer>> thunk_buffers;
     std::vector<Address> patcher_thunks;
     {
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
-      // Make sure to switch memory to writable on M1 hardware.
-      CodeSpaceWriteScope code_space_write_scope(nullptr);
-#endif
+      RwxMemoryWriteScopeForTesting rwx_write_scope;
       // Patch the jump table slot to jump to itself. This will later be patched
       // by the patchers.
       Address slot_addr =

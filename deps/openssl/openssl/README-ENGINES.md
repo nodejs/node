@@ -314,4 +314,3 @@ It seems like the ENGINE part doesn't work too well with CryptoSwift on Win32.
 A quick test done right before the release showed that trying "openssl speed
 -engine cswift" generated errors. If the DSO gets enabled, an attempt is made
 to write at memory address 0x00000002.
-

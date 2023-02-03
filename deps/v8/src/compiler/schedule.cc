@@ -198,7 +198,7 @@ BasicBlock* Schedule::NewBasicBlock() {
 }
 
 void Schedule::PlanNode(BasicBlock* block, Node* node) {
-  if (FLAG_trace_turbo_scheduler) {
+  if (v8_flags.trace_turbo_scheduler) {
     StdoutStream{} << "Planning #" << node->id() << ":"
                    << node->op()->mnemonic()
                    << " for future add to id:" << block->id() << "\n";
@@ -208,7 +208,7 @@ void Schedule::PlanNode(BasicBlock* block, Node* node) {
 }
 
 void Schedule::AddNode(BasicBlock* block, Node* node) {
-  if (FLAG_trace_turbo_scheduler) {
+  if (v8_flags.trace_turbo_scheduler) {
     StdoutStream{} << "Adding #" << node->id() << ":" << node->op()->mnemonic()
                    << " to id:" << block->id() << "\n";
   }
@@ -332,12 +332,8 @@ void Schedule::InsertSwitch(BasicBlock* block, BasicBlock* end, Node* sw,
 }
 
 void Schedule::EnsureCFGWellFormedness() {
-  // Make a copy of all the blocks for the iteration, since adding the split
-  // edges will allocate new blocks.
-  BasicBlockVector all_blocks_copy(all_blocks_);
-
-  // Insert missing split edge blocks.
-  for (BasicBlock* block : all_blocks_copy) {
+  // Ensure there are no critical edges.
+  for (BasicBlock* block : all_blocks_) {
     if (block->PredecessorCount() > 1) {
       if (block != end_) {
         EnsureSplitEdgeForm(block);

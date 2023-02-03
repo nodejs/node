@@ -1,0 +1,1 @@
+process.emitWarning('test warning');

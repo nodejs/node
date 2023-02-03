@@ -40,8 +40,8 @@ class SwitchInfo {
       DCHECK_LE(min_value, max_value);
       // Note that {value_range} can be 0 if {min_value} is -2^31 and
       // {max_value} is 2^31-1, so don't assume that it's non-zero below.
-      value_range_ =
-          1u + bit_cast<uint32_t>(max_value) - bit_cast<uint32_t>(min_value);
+      value_range_ = 1u + base::bit_cast<uint32_t>(max_value) -
+                     base::bit_cast<uint32_t>(min_value);
     } else {
       value_range_ = 0;
     }
@@ -288,6 +288,11 @@ class OperandGenerator {
                               InstructionOperand::kInvalidVirtualRegister);
   }
 
+  InstructionOperand TempRegister(int code) {
+    return UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER, code,
+                              sequence()->NextVirtualRegister());
+  }
+
   template <typename FPRegType>
   InstructionOperand TempFpRegister(FPRegType reg) {
     UnallocatedOperand op =
@@ -360,8 +365,6 @@ class OperandGenerator {
         return Constant(HeapConstantOf(node->op()));
       case IrOpcode::kCompressedHeapConstant:
         return Constant(HeapConstantOf(node->op()), true);
-      case IrOpcode::kDelayedStringConstant:
-        return Constant(StringConstantBaseOf(node->op()));
       case IrOpcode::kDeadValue: {
         switch (DeadValueRepresentationOf(node->op())) {
           case MachineRepresentation::kBit:
@@ -429,7 +432,7 @@ class OperandGenerator {
 
   UnallocatedOperand ToUnallocatedOperand(LinkageLocation location,
                                           int virtual_register) {
-    if (location.IsAnyRegister()) {
+    if (location.IsAnyRegister() || location.IsNullRegister()) {
       // any machine register.
       return UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER,
                                 virtual_register);

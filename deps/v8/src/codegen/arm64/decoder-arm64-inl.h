@@ -5,9 +5,8 @@
 #ifndef V8_CODEGEN_ARM64_DECODER_ARM64_INL_H_
 #define V8_CODEGEN_ARM64_DECODER_ARM64_INL_H_
 
+#include "src/base/v8-fallthrough.h"
 #include "src/codegen/arm64/decoder-arm64.h"
-#include "src/common/globals.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

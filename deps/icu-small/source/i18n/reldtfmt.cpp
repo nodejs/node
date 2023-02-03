@@ -71,8 +71,8 @@ RelativeDateFormat::RelativeDateFormat( UDateFormatStyle timeStyle, UDateFormatS
                                         const Locale& locale, UErrorCode& status) :
  DateFormat(), fDateTimeFormatter(NULL), fDatePattern(), fTimePattern(), fCombinedFormat(NULL),
  fDateStyle(dateStyle), fLocale(locale), fDatesLen(0), fDates(NULL),
- fCombinedHasDateAtStart(FALSE), fCapitalizationInfoSet(FALSE),
- fCapitalizationOfRelativeUnitsForUIListMenu(FALSE), fCapitalizationOfRelativeUnitsForStandAlone(FALSE),
+ fCombinedHasDateAtStart(false), fCapitalizationInfoSet(false),
+ fCapitalizationOfRelativeUnitsForUIListMenu(false), fCapitalizationOfRelativeUnitsForStandAlone(false),
  fCapitalizationBrkIter(NULL)
 {
     if(U_FAILURE(status) ) {
@@ -246,13 +246,13 @@ void RelativeDateFormat::parse( const UnicodeString& text,
     } else if (fTimePattern.isEmpty() || fCombinedFormat == NULL) {
         // no time pattern or way to combine, try parsing as date
         // first check whether text matches a relativeDayString
-        UBool matchedRelative = FALSE;
+        UBool matchedRelative = false;
         for (int n=0; n < fDatesLen && !matchedRelative; n++) {
             if (fDates[n].string != NULL &&
                     text.compare(startIndex, fDates[n].len, fDates[n].string) == 0) {
                 // it matched, handle the relative day string
                 UErrorCode status = U_ZERO_ERROR;
-                matchedRelative = TRUE;
+                matchedRelative = true;
 
                 // Set the calendar to now+offset
                 cal.setTime(Calendar::getNow(),status);
@@ -424,7 +424,7 @@ RelativeDateFormat::setContext(UDisplayContext value, UErrorCode& status)
         if (!fCapitalizationInfoSet &&
                 (value==UDISPCTX_CAPITALIZATION_FOR_UI_LIST_OR_MENU || value==UDISPCTX_CAPITALIZATION_FOR_STANDALONE)) {
             initCapitalizationContextInfo(fLocale);
-            fCapitalizationInfoSet = TRUE;
+            fCapitalizationInfoSet = true;
         }
 #if !UCONFIG_NO_BREAK_ITERATION
         if ( fCapitalizationBrkIter == NULL && (value==UDISPCTX_CAPITALIZATION_FOR_BEGINNING_OF_SENTENCE ||
@@ -536,9 +536,9 @@ void RelativeDateFormat::loadDates(UErrorCode &status) {
 
             const UChar *resStr = ures_getStringByIndex(dateTimePatterns.getAlias(), glueIndex, &resStrLen, &status);
             if (U_SUCCESS(status) && resStrLen >= patItem1Len && u_strncmp(resStr,patItem1,patItem1Len)==0) {
-                fCombinedHasDateAtStart = TRUE;
+                fCombinedHasDateAtStart = true;
             }
-            fCombinedFormat = new SimpleFormatter(UnicodeString(TRUE, resStr, resStrLen), 2, 2, status);
+            fCombinedFormat = new SimpleFormatter(UnicodeString(true, resStr, resStrLen), 2, 2, status);
         }
     }
 

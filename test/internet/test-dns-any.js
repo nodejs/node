@@ -78,7 +78,7 @@ const checkers = {
     assert.strictEqual(typeof r.priority, 'number');
     assert.strictEqual(typeof r.weight, 'number');
     assert.strictEqual(r.type, 'SRV');
-  }
+  },
 };
 
 function TEST(f) {
@@ -141,10 +141,10 @@ TEST(async function test_google_for_cname_and_srv(done) {
     assert.ok(types.SRV);
   }
 
-  validateResult(await dnsPromises.resolve('_jabber._tcp.google.com', 'ANY'));
+  validateResult(await dnsPromises.resolve('_caldav._tcp.google.com', 'ANY'));
 
   const req = dns.resolve(
-    '_jabber._tcp.google.com',
+    '_caldav._tcp.google.com',
     'ANY',
     common.mustSucceed((ret) => {
       validateResult(ret);

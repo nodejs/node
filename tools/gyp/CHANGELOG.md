@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.0](https://www.github.com/nodejs/gyp-next/compare/v0.12.1...v0.13.0) (2022-05-11)
+
+
+### Features
+
+* add PRODUCT_DIR_ABS variable ([#151](https://www.github.com/nodejs/gyp-next/issues/151)) ([80d2626](https://www.github.com/nodejs/gyp-next/commit/80d26263581db829b61b312a7bdb5cc791df7824))
+
+
+### Bug Fixes
+
+* execvp: printf: Argument list too long ([#147](https://www.github.com/nodejs/gyp-next/issues/147)) ([c4e14f3](https://www.github.com/nodejs/gyp-next/commit/c4e14f301673fadbac3ab7882d0b5f4d02530cb9))
+
 ### [0.12.1](https://www.github.com/nodejs/gyp-next/compare/v0.12.0...v0.12.1) (2022-04-06)
 
 

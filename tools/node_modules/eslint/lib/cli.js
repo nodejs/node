@@ -6,7 +6,7 @@
 "use strict";
 
 /*
- * The CLI object should *not* call process.exit() directly. It should only return
+ * NOTE: The CLI object should *not* call process.exit() directly. It should only return
  * exit codes. This allows other programs to use the CLI object and still control
  * when the program exits.
  */
@@ -19,9 +19,13 @@ const fs = require("fs"),
     path = require("path"),
     { promisify } = require("util"),
     { ESLint } = require("./eslint"),
-    CLIOptions = require("./options"),
+    { FlatESLint } = require("./eslint/flat-eslint"),
+    createCLIOptions = require("./options"),
     log = require("./shared/logging"),
     RuntimeInfo = require("./shared/runtime-info");
+const { Legacy: { naming } } = require("@eslint/eslintrc");
+const { findFlatConfigFile } = require("./eslint/flat-eslint");
+const { ModuleImporter } = require("@humanwhocodes/module-importer");
 
 const debug = require("debug")("eslint:cli");
 
@@ -33,6 +37,7 @@ const debug = require("debug")("eslint:cli");
 /** @typedef {import("./eslint/eslint").LintMessage} LintMessage */
 /** @typedef {import("./eslint/eslint").LintResult} LintResult */
 /** @typedef {import("./options").ParsedCLIOptions} ParsedCLIOptions */
+/** @typedef {import("./shared/types").ResultsMeta} ResultsMeta */
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -54,17 +59,20 @@ function quietFixPredicate(message) {
 }
 
 /**
- * Translates the CLI options into the options expected by the CLIEngine.
+ * Translates the CLI options into the options expected by the ESLint constructor.
  * @param {ParsedCLIOptions} cliOptions The CLI options to translate.
- * @returns {ESLintOptions} The options object for the CLIEngine.
+ * @param {"flat"|"eslintrc"} [configType="eslintrc"] The format of the
+ *      config to generate.
+ * @returns {Promise<ESLintOptions>} The options object for the ESLint constructor.
  * @private
  */
-function translateOptions({
+async function translateOptions({
     cache,
     cacheFile,
     cacheLocation,
     cacheStrategy,
     config,
+    configLookup,
     env,
     errorOnUnmatchedPattern,
     eslintrc,
@@ -85,19 +93,60 @@ function translateOptions({
     resolvePluginsRelativeTo,
     rule,
     rulesdir
-}) {
-    return {
-        allowInlineConfig: inlineConfig,
-        cache,
-        cacheLocation: cacheLocation || cacheFile,
-        cacheStrategy,
-        errorOnUnmatchedPattern,
-        extensions: ext,
-        fix: (fix || fixDryRun) && (quiet ? quietFixPredicate : true),
-        fixTypes: fixType,
-        ignore,
-        ignorePath,
-        overrideConfig: {
+}, configType) {
+
+    let overrideConfig, overrideConfigFile;
+    const importer = new ModuleImporter();
+
+    if (configType === "flat") {
+        overrideConfigFile = (typeof config === "string") ? config : !configLookup;
+        if (overrideConfigFile === false) {
+            overrideConfigFile = void 0;
+        }
+
+        let globals = {};
+
+        if (global) {
+            globals = global.reduce((obj, name) => {
+                if (name.endsWith(":true")) {
+                    obj[name.slice(0, -5)] = "writable";
+                } else {
+                    obj[name] = "readonly";
+                }
+                return obj;
+            }, globals);
+        }
+
+        overrideConfig = [{
+            languageOptions: {
+                globals,
+                parserOptions: parserOptions || {}
+            },
+            rules: rule ? rule : {}
+        }];
+
+        if (parser) {
+            overrideConfig[0].languageOptions.parser = await importer.import(parser);
+        }
+
+        if (plugin) {
+            const plugins = {};
+
+            for (const pluginName of plugin) {
+
+                const shortName = naming.getShorthandName(pluginName, "eslint-plugin");
+                const longName = naming.normalizePackageName(pluginName, "eslint-plugin");
+
+                plugins[shortName] = await importer.import(longName);
+            }
+
+            overrideConfig[0].plugins = plugins;
+        }
+
+    } else {
+        overrideConfigFile = config;
+
+        overrideConfig = {
             env: env && env.reduce((obj, name) => {
                 obj[name] = true;
                 return obj;
@@ -115,19 +164,40 @@ function translateOptions({
             parserOptions,
             plugins: plugin,
             rules: rule
-        },
-        overrideConfigFile: config,
-        reportUnusedDisableDirectives: reportUnusedDisableDirectives ? "error" : void 0,
-        resolvePluginsRelativeTo,
-        rulePaths: rulesdir,
-        useEslintrc: eslintrc
+        };
+    }
+
+    const options = {
+        allowInlineConfig: inlineConfig,
+        cache,
+        cacheLocation: cacheLocation || cacheFile,
+        cacheStrategy,
+        errorOnUnmatchedPattern,
+        fix: (fix || fixDryRun) && (quiet ? quietFixPredicate : true),
+        fixTypes: fixType,
+        ignore,
+        overrideConfig,
+        overrideConfigFile,
+        reportUnusedDisableDirectives: reportUnusedDisableDirectives ? "error" : void 0
     };
+
+    if (configType === "flat") {
+        options.ignorePatterns = ignorePattern;
+    } else {
+        options.resolvePluginsRelativeTo = resolvePluginsRelativeTo;
+        options.rulePaths = rulesdir;
+        options.useEslintrc = eslintrc;
+        options.extensions = ext;
+        options.ignorePath = ignorePath;
+    }
+
+    return options;
 }
 
 /**
  * Count error messages.
  * @param {LintResult[]} results The lint results.
- * @returns {{errorCount:number;warningCount:number}} The number of error messages.
+ * @returns {{errorCount:number;fatalErrorCount:number,warningCount:number}} The number of error messages.
  */
 function countErrors(results) {
     let errorCount = 0;
@@ -165,10 +235,11 @@ async function isDirectory(filePath) {
  * @param {LintResult[]} results The results to print.
  * @param {string} format The name of the formatter to use or the path to the formatter.
  * @param {string} outputFile The path for the output file.
+ * @param {ResultsMeta} resultsMeta Warning count and max threshold.
  * @returns {Promise<boolean>} True if the printing succeeds, false if not.
  * @private
  */
-async function printResults(engine, results, format, outputFile) {
+async function printResults(engine, results, format, outputFile, resultsMeta) {
     let formatter;
 
     try {
@@ -178,7 +249,7 @@ async function printResults(engine, results, format, outputFile) {
         return false;
     }
 
-    const output = await formatter.format(results);
+    const output = await formatter.format(results, resultsMeta);
 
     if (output) {
         if (outputFile) {
@@ -204,6 +275,31 @@ async function printResults(engine, results, format, outputFile) {
     return true;
 }
 
+/**
+ * Returns whether flat config should be used.
+ * @param {boolean} [allowFlatConfig] Whether or not to allow flat config.
+ * @returns {Promise<boolean>} Where flat config should be used.
+ */
+async function shouldUseFlatConfig(allowFlatConfig) {
+    if (!allowFlatConfig) {
+        return false;
+    }
+
+    switch (process.env.ESLINT_USE_FLAT_CONFIG) {
+        case "true":
+            return true;
+        case "false":
+            return false;
+        default:
+
+            /*
+             * If neither explicitly enabled nor disabled, then use the presence
+             * of a flat config file to determine enablement.
+             */
+            return !!(await findFlatConfigFile(process.cwd()));
+    }
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -218,12 +314,26 @@ const cli = {
      * Executes the CLI based on an array of arguments that is passed in.
      * @param {string|Array|Object} args The arguments to process.
      * @param {string} [text] The text to lint (used for TTY).
+     * @param {boolean} [allowFlatConfig] Whether or not to allow flat config.
      * @returns {Promise<number>} The exit code for the operation.
      */
-    async execute(args, text) {
+    async execute(args, text, allowFlatConfig) {
         if (Array.isArray(args)) {
             debug("CLI args: %o", args.slice(2));
         }
+
+        /*
+         * Before doing anything, we need to see if we are using a
+         * flat config file. If so, then we need to change the way command
+         * line args are parsed. This is temporary, and when we fully
+         * switch to flat config we can remove this logic.
+         */
+
+        const usingFlatConfig = await shouldUseFlatConfig(allowFlatConfig);
+
+        debug("Using flat config?", usingFlatConfig);
+
+        const CLIOptions = createCLIOptions(usingFlatConfig);
 
         /** @type {ParsedCLIOptions} */
         let options;
@@ -231,6 +341,7 @@ const cli = {
         try {
             options = CLIOptions.parse(args);
         } catch (error) {
+            debug("Error parsing CLI options:", error.message);
             log.error(error.message);
             return 2;
         }
@@ -251,6 +362,7 @@ const cli = {
                 log.info(RuntimeInfo.environment());
                 return 0;
             } catch (err) {
+                debug("Error retrieving environment info");
                 log.error(err.message);
                 return 2;
             }
@@ -266,7 +378,9 @@ const cli = {
                 return 2;
             }
 
-            const engine = new ESLint(translateOptions(options));
+            const engine = usingFlatConfig
+                ? new FlatESLint(await translateOptions(options, "flat"))
+                : new ESLint(await translateOptions(options));
             const fileConfig =
                 await engine.calculateConfigForFile(options.printConfig);
 
@@ -289,7 +403,9 @@ const cli = {
             return 2;
         }
 
-        const engine = new ESLint(translateOptions(options));
+        const ActiveESLint = usingFlatConfig ? FlatESLint : ESLint;
+
+        const engine = new ActiveESLint(await translateOptions(options, usingFlatConfig ? "flat" : "eslintrc"));
         let results;
 
         if (useStdin) {
@@ -303,27 +419,34 @@ const cli = {
 
         if (options.fix) {
             debug("Fix mode enabled - applying fixes");
-            await ESLint.outputFixes(results);
+            await ActiveESLint.outputFixes(results);
         }
 
         let resultsToPrint = results;
 
         if (options.quiet) {
             debug("Quiet mode enabled - filtering out warnings");
-            resultsToPrint = ESLint.getErrorResults(resultsToPrint);
+            resultsToPrint = ActiveESLint.getErrorResults(resultsToPrint);
         }
 
-        if (await printResults(engine, resultsToPrint, options.format, options.outputFile)) {
+        const resultCounts = countErrors(results);
+        const tooManyWarnings = options.maxWarnings >= 0 && resultCounts.warningCount > options.maxWarnings;
+        const resultsMeta = tooManyWarnings
+            ? {
+                maxWarningsExceeded: {
+                    maxWarnings: options.maxWarnings,
+                    foundWarnings: resultCounts.warningCount
+                }
+            }
+            : {};
+
+        if (await printResults(engine, resultsToPrint, options.format, options.outputFile, resultsMeta)) {
 
             // Errors and warnings from the original unfiltered results should determine the exit code
-            const { errorCount, fatalErrorCount, warningCount } = countErrors(results);
-
-            const tooManyWarnings =
-                options.maxWarnings >= 0 && warningCount > options.maxWarnings;
             const shouldExitForFatalErrors =
-                options.exitOnFatalError && fatalErrorCount > 0;
+                options.exitOnFatalError && resultCounts.fatalErrorCount > 0;
 
-            if (!errorCount && tooManyWarnings) {
+            if (!resultCounts.errorCount && tooManyWarnings) {
                 log.error(
                     "ESLint found too many warnings (maximum: %s).",
                     options.maxWarnings
@@ -334,7 +457,7 @@ const cli = {
                 return 2;
             }
 
-            return (errorCount || tooManyWarnings) ? 1 : 0;
+            return (resultCounts.errorCount || tooManyWarnings) ? 1 : 0;
         }
 
         return 2;

@@ -8,6 +8,7 @@ SyntaxError: Strict mode code may not include a with statement
     at Object.runInThisContext (node:vm:*:*)
     at node:internal/process/execution:*:*
     at [eval]-wrapper:*:*
+    at runScript (node:internal/process/execution:*:*)
     at evalScript (node:internal/process/execution:*:*)
     at node:internal/main/eval_string:*:*
 
@@ -24,6 +25,7 @@ Error: hello
     at Object.runInThisContext (node:vm:*:*)
     at node:internal/process/execution:*:*
     at [eval]-wrapper:*:*
+    at runScript (node:internal/process/execution:*:*)
     at evalScript (node:internal/process/execution:*:*)
     at node:internal/main/eval_string:*:*
 
@@ -39,6 +41,7 @@ Error: hello
     at Object.runInThisContext (node:vm:*:*)
     at node:internal/process/execution:*:*
     at [eval]-wrapper:*:*
+    at runScript (node:internal/process/execution:*:*)
     at evalScript (node:internal/process/execution:*:*)
     at node:internal/main/eval_string:*:*
 
@@ -54,6 +57,7 @@ ReferenceError: y is not defined
     at Object.runInThisContext (node:vm:*:*)
     at node:internal/process/execution:*:*
     at [eval]-wrapper:*:*
+    at runScript (node:internal/process/execution:*:*)
     at evalScript (node:internal/process/execution:*:*)
     at node:internal/main/eval_string:*:*
 

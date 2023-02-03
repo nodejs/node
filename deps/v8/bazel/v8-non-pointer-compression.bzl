@@ -1,12 +1,12 @@
 def _v8_disable_pointer_compression(settings, attr):
     return {
-        "//third_party/v8/HEAD:v8_enable_pointer_compression": "False",
+        "//:v8_enable_pointer_compression": "False",
     }
 
 v8_disable_pointer_compression = transition(
     implementation = _v8_disable_pointer_compression,
     inputs = [],
-    outputs = ["//third_party/v8/HEAD:v8_enable_pointer_compression"],
+    outputs = ["//:v8_enable_pointer_compression"],
 )
 
 # The implementation of transition_rule: all this does is copy the
@@ -51,7 +51,7 @@ v8_binary_non_pointer_compression = rule(
         # consequences for your build. The whitelist defaults to "everything".
         # But you can redefine it more strictly if you feel that's prudent.
         "_allowlist_function_transition": attr.label(
-            default = "//tools/allowlists/function_transition_allowlist",
+            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
         ),
     },
     # Making this executable means it works with "$ bazel run".

@@ -180,7 +180,7 @@ THREADED_TEST(ArrayBuffer_DetachingApi) {
   CHECK_EQ(1023, dv->ByteLength());
 
   Externalize(buffer);
-  buffer->Detach();
+  buffer->Detach(v8::Local<v8::Value>()).Check();
   CHECK_EQ(0, buffer->ByteLength());
   CheckIsDetached(u8a);
   CheckIsDetached(u8c);
@@ -216,7 +216,7 @@ THREADED_TEST(ArrayBuffer_DetachingScript) {
   v8::Local<v8::DataView> dv = CompileRun("dv").As<v8::DataView>();
 
   Externalize(ab);
-  ab->Detach();
+  ab->Detach(v8::Local<v8::Value>()).Check();
   CHECK_EQ(0, ab->ByteLength());
   CHECK_EQ(0, v8_run_int32value(v8_compile("ab.byteLength")));
 
@@ -245,6 +245,37 @@ THREADED_TEST(ArrayBuffer_DetachingScript) {
   CheckDataViewIsDetached(dv);
 }
 
+THREADED_TEST(ArrayBuffer_WasDetached) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 0);
+  CHECK(!ab->WasDetached());
+
+  ab->Detach(v8::Local<v8::Value>()).Check();
+  CHECK(ab->WasDetached());
+}
+
+THREADED_TEST(ArrayBuffer_NonDetachableWasDetached) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  CompileRun(R"JS(
+    var wasmMemory = new WebAssembly.Memory({initial: 1, maximum: 2});
+  )JS");
+
+  Local<v8::ArrayBuffer> non_detachable =
+      CompileRun("wasmMemory.buffer").As<v8::ArrayBuffer>();
+  CHECK(!non_detachable->IsDetachable());
+  CHECK(!non_detachable->WasDetached());
+
+  CompileRun("wasmMemory.grow(1)");
+  CHECK(!non_detachable->IsDetachable());
+  CHECK(non_detachable->WasDetached());
+}
+
 THREADED_TEST(ArrayBuffer_ExternalizeEmpty) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -267,7 +298,7 @@ THREADED_TEST(ArrayBuffer_ExternalizeEmpty) {
 }
 
 THREADED_TEST(SharedArrayBuffer_ApiInternalToExternal) {
-  i::FLAG_harmony_sharedarraybuffer = true;
+  i::v8_flags.harmony_sharedarraybuffer = true;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
@@ -302,7 +333,7 @@ THREADED_TEST(SharedArrayBuffer_ApiInternalToExternal) {
 }
 
 THREADED_TEST(SharedArrayBuffer_JSInternalToExternal) {
-  i::FLAG_harmony_sharedarraybuffer = true;
+  i::v8_flags.harmony_sharedarraybuffer = true;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
@@ -366,6 +397,7 @@ THREADED_TEST(SkipArrayBufferBackingStoreDuringGC) {
 
   // Should not move the pointer
   CHECK_EQ(ab->GetBackingStore()->Data(), store_ptr);
+  CHECK_EQ(ab->Data(), store_ptr);
 
   CcTest::array_buffer_allocator()->Free(buffer, 100);
 }
@@ -394,8 +426,8 @@ THREADED_TEST(SkipArrayBufferDuringScavenge) {
   CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
   CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
 
-  // Use `ab` to silence compiler warning
   CHECK_EQ(ab->GetBackingStore()->Data(), store_ptr);
+  CHECK_EQ(ab->Data(), store_ptr);
 }
 
 THREADED_TEST(Regress1006600) {
@@ -418,6 +450,7 @@ THREADED_TEST(ArrayBuffer_NewBackingStore) {
   CHECK(!backing_store->IsShared());
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, backing_store);
   CHECK_EQ(backing_store.get(), ab->GetBackingStore().get());
+  CHECK_EQ(backing_store->Data(), ab->Data());
 }
 
 THREADED_TEST(SharedArrayBuffer_NewBackingStore) {
@@ -430,6 +463,7 @@ THREADED_TEST(SharedArrayBuffer_NewBackingStore) {
   Local<v8::SharedArrayBuffer> ab =
       v8::SharedArrayBuffer::New(isolate, backing_store);
   CHECK_EQ(backing_store.get(), ab->GetBackingStore().get());
+  CHECK_EQ(backing_store->Data(), ab->Data());
 }
 
 static void* backing_store_custom_data = nullptr;

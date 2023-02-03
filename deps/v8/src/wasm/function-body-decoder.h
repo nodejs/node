@@ -15,10 +15,12 @@
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
+class AccountingAllocator;
 class BitVector;  // forward declaration
 
 namespace wasm {
@@ -40,11 +42,9 @@ struct FunctionBody {
 
 enum class LoadTransformationKind : uint8_t { kSplat, kExtend, kZeroExtend };
 
-V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
-                                              const WasmFeatures& enabled,
-                                              const WasmModule* module,
-                                              WasmFeatures* detected,
-                                              const FunctionBody& body);
+V8_EXPORT_PRIVATE DecodeResult ValidateFunctionBody(
+    AccountingAllocator* allocator, const WasmFeatures& enabled,
+    const WasmModule* module, WasmFeatures* detected, const FunctionBody& body);
 
 enum PrintLocals { kPrintLocals, kOmitLocals };
 V8_EXPORT_PRIVATE
@@ -64,15 +64,20 @@ struct BodyLocalDecls {
   // The size of the encoded declarations.
   uint32_t encoded_size = 0;  // size of encoded declarations
 
-  ZoneVector<ValueType> type_list;
-
-  explicit BodyLocalDecls(Zone* zone) : type_list(zone) {}
+  uint32_t num_locals = 0;
+  ValueType* local_types = nullptr;
 };
 
-V8_EXPORT_PRIVATE bool DecodeLocalDecls(const WasmFeatures& enabled,
+// Decode locals; validation is not performed.
+V8_EXPORT_PRIVATE void DecodeLocalDecls(WasmFeatures enabled,
                                         BodyLocalDecls* decls,
-                                        const WasmModule* module,
-                                        const byte* start, const byte* end);
+                                        const byte* start, const byte* end,
+                                        Zone* zone);
+
+// Decode locals, including validation.
+V8_EXPORT_PRIVATE bool ValidateAndDecodeLocalDeclsForTesting(
+    WasmFeatures enabled, BodyLocalDecls* decls, const WasmModule* module,
+    const byte* start, const byte* end, Zone* zone);
 
 V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(
     Zone* zone, uint32_t num_locals, const byte* start, const byte* end);
@@ -103,10 +108,10 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
       ptr_ += OpcodeLength(ptr_, end_);
       return *this;
     }
-    bool operator==(const iterator_base& that) {
+    bool operator==(const iterator_base& that) const {
       return this->ptr_ == that.ptr_;
     }
-    bool operator!=(const iterator_base& that) {
+    bool operator!=(const iterator_base& that) const {
       return this->ptr_ != that.ptr_;
     }
 
@@ -150,11 +155,12 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
         : iterator_base(ptr, end), start_(start) {}
   };
 
-  // Create a new {BytecodeIterator}. If the {decls} pointer is non-null,
-  // assume the bytecode starts with local declarations and decode them.
-  // Otherwise, do not decode local decls.
-  BytecodeIterator(const byte* start, const byte* end,
-                   BodyLocalDecls* decls = nullptr);
+  // Create a new {BytecodeIterator}, starting after the locals declarations.
+  BytecodeIterator(const byte* start, const byte* end);
+
+  // Create a new {BytecodeIterator}, starting with locals declarations.
+  BytecodeIterator(const byte* start, const byte* end, BodyLocalDecls* decls,
+                   Zone* zone);
 
   base::iterator_range<opcode_iterator> opcodes() {
     return base::iterator_range<opcode_iterator>(opcode_iterator(pc_, end_),
@@ -169,7 +175,7 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
 
   WasmOpcode current() {
     return static_cast<WasmOpcode>(
-        read_u8<Decoder::kNoValidation>(pc_, "expected bytecode"));
+        read_u8<Decoder::NoValidationTag>(pc_, "expected bytecode"));
   }
 
   void next() {
@@ -182,7 +188,7 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   bool has_next() { return pc_ < end_; }
 
   WasmOpcode prefixed_opcode() {
-    return read_prefixed_opcode<Decoder::kNoValidation>(pc_);
+    return read_prefixed_opcode<Decoder::NoValidationTag>(pc_);
   }
 };
 

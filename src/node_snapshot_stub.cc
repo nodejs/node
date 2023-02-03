@@ -2,11 +2,11 @@
 // NODE_WANT_INTERNALS, so we define it here manually.
 #define NODE_WANT_INTERNALS 1
 
-#include "node_main_instance.h"
+#include "node_snapshot_builder.h"
 
 namespace node {
 
-const SnapshotData* NodeMainInstance::GetEmbeddedSnapshotData() {
+const SnapshotData* SnapshotBuilder::GetEmbeddedSnapshotData() {
   return nullptr;
 }
 

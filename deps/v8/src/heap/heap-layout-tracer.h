@@ -24,7 +24,8 @@ class HeapLayoutTracer : AllStatic {
                                         v8::GCCallbackFlags flags, void* data);
 
  private:
-  static void PrintBasicMemoryChunk(std::ostream& os, BasicMemoryChunk* chunk,
+  static void PrintBasicMemoryChunk(std::ostream& os,
+                                    const BasicMemoryChunk& chunk,
                                     const char* owner_name);
   static void PrintHeapLayout(std::ostream& os, Heap* heap);
 };

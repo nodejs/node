@@ -18,31 +18,30 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
-TEST(HeapObjectIteratorNullPastEnd) {
-  HeapObjectIterator iterator(CcTest::heap());
-  while (!iterator.Next().is_null()) {
+namespace {
+template <typename T>
+void TestIterator(T it) {
+  while (!it.Next().is_null()) {
   }
   for (int i = 0; i < 20; i++) {
-    CHECK(iterator.Next().is_null());
+    CHECK(it.Next().is_null());
   }
+}
+}  // namespace
+
+TEST(HeapObjectIteratorNullPastEnd) {
+  TestIterator<HeapObjectIterator>(
+      static_cast<v8::internal::HeapObjectIterator>(CcTest::heap()));
 }
 
 TEST(ReadOnlyHeapObjectIteratorNullPastEnd) {
-  ReadOnlyHeapObjectIterator iterator(CcTest::read_only_heap());
-  while (!iterator.Next().is_null()) {
-  }
-  for (int i = 0; i < 20; i++) {
-    CHECK(iterator.Next().is_null());
-  }
+  TestIterator<ReadOnlyHeapObjectIterator>(
+      static_cast<v8::internal::ReadOnlyHeapObjectIterator>(
+          CcTest::read_only_heap()));
 }
 
 TEST(CombinedHeapObjectIteratorNullPastEnd) {
-  CombinedHeapObjectIterator iterator(CcTest::heap());
-  while (!iterator.Next().is_null()) {
-  }
-  for (int i = 0; i < 20; i++) {
-    CHECK(iterator.Next().is_null());
-  }
+  TestIterator<CombinedHeapObjectIterator>(CcTest::heap());
 }
 
 namespace {
@@ -75,9 +74,10 @@ TEST(HeapObjectIterator) {
 
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    CHECK_IMPLIES(!FLAG_enable_third_party_heap, !ReadOnlyHeap::Contains(obj));
+    CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
+                  !ReadOnlyHeap::Contains(obj));
     CHECK(CcTest::heap()->Contains(obj));
-    if (sample_object == obj) seen_sample_object = true;
+    if (sample_object.SafeEquals(obj)) seen_sample_object = true;
   }
   CHECK(seen_sample_object);
 }
@@ -92,7 +92,7 @@ TEST(CombinedHeapObjectIterator) {
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     CHECK(IsValidHeapObject(CcTest::heap(), obj));
-    if (sample_object == obj) seen_sample_object = true;
+    if (sample_object.SafeEquals(obj)) seen_sample_object = true;
   }
   CHECK(seen_sample_object);
 }
@@ -102,7 +102,6 @@ TEST(PagedSpaceIterator) {
   PagedSpaceIterator iterator(heap);
   CHECK_EQ(iterator.Next(), reinterpret_cast<PagedSpace*>(heap->old_space()));
   CHECK_EQ(iterator.Next(), reinterpret_cast<PagedSpace*>(heap->code_space()));
-  CHECK_EQ(iterator.Next(), reinterpret_cast<PagedSpace*>(heap->map_space()));
   for (int i = 0; i < 20; i++) {
     CHECK_NULL(iterator.Next());
   }

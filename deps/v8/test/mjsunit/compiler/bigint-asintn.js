@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
 
 
 function f(x) {
@@ -27,6 +27,8 @@ if(%Is64Bit()) {
   // The next time the function is optimized, speculation should be disabled
   // so the builtin call is kept, which won't deoptimize again.
   %PrepareFunctionForOptimization(f);
+  assertEquals(-1n, f(7n));
+  assertEquals(1n, f(9n));
   %OptimizeFunctionOnNextCall(f);
 }
 assertEquals(-1n, f(7n));

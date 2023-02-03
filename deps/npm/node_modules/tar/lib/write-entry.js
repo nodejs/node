@@ -8,8 +8,9 @@ const normPath = require('./normalize-windows-path.js')
 const stripSlash = require('./strip-trailing-slashes.js')
 
 const prefixPath = (path, prefix) => {
-  if (!prefix)
+  if (!prefix) {
     return normPath(path)
+  }
   path = normPath(path).replace(/^\.(\/|$)/, '')
   return stripSlash(prefix) + '/' + path
 }
@@ -44,8 +45,9 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
   constructor (p, opt) {
     opt = opt || {}
     super(opt)
-    if (typeof p !== 'string')
+    if (typeof p !== 'string') {
       throw new TypeError('path is required')
+    }
     this.path = normPath(p)
     // suppress atime, ctime, uid, gid, uname, gname
     this.portable = !!opt.portable
@@ -72,8 +74,9 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
     this.pos = null
     this.remain = null
 
-    if (typeof opt.onwarn === 'function')
+    if (typeof opt.onwarn === 'function') {
       this.on('warn', opt.onwarn)
+    }
 
     let pathWarn = false
     if (!this.preservePaths) {
@@ -94,8 +97,9 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
 
     this.absolute = normPath(opt.absolute || path.resolve(this.cwd, p))
 
-    if (this.path === '')
+    if (this.path === '') {
       this.path = './'
+    }
 
     if (pathWarn) {
       this.warn('TAR_ENTRY_INFO', `stripping ${pathWarn} from absolute path`, {
@@ -104,22 +108,25 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
       })
     }
 
-    if (this.statCache.has(this.absolute))
+    if (this.statCache.has(this.absolute)) {
       this[ONLSTAT](this.statCache.get(this.absolute))
-    else
+    } else {
       this[LSTAT]()
+    }
   }
 
   emit (ev, ...data) {
-    if (ev === 'error')
+    if (ev === 'error') {
       this[HAD_ERROR] = true
+    }
     return super.emit(ev, ...data)
   }
 
   [LSTAT] () {
     fs.lstat(this.absolute, (er, stat) => {
-      if (er)
+      if (er) {
         return this.emit('error', er)
+      }
       this[ONLSTAT](stat)
     })
   }
@@ -127,8 +134,9 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
   [ONLSTAT] (stat) {
     this.statCache.set(this.absolute, stat)
     this.stat = stat
-    if (!stat.isFile())
+    if (!stat.isFile()) {
       stat.size = 0
+    }
     this.type = getType(stat)
     this.emit('stat', stat)
     this[PROCESS]()
@@ -153,8 +161,9 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
   }
 
   [HEADER] () {
-    if (this.type === 'Directory' && this.portable)
+    if (this.type === 'Directory' && this.portable) {
       this.noMtime = true
+    }
 
     this.header = new Header({
       path: this[PREFIX](this.path),
@@ -196,8 +205,9 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
   }
 
   [DIRECTORY] () {
-    if (this.path.substr(-1) !== '/')
+    if (this.path.slice(-1) !== '/') {
       this.path += '/'
+    }
     this.stat.size = 0
     this[HEADER]()
     this.end()
@@ -205,8 +215,9 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
 
   [SYMLINK] () {
     fs.readlink(this.absolute, (er, linkpath) => {
-      if (er)
+      if (er) {
         return this.emit('error', er)
+      }
       this[ONREADLINK](linkpath)
     })
   }
@@ -230,31 +241,35 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
       const linkKey = this.stat.dev + ':' + this.stat.ino
       if (this.linkCache.has(linkKey)) {
         const linkpath = this.linkCache.get(linkKey)
-        if (linkpath.indexOf(this.cwd) === 0)
+        if (linkpath.indexOf(this.cwd) === 0) {
           return this[HARDLINK](linkpath)
+        }
       }
       this.linkCache.set(linkKey, this.absolute)
     }
 
     this[HEADER]()
-    if (this.stat.size === 0)
+    if (this.stat.size === 0) {
       return this.end()
+    }
 
     this[OPENFILE]()
   }
 
   [OPENFILE] () {
     fs.open(this.absolute, 'r', (er, fd) => {
-      if (er)
+      if (er) {
         return this.emit('error', er)
+      }
       this[ONOPENFILE](fd)
     })
   }
 
   [ONOPENFILE] (fd) {
     this.fd = fd
-    if (this[HAD_ERROR])
+    if (this[HAD_ERROR]) {
       return this[CLOSE]()
+    }
 
     this.blockLen = 512 * Math.ceil(this.stat.size / 512)
     this.blockRemain = this.blockLen
@@ -318,10 +333,11 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
       this.buf : this.buf.slice(this.offset, this.offset + bytesRead)
 
     const flushed = this.write(writeBuf)
-    if (!flushed)
+    if (!flushed) {
       this[AWAITDRAIN](() => this[ONDRAIN]())
-    else
+    } else {
       this[ONDRAIN]()
+    }
   }
 
   [AWAITDRAIN] (cb) {
@@ -343,8 +359,9 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
 
   [ONDRAIN] () {
     if (!this.remain) {
-      if (this.blockRemain)
+      if (this.blockRemain) {
         super.write(Buffer.alloc(this.blockRemain))
+      }
       return this[CLOSE](er => er ? this.emit('error', er) : this.end())
     }
 
@@ -412,8 +429,9 @@ const WriteEntryTar = warner(class WriteEntryTar extends MiniPass {
 
     this.readEntry = readEntry
     this.type = readEntry.type
-    if (this.type === 'Directory' && this.portable)
+    if (this.type === 'Directory' && this.portable) {
       this.noMtime = true
+    }
 
     this.prefix = opt.prefix || null
 
@@ -429,8 +447,9 @@ const WriteEntryTar = warner(class WriteEntryTar extends MiniPass {
     this.ctime = this.portable ? null : readEntry.ctime
     this.linkpath = normPath(readEntry.linkpath)
 
-    if (typeof opt.onwarn === 'function')
+    if (typeof opt.onwarn === 'function') {
       this.on('warn', opt.onwarn)
+    }
 
     let pathWarn = false
     if (!this.preservePaths) {
@@ -500,15 +519,17 @@ const WriteEntryTar = warner(class WriteEntryTar extends MiniPass {
 
   write (data) {
     const writeLen = data.length
-    if (writeLen > this.blockRemain)
+    if (writeLen > this.blockRemain) {
       throw new Error('writing more to entry than is appropriate')
+    }
     this.blockRemain -= writeLen
     return super.write(data)
   }
 
   end () {
-    if (this.blockRemain)
+    if (this.blockRemain) {
       super.write(Buffer.alloc(this.blockRemain))
+    }
     return super.end()
   }
 })

@@ -91,7 +91,7 @@ void UnicodeNameTransliterator::handleTransliterate(Replaceable& text, UTransPos
     int32_t cursor = offsets.start;
     int32_t limit = offsets.limit;
 
-    UnicodeString str(FALSE, OPEN_DELIM, OPEN_DELIM_LEN);
+    UnicodeString str(false, OPEN_DELIM, OPEN_DELIM_LEN);
     UErrorCode status;
     int32_t len;
 

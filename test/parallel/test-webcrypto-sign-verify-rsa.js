@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 const rsa_pkcs = require('../fixtures/crypto/rsa_pkcs');
 const rsa_pss = require('../fixtures/crypto/rsa_pss');
@@ -112,19 +112,14 @@ async function testVerify({
   // Test failure when wrong hash is used
   {
     const otherhash = hash === 'SHA-1' ? 'SHA-256' : 'SHA-1';
-    assert(!(await subtle.verify({
-      ...algorithm,
-      hash: otherhash
-    }, publicKey, signature, copy)));
+    const keyWithOtherHash = await subtle.importKey(
+      'spki',
+      publicKeyBuffer,
+      { name: algorithm.name, hash: otherhash },
+      false,
+      ['verify']);
+    assert(!(await subtle.verify(algorithm, keyWithOtherHash, signature, plaintext)));
   }
-
-  await assert.rejects(
-    subtle.verify(
-      { ...algorithm, hash: 'sha256' },
-      publicKey,
-      signature,
-      copy),
-    { message: /Unrecognized name/ });
 }
 
 async function testSign({

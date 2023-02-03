@@ -1,6 +1,7 @@
 dnl Macros to check the presence of generic (non-typed) symbols.
 dnl Copyright (c) 2006-2008 Diego Pettenò <flameeyes gmail com>
 dnl Copyright (c) 2006-2008 xine project
+dnl Copyright (c) 2021 libuv project
 dnl
 dnl This program is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
@@ -63,7 +64,7 @@ AC_DEFUN([CC_CHECK_CFLAGS], [
 ])
 
 dnl CC_CHECK_CFLAG_APPEND(FLAG, [action-if-found], [action-if-not-found])
-dnl Check for CFLAG and appends them to CFLAGS if supported
+dnl Check for CFLAG and appends them to AM_CFLAGS if supported
 AC_DEFUN([CC_CHECK_CFLAG_APPEND], [
   AC_CACHE_CHECK([if $CC supports $1 flag],
     AS_TR_SH([cc_cv_cflags_$1]),
@@ -71,7 +72,9 @@ AC_DEFUN([CC_CHECK_CFLAG_APPEND], [
   )
 
   AS_IF([eval test x$]AS_TR_SH([cc_cv_cflags_$1])[ = xyes],
-    [CFLAGS="$CFLAGS $1"; DEBUG_CFLAGS="$DEBUG_CFLAGS $1"; $2], [$3])
+    [AM_CFLAGS="$AM_CFLAGS $1"; DEBUG_CFLAGS="$DEBUG_CFLAGS $1"; $2], [$3])
+
+  AC_SUBST([AM_CFLAGS])
 ])
 
 dnl CC_CHECK_CFLAGS_APPEND([FLAG1 FLAG2], [action-if-found], [action-if-not])
@@ -99,6 +102,20 @@ AC_DEFUN([CC_CHECK_LDFLAGS], [
 
   AS_IF([eval test x$]AS_TR_SH([cc_cv_ldflags_$1])[ = xyes],
     [$2], [$3])
+])
+
+dnl Check if flag is supported by both compiler and linker
+dnl If so, append it to AM_CFLAGS
+dnl CC_CHECK_FLAG_SUPPORTED_APPEND([FLAG])
+
+AC_DEFUN([CC_CHECK_FLAG_SUPPORTED_APPEND], [
+  CC_CHECK_CFLAGS([$1],
+    [CC_CHECK_LDFLAGS([$1],
+        [AM_CFLAGS="$AM_CFLAGS $1";
+         DEBUG_CFLAGS="$DEBUG_CFLAGS $1";
+         AC_SUBST([AM_CFLAGS])
+    ])
+  ])
 ])
 
 dnl define the LDFLAGS_NOUNDEFINED variable with the correct value for

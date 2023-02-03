@@ -45,6 +45,8 @@ const char* MachineReprToString(MachineRepresentation rep) {
       return "kRepFloat64";
     case MachineRepresentation::kSimd128:
       return "kRepSimd128";
+    case MachineRepresentation::kSimd256:
+      return "kRepSimd256";
     case MachineRepresentation::kTaggedSigned:
       return "kRepTaggedSigned";
     case MachineRepresentation::kTaggedPointer:
@@ -57,8 +59,8 @@ const char* MachineReprToString(MachineRepresentation rep) {
       return "kRepCompressed";
     case MachineRepresentation::kMapWord:
       return "kRepMapWord";
-    case MachineRepresentation::kCagedPointer:
-      return "kRepCagedPointer";
+    case MachineRepresentation::kSandboxedPointer:
+      return "kRepSandboxedPointer";
   }
   UNREACHABLE();
 }
@@ -77,6 +79,10 @@ std::ostream& operator<<(std::ostream& os, MachineSemantic type) {
       return os << "kTypeInt64";
     case MachineSemantic::kUint64:
       return os << "kTypeUint64";
+    case MachineSemantic::kSignedBigInt64:
+      return os << "kTypeSignedBigInt64";
+    case MachineSemantic::kUnsignedBigInt64:
+      return os << "kTypeUnsignedBigInt64";
     case MachineSemantic::kNumber:
       return os << "kTypeNumber";
     case MachineSemantic::kAny:

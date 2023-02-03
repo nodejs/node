@@ -2,15 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/access-builder.h"
-#include "src/compiler/graph.h"
-#include "src/compiler/graph-visualizer.h"
-#include "src/compiler/js-graph.h"
 #include "src/compiler/loop-peeling.h"
+
+#include "src/compiler/graph-visualizer.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
-#include "src/compiler/node-properties.h"
-#include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"
@@ -62,7 +59,7 @@ class LoopPeelingTest : public GraphTest {
   MachineOperatorBuilder* machine() { return &machine_; }
 
   LoopTree* GetLoopTree() {
-    if (FLAG_trace_turbo_graph) {
+    if (v8_flags.trace_turbo_graph) {
       StdoutStream{} << AsRPO(*graph());
     }
     Zone zone(isolate()->allocator(), ZONE_NAME);
@@ -82,7 +79,7 @@ class LoopPeelingTest : public GraphTest {
   PeeledIteration* Peel(LoopPeeler peeler, LoopTree::Loop* loop) {
     EXPECT_TRUE(peeler.CanPeel(loop));
     PeeledIteration* peeled = peeler.Peel(loop);
-    if (FLAG_trace_turbo_graph) {
+    if (v8_flags.trace_turbo_graph) {
       StdoutStream{} << AsRPO(*graph());
     }
     return peeled;

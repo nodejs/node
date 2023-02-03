@@ -111,7 +111,7 @@ size_t nghttp3_pq_size(const nghttp3_pq *pq);
 typedef int (*nghttp3_pq_item_cb)(nghttp3_pq_entry *item, void *arg);
 
 /*
- * Applys |fun| to each item in |pq|.  The |arg| is passed as arg
+ * Applies |fun| to each item in |pq|.  The |arg| is passed as arg
  * parameter to callback function.  This function must not change the
  * ordering key.  If the return value from callback is nonzero, this
  * function returns 1 immediately without iterating remaining items.

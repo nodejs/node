@@ -6,8 +6,8 @@
 
 <!-- source_link=lib/readline.js -->
 
-The `readline` module provides an interface for reading data from a [Readable][]
-stream (such as [`process.stdin`][]) one line at a time.
+The `node:readline` module provides an interface for reading data from a
+[Readable][] stream (such as [`process.stdin`][]) one line at a time.
 
 To use the promise-based APIs:
 
@@ -16,7 +16,7 @@ import * as readline from 'node:readline/promises';
 ```
 
 ```cjs
-const readline = require('readline/promises');
+const readline = require('node:readline/promises');
 ```
 
 To use the callback and sync APIs:
@@ -26,10 +26,11 @@ import * as readline from 'node:readline';
 ```
 
 ```cjs
-const readline = require('readline');
+const readline = require('node:readline');
 ```
 
-The following simple example illustrates the basic use of the `readline` module.
+The following simple example illustrates the basic use of the `node:readline`
+module.
 
 ```mjs
 import * as readline from 'node:readline/promises';
@@ -45,8 +46,8 @@ rl.close();
 ```
 
 ```cjs
-const readline = require('readline');
-const { stdin: input, stdout: output } = require('process');
+const readline = require('node:readline');
+const { stdin: input, stdout: output } = require('node:process');
 
 const rl = readline.createInterface({ input, output });
 
@@ -302,61 +303,6 @@ paused.
 If the `InterfaceConstructor` was created with `output` set to `null` or
 `undefined` the prompt is not written.
 
-### `rl.question(query[, options], callback)`
-
-<!-- YAML
-added: v0.3.3
--->
-
-* `query` {string} A statement or query to write to `output`, prepended to the
-  prompt.
-* `options` {Object}
-  * `signal` {AbortSignal} Optionally allows the `question()` to be canceled
-    using an `AbortController`.
-* `callback` {Function} A callback function that is invoked with the user's
-  input in response to the `query`.
-
-The `rl.question()` method displays the `query` by writing it to the `output`,
-waits for user input to be provided on `input`, then invokes the `callback`
-function passing the provided input as the first argument.
-
-When called, `rl.question()` will resume the `input` stream if it has been
-paused.
-
-If the `InterfaceConstructor` was created with `output` set to `null` or
-`undefined` the `query` is not written.
-
-The `callback` function passed to `rl.question()` does not follow the typical
-pattern of accepting an `Error` object or `null` as the first argument.
-The `callback` is called with the provided answer as the only argument.
-
-An error will be thrown if calling `rl.question()` after `rl.close()`.
-
-Example usage:
-
-```js
-rl.question('What is your favorite food? ', (answer) => {
-  console.log(`Oh, so your favorite food is ${answer}`);
-});
-```
-
-Using an `AbortController` to cancel a question.
-
-```js
-const ac = new AbortController();
-const signal = ac.signal;
-
-rl.question('What is your favorite food? ', { signal }, (answer) => {
-  console.log(`Oh, so your favorite food is ${answer}`);
-});
-
-signal.addEventListener('abort', () => {
-  console.log('The food question timed out');
-}, { once: true });
-
-setTimeout(() => ac.abort(), 10000);
-```
-
 ### `rl.resume()`
 
 <!-- YAML
@@ -503,7 +449,7 @@ const rl = readline.createInterface(process.stdin);
 const showResults = debounce(() => {
   console.log(
     '\n',
-    values.filter((val) => val.startsWith(rl.line)).join(' ')
+    values.filter((val) => val.startsWith(rl.line)).join(' '),
   );
 }, 300);
 process.stdin.on('keypress', (c, k) => {
@@ -758,10 +704,10 @@ The `readlinePromises.createInterface()` method creates a new `readlinePromises.
 instance.
 
 ```js
-const readlinePromises = require('readline/promises');
+const readlinePromises = require('node:readline/promises');
 const rl = readlinePromises.createInterface({
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
 });
 ```
 
@@ -891,7 +837,7 @@ setTimeout(() => ac.abort(), 10000);
 <!-- YAML
 added: v0.7.7
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -919,7 +865,7 @@ in a specified direction identified by `dir`.
 <!-- YAML
 added: v0.7.7
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -1015,10 +961,10 @@ The `readline.createInterface()` method creates a new `readline.Interface`
 instance.
 
 ```js
-const readline = require('readline');
+const readline = require('node:readline');
 const rl = readline.createInterface({
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
 });
 ```
 
@@ -1073,7 +1019,7 @@ function completer(linePartial, callback) {
 <!-- YAML
 added: v0.7.7
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -1099,7 +1045,7 @@ given [TTY][] `stream`.
 <!-- YAML
 added: v0.7.7
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -1153,11 +1099,11 @@ The following example illustrates the use of `readline.Interface` class to
 implement a small command-line interface:
 
 ```js
-const readline = require('readline');
+const readline = require('node:readline');
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
-  prompt: 'OHAI> '
+  prompt: 'OHAI> ',
 });
 
 rl.prompt();
@@ -1185,15 +1131,15 @@ time. The easiest way to do so is leveraging the [`fs.ReadStream`][] API as
 well as a `for await...of` loop:
 
 ```js
-const fs = require('fs');
-const readline = require('readline');
+const fs = require('node:fs');
+const readline = require('node:readline');
 
 async function processLineByLine() {
   const fileStream = fs.createReadStream('input.txt');
 
   const rl = readline.createInterface({
     input: fileStream,
-    crlfDelay: Infinity
+    crlfDelay: Infinity,
   });
   // Note: we use the crlfDelay option to recognize all instances of CR LF
   // ('\r\n') in input.txt as a single line break.
@@ -1210,12 +1156,12 @@ processLineByLine();
 Alternatively, one could use the [`'line'`][] event:
 
 ```js
-const fs = require('fs');
-const readline = require('readline');
+const fs = require('node:fs');
+const readline = require('node:readline');
 
 const rl = readline.createInterface({
   input: fs.createReadStream('sample.txt'),
-  crlfDelay: Infinity
+  crlfDelay: Infinity,
 });
 
 rl.on('line', (line) => {
@@ -1227,15 +1173,15 @@ Currently, `for await...of` loop can be a bit slower. If `async` / `await`
 flow and speed are both essential, a mixed approach can be applied:
 
 ```js
-const { once } = require('events');
-const { createReadStream } = require('fs');
-const { createInterface } = require('readline');
+const { once } = require('node:events');
+const { createReadStream } = require('node:fs');
+const { createInterface } = require('node:readline');
 
 (async function processLineByLine() {
   try {
     const rl = createInterface({
       input: createReadStream('big-file.txt'),
-      crlfDelay: Infinity
+      crlfDelay: Infinity,
     });
 
     rl.on('line', (line) => {

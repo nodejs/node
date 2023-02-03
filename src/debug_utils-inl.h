@@ -26,10 +26,13 @@ struct ToStringHelper {
     return value != nullptr ? value : "(null)";
   }
   static std::string Convert(const std::string& value) { return value; }
+  static std::string Convert(std::string_view value) {
+    return std::string(value);
+  }
   static std::string Convert(bool value) { return value ? "true" : "false"; }
   template <unsigned BASE_BITS,
             typename T,
-            typename std::enable_if<std::is_integral<T>::value, int>::type = 0>
+            typename = std::enable_if_t<std::is_integral_v<T>>>
   static std::string BaseConvert(const T& value) {
     auto v = static_cast<uint64_t>(value);
     char ret[3 * sizeof(T)];
@@ -45,7 +48,7 @@ struct ToStringHelper {
   }
   template <unsigned BASE_BITS,
             typename T,
-            typename std::enable_if<!std::is_integral<T>::value, int>::type = 0>
+            typename = std::enable_if_t<!std::is_integral_v<T>>>
   static std::string BaseConvert(T value) {
     return Convert(std::forward<T>(value));
   }

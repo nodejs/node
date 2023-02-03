@@ -3,6 +3,7 @@
 require('../common');
 const assert = require('node:assert');
 const test = require('node:test');
+const util = require('util');
 
 test('sync pass todo', (t) => {
   t.todo();
@@ -112,7 +113,7 @@ test('level 0a', { concurrency: 4 }, async (t) => {
     const p1a = new Promise((resolve) => {
       setTimeout(() => {
         resolve();
-      }, 1000);
+      }, 100);
     });
 
     return p1a;
@@ -130,7 +131,7 @@ test('level 0a', { concurrency: 4 }, async (t) => {
     const p1c = new Promise((resolve) => {
       setTimeout(() => {
         resolve();
-      }, 2000);
+      }, 200);
     });
 
     return p1c;
@@ -140,7 +141,7 @@ test('level 0a', { concurrency: 4 }, async (t) => {
     const p1c = new Promise((resolve) => {
       setTimeout(() => {
         resolve();
-      }, 1500);
+      }, 150);
     });
 
     return p1c;
@@ -149,7 +150,7 @@ test('level 0a', { concurrency: 4 }, async (t) => {
   const p0a = new Promise((resolve) => {
     setTimeout(() => {
       resolve();
-    }, 3000);
+    }, 300);
   });
 
   return p0a;
@@ -158,7 +159,7 @@ test('level 0a', { concurrency: 4 }, async (t) => {
 test('top level', { concurrency: 2 }, async (t) => {
   t.test('+long running', async (t) => {
     return new Promise((resolve, reject) => {
-      setTimeout(resolve, 3000).unref();
+      setTimeout(resolve, 300).unref();
     });
   });
 
@@ -212,7 +213,7 @@ test('test with a name and options provided', { skip: true });
 test({ skip: true }, function functionAndOptions() {});
 
 // A test whose description needs to be escaped.
-test('escaped description \\ # \\#\\');
+test('escaped description \\ # \\#\\ \n \t \f \v \b \r');
 
 // A test whose skip message needs to be escaped.
 test('escaped skip message', { skip: '#skip' });
@@ -295,4 +296,90 @@ test('only is set but not in only mode', { only: true }, async (t) => {
   await t.test('running subtest 3', { only: true });
   t.runOnly(false);
   await t.test('running subtest 4');
+});
+
+test('custom inspect symbol fail', () => {
+  const obj = {
+    [util.inspect.custom]() {
+      return 'customized';
+    },
+    foo: 1,
+  };
+
+  throw obj;
+});
+
+test('custom inspect symbol that throws fail', () => {
+  const obj = {
+    [util.inspect.custom]() {
+      throw new Error('bad-inspect');
+    },
+    foo: 1,
+  };
+
+  throw obj;
+});
+
+test('subtest sync throw fails', async (t) => {
+  await t.test('sync throw fails at first', (t) => {
+    throw new Error('thrown from subtest sync throw fails at first');
+  });
+  await t.test('sync throw fails at second', (t) => {
+    throw new Error('thrown from subtest sync throw fails at second');
+  });
+});
+
+test('timed out async test', { timeout: 5 }, async (t) => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 100);
+  });
+});
+
+test('timed out callback test', { timeout: 5 }, (t, done) => {
+  setTimeout(done, 100);
+});
+
+
+test('large timeout async test is ok', { timeout: 30_000_000 }, async (t) => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 10);
+  });
+});
+
+test('large timeout callback test is ok', { timeout: 30_000_000 }, (t, done) => {
+  setTimeout(done, 10);
+});
+
+test('successful thenable', () => {
+  let thenCalled = false;
+  return {
+    get then() {
+      if (thenCalled) throw new Error();
+      thenCalled = true;
+      return (successHandler) => successHandler();
+    },
+  };
+});
+
+test('rejected thenable', () => {
+  let thenCalled = false;
+  return {
+    get then() {
+      if (thenCalled) throw new Error();
+      thenCalled = true;
+      return (_, errorHandler) => errorHandler('custom error');
+    },
+  };
+});
+
+test('unfinished test with uncaughtException', async () => {
+  await new Promise(() => {
+    setTimeout(() => { throw new Error('foo'); });
+  });
+});
+
+test('unfinished test with unhandledRejection', async () => {
+  await new Promise(() => {
+    setTimeout(() => Promise.reject(new Error('bar')));
+  });
 });

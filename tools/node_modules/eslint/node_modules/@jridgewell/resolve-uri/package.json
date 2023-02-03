@@ -1,6 +1,6 @@
 {
   "name": "@jridgewell/resolve-uri",
-  "version": "3.0.5",
+  "version": "3.1.0",
   "description": "Resolve a URI relative to an optional base URI",
   "keywords": [
     "resolve",
@@ -15,11 +15,15 @@
   "module": "dist/resolve-uri.mjs",
   "typings": "dist/types/resolve-uri.d.ts",
   "exports": {
-    ".": {
-      "browser": "./dist/resolve-uri.umd.js",
-      "require": "./dist/resolve-uri.umd.js",
-      "import": "./dist/resolve-uri.mjs"
-    },
+    ".": [
+      {
+        "types": "./dist/types/resolve-uri.d.ts",
+        "browser": "./dist/resolve-uri.umd.js",
+        "require": "./dist/resolve-uri.umd.js",
+        "import": "./dist/resolve-uri.mjs"
+      },
+      "./dist/resolve-uri.umd.js"
+    ],
     "./package.json": "./package.json"
   },
   "files": [
@@ -49,6 +53,7 @@
     "preversion": "run-s test build"
   },
   "devDependencies": {
+    "@jridgewell/resolve-uri-latest": "npm:@jridgewell/resolve-uri@*",
     "@rollup/plugin-typescript": "8.3.0",
     "@typescript-eslint/eslint-plugin": "5.10.0",
     "@typescript-eslint/parser": "5.10.0",

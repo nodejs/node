@@ -35,6 +35,7 @@ const kinds = [
     assert.strictEqual(entry.flags, NODE_PERFORMANCE_GC_FLAGS_FORCED);
     assert.strictEqual(entry.detail.flags, NODE_PERFORMANCE_GC_FLAGS_FORCED);
     assert.strictEqual(typeof entry.startTime, 'number');
+    assert(entry.startTime < 1e4, 'startTime should be relative to performance.timeOrigin.');
     assert.strictEqual(typeof entry.duration, 'number');
     obs.disconnect();
   }));

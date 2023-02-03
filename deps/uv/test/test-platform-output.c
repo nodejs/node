@@ -41,6 +41,7 @@ TEST_IMPL(platform_output) {
   uv_interface_address_t* interfaces;
   uv_passwd_t pwd;
   uv_utsname_t uname;
+  unsigned par;
   int count;
   int i;
   int err;
@@ -87,6 +88,10 @@ TEST_IMPL(platform_output) {
   printf("  page faults: %llu\n", (unsigned long long) rusage.ru_majflt);
   printf("  maximum resident set size: %llu\n",
          (unsigned long long) rusage.ru_maxrss);
+
+  par = uv_available_parallelism();
+  ASSERT_GE(par, 1);
+  printf("uv_available_parallelism: %u\n", par);
 
   err = uv_cpu_info(&cpus, &count);
 #if defined(__CYGWIN__) || defined(__MSYS__)

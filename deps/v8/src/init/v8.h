@@ -9,6 +9,7 @@
 
 namespace v8 {
 
+struct OOMDetails;
 class Platform;
 class StartupData;
 
@@ -19,19 +20,27 @@ class Isolate;
 class V8 : public AllStatic {
  public:
   // Global actions.
-
   static void Initialize();
   static void Dispose();
 
   // Report process out of memory. Implementation found in api.cc.
   // This function will not return, but will terminate the execution.
-  [[noreturn]] static void FatalProcessOutOfMemory(Isolate* isolate,
-                                                   const char* location,
-                                                   bool is_heap_oom = false);
+  // IMPORTANT: Update the Google-internal crash processer if this signature
+  // changes to be able to extract detailed v8::internal::HeapStats on OOM.
+  [[noreturn]] V8_EXPORT_PRIVATE static void FatalProcessOutOfMemory(
+      Isolate* isolate, const char* location,
+      const OOMDetails& details = kNoOOMDetails);
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  static bool InitializeVirtualMemoryCage();
-#endif
+  // Constants to be used for V8::FatalProcessOutOfMemory. They avoid having
+  // to include v8-callbacks.h in all callers.
+  V8_EXPORT_PRIVATE static const OOMDetails kNoOOMDetails;
+  V8_EXPORT_PRIVATE static const OOMDetails kHeapOOM;
+
+  // Another variant of FatalProcessOutOfMemory, which constructs the OOMDetails
+  // struct internally from another "detail" c-string.
+  // This can be removed once we support designated initializers (C++20).
+  [[noreturn]] V8_EXPORT_PRIVATE static void FatalProcessOutOfMemory(
+      Isolate* isolate, const char* location, const char* detail);
 
   static void InitializePlatform(v8::Platform* platform);
   static void DisposePlatform();
@@ -43,10 +52,6 @@ class V8 : public AllStatic {
   static void SetSnapshotBlob(StartupData* snapshot_blob);
 
  private:
-  static void InitializeOncePerProcessImpl();
-  static void InitializeOncePerProcess();
-
-  // v8::Platform to use.
   static v8::Platform* platform_;
 };
 

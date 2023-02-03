@@ -34,7 +34,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce variables to be declared either together or separately in functions",
+            description: "Enforce variables to be declared either together or separately in functions",
             recommended: false,
             url: "https://eslint.org/docs/rules/one-var"
         },

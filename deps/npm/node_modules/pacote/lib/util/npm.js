@@ -10,5 +10,5 @@ module.exports = (npmBin, npmCommand, cwd, env, extra) => {
   // in temp directories.  this lets us link previously-seen repos that
   // are also being prepared.
 
-  return spawn(cmd, args, { cwd, stdioString: true, env }, extra)
+  return spawn(cmd, args, { cwd, env }, extra)
 }

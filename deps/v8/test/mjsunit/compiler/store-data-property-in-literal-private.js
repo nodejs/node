@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --trace-opt --trace-deopt
+// Flags: --allow-natives-syntax --turbofan --trace-opt --trace-deopt
 // Flags: --no-stress-flush-code --no-flush-bytecode
 let privateSymbol = %CreatePrivateSymbol("private");
 let privateName = %CreatePrivateNameSymbol("privateName");
@@ -10,8 +10,9 @@ let privateName = %CreatePrivateNameSymbol("privateName");
 function test() {
   "use strict";
 
-  // These computed properties are translated into JSStoreDataPropertyInLiteral
-  // ops, and AccessInfoFactory::ComputePropertyAccessInfo should find a
+  // These computed properties are translated into
+  // JSDefineKeyedOwnPropertyInLiteral ops,
+  // and AccessInfoFactory::ComputePropertyAccessInfo should find a
   // suitable map transition when optimizing. Even if the implementation details
   // are ignored, we still want to assert that these properties are installed as
   // non-enumerable, due to being private symbols.

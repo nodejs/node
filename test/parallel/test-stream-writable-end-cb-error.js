@@ -36,7 +36,7 @@ const stream = require('stream');
   let called = false;
   writable.end('asd', common.mustCall((err) => {
     called = true;
-    assert.strictEqual(err, undefined);
+    assert.strictEqual(err, null);
   }));
 
   writable.on('error', common.mustCall((err) => {

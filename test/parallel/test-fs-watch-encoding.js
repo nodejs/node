@@ -19,6 +19,9 @@ const common = require('../common');
 if (common.isAIX)
   common.skip('folder watch capability is limited in AIX.');
 
+if (common.isIBMi)
+  common.skip('IBMi does not support `fs.watch()`');
+
 const fs = require('fs');
 const path = require('path');
 

@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_MACHINE_GRAPH_VERIFIER_H_
 #define V8_COMPILER_MACHINE_GRAPH_VERIFIER_H_
 
-#include "src/base/macros.h"
-
 namespace v8 {
 namespace internal {
 class Zone;

@@ -78,6 +78,27 @@ defineCustomElement('trace-file-reader', (templateText) =>
       };
       // Delay the loading a bit to allow for CSS animations to happen.
       setTimeout(() => reader.readAsArrayBuffer(file), 0);
+    } else if (file.type == 'text/html') {
+      // try extracting the data from a results.html file
+      reader.onload = (e) => {
+        try {
+          let html = document.createElement('html');
+          html.innerHTML = e.target.result;
+          for (let dataScript of html.querySelectorAll('#viewer-data')) {
+            const base64 = dataScript.innerText.slice(1,-1);
+            const binary = globalThis.atob(base64);
+            const textResult = pako.inflate(binary, {to: 'string'});
+            this.processRawText(file, textResult);
+          }
+          this.section.className = 'success';
+          this.$('#fileReader').classList.add('done');
+        } catch (err) {
+          console.error(err);
+          this.section.className = 'failure';
+        }
+      };
+      // Delay the loading a bit to allow for CSS animations to happen.
+      setTimeout(() => reader.readAsText(file), 0);
     } else {
       reader.onload = (e) => {
         try {

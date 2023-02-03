@@ -4,10 +4,12 @@ import { EventEmitter } from 'events'
 import { IncomingHttpHeaders } from 'http'
 import { Blob } from 'buffer'
 import BodyReadable from './readable'
+import { FormData } from './formdata'
+import Errors from './errors'
 
 type AbortSignal = unknown;
 
-export = Dispatcher;
+export default Dispatcher
 
 /** Dispatcher is the core API used to dispatch requests. */
 declare class Dispatcher extends EventEmitter {
@@ -35,6 +37,59 @@ declare class Dispatcher extends EventEmitter {
   destroy(err: Error | null): Promise<void>;
   destroy(callback: () => void): void;
   destroy(err: Error | null, callback: () => void): void;
+
+  on(eventName: 'connect', callback: (origin: URL, targets: readonly Dispatcher[]) => void): this;
+  on(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  on(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  on(eventName: 'drain', callback: (origin: URL) => void): this;
+
+
+  once(eventName: 'connect', callback: (origin: URL, targets: readonly Dispatcher[]) => void): this;
+  once(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  once(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  once(eventName: 'drain', callback: (origin: URL) => void): this;
+
+
+  off(eventName: 'connect', callback: (origin: URL, targets: readonly Dispatcher[]) => void): this;
+  off(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  off(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  off(eventName: 'drain', callback: (origin: URL) => void): this;
+
+
+  addListener(eventName: 'connect', callback: (origin: URL, targets: readonly Dispatcher[]) => void): this;
+  addListener(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  addListener(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  addListener(eventName: 'drain', callback: (origin: URL) => void): this;
+
+  removeListener(eventName: 'connect', callback: (origin: URL, targets: readonly Dispatcher[]) => void): this;
+  removeListener(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  removeListener(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  removeListener(eventName: 'drain', callback: (origin: URL) => void): this;
+
+  prependListener(eventName: 'connect', callback: (origin: URL, targets: readonly Dispatcher[]) => void): this;
+  prependListener(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  prependListener(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  prependListener(eventName: 'drain', callback: (origin: URL) => void): this;
+
+  prependOnceListener(eventName: 'connect', callback: (origin: URL, targets: readonly Dispatcher[]) => void): this;
+  prependOnceListener(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  prependOnceListener(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  prependOnceListener(eventName: 'drain', callback: (origin: URL) => void): this;
+
+  listeners(eventName: 'connect'): ((origin: URL, targets: readonly Dispatcher[]) => void)[]
+  listeners(eventName: 'disconnect'): ((origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void)[];
+  listeners(eventName: 'connectionError'): ((origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void)[];
+  listeners(eventName: 'drain'): ((origin: URL) => void)[];
+
+  rawListeners(eventName: 'connect'): ((origin: URL, targets: readonly Dispatcher[]) => void)[]
+  rawListeners(eventName: 'disconnect'): ((origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void)[];
+  rawListeners(eventName: 'connectionError'): ((origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void)[];
+  rawListeners(eventName: 'drain'): ((origin: URL) => void)[];
+
+  emit(eventName: 'connect', origin: URL, targets: readonly Dispatcher[]): boolean;
+  emit(eventName: 'disconnect', origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError): boolean;
+  emit(eventName: 'connectionError', origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError): boolean;
+  emit(eventName: 'drain', origin: URL): boolean;
 }
 
 declare namespace Dispatcher {
@@ -43,9 +98,11 @@ declare namespace Dispatcher {
     path: string;
     method: HttpMethod;
     /** Default: `null` */
-    body?: string | Buffer | Uint8Array | Readable | null;
+    body?: string | Buffer | Uint8Array | Readable | null | FormData;
     /** Default: `null` */
     headers?: IncomingHttpHeaders | string[] | null;
+    /** Query string params to be embedded in the request URL. Default: `null` */
+    query?: Record<string, any>;
     /** Whether the requests can be safely retried or not. If `false` the request won't be sent until all preceding requests in the pipeline have completed. Default: `true` if `method` is `HEAD` or `GET`. */
     idempotent?: boolean;
     /** Upgrade the request. Should be used to specify the kind of upgrade i.e. `'Websocket'`. Default: `method === 'CONNECT' || null`. */
@@ -54,6 +111,10 @@ declare namespace Dispatcher {
     headersTimeout?: number | null;
     /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use 0 to disable it entirely. Defaults to 30 seconds. */
     bodyTimeout?: number | null;
+    /** Whether the request should stablish a keep-alive or not. Default `false` */
+    reset?: boolean;
+    /** Whether Undici should throw an error upon receiving a 4xx or 5xx response from the server. Defaults to false */
+    throwOnError?: boolean;
   }
   export interface ConnectOptions {
     path: string;
@@ -142,9 +203,9 @@ declare namespace Dispatcher {
     /** Invoked when an error has occurred. */
     onError?(err: Error): void;
     /** Invoked when request is upgraded either due to a `Upgrade` header or `CONNECT` method. */
-    onUpgrade?(statusCode: number, headers: string[] | null, socket: Duplex): void;
+    onUpgrade?(statusCode: number, headers: Buffer[] | string[] | null, socket: Duplex): void;
     /** Invoked when statusCode and headers have been received. May be invoked multiple times due to 1xx informational headers. */
-    onHeaders?(statusCode: number, headers: string[] | null, resume: () => void): boolean;
+    onHeaders?(statusCode: number, headers: Buffer[] | string[] | null, resume: () => void): boolean;
     /** Invoked when response payload data is received. */
     onData?(chunk: Buffer): boolean;
     /** Invoked when response payload and trailers have been received and the request has completed. */
@@ -166,5 +227,9 @@ declare namespace Dispatcher {
     formData(): Promise<never>;
     json(): Promise<any>;
     text(): Promise<string>;
+  }
+
+  export interface DispatchInterceptor {
+    (dispatch: Dispatcher['dispatch']): Dispatcher['dispatch']
   }
 }

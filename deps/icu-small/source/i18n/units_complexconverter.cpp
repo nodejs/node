@@ -143,7 +143,7 @@ MaybeStackVector<Measure> ComplexUnitsConverter::convert(double quantity,
     // TODO: return an error for "foot-and-foot"?
     MaybeStackVector<Measure> result;
     int sign = 1;
-    if (quantity < 0) {
+    if (quantity < 0 && unitsConverters_.length() > 1) {
         quantity *= -1;
         sign = -1;
     }

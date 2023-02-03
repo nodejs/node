@@ -75,8 +75,7 @@ class StringBytes {
                       char* buf,
                       size_t buflen,
                       v8::Local<v8::Value> val,
-                      enum encoding enc,
-                      int* chars_written = nullptr);
+                      enum encoding enc);
 
   // Take the bytes in the src, and turn it into a Buffer or String.
   static v8::MaybeLocal<v8::Value> Encode(v8::Isolate* isolate,
@@ -111,8 +110,7 @@ class StringBytes {
                           char* buf,
                           size_t buflen,
                           v8::Local<v8::String> str,
-                          int flags,
-                          size_t* chars_written);
+                          int flags);
 };
 
 }  // namespace node

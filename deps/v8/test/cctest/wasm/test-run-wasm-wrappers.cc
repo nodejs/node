@@ -17,7 +17,7 @@ namespace test_run_wasm_wrappers {
 
 using testing::CompileAndInstantiateForTesting;
 
-#ifdef V8_TARGET_ARCH_X64
+#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
 namespace {
 Handle<WasmInstanceObject> CompileModule(Zone* zone, Isolate* isolate,
                                          WasmModuleBuilder* builder) {
@@ -32,12 +32,12 @@ Handle<WasmInstanceObject> CompileModule(Zone* zone, Isolate* isolate,
   return maybe_instance.ToHandleChecked();
 }
 
-bool IsGeneric(Code wrapper) {
+bool IsGeneric(CodeT wrapper) {
   return wrapper.is_builtin() &&
          wrapper.builtin_id() == Builtin::kGenericJSToWasmWrapper;
 }
 
-bool IsSpecific(Code wrapper) {
+bool IsSpecific(CodeT wrapper) {
   return wrapper.kind() == CodeKind::JS_TO_WASM_FUNCTION;
 }
 
@@ -67,7 +67,11 @@ void Cleanup() {
 TEST(WrapperBudget) {
   {
     // This test assumes use of the generic wrapper.
-    FlagScope<bool> use_wasm_generic_wrapper(&FLAG_wasm_generic_wrapper, true);
+    FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
+                                             true);
+    FlagScope<bool> use_enable_wasm_arm64_generic_wrapper(
+      &v8_flags.enable_wasm_arm64_generic_wrapper,
+      true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;
@@ -113,7 +117,11 @@ TEST(WrapperBudget) {
 TEST(WrapperReplacement) {
   {
     // This test assumes use of the generic wrapper.
-    FlagScope<bool> use_wasm_generic_wrapper(&FLAG_wasm_generic_wrapper, true);
+    FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
+                                             true);
+    FlagScope<bool> use_enable_wasm_arm64_generic_wrapper(
+      &v8_flags.enable_wasm_arm64_generic_wrapper,
+      true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;
@@ -153,11 +161,10 @@ TEST(WrapperReplacement) {
 
     // Call the exported Wasm function as many times as required to almost
     // exhaust the remaining budget for using the generic wrapper.
-    Handle<Code> wrapper_before_call;
+    Handle<CodeT> wrapper_before_call;
     for (int i = remaining_budget; i > 0; --i) {
       // Verify that the wrapper to be used is the generic one.
-      wrapper_before_call =
-          Handle<Code>(main_function_data->wrapper_code(), isolate);
+      wrapper_before_call = handle(main_function_data->wrapper_code(), isolate);
       CHECK(IsGeneric(*wrapper_before_call));
       // Call the function.
       Handle<Object> params[1] = {SmiHandle(isolate, i)};
@@ -167,7 +174,7 @@ TEST(WrapperReplacement) {
     }
 
     // Get the wrapper-code object after the wrapper replacement.
-    Code wrapper_after_call = main_function_data->wrapper_code();
+    CodeT wrapper_after_call = main_function_data->wrapper_code();
 
     // Verify that the budget has been exhausted.
     CHECK_EQ(main_function_data->wrapper_budget(), 0);
@@ -182,7 +189,11 @@ TEST(WrapperReplacement) {
 TEST(EagerWrapperReplacement) {
   {
     // This test assumes use of the generic wrapper.
-    FlagScope<bool> use_wasm_generic_wrapper(&FLAG_wasm_generic_wrapper, true);
+    FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
+                                             true);
+    FlagScope<bool> use_enable_wasm_arm64_generic_wrapper(
+      &v8_flags.enable_wasm_arm64_generic_wrapper,
+      true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;
@@ -286,7 +297,11 @@ TEST(EagerWrapperReplacement) {
 TEST(WrapperReplacement_IndirectExport) {
   {
     // This test assumes use of the generic wrapper.
-    FlagScope<bool> use_wasm_generic_wrapper(&FLAG_wasm_generic_wrapper, true);
+    FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
+                                             true);
+    FlagScope<bool> use_enable_wasm_arm64_generic_wrapper(
+      &v8_flags.enable_wasm_arm64_generic_wrapper,
+      true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;

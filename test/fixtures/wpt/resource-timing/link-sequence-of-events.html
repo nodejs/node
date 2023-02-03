@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test the sequence of events when reporting link timing.</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+<script>
+  promise_test(async t => {
+    const link = document.createElement('link');
+    const delay = 500;
+    const src = `./resources/import.sub.css?delay=${delay}`
+    const absoluteURL = new URL(src, location.href).toString();
+    new PerformanceObserver(t.step_func(() => {
+      const allPerformanceEntries = performance.getEntriesByType('resource');
+      const linkEntry = allPerformanceEntries.find(e => e.name.includes('import.sub.css'));
+      const importEntry = allPerformanceEntries.find(e => e.name.includes('delay-css'));
+      if (!linkEntry || !importEntry)
+        return;
+      const linkEndTime = linkEntry.startTime + linkEntry.duration;
+      const importEndTime = importEntry.startTime + importEntry.duration;
+      assert_greater_than_equal(importEndTime, linkEndTime + delay, "link load should be done before import load");
+      t.done();
+
+    })).observe({type: 'resource'});
+    link.href = src;
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+  }, "test that @imports don't affect link resource timings");
+</script>

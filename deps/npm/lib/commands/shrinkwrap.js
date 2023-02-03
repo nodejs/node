@@ -15,7 +15,7 @@ class Shrinkwrap extends BaseCommand {
     //
     // loadVirtual, fall back to loadActual
     // rename shrinkwrap file type, and tree.meta.save()
-    if (this.npm.config.get('global')) {
+    if (this.npm.global) {
       const er = new Error('`npm shrinkwrap` does not work for global packages')
       er.code = 'ESHRINKWRAPGLOBAL'
       throw er

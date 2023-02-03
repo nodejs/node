@@ -41,12 +41,12 @@ const testData = [
           desc: '<ol>\n<li>fish</li>\n<li>fish</li>\n</ol>\n' +
                   '<ul>\n<li>Red fish</li>\n<li>Blue fish</li>\n</ul>',
           type: 'module',
-          displayName: 'Seussian Rhymes'
+          displayName: 'Seussian Rhymes',
         }],
         type: 'module',
-        displayName: 'Sample Markdown'
-      }]
-    }
+        displayName: 'Sample Markdown',
+      }],
+    },
   },
   {
     file: fixtures.path('order_of_end_tags_5873.md'),
@@ -68,18 +68,18 @@ const testData = [
                 params: [{
                   textRaw: '`array` {Array}',
                   name: 'array',
-                  type: 'Array'
-                }]
+                  type: 'Array',
+                }],
               },
-            ]
+            ],
           }],
           type: 'module',
-          displayName: 'Subsection'
+          displayName: 'Subsection',
         }],
         type: 'module',
-        displayName: 'Title'
-      }]
-    }
+        displayName: 'Title',
+      }],
+    },
   },
   {
     file: fixtures.path('doc_with_yaml.md'),
@@ -96,12 +96,12 @@ const testData = [
               name: 'foobar',
               meta: {
                 added: ['v1.0.0'],
-                changes: []
+                changes: [],
               },
               desc: '<p>Describe <code>Foobar</code> in more detail ' +
                 'here.</p>',
               type: 'module',
-              displayName: 'Foobar'
+              displayName: 'Foobar',
             },
             {
               textRaw: 'Foobar II',
@@ -113,12 +113,12 @@ const testData = [
                     'pr-url': 'https://github.com/nodejs/node/pull/3276',
                     'description': 'The `error` parameter can now be ' +
                       'an arrow function.' },
-                ]
+                ],
               },
               desc: '<p>Describe <code>Foobar II</code> in more detail ' +
                 'here. fg(1)</p>',
               type: 'module',
-              displayName: 'Foobar II'
+              displayName: 'Foobar II',
             },
             {
               textRaw: 'Deprecated thingy',
@@ -126,12 +126,12 @@ const testData = [
               meta: {
                 added: ['v1.0.0'],
                 deprecated: ['v2.0.0'],
-                changes: []
+                changes: [],
               },
               desc: '<p>Describe <code>Deprecated thingy</code> in more ' +
                 'detail here. fg(1p)</p>',
               type: 'module',
-              displayName: 'Deprecated thingy'
+              displayName: 'Deprecated thingy',
             },
             {
               textRaw: 'Something',
@@ -139,14 +139,14 @@ const testData = [
               desc: '<!-- This is not a metadata comment -->\n<p>' +
                 'Describe <code>Something</code> in more detail here.</p>',
               type: 'module',
-              displayName: 'Something'
+              displayName: 'Something',
             },
           ],
           type: 'module',
-          displayName: 'Sample Markdown with YAML info'
+          displayName: 'Sample Markdown with YAML info',
         },
-      ]
-    }
+      ],
+    },
   },
   {
     file: fixtures.path('doc_with_backticks_in_headings.md'),
@@ -160,7 +160,7 @@ const testData = [
           properties: [
             {
               name: 'fullName',
-              textRaw: '`Fqhqwhgads.fullName`'
+              textRaw: '`Fqhqwhgads.fullName`',
             },
           ],
           classMethods: [
@@ -168,18 +168,18 @@ const testData = [
               name: 'again',
               signatures: [
                 {
-                  params: []
+                  params: [],
                 },
               ],
               textRaw: 'Static method: `Fhqwhgads.again()`',
-              type: 'classMethod'
+              type: 'classMethod',
             },
           ],
           classes: [
             {
               textRaw: 'Class: `ComeOn`',
               type: 'class',
-              name: 'ComeOn'
+              name: 'ComeOn',
             },
           ],
           ctors: [
@@ -187,11 +187,11 @@ const testData = [
               name: 'Fhqwhgads',
               signatures: [
                 {
-                  params: []
+                  params: [],
                 },
               ],
               textRaw: 'Constructor: `new Fhqwhgads()`',
-              type: 'ctor'
+              type: 'ctor',
             },
           ],
           methods: [
@@ -199,7 +199,7 @@ const testData = [
               textRaw: '`everybody.to(limit)`',
               type: 'method',
               name: 'to',
-              signatures: [{ params: [] }]
+              signatures: [{ params: [] }],
             },
           ],
           events: [
@@ -207,14 +207,14 @@ const testData = [
               textRaw: "Event: `'FHQWHfest'`",
               type: 'event',
               name: 'FHQWHfest',
-              params: []
+              params: [],
             },
           ],
           type: 'module',
-          displayName: 'Fhqwhgads'
+          displayName: 'Fhqwhgads',
         },
-      ]
-    }
+      ],
+    },
   },
 ];
 

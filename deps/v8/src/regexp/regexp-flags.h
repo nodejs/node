@@ -17,14 +17,15 @@ namespace internal {
 // Order is important! Sorted in alphabetic order by the flag char. Note this
 // means that flag bits are shuffled. Take care to keep them contiguous when
 // adding/removing flags.
-#define REGEXP_FLAG_LIST(V)                      \
-  V(has_indices, HasIndices, hasIndices, 'd', 7) \
-  V(global, Global, global, 'g', 0)              \
-  V(ignore_case, IgnoreCase, ignoreCase, 'i', 1) \
-  V(linear, Linear, linear, 'l', 6)              \
-  V(multiline, Multiline, multiline, 'm', 2)     \
-  V(dot_all, DotAll, dotAll, 's', 5)             \
-  V(unicode, Unicode, unicode, 'u', 4)           \
+#define REGEXP_FLAG_LIST(V)                         \
+  V(has_indices, HasIndices, hasIndices, 'd', 7)    \
+  V(global, Global, global, 'g', 0)                 \
+  V(ignore_case, IgnoreCase, ignoreCase, 'i', 1)    \
+  V(linear, Linear, linear, 'l', 6)                 \
+  V(multiline, Multiline, multiline, 'm', 2)        \
+  V(dot_all, DotAll, dotAll, 's', 5)                \
+  V(unicode, Unicode, unicode, 'u', 4)              \
+  V(unicode_sets, UnicodeSets, unicodeSets, 'v', 8) \
   V(sticky, Sticky, sticky, 'y', 3)
 
 #define V(Lower, Camel, LowerCamel, Char, Bit) k##Camel = 1 << Bit,
@@ -55,6 +56,10 @@ DEFINE_OPERATORS_FOR_FLAGS(RegExpFlags)
   }
 REGEXP_FLAG_LIST(V)
 #undef V
+
+constexpr bool IsEitherUnicode(RegExpFlags f) {
+  return IsUnicode(f) || IsUnicodeSets(f);
+}
 
 // clang-format off
 #define V(Lower, Camel, LowerCamel, Char, Bit) \

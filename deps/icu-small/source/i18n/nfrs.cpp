@@ -138,9 +138,9 @@ NFRuleSet::NFRuleSet(RuleBasedNumberFormat *_owner, UnicodeString* descriptions,
   , rules(0)
   , owner(_owner)
   , fractionRules()
-  , fIsFractionRuleSet(FALSE)
-  , fIsPublic(FALSE)
-  , fIsParseable(TRUE)
+  , fIsFractionRuleSet(false)
+  , fIsPublic(false)
+  , fIsParseable(true)
 {
     for (int32_t i = 0; i < NON_NUMERICAL_RULE_LENGTH; ++i) {
         nonNumericalRules[i] = NULL;
@@ -185,7 +185,7 @@ NFRuleSet::NFRuleSet(RuleBasedNumberFormat *_owner, UnicodeString* descriptions,
     fIsPublic = name.indexOf(gPercentPercent, 2, 0) != 0;
 
     if ( name.endsWith(gNoparse,8) ) {
-        fIsParseable = FALSE;
+        fIsParseable = false;
         name.truncate(name.length()-8); // remove the @noparse from the name
     }
 
@@ -273,13 +273,13 @@ void NFRuleSet::setNonNumericalRule(NFRule *rule) {
         nonNumericalRules[NEGATIVE_RULE_INDEX] = rule;
     }
     else if (baseValue == NFRule::kImproperFractionRule) {
-        setBestFractionRule(IMPROPER_FRACTION_RULE_INDEX, rule, TRUE);
+        setBestFractionRule(IMPROPER_FRACTION_RULE_INDEX, rule, true);
     }
     else if (baseValue == NFRule::kProperFractionRule) {
-        setBestFractionRule(PROPER_FRACTION_RULE_INDEX, rule, TRUE);
+        setBestFractionRule(PROPER_FRACTION_RULE_INDEX, rule, true);
     }
     else if (baseValue == NFRule::kDefaultRule) {
-        setBestFractionRule(DEFAULT_RULE_INDEX, rule, TRUE);
+        setBestFractionRule(DEFAULT_RULE_INDEX, rule, true);
     }
     else if (baseValue == NFRule::kInfinityRule) {
         delete nonNumericalRules[INFINITY_RULE_INDEX];
@@ -339,9 +339,9 @@ util_equalRules(const NFRule* rule1, const NFRule* rule2)
             return *rule1 == *rule2;
         }
     } else if (!rule2) {
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 bool
@@ -380,7 +380,7 @@ NFRuleSet::setDecimalFormatSymbols(const DecimalFormatSymbols &newSymbols, UErro
             for (uint32_t fIdx = 0; fIdx < fractionRules.size(); fIdx++) {
                 NFRule *fractionRule = fractionRules[fIdx];
                 if (nonNumericalRules[nonNumericalIdx]->getBaseValue() == fractionRule->getBaseValue()) {
-                    setBestFractionRule(nonNumericalIdx, fractionRule, FALSE);
+                    setBestFractionRule(nonNumericalIdx, fractionRule, false);
                 }
             }
         }

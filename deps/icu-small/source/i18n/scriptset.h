@@ -83,4 +83,7 @@ uhash_hashScriptSet(const UElement key);
 U_CAPI void U_EXPORT2
 uhash_deleteScriptSet(void *obj);
 
-#endif // __SCRIPTSET_H__
+U_CAPI UBool U_EXPORT2
+uhash_equalsScriptSet(const UElement key1, const UElement key2);
+
+#endif // __SCRIPTSET_H_

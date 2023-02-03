@@ -6,12 +6,12 @@
 
 <!-- source_link=lib/util.js -->
 
-The `util` module supports the needs of Node.js internal APIs. Many of the
+The `node:util` module supports the needs of Node.js internal APIs. Many of the
 utilities are useful for application and module developers as well. To access
 it:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 ```
 
 ## `util.callbackify(original)`
@@ -30,7 +30,7 @@ first argument will be the rejection reason (or `null` if the `Promise`
 resolved), and the second argument will be the resolved value.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 async function fn() {
   return 'hello world';
@@ -90,7 +90,7 @@ environment variable, then the returned function operates similar to
 [`console.error()`][]. If not, then the returned function is a no-op.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 const debuglog = util.debuglog('foo');
 
 debuglog('hello from foo [%d]', 123);
@@ -109,7 +109,7 @@ environment variable set, then it will not print anything.
 The `section` supports wildcard also:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 const debuglog = util.debuglog('foo-bar');
 
 debuglog('hi there, it\'s foo-bar [%d]', 2333);
@@ -130,7 +130,7 @@ with a different function that doesn't have any initialization or
 unnecessary wrapping.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 let debuglog = util.debuglog('internals', (debug) => {
   // Replace with a logging function that optimizes out
   // testing if the section is enabled
@@ -153,7 +153,7 @@ then the returned value will be `true`. If not, then the returned value will be
 `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 const enabled = util.debuglog('foo').enabled;
 if (enabled) {
   console.log('hello from foo [%d]', 123);
@@ -197,7 +197,7 @@ The `util.deprecate()` method wraps `fn` (which may be a function or class) in
 such a way that it is marked as deprecated.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 exports.obsoleteFunction = util.deprecate(() => {
   // Do something here.
@@ -214,7 +214,7 @@ If the same optional `code` is supplied in multiple calls to `util.deprecate()`,
 the warning will be emitted only once for that `code`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 const fn1 = util.deprecate(someFunction, someMessage, 'DEP0001');
 const fn2 = util.deprecate(someOtherFunction, someOtherMessage, 'DEP0001');
@@ -260,7 +260,7 @@ changes:
                  was not a string.
   - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/23708
-    description: The `%d`, `%f` and `%i` specifiers now support Symbols
+    description: The `%d`, `%f`, and `%i` specifiers now support Symbols
                  properly.
   - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/24806
@@ -435,8 +435,8 @@ As an additional convenience, `superConstructor` will be accessible
 through the `constructor.super_` property.
 
 ```js
-const util = require('util');
-const EventEmitter = require('events');
+const util = require('node:util');
+const EventEmitter = require('node:events');
 
 function MyStream() {
   EventEmitter.call(this);
@@ -462,7 +462,7 @@ stream.write('It works!'); // Received data: "It works!"
 ES6 example using `class` and `extends`:
 
 ```js
-const EventEmitter = require('events');
+const EventEmitter = require('node:events');
 
 class MyStream extends EventEmitter {
   write(data) {
@@ -490,6 +490,9 @@ changes:
     - v16.14.0
     pr-url: https://github.com/nodejs/node/pull/41003
     description: The `numericSeparator` option is supported now.
+  - version: v16.18.0
+    pr-url: https://github.com/nodejs/node/pull/43576
+    description: add support for `maxArrayLength` when inspecting `Set` and `Map`.
   - version:
     - v14.6.0
     - v12.19.0
@@ -536,7 +539,7 @@ changes:
     description: The `depth` default changed to `20`.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22756
-    description: The inspection output is now limited to about 128 MB. Data
+    description: The inspection output is now limited to about 128 MiB. Data
                  above that size will not be fully inspected.
   - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/22788
@@ -586,8 +589,9 @@ changes:
   * `showProxy` {boolean} If `true`, `Proxy` inspection includes
     the [`target` and `handler`][] objects. **Default:** `false`.
   * `maxArrayLength` {integer} Specifies the maximum number of `Array`,
-    [`TypedArray`][], [`WeakMap`][] and [`WeakSet`][] elements to include when
-    formatting. Set to `null` or `Infinity` to show all elements. Set to `0` or
+    [`TypedArray`][], [`Map`][], [`Set`][], [`WeakMap`][],
+    and [`WeakSet`][] elements to include when formatting.
+    Set to `null` or `Infinity` to show all elements. Set to `0` or
     negative to show no elements. **Default:** `100`.
   * `maxStringLength` {integer} Specifies the maximum number of characters to
     include when formatting. Set to `null` or `Infinity` to show all elements.
@@ -642,7 +646,7 @@ util.inspect(baz);       // '[foo] {}'
 Circular references point to their anchor by using a reference index:
 
 ```js
-const { inspect } = require('util');
+const { inspect } = require('node:util');
 
 const obj = {};
 obj.a = [obj];
@@ -660,7 +664,7 @@ console.log(inspect(obj));
 The following example inspects all properties of the `util` object:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 console.log(util.inspect(util, { showHidden: true, depth: null }));
 ```
@@ -668,7 +672,7 @@ console.log(util.inspect(util, { showHidden: true, depth: null }));
 The following example highlights the effect of the `compact` option:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 const o = {
   a: [1, 2, [[
@@ -676,7 +680,7 @@ const o = {
       'eiusmod \ntempor incididunt ut labore et dolore magna aliqua.',
     'test',
     'foo']], 4],
-  b: new Map([['za', 1], ['zb', 'test']])
+  b: new Map([['za', 1], ['zb', 'test']]),
 };
 console.log(util.inspect(o, { compact: true, depth: 5, breakLength: 80 }));
 
@@ -724,7 +728,7 @@ guarantee which entries are displayed. That means retrieving the same
 with no remaining strong references may be garbage collected at any time.
 
 ```js
-const { inspect } = require('util');
+const { inspect } = require('node:util');
 
 const obj = { a: 1 };
 const obj2 = { b: 2 };
@@ -738,13 +742,13 @@ The `sorted` option ensures that an object's property insertion order does not
 impact the result of `util.inspect()`.
 
 ```js
-const { inspect } = require('util');
-const assert = require('assert');
+const { inspect } = require('node:util');
+const assert = require('node:assert');
 
 const o1 = {
   b: [2, 3, 1],
   a: '`a` comes before `b`',
-  c: new Set([2, 3, 1])
+  c: new Set([2, 3, 1]),
 };
 console.log(inspect(o1, { sorted: true }));
 // { a: '`a` comes before `b`', b: [ 2, 3, 1 ], c: Set(3) { 1, 2, 3 } }
@@ -754,11 +758,11 @@ console.log(inspect(o1, { sorted: (a, b) => b.localeCompare(a) }));
 const o2 = {
   c: new Set([2, 1, 3]),
   a: '`a` comes before `b`',
-  b: [2, 3, 1]
+  b: [2, 3, 1],
 };
 assert.strict.equal(
   inspect(o1, { sorted: true }),
-  inspect(o2, { sorted: true })
+  inspect(o2, { sorted: true }),
 );
 ```
 
@@ -766,7 +770,7 @@ The `numericSeparator` option adds an underscore every three digits to all
 numbers.
 
 ```js
-const { inspect } = require('util');
+const { inspect } = require('node:util');
 
 const thousand = 1_000;
 const million = 1_000_000;
@@ -778,7 +782,7 @@ console.log(thousand, million, bigNumber, bigDecimal);
 ```
 
 `util.inspect()` is a synchronous method intended for debugging. Its maximum
-output length is approximately 128 MB. Inputs that result in longer output will
+output length is approximately 128 MiB. Inputs that result in longer output will
 be truncated.
 
 ### Customizing `util.inspect` colors
@@ -892,7 +896,7 @@ which `util.inspect()` will invoke and use the result of when inspecting
 the object.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 class Box {
   constructor(value) {
@@ -905,7 +909,7 @@ class Box {
     }
 
     const newOptions = Object.assign({}, options, {
-      depth: options.depth === null ? null : options.depth - 1
+      depth: options.depth === null ? null : options.depth - 1,
     });
 
     // Five space padding because that's the size of "Box< ".
@@ -927,7 +931,7 @@ a string but may return a value of any type that will be formatted accordingly
 by `util.inspect()`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 const obj = { foo: 'this will not show up in the inspect() output' };
 obj[util.inspect.custom] = (depth) => {
@@ -996,7 +1000,7 @@ object containing one or more valid [`util.inspect()`][] options. Setting
 option properties directly is also supported.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 const arr = Array(101).fill(0);
 
 console.log(arr); // Logs the truncated array
@@ -1020,6 +1024,570 @@ Otherwise, returns `false`.
 See [`assert.deepStrictEqual()`][] for more information about deep strict
 equality.
 
+## Class: `util.MIMEType`
+
+<!-- YAML
+added:
+  - v19.1.0
+  - v18.13.0
+-->
+
+> Stability: 1 - Experimental
+
+An implementation of [the MIMEType class](https://bmeck.github.io/node-proposal-mime-api/).
+
+In accordance with browser conventions, all properties of `MIMEType` objects
+are implemented as getters and setters on the class prototype, rather than as
+data properties on the object itself.
+
+A MIME string is a structured string containing multiple meaningful
+components. When parsed, a `MIMEType` object is returned containing
+properties for each of these components.
+
+### Constructor: `new MIMEType(input)`
+
+* `input` {string} The input MIME to parse
+
+Creates a new `MIMEType` object by parsing the `input`.
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const myMIME = new MIMEType('text/plain');
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const myMIME = new MIMEType('text/plain');
+```
+
+A `TypeError` will be thrown if the `input` is not a valid MIME. Note
+that an effort will be made to coerce the given values into strings. For
+instance:
+
+```mjs
+import { MIMEType } from 'node:util';
+const myMIME = new MIMEType({ toString: () => 'text/plain' });
+console.log(String(myMIME));
+// Prints: text/plain
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+const myMIME = new MIMEType({ toString: () => 'text/plain' });
+console.log(String(myMIME));
+// Prints: text/plain
+```
+
+#### `mime.type`
+
+* {string}
+
+Gets and sets the type portion of the MIME.
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const myMIME = new MIMEType('text/javascript');
+console.log(myMIME.type);
+// Prints: text
+myMIME.type = 'application';
+console.log(myMIME.type);
+// Prints: application
+console.log(String(myMIME));
+// Prints: application/javascript
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const myMIME = new MIMEType('text/javascript');
+console.log(myMIME.type);
+// Prints: text
+myMIME.type = 'application';
+console.log(myMIME.type);
+// Prints: application
+console.log(String(myMIME));
+// Prints: application/javascript
+```
+
+#### `mime.subtype`
+
+* {string}
+
+Gets and sets the subtype portion of the MIME.
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const myMIME = new MIMEType('text/ecmascript');
+console.log(myMIME.subtype);
+// Prints: ecmascript
+myMIME.subtype = 'javascript';
+console.log(myMIME.subtype);
+// Prints: javascript
+console.log(String(myMIME));
+// Prints: text/javascript
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const myMIME = new MIMEType('text/ecmascript');
+console.log(myMIME.subtype);
+// Prints: ecmascript
+myMIME.subtype = 'javascript';
+console.log(myMIME.subtype);
+// Prints: javascript
+console.log(String(myMIME));
+// Prints: text/javascript
+```
+
+#### `mime.essence`
+
+* {string}
+
+Gets the essence of the MIME. This property is read only.
+Use `mime.type` or `mime.subtype` to alter the MIME.
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const myMIME = new MIMEType('text/javascript;key=value');
+console.log(myMIME.essence);
+// Prints: text/javascript
+myMIME.type = 'application';
+console.log(myMIME.essence);
+// Prints: application/javascript
+console.log(String(myMIME));
+// Prints: application/javascript;key=value
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const myMIME = new MIMEType('text/javascript;key=value');
+console.log(myMIME.essence);
+// Prints: text/javascript
+myMIME.type = 'application';
+console.log(myMIME.essence);
+// Prints: application/javascript
+console.log(String(myMIME));
+// Prints: application/javascript;key=value
+```
+
+#### `mime.params`
+
+* {MIMEParams}
+
+Gets the [`MIMEParams`][] object representing the
+parameters of the MIME. This property is read-only. See
+[`MIMEParams`][] documentation for details.
+
+#### `mime.toString()`
+
+* Returns: {string}
+
+The `toString()` method on the `MIMEType` object returns the serialized MIME.
+
+Because of the need for standard compliance, this method does not allow users
+to customize the serialization process of the MIME.
+
+#### `mime.toJSON()`
+
+* Returns: {string}
+
+Alias for [`mime.toString()`][].
+
+This method is automatically called when an `MIMEType` object is serialized
+with [`JSON.stringify()`][].
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const myMIMES = [
+  new MIMEType('image/png'),
+  new MIMEType('image/gif'),
+];
+console.log(JSON.stringify(myMIMES));
+// Prints: ["image/png", "image/gif"]
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const myMIMES = [
+  new MIMEType('image/png'),
+  new MIMEType('image/gif'),
+];
+console.log(JSON.stringify(myMIMES));
+// Prints: ["image/png", "image/gif"]
+```
+
+### Class: `util.MIMEParams`
+
+<!-- YAML
+added:
+  - v19.1.0
+  - v18.13.0
+-->
+
+The `MIMEParams` API provides read and write access to the parameters of a
+`MIMEType`.
+
+#### Constructor: `new MIMEParams()`
+
+Creates a new `MIMEParams` object by with empty parameters
+
+```mjs
+import { MIMEParams } from 'node:util';
+
+const myParams = new MIMEParams();
+```
+
+```cjs
+const { MIMEParams } = require('node:util');
+
+const myParams = new MIMEParams();
+```
+
+#### `mimeParams.delete(name)`
+
+* `name` {string}
+
+Remove all name-value pairs whose name is `name`.
+
+#### `mimeParams.entries()`
+
+* Returns: {Iterator}
+
+Returns an iterator over each of the name-value pairs in the parameters.
+Each item of the iterator is a JavaScript `Array`. The first item of the array
+is the `name`, the second item of the array is the `value`.
+
+#### `mimeParams.get(name)`
+
+* `name` {string}
+* Returns: {string} or `null` if there is no name-value pair with the given
+  `name`.
+
+Returns the value of the first name-value pair whose name is `name`. If there
+are no such pairs, `null` is returned.
+
+#### `mimeParams.has(name)`
+
+* `name` {string}
+* Returns: {boolean}
+
+Returns `true` if there is at least one name-value pair whose name is `name`.
+
+#### `mimeParams.keys()`
+
+* Returns: {Iterator}
+
+Returns an iterator over the names of each name-value pair.
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const { params } = new MIMEType('text/plain;foo=0;bar=1');
+for (const name of params.keys()) {
+  console.log(name);
+}
+// Prints:
+//   foo
+//   bar
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const { params } = new MIMEType('text/plain;foo=0;bar=1');
+for (const name of params.keys()) {
+  console.log(name);
+}
+// Prints:
+//   foo
+//   bar
+```
+
+#### `mimeParams.set(name, value)`
+
+* `name` {string}
+* `value` {string}
+
+Sets the value in the `MIMEParams` object associated with `name` to
+`value`. If there are any pre-existing name-value pairs whose names are `name`,
+set the first such pair's value to `value`.
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const { params } = new MIMEType('text/plain;foo=0;bar=1');
+params.set('foo', 'def');
+params.set('baz', 'xyz');
+console.log(params.toString());
+// Prints: foo=def&bar=1&baz=xyz
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const { params } = new MIMEType('text/plain;foo=0;bar=1');
+params.set('foo', 'def');
+params.set('baz', 'xyz');
+console.log(params.toString());
+// Prints: foo=def&bar=1&baz=xyz
+```
+
+#### `mimeParams.values()`
+
+* Returns: {Iterator}
+
+Returns an iterator over the values of each name-value pair.
+
+#### `mimeParams[@@iterator]()`
+
+* Returns: {Iterator}
+
+Alias for [`mimeParams.entries()`][].
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const { params } = new MIMEType('text/plain;foo=bar;xyz=baz');
+for (const [name, value] of params) {
+  console.log(name, value);
+}
+// Prints:
+//   foo bar
+//   xyz baz
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const { params } = new MIMEType('text/plain;foo=bar;xyz=baz');
+for (const [name, value] of params) {
+  console.log(name, value);
+}
+// Prints:
+//   foo bar
+//   xyz baz
+```
+
+## `util.parseArgs([config])`
+
+<!-- YAML
+added:
+  - v18.3.0
+  - v16.17.0
+changes:
+  - version:
+    - v18.11.0
+    - v16.19.0
+    pr-url: https://github.com/nodejs/node/pull/44631
+    description: Add support for default values in input `config`.
+  - version:
+    - v18.7.0
+    - v16.17.0
+    pr-url: https://github.com/nodejs/node/pull/43459
+    description: add support for returning detailed parse information
+                 using `tokens` in input `config` and returned properties.
+-->
+
+> Stability: 1 - Experimental
+
+* `config` {Object} Used to provide arguments for parsing and to configure
+  the parser. `config` supports the following properties:
+  * `args` {string\[]} array of argument strings. **Default:** `process.argv`
+    with `execPath` and `filename` removed.
+  * `options` {Object} Used to describe arguments known to the parser.
+    Keys of `options` are the long names of options and values are an
+    {Object} accepting the following properties:
+    * `type` {string} Type of argument, which must be either `boolean` or `string`.
+    * `multiple` {boolean} Whether this option can be provided multiple
+      times. If `true`, all values will be collected in an array. If
+      `false`, values for the option are last-wins. **Default:** `false`.
+    * `short` {string} A single character alias for the option.
+    * `default` {string | boolean | string\[] | boolean\[]} The default option
+      value when it is not set by args. It must be of the same type as the
+      `type` property. When `multiple` is `true`, it must be an array.
+  * `strict` {boolean} Should an error be thrown when unknown arguments
+    are encountered, or when arguments are passed that do not match the
+    `type` configured in `options`.
+    **Default:** `true`.
+  * `allowPositionals` {boolean} Whether this command accepts positional
+    arguments.
+    **Default:** `false` if `strict` is `true`, otherwise `true`.
+  * `tokens` {boolean} Return the parsed tokens. This is useful for extending
+    the built-in behavior, from adding additional checks through to reprocessing
+    the tokens in different ways.
+    **Default:** `false`.
+
+* Returns: {Object} The parsed command line arguments:
+  * `values` {Object} A mapping of parsed option names with their {string}
+    or {boolean} values.
+  * `positionals` {string\[]} Positional arguments.
+  * `tokens` {Object\[] | undefined} See [parseArgs tokens](#parseargs-tokens)
+    section. Only returned if `config` includes `tokens: true`.
+
+Provides a higher level API for command-line argument parsing than interacting
+with `process.argv` directly. Takes a specification for the expected arguments
+and returns a structured object with the parsed options and positionals.
+
+```mjs
+import { parseArgs } from 'node:util';
+const args = ['-f', '--bar', 'b'];
+const options = {
+  foo: {
+    type: 'boolean',
+    short: 'f',
+  },
+  bar: {
+    type: 'string',
+  },
+};
+const {
+  values,
+  positionals,
+} = parseArgs({ args, options });
+console.log(values, positionals);
+// Prints: [Object: null prototype] { foo: true, bar: 'b' } []
+```
+
+```cjs
+const { parseArgs } = require('node:util');
+const args = ['-f', '--bar', 'b'];
+const options = {
+  foo: {
+    type: 'boolean',
+    short: 'f',
+  },
+  bar: {
+    type: 'string',
+  },
+};
+const {
+  values,
+  positionals,
+} = parseArgs({ args, options });
+console.log(values, positionals);
+// Prints: [Object: null prototype] { foo: true, bar: 'b' } []
+```
+
+`util.parseArgs` is experimental and behavior may change. Join the
+conversation in [pkgjs/parseargs][] to contribute to the design.
+
+### `parseArgs` `tokens`
+
+Detailed parse information is available for adding custom behaviours by
+specifying `tokens: true` in the configuration.
+The returned tokens have properties describing:
+
+* all tokens
+  * `kind` {string} One of 'option', 'positional', or 'option-terminator'.
+  * `index` {number} Index of element in `args` containing token. So the
+    source argument for a token is `args[token.index]`.
+* option tokens
+  * `name` {string} Long name of option.
+  * `rawName` {string} How option used in args, like `-f` of `--foo`.
+  * `value` {string | undefined} Option value specified in args.
+    Undefined for boolean options.
+  * `inlineValue` {boolean | undefined} Whether option value specified inline,
+    like `--foo=bar`.
+* positional tokens
+  * `value` {string} The value of the positional argument in args (i.e. `args[index]`).
+* option-terminator token
+
+The returned tokens are in the order encountered in the input args. Options
+that appear more than once in args produce a token for each use. Short option
+groups like `-xy` expand to a token for each option. So `-xxx` produces
+three tokens.
+
+For example to use the returned tokens to add support for a negated option
+like `--no-color`, the tokens can be reprocessed to change the value stored
+for the negated option.
+
+```mjs
+import { parseArgs } from 'node:util';
+
+const options = {
+  'color': { type: 'boolean' },
+  'no-color': { type: 'boolean' },
+  'logfile': { type: 'string' },
+  'no-logfile': { type: 'boolean' },
+};
+const { values, tokens } = parseArgs({ options, tokens: true });
+
+// Reprocess the option tokens and overwrite the returned values.
+tokens
+  .filter((token) => token.kind === 'option')
+  .forEach((token) => {
+    if (token.name.startsWith('no-')) {
+      // Store foo:false for --no-foo
+      const positiveName = token.name.slice(3);
+      values[positiveName] = false;
+      delete values[token.name];
+    } else {
+      // Resave value so last one wins if both --foo and --no-foo.
+      values[token.name] = token.value ?? true;
+    }
+  });
+
+const color = values.color;
+const logfile = values.logfile ?? 'default.log';
+
+console.log({ logfile, color });
+```
+
+```cjs
+const { parseArgs } = require('node:util');
+
+const options = {
+  'color': { type: 'boolean' },
+  'no-color': { type: 'boolean' },
+  'logfile': { type: 'string' },
+  'no-logfile': { type: 'boolean' },
+};
+const { values, tokens } = parseArgs({ options, tokens: true });
+
+// Reprocess the option tokens and overwrite the returned values.
+tokens
+  .filter((token) => token.kind === 'option')
+  .forEach((token) => {
+    if (token.name.startsWith('no-')) {
+      // Store foo:false for --no-foo
+      const positiveName = token.name.slice(3);
+      values[positiveName] = false;
+      delete values[token.name];
+    } else {
+      // Resave value so last one wins if both --foo and --no-foo.
+      values[token.name] = token.value ?? true;
+    }
+  });
+
+const color = values.color;
+const logfile = values.logfile ?? 'default.log';
+
+console.log({ logfile, color });
+```
+
+Example usage showing negated options, and when an option is used
+multiple ways then last one wins.
+
+```console
+$ node negate.js
+{ logfile: 'default.log', color: undefined }
+$ node negate.js --no-logfile --no-color
+{ logfile: false, color: false }
+$ node negate.js --logfile=test.log --color
+{ logfile: 'test.log', color: true }
+$ node negate.js --no-logfile --logfile=test.log --color --no-color
+{ logfile: 'test.log', color: false }
+```
+
 ## `util.promisify(original)`
 
 <!-- YAML
@@ -1034,8 +1602,8 @@ an `(err, value) => ...` callback as the last argument, and returns a version
 that returns promises.
 
 ```js
-const util = require('util');
-const fs = require('fs');
+const util = require('node:util');
+const fs = require('node:fs');
 
 const stat = util.promisify(fs.stat);
 stat('.').then((stats) => {
@@ -1048,8 +1616,8 @@ stat('.').then((stats) => {
 Or, equivalently using `async function`s:
 
 ```js
-const util = require('util');
-const fs = require('fs');
+const util = require('node:util');
+const fs = require('node:fs');
 
 const stat = util.promisify(fs.stat);
 
@@ -1072,7 +1640,7 @@ Using `promisify()` on class methods or other methods that use `this` may not
 work as expected unless handled specially:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 class Foo {
   constructor() {
@@ -1102,7 +1670,7 @@ Using the `util.promisify.custom` symbol one can override the return value of
 [`util.promisify()`][]:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 function doSomething(foo, callback) {
   // ...
@@ -1281,7 +1849,7 @@ changes:
   * `ignoreBOM` {boolean} When `true`, the `TextDecoder` will include the byte
     order mark in the decoded result. When `false`, the byte order mark will
     be removed from the output. This option is only used when `encoding` is
-    `'utf-8'`, `'utf-16be'` or `'utf-16le'`. **Default:** `false`.
+    `'utf-8'`, `'utf-16be'`, or `'utf-16le'`. **Default:** `false`.
 
 Creates a new `TextDecoder` instance. The `encoding` may specify one of the
 supported encodings or an alias.
@@ -1290,7 +1858,7 @@ The `TextDecoder` class is also available on the global object.
 
 ### `textDecoder.decode([input[, options]])`
 
-* `input` {ArrayBuffer|DataView|TypedArray} An `ArrayBuffer`, `DataView` or
+* `input` {ArrayBuffer|DataView|TypedArray} An `ArrayBuffer`, `DataView`, or
   `TypedArray` instance containing the encoded data.
 * `options` {Object}
   * `stream` {boolean} `true` if additional chunks of data are expected.
@@ -1390,6 +1958,37 @@ Returns the `string` after replacing any surrogate code points
 (or equivalently, any unpaired surrogate code units) with the
 Unicode "replacement character" U+FFFD.
 
+## `util.transferableAbortController()`
+
+<!-- YAML
+added: v18.11.0
+-->
+
+> Stability: 1 - Experimental
+
+Creates and returns an {AbortController} instance whose {AbortSignal} is marked
+as transferable and can be used with `structuredClone()` or `postMessage()`.
+
+## `util.transferableAbortSignal(signal)`
+
+<!-- YAML
+added: v18.11.0
+-->
+
+> Stability: 1 - Experimental
+
+* `signal` {AbortSignal}
+* Returns: {AbortSignal}
+
+Marks the given {AbortSignal} as transferable so that it can be used with
+`structuredClone()` and `postMessage()`.
+
+```js
+const signal = transferableAbortSignal(AbortSignal.timeout(100));
+const channel = new MessageChannel();
+channel.port2.postMessage(signal, [signal]);
+```
+
 ## `util.types`
 
 <!-- YAML
@@ -1409,7 +2008,7 @@ The result generally does not make any guarantees about what kinds of
 properties or behavior a value exposes in JavaScript. They are primarily
 useful for addon developers who prefer to do type checking in JavaScript.
 
-The API is accessible via `require('util').types` or `require('util/types')`.
+The API is accessible via `require('node:util').types` or `require('node:util/types')`.
 
 ### `util.types.isAnyArrayBuffer(value)`
 
@@ -2210,7 +2809,7 @@ Alias for [`Array.isArray()`][].
 Returns `true` if the given `object` is an `Array`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isArray([]);
 // Returns: true
@@ -2235,7 +2834,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is a `Boolean`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isBoolean(1);
 // Returns: false
@@ -2260,7 +2859,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is a `Buffer`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isBuffer({ length: 0 });
 // Returns: false
@@ -2285,7 +2884,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is a `Date`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isDate(new Date());
 // Returns: true
@@ -2311,7 +2910,7 @@ Returns `true` if the given `object` is an [`Error`][]. Otherwise, returns
 `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isError(new Error());
 // Returns: true
@@ -2326,7 +2925,7 @@ possible to obtain an incorrect result when the `object` argument manipulates
 `@@toStringTag`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 const obj = { name: 'Error', message: 'an error occurred' };
 
 util.isError(obj);
@@ -2352,7 +2951,7 @@ Returns `true` if the given `object` is a `Function`. Otherwise, returns
 `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 function Foo() {}
 const Bar = () => {};
@@ -2381,7 +2980,7 @@ Returns `true` if the given `object` is strictly `null`. Otherwise, returns
 `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isNull(0);
 // Returns: false
@@ -2408,7 +3007,7 @@ Returns `true` if the given `object` is `null` or `undefined`. Otherwise,
 returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isNullOrUndefined(0);
 // Returns: false
@@ -2433,7 +3032,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is a `Number`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isNumber(false);
 // Returns: false
@@ -2463,7 +3062,7 @@ Returns `true` if the given `object` is strictly an `Object` **and** not a
 Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isObject(5);
 // Returns: false
@@ -2493,7 +3092,7 @@ Returns `true` if the given `object` is a primitive type. Otherwise, returns
 `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isPrimitive(5);
 // Returns: true
@@ -2530,7 +3129,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is a `RegExp`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isRegExp(/some regexp/);
 // Returns: true
@@ -2555,7 +3154,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is a `string`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isString('');
 // Returns: true
@@ -2582,7 +3181,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is a `Symbol`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isSymbol(5);
 // Returns: false
@@ -2607,7 +3206,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is `undefined`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 const foo = undefined;
 util.isUndefined(5);
@@ -2633,7 +3232,7 @@ The `util.log()` method prints the given `string` to `stdout` with an included
 timestamp.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.log('Timestamped message.');
 ```
@@ -2659,6 +3258,8 @@ util.log('Timestamped message.');
 [`Int16Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array
 [`Int32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array
 [`Int8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array
+[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
+[`MIMEparams`]: #class-utilmimeparams
 [`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
 [`Object.freeze()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
@@ -2676,6 +3277,8 @@ util.log('Timestamped message.');
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`assert.deepStrictEqual()`]: assert.md#assertdeepstrictequalactual-expected-message
 [`console.error()`]: console.md#consoleerrordata-args
+[`mime.toString()`]: #mimetostring
+[`mimeParams.entries()`]: #mimeparamsentries
 [`napi_create_external()`]: n-api.md#napi_create_external
 [`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
 [`tty.hasColors()`]: tty.md#writestreamhascolorscount-env
@@ -2693,5 +3296,6 @@ util.log('Timestamped message.');
 [default sort]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
 [global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for
 [list of deprecated APIS]: deprecations.md#list-of-deprecated-apis
+[pkgjs/parseargs]: https://github.com/pkgjs/parseargs
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
 [util.inspect.custom]: #utilinspectcustom

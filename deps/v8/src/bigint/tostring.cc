@@ -127,6 +127,7 @@ class ToStringFormatter {
         out_end_(out + chars_available),
         out_(out_end_),
         processor_(processor) {
+    digits_.Normalize();
     DCHECK(chars_available >= ToStringResultLength(digits_, radix_, sign_));
   }
 
@@ -599,7 +600,8 @@ int ToStringResultLength(Digits X, int radix, bool sign) {
     uint64_t chars_required = bit_length;
     chars_required *= kBitsPerCharTableMultiplier;
     chars_required = DIV_CEIL(chars_required, min_bits_per_char);
-    DCHECK(chars_required < std::numeric_limits<int>::max());
+    DCHECK(chars_required <
+           static_cast<uint64_t>(std::numeric_limits<int>::max()));
     result = static_cast<int>(chars_required);
   }
   result += sign;

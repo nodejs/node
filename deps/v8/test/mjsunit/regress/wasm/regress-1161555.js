@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-simd --wasm-lazy-compilation
+// Flags: --wasm-lazy-compilation
 
 // Test case copied from clusterfuzz, this exercises a bug in WasmCompileLazy
 // where we are not correctly pushing the full 128-bits of a SIMD register.

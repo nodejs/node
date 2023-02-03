@@ -11,7 +11,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require JSDoc comments",
+            description: "Require JSDoc comments",
             recommended: false,
             url: "https://eslint.org/docs/rules/require-jsdoc"
         },

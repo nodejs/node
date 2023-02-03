@@ -18,8 +18,8 @@ namespace internal {
 // Aliases for GetPtrComprCageBase when
 // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE. Each Isolate has its own cage, whose
 // base address is also the Isolate root.
-V8_INLINE constexpr Address GetIsolateRootAddress(Address on_heap_addr) {
-  return GetPtrComprCageBaseAddress(on_heap_addr);
+V8_INLINE Address GetIsolateRootAddress(Address on_heap_addr) {
+  return V8HeapCompressionScheme::GetPtrComprCageBaseAddress(on_heap_addr);
 }
 
 V8_INLINE Address GetIsolateRootAddress(PtrComprCageBase cage_base) {
@@ -42,7 +42,8 @@ V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
 
 #if defined V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object)->heap();
-#elif defined V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#elif defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE) && \
+    !defined(V8_EXTERNAL_CODE_SPACE)
   Isolate* isolate =
       Isolate::FromRootAddress(GetIsolateRootAddress(object.ptr()));
   DCHECK_NOT_NULL(isolate);
@@ -57,7 +58,8 @@ V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
 V8_INLINE Isolate* GetIsolateFromWritableObject(HeapObject object) {
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object);
-#elif defined V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#elif defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE) && \
+    !defined(V8_EXTERNAL_CODE_SPACE)
   Isolate* isolate =
       Isolate::FromRootAddress(GetIsolateRootAddress(object.ptr()));
   DCHECK_NOT_NULL(isolate);
@@ -86,10 +88,10 @@ V8_INLINE bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate) {
 #endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE, V8_ENABLE_THIRD_PARTY_HEAP
 }
 
-// Use this function instead of Internals::GetIsolateForHeapSandbox for internal
+// Use this function instead of Internals::GetIsolateForSandbox for internal
 // code, as this function is fully inlinable.
-V8_INLINE static Isolate* GetIsolateForHeapSandbox(HeapObject object) {
-#ifdef V8_HEAP_SANDBOX
+V8_INLINE static Isolate* GetIsolateForSandbox(HeapObject object) {
+#ifdef V8_ENABLE_SANDBOX
   return GetIsolateFromWritableObject(object);
 #else
   // Not used in non-sandbox mode.

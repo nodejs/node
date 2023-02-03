@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -52,6 +52,10 @@ int64_t ossl_property_get_number_value(const OSSL_PROPERTY_DEFINITION *prop);
 /* Implementation store functions */
 OSSL_METHOD_STORE *ossl_method_store_new(OSSL_LIB_CTX *ctx);
 void ossl_method_store_free(OSSL_METHOD_STORE *store);
+
+int ossl_method_lock_store(OSSL_METHOD_STORE *store);
+int ossl_method_unlock_store(OSSL_METHOD_STORE *store);
+
 int ossl_method_store_add(OSSL_METHOD_STORE *store, const OSSL_PROVIDER *prov,
                           int nid, const char *properties, void *method,
                           int (*method_up_ref)(void *),
@@ -64,6 +68,8 @@ void ossl_method_store_do_all(OSSL_METHOD_STORE *store,
 int ossl_method_store_fetch(OSSL_METHOD_STORE *store,
                             int nid, const char *prop_query,
                             const OSSL_PROVIDER **prov, void **method);
+int ossl_method_store_remove_all_provided(OSSL_METHOD_STORE *store,
+                                          const OSSL_PROVIDER *prov);
 
 /* Get the global properties associate with the specified library context */
 OSSL_PROPERTY_LIST **ossl_ctx_global_properties(OSSL_LIB_CTX *ctx,
@@ -77,7 +83,7 @@ int ossl_method_store_cache_set(OSSL_METHOD_STORE *store, OSSL_PROVIDER *prov,
                                 int (*method_up_ref)(void *),
                                 void (*method_destruct)(void *));
 
-__owur int ossl_method_store_flush_cache(OSSL_METHOD_STORE *store, int all);
+__owur int ossl_method_store_cache_flush_all(OSSL_METHOD_STORE *store);
 
 /* Merge two property queries together */
 OSSL_PROPERTY_LIST *ossl_property_merge(const OSSL_PROPERTY_LIST *a,

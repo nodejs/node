@@ -197,39 +197,6 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, regress_642867) {
   Analyze(code, code + arraysize(code));
 }
 
-TEST_F(WasmLoopAssignmentAnalyzerTest, LetInLoopAssigned) {
-  num_locals = 5;
-  static const byte code[] = {
-      WASM_LOOP(WASM_LET_1_V(kI32Code, WASM_I32V_1(42), WASM_SET_ZERO(3)))};
-  BitVector* assigned = Analyze(code, code + arraysize(code));
-  for (uint32_t i = 0; i <= num_locals; i++) {
-    EXPECT_EQ(assigned->Contains(i), i == 2);
-  }
-}
-
-TEST_F(WasmLoopAssignmentAnalyzerTest, LetInLoopNotAssigned) {
-  num_locals = 2;
-  static const byte code[] = {WASM_LOOP(
-      WASM_LET_1_V(kI32Code, WASM_I32V_1(42),
-                   WASM_LET_1_V(kI32Code, WASM_I32V_1(42), WASM_SET_ZERO(0),
-                                WASM_SET_ZERO(1))))};
-  BitVector* assigned = Analyze(code, code + arraysize(code));
-  for (uint32_t i = 0; i <= num_locals; i++) {
-    EXPECT_FALSE(assigned->Contains(i));
-  }
-}
-
-TEST_F(WasmLoopAssignmentAnalyzerTest, AssignmentOutsideOfLet) {
-  num_locals = 5;
-  static const byte code[] = {
-      WASM_LOOP(WASM_LET_1_V(kI32Code, WASM_I32V_1(42), WASM_SET_ZERO(3)),
-                WASM_SET_ZERO(4))};
-  BitVector* assigned = Analyze(code, code + arraysize(code));
-  for (uint32_t i = 0; i <= num_locals; i++) {
-    EXPECT_EQ(assigned->Contains(i), i == 2 || i == 4);
-  }
-}
-
 #undef WASM_SET_ZERO
 
 }  // namespace wasm

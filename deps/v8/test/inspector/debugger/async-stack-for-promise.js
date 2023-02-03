@@ -4,7 +4,8 @@
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks that async chains for promises are correct.');
 
-contextGroup.addScript(`
+contextGroup.addInlineScript(
+    `
 function foo1() {
   debugger;
 }
@@ -223,8 +224,8 @@ function finally1() {
 
 function finally2() {
   return Promise.resolve().finally(foo1);
-}
-//# sourceURL=test.js`, 7, 26);
+}`,
+    'test.js');
 
 session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {

@@ -6,12 +6,13 @@ const {
   ClientClosedError,
   InvalidArgumentError
 } = require('./core/errors')
-const { kDestroy, kClose, kDispatch } = require('./core/symbols')
+const { kDestroy, kClose, kDispatch, kInterceptors } = require('./core/symbols')
 
 const kDestroyed = Symbol('destroyed')
 const kClosed = Symbol('closed')
 const kOnDestroyed = Symbol('onDestroyed')
 const kOnClosed = Symbol('onClosed')
+const kInterceptedDispatch = Symbol('Intercepted Dispatch')
 
 class DispatcherBase extends Dispatcher {
   constructor () {
@@ -29,6 +30,23 @@ class DispatcherBase extends Dispatcher {
 
   get closed () {
     return this[kClosed]
+  }
+
+  get interceptors () {
+    return this[kInterceptors]
+  }
+
+  set interceptors (newInterceptors) {
+    if (newInterceptors) {
+      for (let i = newInterceptors.length - 1; i >= 0; i--) {
+        const interceptor = this[kInterceptors][i]
+        if (typeof interceptor !== 'function') {
+          throw new InvalidArgumentError('interceptor must be an function')
+        }
+      }
+    }
+
+    this[kInterceptors] = newInterceptors
   }
 
   close (callback) {
@@ -125,6 +143,20 @@ class DispatcherBase extends Dispatcher {
     })
   }
 
+  [kInterceptedDispatch] (opts, handler) {
+    if (!this[kInterceptors] || this[kInterceptors].length === 0) {
+      this[kInterceptedDispatch] = this[kDispatch]
+      return this[kDispatch](opts, handler)
+    }
+
+    let dispatch = this[kDispatch].bind(this)
+    for (let i = this[kInterceptors].length - 1; i >= 0; i--) {
+      dispatch = this[kInterceptors][i](dispatch)
+    }
+    this[kInterceptedDispatch] = dispatch
+    return dispatch(opts, handler)
+  }
+
   dispatch (opts, handler) {
     if (!handler || typeof handler !== 'object') {
       throw new InvalidArgumentError('handler must be an object')
@@ -143,7 +175,7 @@ class DispatcherBase extends Dispatcher {
         throw new ClientClosedError()
       }
 
-      return this[kDispatch](opts, handler)
+      return this[kInterceptedDispatch](opts, handler)
     } catch (err) {
       if (typeof handler.onError !== 'function') {
         throw new InvalidArgumentError('invalid onError method')

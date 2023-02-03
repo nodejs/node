@@ -9,7 +9,7 @@ const BaseCommand = require('../base-command.js')
 class Deprecate extends BaseCommand {
   static description = 'Deprecate a version of a package'
   static name = 'deprecate'
-  static usage = ['<pkg>[@<version>] <message>']
+  static usage = ['<package-spec> <message>']
   static params = [
     'registry',
     'otp',
@@ -23,7 +23,7 @@ class Deprecate extends BaseCommand {
     }
 
     const username = await getIdentity(this.npm, this.npm.flatOptions)
-    const packages = await libaccess.lsPackages(username, this.npm.flatOptions)
+    const packages = await libaccess.getPackages(username, this.npm.flatOptions)
     return Object.keys(packages)
       .filter((name) =>
         packages[name] === 'write' &&
@@ -39,9 +39,7 @@ class Deprecate extends BaseCommand {
 
     // fetch the data and make sure it exists.
     const p = npa(pkg)
-    // npa makes the default spec "latest", but for deprecation
-    // "*" is the appropriate default.
-    const spec = p.rawSpec === '' ? '*' : p.fetchSpec
+    const spec = p.rawSpec === '*' ? '*' : p.fetchSpec
 
     if (semver.validRange(spec, true) === null) {
       throw new Error(`invalid version range: ${spec}`)
@@ -54,19 +52,21 @@ class Deprecate extends BaseCommand {
       query: { write: true },
     })
 
-    Object.keys(packument.versions)
+    const versions = Object.keys(packument.versions)
       .filter(v => semver.satisfies(v, spec, { includePrerelease: true }))
-      .forEach(v => {
-        packument.versions[v].deprecated = msg
-      })
 
-    return otplease(this.npm.flatOptions, opts => fetch(uri, {
-      ...opts,
-      spec: p,
-      method: 'PUT',
-      body: packument,
-      ignoreBody: true,
-    }))
+    if (versions.length) {
+      for (const v of versions) {
+        packument.versions[v].deprecated = msg
+      }
+      return otplease(this.npm, this.npm.flatOptions, opts => fetch(uri, {
+        ...opts,
+        spec: p,
+        method: 'PUT',
+        body: packument,
+        ignoreBody: true,
+      }))
+    }
   }
 }
 

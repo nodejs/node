@@ -41,7 +41,7 @@ Note: please ensure you are only making the updates that are changed by npm.
 ## Step 4: Apply whitespace fix
 
 ```console
-$ git rebase --whitespace=fix master
+$ git rebase --whitespace=fix main
 ```
 
 ## Step 5: Test the build

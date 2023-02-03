@@ -1,19 +1,16 @@
-import { mustCall } from '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import { path } from '../common/fixtures.mjs';
-import { match, notStrictEqual } from 'assert';
-import { spawn } from 'child_process';
-import { execPath } from 'process';
+import { match, notStrictEqual } from 'node:assert';
+import { execPath } from 'node:process';
+import { describe, it } from 'node:test';
 
-const child = spawn(execPath, [
-  path('es-module-loaders', 'syntax-error.mjs'),
-]);
 
-let stderr = '';
-child.stderr.setEncoding('utf8');
-child.stderr.on('data', (data) => {
-  stderr += data;
+describe('ESM: importing a module with syntax error(s)', { concurrency: true }, () => {
+  it('should throw', async () => {
+    const { code, stderr } = await spawnPromisified(execPath, [
+      path('es-module-loaders', 'syntax-error.mjs'),
+    ]);
+    match(stderr, /SyntaxError:/);
+    notStrictEqual(code, 0);
+  });
 });
-child.on('close', mustCall((code, _signal) => {
-  notStrictEqual(code, 0);
-  match(stderr, /SyntaxError:/);
-}));

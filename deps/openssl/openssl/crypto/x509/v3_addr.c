@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,6 +13,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
+#include <string.h>
 
 #include "internal/cryptlib.h"
 #include <openssl/conf.h>
@@ -343,8 +345,13 @@ static int range_should_be_prefix(const unsigned char *min,
     unsigned char mask;
     int i, j;
 
-    if (memcmp(min, max, length) <= 0)
-        return -1;
+    /*
+     * It is the responsibility of the caller to confirm min <= max. We don't
+     * use ossl_assert() here since we have no way of signalling an error from
+     * this function - so we just use a plain assert instead.
+     */
+    assert(memcmp(min, max, length) <= 0);
+
     for (i = 0; i < length && min[i] == max[i]; i++) ;
     for (j = length - 1; j >= 0 && min[j] == 0x00 && max[j] == 0xFF; j--) ;
     if (i < j)
@@ -386,12 +393,14 @@ static int range_should_be_prefix(const unsigned char *min,
 /*
  * Construct a prefix.
  */
-static int make_addressPrefix(IPAddressOrRange **result,
-                              unsigned char *addr, const int prefixlen)
+static int make_addressPrefix(IPAddressOrRange **result, unsigned char *addr,
+                              const int prefixlen, const int afilen)
 {
     int bytelen = (prefixlen + 7) / 8, bitlen = prefixlen % 8;
     IPAddressOrRange *aor = IPAddressOrRange_new();
 
+    if (prefixlen < 0 || prefixlen > (afilen * 8))
+        return 0;
     if (aor == NULL)
         return 0;
     aor->type = IPAddressOrRange_addressPrefix;
@@ -427,8 +436,11 @@ static int make_addressRange(IPAddressOrRange **result,
     IPAddressOrRange *aor;
     int i, prefixlen;
 
+    if (memcmp(min, max, length) > 0)
+        return 0;
+
     if ((prefixlen = range_should_be_prefix(min, max, length)) >= 0)
-        return make_addressPrefix(result, min, prefixlen);
+        return make_addressPrefix(result, min, prefixlen, length);
 
     if ((aor = IPAddressOrRange_new()) == NULL)
         return 0;
@@ -590,7 +602,9 @@ int X509v3_addr_add_prefix(IPAddrBlocks *addr,
 {
     IPAddressOrRanges *aors = make_prefix_or_range(addr, afi, safi);
     IPAddressOrRange *aor;
-    if (aors == NULL || !make_addressPrefix(&aor, a, prefixlen))
+
+    if (aors == NULL
+            || !make_addressPrefix(&aor, a, prefixlen, length_from_afi(afi)))
         return 0;
     if (sk_IPAddressOrRange_push(aors, aor))
         return 1;
@@ -985,7 +999,10 @@ static void *v2i_IPAddrBlocks(const struct v3_ext_method *method,
         switch (delim) {
         case '/':
             prefixlen = (int)strtoul(s + i2, &t, 10);
-            if (t == s + i2 || *t != '\0') {
+            if (t == s + i2
+                    || *t != '\0'
+                    || prefixlen > (length * 8)
+                    || prefixlen < 0) {
                 ERR_raise(ERR_LIB_X509V3, X509V3_R_EXTENSION_VALUE_ERROR);
                 X509V3_conf_add_error_name_value(val);
                 goto err;
@@ -1099,7 +1116,7 @@ static int addr_contains(IPAddressOrRanges *parent,
     for (c = 0; c < sk_IPAddressOrRange_num(child); c++) {
         if (!extract_min_max(sk_IPAddressOrRange_value(child, c),
                              c_min, c_max, length))
-            return -1;
+            return 0;
         for (;; p++) {
             if (p >= sk_IPAddressOrRange_num(parent))
                 return 0;

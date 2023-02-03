@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/libnpmsearch.svg)](https://npm.im/libnpmsearch)
 [![license](https://img.shields.io/npm/l/libnpmsearch.svg)](https://npm.im/libnpmsearch)
-[![Coverage Status](https://coveralls.io/repos/github/npm/libnpmsearch/badge.svg?branch=latest)](https://coveralls.io/github/npm/libnpmsearch?branch=latest)
+[![CI - libnpmsearch](https://github.com/npm/cli/actions/workflows/ci-libnpmsearch.yml/badge.svg)](https://github.com/npm/cli/actions/workflows/ci-libnpmsearch.yml)
 
 [`libnpmsearch`](https://github.com/npm/libnpmsearch) is a Node.js library for
 programmatically accessing the npm search endpoint. It does **not** support

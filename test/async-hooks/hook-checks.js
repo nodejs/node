@@ -21,7 +21,7 @@ exports.checkInvocations = function checkInvocations(activity, hooks, stage) {
 
   assert.ok(activity != null,
             `${stageInfo} Trying to check invocation for an activity, ` +
-            'but it was empty/undefined.'
+            'but it was empty/undefined.',
   );
 
   // Check that actual invocations for all hooks match the expected invocations

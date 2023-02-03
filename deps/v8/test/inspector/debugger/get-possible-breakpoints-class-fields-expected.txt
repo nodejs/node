@@ -99,7 +99,7 @@ let x = |R|class {}
 }|R|
 
 |_|x = |R|class {
-  x = |_|function*|_|() {
+  x = |_|function*() {
     |_|yield 1;
   |R|};
 }|R|
@@ -190,7 +190,7 @@ let x = |R|class {}
 }
 
 |_|x = |R|class {
-  static x = |_|function*|_|() {
+  static x = |_|function*() {
     |_|yield 1;
   |R|}|R|;
 }
@@ -204,3 +204,4 @@ let x = |R|class {}
   [|C|bar()] = |_|6;
 }|R|
 |R|
+

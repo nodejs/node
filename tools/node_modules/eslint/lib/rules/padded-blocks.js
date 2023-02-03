@@ -21,7 +21,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require or disallow padding within blocks",
+            description: "Require or disallow padding within blocks",
             recommended: false,
             url: "https://eslint.org/docs/rules/padded-blocks"
         },
@@ -186,7 +186,7 @@ module.exports = {
                 case "ClassBody":
                     return options.classes;
 
-                /* istanbul ignore next */
+                /* c8 ignore next */
                 default:
                     throw new Error("unreachable");
             }

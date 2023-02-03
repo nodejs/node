@@ -23,7 +23,8 @@ function test(size, type, name, cipher) {
   const options = {
     key: key,
     cert: cert,
-    ciphers: cipher
+    ciphers: cipher,
+    maxVersion: 'TLSv1.2',
   };
 
   if (name) options.ecdhCurve = name;

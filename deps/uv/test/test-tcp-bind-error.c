@@ -297,3 +297,21 @@ TEST_IMPL(tcp_bind_writable_flags) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+TEST_IMPL(tcp_bind_or_listen_error_after_close) {
+  uv_tcp_t tcp;
+  struct sockaddr_in addr;
+
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  addr.sin_port = htons(9999);
+  addr.sin_family = AF_INET;
+
+  ASSERT_EQ(uv_tcp_init(uv_default_loop(), &tcp), 0);
+  uv_close((uv_handle_t*) &tcp, NULL);
+  ASSERT_EQ(uv_tcp_bind(&tcp, (struct sockaddr*) &addr, 0), UV_EINVAL);
+  ASSERT_EQ(uv_listen((uv_stream_t*) &tcp, 5, NULL), UV_EINVAL);
+  ASSERT_EQ(uv_run(uv_default_loop(), UV_RUN_DEFAULT), 0);
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}

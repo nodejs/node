@@ -8,8 +8,33 @@ import {LogEntry} from './log.mjs';
 export class TickLogEntry extends LogEntry {
   constructor(time, vmState, processedStack) {
     super(TickLogEntry.extractType(vmState, processedStack), time);
+    /** @type {string} */
     this.state = vmState;
+    /** @type {CodeEntry[]} */
     this.stack = processedStack;
+    /** @type {number} */
+    this._endTime = time;
+  }
+
+  end(time) {
+    if (this.isInitialized) throw new Error('Invalid timer change');
+    this._endTime = time;
+  }
+
+  get isInitialized() {
+    return this._endTime !== this._time;
+  }
+
+  get startTime() {
+    return this._time;
+  }
+
+  get endTime() {
+    return this._endTime;
+  }
+
+  get duration() {
+    return this._endTime - this._time;
   }
 
   static extractType(vmState, processedStack) {

@@ -20,7 +20,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow calling some `Object.prototype` methods directly on objects",
+            description: "Disallow calling some `Object.prototype` methods directly on objects",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-prototype-builtins"
         },
@@ -33,11 +33,11 @@ module.exports = {
     },
 
     create(context) {
-        const DISALLOWED_PROPS = [
+        const DISALLOWED_PROPS = new Set([
             "hasOwnProperty",
             "isPrototypeOf",
             "propertyIsEnumerable"
-        ];
+        ]);
 
         /**
          * Reports if a disallowed property is used in a CallExpression
@@ -54,7 +54,7 @@ module.exports = {
 
             const propName = astUtils.getStaticPropertyName(callee);
 
-            if (propName !== null && DISALLOWED_PROPS.indexOf(propName) > -1) {
+            if (propName !== null && DISALLOWED_PROPS.has(propName)) {
                 context.report({
                     messageId: "prototypeBuildIn",
                     loc: callee.property.loc,

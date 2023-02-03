@@ -29,8 +29,9 @@ server.listen(0, common.mustCall(() => {
   const client = h2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
 
-  req.on('headers', common.mustCall((headers) => {
+  req.on('headers', common.mustCall((headers, flags) => {
     assert.strictEqual(headers[':status'], 102);
+    assert.strictEqual(typeof flags === 'number', true);
   }));
 
   assert.strictEqual(req.sentHeaders[':method'], 'GET');

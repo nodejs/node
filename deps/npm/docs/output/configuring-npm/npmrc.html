@@ -142,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#files">Files</a></li><ul><li><a href="#comments">Comments</a></li><li><a href="#per-project-config-file">Per-project config file</a></li><li><a href="#per-user-config-file">Per-user config file</a></li><li><a href="#global-config-file">Global config file</a></li><li><a href="#built-in-config-file">Built-in config file</a></li></ul><li><a href="#see-also">See also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#files">Files</a></li><ul><li><a href="#comments">Comments</a></li><li><a href="#per-project-config-file">Per-project config file</a></li><li><a href="#per-user-config-file">Per-user config file</a></li><li><a href="#global-config-file">Global config file</a></li><li><a href="#built-in-config-file">Built-in config file</a></li></ul><li><a href="#auth-related-configuration">Auth related configuration</a></li><li><a href="#see-also">See also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -163,13 +163,13 @@ user and global npmrc files.</p>
 <p>All npm config files are an ini-formatted list of <code>key = value</code> parameters.
 Environment variables can be replaced using <code>${VARIABLE_NAME}</code>. For
 example:</p>
-<pre lang="bash"><code>prefix = ${HOME}/.npm-packages
+<pre><code class="language-bash">prefix = ${HOME}/.npm-packages
 </code></pre>
 <p>Each of these files is loaded, and config options are resolved in priority
 order.  For example, a setting in the userconfig file would override the
 setting in the globalconfig file.</p>
 <p>Array values are specified by adding "[]" after the key name. For example:</p>
-<pre lang="bash"><code>key[] = "first value"
+<pre><code class="language-bash">key[] = "first value"
 key[] = "second value"
 </code></pre>
 <h4 id="comments">Comments</h4>
@@ -177,7 +177,7 @@ key[] = "second value"
 <code>;</code> or <code>#</code> character. <code>.npmrc</code> files are parsed by
 <a href="https://github.com/npm/ini">npm/ini</a>, which specifies this comment syntax.</p>
 <p>For example:</p>
-<pre lang="bash"><code># last modified: 01 Jan 2016
+<pre><code class="language-bash"># last modified: 01 Jan 2016
 ; Set a new registry for a scoped package
 @myscope:registry=https://mycustomregistry.example.org
 </code></pre>
@@ -204,6 +204,39 @@ variables can be replaced as above.</p>
 consistent across updates.  Set fields in here using the <code>./configure</code>
 script that comes with npm.  This is primarily for distribution maintainers
 to override default configs in a standard and consistent manner.</p>
+<h3 id="auth-related-configuration">Auth related configuration</h3>
+<p>The settings <code>_auth</code>, <code>_authToken</code>, <code>username</code> and <code>_password</code> must all be
+scoped to a specific registry. This ensures that <code>npm</code> will never send
+credentials to the wrong host.</p>
+<p>The full list is:</p>
+<ul>
+<li><code>_auth</code> (base64 authentication string)</li>
+<li><code>_authToken</code> (authentication token)</li>
+<li><code>username</code></li>
+<li><code>_password</code></li>
+<li><code>email</code></li>
+<li><code>certfile</code> (path to certificate file)</li>
+<li><code>keyfile</code> (path to key file)</li>
+</ul>
+<p>In order to scope these values, they must be prefixed by a URI fragment.
+If the credential is meant for any request to a registry on a single host,
+the scope may look like <code>//registry.npmjs.org/:</code>. If it must be scoped to a
+specific path on the host that path may also be provided, such as
+<code>//my-custom-registry.org/unique/path:</code>.</p>
+<pre><code>; bad config
+_authToken=MYTOKEN
+
+; good config
+@myorg:registry=https://somewhere-else.com/myorg
+@another:registry=https://somewhere-else.com/another
+//registry.npmjs.org/:_authToken=MYTOKEN
+; would apply to both @myorg and @another
+; //somewhere-else.com/:_authToken=MYTOKEN
+; would apply only to @myorg
+//somewhere-else.com/myorg/:_authToken=MYTOKEN1
+; would apply only to @another
+//somewhere-else.com/another/:_authToken=MYTOKEN2
+</code></pre>
 <h3 id="see-also">See also</h3>
 <ul>
 <li><a href="../configuring-npm/folders.html">npm folders</a></li>
@@ -211,8 +244,7 @@ to override default configs in a standard and consistent manner.</p>
 <li><a href="../using-npm/config.html">config</a></li>
 <li><a href="../configuring-npm/package-json.html">package.json</a></li>
 <li><a href="../commands/npm.html">npm</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/configuring-npm/npmrc.md">

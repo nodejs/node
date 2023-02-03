@@ -20,7 +20,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require error handling in callbacks",
+            description: "Require error handling in callbacks",
             recommended: false,
             url: "https://eslint.org/docs/rules/handle-callback-err"
         },

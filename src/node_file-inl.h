@@ -86,13 +86,22 @@ template <typename NativeT, typename V8T>
 void FillStatsArray(AliasedBufferBase<NativeT, V8T>* fields,
                     const uv_stat_t* s,
                     const size_t offset) {
-#define SET_FIELD_WITH_STAT(stat_offset, stat)                               \
-  fields->SetValue(offset + static_cast<size_t>(FsStatsOffset::stat_offset), \
+#define SET_FIELD_WITH_STAT(stat_offset, stat)                                 \
+  fields->SetValue(offset + static_cast<size_t>(FsStatsOffset::stat_offset),   \
                    static_cast<NativeT>(stat))
 
-#define SET_FIELD_WITH_TIME_STAT(stat_offset, stat)                          \
-  /* NOLINTNEXTLINE(runtime/int) */                                          \
+// On win32, time is stored in uint64_t and starts from 1601-01-01.
+// libuv calculates tv_sec and tv_nsec from it and converts to signed long,
+// which causes Y2038 overflow. On the other platforms it is safe to treat
+// negative values as pre-epoch time.
+#ifdef _WIN32
+#define SET_FIELD_WITH_TIME_STAT(stat_offset, stat)                            \
+  /* NOLINTNEXTLINE(runtime/int) */                                            \
   SET_FIELD_WITH_STAT(stat_offset, static_cast<unsigned long>(stat))
+#else
+#define SET_FIELD_WITH_TIME_STAT(stat_offset, stat)                            \
+  SET_FIELD_WITH_STAT(stat_offset, static_cast<double>(stat))
+#endif  // _WIN32
 
   SET_FIELD_WITH_STAT(kDev, s->st_dev);
   SET_FIELD_WITH_STAT(kMode, s->st_mode);
@@ -135,6 +144,38 @@ v8::Local<v8::Value> FillGlobalStatsArray(BindingData* binding_data,
   }
 }
 
+template <typename NativeT, typename V8T>
+void FillStatFsArray(AliasedBufferBase<NativeT, V8T>* fields,
+                     const uv_statfs_t* s) {
+#define SET_FIELD(field, stat)                                                 \
+  fields->SetValue(static_cast<size_t>(FsStatFsOffset::field),                 \
+                   static_cast<NativeT>(stat))
+
+  SET_FIELD(kType, s->f_type);
+  SET_FIELD(kBSize, s->f_bsize);
+  SET_FIELD(kBlocks, s->f_blocks);
+  SET_FIELD(kBFree, s->f_bfree);
+  SET_FIELD(kBAvail, s->f_bavail);
+  SET_FIELD(kFiles, s->f_files);
+  SET_FIELD(kFFree, s->f_ffree);
+
+#undef SET_FIELD
+}
+
+v8::Local<v8::Value> FillGlobalStatFsArray(BindingData* binding_data,
+                                           const bool use_bigint,
+                                           const uv_statfs_t* s) {
+  if (use_bigint) {
+    auto* const arr = &binding_data->statfs_field_bigint_array;
+    FillStatFsArray(arr, s);
+    return arr->GetJSArray();
+  } else {
+    auto* const arr = &binding_data->statfs_field_array;
+    FillStatFsArray(arr, s);
+    return arr->GetJSArray();
+  }
+}
+
 template <typename AliasedBufferT>
 FSReqPromise<AliasedBufferT>*
 FSReqPromise<AliasedBufferT>::New(BindingData* binding_data,
@@ -156,22 +197,24 @@ FSReqPromise<AliasedBufferT>::New(BindingData* binding_data,
 
 template <typename AliasedBufferT>
 FSReqPromise<AliasedBufferT>::~FSReqPromise() {
-  // Validate that the promise was explicitly resolved or rejected.
-  CHECK(finished_);
+  // Validate that the promise was explicitly resolved or rejected but only if
+  // the Isolate is not terminating because in this case the promise might have
+  // not finished.
+  CHECK_IMPLIES(!finished_, !env()->can_call_into_js());
 }
 
 template <typename AliasedBufferT>
-FSReqPromise<AliasedBufferT>::FSReqPromise(
-    BindingData* binding_data,
-    v8::Local<v8::Object> obj,
-    bool use_bigint)
-  : FSReqBase(binding_data,
-              obj,
-              AsyncWrap::PROVIDER_FSREQPROMISE,
-              use_bigint),
-    stats_field_array_(
-        env()->isolate(),
-        static_cast<size_t>(FsStatsOffset::kFsStatsFieldsNumber)) {}
+FSReqPromise<AliasedBufferT>::FSReqPromise(BindingData* binding_data,
+                                           v8::Local<v8::Object> obj,
+                                           bool use_bigint)
+    : FSReqBase(
+          binding_data, obj, AsyncWrap::PROVIDER_FSREQPROMISE, use_bigint),
+      stats_field_array_(
+          env()->isolate(),
+          static_cast<size_t>(FsStatsOffset::kFsStatsFieldsNumber)),
+      statfs_field_array_(
+          env()->isolate(),
+          static_cast<size_t>(FsStatFsOffset::kFsStatFsFieldsNumber)) {}
 
 template <typename AliasedBufferT>
 void FSReqPromise<AliasedBufferT>::Reject(v8::Local<v8::Value> reject) {
@@ -204,6 +247,12 @@ void FSReqPromise<AliasedBufferT>::ResolveStat(const uv_stat_t* stat) {
 }
 
 template <typename AliasedBufferT>
+void FSReqPromise<AliasedBufferT>::ResolveStatFs(const uv_statfs_t* stat) {
+  FillStatFsArray(&statfs_field_array_, stat);
+  Resolve(statfs_field_array_.GetJSArray());
+}
+
+template <typename AliasedBufferT>
 void FSReqPromise<AliasedBufferT>::SetReturnValue(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Local<v8::Value> val =
@@ -217,6 +266,7 @@ template <typename AliasedBufferT>
 void FSReqPromise<AliasedBufferT>::MemoryInfo(MemoryTracker* tracker) const {
   FSReqBase::MemoryInfo(tracker);
   tracker->TrackField("stats_field_array", stats_field_array_);
+  tracker->TrackField("statfs_field_array", statfs_field_array_);
 }
 
 FSReqBase* GetReqWrap(const v8::FunctionCallbackInfo<v8::Value>& args,
@@ -231,7 +281,7 @@ FSReqBase* GetReqWrap(const v8::FunctionCallbackInfo<v8::Value>& args,
   Environment* env = binding_data->env();
   if (value->StrictEquals(env->fs_use_promises_symbol())) {
     if (use_bigint) {
-      return FSReqPromise<AliasedBigUint64Array>::New(binding_data, use_bigint);
+      return FSReqPromise<AliasedBigInt64Array>::New(binding_data, use_bigint);
     } else {
       return FSReqPromise<AliasedFloat64Array>::New(binding_data, use_bigint);
     }

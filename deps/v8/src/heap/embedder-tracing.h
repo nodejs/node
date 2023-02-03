@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_EMBEDDER_TRACING_H_
 #define V8_HEAP_EMBEDDER_TRACING_H_
 
+#include <atomic>
+
 #include "include/v8-cppgc.h"
 #include "include/v8-embedder-heap.h"
 #include "include/v8-traced-handle.h"
@@ -19,11 +21,13 @@ namespace internal {
 class Heap;
 class JSObject;
 
+START_ALLOW_USE_DEPRECATED()
+
 class V8_EXPORT_PRIVATE DefaultEmbedderRootsHandler final
     : public EmbedderRootsHandler {
  public:
   bool IsRoot(const v8::TracedReference<v8::Value>& handle) final;
-  bool IsRoot(const v8::TracedGlobal<v8::Value>& handle) final;
+
   void ResetRoot(const v8::TracedReference<v8::Value>& handle) final;
 
   void SetTracer(EmbedderHeapTracer* tracer) { tracer_ = tracer; }
@@ -74,11 +78,18 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     WrapperCache wrapper_cache_;
   };
 
+  static V8_INLINE bool ExtractWrappableInfo(Isolate*, JSObject,
+                                             const WrapperDescriptor&,
+                                             WrapperInfo*);
+  static V8_INLINE bool ExtractWrappableInfo(
+      Isolate*, const WrapperDescriptor&, const EmbedderDataSlot& type_slot,
+      const EmbedderDataSlot& instance_slot, WrapperInfo*);
+
   explicit LocalEmbedderHeapTracer(Isolate* isolate) : isolate_(isolate) {}
 
   ~LocalEmbedderHeapTracer() {
-    if (remote_tracer_) remote_tracer_->isolate_ = nullptr;
-    // CppHeap is not detached from Isolate here. Detaching is done explciitly
+    if (remote_tracer_) remote_tracer_->v8_isolate_ = nullptr;
+    // CppHeap is not detached from Isolate here. Detaching is done explicitly
     // on Isolate/Heap/CppHeap destruction.
   }
 
@@ -91,6 +102,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
 
   void SetRemoteTracer(EmbedderHeapTracer* tracer);
   void SetCppHeap(CppHeap* cpp_heap);
+  void PrepareForTrace(EmbedderHeapTracer::TraceFlags flags);
   void TracePrologue(EmbedderHeapTracer::TraceFlags flags);
   void TraceEpilogue();
   void EnterFinalPause();
@@ -98,19 +110,26 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   bool IsRemoteTracingDone();
 
   bool ShouldFinalizeIncrementalMarking() {
-    return !FLAG_incremental_marking_wrappers || !InUse() ||
-           (IsRemoteTracingDone() && embedder_worklist_empty_);
+    // Covers cases where no remote tracer is in use or the flags for
+    // incremental marking have been disabled.
+    if (!SupportsIncrementalEmbedderSteps()) return true;
+
+    return IsRemoteTracingDone() && embedder_worklist_empty_;
   }
 
-  void SetEmbedderStackStateForNextFinalization(
-      EmbedderHeapTracer::EmbedderStackState stack_state);
+  bool SupportsIncrementalEmbedderSteps() const {
+    if (!InUse()) return false;
+
+    return cpp_heap_ ? v8_flags.cppheap_incremental_marking
+                     : v8_flags.incremental_marking_wrappers;
+  }
 
   void SetEmbedderWorklistEmpty(bool is_empty) {
     embedder_worklist_empty_ = is_empty;
   }
 
   void IncreaseAllocatedSize(size_t bytes) {
-    remote_stats_.used_size += bytes;
+    remote_stats_.used_size.fetch_add(bytes, std::memory_order_relaxed);
     remote_stats_.allocated_size += bytes;
     if (remote_stats_.allocated_size >
         remote_stats_.allocated_size_limit_for_check) {
@@ -121,13 +140,15 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   }
 
   void DecreaseAllocatedSize(size_t bytes) {
-    DCHECK_GE(remote_stats_.used_size, bytes);
-    remote_stats_.used_size -= bytes;
+    DCHECK_GE(remote_stats_.used_size.load(std::memory_order_relaxed), bytes);
+    remote_stats_.used_size.fetch_sub(bytes, std::memory_order_relaxed);
   }
 
   void StartIncrementalMarkingIfNeeded();
 
-  size_t used_size() const { return remote_stats_.used_size; }
+  size_t used_size() const {
+    return remote_stats_.used_size.load(std::memory_order_relaxed);
+  }
   size_t allocated_size() const { return remote_stats_.allocated_size; }
 
   WrapperInfo ExtractWrapperInfo(Isolate* isolate, JSObject js_object);
@@ -143,11 +164,11 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     return default_embedder_roots_handler_;
   }
 
-  void NotifyEmptyEmbedderStack();
-
   EmbedderHeapTracer::EmbedderStackState embedder_stack_state() const {
     return embedder_stack_state_;
   }
+
+  void EmbedderWriteBarrier(Heap*, JSObject);
 
  private:
   static constexpr size_t kEmbedderAllocatedThreshold = 128 * KB;
@@ -194,7 +215,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     // Used size of objects in bytes reported by the embedder. Updated via
     // TraceSummary at the end of tracing and incrementally when the GC is not
     // in progress.
-    size_t used_size = 0;
+    std::atomic<size_t> used_size{0};
     // Totally bytes allocated by the embedder. Monotonically
     // increasing value. Used to approximate allocation rate.
     size_t allocated_size = 0;
@@ -211,25 +232,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   friend class EmbedderStackStateScope;
 };
 
-class V8_EXPORT_PRIVATE V8_NODISCARD EmbedderStackStateScope final {
- public:
-  EmbedderStackStateScope(LocalEmbedderHeapTracer* local_tracer,
-                          EmbedderHeapTracer::EmbedderStackState stack_state)
-      : local_tracer_(local_tracer),
-        old_stack_state_(local_tracer_->embedder_stack_state_) {
-    local_tracer_->embedder_stack_state_ = stack_state;
-    if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers == stack_state)
-      local_tracer_->NotifyEmptyEmbedderStack();
-  }
-
-  ~EmbedderStackStateScope() {
-    local_tracer_->embedder_stack_state_ = old_stack_state_;
-  }
-
- private:
-  LocalEmbedderHeapTracer* const local_tracer_;
-  const EmbedderHeapTracer::EmbedderStackState old_stack_state_;
-};
+END_ALLOW_USE_DEPRECATED()
 
 }  // namespace internal
 }  // namespace v8

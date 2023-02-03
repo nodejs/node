@@ -794,13 +794,11 @@ public:
      */
     virtual UBool isEmpty(void) const;
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * @return true if this set contains multi-character strings or the empty string.
-     * @draft ICU 70
+     * @stable ICU 70
      */
     UBool hasStrings() const;
-#endif  // U_HIDE_DRAFT_API
 
     /**
      * Returns true if this set contains the given character.
@@ -1678,8 +1676,6 @@ private:
                               UnicodeString& rebuiltPat,
                               UErrorCode& ec);
 
-    static const UnicodeSet* getInclusions(int32_t src, UErrorCode &status);
-
     /**
      * A filter that returns true if the given code point should be
      * included in the UnicodeSet being constructed.
@@ -1699,11 +1695,6 @@ private:
                      void* context,
                      const UnicodeSet* inclusions,
                      UErrorCode &status);
-
-    // UCPMap is now stable ICU 63
-    void applyIntPropertyValue(const UCPMap *map,
-                               UCPMapValueFilter *filter, const void *context,
-                               UErrorCode &errorCode);
 
     /**
      * Set the new pattern to cache.

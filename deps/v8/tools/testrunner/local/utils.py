@@ -25,16 +25,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
-from os.path import exists
 from os.path import isdir
 from os.path import join
 import os
 import platform
 import re
-import urllib
 
 
 ### Exit codes and their meaning.
@@ -163,9 +158,8 @@ def GuessPowerProcessorVersion():
 
 def UseSimulator(arch):
   machine = platform.machine()
-  return (machine and
-      (arch == "mipsel" or arch == "arm" or arch == "arm64") and
-      not arch.startswith(machine))
+  return (machine and (arch == "arm" or arch == "arm64") and
+          not arch.startswith(machine))
 
 
 # This will default to building the 32 bit VM even on machines that are

@@ -5,7 +5,9 @@
 #ifndef V8_HEAP_PARKED_SCOPE_H_
 #define V8_HEAP_PARKED_SCOPE_H_
 
+#include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/semaphore.h"
 #include "src/execution/local-isolate.h"
 #include "src/heap/local-heap.h"
 
@@ -110,6 +112,87 @@ class V8_NODISCARD ParkedSharedMutexGuardIf final {
 
  private:
   base::SharedMutex* mutex_ = nullptr;
+};
+
+// A subclass of base::ConditionVariable that automatically parks the thread
+// while waiting.
+class V8_NODISCARD ParkingConditionVariable final
+    : public base::ConditionVariable {
+ public:
+  ParkingConditionVariable() = default;
+  ParkingConditionVariable(const ParkingConditionVariable&) = delete;
+  ParkingConditionVariable& operator=(const ParkingConditionVariable&) = delete;
+
+  void ParkedWait(LocalIsolate* local_isolate, base::Mutex* mutex) {
+    ParkedWait(local_isolate->heap(), mutex);
+  }
+  void ParkedWait(LocalHeap* local_heap, base::Mutex* mutex) {
+    ParkedScope scope(local_heap);
+    ParkedWait(scope, mutex);
+  }
+  void ParkedWait(const ParkedScope& scope, base::Mutex* mutex) {
+    USE(scope);
+    Wait(mutex);
+  }
+
+  bool ParkedWaitFor(LocalIsolate* local_isolate, base::Mutex* mutex,
+                     const base::TimeDelta& rel_time) V8_WARN_UNUSED_RESULT {
+    return ParkedWaitFor(local_isolate->heap(), mutex, rel_time);
+  }
+  bool ParkedWaitFor(LocalHeap* local_heap, base::Mutex* mutex,
+                     const base::TimeDelta& rel_time) V8_WARN_UNUSED_RESULT {
+    ParkedScope scope(local_heap);
+    return ParkedWaitFor(scope, mutex, rel_time);
+  }
+  bool ParkedWaitFor(const ParkedScope& scope, base::Mutex* mutex,
+                     const base::TimeDelta& rel_time) V8_WARN_UNUSED_RESULT {
+    USE(scope);
+    return WaitFor(mutex, rel_time);
+  }
+
+ private:
+  using base::ConditionVariable::Wait;
+  using base::ConditionVariable::WaitFor;
+};
+
+// A subclass of base::Semaphore that automatically parks the thread while
+// waiting.
+class V8_NODISCARD ParkingSemaphore final : public base::Semaphore {
+ public:
+  explicit ParkingSemaphore(int count) : base::Semaphore(count) {}
+  ParkingSemaphore(const ParkingSemaphore&) = delete;
+  ParkingSemaphore& operator=(const ParkingSemaphore&) = delete;
+
+  void ParkedWait(LocalIsolate* local_isolate) {
+    ParkedWait(local_isolate->heap());
+  }
+  void ParkedWait(LocalHeap* local_heap) {
+    ParkedScope scope(local_heap);
+    ParkedWait(scope);
+  }
+  void ParkedWait(const ParkedScope& scope) {
+    USE(scope);
+    Wait();
+  }
+
+  bool ParkedWaitFor(LocalIsolate* local_isolate,
+                     const base::TimeDelta& rel_time) V8_WARN_UNUSED_RESULT {
+    return ParkedWaitFor(local_isolate->heap(), rel_time);
+  }
+  bool ParkedWaitFor(LocalHeap* local_heap,
+                     const base::TimeDelta& rel_time) V8_WARN_UNUSED_RESULT {
+    ParkedScope scope(local_heap);
+    return ParkedWaitFor(scope, rel_time);
+  }
+  bool ParkedWaitFor(const ParkedScope& scope,
+                     const base::TimeDelta& rel_time) {
+    USE(scope);
+    return WaitFor(rel_time);
+  }
+
+ private:
+  using base::Semaphore::Wait;
+  using base::Semaphore::WaitFor;
 };
 
 }  // namespace internal

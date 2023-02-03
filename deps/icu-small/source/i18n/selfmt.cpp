@@ -129,7 +129,7 @@ int32_t SelectFormat::findSubMessage(const MessagePattern& pattern, int32_t part
     if (U_FAILURE(ec)) {
         return 0;
     }
-    UnicodeString other(FALSE, SELECT_KEYWORD_OTHER, 5);
+    UnicodeString other(false, SELECT_KEYWORD_OTHER, 5);
     int32_t count = pattern.countParts();
     int32_t msgStart=0;
     // Iterate over (ARG_SELECTOR, message) pairs until ARG_LIMIT or end of select-only pattern.

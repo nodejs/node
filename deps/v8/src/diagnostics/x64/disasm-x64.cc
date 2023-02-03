@@ -132,6 +132,7 @@ enum InstructionType {
 
 enum Prefixes {
   ESCAPE_PREFIX = 0x0F,
+  SEGMENT_FS_OVERRIDE_PREFIX = 0x64,
   OPERAND_SIZE_OVERRIDE_PREFIX = 0x66,
   ADDRESS_SIZE_OVERRIDE_PREFIX = 0x67,
   VEX3_PREFIX = 0xC4,
@@ -298,6 +299,8 @@ class DisassemblerX64 {
         rex_(0),
         operand_size_(0),
         group_1_prefix_(0),
+        segment_prefix_(0),
+        address_size_prefix_(0),
         vex_byte0_(0),
         vex_byte1_(0),
         vex_byte2_(0),
@@ -326,7 +329,9 @@ class DisassemblerX64 {
   byte rex_;
   byte operand_size_;    // 0x66 or (if no group 3 prefix is present) 0x0.
   byte group_1_prefix_;  // 0xF2, 0xF3, or (if no group 1 prefix is present) 0.
-  byte vex_byte0_;       // 0xC4 or 0xC5
+  byte segment_prefix_;  // 0x64 or (if no group 2 prefix is present) 0.
+  byte address_size_prefix_;  // 0x67 or (if no group 4 prefix is present) 0.
+  byte vex_byte0_;            // 0xC4 or 0xC5
   byte vex_byte1_;
   byte vex_byte2_;  // only for 3 bytes vex prefix
   // Byte size operand override.
@@ -945,16 +950,16 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         // have the same opcodes but differ by rex_w.
         if (rex_w()) {
           switch (opcode) {
-            FMA_SS_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
-            FMA_PS_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            FMA_SD_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            FMA_PD_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
             default: {
               UnimplementedInstruction();
             }
           }
         } else {
           switch (opcode) {
-            FMA_SD_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
-            FMA_PD_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            FMA_SS_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            FMA_PS_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
             default: {
               UnimplementedInstruction();
             }
@@ -1158,6 +1163,13 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer("vcvtdq2pd %s,", NameOfAVXRegister(regop));
         current += PrintRightAVXOperand(current);
         break;
+      case 0xC2:
+        AppendToBuffer("vcmpss %s,%s,", NameOfAVXRegister(regop),
+                       NameOfAVXRegister(vvvv));
+        current += PrintRightAVXOperand(current);
+        AppendToBuffer(", (%s)", cmp_pseudo_op[*current]);
+        current += 1;
+        break;
       default:
         UnimplementedInstruction();
     }
@@ -1212,6 +1224,13 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer("vhaddps %s,%s,", NameOfAVXRegister(regop),
                        NameOfAVXRegister(vvvv));
         current += PrintRightAVXOperand(current);
+        break;
+      case 0xC2:
+        AppendToBuffer("vcmpsd %s,%s,", NameOfAVXRegister(regop),
+                       NameOfAVXRegister(vvvv));
+        current += PrintRightAVXOperand(current);
+        AppendToBuffer(", (%s)", cmp_pseudo_op[*current]);
+        current += 1;
         break;
 #define DISASM_SSE2_INSTRUCTION_LIST_SD(instruction, _1, _2, opcode)     \
   case 0x##opcode:                                                       \
@@ -1523,14 +1542,17 @@ int DisassemblerX64::AVXInstruction(byte* data) {
 
         SSE2_INSTRUCTION_LIST(DECLARE_SSE_AVX_DIS_CASE)
 #undef DECLARE_SSE_AVX_DIS_CASE
-#define DECLARE_SSE_UNOP_AVX_DIS_CASE(instruction, notUsed1, notUsed2, opcode) \
-  case 0x##opcode: {                                                           \
-    AppendToBuffer("v" #instruction " %s,", NameOfAVXRegister(regop));         \
-    current += PrintRightAVXOperand(current);                                  \
-    break;                                                                     \
+#define DECLARE_SSE_UNOP_AVX_DIS_CASE(instruction, opcode, SIMDRegister)  \
+  case 0x##opcode: {                                                      \
+    AppendToBuffer("v" #instruction " %s,", NameOf##SIMDRegister(regop)); \
+    current += PrintRightAVXOperand(current);                             \
+    break;                                                                \
   }
-
-        SSE2_UNOP_INSTRUCTION_LIST(DECLARE_SSE_UNOP_AVX_DIS_CASE)
+        DECLARE_SSE_UNOP_AVX_DIS_CASE(ucomisd, 2E, AVXRegister)
+        DECLARE_SSE_UNOP_AVX_DIS_CASE(sqrtpd, 51, AVXRegister)
+        DECLARE_SSE_UNOP_AVX_DIS_CASE(cvtpd2ps, 5A, XMMRegister)
+        DECLARE_SSE_UNOP_AVX_DIS_CASE(cvtps2dq, 5B, AVXRegister)
+        DECLARE_SSE_UNOP_AVX_DIS_CASE(cvttpd2dq, E6, XMMRegister)
 #undef DECLARE_SSE_UNOP_AVX_DIS_CASE
       default:
         UnimplementedInstruction();
@@ -2001,6 +2023,10 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       current += 2;
     } else if (opcode == 0xE6) {
       current += PrintOperands("cvtdq2pd", XMMREG_XMMOPER_OP_ORDER, current);
+    } else if (opcode == 0xAE) {
+      // incssp[d|q]
+      AppendToBuffer("incssp%c ", operand_size_code());
+      current += PrintRightOperand(current);
     } else {
       UnimplementedInstruction();
     }
@@ -2292,6 +2318,8 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
       return "movsxb";
     case 0xBF:
       return "movsxw";
+    case 0xC2:
+      return "cmpss";
     default:
       return nullptr;
   }
@@ -2331,6 +2359,10 @@ int DisassemblerX64::InstructionDecode(v8::base::Vector<char> out_buffer,
       setRex(0x40 | (~(vex_byte1_ >> 5) & 4));
       data += 2;
       break;  // Vex is the last prefix.
+    } else if (current == SEGMENT_FS_OVERRIDE_PREFIX) {
+      segment_prefix_ = current;
+    } else if (current == ADDRESS_SIZE_OVERRIDE_PREFIX) {
+      address_size_prefix_ = current;
     } else {  // Not a prefix - an opcode.
       break;
     }
@@ -2341,6 +2373,12 @@ int DisassemblerX64::InstructionDecode(v8::base::Vector<char> out_buffer,
   if (vex_byte0_ != 0) {
     processed = true;
     data += AVXInstruction(data);
+  } else if (segment_prefix_ != 0 && address_size_prefix_ != 0) {
+    if (*data == 0x90 && *(data + 1) == 0x90 && *(data + 2) == 0x90) {
+      AppendToBuffer("sscmark");
+      processed = true;
+      data += 3;
+    }
   } else {
     const InstructionDesc& idesc = instruction_table_->Get(current);
     byte_size_operand_ = idesc.byte_size_operation;

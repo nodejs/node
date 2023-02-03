@@ -173,14 +173,6 @@ protected:
   StringCharacterIterator();
 
   /**
-   * Sets the iterator to iterate over the provided string.
-   * @param newText The string to be iterated over
-   * @param newTextLength The length of the String
-   * @stable ICU 2.0
-   */
-  void setText(const char16_t* newText, int32_t newTextLength);
-
-  /**
    * Copy of the iterated string object.
    * @stable ICU 2.0
    */

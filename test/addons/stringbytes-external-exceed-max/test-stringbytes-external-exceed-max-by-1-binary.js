@@ -33,7 +33,7 @@ assert.throws(() => {
   message: `Cannot create a string longer than 0x${stringLengthHex} ` +
            'characters',
   code: 'ERR_STRING_TOO_LONG',
-  name: 'Error'
+  name: 'Error',
 });
 
 // FIXME: Free the memory early to avoid OOM.

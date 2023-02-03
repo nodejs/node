@@ -254,19 +254,19 @@ run `node benchmark/compare.js`.
 As an example on how to check for a possible performance improvement, the
 [#5134](https://github.com/nodejs/node/pull/5134) pull request will be used as
 an example. This pull request _claims_ to improve the performance of the
-`string_decoder` module.
+`node:string_decoder` module.
 
-First build two versions of Node.js, one from the master branch (here called
-`./node-master`) and another with the pull request applied (here called
+First build two versions of Node.js, one from the `main` branch (here called
+`./node-main`) and another with the pull request applied (here called
 `./node-pr-5134`).
 
 To run multiple compiled versions in parallel you need to copy the output of the
-build: `cp ./out/Release/node ./node-master`. Check out the following example:
+build: `cp ./out/Release/node ./node-main`. Check out the following example:
 
 ```console
-$ git checkout master
+$ git checkout main
 $ ./configure && make -j4
-$ cp ./out/Release/node ./node-master
+$ cp ./out/Release/node ./node-main
 
 $ git checkout pr-5134
 $ ./configure && make -j4
@@ -276,7 +276,7 @@ $ cp ./out/Release/node ./node-pr-5134
 The `compare.js` tool will then produce a csv file with the benchmark results.
 
 ```console
-$ node benchmark/compare.js --old ./node-master --new ./node-pr-5134 string_decoder > compare-pr-5134.csv
+$ node benchmark/compare.js --old ./node-main --new ./node-pr-5134 string_decoder > compare-pr-5134.csv
 ```
 
 _Tips: there are some useful options of `benchmark/compare.js`. For example,
@@ -450,8 +450,12 @@ The arguments of `createBenchmark` are:
   possible combinations of these parameters, unless specified otherwise.
   Each configuration is a property with an array of possible values.
   The configuration values can only be strings or numbers.
-* `options` {Object} The benchmark options. At the moment only the `flags`
-  option for specifying command line flags is supported.
+* `options` {Object} The benchmark options. Supported options:
+  * `flags` {Array} Contains node-specific command line flags to pass to
+    the child process.
+  * `combinationFilter` {Function} Has a single parameter which is an object
+    containing a combination of benchmark parameters. It should return `true`
+    or `false` to indicate whether the combination should be included or not.
 
 `createBenchmark` returns a `bench` object, which is used for timing
 the runtime of the benchmark. Run `bench.start()` after the initialization
@@ -479,19 +483,19 @@ the code inside the `main` function if it's more than just declaration.
 ```js
 'use strict';
 const common = require('../common.js');
-const { SlowBuffer } = require('buffer');
+const { SlowBuffer } = require('node:buffer');
 
 const configs = {
   // Number of operations, specified here so they show up in the report.
   // Most benchmarks just use one value for all runs.
   n: [1024],
   type: ['fast', 'slow'],  // Custom configurations
-  size: [16, 128, 1024]  // Custom configurations
+  size: [16, 128, 1024],  // Custom configurations
 };
 
 const options = {
   // Add --expose-internals in order to require internal modules in main
-  flags: ['--zero-fill-buffers']
+  flags: ['--zero-fill-buffers'],
 };
 
 // `main` and `configs` are required, `options` is optional.
@@ -535,11 +539,11 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   kb: [64, 128, 256, 1024],
   connections: [100, 500],
-  duration: 5
+  duration: 5,
 });
 
 function main(conf) {
-  const http = require('http');
+  const http = require('node:http');
   const len = conf.kb * 1024;
   const chunk = Buffer.alloc(len, 'x');
   const server = http.createServer((req, res) => {
@@ -570,5 +574,5 @@ Supported options keys are:
 [git-for-windows]: https://git-scm.com/download/win
 [nghttp2.org]: https://nghttp2.org
 [node-benchmark-compare]: https://github.com/targos/node-benchmark-compare
-[t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes.2C_unequal_variances
+[t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes%2C_unequal_variances_%28sX1_%3E_2sX2_or_sX2_%3E_2sX1%29
 [wrk]: https://github.com/wg/wrk

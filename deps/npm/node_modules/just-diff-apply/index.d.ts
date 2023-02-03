@@ -1,6 +1,6 @@
 // Definitions by: Eddie Atkinson <https://github.com/eddie-atkinson>
 
-type Operation = "add" | "replace" | "remove";
+type Operation = "add" | "replace" | "remove" | "move";
 
 type DiffOps = Array<{
   op: Operation;

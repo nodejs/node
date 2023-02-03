@@ -37,15 +37,14 @@ static const int kArgumentCountRegisterIndex =
      InterpreterFrameConstants::kArgCOffset) /
     kSystemPointerSize;
 
-Register Register::FromParameterIndex(int index, int parameter_count) {
+Register Register::FromParameterIndex(int index) {
   DCHECK_GE(index, 0);
-  DCHECK_LT(index, parameter_count);
   int register_index = kFirstParamRegisterIndex - index;
   DCHECK_LT(register_index, 0);
   return Register(register_index);
 }
 
-int Register::ToParameterIndex(int parameter_count) const {
+int Register::ToParameterIndex() const {
   DCHECK(is_parameter());
   return kFirstParamRegisterIndex - index();
 }
@@ -120,13 +119,15 @@ bool Register::AreContiguous(Register reg1, Register reg2, Register reg3,
   return true;
 }
 
-std::string Register::ToString(int parameter_count) const {
+std::string Register::ToString() const {
   if (is_current_context()) {
     return std::string("<context>");
   } else if (is_function_closure()) {
     return std::string("<closure>");
+  } else if (*this == virtual_accumulator()) {
+    return std::string("<accumulator>");
   } else if (is_parameter()) {
-    int parameter_index = ToParameterIndex(parameter_count);
+    int parameter_index = ToParameterIndex();
     if (parameter_index == 0) {
       return std::string("<this>");
     } else {

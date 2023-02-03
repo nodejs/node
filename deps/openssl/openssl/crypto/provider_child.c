@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -279,9 +279,22 @@ void ossl_provider_deinit_child(OSSL_LIB_CTX *ctx)
     gbl->c_provider_deregister_child_cb(gbl->handle);
 }
 
+/*
+ * ossl_provider_up_ref_parent() and ossl_provider_free_parent() do
+ * nothing in "self-referencing" child providers, i.e. when the parent
+ * of the child provider is the same as the provider where this child
+ * provider was created.
+ * This allows the teardown function in the parent provider to be called
+ * at the correct moment.
+ * For child providers in other providers, the reference count is done to
+ * ensure that cross referencing is recorded.  These should be cleared up
+ * through that providers teardown, as part of freeing its child libctx.
+ */
+
 int ossl_provider_up_ref_parent(OSSL_PROVIDER *prov, int activate)
 {
     struct child_prov_globals *gbl;
+    const OSSL_CORE_HANDLE *parent_handle;
 
     gbl = ossl_lib_ctx_get_data(ossl_provider_libctx(prov),
                                 OSSL_LIB_CTX_CHILD_PROVIDER_INDEX,
@@ -289,12 +302,16 @@ int ossl_provider_up_ref_parent(OSSL_PROVIDER *prov, int activate)
     if (gbl == NULL)
         return 0;
 
-    return gbl->c_prov_up_ref(ossl_provider_get_parent(prov), activate);
+    parent_handle = ossl_provider_get_parent(prov);
+    if (parent_handle == gbl->handle)
+        return 1;
+    return gbl->c_prov_up_ref(parent_handle, activate);
 }
 
 int ossl_provider_free_parent(OSSL_PROVIDER *prov, int deactivate)
 {
     struct child_prov_globals *gbl;
+    const OSSL_CORE_HANDLE *parent_handle;
 
     gbl = ossl_lib_ctx_get_data(ossl_provider_libctx(prov),
                                 OSSL_LIB_CTX_CHILD_PROVIDER_INDEX,
@@ -302,5 +319,8 @@ int ossl_provider_free_parent(OSSL_PROVIDER *prov, int deactivate)
     if (gbl == NULL)
         return 0;
 
+    parent_handle = ossl_provider_get_parent(prov);
+    if (parent_handle == gbl->handle)
+        return 1;
     return gbl->c_prov_free(ossl_provider_get_parent(prov), deactivate);
 }

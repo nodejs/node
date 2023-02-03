@@ -55,6 +55,48 @@ NGTCP2_EXTERN enum ssl_encryption_level_t
 ngtcp2_crypto_boringssl_from_ngtcp2_crypto_level(
     ngtcp2_crypto_level crypto_level);
 
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_boringssl_configure_server_context` configures
+ * |ssl_ctx| for server side QUIC connection.  It performs the
+ * following modifications:
+ *
+ * - Set minimum and maximum TLS version to TLSv1.3.
+ * - Set SSL_QUIC_METHOD by calling SSL_CTX_set_quic_method.
+ *
+ * Application must set a pointer to :type:`ngtcp2_crypto_conn_ref` to
+ * SSL object by calling SSL_set_app_data, and
+ * :type:`ngtcp2_crypto_conn_ref` object must have
+ * :member:`ngtcp2_crypto_conn_ref.get_conn` field assigned to get
+ * :type:`ngtcp2_conn`.
+ *
+ * It returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int
+ngtcp2_crypto_boringssl_configure_server_context(SSL_CTX *ssl_ctx);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_boringssl_configure_client_context` configures
+ * |ssl_ctx| for client side QUIC connection.  It performs the
+ * following modifications:
+ *
+ * - Set minimum and maximum TLS version to TLSv1.3.
+ * - Set SSL_QUIC_METHOD by calling SSL_CTX_set_quic_method.
+ *
+ * Application must set a pointer to :type:`ngtcp2_crypto_conn_ref` to
+ * SSL object by calling SSL_set_app_data, and
+ * :type:`ngtcp2_crypto_conn_ref` object must have
+ * :member:`ngtcp2_crypto_conn_ref.get_conn` field assigned to get
+ * :type:`ngtcp2_conn`.
+ *
+ * It returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int
+ngtcp2_crypto_boringssl_configure_client_context(SSL_CTX *ssl_ctx);
+
 #ifdef __cplusplus
 }
 #endif

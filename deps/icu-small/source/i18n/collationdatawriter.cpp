@@ -79,7 +79,7 @@ CollationDataWriter::writeBase(const CollationData &data, const CollationSetting
                                const void *rootElements, int32_t rootElementsLength,
                                int32_t indexes[], uint8_t *dest, int32_t capacity,
                                UErrorCode &errorCode) {
-    return write(TRUE, NULL,
+    return write(true, NULL,
                  data, settings,
                  rootElements, rootElementsLength,
                  indexes, dest, capacity, errorCode);
@@ -89,7 +89,7 @@ int32_t
 CollationDataWriter::writeTailoring(const CollationTailoring &t, const CollationSettings &settings,
                                     int32_t indexes[], uint8_t *dest, int32_t capacity,
                                     UErrorCode &errorCode) {
-    return write(FALSE, t.version,
+    return write(false, t.version,
                  *t.data, settings,
                  NULL, 0,
                  indexes, dest, capacity, errorCode);
@@ -129,11 +129,11 @@ CollationDataWriter::write(UBool isBase, const UVersionInfo dataVersion,
         // so that we start with an 8-aligned offset.
         indexesLength = CollationDataReader::IX_TOTAL_SIZE + 1;
         U_ASSERT(settings.reorderCodesLength == 0);
-        hasMappings = TRUE;
+        hasMappings = true;
         unsafeBackwardSet = *data.unsafeBackwardSet;
         fastLatinTableLength = data.fastLatinTableLength;
     } else if(baseData == NULL) {
-        hasMappings = FALSE;
+        hasMappings = false;
         if(settings.reorderCodesLength == 0) {
             // only options
             indexesLength = CollationDataReader::IX_OPTIONS + 1;  // no limit offset here
@@ -142,7 +142,7 @@ CollationDataWriter::write(UBool isBase, const UVersionInfo dataVersion,
             indexesLength = CollationDataReader::IX_REORDER_TABLE_OFFSET + 2;
         }
     } else {
-        hasMappings = TRUE;
+        hasMappings = true;
         // Tailored mappings, and what else?
         // Check in ascending order of optional tailoring data items.
         indexesLength = CollationDataReader::IX_CE32S_OFFSET + 2;

@@ -25,9 +25,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
 import imp
 import itertools
 import os
@@ -44,38 +41,39 @@ from testrunner.outproc import test262
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
-  'Intl.Locale-info': '--harmony_intl_locale_info',
-  'Intl-enumeration': '--harmony_intl_enumeration',
-  'Symbol.prototype.description': '--harmony-symbol-description',
-  'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
-  'WeakRef': '--harmony-weak-refs-with-cleanup-some',
-  'host-gc-required': '--expose-gc-as=v8GC',
-  'IsHTMLDDA': '--allow-natives-syntax',
-  'top-level-await': '--harmony-top-level-await',
-  'regexp-match-indices': '--harmony-regexp-match-indices',
-  'regexp-named-groups': '--harmony-regexp-match-indices',
-  'error-cause': '--harmony-error-cause',
-  'import-assertions': '--harmony-import-assertions',
-  'Object.hasOwn': '--harmony-object-has-own',
-  'class-static-block': '--harmony-class-static-blocks',
-  'resizable-arraybuffer': '--harmony-rab-gsab',
-  'array-find-from-last': '--harmony_array_find_last',
+    'Intl.NumberFormat-v3': '--harmony-intl-number-format-v3',
+    'Intl.DurationFormat': '--harmony-intl-duration-format',
+    'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
+    'WeakRef': '--harmony-weak-refs-with-cleanup-some',
+    'host-gc-required': '--expose-gc-as=v8GC',
+    'IsHTMLDDA': '--allow-natives-syntax',
+    'import-assertions': '--harmony-import-assertions',
+    'resizable-arraybuffer': '--harmony-rab-gsab',
+    'Temporal': '--harmony-temporal',
+    'array-find-from-last': '--harmony-array-find-last',
+    'ShadowRealm': '--harmony-shadow-realm',
+    'regexp-v-flag': '--harmony-regexp-unicode-sets',
+    'array-grouping': '--harmony-array-grouping',
+    'change-array-by-copy': '--harmony-change-array-by-copy',
+    'symbols-as-weakmap-keys': '--harmony-symbol-as-weakmap-key',
 }
 
 SKIPPED_FEATURES = set([])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
+BASE_DIR = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 TEST_262_NATIVE_FILES = ["detachArrayBuffer.js"]
 
 TEST_262_SUITE_PATH = ["data", "test"]
 TEST_262_HARNESS_PATH = ["data", "harness"]
-TEST_262_TOOLS_PATH = ["harness", "src"]
+TEST_262_TOOLS_ABS_PATH = [BASE_DIR, "third_party", "test262-harness", "src"]
 TEST_262_LOCAL_TESTS_PATH = ["local-tests", "test"]
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             *TEST_262_TOOLS_PATH))
+sys.path.append(os.path.join(*TEST_262_TOOLS_ABS_PATH))
 
 
 class VariantsGenerator(testsuite.VariantsGenerator):
@@ -115,7 +113,7 @@ class TestLoader(testsuite.JSTestLoader):
 
   @property
   def excluded_dirs(self):
-    return {"intl402"} if self.test_config.noi18n else set()
+    return {"intl402", "Intl402"} if self.test_config.noi18n else set()
 
   def _should_filter_by_test(self, test):
     features = test.test_record.get("features", [])
@@ -123,8 +121,9 @@ class TestLoader(testsuite.JSTestLoader):
 
 
 class TestSuite(testsuite.TestSuite):
-  def __init__(self, *args, **kwargs):
-    super(TestSuite, self).__init__(*args, **kwargs)
+
+  def __init__(self, ctx, *args, **kwargs):
+    super(TestSuite, self).__init__(ctx, *args, **kwargs)
     self.test_root = os.path.join(self.root, *TEST_262_SUITE_PATH)
     # TODO: this makes the TestLoader mutable, refactor it.
     self._test_loader.test_root = self.test_root
@@ -136,15 +135,14 @@ class TestSuite(testsuite.TestSuite):
     self.parse_test_record = self._load_parse_test_record()
 
   def _load_parse_test_record(self):
-    root = os.path.join(self.root, *TEST_262_TOOLS_PATH)
+    root = os.path.join(*TEST_262_TOOLS_ABS_PATH)
     f = None
     try:
       (f, pathname, description) = imp.find_module("parseTestRecord", [root])
       module = imp.load_module("parseTestRecord", f, pathname, description)
       return module.parseTestRecord
     except:
-      print ('Cannot load parseTestRecord; '
-             'you may need to gclient sync for test262')
+      print('Cannot load parseTestRecord')
       raise
     finally:
       if f:
@@ -198,18 +196,18 @@ class TestCase(testcase.D8TestCase):
     return tokens[:2] == ["built-ins", "Atomics"]
 
   def _get_files_params(self):
-    return (
-        list(self.suite.harness) +
-        ([os.path.join(self.suite.root, "harness-agent.js")]
-         if self.__needs_harness_agent() else []) +
-        ([os.path.join(self.suite.root, "harness-ishtmldda.js")]
-         if "IsHTMLDDA" in self.test_record.get("features", []) else []) +
-        ([os.path.join(self.suite.root, "harness-adapt-donotevaluate.js")]
-         if self.fail_phase_only and not self._fail_phase_reverse else []) +
-        self._get_includes() +
-        (["--module"] if "module" in self.test_record else []) +
-        [self._get_source_path()]
-    )
+    harness_args = []
+    if "raw" not in self.test_record.get("flags", []):
+      harness_args = list(self.suite.harness)
+    return (harness_args + ([os.path.join(self.suite.root, "harness-agent.js")]
+                            if self.__needs_harness_agent() else []) +
+            ([os.path.join(self.suite.root, "harness-ishtmldda.js")]
+             if "IsHTMLDDA" in self.test_record.get("features", []) else []) +
+            ([os.path.join(self.suite.root, "harness-adapt-donotevaluate.js")]
+             if self.fail_phase_only and not self._fail_phase_reverse else []) +
+            self._get_includes() +
+            (["--module"] if "module" in self.test_record else []) +
+            [self._get_source_path()])
 
   def _get_suite_flags(self):
     return (
@@ -253,7 +251,3 @@ class TestCase(testcase.D8TestCase):
     if self.expected_outcomes == outproc.OUTCOMES_PASS:
       return test262.PASS_NO_EXCEPTION
     return test262.NoExceptionOutProc(self.expected_outcomes)
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

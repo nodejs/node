@@ -6,7 +6,7 @@
 
 <!-- source_link=lib/dns.js -->
 
-The `dns` module enables name resolution. For example, use it to look up IP
+The `node:dns` module enables name resolution. For example, use it to look up IP
 addresses of host names.
 
 Although named for the [Domain Name System (DNS)][], it does not always use the
@@ -16,7 +16,7 @@ communication. To perform name resolution the way other applications on the same
 system do, use [`dns.lookup()`][].
 
 ```js
-const dns = require('dns');
+const dns = require('node:dns');
 
 dns.lookup('example.org', (err, address, family) => {
   console.log('address: %j family: IPv%s', address, family);
@@ -24,14 +24,14 @@ dns.lookup('example.org', (err, address, family) => {
 // address: "93.184.216.34" family: IPv4
 ```
 
-All other functions in the `dns` module connect to an actual DNS server to
+All other functions in the `node:dns` module connect to an actual DNS server to
 perform name resolution. They will always use the network to perform DNS
 queries. These functions do not use the same set of configuration files used by
 [`dns.lookup()`][] (e.g. `/etc/hosts`). Use these functions to always perform
 DNS queries, bypassing other name-resolution facilities.
 
 ```js
-const dns = require('dns');
+const dns = require('node:dns');
 
 dns.resolve4('archive.org', (err, addresses) => {
   if (err) throw err;
@@ -65,7 +65,7 @@ the servers used for a resolver using
 other resolvers:
 
 ```js
-const { Resolver } = require('dns');
+const { Resolver } = require('node:dns');
 const resolver = new Resolver();
 resolver.setServers(['4.4.4.4']);
 
@@ -75,7 +75,7 @@ resolver.resolve4('example.org', (err, addresses) => {
 });
 ```
 
-The following methods from the `dns` module are available:
+The following methods from the `node:dns` module are available:
 
 * [`resolver.getServers()`][`dns.getServers()`]
 * [`resolver.resolve()`][`dns.resolve()`]
@@ -144,7 +144,7 @@ The resolver instance will send its requests from the specified IP address.
 This allows programs to specify outbound interfaces when used on multi-homed
 systems.
 
-If a v4 or v6 address is not specified, it is set to the default, and the
+If a v4 or v6 address is not specified, it is set to the default and the
 operating system will choose a local address automatically.
 
 The resolver will use the v4 local address when making requests to IPv4 DNS
@@ -179,7 +179,12 @@ section if a custom port is used.
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v18.4.0
+    pr-url: https://github.com/nodejs/node/pull/43054
+    description: For compatibility with `node:net`, when passing an option
+                 object the `family` option can be the string `'IPv4'` or the
+                 string `'IPv6'`.
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -197,9 +202,10 @@ changes:
 
 * `hostname` {string}
 * `options` {integer | Object}
-  * `family` {integer} The record family. Must be `4`, `6`, or `0`. The value
-    `0` indicates that IPv4 and IPv6 addresses are both returned. **Default:**
-    `0`.
+  * `family` {integer|string} The record family. Must be `4`, `6`, or `0`. For
+    backward compatibility reasons,`'IPv4'` and `'IPv6'` are interpreted as `4`
+    and `6` respectively. The value `0` indicates that IPv4 and IPv6 addresses
+    are both returned. **Default:** `0`.
   * `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
     flags may be passed by bitwise `OR`ing their values.
   * `all` {boolean} When `true`, the callback returns all resolved addresses in
@@ -219,8 +225,8 @@ changes:
 
 Resolves a host name (e.g. `'nodejs.org'`) into the first found A (IPv4) or
 AAAA (IPv6) record. All `option` properties are optional. If `options` is an
-integer, then it must be `4` or `6` – if `options` is not provided, then IPv4
-and IPv6 addresses are both returned if found.
+integer, then it must be `4` or `6` – if `options` is `0` or not provided, then
+IPv4 and IPv6 addresses are both returned if found.
 
 With the `all` option set to `true`, the arguments for `callback` change to
 `(err, addresses)`, with `addresses` being an array of objects with the
@@ -233,7 +239,7 @@ such as no available file descriptors.
 
 `dns.lookup()` does not necessarily have anything to do with the DNS protocol.
 The implementation uses an operating system facility that can associate names
-with addresses, and vice versa. This implementation can have subtle but
+with addresses and vice versa. This implementation can have subtle but
 important consequences on the behavior of any Node.js program. Please take some
 time to consult the [Implementation considerations section][] before using
 `dns.lookup()`.
@@ -241,7 +247,7 @@ time to consult the [Implementation considerations section][] before using
 Example usage:
 
 ```js
-const dns = require('dns');
+const dns = require('node:dns');
 const options = {
   family: 6,
   hints: dns.ADDRCONFIG | dns.V4MAPPED,
@@ -279,7 +285,7 @@ The following flags can be passed as hints to [`dns.lookup()`][].
   returned if the current system has at least one IPv4 address configured.
 * `dns.V4MAPPED`: If the IPv6 family was specified, but no IPv6 addresses were
   found, then return IPv4 mapped IPv6 addresses. It is not supported
-  on some operating systems (e.g FreeBSD 10.1).
+  on some operating systems (e.g. FreeBSD 10.1).
 * `dns.ALL`: If `dns.V4MAPPED` is specified, return resolved IPv6 addresses as
   well as IPv4 mapped IPv6 addresses.
 
@@ -288,7 +294,7 @@ The following flags can be passed as hints to [`dns.lookup()`][].
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -312,7 +318,7 @@ will be thrown.
 On an error, `err` is an [`Error`][] object, where `err.code` is the error code.
 
 ```js
-const dns = require('dns');
+const dns = require('node:dns');
 dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
   console.log(hostname, service);
   // Prints: localhost ssh
@@ -327,7 +333,7 @@ If this method is invoked as its [`util.promisify()`][]ed version, it returns a
 <!-- YAML
 added: v0.1.27
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -368,7 +374,7 @@ On error, `err` is an [`Error`][] object, where `err.code` is one of the
 <!-- YAML
 added: v0.1.16
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -381,7 +387,7 @@ changes:
 
 * `hostname` {string} Host name to resolve.
 * `options` {Object}
-  * `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
+  * `ttl` {boolean} Retrieves the Time-To-Live value (TTL) of each record.
     When `true`, the callback receives an array of
     `{ address: '1.2.3.4', ttl: 60 }` objects rather than an array of strings,
     with the TTL expressed in seconds.
@@ -399,7 +405,7 @@ will contain an array of IPv4 addresses (e.g.
 <!-- YAML
 added: v0.1.16
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -420,7 +426,7 @@ changes:
   * `err` {Error}
   * `addresses` {string\[] | Object\[]}
 
-Uses the DNS protocol to resolve a IPv6 addresses (`AAAA` records) for the
+Uses the DNS protocol to resolve IPv6 addresses (`AAAA` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function
 will contain an array of IPv6 addresses.
 
@@ -428,7 +434,7 @@ will contain an array of IPv6 addresses.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -488,7 +494,7 @@ queries. It may be better to call individual methods like [`dns.resolve4()`][],
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -512,7 +518,7 @@ added:
   - v15.0.0
   - v14.17.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -535,7 +541,7 @@ available for the `hostname` (e.g. `[{critical: 0, iodef:
 <!-- YAML
 added: v0.1.27
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -557,7 +563,7 @@ property (e.g. `[{priority: 10, exchange: 'mx.example.com'}, ...]`).
 <!-- YAML
 added: v0.9.12
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -569,7 +575,7 @@ changes:
   * `err` {Error}
   * `addresses` {Object\[]}
 
-Uses the DNS protocol to resolve regular expression based records (`NAPTR`
+Uses the DNS protocol to resolve regular expression-based records (`NAPTR`
 records) for the `hostname`. The `addresses` argument passed to the `callback`
 function will contain an array of objects with the following properties:
 
@@ -598,7 +604,7 @@ function will contain an array of objects with the following properties:
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -620,7 +626,7 @@ contain an array of name server records available for `hostname`
 <!-- YAML
 added: v6.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -641,7 +647,7 @@ be an array of strings containing the reply records.
 <!-- YAML
 added: v0.11.10
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -684,7 +690,7 @@ be an object with the following properties:
 <!-- YAML
 added: v0.1.27
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -721,7 +727,7 @@ be an array of objects with the following properties:
 <!-- YAML
 added: v0.1.27
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -767,6 +773,10 @@ one of the [DNS error codes][].
 added:
   - v16.4.0
   - v14.18.0
+changes:
+  - version: v17.0.0
+    pr-url: https://github.com/nodejs/node/pull/39987
+    description: Changed default value to `verbatim`.
 -->
 
 * `order` {string} must be `'ipv4first'` or `'verbatim'`.
@@ -777,7 +787,7 @@ Set the default value of `verbatim` in [`dns.lookup()`][] and
 * `ipv4first`: sets default `verbatim` `false`.
 * `verbatim`: sets default `verbatim` `true`.
 
-The default is `ipv4first` and [`dns.setDefaultResultOrder()`][] have higher
+The default is `verbatim` and [`dns.setDefaultResultOrder()`][] have higher
 priority than [`--dns-result-order`][]. When using [worker threads][],
 [`dns.setDefaultResultOrder()`][] from the main thread won't affect the default
 dns orders in workers.
@@ -836,7 +846,7 @@ changes:
 
 The `dns.promises` API provides an alternative set of asynchronous DNS methods
 that return `Promise` objects rather than using callbacks. The API is accessible
-via `require('dns').promises` or `require('dns/promises')`.
+via `require('node:dns').promises` or `require('node:dns/promises')`.
 
 ### Class: `dnsPromises.Resolver`
 
@@ -852,7 +862,7 @@ the servers used for a resolver using
 other resolvers:
 
 ```js
-const { Resolver } = require('dns').promises;
+const { Resolver } = require('node:dns').promises;
 const resolver = new Resolver();
 resolver.setServers(['4.4.4.4']);
 
@@ -895,7 +905,7 @@ added:
 -->
 
 Cancel all outstanding DNS queries made by this resolver. The corresponding
-promises will be rejected with an error with code `ECANCELLED`.
+promises will be rejected with an error with the code `ECANCELLED`.
 
 ### `dnsPromises.getServers()`
 
@@ -959,7 +969,7 @@ such as no available file descriptors.
 
 [`dnsPromises.lookup()`][] does not necessarily have anything to do with the DNS
 protocol. The implementation uses an operating system facility that can
-associate names with addresses, and vice versa. This implementation can have
+associate names with addresses and vice versa. This implementation can have
 subtle but important consequences on the behavior of any Node.js program. Please
 take some time to consult the [Implementation considerations section][] before
 using `dnsPromises.lookup()`.
@@ -967,7 +977,7 @@ using `dnsPromises.lookup()`.
 Example usage:
 
 ```js
-const dns = require('dns');
+const dns = require('node:dns');
 const dnsPromises = dns.promises;
 const options = {
   family: 6,
@@ -1007,7 +1017,7 @@ On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is the error code.
 
 ```js
-const dnsPromises = require('dns').promises;
+const dnsPromises = require('node:dns').promises;
 dnsPromises.lookupService('127.0.0.1', 22).then((result) => {
   console.log(result.hostname, result.service);
   // Prints: localhost ssh
@@ -1176,7 +1186,7 @@ added: v10.6.0
 
 * `hostname` {string}
 
-Uses the DNS protocol to resolve regular expression based records (`NAPTR`
+Uses the DNS protocol to resolve regular expression-based records (`NAPTR`
 records) for the `hostname`. On success, the `Promise` is resolved with an array
 of objects with the following properties:
 
@@ -1322,6 +1332,10 @@ is one of the [DNS error codes][].
 added:
   - v16.4.0
   - v14.18.0
+changes:
+  - version: v17.0.0
+    pr-url: https://github.com/nodejs/node/pull/39987
+    description: Changed default value to `verbatim`.
 -->
 
 * `order` {string} must be `'ipv4first'` or `'verbatim'`.
@@ -1332,7 +1346,7 @@ Set the default value of `verbatim` in [`dns.lookup()`][] and
 * `ipv4first`: sets default `verbatim` `false`.
 * `verbatim`: sets default `verbatim` `true`.
 
-The default is `ipv4first` and [`dnsPromises.setDefaultResultOrder()`][] have
+The default is `verbatim` and [`dnsPromises.setDefaultResultOrder()`][] have
 higher priority than [`--dns-result-order`][]. When using [worker threads][],
 [`dnsPromises.setDefaultResultOrder()`][] from the main thread won't affect the
 default dns orders in workers.
@@ -1374,11 +1388,11 @@ earlier ones time out or result in some other error.
 
 Each DNS query can return one of the following error codes:
 
-* `dns.NODATA`: DNS server returned answer with no data.
+* `dns.NODATA`: DNS server returned an answer with no data.
 * `dns.FORMERR`: DNS server claims query was misformatted.
 * `dns.SERVFAIL`: DNS server returned general failure.
 * `dns.NOTFOUND`: Domain name not found.
-* `dns.NOTIMP`: DNS server does not implement requested operation.
+* `dns.NOTIMP`: DNS server does not implement the requested operation.
 * `dns.REFUSED`: DNS server refused query.
 * `dns.BADQUERY`: Misformatted DNS query.
 * `dns.BADNAME`: Misformatted host name.
@@ -1398,6 +1412,8 @@ Each DNS query can return one of the following error codes:
 * `dns.LOADIPHLPAPI`: Error loading `iphlpapi.dll`.
 * `dns.ADDRGETNETWORKPARAMS`: Could not find `GetNetworkParams` function.
 * `dns.CANCELLED`: DNS query cancelled.
+
+The `dnsPromises` API also exports the above error codes, e.g., `dnsPromises.NODATA`.
 
 ## Implementation considerations
 
@@ -1429,18 +1445,18 @@ using `dns.resolve()` and using the address instead of a host name. Also, some
 networking APIs (such as [`socket.connect()`][] and [`dgram.createSocket()`][])
 allow the default resolver, `dns.lookup()`, to be replaced.
 
-### `dns.resolve()`, `dns.resolve*()` and `dns.reverse()`
+### `dns.resolve()`, `dns.resolve*()`, and `dns.reverse()`
 
 These functions are implemented quite differently than [`dns.lookup()`][]. They
 do not use getaddrinfo(3) and they _always_ perform a DNS query on the
-network. This network communication is always done asynchronously, and does not
+network. This network communication is always done asynchronously and does not
 use libuv's threadpool.
 
 As a result, these functions cannot have the same negative impact on other
 processing that happens on libuv's threadpool that [`dns.lookup()`][] can have.
 
-They do not use the same set of configuration files than what [`dns.lookup()`][]
-uses. For instance, _they do not use the configuration from `/etc/hosts`_.
+They do not use the same set of configuration files that [`dns.lookup()`][]
+uses. For instance, they do not use the configuration from `/etc/hosts`.
 
 [DNS error codes]: #error-codes
 [Domain Name System (DNS)]: https://en.wikipedia.org/wiki/Domain_Name_System

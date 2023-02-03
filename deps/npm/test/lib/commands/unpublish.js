@@ -1,36 +1,7 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
-const tnock = require('../../fixtures/tnock.js')
 
-const pkgManifest = (name, version = '1.0.0') => {
-  return {
-    _id: `${name}@${version}`,
-    _rev: '00-testdeadbeef',
-    name,
-    versions: {
-      '1.0.0': {
-        name,
-        version: '1.0.0',
-        dist: {
-          tarball: `https://registry.npmjs.org/${name}/-/${name}-1.0.0.tgz`,
-        },
-      },
-      [version]: {
-        name,
-        version: version,
-        dist: {
-          tarball: `https://registry.npmjs.org/${name}/-/${name}-${version}.tgz`,
-        },
-      },
-    },
-    time: {
-      '1.0.0': new Date(),
-      [version]: new Date(),
-    },
-    'dist-tags': { latest: version },
-  }
-}
-
+const MockRegistry = require('@npmcli/mock-registry')
 const user = 'test-user'
 const pkg = 'test-package'
 const auth = { '//registry.npmjs.org/:_authToken': 'test-auth-token' }
@@ -49,12 +20,14 @@ t.test('no args --force success', async t => {
     },
   })
 
-  const manifest = pkgManifest(pkg)
-  tnock(t, npm.config.get('registry'),
-    { reqheaders: { authorization: 'Bearer test-auth-token' } })
-    .get(`/${pkg}?write=true`).reply(200, manifest)
-    .delete(`/${pkg}/-rev/${manifest._rev}`).reply(201)
-
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const manifest = registry.manifest({ name: pkg })
+  await registry.package({ manifest, query: { write: true } })
+  registry.nock.delete(`/${pkg}/-rev/${manifest._rev}`).reply(201)
   await npm.exec('unpublish', [])
   t.equal(joinedOutput(), '- test-package@1.0.0')
 })
@@ -116,14 +89,20 @@ t.test('unpublish <pkg>@version not the last version', async t => {
       ...auth,
     },
   })
-  const manifest = pkgManifest(pkg, '1.0.1')
-  tnock(t, npm.config.get('registry'),
-    { reqheaders: { authorization: 'Bearer test-auth-token' } })
-    .get(`/${pkg}?write=true`).times(3).reply(200, manifest)
-    .put(`/${pkg}/-rev/${manifest._rev}`, body => {
-      // sets latest and deletes version 1.0.1
-      return body['dist-tags'].latest === '1.0.0' && body.versions['1.0.1'] === undefined
-    }).reply(201)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const manifest = registry.manifest({
+    name: pkg,
+    packuments: ['1.0.0', '1.0.1'],
+  })
+  await registry.package({ manifest, query: { write: true }, times: 3 })
+  registry.nock.put(`/${pkg}/-rev/${manifest._rev}`, body => {
+    // sets latest and deletes version 1.0.1
+    return body['dist-tags'].latest === '1.0.0' && body.versions['1.0.1'] === undefined
+  }).reply(201)
     .intercept(`/${pkg}/-/${pkg}-1.0.1.tgz/-rev/${manifest._rev}`, 'DELETE').reply(201)
 
   await npm.exec('unpublish', ['test-package@1.0.1'])
@@ -136,10 +115,13 @@ t.test('unpublish <pkg>@version last version', async t => {
       ...auth,
     },
   })
-  const manifest = pkgManifest(pkg)
-  tnock(t, npm.config.get('registry'),
-    { reqheaders: { authorization: 'Bearer test-auth-token' } })
-    .get(`/${pkg}?write=true`).reply(200, manifest)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const manifest = registry.manifest({ name: pkg })
+  await registry.package({ manifest, query: { write: true } })
 
   await t.rejects(
     npm.exec('unpublish', ['test-package@1.0.0']),
@@ -159,13 +141,14 @@ t.test('no version found in package.json', async t => {
       }, null, 2),
     },
   })
-
-  const manifest = pkgManifest(pkg)
-
-  tnock(t, npm.config.get('registry'),
-    { reqheaders: { authorization: 'Bearer test-auth-token' } })
-    .get(`/${pkg}?write=true`).reply(200, manifest)
-    .delete(`/${pkg}/-rev/${manifest._rev}`).reply(201)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const manifest = registry.manifest({ name: pkg })
+  await registry.package({ manifest, query: { write: true } })
+  registry.nock.delete(`/${pkg}/-rev/${manifest._rev}`).reply(201)
 
   await npm.exec('unpublish', [])
   t.equal(joinedOutput(), '- test-package')
@@ -178,11 +161,14 @@ t.test('unpublish <pkg> --force no version set', async t => {
       ...auth,
     },
   })
-  const manifest = pkgManifest(pkg)
-  tnock(t, npm.config.get('registry'),
-    { reqheaders: { authorization: 'Bearer test-auth-token' } })
-    .get(`/${pkg}?write=true`).times(2).reply(200, manifest)
-    .delete(`/${pkg}/-rev/${manifest._rev}`).reply(201)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const manifest = registry.manifest({ name: pkg })
+  await registry.package({ manifest, query: { write: true }, times: 2 })
+  registry.nock.delete(`/${pkg}/-rev/${manifest._rev}`).reply(201)
 
   await npm.exec('unpublish', ['test-package'])
   t.equal(joinedOutput(), '- test-package')
@@ -196,14 +182,20 @@ t.test('silent', async t => {
       ...auth,
     },
   })
-  const manifest = pkgManifest(pkg, '1.0.1')
-  tnock(t, npm.config.get('registry'),
-    { reqheaders: { authorization: 'Bearer test-auth-token' } })
-    .get(`/${pkg}?write=true`).times(3).reply(200, manifest)
-    .put(`/${pkg}/-rev/${manifest._rev}`, body => {
-      // sets latest and deletes version 1.0.1
-      return body['dist-tags'].latest === '1.0.0' && body.versions['1.0.1'] === undefined
-    }).reply(201)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const manifest = registry.manifest({
+    name: pkg,
+    packuments: ['1.0.0', '1.0.1'],
+  })
+  await registry.package({ manifest, query: { write: true }, times: 3 })
+  registry.nock.put(`/${pkg}/-rev/${manifest._rev}`, body => {
+    // sets latest and deletes version 1.0.1
+    return body['dist-tags'].latest === '1.0.0' && body.versions['1.0.1'] === undefined
+  }).reply(201)
     .delete(`/${pkg}/-/${pkg}-1.0.1.tgz/-rev/${manifest._rev}`).reply(201)
 
   await npm.exec('unpublish', ['test-package@1.0.1'])
@@ -261,16 +253,19 @@ t.test('workspaces', async t => {
       },
       prefixDir,
     })
-    const manifestA = pkgManifest('workspace-a')
-    const manifestB = pkgManifest('workspace-b')
-    const manifestN = pkgManifest('workspace-n')
-    tnock(t, npm.config.get('registry'),
-      { reqheaders: { authorization: 'Bearer test-auth-token' } })
-      .get('/workspace-a?write=true').times(2).reply(200, manifestA)
-      .delete(`/workspace-a/-rev/${manifestA._rev}`).reply(201)
-      .get('/workspace-b?write=true').times(2).reply(200, manifestB)
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
+    })
+    const manifestA = registry.manifest({ name: 'workspace-a' })
+    const manifestB = registry.manifest({ name: 'workspace-b' })
+    const manifestN = registry.manifest({ name: 'workspace-n' })
+    await registry.package({ manifest: manifestA, query: { write: true }, times: 2 })
+    await registry.package({ manifest: manifestB, query: { write: true }, times: 2 })
+    await registry.package({ manifest: manifestN, query: { write: true }, times: 2 })
+    registry.nock.delete(`/workspace-a/-rev/${manifestA._rev}`).reply(201)
       .delete(`/workspace-b/-rev/${manifestB._rev}`).reply(201)
-      .get('/workspace-n?write=true').times(2).reply(200, manifestN)
       .delete(`/workspace-n/-rev/${manifestN._rev}`).reply(201)
 
     await npm.exec('unpublish', [])
@@ -286,11 +281,14 @@ t.test('workspaces', async t => {
       },
       prefixDir,
     })
-    const manifestA = pkgManifest('workspace-a')
-    tnock(t, npm.config.get('registry'),
-      { reqheaders: { authorization: 'Bearer test-auth-token' } })
-      .get('/workspace-a?write=true').times(2).reply(200, manifestA)
-      .delete(`/workspace-a/-rev/${manifestA._rev}`).reply(201)
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
+    })
+    const manifestA = registry.manifest({ name: 'workspace-a' })
+    await registry.package({ manifest: manifestA, query: { write: true }, times: 2 })
+    registry.nock.delete(`/workspace-a/-rev/${manifestA._rev}`).reply(201)
 
     await npm.exec('unpublish', [])
     t.equal(joinedOutput(), '- workspace-a')
@@ -304,11 +302,16 @@ t.test('dryRun with spec', async t => {
       ...auth,
     },
   })
-
-  const manifest = pkgManifest(pkg, '1.0.1')
-  tnock(t, npm.config.get('registry'),
-    { reqheaders: { authorization: 'Bearer test-auth-token' } })
-    .get(`/${pkg}?write=true`).reply(200, manifest)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const manifest = registry.manifest({
+    name: pkg,
+    packuments: ['1.0.0', '1.0.1'],
+  })
+  await registry.package({ manifest, query: { write: true } })
 
   await npm.exec('unpublish', ['test-package@1.0.1'])
   t.equal(joinedOutput(), '- test-package@1.0.1')
@@ -338,7 +341,6 @@ t.test('publishConfig no spec', async t => {
   const { joinedOutput, npm } = await loadMockNpm(t, {
     config: {
       force: true,
-      'fetch-retries': 0,
       '//other.registry.npmjs.org/:_authToken': 'test-other-token',
     },
     prefixDir: {
@@ -352,11 +354,14 @@ t.test('publishConfig no spec', async t => {
     },
   })
 
-  const manifest = pkgManifest(pkg)
-  tnock(t, alternateRegistry,
-    { reqheaders: { authorization: 'Bearer test-other-token' } })
-    .get(`/${pkg}?write=true`).reply(200, manifest)
-    .delete(`/${pkg}/-rev/${manifest._rev}`).reply(201)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: alternateRegistry,
+    authorization: 'test-other-token',
+  })
+  const manifest = registry.manifest({ name: pkg })
+  await registry.package({ manifest, query: { write: true } })
+  registry.nock.delete(`/${pkg}/-rev/${manifest._rev}`).reply(201)
   await npm.exec('unpublish', [])
   t.equal(joinedOutput(), '- test-package@1.0.0')
 })
@@ -366,7 +371,6 @@ t.test('publishConfig with spec', async t => {
   const { joinedOutput, npm } = await loadMockNpm(t, {
     config: {
       force: true,
-      'fetch-retries': 0,
       '//other.registry.npmjs.org/:_authToken': 'test-other-token',
     },
     prefixDir: {
@@ -380,11 +384,14 @@ t.test('publishConfig with spec', async t => {
     },
   })
 
-  const manifest = pkgManifest(pkg)
-  tnock(t, alternateRegistry,
-    { reqheaders: { authorization: 'Bearer test-other-token' } })
-    .get(`/${pkg}?write=true`).reply(200, manifest)
-    .delete(`/${pkg}/-rev/${manifest._rev}`).reply(201)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: alternateRegistry,
+    authorization: 'test-other-token',
+  })
+  const manifest = registry.manifest({ name: pkg })
+  await registry.package({ manifest, query: { write: true }, times: 2 })
+  registry.nock.delete(`/${pkg}/-rev/${manifest._rev}`).reply(201)
   await npm.exec('unpublish', ['test-package'])
   t.equal(joinedOutput(), '- test-package')
 })
@@ -406,12 +413,18 @@ t.test('completion', async t => {
     }
 
   t.test('completing with multiple versions from the registry', async t => {
-    const manifest = pkgManifest(pkg, '1.0.1')
-    tnock(t, npm.config.get('registry'),
-      { reqheaders: { authorization: 'Bearer test-auth-token' } })
-      .get('/-/whoami').reply(200, { username: user })
-      .get('/-/org/test-user/package?format=cli').reply(200, { [pkg]: 'write' })
-      .get(`/${pkg}?write=true`).reply(200, manifest)
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
+    })
+    const manifest = registry.manifest({
+      name: pkg,
+      packuments: ['1.0.0', '1.0.1'],
+    })
+    await registry.package({ manifest, query: { write: true } })
+    registry.whoami({ username: user })
+    registry.getPackages({ team: user, packages: { [pkg]: 'write' } })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
@@ -424,13 +437,16 @@ t.test('completion', async t => {
   })
 
   t.test('no versions retrieved', async t => {
-    const manifest = pkgManifest(pkg)
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
+    })
+    const manifest = registry.manifest({ name: pkg })
     manifest.versions = {}
-    tnock(t, npm.config.get('registry'),
-      { reqheaders: { authorization: 'Bearer test-auth-token' } })
-      .get('/-/whoami').reply(200, { username: user })
-      .get('/-/org/test-user/package?format=cli').reply(200, { [pkg]: 'write' })
-      .get(`/${pkg}?write=true`).reply(200, manifest)
+    await registry.package({ manifest, query: { write: true } })
+    registry.whoami({ username: user })
+    registry.getPackages({ team: user, packages: { [pkg]: 'write' } })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
@@ -443,14 +459,18 @@ t.test('completion', async t => {
   })
 
   t.test('packages starting with same letters', async t => {
-    tnock(t, npm.config.get('registry'),
-      { reqheaders: { authorization: 'Bearer test-auth-token' } })
-      .get('/-/whoami').reply(200, { username: user })
-      .get('/-/org/test-user/package?format=cli').reply(200, {
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
+    })
+    registry.whoami({ username: user })
+    registry.getPackages({ team: user,
+      packages: {
         [pkg]: 'write',
         [`${pkg}a`]: 'write',
         [`${pkg}b`]: 'write',
-      })
+      } })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
@@ -464,10 +484,13 @@ t.test('completion', async t => {
   })
 
   t.test('no packages retrieved', async t => {
-    tnock(t, npm.config.get('registry'),
-      { reqheaders: { authorization: 'Bearer test-auth-token' } })
-      .get('/-/whoami').reply(200, { username: user })
-      .get('/-/org/test-user/package?format=cli').reply(200, {})
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
+    })
+    registry.whoami({ username: user })
+    registry.getPackages({ team: user, packages: {} })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
@@ -478,13 +501,17 @@ t.test('completion', async t => {
   })
 
   t.test('no pkg name to complete', async t => {
-    tnock(t, npm.config.get('registry'),
-      { reqheaders: { authorization: 'Bearer test-auth-token' } })
-      .get('/-/whoami').reply(200, { username: user })
-      .get('/-/org/test-user/package?format=cli').reply(200, {
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
+    })
+    registry.whoami({ username: user })
+    registry.getPackages({ team: user,
+      packages: {
         [pkg]: 'write',
         [`${pkg}a`]: 'write',
-      })
+      } })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
@@ -494,24 +521,13 @@ t.test('completion', async t => {
     })
   })
 
-  t.test('no pkg names retrieved from user account', async t => {
-    tnock(t, npm.config.get('registry'),
-      { reqheaders: { authorization: 'Bearer test-auth-token' } })
-      .get('/-/whoami').reply(200, { username: user })
-      .get('/-/org/test-user/package?format=cli').reply(200, null)
-
-    await testComp(t, {
-      argv: ['npm', 'unpublish'],
-      partialWord: pkg,
-      expect: [],
-      title: 'should have no autocomplete',
-    })
-  })
-
   t.test('logged out user', async t => {
-    tnock(t, npm.config.get('registry'),
-      { reqheaders: { authorization: 'Bearer test-auth-token' } })
-      .get('/-/whoami').reply(404)
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
+    })
+    registry.whoami({ responseCode: 404 })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],

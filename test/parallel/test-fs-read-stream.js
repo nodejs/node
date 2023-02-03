@@ -98,7 +98,7 @@ test1({
 });
 
 {
-  const file = fs.createReadStream(fn, { encoding: 'utf8' });
+  const file = fs.createReadStream(fn, common.mustNotMutateObjectDeep({ encoding: 'utf8' }));
   file.length = 0;
   file.on('data', function(data) {
     assert.strictEqual(typeof data, 'string');
@@ -119,7 +119,7 @@ test1({
 
 {
   const file =
-    fs.createReadStream(rangeFile, { bufferSize: 1, start: 1, end: 2 });
+    fs.createReadStream(rangeFile, common.mustNotMutateObjectDeep({ bufferSize: 1, start: 1, end: 2 }));
   let contentRead = '';
   file.on('data', function(data) {
     contentRead += data.toString('utf-8');
@@ -130,7 +130,7 @@ test1({
 }
 
 {
-  const file = fs.createReadStream(rangeFile, { bufferSize: 1, start: 1 });
+  const file = fs.createReadStream(rangeFile, common.mustNotMutateObjectDeep({ bufferSize: 1, start: 1 }));
   file.data = '';
   file.on('data', function(data) {
     file.data += data.toString('utf-8');
@@ -142,7 +142,7 @@ test1({
 
 {
   // Ref: https://github.com/nodejs/node-v0.x-archive/issues/2320
-  const file = fs.createReadStream(rangeFile, { bufferSize: 1.23, start: 1 });
+  const file = fs.createReadStream(rangeFile, common.mustNotMutateObjectDeep({ bufferSize: 1.23, start: 1 }));
   file.data = '';
   file.on('data', function(data) {
     file.data += data.toString('utf-8');
@@ -154,7 +154,7 @@ test1({
 
 assert.throws(
   () => {
-    fs.createReadStream(rangeFile, { start: 10, end: 2 });
+    fs.createReadStream(rangeFile, common.mustNotMutateObjectDeep({ start: 10, end: 2 }));
   },
   {
     code: 'ERR_OUT_OF_RANGE',
@@ -164,7 +164,7 @@ assert.throws(
   });
 
 {
-  const stream = fs.createReadStream(rangeFile, { start: 0, end: 0 });
+  const stream = fs.createReadStream(rangeFile, common.mustNotMutateObjectDeep({ start: 0, end: 0 }));
   stream.data = '';
 
   stream.on('data', function(chunk) {
@@ -178,7 +178,7 @@ assert.throws(
 
 {
   // Verify that end works when start is not specified.
-  const stream = new fs.createReadStream(rangeFile, { end: 1 });
+  const stream = new fs.createReadStream(rangeFile, common.mustNotMutateObjectDeep({ end: 1 }));
   stream.data = '';
 
   stream.on('data', function(chunk) {
@@ -199,7 +199,7 @@ if (!common.isWindows) {
   const mkfifoResult = child_process.spawnSync('mkfifo', [filename]);
   if (!mkfifoResult.error) {
     child_process.exec(`echo "xyz foobar" > '${filename}'`);
-    const stream = new fs.createReadStream(filename, { end: 1 });
+    const stream = new fs.createReadStream(filename, common.mustNotMutateObjectDeep({ end: 1 }));
     stream.data = '';
 
     stream.on('data', function(chunk) {
@@ -223,7 +223,7 @@ if (!common.isWindows) {
 }
 
 {
-  let file = fs.createReadStream(rangeFile, { autoClose: false });
+  let file = fs.createReadStream(rangeFile, common.mustNotMutateObjectDeep({ autoClose: false }));
   let data = '';
   file.on('data', function(chunk) { data += chunk; });
   file.on('end', common.mustCall(function() {
@@ -237,7 +237,7 @@ if (!common.isWindows) {
 
   function fileNext() {
     // This will tell us if the fd is usable again or not.
-    file = fs.createReadStream(null, { fd: file.fd, start: 0 });
+    file = fs.createReadStream(null, common.mustNotMutateObjectDeep({ fd: file.fd, start: 0 }));
     file.data = '';
     file.on('data', function(data) {
       file.data += data;
@@ -254,7 +254,7 @@ if (!common.isWindows) {
 
 {
   // Just to make sure autoClose won't close the stream because of error.
-  const file = fs.createReadStream(null, { fd: 13337, autoClose: false });
+  const file = fs.createReadStream(null, common.mustNotMutateObjectDeep({ fd: 13337, autoClose: false }));
   file.on('data', common.mustNotCall());
   file.on('error', common.mustCall());
   process.on('exit', function() {

@@ -27,7 +27,7 @@ const localeCompare = require('@isaacs/string-locale-compare')('en')
 class LS extends ArboristWorkspaceCmd {
   static description = 'List installed packages'
   static name = 'ls'
-  static usage = ['[[<@scope>/]<pkg> ...]']
+  static usage = ['<package-spec>']
   static params = [
     'all',
     'json',
@@ -52,16 +52,12 @@ class LS extends ArboristWorkspaceCmd {
     const all = this.npm.config.get('all')
     const color = this.npm.color
     const depth = this.npm.config.get('depth')
-    const dev = this.npm.config.get('dev')
-    const development = this.npm.config.get('development')
-    const global = this.npm.config.get('global')
+    const global = this.npm.global
     const json = this.npm.config.get('json')
     const link = this.npm.config.get('link')
     const long = this.npm.config.get('long')
-    const only = this.npm.config.get('only')
+    const omit = this.npm.flatOptions.omit
     const parseable = this.npm.config.get('parseable')
-    const prod = this.npm.config.get('prod')
-    const production = this.npm.config.get('production')
     const unicode = this.npm.config.get('unicode')
     const packageLockOnly = this.npm.config.get('package-lock-only')
     const workspacesEnabled = this.npm.flatOptions.workspacesEnabled
@@ -96,7 +92,7 @@ class LS extends ArboristWorkspaceCmd {
       }
 
       if (this.npm.flatOptions.includeWorkspaceRoot
-          && !edge.to.isWorkspace) {
+          && edge.to && !edge.to.isWorkspace) {
         return true
       }
 
@@ -138,15 +134,10 @@ class LS extends ArboristWorkspaceCmd {
           ? []
           : [...(node.target).edgesOut.values()]
             .filter(filterBySelectedWorkspaces)
-            .filter(filterByEdgesTypes({
-              currentDepth,
-              dev,
-              development,
+            .filter(currentDepth === 0 ? filterByEdgesTypes({
               link,
-              prod,
-              production,
-              only,
-            }))
+              omit,
+            }) : () => true)
             .map(mapEdgesToNodes({ seenPaths }))
             .concat(appendExtraneousChildren({ node, seenPaths }))
             .sort(sortAlphabetically)
@@ -186,12 +177,10 @@ class LS extends ArboristWorkspaceCmd {
     const [rootError] = tree.errors.filter(e =>
       e.code === 'EJSONPARSE' && e.path === resolve(path, 'package.json'))
 
-    this.npm.output(
-      json
-        ? jsonOutput({ path, problems, result, rootError, seenItems })
-        : parseable
-          ? parseableOutput({ seenNodes, global, long })
-          : humanOutput({ color, result, seenItems, unicode })
+    this.npm.outputBuffer(
+      json ? jsonOutput({ path, problems, result, rootError, seenItems }) :
+      parseable ? parseableOutput({ seenNodes, global, long }) :
+      humanOutput({ color, result, seenItems, unicode })
     )
 
     // if filtering items, should exit with error code on no results
@@ -338,6 +327,11 @@ const getHumanOutputItem = (node, { args, color, global, long }) => {
         ? ' ' + (color ? chalk.green.bgBlack('extraneous') : 'extraneous')
         : ''
     ) +
+    (
+      node.overridden
+        ? ' ' + (color ? chalk.gray('overridden') : 'overridden')
+        : ''
+    ) +
     (isGitNode(node) ? ` (${node.resolved})` : '') +
     (node.isLink ? ` -> ${relativePrefix}${targetLocation}` : '') +
     (long ? `${EOL}${node.package.description || ''}` : '')
@@ -354,6 +348,13 @@ const getJsonOutputItem = (node, { global, long }) => {
 
   if (node.resolved) {
     item.resolved = node.resolved
+  }
+
+  // if the node is the project root, do not add the overridden flag. the project root can't be
+  // overridden anyway, and if we add the flag it causes undesirable behavior when `npm ls --json`
+  // is ran in an empty directory since we end up printing an object with only an overridden prop
+  if (!node.isProjectRoot) {
+    item.overridden = node.overridden
   }
 
   item[_name] = node.name
@@ -399,27 +400,13 @@ const getJsonOutputItem = (node, { global, long }) => {
   return augmentItemWithIncludeMetadata(node, item)
 }
 
-const filterByEdgesTypes = ({
-  currentDepth,
-  dev,
-  development,
-  link,
-  prod,
-  production,
-  only,
-}) => {
-  // filter deps by type, allows for: `npm ls --dev`, `npm ls --prod`,
-  // `npm ls --link`, `npm ls --only=dev`, etc
-  const filterDev = currentDepth === 0 &&
-    (dev || development || /^dev(elopment)?$/.test(only))
-  const filterProd = currentDepth === 0 &&
-    (prod || production || /^prod(uction)?$/.test(only))
-  const filterLink = currentDepth === 0 && link
-
-  return (edge) =>
-    (filterDev ? edge.dev : true) &&
-    (filterProd ? (!edge.dev && !edge.peer && !edge.peerOptional) : true) &&
-    (filterLink ? (edge.to && edge.to.isLink) : true)
+const filterByEdgesTypes = ({ link, omit }) => (edge) => {
+  for (const omitType of omit) {
+    if (edge[omitType]) {
+      return false
+    }
+  }
+  return link ? edge.to && edge.to.isLink : true
 }
 
 const appendExtraneousChildren = ({ node, seenPaths }) =>
@@ -578,6 +565,7 @@ const parseableOutput = ({ global, long, seenNodes }) => {
         out += node.path !== node.realpath ? `:${node.realpath}` : ''
         out += isExtraneous(node, { global }) ? ':EXTRANEOUS' : ''
         out += node[_invalid] ? ':INVALID' : ''
+        out += node.overridden ? ':OVERRIDDEN' : ''
       }
       out += EOL
     }

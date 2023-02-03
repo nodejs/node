@@ -14,7 +14,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require or disallow newline at the end of files",
+            description: "Require or disallow newline at the end of files",
             recommended: false,
             url: "https://eslint.org/docs/rules/eol-last"
         },

@@ -15,7 +15,9 @@ namespace internal {
                                                                                \
   V(k32BitValueInRegisterIsNotZeroExtended,                                    \
     "32 bit value in register is not zero-extended")                           \
+  V(kSignedBitOfSmiIsNotZero, "Signed bit of 31 bit smi register is not zero") \
   V(kAPICallReturnedInvalidObject, "API call returned invalid object")         \
+  V(kAccumulatorClobbered, "Accumulator clobbered")                            \
   V(kAllocatingNonEmptyPackedArray, "Allocating non-empty packed array")       \
   V(kAllocationIsNotDoubleAligned, "Allocation is not double aligned")         \
   V(kExpectedOptimizationSentinel,                                             \
@@ -26,6 +28,7 @@ namespace internal {
   V(kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,                      \
     "The function_data field should be a BytecodeArray on interpreter entry")  \
   V(kInputStringTooLong, "Input string too long")                              \
+  V(kInputDoesNotFitSmi, "Input number is too large to fit in a Smi")          \
   V(kInvalidBytecode, "Invalid bytecode")                                      \
   V(kInvalidBytecodeAdvance, "Cannot advance current bytecode, ")              \
   V(kInvalidHandleScopeLevel, "Invalid HandleScope level")                     \
@@ -44,6 +47,7 @@ namespace internal {
   V(kOperandIsASmiAndNotAFunction, "Operand is a smi and not a function")      \
   V(kOperandIsASmiAndNotAGeneratorObject,                                      \
     "Operand is a smi and not a generator object")                             \
+  V(kOperandIsCleared, "Operand is cleared")                                   \
   V(kOperandIsNotABoundFunction, "Operand is not a bound function")            \
   V(kOperandIsNotAConstructor, "Operand is not a constructor")                 \
   V(kOperandIsNotAFixedArray, "Operand is not a fixed array")                  \
@@ -62,7 +66,6 @@ namespace internal {
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
   V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")           \
   V(kUnexpectedAdditionalPopValue, "Unexpected additional pop value")          \
-  V(kUnexpectedDynamicCheckMapsStatus, "Unexpected dynamic map checks status") \
   V(kUnexpectedElementsKindInArrayConstructor,                                 \
     "Unexpected ElementsKind in array constructor")                            \
   V(kUnexpectedFPCRMode, "Unexpected FPCR mode.")                              \
@@ -96,16 +99,14 @@ namespace internal {
                                                                             \
   V(kBailedOutDueToDependencyChange, "Bailed out due to dependency change") \
   V(kCodeGenerationFailed, "Code generation failed")                        \
-  V(kCyclicObjectStateDetectedInEscapeAnalysis,                             \
-    "Cyclic object state detected by escape analysis")                      \
   V(kFunctionBeingDebugged, "Function is being debugged")                   \
   V(kGraphBuildingFailed, "Optimized graph construction failed")            \
   V(kFunctionTooBig, "Function is too big to be optimized")                 \
+  V(kTooManyArguments, "Function contains a call with too many arguments")  \
   V(kLiveEdit, "LiveEdit")                                                  \
   V(kNativeFunctionLiteral, "Native function literal")                      \
-  V(kNotEnoughVirtualRegistersRegalloc,                                     \
-    "Not enough virtual registers (regalloc)")                              \
   V(kOptimizationDisabled, "Optimization disabled")                         \
+  V(kHigherTierAvailable, "A higher tier is already available")             \
   V(kNeverOptimize, "Optimization is always disabled")
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,

@@ -5,8 +5,9 @@
 #ifndef V8_D8_D8_CONSOLE_H_
 #define V8_D8_D8_CONSOLE_H_
 
+#include <map>
+
 #include "src/base/platform/time.h"
-#include "src/debug/debug-interface.h"
 #include "src/debug/interface-types.h"
 
 namespace v8 {

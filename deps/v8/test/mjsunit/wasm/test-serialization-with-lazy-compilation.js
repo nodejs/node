@@ -5,7 +5,7 @@
 // The test needs --no-liftoff because we can't serialize and deserialize
 // Liftoff code.
 // Flags: --allow-natives-syntax --wasm-lazy-compilation --expose-gc
-// Flags: --no-liftoff
+// Flags: --no-liftoff --no-wasm-native-module-cache-enabled
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -34,11 +34,6 @@ function serializeModule() {
 };
 
 const serialized_module = serializeModule();
-// Do some GCs to make sure the first module got collected and removed from the
-// module cache.
-gc();
-gc();
-gc();
 
 (function testSerializedModule() {
   print(arguments.callee.name);

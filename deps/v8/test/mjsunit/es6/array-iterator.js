@@ -146,11 +146,11 @@ function TestArrayIteratorPrototype() {
 
   var ArrayIteratorPrototype = iterator.__proto__;
 
-  assertEquals(ArrayIteratorPrototype, array[Symbol.iterator]().__proto__);
-  assertEquals(ArrayIteratorPrototype, array.keys().__proto__);
-  assertEquals(ArrayIteratorPrototype, array.entries().__proto__);
+  assertSame(ArrayIteratorPrototype, array[Symbol.iterator]().__proto__);
+  assertSame(ArrayIteratorPrototype, array.keys().__proto__);
+  assertSame(ArrayIteratorPrototype, array.entries().__proto__);
 
-  assertEquals(Object.prototype, ArrayIteratorPrototype.__proto__);
+  assertSame(Object.prototype, ArrayIteratorPrototype.__proto__.__proto__);
 
   assertFalse(ArrayIteratorPrototype.hasOwnProperty('constructor'));
   assertArrayEquals(['next'],

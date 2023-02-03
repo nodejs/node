@@ -3,7 +3,7 @@
 // (https://github.com/w3c/webref)
 // Source: Console Standard (https://console.spec.whatwg.org/)
 
-[Exposed=(Window,Worker,Worklet)]
+[Exposed=*]
 namespace console { // but see namespace object requirements below
   // Logging
   undefined assert(optional boolean condition = false, any... data);

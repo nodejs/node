@@ -57,8 +57,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
   // Checks whether the given offset from the current position is before
   // the end of the string.
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
-  bool CheckSpecialCharacterClass(StandardCharacterSet type,
-                                  Label* on_no_match) override;
+  bool CheckSpecialClassRanges(StandardCharacterSet type,
+                               Label* on_no_match) override;
   void Fail() override;
   Handle<HeapObject> GetCode(Handle<String> source) override;
   void GoTo(Label* label) override;
@@ -215,8 +215,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
 };
 
 // Set of non-volatile registers saved/restored by generated regexp code.
-const RegList kRegExpCalleeSaved =
-    1 << 6 | 1 << 7 | 1 << 8 | 1 << 9 | 1 << 10 | 1 << 11 | 1 << 13;
+const RegList kRegExpCalleeSaved = {r6, r7, r8, r9, r10, fp, r13};
 
 }  // namespace internal
 }  // namespace v8

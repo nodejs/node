@@ -43,8 +43,8 @@ struct sockaddr;
 
 namespace node {
 
-namespace native_module {
-class NativeModuleLoader;
+namespace builtins {
+class BuiltinLoader;
 }
 
 namespace per_process {
@@ -92,6 +92,8 @@ void SignalExit(int signal, siginfo_t* info, void* ucontext);
 std::string GetProcessTitle(const char* default_title);
 std::string GetHumanReadableProcessName();
 
+v8::Maybe<bool> InitializeBaseContextForSnapshot(
+    v8::Local<v8::Context> context);
 v8::Maybe<bool> InitializeContextRuntime(v8::Local<v8::Context> context);
 v8::Maybe<bool> InitializePrimordials(v8::Local<v8::Context> context);
 
@@ -118,6 +120,10 @@ class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  private:
   uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.
   std::atomic<size_t> total_mem_usage_ {0};
+
+  // Delegate to V8's allocator for compatibility with the V8 memory cage.
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_{
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator()};
 };
 
 class DebuggingArrayBufferAllocator final : public NodeArrayBufferAllocator {
@@ -252,7 +258,8 @@ class DebugSealHandleScope {
 
 class ThreadPoolWork {
  public:
-  explicit inline ThreadPoolWork(Environment* env) : env_(env) {
+  explicit inline ThreadPoolWork(Environment* env, const char* type)
+      : env_(env), type_(type) {
     CHECK_NOT_NULL(env);
   }
   inline virtual ~ThreadPoolWork() = default;
@@ -268,6 +275,7 @@ class ThreadPoolWork {
  private:
   Environment* env_;
   uv_work_t work_req_;
+  const char* type_;
 };
 
 #define TRACING_CATEGORY_NODE "node"
@@ -286,47 +294,43 @@ class ThreadPoolWork {
 #endif  // defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 
 namespace credentials {
-bool SafeGetenv(const char* key, std::string* text, Environment* env = nullptr);
+bool SafeGetenv(const char* key,
+                std::string* text,
+                std::shared_ptr<KVStore> env_vars = nullptr,
+                v8::Isolate* isolate = nullptr);
 }  // namespace credentials
 
 void DefineZlibConstants(v8::Local<v8::Object> target);
 v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
                         uv_loop_t* event_loop,
-                        MultiIsolatePlatform* platform);
+                        MultiIsolatePlatform* platform,
+                        bool has_snapshot_data = false);
 // This overload automatically picks the right 'main_script_id' if no callback
 // was provided by the embedder.
 v8::MaybeLocal<v8::Value> StartExecution(Environment* env,
                                          StartExecutionCallback cb = nullptr);
 v8::MaybeLocal<v8::Object> GetPerContextExports(v8::Local<v8::Context> context);
-v8::MaybeLocal<v8::Value> ExecuteBootstrapper(
-    Environment* env,
-    const char* id,
-    std::vector<v8::Local<v8::String>>* parameters,
-    std::vector<v8::Local<v8::Value>>* arguments);
 void MarkBootstrapComplete(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-struct InitializationResult {
-  int exit_code = 0;
-  std::vector<std::string> args;
-  std::vector<std::string> exec_args;
-  bool early_return = false;
+class InitializationResultImpl final : public InitializationResult {
+ public:
+  ~InitializationResultImpl();
+  int exit_code() const { return static_cast<int>(exit_code_enum()); }
+  ExitCode exit_code_enum() const { return exit_code_; }
+  bool early_return() const { return early_return_; }
+  const std::vector<std::string>& args() const { return args_; }
+  const std::vector<std::string>& exec_args() const { return exec_args_; }
+  const std::vector<std::string>& errors() const { return errors_; }
+  MultiIsolatePlatform* platform() const { return platform_; }
+
+  ExitCode exit_code_ = ExitCode::kNoFailure;
+  std::vector<std::string> args_;
+  std::vector<std::string> exec_args_;
+  std::vector<std::string> errors_;
+  bool early_return_ = false;
+  MultiIsolatePlatform* platform_ = nullptr;
 };
 
-enum InitializationSettingsFlags : uint64_t {
-  kDefaultInitialization = 1 << 0,
-  kInitializeV8 = 1 << 1,
-  kRunPlatformInit = 1 << 2,
-  kInitOpenSSL = 1 << 3
-};
-
-// TODO(codebytere): eventually document and expose to embedders.
-InitializationResult InitializeOncePerProcess(int argc, char** argv);
-InitializationResult InitializeOncePerProcess(
-  int argc,
-  char** argv,
-  InitializationSettingsFlags flags,
-  ProcessFlags::Flags process_flags = ProcessFlags::kNoFlags);
-void TearDownOncePerProcess();
 void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateCreateParamsForNode(v8::Isolate::CreateParams* params);
@@ -379,25 +383,10 @@ class DiagnosticFilename {
 };
 
 namespace heap {
-v8::Maybe<void> WriteSnapshot(Environment* env, const char* filename);
+v8::Maybe<void> WriteSnapshot(Environment* env,
+                              const char* filename,
+                              v8::HeapProfiler::HeapSnapshotOptions options);
 }
-
-class TraceEventScope {
- public:
-  TraceEventScope(const char* category,
-                  const char* name,
-                  void* id) : category_(category), name_(name), id_(id) {
-    TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(category_, name_, id_);
-  }
-  ~TraceEventScope() {
-    TRACE_EVENT_NESTABLE_ASYNC_END0(category_, name_, id_);
-  }
-
- private:
-  const char* category_;
-  const char* name_;
-  void* id_;
-};
 
 namespace heap {
 
@@ -414,6 +403,34 @@ std::string Basename(const std::string& str, const std::string& extension);
 }  // namespace fs
 
 node_module napi_module_to_node_module(const napi_module* mod);
+
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<SnapshotIndex>& v);
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<std::string>& vec);
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<PropInfo>& vec);
+std::ostream& operator<<(std::ostream& output, const PropInfo& d);
+std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& d);
+std::ostream& operator<<(std::ostream& output,
+                         const ImmediateInfo::SerializeInfo& d);
+std::ostream& operator<<(std::ostream& output,
+                         const TickInfo::SerializeInfo& d);
+std::ostream& operator<<(std::ostream& output,
+                         const AsyncHooks::SerializeInfo& d);
+std::ostream& operator<<(std::ostream& output, const SnapshotMetadata& d);
+
+namespace performance {
+std::ostream& operator<<(std::ostream& output,
+                         const PerformanceState::SerializeInfo& d);
+}
+
+bool linux_at_secure();
+
+namespace heap {
+v8::HeapProfiler::HeapSnapshotOptions GetHeapSnapshotOptions(
+    v8::Local<v8::Value> options);
+}  // namespace heap
 
 }  // namespace node
 

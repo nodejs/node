@@ -53,7 +53,7 @@ class V8_EXPORT Data {
   bool IsContext() const;
 
  private:
-  Data();
+  Data() = delete;
 };
 
 /**

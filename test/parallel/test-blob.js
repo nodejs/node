@@ -188,6 +188,23 @@ assert.throws(() => new Blob({}), {
 }
 
 {
+  const descriptors = Object.getOwnPropertyDescriptors(Blob.prototype);
+  const enumerable = [
+    'size',
+    'type',
+    'slice',
+    'stream',
+    'text',
+    'arrayBuffer',
+  ];
+
+  for (const prop of enumerable) {
+    assert.notStrictEqual(descriptors[prop], undefined);
+    assert.strictEqual(descriptors[prop].enumerable, true);
+  }
+}
+
+{
   const b = new Blob(['test', 42]);
   b.text().then(common.mustCall((text) => {
     assert.strictEqual(text, 'test42');
@@ -197,6 +214,8 @@ assert.throws(() => new Blob({}), {
 {
   const b = new Blob();
   assert.strictEqual(inspect(b, { depth: null }),
+                     'Blob { size: 0, type: \'\' }');
+  assert.strictEqual(inspect(b, { depth: 1 }),
                      'Blob { size: 0, type: \'\' }');
   assert.strictEqual(inspect(b, { depth: -1 }), '[Blob]');
 }
@@ -230,6 +249,30 @@ assert.throws(() => new Blob({}), {
   });
 }
 
+{
+  assert.throws(() => Reflect.get(Blob.prototype, 'type', {}), {
+    code: 'ERR_INVALID_THIS',
+  });
+  assert.throws(() => Reflect.get(Blob.prototype, 'size', {}), {
+    code: 'ERR_INVALID_THIS',
+  });
+  assert.throws(() => Blob.prototype.slice(Blob.prototype, 0, 1), {
+    code: 'ERR_INVALID_THIS',
+  });
+  assert.throws(() => Blob.prototype.stream.call(), {
+    code: 'ERR_INVALID_THIS',
+  });
+}
+
+(async () => {
+  assert.rejects(async () => Blob.prototype.arrayBuffer.call(), {
+    code: 'ERR_INVALID_THIS',
+  });
+  assert.rejects(async () => Blob.prototype.text.call(), {
+    code: 'ERR_INVALID_THIS',
+  });
+})().then(common.mustCall());
+
 (async () => {
   const blob = new Blob([
     new Uint8Array([0x50, 0x41, 0x53, 0x53]),
@@ -244,3 +287,32 @@ assert.throws(() => new Blob({}), {
   assert.strictEqual(blob.size, 28);
   assert.strictEqual(blob.type, '');
 })().then(common.mustCall());
+
+{
+  // Testing the defaults
+  [undefined, null, { __proto__: null }, { type: undefined }, {
+    get type() {}, // eslint-disable-line getter-return
+  }].forEach((options) => {
+    assert.strictEqual(
+      new Blob([], options).type,
+      new Blob([]).type,
+    );
+  });
+
+  Reflect.defineProperty(Object.prototype, 'type', {
+    __proto__: null,
+    configurable: true,
+    get: common.mustCall(() => 3, 7),
+  });
+
+  [{}, [], () => {}, Number, new Number(), new String(), new Boolean()].forEach(
+    (options) => {
+      assert.strictEqual(new Blob([], options).type, '3');
+    },
+  );
+  [0, '', true, Symbol(), 0n].forEach((options) => {
+    assert.throws(() => new Blob([], options), { code: 'ERR_INVALID_ARG_TYPE' });
+  });
+
+  delete Object.prototype.type;
+}

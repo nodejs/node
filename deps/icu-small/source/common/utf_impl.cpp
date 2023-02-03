@@ -55,7 +55,7 @@
  * -finish:
  * (BSR: Bit Scan Reverse, scans for a 1-bit, starting from the MSB)
  */
-extern "C" U_EXPORT const uint8_t
+U_CAPI const uint8_t
 utf8_countTrailBytes[256]={
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -117,11 +117,11 @@ errorValue(int32_t count, int8_t strict) {
  *         Unicode 16-bit strings that are not well-formed UTF-16, that is, they
  *         contain unpaired surrogates.
  *     -3: All illegal byte sequences yield U+FFFD.
- *  0  Obsolete "safe" behavior of UTF8_NEXT_CHAR_SAFE(..., FALSE):
+ *  0  Obsolete "safe" behavior of UTF8_NEXT_CHAR_SAFE(..., false):
  *     All illegal byte sequences yield a positive code point such that this
  *     result code point would be encoded with the same number of bytes as
  *     the illegal sequence.
- * >0  Obsolete "strict" behavior of UTF8_NEXT_CHAR_SAFE(..., TRUE):
+ * >0  Obsolete "strict" behavior of UTF8_NEXT_CHAR_SAFE(..., true):
  *     Same as the obsolete "safe" behavior, but non-characters are also treated
  *     like illegal sequences.
  *
@@ -214,7 +214,7 @@ utf8_appendCharSafeBody(uint8_t *s, int32_t i, int32_t length, UChar32 c, UBool 
     }
     /* c>0x10ffff or not enough space, write an error value */
     if(pIsError!=NULL) {
-        *pIsError=TRUE;
+        *pIsError=true;
     } else {
         length-=i;
         if(length>0) {

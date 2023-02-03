@@ -34,29 +34,18 @@ ValueType WasmInitExpr::type(const WasmModule* module,
       uint32_t heap_type = enabled_features.has_typed_funcref()
                                ? module->functions[immediate().index].sig_index
                                : HeapType::kFunc;
-      return ValueType::Ref(heap_type, kNonNullable);
+      return ValueType::Ref(heap_type);
     }
     case kRefNullConst:
-      return ValueType::Ref(immediate().heap_type, kNullable);
-    case kStructNewWithRtt:
+      return ValueType::RefNull(immediate().heap_type);
     case kStructNew:
-    case kStructNewDefaultWithRtt:
     case kStructNewDefault:
-    case kArrayInit:
-    case kArrayInitStatic:
-      return ValueType::Ref(immediate().index, kNonNullable);
-    case kRttCanon:
-      return ValueType::Rtt(immediate().heap_type, 0);
-    case kRttSub:
-    case kRttFreshSub: {
-      ValueType operand_type = (*operands())[0].type(module, enabled_features);
-      if (!operand_type.is_rtt()) return kWasmBottom;
-      if (operand_type.has_depth()) {
-        return ValueType::Rtt(immediate().heap_type, operand_type.depth() + 1);
-      } else {
-        return ValueType::Rtt(immediate().heap_type);
-      }
-    }
+    case kArrayNewFixed:
+      return ValueType::Ref(immediate().index);
+    case kI31New:
+      return kWasmI31Ref.AsNonNull();
+    case kStringConst:
+      return ValueType::Ref(HeapType::kString);
   }
 }
 

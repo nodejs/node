@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection --experimental-wasm-reftypes
+// Flags: --experimental-wasm-type-reflection
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestTableType() {
+  print(arguments.callee.name);
   let table = new WebAssembly.Table({initial: 1, element: "externref"});
   let type = table.type();
   assertEquals(1, type.minimum);
@@ -22,6 +23,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function TestGlobalType() {
+  print(arguments.callee.name);
   let global = new WebAssembly.Global({value: "externref", mutable: true});
   let type = global.type();
   assertEquals("externref", type.value);
@@ -34,14 +36,21 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
+  global = new WebAssembly.Global({value: "funcref"});
+  type = global.type();
+  assertEquals("funcref", type.value);
+  assertEquals(false, type.mutable);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
+
   global = new WebAssembly.Global({value: "anyfunc"});
   type = global.type();
-  assertEquals("anyfunc", type.value);
+  assertEquals("funcref", type.value);
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 })();
 
 (function TestFunctionGlobalGetAndSet() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let fun1 = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => 7);
   let fun2 = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => 9);
@@ -73,10 +82,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(fun2, instance.exports.get_global());
 })();
 
-// This is an extension of "type-reflection.js/TestFunctionTableSetAndCall" to
-// multiple table indexes. If --experimental-wasm-reftypes is enabled by default
-// this test case can supersede the other one.
 (function TestFunctionMultiTableSetAndCall() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let v1 = 7; let v2 = 9; let v3 = 0.0;
   let f1 = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => v1);

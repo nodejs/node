@@ -4,7 +4,6 @@
 
 #include "test/unittests/compiler/graph-unittest.h"
 
-#include "src/compiler/js-heap-copy-reducer.h"
 #include "src/compiler/node-properties.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"  // TODO(everyone): Make typer.h IWYU compliant.
@@ -40,12 +39,12 @@ Node* GraphTest::Parameter(Type type, int32_t index) {
   return node;
 }
 
-Node* GraphTest::Float32Constant(volatile float value) {
+Node* GraphTest::Float32Constant(float value) {
   return graph()->NewNode(common()->Float32Constant(value));
 }
 
 
-Node* GraphTest::Float64Constant(volatile double value) {
+Node* GraphTest::Float64Constant(double value) {
   return graph()->NewNode(common()->Float64Constant(value));
 }
 
@@ -60,7 +59,7 @@ Node* GraphTest::Int64Constant(int64_t value) {
 }
 
 
-Node* GraphTest::NumberConstant(volatile double value) {
+Node* GraphTest::NumberConstant(double value) {
   return graph()->NewNode(common()->NumberConstant(value));
 }
 

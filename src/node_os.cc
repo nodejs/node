@@ -28,7 +28,6 @@
 #endif  // __MINGW32__
 
 #ifdef __POSIX__
-# include <unistd.h>        // gethostname, sysconf
 # include <climits>         // PATH_MAX on Solaris.
 #endif  // __POSIX__
 
@@ -86,12 +85,12 @@ static void GetOSInformation(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetUndefined();
   }
 
-  // [sysname, version, release]
+  // [sysname, version, release, machine]
   Local<Value> osInformation[] = {
-    String::NewFromUtf8(env->isolate(), info.sysname).ToLocalChecked(),
-    String::NewFromUtf8(env->isolate(), info.version).ToLocalChecked(),
-    String::NewFromUtf8(env->isolate(), info.release).ToLocalChecked()
-  };
+      String::NewFromUtf8(env->isolate(), info.sysname).ToLocalChecked(),
+      String::NewFromUtf8(env->isolate(), info.version).ToLocalChecked(),
+      String::NewFromUtf8(env->isolate(), info.release).ToLocalChecked(),
+      String::NewFromUtf8(env->isolate(), info.machine).ToLocalChecked()};
 
   args.GetReturnValue().Set(Array::New(env->isolate(),
                                        osInformation,
@@ -149,10 +148,15 @@ static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetUptime(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   double uptime;
   int err = uv_uptime(&uptime);
-  if (err == 0)
-    args.GetReturnValue().Set(uptime);
+  if (err != 0) {
+    env->CollectUVExceptionInfo(args[args.Length() - 1], err, "uv_uptime");
+    return args.GetReturnValue().SetUndefined();
+  }
+
+  args.GetReturnValue().Set(uptime);
 }
 
 
@@ -161,7 +165,7 @@ static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
   Local<Float64Array> array = args[0].As<Float64Array>();
   CHECK_EQ(array->Length(), 3);
   Local<ArrayBuffer> ab = array->Buffer();
-  double* loadavg = static_cast<double*>(ab->GetBackingStore()->Data());
+  double* loadavg = static_cast<double*>(ab->Data());
   uv_loadavg(loadavg);
 }
 
@@ -376,27 +380,35 @@ static void GetPriority(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(priority);
 }
 
+static void GetAvailableParallelism(const FunctionCallbackInfo<Value>& args) {
+  unsigned int parallelism = uv_available_parallelism();
+  args.GetReturnValue().Set(parallelism);
+}
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  env->SetMethod(target, "getHostname", GetHostname);
-  env->SetMethod(target, "getLoadAvg", GetLoadAvg);
-  env->SetMethod(target, "getUptime", GetUptime);
-  env->SetMethod(target, "getTotalMem", GetTotalMemory);
-  env->SetMethod(target, "getFreeMem", GetFreeMemory);
-  env->SetMethod(target, "getCPUs", GetCPUInfo);
-  env->SetMethod(target, "getInterfaceAddresses", GetInterfaceAddresses);
-  env->SetMethod(target, "getHomeDirectory", GetHomeDirectory);
-  env->SetMethod(target, "getUserInfo", GetUserInfo);
-  env->SetMethod(target, "setPriority", SetPriority);
-  env->SetMethod(target, "getPriority", GetPriority);
-  env->SetMethod(target, "getOSInformation", GetOSInformation);
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),
-              Boolean::New(env->isolate(), IsBigEndian())).Check();
+  SetMethod(context, target, "getHostname", GetHostname);
+  SetMethod(context, target, "getLoadAvg", GetLoadAvg);
+  SetMethod(context, target, "getUptime", GetUptime);
+  SetMethod(context, target, "getTotalMem", GetTotalMemory);
+  SetMethod(context, target, "getFreeMem", GetFreeMemory);
+  SetMethod(context, target, "getCPUs", GetCPUInfo);
+  SetMethod(context, target, "getInterfaceAddresses", GetInterfaceAddresses);
+  SetMethod(context, target, "getHomeDirectory", GetHomeDirectory);
+  SetMethod(context, target, "getUserInfo", GetUserInfo);
+  SetMethod(context, target, "setPriority", SetPriority);
+  SetMethod(context, target, "getPriority", GetPriority);
+  SetMethod(
+      context, target, "getAvailableParallelism", GetAvailableParallelism);
+  SetMethod(context, target, "getOSInformation", GetOSInformation);
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),
+            Boolean::New(env->isolate(), IsBigEndian()))
+      .Check();
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -411,11 +423,12 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetUserInfo);
   registry->Register(SetPriority);
   registry->Register(GetPriority);
+  registry->Register(GetAvailableParallelism);
   registry->Register(GetOSInformation);
 }
 
 }  // namespace os
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(os, node::os::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(os, node::os::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(os, node::os::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(os, node::os::RegisterExternalReferences)

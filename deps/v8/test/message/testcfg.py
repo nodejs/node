@@ -99,7 +99,3 @@ class TestCase(testcase.D8TestCase):
                            self._expected_fail(),
                            self._base_path + '.out',
                            self.suite.test_config.regenerate_expected_files)
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

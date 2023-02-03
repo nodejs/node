@@ -16,7 +16,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce position of line comments",
+            description: "Enforce position of line comments",
             recommended: false,
             url: "https://eslint.org/docs/rules/line-comment-position"
         },

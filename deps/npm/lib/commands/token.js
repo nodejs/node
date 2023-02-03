@@ -1,5 +1,5 @@
 const Table = require('cli-table3')
-const ansistyles = require('ansistyles')
+const chalk = require('chalk')
 const { v4: isCidrV4, v6: isCidrV6 } = require('is-cidr')
 const log = require('../utils/log-shim.js')
 const profile = require('npm-profile')
@@ -14,7 +14,6 @@ class Token extends BaseCommand {
   static name = 'token'
   static usage = ['list', 'revoke <id|token>', 'create [--read-only] [--cidr=list]']
   static params = ['read-only', 'cidr', 'registry', 'otp']
-  static ignoreImplicitWorkspace = true
 
   async completion (opts) {
     const argv = opts.conf.argv.remain
@@ -30,7 +29,7 @@ class Token extends BaseCommand {
     throw new Error(argv[2] + ' not recognized')
   }
 
-  async exec (args, cb) {
+  async exec (args) {
     log.gauge.show('token')
     if (args.length === 0) {
       return this.list()
@@ -121,9 +120,7 @@ class Token extends BaseCommand {
     })
     await Promise.all(
       toRemove.map(key => {
-        return otplease(conf, conf => {
-          return profile.removeToken(key, conf)
-        })
+        return otplease(this.npm, conf, c => profile.removeToken(key, c))
       })
     )
     if (conf.json) {
@@ -140,32 +137,25 @@ class Token extends BaseCommand {
     const cidr = conf.cidr
     const readonly = conf.readOnly
 
-    return readUserInfo
-      .password()
-      .then(password => {
-        const validCIDR = this.validateCIDRList(cidr)
-        log.info('token', 'creating')
-        return pulseTillDone.withPromise(
-          otplease(conf, conf => {
-            return profile.createToken(password, readonly, validCIDR, conf)
-          })
-        )
-      })
-      .then(result => {
-        delete result.key
-        delete result.updated
-        if (conf.json) {
-          this.npm.output(JSON.stringify(result))
-        } else if (conf.parseable) {
-          Object.keys(result).forEach(k => this.npm.output(k + '\t' + result[k]))
-        } else {
-          const table = new Table()
-          for (const k of Object.keys(result)) {
-            table.push({ [ansistyles.bright(k)]: String(result[k]) })
-          }
-          this.npm.output(table.toString())
-        }
-      })
+    const password = await readUserInfo.password()
+    const validCIDR = this.validateCIDRList(cidr)
+    log.info('token', 'creating')
+    const result = await pulseTillDone.withPromise(
+      otplease(this.npm, conf, c => profile.createToken(password, readonly, validCIDR, c))
+    )
+    delete result.key
+    delete result.updated
+    if (conf.json) {
+      this.npm.output(JSON.stringify(result))
+    } else if (conf.parseable) {
+      Object.keys(result).forEach(k => this.npm.output(k + '\t' + result[k]))
+    } else {
+      const table = new Table()
+      for (const k of Object.keys(result)) {
+        table.push({ [chalk.bold(k)]: String(result[k]) })
+      }
+      this.npm.output(table.toString())
+    }
   }
 
   config () {
@@ -221,7 +211,7 @@ class Token extends BaseCommand {
   }
 
   validateCIDRList (cidrs) {
-    const maybeList = cidrs ? (Array.isArray(cidrs) ? cidrs : [cidrs]) : []
+    const maybeList = [].concat(cidrs).filter(Boolean)
     const list = maybeList.length === 1 ? maybeList[0].split(/,\s*/) : maybeList
     for (const cidr of list) {
       if (isCidrV6(cidr)) {

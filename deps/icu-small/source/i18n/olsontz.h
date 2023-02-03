@@ -400,7 +400,7 @@ private:
     TimeArrayTimeZoneRule   **historicRules;
     int16_t             historicRuleCount;
     SimpleTimeZone      *finalZoneWithStartYear; // hack
-    UInitOnce           transitionRulesInitOnce = U_INITONCE_INITIALIZER;
+    UInitOnce           transitionRulesInitOnce {};
 };
 
 inline int16_t

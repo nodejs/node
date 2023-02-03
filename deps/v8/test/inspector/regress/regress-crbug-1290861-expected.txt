@@ -1,0 +1,4 @@
+Ensure that catch prediction is correct for [[Reject]] handlers.
+
+Running test: test
+Uncaught exception in rejectHandler

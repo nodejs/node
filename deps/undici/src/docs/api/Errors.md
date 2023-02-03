@@ -19,7 +19,7 @@ import { errors } from 'undici'
 | `RequestContentLengthMismatchError`  | `UND_ERR_REQ_CONTENT_LENGTH_MISMATCH` | request body does not match content-length header  |
 | `ResponseContentLengthMismatchError` | `UND_ERR_RES_CONTENT_LENGTH_MISMATCH` | response body does not match content-length header |
 | `InformationalError`                 | `UND_ERR_INFO`                        | expected error with reason                         |
-| `TrailerMismatchError`               | `UND_ERR_TRAILER_MISMATCH`            | trailers did not match specification               |
+| `ResponseExceededMaxSizeError`       | `UND_ERR_RES_EXCEEDED_MAX_SIZE`       | response body exceed the max size allowed          |
 
 ### `SocketError`
 

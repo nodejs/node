@@ -20,7 +20,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing before or after unary operators",
+            description: "Enforce consistent spacing before or after unary operators",
             recommended: false,
             url: "https://eslint.org/docs/rules/space-unary-ops"
         },

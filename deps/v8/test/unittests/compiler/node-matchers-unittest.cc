@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/node-matchers.h"
+
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
-#include "src/compiler/node-matchers.h"
-#include "src/compiler/opcodes.h"
-
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/test-utils.h"
 

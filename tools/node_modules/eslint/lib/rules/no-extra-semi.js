@@ -22,7 +22,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow unnecessary semicolons",
+            description: "Disallow unnecessary semicolons",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-extra-semi"
         },
@@ -98,7 +98,7 @@ module.exports = {
                         "WithStatement"
                     ];
 
-                if (allowedParentTypes.indexOf(parent.type) === -1) {
+                if (!allowedParentTypes.includes(parent.type)) {
                     report(node);
                 }
             },

@@ -4,15 +4,12 @@
 
 #include "src/api/api-natives.h"
 
-#include "src/api/api-inl.h"
 #include "src/common/message-template.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/api-callbacks.h"
-#include "src/objects/hash-table-inl.h"
 #include "src/objects/lookup.h"
-#include "src/objects/property-cell.h"
 #include "src/objects/templates.h"
 
 namespace v8 {
@@ -86,6 +83,8 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
         InstantiateFunction(isolate,
                             Handle<FunctionTemplateInfo>::cast(getter)),
         Object);
+    Handle<CodeT> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
+    Handle<JSFunction>::cast(getter)->set_code(*trampoline);
   }
   if (setter->IsFunctionTemplateInfo() &&
       FunctionTemplateInfo::cast(*setter).BreakAtEntry()) {
@@ -94,6 +93,8 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
         InstantiateFunction(isolate,
                             Handle<FunctionTemplateInfo>::cast(setter)),
         Object);
+    Handle<CodeT> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
+    Handle<JSFunction>::cast(setter)->set_code(*trampoline);
   }
   RETURN_ON_EXCEPTION(
       isolate,
@@ -386,7 +387,7 @@ bool IsSimpleInstantiation(Isolate* isolate, ObjectTemplateInfo info,
   if (fun.shared().function_data(kAcquireLoad) != info.constructor())
     return false;
   if (info.immutable_proto()) return false;
-  return fun.context().native_context() == isolate->raw_native_context();
+  return fun.native_context() == isolate->raw_native_context();
 }
 
 MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
@@ -532,7 +533,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
   if (!data->needs_access_check() &&
       data->GetNamedPropertyHandler().IsUndefined(isolate) &&
       data->GetIndexedPropertyHandler().IsUndefined(isolate)) {
-    function_type = FLAG_embedder_instance_types && data->HasInstanceType()
+    function_type = v8_flags.embedder_instance_types && data->HasInstanceType()
                         ? static_cast<InstanceType>(data->InstanceType())
                         : JS_API_OBJECT_TYPE;
   }

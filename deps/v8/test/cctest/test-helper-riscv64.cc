@@ -6,7 +6,6 @@
 
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/isolate-inl.h"
-#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -39,7 +38,7 @@ Handle<Code> AssembleCodeImpl(Func assemble) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  if (FLAG_print_code) {
+  if (v8_flags.print_code) {
     code->Print();
   }
   return code;

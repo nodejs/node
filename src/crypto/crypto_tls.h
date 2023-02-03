@@ -34,6 +34,7 @@
 #include <openssl/ssl.h>
 
 #include <string>
+#include <vector>
 
 namespace node {
 namespace crypto {
@@ -166,8 +167,6 @@ class TLSWrap : public AsyncWrap,
 
   int SetCACerts(SecureContext* sc);
 
-  int GetSSLError(int status) const;
-
   static int SelectSNIContextCallback(SSL* s, int* ad, void* arg);
 
   static void CertCbDone(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -283,6 +282,9 @@ class TLSWrap : public AsyncWrap,
   void* cert_cb_arg_ = nullptr;
 
   BIOPointer bio_trace_;
+
+ public:
+  std::vector<unsigned char> alpn_protos_;  // Accessed by SelectALPNCallback.
 };
 
 }  // namespace crypto

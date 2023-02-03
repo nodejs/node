@@ -1,0 +1,17 @@
+Checks that setScriptSource works for editing the top-most stack frame
+Paused at (before live edit):
+function testExpression(a, b) {
+  #debugger;
+  return a + b;
+
+Paused at (after live edit):
+function testExpression(a, b) {
+  return a * b;#
+}
+
+Result:
+{
+    description : 15
+    type : number
+    value : 15
+}

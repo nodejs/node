@@ -42,7 +42,7 @@
 
 #if V8_CC_GNU
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#if V8_HOST_ARCH_X64 || V8_HOST_ARCH_IA32
 
 // TODO(https://crbug.com/958675): In theory, it should be possible to use just
 // int3. However, there are a number of crashes with SIGILL as the exception
@@ -50,13 +50,13 @@
 // to continue after SIGTRAP.
 #define TRAP_SEQUENCE1_() asm volatile("int3")
 
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 // Intentionally empty: __builtin_unreachable() is always part of the sequence
 // (see IMMEDIATE_CRASH below) and already emits a ud2 on Mac.
 #define TRAP_SEQUENCE2_() asm volatile("")
 #else
 #define TRAP_SEQUENCE2_() asm volatile("ud2")
-#endif  // V8_OS_MACOSX
+#endif  // V8_OS_DARWIN
 
 #elif V8_HOST_ARCH_ARM
 

@@ -46,12 +46,12 @@ class JSListFormat
   // ecma402 #sec-formatlist
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatList(
       Isolate* isolate, Handle<JSListFormat> format_holder,
-      Handle<JSArray> list);
+      Handle<FixedArray> list);
 
   // ecma42 #sec-formatlisttoparts
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatListToParts(
       Isolate* isolate, Handle<JSListFormat> format_holder,
-      Handle<JSArray> list);
+      Handle<FixedArray> list);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
@@ -86,12 +86,12 @@ class JSListFormat
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_JS_LIST_FORMAT_FLAGS()
 
-  STATIC_ASSERT(Style::LONG <= StyleBits::kMax);
-  STATIC_ASSERT(Style::SHORT <= StyleBits::kMax);
-  STATIC_ASSERT(Style::NARROW <= StyleBits::kMax);
-  STATIC_ASSERT(Type::CONJUNCTION <= TypeBits::kMax);
-  STATIC_ASSERT(Type::DISJUNCTION <= TypeBits::kMax);
-  STATIC_ASSERT(Type::UNIT <= TypeBits::kMax);
+  static_assert(Style::LONG <= StyleBits::kMax);
+  static_assert(Style::SHORT <= StyleBits::kMax);
+  static_assert(Style::NARROW <= StyleBits::kMax);
+  static_assert(Type::CONJUNCTION <= TypeBits::kMax);
+  static_assert(Type::DISJUNCTION <= TypeBits::kMax);
+  static_assert(Type::UNIT <= TypeBits::kMax);
 
   DECL_PRINTER(JSListFormat)
 

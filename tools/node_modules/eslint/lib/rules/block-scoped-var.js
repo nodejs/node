@@ -14,7 +14,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce the use of variables within the scope they are defined",
+            description: "Enforce the use of variables within the scope they are defined",
             recommended: false,
             url: "https://eslint.org/docs/rules/block-scoped-var"
         },

@@ -8,19 +8,28 @@ bitfield struct JSArrayBufferFlags extends uint32 {
   was_detached: bool: 1 bit;
   is_asm_js_memory: bool: 1 bit;
   is_shared: bool: 1 bit;
-  is_resizable: bool: 1 bit;
+  is_resizable_by_js: bool: 1 bit;
 }
 
-extern class JSArrayBuffer extends JSObject {
-  byte_length: uintptr;
-  max_byte_length: uintptr;
-  backing_store: ExternalPointer;
-  extension: RawPtr;
+extern class JSArrayBuffer extends JSObjectWithEmbedderSlots {
+  detach_key: Object;
+  // A BoundedSize if the sandbox is enabled
+  raw_byte_length: uintptr;
+  // A BoundedSize if the sandbox is enabled
+  raw_max_byte_length: uintptr;
+  // A SandboxedPtr if the sandbox is enabled
+  backing_store: RawPtr;
+  extension: ExternalPointer;
   bit_field: JSArrayBufferFlags;
   // Pads header size to be a multiple of kTaggedSize.
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
+
+extern operator '.byte_length' macro LoadJSArrayBufferByteLength(JSArrayBuffer):
+    uintptr;
+extern operator '.max_byte_length' macro LoadJSArrayBufferMaxByteLength(
+    JSArrayBuffer): uintptr;
 
 extern operator '.backing_store_ptr' macro LoadJSArrayBufferBackingStorePtr(
     JSArrayBuffer): RawPtr;
@@ -37,7 +46,7 @@ macro IsSharedArrayBuffer(buffer: JSArrayBuffer): bool {
 
 @export
 macro IsResizableArrayBuffer(buffer: JSArrayBuffer): bool {
-  return buffer.bit_field.is_resizable;
+  return buffer.bit_field.is_resizable_by_js;
 }
 
 // We have 4 different DataViews & TypedArrays:
@@ -52,15 +61,26 @@ bitfield struct JSArrayBufferViewFlags extends uint32 {
 }
 
 @abstract
-extern class JSArrayBufferView extends JSObject {
+extern class JSArrayBufferView extends JSObjectWithEmbedderSlots {
   buffer: JSArrayBuffer;
-  byte_offset: uintptr;
-  byte_length: uintptr;
+  // A BoundedSize if the sandbox is enabled
+  raw_byte_offset: uintptr;
+  // A BoundedSize if the sandbox is enabled
+  raw_byte_length: uintptr;
   bit_field: JSArrayBufferViewFlags;
   // Pads header size to be a multiple of kTaggedSize.
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
+
+extern operator '.byte_offset' macro LoadJSArrayBufferViewByteOffset(
+    JSArrayBufferView): uintptr;
+extern operator '.byte_offset=' macro StoreJSArrayBufferViewByteOffset(
+    JSArrayBufferView, uintptr): void;
+extern operator '.byte_length' macro LoadJSArrayBufferViewByteLength(
+    JSArrayBufferView): uintptr;
+extern operator '.byte_length=' macro StoreJSArrayBufferViewByteLength(
+    JSArrayBufferView, uintptr): void;
 
 @export
 macro IsVariableLengthJSArrayBufferView(array: JSArrayBufferView): bool {
@@ -72,11 +92,31 @@ macro IsLengthTrackingJSArrayBufferView(array: JSArrayBufferView): bool {
   return array.bit_field.is_length_tracking;
 }
 
+extern macro LoadVariableLengthJSArrayBufferViewByteLength(
+    JSArrayBufferView, JSArrayBuffer): uintptr labels DetachedOrOutOfBounds;
+
+macro LoadJSArrayBufferViewByteLength(
+    view: JSArrayBufferView,
+    buffer: JSArrayBuffer): uintptr labels DetachedOrOutOfBounds {
+  if (IsVariableLengthJSArrayBufferView(view)) {
+    return LoadVariableLengthJSArrayBufferViewByteLength(view, buffer)
+        otherwise DetachedOrOutOfBounds;
+  }
+  if (IsDetachedBuffer(buffer)) goto DetachedOrOutOfBounds;
+  return view.byte_length;
+}
+
 extern class JSTypedArray extends JSArrayBufferView {
-  length: uintptr;
-  external_pointer: ExternalPointer;
+  // A BoundedSize if the sandbox is enabled
+  raw_length: uintptr;
+  // A SandboxedPtr if the sandbox is enabled
+  external_pointer: RawPtr;
   base_pointer: ByteArray|Smi;
 }
+
+extern operator '.length' macro LoadJSTypedArrayLength(JSTypedArray): uintptr;
+extern operator '.length=' macro StoreJSTypedArrayLength(
+    JSTypedArray, uintptr): void;
 
 @export
 macro IsOnHeapTypedArray(array: JSTypedArray): bool {
@@ -85,7 +125,8 @@ macro IsOnHeapTypedArray(array: JSTypedArray): bool {
 }
 
 extern class JSDataView extends JSArrayBufferView {
-  data_pointer: ExternalPointer;
+  // A SandboxedPtr if the sandbox is enabled
+  data_pointer: RawPtr;
 }
 
 @abstract

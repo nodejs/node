@@ -13,16 +13,61 @@ namespace fs {
 
 class FileHandleReadWrap;
 
+enum class FsStatsOffset {
+  kDev = 0,
+  kMode,
+  kNlink,
+  kUid,
+  kGid,
+  kRdev,
+  kBlkSize,
+  kIno,
+  kSize,
+  kBlocks,
+  kATimeSec,
+  kATimeNsec,
+  kMTimeSec,
+  kMTimeNsec,
+  kCTimeSec,
+  kCTimeNsec,
+  kBirthTimeSec,
+  kBirthTimeNsec,
+  kFsStatsFieldsNumber
+};
+
+// Stat fields buffers contain twice the number of entries in an uv_stat_t
+// because `fs.StatWatcher` needs room to store 2 `fs.Stats` instances.
+constexpr size_t kFsStatsBufferLength =
+    static_cast<size_t>(FsStatsOffset::kFsStatsFieldsNumber) * 2;
+
+enum class FsStatFsOffset {
+  kType = 0,
+  kBSize,
+  kBlocks,
+  kBFree,
+  kBAvail,
+  kFiles,
+  kFFree,
+  kFsStatFsFieldsNumber
+};
+
+constexpr size_t kFsStatFsBufferLength =
+    static_cast<size_t>(FsStatFsOffset::kFsStatFsFieldsNumber);
+
 class BindingData : public SnapshotableObject {
  public:
   explicit BindingData(Environment* env, v8::Local<v8::Object> wrap);
 
   AliasedFloat64Array stats_field_array;
-  AliasedBigUint64Array stats_field_bigint_array;
+  AliasedBigInt64Array stats_field_bigint_array;
+
+  AliasedFloat64Array statfs_field_array;
+  AliasedBigInt64Array statfs_field_bigint_array;
 
   std::vector<BaseObjectPtr<FileHandleReadWrap>>
       file_handle_read_wrap_freelist;
 
+  using InternalFieldInfo = InternalFieldInfoBase;
   SERIALIZABLE_OBJECT_METHODS()
   static constexpr FastStringKey type_name{"node::fs::BindingData"};
   static constexpr EmbedderObjectType type_int =
@@ -81,6 +126,7 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   virtual void Reject(v8::Local<v8::Value> reject) = 0;
   virtual void Resolve(v8::Local<v8::Value> value) = 0;
   virtual void ResolveStat(const uv_stat_t* stat) = 0;
+  virtual void ResolveStatFs(const uv_statfs_t* stat) = 0;
   virtual void SetReturnValue(
       const v8::FunctionCallbackInfo<v8::Value>& args) = 0;
 
@@ -89,8 +135,10 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   enum encoding encoding() const { return encoding_; }
   bool use_bigint() const { return use_bigint_; }
   bool is_plain_open() const { return is_plain_open_; }
+  bool with_file_types() const { return with_file_types_; }
 
   void set_is_plain_open(bool value) { is_plain_open_ = value; }
+  void set_with_file_types(bool value) { with_file_types_ = value; }
 
   FSContinuationData* continuation_data() const {
     return continuation_data_.get();
@@ -116,6 +164,7 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   bool has_data_ = false;
   bool use_bigint_ = false;
   bool is_plain_open_ = false;
+  bool with_file_types_ = false;
   const char* syscall_ = nullptr;
 
   BaseObjectPtr<BindingData> binding_data_;
@@ -134,6 +183,7 @@ class FSReqCallback final : public FSReqBase {
   void Reject(v8::Local<v8::Value> reject) override;
   void Resolve(v8::Local<v8::Value> value) override;
   void ResolveStat(const uv_stat_t* stat) override;
+  void ResolveStatFs(const uv_statfs_t* stat) override;
   void SetReturnValue(const v8::FunctionCallbackInfo<v8::Value>& args) override;
 
   SET_MEMORY_INFO_NAME(FSReqCallback)
@@ -153,6 +203,14 @@ inline v8::Local<v8::Value> FillGlobalStatsArray(BindingData* binding_data,
                                                  const uv_stat_t* s,
                                                  const bool second = false);
 
+template <typename NativeT, typename V8T>
+void FillStatFsArray(AliasedBufferBase<NativeT, V8T>* fields,
+                     const uv_statfs_t* s);
+
+inline v8::Local<v8::Value> FillGlobalStatFsArray(BindingData* binding_data,
+                                                  const bool use_bigint,
+                                                  const uv_statfs_t* s);
+
 template <typename AliasedBufferT>
 class FSReqPromise final : public FSReqBase {
  public:
@@ -163,6 +221,7 @@ class FSReqPromise final : public FSReqBase {
   inline void Reject(v8::Local<v8::Value> reject) override;
   inline void Resolve(v8::Local<v8::Value> value) override;
   inline void ResolveStat(const uv_stat_t* stat) override;
+  inline void ResolveStatFs(const uv_statfs_t* stat) override;
   inline void SetReturnValue(
       const v8::FunctionCallbackInfo<v8::Value>& args) override;
   inline void MemoryInfo(MemoryTracker* tracker) const override;
@@ -182,6 +241,7 @@ class FSReqPromise final : public FSReqBase {
 
   bool finished_ = false;
   AliasedBufferT stats_field_array_;
+  AliasedBufferT statfs_field_array_;
 };
 
 class FSReqAfterScope final {

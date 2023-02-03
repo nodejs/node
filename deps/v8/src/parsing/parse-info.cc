@@ -28,18 +28,18 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
       function_kind_(FunctionKind::kNormalFunction),
       function_syntax_kind_(FunctionSyntaxKind::kDeclaration),
       parsing_while_debugging_(ParsingWhileDebugging::kNo) {
-  set_collect_type_profile(isolate->is_collecting_type_profile());
   set_coverage_enabled(!isolate->is_best_effort_code_coverage());
   set_block_coverage_enabled(isolate->is_block_code_coverage());
-  set_might_always_opt(FLAG_always_opt || FLAG_prepare_always_opt);
-  set_allow_natives_syntax(FLAG_allow_natives_syntax);
+  set_might_always_turbofan(v8_flags.always_turbofan ||
+                            v8_flags.prepare_always_turbofan);
+  set_allow_natives_syntax(v8_flags.allow_natives_syntax);
   set_allow_lazy_compile(true);
-  set_collect_source_positions(!FLAG_enable_lazy_source_positions ||
+  set_collect_source_positions(!v8_flags.enable_lazy_source_positions ||
                                isolate->NeedsDetailedOptimizedCodeLineInfo());
   set_post_parallel_compile_tasks_for_eager_toplevel(
-      FLAG_parallel_compile_tasks_for_eager_toplevel);
+      v8_flags.parallel_compile_tasks_for_eager_toplevel);
   set_post_parallel_compile_tasks_for_lazy(
-      FLAG_parallel_compile_tasks_for_lazy);
+      v8_flags.parallel_compile_tasks_for_lazy);
 }
 
 // static
@@ -59,15 +59,6 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
 #endif  // V8_ENABLE_WEBASSEMBLY
   flags.set_is_repl_mode(shared.is_repl_mode());
 
-  // CollectTypeProfile uses its own feedback slots. If we have existing
-  // FeedbackMetadata, we can only collect type profile if the feedback vector
-  // has the appropriate slots.
-  flags.set_collect_type_profile(
-      isolate->is_collecting_type_profile() &&
-      (shared.HasFeedbackMetadata()
-           ? shared.feedback_metadata().HasTypeProfileSlot()
-           : script.IsUserJavaScript()));
-
   // Do not support re-parsing top-level function of a wrapped script.
   DCHECK_IMPLIES(flags.is_toplevel(), !script.is_wrapped());
 
@@ -81,11 +72,11 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForScriptCompile(
 
   flags.SetFlagsForFunctionFromScript(script);
   flags.SetFlagsForToplevelCompile(
-      isolate->is_collecting_type_profile(), script.IsUserJavaScript(),
-      flags.outer_language_mode(), construct_repl_mode(script.is_repl_mode()),
+      script.IsUserJavaScript(), flags.outer_language_mode(),
+      construct_repl_mode(script.is_repl_mode()),
       script.origin_options().IsModule() ? ScriptType::kModule
                                          : ScriptType::kClassic,
-      FLAG_lazy);
+      v8_flags.lazy);
   if (script.is_wrapped()) {
     flags.set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
   }
@@ -98,12 +89,11 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForToplevelCompile(
     Isolate* isolate, bool is_user_javascript, LanguageMode language_mode,
     REPLMode repl_mode, ScriptType type, bool lazy) {
   UnoptimizedCompileFlags flags(isolate, isolate->GetNextScriptId());
-  flags.SetFlagsForToplevelCompile(isolate->is_collecting_type_profile(),
-                                   is_user_javascript, language_mode, repl_mode,
+  flags.SetFlagsForToplevelCompile(is_user_javascript, language_mode, repl_mode,
                                    type, lazy);
 
-  LOG(isolate,
-      ScriptEvent(Logger::ScriptEventType::kReserveId, flags.script_id()));
+  LOG(isolate, ScriptEvent(V8FileLogger::ScriptEventType::kReserveId,
+                           flags.script_id()));
   return flags;
 }
 
@@ -142,13 +132,11 @@ void UnoptimizedCompileFlags::SetFlagsFromFunction(T function) {
 }
 
 void UnoptimizedCompileFlags::SetFlagsForToplevelCompile(
-    bool is_collecting_type_profile, bool is_user_javascript,
-    LanguageMode language_mode, REPLMode repl_mode, ScriptType type,
-    bool lazy) {
+    bool is_user_javascript, LanguageMode language_mode, REPLMode repl_mode,
+    ScriptType type, bool lazy) {
   set_is_toplevel(true);
   set_allow_lazy_parsing(lazy);
   set_allow_lazy_compile(lazy);
-  set_collect_type_profile(is_user_javascript && is_collecting_type_profile);
   set_outer_language_mode(
       stricter_language_mode(outer_language_mode(), language_mode));
   set_is_repl_mode((repl_mode == REPLMode::kYes));
@@ -173,23 +161,29 @@ ReusableUnoptimizedCompileState::ReusableUnoptimizedCompileState(
     Isolate* isolate)
     : hash_seed_(HashSeed(isolate)),
       allocator_(isolate->allocator()),
-      logger_(isolate->logger()),
+      v8_file_logger_(isolate->v8_file_logger()),
       dispatcher_(isolate->lazy_compile_dispatcher()),
       ast_string_constants_(isolate->ast_string_constants()),
-      zone_(allocator_, "unoptimized-compile-zone"),
+      ast_raw_string_zone_(allocator_,
+                           "unoptimized-compile-ast-raw-string-zone"),
+      single_parse_zone_(allocator_, "unoptimized-compile-parse-zone"),
       ast_value_factory_(
-          new AstValueFactory(zone(), ast_string_constants(), hash_seed())) {}
+          new AstValueFactory(ast_raw_string_zone(), single_parse_zone(),
+                              ast_string_constants(), hash_seed())) {}
 
 ReusableUnoptimizedCompileState::ReusableUnoptimizedCompileState(
     LocalIsolate* isolate)
     : hash_seed_(HashSeed(isolate)),
       allocator_(isolate->allocator()),
-      logger_(isolate->main_thread_logger()),
+      v8_file_logger_(isolate->main_thread_logger()),
       dispatcher_(isolate->lazy_compile_dispatcher()),
       ast_string_constants_(isolate->ast_string_constants()),
-      zone_(allocator_, "unoptimized-compile-zone"),
+      ast_raw_string_zone_(allocator_,
+                           "unoptimized-compile-ast-raw-string-zone"),
+      single_parse_zone_(allocator_, "unoptimized-compile-parse-zone"),
       ast_value_factory_(
-          new AstValueFactory(zone(), ast_string_constants(), hash_seed())) {}
+          new AstValueFactory(ast_raw_string_zone(), single_parse_zone(),
+                              ast_string_constants(), hash_seed())) {}
 
 ReusableUnoptimizedCompileState::~ReusableUnoptimizedCompileState() = default;
 
@@ -235,7 +229,7 @@ ParseInfo::ParseInfo(LocalIsolate* isolate, const UnoptimizedCompileFlags flags,
     : ParseInfo(flags, state, reusable_state, stack_limit,
                 isolate->runtime_call_stats()) {}
 
-ParseInfo::~ParseInfo() = default;
+ParseInfo::~ParseInfo() { reusable_state_->NotifySingleParseCompleted(); }
 
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
@@ -249,28 +243,30 @@ Handle<Script> ParseInfo::CreateScript(
          flags().script_id() == Script::kTemporaryScriptId);
   Handle<Script> script =
       isolate->factory()->NewScriptWithId(source, flags().script_id());
+  DisallowGarbageCollection no_gc;
+  auto raw_script = *script;
   switch (natives) {
     case EXTENSION_CODE:
-      script->set_type(Script::TYPE_EXTENSION);
+      raw_script.set_type(Script::TYPE_EXTENSION);
       break;
     case INSPECTOR_CODE:
-      script->set_type(Script::TYPE_INSPECTOR);
+      raw_script.set_type(Script::TYPE_INSPECTOR);
       break;
     case NOT_NATIVES_CODE:
       break;
   }
-  script->set_origin_options(origin_options);
-  script->set_is_repl_mode(flags().is_repl_mode());
+  raw_script.set_origin_options(origin_options);
+  raw_script.set_is_repl_mode(flags().is_repl_mode());
 
   DCHECK_EQ(is_wrapped_as_function(), !maybe_wrapped_arguments.is_null());
   if (is_wrapped_as_function()) {
-    script->set_wrapped_arguments(*maybe_wrapped_arguments.ToHandleChecked());
+    raw_script.set_wrapped_arguments(
+        *maybe_wrapped_arguments.ToHandleChecked());
   } else if (flags().is_eval()) {
-    script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
+    raw_script.set_compilation_type(Script::COMPILATION_TYPE_EVAL);
   }
+  CheckFlagsForToplevelCompileFromScript(raw_script);
 
-  CheckFlagsForToplevelCompileFromScript(*script,
-                                         isolate->is_collecting_type_profile());
   return script;
 }
 
@@ -299,12 +295,9 @@ void ParseInfo::set_character_stream(
   character_stream_.swap(character_stream);
 }
 
-void ParseInfo::CheckFlagsForToplevelCompileFromScript(
-    Script script, bool is_collecting_type_profile) {
+void ParseInfo::CheckFlagsForToplevelCompileFromScript(Script script) {
   CheckFlagsForFunctionFromScript(script);
   DCHECK(flags().is_toplevel());
-  DCHECK_EQ(flags().collect_type_profile(),
-            is_collecting_type_profile && script.IsUserJavaScript());
   DCHECK_EQ(flags().is_repl_mode(), script.is_repl_mode());
 
   if (script.is_wrapped()) {

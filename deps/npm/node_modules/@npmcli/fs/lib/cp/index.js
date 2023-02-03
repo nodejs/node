@@ -1,4 +1,4 @@
-const fs = require('../fs.js')
+const fs = require('fs/promises')
 const getOptions = require('../common/get-options.js')
 const node = require('../common/node.js')
 const polyfill = require('./polyfill.js')

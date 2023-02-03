@@ -52,9 +52,10 @@ transitioning macro RegExpPrototypeMatchAllImpl(implicit context: Context)(
       // 10. Else, let global be false.
       global = FastFlagGetter(matcherRegExp, Flag::kGlobal);
 
-      // 11. If flags contains "u", let fullUnicode be true.
+      // 11. If flags contains "u" or "v", let fullUnicode be true.
       // 12. Else, let fullUnicode be false.
-      unicode = FastFlagGetter(matcherRegExp, Flag::kUnicode);
+      unicode = FastFlagGetter(matcherRegExp, Flag::kUnicode) ||
+          FastFlagGetter(matcherRegExp, Flag::kUnicodeSets);
     }
     case (Object): {
       // 4. Let C be ? SpeciesConstructor(R, %RegExp%).
@@ -81,12 +82,15 @@ transitioning macro RegExpPrototypeMatchAllImpl(implicit context: Context)(
       const globalIndex: Smi = StringIndexOf(flagsString, globalCharString, 0);
       global = globalIndex != -1;
 
-      // 11. If flags contains "u", let fullUnicode be true.
+      // 11. If flags contains "u" or "v", let fullUnicode be true.
       // 12. Else, let fullUnicode be false.
       const unicodeCharString = StringConstant('u');
+      const unicodeSetsCharString = StringConstant('v');
       const unicodeIndex: Smi =
           StringIndexOf(flagsString, unicodeCharString, 0);
-      unicode = unicodeIndex != -1;
+      const unicodeSetsIndex: Smi =
+          StringIndexOf(flagsString, unicodeSetsCharString, 0);
+      unicode = unicodeIndex != -1 || unicodeSetsIndex != -1;
     }
   }
 

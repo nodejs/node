@@ -130,7 +130,7 @@ NumberRangeFormatterImpl::NumberRangeFormatterImpl(const RangeMacroProps& macros
       fApproximatelyFormatter(status) {
 
     const char* nsName = formatterImpl1.getRawMicroProps().nsName;
-    if (uprv_strcmp(nsName, formatterImpl2.getRawMicroProps().nsName) != 0) {
+    if (!fSameFormatters && uprv_strcmp(nsName, formatterImpl2.getRawMicroProps().nsName) != 0) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }

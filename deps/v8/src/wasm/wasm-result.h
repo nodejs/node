@@ -66,25 +66,24 @@ class V8_EXPORT_PRIVATE WasmError {
 template <typename T>
 class Result {
  public:
+  static_assert(!std::is_same<T, WasmError>::value);
+  static_assert(!std::is_reference<T>::value,
+                "Holding a reference in a Result looks like a mistake; remove "
+                "this assertion if you know what you are doing");
+
   Result() = default;
+  // Allow moving.
+  Result(Result<T>&&) = default;
+  Result& operator=(Result<T>&&) = default;
+  // Disallow copying.
+  Result& operator=(const Result<T>&) = delete;
   Result(const Result&) = delete;
-  Result& operator=(const Result&) = delete;
 
-  template <typename S>
-  explicit Result(S&& value) : value_(std::forward<S>(value)) {}
-
-  template <typename S>
-  Result(Result<S>&& other) V8_NOEXCEPT : value_(std::move(other.value_)),
-                                          error_(std::move(other.error_)) {}
+  // Construct a Result from anything that can be used to construct a T value.
+  template <typename U>
+  explicit Result(U&& value) : value_(std::forward<U>(value)) {}
 
   explicit Result(WasmError error) : error_(std::move(error)) {}
-
-  template <typename S>
-  Result& operator=(Result<S>&& other) V8_NOEXCEPT {
-    value_ = std::move(other.value_);
-    error_ = std::move(other.error_);
-    return *this;
-  }
 
   bool ok() const { return error_.empty(); }
   bool failed() const { return error_.has_error(); }
@@ -105,9 +104,6 @@ class Result {
   }
 
  private:
-  template <typename S>
-  friend class Result;
-
   T value_ = T{};
   WasmError error_;
 };

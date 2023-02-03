@@ -19,8 +19,8 @@ assertThrows(() => dtf.formatRange(undefined, date2), TypeError);
 assertThrows(() => dtf.formatRange(date1, undefined), TypeError);
 assertThrows(() => dtf.formatRange("2019-1-3", date2), RangeError);
 assertThrows(() => dtf.formatRange(date1, "2019-5-4"), RangeError);
-assertThrows(() => dtf.formatRange(date2, date1), RangeError);
 
+assertDoesNotThrow(() =>dtf.formatRange(date2, date1));
 assertDoesNotThrow(() =>dtf.formatRange(date1, date2));
 
 assertEquals("1/3/2019 – 1/5/2019", dtf.formatRange(date1, date2));

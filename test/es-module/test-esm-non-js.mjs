@@ -1,23 +1,20 @@
-import { mustCall } from '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import { fileURL } from '../common/fixtures.mjs';
-import { match, strictEqual } from 'assert';
-import { spawn } from 'child_process';
-import { execPath } from 'process';
+import { match, strictEqual } from 'node:assert';
+import { execPath } from 'node:process';
+import { describe, it } from 'node:test';
 
-// Verify non-js extensions fail for ESM
-const child = spawn(execPath, [
-  '--input-type=module',
-  '--eval',
-  `import ${JSON.stringify(fileURL('es-modules', 'file.unknown'))}`,
-]);
 
-let stderr = '';
-child.stderr.setEncoding('utf8');
-child.stderr.on('data', (data) => {
-  stderr += data;
+describe('ESM: non-js extensions fail', { concurrency: true }, () => {
+  it(async () => {
+    const { code, stderr, signal } = await spawnPromisified(execPath, [
+      '--input-type=module',
+      '--eval',
+      `import ${JSON.stringify(fileURL('es-modules', 'file.unknown'))}`,
+    ]);
+
+    match(stderr, /ERR_UNKNOWN_FILE_EXTENSION/);
+    strictEqual(code, 1);
+    strictEqual(signal, null);
+  });
 });
-child.on('close', mustCall((code, signal) => {
-  strictEqual(code, 1);
-  strictEqual(signal, null);
-  match(stderr, /ERR_UNKNOWN_FILE_EXTENSION/);
-}));

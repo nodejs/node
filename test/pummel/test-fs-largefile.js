@@ -29,21 +29,29 @@ const path = require('path');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const filepath = path.join(tmpdir.path, 'large.txt');
-const fd = fs.openSync(filepath, 'w+');
-const offset = 5 * 1024 * 1024 * 1024; // 5GB
-const message = 'Large File';
+try {
 
-fs.ftruncateSync(fd, offset);
-assert.strictEqual(fs.statSync(filepath).size, offset);
-const writeBuf = Buffer.from(message);
-fs.writeSync(fd, writeBuf, 0, writeBuf.length, offset);
-const readBuf = Buffer.allocUnsafe(writeBuf.length);
-fs.readSync(fd, readBuf, 0, readBuf.length, offset);
-assert.strictEqual(readBuf.toString(), message);
-fs.readSync(fd, readBuf, 0, 1, 0);
-assert.strictEqual(readBuf[0], 0);
+  const filepath = path.join(tmpdir.path, 'large.txt');
+  const fd = fs.openSync(filepath, 'w+');
+  const offset = 5 * 1024 * 1024 * 1024; // 5GB
+  const message = 'Large File';
 
-// Verify that floating point positions do not throw.
-fs.writeSync(fd, writeBuf, 0, writeBuf.length, 42.000001);
-fs.close(fd, common.mustCall());
+  fs.ftruncateSync(fd, offset);
+  assert.strictEqual(fs.statSync(filepath).size, offset);
+  const writeBuf = Buffer.from(message);
+  fs.writeSync(fd, writeBuf, 0, writeBuf.length, offset);
+  const readBuf = Buffer.allocUnsafe(writeBuf.length);
+  fs.readSync(fd, readBuf, 0, readBuf.length, offset);
+  assert.strictEqual(readBuf.toString(), message);
+  fs.readSync(fd, readBuf, 0, 1, 0);
+  assert.strictEqual(readBuf[0], 0);
+
+  // Verify that floating point positions do not throw.
+  fs.writeSync(fd, writeBuf, 0, writeBuf.length, 42.000001);
+  fs.close(fd, common.mustCall());
+} catch (e) {
+  if (e.code !== 'ENOSPC') {
+    throw e;
+  }
+  common.skip('insufficient disk space');
+}

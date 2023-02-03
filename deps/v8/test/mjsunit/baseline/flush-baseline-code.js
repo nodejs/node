@@ -5,7 +5,7 @@
 // Flags: --expose-gc --stress-flush-code --allow-natives-syntax
 // Flags: --baseline-batch-compilation-threshold=0 --sparkplug
 // Flags: --no-always-sparkplug --lazy-feedback-allocation
-// Flags: --flush-baseline-code --flush-bytecode --no-opt
+// Flags: --flush-baseline-code --flush-bytecode --no-turbofan --no-maglev
 // Flags: --no-stress-concurrent-inlining
 // Flags: --no-concurrent-sparkplug
 
@@ -49,8 +49,12 @@ function f1(should_recurse) {
     }
     assertTrue(HasBaselineCode(f1));
     gc();
-    assertFalse(HasBaselineCode(f1));
-    assertTrue(HasByteCode(f1));
+    // TODO(jgruber, v8:12161): No longer true since we now always tier up to
+    // available Sparkplug code as early as possible. By the time we reach this
+    // assert, SP code is being executed and is thus alive.
+    // assertFalse(HasBaselineCode(f1));
+    // Also, the active tier is Sparkplug and not Ignition.
+    // assertTrue(ActiveTierIsIgnition(f1));
   }
   return x.b + 10;
 }

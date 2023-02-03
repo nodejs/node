@@ -77,6 +77,8 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
       m_continueToLocationBreakpointId(kNoBreakpointId),
       m_maxAsyncCallStacks(kMaxAsyncTaskStacks),
       m_maxAsyncCallStackDepth(0),
+      m_maxCallStackSizeToCapture(
+          V8StackTraceImpl::kDefaultMaxCallStackSizeToCapture),
       m_pauseOnExceptionsState(v8::debug::NoBreakOnException) {}
 
 V8Debugger::~V8Debugger() {
@@ -137,10 +139,10 @@ std::vector<std::unique_ptr<V8DebuggerScript>> V8Debugger::getCompiledScripts(
     int contextGroupId, V8DebuggerAgentImpl* agent) {
   std::vector<std::unique_ptr<V8DebuggerScript>> result;
   v8::HandleScope scope(m_isolate);
-  v8::PersistentValueVector<v8::debug::Script> scripts(m_isolate);
+  std::vector<v8::Global<v8::debug::Script>> scripts;
   v8::debug::GetLoadedScripts(m_isolate, scripts);
-  for (size_t i = 0; i < scripts.Size(); ++i) {
-    v8::Local<v8::debug::Script> script = scripts.Get(i);
+  for (size_t i = 0; i < scripts.size(); ++i) {
+    v8::Local<v8::debug::Script> script = scripts[i].Get(m_isolate);
     if (!script->WasCompiled()) continue;
     if (!script->IsEmbedded()) {
       int contextId;
@@ -197,7 +199,11 @@ void V8Debugger::setPauseOnNextCall(bool pause, int targetContextGroupId) {
 }
 
 bool V8Debugger::canBreakProgram() {
-  return !v8::debug::CanBreakProgram(m_isolate);
+  return v8::debug::CanBreakProgram(m_isolate);
+}
+
+bool V8Debugger::isInInstrumentationPause() const {
+  return m_instrumentationPause;
 }
 
 void V8Debugger::breakProgram(int targetContextGroupId) {
@@ -221,6 +227,10 @@ void V8Debugger::interruptAndBreak(int targetContextGroupId) {
             v8::debug::BreakReasons({v8::debug::BreakReason::kScheduled}));
       },
       nullptr);
+}
+
+void V8Debugger::requestPauseAfterInstrumentation() {
+  m_requestedPauseAfterInstrumentation = true;
 }
 
 void V8Debugger::continueProgram(int targetContextGroupId,
@@ -250,7 +260,6 @@ void V8Debugger::stepIntoStatement(int targetContextGroupId,
                                    bool breakOnAsyncCall) {
   DCHECK(isPaused());
   DCHECK(targetContextGroupId);
-  if (asyncStepOutOfFunction(targetContextGroupId, true)) return;
   m_targetContextGroupId = targetContextGroupId;
   m_pauseOnAsyncCall = breakOnAsyncCall;
   v8::debug::PrepareStep(m_isolate, v8::debug::StepInto);
@@ -260,7 +269,6 @@ void V8Debugger::stepIntoStatement(int targetContextGroupId,
 void V8Debugger::stepOverStatement(int targetContextGroupId) {
   DCHECK(isPaused());
   DCHECK(targetContextGroupId);
-  if (asyncStepOutOfFunction(targetContextGroupId, true)) return;
   m_targetContextGroupId = targetContextGroupId;
   v8::debug::PrepareStep(m_isolate, v8::debug::StepOver);
   continueProgram(targetContextGroupId);
@@ -269,46 +277,9 @@ void V8Debugger::stepOverStatement(int targetContextGroupId) {
 void V8Debugger::stepOutOfFunction(int targetContextGroupId) {
   DCHECK(isPaused());
   DCHECK(targetContextGroupId);
-  if (asyncStepOutOfFunction(targetContextGroupId, false)) return;
   m_targetContextGroupId = targetContextGroupId;
   v8::debug::PrepareStep(m_isolate, v8::debug::StepOut);
   continueProgram(targetContextGroupId);
-}
-
-bool V8Debugger::asyncStepOutOfFunction(int targetContextGroupId,
-                                        bool onlyAtReturn) {
-  v8::HandleScope handleScope(m_isolate);
-  auto iterator = v8::debug::StackTraceIterator::Create(m_isolate);
-  // When stepping through extensions code, it is possible that the
-  // iterator doesn't have any frames, since we exclude all frames
-  // that correspond to extension scripts.
-  if (iterator->Done()) return false;
-  bool atReturn = !iterator->GetReturnValue().IsEmpty();
-  iterator->Advance();
-  // Synchronous stack has more then one frame.
-  if (!iterator->Done()) return false;
-  // There is only one synchronous frame but we are not at return position and
-  // user requests stepOver or stepInto.
-  if (onlyAtReturn && !atReturn) return false;
-  // If we are inside async function, current async parent was captured when
-  // async function was suspended first time and we install that stack as
-  // current before resume async function. So it represents current async
-  // function.
-  auto current = currentAsyncParent();
-  if (!current) return false;
-  // Lookup for parent async function.
-  auto parent = current->parent();
-  if (parent.expired()) return false;
-  // Parent async stack will have suspended task id iff callee async function
-  // is awaiting current async function. We can make stepOut there only in this
-  // case.
-  void* parentTask =
-      std::shared_ptr<AsyncStackTrace>(parent)->suspendedTaskId();
-  if (!parentTask) return false;
-  m_targetContextGroupId = targetContextGroupId;
-  m_taskWithScheduledBreak = parentTask;
-  continueProgram(targetContextGroupId);
-  return true;
 }
 
 void V8Debugger::terminateExecution(
@@ -365,7 +336,8 @@ Response V8Debugger::continueToLocation(
     m_continueToLocationTargetCallFrames = targetCallFrames;
     if (m_continueToLocationTargetCallFrames !=
         protocol::Debugger::ContinueToLocation::TargetCallFramesEnum::Any) {
-      m_continueToLocationStack = captureStackTrace(true);
+      m_continueToLocationStack = V8StackTraceImpl::capture(
+          this, V8StackTraceImpl::kDefaultMaxCallStackSizeToCapture);
       DCHECK(m_continueToLocationStack);
     }
     continueProgram(targetContextGroupId);
@@ -376,12 +348,25 @@ Response V8Debugger::continueToLocation(
   }
 }
 
+bool V8Debugger::restartFrame(int targetContextGroupId, int callFrameOrdinal) {
+  DCHECK(isPaused());
+  DCHECK(targetContextGroupId);
+  m_targetContextGroupId = targetContextGroupId;
+
+  if (v8::debug::PrepareRestartFrame(m_isolate, callFrameOrdinal)) {
+    continueProgram(targetContextGroupId);
+    return true;
+  }
+  return false;
+}
+
 bool V8Debugger::shouldContinueToCurrentLocation() {
   if (m_continueToLocationTargetCallFrames ==
       protocol::Debugger::ContinueToLocation::TargetCallFramesEnum::Any) {
     return true;
   }
-  std::unique_ptr<V8StackTraceImpl> currentStack = captureStackTrace(true);
+  std::unique_ptr<V8StackTraceImpl> currentStack = V8StackTraceImpl::capture(
+      this, V8StackTraceImpl::kDefaultMaxCallStackSizeToCapture);
   if (m_continueToLocationTargetCallFrames ==
       protocol::Debugger::ContinueToLocation::TargetCallFramesEnum::Current) {
     return m_continueToLocationStack->isEqualIgnoringTopFrame(
@@ -468,8 +453,10 @@ void V8Debugger::handleProgramBreak(
   }
   m_inspector->forEachSession(contextGroupId,
                               [](V8InspectorSessionImpl* session) {
-                                if (session->debuggerAgent()->enabled())
+                                if (session->debuggerAgent()->enabled()) {
+                                  session->debuggerAgent()->clearBreakDetails();
                                   session->debuggerAgent()->didContinue();
+                                }
                               });
 
   if (m_scheduledOOMBreak) m_isolate->RestoreOriginalHeapLimit();
@@ -529,6 +516,51 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
                                      client),
             !has_compile_error);
       });
+}
+
+V8Debugger::PauseAfterInstrumentation V8Debugger::BreakOnInstrumentation(
+    v8::Local<v8::Context> pausedContext,
+    v8::debug::BreakpointId instrumentationId) {
+  // Don't allow nested breaks.
+  if (isPaused()) return kNoPauseAfterInstrumentationRequested;
+
+  int contextGroupId = m_inspector->contextGroupId(pausedContext);
+  bool hasAgents = false;
+  m_inspector->forEachSession(
+      contextGroupId, [&hasAgents](V8InspectorSessionImpl* session) {
+        if (session->debuggerAgent()->acceptsPause(false /* isOOMBreak */))
+          hasAgents = true;
+      });
+  if (!hasAgents) return kNoPauseAfterInstrumentationRequested;
+
+  m_pausedContextGroupId = contextGroupId;
+  m_instrumentationPause = true;
+  m_inspector->forEachSession(
+      contextGroupId, [instrumentationId](V8InspectorSessionImpl* session) {
+        if (session->debuggerAgent()->acceptsPause(false /* isOOMBreak */)) {
+          session->debuggerAgent()->didPauseOnInstrumentation(
+              instrumentationId);
+        }
+      });
+  {
+    v8::Context::Scope scope(pausedContext);
+    m_inspector->client()->runMessageLoopOnInstrumentationPause(contextGroupId);
+  }
+  bool requestedPauseAfterInstrumentation =
+      m_requestedPauseAfterInstrumentation;
+
+  m_requestedPauseAfterInstrumentation = false;
+  m_pausedContextGroupId = 0;
+  m_instrumentationPause = false;
+
+  m_inspector->forEachSession(contextGroupId,
+                              [](V8InspectorSessionImpl* session) {
+                                if (session->debuggerAgent()->enabled())
+                                  session->debuggerAgent()->didContinue();
+                              });
+  return requestedPauseAfterInstrumentation
+             ? kPauseAfterInstrumentationRequested
+             : kNoPauseAfterInstrumentationRequested;
 }
 
 void V8Debugger::BreakProgramRequested(
@@ -617,20 +649,10 @@ void V8Debugger::AsyncEventOccurred(v8::debug::DebugAsyncActionType type,
       asyncTaskFinishedForStack(task);
       asyncTaskFinishedForStepping(task);
       break;
-    case v8::debug::kAsyncFunctionSuspended: {
-      if (m_asyncTaskStacks.find(task) == m_asyncTaskStacks.end()) {
-        asyncTaskScheduledForStack(toStringView("await"), task, true, true);
-      }
-      auto stackIt = m_asyncTaskStacks.find(task);
-      if (stackIt != m_asyncTaskStacks.end() && !stackIt->second.expired()) {
-        std::shared_ptr<AsyncStackTrace> stack(stackIt->second);
-        stack->setSuspendedTaskId(task);
-      }
+    case v8::debug::kDebugAwait: {
+      asyncTaskScheduledForStack(toStringView("await"), task, false, true);
       break;
     }
-    case v8::debug::kAsyncFunctionFinished:
-      asyncTaskCanceledForStack(task);
-      break;
   }
 }
 
@@ -781,6 +803,11 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
                        toV8StringInternalized(m_isolate, "[[Entries]]"));
     createDataProperty(context, properties, properties->Length(), entries);
   }
+
+  if (v8::debug::isExperimentalRemoveInternalScopesPropertyEnabled()) {
+    return properties;
+  }
+
   if (value->IsGeneratorObject()) {
     v8::Local<v8::Value> scopes;
     if (generatorScopes(context, value).ToLocal(&scopes)) {
@@ -804,25 +831,25 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
 v8::Local<v8::Array> V8Debugger::queryObjects(v8::Local<v8::Context> context,
                                               v8::Local<v8::Object> prototype) {
   v8::Isolate* isolate = context->GetIsolate();
-  v8::PersistentValueVector<v8::Object> v8Objects(isolate);
+  std::vector<v8::Global<v8::Object>> v8_objects;
   MatchPrototypePredicate predicate(m_inspector, context, prototype);
-  v8::debug::QueryObjects(context, &predicate, &v8Objects);
+  v8::debug::QueryObjects(context, &predicate, &v8_objects);
 
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Array> resultArray = v8::Array::New(
-      m_inspector->isolate(), static_cast<int>(v8Objects.Size()));
-  for (size_t i = 0; i < v8Objects.Size(); ++i) {
+      m_inspector->isolate(), static_cast<int>(v8_objects.size()));
+  for (size_t i = 0; i < v8_objects.size(); ++i) {
     createDataProperty(context, resultArray, static_cast<int>(i),
-                       v8Objects.Get(i));
+                       v8_objects[i].Get(isolate));
   }
   return resultArray;
 }
 
 std::unique_ptr<V8StackTraceImpl> V8Debugger::createStackTrace(
     v8::Local<v8::StackTrace> v8StackTrace) {
-  return V8StackTraceImpl::create(this, v8StackTrace,
-                                  V8StackTraceImpl::maxCallStackSizeToCapture);
+  return V8StackTraceImpl::create(
+      this, v8StackTrace, V8StackTraceImpl::kDefaultMaxCallStackSizeToCapture);
 }
 
 void V8Debugger::setAsyncCallStackDepth(V8DebuggerAgentImpl* agent, int depth) {
@@ -847,6 +874,44 @@ void V8Debugger::setAsyncCallStackDepth(V8DebuggerAgentImpl* agent, int depth) {
                                    maxAsyncCallStackDepth ? this : nullptr);
 }
 
+void V8Debugger::setMaxCallStackSizeToCapture(V8RuntimeAgentImpl* agent,
+                                              int size) {
+  if (size < 0) {
+    m_maxCallStackSizeToCaptureMap.erase(agent);
+  } else {
+    m_maxCallStackSizeToCaptureMap[agent] = size;
+  }
+
+  // The following logic is a bit complicated to decipher because we
+  // want to retain backwards compatible semantics:
+  //
+  // (a) When no `Runtime` domain is enabled, we stick to the default
+  //     maximum call stack size, but don't let V8 collect stack traces
+  //     for uncaught exceptions.
+  // (b) When `Runtime` is enabled for at least one front-end, we compute
+  //     the maximum of the requested maximum call stack sizes of all the
+  //     front-ends whose `Runtime` domains are enabled (which might be 0),
+  //     and ask V8 to collect stack traces for uncaught exceptions.
+  //
+  // The latter allows performance test automation infrastructure to drive
+  // browser via `Runtime` domain while still minimizing the performance
+  // overhead of having the inspector attached - see the relevant design
+  // document https://bit.ly/v8-cheaper-inspector-stack-traces for more
+  if (m_maxCallStackSizeToCaptureMap.empty()) {
+    m_maxCallStackSizeToCapture =
+        V8StackTraceImpl::kDefaultMaxCallStackSizeToCapture;
+    m_isolate->SetCaptureStackTraceForUncaughtExceptions(false);
+  } else {
+    m_maxCallStackSizeToCapture = 0;
+    for (auto const& pair : m_maxCallStackSizeToCaptureMap) {
+      if (m_maxCallStackSizeToCapture < pair.second)
+        m_maxCallStackSizeToCapture = pair.second;
+    }
+    m_isolate->SetCaptureStackTraceForUncaughtExceptions(
+        m_maxCallStackSizeToCapture > 0, m_maxCallStackSizeToCapture);
+  }
+}
+
 std::shared_ptr<AsyncStackTrace> V8Debugger::stackTraceFor(
     int contextGroupId, const V8StackTraceId& id) {
   if (debuggerIdFor(contextGroupId).pair() != id.debugger_id) return nullptr;
@@ -864,8 +929,7 @@ V8StackTraceId V8Debugger::storeCurrentStackTrace(
   if (!contextGroupId) return V8StackTraceId();
 
   std::shared_ptr<AsyncStackTrace> asyncStack =
-      AsyncStackTrace::capture(this, toString16(description),
-                               V8StackTraceImpl::maxCallStackSizeToCapture);
+      AsyncStackTrace::capture(this, toString16(description));
   if (!asyncStack) return V8StackTraceId();
 
   uintptr_t id = AsyncStackTrace::store(this, asyncStack);
@@ -942,9 +1006,8 @@ void V8Debugger::asyncTaskScheduledForStack(const StringView& taskName,
                                             bool skipTopFrame) {
   if (!m_maxAsyncCallStackDepth) return;
   v8::HandleScope scope(m_isolate);
-  std::shared_ptr<AsyncStackTrace> asyncStack = AsyncStackTrace::capture(
-      this, toString16(taskName), V8StackTraceImpl::maxCallStackSizeToCapture,
-      skipTopFrame);
+  std::shared_ptr<AsyncStackTrace> asyncStack =
+      AsyncStackTrace::capture(this, toString16(taskName), skipTopFrame);
   if (asyncStack) {
     m_asyncTaskStacks[task] = asyncStack;
     if (recurring) m_recurringTasks.insert(task);
@@ -972,7 +1035,6 @@ void V8Debugger::asyncTaskStartedForStack(void* task) {
   AsyncTaskToStackTrace::iterator stackIt = m_asyncTaskStacks.find(task);
   if (stackIt != m_asyncTaskStacks.end() && !stackIt->second.expired()) {
     std::shared_ptr<AsyncStackTrace> stack(stackIt->second);
-    stack->setSuspendedTaskId(nullptr);
     m_currentAsyncParent.push_back(stack);
   } else {
     m_currentAsyncParent.emplace_back();
@@ -1048,20 +1110,17 @@ void V8Debugger::unmuteScriptParsedEvents() {
 
 std::unique_ptr<V8StackTraceImpl> V8Debugger::captureStackTrace(
     bool fullStack) {
-  if (!m_isolate->InContext()) return nullptr;
-
-  v8::HandleScope handles(m_isolate);
   int contextGroupId = currentContextGroupId();
   if (!contextGroupId) return nullptr;
 
   int stackSize = 1;
   if (fullStack) {
-    stackSize = V8StackTraceImpl::maxCallStackSizeToCapture;
+    stackSize = V8StackTraceImpl::kDefaultMaxCallStackSizeToCapture;
   } else {
     m_inspector->forEachSession(
-        contextGroupId, [&stackSize](V8InspectorSessionImpl* session) {
+        contextGroupId, [this, &stackSize](V8InspectorSessionImpl* session) {
           if (session->runtimeAgent()->enabled())
-            stackSize = V8StackTraceImpl::maxCallStackSizeToCapture;
+            stackSize = maxCallStackSizeToCapture();
         });
   }
   return V8StackTraceImpl::capture(this, stackSize);
@@ -1095,8 +1154,9 @@ void V8Debugger::collectOldAsyncStacksIfNeeded() {
 std::shared_ptr<StackFrame> V8Debugger::symbolize(
     v8::Local<v8::StackFrame> v8Frame) {
   int scriptId = v8Frame->GetScriptId();
-  int lineNumber = v8Frame->GetLineNumber() - 1;
-  int columnNumber = v8Frame->GetColumn() - 1;
+  auto location = v8Frame->GetLocation();
+  int lineNumber = location.GetLineNumber();
+  int columnNumber = location.GetColumnNumber();
   CachedStackFrameKey key{scriptId, lineNumber, columnNumber};
   auto functionName = toProtocolString(isolate(), v8Frame->GetFunctionName());
   auto it = m_cachedStackFrames.find(key);
@@ -1126,10 +1186,11 @@ void V8Debugger::setMaxAsyncTaskStacksForTest(int limit) {
   m_maxAsyncCallStacks = limit;
 }
 
-V8DebuggerId V8Debugger::debuggerIdFor(int contextGroupId) {
+internal::V8DebuggerId V8Debugger::debuggerIdFor(int contextGroupId) {
   auto it = m_contextGroupIdToDebuggerId.find(contextGroupId);
   if (it != m_contextGroupIdToDebuggerId.end()) return it->second;
-  V8DebuggerId debuggerId = V8DebuggerId::generate(m_inspector);
+  internal::V8DebuggerId debuggerId =
+      internal::V8DebuggerId::generate(m_inspector);
   m_contextGroupIdToDebuggerId.insert(
       it, std::make_pair(contextGroupId, debuggerId));
   return debuggerId;

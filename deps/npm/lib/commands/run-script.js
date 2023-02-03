@@ -35,11 +35,13 @@ class RunScript extends BaseCommand {
     'include-workspace-root',
     'if-present',
     'ignore-scripts',
+    'foreground-scripts',
     'script-shell',
   ]
 
   static name = 'run-script'
   static usage = ['<command> [-- <args>]']
+  static workspaces = true
   static ignoreImplicitWorkspace = false
   static isShellout = true
 
@@ -61,11 +63,11 @@ class RunScript extends BaseCommand {
     }
   }
 
-  async execWorkspaces (args, filters) {
+  async execWorkspaces (args) {
     if (args.length) {
-      return this.runWorkspaces(args, filters)
+      return this.runWorkspaces(args)
     } else {
-      return this.listWorkspaces(args, filters)
+      return this.listWorkspaces(args)
     }
   }
 
@@ -116,16 +118,15 @@ class RunScript extends BaseCommand {
       args,
       scriptShell,
       stdio: 'inherit',
-      stdioString: true,
       pkg,
       banner: !this.npm.silent,
     }
 
-    for (const [event, args] of events) {
+    for (const [ev, evArgs] of events) {
       await runScript({
         ...opts,
-        event,
-        args,
+        event: ev,
+        args: evArgs,
       })
     }
   }
@@ -200,7 +201,7 @@ class RunScript extends BaseCommand {
 
   async runWorkspaces (args, filters) {
     const res = []
-    await this.setWorkspaces(filters)
+    await this.setWorkspaces()
 
     for (const workspacePath of this.workspacePaths) {
       const pkg = await rpj(`${workspacePath}/package.json`)
@@ -233,7 +234,7 @@ class RunScript extends BaseCommand {
   }
 
   async listWorkspaces (args, filters) {
-    await this.setWorkspaces(filters)
+    await this.setWorkspaces()
 
     if (this.npm.silent) {
       return

@@ -263,21 +263,14 @@ typedef union {
   } unused_; /* TODO: retained for ABI compatibility; remove me in v2.x. */
 } uv_cond_t;
 
-typedef union {
-  struct {
-    unsigned int num_readers_;
-    CRITICAL_SECTION num_readers_lock_;
-    HANDLE write_semaphore_;
-  } state_;
-  /* TODO: remove me in v2.x. */
-  struct {
-    SRWLOCK unused_;
-  } unused1_;
-  /* TODO: remove me in v2.x. */
-  struct {
-    uv_mutex_t unused1_;
-    uv_mutex_t unused2_;
-  } unused2_;
+typedef struct {
+  SRWLOCK read_write_lock_;
+  /* TODO: retained for ABI compatibility; remove me in v2.x */
+#ifdef _WIN64
+  unsigned char padding_[72];
+#else
+  unsigned char padding_[44];
+#endif
 } uv_rwlock_t;
 
 typedef struct {
@@ -384,6 +377,12 @@ typedef struct {
       OVERLAPPED overlapped;                                                  \
       size_t queued_bytes;                                                    \
     } io;                                                                     \
+    /* in v2, we can move these to the UV_CONNECT_PRIVATE_FIELDS */           \
+    struct {                                                                  \
+      ULONG_PTR result; /* overlapped.Internal is reused to hold the result */\
+      HANDLE pipeHandle;                                                      \
+      DWORD duplex_flags;                                                     \
+    } connect;                                                                \
   } u;                                                                        \
   struct uv_req_s* next_req;
 

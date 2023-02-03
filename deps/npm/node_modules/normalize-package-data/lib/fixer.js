@@ -121,17 +121,17 @@ module.exports = {
       this.warn('nonArrayBundleDependencies')
       delete data[bd]
     } else if (data[bd]) {
-      data[bd] = data[bd].filter(function (bd) {
-        if (!bd || typeof bd !== 'string') {
-          this.warn('nonStringBundleDependency', bd)
+      data[bd] = data[bd].filter(function (filtered) {
+        if (!filtered || typeof filtered !== 'string') {
+          this.warn('nonStringBundleDependency', filtered)
           return false
         } else {
           if (!data.dependencies) {
             data.dependencies = {}
           }
-          if (!Object.prototype.hasOwnProperty.call(data.dependencies, bd)) {
-            this.warn('nonDependencyBundleDependency', bd)
-            data.dependencies[bd] = '*'
+          if (!Object.prototype.hasOwnProperty.call(data.dependencies, filtered)) {
+            this.warn('nonDependencyBundleDependency', filtered)
+            data.dependencies[filtered] = '*'
           }
           return true
         }
@@ -389,28 +389,28 @@ function unParsePerson (person) {
   }
   var name = person.name || ''
   var u = person.url || person.web
-  var url = u ? (' (' + u + ')') : ''
+  var wrappedUrl = u ? (' (' + u + ')') : ''
   var e = person.email || person.mail
-  var email = e ? (' <' + e + '>') : ''
-  return name + email + url
+  var wrappedEmail = e ? (' <' + e + '>') : ''
+  return name + wrappedEmail + wrappedUrl
 }
 
 function parsePerson (person) {
   if (typeof person !== 'string') {
     return person
   }
-  var name = person.match(/^([^(<]+)/)
-  var url = person.match(/\(([^()]+)\)/)
-  var email = person.match(/<([^<>]+)>/)
+  var matchedName = person.match(/^([^(<]+)/)
+  var matchedUrl = person.match(/\(([^()]+)\)/)
+  var matchedEmail = person.match(/<([^<>]+)>/)
   var obj = {}
-  if (name && name[0].trim()) {
-    obj.name = name[0].trim()
+  if (matchedName && matchedName[0].trim()) {
+    obj.name = matchedName[0].trim()
   }
-  if (email) {
-    obj.email = email[1]
+  if (matchedEmail) {
+    obj.email = matchedEmail[1]
   }
-  if (url) {
-    obj.url = url[1]
+  if (matchedUrl) {
+    obj.url = matchedUrl[1]
   }
   return obj
 }

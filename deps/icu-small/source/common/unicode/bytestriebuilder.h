@@ -129,8 +129,8 @@ public:
 private:
     friend class ::BytesTrieTest;
 
-    BytesTrieBuilder(const BytesTrieBuilder &other);  // no copy constructor
-    BytesTrieBuilder &operator=(const BytesTrieBuilder &other);  // no assignment operator
+    BytesTrieBuilder(const BytesTrieBuilder &other) = delete;  // no copy constructor
+    BytesTrieBuilder &operator=(const BytesTrieBuilder &other) = delete;  // no assignment operator
 
     void buildBytes(UStringTrieBuildOption buildOption, UErrorCode &errorCode);
 

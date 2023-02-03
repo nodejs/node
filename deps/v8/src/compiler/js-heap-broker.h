@@ -11,7 +11,6 @@
 #include "src/common/globals.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/feedback-source.h"
-#include "src/compiler/globals.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/compiler/refs-map.h"
@@ -20,10 +19,8 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
-#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/feedback-vector.h"
-#include "src/objects/function-kind.h"
 #include "src/objects/objects.h"
 #include "src/utils/address-map.h"
 #include "src/utils/identity-map.h"
@@ -32,22 +29,27 @@
 
 namespace v8 {
 namespace internal {
+
+namespace maglev {
+class MaglevCompilationInfo;
+}
+
 namespace compiler {
 
 class ObjectRef;
 
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
 
-#define TRACE_BROKER(broker, x)                                      \
-  do {                                                               \
-    if (broker->tracing_enabled() && FLAG_trace_heap_broker_verbose) \
-      StdoutStream{} << broker->Trace() << x << '\n';                \
+#define TRACE_BROKER(broker, x)                                          \
+  do {                                                                   \
+    if (broker->tracing_enabled() && v8_flags.trace_heap_broker_verbose) \
+      StdoutStream{} << broker->Trace() << x << '\n';                    \
   } while (false)
 
-#define TRACE_BROKER_MEMORY(broker, x)                              \
-  do {                                                              \
-    if (broker->tracing_enabled() && FLAG_trace_heap_broker_memory) \
-      StdoutStream{} << broker->Trace() << x << std::endl;          \
+#define TRACE_BROKER_MEMORY(broker, x)                                  \
+  do {                                                                  \
+    if (broker->tracing_enabled() && v8_flags.trace_heap_broker_memory) \
+      StdoutStream{} << broker->Trace() << x << std::endl;              \
   } while (false)
 
 #define TRACE_BROKER_MISSING(broker, x)                                        \
@@ -94,12 +96,12 @@ DEFINE_OPERATORS_FOR_FLAGS(GetOrCreateDataFlags)
 class V8_EXPORT_PRIVATE JSHeapBroker {
  public:
   JSHeapBroker(Isolate* isolate, Zone* broker_zone, bool tracing_enabled,
-               bool is_concurrent_inlining, CodeKind code_kind);
+               CodeKind code_kind);
 
   // For use only in tests, sets default values for some arguments. Avoids
   // churn when new flags are added.
   JSHeapBroker(Isolate* isolate, Zone* broker_zone)
-      : JSHeapBroker(isolate, broker_zone, FLAG_trace_heap_broker, false,
+      : JSHeapBroker(isolate, broker_zone, v8_flags.trace_heap_broker,
                      CodeKind::TURBOFAN) {}
 
   ~JSHeapBroker();
@@ -127,8 +129,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   Zone* zone() const { return zone_; }
   bool tracing_enabled() const { return tracing_enabled_; }
-  bool is_concurrent_inlining() const { return is_concurrent_inlining_; }
-  bool is_turboprop() const { return code_kind_ == CodeKind::TURBOPROP; }
 
   NexusConfig feedback_nexus_config() const {
     return IsMainThread() ? NexusConfig::FromMainThread(isolate())
@@ -151,6 +151,12 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // handles provided back to {info}. {info} is responsible for disposing of
   // them.
   void DetachLocalIsolate(OptimizedCompilationInfo* info);
+
+  // TODO(v8:7700): Refactor this once the broker is no longer
+  // Turbofan-specific.
+  void AttachLocalIsolateForMaglev(maglev::MaglevCompilationInfo* info,
+                                   LocalIsolate* local_isolate);
+  void DetachLocalIsolateForMaglev(maglev::MaglevCompilationInfo* info);
 
   bool StackHasOverflowed() const;
 
@@ -224,10 +230,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   PropertyAccessInfo GetPropertyAccessInfo(
       MapRef map, NameRef name, AccessMode access_mode,
       CompilationDependencies* dependencies);
-
-  MinimorphicLoadPropertyAccessInfo GetPropertyAccessInfo(
-      MinimorphicLoadPropertyAccessFeedback const& feedback,
-      FeedbackSource const& source);
 
   StringRef GetTypedArrayStringTag(ElementsKind kind);
 
@@ -436,7 +438,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       array_and_object_prototypes_;
   BrokerMode mode_ = kDisabled;
   bool const tracing_enabled_;
-  bool const is_concurrent_inlining_;
   CodeKind const code_kind_;
   std::unique_ptr<PersistentHandles> ph_;
   LocalIsolate* local_isolate_ = nullptr;
@@ -448,9 +449,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ZoneUnorderedMap<PropertyAccessTarget, PropertyAccessInfo,
                    PropertyAccessTarget::Hash, PropertyAccessTarget::Equal>
       property_access_infos_;
-  ZoneUnorderedMap<FeedbackSource, MinimorphicLoadPropertyAccessInfo,
-                   FeedbackSource::Hash, FeedbackSource::Equal>
-      minimorphic_property_access_infos_;
 
   CompilationDependencies* dependencies_ = nullptr;
 
@@ -465,9 +463,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   int boilerplate_migration_mutex_depth_ = 0;
 
   static constexpr uint32_t kMinimalRefsBucketCount = 8;
-  STATIC_ASSERT(base::bits::IsPowerOfTwo(kMinimalRefsBucketCount));
+  static_assert(base::bits::IsPowerOfTwo(kMinimalRefsBucketCount));
   static constexpr uint32_t kInitialRefsBucketCount = 1024;
-  STATIC_ASSERT(base::bits::IsPowerOfTwo(kInitialRefsBucketCount));
+  static_assert(base::bits::IsPowerOfTwo(kInitialRefsBucketCount));
 };
 
 class V8_NODISCARD TraceScope {

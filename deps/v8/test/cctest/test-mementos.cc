@@ -61,7 +61,8 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
 
 TEST(Regress340063) {
   CcTest::InitializeVM();
-  if (!i::FLAG_allocation_site_pretenuring || FLAG_single_generation) return;
+  if (!i::v8_flags.allocation_site_pretenuring || v8_flags.single_generation)
+    return;
   v8::HandleScope scope(CcTest::isolate());
 
   SetUpNewSpaceWithPoisonedMementoAtTop();
@@ -73,8 +74,16 @@ TEST(Regress340063) {
 
 
 TEST(Regress470390) {
+#ifdef VERIFY_HEAP
+  // With MinorMC, we may have object allocated after `new_space->top()`. If the
+  // next object after `new_space->top()` is an invalid memento, heap
+  // verification should fail.
+  if (v8_flags.minor_mc) return;
+#endif  // VERIFY_HEAP
+
   CcTest::InitializeVM();
-  if (!i::FLAG_allocation_site_pretenuring || FLAG_single_generation) return;
+  if (!i::v8_flags.allocation_site_pretenuring || v8_flags.single_generation)
+    return;
   v8::HandleScope scope(CcTest::isolate());
 
   SetUpNewSpaceWithPoisonedMementoAtTop();
@@ -91,7 +100,8 @@ TEST(Regress470390) {
 
 TEST(BadMementoAfterTopForceScavenge) {
   CcTest::InitializeVM();
-  if (!i::FLAG_allocation_site_pretenuring || FLAG_single_generation) return;
+  if (!i::v8_flags.allocation_site_pretenuring || v8_flags.single_generation)
+    return;
   v8::HandleScope scope(CcTest::isolate());
 
   SetUpNewSpaceWithPoisonedMementoAtTop();

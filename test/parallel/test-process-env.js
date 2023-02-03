@@ -105,6 +105,14 @@ if (common.isWindows) {
   assert.ok(keys.length > 0);
 }
 
+// https://github.com/nodejs/node/issues/45380
+{
+  const env = structuredClone(process.env);
+  // deepEqual(), not deepStrictEqual(), because of different prototypes.
+  // eslint-disable-next-line no-restricted-properties
+  assert.deepEqual(env, process.env);
+}
+
 // Setting environment variables on Windows with empty names should not cause
 // an assertion failure.
 // https://github.com/nodejs/node/issues/32920

@@ -46,8 +46,8 @@ Node.js has many channels on the
 [OpenJS Foundation Slack](https://slack-invite.openjsf.org/). Interesting
 channels are:
 [#nodejs](https://openjs-foundation.slack.com/archives/CK9Q4MB53) for general
-help, questions and discussions.
-[#nodejs-dev](https://openjs-foundation.slack.com/archives/C019Y2T6STH) for
+help, questions, and discussions.
+[#nodejs-core](https://openjs-foundation.slack.com/archives/C019Y2T6STH) for
 development of Node.js core specifically.
 
 Node.js also has an unofficial IRC channel:
@@ -107,13 +107,13 @@ git checkout -b my-branch -t upstream/HEAD
 
 ### Step 3: Code
 
-The vast majority of pull requests opened against the `nodejs/node`
-repository includes changes to one or more of the following:
+Pull requests in Node.js typically involve changes to
+one or more of a few places in the repository.
 
-* the C/C++ code contained in the `src` directory
-* the JavaScript code contained in the `lib` directory
-* the documentation in `doc/api`
-* tests within the `test` directory.
+* C/C++ code contained in the `src` directory
+* JavaScript code contained in the `lib` directory
+* Documentation in `doc/api`
+* Tests within the `test` directory
 
 If you are modifying code, please be sure to run `make lint` (or
 `vcbuild.bat lint` on Windows) to ensure that the changes follow the Node.js
@@ -190,7 +190,7 @@ A good commit message should describe what changed and why.
 
 5. If your commit introduces a breaking change (`semver-major`), it should
    contain an explanation about the reason of the breaking change, which
-   situation would trigger the breaking change and what is the exact change.
+   situation would trigger the breaking change, and what is the exact change.
 
 Sample complete commit message:
 
@@ -319,7 +319,7 @@ There are a number of more advanced mechanisms for managing commits using
 Feel free to post a comment in the pull request to ping reviewers if you are
 awaiting an answer on something. If you encounter words or acronyms that
 seem unfamiliar, refer to this
-[glossary](https://sites.google.com/a/chromium.org/dev/glossary).
+[glossary](https://github.com/nodejs/node/blob/HEAD/glossary.md).
 
 #### Approval and request changes workflow
 
@@ -336,7 +336,7 @@ say so, or contact one of the other contributors in the project and seek their
 input. Often such comments are the result of the reviewer having only taken a
 short amount of time to review and are not ill-intended. Such issues can often
 be resolved with a bit of patience. That said, reviewers should be expected to
-be helpful in their feedback, and feedback that is simply vague, dismissive and
+be helpful in their feedback, and feedback that is simply vague, dismissive, and
 unhelpful is likely safe to ignore.
 
 ### Step 10: Landing
@@ -393,7 +393,7 @@ Focus first on the most significant aspects of the change:
 When changes are necessary, _request_ them, do not _demand_ them, and do not
 assume that the submitter already knows how to add a test or run a benchmark.
 
-Specific performance optimization techniques, coding styles and conventions
+Specific performance optimization techniques, coding styles, and conventions
 change over time. The first impression you give to a new contributor never does.
 
 Nits (requests for small changes that are not essential) are fine, but try to

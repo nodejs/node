@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require generator functions to contain `yield`",
+            description: "Require generator functions to contain `yield`",
             recommended: true,
             url: "https://eslint.org/docs/rules/require-yield"
         },
@@ -68,7 +68,6 @@ module.exports = {
             // Increases the count of `yield` keyword.
             YieldExpression() {
 
-                /* istanbul ignore else */
                 if (stack.length > 0) {
                     stack[stack.length - 1] += 1;
                 }

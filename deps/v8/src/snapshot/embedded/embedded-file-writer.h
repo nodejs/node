@@ -10,6 +10,7 @@
 #include <cstring>
 #include <memory>
 
+#include "src/base/platform/wrappers.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/snapshot/embedded/embedded-data.h"
@@ -17,7 +18,6 @@
 #include "src/snapshot/embedded/platform-embedded-file-writer-base.h"
 
 #if defined(V8_OS_WIN64)
-#include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
 
@@ -125,20 +125,20 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   // Fairly arbitrary but should fit all symbol names.
   static constexpr int kTemporaryStringLength = 256;
 
-  std::string EmbeddedBlobCodeDataSymbol() const {
+  std::string EmbeddedBlobCodeSymbol() const {
     base::EmbeddedVector<char, kTemporaryStringLength>
-        embedded_blob_code_data_symbol;
-    base::SNPrintF(embedded_blob_code_data_symbol,
-                   "v8_%s_embedded_blob_code_data_", embedded_variant_);
-    return std::string{embedded_blob_code_data_symbol.begin()};
+        embedded_blob_code_symbol;
+    base::SNPrintF(embedded_blob_code_symbol, "v8_%s_embedded_blob_code_",
+                   embedded_variant_);
+    return std::string{embedded_blob_code_symbol.begin()};
   }
 
-  std::string EmbeddedBlobDataDataSymbol() const {
+  std::string EmbeddedBlobDataSymbol() const {
     base::EmbeddedVector<char, kTemporaryStringLength>
-        embedded_blob_data_data_symbol;
-    base::SNPrintF(embedded_blob_data_data_symbol,
-                   "v8_%s_embedded_blob_data_data_", embedded_variant_);
-    return std::string{embedded_blob_data_data_symbol.begin()};
+        embedded_blob_data_symbol;
+    base::SNPrintF(embedded_blob_data_symbol, "v8_%s_embedded_blob_data_",
+                   embedded_variant_);
+    return std::string{embedded_blob_data_symbol.begin()};
   }
 
   void WriteDataSection(PlatformEmbeddedFileWriterBase* w,
@@ -146,7 +146,8 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
     w->Comment("The embedded blob data section starts here.");
     w->SectionRoData();
     w->AlignToDataAlignment();
-    w->DeclareLabel(EmbeddedBlobDataDataSymbol().c_str());
+    w->DeclareSymbolGlobal(EmbeddedBlobDataSymbol().c_str());
+    w->DeclareLabel(EmbeddedBlobDataSymbol().c_str());
 
     WriteBinaryContentsAsInlineAssembly(w, blob->data(), blob->data_size());
   }

@@ -236,11 +236,11 @@ static int dh_export(void *keydata, int selection, OSSL_CALLBACK *param_cb,
         ok = ok && ossl_dh_key_todata(dh, tmpl, NULL, include_private);
     }
 
-    if (!ok
-        || (params = OSSL_PARAM_BLD_to_param(tmpl)) == NULL) {
+    if (!ok || (params = OSSL_PARAM_BLD_to_param(tmpl)) == NULL) {
         ok = 0;
         goto err;
     }
+
     ok = param_cb(params, cbarg);
     OSSL_PARAM_free(params);
 err:

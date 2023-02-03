@@ -7,7 +7,6 @@
 #include <algorithm>
 
 #include "testing/gmock-support.h"
-#include "testing/gtest-support.h"
 
 namespace v8 {
 namespace base {
@@ -81,16 +80,16 @@ TEST(OwnedVectorConstruction, Equals) {
 TEST(VectorTest, ConstexprFactories) {
   static constexpr int kInit1[] = {4, 11, 3};
   static constexpr auto kVec1 = base::ArrayVector(kInit1);
-  STATIC_ASSERT(kVec1.size() == 3);
+  static_assert(kVec1.size() == 3);
   EXPECT_THAT(kVec1, testing::ElementsAreArray(kInit1));
 
   static constexpr auto kVec2 = base::VectorOf(kInit1, 2);
-  STATIC_ASSERT(kVec2.size() == 2);
+  static_assert(kVec2.size() == 2);
   EXPECT_THAT(kVec2, testing::ElementsAre(4, 11));
 
   static constexpr const char kInit3[] = "foobar";
   static constexpr auto kVec3 = base::StaticCharVector(kInit3);
-  STATIC_ASSERT(kVec3.size() == 6);
+  static_assert(kVec3.size() == 6);
   EXPECT_THAT(kVec3, testing::ElementsAreArray(kInit3, kInit3 + 6));
 }
 

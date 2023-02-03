@@ -40,7 +40,7 @@ class CanBeHandledVisitor final : private RegExpVisitor {
         RegExpFlag::kGlobal | RegExpFlag::kSticky | RegExpFlag::kMultiline |
         RegExpFlag::kDotAll | RegExpFlag::kLinear;
     // We support Unicode iff kUnicode is among the supported flags.
-    STATIC_ASSERT(ExperimentalRegExp::kSupportsUnicode ==
+    static_assert(ExperimentalRegExp::kSupportsUnicode ==
                   IsUnicode(kAllowedFlags));
     return (flags & ~kAllowedFlags) == 0;
   }
@@ -65,7 +65,13 @@ class CanBeHandledVisitor final : private RegExpVisitor {
     return nullptr;
   }
 
-  void* VisitCharacterClass(RegExpCharacterClass* node, void*) override {
+  void* VisitClassRanges(RegExpClassRanges* node, void*) override {
+    return nullptr;
+  }
+
+  void* VisitClassSetExpression(RegExpClassSetExpression* node,
+                                void*) override {
+    result_ = false;
     return nullptr;
   }
 
@@ -385,7 +391,7 @@ class CompileVisitor : private RegExpVisitor {
     return nullptr;
   }
 
-  void* VisitCharacterClass(RegExpCharacterClass* node, void*) override {
+  void* VisitClassRanges(RegExpClassRanges* node, void*) override {
     // A character class is compiled as Disjunction over its `CharacterRange`s.
     ZoneList<CharacterRange>* ranges = node->ranges(zone_);
     CharacterRange::Canonicalize(ranges);
@@ -402,7 +408,7 @@ class CompileVisitor : private RegExpVisitor {
     CompileDisjunction(ranges->length(), [&](int i) {
       // We don't support utf16 for now, so only ranges that can be specified
       // by (complements of) ranges with base::uc16 bounds.
-      STATIC_ASSERT(kMaxSupportedCodepoint <=
+      static_assert(kMaxSupportedCodepoint <=
                     std::numeric_limits<base::uc16>::max());
 
       base::uc32 from = (*ranges)[i].from();
@@ -417,6 +423,12 @@ class CompileVisitor : private RegExpVisitor {
       assembler_.ConsumeRange(from_uc16, to_uc16);
     });
     return nullptr;
+  }
+
+  void* VisitClassSetExpression(RegExpClassSetExpression* node,
+                                void*) override {
+    // TODO(v8:11935): Add support.
+    UNREACHABLE();
   }
 
   void* VisitAtom(RegExpAtom* node, void*) override {

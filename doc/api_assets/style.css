@@ -4,7 +4,7 @@
   --black1: #090c15;
   --black2: #2c3437;
   --black3: #0d111d;
-  --blue1: #00f;
+  --blue1: #0a56b2;
   --white: #ffffff;
   --white-smoke: #f2f2f2;
   --grey-smoke: #e9edf0;
@@ -38,6 +38,13 @@
   --color-text-nav: var(--gray3);
   --color-text-primary: var(--gray6);
   --color-text-secondary: var(--green2);
+}
+
+h2 :target,
+h3 :target,
+h4 :target,
+h5 :target {
+  scroll-margin-top: 55px;
 }
 
 .dark-mode {
@@ -591,7 +598,8 @@ hr {
   padding-left: 5rem;
 }
 
-#toc .stability_0::after {
+#toc .stability_0::after,
+.deprecated-inline::after {
   background-color: var(--red2);
   color: var(--white);
   content: "deprecated";
@@ -603,6 +611,15 @@ hr {
   background-color: var(--blue1);
   color: var(--white);
   content: "legacy";
+  margin-left: .25rem;
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+
+.experimental-inline::after {
+  background-color: var(--red3);
+  color: var(--white);
+  content: "experimental";
   margin-left: .25rem;
   padding: 1px 3px;
   border-radius: 3px;
@@ -942,6 +959,9 @@ kbd {
   background-repeat: no-repeat;
   width: 142px;
   height: 20px;
+  display: block;
+  cursor: pointer;
+  margin: 0;
 }
 .js-flavor-selector:checked {
   background-image: url(./js-flavor-esm.svg);

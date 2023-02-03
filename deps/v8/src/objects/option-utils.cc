@@ -47,7 +47,7 @@ MaybeHandle<JSReceiver> CoerceOptionsToObject(Isolate* isolate,
 
 Maybe<bool> GetStringOption(Isolate* isolate, Handle<JSReceiver> options,
                             const char* property,
-                            std::vector<const char*> values,
+                            const std::vector<const char*>& values,
                             const char* method_name,
                             std::unique_ptr<char[]>* result) {
   Handle<String> property_str =
@@ -166,6 +166,37 @@ Maybe<int> GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
 
   // Return ? DefaultNumberOption(value, minimum, maximum, fallback).
   return DefaultNumberOption(isolate, value, min, max, fallback, property);
+}
+
+// #sec-getoption while type is "number"
+Maybe<double> GetNumberOptionAsDouble(Isolate* isolate,
+                                      Handle<JSReceiver> options,
+                                      Handle<String> property,
+                                      double default_value) {
+  // 1. Let value be ? Get(options, property).
+  Handle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value, JSReceiver::GetProperty(isolate, options, property),
+      Nothing<double>());
+  // 2. If value is undefined, then
+  if (value->IsUndefined()) {
+    // b. Return default.
+    return Just(default_value);
+  }
+  // 4. Else if type is "number", then
+  // a. Set value to ? ToNumber(value).
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value, Object::ToNumber(isolate, value), Nothing<double>());
+  // b. If value is NaN, throw a RangeError exception.
+  if (value->IsNaN()) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
+        Nothing<double>());
+  }
+
+  // 7. Return value.
+  return Just(value->Number());
 }
 
 }  // namespace internal

@@ -10,12 +10,9 @@
 #include "include/v8-unwinder.h"
 #include "src/common/globals.h"
 #include "src/execution/thread-id.h"
+#include "src/heap/base/stack.h"
 #include "src/objects/contexts.h"
 #include "src/utils/utils.h"
-
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-#include "src/heap/base/stack.h"
-#endif
 
 namespace v8 {
 
@@ -26,7 +23,6 @@ namespace internal {
 class EmbedderState;
 class ExternalCallbackScope;
 class Isolate;
-class PromiseOnStack;
 class Simulator;
 
 class ThreadLocalTop {
@@ -34,11 +30,7 @@ class ThreadLocalTop {
   // TODO(all): This is not particularly beautiful. We should probably
   // refactor this to really consist of just Addresses and 32-bit
   // integer fields.
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  static constexpr uint32_t kSizeInBytes = 26 * kSystemPointerSize;
-#else
-  static constexpr uint32_t kSizeInBytes = 25 * kSystemPointerSize;
-#endif
+  static constexpr uint32_t kSizeInBytes = 27 * kSystemPointerSize;
 
   // Does early low-level initialization that does not depend on the
   // isolate being present.
@@ -107,7 +99,7 @@ class ThreadLocalTop {
   // be cleaner to make it an "Address raw_context_", and construct a Context
   // object in the getter. Same for {pending_handler_context_} below. In the
   // meantime, assert that the memory layout is the same.
-  STATIC_ASSERT(sizeof(Context) == kSystemPointerSize);
+  static_assert(sizeof(Context) == kSystemPointerSize);
   Context context_;
   std::atomic<ThreadId> thread_id_;
   Object pending_exception_;
@@ -118,6 +110,7 @@ class ThreadLocalTop {
   Address pending_handler_constant_pool_;
   Address pending_handler_fp_;
   Address pending_handler_sp_;
+  uintptr_t num_frames_above_pending_handler_;
 
   Address last_api_entry_;
 
@@ -139,11 +132,6 @@ class ThreadLocalTop {
   // C function that was called at c entry.
   Address c_function_;
 
-  // Throwing an exception may cause a Promise rejection.  For this purpose
-  // we keep track of a stack of nested promises and the corresponding
-  // try-catch handlers.
-  PromiseOnStack* promise_on_stack_;
-
   // Simulator field is always present to get predictable layout.
   Simulator* simulator_;
 
@@ -160,9 +148,8 @@ class ThreadLocalTop {
   // Address of the thread-local "thread in wasm" flag.
   Address thread_in_wasm_flag_address_;
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  // Stack information.
   ::heap::base::Stack stack_;
-#endif
 };
 
 }  // namespace internal

@@ -67,7 +67,8 @@ namespace internal {
 
 SaveFlags::SaveFlags() {
   // For each flag, save the current flag value.
-#define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) SAVED_##nam = FLAG_##nam;
+#define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) \
+  SAVED_##nam = v8_flags.nam.value();
 #include "src/flags/flag-definitions.h"
 #undef FLAG_MODE_APPLY
 }
@@ -76,11 +77,34 @@ SaveFlags::~SaveFlags() {
   // For each flag, set back the old flag value if it changed (don't write the
   // flag if it didn't change, to keep TSAN happy).
 #define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) \
-  if (SAVED_##nam != FLAG_##nam) {                   \
-    FLAG_##nam = SAVED_##nam;                        \
+  if (SAVED_##nam != v8_flags.nam.value()) {         \
+    v8_flags.nam = SAVED_##nam;                      \
   }
 #include "src/flags/flag-definitions.h"  // NOLINT
 #undef FLAG_MODE_APPLY
+}
+
+ManualGCScope::ManualGCScope(i::Isolate* isolate) {
+  // Some tests run threaded (back-to-back) and thus the GC may already be
+  // running by the time a ManualGCScope is created. Finalizing existing marking
+  // prevents any undefined/unexpected behavior.
+  if (isolate && isolate->heap()->incremental_marking()->IsMarking()) {
+    ScanStackModeScopeForTesting no_stack_scanning(isolate->heap(),
+                                                   Heap::ScanStackMode::kNone);
+    isolate->heap()->CollectGarbage(OLD_SPACE,
+                                    GarbageCollectionReason::kTesting);
+    // Make sure there is no concurrent sweeping running in the background.
+    isolate->heap()->CompleteSweepingFull();
+  }
+
+  i::v8_flags.concurrent_marking = false;
+  i::v8_flags.concurrent_sweeping = false;
+  i::v8_flags.concurrent_minor_mc_marking = false;
+  i::v8_flags.stress_incremental_marking = false;
+  i::v8_flags.stress_concurrent_allocation = false;
+  // Parallel marking has a dependency on concurrent marking.
+  i::v8_flags.parallel_marking = false;
+  i::v8_flags.detect_ineffective_gcs_near_heap_limit = false;
 }
 
 }  // namespace internal

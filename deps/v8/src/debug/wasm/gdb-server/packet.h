@@ -6,7 +6,7 @@
 #define V8_DEBUG_WASM_GDB_SERVER_PACKET_H_
 
 #include <string>
-#include <vector>
+
 #include "src/base/macros.h"
 
 namespace v8 {

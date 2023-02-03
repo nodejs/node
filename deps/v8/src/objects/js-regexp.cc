@@ -135,16 +135,9 @@ base::Optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
 // static
 Handle<String> JSRegExp::StringFromFlags(Isolate* isolate,
                                          JSRegExp::Flags flags) {
-  static constexpr int kStringTerminator = 1;
-  int cursor = 0;
-  char buffer[kFlagCount + kStringTerminator];
-#define V(Lower, Camel, LowerCamel, Char, Bit) \
-  if (flags & JSRegExp::k##Camel) buffer[cursor++] = Char;
-  REGEXP_FLAG_LIST(V)
-#undef V
-  buffer[cursor++] = '\0';
-  DCHECK_LE(cursor, kFlagCount + kStringTerminator);
-  return isolate->factory()->NewStringFromAsciiChecked(buffer);
+  FlagsBuffer buffer;
+  return isolate->factory()->NewStringFromAsciiChecked(
+      FlagsToString(flags, &buffer));
 }
 
 // static
@@ -179,19 +172,20 @@ void JSRegExp::set_bytecode_and_trampoline(Isolate* isolate,
   SetDataAt(kIrregexpLatin1BytecodeIndex, *bytecode);
   SetDataAt(kIrregexpUC16BytecodeIndex, *bytecode);
 
-  Handle<Code> trampoline = BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
-  SetDataAt(JSRegExp::kIrregexpLatin1CodeIndex, ToCodeT(*trampoline));
-  SetDataAt(JSRegExp::kIrregexpUC16CodeIndex, ToCodeT(*trampoline));
+  Handle<CodeT> trampoline =
+      BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
+  SetDataAt(JSRegExp::kIrregexpLatin1CodeIndex, *trampoline);
+  SetDataAt(JSRegExp::kIrregexpUC16CodeIndex, *trampoline);
 }
 
 bool JSRegExp::ShouldProduceBytecode() {
-  return FLAG_regexp_interpret_all ||
-         (FLAG_regexp_tier_up && !MarkedForTierUp());
+  return v8_flags.regexp_interpret_all ||
+         (v8_flags.regexp_tier_up && !MarkedForTierUp());
 }
 
 // Only irregexps are subject to tier-up.
 bool JSRegExp::CanTierUp() {
-  return FLAG_regexp_tier_up && type_tag() == JSRegExp::IRREGEXP;
+  return v8_flags.regexp_tier_up && type_tag() == JSRegExp::IRREGEXP;
 }
 
 // An irregexp is considered to be marked for tier up if the tier-up ticks
@@ -207,7 +201,7 @@ bool JSRegExp::MarkedForTierUp() {
 }
 
 void JSRegExp::ResetLastTierUpTick() {
-  DCHECK(FLAG_regexp_tier_up);
+  DCHECK(v8_flags.regexp_tier_up);
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex)) + 1;
   FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
@@ -215,7 +209,7 @@ void JSRegExp::ResetLastTierUpTick() {
 }
 
 void JSRegExp::TierUpTick() {
-  DCHECK(FLAG_regexp_tier_up);
+  DCHECK(v8_flags.regexp_tier_up);
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex));
   if (tier_up_ticks == 0) {
@@ -226,7 +220,7 @@ void JSRegExp::TierUpTick() {
 }
 
 void JSRegExp::MarkTierUpForNextExec() {
-  DCHECK(FLAG_regexp_tier_up);
+  DCHECK(v8_flags.regexp_tier_up);
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
                                Smi::zero());
@@ -239,7 +233,8 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   Isolate* isolate = regexp->GetIsolate();
   base::Optional<Flags> flags =
       JSRegExp::FlagsFromString(isolate, flags_string);
-  if (!flags.has_value()) {
+  if (!flags.has_value() ||
+      !RegExp::VerifyFlags(JSRegExp::AsRegExpFlags(flags.value()))) {
     THROW_NEW_ERROR(
         isolate,
         NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string),
@@ -263,7 +258,7 @@ int CountAdditionalEscapeChars(Handle<String> source, bool* needs_escapes_out) {
   DisallowGarbageCollection no_gc;
   int escapes = 0;
   bool needs_escapes = false;
-  bool in_char_class = false;
+  bool in_character_class = false;
   base::Vector<const Char> src = source->GetCharVector<Char>(no_gc);
   for (int i = 0; i < src.length(); i++) {
     const Char c = src[i];
@@ -275,14 +270,14 @@ int CountAdditionalEscapeChars(Handle<String> source, bool* needs_escapes_out) {
         // Escape. Skip next character, which will be copied verbatim;
         i++;
       }
-    } else if (c == '/' && !in_char_class) {
+    } else if (c == '/' && !in_character_class) {
       // Not escaped forward-slash needs escape.
       needs_escapes = true;
       escapes++;
     } else if (c == '[') {
-      in_char_class = true;
+      in_character_class = true;
     } else if (c == ']') {
-      in_char_class = false;
+      in_character_class = false;
     } else if (c == '\n') {
       needs_escapes = true;
       escapes++;
@@ -299,7 +294,7 @@ int CountAdditionalEscapeChars(Handle<String> source, bool* needs_escapes_out) {
       DCHECK(!IsLineTerminator(c));
     }
   }
-  DCHECK(!in_char_class);
+  DCHECK(!in_character_class);
   DCHECK_GE(escapes, 0);
   DCHECK_IMPLIES(escapes != 0, needs_escapes);
   *needs_escapes_out = needs_escapes;
@@ -320,7 +315,7 @@ Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
   base::Vector<Char> dst(result->GetChars(no_gc), result->length());
   int s = 0;
   int d = 0;
-  bool in_char_class = false;
+  bool in_character_class = false;
   while (s < src.length()) {
     const Char c = src[s];
     if (c == '\\') {
@@ -333,13 +328,13 @@ Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
         dst[d++] = src[s++];
       }
       if (s == src.length()) break;
-    } else if (c == '/' && !in_char_class) {
+    } else if (c == '/' && !in_character_class) {
       // Not escaped forward-slash needs escape.
       dst[d++] = '\\';
     } else if (c == '[') {
-      in_char_class = true;
+      in_character_class = true;
     } else if (c == ']') {
-      in_char_class = false;
+      in_character_class = false;
     } else if (c == '\n') {
       WriteStringToCharVector(dst, &d, "\\n");
       s++;
@@ -362,7 +357,7 @@ Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
     dst[d++] = src[s++];
   }
   DCHECK_EQ(result->length(), d);
-  DCHECK(!in_char_class);
+  DCHECK(!in_character_class);
   return result;
 }
 

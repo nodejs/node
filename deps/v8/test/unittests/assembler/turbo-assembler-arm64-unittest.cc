@@ -37,13 +37,16 @@ TEST_F(TurboAssemblerTest, TestHardAbort) {
   __ set_root_array_available(false);
   __ set_abort_hard(true);
 
-  __ CodeEntry();
+  {
+    AssemblerBufferWriteScope rw_scope(*buffer);
 
-  __ Abort(AbortReason::kNoReason);
+    __ CodeEntry();
 
-  CodeDesc desc;
-  tasm.GetCode(isolate(), &desc);
-  buffer->MakeExecutable();
+    __ Abort(AbortReason::kNoReason);
+
+    CodeDesc desc;
+    tasm.GetCode(isolate(), &desc);
+  }
   // We need an isolate here to execute in the simulator.
   auto f = GeneratedCode<void>::FromBuffer(isolate(), buffer->start());
 
@@ -57,23 +60,74 @@ TEST_F(TurboAssemblerTest, TestCheck) {
   __ set_root_array_available(false);
   __ set_abort_hard(true);
 
-  __ CodeEntry();
+  {
+    AssemblerBufferWriteScope rw_scope(*buffer);
 
-  // Fail if the first parameter is 17.
-  __ Mov(w1, Immediate(17));
-  __ Cmp(w0, w1);  // 1st parameter is in {w0}.
-  __ Check(Condition::ne, AbortReason::kNoReason);
-  __ Ret();
+    __ CodeEntry();
 
-  CodeDesc desc;
-  tasm.GetCode(isolate(), &desc);
-  buffer->MakeExecutable();
+    // Fail if the first parameter is 17.
+    __ Mov(w1, Immediate(17));
+    __ Cmp(w0, w1);  // 1st parameter is in {w0}.
+    __ Check(Condition::ne, AbortReason::kNoReason);
+    __ Ret();
+
+    CodeDesc desc;
+    tasm.GetCode(isolate(), &desc);
+  }
   // We need an isolate here to execute in the simulator.
   auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer->start());
 
   f.Call(0);
   f.Call(18);
   ASSERT_DEATH_IF_SUPPORTED({ f.Call(17); }, ERROR_MESSAGE("abort: no reason"));
+}
+
+TEST_F(TurboAssemblerTest, CompareAndBranch) {
+  const int kTestCases[] = {-42, 0, 42};
+  static_assert(Condition::eq == 0);
+  static_assert(Condition::le == 13);
+  TRACED_FORRANGE(int, cc, 0, 13) {  // All conds except al and nv
+    Condition cond = static_cast<Condition>(cc);
+    TRACED_FOREACH(int, imm, kTestCases) {
+      auto buffer = AllocateAssemblerBuffer();
+      TurboAssembler tasm(isolate(), AssemblerOptions{},
+                          CodeObjectRequired::kNo, buffer->CreateView());
+      __ set_root_array_available(false);
+      __ set_abort_hard(true);
+
+      {
+        AssemblerBufferWriteScope rw_scope(*buffer);
+
+        __ CodeEntry();
+
+        Label start, lab;
+        __ Bind(&start);
+        __ CompareAndBranch(x0, Immediate(imm), cond, &lab);
+        if (imm == 0 && ((cond == eq) || (cond == ne) || (cond == hi) ||
+                         (cond == ls))) {  // One instruction generated
+          ASSERT_EQ(kInstrSize, __ SizeOfCodeGeneratedSince(&start));
+        } else {  // Two instructions generated
+          ASSERT_EQ(static_cast<uint8_t>(2 * kInstrSize),
+                    __ SizeOfCodeGeneratedSince(&start));
+        }
+        __ Cmp(x0, Immediate(imm));
+        __ Check(NegateCondition(cond),
+                 AbortReason::kNoReason);  // cond must not hold
+        __ Ret();
+        __ Bind(&lab);  // Branch leads here
+        __ Cmp(x0, Immediate(imm));
+        __ Check(cond, AbortReason::kNoReason);  // cond must hold
+        __ Ret();
+
+        CodeDesc desc;
+        tasm.GetCode(isolate(), &desc);
+      }
+      // We need an isolate here to execute in the simulator.
+      auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer->start());
+
+      TRACED_FOREACH(int, n, kTestCases) { f.Call(n); }
+    }
+  }
 }
 
 struct MoveObjectAndSlotTestCase {
@@ -119,54 +173,58 @@ TEST_P(TurboAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
     TurboAssembler tasm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
                         buffer->CreateView());
 
-    __ CodeEntry();
-    __ Push(x0, padreg);
-    __ Mov(test_case.object, x1);
+    {
+      AssemblerBufferWriteScope rw_buffer_scope(*buffer);
 
-    Register src_object = test_case.object;
-    Register dst_object = test_case.dst_object;
-    Register dst_slot = test_case.dst_slot;
+      __ CodeEntry();
+      __ Push(x0, padreg);
+      __ Mov(test_case.object, x1);
 
-    Operand offset_operand(0);
-    if (test_case.offset_register == no_reg) {
-      offset_operand = Operand(offset);
-    } else {
-      __ Mov(test_case.offset_register, Operand(offset));
-      offset_operand = Operand(test_case.offset_register);
+      Register src_object = test_case.object;
+      Register dst_object = test_case.dst_object;
+      Register dst_slot = test_case.dst_slot;
+
+      Operand offset_operand(0);
+      if (test_case.offset_register == no_reg) {
+        offset_operand = Operand(offset);
+      } else {
+        __ Mov(test_case.offset_register, Operand(offset));
+        offset_operand = Operand(test_case.offset_register);
+      }
+
+      std::stringstream comment;
+      comment << "-- " << test_case.comment << ": MoveObjectAndSlot("
+              << dst_object << ", " << dst_slot << ", " << src_object << ", ";
+      if (test_case.offset_register == no_reg) {
+        comment << "#" << offset;
+      } else {
+        comment << test_case.offset_register;
+      }
+      comment << ") --";
+      __ RecordComment(comment.str().c_str());
+      __ MoveObjectAndSlot(dst_object, dst_slot, src_object, offset_operand);
+      __ RecordComment("--");
+
+      // The `result` pointer was saved on the stack.
+      UseScratchRegisterScope temps(&tasm);
+      Register scratch = temps.AcquireX();
+      __ Pop(padreg, scratch);
+      __ Str(dst_object, MemOperand(scratch));
+      __ Str(dst_slot, MemOperand(scratch, kSystemPointerSize));
+
+      __ Ret();
+
+      CodeDesc desc;
+      tasm.GetCode(nullptr, &desc);
+      if (v8_flags.print_code) {
+        Handle<Code> code =
+            Factory::CodeBuilder(isolate(), desc, CodeKind::FOR_TESTING)
+                .Build();
+        StdoutStream os;
+        code->Print(os);
+      }
     }
 
-    std::stringstream comment;
-    comment << "-- " << test_case.comment << ": MoveObjectAndSlot("
-            << dst_object << ", " << dst_slot << ", " << src_object << ", ";
-    if (test_case.offset_register == no_reg) {
-      comment << "#" << offset;
-    } else {
-      comment << test_case.offset_register;
-    }
-    comment << ") --";
-    __ RecordComment(comment.str().c_str());
-    __ MoveObjectAndSlot(dst_object, dst_slot, src_object, offset_operand);
-    __ RecordComment("--");
-
-    // The `result` pointer was saved on the stack.
-    UseScratchRegisterScope temps(&tasm);
-    Register scratch = temps.AcquireX();
-    __ Pop(padreg, scratch);
-    __ Str(dst_object, MemOperand(scratch));
-    __ Str(dst_slot, MemOperand(scratch, kSystemPointerSize));
-
-    __ Ret();
-
-    CodeDesc desc;
-    tasm.GetCode(nullptr, &desc);
-    if (FLAG_print_code) {
-      Handle<Code> code =
-          Factory::CodeBuilder(isolate(), desc, CodeKind::FOR_TESTING).Build();
-      StdoutStream os;
-      code->Print(os);
-    }
-
-    buffer->MakeExecutable();
     // We need an isolate here to execute in the simulator.
     auto f = GeneratedCode<void, byte**, byte*>::FromBuffer(isolate(),
                                                             buffer->start());

@@ -1,24 +1,22 @@
-import { mustCall } from '../common/index.mjs';
-import { path } from '../common/fixtures.mjs';
-import { match, notStrictEqual } from 'assert';
-import { spawn } from 'child_process';
-import { execPath } from 'process';
+import { spawnPromisified } from '../common/index.mjs';
+import * as fixtures from '../common/fixtures.mjs';
+import assert from 'node:assert';
+import { execPath } from 'node:process';
+import { describe, it } from 'node:test';
 
-const child = spawn(execPath, [
-  path('es-modules', 'import-json-named-export.mjs'),
-]);
 
-let stderr = '';
-child.stderr.setEncoding('utf8');
-child.stderr.on('data', (data) => {
-  stderr += data;
+describe('ESM: named JSON exports', { concurrency: true }, () => {
+  it('should throw, citing named import', async () => {
+    const { code, stderr } = await spawnPromisified(execPath, [
+      fixtures.path('es-modules', 'import-json-named-export.mjs'),
+    ]);
+
+    // SyntaxError: The requested module '../experimental.json'
+    // does not provide an export named 'ofLife'
+    assert.match(stderr, /SyntaxError:/);
+    assert.match(stderr, /'\.\.\/experimental\.json'/);
+    assert.match(stderr, /'ofLife'/);
+
+    assert.notStrictEqual(code, 0);
+  });
 });
-child.on('close', mustCall((code, _signal) => {
-  notStrictEqual(code, 0);
-
-  // SyntaxError: The requested module '../experimental.json'
-  // does not provide an export named 'ofLife'
-  match(stderr, /SyntaxError:/);
-  match(stderr, /'\.\.\/experimental\.json'/);
-  match(stderr, /'ofLife'/);
-}));

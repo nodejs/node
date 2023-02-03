@@ -1,7 +1,6 @@
 "use strict";
 
 var _utils = require("./utils");
-
 const defineType = (0, _utils.defineAliasedType)("JSX");
 defineType("JSXAttribute", {
   visitor: ["name", "value"],
@@ -29,7 +28,7 @@ defineType("JSXElement", {
   builder: ["openingElement", "closingElement", "children", "selfClosing"],
   visitor: ["openingElement", "children", "closingElement"],
   aliases: ["Immutable", "Expression"],
-  fields: {
+  fields: Object.assign({
     openingElement: {
       validate: (0, _utils.assertNodeType)("JSXOpeningElement")
     },
@@ -39,12 +38,13 @@ defineType("JSXElement", {
     },
     children: {
       validate: (0, _utils.chain)((0, _utils.assertValueType)("array"), (0, _utils.assertEach)((0, _utils.assertNodeType)("JSXText", "JSXExpressionContainer", "JSXSpreadChild", "JSXElement", "JSXFragment")))
-    },
+    }
+  }, {
     selfClosing: {
       validate: (0, _utils.assertValueType)("boolean"),
       optional: true
     }
-  }
+  })
 });
 defineType("JSXEmptyExpression", {});
 defineType("JSXExpressionContainer", {
@@ -154,3 +154,5 @@ defineType("JSXOpeningFragment", {
 defineType("JSXClosingFragment", {
   aliases: ["Immutable"]
 });
+
+//# sourceMappingURL=jsx.js.map

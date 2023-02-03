@@ -150,6 +150,9 @@ class UDPWrap final : public HandleWrap,
   static void SetBroadcast(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void BufferSize(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetSendQueueSize(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetSendQueueCount(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // UDPListener implementation
   uv_buf_t OnAlloc(size_t suggested_size) override;

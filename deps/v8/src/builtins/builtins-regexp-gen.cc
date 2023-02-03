@@ -478,7 +478,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
       };
       Label* labels[] = {&next, &atom, &next};
 
-      STATIC_ASSERT(arraysize(values) == arraysize(labels));
+      static_assert(arraysize(values) == arraysize(labels));
       Switch(tag, &unreachable, values, labels, arraysize(values));
 
       BIND(&unreachable);
@@ -493,7 +493,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
         data, JSRegExp::kIrregexpCaptureCountIndex));
 
     const int kOffsetsSize = Isolate::kJSRegexpStaticOffsetsVectorSize;
-    STATIC_ASSERT(kOffsetsSize >= 2);
+    static_assert(kOffsetsSize >= 2);
     GotoIf(SmiAbove(capture_count, SmiConstant(kOffsetsSize / 2 - 1)),
            &runtime);
   }
@@ -603,7 +603,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
         data, JSRegExp::kIrregexpCaptureCountIndex));
     // capture_count is the number of captures without the match itself.
     // Required registers = (capture_count + 1) * 2.
-    STATIC_ASSERT(Internals::IsValidSmi((JSRegExp::kMaxCaptures + 1) * 2));
+    static_assert(Internals::IsValidSmi((JSRegExp::kMaxCaptures + 1) * 2));
     TNode<Smi> register_count =
         SmiShl(SmiAdd(capture_count, SmiConstant(1)), 1);
 
@@ -672,7 +672,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
     // Check that the last match info has space for the capture registers and
     // the additional information. Ensure no overflow in add.
-    STATIC_ASSERT(FixedArray::kMaxLength < kMaxInt - FixedArray::kLengthOffset);
+    static_assert(FixedArray::kMaxLength < kMaxInt - FixedArray::kLengthOffset);
     TNode<Smi> available_slots =
         SmiSub(LoadFixedArrayBaseLength(match_info),
                SmiConstant(RegExpMatchInfo::kLastMatchOverhead));
@@ -732,7 +732,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     TNode<ExternalReference> pending_exception_address =
         ExternalConstant(ExternalReference::Create(
             IsolateAddressId::kPendingExceptionAddress, isolate()));
-    CSA_DCHECK(this, IsTheHole(Load<Object>(pending_exception_address)));
+    TNode<Object> pending_exception = LoadFullTagged(pending_exception_address);
+    CSA_DCHECK(this, IsTheHole(pending_exception));
 #endif  // DEBUG
     CallRuntime(Runtime::kThrowStackOverflow, context);
     Unreachable();
@@ -974,7 +975,7 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
                                      LoadStringLengthAsWord(subject_string)));
 
     const int kNumRegisters = 2;
-    STATIC_ASSERT(RegExpMatchInfo::kInitialCaptureIndices >= kNumRegisters);
+    static_assert(RegExpMatchInfo::kInitialCaptureIndices >= kNumRegisters);
 
     const TNode<Smi> match_to =
         SmiAdd(match_from, LoadStringLengthAsSmi(needle_string));
@@ -1099,6 +1100,10 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
         "linear",
         ExternalReference::address_of_enable_experimental_regexp_engine(),
         JSRegExp::kLinear);
+    CASE_FOR_FLAG(
+        "unicodeSets",
+        ExternalReference::address_of_FLAG_harmony_regexp_unicode_sets(),
+        JSRegExp::kUnicodeSets);
 #undef CASE_FOR_FLAG
   }
 
@@ -1430,7 +1435,7 @@ TNode<Number> RegExpBuiltinsAssembler::AdvanceStringIndex(
   if (is_fastpath) {
     // Must be in Smi range on the fast path. We control the value of {index}
     // on all call-sites and can never exceed the length of the string.
-    STATIC_ASSERT(String::kMaxLength + 2 < Smi::kMaxValue);
+    static_assert(String::kMaxLength + 2 < Smi::kMaxValue);
     CSA_DCHECK(this, TaggedIsPositiveSmi(index_plus_one));
   }
 

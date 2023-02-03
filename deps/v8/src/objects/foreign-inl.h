@@ -9,7 +9,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/foreign.h"
 #include "src/objects/objects-inl.h"
-#include "src/security/external-pointer-inl.h"
+#include "src/sandbox/external-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,26 +21,8 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Foreign)
 
-// static
-bool Foreign::IsNormalized(Object value) {
-  if (value == Smi::zero()) return true;
-  return Foreign::cast(value).foreign_address() != kNullAddress;
-}
-
-DEF_GETTER(Foreign, foreign_address, Address) {
-  Isolate* isolate = GetIsolateForHeapSandbox(*this);
-  return ReadExternalPointerField(kForeignAddressOffset, isolate,
-                                  kForeignForeignAddressTag);
-}
-
-void Foreign::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField(kForeignAddressOffset, isolate);
-}
-
-void Foreign::set_foreign_address(Isolate* isolate, Address value) {
-  WriteExternalPointerField(kForeignAddressOffset, isolate, value,
-                            kForeignForeignAddressTag);
-}
+EXTERNAL_POINTER_ACCESSORS(Foreign, foreign_address, Address,
+                           kForeignAddressOffset, kForeignForeignAddressTag)
 
 }  // namespace internal
 }  // namespace v8

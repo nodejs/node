@@ -130,7 +130,7 @@ action_resolve(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
 {
     ubidi_setPara(pTransform->pBidi, pTransform->src, pTransform->srcLength,
             pTransform->pActiveScheme->baseLevel, NULL, pErrorCode);
-    return FALSE;
+    return false;
 }
 
 /**
@@ -150,7 +150,7 @@ action_reorder(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
 
     *pTransform->pDestLength = pTransform->srcLength;
     pTransform->reorderingOptions = UBIDI_REORDER_DEFAULT;
-    return TRUE;
+    return true;
 }
 
 /**
@@ -166,9 +166,9 @@ static UBool
 action_setInverse(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
 {
     (void)pErrorCode;
-    ubidi_setInverse(pTransform->pBidi, TRUE);
+    ubidi_setInverse(pTransform->pBidi, true);
     ubidi_setReorderingMode(pTransform->pBidi, UBIDI_REORDER_INVERSE_LIKE_DIRECT);
-    return FALSE;
+    return false;
 }
 
 /**
@@ -186,7 +186,7 @@ action_setRunsOnly(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
 {
     (void)pErrorCode;
     ubidi_setReorderingMode(pTransform->pBidi, UBIDI_REORDER_RUNS_ONLY);
-    return FALSE;
+    return false;
 }
 
 /**
@@ -205,7 +205,7 @@ action_reverse(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
             pTransform->dest, pTransform->destSize,
             UBIDI_REORDER_DEFAULT, pErrorCode);
     *pTransform->pDestLength = pTransform->srcLength;
-    return TRUE;
+    return true;
 }
 
 /**
@@ -274,7 +274,7 @@ static UBool
 action_shapeArabic(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
 {
     if ((pTransform->letters | pTransform->digits) == 0) {
-        return FALSE;
+        return false;
     }
     if (pTransform->pActiveScheme->lettersDir == pTransform->pActiveScheme->digitsDir) {
         doShape(pTransform, pTransform->letters | pTransform->digits | pTransform->pActiveScheme->lettersDir,
@@ -288,7 +288,7 @@ action_shapeArabic(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
                     pErrorCode);
         }
     }
-    return TRUE;
+    return true;
 }
 
 /**
@@ -306,11 +306,11 @@ action_mirror(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
     UChar32 c;
     uint32_t i = 0, j = 0;
     if (0 == (pTransform->reorderingOptions & UBIDI_DO_MIRRORING)) {
-        return FALSE;
+        return false;
     }
     if (pTransform->destSize < pTransform->srcLength) {
         *pErrorCode = U_BUFFER_OVERFLOW_ERROR;
-        return FALSE;
+        return false;
     }
     do {
         UBool isOdd = ubidi_getLevelAt(pTransform->pBidi, i) & 1;
@@ -320,7 +320,7 @@ action_mirror(UBiDiTransform *pTransform, UErrorCode *pErrorCode)
     
     *pTransform->pDestLength = pTransform->srcLength;
     pTransform->reorderingOptions = UBIDI_REORDER_DEFAULT;
-    return TRUE;
+    return true;
 }
 
 /**
@@ -444,7 +444,7 @@ ubiditransform_transform(UBiDiTransform *pBiDiTransform,
             UErrorCode *pErrorCode)
 {
     uint32_t destLength = 0;
-    UBool textChanged = FALSE;
+    UBool textChanged = false;
     const UBiDiTransform *pOrigTransform = pBiDiTransform;
     const UBiDiAction *action = NULL;
 
@@ -503,10 +503,10 @@ ubiditransform_transform(UBiDiTransform *pBiDiTransform,
                 updateSrc(pBiDiTransform, pBiDiTransform->dest, *pBiDiTransform->pDestLength,
                         *pBiDiTransform->pDestLength, pErrorCode);
             }
-            textChanged = TRUE;
+            textChanged = true;
         }
     }
-    ubidi_setInverse(pBiDiTransform->pBidi, FALSE);
+    ubidi_setInverse(pBiDiTransform->pBidi, false);
 
     if (!textChanged && U_SUCCESS(*pErrorCode)) {
         /* Text was not changed - just copy src to dest */

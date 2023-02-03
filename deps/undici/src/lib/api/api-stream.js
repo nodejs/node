@@ -106,7 +106,7 @@ class StreamHandler extends AsyncResource {
     }
 
     res.on('drain', resume)
-    // TODO: Avoid finished. It registers an unecessary amount of listeners.
+    // TODO: Avoid finished. It registers an unnecessary amount of listeners.
     finished(res, { readable: false }, (err) => {
       const { callback, res, opaque, trailers, abort } = this
 

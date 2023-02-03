@@ -6,6 +6,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
+#include "src/codegen/constants-arch.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/heap-inl.h"
@@ -53,6 +54,11 @@ Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size,
         CHECK(IsAligned(result, alignment));
         return result;
       }
+      // The empty memory_ranges means that GetFreeMemoryRangesWithin() API
+      // is not supported, so use the lowest address from the preferred region
+      // as a hint because it'll be at least as good as the fallback hint but
+      // with a higher chances to point to the free address space range.
+      return RoundUp(preferred_region.begin(), alignment);
     }
     return RoundUp(FUNCTION_ADDR(&FunctionInStaticBinaryForAddressHint),
                    alignment);
@@ -101,10 +107,26 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   if (requested <= kMinimumCodeRangeSize) {
     requested = kMinimumCodeRangeSize;
   }
+
+  // When V8_EXTERNAL_CODE_SPACE_BOOL is enabled the allocatable region must
+  // not cross the 4Gb boundary and thus the default compression scheme of
+  // truncating the Code pointers to 32-bits still works. It's achieved by
+  // specifying base_alignment parameter.
+  // Note that the alignment is calculated before adjusting the requested size
+  // for GetWritableReservedAreaSize(). The reasons are:
+  //  - this extra page is used by breakpad on Windows and it's allowed to cross
+  //    the 4Gb boundary,
+  //  - rounding up the adjusted size would result in requresting unnecessarily
+  //    big aligment.
+  const size_t base_alignment =
+      V8_EXTERNAL_CODE_SPACE_BOOL
+          ? base::bits::RoundUpToPowerOfTwo(requested)
+          : VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
+
   const size_t reserved_area = GetWritableReservedAreaSize();
   if (requested < (kMaximalCodeRangeSize - reserved_area)) {
     requested += RoundUp(reserved_area, MemoryChunk::kPageSize);
-    // Fullfilling both reserved pages requirement and huge code area
+    // Fulfilling both reserved pages requirement and huge code area
     // alignments is not supported (requires re-implementation).
     DCHECK_LE(kMinExpectedOSPageSize, page_allocator->AllocatePageSize());
   }
@@ -114,38 +136,25 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   VirtualMemoryCage::ReservationParams params;
   params.page_allocator = page_allocator;
   params.reservation_size = requested;
-  // base_alignment should be kAnyBaseAlignment when V8_ENABLE_NEAR_CODE_RANGE
-  // is enabled so that InitReservation would not break the alignment in
-  // GetAddressHint().
   const size_t allocate_page_size = page_allocator->AllocatePageSize();
-  params.base_alignment =
-      V8_EXTERNAL_CODE_SPACE_BOOL
-          ? base::bits::RoundUpToPowerOfTwo(requested)
-          : VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
+  params.base_alignment = base_alignment;
   params.base_bias_size = RoundUp(reserved_area, allocate_page_size);
   params.page_size = MemoryChunk::kPageSize;
-  // V8_EXTERNAL_CODE_SPACE imposes additional alignment requirement for the
-  // base address, so make sure the hint calculation function takes that into
-  // account. Otherwise the allocated reservation might be outside of the
-  // preferred region (see Isolate::GetShortBuiltinsCallRegion()).
-  const size_t hint_alignment =
-      V8_EXTERNAL_CODE_SPACE_BOOL
-          ? RoundUp(params.base_alignment, allocate_page_size)
-          : allocate_page_size;
   params.requested_start_hint =
-      GetCodeRangeAddressHint()->GetAddressHint(requested, hint_alignment);
+      GetCodeRangeAddressHint()->GetAddressHint(requested, allocate_page_size);
+  params.jit =
+      v8_flags.jitless ? JitPermission::kNoJit : JitPermission::kMapAsJittable;
 
   if (!VirtualMemoryCage::InitReservation(params)) return false;
 
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    // Ensure that the code range does not cross the 4Gb boundary and thus
-    // default compression scheme of truncating the Code pointers to 32-bit
-    // still work.
-    Address base = page_allocator_->begin();
-    Address last = base + page_allocator_->size() - 1;
-    CHECK_EQ(GetPtrComprCageBaseAddress(base),
-             GetPtrComprCageBaseAddress(last));
-  }
+#ifdef V8_EXTERNAL_CODE_SPACE
+  // Ensure that ExternalCodeCompressionScheme is applicable to all objects
+  // stored in the code range.
+  Address base = page_allocator_->begin();
+  Address last = base + page_allocator_->size() - 1;
+  CHECK_EQ(ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(base),
+           ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(last));
+#endif  // V8_EXTERNAL_CODE_SPACE
 
   // On some platforms, specifically Win64, we need to reserve some pages at
   // the beginning of an executable space. See
@@ -158,7 +167,14 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
       return false;
     }
   }
-
+  if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT &&
+      params.jit == JitPermission::kMapAsJittable) {
+    void* base = reinterpret_cast<void*>(page_allocator_->begin());
+    size_t size = page_allocator_->size();
+    CHECK(params.page_allocator->SetPermissions(
+        base, size, PageAllocator::kReadWriteExecute));
+    CHECK(params.page_allocator->DiscardSystemPages(base, size));
+  }
   return true;
 }
 
@@ -175,7 +191,10 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
                                           size_t embedded_blob_code_size) {
   base::MutexGuard guard(&remap_embedded_builtins_mutex_);
 
-  const base::AddressRegion& code_region = reservation()->region();
+  // Remap embedded builtins into the end of the address range controlled by
+  // the BoundedPageAllocator.
+  const base::AddressRegion code_region(page_allocator()->begin(),
+                                        page_allocator()->size());
   CHECK_NE(code_region.begin(), kNullAddress);
   CHECK(!code_region.is_empty());
 
@@ -191,11 +210,17 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
   }
 
   const size_t kAllocatePageSize = page_allocator()->AllocatePageSize();
+  const size_t kCommitPageSize = page_allocator()->CommitPageSize();
   size_t allocate_code_size =
       RoundUp(embedded_blob_code_size, kAllocatePageSize);
 
-  // Allocate the re-embedded code blob in the end.
-  void* hint = reinterpret_cast<void*>(code_region.end() - allocate_code_size);
+  // Allocate the re-embedded code blob in such a way that it will be reachable
+  // by PC-relative addressing from biggest possible region.
+  const size_t max_pc_relative_code_range = kMaxPCRelativeCodeRangeInMB * MB;
+  size_t hint_offset =
+      std::min(max_pc_relative_code_range, code_region.size()) -
+      allocate_code_size;
+  void* hint = reinterpret_cast<void*>(code_region.begin() + hint_offset);
 
   embedded_blob_code_copy =
       reinterpret_cast<uint8_t*>(page_allocator()->AllocatePages(
@@ -206,23 +231,77 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
     V8::FatalProcessOutOfMemory(
         isolate, "Can't allocate space for re-embedded builtins");
   }
+  CHECK_EQ(embedded_blob_code_copy, hint);
 
-  size_t code_size =
-      RoundUp(embedded_blob_code_size, page_allocator()->CommitPageSize());
+  if (code_region.size() > max_pc_relative_code_range) {
+    // The re-embedded code blob might not be reachable from the end part of
+    // the code range, so ensure that code pages will never be allocated in
+    // the "unreachable" area.
+    Address unreachable_start =
+        reinterpret_cast<Address>(embedded_blob_code_copy) +
+        max_pc_relative_code_range;
 
-  if (!page_allocator()->SetPermissions(embedded_blob_code_copy, code_size,
-                                        PageAllocator::kReadWrite)) {
-    V8::FatalProcessOutOfMemory(isolate,
-                                "Re-embedded builtins: set permissions");
+    if (code_region.contains(unreachable_start)) {
+      size_t unreachable_size = code_region.end() - unreachable_start;
+
+      void* result = page_allocator()->AllocatePages(
+          reinterpret_cast<void*>(unreachable_start), unreachable_size,
+          kAllocatePageSize, PageAllocator::kNoAccess);
+      CHECK_EQ(reinterpret_cast<Address>(result), unreachable_start);
+    }
   }
-  memcpy(embedded_blob_code_copy, embedded_blob_code, embedded_blob_code_size);
 
-  if (!page_allocator()->SetPermissions(embedded_blob_code_copy, code_size,
-                                        PageAllocator::kReadExecute)) {
-    V8::FatalProcessOutOfMemory(isolate,
-                                "Re-embedded builtins: set permissions");
+  size_t code_size = RoundUp(embedded_blob_code_size, kCommitPageSize);
+  if constexpr (base::OS::IsRemapPageSupported()) {
+    // By default, the embedded builtins are not remapped, but copied. This
+    // costs memory, since builtins become private dirty anonymous memory,
+    // rather than shared, clean, file-backed memory for the embedded version.
+    // If the OS supports it, we can remap the builtins *on top* of the space
+    // allocated in the code range, making the "copy" shared, clean, file-backed
+    // memory, and thus saving sizeof(builtins).
+    //
+    // Builtins should start at a page boundary, see
+    // platform-embedded-file-writer-mac.cc. If it's not the case (e.g. if the
+    // embedded builtins are not coming from the binary), fall back to copying.
+    if (IsAligned(reinterpret_cast<uintptr_t>(embedded_blob_code),
+                  kCommitPageSize)) {
+      bool ok = base::OS::RemapPages(embedded_blob_code, code_size,
+                                     embedded_blob_code_copy,
+                                     base::OS::MemoryPermission::kReadExecute);
+
+      if (ok) {
+        embedded_blob_code_copy_.store(embedded_blob_code_copy,
+                                       std::memory_order_release);
+        return embedded_blob_code_copy;
+      }
+    }
   }
 
+  if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
+    if (!page_allocator()->RecommitPages(embedded_blob_code_copy, code_size,
+                                         PageAllocator::kReadWriteExecute)) {
+      V8::FatalProcessOutOfMemory(isolate,
+                                  "Re-embedded builtins: recommit pages");
+    }
+    RwxMemoryWriteScope rwx_write_scope(
+        "Enable write access to copy the blob code into the code range");
+    memcpy(embedded_blob_code_copy, embedded_blob_code,
+           embedded_blob_code_size);
+  } else {
+    if (!page_allocator()->SetPermissions(embedded_blob_code_copy, code_size,
+                                          PageAllocator::kReadWrite)) {
+      V8::FatalProcessOutOfMemory(isolate,
+                                  "Re-embedded builtins: set permissions");
+    }
+    memcpy(embedded_blob_code_copy, embedded_blob_code,
+           embedded_blob_code_size);
+
+    if (!page_allocator()->SetPermissions(embedded_blob_code_copy, code_size,
+                                          PageAllocator::kReadExecute)) {
+      V8::FatalProcessOutOfMemory(isolate,
+                                  "Re-embedded builtins: set permissions");
+    }
+  }
   embedded_blob_code_copy_.store(embedded_blob_code_copy,
                                  std::memory_order_release);
   return embedded_blob_code_copy;

@@ -5,10 +5,10 @@
 // This file excercises basic fast API calls and enables fuzzing of this
 // functionality.
 
-// Flags: --turbo-fast-api-calls --expose-fast-api --allow-natives-syntax --opt
-// --always-opt is disabled because we rely on particular feedback for
+// Flags: --turbo-fast-api-calls --expose-fast-api --allow-natives-syntax --turbofan
+// --always-turbofan is disabled because we rely on particular feedback for
 // optimizing to the fastest path.
-// Flags: --no-always-opt
+// Flags: --no-always-turbofan
 // The test relies on optimizing/deoptimizing at predictable moments, so
 // it's not suitable for deoptimization fuzzing.
 // Flags: --deopt-every-n-times=0

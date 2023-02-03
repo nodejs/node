@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --super-ic --opt
-// Flags: --no-always-opt --no-stress-opt --deopt-every-n-times=0
+// Flags: --allow-natives-syntax --super-ic --turbofan
+// Flags: --no-always-turbofan --deopt-every-n-times=0
 
 // This file contains tests which are disabled for TurboProp. TurboProp deopts
 // differently than TurboFan, so the assertions about when a function is

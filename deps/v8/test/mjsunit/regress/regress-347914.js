@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --debug-code --gc-interval=201 --verify-heap
 // Flags: --max-inlined-bytecode-size=999999 --max-inlined-bytecode-size-cumulative=999999
-// Flags: --opt --no-always-opt
+// Flags: --turbofan --no-always-turbofan
 
 // Begin stripped down and modified version of mjsunit.js for easy minimization in CF.
 function MjsUnitAssertionError(message) {}

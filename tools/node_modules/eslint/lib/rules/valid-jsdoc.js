@@ -21,7 +21,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce valid JSDoc comments",
+            description: "Enforce valid JSDoc comments",
             recommended: false,
             url: "https://eslint.org/docs/rules/valid-jsdoc"
         },
@@ -405,7 +405,7 @@ module.exports = {
                             loc: getAbsoluteRange(jsdocNode, param),
                             data: { name: param.name }
                         });
-                    } else if (param.name.indexOf(".") === -1) {
+                    } else if (!param.name.includes(".")) {
                         paramTagsByName[param.name] = param;
                     }
                 });

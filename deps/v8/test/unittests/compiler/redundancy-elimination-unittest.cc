@@ -3,13 +3,12 @@
 // found in the LICENSE file.
 
 #include "src/compiler/redundancy-elimination.h"
+
 #include "src/codegen/tick-counter.h"
-#include "src/compiler/common-operator.h"
 #include "src/compiler/feedback-source.h"
 #include "test/unittests/compiler/graph-reducer-unittest.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
-#include "testing/gmock-support.h"
 
 using testing::_;
 using testing::NiceMock;

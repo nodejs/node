@@ -6,6 +6,9 @@
     'ngtcp2_sources': [
       'ngtcp2/lib/ngtcp2_acktr.c',
       'ngtcp2/lib/ngtcp2_addr.c',
+      'ngtcp2/lib/ngtcp2_balloc.c',
+      'ngtcp2/lib/ngtcp2_bbr.c',
+      'ngtcp2/lib/ngtcp2_bbr2.c',
       'ngtcp2/lib/ngtcp2_buf.c',
       'ngtcp2/lib/ngtcp2_cc.c',
       'ngtcp2/lib/ngtcp2_cid.c',
@@ -19,8 +22,11 @@
       'ngtcp2/lib/ngtcp2_log.c',
       'ngtcp2/lib/ngtcp2_map.c',
       'ngtcp2/lib/ngtcp2_mem.c',
+      'ngtcp2/lib/ngtcp2_objalloc.c',
+      'ngtcp2/lib/ngtcp2_opl.c',
       'ngtcp2/lib/ngtcp2_path.c',
       'ngtcp2/lib/ngtcp2_pkt.c',
+      'ngtcp2/lib/ngtcp2_pmtud.c',
       'ngtcp2/lib/ngtcp2_ppe.c',
       'ngtcp2/lib/ngtcp2_pq.c',
       'ngtcp2/lib/ngtcp2_pv.c',
@@ -34,7 +40,8 @@
       'ngtcp2/lib/ngtcp2_strm.c',
       'ngtcp2/lib/ngtcp2_vec.c',
       'ngtcp2/lib/ngtcp2_version.c',
-      'ngtcp2/crypto/shared.c',
+      'ngtcp2/lib/ngtcp2_window_filter.c',
+      'ngtcp2/crypto/shared.c'
     ],
     'ngtcp2_sources_openssl': [
       'ngtcp2/crypto/openssl/openssl.c'
@@ -43,6 +50,7 @@
       'ngtcp2/crypto/boringssl/boringssl.c'
     ],
     'nghttp3_sources': [
+      'nghttp3/lib/nghttp3_balloc.c',
       'nghttp3/lib/nghttp3_buf.c',
       'nghttp3/lib/nghttp3_conn.c',
       'nghttp3/lib/nghttp3_conv.c',
@@ -55,6 +63,8 @@
       'nghttp3/lib/nghttp3_ksl.c',
       'nghttp3/lib/nghttp3_map.c',
       'nghttp3/lib/nghttp3_mem.c',
+      'nghttp3/lib/nghttp3_objalloc.c',
+      'nghttp3/lib/nghttp3_opl.c',
       'nghttp3/lib/nghttp3_pq.c',
       'nghttp3/lib/nghttp3_qpack.c',
       'nghttp3/lib/nghttp3_qpack_huffman.c',
@@ -117,6 +127,7 @@
           '',
           'ngtcp2/lib/includes',
           'ngtcp2/crypto/includes',
+          'ngtcp2/crypto',
         ]
       },
       'sources': [

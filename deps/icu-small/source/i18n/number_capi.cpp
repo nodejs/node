@@ -166,11 +166,11 @@ unumf_resultToString(const UFormattedNumber* uresult, UChar* buffer, int32_t buf
 U_CAPI UBool U_EXPORT2
 unumf_resultNextFieldPosition(const UFormattedNumber* uresult, UFieldPosition* ufpos, UErrorCode* ec) {
     const auto* result = UFormattedNumberApiHelper::validate(uresult, *ec);
-    if (U_FAILURE(*ec)) { return FALSE; }
+    if (U_FAILURE(*ec)) { return false; }
 
     if (ufpos == nullptr) {
         *ec = U_ILLEGAL_ARGUMENT_ERROR;
-        return FALSE;
+        return false;
     }
 
     FieldPosition fp;
@@ -181,7 +181,7 @@ unumf_resultNextFieldPosition(const UFormattedNumber* uresult, UFieldPosition* u
     ufpos->beginIndex = fp.getBeginIndex();
     ufpos->endIndex = fp.getEndIndex();
     // NOTE: MSVC sometimes complains when implicitly converting between bool and UBool
-    return retval ? TRUE : FALSE;
+    return retval ? true : false;
 }
 
 U_CAPI void U_EXPORT2

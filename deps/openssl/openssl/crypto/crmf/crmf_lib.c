@@ -1,5 +1,5 @@
 /*-
- * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2018
  * Copyright Siemens AG 2015-2019
  *
@@ -369,6 +369,8 @@ static int create_popo_signature(OSSL_CRMF_POPOSIGNINGKEY *ps,
                                  EVP_PKEY *pkey, const EVP_MD *digest,
                                  OSSL_LIB_CTX *libctx, const char *propq)
 {
+    char name[80] = "";
+
     if (ps == NULL || cr == NULL || pkey == NULL) {
         ERR_raise(ERR_LIB_CRMF, CRMF_R_NULL_ARGUMENT);
         return 0;
@@ -378,6 +380,10 @@ static int create_popo_signature(OSSL_CRMF_POPOSIGNINGKEY *ps,
         ERR_raise(ERR_LIB_CRMF, CRMF_R_POPOSKINPUT_NOT_SUPPORTED);
         return 0;
     }
+
+    if (EVP_PKEY_get_default_digest_name(pkey, name, sizeof(name)) > 0
+            && strcmp(name, "UNDEF") == 0) /* at least for Ed25519, Ed448 */
+        digest = NULL;
 
     return ASN1_item_sign_ex(ASN1_ITEM_rptr(OSSL_CRMF_CERTREQUEST),
                              ps->algorithmIdentifier, NULL, ps->signature, cr,

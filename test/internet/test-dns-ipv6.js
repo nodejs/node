@@ -122,7 +122,7 @@ TEST(async function test_lookup_ipv6_explicit_object(done) {
   validateResult(await dnsPromises.lookup(addresses.INET6_HOST, { family: 6 }));
 
   const req = dns.lookup(addresses.INET6_HOST, {
-    family: 6
+    family: 6,
   }, common.mustSucceed((ip, family) => {
     validateResult({ address: ip, family });
     done();
@@ -134,7 +134,7 @@ TEST(async function test_lookup_ipv6_explicit_object(done) {
 TEST(function test_lookup_ipv6_hint(done) {
   const req = dns.lookup(addresses.INET6_HOST, {
     family: 6,
-    hints: dns.V4MAPPED
+    hints: dns.V4MAPPED,
   }, common.mustCall((err, ip, family) => {
     if (err) {
       // FreeBSD does not support V4MAPPED
@@ -191,7 +191,7 @@ TEST(async function test_lookup_all_ipv6(done) {
 
   validateResult(await dnsPromises.lookup(addresses.INET6_HOST, {
     all: true,
-    family: 6
+    family: 6,
   }));
 
   const req = dns.lookup(
@@ -200,7 +200,7 @@ TEST(async function test_lookup_all_ipv6(done) {
     common.mustSucceed((ips) => {
       validateResult(ips);
       done();
-    })
+    }),
   );
 
   checkWrap(req);
@@ -220,7 +220,7 @@ TEST(function test_lookupservice_ip_ipv6(done) {
       assert(host);
       assert(['http', 'www', '80'].includes(service));
       done();
-    })
+    }),
   );
 
   checkWrap(req);

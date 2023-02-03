@@ -6,23 +6,17 @@ Object.defineProperty(exports, "__esModule", {
 exports.createConfigItem = createConfigItem;
 exports.createItemFromDescriptor = createItemFromDescriptor;
 exports.getItemDescriptor = getItemDescriptor;
-
 function _path() {
   const data = require("path");
-
   _path = function () {
     return data;
   };
-
   return data;
 }
-
 var _configDescriptors = require("./config-descriptors");
-
 function createItemFromDescriptor(desc) {
   return new ConfigItem(desc);
 }
-
 function* createConfigItem(value, {
   dirname = ".",
   type
@@ -33,17 +27,13 @@ function* createConfigItem(value, {
   });
   return createItemFromDescriptor(descriptor);
 }
-
+const CONFIG_ITEM_BRAND = Symbol.for("@babel/core@7 - ConfigItem");
 function getItemDescriptor(item) {
   if (item != null && item[CONFIG_ITEM_BRAND]) {
     return item._descriptor;
   }
-
   return undefined;
 }
-
-const CONFIG_ITEM_BRAND = Symbol.for("@babel/core@7 - ConfigItem");
-
 class ConfigItem {
   constructor(descriptor) {
     this._descriptor = void 0;
@@ -70,7 +60,8 @@ class ConfigItem {
     } : undefined;
     Object.freeze(this);
   }
-
 }
-
 Object.freeze(ConfigItem.prototype);
+0 && 0;
+
+//# sourceMappingURL=item.js.map

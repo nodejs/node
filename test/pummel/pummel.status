@@ -19,6 +19,8 @@ test-crypto-timing-safe-equal-benchmarks: PASS,FLAKY
 [$arch==arm || $arch==arm64]
 
 [$system==solaris] # Also applies to SmartOS
+# https://github.com/nodejs/node/issues/43457
+test-heapsnapshot-near-heap-limit: PASS,FLAKY
 
 [$system==freebsd]
 

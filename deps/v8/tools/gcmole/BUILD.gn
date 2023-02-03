@@ -4,16 +4,18 @@
 
 import("../../gni/v8.gni")
 
-group("v8_run_gcmole") {
+group("v8_gcmole_files") {
   testonly = true
-
+  data_deps = [
+    "../../:v8_dump_build_config",
+    "../../:v8_generated_cc_files",
+  ]
   data = [
-    "GCMOLE.gn",
     "gcmole.py",
     "gcmole-test.cc",
     "gcmole-tools/",
     "run-gcmole.py",
-    "suspects.whitelist",
+    "suspects.allowlist",
     "ignored_files",
     "test-expectations.txt",
 
@@ -35,8 +37,6 @@ group("v8_run_gcmole") {
     "$target_gen_dir/../../",
     "$target_gen_dir/../../torque-generated/",
   ]
-
-  deps = [ "../../:run_torque" ]
 
   if (v8_gcmole) {
     # This assumes gcmole tools have been fetched by a hook

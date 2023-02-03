@@ -16,7 +16,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent spacing inside braces",
+            description: "Enforce consistent spacing inside braces",
             recommended: false,
             url: "https://eslint.org/docs/rules/object-curly-spacing"
         },

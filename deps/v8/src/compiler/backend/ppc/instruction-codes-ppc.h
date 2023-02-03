@@ -48,6 +48,8 @@ namespace compiler {
   V(PPC_Mul32)                       \
   V(PPC_Mul32WithHigh32)             \
   V(PPC_Mul64)                       \
+  V(PPC_MulHighS64)                  \
+  V(PPC_MulHighU64)                  \
   V(PPC_MulHigh32)                   \
   V(PPC_MulHighU32)                  \
   V(PPC_MulPair)                     \
@@ -225,8 +227,6 @@ namespace compiler {
   V(PPC_F32x4Le)                     \
   V(PPC_F32x4Abs)                    \
   V(PPC_F32x4Neg)                    \
-  V(PPC_F32x4RecipApprox)            \
-  V(PPC_F32x4RecipSqrtApprox)        \
   V(PPC_F32x4Sqrt)                   \
   V(PPC_F32x4SConvertI32x4)          \
   V(PPC_F32x4UConvertI32x4)          \

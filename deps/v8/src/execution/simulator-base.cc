@@ -65,6 +65,12 @@ Address SimulatorBase::RedirectExternalReference(Address external_function,
   return redirection->address_of_instruction();
 }
 
+// static
+Address SimulatorBase::UnwrapRedirection(Address redirection_trampoline) {
+  return reinterpret_cast<Address>(
+      Redirection::UnwrapRedirection(redirection_trampoline));
+}
+
 Redirection::Redirection(Address external_function,
                          ExternalReference::Type type)
     : external_function_(external_function), type_(type), next_(nullptr) {
@@ -104,11 +110,6 @@ void SimulatorData::RegisterFunctionsAndSignatures(
     EncodedCSignature sig(c_signatures[i]);
     AddSignatureForTarget(c_functions[i], sig);
   }
-}
-
-void SimulatorData::AddSignatureForTarget(Address target,
-                                          const EncodedCSignature& signature) {
-  target_to_signature_table_[target] = signature;
 }
 
 const EncodedCSignature& SimulatorData::GetSignatureForTarget(Address target) {

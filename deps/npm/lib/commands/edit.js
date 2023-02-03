@@ -51,18 +51,23 @@ class Edit extends BaseCommand {
     const dir = resolve(this.npm.dir, path)
 
     // graceful-fs does not promisify
-    await new Promise((resolve, reject) => {
+    await new Promise((res, rej) => {
       fs.lstat(dir, (err) => {
         if (err) {
-          return reject(err)
+          return rej(err)
         }
-        const [bin, ...args] = this.npm.config.get('editor').split(/\s+/)
-        const editor = cp.spawn(bin, [...args, dir], { stdio: 'inherit' })
-        editor.on('exit', (code) => {
+        const [bin, ...spawnArgs] = this.npm.config.get('editor').split(/\s+/)
+        const editor = cp.spawn(bin, [...spawnArgs, dir], { stdio: 'inherit' })
+        editor.on('exit', async (code) => {
           if (code) {
-            return reject(new Error(`editor process exited with code: ${code}`))
+            return rej(new Error(`editor process exited with code: ${code}`))
           }
-          this.npm.exec('rebuild', [dir]).catch(reject).then(resolve)
+          try {
+            await this.npm.exec('rebuild', [dir])
+          } catch (execErr) {
+            rej(execErr)
+          }
+          res()
         })
       })
     })

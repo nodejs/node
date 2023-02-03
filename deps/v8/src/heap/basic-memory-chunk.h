@@ -31,79 +31,85 @@ class BasicMemoryChunk {
     }
   };
 
+  // All possible flags that can be set on a page. While the value of flags
+  // doesn't matter in principle, keep flags used in the write barrier together
+  // in order to have dense page flag checks in the write barrier.
   enum Flag : uintptr_t {
     NO_FLAGS = 0u,
-    IS_EXECUTABLE = 1u << 0,
+
+    // This page belongs to a shared heap.
+    IN_SHARED_HEAP = 1u << 0,
+
+    // These two flags are used in the write barrier to catch "interesting"
+    // references.
     POINTERS_TO_HERE_ARE_INTERESTING = 1u << 1,
     POINTERS_FROM_HERE_ARE_INTERESTING = 1u << 2,
+
     // A page in the from-space or a young large page that was not scavenged
     // yet.
     FROM_PAGE = 1u << 3,
     // A page in the to-space or a young large page that was scavenged.
     TO_PAGE = 1u << 4,
-    LARGE_PAGE = 1u << 5,
-    EVACUATION_CANDIDATE = 1u << 6,
-    NEVER_EVACUATE = 1u << 7,
-
-    // |PAGE_NEW_OLD_PROMOTION|: A page tagged with this flag has been promoted
-    // from new to old space during evacuation.
-    PAGE_NEW_OLD_PROMOTION = 1u << 9,
-
-    // |PAGE_NEW_NEW_PROMOTION|: A page tagged with this flag has been moved
-    // within the new space during evacuation.
-    PAGE_NEW_NEW_PROMOTION = 1u << 10,
-
-    // This flag is intended to be used for testing. Works only when both
-    // FLAG_stress_compaction and FLAG_manual_evacuation_candidates_selection
-    // are set. It forces the page to become an evacuation candidate at next
-    // candidates selection cycle.
-    FORCE_EVACUATION_CANDIDATE_FOR_TESTING = 1u << 11,
-
-    // This flag is intended to be used for testing.
-    NEVER_ALLOCATE_ON_PAGE = 1u << 12,
-
-    // The memory chunk is already logically freed, however the actual freeing
-    // still has to be performed.
-    PRE_FREED = 1u << 13,
-
-    // |POOLED|: When actually freeing this chunk, only uncommit and do not
-    // give up the reservation as we still reuse the chunk at some point.
-    POOLED = 1u << 14,
-
-    // |COMPACTION_WAS_ABORTED|: Indicates that the compaction in this page
-    //   has been aborted and needs special handling by the sweeper.
-    COMPACTION_WAS_ABORTED = 1u << 15,
-
-    // |COMPACTION_WAS_ABORTED_FOR_TESTING|: During stress testing evacuation
-    // on pages is sometimes aborted. The flag is used to avoid repeatedly
-    // triggering on the same page.
-    COMPACTION_WAS_ABORTED_FOR_TESTING = 1u << 16,
-
-    // |SWEEP_TO_ITERATE|: The page requires sweeping using external markbits
-    // to iterate the page.
-    SWEEP_TO_ITERATE = 1u << 17,
 
     // |INCREMENTAL_MARKING|: Indicates whether incremental marking is currently
     // enabled.
-    INCREMENTAL_MARKING = 1u << 18,
-    NEW_SPACE_BELOW_AGE_MARK = 1u << 19,
-
-    // The memory chunk freeing bookkeeping has been performed but the chunk has
-    // not yet been freed.
-    UNREGISTERED = 1u << 20,
+    INCREMENTAL_MARKING = 1u << 5,
 
     // The memory chunk belongs to the read-only heap and does not participate
     // in garbage collection. This is used instead of owner for identity
     // checking since read-only chunks have no owner once they are detached.
-    READ_ONLY_HEAP = 1u << 21,
+    READ_ONLY_HEAP = 1u << 6,
+
+    // ----------------------------------------------------------------
+    // Values below here are not critical for the heap write barrier.
+
+    LARGE_PAGE = 1u << 7,
+    EVACUATION_CANDIDATE = 1u << 8,
+    NEVER_EVACUATE = 1u << 9,
+
+    // |PAGE_NEW_OLD_PROMOTION|: A page tagged with this flag has been promoted
+    // from new to old space during evacuation.
+    PAGE_NEW_OLD_PROMOTION = 1u << 10,
+
+    // |PAGE_NEW_NEW_PROMOTION|: A page tagged with this flag has been moved
+    // within the new space during evacuation.
+    PAGE_NEW_NEW_PROMOTION = 1u << 11,
+
+    // This flag is intended to be used for testing. Works only when both
+    // v8_flags.stress_compaction and
+    // v8_flags.manual_evacuation_candidates_selection are set. It forces the
+    // page to become an evacuation candidate at next candidates selection
+    // cycle.
+    FORCE_EVACUATION_CANDIDATE_FOR_TESTING = 1u << 12,
+
+    // This flag is intended to be used for testing.
+    NEVER_ALLOCATE_ON_PAGE = 1u << 13,
+
+    // The memory chunk is already logically freed, however the actual freeing
+    // still has to be performed.
+    PRE_FREED = 1u << 14,
+
+    // |POOLED|: When actually freeing this chunk, only uncommit and do not
+    // give up the reservation as we still reuse the chunk at some point.
+    POOLED = 1u << 15,
+
+    // |COMPACTION_WAS_ABORTED|: Indicates that the compaction in this page
+    //   has been aborted and needs special handling by the sweeper.
+    COMPACTION_WAS_ABORTED = 1u << 16,
+
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 18,
+
+    // The memory chunk freeing bookkeeping has been performed but the chunk has
+    // not yet been freed.
+    UNREGISTERED = 1u << 19,
 
     // The memory chunk is pinned in memory and can't be moved. This is likely
     // because there exists a potential pointer to somewhere in the chunk which
     // can't be updated.
-    PINNED = 1u << 22,
+    PINNED = 1u << 20,
 
-    // This page belongs to a shared heap.
-    IN_SHARED_HEAP = 1u << 23,
+    // A Page with code objects.
+    IS_EXECUTABLE = 1u << 21,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;
@@ -112,6 +118,11 @@ class BasicMemoryChunk {
 
   static constexpr MainThreadFlags kPointersToHereAreInterestingMask =
       POINTERS_TO_HERE_ARE_INTERESTING;
+
+  static constexpr MainThreadFlags
+      kPointersToHereAreInterestingOrInSharedHeapMask =
+          MainThreadFlags(POINTERS_TO_HERE_ARE_INTERESTING) |
+          MainThreadFlags(IN_SHARED_HEAP);
 
   static constexpr MainThreadFlags kPointersFromHereAreInterestingMask =
       POINTERS_FROM_HERE_ARE_INTERESTING;
@@ -124,6 +135,8 @@ class BasicMemoryChunk {
 
   static constexpr MainThreadFlags kIsLargePageMask = LARGE_PAGE;
 
+  static constexpr MainThreadFlags kInSharedHeap = IN_SHARED_HEAP;
+
   static constexpr MainThreadFlags kSkipEvacuationSlotsRecordingMask =
       MainThreadFlags(kEvacuationCandidateMask) |
       MainThreadFlags(kIsInYoungGenerationMask);
@@ -133,14 +146,18 @@ class BasicMemoryChunk {
 
   static const intptr_t kAlignmentMask = kAlignment - 1;
 
-  BasicMemoryChunk(size_t size, Address area_start, Address area_end);
+  BasicMemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
+                   Address area_start, Address area_end,
+                   VirtualMemory reservation);
 
   static Address BaseAddress(Address a) { return a & ~kAlignmentMask; }
 
   Address address() const { return reinterpret_cast<Address>(this); }
 
   // Returns the offset of a given address to this page.
-  inline size_t Offset(Address a) { return static_cast<size_t>(a - address()); }
+  inline size_t Offset(Address a) const {
+    return static_cast<size_t>(a - address());
+  }
 
   // Some callers rely on the fact that this can operate on both
   // tagged and aligned object addresses.
@@ -179,10 +196,10 @@ class BasicMemoryChunk {
   void ClearFlag(Flag flag) {
     main_thread_flags_ = main_thread_flags_.without(flag);
   }
-  void ClearFlags(MainThreadFlags flags) { main_thread_flags_ &= ~flags; }
   // Set or clear multiple flags at a time. `mask` indicates which flags are
   // should be replaced with new `flags`.
-  void SetFlags(MainThreadFlags flags, MainThreadFlags mask) {
+  void ClearFlags(MainThreadFlags flags) { main_thread_flags_ &= ~flags; }
+  void SetFlags(MainThreadFlags flags, MainThreadFlags mask = kAllFlagsMask) {
     main_thread_flags_ = (main_thread_flags_ & ~mask) | (flags & mask);
   }
 
@@ -202,11 +219,11 @@ class BasicMemoryChunk {
     return IsFlagSet(READ_ONLY_HEAP);
   }
 
-  bool NeverEvacuate() { return IsFlagSet(NEVER_EVACUATE); }
+  bool NeverEvacuate() const { return IsFlagSet(NEVER_EVACUATE); }
 
   void MarkNeverEvacuate() { SetFlag(NEVER_EVACUATE); }
 
-  bool CanAllocate() {
+  bool CanAllocate() const {
     return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
   }
 
@@ -221,7 +238,7 @@ class BasicMemoryChunk {
            ((flags & COMPACTION_WAS_ABORTED) == 0);
   }
 
-  Executability executable() {
+  Executability executable() const {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }
 
@@ -258,11 +275,6 @@ class BasicMemoryChunk {
     return addr >= area_start() && addr <= area_end();
   }
 
-  static BasicMemoryChunk* Initialize(Heap* heap, Address base, size_t size,
-                                      Address area_start, Address area_end,
-                                      BaseSpace* owner,
-                                      VirtualMemory reservation);
-
   size_t wasted_memory() const { return wasted_memory_; }
   void add_wasted_memory(size_t waste) { wasted_memory_ += waste; }
   size_t allocated_bytes() const { return allocated_bytes_; }
@@ -295,7 +307,7 @@ class BasicMemoryChunk {
         Bitmap::FromAddress(address() + kMarkingBitmapOffset));
   }
 
-  Address HighWaterMark() { return address() + high_water_mark_; }
+  Address HighWaterMark() const { return address() + high_water_mark_; }
 
   static inline void UpdateHighWaterMark(Address mark) {
     if (mark == kNullAddress) return;
@@ -341,7 +353,7 @@ class BasicMemoryChunk {
   size_t size_;
 
   // Flags that are only mutable from the main thread when no concurrent
-  // component (e.g. marker, sweeper) is running.
+  // component (e.g. marker, sweeper, compilation, allocation) is running.
   MainThreadFlags main_thread_flags_{NO_FLAGS};
 
   // TODO(v8:7464): Find a way to remove this.
@@ -372,18 +384,16 @@ class BasicMemoryChunk {
 
   friend class BasicMemoryChunkValidator;
   friend class ConcurrentMarkingState;
-  friend class MajorMarkingState;
-  friend class MajorAtomicMarkingState;
-  friend class MajorNonAtomicMarkingState;
+  friend class MarkingState;
+  friend class AtomicMarkingState;
+  friend class NonAtomicMarkingState;
   friend class MemoryAllocator;
-  friend class MinorMarkingState;
-  friend class MinorNonAtomicMarkingState;
   friend class PagedSpace;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(BasicMemoryChunk::MainThreadFlags)
 
-STATIC_ASSERT(std::is_standard_layout<BasicMemoryChunk>::value);
+static_assert(std::is_standard_layout<BasicMemoryChunk>::value);
 
 }  // namespace internal
 }  // namespace v8

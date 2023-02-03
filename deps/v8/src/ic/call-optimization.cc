@@ -25,10 +25,10 @@ template CallOptimization::CallOptimization(LocalIsolate* isolate,
 
 Context CallOptimization::GetAccessorContext(Map holder_map) const {
   if (is_constant_call()) {
-    return constant_function_->context().native_context();
+    return constant_function_->native_context();
   }
   JSFunction constructor = JSFunction::cast(holder_map.GetConstructor());
-  return constructor.context().native_context();
+  return constructor.native_context();
 }
 
 bool CallOptimization::IsCrossContextLazyAccessorPair(Context native_context,

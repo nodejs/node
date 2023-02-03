@@ -29,8 +29,9 @@ UnifiedHeapTest::UnifiedHeapTest(
 
 void UnifiedHeapTest::CollectGarbageWithEmbedderStack(
     cppgc::Heap::SweepingType sweeping_type) {
-  heap()->SetEmbedderStackStateForNextFinalization(
-      EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers);
+  EmbedderStackStateScope stack_scope(
+      heap(), EmbedderStackStateScope::kExplicitInvocation,
+      StackState::kMayContainHeapPointers);
   CollectGarbage(OLD_SPACE);
   if (sweeping_type == cppgc::Heap::SweepingType::kAtomic) {
     cpp_heap().AsBase().sweeper().FinishIfRunning();
@@ -39,8 +40,9 @@ void UnifiedHeapTest::CollectGarbageWithEmbedderStack(
 
 void UnifiedHeapTest::CollectGarbageWithoutEmbedderStack(
     cppgc::Heap::SweepingType sweeping_type) {
-  heap()->SetEmbedderStackStateForNextFinalization(
-      EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
+  EmbedderStackStateScope stack_scope(
+      heap(), EmbedderStackStateScope::kExplicitInvocation,
+      StackState::kNoHeapPointers);
   CollectGarbage(OLD_SPACE);
   if (sweeping_type == cppgc::Heap::SweepingType::kAtomic) {
     cpp_heap().AsBase().sweeper().FinishIfRunning();

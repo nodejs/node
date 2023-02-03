@@ -9,16 +9,13 @@
 #include <vector>
 
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/execution/local-isolate.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/code.h"
-#include "src/objects/js-array.h"
 #include "src/objects/map.h"
-#include "src/objects/smi.h"
 #include "src/objects/string-table.h"
 #include "src/objects/string.h"
 #include "src/snapshot/serializer-deserializer.h"
@@ -32,10 +29,10 @@ class Object;
 
 // Used for platforms with embedded constant pools to trigger deserialization
 // of objects found in code.
-#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) ||   \
-    defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_S390) ||      \
-    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_RISCV64) || \
-    V8_EMBEDDED_CONSTANT_POOL
+#if defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_PPC) ||      \
+    defined(V8_TARGET_ARCH_S390) || defined(V8_TARGET_ARCH_PPC64) ||      \
+    defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64) || \
+    V8_EMBEDDED_CONSTANT_POOL_BOOL
 #define V8_CODE_EMBEDS_OBJECT_POINTER 1
 #else
 #define V8_CODE_EMBEDS_OBJECT_POINTER 0
@@ -77,10 +74,6 @@ class Deserializer : public SerializerDeserializer {
     attached_objects_.push_back(attached_object);
   }
 
-  void CheckNoArrayBufferBackingStores() {
-    CHECK_EQ(new_off_heap_array_buffers().size(), 0);
-  }
-
   IsolateT* isolate() const { return isolate_; }
 
   Isolate* main_thread_isolate() const { return isolate_->AsIsolate(); }
@@ -103,10 +96,6 @@ class Deserializer : public SerializerDeserializer {
     return new_scripts_;
   }
 
-  const std::vector<Handle<JSArrayBuffer>>& new_off_heap_array_buffers() const {
-    return new_off_heap_array_buffers_;
-  }
-
   const std::vector<Handle<DescriptorArray>>& new_descriptor_arrays() const {
     return new_descriptor_arrays_;
   }
@@ -117,7 +106,7 @@ class Deserializer : public SerializerDeserializer {
   }
 
   bool deserializing_user_code() const { return deserializing_user_code_; }
-  bool can_rehash() const { return can_rehash_; }
+  bool should_rehash() const { return should_rehash_; }
 
   void Rehash();
 
@@ -149,7 +138,7 @@ class Deserializer : public SerializerDeserializer {
    private:
     static const int kSize = kHotObjectCount;
     static const int kSizeMask = kSize - 1;
-    STATIC_ASSERT(base::bits::IsPowerOfTwo(kSize));
+    static_assert(base::bits::IsPowerOfTwo(kSize));
     Handle<HeapObject> circular_queue_[kSize];
     int index_ = 0;
   };
@@ -162,8 +151,7 @@ class Deserializer : public SerializerDeserializer {
   template <typename TSlot>
   inline int WriteAddress(TSlot dest, Address value);
 
-  template <typename TSlot>
-  inline int WriteExternalPointer(TSlot dest, Address value,
+  inline int WriteExternalPointer(ExternalPointerSlot dest, Address value,
                                   ExternalPointerTag tag);
 
   // Fills in a heap object's data from start to end (exclusive). Start and end
@@ -184,6 +172,9 @@ class Deserializer : public SerializerDeserializer {
   // A helper function for ReadData for reading external references.
   inline Address ReadExternalReferenceCase();
 
+  // A helper function for reading external pointer tags.
+  ExternalPointerTag ReadExternalPointerTag();
+
   Handle<HeapObject> ReadObject(SnapshotSpace space_number);
   Handle<HeapObject> ReadMetaMap();
 
@@ -195,6 +186,9 @@ class Deserializer : public SerializerDeserializer {
   // Special handling for serialized code like hooking up internalized strings.
   void PostProcessNewObject(Handle<Map> map, Handle<HeapObject> obj,
                             SnapshotSpace space);
+  void PostProcessNewJSReceiver(Map map, Handle<JSReceiver> obj,
+                                InstanceType instance_type,
+                                SnapshotSpace space);
 
   HeapObject Allocate(AllocationType allocation, int size,
                       AllocationAlignment alignment);
@@ -215,7 +209,6 @@ class Deserializer : public SerializerDeserializer {
   std::vector<Handle<AccessorInfo>> accessor_infos_;
   std::vector<Handle<CallHandlerInfo>> call_handler_infos_;
   std::vector<Handle<Script>> new_scripts_;
-  std::vector<Handle<JSArrayBuffer>> new_off_heap_array_buffers_;
   std::vector<Handle<DescriptorArray>> new_descriptor_arrays_;
   std::vector<std::shared_ptr<BackingStore>> backing_stores_;
 
@@ -245,8 +238,23 @@ class Deserializer : public SerializerDeserializer {
   bool next_reference_is_weak_ = false;
 
   // TODO(6593): generalize rehashing, and remove this flag.
-  bool can_rehash_;
+  const bool should_rehash_;
   std::vector<Handle<HeapObject>> to_rehash_;
+
+  // Do not collect any gc stats during deserialization since objects might
+  // be in an invalid state
+  class V8_NODISCARD DisableGCStats {
+   public:
+    DisableGCStats() {
+      original_gc_stats_ = TracingFlags::gc_stats;
+      TracingFlags::gc_stats = 0;
+    }
+    ~DisableGCStats() { TracingFlags::gc_stats = original_gc_stats_; }
+
+   private:
+    unsigned int original_gc_stats_;
+  };
+  DisableGCStats no_gc_stats_;
 
 #ifdef DEBUG
   uint32_t num_api_references_;
@@ -256,11 +264,6 @@ class Deserializer : public SerializerDeserializer {
   int previous_allocation_size_ = 0;
 #endif  // DEBUG
 };
-
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    Deserializer<Isolate>;
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    Deserializer<LocalIsolate>;
 
 enum class DeserializingUserCodeOption {
   kNotDeserializingUserCode,
@@ -280,15 +283,15 @@ class StringTableInsertionKey final : public StringTableKey {
   template <typename IsolateT>
   bool IsMatch(IsolateT* isolate, String string);
 
-  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) {
+  void PrepareForInsertion(Isolate* isolate) {
     // When sharing the string table, all string table lookups during snapshot
     // deserialization are hits.
-    DCHECK(isolate->OwnsStringTable() ||
+    DCHECK(isolate->OwnsStringTables() ||
            deserializing_user_code_ ==
                DeserializingUserCodeOption::kIsDeserializingUserCode);
-    return string_;
   }
-  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(LocalIsolate* isolate) {
+  void PrepareForInsertion(LocalIsolate* isolate) {}
+  V8_WARN_UNUSED_RESULT Handle<String> GetHandleForInsertion() {
     return string_;
   }
 

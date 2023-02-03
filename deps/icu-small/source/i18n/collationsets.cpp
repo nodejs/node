@@ -34,7 +34,7 @@ U_CDECL_BEGIN
 static UBool U_CALLCONV
 enumTailoredRange(const void *context, UChar32 start, UChar32 end, uint32_t ce32) {
     if(ce32 == Collation::FALLBACK_CE32) {
-        return TRUE;  // fallback to base, not tailored
+        return true;  // fallback to base, not tailored
     }
     TailoredSet *ts = (TailoredSet *)context;
     return ts->handleCE32(start, end, ce32);
@@ -365,14 +365,14 @@ enumCnERange(const void *context, UChar32 start, UChar32 end, uint32_t ce32) {
     } else if(cne->checkTailored < 0) {
         // Collect the set of code points with mappings in the tailoring data.
         if(ce32 == Collation::FALLBACK_CE32) {
-            return TRUE;  // fallback to base, not tailored
+            return true;  // fallback to base, not tailored
         } else {
             cne->tailored.add(start, end);
         }
         // checkTailored > 0: Exclude tailored ranges from the base data enumeration.
     } else if(start == end) {
         if(cne->tailored.contains(start)) {
-            return TRUE;
+            return true;
         }
     } else if(cne->tailored.containsSome(start, end)) {
         cne->ranges.set(start, end).removeAll(cne->tailored);
@@ -509,7 +509,7 @@ ContractionsAndExpansions::handleCE32(UChar32 start, UChar32 end, uint32_t ce32)
             if(sink != NULL) {
                 // TODO: This should be optimized,
                 // especially if [start..end] is the complete Hangul range. (assert that)
-                UTF16CollationIterator iter(data, FALSE, NULL, NULL, NULL);
+                UTF16CollationIterator iter(data, false, NULL, NULL, NULL);
                 UChar hangul[1] = { 0 };
                 for(UChar32 c = start; c <= end; ++c) {
                     hangul[0] = (UChar)c;

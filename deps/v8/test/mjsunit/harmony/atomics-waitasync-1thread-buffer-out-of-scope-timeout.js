@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sharedarraybuffer --harmony-atomics-waitasync --expose-gc --no-stress-opt
+// Flags: --harmony-sharedarraybuffer --harmony-atomics-waitasync --expose-gc
 
 d8.file.execute("test/mjsunit/harmony/atomics-waitasync-helpers.js");
 

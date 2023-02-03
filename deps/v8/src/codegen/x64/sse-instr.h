@@ -187,6 +187,7 @@
   V(pmovsxwd, 66, 0F, 38, 23)         \
   V(pmovsxdq, 66, 0F, 38, 25)         \
   V(pmovzxbw, 66, 0F, 38, 30)         \
+  V(pmovzxbd, 66, 0F, 38, 31)         \
   V(pmovzxwd, 66, 0F, 38, 33)         \
   V(pmovzxdq, 66, 0F, 38, 35)
 

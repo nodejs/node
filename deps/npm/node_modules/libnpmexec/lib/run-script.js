@@ -1,7 +1,5 @@
-const { delimiter } = require('path')
-
 const chalk = require('chalk')
-const ciDetect = require('@npmcli/ci-detect')
+const ciInfo = require('ci-info')
 const runScript = require('@npmcli/run-script')
 const readPackageJson = require('read-package-json-fast')
 const npmlog = require('npmlog')
@@ -17,17 +15,17 @@ const nocolor = {
 const run = async ({
   args,
   call,
-  color,
   flatOptions,
   locationMsg,
   output = () => {},
   path,
-  pathArr,
+  binPaths,
   runPath,
   scriptShell,
 }) => {
   // turn list of args into command string
   const script = call || args.shift() || scriptShell
+  const color = !!flatOptions.color
   const colorize = color ? chalk : nocolor
 
   // do the fakey runScript dance
@@ -46,10 +44,8 @@ const run = async ({
 
   try {
     if (script === scriptShell) {
-      const isTTY = !noTTY()
-
-      if (isTTY) {
-        if (ciDetect()) {
+      if (!noTTY()) {
+        if (ciInfo.isCI) {
           return log.warn('exec', 'Interactive mode disabled in CI environment')
         }
 
@@ -70,13 +66,11 @@ const run = async ({
       banner: false,
       // we always run in cwd, not --prefix
       path: runPath,
-      stdioString: true,
+      binPaths,
       event: 'npx',
       args,
-      env: {
-        PATH: pathArr.join(delimiter),
-      },
       stdio: 'inherit',
+      scriptShell,
     })
   } finally {
     npmlog.enableProgress()

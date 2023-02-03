@@ -575,7 +575,7 @@ TF_BUILTIN(ObjectHasOwn, ObjectBuiltinsAssembler) {
 
   BIND(&not_undefined_nor_null);
   Return(CallBuiltin(Builtin::kObjectPrototypeHasOwnProperty, context, target,
-                     new_target, Int32Constant(2), object, key));
+                     new_target, JSParameterCount(1), object, key));
 }
 
 // ES #sec-object.getOwnPropertyNames
@@ -756,7 +756,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
       if_number(this, Label::kDeferred), if_object(this), if_primitive(this),
       if_proxy(this, Label::kDeferred), if_regexp(this), if_string(this),
       if_symbol(this, Label::kDeferred), if_value(this),
-      if_bigint(this, Label::kDeferred);
+      if_bigint(this, Label::kDeferred), if_wasm(this);
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -776,16 +776,22 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   const struct {
     InstanceType value;
     Label* label;
-  } kJumpTable[] = {{JS_OBJECT_TYPE, &if_object},
-                    {JS_ARRAY_TYPE, &if_array},
-                    {JS_REG_EXP_TYPE, &if_regexp},
-                    {JS_ARGUMENTS_OBJECT_TYPE, &if_arguments},
-                    {JS_DATE_TYPE, &if_date},
-                    {JS_API_OBJECT_TYPE, &if_object},
-                    {JS_SPECIAL_API_OBJECT_TYPE, &if_object},
-                    {JS_PROXY_TYPE, &if_proxy},
-                    {JS_ERROR_TYPE, &if_error},
-                    {JS_PRIMITIVE_WRAPPER_TYPE, &if_value}};
+  } kJumpTable[] = {
+    {JS_OBJECT_TYPE, &if_object},
+    {JS_ARRAY_TYPE, &if_array},
+    {JS_REG_EXP_TYPE, &if_regexp},
+    {JS_ARGUMENTS_OBJECT_TYPE, &if_arguments},
+    {JS_DATE_TYPE, &if_date},
+    {JS_API_OBJECT_TYPE, &if_object},
+    {JS_SPECIAL_API_OBJECT_TYPE, &if_object},
+    {JS_PROXY_TYPE, &if_proxy},
+    {JS_ERROR_TYPE, &if_error},
+    {JS_PRIMITIVE_WRAPPER_TYPE, &if_value},
+#if V8_ENABLE_WEBASSEMBLY
+    {WASM_STRUCT_TYPE, &if_wasm},
+    {WASM_ARRAY_TYPE, &if_wasm},
+#endif
+  };
   size_t const kNumCases = arraysize(kJumpTable);
   Label* case_labels[kNumCases];
   int32_t case_values[kNumCases];
@@ -880,6 +886,13 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_proxy);
   {
+    // Check if the proxy has been revoked.
+    Label throw_proxy_handler_revoked(this, Label::kDeferred);
+    TNode<HeapObject> handler = CAST(LoadObjectField(
+        TNode<JSProxy>::UncheckedCast(receiver), JSProxy::kHandlerOffset));
+    CSA_DCHECK(this, IsNullOrJSReceiver(handler));
+    GotoIfNot(IsJSReceiver(handler), &throw_proxy_handler_revoked);
+
     // If {receiver} is a proxy for a JSArray, we default to "[object Array]",
     // otherwise we default to "[object Object]" or "[object Function]" here,
     // depending on whether the {receiver} is callable. The order matters here,
@@ -911,6 +924,12 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     }
     BIND(&if_tagisstring);
     ReturnToStringFormat(context, CAST(var_tag.value()));
+
+    BIND(&throw_proxy_handler_revoked);
+    {
+      ThrowTypeError(context, MessageTemplate::kProxyRevoked,
+                     "Object.prototype.toString");
+    }
   }
 
   BIND(&if_regexp);
@@ -1037,6 +1056,11 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
       var_holder = LoadMapPrototype(holder_map);
       Goto(&loop);
     }
+
+#if V8_ENABLE_WEBASSEMBLY
+    BIND(&if_wasm);
+    ThrowTypeError(context, MessageTemplate::kWasmObjectsAreOpaque);
+#endif
 
     BIND(&return_generic);
     {

@@ -17,7 +17,7 @@ const then = common.mustCall((cb) => {
 
 function thenable() {
   return {
-    then
+    then,
   };
 }
 

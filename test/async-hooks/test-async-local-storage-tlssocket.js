@@ -14,7 +14,7 @@ const { AsyncLocalStorage } = require('async_hooks');
 const options = {
   cert: fixtures.readKey('rsa_cert.crt'),
   key: fixtures.readKey('rsa_private.pem'),
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
 };
 
 tls

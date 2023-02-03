@@ -337,9 +337,9 @@ make update-fips-checksums >&42
 if [ -n "$(git status --porcelain)" ]; then
     $VERBOSE "== Committing updates"
     git add -u
-    git commit $git_quiet -m 'make update'
+    git commit $git_quiet -m $'make update\n\nRelease: yes'
     if [ -n "$reviewers" ]; then
-        addrev --nopr $reviewers
+        addrev --release --nopr $reviewers
     fi
 fi
 
@@ -375,9 +375,9 @@ done
 
 $VERBOSE "== Comitting updates and tagging"
 git add -u
-git commit $git_quiet -m "Prepare for release of $release_text"
+git commit $git_quiet -m "Prepare for release of $release_text"$'\n\nRelease: yes'
 if [ -n "$reviewers" ]; then
-    addrev --nopr $reviewers
+    addrev --release --nopr $reviewers
 fi
 echo "Tagging release with tag $tag.  You may need to enter a pass phrase"
 git tag$tagkey "$tag" -m "OpenSSL $release release tag"
@@ -477,9 +477,9 @@ done
 
 $VERBOSE "== Committing updates"
 git add -u
-git commit $git_quiet -m "Prepare for $release_text"
+git commit $git_quiet -m "Prepare for $release_text"$'\n\nRelease: yes'
 if [ -n "$reviewers" ]; then
-    addrev --nopr $reviewers
+    addrev --release --nopr $reviewers
 fi
 
 # Push everything to the parent repo
@@ -508,9 +508,9 @@ if $do_branch; then
 
     $VERBOSE "== Committing updates"
     git add -u
-    git commit $git_quiet -m "Prepare for $release_text"
+    git commit $git_quiet -m "Prepare for $release_text"$'\n\nRelease: yes'
     if [ -n "$reviewers" ]; then
-        addrev --nopr $reviewers
+        addrev --release --nopr $reviewers
     fi
 fi
 
@@ -567,11 +567,11 @@ Push them to github, make PRs from them and have them approved:
 
 When merging them into the main repository, do it like this:
 
-    git push openssl-git@git.openssl.org:openssl.git \\
+    git push git@github.openssl.org:openssl/openssl.git \\
         $tmp_release_branch:$release_branch
-    git push openssl-git@git.openssl.org:openssl.git \\
+    git push git@github.openssl.org:openssl/openssl.git \\
         $tmp_update_branch:$update_branch
-    git push openssl-git@git.openssl.org:openssl.git \\
+    git push git@github.openssl.org:openssl/openssl.git \\
         $tag
 EOF
 else
@@ -583,9 +583,9 @@ Push it to github, make a PR from it and have it approved:
 
 When merging it into the main repository, do it like this:
 
-    git push openssl-git@git.openssl.org:openssl.git \\
+    git push git@github.openssl.org:openssl/openssl.git \\
         $tmp_release_branch:$release_branch
-    git push openssl-git@git.openssl.org:openssl.git \\
+    git push git@github.openssl.org:openssl/openssl.git \\
         $tag
 EOF
 fi

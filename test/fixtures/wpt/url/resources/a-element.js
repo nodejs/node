@@ -16,6 +16,8 @@ function runURLTests(urltests) {
   for(var i = 0, l = urltests.length; i < l; i++) {
     var expected = urltests[i]
     if (typeof expected === "string") continue // skip comments
+    // skip without base because you cannot unset the baseURL of a document
+    if (expected.base === null) continue;
 
     test(function() {
       var url = bURL(expected.input, expected.base)

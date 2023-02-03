@@ -5,6 +5,7 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestPassiveDataSegment() {
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addMemory(1, 1, false);
   builder.addPassiveDataSegment([0, 1, 2]);
@@ -15,6 +16,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function TestPassiveElementSegment() {
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('f', kSig_v_v).addBody([]);
   builder.setTableBounds(1, 1);
@@ -43,6 +45,7 @@ function getMemoryInit(mem, segment_data) {
 }
 
 (function TestMemoryInitOutOfBoundsGrow() {
+  print(arguments.callee.name);
   const mem = new WebAssembly.Memory({initial: 1});
   // Create a data segment that has a length of kPageSize.
   const memoryInit = getMemoryInit(mem, new Array(kPageSize));
@@ -58,6 +61,7 @@ function getMemoryInit(mem, segment_data) {
 })();
 
 (function TestMemoryInitOnActiveSegment() {
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addMemory(1);
   builder.addPassiveDataSegment([1, 2, 3]);
@@ -86,6 +90,7 @@ function getMemoryInit(mem, segment_data) {
 })();
 
 (function TestDataDropOnActiveSegment() {
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addMemory(1);
   builder.addPassiveDataSegment([1, 2, 3]);
@@ -115,6 +120,7 @@ function getMemoryCopy(mem) {
 }
 
 (function TestMemoryCopyOutOfBoundsGrow() {
+  print(arguments.callee.name);
   const mem = new WebAssembly.Memory({initial: 1});
   const memoryCopy = getMemoryCopy(mem);
 
@@ -141,6 +147,7 @@ function getMemoryFill(mem) {
 }
 
 (function TestMemoryFillOutOfBoundsGrow() {
+  print(arguments.callee.name);
   const mem = new WebAssembly.Memory({initial: 1});
   const memoryFill = getMemoryFill(mem);
   const v = 123;
@@ -156,9 +163,10 @@ function getMemoryFill(mem) {
 })();
 
 (function TestElemDropActive() {
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.setTableBounds(5, 5);
-  builder.addActiveElementSegment(0, WasmInitExpr.I32Const(0), [0, 0, 0]);
+  builder.addActiveElementSegment(0, wasmI32Const(0), [0, 0, 0]);
   builder.addFunction('drop', kSig_v_v)
       .addBody([
         kNumericPrefix, kExprElemDrop,
@@ -173,6 +181,7 @@ function getMemoryFill(mem) {
 })();
 
 (function TestLazyDataSegmentBoundsCheck() {
+  print(arguments.callee.name);
   const memory = new WebAssembly.Memory({initial: 1});
   const view = new Uint8Array(memory.buffer);
   const builder = new WasmModuleBuilder();
@@ -192,6 +201,7 @@ function getMemoryFill(mem) {
 })();
 
 (function TestLazyDataAndElementSegments() {
+  print(arguments.callee.name);
   const table = new WebAssembly.Table({initial: 1, element: 'anyfunc'});
   const memory = new WebAssembly.Memory({initial: 1});
   const view = new Uint8Array(memory.buffer);
@@ -204,7 +214,7 @@ function getMemoryFill(mem) {
   const tableIndex = 0;
   builder.addActiveElementSegment(
       tableIndex,
-      WasmInitExpr.I32Const(0),
+      wasmI32Const(0),
       [f.index, f.index]);
   builder.addDataSegment(0, [42]);
 
@@ -218,6 +228,7 @@ function getMemoryFill(mem) {
 })();
 
 (function TestPassiveDataSegmentNoMemory() {
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addPassiveDataSegment([0, 1, 2]);
 
@@ -226,10 +237,22 @@ function getMemoryFill(mem) {
 })();
 
 (function TestPassiveElementSegmentNoMemory() {
+  print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('f', kSig_v_v).addBody([]);
   builder.addPassiveElementSegment([0, 0, 0]);
 
   // Should not throw.
   builder.instantiate();
+})();
+
+(function TestIllegalNumericOpcode() {
+  // Regression test for https://crbug.com/1382816.
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction('main', kSig_v_v).addBody([kNumericPrefix, 0x90, 0x0f]);
+  assertEquals(false, WebAssembly.validate(builder.toBuffer()));
+  assertThrows(
+      () => builder.toModule(), WebAssembly.CompileError,
+      /invalid numeric opcode: 0xfc790/);
 })();

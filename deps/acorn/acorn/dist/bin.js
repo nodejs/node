@@ -4,8 +4,7 @@ var path = require('path');
 var fs = require('fs');
 var acorn = require('./acorn.js');
 
-function _interopNamespace(e) {
-  if (e && e.__esModule) return e;
+function _interopNamespaceDefault(e) {
   var n = Object.create(null);
   if (e) {
     Object.keys(e).forEach(function (k) {
@@ -18,11 +17,11 @@ function _interopNamespace(e) {
       }
     });
   }
-  n["default"] = e;
+  n.default = e;
   return Object.freeze(n);
 }
 
-var acorn__namespace = /*#__PURE__*/_interopNamespace(acorn);
+var acorn__namespace = /*#__PURE__*/_interopNamespaceDefault(acorn);
 
 var inputFilePaths = [], forceFileName = false, fileMode = false, silent = false, compact = false, tokenize = false;
 var options = {};
@@ -30,7 +29,7 @@ var options = {};
 function help(status) {
   var print = (status === 0) ? console.log : console.error;
   print("usage: " + path.basename(process.argv[1]) + " [--ecma3|--ecma5|--ecma6|--ecma7|--ecma8|--ecma9|...|--ecma2015|--ecma2016|--ecma2017|--ecma2018|...]");
-  print("        [--tokenize] [--locations] [---allow-hash-bang] [--allow-await-outside-function] [--compact] [--silent] [--module] [--help] [--] [<infile>...]");
+  print("        [--tokenize] [--locations] [--allow-hash-bang] [--allow-await-outside-function] [--compact] [--silent] [--module] [--help] [--] [<infile>...]");
   process.exit(status);
 }
 

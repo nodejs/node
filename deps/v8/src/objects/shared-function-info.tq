@@ -42,6 +42,9 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
 bitfield struct SharedFunctionInfoFlags2 extends uint8 {
   class_scope_has_private_brand: bool: 1 bit;
   has_static_private_methods_or_accessors: bool: 1 bit;
+  is_sparkplug_compiling: bool: 1 bit;
+  maglev_compilation_failed: bool: 1 bit;
+  sparkplug_compiled: bool: 1 bit;
 }
 
 @generateBodyDescriptor
@@ -63,8 +66,7 @@ extern class SharedFunctionInfo extends HeapObject {
   // [formal_parameter_count]: The number of declared parameters (or the special
   // value kDontAdaptArgumentsSentinel to indicate that arguments are passed
   // unaltered).
-  // In contrast to [length], formal_parameter_count includes the receiver if
-  // kJSArgcIncludesReceiver is true.
+  // In contrast to [length], formal_parameter_count includes the receiver.
   formal_parameter_count: uint16;
   function_token_offset: uint16;
   // [expected_nof_properties]: Expected number of properties for the
@@ -83,16 +85,14 @@ extern class SharedFunctionInfo extends HeapObject {
 
 const kDontAdaptArgumentsSentinel: constexpr int32
     generates 'kDontAdaptArgumentsSentinel';
-const kJSArgcIncludesReceiver:
-    constexpr bool generates 'kJSArgcIncludesReceiver';
+
 @export
 macro LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(
     sfi: SharedFunctionInfo): uint16 {
   let formalParameterCount = sfi.formal_parameter_count;
-  if (kJSArgcIncludesReceiver) {
-    if (Convert<int32>(formalParameterCount) != kDontAdaptArgumentsSentinel) {
-      formalParameterCount = Convert<uint16>(formalParameterCount - 1);
-    }
+  if (Convert<int32>(formalParameterCount) != kDontAdaptArgumentsSentinel) {
+    formalParameterCount =
+        Convert<uint16>(formalParameterCount - kJSArgcReceiverSlots);
   }
   return formalParameterCount;
 }
@@ -100,13 +100,7 @@ macro LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(
 @export
 macro LoadSharedFunctionInfoFormalParameterCountWithReceiver(
     sfi: SharedFunctionInfo): uint16 {
-  let formalParameterCount = sfi.formal_parameter_count;
-  if (!kJSArgcIncludesReceiver) {
-    if (Convert<int32>(formalParameterCount) != kDontAdaptArgumentsSentinel) {
-      formalParameterCount = Convert<uint16>(formalParameterCount + 1);
-    }
-  }
-  return formalParameterCount;
+  return sfi.formal_parameter_count;
 }
 
 @export
@@ -153,10 +147,21 @@ extern class UncompiledDataWithPreparseDataAndJob extends
   job: RawPtr;
 }
 
+@useParentTypeChecker
+type PodArrayOfIntegerPairs extends ByteArray
+    constexpr 'PodArray<std::pair<int32_t, int32_t>>';
+
+@useParentTypeChecker
+type FixedInt32Array extends ByteArray constexpr 'FixedInt32Array';
+
+@useParentTypeChecker
+type FixedUInt32Array extends ByteArray constexpr 'FixedUInt32Array';
+
 @export
 class OnHeapBasicBlockProfilerData extends HeapObject {
-  block_ids: ByteArray;  // Stored as 4-byte ints
-  counts: ByteArray;     // Stored as 4-byte unsigned ints
+  block_ids: FixedInt32Array;
+  counts: FixedUInt32Array;
+  branches: PodArrayOfIntegerPairs;
   name: String;
   schedule: String;
   code: String;

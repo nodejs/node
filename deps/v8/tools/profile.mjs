@@ -186,15 +186,16 @@ export class Script {
     (async () => {
       try {
         let sourceMapPayload;
+        const options = { timeout: 15 };
         try {
-          sourceMapPayload = await fetch(sourceMapURL);
+          sourceMapPayload = await fetch(sourceMapURL, options);
         } catch (e) {
           if (e instanceof TypeError && sourceMapFetchPrefix) {
             // Try again with fetch prefix.
             // TODO(leszeks): Remove the retry once the prefix is
             // configurable.
             sourceMapPayload =
-                await fetch(sourceMapFetchPrefix + sourceMapURL);
+                await fetch(sourceMapFetchPrefix + sourceMapURL, options);
           } else {
             throw e;
           }
@@ -234,6 +235,35 @@ export class Script {
 }
 
 
+const kOffsetPairRegex = /C([0-9]+)O([0-9]+)/g;
+class SourcePositionTable {
+  constructor(encodedTable) {
+    this._offsets = [];
+    while (true) {
+      const regexResult = kOffsetPairRegex.exec(encodedTable);
+      if (!regexResult) break;
+      const codeOffset = parseInt(regexResult[1]);
+      const scriptOffset = parseInt(regexResult[2]);
+      if (isNaN(codeOffset) || isNaN(scriptOffset)) continue;
+      this._offsets.push({code: codeOffset, script: scriptOffset});
+    }
+  }
+
+  getScriptOffset(codeOffset) {
+    if (codeOffset < 0) {
+      throw new Exception(`Invalid codeOffset=${codeOffset}, should be >= 0`);
+    }
+    for (let i = this.offsetTable.length - 1; i >= 0; i--) {
+      const offset = this._offsets[i];
+      if (offset.code <= codeOffset) {
+        return offset.script;
+      }
+    }
+    return this._offsets[0].script;
+  }
+}
+
+
 class SourceInfo {
   script;
   start;
@@ -243,13 +273,16 @@ class SourceInfo {
   fns;
   disassemble;
 
-  setSourcePositionInfo(script, startPos, endPos, sourcePositionTable, inliningPositions, inlinedFunctions) {
+  setSourcePositionInfo(
+        script, startPos, endPos, sourcePositionTableData, inliningPositions,
+        inlinedFunctions) {
     this.script = script;
     this.start = startPos;
     this.end = endPos;
-    this.positions = sourcePositionTable;
+    this.positions = sourcePositionTableData;
     this.inlined = inliningPositions;
     this.fns = inlinedFunctions;
+    this.sourcePositionTable = new SourcePositionTable(sourcePositionTableData);
   }
 
   setDisassemble(code) {
@@ -261,6 +294,10 @@ class SourceInfo {
   }
 }
 
+const kProfileOperationMove = 0;
+const kProfileOperationDelete = 1;
+const kProfileOperationTick = 2;
+
 /**
  * Creates a profile object for processing profiling-related events
  * and calculating function execution times.
@@ -271,9 +308,10 @@ export class Profile {
   codeMap_ = new CodeMap();
   topDownTree_ = new CallTree();
   bottomUpTree_ = new CallTree();
-  c_entries_ = {};
+  c_entries_ = {__proto__:null};
   scripts_ = [];
   urlToScript_ = new Map();
+  warnings = new Set();
 
   serializeVMSymbols() {
     let result = this.codeMap_.getAllStaticEntriesWithAddresses();
@@ -300,9 +338,9 @@ export class Profile {
    * @enum {number}
    */
   static Operation = {
-    MOVE: 0,
-    DELETE: 1,
-    TICK: 2
+    MOVE: kProfileOperationMove,
+    DELETE: kProfileOperationDelete,
+    TICK: kProfileOperationTick
   }
 
   /**
@@ -313,8 +351,8 @@ export class Profile {
   static CodeState = {
     COMPILED: 0,
     IGNITION: 1,
-    BASELINE: 2,
-    TURBOPROP: 4,
+    SPARKPLUG: 2,
+    MAGLEV: 4,
     TURBOFAN: 5,
   }
 
@@ -323,7 +361,7 @@ export class Profile {
     GC: 1,
     PARSER: 2,
     BYTECODE_COMPILER: 3,
-    // TODO(cbruni): add BASELINE_COMPILER
+    // TODO(cbruni): add SPARKPLUG_COMPILER
     COMPILER: 4,
     OTHER: 5,
     EXTERNAL: 6,
@@ -345,9 +383,9 @@ export class Profile {
       case '~':
         return this.CodeState.IGNITION;
       case '^':
-        return this.CodeState.BASELINE;
+        return this.CodeState.SPARKPLUG;
       case '+':
-        return this.CodeState.TURBOPROP;
+        return this.CodeState.MAGLEV;
       case '*':
         return this.CodeState.TURBOFAN;
     }
@@ -359,10 +397,10 @@ export class Profile {
       return "Builtin";
     } else if (state === this.CodeState.IGNITION) {
       return "Unopt";
-    } else if (state === this.CodeState.BASELINE) {
-      return "Baseline";
-    } else if (state === this.CodeState.TURBOPROP) {
-      return "Turboprop";
+    } else if (state === this.CodeState.SPARKPLUG) {
+      return "Sparkplug";
+    } else if (state === this.CodeState.MAGLEV) {
+      return "Maglev";
     } else if (state === this.CodeState.TURBOFAN) {
       return "Opt";
     }
@@ -393,7 +431,7 @@ export class Profile {
 
   /**
    * Called whenever the specified operation has failed finding a function
-   * containing the specified address. Should be overriden by subclasses.
+   * containing the specified address. Should be overridden by subclasses.
    * See the Profile.Operation enum for the list of
    * possible operations.
    *
@@ -446,6 +484,21 @@ export class Profile {
   }
 
   /**
+   * Registers dynamic (JIT-compiled) code entry or entries that overlap with
+   * static entries (like builtins).
+   *
+   * @param {string} type Code entry type.
+   * @param {string} name Code entry name.
+   * @param {number} start Starting address.
+   * @param {number} size Code entry size.
+   */
+  addAnyCode(type, name, timestamp, start, size) {
+    const entry = new DynamicCodeEntry(size, type, name);
+    this.codeMap_.addAnyCode(start, entry);
+    return entry;
+  }
+
+  /**
    * Registers dynamic (JIT-compiled) code entry.
    *
    * @param {string} type Code entry type.
@@ -459,7 +512,7 @@ export class Profile {
     // As code and functions are in the same address space,
     // it is safe to put them in a single code map.
     let func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
-    if (!func) {
+    if (func === null) {
       func = new FunctionEntry(name);
       this.codeMap_.addCode(funcAddr, func);
     } else if (func.name !== name) {
@@ -467,7 +520,7 @@ export class Profile {
       func.name = name;
     }
     let entry = this.codeMap_.findDynamicEntryByStartAddress(start);
-    if (entry) {
+    if (entry !== null) {
       if (entry.size === size && entry.func === func) {
         // Entry state has changed.
         entry.state = state;
@@ -476,7 +529,7 @@ export class Profile {
         entry = null;
       }
     }
-    if (!entry) {
+    if (entry === null) {
       entry = new DynamicFuncCodeEntry(size, type, func, state);
       this.codeMap_.addCode(start, entry);
     }
@@ -493,7 +546,7 @@ export class Profile {
     try {
       this.codeMap_.moveCode(from, to);
     } catch (e) {
-      this.handleUnknownCode(Profile.Operation.MOVE, from);
+      this.handleUnknownCode(kProfileOperationMove, from);
     }
   }
 
@@ -510,7 +563,7 @@ export class Profile {
     try {
       this.codeMap_.deleteCode(start);
     } catch (e) {
-      this.handleUnknownCode(Profile.Operation.DELETE, start);
+      this.handleUnknownCode(kProfileOperationDelete, start);
     }
   }
 
@@ -521,16 +574,16 @@ export class Profile {
         inliningPositions, inlinedFunctions) {
     const script = this.getOrCreateScript(scriptId);
     const entry = this.codeMap_.findDynamicEntryByStartAddress(start);
-    if (!entry) return;
+    if (entry === null) return;
     // Resolve the inlined functions list.
     if (inlinedFunctions.length > 0) {
       inlinedFunctions = inlinedFunctions.substring(1).split("S");
       for (let i = 0; i < inlinedFunctions.length; i++) {
         const funcAddr = parseInt(inlinedFunctions[i]);
         const func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
-        if (!func || func.funcId === undefined) {
+        if (func === null || func.funcId === undefined) {
           // TODO: fix
-          console.warn(`Could not find function ${inlinedFunctions[i]}`);
+          this.warnings.add(`Could not find function ${inlinedFunctions[i]}`);
           inlinedFunctions[i] = null;
         } else {
           inlinedFunctions[i] = func.funcId;
@@ -547,7 +600,9 @@ export class Profile {
 
   addDisassemble(start, kind, disassemble) {
     const entry = this.codeMap_.findDynamicEntryByStartAddress(start);
-    if (entry) this.getOrCreateSourceInfo(entry).setDisassemble(disassemble);
+    if (entry !== null) {
+      this.getOrCreateSourceInfo(entry).setDisassemble(disassemble);
+    }
     return entry;
   }
 
@@ -563,7 +618,7 @@ export class Profile {
 
   getOrCreateScript(id) {
     let script = this.scripts_[id];
-    if (!script) {
+    if (script === undefined) {
       script = new Script(id);
       this.scripts_[id] = script;
     }
@@ -599,7 +654,7 @@ export class Profile {
    * Records a tick event. Stack must contain a sequence of
    * addresses starting with the program counter value.
    *
-   * @param {Array<number>} stack Stack sample.
+   * @param {number[]} stack Stack sample.
    */
   recordTick(time_ns, vmState, stack) {
     const {nameStack, entryStack} = this.resolveAndFilterFuncs_(stack);
@@ -613,7 +668,7 @@ export class Profile {
    * Translates addresses into function names and filters unneeded
    * functions.
    *
-   * @param {Array<number>} stack Stack sample.
+   * @param {number[]} stack Stack sample.
    */
   resolveAndFilterFuncs_(stack) {
     const nameStack = [];
@@ -623,7 +678,7 @@ export class Profile {
     for (let i = 0; i < stack.length; ++i) {
       const pc = stack[i];
       const entry = this.codeMap_.findEntry(pc);
-      if (entry) {
+      if (entry !== null) {
         entryStack.push(entry);
         const name = entry.getName();
         if (i === 0 && (entry.type === 'CPP' || entry.type === 'SHARED_LIB')) {
@@ -636,12 +691,13 @@ export class Profile {
           nameStack.push(name);
         }
       } else {
-        this.handleUnknownCode(Profile.Operation.TICK, pc, i);
+        this.handleUnknownCode(kProfileOperationTick, pc, i);
         if (i === 0) nameStack.push("UNKNOWN");
         entryStack.push(pc);
       }
       if (look_for_first_c_function && i > 0 &&
-          (!entry || entry.type !== 'CPP') && last_seen_c_function !== '') {
+          (entry === null || entry.type !== 'CPP')
+          && last_seen_c_function !== '') {
         if (this.c_entries_[last_seen_c_function] === undefined) {
           this.c_entries_[last_seen_c_function] = 0;
         }
@@ -716,7 +772,7 @@ export class Profile {
   getFlatProfile(opt_label) {
     const counters = new CallTree();
     const rootLabel = opt_label || CallTree.ROOT_NODE_LABEL;
-    const precs = {};
+    const precs = {__proto__:null};
     precs[rootLabel] = 0;
     const root = counters.findOrAddChild(rootLabel);
 
@@ -902,6 +958,7 @@ class DynamicFuncCodeEntry extends CodeEntry {
 class FunctionEntry extends CodeEntry {
 
   // Contains the list of generated code for this function.
+  /** @type {Set<DynamicCodeEntry>} */
   _codeEntries = new Set();
 
   constructor(name) {
@@ -965,12 +1022,10 @@ class CallTree {
   /**
    * Adds the specified call path, constructing nodes as necessary.
    *
-   * @param {Array<string>} path Call path.
+   * @param {string[]} path Call path.
    */
   addPath(path) {
-    if (path.length == 0) {
-      return;
-    }
+    if (path.length == 0) return;
     let curr = this.root_;
     for (let i = 0; i < path.length; ++i) {
       curr = curr.findOrAddChild(path[i]);
@@ -1084,21 +1139,14 @@ class CallTree {
  * @param {CallTreeNode} opt_parent Node parent.
  */
 class CallTreeNode {
-  /**
-   * Node self weight (how many times this node was the last node in
-   * a call path).
-   * @type {number}
-   */
-  selfWeight = 0;
-
-  /**
-   * Node total weight (includes weights of all children).
-   * @type {number}
-   */
-  totalWeight = 0;
-  children = {};
 
   constructor(label, opt_parent) {
+    // Node self weight (how many times this node was the last node in
+    // a call path).
+    this.selfWeight = 0;
+    // Node total weight (includes weights of all children).
+    this.totalWeight = 0;
+    this. children = { __proto__:null };
     this.label = label;
     this.parent = opt_parent;
   }
@@ -1141,7 +1189,8 @@ class CallTreeNode {
    * @param {string} label Child node label.
    */
   findChild(label) {
-    return this.children[label] || null;
+    const found = this.children[label];
+    return found === undefined ? null : found;
   }
 
   /**
@@ -1151,7 +1200,9 @@ class CallTreeNode {
    * @param {string} label Child node label.
    */
   findOrAddChild(label) {
-    return this.findChild(label) || this.addChild(label);
+    const found = this.findChild(label)
+    if (found === null) return this.addChild(label);
+    return found;
   }
 
   /**
@@ -1171,7 +1222,7 @@ class CallTreeNode {
    * @param {function(CallTreeNode)} f Visitor function.
    */
   walkUpToRoot(f) {
-    for (let curr = this; curr != null; curr = curr.parent) {
+    for (let curr = this; curr !== null; curr = curr.parent) {
       f(curr);
     }
   }
@@ -1179,7 +1230,7 @@ class CallTreeNode {
   /**
    * Tries to find a node with the specified path.
    *
-   * @param {Array<string>} labels The path.
+   * @param {string[]} labels The path.
    * @param {function(CallTreeNode)} opt_f Visitor function.
    */
   descendToChild(labels, opt_f) {

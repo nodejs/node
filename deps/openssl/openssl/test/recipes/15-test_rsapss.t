@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -11,12 +11,12 @@ use strict;
 use warnings;
 
 use File::Spec;
-use OpenSSL::Test qw/:DEFAULT with srctop_file/;
+use OpenSSL::Test qw/:DEFAULT with srctop_file data_file/;
 use OpenSSL::Test::Utils;
 
 setup("test_rsapss");
 
-plan tests => 7;
+plan tests => 10;
 
 #using test/testrsa.pem which happens to be a 512 bit RSA
 ok(run(app(['openssl', 'dgst', '-sign', srctop_file('test', 'testrsa.pem'), '-sha1',
@@ -64,3 +64,17 @@ ok(run(app(['openssl', 'dgst', '-prverify', srctop_file('test', 'testrsa.pem'),
             '-signature', 'testrsapss-unrestricted.sig',
             srctop_file('test', 'testrsa.pem')])),
    "openssl dgst -prverify [plain RSA key, PSS padding mode, no PSS restrictions]");
+
+# Test that RSA-PSS keys are supported by genpkey and rsa commands.
+{
+   my $rsapss = "rsapss.key";
+   ok(run(app(['openssl', 'genpkey', '-algorithm', 'RSA-PSS',
+               '-pkeyopt', 'rsa_keygen_bits:1024',
+               '--out', $rsapss])));
+   ok(run(app(['openssl', 'rsa', '-check',
+               '-in', $rsapss])));
+}
+
+ok(!run(app([ 'openssl', 'rsa',
+             '-in' => data_file('negativesaltlen.pem')],
+             '-out' => 'badout')));

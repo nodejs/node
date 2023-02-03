@@ -279,7 +279,7 @@ ICUBreakIteratorService::~ICUBreakIteratorService() {}
 // defined in ucln_cmn.h
 U_NAMESPACE_END
 
-static icu::UInitOnce gInitOnceBrkiter = U_INITONCE_INITIALIZER;
+static icu::UInitOnce gInitOnceBrkiter {};
 static icu::ICULocaleService* gService = NULL;
 
 
@@ -296,7 +296,7 @@ static UBool U_CALLCONV breakiterator_cleanup(void) {
     }
     gInitOnceBrkiter.reset();
 #endif
-    return TRUE;
+    return true;
 }
 U_CDECL_END
 U_NAMESPACE_BEGIN
@@ -347,7 +347,7 @@ BreakIterator::unregister(URegistryKey key, UErrorCode& status)
         }
         status = U_MEMORY_ALLOCATION_ERROR;
     }
-    return FALSE;
+    return false;
 }
 
 // -------------------------------------

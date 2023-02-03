@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
 
 function f(x) {
   if (!%IsDictPropertyConstTrackingEnabled()) {
@@ -37,5 +37,5 @@ assertTrue(main(true, true));
 assertTrue(main(true, true));
 assertTrue(main(false, true));
 assertTrue(main(false, true));
-%OptimizeFunctionForTopTier(main);
+%OptimizeFunctionOnNextCall(main);
 assertFalse(main(false));

@@ -33,10 +33,9 @@
 #include <nghttp3/nghttp3.h>
 
 struct nghttp3_rcbuf {
-  /* custom memory allocator belongs to the mem parameter when
-     creating this object. */
-  void *mem_user_data;
-  nghttp3_free free;
+  /* mem is the memory allocator that allocates memory for this
+     object. */
+  const nghttp3_mem *mem;
   /* The pointer to the underlying buffer */
   uint8_t *base;
   /* Size of buffer pointed by |base|. */

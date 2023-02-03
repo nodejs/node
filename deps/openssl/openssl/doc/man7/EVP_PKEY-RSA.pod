@@ -179,6 +179,26 @@ The auxiliary probable primes.
 
 =back
 
+=head2 RSA key validation
+
+For RSA keys, L<EVP_PKEY_param_check(3)> and L<EVP_PKEY_param_check_quick(3)>
+both return 1 unconditionally.
+
+For RSA keys, L<EVP_PKEY_public_check(3)> conforms to the SP800-56Br1 I<public key
+check> when the OpenSSL FIPS provider is used. The OpenSSL default provider
+performs similiar tests but relaxes the keysize restrictions for backwards
+compatibility.
+
+For RSA keys, L<EVP_PKEY_public_check_quick(3)> is the same as
+L<EVP_PKEY_public_check(3)>.
+
+For RSA keys, L<EVP_PKEY_private_check(3)> conforms to the SP800-56Br1
+I<private key test>.
+
+For RSA keys, L<EVP_PKEY_pairwise_check(3)> conforms to the
+SP800-56Br1 I<KeyPair Validation check> for the OpenSSL FIPS provider. The
+OpenSSL default provider allows testing of the validity of multi-primes.
+
 =head1 CONFORMING TO
 
 =over 4
@@ -241,7 +261,7 @@ L<EVP_RSA_gen(3)>, L<EVP_KEYMGMT(3)>, L<EVP_PKEY(3)>, L<provider-keymgmt(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

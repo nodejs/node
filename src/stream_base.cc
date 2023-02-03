@@ -1,7 +1,6 @@
 #include "stream_base.h"  // NOLINT(build/include_inline)
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
-#include "allocated_buffer-inl.h"
 
 #include "env-inl.h"
 #include "js_stream.h"
@@ -336,7 +335,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  StreamWriteResult res = Write(&buf, 1, send_handle, req_wrap_obj);
+  StreamWriteResult res = Write(&buf, 1, send_handle, req_wrap_obj, try_write);
   res.bytes += synchronously_written;
 
   SetWriteResult(res);
@@ -401,21 +400,24 @@ void StreamBase::AddMethod(Environment* env,
                            Local<FunctionTemplate> t,
                            JSMethodFunction* stream_method,
                            Local<String> string) {
+  Isolate* isolate = env->isolate();
   Local<FunctionTemplate> templ =
-      env->NewFunctionTemplate(stream_method,
-                               signature,
-                               ConstructorBehavior::kThrow,
-                               SideEffectType::kHasNoSideEffect);
+      NewFunctionTemplate(isolate,
+                          stream_method,
+                          signature,
+                          ConstructorBehavior::kThrow,
+                          SideEffectType::kHasNoSideEffect);
   t->PrototypeTemplate()->SetAccessorProperty(
       string, templ, Local<FunctionTemplate>(), attributes);
 }
 
 void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
-  HandleScope scope(env->isolate());
+  Isolate* isolate = env->isolate();
+  HandleScope scope(isolate);
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete | DontEnum);
-  Local<Signature> sig = Signature::New(env->isolate(), t);
+  Local<Signature> sig = Signature::New(isolate, t);
 
   AddMethod(env, sig, attributes, t, GetFD, env->fd_string());
   AddMethod(
@@ -423,36 +425,40 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   AddMethod(env, sig, attributes, t, GetBytesRead, env->bytes_read_string());
   AddMethod(
       env, sig, attributes, t, GetBytesWritten, env->bytes_written_string());
-  env->SetProtoMethod(t, "readStart", JSMethod<&StreamBase::ReadStartJS>);
-  env->SetProtoMethod(t, "readStop", JSMethod<&StreamBase::ReadStopJS>);
-  env->SetProtoMethod(t, "shutdown", JSMethod<&StreamBase::Shutdown>);
-  env->SetProtoMethod(t,
-                      "useUserBuffer",
-                      JSMethod<&StreamBase::UseUserBuffer>);
-  env->SetProtoMethod(t, "writev", JSMethod<&StreamBase::Writev>);
-  env->SetProtoMethod(t, "writeBuffer", JSMethod<&StreamBase::WriteBuffer>);
-  env->SetProtoMethod(
-      t, "writeAsciiString", JSMethod<&StreamBase::WriteString<ASCII>>);
-  env->SetProtoMethod(
-      t, "writeUtf8String", JSMethod<&StreamBase::WriteString<UTF8>>);
-  env->SetProtoMethod(
-      t, "writeUcs2String", JSMethod<&StreamBase::WriteString<UCS2>>);
-  env->SetProtoMethod(
-      t, "writeLatin1String", JSMethod<&StreamBase::WriteString<LATIN1>>);
-  t->PrototypeTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(),
-                                                    "isStreamBase"),
-                              True(env->isolate()));
+  SetProtoMethod(isolate, t, "readStart", JSMethod<&StreamBase::ReadStartJS>);
+  SetProtoMethod(isolate, t, "readStop", JSMethod<&StreamBase::ReadStopJS>);
+  SetProtoMethod(isolate, t, "shutdown", JSMethod<&StreamBase::Shutdown>);
+  SetProtoMethod(
+      isolate, t, "useUserBuffer", JSMethod<&StreamBase::UseUserBuffer>);
+  SetProtoMethod(isolate, t, "writev", JSMethod<&StreamBase::Writev>);
+  SetProtoMethod(isolate, t, "writeBuffer", JSMethod<&StreamBase::WriteBuffer>);
+  SetProtoMethod(isolate,
+                 t,
+                 "writeAsciiString",
+                 JSMethod<&StreamBase::WriteString<ASCII>>);
+  SetProtoMethod(
+      isolate, t, "writeUtf8String", JSMethod<&StreamBase::WriteString<UTF8>>);
+  SetProtoMethod(
+      isolate, t, "writeUcs2String", JSMethod<&StreamBase::WriteString<UCS2>>);
+  SetProtoMethod(isolate,
+                 t,
+                 "writeLatin1String",
+                 JSMethod<&StreamBase::WriteString<LATIN1>>);
+  t->PrototypeTemplate()->Set(FIXED_ONE_BYTE_STRING(isolate, "isStreamBase"),
+                              True(isolate));
   t->PrototypeTemplate()->SetAccessor(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "onread"),
-      BaseObject::InternalFieldGet<
-          StreamBase::kOnReadFunctionField>,
-      BaseObject::InternalFieldSet<
-          StreamBase::kOnReadFunctionField,
-          &Value::IsFunction>);
+      FIXED_ONE_BYTE_STRING(isolate, "onread"),
+      BaseObject::InternalFieldGet<StreamBase::kOnReadFunctionField>,
+      BaseObject::InternalFieldSet<StreamBase::kOnReadFunctionField,
+                                   &Value::IsFunction>);
 }
 
 void StreamBase::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
+  // This function is called by a single thread during start up, so it is safe
+  // to use a local static variable here.
+  static bool is_registered = false;
+  if (is_registered) return;
   registry->Register(GetFD);
   registry->Register(GetExternal);
   registry->Register(GetBytesRead);
@@ -472,6 +478,7 @@ void StreamBase::RegisterExternalReferences(
   registry->Register(
       BaseObject::InternalFieldSet<StreamBase::kOnReadFunctionField,
                                    &Value::IsFunction>);
+  is_registered = true;
 }
 
 void StreamBase::GetFD(const FunctionCallbackInfo<Value>& args) {
@@ -576,9 +583,10 @@ void CustomBufferJSListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  // To deal with the case where POLLHUP is received and UV_EOF is returned, as
-  // libuv returns an empty buffer (on unices only).
-  if (nread == UV_EOF && buf.base == nullptr) {
+  // In the case that there's an error and buf is null, return immediately.
+  // This can happen on unices when POLLHUP is received and UV_EOF is returned
+  // or when getting an error while performing a UV_HANDLE_ZERO_READ on Windows.
+  if (buf.base == nullptr && nread < 0) {
     stream->CallJSOnreadMethod(nread, Local<ArrayBuffer>());
     return;
   }
@@ -601,6 +609,7 @@ void ReportWritesToJSStreamListener::OnStreamAfterReqFinished(
     StreamReq* req_wrap, int status) {
   StreamBase* stream = static_cast<StreamBase*>(stream_);
   Environment* env = stream->stream_env();
+  if (!env->can_call_into_js()) return;
   AsyncWrap* async_wrap = req_wrap->GetAsyncWrap();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());

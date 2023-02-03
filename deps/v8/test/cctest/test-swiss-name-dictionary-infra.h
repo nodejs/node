@@ -8,13 +8,9 @@
 #include <memory>
 #include <utility>
 
-#include "src/codegen/code-stub-assembler.h"
-#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/code-assembler-tester.h"
-#include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
 namespace internal {

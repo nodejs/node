@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/compiler/checkpoint-elimination.h"
+
 #include "src/compiler/common-operator.h"
 #include "src/compiler/operator.h"
 #include "test/unittests/compiler/graph-reducer-unittest.h"
 #include "test/unittests/compiler/graph-unittest.h"
-#include "test/unittests/compiler/node-test-utils.h"
 
 using testing::StrictMock;
 

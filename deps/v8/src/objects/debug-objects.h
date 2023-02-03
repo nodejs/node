@@ -203,6 +203,67 @@ class BreakPoint : public TorqueGeneratedBreakPoint<BreakPoint, Struct> {
   TQ_OBJECT_CONSTRUCTORS(BreakPoint)
 };
 
+class StackFrameInfo
+    : public TorqueGeneratedStackFrameInfo<StackFrameInfo, Struct> {
+ public:
+  NEVER_READ_ONLY_SPACE
+
+  static int GetSourcePosition(Handle<StackFrameInfo> info);
+
+  // The script for the stack frame.
+  inline Script script() const;
+
+  // The bytecode offset or source position for the stack frame.
+  DECL_INT_ACCESSORS(bytecode_offset_or_source_position)
+
+  // Indicates that the frame corresponds to a 'new' invocation.
+  DECL_BOOLEAN_ACCESSORS(is_constructor)
+
+  // Dispatched behavior.
+  DECL_VERIFIER(StackFrameInfo)
+
+  // Bit positions in |flags|.
+  DEFINE_TORQUE_GENERATED_STACK_FRAME_INFO_FLAGS()
+
+  using BodyDescriptor = StructBodyDescriptor;
+
+ private:
+  TQ_OBJECT_CONSTRUCTORS(StackFrameInfo)
+};
+
+class ErrorStackData
+    : public TorqueGeneratedErrorStackData<ErrorStackData, Struct> {
+ public:
+  NEVER_READ_ONLY_SPACE
+
+  inline bool HasFormattedStack() const;
+  DECL_ACCESSORS(formatted_stack, Object)
+  inline bool HasCallSiteInfos() const;
+  DECL_ACCESSORS(call_site_infos, FixedArray)
+
+  static void EnsureStackFrameInfos(Isolate* isolate,
+                                    Handle<ErrorStackData> error_stack);
+
+  DECL_VERIFIER(ErrorStackData)
+
+  using BodyDescriptor = StructBodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(ErrorStackData)
+};
+
+class PromiseOnStack
+    : public TorqueGeneratedPromiseOnStack<PromiseOnStack, Struct> {
+ public:
+  NEVER_READ_ONLY_SPACE
+
+  static MaybeHandle<JSObject> GetPromise(
+      Handle<PromiseOnStack> promise_on_stack);
+
+  class BodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(PromiseOnStack)
+};
+
 }  // namespace internal
 }  // namespace v8
 

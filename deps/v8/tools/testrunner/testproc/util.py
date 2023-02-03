@@ -1,12 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2020 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 import heapq
+import logging
 import os
 import platform
-import random
+import re
 import signal
 import subprocess
 
@@ -23,14 +24,18 @@ def list_processes_linux():
     return []
   try:
     cmd = 'pgrep -fa %s' % OUT_DIR
-    output = subprocess.check_output(cmd, shell=True) or ''
+    output = subprocess.check_output(cmd, shell=True, text=True) or ''
     processes = [
       (int(line.split()[0]), line[line.index(OUT_DIR):])
       for line in output.splitlines()
     ]
     # Filter strange process with name as out dir.
     return [p for p in processes if p[1] != OUT_DIR]
-  except:
+  except subprocess.CalledProcessError as e:
+    # Return code 1 means no processes found.
+    if e.returncode != 1:
+      # TODO(https://crbug.com/v8/13101): Remove after investigation.
+      logging.exception('Fetching process list failed.')
     return []
 
 
@@ -43,10 +48,47 @@ def kill_processes_linux():
     return
   for pid, cmd in list_processes_linux():
     try:
-      print('Attempting to kill %d - %s' % (pid, cmd))
+      logging.warning('Attempting to kill %d - %s', pid, cmd)
       os.kill(pid, signal.SIGKILL)
     except:
-      pass
+      logging.exception('Failed to kill process')
+
+
+def strip_ascii_control_characters(unicode_string):
+  return re.sub(r'[^\x20-\x7E]', '?', str(unicode_string))
+
+
+def base_test_record(test, result, run):
+  record = {
+      'name': test.full_name,
+      'flags': result.cmd.args,
+      'run': run + 1,
+      'expected': test.expected_outcomes,
+      'random_seed': test.random_seed,
+      'target_name': test.get_shell(),
+      'variant': test.variant,
+      'variant_flags': test.variant_flags,
+  }
+  if result.output:
+    record.update(
+        exit_code=result.output.exit_code,
+        duration=result.output.duration,
+    )
+  return record
+
+
+def extract_tags(record):
+  tags = []
+  for k, v in record.items():
+    if type(v) == list:
+      tags += [sanitized_kv_dict(k, e) for e in v]
+    else:
+      tags.append(sanitized_kv_dict(k, v))
+  return tags
+
+
+def sanitized_kv_dict(k, v):
+  return dict(key=k, value=strip_ascii_control_characters(v))
 
 
 class FixedSizeTopList():

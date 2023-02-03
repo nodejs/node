@@ -9,7 +9,6 @@
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/heap/read-only-heap.h"
 #include "src/objects/slots.h"
-#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
@@ -37,7 +36,7 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
     ro_heap->read_only_space()->RepairFreeSpacesAfterDeserialization();
 
     // Deserialize the Read-only Object Cache.
-    for (size_t i = 0;; ++i) {
+    for (;;) {
       Object* object = ro_heap->ExtendReadOnlyObjectCache();
       // During deserialization, the visitor populates the read-only object
       // cache and eventually terminates the cache with undefined.
@@ -46,10 +45,13 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
       if (object->IsUndefined(roots)) break;
     }
     DeserializeDeferredObjects();
-    CheckNoArrayBufferBackingStores();
+#ifdef DEBUG
+    roots.VerifyNameForProtectors();
+#endif
+    roots.VerifyNameForProtectorsPages();
   }
 
-  if (FLAG_rehash_snapshot && can_rehash()) {
+  if (should_rehash()) {
     isolate()->heap()->InitializeHashSeed();
     Rehash();
   }

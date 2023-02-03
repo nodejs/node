@@ -14,7 +14,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow `if` statements as the only statement in `else` blocks",
+            description: "Disallow `if` statements as the only statement in `else` blocks",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-lonely-if"
         },

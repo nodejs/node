@@ -6,7 +6,6 @@ Object.defineProperty(exports, "__esModule", {
 exports.hooks = void 0;
 const hooks = [function (self, parent) {
   const removeParent = self.key === "test" && (parent.isWhile() || parent.isSwitchCase()) || self.key === "declaration" && parent.isExportDeclaration() || self.key === "body" && parent.isLabeledStatement() || self.listKey === "declarations" && parent.isVariableDeclaration() && parent.node.declarations.length === 1 || self.key === "expression" && parent.isExpressionStatement();
-
   if (removeParent) {
     parent.remove();
     return true;
@@ -23,11 +22,10 @@ const hooks = [function (self, parent) {
     } else {
       parent.replaceWith(parent.node.left);
     }
-
     return true;
   }
 }, function (self, parent) {
-  if (parent.isIfStatement() && (self.key === "consequent" || self.key === "alternate") || self.key === "body" && (parent.isLoop() || parent.isArrowFunctionExpression())) {
+  if (parent.isIfStatement() && self.key === "consequent" || self.key === "body" && (parent.isLoop() || parent.isArrowFunctionExpression())) {
     self.replaceWith({
       type: "BlockStatement",
       body: []
@@ -36,3 +34,5 @@ const hooks = [function (self, parent) {
   }
 }];
 exports.hooks = hooks;
+
+//# sourceMappingURL=removal-hooks.js.map

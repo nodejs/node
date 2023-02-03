@@ -66,28 +66,28 @@ public:
     /**
      * Value returned when there are no more characters to iterate.
      */
-    enum { DONE = -1 };
+    static constexpr int32_t DONE = -1;
 
     /**
      * Bitmask option to enable parsing of variable names.  If (options &
      * PARSE_VARIABLES) != 0, then an embedded variable will be expanded to
      * its value.  Variables are parsed using the SymbolTable API.
      */
-    enum { PARSE_VARIABLES = 1 };
+    static constexpr int32_t PARSE_VARIABLES = 1;
 
     /**
      * Bitmask option to enable parsing of escape sequences.  If (options &
      * PARSE_ESCAPES) != 0, then an embedded escape sequence will be expanded
      * to its value.  Escapes are parsed using Utility.unescapeAt().
      */
-    enum { PARSE_ESCAPES   = 2 };
+    static constexpr int32_t PARSE_ESCAPES   = 2;
 
     /**
      * Bitmask option to enable skipping of whitespace.  If (options &
      * SKIP_WHITESPACE) != 0, then Pattern_White_Space characters will be silently
      * skipped, as if they were not present in the input.
      */
-    enum { SKIP_WHITESPACE = 4 };
+    static constexpr int32_t SKIP_WHITESPACE = 4;
 
     /**
      * Constructs an iterator over the given text, starting at the given

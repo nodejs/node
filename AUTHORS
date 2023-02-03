@@ -623,7 +623,7 @@ Patrick Mooney <patrick.f.mooney@gmail.com>
 Jicheng Li <deemstone@gmail.com>
 James Ferguson <jamesanthonyferguson@gmail.com>
 Julien Fontanet <julien.fontanet@isonoe.net>
-Steven R. Loomis <srloomis@us.ibm.com>
+Steven R. Loomis <srl295@gmail.com>
 gyson <eilian.yunsong@gmail.com>
 Steve Sharp <stevenson.sharp@gmail.com>
 Victor Widell <victor@topmost.se>
@@ -735,7 +735,7 @@ Steven Vercruysse <stcruy@users.noreply.github.com>
 Aleksanteri Negru-Vode <aleksanteri.negru-vode@aalto.fi>
 Mathieu Darse <mattdarse@gmail.com>
 Connor Peet <connor@peet.io>
-Mayhem <stepien.nicolas@gmail.com>
+Nicolas Stepien <stepien.nicolas@gmail.com>
 Olov Lassus <olov.lassus@gmail.com>
 Phillip Lamplugh <phillip.lamplugh@gmail.com>
 Kohei TAKATA <kt.koheitakata@gmail.com>
@@ -908,7 +908,7 @@ Jeff Harris <techjeffharris@gmail.com>
 Alexander Makarenko <estliberitas@gmail.com>
 Drew Folta <drew@folta.net>
 Dmitriy Lazarev <wKich@users.noreply.github.com>
-Adam Langley <agl@google.com>
+Adam Langley <agl@imperialviolet.org>
 Kári Tristan Helgason <kthelgason@gmail.com>
 Manuel Valls <manolo@vlrz.es>
 Prayag Verma <prayag.verma@gmail.com>
@@ -1048,7 +1048,7 @@ Joran Siu <joransiu@ca.ibm.com>
 Vitaly Tomilov <vitaly-t@users.noreply.github.com>
 Ratikesh Misra <ratikesh92@gmail.com>
 Alex Perkins <aperkin@rei.com>
-Beth Griggs <bgriggs@redhat.com>
+Beth Griggs <bethanyngriggs@gmail.com>
 Joe Esposito <joe@joeyespo.com>
 Erin Spiceland <yes@erin.codes>
 Ravindra Barthwal <ravindrabarthwal@users.noreply.github.com>
@@ -1784,7 +1784,7 @@ Christopher Sidebottom <chris@damouse.co.uk>
 Edward Andrew Robinson <earobinson@gmail.com>
 Shakeel Mohamed <contact@shakeel.xyz>
 Tobias Kieslich <tobias.kieslich@gmail.com>
-Ruy Adorno <ruyadorno@hotmail.com>
+Ruy Adorno <ruyadorno@google.com>
 Stefania Sharp <stefaniasharp@gmail.com>
 Pawel Golda <pawelgolda@gmail.com>
 Steven Scott <Contact@TheDgtl.net>
@@ -2310,12 +2310,12 @@ Dzmitry_Prudnikau <dzmitriyprudnikov@gmail.com>
 Ian McKellar <ianloic@google.com>
 Jennifer Bland <ratracegrad@gmail.com>
 Kyle Fuller <kyle@fuller.li>
-Camillo Bruni <cbruni@chromium.org>
+Camillo Bruni <camillobruni@users.noreply.github.com>
 Yongsheng Zhang <zyszys98@gmail.com>
 Neeraj Laad <neeraj.laad@uk.ibm.com>
 Scott Van Gilder <svangilder@gmail.com>
 Yaniv Friedensohn <yaniv.friedensohn@gmail.com>
-Lucas Woo <legendecas@gmail.com>
+Chengzhong Wu <legendecas@gmail.com>
 Troels Liebe Bentsen <troels@connectedcars.dk>
 pranshuchittora <pranshuchittora17@gmail.com>
 lakamsani <lakamsani@gmail.com>
@@ -2686,7 +2686,7 @@ Alexander Sattelmaier <alexander.sattelmaier@gmail.com>
 Avi ד <avi.the.coder@gmail.com>
 Thomas <hakerh403@gmail.com>
 Aymen Naghmouchi <aymen.aymen@live.it>
-himself65 <himself65@outlook.com>
+Zeyu "Alex" Yang <himself65@outlook.com>
 Patrick Gansterer <paroga@paroga.com>
 Nicolas Moteau <nicolas.moteau@orange.com>
 Anthony Tuininga <anthony.tuininga@oracle.com>
@@ -2694,7 +2694,7 @@ Yann Hamon <yann.hamon@contentful.com>
 Ben Swinburne <ben.swinburne@gmail.com>
 Colin Prince <col@colinprince.com>
 TJKoury <TJKoury@gmail.com>
-dnlup <dwon.dnl@gmail.com>
+dnlup <dnlup.dev@gmail.com>
 Hang Jiang <jianghangscu@gmail.com>
 Vladislav Kaminsky <wlodzislav@outlook.com>
 Daiki Ihara <sasurau4@gmail.com>
@@ -2869,13 +2869,13 @@ Michael Perrotte <mike@npmjs.com>
 Alexandre Ferrando <alferpal@gmail.com>
 Loris Zinsou <lzinsou@protonmail.com>
 Jizu Sun <jizu.sun@sap.com>
-Ash Cripps <acripps@redhat.com>
+Ash Cripps <email@ashleycripps.co.uk>
 garygsc <garygsc@gmail.com>
 Patrick Housley <patrick.f.housley@gmail.com>
 Artem Maksimov <temamaksimov@gmail.com>
 Nolik <nolikfriendly@gmail.com>
 palmires <palmires@example.com>
-Clemens Backes <clemensb@chromium.org>
+Clemens Backes <post@clemens-backes.de>
 Vadim Gorbachev <bmsdave@gmail.com>
 galina.prokofeva <g.k.prokofeva@gmail.com>
 Nadya <nadin.ts@gmail.com>
@@ -3260,7 +3260,6 @@ Siddharth <siddharth.muscat@gmail.com>
 Cactysman <git@cactys.dev>
 David Brownman <beamneocube@gmail.com>
 Michael Rommel <rommel@layer-7.net>
-Chengzhong Wu <chengzhong.wcz@alibaba-inc.com>
 Andres <and.atencio@gmail.com>
 Jayden Seric <me@jaydenseric.com>
 divlo <contact@divlo.fr>
@@ -3277,7 +3276,7 @@ Rodolfo Carvalho <rhcarvalho@gmail.com>
 Jordan Baczuk <JBaczuk@users.noreply.github.com>
 moander <moander@outlook.com>
 Hitesh Sharma <hitesh9sharma@gmail.com>
-Andreas Schwab <schwab@suse.de>
+Andreas Schwab <schwab@linux-m68k.org>
 Moritz Kneilmann <hi@kneilmann.tech>
 fisker Cheung <lionkay@gmail.com>
 Issam E. Maghni <issam.e.maghni@mailbox.org>
@@ -3288,7 +3287,7 @@ pengjie <37610029@qq.com>
 Philip <phershbe@gmail.com>
 julianjany <54538266+julianjany@users.noreply.github.com>
 bl-ue <bl-ue@users.noreply.github.com>
-npm-robot <ops+robot@npmjs.com>
+npm team <ops+robot@npmjs.com>
 Shaun Keys <mariobuddy@gmail.com>
 Simone Busoli <simone.busoli@nearform.com>
 Derevianchenko Maksym <32910350+maks-white@users.noreply.github.com>
@@ -3430,9 +3429,8 @@ Derek Wolpert <48101033+derekwolpert@users.noreply.github.com>
 wbt <wbt@users.noreply.github.com>
 Alexandru Comanescu <comanescu.robert93@gmail.com>
 madflow <madflow@web.de>
-Austin Kelleher <austin.kell47@gmail.com>
+Austin Kelleher <austinlkelleher@gmail.com>
 apeltop <sunshine@ptokos.com>
-Livia Medeiros <74449973+LiviaMedeiros@users.noreply.github.com>
 Nikolaos Papaspyrou <nikolaos@chromium.org>
 Matt Probert <1196252+mattpr@users.noreply.github.com>
 Roch Devost <roch.devost@gmail.com>
@@ -3443,7 +3441,7 @@ Damjan Cvetko <damjan.cvetko@gmail.com>
 Randall Leeds <randall@bleeds.info>
 Khoo Hao Yit <40757009+KhooHaoYit@users.noreply.github.com>
 Aroyan <43630681+aroyan@users.noreply.github.com>
-theanarkh <2923878201@qq.com>
+theanarkh <theratliter@gmail.com>
 Vladimir Morozov <vmorozov@microsoft.com>
 Anupama Codippily <47591753+AnupamaCodippily@users.noreply.github.com>
 Greg Poole <gpoole@users.noreply.github.com>
@@ -3452,5 +3450,160 @@ Daeyeon Jeong <daeyeon.dev@gmail.com>
 Daniel Roe <daniel@roe.dev>
 Niyas Sait <niyas.sait@linaro.org>
 K.C.Ashish Kumar <703559+kcak11@users.noreply.github.com>
+Niklas Mischkulnig <4586894+mischnic@users.noreply.github.com>
+Liviu Ionescu <ilg@livius.net>
+HE Shi-Jun <hax@heshijun.net>
+Yagiz Nizipli <yagiz@nizipli.com>
+liuxingbaoyu <30521560+liuxingbaoyu@users.noreply.github.com>
+Sergey Nazaryev <sergey@nazaryev.com>
+William Marlow <william.marlow@ibm.com>
+Keyhan Vakil <kvakil@sylph.kvakil.me>
+Feng Yu <F3n67u@outlook.com>
+pupilTong <pupiltong@outlook.com>
+rikapo <rikaporori@gmail.com>
+Meek Simbule <55823259+meekdenzo@users.noreply.github.com>
+Michael Ficarra <github@michael.ficarra.me>
+hiroki osame <hiroki.osame@gmail.com>
+Eugene Chapko <eugene.chapko@gmail.com>
+Sergey Petushkov <petushkov.sergey@gmail.com>
+Caleb Everett <everett.caleb@gmail.com>
+JialuZhang-intel <jialu.zhang@intel.com>
+Moshe Atlow <moshe@atlow.co.il>
+rubikscraft <contact@rubikscraft.nl>
+James Scott-Brown <james@jamesscottbrown.com>
+supriyo-biswas <supriyo.biswas.96@gmail.com>
+Giacomo Gregoletto <greguz@users.noreply.github.com>
+italo jose <italo.i@live.com>
+Kazuma Ohashi <tikuwaaaaaaaa@gmail.com>
+Douglas Wilson <67512+dougwilson@users.noreply.github.com>
+0xSanyam <108138884+0xSanyam@users.noreply.github.com>
+Alena Khineika <alena.khineika@gmail.com>
+Basit <1305718+mabaasit@users.noreply.github.com>
+Kid <44045911+kidonng@users.noreply.github.com>
+Jeremy Rose <japthorp@slack-corp.com>
+Facundo Tuesca <facundo.tuesca@trailofbits.com>
+Dan Castillo <dancastillo99@gmail.com>
+Varun Sharma <varunsh@stepsecurity.io>
+txxnano <warkanlock@gmail.com>
+Jannis R <mail@jannisr.de>
+John Gee <john@ruru.gen.nz>
+Hrishikesh Kadam <hrkadam.92@gmail.com>
+KrayzeeKev <github@lentinfamily.com>
+Airing <airing@ursb.me>
+jiahao.si <sijiahao0839@gmail.com>
+Rhys <Anemy@users.noreply.github.com>
+Mark S. Miller <erights@users.noreply.github.com>
+Jianru Lin <jianru.lin@gmail.com>
+Lenvin Gonsalves <41874033+98lenvi@users.noreply.github.com>
+Andreu Botella <andreu@andreubotella.com>
+shhh7612 <82669765+shhh7612@users.noreply.github.com>
+Dominic Saadi <dominiceliassaadi@gmail.com>
+ywave620 <rogertyang@tencent.com>
+NicoNekoru <66227158+NicoNekoru@users.noreply.github.com>
+SADIK KUZU <sadikkuzu@hotmail.com>
+flakey5 <73616808+flakey5@users.noreply.github.com>
+Saurabh Daware <saurabhdaware99@gmail.com>
+BuShe <bushe.cn@icloud.com>
+Nick Sia <nicholas.sia@vgw.co>
+Basit Chonka <baasit121@icloud.com>
+Jeremiah Gowdy <jgowdy@godaddy.com>
+Matthew Peveler <matt.peveler@gmail.com>
+Wing <damianleung@gmail.com>
+Hana <andywangsy@gmail.com>
+Jeff Dickey <216188+jdxcode@users.noreply.github.com>
+Matías Zúñiga <matias.nicolas.zc@gmail.com>
+metonym <ericyl.us@gmail.com>
+Brian Evans <53117772+mrbrianevans@users.noreply.github.com>
+falsandtru <falsandtru@users.noreply.github.com>
+东灯 <43312495+Lampese@users.noreply.github.com>
+Fabian Meyer <3982806+meyfa@users.noreply.github.com>
+Stefan Stojanovic <stefan.stojanovic@janeasystems.com>
+Claudio Wunder <cwunder@gnome.org>
+Shrujal Shah <shrujalshah@hotmail.com>
+Taha-Chaudhry <46199675+Taha-Chaudhry@users.noreply.github.com>
+smitley <brandon.smitley@gmail.com>
+Brian Muenzenmeyer <brian.muenzenmeyer@gmail.com>
+sidwebworks <xodedeveloper@gmail.com>
+Connor Burton <me@connorburton.com>
+chexiongsheng <chexiongsheng@qq.com>
+Lucas Santos <lhs.santoss@gmail.com>
+“Pooja <pakcutie14@gmail.com>
+Alan Agius <alanagius@google.com>
+Meghana Ramesh <66589407+ml7181@users.noreply.github.com>
+Nupur Chauhan <31733079+nupurchauhan6@users.noreply.github.com>
+Madhulika Sharma <89944545+MadhulikaSharma95@users.noreply.github.com>
+SergeyTsukanov <47488049+SergeyTsukanov@users.noreply.github.com>
+andiemontoyeah <55297964+andiemontoyeah@users.noreply.github.com>
+Ankita Khiratkar <aak13@illinois.edu>
+surbhirjain <36057179+surbhirjain@users.noreply.github.com>
+poorvitusam <poorvitusam@gmail.com>
+Archana Kamath <68199391+archana-kamath@users.noreply.github.com>
+Alex <93376818+sashashura@users.noreply.github.com>
+Priya Shastri <97130930+pshastricb@users.noreply.github.com>
+Madhuri <sonimadhuri12@gmail.com>
+Divya Mohan <77031080+DivyaMohan94@users.noreply.github.com>
+Hope Olaidé <79100769+hopeolaide@users.noreply.github.com>
+Juliet Zhang <65837446+zhangjuliet@users.noreply.github.com>
+Rathi N Das <rathind14@gmail.com>
+samyuktaprabhu <samyuktaprabhu@gmail.com>
+Brinda Ashar <brindaas@buffalo.edu>
+Monu-Chaudhary <chaudharymonu45@gmail.com>
+Anjana Krishnakumar Vellore <54228505+anjanakvellore@users.noreply.github.com>
+mmeenapriya <42589859+mmeenapriya@users.noreply.github.com>
+Chandana <100327450+chanduMe@users.noreply.github.com>
+pete3249 <63552971+pete3249@users.noreply.github.com>
+Bruno Pitrus <brunopitrus@hotmail.com>
+Manuel Spigolon <behemoth89@gmail.com>
+Lorand Horvath <72015221+lorand-horvath@users.noreply.github.com>
+Michael Rienstra <mrienstra@gmail.com>
+Tho <thoqbk@gmail.com>
+Cesar Mario Diaz <85703766+Cesar-M-Diaz@users.noreply.github.com>
+Khafra <42794878+KhafraDev@users.noreply.github.com>
+github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+Pierrick Bouvier <101587250+pbo-linaro@users.noreply.github.com>
+KaKa <climba03003@gmail.com>
+Luke Karrys <luke@lukekarrys.com>
+Tim Shilov <tim@shilov.dev>
+Obiwac <obiwac@gmail.com>
+Yu Gu <guyu2876@gmail.com>
+andreysoktoev <andrey.soktoev@gmail.com>
+Pavel Horal <pavel.horal@orchitech.cz>
+Konv <82451257+kovsu@users.noreply.github.com>
+Aidan Temple <15520814+aidant@users.noreply.github.com>
+Emanuel Hoogeveen <emanuel@medweb.nl>
+Takuro Sato <79583855+takuro-sato@users.noreply.github.com>
+Carter Snook <cartersnook04@gmail.com>
+Nathanael Ruf <104262550+nathanael-ruf@users.noreply.github.com>
+Vasili Skurydzin <vasili.skurydzin@protonmail.com>
+翠 / green <green@sapphi.red>
+Ulises Gascon <UlisesGascon@users.noreply.github.com>
+chlorine <nicksonlvqq@gmail.com>
+Shi Lei <lei.a.shi@intel.com>
+Deokjin Kim <deokjin81.kim@gmail.com>
+Marco Ippolito <marcoippolito54@gmail.com>
+Alex Hunt <hello@alexhunt.io>
+Debadree Chatterjee <debadree333@gmail.com>
+Gabriela Gutierrez <gabibguti1@gmail.com>
+emirgoren <61096652+emirgoren@users.noreply.github.com>
+Pulkit Gupta <pulkit30.bsr@gmail.com>
+Fabien Michel <104162117+welfoz@users.noreply.github.com>
+A. Wilcox <AWilcox@Wilcox-Tech.com>
+Daniel Lemire <daniel@lemire.me>
+Eric Mutta <eric.mutta@gmail.com>
+Vadim <vadimgerasimenko101@gmail.com>
+Aaron Friel <mayreply@aaronfriel.com>
+Vaishno Chaitanya <vaishnochaitanya7@gmail.com>
+Jonathan Diaz <50384299+jdiaz-dev@users.noreply.github.com>
+Mike Roth <mike_roth@safetrekapp.com>
+Almeida <almeidx@pm.me>
+Kevin Eady <8634912+KevinEady@users.noreply.github.com>
+Mordy Tikotzky <mordytk@gmail.com>
+vitpavlenko <vitaliypavlenko01@gmail.com>
+Tim Gerk <tgerk@users.noreply.github.com>
+Suyash Nayan <89125422+7suyash7@users.noreply.github.com>
+0xflotus <0xflotus@gmail.com>
+Alec Mev <alec@mev.earth>
+Miguel Teixeira <miguel.teixeira@poli.ufrj.br>
+José Dapena Paz <jdapena@igalia.com>
 
-# Generated by tools/update-authors.js
+# Generated by tools/update-authors.mjs

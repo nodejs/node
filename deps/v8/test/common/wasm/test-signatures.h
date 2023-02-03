@@ -25,8 +25,8 @@ class TestSignatures {
         sig_i_ff(1, 2, kIntFloatTypes4),
         sig_i_d(1, 1, kIntDoubleTypes4),
         sig_i_dd(1, 2, kIntDoubleTypes4),
-        sig_i_e(1, 1, kIntExternRefTypes4),
-        sig_i_ee(1, 2, kIntExternRefTypes4),
+        sig_i_a(1, 1, kIntExternRefTypes4),
+        sig_i_aa(1, 2, kIntExternRefTypes4),
         sig_i_c(1, 1, kIntFuncRefTypes4),
         sig_i_s(1, 1, kIntSimd128Types4),
         sig_l_v(1, 0, kLongTypes4),
@@ -37,15 +37,15 @@ class TestSignatures {
         sig_f_ff(1, 2, kFloatTypes4),
         sig_d_d(1, 1, kDoubleTypes4),
         sig_d_dd(1, 2, kDoubleTypes4),
-        sig_e_v(1, 0, kExternRefTypes4),
+        sig_a_v(1, 0, kExternRefTypes4),
         sig_c_v(1, 0, kFuncTypes4),
-        sig_e_e(1, 1, kExternRefTypes4),
+        sig_a_a(1, 1, kExternRefTypes4),
         sig_c_c(1, 1, kFuncTypes4),
         sig_v_v(0, 0, kIntTypes4),
         sig_v_i(0, 1, kIntTypes4),
         sig_v_ii(0, 2, kIntTypes4),
         sig_v_iii(0, 3, kIntTypes4),
-        sig_v_e(0, 1, kExternRefTypes4),
+        sig_v_a(0, 1, kExternRefTypes4),
         sig_v_c(0, 1, kFuncTypes4),
         sig_v_d(0, 1, kDoubleTypes4),
         sig_s_i(1, 1, kSimd128IntTypes4),
@@ -91,8 +91,8 @@ class TestSignatures {
   FunctionSig* l_l() { return &sig_l_l; }
   FunctionSig* l_ll() { return &sig_l_ll; }
   FunctionSig* i_ll() { return &sig_i_ll; }
-  FunctionSig* i_e() { return &sig_i_e; }
-  FunctionSig* i_ee() { return &sig_i_ee; }
+  FunctionSig* i_a() { return &sig_i_a; }
+  FunctionSig* i_aa() { return &sig_i_aa; }
   FunctionSig* i_c() { return &sig_i_c; }
   FunctionSig* i_s() { return &sig_i_s; }
 
@@ -101,16 +101,16 @@ class TestSignatures {
   FunctionSig* d_d() { return &sig_d_d; }
   FunctionSig* d_dd() { return &sig_d_dd; }
 
-  FunctionSig* e_v() { return &sig_e_v; }
-  FunctionSig* a_v() { return &sig_c_v; }
-  FunctionSig* e_e() { return &sig_e_e; }
+  FunctionSig* a_v() { return &sig_a_v; }
+  FunctionSig* c_v() { return &sig_c_v; }
+  FunctionSig* a_a() { return &sig_a_a; }
   FunctionSig* c_c() { return &sig_c_c; }
 
   FunctionSig* v_v() { return &sig_v_v; }
   FunctionSig* v_i() { return &sig_v_i; }
   FunctionSig* v_ii() { return &sig_v_ii; }
   FunctionSig* v_iii() { return &sig_v_iii; }
-  FunctionSig* v_e() { return &sig_v_e; }
+  FunctionSig* v_a() { return &sig_v_a; }
   FunctionSig* v_c() { return &sig_v_c; }
   FunctionSig* v_d() { return &sig_v_d; }
   FunctionSig* s_i() { return &sig_s_i; }
@@ -154,8 +154,8 @@ class TestSignatures {
   FunctionSig sig_i_ff;
   FunctionSig sig_i_d;
   FunctionSig sig_i_dd;
-  FunctionSig sig_i_e;
-  FunctionSig sig_i_ee;
+  FunctionSig sig_i_a;
+  FunctionSig sig_i_aa;
   FunctionSig sig_i_c;
   FunctionSig sig_i_s;
 
@@ -169,16 +169,16 @@ class TestSignatures {
   FunctionSig sig_d_d;
   FunctionSig sig_d_dd;
 
-  FunctionSig sig_e_v;
+  FunctionSig sig_a_v;
   FunctionSig sig_c_v;
-  FunctionSig sig_e_e;
+  FunctionSig sig_a_a;
   FunctionSig sig_c_c;
 
   FunctionSig sig_v_v;
   FunctionSig sig_v_i;
   FunctionSig sig_v_ii;
   FunctionSig sig_v_iii;
-  FunctionSig sig_v_e;
+  FunctionSig sig_v_a;
   FunctionSig sig_v_c;
   FunctionSig sig_v_d;
   FunctionSig sig_s_i;

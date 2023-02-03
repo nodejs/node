@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright 2014 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -23,6 +24,13 @@ The suite json format is expected to be:
   "retry_count": <how many times to retry failures (in addition to first try)",
   "retry_count_XXX": <how many times to retry failures for arch XXX>
   "resources": [<js file to be moved to android device>, ...]
+  "variants": [
+    {
+      "name": <name of the variant>,
+      "flags": [<flag to the test file>, ...],
+      <other suite properties>
+    }, ...
+  ]
   "main": <main js perf runner file>,
   "results_regexp": <optional regexp>,
   "results_processor": <optional python results processor script>,
@@ -56,6 +64,10 @@ The results_regexp will be applied to the processed output.
 
 A suite without "tests" is considered a performance test itself.
 
+Variants can be used to run different configurations at the current level. This
+essentially copies the sub suites at the current level and can be used to avoid
+duplicating a lot of nested "tests" were for instance only the "flags" change.
+
 Full example (suite with one runner):
 {
   "path": ["."],
@@ -80,10 +92,15 @@ Full example (suite with several runners):
 {
   "path": ["."],
   "owners": ["username@chromium.org", "otherowner@google.com"],
-  "flags": ["--expose-gc"],
   "archs": ["ia32", "x64"],
+  "flags": ["--expose-gc"]},
   "run_count": 5,
   "units": "score",
+  "variants:" {
+    {"name": "default", "flags": []},
+    {"name": "future",  "flags": ["--future"]},
+    {"name": "noopt",   "flags": ["--noopt"]},
+  }
   "tests": [
     {"name": "Richards",
      "path": ["richards"],
@@ -102,11 +119,9 @@ Path pieces are concatenated. D8 is always run with the suite's path as cwd.
 The test flags are passed to the js test file after '--'.
 """
 
-# for py2/py3 compatibility
-from __future__ import print_function
-from functools import reduce
-
 from collections import OrderedDict
+from math import sqrt
+from statistics import mean, stdev
 import copy
 import json
 import logging
@@ -119,23 +134,14 @@ import sys
 import time
 import traceback
 
-import numpy
-
 from testrunner.local import android
 from testrunner.local import command
 from testrunner.local import utils
 from testrunner.objects.output import Output, NULL_OUTPUT
 
-# for py2/py3 compatibility
-try:
-  basestring       # Python 2
-except NameError:  # Python 3
-  basestring = str
 
 SUPPORTED_ARCHS = ['arm',
                    'ia32',
-                   'mips',
-                   'mipsel',
                    'x64',
                    'arm64',
                    'riscv64']
@@ -251,7 +257,7 @@ class ResultTracker(object):
     Returns:
       True if specified confidence level have been achieved.
     """
-    if not isinstance(graph_config, TraceConfig):
+    if not isinstance(graph_config, LeafTraceConfig):
       return all(self.HasEnoughRuns(child, confidence_level)
                  for child in graph_config.children)
 
@@ -265,11 +271,12 @@ class ResultTracker(object):
       return False
 
     logging.debug('  Results: %d entries', len(results))
-    mean = numpy.mean(results)
-    mean_stderr = numpy.std(results) / numpy.sqrt(len(results))
-    logging.debug('  Mean: %.2f, mean_stderr: %.2f', mean, mean_stderr)
-    logging.info('>>> Confidence level is %.2f', mean / (1000.0 * mean_stderr))
-    return confidence_level * mean_stderr < mean / 1000.0
+    avg = mean(results)
+    avg_stderr = stdev(results) / sqrt(len(results))
+    logging.debug('  Mean: %.2f, mean_stderr: %.2f', avg, avg_stderr)
+    logging.info('>>> Confidence level is %.2f',
+                 avg / max(1000.0 * avg_stderr, .1))
+    return confidence_level * avg_stderr < avg / 1000.0
 
   def __str__(self):  # pragma: no cover
     return json.dumps(self.ToDict(), indent=2, separators=(',', ': '))
@@ -289,7 +296,8 @@ def RunResultsProcessor(results_processor, output, count):
       stderr=subprocess.PIPE,
   )
   new_output = copy.copy(output)
-  new_output.stdout, _ = p.communicate(input=output.stdout)
+  new_output.stdout = p.communicate(
+      input=output.stdout.encode('utf-8'))[0].decode('utf-8')
   logging.info('>>> Processed stdout (#%d):\n%s', count, output.stdout)
   return new_output
 
@@ -305,6 +313,11 @@ class Node(object):
   @property
   def children(self):
     return self._children
+
+  def __iter__(self):
+    yield self
+    for child in self.children:
+      yield from iter(child)
 
 
 class DefaultSentinel(Node):
@@ -327,6 +340,10 @@ class DefaultSentinel(Node):
     self.units = 'score'
     self.total = False
     self.owners = []
+    self.main = None
+
+  def __str__(self):
+    return type(self).__name__
 
 
 class GraphConfig(Node):
@@ -340,10 +357,15 @@ class GraphConfig(Node):
 
     assert isinstance(suite.get('path', []), list)
     assert isinstance(suite.get('owners', []), list)
-    assert isinstance(suite['name'], basestring)
+    assert isinstance(suite['name'], str)
     assert isinstance(suite.get('flags', []), list)
     assert isinstance(suite.get('test_flags', []), list)
     assert isinstance(suite.get('resources', []), list)
+
+    # Only used by child classes
+    self.main = suite.get('main', parent.main)
+    # Keep parent for easier debugging
+    self.parent = parent
 
     # Accumulated values.
     self.path = parent.path[:] + suite.get('path', [])
@@ -374,11 +396,15 @@ class GraphConfig(Node):
     # suite name is expected.
     # TODO(machenbach): Currently that makes only sense for the leaf level.
     # Multiple place holders for multiple levels are not supported.
-    if parent.results_regexp:
-      regexp_default = parent.results_regexp % re.escape(suite['name'])
-    else:
-      regexp_default = None
-    self.results_regexp = suite.get('results_regexp', regexp_default)
+    self.results_regexp = suite.get('results_regexp', None)
+    if self.results_regexp is None and parent.results_regexp:
+      try:
+        self.results_regexp = parent.results_regexp % re.escape(suite['name'])
+      except TypeError as e:
+        raise TypeError(
+            "Got error while preparing results_regexp: "
+            "parent.results_regexp='%s' suite.name='%s' suite='%s', error: %s" %
+            (parent.results_regexp, suite['name'], str(suite)[:100], e))
 
     # A similar regular expression for the standard deviation (optional).
     if parent.stddev_regexp:
@@ -391,13 +417,39 @@ class GraphConfig(Node):
   def name(self):
     return '/'.join(self.graphs)
 
+  def __str__(self):
+    return "%s(%s)" % (type(self).__name__, self.name)
 
-class TraceConfig(GraphConfig):
+
+class VariantConfig(GraphConfig):
+  """Represents an intermediate node that has children that are all
+  variants of each other"""
+
+  def __init__(self, suite, parent, arch):
+    super(VariantConfig, self).__init__(suite, parent, arch)
+    assert "variants" in suite
+    for variant in suite.get('variants'):
+      assert "variants" not in variant, \
+        "Cannot directly nest variants:" + str(variant)[:100]
+      assert "name" in variant, \
+          "Variant must have 'name' property: " + str(variant)[:100]
+      assert len(variant) >= 2, \
+          "Variant must define other properties than 'name': " + str(variant)
+
+
+class LeafTraceConfig(GraphConfig):
   """Represents a leaf in the suite tree structure."""
   def __init__(self, suite, parent, arch):
-    super(TraceConfig, self).__init__(suite, parent, arch)
+    super(LeafTraceConfig, self).__init__(suite, parent, arch)
     assert self.results_regexp
-    assert self.owners
+    if '%s' in self.results_regexp:
+      raise Exception(
+          "results_regexp at the wrong level. "
+          "Regexp should not contain '%%s': results_regexp='%s' name=%s" %
+          (self.results_regexp, self.name))
+
+  def AppendChild(self, node):
+    raise Exception("%s cannot have child configs." % type(self).__name__)
 
   def ConsumeOutput(self, output, result_tracker):
     """Extracts trace results from the output.
@@ -409,6 +461,14 @@ class TraceConfig(GraphConfig):
     Returns:
       The raw extracted result value or None if an error occurred.
     """
+
+    if len(self.children) > 0:
+      results_for_total = []
+      for trace in self.children:
+        result = trace.ConsumeOutput(output, result_tracker)
+        if result:
+          results_for_total.append(result)
+
     result = None
     stddev = None
 
@@ -441,16 +501,59 @@ class TraceConfig(GraphConfig):
     return result
 
 
-class RunnableConfig(GraphConfig):
+class TraceConfig(GraphConfig):
+  """
+  A TraceConfig contains either TraceConfigs or LeafTraceConfigs
+  """
+
+  def ConsumeOutput(self, output, result_tracker):
+    """Processes test run output and updates result tracker.
+
+    Args:
+      output: Output object from the test run.
+      result_tracker: ResultTracker object to be updated.
+      count: Index of the test run (used for better logging).
+    """
+    results_for_total = []
+    for trace in self.children:
+      result = trace.ConsumeOutput(output, result_tracker)
+      if result:
+        results_for_total.append(result)
+
+    if self.total:
+      # Produce total metric only when all traces have produced results.
+      if len(self.children) != len(results_for_total):
+        result_tracker.AddError(
+            'Not all traces have produced results. Can not compute total for '
+            '%s.' % self.name)
+        return
+
+      # Calculate total as a the geometric mean for results from all traces.
+      total_trace = LeafTraceConfig(
+          {
+              'name': 'Total',
+              'units': self.children[0].units
+          }, self, self.arch)
+      result_tracker.AddTraceResult(total_trace,
+                                    GeometricMean(results_for_total), '')
+
+  def AppendChild(self, node):
+    if node.__class__ not in (TraceConfig, LeafTraceConfig):
+      raise Exception(
+          "%s only allows TraceConfig and LeafTraceConfig as child configs." %
+          type(self).__name__)
+    super(TraceConfig, self).AppendChild(node)
+
+
+class RunnableConfig(TraceConfig):
   """Represents a runnable suite definition (i.e. has a main file).
   """
   def __init__(self, suite, parent, arch):
     super(RunnableConfig, self).__init__(suite, parent, arch)
     self.arch = arch
-
-  @property
-  def main(self):
-    return self._suite.get('main', '')
+    assert self.main, "No main js file provided"
+    if not self.owners:
+      logging.error("No owners provided for %s" % self.name)
 
   def ChangeCWD(self, suite_path):
     """Changes the cwd to to path defined in the current graph.
@@ -497,69 +600,107 @@ class RunnableConfig(GraphConfig):
     if self.results_processor:
       output = RunResultsProcessor(self.results_processor, output, count)
 
-    results_for_total = []
-    for trace in self.children:
-      result = trace.ConsumeOutput(output, result_tracker)
-      if result:
-        results_for_total.append(result)
-
-    if self.total:
-      # Produce total metric only when all traces have produced results.
-      if len(self.children) != len(results_for_total):
-        result_tracker.AddError(
-            'Not all traces have produced results. Can not compute total for '
-            '%s.' % self.name)
-        return
-
-      # Calculate total as a the geometric mean for results from all traces.
-      total_trace = TraceConfig(
-          {'name': 'Total', 'units': self.children[0].units}, self, self.arch)
-      result_tracker.AddTraceResult(
-          total_trace, GeometricMean(results_for_total), '')
+    self.ConsumeOutput(output, result_tracker)
 
 
-class RunnableTraceConfig(TraceConfig, RunnableConfig):
+class RunnableLeafTraceConfig(LeafTraceConfig, RunnableConfig):
   """Represents a runnable suite definition that is a leaf."""
   def __init__(self, suite, parent, arch):
-    super(RunnableTraceConfig, self).__init__(suite, parent, arch)
+    super(RunnableLeafTraceConfig, self).__init__(suite, parent, arch)
+    if not self.owners:
+      logging.error("No owners provided for %s" % self.name)
 
   def ProcessOutput(self, output, result_tracker, count):
     result_tracker.AddRunnableDuration(self, output.duration)
     self.ConsumeOutput(output, result_tracker)
 
 
-def MakeGraphConfig(suite, arch, parent):
+def MakeGraphConfig(suite, parent, arch):
+  cls = GetGraphConfigClass(suite, parent)
+  return cls(suite, parent, arch)
+
+
+def GetGraphConfigClass(suite, parent):
   """Factory method for making graph configuration objects."""
-  if isinstance(parent, RunnableConfig):
-    # Below a runnable can only be traces.
-    return TraceConfig(suite, parent, arch)
+  if isinstance(parent, TraceConfig):
+    if suite.get("tests"):
+      return TraceConfig
+    return LeafTraceConfig
   elif suite.get('main') is not None:
     # A main file makes this graph runnable. Empty strings are accepted.
     if suite.get('tests'):
       # This graph has subgraphs (traces).
-      return RunnableConfig(suite, parent, arch)
+      return RunnableConfig
     else:
       # This graph has no subgraphs, it's a leaf.
-      return RunnableTraceConfig(suite, parent, arch)
+      return RunnableLeafTraceConfig
   elif suite.get('tests'):
     # This is neither a leaf nor a runnable.
-    return GraphConfig(suite, parent, arch)
+    return GraphConfig
   else:  # pragma: no cover
-    raise Exception('Invalid suite configuration.')
+    raise Exception('Invalid suite configuration.' + str(suite)[:200])
 
 
-def BuildGraphConfigs(suite, arch, parent):
+def BuildGraphConfigs(suite, parent, arch):
   """Builds a tree structure of graph objects that corresponds to the suite
   configuration.
-  """
 
+  - GraphConfig:
+    - Can have arbitrary children
+    - can be used to store properties used by it's children
+
+  - VariantConfig
+    - Has variants of the same (any) type as children
+
+  For all other configs see the override AppendChild methods.
+
+  Example 1:
+  - GraphConfig
+    - RunnableLeafTraceConfig (no children)
+    -  ...
+
+  Example 2:
+  - RunnableConfig
+    - LeafTraceConfig (no children)
+    - ...
+
+  Example 3:
+  - RunnableConfig
+    - LeafTraceConfig (optional)
+    - TraceConfig
+      - LeafTraceConfig (no children)
+      - ...
+      - TraceConfig (optional)
+        - ...
+      - ...
+
+  Example 4:
+  - VariantConfig
+    - RunnableConfig
+      - ...
+    - RunnableConfig
+      - ...
+  """
   # TODO(machenbach): Implement notion of cpu type?
   if arch not in suite.get('archs', SUPPORTED_ARCHS):
     return None
 
-  graph = MakeGraphConfig(suite, arch, parent)
-  for subsuite in suite.get('tests', []):
-    BuildGraphConfigs(subsuite, arch, graph)
+  variants = suite.get('variants', [])
+  if len(variants) == 0:
+    graph = MakeGraphConfig(suite, parent, arch)
+    for subsuite in suite.get('tests', []):
+      BuildGraphConfigs(subsuite, graph, arch)
+  else:
+    graph = VariantConfig(suite, parent, arch)
+    variant_class = GetGraphConfigClass(suite, parent)
+    for variant_suite in variants:
+      # Propagate down the results_regexp if it's not override in the variant
+      variant_suite.setdefault('results_regexp',
+                               suite.get('results_regexp', None))
+      variant_graph = variant_class(variant_suite, graph, arch)
+      graph.AppendChild(variant_graph)
+      for subsuite in suite.get('tests', []):
+        BuildGraphConfigs(subsuite, variant_graph, arch)
   parent.AppendChild(graph)
   return graph
 
@@ -611,6 +752,7 @@ class Platform(object):
   def __init__(self, args):
     self.shell_dir = args.shell_dir
     self.shell_dir_secondary = args.shell_dir_secondary
+    self.is_dry_run = args.dry_run
     self.extra_flags = args.extra_flags.split()
     self.args = args
 
@@ -705,13 +847,14 @@ class DesktopPlatform(Platform):
     shell_dir = self.shell_dir_secondary if secondary else self.shell_dir
     cmd = runnable.GetCommand(self.command_prefix, shell_dir, self.extra_flags)
     logging.debug('Running command: %s' % cmd)
-    output = cmd.execute()
+    output = Output() if self.is_dry_run else cmd.execute()
 
     if output.IsSuccess() and '--prof' in self.extra_flags:
       os_prefix = {'linux': 'linux', 'macos': 'mac'}.get(utils.GuessOS())
       if os_prefix:
-        tick_tools = os.path.join(TOOLS_BASE, '%s-tick-processor' % os_prefix)
-        subprocess.check_call(tick_tools + ' --only-summary', shell=True)
+        if not self.is_dry_run:
+          tick_tools = os.path.join(TOOLS_BASE, '%s-tick-processor' % os_prefix)
+          subprocess.check_call(tick_tools + ' --only-summary', shell=True)
       else:  # pragma: no cover
         logging.warning(
             'Profiler option currently supported on Linux and Mac OS.')
@@ -726,7 +869,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
 
   def __init__(self, args):
     super(AndroidPlatform, self).__init__(args)
-    self.driver = android.android_driver(args.device)
+    self.driver = android.Driver.instance(args.device)
 
   def PreExecution(self):
     self.driver.set_high_perf_mode()
@@ -777,14 +920,15 @@ class AndroidPlatform(Platform):  # pragma: no cover
     output = Output()
     start = time.time()
     try:
-      output.stdout = self.driver.run(
-          target_dir=target_dir,
-          binary=runnable.binary,
-          args=runnable.GetCommandFlags(self.extra_flags),
-          rel_path=bench_rel,
-          timeout=runnable.timeout,
-          logcat_file=logcat_file,
-      )
+      if not self.is_dry_run:
+        output.stdout = self.driver.run(
+            target_dir=target_dir,
+            binary=runnable.binary,
+            args=runnable.GetCommandFlags(self.extra_flags),
+            rel_path=bench_rel,
+            timeout=runnable.timeout,
+            logcat_file=logcat_file,
+        )
     except android.CommandFailedException as e:
       output.stdout = e.output
       output.exit_code = e.status
@@ -956,12 +1100,12 @@ def Main(argv):
                       '"powersave" for more stable results, or "performance" '
                       'for shorter completion time of suite, with potentially '
                       'more noise in results.')
-  parser.add_argument('--filter',
-                      help='Only run the benchmarks beginning with this '
-                      'string. For example: '
-                      '--filter=JSTests/TypedArrays/ will run only TypedArray '
-                      'benchmarks from the JSTests suite.',
-                      default='')
+  parser.add_argument(
+      '--filter',
+      help='Only run the benchmarks matching with this '
+      'regex. For example: '
+      '--filter=JSTests/TypedArrays/ will run only TypedArray '
+      'benchmarks from the JSTests suite.')
   parser.add_argument('--confidence-level', type=float,
                       help='Repeatedly runs each benchmark until specified '
                       'confidence level is reached. The value is interpreted '
@@ -982,6 +1126,11 @@ def Main(argv):
   parser.add_argument('--run-count', type=int, default=0,
                       help='Override the run count specified by the test '
                       'suite. The default 0 uses the suite\'s config.')
+  parser.add_argument(
+      '--dry-run',
+      default=False,
+      action='store_true',
+      help='Do not run any actual tests.')
   parser.add_argument('-v', '--verbose', default=False, action='store_true',
                       help='Be verbose and print debug output.')
   parser.add_argument('suite', nargs='+', help='Path to the suite config file.')
@@ -1038,6 +1187,13 @@ def Main(argv):
     args.json_test_results_secondary = os.path.abspath(
         args.json_test_results_secondary)
 
+  try:
+    if args.filter:
+      args.filter = re.compile(args.filter)
+  except re.error:
+    logging.error("Invalid regular expression for --filter=%s" % args.filter)
+    return INFRA_FAILURE_RETCODE
+
   # Ensure all arguments have absolute path before we start changing current
   # directory.
   args.suite = list(map(os.path.abspath, args.suite))
@@ -1067,7 +1223,12 @@ def Main(argv):
 
       # Build the graph/trace tree structure.
       default_parent = DefaultSentinel(default_binary_name)
-      root = BuildGraphConfigs(suite, args.arch, default_parent)
+      root = BuildGraphConfigs(suite, default_parent, args.arch)
+
+      if logging.DEBUG >= logging.root.level:
+        logging.debug("Config tree:")
+        for node in iter(root):
+          logging.debug("  %s", node)
 
       # Callback to be called on each node on traversal.
       def NodeCB(node):
@@ -1078,8 +1239,8 @@ def Main(argv):
       try:
         for runnable in FlattenRunnables(root, NodeCB):
           runnable_name = '/'.join(runnable.graphs)
-          if (not runnable_name.startswith(args.filter) and
-              runnable_name + '/' != args.filter):
+          if args.filter and not args.filter.match(runnable_name):
+            logging.info('Skipping suite "%s" due to filter', runnable_name)
             continue
           logging.info('>>> Running suite: %s', runnable_name)
 

@@ -8,7 +8,7 @@
 #include "include/v8-exception.h"
 #include "include/v8-microtask-queue.h"
 #include "include/v8-template.h"
-#include "src/base/vector.h"
+#include "src/init/v8.h"
 #include "src/inspector/test-interface.h"
 #include "test/inspector/task-runner.h"
 #include "test/inspector/utils.h"
@@ -163,7 +163,9 @@ int InspectorIsolateData::ConnectSession(
     v8_inspector::V8Inspector::Channel* channel) {
   v8::SealHandleScope seal_handle_scope(isolate());
   int session_id = ++last_session_id_;
-  sessions_[session_id] = inspector_->connect(context_group_id, channel, state);
+  sessions_[session_id] =
+      inspector_->connect(context_group_id, channel, state,
+                          v8_inspector::V8Inspector::kFullyTrusted);
   context_group_by_session_[sessions_[session_id].get()] = context_group_id;
   return session_id;
 }
@@ -339,10 +341,16 @@ void InspectorIsolateData::PromiseRejectHandler(v8::PromiseRejectMessage data) {
   int exception_id = HandleMessage(
       v8::Exception::CreateMessage(isolate, exception), exception);
   if (exception_id) {
-    promise
-        ->SetPrivate(isolate->GetCurrentContext(), id_private,
-                     v8::Int32::New(isolate, exception_id))
-        .ToChecked();
+    if (promise
+            ->SetPrivate(isolate->GetCurrentContext(), id_private,
+                         v8::Int32::New(isolate, exception_id))
+            .IsNothing()) {
+      // Handling the |message| above calls back into JavaScript (by reporting
+      // it via CDP) in case of `inspector-test`, and can lead to terminating
+      // execution on the |isolate|, in which case the API call above will
+      // return immediately.
+      DCHECK(isolate->IsExecutionTerminating());
+    }
   }
 }
 
@@ -381,7 +389,7 @@ bool InspectorIsolateData::isInspectableHeapObject(
     v8::Local<v8::Object> object) {
   v8::Local<v8::Context> context = isolate()->GetCurrentContext();
   v8::MicrotasksScope microtasks_scope(
-      isolate(), v8::MicrotasksScope::kDoNotRunMicrotasks);
+      context, v8::MicrotasksScope::kDoNotRunMicrotasks);
   return !object->HasPrivate(context, not_inspectable_private_.Get(isolate()))
               .FromMaybe(false);
 }
@@ -456,6 +464,25 @@ void InspectorIsolateData::consoleAPIMessage(
     const v8_inspector::StringView& url, unsigned lineNumber,
     unsigned columnNumber, v8_inspector::V8StackTrace* stack) {
   if (!log_console_api_message_calls_) return;
+  switch (level) {
+    case v8::Isolate::kMessageLog:
+      fprintf(stdout, "log: ");
+      break;
+    case v8::Isolate::kMessageDebug:
+      fprintf(stdout, "debug: ");
+      break;
+    case v8::Isolate::kMessageInfo:
+      fprintf(stdout, "info: ");
+      break;
+    case v8::Isolate::kMessageError:
+      fprintf(stdout, "error: ");
+      break;
+    case v8::Isolate::kMessageWarning:
+      fprintf(stdout, "warning: ");
+      break;
+    case v8::Isolate::kMessageAll:
+      break;
+  }
   Print(isolate_.get(), message);
   fprintf(stdout, " (");
   Print(isolate_.get(), url);

@@ -31,12 +31,10 @@
 #define _WIN32_WINNT 0x601
 #endif
 
-#if _WIN32_WINNT >= _WIN32_WINNT_WIN8
-// see Include/shared/winapifamily.h in the Windows Kit
-#if defined(WINAPI_FAMILY_PARTITION) && (!(defined(IOWIN32_USING_WINRT_API)))
-#if WINAPI_FAMILY_ONE_PARTITION(WINAPI_FAMILY, WINAPI_PARTITION_APP)
+#if !defined(IOWIN32_USING_WINRT_API)
+#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
+// Windows Store or Universal Windows Platform
 #define IOWIN32_USING_WINRT_API 1
-#endif
 #endif
 #endif
 

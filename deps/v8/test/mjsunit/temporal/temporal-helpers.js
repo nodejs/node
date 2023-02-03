@@ -6,18 +6,18 @@
 
 function assertDuration(duration, years, months, weeks, days, hours,
     minutes, seconds, milliseconds, microseconds, nanoseconds, sign, blank) {
-  assertEquals(years, duration.years, duration);
-  assertEquals(months, duration.months, duration);
-  assertEquals(weeks, duration.weeks, duration);
-  assertEquals(days, duration.days, duration);
-  assertEquals(hours, duration.hours, duration);
-  assertEquals(minutes, duration.minutes, duration);
-  assertEquals(seconds, duration.seconds, duration);
-  assertEquals(milliseconds, duration.milliseconds, duration);
-  assertEquals(microseconds, duration.microseconds, duration);
-  assertEquals(nanoseconds, duration.nanoseconds, duration);
-  assertEquals(sign, duration.sign, duration);
-  assertEquals(blank, duration.blank, duration);
+  assertEquals(years, duration.years, "years");
+  assertEquals(months, duration.months, "months");
+  assertEquals(weeks, duration.weeks, "weeks");
+  assertEquals(days, duration.days, "days");
+  assertEquals(hours, duration.hours, "hours");
+  assertEquals(minutes, duration.minutes, "minutes");
+  assertEquals(seconds, duration.seconds, "seconds");
+  assertEquals(milliseconds, duration.milliseconds, "milliseconds");
+  assertEquals(microseconds, duration.microseconds, "microseconds");
+  assertEquals(nanoseconds, duration.nanoseconds, "nanoseconds");
+  assertEquals(sign, duration.sign, "sign");
+  assertEquals(blank, duration.blank, "blank");
 }
 
 function assertPlainDate(time, year, month, day) {

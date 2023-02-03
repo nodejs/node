@@ -3,22 +3,22 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "env.h"
 #include "async_wrap.h"
-#include "allocated_buffer.h"
+#include "env.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "string_bytes.h"
 #include "util.h"
 #include "v8.h"
-#include "string_bytes.h"
 
+#include <openssl/dsa.h>
+#include <openssl/ec.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
-#include <openssl/ec.h>
+#include <openssl/hmac.h>
 #include <openssl/kdf.h>
 #include <openssl/rsa.h>
-#include <openssl/dsa.h>
 #include <openssl/ssl.h>
 #ifndef OPENSSL_NO_ENGINE
 #  include <openssl/engine.h>
@@ -30,11 +30,12 @@
 #endif  // OPENSSL_FIPS
 
 #include <algorithm>
-#include <memory>
-#include <string>
-#include <vector>
 #include <climits>
 #include <cstdio>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
 
 namespace node {
 namespace crypto {
@@ -111,31 +112,18 @@ struct MarkPopErrorOnReturn {
   ~MarkPopErrorOnReturn() { ERR_pop_to_mark(); }
 };
 
-// Ensure that OpenSSL has enough entropy (at least 256 bits) for its PRNG.
-// The entropy pool starts out empty and needs to fill up before the PRNG
-// can be used securely.  Once the pool is filled, it never dries up again;
-// its contents is stirred and reused when necessary.
-//
-// OpenSSL normally fills the pool automatically but not when someone starts
-// generating random numbers before the pool is full: in that case OpenSSL
-// keeps lowering the entropy estimate to thwart attackers trying to guess
-// the initial state of the PRNG.
-//
-// When that happens, we will have to wait until enough entropy is available.
-// That should normally never take longer than a few milliseconds.
-//
-// OpenSSL draws from /dev/random and /dev/urandom.  While /dev/random may
-// block pending "true" randomness, /dev/urandom is a CSPRNG that doesn't
-// block under normal circumstances.
-//
-// The only time when /dev/urandom may conceivably block is right after boot,
-// when the whole system is still low on entropy.  That's not something we can
-// do anything about.
-void CheckEntropy();
+struct CSPRNGResult {
+  const bool ok;
+  MUST_USE_RESULT bool is_ok() const { return ok; }
+  MUST_USE_RESULT bool is_err() const { return !ok; }
+};
 
-// Generate length bytes of random data. If this returns false, the data
-// may not be truly random but it's still generally good enough.
-bool EntropySource(unsigned char* buffer, size_t length);
+// Either succeeds with exactly |length| bytes of cryptographically
+// strong pseudo-random data, or fails. This function may block.
+// Don't assume anything about the contents of |buffer| on error.
+// As a special case, |length == 0| can be used to check if the CSPRNG
+// is properly seeded without consuming entropy.
+MUST_USE_RESULT CSPRNGResult CSPRNG(void* buffer, size_t length);
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u);
 
@@ -219,37 +207,74 @@ T* MallocOpenSSL(size_t count) {
   return static_cast<T*>(mem);
 }
 
-template <typename T>
-T* ReallocOpenSSL(T* buf, size_t count) {
-  void* mem = OPENSSL_realloc(buf, MultiplyWithOverflowCheck(count, sizeof(T)));
-  CHECK_IMPLIES(mem == nullptr, count == 0);
-  return static_cast<T*>(mem);
-}
-
 // A helper class representing a read-only byte array. When deallocated, its
 // contents are zeroed.
 class ByteSource {
  public:
+  class Builder {
+   public:
+    // Allocates memory using OpenSSL's memory allocator.
+    explicit Builder(size_t size)
+        : data_(MallocOpenSSL<char>(size)), size_(size) {}
+
+    Builder(Builder&& other) = delete;
+    Builder& operator=(Builder&& other) = delete;
+    Builder(const Builder&) = delete;
+    Builder& operator=(const Builder&) = delete;
+
+    ~Builder() { OPENSSL_clear_free(data_, size_); }
+
+    // Returns the underlying non-const pointer.
+    template <typename T>
+    T* data() {
+      return reinterpret_cast<T*>(data_);
+    }
+
+    // Returns the (allocated) size in bytes.
+    size_t size() const { return size_; }
+
+    // Finalizes the Builder and returns a read-only view that is optionally
+    // truncated.
+    ByteSource release(std::optional<size_t> resize = std::nullopt) && {
+      if (resize) {
+        CHECK_LE(*resize, size_);
+        if (*resize == 0) {
+          OPENSSL_clear_free(data_, size_);
+          data_ = nullptr;
+        }
+        size_ = *resize;
+      }
+      ByteSource out = ByteSource::Allocated(data_, size_);
+      data_ = nullptr;
+      size_ = 0;
+      return out;
+    }
+
+   private:
+    void* data_;
+    size_t size_;
+  };
+
   ByteSource() = default;
   ByteSource(ByteSource&& other) noexcept;
   ~ByteSource();
 
   ByteSource& operator=(ByteSource&& other) noexcept;
 
-  const char* get() const;
+  ByteSource(const ByteSource&) = delete;
+  ByteSource& operator=(const ByteSource&) = delete;
 
-  template <typename T>
-  const T* data() const { return reinterpret_cast<const T*>(get()); }
+  template <typename T = void>
+  const T* data() const {
+    return reinterpret_cast<const T*>(data_);
+  }
 
-  size_t size() const;
+  size_t size() const { return size_; }
 
   operator bool() const { return data_ != nullptr; }
 
   BignumPointer ToBN() const {
-    return BignumPointer(BN_bin2bn(
-        reinterpret_cast<const unsigned char*>(get()),
-        size(),
-        nullptr));
+    return BignumPointer(BN_bin2bn(data<unsigned char>(), size(), nullptr));
   }
 
   // Creates a v8::BackingStore that takes over responsibility for
@@ -261,19 +286,8 @@ class ByteSource {
 
   v8::MaybeLocal<v8::Uint8Array> ToBuffer(Environment* env);
 
-  void reset();
-
-  // Allows an Allocated ByteSource to be truncated.
-  void Resize(size_t newsize) {
-    CHECK_LE(newsize, size_);
-    CHECK_NOT_NULL(allocated_data_);
-    char* new_data_ = ReallocOpenSSL<char>(allocated_data_, newsize);
-    data_ = allocated_data_ = new_data_;
-    size_ = newsize;
-  }
-
-  static ByteSource Allocated(char* data, size_t size);
-  static ByteSource Foreign(const char* data, size_t size);
+  static ByteSource Allocated(void* data, size_t size);
+  static ByteSource Foreign(const void* data, size_t size);
 
   static ByteSource FromEncodedString(Environment* env,
                                       v8::Local<v8::String> value,
@@ -296,18 +310,16 @@ class ByteSource {
 
   static ByteSource FromSymmetricKeyObjectHandle(v8::Local<v8::Value> handle);
 
-  ByteSource(const ByteSource&) = delete;
-  ByteSource& operator=(const ByteSource&) = delete;
-
   static ByteSource FromSecretKeyBytes(
       Environment* env, v8::Local<v8::Value> value);
 
  private:
-  const char* data_ = nullptr;
-  char* allocated_data_ = nullptr;
+  const void* data_ = nullptr;
+  void* allocated_data_ = nullptr;
   size_t size_ = 0;
 
-  ByteSource(const char* data, char* allocated_data, size_t size);
+  ByteSource(const void* data, void* allocated_data, size_t size)
+      : data_(data), allocated_data_(allocated_data), size_(size) {}
 };
 
 enum CryptoJobMode {
@@ -322,14 +334,13 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
  public:
   using AdditionalParams = typename CryptoJobTraits::AdditionalParameters;
 
-  explicit CryptoJob(
-      Environment* env,
-      v8::Local<v8::Object> object,
-      AsyncWrap::ProviderType type,
-      CryptoJobMode mode,
-      AdditionalParams&& params)
+  explicit CryptoJob(Environment* env,
+                     v8::Local<v8::Object> object,
+                     AsyncWrap::ProviderType type,
+                     CryptoJobMode mode,
+                     AdditionalParams&& params)
       : AsyncWrap(env, object, type),
-        ThreadPoolWork(env),
+        ThreadPoolWork(env, "crypto"),
         mode_(mode),
         params_(std::move(params)) {
     // If the CryptoJob is async, then the instance will be
@@ -388,7 +399,7 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
 
   AdditionalParams* params() { return &params_; }
 
-  std::string MemoryInfoName() const override {
+  const char* MemoryInfoName() const override {
     return CryptoJobTraits::JobName;
   }
 
@@ -419,12 +430,15 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
       v8::FunctionCallback new_fn,
       Environment* env,
       v8::Local<v8::Object> target) {
-    v8::Local<v8::FunctionTemplate> job = env->NewFunctionTemplate(new_fn);
+    v8::Isolate* isolate = env->isolate();
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = env->context();
+    v8::Local<v8::FunctionTemplate> job = NewFunctionTemplate(isolate, new_fn);
     job->Inherit(AsyncWrap::GetConstructorTemplate(env));
     job->InstanceTemplate()->SetInternalFieldCount(
         AsyncWrap::kInternalFieldCount);
-    env->SetProtoMethod(job, "run", Run);
-    env->SetConstructorFunction(target, CryptoJobTraits::JobName, job);
+    SetProtoMethod(isolate, job, "run", Run);
+    SetConstructorFunction(context, target, CryptoJobTraits::JobName, job);
   }
 
   static void RegisterExternalReferences(v8::FunctionCallback new_fn,
@@ -672,24 +686,30 @@ template <typename T>
 class ArrayBufferOrViewContents {
  public:
   ArrayBufferOrViewContents() = default;
+  ArrayBufferOrViewContents(const ArrayBufferOrViewContents&) = delete;
+  void operator=(const ArrayBufferOrViewContents&) = delete;
 
   inline explicit ArrayBufferOrViewContents(v8::Local<v8::Value> buf) {
+    if (buf.IsEmpty()) {
+      return;
+    }
+
     CHECK(IsAnyByteSource(buf));
     if (buf->IsArrayBufferView()) {
       auto view = buf.As<v8::ArrayBufferView>();
       offset_ = view->ByteOffset();
       length_ = view->ByteLength();
-      store_ = view->Buffer()->GetBackingStore();
+      data_ = view->Buffer()->Data();
     } else if (buf->IsArrayBuffer()) {
       auto ab = buf.As<v8::ArrayBuffer>();
       offset_ = 0;
       length_ = ab->ByteLength();
-      store_ = ab->GetBackingStore();
+      data_ = ab->Data();
     } else {
       auto sab = buf.As<v8::SharedArrayBuffer>();
       offset_ = 0;
       length_ = sab->ByteLength();
-      store_ = sab->GetBackingStore();
+      data_ = sab->Data();
     }
   }
 
@@ -699,7 +719,7 @@ class ArrayBufferOrViewContents {
     // length is zero, so we have to return something.
     if (size() == 0)
       return &buf;
-    return reinterpret_cast<T*>(store_->Data()) + offset_;
+    return reinterpret_cast<T*>(data_) + offset_;
   }
 
   inline T* data() {
@@ -708,7 +728,7 @@ class ArrayBufferOrViewContents {
     // length is zero, so we have to return something.
     if (size() == 0)
       return &buf;
-    return reinterpret_cast<T*>(store_->Data()) + offset_;
+    return reinterpret_cast<T*>(data_) + offset_;
   }
 
   inline size_t size() const { return length_; }
@@ -723,19 +743,17 @@ class ArrayBufferOrViewContents {
 
   inline ByteSource ToCopy() const {
     if (size() == 0) return ByteSource();
-    char* buf = MallocOpenSSL<char>(size());
-    CHECK_NOT_NULL(buf);
-    memcpy(buf, data(), size());
-    return ByteSource::Allocated(buf, size());
+    ByteSource::Builder buf(size());
+    memcpy(buf.data<void>(), data(), size());
+    return std::move(buf).release();
   }
 
   inline ByteSource ToNullTerminatedCopy() const {
     if (size() == 0) return ByteSource();
-    char* buf = MallocOpenSSL<char>(size() + 1);
-    CHECK_NOT_NULL(buf);
-    buf[size()] = 0;
-    memcpy(buf, data(), size());
-    return ByteSource::Allocated(buf, size());
+    ByteSource::Builder buf(size() + 1);
+    memcpy(buf.data<void>(), data(), size());
+    buf.data<char>()[size()] = 0;
+    return std::move(buf).release(size());
   }
 
   template <typename M>
@@ -750,22 +768,15 @@ class ArrayBufferOrViewContents {
   T buf = 0;
   size_t offset_ = 0;
   size_t length_ = 0;
-  std::shared_ptr<v8::BackingStore> store_;
+  void* data_ = nullptr;
+
+  // Declaring operator new and delete as deleted is not spec compliant.
+  // Therefore declare them private instead to disable dynamic alloc
+  void* operator new(size_t);
+  void* operator new[](size_t);
+  void operator delete(void*);
+  void operator delete[](void*);
 };
-
-template <typename T>
-std::vector<T> CopyBuffer(const ArrayBufferOrViewContents<T>& buf) {
-  std::vector<T> vec;
-  vec->resize(buf.size());
-  if (vec->size() > 0 && buf.data() != nullptr)
-    memcpy(vec->data(), buf.data(), vec->size());
-  return vec;
-}
-
-template <typename T>
-std::vector<T> CopyBuffer(v8::Local<v8::Value> buf) {
-  return CopyBuffer(ArrayBufferOrViewContents<T>(buf));
-}
 
 v8::MaybeLocal<v8::Value> EncodeBignum(
     Environment* env,
@@ -779,6 +790,8 @@ v8::Maybe<bool> SetEncodedValue(
     v8::Local<v8::String> name,
     const BIGNUM* bn,
     int size = 0);
+
+bool SetRsaOaepLabel(const EVPKeyCtxPointer& rsa, const ByteSource& label);
 
 namespace Util {
 void Initialize(Environment* env, v8::Local<v8::Object> target);

@@ -9,6 +9,7 @@
 namespace v8 {
 namespace internal {
 
+// https://tc39.es/proposal-symbols-as-weakmap-keys/#sec-finalization-registry.prototype.unregister
 BUILTIN(FinalizationRegistryUnregister) {
   HandleScope scope(isolate);
   const char* method_name = "FinalizationRegistry.prototype.unregister";
@@ -24,16 +25,16 @@ BUILTIN(FinalizationRegistryUnregister) {
 
   Handle<Object> unregister_token = args.atOrUndefined(isolate, 1);
 
-  // 4. If Type(unregisterToken) is not Object, throw a TypeError exception.
-  if (!unregister_token->IsJSReceiver()) {
+  // 4. If CanBeHeldWeakly(unregisterToken) is false, throw a TypeError
+  // exception.
+  if (!unregister_token->CanBeHeldWeakly()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kWeakRefsUnregisterTokenMustBeObject,
-                     unregister_token));
+        isolate, NewTypeError(MessageTemplate::kInvalidWeakRefsUnregisterToken,
+                              unregister_token));
   }
 
   bool success = JSFinalizationRegistry::Unregister(
-      finalization_registry, Handle<JSReceiver>::cast(unregister_token),
+      finalization_registry, Handle<HeapObject>::cast(unregister_token),
       isolate);
 
   return *isolate->factory()->ToBoolean(success);

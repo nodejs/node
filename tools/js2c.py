@@ -48,24 +48,30 @@ def ReadFile(filename):
 
 TEMPLATE = """
 #include "env-inl.h"
-#include "node_native_module.h"
+#include "node_builtins.h"
 #include "node_internals.h"
 
 namespace node {{
 
-namespace native_module {{
+namespace builtins {{
 
 {0}
 
-void NativeModuleLoader::LoadJavaScriptSource() {{
-  {1}
+namespace {{
+const ThreadsafeCopyOnWrite<BuiltinSourceMap> global_source_map {{
+  BuiltinSourceMap{{ {1} }}
+}};
 }}
 
-UnionBytes NativeModuleLoader::GetConfig() {{
+void BuiltinLoader::LoadJavaScriptSource() {{
+  source_ = global_source_map;
+}}
+
+UnionBytes BuiltinLoader::GetConfig() {{
   return UnionBytes(config_raw, {2});  // config.gypi
 }}
 
-}}  // namespace native_module
+}}  // namespace builtins
 
 }}  // namespace node
 """
@@ -82,7 +88,7 @@ static const uint16_t {0}[] = {{
 }};
 """
 
-INITIALIZER = 'source_.emplace("{0}", UnionBytes{{{1}, {2}}});'
+INITIALIZER = '{{"{0}", UnionBytes{{{1}, {2}}} }},'
 
 CONFIG_GYPI_ID = 'config_raw'
 

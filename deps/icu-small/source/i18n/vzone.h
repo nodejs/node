@@ -24,14 +24,12 @@
 #include "unicode/uobject.h"
 #include "ztrans.h"
 
-#ifndef UCNV_H
 struct VZone;
 /**
  * A UnicodeSet.  Use the vzone_* API to manipulate.  Create with
  * vzone_open*, and destroy with vzone_close.
  */
 typedef struct VZone VZone;
-#endif
 
 /*********************************************************************
  * VZone API

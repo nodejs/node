@@ -6,3 +6,6 @@ leszeks@chromium.org
 mlippautz@chromium.org
 mslekova@chromium.org
 verwaest@chromium.org
+
+# For v8-debug.h implementations.
+per-file api.cc=file:../debug/OWNERS

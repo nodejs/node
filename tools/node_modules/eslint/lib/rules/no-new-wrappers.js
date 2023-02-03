@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow `new` operators with the `String`, `Number`, and `Boolean` objects",
+            description: "Disallow `new` operators with the `String`, `Number`, and `Boolean` objects",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-new-wrappers"
         },
@@ -34,7 +34,7 @@ module.exports = {
             NewExpression(node) {
                 const wrapperObjects = ["String", "Number", "Boolean"];
 
-                if (wrapperObjects.indexOf(node.callee.name) > -1) {
+                if (wrapperObjects.includes(node.callee.name)) {
                     context.report({
                         node,
                         messageId: "noConstructor",

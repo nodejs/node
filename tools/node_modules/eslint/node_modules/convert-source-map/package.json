@@ -1,6 +1,6 @@
 {
   "name": "convert-source-map",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Converts a source-map from/to  different formats and allows adding/changing properties.",
   "main": "index.js",
   "scripts": {
@@ -11,9 +11,6 @@
     "url": "git://github.com/thlorenz/convert-source-map.git"
   },
   "homepage": "https://github.com/thlorenz/convert-source-map",
-  "dependencies": {
-    "safe-buffer": "~5.1.1"
-  },
   "devDependencies": {
     "inline-source-map": "~0.6.2",
     "tap": "~9.0.0"

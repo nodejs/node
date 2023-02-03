@@ -17,7 +17,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent newlines before and after dots",
+            description: "Enforce consistent newlines before and after dots",
             recommended: false,
             url: "https://eslint.org/docs/rules/dot-location"
         },

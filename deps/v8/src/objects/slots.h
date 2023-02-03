@@ -6,7 +6,9 @@
 #define V8_OBJECTS_SLOTS_H_
 
 #include "src/base/memory.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
+#include "src/sandbox/external-pointer-table.h"
 
 namespace v8 {
 namespace internal {
@@ -276,6 +278,59 @@ class OffHeapFullObjectSlot : public FullObjectSlot {
 
   using FullObjectSlot::Relaxed_Load;
   inline Object Relaxed_Load() const = delete;
+};
+
+// An ExternalPointerSlot instance describes a kExternalPointerSlotSize-sized
+// field ("slot") holding a pointer to objects located outside the V8 heap and
+// V8 sandbox (think: ExternalPointer_t).
+// It's basically an ExternalPointer_t* but abstracting away the fact that the
+// pointer might not be kExternalPointerSlotSize-aligned in certain
+// configurations. Its address() is the address of the slot.
+class ExternalPointerSlot
+    : public SlotBase<ExternalPointerSlot, ExternalPointer_t,
+                      kTaggedSize /* slot alignment */> {
+ public:
+  ExternalPointerSlot() : SlotBase(kNullAddress) {}
+  explicit ExternalPointerSlot(Address ptr) : SlotBase(ptr) {}
+
+  inline void init(Isolate* isolate, Address value, ExternalPointerTag tag);
+
+#ifdef V8_ENABLE_SANDBOX
+  // When the external pointer is sandboxed, its slot stores a handle to an
+  // entry in an ExternalPointerTable. These methods allow access to the
+  // underlying handle while the load/store methods below resolve the handle to
+  // the real pointer.
+  // Handles should generally be accessed atomically as they may be accessed
+  // from other threads, for example GC marking threads.
+  inline ExternalPointerHandle Relaxed_LoadHandle() const;
+  inline void Relaxed_StoreHandle(ExternalPointerHandle handle) const;
+  inline void Release_StoreHandle(ExternalPointerHandle handle) const;
+#endif  // V8_ENABLE_SANDBOX
+
+  inline Address load(const Isolate* isolate, ExternalPointerTag tag);
+  inline void store(Isolate* isolate, Address value, ExternalPointerTag tag);
+
+  // ExternalPointerSlot serialization support.
+  // These methods can be used to clear an external pointer slot prior to
+  // serialization and restore it afterwards. This is useful in cases where the
+  // external pointer is not contained in the snapshot but will instead be
+  // reconstructed during deserialization.
+  // Note that GC must be disallowed while an object's external slot is cleared
+  // as otherwise the corresponding entry in the external pointer table may not
+  // be marked as alive.
+  using RawContent = ExternalPointer_t;
+  inline RawContent GetAndClearContentForSerialization(
+      const DisallowGarbageCollection& no_gc);
+  inline void RestoreContentAfterSerialization(
+      RawContent content, const DisallowGarbageCollection& no_gc);
+
+ private:
+#ifdef V8_ENABLE_SANDBOX
+  inline const ExternalPointerTable& GetExternalPointerTableForTag(
+      const Isolate* isolate, ExternalPointerTag tag);
+  inline ExternalPointerTable& GetExternalPointerTableForTag(
+      Isolate* isolate, ExternalPointerTag tag);
+#endif  // V8_ENABLE_SANDBOX
 };
 
 }  // namespace internal

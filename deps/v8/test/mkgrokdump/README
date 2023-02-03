@@ -1,3 +1,5 @@
 If you change the heap layout, expect this test to fail (in CQ). You will then
-need to build x64 release and run `<outdir>/mkgrokdump > tools/v8heapconst.py`
-to rebaseline.
+need to build x64 release with v8_enable_sandbox=true and run
+`<outdir>/mkgrokdump > tools/v8heapconst.py` to rebaseline.
+The V8 sandbox has to be manually enabled as it is enabled by default only for
+Chromium builds, but not standalone v8 builds.

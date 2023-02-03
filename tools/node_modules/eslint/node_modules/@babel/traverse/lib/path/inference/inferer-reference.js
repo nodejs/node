@@ -4,24 +4,17 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = _default;
-
 var _t = require("@babel/types");
-
+var _util = require("./util");
 const {
   BOOLEAN_NUMBER_BINARY_OPERATORS,
-  createFlowUnionType,
-  createTSUnionType,
   createTypeAnnotationBasedOnTypeof,
-  createUnionTypeAnnotation,
-  isTSTypeAnnotation,
   numberTypeAnnotation,
   voidTypeAnnotation
 } = _t;
-
 function _default(node) {
   if (!this.isReferenced()) return;
   const binding = this.scope.getBinding(node.name);
-
   if (binding) {
     if (binding.identifier.typeAnnotation) {
       return binding.identifier.typeAnnotation;
@@ -29,68 +22,48 @@ function _default(node) {
       return getTypeAnnotationBindingConstantViolations(binding, this, node.name);
     }
   }
-
   if (node.name === "undefined") {
     return voidTypeAnnotation();
   } else if (node.name === "NaN" || node.name === "Infinity") {
     return numberTypeAnnotation();
   } else if (node.name === "arguments") {}
 }
-
 function getTypeAnnotationBindingConstantViolations(binding, path, name) {
   const types = [];
   const functionConstantViolations = [];
   let constantViolations = getConstantViolationsBefore(binding, path, functionConstantViolations);
   const testType = getConditionalAnnotation(binding, path, name);
-
   if (testType) {
     const testConstantViolations = getConstantViolationsBefore(binding, testType.ifStatement);
     constantViolations = constantViolations.filter(path => testConstantViolations.indexOf(path) < 0);
     types.push(testType.typeAnnotation);
   }
-
   if (constantViolations.length) {
     constantViolations.push(...functionConstantViolations);
-
     for (const violation of constantViolations) {
       types.push(violation.getTypeAnnotation());
     }
   }
-
   if (!types.length) {
     return;
   }
-
-  if (isTSTypeAnnotation(types[0]) && createTSUnionType) {
-    return createTSUnionType(types);
-  }
-
-  if (createFlowUnionType) {
-    return createFlowUnionType(types);
-  }
-
-  return createUnionTypeAnnotation(types);
+  return (0, _util.createUnionType)(types);
 }
-
 function getConstantViolationsBefore(binding, path, functions) {
   const violations = binding.constantViolations.slice();
   violations.unshift(binding.path);
   return violations.filter(violation => {
     violation = violation.resolve();
-
     const status = violation._guessExecutionStatusRelativeTo(path);
-
     if (functions && status === "unknown") functions.push(violation);
     return status === "before";
   });
 }
-
 function inferAnnotationFromBinaryExpression(name, path) {
   const operator = path.node.operator;
   const right = path.get("right").resolve();
   const left = path.get("left").resolve();
   let target;
-
   if (left.isIdentifier({
     name
   })) {
@@ -100,23 +73,18 @@ function inferAnnotationFromBinaryExpression(name, path) {
   })) {
     target = left;
   }
-
   if (target) {
     if (operator === "===") {
       return target.getTypeAnnotation();
     }
-
     if (BOOLEAN_NUMBER_BINARY_OPERATORS.indexOf(operator) >= 0) {
       return numberTypeAnnotation();
     }
-
     return;
   }
-
   if (operator !== "===" && operator !== "==") return;
   let typeofPath;
   let typePath;
-
   if (left.isUnaryExpression({
     operator: "typeof"
   })) {
@@ -128,7 +96,6 @@ function inferAnnotationFromBinaryExpression(name, path) {
     typeofPath = right;
     typePath = left;
   }
-
   if (!typeofPath) return;
   if (!typeofPath.get("argument").isIdentifier({
     name
@@ -139,37 +106,29 @@ function inferAnnotationFromBinaryExpression(name, path) {
   if (typeof typeValue !== "string") return;
   return createTypeAnnotationBasedOnTypeof(typeValue);
 }
-
 function getParentConditionalPath(binding, path, name) {
   let parentPath;
-
   while (parentPath = path.parentPath) {
     if (parentPath.isIfStatement() || parentPath.isConditionalExpression()) {
       if (path.key === "test") {
         return;
       }
-
       return parentPath;
     }
-
     if (parentPath.isFunction()) {
       if (parentPath.parentPath.scope.getBinding(name) !== binding) return;
     }
-
     path = parentPath;
   }
 }
-
 function getConditionalAnnotation(binding, path, name) {
   const ifStatement = getParentConditionalPath(binding, path, name);
   if (!ifStatement) return;
   const test = ifStatement.get("test");
   const paths = [test];
   const types = [];
-
   for (let i = 0; i < paths.length; i++) {
     const path = paths[i];
-
     if (path.isLogicalExpression()) {
       if (path.node.operator === "&&") {
         paths.push(path.get("left"));
@@ -180,27 +139,13 @@ function getConditionalAnnotation(binding, path, name) {
       if (type) types.push(type);
     }
   }
-
   if (types.length) {
-    if (isTSTypeAnnotation(types[0]) && createTSUnionType) {
-      return {
-        typeAnnotation: createTSUnionType(types),
-        ifStatement
-      };
-    }
-
-    if (createFlowUnionType) {
-      return {
-        typeAnnotation: createFlowUnionType(types),
-        ifStatement
-      };
-    }
-
     return {
-      typeAnnotation: createUnionTypeAnnotation(types),
+      typeAnnotation: (0, _util.createUnionType)(types),
       ifStatement
     };
   }
-
-  return getConditionalAnnotation(ifStatement, name);
+  return getConditionalAnnotation(binding, ifStatement, name);
 }
+
+//# sourceMappingURL=inferer-reference.js.map

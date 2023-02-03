@@ -100,6 +100,8 @@ void nghttp2_stream_init(nghttp2_stream *stream, int32_t stream_id,
   stream->descendant_next_seq = 0;
   stream->seq = 0;
   stream->last_writelen = 0;
+
+  stream->extpri = stream->http_extpri = NGHTTP2_EXTPRI_DEFAULT_URGENCY;
 }
 
 void nghttp2_stream_free(nghttp2_stream *stream) {
@@ -484,6 +486,10 @@ int nghttp2_stream_attach_item(nghttp2_stream *stream,
 
   stream->item = item;
 
+  if (stream->flags & NGHTTP2_STREAM_FLAG_NO_RFC7540_PRIORITIES) {
+    return 0;
+  }
+
   rv = stream_update_dep_on_attach_item(stream);
   if (rv != 0) {
     /* This may relave stream->queued == 1, but stream->item == NULL.
@@ -503,6 +509,10 @@ int nghttp2_stream_detach_item(nghttp2_stream *stream) {
   stream->item = NULL;
   stream->flags = (uint8_t)(stream->flags & ~NGHTTP2_STREAM_FLAG_DEFERRED_ALL);
 
+  if (stream->flags & NGHTTP2_STREAM_FLAG_NO_RFC7540_PRIORITIES) {
+    return 0;
+  }
+
   return stream_update_dep_on_detach_item(stream);
 }
 
@@ -513,6 +523,10 @@ int nghttp2_stream_defer_item(nghttp2_stream *stream, uint8_t flags) {
          stream->item, flags);
 
   stream->flags |= flags;
+
+  if (stream->flags & NGHTTP2_STREAM_FLAG_NO_RFC7540_PRIORITIES) {
+    return 0;
+  }
 
   return stream_update_dep_on_detach_item(stream);
 }
@@ -526,6 +540,10 @@ int nghttp2_stream_resume_deferred_item(nghttp2_stream *stream, uint8_t flags) {
   stream->flags = (uint8_t)(stream->flags & ~flags);
 
   if (stream->flags & NGHTTP2_STREAM_FLAG_DEFERRED_ALL) {
+    return 0;
+  }
+
+  if (stream->flags & NGHTTP2_STREAM_FLAG_NO_RFC7540_PRIORITIES) {
     return 0;
   }
 

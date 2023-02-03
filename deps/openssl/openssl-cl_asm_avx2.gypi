@@ -1,15 +1,9 @@
 {
   'conditions': [
-    ['target_arch=="ppc" and OS=="aix"', {
-      'includes': ['config/archs/aix-gcc/asm_avx2/openssl-cl.gypi'],
-    }, 'target_arch=="ppc" and OS=="linux"', {
-      'includes': ['config/archs/linux-ppc/asm_avx2/openssl-cl.gypi'],
-    }, 'target_arch=="ppc64" and OS=="aix"', {
+    ['target_arch=="ppc64" and OS=="aix"', {
       'includes': ['config/archs/aix64-gcc-as/asm_avx2/openssl-cl.gypi'],
     }, 'target_arch=="ppc64" and OS=="linux" and node_byteorder =="little"', {
       'includes': ['config/archs/linux-ppc64le/asm_avx2/openssl-cl.gypi'],
-    }, 'target_arch=="ppc64" and OS=="linux"', {
-      'includes': ['config/archs/linux-ppc64/asm_avx2/openssl-cl.gypi'],
     }, 'target_arch=="s390x" and OS=="linux"', {
       'includes': ['config/archs/linux64-s390x/asm_avx2/openssl-cl.gypi'],
     }, 'target_arch=="arm" and OS=="linux"', {

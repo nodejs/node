@@ -34,7 +34,7 @@
  * A FixedDecimal version of UPLRULES_NO_UNIQUE_VALUE used in PluralRulesTest
  * for parsing of samples.
  */
-#define UPLRULES_NO_UNIQUE_VALUE_DECIMAL (FixedDecimal((double)-0.00123456777))
+#define UPLRULES_NO_UNIQUE_VALUE_DECIMAL(ERROR_CODE) (DecimalQuantity::fromExponentString(u"-0.00123456777", ERROR_CODE))
 
 class PluralRulesTest;
 

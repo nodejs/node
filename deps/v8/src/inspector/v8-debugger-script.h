@@ -59,6 +59,7 @@ class V8DebuggerScript {
   V8DebuggerScript(const V8DebuggerScript&) = delete;
   V8DebuggerScript& operator=(const V8DebuggerScript&) = delete;
 
+  v8::Local<v8::debug::ScriptSource> scriptSource();
   const String16& scriptId() const { return m_id; }
   bool hasSourceURLComment() const { return m_hasSourceURLComment; }
   const String16& sourceURL() const { return m_url; }
@@ -76,12 +77,12 @@ class V8DebuggerScript {
   int executionContextId() const { return m_executionContextId; }
   virtual bool isLiveEdit() const = 0;
   virtual bool isModule() const = 0;
-  virtual bool isSourceLoadedLazily() const = 0;
   virtual int length() const = 0;
 
   void setSourceURL(const String16&);
   virtual void setSourceMappingURL(const String16&) = 0;
   virtual void setSource(const String16& source, bool preview,
+                         bool allowTopFrameLiveEditing,
                          v8::debug::LiveEditResult* result) = 0;
 
   virtual bool getPossibleBreakpoints(
@@ -90,14 +91,13 @@ class V8DebuggerScript {
       std::vector<v8::debug::BreakLocation>* locations) = 0;
   virtual void resetBlackboxedStateCache() = 0;
 
-  static const int kNoOffset = -1;
-  virtual int offset(int lineNumber, int columnNumber) const = 0;
+  virtual v8::Maybe<int> offset(int lineNumber, int columnNumber) const = 0;
   virtual v8::debug::Location location(int offset) const = 0;
 
   virtual bool setBreakpoint(const String16& condition,
                              v8::debug::Location* location, int* id) const = 0;
   virtual void MakeWeak() = 0;
-  virtual bool setBreakpointOnRun(int* id) const = 0;
+  virtual bool setInstrumentationBreakpoint(int* id) const = 0;
 
 #if V8_ENABLE_WEBASSEMBLY
   virtual v8::Maybe<v8::MemorySpan<const uint8_t>> wasmBytecode() const = 0;
@@ -105,6 +105,8 @@ class V8DebuggerScript {
   getDebugSymbolsType() const = 0;
   virtual v8::Maybe<String16> getExternalDebugSymbolsURL() const = 0;
   void removeWasmBreakpoint(int id);
+  virtual void Disassemble(v8::debug::DisassemblyCollector* collector,
+                           std::vector<int>* function_body_offsets) const = 0;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
  protected:

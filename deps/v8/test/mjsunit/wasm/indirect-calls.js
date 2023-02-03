@@ -169,7 +169,7 @@ function AddFunctions(builder) {
       .exportAs("main");
 
     builder.setTableBounds(length, length);
-    builder.addActiveElementSegment(0, WasmInitExpr.I32Const(base),
+    builder.addActiveElementSegment(0, wasmI32Const(base),
                                     [f.add.index, f.sub.index, f.mul.index]);
 
     return builder.instantiate();
@@ -208,7 +208,7 @@ function AddFunctions(builder) {
 
   builder.setTableBounds(10, 10);
   var g = builder.addImportedGlobal("fff", "base", kWasmI32);
-  builder.addActiveElementSegment(0, WasmInitExpr.GlobalGet(g),
+  builder.addActiveElementSegment(0, [kExprGlobalGet, g],
                                   [f.mul.index, f.add.index, f.sub.index]);
 
   var module = new WebAssembly.Module(builder.toBuffer());

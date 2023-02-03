@@ -14,7 +14,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow negated conditions",
+            description: "Disallow negated conditions",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-negated-condition"
         },

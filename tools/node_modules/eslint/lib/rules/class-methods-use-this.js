@@ -21,7 +21,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce that class methods utilize `this`",
+            description: "Enforce that class methods utilize `this`",
             recommended: false,
             url: "https://eslint.org/docs/rules/class-methods-use-this"
         },

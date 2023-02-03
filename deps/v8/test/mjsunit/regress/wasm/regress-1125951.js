@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --expose-wasm --liftoff --no-wasm-tier-up --print-code --wasm-staging
-// Flags: --experimental-wasm-threads
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 

@@ -32,13 +32,12 @@ let firstPort;
 function firstOpen(msg) {
   assert.strictEqual(msg.cmd, 'url');
   const port = url.parse(msg.url).port;
-  ping(port, (err) => {
-    assert.ifError(err);
+  ping(port, common.mustSucceed(() => {
     // Inspector is already open, and won't be reopened, so args don't matter.
     child.send({ cmd: 'open', args: [kOpenWhileOpen] });
     child.once('message', common.mustCall(tryToOpenWhenOpen));
     firstPort = port;
-  });
+  }));
 }
 
 function tryToOpenWhenOpen(msg) {
@@ -46,11 +45,10 @@ function tryToOpenWhenOpen(msg) {
   const port = url.parse(msg.url).port;
   // Reopen didn't do anything, the port was already open, and has not changed.
   assert.strictEqual(port, firstPort);
-  ping(port, (err) => {
-    assert.ifError(err);
+  ping(port, common.mustSucceed(() => {
     child.send({ cmd: 'close' });
     child.once('message', common.mustCall(closeWhenOpen));
-  });
+  }));
 }
 
 function closeWhenOpen(msg) {
@@ -73,10 +71,9 @@ function tryToCloseWhenClosed(msg) {
 function reopenAfterClose(msg) {
   assert.strictEqual(msg.cmd, 'url');
   const port = url.parse(msg.url).port;
-  ping(port, (err) => {
-    assert.ifError(err);
+  ping(port, common.mustSucceed(() => {
     process.exit();
-  });
+  }));
 }
 
 function ping(port, callback) {

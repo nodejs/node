@@ -18,7 +18,6 @@
 
 #include "include/v8-container.h"
 #include "include/v8-template.h"
-#include "src/base/platform/wrappers.h"
 #include "src/d8/d8.h"
 
 namespace v8 {
@@ -702,7 +701,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
     return nullptr;
   }
   // Reinterpretet the received file length as a signed big-endian integer.
-  int32_t file_length = bit_cast<int32_t>(htonl(big_endian_file_length));
+  int32_t file_length = base::bit_cast<int32_t>(htonl(big_endian_file_length));
 
   if (file_length < 0) {
     fprintf(stderr, "Received length %d for %s from localhost:%d\n",

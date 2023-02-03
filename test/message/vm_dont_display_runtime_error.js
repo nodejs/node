@@ -21,6 +21,8 @@
 
 'use strict';
 require('../common');
+Error.stackTraceLimit = 4;
+
 const vm = require('vm');
 
 console.error('beginning');
@@ -28,7 +30,7 @@ console.error('beginning');
 try {
   vm.runInThisContext('throw new Error("boo!")', {
     filename: 'test.vm',
-    displayErrors: false
+    displayErrors: false,
   });
 } catch {
   // Continue regardless of error.
@@ -38,7 +40,7 @@ console.error('middle');
 
 vm.runInThisContext('throw new Error("boo!")', {
   filename: 'test.vm',
-  displayErrors: false
+  displayErrors: false,
 });
 
 console.error('end');

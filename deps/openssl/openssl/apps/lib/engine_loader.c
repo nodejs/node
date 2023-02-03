@@ -71,7 +71,7 @@ static OSSL_STORE_LOADER_CTX *engine_open(const OSSL_STORE_LOADER *loader,
     char *keyid = NULL;
     OSSL_STORE_LOADER_CTX *ctx = NULL;
 
-    if (strncasecmp(p, ENGINE_SCHEME_COLON, sizeof(ENGINE_SCHEME_COLON) - 1)
+    if (OPENSSL_strncasecmp(p, ENGINE_SCHEME_COLON, sizeof(ENGINE_SCHEME_COLON) - 1)
         != 0)
         return NULL;
     p += sizeof(ENGINE_SCHEME_COLON) - 1;

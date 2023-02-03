@@ -2,12 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbo-optimize-apply --opt
-
-// These tests do not work well if this script is run more than once (e.g.
-// --stress-opt); after a few runs the whole function is immediately compiled
-// and assertions would fail. We prevent re-runs.
-// Flags: --nostress-opt --no-always-opt
+// Flags: --allow-natives-syntax --turbo-optimize-apply --turbofan
+// Flags: --no-always-turbofan
 
 // These tests do not work well if we flush the feedback vector, which causes
 // deoptimization.
@@ -41,8 +37,8 @@
   assertTrue(log_got_interpreted);
 
   // Compile foo.
-  %OptimizeFunctionForTopTier(log);
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(log);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals(1, foo());
   // The call with spread should have been inlined.
   assertFalse(log_got_interpreted);
@@ -63,7 +59,7 @@
 
   // Recompile 'foo'.
   %PrepareFunctionForOptimization(foo);
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals(42, foo());
   // The call with spread will not be inlined because we have redefined the
   // array iterator.

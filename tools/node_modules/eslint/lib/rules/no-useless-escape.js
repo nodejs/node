@@ -84,7 +84,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow unnecessary escape characters",
+            description: "Disallow unnecessary escape characters",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-useless-escape"
         },

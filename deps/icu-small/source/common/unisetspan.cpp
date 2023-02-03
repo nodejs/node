@@ -98,7 +98,7 @@ public:
             i-=capacity;
         }
         if(list[i]) {
-            list[i]=FALSE;
+            list[i]=false;
             --length;
         }
         start=i;
@@ -111,7 +111,7 @@ public:
         if(i>=capacity) {
             i-=capacity;
         }
-        list[i]=TRUE;
+        list[i]=true;
         ++length;
     }
 
@@ -132,7 +132,7 @@ public:
         int32_t i=start, result;
         while(++i<capacity) {
             if(list[i]) {
-                list[i]=FALSE;
+                list[i]=false;
                 --length;
                 result=i-start;
                 start=i;
@@ -148,7 +148,7 @@ public:
         while(!list[i]) {
             ++i;
         }
-        list[i]=FALSE;
+        list[i]=false;
         --length;
         start=i;
         return result+=i;
@@ -226,7 +226,7 @@ UnicodeSetStringSpan::UnicodeSetStringSpan(const UnicodeSet &set,
     int32_t stringsLength=strings.size();
 
     int32_t i, spanLength;
-    UBool someRelevant=FALSE;
+    UBool someRelevant=false;
     for(i=0; i<stringsLength; ++i) {
         const UnicodeString &string=*(const UnicodeString *)strings.elementAt(i);
         const UChar *s16=string.getBuffer();
@@ -237,9 +237,9 @@ UnicodeSetStringSpan::UnicodeSetStringSpan(const UnicodeSet &set,
         UBool thisRelevant;
         spanLength=spanSet.span(s16, length16, USET_SPAN_CONTAINED);
         if(spanLength<length16) {  // Relevant string.
-            someRelevant=thisRelevant=TRUE;
+            someRelevant=thisRelevant=true;
         } else {
-            thisRelevant=FALSE;
+            thisRelevant=false;
         }
         if((which&UTF16) && length16>maxLength16) {
             maxLength16=length16;
@@ -284,7 +284,7 @@ UnicodeSetStringSpan::UnicodeSetStringSpan(const UnicodeSet &set,
     } else {
         utf8Lengths=(int32_t *)uprv_malloc(allocSize);
         if(utf8Lengths==NULL) {
-            maxLength16=maxLength8=0;  // Prevent usage by making needsStringSpanUTF16/8() return FALSE.
+            maxLength16=maxLength8=0;  // Prevent usage by making needsStringSpanUTF16/8() return false.
             return;  // Out of memory.
         }
     }
@@ -399,7 +399,7 @@ UnicodeSetStringSpan::UnicodeSetStringSpan(const UnicodeSetStringSpan &otherStri
           utf8Lengths(NULL), spanLengths(NULL), utf8(NULL),
           utf8Length(otherStringSpan.utf8Length),
           maxLength16(otherStringSpan.maxLength16), maxLength8(otherStringSpan.maxLength8),
-          all(TRUE) {
+          all(true) {
     if(otherStringSpan.pSpanNotSet==&otherStringSpan.spanSet) {
         pSpanNotSet=&spanSet;
     } else {
@@ -415,7 +415,7 @@ UnicodeSetStringSpan::UnicodeSetStringSpan(const UnicodeSetStringSpan &otherStri
     } else {
         utf8Lengths=(int32_t *)uprv_malloc(allocSize);
         if(utf8Lengths==NULL) {
-            maxLength16=maxLength8=0;  // Prevent usage by making needsStringSpanUTF16/8() return FALSE.
+            maxLength16=maxLength8=0;  // Prevent usage by making needsStringSpanUTF16/8() return false.
             return;  // Out of memory.
         }
     }
@@ -454,20 +454,20 @@ static inline UBool
 matches16(const UChar *s, const UChar *t, int32_t length) {
     do {
         if(*s++!=*t++) {
-            return FALSE;
+            return false;
         }
     } while(--length>0);
-    return TRUE;
+    return true;
 }
 
 static inline UBool
 matches8(const uint8_t *s, const uint8_t *t, int32_t length) {
     do {
         if(*s++!=*t++) {
-            return FALSE;
+            return false;
         }
     } while(--length>0);
-    return TRUE;
+    return true;
 }
 
 // Compare 16-bit Unicode strings (which may be malformed UTF-16)

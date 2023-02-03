@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<title>Default passive document level touchmove event listener test</title>
+<link rel="help" href="https://github.com/WICG/interventions/issues/35">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<body onload=runTest()>
+<div id="touchDiv">
+</div>
+</body>
+<style>
+#touchDiv {
+  width: 100px;
+  height: 100px;
+}
+</style>
+<script>
+var touch_div = document.getElementById("touchDiv");
+var cancelable = true;
+var touch_move_arrived = false;
+document.addEventListener("touchmove", function (event) {
+    cancelable = event.cancelable;
+    touch_move_arrived = true;
+    event.preventDefault();
+});
+
+function waitFor(condition) {
+  const MAX_FRAME = 500;
+  return new Promise((resolve, reject) => {
+    function tick(frames) {
+      // We requestAnimationFrame either for 500 frames or until condition is
+      // met.
+      if (frames >= MAX_FRAME)
+        reject("Condition did not become true after 500 frames");
+      else if (condition())
+        resolve();
+      else
+        requestAnimationFrame(tick.bind(this, frames + 1));
+    }
+    tick(0);
+  });
+}
+
+function waitForCompositorCommit() {
+  return new Promise((resolve) => {
+    // rAF twice.
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(resolve);
+    });
+  });
+}
+
+function injectInput() {
+  new test_driver.Actions()
+    .addPointer("touch_pointer", "touch")
+    .pointerMove(0, 0, {origin: touch_div})
+    .pointerDown()
+    .pointerMove(30, 30)
+    .pointerUp()
+    .send();
+}
+
+function runTest() {
+  promise_test (async () => {
+    await waitForCompositorCommit();
+    injectInput();
+    await waitFor(()=> { return touch_move_arrived; });
+    assert_false(cancelable);
+  }, "Touchmove events are non-cancelable since the event listener is treated as passive.");
+}
+</script>

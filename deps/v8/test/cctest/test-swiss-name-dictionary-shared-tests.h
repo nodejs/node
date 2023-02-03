@@ -37,7 +37,7 @@ extern const char kCSATestFileName[];
 // they were directly written within bar.cc.
 template <typename TestRunner, char const* kTestFileName>
 struct SharedSwissTableTests {
-  STATIC_ASSERT((std::is_same<TestRunner, RuntimeTestRunner>::value) ||
+  static_assert((std::is_same<TestRunner, RuntimeTestRunner>::value) ||
                 (std::is_same<TestRunner, CSATestRunner>::value));
 
   SharedSwissTableTests() {
@@ -57,7 +57,7 @@ struct SharedSwissTableTests {
   // effects. Note that using just this value itself as an H1 value means that a
   // key will (try to) occupy bucket 0.
   static const int kBigModulus = (1 << 22);
-  STATIC_ASSERT(SwissNameDictionary::IsValidCapacity(kBigModulus));
+  static_assert(SwissNameDictionary::IsValidCapacity(kBigModulus));
 
   // Returns elements from TS::distinct_property_details in a determinstic
   // order. Subsequent calls with increasing |index| (and the same |offset|)

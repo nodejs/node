@@ -25,13 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/init/v8.h"
-#include "test/cctest/cctest.h"
-
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/execution/arm64/simulator-arm64.h"
-#include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {

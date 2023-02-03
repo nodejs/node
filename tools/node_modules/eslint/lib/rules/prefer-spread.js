@@ -49,7 +49,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require spread operators instead of `.apply()`",
+            description: "Require spread operators instead of `.apply()`",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-spread"
         },

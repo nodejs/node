@@ -6,7 +6,9 @@
 #define V8_STRINGS_UNICODE_H_
 
 #include <sys/types.h>
+
 #include "src/base/bit-field.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/third_party/utf8-decoder/utf8-decoder.h"
 /**
@@ -103,10 +105,10 @@ class Utf16 {
     return IsLeadSurrogate(lead) && IsTrailSurrogate(trail);
   }
   static inline bool IsLeadSurrogate(int code) {
-    return (code & 0xfc00) == 0xd800;
+    return (code & 0x1ffc00) == 0xd800;
   }
   static inline bool IsTrailSurrogate(int code) {
-    return (code & 0xfc00) == 0xdc00;
+    return (code & 0x1ffc00) == 0xdc00;
   }
 
   static inline int CombineSurrogatePair(uchar lead, uchar trail) {
@@ -151,6 +153,20 @@ class Latin1 {
   }
 };
 
+enum class Utf8Variant : uint8_t {
+#if V8_ENABLE_WEBASSEMBLY
+  kUtf8,  // UTF-8.  Decoding an invalid byte sequence or encoding a
+          // surrogate codepoint signals an error.
+  kWtf8,  // WTF-8: like UTF-8, but allows isolated (but not paired)
+          // surrogate codepoints to be encoded and decoded.
+#endif
+  kLossyUtf8,  // Lossy UTF-8: Any byte sequence can be decoded without
+               // error, replacing invalid UTF-8 with the replacement
+               // character (U+FFFD).  Any sequence of codepoints can be
+               // encoded without error, replacing surrogates with U+FFFD.
+  kLastUtf8Variant = kLossyUtf8
+};
+
 class V8_EXPORT_PRIVATE Utf8 {
  public:
   using State = Utf8DfaDecoder::State;
@@ -179,6 +195,9 @@ class V8_EXPORT_PRIVATE Utf8 {
   // The maximum size a single UTF-16 code unit may take up when encoded as
   // UTF-8.
   static const unsigned kMax16BitCodeUnitSize = 3;
+  // The maximum size a single UTF-16 code unit known to be in the range
+  // [0,0xff] may take up when encoded as UTF-8.
+  static const unsigned kMax8BitCodeUnitSize = 2;
   static inline uchar ValueOf(const byte* str, size_t length, size_t* cursor);
 
   using Utf8IncrementalBuffer = uint32_t;
@@ -199,6 +218,26 @@ class V8_EXPORT_PRIVATE Utf8 {
   // - valid code point range.
   static bool ValidateEncoding(const byte* str, size_t length);
 };
+
+#if V8_ENABLE_WEBASSEMBLY
+class V8_EXPORT_PRIVATE Wtf8 {
+ public:
+  // Validate that the input has a valid WTF-8 encoding.
+  //
+  // This method checks for:
+  // - valid utf-8 endcoding (e.g. no over-long encodings),
+  // - absence of surrogate pairs,
+  // - valid code point range.
+  //
+  // In terms of the WTF-8 specification (https://simonsapin.github.io/wtf-8/),
+  // this function checks for a valid "generalized UTF-8" sequence, with the
+  // additional constraint that surrogate pairs are not allowed.
+  static bool ValidateEncoding(const byte* str, size_t length);
+
+  static void ScanForSurrogates(const v8::base::Vector<const byte>& wtf8,
+                                std::vector<size_t>* surrogate_offsets);
+};
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 struct Uppercase {
   static bool Is(uchar c);

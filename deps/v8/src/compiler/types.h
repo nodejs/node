@@ -13,8 +13,15 @@
 #include "src/objects/objects.h"
 #include "src/utils/ostreams.h"
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/value-type.h"
+#endif
+
 namespace v8 {
 namespace internal {
+namespace wasm {
+struct TypeInModule;
+}
 namespace compiler {
 
 // SUMMARY
@@ -42,6 +49,7 @@ namespace compiler {
 //
 //   Constant(x) < T  iff instance_type(map(x)) < T
 //
+//    None <= Machine <= Any
 //
 // RANGE TYPES
 //
@@ -95,7 +103,7 @@ namespace compiler {
 
 // clang-format off
 
-#define INTERNAL_BITSET_TYPE_LIST(V)                                      \
+#define INTERNAL_BITSET_TYPE_LIST(V)    \
   V(OtherUnsigned31, uint64_t{1} << 1)  \
   V(OtherUnsigned32, uint64_t{1} << 2)  \
   V(OtherSigned32,   uint64_t{1} << 3)  \
@@ -117,25 +125,24 @@ namespace compiler {
   V(OtherUndetectable,        uint64_t{1} << 17)  \
   V(CallableProxy,            uint64_t{1} << 18)  \
   V(OtherProxy,               uint64_t{1} << 19)  \
-  V(Function,                 uint64_t{1} << 20)  \
-  V(BoundFunction,            uint64_t{1} << 21)  \
-  V(Hole,                     uint64_t{1} << 22)  \
-  V(OtherInternal,            uint64_t{1} << 23)  \
-  V(ExternalPointer,          uint64_t{1} << 24)  \
-  V(Array,                    uint64_t{1} << 25)  \
-  V(UnsignedBigInt63,         uint64_t{1} << 26)  \
-  V(OtherUnsignedBigInt64,    uint64_t{1} << 27)  \
-  V(NegativeBigInt63,         uint64_t{1} << 28)  \
-  V(OtherBigInt,              uint64_t{1} << 29)  \
-  /* TODO(v8:10391): Remove this type once all ExternalPointer usages are */ \
-  /* sandbox-ready. */                     \
-  V(SandboxedExternalPointer, uint64_t{1} << 30)  \
-  V(CagedPointer,             uint64_t{1} << 31)
+  V(CallableFunction,         uint64_t{1} << 20)  \
+  V(ClassConstructor,         uint64_t{1} << 21)  \
+  V(BoundFunction,            uint64_t{1} << 22)  \
+  V(Hole,                     uint64_t{1} << 23)  \
+  V(OtherInternal,            uint64_t{1} << 24)  \
+  V(ExternalPointer,          uint64_t{1} << 25)  \
+  V(Array,                    uint64_t{1} << 26)  \
+  V(UnsignedBigInt63,         uint64_t{1} << 27)  \
+  V(OtherUnsignedBigInt64,    uint64_t{1} << 28)  \
+  V(NegativeBigInt63,         uint64_t{1} << 29)  \
+  V(OtherBigInt,              uint64_t{1} << 30)  \
+  V(WasmObject,               uint64_t{1} << 31)
 
 // We split the macro list into two parts because the Torque equivalent in
 // turbofan-types.tq uses two 32bit bitfield structs.
-#define PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V)  \
-  V(WasmObject,               uint64_t{1} << 32)
+#define PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V) \
+  V(SandboxedPointer,         uint64_t{1} << 32) \
+  V(Machine,                  uint64_t{1} << 33)
 
 #define PROPER_BITSET_TYPE_LIST(V) \
   V(None,                     uint64_t{0}) \
@@ -190,6 +197,7 @@ namespace compiler {
   V(Proxy,                        kCallableProxy | kOtherProxy) \
   V(ArrayOrOtherObject,           kArray | kOtherObject) \
   V(ArrayOrProxy,                 kArray | kProxy) \
+  V(Function,                     kCallableFunction | kClassConstructor) \
   V(DetectableCallable,           kFunction | kBoundFunction | \
                                   kOtherCallable | kCallableProxy) \
   V(Callable,                     kDetectableCallable | kOtherUndetectable) \
@@ -202,14 +210,14 @@ namespace compiler {
   V(Object,                       kDetectableObject | kOtherUndetectable) \
   V(Receiver,                     kObject | kProxy | kWasmObject) \
   V(ReceiverOrUndefined,          kReceiver | kUndefined) \
+  V(ReceiverOrNull,               kReceiver | kNull) \
   V(ReceiverOrNullOrUndefined,    kReceiver | kNull | kUndefined) \
   V(SymbolOrReceiver,             kSymbol | kReceiver) \
   V(StringOrReceiver,             kString | kReceiver) \
   V(Unique,                       kBoolean | kUniqueName | kNull | \
                                   kUndefined | kHole | kReceiver) \
   V(Internal,                     kHole | kExternalPointer | \
-                                  kSandboxedExternalPointer | kCagedPointer | \
-                                  kOtherInternal) \
+                                  kSandboxedPointer | kOtherInternal) \
   V(NonInternal,                  kPrimitive | kReceiver) \
   V(NonBigInt,                    kNonBigIntPrimitive | kReceiver) \
   V(NonNumber,                    kBigInt | kUnique | kString | kInternal) \
@@ -307,7 +315,14 @@ class TypeBase {
  protected:
   friend class Type;
 
-  enum Kind { kHeapConstant, kOtherNumberConstant, kTuple, kUnion, kRange };
+  enum Kind {
+    kHeapConstant,
+    kOtherNumberConstant,
+    kTuple,
+    kUnion,
+    kRange,
+    kWasm
+  };
 
   Kind kind() const { return kind_; }
   explicit TypeBase(Kind kind) : kind_(kind) {}
@@ -369,6 +384,25 @@ class RangeType : public TypeBase {
   Limits limits_;
 };
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+class WasmType : public TypeBase {
+ public:
+  static WasmType* New(wasm::ValueType value_type,
+                       const wasm::WasmModule* module, Zone* zone) {
+    return zone->New<WasmType>(value_type, module);
+  }
+  wasm::ValueType value_type() const { return value_type_; }
+  const wasm::WasmModule* module() const { return module_; }
+
+ private:
+  friend Zone;
+  explicit WasmType(wasm::ValueType value_type, const wasm::WasmModule* module)
+      : TypeBase(kWasm), value_type_(value_type), module_(module) {}
+  wasm::ValueType value_type_;
+  const wasm::WasmModule* module_;
+};
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 // -----------------------------------------------------------------------------
 // The actual type.
 
@@ -392,9 +426,15 @@ class V8_EXPORT_PRIVATE Type {
   static Type Constant(double value, Zone* zone);
   static Type Range(double min, double max, Zone* zone);
   static Type Tuple(Type first, Type second, Type third, Zone* zone);
+  static Type Tuple(Type first, Type second, Zone* zone);
 
   static Type Union(Type type1, Type type2, Zone* zone);
   static Type Intersect(Type type1, Type type2, Zone* zone);
+#ifdef V8_ENABLE_WEBASSEMBLY
+  static Type Wasm(wasm::ValueType value_type, const wasm::WasmModule* module,
+                   Zone* zone);
+  static Type Wasm(wasm::TypeInModule type_in_module, Zone* zone);
+#endif
 
   static Type For(MapRef const& type) {
     return NewBitset(BitsetType::ExpandInternals(BitsetType::Lub(type)));
@@ -418,6 +458,9 @@ class V8_EXPORT_PRIVATE Type {
     return IsKind(TypeBase::kOtherNumberConstant);
   }
   bool IsTuple() const { return IsKind(TypeBase::kTuple); }
+#ifdef V8_ENABLE_WEBASSEMBLY
+  bool IsWasm() const { return IsKind(TypeBase::kWasm); }
+#endif
 
   bool IsSingleton() const {
     if (IsNone()) return false;
@@ -433,6 +476,7 @@ class V8_EXPORT_PRIVATE Type {
   const OtherNumberConstantType* AsOtherNumberConstant() const;
   const RangeType* AsRange() const;
   const TupleType* AsTuple() const;
+  wasm::TypeInModule AsWasm() const;
 
   // Minimum and maximum of a numeric type.
   // These functions do not distinguish between -0 and +0.  NaN is ignored.

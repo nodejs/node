@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -217,7 +217,7 @@ static int tls_group_capability(OSSL_CALLBACK *cb, void *arg)
 int ossl_prov_get_capabilities(void *provctx, const char *capability,
                                OSSL_CALLBACK *cb, void *arg)
 {
-    if (strcasecmp(capability, "TLS-GROUP") == 0)
+    if (OPENSSL_strcasecmp(capability, "TLS-GROUP") == 0)
         return tls_group_capability(cb, arg);
 
     /* We don't support this capability */

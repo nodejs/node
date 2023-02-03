@@ -12,7 +12,6 @@ on:
       - '!.github/workflows/test-asan.yml'
   push:
     branches:
-      - master
       - main
       - canary
       - v[0-9]+.x-staging
@@ -30,13 +29,17 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: '3.10'
-  FLAKY_TESTS: dontcare
+  ASAN_OPTIONS: intercept_tls_get_addr=0
+  PYTHON_VERSION: '3.11'
+  FLAKY_TESTS: keep_retrying
+
+permissions:
+  contents: read
 
 jobs:
   test-asan:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     env:
       CC: clang
       CXX: clang++
@@ -47,7 +50,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -55,4 +58,4 @@ jobs:
       - name: Build
         run: make build-ci -j2 V=1
       - name: Test
-        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions -t 300"
+        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions -t 300 --measure-flakiness 9"

@@ -2,8 +2,8 @@
 
 const common = require('../common');
 
-if (process.config.variables.arm_version === '7') {
-  common.skip('Too slow for armv7 bots');
+if (common.isPi) {
+  common.skip('Too slow for Raspberry Pi devices');
 }
 
 const tmpdir = require('../common/tmpdir');

@@ -18,21 +18,21 @@ class JSInliningHeuristic final : public AdvancedReducer {
   JSInliningHeuristic(Editor* editor, Zone* local_zone,
                       OptimizedCompilationInfo* info, JSGraph* jsgraph,
                       JSHeapBroker* broker,
-                      SourcePositionTable* source_positions, Mode mode)
+                      SourcePositionTable* source_positions,
+                      NodeOriginTable* node_origins, Mode mode)
       : AdvancedReducer(editor),
-        inliner_(editor, local_zone, info, jsgraph, broker, source_positions),
+        inliner_(editor, local_zone, info, jsgraph, broker, source_positions,
+                 node_origins),
         candidates_(local_zone),
         seen_(local_zone),
         source_positions_(source_positions),
         jsgraph_(jsgraph),
         broker_(broker),
         mode_(mode),
-        max_inlined_bytecode_size_(
-            ScaleInliningSize(FLAG_max_inlined_bytecode_size, broker)),
-        max_inlined_bytecode_size_cumulative_(ScaleInliningSize(
-            FLAG_max_inlined_bytecode_size_cumulative, broker)),
-        max_inlined_bytecode_size_absolute_(ScaleInliningSize(
-            FLAG_max_inlined_bytecode_size_absolute, broker)) {}
+        max_inlined_bytecode_size_cumulative_(
+            v8_flags.max_inlined_bytecode_size_cumulative),
+        max_inlined_bytecode_size_absolute_(
+            v8_flags.max_inlined_bytecode_size_absolute) {}
 
   const char* reducer_name() const override { return "JSInliningHeuristic"; }
 
@@ -78,8 +78,6 @@ class JSInliningHeuristic final : public AdvancedReducer {
   // Candidates are kept in a sorted set of unique candidates.
   using Candidates = ZoneSet<Candidate, CandidateCompare>;
 
-  static int ScaleInliningSize(int value, JSHeapBroker* broker);
-
   // Dumps candidates to console.
   void PrintCandidates();
   Reduction InlineCandidate(Candidate const& candidate, bool small_function);
@@ -113,7 +111,6 @@ class JSInliningHeuristic final : public AdvancedReducer {
   JSHeapBroker* const broker_;
   int total_inlined_bytecode_size_ = 0;
   const Mode mode_;
-  const int max_inlined_bytecode_size_;
   const int max_inlined_bytecode_size_cumulative_;
   const int max_inlined_bytecode_size_absolute_;
 };

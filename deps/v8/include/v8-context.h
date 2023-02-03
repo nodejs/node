@@ -169,6 +169,9 @@ class V8_EXPORT Context : public Data {
   /** Returns the microtask queue associated with a current context. */
   MicrotaskQueue* GetMicrotaskQueue();
 
+  /** Sets the microtask queue associated with the current context. */
+  void SetMicrotaskQueue(MicrotaskQueue* queue);
+
   /**
    * The field at kDebugIdIndex used to be reserved for the inspector.
    * It now serves no purpose.
@@ -245,6 +248,12 @@ class V8_EXPORT Context : public Data {
   void SetErrorMessageForCodeGenerationFromStrings(Local<String> message);
 
   /**
+   * Sets the error description for the exception that is thrown when
+   * wasm code generation is not allowed.
+   */
+  void SetErrorMessageForWasmCodeGeneration(Local<String> message);
+
+  /**
    * Return data that was previously attached to the context snapshot via
    * SnapshotCreator, and removes the reference to it.
    * Repeated call with the same index returns an empty MaybeLocal.
@@ -284,6 +293,7 @@ class V8_EXPORT Context : public Data {
                        Local<Function> after_hook,
                        Local<Function> resolve_hook);
 
+  bool HasTemplateLiteralObject(Local<Value> object);
   /**
    * Stack-allocated class which sets the execution context for all
    * operations executed within a local scope.
@@ -312,17 +322,6 @@ class V8_EXPORT Context : public Data {
      */
     explicit BackupIncumbentScope(Local<Context> backup_incumbent_context);
     ~BackupIncumbentScope();
-
-    /**
-     * Returns address that is comparable with JS stack address.  Note that JS
-     * stack may be allocated separately from the native stack.  See also
-     * |TryCatch::JSStackComparableAddressPrivate| for details.
-     */
-    V8_DEPRECATED(
-        "This is private V8 information that should not be exposed in the API.")
-    uintptr_t JSStackComparableAddress() const {
-      return JSStackComparableAddressPrivate();
-    }
 
    private:
     friend class internal::Isolate;
@@ -379,21 +378,19 @@ Local<Value> Context::GetEmbedderData(int index) {
 }
 
 void* Context::GetAlignedPointerFromEmbedderData(int index) {
-#ifndef V8_ENABLE_CHECKS
+#if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
   A ctx = *reinterpret_cast<const A*>(this);
   A embedder_data =
       I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
-  int value_offset =
-      I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
-#ifdef V8_HEAP_SANDBOX
-  value_offset += I::kEmbedderDataSlotRawPayloadOffset;
-#endif
-  internal::Isolate* isolate = I::GetIsolateForHeapSandbox(ctx);
+  int value_offset = I::kEmbedderDataArrayHeaderSize +
+                     (I::kEmbedderDataSlotSize * index) +
+                     I::kEmbedderDataSlotExternalPointerOffset;
+  Isolate* isolate = I::GetIsolateForSandbox(ctx);
   return reinterpret_cast<void*>(
-      I::ReadExternalPointerField(isolate, embedder_data, value_offset,
-                                  internal::kEmbedderDataSlotPayloadTag));
+      I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+          isolate, embedder_data, value_offset));
 #else
   return SlowGetAlignedPointerFromEmbedderData(index);
 #endif

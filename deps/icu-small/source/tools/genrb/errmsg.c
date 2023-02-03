@@ -18,6 +18,7 @@
 */
 
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include "cstring.h"
 #include "errmsg.h"
@@ -34,7 +35,7 @@ U_CFUNC void error(uint32_t linenumber, const char *msg, ...)
     va_end(va);
 }
 
-static UBool gShowWarning = TRUE;
+static UBool gShowWarning = true;
 
 U_CFUNC void setShowWarning(UBool val)
 {
@@ -45,14 +46,14 @@ U_CFUNC UBool getShowWarning(){
     return gShowWarning;
 }
 
-static UBool gStrict =FALSE;
+static UBool gStrict =false;
 U_CFUNC UBool isStrict(){
     return gStrict;
 }
 U_CFUNC void setStrict(UBool val){
     gStrict = val;
 }
-static UBool gVerbose =FALSE;
+static UBool gVerbose =false;
 U_CFUNC UBool isVerbose(){
     return gVerbose;
 }

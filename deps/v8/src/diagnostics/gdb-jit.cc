@@ -23,6 +23,7 @@
 #include "src/execution/frames.h"
 #include "src/handles/global-handles.h"
 #include "src/init/bootstrapper.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/objects.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-chunk-list.h"
@@ -1985,7 +1986,7 @@ static void AddJITCodeEntry(CodeMap* map, const base::AddressRegion region,
                             const char* name_hint) {
 #if defined(DEBUG) && !V8_OS_WIN
   static int file_num = 0;
-  if (FLAG_gdbjit_dump && dump_if_enabled) {
+  if (v8_flags.gdbjit_dump && dump_if_enabled) {
     static const int kMaxFileNameSize = 64;
     char file_name[64];
 
@@ -2013,7 +2014,7 @@ static void AddCode(const char* name, base::AddressRegion region,
   CodeMap* code_map = GetCodeMap();
   RemoveJITCodeEntries(code_map, region);
 
-  if (!FLAG_gdbjit_full && !code_desc.IsLineInfoAvailable()) {
+  if (!v8_flags.gdbjit_full && !code_desc.IsLineInfoAvailable()) {
     delete lineinfo;
     return;
   }
@@ -2025,12 +2026,12 @@ static void AddCode(const char* name, base::AddressRegion region,
 
   const char* name_hint = nullptr;
   bool should_dump = false;
-  if (FLAG_gdbjit_dump) {
-    if (strlen(FLAG_gdbjit_dump_filter) == 0) {
+  if (v8_flags.gdbjit_dump) {
+    if (strlen(v8_flags.gdbjit_dump_filter) == 0) {
       name_hint = name;
       should_dump = true;
     } else if (name != nullptr) {
-      name_hint = strstr(name, FLAG_gdbjit_dump_filter);
+      name_hint = strstr(name, v8_flags.gdbjit_dump_filter);
       should_dump = (name_hint != nullptr);
     }
   }
@@ -2038,7 +2039,7 @@ static void AddCode(const char* name, base::AddressRegion region,
 }
 
 void EventHandler(const v8::JitCodeEvent* event) {
-  if (!FLAG_gdbjit) return;
+  if (!v8_flags.gdbjit) return;
   if ((event->code_type != v8::JitCodeEvent::JIT_CODE) &&
       (event->code_type != v8::JitCodeEvent::WASM_CODE)) {
     return;
@@ -2063,8 +2064,10 @@ void EventHandler(const v8::JitCodeEvent* event) {
       // use event->code_type here instead of finding the Code.
       // TODO(zhin): Rename is_function to be more accurate.
       if (event->code_type == v8::JitCodeEvent::JIT_CODE) {
-        Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(addr);
-        is_function = CodeKindIsOptimizedJSFunction(code.kind());
+        CodeLookupResult lookup_result =
+            isolate->heap()->GcSafeFindCodeForInnerPointer(addr);
+        CHECK(lookup_result.IsFound());
+        is_function = CodeKindIsOptimizedJSFunction(lookup_result.kind());
       }
       AddCode(event_name.c_str(), {addr, event->code_len}, shared, lineinfo,
               isolate, is_function);

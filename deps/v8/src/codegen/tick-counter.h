@@ -7,6 +7,9 @@
 
 #include <cstddef>
 
+#include "src/base/macros.h"
+#include "src/heap/local-heap.h"
+
 namespace v8 {
 namespace internal {
 
@@ -19,7 +22,16 @@ class LocalHeap;
 // compilation.
 class TickCounter {
  public:
-  void TickAndMaybeEnterSafepoint();
+  void TickAndMaybeEnterSafepoint() {
+    ++ticks_;
+    // Magical number to detect performance bugs or compiler divergence.
+    // Selected as being roughly 10x of what's needed frequently.
+    constexpr size_t kMaxTicks = 100000000;
+    USE(kMaxTicks);
+    DCHECK_LT(ticks_, kMaxTicks);
+
+    if (local_heap_) local_heap_->Safepoint();
+  }
   void AttachLocalHeap(LocalHeap* local_heap);
   void DetachLocalHeap();
   size_t CurrentTicks() const { return ticks_; }

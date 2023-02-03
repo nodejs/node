@@ -54,80 +54,76 @@ struct UCPTrieHeader {
     uint16_t shiftedHighStart;
 };
 
+// Constants for use with UCPTrieHeader.options.
+constexpr uint16_t UCPTRIE_OPTIONS_DATA_LENGTH_MASK = 0xf000;
+constexpr uint16_t UCPTRIE_OPTIONS_DATA_NULL_OFFSET_MASK = 0xf00;
+constexpr uint16_t UCPTRIE_OPTIONS_RESERVED_MASK = 0x38;
+constexpr uint16_t UCPTRIE_OPTIONS_VALUE_BITS_MASK = 7;
+
 /**
- * Constants for use with UCPTrieHeader.options.
- * @internal
+ * Value for index3NullOffset which indicates that there is no index-3 null block.
+ * Bit 15 is unused for this value because this bit is used if the index-3 contains
+ * 18-bit indexes.
  */
-enum {
-    UCPTRIE_OPTIONS_DATA_LENGTH_MASK = 0xf000,
-    UCPTRIE_OPTIONS_DATA_NULL_OFFSET_MASK = 0xf00,
-    UCPTRIE_OPTIONS_RESERVED_MASK = 0x38,
-    UCPTRIE_OPTIONS_VALUE_BITS_MASK = 7,
-    /**
-     * Value for index3NullOffset which indicates that there is no index-3 null block.
-     * Bit 15 is unused for this value because this bit is used if the index-3 contains
-     * 18-bit indexes.
-     */
-    UCPTRIE_NO_INDEX3_NULL_OFFSET = 0x7fff,
-    UCPTRIE_NO_DATA_NULL_OFFSET = 0xfffff
-};
+constexpr int32_t UCPTRIE_NO_INDEX3_NULL_OFFSET = 0x7fff;
+constexpr int32_t UCPTRIE_NO_DATA_NULL_OFFSET = 0xfffff;
 
 // Internal constants.
-enum {
-    /** The length of the BMP index table. 1024=0x400 */
-    UCPTRIE_BMP_INDEX_LENGTH = 0x10000 >> UCPTRIE_FAST_SHIFT,
 
-    UCPTRIE_SMALL_LIMIT = 0x1000,
-    UCPTRIE_SMALL_INDEX_LENGTH = UCPTRIE_SMALL_LIMIT >> UCPTRIE_FAST_SHIFT,
+/** The length of the BMP index table. 1024=0x400 */
+constexpr int32_t UCPTRIE_BMP_INDEX_LENGTH = 0x10000 >> UCPTRIE_FAST_SHIFT;
 
-    /** Shift size for getting the index-3 table offset. */
-    UCPTRIE_SHIFT_3 = 4,
+constexpr int32_t UCPTRIE_SMALL_LIMIT = 0x1000;
+constexpr int32_t UCPTRIE_SMALL_INDEX_LENGTH = UCPTRIE_SMALL_LIMIT >> UCPTRIE_FAST_SHIFT;
 
-    /** Shift size for getting the index-2 table offset. */
-    UCPTRIE_SHIFT_2 = 5 + UCPTRIE_SHIFT_3,
+/** Shift size for getting the index-3 table offset. */
+constexpr int32_t UCPTRIE_SHIFT_3 = 4;
 
-    /** Shift size for getting the index-1 table offset. */
-    UCPTRIE_SHIFT_1 = 5 + UCPTRIE_SHIFT_2,
+/** Shift size for getting the index-2 table offset. */
+constexpr int32_t UCPTRIE_SHIFT_2 = 5 + UCPTRIE_SHIFT_3;
 
-    /**
-     * Difference between two shift sizes,
-     * for getting an index-2 offset from an index-3 offset. 5=9-4
-     */
-    UCPTRIE_SHIFT_2_3 = UCPTRIE_SHIFT_2 - UCPTRIE_SHIFT_3,
+/** Shift size for getting the index-1 table offset. */
+constexpr int32_t UCPTRIE_SHIFT_1 = 5 + UCPTRIE_SHIFT_2;
 
-    /**
-     * Difference between two shift sizes,
-     * for getting an index-1 offset from an index-2 offset. 5=14-9
-     */
-    UCPTRIE_SHIFT_1_2 = UCPTRIE_SHIFT_1 - UCPTRIE_SHIFT_2,
+/**
+ * Difference between two shift sizes,
+ * for getting an index-2 offset from an index-3 offset. 5=9-4
+ */
+constexpr int32_t UCPTRIE_SHIFT_2_3 = UCPTRIE_SHIFT_2 - UCPTRIE_SHIFT_3;
 
-    /**
-     * Number of index-1 entries for the BMP. (4)
-     * This part of the index-1 table is omitted from the serialized form.
-     */
-    UCPTRIE_OMITTED_BMP_INDEX_1_LENGTH = 0x10000 >> UCPTRIE_SHIFT_1,
+/**
+ * Difference between two shift sizes,
+ * for getting an index-1 offset from an index-2 offset. 5=14-9
+ */
+constexpr int32_t UCPTRIE_SHIFT_1_2 = UCPTRIE_SHIFT_1 - UCPTRIE_SHIFT_2;
 
-    /** Number of entries in an index-2 block. 32=0x20 */
-    UCPTRIE_INDEX_2_BLOCK_LENGTH = 1 << UCPTRIE_SHIFT_1_2,
+/**
+ * Number of index-1 entries for the BMP. (4)
+ * This part of the index-1 table is omitted from the serialized form.
+ */
+constexpr int32_t UCPTRIE_OMITTED_BMP_INDEX_1_LENGTH = 0x10000 >> UCPTRIE_SHIFT_1;
 
-    /** Mask for getting the lower bits for the in-index-2-block offset. */
-    UCPTRIE_INDEX_2_MASK = UCPTRIE_INDEX_2_BLOCK_LENGTH - 1,
+/** Number of entries in an index-2 block. 32=0x20 */
+constexpr int32_t UCPTRIE_INDEX_2_BLOCK_LENGTH = 1 << UCPTRIE_SHIFT_1_2;
 
-    /** Number of code points per index-2 table entry. 512=0x200 */
-    UCPTRIE_CP_PER_INDEX_2_ENTRY = 1 << UCPTRIE_SHIFT_2,
+/** Mask for getting the lower bits for the in-index-2-block offset. */
+constexpr int32_t UCPTRIE_INDEX_2_MASK = UCPTRIE_INDEX_2_BLOCK_LENGTH - 1;
 
-    /** Number of entries in an index-3 block. 32=0x20 */
-    UCPTRIE_INDEX_3_BLOCK_LENGTH = 1 << UCPTRIE_SHIFT_2_3,
+/** Number of code points per index-2 table entry. 512=0x200 */
+constexpr int32_t UCPTRIE_CP_PER_INDEX_2_ENTRY = 1 << UCPTRIE_SHIFT_2;
 
-    /** Mask for getting the lower bits for the in-index-3-block offset. */
-    UCPTRIE_INDEX_3_MASK = UCPTRIE_INDEX_3_BLOCK_LENGTH - 1,
+/** Number of entries in an index-3 block. 32=0x20 */
+constexpr int32_t UCPTRIE_INDEX_3_BLOCK_LENGTH = 1 << UCPTRIE_SHIFT_2_3;
 
-    /** Number of entries in a small data block. 16=0x10 */
-    UCPTRIE_SMALL_DATA_BLOCK_LENGTH = 1 << UCPTRIE_SHIFT_3,
+/** Mask for getting the lower bits for the in-index-3-block offset. */
+constexpr int32_t UCPTRIE_INDEX_3_MASK = UCPTRIE_INDEX_3_BLOCK_LENGTH - 1;
 
-    /** Mask for getting the lower bits for the in-small-data-block offset. */
-    UCPTRIE_SMALL_DATA_MASK = UCPTRIE_SMALL_DATA_BLOCK_LENGTH - 1
-};
+/** Number of entries in a small data block. 16=0x10 */
+constexpr int32_t UCPTRIE_SMALL_DATA_BLOCK_LENGTH = 1 << UCPTRIE_SHIFT_3;
+
+/** Mask for getting the lower bits for the in-small-data-block offset. */
+constexpr int32_t UCPTRIE_SMALL_DATA_MASK = UCPTRIE_SMALL_DATA_BLOCK_LENGTH - 1;
+
 
 typedef UChar32
 UCPTrieGetRange(const void *trie, UChar32 start,

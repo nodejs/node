@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --sparkplug --no-always-sparkplug --use-osr
-// Flags: --opt --no-always-opt --deopt-every-n-times=0
+// Flags: --turbofan --no-always-turbofan --deopt-every-n-times=0
 
 function isExecutingBaseline(func) {
   let opt_status = %GetOptimizationStatus(func);

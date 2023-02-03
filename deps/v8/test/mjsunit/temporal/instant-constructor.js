@@ -6,14 +6,14 @@
 let inst1 = new Temporal.Instant(1234567890123456789n);
 assertEquals(1234567890123456789n , inst1.epochNanoseconds);
 assertEquals(1234567890123456n , inst1.epochMicroseconds);
-assertEquals(1234567890123n , inst1.epochMilliseconds);
-assertEquals(1234567890n , inst1.epochSeconds);
+assertEquals(1234567890123 , inst1.epochMilliseconds);
+assertEquals(1234567890 , inst1.epochSeconds);
 
 let inst2 = new Temporal.Instant(-1234567890123456789n);
 assertEquals(-1234567890123456789n , inst2.epochNanoseconds);
 assertEquals(-1234567890123456n , inst2.epochMicroseconds);
-assertEquals(-1234567890123n , inst2.epochMilliseconds);
-assertEquals(-1234567890n , inst2.epochSeconds);
+assertEquals(-1234567890123 , inst2.epochMilliseconds);
+assertEquals(-1234567890 , inst2.epochSeconds);
 
 // 1. If NewTarget is undefined, then
 // a. Throw a TypeError exception.

@@ -29,7 +29,7 @@
 
 #if defined(V8_OS_LINUX) || defined(V8_OS_FREEBSD)
 #include <ucontext.h>
-#elif V8_OS_MACOSX
+#elif V8_OS_DARWIN
 #include <sys/ucontext.h>
 #endif
 
@@ -47,9 +47,11 @@ namespace v8 {
 namespace internal {
 namespace trap_handler {
 
+#if V8_TRAP_HANDLER_SUPPORTED
+
 #if V8_OS_LINUX
 #define CONTEXT_REG(reg, REG) &uc->uc_mcontext.gregs[REG_##REG]
-#elif V8_OS_MACOSX
+#elif V8_OS_DARWIN
 #define CONTEXT_REG(reg, REG) &uc->uc_mcontext->__ss.__##reg
 #elif V8_OS_FREEBSD
 #define CONTEXT_REG(reg, REG) &uc->uc_mcontext.mc_##reg
@@ -180,6 +182,8 @@ void HandleSignal(int signum, siginfo_t* info, void* context) {
   }
   // TryHandleSignal modifies context to change where we return to.
 }
+
+#endif
 
 }  // namespace trap_handler
 }  // namespace internal

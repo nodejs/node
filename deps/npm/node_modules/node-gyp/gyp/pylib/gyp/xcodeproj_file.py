@@ -2990,7 +2990,7 @@ class PBXProject(XCContainerPortal):
             # Xcode seems to sort this list case-insensitively
             self._properties["projectReferences"] = sorted(
                 self._properties["projectReferences"],
-                key=lambda x: x["ProjectRef"].Name().lower
+                key=lambda x: x["ProjectRef"].Name().lower()
             )
         else:
             # The link already exists.  Pull out the relevnt data.

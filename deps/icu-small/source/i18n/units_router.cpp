@@ -43,17 +43,17 @@ Precision UnitsRouter::parseSkeletonToPrecision(icu::UnicodeString precisionSkel
     return result;
 }
 
-UnitsRouter::UnitsRouter(StringPiece inputUnitIdentifier, StringPiece region, StringPiece usage,
+UnitsRouter::UnitsRouter(StringPiece inputUnitIdentifier, const Locale &locale, StringPiece usage,
                          UErrorCode &status) {
-    this->init(MeasureUnit::forIdentifier(inputUnitIdentifier, status), region, usage, status);
+    this->init(MeasureUnit::forIdentifier(inputUnitIdentifier, status), locale, usage, status);
 }
 
-UnitsRouter::UnitsRouter(const MeasureUnit &inputUnit, StringPiece region, StringPiece usage,
+UnitsRouter::UnitsRouter(const MeasureUnit &inputUnit, const Locale &locale, StringPiece usage,
                          UErrorCode &status) {
-    this->init(std::move(inputUnit), region, usage, status);
+    this->init(std::move(inputUnit), locale, usage, status);
 }
 
-void UnitsRouter::init(const MeasureUnit &inputUnit, StringPiece region, StringPiece usage,
+void UnitsRouter::init(const MeasureUnit &inputUnit, const Locale &locale, StringPiece usage,
                        UErrorCode &status) {
 
     if (U_FAILURE(status)) {
@@ -73,22 +73,19 @@ void UnitsRouter::init(const MeasureUnit &inputUnit, StringPiece region, StringP
         return;
     }
 
-    const UnitPreference *const *unitPreferences;
-    int32_t preferencesCount = 0;
-    prefs.getPreferencesFor(category.toStringPiece(), usage, region, unitPreferences, preferencesCount,
-                            status);
-
-    for (int i = 0; i < preferencesCount; ++i) {
-        U_ASSERT(unitPreferences[i] != nullptr);
-        const auto &preference = *unitPreferences[i];
+    const MaybeStackVector<UnitPreference> unitPrefs =
+        prefs.getPreferencesFor(category.toStringPiece(), usage, locale, status);
+    for (int32_t i = 0, n = unitPrefs.length(); i < n; ++i) {
+        U_ASSERT(unitPrefs[i] != nullptr);
+        const auto preference = unitPrefs[i];
 
         MeasureUnitImpl complexTargetUnitImpl =
-            MeasureUnitImpl::forIdentifier(preference.unit.data(), status);
+            MeasureUnitImpl::forIdentifier(preference->unit.data(), status);
         if (U_FAILURE(status)) {
             return;
         }
 
-        UnicodeString precision = preference.skeleton;
+        UnicodeString precision = preference->skeleton;
 
         // For now, we only have "precision-increment" in Units Preferences skeleton.
         // Therefore, we check if the skeleton starts with "precision-increment" and force the program to
@@ -103,7 +100,7 @@ void UnitsRouter::init(const MeasureUnit &inputUnit, StringPiece region, StringP
         outputUnits_.emplaceBackAndCheckErrorCode(status,
                                                   complexTargetUnitImpl.copy(status).build(status));
         converterPreferences_.emplaceBackAndCheckErrorCode(status, inputUnitImpl, complexTargetUnitImpl,
-                                                           preference.geq, std::move(precision),
+                                                           preference->geq, std::move(precision),
                                                            conversionRates, status);
 
         if (U_FAILURE(status)) {

@@ -10,61 +10,74 @@
 namespace node {
 
 class Environment;
-struct EnvSerializeInfo;
+struct RealmSerializeInfo;
 struct SnapshotData;
+class ExternalReferenceRegistry;
+
+using SnapshotIndex = size_t;
+
+struct PropInfo {
+  std::string name;     // name for debugging
+  uint32_t id;          // In the list - in case there are any empty entries
+  SnapshotIndex index;  // In the snapshot
+};
 
 #define SERIALIZABLE_OBJECT_TYPES(V)                                           \
   V(fs_binding_data, fs::BindingData)                                          \
   V(v8_binding_data, v8_utils::BindingData)                                    \
   V(blob_binding_data, BlobBindingData)                                        \
-  V(process_binding_data, process::BindingData)
+  V(process_binding_data, process::BindingData)                                \
+  V(util_weak_reference, util::WeakReference)
 
 enum class EmbedderObjectType : uint8_t {
-  k_default = 0,
 #define V(PropertyName, NativeType) k_##PropertyName,
   SERIALIZABLE_OBJECT_TYPES(V)
 #undef V
 };
 
+typedef size_t SnapshotIndex;
+
 // When serializing an embedder object, we'll serialize the native states
-// into a chunk that can be mapped into a subclass of InternalFieldInfo,
+// into a chunk that can be mapped into a subclass of InternalFieldInfoBase,
 // and pass it into the V8 callback as the payload of StartupData.
-// TODO(joyeecheung): the classification of types seem to be wrong.
-// We'd need a type for each field of each class of native object.
-// Maybe it's fine - we'll just use the type to invoke BaseObject constructors
-// and specify that the BaseObject has only one field for us to serialize.
-// And for non-BaseObject embedder objects, we'll use field-wise types.
 // The memory chunk looks like this:
 //
 // [   type   ] - EmbedderObjectType (a uint8_t)
 // [  length  ] - a size_t
 // [    ...   ] - custom bytes of size |length - header size|
-struct InternalFieldInfo {
+struct InternalFieldInfoBase {
+ public:
   EmbedderObjectType type;
   size_t length;
 
-  InternalFieldInfo() = delete;
-
-  static InternalFieldInfo* New(EmbedderObjectType type) {
-    return New(type, sizeof(InternalFieldInfo));
-  }
-
-  static InternalFieldInfo* New(EmbedderObjectType type, size_t length) {
-    InternalFieldInfo* result =
-        reinterpret_cast<InternalFieldInfo*>(::operator new[](length));
+  template <typename T>
+  static T* New(EmbedderObjectType type) {
+    static_assert(std::is_base_of_v<InternalFieldInfoBase, T> ||
+                      std::is_same_v<InternalFieldInfoBase, T>,
+                  "Can only accept InternalFieldInfoBase subclasses");
+    void* buf = ::operator new[](sizeof(T));
+    T* result = new (buf) T;
     result->type = type;
-    result->length = length;
+    result->length = sizeof(T);
     return result;
   }
 
-  InternalFieldInfo* Copy() const {
-    InternalFieldInfo* result =
-        reinterpret_cast<InternalFieldInfo*>(::operator new[](length));
-    memcpy(result, this, length);
+  template <typename T>
+  T* Copy() const {
+    static_assert(std::is_base_of_v<InternalFieldInfoBase, T> ||
+                      std::is_same_v<InternalFieldInfoBase, T>,
+                  "Can only accept InternalFieldInfoBase subclasses");
+    static_assert(std::is_trivially_copyable_v<T>,
+                  "Can only memcpy trivially copyable class");
+    void* buf = ::operator new[](sizeof(T));
+    T* result = new (buf) T;
+    memcpy(result, this, sizeof(T));
     return result;
   }
 
   void Delete() { ::operator delete[](this); }
+
+  InternalFieldInfoBase() = default;
 };
 
 // An interface for snapshotable native objects to inherit from.
@@ -77,7 +90,7 @@ struct InternalFieldInfo {
 //   that needs a V8 context.
 // - Serialize(): This would be called during context serialization,
 //   once for each embedder field of the object.
-//   Allocate and construct an InternalFieldInfo object that contains
+//   Allocate and construct an InternalFieldInfoBase object that contains
 //   data that can be used to deserialize native states.
 // - Deserialize(): This would be called after the context is
 //   deserialized and the object graph is complete, once for each
@@ -87,12 +100,13 @@ class SnapshotableObject : public BaseObject {
  public:
   SnapshotableObject(Environment* env,
                      v8::Local<v8::Object> wrap,
-                     EmbedderObjectType type = EmbedderObjectType::k_default);
-  const char* GetTypeNameChars() const;
+                     EmbedderObjectType type);
+  std::string_view GetTypeName() const;
 
-  virtual void PrepareForSerialization(v8::Local<v8::Context> context,
+  // If returns false, the object will not be serialized.
+  virtual bool PrepareForSerialization(v8::Local<v8::Context> context,
                                        v8::SnapshotCreator* creator) = 0;
-  virtual InternalFieldInfo* Serialize(int index) = 0;
+  virtual InternalFieldInfoBase* Serialize(int index) = 0;
   bool is_snapshotable() const override { return true; }
   // We'll make sure that the type is set in the constructor
   EmbedderObjectType type() { return type_; }
@@ -102,13 +116,13 @@ class SnapshotableObject : public BaseObject {
 };
 
 #define SERIALIZABLE_OBJECT_METHODS()                                          \
-  void PrepareForSerialization(v8::Local<v8::Context> context,                 \
+  bool PrepareForSerialization(v8::Local<v8::Context> context,                 \
                                v8::SnapshotCreator* creator) override;         \
-  InternalFieldInfo* Serialize(int index) override;                            \
+  InternalFieldInfoBase* Serialize(int index) override;                        \
   static void Deserialize(v8::Local<v8::Context> context,                      \
                           v8::Local<v8::Object> holder,                        \
                           int index,                                           \
-                          InternalFieldInfo* info);
+                          InternalFieldInfoBase* info);
 
 v8::StartupData SerializeNodeContextInternalFields(v8::Local<v8::Object> holder,
                                                    int index,
@@ -117,22 +131,9 @@ void DeserializeNodeInternalFields(v8::Local<v8::Object> holder,
                                    int index,
                                    v8::StartupData payload,
                                    void* env);
-void SerializeBindingData(Environment* env,
-                          v8::SnapshotCreator* creator,
-                          EnvSerializeInfo* info);
-
-bool IsSnapshotableType(FastStringKey key);
-
-class SnapshotBuilder {
- public:
-  static std::string Generate(const std::vector<std::string> args,
-                              const std::vector<std::string> exec_args);
-
-  // Generate the snapshot into out.
-  static void Generate(SnapshotData* out,
-                       const std::vector<std::string> args,
-                       const std::vector<std::string> exec_args);
-};
+void SerializeSnapshotableObjects(Realm* realm,
+                                  v8::SnapshotCreator* creator,
+                                  RealmSerializeInfo* info);
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

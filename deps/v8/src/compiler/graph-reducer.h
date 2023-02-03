@@ -6,7 +6,6 @@
 #define V8_COMPILER_GRAPH_REDUCER_H_
 
 #include "src/base/compiler-specific.h"
-#include "src/common/globals.h"
 #include "src/compiler/node-marker.h"
 #include "src/zone/zone-containers.h"
 

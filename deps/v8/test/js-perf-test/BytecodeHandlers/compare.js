@@ -16,6 +16,7 @@ addBenchmark('Number-StrictEquals-False', NumberStrictEqualsFalse);
 addBenchmark('String-StrictEquals-True', StringStrictEqualsTrue);
 addBenchmark('String-StrictEquals-False', StringStrictEqualsFalse);
 addBenchmark('SmiString-StrictEquals', MixedStrictEquals);
+addBenchmark('Boolean-StrictEquals', BooleanStrictEquals);
 addBenchmark('Smi-Equals-True', SmiEqualsTrue);
 addBenchmark('Smi-Equals-False', SmiEqualsFalse);
 addBenchmark('Number-Equals-True', NumberEqualsTrue);
@@ -44,6 +45,113 @@ function strictEquals(a, b) {
     a === b; a === b; a === b; a === b; a === b; a === b; a === b; a === b; a === b; a === b;
     a === b; a === b; a === b; a === b; a === b; a === b; a === b; a === b; a === b; a === b;
   }
+}
+
+function strictEqualsBoolean(a) {
+  var ret;
+  for (var i = 0; i < 1000; ++i) {
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === true) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+    if (a === false) ret = true;
+  }
+  return ret;
 }
 
 function equals(a, b) {
@@ -102,6 +210,12 @@ function StringStrictEqualsFalse() {
 
 function StringStrictEqualsTrue() {
  strictEquals("abc", "abc");
+}
+
+function BooleanStrictEquals() {
+  strictEqualsBoolean("a");
+  strictEqualsBoolean(true);
+  strictEqualsBoolean(false);
 }
 
 function MixedStrictEquals() {

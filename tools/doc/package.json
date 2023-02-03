@@ -7,7 +7,7 @@
     "node": ">=14.8.0"
   },
   "devDependencies": {
-    "highlight.js": "^11.5.0",
+    "highlight.js": "^11.7.0",
     "js-yaml": "^4.1.0",
     "rehype-raw": "^6.1.1",
     "rehype-stringify": "^9.0.3",
@@ -18,8 +18,8 @@
     "remark-rehype": "^10.1.0",
     "to-vfile": "^7.2.3",
     "unified": "^10.1.2",
-    "unist-util-select": "^4.0.1",
-    "unist-util-visit": "^4.1.0"
+    "unist-util-select": "^4.0.3",
+    "unist-util-visit": "^4.1.2"
   },
   "bin": {
     "node-doc-generator": "generate.js"

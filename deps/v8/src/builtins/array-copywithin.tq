@@ -3,8 +3,15 @@
 // found in the LICENSE file.
 
 namespace array {
-macro ConvertToRelativeIndex(index: Number, length: Number): Number {
-  return index < 0 ? Max(index + length, 0) : Min(index, length);
+macro ConvertAndClampRelativeIndex(index: Number, length: Number): Number {
+  try {
+    return ConvertRelativeIndex(index, length) otherwise OutOfBoundsLow,
+           OutOfBoundsHigh;
+  } label OutOfBoundsLow {
+    return 0;
+  } label OutOfBoundsHigh {
+    return length;
+  }
 }
 
 // https://tc39.github.io/ecma262/#sec-array.prototype.copyWithin
@@ -21,14 +28,14 @@ transitioning javascript builtin ArrayPrototypeCopyWithin(
 
   // 4. If relativeTarget < 0, let to be max((len + relativeTarget), 0);
   //    else let to be min(relativeTarget, len).
-  let to: Number = ConvertToRelativeIndex(relativeTarget, length);
+  let to: Number = ConvertAndClampRelativeIndex(relativeTarget, length);
 
   // 5. Let relativeStart be ? ToInteger(start).
   const relativeStart: Number = ToInteger_Inline(arguments[1]);
 
   // 6. If relativeStart < 0, let from be max((len + relativeStart), 0);
   //    else let from be min(relativeStart, len).
-  let from: Number = ConvertToRelativeIndex(relativeStart, length);
+  let from: Number = ConvertAndClampRelativeIndex(relativeStart, length);
 
   // 7. If end is undefined, let relativeEnd be len;
   //    else let relativeEnd be ? ToInteger(end).
@@ -39,7 +46,7 @@ transitioning javascript builtin ArrayPrototypeCopyWithin(
 
   // 8. If relativeEnd < 0, let final be max((len + relativeEnd), 0);
   //    else let final be min(relativeEnd, len).
-  const final: Number = ConvertToRelativeIndex(relativeEnd, length);
+  const final: Number = ConvertAndClampRelativeIndex(relativeEnd, length);
 
   // 9. Let count be min(final-from, len-to).
   let count: Number = Min(final - from, length - to);

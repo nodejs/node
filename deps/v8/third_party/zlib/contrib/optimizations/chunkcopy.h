@@ -1,6 +1,6 @@
 /* chunkcopy.h -- fast chunk copy and set operations
  * Copyright (C) 2017 ARM, Inc.
- * Copyright 2017 The Chromium Authors. All rights reserved.
+ * Copyright 2017 The Chromium Authors
  * Use of this source code is governed by a BSD-style license that can be
  * found in the Chromium source repository LICENSE file.
  */
@@ -33,6 +33,17 @@ typedef uint8x16_t z_vec128i_t;
 typedef __m128i z_vec128i_t;
 #else
 #error chunkcopy.h inflate chunk SIMD is not defined for your build target
+#endif
+
+/*
+ * Suppress MSan errors about copying uninitialized bytes (crbug.com/1376033).
+ */
+#define Z_DISABLE_MSAN
+#if defined(__has_feature)
+  #if __has_feature(memory_sanitizer)
+    #undef Z_DISABLE_MSAN
+    #define Z_DISABLE_MSAN __attribute__((no_sanitize("memory")))
+  #endif
 #endif
 
 /*
@@ -82,7 +93,7 @@ static inline void storechunk(
 static inline unsigned char FAR* chunkcopy_core(
     unsigned char FAR* out,
     const unsigned char FAR* from,
-    unsigned len) {
+    unsigned len) Z_DISABLE_MSAN {
   const int bump = (--len % CHUNKCOPY_CHUNK_SIZE) + 1;
   storechunk(out, loadchunk(from));
   out += bump;
@@ -152,7 +163,7 @@ static inline unsigned char FAR* chunkcopy_core_safe(
 static inline unsigned char FAR* chunkunroll_relaxed(
     unsigned char FAR* out,
     unsigned FAR* dist,
-    unsigned FAR* len) {
+    unsigned FAR* len) Z_DISABLE_MSAN {
   const unsigned char FAR* from = out - *dist;
   while (*dist < *len && *dist < CHUNKCOPY_CHUNK_SIZE) {
     storechunk(out, loadchunk(from));
@@ -473,5 +484,6 @@ typedef unsigned long inflate_holder_t;
 #undef Z_STATIC_ASSERT
 #undef Z_RESTRICT
 #undef Z_BUILTIN_MEMCPY
+#undef Z_DISABLE_MSAN
 
 #endif /* CHUNKCOPY_H */

@@ -126,7 +126,7 @@ class LoopFinderTester : HandleAndZoneScope {
 
   LoopTree* GetLoopTree() {
     if (loop_tree == nullptr) {
-      if (FLAG_trace_turbo_graph) {
+      if (v8_flags.trace_turbo_graph) {
         StdoutStream{} << AsRPO(graph);
       }
       Zone zone(main_isolate()->allocator(), ZONE_NAME);

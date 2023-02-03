@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -245,7 +245,7 @@ int ossl_rsa_validate_pairwise(const RSA *key)
 #ifdef FIPS_MODULE
     return ossl_rsa_sp800_56b_check_keypair(key, NULL, -1, RSA_bits(key));
 #else
-    return rsa_validate_keypair_multiprime(key, NULL);
+    return rsa_validate_keypair_multiprime(key, NULL) > 0;
 #endif
 }
 

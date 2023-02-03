@@ -6,8 +6,11 @@
 #define V8_ZONE_ZONE_H_
 
 #include <limits>
+#include <memory>
+#include <type_traits>
 
 #include "src/base/logging.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/utils/utils.h"
 #include "src/zone/accounting-allocator.h"
@@ -121,6 +124,26 @@ class V8_EXPORT_PRIVATE Zone final {
     return static_cast<T*>(Allocate<TypeTag>(length * sizeof(T)));
   }
 
+  template <typename T, typename TypeTag = T[]>
+  base::Vector<T> NewVector(size_t length) {
+    T* new_array = NewArray<T, TypeTag>(length);
+    return {new_array, length};
+  }
+
+  template <typename T, typename TypeTag = T[]>
+  base::Vector<T> NewVector(size_t length, T value) {
+    T* new_array = NewArray<T, TypeTag>(length);
+    std::uninitialized_fill_n(new_array, length, value);
+    return {new_array, length};
+  }
+
+  template <typename T, typename TypeTag = std::remove_const_t<T>[]>
+  base::Vector<std::remove_const_t<T>> CloneVector(base::Vector<T> v) {
+    auto* new_array = NewArray<std::remove_const_t<T>, TypeTag>(v.size());
+    std::uninitialized_copy(v.begin(), v.end(), new_array);
+    return {new_array, v.size()};
+  }
+
   // Return array of 'length' elements back to Zone. These bytes can be reused
   // for following allocations.
   //
@@ -134,15 +157,10 @@ class V8_EXPORT_PRIVATE Zone final {
   // Seals the zone to prevent any further allocation.
   void Seal() { sealed_ = true; }
 
-  // Allows the zone to be safely reused. Releases the memory and fires zone
-  // destruction and creation events for the accounting allocator.
-  void ReleaseMemory();
-
-  // Returns true if more memory has been allocated in zones than
-  // the limit allows.
-  bool excess_allocation() const {
-    return segment_bytes_allocated_ > kExcessLimit;
-  }
+  // Allows the zone to be safely reused. Releases the memory except for the
+  // last page, and fires zone destruction and creation events for the
+  // accounting allocator.
+  void Reset();
 
   size_t segment_bytes_allocated() const { return segment_bytes_allocated_; }
 
@@ -202,16 +220,13 @@ class V8_EXPORT_PRIVATE Zone final {
   // Never allocate segments larger than this size in bytes.
   static const size_t kMaximumSegmentSize = 32 * KB;
 
-  // Report zone excess when allocation exceeds this limit.
-  static const size_t kExcessLimit = 256 * MB;
-
   // The number of bytes allocated in this zone so far.
-  size_t allocation_size_ = 0;
+  std::atomic<size_t> allocation_size_ = {0};
 
   // The number of bytes allocated in segments.  Note that this number
   // includes memory allocated from the OS but not yet allocated from
   // the zone.
-  size_t segment_bytes_allocated_ = 0;
+  std::atomic<size_t> segment_bytes_allocated_ = {0};
 
   // Expand the Zone to hold at least 'size' more bytes and allocate
   // the bytes. Returns the address of the newly allocated chunk of
@@ -234,10 +249,10 @@ class V8_EXPORT_PRIVATE Zone final {
 
 #ifdef V8_ENABLE_PRECISE_ZONE_STATS
   TypeStats type_stats_;
-  size_t allocation_size_for_tracing_ = 0;
+  std::atomic<size_t> allocation_size_for_tracing_ = {0};
 
   // The number of bytes freed in this zone so far.
-  size_t freed_size_for_tracing_ = 0;
+  stdd::atomic<size_t> freed_size_for_tracing_ = {0};
 #endif
 
   friend class ZoneScope;

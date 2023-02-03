@@ -15,7 +15,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require an empty line before `return` statements",
+            description: "Require an empty line before `return` statements",
             recommended: false,
             url: "https://eslint.org/docs/rules/newline-before-return"
         },
@@ -47,7 +47,7 @@ module.exports = {
         function isPrecededByTokens(node, testTokens) {
             const tokenBefore = sourceCode.getTokenBefore(node);
 
-            return testTokens.some(token => tokenBefore.value === token);
+            return testTokens.includes(tokenBefore.value);
         }
 
         /**

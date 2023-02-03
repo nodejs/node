@@ -6,17 +6,17 @@
 
 <!-- source_link=lib/repl.js -->
 
-The `repl` module provides a Read-Eval-Print-Loop (REPL) implementation that
-is available both as a standalone program or includible in other applications.
-It can be accessed using:
+The `node:repl` module provides a Read-Eval-Print-Loop (REPL) implementation
+that is available both as a standalone program or includible in other
+applications. It can be accessed using:
 
 ```js
-const repl = require('repl');
+const repl = require('node:repl');
 ```
 
 ## Design and features
 
-The `repl` module exports the [`repl.REPLServer`][] class. While running,
+The `node:repl` module exports the [`repl.REPLServer`][] class. While running,
 instances of [`repl.REPLServer`][] will accept individual lines of user input,
 evaluate those according to a user-defined evaluation function, then output the
 result. Input and output may be from `stdin` and `stdout`, respectively, or may
@@ -107,7 +107,7 @@ scope. It is possible to expose a variable to the REPL explicitly by assigning
 it to the `context` object associated with each `REPLServer`:
 
 ```js
-const repl = require('repl');
+const repl = require('node:repl');
 const msg = 'message';
 
 repl.start('> ').context.m = msg;
@@ -125,14 +125,14 @@ Context properties are not read-only by default. To specify read-only globals,
 context properties must be defined using `Object.defineProperty()`:
 
 ```js
-const repl = require('repl');
+const repl = require('node:repl');
 const msg = 'message';
 
 const r = repl.start('> ');
 Object.defineProperty(r.context, 'm', {
   configurable: false,
   enumerable: true,
-  value: msg
+  value: msg,
 });
 ```
 
@@ -141,7 +141,7 @@ Object.defineProperty(r.context, 'm', {
 The default evaluator will automatically load Node.js core modules into the
 REPL environment when used. For instance, unless otherwise declared as a
 global or scoped variable, the input `fs` will be evaluated on-demand as
-`global.fs = require('fs')`.
+`global.fs = require('node:fs')`.
 
 ```console
 > fs.createReadStream('./some/file');
@@ -212,7 +212,7 @@ Explicitly setting `_error` to a value will disable this behavior.
 
 ```console
 > throw new Error('foo');
-Error: foo
+Uncaught Error: foo
 > _error.message
 'foo'
 ```
@@ -225,8 +225,8 @@ Support for the `await` keyword is enabled at the top level.
 > await Promise.resolve(123)
 123
 > await Promise.reject(new Error('REPL await'))
-Error: REPL await
-    at repl:1:45
+Uncaught Error: REPL await
+    at REPL2:1:54
 > const timeout = util.promisify(setTimeout);
 undefined
 > const old = Date.now(); await timeout(1000); console.log(Date.now() - old);
@@ -284,7 +284,7 @@ The following illustrates a hypothetical example of a REPL that performs
 translation of text from one language to another:
 
 ```js
-const repl = require('repl');
+const repl = require('node:repl');
 const { Translator } = require('translator');
 
 const myTranslator = new Translator('en', 'fr');
@@ -355,7 +355,7 @@ function for the `writer` option on construction. The following example, for
 instance, simply converts any input text to upper case:
 
 ```js
-const repl = require('repl');
+const repl = require('node:repl');
 
 const r = repl.start({ prompt: '> ', eval: myEval, writer: myWriter });
 
@@ -381,7 +381,7 @@ Instances of `repl.REPLServer` are created using the [`repl.start()`][] method
 or directly using the JavaScript `new` keyword.
 
 ```js
-const repl = require('repl');
+const repl = require('node:repl');
 
 const options = { useColors: true };
 
@@ -425,7 +425,7 @@ This can be used primarily to re-initialize REPL context to some pre-defined
 state:
 
 ```js
-const repl = require('repl');
+const repl = require('node:repl');
 
 function initializeContext(context) {
   context.m = 'test';
@@ -476,7 +476,7 @@ properties:
 The following example shows two new commands added to the REPL instance:
 
 ```js
-const repl = require('repl');
+const repl = require('node:repl');
 
 const replServer = repl.start({ prompt: '> ' });
 replServer.defineCommand('sayhello', {
@@ -485,7 +485,7 @@ replServer.defineCommand('sayhello', {
     this.clearBufferedCommand();
     console.log(`Hello, ${name}!`);
     this.displayPrompt();
-  }
+  },
 });
 replServer.defineCommand('saybye', function saybye() {
   console.log('Goodbye!');
@@ -654,7 +654,7 @@ The `repl.start()` method creates and starts a [`repl.REPLServer`][] instance.
 If `options` is a string, then it specifies the input prompt:
 
 ```js
-const repl = require('repl');
+const repl = require('node:repl');
 
 // a Unix style prompt
 repl.start('$ ');
@@ -662,9 +662,9 @@ repl.start('$ ');
 
 ## The Node.js REPL
 
-Node.js itself uses the `repl` module to provide its own interactive interface
-for executing JavaScript. This can be used by executing the Node.js binary
-without passing any arguments (or by passing the `-i` argument):
+Node.js itself uses the `node:repl` module to provide its own interactive
+interface for executing JavaScript. This can be used by executing the Node.js
+binary without passing any arguments (or by passing the `-i` argument):
 
 ```console
 $ node
@@ -726,14 +726,14 @@ The following example, for instance, provides separate REPLs on `stdin`, a Unix
 socket, and a TCP socket:
 
 ```js
-const net = require('net');
-const repl = require('repl');
+const net = require('node:net');
+const repl = require('node:repl');
 let connections = 0;
 
 repl.start({
   prompt: 'Node.js via stdin> ',
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
 });
 
 net.createServer((socket) => {
@@ -741,7 +741,7 @@ net.createServer((socket) => {
   repl.start({
     prompt: 'Node.js via Unix socket> ',
     input: socket,
-    output: socket
+    output: socket,
   }).on('exit', () => {
     socket.end();
   });
@@ -752,7 +752,7 @@ net.createServer((socket) => {
   repl.start({
     prompt: 'Node.js via TCP socket> ',
     input: socket,
-    output: socket
+    output: socket,
   }).on('exit', () => {
     socket.end();
   });

@@ -11,28 +11,19 @@ namespace internal {
 // The deopt exit sizes below depend on the following IsolateData layout
 // guarantees:
 #define ASSERT_OFFSET(BuiltinName)                                       \
-  STATIC_ASSERT(IsolateData::builtin_tier0_entry_table_offset() +        \
+  static_assert(IsolateData::builtin_tier0_entry_table_offset() +        \
                     Builtins::ToInt(BuiltinName) * kSystemPointerSize <= \
                 0x1000)
 ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Eager);
 ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Lazy);
-ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Soft);
-ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Bailout);
 #undef ASSERT_OFFSET
 
-const bool Deoptimizer::kSupportsFixedDeoptExitSizes = true;
-const int Deoptimizer::kNonLazyDeoptExitSize = 3 * kInstrSize;
+const int Deoptimizer::kEagerDeoptExitSize = 3 * kInstrSize;
 const int Deoptimizer::kLazyDeoptExitSize = 3 * kInstrSize;
-const int Deoptimizer::kEagerWithResumeBeforeArgsSize = 4 * kInstrSize;
-const int Deoptimizer::kEagerWithResumeDeoptExitSize =
-    kEagerWithResumeBeforeArgsSize + 2 * kSystemPointerSize;
-const int Deoptimizer::kEagerWithResumeImmedArgs1PcOffset = kInstrSize;
-const int Deoptimizer::kEagerWithResumeImmedArgs2PcOffset =
-    kInstrSize + kSystemPointerSize;
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   float float_val = static_cast<float>(double_registers_[n].get_scalar());
-  return Float32::FromBits(bit_cast<uint32_t>(float_val));
+  return Float32::FromBits(base::bit_cast<uint32_t>(float_val));
 }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
@@ -44,7 +35,7 @@ void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
 }
 
 void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
-  DCHECK(FLAG_enable_embedded_constant_pool);
+  DCHECK(V8_EMBEDDED_CONSTANT_POOL_BOOL);
   SetFrameSlot(offset, value);
 }
 

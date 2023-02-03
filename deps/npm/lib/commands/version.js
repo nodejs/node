@@ -3,9 +3,7 @@ const { resolve } = require('path')
 const { promisify } = require('util')
 const readFile = promisify(require('fs').readFile)
 
-const Arborist = require('@npmcli/arborist')
-const reifyFinish = require('../utils/reify-finish.js')
-
+const updateWorkspaces = require('../workspaces/update-workspaces.js')
 const BaseCommand = require('../base-command.js')
 
 class Version extends BaseCommand {
@@ -24,6 +22,7 @@ class Version extends BaseCommand {
     'include-workspace-root',
   ]
 
+  static workspaces = true
   static ignoreImplicitWorkspace = false
 
   /* eslint-disable-next-line max-len */
@@ -62,12 +61,12 @@ class Version extends BaseCommand {
     }
   }
 
-  async execWorkspaces (args, filters) {
+  async execWorkspaces (args) {
     switch (args.length) {
       case 0:
-        return this.listWorkspaces(filters)
+        return this.listWorkspaces()
       case 1:
-        return this.changeWorkspaces(args, filters)
+        return this.changeWorkspaces(args)
       default:
         throw this.usageError()
     }
@@ -82,9 +81,9 @@ class Version extends BaseCommand {
     return this.npm.output(`${prefix}${version}`)
   }
 
-  async changeWorkspaces (args, filters) {
+  async changeWorkspaces (args) {
     const prefix = this.npm.config.get('tag-version-prefix')
-    await this.setWorkspaces(filters)
+    await this.setWorkspaces()
     const updatedWorkspaces = []
     for (const [name, path] of this.workspaces) {
       this.npm.output(name)
@@ -122,9 +121,9 @@ class Version extends BaseCommand {
     }
   }
 
-  async listWorkspaces (filters) {
+  async listWorkspaces () {
     const results = {}
-    await this.setWorkspaces(filters)
+    await this.setWorkspaces()
     for (const path of this.workspacePaths) {
       const pj = resolve(path, 'package.json')
       // setWorkspaces has already parsed package.json so we know it won't error
@@ -137,32 +136,20 @@ class Version extends BaseCommand {
     return this.list(results)
   }
 
-  async update (args) {
-    if (!this.npm.flatOptions.workspacesUpdate || !args.length) {
-      return
-    }
+  async update (workspaces) {
+    const {
+      config,
+      flatOptions,
+      localPrefix,
+    } = this.npm
 
-    // default behavior is to not save by default in order to avoid
-    // race condition problems when publishing multiple workspaces
-    // that have dependencies on one another, it might still be useful
-    // in some cases, which then need to set --save
-    const save = this.npm.config.isDefault('save')
-      ? false
-      : this.npm.config.get('save')
-
-    // runs a minimalistic reify update, targetting only the workspaces
-    // that had version updates and skipping fund/audit/save
-    const opts = {
-      ...this.npm.flatOptions,
-      audit: false,
-      fund: false,
-      path: this.npm.localPrefix,
-      save,
-    }
-    const arb = new Arborist(opts)
-
-    await arb.reify({ ...opts, update: args })
-    await reifyFinish(this.npm, arb)
+    await updateWorkspaces({
+      config,
+      flatOptions,
+      localPrefix,
+      npm: this.npm,
+      workspaces,
+    })
   }
 }
 

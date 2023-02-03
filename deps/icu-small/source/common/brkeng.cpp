@@ -261,10 +261,10 @@ ICULanguageBreakFactory::loadDictionaryMatcherFor(UScriptCode script) {
     const UChar *extStart = u_memrchr(dictfname, 0x002e, dictnlength);  // last dot
     if (extStart != NULL) {
         int32_t len = (int32_t)(extStart - dictfname);
-        ext.appendInvariantChars(UnicodeString(FALSE, extStart + 1, dictnlength - len - 1), status);
+        ext.appendInvariantChars(UnicodeString(false, extStart + 1, dictnlength - len - 1), status);
         dictnlength = len;
     }
-    dictnbuf.appendInvariantChars(UnicodeString(FALSE, dictfname, dictnlength), status);
+    dictnbuf.appendInvariantChars(UnicodeString(false, dictfname, dictnlength), status);
     ures_close(b);
 
     UDataMemory *file = udata_open(U_ICUDATA_BRKITR, ext.data(), dictnbuf.data(), &status);

@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 # aminclude_static.am generated automatically by Autoconf
-# from AX_AM_MACROS_STATIC on Wed Oct 27 08:01:08 CEST 2021
+# from AX_AM_MACROS_STATIC on Sat Jan 28 10:29:54 CET 2023
 
 VPATH = @srcdir@
 am__is_gnu_make = { \
@@ -422,6 +422,7 @@ EGREP = @EGREP@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
+FILECMD = @FILECMD@
 GCOV = @GCOV@
 GENHTML = @GENHTML@
 GREP = @GREP@
@@ -636,7 +637,6 @@ HHEADERS = ares_android.h                        \
   ares_inet_net_pton.h			\
   ares_iphlpapi.h			\
   ares_ipv6.h				\
-  ares_library_init.h			\
   ares_llist.h				\
   ares_nowarn.h				\
   ares_platform.h			\

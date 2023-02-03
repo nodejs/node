@@ -42,6 +42,10 @@ typedef enum nghttp3_frame_type {
   NGHTTP3_FRAME_PUSH_PROMISE = 0x05,
   NGHTTP3_FRAME_GOAWAY = 0x07,
   NGHTTP3_FRAME_MAX_PUSH_ID = 0x0d,
+  /* PRIORITY_UPDATE:
+     https://tools.ietf.org/html/draft-ietf-httpbis-priority-03 */
+  NGHTTP3_FRAME_PRIORITY_UPDATE = 0x0f0700,
+  NGHTTP3_FRAME_PRIORITY_UPDATE_PUSH_ID = 0x0f0701,
 } nghttp3_frame_type;
 
 typedef enum nghttp3_h2_reserved_type {
@@ -66,14 +70,10 @@ typedef struct nghttp3_frame_headers {
   size_t nvlen;
 } nghttp3_frame_headers;
 
-typedef struct nghttp3_frame_cancel_push {
-  nghttp3_frame_hd hd;
-  int64_t push_id;
-} nghttp3_frame_cancel_push;
-
 #define NGHTTP3_SETTINGS_ID_MAX_FIELD_SECTION_SIZE 0x06
 #define NGHTTP3_SETTINGS_ID_QPACK_MAX_TABLE_CAPACITY 0x01
 #define NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS 0x07
+#define NGHTTP3_SETTINGS_ID_ENABLE_CONNECT_PROTOCOL 0x08
 
 #define NGHTTP3_H2_SETTINGS_ID_ENABLE_PUSH 0x2
 #define NGHTTP3_H2_SETTINGS_ID_MAX_CONCURRENT_STREAMS 0x3
@@ -91,32 +91,28 @@ typedef struct nghttp3_frame_settings {
   nghttp3_settings_entry iv[1];
 } nghttp3_frame_settings;
 
-typedef struct nghttp3_frame_push_promise {
-  nghttp3_frame_hd hd;
-  nghttp3_nv *nva;
-  size_t nvlen;
-  int64_t push_id;
-} nghttp3_frame_push_promise;
-
 typedef struct nghttp3_frame_goaway {
   nghttp3_frame_hd hd;
   int64_t id;
 } nghttp3_frame_goaway;
 
-typedef struct nghttp3_frame_max_push_id {
+typedef struct nghttp3_frame_priority_update {
   nghttp3_frame_hd hd;
-  int64_t push_id;
-} nghttp3_frame_max_push_id;
+  /* pri_elem_id is stream ID if hd.type ==
+     NGHTTP3_FRAME_PRIORITY_UPDATE.  It is push ID if hd.type ==
+     NGHTTP3_FRAME_PRIORITY_UPDATE_PUSH_ID.  It is undefined
+     otherwise. */
+  int64_t pri_elem_id;
+  nghttp3_pri pri;
+} nghttp3_frame_priority_update;
 
 typedef union nghttp3_frame {
   nghttp3_frame_hd hd;
   nghttp3_frame_data data;
   nghttp3_frame_headers headers;
-  nghttp3_frame_cancel_push cancel_push;
   nghttp3_frame_settings settings;
-  nghttp3_frame_push_promise push_promise;
   nghttp3_frame_goaway goaway;
-  nghttp3_frame_max_push_id max_push_id;
+  nghttp3_frame_priority_update priority_update;
 } nghttp3_frame;
 
 /*
@@ -151,42 +147,6 @@ size_t nghttp3_frame_write_settings_len(int64_t *pppayloadlen,
                                         const nghttp3_frame_settings *fr);
 
 /*
- * nghttp3_frame_write_cancel_push writes CANCEL_PUSH frame |fr| to
- * |dest|.  This function assumes that |dest| has enough space to
- * write |fr|.
- *
- * This function returns |dest| plus the number of bytes written.
- */
-uint8_t *nghttp3_frame_write_cancel_push(uint8_t *dest,
-                                         const nghttp3_frame_cancel_push *fr);
-
-/*
- * nghttp3_frame_write_cancel_push_len returns the number of bytes
- * required to write |fr|.  fr->hd.length is ignored.  This function
- * stores payload length in |*ppayloadlen|.
- */
-size_t nghttp3_frame_write_cancel_push_len(int64_t *ppayloadlen,
-                                           const nghttp3_frame_cancel_push *fr);
-
-/*
- * nghttp3_frame_write_max_push_id writes MAX_PUSH_ID frame |fr| to
- * |dest|.  This function assumes that |dest| has enough space to
- * write |fr|.
- *
- * This function returns |dest| plus the number of bytes written.
- */
-uint8_t *nghttp3_frame_write_max_push_id(uint8_t *dest,
-                                         const nghttp3_frame_max_push_id *fr);
-
-/*
- * nghttp3_frame_write_max_push_id_len returns the number of bytes
- * required to write |fr|.  fr->hd.length is ignored.  This function
- * stores payload length in |*ppayloadlen|.
- */
-size_t nghttp3_frame_write_max_push_id_len(int64_t *ppayloadlen,
-                                           const nghttp3_frame_max_push_id *fr);
-
-/*
  * nghttp3_frame_write_goaway writes GOAWAY frame |fr| to |dest|.
  * This function assumes that |dest| has enough space to write |fr|.
  *
@@ -202,6 +162,25 @@ uint8_t *nghttp3_frame_write_goaway(uint8_t *dest,
  */
 size_t nghttp3_frame_write_goaway_len(int64_t *ppayloadlen,
                                       const nghttp3_frame_goaway *fr);
+
+/*
+ * nghttp3_frame_write_priority_update writes PRIORITY_UPDATE frame
+ * |fr| to |dest|.  This function assumes that |dest| has enough space
+ * to write |fr|.
+ *
+ * This function returns |dest| plus the number of bytes written;
+ */
+uint8_t *
+nghttp3_frame_write_priority_update(uint8_t *dest,
+                                    const nghttp3_frame_priority_update *fr);
+
+/*
+ * nghttp3_frame_write_priority_update_len returns the number of bytes
+ * required to write |fr|.  fr->hd.length is ignored.  This function
+ * stores payload length in |*ppayloadlen|.
+ */
+size_t nghttp3_frame_write_priority_update_len(
+    int64_t *ppayloadlen, const nghttp3_frame_priority_update *fr);
 
 /*
  * nghttp3_nva_copy copies name/value pairs from |nva|, which contains
@@ -232,12 +211,5 @@ void nghttp3_nva_del(nghttp3_nv *nva, const nghttp3_mem *mem);
  */
 void nghttp3_frame_headers_free(nghttp3_frame_headers *fr,
                                 const nghttp3_mem *mem);
-
-/*
- * nghttp3_frame_push_promise_free frees memory allocated for |fr|.
- * It assumes that fr->nva is created by nghttp3_nva_copy() or NULL.
- */
-void nghttp3_frame_push_promise_free(nghttp3_frame_push_promise *fr,
-                                     const nghttp3_mem *mem);
 
 #endif /* NGHTTP3_FRAME_H */

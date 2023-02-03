@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "async_wrap.h"
+#include "util.h"
 
 #include <algorithm>
 #include <sstream>
@@ -35,7 +36,7 @@ template <typename... Args>
 inline std::string SPrintF(const char* format, Args&&... args);
 template <typename... Args>
 inline void FPrintF(FILE* file, const char* format, Args&&... args);
-void FWrite(FILE* file, const std::string& str);
+void NODE_EXTERN_PRIVATE FWrite(FILE* file, const std::string& str);
 
 // Listing the AsyncWrap provider types first enables us to cast directly
 // from a provider type to a debug category.
@@ -50,38 +51,38 @@ void FWrite(FILE* file, const std::string& str);
   V(WASI)                                                                      \
   V(MKSNAPSHOT)
 
-enum class DebugCategory {
+enum class DebugCategory : unsigned int {
 #define V(name) name,
   DEBUG_CATEGORY_NAMES(V)
 #undef V
-      CATEGORY_COUNT
 };
 
-class EnabledDebugList {
+#define V(name) +1
+constexpr unsigned int kDebugCategoryCount = DEBUG_CATEGORY_NAMES(V);
+#undef V
+
+class NODE_EXTERN_PRIVATE EnabledDebugList {
  public:
-  bool enabled(DebugCategory category) const {
-    DCHECK_GE(static_cast<int>(category), 0);
-    DCHECK_LT(static_cast<int>(category),
-              static_cast<int>(DebugCategory::CATEGORY_COUNT));
-    return enabled_[static_cast<int>(category)];
+  bool FORCE_INLINE enabled(DebugCategory category) const {
+    DCHECK_LT(static_cast<unsigned int>(category), kDebugCategoryCount);
+    return enabled_[static_cast<unsigned int>(category)];
   }
 
-  // Uses NODE_DEBUG_NATIVE to initialize the categories. When env is not a
-  // nullptr, the environment variables set in the Environment are used.
-  // Otherwise the system environment variables are used.
-  void Parse(Environment* env);
+  // Uses NODE_DEBUG_NATIVE to initialize the categories. The env_vars variable
+  // is parsed if it is not a nullptr, otherwise the system environment
+  // variables are parsed.
+  void Parse(std::shared_ptr<KVStore> env_vars = nullptr,
+             v8::Isolate* isolate = nullptr);
 
  private:
-  // Set all categories matching cats to the value of enabled.
-  void Parse(const std::string& cats, bool enabled);
-  void set_enabled(DebugCategory category, bool enabled) {
-    DCHECK_GE(static_cast<int>(category), 0);
-    DCHECK_LT(static_cast<int>(category),
-              static_cast<int>(DebugCategory::CATEGORY_COUNT));
+  // Enable all categories matching cats.
+  void Parse(const std::string& cats);
+  void set_enabled(DebugCategory category) {
+    DCHECK_LT(static_cast<unsigned int>(category), kDebugCategoryCount);
     enabled_[static_cast<int>(category)] = true;
   }
 
-  bool enabled_[static_cast<int>(DebugCategory::CATEGORY_COUNT)] = {false};
+  bool enabled_[kDebugCategoryCount] = {false};
 };
 
 template <typename... Args>
@@ -168,7 +169,7 @@ void CheckedUvLoopClose(uv_loop_t* loop);
 void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream);
 
 namespace per_process {
-extern EnabledDebugList enabled_debug_list;
+extern NODE_EXTERN_PRIVATE EnabledDebugList enabled_debug_list;
 
 template <typename... Args>
 inline void FORCE_INLINE Debug(DebugCategory cat,

@@ -8,16 +8,16 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        python: ["3.6", "3.10"]
+        python: ["3.7", "3.10"]
 
     runs-on: ${{ matrix.os }}
     steps:
       - name: Clone gyp-next
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: gyp-next
       - name: Clone nodejs/node-gyp
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: nodejs/node-gyp
           path: node-gyp

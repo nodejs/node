@@ -1,0 +1,242 @@
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+// Makes a copy of the source array for toSpliced without inserting the new
+// items.
+macro CopyFastPackedArrayForToSpliced(implicit context: Context)(
+    kind: constexpr ElementsKind, array: JSArray, newLenSmi: Smi,
+    actualStartSmi: Smi, insertCountSmi: Smi,
+    actualDeleteCountSmi: Smi): JSArray {
+  const newLen: intptr = Convert<intptr>(newLenSmi);
+  const actualStart: intptr = Convert<intptr>(actualStartSmi);
+  const insertCount: intptr = Convert<intptr>(insertCountSmi);
+  const actualDeleteCount: intptr = Convert<intptr>(actualDeleteCountSmi);
+
+  const copy: FixedArrayBase = AllocateFixedArray(
+      kind, newLen, AllocationFlag::kAllowLargeObjectAllocation);
+
+  if (actualStart > 0) {
+    // Copy the part before the inserted items.
+    CopyElements(kind, copy, 0, array.elements, 0, actualStart);
+  }
+
+  // Initialize elements that will hold the inserted items because the
+  // NewJSArray below may allocate. Leave the actual insertion for later since
+  // it could transition the ElementsKind.
+  if (insertCount > 0) {
+    if constexpr (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+      FillFixedDoubleArrayWithZero(
+          UnsafeCast<FixedDoubleArray>(copy), actualStart, insertCount);
+    } else {
+      FillFixedArrayWithSmiZero(
+          kind, UnsafeCast<FixedArray>(copy), actualStart, insertCount);
+    }
+  }
+
+  // Copy the part after the inserted items.
+  const secondPartStart: intptr = actualStart + insertCount;
+  const secondPartLen: intptr = newLen - secondPartStart;
+  if (secondPartLen > 0) {
+    const r: intptr = actualStart + actualDeleteCount;
+    dcheck(Convert<Smi>(r + secondPartLen) <= array.length);
+    CopyElements(kind, copy, secondPartStart, array.elements, r, secondPartLen);
+  }
+
+  const map: Map = LoadJSArrayElementsMap(kind, LoadNativeContext(context));
+  return NewJSArray(map, copy);
+}
+
+transitioning macro TryFastArrayToSpliced(implicit context: Context)(
+    args: Arguments, o: JSReceiver, originalLenNumber: Number,
+    newLenNumber: Number, actualStartNumber: Number, insertCount: Smi,
+    actualDeleteCountNumber: Number): JSArray labels Slow {
+  const newLen: Smi = Cast<Smi>(newLenNumber) otherwise Slow;
+  const actualStart: Smi = Cast<Smi>(actualStartNumber) otherwise Slow;
+  const actualDeleteCount: Smi =
+      Cast<Smi>(actualDeleteCountNumber) otherwise Slow;
+
+  const array: FastJSArray = Cast<FastJSArray>(o) otherwise Slow;
+
+  // If any argument coercion shrunk the source array, go to the slow case.
+  const originalLen: Smi = Cast<Smi>(originalLenNumber) otherwise Slow;
+  if (originalLen > array.length) goto Slow;
+
+  // Array#toSpliced does not preserve holes and always creates packed Arrays.
+  // Holes in the source array-like are treated like any other element and the
+  // value is computed with Get. So, there are only fast paths for packed
+  // elements.
+  let elementsKind: ElementsKind = array.map.elements_kind;
+  if (!IsFastPackedElementsKind(elementsKind)) goto Slow;
+
+  // Make a copy before inserting the new items, as doing so can transition the
+  // ElementsKind.
+  let copy: JSArray;
+  if (elementsKind == ElementsKind::PACKED_SMI_ELEMENTS) {
+    copy = CopyFastPackedArrayForToSpliced(
+        ElementsKind::PACKED_SMI_ELEMENTS, array, newLen, actualStart,
+        insertCount, actualDeleteCount);
+  } else if (elementsKind == ElementsKind::PACKED_ELEMENTS) {
+    copy = CopyFastPackedArrayForToSpliced(
+        ElementsKind::PACKED_ELEMENTS, array, newLen, actualStart, insertCount,
+        actualDeleteCount);
+  } else {
+    dcheck(elementsKind == ElementsKind::PACKED_DOUBLE_ELEMENTS);
+    copy = CopyFastPackedArrayForToSpliced(
+        ElementsKind::PACKED_DOUBLE_ELEMENTS, array, newLen, actualStart,
+        insertCount, actualDeleteCount);
+  }
+
+  // Array#toSpliced's parameters are (start, deleteCount, ...items), so the
+  // first item to insert is at index 2.
+  const kArgsStart = 2;
+  elementsKind = TransitionElementsKindForInsertionIfNeeded(
+      context, copy, elementsKind, args, kArgsStart);
+
+  // Insert the items.
+  dcheck(IsFastPackedElementsKind(elementsKind));
+  if (IsFastSmiOrTaggedElementsKind(elementsKind)) {
+    InsertArgumentsIntoFastPackedArray<FixedArray, JSAny>(
+        copy, actualStart, args, kArgsStart, insertCount);
+  } else {
+    InsertArgumentsIntoFastPackedArray<FixedDoubleArray, Number>(
+        copy, actualStart, args, kArgsStart, insertCount);
+  }
+
+  return copy;
+}
+
+transitioning macro GenericArrayToSpliced(implicit context: Context)(
+    args: Arguments, o: JSReceiver, newLen: Number, actualStart: Number,
+    actualDeleteCount: Number): JSArray {
+  // 13. Let A be ? ArrayCreate(𝔽(newLen)).
+  const copy = ArrayCreate(newLen);
+
+  // 14. Let i be 0.
+  let i: Number = 0;
+
+  // 15. Let r be actualStart + actualDeleteCount.
+  let r: Number = actualStart + actualDeleteCount;
+
+  // 16. Repeat, while i < actualStart,
+  while (i < actualStart) {
+    // a. Let Pi be ! ToString(𝔽(i)).
+    // b. Let iValue be ? Get(O, Pi).
+    const iValue = GetProperty(o, i);
+
+    // c. Perform ! CreateDataPropertyOrThrow(A, Pi, iValue).
+    FastCreateDataProperty(copy, i, iValue);
+
+    // d. Set i to i + 1.
+    ++i;
+  }
+
+  if (args.length > 2) {
+    // 17. For each element E of items, do
+    for (let k: intptr = 2; k < args.length; ++k) {
+      const e = args[k];
+
+      // a. Let Pi be ! ToString(𝔽(i)).
+      // b. Perform ! CreateDataPropertyOrThrow(A, Pi, E).
+      FastCreateDataProperty(copy, i, e);
+
+      // c. Set i to i + 1.
+      ++i;
+    }
+  }
+
+  // 18. Repeat, while i < newLen,
+  while (i < newLen) {
+    // a. Let Pi be ! ToString(𝔽(i)).
+    // b. Let from be ! ToString(𝔽(r)).
+    // c. Let fromValue be ? Get(O, from).
+    const fromValue = GetProperty(o, r);
+
+    // d. Perform ! CreateDataPropertyOrThrow(A, Pi, fromValue).
+    FastCreateDataProperty(copy, i, fromValue);
+
+    // e. Set i to i + 1.
+    ++i;
+
+    // f. Set r to r + 1.
+    ++r;
+  }
+
+  // 19. Return A.
+  return copy;
+}
+
+// https://tc39.es/proposal-change-array-by-copy/#sec-array.prototype.toSpliced
+transitioning javascript builtin ArrayPrototypeToSpliced(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  const start = arguments[0];
+  const deleteCount = arguments[1];
+
+  // 1. Let O be ? ToObject(this value).
+  const o: JSReceiver = ToObject(context, receiver);
+
+  // 2. Let len be ? LengthOfArrayLike(O).
+  const len: Number = GetLengthProperty(o);
+
+  // 3. Let relativeStart be ? ToIntegerOrInfinity(start).
+  const relativeStart: Number = ToInteger_Inline(start);
+
+  // 4. If relativeStart is -∞, let actualStart be 0.
+  // 5. Else if relativeStart < 0, let actualStart be max(len + relativeStart,
+  // 0).
+  // 6. Else, let actualStart be min(relativeStart, len).
+  //
+  // TODO(syg): Support Number length values in ConvertAndClampRelativeIndex.
+  const actualStart = relativeStart < 0 ? Max((len + relativeStart), 0) :
+                                          Min(relativeStart, len);
+
+  let insertCount: Smi;
+  let actualDeleteCount: Number;
+  if (arguments.length == 0) {
+    // 7. Let insertCount be the number of elements in items.
+    insertCount = 0;
+
+    // 8. If start is not present, then
+    //   a. Let actualDeleteCount be 0.
+    actualDeleteCount = 0;
+  } else if (arguments.length == 1) {
+    // 7. Let insertCount be the number of elements in items.
+    insertCount = 0;
+
+    // 9. Else if deleteCount is not present, then
+    //   a. Let actualDeleteCount be len - actualStart.
+    actualDeleteCount = len - actualStart;
+  } else {
+    // 7. Let insertCount be the number of elements in items.
+    insertCount = Convert<Smi>(arguments.length) - 2;
+
+    // 10. Else,
+    //  a. Let dc be ? ToIntegerOrInfinity(deleteCount).
+    //  b. Let actualDeleteCount be the result of clamping dc between 0 and len
+    //  - actualStart.
+    const dc = ToInteger_Inline(deleteCount);
+    actualDeleteCount = Min(Max(0, dc), len - actualStart);
+  }
+
+  // 11. Let newLen be len + insertCount - actualDeleteCount.
+  const newLen = len + insertCount - actualDeleteCount;
+
+  // 12. If newLen > 2^53 - 1, throw a TypeError exception.
+  if (newLen > kMaxSafeInteger) {
+    ThrowTypeError(MessageTemplate::kInvalidArrayLength, newLen);
+  }
+
+  if (newLen == 0) return ArrayCreate(0);
+
+  try {
+    if (newLen > kMaxFastArrayLength) goto Slow;
+    return TryFastArrayToSpliced(
+        arguments, o, len, newLen, actualStart, insertCount, actualDeleteCount)
+        otherwise Slow;
+  } label Slow {
+    return GenericArrayToSpliced(
+        arguments, o, newLen, actualStart, actualDeleteCount);
+  }
+}
+}

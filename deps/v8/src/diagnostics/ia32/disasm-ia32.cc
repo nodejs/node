@@ -545,7 +545,7 @@ int DisassemblerIA32::F7Instruction(byte* data) {
   byte modrm = *++data;
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
-  const char* mnem = nullptr;
+  const char* mnem = "";
   switch (regop) {
     case 0:
       mnem = "test";
@@ -587,7 +587,7 @@ int DisassemblerIA32::D1D3C1Instruction(byte* data) {
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
   int imm8 = -1;
-  const char* mnem = nullptr;
+  const char* mnem = "";
   switch (regop) {
     case kROL:
       mnem = "rol";
@@ -752,16 +752,16 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         // have the same opcodes but differ by rex_w.
         if (vex_w()) {
           switch (opcode) {
-            FMA_SS_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
-            FMA_PS_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            FMA_SD_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            FMA_PD_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
             default: {
               UnimplementedInstruction();
             }
           }
         } else {
           switch (opcode) {
-            FMA_SD_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
-            FMA_PD_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            FMA_SS_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            FMA_PS_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
             default: {
               UnimplementedInstruction();
             }
@@ -2075,7 +2075,7 @@ int DisassemblerIA32::InstructionDecode(v8::base::Vector<char> out_buffer,
         data++;
         int mod, regop, rm;
         get_modrm(*data, &mod, &regop, &rm);
-        const char* mnem = nullptr;
+        const char* mnem = "";
         switch (regop) {
           case esi:
             mnem = "push";
@@ -2122,7 +2122,7 @@ int DisassemblerIA32::InstructionDecode(v8::base::Vector<char> out_buffer,
         data++;
         int mod, regop, rm;
         get_modrm(*data, &mod, &regop, &rm);
-        const char* mnem = nullptr;
+        const char* mnem = "";
         switch (regop) {
           case 5:
             mnem = "subb";

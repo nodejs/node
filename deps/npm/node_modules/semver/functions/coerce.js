@@ -1,6 +1,6 @@
 const SemVer = require('../classes/semver')
 const parse = require('./parse')
-const {re, t} = require('../internal/re')
+const { re, t } = require('../internal/re')
 
 const coerce = (version, options) => {
   if (version instanceof SemVer) {
@@ -43,8 +43,9 @@ const coerce = (version, options) => {
     re[t.COERCERTL].lastIndex = -1
   }
 
-  if (match === null)
+  if (match === null) {
     return null
+  }
 
   return parse(`${match[2]}.${match[3] || '0'}.${match[4] || '0'}`, options)
 }

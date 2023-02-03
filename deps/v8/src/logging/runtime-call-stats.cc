@@ -8,14 +8,14 @@
 
 #include <iomanip>
 
+#include "src/flags/flags.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
 
-base::TimeTicks (*RuntimeCallTimer::Now)() =
-    &base::TimeTicks::HighResolutionNow;
+base::TimeTicks (*RuntimeCallTimer::Now)() = &base::TimeTicks::Now;
 
 base::TimeTicks RuntimeCallTimer::NowCPUTime() {
   base::ThreadTicks ticks = base::ThreadTicks::Now();
@@ -157,7 +157,7 @@ RuntimeCallStats::RuntimeCallStats(ThreadType thread_type)
   for (int i = 0; i < kNumberOfCounters; i++) {
     this->counters_[i] = RuntimeCallCounter(kNames[i]);
   }
-  if (FLAG_rcs_cpu_time) {
+  if (v8_flags.rcs_cpu_time) {
     CHECK(base::ThreadTicks::IsSupported());
     base::ThreadTicks::WaitUntilInitialized();
     RuntimeCallTimer::Now = &RuntimeCallTimer::NowCPUTime;
@@ -323,8 +323,7 @@ void WorkerThreadRuntimeCallStats::AddToMainTable(
 }
 
 WorkerThreadRuntimeCallStatsScope::WorkerThreadRuntimeCallStatsScope(
-    WorkerThreadRuntimeCallStats* worker_stats)
-    : table_(nullptr) {
+    WorkerThreadRuntimeCallStats* worker_stats) {
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
 
   table_ = reinterpret_cast<RuntimeCallStats*>(

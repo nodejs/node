@@ -95,7 +95,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow empty functions",
+            description: "Disallow empty functions",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-empty-function"
         },
@@ -144,7 +144,7 @@ module.exports = {
                 filter: astUtils.isCommentToken
             });
 
-            if (allowed.indexOf(kind) === -1 &&
+            if (!allowed.includes(kind) &&
                 node.body.type === "BlockStatement" &&
                 node.body.body.length === 0 &&
                 innerComments.length === 0

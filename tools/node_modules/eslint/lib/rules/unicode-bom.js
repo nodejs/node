@@ -14,7 +14,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require or disallow Unicode byte order mark (BOM)",
+            description: "Require or disallow Unicode byte order mark (BOM)",
             recommended: false,
             url: "https://eslint.org/docs/rules/unicode-bom"
         },

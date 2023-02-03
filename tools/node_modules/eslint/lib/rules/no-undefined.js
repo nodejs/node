@@ -14,7 +14,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow the use of `undefined` as an identifier",
+            description: "Disallow the use of `undefined` as an identifier",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-undefined"
         },

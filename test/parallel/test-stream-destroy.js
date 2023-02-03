@@ -62,7 +62,8 @@ const http = require('http');
 
   server.listen(0, () => {
     const req = http.request({
-      port: server.address().port
+      port: server.address().port,
+      agent: new http.Agent()
     });
 
     req.write('asd');
@@ -96,7 +97,8 @@ const http = require('http');
 
   server.listen(0, () => {
     const req = http.request({
-      port: server.address().port
+      port: server.address().port,
+      agent: new http.Agent()
     });
 
     req.write('asd');

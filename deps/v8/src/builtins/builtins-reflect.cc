@@ -88,7 +88,7 @@ BUILTIN(ReflectOwnKeys) {
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, keys,
-      KeyAccumulator::GetKeys(Handle<JSReceiver>::cast(target),
+      KeyAccumulator::GetKeys(isolate, Handle<JSReceiver>::cast(target),
                               KeyCollectionMode::kOwnOnly, ALL_PROPERTIES,
                               GetKeysConversion::kConvertToString));
   return *isolate->factory()->NewJSArrayWithElements(keys);

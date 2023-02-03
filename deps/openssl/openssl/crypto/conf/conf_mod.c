@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -62,8 +62,10 @@ struct conf_imodule_st {
     void *usr_data;
 };
 
-static STACK_OF(CONF_MODULE) *supported_modules = NULL;
-static STACK_OF(CONF_IMODULE) *initialized_modules = NULL;
+static CRYPTO_ONCE init_module_list_lock = CRYPTO_ONCE_STATIC_INIT;
+static CRYPTO_RWLOCK *module_list_lock = NULL;
+static STACK_OF(CONF_MODULE) *supported_modules = NULL; /* protected by lock */
+static STACK_OF(CONF_IMODULE) *initialized_modules = NULL; /* protected by lock */
 
 static CRYPTO_ONCE load_builtin_modules = CRYPTO_ONCE_STATIC_INIT;
 
@@ -79,6 +81,31 @@ static int module_init(CONF_MODULE *pmod, const char *name, const char *value,
                        const CONF *cnf);
 static CONF_MODULE *module_load_dso(const CONF *cnf, const char *name,
                                     const char *value);
+
+static int conf_modules_finish_int(void);
+
+static void module_lists_free(void)
+{
+    CRYPTO_THREAD_lock_free(module_list_lock);
+    module_list_lock = NULL;
+
+    sk_CONF_MODULE_free(supported_modules);
+    supported_modules = NULL;
+
+    sk_CONF_IMODULE_free(initialized_modules);
+    initialized_modules = NULL;
+}
+
+DEFINE_RUN_ONCE_STATIC(do_init_module_list_lock)
+{
+    module_list_lock = CRYPTO_THREAD_lock_new();
+    if (module_list_lock == NULL) {
+        ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
+        return 0;
+    }
+
+    return 1;
+}
 
 static int conf_diagnostics(const CONF *cnf)
 {
@@ -294,31 +321,42 @@ static CONF_MODULE *module_add(DSO *dso, const char *name,
                                conf_init_func *ifunc, conf_finish_func *ffunc)
 {
     CONF_MODULE *tmod = NULL;
+
+    if (!RUN_ONCE(&init_module_list_lock, do_init_module_list_lock))
+        return NULL;
+
+    if (!CRYPTO_THREAD_write_lock(module_list_lock))
+        return NULL;
+
     if (supported_modules == NULL)
         supported_modules = sk_CONF_MODULE_new_null();
     if (supported_modules == NULL)
-        return NULL;
+        goto err;
     if ((tmod = OPENSSL_zalloc(sizeof(*tmod))) == NULL) {
         ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
-        return NULL;
+        goto err;
     }
 
     tmod->dso = dso;
     tmod->name = OPENSSL_strdup(name);
     tmod->init = ifunc;
     tmod->finish = ffunc;
-    if (tmod->name == NULL) {
-        OPENSSL_free(tmod);
-        return NULL;
-    }
+    if (tmod->name == NULL)
+        goto err;
 
-    if (!sk_CONF_MODULE_push(supported_modules, tmod)) {
+    if (!sk_CONF_MODULE_push(supported_modules, tmod))
+        goto err;
+
+    CRYPTO_THREAD_unlock(module_list_lock);
+    return tmod;
+
+ err:
+    CRYPTO_THREAD_unlock(module_list_lock);
+    if (tmod != NULL) {
         OPENSSL_free(tmod->name);
         OPENSSL_free(tmod);
-        return NULL;
     }
-
-    return tmod;
+    return NULL;
 }
 
 /*
@@ -339,14 +377,22 @@ static CONF_MODULE *module_find(const char *name)
     else
         nchar = strlen(name);
 
+    if (!RUN_ONCE(&init_module_list_lock, do_init_module_list_lock))
+        return NULL;
+
+    if (!CRYPTO_THREAD_read_lock(module_list_lock))
+        return NULL;
+
     for (i = 0; i < sk_CONF_MODULE_num(supported_modules); i++) {
         tmod = sk_CONF_MODULE_value(supported_modules, i);
-        if (strncmp(tmod->name, name, nchar) == 0)
+        if (strncmp(tmod->name, name, nchar) == 0) {
+            CRYPTO_THREAD_unlock(module_list_lock);
             return tmod;
+        }
     }
 
+    CRYPTO_THREAD_unlock(module_list_lock);
     return NULL;
-
 }
 
 /* initialize a module */
@@ -379,21 +425,30 @@ static int module_init(CONF_MODULE *pmod, const char *name, const char *value,
             goto err;
     }
 
+    if (!RUN_ONCE(&init_module_list_lock, do_init_module_list_lock))
+        goto err;
+
+    if (!CRYPTO_THREAD_write_lock(module_list_lock))
+        goto err;
+
     if (initialized_modules == NULL) {
         initialized_modules = sk_CONF_IMODULE_new_null();
-        if (!initialized_modules) {
+        if (initialized_modules == NULL) {
+            CRYPTO_THREAD_unlock(module_list_lock);
             ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
             goto err;
         }
     }
 
     if (!sk_CONF_IMODULE_push(initialized_modules, imod)) {
+        CRYPTO_THREAD_unlock(module_list_lock);
         ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
         goto err;
     }
 
     pmod->links++;
 
+    CRYPTO_THREAD_unlock(module_list_lock);
     return ret;
 
  err:
@@ -423,7 +478,13 @@ void CONF_modules_unload(int all)
 {
     int i;
     CONF_MODULE *md;
-    CONF_modules_finish();
+
+    if (!conf_modules_finish_int()) /* also inits module list lock */
+        return;
+
+    if (!CRYPTO_THREAD_write_lock(module_list_lock))
+        return;
+
     /* unload modules in reverse order */
     for (i = sk_CONF_MODULE_num(supported_modules) - 1; i >= 0; i--) {
         md = sk_CONF_MODULE_value(supported_modules, i);
@@ -434,10 +495,13 @@ void CONF_modules_unload(int all)
         (void)sk_CONF_MODULE_delete(supported_modules, i);
         module_free(md);
     }
+
     if (sk_CONF_MODULE_num(supported_modules) == 0) {
         sk_CONF_MODULE_free(supported_modules);
         supported_modules = NULL;
     }
+
+    CRYPTO_THREAD_unlock(module_list_lock);
 }
 
 /* unload a single module */
@@ -450,15 +514,33 @@ static void module_free(CONF_MODULE *md)
 
 /* finish and free up all modules instances */
 
-void CONF_modules_finish(void)
+static int conf_modules_finish_int(void)
 {
     CONF_IMODULE *imod;
+
+    if (!RUN_ONCE(&init_module_list_lock, do_init_module_list_lock))
+        return 0;
+
+    /* If module_list_lock is NULL here it means we were already unloaded */
+    if (module_list_lock == NULL
+        || !CRYPTO_THREAD_write_lock(module_list_lock))
+        return 0;
+
     while (sk_CONF_IMODULE_num(initialized_modules) > 0) {
         imod = sk_CONF_IMODULE_pop(initialized_modules);
         module_finish(imod);
     }
     sk_CONF_IMODULE_free(initialized_modules);
     initialized_modules = NULL;
+
+    CRYPTO_THREAD_unlock(module_list_lock);
+
+    return 1;
+}
+
+void CONF_modules_finish(void)
+{
+    conf_modules_finish_int();
 }
 
 /* finish a module instance */
@@ -488,8 +570,8 @@ int CONF_module_add(const char *name, conf_init_func *ifunc,
 
 void ossl_config_modules_free(void)
 {
-    CONF_modules_finish();
-    CONF_modules_unload(1);
+    CONF_modules_unload(1); /* calls CONF_modules_finish */
+    module_lists_free();
 }
 
 /* Utility functions */

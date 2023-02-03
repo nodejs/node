@@ -26,7 +26,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow bitwise operators",
+            description: "Disallow bitwise operators",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-bitwise"
         },
@@ -76,7 +76,7 @@ module.exports = {
          * @returns {boolean} Whether or not the node has a bitwise operator.
          */
         function hasBitwiseOperator(node) {
-            return BITWISE_OPERATORS.indexOf(node.operator) !== -1;
+            return BITWISE_OPERATORS.includes(node.operator);
         }
 
         /**
@@ -85,7 +85,7 @@ module.exports = {
          * @returns {boolean} Whether or not the node has a bitwise operator.
          */
         function allowedOperator(node) {
-            return allowed.indexOf(node.operator) !== -1;
+            return allowed.includes(node.operator);
         }
 
         /**

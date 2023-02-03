@@ -5,7 +5,6 @@
 #ifndef V8_INTERPRETER_BYTECODE_ARRAY_WRITER_H_
 #define V8_INTERPRETER_BYTECODE_ARRAY_WRITER_H_
 
-#include "src/base/compiler-specific.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/interpreter/bytecodes.h"

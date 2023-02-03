@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 // This is only a partial test. The WebCrypto Web Platform Tests
 // will provide much greater coverage.
@@ -100,6 +100,46 @@ const { subtle } = require('crypto').webcrypto;
     assert(await subtle.verify({
       name: 'HMAC',
     }, key, signature, ec.encode(data)));
+  }
+
+  test('hello world').then(common.mustCall());
+}
+
+// Test Sign/Verify Ed25519
+{
+  async function test(data) {
+    const ec = new TextEncoder();
+    const { publicKey, privateKey } = await subtle.generateKey({
+      name: 'Ed25519',
+    }, true, ['sign', 'verify']);
+
+    const signature = await subtle.sign({
+      name: 'Ed25519',
+    }, privateKey, ec.encode(data));
+
+    assert(await subtle.verify({
+      name: 'Ed25519',
+    }, publicKey, signature, ec.encode(data)));
+  }
+
+  test('hello world').then(common.mustCall());
+}
+
+// Test Sign/Verify Ed448
+{
+  async function test(data) {
+    const ec = new TextEncoder();
+    const { publicKey, privateKey } = await subtle.generateKey({
+      name: 'Ed448',
+    }, true, ['sign', 'verify']);
+
+    const signature = await subtle.sign({
+      name: 'Ed448',
+    }, privateKey, ec.encode(data));
+
+    assert(await subtle.verify({
+      name: 'Ed448',
+    }, publicKey, signature, ec.encode(data)));
   }
 
   test('hello world').then(common.mustCall());

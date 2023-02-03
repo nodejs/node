@@ -10,7 +10,7 @@ const N = 2;
 let abortRequest = true;
 
 const server = http.Server(common.mustCall((req, res) => {
-  const headers = { 'Content-Type': 'text/plain' };
+  const headers = { 'Content-Type': 'text/plain', 'Connection': 'close' };
   headers['Content-Length'] = 50;
   const socket = res.socket;
   res.writeHead(200, headers);

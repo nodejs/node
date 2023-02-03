@@ -17,7 +17,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow duplicate class members",
+            description: "Disallow duplicate class members",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-dupe-class-members"
         },

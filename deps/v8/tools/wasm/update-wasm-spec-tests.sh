@@ -62,6 +62,9 @@ log_and_run make clean opt
 
 log_and_run cd ${TMP_DIR}/spec/test/core
 log_and_run cp *.wast ${SPEC_TEST_DIR}/tests/
+# SIMD tests are in a subdirectory. The "run.py" script below takes care of
+# that, but we have to copy the .wast files explicitly.
+log_and_run cp simd/*.wast ${SPEC_TEST_DIR}/tests/
 
 log_and_run ./run.py --wasm ${TMP_DIR}/spec/interpreter/wasm --out ${TMP_DIR}
 log_and_run cp ${TMP_DIR}/*.js ${SPEC_TEST_DIR}/tests/
@@ -91,7 +94,7 @@ done
 # Generate the proposal tests.
 ###############################################################################
 
-repos='js-types tail-call simd memory64'
+repos='js-types tail-call memory64'
 
 for repo in ${repos}; do
   echo "Process ${repo}"

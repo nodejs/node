@@ -56,15 +56,9 @@ class PropertyAccessInfo;
 enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas, kDefine };
 
 inline bool IsAnyStore(AccessMode mode) {
-  return mode == AccessMode::kStore || mode == AccessMode::kStoreInLiteral;
+  return mode == AccessMode::kStore || mode == AccessMode::kStoreInLiteral ||
+         mode == AccessMode::kDefine;
 }
-
-// Clarifies in function signatures that a method may only be called when
-// concurrent inlining is disabled.
-class NotConcurrentInliningTag final {
- public:
-  explicit NotConcurrentInliningTag(JSHeapBroker* broker);
-};
 
 enum class OddballType : uint8_t {
   kNone,     // Not an Oddball.
@@ -244,6 +238,14 @@ class V8_EXPORT_PRIVATE ObjectRef {
   HEAP_BROKER_OBJECT_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
 
+  // CodeT is defined as an alias to either CodeDataContainer or Code, depending
+  // on the architecture. We can't put it in HEAP_BROKER_OBJECT_LIST, because
+  // this list already contains CodeDataContainer and Code. Still, defining
+  // IsCodeT and AsCodeT is useful to write code that is independent of
+  // V8_EXTERNAL_CODE_SPACE.
+  bool IsCodeT() const;
+  CodeTRef AsCodeT() const;
+
   bool IsNull() const;
   bool IsNullOrUndefined() const;
   bool IsTheHole() const;
@@ -258,11 +260,6 @@ class V8_EXPORT_PRIVATE ObjectRef {
   struct Hash {
     size_t operator()(const ObjectRef& ref) const {
       return base::hash_combine(ref.object().address());
-    }
-  };
-  struct Equal {
-    bool operator()(const ObjectRef& lhs, const ObjectRef& rhs) const {
-      return lhs.equals(rhs);
     }
   };
 
@@ -284,13 +281,28 @@ class V8_EXPORT_PRIVATE ObjectRef {
   friend class TinyRef;
 
   friend std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
+  friend bool operator<(const ObjectRef& lhs, const ObjectRef& rhs);
 
   JSHeapBroker* broker_;
 };
 
+inline bool operator==(const ObjectRef& lhs, const ObjectRef& rhs) {
+  return lhs.equals(rhs);
+}
+
+inline bool operator!=(const ObjectRef& lhs, const ObjectRef& rhs) {
+  return !lhs.equals(rhs);
+}
+
+inline bool operator<(const ObjectRef& lhs, const ObjectRef& rhs) {
+  return lhs.data_ < rhs.data_;
+}
+
 template <class T>
-using ZoneRefUnorderedSet =
-    ZoneUnorderedSet<T, ObjectRef::Hash, ObjectRef::Equal>;
+using ZoneRefUnorderedSet = ZoneUnorderedSet<T, ObjectRef::Hash>;
+
+template <class K, class V>
+using ZoneRefMap = ZoneMap<K, V>;
 
 // Temporary class that carries information from a Map. We'd like to remove
 // this class and use MapRef instead, but we can't as long as we support the
@@ -424,13 +436,9 @@ class JSObjectRef : public JSReceiverRef {
   // relaxed read. This is to ease the transition to unserialized (or
   // background-serialized) elements.
   base::Optional<FixedArrayBaseRef> elements(RelaxedLoadTag) const;
-  void SerializeElements(NotConcurrentInliningTag tag);
   bool IsElementsTenured(const FixedArrayBaseRef& elements);
 
-  void SerializeObjectCreateMap(NotConcurrentInliningTag tag);
   base::Optional<MapRef> GetObjectCreateMap() const;
-
-  void SerializeAsBoilerplateRecursive(NotConcurrentInliningTag tag);
 };
 
 class JSDataViewRef : public JSObjectRef {
@@ -467,7 +475,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   ContextRef context() const;
   NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
-  CodeRef code() const;
+  CodeTRef code() const;
 
   bool has_initial_map(CompilationDependencies* dependencies) const;
   bool PrototypeRequiresRuntimeLookup(
@@ -488,8 +496,6 @@ class RegExpBoilerplateDescriptionRef : public HeapObjectRef {
   DEFINE_REF_CONSTRUCTOR(RegExpBoilerplateDescription, HeapObjectRef)
 
   Handle<RegExpBoilerplateDescription> object() const;
-
-  void Serialize(NotConcurrentInliningTag tag);
 
   FixedArrayRef data() const;
   StringRef source() const;
@@ -524,6 +530,8 @@ class ContextRef : public HeapObjectRef {
 
   // Only returns a value if the index is valid for this ContextRef.
   base::Optional<ObjectRef> get(int index) const;
+
+  ScopeInfoRef scope_info() const;
 };
 
 #define BROKER_NATIVE_CONTEXT_FIELDS(V)          \
@@ -577,13 +585,10 @@ class NativeContextRef : public ContextRef {
 
   Handle<NativeContext> object() const;
 
-  void Serialize(NotConcurrentInliningTag tag);
-
 #define DECL_ACCESSOR(type, name) type##Ref name() const;
   BROKER_NATIVE_CONTEXT_FIELDS(DECL_ACCESSOR)
 #undef DECL_ACCESSOR
 
-  ScopeInfoRef scope_info() const;
   MapRef GetFunctionMapFromIndex(int index) const;
   MapRef GetInitialJSArrayMap(ElementsKind kind) const;
   base::Optional<JSFunctionRef> GetConstructorFunction(const MapRef& map) const;
@@ -662,8 +667,6 @@ class AllocationSiteRef : public HeapObjectRef {
   AllocationType GetAllocationType() const;
   ObjectRef nested_site() const;
 
-  void SerializeRecursive(NotConcurrentInliningTag tag);
-
   base::Optional<JSObjectRef> boilerplate() const;
   ElementsKind GetElementsKind() const;
   bool CanInlineCall() const;
@@ -725,17 +728,10 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 #undef DEF_TESTER
 
-  void SerializeBackPointer(NotConcurrentInliningTag tag);
   HeapObjectRef GetBackPointer() const;
 
-  void SerializePrototype(NotConcurrentInliningTag tag);
-  // TODO(neis): We should be able to remove TrySerializePrototype once
-  // concurrent-inlining is always on. Then we can also change the return type
-  // of prototype() back to HeapObjectRef.
-  bool TrySerializePrototype(NotConcurrentInliningTag tag);
-  base::Optional<HeapObjectRef> prototype() const;
+  HeapObjectRef prototype() const;
 
-  void SerializeForElementStore(NotConcurrentInliningTag tag);
   bool HasOnlyStablePrototypesWithFastElements(
       ZoneVector<MapRef>* prototype_maps);
 
@@ -769,6 +765,9 @@ class FunctionTemplateInfoRef : public HeapObjectRef {
 
   bool is_signature_undefined() const;
   bool accept_any_receiver() const;
+  int16_t allowed_receiver_instance_type_range_start() const;
+  int16_t allowed_receiver_instance_type_range_end() const;
+
   base::Optional<CallHandlerInfoRef> call_code() const;
   ZoneVector<Address> c_functions() const;
   ZoneVector<const CFunctionInfo*> c_signatures() const;
@@ -884,11 +883,13 @@ class ScopeInfoRef : public HeapObjectRef {
   int ContextLength() const;
   bool HasOuterScopeInfo() const;
   bool HasContextExtensionSlot() const;
+  bool ClassScopeHasPrivateBrand() const;
 
   ScopeInfoRef OuterScopeInfo() const;
 };
 
 #define BROKER_SFI_FIELDS(V)                               \
+  V(int, internal_formal_parameter_count_with_receiver)    \
   V(int, internal_formal_parameter_count_without_receiver) \
   V(bool, IsDontAdaptArguments)                            \
   V(bool, has_simple_parameters)                           \
@@ -904,6 +905,7 @@ class ScopeInfoRef : public HeapObjectRef {
   V(int, StartPosition)                                    \
   V(bool, is_compiled)                                     \
   V(bool, IsUserJavaScript)                                \
+  V(bool, requires_instance_members_initializer)           \
   IF_WASM(V, const wasm::WasmModule*, wasm_module)         \
   IF_WASM(V, const wasm::FunctionSig*, wasm_function_signature)
 
@@ -943,12 +945,15 @@ class StringRef : public NameRef {
   // When concurrently accessing non-read-only non-supported strings, we return
   // base::nullopt for these methods.
   base::Optional<Handle<String>> ObjectIfContentAccessible();
-  base::Optional<int> length() const;
-  base::Optional<uint16_t> GetFirstChar();
+  int length() const;
+  base::Optional<uint16_t> GetFirstChar() const;
+  base::Optional<uint16_t> GetChar(int index) const;
   base::Optional<double> ToNumber();
 
   bool IsSeqString() const;
   bool IsExternalString() const;
+
+  bool IsContentAccessible() const;
 
  private:
   // With concurrent inlining on, we currently support reading directly
@@ -1028,13 +1033,15 @@ class CodeRef : public HeapObjectRef {
   unsigned GetInlinedBytecodeSize() const;
 };
 
-// CodeDataContainerRef doesn't appear to be used, but it is used via CodeT when
-// V8_EXTERNAL_CODE_SPACE is defined.
+// CodeDataContainerRef doesn't appear to be used directly, but it is used via
+// CodeTRef when V8_EXTERNAL_CODE_SPACE is enabled.
 class CodeDataContainerRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(CodeDataContainer, HeapObjectRef)
 
   Handle<CodeDataContainer> object() const;
+
+  unsigned GetInlinedBytecodeSize() const;
 };
 
 class InternalizedStringRef : public StringRef {

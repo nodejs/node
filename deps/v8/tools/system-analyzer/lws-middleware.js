@@ -19,12 +19,37 @@ class Symbolizer {
     this.objdumpExec = 'objdump';
   }
 
+  optionDefinitions() {
+    return [
+      {
+        name: 'apk-embedded-library',
+        type: String,
+        description:
+            'Specify the path of the embedded library for Android traces',
+      },
+      {
+        name: 'target',
+        type: String,
+        description: 'Specify the target root directory for cross environment',
+      }
+    ]
+  }
+
   middleware(config) {
     return async (ctx, next) => {
       if (ctx.path == '/v8/loadVMSymbols') {
         await this.parseVMSymbols(ctx)
+      } else if (ctx.path == '/v8/info/platform') {
+        ctx.response.type = 'json';
+        ctx.response.body = JSON.stringify({
+          'name': process.platform,
+          'nmExec': this.nmExec,
+          'objdumpExec': this.objdumpExec,
+          'targetRootFS': config.target,
+          'apkEmbeddedLibrary': config.apkEmbeddedLibrary
+        });
       }
-      await next()
+      await next();
     }
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "turbolizer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Visualization tool for V8 TurboFan IR graphs",
   "scripts": {
     "build": "rollup -c",
@@ -13,22 +13,23 @@
   "author": "The V8 team",
   "license": "MIT",
   "dependencies": {
-    "@types/d3": "^5.7.2",
-    "d3": "^5.7.0",
+    "@types/d3": "^5.16.0",
+    "d3": "^5.16.0",
     "rollup-plugin-node-resolve": "^4.0.0",
-    "rollup-plugin-typescript2": "^0.20.1"
+    "rollup-plugin-typescript2": "^0.32.1"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/v8/v8.git"
   },
   "devDependencies": {
-    "chai": "^4.2.0",
-    "local-web-server": "^2.6.0",
-    "mocha": "^5.2.0",
-    "rollup": "^0.68.2",
-    "ts-mocha": "^2.0.0",
-    "tslint": "^5.12.0",
-    "typescript": "^3.2.2"
+    "@types/node": "^17.0.41",
+    "chai": "^4.3.6",
+    "local-web-server": "^5.2.1",
+    "mocha": "^10.0.0",
+    "rollup": "^2.75.6",
+    "ts-mocha": "^10.0.0",
+    "tslint": "^5.20.1",
+    "typescript": "^4.7.3"
   }
 }

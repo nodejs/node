@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -25,6 +25,10 @@ static int gcm_cipher_internal(PROV_GCM_CTX *ctx, unsigned char *out,
                                size_t *padlen, const unsigned char *in,
                                size_t len);
 
+/*
+ * Called from EVP_CipherInit when there is currently no context via
+ * the new_ctx() function
+ */
 void ossl_gcm_initctx(void *provctx, PROV_GCM_CTX *ctx, size_t keybits,
                       const PROV_GCM_HW *hw)
 {
@@ -38,6 +42,9 @@ void ossl_gcm_initctx(void *provctx, PROV_GCM_CTX *ctx, size_t keybits,
     ctx->libctx = PROV_LIBCTX_OF(provctx);
 }
 
+/*
+ * Called by EVP_CipherInit via the _einit and _dinit functions
+ */
 static int gcm_init(void *vctx, const unsigned char *key, size_t keylen,
                     const unsigned char *iv, size_t ivlen,
                     const OSSL_PARAM params[], int enc)
@@ -66,6 +73,7 @@ static int gcm_init(void *vctx, const unsigned char *key, size_t keylen,
         }
         if (!ctx->hw->setkey(ctx, key, ctx->keylen))
             return 0;
+        ctx->tls_enc_records = 0;
     }
     return ossl_gcm_set_ctx_params(ctx, params);
 }
@@ -447,7 +455,6 @@ static int gcm_tls_init(PROV_GCM_CTX *dat, unsigned char *aad, size_t aad_len)
     buf = dat->buf;
     memcpy(buf, aad, aad_len);
     dat->tls_aad_len = aad_len;
-    dat->tls_enc_records = 0;
 
     len = buf[aad_len - 2] << 8 | buf[aad_len - 1];
     /* Correct length for explicit iv. */

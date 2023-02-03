@@ -156,6 +156,28 @@ optdep@1.0.0 optional
 node_modules/optdep
 `
 
+exports[`test/lib/utils/explain-dep.js TAP overridden > explain color deep 1`] = `
+[1moverridden-root[22m@[1m1.0.0[22m [1m[90moverridden[39m[22m[2m[22m
+[2mnode_modules/overridden-root[22m
+  [90moverridden[39m [1moverridden-dep[22m@"[1m1.0.0[22m" (was "^2.0.0") from the root project
+`
+
+exports[`test/lib/utils/explain-dep.js TAP overridden > explain nocolor shallow 1`] = `
+overridden-root@1.0.0 overridden
+node_modules/overridden-root
+  overridden overridden-dep@"1.0.0" (was "^2.0.0") from the root project
+`
+
+exports[`test/lib/utils/explain-dep.js TAP overridden > print color 1`] = `
+[1moverridden-root[22m@[1m1.0.0[22m [1m[90moverridden[39m[22m[2m[22m
+[2mnode_modules/overridden-root[22m
+`
+
+exports[`test/lib/utils/explain-dep.js TAP overridden > print nocolor 1`] = `
+overridden-root@1.0.0 overridden
+node_modules/overridden-root
+`
+
 exports[`test/lib/utils/explain-dep.js TAP peer > explain color deep 1`] = `
 [1mpeer[22m@[1m1.0.0[22m [1m[35mpeer[39m[22m[2m[22m
 [2mnode_modules/peer[22m

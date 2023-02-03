@@ -4,12 +4,15 @@
 
 #include "include/v8config.h"
 #include "src/trap-handler/trap-handler-simulator.h"
+#include "src/trap-handler/trap-handler.h"
 
-#if V8_OS_MACOSX
+#if V8_TRAP_HANDLER_SUPPORTED
+
+#if V8_OS_DARWIN
 #define SYMBOL(name) "_" #name
-#else  // !V8_OS_MACOSX
+#else  // !V8_OS_DARWIN
 #define SYMBOL(name) #name
-#endif  // !V8_OS_MACOSX
+#endif  // !V8_OS_DARWIN
 
 // Define the ProbeMemory function declared in trap-handler-simulators.h.
 asm(
@@ -35,3 +38,5 @@ asm(
     SYMBOL(v8_probe_memory_continuation) ":         \n"
     // If the trap handler continues here, it wrote the landing pad in %rax.
     "  ret                                          \n");
+
+#endif

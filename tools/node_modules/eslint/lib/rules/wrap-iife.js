@@ -43,7 +43,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "require parentheses around immediate `function` invocations",
+            description: "Require parentheses around immediate `function` invocations",
             recommended: false,
             url: "https://eslint.org/docs/rules/wrap-iife"
         },

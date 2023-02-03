@@ -1,0 +1,16 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script>
+// Open a document on one of hosts on the web-platform test domain, so that
+// document.domain will set a valid domain, turning the frame into a
+// cross-origin frame.
+const {OTHER_ORIGIN} = get_host_info();
+const openee = window.open(OTHER_ORIGIN +
+               "/resource-timing/resources/document-domain-no-impact.html");
+fetch_tests_from_window(openee);
+</script>

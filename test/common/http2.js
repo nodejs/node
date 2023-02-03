@@ -144,5 +144,5 @@ module.exports = {
   PingFrame,
   kFakeRequestHeaders,
   kFakeResponseHeaders,
-  kClientMagic
+  kClientMagic,
 };

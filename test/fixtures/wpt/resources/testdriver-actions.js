@@ -2,9 +2,38 @@
   let sourceNameIdx = 0;
 
   /**
+   * @class
    * Builder for creating a sequence of actions
-   * The default tick duration is set to 16ms, which is one frame time based on
-   * 60Hz display.
+   *
+   *
+   * The actions are dispatched once
+   * :js:func:`test_driver.Actions.send` is called. This returns a
+   * promise which resolves once the actions are complete.
+   *
+   * The other methods on :js:class:`test_driver.Actions` object are
+   * used to build the sequence of actions that will be sent. These
+   * return the `Actions` object itself, so the actions sequence can
+   * be constructed by chaining method calls.
+   *
+   * Internally :js:func:`test_driver.Actions.send` invokes
+   * :js:func:`test_driver.action_sequence`.
+   *
+   * @example
+   * let text_box = document.getElementById("text");
+   *
+   * let actions = new test_driver.Actions()
+   *    .pointerMove(0, 0, {origin: text_box})
+   *    .pointerDown()
+   *    .pointerUp()
+   *    .addTick()
+   *    .keyDown("p")
+   *    .keyUp("p");
+   *
+   * await actions.send();
+   *
+   * @param {number} [defaultTickDuration] - The default duration of a
+   * tick. Be default this is set ot 16ms, which is one frame time
+   * based on 60Hz display.
    */
   function Actions(defaultTickDuration=16) {
     this.sourceTypes = new Map([["key", KeySource],

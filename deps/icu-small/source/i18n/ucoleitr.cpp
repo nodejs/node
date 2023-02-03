@@ -205,7 +205,7 @@ void UCollationPCE::init(const Collator &coll)
 
     strength    = coll.getAttribute(UCOL_STRENGTH, status);
     toShift     = coll.getAttribute(UCOL_ALTERNATE_HANDLING, status) == UCOL_SHIFTED;
-    isShifted   = FALSE;
+    isShifted   = false;
     variableTop = coll.getVariableTop(status);
 }
 
@@ -254,13 +254,13 @@ uint64_t UCollationPCE::processCE(uint32_t ce)
         }
 
         primary = secondary = tertiary = 0;
-        isShifted = TRUE;
+        isShifted = true;
     } else {
         if (strength >= UCOL_QUATERNARY) {
             quaternary = 0xFFFF;
         }
 
-        isShifted = FALSE;
+        isShifted = false;
     }
 
     return primary << 48 | secondary << 32 | tertiary << 16 | quaternary;

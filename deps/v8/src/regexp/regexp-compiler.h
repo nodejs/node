@@ -51,9 +51,9 @@ constexpr int kPatternTooShortForBoyerMoore = 2;
 }  // namespace regexp_compiler_constants
 
 inline bool NeedsUnicodeCaseEquivalents(RegExpFlags flags) {
-  // Both unicode and ignore_case flags are set. We need to use ICU to find
-  // the closure over case equivalents.
-  return IsUnicode(flags) && IsIgnoreCase(flags);
+  // Both unicode (or unicode sets) and ignore_case flags are set. We need to
+  // use ICU to find the closure over case equivalents.
+  return IsEitherUnicode(flags) && IsIgnoreCase(flags);
 }
 
 // Details of a quick mask-compare check that can look ahead in the
@@ -550,6 +550,18 @@ class RegExpCompiler {
     current_expansion_factor_ = value;
   }
 
+  // The recursive nature of ToNode node generation means we may run into stack
+  // overflow issues. We introduce periodic checks to detect these, and the
+  // tick counter helps limit overhead of these checks.
+  // TODO(jgruber): This is super hacky and should be replaced by an abort
+  // mechanism or iterative node generation.
+  void ToNodeMaybeCheckForStackOverflow() {
+    if ((to_node_overflow_check_ticks_++ % 16 == 0)) {
+      ToNodeCheckForStackOverflow();
+    }
+  }
+  void ToNodeCheckForStackOverflow();
+
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
 
@@ -567,6 +579,7 @@ class RegExpCompiler {
   bool one_byte_;
   bool reg_exp_too_big_;
   bool limiting_recursion_;
+  int to_node_overflow_check_ticks_ = 0;
   bool optimize_;
   bool read_backward_;
   int current_expansion_factor_;

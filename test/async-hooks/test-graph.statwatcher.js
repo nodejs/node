@@ -29,6 +29,6 @@ function onexit() {
   verifyGraph(
     hooks,
     [ { type: 'STATWATCHER', id: 'statwatcher:1', triggerAsyncId: null },
-      { type: 'STATWATCHER', id: 'statwatcher:2', triggerAsyncId: null } ]
+      { type: 'STATWATCHER', id: 'statwatcher:2', triggerAsyncId: null } ],
   );
 }

@@ -6,6 +6,7 @@ const assert = require('assert');
 
 const {
   Event,
+  CustomEvent,
   EventTarget,
   NodeEventTarget,
 } = require('internal/event_target');
@@ -41,10 +42,37 @@ const {
 });
 
 [
-  'addEventListener',
-  'removeEventListener',
-  'dispatchEvent',
+  'target',
+  'currentTarget',
+  'srcElement',
+  'type',
+  'cancelable',
+  'defaultPrevented',
+  'timeStamp',
+  'returnValue',
+  'bubbles',
+  'composed',
+  'eventPhase',
+  'detail',
 ].forEach((i) => {
+  assert.throws(() => Reflect.get(CustomEvent.prototype, i, {}), {
+    code: 'ERR_INVALID_THIS',
+  });
+});
+
+[
+  'stopImmediatePropagation',
+  'preventDefault',
+  'composedPath',
+  'cancelBubble',
+  'stopPropagation',
+].forEach((i) => {
+  assert.throws(() => Reflect.apply(CustomEvent.prototype[i], [], {}), {
+    code: 'ERR_INVALID_THIS',
+  });
+});
+
+['addEventListener', 'removeEventListener', 'dispatchEvent'].forEach((i) => {
   assert.throws(() => Reflect.apply(EventTarget.prototype[i], [], {}), {
     code: 'ERR_INVALID_THIS',
   });

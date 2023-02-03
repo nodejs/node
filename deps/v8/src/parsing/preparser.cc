@@ -278,7 +278,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
             RuntimeCallStats::kThreadSpecific);
 
   base::ElapsedTimer timer;
-  if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
+  if (V8_UNLIKELY(v8_flags.log_function_events)) timer.Start();
 
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
@@ -340,7 +340,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     }
   }
 
-  if (V8_UNLIKELY(FLAG_log_function_events)) {
+  if (V8_UNLIKELY(v8_flags.log_function_events)) {
     double ms = timer.Elapsed().InMillisecondsF();
     const char* event_name = "preparse-resolution";
     // We might not always get a function name here. However, it can be easily
@@ -354,7 +354,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       name_byte_length = string->byte_length();
       is_one_byte = string->is_one_byte();
     }
-    logger_->FunctionEvent(
+    v8_file_logger_->FunctionEvent(
         event_name, flags().script_id(), ms, function_scope->start_position(),
         function_scope->end_position(), name, name_byte_length, is_one_byte);
   }

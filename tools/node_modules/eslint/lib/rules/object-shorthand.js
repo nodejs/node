@@ -28,7 +28,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require or disallow method and property shorthand syntax for object literals",
+            description: "Require or disallow method and property shorthand syntax for object literals",
             recommended: false,
             url: "https://eslint.org/docs/rules/object-shorthand"
         },
@@ -78,6 +78,9 @@ module.exports = {
                                 ignoreConstructors: {
                                     type: "boolean"
                                 },
+                                methodsIgnorePattern: {
+                                    type: "string"
+                                },
                                 avoidQuotes: {
                                     type: "boolean"
                                 },
@@ -115,6 +118,9 @@ module.exports = {
 
         const PARAMS = context.options[1] || {};
         const IGNORE_CONSTRUCTORS = PARAMS.ignoreConstructors;
+        const METHODS_IGNORE_PATTERN = PARAMS.methodsIgnorePattern
+            ? new RegExp(PARAMS.methodsIgnorePattern, "u")
+            : null;
         const AVOID_QUOTES = PARAMS.avoidQuotes;
         const AVOID_EXPLICIT_RETURN_ARROWS = !!PARAMS.avoidExplicitReturnArrows;
         const sourceCode = context.getSourceCode();
@@ -457,6 +463,15 @@ module.exports = {
                     if (IGNORE_CONSTRUCTORS && node.key.type === "Identifier" && isConstructor(node.key.name)) {
                         return;
                     }
+
+                    if (METHODS_IGNORE_PATTERN) {
+                        const propertyName = astUtils.getStaticPropertyName(node);
+
+                        if (propertyName !== null && METHODS_IGNORE_PATTERN.test(propertyName)) {
+                            return;
+                        }
+                    }
+
                     if (AVOID_QUOTES && isStringLiteral(node.key)) {
                         return;
                     }

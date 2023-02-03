@@ -260,6 +260,8 @@ if (process.argv[2] === 'child') {
           found_udp.push('connected');
         }
         assert(handle.is_referenced);
+        assert.strictEqual(handle.writeQueueSize, 0);
+        assert.strictEqual(handle.writeQueueCount, 0);
       }, 2),
     };
 

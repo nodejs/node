@@ -92,7 +92,7 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForJump) {
 
 TEST_F(BytecodeRegisterOptimizerTest, TemporaryNotEmitted) {
   Initialize(3, 1);
-  Register parameter = Register::FromParameterIndex(1, 3);
+  Register parameter = Register::FromParameterIndex(1);
   optimizer()->DoLdar(parameter);
   CHECK_EQ(write_count(), 0u);
   Register temp = NewTemporary();
@@ -155,7 +155,7 @@ TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterNotFlushed) {
 
 TEST_F(BytecodeRegisterOptimizerTest, StoresToLocalsImmediate) {
   Initialize(3, 1);
-  Register parameter = Register::FromParameterIndex(1, 3);
+  Register parameter = Register::FromParameterIndex(1);
   optimizer()->DoLdar(parameter);
   CHECK_EQ(write_count(), 0u);
   Register local = Register(0);
@@ -175,7 +175,7 @@ TEST_F(BytecodeRegisterOptimizerTest, StoresToLocalsImmediate) {
 
 TEST_F(BytecodeRegisterOptimizerTest, SingleTemporaryNotMaterializedForInput) {
   Initialize(3, 1);
-  Register parameter = Register::FromParameterIndex(1, 3);
+  Register parameter = Register::FromParameterIndex(1);
   Register temp0 = NewTemporary();
   Register temp1 = NewTemporary();
   optimizer()->DoMov(parameter, temp0);
@@ -193,7 +193,7 @@ TEST_F(BytecodeRegisterOptimizerTest, SingleTemporaryNotMaterializedForInput) {
 
 TEST_F(BytecodeRegisterOptimizerTest, RangeOfTemporariesMaterializedForInput) {
   Initialize(3, 1);
-  Register parameter = Register::FromParameterIndex(1, 3);
+  Register parameter = Register::FromParameterIndex(1);
   Register temp0 = NewTemporary();
   Register temp1 = NewTemporary();
   optimizer()

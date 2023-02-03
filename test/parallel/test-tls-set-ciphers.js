@@ -13,19 +13,31 @@ const {
 } = require(fixtures.path('tls-connect'));
 
 
-function test(cciphers, sciphers, cipher, cerr, serr) {
+function test(cciphers, sciphers, cipher, cerr, serr, options) {
   assert(cipher || cerr || serr, 'test missing any expectations');
   const where = inspect(new Error()).split('\n')[2].replace(/[^(]*/, '');
+
+  const max_tls_ver = (ciphers, options) => {
+    if (options instanceof Object && Object.hasOwn(options, 'maxVersion'))
+      return options.maxVersion;
+    if ((typeof ciphers === 'string' || ciphers instanceof String) && ciphers.length > 0 && !ciphers.includes('TLS_'))
+      return 'TLSv1.2';
+
+    return 'TLSv1.3';
+  };
+
   connect({
     client: {
       checkServerIdentity: (servername, cert) => { },
       ca: `${keys.agent1.cert}\n${keys.agent6.ca}`,
       ciphers: cciphers,
+      maxVersion: max_tls_ver(cciphers, options),
     },
     server: {
       cert: keys.agent6.cert,
       key: keys.agent6.key,
       ciphers: sciphers,
+      maxVersion: max_tls_ver(sciphers, options),
     },
   }, common.mustCall((err, pair, cleanup) => {
     function u(_) { return _ === undefined ? 'U' : _; }
@@ -76,21 +88,29 @@ test('TLS_AES_256_GCM_SHA384', U, 'TLS_AES_256_GCM_SHA384');
 
 // Do not have shared ciphers.
 test('TLS_AES_256_GCM_SHA384', 'TLS_CHACHA20_POLY1305_SHA256',
-     U, 'ECONNRESET', 'ERR_SSL_NO_SHARED_CIPHER');
+     U, 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE', 'ERR_SSL_NO_SHARED_CIPHER');
 
-test('AES128-SHA', 'AES256-SHA', U, 'ECONNRESET', 'ERR_SSL_NO_SHARED_CIPHER');
+test('AES128-SHA', 'AES256-SHA', U, 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE',
+     'ERR_SSL_NO_SHARED_CIPHER');
 test('AES128-SHA:TLS_AES_256_GCM_SHA384',
      'TLS_CHACHA20_POLY1305_SHA256:AES256-SHA',
-     U, 'ECONNRESET', 'ERR_SSL_NO_SHARED_CIPHER');
+     U, 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE', 'ERR_SSL_NO_SHARED_CIPHER');
 
 // Cipher order ignored, TLS1.3 chosen before TLS1.2.
 test('AES256-SHA:TLS_AES_256_GCM_SHA384', U, 'TLS_AES_256_GCM_SHA384');
 test(U, 'AES256-SHA:TLS_AES_256_GCM_SHA384', 'TLS_AES_256_GCM_SHA384');
 
+// Cipher order ignored, TLS1.3 before TLS1.2 and
+// cipher suites are not disabled if TLS ciphers are set only
+// TODO: maybe these tests should be reworked so maxVersion clamping
+// is done explicitly and not implicitly in the test() function
+test('AES256-SHA', U, 'TLS_AES_256_GCM_SHA384', U, U, { maxVersion: 'TLSv1.3' });
+test(U, 'AES256-SHA', 'TLS_AES_256_GCM_SHA384', U, U, { maxVersion: 'TLSv1.3' });
+
 // TLS_AES_128_CCM_8_SHA256 & TLS_AES_128_CCM_SHA256 are not enabled by
 // default, but work.
 test('TLS_AES_128_CCM_8_SHA256', U,
-     U, 'ECONNRESET', 'ERR_SSL_NO_SHARED_CIPHER');
+     U, 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE', 'ERR_SSL_NO_SHARED_CIPHER');
 
 test('TLS_AES_128_CCM_8_SHA256', 'TLS_AES_128_CCM_8_SHA256',
      'TLS_AES_128_CCM_8_SHA256');

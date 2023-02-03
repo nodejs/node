@@ -309,8 +309,8 @@ This example is for setting parameters on some object:
     size_t foo_l = strlen(foo);
     const char bar[] = "some other string";
     OSSL_PARAM set[] = {
-        { "foo", OSSL_PARAM_UTF8_STRING_PTR, &foo, foo_l, 0 },
-        { "bar", OSSL_PARAM_UTF8_STRING, &bar, sizeof(bar) - 1, 0 },
+        { "foo", OSSL_PARAM_UTF8_PTR, &foo, foo_l, 0 },
+        { "bar", OSSL_PARAM_UTF8_STRING, (void *)&bar, sizeof(bar) - 1, 0 },
         { NULL, 0, NULL, 0, 0 }
     };
 
@@ -323,7 +323,7 @@ This example is for requesting parameters on some object:
     char bar[1024];
     size_t bar_l;
     OSSL_PARAM request[] = {
-        { "foo", OSSL_PARAM_UTF8_STRING_PTR, &foo, 0 /*irrelevant*/, 0 },
+        { "foo", OSSL_PARAM_UTF8_PTR, &foo, 0 /*irrelevant*/, 0 },
         { "bar", OSSL_PARAM_UTF8_STRING, &bar, sizeof(bar), 0 },
         { NULL, 0, NULL, 0, 0 }
     };
@@ -356,7 +356,7 @@ B<OSSL_PARAM> was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

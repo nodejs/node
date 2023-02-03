@@ -1,11 +1,12 @@
 {
   "imports": {
-    "#test": "./test.js",
     "#branch": {
       "import": "./importbranch.js",
       "require": "./requirebranch.js"
     },
     "#subpath/*": "./sub/*",
+    "#subpath/internal/*": null,
+    "#subpath/null": null,
     "#subpath/*.asdf": "./test.js",
     "#external": "pkgexports/valid-cjs",
     "#external/subpath/*": "pkgexports/sub/*",
@@ -24,6 +25,7 @@
     },
     "#subpath/nullshadow/*": [null],
     "#": "./test.js",
+    "#*est": "./*est.js",
     "#/initialslash": "./test.js",
     "#notfound": "./notfound.js",
     "#encodedslash": "./..%2F/x.js",

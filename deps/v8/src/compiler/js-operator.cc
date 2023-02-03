@@ -213,29 +213,31 @@ CreateFunctionContextParameters const& CreateFunctionContextParametersOf(
   return OpParameter<CreateFunctionContextParameters>(op);
 }
 
-bool operator==(StoreNamedOwnParameters const& lhs,
-                StoreNamedOwnParameters const& rhs) {
+bool operator==(DefineNamedOwnPropertyParameters const& lhs,
+                DefineNamedOwnPropertyParameters const& rhs) {
   return lhs.name_.object().location() == rhs.name_.object().location() &&
          lhs.feedback() == rhs.feedback();
 }
 
-bool operator!=(StoreNamedOwnParameters const& lhs,
-                StoreNamedOwnParameters const& rhs) {
+bool operator!=(DefineNamedOwnPropertyParameters const& lhs,
+                DefineNamedOwnPropertyParameters const& rhs) {
   return !(lhs == rhs);
 }
 
-size_t hash_value(StoreNamedOwnParameters const& p) {
+size_t hash_value(DefineNamedOwnPropertyParameters const& p) {
   return base::hash_combine(p.name_.object().location(),
                             FeedbackSource::Hash()(p.feedback()));
 }
 
-std::ostream& operator<<(std::ostream& os, StoreNamedOwnParameters const& p) {
+std::ostream& operator<<(std::ostream& os,
+                         DefineNamedOwnPropertyParameters const& p) {
   return os << Brief(*p.name_.object());
 }
 
-StoreNamedOwnParameters const& StoreNamedOwnParametersOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kJSStoreNamedOwn, op->opcode());
-  return OpParameter<StoreNamedOwnParameters>(op);
+DefineNamedOwnPropertyParameters const& DefineNamedOwnPropertyParametersOf(
+    const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSDefineNamedOwnProperty, op->opcode());
+  return OpParameter<DefineNamedOwnPropertyParameters>(op);
 }
 
 bool operator==(FeedbackParameter const& lhs, FeedbackParameter const& rhs) {
@@ -259,7 +261,7 @@ FeedbackParameter const& FeedbackParameterOf(const Operator* op) {
          JSOperator::IsBinaryWithFeedback(op->opcode()) ||
          op->opcode() == IrOpcode::kJSCreateEmptyLiteralArray ||
          op->opcode() == IrOpcode::kJSInstanceOf ||
-         op->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
+         op->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
          op->opcode() == IrOpcode::kJSStoreInArrayLiteral);
   return OpParameter<FeedbackParameter>(op);
 }
@@ -290,7 +292,7 @@ std::ostream& operator<<(std::ostream& os, NamedAccess const& p) {
 NamedAccess const& NamedAccessOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSLoadNamed ||
          op->opcode() == IrOpcode::kJSLoadNamedFromSuper ||
-         op->opcode() == IrOpcode::kJSStoreNamed);
+         op->opcode() == IrOpcode::kJSSetNamedProperty);
   return OpParameter<NamedAccess>(op);
 }
 
@@ -314,8 +316,8 @@ bool operator!=(PropertyAccess const& lhs, PropertyAccess const& rhs) {
 PropertyAccess const& PropertyAccessOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSHasProperty ||
          op->opcode() == IrOpcode::kJSLoadProperty ||
-         op->opcode() == IrOpcode::kJSStoreProperty ||
-         op->opcode() == IrOpcode::kJSDefineProperty);
+         op->opcode() == IrOpcode::kJSSetKeyedProperty ||
+         op->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);
   return OpParameter<PropertyAccess>(op);
 }
 
@@ -724,7 +726,7 @@ Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
     case wasm::kI32:
       return Type::Signed32();
     case wasm::kI64:
-      return Type::BigInt();
+      return Type::SignedBigInt64();
     case wasm::kF32:
     case wasm::kF64:
       return Type::Number();
@@ -754,8 +756,8 @@ Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
   V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)                  \
   V(ForInEnumerate, Operator::kNoProperties, 1, 1)                       \
   V(AsyncFunctionEnter, Operator::kNoProperties, 2, 1)                   \
-  V(AsyncFunctionReject, Operator::kNoDeopt | Operator::kNoThrow, 3, 1)  \
-  V(AsyncFunctionResolve, Operator::kNoDeopt | Operator::kNoThrow, 3, 1) \
+  V(AsyncFunctionReject, Operator::kNoDeopt | Operator::kNoThrow, 2, 1)  \
+  V(AsyncFunctionResolve, Operator::kNoDeopt | Operator::kNoThrow, 2, 1) \
   V(LoadMessage, Operator::kNoThrow | Operator::kNoWrite, 0, 1)          \
   V(StoreMessage, Operator::kNoRead | Operator::kNoThrow, 1, 0)          \
   V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1)              \
@@ -768,6 +770,7 @@ Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
   V(RejectPromise, Operator::kNoDeopt | Operator::kNoThrow, 3, 1)        \
   V(ResolvePromise, Operator::kNoDeopt | Operator::kNoThrow, 2, 1)       \
   V(GetSuperConstructor, Operator::kNoWrite | Operator::kNoThrow, 1, 1)  \
+  V(FindNonDefaultConstructorOrConstruct, Operator::kNoProperties, 2, 2) \
   V(ParseInt, Operator::kNoProperties, 2, 1)                             \
   V(RegExpTest, Operator::kNoProperties, 2, 1)
 
@@ -821,7 +824,7 @@ JS_UNOP_WITH_FEEDBACK(UNARY_OP)
 JS_BINOP_WITH_FEEDBACK(BINARY_OP)
 #undef BINARY_OP
 
-const Operator* JSOperatorBuilder::StoreDataPropertyInLiteral(
+const Operator* JSOperatorBuilder::DefineKeyedOwnPropertyInLiteral(
     const FeedbackSource& feedback) {
   static constexpr int kObject = 1;
   static constexpr int kName = 1;
@@ -832,11 +835,11 @@ const Operator* JSOperatorBuilder::StoreDataPropertyInLiteral(
       kObject + kName + kValue + kFlags + kFeedbackVector;
   FeedbackParameter parameters(feedback);
   return zone()->New<Operator1<FeedbackParameter>>(  // --
-      IrOpcode::kJSStoreDataPropertyInLiteral,
-      Operator::kNoThrow,              // opcode
-      "JSStoreDataPropertyInLiteral",  // name
-      kArity, 1, 1, 0, 1, 1,           // counts
-      parameters);                     // parameter
+      IrOpcode::kJSDefineKeyedOwnPropertyInLiteral,
+      Operator::kNoThrow,                   // opcode
+      "JSDefineKeyedOwnPropertyInLiteral",  // name
+      kArity, 1, 1, 0, 1, 1,                // counts
+      parameters);                          // parameter
 }
 
 const Operator* JSOperatorBuilder::StoreInArrayLiteral(
@@ -913,23 +916,21 @@ const Operator* JSOperatorBuilder::CallRuntime(Runtime::FunctionId id) {
   return CallRuntime(f, f->nargs);
 }
 
-
-const Operator* JSOperatorBuilder::CallRuntime(Runtime::FunctionId id,
-                                               size_t arity) {
+const Operator* JSOperatorBuilder::CallRuntime(
+    Runtime::FunctionId id, size_t arity, Operator::Properties properties) {
   const Runtime::Function* f = Runtime::FunctionForId(id);
-  return CallRuntime(f, arity);
+  return CallRuntime(f, arity, properties);
 }
 
-
-const Operator* JSOperatorBuilder::CallRuntime(const Runtime::Function* f,
-                                               size_t arity) {
+const Operator* JSOperatorBuilder::CallRuntime(
+    const Runtime::Function* f, size_t arity, Operator::Properties properties) {
   CallRuntimeParameters parameters(f->function_id, arity);
   DCHECK(f->nargs == -1 || f->nargs == static_cast<int>(parameters.arity()));
-  return zone()->New<Operator1<CallRuntimeParameters>>(   // --
-      IrOpcode::kJSCallRuntime, Operator::kNoProperties,  // opcode
-      "JSCallRuntime",                                    // name
-      parameters.arity(), 1, 1, f->result_size, 1, 2,     // inputs/outputs
-      parameters);                                        // parameter
+  return zone()->New<Operator1<CallRuntimeParameters>>(  // --
+      IrOpcode::kJSCallRuntime, properties,              // opcode
+      "JSCallRuntime",                                   // name
+      parameters.arity(), 1, 1, f->result_size, 1, 2,    // inputs/outputs
+      parameters);                                       // parameter
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1099,53 +1100,53 @@ int RestoreRegisterIndexOf(const Operator* op) {
   return OpParameter<int>(op);
 }
 
-const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
-                                              const NameRef& name,
-                                              FeedbackSource const& feedback) {
+const Operator* JSOperatorBuilder::SetNamedProperty(
+    LanguageMode language_mode, const NameRef& name,
+    FeedbackSource const& feedback) {
   static constexpr int kObject = 1;
   static constexpr int kValue = 1;
   static constexpr int kFeedbackVector = 1;
   static constexpr int kArity = kObject + kValue + kFeedbackVector;
   NamedAccess access(language_mode, name, feedback);
-  return zone()->New<Operator1<NamedAccess>>(            // --
-      IrOpcode::kJSStoreNamed, Operator::kNoProperties,  // opcode
-      "JSStoreNamed",                                    // name
-      kArity, 1, 1, 0, 1, 2,                             // counts
-      access);                                           // parameter
+  return zone()->New<Operator1<NamedAccess>>(                  // --
+      IrOpcode::kJSSetNamedProperty, Operator::kNoProperties,  // opcode
+      "JSSetNamedProperty",                                    // name
+      kArity, 1, 1, 0, 1, 2,                                   // counts
+      access);                                                 // parameter
 }
 
-const Operator* JSOperatorBuilder::StoreProperty(
+const Operator* JSOperatorBuilder::SetKeyedProperty(
     LanguageMode language_mode, FeedbackSource const& feedback) {
   PropertyAccess access(language_mode, feedback);
-  return zone()->New<Operator1<PropertyAccess>>(            // --
-      IrOpcode::kJSStoreProperty, Operator::kNoProperties,  // opcode
-      "JSStoreProperty",                                    // name
-      4, 1, 1, 0, 1, 2,                                     // counts
-      access);                                              // parameter
+  return zone()->New<Operator1<PropertyAccess>>(               // --
+      IrOpcode::kJSSetKeyedProperty, Operator::kNoProperties,  // opcode
+      "JSSetKeyedProperty",                                    // name
+      4, 1, 1, 0, 1, 2,                                        // counts
+      access);                                                 // parameter
 }
 
-const Operator* JSOperatorBuilder::DefineProperty(
+const Operator* JSOperatorBuilder::DefineKeyedOwnProperty(
     LanguageMode language_mode, FeedbackSource const& feedback) {
   PropertyAccess access(language_mode, feedback);
-  return zone()->New<Operator1<PropertyAccess>>(             // --
-      IrOpcode::kJSDefineProperty, Operator::kNoProperties,  // opcode
-      "JSDefineProperty",                                    // name
-      4, 1, 1, 0, 1, 2,                                      // counts
-      access);                                               // parameter
+  return zone()->New<Operator1<PropertyAccess>>(                     // --
+      IrOpcode::kJSDefineKeyedOwnProperty, Operator::kNoProperties,  // opcode
+      "JSDefineKeyedOwnProperty",                                    // name
+      4, 1, 1, 0, 1, 2,                                              // counts
+      access);  // parameter
 }
 
-const Operator* JSOperatorBuilder::StoreNamedOwn(
+const Operator* JSOperatorBuilder::DefineNamedOwnProperty(
     const NameRef& name, FeedbackSource const& feedback) {
   static constexpr int kObject = 1;
   static constexpr int kValue = 1;
   static constexpr int kFeedbackVector = 1;
   static constexpr int kArity = kObject + kValue + kFeedbackVector;
-  StoreNamedOwnParameters parameters(name, feedback);
-  return zone()->New<Operator1<StoreNamedOwnParameters>>(   // --
-      IrOpcode::kJSStoreNamedOwn, Operator::kNoProperties,  // opcode
-      "JSStoreNamedOwn",                                    // name
-      kArity, 1, 1, 0, 1, 2,                                // counts
-      parameters);                                          // parameter
+  DefineNamedOwnPropertyParameters parameters(name, feedback);
+  return zone()->New<Operator1<DefineNamedOwnPropertyParameters>>(   // --
+      IrOpcode::kJSDefineNamedOwnProperty, Operator::kNoProperties,  // opcode
+      "JSDefineNamedOwnProperty",                                    // name
+      kArity, 1, 1, 0, 1, 2,                                         // counts
+      parameters);  // parameter
 }
 
 const Operator* JSOperatorBuilder::DeleteProperty() {

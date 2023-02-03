@@ -38,6 +38,13 @@ transitioning javascript builtin ReflectSetPrototypeOf(
   const objectJSReceiver = Cast<JSReceiver>(object)
       otherwise ThrowTypeError(
       MessageTemplate::kCalledOnNonObject, 'Reflect.setPrototypeOf');
+
+  // Wasm objects do not support having prototypes.
+  @if(V8_ENABLE_WEBASSEMBLY)
+  if (Is<WasmObject>(objectJSReceiver)) {
+    ThrowTypeError(MessageTemplate::kWasmObjectsAreOpaque);
+  }
+
   typeswitch (proto) {
     case (proto: JSReceiver|Null): {
       return object::ObjectSetPrototypeOfDontThrow(objectJSReceiver, proto);

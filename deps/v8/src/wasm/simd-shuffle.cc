@@ -127,6 +127,15 @@ bool SimdShuffle::TryMatchBlend(const uint8_t* shuffle) {
   return true;
 }
 
+bool SimdShuffle::TryMatchByteToDwordZeroExtend(const uint8_t* shuffle) {
+  for (int i = 0; i < 16; ++i) {
+    if ((i % 4 != 0) && (shuffle[i] < 16)) return false;
+    if ((i % 4 == 0) && (shuffle[i] > 15 || (shuffle[i] != shuffle[0] + i / 4)))
+      return false;
+  }
+  return true;
+}
+
 uint8_t SimdShuffle::PackShuffle4(uint8_t* shuffle) {
   return (shuffle[0] & 3) | ((shuffle[1] & 3) << 2) | ((shuffle[2] & 3) << 4) |
          ((shuffle[3] & 3) << 6);

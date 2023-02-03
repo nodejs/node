@@ -1,6 +1,8 @@
 // Copyright 2014 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+//
+// Flags: --expose-gc
 
 var num = 5;
 var str = "str";
@@ -865,3 +867,33 @@ assertSame(templates[2], templates[3]);
 assertNotSame(templates[2], templates[4]);
 assertNotSame(templates[3], templates[5]);
 assertSame(templates[4], templates[5]);
+
+// Template objects should be kept alive even if only held weakly, and should
+// preserve values when used as weak keys.
+let weak_templates = new WeakMap();
+let weak_tagged_value_id = 0;
+function weakTag(callSite) {
+  if (weak_templates.has(callSite)) {
+    return weak_templates.get(callSite);
+  }
+  const value = {id: weak_tagged_value_id++};
+  weak_templates.set(callSite, value);
+  return value;
+}
+
+(function () {
+  function valueForTag1(x) {
+    return weakTag`Hello${x}world`;
+  }
+  function valueForTag2(x) {
+    return weakTag`Hello${x}world`;
+  }
+  let valueForTag1_1 = valueForTag1(1);
+  gc();
+  gc();
+  gc();
+  let valueForTag1_2 = valueForTag1(2);
+  let valueForTag2_0 = valueForTag2(0);
+  assertSame(valueForTag1_1, valueForTag1_2);
+  assertNotSame(valueForTag1_1, valueForTag2_0);
+})();

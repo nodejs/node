@@ -7,7 +7,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <vector>
+
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -18,13 +21,14 @@ class ProfileDataFromFile {
   // profiling data if the function has been changed.
   int hash() const { return hash_; }
 
-  // Returns how many times the block with the given ID was executed during
-  // profiling.
-  double GetCounter(size_t block_id) const {
-    // The profile data is allowed to omit blocks which were never hit, so be
-    // careful to avoid out-of-bounds access.
-    return block_id < block_counts_by_id_.size() ? block_counts_by_id_[block_id]
-                                                 : 0;
+  // Returns the hint for a pair of blocks with the given IDs.
+  BranchHint GetHint(size_t true_block_id, size_t false_block_id) const {
+    auto it =
+        block_hints_by_id.find(std::make_pair(true_block_id, false_block_id));
+    if (it != block_hints_by_id.end()) {
+      return it->second ? BranchHint::kTrue : BranchHint::kFalse;
+    }
+    return BranchHint::kNone;
   }
 
   // Load basic block profiling data for the builtin with the given name, if
@@ -35,10 +39,10 @@ class ProfileDataFromFile {
  protected:
   int hash_ = 0;
 
-  // How many times each block was executed, indexed by block ID. This vector
-  // may be shorter than the total number of blocks; any omitted block should be
-  // treated as a zero.
-  std::vector<double> block_counts_by_id_;
+  // Branch hints, indicated by true or false to reflect the hinted result of
+  // the branch condition. The vector is indexed by the basic block ids of
+  // the two destinations of the branch.
+  std::map<std::pair<size_t, size_t>, bool> block_hints_by_id;
 };
 
 // The following strings can't be static members of ProfileDataFromFile until
@@ -49,6 +53,10 @@ namespace ProfileDataFromFileConstants {
 // Any line in a v8.log beginning with this string represents a basic block
 // counter.
 static constexpr char kBlockCounterMarker[] = "block";
+
+// Any line in the profile beginning with this string represents a basic block
+// branch hint.
+static constexpr char kBlockHintMarker[] = "block_hint";
 
 // Any line in a v8.log beginning with this string represents the hash of the
 // function Graph for a builtin.

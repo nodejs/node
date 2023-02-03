@@ -51,7 +51,9 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   /* Already bound? */
   if (uv__stream_fd(handle) >= 0)
     return UV_EINVAL;
-
+  if (uv__is_closing(handle)) {
+    return UV_EINVAL;
+  }
   /* Make a copy of the file name, it outlives this function's scope. */
   pipe_fname = uv__strdup(name);
   if (pipe_fname == NULL)
@@ -91,7 +93,7 @@ err_socket:
 }
 
 
-int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
+int uv__pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
   if (uv__stream_fd(handle) == -1)
     return UV_EINVAL;
 
@@ -319,7 +321,7 @@ uv_handle_type uv_pipe_pending_type(uv_pipe_t* handle) {
   if (handle->accepted_fd == -1)
     return UV_UNKNOWN_HANDLE;
   else
-    return uv__handle_type(handle->accepted_fd);
+    return uv_guess_handle(handle->accepted_fd);
 }
 
 

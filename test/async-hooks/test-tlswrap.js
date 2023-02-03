@@ -25,7 +25,7 @@ tls.DEFAULT_MAX_VERSION = 'TLSv1.2';
 const server = tls
   .createServer({
     cert: fixtures.readKey('rsa_cert.crt'),
-    key: fixtures.readKey('rsa_private.pem')
+    key: fixtures.readKey('rsa_private.pem'),
   })
   .on('listening', common.mustCall(onlistening))
   .on('secureConnection', common.mustCall(onsecureConnection))

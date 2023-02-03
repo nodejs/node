@@ -6,6 +6,7 @@
 // container, like SwissNameDictionary. Taken almost in verbatim from Abseil,
 // comments in this file indicate what is taken from what Abseil file.
 
+#include <climits>
 #include <cstdint>
 #include <type_traits>
 
@@ -16,51 +17,50 @@
 #ifndef V8_OBJECTS_SWISS_HASH_TABLE_HELPERS_H_
 #define V8_OBJECTS_SWISS_HASH_TABLE_HELPERS_H_
 
-// The following #defines are taken from Abseil's have_sse.h (but renamed). They
-// are only defined within this file. However, we also take cross platform
-// snapshot creation into account, by only using SSE if the target supports it,
-// too. The SSE implementation uses a group width of 16, whereas the non-SSE
-// version uses 8. We therefore have to avoid building a snapshot that contains
-// Swiss Tables with one group size and use it in code that excepts a different
-// group size.
-#ifndef SWISS_TABLE_HAVE_SSE2
-#if (defined(__SSE2__) ||                                             \
-     (defined(_MSC_VER) &&                                            \
-      (defined(_M_X64) || (defined(_M_IX86) && _M_IX86_FP >= 2)))) && \
-    (defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64))
-#define SWISS_TABLE_HAVE_SSE2 1
+// The following #defines are taken from Abseil's have_sse.h (but renamed).
+#ifndef V8_SWISS_TABLE_HAVE_SSE2_HOST
+#if (defined(__SSE2__) ||  \
+     (defined(_MSC_VER) && \
+      (defined(_M_X64) || (defined(_M_IX86) && _M_IX86_FP >= 2))))
+#define V8_SWISS_TABLE_HAVE_SSE2_HOST 1
 #else
-#define SWISS_TABLE_HAVE_SSE2 0
-#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
-// TODO(v8:11388) Currently, building on a non-SSE platform for a SSE target
-// means that we cannot use the (more performant) SSE implementations of Swiss
-// Tables, even if the target would support it, just because the host doesn't.
-// This is due to the difference in group sizes (see comment at the beginning of
-// the file). We can solve this by implementating a new non-SSE Group that
-// behaves like GroupSse2Impl (and uses group size 16) in the future.
-#warning "You should avoid building on a non-SSE platform for a SSE target!"
-#endif
+#define V8_SWISS_TABLE_HAVE_SSE2_HOST 0
 #endif
 #endif
 
-#ifndef SWISS_TABLE_HAVE_SSSE3
-#if defined(__SSSE3__) && \
-    (defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64))
-#define SWISS_TABLE_HAVE_SSSE3 1
+#ifndef V8_SWISS_TABLE_HAVE_SSSE3_HOST
+#if defined(__SSSE3__)
+#define V8_SWISS_TABLE_HAVE_SSSE3_HOST 1
 #else
-#define SWISS_TABLE_HAVE_SSSE3 0
+#define V8_SWISS_TABLE_HAVE_SSSE3_HOST 0
 #endif
 #endif
 
-#if SWISS_TABLE_HAVE_SSSE3 && !SWISS_TABLE_HAVE_SSE2
+#if V8_SWISS_TABLE_HAVE_SSSE3_HOST && !V8_SWISS_TABLE_HAVE_SSE2_HOST
 #error "Bad configuration!"
 #endif
 
-#if SWISS_TABLE_HAVE_SSE2
+// Unlike Abseil, we cannot select SSE purely by host capabilities. When
+// creating a snapshot, the group width must be compatible. The SSE
+// implementation uses a group width of 16, whereas the non-SSE version uses 8.
+// Thus we select the group size based on target capabilities and, if the host
+// does not match, select a polyfill implementation. This means, in supported
+// cross-compiling configurations, we must be able to determine matching target
+// capabilities from the host.
+#ifndef V8_SWISS_TABLE_HAVE_SSE2_TARGET
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+// x64 always has SSE2, and ia32 without SSE2 is not supported by V8.
+#define V8_SWISS_TABLE_HAVE_SSE2_TARGET 1
+#else
+#define V8_SWISS_TABLE_HAVE_SSE2_TARGET 0
+#endif
+#endif
+
+#if V8_SWISS_TABLE_HAVE_SSE2_HOST
 #include <emmintrin.h>
 #endif
 
-#if SWISS_TABLE_HAVE_SSSE3
+#if V8_SWISS_TABLE_HAVE_SSSE3_HOST
 #include <tmmintrin.h>
 #endif
 
@@ -120,14 +120,14 @@ class ProbeSequence {
 //   for (int i : BitMask<uint64_t, 8, 3>(0x0000000080800000)) -> yields 2, 3
 template <class T, int SignificantBits, int Shift = 0>
 class BitMask {
-  STATIC_ASSERT(std::is_unsigned<T>::value);
-  STATIC_ASSERT(Shift == 0 || Shift == 3);
+  static_assert(std::is_unsigned<T>::value);
+  static_assert(Shift == 0 || Shift == 3);
 
  public:
   // These are useful for unit tests (gunit).
-  // using value_type = int;
-  // using iterator = BitMask;
-  // using const_iterator = BitMask;
+  using value_type = int;
+  using iterator = BitMask;
+  using const_iterator = BitMask;
 
   explicit BitMask(T mask) : mask_(mask) {}
   BitMask& operator++() {
@@ -218,23 +218,7 @@ inline static swiss_table::ctrl_t H2(uint32_t hash) {
   return hash & ((1 << kH2Bits) - 1);
 }
 
-#if SWISS_TABLE_HAVE_SSE2
-// https://github.com/abseil/abseil-cpp/issues/209
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87853
-// _mm_cmpgt_epi8 is broken under GCC with -funsigned-char
-// Work around this by using the portable implementation of Group
-// when using -funsigned-char under GCC.
-inline __m128i _mm_cmpgt_epi8_fixed(__m128i a, __m128i b) {
-#if defined(__GNUC__) && !defined(__clang__)
-  if (std::is_unsigned<char>::value) {
-    const __m128i mask = _mm_set1_epi8(0x80);
-    const __m128i diff = _mm_subs_epi8(b, a);
-    return _mm_cmpeq_epi8(_mm_and_si128(diff, mask), mask);
-  }
-#endif
-  return _mm_cmpgt_epi8(a, b);
-}
-
+#if V8_SWISS_TABLE_HAVE_SSE2_HOST
 struct GroupSse2Impl {
   static constexpr size_t kWidth = 16;  // the number of slots per group
 
@@ -251,7 +235,7 @@ struct GroupSse2Impl {
 
   // Returns a bitmask representing the positions of empty slots.
   BitMask<uint32_t, kWidth> MatchEmpty() const {
-#if SWISS_TABLE_HAVE_SSSE3
+#if V8_SWISS_TABLE_HAVE_SSSE3_HOST
     // This only works because kEmpty is -128.
     return BitMask<uint32_t, kWidth>(
         _mm_movemask_epi8(_mm_sign_epi8(ctrl, ctrl)));
@@ -260,36 +244,46 @@ struct GroupSse2Impl {
 #endif
   }
 
-  // Returns a bitmask representing the positions of empty or deleted slots.
-  BitMask<uint32_t, kWidth> MatchEmptyOrDeleted() const {
-    auto special = _mm_set1_epi8(kSentinel);
-    return BitMask<uint32_t, kWidth>(
-        _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl)));
-  }
-
-  // Returns the number of trailing empty or deleted elements in the group.
-  uint32_t CountLeadingEmptyOrDeleted() const {
-    auto special = _mm_set1_epi8(kSentinel);
-    return base::bits::CountTrailingZerosNonZero(
-        _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl)) + 1);
-  }
-
-  void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
-    auto msbs = _mm_set1_epi8(static_cast<char>(-128));
-    auto x126 = _mm_set1_epi8(126);
-#if SWISS_TABLE_HAVE_SSSE3
-    auto res = _mm_or_si128(_mm_shuffle_epi8(x126, ctrl), msbs);
-#else
-    auto zero = _mm_setzero_si128();
-    auto special_mask = _mm_cmpgt_epi8_fixed(zero, ctrl);
-    auto res = _mm_or_si128(msbs, _mm_andnot_si128(special_mask, x126));
-#endif
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(dst), res);
-  }
-
   __m128i ctrl;
 };
-#endif  // SWISS_TABLE_HAVE_SSE2
+#endif  // V8_SWISS_TABLE_HAVE_SSE2_HOST
+
+// A portable, inefficient version of GroupSse2Impl. This exists so SSE2-less
+// hosts can generate snapshots for SSE2-capable targets.
+struct GroupSse2Polyfill {
+  static constexpr size_t kWidth = 16;  // the number of slots per group
+
+  explicit GroupSse2Polyfill(const ctrl_t* pos) { memcpy(ctrl_, pos, kWidth); }
+
+  // Returns a bitmask representing the positions of slots that match |hash|.
+  BitMask<uint32_t, kWidth> Match(h2_t hash) const {
+    uint32_t mask = 0;
+    for (size_t i = 0; i < kWidth; i++) {
+      if (static_cast<h2_t>(ctrl_[i]) == hash) {
+        mask |= 1u << i;
+      }
+    }
+    return BitMask<uint32_t, kWidth>(mask);
+  }
+
+  // Returns a bitmask representing the positions of empty slots.
+  BitMask<uint32_t, kWidth> MatchEmpty() const {
+    return Match(static_cast<h2_t>(kEmpty));
+  }
+
+ private:
+  uint32_t MatchEmptyOrDeletedMask() const {
+    uint32_t mask = 0;
+    for (size_t i = 0; i < kWidth; i++) {
+      if (ctrl_[i] < kSentinel) {
+        mask |= 1u << i;
+      }
+    }
+    return mask;
+  }
+
+  ctrl_t ctrl_[kWidth];
+};
 
 struct GroupPortableImpl {
   static constexpr size_t kWidth = 8;  // the number of slots per group
@@ -325,26 +319,6 @@ struct GroupPortableImpl {
     return BitMask<uint64_t, kWidth, 3>((ctrl & (~ctrl << 6)) & kMsbs);
   }
 
-  // Returns a bitmask representing the positions of empty or deleted slots.
-  BitMask<uint64_t, kWidth, 3> MatchEmptyOrDeleted() const {
-    return BitMask<uint64_t, kWidth, 3>((ctrl & (~ctrl << 7)) & kMsbs);
-  }
-
-  // Returns the number of trailing empty or deleted elements in the group.
-  uint32_t CountLeadingEmptyOrDeleted() const {
-    constexpr uint64_t gaps = 0x00FEFEFEFEFEFEFEULL;
-    return (base::bits::CountTrailingZerosNonZero(
-                ((~ctrl & (ctrl >> 7)) | gaps) + 1) +
-            7) >>
-           3;
-  }
-
-  void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
-    auto x = ctrl & kMsbs;
-    auto res = (~x + (x >> 7)) & ~kLsbs;
-    base::WriteLittleEndianValue(reinterpret_cast<uint64_t*>(dst), res);
-  }
-
   uint64_t ctrl;
 };
 
@@ -365,16 +339,23 @@ struct GroupPortableImpl {
 // backend should only use SSE2 when compiling the SIMD version of
 // SwissNameDictionary into the builtin.
 using Group = GroupPortableImpl;
-#else
-#if SWISS_TABLE_HAVE_SSE2
+#elif V8_SWISS_TABLE_HAVE_SSE2_TARGET
+// Use a matching group size between host and target.
+#if V8_SWISS_TABLE_HAVE_SSE2_HOST
 using Group = GroupSse2Impl;
+#else
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+// If we do not detect SSE2 when building for the ia32/x64 target, the
+// V8_SWISS_TABLE_HAVE_SSE2_TARGET logic will incorrectly cause the final output
+// to use the inefficient polyfill implementation. Detect this case and warn if
+// it happens.
+#warning "Did not detect required SSE2 support on ia32/x64."
+#endif
+using Group = GroupSse2Polyfill;
+#endif
 #else
 using Group = GroupPortableImpl;
 #endif
-#endif
-
-#undef SWISS_TABLE_HAVE_SSE2
-#undef SWISS_TABLE_HAVE_SSE3
 
 }  // namespace swiss_table
 }  // namespace internal

@@ -73,7 +73,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce location of semicolons",
+            description: "Enforce location of semicolons",
             recommended: false,
             url: "https://eslint.org/docs/rules/semi-style"
         },

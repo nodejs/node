@@ -16,6 +16,7 @@
 #include "src/objects/option-utils.h"
 #include "unicode/locid.h"
 #include "unicode/numberformatter.h"
+#include "unicode/numberrangeformatter.h"
 #include "unicode/plurrule.h"
 #include "unicode/unumberformatter.h"
 
@@ -115,21 +116,19 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate, Handle<Map> map,
   Handle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
 
-  icu::number::LocalizedNumberFormatter icu_number_formatter =
-      icu::number::NumberFormatter::withLocale(r.icu_locale)
-          .roundingMode(UNUM_ROUND_HALFUP);
+  icu::Locale icu_locale = r.icu_locale;
+  icu::number::UnlocalizedNumberFormatter settings =
+      icu::number::UnlocalizedNumberFormatter().roundingMode(UNUM_ROUND_HALFUP);
 
   std::unique_ptr<icu::PluralRules> icu_plural_rules;
   bool success =
       CreateICUPluralRules(isolate, r.icu_locale, type, &icu_plural_rules);
   if (!success || icu_plural_rules.get() == nullptr) {
     // Remove extensions and try again.
-    icu::Locale no_extension_locale(r.icu_locale.getBaseName());
+    icu::Locale no_extension_locale(icu_locale.getBaseName());
     success = CreateICUPluralRules(isolate, no_extension_locale, type,
                                    &icu_plural_rules);
-    icu_number_formatter =
-        icu::number::NumberFormatter::withLocale(no_extension_locale)
-            .roundingMode(UNUM_ROUND_HALFUP);
+    icu_locale = no_extension_locale;
 
     if (!success || icu_plural_rules.get() == nullptr) {
       THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
@@ -142,8 +141,11 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate, Handle<Map> map,
       Intl::SetNumberFormatDigitOptions(isolate, options, 0, 3, false);
   MAYBE_RETURN(maybe_digit_options, MaybeHandle<JSPluralRules>());
   Intl::NumberFormatDigitOptions digit_options = maybe_digit_options.FromJust();
-  icu_number_formatter = JSNumberFormat::SetDigitOptionsToFormatter(
-      icu_number_formatter, digit_options);
+  settings = JSNumberFormat::SetDigitOptionsToFormatter(
+      settings, digit_options, 1, JSNumberFormat::ShowTrailingZeros::kShow);
+
+  icu::number::LocalizedNumberFormatter icu_number_formatter =
+      settings.locale(icu_locale);
 
   Handle<Managed<icu::PluralRules>> managed_plural_rules =
       Managed<icu::PluralRules>::FromUniquePtr(isolate, 0,
@@ -190,6 +192,31 @@ MaybeHandle<String> JSPluralRules::ResolvePlural(
 
   icu::UnicodeString result =
       icu_plural_rules->select(formatted_number, status);
+  DCHECK(U_SUCCESS(status));
+
+  return Intl::ToString(isolate, result);
+}
+
+MaybeHandle<String> JSPluralRules::ResolvePluralRange(
+    Isolate* isolate, Handle<JSPluralRules> plural_rules, double x, double y) {
+  icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules().raw();
+  DCHECK_NOT_NULL(icu_plural_rules);
+
+  Maybe<icu::number::LocalizedNumberRangeFormatter> maybe_range_formatter =
+      JSNumberFormat::GetRangeFormatter(
+          isolate, plural_rules->locale(),
+          *plural_rules->icu_number_formatter().raw());
+  MAYBE_RETURN(maybe_range_formatter, MaybeHandle<String>());
+
+  icu::number::LocalizedNumberRangeFormatter nrfmt =
+      maybe_range_formatter.FromJust();
+
+  UErrorCode status = U_ZERO_ERROR;
+  icu::number::FormattedNumberRange formatted = nrfmt.formatFormattableRange(
+      icu::Formattable(x), icu::Formattable(y), status);
+
+  DCHECK(U_SUCCESS(status));
+  icu::UnicodeString result = icu_plural_rules->select(formatted, status);
   DCHECK(U_SUCCESS(status));
 
   return Intl::ToString(isolate, result);

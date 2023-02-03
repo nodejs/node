@@ -5,8 +5,6 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
-# https://github.com/nodejs/node/issues/41123
-test-repl-sigint-nested-eval: PASS, FLAKY
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/24497
@@ -21,6 +19,11 @@ test-fs-rmdir-recursive: PASS, FLAKY
 test-domain-error-types: PASS,FLAKY
 
 [$system==macos]
+# https://github.com/nodejs/node/issues/42741
+test-http-server-headers-timeout-keepalive: PASS,FLAKY
+test-http-server-request-timeout-keepalive: PASS,FLAKY
+# https://github.com/nodejs/node/issues/43465
+test-http-server-request-timeouts-mixed: PASS,FLAKY
 
 [$arch==arm || $arch==arm64]
 # https://github.com/nodejs/node/pull/31178
@@ -28,14 +31,29 @@ test-crypto-dh-stateless: SKIP
 test-crypto-keygen: SKIP
 
 [$system==solaris] # Also applies to SmartOS
+# https://github.com/nodejs/node/issues/43446
+test-net-connect-reset-until-connected: PASS, FLAKY
+# https://github.com/nodejs/node/issues/43457
+test-domain-no-error-handler-abort-on-uncaught-0: PASS, FLAKY
+test-domain-no-error-handler-abort-on-uncaught-1: PASS,FLAKY
+test-domain-no-error-handler-abort-on-uncaught-2: PASS,FLAKY
+test-domain-no-error-handler-abort-on-uncaught-3: PASS,FLAKY
+test-domain-no-error-handler-abort-on-uncaught-4: PASS,FLAKY
+test-domain-no-error-handler-abort-on-uncaught-5: PASS, FLAKY
+test-domain-no-error-handler-abort-on-uncaught-6: PASS, FLAKY
+test-domain-no-error-handler-abort-on-uncaught-7: PASS, FLAKY
+test-domain-no-error-handler-abort-on-uncaught-8: PASS, FLAKY
+test-domain-no-error-handler-abort-on-uncaught-9: PASS, FLAKY
+test-domain-throw-error-then-throw-from-uncaught-exception-handler: PASS, FLAKY
+test-domain-with-abort-on-uncaught-exception: PASS, FLAKY
 
 [$system==freebsd]
 # https://github.com/nodejs/node/issues/31727
 test-fs-stat-bigint: PASS,FLAKY
 # https://github.com/nodejs/node/issues/31280
 test-worker-message-port-message-before-close: PASS,FLAKY
-
-[$system==aix]
+# https://github.com/nodejs/node/issues/43446
+test-net-connect-reset-until-connected: PASS, FLAKY
 
 [$system==ibmi]
 # https://github.com/nodejs/node/pull/30819
@@ -63,6 +81,7 @@ test-crypto-secure-heap: SKIP
 test-dgram-connect: PASS, FLAKY
 test-http-client-parse-error: PASS, FLAKY
 test-http-multi-line-headers: PASS, FLAKY
+test-http-pipeline-requests-connection-leak: PASS, FLAKY
 test-http-server-unconsume: PASS, FLAKY
 test-http-upgrade-advertise: PASS, FLAKY
 test-tls-client-mindhsize: PASS, FLAKY

@@ -72,7 +72,8 @@ void nghttp3_tnode_unschedule(nghttp3_tnode *tnode, nghttp3_pq *pq);
  * If |tnode| has already been scheduled, it is rescheduled by the
  * amount of |nwrite|.
  */
-int nghttp3_tnode_schedule(nghttp3_tnode *tnode, nghttp3_pq *pq, size_t nwrite);
+int nghttp3_tnode_schedule(nghttp3_tnode *tnode, nghttp3_pq *pq,
+                           uint64_t nwrite);
 
 /*
  * nghttp3_tnode_is_scheduled returns nonzero if |tnode| is scheduled.

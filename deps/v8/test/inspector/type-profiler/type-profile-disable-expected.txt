@@ -1,9 +1,0 @@
-Turn Profiler.startTypeProfile on and off.
-
-function g(/*Object*/a, /*Array*/b, /*null*/c) {
-  return 'bye';
-/*string*/};
-g({}, [], null);
-
-[
-]

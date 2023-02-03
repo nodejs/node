@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,7 +23,6 @@
 #include <openssl/objects.h>
 #include "internal/nelem.h"
 #include "crypto/dh.h"
-#include "e_os.h" /* strcasecmp */
 
 static DH *dh_param_init(OSSL_LIB_CTX *libctx, const DH_NAMED_GROUP *group)
 {
@@ -32,7 +31,7 @@ static DH *dh_param_init(OSSL_LIB_CTX *libctx, const DH_NAMED_GROUP *group)
     if (dh == NULL)
         return NULL;
 
-    ossl_ffc_named_group_set_pqg(&dh->params, group);
+    ossl_ffc_named_group_set(&dh->params, group);
     dh->params.nid = ossl_ffc_named_group_get_uid(group);
     dh->dirty_cnt++;
     return dh;
@@ -73,8 +72,9 @@ void ossl_dh_cache_named_group(DH *dh)
                                                     dh->params.g)) != NULL) {
         if (dh->params.q == NULL)
             dh->params.q = (BIGNUM *)ossl_ffc_named_group_get_q(group);
-        /* cache the nid */
+        /* cache the nid and default key length */
         dh->params.nid = ossl_ffc_named_group_get_uid(group);
+        dh->params.keylength = ossl_ffc_named_group_get_keylength(group);
         dh->dirty_cnt++;
     }
 }

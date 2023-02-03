@@ -10,11 +10,12 @@
 namespace node {
 
 class Environment;
+class IsolateData;
 class MemoryTracker;
 class ExternalReferenceRegistry;
+class Realm;
 
-v8::MaybeLocal<v8::Object> CreateEnvVarProxy(v8::Local<v8::Context> context,
-                                             v8::Isolate* isolate);
+void CreateEnvProxyTemplate(v8::Isolate* isolate, IsolateData* isolate_data);
 
 // Most of the time, it's best to use `console.error` to write
 // to the process.stderr stream.  However, in some cases, such as
@@ -41,7 +42,7 @@ v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
                                               const char* warning,
                                               const char* deprecation_code);
 
-v8::MaybeLocal<v8::Object> CreateProcessObject(Environment* env);
+v8::MaybeLocal<v8::Object> CreateProcessObject(Realm* env);
 void PatchProcessObject(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 namespace process {
@@ -49,6 +50,8 @@ class BindingData : public SnapshotableObject {
  public:
   void AddMethods();
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  using InternalFieldInfo = InternalFieldInfoBase;
 
   SERIALIZABLE_OBJECT_METHODS()
   static constexpr FastStringKey type_name{"node::process::BindingData"};

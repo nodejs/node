@@ -26,7 +26,7 @@ const BOOLEAN_BINARY_OPERATORS = [...COMPARISON_BINARY_OPERATORS, ...BOOLEAN_NUM
 exports.BOOLEAN_BINARY_OPERATORS = BOOLEAN_BINARY_OPERATORS;
 const NUMBER_BINARY_OPERATORS = ["-", "/", "%", "*", "**", "&", "|", ">>", ">>>", "<<", "^"];
 exports.NUMBER_BINARY_OPERATORS = NUMBER_BINARY_OPERATORS;
-const BINARY_OPERATORS = ["+", ...NUMBER_BINARY_OPERATORS, ...BOOLEAN_BINARY_OPERATORS];
+const BINARY_OPERATORS = ["+", ...NUMBER_BINARY_OPERATORS, ...BOOLEAN_BINARY_OPERATORS, "|>"];
 exports.BINARY_OPERATORS = BINARY_OPERATORS;
 const ASSIGNMENT_OPERATORS = ["=", "+=", ...NUMBER_BINARY_OPERATORS.map(op => op + "="), ...LOGICAL_OPERATORS.map(op => op + "=")];
 exports.ASSIGNMENT_OPERATORS = ASSIGNMENT_OPERATORS;
@@ -47,3 +47,5 @@ const BLOCK_SCOPED_SYMBOL = Symbol.for("var used to be block scoped");
 exports.BLOCK_SCOPED_SYMBOL = BLOCK_SCOPED_SYMBOL;
 const NOT_LOCAL_BINDING = Symbol.for("should not be considered a local binding");
 exports.NOT_LOCAL_BINDING = NOT_LOCAL_BINDING;
+
+//# sourceMappingURL=index.js.map

@@ -232,13 +232,13 @@ There are some other files that touch the build chain. Changes in the following
 files also qualify as affecting the `node` binary:
 
 * `tools/*.py`
-* `tools/build-addons.js`
+* `tools/build-addons.mjs`
 * `*.gyp`
 * `*.gypi`
 * `configure`
 * `configure.py`
 * `Makefile`
-* `vcbuilt.bat`
+* `vcbuild.bat`
 
 </details>
 
@@ -252,6 +252,10 @@ try "Resume Build". It is in the left navigation of the relevant
 current job but re-run everything else. Start a fresh CI if more than seven days
 have elapsed since the original failing CI as the compiled binaries for the
 Windows and ARM platforms are only kept for seven days.
+
+If new commits are pushed to the pull request branch after the latest Jenkins
+CI run, a fresh CI run is required. It can be started by pressing "Retry" on
+the left sidebar, or by adding the `request-ci` label to the pull request.
 
 #### Useful Jenkins CI jobs
 
@@ -287,11 +291,11 @@ in the form:
 
 * `GIT_REMOTE_REF`: Change to the remote portion of git refspec.
   To specify the branch this way, `refs/heads/BRANCH` is used
-  (e.g. for `master` -> `refs/heads/master`).
+  (e.g. for `main` -> `refs/heads/main`).
   For pull requests, it will look like `refs/pull/PR_NUMBER/head`
   (e.g. for pull request #42 -> `refs/pull/42/head`).
-* `REBASE_ONTO`: Change that to `origin/master` so the pull request gets rebased
-  onto master. This can especially be important for pull requests that have been
+* `REBASE_ONTO`: Change that to `origin/main` so the pull request gets rebased
+  onto `main`. This can especially be important for pull requests that have been
   open a while.
 
 Look at the list of jobs on the left hand side under "Build History" and copy
@@ -337,7 +341,7 @@ For undocumented APIs that are public, open a pull request documenting the API.
 ### Breaking changes
 
 At least two TSC members must approve backward-incompatible changes to the
-master branch.
+`main` branch.
 
 Examples of breaking changes include:
 
@@ -373,7 +377,7 @@ providing a Public API in such cases.
 #### Unintended breaking changes
 
 Sometimes, a change intended to be non-breaking turns out to be a breaking
-change. If such a change lands on the master branch, a collaborator can revert
+change. If such a change lands on the `main` branch, a collaborator can revert
 it. As an alternative to reverting, the TSC can apply the semver-major label
 after-the-fact.
 
@@ -388,13 +392,21 @@ metadata. Raise a pull request like any other change.
 
 Treat commits that introduce new core modules with extra care.
 
-Check if the module's name conflicts with an existing ecosystem module. If it
-does, choose a different name unless the module owner has agreed in writing to
-transfer it.
+New modules must only be added with the `node:` prefix.
 
-If the new module name is free, register a placeholder in the module registry as
-soon as possible. Link to the pull request that introduces the new core module
-in the placeholder's `README`.
+When adding promises to an existing API, add `/promises`
+(`inspector/promises`, etc.). Apply the `semver-major` label to the addition.
+
+If the new module name is free in npm, register
+a placeholder in the module registry as soon as possible. Link to the pull
+request that introduces the new core module in the placeholder's `README`.
+
+If the module name is not free and the module is
+not widely used, contact the owner to see if they would be willing to transfer
+it to the project.
+
+We register a placeholder without the `node:` prefix whenever
+possible to avoid confusion and typosquatting attacks.
 
 For pull requests introducing new core modules:
 
@@ -432,7 +444,7 @@ documentation must state the deprecation status.
   * Backward-incompatible changes including complete removal of such APIs can
     occur at any time.
 
-Apply the `notable change` label to all pull requests that introduce
+Apply the `notable-change` label to all pull requests that introduce
 Documentation-Only Deprecations. Such deprecations have no impact on code
 execution. Thus, they are not breaking changes (`semver-major`).
 
@@ -462,7 +474,7 @@ duration.
 
 Communicate pending deprecations and associated mitigations with the ecosystem
 as soon as possible. If possible, do it before the pull request adding the
-deprecation lands on the master branch.
+deprecation lands on the `main` branch.
 
 Use the `notable-change` label on pull requests that add or change the
 deprecation level of an API.
@@ -554,7 +566,7 @@ $ git rebase --abort
 Checkout proper target branch:
 
 ```text
-$ git checkout master
+$ git checkout main
 ```
 
 Update the tree (assumes your repository is set up as detailed in
@@ -562,7 +574,7 @@ Update the tree (assumes your repository is set up as detailed in
 
 ```text
 $ git fetch upstream
-$ git merge --ff-only upstream/master
+$ git merge --ff-only upstream/main
 ```
 
 Apply external patches:
@@ -588,19 +600,19 @@ has landed since the CI run. You will have to ask the author to rebase.
 Check and re-review the changes:
 
 ```text
-$ git diff upstream/master
+$ git diff upstream/main
 ```
 
 Check the number of commits and commit messages:
 
 ```text
-$ git log upstream/master...master
+$ git log upstream/main...main
 ```
 
 Squash commits and add metadata:
 
 ```text
-$ git rebase -i upstream/master
+$ git rebase -i upstream/main
 ```
 
 This will open a screen like this (in the default shell editor):
@@ -670,19 +682,19 @@ for that commit. This is an opportunity to fix commit messages.
       pull request.
     * Protects against the assumption that GitHub will be around forever.
 
-Other changes might have landed on master since the successful CI run. As a
+Other changes might have landed on `main` since the successful CI run. As a
 precaution, run tests (`make -j4 test` or `vcbuild test`).
 
 Confirm that the commit message format is correct using
 [core-validate-commit](https://github.com/nodejs/core-validate-commit).
 
 ```text
-$ git rev-list upstream/master...HEAD | xargs core-validate-commit
+$ git rev-list upstream/main...HEAD | xargs core-validate-commit
 ```
 
 Optional: For your own commits, force push the amended commit to the pull
 request branch. If your branch name is `bugfix`, then:
-`git push --force-with-lease origin master:bugfix`. Don't close the pull
+`git push --force-with-lease origin main:bugfix`. Don't close the pull
 request. It will close after you push it upstream. It will have the purple
 merged status rather than the red closed status. If you close the pull request
 before GitHub adjusts its status, it will show up as a 0 commit pull
@@ -693,7 +705,7 @@ the issue with the red closed status.
 Time to push it:
 
 ```text
-$ git push upstream master
+$ git push upstream main
 ```
 
 Close the pull request with a "Landed in `<commit hash>`" comment. Even if
@@ -705,12 +717,12 @@ more than one commit.
 
 ### Troubleshooting
 
-Sometimes, when running `git push upstream master`, you might get an error
+Sometimes, when running `git push upstream main`, you might get an error
 message like this:
 
 ```console
 To https://github.com/nodejs/node
- ! [rejected]              master -> master (fetch first)
+ ! [rejected]              main -> main (fetch first)
 error: failed to push some refs to 'https://github.com/nodejs/node'
 hint: Updates were rejected because the tip of your current branch is behind
 hint: its remote counterpart. Integrate the remote changes (e.g.
@@ -718,14 +730,14 @@ hint: 'git pull ...') before pushing again.
 hint: See the 'Note about fast-forwards' in 'git push --help' for details.
 ```
 
-That means a commit has landed since your last rebase against `upstream/master`.
+That means a commit has landed since your last rebase against `upstream/main`.
 To fix this, pull with rebase from upstream, run the tests again, and (if the
 tests pass) push again:
 
 ```bash
-git pull upstream master --rebase
+git pull upstream main --rebase
 make -j4 test
-git push upstream master
+git push upstream main
 ```
 
 ### I made a mistake
@@ -755,7 +767,7 @@ the branch.
 Each LTS release has a corresponding branch (v10.x, v8.x, etc.). Each also has a
 corresponding staging branch (v10.x-staging, v8.x-staging, etc.).
 
-Commits that land on master are cherry-picked to each staging branch as
+Commits that land on `main` are cherry-picked to each staging branch as
 appropriate. If a change applies only to the LTS branch, open the pull request
 against the _staging_ branch. Commits from the staging branch land on the LTS
 branch only when a release is being prepared. They might land on the LTS branch
@@ -790,46 +802,46 @@ might impact an LTS release.
 
 ## Who to CC in the issue tracker
 
-| Subsystem                                                                  | Maintainers                                                           |
-| -------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `benchmark/*`                                                              | @nodejs/benchmarking, @mscdex                                         |
-| `doc/*`, `*.md`                                                            | @nodejs/documentation                                                 |
-| `lib/assert`                                                               | @nodejs/assert                                                        |
-| `lib/async_hooks`                                                          | @nodejs/async\_hooks for bugs/reviews (+ @nodejs/diagnostics for API) |
-| `lib/buffer`                                                               | @nodejs/buffer                                                        |
-| `lib/child_process`                                                        | @nodejs/child\_process                                                |
-| `lib/cluster`                                                              | @nodejs/cluster                                                       |
-| `lib/{crypto,tls,https}`                                                   | @nodejs/crypto                                                        |
-| `lib/dgram`                                                                | @nodejs/dgram                                                         |
-| `lib/domains`                                                              | @nodejs/domains                                                       |
-| `lib/fs`, `src/{fs,file}`                                                  | @nodejs/fs                                                            |
-| `lib/{_}http{*}`                                                           | @nodejs/http                                                          |
-| `lib/inspector.js`, `src/inspector_*`                                      | @nodejs/v8-inspector                                                  |
-| `lib/internal/bootstrap/*`                                                 | @nodejs/process                                                       |
-| `lib/internal/url`, `src/node_url`                                         | @nodejs/url                                                           |
-| `lib/net`                                                                  | @bnoordhuis, @indutny, @nodejs/streams                                |
-| `lib/repl`                                                                 | @nodejs/repl                                                          |
-| `lib/{_}stream{*}`                                                         | @nodejs/streams                                                       |
-| `lib/timers`                                                               | @nodejs/timers                                                        |
-| `lib/util`                                                                 | @nodejs/util                                                          |
-| `lib/zlib`                                                                 | @nodejs/zlib                                                          |
-| `src/async_wrap.*`                                                         | @nodejs/async\_hooks                                                  |
-| `src/node_api.*`                                                           | @nodejs/node-api                                                      |
-| `src/node_crypto.*`                                                        | @nodejs/crypto                                                        |
-| `test/*`                                                                   | @nodejs/testing                                                       |
-| `tools/node_modules/eslint`, `.eslintrc`                                   | @nodejs/linting                                                       |
-| build                                                                      | @nodejs/build                                                         |
-| `src/module_wrap.*`, `lib/internal/modules/*`, `lib/internal/vm/module.js` | @nodejs/modules                                                       |
-| GYP                                                                        | @nodejs/gyp                                                           |
-| performance                                                                | @nodejs/performance                                                   |
-| platform specific                                                          | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows}     |
-| python code                                                                | @nodejs/python                                                        |
-| upgrading c-ares                                                           | @rvagg                                                                |
-| upgrading http-parser                                                      | @nodejs/http, @nodejs/http2                                           |
-| upgrading libuv                                                            | @nodejs/libuv                                                         |
-| upgrading npm                                                              | @nodejs/npm                                                           |
-| upgrading V8                                                               | @nodejs/V8, @nodejs/post-mortem                                       |
-| Embedded use or delivery of Node.js                                        | @nodejs/delivery-channels                                             |
+| Subsystem                                                                  | Maintainers                                                                   |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `benchmark/*`                                                              | @nodejs/benchmarking, @mscdex                                                 |
+| `doc/*`, `*.md`                                                            | @nodejs/documentation                                                         |
+| `lib/assert`                                                               | @nodejs/assert                                                                |
+| `lib/async_hooks`                                                          | @nodejs/async\_hooks for bugs/reviews (+ @nodejs/diagnostics for API)         |
+| `lib/buffer`                                                               | @nodejs/buffer                                                                |
+| `lib/child_process`                                                        | @nodejs/child\_process                                                        |
+| `lib/cluster`                                                              | @nodejs/cluster                                                               |
+| `lib/{crypto,tls,https}`                                                   | @nodejs/crypto                                                                |
+| `lib/dgram`                                                                | @nodejs/dgram                                                                 |
+| `lib/domains`                                                              | @nodejs/domains                                                               |
+| `lib/fs`, `src/{fs,file}`                                                  | @nodejs/fs                                                                    |
+| `lib/{_}http{*}`                                                           | @nodejs/http                                                                  |
+| `lib/inspector.js`, `src/inspector_*`                                      | @nodejs/v8-inspector                                                          |
+| `lib/internal/bootstrap/*`                                                 | @nodejs/process                                                               |
+| `lib/internal/url`, `src/node_url`                                         | @nodejs/url                                                                   |
+| `lib/net`                                                                  | @bnoordhuis, @indutny, @nodejs/streams                                        |
+| `lib/repl`                                                                 | @nodejs/repl                                                                  |
+| `lib/{_}stream{*}`                                                         | @nodejs/streams                                                               |
+| `lib/timers`                                                               | @nodejs/timers                                                                |
+| `lib/util`                                                                 | @nodejs/util                                                                  |
+| `lib/zlib`                                                                 | @nodejs/zlib                                                                  |
+| `src/async_wrap.*`                                                         | @nodejs/async\_hooks                                                          |
+| `src/node_api.*`                                                           | @nodejs/node-api                                                              |
+| `src/node_crypto.*`, `src/crypto`                                          | @nodejs/crypto                                                                |
+| `test/*`                                                                   | @nodejs/testing                                                               |
+| `tools/node_modules/eslint`, `.eslintrc`                                   | @nodejs/linting                                                               |
+| build                                                                      | @nodejs/build                                                                 |
+| `src/module_wrap.*`, `lib/internal/modules/*`, `lib/internal/vm/module.js` | @nodejs/modules                                                               |
+| GYP                                                                        | @nodejs/gyp                                                                   |
+| performance                                                                | @nodejs/performance                                                           |
+| platform specific                                                          | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows,windows-arm} |
+| python code                                                                | @nodejs/python                                                                |
+| upgrading c-ares                                                           | @rvagg                                                                        |
+| upgrading http-parser                                                      | @nodejs/http, @nodejs/http2                                                   |
+| upgrading libuv                                                            | @nodejs/libuv                                                                 |
+| upgrading npm                                                              | @nodejs/npm                                                                   |
+| upgrading V8                                                               | @nodejs/V8, @nodejs/post-mortem                                               |
+| Embedded use or delivery of Node.js                                        | @nodejs/delivery-channels                                                     |
 
 When things need extra attention, are controversial, or `semver-major`:
 @nodejs/tsc
@@ -901,7 +913,7 @@ We use labels to keep track of which branches a commit should land on:
   * (for example semver-minor changes that need or should go into an LTS
     release)
 * `v?.x`
-  * Automatically applied to changes that do not target `master` but rather the
+  * Automatically applied to changes that do not target `main` but rather the
     `v?.x-staging` branch
 
 Once a release line enters maintenance mode, the corresponding labels do not

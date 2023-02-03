@@ -41,7 +41,8 @@ function test(size, err, next) {
     const client = tls.connect({
       minDHSize: 2048,
       port: this.address().port,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
+      maxVersion: 'TLSv1.2',
     }, function() {
       nsuccess++;
       server.close();

@@ -258,7 +258,7 @@ class U_COMMON_API ICU_Utility /* not : public UObject because all methods are s
 
 private:
     // do not instantiate
-    ICU_Utility();
+    ICU_Utility() = delete;
 };
 
 U_NAMESPACE_END

@@ -21,7 +21,7 @@ const request = Buffer.from(
   'Content-Type: text/plain\r\n' +
   'Content-Length: 4\r\n' +
   '\r\n' +
-  'pong'
+  'pong',
 );
 
 const parser = new HTTPParser();

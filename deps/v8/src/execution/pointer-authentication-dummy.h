@@ -16,9 +16,8 @@ namespace internal {
 // when CFI is not enabled.
 
 // Load return address from {pc_address} and return it.
-V8_INLINE Address PointerAuthentication::AuthenticatePC(
-    Address* pc_address, unsigned offset_from_sp) {
-  USE(offset_from_sp);
+V8_INLINE Address PointerAuthentication::AuthenticatePC(Address* pc_address,
+                                                        unsigned) {
   return *pc_address;
 }
 
@@ -27,16 +26,13 @@ V8_INLINE Address PointerAuthentication::StripPAC(Address pc) { return pc; }
 
 // Store {new_pc} to {pc_address} without signing.
 V8_INLINE void PointerAuthentication::ReplacePC(Address* pc_address,
-                                                Address new_pc,
-                                                int offset_from_sp) {
-  USE(offset_from_sp);
+                                                Address new_pc, int) {
   *pc_address = new_pc;
 }
 
 // Return {pc} unmodified.
-V8_INLINE Address PointerAuthentication::SignAndCheckPC(Address pc,
-                                                        Address sp) {
-  USE(sp);
+V8_INLINE Address PointerAuthentication::SignAndCheckPC(Isolate*, Address pc,
+                                                        Address) {
   return pc;
 }
 

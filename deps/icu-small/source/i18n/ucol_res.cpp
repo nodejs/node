@@ -62,7 +62,7 @@ namespace {
 static const UChar *rootRules = NULL;
 static int32_t rootRulesLength = 0;
 static UResourceBundle *rootBundle = NULL;
-static UInitOnce gInitOnceUcolRes = U_INITONCE_INITIALIZER;
+static UInitOnce gInitOnceUcolRes {};
 
 }  // namespace
 
@@ -75,7 +75,7 @@ ucol_res_cleanup() {
     ures_close(rootBundle);
     rootBundle = NULL;
     gInitOnceUcolRes.reset();
-    return TRUE;
+    return true;
 }
 
 void U_CALLCONV
@@ -168,7 +168,7 @@ CollationLoader::CollationLoader(const CollationCacheEntry *re, const Locale &re
                                  UErrorCode &errorCode)
         : cache(UnifiedCache::getInstance(errorCode)), rootEntry(re),
           validLocale(re->validLocale), locale(requested),
-          typesTried(0), typeFallback(FALSE),
+          typesTried(0), typeFallback(false),
           bundle(NULL), collations(NULL), data(NULL) {
     type[0] = 0;
     defaultType[0] = 0;
@@ -321,7 +321,7 @@ CollationLoader::loadFromCollations(UErrorCode &errorCode) {
     int32_t typeLength = static_cast<int32_t>(uprv_strlen(type));
     if(errorCode == U_MISSING_RESOURCE_ERROR) {
         errorCode = U_USING_DEFAULT_WARNING;
-        typeFallback = TRUE;
+        typeFallback = true;
         if((typesTried & TRIED_SEARCH) == 0 &&
                 typeLength > 6 && uprv_strncmp(type, "search", 6) == 0) {
             // fall back from something like "searchjl" to "search"
@@ -404,7 +404,7 @@ CollationLoader::loadFromData(UErrorCode &errorCode) {
         const UChar *s = ures_getStringByKey(data, "Sequence", &len,
                                              &internalErrorCode);
         if(U_SUCCESS(internalErrorCode)) {
-            t->rules.setTo(TRUE, s, len);
+            t->rules.setTo(true, s, len);
         }
     }
 
@@ -619,7 +619,7 @@ namespace {
 struct KeywordsSink : public ResourceSink {
 public:
     KeywordsSink(UErrorCode &errorCode) :
-            values(ulist_createEmptyList(&errorCode)), hasDefault(FALSE) {}
+            values(ulist_createEmptyList(&errorCode)), hasDefault(false) {}
     virtual ~KeywordsSink();
 
     virtual void put(const char *key, ResourceValue &value, UBool /*noFallback*/,
@@ -639,13 +639,13 @@ public:
                             return;
                         }
                         ulist_removeString(values, defcoll.data());
-                        ulist_addItemBeginList(values, ownedDefault, TRUE, &errorCode);
-                        hasDefault = TRUE;
+                        ulist_addItemBeginList(values, ownedDefault, true, &errorCode);
+                        hasDefault = true;
                     }
                 }
             } else if (type == URES_TABLE && uprv_strncmp(key, "private-", 8) != 0) {
                 if (!ulist_containsString(values, key, (int32_t)uprv_strlen(key))) {
-                    ulist_addItemEndList(values, key, FALSE, &errorCode);
+                    ulist_addItemEndList(values, key, false, &errorCode);
                 }
             }
             if (U_FAILURE(errorCode)) { return; }
@@ -695,7 +695,7 @@ ucol_getFunctionalEquivalent(char* result, int32_t resultCapacity,
     // N.B.: Resource name is "collations" but keyword is "collation"
     return ures_getFunctionalEquivalent(result, resultCapacity, U_ICUDATA_COLL,
         "collations", keyword, locale,
-        isAvailable, TRUE, status);
+        isAvailable, true, status);
 }
 
 #endif /* #if !UCONFIG_NO_COLLATION */

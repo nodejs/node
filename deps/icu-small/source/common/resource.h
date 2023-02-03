@@ -286,8 +286,8 @@ public:
                      UErrorCode &errorCode) = 0;
 
 private:
-    ResourceSink(const ResourceSink &);  // no copy constructor
-    ResourceSink &operator=(const ResourceSink &);  // no assignment operator
+    ResourceSink(const ResourceSink &) = delete;  // no copy constructor
+    ResourceSink &operator=(const ResourceSink &) = delete;  // no assignment operator
 };
 
 U_NAMESPACE_END

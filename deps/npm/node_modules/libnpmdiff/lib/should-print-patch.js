@@ -14,7 +14,7 @@ const shouldPrintPatch = (path, opts = {}) => {
     filename.startsWith('.')
       ? filename
       : extname(filename)
-  ).substr(1)
+  ).slice(1)
 
   return !binaryExtensions.includes(extension)
 }

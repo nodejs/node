@@ -19,9 +19,12 @@ const browserNameMap = {
   ie_mob: "ie",
   ios_saf: "ios",
   node: "node",
+  deno: "deno",
   op_mob: "opera",
   opera: "opera",
   safari: "safari",
   samsung: "samsung"
 };
 exports.browserNameMap = browserNameMap;
+
+//# sourceMappingURL=targets.js.map

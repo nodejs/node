@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/init/setup-isolate.h"
-
 #include "src/base/logging.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
-#include "src/interpreter/interpreter.h"
+#include "src/init/setup-isolate.h"
 
 namespace v8 {
 namespace internal {

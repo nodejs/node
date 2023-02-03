@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 // This test ensures that assert.CallTracker.calls() works as intended.
@@ -77,4 +77,52 @@ assert.throws(
   const callsNoop = tracker.calls(undefined, 1);
   callsNoop();
   tracker.verify();
+}
+
+{
+  function func() {}
+  const tracker = new assert.CallTracker();
+  const callsfunc = tracker.calls(func);
+  assert.strictEqual(callsfunc.length, 0);
+}
+
+{
+  function func(a, b, c = 2) {}
+  const tracker = new assert.CallTracker();
+  const callsfunc = tracker.calls(func);
+  assert.strictEqual(callsfunc.length, 2);
+}
+
+{
+  function func(a, b, c = 2) {}
+  delete func.length;
+  const tracker = new assert.CallTracker();
+  const callsfunc = tracker.calls(func);
+  assert.strictEqual(Object.hasOwn(callsfunc, 'length'), false);
+}
+
+{
+  const ArrayIteratorPrototype = Reflect.getPrototypeOf(
+    Array.prototype.values()
+  );
+  const { next } = ArrayIteratorPrototype;
+  ArrayIteratorPrototype.next = common.mustNotCall(
+    '%ArrayIteratorPrototype%.next'
+  );
+  Object.prototype.get = common.mustNotCall('%Object.prototype%.get');
+
+  const customPropertyValue = Symbol();
+  function func(a, b, c = 2) {
+    return a + b + c;
+  }
+  func.customProperty = customPropertyValue;
+  Object.defineProperty(func, 'length', { get: common.mustNotCall() });
+  const tracker = new assert.CallTracker();
+  const callsfunc = tracker.calls(func);
+  assert.strictEqual(Object.hasOwn(callsfunc, 'length'), true);
+  assert.strictEqual(callsfunc.customProperty, customPropertyValue);
+  assert.strictEqual(callsfunc(1, 2, 3), 6);
+
+  ArrayIteratorPrototype.next = next;
+  delete Object.prototype.get;
 }

@@ -7,6 +7,7 @@
 
 #include "cppgc/heap.h"
 #include "cppgc/member.h"
+#include "cppgc/sentinel-pointer.h"
 #include "cppgc/trace-trait.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
@@ -44,24 +45,24 @@ class V8_EXPORT LivenessBroker final {
  public:
   template <typename T>
   bool IsHeapObjectAlive(const T* object) const {
-    // nullptr objects are considered alive to allow weakness to be used from
+    // - nullptr objects are considered alive to allow weakness to be used from
     // stack while running into a conservative GC. Treating nullptr as dead
-    // would mean that e.g. custom collectins could not be strongified on stack.
-    return !object ||
+    // would mean that e.g. custom collections could not be strongified on
+    // stack.
+    // - Sentinel pointers are also preserved in weakness and not cleared.
+    return !object || object == kSentinelPointer ||
            IsHeapObjectAliveImpl(
                TraceTrait<T>::GetTraceDescriptor(object).base_object_payload);
   }
 
   template <typename T>
   bool IsHeapObjectAlive(const WeakMember<T>& weak_member) const {
-    return (weak_member != kSentinelPointer) &&
-           IsHeapObjectAlive<T>(weak_member.Get());
+    return IsHeapObjectAlive<T>(weak_member.Get());
   }
 
   template <typename T>
   bool IsHeapObjectAlive(const UntracedMember<T>& untraced_member) const {
-    return (untraced_member != kSentinelPointer) &&
-           IsHeapObjectAlive<T>(untraced_member.Get());
+    return IsHeapObjectAlive<T>(untraced_member.Get());
   }
 
  private:

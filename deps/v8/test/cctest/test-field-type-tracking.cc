@@ -8,10 +8,7 @@
 
 #include "src/base/logging.h"
 #include "src/execution/execution.h"
-#include "src/handles/global-handles.h"
 #include "src/heap/factory-inl.h"
-#include "src/ic/stub-cache.h"
-#include "src/init/v8.h"
 #include "src/objects/field-type.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/internal-index.h"
@@ -22,7 +19,7 @@
 #include "src/objects/struct-inl.h"
 #include "src/objects/transitions.h"
 #include "src/utils/ostreams.h"
-#include "test/cctest/test-api.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -66,12 +63,11 @@ static Handle<AccessorPair> CreateAccessorPair(bool with_getter,
 
 // Check cached migration target map after Map::Update() and Map::TryUpdate()
 static void CheckMigrationTarget(Isolate* isolate, Map old_map, Map new_map) {
-  Map target = TransitionsAccessor(isolate, handle(old_map, isolate))
-                   .GetMigrationTarget();
+  Map target = TransitionsAccessor(isolate, old_map).GetMigrationTarget();
   if (target.is_null()) return;
   CHECK_EQ(new_map, target);
   CHECK_EQ(MapUpdater::TryUpdateNoLock(isolate, old_map,
-                                       ConcurrencyMode::kNotConcurrent),
+                                       ConcurrencyMode::kSynchronous),
            target);
 }
 
@@ -391,10 +387,10 @@ class Expectations {
                  heap_type);
 
     Handle<String> name = CcTest::MakeName("prop", property_index);
-    Map target = TransitionsAccessor(isolate_, map)
-                     .SearchTransition(*name, PropertyKind::kData, attributes);
+    MaybeHandle<Map> target = TransitionsAccessor::SearchTransition(
+        isolate_, map, *name, PropertyKind::kData, attributes);
     CHECK(!target.is_null());
-    return handle(target, isolate_);
+    return target.ToHandleChecked();
   }
 
   Handle<Map> AddAccessorConstant(Handle<Map> map,
@@ -779,7 +775,7 @@ void TestGeneralizeField(const CRFTData& from, const CRFTData& to,
                          ChangeAlertMechanism expected_alert) {
   // Check the cases when the map being reconfigured is a part of the
   // transition tree.
-  STATIC_ASSERT(kPropCount > 4);
+  static_assert(kPropCount > 4);
   int indices[] = {0, 2, kPropCount - 1};
   for (int i = 0; i < static_cast<int>(arraysize(indices)); i++) {
     TestGeneralizeField(-1, indices[i], from, to, expected, expected_alert);
@@ -1752,9 +1748,8 @@ static void TestReconfigureElementsKind_GeneralizeFieldInPlace(
   Expectations expectations(isolate, PACKED_SMI_ELEMENTS);
 
   // Create a map, add required properties to it and initialize expectations.
-  Handle<Map> initial_map = Map::Create(isolate, 0);
-  initial_map->set_instance_type(JS_ARRAY_TYPE);
-  initial_map->set_elements_kind(PACKED_SMI_ELEMENTS);
+  Handle<Map> initial_map = isolate->factory()->NewMap(
+      JS_ARRAY_TYPE, JSArray::kHeaderSize, PACKED_SMI_ELEMENTS);
 
   Handle<Map> map = initial_map;
   map = expectations.AsElementsKind(map, PACKED_ELEMENTS);
@@ -1838,7 +1833,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldInPlace(
     MapHandles map_list;
     map_list.push_back(updated_map);
     Map transitioned_map = map2->FindElementsKindTransitionedMap(
-        isolate, map_list, ConcurrencyMode::kNotConcurrent);
+        isolate, map_list, ConcurrencyMode::kSynchronous);
     CHECK_EQ(*updated_map, transitioned_map);
   }
 }
@@ -2065,10 +2060,10 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
       }
 
       Handle<String> name = CcTest::MakeName("prop", i);
-      Map target = TransitionsAccessor(isolate, map2)
-                       .SearchTransition(*name, PropertyKind::kData, NONE);
+      MaybeHandle<Map> target = TransitionsAccessor::SearchTransition(
+          isolate, map2, *name, PropertyKind::kData, NONE);
       CHECK(!target.is_null());
-      map2 = handle(target, isolate);
+      map2 = target.ToHandleChecked();
     }
 
     map2 = ReconfigureProperty(isolate, map2, InternalIndex(kSplitProp),
@@ -2090,14 +2085,14 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
 
   // Fill in transition tree of |map2| so that it can't have more transitions.
   for (int i = 0; i < TransitionsAccessor::kMaxNumberOfTransitions; i++) {
-    CHECK(TransitionsAccessor(isolate, map2).CanHaveMoreTransitions());
+    CHECK(TransitionsAccessor::CanHaveMoreTransitions(isolate, map2));
     Handle<String> name = CcTest::MakeName("foo", i);
     Map::CopyWithField(isolate, map2, name, any_type, NONE,
                        PropertyConstness::kMutable, Representation::Smi(),
                        INSERT_TRANSITION)
         .ToHandleChecked();
   }
-  CHECK(!TransitionsAccessor(isolate, map2).CanHaveMoreTransitions());
+  CHECK(!TransitionsAccessor::CanHaveMoreTransitions(isolate, map2));
 
   // Try to update |map|, since there is no place for propX transition at |map2|
   // |map| should become normalized.
@@ -2281,14 +2276,15 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
   Factory* factory = isolate->factory();
   TestConfig configs[] = {
       {FROZEN, factory->frozen_symbol(),
-       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_FROZEN_ELEMENTS
-                                               : DICTIONARY_ELEMENTS},
+       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_FROZEN_ELEMENTS
+                                                   : DICTIONARY_ELEMENTS},
       {SEALED, factory->sealed_symbol(),
-       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
-                                               : DICTIONARY_ELEMENTS},
+       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
+                                                   : DICTIONARY_ELEMENTS},
       {NONE, factory->nonextensible_symbol(),
-       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_NONEXTENSIBLE_ELEMENTS
-                                               : DICTIONARY_ELEMENTS}};
+       v8_flags.enable_sealed_frozen_elements_kind
+           ? HOLEY_NONEXTENSIBLE_ELEMENTS
+           : DICTIONARY_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
         &configs[i],
@@ -2349,14 +2345,15 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
   Factory* factory = isolate->factory();
   TestConfig configs[] = {
       {FROZEN, factory->frozen_symbol(),
-       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_FROZEN_ELEMENTS
-                                               : DICTIONARY_ELEMENTS},
+       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_FROZEN_ELEMENTS
+                                                   : DICTIONARY_ELEMENTS},
       {SEALED, factory->sealed_symbol(),
-       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
-                                               : DICTIONARY_ELEMENTS},
+       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
+                                                   : DICTIONARY_ELEMENTS},
       {NONE, factory->nonextensible_symbol(),
-       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_NONEXTENSIBLE_ELEMENTS
-                                               : DICTIONARY_ELEMENTS}};
+       v8_flags.enable_sealed_frozen_elements_kind
+           ? HOLEY_NONEXTENSIBLE_ELEMENTS
+           : DICTIONARY_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
         &configs[i],
@@ -2899,12 +2896,13 @@ void TestStoreToConstantField_NaN(const char* store_func_source,
   CompileRun(store_func_source);
 
   uint64_t nan_bits = uint64_t{0x7FF8000000000001};
-  double nan_double1 = bit_cast<double>(nan_bits);
-  double nan_double2 = bit_cast<double>(nan_bits | 0x12300);
+  double nan_double1 = base::bit_cast<double>(nan_bits);
+  double nan_double2 = base::bit_cast<double>(nan_bits | 0x12300);
   CHECK(std::isnan(nan_double1));
   CHECK(std::isnan(nan_double2));
   CHECK_NE(nan_double1, nan_double2);
-  CHECK_NE(bit_cast<uint64_t>(nan_double1), bit_cast<uint64_t>(nan_double2));
+  CHECK_NE(base::bit_cast<uint64_t>(nan_double1),
+           base::bit_cast<uint64_t>(nan_double2));
 
   Handle<Object> nan1 = isolate->factory()->NewNumber(nan_double1);
   Handle<Object> nan2 = isolate->factory()->NewNumber(nan_double2);
@@ -2918,7 +2916,7 @@ void TestStoreToConstantField_NaN(const char* store_func_source,
 }  // namespace
 
 TEST(StoreToConstantField_PlusMinusZero) {
-  FLAG_allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -3012,7 +3010,7 @@ TEST(NormalizeToMigrationTarget) {
 }
 
 TEST(RepresentationPredicatesAreInSync) {
-  STATIC_ASSERT(Representation::kNumRepresentations == 6);
+  static_assert(Representation::kNumRepresentations == 6);
   static Representation reps[] = {
       Representation::None(),   Representation::Smi(),
       Representation::Double(), Representation::HeapObject(),
@@ -3094,7 +3092,7 @@ TEST(DeletePropertyGeneralizesConstness) {
 
   // |new_parent_map| must have exactly one outgoing transition to |new_map|.
   {
-    TransitionsAccessor ta(isolate, new_parent_map);
+    TransitionsAccessor ta(isolate, *new_parent_map);
     CHECK_EQ(ta.NumberOfTransitions(), 1);
     CHECK_EQ(ta.GetTarget(0), *new_map);
   }
@@ -3114,7 +3112,7 @@ TEST(DeletePropertyGeneralizesConstness) {
   std::vector<Handle<Map>> transitions;
   Handle<Object> value = handle(Smi::FromInt(0), isolate);
   for (int i = 0; i < kPropertyAttributesCombinationsCount; i++) {
-    PropertyAttributes attributes = static_cast<PropertyAttributes>(i);
+    auto attributes = PropertyAttributesFromInt(i);
 
     Handle<Map> tmp;
     // Add some transitions to "x" and "y".

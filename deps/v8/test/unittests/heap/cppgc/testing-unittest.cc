@@ -22,12 +22,13 @@ class GCed : public GarbageCollected<GCed> {
 };
 }  // namespace
 
-TEST_F(TestingTest, OverrideEmbeddertackStateScope) {
+TEST_F(TestingTest,
+       OverrideEmbeddertackStateScopeDoesNotOverrideExplicitCalls) {
   {
     auto* gced = MakeGarbageCollected<GCed>(GetHeap()->GetAllocationHandle());
     WeakPersistent<GCed> weak{gced};
     internal::Heap::From(GetHeap())->CollectGarbage(
-        Heap::Config::PreciseAtomicConfig());
+        GCConfig::PreciseAtomicConfig());
     EXPECT_FALSE(weak);
   }
   {
@@ -37,8 +38,8 @@ TEST_F(TestingTest, OverrideEmbeddertackStateScope) {
         GetHeap()->GetHeapHandle(),
         EmbedderStackState::kMayContainHeapPointers);
     internal::Heap::From(GetHeap())->CollectGarbage(
-        Heap::Config::PreciseAtomicConfig());
-    EXPECT_TRUE(weak);
+        GCConfig::PreciseAtomicConfig());
+    EXPECT_FALSE(weak);
   }
   {
     auto* gced = MakeGarbageCollected<GCed>(GetHeap()->GetAllocationHandle());
@@ -46,8 +47,8 @@ TEST_F(TestingTest, OverrideEmbeddertackStateScope) {
     cppgc::testing::OverrideEmbedderStackStateScope override_stack(
         GetHeap()->GetHeapHandle(), EmbedderStackState::kNoHeapPointers);
     internal::Heap::From(GetHeap())->CollectGarbage(
-        Heap::Config::ConservativeAtomicConfig());
-    EXPECT_FALSE(weak);
+        GCConfig::ConservativeAtomicConfig());
+    EXPECT_TRUE(weak);
   }
 }
 

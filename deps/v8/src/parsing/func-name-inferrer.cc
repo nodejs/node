@@ -60,7 +60,7 @@ AstConsString* FuncNameInferrer::MakeNameFromStack() {
       continue;
     }
     // Add name. Separate names with ".".
-    Zone* zone = ast_value_factory_->zone();
+    Zone* zone = ast_value_factory_->single_parse_zone();
     if (!result->IsEmpty()) {
       result->AddString(zone, ast_value_factory_->dot_string());
     }

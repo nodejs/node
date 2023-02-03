@@ -14,7 +14,6 @@
 
 namespace v8 {
 namespace internal {
-namespace compiler {
 
 std::ostream& operator<<(std::ostream& os, BranchHint hint) {
   switch (hint) {
@@ -24,6 +23,20 @@ std::ostream& operator<<(std::ostream& os, BranchHint hint) {
       return os << "True";
     case BranchHint::kFalse:
       return os << "False";
+  }
+  UNREACHABLE();
+}
+
+namespace compiler {
+
+std::ostream& operator<<(std::ostream& os, BranchSemantics semantics) {
+  switch (semantics) {
+    case BranchSemantics::kJS:
+      return os << "JS";
+    case BranchSemantics::kMachine:
+      return os << "Machine";
+    case BranchSemantics::kUnspecified:
+      return os << "Unspecified";
   }
   UNREACHABLE();
 }
@@ -47,13 +60,33 @@ TrapId TrapIdOf(const Operator* const op) {
   return OpParameter<TrapId>(op);
 }
 
+bool operator==(const BranchParameters& lhs, const BranchParameters& rhs) {
+  return lhs.semantics() == rhs.semantics() && lhs.hint() == rhs.hint();
+}
+
+size_t hash_value(const BranchParameters& p) {
+  return base::hash_combine(p.semantics(), p.hint());
+}
+
+std::ostream& operator<<(std::ostream& os, const BranchParameters& p) {
+  return os << p.semantics() << ", " << p.hint();
+}
+
+const BranchParameters& BranchParametersOf(const Operator* const op) {
+  DCHECK_EQ(op->opcode(), IrOpcode::kBranch);
+  return OpParameter<BranchParameters>(op);
+}
+
 BranchHint BranchHintOf(const Operator* const op) {
   switch (op->opcode()) {
     case IrOpcode::kIfValue:
       return IfValueParametersOf(op).hint();
     case IrOpcode::kIfDefault:
-    case IrOpcode::kBranch:
       return OpParameter<BranchHint>(op);
+    // TODO(nicohartmann@): Should remove all uses of BranchHintOf for branches
+    // and replace with BranchParametersOf.
+    case IrOpcode::kBranch:
+      return BranchParametersOf(op).hint();
     default:
       UNREACHABLE();
   }
@@ -67,8 +100,7 @@ int ValueInputCountOfReturn(Operator const* const op) {
 }
 
 bool operator==(DeoptimizeParameters lhs, DeoptimizeParameters rhs) {
-  return lhs.kind() == rhs.kind() && lhs.reason() == rhs.reason() &&
-         lhs.feedback() == rhs.feedback();
+  return lhs.reason() == rhs.reason() && lhs.feedback() == rhs.feedback();
 }
 
 bool operator!=(DeoptimizeParameters lhs, DeoptimizeParameters rhs) {
@@ -77,26 +109,18 @@ bool operator!=(DeoptimizeParameters lhs, DeoptimizeParameters rhs) {
 
 size_t hash_value(DeoptimizeParameters p) {
   FeedbackSource::Hash feebdack_hash;
-  return base::hash_combine(p.kind(), p.reason(), feebdack_hash(p.feedback()));
+  return base::hash_combine(p.reason(), feebdack_hash(p.feedback()));
 }
 
 std::ostream& operator<<(std::ostream& os, DeoptimizeParameters p) {
-  return os << p.kind() << ", " << p.reason() << ", " << p.feedback();
+  return os << p.reason() << ", " << p.feedback();
 }
 
 DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const op) {
   DCHECK(op->opcode() == IrOpcode::kDeoptimize ||
          op->opcode() == IrOpcode::kDeoptimizeIf ||
-         op->opcode() == IrOpcode::kDeoptimizeUnless ||
-         op->opcode() == IrOpcode::kDynamicCheckMapsWithDeoptUnless);
+         op->opcode() == IrOpcode::kDeoptimizeUnless);
   return OpParameter<DeoptimizeParameters>(op);
-}
-
-const Operator* CommonOperatorBuilder::DelayedStringConstant(
-    const StringConstantBase* str) {
-  return zone()->New<Operator1<const StringConstantBase*>>(
-      IrOpcode::kDelayedStringConstant, Operator::kPure,
-      "DelayedStringConstant", 0, 0, 0, 1, 0, 0, str);
 }
 
 bool operator==(SelectParameters const& lhs, SelectParameters const& rhs) {
@@ -409,6 +433,60 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
   return OpParameter<IfValueParameters>(op);
 }
 
+V8_EXPORT_PRIVATE bool operator==(const SLVerifierHintParameters& p1,
+                                  const SLVerifierHintParameters& p2) {
+  return p1.semantics() == p2.semantics() &&
+         p1.override_output_type() == p2.override_output_type();
+}
+
+size_t hash_value(const SLVerifierHintParameters& p) {
+  return base::hash_combine(
+      p.semantics(),
+      p.override_output_type() ? hash_value(*p.override_output_type()) : 0);
+}
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                           const SLVerifierHintParameters& p) {
+  if (p.semantics()) {
+    p.semantics()->PrintTo(out);
+  } else {
+    out << "nullptr";
+  }
+  out << ", ";
+  if (const auto& t = p.override_output_type()) {
+    t->PrintTo(out);
+  } else {
+    out << ", nullopt";
+  }
+  return out;
+}
+
+const SLVerifierHintParameters& SLVerifierHintParametersOf(const Operator* op) {
+  DCHECK_EQ(op->opcode(), IrOpcode::kSLVerifierHint);
+  return OpParameter<SLVerifierHintParameters>(op);
+}
+
+V8_EXPORT_PRIVATE bool operator==(const ExitMachineGraphParameters& lhs,
+                                  const ExitMachineGraphParameters& rhs) {
+  return lhs.output_representation() == rhs.output_representation() &&
+         lhs.output_type().Equals(rhs.output_type());
+}
+
+size_t hash_value(const ExitMachineGraphParameters& p) {
+  return base::hash_combine(p.output_representation(), p.output_type());
+}
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os, const ExitMachineGraphParameters& p) {
+  return os << p.output_representation() << ", " << p.output_type();
+}
+
+const ExitMachineGraphParameters& ExitMachineGraphParametersOf(
+    const Operator* op) {
+  DCHECK_EQ(op->opcode(), IrOpcode::kExitMachineGraph);
+  return OpParameter<ExitMachineGraphParameters>(op);
+}
+
 #define COMMON_CACHED_OP_LIST(V)                          \
   V(Plug, Operator::kNoProperties, 0, 0, 0, 1, 0, 0)      \
   V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)          \
@@ -428,9 +506,15 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
 #define CACHED_LOOP_EXIT_VALUE_LIST(V) V(kTagged)
 
 #define CACHED_BRANCH_LIST(V) \
-  V(None)                     \
-  V(True)                     \
-  V(False)
+  V(JS, None)                 \
+  V(JS, True)                 \
+  V(JS, False)                \
+  V(Machine, None)            \
+  V(Machine, True)            \
+  V(Machine, False)           \
+  V(Unspecified, None)        \
+  V(Unspecified, True)        \
+  V(Unspecified, False)
 
 #define CACHED_RETURN_LIST(V) \
   V(1)                        \
@@ -478,32 +562,28 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
   V(7)                       \
   V(8)
 
-#define CACHED_DEOPTIMIZE_LIST(V)                        \
-  V(Eager, MinusZero)                                    \
-  V(Eager, WrongMap)                                     \
-  V(Soft, InsufficientTypeFeedbackForGenericKeyedAccess) \
-  V(Soft, InsufficientTypeFeedbackForGenericNamedAccess)
+#define CACHED_DEOPTIMIZE_LIST(V)                  \
+  V(MinusZero)                                     \
+  V(WrongMap)                                      \
+  V(InsufficientTypeFeedbackForGenericKeyedAccess) \
+  V(InsufficientTypeFeedbackForGenericNamedAccess)
 
 #define CACHED_DEOPTIMIZE_IF_LIST(V) \
-  V(Eager, DivisionByZero)           \
-  V(Eager, Hole)                     \
-  V(Eager, MinusZero)                \
-  V(Eager, Overflow)                 \
-  V(Eager, Smi)
+  V(DivisionByZero)                  \
+  V(Hole)                            \
+  V(MinusZero)                       \
+  V(Overflow)                        \
+  V(Smi)
 
 #define CACHED_DEOPTIMIZE_UNLESS_LIST(V) \
-  V(Eager, LostPrecision)                \
-  V(Eager, LostPrecisionOrNaN)           \
-  V(Eager, NotAHeapNumber)               \
-  V(Eager, NotANumberOrOddball)          \
-  V(Eager, NotASmi)                      \
-  V(Eager, OutOfBounds)                  \
-  V(Eager, WrongInstanceType)            \
-  V(Eager, WrongMap)
-
-#define CACHED_DYNAMIC_CHECK_MAPS_LIST(V) \
-  V(DynamicCheckMaps)                     \
-  V(DynamicCheckMapsInlined)
+  V(LostPrecision)                       \
+  V(LostPrecisionOrNaN)                  \
+  V(NotAHeapNumber)                      \
+  V(NotANumberOrOddball)                 \
+  V(NotASmi)                             \
+  V(OutOfBounds)                         \
+  V(WrongInstanceType)                   \
+  V(WrongMap)
 
 #define CACHED_TRAP_IF_LIST(V) \
   V(TrapDivUnrepresentable)    \
@@ -605,17 +685,18 @@ struct CommonOperatorGlobalCache final {
   CACHED_RETURN_LIST(CACHED_RETURN)
 #undef CACHED_RETURN
 
-  template <BranchHint hint>
-  struct BranchOperator final : public Operator1<BranchHint> {
+  template <BranchSemantics semantics, BranchHint hint>
+  struct BranchOperator final : public Operator1<BranchParameters> {
     BranchOperator()
-        : Operator1<BranchHint>(                      // --
+        : Operator1<BranchParameters>(                // --
               IrOpcode::kBranch, Operator::kKontrol,  // opcode
               "Branch",                               // name
               1, 0, 1, 0, 0, 2,                       // counts
-              hint) {}                                // parameter
+              {semantics, hint}) {}                   // parameter
   };
-#define CACHED_BRANCH(Hint) \
-  BranchOperator<BranchHint::k##Hint> kBranch##Hint##Operator;
+#define CACHED_BRANCH(Semantics, Hint)                               \
+  BranchOperator<BranchSemantics::k##Semantics, BranchHint::k##Hint> \
+      kBranch##Semantics##Hint##Operator;
   CACHED_BRANCH_LIST(CACHED_BRANCH)
 #undef CACHED_BRANCH
 
@@ -685,7 +766,7 @@ struct CommonOperatorGlobalCache final {
   CACHED_LOOP_EXIT_VALUE_LIST(CACHED_LOOP_EXIT_VALUE)
 #undef CACHED_LOOP_EXIT_VALUE
 
-  template <DeoptimizeKind kKind, DeoptimizeReason kReason>
+  template <DeoptimizeReason kReason>
   struct DeoptimizeOperator final : public Operator1<DeoptimizeParameters> {
     DeoptimizeOperator()
         : Operator1<DeoptimizeParameters>(               // --
@@ -693,15 +774,14 @@ struct CommonOperatorGlobalCache final {
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "Deoptimize",                              // name
               1, 1, 1, 0, 0, 1,                          // counts
-              DeoptimizeParameters(kKind, kReason, FeedbackSource())) {}
+              DeoptimizeParameters(kReason, FeedbackSource())) {}
   };
-#define CACHED_DEOPTIMIZE(Kind, Reason)                                    \
-  DeoptimizeOperator<DeoptimizeKind::k##Kind, DeoptimizeReason::k##Reason> \
-      kDeoptimize##Kind##Reason##Operator;
+#define CACHED_DEOPTIMIZE(Reason) \
+  DeoptimizeOperator<DeoptimizeReason::k##Reason> kDeoptimize##Reason##Operator;
   CACHED_DEOPTIMIZE_LIST(CACHED_DEOPTIMIZE)
 #undef CACHED_DEOPTIMIZE
 
-  template <DeoptimizeKind kKind, DeoptimizeReason kReason>
+  template <DeoptimizeReason kReason>
   struct DeoptimizeIfOperator final : public Operator1<DeoptimizeParameters> {
     DeoptimizeIfOperator()
         : Operator1<DeoptimizeParameters>(               // --
@@ -709,15 +789,15 @@ struct CommonOperatorGlobalCache final {
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "DeoptimizeIf",                            // name
               2, 1, 1, 0, 1, 1,                          // counts
-              DeoptimizeParameters(kKind, kReason, FeedbackSource())) {}
+              DeoptimizeParameters(kReason, FeedbackSource())) {}
   };
-#define CACHED_DEOPTIMIZE_IF(Kind, Reason)                                   \
-  DeoptimizeIfOperator<DeoptimizeKind::k##Kind, DeoptimizeReason::k##Reason> \
-      kDeoptimizeIf##Kind##Reason##Operator;
+#define CACHED_DEOPTIMIZE_IF(Reason)                \
+  DeoptimizeIfOperator<DeoptimizeReason::k##Reason> \
+      kDeoptimizeIf##Reason##Operator;
   CACHED_DEOPTIMIZE_IF_LIST(CACHED_DEOPTIMIZE_IF)
 #undef CACHED_DEOPTIMIZE_IF
 
-  template <DeoptimizeKind kKind, DeoptimizeReason kReason>
+  template <DeoptimizeReason kReason>
   struct DeoptimizeUnlessOperator final
       : public Operator1<DeoptimizeParameters> {
     DeoptimizeUnlessOperator()
@@ -726,30 +806,13 @@ struct CommonOperatorGlobalCache final {
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "DeoptimizeUnless",                        // name
               2, 1, 1, 0, 1, 1,                          // counts
-              DeoptimizeParameters(kKind, kReason, FeedbackSource())) {}
+              DeoptimizeParameters(kReason, FeedbackSource())) {}
   };
-#define CACHED_DEOPTIMIZE_UNLESS(Kind, Reason)          \
-  DeoptimizeUnlessOperator<DeoptimizeKind::k##Kind,     \
-                           DeoptimizeReason::k##Reason> \
-      kDeoptimizeUnless##Kind##Reason##Operator;
+#define CACHED_DEOPTIMIZE_UNLESS(Reason)                \
+  DeoptimizeUnlessOperator<DeoptimizeReason::k##Reason> \
+      kDeoptimizeUnless##Reason##Operator;
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
-
-  template <DeoptimizeReason kReason>
-  struct DynamicMapCheckOperator final : Operator1<DeoptimizeParameters> {
-    DynamicMapCheckOperator()
-        : Operator1<DeoptimizeParameters>(                 // --
-              IrOpcode::kDynamicCheckMapsWithDeoptUnless,  // opcode
-              Operator::kFoldable | Operator::kNoThrow,    // properties
-              "DynamicCheckMapsWithDeoptUnless",           // name
-              6, 1, 1, 0, 1, 1,                            // counts
-              DeoptimizeParameters(DeoptimizeKind::kEagerWithResume, kReason,
-                                   FeedbackSource())) {}
-  };
-#define CACHED_DYNAMIC_CHECK_MAPS(Reason) \
-  DynamicMapCheckOperator<DeoptimizeReason::k##Reason> k##Reason##Operator;
-  CACHED_DYNAMIC_CHECK_MAPS_LIST(CACHED_DYNAMIC_CHECK_MAPS)
-#undef CACHED_DYNAMIC_CHECK_MAPS
 
   template <TrapId trap_id>
   struct TrapIfOperator final : public Operator1<TrapId> {
@@ -758,7 +821,7 @@ struct CommonOperatorGlobalCache final {
               IrOpcode::kTrapIf,                         // opcode
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "TrapIf",                                  // name
-              1, 1, 1, 0, 0, 1,                          // counts
+              1, 1, 1, 0, 1, 1,                          // counts
               trap_id) {}                                // parameter
   };
 #define CACHED_TRAP_IF(Trap) \
@@ -773,7 +836,7 @@ struct CommonOperatorGlobalCache final {
               IrOpcode::kTrapUnless,                     // opcode
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "TrapUnless",                              // name
-              1, 1, 1, 0, 0, 1,                          // counts
+              1, 1, 1, 0, 1, 1,                          // counts
               trap_id) {}                                // parameter
   };
 #define CACHED_TRAP_UNLESS(Trap) \
@@ -913,10 +976,20 @@ const Operator* CommonOperatorBuilder::StaticAssert(const char* source) {
       1, 0, source);
 }
 
-const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
-#define CACHED_BRANCH(Hint)                 \
-  if (hint == BranchHint::k##Hint) {        \
-    return &cache_.kBranch##Hint##Operator; \
+const Operator* CommonOperatorBuilder::SLVerifierHint(
+    const Operator* semantics,
+    const base::Optional<Type>& override_output_type) {
+  return zone()->New<Operator1<SLVerifierHintParameters>>(
+      IrOpcode::kSLVerifierHint, Operator::kNoProperties, "SLVerifierHint", 1,
+      0, 0, 1, 0, 0, SLVerifierHintParameters(semantics, override_output_type));
+}
+
+const Operator* CommonOperatorBuilder::Branch(BranchHint hint,
+                                              BranchSemantics semantics) {
+#define CACHED_BRANCH(Semantics, Hint)                 \
+  if (semantics == BranchSemantics::k##Semantics &&    \
+      hint == BranchHint::k##Hint) {                   \
+    return &cache_.kBranch##Semantics##Hint##Operator; \
   }
   CACHED_BRANCH_LIST(CACHED_BRANCH)
 #undef CACHED_BRANCH
@@ -924,17 +997,15 @@ const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
 }
 
 const Operator* CommonOperatorBuilder::Deoptimize(
-    DeoptimizeKind kind, DeoptimizeReason reason,
-    FeedbackSource const& feedback) {
-#define CACHED_DEOPTIMIZE(Kind, Reason)                               \
-  if (kind == DeoptimizeKind::k##Kind &&                              \
-      reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
-    return &cache_.kDeoptimize##Kind##Reason##Operator;               \
+    DeoptimizeReason reason, FeedbackSource const& feedback) {
+#define CACHED_DEOPTIMIZE(Reason)                                     \
+  if (reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
+    return &cache_.kDeoptimize##Reason##Operator;                     \
   }
   CACHED_DEOPTIMIZE_LIST(CACHED_DEOPTIMIZE)
 #undef CACHED_DEOPTIMIZE
   // Uncached
-  DeoptimizeParameters parameter(kind, reason, feedback);
+  DeoptimizeParameters parameter(reason, feedback);
   return zone()->New<Operator1<DeoptimizeParameters>>(  // --
       IrOpcode::kDeoptimize,                            // opcodes
       Operator::kFoldable | Operator::kNoThrow,         // properties
@@ -944,17 +1015,15 @@ const Operator* CommonOperatorBuilder::Deoptimize(
 }
 
 const Operator* CommonOperatorBuilder::DeoptimizeIf(
-    DeoptimizeKind kind, DeoptimizeReason reason,
-    FeedbackSource const& feedback) {
-#define CACHED_DEOPTIMIZE_IF(Kind, Reason)                            \
-  if (kind == DeoptimizeKind::k##Kind &&                              \
-      reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
-    return &cache_.kDeoptimizeIf##Kind##Reason##Operator;             \
+    DeoptimizeReason reason, FeedbackSource const& feedback) {
+#define CACHED_DEOPTIMIZE_IF(Reason)                                  \
+  if (reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
+    return &cache_.kDeoptimizeIf##Reason##Operator;                   \
   }
   CACHED_DEOPTIMIZE_IF_LIST(CACHED_DEOPTIMIZE_IF)
 #undef CACHED_DEOPTIMIZE_IF
   // Uncached
-  DeoptimizeParameters parameter(kind, reason, feedback);
+  DeoptimizeParameters parameter(reason, feedback);
   return zone()->New<Operator1<DeoptimizeParameters>>(  // --
       IrOpcode::kDeoptimizeIf,                          // opcode
       Operator::kFoldable | Operator::kNoThrow,         // properties
@@ -964,32 +1033,21 @@ const Operator* CommonOperatorBuilder::DeoptimizeIf(
 }
 
 const Operator* CommonOperatorBuilder::DeoptimizeUnless(
-    DeoptimizeKind kind, DeoptimizeReason reason,
-    FeedbackSource const& feedback) {
-#define CACHED_DEOPTIMIZE_UNLESS(Kind, Reason)                        \
-  if (kind == DeoptimizeKind::k##Kind &&                              \
-      reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
-    return &cache_.kDeoptimizeUnless##Kind##Reason##Operator;         \
+    DeoptimizeReason reason, FeedbackSource const& feedback) {
+#define CACHED_DEOPTIMIZE_UNLESS(Reason)                              \
+  if (reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
+    return &cache_.kDeoptimizeUnless##Reason##Operator;               \
   }
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
   // Uncached
-  DeoptimizeParameters parameter(kind, reason, feedback);
+  DeoptimizeParameters parameter(reason, feedback);
   return zone()->New<Operator1<DeoptimizeParameters>>(  // --
       IrOpcode::kDeoptimizeUnless,                      // opcode
       Operator::kFoldable | Operator::kNoThrow,         // properties
       "DeoptimizeUnless",                               // name
       2, 1, 1, 0, 1, 1,                                 // counts
       parameter);                                       // parameter
-}
-
-const Operator* CommonOperatorBuilder::DynamicCheckMapsWithDeoptUnless(
-    bool is_inlined_frame_state) {
-  if (is_inlined_frame_state) {
-    return &cache_.kDynamicCheckMapsInlinedOperator;
-  } else {
-    return &cache_.kDynamicCheckMapsOperator;
-  }
 }
 
 const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id) {
@@ -1007,7 +1065,7 @@ const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id) {
       IrOpcode::kTrapIf,                         // opcode
       Operator::kFoldable | Operator::kNoThrow,  // properties
       "TrapIf",                                  // name
-      1, 1, 1, 0, 0, 1,                          // counts
+      1, 1, 1, 0, 1, 1,                          // counts
       trap_id);                                  // parameter
 }
 
@@ -1026,7 +1084,7 @@ const Operator* CommonOperatorBuilder::TrapUnless(TrapId trap_id) {
       IrOpcode::kTrapUnless,                     // opcode
       Operator::kFoldable | Operator::kNoThrow,  // properties
       "TrapUnless",                              // name
-      1, 1, 1, 0, 0, 1,                          // counts
+      1, 1, 1, 0, 1, 1,                          // counts
       trap_id);                                  // parameter
 }
 
@@ -1171,7 +1229,7 @@ const Operator* CommonOperatorBuilder::TaggedIndexConstant(int32_t value) {
       value);                                           // parameter
 }
 
-const Operator* CommonOperatorBuilder::Float32Constant(volatile float value) {
+const Operator* CommonOperatorBuilder::Float32Constant(float value) {
   return zone()->New<Operator1<float>>(             // --
       IrOpcode::kFloat32Constant, Operator::kPure,  // opcode
       "Float32Constant",                            // name
@@ -1180,7 +1238,7 @@ const Operator* CommonOperatorBuilder::Float32Constant(volatile float value) {
 }
 
 
-const Operator* CommonOperatorBuilder::Float64Constant(volatile double value) {
+const Operator* CommonOperatorBuilder::Float64Constant(double value) {
   return zone()->New<Operator1<double>>(            // --
       IrOpcode::kFloat64Constant, Operator::kPure,  // opcode
       "Float64Constant",                            // name
@@ -1199,7 +1257,7 @@ const Operator* CommonOperatorBuilder::ExternalConstant(
 }
 
 
-const Operator* CommonOperatorBuilder::NumberConstant(volatile double value) {
+const Operator* CommonOperatorBuilder::NumberConstant(double value) {
   return zone()->New<Operator1<double>>(           // --
       IrOpcode::kNumberConstant, Operator::kPure,  // opcode
       "NumberConstant",                            // name
@@ -1237,11 +1295,6 @@ Handle<HeapObject> HeapConstantOf(const Operator* op) {
   DCHECK(IrOpcode::kHeapConstant == op->opcode() ||
          IrOpcode::kCompressedHeapConstant == op->opcode());
   return OpParameter<Handle<HeapObject>>(op);
-}
-
-const StringConstantBase* StringConstantBaseOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kDelayedStringConstant, op->opcode());
-  return OpParameter<const StringConstantBase*>(op);
 }
 
 const char* StaticAssertSourceOf(const Operator* op) {
@@ -1316,6 +1369,19 @@ const Operator* CommonOperatorBuilder::FoldConstant() {
       IrOpcode::kFoldConstant, Operator::kPure,  // opcode
       "FoldConstant",                            // name
       2, 0, 0, 1, 0, 0);                         // counts
+}
+
+const Operator* CommonOperatorBuilder::EnterMachineGraph(UseInfo use_info) {
+  return zone()->New<Operator1<UseInfo>>(IrOpcode::kEnterMachineGraph,
+                                         Operator::kPure, "EnterMachineGraph",
+                                         1, 0, 0, 1, 0, 0, use_info);
+}
+
+const Operator* CommonOperatorBuilder::ExitMachineGraph(
+    MachineRepresentation output_representation, Type output_type) {
+  return zone()->New<Operator1<ExitMachineGraphParameters>>(
+      IrOpcode::kExitMachineGraph, Operator::kPure, "ExitMachineGraph", 1, 0, 0,
+      1, 0, 0, ExitMachineGraphParameters{output_representation, output_type});
 }
 
 const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {

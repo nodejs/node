@@ -16,7 +16,7 @@ const astUtils = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 
 const TARGET_NODE_TYPE = /^(?:Arrow)?FunctionExpression$/u;
-const TARGET_METHODS = /^(?:every|filter|find(?:Index)?|flatMap|forEach|map|reduce(?:Right)?|some|sort)$/u;
+const TARGET_METHODS = /^(?:every|filter|find(?:Last)?(?:Index)?|flatMap|forEach|map|reduce(?:Right)?|some|sort)$/u;
 
 /**
  * Checks a given code path segment is reachable.
@@ -125,7 +125,7 @@ function getArrayMethodName(node) {
         }
     }
 
-    /* istanbul ignore next: unreachable */
+    /* c8 ignore next */
     return null;
 }
 
@@ -139,7 +139,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "enforce `return` statements in callbacks of array methods",
+            description: "Enforce `return` statements in callbacks of array methods",
             recommended: false,
             url: "https://eslint.org/docs/rules/array-callback-return"
         },

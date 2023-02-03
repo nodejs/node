@@ -489,6 +489,9 @@ assertTrue(Object.prototype.isPrototypeOf(o2));
 var json = '{"stuff before slash\\\\stuff after slash":"whatever"}';
 TestStringify(json, JSON.parse(json));
 
+// TODO(v8:12955): JSON parse with source access will assert failed when the
+// reviver modifies the json value like this. See
+// https://github.com/tc39/proposal-json-parse-with-source/issues/35.
 
 // https://bugs.chromium.org/p/v8/issues/detail?id=3139
 

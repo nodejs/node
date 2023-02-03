@@ -233,7 +233,7 @@ private:
                 return false;
             }
             for (int i = 0; i < length; ++i) {
-                stringArray.getValue(i, value);  // returns TRUE because i < length
+                stringArray.getValue(i, value);  // returns true because i < length
                 rawIndexes[i] = strings.add(value.getUnicodeString(errorCode), errorCode);
                 if (U_FAILURE(errorCode)) { return false; }
             }
@@ -245,13 +245,13 @@ private:
 namespace {
 
 XLikelySubtags *gLikelySubtags = nullptr;
-UInitOnce gInitOnce = U_INITONCE_INITIALIZER;
+UInitOnce gInitOnce {};
 
 UBool U_CALLCONV cleanup() {
     delete gLikelySubtags;
     gLikelySubtags = nullptr;
     gInitOnce.reset();
-    return TRUE;
+    return true;
 }
 
 }  // namespace

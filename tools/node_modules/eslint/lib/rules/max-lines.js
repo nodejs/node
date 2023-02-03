@@ -34,7 +34,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce a maximum number of lines per file",
+            description: "Enforce a maximum number of lines per file",
             recommended: false,
             url: "https://eslint.org/docs/rules/max-lines"
         },
@@ -159,10 +159,10 @@ module.exports = {
                 if (skipComments) {
                     const comments = sourceCode.getAllComments();
 
-                    const commentLines = comments.flatMap(getLinesWithoutCode);
+                    const commentLines = new Set(comments.flatMap(getLinesWithoutCode));
 
                     lines = lines.filter(
-                        l => !commentLines.includes(l.lineNumber)
+                        l => !commentLines.has(l.lineNumber)
                     );
                 }
 

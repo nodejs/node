@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt --no-assert-types
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan --no-assert-types
 
 function mul(x, y) {
   return (x * y) | 0;

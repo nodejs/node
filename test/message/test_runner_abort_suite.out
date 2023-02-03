@@ -1,0 +1,99 @@
+TAP version 13
+# Subtest: describe timeout signal
+    # Subtest: ok 1
+    ok 1 - ok 1
+      ---
+      duration_ms: *
+      ...
+    # Subtest: ok 2
+    ok 2 - ok 2
+      ---
+      duration_ms: *
+      ...
+    # Subtest: ok 3
+    ok 3 - ok 3
+      ---
+      duration_ms: *
+      ...
+    # Subtest: ok 4
+    ok 4 - ok 4
+      ---
+      duration_ms: *
+      ...
+    # Subtest: not ok 1
+    not ok 5 - not ok 1
+      ---
+      duration_ms: *
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: not ok 2
+    not ok 6 - not ok 2
+      ---
+      duration_ms: *
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: not ok 3
+    not ok 7 - not ok 3
+      ---
+      duration_ms: *
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: not ok 4
+    not ok 8 - not ok 4
+      ---
+      duration_ms: *
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: not ok 5
+    not ok 9 - not ok 5
+      ---
+      duration_ms: *
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..9
+not ok 1 - describe timeout signal
+  ---
+  duration_ms: *
+  error: 'The operation was aborted due to timeout'
+  code: 23
+  stack: |-
+    *
+    *
+    *
+    *
+  ...
+# Subtest: describe abort signal
+not ok 2 - describe abort signal
+  ---
+  duration_ms: *
+  error: 'This operation was aborted'
+  code: 20
+  stack: |-
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+  ...
+1..2
+# tests 2
+# pass 0
+# fail 0
+# cancelled 2
+# skipped 0
+# todo 0
+# duration_ms *

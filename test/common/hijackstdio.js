@@ -28,5 +28,5 @@ module.exports = {
   hijackStdout: hijackStdWritable.bind(null, 'stdout'),
   hijackStderr: hijackStdWritable.bind(null, 'stderr'),
   restoreStdout: restoreWritable.bind(null, 'stdout'),
-  restoreStderr: restoreWritable.bind(null, 'stderr')
+  restoreStderr: restoreWritable.bind(null, 'stderr'),
 };

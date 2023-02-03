@@ -248,10 +248,10 @@ CollationSettings::reorderTableHasSplitBytes(const uint8_t table[256]) {
     U_ASSERT(table[0] == 0);
     for(int32_t i = 1; i < 256; ++i) {
         if(table[i] == 0) {
-            return TRUE;
+            return true;
         }
     }
-    return FALSE;
+    return false;
 }
 
 uint32_t

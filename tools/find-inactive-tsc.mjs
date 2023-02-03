@@ -12,8 +12,15 @@ import cp from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
+import { parseArgs } from 'node:util';
 
-const SINCE = process.argv[2] || '3 months ago';
+const args = parseArgs({
+  allowPositionals: true,
+  options: { verbose: { type: 'boolean', short: 'v' } },
+});
+
+const verbose = args.values.verbose;
+const SINCE = args.positionals[0] || '3 months ago';
 
 async function runGitCommand(cmd, options = {}) {
   const childProcess = cp.spawn('/bin/sh', ['-c', cmd], {
@@ -25,7 +32,7 @@ async function runGitCommand(cmd, options = {}) {
     input: childProcess.stdout,
   });
   const errorHandler = new Promise(
-    (_, reject) => childProcess.on('error', reject)
+    (_, reject) => childProcess.on('error', reject),
   );
   let returnValue = options.mapFn ? new Set() : '';
   await Promise.race([errorHandler, Promise.resolve()]);
@@ -115,7 +122,7 @@ async function getVotingRecords(tscMembers, votes) {
   for (const vote of votes) {
     // Get the vote data.
     const voteData = JSON.parse(
-      await fs.promises.readFile(path.join('.tmp', vote), 'utf8')
+      await fs.promises.readFile(path.join('.tmp', vote), 'utf8'),
     );
     for (const member in voteData.votes) {
       if (tscMembers.includes(member)) {
@@ -191,7 +198,7 @@ async function moveTscToEmeritus(peopleToMove) {
         const currentLine = `${memberFirstLine}\n${line}\n`;
         // If textToMove is empty, this still works because when undefined is
         // used in a comparison with <, the result is always false.
-        while (textToMove[0] < currentLine) {
+        while (textToMove[0]?.toLowerCase() < currentLine.toLowerCase()) {
           fileContents += textToMove.shift();
         }
         fileContents += currentLine;
@@ -220,33 +227,33 @@ await runGitCommand('git reset HEAD README.md');
 await runGitCommand('git checkout -- README.md');
 
 const tscMembers = tscMembersAtEnd.filter(
-  (memberAtEnd) => tscMembersAtStart.includes(memberAtEnd)
+  (memberAtEnd) => tscMembersAtStart.includes(memberAtEnd),
 );
 
 // Get all meetings since SINCE.
 // Assumes that the TSC repo is cloned in the .tmp dir.
 const meetings = await runGitCommand(
   `git whatchanged --since '${SINCE}' --name-only --pretty=format: meetings`,
-  { cwd: '.tmp', mapFn: (line) => line }
+  { cwd: '.tmp', mapFn: (line) => line },
 );
 
 // Get TSC meeting attendance.
 const attendance = await getAttendance(tscMembers, meetings);
 const lightAttendance = tscMembers.filter(
-  (member) => attendance[member] < meetings.size * 0.25
+  (member) => attendance[member] < meetings.size * 0.25,
 );
 
 // Get all votes since SINCE.
 // Assumes that the TSC repo is cloned in the .tmp dir.
 const votes = await runGitCommand(
   `git whatchanged --since '${SINCE}' --name-only --pretty=format: votes/*.json`,
-  { cwd: '.tmp', mapFn: (line) => line }
+  { cwd: '.tmp', mapFn: (line) => line },
 );
 
 // Check voting record.
 const votingRecords = await getVotingRecords(tscMembers, votes);
 const noVotes = tscMembers.filter(
-  (member) => votingRecords[member] === 0
+  (member) => votingRecords[member] === 0,
 );
 
 const inactive = lightAttendance.filter((member) => noVotes.includes(member));
@@ -270,4 +277,9 @@ if (inactive.length) {
     const newReadmeText = await moveTscToEmeritus(inactive);
     fs.writeFileSync(new URL('../README.md', import.meta.url), newReadmeText);
   }
+}
+
+if (verbose) {
+  console.log(attendance);
+  console.log(votingRecords);
 }

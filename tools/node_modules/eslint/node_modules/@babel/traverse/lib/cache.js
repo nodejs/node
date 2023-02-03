@@ -11,16 +11,15 @@ let path = new WeakMap();
 exports.path = path;
 let scope = new WeakMap();
 exports.scope = scope;
-
 function clear() {
   clearPath();
   clearScope();
 }
-
 function clearPath() {
   exports.path = path = new WeakMap();
 }
-
 function clearScope() {
   exports.scope = scope = new WeakMap();
 }
+
+//# sourceMappingURL=cache.js.map

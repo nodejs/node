@@ -3,13 +3,15 @@
 // Check daily for betas, and weekly otherwise.
 
 const pacote = require('pacote')
-const ciDetect = require('@npmcli/ci-detect')
+const ciInfo = require('ci-info')
 const semver = require('semver')
 const chalk = require('chalk')
 const { promisify } = require('util')
 const stat = promisify(require('fs').stat)
 const writeFile = promisify(require('fs').writeFile)
 const { resolve } = require('path')
+
+const SKIP = Symbol('SKIP')
 
 const isGlobalNpmUpdate = npm => {
   return npm.flatOptions.global &&
@@ -37,8 +39,8 @@ const updateNotifier = async (npm, spec = 'latest') => {
   // never check for updates in CI, when updating npm already, or opted out
   if (!npm.config.get('update-notifier') ||
       isGlobalNpmUpdate(npm) ||
-      ciDetect()) {
-    return null
+      ciInfo.isCI) {
+    return SKIP
   }
 
   // if we're on a prerelease train, then updates are coming fast
@@ -118,6 +120,12 @@ const updateNotifier = async (npm, spec = 'latest') => {
 // only update the notification timeout if we actually finished checking
 module.exports = async npm => {
   const notification = await updateNotifier(npm)
+
+  // dont write the file if we skipped checking altogether
+  if (notification === SKIP) {
+    return null
+  }
+
   // intentional.  do not await this.  it's a best-effort update.  if this
   // fails, it's ok.  might be using /dev/null as the cache or something weird
   // like that.

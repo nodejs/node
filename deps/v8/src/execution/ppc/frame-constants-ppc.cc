@@ -16,7 +16,7 @@ namespace internal {
 Register JavaScriptFrame::fp_register() { return v8::internal::fp; }
 Register JavaScriptFrame::context_register() { return cp; }
 Register JavaScriptFrame::constant_pool_pointer_register() {
-  DCHECK(FLAG_enable_embedded_constant_pool);
+  DCHECK(V8_EMBEDDED_CONSTANT_POOL_BOOL);
   return kConstantPoolRegister;
 }
 

@@ -12,7 +12,6 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/zone/zone-handle-set.h"
 
 namespace v8 {
 namespace internal {
@@ -35,7 +34,8 @@ namespace compiler {
   V(Protector)                          \
   V(PrototypeProperty)                  \
   V(StableMap)                          \
-  V(Transition)
+  V(Transition)                         \
+  V(ObjectSlotValue)
 
 CompilationDependencies::CompilationDependencies(JSHeapBroker* broker,
                                                  Zone* zone)
@@ -115,11 +115,17 @@ class PendingDependencies final {
 
   void Register(Handle<HeapObject> object,
                 DependentCode::DependencyGroup group) {
+    // Code, which are per-local Isolate, cannot depend on objects in the shared
+    // heap. Shared heap dependencies are designed to never invalidate
+    // assumptions. E.g., maps for shared structs do not have transitions or
+    // change the shape of their fields. See
+    // DependentCode::DeoptimizeDependencyGroups for corresponding DCHECK.
+    if (object->InSharedWritableHeap()) return;
     deps_[object] |= group;
   }
 
   void InstallAll(Isolate* isolate, Handle<Code> code) {
-    if (V8_UNLIKELY(FLAG_predictable)) {
+    if (V8_UNLIKELY(v8_flags.predictable)) {
       InstallAllPredictable(isolate, code);
       return;
     }
@@ -134,7 +140,7 @@ class PendingDependencies final {
   }
 
   void InstallAllPredictable(Isolate* isolate, Handle<Code> code) {
-    CHECK(FLAG_predictable);
+    CHECK(v8_flags.predictable);
     // First, guarantee predictable iteration order.
     using HandleAndGroup =
         std::pair<Handle<HeapObject>, DependentCode::DependencyGroups>;
@@ -508,7 +514,7 @@ class OwnConstantDictionaryPropertyDependency final
         index_(index),
         value_(value) {
     // We depend on map() being cached.
-    STATIC_ASSERT(ref_traits<JSObject>::ref_serialization_kind !=
+    static_assert(ref_traits<JSObject>::ref_serialization_kind !=
                   RefSerializationKind::kNeverSerialized);
   }
 
@@ -863,6 +869,42 @@ class ProtectorDependency final : public CompilationDependency {
   const PropertyCellRef cell_;
 };
 
+// Check that an object slot will not change during compilation.
+class ObjectSlotValueDependency final : public CompilationDependency {
+ public:
+  explicit ObjectSlotValueDependency(const HeapObjectRef& object, int offset,
+                                     const ObjectRef& value)
+      : CompilationDependency(kObjectSlotValue),
+        object_(object.object()),
+        offset_(offset),
+        value_(value.object()) {}
+
+  bool IsValid() const override {
+    PtrComprCageBase cage_base = GetPtrComprCageBase(*object_);
+    Object current_value =
+        offset_ == HeapObject::kMapOffset
+            ? object_->map()
+            : TaggedField<Object>::Relaxed_Load(cage_base, *object_, offset_);
+    return *value_ == current_value;
+  }
+  void Install(PendingDependencies* deps) const override {}
+
+ private:
+  size_t Hash() const override {
+    return base::hash_combine(object_.address(), offset_, value_.address());
+  }
+
+  bool Equals(const CompilationDependency* that) const override {
+    const ObjectSlotValueDependency* const zat = that->AsObjectSlotValue();
+    return object_->address() == zat->object_->address() &&
+           offset_ == zat->offset_ && value_.address() == zat->value_.address();
+  }
+
+  Handle<HeapObject> object_;
+  int offset_;
+  Handle<Object> value_;
+};
+
 class ElementsKindDependency final : public CompilationDependency {
  public:
   ElementsKindDependency(const AllocationSiteRef& site, ElementsKind kind)
@@ -1023,7 +1065,7 @@ void CompilationDependencies::DependOnConstantInDictionaryPrototypeChain(
 
 AllocationType CompilationDependencies::DependOnPretenureMode(
     const AllocationSiteRef& site) {
-  if (!FLAG_allocation_site_pretenuring) return AllocationType::kYoung;
+  if (!v8_flags.allocation_site_pretenuring) return AllocationType::kYoung;
   AllocationType allocation = site.GetAllocationType();
   RecordDependency(zone_->New<PretenureModeDependency>(site, allocation));
   return allocation;
@@ -1062,6 +1104,11 @@ bool CompilationDependencies::DependOnProtector(const PropertyCellRef& cell) {
   if (cell.value().AsSmi() != Protectors::kProtectorValid) return false;
   RecordDependency(zone_->New<ProtectorDependency>(cell));
   return true;
+}
+
+bool CompilationDependencies::DependOnMegaDOMProtector() {
+  return DependOnProtector(
+      MakeRef(broker_, broker_->isolate()->factory()->mega_dom_protector()));
 }
 
 bool CompilationDependencies::DependOnArrayBufferDetachingProtector() {
@@ -1110,11 +1157,14 @@ void CompilationDependencies::DependOnElementsKind(
   }
 }
 
+void CompilationDependencies::DependOnObjectSlotValue(
+    const HeapObjectRef& object, int offset, const ObjectRef& value) {
+  RecordDependency(
+      zone_->New<ObjectSlotValueDependency>(object, offset, value));
+}
+
 void CompilationDependencies::DependOnOwnConstantElement(
     const JSObjectRef& holder, uint32_t index, const ObjectRef& element) {
-  // Only valid if the holder can use direct reads, since validation uses
-  // GetOwnConstantElementFromHeap.
-  DCHECK(holder.should_access_heap() || broker_->is_concurrent_inlining());
   RecordDependency(
       zone_->New<OwnConstantElementDependency>(holder, index, element));
 }
@@ -1134,7 +1184,7 @@ void CompilationDependencies::DependOnOwnConstantDictionaryProperty(
 
 V8_INLINE void TraceInvalidCompilationDependency(
     const CompilationDependency* d) {
-  DCHECK(FLAG_trace_compilation_dependencies);
+  DCHECK(v8_flags.trace_compilation_dependencies);
   DCHECK(!d->IsValid());
   PrintF("Compilation aborted due to invalid dependency: %s\n", d->ToString());
 }
@@ -1152,7 +1202,7 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
       // can call EnsureHasInitialMap, which can invalidate a
       // StableMapDependency on the prototype object's map.
       if (!dep->IsValid()) {
-        if (FLAG_trace_compilation_dependencies) {
+        if (v8_flags.trace_compilation_dependencies) {
           TraceInvalidCompilationDependency(dep);
         }
         dependencies_.clear();
@@ -1176,7 +1226,7 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
   //    deoptimization.
   // 2. since the function state was deemed consistent above, that means the
   //    compilation saw a self-consistent state of the jsfunction.
-  if (FLAG_stress_gc_during_compilation) {
+  if (v8_flags.stress_gc_during_compilation) {
     broker_->isolate()->heap()->PreciseCollectAllGarbage(
         Heap::kForcedGC, GarbageCollectionReason::kTesting, kNoGCCallbackFlags);
   }
@@ -1192,13 +1242,13 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
 }
 
 bool CompilationDependencies::PrepareInstall() {
-  if (V8_UNLIKELY(FLAG_predictable)) {
+  if (V8_UNLIKELY(v8_flags.predictable)) {
     return PrepareInstallPredictable();
   }
 
   for (auto dep : dependencies_) {
     if (!dep->IsValid()) {
-      if (FLAG_trace_compilation_dependencies) {
+      if (v8_flags.trace_compilation_dependencies) {
         TraceInvalidCompilationDependency(dep);
       }
       dependencies_.clear();
@@ -1210,7 +1260,7 @@ bool CompilationDependencies::PrepareInstall() {
 }
 
 bool CompilationDependencies::PrepareInstallPredictable() {
-  CHECK(FLAG_predictable);
+  CHECK(v8_flags.predictable);
 
   std::vector<const CompilationDependency*> deps(dependencies_.begin(),
                                                  dependencies_.end());
@@ -1218,7 +1268,7 @@ bool CompilationDependencies::PrepareInstallPredictable() {
 
   for (auto dep : deps) {
     if (!dep->IsValid()) {
-      if (FLAG_trace_compilation_dependencies) {
+      if (v8_flags.trace_compilation_dependencies) {
         TraceInvalidCompilationDependency(dep);
       }
       dependencies_.clear();
@@ -1228,25 +1278,6 @@ bool CompilationDependencies::PrepareInstallPredictable() {
   }
   return true;
 }
-
-namespace {
-
-// This function expects to never see a JSProxy.
-void DependOnStablePrototypeChain(CompilationDependencies* deps, MapRef map,
-                                  base::Optional<JSObjectRef> last_prototype) {
-  while (true) {
-    HeapObjectRef proto = map.prototype().value();
-    if (!proto.IsJSObject()) {
-      CHECK_EQ(proto.map().oddball_type(), OddballType::kNull);
-      break;
-    }
-    map = proto.map();
-    deps->DependOnStableMap(map);
-    if (last_prototype.has_value() && proto.equals(*last_prototype)) break;
-  }
-}
-
-}  // namespace
 
 #define V(Name)                                                     \
   const Name##Dependency* CompilationDependency::As##Name() const { \
@@ -1260,16 +1291,33 @@ void CompilationDependencies::DependOnStablePrototypeChains(
     ZoneVector<MapRef> const& receiver_maps, WhereToStart start,
     base::Optional<JSObjectRef> last_prototype) {
   for (MapRef receiver_map : receiver_maps) {
-    if (receiver_map.IsPrimitiveMap()) {
-      // Perform the implicit ToObject for primitives here.
-      // Implemented according to ES6 section 7.3.2 GetV (V, P).
-      // Note: Keep sync'd with AccessInfoFactory::ComputePropertyAccessInfo.
-      base::Optional<JSFunctionRef> constructor =
-          broker_->target_native_context().GetConstructorFunction(receiver_map);
-      receiver_map = constructor.value().initial_map(this);
+    DependOnStablePrototypeChain(receiver_map, start, last_prototype);
+  }
+}
+
+void CompilationDependencies::DependOnStablePrototypeChain(
+    MapRef receiver_map, WhereToStart start,
+    base::Optional<JSObjectRef> last_prototype) {
+  if (receiver_map.IsPrimitiveMap()) {
+    // Perform the implicit ToObject for primitives here.
+    // Implemented according to ES6 section 7.3.2 GetV (V, P).
+    // Note: Keep sync'd with AccessInfoFactory::ComputePropertyAccessInfo.
+    base::Optional<JSFunctionRef> constructor =
+        broker_->target_native_context().GetConstructorFunction(receiver_map);
+    receiver_map = constructor.value().initial_map(this);
+  }
+  if (start == kStartAtReceiver) DependOnStableMap(receiver_map);
+
+  MapRef map = receiver_map;
+  while (true) {
+    HeapObjectRef proto = map.prototype();
+    if (!proto.IsJSObject()) {
+      CHECK_EQ(proto.map().oddball_type(), OddballType::kNull);
+      break;
     }
-    if (start == kStartAtReceiver) DependOnStableMap(receiver_map);
-    DependOnStablePrototypeChain(this, receiver_map, last_prototype);
+    map = proto.map();
+    DependOnStableMap(map);
+    if (last_prototype.has_value() && proto.equals(*last_prototype)) break;
   }
 }
 
@@ -1286,7 +1334,6 @@ void CompilationDependencies::DependOnElementsKinds(
 
 void CompilationDependencies::DependOnConsistentJSFunctionView(
     const JSFunctionRef& function) {
-  DCHECK(broker_->is_concurrent_inlining());
   RecordDependency(zone_->New<ConsistentJSFunctionViewDependency>(function));
 }
 

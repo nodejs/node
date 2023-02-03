@@ -7,7 +7,7 @@
 
 #include "libplatform/libplatform.h"
 #include "node_internals.h"
-#include "node_snapshotable.h"
+#include "node_snapshot_builder.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -64,17 +64,18 @@ int BuildSnapshot(int argc, char* argv[]) {
     return 1;
   }
 
-  node::InitializationResult result =
-      node::InitializeOncePerProcess(argc, argv);
+  std::unique_ptr<node::InitializationResult> result =
+      node::InitializeOncePerProcess(
+          std::vector<std::string>(argv, argv + argc));
 
-  CHECK(!result.early_return);
-  CHECK_EQ(result.exit_code, 0);
+  CHECK(!result->early_return());
+  CHECK_EQ(result->exit_code(), 0);
 
   std::string out_path;
   if (node::per_process::cli_options->build_snapshot) {
-    out_path = result.args[2];
+    out_path = result->args()[2];
   } else {
-    out_path = result.args[1];
+    out_path = result->args()[1];
   }
 
   std::ofstream out(out_path, std::ios::out | std::ios::binary);
@@ -83,17 +84,18 @@ int BuildSnapshot(int argc, char* argv[]) {
     return 1;
   }
 
+  node::ExitCode exit_code = node::ExitCode::kNoFailure;
   {
-    std::string snapshot =
-        node::SnapshotBuilder::Generate(result.args, result.exec_args);
-    out << snapshot;
-
-    if (!out) {
-      std::cerr << "Failed to write " << out_path << "\n";
-      return 1;
+    exit_code = node::SnapshotBuilder::Generate(
+        out, result->args(), result->exec_args());
+    if (exit_code == node::ExitCode::kNoFailure) {
+      if (!out) {
+        std::cerr << "Failed to write " << out_path << "\n";
+        exit_code = node::ExitCode::kGenericUserError;
+      }
     }
   }
 
   node::TearDownOncePerProcess();
-  return 0;
+  return static_cast<int>(exit_code);
 }

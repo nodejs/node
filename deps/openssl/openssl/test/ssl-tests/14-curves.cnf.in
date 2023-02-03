@@ -73,6 +73,30 @@ sub generate_tests() {
     foreach (0..$#curves_tls_1_2) {
         my $curve = $curves_tls_1_2[$_];
         push @tests, {
+            name => "curve-${curve}-tls12-in-tls13",
+            server => {
+                "Curves" => "$curve:P-256",
+                "CipherString" => 'DEFAULT@SECLEVEL=1',
+                "MaxProtocol" => "TLSv1.3"
+            },
+            client => {
+                "CipherString" => 'ECDHE@SECLEVEL=1',
+                "MaxProtocol" => "TLSv1.3",
+                "MinProtocol" => "TLSv1.3",
+                "Curves" => "$curve:P-256"
+            },
+            test   => {
+                #This curve is not allowed in a TLSv1.3 key_share. We should
+                #succeed but fallback to P-256
+                "ExpectedTmpKeyType" => "P-256",
+                "ExpectedProtocol" => "TLSv1.3",
+                "ExpectedResult" => "Success"
+            },
+        };
+    }
+    foreach (0..$#curves_tls_1_2) {
+        my $curve = $curves_tls_1_2[$_];
+        push @tests, {
             name => "curve-${curve}-tls13",
             server => {
                 "Curves" => $curve,

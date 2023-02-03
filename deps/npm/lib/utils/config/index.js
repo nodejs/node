@@ -1,6 +1,35 @@
-const flatten = require('./flatten.js')
 const definitions = require('./definitions.js')
-const describeAll = require('./describe-all.js')
+
+// use the defined flattening function, and copy over any scoped
+// registries and registry-specific "nerfdart" configs verbatim
+//
+// TODO: make these getters so that we only have to make dirty
+// the thing that changed, and then flatten the fields that
+// could have changed when a config.set is called.
+//
+// TODO: move nerfdart auth stuff into a nested object that
+// is only passed along to paths that end up calling npm-registry-fetch.
+const flatten = (obj, flat = {}) => {
+  for (const [key, val] of Object.entries(obj)) {
+    const def = definitions[key]
+    if (def && def.flatten) {
+      def.flatten(key, obj, flat)
+    } else if (/@.*:registry$/i.test(key) || /^\/\//.test(key)) {
+      flat[key] = val
+    }
+  }
+
+  // XXX make this the bin/npm-cli.js file explicitly instead
+  // otherwise using npm programmatically is a bit of a pain.
+  flat.npmBin = require.main ? require.main.filename
+    : /* istanbul ignore next - not configurable property */ undefined
+  flat.nodeBin = process.env.NODE || process.execPath
+
+  // XXX should this be sha512?  is it even relevant?
+  flat.hashAlgorithm = 'sha1'
+
+  return flat
+}
 
 // aliases where they get expanded into a completely different thing
 // these are NOT supported in the environment or npmrc files, only
@@ -25,30 +54,25 @@ const shorthands = {
   porcelain: ['--parseable'],
   readonly: ['--read-only'],
   reg: ['--registry'],
-}
-
-for (const [key, { short }] of Object.entries(definitions)) {
-  if (!short) {
-    continue
-  }
-  // can be either an array or string
-  for (const s of [].concat(short)) {
-    shorthands[s] = [`--${key}`]
-  }
+  iwr: ['--include-workspace-root'],
+  ...Object.entries(definitions).reduce((acc, [key, { short = [] }]) => {
+    // can be either an array or string
+    for (const s of [].concat(short)) {
+      acc[s] = [`--${key}`]
+    }
+    return acc
+  }, {}),
 }
 
 module.exports = {
   get defaults () {
     // NB: 'default' is a reserved word
-    return Object.entries(definitions).map(([key, { default: def }]) => {
-      return [key, def]
-    }).reduce((defaults, [key, def]) => {
-      defaults[key] = def
-      return defaults
+    return Object.entries(definitions).reduce((acc, [key, { default: d }]) => {
+      acc[key] = d
+      return acc
     }, {})
   },
   definitions,
   flatten,
   shorthands,
-  describeAll,
 }

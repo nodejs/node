@@ -3,8 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-// FIXME(joyeecheung): nghttp2.h needs stdint.h to compile on Windows
-#include <cstdint>
+// clang-format off
+#include "node.h"  // nghttp2.h needs ssize_t
+// clang-format on
 #include "nghttp2/nghttp2.h"
 
 #include "env.h"

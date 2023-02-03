@@ -45,7 +45,7 @@ class CreateClosureFlags {
   using FastNewClosureBit = PretenuredBit::Next<bool, 1>;
 
   static uint8_t Encode(bool pretenure, bool is_function_scope,
-                        bool might_always_opt);
+                        bool might_always_turbofan);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CreateClosureFlags);
@@ -83,10 +83,13 @@ class StoreLookupSlotFlags {
  public:
   using LanguageModeBit = base::BitField8<LanguageMode, 0, 1>;
   using LookupHoistingModeBit = LanguageModeBit::Next<bool, 1>;
-  STATIC_ASSERT(LanguageModeSize <= LanguageModeBit::kNumValues);
+  static_assert(LanguageModeSize <= LanguageModeBit::kNumValues);
 
   static uint8_t Encode(LanguageMode language_mode,
                         LookupHoistingMode lookup_hoisting_mode);
+
+  static LanguageMode GetLanguageMode(uint8_t flags);
+  static bool IsLookupHoistingMode(uint8_t flags);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(StoreLookupSlotFlags);

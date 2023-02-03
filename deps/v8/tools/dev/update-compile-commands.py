@@ -52,7 +52,7 @@ def PrepareBuildDir(arch, mode):
   build_ninja = os.path.join(build_dir, "build.ninja")
   if not os.path.exists(build_ninja):
     code = _Call("gn gen %s" % build_dir)
-    if code != 0: raise Error("gn gen failed")
+    if code != 0: raise Exception("gn gen failed")
   else:
     _Call("ninja -C %s build.ninja" % build_dir)
   return build_dir

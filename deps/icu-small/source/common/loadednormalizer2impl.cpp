@@ -67,9 +67,9 @@ LoadedNormalizer2Impl::isAcceptable(void * /*context*/,
     ) {
         // Normalizer2Impl *me=(Normalizer2Impl *)context;
         // uprv_memcpy(me->dataVersion, pInfo->dataVersion, 4);
-        return TRUE;
+        return true;
     } else {
-        return FALSE;
+        return false;
     }
 }
 
@@ -134,14 +134,14 @@ U_CDECL_END
 
 #if !NORM2_HARDCODE_NFC_DATA
 static Norm2AllModes *nfcSingleton;
-static icu::UInitOnce nfcInitOnce = U_INITONCE_INITIALIZER;
+static icu::UInitOnce nfcInitOnce {};
 #endif
 
 static Norm2AllModes *nfkcSingleton;
-static icu::UInitOnce nfkcInitOnce = U_INITONCE_INITIALIZER;
+static icu::UInitOnce nfkcInitOnce {};
 
 static Norm2AllModes *nfkc_cfSingleton;
-static icu::UInitOnce nfkc_cfInitOnce = U_INITONCE_INITIALIZER;
+static icu::UInitOnce nfkc_cfInitOnce {};
 
 static UHashtable    *cache=NULL;
 
@@ -185,7 +185,7 @@ static UBool U_CALLCONV uprv_loaded_normalizer2_cleanup() {
 
     uhash_close(cache);
     cache=NULL;
-    return TRUE;
+    return true;
 }
 
 U_CDECL_END

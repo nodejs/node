@@ -28,7 +28,8 @@ namespace internal {
 // We also overlay the result and reactions fields on the JSPromise, since
 // the reactions are only necessary for pending promises, whereas the result
 // is only meaningful for settled promises.
-class JSPromise : public TorqueGeneratedJSPromise<JSPromise, JSObject> {
+class JSPromise
+    : public TorqueGeneratedJSPromise<JSPromise, JSObjectWithEmbedderSlots> {
  public:
   // [result]: Checks that the promise is settled and returns the result.
   inline Object result() const;
@@ -74,9 +75,9 @@ class JSPromise : public TorqueGeneratedJSPromise<JSPromise, JSObject> {
   // Flags layout.
   DEFINE_TORQUE_GENERATED_JS_PROMISE_FLAGS()
 
-  STATIC_ASSERT(v8::Promise::kPending == 0);
-  STATIC_ASSERT(v8::Promise::kFulfilled == 1);
-  STATIC_ASSERT(v8::Promise::kRejected == 2);
+  static_assert(v8::Promise::kPending == 0);
+  static_assert(v8::Promise::kFulfilled == 1);
+  static_assert(v8::Promise::kRejected == 2);
 
  private:
   // ES section #sec-triggerpromisereactions

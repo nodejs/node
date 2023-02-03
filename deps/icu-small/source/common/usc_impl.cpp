@@ -261,7 +261,7 @@ uscript_nextRun(UScriptRun *scriptRun, int32_t *pRunStart, int32_t *pRunLimit, U
 
     /* if we've fallen off the end of the text, we're done */
     if (scriptRun == NULL || scriptRun->scriptLimit >= scriptRun->textLength) {
-        return FALSE;
+        return false;
     }
     
     SYNC_FIXUP(scriptRun);
@@ -357,5 +357,5 @@ uscript_nextRun(UScriptRun *scriptRun, int32_t *pRunStart, int32_t *pRunLimit, U
         *pRunScript = scriptRun->scriptCode;
     }
 
-    return TRUE;
+    return true;
 }

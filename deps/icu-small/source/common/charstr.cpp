@@ -220,7 +220,7 @@ UBool CharString::ensureCapacity(int32_t capacity,
                                  int32_t desiredCapacityHint,
                                  UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) {
-        return FALSE;
+        return false;
     }
     if(capacity>buffer.getCapacity()) {
         if(desiredCapacityHint==0) {
@@ -230,10 +230,10 @@ UBool CharString::ensureCapacity(int32_t capacity,
             buffer.resize(capacity, len+1)==NULL
         ) {
             errorCode=U_MEMORY_ALLOCATION_ERROR;
-            return FALSE;
+            return false;
         }
     }
-    return TRUE;
+    return true;
 }
 
 CharString &CharString::appendPathPart(StringPiece s, UErrorCode &errorCode) {

@@ -1095,6 +1095,12 @@ Object.defineProperty(exports, "TSInferType", {
     return _index.tsInferType;
   }
 });
+Object.defineProperty(exports, "TSInstantiationExpression", {
+  enumerable: true,
+  get: function () {
+    return _index.tsInstantiationExpression;
+  }
+});
 Object.defineProperty(exports, "TSInterfaceBody", {
   enumerable: true,
   get: function () {
@@ -1225,6 +1231,12 @@ Object.defineProperty(exports, "TSRestType", {
   enumerable: true,
   get: function () {
     return _index.tsRestType;
+  }
+});
+Object.defineProperty(exports, "TSSatisfiesExpression", {
+  enumerable: true,
+  get: function () {
+    return _index.tsSatisfiesExpression;
   }
 });
 Object.defineProperty(exports, "TSStringKeyword", {
@@ -1509,5 +1521,6 @@ Object.defineProperty(exports, "YieldExpression", {
     return _index.yieldExpression;
   }
 });
-
 var _index = require("./index");
+
+//# sourceMappingURL=uppercase.js.map

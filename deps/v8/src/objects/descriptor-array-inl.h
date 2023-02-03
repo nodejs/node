@@ -5,12 +5,11 @@
 #ifndef V8_OBJECTS_DESCRIPTOR_ARRAY_INL_H_
 #define V8_OBJECTS_DESCRIPTOR_ARRAY_INL_H_
 
-#include "src/objects/descriptor-array.h"
-
 #include "src/execution/isolate.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
+#include "src/objects/descriptor-array.h"
 #include "src/objects/field-type.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/lookup-cache-inl.h"
@@ -70,6 +69,25 @@ InternalIndex DescriptorArray::Search(Name name, Map map,
   int number_of_own_descriptors = map.NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
   return Search(name, number_of_own_descriptors, concurrent_search);
+}
+
+InternalIndex DescriptorArray::Search(int field_index, int valid_descriptors) {
+  for (int desc_index = field_index; desc_index < valid_descriptors;
+       ++desc_index) {
+    PropertyDetails details = GetDetails(InternalIndex(desc_index));
+    if (details.location() != PropertyLocation::kField) continue;
+    if (field_index == details.field_index()) {
+      return InternalIndex(desc_index);
+    }
+    DCHECK_LT(details.field_index(), field_index);
+  }
+  return InternalIndex::NotFound();
+}
+
+InternalIndex DescriptorArray::Search(int field_index, Map map) {
+  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
+  if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
+  return Search(field_index, number_of_own_descriptors);
 }
 
 InternalIndex DescriptorArray::SearchWithCache(Isolate* isolate, Name name,
@@ -225,17 +243,24 @@ void DescriptorArray::Append(Descriptor* desc) {
   set_number_of_descriptors(descriptor_number + 1);
   Set(InternalIndex(descriptor_number), desc);
 
-  uint32_t hash = desc->GetKey()->hash();
+  uint32_t desc_hash = desc->GetKey()->hash();
+  // Hash value can't be zero, see String::ComputeAndSetHash()
+  uint32_t collision_hash = 0;
 
   int insertion;
 
   for (insertion = descriptor_number; insertion > 0; --insertion) {
     Name key = GetSortedKey(insertion - 1);
-    if (key.hash() <= hash) break;
+    collision_hash = key.hash();
+    if (collision_hash <= desc_hash) break;
     SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
   }
 
   SetSortedKey(insertion, descriptor_number);
+
+  if (V8_LIKELY(collision_hash != desc_hash)) return;
+
+  CheckNameCollisionDuringInsertion(desc, desc_hash, insertion);
 }
 
 void DescriptorArray::SwapSortedKeys(int first, int second) {

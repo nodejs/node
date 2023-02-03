@@ -40,7 +40,7 @@ _enumPropertyStartsRange(const void *context, UChar32 start, UChar32 /*end*/, ui
     /* add the start code point to the USet */
     const USetAdder *sa=(const USetAdder *)context;
     sa->add(sa->set, start);
-    return TRUE;
+    return true;
 }
 
 U_CFUNC void U_EXPORT2
@@ -354,7 +354,7 @@ ucase_addStringCaseClosure(const UChar *s, int32_t length, const USetAdder *sa) 
     int32_t i, start, limit, result, unfoldRows, unfoldRowWidth, unfoldStringWidth;
 
     if(ucase_props_singleton.unfold==NULL || s==NULL) {
-        return FALSE; /* no reverse case folding data, or no string */
+        return false; /* no reverse case folding data, or no string */
     }
     if(length<=1) {
         /* the string is too short to find any match */
@@ -364,7 +364,7 @@ ucase_addStringCaseClosure(const UChar *s, int32_t length, const USetAdder *sa) 
          * but this does not make much practical difference because
          * a single supplementary code point would just not be found
          */
-        return FALSE;
+        return false;
     }
 
     const uint16_t *unfold=ucase_props_singleton.unfold;
@@ -375,7 +375,7 @@ ucase_addStringCaseClosure(const UChar *s, int32_t length, const USetAdder *sa) 
 
     if(length>unfoldStringWidth) {
         /* the string is too long to find any match */
-        return FALSE;
+        return false;
     }
 
     /* do a binary search for the string */
@@ -395,7 +395,7 @@ ucase_addStringCaseClosure(const UChar *s, int32_t length, const USetAdder *sa) 
                 sa->add(sa->set, c);
                 ucase_addCaseClosure(c, sa);
             }
-            return TRUE;
+            return true;
         } else if(result<0) {
             limit=i;
         } else /* result>0 */ {
@@ -403,7 +403,7 @@ ucase_addStringCaseClosure(const UChar *s, int32_t length, const USetAdder *sa) 
         }
     }
 
-    return FALSE; /* string not found */
+    return false; /* string not found */
 }
 
 U_NAMESPACE_BEGIN
@@ -431,7 +431,7 @@ FullCaseFoldingIterator::next(UnicodeString &full) {
     // Set "full" to the NUL-terminated string in the first unfold column.
     int32_t length=unfoldStringWidth;
     while(length>0 && p[length-1]==0) { --length; }
-    full.setTo(FALSE, p, length);
+    full.setTo(false, p, length);
     // Return the code point.
     UChar32 c;
     U16_NEXT_UNSAFE(p, rowCpIndex, c);
@@ -905,7 +905,7 @@ isFollowedByCasedLetter(UCaseContextIterator *iter, void *context, int8_t dir) {
     UChar32 c;
 
     if(iter==NULL) {
-        return FALSE;
+        return false;
     }
 
     for(/* dir!=0 sets direction */; (c=iter(context, dir))>=0; dir=0) {
@@ -913,13 +913,13 @@ isFollowedByCasedLetter(UCaseContextIterator *iter, void *context, int8_t dir) {
         if(type&4) {
             /* case-ignorable, continue with the loop */
         } else if(type!=UCASE_NONE) {
-            return TRUE; /* followed by cased letter */
+            return true; /* followed by cased letter */
         } else {
-            return FALSE; /* uncased and not case-ignorable */
+            return false; /* uncased and not case-ignorable */
         }
     }
 
-    return FALSE; /* not followed by cased letter */
+    return false; /* not followed by cased letter */
 }
 
 /* Is preceded by Soft_Dotted character with no intervening cc=230 ? */
@@ -930,19 +930,19 @@ isPrecededBySoftDotted(UCaseContextIterator *iter, void *context) {
     int8_t dir;
 
     if(iter==NULL) {
-        return FALSE;
+        return false;
     }
 
     for(dir=-1; (c=iter(context, dir))>=0; dir=0) {
         dotType=getDotType(c);
         if(dotType==UCASE_SOFT_DOTTED) {
-            return TRUE; /* preceded by TYPE_i */
+            return true; /* preceded by TYPE_i */
         } else if(dotType!=UCASE_OTHER_ACCENT) {
-            return FALSE; /* preceded by different base character (not TYPE_i), or intervening cc==230 */
+            return false; /* preceded by different base character (not TYPE_i), or intervening cc==230 */
         }
     }
 
-    return FALSE; /* not preceded by TYPE_i */
+    return false; /* not preceded by TYPE_i */
 }
 
 /*
@@ -987,20 +987,20 @@ isPrecededBy_I(UCaseContextIterator *iter, void *context) {
     int8_t dir;
 
     if(iter==NULL) {
-        return FALSE;
+        return false;
     }
 
     for(dir=-1; (c=iter(context, dir))>=0; dir=0) {
         if(c==0x49) {
-            return TRUE; /* preceded by I */
+            return true; /* preceded by I */
         }
         dotType=getDotType(c);
         if(dotType!=UCASE_OTHER_ACCENT) {
-            return FALSE; /* preceded by different base character (not I), or intervening cc==230 */
+            return false; /* preceded by different base character (not I), or intervening cc==230 */
         }
     }
 
-    return FALSE; /* not preceded by I */
+    return false; /* not preceded by I */
 }
 
 /* Is followed by one or more cc==230 ? */
@@ -1011,19 +1011,19 @@ isFollowedByMoreAbove(UCaseContextIterator *iter, void *context) {
     int8_t dir;
 
     if(iter==NULL) {
-        return FALSE;
+        return false;
     }
 
     for(dir=1; (c=iter(context, dir))>=0; dir=0) {
         dotType=getDotType(c);
         if(dotType==UCASE_ABOVE) {
-            return TRUE; /* at least one cc==230 following */
+            return true; /* at least one cc==230 following */
         } else if(dotType!=UCASE_OTHER_ACCENT) {
-            return FALSE; /* next base character, no more cc==230 following */
+            return false; /* next base character, no more cc==230 following */
         }
     }
 
-    return FALSE; /* no more cc==230 following */
+    return false; /* no more cc==230 following */
 }
 
 /* Is followed by a dot above (without cc==230 in between) ? */
@@ -1034,20 +1034,20 @@ isFollowedByDotAbove(UCaseContextIterator *iter, void *context) {
     int8_t dir;
 
     if(iter==NULL) {
-        return FALSE;
+        return false;
     }
 
     for(dir=1; (c=iter(context, dir))>=0; dir=0) {
         if(c==0x307) {
-            return TRUE;
+            return true;
         }
         dotType=getDotType(c);
         if(dotType!=UCASE_OTHER_ACCENT) {
-            return FALSE; /* next base character or cc==230 in between */
+            return false; /* next base character or cc==230 in between */
         }
     }
 
-    return FALSE; /* no dot above following */
+    return false; /* no dot above following */
 }
 
 U_CAPI int32_t U_EXPORT2
@@ -1317,7 +1317,7 @@ ucase_toFullUpper(UChar32 c,
                   UCaseContextIterator *iter, void *context,
                   const UChar **pString,
                   int32_t caseLocale) {
-    return toUpperOrTitle(c, iter, context, pString, caseLocale, TRUE);
+    return toUpperOrTitle(c, iter, context, pString, caseLocale, true);
 }
 
 U_CAPI int32_t U_EXPORT2
@@ -1325,7 +1325,7 @@ ucase_toFullTitle(UChar32 c,
                   UCaseContextIterator *iter, void *context,
                   const UChar **pString,
                   int32_t caseLocale) {
-    return toUpperOrTitle(c, iter, context, pString, caseLocale, FALSE);
+    return toUpperOrTitle(c, iter, context, pString, caseLocale, false);
 }
 
 /* case folding ------------------------------------------------------------- */
@@ -1601,6 +1601,6 @@ ucase_hasBinaryProperty(UChar32 c, UProperty which) {
             ucase_toFullUpper(c, NULL, NULL, &resultString, UCASE_LOC_ROOT)>=0 ||
             ucase_toFullTitle(c, NULL, NULL, &resultString, UCASE_LOC_ROOT)>=0);
     default:
-        return FALSE;
+        return false;
     }
 }

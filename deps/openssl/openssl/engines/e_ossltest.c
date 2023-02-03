@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -41,10 +41,6 @@
 #include <crypto/evp.h>
 
 #include "e_ossltest_err.c"
-
-#ifdef _WIN32
-# define strncasecmp _strnicmp
-#endif
 
 /* Engine Id and Name */
 static const char *engine_ossltest_id = "ossltest";
@@ -383,7 +379,7 @@ static EVP_PKEY *load_key(ENGINE *eng, const char *key_id, int pub,
     BIO *in;
     EVP_PKEY *key;
 
-    if (strncasecmp(key_id, "ot:", 3) != 0)
+    if (OPENSSL_strncasecmp(key_id, "ot:", 3) != 0)
         return NULL;
     key_id += 3;
 

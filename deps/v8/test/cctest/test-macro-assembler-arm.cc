@@ -31,7 +31,6 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/simulator.h"
-#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
@@ -73,7 +72,7 @@ TEST(ExtractLane) {
   };
   T t;
 
-  __ stm(db_w, sp, r4.bit() | r5.bit() | lr.bit());
+  __ stm(db_w, sp, {r4, r5, lr});
 
   for (int i = 0; i < 4; i++) {
     __ mov(r4, Operand(i));
@@ -143,7 +142,7 @@ TEST(ExtractLane) {
     }
   }
 
-  __ ldm(ia_w, sp, r4.bit() | r5.bit() | pc.bit());
+  __ ldm(ia_w, sp, {r4, r5, pc});
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
@@ -210,7 +209,7 @@ TEST(ReplaceLane) {
   };
   T t;
 
-  __ stm(db_w, sp, r4.bit() | r5.bit() | r6.bit() | r7.bit() | lr.bit());
+  __ stm(db_w, sp, {r4, r5, r6, r7, lr});
 
   __ veor(q0, q0, q0);  // Zero
   __ veor(q1, q1, q1);  // Zero
@@ -274,7 +273,7 @@ TEST(ReplaceLane) {
     __ vst1(Neon8, NeonListOperand(q14), NeonMemOperand(r4));
   }
 
-  __ ldm(ia_w, sp, r4.bit() | r5.bit() | r6.bit() | r7.bit() | pc.bit());
+  __ ldm(ia_w, sp, {r4, r5, r6, r7, pc});
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
@@ -311,35 +310,23 @@ TEST(ReplaceLane) {
 }
 
 TEST(DeoptExitSizeIsFixed) {
-  CHECK(Deoptimizer::kSupportsFixedDeoptExitSizes);
-
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       buffer->CreateView());
 
-  STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
+  static_assert(static_cast<int>(kFirstDeoptimizeKind) == 0);
   for (int i = 0; i < kDeoptimizeKindCount; i++) {
     DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
     Label before_exit;
     masm.bind(&before_exit);
-    if (kind == DeoptimizeKind::kEagerWithResume) {
-      Builtin target = Deoptimizer::GetDeoptWithResumeBuiltin(
-          DeoptimizeReason::kDynamicCheckMaps);
-      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
-                                 nullptr);
-      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
-               Deoptimizer::kEagerWithResumeBeforeArgsSize);
-    } else {
-      Builtin target = Deoptimizer::GetDeoptimizationEntry(kind);
-      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
-                                 nullptr);
-      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
-               kind == DeoptimizeKind::kLazy
-                   ? Deoptimizer::kLazyDeoptExitSize
-                   : Deoptimizer::kNonLazyDeoptExitSize);
-    }
+    Builtin target = Deoptimizer::GetDeoptimizationEntry(kind);
+    masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
+                               nullptr);
+    CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
+             kind == DeoptimizeKind::kLazy ? Deoptimizer::kLazyDeoptExitSize
+                                           : Deoptimizer::kEagerDeoptExitSize);
   }
 }
 

@@ -17,7 +17,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce linebreaks after opening and before closing array brackets",
+            description: "Enforce linebreaks after opening and before closing array brackets",
             recommended: false,
             url: "https://eslint.org/docs/rules/array-bracket-newline"
         },

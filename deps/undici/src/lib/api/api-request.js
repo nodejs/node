@@ -3,7 +3,8 @@
 const Readable = require('./readable')
 const {
   InvalidArgumentError,
-  RequestAbortedError
+  RequestAbortedError,
+  ResponseStatusCodeError
 } = require('../core/errors')
 const util = require('../core/util')
 const { AsyncResource } = require('async_hooks')
@@ -15,7 +16,7 @@ class RequestHandler extends AsyncResource {
       throw new InvalidArgumentError('invalid opts')
     }
 
-    const { signal, method, opaque, body, onInfo, responseHeaders } = opts
+    const { signal, method, opaque, body, onInfo, responseHeaders, throwOnError } = opts
 
     try {
       if (typeof callback !== 'function') {
@@ -51,6 +52,7 @@ class RequestHandler extends AsyncResource {
     this.trailers = {}
     this.context = null
     this.onInfo = onInfo || null
+    this.throwOnError = throwOnError
 
     if (util.isStream(body)) {
       body.on('error', (err) => {
@@ -70,7 +72,7 @@ class RequestHandler extends AsyncResource {
     this.context = context
   }
 
-  onHeaders (statusCode, rawHeaders, resume) {
+  onHeaders (statusCode, rawHeaders, resume, statusMessage) {
     const { callback, opaque, abort, context } = this
 
     if (statusCode < 200) {
@@ -82,20 +84,30 @@ class RequestHandler extends AsyncResource {
     }
 
     const parsedHeaders = util.parseHeaders(rawHeaders)
-    const body = new Readable(resume, abort, parsedHeaders['content-type'])
+    const contentType = parsedHeaders['content-type']
+    const body = new Readable(resume, abort, contentType)
 
     this.callback = null
     this.res = body
     const headers = this.responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
 
-    this.runInAsyncScope(callback, null, null, {
-      statusCode,
-      headers,
-      trailers: this.trailers,
-      opaque,
-      body,
-      context
-    })
+    if (callback !== null) {
+      if (this.throwOnError && statusCode >= 400) {
+        this.runInAsyncScope(getResolveErrorBodyCallback, null,
+          { callback, body, contentType, statusCode, statusMessage, headers }
+        )
+        return
+      }
+
+      this.runInAsyncScope(callback, null, null, {
+        statusCode,
+        headers,
+        trailers: this.trailers,
+        opaque,
+        body,
+        context
+      })
+    }
   }
 
   onData (chunk) {
@@ -139,6 +151,33 @@ class RequestHandler extends AsyncResource {
       util.destroy(body, err)
     }
   }
+}
+
+async function getResolveErrorBodyCallback ({ callback, body, contentType, statusCode, statusMessage, headers }) {
+  if (statusCode === 204 || !contentType) {
+    body.dump()
+    process.nextTick(callback, new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`, statusCode, headers))
+    return
+  }
+
+  try {
+    if (contentType.startsWith('application/json')) {
+      const payload = await body.json()
+      process.nextTick(callback, new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`, statusCode, headers, payload))
+      return
+    }
+
+    if (contentType.startsWith('text/')) {
+      const payload = await body.text()
+      process.nextTick(callback, new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`, statusCode, headers, payload))
+      return
+    }
+  } catch (err) {
+    // Process in a fallback if error
+  }
+
+  body.dump()
+  process.nextTick(callback, new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`, statusCode, headers))
 }
 
 function request (opts, callback) {

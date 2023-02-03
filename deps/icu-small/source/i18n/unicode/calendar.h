@@ -962,16 +962,6 @@ public:
      */
     UCalendarWallTimeOption getSkippedWallTimeOption(void) const;
 
-#ifndef U_HIDE_DEPRECATED_API
-    /**
-     * Sets what the first day of the week is; e.g., Sunday in US, Monday in France.
-     *
-     * @param value  The given first day of the week.
-     * @deprecated ICU 2.6. Use setFirstDayOfWeek(UCalendarDaysOfWeek value) instead.
-     */
-    void setFirstDayOfWeek(EDaysOfWeek value);
-#endif  /* U_HIDE_DEPRECATED_API */
-
     /**
      * Sets what the first day of the week is; e.g., Sunday in US, Monday in France.
      *
@@ -1143,26 +1133,6 @@ public:
      */
     virtual int32_t getActualMinimum(UCalendarDateFields field, UErrorCode& status) const;
 
-#ifndef U_HIDE_DEPRECATED_API
-    /**
-     * Return the maximum value that this field could have, given the current date.
-     * For example, with the date "Feb 3, 1997" and the DAY_OF_MONTH field, the actual
-     * maximum would be 28; for "Feb 3, 1996" it s 29.  Similarly for a Hebrew calendar,
-     * for some years the actual maximum for MONTH is 12, and for others 13.
-     *
-     * The version of this function on Calendar uses an iterative algorithm to determine the
-     * actual maximum value for the field.  There is almost always a more efficient way to
-     * accomplish this (in most cases, you can simply return getMaximum()).  GregorianCalendar
-     * overrides this function with a more efficient implementation.
-     *
-     * @param field    the field to determine the maximum of
-     * @param status   Fill-in parameter which receives the status of this operation.
-     * @return         the maximum of the given field for the current date of this Calendar
-     * @deprecated ICU 2.6. Use getActualMaximum(UCalendarDateFields field, UErrorCode& status) instead.
-     */
-    int32_t getActualMaximum(EDateFields field, UErrorCode& status) const;
-#endif  /* U_HIDE_DEPRECATED_API */
-
     /**
      * Return the maximum value that this field could have, given the current date.
      * For example, with the date "Feb 3, 1997" and the DAY_OF_MONTH field, the actual
@@ -1181,23 +1151,6 @@ public:
      */
     virtual int32_t getActualMaximum(UCalendarDateFields field, UErrorCode& status) const;
 
-#ifndef U_HIDE_DEPRECATED_API
-    /**
-     * Gets the value for a given time field. Recalculate the current time field values
-     * if the time value has been changed by a call to setTime(). Return zero for unset
-     * fields if any fields have been explicitly set by a call to set(). To force a
-     * recomputation of all fields regardless of the previous state, call complete().
-     * This method is semantically const, but may alter the object in memory.
-     *
-     * @param field  The given time field.
-     * @param status Fill-in parameter which receives the status of the operation.
-     * @return       The value for the given time field, or zero if the field is unset,
-     *               and set() has been called for any other field.
-     * @deprecated ICU 2.6. Use get(UCalendarDateFields field, UErrorCode& status) instead.
-     */
-    int32_t get(EDateFields field, UErrorCode& status) const;
-#endif  /* U_HIDE_DEPRECATED_API */
-
     /**
      * Gets the value for a given time field. Recalculate the current time field values
      * if the time value has been changed by a call to setTime(). Return zero for unset
@@ -1213,18 +1166,6 @@ public:
      */
     int32_t get(UCalendarDateFields field, UErrorCode& status) const;
 
-#ifndef U_HIDE_DEPRECATED_API
-    /**
-     * Determines if the given time field has a value set. This can affect in the
-     * resolving of time in Calendar. Unset fields have a value of zero, by definition.
-     *
-     * @param field  The given time field.
-     * @return   True if the given time field has a value set; false otherwise.
-     * @deprecated ICU 2.6. Use isSet(UCalendarDateFields field) instead.
-     */
-    UBool isSet(EDateFields field) const;
-#endif  /* U_HIDE_DEPRECATED_API */
-
     /**
      * Determines if the given time field has a value set. This can affect in the
      * resolving of time in Calendar. Unset fields have a value of zero, by definition.
@@ -1234,17 +1175,6 @@ public:
      * @stable ICU 2.6.
      */
     UBool isSet(UCalendarDateFields field) const;
-
-#ifndef U_HIDE_DEPRECATED_API
-    /**
-     * Sets the given time field with the given value.
-     *
-     * @param field  The given time field.
-     * @param value  The value to be set for the given time field.
-     * @deprecated ICU 2.6. Use set(UCalendarDateFields field, int32_t value) instead.
-     */
-    void set(EDateFields field, int32_t value);
-#endif  /* U_HIDE_DEPRECATED_API */
 
     /**
      * Sets the given time field with the given value.
@@ -1303,18 +1233,6 @@ public:
      * @stable ICU 2.0
      */
     void clear(void);
-
-#ifndef U_HIDE_DEPRECATED_API
-    /**
-     * Clears the value in the given time field, both making it unset and assigning it a
-     * value of zero. This field value will be determined during the next resolving of
-     * time into time fields.
-     *
-     * @param field  The time field to be cleared.
-     * @deprecated ICU 2.6. Use clear(UCalendarDateFields field) instead.
-     */
-    void clear(EDateFields field);
-#endif  /* U_HIDE_DEPRECATED_API */
 
     /**
      * Clears the value in the given time field, both making it unset and assigning it a
@@ -1766,16 +1684,22 @@ protected:
     int32_t newestStamp(UCalendarDateFields start, UCalendarDateFields end, int32_t bestSoFar) const;
 
     /**
-     * Values for field resolution tables
+     * Marker for end of resolve set (row or group). Value for field resolution tables.
+     *
      * @see #resolveFields
      * @internal
      */
-    enum {
-      /** Marker for end of resolve set (row or group). */
-      kResolveSTOP = -1,
-      /** Value to be bitwised "ORed" against resolve table field values for remapping.  Example: (UCAL_DATE | kResolveRemap) in 1st column will cause 'UCAL_DATE' to be returned, but will not examine the value of UCAL_DATE.  */
-      kResolveRemap = 32
-    };
+    static constexpr int32_t kResolveSTOP = -1;
+    /**
+     * Value to be bitwised "ORed" against resolve table field values for remapping.
+     * Example: (UCAL_DATE | kResolveRemap) in 1st column will cause 'UCAL_DATE' to be returned,
+     * but will not examine the value of UCAL_DATE.
+     * Value for field resolution tables.
+     *
+     * @see #resolveFields
+     * @internal
+     */
+    static constexpr int32_t kResolveRemap = 32;
 
     /**
      * Precedence table for Dates

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-eh
-
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Instantiate a throwing module.
@@ -26,4 +24,4 @@ try {
 // that no extraneous properties exist. Setting such properties could be
 // observable by JavaScript and could break compatibility.
 assertInstanceof(exception, WebAssembly.Exception);
-assertArrayEquals(["stack", "message"], Object.getOwnPropertyNames(exception));
+assertArrayEquals([], Object.getOwnPropertyNames(exception));

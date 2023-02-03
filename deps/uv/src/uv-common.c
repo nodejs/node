@@ -295,7 +295,9 @@ int uv_tcp_bind(uv_tcp_t* handle,
 
   if (handle->type != UV_TCP)
     return UV_EINVAL;
-
+  if (uv__is_closing(handle)) {
+    return UV_EINVAL;
+  }
   if (addr->sa_family == AF_INET)
     addrlen = sizeof(struct sockaddr_in);
   else if (addr->sa_family == AF_INET6)

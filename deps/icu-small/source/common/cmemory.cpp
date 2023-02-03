@@ -134,5 +134,5 @@ U_CFUNC UBool cmemory_cleanup(void) {
     pAlloc     = NULL;
     pRealloc   = NULL;
     pFree      = NULL;
-    return TRUE;
+    return true;
 }

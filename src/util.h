@@ -26,6 +26,9 @@
 
 #include "v8.h"
 
+#include "node.h"
+#include "node_exit_code.h"
+
 #include <climits>
 #include <cstddef>
 #include <cstdio>
@@ -110,13 +113,13 @@ struct AssertionInfo {
   const char* message;
   const char* function;
 };
-[[noreturn]] void Assert(const AssertionInfo& info);
-[[noreturn]] void Abort();
+[[noreturn]] void NODE_EXTERN_PRIVATE Assert(const AssertionInfo& info);
+[[noreturn]] void NODE_EXTERN_PRIVATE Abort();
 void DumpBacktrace(FILE* fp);
 
 // Windows 8+ does not like abort() in Release mode
 #ifdef _WIN32
-#define ABORT_NO_BACKTRACE() _exit(134)
+#define ABORT_NO_BACKTRACE() _exit(static_cast<int>(node::ExitCode::kAbort))
 #else
 #define ABORT_NO_BACKTRACE() abort()
 #endif
@@ -270,6 +273,37 @@ class ContainerOfHelper {
 template <typename Inner, typename Outer>
 constexpr ContainerOfHelper<Inner, Outer> ContainerOf(Inner Outer::*field,
                                                       Inner* pointer);
+
+class KVStore {
+ public:
+  KVStore() = default;
+  virtual ~KVStore() = default;
+  KVStore(const KVStore&) = delete;
+  KVStore& operator=(const KVStore&) = delete;
+  KVStore(KVStore&&) = delete;
+  KVStore& operator=(KVStore&&) = delete;
+
+  virtual v8::MaybeLocal<v8::String> Get(v8::Isolate* isolate,
+                                         v8::Local<v8::String> key) const = 0;
+  virtual v8::Maybe<std::string> Get(const char* key) const = 0;
+  virtual void Set(v8::Isolate* isolate,
+                   v8::Local<v8::String> key,
+                   v8::Local<v8::String> value) = 0;
+  virtual int32_t Query(v8::Isolate* isolate,
+                        v8::Local<v8::String> key) const = 0;
+  virtual int32_t Query(const char* key) const = 0;
+  virtual void Delete(v8::Isolate* isolate, v8::Local<v8::String> key) = 0;
+  virtual v8::Local<v8::Array> Enumerate(v8::Isolate* isolate) const = 0;
+
+  virtual std::shared_ptr<KVStore> Clone(v8::Isolate* isolate) const;
+  virtual v8::Maybe<bool> AssignFromObject(v8::Local<v8::Context> context,
+                                           v8::Local<v8::Object> entries);
+  v8::Maybe<bool> AssignToObject(v8::Isolate* isolate,
+                                 v8::Local<v8::Context> context,
+                                 v8::Local<v8::Object> object);
+
+  static std::shared_ptr<KVStore> CreateMapKVStore();
+};
 
 // Convenience wrapper around v8::String::NewFromOneByte().
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
@@ -468,18 +502,31 @@ class ArrayBufferViewContents {
  public:
   ArrayBufferViewContents() = default;
 
+  ArrayBufferViewContents(const ArrayBufferViewContents&) = delete;
+  void operator=(const ArrayBufferViewContents&) = delete;
+
   explicit inline ArrayBufferViewContents(v8::Local<v8::Value> value);
   explicit inline ArrayBufferViewContents(v8::Local<v8::Object> value);
   explicit inline ArrayBufferViewContents(v8::Local<v8::ArrayBufferView> abv);
   inline void Read(v8::Local<v8::ArrayBufferView> abv);
+  inline void ReadValue(v8::Local<v8::Value> buf);
 
+  inline bool WasDetached() const { return was_detached_; }
   inline const T* data() const { return data_; }
   inline size_t length() const { return length_; }
 
  private:
+  // Declaring operator new and delete as deleted is not spec compliant.
+  // Therefore, declare them private instead to disable dynamic alloc.
+  void* operator new(size_t size);
+  void* operator new[](size_t size);
+  void operator delete(void*, size_t);
+  void operator delete[](void*, size_t);
+
   T stack_storage_[kStackStorageSize];
   T* data_ = nullptr;
   size_t length_ = 0;
+  bool was_detached_ = false;
 };
 
 class Utf8Value : public MaybeStackBuffer<char> {
@@ -505,17 +552,14 @@ class BufferValue : public MaybeStackBuffer<char> {
   inline std::string ToString() const { return std::string(out(), length()); }
 };
 
-#define SPREAD_BUFFER_ARG(val, name)                                          \
-  CHECK((val)->IsArrayBufferView());                                          \
-  v8::Local<v8::ArrayBufferView> name = (val).As<v8::ArrayBufferView>();      \
-  std::shared_ptr<v8::BackingStore> name##_bs =                               \
-      name->Buffer()->GetBackingStore();                                      \
-  const size_t name##_offset = name->ByteOffset();                            \
-  const size_t name##_length = name->ByteLength();                            \
-  char* const name##_data =                                                   \
-      static_cast<char*>(name##_bs->Data()) + name##_offset;                  \
-  if (name##_length > 0)                                                      \
-    CHECK_NE(name##_data, nullptr);
+#define SPREAD_BUFFER_ARG(val, name)                                           \
+  CHECK((val)->IsArrayBufferView());                                           \
+  v8::Local<v8::ArrayBufferView> name = (val).As<v8::ArrayBufferView>();       \
+  const size_t name##_offset = name->ByteOffset();                             \
+  const size_t name##_length = name->ByteLength();                             \
+  char* const name##_data =                                                    \
+      static_cast<char*>(name->Buffer()->Data()) + name##_offset;              \
+  if (name##_length > 0) CHECK_NE(name##_data, nullptr);
 
 // Use this when a variable or parameter is unused in order to explicitly
 // silence a compiler warning about that.
@@ -643,7 +687,9 @@ struct FunctionDeleter {
 template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
-std::vector<std::string> SplitString(const std::string& in, char delim);
+std::vector<std::string> SplitString(const std::string& in,
+                                     char delim,
+                                     bool skipEmpty = true);
 
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            std::string_view str,
@@ -712,26 +758,23 @@ inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
         .Check();                                                              \
   } while (0)
 
-enum Endianness {
-  kLittleEndian,  // _Not_ LITTLE_ENDIAN, clashes with endian.h.
-  kBigEndian
-};
+enum class Endianness { LITTLE, BIG };
 
-inline enum Endianness GetEndianness() {
+inline Endianness GetEndianness() {
   // Constant-folded by the compiler.
   const union {
     uint8_t u8[2];
     uint16_t u16;
   } u = {{1, 0}};
-  return u.u16 == 1 ? kLittleEndian : kBigEndian;
+  return u.u16 == 1 ? Endianness::LITTLE : Endianness::BIG;
 }
 
 inline bool IsLittleEndian() {
-  return GetEndianness() == kLittleEndian;
+  return GetEndianness() == Endianness::LITTLE;
 }
 
 inline bool IsBigEndian() {
-  return GetEndianness() == kBigEndian;
+  return GetEndianness() == Endianness::BIG;
 }
 
 // Round up a to the next highest multiple of b.
@@ -797,20 +840,20 @@ class PersistentToLocal {
 // computations.
 class FastStringKey {
  public:
-  constexpr explicit FastStringKey(const char* name);
+  constexpr explicit FastStringKey(std::string_view name);
 
   struct Hash {
     constexpr size_t operator()(const FastStringKey& key) const;
   };
   constexpr bool operator==(const FastStringKey& other) const;
 
-  constexpr const char* c_str() const;
+  constexpr std::string_view as_string_view() const;
 
  private:
-  static constexpr size_t HashImpl(const char* str);
+  static constexpr size_t HashImpl(std::string_view str);
 
-  const char* name_;
-  size_t cached_hash_;
+  const std::string_view name_;
+  const size_t cached_hash_;
 };
 
 // Like std::static_pointer_cast but for unique_ptr with the default deleter.
@@ -824,6 +867,85 @@ std::unique_ptr<T> static_unique_pointer_cast(std::unique_ptr<U>&& ptr) {
 // Returns a non-zero code if it fails to open or read the file,
 // aborts if it fails to close the file.
 int ReadFileSync(std::string* result, const char* path);
+
+v8::Local<v8::FunctionTemplate> NewFunctionTemplate(
+    v8::Isolate* isolate,
+    v8::FunctionCallback callback,
+    v8::Local<v8::Signature> signature = v8::Local<v8::Signature>(),
+    v8::ConstructorBehavior behavior = v8::ConstructorBehavior::kAllow,
+    v8::SideEffectType side_effect = v8::SideEffectType::kHasSideEffect,
+    const v8::CFunction* c_function = nullptr);
+
+// Convenience methods for NewFunctionTemplate().
+void SetMethod(v8::Local<v8::Context> context,
+               v8::Local<v8::Object> that,
+               const char* name,
+               v8::FunctionCallback callback);
+// Similar to SetProtoMethod but without receiver signature checks.
+void SetMethod(v8::Isolate* isolate,
+               v8::Local<v8::Template> that,
+               const char* name,
+               v8::FunctionCallback callback);
+
+void SetFastMethod(v8::Local<v8::Context> context,
+                   v8::Local<v8::Object> that,
+                   const char* name,
+                   v8::FunctionCallback slow_callback,
+                   const v8::CFunction* c_function);
+
+void SetProtoMethod(v8::Isolate* isolate,
+                    v8::Local<v8::FunctionTemplate> that,
+                    const char* name,
+                    v8::FunctionCallback callback);
+
+void SetInstanceMethod(v8::Isolate* isolate,
+                       v8::Local<v8::FunctionTemplate> that,
+                       const char* name,
+                       v8::FunctionCallback callback);
+
+// Safe variants denote the function has no side effects.
+void SetMethodNoSideEffect(v8::Local<v8::Context> context,
+                           v8::Local<v8::Object> that,
+                           const char* name,
+                           v8::FunctionCallback callback);
+void SetProtoMethodNoSideEffect(v8::Isolate* isolate,
+                                v8::Local<v8::FunctionTemplate> that,
+                                const char* name,
+                                v8::FunctionCallback callback);
+
+enum class SetConstructorFunctionFlag {
+  NONE,
+  SET_CLASS_NAME,
+};
+
+void SetConstructorFunction(v8::Local<v8::Context> context,
+                            v8::Local<v8::Object> that,
+                            const char* name,
+                            v8::Local<v8::FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag =
+                                SetConstructorFunctionFlag::SET_CLASS_NAME);
+
+void SetConstructorFunction(v8::Local<v8::Context> context,
+                            v8::Local<v8::Object> that,
+                            v8::Local<v8::String> name,
+                            v8::Local<v8::FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag =
+                                SetConstructorFunctionFlag::SET_CLASS_NAME);
+
+void SetConstructorFunction(v8::Isolate* isolate,
+                            v8::Local<v8::Template> that,
+                            const char* name,
+                            v8::Local<v8::FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag =
+                                SetConstructorFunctionFlag::SET_CLASS_NAME);
+
+void SetConstructorFunction(v8::Isolate* isolate,
+                            v8::Local<v8::Template> that,
+                            v8::Local<v8::String> name,
+                            v8::Local<v8::FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag =
+                                SetConstructorFunctionFlag::SET_CLASS_NAME);
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

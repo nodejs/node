@@ -7,7 +7,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const { Buffer } = require('buffer');
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 const { createHash } = require('crypto');
 
 const kTests = [
@@ -66,25 +66,23 @@ const kData = (new TextEncoder()).encode('hello');
   }));
 })().then(common.mustCall());
 
-Promise.all([1, [], {}, null, undefined].map((i) =>
-  assert.rejects(subtle.digest(i), { message: /Unrecognized name/ })
+Promise.all([1, null, undefined].map((i) =>
+  assert.rejects(subtle.digest(i, Buffer.alloc(0)), {
+    message: /Unrecognized algorithm name/,
+    name: 'NotSupportedError',
+  })
 )).then(common.mustCall());
 
-assert.rejects(subtle.digest(''), { message: /Unrecognized name/ }).then(common.mustCall());
+assert.rejects(subtle.digest('', Buffer.alloc(0)), {
+  message: /Unrecognized algorithm name/,
+  name: 'NotSupportedError',
+}).then(common.mustCall());
 
 Promise.all([1, [], {}, null, undefined].map((i) =>
   assert.rejects(subtle.digest('SHA-256', i), {
     code: 'ERR_INVALID_ARG_TYPE'
   })
 )).then(common.mustCall());
-
-// If there is a mismatch between length and the expected digest size for
-// the selected algorithm, we fail. The length is a Node.js specific
-// addition to the API, and is added as a support for future additional
-// hash algorithms that support variable digest output lengths.
-assert.rejects(subtle.digest({ name: 'SHA-512', length: 510 }, kData), {
-  message: /Digest method not supported/
-}).then(common.mustCall());
 
 const kSourceData = {
   empty: '',
@@ -167,4 +165,10 @@ async function testDigest(size, name) {
   });
 
   await Promise.all(variations);
+})().then(common.mustCall());
+
+(async () => {
+  await assert.rejects(subtle.digest('RSA-OAEP', Buffer.alloc(1)), {
+    name: 'NotSupportedError',
+  });
 })().then(common.mustCall());

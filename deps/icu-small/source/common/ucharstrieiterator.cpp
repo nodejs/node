@@ -26,7 +26,7 @@ UCharsTrie::Iterator::Iterator(ConstChar16Ptr trieUChars, int32_t maxStringLengt
         : uchars_(trieUChars),
           pos_(uchars_), initialPos_(uchars_),
           remainingMatchLength_(-1), initialRemainingMatchLength_(-1),
-          skipValue_(FALSE),
+          skipValue_(false),
           maxLength_(maxStringLength), value_(0), stack_(NULL) {
     if(U_FAILURE(errorCode)) {
         return;
@@ -48,7 +48,7 @@ UCharsTrie::Iterator::Iterator(const UCharsTrie &trie, int32_t maxStringLength,
         : uchars_(trie.uchars_), pos_(trie.pos_), initialPos_(trie.pos_),
           remainingMatchLength_(trie.remainingMatchLength_),
           initialRemainingMatchLength_(trie.remainingMatchLength_),
-          skipValue_(FALSE),
+          skipValue_(false),
           maxLength_(maxStringLength), value_(0), stack_(NULL) {
     if(U_FAILURE(errorCode)) {
         return;
@@ -82,7 +82,7 @@ UCharsTrie::Iterator &
 UCharsTrie::Iterator::reset() {
     pos_=initialPos_;
     remainingMatchLength_=initialRemainingMatchLength_;
-    skipValue_=FALSE;
+    skipValue_=false;
     int32_t length=remainingMatchLength_+1;  // Remaining match length.
     if(maxLength_>0 && length>maxLength_) {
         length=maxLength_;
@@ -100,12 +100,12 @@ UCharsTrie::Iterator::hasNext() const { return pos_!=NULL || !stack_->isEmpty();
 UBool
 UCharsTrie::Iterator::next(UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) {
-        return FALSE;
+        return false;
     }
     const UChar *pos=pos_;
     if(pos==NULL) {
         if(stack_->isEmpty()) {
-            return FALSE;
+            return false;
         }
         // Pop the state off the stack and continue with the next outbound edge of
         // the branch node.
@@ -118,7 +118,7 @@ UCharsTrie::Iterator::next(UErrorCode &errorCode) {
         if(length>1) {
             pos=branchNext(pos, length, errorCode);
             if(pos==NULL) {
-                return TRUE;  // Reached a final value.
+                return true;  // Reached a final value.
             }
         } else {
             str_.append(*pos++);
@@ -135,7 +135,7 @@ UCharsTrie::Iterator::next(UErrorCode &errorCode) {
             if(skipValue_) {
                 pos=skipNodeValue(pos, node);
                 node&=kNodeTypeMask;
-                skipValue_=FALSE;
+                skipValue_=false;
             } else {
                 // Deliver value for the string so far.
                 UBool isFinal=(UBool)(node>>15);
@@ -152,9 +152,9 @@ UCharsTrie::Iterator::next(UErrorCode &errorCode) {
                     // next time.
                     // Instead, keep pos_ on the node lead unit itself.
                     pos_=pos-1;
-                    skipValue_=TRUE;
+                    skipValue_=true;
                 }
-                return TRUE;
+                return true;
             }
         }
         if(maxLength_>0 && str_.length()==maxLength_) {
@@ -166,7 +166,7 @@ UCharsTrie::Iterator::next(UErrorCode &errorCode) {
             }
             pos=branchNext(pos, node+1, errorCode);
             if(pos==NULL) {
-                return TRUE;  // Reached a final value.
+                return true;  // Reached a final value.
             }
         } else {
             // Linear-match node, append length units to str_.

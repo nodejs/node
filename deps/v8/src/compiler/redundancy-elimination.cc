@@ -20,6 +20,7 @@ Reduction RedundancyElimination::Reduce(Node* node) {
   if (node_checks_.Get(node)) return NoChange();
   switch (node->opcode()) {
     case IrOpcode::kCheckBigInt:
+    case IrOpcode::kCheckedBigIntToBigInt64:
     case IrOpcode::kCheckBounds:
     case IrOpcode::kCheckClosure:
     case IrOpcode::kCheckEqualsInternalizedString:
@@ -35,9 +36,16 @@ Reduction RedundancyElimination::Reduce(Node* node) {
     case IrOpcode::kCheckSmi:
     case IrOpcode::kCheckString:
     case IrOpcode::kCheckSymbol:
-#define SIMPLIFIED_CHECKED_OP(Opcode) case IrOpcode::k##Opcode:
-      SIMPLIFIED_CHECKED_OP_LIST(SIMPLIFIED_CHECKED_OP)
-#undef SIMPLIFIED_CHECKED_OP
+    // These are not really check nodes, but behave the same in that they can be
+    // folded together if repeated with identical inputs.
+    case IrOpcode::kStringCharCodeAt:
+    case IrOpcode::kStringCodePointAt:
+    case IrOpcode::kStringFromCodePointAt:
+    case IrOpcode::kStringSubstring:
+#define SIMPLIFIED_OP(Opcode) case IrOpcode::k##Opcode:
+      SIMPLIFIED_CHECKED_OP_LIST(SIMPLIFIED_OP)
+      SIMPLIFIED_BIGINT_BINOP_LIST(SIMPLIFIED_OP)
+#undef SIMPLIFIED_OP
       return ReduceCheckNode(node);
     case IrOpcode::kSpeculativeNumberEqual:
     case IrOpcode::kSpeculativeNumberLessThan:
@@ -156,6 +164,7 @@ bool CheckSubsumes(Node const* a, Node const* b) {
         case IrOpcode::kCheckString:
         case IrOpcode::kCheckNumber:
         case IrOpcode::kCheckBigInt:
+        case IrOpcode::kCheckedBigIntToBigInt64:
           break;
         case IrOpcode::kCheckedInt32ToTaggedSigned:
         case IrOpcode::kCheckedInt64ToInt32:

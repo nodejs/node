@@ -135,18 +135,7 @@ promise_test(async () => {
   assert_array_equals(rs.events, ['pull'], 'pull() should have been called');
 }, 'the extra queue from transferring is counted in chunks');
 
-promise_test(async () => {
-  const rs = await recordingTransferredReadableStream();
-  rs.cancel('message');
-  await delay(0);
-  assert_array_equals(rs.events, ['pull', 'cancel', 'message'],
-                      'cancel() should have been called');
-  const reader = rs.getReader();
-  // Check the stream really got closed.
-  await reader.closed;
-}, 'cancel should be propagated to the original');
-
-promise_test(async () => {
+async function transferredReadableStreamWithCancelPromise() {
   let resolveCancelCalled;
   const cancelCalled = new Promise(resolve => {
     resolveCancelCalled = resolve;
@@ -156,6 +145,22 @@ promise_test(async () => {
       resolveCancelCalled();
     }
   });
+  return { rs, cancelCalled };
+}
+
+promise_test(async () => {
+  const { rs, cancelCalled } = await transferredReadableStreamWithCancelPromise();
+  rs.cancel('message');
+  await cancelCalled;
+  assert_array_equals(rs.events, ['pull', 'cancel', 'message'],
+                      'cancel() should have been called');
+  const reader = rs.getReader();
+  // Check the stream really got closed.
+  await reader.closed;
+}, 'cancel should be propagated to the original');
+
+promise_test(async () => {
+  const { rs, cancelCalled } = await transferredReadableStreamWithCancelPromise();
   const reader = rs.getReader();
   const readPromise = reader.read();
   reader.cancel('done');

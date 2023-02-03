@@ -8,7 +8,7 @@ const bench = common.createBenchmark(main, {
   c: [50, 500],
   chunkedEnc: [1, 0],
   benchmarker: ['test-double-https'],
-  duration: 5
+  duration: 5,
 });
 
 function main({ type, len, chunks, c, chunkedEnc, duration }) {
@@ -21,7 +21,7 @@ function main({ type, len, chunks, c, chunkedEnc, duration }) {
       path,
       connections: c,
       scheme: 'https',
-      duration
+      duration,
     }, () => {
       server.close();
     });

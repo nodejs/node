@@ -24,7 +24,7 @@ const good = [
   },
   // Test vectors from https://tools.ietf.org/html/rfc7914#page-13 that
   // should pass.  Note that the test vector with N=1048576 is omitted
-  // because it takes too long to complete and uses over 1 GB of memory.
+  // because it takes too long to complete and uses over 1 GiB of memory.
   {
     pass: '',
     salt: '',

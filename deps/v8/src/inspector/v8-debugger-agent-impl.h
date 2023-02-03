@@ -19,6 +19,7 @@
 namespace v8_inspector {
 
 struct ScriptBreakpoint;
+class DisassemblyCollectorImpl;
 class V8Debugger;
 class V8DebuggerScript;
 class V8InspectorImpl;
@@ -83,20 +84,31 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
           locations) override;
   Response setScriptSource(
       const String16& inScriptId, const String16& inScriptSource,
-      Maybe<bool> dryRun,
+      Maybe<bool> dryRun, Maybe<bool> allowTopFrameEditing,
       Maybe<protocol::Array<protocol::Debugger::CallFrame>>* optOutCallFrames,
       Maybe<bool>* optOutStackChanged,
       Maybe<protocol::Runtime::StackTrace>* optOutAsyncStackTrace,
       Maybe<protocol::Runtime::StackTraceId>* optOutAsyncStackTraceId,
+      String16* outStatus,
       Maybe<protocol::Runtime::ExceptionDetails>* optOutCompileError) override;
   Response restartFrame(
-      const String16& callFrameId,
+      const String16& callFrameId, Maybe<String16> mode,
       std::unique_ptr<protocol::Array<protocol::Debugger::CallFrame>>*
           newCallFrames,
       Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
       Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId) override;
   Response getScriptSource(const String16& scriptId, String16* scriptSource,
                            Maybe<protocol::Binary>* bytecode) override;
+  Response disassembleWasmModule(
+      const String16& in_scriptId, Maybe<String16>* out_streamId,
+      int* out_totalNumberOfLines,
+      std::unique_ptr<protocol::Array<int>>* out_functionBodyOffsets,
+      std::unique_ptr<protocol::Debugger::WasmDisassemblyChunk>* out_chunk)
+      override;
+  Response nextWasmDisassemblyChunk(
+      const String16& in_streamId,
+      std::unique_ptr<protocol::Debugger::WasmDisassemblyChunk>* out_chunk)
+      override;
   Response getWasmBytecode(const String16& scriptId,
                            protocol::Binary* bytecode) override;
   Response pause() override;
@@ -149,6 +161,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   void reset();
 
   // Interface for V8InspectorImpl
+  void didPauseOnInstrumentation(v8::debug::BreakpointId instrumentationId);
+
   void didPause(int contextId, v8::Local<v8::Value> exception,
                 const std::vector<v8::debug::BreakpointId>& hitBreakpoints,
                 v8::debug::ExceptionType exceptionType, bool isUncaught,
@@ -167,10 +181,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   v8::Isolate* isolate() { return m_isolate; }
 
-  // Returns the intersection of `ids` and the current instrumentation
-  // breakpoint ids.
-  std::vector<v8::debug::BreakpointId> instrumentationBreakpointIdsMatching(
-      const std::vector<v8::debug::BreakpointId>& ids);
+  void clearBreakDetails();
 
  private:
   void enableImpl();
@@ -190,7 +201,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
                          v8::Local<v8::String> condition);
   void removeBreakpointImpl(const String16& breakpointId,
                             const std::vector<V8DebuggerScript*>& scripts);
-  void clearBreakDetails();
 
   void internalSetAsyncCallStackDepth(int);
   void increaseCachedSkipStackGeneration();
@@ -222,13 +232,22 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   ScriptsMap m_scripts;
   BreakpointIdToDebuggerBreakpointIdsMap m_breakpointIdToDebuggerBreakpointIds;
   DebuggerBreakpointIdToBreakpointIdMap m_debuggerBreakpointIdToBreakpointId;
-  std::unordered_map<v8::debug::BreakpointId,
-                     std::unique_ptr<protocol::DictionaryValue>>
-      m_breakpointsOnScriptRun;
+  std::map<String16, std::unique_ptr<DisassemblyCollectorImpl>>
+      m_wasmDisassemblies;
+  size_t m_nextWasmDisassemblyStreamId = 0;
 
   size_t m_maxScriptCacheSize = 0;
   size_t m_cachedScriptSize = 0;
-  std::deque<String16> m_cachedScriptIds;
+  struct CachedScript {
+    String16 scriptId;
+    String16 source;
+    std::vector<uint8_t> bytecode;
+
+    size_t size() const {
+      return source.length() * sizeof(UChar) + bytecode.size();
+    }
+  };
+  std::deque<CachedScript> m_cachedScripts;
 
   using BreakReason =
       std::pair<String16, std::unique_ptr<protocol::DictionaryValue>>;

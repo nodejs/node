@@ -73,7 +73,7 @@ ucbuf_autodetect_fs(FileStream* in, const char** cp, UConverter** conv, int32_t*
 
     if(*cp==NULL){
         *conv =NULL;
-        return FALSE;
+        return false;
     }
 
     /* open the converter for the detected Unicode charset */
@@ -82,7 +82,7 @@ ucbuf_autodetect_fs(FileStream* in, const char** cp, UConverter** conv, int32_t*
     /* convert and ignore initial U+FEFF, and the buffer overflow */
     pTarget = target;
     pStart = start;
-    ucnv_toUnicode(*conv, &pTarget, target+1, &pStart, start+*signatureLength, NULL, FALSE, error);
+    ucnv_toUnicode(*conv, &pTarget, target+1, &pStart, start+*signatureLength, NULL, false, error);
     *signatureLength = (int32_t)(pStart - start);
     if(*error==U_BUFFER_OVERFLOW_ERROR) {
         *error=U_ZERO_ERROR;
@@ -94,40 +94,40 @@ ucbuf_autodetect_fs(FileStream* in, const char** cp, UConverter** conv, int32_t*
     }
 
 
-    return TRUE; 
+    return true; 
 }
 static UBool ucbuf_isCPKnown(const char* cp){
     if(ucnv_compareNames("UTF-8",cp)==0){
-        return TRUE;
+        return true;
     }
     if(ucnv_compareNames("UTF-16BE",cp)==0){
-        return TRUE;
+        return true;
     }
     if(ucnv_compareNames("UTF-16LE",cp)==0){
-        return TRUE;
+        return true;
     }
     if(ucnv_compareNames("UTF-16",cp)==0){
-        return TRUE;
+        return true;
     }
     if(ucnv_compareNames("UTF-32",cp)==0){
-        return TRUE;
+        return true;
     }
     if(ucnv_compareNames("UTF-32BE",cp)==0){
-        return TRUE;
+        return true;
     }
     if(ucnv_compareNames("UTF-32LE",cp)==0){
-        return TRUE;
+        return true;
     }
     if(ucnv_compareNames("SCSU",cp)==0){
-        return TRUE;
+        return true;
     }
     if(ucnv_compareNames("BOCU-1",cp)==0){
-        return TRUE;
+        return true;
     }
     if(ucnv_compareNames("UTF-7",cp)==0){
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 U_CAPI FileStream * U_EXPORT2
@@ -234,7 +234,7 @@ ucbuf_fillucbuf( UCHARBUF* buf,UErrorCode* error){
             /* use erro1 to preserve the error code */
             UErrorCode error1 =U_ZERO_ERROR;
             
-            if( buf->showWarning==TRUE){
+            if( buf->showWarning==true){
                 fprintf(stderr,"\n###WARNING: Encountered abnormal bytes while"
                                " converting input stream to target encoding: %s\n",
                                u_errorName(*error));
@@ -263,7 +263,7 @@ ucbuf_fillucbuf( UCHARBUF* buf,UErrorCode* error){
             /* null terminate the buffer */
             postContext[stop-start] = 0;
 
-            if(buf->showWarning ==TRUE){
+            if(buf->showWarning ==true){
                 /* print out the context */
                 fprintf(stderr,"\tPre-context: %s\n",preContext);
                 fprintf(stderr,"\tContext: %s\n",context);
@@ -324,7 +324,7 @@ ucbuf_fillucbuf( UCHARBUF* buf,UErrorCode* error){
 U_CAPI int32_t U_EXPORT2
 ucbuf_getc(UCHARBUF* buf,UErrorCode* error){
     if(error==NULL || U_FAILURE(*error)){
-        return FALSE;
+        return false;
     }
     if(buf->currentPos>=buf->bufLimit){
         if(buf->remaining==0){
@@ -344,7 +344,7 @@ U_CAPI int32_t U_EXPORT2
 ucbuf_getc32(UCHARBUF* buf,UErrorCode* error){
     int32_t retVal = (int32_t)U_EOF;
     if(error==NULL || U_FAILURE(*error)){
-        return FALSE;
+        return false;
     }
     if(buf->currentPos+1>=buf->bufLimit){
         if(buf->remaining==0){
@@ -377,7 +377,7 @@ ucbuf_getcx32(UCHARBUF* buf,UErrorCode* error) {
     int32_t offset;
     UChar32 c32,c1,c2;
     if(error==NULL || U_FAILURE(*error)){
-        return FALSE;
+        return false;
     }
     /* Fill the buffer if it is empty */
     if (buf->currentPos >=buf->bufLimit-2) {
@@ -457,7 +457,7 @@ ucbuf_open(const char* fileName,const char** cp,UBool showWarning, UBool buffere
     }
     if(cp==NULL || fileName==NULL){
         *error = U_ILLEGAL_ARGUMENT_ERROR;
-        return FALSE;
+        return NULL;
     }
     if (!uprv_strcmp(fileName, "-")) {
         in = T_FileStream_stdin();
@@ -495,7 +495,7 @@ ucbuf_open(const char* fileName,const char** cp,UBool showWarning, UBool buffere
             return NULL;
         }
         
-        if((buf->conv==NULL) && (buf->showWarning==TRUE)){
+        if((buf->conv==NULL) && (buf->showWarning==true)){
             fprintf(stderr,"###WARNING: No converter defined. Using codepage of system.\n");
         }
         buf->remaining=fileSize-buf->signatureLength;
@@ -597,7 +597,7 @@ ucbuf_rewind(UCHARBUF* buf,UErrorCode* error){
             /* convert and ignore initial U+FEFF, and the buffer overflow */
             pTarget = target;
             pStart = start;
-            ucnv_toUnicode(buf->conv, &pTarget, target+1, &pStart, start+numRead, NULL, FALSE, error);
+            ucnv_toUnicode(buf->conv, &pTarget, target+1, &pStart, start+numRead, NULL, false, error);
             if(*error==U_BUFFER_OVERFLOW_ERROR) {
                 *error=U_ZERO_ERROR;
             }
@@ -706,9 +706,9 @@ static UBool ucbuf_isCharNewLine(UChar c){
     case 0x0085: /* NEL */
     case 0x2028: /* LS  */
     case 0x2029: /* PS  */
-        return TRUE;
+        return true;
     default:
-        return FALSE;
+        return false;
     }
 }
 

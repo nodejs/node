@@ -242,6 +242,8 @@ const int32_t SCRIPT_PROPS[] = {
     0x16ABC | EXCLUSION,  // Tnsa
     0x1E290 | EXCLUSION,  // Toto
     0x10582 | EXCLUSION | CASED,  // Vith
+    0x11F1B | EXCLUSION | LB_LETTERS,  // Kawi
+    0x1E4E6 | EXCLUSION,  // Nagm
     // End copy-paste from parsescriptmetadata.py
 };
 

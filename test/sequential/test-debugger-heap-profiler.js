@@ -19,20 +19,21 @@ const filename = path.join(tmpdir.path, 'node.heapsnapshot');
   const opts = { cwd: tmpdir.path };
   const cli = startCLI([fixtures.path('debugger/empty.js')], [], opts);
 
-  function onFatal(error) {
-    cli.quit();
-    throw error;
+  async function waitInitialBreak() {
+    try {
+      await cli.waitForInitialBreak();
+      await cli.waitForPrompt();
+      await cli.command('takeHeapSnapshot()');
+      JSON.parse(readFileSync(filename, 'utf8'));
+      // Check that two simultaneous snapshots don't step all over each other.
+      // Refs: https://github.com/nodejs/node/issues/39555
+      await cli.command('takeHeapSnapshot(); takeHeapSnapshot()');
+      JSON.parse(readFileSync(filename, 'utf8'));
+    } finally {
+      await cli.quit();
+    }
   }
 
   // Check that the snapshot is valid JSON.
-  return cli.waitForInitialBreak()
-    .then(() => cli.waitForPrompt())
-    .then(() => cli.command('takeHeapSnapshot()'))
-    .then(() => JSON.parse(readFileSync(filename, 'utf8')))
-    // Check that two simultaneous snapshots don't step all over each other.
-    // Refs: https://github.com/nodejs/node/issues/39555
-    .then(() => cli.command('takeHeapSnapshot(); takeHeapSnapshot()'))
-    .then(() => JSON.parse(readFileSync(filename, 'utf8')))
-    .then(() => cli.quit())
-    .then(null, onFatal);
+  waitInitialBreak().then(common.mustCall());
 }

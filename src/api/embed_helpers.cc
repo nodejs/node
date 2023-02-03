@@ -3,9 +3,11 @@
 #include "debug_utils-inl.h"
 
 using v8::Context;
+using v8::Function;
 using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
 using v8::Locker;
 using v8::Maybe;
@@ -14,7 +16,7 @@ using v8::SealHandleScope;
 
 namespace node {
 
-Maybe<int> SpinEventLoop(Environment* env) {
+Maybe<ExitCode> SpinEventLoopInternal(Environment* env) {
   CHECK_NOT_NULL(env);
   MultiIsolatePlatform* platform = GetMultiIsolatePlatform(env);
   CHECK_NOT_NULL(platform);
@@ -24,7 +26,7 @@ Maybe<int> SpinEventLoop(Environment* env) {
   Context::Scope context_scope(env->context());
   SealHandleScope seal(isolate);
 
-  if (env->is_stopping()) return Nothing<int>();
+  if (env->is_stopping()) return Nothing<ExitCode>();
 
   env->set_trace_sync_io(env->options()->trace_sync_io);
   {
@@ -44,6 +46,13 @@ Maybe<int> SpinEventLoop(Environment* env) {
       if (EmitProcessBeforeExit(env).IsNothing())
         break;
 
+      {
+        HandleScope handle_scope(isolate);
+        if (env->RunSnapshotSerializeCallback().IsEmpty()) {
+          break;
+        }
+      }
+
       // Emit `beforeExit` if the loop became alive either after emitting
       // event, or after running some callbacks.
       more = uv_loop_alive(env->event_loop());
@@ -51,12 +60,17 @@ Maybe<int> SpinEventLoop(Environment* env) {
     env->performance_state()->Mark(
         node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_EXIT);
   }
-  if (env->is_stopping()) return Nothing<int>();
+  if (env->is_stopping()) return Nothing<ExitCode>();
 
   env->set_trace_sync_io(false);
+  // Clear the serialize callback even though the JS-land queue should
+  // be empty this point so that the deserialized instance won't
+  // attempt to call into JS again.
+  env->set_snapshot_serialize_callback(Local<Function>());
+
   env->PrintInfoForSnapshotIfDebug();
-  env->VerifyNoStrongBaseObjects();
-  return EmitProcessExit(env);
+  env->ForEachRealm([](Realm* realm) { realm->VerifyNoStrongBaseObjects(); });
+  return EmitProcessExitInternal(env);
 }
 
 struct CommonEnvironmentSetup::Impl {
@@ -142,6 +156,13 @@ CommonEnvironmentSetup::~CommonEnvironmentSetup() {
   delete impl_;
 }
 
+Maybe<int> SpinEventLoop(Environment* env) {
+  Maybe<ExitCode> result = SpinEventLoopInternal(env);
+  if (result.IsNothing()) {
+    return Nothing<int>();
+  }
+  return Just(static_cast<int>(result.FromJust()));
+}
 
 uv_loop_t* CommonEnvironmentSetup::event_loop() const {
   return &impl_->loop;

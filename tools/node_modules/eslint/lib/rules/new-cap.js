@@ -39,10 +39,10 @@ const CAPS_ALLOWED = [
  */
 function checkArray(obj, key, fallback) {
 
-    /* istanbul ignore if */
+    /* c8 ignore start */
     if (Object.prototype.hasOwnProperty.call(obj, key) && !Array.isArray(obj[key])) {
         throw new TypeError(`${key}, if provided, must be an Array`);
-    }
+    }/* c8 ignore stop */
     return obj[key] || fallback;
 }
 
@@ -82,7 +82,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require constructor names to begin with a capital letter",
+            description: "Require constructor names to begin with a capital letter",
             recommended: false,
             url: "https://eslint.org/docs/rules/new-cap"
         },
