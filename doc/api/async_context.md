@@ -455,6 +455,11 @@ added:
   - v14.8.0
   - v12.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46432
+    description: The `asyncResource` property added to the bound function
+                 has been deprecated and will be removed in a future
+                 version.
   - version:
     - v17.8.0
     - v16.15.0
@@ -473,9 +478,6 @@ changes:
 
 Binds the given function to the current execution context.
 
-The returned function will have an `asyncResource` property referencing
-the `AsyncResource` to which the function is bound.
-
 ### `asyncResource.bind(fn[, thisArg])`
 
 <!-- YAML
@@ -483,6 +485,11 @@ added:
   - v14.8.0
   - v12.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46432
+    description: The `asyncResource` property added to the bound function
+                 has been deprecated and will be removed in a future
+                 version.
   - version:
     - v17.8.0
     - v16.15.0
@@ -498,9 +505,6 @@ changes:
 * `thisArg` {any}
 
 Binds the given function to execute to this `AsyncResource`'s scope.
-
-The returned function will have an `asyncResource` property referencing
-the `AsyncResource` to which the function is bound.
 
 ### `asyncResource.runInAsyncScope(fn[, thisArg, ...args])`
 
