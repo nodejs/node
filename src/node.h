@@ -515,11 +515,13 @@ class EmbedderSnapshotData {
   // The FILE* handle can be closed immediately following this call.
   // If the snapshot is invalid, this returns an empty pointer.
   static Pointer FromFile(FILE* in);
+  static Pointer FromBlob(const std::vector<char>& in);
 
   // Write this EmbedderSnapshotData object to an output file.
   // Calling this method will not close the FILE* handle.
   // The FILE* handle can be closed immediately following this call.
   void ToFile(FILE* out) const;
+  std::vector<char> ToBlob() const;
 
   // Returns whether custom snapshots can be used. Currently, this means
   // that V8 was configured without the shared-readonly-heap feature.
