@@ -2288,7 +2288,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
 
     case Token::BIGINT: {
       Consume(Token::BIGINT);
-      prop_info->name = impl()->GetSymbol();
+      prop_info->name = impl()->GetBigIntAsSymbol();
       is_array_index = impl()->IsArrayIndex(prop_info->name, &index);
       break;
     }

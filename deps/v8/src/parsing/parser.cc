@@ -247,6 +247,16 @@ bool Parser::CollapseNaryExpression(Expression** x, Expression* y,
   return true;
 }
 
+const AstRawString* Parser::GetBigIntAsSymbol() {
+  base::Vector<const uint8_t> literal = scanner()->BigIntLiteral();
+  if (literal[0] != '0' || literal.length() == 1) {
+    return ast_value_factory()->GetOneByteString(literal);
+  }
+  std::unique_ptr<char[]> decimal =
+      BigIntLiteralToDecimal(local_isolate_, literal);
+  return ast_value_factory()->GetOneByteString(decimal.get());
+}
+
 Expression* Parser::BuildUnaryExpression(Expression* expression,
                                          Token::Value op, int pos) {
   DCHECK_NOT_NULL(expression);
