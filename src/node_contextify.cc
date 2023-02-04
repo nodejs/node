@@ -530,7 +530,9 @@ void ContextifyContext::PropertySetterCallback(
     return;
 
   USE(ctx->sandbox()->Set(context, property, value));
-  args.GetReturnValue().Set(value);
+  if (is_contextual_store || is_function) {
+    args.GetReturnValue().Set(value);
+  }
 }
 
 // static
