@@ -12,7 +12,7 @@ const methods = [
 
 const bench = createBenchmark(main, {
   method: methods,
-  n: [1e6]
+  n: [1e6],
 });
 
 function usingRestAndSpread(...args) {

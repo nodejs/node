@@ -12,7 +12,6 @@ overrides:
       - crypto/*.js
       - http/*.js
       - http2/*.js
-      - misc/*.js
       - path/*.js
       - process/*.js
       - url/*.js
