@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const { deepStrictEqual, throws } = require('assert');
+const { deepStrictEqual, strictEqual, throws } = require('assert');
 const { runInNewContext } = require('vm');
 
 const checkString = 'test';
@@ -62,3 +62,80 @@ deepStrictEqual(
 
 Buffer.allocUnsafe(10); // Should not throw.
 Buffer.from('deadbeaf', 'hex'); // Should not throw.
+
+
+{
+  const u16 = new Uint16Array([0xffff]);
+  const b16 = Buffer.copyBytesFrom(u16);
+  u16[0] = 0;
+  strictEqual(b16.length, 2);
+  strictEqual(b16[0], 255);
+  strictEqual(b16[1], 255);
+}
+
+{
+  const u16 = new Uint16Array([0, 0xffff]);
+  const b16 = Buffer.copyBytesFrom(u16, 1, 5);
+  u16[0] = 0xffff;
+  u16[1] = 0;
+  strictEqual(b16.length, 2);
+  strictEqual(b16[0], 255);
+  strictEqual(b16[1], 255);
+}
+
+{
+  const u32 = new Uint32Array([0xffffffff]);
+  const b32 = Buffer.copyBytesFrom(u32);
+  u32[0] = 0;
+  strictEqual(b32.length, 4);
+  strictEqual(b32[0], 255);
+  strictEqual(b32[1], 255);
+  strictEqual(b32[2], 255);
+  strictEqual(b32[3], 255);
+}
+
+throws(() => {
+  Buffer.copyBytesFrom();
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+});
+
+['', Symbol(), true, false, {}, [], () => {}, 1, 1n, null, undefined].forEach(
+  (notTypedArray) => throws(() => {
+    Buffer.copyBytesFrom('nope');
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+  })
+);
+
+['', Symbol(), true, false, {}, [], () => {}, 1n].forEach((notANumber) =>
+  throws(() => {
+    Buffer.copyBytesFrom(new Uint8Array(1), notANumber);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+  })
+);
+
+[-1, NaN, 1.1, -Infinity].forEach((outOfRange) =>
+  throws(() => {
+    Buffer.copyBytesFrom(new Uint8Array(1), outOfRange);
+  }, {
+    code: 'ERR_OUT_OF_RANGE',
+  })
+);
+
+['', Symbol(), true, false, {}, [], () => {}, 1n].forEach((notANumber) =>
+  throws(() => {
+    Buffer.copyBytesFrom(new Uint8Array(1), 0, notANumber);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+  })
+);
+
+[-1, NaN, 1.1, -Infinity].forEach((outOfRange) =>
+  throws(() => {
+    Buffer.copyBytesFrom(new Uint8Array(1), 0, outOfRange);
+  }, {
+    code: 'ERR_OUT_OF_RANGE',
+  })
+);
