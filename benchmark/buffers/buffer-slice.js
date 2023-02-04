@@ -4,7 +4,7 @@ const SlowBuffer = require('buffer').SlowBuffer;
 
 const bench = common.createBenchmark(main, {
   type: ['fast', 'slow', 'subarray'],
-  n: [1e6]
+  n: [1e6],
 });
 
 const buf = Buffer.allocUnsafe(1024);
