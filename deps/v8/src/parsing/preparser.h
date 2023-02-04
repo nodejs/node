@@ -1522,6 +1522,10 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserIdentifier::Default();
   }
 
+  V8_INLINE PreParserIdentifier GetBigIntAsSymbol() const {
+    return PreParserIdentifier::Default();
+  }
+
   V8_INLINE PreParserExpression ThisExpression() {
     UseThis();
     return PreParserExpression::This();

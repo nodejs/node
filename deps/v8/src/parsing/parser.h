@@ -790,6 +790,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return ast_value_factory()->GetOneByteString(string);
   }
 
+  const AstRawString* GetBigIntAsSymbol();
+
   class ThisExpression* ThisExpression() {
     UseThis();
     return factory()->ThisExpression();
