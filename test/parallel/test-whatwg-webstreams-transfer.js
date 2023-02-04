@@ -15,6 +15,7 @@ const {
 
 const {
   isReadableStream,
+  isReadableByteStreamController,
 } = require('internal/webstreams/readablestream');
 
 const {
@@ -24,6 +25,10 @@ const {
 const {
   isTransformStream,
 } = require('internal/webstreams/transformstream');
+
+const {
+  kState,
+} = require('internal/webstreams/util');
 
 const {
   makeTransferable,
@@ -94,6 +99,56 @@ const theData = 'hello';
 
   port1.onmessage = common.mustCall(({ data }) => {
     assert(isReadableStream(data));
+    assert(!data.locked);
+    port1.postMessage(data, [data]);
+    assert(data.locked);
+  });
+
+  assert.throws(() => port2.postMessage(readable), {
+    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
+  });
+
+  port2.postMessage(readable, [readable]);
+  assert(readable.locked);
+}
+
+{
+  const { port1, port2 } = new MessageChannel();
+  port1.onmessageerror = common.mustNotCall();
+  port2.onmessageerror = common.mustNotCall();
+
+  // This test repeats the test above, but with a readable byte stream.
+  // Note transferring a readable byte stream results in a regular
+  // value-oriented stream on the other side:
+  // https://streams.spec.whatwg.org/#abstract-opdef-setupcrossrealmtransformwritable
+
+  const theByteData = new Uint8Array([1, 2, 3]);
+
+  const readable = new ReadableStream({
+    type: 'bytes',
+    start: common.mustCall((controller) => {
+      // `enqueue` will detach its argument's buffer, so clone first
+      controller.enqueue(theByteData.slice());
+      controller.close();
+    }),
+  });
+  assert(isReadableByteStreamController(readable[kState].controller));
+
+  port2.onmessage = common.mustCall(({ data }) => {
+    assert(isReadableStream(data));
+    assert(!isReadableByteStreamController(data[kState].controller));
+
+    const reader = data.getReader();
+    reader.read().then(common.mustCall((chunk) => {
+      assert.deepStrictEqual(chunk, { done: false, value: theByteData });
+    }));
+
+    port2.close();
+  });
+
+  port1.onmessage = common.mustCall(({ data }) => {
+    assert(isReadableStream(data));
+    assert(!isReadableByteStreamController(data[kState].controller));
     assert(!data.locked);
     port1.postMessage(data, [data]);
     assert(data.locked);
