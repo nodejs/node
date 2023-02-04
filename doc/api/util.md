@@ -1998,27 +1998,42 @@ added: REPLACEME
 > Stability: 1 - Experimental
 
 * `signal` {AbortSignal}
-* `resource` {any} Any non-null entity
+* `resource` {Object} Any non-null entity, reference to which is held weakly.
 * Returns: {Promise}
 
-Listens to abort event on the provided `signal` and returns a promise which is
-resolved if an abort event is triggered. The function is dependent on the `resource`
-entity and will be resolved only if the `resource` is not removed
-from memory, when `resource` goes out of memory the
-promise shall remain pending and any event listeners attached to the `signal`
-will be removed.
+Listens to abort event on the provided `signal` and
+returns a promise that resolves when the `signal` is
+aborted. The function is dependent on the `resource` and
+the returned promise shall remain pending if `resource`
+goes out of memory. The function shall automatically
+cleanup any event listeners it attaches to `signal`.
 
 ```js
 const { aborted } = require('util');
 
-const ac = new AbortController();
-const dependent = {};
+const dependent = obtainSomethingAbortable();
 
-aborted(ac.signal, dependent).then(() => {
-  // Do something when the abort event is triggered.
+aborted(dependent.signal, dependent).then(() => {
+  // Do something when dependent is aborted.
 });
 
-doSomething(dependent, ac.signal); // Can trigger the abort event
+dependent.on('event', () => {
+  dependent.abort();
+});
+```
+
+```mjs
+import { aborted } from 'node:util';
+
+const dependent = obtainSomethingAbortable();
+
+aborted(dependent.signal, dependent).then(() => {
+  // Do something when dependent is aborted.
+});
+
+dependent.on('event', () => {
+  dependent.abort();
+});
 ```
 
 ## `util.types`
