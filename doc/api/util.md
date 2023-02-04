@@ -2003,9 +2003,10 @@ added: REPLACEME
 
 Listens to abort event on the provided `signal` and returns a promise which is
 resolved if an abort event is triggered. The function is dependent on the `resource`
-entity and will be resolved only if the `resource` is not removed from memory, when 
-`resource` goes out of memory the promise shall remain pending and any event listeners
-attached to the `signal` will be removed.
+entity and will be resolved only if the `resource` is not removed
+from memory, when `resource` goes out of memory the
+promise shall remain pending and any event listeners attached to the `signal`
+will be removed.
 
 ```js
 const { aborted } = require('util');
