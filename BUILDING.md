@@ -318,28 +318,28 @@ If you are updating tests and want to run tests in a single test file
 (e.g. `test/parallel/test-stream2-transform.js`):
 
 ```text
-$ python3 tools/test.py test/parallel/test-stream2-transform.js
+$ python tools/test.py test/parallel/test-stream2-transform.js
 ```
 
 You can execute the entire suite of tests for a given subsystem
 by providing the name of a subsystem:
 
 ```text
-$ python3 tools/test.py child-process
+$ python tools/test.py child-process
 ```
 
 You can also execute the tests in a test suite directory
 (such as `test/message`):
 
 ```text
-$ python3 tools/test.py test/message
+$ python tools/test.py test/message
 ```
 
 If you want to check the other options, please refer to the help by using
 the `--help` option:
 
 ```text
-$ python3 tools/test.py --help
+$ python tools/test.py --help
 ```
 
 You can usually run tests directly with node:
