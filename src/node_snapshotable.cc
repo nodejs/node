@@ -877,6 +877,7 @@ bool SnapshotData::FromBlob(SnapshotData* out, FILE* in) {
   int err = fseek(in, 0, SEEK_END);
   CHECK_EQ(err, 0);
   size_t size = ftell(in);
+  CHECK_NE(size, static_cast<size_t>(-1L));
   err = fseek(in, 0, SEEK_SET);
   CHECK_EQ(err, 0);
 
