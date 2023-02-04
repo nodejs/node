@@ -20,7 +20,7 @@ const types = [
 
 const bench = common.createBenchmark(main, {
   type: types,
-  n: [1e6]
+  n: [1e6],
 });
 
 const INT8 = 0x7f;
@@ -36,7 +36,7 @@ const mod = {
   setInt32: INT32,
   setUint8: UINT8,
   setUint16: UINT16,
-  setUint32: UINT32
+  setUint32: UINT32,
 };
 
 function main({ n, type }) {
