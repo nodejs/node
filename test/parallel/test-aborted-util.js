@@ -35,3 +35,11 @@ const { getEventListeners } = require('events');
     assert.strictEqual(getEventListeners(ac.signal, 'abort').length, 0);
   });
 }
+
+{
+  // Fails with error if not provided abort signal
+  const sig = new EventTarget();
+  assert.rejects(aborted(sig), {
+    name: 'TypeError',
+  });
+}
