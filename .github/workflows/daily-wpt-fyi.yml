@@ -1,0 +1,110 @@
+# This workflow runs every night and tests various releases of Node.js
+# (latest nightly, current, and two latest LTS release lines) against the
+# `epochs/daily` branch of WPT.
+
+name: Daily WPT report
+
+on:
+  workflow_dispatch:
+    inputs:
+      node-versions:
+        description: Node.js versions (as supported by actions/setup-node) to test as JSON array
+        required: false
+        default: '["current", "lts/*", "lts/-1"]'
+  schedule:
+    # This is 20 minutes after `epochs/daily` branch is triggered to be created
+    # in WPT repo.
+    # https://github.com/web-platform-tests/wpt/blob/master/.github/workflows/epochs.yml
+    - cron: 30 0 * * *
+
+env:
+  PYTHON_VERSION: '3.11'
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
+    strategy:
+      matrix:
+        node-version: ${{ fromJSON(github.event.inputs.node-versions || '["latest-nightly", "current", "lts/*", "lts/-1"]') }}
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+
+      # install a version and checkout
+      - name: Get latest nightly
+        if: matrix.node-version == 'latest-nightly'
+        run: echo "NIGHTLY=$(curl -s https://nodejs.org/download/nightly/index.json | jq -r '.[0].version')" >> $GITHUB_ENV
+      - name: Install Node.js
+        id: setup-node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NIGHTLY || matrix.node-version }}
+      - name: Get nightly ref
+        if: contains(matrix.node-version, 'nightly')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHORT_SHA=$(node -p 'process.version.split(/-nightly\d{8}/)[1]')
+          echo "NIGHTLY_REF=$(gh api /repos/nodejs/node/commits/$SHORT_SHA | jq -r '.sha')" >> $GITHUB_ENV
+      - name: Checkout ${{ steps.setup-node.outputs.node-version }}
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          ref: ${{ env.NIGHTLY_REF || steps.setup-node.outputs.node-version }}
+      - name: Set env.NODE
+        run: echo "NODE=$(which node)" >> $GITHUB_ENV
+
+      # replace checked out WPT with the synchronized branch
+      - name: Remove stale WPT
+        run: rm -rf wpt
+        working-directory: test/fixtures
+      - name: Checkout epochs/daily WPT
+        uses: actions/checkout@v3
+        with:
+          repository: web-platform-tests/wpt
+          persist-credentials: false
+          path: test/fixtures/wpt
+          clean: false
+          ref: epochs/daily
+      - name: Set env.WPT_REVISION
+        run: echo "WPT_REVISION=$(git rev-parse HEAD)" >> $GITHUB_ENV
+        working-directory: test/fixtures/wpt
+
+      - name: Run WPT and generate report
+        run: make test-wpt-report || true
+      - name: Clone report for upload
+        run: |
+          if [ -e out/wpt/wptreport.json ]; then
+            cd out/wpt
+            cp wptreport.json wptreport-${{ steps.setup-node.outputs.node-version }}.json
+          fi
+      - name: Upload GitHub Actions artifact
+        uses: actions/upload-artifact@v3
+        with:
+          path: out/wpt/wptreport-*.json
+          name: WPT Reports
+          if-no-files-found: warn
+      - name: Upload WPT Report to wpt.fyi API
+        env:
+          WPT_FYI_ENDPOINT: ${{ vars.WPT_FYI_ENDPOINT }}
+          WPT_FYI_USERNAME: ${{ vars.WPT_FYI_USERNAME }}
+          WPT_FYI_PASSWORD: ${{ secrets.WPT_FYI_PASSWORD }}
+        run: |
+          if [ -e out/wpt/wptreport.json ]; then
+            cd out/wpt
+            gzip wptreport.json
+            curl \
+              -u "$WPT_FYI_USERNAME:$WPT_FYI_PASSWORD" \
+              -F "result_file=@wptreport.json.gz" \
+              -F "labels=master" \
+              $WPT_FYI_ENDPOINT
+          fi
