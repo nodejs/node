@@ -118,7 +118,7 @@ MaybeLocal<Object> CreateProcessObject(Realm* realm) {
 
 #define V(key)                                                                 \
   do {                                                                         \
-    *slot++ = std::make_pair(#key, per_process::metadata.versions.key);        \
+    *slot++ = std::make_pair<std::string_view, std::string_view>(#key, per_process::metadata.versions.key);        \
   } while (0);
   NODE_VERSIONS_KEYS(V)
 #undef V
