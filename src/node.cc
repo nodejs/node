@@ -1174,14 +1174,15 @@ ExitCode LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
       return exit_code;
     }
     std::unique_ptr<SnapshotData> read_data = std::make_unique<SnapshotData>();
-    if (!SnapshotData::FromBlob(read_data.get(), fp)) {
+    bool ok = SnapshotData::FromBlob(read_data.get(), fp);
+    fclose(fp);
+    if (!ok) {
       // If we fail to read the customized snapshot, simply exit with 1.
       // TODO(joyeecheung): should be kStartupSnapshotFailure.
       exit_code = ExitCode::kGenericUserError;
       return exit_code;
     }
     *snapshot_data_ptr = read_data.release();
-    fclose(fp);
   } else if (per_process::cli_options->node_snapshot) {
     // If --snapshot-blob is not specified, we are reading the embedded
     // snapshot, but we will skip it if --no-node-snapshot is specified.
