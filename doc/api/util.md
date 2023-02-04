@@ -1989,6 +1989,35 @@ const channel = new MessageChannel();
 channel.port2.postMessage(signal, [signal]);
 ```
 
+## `util.aborted(signal, resource)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `signal` {AbortSignal}
+* `resource` {any} Any non-null entity
+* Returns: {Promise}
+
+Listens to abort event on the provided `signal` and returns a promise which is
+resolved if an abort event is triggered. The function cleans up any
+event listeners depending on when the provided `resource` is garbage collected.
+
+```js
+const { aborted } = require('util');
+
+const ac = new AbortController();
+const dependent = {};
+
+aborted(ac.signal, dependent).then(() => {
+  // Do something when the abort event is triggered.
+});
+
+doSomething(dependent, ac.signal); // Can trigger the abort event
+```
+
 ## `util.types`
 
 <!-- YAML
