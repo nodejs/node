@@ -183,8 +183,6 @@ class URL {
   // Get the file URL from native file system path.
   static URL FromFilePath(const std::string& file_path);
 
-  v8::MaybeLocal<v8::Value> ToObject(Environment* env) const;
-
   URL(const URL&) = default;
   URL& operator=(const URL&) = default;
   URL(URL&&) = default;
