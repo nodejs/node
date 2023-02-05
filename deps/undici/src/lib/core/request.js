@@ -284,6 +284,7 @@ function processHeaderValue (key, val) {
   } else if (headerCharRegex.exec(val) !== null) {
     throw new InvalidArgumentError(`invalid ${key} header`)
   }
+
   return `${key}: ${val}\r\n`
 }
 
@@ -313,11 +314,10 @@ function processHeader (request, key, val) {
   } else if (
     request.contentType === null &&
     key.length === 12 &&
-    key.toLowerCase() === 'content-type' &&
-    headerCharRegex.exec(val) === null
+    key.toLowerCase() === 'content-type'
   ) {
     request.contentType = val
-    request.headers += `${key}: ${val}\r\n`
+    request.headers += processHeaderValue(key, val)
   } else if (
     key.length === 17 &&
     key.toLowerCase() === 'transfer-encoding'
@@ -327,7 +327,7 @@ function processHeader (request, key, val) {
     key.length === 10 &&
     key.toLowerCase() === 'connection'
   ) {
-    const value = val.toLowerCase()
+    const value = typeof val === 'string' ? val.toLowerCase() : null
     if (value !== 'close' && value !== 'keep-alive') {
       throw new InvalidArgumentError('invalid connection header')
     } else if (value === 'close') {

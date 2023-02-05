@@ -104,7 +104,11 @@ class HeadersList {
 
     // 2. Append (name, value) to list.
     if (exists) {
-      this[kHeadersMap].set(lowercaseName, { name: exists.name, value: `${exists.value}, ${value}` })
+      const delimiter = lowercaseName === 'cookie' ? '; ' : ', '
+      this[kHeadersMap].set(lowercaseName, {
+        name: exists.name,
+        value: `${exists.value}${delimiter}${value}`
+      })
     } else {
       this[kHeadersMap].set(lowercaseName, { name, value })
     }
