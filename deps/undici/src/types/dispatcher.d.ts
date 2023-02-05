@@ -1,8 +1,8 @@
 import { URL } from 'url'
 import { Duplex, Readable, Writable } from 'stream'
 import { EventEmitter } from 'events'
-import { IncomingHttpHeaders } from 'http'
 import { Blob } from 'buffer'
+import { IncomingHttpHeaders } from './header'
 import BodyReadable from './readable'
 import { FormData } from './formdata'
 import Errors from './errors'
@@ -105,6 +105,8 @@ declare namespace Dispatcher {
     query?: Record<string, any>;
     /** Whether the requests can be safely retried or not. If `false` the request won't be sent until all preceding requests in the pipeline have completed. Default: `true` if `method` is `HEAD` or `GET`. */
     idempotent?: boolean;
+    /** Whether the response is expected to take a long time and would end up blocking the pipeline. When this is set to `true` further pipelining will be avoided on the same connection until headers have been received. */
+    blocking?: boolean;
     /** Upgrade the request. Should be used to specify the kind of upgrade i.e. `'Websocket'`. Default: `method === 'CONNECT' || null`. */
     upgrade?: boolean | string | null;
     /** The amount of time the parser will wait to receive the complete HTTP headers. Defaults to 30 seconds. */

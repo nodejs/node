@@ -134,6 +134,11 @@ if (nodeMajor >= 16) {
   module.exports.getCookies = getCookies
   module.exports.getSetCookies = getSetCookies
   module.exports.setCookie = setCookie
+
+  const { parseMIMEType, serializeAMimeType } = require('./lib/fetch/dataURL')
+
+  module.exports.parseMIMEType = parseMIMEType
+  module.exports.serializeAMimeType = serializeAMimeType
 }
 
 if (nodeMajor >= 18 && hasCrypto) {
