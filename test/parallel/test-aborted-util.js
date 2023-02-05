@@ -39,7 +39,9 @@ const { getEventListeners } = require('events');
 {
   // Fails if not provided a resource
   const ac = new AbortController();
-  assert.rejects(aborted(ac.signal, null), {
-    name: 'TypeError',
-  });
+  Promise.all([null, undefined, 0, 1, 0m, 1n, Symbol(), '', 'a'].map((resource) =>
+    assert.rejects(aborted(ac.signal, resource), {
+      name: 'TypeError',
+    })
+  ).then(common.mustCall());
 }
