@@ -45,3 +45,14 @@ const { getEventListeners } = require('events');
     })
   ).then(common.mustCall());
 }
+
+{
+  const childProcess = spawn(process.execPath, ['--input-type=module']);
+  childProcess.on('exit', common.mustCall((code) => {
+    assert.strictEqual(code, 13);
+  });
+  childProcess.stdin.end(`
+    import { aborted } from 'node:util';
+    await aborted(new AbortController().signal, {});
+  `);
+}
