@@ -1,4 +1,4 @@
-import { IncomingHttpHeaders } from 'http'
+import { IncomingHttpHeaders } from './header'
 import Dispatcher from './dispatcher';
 import { BodyInit, Headers } from './fetch'
 
