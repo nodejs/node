@@ -29,10 +29,11 @@ const { getEventListeners } = require('events');
 
 {
   // Fails with error if not provided abort signal
-  const sig = new EventTarget();
-  assert.rejects(aborted(sig, {}), {
-    name: 'TypeError',
-  });
+  Promise.all([{}, null, undefined, Symbol(), [], 1, 0, 1n, true, false, 'a', () => {}].map((sig) =>
+    assert.rejects(aborted(sig, {}), {
+      name: 'TypeError',
+    })
+  ).then(common.mustCall());
 }
 
 {
