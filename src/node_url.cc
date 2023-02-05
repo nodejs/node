@@ -13,8 +13,6 @@
 
 namespace node {
 
-using errors::TryCatchScope;
-
 using url::table_data::hex;
 using url::table_data::C0_CONTROL_ENCODE_SET;
 using url::table_data::FRAGMENT_ENCODE_SET;
@@ -32,7 +30,6 @@ using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
-using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Null;
 using v8::Object;
@@ -1923,48 +1920,6 @@ URL URL::FromFilePath(const std::string& file_path) {
   URL::Parse(escaped_file_path.c_str(), escaped_file_path.length(), kPathStart,
              &url.context_, true, nullptr, false);
   return url;
-}
-
-// This function works by calling out to a JS function that creates and
-// returns the JS URL object. Be mindful of the JS<->Native boundary
-// crossing that is required.
-MaybeLocal<Value> URL::ToObject(Environment* env) const {
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
-  Context::Scope context_scope(context);
-
-  const Local<Value> undef = Undefined(isolate);
-  const Local<Value> null = Null(isolate);
-
-  if (context_.flags & URL_FLAGS_FAILED)
-    return Local<Value>();
-
-  Local<Value> argv[] = {
-    undef,
-    undef,
-    undef,
-    undef,
-    null,  // host defaults to null
-    null,  // port defaults to null
-    undef,
-    null,  // query defaults to null
-    null,  // fragment defaults to null
-  };
-  SetArgs(env, argv, context_);
-
-  MaybeLocal<Value> ret;
-  {
-    TryCatchScope try_catch(env, TryCatchScope::CatchMode::kFatal);
-
-    // The SetURLConstructor method must have been called already to
-    // set the constructor function used below. SetURLConstructor is
-    // called automatically when the internal/url.js module is loaded
-    // during the internal/bootstrap/node.js processing.
-    ret = env->url_constructor_function()
-        ->Call(env->context(), undef, arraysize(argv), argv);
-  }
-
-  return ret;
 }
 
 }  // namespace url
