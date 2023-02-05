@@ -2009,7 +2009,7 @@ goes out of memory. The function shall automatically
 cleanup any event listeners it attaches to `signal`.
 
 ```cjs
-const { aborted } = require('util');
+const { aborted } = require('node:util');
 
 const dependent = obtainSomethingAbortable();
 
