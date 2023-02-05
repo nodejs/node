@@ -1824,13 +1824,6 @@ void DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
       String::NewFromUtf8(env->isolate(), out.c_str()).ToLocalChecked());
 }
 
-void SetURLConstructor(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsFunction());
-  env->set_url_constructor_function(args[0].As<Function>());
-}
-
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -1839,7 +1832,6 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "encodeAuth", EncodeAuthSet);
   SetMethodNoSideEffect(context, target, "domainToASCII", DomainToASCII);
   SetMethodNoSideEffect(context, target, "domainToUnicode", DomainToUnicode);
-  SetMethod(context, target, "setURLConstructor", SetURLConstructor);
 
 #define XX(name, _) NODE_DEFINE_CONSTANT(target, name);
   FLAGS(XX)
@@ -1856,7 +1848,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(EncodeAuthSet);
   registry->Register(DomainToASCII);
   registry->Register(DomainToUnicode);
-  registry->Register(SetURLConstructor);
 }
 
 std::string URL::ToFilePath() const {
