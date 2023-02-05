@@ -152,36 +152,6 @@ TEST_F(URLTest, TruncatedAfterProtocol2) {
   EXPECT_EQ(simple.path(), "");
 }
 
-TEST_F(URLTest, ToFilePath) {
-#define T(url, path) EXPECT_EQ(path, URL(url).ToFilePath())
-  T("http://example.org/foo/bar", "");
-
-#ifdef _WIN32
-  T("file:///C:/Program%20Files/", "C:\\Program Files\\");
-  T("file:///C:/a/b/c?query#fragment", "C:\\a\\b\\c");
-  T("file://host/path/a/b/c?query#fragment", "\\\\host\\path\\a\\b\\c");
-#if defined(NODE_HAVE_I18N_SUPPORT)
-  T("file://xn--weird-prdj8vva.com/host/a", "\\\\wͪ͊eiͬ͋rd.com\\host\\a");
-#else
-  T("file://xn--weird-prdj8vva.com/host/a",
-    "\\\\xn--weird-prdj8vva.com\\host\\a");
-#endif
-  T("file:///C:/a%2Fb", "");
-  T("file:///", "");
-  T("file:///home", "");
-#else
-  T("file:///", "/");
-  T("file:///home/user?query#fragment", "/home/user");
-  T("file:///home/user/?query#fragment", "/home/user/");
-  T("file:///home/user/%20space", "/home/user/ space");
-  T("file:///home/us%5Cer", "/home/us\\er");
-  T("file:///home/us%2Fer", "");
-  T("file://host/path", "");
-#endif
-
-#undef T
-}
-
 TEST_F(URLTest, FromFilePath) {
   URL file_url;
 #ifdef _WIN32

@@ -1847,68 +1847,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(DomainToUnicode);
 }
 
-std::string URL::ToFilePath() const {
-  if (context_.scheme != "file:") {
-    return "";
-  }
-
-#ifdef _WIN32
-  const char* slash = "\\";
-  auto is_slash = [] (char ch) {
-    return ch == '/' || ch == '\\';
-  };
-#else
-  const char* slash = "/";
-  auto is_slash = [] (char ch) {
-    return ch == '/';
-  };
-  if ((context_.flags & URL_FLAGS_HAS_HOST) &&
-      context_.host.length() > 0) {
-    return "";
-  }
-#endif
-  std::string decoded_path;
-  for (const std::string& part : context_.path) {
-    std::string decoded = PercentDecode(part.c_str(), part.length());
-    for (char& ch : decoded) {
-      if (is_slash(ch)) {
-        return "";
-      }
-    }
-    decoded_path += slash + decoded;
-  }
-
-#ifdef _WIN32
-  // TODO(TimothyGu): Use "\\?\" long paths on Windows.
-
-  // If hostname is set, then we have a UNC path. Pass the hostname through
-  // ToUnicode just in case it is an IDN using punycode encoding. We do not
-  // need to worry about percent encoding because the URL parser will have
-  // already taken care of that for us. Note that this only causes IDNs with an
-  // appropriate `xn--` prefix to be decoded.
-  if ((context_.flags & URL_FLAGS_HAS_HOST) &&
-      context_.host.length() > 0) {
-    std::string unicode_host;
-    if (!ToUnicode(context_.host, &unicode_host)) {
-      return "";
-    }
-    return "\\\\" + unicode_host + decoded_path;
-  }
-  // Otherwise, it's a local path that requires a drive letter.
-  if (decoded_path.length() < 3) {
-    return "";
-  }
-  if (decoded_path[2] != ':' ||
-      !IsASCIIAlpha(decoded_path[1])) {
-    return "";
-  }
-  // Strip out the leading '\'.
-  return decoded_path.substr(1);
-#else
-  return decoded_path;
-#endif
-}
-
 URL URL::FromFilePath(const std::string& file_path) {
   URL url("file://");
   std::string escaped_file_path;
