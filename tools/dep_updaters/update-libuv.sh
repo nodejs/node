@@ -16,8 +16,9 @@ VERSION_H="$DEPS_DIR/uv/include/uv/version.h"
 CURRENT_MAJOR_VERSION=$(grep "#define UV_VERSION_MAJOR" "$VERSION_H" | sed -n "s/^.*MAJOR \(.*\)/\1/p")
 CURRENT_MINOR_VERSION=$(grep "#define UV_VERSION_MINOR" "$VERSION_H" | sed -n "s/^.*MINOR \(.*\)/\1/p")
 CURRENT_PATCH_VERSION=$(grep "#define UV_VERSION_PATCH" "$VERSION_H" | sed -n "s/^.*PATCH \(.*\)/\1/p")
+CURRENT_IS_RELEASE=$(grep "#define UV_VERSION_IS_RELEASE" "$VERSION_H" | sed -n "s/^.*RELEASE \(.*\)/\1/p")
 CURRENT_SUFFIX_VERSION=$(grep "#define UV_VERSION_SUFFIX" "$VERSION_H" | sed -n "s/^.*SUFFIX \"\(.*\)\"/\1/p")
-SUFFIX_STRING=$([ -z "$CURRENT_SUFFIX_VERSION" ] && echo "" || echo "-$CURRENT_SUFFIX_VERSION")
+SUFFIX_STRING=$([ "$CURRENT_IS_RELEASE" = 1 ] || [ -z "$CURRENT_SUFFIX_VERSION" ] && echo "" || echo "-$CURRENT_SUFFIX_VERSION")
 CURRENT_VERSION="$CURRENT_MAJOR_VERSION.$CURRENT_MINOR_VERSION.$CURRENT_PATCH_VERSION$SUFFIX_STRING"
 
 if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
