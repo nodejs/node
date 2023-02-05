@@ -5,6 +5,7 @@ const common = require('../common');
 const { aborted } = require('util');
 const assert = require('assert');
 const { getEventListeners } = require('events');
+const { spawn } = require('child_process');
 
 {
   // Test aborted works when provided a resource
@@ -33,24 +34,24 @@ const { getEventListeners } = require('events');
     assert.rejects(aborted(sig, {}), {
       name: 'TypeError',
     })
-  ).then(common.mustCall());
+  ).then(common.mustCall()));
 }
 
 {
   // Fails if not provided a resource
   const ac = new AbortController();
-  Promise.all([null, undefined, 0, 1, 0m, 1n, Symbol(), '', 'a'].map((resource) =>
+  Promise.all([null, undefined, 0, 1, 0n, 1n, Symbol(), '', 'a'].map((resource) =>
     assert.rejects(aborted(ac.signal, resource), {
       name: 'TypeError',
     })
-  ).then(common.mustCall());
+  ).then(common.mustCall()));
 }
 
 {
   const childProcess = spawn(process.execPath, ['--input-type=module']);
   childProcess.on('exit', common.mustCall((code) => {
     assert.strictEqual(code, 13);
-  });
+  }));
   childProcess.stdin.end(`
     import { aborted } from 'node:util';
     await aborted(new AbortController().signal, {});
