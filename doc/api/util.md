@@ -2008,7 +2008,7 @@ the returned promise shall remain pending if `resource`
 goes out of memory. The function shall automatically
 cleanup any event listeners it attaches to `signal`.
 
-```js
+```cjs
 const { aborted } = require('util');
 
 const dependent = obtainSomethingAbortable();
