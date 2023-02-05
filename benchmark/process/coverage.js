@@ -4,7 +4,7 @@
 
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
-  n: [1e5]
+  n: [1e5],
 });
 const path = require('path');
 const { rmSync } = require('fs');
@@ -21,8 +21,8 @@ function main({ n }) {
     env: {
       NODE_V8_COVERAGE: coverageDir,
       N: n,
-      ...process.env
-    }
+      ...process.env,
+    },
   });
   bench.end(n);
   rmSync(coverageDir, { recursive: true, force: true });
