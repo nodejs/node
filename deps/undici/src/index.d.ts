@@ -23,6 +23,7 @@ export * from './types/filereader'
 export * from './types/formdata'
 export * from './types/diagnostics-channel'
 export * from './types/websocket'
+export * from './types/content-type'
 export { Interceptable } from './types/mock-interceptor'
 
 export { Dispatcher, BalancedPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, MockClient, MockPool, MockAgent, mockErrors, ProxyAgent, RedirectHandler, DecoratorHandler }

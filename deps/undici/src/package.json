@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "5.16.0",
+  "version": "5.17.1",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -55,7 +55,7 @@
     "test:tdd": "tap test/*.js test/diagnostics-channel/*.js -w",
     "test:typescript": "tsd && tsc test/imports/undici-import.ts",
     "test:websocket": "node scripts/verifyVersion.js 18 || tap test/websocket/*.js",
-    "test:wpt": "node scripts/verifyVersion 18 || (node test/wpt/start-fetch.mjs && node test/wpt/start-FileAPI.mjs && node test/wpt/start-mimesniff.mjs && node test/wpt/start-xhr.mjs && node test/wpt/start-websockets.mjs)",
+    "test:wpt": "node scripts/verifyVersion 18 || (node test/wpt/start-fetch.mjs && node test/wpt/start-FileAPI.mjs && node test/wpt/start-mimesniff.mjs && node test/wpt/start-xhr.mjs && node --no-warnings test/wpt/start-websockets.mjs)",
     "coverage": "nyc --reporter=text --reporter=html npm run test",
     "coverage:ci": "nyc --reporter=lcov npm run test",
     "bench": "PORT=3042 concurrently -k -s first npm:bench:server npm:bench:run",

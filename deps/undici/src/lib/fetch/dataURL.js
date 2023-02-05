@@ -31,8 +31,8 @@ function dataURLProcessor (dataURL) {
   // 5. Let mimeType be the result of collecting a
   // sequence of code points that are not equal
   // to U+002C (,), given position.
-  let mimeType = collectASequenceOfCodePoints(
-    (char) => char !== ',',
+  let mimeType = collectASequenceOfCodePointsFast(
+    ',',
     input,
     position
   )
@@ -145,6 +145,25 @@ function collectASequenceOfCodePoints (condition, input, position) {
   return result
 }
 
+/**
+ * A faster collectASequenceOfCodePoints that only works when comparing a single character.
+ * @param {string} char
+ * @param {string} input
+ * @param {{ position: number }} position
+ */
+function collectASequenceOfCodePointsFast (char, input, position) {
+  const idx = input.indexOf(char, position.position)
+  const start = position.position
+
+  if (idx === -1) {
+    position.position = input.length
+    return input.slice(start)
+  }
+
+  position.position = idx
+  return input.slice(start, position.position)
+}
+
 // https://url.spec.whatwg.org/#string-percent-decode
 /** @param {string} input */
 function stringPercentDecode (input) {
@@ -214,8 +233,8 @@ function parseMIMEType (input) {
   // 3. Let type be the result of collecting a sequence
   // of code points that are not U+002F (/) from
   // input, given position.
-  const type = collectASequenceOfCodePoints(
-    (char) => char !== '/',
+  const type = collectASequenceOfCodePointsFast(
+    '/',
     input,
     position
   )
@@ -239,8 +258,8 @@ function parseMIMEType (input) {
   // 7. Let subtype be the result of collecting a sequence of
   // code points that are not U+003B (;) from input, given
   // position.
-  let subtype = collectASequenceOfCodePoints(
-    (char) => char !== ';',
+  let subtype = collectASequenceOfCodePointsFast(
+    ';',
     input,
     position
   )
@@ -324,8 +343,8 @@ function parseMIMEType (input) {
 
       // 2. Collect a sequence of code points that are not
       // U+003B (;) from input, given position.
-      collectASequenceOfCodePoints(
-        (char) => char !== ';',
+      collectASequenceOfCodePointsFast(
+        ';',
         input,
         position
       )
@@ -335,8 +354,8 @@ function parseMIMEType (input) {
       // 1. Set parameterValue to the result of collecting
       // a sequence of code points that are not U+003B (;)
       // from input, given position.
-      parameterValue = collectASequenceOfCodePoints(
-        (char) => char !== ';',
+      parameterValue = collectASequenceOfCodePointsFast(
+        ';',
         input,
         position
       )

@@ -65,6 +65,7 @@ const {
   kLocalAddress,
   kMaxResponseSize
 } = require('./core/symbols')
+const FastBuffer = Buffer[Symbol.species]
 
 const kClosedResolve = Symbol('kClosedResolve')
 
@@ -362,9 +363,8 @@ async function lazyllhttp () {
       },
       wasm_on_status: (p, at, len) => {
         assert.strictEqual(currentParser.ptr, p)
-        const start = at - currentBufferPtr
-        const end = start + len
-        return currentParser.onStatus(currentBufferRef.slice(start, end)) || 0
+        const start = at - currentBufferPtr + currentBufferRef.byteOffset
+        return currentParser.onStatus(new FastBuffer(currentBufferRef.buffer, start, len)) || 0
       },
       wasm_on_message_begin: (p) => {
         assert.strictEqual(currentParser.ptr, p)
@@ -372,15 +372,13 @@ async function lazyllhttp () {
       },
       wasm_on_header_field: (p, at, len) => {
         assert.strictEqual(currentParser.ptr, p)
-        const start = at - currentBufferPtr
-        const end = start + len
-        return currentParser.onHeaderField(currentBufferRef.slice(start, end)) || 0
+        const start = at - currentBufferPtr + currentBufferRef.byteOffset
+        return currentParser.onHeaderField(new FastBuffer(currentBufferRef.buffer, start, len)) || 0
       },
       wasm_on_header_value: (p, at, len) => {
         assert.strictEqual(currentParser.ptr, p)
-        const start = at - currentBufferPtr
-        const end = start + len
-        return currentParser.onHeaderValue(currentBufferRef.slice(start, end)) || 0
+        const start = at - currentBufferPtr + currentBufferRef.byteOffset
+        return currentParser.onHeaderValue(new FastBuffer(currentBufferRef.buffer, start, len)) || 0
       },
       wasm_on_headers_complete: (p, statusCode, upgrade, shouldKeepAlive) => {
         assert.strictEqual(currentParser.ptr, p)
@@ -388,9 +386,8 @@ async function lazyllhttp () {
       },
       wasm_on_body: (p, at, len) => {
         assert.strictEqual(currentParser.ptr, p)
-        const start = at - currentBufferPtr
-        const end = start + len
-        return currentParser.onBody(currentBufferRef.slice(start, end)) || 0
+        const start = at - currentBufferPtr + currentBufferRef.byteOffset
+        return currentParser.onBody(new FastBuffer(currentBufferRef.buffer, start, len)) || 0
       },
       wasm_on_message_complete: (p) => {
         assert.strictEqual(currentParser.ptr, p)
