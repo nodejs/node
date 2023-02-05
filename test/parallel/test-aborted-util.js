@@ -34,7 +34,7 @@ const { spawn } = require('child_process');
     assert.rejects(aborted(sig, {}), {
       name: 'TypeError',
     })
-  ).then(common.mustCall()));
+  )).then(common.mustCall());
 }
 
 {
@@ -44,7 +44,7 @@ const { spawn } = require('child_process');
     assert.rejects(aborted(ac.signal, resource), {
       name: 'TypeError',
     })
-  ).then(common.mustCall()));
+  )).then(common.mustCall());
 }
 
 {
