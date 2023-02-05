@@ -13,7 +13,6 @@ overrides:
       - http/*.js
       - http2/*.js
       - path/*.js
-      - process/*.js
       - url/*.js
     rules:
       comma-dangle: [error, {
