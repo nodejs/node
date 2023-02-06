@@ -28,7 +28,7 @@ server.listen(0, () => {
       {
         children: [
           // current_headers and/or queue could be empty
-          { node_name: 'Http2Stream', edge_name: 'wrapped' },
+          { node_name: 'Http2Stream', edge_name: 'native_to_javascript' },
         ]
       },
     ], { loose: true });
@@ -37,7 +37,7 @@ server.listen(0, () => {
     state.validateSnapshotNodes('Node / FileHandle', [
       {
         children: [
-          { node_name: 'FileHandle', edge_name: 'wrapped' },
+          { node_name: 'FileHandle', edge_name: 'native_to_javascript' },
           // current_headers could be empty
         ]
       },
@@ -45,14 +45,14 @@ server.listen(0, () => {
     state.validateSnapshotNodes('Node / TCPSocketWrap', [
       {
         children: [
-          { node_name: 'TCP', edge_name: 'wrapped' },
+          { node_name: 'TCP', edge_name: 'native_to_javascript' },
         ]
       },
     ], { loose: true });
     state.validateSnapshotNodes('Node / TCPServerWrap', [
       {
         children: [
-          { node_name: 'TCP', edge_name: 'wrapped' },
+          { node_name: 'TCP', edge_name: 'native_to_javascript' },
         ]
       },
     ], { loose: true });
@@ -60,7 +60,7 @@ server.listen(0, () => {
     state.validateSnapshotNodes('Node / StreamPipe', [
       {
         children: [
-          { node_name: 'StreamPipe', edge_name: 'wrapped' },
+          { node_name: 'StreamPipe', edge_name: 'native_to_javascript' },
         ]
       },
     ]);
@@ -68,7 +68,7 @@ server.listen(0, () => {
     state.validateSnapshotNodes('Node / Http2Session', [
       {
         children: [
-          { node_name: 'Http2Session', edge_name: 'wrapped' },
+          { node_name: 'Http2Session', edge_name: 'native_to_javascript' },
           { node_name: 'Node / nghttp2_memory', edge_name: 'nghttp2_memory' },
           {
             node_name: 'Node / streams', edge_name: 'streams'
