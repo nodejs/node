@@ -10,7 +10,7 @@ const gzip = zlib.createGzip();
 validateSnapshotNodes('Node / ZlibStream', [
   {
     children: [
-      { node_name: 'Zlib', edge_name: 'wrapped' },
+      { node_name: 'Zlib', edge_name: 'native_to_javascript' },
       // No entry for memory because zlib memory is initialized lazily.
     ]
   },
@@ -20,7 +20,7 @@ gzip.write('hello world', common.mustCall(() => {
   validateSnapshotNodes('Node / ZlibStream', [
     {
       children: [
-        { node_name: 'Zlib', edge_name: 'wrapped' },
+        { node_name: 'Zlib', edge_name: 'native_to_javascript' },
         { node_name: 'Node / zlib_memory', edge_name: 'zlib_memory' },
       ]
     },
