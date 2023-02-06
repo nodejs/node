@@ -342,11 +342,16 @@ the `--help` option:
 $ tools/test.py --help
 ```
 
+> Note: On Windows you should use `python3` executable.
+> Example: `python3 tools/test.py test/message`
+
 You can usually run tests directly with node:
 
 ```text
-$ ./node ./test/parallel/test-stream2-transform.js
+$ ./node test/parallel/test-stream2-transform.js
 ```
+
+> Info: `./node` points to your local Node.js build.
 
 Remember to recompile with `make -j4` in between test runs if you change code in
 the `lib` or `src` directories.
