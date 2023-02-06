@@ -545,7 +545,6 @@
         'src/node_trace_events.cc',
         'src/node_types.cc',
         'src/node_url.cc',
-        'src/node_url_tables.cc',
         'src/node_util.cc',
         'src/node_v8.cc',
         'src/node_wasi.cc',
@@ -1261,7 +1260,6 @@
         'test/cctest/test_sockaddr.cc',
         'test/cctest/test_traced_value.cc',
         'test/cctest/test_util.cc',
-        'test/cctest/test_url.cc',
       ],
 
       'conditions': [
