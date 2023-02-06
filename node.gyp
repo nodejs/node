@@ -533,7 +533,6 @@
         'src/node_trace_events.cc',
         'src/node_types.cc',
         'src/node_url.cc',
-        'src/node_url_tables.cc',
         'src/node_util.cc',
         'src/node_v8.cc',
         'src/node_wasi.cc',
@@ -895,37 +894,6 @@
         },
       ],
     }, # node_lib_target_name
-    { # fuzz_url
-      'target_name': 'fuzz_url',
-      'type': 'executable',
-      'dependencies': [
-        '<(node_lib_target_name)',
-      ],
-      'includes': [
-        'node.gypi'
-      ],
-      'include_dirs': [
-        'src',
-      ],
-      'defines': [
-        'NODE_ARCH="<(target_arch)"',
-        'NODE_PLATFORM="<(OS)"',
-        'NODE_WANT_INTERNALS=1',
-      ],
-      'sources': [
-        'src/node_snapshot_stub.cc',
-        'test/fuzzers/fuzz_url.cc',
-      ],
-      'conditions': [
-        ['OS=="linux"', {
-          'ldflags': [ '-fsanitize=fuzzer' ]
-        }],
-        # Ensure that ossfuzz flag has been set and that we are on Linux
-        [ 'OS!="linux" or ossfuzz!="true"', {
-          'type': 'none',
-        }],
-      ],
-    }, # fuzz_url
     { # fuzz_env
       'target_name': 'fuzz_env',
       'type': 'executable',
@@ -1018,7 +986,6 @@
         'test/cctest/test_sockaddr.cc',
         'test/cctest/test_traced_value.cc',
         'test/cctest/test_util.cc',
-        'test/cctest/test_url.cc',
       ],
 
       'conditions': [

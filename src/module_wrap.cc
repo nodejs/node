@@ -7,7 +7,6 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_process-inl.h"
-#include "node_url.h"
 #include "node_watchdog.h"
 #include "util-inl.h"
 
@@ -21,8 +20,6 @@ namespace loader {
 using errors::TryCatchScope;
 
 using node::contextify::ContextifyContext;
-using node::url::URL;
-using node::url::URL_FLAGS_FAILED;
 using v8::Array;
 using v8::ArrayBufferView;
 using v8::Context;
