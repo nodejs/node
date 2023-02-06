@@ -12,7 +12,7 @@ validateSnapshotNodes('Node / ChannelWrap', [
     children: [
       { node_name: 'Node / NodeAresTask::List', edge_name: 'task_list' },
       // `Node / ChannelWrap` (C++) -> `ChannelWrap` (JS)
-      { node_name: 'ChannelWrap', edge_name: 'wrapped' },
+      { node_name: 'ChannelWrap', edge_name: 'native_to_javascript' },
     ],
     detachedness: 2
   },

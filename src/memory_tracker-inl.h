@@ -318,8 +318,8 @@ MemoryRetainerNode* MemoryTracker::AddNode(const MemoryRetainer* retainer,
   if (CurrentNode() != nullptr) graph_->AddEdge(CurrentNode(), n, edge_name);
 
   if (n->JSWrapperNode() != nullptr) {
-    graph_->AddEdge(n, n->JSWrapperNode(), "wrapped");
-    graph_->AddEdge(n->JSWrapperNode(), n, "wrapper");
+    graph_->AddEdge(n, n->JSWrapperNode(), "native_to_javascript");
+    graph_->AddEdge(n->JSWrapperNode(), n, "javascript_to_native");
   }
 
   return n;

@@ -30,7 +30,7 @@ const snapshotNode = {
     {
       children: [
         { node_name: 'Node / InspectorSession', edge_name: 'session' },
-        { node_name: 'Connection', edge_name: 'wrapped' },
+        { node_name: 'Connection', edge_name: 'native_to_javascript' },
         (edge) => edge.name === 'callback' &&
           (edge.to.type === undefined || // embedded graph
            edge.to.type === 'closure'), // snapshot
