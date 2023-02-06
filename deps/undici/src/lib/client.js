@@ -5,6 +5,7 @@
 const assert = require('assert')
 const net = require('net')
 const util = require('./core/util')
+const timers = require('./timers')
 const Request = require('./core/request')
 const DispatcherBase = require('./dispatcher-base')
 const {
@@ -444,9 +445,9 @@ class Parser {
   setTimeout (value, type) {
     this.timeoutType = type
     if (value !== this.timeoutValue) {
-      clearTimeout(this.timeout)
+      timers.clearTimeout(this.timeout)
       if (value) {
-        this.timeout = setTimeout(onParserTimeout, value, this)
+        this.timeout = timers.setTimeout(onParserTimeout, value, this)
         // istanbul ignore else: only for jest
         if (this.timeout.unref) {
           this.timeout.unref()
@@ -562,7 +563,7 @@ class Parser {
     this.llhttp.llhttp_free(this.ptr)
     this.ptr = null
 
-    clearTimeout(this.timeout)
+    timers.clearTimeout(this.timeout)
     this.timeout = null
     this.timeoutValue = null
     this.timeoutType = null

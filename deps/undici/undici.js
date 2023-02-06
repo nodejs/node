@@ -7843,6 +7843,87 @@ var require_pool_base = __commonJS({
   }
 });
 
+// lib/timers.js
+var require_timers = __commonJS({
+  "lib/timers.js"(exports2, module2) {
+    "use strict";
+    var fastNow = Date.now();
+    var fastNowTimeout;
+    var fastTimers = [];
+    function onTimeout() {
+      fastNow = Date.now();
+      let len = fastTimers.length;
+      let idx = 0;
+      while (idx < len) {
+        const timer = fastTimers[idx];
+        if (timer.expires && fastNow >= timer.expires) {
+          timer.expires = 0;
+          timer.callback(timer.opaque);
+        }
+        if (timer.expires === 0) {
+          timer.active = false;
+          if (idx !== len - 1) {
+            fastTimers[idx] = fastTimers.pop();
+          } else {
+            fastTimers.pop();
+          }
+          len -= 1;
+        } else {
+          idx += 1;
+        }
+      }
+      if (fastTimers.length > 0) {
+        refreshTimeout();
+      }
+    }
+    function refreshTimeout() {
+      if (fastNowTimeout && fastNowTimeout.refresh) {
+        fastNowTimeout.refresh();
+      } else {
+        clearTimeout(fastNowTimeout);
+        fastNowTimeout = setTimeout(onTimeout, 1e3);
+        if (fastNowTimeout.unref) {
+          fastNowTimeout.unref();
+        }
+      }
+    }
+    var Timeout = class {
+      constructor(callback, delay, opaque) {
+        this.callback = callback;
+        this.delay = delay;
+        this.opaque = opaque;
+        this.expires = 0;
+        this.active = false;
+        this.refresh();
+      }
+      refresh() {
+        if (!this.active) {
+          this.active = true;
+          fastTimers.push(this);
+          if (!fastNowTimeout || fastTimers.length === 1) {
+            refreshTimeout();
+            fastNow = Date.now();
+          }
+        }
+        this.expires = fastNow + this.delay;
+      }
+      clear() {
+        this.expires = 0;
+      }
+    };
+    module2.exports = {
+      setTimeout(callback, delay, opaque) {
+        return new Timeout(callback, delay, opaque);
+      },
+      clearTimeout(timeout) {
+        if (timeout && timeout.clear) {
+          timeout.clear();
+        }
+      }
+    };
+  }
+});
+
 // lib/core/request.js
 var require_request2 = __commonJS({
   "lib/core/request.js"(exports2, module2) {
@@ -8051,9 +8132,11 @@ var require_request2 = __commonJS({
       }
     };
     function processHeaderValue(key, val) {
-      if (val && (typeof val === "object" && !Array.isArray(val))) {
+      if (val && typeof val === "object") {
         throw new InvalidArgumentError(`invalid ${key} header`);
-      } else if (headerCharRegex.exec(val) !== null) {
+      }
+      val = val != null ? `${val}` : "";
+      if (headerCharRegex.exec(val) !== null) {
         throw new InvalidArgumentError(`invalid ${key} header`);
       }
       return `${key}: ${val}\r
@@ -8203,6 +8286,10 @@ var require_connect = __commonJS({
             port: port || 80,
             host: hostname
           });
+        }
+        if (options.keepAlive == null || options.keepAlive) {
+          const keepAliveInitialDelay = options.keepAliveInitialDelay === void 0 ? 6e4 : options.keepAliveInitialDelay;
+          socket.setKeepAlive(true, keepAliveInitialDelay);
         }
         const cancelTimeout = setupTimeout(() => onConnectTimeout(socket), timeout);
         socket.setNoDelay(true).once(protocol === "https:" ? "secureConnect" : "connect", function() {
@@ -8774,6 +8861,7 @@ var require_client = __commonJS({
     var assert = require("assert");
     var net = require("net");
     var util = require_util();
+    var timers = require_timers();
     var Request = require_request2();
     var DispatcherBase = require_dispatcher_base();
     var {
@@ -9130,9 +9218,9 @@ var require_client = __commonJS({
       setTimeout(value, type) {
         this.timeoutType = type;
         if (value !== this.timeoutValue) {
-          clearTimeout(this.timeout);
+          timers.clearTimeout(this.timeout);
           if (value) {
-            this.timeout = setTimeout(onParserTimeout, value, this);
+            this.timeout = timers.setTimeout(onParserTimeout, value, this);
             if (this.timeout.unref) {
               this.timeout.unref();
             }
@@ -9221,7 +9309,7 @@ var require_client = __commonJS({
         assert(currentParser == null);
         this.llhttp.llhttp_free(this.ptr);
         this.ptr = null;
-        clearTimeout(this.timeout);
+        timers.clearTimeout(this.timeout);
         this.timeout = null;
         this.timeoutValue = null;
         this.timeoutType = null;
