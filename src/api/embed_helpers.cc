@@ -12,6 +12,7 @@ using v8::Locker;
 using v8::Maybe;
 using v8::Nothing;
 using v8::SealHandleScope;
+using v8::TryCatch;
 
 namespace node {
 
@@ -109,10 +110,19 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
+    HandleScope handle_scope(isolate);
+
+    TryCatch bootstrapCatch(isolate);
+    auto print_Exception = OnScopeLeave([&]() {
+      if (bootstrapCatch.HasCaught()) {
+        errors->push_back(FormatCaughtException(
+            isolate, isolate->GetCurrentContext(), bootstrapCatch));
+      }
+    });
+
     impl_->isolate_data.reset(CreateIsolateData(
         isolate, loop, platform, impl_->allocator.get()));
 
-    HandleScope handle_scope(isolate);
     Local<Context> context = NewContext(isolate);
     impl_->context.Reset(isolate, context);
     if (context.IsEmpty()) {

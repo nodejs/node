@@ -83,6 +83,9 @@ void PrintStackTrace(v8::Isolate* isolate, v8::Local<v8::StackTrace> stack);
 void PrintCaughtException(v8::Isolate* isolate,
                           v8::Local<v8::Context> context,
                           const v8::TryCatch& try_catch);
+std::string FormatCaughtException(v8::Isolate* isolate,
+                                  v8::Local<v8::Context> context,
+                                  const v8::TryCatch& try_catch);
 
 void ResetStdio();  // Safe to call more than once and from signal handlers.
 #ifdef __POSIX__
