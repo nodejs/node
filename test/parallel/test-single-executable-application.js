@@ -59,15 +59,13 @@ module.exports = {
 };
 `);
 
-let commonPathForSea = join(__dirname, '..', 'common');
-
 writeFileSync(inputFile, `
 const { Module: { createRequire } } = require('module');
 const createdRequire = createRequire(__filename);
 
 // Although, require('../common') works locally, that couldn't be used here
 // because we set NODE_TEST_DIR=/Users/iojs/node-tmp on Jenkins CI.
-const { expectWarning } = createdRequire(${JSON.stringify(commonPathForSea)});
+const { expectWarning } = createdRequire(${JSON.stringify(join(__dirname, '..', 'common'))});
 
 expectWarning('ExperimentalWarning',
               'Single executable application is an experimental feature and ' +
