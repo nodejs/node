@@ -32,7 +32,7 @@ const { spawn } = require('child_process');
   // Fails with error if not provided abort signal
   Promise.all([{}, null, undefined, Symbol(), [], 1, 0, 1n, true, false, 'a', () => {}].map((sig) =>
     assert.rejects(aborted(sig, {}), {
-      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_TYPE',
     })
   )).then(common.mustCall());
 }
