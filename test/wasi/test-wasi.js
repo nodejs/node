@@ -32,7 +32,7 @@ if (process.argv[2] === 'wasi-child-default') {
     wasi.start(instance);
   })().then(common.mustCall());
 } else if (process.argv[2] === 'wasi-child-preview1') {
-  // Test version set to wasi_snapshot_preview1
+  // Test version set to preview1
   const assert = require('assert');
   const fixtures = require('../common/fixtures');
   const tmpdir = require('../common/tmpdir');
@@ -69,7 +69,7 @@ if (process.argv[2] === 'wasi-child-default') {
     wasiPreview1.start(instancePreview1);
   })().then(common.mustCall());
 } else if (process.argv[2] === 'wasi-child-unstable') {
-  // Test version set to wasi_snapshot_preview1
+  // Test version set to unstable
   const assert = require('assert');
   const fixtures = require('../common/fixtures');
   const tmpdir = require('../common/tmpdir');
@@ -140,6 +140,8 @@ if (process.argv[2] === 'wasi-child-default') {
     innerRunWASI(options, ['--no-turbo-fast-api-calls']);
     innerRunWASI(options, ['--turbo-fast-api-calls']);
     innerRunWASI(options, ['--turbo-fast-api-calls'], 'preview1');
+    // TODO(mhdawson) do we need testing for unstable?
+    // innerRunWASI(options, ['--turbo-fast-api-calls'], 'unstable');
   }
 
   runWASI({ test: 'cant_dotdot' });
