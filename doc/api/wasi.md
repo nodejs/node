@@ -16,7 +16,7 @@ import { WASI } from 'wasi';
 import { argv, env } from 'node:process';
 
 const wasi = new WASI({
-  version: 'wasi_snapshot_preview1',
+  version: 'preview1',
   args: argv,
   env,
   preopens: {
@@ -40,7 +40,7 @@ const { argv, env } = require('node:process');
 const { join } = require('node:path');
 
 const wasi = new WASI({
-  version: 'wasi_snapshot_preview1',
+  version: 'preview1',
   args: argv,
   env,
   preopens: {
