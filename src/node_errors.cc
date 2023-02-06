@@ -185,7 +185,8 @@ static std::string GetErrorSource(Isolate* isolate,
   return buf + std::string(underline_buf, off);
 }
 
-void PrintStackTrace(Isolate* isolate, Local<StackTrace> stack) {
+static std::string FormatStackTrace(Isolate* isolate, Local<StackTrace> stack) {
+  std::string result;
   for (int i = 0; i < stack->GetFrameCount(); i++) {
     Local<StackFrame> stack_frame = stack->GetFrame(isolate, i);
     node::Utf8Value fn_name_s(isolate, stack_frame->GetFunctionName());
@@ -195,53 +196,82 @@ void PrintStackTrace(Isolate* isolate, Local<StackTrace> stack) {
 
     if (stack_frame->IsEval()) {
       if (stack_frame->GetScriptId() == Message::kNoScriptIdInfo) {
-        FPrintF(stderr, "    at [eval]:%i:%i\n", line_number, column);
+        result += SPrintF("    at [eval]:%i:%i\n", line_number, column);
       } else {
-        FPrintF(stderr,
-                "    at [eval] (%s:%i:%i)\n",
-                *script_name,
-                line_number,
-                column);
+        std::vector<char> buf(script_name.length() + 64);
+        snprintf(buf.data(),
+                 buf.size(),
+                 "    at [eval] (%s:%i:%i)\n",
+                 *script_name,
+                 line_number,
+                 column);
+        result += std::string(buf.data());
       }
       break;
     }
 
     if (fn_name_s.length() == 0) {
-      FPrintF(stderr, "    at %s:%i:%i\n", script_name, line_number, column);
+      std::vector<char> buf(script_name.length() + 64);
+      snprintf(buf.data(),
+               buf.size(),
+               "    at %s:%i:%i\n",
+               *script_name,
+               line_number,
+               column);
+      result += std::string(buf.data());
     } else {
-      FPrintF(stderr,
-              "    at %s (%s:%i:%i)\n",
-              fn_name_s,
-              script_name,
-              line_number,
-              column);
+      std::vector<char> buf(fn_name_s.length() + script_name.length() + 64);
+      snprintf(buf.data(),
+               buf.size(),
+               "    at %s (%s:%i:%i)\n",
+               *fn_name_s,
+               *script_name,
+               line_number,
+               column);
+      result += std::string(buf.data());
     }
   }
+  return result;
+}
+
+static void PrintToStderrAndFlush(const std::string& str) {
+  FPrintF(stderr, "%s\n", str);
   fflush(stderr);
 }
 
-void PrintException(Isolate* isolate,
-                    Local<Context> context,
-                    Local<Value> err,
-                    Local<Message> message) {
+void PrintStackTrace(Isolate* isolate, Local<StackTrace> stack) {
+  PrintToStderrAndFlush(FormatStackTrace(isolate, stack));
+}
+
+std::string FormatCaughtException(Isolate* isolate,
+                                  Local<Context> context,
+                                  Local<Value> err,
+                                  Local<Message> message) {
   node::Utf8Value reason(isolate,
                          err->ToDetailString(context)
                              .FromMaybe(Local<String>()));
   bool added_exception_line = false;
   std::string source =
       GetErrorSource(isolate, context, message, &added_exception_line);
-  FPrintF(stderr, "%s\n", source);
-  FPrintF(stderr, "%s\n", reason);
+  std::string result = source + '\n' + reason.ToString() + '\n';
 
   Local<v8::StackTrace> stack = message->GetStackTrace();
-  if (!stack.IsEmpty()) PrintStackTrace(isolate, stack);
+  if (!stack.IsEmpty()) result += FormatStackTrace(isolate, stack);
+  return result;
+}
+
+std::string FormatCaughtException(Isolate* isolate,
+                                  Local<Context> context,
+                                  const v8::TryCatch& try_catch) {
+  CHECK(try_catch.HasCaught());
+  return FormatCaughtException(
+      isolate, context, try_catch.Exception(), try_catch.Message());
 }
 
 void PrintCaughtException(Isolate* isolate,
                           Local<Context> context,
                           const v8::TryCatch& try_catch) {
-  CHECK(try_catch.HasCaught());
-  PrintException(isolate, context, try_catch.Exception(), try_catch.Message());
+  PrintToStderrAndFlush(FormatCaughtException(isolate, context, try_catch));
 }
 
 void AppendExceptionLine(Environment* env,
@@ -1089,7 +1119,8 @@ void TriggerUncaughtException(Isolate* isolate,
     // error is supposed to be thrown at this point.
     // Since we don't have access to Environment here, there is not
     // much we can do, so we just print whatever is useful and crash.
-    PrintException(isolate, context, error, message);
+    PrintToStderrAndFlush(
+        FormatCaughtException(isolate, context, error, message));
     Abort();
   }
 

@@ -15,6 +15,7 @@ using v8::Maybe;
 using v8::Nothing;
 using v8::SealHandleScope;
 using v8::SnapshotCreator;
+using v8::TryCatch;
 
 namespace node {
 
@@ -129,12 +130,21 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
+    HandleScope handle_scope(isolate);
+
+    TryCatch bootstrapCatch(isolate);
+    auto print_Exception = OnScopeLeave([&]() {
+      if (bootstrapCatch.HasCaught()) {
+        errors->push_back(FormatCaughtException(
+            isolate, isolate->GetCurrentContext(), bootstrapCatch));
+      }
+    });
+
     impl_->isolate_data.reset(CreateIsolateData(
         isolate, loop, platform, impl_->allocator.get(), snapshot_data));
     impl_->isolate_data->options()->build_snapshot =
         impl_->snapshot_creator.has_value();
 
-    HandleScope handle_scope(isolate);
     if (snapshot_data) {
       impl_->env.reset(make_env(this));
       if (impl_->env) {
