@@ -279,9 +279,13 @@ class Request {
 }
 
 function processHeaderValue (key, val) {
-  if (val && (typeof val === 'object' && !Array.isArray(val))) {
+  if (val && typeof val === 'object') {
     throw new InvalidArgumentError(`invalid ${key} header`)
-  } else if (headerCharRegex.exec(val) !== null) {
+  }
+
+  val = val != null ? `${val}` : ''
+
+  if (headerCharRegex.exec(val) !== null) {
     throw new InvalidArgumentError(`invalid ${key} header`)
   }
 
