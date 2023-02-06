@@ -65,12 +65,30 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
       std::find(args.begin(), args.end(), "--embedder-snapshot-create");
   auto snapshot_arg_it =
       std::find(args.begin(), args.end(), "--embedder-snapshot-blob");
+  auto snapshot_as_file_it =
+      std::find(args.begin(), args.end(), "--embedder-snapshot-as-file");
   if (snapshot_arg_it < args.end() - 1 &&
       snapshot_build_mode_it == args.end()) {
-    FILE* fp = fopen((snapshot_arg_it + 1)->c_str(), "r");
+    const char* filename = (snapshot_arg_it + 1)->c_str();
+    FILE* fp = fopen(filename, "r");
     assert(fp != nullptr);
-    snapshot = node::EmbedderSnapshotData::FromFile(fp);
-    fclose(fp);
+    if (snapshot_as_file_it != args.end()) {
+      snapshot = node::EmbedderSnapshotData::FromFile(fp);
+    } else {
+      uv_fs_t req;
+      int statret = uv_fs_stat(nullptr, &req, filename, nullptr);
+      assert(statret == 0);
+      size_t filesize = req.statbuf.st_size;
+      uv_fs_req_cleanup(&req);
+
+      std::vector<char> vec(filesize);
+      size_t read = fread(vec.data(), filesize, 1, fp);
+      assert(read == 1);
+      snapshot = node::EmbedderSnapshotData::FromBlob(vec);
+    }
+    assert(snapshot);
+    int ret = fclose(fp);
+    assert(ret == 0);
   }
 
   std::vector<std::string> errors;
@@ -125,8 +143,15 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 
     FILE* fp = fopen((snapshot_arg_it + 1)->c_str(), "w");
     assert(fp != nullptr);
-    snapshot->ToFile(fp);
-    fclose(fp);
+    if (snapshot_as_file_it != args.end()) {
+      snapshot->ToFile(fp);
+    } else {
+      const std::vector<char> vec = snapshot->ToBlob();
+      size_t written = fwrite(vec.data(), vec.size(), 1, fp);
+      assert(written == 1);
+    }
+    int ret = fclose(fp);
+    assert(ret == 0);
   }
 
   node::Stop(env);

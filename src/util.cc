@@ -267,6 +267,21 @@ int ReadFileSync(std::string* result, const char* path) {
   return 0;
 }
 
+std::vector<char> ReadFileSync(FILE* fp) {
+  CHECK_EQ(ftell(fp), 0);
+  int err = fseek(fp, 0, SEEK_END);
+  CHECK_EQ(err, 0);
+  size_t size = ftell(fp);
+  CHECK_NE(size, static_cast<size_t>(-1L));
+  err = fseek(fp, 0, SEEK_SET);
+  CHECK_EQ(err, 0);
+
+  std::vector<char> contents(size);
+  size_t num_read = fread(contents.data(), size, 1, fp);
+  CHECK_EQ(num_read, 1);
+  return contents;
+}
+
 void DiagnosticFilename::LocalTime(TIME_TYPE* tm_struct) {
 #ifdef _WIN32
   GetLocalTime(tm_struct);
