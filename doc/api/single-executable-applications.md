@@ -53,7 +53,7 @@ application should also safeguard users from some security vulnerabilities.
 However, if a file based `require()` is still needed, that can also be achieved:
 
 ```js
-const { Module: { createRequire } } = require('module');
+const { createRequire } = require('node:module');
 require = createRequire(__filename);
 ```
 

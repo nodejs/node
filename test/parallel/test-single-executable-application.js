@@ -12,7 +12,7 @@ const { strictEqual } = require('assert');
 if (!process.config.variables.single_executable_application)
   common.skip('Single Executable Application support has been disabled.');
 
-if (['darwin', 'win32', 'linux'].indexOf(process.platform) === -1)
+if (!['darwin', 'win32', 'linux'].includes(process.platform))
   common.skip(`Unsupported platform ${process.platform}.`);
 
 if (process.config.variables.asan)
@@ -60,11 +60,6 @@ module.exports = {
 `);
 
 let commonPathForSea = join(__dirname, '..', 'common');
-if (process.platform === 'win32') {
-  // Otherwise, the double backslashes get replaced with single backslashes in
-  // the generated file.
-  commonPathForSea = commonPathForSea.replace(/\\/g, '\\\\');
-}
 
 writeFileSync(inputFile, `
 const { Module: { createRequire } } = require('module');
@@ -72,7 +67,7 @@ const createdRequire = createRequire(__filename);
 
 // Although, require('../common') works locally, that couldn't be used here
 // because we set NODE_TEST_DIR=/Users/iojs/node-tmp on Jenkins CI.
-const { expectWarning } = createdRequire('${commonPathForSea}');
+const { expectWarning } = createdRequire(${JSON.stringify(commonPathForSea)});
 
 expectWarning('ExperimentalWarning',
               'Single executable application is an experimental feature and ' +
