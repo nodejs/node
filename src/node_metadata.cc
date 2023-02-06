@@ -1,5 +1,6 @@
 #include "node_metadata.h"
 #include "acorn_version.h"
+#include "ada.h"
 #include "ares.h"
 #include "brotli/encode.h"
 #include "llhttp.h"
@@ -115,6 +116,7 @@ Metadata::Versions::Versions() {
 #endif
 
   simdutf = SIMDUTF_VERSION;
+  ada = ADA_VERSION;
 }
 
 Metadata::Release::Release() : name(NODE_RELEASE) {

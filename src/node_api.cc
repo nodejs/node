@@ -657,7 +657,7 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
     // a file system path.
     // TODO(gabrielschulhof): Pass the `filename` through unchanged if/when we
     // receive it as a URL already.
-    module_filename = node::url::URL::FromFilePath(filename.ToString()).href();
+    module_filename = node::url::FromFilePath(filename.ToString());
   }
 
   // Create a new napi_env for this specific module.

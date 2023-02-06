@@ -650,8 +650,9 @@ class NodeInspectorClient : public V8InspectorClient {
         protocol::StringUtil::StringViewToUtf8(resource_name_view);
     if (!IsFilePath(resource_name))
       return nullptr;
-    node::url::URL url = node::url::URL::FromFilePath(resource_name);
-    return Utf8ToStringView(url.href());
+
+    std::string url = node::url::FromFilePath(resource_name);
+    return Utf8ToStringView(url);
   }
 
   node::Environment* env_;

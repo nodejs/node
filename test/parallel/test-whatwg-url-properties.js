@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const { URL, URLSearchParams } = require('url');
+const { URL, URLSearchParams, format } = require('url');
 
 [
   { name: 'toString' },
@@ -9,6 +9,17 @@ const { URL, URLSearchParams } = require('url');
   { name: Symbol.for('nodejs.util.inspect.custom') },
 ].forEach(({ name }) => {
   testMethod(URL.prototype, name);
+});
+
+[
+  'http://www.google.com',
+  'https://www.domain.com:443',
+  'file:///Users/yagiz/Developer/node',
+].forEach((url) => {
+  const u = new URL(url);
+  assert.strictEqual(JSON.stringify(u), `"${u.href}"`);
+  assert.strictEqual(u.toString(), u.href);
+  assert.strictEqual(format(u), u.href);
 });
 
 [
