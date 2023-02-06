@@ -20,13 +20,11 @@ let firstChunk = true;
 const ws = new Writable({
   write: common.mustCall((chunk, encoding, callback) => {
     if (firstChunk) {
-      assert(chunk.toString().endsWith('hello world'));
+      assert(chunk.toString().startsWith('HTTP/1.1 200 OK'));
       firstChunk = false;
-    } else {
-      assert.strictEqual(chunk.length, 0);
     }
     setImmediate(callback);
-  }, 2)
+  }, 3)
 });
 
 res.assignSocket(ws);
