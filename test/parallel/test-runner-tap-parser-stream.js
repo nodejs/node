@@ -18,6 +18,193 @@ const cases = [
     ],
   },
   {
+    input: '123',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: '123' },
+        nesting: 0,
+        lexeme: '123',
+      },
+    ],
+  },
+  {
+    input: '# 123',
+    expected: [
+      {
+        kind: 'Comment',
+        node: { comment: '123' },
+        nesting: 0,
+        lexeme: '# 123',
+      },
+    ],
+  },
+  {
+    input: '1..',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: '1..' },
+        nesting: 0,
+        lexeme: '1..',
+      },
+    ],
+  },
+  {
+    input: '1..abc',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: '1..abc' },
+        nesting: 0,
+        lexeme: '1..abc',
+      },
+    ],
+  },
+  {
+    input: '1..-1',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: '1..-1' },
+        nesting: 0,
+        lexeme: '1..-1',
+      },
+    ],
+  },
+  {
+    input: '1.1',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: '1.1' },
+        nesting: 0,
+        lexeme: '1.1',
+      },
+    ],
+  },
+  {
+    input: '1.....4',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: '1.....4' },
+        nesting: 0,
+        lexeme: '1.....4',
+      },
+    ],
+  },
+  {
+    input: 'TAP 12',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: 'TAP 12' },
+        nesting: 0,
+        lexeme: 'TAP 12',
+      },
+    ],
+  },
+  {
+    input: 'TAP version',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: 'TAP version' },
+        nesting: 0,
+        lexeme: 'TAP version',
+      },
+    ],
+  },
+  {
+    input: 'TAP version v14',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: 'TAP version v14' },
+        nesting: 0,
+        lexeme: 'TAP version v14',
+      },
+    ],
+  },
+  {
+    input: 'TAP TAP TAP',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: 'TAP TAP TAP' },
+        nesting: 0,
+        lexeme: 'TAP TAP TAP',
+      },
+    ],
+  },
+  {
+    input: '--- yaml',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: '--- yaml' },
+        nesting: 0,
+        lexeme: '--- yaml',
+      },
+    ],
+  },
+  {
+    input: '... ... yaml',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: '... ... yaml' },
+        nesting: 0,
+        lexeme: '... ... yaml',
+      },
+    ],
+  },
+  {
+    input: 'ook 1',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: 'ook 1' },
+        nesting: 0,
+        lexeme: 'ook 1',
+      },
+    ],
+  },
+  {
+    input: '   ok 98',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: '   ok 98' },
+        nesting: 0,
+        lexeme: '   ok 98',
+      },
+    ],
+  },
+  {
+    input: 'pragma ++++++',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: 'pragma ++++++' },
+        nesting: 0,
+        lexeme: 'pragma ++++++',
+      },
+    ],
+  },
+  {
+    input: 'Bailout!',
+    expected: [
+      {
+        kind: 'Unknown',
+        node: { value: 'Bailout!' },
+        nesting: 0,
+        lexeme: 'Bailout!',
+      },
+    ],
+  },
+  {
     input: 'invalid tap',
     expected: [
       {
