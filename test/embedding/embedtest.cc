@@ -87,7 +87,8 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
       snapshot = node::EmbedderSnapshotData::FromBlob(vec);
     }
     assert(snapshot);
-    fclose(fp);
+    int ret = fclose(fp);
+    assert(ret == 0);
   }
 
   std::vector<std::string> errors;
@@ -149,7 +150,8 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
       size_t written = fwrite(vec.data(), vec.size(), 1, fp);
       assert(written == 1);
     }
-    fclose(fp);
+    int ret = fclose(fp);
+    assert(ret == 0);
   }
 
   node::Stop(env);
