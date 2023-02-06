@@ -47,24 +47,3 @@ const testResBody = 'response content\n';
     req.on('information', common.mustNotCall());
   }));
 }
-
-{
-  const server = http.createServer(common.mustCall((req, res) => {
-    debug('Server sending early hints...');
-
-    debug('Server sending full response...');
-    res.end(testResBody);
-    server.close();
-  }));
-
-  server.listen(0, common.mustCall(() => {
-    const req = http.request({
-      port: server.address().port, path: '/'
-    });
-
-    req.end();
-    debug('Client sending request...');
-
-    req.on('information', common.mustNotCall());
-  }));
-}
