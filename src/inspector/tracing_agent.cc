@@ -134,14 +134,20 @@ void TracingAgent::Wire(UberDispatcher* dispatcher) {
 }
 
 DispatchResponse TracingAgent::start(std::unique_ptr<protocol::NodeTracing::TraceConfig> traceConfig) {
-  if (!trace_writer_.empty() || !env_->owns_process_state()) 
-    return DispatchResponse::Error("Tracing not allowed, end current tracing or call from main thread");
+  if (!trace_writer_.empty()) {
+    return DispatchResponse::Error(
+        "Call NodeTracing::end to stop tracing before updating the config");
+  }
+  if (!env_->owns_process_state()) {
+    return DispatchResponse::Error(
+        "Tracing properties can only be changed through main thread sessions");
+  }
 
   auto categories = traceConfig->getIncludedCategories();
   if (categories->length() == 0)
     return DispatchResponse::Error("At least one category must be enabled");
 
-  auto writer = GetTracingAgentWriter();
+  tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
   if (writer)
     trace_writer_ = writer->agent()->AddClient({categories->begin(), categories->end()},
                                                 std::make_unique<InspectorTraceWriter>(frontend_object_id_, main_thread_),
