@@ -2003,10 +2003,8 @@ added: REPLACEME
 
 Listens to abort event on the provided `signal` and
 returns a promise that is fulfilled when the `signal` is
-aborted. The function is dependent on the `resource` and
-the returned promise shall remain pending if `resource`
-goes out of memory. The function shall automatically
-cleanup any event listeners it attaches to `signal`.
+aborted. If the passed `resource` is garbage collected before the `signal` is
+aborted, the returned promise shall remain pending indefinitely.
 
 ```cjs
 const { aborted } = require('node:util');
