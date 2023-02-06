@@ -13,6 +13,24 @@ const testResBody = 'response content\n';
       res.writeEarlyHints('bad argument type');
     }, (err) => err.code === 'ERR_INVALID_ARG_TYPE');
 
+    assert.throws(() => {
+      res.writeEarlyHints({
+        link: '</>; '
+      });
+    }, (err) => err.code === 'ERR_INVALID_ARG_VALUE');
+
+    assert.throws(() => {
+      res.writeEarlyHints({
+        link: 'rel=preload; </scripts.js>'
+      });
+    }, (err) => err.code === 'ERR_INVALID_ARG_VALUE');
+
+    assert.throws(() => {
+      res.writeEarlyHints({
+        link: 'invalid string'
+      });
+    }, (err) => err.code === 'ERR_INVALID_ARG_VALUE');
+
     debug('Server sending full response...');
     res.end(testResBody);
     server.close();
@@ -33,11 +51,6 @@ const testResBody = 'response content\n';
 {
   const server = http.createServer(common.mustCall((req, res) => {
     debug('Server sending early hints...');
-    assert.throws(() => {
-      res.writeEarlyHints({
-        link: '</>; '
-      });
-    }, (err) => err.code === 'ERR_INVALID_ARG_VALUE');
 
     debug('Server sending full response...');
     res.end(testResBody);
