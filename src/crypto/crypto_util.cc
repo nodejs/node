@@ -120,8 +120,7 @@ bool ProcessFipsOptions() {
     return EVP_default_properties_enable_fips(nullptr, 1) &&
            EVP_default_properties_is_fips_enabled(nullptr);
 #else
-    if (FIPS_mode() == 0)
-      return FIPS_mode_set(1);
+    if (FIPS_mode() == 0) return FIPS_mode_set(1);
 
 #endif
   }
