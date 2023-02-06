@@ -2259,7 +2259,7 @@ added: REPLACEME
 * {string} The default value of the `ciphers` option of
   [`tls.createSecureContext()`][]. It can be assigned any of the supported
   OpenSSL ciphers.  Defaults to the content of
-  `'crypto.constants.defaultCoreCipherList'`, unless changed using CLI options
+  `crypto.constants.defaultCoreCipherList`, unless changed using CLI options
   using `--tls-default-ciphers`.
 
 [CVE-2021-44531]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44531
