@@ -42,7 +42,7 @@ const { spawn } = require('child_process');
   const ac = new AbortController();
   Promise.all([null, undefined, 0, 1, 0n, 1n, Symbol(), '', 'a'].map((resource) =>
     assert.rejects(aborted(ac.signal, resource), {
-      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_TYPE',
     })
   )).then(common.mustCall());
 }
