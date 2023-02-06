@@ -147,7 +147,7 @@ changes:
   * `stderr` {integer} The file descriptor used as standard error in the
     WebAssembly application. **Default:** `2`.
   * `version` {string} The version of WASI requested. Currently the only
-    supported version is `wasi_snapshot_preview1`.
+    supported versions are `unstable` and `preview1`. **Default:** `preview1`.
 
 ### `wasi.getImportObject()`
 
@@ -156,9 +156,20 @@ added: REPLACEME
 -->
 
 Return an import object that can be passed to `WebAssembly.instantiate()` if
-no other WASM imports are needed beyond those provided by WASI. It
-will reflect the version of WASI requested when the WASI constructor was
-called.
+no other WASM imports are needed beyond those provided by WASI.
+
+If version `unstable` was passed into the constructor it will return:
+
+```json
+{ wasi_unstable: wasi.wasiImport }
+```
+
+If version `preview1` was passed into the constructor or no version was
+specified it will return:
+
+```json
+{ wasi_snapshot_preview1: wasi.wasiImport }
+```
 
 ### `wasi.start(instance)`
 

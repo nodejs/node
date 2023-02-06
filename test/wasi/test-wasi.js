@@ -46,7 +46,7 @@ if (process.argv[2] === 'wasi-child-default') {
   tmpdir.refresh();
   const wasmDir = path.join(__dirname, 'wasm');
   const wasiPreview1 = new WASI({
-    version: 'wasi_snapshot_preview1',
+    version: 'preview1',
     args: ['foo', '-bar', '--baz=value'],
     env: process.env,
     preopens: {
@@ -67,6 +67,43 @@ if (process.argv[2] === 'wasi-child-default') {
                                     wasiPreview1.getImportObject());
 
     wasiPreview1.start(instancePreview1);
+  })().then(common.mustCall());
+} else if (process.argv[2] === 'wasi-child-unstable') {
+  // Test version set to wasi_snapshot_preview1
+  const assert = require('assert');
+  const fixtures = require('../common/fixtures');
+  const tmpdir = require('../common/tmpdir');
+  const fs = require('fs');
+  const path = require('path');
+
+  common.expectWarning('ExperimentalWarning',
+                       'WASI is an experimental feature and might change at any time');
+
+  const { WASI } = require('wasi');
+  tmpdir.refresh();
+  const wasmDir = path.join(__dirname, 'wasm');
+  const wasiUnstable = new WASI({
+    version: 'unstable',
+    args: ['foo', '-bar', '--baz=value'],
+    env: process.env,
+    preopens: {
+      '/sandbox': fixtures.path('wasi'),
+      '/tmp': tmpdir.path,
+    },
+  });
+
+  // Validate the getImportObject helper
+  assert.strictEqual(wasiUnstable.wasiImport,
+                     wasiUnstable.getImportObject().wasi_unstable);
+  const modulePathUnstable = path.join(wasmDir, `${process.argv[3]}.wasm`);
+  const bufferUnstable = fs.readFileSync(modulePathUnstable);
+
+  (async () => {
+    const { instance: instanceUnstable } =
+      await WebAssembly.instantiate(bufferUnstable,
+                                    wasiUnstable.getImportObject());
+
+    wasiUnstable.start(instanceUnstable);
   })().then(common.mustCall());
 } else {
   const assert = require('assert');
