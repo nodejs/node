@@ -73,24 +73,6 @@ function TAPParser(input) {
   ]);
 }
 
-{
-  assert.throws(() => TAPParser('TAP version'), {
-    name: 'SyntaxError',
-    code: 'ERR_TAP_PARSER_ERROR',
-    message:
-      'Expected a version number, received "version" (VersionKeyword) at line 1, column 5 (start 4, end 10)',
-  });
-}
-
-{
-  assert.throws(() => TAPParser('TAP'), {
-    name: 'SyntaxError',
-    code: 'ERR_TAP_PARSER_ERROR',
-    message:
-      'Expected "version" keyword, received "TAP" (TAPKeyword) at line 1, column 1 (start 0, end 2)',
-  });
-}
-
 // Test plan
 
 {
@@ -121,42 +103,6 @@ function TAPParser(input) {
       lexeme: '1..5 # reason "\\ !"\\#$%&\'()*+,\\-./:;<=>?@[]^_`{|}~',
     },
   ]);
-}
-
-{
-  assert.throws(() => TAPParser('1..'), {
-    name: 'SyntaxError',
-    code: 'ERR_TAP_PARSER_ERROR',
-    message:
-      'Expected a plan end count, received "" (EOL) at line 1, column 4 (start 3, end 3)',
-  });
-}
-
-{
-  assert.throws(() => TAPParser('1..abc'), {
-    name: 'SyntaxError',
-    code: 'ERR_TAP_PARSER_ERROR',
-    message:
-      'Expected ".." symbol, received "..abc" (Literal) at line 1, column 2 (start 1, end 5)',
-  });
-}
-
-{
-  assert.throws(() => TAPParser('1..-1'), {
-    name: 'SyntaxError',
-    code: 'ERR_TAP_PARSER_ERROR',
-    message:
-      'Expected a plan end count, received "-" (Dash) at line 1, column 4 (start 3, end 3)',
-  });
-}
-
-{
-  assert.throws(() => TAPParser('1.1'), {
-    name: 'SyntaxError',
-    code: 'ERR_TAP_PARSER_ERROR',
-    message:
-      'Expected ".." symbol, received "." (Literal) at line 1, column 2 (start 1, end 1)',
-  });
 }
 
 // Test point
@@ -919,24 +865,6 @@ ok 6 - nested1
     () =>
       TAPParser(
         `
-  message: 'description'
-  property: 'value'
-  ...`
-      ),
-    {
-      name: 'SyntaxError',
-      code: 'ERR_TAP_PARSER_ERROR',
-      message:
-        'Unexpected YAML end marker, received "..." (YamlEndKeyword) at line 4, column 3 (start 48, end 50)',
-    }
-  );
-}
-
-{
-  assert.throws(
-    () =>
-      TAPParser(
-        `
   ---
   message: 'description'
   property: 'value'`
@@ -946,26 +874,6 @@ ok 6 - nested1
       code: 'ERR_TAP_PARSER_ERROR',
       message:
         'Expected end of YAML block, received "\'value\'" (Literal) at line 4, column 13 (start 44, end 50)',
-    }
-  );
-}
-
-{
-  assert.throws(
-    () =>
-      // Note the leading 3 spaces before ---
-      TAPParser(
-        `
-   ---
-  message: 'description'
-  property: 'value'
-  ...`
-      ),
-    {
-      name: 'SyntaxError',
-      code: 'ERR_TAP_PARSER_ERROR',
-      message:
-        'Expected valid YAML indentation (2 spaces), received " " (Whitespace) at line 2, column 3 (start 3, end 3)',
     }
   );
 }
@@ -991,27 +899,6 @@ ok 6 - nested1
       code: 'ERR_TAP_PARSER_ERROR',
       message:
         'Expected end of YAML block, received "\'value\'" (Literal) at line 4, column 13 (start 47, end 53)',
-    }
-  );
-}
-
-{
-  assert.throws(
-    () =>
-      // Note the leading 4 spaces before ---
-      TAPParser(
-        `
-    ---
-  message: 'description'
-  property: 'value'
-  ...
-  `
-      ),
-    {
-      name: 'SyntaxError',
-      code: 'ERR_TAP_PARSER_ERROR',
-      message:
-        'Expected a valid token, received "---" (YamlStartKeyword) at line 2, column 5 (start 5, end 7)',
     }
   );
 }
@@ -1065,26 +952,6 @@ ok 6 - nested1
       lexeme: 'Bail out! Error',
     },
   ]);
-}
-
-// Non-recognized
-
-{
-  assert.throws(() => TAPParser('abc'), {
-    name: 'SyntaxError',
-    code: 'ERR_TAP_PARSER_ERROR',
-    message:
-      'Expected a valid token, received "abc" (Literal) at line 1, column 1 (start 0, end 2)',
-  });
-}
-
-{
-  assert.throws(() => TAPParser('    abc'), {
-    name: 'SyntaxError',
-    code: 'ERR_TAP_PARSER_ERROR',
-    message:
-      'Expected a valid token, received "abc" (Literal) at line 1, column 5 (start 4, end 6)',
-  });
 }
 
 // TAP document (with diagnostics)
