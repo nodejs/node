@@ -291,7 +291,8 @@ EmbedderSnapshotData::Pointer EmbedderSnapshotData::BuiltinSnapshotData() {
       SnapshotBuilder::GetEmbeddedSnapshotData(), false)};
 }
 
-EmbedderSnapshotData::Pointer EmbedderSnapshotData::FromFile(FILE* in) {
+EmbedderSnapshotData::Pointer EmbedderSnapshotData::FromBlob(
+    const std::vector<char>& in) {
   SnapshotData* snapshot_data = new SnapshotData();
   CHECK_EQ(snapshot_data->data_ownership, SnapshotData::DataOwnership::kOwned);
   EmbedderSnapshotData::Pointer result{
@@ -302,8 +303,16 @@ EmbedderSnapshotData::Pointer EmbedderSnapshotData::FromFile(FILE* in) {
   return result;
 }
 
+EmbedderSnapshotData::Pointer EmbedderSnapshotData::FromFile(FILE* in) {
+  return FromBlob(ReadFileSync(in));
+}
+
+std::vector<char> EmbedderSnapshotData::ToBlob() const {
+  return impl_->ToBlob();
+}
+
 void EmbedderSnapshotData::ToFile(FILE* out) const {
-  impl_->ToBlob(out);
+  impl_->ToFile(out);
 }
 
 EmbedderSnapshotData::EmbedderSnapshotData(const SnapshotData* impl,

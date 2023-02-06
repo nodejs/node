@@ -840,7 +840,7 @@ size_t SnapshotSerializer::Write(const SnapshotMetadata& data) {
 // [    ...       ]  env_info
 // [    ...       ]  code_cache
 
-void SnapshotData::ToBlob(FILE* out) const {
+std::vector<char> SnapshotData::ToBlob() const {
   SnapshotSerializer w;
   w.Debug("SnapshotData::ToBlob()\n");
 
@@ -858,9 +858,14 @@ void SnapshotData::ToBlob(FILE* out) const {
   written_total += w.Write<EnvSerializeInfo>(env_info);
   w.Debug("Write code_cache\n");
   written_total += w.WriteVector<builtins::CodeCacheInfo>(code_cache);
-  size_t num_written = fwrite(w.sink.data(), w.sink.size(), 1, out);
-  CHECK_EQ(num_written, 1);
   w.Debug("SnapshotData::ToBlob() Wrote %d bytes\n", written_total);
+  return w.sink;
+}
+
+void SnapshotData::ToFile(FILE* out) const {
+  const std::vector<char> sink = ToBlob();
+  size_t num_written = fwrite(sink.data(), sink.size(), 1, out);
+  CHECK_EQ(num_written, 1);
 }
 
 const SnapshotData* SnapshotData::FromEmbedderWrapper(
@@ -872,20 +877,12 @@ EmbedderSnapshotData::Pointer SnapshotData::AsEmbedderWrapper() const {
   return EmbedderSnapshotData::Pointer{new EmbedderSnapshotData(this, false)};
 }
 
-bool SnapshotData::FromBlob(SnapshotData* out, FILE* in) {
-  CHECK_EQ(ftell(in), 0);
-  int err = fseek(in, 0, SEEK_END);
-  CHECK_EQ(err, 0);
-  size_t size = ftell(in);
-  CHECK_NE(size, static_cast<size_t>(-1L));
-  err = fseek(in, 0, SEEK_SET);
-  CHECK_EQ(err, 0);
+bool SnapshotData::FromFile(SnapshotData* out, FILE* in) {
+  return FromBlob(out, ReadFileSync(in));
+}
 
-  std::vector<char> sink(size);
-  size_t num_read = fread(sink.data(), size, 1, in);
-  CHECK_EQ(num_read, 1);
-
-  SnapshotDeserializer r(sink);
+bool SnapshotData::FromBlob(SnapshotData* out, const std::vector<char>& in) {
+  SnapshotDeserializer r(in);
   r.Debug("SnapshotData::FromBlob()\n");
 
   DCHECK_EQ(out->data_ownership, SnapshotData::DataOwnership::kOwned);

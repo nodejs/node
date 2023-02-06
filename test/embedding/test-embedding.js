@@ -55,15 +55,18 @@ function getReadFileCodeForPath(path) {
 }
 
 // Basic snapshot support
-{
+for (const extraSnapshotArgs of [[], ['--embedder-snapshot-as-file']]) {
   // readSync + eval since snapshots don't support userland require() (yet)
   const snapshotFixture = fixtures.path('snapshot', 'echo-args.js');
   const blobPath = path.join(tmpdir.path, 'embedder-snapshot.blob');
   const buildSnapshotArgs = [
     `eval(${getReadFileCodeForPath(snapshotFixture)})`, 'arg1', 'arg2',
     '--embedder-snapshot-blob', blobPath, '--embedder-snapshot-create',
+    ...extraSnapshotArgs,
   ];
-  const runEmbeddedArgs = ['--embedder-snapshot-blob', blobPath, 'arg3', 'arg4'];
+  const runEmbeddedArgs = [
+    '--embedder-snapshot-blob', blobPath, ...extraSnapshotArgs, 'arg3', 'arg4',
+  ];
 
   fs.rmSync(blobPath, { force: true });
   assert.strictEqual(child_process.spawnSync(binary, [

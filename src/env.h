@@ -517,11 +517,13 @@ struct SnapshotData {
   // v8::ScriptCompiler::CachedData is not copyable.
   std::vector<builtins::CodeCacheInfo> code_cache;
 
-  void ToBlob(FILE* out) const;
+  void ToFile(FILE* out) const;
+  std::vector<char> ToBlob() const;
   // If returns false, the metadata doesn't match the current Node.js binary,
   // and the caller should not consume the snapshot data.
   bool Check() const;
-  static bool FromBlob(SnapshotData* out, FILE* in);
+  static bool FromFile(SnapshotData* out, FILE* in);
+  static bool FromBlob(SnapshotData* out, const std::vector<char>& in);
   static const SnapshotData* FromEmbedderWrapper(
       const EmbedderSnapshotData* data);
   EmbedderSnapshotData::Pointer AsEmbedderWrapper() const;

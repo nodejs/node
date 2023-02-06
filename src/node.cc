@@ -1146,7 +1146,7 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
 
   FILE* fp = fopen(snapshot_blob_path.c_str(), "wb");
   if (fp != nullptr) {
-    (*snapshot_data_ptr)->ToBlob(fp);
+    (*snapshot_data_ptr)->ToFile(fp);
     fclose(fp);
   } else {
     fprintf(stderr,
@@ -1174,7 +1174,7 @@ ExitCode LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
       return exit_code;
     }
     std::unique_ptr<SnapshotData> read_data = std::make_unique<SnapshotData>();
-    bool ok = SnapshotData::FromBlob(read_data.get(), fp);
+    bool ok = SnapshotData::FromFile(read_data.get(), fp);
     fclose(fp);
     if (!ok) {
       // If we fail to read the customized snapshot, simply exit with 1.
