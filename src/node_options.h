@@ -178,6 +178,7 @@ class EnvironmentOptions : public Options {
       false;
 #endif  // DEBUG
 
+  std::string run;
   bool watch_mode = false;
   bool watch_mode_report_to_parent = false;
   bool watch_mode_preserve_output = false;

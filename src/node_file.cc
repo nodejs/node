@@ -1079,6 +1079,7 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     } else if (n == 7) {
       if (0 == memcmp(s, "exports", 7)) break;
       if (0 == memcmp(s, "imports", 7)) break;
+      if (0 == memcmp(s, "scripts", 7)) break;
     }
   }
 

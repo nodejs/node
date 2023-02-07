@@ -506,6 +506,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--prof-process",
             "process V8 profiler output generated using --prof",
             &EnvironmentOptions::prof_process);
+  AddOption("--run",
+            "Run a script specified in package.json",
+            &EnvironmentOptions::run);
   // Options after --prof-process are passed through to the prof processor.
   AddAlias("--prof-process", { "--prof-process", "--" });
 #if HAVE_INSPECTOR
