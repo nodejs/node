@@ -23,7 +23,7 @@ version to update to.
 $ ./tools/update-nghttp2.sh x.y.z
 ```
 
-## Step 3: Test the build
+## Step 2: Test the build
 
 ```console
 $  make test-http2
