@@ -23,5 +23,8 @@
   },
   "url-setters-a-area.window.js": {
     "skip": "already tested in url-setters.any.js"
+  },
+  "IdnaTestV2.window.js": {
+    "requires": ["small-icu"]
   }
 }
