@@ -7,7 +7,13 @@
     "skip": "TODO: port from .window.js"
   },
   "historical.any.js": {
-    "requires": ["small-icu"]
+    "requires": ["small-icu"],
+    "fail": {
+      "expected": [
+        "URL: no structured serialize/deserialize support",
+        "URLSearchParams: no structured serialize/deserialize support"
+      ]
+    }
   },
   "urlencoded-parser.any.js": {
     "requires": ["small-icu"]
