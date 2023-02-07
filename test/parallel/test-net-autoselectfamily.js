@@ -217,6 +217,10 @@ if (common.hasIPv6) {
           assert.strictEqual(error.message, `connect ECONNREFUSED ::1:${port}`);
         } else if (error.code === 'EAFNOSUPPORT') {
           assert.strictEqual(error.message, `connect EAFNOSUPPORT ::1:${port} - Local (undefined:undefined)`);
+        } else if (common.isIBMi) {
+          // IBMi returns EUNATCH (ERRNO 42) when IPv6 is disabled
+          // keep this errno assertion until EUNATCH is recognized by libuv
+          assert.strictEqual(error.errno, -42);
         } else {
           assert.strictEqual(error.code, 'EADDRNOTAVAIL');
           assert.strictEqual(error.message, `connect EADDRNOTAVAIL ::1:${port} - Local (:::0)`);
