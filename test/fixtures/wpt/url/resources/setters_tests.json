@@ -269,6 +269,57 @@
                 "protocol": "https:",
                 "port": ""
             }
+        },
+        {
+            "comment": "Tab and newline are stripped",
+            "href": "http://test/",
+            "new_value": "h\u000D\u000Att\u0009ps",
+            "expected": {
+              "href": "https://test/",
+              "protocol": "https:",
+              "port": ""
+            }
+        },
+        {
+            "href": "http://test/",
+            "new_value": "https\u000D",
+            "expected": {
+              "href": "https://test/",
+              "protocol": "https:"
+            }
+        },
+        {
+            "comment": "Non-tab/newline C0 controls result in no-op",
+            "href": "http://test/",
+            "new_value": "https\u0000",
+            "expected": {
+              "href": "http://test/",
+              "protocol": "http:"
+            }
+        },
+        {
+            "href": "http://test/",
+            "new_value": "https\u000C",
+            "expected": {
+              "href": "http://test/",
+              "protocol": "http:"
+            }
+        },
+        {
+            "href": "http://test/",
+            "new_value": "https\u000E",
+            "expected": {
+              "href": "http://test/",
+              "protocol": "http:"
+            }
+        },
+        {
+            "href": "http://test/",
+            "new_value": "https\u0020",
+            "expected": {
+              "href": "http://test/",
+              "protocol": "http:"
+            }
         }
     ],
     "username": [
@@ -1603,12 +1654,28 @@
     ],
     "pathname": [
         {
-            "comment": "Cannot-be-a-base don’t have a path",
+            "comment": "Opaque paths cannot be set",
             "href": "mailto:me@example.net",
             "new_value": "/foo",
             "expected": {
                 "href": "mailto:me@example.net",
                 "pathname": "me@example.net"
+            }
+        },
+        {
+            "href": "data:original",
+            "new_value": "new value",
+            "expected": {
+                "href": "data:original",
+                "pathname": "original"
+            }
+        },
+        {
+            "href": "sc:original",
+            "new_value": "new value",
+            "expected": {
+                "href": "sc:original",
+                "pathname": "original"
             }
         },
         {
@@ -1830,6 +1897,23 @@
                 "href": "non-spec:/p",
                 "pathname": "/p"
             }
+        },
+        {
+            "comment": "Non-special URLs with non-opaque paths percent-encode U+0020",
+            "href": "data:/nospace",
+            "new_value": "space ",
+            "expected": {
+                "href": "data:/space%20",
+                "pathname": "/space%20"
+            }
+        },
+        {
+            "href": "sc:/nospace",
+            "new_value": "space ",
+            "expected": {
+                "href": "sc:/space%20",
+                "pathname": "/space%20"
+            }
         }
     ],
     "search": [
@@ -1913,6 +1997,42 @@
             "expected": {
                 "href": "http://example.net/?%c3%89t%C3%A9",
                 "search": "?%c3%89t%C3%A9"
+            }
+        },
+        {
+            "comment": "Drop trailing spaces from trailing opaque paths",
+            "href": "data:space ?query",
+            "new_value": "",
+            "expected": {
+                "href": "data:space",
+                "pathname": "space",
+                "search": ""
+            }
+        },
+        {
+            "href": "sc:space ?query",
+            "new_value": "",
+            "expected": {
+                "href": "sc:space",
+                "pathname": "space",
+                "search": ""
+            }
+        },
+        {
+            "comment": "Do not drop trailing spaces from non-trailing opaque paths",
+            "href": "data:space  ?query#fragment",
+            "new_value": "",
+            "expected": {
+                "href": "data:space  #fragment",
+                "search": ""
+            }
+        },
+        {
+            "href": "sc:space  ?query#fragment",
+            "new_value": "",
+            "expected": {
+                "href": "sc:space  #fragment",
+                "search": ""
             }
         }
     ],
@@ -2047,6 +2167,42 @@
             "expected": {
                 "href": "javascript:alert(1)#castle",
                 "hash": "#castle"
+            }
+        },
+        {
+            "comment": "Drop trailing spaces from trailing opaque paths",
+            "href": "data:space                                                                                                                                  #fragment",
+            "new_value": "",
+            "expected": {
+                "href": "data:space",
+                "pathname": "space",
+                "hash": ""
+            }
+        },
+        {
+            "href": "sc:space    #fragment",
+            "new_value": "",
+            "expected": {
+                "href": "sc:space",
+                "pathname": "space",
+                "hash": ""
+            }
+        },
+        {
+            "comment": "Do not drop trailing spaces from non-trailing opaque paths",
+            "href": "data:space  ?query#fragment",
+            "new_value": "",
+            "expected": {
+                "href": "data:space  ?query",
+                "hash": ""
+            }
+        },
+        {
+            "href": "sc:space  ?query#fragment",
+            "new_value": "",
+            "expected": {
+                "href": "sc:space  ?query",
+                "hash": ""
             }
         }
     ]
