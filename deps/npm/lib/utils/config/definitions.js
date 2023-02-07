@@ -1078,7 +1078,7 @@ define('init.version', {
 })
 
 define('install-links', {
-  default: true,
+  default: false,
   type: Boolean,
   description: `
     When set file: protocol dependencies will be packed and installed as

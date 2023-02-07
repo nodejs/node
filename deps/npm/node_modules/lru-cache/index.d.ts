@@ -45,6 +45,7 @@ declare class LRUCache<K, V> implements Iterable<[K, V]> {
 
   public readonly max: number
   public readonly maxSize: number
+  public readonly maxEntrySize: number
   public readonly sizeCalculation:
     | LRUCache.SizeCalculator<K, V>
     | undefined
@@ -320,6 +321,13 @@ declare namespace LRUCache {
     max: number
   }
 
+  type MaybeMaxEntrySizeLimit<K, V> =
+    | {
+        maxEntrySize: number
+        sizeCalculation?: SizeCalculator<K, V>
+      }
+    | {}
+
   interface LimitedBySize<K, V> {
     /**
      * If you wish to track item size, you must provide a maxSize
@@ -507,7 +515,8 @@ declare namespace LRUCache {
 
   type Options<K, V> = SharedOptions<K, V> &
     DeprecatedOptions<K, V> &
-    SafetyBounds<K, V>
+    SafetyBounds<K, V> &
+    MaybeMaxEntrySizeLimit<K, V>
 
   /**
    * options which override the options set in the LRUCache constructor
