@@ -10944,7 +10944,7 @@ function findUrl(_, protocol, domain, path, match) {
 function findEmail(_, atext, label, match) {
   if (
     !previous(match, true) ||
-    /[_-\d]$/.test(label)
+    /[-\d_]$/.test(label)
   ) {
     return false
   }
@@ -10972,22 +10972,19 @@ function isCorrectDomain(domain) {
 }
 function splitUrl(url) {
   const trailExec = /[!"&'),.:;<>?\]}]+$/.exec(url);
-  let closingParenIndex;
-  let openingParens;
-  let closingParens;
-  let trail;
-  if (trailExec) {
-    url = url.slice(0, trailExec.index);
-    trail = trailExec[0];
+  if (!trailExec) {
+    return [url, undefined]
+  }
+  url = url.slice(0, trailExec.index);
+  let trail = trailExec[0];
+  let closingParenIndex = trail.indexOf(')');
+  const openingParens = ccount(url, '(');
+  let closingParens = ccount(url, ')');
+  while (closingParenIndex !== -1 && openingParens > closingParens) {
+    url += trail.slice(0, closingParenIndex + 1);
+    trail = trail.slice(closingParenIndex + 1);
     closingParenIndex = trail.indexOf(')');
-    openingParens = ccount(url, '(');
-    closingParens = ccount(url, ')');
-    while (closingParenIndex !== -1 && openingParens > closingParens) {
-      url += trail.slice(0, closingParenIndex + 1);
-      trail = trail.slice(closingParenIndex + 1);
-      closingParenIndex = trail.indexOf(')');
-      closingParens++;
-    }
+    closingParens++;
   }
   return [url, trail]
 }
@@ -11115,11 +11112,6 @@ function map$1(line, index, blank) {
   return (blank ? '' : '    ') + line
 }
 
-const gfmStrikethroughFromMarkdown = {
-  canContainEols: ['delete'],
-  enter: {strikethrough: enterStrikethrough},
-  exit: {strikethrough: exitStrikethrough}
-};
 const constructsWithoutStrikethrough = [
   'autolink',
   'destinationLiteral',
@@ -11128,6 +11120,12 @@ const constructsWithoutStrikethrough = [
   'titleQuote',
   'titleApostrophe'
 ];
+handleDelete.peek = peekDelete;
+const gfmStrikethroughFromMarkdown = {
+  canContainEols: ['delete'],
+  enter: {strikethrough: enterStrikethrough},
+  exit: {strikethrough: exitStrikethrough}
+};
 const gfmStrikethroughToMarkdown = {
   unsafe: [
     {
@@ -11138,7 +11136,6 @@ const gfmStrikethroughToMarkdown = {
   ],
   handlers: {delete: handleDelete}
 };
-handleDelete.peek = peekDelete;
 function enterStrikethrough(token) {
   this.enter({type: 'delete', children: []}, token);
 }
@@ -11147,7 +11144,7 @@ function exitStrikethrough(token) {
 }
 function handleDelete(node, _, context, safeOptions) {
   const tracker = track(safeOptions);
-  const exit = context.enter('emphasis');
+  const exit = context.enter('strikethrough');
   let value = tracker.move('~~');
   value += containerPhrasing(node, context, {
     ...tracker.current(),
@@ -19444,7 +19441,7 @@ const { compareIdentifiers } = identifiers;
 let SemVer$2 = class SemVer {
   constructor (version, options) {
     options = parseOptions$1(options);
-    if (version instanceof SemVer$2) {
+    if (version instanceof SemVer) {
       if (version.loose === !!options.loose &&
           version.includePrerelease === !!options.includePrerelease) {
         return version
@@ -19508,11 +19505,11 @@ let SemVer$2 = class SemVer {
   }
   compare (other) {
     debug('SemVer.compare', this.version, this.options, other);
-    if (!(other instanceof SemVer$2)) {
+    if (!(other instanceof SemVer)) {
       if (typeof other === 'string' && other === this.version) {
         return 0
       }
-      other = new SemVer$2(other, this.options);
+      other = new SemVer(other, this.options);
     }
     if (other.version === this.version) {
       return 0
@@ -19520,8 +19517,8 @@ let SemVer$2 = class SemVer {
     return this.compareMain(other) || this.comparePre(other)
   }
   compareMain (other) {
-    if (!(other instanceof SemVer$2)) {
-      other = new SemVer$2(other, this.options);
+    if (!(other instanceof SemVer)) {
+      other = new SemVer(other, this.options);
     }
     return (
       compareIdentifiers(this.major, other.major) ||
@@ -19530,8 +19527,8 @@ let SemVer$2 = class SemVer {
     )
   }
   comparePre (other) {
-    if (!(other instanceof SemVer$2)) {
-      other = new SemVer$2(other, this.options);
+    if (!(other instanceof SemVer)) {
+      other = new SemVer(other, this.options);
     }
     if (this.prerelease.length && !other.prerelease.length) {
       return -1
@@ -19559,8 +19556,8 @@ let SemVer$2 = class SemVer {
     } while (++i)
   }
   compareBuild (other) {
-    if (!(other instanceof SemVer$2)) {
-      other = new SemVer$2(other, this.options);
+    if (!(other instanceof SemVer)) {
+      other = new SemVer(other, this.options);
     }
     let i = 0;
     do {
@@ -21465,24 +21462,23 @@ const labels = {
   null: 'info',
   undefined: 'info'
 };
-function reporter(files, options = {}) {
-  let one;
+function reporter(files, options) {
   if (!files) {
     return ''
   }
   if ('name' in files && 'message' in files) {
     return String(files.stack || files)
   }
-  if (!Array.isArray(files)) {
-    one = true;
-    files = [files];
+  const options_ = options || {};
+  if (Array.isArray(files)) {
+    return format$1(transform(files, options_), false, options_)
   }
-  return format$1(transform(files, options), one, options)
+  return format$1(transform([files], options_), true, options_)
 }
 function transform(files, options) {
   const rows = [];
   const all = [];
-  const sizes = {};
+  const sizes = {place: 0, label: 0, reason: 0, ruleId: 0, source: 0};
   let index = -1;
   while (++index < files.length) {
     const messages = sort({messages: [...files[index].messages]}).messages;
