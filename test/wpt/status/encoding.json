@@ -2,9 +2,6 @@
   "api-basics.any.js": {
     "requires": ["small-icu"]
   },
-  "api-invalid-label.any.js": {
-    "skip": "location is not defined"
-  },
   "textdecoder-fatal-streaming.any.js": {
     "requires": ["small-icu"]
   },
@@ -91,7 +88,7 @@
     "requires": ["small-icu"]
   },
   "single-byte-decoder.window.js": {
-    "skip": "location is not defined"
+    "skip": "document is not defined"
   },
   "textdecoder-eof.any.js": {
     "requires": ["small-icu"]
