@@ -62,6 +62,10 @@
     "output": null
   },
   {
+    "input": "xn--ls8h=",
+    "output": null
+  },
+  {
     "comment": "Invalid Punycode (contains non-ASCII character)",
     "input": "xn--tešla",
     "output": null
@@ -172,5 +176,18 @@
   {
     "input": "xn--",
     "output": null
+  },
+  {
+    "comment": "Interesting UseSTD3ASCIIRules=false cases",
+    "input": "≠",
+    "output": "xn--1ch"
+  },
+  {
+    "input": "≮",
+    "output": "xn--gdh"
+  },
+  {
+    "input": "≯",
+    "output": "xn--hdh"
   }
 ]
