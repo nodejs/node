@@ -34,7 +34,6 @@ echo "Fetching ada source archive..."
 curl -sL -o "$ADA_ZIP" "https://github.com/ada-url/ada/releases/download/$ADA_REF/singleheader.zip"
 unzip "$ADA_ZIP"
 rm "$ADA_ZIP"
-rm ./*_demo.cpp
 
 curl -sL -o "$ADA_LICENSE" "https://raw.githubusercontent.com/ada-url/ada/HEAD/LICENSE-MIT"
 
