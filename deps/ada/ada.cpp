@@ -1,4 +1,4 @@
-/* auto-generated on 2023-02-06 08:25:59 -0500. Do not edit! */
+/* auto-generated on 2023-02-07 17:26:54 -0500. Do not edit! */
 // dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/src, filename=ada.cpp
 /* begin file src/ada.cpp */
 #include "ada.h"
@@ -970,6 +970,13 @@ namespace ada::helpers {
       } while (true);
     }
   }
+
+  ada_really_inline void strip_trailing_spaces_from_opaque_path(ada::url& url) noexcept {
+    if (!url.has_opaque_path) return;
+    if (url.fragment.has_value()) return;
+    if (url.query.has_value()) return;
+    while (!url.path.empty() && url.path.back() == ' ') { url.path.resize(url.path.size()-1); }
+  }
 } // namespace ada::helpers
 
 namespace ada {
@@ -1650,7 +1657,7 @@ namespace ada {
   void url::set_hash(const std::string_view input) {
     if (input.empty()) {
       fragment = std::nullopt;
-      // TODO: Potentially strip trailing spaces from an opaque path with this.
+      helpers::strip_trailing_spaces_from_opaque_path(*this);
       return;
     }
 
@@ -1664,9 +1671,7 @@ namespace ada {
   void url::set_search(const std::string_view input) {
     if (input.empty()) {
       query = std::nullopt;
-      // Empty this’s query object’s list.
-      // @todo Implement this if/when we have URLSearchParams.
-      // Potentially strip trailing spaces from an opaque path with this.
+      helpers::strip_trailing_spaces_from_opaque_path(*this);
       return;
     }
 
@@ -1679,10 +1684,6 @@ namespace ada {
       ada::character_sets::QUERY_PERCENT_ENCODE;
 
     query = ada::unicode::percent_encode(std::string_view(new_value), query_percent_encode_set);
-
-    // Set this’s query object’s list to the result of parsing input.
-    // @todo Implement this if/when we have URLSearchParams.
-    return ;
   }
 
   bool url::set_pathname(const std::string_view input) {
