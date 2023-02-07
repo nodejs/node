@@ -135,8 +135,8 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
     TryCatch bootstrapCatch(isolate);
     auto print_Exception = OnScopeLeave([&]() {
       if (bootstrapCatch.HasCaught()) {
-        PrintCaughtException(
-            isolate, isolate->GetCurrentContext(), bootstrapCatch);
+        errors->push_back(FormatCaughtException(
+            isolate, isolate->GetCurrentContext(), bootstrapCatch));
       }
     });
 
