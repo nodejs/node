@@ -24,16 +24,18 @@ const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
-const { readFileSync, statSync } = require('fs');
+const { readFileSync } = require('fs');
 
 if (common.isLinux) {
-  const procFileName = '/proc/sys/net/ipv4/ip_unprivileged_port_start';
-  // Does not exist for Kernel < 4.1 where answer is 1024. So only test limit if limit exists
-  if (statSync(procFileName, { throwIfNoEntry: false })) {
-    const unprivilegedPortStart = parseInt(readFileSync(procFileName));
+  try {
+    const sysctlOutput = execSync('sysctl net.ipv4.ip_unprivileged_port_start').toString();
+    const unprivilegedPortStart = parseInt(sysctlOutput.split(' ')[2], 10);
     if (unprivilegedPortStart <= 42) {
       common.skip('Port 42 is unprivileged');
     }
+  } catch {
+    // Do nothing, feature doesn't exist, minimum is 1024 so 42 is usable.
+    // Continue...
   }
 }
 
