@@ -1,4 +1,4 @@
-/* auto-generated on 2023-02-06 08:25:59 -0500. Do not edit! */
+/* auto-generated on 2023-02-07 17:26:54 -0500. Do not edit! */
 // dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada.h
 /* begin file include/ada.h */
 /**
@@ -1773,6 +1773,11 @@ namespace ada::helpers {
    * Removes leading and trailing C0 control and whitespace characters from string.
    */
   ada_really_inline void trim_c0_whitespace(std::string_view& input) noexcept;
+
+  /**
+   * @see https://url.spec.whatwg.org/#potentially-strip-trailing-spaces-from-an-opaque-path
+   */
+  ada_really_inline void strip_trailing_spaces_from_opaque_path(ada::url& url) noexcept;
 
 } // namespace ada::helpers
 
@@ -4328,14 +4333,14 @@ namespace ada {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "1.0.0"
+#define ADA_VERSION "1.0.1"
 
 namespace ada {
 
   enum {
     ADA_VERSION_MAJOR = 1,
     ADA_VERSION_MINOR = 0,
-    ADA_VERSION_REVISION = 0,
+    ADA_VERSION_REVISION = 1,
   };
 
 } // namespace ada
