@@ -47,7 +47,7 @@ enum url_update_action {
   kHref = 9,
 };
 
-void SetArgs(Environment* env, Local<Value> argv[12], const ada::result& url) {
+void SetArgs(Environment* env, Local<Value> argv[13], const ada::result& url) {
   Isolate* isolate = env->isolate();
   argv[0] = Utf8String(isolate, url->get_href());
   argv[1] = Utf8String(isolate, url->get_origin());
