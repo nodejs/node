@@ -15,6 +15,6 @@ runner.setScriptModifier((obj) => {
 });
 runner.pretendGlobalThisAs('Window');
 runner.setInitScript(`
-  globalThis.location = {};
+  globalThis.location ||= {};
 `);
 runner.runJsTests();
