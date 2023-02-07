@@ -43,3 +43,21 @@ test(function() {
     assert_equals(url.href, 'http://example.com/', 'url.href does not have ?');
     assert_equals(url.search, '', 'url.search does not have ?');
 }, 'Removing non-existent param removes ? from URL');
+
+test(() => {
+  const url = new URL('data:space    ?test');
+  assert_true(url.searchParams.has('test'));
+  url.searchParams.delete('test');
+  assert_false(url.searchParams.has('test'));
+  assert_equals(url.search, '');
+  assert_equals(url.pathname, 'space');
+  assert_equals(url.href, 'data:space');
+}, 'Changing the query of a URL with an opaque path can impact the path');
+
+test(() => {
+  const url = new URL('data:space    ?test#test');
+  url.searchParams.delete('test');
+  assert_equals(url.search, '');
+  assert_equals(url.pathname, 'space    ');
+  assert_equals(url.href, 'data:space    #test');
+}, 'Changing the query of a URL with an opaque path can impact the path if the URL has no fragment');
