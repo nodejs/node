@@ -365,6 +365,7 @@ static LONG TrapWebAssemblyOrContinue(EXCEPTION_POINTERS* exception) {
 }
 #else
 static std::atomic<sigaction_cb> previous_sigsegv_action;
+// TODO(align behavior between macos and other in next major version)
 #if defined(__APPLE__)
 static std::atomic<sigaction_cb> previous_sigbus_action;
 #endif  // __APPLE__
@@ -406,6 +407,7 @@ void RegisterSignalHandler(int signal,
     previous_sigsegv_action.store(handler);
     return;
   }
+// TODO(align behavior between macos and other in next major version)
 #if defined(__APPLE__)
   if (signal == SIGBUS) {
     CHECK(previous_sigbus_action.is_lock_free());
@@ -578,6 +580,7 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
       sa.sa_sigaction = TrapWebAssemblyOrContinue;
       sa.sa_flags = SA_SIGINFO;
       CHECK_EQ(sigaction(SIGSEGV, &sa, nullptr), 0);
+// TODO(align behavior between macos and other in next major version)
 #if defined(__APPLE__)
       CHECK_EQ(sigaction(SIGBUS, &sa, nullptr), 0);
 #endif
