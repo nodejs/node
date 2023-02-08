@@ -43,6 +43,8 @@ L$noluck:
 .p2align	4
 _padlock_key_bswap:
 	movl	240(%rdi),%edx
+	incl	%edx
+	shll	$2,%edx
 L$bswap_loop:
 	movl	(%rdi),%eax
 	bswapl	%eax

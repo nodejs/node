@@ -193,13 +193,16 @@ typedef ASN1_BIT_STRING OSSL_CMP_PKIFAILUREINFO;
  *       -- CertReqMsg
  *   }
  */
-#  define OSSL_CMP_PKISTATUS_accepted 0
-#  define OSSL_CMP_PKISTATUS_grantedWithMods 1
-#  define OSSL_CMP_PKISTATUS_rejection 2
-#  define OSSL_CMP_PKISTATUS_waiting 3
-#  define OSSL_CMP_PKISTATUS_revocationWarning 4
+#  define OSSL_CMP_PKISTATUS_request                -3
+#  define OSSL_CMP_PKISTATUS_trans                  -2
+#  define OSSL_CMP_PKISTATUS_unspecified            -1
+#  define OSSL_CMP_PKISTATUS_accepted               0
+#  define OSSL_CMP_PKISTATUS_grantedWithMods        1
+#  define OSSL_CMP_PKISTATUS_rejection              2
+#  define OSSL_CMP_PKISTATUS_waiting                3
+#  define OSSL_CMP_PKISTATUS_revocationWarning      4
 #  define OSSL_CMP_PKISTATUS_revocationNotification 5
-#  define OSSL_CMP_PKISTATUS_keyUpdateWarning 6
+#  define OSSL_CMP_PKISTATUS_keyUpdateWarning       6
 
 typedef ASN1_INTEGER OSSL_CMP_PKISTATUS;
 DECLARE_ASN1_ITEM(OSSL_CMP_PKISTATUS)
@@ -444,6 +447,7 @@ int OSSL_CMP_CTX_set1_secretValue(OSSL_CMP_CTX *ctx, const unsigned char *sec,
 /* CMP message header and extra certificates: */
 int OSSL_CMP_CTX_set1_recipient(OSSL_CMP_CTX *ctx, const X509_NAME *name);
 int OSSL_CMP_CTX_push0_geninfo_ITAV(OSSL_CMP_CTX *ctx, OSSL_CMP_ITAV *itav);
+int OSSL_CMP_CTX_reset_geninfo_ITAVs(OSSL_CMP_CTX *ctx);
 int OSSL_CMP_CTX_set1_extraCertsOut(OSSL_CMP_CTX *ctx,
                                     STACK_OF(X509) *extraCertsOut);
 /* certificate template: */

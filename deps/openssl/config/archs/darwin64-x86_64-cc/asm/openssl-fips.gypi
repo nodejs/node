@@ -31,6 +31,7 @@
       'openssl/crypto/bn/bn_sqr.c',
       'openssl/crypto/bn/bn_sqrt.c',
       'openssl/crypto/bn/bn_word.c',
+      'openssl/crypto/bn/rsa_sup_mul.c',
       'openssl/crypto/bn/rsaz_exp.c',
       'openssl/crypto/bn/rsaz_exp_x2.c',
       'openssl/crypto/buffer/buffer.c',
@@ -310,13 +311,6 @@
       './config/archs/darwin64-x86_64-cc/asm/providers/common/der/der_ecx_gen.c',
       './config/archs/darwin64-x86_64-cc/asm/providers/common/der/der_rsa_gen.c',
       './config/archs/darwin64-x86_64-cc/asm/providers/common/der/der_wrap_gen.c',
-      './config/archs/darwin64-x86_64-cc/asm/crypto/bn/rsaz-avx2.s',
-      './config/archs/darwin64-x86_64-cc/asm/crypto/bn/rsaz-avx512.s',
-      './config/archs/darwin64-x86_64-cc/asm/crypto/bn/rsaz-x86_64.s',
-      './config/archs/darwin64-x86_64-cc/asm/crypto/bn/x86_64-gf2m.s',
-      './config/archs/darwin64-x86_64-cc/asm/crypto/bn/x86_64-mont.s',
-      './config/archs/darwin64-x86_64-cc/asm/crypto/bn/x86_64-mont5.s',
-      './config/archs/darwin64-x86_64-cc/asm/crypto/md5/md5-x86_64.s',
 
     ],
     'openssl_defines_darwin64-x86_64-cc': [
