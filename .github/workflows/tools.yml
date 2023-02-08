@@ -20,7 +20,11 @@ jobs:
           - id: eslint
             subsystem: tools
             label: tools
-            run: ./tools/dep_updaters/update-eslint.sh
+            run: |
+              NEW_VERSION=$(./tools/dep_updaters/update-eslint.sh | tail -n1)
+              if [ $? = 0 ]; then
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+              fi
           - id: corepack
             subsystem: deps
             label: dependencies
@@ -74,7 +78,11 @@ jobs:
           - id: postject
             subsystem: deps,test
             label: test
-            run: ./tools/dep_updaters/update-postject.sh
+            run: |
+              NEW_VERSION=$(./tools/dep_updaters/update-eslint.sh | tail -n1)
+              if [ $? = 0 ]; then
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+              fi
           - id: base64
             subsystem: deps
             label: dependencies
@@ -112,15 +120,17 @@ jobs:
             run: |
               NEW_VERSION=$(gh api repos/libuv/libuv/releases/latest -q '.tag_name|ltrimstr("v")')
               ./tools/dep_updaters/update-libuv.sh "$NEW_VERSION"
+              if [ $? = 0 ]; then
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+              fi
           - id: simdutf
             subsystem: deps
             label: dependencies
             run: |
               NEW_VERSION=$(gh api repos/simdutf/simdutf/releases/latest -q '.tag_name|ltrimstr("v")')
-              CURRENT_VERSION=$(grep "#define SIMDUTF_VERSION" ./deps/simdutf/simdutf.h | sed -n "s/^.*VERSION \(.*\)/\1/p")
-              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+              ./tools/dep_updaters/update-simdutf.sh "$NEW_VERSION"
+              if [ $? = 0 ]; then
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                ./tools/dep_updaters/update-simdutf.sh "$NEW_VERSION"
               fi
           - id: ada
             subsystem: deps

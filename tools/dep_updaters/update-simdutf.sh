@@ -18,8 +18,6 @@ if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
   exit 0
 fi
 
-[ -f "$GITHUB_ENV" ] && echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV || echo "File GITHUB_ENV doesn't exist!"
-
 echo "Making temporary workspace..."
 
 WORKSPACE=$(mktemp -d 2> /dev/null || mktemp -d -t 'tmp')

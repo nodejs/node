@@ -20,8 +20,6 @@ if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
   exit 0
 fi
 
-[ -f "$GITHUB_ENV" ] && echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV || echo "File GITHUB_ENV doesn't exist!"
-
 cd "$( dirname "$0" )/../.." || exit
 rm -rf test/fixtures/postject-copy
 mkdir test/fixtures/postject-copy
@@ -37,3 +35,6 @@ rm -rf deps/postject
 mkdir deps/postject
 cp test/fixtures/postject-copy/node_modules/postject/LICENSE deps/postject
 cp test/fixtures/postject-copy/node_modules/postject/dist/postject-api.h deps/postject
+
+# The last line of the script should always be the NEW_VERSION
+echo "$NEW_VERSION"
