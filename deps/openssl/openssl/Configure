@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 # -*- mode: perl; -*-
-# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -1215,7 +1215,7 @@ $target{build_scheme} = [ $target{build_scheme} ]
 my ($builder, $builder_platform, @builder_opts) =
     @{$target{build_scheme}};
 
-foreach my $checker (($builder_platform."-".$target{build_file}."-checker.pm",
+foreach my $checker (($builder_platform."-".$config{build_file}."-checker.pm",
                       $builder_platform."-checker.pm")) {
     my $checker_path = catfile($srcdir, "Configurations", $checker);
     if (-f $checker_path) {
@@ -1712,8 +1712,8 @@ if ($builder eq "unified") {
     # Store the name of the template file we will build the build file from
     # in %config.  This may be useful for the build file itself.
     my @build_file_template_names =
-        ( $builder_platform."-".$target{build_file}.".tmpl",
-          $target{build_file}.".tmpl" );
+        ( $builder_platform."-".$config{build_file}.".tmpl",
+          $config{build_file}.".tmpl" );
     my @build_file_templates = ();
 
     # First, look in the user provided directory, if given
@@ -1937,8 +1937,8 @@ if ($builder eq "unified") {
                     }
                     next if @skip && $skip[$#skip] <= 0;
                     push @rawlines,  $_
-                        if ($target_kind eq $target{build_file}
-                            || $target_kind eq $target{build_file}."(".$builder_platform.")");
+                        if ($target_kind eq $config{build_file}
+                            || $target_kind eq $config{build_file}."(".$builder_platform.")");
                 }
             },
             qr/^\s*(?:#.*)?$/ => sub { },
@@ -2813,8 +2813,8 @@ if ($builder_platform eq 'unix') {
 
 my %builders = (
     unified => sub {
-        print 'Creating ',$target{build_file},"\n";
-        run_dofile(catfile($blddir, $target{build_file}),
+        print 'Creating ',$config{build_file},"\n";
+        run_dofile(catfile($blddir, $config{build_file}),
                    @{$config{build_file_templates}});
     },
     );
@@ -2868,7 +2868,7 @@ exit(0);
 #
 sub death_handler {
     die @_ if $^S;              # To prevent the added message in eval blocks
-    my $build_file = $target{build_file} // "build file";
+    my $build_file = $config{build_file} // "build file";
     my @message = ( <<"_____", @_ );
 
 Failure!  $build_file wasn't produced.

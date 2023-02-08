@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -99,7 +99,7 @@ static int gcd(int a, int b)
     return a;
 }
 
-void setup_test_framework()
+void setup_test_framework(void)
 {
     char *TAP_levels = getenv("HARNESS_OSSL_LEVEL");
     char *test_seed = getenv("OPENSSL_TEST_RAND_ORDER");

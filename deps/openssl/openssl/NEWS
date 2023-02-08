@@ -5,6 +5,13 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.1s and OpenSSL 1.1.1t [7 Feb 2023]
+
+      o Fixed X.400 address type confusion in X.509 GeneralName (CVE-2023-0286)
+      o Fixed Use-after-free following BIO_new_NDEF (CVE-2023-0215)
+      o Fixed Double free after calling PEM_read_bio_ex (CVE-2022-4450)
+      o Fixed Timing Oracle in RSA Decryption (CVE-2022-4304)
+
   Major changes between OpenSSL 1.1.1r and OpenSSL 1.1.1s [1 Nov 2022]
 
       o Fixed a regression introduced in OpenSSL 1.1.1r not refreshing the

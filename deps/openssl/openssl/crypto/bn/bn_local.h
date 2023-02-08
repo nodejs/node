@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -34,6 +34,26 @@
  */
 /* #define BN_DEBUG */
 /* #define BN_DEBUG_RAND */
+
+/*
+ * This should limit the stack usage due to alloca to about 4K.
+ * BN_SOFT_LIMIT is a soft limit equivalent to 2*OPENSSL_RSA_MAX_MODULUS_BITS.
+ * Beyond that size bn_mul_mont is no longer used, and the constant time
+ * assembler code is disabled, due to the blatant alloca and bn_mul_mont usage.
+ * Note that bn_mul_mont does an alloca that is hidden away in assembly.
+ * It is not recommended to do computations with numbers exceeding this limit,
+ * since the result will be highly version dependent:
+ * While the current OpenSSL version will use non-optimized, but safe code,
+ * previous versions will use optimized code, that may crash due to unexpected
+ * stack overflow, and future versions may very well turn this into a hard
+ * limit.
+ * Note however, that it is possible to override the size limit using
+ * "./config -DBN_SOFT_LIMIT=<limit>" if necessary, and the O/S specific
+ * stack limit is known and taken into consideration.
+ */
+# ifndef BN_SOFT_LIMIT
+#  define BN_SOFT_LIMIT         (4096 / BN_BYTES)
+# endif
 
 # ifndef OPENSSL_SMALL_FOOTPRINT
 #  define BN_MUL_COMBA
@@ -261,6 +281,20 @@ struct bn_gencb_st {
         /* if (ver==2) - new callback style */
         int (*cb_2) (int, int, BN_GENCB *);
     } cb;
+};
+
+struct bn_blinding_st {
+    BIGNUM *A;
+    BIGNUM *Ai;
+    BIGNUM *e;
+    BIGNUM *mod;                /* just a reference */
+    CRYPTO_THREAD_ID tid;
+    int counter;
+    unsigned long flags;
+    BN_MONT_CTX *m_ctx;
+    int (*bn_mod_exp) (BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
+                       const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx);
+    CRYPTO_RWLOCK *lock;
 };
 
 /*-

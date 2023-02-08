@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -136,7 +136,7 @@ typedef struct GENERAL_NAME_st {
         OTHERNAME *otherName;   /* otherName */
         ASN1_IA5STRING *rfc822Name;
         ASN1_IA5STRING *dNSName;
-        ASN1_TYPE *x400Address;
+        ASN1_STRING *x400Address;
         X509_NAME *directoryName;
         EDIPARTYNAME *ediPartyName;
         ASN1_IA5STRING *uniformResourceIdentifier;
