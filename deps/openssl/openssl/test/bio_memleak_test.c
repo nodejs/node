@@ -261,13 +261,9 @@ static int test_bio_i2d_ASN1_mime(void)
 
     error_callback_fired = 0;
 
-    /*
-     * The call succeeds even if the input stream ends unexpectedly as
-     * there is no handling for this case in SMIME_crlf_copy().
-     */
-    if (!TEST_true(i2d_ASN1_bio_stream(out, (ASN1_VALUE*) p7, bio,
-                                       SMIME_STREAM | SMIME_BINARY,
-                                       ASN1_ITEM_rptr(PKCS7))))
+    if (!TEST_false(i2d_ASN1_bio_stream(out, (ASN1_VALUE*) p7, bio,
+                                        SMIME_STREAM | SMIME_BINARY,
+                                        ASN1_ITEM_rptr(PKCS7))))
         goto finish;
 
     if (!TEST_int_eq(error_callback_fired, 1))

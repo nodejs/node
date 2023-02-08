@@ -225,6 +225,8 @@ static const ERR_STRING_DATA SSL_str_reasons[] = {
     "invalid status response"},
     {ERR_PACK(ERR_LIB_SSL, 0, SSL_R_INVALID_TICKET_KEYS_LENGTH),
     "invalid ticket keys length"},
+    {ERR_PACK(ERR_LIB_SSL, 0, SSL_R_LEGACY_SIGALG_DISALLOWED_OR_UNSUPPORTED),
+    "legacy sigalg disallowed or unsupported"},
     {ERR_PACK(ERR_LIB_SSL, 0, SSL_R_LENGTH_MISMATCH), "length mismatch"},
     {ERR_PACK(ERR_LIB_SSL, 0, SSL_R_LENGTH_TOO_LONG), "length too long"},
     {ERR_PACK(ERR_LIB_SSL, 0, SSL_R_LENGTH_TOO_SHORT), "length too short"},
