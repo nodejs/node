@@ -26,7 +26,6 @@ my $no_des = disabled("des");
 my $no_dh = disabled("dh");
 my $no_dsa = disabled("dsa");
 my $no_ec = disabled("ec");
-my $no_gost = disabled("gost");
 my $no_sm2 = disabled("sm2");
 
 # Default config depends on if the legacy module is built or not
@@ -76,7 +75,7 @@ push @files, qw(
                 evppkey_ecdsa.txt
                 evppkey_kas.txt
                 evppkey_mismatch.txt
-               ) unless $no_ec || $no_gost;
+               ) unless $no_ec;
 
 # A list of tests that only run with the default provider
 # (i.e. The algorithms are not present in the fips provider)

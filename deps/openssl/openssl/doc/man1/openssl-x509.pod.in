@@ -411,7 +411,7 @@ or given with the B<-key> (or B<-signkey>) option.
 
 This option is useful for creating self-issued certificates that are not
 self-signed, for instance when the key cannot be used for signing, such as DH.
-It can also be used in conjunction with b<-new> and B<-subj> to directly
+It can also be used in conjunction with B<-new> and B<-subj> to directly
 generate a certificate containing any desired public key.
 
 =item B<-clrext>

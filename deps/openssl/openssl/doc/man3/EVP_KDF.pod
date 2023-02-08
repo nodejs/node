@@ -131,26 +131,23 @@ simply ignored.
 Also, what happens when a needed parameter isn't passed down is
 defined by the implementation.
 
-EVP_KDF_gettable_params() returns an B<OSSL_PARAM> array that describes
+EVP_KDF_gettable_params() returns an L<OSSL_PARAM(3)> array that describes
 the retrievable and settable parameters.  EVP_KDF_gettable_params()
 returns parameters that can be used with EVP_KDF_get_params().
-See L<OSSL_PARAM(3)> for the use of B<OSSL_PARAM> as a parameter descriptor.
 
 EVP_KDF_gettable_ctx_params() and EVP_KDF_CTX_gettable_params()
-return constant B<OSSL_PARAM> arrays that describe the retrievable
+return constant L<OSSL_PARAM(3)> arrays that describe the retrievable
 parameters that can be used with EVP_KDF_CTX_get_params().
 EVP_KDF_gettable_ctx_params() returns the parameters that can be retrieved
 from the algorithm, whereas EVP_KDF_CTX_gettable_params() returns
 the parameters that can be retrieved in the context's current state.
-See L<OSSL_PARAM(3)> for the use of B<OSSL_PARAM> as a parameter descriptor.
 
 EVP_KDF_settable_ctx_params() and EVP_KDF_CTX_settable_params() return
-constant B<OSSL_PARAM> arrays that describe the settable parameters that
+constant L<OSSL_PARAM(3)> arrays that describe the settable parameters that
 can be used with EVP_KDF_CTX_set_params().  EVP_KDF_settable_ctx_params()
 returns the parameters that can be retrieved from the algorithm,
 whereas EVP_KDF_CTX_settable_params() returns the parameters that can
-be retrieved in the context's current state.  See L<OSSL_PARAM(3)>
-for the use of B<OSSL_PARAM> as a parameter descriptor.
+be retrieved in the context's current state.
 
 =head2 Information functions
 
@@ -294,7 +291,7 @@ L<life_cycle-kdf(7)>.
 
 =head1 HISTORY
 
-This functionality was added to OpenSSL 3.0.
+This functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 

@@ -97,6 +97,8 @@ and RORX;
 
 =item bit #64+16 denoting availability of AVX512F extension;
 
+=item bit #64+17 denoting availability of AVX512DQ extension;
+
 =item bit #64+18 denoting availability of RDSEED instruction;
 
 =item bit #64+19 denoting availability of ADCX and ADOX instructions;

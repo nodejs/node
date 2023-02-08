@@ -16,8 +16,8 @@ OSSL_PARAM_dup, OSSL_PARAM_merge, OSSL_PARAM_free
 =head1 DESCRIPTION
 
 Algorithm parameters can be exported/imported from/to providers using arrays of
-B<OSSL_PARAM>. The following utility functions allow the parameters to be
-duplicated and merged with other B<OSSL_PARAM> to assist in this process.
+L<OSSL_PARAM(3)>. The following utility functions allow the parameters to be
+duplicated and merged with other L<OSSL_PARAM(3)> to assist in this process.
 
 OSSL_PARAM_dup() duplicates the parameter array I<params>. This function does a
 deep copy of the data.
@@ -36,7 +36,7 @@ OSSL_PARAM_dup(), OSSL_PARAM_merge() or OSSL_PARAM_BLD_to_param().
 =head1 RETURN VALUES
 
 The functions OSSL_PARAM_dup() and OSSL_PARAM_merge() return a newly allocated
-B<OSSL_PARAM> array, or NULL if there was an error. If both parameters are NULL
+L<OSSL_PARAM(3)> array, or NULL if there was an error. If both parameters are NULL
  then NULL is returned.
 
 =head1 SEE ALSO

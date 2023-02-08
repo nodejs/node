@@ -116,6 +116,10 @@ L<EVP_KDF_derive(3)>,
 L<EVP_KDF(3)/PARAMETERS>,
 L<EVP_KDF-HKDF(7)>
 
+=head1 HISTORY
+
+This functionality was added in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
 Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.

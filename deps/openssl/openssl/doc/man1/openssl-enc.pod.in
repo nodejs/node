@@ -256,6 +256,19 @@ All RC2 ciphers have the same key and effective key length.
 
 Blowfish and RC5 algorithms use a 128 bit key.
 
+Please note that OpenSSL 3.0 changed the effect of the B<-S> option.
+Any explicit salt value specified via this option is no longer prepended to the
+ciphertext when encrypting, and must again be explicitly provided when decrypting.
+Conversely, when the B<-S> option is used during decryption, the ciphertext
+is expected to not have a prepended salt value.
+
+When using OpenSSL 3.0 or later to decrypt data that was encrypted with an
+explicit salt under OpenSSL 1.1.1 do not use the B<-S> option, the salt will
+then be read from the ciphertext.
+To generate ciphertext that can be decrypted with OpenSSL 1.1.1 do not use
+the B<-S> option, the salt will be then be generated randomly and prepended
+to the output.
+
 =head1 SUPPORTED CIPHERS
 
 Note that some of these ciphers can be disabled at compile time
@@ -435,7 +448,7 @@ The B<-ciphers> and B<-engine> options were deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

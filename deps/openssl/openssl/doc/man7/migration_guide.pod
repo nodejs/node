@@ -472,6 +472,14 @@ The function code part of the error code is now always set to 0. For that
 reason the ERR_GET_FUNC() macro was removed. Applications must resolve
 the error codes only using the library number and the reason code.
 
+=head4 ChaCha20-Poly1305 cipher does not allow a truncated IV length to be used
+
+In OpenSSL 3.0 setting the IV length to any value other than 12 will result in an
+error.
+Prior to OpenSSL 3.0 the ivlen could be smaller that the required 12 byte length,
+using EVP_CIPHER_CTX_ctrl(ctx, EVP_CRTL_AEAD_SET_IVLEN, ivlen, NULL). This resulted
+in an IV that had leading zero padding.
+
 =head2 Installation and Compilation
 
 Please refer to the INSTALL.md file in the top of the distribution for
@@ -957,7 +965,7 @@ See also L<crypto(7)/OPENSSL PROVIDERS>.
 Implicit and Explicit Fetching is described in detail here
 L<crypto(7)/ALGORITHM FETCHING>.
 
-=head3 Mapping EVP controls and flags to provider B<OSSL_PARAM> parameters
+=head3 Mapping EVP controls and flags to provider L<OSSL_PARAM(3)> parameters
 
 The existing functions for controls (such as L<EVP_CIPHER_CTX_ctrl(3)>) and
 manipulating flags (such as L<EVP_MD_CTX_set_flags(3)>)internally use
@@ -1074,7 +1082,8 @@ See L<EVP_MAC(3)>, L<EVP_MAC-HMAC(7)>, L<EVP_MAC-CMAC(7)>, L<EVP_MAC-GMAC(7)>,
 L<EVP_MAC-KMAC(7)>, L<EVP_MAC-BLAKE2(7)>, L<EVP_MAC-Poly1305(7)> and
 L<EVP_MAC-Siphash(7)> for additional information.
 
-Note that the one-shot method HMAC() is still available for compatability purposes.
+Note that the one-shot method HMAC() is still available for compatibility purposes,
+but this can also be replaced by using EVP_Q_MAC if a library context is required.
 
 =head4 Deprecated low-level validation functions
 
@@ -1459,7 +1468,7 @@ See L</Deprecated low-level key exchange functions>.
 ECDH_KDF_X9_62()
 
 Applications may either set this using the helper function
-L<EVP_PKEY_CTX_set_ecdh_kdf_type(3)> or by setting an B<OSSL_PARAM> using the
+L<EVP_PKEY_CTX_set_ecdh_kdf_type(3)> or by setting an L<OSSL_PARAM(3)> using the
 "kdf-type" as shown in L<EVP_KEYEXCH-ECDH(7)/EXAMPLES>
 
 =item *
@@ -2407,9 +2416,13 @@ options of the commands.
 
 L<fips_module(7)>
 
+=head1 HISTORY
+
+The migration guide was created for OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
-Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

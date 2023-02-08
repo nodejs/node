@@ -23,8 +23,6 @@ my $OID_def_re = qr/
                        \s* ${OID_value_re}
                    /x;
 
-use Data::Dumper;
-
 sub filter_to_H {
     my ($name, $comment) = @{ shift() };
     my @oid_nums = @_;
