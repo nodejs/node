@@ -110,12 +110,34 @@ static ossl_inline void _mul_limb(limb_t *hi, limb_t *lo, limb_t a, limb_t b)
     *lo = (limb_t)t;
 }
 #elif (BN_BYTES == 8) && (defined _MSC_VER)
-/* https://learn.microsoft.com/en-us/cpp/intrinsics/umul128?view=msvc-170 */
+# if defined(_M_X64)
+/*
+ * on x86_64 (x64) we can use the _umul128 intrinsic to get one `mul`
+ * instruction to get both high and low 64 bits of the multiplication.
+ * https://learn.microsoft.com/en-us/cpp/intrinsics/umul128?view=msvc-140
+ */
+#include <intrin.h>
 #pragma intrinsic(_umul128)
 static ossl_inline void _mul_limb(limb_t *hi, limb_t *lo, limb_t a, limb_t b)
 {
     *lo = _umul128(a, b, hi);
 }
+# elif defined(_M_ARM64) || defined (_M_IA64)
+/*
+ * We can't use the __umulh() on x86_64 as then msvc generates two `mul`
+ * instructions; so use this more portable intrinsic on platforms that
+ * don't support _umul128 (like aarch64 (ARM64) or ia64)
+ * https://learn.microsoft.com/en-us/cpp/intrinsics/umulh?view=msvc-140
+ */
+#include <intrin.h>
+static ossl_inline void _mul_limb(limb_t *hi, limb_t *lo, limb_t a, limb_t b)
+{
+    *lo = a * b;
+    *hi = __umulh(a, b);
+}
+# else
+# error Only x64, ARM64 and IA64 supported.
+# endif /* defined(_M_X64) */
 #else
 /*
  * if the compiler doesn't have either a 128bit data type nor a "return
