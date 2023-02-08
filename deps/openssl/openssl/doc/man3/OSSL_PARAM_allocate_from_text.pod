@@ -102,7 +102,7 @@ I<paramdefs> and there was no other failure, otherwise 0.
 
 The parameter descriptor array comes from functions dedicated to
 return them.
-The following B<OSSL_PARAM> attributes are used:
+The following L<OSSL_PARAM(3)> attributes are used:
 
 =over 4
 

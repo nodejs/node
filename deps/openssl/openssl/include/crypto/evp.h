@@ -589,6 +589,7 @@ int evp_cipher_asn1_to_param_ex(EVP_CIPHER_CTX *c, ASN1_TYPE *type,
 typedef struct {
     EVP_KEYMGMT *keymgmt;
     void *keydata;
+    int selection;
 } OP_CACHE_ELEM;
 
 DEFINE_STACK_OF(OP_CACHE_ELEM)
@@ -778,12 +779,14 @@ EVP_PKEY *evp_keymgmt_util_make_pkey(EVP_KEYMGMT *keymgmt, void *keydata);
 
 int evp_keymgmt_util_export(const EVP_PKEY *pk, int selection,
                             OSSL_CALLBACK *export_cb, void *export_cbarg);
-void *evp_keymgmt_util_export_to_provider(EVP_PKEY *pk, EVP_KEYMGMT *keymgmt);
+void *evp_keymgmt_util_export_to_provider(EVP_PKEY *pk, EVP_KEYMGMT *keymgmt,
+                                          int selection);
 OP_CACHE_ELEM *evp_keymgmt_util_find_operation_cache(EVP_PKEY *pk,
-                                                     EVP_KEYMGMT *keymgmt);
+                                                     EVP_KEYMGMT *keymgmt,
+                                                     int selection);
 int evp_keymgmt_util_clear_operation_cache(EVP_PKEY *pk, int locking);
-int evp_keymgmt_util_cache_keydata(EVP_PKEY *pk,
-                                   EVP_KEYMGMT *keymgmt, void *keydata);
+int evp_keymgmt_util_cache_keydata(EVP_PKEY *pk, EVP_KEYMGMT *keymgmt,
+                                   void *keydata, int selection);
 void evp_keymgmt_util_cache_keyinfo(EVP_PKEY *pk);
 void *evp_keymgmt_util_fromdata(EVP_PKEY *target, EVP_KEYMGMT *keymgmt,
                                 int selection, const OSSL_PARAM params[]);

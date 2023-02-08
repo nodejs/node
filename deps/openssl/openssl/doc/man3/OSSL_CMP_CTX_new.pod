@@ -35,6 +35,7 @@ OSSL_CMP_CTX_set1_referenceValue,
 OSSL_CMP_CTX_set1_secretValue,
 OSSL_CMP_CTX_set1_recipient,
 OSSL_CMP_CTX_push0_geninfo_ITAV,
+OSSL_CMP_CTX_reset_geninfo_ITAVs,
 OSSL_CMP_CTX_set1_extraCertsOut,
 OSSL_CMP_CTX_set0_newPkey,
 OSSL_CMP_CTX_get0_newPkey,
@@ -116,6 +117,7 @@ OSSL_CMP_CTX_set1_senderNonce
  /* CMP message header and extra certificates: */
  int OSSL_CMP_CTX_set1_recipient(OSSL_CMP_CTX *ctx, const X509_NAME *name);
  int OSSL_CMP_CTX_push0_geninfo_ITAV(OSSL_CMP_CTX *ctx, OSSL_CMP_ITAV *itav);
+ int OSSL_CMP_CTX_reset_geninfo_ITAVs(OSSL_CMP_CTX *ctx);
  int OSSL_CMP_CTX_set1_extraCertsOut(OSSL_CMP_CTX *ctx,
                                      STACK_OF(X509) *extraCertsOut);
 
@@ -179,6 +181,7 @@ OSSL_CMP_CTX_reinit() prepares the given I<ctx> for a further transaction by
 clearing the internal CMP transaction (aka session) status, PKIStatusInfo,
 and any previous results (newCert, newChain, caPubs, and extraCertsIn)
 from the last executed transaction.
+It also clears any ITAVs that were added by OSSL_CMP_CTX_push0_genm_ITAV().
 All other field values (i.e., CMP options) are retained for potential re-use.
 
 OSSL_CMP_CTX_set_option() sets the given value for the given option
@@ -205,14 +208,17 @@ The following options can be set:
 
 =item B<OSSL_CMP_OPT_MSG_TIMEOUT>
 
-        Number of seconds (or 0 for infinite) a CMP message round trip is
-        allowed to take before a timeout error is returned.
-        Default is to use the B<OSSL_CMP_OPT_MSG_TIMEOUT> setting.
+        Number of seconds a CMP request-response message round trip
+        is allowed to take before a timeout error is returned.
+        A value <= 0 means no limitation (waiting indefinitely).
+        Default is to use the B<OSSL_CMP_OPT_TOTAL_TIMEOUT> setting.
 
 =item B<OSSL_CMP_OPT_TOTAL_TIMEOUT>
 
-        Maximum total number of seconds an enrollment (including polling)
-        may take. Default is 0 (infinite).
+        Maximum total number of seconds a transaction may take,
+        including polling etc.
+        A value <= 0 means no limitation (waiting indefinitely).
+        Default is 0.
 
 =item B<OSSL_CMP_OPT_VALIDITY_DAYS>
 
@@ -509,6 +515,9 @@ OSSL_CMP_CTX_push0_geninfo_ITAV() adds I<itav> to the stack in the I<ctx> to be
 added to the GeneralInfo field of the CMP PKIMessage header of a request
 message sent with this context.
 
+OSSL_CMP_CTX_reset_geninfo_ITAVs()
+clears any ITAVs that were added by OSSL_CMP_CTX_push0_geninfo_ITAV().
+
 OSSL_CMP_CTX_set1_extraCertsOut() sets the stack of extraCerts that will be
 sent to remote.
 
@@ -612,15 +621,36 @@ OSSL_CMP_CTX_get_certConf_cb_arg() gets the argument, respectively the pointer
 to a structure containing arguments, previously set by
 OSSL_CMP_CTX_set_certConf_cb_arg(), or NULL if unset.
 
-OSSL_CMP_CTX_get_status() returns the PKIstatus from the last received
-CertRepMessage or Revocation Response or error message, or -1 if unset.
-For server contexts it returns -2 if a transaction is open, else -1.
+OSSL_CMP_CTX_get_status() returns for client contexts the PKIstatus from
+the last received CertRepMessage or Revocation Response or error message:
+=item B<OSSL_CMP_PKISTATUS_accepted> on sucessful receipt of a GENP message:
+
+=over 4
+
+=item B<OSSL_CMP_PKISTATUS_request>
+
+if an IR/CR/KUR/RR/GENM request message could not be produced,
+
+=item B<OSSL_CMP_PKISTATUS_trans>
+
+on a transmission error or transaction error for this type of request, and
+
+=item B<OSSL_CMP_PKISTATUS_unspecified>
+
+if no such request was attempted or OSSL_CMP_CTX_reinit() has been called.
+
+=back
+
+For server contexts it returns
+B<OSSL_CMP_PKISTATUS_trans> if a transaction is open,
+otherwise B<OSSL_CMP_PKISTATUS_unspecified>.
 
 OSSL_CMP_CTX_get0_statusString() returns the statusString from the last received
 CertRepMessage or Revocation Response or error message, or NULL if unset.
 
 OSSL_CMP_CTX_get_failInfoCode() returns the error code from the failInfo field
-of the last received CertRepMessage or Revocation Response or error message.
+of the last received CertRepMessage or Revocation Response or error message,
+or -1 if no such response was received or OSSL_CMP_CTX_reinit() has been called.
 This is a bit field and the flags for it are specified in the header file
 F<< <openssl/cmp.h> >>.
 The flags start with OSSL_CMP_CTX_FAILINFO, for example:
@@ -681,7 +711,9 @@ OSSL_CMP_certConf_cb() returns I<fail_info> if it is not equal to 0,
 else 0 on successful validation,
 or else a bit field with the B<OSSL_CMP_PKIFAILUREINFO_incorrectData> bit set.
 
-All other functions return 1 on success, 0 on error.
+All other functions, including OSSL_CMP_CTX_reinit()
+and OSSL_CMP_CTX_reset_geninfo_ITAVs(),
+return 1 on success, 0 on error.
 
 =head1 EXAMPLES
 
@@ -737,7 +769,7 @@ the id-it-signKeyPairTypes OID and prints info on the General Response contents:
     OSSL_CMP_CTX_reinit(cmp_ctx);
 
     ASN1_OBJECT *type = OBJ_txt2obj("1.3.6.1.5.5.7.4.2", 1);
-    OSSL_CMP_ITAV *itav = OSSL_CMP_ITAV_new(type, NULL);
+    OSSL_CMP_ITAV *itav = OSSL_CMP_ITAV_create(type, NULL);
     OSSL_CMP_CTX_push0_genm_ITAV(cmp_ctx, itav);
 
     STACK_OF(OSSL_CMP_ITAV) *itavs;
@@ -756,9 +788,11 @@ L<ERR_print_errors_cb(3)>
 
 The OpenSSL CMP support was added in OpenSSL 3.0.
 
+OSSL_CMP_CTX_reset_geninfo_ITAVs() was added in OpenSSL 3.0.8.
+
 =head1 COPYRIGHT
 
-Copyright 2007-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

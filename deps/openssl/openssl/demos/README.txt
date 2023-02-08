@@ -31,8 +31,12 @@ poly1305.c             Demonstration of Poly1305-AES message authentication
 siphash.c              Demonstration of SIPHASH message authentication
 
 pkey:
-EVP_PKEY_EC_keygen.c   Generate an EC key.
-EVP_PKEY_RSA_keygen.c  Generate an RSA key.
+EVP_PKEY_EC_keygen.c           Generate an EC key.
+EVP_PKEY_RSA_keygen.c          Generate an RSA key.
+EVP_PKEY_DSA_keygen.c          Generate a DSA key.
+EVP_PKEY_DSA_paramgen.c        Generate a DSA param key.
+EVP_PKEY_DSA_paramvalidate.c   Validate a DSA param key.
+EVP_PKEY_DSA_paramfromdata.c   Load a DSA param key using raw data.
 
 smime:
 

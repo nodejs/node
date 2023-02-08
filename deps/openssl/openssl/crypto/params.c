@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -932,6 +932,10 @@ int OSSL_PARAM_set_BN(OSSL_PARAM *p, const BIGNUM *val)
         return 0;
 
     bytes = (size_t)BN_num_bytes(val);
+    /* We make sure that at least one byte is used, so zero is properly set */
+    if (bytes == 0)
+        bytes++;
+
     p->return_size = bytes;
     if (p->data == NULL)
         return 1;

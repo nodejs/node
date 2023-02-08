@@ -12,6 +12,7 @@ HERE=`dirname $0`
 . $HERE/../VERSION.dat
 
 if [ -n "$PRE_RELEASE_TAG" ]; then PRE_RELEASE_TAG=-$PRE_RELEASE_TAG; fi
+if [ -n "$BUILD_METADATA" ]; then BUILD_METADATA=+$BUILD_METADATA; fi
 version=$MAJOR.$MINOR.$PATCH$PRE_RELEASE_TAG$BUILD_METADATA
 basename=openssl
 

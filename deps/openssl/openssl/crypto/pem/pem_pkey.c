@@ -75,6 +75,10 @@ static EVP_PKEY *pem_read_bio_key_decoder(BIO *bp, EVP_PKEY **x,
         }
     ERR_pop_to_mark();
 
+    /* if we were asked for private key, the public key is optional */
+    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
+        selection = selection & ~OSSL_KEYMGMT_SELECT_PUBLIC_KEY;
+
     if (!evp_keymgmt_util_has(pkey, selection)) {
         EVP_PKEY_free(pkey);
         pkey = NULL;
@@ -106,7 +110,7 @@ static EVP_PKEY *pem_read_bio_key_legacy(BIO *bp, EVP_PKEY **x,
     EVP_PKEY *ret = NULL;
 
     ERR_set_mark();  /* not interested in PEM read errors */
-    if (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) {
+    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0) {
         if (!PEM_bytes_read_bio_secmem(&data, &len, &nm,
                                        PEM_STRING_EVP_PKEY,
                                        bp, cb, u)) {
@@ -116,7 +120,7 @@ static EVP_PKEY *pem_read_bio_key_legacy(BIO *bp, EVP_PKEY **x,
     } else {
         const char *pem_string = PEM_STRING_PARAMETERS;
 
-        if (selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY)
+        if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0)
             pem_string = PEM_STRING_PUBLIC;
         if (!PEM_bytes_read_bio(&data, &len, &nm,
                                 pem_string,
@@ -174,9 +178,13 @@ static EVP_PKEY *pem_read_bio_key_legacy(BIO *bp, EVP_PKEY **x,
             goto p8err;
         ret = ossl_d2i_PrivateKey_legacy(ameth->pkey_id, x, &p, len, libctx,
                                          propq);
-    } else if (selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) {
+    } else if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) == 0
+               && (selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
+        /* Trying legacy PUBKEY decoding only if we do not want private key. */
         ret = ossl_d2i_PUBKEY_legacy(x, &p, len);
-    } else if ((slen = ossl_pem_check_suffix(nm, "PARAMETERS")) > 0) {
+    } else if ((selection & EVP_PKEY_KEYPAIR) == 0
+               && (slen = ossl_pem_check_suffix(nm, "PARAMETERS")) > 0) {
+        /* Trying legacy params decoding only if we do not want a key. */
         ret = EVP_PKEY_new();
         if (ret == NULL)
             goto err;
@@ -294,6 +302,7 @@ EVP_PKEY *PEM_read_bio_PrivateKey_ex(BIO *bp, EVP_PKEY **x,
                                      OSSL_LIB_CTX *libctx, const char *propq)
 {
     return pem_read_bio_key(bp, x, cb, u, libctx, propq,
+                            /* we also want the public key, if available */
                             EVP_PKEY_KEYPAIR);
 }
 
@@ -311,7 +320,7 @@ PEM_write_cb_ex_fnsig(PrivateKey, EVP_PKEY, BIO, write_bio)
     IMPLEMENT_PEM_provided_write_body_main(pkey, bio);
 
  legacy:
-    if (x->ameth == NULL || x->ameth->priv_encode != NULL)
+    if (x != NULL && (x->ameth == NULL || x->ameth->priv_encode != NULL))
         return PEM_write_bio_PKCS8PrivateKey(out, x, enc,
                                              (const char *)kstr, klen, cb, u);
     return PEM_write_bio_PrivateKey_traditional(out, x, enc, kstr, klen, cb, u);
@@ -336,6 +345,9 @@ int PEM_write_bio_PrivateKey_traditional(BIO *bp, const EVP_PKEY *x,
     EVP_PKEY *copy = NULL;
     int ret;
 
+    if (x == NULL)
+        return 0;
+
     if (evp_pkey_is_assigned(x)
         && evp_pkey_is_provided(x)
         && evp_pkey_copy_downgraded(&copy, x))
@@ -343,6 +355,7 @@ int PEM_write_bio_PrivateKey_traditional(BIO *bp, const EVP_PKEY *x,
 
     if (x->ameth == NULL || x->ameth->old_priv_encode == NULL) {
         ERR_raise(ERR_LIB_PEM, PEM_R_UNSUPPORTED_PUBLIC_KEY_TYPE);
+        EVP_PKEY_free(copy);
         return 0;
     }
     BIO_snprintf(pem_str, 80, "%s PRIVATE KEY", x->ameth->pem_str);

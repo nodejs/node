@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -11,19 +11,24 @@ use strict;
 use warnings;
 
 use File::Spec;
-use OpenSSL::Test qw/:DEFAULT data_file/;
+use OpenSSL::Test qw/:DEFAULT data_file with/;
 use OpenSSL::Test::Utils;
 
 sub pkey_check {
     my $f = shift;
+    my $pubcheck = shift;
+    my @checkopt = ('-check');
 
-    return run(app(['openssl', 'pkey', '-check', '-text',
+    @checkopt = ('-pubcheck', '-pubin') if $pubcheck;
+
+    return run(app(['openssl', 'pkey', @checkopt, '-text',
                     '-in', $f]));
 }
 
 sub check_key {
     my $f = shift;
     my $should_fail = shift;
+    my $pubcheck = shift;
     my $str;
 
 
@@ -33,11 +38,10 @@ sub check_key {
     $f = data_file($f);
 
     if ( -s $f ) {
-        if ($should_fail) {
-            ok(!pkey_check($f), $str);
-        } else {
-            ok(pkey_check($f), $str);
-        }
+        with({ exit_checker => sub { return shift == $should_fail; } },
+            sub {
+                ok(pkey_check($f, $pubcheck), $str);
+            });
     } else {
         fail("Missing file $f");
     }
@@ -66,15 +70,37 @@ push(@positive_tests, (
     "dhpkey.pem"
     )) unless disabled("dh");
 
-plan skip_all => "No tests within the current enabled feature set"
-    unless @negative_tests && @positive_tests;
+my @negative_pubtests = ();
 
-plan tests => scalar(@negative_tests) + scalar(@positive_tests);
+push(@negative_pubtests, (
+    "dsapub_noparam.der"
+    )) unless disabled("dsa");
+
+my @positive_pubtests = ();
+
+push(@positive_pubtests, (
+    "dsapub.pem"
+    )) unless disabled("dsa");
+
+plan skip_all => "No tests within the current enabled feature set"
+    unless @negative_tests && @positive_tests
+           && @negative_pubtests && @positive_pubtests;
+
+plan tests => scalar(@negative_tests) + scalar(@positive_tests)
+              + scalar(@negative_pubtests) + scalar(@positive_pubtests);
 
 foreach my $t (@negative_tests) {
-    check_key($t, 1);
+    check_key($t, 1, 0);
 }
 
 foreach my $t (@positive_tests) {
-    check_key($t, 0);
+    check_key($t, 0, 0);
+}
+
+foreach my $t (@negative_pubtests) {
+    check_key($t, 1, 1);
+}
+
+foreach my $t (@positive_pubtests) {
+    check_key($t, 0, 1);
 }

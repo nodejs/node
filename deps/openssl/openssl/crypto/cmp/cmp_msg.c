@@ -463,7 +463,7 @@ OSSL_CMP_MSG *ossl_cmp_certrep_new(OSSL_CMP_CTX *ctx, int bodytype,
     OSSL_CMP_MSG *msg = NULL;
     OSSL_CMP_CERTREPMESSAGE *repMsg = NULL;
     OSSL_CMP_CERTRESPONSE *resp = NULL;
-    int status = -1;
+    int status = OSSL_CMP_PKISTATUS_unspecified;
 
     if (!ossl_assert(ctx != NULL && si != NULL))
         return NULL;
@@ -700,8 +700,7 @@ static OSSL_CMP_MSG *gen_new(OSSL_CMP_CTX *ctx,
     if ((msg = ossl_cmp_msg_create(ctx, body_type)) == NULL)
         return NULL;
 
-    if (ctx->genm_ITAVs != NULL
-            && !ossl_cmp_msg_gen_push1_ITAVs(msg, itavs))
+    if (itavs != NULL && !ossl_cmp_msg_gen_push1_ITAVs(msg, itavs))
         goto err;
 
     if (!ossl_cmp_msg_protect(ctx, msg))

@@ -164,6 +164,10 @@ int ed25519_digest_sign(void *vpeddsactx, unsigned char *sigret,
         ERR_raise(ERR_LIB_PROV, PROV_R_OUTPUT_BUFFER_TOO_SMALL);
         return 0;
     }
+    if (edkey->privkey == NULL) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_NOT_A_PRIVATE_KEY);
+        return 0;
+    }
 #ifdef S390X_EC_ASM
     if (S390X_CAN_SIGN(ED25519)) {
 	    if (s390x_ed25519_digestsign(edkey, sigret, tbs, tbslen) == 0) {
@@ -199,6 +203,10 @@ int ed448_digest_sign(void *vpeddsactx, unsigned char *sigret,
     }
     if (sigsize < ED448_SIGSIZE) {
         ERR_raise(ERR_LIB_PROV, PROV_R_OUTPUT_BUFFER_TOO_SMALL);
+        return 0;
+    }
+    if (edkey->privkey == NULL) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_NOT_A_PRIVATE_KEY);
         return 0;
     }
 #ifdef S390X_EC_ASM
