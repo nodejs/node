@@ -72,14 +72,14 @@ The primary responsibility of the KEYMGMT operation is to hold the
 provider side key data for the OpenSSL library EVP_PKEY structure.
 
 All "functions" mentioned here are passed as function pointers between
-F<libcrypto> and the provider in B<OSSL_DISPATCH> arrays via
-B<OSSL_ALGORITHM> arrays that are returned by the provider's
+F<libcrypto> and the provider in L<OSSL_DISPATCH(3)> arrays via
+L<OSSL_ALGORITHM(3)> arrays that are returned by the provider's
 provider_query_operation() function
 (see L<provider-base(7)/Provider Functions>).
 
 All these "functions" have a corresponding function type definition
 named B<OSSL_FUNC_{name}_fn>, and a helper function to retrieve the
-function pointer from a B<OSSL_DISPATCH> element named
+function pointer from a L<OSSL_DISPATCH(3)> element named
 B<OSSL_FUNC_{name}>.
 For example, the "function" OSSL_FUNC_keymgmt_new() has these:
 
@@ -87,7 +87,7 @@ For example, the "function" OSSL_FUNC_keymgmt_new() has these:
  static ossl_inline OSSL_FUNC_keymgmt_new_fn
      OSSL_FUNC_keymgmt_new(const OSSL_DISPATCH *opf);
 
-B<OSSL_DISPATCH> arrays are indexed by numbers that are provided as
+L<OSSL_DISPATCH(3)> arrays are indexed by numbers that are provided as
 macros in L<openssl-core_dispatch.h(7)>, as follows:
 
  OSSL_FUNC_keymgmt_new                  OSSL_FUNC_KEYMGMT_NEW
@@ -236,7 +236,7 @@ OSSL_FUNC_keymgmt_gen_set_params() should set additional parameters from
 I<params> in the key object generation context I<genctx>.
 
 OSSL_FUNC_keymgmt_gen_settable_params() should return a constant array of
-descriptor B<OSSL_PARAM>, for parameters that OSSL_FUNC_keymgmt_gen_set_params()
+descriptor L<OSSL_PARAM(3)>, for parameters that OSSL_FUNC_keymgmt_gen_set_params()
 can handle.
 
 OSSL_FUNC_keymgmt_gen() should perform the key object generation itself, and
@@ -264,7 +264,7 @@ OSSL_FUNC_keymgmt_get_params() should extract information data associated
 with the given I<keydata>, see L</Common Information Parameters>.
 
 OSSL_FUNC_keymgmt_gettable_params() should return a constant array of
-descriptor B<OSSL_PARAM>, for parameters that OSSL_FUNC_keymgmt_get_params()
+descriptor L<OSSL_PARAM(3)>, for parameters that OSSL_FUNC_keymgmt_get_params()
 can handle.
 
 If OSSL_FUNC_keymgmt_gettable_params() is present, OSSL_FUNC_keymgmt_get_params()
@@ -274,7 +274,7 @@ OSSL_FUNC_keymgmt_set_params() should update information data associated
 with the given I<keydata>, see L</Common Information Parameters>.
 
 OSSL_FUNC_keymgmt_settable_params() should return a constant array of
-descriptor B<OSSL_PARAM>, for parameters that OSSL_FUNC_keymgmt_set_params()
+descriptor L<OSSL_PARAM(3)>, for parameters that OSSL_FUNC_keymgmt_set_params()
 can handle.
 
 If OSSL_FUNC_keymgmt_settable_params() is present, OSSL_FUNC_keymgmt_set_params()
@@ -323,18 +323,18 @@ by the implementation of this function.
 =head2 Key Object Import, Export and Duplication Functions
 
 OSSL_FUNC_keymgmt_import() should import data indicated by I<selection> into
-I<keydata> with values taken from the B<OSSL_PARAM> array I<params>.
+I<keydata> with values taken from the L<OSSL_PARAM(3)> array I<params>.
 
 OSSL_FUNC_keymgmt_export() should extract values indicated by I<selection>
-from I<keydata>, create an B<OSSL_PARAM> array with them and call
+from I<keydata>, create an L<OSSL_PARAM(3)> array with them and call
 I<param_cb> with that array as well as the given I<cbarg>.
 
 OSSL_FUNC_keymgmt_import_types() should return a constant array of descriptor
-B<OSSL_PARAM> for data indicated by I<selection>, for parameters that
+L<OSSL_PARAM(3)> for data indicated by I<selection>, for parameters that
 OSSL_FUNC_keymgmt_import() can handle.
 
 OSSL_FUNC_keymgmt_export_types() should return a constant array of descriptor
-B<OSSL_PARAM> for data indicated by I<selection>, that the
+L<OSSL_PARAM(3)> for data indicated by I<selection>, that the
 OSSL_FUNC_keymgmt_export() callback can expect to receive.
 
 OSSL_FUNC_keymgmt_dup() should duplicate data subsets indicated by
@@ -397,7 +397,7 @@ applies.
 OSSL_FUNC_keymgmt_gettable_params() and OSSL_FUNC_keymgmt_settable_params()
 OSSL_FUNC_keymgmt_import_types(), OSSL_FUNC_keymgmt_export_types()
 should
-always return a constant B<OSSL_PARAM> array.
+always return a constant L<OSSL_PARAM(3)> array.
 
 =head1 SEE ALSO
 

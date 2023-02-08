@@ -338,7 +338,7 @@ static OSSL_CMP_MSG *process_certConf(OSSL_CMP_SRV_CTX *srv_ctx,
     num = sk_OSSL_CMP_CERTSTATUS_num(ccc);
 
     if (OSSL_CMP_CTX_get_option(ctx, OSSL_CMP_OPT_IMPLICIT_CONFIRM) == 1
-            || ctx->status != -2 /* transaction not open */) {
+            || ctx->status != OSSL_CMP_PKISTATUS_trans) {
         ERR_raise(ERR_LIB_CMP, CMP_R_ERROR_UNEXPECTED_CERTCONF);
         return NULL;
     }
@@ -359,8 +359,8 @@ static OSSL_CMP_MSG *process_certConf(OSSL_CMP_SRV_CTX *srv_ctx,
         if (!srv_ctx->process_certConf(srv_ctx, req, certReqId, certHash, si))
             return NULL; /* reason code may be: CMP_R_CERTHASH_UNMATCHED */
 
-        if (si != NULL && ossl_cmp_pkisi_get_status(si)
-            != OSSL_CMP_PKISTATUS_accepted) {
+        if (si != NULL
+            && ossl_cmp_pkisi_get_status(si) != OSSL_CMP_PKISTATUS_accepted) {
             int pki_status = ossl_cmp_pkisi_get_status(si);
             const char *str = ossl_cmp_PKIStatus_to_string(pki_status);
 
@@ -595,8 +595,8 @@ OSSL_CMP_MSG *OSSL_CMP_SRV_process_request(OSSL_CMP_SRV_CTX *srv_ctx,
     else
         ossl_cmp_log(ERR, ctx, "cannot send proper CMP response");
 
-    /* possibly close the transaction */
-    ctx->status = -2; /* this indicates transaction is open */
+    /* determine whether to keep the transaction open or not */
+    ctx->status = OSSL_CMP_PKISTATUS_trans;
     switch (rsp_type) {
     case OSSL_CMP_PKIBODY_IP:
     case OSSL_CMP_PKIBODY_CP:
@@ -611,7 +611,7 @@ OSSL_CMP_MSG *OSSL_CMP_SRV_process_request(OSSL_CMP_SRV_CTX *srv_ctx,
     case OSSL_CMP_PKIBODY_ERROR:
         (void)OSSL_CMP_CTX_set1_transactionID(ctx, NULL);
         (void)OSSL_CMP_CTX_set1_senderNonce(ctx, NULL);
-        ctx->status = -1; /* transaction closed */
+        ctx->status = OSSL_CMP_PKISTATUS_unspecified; /* transaction closed */
 
     default: /* not closing transaction in other cases */
         break;

@@ -877,6 +877,11 @@ IF[{- !$disabled{tests} -}]
   INCLUDE[hexstr_test]=.. ../include ../apps/include
   DEPEND[hexstr_test]=../libcrypto.a libtestutil.a
 
+  PROGRAMS{noinst}=trace_api_test
+  SOURCE[trace_api_test]=trace_api_test.c
+  INCLUDE[trace_api_test]=.. ../include ../apps/include
+  DEPEND[trace_api_test]=../libcrypto.a libtestutil.a
+
   PROGRAMS{noinst}=endecode_test
   SOURCE[endecode_test]=endecode_test.c helpers/predefined_dhparams.c
   INCLUDE[endecode_test]=.. ../include ../apps/include

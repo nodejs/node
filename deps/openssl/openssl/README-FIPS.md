@@ -1,19 +1,38 @@
 OpenSSL FIPS support
 ====================
 
-This release of OpenSSL includes a cryptographic module that is intended to be
+This release of OpenSSL includes a cryptographic module that can be
 FIPS 140-2 validated. The module is implemented as an OpenSSL provider.
 A provider is essentially a dynamically loadable module which implements
 cryptographic algorithms, see the [README-PROVIDERS](README-PROVIDERS.md) file
 for further details.
 
-The OpenSSL FIPS provider comes as shared library called `fips.so` (on Unix)
+A cryptographic module is only FIPS validated after it has gone through the complex
+FIPS 140 validation process. As this process takes a very long time, it is not
+possible to validate every minor release of OpenSSL.
+If you need a FIPS validated module then you must ONLY generate a FIPS provider
+using OpenSSL versions that have valid FIPS certificates. A FIPS certificate
+contains a link to a Security Policy, and you MUST follow the instructions
+in the Security Policy in order to be FIPS compliant.
+See <https://www.openssl.org/source/> for information related to OpenSSL
+FIPS certificates and Security Policies.
+
+Newer OpenSSL Releases that include security or bug fixes can be used to build
+all other components (such as the core API's, TLS and the default, base and
+legacy providers) without any restrictions, but the FIPS provider must be built
+as specified in the Security Policy (normally with a different version of the
+source code).
+
+The OpenSSL FIPS provider is a shared library called `fips.so` (on Unix), or
 resp. `fips.dll` (on Windows). The FIPS provider does not get built and
 installed automatically. To enable it, you need to configure OpenSSL using
 the `enable-fips` option.
 
 Installing the FIPS module
 ==========================
+
+The following is only a guide.
+Please read the Security Policy for up to date installation instructions.
 
 If the FIPS provider is enabled, it gets installed automatically during the
 normal installation process. Simply follow the normal procedure (configure,

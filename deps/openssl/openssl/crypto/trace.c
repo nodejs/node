@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -118,17 +118,16 @@ struct trace_category_st {
 };
 #define TRACE_CATEGORY_(name)       { #name, OSSL_TRACE_CATEGORY_##name }
 
-static const struct trace_category_st trace_categories[] = {
+static const struct trace_category_st
+    trace_categories[OSSL_TRACE_CATEGORY_NUM] = {
     TRACE_CATEGORY_(ALL),
     TRACE_CATEGORY_(TRACE),
     TRACE_CATEGORY_(INIT),
     TRACE_CATEGORY_(TLS),
     TRACE_CATEGORY_(TLS_CIPHER),
     TRACE_CATEGORY_(CONF),
-#ifndef OPENSSL_NO_ENGINE
     TRACE_CATEGORY_(ENGINE_TABLE),
     TRACE_CATEGORY_(ENGINE_REF_COUNT),
-#endif
     TRACE_CATEGORY_(PKCS5V2),
     TRACE_CATEGORY_(PKCS12_KEYGEN),
     TRACE_CATEGORY_(PKCS12_DECRYPT),
@@ -143,21 +142,29 @@ static const struct trace_category_st trace_categories[] = {
 
 const char *OSSL_trace_get_category_name(int num)
 {
-    size_t i;
-
-    for (i = 0; i < OSSL_NELEM(trace_categories); i++)
-        if (trace_categories[i].num == num)
-            return trace_categories[i].name;
-    return NULL; /* not found */
+    if (num < 0 || (size_t)num >= OSSL_NELEM(trace_categories))
+        return NULL;
+    /*
+     * Partial check that OSSL_TRACE_CATEGORY_... macros
+     * are synced with trace_categories array
+     */
+    if (!ossl_assert(trace_categories[num].name != NULL)
+        || !ossl_assert(trace_categories[num].num == num))
+        return NULL;
+    return trace_categories[num].name;
 }
 
 int OSSL_trace_get_category_num(const char *name)
 {
     size_t i;
 
+    if (name == NULL)
+        return -1;
+
     for (i = 0; i < OSSL_NELEM(trace_categories); i++)
         if (OPENSSL_strcasecmp(name, trace_categories[i].name) == 0)
             return trace_categories[i].num;
+
     return -1; /* not found */
 }
 
@@ -280,11 +287,6 @@ static int set_trace_data(int category, int type, BIO **channel,
     }
 
     /* Before running callbacks are done, set new data where appropriate */
-    if (channel != NULL && *channel != NULL) {
-        trace_channels[category].type = type;
-        trace_channels[category].bio = *channel;
-    }
-
     if (prefix != NULL && *prefix != NULL) {
         if ((curr_prefix = OPENSSL_strdup(*prefix)) == NULL)
             return 0;
@@ -295,6 +297,15 @@ static int set_trace_data(int category, int type, BIO **channel,
         if ((curr_suffix = OPENSSL_strdup(*suffix)) == NULL)
             return 0;
         trace_channels[category].suffix = curr_suffix;
+    }
+
+    if (channel != NULL && *channel != NULL) {
+        trace_channels[category].type = type;
+        trace_channels[category].bio = *channel;
+        /*
+         * This must not be done before setting prefix/suffix,
+         * as those may fail, and then the caller is mislead to free *channel.
+         */
     }
 
     /* Finally, run the attach callback on the new data */

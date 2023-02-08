@@ -19,8 +19,11 @@ This is the API for validating the protection of CMP messages,
 which includes validating CMP message sender certificates and their paths
 while optionally checking the revocation status of the certificates(s).
 
-OSSL_CMP_validate_msg() validates the protection of the given I<msg>
-using either password-based mac (PBM) or a signature algorithm.
+OSSL_CMP_validate_msg() validates the protection of the given I<msg>,
+which must be signature-based or using password-based MAC (PBM).
+In the former case a suitable trust anchor must be given in the CMP context
+I<ctx>, and in the latter case the matching secret must have been set there
+using L<OSSL_CMP_CTX_set1_secretValue(3)>.
 
 In case of signature algorithm, the certificate to use for the signature check
 is preferably the one provided by a call to L<OSSL_CMP_CTX_set1_srvCert(3)>.
@@ -61,7 +64,9 @@ return 1 on success, 0 on error or validation failed.
 
 =head1 SEE ALSO
 
-L<OSSL_CMP_CTX_new(3)>, L<OSSL_CMP_exec_certreq(3)>
+L<OSSL_CMP_CTX_new(3)>, L<OSSL_CMP_exec_certreq(3)>,
+L<OSSL_CMP_CTX_set1_secretValue(3)>, L<OSSL_CMP_CTX_set1_srvCert(3)>,
+L<OSSL_CMP_CTX_set1_untrusted(3)>, L<OSSL_CMP_CTX_set0_trustedStore(3)>
 
 =head1 HISTORY
 

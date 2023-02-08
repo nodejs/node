@@ -32,6 +32,7 @@
 #include "e_os.h"
 
 #define HKDF_MAXBUF 2048
+#define HKDF_MAXINFO (32*1024)
 
 static OSSL_FUNC_kdf_newctx_fn kdf_hkdf_new;
 static OSSL_FUNC_kdf_freectx_fn kdf_hkdf_free;
@@ -82,7 +83,7 @@ typedef struct {
     size_t label_len;
     unsigned char *data;
     size_t data_len;
-    unsigned char info[HKDF_MAXBUF];
+    unsigned char *info;
     size_t info_len;
 } KDF_HKDF;
 
@@ -121,7 +122,7 @@ static void kdf_hkdf_reset(void *vctx)
     OPENSSL_free(ctx->label);
     OPENSSL_clear_free(ctx->data, ctx->data_len);
     OPENSSL_clear_free(ctx->key, ctx->key_len);
-    OPENSSL_cleanse(ctx->info, ctx->info_len);
+    OPENSSL_clear_free(ctx->info, ctx->info_len);
     memset(ctx, 0, sizeof(*ctx));
     ctx->provctx = provctx;
 }
@@ -244,6 +245,41 @@ static int hkdf_common_set_ctx_params(KDF_HKDF *ctx, const OSSL_PARAM params[])
     return 1;
 }
 
+/*
+ * Use WPACKET to concat one or more OSSL_KDF_PARAM_INFO fields into a fixed
+ * out buffer of size *outlen.
+ * If out is NULL then outlen is used to return the required buffer size.
+ */
+static int setinfo_fromparams(const OSSL_PARAM *p, unsigned char *out, size_t *outlen)
+{
+    int ret = 0;
+    WPACKET pkt;
+
+    if (out == NULL) {
+        if (!WPACKET_init_null(&pkt, 0))
+            return 0;
+    } else {
+        if (!WPACKET_init_static_len(&pkt, out, *outlen, 0))
+            return 0;
+    }
+
+    for (; p != NULL; p = OSSL_PARAM_locate_const(p + 1, OSSL_KDF_PARAM_INFO)) {
+        if (p->data_type != OSSL_PARAM_OCTET_STRING)
+            goto err;
+        if (p->data != NULL
+                && p->data_size != 0
+                && !WPACKET_memcpy(&pkt, p->data, p->data_size))
+            goto err;
+    }
+    if (!WPACKET_get_total_written(&pkt, outlen)
+            || !WPACKET_finish(&pkt))
+        goto err;
+    ret = 1;
+err:
+    WPACKET_cleanup(&pkt);
+    return ret;
+}
+
 static int kdf_hkdf_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 {
     const OSSL_PARAM *p;
@@ -257,20 +293,26 @@ static int kdf_hkdf_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 
     /* The info fields concatenate, so process them all */
     if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_INFO)) != NULL) {
-        ctx->info_len = 0;
-        for (; p != NULL; p = OSSL_PARAM_locate_const(p + 1,
-                                                      OSSL_KDF_PARAM_INFO)) {
-            const void *q = ctx->info + ctx->info_len;
-            size_t sz = 0;
+        size_t sz = 0;
 
-            if (p->data_size != 0
-                && p->data != NULL
-                && !OSSL_PARAM_get_octet_string(p, (void **)&q,
-                                                HKDF_MAXBUF - ctx->info_len,
-                                                &sz))
-                return 0;
-            ctx->info_len += sz;
-        }
+        /* calculate the total size */
+        if (!setinfo_fromparams(p, NULL, &sz))
+            return 0;
+        if (sz > HKDF_MAXINFO)
+            return 0;
+
+        OPENSSL_clear_free(ctx->info, ctx->info_len);
+        ctx->info = NULL;
+        if (sz == 0)
+            return 1;
+        /* Alloc the buffer */
+        ctx->info = OPENSSL_malloc(sz);
+        if (ctx->info == NULL)
+            return 0;
+        ctx->info_len = sz;
+        /* Concat one or more OSSL_KDF_PARAM_INFO fields */
+        if (!setinfo_fromparams(p, ctx->info, &sz))
+            return 0;
     }
     return 1;
 }

@@ -83,14 +83,14 @@ with provider data coming from the same provider, for example keys
 with the L<KEYMGMT|provider-keymgmt(7)> provider.
 
 All "functions" mentioned here are passed as function pointers between
-F<libcrypto> and the provider in B<OSSL_DISPATCH> arrays via
-B<OSSL_ALGORITHM> arrays that are returned by the provider's
+F<libcrypto> and the provider in L<OSSL_DISPATCH(3)> arrays via
+L<OSSL_ALGORITHM(3)> arrays that are returned by the provider's
 provider_query_operation() function
 (see L<provider-base(7)/Provider Functions>).
 
 All these "functions" have a corresponding function type definition
 named B<OSSL_FUNC_{name}_fn>, and a helper function to retrieve the
-function pointer from an B<OSSL_DISPATCH> element named
+function pointer from an L<OSSL_DISPATCH(3)> element named
 B<OSSL_FUNC_{name}>.
 For example, the "function" OSSL_FUNC_encoder_encode() has these:
 
@@ -103,7 +103,7 @@ For example, the "function" OSSL_FUNC_encoder_encode() has these:
  static ossl_inline OSSL_FUNC_encoder_encode_fn
      OSSL_FUNC_encoder_encode(const OSSL_DISPATCH *opf);
 
-B<OSSL_DISPATCH> arrays are indexed by numbers that are provided as
+L<OSSL_DISPATCH(3)> arrays are indexed by numbers that are provided as
 macros in L<openssl-core_dispatch.h(7)>, as follows:
 
  OSSL_FUNC_encoder_get_params          OSSL_FUNC_ENCODER_GET_PARAMS
@@ -213,7 +213,7 @@ from I<params> that it recognises.  Unrecognised parameters should be
 ignored.
 Passing NULL for I<params> should return true.
 
-OSSL_FUNC_encoder_settable_ctx_params() returns a constant B<OSSL_PARAM>
+OSSL_FUNC_encoder_settable_ctx_params() returns a constant L<OSSL_PARAM(3)>
 array describing the parameters that OSSL_FUNC_encoder_set_ctx_params()
 can handle.
 
@@ -242,7 +242,7 @@ OSSL_FUNC_encoder_encode() should take a provider-native object (in
 I<obj_raw>) or an object abstraction (in I<obj_abstract>), and should output
 the object in encoded form to the B<OSSL_CORE_BIO>.  The I<selection> bits,
 if relevant, should determine in greater detail what will be output.
-The encoding functions also take an B<OSSL_PASSPHRASE_CALLBACK> function
+The encoding functions also take an L<OSSL_PASSPHRASE_CALLBACK(3)> function
 pointer along with a pointer to application data I<cbarg>, which should be
 used when a pass phrase prompt is needed.
 
@@ -304,7 +304,7 @@ OSSL_FUNC_encoder_set_ctx_params() returns 1, unless a recognised
 parameter was invalid or caused an error, for which 0 is returned.
 
 OSSL_FUNC_encoder_settable_ctx_params() returns a pointer to an array of
-constant B<OSSL_PARAM> elements.
+constant L<OSSL_PARAM(3)> elements.
 
 OSSL_FUNC_encoder_does_selection() returns 1 if the encoder implementation
 supports any of the I<selection> bits, otherwise 0.
