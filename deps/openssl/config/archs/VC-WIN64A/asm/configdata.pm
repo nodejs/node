@@ -116,8 +116,8 @@ our %config = (
   sourcedir => ".",
   target => "VC-WIN64A",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1s",
-  version_num => "0x1010113fL",
+  version => "1.1.1t",
+  version_num => "0x1010114fL",
 );
 
 our %target = (
@@ -133,7 +133,7 @@ our %target = (
   LDFLAGS => "/nologo /debug",
   MT => "mt",
   MTFLAGS => "-nologo",
-  RANLIB => "CODE(0x55baa3dc2868)",
+  RANLIB => "CODE(0x55f652408bc0)",
   RC => "rc",
   _conf_fname_int => [ "Configurations/00-base-templates.conf", "Configurations/00-base-templates.conf", "Configurations/10-main.conf", "Configurations/10-main.conf", "Configurations/10-main.conf", "Configurations/00-base-templates.conf", "Configurations/10-main.conf", "Configurations/shared-info.pl" ],
   aes_asm_src => "aes_core.c aes_cbc.c vpaes-x86_64.s aesni-x86_64.s aesni-sha1-x86_64.s aesni-sha256-x86_64.s aesni-mb-x86_64.s",
@@ -1979,6 +1979,7 @@ our %unified_info = (
                             "crypto/bn/bn_srp.o",
                             "crypto/bn/bn_word.o",
                             "crypto/bn/bn_x931p.o",
+                            "crypto/bn/rsa_sup_mul.o",
                             "crypto/bn/rsaz-avx2.o",
                             "crypto/bn/rsaz-x86_64.o",
                             "crypto/bn/rsaz_exp.o",
@@ -5708,6 +5709,11 @@ our %unified_info = (
             "crypto/bn/mips-mont.o" =>
                 [
                     "crypto",
+                ],
+            "crypto/bn/rsa_sup_mul.o" =>
+                [
+                    ".",
+                    "include",
                 ],
             "crypto/bn/rsaz-avx2.o" =>
                 [
@@ -10669,6 +10675,10 @@ our %unified_info = (
                 [
                     "crypto/bn/bn_x931p.c",
                 ],
+            "crypto/bn/rsa_sup_mul.o" =>
+                [
+                    "crypto/bn/rsa_sup_mul.c",
+                ],
             "crypto/bn/rsaz-avx2.o" =>
                 [
                     "crypto/bn/rsaz-avx2.s",
@@ -12969,6 +12979,7 @@ our %unified_info = (
                     "crypto/bn/bn_srp.o",
                     "crypto/bn/bn_word.o",
                     "crypto/bn/bn_x931p.o",
+                    "crypto/bn/rsa_sup_mul.o",
                     "crypto/bn/rsaz-avx2.o",
                     "crypto/bn/rsaz-x86_64.o",
                     "crypto/bn/rsaz_exp.o",

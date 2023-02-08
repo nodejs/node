@@ -110,8 +110,8 @@ our %config = (
   sourcedir => ".",
   target => "aix64-gcc",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1s",
-  version_num => "0x1010113fL",
+  version => "1.1.1t",
+  version_num => "0x1010114fL",
 );
 
 our %target = (
@@ -1956,6 +1956,7 @@ our %unified_info = (
                             "crypto/bn/bn_word.o",
                             "crypto/bn/bn_x931p.o",
                             "crypto/bn/ppc-mont.o",
+                            "crypto/bn/rsa_sup_mul.o",
                         ],
                     "products" =>
                         {
@@ -5660,6 +5661,11 @@ our %unified_info = (
                     "crypto",
                 ],
             "crypto/bn/ppc-mont.o" =>
+                [
+                    ".",
+                    "include",
+                ],
+            "crypto/bn/rsa_sup_mul.o" =>
                 [
                     ".",
                     "include",
@@ -10612,6 +10618,10 @@ our %unified_info = (
                 [
                     "crypto/bn/ppc-mont.s",
                 ],
+            "crypto/bn/rsa_sup_mul.o" =>
+                [
+                    "crypto/bn/rsa_sup_mul.c",
+                ],
             "crypto/buffer/buf_err.o" =>
                 [
                     "crypto/buffer/buf_err.c",
@@ -12887,6 +12897,7 @@ our %unified_info = (
                     "crypto/bn/bn_word.o",
                     "crypto/bn/bn_x931p.o",
                     "crypto/bn/ppc-mont.o",
+                    "crypto/bn/rsa_sup_mul.o",
                     "crypto/buffer/buf_err.o",
                     "crypto/buffer/buffer.o",
                     "crypto/camellia/camellia.o",
