@@ -111,8 +111,8 @@ our %config = (
   sourcedir => ".",
   target => "linux64-s390x",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1s",
-  version_num => "0x1010113fL",
+  version => "1.1.1t",
+  version_num => "0x1010114fL",
 );
 
 our %target = (
@@ -1954,6 +1954,7 @@ our %unified_info = (
                             "crypto/bn/bn_srp.o",
                             "crypto/bn/bn_word.o",
                             "crypto/bn/bn_x931p.o",
+                            "crypto/bn/rsa_sup_mul.o",
                             "crypto/bn/s390x-gf2m.o",
                             "crypto/bn/s390x-mont.o",
                         ],
@@ -5642,6 +5643,11 @@ our %unified_info = (
             "crypto/bn/mips-mont.o" =>
                 [
                     "crypto",
+                ],
+            "crypto/bn/rsa_sup_mul.o" =>
+                [
+                    ".",
+                    "include",
                 ],
             "crypto/bn/s390x-gf2m.o" =>
                 [
@@ -10528,6 +10534,10 @@ our %unified_info = (
                 [
                     "crypto/bn/bn_x931p.c",
                 ],
+            "crypto/bn/rsa_sup_mul.o" =>
+                [
+                    "crypto/bn/rsa_sup_mul.c",
+                ],
             "crypto/bn/s390x-gf2m.o" =>
                 [
                     "crypto/bn/s390x-gf2m.s",
@@ -12778,6 +12788,7 @@ our %unified_info = (
                     "crypto/bn/bn_srp.o",
                     "crypto/bn/bn_word.o",
                     "crypto/bn/bn_x931p.o",
+                    "crypto/bn/rsa_sup_mul.o",
                     "crypto/bn/s390x-gf2m.o",
                     "crypto/bn/s390x-mont.o",
                     "crypto/buffer/buf_err.o",
