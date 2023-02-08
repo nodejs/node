@@ -111,8 +111,8 @@ our %config = (
   sourcedir => ".",
   target => "darwin64-x86_64-cc",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1s+quic",
-  version_num => "0x1010113fL",
+  version => "1.1.1t+quic",
+  version_num => "0x1010114fL",
 );
 
 our %target = (
@@ -1947,6 +1947,7 @@ our %unified_info = (
                             "crypto/bn/bn_srp.o",
                             "crypto/bn/bn_word.o",
                             "crypto/bn/bn_x931p.o",
+                            "crypto/bn/rsa_sup_mul.o",
                             "crypto/bn/rsaz-avx2.o",
                             "crypto/bn/rsaz-x86_64.o",
                             "crypto/bn/rsaz_exp.o",
@@ -5670,6 +5671,11 @@ our %unified_info = (
             "crypto/bn/mips-mont.o" =>
                 [
                     "crypto",
+                ],
+            "crypto/bn/rsa_sup_mul.o" =>
+                [
+                    ".",
+                    "include",
                 ],
             "crypto/bn/rsaz-avx2.o" =>
                 [
@@ -10663,6 +10669,10 @@ our %unified_info = (
                 [
                     "crypto/bn/bn_x931p.c",
                 ],
+            "crypto/bn/rsa_sup_mul.o" =>
+                [
+                    "crypto/bn/rsa_sup_mul.c",
+                ],
             "crypto/bn/rsaz-avx2.o" =>
                 [
                     "crypto/bn/rsaz-avx2.s",
@@ -12963,6 +12973,7 @@ our %unified_info = (
                     "crypto/bn/bn_srp.o",
                     "crypto/bn/bn_word.o",
                     "crypto/bn/bn_x931p.o",
+                    "crypto/bn/rsa_sup_mul.o",
                     "crypto/bn/rsaz-avx2.o",
                     "crypto/bn/rsaz-x86_64.o",
                     "crypto/bn/rsaz_exp.o",

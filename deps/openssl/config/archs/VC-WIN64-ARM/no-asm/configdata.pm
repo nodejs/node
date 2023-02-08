@@ -113,8 +113,8 @@ our %config = (
   sourcedir => ".",
   target => "VC-WIN64-ARM",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1s+quic",
-  version_num => "0x1010113fL",
+  version => "1.1.1t+quic",
+  version_num => "0x1010114fL",
 );
 
 our %target = (
@@ -128,7 +128,7 @@ our %target = (
   LDFLAGS => "/nologo /debug",
   MT => "mt",
   MTFLAGS => "-nologo",
-  RANLIB => "CODE(0x5640c6dbcd98)",
+  RANLIB => "CODE(0x55743c7d6610)",
   RC => "rc",
   _conf_fname_int => [ "Configurations/00-base-templates.conf", "Configurations/00-base-templates.conf", "Configurations/10-main.conf", "Configurations/10-main.conf", "Configurations/50-win-onecore.conf", "Configurations/shared-info.pl" ],
   aes_asm_src => "aes_core.c aes_cbc.c",
@@ -1965,6 +1965,7 @@ our %unified_info = (
                             "crypto/bn/bn_srp.o",
                             "crypto/bn/bn_word.o",
                             "crypto/bn/bn_x931p.o",
+                            "crypto/bn/rsa_sup_mul.o",
                         ],
                     "products" =>
                         {
@@ -5653,6 +5654,11 @@ our %unified_info = (
             "crypto/bn/mips-mont.o" =>
                 [
                     "crypto",
+                ],
+            "crypto/bn/rsa_sup_mul.o" =>
+                [
+                    ".",
+                    "include",
                 ],
             "crypto/bn/sparct4-mont.o" =>
                 [
@@ -10514,6 +10520,10 @@ our %unified_info = (
                 [
                     "crypto/bn/bn_x931p.c",
                 ],
+            "crypto/bn/rsa_sup_mul.o" =>
+                [
+                    "crypto/bn/rsa_sup_mul.c",
+                ],
             "crypto/buffer/buf_err.o" =>
                 [
                     "crypto/buffer/buf_err.c",
@@ -12737,6 +12747,7 @@ our %unified_info = (
                     "crypto/bn/bn_srp.o",
                     "crypto/bn/bn_word.o",
                     "crypto/bn/bn_x931p.o",
+                    "crypto/bn/rsa_sup_mul.o",
                     "crypto/buffer/buf_err.o",
                     "crypto/buffer/buffer.o",
                     "crypto/camellia/camellia.o",

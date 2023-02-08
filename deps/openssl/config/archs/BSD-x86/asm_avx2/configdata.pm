@@ -111,8 +111,8 @@ our %config = (
   sourcedir => ".",
   target => "BSD-x86",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1s+quic",
-  version_num => "0x1010113fL",
+  version => "1.1.1t+quic",
+  version_num => "0x1010114fL",
 );
 
 our %target = (
@@ -1945,6 +1945,7 @@ our %unified_info = (
                             "crypto/bn/bn_word.o",
                             "crypto/bn/bn_x931p.o",
                             "crypto/bn/co-586.o",
+                            "crypto/bn/rsa_sup_mul.o",
                             "crypto/bn/x86-gf2m.o",
                             "crypto/bn/x86-mont.o",
                         ],
@@ -5637,6 +5638,11 @@ our %unified_info = (
             "crypto/bn/mips-mont.o" =>
                 [
                     "crypto",
+                ],
+            "crypto/bn/rsa_sup_mul.o" =>
+                [
+                    ".",
+                    "include",
                 ],
             "crypto/bn/sparct4-mont.o" =>
                 [
@@ -10587,6 +10593,10 @@ our %unified_info = (
                 [
                     "crypto/bn/co-586.s",
                 ],
+            "crypto/bn/rsa_sup_mul.o" =>
+                [
+                    "crypto/bn/rsa_sup_mul.c",
+                ],
             "crypto/bn/x86-gf2m.o" =>
                 [
                     "crypto/bn/x86-gf2m.s",
@@ -12857,6 +12867,7 @@ our %unified_info = (
                     "crypto/bn/bn_word.o",
                     "crypto/bn/bn_x931p.o",
                     "crypto/bn/co-586.o",
+                    "crypto/bn/rsa_sup_mul.o",
                     "crypto/bn/x86-gf2m.o",
                     "crypto/bn/x86-mont.o",
                     "crypto/buffer/buf_err.o",
