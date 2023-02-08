@@ -53,6 +53,7 @@ for the following features are yet to come:
 * Running an archive of multiple files.
 * Accepting [Node.js-specific CLI options][] embedded into the binary.
 * [XCOFF][] executable format.
+* Run tests on Linux architectures/distributions other than AMD64 Ubuntu.
 
 ## Disabling single executable application support
 

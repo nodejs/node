@@ -67,6 +67,16 @@ equal to [`process.execPath`][].
 The value of `__dirname` in the injected module is equal to the directory name
 of [`process.execPath`][].
 
+### Linux support
+
+AMD64 Ubuntu is the only Linux distribution where single-executable support is
+tested regularly on CI currently. This is because the tool that is used to test
+the creation of single-executables, [postject][], has some known issues on other
+architectures/distributions which results in the creation of a binary that runs
+into segmentation faults.
+
+However, using a different tool for the resource injection part might work.
+
 [CommonJS]: modules.md#modules-commonjs-modules
 [ELF]: https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
