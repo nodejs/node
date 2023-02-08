@@ -1037,68 +1037,60 @@ void ConnectionsList::New(const FunctionCallbackInfo<Value>& args) {
 
 void ConnectionsList::All(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  Local<Context> context = isolate->GetCurrentContext();
 
-  Local<Array> all = Array::New(isolate);
   ConnectionsList* list;
 
   ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
 
-  uint32_t i = 0;
+  std::vector<Local<Value>> result;
+  result.reserve(list->all_connections_.size());
   for (auto parser : list->all_connections_) {
-    if (all->Set(context, i++, parser->object()).IsNothing()) {
-      return;
-    }
+    result.emplace_back(parser->object());
   }
 
-  return args.GetReturnValue().Set(all);
+  return args.GetReturnValue().Set(
+      Array::New(isolate, result.data(), result.size()));
 }
 
 void ConnectionsList::Idle(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  Local<Context> context = isolate->GetCurrentContext();
 
-  Local<Array> idle = Array::New(isolate);
   ConnectionsList* list;
 
   ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
 
-  uint32_t i = 0;
+  std::vector<Local<Value>> result;
+  result.reserve(list->all_connections_.size());
   for (auto parser : list->all_connections_) {
     if (parser->last_message_start_ == 0) {
-      if (idle->Set(context, i++, parser->object()).IsNothing()) {
-        return;
-      }
+      result.emplace_back(parser->object());
     }
   }
 
-  return args.GetReturnValue().Set(idle);
+  return args.GetReturnValue().Set(
+      Array::New(isolate, result.data(), result.size()));
 }
 
 void ConnectionsList::Active(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  Local<Context> context = isolate->GetCurrentContext();
 
-  Local<Array> active = Array::New(isolate);
   ConnectionsList* list;
 
   ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
 
-  uint32_t i = 0;
+  std::vector<Local<Value>> result;
+  result.reserve(list->active_connections_.size());
   for (auto parser : list->active_connections_) {
-    if (active->Set(context, i++, parser->object()).IsNothing()) {
-      return;
-    }
+    result.emplace_back(parser->object());
   }
 
-  return args.GetReturnValue().Set(active);
+  return args.GetReturnValue().Set(
+      Array::New(isolate, result.data(), result.size()));
 }
 
 void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  Local<Context> context = isolate->GetCurrentContext();
 
-  Local<Array> expired = Array::New(isolate);
   ConnectionsList* list;
 
   ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
@@ -1110,7 +1102,7 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
     static_cast<uint64_t>(args[1].As<Uint32>()->Value()) * 1000000;
 
   if (headers_timeout == 0 && request_timeout == 0) {
-    return args.GetReturnValue().Set(expired);
+    return args.GetReturnValue().Set(Array::New(isolate, 0));
   } else if (request_timeout > 0 && headers_timeout > request_timeout) {
     std::swap(headers_timeout, request_timeout);
   }
@@ -1121,9 +1113,11 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
   const uint64_t request_deadline =
     request_timeout > 0 ? now - request_timeout : 0;
 
-  uint32_t i = 0;
   auto iter = list->active_connections_.begin();
   auto end = list->active_connections_.end();
+
+  std::vector<Local<Value>> result;
+  result.reserve(list->active_connections_.size());
   while (iter != end) {
     Parser* parser = *iter;
     iter++;
@@ -1136,15 +1130,14 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
         request_deadline > 0 &&
         parser->last_message_start_ < request_deadline)
     ) {
-      if (expired->Set(context, i++, parser->object()).IsNothing()) {
-        return;
-      }
+      result.emplace_back(parser->object());
 
       list->active_connections_.erase(parser);
     }
   }
 
-  return args.GetReturnValue().Set(expired);
+  return args.GetReturnValue().Set(
+      Array::New(isolate, result.data(), result.size()));
 }
 
 const llhttp_settings_t Parser::settings = {
