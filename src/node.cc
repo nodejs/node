@@ -39,6 +39,7 @@
 #include "node_realm-inl.h"
 #include "node_report.h"
 #include "node_revert.h"
+#include "node_sea.h"
 #include "node_snapshot_builder.h"
 #include "node_v8_platform-inl.h"
 #include "node_version.h"
@@ -258,7 +259,6 @@ void Environment::InitializeDiagnostics() {
   }
 }
 
-static
 MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
   EscapableHandleScope scope(env->isolate());
   CHECK_NOT_NULL(main_script_id);
@@ -266,23 +266,6 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
 
   return scope.EscapeMaybe(realm->ExecuteBootstrapper(main_script_id));
 }
-
-class ExternalOneByteStringSingleExecutableCode :
-  public v8::String::ExternalOneByteStringResource {
- public:
-  explicit ExternalOneByteStringSingleExecutableCode(
-      const char* data, size_t size)
-      : data_(data),
-        size_(size) {}
-
-  const char* data() const override { return data_; }
-
-  size_t length() const override { return size_; }
-
- private:
-  const char* data_;
-  size_t size_;
-};
 
 MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   InternalCallbackScope callback_scope(
@@ -329,22 +312,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   }
 
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  if (IsSingleExecutable()) {
-    size_t single_executable_application_size = 0;
-    const char* single_executable_application_code =
-        FindSingleExecutableCode(&single_executable_application_size);
-    if (single_executable_application_code != nullptr) {
-      v8::Local<v8::String> code = v8::String::NewExternalOneByte(
-        env->isolate(),
-        new ExternalOneByteStringSingleExecutableCode(
-          single_executable_application_code,
-          single_executable_application_size)).ToLocalChecked();
-      env->process_object()
-          ->SetPrivate(
-              env->context(), env->single_executable_application_code(), code)
-          .Check();
-      return StartExecution(env, "internal/main/single_executable_application");
-    }
+  if (per_process::sea::IsSingleExecutable()) {
+    return per_process::sea::StartSingleExecutableExecution(env);
   }
 #endif
 
@@ -1287,31 +1256,10 @@ static ExitCode StartInternal(int argc, char** argv) {
   return LoadSnapshotDataAndRun(&snapshot_data, result.get());
 }
 
-static std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
-#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  // Repeats argv[0] at position 1 on argv as a replacement for the missing
-  // entry point file path.
-  if (IsSingleExecutable()) {
-    char** new_argv = new char*[argc + 2];
-    int new_argc = 0;
-    new_argv[new_argc++] = argv[0];
-    new_argv[new_argc++] = argv[0];
-
-    for (int i = 1; i < argc; ++i) {
-      new_argv[new_argc++] = argv[i];
-    }
-
-    new_argv[new_argc] = nullptr;
-
-    argc = new_argc;
-    argv = new_argv;
-  }
-#endif
-  return {argc, argv};
-}
-
 int Start(int argc, char** argv) {
-  std::tie(argc, argv) = FixupArgsForSEA(argc, argv);
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  std::tie(argc, argv) = per_process::sea::FixupArgsForSEA(argc, argv);
+#endif
   return static_cast<int>(StartInternal(argc, argv));
 }
 

@@ -5,6 +5,7 @@
 #include "node_binding.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "node_sea.h"
 #if HAVE_OPENSSL
 #include "openssl/opensslv.h"
 #endif
@@ -301,7 +302,7 @@ void Parse(
 
 DebugOptionsParser::DebugOptionsParser() {
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  if (IsSingleExecutable()) return;
+  if (per_process::sea::IsSingleExecutable()) return;
 #endif
 
   AddOption("--inspect-port",
