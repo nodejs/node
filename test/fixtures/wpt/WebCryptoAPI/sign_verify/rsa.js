@@ -306,6 +306,35 @@ function run_test() {
         all_promises.push(promise);
     });
 
+    // [RSA-PSS] Verification should fail with wrong saltLength
+    testVectors.forEach(function(vector) {
+        if (vector.algorithm.name === "RSA-PSS") {
+            var promise = importVectorKeys(vector, ["verify"], ["sign"])
+            .then(function(vectors) {
+                promise_test(function(test) {
+                    const saltLength = vector.algorithm.saltLength === 32 ? 48 : 32;
+                    var operation = subtle.verify({ ...vector.algorithm, saltLength }, vector.publicKey, vector.signature, vector.plaintext)
+                    .then(function(is_verified) {
+                        assert_false(is_verified, "Signature NOT verified");
+                    }, function(err) {
+                        assert_unreached("Verification should not throw error " + vector.name + ": " + err.message + "'");
+                    });
+
+                    return operation;
+                }, vector.name + " verification failure with wrong saltLength");
+
+            }, function(err) {
+                // We need a failed test if the importVectorKey operation fails, so
+                // we know we never tested verification.
+                promise_test(function(test) {
+                    assert_unreached("importVectorKeys failed for " + vector.name + ". Message: ''" + err.message + "''");
+                }, "importVectorKeys step: " + vector.name + " verification failure with wrong saltLength");
+            });
+
+            all_promises.push(promise);
+        }
+    });
+
     // Verification should fail with wrong plaintext
     testVectors.forEach(function(vector) {
         var promise = importVectorKeys(vector, ["verify"], ["sign"])
