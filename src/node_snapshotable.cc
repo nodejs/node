@@ -860,6 +860,7 @@ void SnapshotData::ToBlob(FILE* out) const {
   size_t num_written = fwrite(w.sink.data(), w.sink.size(), 1, out);
   CHECK_EQ(num_written, 1);
   w.Debug("SnapshotData::ToBlob() Wrote %d bytes\n", written_total);
+  CHECK_EQ(fflush(out), 0);
 }
 
 bool SnapshotData::FromBlob(SnapshotData* out, FILE* in) {
