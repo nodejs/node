@@ -661,7 +661,7 @@ changes:
                  buffers anymore.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer}
 * `offset` {integer} The start position from within `buffer` where the data
   to write begins.
 * `length` {integer} The number of bytes from `buffer` to write. **Default:**
@@ -677,7 +677,7 @@ Write `buffer` to the file.
 The promise is resolved with an object containing two properties:
 
 * `bytesWritten` {integer} the number of bytes written
-* `buffer` {Buffer|TypedArray|DataView} a reference to the
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer} a reference to the
   `buffer` written.
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
@@ -696,7 +696,7 @@ added:
   - v16.17.0
 -->
 
-* `buffer` {Buffer|TypedArray|DataView}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer}
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
@@ -760,7 +760,7 @@ changes:
                  strings anymore.
 -->
 
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
+* `data` {string|Buffer|TypedArray|DataView|ArrayBuffer|AsyncIterable|Iterable|Stream}
 * `options` {Object|string}
   * `encoding` {string|null} The expected character encoding when `data` is a
     string. **Default:** `'utf8'`
@@ -788,18 +788,18 @@ beginning of the file.
 added: v12.9.0
 -->
 
-* `buffers` {Buffer\[]|TypedArray\[]|DataView\[]}
+* `buffers` {Buffer\[]|TypedArray\[]|DataView\[]|ArrayBuffer\[]}
 * `position` {integer|null} The offset from the beginning of the file where the
   data from `buffers` should be written. If `position` is not a `number`,
   the data will be written at the current position. **Default:** `null`
 * Returns: {Promise}
 
-Write an array of {ArrayBufferView}s to the file.
+Write an array of {ArrayBufferView}s or {ArrayBuffer}s to the file.
 
 The promise is resolved with an object containing a two properties:
 
 * `bytesWritten` {integer} the number of bytes written
-* `buffers` {Buffer\[]|TypedArray\[]|DataView\[]} a reference to the `buffers`
+* `buffers` {Buffer\[]|TypedArray\[]|DataView\[]|ArrayBuffer\[]} a reference to the `buffers`
   input.
 
 It is unsafe to call `writev()` multiple times on the same file without waiting
@@ -856,7 +856,7 @@ added: v10.0.0
 -->
 
 * `path` {string|Buffer|URL|FileHandle} filename or {FileHandle}
-* `data` {string|Buffer}
+* `data` {string|Buffer|ArrayBuffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -864,7 +864,7 @@ added: v10.0.0
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously append data to a file, creating the file if it does not yet
-exist. `data` can be a string or a {Buffer}.
+exist. `data` can be a string, a {Buffer}, or an {ArrayBuffer}.
 
 If `options` is a string, then it specifies the `encoding`.
 
@@ -1693,7 +1693,7 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|FileHandle} filename or `FileHandle`
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
+* `data` {string|Buffer|TypedArray|DataView|ArrayBuffer|AsyncIterable|Iterable|Stream}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -1989,7 +1989,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL|number} filename or file descriptor
-* `data` {string|Buffer}
+* `data` {string|Buffer|ArrayBuffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -1998,7 +1998,7 @@ changes:
   * `err` {Error}
 
 Asynchronously append data to a file, creating the file if it does not yet
-exist. `data` can be a string or a {Buffer}.
+exist. `data` can be a string, a {Buffer}, or an {ArrayBuffer}.
 
 The `mode` option only affects the newly created file. See [`fs.open()`][]
 for more details.
@@ -4594,7 +4594,7 @@ changes:
 -->
 
 * `fd` {integer}
-* `buffer` {Buffer|TypedArray|DataView}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer}
 * `offset` {integer} **Default:** `0`
 * `length` {integer} **Default:** `buffer.byteLength - offset`
 * `position` {integer|null} **Default:** `null`
@@ -4780,7 +4780,7 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|integer} filename or file descriptor
-* `data` {string|Buffer|TypedArray|DataView}
+* `data` {string|Buffer|TypedArray|DataView|ArrayBuffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -4891,14 +4891,14 @@ changes:
 -->
 
 * `fd` {integer}
-* `buffers` {ArrayBufferView\[]}
+* `buffers` {ArrayBufferView\[]|ArrayBuffer\[]}
 * `position` {integer|null} **Default:** `null`
 * `callback` {Function}
   * `err` {Error}
   * `bytesWritten` {integer}
   * `buffers` {ArrayBufferView\[]}
 
-Write an array of `ArrayBufferView`s to the file specified by `fd` using
+Write an array of `ArrayBufferView`s or `ArrayBuffer`s to the file specified by `fd` using
 `writev()`.
 
 `position` is the offset from the beginning of the file where this data
@@ -4973,14 +4973,14 @@ changes:
 -->
 
 * `path` {string|Buffer|URL|number} filename or file descriptor
-* `data` {string|Buffer}
+* `data` {string|Buffer|ArrayBuffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
 
 Synchronously append data to a file, creating the file if it does not yet
-exist. `data` can be a string or a {Buffer}.
+exist. `data` can be a string, a {Buffer}, or an {ArrayBuffer}.
 
 The `mode` option only affects the newly created file. See [`fs.open()`][]
 for more details.
@@ -6019,7 +6019,7 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|integer} filename or file descriptor
-* `data` {string|Buffer|TypedArray|DataView}
+* `data` {string|Buffer|TypedArray|DataView|ArrayBuffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -6055,7 +6055,7 @@ changes:
 -->
 
 * `fd` {integer}
-* `buffer` {Buffer|TypedArray|DataView}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer}
 * `offset` {integer} **Default:** `0`
 * `length` {integer} **Default:** `buffer.byteLength - offset`
 * `position` {integer|null} **Default:** `null`
@@ -6073,7 +6073,7 @@ added:
 -->
 
 * `fd` {integer}
-* `buffer` {Buffer|TypedArray|DataView}
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer}
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
@@ -6113,7 +6113,7 @@ added: v12.9.0
 -->
 
 * `fd` {integer}
-* `buffers` {ArrayBufferView\[]}
+* `buffers` {ArrayBufferView\[]|ArrayBuffer\[]}
 * `position` {integer|null} **Default:** `null`
 * Returns: {number} The number of bytes written.
 

@@ -5,6 +5,11 @@ const path = require('path');
 const fs = require('fs').promises;
 const tmpdir = require('../common/tmpdir');
 const expected = 'ümlaut. Лорем 運務ホソモ指及 आपको करने विकास 紙読決多密所 أضف';
+const arrayBufferExpected = new ArrayBuffer(expected.length * 2);
+const bufferView = new Uint16Array(arrayBufferExpected);
+for (let i = 0; i < expected.length; i++) {
+  bufferView[i] = expected.charCodeAt(i);
+}
 let cnt = 0;
 
 function getFileName() {
@@ -45,6 +50,23 @@ tmpdir.refresh();
     assert.deepStrictEqual(bytesWritten, expectedLength);
     assert.deepStrictEqual(buffers, bufferArr);
     assert(Buffer.concat(bufferArr).equals(await fs.readFile(filename)));
+    handle.close();
+  }
+
+  // fs.promises.writev() with an array of ArrayBuffers without position.
+  {
+    const filename = getFileName();
+    const handle = await fs.open(filename, 'w');
+    const bufferArr = [arrayBufferExpected, arrayBufferExpected, arrayBufferExpected];
+    const expectedLength = bufferArr.length * arrayBufferExpected.byteLength;
+    let { bytesWritten, buffers } = await handle.writev([Buffer.from('')]);
+    assert.strictEqual(bytesWritten, 0);
+    assert.deepStrictEqual(buffers, [Buffer.from('')]);
+    ({ bytesWritten, buffers } = await handle.writev(bufferArr));
+    assert.deepStrictEqual(bytesWritten, expectedLength);
+    assert.deepStrictEqual(buffers, bufferArr);
+    const expectedResult = Buffer.concat(bufferArr.map((arrayBuffer) => new Uint8Array(arrayBuffer)));
+    assert(expectedResult.equals(await fs.readFile(filename)));
     handle.close();
   }
 

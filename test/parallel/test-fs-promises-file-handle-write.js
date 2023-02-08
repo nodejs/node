@@ -26,6 +26,18 @@ async function validateWrite() {
   await fileHandle.close();
 }
 
+async function validateArrayBufferWrite() {
+  const filePathForHandle = path.resolve(tmpDir, 'tmp-arraybuffer-write.txt');
+  const fileHandle = await open(filePathForHandle, 'w+');
+  const buffer = Buffer.from('Hello world'.repeat(100), 'utf8');
+
+  await fileHandle.write(buffer.buffer, 0, buffer.length);
+  const readFileData = fs.readFileSync(filePathForHandle);
+  assert.deepStrictEqual(buffer, readFileData);
+
+  await fileHandle.close();
+}
+
 async function validateEmptyWrite() {
   const filePathForHandle = path.resolve(tmpDir, 'tmp-empty-write.txt');
   const fileHandle = await open(filePathForHandle, 'w+');
@@ -71,6 +83,7 @@ async function validateNonStringValuesWrite() {
 
 Promise.all([
   validateWrite(),
+  validateArrayBufferWrite(),
   validateEmptyWrite(),
   validateNonUint8ArrayWrite(),
   validateNonStringValuesWrite(),

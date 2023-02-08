@@ -50,7 +50,6 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_${i}.txt`);
     const expectedLength = bufferArr.length * buffer.byteLength;
     assert.deepStrictEqual(written, expectedLength);
     fs.closeSync(fd);
-
     assert(Buffer.concat(bufferArr).equals(fs.readFileSync(filename)));
   });
 
@@ -74,6 +73,37 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_${i}.txt`);
 
   fs.writev(fd, bufferArr, done);
   afterSyncCall = true;
+}
+
+// fs.writev with array of ArrayBuffers without position
+{
+  const filename = getFileName(5);
+  const fd = fs.openSync(filename, 'w');
+
+  const buffer = Buffer.from(expected);
+  const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  const arrayBufferArr = [arrayBuffer, arrayBuffer];
+
+  const done = common.mustSucceed((written, buffers) => {
+    assert.deepStrictEqual(arrayBufferArr, buffers);
+
+    const expectedLength = arrayBufferArr.length * arrayBuffer.byteLength;
+    console.log({ arrLength: arrayBufferArr.length, byteLength: arrayBuffer.byteLength })
+    assert.deepStrictEqual(written, expectedLength);
+    fs.closeSync(fd);
+    const expectedResult = Buffer.concat(arrayBufferArr.map((buf) => new Uint8Array(buf)));
+    const gotResult = fs.readFileSync(filename);
+    for (let i = 0; i < expectedResult.byteLength; i++) {
+      if (expectedResult[i] !== gotResult[i]) {
+        console.log({ i, expected: expectedResult[i], got: gotResult[i], expectedLength })
+        break;
+      }
+    }
+    // console.log({ expectedResult, _____gotResult, equal: expectedResult.compare(gotResult) });
+    assert(expectedResult.equals(gotResult));
+  });
+
+  fs.writev(fd, arrayBufferArr, done);
 }
 
 /**
