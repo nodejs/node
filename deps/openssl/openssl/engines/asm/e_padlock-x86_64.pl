@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2011-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2011-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -92,6 +92,8 @@ padlock_capability:
 .align	16
 padlock_key_bswap:
 	mov	240($arg1),%edx
+	inc	%edx
+	shl	\$2,%edx
 .Lbswap_loop:
 	mov	($arg1),%eax
 	bswap	%eax

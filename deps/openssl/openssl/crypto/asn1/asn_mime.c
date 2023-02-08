@@ -489,6 +489,7 @@ int SMIME_crlf_copy(BIO *in, BIO *out, int flags)
     char eol;
     int len;
     char linebuf[MAX_SMLEN];
+    int ret;
     /*
      * Buffer output so we don't write one line at a time. This is useful
      * when streaming as we don't end up with one OCTET STRING per line.
@@ -523,9 +524,12 @@ int SMIME_crlf_copy(BIO *in, BIO *out, int flags)
                 BIO_write(out, "\r\n", 2);
         }
     }
-    (void)BIO_flush(out);
+    ret = BIO_flush(out);
     BIO_pop(out);
     BIO_free(bf);
+    if (ret <= 0)
+        return 0;
+
     return 1;
 }
 

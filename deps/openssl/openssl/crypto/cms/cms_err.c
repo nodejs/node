@@ -264,6 +264,8 @@ static const ERR_STRING_DATA CMS_str_reasons[] = {
     {ERR_PACK(ERR_LIB_CMS, 0, CMS_R_UNKNOWN_ID), "unknown id"},
     {ERR_PACK(ERR_LIB_CMS, 0, CMS_R_UNSUPPORTED_COMPRESSION_ALGORITHM),
     "unsupported compression algorithm"},
+    {ERR_PACK(ERR_LIB_CMS, 0, CMS_R_UNSUPPORTED_CONTENT_ENCRYPTION_ALGORITHM),
+    "unsupported content encryption algorithm"},
     {ERR_PACK(ERR_LIB_CMS, 0, CMS_R_UNSUPPORTED_CONTENT_TYPE),
     "unsupported content type"},
     {ERR_PACK(ERR_LIB_CMS, 0, CMS_R_UNSUPPORTED_KEK_ALGORITHM),

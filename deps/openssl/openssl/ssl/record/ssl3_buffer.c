@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -97,11 +97,16 @@ int ssl3_setup_write_buffer(SSL *s, size_t numwpipes, size_t len)
 #endif
 
         len = ssl_get_max_send_fragment(s)
-            + SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD + headerlen + align;
+            + SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD + headerlen + align
+            + SSL_RT_MAX_CIPHER_BLOCK_SIZE /* Explicit IV allowance */;
 #ifndef OPENSSL_NO_COMP
         if (ssl_allow_compression(s))
             len += SSL3_RT_MAX_COMPRESSED_OVERHEAD;
 #endif
+        /*
+         * We don't need to add an allowance for eivlen here since empty
+         * fragments only occur when we don't have an explicit IV
+         */
         if (!(s->options & SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS))
             len += headerlen + align + SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD;
     }

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -13,7 +13,7 @@ use warnings;
 use POSIX;
 use File::Spec::Functions qw/catfile/;
 use File::Compare qw/compare_text/;
-use OpenSSL::Test qw/:DEFAULT srctop_dir srctop_file/;
+use OpenSSL::Test qw/:DEFAULT srctop_dir srctop_file with/;
 use OpenSSL::Test::Utils;
 
 setup("test_cms");
@@ -27,7 +27,7 @@ my $smcont   = srctop_file("test", "smcont.txt");
 my ($no_des, $no_dh, $no_dsa, $no_ec, $no_ec2m, $no_rc2, $no_zlib)
     = disabled qw/des dh dsa ec ec2m rc2 zlib/;
 
-plan tests => 6;
+plan tests => 7;
 
 my @smime_pkcs7_tests = (
 
@@ -584,3 +584,14 @@ sub check_availability {
 
     return "";
 }
+
+# Check that we get the expected failure return code
+with({ exit_checker => sub { return shift == 6; } },
+    sub {
+        ok(run(app(['openssl', 'cms', '-encrypt',
+                    '-in', srctop_file("test", "smcont.txt"),
+                    '-stream', '-recip',
+                    srctop_file("test/smime-certs", "badrsa.pem"),
+                   ])),
+            "Check failure during BIO setup with -stream is handled correctly");
+    });

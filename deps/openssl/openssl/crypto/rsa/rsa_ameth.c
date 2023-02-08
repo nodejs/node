@@ -172,6 +172,7 @@ static int rsa_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)
                          strtype, str, rk, rklen)) {
         RSAerr(RSA_F_RSA_PRIV_ENCODE, ERR_R_MALLOC_FAILURE);
         ASN1_STRING_free(str);
+        OPENSSL_clear_free(rk, rklen);
         return 0;
     }
 
