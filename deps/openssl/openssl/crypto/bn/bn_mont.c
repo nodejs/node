@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -42,7 +42,7 @@ int bn_mul_mont_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
     int num = mont->N.top;
 
 #if defined(OPENSSL_BN_ASM_MONT) && defined(MONT_WORD)
-    if (num > 1 && a->top == num && b->top == num) {
+    if (num > 1 && num <= BN_SOFT_LIMIT && a->top == num && b->top == num) {
         if (bn_wexpand(r, num) == NULL)
             return 0;
         if (bn_mul_mont(r->d, a->d, b->d, mont->N.d, mont->n0, num)) {

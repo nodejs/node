@@ -272,7 +272,7 @@ __owur static ossl_inline int PACKET_get_net_4_len(PACKET *pkt, size_t *data)
 
     return ret;
 }
-
+ 
 /* Get 8 bytes in network order from |pkt| and store the value in |*data| */
 __owur static ossl_inline int PACKET_get_net_8(PACKET *pkt, uint64_t *data)
 {

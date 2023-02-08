@@ -68,7 +68,12 @@ BIO *cms_EncryptedContent_init_bio(CMS_EncryptedContentInfo *ec)
 
     if (enc) {
         int ivlen;
+
         calg->algorithm = OBJ_nid2obj(EVP_CIPHER_CTX_type(ctx));
+        if (calg->algorithm == NULL) {
+            CMSerr(ERR_LIB_CMS, CMS_R_UNSUPPORTED_CONTENT_ENCRYPTION_ALGORITHM);
+            goto err;
+        }
         /* Generate a random IV if we need one */
         ivlen = EVP_CIPHER_CTX_iv_length(ctx);
         if (ivlen > 0) {
