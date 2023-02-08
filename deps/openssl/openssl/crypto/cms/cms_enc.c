@@ -81,6 +81,10 @@ BIO *ossl_cms_EncryptedContent_init_bio(CMS_EncryptedContentInfo *ec,
 
     if (enc) {
         calg->algorithm = OBJ_nid2obj(EVP_CIPHER_CTX_get_type(ctx));
+        if (calg->algorithm == NULL) {
+            ERR_raise(ERR_LIB_CMS, CMS_R_UNSUPPORTED_CONTENT_ENCRYPTION_ALGORITHM);
+            goto err;
+        }
         /* Generate a random IV if we need one */
         ivlen = EVP_CIPHER_CTX_get_iv_length(ctx);
         if (ivlen < 0) {

@@ -2724,6 +2724,13 @@ static int custom_params_test(int id)
     if (!TEST_ptr(ctx = BN_CTX_new()))
         return 0;
 
+    BN_CTX_start(ctx);
+    if (!TEST_ptr(p = BN_CTX_get(ctx))
+            || !TEST_ptr(a = BN_CTX_get(ctx))
+            || !TEST_ptr(b = BN_CTX_get(ctx))
+            || !TEST_ptr(k = BN_CTX_get(ctx)))
+        goto err;
+
     if (!TEST_ptr(group = EC_GROUP_new_by_curve_name(nid)))
         goto err;
 
@@ -2734,13 +2741,6 @@ static int custom_params_test(int id)
         goto err;
     }
 #endif
-
-    BN_CTX_start(ctx);
-    if (!TEST_ptr(p = BN_CTX_get(ctx))
-            || !TEST_ptr(a = BN_CTX_get(ctx))
-            || !TEST_ptr(b = BN_CTX_get(ctx))
-            || !TEST_ptr(k = BN_CTX_get(ctx)))
-        goto err;
 
     /* expected byte length of encoded points */
     bsize = (EC_GROUP_get_degree(group) + 7) / 8;

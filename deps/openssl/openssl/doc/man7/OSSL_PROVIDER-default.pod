@@ -247,6 +247,8 @@ L<OSSL_PROVIDER-base(7)>
 
 The RIPEMD160 digest was added to the default provider in OpenSSL 3.0.7.
 
+All other functionality was added in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
 Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.

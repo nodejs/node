@@ -79,7 +79,7 @@ meant for display and human consumption.  The description is at the
 discretion of the I<signature> implementation.
 
 EVP_SIGNATURE_gettable_ctx_params() and EVP_SIGNATURE_settable_ctx_params()
-return a constant B<OSSL_PARAM> array that describes the names and types of key
+return a constant L<OSSL_PARAM(3)> array that describes the names and types of key
 parameters that can be retrieved or set by a signature algorithm using
 L<EVP_PKEY_CTX_get_params(3)> and L<EVP_PKEY_CTX_set_params(3)>.
 
@@ -94,7 +94,7 @@ EVP_SIGNATURE_names_do_all() returns 1 if the callback was called for all names.
 A return value of 0 means that the callback was not called for any names.
 
 EVP_SIGNATURE_gettable_ctx_params() and EVP_SIGNATURE_settable_ctx_params()
-return a constant B<OSSL_PARAM> array or NULL on error.
+return a constant L<OSSL_PARAM(3)> array or NULL on error.
 
 =head1 SEE ALSO
 

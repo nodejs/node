@@ -49,8 +49,10 @@ X509_STORE_CTX_set_error_depth() sets the error I<depth>.
 This can be used in combination with X509_STORE_CTX_set_error() to set the
 depth at which an error condition was detected.
 
-X509_STORE_CTX_get_current_cert() returns the certificate in I<ctx> which
-caused the error or NULL if no certificate is relevant.
+X509_STORE_CTX_get_current_cert() returns the current certificate in
+I<ctx>. If an error occurred, the current certificate will be the one
+that is most closely related to the error, or possibly NULL if no such
+certificate is relevant.
 
 X509_STORE_CTX_set_current_cert() sets the certificate I<x> in I<ctx> which
 caused the error.
@@ -227,7 +229,7 @@ consistent with the supplied purpose.
 
 The basicConstraints path-length parameter has been exceeded.
 
-=item B<X509_V_ERR_INVALID_PURPOSE: unsupported certificate purpose>
+=item B<X509_V_ERR_INVALID_PURPOSE: unsuitable certificate purpose>
 
 The target certificate cannot be used for the specified purpose.
 
@@ -471,7 +473,7 @@ L<X509_free(3)>.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -48,14 +48,14 @@ L<EVP_PKEY_derive(3)> and
 other related functions).
 
 All "functions" mentioned here are passed as function pointers between
-F<libcrypto> and the provider in B<OSSL_DISPATCH> arrays via
-B<OSSL_ALGORITHM> arrays that are returned by the provider's
+F<libcrypto> and the provider in L<OSSL_DISPATCH(3)> arrays via
+L<OSSL_ALGORITHM(3)> arrays that are returned by the provider's
 provider_query_operation() function
 (see L<provider-base(7)/Provider Functions>).
 
 All these "functions" have a corresponding function type definition
 named B<OSSL_FUNC_{name}_fn>, and a helper function to retrieve the
-function pointer from an B<OSSL_DISPATCH> element named
+function pointer from an L<OSSL_DISPATCH(3)> element named
 B<OSSL_FUNC_{name}>.
 For example, the "function" OSSL_FUNC_keyexch_newctx() has these:
 
@@ -63,7 +63,7 @@ For example, the "function" OSSL_FUNC_keyexch_newctx() has these:
  static ossl_inline OSSL_FUNC_keyexch_newctx_fn
      OSSL_FUNC_keyexch_newctx(const OSSL_DISPATCH *opf);
 
-B<OSSL_DISPATCH> arrays are indexed by numbers that are provided as
+L<OSSL_DISPATCH(3)> arrays are indexed by numbers that are provided as
 macros in L<openssl-core_dispatch.h(7)>, as follows:
 
  OSSL_FUNC_keyexch_newctx                OSSL_FUNC_KEYEXCH_NEWCTX
@@ -146,17 +146,16 @@ given provider side key exchange context I<ctx> into I<params>,
 see L</Common Key Exchange parameters>.
 Passing NULL for I<params> should return true.
 
-OSSL_FUNC_keyexch_settable_ctx_params() yields a constant B<OSSL_PARAM> array that
+OSSL_FUNC_keyexch_settable_ctx_params() yields a constant L<OSSL_PARAM(3)> array that
 describes the settable parameters, i.e. parameters that can be used with
 OP_signature_set_ctx_params().
 If OSSL_FUNC_keyexch_settable_ctx_params() is present, OSSL_FUNC_keyexch_set_ctx_params() must
 also be present, and vice versa.
-Similarly, OSSL_FUNC_keyexch_gettable_ctx_params() yields a constant B<OSSL_PARAM>
+Similarly, OSSL_FUNC_keyexch_gettable_ctx_params() yields a constant L<OSSL_PARAM(3)>
 array that describes the gettable parameters, i.e. parameters that can be
 handled by OP_signature_get_ctx_params().
 If OSSL_FUNC_keyexch_gettable_ctx_params() is present, OSSL_FUNC_keyexch_get_ctx_params() must
 also be present, and vice versa.
-See L<OSSL_PARAM(3)> for the use of B<OSSL_PARAM> as parameter descriptor.
 
 Notice that not all settable parameters are also gettable, and vice versa.
 
@@ -217,7 +216,7 @@ OSSL_FUNC_keyexch_set_params(), and OSSL_FUNC_keyexch_get_params() should return
 or 0 on error.
 
 OSSL_FUNC_keyexch_settable_ctx_params() and OSSL_FUNC_keyexch_gettable_ctx_params() should
-always return a constant B<OSSL_PARAM> array.
+always return a constant L<OSSL_PARAM(3)> array.
 
 =head1 SEE ALSO
 

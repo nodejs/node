@@ -15,6 +15,7 @@
 #include "internal/bio.h"
 #include "internal/provider.h"
 #include "crypto/ctype.h"
+#include "crypto/rand.h"
 
 struct ossl_lib_ctx_onfree_list_st {
     ossl_lib_ctx_onfree_fn *fn;
@@ -270,6 +271,20 @@ OSSL_LIB_CTX *OSSL_LIB_CTX_set0_default(OSSL_LIB_CTX *libctx)
     }
 
     return NULL;
+}
+
+void ossl_release_default_drbg_ctx(void)
+{
+    int dynidx = default_context_int.dyn_indexes[OSSL_LIB_CTX_DRBG_INDEX];
+
+    /* early release of the DRBG in global default libctx, no locking */
+    if (dynidx != -1) {
+        void *data;
+
+        data = CRYPTO_get_ex_data(&default_context_int.data, dynidx);
+        ossl_rand_ctx_free(data);
+        CRYPTO_set_ex_data(&default_context_int.data, dynidx, NULL);
+    }
 }
 #endif
 

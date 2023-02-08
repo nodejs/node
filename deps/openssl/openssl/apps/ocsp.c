@@ -724,6 +724,8 @@ redo_accept:
         make_ocsp_response(bio_err, &resp, req, rdb, rca_cert, rsigner, rkey,
                            rsign_md, rsign_sigopts, rother, rflags, nmin, ndays,
                            badsig, resp_certid_md);
+        if (resp == NULL)
+            goto end;
         if (cbio != NULL)
             send_ocsp_response(cbio, resp);
     } else if (host != NULL) {

@@ -43,6 +43,8 @@ The supported parameters are:
 
 =item "digest" (B<OSSL_KDF_PARAM_DIGEST>) <UTF8 string>
 
+This parameter is ignored for KMAC.
+
 =item "mac" (B<OSSL_KDF_PARAM_MAC>) <UTF8 string>
 
 =item "maclen" (B<OSSL_KDF_PARAM_MAC_SIZE>) <unsigned integer>
@@ -133,7 +135,7 @@ fixedinfo value "label", salt of "salt" and KMAC outlen of 20:
  EVP_KDF *kdf;
  EVP_KDF_CTX *kctx;
  unsigned char out[10];
- OSSL_PARAM params[7], *p = params;
+ OSSL_PARAM params[6], *p = params;
 
  kdf = EVP_KDF_fetch(NULL, "SSKDF", NULL);
  kctx = EVP_KDF_CTX_new(kdf);
@@ -141,8 +143,6 @@ fixedinfo value "label", salt of "salt" and KMAC outlen of 20:
 
  *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_MAC,
                                          SN_kmac128, strlen(SN_kmac128));
- *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
-                                         SN_sha256, strlen(SN_sha256));
  *p++ = OSSL_PARAM_construct_octet_string(EVP_KDF_CTRL_SET_KEY,
                                           "secret", (size_t)6);
  *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_INFO,
@@ -173,11 +173,11 @@ L<EVP_KDF(3)/PARAMETERS>
 
 =head1 HISTORY
 
-This functionality was added to OpenSSL 3.0.
+This functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.  Copyright
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.  Copyright
 (c) 2019, Oracle and/or its affiliates.  All rights reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use

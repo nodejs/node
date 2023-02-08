@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -738,6 +738,30 @@ DSA *d2i_DSA_PUBKEY(DSA **a, const unsigned char **pp, long length)
     if (key == NULL)
         return NULL;
     *pp = q;
+    if (a != NULL) {
+        DSA_free(*a);
+        *a = key;
+    }
+    return key;
+}
+
+/* Called from decoders; disallows provided DSA keys without parameters. */
+DSA *ossl_d2i_DSA_PUBKEY(DSA **a, const unsigned char **pp, long length)
+{
+    DSA *key = NULL;
+    const unsigned char *data;
+    const BIGNUM *p, *q, *g;
+
+    data = *pp;
+    key = d2i_DSA_PUBKEY(NULL, &data, length);
+    if (key == NULL)
+        return NULL;
+    DSA_get0_pqg(key, &p, &q, &g);
+    if (p == NULL || q == NULL || g == NULL) {
+        DSA_free(key);
+        return NULL;
+    }
+    *pp = data;
     if (a != NULL) {
         DSA_free(*a);
         *a = key;
