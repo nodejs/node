@@ -27,7 +27,8 @@ using v8::Value;
 namespace crypto {
 namespace {
 bool IsSupportedAuthenticatedMode(const EVP_CIPHER* cipher) {
-  switch (EVP_CIPHER_mode(cipher)) {
+  const int mode = EVP_CIPHER_mode(cipher);
+  switch (mode) {
   case EVP_CIPH_CCM_MODE:
   case EVP_CIPH_GCM_MODE:
 #ifndef OPENSSL_NO_OCB
