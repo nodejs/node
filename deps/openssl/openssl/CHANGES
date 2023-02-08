@@ -7,11 +7,85 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
+ Changes between 1.1.1s and 1.1.1t [7 Feb 2023]
+
+  *) Fixed X.400 address type confusion in X.509 GeneralName.
+
+     There is a type confusion vulnerability relating to X.400 address processing
+     inside an X.509 GeneralName. X.400 addresses were parsed as an ASN1_STRING
+     but subsequently interpreted by GENERAL_NAME_cmp as an ASN1_TYPE. This
+     vulnerability may allow an attacker who can provide a certificate chain and
+     CRL (neither of which need have a valid signature) to pass arbitrary
+     pointers to a memcmp call, creating a possible read primitive, subject to
+     some constraints. Refer to the advisory for more information. Thanks to
+     David Benjamin for discovering this issue. (CVE-2023-0286)
+
+     This issue has been fixed by changing the public header file definition of
+     GENERAL_NAME so that x400Address reflects the implementation. It was not
+     possible for any existing application to successfully use the existing
+     definition; however, if any application references the x400Address field
+     (e.g. in dead code), note that the type of this field has changed. There is
+     no ABI change.
+     [Hugo Landau]
+
+  *) Fixed Use-after-free following BIO_new_NDEF.
+
+     The public API function BIO_new_NDEF is a helper function used for
+     streaming ASN.1 data via a BIO. It is primarily used internally to OpenSSL
+     to support the SMIME, CMS and PKCS7 streaming capabilities, but may also
+     be called directly by end user applications.
+
+     The function receives a BIO from the caller, prepends a new BIO_f_asn1
+     filter BIO onto the front of it to form a BIO chain, and then returns
+     the new head of the BIO chain to the caller. Under certain conditions,
+     for example if a CMS recipient public key is invalid, the new filter BIO
+     is freed and the function returns a NULL result indicating a failure.
+     However, in this case, the BIO chain is not properly cleaned up and the
+     BIO passed by the caller still retains internal pointers to the previously
+     freed filter BIO. If the caller then goes on to call BIO_pop() on the BIO
+     then a use-after-free will occur. This will most likely result in a crash.
+     (CVE-2023-0215)
+     [Viktor Dukhovni, Matt Caswell]
+
+  *) Fixed Double free after calling PEM_read_bio_ex.
+
+     The function PEM_read_bio_ex() reads a PEM file from a BIO and parses and
+     decodes the "name" (e.g. "CERTIFICATE"), any header data and the payload
+     data. If the function succeeds then the "name_out", "header" and "data"
+     arguments are populated with pointers to buffers containing the relevant
+     decoded data. The caller is responsible for freeing those buffers. It is
+     possible to construct a PEM file that results in 0 bytes of payload data.
+     In this case PEM_read_bio_ex() will return a failure code but will populate
+     the header argument with a pointer to a buffer that has already been freed.
+     If the caller also frees this buffer then a double free will occur. This
+     will most likely lead to a crash.
+
+     The functions PEM_read_bio() and PEM_read() are simple wrappers around
+     PEM_read_bio_ex() and therefore these functions are also directly affected.
+
+     These functions are also called indirectly by a number of other OpenSSL
+     functions including PEM_X509_INFO_read_bio_ex() and
+     SSL_CTX_use_serverinfo_file() which are also vulnerable. Some OpenSSL
+     internal uses of these functions are not vulnerable because the caller does
+     not free the header argument if PEM_read_bio_ex() returns a failure code.
+     (CVE-2022-4450)
+     [Kurt Roeckx, Matt Caswell]
+
+  *) Fixed Timing Oracle in RSA Decryption.
+
+     A timing based side channel exists in the OpenSSL RSA Decryption
+     implementation which could be sufficient to recover a plaintext across
+     a network in a Bleichenbacher style attack. To achieve a successful
+     decryption an attacker would have to be able to send a very large number
+     of trial messages for decryption. The vulnerability affects all RSA padding
+     modes: PKCS#1 v1.5, RSA-OEAP and RSASVE.
+     (CVE-2022-4304)
+     [Dmitry Belyavsky, Hubert Kario]
+
  Changes between 1.1.1r and 1.1.1s [1 Nov 2022]
 
   *) Fixed a regression introduced in 1.1.1r version not refreshing the
      certificate data to be signed before signing the certificate.
-
      [Gibeom Gwon]
 
  Changes between 1.1.1q and 1.1.1r [11 Oct 2022]

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -465,11 +465,20 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
         BN_free(d);
     }
 
-    if (blinding)
-        if (!rsa_blinding_invert(blinding, ret, unblind, ctx))
+    if (blinding) {
+        /*
+         * ossl_bn_rsa_do_unblind() combines blinding inversion and
+         * 0-padded BN BE serialization
+         */
+        j = ossl_bn_rsa_do_unblind(ret, blinding, unblind, rsa->n, ctx,
+                                   buf, num);
+        if (j == 0)
             goto err;
-
-    j = BN_bn2binpad(ret, buf, num);
+    } else {
+        j = BN_bn2binpad(ret, buf, num);
+        if (j < 0)
+            goto err;
+    }
 
     switch (padding) {
     case RSA_PKCS1_PADDING:

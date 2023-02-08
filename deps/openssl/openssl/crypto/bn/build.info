@@ -5,7 +5,8 @@ SOURCE[../../libcrypto]=\
         bn_kron.c bn_sqrt.c bn_gcd.c bn_prime.c bn_err.c bn_sqr.c \
         {- $target{bn_asm_src} -} \
         bn_recp.c bn_mont.c bn_mpi.c bn_exp2.c bn_gf2m.c bn_nist.c \
-        bn_depr.c bn_const.c bn_x931p.c bn_intern.c bn_dh.c bn_srp.c
+        bn_depr.c bn_const.c bn_x931p.c bn_intern.c bn_dh.c bn_srp.c \
+        rsa_sup_mul.c
 
 INCLUDE[bn_exp.o]=..
 
