@@ -76,6 +76,7 @@ bool IsSingleExecutable() {
 
 MaybeLocal<Value> StartSingleExecutableExecution(Environment* env) {
   size_t size = 0;
+  // TODO(RaisinTen): Add support for non-ASCII character inputs.
   const char* code = FindSingleExecutableCode(&size);
 
   if (code == nullptr) {
