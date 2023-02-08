@@ -31,6 +31,7 @@
       'openssl/crypto/bn/bn_sqr.c',
       'openssl/crypto/bn/bn_sqrt.c',
       'openssl/crypto/bn/bn_word.c',
+      'openssl/crypto/bn/rsa_sup_mul.c',
       'openssl/crypto/buffer/buffer.c',
       'openssl/crypto/cmac/cmac.c',
       'openssl/crypto/des/des_enc.c',
@@ -284,8 +285,6 @@
       './config/archs/linux64-mips64/asm_avx2/providers/common/der/der_ecx_gen.c',
       './config/archs/linux64-mips64/asm_avx2/providers/common/der/der_rsa_gen.c',
       './config/archs/linux64-mips64/asm_avx2/providers/common/der/der_wrap_gen.c',
-      './config/archs/linux64-mips64/asm_avx2/crypto/bn/bn-mips.S',
-      './config/archs/linux64-mips64/asm_avx2/crypto/bn/mips-mont.S',
       './config/archs/linux64-mips64/asm_avx2/providers/legacy.ld',
       './config/archs/linux64-mips64/asm_avx2/providers/fips.ld',
 

@@ -30,6 +30,7 @@
       'openssl/crypto/bn/bn_sqr.c',
       'openssl/crypto/bn/bn_sqrt.c',
       'openssl/crypto/bn/bn_word.c',
+      'openssl/crypto/bn/rsa_sup_mul.c',
       'openssl/crypto/buffer/buffer.c',
       'openssl/crypto/cmac/cmac.c',
       'openssl/crypto/des/ecb3_enc.c',
@@ -298,13 +299,6 @@
       './config/archs/darwin-i386-cc/asm/providers/common/der/der_ecx_gen.c',
       './config/archs/darwin-i386-cc/asm/providers/common/der/der_rsa_gen.c',
       './config/archs/darwin-i386-cc/asm/providers/common/der/der_wrap_gen.c',
-      './config/archs/darwin-i386-cc/asm/crypto/bn/bn-586.S',
-      './config/archs/darwin-i386-cc/asm/crypto/bn/co-586.S',
-      './config/archs/darwin-i386-cc/asm/crypto/bn/x86-gf2m.S',
-      './config/archs/darwin-i386-cc/asm/crypto/bn/x86-mont.S',
-      './config/archs/darwin-i386-cc/asm/crypto/des/crypt586.S',
-      './config/archs/darwin-i386-cc/asm/crypto/des/des-586.S',
-      './config/archs/darwin-i386-cc/asm/crypto/md5/md5-586.S',
 
     ],
     'openssl_defines_darwin-i386-cc': [
