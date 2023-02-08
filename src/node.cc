@@ -374,7 +374,7 @@ void TrapWebAssemblyOrContinue(int signo, siginfo_t* info, void* ucontext) {
 #if defined(__APPLE__)
     sigaction_cb prev = signo == SIGBUS ? previous_sigbus_action.load()
                                         : previous_sigsegv_action.load();
-# else
+#else
     sigaction_cb prev = previous_sigsegv_action.load();
 #endif  // __APPLE__
     if (prev != nullptr) {
@@ -406,7 +406,7 @@ void RegisterSignalHandler(int signal,
     previous_sigsegv_action.store(handler);
     return;
   }
-#if defined (__APPLE__)
+#if defined(__APPLE__)
   if (signal == SIGBUS) {
     CHECK(previous_sigbus_action.is_lock_free());
     CHECK(!reset_handler);
@@ -578,7 +578,7 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
       sa.sa_sigaction = TrapWebAssemblyOrContinue;
       sa.sa_flags = SA_SIGINFO;
       CHECK_EQ(sigaction(SIGSEGV, &sa, nullptr), 0);
-#ifdef  __APPLE__
+#if defined(__APPLE__)
       CHECK_EQ(sigaction(SIGBUS, &sa, nullptr), 0);
 #endif
     }
