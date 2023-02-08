@@ -1,10 +1,9 @@
 #include "node_sea.h"
 
 #include "env-inl.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
-#include "v8-local-handle.h"
-#include "v8-primitive.h"
-#include "v8-value.h"
+#include "v8.h"
 
 #define POSTJECT_SENTINEL_FUSE "NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2"
 #include "postject-api.h"
@@ -13,8 +12,10 @@
 
 #if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 
+using v8::Context;
+using v8::FunctionCallbackInfo;
 using v8::Local;
-using v8::MaybeLocal;
+using v8::Object;
 using v8::String;
 using v8::Value;
 
@@ -64,23 +65,15 @@ class ExternalOneByteStringSingleExecutableCode
   size_t size_;
 };
 
-}  // namespace
+void GetSingleExecutableCode(const FunctionCallbackInfo<Value>& args) {
+  node::Environment* env = node::Environment::GetCurrent(args);
 
-namespace node {
-namespace per_process {
-namespace sea {
-
-bool IsSingleExecutable() {
-  return postject_has_resource();
-}
-
-MaybeLocal<Value> StartSingleExecutableExecution(Environment* env) {
   size_t size = 0;
   // TODO(RaisinTen): Add support for non-ASCII character inputs.
   const char* code = FindSingleExecutableCode(&size);
 
   if (code == nullptr) {
-    return {};
+    return;
   }
 
   Local<String> code_external_string =
@@ -89,13 +82,17 @@ MaybeLocal<Value> StartSingleExecutableExecution(Environment* env) {
           new ExternalOneByteStringSingleExecutableCode(code, size))
           .ToLocalChecked();
 
-  env->process_object()
-      ->SetPrivate(env->context(),
-                   env->single_executable_application_code(),
-                   code_external_string)
-      .Check();
+  args.GetReturnValue().Set(code_external_string);
+}
 
-  return StartExecution(env, "internal/main/single_executable_application");
+}  // namespace
+
+namespace node {
+namespace per_process {
+namespace sea {
+
+bool IsSingleExecutable() {
+  return postject_has_resource();
 }
 
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
@@ -120,8 +117,24 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
   return {argc, argv};
 }
 
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context,
+                void* priv) {
+  SetMethod(
+      context, target, "getSingleExecutableCode", GetSingleExecutableCode);
+}
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(GetSingleExecutableCode);
+}
+
 }  // namespace sea
 }  // namespace per_process
 }  // namespace node
+
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(sea, node::per_process::sea::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(
+    sea, node::per_process::sea::RegisterExternalReferences)
 
 #endif  // !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)

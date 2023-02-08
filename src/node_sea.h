@@ -5,20 +5,13 @@
 
 #if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 
-#include "v8-local-handle.h"
-#include "v8-value.h"
-
 #include <tuple>
 
 namespace node {
-
-class Environment;
-
 namespace per_process {
 namespace sea {
 
 bool IsSingleExecutable();
-v8::MaybeLocal<v8::Value> StartSingleExecutableExecution(Environment* env);
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv);
 
 }  // namespace sea

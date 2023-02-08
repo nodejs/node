@@ -259,6 +259,7 @@ void Environment::InitializeDiagnostics() {
   }
 }
 
+static
 MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
   EscapableHandleScope scope(env->isolate());
   CHECK_NOT_NULL(main_script_id);
@@ -313,7 +314,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
   if (per_process::sea::IsSingleExecutable()) {
-    return per_process::sea::StartSingleExecutableExecution(env);
+    return StartExecution(env, "internal/main/single_executable_application");
   }
 #endif
 
