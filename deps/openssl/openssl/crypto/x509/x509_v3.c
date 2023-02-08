@@ -19,9 +19,12 @@
 
 int X509v3_get_ext_count(const STACK_OF(X509_EXTENSION) *x)
 {
+    int ret;
+
     if (x == NULL)
         return 0;
-    return sk_X509_EXTENSION_num(x);
+    ret = sk_X509_EXTENSION_num(x);
+    return ret > 0 ? ret : 0;
 }
 
 int X509v3_get_ext_by_NID(const STACK_OF(X509_EXTENSION) *x, int nid,

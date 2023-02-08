@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -113,5 +113,11 @@ int ossl_bn_rsa_fips186_4_derive_prime(BIGNUM *Y, BIGNUM *X, const BIGNUM *Xin,
 OSSL_LIB_CTX *ossl_bn_get_libctx(BN_CTX *ctx);
 
 extern const BIGNUM ossl_bn_inv_sqrt_2;
+
+int ossl_bn_rsa_do_unblind(const BIGNUM *intermediate,
+                           const BN_BLINDING *blinding,
+                           const BIGNUM *possible_arg2,
+                           const BIGNUM *to_mod, BN_CTX *ctx,
+                           unsigned char *buf, int num);
 
 #endif

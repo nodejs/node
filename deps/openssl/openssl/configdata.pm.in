@@ -91,7 +91,7 @@ unless (caller) {
         # We do that in two steps, where the first step emits perl
         # snipets.
 
-        my $buildfile = $target{build_file};
+        my $buildfile = $config{build_file};
         my $buildfile_template = "$buildfile.in";
         my @autowarntext = (
             'WARNING: do not edit!',

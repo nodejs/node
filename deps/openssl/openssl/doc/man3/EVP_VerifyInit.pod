@@ -50,7 +50,7 @@ EVP_VerifyInit_ex() and EVP_VerifyUpdate() return 1 for success and 0 for
 failure.
 
 EVP_VerifyFinal_ex() and EVP_VerifyFinal() return 1 for a correct
-signature, 0 for failure and -1 if some other error occurred.
+signature, 0 for failure and a negative value if some other error occurred.
 
 The error codes can be obtained by L<ERR_get_error(3)>.
 

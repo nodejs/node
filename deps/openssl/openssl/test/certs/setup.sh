@@ -388,6 +388,17 @@ REQMASK=MASK:0x800 ./mkcert.sh req badalt7-key "O = Bad NC Test Certificate 7" \
     "email.1 = good@good.org" "email.2 = any@good.com" \
     "IP = 127.0.0.1" "IP = 192.168.0.1"
 
+# Certs for CVE-2022-4203 testcase
+
+NC="excluded;otherName:SRVName;UTF8STRING:foo@example.org" ./mkcert.sh genca \
+    "Test NC CA othername" nccaothername-key nccaothername-cert \
+    root-key root-cert
+
+./mkcert.sh req alt-email-key "O = NC email in othername Test Certificate" | \
+    ./mkcert.sh geneealt bad-othername-key bad-othername-cert \
+    nccaothername-key nccaothername-cert \
+    "otherName.1 = SRVName;UTF8STRING:foo@example.org"
+
 # RSA-PSS signatures
 # SHA1
 ./mkcert.sh genee PSS-SHA1 ee-key ee-pss-sha1-cert ca-key ca-cert \
