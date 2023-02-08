@@ -93,8 +93,7 @@ inline bool IsOWS(char c) {
 
 class BindingData : public BaseObject {
  public:
-  BindingData(Environment* env, Local<Object> obj)
-      : BaseObject(env, obj) {}
+  BindingData(Realm* realm, Local<Object> obj) : BaseObject(realm, obj) {}
 
   static constexpr FastStringKey type_name { "http_parser" };
 
@@ -531,7 +530,7 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
   static void New(const FunctionCallbackInfo<Value>& args) {
-    BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
+    BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
     new Parser(binding_data, args.This());
   }
 
@@ -1190,10 +1189,11 @@ void InitializeHttpParser(Local<Object> target,
                           Local<Value> unused,
                           Local<Context> context,
                           void* priv) {
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
   Isolate* isolate = env->isolate();
   BindingData* const binding_data =
-      env->AddBindingData<BindingData>(context, target);
+      realm->AddBindingData<BindingData>(context, target);
   if (binding_data == nullptr) return;
 
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, Parser::New);

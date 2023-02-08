@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <v8.h>
+#include <unordered_map>
 #include "cleanup_queue.h"
 #include "env_properties.h"
 #include "memory_tracker.h"
@@ -19,6 +20,10 @@ struct RealmSerializeInfo {
   SnapshotIndex context;
   friend std::ostream& operator<<(std::ostream& o, const RealmSerializeInfo& i);
 };
+
+using BindingDataStore = std::unordered_map<FastStringKey,
+                                            BaseObjectPtr<BaseObject>,
+                                            FastStringKey::Hash>;
 
 /**
  * node::Realm is a container for a set of JavaScript objects and functions
@@ -85,6 +90,21 @@ class Realm : public MemoryRetainer {
   inline v8::Local<v8::Context> context() const;
   inline bool has_run_bootstrapping_code() const;
 
+  // Methods created using SetMethod(), SetPrototypeMethod(), etc. inside
+  // this scope can access the created T* object using
+  // GetBindingData<T>(args) later.
+  template <typename T>
+  T* AddBindingData(v8::Local<v8::Context> context,
+                    v8::Local<v8::Object> target);
+  template <typename T, typename U>
+  static inline T* GetBindingData(const v8::PropertyCallbackInfo<U>& info);
+  template <typename T>
+  static inline T* GetBindingData(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  template <typename T>
+  static inline T* GetBindingData(v8::Local<v8::Context> context);
+  inline BindingDataStore* binding_data_store();
+
   // The BaseObject count is a debugging helper that makes sure that there are
   // no memory leaks caused by BaseObjects staying alive longer than expected
   // (in particular, no circular BaseObjectPtr references).
@@ -120,6 +140,8 @@ class Realm : public MemoryRetainer {
 
   int64_t base_object_count_ = 0;
   int64_t base_object_created_by_bootstrap_ = 0;
+
+  BindingDataStore binding_data_store_;
 
   CleanupQueue cleanup_queue_;
 

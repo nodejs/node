@@ -98,7 +98,7 @@ struct InternalFieldInfoBase {
 //   in the object.
 class SnapshotableObject : public BaseObject {
  public:
-  SnapshotableObject(Environment* env,
+  SnapshotableObject(Realm* realm,
                      v8::Local<v8::Object> wrap,
                      EmbedderObjectType type);
   std::string_view GetTypeName() const;

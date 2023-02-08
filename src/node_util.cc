@@ -179,20 +179,20 @@ void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(args[0].As<ArrayBufferView>()->HasBuffer());
 }
 
-WeakReference::WeakReference(Environment* env,
+WeakReference::WeakReference(Realm* realm,
                              Local<Object> object,
                              Local<Object> target)
-    : WeakReference(env, object, target, 0) {}
+    : WeakReference(realm, object, target, 0) {}
 
-WeakReference::WeakReference(Environment* env,
+WeakReference::WeakReference(Realm* realm,
                              Local<Object> object,
                              Local<Object> target,
                              uint64_t reference_count)
-    : SnapshotableObject(env, object, type_int),
+    : SnapshotableObject(realm, object, type_int),
       reference_count_(reference_count) {
   MakeWeak();
   if (!target.IsEmpty()) {
-    target_.Reset(env->isolate(), target);
+    target_.Reset(realm->isolate(), target);
     if (reference_count_ == 0) {
       target_.SetWeak();
     }
@@ -245,17 +245,15 @@ void WeakReference::Deserialize(Local<Context> context,
     target = context->GetDataFromSnapshotOnce<Object>(weak_info->target)
                  .ToLocalChecked();
   }
-  new WeakReference(Environment::GetCurrent(context),
-                    holder,
-                    target,
-                    weak_info->reference_count);
+  new WeakReference(
+      Realm::GetCurrent(context), holder, target, weak_info->reference_count);
 }
 
 void WeakReference::New(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Realm* realm = Realm::GetCurrent(args);
   CHECK(args.IsConstructCall());
   CHECK(args[0]->IsObject());
-  new WeakReference(env, args.This(), args[0].As<Object>());
+  new WeakReference(realm, args.This(), args[0].As<Object>());
 }
 
 void WeakReference::Get(const FunctionCallbackInfo<Value>& args) {
