@@ -267,6 +267,23 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
   return scope.EscapeMaybe(realm->ExecuteBootstrapper(main_script_id));
 }
 
+class ExternalOneByteStringSingleExecutableCode :
+  public v8::String::ExternalOneByteStringResource {
+ public:
+  explicit ExternalOneByteStringSingleExecutableCode(
+      const char* data, size_t size)
+      : data_(data),
+        size_(size) {}
+
+  const char* data() const override { return data_; }
+
+  size_t length() const override { return size_; }
+
+ private:
+  const char* data_;
+  size_t size_;
+};
+
 MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   InternalCallbackScope callback_scope(
       env,
@@ -317,17 +334,14 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     const char* single_executable_application_code =
         FindSingleExecutableCode(&single_executable_application_size);
     if (single_executable_application_code != nullptr) {
-      Local<Value> buffer =
-          Buffer::New(
-              env->isolate(),
-              const_cast<char*>(single_executable_application_code),
-              single_executable_application_size,
-              [](char* data, void* hint) {},
-              nullptr)
-              .ToLocalChecked();
+      v8::Local<v8::String> code = v8::String::NewExternalOneByte(
+        env->isolate(),
+        new ExternalOneByteStringSingleExecutableCode(
+          single_executable_application_code,
+          single_executable_application_size)).ToLocalChecked();
       env->process_object()
           ->SetPrivate(
-              env->context(), env->single_executable_application_code(), buffer)
+              env->context(), env->single_executable_application_code(), code)
           .Check();
       return StartExecution(env, "internal/main/single_executable_application");
     }
