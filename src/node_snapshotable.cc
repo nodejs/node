@@ -866,6 +866,7 @@ void SnapshotData::ToFile(FILE* out) const {
   const std::vector<char> sink = ToBlob();
   size_t num_written = fwrite(sink.data(), sink.size(), 1, out);
   CHECK_EQ(num_written, 1);
+  CHECK_EQ(fflush(out), 0);
 }
 
 const SnapshotData* SnapshotData::FromEmbedderWrapper(
