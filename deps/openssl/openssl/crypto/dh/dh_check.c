@@ -73,7 +73,7 @@ int DH_check_params(const DH *dh, int *ret)
     BN_CTX *ctx = NULL;
 
     *ret = 0;
-    ctx = BN_CTX_new();
+    ctx = BN_CTX_new_ex(dh->libctx);
     if (ctx == NULL)
         goto err;
     BN_CTX_start(ctx);
@@ -155,7 +155,7 @@ int DH_check(const DH *dh, int *ret)
     if (!DH_check_params(dh, ret))
         return 0;
 
-    ctx = BN_CTX_new();
+    ctx = BN_CTX_new_ex(dh->libctx);
     if (ctx == NULL)
         goto err;
     BN_CTX_start(ctx);

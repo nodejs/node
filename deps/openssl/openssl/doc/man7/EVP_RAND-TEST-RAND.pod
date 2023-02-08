@@ -100,6 +100,10 @@ A context for a test generator can be obtained by calling:
 L<EVP_RAND(3)>,
 L<EVP_RAND(3)/PARAMETERS>
 
+=head1 HISTORY
+
+This functionality was added in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
 Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.

@@ -235,7 +235,9 @@ CMP_R_MISSING_PBM_SECRET:166:missing pbm secret
 CMP_R_MISSING_PRIVATE_KEY:131:missing private key
 CMP_R_MISSING_PROTECTION:143:missing protection
 CMP_R_MISSING_REFERENCE_CERT:168:missing reference cert
+CMP_R_MISSING_SECRET:178:missing secret
 CMP_R_MISSING_SENDER_IDENTIFICATION:111:missing sender identification
+CMP_R_MISSING_TRUST_ANCHOR:179:missing trust anchor
 CMP_R_MISSING_TRUST_STORE:144:missing trust store
 CMP_R_MULTIPLE_REQUESTS_NOT_SUPPORTED:161:multiple requests not supported
 CMP_R_MULTIPLE_RESPONSES_NOT_SUPPORTED:170:multiple responses not supported
@@ -361,6 +363,8 @@ CMS_R_UNKNOWN_CIPHER:148:unknown cipher
 CMS_R_UNKNOWN_DIGEST_ALGORITHM:149:unknown digest algorithm
 CMS_R_UNKNOWN_ID:150:unknown id
 CMS_R_UNSUPPORTED_COMPRESSION_ALGORITHM:151:unsupported compression algorithm
+CMS_R_UNSUPPORTED_CONTENT_ENCRYPTION_ALGORITHM:194:\
+	unsupported content encryption algorithm
 CMS_R_UNSUPPORTED_CONTENT_TYPE:152:unsupported content type
 CMS_R_UNSUPPORTED_ENCRYPTION_TYPE:192:unsupported encryption type
 CMS_R_UNSUPPORTED_KEK_ALGORITHM:153:unsupported kek algorithm
@@ -1365,6 +1369,8 @@ SSL_R_INVALID_SESSION_ID:999:invalid session id
 SSL_R_INVALID_SRP_USERNAME:357:invalid srp username
 SSL_R_INVALID_STATUS_RESPONSE:328:invalid status response
 SSL_R_INVALID_TICKET_KEYS_LENGTH:325:invalid ticket keys length
+SSL_R_LEGACY_SIGALG_DISALLOWED_OR_UNSUPPORTED:333:\
+	legacy sigalg disallowed or unsupported
 SSL_R_LENGTH_MISMATCH:159:length mismatch
 SSL_R_LENGTH_TOO_LONG:404:length too long
 SSL_R_LENGTH_TOO_SHORT:160:length too short

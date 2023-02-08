@@ -154,9 +154,12 @@ The lexical syntax in EBNF is given by:
  Value          ::= NumberLiteral | StringLiteral
  StringLiteral  ::= QuotedString | UnquotedString
  QuotedString   ::= '"' [^"]* '"' | "'" [^']* "'"
- UnquotedString ::= [^{space},]+
+ UnquotedString ::= [A-Za-z] [^{space},]+
  NumberLiteral  ::= '0' ( [0-7]* | 'x' [0-9A-Fa-f]+ ) | '-'? [1-9] [0-9]+
- PropertyName   ::= [A-Z] [A-Z0-9_]* ( '.' [A-Z] [A-Z0-9_]* )*
+ PropertyName   ::= [A-Za-z] [A-Za-z0-9_]* ( '.' [A-Za-z] [A-Za-z0-9_]* )*
+
+The flavour of EBNF being used is defined by:
+L<https://www.w3.org/TR/2010/REC-xquery-20101214/#EBNFNotation>.
 
 =head1 HISTORY
 
@@ -164,7 +167,7 @@ Properties were added in OpenSSL 3.0
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -367,7 +367,7 @@ Most of these follow a common pattern. A "context" object is first created. For
 example for a digest operation you would use an B<EVP_MD_CTX>, and for an
 encryption/decryption operation you would use an B<EVP_CIPHER_CTX>. The
 operation is then initialised ready for use via an "init" function - optionally
-passing in a set of parameters (using the B<OSSL_PARAM> type) to configure how
+passing in a set of parameters (using the L<OSSL_PARAM(3)> type) to configure how
 the operation should behave. Next data is fed into the operation in a series of
 "update" calls. The operation is finalised using a "final" call which will
 typically provide some kind of output. Finally the context is cleaned up and

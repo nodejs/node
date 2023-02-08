@@ -16,7 +16,7 @@ EVP_PKEY_todata, EVP_PKEY_export
 =head1 DESCRIPTION
 
 The functions described here are used to extract B<EVP_PKEY> key values as an
-array of B<OSSL_PARAM>.
+array of L<OSSL_PARAM(3)>.
 
 EVP_PKEY_todata() extracts values from a key I<pkey> using the I<selection>.
 I<selection> is described in L<EVP_PKEY_fromdata(3)/Selections>.
@@ -26,7 +26,7 @@ I<*params>.
 EVP_PKEY_export() is similiar to EVP_PKEY_todata() but uses a callback
 I<export_cb> that gets passed the value of I<export_cbarg>.
 See L<openssl-core.h(7)> for more information about the callback. Note that the
-B<OSSL_PARAM> array that is passed to the callback is not persistent after the
+L<OSSL_PARAM(3)> array that is passed to the callback is not persistent after the
 callback returns. The user must preserve the items of interest, or use
 EVP_PKEY_todata() if persistence is required.
 

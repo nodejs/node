@@ -88,7 +88,7 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 
 =item TLS13-KDF, see L<EVP_KDF-TLS13_KDF(7)>
 
-=item SSKDF, see L<EVP_KDF-SSKDF(7)>
+=item SSKDF, see L<EVP_KDF-SS(7)>
 
 =item PBKDF2, see L<EVP_KDF-PBKDF2(7)>
 
@@ -96,7 +96,7 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 
 =item TLS1-PRF, see L<EVP_KDF-TLS1_PRF(7)>
 
-=item KBKDF, see L<EVP_KDF-KBKDF(7)>
+=item KBKDF, see L<EVP_KDF-KB(7)>
 
 =item X942KDF-ASN1, see L<EVP_KDF-X942-ASN1(7)>
 
@@ -124,8 +124,6 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 
 =over 4
 
-=item DSA, see L<EVP_KEYEXCH-DSA(7)>
-
 =item RSA, see L<EVP_SIGNATURE-RSA(7)>
 
 =item X25519, see L<EVP_SIGNATURE-ED25519(7)>
@@ -142,7 +140,7 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 
 =over 4
 
-=item RSA, see L<EVP_KEYEXCH-RSA(7)>
+=item RSA, see L<EVP_ASYM_CIPHER-RSA(7)>
 
 =back
 
@@ -407,7 +405,7 @@ L<provider(7)>
 
 =head1 HISTORY
 
-The type and functions described here were added in OpenSSL 3.0.
+This functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 

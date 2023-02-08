@@ -95,6 +95,7 @@ crypto/bn/bn_shift.c
 crypto/bn/bn_sqr.c
 crypto/bn/bn_sqrt.c
 crypto/bn/bn_word.c
+crypto/bn/rsa_sup_mul.c
 crypto/bn/rsaz_exp.c
 crypto/bn/rsaz_exp.h
 crypto/bn/rsaz_exp_x2.c

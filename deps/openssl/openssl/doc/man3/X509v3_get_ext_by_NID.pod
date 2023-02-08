@@ -121,13 +121,15 @@ using X509_EXTENSION_free().
 
 =head1 RETURN VALUES
 
-X509v3_get_ext_count() returns the extension count.
+X509v3_get_ext_count() returns the extension count or 0 for failure.
 
 X509v3_get_ext(), X509v3_delete_ext() and X509_delete_ext() return an
 B<X509_EXTENSION> structure or NULL if an error occurs.
 
-X509v3_get_ext_by_NID(), X509v3_get_ext_by_OBJ() and
-X509v3_get_ext_by_critical() return the extension index or -1 if an
+X509v3_get_ext_by_OBJ() and X509v3_get_ext_by_critical() return
+the extension index or -1 if an error occurs.
+
+X509v3_get_ext_by_NID() returns the extension index or negative values if an
 error occurs.
 
 X509v3_add_ext() returns a STACK of extensions or NULL on error.

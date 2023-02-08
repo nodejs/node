@@ -294,8 +294,11 @@ not suitable for most applications; see L<des_modes(7)>.
 
 =head1 RETURN VALUES
 
-DES_set_key(), DES_key_sched(), DES_set_key_checked() and DES_is_weak_key()
+DES_set_key(), DES_key_sched(), and DES_set_key_checked()
 return 0 on success or negative values on error.
+
+DES_is_weak_key() returns 1 if the passed key is a weak key, 0 if it
+is ok.
 
 DES_cbc_cksum() and DES_quad_cksum() return 4-byte integer representing the
 last 4 bytes of the checksum of the input.

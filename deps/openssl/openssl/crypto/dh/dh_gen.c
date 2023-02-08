@@ -169,7 +169,7 @@ static int dh_builtin_genparams(DH *ret, int prime_len, int generator,
         return 0;
     }
 
-    ctx = BN_CTX_new();
+    ctx = BN_CTX_new_ex(ret->libctx);
     if (ctx == NULL)
         goto err;
     BN_CTX_start(ctx);
@@ -213,7 +213,7 @@ static int dh_builtin_genparams(DH *ret, int prime_len, int generator,
         g = generator;
     }
 
-    if (!BN_generate_prime_ex(ret->params.p, prime_len, 1, t1, t2, cb))
+    if (!BN_generate_prime_ex2(ret->params.p, prime_len, 1, t1, t2, cb, ctx))
         goto err;
     if (!BN_GENCB_call(cb, 3, 0))
         goto err;

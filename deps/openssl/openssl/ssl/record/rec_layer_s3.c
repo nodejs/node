@@ -16,6 +16,7 @@
 #include <openssl/rand.h>
 #include "record_local.h"
 #include "internal/packet.h"
+#include "internal/cryptlib.h"
 
 #if     defined(OPENSSL_SMALL_FOOTPRINT) || \
         !(      defined(AES_ASM) &&     ( \
@@ -1015,14 +1016,15 @@ int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
         }
 
         /*
-         * Reserve some bytes for any growth that may occur during encryption.
-         * This will be at most one cipher block or the tag length if using
-         * AEAD. SSL_RT_MAX_CIPHER_BLOCK_SIZE covers either case.
-         */
+        * Reserve some bytes for any growth that may occur during encryption. If
+        * we are adding the MAC independently of the cipher algorithm, then the
+        * max encrypted overhead does not need to include an allocation for that
+        * MAC
+        */
         if (!BIO_get_ktls_send(s->wbio)) {
             if (!WPACKET_reserve_bytes(thispkt,
-                                        SSL_RT_MAX_CIPHER_BLOCK_SIZE,
-                                        NULL)
+                                       SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD
+                                       - mac_size, NULL)
                 /*
                  * We also need next the amount of bytes written to this
                  * sub-packet
@@ -1074,6 +1076,9 @@ int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
 
         /* Allocate bytes for the encryption overhead */
         if (!WPACKET_get_length(thispkt, &origlen)
+                   /* Check we allowed enough room for the encryption growth */
+                || !ossl_assert(origlen + SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD
+                                - mac_size >= thiswr->length)
                    /* Encryption should never shrink the data! */
                 || origlen > thiswr->length
                 || (thiswr->length > origlen

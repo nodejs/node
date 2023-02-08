@@ -69,7 +69,7 @@ B<OSSL_STORE_CTX> with all necessary internal information.
 The given I<ui_method> and I<ui_data> will be reused by all
 functions that use B<OSSL_STORE_CTX> when interaction is needed,
 for instance to provide a password.
-The auxiliary B<OSSL_PARAM> parameters in I<params> can be set to further
+The auxiliary L<OSSL_PARAM(3)> parameters in I<params> can be set to further
 modify the store operation.
 The given I<post_process> and I<post_process_data> will be reused by
 OSSL_STORE_load() to manipulate or drop the value to be returned.

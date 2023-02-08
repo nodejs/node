@@ -107,6 +107,10 @@ See L<config(5)>.
 L<config(5)>
 L<openssl-fipsinstall(1)>
 
+=head1 HISTORY
+
+This functionality was added in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
 Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.

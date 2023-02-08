@@ -91,21 +91,21 @@ static OSSL_FUNC_mac_final_fn kmac_final;
  * Restrict the maximum length of the customisation string.  This must not
  * exceed 64 bits = 8k bytes.
  */
-#define KMAC_MAX_CUSTOM 256
+#define KMAC_MAX_CUSTOM 512
 
 /* Maximum size of encoded custom string */
 #define KMAC_MAX_CUSTOM_ENCODED (KMAC_MAX_CUSTOM + KMAC_MAX_ENCODED_HEADER_LEN)
 
-/* Maximum key size in bytes = 256 (2048 bits) */
-#define KMAC_MAX_KEY 256
+/* Maximum key size in bytes = 512 (4096 bits) */
+#define KMAC_MAX_KEY 512
 #define KMAC_MIN_KEY 4
 
 /*
  * Maximum Encoded Key size will be padded to a multiple of the blocksize
- * i.e KMAC_MAX_KEY + KMAC_MAX_ENCODED_HEADER_LEN = 256 + 4
+ * i.e KMAC_MAX_KEY + KMAC_MAX_ENCODED_HEADER_LEN = 512 + 4
  * Padded to a multiple of KMAC_MAX_BLOCKSIZE
  */
-#define KMAC_MAX_KEY_ENCODED (KMAC_MAX_BLOCKSIZE * 2)
+#define KMAC_MAX_KEY_ENCODED (KMAC_MAX_BLOCKSIZE * 4)
 
 /* Fixed value of encode_string("KMAC") */
 static const unsigned char kmac_string[] = {

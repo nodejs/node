@@ -71,7 +71,7 @@ of the implementations, calls I<fn> with the implementation method and
 I<data> as arguments.
 
 EVP_KEYEXCH_gettable_ctx_params() and EVP_KEYEXCH_settable_ctx_params() return
-a constant B<OSSL_PARAM> array that describes the names and types of key
+a constant L<OSSL_PARAM(3)> array that describes the names and types of key
 parameters that can be retrieved or set by a key exchange algorithm using
 L<EVP_PKEY_CTX_get_params(3)> and L<EVP_PKEY_CTX_set_params(3)>.
 
@@ -89,7 +89,7 @@ EVP_KEYEXCH_is_a() returns 1 of I<exchange> was identifiable,
 otherwise 0.
 
 EVP_KEYEXCH_gettable_ctx_params() and EVP_KEYEXCH_settable_ctx_params() return
-a constant B<OSSL_PARAM> array or NULL on error.
+a constant L<OSSL_PARAM(3)> array or NULL on error.
 
 =head1 SEE ALSO
 

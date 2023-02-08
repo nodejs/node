@@ -29,8 +29,6 @@ default provider:
 
 =item "AES-192-OFB", "AES-128-OFB" and "AES-256-OFB"
 
-=item "AES-128-SIV", "AES-192-SIV" and "AES-256-SIV"
-
 =item "AES-128-XTS" and "AES-256-XTS"
 
 =item "AES-128-CCM", "AES-192-CCM" and "AES-256-CCM"
@@ -53,6 +51,8 @@ FIPS provider:
 =over 4
 
 =item "AES-128-OCB", "AES-192-OCB" and "AES-256-OCB"
+
+=item "AES-128-SIV", "AES-192-SIV" and "AES-256-SIV"
 
 =back
 

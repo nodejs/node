@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -47,7 +47,10 @@ static int execute_cmp_asn1_get_int_test(CMP_ASN_TEST_FIXTURE *fixture)
 
     if (!TEST_ptr(asn1integer))
         return 0;
-    ASN1_INTEGER_set(asn1integer, 77);
+    if (!TEST_true(ASN1_INTEGER_set(asn1integer, 77))) {
+        ASN1_INTEGER_free(asn1integer);
+        return 0;
+    }
     res = TEST_int_eq(77, ossl_cmp_asn1_get_int(asn1integer));
     ASN1_INTEGER_free(asn1integer);
     return res;

@@ -130,7 +130,7 @@ RSA key found to B<ssl>.
 SSL_CTX_check_private_key() checks the consistency of a private key with
 the corresponding certificate loaded into B<ctx>. If more than one
 key/certificate pair (RSA/DSA) is installed, the last item installed will
-be checked. If e.g. the last item was a RSA certificate or key, the RSA
+be checked. If e.g. the last item was an RSA certificate or key, the RSA
 key/certificate pair will be checked. SSL_check_private_key() performs
 the same check for B<ssl>. If no key/certificate was explicitly added for
 this B<ssl>, the last item added into B<ctx> will be checked.

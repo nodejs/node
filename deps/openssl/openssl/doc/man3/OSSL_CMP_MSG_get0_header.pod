@@ -118,10 +118,11 @@ d2i_OSSL_CMP_MSG_bio() returns the parsed message or NULL on error.
 OSSL_CMP_MSG_read() and d2i_OSSL_CMP_MSG_bio()
 return the parsed CMP message or NULL on error.
 
-OSSL_CMP_MSG_write() and i2d_OSSL_CMP_MSG_bio() return
-the number of bytes successfully encoded or a negative value if an error occurs.
+OSSL_CMP_MSG_write() returns the number of bytes successfully encoded or a
+negative value if an error occurs.
 
-OSSL_CMP_MSG_update_transactionID() returns 1 on success, 0 on error.
+i2d_OSSL_CMP_MSG_bio() and OSSL_CMP_MSG_update_transactionID() return 1 on
+success, 0 on error.
 
 =head1 SEE ALSO
 

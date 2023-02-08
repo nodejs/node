@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -16,11 +16,78 @@
 
 static const OSSL_PARAM params_empty[] = { OSSL_PARAM_END };
 
+static int template_public_single_zero_test(void)
+{
+    OSSL_PARAM_BLD *bld = NULL;
+    OSSL_PARAM *params = NULL, *params_blt = NULL, *p;
+    BIGNUM *zbn = NULL, *zbn_res = NULL;
+    int res = 0;
+
+    if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
+        || !TEST_ptr(zbn = BN_new())
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, "zeronumber", zbn))
+        || !TEST_ptr(params_blt = OSSL_PARAM_BLD_to_param(bld)))
+        goto err;
+
+    params = params_blt;
+    /* Check BN (zero BN becomes unsigned integer) */
+    if (!TEST_ptr(p = OSSL_PARAM_locate(params, "zeronumber"))
+        || !TEST_str_eq(p->key, "zeronumber")
+        || !TEST_uint_eq(p->data_type, OSSL_PARAM_UNSIGNED_INTEGER)
+        || !TEST_true(OSSL_PARAM_get_BN(p, &zbn_res))
+        || !TEST_BN_eq(zbn_res, zbn))
+        goto err;
+    res = 1;
+err:
+    if (params != params_blt)
+        OPENSSL_free(params);
+    OSSL_PARAM_free(params_blt);
+    OSSL_PARAM_BLD_free(bld);
+    BN_free(zbn);
+    BN_free(zbn_res);
+    return res;
+}
+
+static int template_private_single_zero_test(void)
+{
+    OSSL_PARAM_BLD *bld = NULL;
+    OSSL_PARAM *params = NULL, *params_blt = NULL, *p;
+    BIGNUM *zbn = NULL, *zbn_res = NULL;
+    int res = 0;
+
+    if (!TEST_ptr(bld = OSSL_PARAM_BLD_new())
+        || !TEST_ptr(zbn = BN_secure_new())
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, "zeronumber", zbn))
+        || !TEST_ptr(params_blt = OSSL_PARAM_BLD_to_param(bld)))
+        goto err;
+
+    params = params_blt;
+    /* Check BN (zero BN becomes unsigned integer) */
+    if (!TEST_ptr(p = OSSL_PARAM_locate(params, "zeronumber"))
+        || !TEST_true(CRYPTO_secure_allocated(p->data))
+        || !TEST_str_eq(p->key, "zeronumber")
+        || !TEST_uint_eq(p->data_type, OSSL_PARAM_UNSIGNED_INTEGER)
+        || !TEST_true(OSSL_PARAM_get_BN(p, &zbn_res))
+        || !TEST_int_eq(BN_get_flags(zbn, BN_FLG_SECURE), BN_FLG_SECURE)
+        || !TEST_BN_eq(zbn_res, zbn))
+        goto err;
+    res = 1;
+err:
+    if (params != params_blt)
+        OPENSSL_free(params);
+    OSSL_PARAM_free(params_blt);
+    OSSL_PARAM_BLD_free(bld);
+    BN_free(zbn);
+    BN_free(zbn_res);
+    return res;
+}
+
 static int template_public_test(int tstid)
 {
     OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
     OSSL_PARAM *params = NULL, *params_blt = NULL, *p1 = NULL, *p;
     BIGNUM *bn = NULL, *bn_res = NULL;
+    BIGNUM *zbn = NULL, *zbn_res = NULL;
     int i;
     long int l;
     int32_t i32;
@@ -37,6 +104,8 @@ static int template_public_test(int tstid)
         || !TEST_true(OSSL_PARAM_BLD_push_int64(bld, "i64", -9999999))
         || !TEST_true(OSSL_PARAM_BLD_push_time_t(bld, "t", 11224))
         || !TEST_true(OSSL_PARAM_BLD_push_double(bld, "d", 1.61803398875))
+        || !TEST_ptr(zbn = BN_new())
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, "zeronumber", zbn))
         || !TEST_ptr(bn = BN_new())
         || !TEST_true(BN_set_word(bn, 1729))
         || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, "bignumber", bn))
@@ -118,6 +187,12 @@ static int template_public_test(int tstid)
         || !TEST_ptr(p = OSSL_PARAM_locate(params, "utf8_p"))
         || !TEST_true(OSSL_PARAM_get_utf8_ptr(p, &cutf))
         || !TEST_str_eq(cutf, "bar-boom")
+        /* Check BN (zero BN becomes unsigned integer) */
+        || !TEST_ptr(p = OSSL_PARAM_locate(params, "zeronumber"))
+        || !TEST_str_eq(p->key, "zeronumber")
+        || !TEST_uint_eq(p->data_type, OSSL_PARAM_UNSIGNED_INTEGER)
+        || !TEST_true(OSSL_PARAM_get_BN(p, &zbn_res))
+        || !TEST_BN_eq(zbn_res, zbn)
         /* Check BN */
         || !TEST_ptr(p = OSSL_PARAM_locate(params, "bignumber"))
         || !TEST_str_eq(p->key, "bignumber")
@@ -133,6 +208,8 @@ err:
     OSSL_PARAM_free(params_blt);
     OSSL_PARAM_BLD_free(bld);
     OPENSSL_free(utf);
+    BN_free(zbn);
+    BN_free(zbn_res);
     BN_free(bn);
     BN_free(bn_res);
     return res;
@@ -152,6 +229,7 @@ static int template_private_test(int tstid)
     uint32_t i32;
     uint64_t i64;
     size_t st;
+    BIGNUM *zbn = NULL, *zbn_res = NULL;
     BIGNUM *bn = NULL, *bn_res = NULL;
     int res = 0;
 
@@ -170,6 +248,8 @@ static int template_private_test(int tstid)
         || !TEST_true(OSSL_PARAM_BLD_push_uint32(bld, "i32", 1532))
         || !TEST_true(OSSL_PARAM_BLD_push_uint64(bld, "i64", 9999999))
         || !TEST_true(OSSL_PARAM_BLD_push_size_t(bld, "st", 65537))
+        || !TEST_ptr(zbn = BN_secure_new())
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, "zeronumber", zbn))
         || !TEST_ptr(bn = BN_secure_new())
         || !TEST_true(BN_set_word(bn, 1729))
         || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, "bignumber", bn))
@@ -251,6 +331,14 @@ static int template_private_test(int tstid)
         || !TEST_str_eq(p->key, "oct_p")
         || !TEST_uint_eq(p->data_type, OSSL_PARAM_OCTET_PTR)
         || !TEST_mem_eq(*(void **)p->data, p->data_size, data2, data2_size)
+        /* Check BN (zero BN becomes unsigned integer) */
+        || !TEST_ptr(p = OSSL_PARAM_locate(params, "zeronumber"))
+        || !TEST_true(CRYPTO_secure_allocated(p->data))
+        || !TEST_str_eq(p->key, "zeronumber")
+        || !TEST_uint_eq(p->data_type, OSSL_PARAM_UNSIGNED_INTEGER)
+        || !TEST_true(OSSL_PARAM_get_BN(p, &zbn_res))
+        || !TEST_int_eq(BN_get_flags(zbn, BN_FLG_SECURE), BN_FLG_SECURE)
+        || !TEST_BN_eq(zbn_res, zbn)
         /* Check BN */
         || !TEST_ptr(p = OSSL_PARAM_locate(params, "bignumber"))
         || !TEST_true(CRYPTO_secure_allocated(p->data))
@@ -269,6 +357,8 @@ err:
     OSSL_PARAM_BLD_free(bld);
     OPENSSL_secure_free(data1);
     OPENSSL_secure_free(data2);
+    BN_free(zbn);
+    BN_free(zbn_res);
     BN_free(bn);
     BN_free(bn_res);
     return res;
@@ -432,10 +522,13 @@ err:
 
 int setup_tests(void)
 {
+    ADD_TEST(template_public_single_zero_test);
     ADD_ALL_TESTS(template_public_test, 5);
     /* Only run the secure memory testing if we have secure memory available */
-    if (CRYPTO_secure_malloc_init(1<<16, 16))
+    if (CRYPTO_secure_malloc_init(1<<16, 16)) {
+        ADD_TEST(template_private_single_zero_test);
         ADD_ALL_TESTS(template_private_test, 5);
+    }
     ADD_TEST(builder_limit_test);
     ADD_TEST(builder_merge_test);
     return 1;

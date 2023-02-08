@@ -202,3 +202,14 @@ Ctrl.IKM = hexkey:0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b
 Ctrl.salt = salt:
 Output = da8c8a73
 Result = KDF_DERIVE_ERROR
+
+# Test concat of multiple info (Uses existing test data, and just splits the info into separate fields)
+KDF = HKDF
+Ctrl.mode = mode:EXPAND_ONLY
+Ctrl.digest = digest:SHA1
+Ctrl.IKM = hexkey:8adae09a2a307059478d309b26c4115a224cfaf6
+Ctrl.info = hexinfo:b0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0
+Ctrl.info = hexinfo:c1c2c3
+Ctrl.info = hexinfo:c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9
+Ctrl.info = hexinfo:dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
+Output = 0bd770a74d1160f7c9f12cd5912a06ebff6adcae899d92191fe4305673ba2ffe8fa3f1a4e5ad79f3f334b3b202b2173c486ea37ce3d397ed034c7f9dfeb15c5e927336d0441f4c4300e2cff0d0900b52d3b4

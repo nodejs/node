@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -268,8 +268,8 @@ static int ocsp_add1_nonce(STACK_OF(X509_EXTENSION) **exts,
         memcpy(tmpval, val, len);
     else if (RAND_bytes(tmpval, len) <= 0)
         goto err;
-    if (!X509V3_add1_i2d(exts, NID_id_pkix_OCSP_Nonce,
-                         &os, 0, X509V3_ADD_REPLACE))
+    if (X509V3_add1_i2d(exts, NID_id_pkix_OCSP_Nonce,
+                         &os, 0, X509V3_ADD_REPLACE) <= 0)
         goto err;
     ret = 1;
  err:

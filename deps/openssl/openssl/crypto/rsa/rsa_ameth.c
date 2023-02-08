@@ -637,22 +637,30 @@ static int rsa_item_sign(EVP_MD_CTX *ctx, const ASN1_ITEM *it, const void *asn,
     if (pad_mode == RSA_PKCS1_PADDING)
         return 2;
     if (pad_mode == RSA_PKCS1_PSS_PADDING) {
-        ASN1_STRING *os1 = NULL;
-        os1 = ossl_rsa_ctx_to_pss_string(pkctx);
-        if (!os1)
+        unsigned char aid[128];
+        size_t aid_len = 0;
+        OSSL_PARAM params[2];
+
+        params[0] = OSSL_PARAM_construct_octet_string(
+            OSSL_SIGNATURE_PARAM_ALGORITHM_ID, aid, sizeof(aid));
+        params[1] = OSSL_PARAM_construct_end();
+
+        if (EVP_PKEY_CTX_get_params(pkctx, params) <= 0)
             return 0;
-        /* Duplicate parameters if we have to */
-        if (alg2) {
-            ASN1_STRING *os2 = ASN1_STRING_dup(os1);
-            if (!os2) {
-                ASN1_STRING_free(os1);
+        if ((aid_len = params[0].return_size) == 0)
+            return 0;
+
+        if (alg1 != NULL) {
+            const unsigned char *pp = aid;
+            if (d2i_X509_ALGOR(&alg1, &pp, aid_len) == NULL)
                 return 0;
-            }
-            X509_ALGOR_set0(alg2, OBJ_nid2obj(EVP_PKEY_RSA_PSS),
-                            V_ASN1_SEQUENCE, os2);
         }
-        X509_ALGOR_set0(alg1, OBJ_nid2obj(EVP_PKEY_RSA_PSS),
-                        V_ASN1_SEQUENCE, os1);
+        if (alg2 != NULL) {
+            const unsigned char *pp = aid;
+            if (d2i_X509_ALGOR(&alg2, &pp, aid_len) == NULL)
+                return 0;
+        }
+
         return 3;
     }
     return 2;

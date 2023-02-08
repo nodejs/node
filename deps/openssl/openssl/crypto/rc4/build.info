@@ -21,7 +21,7 @@ SOURCE[../../libcrypto]=$RC4ASM
 
 # When all deprecated symbols are removed, libcrypto doesn't export the
 # rc4 functions, so we must include them directly in liblegacy.a
-IF[{- $disabled{'deprecated-3.0'} -}]
+IF[{- $disabled{'deprecated-3.0'} && !$disabled{module} && !$disabled{shared} -}]
   SOURCE[../../providers/liblegacy.a]=$RC4ASM
 ENDIF
 

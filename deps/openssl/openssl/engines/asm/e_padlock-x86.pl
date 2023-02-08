@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2011-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2011-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -115,6 +115,8 @@ $chunk="ebx";
 &function_begin_B("padlock_key_bswap");
 	&mov	("edx",&wparam(0));
 	&mov	("ecx",&DWP(240,"edx"));
+	&inc	("ecx");
+	&shl	("ecx",2);
 &set_label("bswap_loop");
 	&mov	("eax",&DWP(0,"edx"));
 	&bswap	("eax");

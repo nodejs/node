@@ -82,16 +82,18 @@ OSSL_PROPERTY_LIST *ossl_prop_defn_get(OSSL_LIB_CTX *ctx, const char *prop)
     elem.prop = prop;
     r = lh_PROPERTY_DEFN_ELEM_retrieve(property_defns, &elem);
     ossl_lib_ctx_unlock(ctx);
-    return r != NULL ? r->defn : NULL;
+    if (r == NULL || !ossl_assert(r->defn != NULL))
+        return NULL;
+    return r->defn;
 }
 
 /*
- * Cache the property list for a given property string. Callers of this function
- * should call ossl_prop_defn_get first to ensure that there is no existing
- * cache entry for this property string.
+ * Cache the property list for a given property string *pl.
+ * If an entry already exists in the cache *pl is freed and
+ * overwritten with the existing entry from the cache.
  */
 int ossl_prop_defn_set(OSSL_LIB_CTX *ctx, const char *prop,
-                       OSSL_PROPERTY_LIST *pl)
+                       OSSL_PROPERTY_LIST **pl)
 {
     PROPERTY_DEFN_ELEM elem, *old, *p = NULL;
     size_t len;
@@ -109,28 +111,27 @@ int ossl_prop_defn_set(OSSL_LIB_CTX *ctx, const char *prop,
 
     if (!ossl_lib_ctx_write_lock(ctx))
         return 0;
+    elem.prop = prop;
     if (pl == NULL) {
-        elem.prop = prop;
         lh_PROPERTY_DEFN_ELEM_delete(property_defns, &elem);
+        goto end;
+    }
+    /* check if property definition is in the cache already */
+    if ((p = lh_PROPERTY_DEFN_ELEM_retrieve(property_defns, &elem)) != NULL) {
+        ossl_property_free(*pl);
+        *pl = p->defn;
         goto end;
     }
     len = strlen(prop);
     p = OPENSSL_malloc(sizeof(*p) + len);
     if (p != NULL) {
         p->prop = p->body;
-        p->defn = pl;
+        p->defn = *pl;
         memcpy(p->body, prop, len + 1);
         old = lh_PROPERTY_DEFN_ELEM_insert(property_defns, p);
-        if (!ossl_assert(old == NULL)) {
-            /*
-             * This should not happen. Any caller of ossl_prop_defn_set should
-             * have called ossl_prop_defn_get first - so we should know that
-             * there is no existing entry. If we get here we have a bug. We
-             * deliberately leak the |old| reference in order to avoid a crash
-             * if there are any existing users of it.
-             */
+        if (!ossl_assert(old == NULL))
+            /* This should not happen. An existing entry is handled above. */
             goto end;
-        }
         if (!lh_PROPERTY_DEFN_ELEM_error(property_defns))
             goto end;
     }

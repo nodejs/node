@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2018-2020, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -1399,7 +1399,7 @@ static int test_kdf_ss_kmac(void)
 {
     int ret;
     EVP_KDF_CTX *kctx;
-    OSSL_PARAM params[6], *p = params;
+    OSSL_PARAM params[7], *p = params;
     unsigned char out[64];
     size_t mac_size = 20;
     static unsigned char z[] = {
@@ -1422,6 +1422,9 @@ static int test_kdf_ss_kmac(void)
 
     *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_MAC,
                                             (char *)OSSL_MAC_NAME_KMAC128, 0);
+    /* The digest parameter is not needed here and should be ignored */
+    *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
+                                            (char *)"SHA256", 0);
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY, z, sizeof(z));
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_INFO, other,
                                              sizeof(other));
@@ -1432,7 +1435,12 @@ static int test_kdf_ss_kmac(void)
 
     ret =
         TEST_ptr(kctx = get_kdfbyname(OSSL_KDF_NAME_SSKDF))
-        && TEST_int_gt(EVP_KDF_derive(kctx, out, sizeof(out), params), 0)
+        && TEST_size_t_eq(EVP_KDF_CTX_get_kdf_size(kctx), 0)
+        && TEST_int_eq(EVP_KDF_CTX_set_params(kctx, params), 1)
+        /* The bug fix for KMAC returning SIZE_MAX was added in 3.0.8 */
+        && (fips_provider_version_lt(NULL, 3, 0, 8)
+            || TEST_size_t_eq(EVP_KDF_CTX_get_kdf_size(kctx), SIZE_MAX))
+        && TEST_int_gt(EVP_KDF_derive(kctx, out, sizeof(out), NULL), 0)
         && TEST_mem_eq(out, sizeof(out), expected, sizeof(expected));
 
     EVP_KDF_CTX_free(kctx);

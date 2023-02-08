@@ -79,7 +79,8 @@ return the index of the next matching entry or -1 if not found.
 X509_NAME_get_index_by_NID() can also return -2 if the supplied
 NID is invalid.
 
-X509_NAME_entry_count() returns the total number of entries.
+X509_NAME_entry_count() returns the total number of entries, and 0
+for failure.
 
 X509_NAME_get_entry() returns an B<X509_NAME> pointer to the
 requested entry or B<NULL> if the index is invalid.

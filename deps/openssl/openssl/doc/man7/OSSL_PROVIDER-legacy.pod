@@ -115,6 +115,10 @@ L<openssl-core.h(7)>,
 L<openssl-core_dispatch.h(7)>,
 L<provider(7)>
 
+=head1 HISTORY
+
+This functionality was added in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
 Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.

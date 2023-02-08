@@ -55,7 +55,7 @@ d2i_X509_AUX() returns a valid B<X509> structure or NULL if an error occurred.
 i2d_X509_AUX() returns the length of encoded data or -1 on error.
 
 i2d_re_X509_tbs(), i2d_re_X509_CRL_tbs() and i2d_re_X509_REQ_tbs() return the
-length of encoded data or 0 on error.
+length of encoded data or <=0 on error.
 
 =head1 SEE ALSO
 

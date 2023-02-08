@@ -280,7 +280,7 @@ int RSA_sign(int type, const unsigned char *m, unsigned int m_len,
 
 #ifndef FIPS_MODULE
     if (rsa->meth->rsa_sign != NULL)
-        return rsa->meth->rsa_sign(type, m, m_len, sigret, siglen, rsa);
+        return rsa->meth->rsa_sign(type, m, m_len, sigret, siglen, rsa) > 0;
 #endif /* FIPS_MODULE */
 
     /* Compute the encoded digest. */

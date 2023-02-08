@@ -20,7 +20,7 @@ DEFINE[../../libcrypto]=$RMD160DEF
 
 # When all deprecated symbols are removed, libcrypto doesn't export the
 # RIPEMD160 functions, so we must include them directly in liblegacy.a
-IF[{- $disabled{'deprecated-3.0'} && !$disabled{'module'} -}]
+IF[{- $disabled{'deprecated-3.0'} && !$disabled{module} && !$disabled{shared} -}]
   SOURCE[../../providers/liblegacy.a]=rmd_dgst.c rmd_one.c $RMD160ASM
   DEFINE[../../providers/liblegacy.a]=$RMD160DEF
 ENDIF

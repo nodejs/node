@@ -42,7 +42,7 @@ sub def         { return __base($_[1], '.ld') . $_[0]->defext() }
 sub obj         { return __base($_[1], '.o') . $_[0]->objext() }
 sub res         { return __base($_[1], '.res') . $_[0]->resext() }
 sub dep         { return __base($_[1], '.o') . $_[0]->depext() } # <- objname
-sub asm         { return __base($_[1], '.S', '.s') . $_[0]->asmext() }
+sub asm         { return __base($_[1], '.s') . $_[0]->asmext() }
 
 # Another set of convenience functions for standard checks of certain
 # internal extensions and conversion from internal to platform specific
@@ -51,7 +51,8 @@ sub asm         { return __base($_[1], '.S', '.s') . $_[0]->asmext() }
 sub isdef       { return $_[1] =~ m|\.ld$|;   }
 sub isobj       { return $_[1] =~ m|\.o$|;    }
 sub isres       { return $_[1] =~ m|\.res$|;  }
-sub isasm       { return $_[1] =~ m|\.[Ss]$|; }
+sub isasm       { return $_[1] =~ m|\.s$|;    }
+sub iscppasm    { return $_[1] =~ m|\.S$|;    }
 sub isstaticlib { return $_[1] =~ m|\.a$|;    }
 sub convertext {
     if ($_[0]->isdef($_[1]))        { return $_[0]->def($_[1]); }

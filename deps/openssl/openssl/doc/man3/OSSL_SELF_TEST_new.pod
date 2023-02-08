@@ -36,7 +36,7 @@ OSSL_SELF_TEST_free() frees the space allocated by OSSL_SELF_TEST_new().
 OSSL_SELF_TEST_onbegin() may be inserted at the start of a block of self test
 code. It can be used for diagnostic purposes.
 If this method is called the callback I<cb> will receive the following
-B<OSSL_PARAM> object.
+L<OSSL_PARAM(3)> object.
 
 =over 4
 
@@ -53,7 +53,7 @@ otherwise it leaves the array unaltered. It can be used for failure testing.
 The I<type> and I<desc> can be used to identify an individual self test to
 target for failure testing.
 If this method is called the callback I<cb> will receive the following
-B<OSSL_PARAM> object.
+L<OSSL_PARAM(3)> object.
 
 =over 4
 
@@ -67,7 +67,7 @@ OSSL_SELF_TEST_onend() may be inserted at the end of a block of self test code
 just before cleanup to indicate if the test passed or failed. It can be used for
 diagnostic purposes.
 If this method is called the callback I<cb> will receive the following
-B<OSSL_PARAM> object.
+L<OSSL_PARAM(3)> object.
 
 =over 4
 
@@ -82,7 +82,7 @@ After the callback I<cb> has been called the values that were set by
 OSSL_SELF_TEST_onbegin() for I<type> and I<desc> are set to the value "None".
 
 If OSSL_SELF_TEST_onbegin(), OSSL_SELF_TEST_oncorrupt_byte() or
-OSSL_SELF_TEST_onend() is called the following additional B<OSSL_PARAM> are
+OSSL_SELF_TEST_onend() is called the following additional L<OSSL_PARAM(3)> are
 passed to the callback.
 
 =over 4

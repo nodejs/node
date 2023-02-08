@@ -984,7 +984,8 @@ EOF
 $target : $gen0 $deps $mkdef
 	\$(PERL) $mkdef$ord_ver --type $args{intent} --ordinals $gen0 --name $ord_name "--OS" "VMS"$case_insensitive > $target
 EOF
-      } elsif (platform->isasm($args{src})) {
+      } elsif (platform->isasm($args{src})
+               || platform->iscppasm($args{src})) {
           #
           # Assembler generator
           #
@@ -994,7 +995,9 @@ EOF
                 dso => "$dso_cflags $dso_cppflags",
                 bin => "$bin_cflags $bin_cppflags" } -> {$args{intent}};
           my $defs = join("", map { ",".$_ } @{$args{defs}});
-          my $target = platform->asm($args{src});
+          my $target = platform->isasm($args{src})
+                       ? platform->asm($args{src})
+                       : $args{src};
 
           my $generator;
           if ($gen0 =~ /\.pl$/) {
@@ -1007,21 +1010,6 @@ EOF
           }
 
           if (defined($generator)) {
-              # If the target is named foo.S in build.info, we want to
-              # end up generating foo.s in two steps.
-              if ($args{src} =~ /\.S$/) {
-                   return <<"EOF";
-$target : $gen0 $deps
-	$generator \$\@-S
-        \@ extradefines = "$defs"
-	PIPE \$(CPP) $cppflags \$\@-S | -
-             \$(PERL) -ne "/^#(\\s*line)?\\s*[0-9]+\\s+""/ or print" > \$\@-i
-        \@ DELETE/SYMBOL/LOCAL extradefines
-        RENAME \$\@-i \$\@
-        DELETE \$\@-S;
-EOF
-              }
-              # Otherwise....
               return <<"EOF";
 $target : $gen0 $deps
         \@ extradefines = "$defs"

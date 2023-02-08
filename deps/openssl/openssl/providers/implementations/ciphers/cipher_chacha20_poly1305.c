@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,7 +13,6 @@
 #include "cipher_chacha20_poly1305.h"
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
-
 
 #define CHACHA20_POLY1305_KEYLEN CHACHA_KEY_SIZE
 #define CHACHA20_POLY1305_BLKLEN 1
@@ -53,7 +52,6 @@ static void *chacha20_poly1305_newctx(void *provctx)
                                     ossl_prov_cipher_hw_chacha20_poly1305(
                                         CHACHA20_POLY1305_KEYLEN * 8),
                                     NULL);
-        ctx->nonce_len = CHACHA20_POLY1305_IVLEN;
         ctx->tls_payload_length = NO_TLS_PAYLOAD_LENGTH;
         ossl_chacha20_initctx(&ctx->chacha);
     }
@@ -85,7 +83,7 @@ static int chacha20_poly1305_get_ctx_params(void *vctx, OSSL_PARAM params[])
 
     p = OSSL_PARAM_locate(params, OSSL_CIPHER_PARAM_IVLEN);
     if (p != NULL) {
-        if (!OSSL_PARAM_set_size_t(p, ctx->nonce_len)) {
+        if (!OSSL_PARAM_set_size_t(p, CHACHA20_POLY1305_IVLEN)) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_SET_PARAMETER);
             return 0;
         }
@@ -169,11 +167,10 @@ static int chacha20_poly1305_set_ctx_params(void *vctx,
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
             return 0;
         }
-        if (len == 0 || len > CHACHA20_POLY1305_MAX_IVLEN) {
+        if (len != CHACHA20_POLY1305_MAX_IVLEN) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_IV_LENGTH);
             return 0;
         }
-        ctx->nonce_len = len;
     }
 
     p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_AEAD_TAG);

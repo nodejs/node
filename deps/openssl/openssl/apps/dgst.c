@@ -114,6 +114,8 @@ int dgst_main(int argc, char **argv)
 
     buf = app_malloc(BUFSIZE, "I/O buffer");
     md = (EVP_MD *)EVP_get_digestbyname(argv[0]);
+    if (md != NULL)
+        digestname = argv[0];
 
     prog = opt_init(argc, argv, dgst_options);
     while ((o = opt_next()) != OPT_EOF) {

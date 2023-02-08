@@ -110,7 +110,7 @@ OSSL_PARAM_UNMODIFIED, OSSL_PARAM_modified, OSSL_PARAM_set_all_unmodified
 =head1 DESCRIPTION
 
 A collection of utility functions that simplify and add type safety to the
-B<OSSL_PARAM> arrays.  The following B<I<TYPE>> names are supported:
+L<OSSL_PARAM(3)> arrays.  The following B<I<TYPE>> names are supported:
 
 =over 1
 
@@ -161,7 +161,7 @@ unsigned long int (ulong)
 =back
 
 OSSL_PARAM_TYPE() are a series of macros designed to assist initialising an
-array of B<OSSL_PARAM> structures.
+array of L<OSSL_PARAM(3)> structures.
 Each of these macros defines a parameter of the specified B<I<TYPE>> with the
 provided I<key> and parameter variable I<address>.
 
@@ -172,46 +172,46 @@ A parameter with name I<key> is defined.
 The storage for this parameter is at I<address> and is of I<size> bytes.
 
 OSSL_PARAM_END provides an end of parameter list marker.
-This should terminate all B<OSSL_PARAM> arrays.
+This should terminate all L<OSSL_PARAM(3)> arrays.
 
 The OSSL_PARAM_DEFN() macro provides the ability to construct a single
-B<OSSL_PARAM> (typically used in the construction of B<OSSL_PARAM> arrays). The
+L<OSSL_PARAM(3)> (typically used in the construction of B<OSSL_PARAM> arrays). The
 I<key>, I<type>, I<addr> and I<sz> arguments correspond to the I<key>,
-I<data_type>, I<data> and I<data_size> fields of the B<OSSL_PARAM> structure as
+I<data_type>, I<data> and I<data_size> fields of the L<OSSL_PARAM(3)> structure as
 described on the L<OSSL_PARAM(3)> page.
 
-OSSL_PARAM_construct_TYPE() are a series of functions that create B<OSSL_PARAM>
+OSSL_PARAM_construct_TYPE() are a series of functions that create L<OSSL_PARAM(3)>
 records dynamically.
 A parameter with name I<key> is created.
 The parameter will use storage pointed to by I<buf> and return size of I<ret>.
 
 OSSL_PARAM_construct_BN() is a function that constructs a large integer
-B<OSSL_PARAM> structure.
+L<OSSL_PARAM(3)> structure.
 A parameter with name I<key>, storage I<buf>, size I<bsize> and return
 size I<rsize> is created.
 
 OSSL_PARAM_construct_utf8_string() is a function that constructs a UTF8
-string B<OSSL_PARAM> structure.
+string L<OSSL_PARAM(3)> structure.
 A parameter with name I<key>, storage I<buf> and size I<bsize> is created.
 If I<bsize> is zero, the string length is determined using strlen(3).
 Generally pass zero for I<bsize> instead of calling strlen(3) yourself.
 
 OSSL_PARAM_construct_octet_string() is a function that constructs an OCTET
-string B<OSSL_PARAM> structure.
+string L<OSSL_PARAM(3)> structure.
 A parameter with name I<key>, storage I<buf> and size I<bsize> is created.
 
 OSSL_PARAM_construct_utf8_ptr() is a function that constructs a UTF8 string
-pointer B<OSSL_PARAM> structure.
+pointer L<OSSL_PARAM(3)> structure.
 A parameter with name I<key>, storage pointer I<*buf> and size I<bsize>
 is created.
 
 OSSL_PARAM_construct_octet_ptr() is a function that constructs an OCTET string
-pointer B<OSSL_PARAM> structure.
+pointer L<OSSL_PARAM(3)> structure.
 A parameter with name I<key>, storage pointer I<*buf> and size I<bsize>
 is created.
 
 OSSL_PARAM_construct_end() is a function that constructs the terminating
-B<OSSL_PARAM> structure.
+L<OSSL_PARAM(3)> structure.
 
 OSSL_PARAM_locate() is a function that searches an I<array> of parameters for
 the one matching the I<key> name.
@@ -314,10 +314,10 @@ in the array I<params>.
 OSSL_PARAM_construct_TYPE(), OSSL_PARAM_construct_BN(),
 OSSL_PARAM_construct_utf8_string(), OSSL_PARAM_construct_octet_string(),
 OSSL_PARAM_construct_utf8_ptr() and OSSL_PARAM_construct_octet_ptr()
-return a populated B<OSSL_PARAM> structure.
+return a populated L<OSSL_PARAM(3)> structure.
 
 OSSL_PARAM_locate() and OSSL_PARAM_locate_const() return a pointer to
-the matching B<OSSL_PARAM> object.  They return NULL on error or when
+the matching L<OSSL_PARAM(3)> object.  They return NULL on error or when
 no object matching I<key> exists in the I<array>.
 
 OSSL_PARAM_modified() returns 1 if the parameter was set and 0 otherwise.
@@ -334,11 +334,11 @@ expected type of the parameter.
 OSSL_PARAM_get_BN() and OSSL_PARAM_set_BN() currently only support
 nonnegative B<BIGNUM>s, and by consequence, only
 B<OSSL_PARAM_UNSIGNED_INTEGER>.  OSSL_PARAM_construct_BN() currently
-constructs an B<OSSL_PARAM> structure with the data type
+constructs an L<OSSL_PARAM(3)> structure with the data type
 B<OSSL_PARAM_UNSIGNED_INTEGER>.
 
 For OSSL_PARAM_construct_utf8_ptr() and OSSL_PARAM_consstruct_octet_ptr(),
-I<bsize> is not relevant if the purpose is to send the B<OSSL_PARAM> array
+I<bsize> is not relevant if the purpose is to send the L<OSSL_PARAM(3)> array
 to a I<responder>, i.e. to get parameter data back.
 In that case, I<bsize> can safely be given zero.
 See L<OSSL_PARAM(3)/DESCRIPTION> for further information on the
@@ -347,7 +347,7 @@ possible purposes.
 =head1 EXAMPLES
 
 Reusing the examples from L<OSSL_PARAM(3)> to just show how
-B<OSSL_PARAM> arrays can be handled using the macros and functions
+L<OSSL_PARAM(3)> arrays can be handled using the macros and functions
 defined herein.
 
 =head2 Example 1

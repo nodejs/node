@@ -60,10 +60,9 @@ The B<EVP> interface to digital signatures should almost always be used in
 preference to the low-level interfaces. This is because the code then becomes
 transparent to the algorithm used and much more flexible.
 
-When signing with DSA private keys the random number generator must be seeded.
-If the automatic seeding or reseeding of the OpenSSL CSPRNG fails due to
-external circumstances (see L<RAND(7)>), the operation will fail.
-This requirement does not hold for RSA signatures.
+When signing with some private key types the random number generator must
+be seeded. If the automatic seeding or reseeding of the OpenSSL CSPRNG fails
+due to external circumstances (see L<RAND(7)>), the operation will fail.
 
 The call to EVP_SignFinal() internally finalizes a copy of the digest context.
 This means that calls to EVP_SignUpdate() and EVP_SignFinal() can be called
@@ -85,7 +84,7 @@ data have been passed through EVP_SignUpdate().
 
 It is not possible to change the signing parameters using these function.
 
-The previous two bugs are fixed in the newer EVP_SignDigest*() function.
+The previous two bugs are fixed in the newer EVP_DigestSign*() functions.
 
 =head1 SEE ALSO
 

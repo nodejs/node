@@ -16,7 +16,7 @@ OSSL_SELF_TEST_get_callback - specify a callback for processing self tests
 
 Set or gets the optional application callback (and the callback argument) that
 is called during self testing.
-The application callback B<OSSL_CALLBACK> is associated with a B<OSSL_LIB_CTX>.
+The application callback L<OSSL_CALLBACK(3)> is associated with a B<OSSL_LIB_CTX>.
 The application callback function receives information about a running self test,
 and may return a result to the calling self test.
 See L<openssl-core.h(7)> for further information on the callback.

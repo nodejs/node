@@ -109,8 +109,9 @@ make no sense for revocation and thus are treated as an error as well.
 
 OSSL_CMP_exec_GENM_ses() sends a general message containing the sequence of
 infoType and infoValue pairs (InfoTypeAndValue; short: B<ITAV>)
-provided in the I<ctx> using L<OSSL_CMP_CTX_push0_genm_ITAV(3)>.
-It returns the list of B<ITAV>s received in the GenRep.
+optionally provided in the I<ctx> using L<OSSL_CMP_CTX_push0_genm_ITAV(3)>.
+On success it records in I<ctx> the status B<OSSL_CMP_PKISTATUS_accepted>
+and returns the list of B<ITAV>s received in the GENP message.
 This can be used, for instance, to poll for CRLs or CA Key Updates.
 See RFC 4210 section 5.3.19 and appendix E.5 for details.
 
@@ -139,8 +140,8 @@ assign the received value unless I<checkAfter> is NULL.
 
 OSSL_CMP_exec_RR_ses() returns 1 on success, 0 on error.
 
-OSSL_CMP_exec_GENM_ses() returns a
-pointer to the received B<ITAV> sequence on success, NULL on error.
+OSSL_CMP_exec_GENM_ses() returns NULL on error,
+otherwise a pointer to the sequence of B<ITAV> received, which may be empty.
 This pointer must be freed by the caller.
 
 =head1 EXAMPLES

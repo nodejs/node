@@ -78,8 +78,8 @@ following functions.
 OSSL_ENCODER_CTX_set_pem_password_cb(), OSSL_ENCODER_CTX_set_passphrase_ui()
 and OSSL_ENCODER_CTX_set_passphrase_cb() sets up a callback method that the
 implementation can use to prompt for a pass phrase, giving the caller the
-choice of prefered pass phrase callback form.  These are called indirectly,
-through an internal B<OSSL_PASSPHRASE_CALLBACK> function.
+choice of preferred pass phrase callback form.  These are called indirectly,
+through an internal L<OSSL_PASSPHRASE_CALLBACK(3)> function.
 
 =head2 Output types
 

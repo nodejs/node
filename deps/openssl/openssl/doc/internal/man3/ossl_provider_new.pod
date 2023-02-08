@@ -301,7 +301,7 @@ I<*result> to 1 or 0 accorddingly.
 
 ossl_provider_init_as_child() stores in the library context I<ctx> references to
 the necessary upcalls for managing child providers. The I<handle> and I<in>
-parameters are the B<OSSL_CORE_HANDLE> and B<OSSL_DISPATCH> pointers that were
+parameters are the B<OSSL_CORE_HANDLE> and L<OSSL_DISPATCH(3)> pointers that were
 passed to the provider's B<OSSL_provider_init> function.
 
 ossl_provider_deinit_child() deregisters callbacks from the parent library

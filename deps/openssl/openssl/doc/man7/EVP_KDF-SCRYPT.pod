@@ -134,6 +134,10 @@ L<EVP_KDF_CTX_set_params(3)>,
 L<EVP_KDF_derive(3)>,
 L<EVP_KDF(3)/PARAMETERS>
 
+=head1 HISTORY
+
+This functionality was added in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
 Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.

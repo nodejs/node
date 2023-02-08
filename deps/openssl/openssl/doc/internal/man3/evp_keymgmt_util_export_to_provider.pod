@@ -20,12 +20,14 @@ OP_CACHE_ELEM
 
  int evp_keymgmt_util_export(const EVP_PKEY *pk, int selection,
                              OSSL_CALLBACK *export_cb, void *export_cbarg);
- void *evp_keymgmt_util_export_to_provider(EVP_PKEY *pk, EVP_KEYMGMT *keymgmt);
+ void *evp_keymgmt_util_export_to_provider(EVP_PKEY *pk, EVP_KEYMGMT *keymgmt,
+                                           int selection);
  OP_CACHE_ELEM *evp_keymgmt_util_find_operation_cache(EVP_PKEY *pk,
-                                                      EVP_KEYMGMT *keymgmt);
+                                                      EVP_KEYMGMT *keymgmt,
+                                                      int selection);
  int evp_keymgmt_util_clear_operation_cache(EVP_PKEY *pk, int locking);
- int evp_keymgmt_util_cache_keydata(EVP_PKEY *pk,
-                                    EVP_KEYMGMT *keymgmt, void *keydata);
+ int evp_keymgmt_util_cache_keydata(EVP_PKEY *pk, EVP_KEYMGMT *keymgmt,
+                                    void *keydata, int selection);
  void evp_keymgmt_util_cache_keyinfo(EVP_PKEY *pk);
  void *evp_keymgmt_util_fromdata(EVP_PKEY *target, EVP_KEYMGMT *keymgmt,
                                  int selection, const OSSL_PARAM params[]);
@@ -64,6 +66,11 @@ information cache.
 evp_keymgmt_util_fromdata() can be used to add key object data to a
 given key I<target> via a B<EVP_KEYMGMT> interface.  This is used as a
 helper for L<EVP_PKEY_fromdata(3)>.
+
+In all functions that take a I<selection> argument, the selection is used to
+constraint the information requested on export. It is also used in the cache
+so that key data is guaranteed to contain all the information requested in
+the selection.
 
 =head1 RETURN VALUES
 

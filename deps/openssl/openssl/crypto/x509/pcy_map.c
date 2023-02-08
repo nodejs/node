@@ -73,10 +73,6 @@ int ossl_policy_cache_set_mapping(X509 *x, POLICY_MAPPINGS *maps)
 
     ret = 1;
  bad_mapping:
-    if (ret == -1 && CRYPTO_THREAD_write_lock(x->lock)) {
-        x->ex_flags |= EXFLAG_INVALID_POLICY;
-        CRYPTO_THREAD_unlock(x->lock);
-    }
     sk_POLICY_MAPPING_pop_free(maps, POLICY_MAPPING_free);
     return ret;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -55,7 +55,6 @@ static int chacha_poly1305_tls_iv_set_fixed(PROV_CIPHER_CTX *bctx,
     return 1;
 }
 
-
 static int chacha20_poly1305_initkey(PROV_CIPHER_CTX *bctx,
                                      const unsigned char *key, size_t keylen)
 {
@@ -78,6 +77,7 @@ static int chacha20_poly1305_initiv(PROV_CIPHER_CTX *bctx)
     PROV_CHACHA20_POLY1305_CTX *ctx = (PROV_CHACHA20_POLY1305_CTX *)bctx;
     unsigned char tempiv[CHACHA_CTR_SIZE] = { 0 };
     int ret = 1;
+    size_t noncelen = CHACHA20_POLY1305_IVLEN;
 
     ctx->len.aad = 0;
     ctx->len.text = 0;
@@ -85,22 +85,20 @@ static int chacha20_poly1305_initiv(PROV_CIPHER_CTX *bctx)
     ctx->mac_inited = 0;
     ctx->tls_payload_length = NO_TLS_PAYLOAD_LENGTH;
 
-        /* pad on the left */
-    if (ctx->nonce_len <= CHACHA_CTR_SIZE) {
-            memcpy(tempiv + CHACHA_CTR_SIZE - ctx->nonce_len, bctx->oiv,
-                   ctx->nonce_len);
+    /* pad on the left */
+    memcpy(tempiv + CHACHA_CTR_SIZE - noncelen, bctx->oiv,
+           noncelen);
 
-        if (bctx->enc)
-            ret = ossl_chacha20_einit(&ctx->chacha, NULL, 0,
-                                      tempiv, sizeof(tempiv), NULL);
-        else
-            ret = ossl_chacha20_dinit(&ctx->chacha, NULL, 0,
-                                      tempiv, sizeof(tempiv), NULL);
-        ctx->nonce[0] = ctx->chacha.counter[1];
-        ctx->nonce[1] = ctx->chacha.counter[2];
-        ctx->nonce[2] = ctx->chacha.counter[3];
-        bctx->iv_set = 1;
-    }
+    if (bctx->enc)
+        ret = ossl_chacha20_einit(&ctx->chacha, NULL, 0,
+                                  tempiv, sizeof(tempiv), NULL);
+    else
+        ret = ossl_chacha20_dinit(&ctx->chacha, NULL, 0,
+                                  tempiv, sizeof(tempiv), NULL);
+    ctx->nonce[0] = ctx->chacha.counter[1];
+    ctx->nonce[1] = ctx->chacha.counter[2];
+    ctx->nonce[2] = ctx->chacha.counter[3];
+    bctx->iv_set = 1;
     return ret;
 }
 

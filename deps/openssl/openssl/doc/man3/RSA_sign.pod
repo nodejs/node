@@ -46,8 +46,8 @@ B<rsa> is the signer's public key.
 
 =head1 RETURN VALUES
 
-RSA_sign() returns 1 on success.
-RSA_verify() returns 1 on successful verification.
+RSA_sign() returns 1 on success and 0 for failure.
+RSA_verify() returns 1 on successful verification and 0 for failure.
 
 The error codes can be obtained by L<ERR_get_error(3)>.
 

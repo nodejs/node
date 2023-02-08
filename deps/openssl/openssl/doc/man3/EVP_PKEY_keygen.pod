@@ -100,7 +100,7 @@ If I<type> is C<RSA>,
 a B<size_t> parameter must be given to specify the size of the RSA key.
 If I<type> is C<EC>,
 a string parameter must be given to specify the name of the EC curve.
-If I<type> is C<X25519>, C<X448>, C<ED25519>, or C<ED448>
+If I<type> is C<X25519>, C<X448>, C<ED25519>, C<ED448>, or C<SM2>
 no further parameter is needed.
 
 =head1 RETURN VALUES

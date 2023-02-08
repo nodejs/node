@@ -23,15 +23,18 @@ supports the following.
 
 =item "n" (B<OSSL_PKEY_PARAM_RSA_N>) <unsigned integer>
 
-The RSA "n" value.
+The RSA modulus "n" value.
 
 =item "e" (B<OSSL_PKEY_PARAM_RSA_E>) <unsigned integer>
 
-The RSA "e" value.
+The RSA public exponent "e" value.
+This value must always be set when creating a raw key using L<EVP_PKEY_fromdata(3)>.
+Note that when a decryption operation is performed, that this value is used for
+blinding purposes to prevent timing attacks.
 
 =item "d" (B<OSSL_PKEY_PARAM_RSA_D>) <unsigned integer>
 
-The RSA "d" value.
+The RSA private exponent "d" value.
 
 =item "rsa-factor1" (B<OSSL_PKEY_PARAM_RSA_FACTOR1>) <unsigned integer>
 
@@ -261,7 +264,7 @@ L<EVP_RSA_gen(3)>, L<EVP_KEYMGMT(3)>, L<EVP_PKEY(3)>, L<provider-keymgmt(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

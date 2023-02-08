@@ -243,25 +243,25 @@ int rsautl_main(int argc, char **argv)
 
     switch (rsa_mode) {
     case RSA_VERIFY:
-        rv = EVP_PKEY_verify_recover_init(ctx)
-            && EVP_PKEY_CTX_set_rsa_padding(ctx, pad)
+        rv = EVP_PKEY_verify_recover_init(ctx) > 0
+            && EVP_PKEY_CTX_set_rsa_padding(ctx, pad) > 0
             && EVP_PKEY_verify_recover(ctx, rsa_out, &rsa_outlen,
-                                       rsa_in, rsa_inlen);
+                                       rsa_in, rsa_inlen) > 0;
         break;
     case RSA_SIGN:
-        rv = EVP_PKEY_sign_init(ctx)
-            && EVP_PKEY_CTX_set_rsa_padding(ctx, pad)
-            && EVP_PKEY_sign(ctx, rsa_out, &rsa_outlen, rsa_in, rsa_inlen);
+        rv = EVP_PKEY_sign_init(ctx) > 0
+            && EVP_PKEY_CTX_set_rsa_padding(ctx, pad) > 0
+            && EVP_PKEY_sign(ctx, rsa_out, &rsa_outlen, rsa_in, rsa_inlen) > 0;
         break;
     case RSA_ENCRYPT:
-        rv = EVP_PKEY_encrypt_init(ctx)
-            && EVP_PKEY_CTX_set_rsa_padding(ctx, pad)
-            && EVP_PKEY_encrypt(ctx, rsa_out, &rsa_outlen, rsa_in, rsa_inlen);
+        rv = EVP_PKEY_encrypt_init(ctx) > 0
+            && EVP_PKEY_CTX_set_rsa_padding(ctx, pad) > 0
+            && EVP_PKEY_encrypt(ctx, rsa_out, &rsa_outlen, rsa_in, rsa_inlen) > 0;
         break;
     case RSA_DECRYPT:
-        rv = EVP_PKEY_decrypt_init(ctx)
-            && EVP_PKEY_CTX_set_rsa_padding(ctx, pad)
-            && EVP_PKEY_decrypt(ctx, rsa_out, &rsa_outlen, rsa_in, rsa_inlen);
+        rv = EVP_PKEY_decrypt_init(ctx) > 0
+            && EVP_PKEY_CTX_set_rsa_padding(ctx, pad) > 0
+            && EVP_PKEY_decrypt(ctx, rsa_out, &rsa_outlen, rsa_in, rsa_inlen) > 0;
         break;
     }
 
