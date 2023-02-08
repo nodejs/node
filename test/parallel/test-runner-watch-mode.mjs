@@ -11,22 +11,25 @@ async function testWatch({ files, fileToUpdate }) {
   const ran2 = util.createDeferredPromise();
   const child = spawn(process.execPath, ['--watch', '--test', '--no-warnings', ...files], { encoding: 'utf8' });
   let stdout = '';
+
   child.stdout.on('data', (data) => {
     stdout += data.toString();
-    if (/ok 2/.test(stdout)) ran1.resolve();
-    if (/ok 3/.test(stdout)) ran2.resolve();
+    const matches = stdout.match(/test has ran/g);
+    if (matches?.length >= 1) ran1.resolve();
+    if (matches?.length >= 2) ran2.resolve();
   });
 
   await ran1.promise;
-  writeFileSync(fileToUpdate, readFileSync(fileToUpdate, 'utf8'));
+  const interval = setInterval(() => writeFileSync(fileToUpdate, readFileSync(fileToUpdate, 'utf8')), 50);
   await ran2.promise;
+  clearInterval(interval);
   child.kill();
 }
 
 describe('test runner watch mode', () => {
   it('should run tests repeatedly', async () => {
     const file1 = fixtures.path('test-runner/index.test.js');
-    const file2 = fixtures.path('test-runner/subdir/subdir_test.js');
+    const file2 = fixtures.path('test-runner/dependent.js');
     await testWatch({ files: [file1, file2], fileToUpdate: file2 });
   });
 
