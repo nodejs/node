@@ -314,6 +314,12 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
   if (per_process::sea::IsSingleExecutable()) {
+    // TODO(addaleax): Find a way to reuse:
+    //
+    // LoadEnvironment(Environment*, const char*)
+    //
+    // instead and not add yet another main entry point here because this
+    // already duplicates existing code.
     return StartExecution(env, "internal/main/single_executable_application");
   }
 #endif
