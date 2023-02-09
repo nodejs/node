@@ -21,6 +21,7 @@ NPM="$ROOT/deps/npm/bin/npm-cli.js"
 
 "$NODE" "$NPM" install --no-bin-links --ignore-scripts postject
 
+# TODO(RaisinTen): Replace following with $WORKSPACE
 cd ../../..
 rm -rf deps/postject
 mkdir deps/postject
