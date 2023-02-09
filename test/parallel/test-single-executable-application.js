@@ -3,6 +3,7 @@ const common = require('../common');
 
 // This tests the creation of a single executable application.
 
+const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const { copyFileSync, readFileSync, writeFileSync } = require('fs');
 const { execSync } = require('child_process');
@@ -47,9 +48,13 @@ if (process.platform === 'linux') {
   }
 }
 
-const inputFile = join(tmpdir.path, 'sea.js');
+const inputFile = fixtures.path('sea.js');
 const requirableFile = join(tmpdir.path, 'requirable.js');
 const outputFile = join(tmpdir.path, process.platform === 'win32' ? 'sea.exe' : 'sea');
+
+// Although, require('../common') works locally, that couldn't be used here
+// because we set NODE_TEST_DIR=/Users/iojs/node-tmp on Jenkins CI.
+process.env.COMMON_DIRECTORY = JSON.stringify(join(__dirname, '..', 'common')).slice(1, -1);
 
 tmpdir.refresh();
 
@@ -59,43 +64,6 @@ module.exports = {
 };
 `);
 
-writeFileSync(inputFile, `
-const { Module: { createRequire } } = require('module');
-const createdRequire = createRequire(__filename);
-
-// Although, require('../common') works locally, that couldn't be used here
-// because we set NODE_TEST_DIR=/Users/iojs/node-tmp on Jenkins CI.
-const { expectWarning } = createdRequire(${JSON.stringify(join(__dirname, '..', 'common'))});
-
-expectWarning('ExperimentalWarning',
-              'Single executable application is an experimental feature and ' +
-              'might change at any time');
-
-const { deepStrictEqual, strictEqual, throws } = require('assert');
-const { dirname } = require('path');
-
-deepStrictEqual(process.argv, [process.execPath, process.execPath, '-a', '--b=c', 'd']);
-
-strictEqual(require.cache, undefined);
-strictEqual(require.extensions, undefined);
-strictEqual(require.main, module);
-strictEqual(require.resolve, undefined);
-
-strictEqual(__filename, process.execPath);
-strictEqual(__dirname, dirname(process.execPath));
-strictEqual(module.exports, exports);
-
-throws(() => require('./requirable.js'), {
-  code: 'ERR_UNKNOWN_BUILTIN_MODULE',
-});
-
-const requirable = createdRequire('./requirable.js');
-deepStrictEqual(requirable, {
-  hello: 'world',
-});
-
-console.log('Hello, world! 😊');
-`);
 copyFileSync(process.execPath, outputFile);
 const postjectFile = join(__dirname, '..', 'fixtures', 'postject-copy', 'node_modules', 'postject', 'dist', 'cli.js');
 let postjectCommand = `${process.execPath} ${postjectFile} ${outputFile} NODE_JS_CODE ${inputFile} --sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2`;
