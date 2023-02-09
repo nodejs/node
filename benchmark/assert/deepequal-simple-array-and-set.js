@@ -4,18 +4,10 @@ const common = require('../common.js');
 const { deepEqual, deepStrictEqual, notDeepEqual, notDeepStrictEqual } =
   require('assert');
 
-const primValues = {
-  'string': 'a',
-  'number': 1,
-  'object': { 0: 'a' },
-  'array': [1, 2, 3],
-};
-
 const bench = common.createBenchmark(main, {
-  primitive: Object.keys(primValues),
-  n: [25],
-  len: [2e4],
-  strict: [0, 1],
+  n: [5e2],
+  len: [1e4],
+  strict: [1],
   method: [
     'deepEqual_Array',
     'notDeepEqual_Array',
@@ -32,38 +24,32 @@ function run(fn, n, actual, expected) {
   bench.end(n);
 }
 
-function main({ n, len, primitive, method, strict }) {
-  const prim = primValues[primitive];
+function main({ n, len, method, strict }) {
   const actual = [];
   const expected = [];
-  const expectedWrong = [];
 
-  for (let x = 0; x < len; x++) {
-    actual.push(prim);
-    expected.push(prim);
-    expectedWrong.push(prim);
+  for (let i = 0; i < len; i++) {
+    actual.push(i);
+    expected.push(i);
   }
-  expectedWrong.pop();
-  expectedWrong.push('b');
-
-  // Note: primitives are only added once to a set
-  const actualSet = new Set(actual);
-  const expectedSet = new Set(expected);
-  const expectedWrongSet = new Set(expectedWrong);
+  if (method.includes('not')) {
+    expected[len - 1] += 1;
+  }
 
   switch (method) {
     case 'deepEqual_Array':
       run(strict ? deepStrictEqual : deepEqual, n, actual, expected);
       break;
     case 'notDeepEqual_Array':
-      run(strict ? notDeepStrictEqual : notDeepEqual, n, actual, expectedWrong);
+      run(strict ? notDeepStrictEqual : notDeepEqual, n, actual, expected);
       break;
     case 'deepEqual_Set':
-      run(strict ? deepStrictEqual : deepEqual, n, actualSet, expectedSet);
+      run(strict ? deepStrictEqual : deepEqual,
+          n, new Set(actual), new Set(expected));
       break;
     case 'notDeepEqual_Set':
       run(strict ? notDeepStrictEqual : notDeepEqual,
-          n, actualSet, expectedWrongSet);
+          n, new Set(actual), new Set(expected));
       break;
     default:
       throw new Error(`Unsupported method "${method}"`);
