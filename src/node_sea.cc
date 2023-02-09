@@ -11,6 +11,7 @@
 #include "postject-api.h"
 
 #include <memory>
+#include <string_view>
 #include <tuple>
 #include <vector>
 
@@ -20,53 +21,44 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Local;
 using v8::Object;
-using v8::String;
 using v8::Value;
 
 namespace {
 
-bool single_executable_application_code_loaded = false;
-size_t single_executable_application_size = 0;
-const char* single_executable_application_code = nullptr;
-
-const char* FindSingleExecutableCode(size_t* size) {
-  if (single_executable_application_code_loaded == false) {
+const std::string_view FindSingleExecutableCode() {
+  static const std::string_view sea_code = []() -> std::string_view {
+    size_t size;
 #ifdef __APPLE__
     postject_options options;
     postject_options_init(&options);
     options.macho_segment_name = "NODE_JS";
-    single_executable_application_code =
-        static_cast<const char*>(postject_find_resource(
-            "NODE_JS_CODE", &single_executable_application_size, &options));
+    const char* code = static_cast<const char*>(
+        postject_find_resource("NODE_JS_CODE", &size, &options));
 #else
-    single_executable_application_code =
-        static_cast<const char*>(postject_find_resource(
-            "NODE_JS_CODE", &single_executable_application_size, nullptr));
+    const char* code = static_cast<const char*>(
+        postject_find_resource("NODE_JS_CODE", &size, nullptr));
 #endif
-    single_executable_application_code_loaded = true;
-  }
-
-  if (size != nullptr) {
-    *size = single_executable_application_size;
-  }
-
-  return single_executable_application_code;
+    return {code, size};
+  }();
+  return sea_code;
 }
 
 void GetSingleExecutableCode(const FunctionCallbackInfo<Value>& args) {
   node::Environment* env = node::Environment::GetCurrent(args);
 
-  size_t size = 0;
-  const char* code = FindSingleExecutableCode(&size);
+  const std::string_view sea_code = FindSingleExecutableCode();
 
-  if (code == nullptr) {
+  if (sea_code.empty()) {
     return;
   }
 
-  size_t expected_u16_length = simdutf::utf16_length_from_utf8(code, size);
+  size_t expected_u16_length =
+      simdutf::utf16_length_from_utf8(sea_code.data(), sea_code.size());
   auto out = std::make_shared<std::vector<uint16_t>>(expected_u16_length);
-  size_t u16_length = simdutf::convert_utf8_to_utf16(
-      code, size, reinterpret_cast<char16_t*>(out->data()));
+  size_t u16_length =
+      simdutf::convert_utf8_to_utf16(sea_code.data(),
+                                     sea_code.size(),
+                                     reinterpret_cast<char16_t*>(out->data()));
   out->resize(u16_length);
 
   args.GetReturnValue().Set(
