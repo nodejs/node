@@ -88,19 +88,10 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_${i}.txt`);
     assert.deepStrictEqual(arrayBufferArr, buffers);
 
     const expectedLength = arrayBufferArr.length * arrayBuffer.byteLength;
-    console.log({ arrLength: arrayBufferArr.length, byteLength: arrayBuffer.byteLength })
     assert.deepStrictEqual(written, expectedLength);
     fs.closeSync(fd);
     const expectedResult = Buffer.concat(arrayBufferArr.map((buf) => new Uint8Array(buf)));
-    const gotResult = fs.readFileSync(filename);
-    for (let i = 0; i < expectedResult.byteLength; i++) {
-      if (expectedResult[i] !== gotResult[i]) {
-        console.log({ i, expected: expectedResult[i], got: gotResult[i], expectedLength })
-        break;
-      }
-    }
-    // console.log({ expectedResult, _____gotResult, equal: expectedResult.compare(gotResult) });
-    assert(expectedResult.equals(gotResult));
+    assert(expectedResult.equals(fs.readFileSync(filename)));
   });
 
   fs.writev(fd, arrayBufferArr, done);

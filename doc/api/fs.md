@@ -760,7 +760,8 @@ changes:
                  strings anymore.
 -->
 
-* `data` {string|Buffer|TypedArray|DataView|ArrayBuffer|AsyncIterable|Iterable|Stream}
+* `data` {string|Buffer|TypedArray|DataView|ArrayBuffer|AsyncIterable|
+  Iterable|Stream}
 * `options` {Object|string}
   * `encoding` {string|null} The expected character encoding when `data` is a
     string. **Default:** `'utf8'`
@@ -799,8 +800,8 @@ Write an array of {ArrayBufferView}s or {ArrayBuffer}s to the file.
 The promise is resolved with an object containing a two properties:
 
 * `bytesWritten` {integer} the number of bytes written
-* `buffers` {Buffer\[]|TypedArray\[]|DataView\[]|ArrayBuffer\[]} a reference to the `buffers`
-  input.
+* `buffers` {Buffer\[]|TypedArray\[]|DataView\[]|ArrayBuffer\[]} a reference
+  to the `buffers` input.
 
 It is unsafe to call `writev()` multiple times on the same file without waiting
 for the promise to be resolved (or rejected).
@@ -1693,7 +1694,8 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|FileHandle} filename or `FileHandle`
-* `data` {string|Buffer|TypedArray|DataView|ArrayBuffer|AsyncIterable|Iterable|Stream}
+* `data` {string|Buffer|TypedArray|DataView|ArrayBuffer|AsyncIterable
+  |Iterable|Stream}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -4898,8 +4900,8 @@ changes:
   * `bytesWritten` {integer}
   * `buffers` {ArrayBufferView\[]}
 
-Write an array of `ArrayBufferView`s or `ArrayBuffer`s to the file specified by `fd` using
-`writev()`.
+Write an array of `ArrayBufferView`s or `ArrayBuffer`s to the file specified
+by `fd` using `writev()`.
 
 `position` is the offset from the beginning of the file where this data
 should be written. If `typeof position !== 'number'`, the data will be written

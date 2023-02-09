@@ -56,6 +56,27 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_sync_${i}.txt`);
   assert(Buffer.concat(bufferArr).equals(fs.readFileSync(filename)));
 }
 
+// fs.writevSync with array of ArrayBuffers without position
+{
+  const filename = getFileName(2);
+  const fd = fs.openSync(filename, 'w');
+
+  const buffer = Buffer.from(expected);
+  const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  const arrayBufferArr = [arrayBuffer, arrayBuffer, arrayBuffer];
+  const expectedLength = arrayBufferArr.length * arrayBuffer.byteLength;
+
+  let written = fs.writevSync(fd, [Buffer.from('')]);
+  assert.strictEqual(written, 0);
+
+  written = fs.writevSync(fd, arrayBufferArr);
+  assert.strictEqual(written, expectedLength);
+
+  fs.closeSync(fd);
+  const expectedResult = Buffer.concat(arrayBufferArr.map((buf) => new Uint8Array(buf)));
+  assert(expectedResult.equals(fs.readFileSync(filename)));
+}
+
 // fs.writevSync with empty array of buffers
 {
   const filename = getFileName(3);
