@@ -92,7 +92,7 @@ INITIALIZER = '{{"{0}", UnionBytes{{{1}, {2}}} }},'
 
 CONFIG_GYPI_ID = 'config_raw'
 
-SLUGGER_RE =re.compile('[.\-/]')
+SLUGGER_RE =re.compile(r'[.\-/]')
 
 is_verbose = False
 
