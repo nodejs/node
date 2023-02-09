@@ -20,3 +20,9 @@ NPM="$ROOT/deps/npm/bin/npm-cli.js"
 "$NODE" "$NPM" init --yes
 
 "$NODE" "$NPM" install --no-bin-links --ignore-scripts postject
+
+cd ../../..
+rm -rf deps/postject
+mkdir deps/postject
+cp test/fixtures/postject-copy/node_modules/postject/LICENSE deps/postject
+cp test/fixtures/postject-copy/node_modules/postject/dist/postject-api.h deps/postject
