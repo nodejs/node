@@ -11,7 +11,6 @@ overrides:
   - files:
       - crypto/*.js
       - http/*.js
-      - http2/*.js
       - path/*.js
       - url/*.js
     rules:
