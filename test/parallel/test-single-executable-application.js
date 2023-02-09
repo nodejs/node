@@ -101,5 +101,5 @@ if (process.platform === 'darwin') {
 const singleExecutableApplicationOutput = execFileSync(
   outputFile,
   [ '-a', '--b=c', 'd' ],
-  { env: { COMMON_DIRECTORY: JSON.stringify(join(__dirname, '..', 'common')).slice(1, -1) } });
+  { env: { COMMON_DIRECTORY: join(__dirname, '..', 'common') } });
 strictEqual(singleExecutableApplicationOutput.toString(), 'Hello, world! 😊\n');
