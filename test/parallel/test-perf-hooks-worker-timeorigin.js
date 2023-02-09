@@ -9,10 +9,10 @@ require('worker_threads').parentPort.postMessage(performance.timeOrigin);
 `, { eval: true });
 
 w.on('message', common.mustCall((timeOrigin) => {
-  // Worker is created after this main context, it's
-  // `performance.timeOrigin` must be greater than this
-  // main context's.
-  assert.ok(timeOrigin > performance.timeOrigin);
+  // PerformanceNodeTiming exposes process milestones so the
+  // `performance.timeOrigin` in the `worker_threads.Worker` must be the start
+  // time of the process.
+  assert.strictEqual(timeOrigin, performance.timeOrigin);
 }));
 
 w.on('exit', common.mustCall((code) => {
