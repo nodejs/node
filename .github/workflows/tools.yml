@@ -79,7 +79,7 @@ jobs:
             subsystem: deps,test
             label: test
             run: |
-              NEW_VERSION=$(./tools/dep_updaters/update-eslint.sh | tail -n1)
+              NEW_VERSION=$(./tools/dep_updaters/update-postject.sh | tail -n1)
               if [ $? = 0 ]; then
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
               fi
