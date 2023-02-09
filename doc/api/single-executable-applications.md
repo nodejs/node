@@ -7,14 +7,14 @@
 
 <!-- source_link=lib/internal/main/single_executable_application.js -->
 
+This feature allows the distribution of a Node.js application conveniently to a
+system that does not have Node.js installed.
+
 Node.js supports the creation of [single executable applications][] by allowing
 the injection of a JavaScript file into the `node` binary. During start up, the
 program checks if a resource (on [PE][]) or section (on [Mach-O][]) or note (on
 [ELF][]) named `NODE_JS_CODE` exists (on macOS, in the `NODE_JS` segment). If it
 is found, it executes its contents, otherwise it operates like plain Node.js.
-
-This feature allows the distribution of a Node.js application conveniently to a
-system that does not have Node.js installed.
 
 A bundled JavaScript file can be turned into a single executable application
 with any other tool which can inject resources into the Node.js binary. The tool
