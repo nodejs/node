@@ -78,7 +78,7 @@ jobs:
                 ./tools/update-undici.sh
               fi
           - id: postject
-            subsystem: test
+            subsystem: deps,test
             label: test
             run: |
               NEW_VERSION=$(npm view postject dist-tags.latest)
