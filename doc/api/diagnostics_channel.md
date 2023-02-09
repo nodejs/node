@@ -870,6 +870,9 @@ function execution, and will produce a [`asyncStart` event][] and
 promise rejects. This will run the given function using
 [`channel.runStores(data, ...)`][] on the `start` channel.
 
+The `position` will be -1 by default to indicate the final argument should
+be used as the callback.
+
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
 
