@@ -419,21 +419,33 @@ assertNotDeepOrStrict(
 // GH-14441. Circular structures should be consistent
 {
   const a = {};
-  const b = {};
   a.a = a;
+
+  const b = {};
   b.a = {};
   b.a.a = a;
-  assertDeepAndStrictEqual(a, b);
+
+  assertNotDeepOrStrict(a, b);
+}
+
+{
+  const a = {};
+  a.a = a;
+  const b = {};
+  b.a = b;
+  const c = {};
+  c.a = a;
+  assertNotDeepOrStrict(b, c);
 }
 
 {
   const a = new Set();
-  const b = new Set();
-  const c = new Set();
   a.add(a);
+  const b = new Set();
   b.add(b);
+  const c = new Set();
   c.add(a);
-  assertDeepAndStrictEqual(b, c);
+  assertNotDeepOrStrict(b, c);
 }
 
 // https://github.com/nodejs/node-v0.x-archive/pull/7178
