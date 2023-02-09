@@ -38,7 +38,8 @@ It is left up to external tools/solutions to:
   support native modules or reading file contents.
 
 However, the project also maintains a separate tool, [postject][], for injecting
-arbitrary read-only resources into the binary and use it at runtime.
+arbitrary read-only resources into the binary such as those needed for  bundling
+the application into the runtime.
 
 ## Planning
 
