@@ -4,14 +4,20 @@ const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  n: [5e3],
-  size: [1e2, 1e3, 5e4],
-  strict: [0, 1],
+  n: [25, 2e2, 2e3],
+  size: [1e2, 1e3, 1e4],
+  strict: [1],
   method: ['deepEqual', 'notDeepEqual'],
+}, {
+  combinationFilter: (p) => {
+    return p.size === 1e4 && p.n === 25 ||
+           p.size === 1e3 && p.n === 2e2 ||
+           p.size === 1e2 && p.n === 2e3;
+  },
 });
 
-function createObj(source, add = '') {
-  return source.map((n) => ({
+function createObj(size, add = '') {
+  return Array.from({ length: size }, (n) => ({
     foo: 'yarp',
     nope: {
       bar: `123${add}`,
@@ -24,22 +30,17 @@ function createObj(source, add = '') {
 }
 
 function main({ size, n, method, strict }) {
-  const len = Math.min(Math.ceil(n / size), 20);
-
-  const source = Array.apply(null, Array(size));
-  const actual = createObj(source);
-  const expected = createObj(source);
-  const expectedWrong = createObj(source, '4');
-
   if (strict) {
     method = method.replace('eep', 'eepStrict');
   }
   const fn = assert[method];
-  const value2 = method.includes('not') ? expectedWrong : expected;
+
+  const actual = createObj(size);
+  const expected = method.includes('not') ? createObj(size, '4') : createObj(size);
 
   bench.start();
-  for (let i = 0; i < len; ++i) {
-    fn(actual, value2);
+  for (let i = 0; i < n; ++i) {
+    fn(actual, expected);
   }
-  bench.end(len);
+  bench.end(n);
 }
