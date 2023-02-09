@@ -911,10 +911,11 @@ void Environment::InitializeLibuv() {
   StartProfilerIdleNotifier();
 }
 
-void Environment::ExitEnv() {
+void Environment::ExitEnv(StopFlags::Flags flags) {
   // Should not access non-thread-safe methods here.
   set_stopping(true);
-  isolate_->TerminateExecution();
+  if ((flags & StopFlags::kDoNotTerminateIsolate) == 0)
+    isolate_->TerminateExecution();
   SetImmediateThreadsafe([](Environment* env) {
     env->set_can_call_into_js(false);
     uv_stop(env->event_loop());
