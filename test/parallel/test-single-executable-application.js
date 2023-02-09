@@ -94,7 +94,7 @@ deepStrictEqual(requirable, {
   hello: 'world',
 });
 
-console.log('Hello, world!');
+console.log('Hello, world! 😊');
 `);
 copyFileSync(process.execPath, outputFile);
 const postjectFile = join(__dirname, '..', 'fixtures', 'postject-copy', 'node_modules', 'postject', 'dist', 'cli.js');
@@ -132,4 +132,4 @@ if (process.platform === 'darwin') {
 }
 
 const singleExecutableApplicationOutput = execSync(`${outputFile} -a --b=c d`);
-strictEqual(singleExecutableApplicationOutput.toString(), 'Hello, world!\n');
+strictEqual(singleExecutableApplicationOutput.toString(), 'Hello, world! 😊\n');

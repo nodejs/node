@@ -3,12 +3,16 @@
 #include "env-inl.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "node_union_bytes.h"
+#include "simdutf.h"
 #include "v8.h"
 
 #define POSTJECT_SENTINEL_FUSE "NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2"
 #include "postject-api.h"
 
+#include <memory>
 #include <tuple>
+#include <vector>
 
 #if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 
@@ -49,40 +53,24 @@ const char* FindSingleExecutableCode(size_t* size) {
   return single_executable_application_code;
 }
 
-class ExternalOneByteStringSingleExecutableCode
-    : public String::ExternalOneByteStringResource {
- public:
-  explicit ExternalOneByteStringSingleExecutableCode(const char* data,
-                                                     size_t size)
-      : data_(data), size_(size) {}
-
-  const char* data() const override { return data_; }
-
-  size_t length() const override { return size_; }
-
- private:
-  const char* data_;
-  size_t size_;
-};
-
 void GetSingleExecutableCode(const FunctionCallbackInfo<Value>& args) {
   node::Environment* env = node::Environment::GetCurrent(args);
 
   size_t size = 0;
-  // TODO(RaisinTen): Add support for non-ASCII character inputs.
   const char* code = FindSingleExecutableCode(&size);
 
   if (code == nullptr) {
     return;
   }
 
-  Local<String> code_external_string =
-      String::NewExternalOneByte(
-          env->isolate(),
-          new ExternalOneByteStringSingleExecutableCode(code, size))
-          .ToLocalChecked();
+  size_t expected_u16_length = simdutf::utf16_length_from_utf8(code, size);
+  auto out = std::make_shared<std::vector<uint16_t>>(expected_u16_length);
+  size_t u16_length = simdutf::convert_utf8_to_utf16(
+      code, size, reinterpret_cast<char16_t*>(out->data()));
+  out->resize(u16_length);
 
-  args.GetReturnValue().Set(code_external_string);
+  args.GetReturnValue().Set(
+      node::UnionBytes(out).ToStringChecked(env->isolate()));
 }
 
 }  // namespace
