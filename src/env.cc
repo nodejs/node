@@ -670,8 +670,9 @@ Environment::Environment(IsolateData* isolate_data,
       stream_base_state_(isolate_,
                          StreamBase::kNumStreamBaseStateFields,
                          MAYBE_FIELD_PTR(env_info, stream_base_state)),
-      time_origin_(PERFORMANCE_NOW()),
-      time_origin_timestamp_(GetCurrentTimeInMicroseconds()),
+      time_origin_(performance::performance_process_start),
+      time_origin_timestamp_(performance::performance_process_start_timestamp),
+      environment_start_(PERFORMANCE_NOW()),
       flags_(flags),
       thread_id_(thread_id.id == static_cast<uint64_t>(-1)
                      ? AllocateEnvironmentThreadId().id
@@ -777,7 +778,7 @@ void Environment::InitializeMainContext(Local<Context> context,
   set_exiting(false);
 
   performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT,
-                           time_origin_);
+                           environment_start_);
   performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_NODE_START,
                            per_process::node_start_time);
 
