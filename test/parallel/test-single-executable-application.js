@@ -15,7 +15,7 @@ if (!process.config.variables.single_executable_application)
 if (!['darwin', 'win32', 'linux'].includes(process.platform))
   common.skip(`Unsupported platform ${process.platform}.`);
 
-if (process.config.variables.asan)
+if (process.platform === 'linux' && process.config.variables.asan)
   common.skip('Running the resultant binary fails with `Segmentation fault (core dumped)`.');
 
 if (process.platform === 'linux' && process.config.variables.is_debug === 1)
