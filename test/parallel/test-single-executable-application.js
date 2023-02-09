@@ -6,7 +6,7 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const { copyFileSync, readFileSync, writeFileSync } = require('fs');
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const { join } = require('path');
 const { strictEqual } = require('assert');
 
@@ -52,10 +52,6 @@ const inputFile = fixtures.path('sea.js');
 const requirableFile = join(tmpdir.path, 'requirable.js');
 const outputFile = join(tmpdir.path, process.platform === 'win32' ? 'sea.exe' : 'sea');
 
-// Although, require('../common') works locally, that couldn't be used here
-// because we set NODE_TEST_DIR=/Users/iojs/node-tmp on Jenkins CI.
-process.env.COMMON_DIRECTORY = JSON.stringify(join(__dirname, '..', 'common')).slice(1, -1);
-
 tmpdir.refresh();
 
 writeFileSync(requirableFile, `
@@ -66,19 +62,22 @@ module.exports = {
 
 copyFileSync(process.execPath, outputFile);
 const postjectFile = join(__dirname, '..', 'fixtures', 'postject-copy', 'node_modules', 'postject', 'dist', 'cli.js');
-let postjectCommand = `${process.execPath} ${postjectFile} ${outputFile} NODE_JS_CODE ${inputFile} --sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2`;
-if (process.platform === 'darwin') {
-  postjectCommand += ' --macho-segment-name NODE_JS';
-}
-execSync(postjectCommand);
+execFileSync(process.execPath, [
+  postjectFile,
+  outputFile,
+  'NODE_JS_CODE',
+  inputFile,
+  '--sentinel-fuse', 'NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
+  ...process.platform === 'darwin' ? [ '--macho-segment-name', 'NODE_JS' ] : [],
+]);
 
 if (process.platform === 'darwin') {
-  execSync(`codesign --sign - ${outputFile}`);
-  execSync(`codesign --verify ${outputFile}`);
+  execFileSync('codesign', [ '--sign', '-', outputFile ]);
+  execFileSync('codesign', [ '--verify', outputFile ]);
 } else if (process.platform === 'win32') {
   let signtoolFound = false;
   try {
-    execSync('where signtool');
+    execFileSync('where', [ 'signtool' ]);
     signtoolFound = true;
   } catch (err) {
     console.log(err.message);
@@ -86,7 +85,7 @@ if (process.platform === 'darwin') {
   if (signtoolFound) {
     let certificatesFound = false;
     try {
-      execSync(`signtool sign /fd SHA256 ${outputFile}`);
+      execFileSync('signtool', [ 'sign', '/fd', 'SHA256', outputFile ]);
       certificatesFound = true;
     } catch (err) {
       if (!/SignTool Error: No certificates were found that met all the given criteria/.test(err)) {
@@ -94,10 +93,13 @@ if (process.platform === 'darwin') {
       }
     }
     if (certificatesFound) {
-      execSync(`signtool verify /pa SHA256 ${outputFile}`);
+      execFileSync('signtool', 'verify', '/pa', 'SHA256', outputFile);
     }
   }
 }
 
-const singleExecutableApplicationOutput = execSync(`${outputFile} -a --b=c d`);
+const singleExecutableApplicationOutput = execFileSync(
+  outputFile,
+  [ '-a', '--b=c', 'd' ],
+  { env: { COMMON_DIRECTORY: JSON.stringify(join(__dirname, '..', 'common')).slice(1, -1) } });
 strictEqual(singleExecutableApplicationOutput.toString(), 'Hello, world! 😊\n');
