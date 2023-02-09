@@ -48,7 +48,7 @@ Planning for this feature takes place in the [single-executable repository][].
 ## Upcoming features
 
 Currently, only running a single embedded CommonJS file is supported but support
-for the following features are yet to come:
+for the following features are in the list of work we'd like to get to:
 
 * Running an embedded ESM file.
 * Running an archive of multiple files.
