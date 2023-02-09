@@ -3,7 +3,7 @@
 <!--introduced_in=REPLACEME-->
 
 > Stability: 1 - Experimental: This feature is currently being designed and will
-> still change.
+> change.
 
 <!-- source_link=lib/internal/main/single_executable_application.js -->
 
