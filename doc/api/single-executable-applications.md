@@ -14,28 +14,58 @@ the injection of a JavaScript file into the `node` binary. During start up, the
 program checks if anything has been injected. If the script is found, it
 executes its contents. Otherwise it operates like plain Node.js.
 
+The single executable application feature only supports running a single
+embedded [CommonJS][] file.
+
 A bundled JavaScript file can be turned into a single executable application
 with any tool which can inject resources into the `node` binary.
 
-One such tool is [postject][]:
+Here are the steps for creating a single executable application using one such
+tool, [postject][]:
 
-```console
-$ cat hello.js
-console.log(`Hello, ${process.argv[2]}!`);
-$ cp $(command -v node) hello
-# On systems other than macOS:
-$ npx postject hello NODE_JS_CODE hello.js \
-    --sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2
-# On macOS:
-$ npx postject hello NODE_JS_CODE hello.js \
-    --sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2 \
-    --macho-segment-name NODE_JS
-$ ./hello world
-Hello, world!
-```
+1. Create a JavaScript file:
+   ```console
+   $ echo 'console.log(`Hello, ${process.argv[2]}!`);' > hello.js
+   ```
 
-The single executable application feature only supports running a single
-embedded [CommonJS][] file.
+2. Create a copy of the `node` executable and name it according to your needs:
+   ```console
+   $ cp $(command -v node) hello
+   ```
+
+3. Inject the JavaScript file into the copied binary by running `postject` with
+   the following options:
+
+   * `hello` - The name of the copy of the `node` executable created in step 2.
+   * `NODE_JS_CODE` - The name of the resource / note / section in the binary
+     where the contents of the JavaScript file will be stored.
+   * `hello.js` - The name of the JavaScript file created in step 1.
+   * `--sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2` - The
+     [fuse][] used by the Node.js project to detect if a file has been injected.
+   * `--macho-segment-name NODE_JS` (only needed on macOS) - The name of the
+     segment in the binary where the contents of the JavaScript file will be
+     stored.
+
+   To summarize, here is the required command for each platform:
+
+   * On systems other than macOS:
+     ```console
+     $ npx postject hello NODE_JS_CODE hello.js \
+         --sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+     ```
+
+   * On macOS:
+     ```console
+     $ npx postject hello NODE_JS_CODE hello.js \
+         --sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2 \
+         --macho-segment-name NODE_JS
+     ```
+
+4. Run the binary:
+   ```console
+   $ ./hello world
+   Hello, world!
+   ```
 
 ## Notes
 
