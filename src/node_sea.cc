@@ -52,6 +52,9 @@ void GetSingleExecutableCode(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  // TODO(joyeecheung): Use one-byte strings for ASCII-only source to save
+  // memory/binary size - using UTF16 by default results in twice of the size
+  // than necessary.
   static const node::UnionBytes sea_code_union_bytes =
       []() -> node::UnionBytes {
     size_t expected_u16_length =
