@@ -13,7 +13,7 @@ system that does not have Node.js installed.
 Node.js supports the creation of [single executable applications][] by allowing
 the injection of a JavaScript file into the `node` binary. During start up, the
 program checks if anything has been injected. If the script is found, it
-executes its contents, otherwise it operates like plain Node.js.
+executes its contents. Otherwise it operates like plain Node.js.
 
 A bundled JavaScript file can be turned into a single executable application
 with any tool which can inject resources into the `node` binary.
