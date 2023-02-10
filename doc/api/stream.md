@@ -3325,6 +3325,29 @@ reader.read().then(({ value, done }) => {
 });
 ```
 
+### `stream.getDefaultHighWaterMark(objectMode)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean} objectMode
+* Returns: {boolean}
+
+Returns the default highWaterMark used by streams.
+Defaults to `65536` (64 KiB), or `16` for `objectMode`.
+
+### `stream.setDefaultHighWaterMark(objectMode, value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean} objectMode
+* {integer} highWaterMark value
+
+Sets the default highWaterMark used by streams.
+
 ## API for stream implementers
 
 <!--type=misc-->
