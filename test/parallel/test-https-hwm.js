@@ -62,5 +62,5 @@ const httpsServer = https.createServer({
     port: this.address().port,
     rejectUnauthorized: false,
     highWaterMark: undefined,
-  }, loadCallback(16 * 1024)).on('error', common.mustNotCall()).end();
+  }, loadCallback(64 * 1024)).on('error', common.mustNotCall()).end();
 }));
