@@ -14,6 +14,6 @@ validateSnapshotNodes('Node / ChannelWrap', [
       // `Node / ChannelWrap` (C++) -> `ChannelWrap` (JS)
       { node_name: 'ChannelWrap', edge_name: 'native_to_javascript' },
     ],
-    detachedness: 2
+    detachedness: 2,
   },
 ]);

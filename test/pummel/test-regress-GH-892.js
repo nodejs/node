@@ -78,7 +78,7 @@ function makeRequest() {
 
 const serverOptions = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 let uploadCount = 0;
