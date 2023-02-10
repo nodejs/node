@@ -42,7 +42,7 @@ This currently only supports running a single embedded [CommonJS][] file.
 ### `require(id)` in the injected module is not file based
 
 `require()` in the injected module is not the same as the [`require()`][]
-available to modules that are not injected. This also does not have any of the
+available to modules that are not injected. It also does not have any of the
 properties that non-injected [`require()`][] has except [`require.main`][]. It
 can only be used to load built-in modules. Attempting to load a module that can
 only be found in the file system will throw an error.
