@@ -70,7 +70,7 @@ of [`process.execPath`][].
 
 ### Single executable application creation process
 
-A tool aiming to create a single executable Node.js application is supposed to
+A tool aiming to create a single executable Node.js application must
 inject the contents of a JavaScript file into:
 
 * a resource named `NODE_JS_CODE` if the `node` binary is a [PE][] file
