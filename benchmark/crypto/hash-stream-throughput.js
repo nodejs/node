@@ -9,7 +9,7 @@ const bench = common.createBenchmark(main, {
   algo: ['sha1', 'sha256', 'sha512'],
   type: ['asc', 'utf', 'buf'],
   len: [2, 1024, 102400, 1024 * 1024],
-  api: ['legacy', 'stream']
+  api: ['legacy', 'stream'],
 });
 
 function main({ api, type, len, algo, writes }) {
