@@ -35,7 +35,8 @@ $ ./hello world
 Hello, world!
 ```
 
-This currently only supports running a single embedded [CommonJS][] file.
+The single executable application feature only supports running a single embedded
+[CommonJS][] file.
 
 ## Notes
 
