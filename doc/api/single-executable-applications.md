@@ -78,7 +78,7 @@ inject the contents of a JavaScript file into:
   is a [Mach-O][] file
 * a note named `NODE_JS_CODE` if the `node` binary is an [ELF][] file
 
-The tool should also search the binary for the
+Search the binary for the
 `NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2:0` [fuse][] string and flip the
 last character to `1` to indicate that a resource has been injected.
 
