@@ -12,15 +12,11 @@ system that does not have Node.js installed.
 
 Node.js supports the creation of [single executable applications][] by allowing
 the injection of a JavaScript file into the `node` binary. During start up, the
-program checks if a resource (on [PE][]) or section (on [Mach-O][]) or note (on
-[ELF][]) named `NODE_JS_CODE` exists (on macOS, in the `NODE_JS` segment). If it
-is found, it executes its contents, otherwise it operates like plain Node.js.
+program checks if anything has been injected. If the script is found, it
+executes its contents, otherwise it operates like plain Node.js.
 
 A bundled JavaScript file can be turned into a single executable application
-with any other tool which can inject resources into the Node.js binary. The tool
-should also search the binary for the
-`NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2:0` fuse string and flip the last
-character to `1` to indicate that a resource has been injected.
+with any tool which can inject resources into the `node` binary.
 
 One such tool is [postject][]:
 
@@ -72,6 +68,20 @@ equal to [`process.execPath`][].
 The value of `__dirname` in the injected module is equal to the directory name
 of [`process.execPath`][].
 
+### Single executable application creation process
+
+A tool aiming to create a single executable Node.js application is supposed to
+inject the contents of a JavaScript file into:
+
+* a resource named `NODE_JS_CODE` if the `node` binary is a [PE][] file
+* a section named `NODE_JS_CODE` in the `NODE_JS` segment if the `node` binary
+  is a [Mach-O][] file
+* a note named `NODE_JS_CODE` if the `node` binary is an [ELF][] file
+
+The tool should also search the binary for the
+`NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2:0` [fuse][] string and flip the
+last character to `1` to indicate that a resource has been injected.
+
 ### Linux support
 
 AMD64 Ubuntu is the only Linux distribution where single-executable support is
@@ -89,5 +99,6 @@ to help us document them.
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
 [`require.main`]: modules.md#accessing-the-main-module
+[fuse]: https://www.electronjs.org/docs/latest/tutorial/fuses
 [postject]: https://github.com/nodejs/postject
 [single executable applications]: https://github.com/nodejs/single-executable
