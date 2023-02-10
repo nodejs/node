@@ -501,7 +501,7 @@ def load_objects_from_file(objfilename, checktypes):
   #
   entries = typestr.split(',');
   for entry in entries:
-    types[re.sub(r'\s*=.*', '', entry).lstrip()] = True;
+    types[re.sub('\s*=.*', '', entry).lstrip()] = True;
   entries = torque_typestr.split('\\')
   for entry in entries:
     name = re.sub(r' *V\(|\).*', '', entry)
@@ -514,7 +514,7 @@ def load_objects_from_file(objfilename, checktypes):
     start = entry.find('(');
     end = entry.find(')', start);
     rest = entry[start + 1: end];
-    args = re.split(r'\s*,\s*', rest);
+    args = re.split('\s*,\s*', rest);
     typename = args[0]
     typeconst = args[1]
     types[typeconst] = True
@@ -617,7 +617,7 @@ def parse_field(call):
   idx = call.find('(');
   kind = call[0:idx];
   rest = call[idx + 1: len(call) - 1];
-  args = re.split(r'\s*,\s*', rest);
+  args = re.split('\s*,\s*', rest);
 
   consts = [];
 
@@ -718,7 +718,7 @@ def emit_set(out, consts):
 
   # Fix up overzealous parses.  This could be done inside the
   # parsers but as there are several, it's easiest to do it here.
-  ws = re.compile(r'\s+')
+  ws = re.compile('\s+')
   for const in consts:
     name = ws.sub('', const['name'])
     value = ws.sub('', str(const['value']))  # Can be a number.
