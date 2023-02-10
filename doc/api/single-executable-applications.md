@@ -89,7 +89,7 @@ AMD64 Ubuntu is the only Linux distribution where single-executable support is
 tested regularly on CI currently, due to lack of better tools to generate
 single-executables that can be used to test this feature on other platforms.
 
-Suggestions for other resource injection tools/workflows are welcomed, please
+Suggestions for other resource injection tools/workflows are welcomed. Please
 start a discussion at <https://github.com/nodejs/single-executable/discussions>
 to help us document them.
 
