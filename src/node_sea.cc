@@ -68,7 +68,6 @@ void GetSingleExecutableCode(const FunctionCallbackInfo<Value>& args) {
 }  // namespace
 
 namespace node {
-namespace per_process {
 namespace sea {
 
 bool IsSingleExecutable() {
@@ -110,11 +109,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }
 
 }  // namespace sea
-}  // namespace per_process
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(sea, node::per_process::sea::Initialize)
-NODE_BINDING_EXTERNAL_REFERENCE(
-    sea, node::per_process::sea::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(sea, node::sea::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(sea, node::sea::RegisterExternalReferences)
 
 #endif  // !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)

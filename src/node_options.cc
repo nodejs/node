@@ -302,7 +302,7 @@ void Parse(
 
 DebugOptionsParser::DebugOptionsParser() {
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  if (per_process::sea::IsSingleExecutable()) return;
+  if (sea::IsSingleExecutable()) return;
 #endif
 
   AddOption("--inspect-port",

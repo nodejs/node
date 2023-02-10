@@ -313,7 +313,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   }
 
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  if (per_process::sea::IsSingleExecutable()) {
+  if (sea::IsSingleExecutable()) {
     // TODO(addaleax): Find a way to reuse:
     //
     // LoadEnvironment(Environment*, const char*)
@@ -1265,7 +1265,7 @@ static ExitCode StartInternal(int argc, char** argv) {
 
 int Start(int argc, char** argv) {
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  std::tie(argc, argv) = per_process::sea::FixupArgsForSEA(argc, argv);
+  std::tie(argc, argv) = sea::FixupArgsForSEA(argc, argv);
 #endif
   return static_cast<int>(StartInternal(argc, argv));
 }

@@ -8,14 +8,12 @@
 #include <tuple>
 
 namespace node {
-namespace per_process {
 namespace sea {
 
 bool IsSingleExecutable();
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv);
 
 }  // namespace sea
-}  // namespace per_process
 }  // namespace node
 
 #endif  // !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
