@@ -45,11 +45,11 @@ This currently only supports running a single embedded [CommonJS][] file.
 
 ### `require(id)` in the injected module is not file based
 
-`require()` in the injected module is not the same as the [`require()`][] available to
-modules that are not injected. This also does not have any of the properties that
-non-injected [`require()`][] has except [`require.main`][]. It can only be used to
-load built-in modules. Attempting to load a module that can only be found in the
-file system will throw an error.
+`require()` in the injected module is not the same as the [`require()`][]
+available to modules that are not injected. This also does not have any of the
+properties that non-injected [`require()`][] has except [`require.main`][]. It
+can only be used to load built-in modules. Attempting to load a module that can
+only be found in the file system will throw an error.
 
 Instead of relying on a file based `require()`, users can bundle their
 application into a standalone JavaScript file to inject into the executable.
@@ -78,8 +78,9 @@ AMD64 Ubuntu is the only Linux distribution where single-executable support is
 tested regularly on CI currently, due to lack of better tools to generate
 single-executables that can be used to test this feature on other platforms.
 
-Suggestions for other resource injection tools/workflows are welcomed, please start a discussion at
-https://github.com/nodejs/single-executable/discussions to help us document them.
+Suggestions for other resource injection tools/workflows are welcomed, please
+start a discussion at <https://github.com/nodejs/single-executable/discussions>
+to help us document them.
 
 [CommonJS]: modules.md#modules-commonjs-modules
 [ELF]: https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
