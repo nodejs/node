@@ -46,23 +46,27 @@ const std::string_view FindSingleExecutableCode() {
 void GetSingleExecutableCode(const FunctionCallbackInfo<Value>& args) {
   node::Environment* env = node::Environment::GetCurrent(args);
 
-  const std::string_view sea_code = FindSingleExecutableCode();
+  static const std::string_view sea_code = FindSingleExecutableCode();
 
   if (sea_code.empty()) {
     return;
   }
 
-  size_t expected_u16_length =
-      simdutf::utf16_length_from_utf8(sea_code.data(), sea_code.size());
-  auto out = std::make_shared<std::vector<uint16_t>>(expected_u16_length);
-  size_t u16_length =
-      simdutf::convert_utf8_to_utf16(sea_code.data(),
-                                     sea_code.size(),
-                                     reinterpret_cast<char16_t*>(out->data()));
-  out->resize(u16_length);
+  static const node::UnionBytes sea_code_union_bytes =
+      []() -> node::UnionBytes {
+    size_t expected_u16_length =
+        simdutf::utf16_length_from_utf8(sea_code.data(), sea_code.size());
+    auto out = std::make_shared<std::vector<uint16_t>>(expected_u16_length);
+    size_t u16_length = simdutf::convert_utf8_to_utf16(
+        sea_code.data(),
+        sea_code.size(),
+        reinterpret_cast<char16_t*>(out->data()));
+    out->resize(u16_length);
+    return node::UnionBytes{out};
+  }();
 
   args.GetReturnValue().Set(
-      node::UnionBytes(out).ToStringChecked(env->isolate()));
+      sea_code_union_bytes.ToStringChecked(env->isolate()));
 }
 
 }  // namespace
