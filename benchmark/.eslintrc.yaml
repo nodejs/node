@@ -12,7 +12,6 @@ overrides:
       - crypto/*.js
       - http/*.js
       - path/*.js
-      - url/*.js
     rules:
       comma-dangle: [error, {
         arrays: always-multiline,

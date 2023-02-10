@@ -13,7 +13,7 @@ const inputs = {
   // 88 parameters
   long: 'g&r&t&h&s&r&d&w&b&n&h&k&x&m&k&h&o&e&x&c&c&g&e&b&p&p&s&n&j&b&y&z&' +
         'u&l&o&r&w&a&u&l&m&f&j&q&p&f&e&y&e&n&e&l&m&w&u&w&t&n&t&q&v&y&c&o&' +
-        'k&f&j&i&l&m&g&j&d&i&z&q&p&x&q&q&d&n&y&w&g&i&v&r'
+        'k&f&j&i&l&m&g&j&d&i&z&q&p&x&q&q&d&n&y&w&g&i&v&r',
 };
 
 function getParams(str) {
@@ -26,9 +26,9 @@ function getParams(str) {
 
 const bench = common.createBenchmark(main, {
   type: Object.keys(inputs),
-  n: [1e6]
+  n: [1e6],
 }, {
-  flags: ['--expose-internals']
+  flags: ['--expose-internals'],
 });
 
 function main({ type, n }) {

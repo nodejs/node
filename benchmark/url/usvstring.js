@@ -7,13 +7,13 @@ const inputs = {
              '\ud800\udfff',
   someinvalid: 'asasfdfasd\uda23',
   allinvalid: '\udc45\uda23 \udf00\udc00 \udfaa\uda12 \udc00\udfaa',
-  nonstring: { toString() { return 'asdf'; } }
+  nonstring: { toString() { return 'asdf'; } },
 };
 const bench = common.createBenchmark(main, {
   input: Object.keys(inputs),
-  n: [5e7]
+  n: [5e7],
 }, {
-  flags: ['--expose-internals']
+  flags: ['--expose-internals'],
 });
 
 function main({ input, n }) {
