@@ -4,7 +4,7 @@ const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   loopMethod: ['forEach', 'iterator'],
-  n: [1e6]
+  n: [1e6],
 });
 
 const str = 'one=single&two=first&three=first&two=2nd&three=2nd&three=3rd';
