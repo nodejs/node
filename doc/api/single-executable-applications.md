@@ -28,8 +28,13 @@ One such tool is [postject][]:
 $ cat hello.js
 console.log(`Hello, ${process.argv[2]}!`);
 $ cp $(command -v node) hello
+# On systems other than macOS:
 $ npx postject hello NODE_JS_CODE hello.js \
-    --sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2 # Also add `--macho-segment-name NODE_JS` on macOS.
+    --sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+# On macOS:
+$ npx postject hello NODE_JS_CODE hello.js \
+    --sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2 \
+    --macho-segment-name NODE_JS
 $ ./hello world
 Hello, world!
 ```
@@ -40,15 +45,15 @@ This currently only supports running a single embedded [CommonJS][] file.
 
 ### `require(id)` in the injected module is not file based
 
-This is not the same as [`require()`][]. This also does not have any of the
-properties that [`require()`][] has except [`require.main`][]. It is used to
-import only built-in modules. Attempting to import a module available on the
+`require()` in the injected module is not the same as the [`require()`][] available to
+modules that are not injected. This also does not have any of the properties that
+non-injected [`require()`][] has except [`require.main`][]. It can only be used to
+load built-in modules. Attempting to load a module that can only be found in the
 file system will throw an error.
 
-Since the injected JavaScript file would be bundled into a standalone module by
-default in most cases, there shouldn't be any need for a file based `require()`
-API. Not having a file based `require()` API in the single-executable
-application should also safeguard users from some security vulnerabilities.
+Instead of relying on a file based `require()`, users can bundle their
+application into a standalone JavaScript file to inject into the executable.
+This also ensures a more deterministic dependency graph.
 
 However, if a file based `require()` is still needed, that can also be achieved:
 
@@ -70,12 +75,11 @@ of [`process.execPath`][].
 ### Linux support
 
 AMD64 Ubuntu is the only Linux distribution where single-executable support is
-tested regularly on CI currently. This is because the tool that is used to test
-the creation of single-executables, [postject][], has some known issues on other
-architectures/distributions which results in the creation of a binary that runs
-into segmentation faults.
+tested regularly on CI currently, due to lack of better tools to generate
+single-executables that can be used to test this feature on other platforms.
 
-However, using a different tool for the resource injection part might work.
+Suggestions for other resource injection tools/workflows are welcomed, please start a discussion at
+https://github.com/nodejs/single-executable/discussions to help us document them.
 
 [CommonJS]: modules.md#modules-commonjs-modules
 [ELF]: https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
