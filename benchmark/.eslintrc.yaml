@@ -9,7 +9,6 @@ rules:
 
 overrides:
   - files:
-      - crypto/*.js
       - http/*.js
       - path/*.js
     rules:
