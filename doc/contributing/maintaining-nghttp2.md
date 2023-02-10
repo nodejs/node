@@ -39,8 +39,6 @@ $ git commit -m "deps: upgrade nghttp2 to x.y.z"
 ## Step 4: Update licenses
 
 ```console
-$ ./configure
-$ make -j4
 $ ./tools/license-builder.sh
 # The following commands are only necessary if there are changes
 $ git add .
