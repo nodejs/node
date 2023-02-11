@@ -10,6 +10,8 @@
 
 namespace node {
 
+using CFunctionCallbackWithOneByteString =
+    uint32_t (*)(v8::Local<v8::Value>, const v8::FastOneByteString&);
 using CFunctionCallback = void (*)(v8::Local<v8::Value> receiver);
 
 // This class manages the external references from the V8 heap
@@ -20,6 +22,7 @@ class ExternalReferenceRegistry {
 
 #define ALLOWED_EXTERNAL_REFERENCE_TYPES(V)                                    \
   V(CFunctionCallback)                                                         \
+  V(CFunctionCallbackWithOneByteString)                                        \
   V(const v8::CFunctionInfo*)                                                  \
   V(v8::FunctionCallback)                                                      \
   V(v8::AccessorGetterCallback)                                                \
