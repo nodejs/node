@@ -526,10 +526,26 @@ void ContextifyContext::PropertySetterCallback(
       !is_function)
     return;
 
-  USE(ctx->sandbox()->Set(context, property, value));
-  if (is_contextual_store || is_function) {
-    args.GetReturnValue().Set(value);
+  Local<Value> desc;
+  bool is_get_set_property = false;
+  if (is_declared_on_sandbox &&
+      ctx->sandbox()
+          ->GetOwnPropertyDescriptor(context, property)
+          .ToLocal(&desc) &&
+      desc->IsObject()) {
+    Local<Object> desc_obj = desc.As<Object>();
+    Isolate* isolate = context->GetIsolate();
+    Local<Name> get = String::NewFromUtf8(isolate, "get").ToLocalChecked();
+    Local<Name> set = String::NewFromUtf8(isolate, "set").ToLocalChecked();
+    is_get_set_property =
+        desc_obj->HasOwnProperty(context, get).FromMaybe(false) ||
+        desc_obj->HasOwnProperty(context, set).FromMaybe(false);
   }
+
+  USE(ctx->sandbox()->Set(context, property, value));
+
+  // We have to specify the return value for any contextual or get/set property
+  if (is_get_set_property) args.GetReturnValue().Set(value);
 }
 
 // static
