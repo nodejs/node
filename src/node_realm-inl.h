@@ -66,9 +66,11 @@ inline T* Realm::GetBindingData(v8::Local<v8::Context> context) {
       static_cast<BindingDataStore*>(context->GetAlignedPointerFromEmbedderData(
           ContextEmbedderIndex::kBindingDataStoreIndex));
   DCHECK_NOT_NULL(map);
-  auto it = map->find(T::type_name);
-  if (UNLIKELY(it == map->end())) return nullptr;
-  T* result = static_cast<T*>(it->second.get());
+  constexpr size_t binding_index = static_cast<size_t>(T::binding_type_int);
+  static_assert(binding_index < std::tuple_size_v<BindingDataStore>);
+  auto ptr = (*map)[binding_index];
+  if (UNLIKELY(!ptr)) return nullptr;
+  T* result = static_cast<T*>(ptr.get());
   DCHECK_NOT_NULL(result);
   DCHECK_EQ(result->realm(), GetCurrent(context));
   return result;
@@ -84,8 +86,10 @@ inline T* Realm::AddBindingData(v8::Local<v8::Context> context,
       static_cast<BindingDataStore*>(context->GetAlignedPointerFromEmbedderData(
           ContextEmbedderIndex::kBindingDataStoreIndex));
   DCHECK_NOT_NULL(map);
-  auto result = map->emplace(T::type_name, item);
-  CHECK(result.second);
+  constexpr size_t binding_index = static_cast<size_t>(T::binding_type_int);
+  static_assert(binding_index < std::tuple_size_v<BindingDataStore>);
+  CHECK(!(*map)[binding_index]);  // Should not insert the binding twice.
+  (*map)[binding_index] = item;
   DCHECK_EQ(GetBindingData<T>(context), item.get());
   return item.get();
 }
