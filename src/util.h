@@ -894,6 +894,11 @@ void SetFastMethod(v8::Local<v8::Context> context,
                    const char* name,
                    v8::FunctionCallback slow_callback,
                    const v8::CFunction* c_function);
+void SetFastMethodNoSideEffect(v8::Local<v8::Context> context,
+                               v8::Local<v8::Object> that,
+                               const char* name,
+                               v8::FunctionCallback slow_callback,
+                               const v8::CFunction* c_function);
 
 void SetProtoMethod(v8::Isolate* isolate,
                     v8::Local<v8::FunctionTemplate> that,
