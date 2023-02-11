@@ -25,6 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <type_traits>  // std::remove_reference
+#include "base_object_types.h"
 #include "memory_tracker.h"
 #include "v8.h"
 

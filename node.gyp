@@ -573,6 +573,7 @@
         'src/async_wrap-inl.h',
         'src/base_object.h',
         'src/base_object-inl.h',
+        'src/base_object_types.h',
         'src/base64.h',
         'src/base64-inl.h',
         'src/callback_queue.h',

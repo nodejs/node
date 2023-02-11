@@ -22,19 +22,6 @@ struct PropInfo {
   SnapshotIndex index;  // In the snapshot
 };
 
-#define SERIALIZABLE_OBJECT_TYPES(V)                                           \
-  V(fs_binding_data, fs::BindingData)                                          \
-  V(v8_binding_data, v8_utils::BindingData)                                    \
-  V(blob_binding_data, BlobBindingData)                                        \
-  V(process_binding_data, process::BindingData)                                \
-  V(util_weak_reference, util::WeakReference)
-
-enum class EmbedderObjectType : uint8_t {
-#define V(PropertyName, NativeType) k_##PropertyName,
-  SERIALIZABLE_OBJECT_TYPES(V)
-#undef V
-};
-
 typedef size_t SnapshotIndex;
 
 // When serializing an embedder object, we'll serialize the native states
@@ -101,7 +88,7 @@ class SnapshotableObject : public BaseObject {
   SnapshotableObject(Realm* realm,
                      v8::Local<v8::Object> wrap,
                      EmbedderObjectType type);
-  std::string_view GetTypeName() const;
+  std::string GetTypeName() const;
 
   // If returns false, the object will not be serialized.
   virtual bool PrepareForSerialization(v8::Local<v8::Context> context,
