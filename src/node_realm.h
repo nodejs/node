@@ -21,9 +21,9 @@ struct RealmSerializeInfo {
   friend std::ostream& operator<<(std::ostream& o, const RealmSerializeInfo& i);
 };
 
-using BindingDataStore = std::unordered_map<FastStringKey,
-                                            BaseObjectPtr<BaseObject>,
-                                            FastStringKey::Hash>;
+using BindingDataStore = std::array<BaseObjectPtr<BaseObject>,
+                     static_cast<size_t>(
+                         BindingDataType::kBindingDataTypeCount)>;
 
 /**
  * node::Realm is a container for a set of JavaScript objects and functions

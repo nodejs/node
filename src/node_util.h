@@ -14,9 +14,7 @@ class WeakReference : public SnapshotableObject {
  public:
   SERIALIZABLE_OBJECT_METHODS()
 
-  static constexpr FastStringKey type_name{"node::util::WeakReference"};
-  static constexpr EmbedderObjectType type_int =
-      EmbedderObjectType::k_util_weak_reference;
+  SET_OBJECT_ID(util_weak_reference)
 
   WeakReference(Realm* realm,
                 v8::Local<v8::Object> object,
