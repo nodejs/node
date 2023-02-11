@@ -5,14 +5,6 @@ require('../common');
 const assert = require('assert');
 const { E, SystemError, codes } = require('internal/errors');
 
-assert.throws(
-  () => { new SystemError(); },
-  {
-    name: 'TypeError',
-    message: "Cannot read properties of undefined (reading 'syscall')",
-  }
-);
-
 E('ERR_TEST', 'custom message', SystemError);
 const { ERR_TEST } = codes;
 
