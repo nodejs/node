@@ -5,6 +5,7 @@
 #include <vector>
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
+#include "encoding_binding.h"
 #include "env-inl.h"
 #include "node_blob.h"
 #include "node_builtins.h"
