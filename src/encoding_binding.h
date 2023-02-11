@@ -14,14 +14,14 @@ class ExternalReferenceRegistry;
 namespace encoding_binding {
 class BindingData : public SnapshotableObject {
  public:
-  BindingData(Environment* env, v8::Local<v8::Object> obj);
+  BindingData(Realm* realm, v8::Local<v8::Object> obj);
 
   using InternalFieldInfo = InternalFieldInfoBase;
 
   SERIALIZABLE_OBJECT_METHODS()
   SET_BINDING_ID(encoding_binding_data)
 
-  SET_NO_MEMORY_INFO()
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_SELF_SIZE(BindingData)
   SET_MEMORY_INFO_NAME(BindingData)
 
@@ -35,6 +35,10 @@ class BindingData : public SnapshotableObject {
                          void* priv);
   static void RegisterTimerExternalReferences(
       ExternalReferenceRegistry* registry);
+
+ private:
+  static constexpr size_t kEncodeIntoResultsLength = 2;
+  AliasedUint32Array encode_into_results_buffer_;
 };
 
 }  // namespace encoding_binding
