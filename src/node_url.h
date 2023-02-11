@@ -37,9 +37,7 @@ class BindingData : public SnapshotableObject {
   using InternalFieldInfo = InternalFieldInfoBase;
 
   SERIALIZABLE_OBJECT_METHODS()
-  static constexpr FastStringKey type_name{"node::url::BindingData"};
-  static constexpr EmbedderObjectType type_int =
-      EmbedderObjectType::k_url_binding_data;
+  SET_BINDING_ID(url_binding_data)
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_SELF_SIZE(BindingData)
