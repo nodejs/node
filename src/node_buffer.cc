@@ -568,60 +568,6 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
-// Convert the input into an encoded string
-void DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);  // list, flags
-
-  CHECK_GE(args.Length(), 1);
-
-  if (!(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
-        args[0]->IsArrayBufferView())) {
-    return node::THROW_ERR_INVALID_ARG_TYPE(
-        env->isolate(),
-        "The \"list\" argument must be an instance of SharedArrayBuffer, "
-        "ArrayBuffer or ArrayBufferView.");
-  }
-
-  ArrayBufferViewContents<char> buffer(args[0]);
-
-  bool ignore_bom = args[1]->IsTrue();
-  bool has_fatal = args[2]->IsTrue();
-
-  const char* data = buffer.data();
-  size_t length = buffer.length();
-
-  if (has_fatal) {
-    auto result = simdutf::validate_utf8_with_errors(data, length);
-
-    if (result.error) {
-      return node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
-          env->isolate(), "The encoded data was not valid for encoding utf-8");
-    }
-  }
-
-  if (!ignore_bom && length >= 3) {
-    if (memcmp(data, "\xEF\xBB\xBF", 3) == 0) {
-      data += 3;
-      length -= 3;
-    }
-  }
-
-  if (length == 0) return args.GetReturnValue().SetEmptyString();
-
-  Local<Value> error;
-  MaybeLocal<Value> maybe_ret =
-      StringBytes::Encode(env->isolate(), data, length, UTF8, &error);
-  Local<Value> ret;
-
-  if (!maybe_ret.ToLocal(&ret)) {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
-    return;
-  }
-
-  args.GetReturnValue().Set(ret);
-}
-
 // bytesCopied = copy(buffer, target[, targetStart][, sourceStart][, sourceEnd])
 void Copy(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1173,72 +1119,6 @@ void Swap64(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(args[0]);
 }
 
-
-// Encode a single string to a UTF-8 Uint8Array (not Buffer).
-// Used in TextEncoder.prototype.encode.
-static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  CHECK_GE(args.Length(), 1);
-  CHECK(args[0]->IsString());
-
-  Local<String> str = args[0].As<String>();
-  size_t length = str->Utf8Length(isolate);
-
-  Local<ArrayBuffer> ab;
-  {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    std::unique_ptr<BackingStore> bs =
-        ArrayBuffer::NewBackingStore(isolate, length);
-
-    CHECK(bs);
-
-    str->WriteUtf8(isolate,
-                   static_cast<char*>(bs->Data()),
-                   -1,  // We are certain that `data` is sufficiently large
-                   nullptr,
-                   String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
-
-    ab = ArrayBuffer::New(isolate, std::move(bs));
-  }
-
-  auto array = Uint8Array::New(ab, 0, length);
-  args.GetReturnValue().Set(array);
-}
-
-
-static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  CHECK_GE(args.Length(), 3);
-  CHECK(args[0]->IsString());
-  CHECK(args[1]->IsUint8Array());
-  CHECK(args[2]->IsUint32Array());
-
-  Local<String> source = args[0].As<String>();
-
-  Local<Uint8Array> dest = args[1].As<Uint8Array>();
-  Local<ArrayBuffer> buf = dest->Buffer();
-  char* write_result = static_cast<char*>(buf->Data()) + dest->ByteOffset();
-  size_t dest_length = dest->ByteLength();
-
-  // results = [ read, written ]
-  Local<Uint32Array> result_arr = args[2].As<Uint32Array>();
-  uint32_t* results = reinterpret_cast<uint32_t*>(
-      static_cast<char*>(result_arr->Buffer()->Data()) +
-      result_arr->ByteOffset());
-
-  int nchars;
-  int written = source->WriteUtf8(
-      isolate,
-      write_result,
-      dest_length,
-      &nchars,
-      String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
-  results[0] = nchars;
-  results[1] = written;
-}
-
 static void IsUtf8(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
@@ -1382,7 +1262,6 @@ void Initialize(Local<Object> target,
 
   SetMethod(context, target, "setBufferPrototype", SetBufferPrototype);
   SetMethodNoSideEffect(context, target, "createFromString", CreateFromString);
-  SetMethodNoSideEffect(context, target, "decodeUTF8", DecodeUTF8);
 
   SetFastMethodNoSideEffect(context,
                             target,
@@ -1403,9 +1282,6 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "swap16", Swap16);
   SetMethod(context, target, "swap32", Swap32);
   SetMethod(context, target, "swap64", Swap64);
-
-  SetMethod(context, target, "encodeInto", EncodeInto);
-  SetMethodNoSideEffect(context, target, "encodeUtf8String", EncodeUtf8String);
 
   SetMethodNoSideEffect(context, target, "isUtf8", IsUtf8);
   SetMethodNoSideEffect(context, target, "isAscii", IsAscii);
@@ -1447,7 +1323,6 @@ void Initialize(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetBufferPrototype);
   registry->Register(CreateFromString);
-  registry->Register(DecodeUTF8);
 
   registry->Register(SlowByteLengthUtf8);
   registry->Register(fast_byte_length_utf8.GetTypeInfo());
@@ -1463,9 +1338,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Swap16);
   registry->Register(Swap32);
   registry->Register(Swap64);
-
-  registry->Register(EncodeInto);
-  registry->Register(EncodeUtf8String);
 
   registry->Register(IsUtf8);
   registry->Register(IsAscii);
