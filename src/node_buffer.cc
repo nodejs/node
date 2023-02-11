@@ -32,6 +32,7 @@
 #include "string_bytes.h"
 #include "string_search.h"
 #include "util-inl.h"
+#include "v8-fast-api-calls.h"
 #include "v8.h"
 
 #include <cstring>
@@ -786,13 +787,28 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(written);
 }
 
-void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
+void SlowByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsString());
 
   // Fast case: avoid StringBytes on UTF8 string. Jump to v8.
   args.GetReturnValue().Set(args[0].As<String>()->Utf8Length(env->isolate()));
 }
+
+uint32_t FastByteLengthUtf8(Local<Value> receiver,
+                            const v8::FastOneByteString& source) {
+  uint32_t result = 0;
+  uint32_t length = source.length;
+  const uint8_t* data = reinterpret_cast<const uint8_t*>(source.data);
+  for (uint32_t i = 0; i < length; ++i) {
+    result += (data[i] >> 7);
+  }
+  result += length;
+  return result;
+}
+
+static v8::CFunction fast_byte_length_utf8(
+    v8::CFunction::Make(FastByteLengthUtf8));
 
 // Normalize val to be an integer in the range of [1, -1] since
 // implementations of memcmp() can vary by platform.
@@ -1368,7 +1384,11 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "createFromString", CreateFromString);
   SetMethodNoSideEffect(context, target, "decodeUTF8", DecodeUTF8);
 
-  SetMethodNoSideEffect(context, target, "byteLengthUtf8", ByteLengthUtf8);
+  SetFastMethodNoSideEffect(context,
+                            target,
+                            "byteLengthUtf8",
+                            SlowByteLengthUtf8,
+                            &fast_byte_length_utf8);
   SetMethod(context, target, "copy", Copy);
   SetMethodNoSideEffect(context, target, "compare", Compare);
   SetMethodNoSideEffect(context, target, "compareOffset", CompareOffset);
@@ -1429,7 +1449,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(CreateFromString);
   registry->Register(DecodeUTF8);
 
-  registry->Register(ByteLengthUtf8);
+  registry->Register(SlowByteLengthUtf8);
+  registry->Register(fast_byte_length_utf8.GetTypeInfo());
+  registry->Register(FastByteLengthUtf8);
   registry->Register(Copy);
   registry->Register(Compare);
   registry->Register(CompareOffset);
