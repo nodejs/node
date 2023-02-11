@@ -3005,8 +3005,12 @@ added: v17.0.0
 * `streamReadable` {stream.Readable}
 * `options` {Object}
   * `strategy` {Object}
-    * `highWaterMark` {number}
-    * `size` {Function}
+    * `highWaterMark` {number} The maximum internal queue size (of the created
+      `ReadableStream`) before backpressure is applied in reading from the given
+      `stream.Readable`.
+    * `size` {Function} A function that size of the given chunk of data
+      * `chunk` {any}
+      * Returns: {number}
 * Returns: {ReadableStream}
 
 ### `stream.Writable.fromWeb(writableStream[, options])`
