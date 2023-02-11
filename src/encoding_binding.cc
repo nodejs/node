@@ -21,15 +21,30 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
-using v8::Uint8Array;
 using v8::Uint32Array;
+using v8::Uint8Array;
 using v8::Value;
 
-BindingData::BindingData(Environment* env, Local<Object> object)
-    : SnapshotableObject(env, object, type_int) {}
+void BindingData::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("encode_into_results_buffer",
+                      encode_into_results_buffer_);
+}
+
+BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
+    : SnapshotableObject(realm, object, type_int),
+      encode_into_results_buffer_(realm->isolate(), kEncodeIntoResultsLength) {
+  object
+      ->Set(realm->context(),
+            FIXED_ONE_BYTE_STRING(realm->isolate(), "encodeIntoResults"),
+            encode_into_results_buffer_.GetJSArray())
+      .Check();
+}
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
                                           v8::SnapshotCreator* creator) {
+  // We'll just re-initialize the buffers in the constructor since their
+  // contents can be thrown away once consumed in the previous call.
+  encode_into_results_buffer_.Release();
   // Return true because we need to maintain the reference to the binding from
   // JS land.
   return true;
@@ -48,19 +63,19 @@ void BindingData::Deserialize(Local<Context> context,
                               InternalFieldInfoBase* info) {
   DCHECK_EQ(index, BaseObject::kEmbedderType);
   v8::HandleScope scope(context->GetIsolate());
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
-  BindingData* binding = env->AddBindingData<BindingData>(context, holder);
+  BindingData* binding = realm->AddBindingData<BindingData>(context, holder);
   CHECK_NOT_NULL(binding);
 }
 
 void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
-  CHECK_GE(args.Length(), 3);
+  CHECK_GE(args.Length(), 2);
   CHECK(args[0]->IsString());
   CHECK(args[1]->IsUint8Array());
-  CHECK(args[2]->IsUint32Array());
+  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
 
   Local<String> source = args[0].As<String>();
 
@@ -69,12 +84,6 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
   char* write_result = static_cast<char*>(buf->Data()) + dest->ByteOffset();
   size_t dest_length = dest->ByteLength();
 
-  // results = [ read, written ]
-  Local<Uint32Array> result_arr = args[2].As<Uint32Array>();
-  uint32_t* results = reinterpret_cast<uint32_t*>(
-      static_cast<char*>(result_arr->Buffer()->Data()) +
-      result_arr->ByteOffset());
-
   int nchars;
   int written = source->WriteUtf8(
       isolate,
@@ -82,8 +91,9 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
       dest_length,
       &nchars,
       String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
-  results[0] = nchars;
-  results[1] = written;
+
+  binding_data->encode_into_results_buffer_[0] = nchars;
+  binding_data->encode_into_results_buffer_[1] = written;
 }
 
 // Encode a single string to a UTF-8 Uint8Array (not Buffer).
@@ -176,9 +186,9 @@ void BindingData::Initialize(Local<Object> target,
                              Local<Value> unused,
                              Local<Context> context,
                              void* priv) {
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
   BindingData* const binding_data =
-      env->AddBindingData<BindingData>(context, target);
+      realm->AddBindingData<BindingData>(context, target);
   if (binding_data == nullptr) return;
 
   SetMethod(context, target, "encodeInto", EncodeInto);
