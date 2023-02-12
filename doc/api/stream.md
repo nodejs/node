@@ -3007,7 +3007,8 @@ added: v17.0.0
   * `strategy` {Object}
     * `highWaterMark` {number} The maximum internal queue size (of the created
       `ReadableStream`) before backpressure is applied in reading from the given
-      `stream.Readable`.
+      `stream.Readable`. The default value is taken from the `highWaterMark` of the 
+      given `stream.Readable`.
     * `size` {Function} A function that size of the given chunk of data
       * `chunk` {any}
       * Returns: {number}
