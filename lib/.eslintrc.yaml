@@ -275,7 +275,7 @@ overrides:
       - ./internal/child_process/*.js
       - ./internal/cli_table.js
       - ./internal/cluster/*.js
-      - ./internal/debugger/inspect.js
+      - ./internal/debugger/*.js
       - ./internal/events/*.js
       - ./internal/fixed_queue.js
       - ./internal/freelist.js
