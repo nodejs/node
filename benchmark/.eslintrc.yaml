@@ -9,7 +9,6 @@ rules:
 
 overrides:
   - files:
-      - http/*.js
       - path/*.js
     rules:
       comma-dangle: [error, {

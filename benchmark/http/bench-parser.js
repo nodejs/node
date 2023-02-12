@@ -4,9 +4,9 @@ const common = require('../common');
 
 const bench = common.createBenchmark(main, {
   len: [4, 8, 16, 32],
-  n: [1e5]
+  n: [1e5],
 }, {
-  flags: ['--expose-internals', '--no-warnings']
+  flags: ['--expose-internals', '--no-warnings'],
 });
 
 function main({ len, n }) {
