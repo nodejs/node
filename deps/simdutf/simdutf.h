@@ -1,4 +1,4 @@
-/* auto-generated on 2023-01-18 12:43:26 -0500. Do not edit! */
+/* auto-generated on 2023-02-10 14:42:58 -0500. Do not edit! */
 // dofile: invoked with prepath=/Users/dlemire/CVS/github/simdutf/include, filename=simdutf.h
 /* begin file include/simdutf.h */
 #ifndef SIMDUTF_H
@@ -538,7 +538,7 @@ enum error_code {
   HEADER_BITS,  // Any byte must have fewer than 5 header bits.
   TOO_SHORT,    // The leading byte must be followed by N-1 continuation bytes, where N is the UTF-8 character length
                 // This is also the error when the input is truncated.
-  TOO_LONG,     // The leading byte must not be a continuation byte.
+  TOO_LONG,     // We either have too many consecutive continuation bytes or the string starts with a continuation byte.
   OVERLONG,     // The decoded character must be above U+7F for two-byte characters, U+7FF for three-byte characters,
                 // and U+FFFF for four-byte characters.
   TOO_LARGE,    // The decoded character must be less than or equal to U+10FFFF OR less than or equal than U+7F for ASCII.
@@ -572,7 +572,7 @@ SIMDUTF_DISABLE_UNDESIRED_WARNINGS
 #define SIMDUTF_SIMDUTF_VERSION_H
 
 /** The version of simdutf being used (major.minor.revision) */
-#define SIMDUTF_VERSION "3.1.0"
+#define SIMDUTF_VERSION "3.2.0"
 
 namespace simdutf {
 enum {
@@ -583,7 +583,7 @@ enum {
   /**
    * The minor version (major.MINOR.revision) of simdutf being used.
    */
-  SIMDUTF_VERSION_MINOR = 1,
+  SIMDUTF_VERSION_MINOR = 2,
   /**
    * The revision (major.minor.REVISION) of simdutf being used.
    */
@@ -2724,7 +2724,7 @@ class detect_best_supported_implementation_on_first_use;
 } // namespace internal
 
 /**
- * The list of available implementations compiled into simdjson.
+ * The list of available implementations compiled into simdutf.
  */
 extern SIMDUTF_DLLIMPORTEXPORT const internal::available_implementation_list& get_available_implementations();
 
