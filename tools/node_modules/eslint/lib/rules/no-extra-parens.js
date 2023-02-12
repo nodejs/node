@@ -766,6 +766,38 @@ module.exports = {
             return false;
         }
 
+        /**
+         * Checks if the left-hand side of an assignment is an identifier, the operator is one of
+         * `=`, `&&=`, `||=` or `??=` and the right-hand side is an anonymous class or function.
+         *
+         * As per https://tc39.es/ecma262/#sec-assignment-operators-runtime-semantics-evaluation, an
+         * assignment involving one of the operators `=`, `&&=`, `||=` or `??=` where the right-hand
+         * side is an anonymous class or function and the left-hand side is an *unparenthesized*
+         * identifier has different semantics than other assignments.
+         * Specifically, when an expression like `foo = function () {}` is evaluated, `foo.name`
+         * will be set to the string "foo", i.e. the identifier name. The same thing does not happen
+         * when evaluating `(foo) = function () {}`.
+         * Since the parenthesizing of the identifier in the left-hand side is significant in this
+         * special case, the parentheses, if present, should not be flagged as unnecessary.
+         * @param {ASTNode} node an AssignmentExpression node.
+         * @returns {boolean} `true` if the left-hand side of the assignment is an identifier, the
+         * operator is one of `=`, `&&=`, `||=` or `??=` and the right-hand side is an anonymous
+         * class or function; otherwise, `false`.
+         */
+        function isAnonymousFunctionAssignmentException({ left, operator, right }) {
+            if (left.type === "Identifier" && ["=", "&&=", "||=", "??="].includes(operator)) {
+                const rhsType = right.type;
+
+                if (rhsType === "ArrowFunctionExpression") {
+                    return true;
+                }
+                if ((rhsType === "FunctionExpression" || rhsType === "ClassExpression") && !right.id) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         return {
             ArrayExpression(node) {
                 node.elements
@@ -804,7 +836,8 @@ module.exports = {
             },
 
             AssignmentExpression(node) {
-                if (canBeAssignmentTarget(node.left) && hasExcessParens(node.left)) {
+                if (canBeAssignmentTarget(node.left) && hasExcessParens(node.left) &&
+                    (!isAnonymousFunctionAssignmentException(node) || isParenthesisedTwice(node.left))) {
                     report(node.left);
                 }
 
