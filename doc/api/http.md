@@ -2077,7 +2077,9 @@ status message which was sent out.
 ### `response.strictContentLength`
 
 <!-- YAML
-added: v16.18.0
+added:
+  - v18.10.0
+  - v16.18.0
 -->
 
 * {boolean} **Default:** `false`
