@@ -61,7 +61,7 @@ module.exports = {
 `);
 
 copyFileSync(process.execPath, outputFile);
-const postjectFile = join(__dirname, '..', 'fixtures', 'postject-copy', 'node_modules', 'postject', 'dist', 'cli.js');
+const postjectFile = fixtures.path('postject-copy', 'node_modules', 'postject', 'dist', 'cli.js');
 execFileSync(process.execPath, [
   postjectFile,
   outputFile,
