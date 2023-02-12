@@ -270,6 +270,7 @@ overrides:
       - ./cluster.js
       - ./console.js
       - ./constants.js
+      - ./fs.js
       - ./internal/assert.js
       - ./internal/child_process/*.js
       - ./internal/cli_table.js
@@ -277,6 +278,7 @@ overrides:
       - ./internal/events/*.js
       - ./internal/fixed_queue.js
       - ./internal/freelist.js
+      - ./internal/fs/*.js
       - ./internal/heap_utils.js
       - ./internal/http.js
       - ./internal/idna.js
