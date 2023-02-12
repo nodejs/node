@@ -37,16 +37,16 @@ try {
    * ensure that resolving by full path does not return the format
    * with the defaultResolver
    */
-  [
+  await Promise.all([
     [ '/es-modules/package-type-module/index.js', 'module' ],
     [ '/es-modules/package-type-commonjs/index.js', 'commonjs' ],
     [ '/es-modules/package-without-type/index.js', 'commonjs' ],
     [ '/es-modules/package-without-pjson/index.js', 'commonjs' ],
-  ].forEach(([ testScript, expectedType ]) => {
+  ].map(async ([ testScript, expectedType ]) => {
     const resolvedPath = path.resolve(fixtures.path(testScript));
-    const resolveResult = resolve(url.pathToFileURL(resolvedPath));
+    const resolveResult = await resolve(url.pathToFileURL(resolvedPath));
     assert.strictEqual(resolveResult.format, expectedType);
-  });
+  }));
 
   /**
    * create a test module and try to resolve it by module name.
@@ -85,7 +85,7 @@ try {
     fs.writeFileSync(script,
                      'export function esm-resolve-tester() {return 42}');
 
-    const resolveResult = resolve(`${moduleName}`);
+    const resolveResult = await resolve(`${moduleName}`);
     assert.strictEqual(resolveResult.format, expectedResolvedType);
 
     fs.rmSync(nmDir, { recursive: true, force: true });
@@ -168,14 +168,14 @@ try {
     );
 
     // test the resolve
-    const resolveResult = resolve(`${moduleName}`);
+    const resolveResult = await resolve(`${moduleName}`);
     assert.strictEqual(resolveResult.format, 'module');
     assert.ok(resolveResult.url.includes('my-dual-package/es/index.js'));
   }
 
   // TestParameters are ModuleName, mainRequireScript, mainImportScript,
   // mainPackageType, subdirPkgJsonType, expectedResolvedFormat, mainSuffix
-  [
+  await Promise.all([
     [ 'mjs-mod-mod', 'index.js', 'index.mjs', 'module', 'module', 'module'],
     [ 'mjs-com-com', 'idx.js', 'idx.mjs', 'commonjs', 'commonjs', 'module'],
     [ 'mjs-mod-com', 'index.js', 'imp.mjs', 'module', 'commonjs', 'module'],
@@ -186,7 +186,7 @@ try {
     [ 'hmod', 'index.js', 'imp.js', 'commonjs', 'module', 'module', '#Key'],
     [ 'qhmod', 'index.js', 'imp.js', 'commonjs', 'module', 'module', '?k=v#h'],
     [ 'ts-mod-com', 'index.js', 'imp.ts', 'module', 'commonjs', undefined],
-  ].forEach((testVariant) => {
+  ].map(async (testVariant) => {
     const [
       moduleName,
       mainRequireScript,
@@ -234,10 +234,10 @@ try {
     );
 
     // test the resolve
-    const resolveResult = resolve(`${moduleName}`);
+    const resolveResult = await resolve(`${moduleName}`);
     assert.strictEqual(resolveResult.format, expectedResolvedFormat);
     assert.ok(resolveResult.url.endsWith(`${moduleName}/subdir/${mainImportScript}${mainSuffix}`));
-  });
+  }));
 
 } finally {
   process.chdir(previousCwd);

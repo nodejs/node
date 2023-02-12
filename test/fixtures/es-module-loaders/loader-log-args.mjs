@@ -1,13 +1,10 @@
-import { writeSync } from 'node:fs';
-import { format } from 'node:util';
-
 export async function resolve(...args) {
-  writeSync(1, `resolve arg count: ${args.length}\n`);
-  writeSync(1, `${format({
+  console.log(`resolve arg count: ${args.length}`);
+  console.log({
     specifier: args[0],
     context: args[1],
     next: args[2],
-  })}\n`);
+  });
 
   return {
     shortCircuit: true,
@@ -16,12 +13,12 @@ export async function resolve(...args) {
 }
 
 export async function load(...args) {
-  writeSync(1, `load arg count: ${args.length}\n`);
-  writeSync(1, `${format({
+  console.log(`load arg count: ${args.length}`);
+  console.log({
     url: args[0],
     context: args[1],
     next: args[2],
-  })}\n`);
+  });
 
   return {
     format: 'module',

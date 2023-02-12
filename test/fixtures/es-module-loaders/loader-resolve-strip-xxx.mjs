@@ -1,6 +1,4 @@
-import { writeSync } from 'node:fs';
-
 export async function resolve(specifier, context, nextResolve) {
-  writeSync(1, `loader-a ${specifier}\n`);
+  console.log(`loader-a`, {specifier});
   return nextResolve(specifier.replace(/^xxx\//, `./`));
 }
