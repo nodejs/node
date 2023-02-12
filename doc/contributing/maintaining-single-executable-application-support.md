@@ -38,7 +38,7 @@ It is left up to external tools/solutions to:
   support native modules or reading file contents.
 
 However, the project also maintains a separate tool, [postject][], for injecting
-arbitrary read-only resources into the binary such as those needed for  bundling
+arbitrary read-only resources into the binary such as those needed for bundling
 the application into the runtime.
 
 ## Planning
@@ -52,7 +52,7 @@ for the following features are in the list of work we'd like to get to:
 
 * Running an embedded ESM file.
 * Running an archive of multiple files.
-* Accepting [Node.js-specific CLI options][] embedded into the binary.
+* Embedding [Node.js CLI options][] into the binary.
 * [XCOFF][] executable format.
 * Run tests on Linux architectures/distributions other than AMD64 Ubuntu.
 
