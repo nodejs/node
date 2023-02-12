@@ -8,7 +8,7 @@ const bench = common.createBenchmark(main, {
   dur: [5],
   type: ['asc', 'utf', 'buf'],
   len: [32, 256, 1024],
-  method: ['write', 'end']
+  method: ['write', 'end'],
 });
 
 function main({ dur, len, type, method }) {
@@ -33,7 +33,7 @@ function main({ dur, len, type, method }) {
     agent: new http.Agent({ maxSockets: 1 }),
     host: '127.0.0.1',
     path: '/',
-    method: 'POST'
+    method: 'POST',
   };
 
   const server = http.createServer((req, res) => {
