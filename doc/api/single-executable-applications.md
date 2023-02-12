@@ -112,11 +112,17 @@ Search the binary for the
 `NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2:0` [fuse][] string and flip the
 last character to `1` to indicate that a resource has been injected.
 
-### Linux support
+### Platform support
 
-AMD64 Ubuntu is the only Linux distribution where single-executable support is
-tested regularly on CI currently, due to lack of better tools to generate
-single-executables that can be used to test this feature on other platforms.
+Single-executable support is tested regularly on CI only on the following
+platforms:
+
+* Windows
+* macOS
+* Linux (AMD64 only)
+
+This is due to a lack of better tools to generate single-executables that can be
+used to test this feature on other platforms.
 
 Suggestions for other resource injection tools/workflows are welcomed. Please
 start a discussion at <https://github.com/nodejs/single-executable/discussions>
