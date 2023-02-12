@@ -6,15 +6,3 @@ env:
 
 rules:
   prefer-arrow-callback: error
-
-overrides:
-  - files:
-      - path/*.js
-    rules:
-      comma-dangle: [error, {
-        arrays: always-multiline,
-        exports: always-multiline,
-        functions: only-multiline,
-        imports: always-multiline,
-        objects: only-multiline,
-      }]
