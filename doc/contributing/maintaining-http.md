@@ -115,4 +115,4 @@ The low-level implementation of
 [HTTP2](https://nodejs.org/docs/latest/api/http2.html)
 is based on [nghttp2](https://nghttp2.org/). See [maintaining nghttp2][].
 
-[maintaining nghttp2]: #maintaining-nghttp2.md
+[maintaining nghttp2]: ./maintaining-nghttp2.md
