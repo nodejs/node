@@ -46,7 +46,7 @@ const server = net.createServer((connection) => {
   assert.ok(connection.bufferSize >= 0, `bufferSize: ${connection.bufferSize}`);
   assert.ok(
     connection.writableLength <= totalLength,
-    `writableLength: ${connection.writableLength}, totalLength: ${totalLength}`
+    `writableLength: ${connection.writableLength}, totalLength: ${totalLength}`,
   );
   connection.end();
 });

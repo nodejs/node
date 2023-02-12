@@ -29,7 +29,7 @@ const server = net.createServer(common.mustCall((c) => {
         // `Node / TLSWrap` (C++) -> `TLSWrap` (JS)
         { node_name: 'TLSWrap', edge_name: 'native_to_javascript' },
         // pending_cleartext_input could be empty
-      ]
+      ],
     },
   ]);
 }));
