@@ -247,7 +247,7 @@ module.exports = {
       try {
         compressed = require('caniuse-lite/data/regions/' + code + '.js')
       } catch (e) {
-        throw new BrowserslistError("Unknown region name `" + code + "`.")
+        throw new BrowserslistError('Unknown region name `' + code + '`.')
       }
       var usageData = region(compressed)
       normalizeUsageData(usageData, data)
@@ -267,7 +267,7 @@ module.exports = {
     try {
       compressed = require('caniuse-lite/data/features/' + name + '.js')
     } catch (e) {
-      throw new BrowserslistError("Unknown feature name `" + name + "`.")
+      throw new BrowserslistError('Unknown feature name `' + name + '`.')
     }
     var stats = feature(compressed).stats
     features[name] = {}
@@ -403,5 +403,7 @@ module.exports = {
 
   currentNode: function currentNode() {
     return 'node ' + process.versions.node
-  }
+  },
+
+  env: process.env
 }
