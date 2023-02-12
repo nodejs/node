@@ -13,10 +13,10 @@
     "rehype-stringify": "^9.0.3",
     "remark-frontmatter": "^4.0.1",
     "remark-gfm": "^3.0.1",
-    "remark-html": "^15.0.1",
+    "remark-html": "^15.0.2",
     "remark-parse": "^10.0.1",
     "remark-rehype": "^10.1.0",
-    "to-vfile": "^7.2.3",
+    "to-vfile": "^7.2.4",
     "unified": "^10.1.2",
     "unist-util-select": "^4.0.3",
     "unist-util-visit": "^4.1.2"
