@@ -417,7 +417,7 @@ function browserslist(queries, opts) {
       return compare(name1[0], name2[0])
     }
   })
-  if (!process.env.BROWSERSLIST_DISABLE_CACHE) {
+  if (!env.env.BROWSERSLIST_DISABLE_CACHE) {
     cache[cacheKey] = result
   }
   return result

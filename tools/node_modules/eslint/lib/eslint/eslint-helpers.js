@@ -568,41 +568,6 @@ async function findFiles({
     ];
 }
 
-
-/**
- * Checks whether a file exists at the given location
- * @param {string} resolvedPath A path from the CWD
- * @throws {Error} As thrown by `fs.statSync` or `fs.isFile`.
- * @returns {boolean} `true` if a file exists
- */
-function fileExists(resolvedPath) {
-    try {
-        return fs.statSync(resolvedPath).isFile();
-    } catch (error) {
-        if (error && (error.code === "ENOENT" || error.code === "ENOTDIR")) {
-            return false;
-        }
-        throw error;
-    }
-}
-
-/**
- * Checks whether a directory exists at the given location
- * @param {string} resolvedPath A path from the CWD
- * @throws {Error} As thrown by `fs.statSync` or `fs.isDirectory`.
- * @returns {boolean} `true` if a directory exists
- */
-function directoryExists(resolvedPath) {
-    try {
-        return fs.statSync(resolvedPath).isDirectory();
-    } catch (error) {
-        if (error && (error.code === "ENOENT" || error.code === "ENOTDIR")) {
-            return false;
-        }
-        throw error;
-    }
-}
-
 //-----------------------------------------------------------------------------
 // Results-related Helpers
 //-----------------------------------------------------------------------------
@@ -924,8 +889,6 @@ function getCacheFile(cacheFile, cwd) {
 
 module.exports = {
     isGlobPattern,
-    directoryExists,
-    fileExists,
     findFiles,
 
     isNonEmptyString,

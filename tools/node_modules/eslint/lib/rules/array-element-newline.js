@@ -47,6 +47,7 @@ module.exports = {
                     ]
                 }
             },
+            type: "array",
             items: [
                 {
                     oneOf: [
