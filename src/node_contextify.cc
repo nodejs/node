@@ -533,13 +533,11 @@ void ContextifyContext::PropertySetterCallback(
           ->GetOwnPropertyDescriptor(context, property)
           .ToLocal(&desc) &&
       desc->IsObject()) {
+    Environment* env = Environment::GetCurrent(context);
     Local<Object> desc_obj = desc.As<Object>();
-    Isolate* isolate = context->GetIsolate();
-    Local<Name> get = String::NewFromUtf8(isolate, "get").ToLocalChecked();
-    Local<Name> set = String::NewFromUtf8(isolate, "set").ToLocalChecked();
     is_get_set_property =
-        desc_obj->HasOwnProperty(context, get).FromMaybe(false) ||
-        desc_obj->HasOwnProperty(context, set).FromMaybe(false);
+        desc_obj->HasOwnProperty(context, env->get_string()).FromMaybe(false) ||
+        desc_obj->HasOwnProperty(context, env->set_string()).FromMaybe(false);
   }
 
   USE(ctx->sandbox()->Set(context, property, value));

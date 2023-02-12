@@ -1,7 +1,7 @@
-/* eslint-disable strict, no-var, no-delete-var, node-core/required-modules, node-core/require-common-first */
-// While common, should be used as first require of the test, using it causes errors: Unexpected global(s) found: data, b.
-// Actually in this specific test case calling vm.runInThisContext exposes variables outside of the vm (behaviour existing since at least v14).
-// The other rules (strict, no-var, no-delete-var) have been disabled to test this specific not strict case.
+/* eslint-disable strict, no-var, no-delete-var, no-undef, node-core/required-modules, node-core/require-common-first */
+// Importing common would break the execution. Indeed running `vm.runInThisContext` alters the global context
+// when declaring new variables with `var`. The other rules (strict, no-var, no-delete-var) have been disabled
+// in order to be able to test this specific not-strict case playing with `var` and `delete`.
 // Related to bug report: https://github.com/nodejs/node/issues/43129
 var assert = require('assert');
 var vm = require('vm');
@@ -33,7 +33,5 @@ data.push(c);
 
 assert.deepStrictEqual(data, ['direct', 'this', 'new']);
 
-// While the variables have been declared in the vm context, they are accessible in the global one too.
-// This behaviour has been there at least from v14 of node, and still exist in 16 and 18.
-assert.equal(typeof unusedB, 'number');
-assert.equal(typeof unusedC, 'number');
+assert.strictEqual(typeof unusedB, 'number'); // Declared within runInThisContext
+assert.strictEqual(typeof unusedC, 'undefined'); // Declared within runInContext
