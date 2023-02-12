@@ -3009,7 +3009,8 @@ added: v17.0.0
       `ReadableStream`) before backpressure is applied in reading from the given
       `stream.Readable`. If no value is provided, it will be taken from the
       given `stream.Readable`.
-    * `size` {Function} A function that size of the given chunk of data
+    * `size` {Function} A function that size of the given chunk of data. If no value is
+      provided, the size will be `1` for all the chunks.
       * `chunk` {any}
       * Returns: {number}
 * Returns: {ReadableStream}
