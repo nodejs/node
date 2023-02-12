@@ -58,7 +58,7 @@ fs.writeFileSync(filepathOne, 'hello');
 
 assert.throws(
   () => { fs.watchFile(filepathOne); },
-  { code: 'ERR_INVALID_ARG_TYPE' }
+  { code: 'ERR_INVALID_ARG_TYPE' },
 );
 
 // Does not throw.
@@ -78,7 +78,7 @@ fs.writeFileSync(filepathTwoAbs, 'howdy');
 
 assert.throws(
   () => { fs.watchFile(filepathTwo); },
-  { code: 'ERR_INVALID_ARG_TYPE' }
+  { code: 'ERR_INVALID_ARG_TYPE' },
 );
 
 { // Does not throw.

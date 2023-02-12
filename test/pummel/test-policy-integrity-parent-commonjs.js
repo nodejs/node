@@ -94,11 +94,11 @@ function drainQueue() {
     const testId = newTestId();
     const configDirPath = path.join(
       tmpdir.path,
-      `test-policy-integrity-permutation-${testId}`
+      `test-policy-integrity-permutation-${testId}`,
     );
     const tmpPolicyPath = path.join(
       tmpdir.path,
-      `deletable-policy-${testId}.json`
+      `deletable-policy-${testId}.json`,
     );
     const cliPolicy = willDeletePolicy ? tmpPolicyPath : policyPath;
     fs.rmSync(configDirPath, { maxRetries: 3, recursive: true, force: true });
@@ -109,7 +109,7 @@ function drainQueue() {
     };
     const manifestPath = path.join(configDirPath, policyPath);
     for (const [resourcePath, { body, integrities }] of Object.entries(
-      resources
+      resources,
     )) {
       const filePath = path.join(configDirPath, resourcePath);
       if (integrities !== null) {
@@ -166,11 +166,11 @@ function drainQueue() {
         console.log(
           'permutation',
           testId,
-          'failed'
+          'failed',
         );
         console.dir(
           { config, manifest },
-          { depth: null }
+          { depth: null },
         );
         console.log('exit code:', status, 'signal:', signal);
         console.log(`stdout: ${Buffer.concat(stdout)}`);
@@ -189,7 +189,7 @@ function drainQueue() {
     ['--experimental-policy', policyPath, '--experimental-policy', policyPath],
     {
       stdio: 'pipe',
-    }
+    },
   );
   assert.notStrictEqual(status, 0, 'Should not allow multiple policies');
 }
@@ -205,7 +205,7 @@ function drainQueue() {
     ['--experimental-policy', enoentFilepath, '-e', ''],
     {
       stdio: 'pipe',
-    }
+    },
   );
   assert.notStrictEqual(status, 0, 'Should not allow missing policies');
 }
@@ -341,7 +341,7 @@ for (const permutation of permutations({
       parentPath,
       depPath,
       resources,
-    })
+    }),
   );
 }
 debug(`spawning ${tests.size} policy integrity permutations`);

@@ -98,7 +98,7 @@ const env = {
     env: {
       ...env,
       limit: 1,
-      limit2: 2
+      limit2: 2,
     },
   });
   console.log(child.stdout.toString());

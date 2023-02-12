@@ -37,7 +37,7 @@ const body = 'hello world\n';
 const server = http.createServer((req, res) => {
   res.writeHead(200, {
     'Content-Length': body.length,
-    'Content-Type': 'text/plain'
+    'Content-Type': 'text/plain',
   });
   res.write(body);
   res.end();
@@ -108,17 +108,17 @@ process.on('exit', () => {
   assert.strictEqual(
     normalReqSec > 50,
     true,
-    `normalReqSec should be greater than 50, but got ${normalReqSec}`
+    `normalReqSec should be greater than 50, but got ${normalReqSec}`,
   );
   assert.strictEqual(
     keepAliveReqSec > 50,
     true,
-    `keepAliveReqSec should be greater than 50, but got ${keepAliveReqSec}`
+    `keepAliveReqSec should be greater than 50, but got ${keepAliveReqSec}`,
   );
   assert.strictEqual(
     normalReqSec < keepAliveReqSec,
     true,
     'normalReqSec should be less than keepAliveReqSec, ' +
-    `but ${normalReqSec} is greater than ${keepAliveReqSec}`
+    `but ${normalReqSec} is greater than ${keepAliveReqSec}`,
   );
 });

@@ -53,7 +53,7 @@ server.listen(0, function() {
       const request = http.request({
         port: server.address().port,
         method: 'POST',
-        path: '/'
+        path: '/',
       });
 
       function ping() {
