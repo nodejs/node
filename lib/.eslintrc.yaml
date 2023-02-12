@@ -284,6 +284,7 @@ overrides:
       - ./internal/mime.js
       - ./internal/modules/*.js
       - ./internal/per_context/messageport.js
+      - ./internal/perf/*.js
       - ./internal/policy/*.js
       - ./internal/priority_queue.js
       - ./internal/readline/*.js
