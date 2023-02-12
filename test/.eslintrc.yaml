@@ -78,7 +78,6 @@ overrides:
       - es-module/*.mjs
       - parallel/*.js
       - parallel/*.mjs
-      - pummel/*.js
       - sequential/*.js
       - sequential/*.mjs
     rules:
