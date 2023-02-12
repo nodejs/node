@@ -70,7 +70,7 @@ binary. If it is found, it passes the buffer to
 embedded script.
 
 [Next-10 discussions]: https://github.com/nodejs/next-10/blob/main/meetings/summit-nov-2021.md#single-executable-applications
-[Node.js-specific CLI options]: https://nodejs.org/api/cli.html
+[Node.js CLI options]: https://nodejs.org/api/cli.html
 [XCOFF]: https://www.ibm.com/docs/en/aix/7.2?topic=formats-xcoff-object-file-format
 [`postject-api.h`]: https://github.com/nodejs/node/blob/71951a0e86da9253d7c422fa2520ee9143e557fa/test/fixtures/postject-copy/node_modules/postject/dist/postject-api.h
 [`single_executable_application.js`]: https://github.com/nodejs/node/blob/main/lib/internal/main/single_executable_application.js
