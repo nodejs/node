@@ -13,7 +13,7 @@ const fixtures = require('../common/fixtures');
 const fs = require('fs');
 const env = {
   ...process.env,
-  NODE_DEBUG_NATIVE: 'diagnostics'
+  NODE_DEBUG_NATIVE: 'diagnostics',
 };
 
 {

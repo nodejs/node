@@ -16,7 +16,7 @@ const env = {
   TEST_ALLOCATION: 50000,
   TEST_CHUNK: 1000,
   TEST_CLEAN_INTERVAL: 500,
-  NODE_DEBUG_NATIVE: 'diagnostics'
+  NODE_DEBUG_NATIVE: 'diagnostics',
 };
 
 {
