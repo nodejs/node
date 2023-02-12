@@ -288,12 +288,12 @@ VFileMessage.prototype.source = null;
 VFileMessage.prototype.ruleId = null;
 VFileMessage.prototype.position = null;
 
-function isUrl(fileURLOrPath) {
+function isUrl(fileUrlOrPath) {
   return (
-    fileURLOrPath !== null &&
-    typeof fileURLOrPath === 'object' &&
-    fileURLOrPath.href &&
-    fileURLOrPath.origin
+    fileUrlOrPath !== null &&
+    typeof fileUrlOrPath === 'object' &&
+    fileUrlOrPath.href &&
+    fileUrlOrPath.origin
   )
 }
 
@@ -303,7 +303,7 @@ class VFile {
     let options;
     if (!value) {
       options = {};
-    } else if (typeof value === 'string' || isBuffer(value)) {
+    } else if (typeof value === 'string' || buffer(value)) {
       options = {value};
     } else if (isUrl(value)) {
       options = {path: value};
@@ -321,13 +321,19 @@ class VFile {
     let index = -1;
     while (++index < order.length) {
       const prop = order[index];
-      if (prop in options && options[prop] !== undefined) {
+      if (
+        prop in options &&
+        options[prop] !== undefined &&
+        options[prop] !== null
+      ) {
         this[prop] = prop === 'history' ? [...options[prop]] : options[prop];
       }
     }
     let prop;
     for (prop in options) {
-      if (!order.includes(prop)) this[prop] = options[prop];
+      if (!order.includes(prop)) {
+        this[prop] = options[prop];
+      }
     }
   }
   get path() {
@@ -384,7 +390,7 @@ class VFile {
     this.path = path$1.join(this.dirname || '', stem + (this.extname || ''));
   }
   toString(encoding) {
-    return (this.value || '').toString(encoding)
+    return (this.value || '').toString(encoding || undefined)
   }
   message(reason, place, origin) {
     const message = new VFileMessage(reason, place, origin);
@@ -423,6 +429,9 @@ function assertPath(path, name) {
   if (!path) {
     throw new Error('Setting `' + name + '` requires `path` to be set too')
   }
+}
+function buffer(value) {
+  return isBuffer(value)
 }
 
 const unified = base().freeze();
@@ -11573,22 +11582,26 @@ function remarkGfm(options = {}) {
 }
 
 function location(file) {
-  var value = String(file);
-  var indices = [];
-  var search = /\r?\n|\r/g;
+  const value = String(file);
+  const indices = [];
+  const search = /\r?\n|\r/g;
   while (search.test(value)) {
     indices.push(search.lastIndex);
   }
   indices.push(value.length + 1);
   return {toPoint, toOffset}
   function toPoint(offset) {
-    var index = -1;
-    if (offset > -1 && offset < indices[indices.length - 1]) {
+    let index = -1;
+    if (
+      typeof offset === 'number' &&
+      offset > -1 &&
+      offset < indices[indices.length - 1]
+    ) {
       while (++index < indices.length) {
         if (indices[index] > offset) {
           return {
             line: index + 1,
-            column: offset - (indices[index - 1] || 0) + 1,
+            column: offset - (index > 0 ? indices[index - 1] : 0) + 1,
             offset
           }
         }
@@ -11597,9 +11610,8 @@ function location(file) {
     return {line: undefined, column: undefined, offset: undefined}
   }
   function toOffset(point) {
-    var line = point && point.line;
-    var column = point && point.column;
-    var offset;
+    const line = point && point.line;
+    const column = point && point.column;
     if (
       typeof line === 'number' &&
       typeof column === 'number' &&
@@ -11607,9 +11619,12 @@ function location(file) {
       !Number.isNaN(column) &&
       line - 1 in indices
     ) {
-      offset = (indices[line - 2] || 0) + column - 1 || 0;
+      const offset = (indices[line - 2] || 0) + column - 1 || 0;
+      if (offset > -1 && offset < indices[indices.length - 1]) {
+        return offset
+      }
     }
-    return offset > -1 && offset < indices[indices.length - 1] ? offset : -1
+    return -1
   }
 }
 
@@ -20792,13 +20807,16 @@ const settings = {
 };
 const remarkPresetLintNode = { plugins, settings };
 
-function toVFile(options) {
-  if (typeof options === 'string' || options instanceof URL$1) {
-    options = {path: options};
-  } else if (isBuffer(options)) {
-    options = {path: String(options)};
+function toVFile(description) {
+  if (typeof description === 'string' || description instanceof URL$1) {
+    description = {path: description};
+  } else if (isBuffer(description)) {
+    description = {path: String(description)};
   }
-  return looksLikeAVFile(options) ? options : new VFile(options)
+  return looksLikeAVFile(description)
+    ? description
+    :
+      new VFile(description || undefined)
 }
 function readSync(description, options) {
   const file = toVFile(description);
@@ -20830,7 +20848,8 @@ const read =
         try {
           fp = path$1.resolve(file.cwd, file.path);
         } catch (error) {
-          return reject(error)
+          const exception =  (error);
+          return reject(exception)
         }
         fs.readFile(fp, options, done);
         function done(error, result) {
@@ -20864,12 +20883,13 @@ const write =
         try {
           fp = path$1.resolve(file.cwd, file.path);
         } catch (error) {
-          return reject(error)
+          const exception =  (error);
+          return reject(exception, null)
         }
-        fs.writeFile(fp, file.value || '', options, done);
+        fs.writeFile(fp, file.value || '', options || null, done);
         function done(error) {
           if (error) {
-            reject(error);
+            reject(error, null);
           } else {
             resolve(file);
           }
@@ -20878,11 +20898,11 @@ const write =
     }
   );
 function looksLikeAVFile(value) {
-  return (
+  return Boolean(
     value &&
-    typeof value === 'object' &&
-    'message' in value &&
-    'messages' in value
+      typeof value === 'object' &&
+      'message' in value &&
+      'messages' in value
   )
 }
 toVFile.readSync = readSync;
@@ -21259,7 +21279,7 @@ function stringWidth(string, options = {}) {
 }
 
 function statistics(value) {
-  var result = {true: 0, false: 0, null: 0};
+  const result = {true: 0, false: 0, null: 0};
   if (value) {
     if (Array.isArray(value)) {
       list(value);
@@ -21275,22 +21295,25 @@ function statistics(value) {
     total: result.true + result.false + result.null
   }
   function list(value) {
-    var index = -1;
+    let index = -1;
     while (++index < value.length) {
       one(value[index]);
     }
   }
   function one(value) {
     if ('messages' in value) return list(value.messages)
-    result[
-      value.fatal === undefined || value.fatal === null
-        ? null
-        : Boolean(value.fatal)
-    ]++;
+    const field =  (
+      String(
+        value.fatal === undefined || value.fatal === null
+          ? null
+          : Boolean(value.fatal)
+      )
+    );
+    result[field]++;
   }
 }
 
-var severities = {true: 2, false: 1, null: 0, undefined: 0};
+const severities = {true: 2, false: 1, null: 0, undefined: 0};
 function sort(file) {
   file.messages.sort(comparator);
   return file
@@ -21299,18 +21322,18 @@ function comparator(a, b) {
   return (
     check(a, b, 'line') ||
     check(a, b, 'column') ||
-    severities[b.fatal] - severities[a.fatal] ||
+    severities[String(b.fatal)] - severities[String(a.fatal)] ||
     compare(a, b, 'source') ||
     compare(a, b, 'ruleId') ||
     compare(a, b, 'reason') ||
     0
   )
 }
-function check(a, b, property) {
-  return (a[property] || 0) - (b[property] || 0)
+function check(a, b, field) {
+  return (a[field] || 0) - (b[field] || 0)
 }
-function compare(a, b, property) {
-  return String(a[property] || '').localeCompare(b[property] || '')
+function compare(a, b, field) {
+  return String(a[field] || '').localeCompare(b[field] || '')
 }
 
 function hasFlag(flag, argv = globalThis.Deno ? globalThis.Deno.args : process$1.argv) {
