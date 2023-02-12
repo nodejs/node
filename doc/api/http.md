@@ -632,7 +632,7 @@ See also: [`request.setTimeout()`][].
 added: v0.1.94
 -->
 
-* `response` {http.IncomingMessage}
+* `request` {http.IncomingMessage}
 * `socket` {stream.Duplex}
 * `head` {Buffer}
 
