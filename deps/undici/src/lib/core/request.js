@@ -304,6 +304,9 @@ function processHeader (request, key, val) {
     key.length === 4 &&
     key.toLowerCase() === 'host'
   ) {
+    if (headerCharRegex.exec(val) !== null) {
+      throw new InvalidArgumentError(`invalid ${key} header`)
+    }
     // Consumed by Client
     request.host = val
   } else if (

@@ -11,6 +11,7 @@ const {
   isValidHeaderValue
 } = require('./util')
 const { webidl } = require('./webidl')
+const assert = require('assert')
 
 const kHeadersMap = Symbol('headers map')
 const kHeadersSortedMap = Symbol('headers map sorted')
@@ -23,10 +24,12 @@ function headerValueNormalize (potentialValue) {
   //  To normalize a byte sequence potentialValue, remove
   //  any leading and trailing HTTP whitespace bytes from
   //  potentialValue.
-  return potentialValue.replace(
-    /^[\r\n\t ]+|[\r\n\t ]+$/g,
-    ''
-  )
+
+  // Trimming the end with `.replace()` and a RegExp is typically subject to
+  // ReDoS. This is safer and faster.
+  let i = potentialValue.length
+  while (/[\r\n\t ]/.test(potentialValue.charAt(--i)));
+  return potentialValue.slice(0, i + 1).replace(/^[\r\n\t ]+/, '')
 }
 
 function fill (headers, object) {
@@ -115,7 +118,7 @@ class HeadersList {
 
     if (lowercaseName === 'set-cookie') {
       this.cookies ??= []
-      this.cookies.push([name, value])
+      this.cookies.push(value)
     }
   }
 
@@ -125,7 +128,7 @@ class HeadersList {
     const lowercaseName = name.toLowerCase()
 
     if (lowercaseName === 'set-cookie') {
-      this.cookies = [[name, value]]
+      this.cookies = [value]
     }
 
     // 1. If list contains name, then set the value of
@@ -383,18 +386,74 @@ class Headers {
     return this[kHeadersList].set(name, value)
   }
 
-  get [kHeadersSortedMap] () {
-    if (!this[kHeadersList][kHeadersSortedMap]) {
-      this[kHeadersList][kHeadersSortedMap] = new Map([...this[kHeadersList]].sort((a, b) => a[0] < b[0] ? -1 : 1))
+  // https://fetch.spec.whatwg.org/#dom-headers-getsetcookie
+  getSetCookie () {
+    webidl.brandCheck(this, Headers)
+
+    // 1. If this’s header list does not contain `Set-Cookie`, then return « ».
+    // 2. Return the values of all headers in this’s header list whose name is
+    //    a byte-case-insensitive match for `Set-Cookie`, in order.
+
+    const list = this[kHeadersList].cookies
+
+    if (list) {
+      return [...list]
     }
-    return this[kHeadersList][kHeadersSortedMap]
+
+    return []
+  }
+
+  // https://fetch.spec.whatwg.org/#concept-header-list-sort-and-combine
+  get [kHeadersSortedMap] () {
+    if (this[kHeadersList][kHeadersSortedMap]) {
+      return this[kHeadersList][kHeadersSortedMap]
+    }
+
+    // 1. Let headers be an empty list of headers with the key being the name
+    //    and value the value.
+    const headers = []
+
+    // 2. Let names be the result of convert header names to a sorted-lowercase
+    //    set with all the names of the headers in list.
+    const names = [...this[kHeadersList]].sort((a, b) => a[0] < b[0] ? -1 : 1)
+    const cookies = this[kHeadersList].cookies
+
+    // 3. For each name of names:
+    for (const [name, value] of names) {
+      // 1. If name is `set-cookie`, then:
+      if (name === 'set-cookie') {
+        // 1. Let values be a list of all values of headers in list whose name
+        //    is a byte-case-insensitive match for name, in order.
+
+        // 2. For each value of values:
+        // 1. Append (name, value) to headers.
+        for (const value of cookies) {
+          headers.push([name, value])
+        }
+      } else {
+        // 2. Otherwise:
+
+        // 1. Let value be the result of getting name from list.
+
+        // 2. Assert: value is non-null.
+        assert(value !== null)
+
+        // 3. Append (name, value) to headers.
+        headers.push([name, value])
+      }
+    }
+
+    this[kHeadersList][kHeadersSortedMap] = headers
+
+    // 4. Return headers.
+    return headers
   }
 
   keys () {
     webidl.brandCheck(this, Headers)
 
     return makeIterator(
-      () => [...this[kHeadersSortedMap].entries()],
+      () => [...this[kHeadersSortedMap].values()],
       'Headers',
       'key'
     )
@@ -404,7 +463,7 @@ class Headers {
     webidl.brandCheck(this, Headers)
 
     return makeIterator(
-      () => [...this[kHeadersSortedMap].entries()],
+      () => [...this[kHeadersSortedMap].values()],
       'Headers',
       'value'
     )
@@ -414,7 +473,7 @@ class Headers {
     webidl.brandCheck(this, Headers)
 
     return makeIterator(
-      () => [...this[kHeadersSortedMap].entries()],
+      () => [...this[kHeadersSortedMap].values()],
       'Headers',
       'key+value'
     )

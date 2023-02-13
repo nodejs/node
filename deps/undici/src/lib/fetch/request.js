@@ -28,6 +28,7 @@ const { getGlobalOrigin } = require('./global')
 const { URLSerializer } = require('./dataURL')
 const { kHeadersList } = require('../core/symbols')
 const assert = require('assert')
+const { setMaxListeners, getEventListeners, defaultMaxListeners } = require('events')
 
 let TransformStream = globalThis.TransformStream
 
@@ -352,6 +353,11 @@ class Request {
         const abort = function () {
           acRef.deref()?.abort(this.reason)
         }
+
+        if (getEventListeners(signal, 'abort').length >= defaultMaxListeners) {
+          setMaxListeners(100, signal)
+        }
+
         signal.addEventListener('abort', abort, { once: true })
         requestFinalizer.register(this, { signal, abort })
       }

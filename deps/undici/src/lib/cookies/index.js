@@ -83,7 +83,8 @@ function getSetCookies (headers) {
     return []
   }
 
-  return cookies.map((pair) => parseSetCookie(pair[1]))
+  // In older versions of undici, cookies is a list of name:value.
+  return cookies.map((pair) => parseSetCookie(Array.isArray(pair) ? pair[1] : pair))
 }
 
 /**
