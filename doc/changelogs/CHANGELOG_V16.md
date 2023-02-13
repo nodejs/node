@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#16.19.1">16.19.1</a><br/>
 <a href="#16.19.0">16.19.0</a><br/>
 <a href="#16.18.1">16.18.1</a><br/>
 <a href="#16.18.0">16.18.0</a><br/>
@@ -68,6 +69,47 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="16.19.1"></a>
+
+## 2023-02-16, Version 16.19.1 'Gallium' (LTS), @richardlau
+
+This is a security release.
+
+### Notable Changes
+
+The following CVEs are fixed in this release:
+
+* **[CVE-2023-23918](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-23918)**: Node.js Permissions policies can be bypassed via process.mainModule (High)
+* **[CVE-2023-23919](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-23919)**: Node.js OpenSSL error handling issues in nodejs crypto library (Medium)
+* **[CVE-2023-23920](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-23920)**: Node.js insecure loading of ICU data through ICU\_DATA environment variable (Low)
+
+Fixed by an update to undici:
+
+* **[CVE-2023-23936](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-23936)**: Fetch API in Node.js did not protect against CRLF injection in host headers (Medium)
+  * See <https://github.com/nodejs/undici/security/advisories/GHSA-5r9g-qh6m-jxff> for more information.
+* **[CVE-2023-24807](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-24807)**: Regular Expression Denial of Service in Headers in Node.js fetch API (Low)
+  * See <https://github.com/nodejs/undici/security/advisories/GHSA-r6ch-mqf9-qc9w> for more information.
+
+More detailed information on each of the vulnerabilities can be found in [February 2023 Security Releases](https://nodejs.org/en/blog/vulnerability/february-2023-security-releases/) blog post.
+
+This security release includes OpenSSL security updates as outlined in the recent
+[OpenSSL security advisory](https://www.openssl.org/news/secadv/20230207.txt).
+
+### Commits
+
+* \[[`7fef050447`](https://github.com/nodejs/node/commit/7fef050447)] - **build**: build ICU with ICU\_NO\_USER\_DATA\_OVERRIDE (RafaelGSS) [nodejs-private/node-private#374](https://github.com/nodejs-private/node-private/pull/374)
+* \[[`b558e9f476`](https://github.com/nodejs/node/commit/b558e9f476)] - **crypto**: clear OpenSSL error on invalid ca cert (RafaelGSS) [nodejs-private/node-private#375](https://github.com/nodejs-private/node-private/pull/375)
+* \[[`160adb7ffc`](https://github.com/nodejs/node/commit/160adb7ffc)] - **crypto**: clear OpenSSL error queue after calling X509\_check\_private\_key() (Filip Skokan) [#45495](https://github.com/nodejs/node/pull/45495)
+* \[[`d0ece30948`](https://github.com/nodejs/node/commit/d0ece30948)] - **crypto**: clear OpenSSL error queue after calling X509\_verify() (Takuro Sato) [#45377](https://github.com/nodejs/node/pull/45377)
+* \[[`2d9ae4f184`](https://github.com/nodejs/node/commit/2d9ae4f184)] - **deps**: update undici to v5.19.1 (Matteo Collina) [nodejs-private/node-private#388](https://github.com/nodejs-private/node-private/pull/388)
+* \[[`d80e8312fd`](https://github.com/nodejs/node/commit/d80e8312fd)] - **deps**: cherry-pick Windows ARM64 fix for openssl (Richard Lau) [#46568](https://github.com/nodejs/node/pull/46568)
+* \[[`de5c8d2c2f`](https://github.com/nodejs/node/commit/de5c8d2c2f)] - **deps**: update archs files for quictls/openssl-1.1.1t+quic (RafaelGSS) [#46568](https://github.com/nodejs/node/pull/46568)
+* \[[`1a8ccfe908`](https://github.com/nodejs/node/commit/1a8ccfe908)] - **deps**: upgrade openssl sources to OpenSSL\_1\_1\_1t+quic (RafaelGSS) [#46568](https://github.com/nodejs/node/pull/46568)
+* \[[`693789780b`](https://github.com/nodejs/node/commit/693789780b)] - **doc**: clarify release notes for Node.js 16.19.0 (Richard Lau) [#45846](https://github.com/nodejs/node/pull/45846)
+* \[[`f95ef064f4`](https://github.com/nodejs/node/commit/f95ef064f4)] - **lib**: makeRequireFunction patch when experimental policy (RafaelGSS) [nodejs-private/node-private#358](https://github.com/nodejs-private/node-private/pull/358)
+* \[[`b02d895137`](https://github.com/nodejs/node/commit/b02d895137)] - **policy**: makeRequireFunction on mainModule.require (RafaelGSS) [nodejs-private/node-private#358](https://github.com/nodejs-private/node-private/pull/358)
+* \[[`d7f83c420c`](https://github.com/nodejs/node/commit/d7f83c420c)] - **test**: avoid left behind child processes (Richard Lau) [#46276](https://github.com/nodejs/node/pull/46276)
 
 <a id="16.19.0"></a>
 
