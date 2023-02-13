@@ -1613,7 +1613,7 @@ added: v16.7.0
   UTF-8 encoded string.
 
 ```mjs
-import { json, text, blob, buffer } from 'node:stream/consumers';
+import { text } from 'node:stream/consumers';
 import { Readable } from 'node:stream';
 
 const readable = Readable.from('Hello world from consumers!');
