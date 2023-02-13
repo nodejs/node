@@ -652,7 +652,7 @@ set by [`emitter.setMaxListeners(n)`][] or defaults to
 added: v3.2.0
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46523
     description: Added the listener argument.
 -->
 
