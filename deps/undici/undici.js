@@ -438,24 +438,32 @@ var require_util = __commonJS({
       for (let i = 0; i < headers.length; i += 2) {
         const key = headers[i].toString().toLowerCase();
         let val = obj[key];
+        const encoding = key.length === 19 && key === "content-disposition" ? "latin1" : "utf8";
         if (!val) {
           if (Array.isArray(headers[i + 1])) {
             obj[key] = headers[i + 1];
           } else {
-            obj[key] = headers[i + 1].toString();
+            obj[key] = headers[i + 1].toString(encoding);
           }
         } else {
           if (!Array.isArray(val)) {
             val = [val];
             obj[key] = val;
           }
-          val.push(headers[i + 1].toString());
+          val.push(headers[i + 1].toString(encoding));
         }
       }
       return obj;
     }
     function parseRawHeaders(headers) {
-      return headers.map((header) => header.toString());
+      const ret = [];
+      for (let n = 0; n < headers.length; n += 2) {
+        const key = headers[n + 0].toString();
+        const encoding = key.length === 19 && key.toLowerCase() === "content-disposition" ? "latin1" : "utf8";
+        const val = headers[n + 1].toString(encoding);
+        ret.push(key, val);
+      }
+      return ret;
     }
     function isBuffer(buffer) {
       return buffer instanceof Uint8Array || Buffer.isBuffer(buffer);
@@ -1607,10 +1615,14 @@ var require_headers = __commonJS({
       isValidHeaderValue
     } = require_util2();
     var { webidl } = require_webidl();
+    var assert = require("assert");
     var kHeadersMap = Symbol("headers map");
     var kHeadersSortedMap = Symbol("headers map sorted");
     function headerValueNormalize(potentialValue) {
-      return potentialValue.replace(/^[\r\n\t ]+|[\r\n\t ]+$/g, "");
+      let i = potentialValue.length;
+      while (/[\r\n\t ]/.test(potentialValue.charAt(--i)))
+        ;
+      return potentialValue.slice(0, i + 1).replace(/^[\r\n\t ]+/, "");
     }
     function fill(headers, object) {
       if (Array.isArray(object)) {
@@ -1669,14 +1681,14 @@ var require_headers = __commonJS({
         }
         if (lowercaseName === "set-cookie") {
           this.cookies ??= [];
-          this.cookies.push([name, value]);
+          this.cookies.push(value);
         }
       }
       set(name, value) {
         this[kHeadersSortedMap] = null;
         const lowercaseName = name.toLowerCase();
         if (lowercaseName === "set-cookie") {
-          this.cookies = [[name, value]];
+          this.cookies = [value];
         }
         return this[kHeadersMap].set(lowercaseName, { name, value });
       }
@@ -1812,23 +1824,45 @@ var require_headers = __commonJS({
         }
         return this[kHeadersList].set(name, value);
       }
-      get [kHeadersSortedMap]() {
-        if (!this[kHeadersList][kHeadersSortedMap]) {
-          this[kHeadersList][kHeadersSortedMap] = new Map([...this[kHeadersList]].sort((a, b) => a[0] < b[0] ? -1 : 1));
+      getSetCookie() {
+        webidl.brandCheck(this, Headers);
+        const list = this[kHeadersList].cookies;
+        if (list) {
+          return [...list];
         }
-        return this[kHeadersList][kHeadersSortedMap];
+        return [];
+      }
+      get [kHeadersSortedMap]() {
+        if (this[kHeadersList][kHeadersSortedMap]) {
+          return this[kHeadersList][kHeadersSortedMap];
+        }
+        const headers = [];
+        const names = [...this[kHeadersList]].sort((a, b) => a[0] < b[0] ? -1 : 1);
+        const cookies = this[kHeadersList].cookies;
+        for (const [name, value] of names) {
+          if (name === "set-cookie") {
+            for (const value2 of cookies) {
+              headers.push([name, value2]);
+            }
+          } else {
+            assert(value !== null);
+            headers.push([name, value]);
+          }
+        }
+        this[kHeadersList][kHeadersSortedMap] = headers;
+        return headers;
       }
       keys() {
         webidl.brandCheck(this, Headers);
-        return makeIterator(() => [...this[kHeadersSortedMap].entries()], "Headers", "key");
+        return makeIterator(() => [...this[kHeadersSortedMap].values()], "Headers", "key");
       }
       values() {
         webidl.brandCheck(this, Headers);
-        return makeIterator(() => [...this[kHeadersSortedMap].entries()], "Headers", "value");
+        return makeIterator(() => [...this[kHeadersSortedMap].values()], "Headers", "value");
       }
       entries() {
         webidl.brandCheck(this, Headers);
-        return makeIterator(() => [...this[kHeadersSortedMap].entries()], "Headers", "key+value");
+        return makeIterator(() => [...this[kHeadersSortedMap].values()], "Headers", "key+value");
       }
       forEach(callbackFn, thisArg = globalThis) {
         webidl.brandCheck(this, Headers);
@@ -6933,6 +6967,7 @@ var require_request = __commonJS({
     var { URLSerializer } = require_dataURL();
     var { kHeadersList } = require_symbols();
     var assert = require("assert");
+    var { setMaxListeners, getEventListeners, defaultMaxListeners } = require("events");
     var TransformStream = globalThis.TransformStream;
     var kInit = Symbol("init");
     var requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
@@ -7094,6 +7129,9 @@ var require_request = __commonJS({
             const abort = function() {
               acRef.deref()?.abort(this.reason);
             };
+            if (getEventListeners(signal, "abort").length >= defaultMaxListeners) {
+              setMaxListeners(100, signal);
+            }
             signal.addEventListener("abort", abort, { once: true });
             requestFinalizer.register(this, { signal, abort });
           }
@@ -8149,6 +8187,9 @@ var require_request2 = __commonJS({
         return;
       }
       if (request.host === null && key.length === 4 && key.toLowerCase() === "host") {
+        if (headerCharRegex.exec(val) !== null) {
+          throw new InvalidArgumentError(`invalid ${key} header`);
+        }
         request.host = val;
       } else if (request.contentLength === null && key.length === 14 && key.toLowerCase() === "content-length") {
         request.contentLength = parseInt(val, 10);
