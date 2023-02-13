@@ -2,7 +2,6 @@
 // node --loader ./test/fixtures/es-module-loaders/hooks-input.mjs ./test/fixtures/es-modules/json-modules.mjs
 
 import assert from 'assert';
-import { writeSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
 
@@ -43,7 +42,7 @@ export async function resolve(specifier, context, next) {
     shortCircuit: true,
   }
 
-  writeSync(1, `${JSON.stringify(returnValue)}\n`); // For the test to validate when it parses stdout
+  console.log(JSON.stringify(returnValue)); // For the test to validate when it parses stdout
 
   return returnValue;
 }
@@ -80,7 +79,7 @@ export async function load(url, context, next) {
     shortCircuit: true,
   };
 
-  writeSync(1, `${JSON.stringify(returnValue)}\n`); // For the test to validate when it parses stdout
+  console.log(JSON.stringify(returnValue)); // For the test to validate when it parses stdout
 
   return returnValue;
 }
