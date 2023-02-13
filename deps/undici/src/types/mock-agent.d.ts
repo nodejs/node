@@ -1,9 +1,9 @@
-import Agent = require('./agent')
-import Dispatcher = require('./dispatcher')
+import Agent from './agent'
+import Dispatcher from './dispatcher'
 import { Interceptable, MockInterceptor } from './mock-interceptor'
 import MockDispatch = MockInterceptor.MockDispatch;
 
-export = MockAgent
+export default MockAgent
 
 interface PendingInterceptor extends MockDispatch {
   origin: string;

@@ -1,8 +1,15 @@
 const assert = require('assert')
 const { atob } = require('buffer')
-const { isValidHTTPToken } = require('./util')
+const { format } = require('url')
+const { isValidHTTPToken, isomorphicDecode } = require('./util')
 
 const encoder = new TextEncoder()
+
+// Regex
+const HTTP_TOKEN_CODEPOINTS = /^[!#$%&'*+-.^_|~A-z0-9]+$/
+const HTTP_WHITESPACE_REGEX = /(\u000A|\u000D|\u0009|\u0020)/ // eslint-disable-line
+// https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
+const HTTP_QUOTED_STRING_TOKENS = /^(\u0009|\x{0020}-\x{007E}|\x{0080}-\x{00FF})+$/ // eslint-disable-line
 
 // https://fetch.spec.whatwg.org/#data-url-processor
 /** @param {URL} dataURL */
@@ -24,8 +31,8 @@ function dataURLProcessor (dataURL) {
   // 5. Let mimeType be the result of collecting a
   // sequence of code points that are not equal
   // to U+002C (,), given position.
-  let mimeType = collectASequenceOfCodePoints(
-    (char) => char !== ',',
+  let mimeType = collectASequenceOfCodePointsFast(
+    ',',
     input,
     position
   )
@@ -54,7 +61,6 @@ function dataURLProcessor (dataURL) {
   const encodedBody = input.slice(mimeTypeLength + 1)
 
   // 10. Let body be the percent-decoding of encodedBody.
-  /** @type {Uint8Array|string} */
   let body = stringPercentDecode(encodedBody)
 
   // 11. If mimeType ends with U+003B (;), followed by
@@ -62,7 +68,8 @@ function dataURLProcessor (dataURL) {
   // case-insensitive match for "base64", then:
   if (/;(\u0020){0,}base64$/i.test(mimeType)) {
     // 1. Let stringBody be the isomorphic decode of body.
-    const stringBody = decodeURIComponent(new TextDecoder('utf-8').decode(body))
+    const stringBody = isomorphicDecode(body)
+
     // 2. Set body to the forgiving-base64 decode of
     // stringBody.
     body = forgivingBase64(stringBody)
@@ -111,73 +118,7 @@ function dataURLProcessor (dataURL) {
  * @param {boolean} excludeFragment
  */
 function URLSerializer (url, excludeFragment = false) {
-  // 1. Let output be url’s scheme and U+003A (:) concatenated.
-  let output = url.protocol
-
-  // 2. If url’s host is non-null:
-  if (url.host.length > 0) {
-    // 1. Append "//" to output.
-    output += '//'
-
-    // 2. If url includes credentials, then:
-    if (url.username.length > 0 || url.password.length > 0) {
-      // 1. Append url’s username to output.
-      output += url.username
-
-      // 2. If url’s password is not the empty string, then append U+003A (:),
-      // followed by url’s password, to output.
-      if (url.password.length > 0) {
-        output += ':' + url.password
-      }
-
-      // 3. Append U+0040 (@) to output.
-      output += '@'
-    }
-
-    // 3. Append url’s host, serialized, to output.
-    output += decodeURIComponent(url.hostname)
-
-    // 4. If url’s port is non-null, append U+003A (:) followed by url’s port,
-    // serialized, to output.
-    if (url.port.length > 0) {
-      output += ':' + url.port
-    }
-  }
-
-  // 3. If url’s host is null, url does not have an opaque path,
-  // url’s path’s size is greater than 1, and url’s path[0]
-  // is the empty string, then append U+002F (/) followed by
-  // U+002E (.) to output.
-  // Note: This prevents web+demo:/.//not-a-host/ or web+demo:/path/..//not-a-host/,
-  // when parsed and then serialized, from ending up as web+demo://not-a-host/
-  // (they end up as web+demo:/.//not-a-host/).
-  // Undici implementation note: url's path[0] can never be an
-  // empty string, so we have to slightly alter what the spec says.
-  if (
-    url.host.length === 0 &&
-    url.pathname.length > 1 &&
-    url.href.slice(url.protocol.length + 1)[0] === '.'
-  ) {
-    output += '/.'
-  }
-
-  // 4. Append the result of URL path serializing url to output.
-  output += url.pathname
-
-  // 5. If url’s query is non-null, append U+003F (?),
-  // followed by url’s query, to output.
-  if (url.search.length > 0) {
-    output += url.search
-  }
-
-  // 6. If exclude fragment is false and url’s fragment is non-null,
-  // then append U+0023 (#), followed by url’s fragment, to output.
-  if (excludeFragment === false && url.hash.length > 0) {
-    output += url.hash
-  }
-
-  // 7. Return output.
-  return output
+  return format(url, { fragment: !excludeFragment })
 }
 
 // https://infra.spec.whatwg.org/#collect-a-sequence-of-code-points
@@ -202,6 +143,25 @@ function collectASequenceOfCodePoints (condition, input, position) {
 
   // 3. Return result.
   return result
+}
+
+/**
+ * A faster collectASequenceOfCodePoints that only works when comparing a single character.
+ * @param {string} char
+ * @param {string} input
+ * @param {{ position: number }} position
+ */
+function collectASequenceOfCodePointsFast (char, input, position) {
+  const idx = input.indexOf(char, position.position)
+  const start = position.position
+
+  if (idx === -1) {
+    position.position = input.length
+    return input.slice(start)
+  }
+
+  position.position = idx
+  return input.slice(start, position.position)
 }
 
 // https://url.spec.whatwg.org/#string-percent-decode
@@ -273,8 +233,8 @@ function parseMIMEType (input) {
   // 3. Let type be the result of collecting a sequence
   // of code points that are not U+002F (/) from
   // input, given position.
-  const type = collectASequenceOfCodePoints(
-    (char) => char !== '/',
+  const type = collectASequenceOfCodePointsFast(
+    '/',
     input,
     position
   )
@@ -282,7 +242,7 @@ function parseMIMEType (input) {
   // 4. If type is the empty string or does not solely
   // contain HTTP token code points, then return failure.
   // https://mimesniff.spec.whatwg.org/#http-token-code-point
-  if (type.length === 0 || !/^[!#$%&'*+-.^_|~A-z0-9]+$/.test(type)) {
+  if (type.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(type)) {
     return 'failure'
   }
 
@@ -298,8 +258,8 @@ function parseMIMEType (input) {
   // 7. Let subtype be the result of collecting a sequence of
   // code points that are not U+003B (;) from input, given
   // position.
-  let subtype = collectASequenceOfCodePoints(
-    (char) => char !== ';',
+  let subtype = collectASequenceOfCodePointsFast(
+    ';',
     input,
     position
   )
@@ -309,7 +269,7 @@ function parseMIMEType (input) {
 
   // 9. If subtype is the empty string or does not solely
   // contain HTTP token code points, then return failure.
-  if (subtype.length === 0 || !/^[!#$%&'*+-.^_|~A-z0-9]+$/.test(subtype)) {
+  if (subtype.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(subtype)) {
     return 'failure'
   }
 
@@ -323,9 +283,7 @@ function parseMIMEType (input) {
     /** @type {Map<string, string>} */
     parameters: new Map(),
     // https://mimesniff.spec.whatwg.org/#mime-type-essence
-    get essence () {
-      return `${this.type}/${this.subtype}`
-    }
+    essence: `${type}/${subtype}`
   }
 
   // 11. While position is not past the end of input:
@@ -337,7 +295,7 @@ function parseMIMEType (input) {
     // whitespace from input given position.
     collectASequenceOfCodePoints(
       // https://fetch.spec.whatwg.org/#http-whitespace
-      (char) => /(\u000A|\u000D|\u0009|\u0020)/.test(char), // eslint-disable-line
+      char => HTTP_WHITESPACE_REGEX.test(char),
       input,
       position
     )
@@ -385,8 +343,8 @@ function parseMIMEType (input) {
 
       // 2. Collect a sequence of code points that are not
       // U+003B (;) from input, given position.
-      collectASequenceOfCodePoints(
-        (char) => char !== ';',
+      collectASequenceOfCodePointsFast(
+        ';',
         input,
         position
       )
@@ -396,8 +354,8 @@ function parseMIMEType (input) {
       // 1. Set parameterValue to the result of collecting
       // a sequence of code points that are not U+003B (;)
       // from input, given position.
-      parameterValue = collectASequenceOfCodePoints(
-        (char) => char !== ';',
+      parameterValue = collectASequenceOfCodePointsFast(
+        ';',
         input,
         position
       )
@@ -420,9 +378,8 @@ function parseMIMEType (input) {
     // then set mimeType’s parameters[parameterName] to parameterValue.
     if (
       parameterName.length !== 0 &&
-      /^[!#$%&'*+-.^_|~A-z0-9]+$/.test(parameterName) &&
-      // https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
-      !/^(\u0009|\x{0020}-\x{007E}|\x{0080}-\x{00FF})+$/.test(parameterValue) &&  // eslint-disable-line
+      HTTP_TOKEN_CODEPOINTS.test(parameterName) &&
+      !HTTP_QUOTED_STRING_TOKENS.test(parameterValue) &&
       !mimeType.parameters.has(parameterName)
     ) {
       mimeType.parameters.set(parameterName, parameterValue)

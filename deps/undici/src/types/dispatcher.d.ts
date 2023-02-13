@@ -1,15 +1,15 @@
 import { URL } from 'url'
 import { Duplex, Readable, Writable } from 'stream'
 import { EventEmitter } from 'events'
-import { IncomingHttpHeaders } from 'http'
 import { Blob } from 'buffer'
-import type BodyReadable from './readable'
+import { IncomingHttpHeaders } from './header'
+import BodyReadable from './readable'
 import { FormData } from './formdata'
-import { UndiciError } from './errors'
+import Errors from './errors'
 
 type AbortSignal = unknown;
 
-export = Dispatcher;
+export default Dispatcher
 
 /** Dispatcher is the core API used to dispatch requests. */
 declare class Dispatcher extends EventEmitter {
@@ -39,56 +39,56 @@ declare class Dispatcher extends EventEmitter {
   destroy(err: Error | null, callback: () => void): void;
 
   on(eventName: 'connect', callback: (origin: URL, targets: readonly Dispatcher[]) => void): this;
-  on(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void): this;
-  on(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void): this;
+  on(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  on(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
   on(eventName: 'drain', callback: (origin: URL) => void): this;
 
 
   once(eventName: 'connect', callback: (origin: URL, targets: readonly Dispatcher[]) => void): this;
-  once(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void): this;
-  once(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void): this;
+  once(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  once(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
   once(eventName: 'drain', callback: (origin: URL) => void): this;
 
 
   off(eventName: 'connect', callback: (origin: URL, targets: readonly Dispatcher[]) => void): this;
-  off(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void): this;
-  off(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void): this;
+  off(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  off(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
   off(eventName: 'drain', callback: (origin: URL) => void): this;
 
 
   addListener(eventName: 'connect', callback: (origin: URL, targets: readonly Dispatcher[]) => void): this;
-  addListener(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void): this;
-  addListener(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void): this;
+  addListener(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  addListener(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
   addListener(eventName: 'drain', callback: (origin: URL) => void): this;
 
   removeListener(eventName: 'connect', callback: (origin: URL, targets: readonly Dispatcher[]) => void): this;
-  removeListener(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void): this;
-  removeListener(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void): this;
+  removeListener(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  removeListener(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
   removeListener(eventName: 'drain', callback: (origin: URL) => void): this;
 
   prependListener(eventName: 'connect', callback: (origin: URL, targets: readonly Dispatcher[]) => void): this;
-  prependListener(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void): this;
-  prependListener(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void): this;
+  prependListener(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  prependListener(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
   prependListener(eventName: 'drain', callback: (origin: URL) => void): this;
 
   prependOnceListener(eventName: 'connect', callback: (origin: URL, targets: readonly Dispatcher[]) => void): this;
-  prependOnceListener(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void): this;
-  prependOnceListener(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void): this;
+  prependOnceListener(eventName: 'disconnect', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
+  prependOnceListener(eventName: 'connectionError', callback: (origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void): this;
   prependOnceListener(eventName: 'drain', callback: (origin: URL) => void): this;
 
   listeners(eventName: 'connect'): ((origin: URL, targets: readonly Dispatcher[]) => void)[]
-  listeners(eventName: 'disconnect'): ((origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void)[];
-  listeners(eventName: 'connectionError'): ((origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void)[];
+  listeners(eventName: 'disconnect'): ((origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void)[];
+  listeners(eventName: 'connectionError'): ((origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void)[];
   listeners(eventName: 'drain'): ((origin: URL) => void)[];
 
   rawListeners(eventName: 'connect'): ((origin: URL, targets: readonly Dispatcher[]) => void)[]
-  rawListeners(eventName: 'disconnect'): ((origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void)[];
-  rawListeners(eventName: 'connectionError'): ((origin: URL, targets: readonly Dispatcher[], error: UndiciError) => void)[];
+  rawListeners(eventName: 'disconnect'): ((origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void)[];
+  rawListeners(eventName: 'connectionError'): ((origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError) => void)[];
   rawListeners(eventName: 'drain'): ((origin: URL) => void)[];
 
   emit(eventName: 'connect', origin: URL, targets: readonly Dispatcher[]): boolean;
-  emit(eventName: 'disconnect', origin: URL, targets: readonly Dispatcher[], error: UndiciError): boolean;
-  emit(eventName: 'connectionError', origin: URL, targets: readonly Dispatcher[], error: UndiciError): boolean;
+  emit(eventName: 'disconnect', origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError): boolean;
+  emit(eventName: 'connectionError', origin: URL, targets: readonly Dispatcher[], error: Errors.UndiciError): boolean;
   emit(eventName: 'drain', origin: URL): boolean;
 }
 
@@ -105,12 +105,16 @@ declare namespace Dispatcher {
     query?: Record<string, any>;
     /** Whether the requests can be safely retried or not. If `false` the request won't be sent until all preceding requests in the pipeline have completed. Default: `true` if `method` is `HEAD` or `GET`. */
     idempotent?: boolean;
+    /** Whether the response is expected to take a long time and would end up blocking the pipeline. When this is set to `true` further pipelining will be avoided on the same connection until headers have been received. */
+    blocking?: boolean;
     /** Upgrade the request. Should be used to specify the kind of upgrade i.e. `'Websocket'`. Default: `method === 'CONNECT' || null`. */
     upgrade?: boolean | string | null;
     /** The amount of time the parser will wait to receive the complete HTTP headers. Defaults to 30 seconds. */
     headersTimeout?: number | null;
     /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use 0 to disable it entirely. Defaults to 30 seconds. */
     bodyTimeout?: number | null;
+    /** Whether the request should stablish a keep-alive or not. Default `false` */
+    reset?: boolean;
     /** Whether Undici should throw an error upon receiving a 4xx or 5xx response from the server. Defaults to false */
     throwOnError?: boolean;
   }

@@ -10,6 +10,11 @@ const {
 } = require('./mock-symbols')
 const { buildURL, nop } = require('../core/util')
 const { STATUS_CODES } = require('http')
+const {
+  types: {
+    isPromise
+  }
+} = require('util')
 
 function matchValue (match, value) {
   if (typeof match === 'string') {
@@ -183,7 +188,11 @@ function buildKey (opts) {
 }
 
 function generateKeyValues (data) {
-  return Object.entries(data).reduce((keyValuePairs, [key, value]) => [...keyValuePairs, key, value], [])
+  return Object.entries(data).reduce((keyValuePairs, [key, value]) => [
+    ...keyValuePairs,
+    Buffer.from(`${key}`),
+    Array.isArray(value) ? value.map(x => Buffer.from(`${x}`)) : Buffer.from(`${value}`)
+  ], [])
 }
 
 /**
@@ -241,14 +250,27 @@ function mockDispatch (opts, handler) {
     handleReply(this[kDispatches])
   }
 
-  function handleReply (mockDispatches) {
+  function handleReply (mockDispatches, _data = data) {
     // fetch's HeadersList is a 1D string array
     const optsHeaders = Array.isArray(opts.headers)
       ? buildHeadersFromArray(opts.headers)
       : opts.headers
-    const responseData = getResponseData(
-      typeof data === 'function' ? data({ ...opts, headers: optsHeaders }) : data
-    )
+    const body = typeof _data === 'function'
+      ? _data({ ...opts, headers: optsHeaders })
+      : _data
+
+    // util.types.isPromise is likely needed for jest.
+    if (isPromise(body)) {
+      // If handleReply is asynchronous, throwing an error
+      // in the callback will reject the promise, rather than
+      // synchronously throw the error, which breaks some tests.
+      // Rather, we wait for the callback to resolve if it is a
+      // promise, and then re-run handleReply with the new body.
+      body.then((newData) => handleReply(mockDispatches, newData))
+      return
+    }
+
+    const responseData = getResponseData(body)
     const responseHeaders = generateKeyValues(headers)
     const responseTrailers = generateKeyValues(trailers)
 

@@ -1,6 +1,6 @@
 'use strict'
 
-const { redirectStatus } = require('./constants')
+const { redirectStatus, badPorts, referrerPolicy: referrerPolicyTokens } = require('./constants')
 const { performance } = require('perf_hooks')
 const { isBlobLike, toUSVString, ReadableStreamFrom } = require('../core/util')
 const assert = require('assert')
@@ -15,16 +15,6 @@ try {
 } catch {
 
 }
-
-// https://fetch.spec.whatwg.org/#block-bad-port
-const badPorts = [
-  '1', '7', '9', '11', '13', '15', '17', '19', '20', '21', '22', '23', '25', '37', '42', '43', '53', '69', '77', '79',
-  '87', '95', '101', '102', '103', '104', '109', '110', '111', '113', '115', '117', '119', '123', '135', '137',
-  '139', '143', '161', '179', '389', '427', '465', '512', '513', '514', '515', '526', '530', '531', '532',
-  '540', '548', '554', '556', '563', '587', '601', '636', '989', '990', '993', '995', '1719', '1720', '1723',
-  '2049', '3659', '4045', '5060', '5061', '6000', '6566', '6665', '6666', '6667', '6668', '6669', '6697',
-  '10080'
-]
 
 function responseURL (response) {
   // https://fetch.spec.whatwg.org/#responses
@@ -156,13 +146,7 @@ function isValidHeaderName (potentialValue) {
     return false
   }
 
-  for (const char of potentialValue) {
-    if (!isValidHTTPToken(char)) {
-      return false
-    }
-  }
-
-  return true
+  return isValidHTTPToken(potentialValue)
 }
 
 /**
@@ -200,8 +184,31 @@ function setRequestReferrerPolicyOnRedirect (request, actualResponse) {
 
   // 1. Let policy be the result of executing § 8.1 Parse a referrer policy
   // from a Referrer-Policy header on actualResponse.
-  // TODO:  https://w3c.github.io/webappsec-referrer-policy/#parse-referrer-policy-from-header
-  const policy = ''
+
+  // 8.1 Parse a referrer policy from a Referrer-Policy header
+  // 1. Let policy-tokens be the result of extracting header list values given `Referrer-Policy` and response’s header list.
+  const { headersList } = actualResponse
+  // 2. Let policy be the empty string.
+  // 3. For each token in policy-tokens, if token is a referrer policy and token is not the empty string, then set policy to token.
+  // 4. Return policy.
+  const policyHeader = (headersList.get('referrer-policy') ?? '').split(',')
+
+  // Note: As the referrer-policy can contain multiple policies
+  // separated by comma, we need to loop through all of them
+  // and pick the first valid one.
+  // Ref: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy#specify_a_fallback_policy
+  let policy = ''
+  if (policyHeader.length > 0) {
+    // The right-most policy takes precedence.
+    // The left-most policy is the fallback.
+    for (let i = policyHeader.length; i !== 0; i--) {
+      const token = policyHeader[i - 1].trim()
+      if (referrerPolicyTokens.includes(token)) {
+        policy = token
+        break
+      }
+    }
+  }
 
   // 2. If policy is not the empty string, then set request’s referrer policy to policy.
   if (policy !== '') {
@@ -798,48 +805,32 @@ function iteratorResult (pair, kind) {
 /**
  * @see https://fetch.spec.whatwg.org/#body-fully-read
  */
-async function fullyReadBody (body, processBody, processBodyError) {
+function fullyReadBody (body, processBody, processBodyError) {
   // 1. If taskDestination is null, then set taskDestination to
   //    the result of starting a new parallel queue.
 
-  // 2. Let promise be the result of fully reading body as promise
-  //    given body.
+  // 2. Let successSteps given a byte sequence bytes be to queue a
+  //    fetch task to run processBody given bytes, with taskDestination.
+  const successSteps = (bytes) => queueMicrotask(() => processBody(bytes))
+
+  // 3. Let errorSteps be to queue a fetch task to run processBodyError,
+  //    with taskDestination.
+  const errorSteps = (error) => queueMicrotask(() => processBodyError(error))
+
+  // 4. Let reader be the result of getting a reader for body’s stream.
+  //    If that threw an exception, then run errorSteps with that
+  //    exception and return.
+  let reader
+
   try {
-    /** @type {Uint8Array[]} */
-    const chunks = []
-    let length = 0
-
-    const reader = body.stream.getReader()
-
-    while (true) {
-      const { done, value } = await reader.read()
-
-      if (done === true) {
-        break
-      }
-
-      // read-loop chunk steps
-      assert(isUint8Array(value))
-
-      chunks.push(value)
-      length += value.byteLength
-    }
-
-    // 3. Let fulfilledSteps given a byte sequence bytes be to queue
-    //    a fetch task to run processBody given bytes, with
-    //    taskDestination.
-    const fulfilledSteps = (bytes) => queueMicrotask(() => {
-      processBody(bytes)
-    })
-
-    fulfilledSteps(Buffer.concat(chunks, length))
-  } catch (err) {
-    // 4. Let rejectedSteps be to queue a fetch task to run
-    //    processBodyError, with taskDestination.
-    queueMicrotask(() => processBodyError(err))
+    reader = body.stream.getReader()
+  } catch (e) {
+    errorSteps(e)
+    return
   }
 
-  // 5. React to promise with fulfilledSteps and rejectedSteps.
+  // 5. Read all bytes from reader, given successSteps and errorSteps.
+  readAllBytes(reader, successSteps, errorSteps)
 }
 
 /** @type {ReadableStream} */
@@ -856,6 +847,24 @@ function isReadableStreamLike (stream) {
   )
 }
 
+const MAXIMUM_ARGUMENT_LENGTH = 65535
+
+/**
+ * @see https://infra.spec.whatwg.org/#isomorphic-decode
+ * @param {number[]|Uint8Array} input
+ */
+function isomorphicDecode (input) {
+  // 1. To isomorphic decode a byte sequence input, return a string whose code point
+  //    length is equal to input’s length and whose code points have the same values
+  //    as the values of input’s bytes, in the same order.
+
+  if (input.length < MAXIMUM_ARGUMENT_LENGTH) {
+    return String.fromCharCode(...input)
+  }
+
+  return input.reduce((previous, current) => previous + String.fromCharCode(current), '')
+}
+
 /**
  * @param {ReadableStreamController<Uint8Array>} controller
  */
@@ -867,6 +876,66 @@ function readableStreamClose (controller) {
     if (!err.message.includes('Controller is already closed')) {
       throw err
     }
+  }
+}
+
+/**
+ * @see https://infra.spec.whatwg.org/#isomorphic-encode
+ * @param {string} input
+ */
+function isomorphicEncode (input) {
+  // 1. Assert: input contains no code points greater than U+00FF.
+  for (let i = 0; i < input.length; i++) {
+    assert(input.charCodeAt(i) <= 0xFF)
+  }
+
+  // 2. Return a byte sequence whose length is equal to input’s code
+  //    point length and whose bytes have the same values as the
+  //    values of input’s code points, in the same order
+  return input
+}
+
+/**
+ * @see https://streams.spec.whatwg.org/#readablestreamdefaultreader-read-all-bytes
+ * @see https://streams.spec.whatwg.org/#read-loop
+ * @param {ReadableStreamDefaultReader} reader
+ * @param {(bytes: Uint8Array) => void} successSteps
+ * @param {(error: Error) => void} failureSteps
+ */
+async function readAllBytes (reader, successSteps, failureSteps) {
+  const bytes = []
+  let byteLength = 0
+
+  while (true) {
+    let done
+    let chunk
+
+    try {
+      ({ done, value: chunk } = await reader.read())
+    } catch (e) {
+      // 1. Call failureSteps with e.
+      failureSteps(e)
+      return
+    }
+
+    if (done) {
+      // 1. Call successSteps with bytes.
+      successSteps(Buffer.concat(bytes, byteLength))
+      return
+    }
+
+    // 1. If chunk is not a Uint8Array object, call failureSteps
+    //    with a TypeError and abort these steps.
+    if (!isUint8Array(chunk)) {
+      failureSteps(new TypeError('Received non-Uint8Array chunk'))
+      return
+    }
+
+    // 2. Append the bytes represented by chunk to bytes.
+    bytes.push(chunk)
+    byteLength += chunk.length
+
+    // 3. Read-loop given reader, bytes, successSteps, and failureSteps.
   }
 }
 
@@ -912,5 +981,7 @@ module.exports = {
   fullyReadBody,
   bytesMatch,
   isReadableStreamLike,
-  readableStreamClose
+  readableStreamClose,
+  isomorphicEncode,
+  isomorphicDecode
 }

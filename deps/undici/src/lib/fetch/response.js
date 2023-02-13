@@ -10,7 +10,8 @@ const {
   isAborted,
   isBlobLike,
   serializeJavascriptValueToJSONString,
-  isErrorLike
+  isErrorLike,
+  isomorphicEncode
 } = require('./util')
 const {
   redirectStatus,
@@ -49,11 +50,7 @@ class Response {
 
   // https://fetch.spec.whatwg.org/#dom-response-json
   static json (data = undefined, init = {}) {
-    if (arguments.length === 0) {
-      throw new TypeError(
-        'Failed to execute \'json\' on \'Response\': 1 argument required, but 0 present.'
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 1, { header: 'Response.json' })
 
     if (init !== null) {
       init = webidl.converters.ResponseInit(init)
@@ -86,11 +83,7 @@ class Response {
   static redirect (url, status = 302) {
     const relevantRealm = { settingsObject: {} }
 
-    if (arguments.length < 1) {
-      throw new TypeError(
-        `Failed to execute 'redirect' on 'Response': 1 argument required, but only ${arguments.length} present.`
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 1, { header: 'Response.redirect' })
 
     url = webidl.converters.USVString(url)
     status = webidl.converters['unsigned short'](status)
@@ -110,7 +103,7 @@ class Response {
 
     // 3. If status is not a redirect status, then throw a RangeError.
     if (!redirectStatus.includes(status)) {
-      throw new RangeError('Invalid status code')
+      throw new RangeError('Invalid status code ' + status)
     }
 
     // 4. Let responseObject be the result of creating a Response object,
@@ -124,8 +117,7 @@ class Response {
     responseObject[kState].status = status
 
     // 6. Let value be parsedURL, serialized and isomorphic encoded.
-    // TODO: isomorphic encoded?
-    const value = parsedURL.toString()
+    const value = isomorphicEncode(URLSerializer(parsedURL))
 
     // 7. Append `Location`/value to responseObject’s response’s header list.
     responseObject[kState].headersList.append('location', value)
@@ -169,15 +161,9 @@ class Response {
     initializeResponse(this, init, bodyWithType)
   }
 
-  get [Symbol.toStringTag] () {
-    return this.constructor.name
-  }
-
   // Returns response’s type, e.g., "cors".
   get type () {
-    if (!(this instanceof Response)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Response)
 
     // The type getter steps are to return this’s response’s type.
     return this[kState].type
@@ -185,9 +171,7 @@ class Response {
 
   // Returns response’s URL, if it has one; otherwise the empty string.
   get url () {
-    if (!(this instanceof Response)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Response)
 
     const urlList = this[kState].urlList
 
@@ -205,9 +189,7 @@ class Response {
 
   // Returns whether response was obtained through a redirect.
   get redirected () {
-    if (!(this instanceof Response)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Response)
 
     // The redirected getter steps are to return true if this’s response’s URL
     // list has more than one item; otherwise false.
@@ -216,9 +198,7 @@ class Response {
 
   // Returns response’s status.
   get status () {
-    if (!(this instanceof Response)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Response)
 
     // The status getter steps are to return this’s response’s status.
     return this[kState].status
@@ -226,9 +206,7 @@ class Response {
 
   // Returns whether response’s status is an ok status.
   get ok () {
-    if (!(this instanceof Response)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Response)
 
     // The ok getter steps are to return true if this’s response’s status is an
     // ok status; otherwise false.
@@ -237,9 +215,7 @@ class Response {
 
   // Returns response’s status message.
   get statusText () {
-    if (!(this instanceof Response)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Response)
 
     // The statusText getter steps are to return this’s response’s status
     // message.
@@ -248,39 +224,31 @@ class Response {
 
   // Returns response’s headers as Headers.
   get headers () {
-    if (!(this instanceof Response)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Response)
 
     // The headers getter steps are to return this’s headers.
     return this[kHeaders]
   }
 
   get body () {
-    if (!this || !this[kState]) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Response)
 
     return this[kState].body ? this[kState].body.stream : null
   }
 
   get bodyUsed () {
-    if (!this || !this[kState]) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Response)
 
     return !!this[kState].body && util.isDisturbed(this[kState].body.stream)
   }
 
   // Returns a clone of response.
   clone () {
-    if (!(this instanceof Response)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Response)
 
     // 1. If this is unusable, then throw a TypeError.
     if (this.bodyUsed || (this.body && this.body.locked)) {
-      webidl.errors.exception({
+      throw webidl.errors.exception({
         header: 'Response.clone',
         message: 'Body has already been consumed.'
       })
@@ -314,7 +282,11 @@ Object.defineProperties(Response.prototype, {
   headers: kEnumerableProperty,
   clone: kEnumerableProperty,
   body: kEnumerableProperty,
-  bodyUsed: kEnumerableProperty
+  bodyUsed: kEnumerableProperty,
+  [Symbol.toStringTag]: {
+    value: 'Response',
+    configurable: true
+  }
 })
 
 Object.defineProperties(Response, {
@@ -464,7 +436,7 @@ function makeAppropriateNetworkError (fetchParams) {
   // otherwise return a network error.
   return isAborted(fetchParams)
     ? makeNetworkError(new DOMException('The operation was aborted.', 'AbortError'))
-    : makeNetworkError(fetchParams.controller.terminated.reason)
+    : makeNetworkError('Request was cancelled.')
 }
 
 // https://whatpr.org/fetch/1392.html#initialize-a-response
@@ -504,9 +476,9 @@ function initializeResponse (response, init, body) {
   if (body) {
     // 1. If response's status is a null body status, then throw a TypeError.
     if (nullBodyStatus.includes(response.status)) {
-      webidl.errors.exception({
+      throw webidl.errors.exception({
         header: 'Response constructor',
-        message: 'Invalid response status code.'
+        message: 'Invalid response status code ' + response.status
       })
     }
 
@@ -515,7 +487,7 @@ function initializeResponse (response, init, body) {
 
     // 3. If body's type is non-null and response's header list does not contain
     //    `Content-Type`, then append (`Content-Type`, body's type) to response's header list.
-    if (body.type != null && !response[kState].headersList.has('Content-Type')) {
+    if (body.type != null && !response[kState].headersList.contains('Content-Type')) {
       response[kState].headersList.append('content-type', body.type)
     }
   }
