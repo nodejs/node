@@ -6,6 +6,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const http2 = require('http2');
+const { inspect } = require('util');
 
 const server = http2.createServer();
 server.on('stream', (stream) => {
@@ -34,7 +35,8 @@ server.listen(0, common.mustCall(() => {
         name: 'RangeError',
         code: 'ERR_OUT_OF_RANGE',
         message: 'The value of "id" is out of range.' +
-           ' It must be > 0 and <= 4294967295. Received ' + outOfRangeNum
+           ' It must be > 0 and <= 4294967295. Received ' +
+           inspect(outOfRangeNum, { numericSeparator: true })
       }
     );
 

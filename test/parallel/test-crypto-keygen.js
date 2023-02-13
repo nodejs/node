@@ -1147,7 +1147,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       message:
         'The value of "options.modulusLength" is out of range. ' +
         'It must be an integer. ' +
-        `Received ${inspect(modulusLength)}`
+        `Received ${inspect(modulusLength, { numericSeparator: true })}`
     });
   }
 
@@ -1273,7 +1273,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       message:
         'The value of "options.divisorLength" is out of range. ' +
         'It must be an integer. ' +
-        `Received ${inspect(divisorLength)}`
+        `Received ${inspect(divisorLength, { numericSeparator: true })}`
     });
   }
 
@@ -1288,7 +1288,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       message:
         'The value of "options.divisorLength" is out of range. ' +
         'It must be >= 0 && <= 2147483647. ' +
-        `Received ${inspect(divisorLength)}`
+        `Received ${inspect(divisorLength, { numericSeparator: true })}`
     });
   }
 }
@@ -1413,7 +1413,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "options.primeLength" is out of range. ' +
              'It must be >= 0 && <= 2147483647. ' +
-             'Received 2147483648',
+             'Received 2_147_483_648',
   });
 
   assert.throws(() => {
@@ -1438,7 +1438,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "options.generator" is out of range. ' +
              'It must be >= 0 && <= 2147483647. ' +
-             'Received 2147483648',
+             'Received 2_147_483_648',
   });
 
   assert.throws(() => {
@@ -1529,7 +1529,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "options.saltLength" is out of range. ' +
              'It must be >= 0 && <= 2147483647. ' +
-             'Received 2147483648'
+             'Received 2_147_483_648'
   });
 
   assert.throws(() => {

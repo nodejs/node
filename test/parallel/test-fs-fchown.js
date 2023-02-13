@@ -3,6 +3,7 @@
 require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const { inspect } = require('util');
 
 function testFd(input, errObj) {
   assert.throws(() => fs.fchown(input), errObj);
@@ -49,11 +50,13 @@ function testGid(input, errObj) {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
     message: 'The value of "fd" is out of range. It must be ' +
-             `>= 0 && <= 2147483647. Received ${input}`
+             '>= 0 && <= 2147483647. Received ' +
+             inspect(input, { numericSeparator: true })
   };
   testFd(input, errObj);
   errObj.message = 'The value of "uid" is out of range. It must be >= -1 && ' +
-    `<= 4294967295. Received ${input}`;
+    '<= 4294967295. Received ' +
+    inspect(input, { numericSeparator: true });
   testUid(input, errObj);
   errObj.message = errObj.message.replace('uid', 'gid');
   testGid(input, errObj);

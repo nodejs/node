@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const { inspect } = require('util');
 const { promises } = fs;
 const f = __filename;
 
@@ -58,7 +59,8 @@ assert.throws(() => fs.lchmodSync(f, '123x'), {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
     message: 'The value of "mode" is out of range. It must be >= 0 && <= ' +
-             `4294967295. Received ${input}`
+             '4294967295. Received ' +
+             inspect(input, { numericSeparator: true })
   };
 
   assert.rejects(promises.lchmod(f, input, () => {}), errObj);

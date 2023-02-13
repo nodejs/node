@@ -21,7 +21,7 @@ assert.throws(
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
     message: 'The value of "options.flush" is out of range. It must ' +
-             'be >= 0 and <= 5. Received 10000'
+             'be >= 0 and <= 5. Received 10_000'
   }
 );
 
@@ -43,6 +43,6 @@ assert.throws(
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
     message: 'The value of "options.finishFlush" is out of range. It must ' +
-             'be >= 0 and <= 5. Received 10000'
+             'be >= 0 and <= 5. Received 10_000'
   }
 );

@@ -13,5 +13,5 @@ const inspector = require('inspector');
 assert.throws(() => inspector.open(99999), {
   name: 'RangeError',
   code: 'ERR_OUT_OF_RANGE',
-  message: 'The value of "port" is out of range. It must be >= 0 && <= 65535. Received 99999'
+  message: 'The value of "port" is out of range. It must be >= 0 && <= 65535. Received 99_999'
 });

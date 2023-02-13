@@ -6,6 +6,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const http2 = require('http2');
+const { inspect } = require('util');
 
 {
   const server = http2.createServer();
@@ -34,7 +35,8 @@ const http2 = require('http2');
           name: 'RangeError',
           code: 'ERR_OUT_OF_RANGE',
           message: 'The value of "windowSize" is out of range.' +
-            ' It must be >= 0 && <= 2147483647. Received ' + outOfRangeNum
+            ' It must be >= 0 && <= 2147483647. Received ' +
+            inspect(outOfRangeNum, { numericSeparator: true })
         }
       );
 

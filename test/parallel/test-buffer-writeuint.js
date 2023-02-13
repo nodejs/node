@@ -1,6 +1,7 @@
 'use strict';
 
 require('../common');
+const { inspect } = require('util');
 const assert = require('assert');
 
 // We need to check the following things:
@@ -90,7 +91,8 @@ const assert = require('assert');
       {
         code: 'ERR_OUT_OF_RANGE',
         message: 'The value of "value" is out of range. ' +
-                 `It must be >= 0 and <= 65535. Received ${value}`
+                 'It must be >= 0 and <= 65535. Received ' +
+                 inspect(value, { numericSeparator: true })
       }
     );
   });
@@ -170,9 +172,6 @@ const assert = require('assert');
   // Test 1 to 6 bytes.
   for (let i = 1; i <= 6; i++) {
     const range = i < 5 ? `= ${val - 1}` : ` 2 ** ${i * 8}`;
-    const received = i > 4 ?
-      String(val).replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1_') :
-      val;
     ['writeUIntBE', 'writeUIntLE'].forEach((fn) => {
       assert.throws(() => {
         data[fn](val, 0, i);
@@ -180,7 +179,8 @@ const assert = require('assert');
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
         message: 'The value of "value" is out of range. ' +
-                 `It must be >= 0 and <${range}. Received ${received}`
+                 `It must be >= 0 and <${range}. Received ` +
+                 inspect(val, { numericSeparator: true })
       });
 
       ['', '0', null, {}, [], () => {}, true, false].forEach((o) => {
@@ -199,7 +199,8 @@ const assert = require('assert');
             code: 'ERR_OUT_OF_RANGE',
             name: 'RangeError',
             message: 'The value of "offset" is out of range. ' +
-                     `It must be >= 0 and <= ${8 - i}. Received ${offset}`
+                     `It must be >= 0 and <= ${8 - i}. Received ` +
+                     inspect(offset, { numericSeparator: true })
           });
       });
 

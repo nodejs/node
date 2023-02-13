@@ -28,6 +28,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const { inspect } = require('util');
 const { kMaxLength } = require('buffer');
 
 const kMaxInt32 = 2 ** 31 - 1;
@@ -54,7 +55,8 @@ common.expectWarning('DeprecationWarning',
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
         message: 'The value of "size" is out of range. It must be >= 0 && <= ' +
-                 `${kMaxPossibleLength}. Received ${value}`
+                 `${kMaxPossibleLength}. Received ` +
+                 inspect(value, { numericSeparator: true })
       };
       assert.throws(() => f(value), errObj);
       assert.throws(() => f(value, common.mustNotCall()), errObj);
@@ -252,7 +254,8 @@ common.expectWarning('DeprecationWarning',
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
         message: 'The value of "offset" is out of range. ' +
-                 `It must be >= 0 && <= 10. Received ${offsetSize}`
+                 'It must be >= 0 && <= 10. Received ' +
+                 inspect(offsetSize, { numericSeparator: true })
       };
 
       assert.throws(() => crypto.randomFillSync(buf, offsetSize), errObj);
@@ -262,7 +265,8 @@ common.expectWarning('DeprecationWarning',
         errObj);
 
       errObj.message = 'The value of "size" is out of range. It must be >= ' +
-                       `0 && <= ${kMaxPossibleLength}. Received ${offsetSize}`;
+                       `0 && <= ${kMaxPossibleLength}. Received ` +
+                       inspect(offsetSize, { numericSeparator: true });
       assert.throws(() => crypto.randomFillSync(buf, 1, offsetSize), errObj);
 
       assert.throws(
@@ -295,7 +299,8 @@ assert.throws(
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
     message: 'The value of "size" is out of range. ' +
-             `It must be >= 0 && <= ${kMaxPossibleLength}. Received 4294967296`
+             `It must be >= 0 && <= ${kMaxPossibleLength}. ` +
+             'Received 4_294_967_296'
   }
 );
 

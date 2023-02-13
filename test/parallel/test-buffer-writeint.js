@@ -4,6 +4,7 @@
 
 require('../common');
 const assert = require('assert');
+const { inspect } = require('util');
 const errorOutOfBounds = {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
@@ -222,16 +223,14 @@ const errorOutOfBounds = {
         range = `>= -(2 ** ${i * 8 - 1}) and < 2 ** ${i * 8 - 1}`;
       }
       [min - 1, max + 1].forEach((val) => {
-        const received = i > 4 ?
-          String(val).replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1_') :
-          val;
         assert.throws(() => {
           data[fn](val, 0, i);
         }, {
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
           message: 'The value of "value" is out of range. ' +
-                   `It must be ${range}. Received ${received}`
+                   `It must be ${range}. Received ` +
+                   inspect(val, { numericSeparator: true })
         });
       });
 
@@ -251,7 +250,8 @@ const errorOutOfBounds = {
             code: 'ERR_OUT_OF_RANGE',
             name: 'RangeError',
             message: 'The value of "offset" is out of range. ' +
-                     `It must be >= 0 and <= ${8 - i}. Received ${offset}`
+                     `It must be >= 0 and <= ${8 - i}. Received ` +
+                     inspect(offset, { numericSeparator: true })
           });
       });
 

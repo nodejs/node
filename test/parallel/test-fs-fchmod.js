@@ -2,6 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const { inspect } = require('util');
 
 // This test ensures that input for fchmod is valid, testing for valid
 // inputs for fd and mode
@@ -35,8 +36,8 @@ assert.throws(() => fs.fchmod(1, '123x'), {
   const errObj = {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "fd" is out of range. It must be >= 0 && <= ' +
-             `2147483647. Received ${input}`
+    message: 'The value of "fd" is out of range. It must be >= 0 && <= 2' +
+             `147483647. Received ${inspect(input, { numericSeparator: true })}`
   };
   assert.throws(() => fs.fchmod(input), errObj);
   assert.throws(() => fs.fchmodSync(input), errObj);
@@ -46,8 +47,8 @@ assert.throws(() => fs.fchmod(1, '123x'), {
   const errObj = {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "mode" is out of range. It must be >= 0 && <= ' +
-             `4294967295. Received ${input}`
+    message: 'The value of "mode" is out of range. It must be >= 0 && <= 4' +
+             `294967295. Received ${inspect(input, { numericSeparator: true })}`
   };
 
   assert.throws(() => fs.fchmod(1, input), errObj);

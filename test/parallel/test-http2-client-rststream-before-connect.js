@@ -24,7 +24,7 @@ server.listen(0, common.mustCall(() => {
       name: 'RangeError',
       code: 'ERR_OUT_OF_RANGE',
       message: 'The value of "code" is out of range. It must be ' +
-               '>= 0 && <= 4294967295. Received 4294967296'
+               '>= 0 && <= 4294967295. Received 4_294_967_296'
     }
   );
   assert.strictEqual(req.closed, false);

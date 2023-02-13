@@ -2,6 +2,7 @@
 
 require('../common');
 const assert = require('assert');
+const { inspect } = require('util');
 
 // Test OOB
 {
@@ -146,7 +147,8 @@ const assert = require('assert');
             code: 'ERR_OUT_OF_RANGE',
             name: 'RangeError',
             message: 'The value of "offset" is out of range. ' +
-                     `It must be >= 0 and <= ${8 - i}. Received ${offset}`
+                     `It must be >= 0 and <= ${8 - i}. Received ` +
+                     inspect(offset, { numericSeparator: true })
           });
       });
 

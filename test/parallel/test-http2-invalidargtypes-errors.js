@@ -5,6 +5,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
+const { inspect } = require('util');
 
 const server = http2.createServer();
 
@@ -35,7 +36,7 @@ server.on('stream', common.mustCall((stream) => {
         name: 'RangeError',
         message: 'The value of "code" is out of range. ' +
                  'It must be >= 0 && <= 4294967295. ' +
-                 `Received ${code}`
+                 `Received ${inspect(code, { numericSeparator: true })}`
       }
     );
   });

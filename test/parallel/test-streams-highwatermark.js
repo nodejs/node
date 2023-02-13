@@ -81,7 +81,7 @@ const { inspect } = require('util');
   assert.throws(() => readable.read(hwm), common.expectsError({
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "size" is out of range.' +
-             ' It must be <= 1GiB. Received ' +
-             hwm,
+             ' It must be <= 1073741824. Received ' +
+             inspect(hwm, { numericSeparator: true }),
   }));
 }

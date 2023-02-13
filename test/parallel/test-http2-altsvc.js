@@ -6,6 +6,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const http2 = require('http2');
+const { inspect } = require('util');
 const Countdown = require('../common/countdown');
 
 const server = http2.createServer();
@@ -34,7 +35,8 @@ server.on('session', common.mustCall((session) => {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
         message: 'The value of "originOrStream" is out of ' +
-                 `range. It must be > 0 && < 4294967296. Received ${input}`
+                 'range. It must be > 0 && < 4294967296. Received ' +
+                 inspect(input, { numericSeparator: true })
       }
     );
   });
