@@ -177,6 +177,19 @@ developers have run into limitations in node-gyp.
 CMake.js is a good choice for projects that already use CMake or for
 developers affected by limitations in node-gyp.
 
+#### vcpkg
+
+For vcpkg users there are node-api and node-addon-api ports that can be
+installed by the following commands.
+
+```bash
+vcpkg install node-api
+vcpkg install node-addon-api
+```
+
+This feature is beneficial for existing projects using [CMake][], as it
+enables you to develop native modules for Node.js without relying on npm.
+
 ### Uploading precompiled binaries
 
 The three tools listed here permit native addon developers and maintainers
