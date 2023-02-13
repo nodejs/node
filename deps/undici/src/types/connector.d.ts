@@ -10,6 +10,8 @@ declare namespace buildConnector {
     socketPath?: string | null;
     timeout?: number | null;
     port?: number;
+    keepAlive?: boolean | null;
+    keepAliveInitialDelay?: number | null;
   }
 
   export interface Options {
