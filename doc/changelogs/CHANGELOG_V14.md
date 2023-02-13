@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.21.3">14.21.3</a><br/>
 <a href="#14.21.2">14.21.2</a><br/>
 <a href="#14.21.1">14.21.1</a><br/>
 <a href="#14.21.0">14.21.0</a><br/>
@@ -80,6 +81,42 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.21.3"></a>
+
+## 2023-02-16, Version 14.21.3 'Fermium' (LTS), @richardlau
+
+This is a security release.
+
+### Notable Changes
+
+The following CVEs are fixed in this release:
+
+* **[CVE-2023-23918](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-23918)**: Node.js Permissions policies can be bypassed via process.mainModule (High)
+* **[CVE-2023-23920](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-23920)**: Node.js insecure loading of ICU data through ICU\_DATA environment variable (Low)
+
+More detailed information on each of the vulnerabilities can be found in [February 2023 Security Releases](https://nodejs.org/en/blog/vulnerability/february-2023-security-releases/) blog post.
+
+This security release includes OpenSSL security updates as outlined in the recent
+[OpenSSL security advisory](https://www.openssl.org/news/secadv/20230207.txt).
+
+This security release also includes an npm update for Node.js 14 to address a number
+of CVEs which either do not affect Node.js or are low severity in the context of Node.js. You
+can get more details for the individual CVEs in
+[nodejs-dependency-vuln-assessments](https://github.com/nodejs/nodejs-dependency-vuln-assessments).
+
+### Commits
+
+* \[[`97a0443f13`](https://github.com/nodejs/node/commit/97a0443f13)] - **build**: build ICU with ICU\_NO\_USER\_DATA\_OVERRIDE (RafaelGSS) [nodejs-private/node-private#374](https://github.com/nodejs-private/node-private/pull/374)
+* \[[`9e6221529b`](https://github.com/nodejs/node/commit/9e6221529b)] - **deps**: cherry-pick Windows ARM64 fix for openssl (Richard Lau) [#46566](https://github.com/nodejs/node/pull/46566)
+* \[[`0d5f86451d`](https://github.com/nodejs/node/commit/0d5f86451d)] - **deps**: update archs files for OpenSSL-1.1.1t (RafaelGSS) [#46566](https://github.com/nodejs/node/pull/46566)
+* \[[`8c11d17b40`](https://github.com/nodejs/node/commit/8c11d17b40)] - **deps**: upgrade openssl sources to 1.1.1t (RafaelGSS) [#46566](https://github.com/nodejs/node/pull/46566)
+* \[[`224e93c9ef`](https://github.com/nodejs/node/commit/224e93c9ef)] - **deps**: upgrade npm to 6.14.18 (Ruy Adorno) [#45936](https://github.com/nodejs/node/pull/45936)
+* \[[`d73ea4de13`](https://github.com/nodejs/node/commit/d73ea4de13)] - **doc**: clarify release notes for Node.js 14.21.2 (Richard Lau) [#45846](https://github.com/nodejs/node/pull/45846)
+* \[[`f7892c16be`](https://github.com/nodejs/node/commit/f7892c16be)] - **lib**: makeRequireFunction patch when experimental policy (RafaelGSS) [nodejs-private/node-private#358](https://github.com/nodejs-private/node-private/pull/358)
+* \[[`fa115ee8ac`](https://github.com/nodejs/node/commit/fa115ee8ac)] - **module**: protect against prototype mutation (Antoine du Hamel) [#44007](https://github.com/nodejs/node/pull/44007)
+* \[[`83975b7fb4`](https://github.com/nodejs/node/commit/83975b7fb4)] - **policy**: makeRequireFunction on mainModule.require (RafaelGSS) [nodejs-private/node-private#358](https://github.com/nodejs-private/node-private/pull/358)
+* \[[`a5f8798d7a`](https://github.com/nodejs/node/commit/a5f8798d7a)] - **test**: avoid left behind child processes (Richard Lau) [#46276](https://github.com/nodejs/node/pull/46276)
 
 <a id="14.21.2"></a>
 
