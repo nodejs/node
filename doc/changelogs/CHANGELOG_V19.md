@@ -8,7 +8,8 @@
 </tr>
 <tr>
 <td>
-<b><a href="#19.6.0">19.6.0</a></b><br/>
+<b><a href="#19.6.1">19.6.1</a></b><br/>
+<a href="#19.6.0">19.6.0</a><br/>
 <a href="#19.5.0">19.5.0</a><br/>
 <a href="#19.4.0">19.4.0</a><br/>
 <a href="#19.3.0">19.3.0</a><br/>
@@ -40,6 +41,38 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="19.6.1"></a>
+
+## 2023-02-16, Version 19.6.1 (Current), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+The following CVEs are fixed in this release:
+
+* **[CVE-2023-23919](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-23919)**: OpenSSL errors not cleared in error stack (Medium)
+* **[CVE-2023-23918](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-23918)**: Experimental Policies bypass via `process.mainModule.require`(High)
+* **[CVE-2023-23920](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-23920)**: Insecure loading of ICU data through ICU\_DATA environment variable (Low)
+
+More detailed information on each of the vulnerabilities can be found in [February 2023 Security Releases](https://nodejs.org/en/blog/vulnerability/february-2023-security-releases/) blog post.
+
+This security release includes OpenSSL security updates as outlined in the recent
+[OpenSSL security advisory](https://www.openssl.org/news/secadv/20230207.txt) and `undici` security update.
+
+### Commits
+
+* \[[`97d9d55d2f`](https://github.com/nodejs/node/commit/97d9d55d2f)] - **build**: build ICU with ICU\_NO\_USER\_DATA\_OVERRIDE (RafaelGSS) [nodejs-private/node-private#374](https://github.com/nodejs-private/node-private/pull/374)
+* \[[`8ac90e6372`](https://github.com/nodejs/node/commit/8ac90e6372)] - **crypto**: clear OpenSSL error on invalid ca cert (RafaelGSS) [nodejs-private/node-private#368](https://github.com/nodejs-private/node-private/pull/368)
+* \[[`10a4c47e3a`](https://github.com/nodejs/node/commit/10a4c47e3a)] - **deps**: update undici to 5.19.1 (Node.js GitHub Bot) [#46634](https://github.com/nodejs/node/pull/46634)
+* \[[`b10fc75e4a`](https://github.com/nodejs/node/commit/b10fc75e4a)] - **deps**: update undici to 5.18.0 (Node.js GitHub Bot) [#46502](https://github.com/nodejs/node/pull/46502)
+* \[[`e9b64ea8b9`](https://github.com/nodejs/node/commit/e9b64ea8b9)] - **deps**: update undici to 5.17.1 (Node.js GitHub Bot) [#46502](https://github.com/nodejs/node/pull/46502)
+* \[[`66a24cec47`](https://github.com/nodejs/node/commit/66a24cec47)] - **deps**: cherry-pick Windows ARM64 fix for openssl (Richard Lau) [#46573](https://github.com/nodejs/node/pull/46573)
+* \[[`d8559aa6f5`](https://github.com/nodejs/node/commit/d8559aa6f5)] - **deps**: update archs files for quictls/openssl-3.0.8+quic (RafaelGSS) [#46573](https://github.com/nodejs/node/pull/46573)
+* \[[`dc477f547d`](https://github.com/nodejs/node/commit/dc477f547d)] - **deps**: upgrade openssl sources to quictls/openssl-3.0.8+quic (RafaelGSS) [#46573](https://github.com/nodejs/node/pull/46573)
+* \[[`2aae197670`](https://github.com/nodejs/node/commit/2aae197670)] - **lib**: makeRequireFunction patch when experimental policy (RafaelGSS) [nodejs-private/node-private#358](https://github.com/nodejs-private/node-private/pull/358)
+* \[[`6d17b693ec`](https://github.com/nodejs/node/commit/6d17b693ec)] - **policy**: makeRequireFunction on mainModule.require (RafaelGSS) [nodejs-private/node-private#358](https://github.com/nodejs-private/node-private/pull/358)
 
 <a id="19.6.0"></a>
 
