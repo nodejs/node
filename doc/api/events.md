@@ -646,7 +646,7 @@ Returns the current max listener value for the `EventEmitter` which is either
 set by [`emitter.setMaxListeners(n)`][] or defaults to
 [`events.defaultMaxListeners`][].
 
-### `emitter.listenerCount(eventName, [listener])`
+### `emitter.listenerCount(eventName[, listener])`
 
 <!-- YAML
 added: v3.2.0
@@ -657,12 +657,12 @@ changes:
 -->
 
 * `eventName` {string|symbol} The name of the event being listened for
-* `listener` {Function} The name of the listener
+* `listener` {Function} The event handler function
 * Returns: {integer}
 
-Returns the number of listeners listening to the event named `eventName`.
-If `listener` is provided, it will return `1` if the listener is found
-in the list of the listeners of the event, `0` otherwise.
+Returns the number of listeners listening for the event named `eventName`.
+If `listener` is provided, it will return how many times the listener is found
+in the list of the listeners of the event.
 
 ### `emitter.listeners(eventName)`
 
