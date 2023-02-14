@@ -5,7 +5,7 @@ rules:
   comma-dangle: [error, {
     arrays: always-multiline,
     exports: always-multiline,
-    functions: only-multiline,
+    functions: always-multiline,
     imports: always-multiline,
     objects: only-multiline,
   }]
