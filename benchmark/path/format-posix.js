@@ -6,7 +6,7 @@ const bench = common.createBenchmark(main, {
   props: [
     ['/', '/home/user/dir', 'index.html', '.html', 'index'].join('|'),
   ],
-  n: [1e6]
+  n: [1e6],
 });
 
 function main({ n, props }) {

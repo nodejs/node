@@ -9,7 +9,7 @@ const bench = common.createBenchmark(main, {
     '\\\\foo\\bar',
     '\\\\?\\foo',
   ],
-  n: [1e5]
+  n: [1e5],
 });
 
 function main({ n, path }) {
