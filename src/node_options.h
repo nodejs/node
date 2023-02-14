@@ -155,6 +155,7 @@ class EnvironmentOptions : public Options {
   std::string diagnostic_dir;
   bool test_runner = false;
   bool test_runner_coverage = false;
+  bool test_runner_in_source = false;
   std::vector<std::string> test_name_pattern;
   std::vector<std::string> test_reporter;
   std::vector<std::string> test_reporter_destination;
