@@ -97,7 +97,7 @@ if (!common.hasIntl) {
   // Test format
   {
     const localeString = date0.toLocaleString(['en'], optsGMT);
-    assert.strictEqual(localeString, '1/1/1970, 12:00:00 AM');
+    assert.strictEqual(localeString, '1/1/1970, 12:00:00 AM');
   }
   // number format
   {
