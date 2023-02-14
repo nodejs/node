@@ -52,16 +52,15 @@ void SetArgs(Environment* env, Local<Value> argv[12], const ada::result& url) {
   argv[0] = Utf8String(isolate, url->get_href());
   argv[1] = Utf8String(isolate, url->get_origin());
   argv[2] = Utf8String(isolate, url->get_protocol());
-  argv[3] = Utf8String(isolate, url->get_host());
-  argv[4] = Utf8String(isolate, url->get_hostname());
-  argv[5] = Utf8String(isolate, url->get_pathname());
-  argv[6] = Utf8String(isolate, url->get_search());
-  argv[7] = Utf8String(isolate, url->get_username());
-  argv[8] = Utf8String(isolate, url->get_password());
-  argv[9] = Utf8String(isolate, url->get_port());
-  argv[10] = Utf8String(isolate, url->get_hash());
-  argv[11] = Boolean::New(isolate, url->host.has_value());
-  argv[12] = Boolean::New(isolate, url->has_opaque_path);
+  argv[3] = Utf8String(isolate, url->get_hostname());
+  argv[4] = Utf8String(isolate, url->get_pathname());
+  argv[5] = Utf8String(isolate, url->get_search());
+  argv[6] = Utf8String(isolate, url->get_username());
+  argv[7] = Utf8String(isolate, url->get_password());
+  argv[8] = Utf8String(isolate, url->get_port());
+  argv[9] = Utf8String(isolate, url->get_hash());
+  argv[10] = Boolean::New(isolate, url->host.has_value());
+  argv[11] = Boolean::New(isolate, url->has_opaque_path);
 }
 
 void Parse(const FunctionCallbackInfo<Value>& args) {
@@ -96,7 +95,6 @@ void Parse(const FunctionCallbackInfo<Value>& args) {
 
   const Local<Value> undef = Undefined(isolate);
   Local<Value> argv[] = {
-      undef,
       undef,
       undef,
       undef,
@@ -247,7 +245,6 @@ void UpdateUrl(const FunctionCallbackInfo<Value>& args) {
 
   const Local<Value> undef = Undefined(isolate);
   Local<Value> argv[] = {
-      undef,
       undef,
       undef,
       undef,
