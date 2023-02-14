@@ -14,7 +14,7 @@ def get_has_quic(include_path):
     except OSError:
       return False
 
-    regex = '^#\s*define OPENSSL_INFO_QUIC'
+    regex = r'^#\s*define OPENSSL_INFO_QUIC'
 
     for line in f:
       if (re.match(regex, line)):
