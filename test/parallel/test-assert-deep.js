@@ -425,7 +425,7 @@ assertNotDeepOrStrict(
   b.a = {};
   b.a.a = a;
 
-  assertNotDeepOrStrict(a, b);
+  assertDeepAndStrictEqual(a, b);
 }
 
 {
@@ -435,7 +435,7 @@ assertNotDeepOrStrict(
   b.a = b;
   const c = {};
   c.a = a;
-  assertNotDeepOrStrict(b, c);
+  assertDeepAndStrictEqual(b, c);
 }
 
 {
@@ -445,7 +445,7 @@ assertNotDeepOrStrict(
   b.add(b);
   const c = new Set();
   c.add(a);
-  assertNotDeepOrStrict(b, c);
+  assertDeepAndStrictEqual(b, c);
 }
 
 // https://github.com/nodejs/node-v0.x-archive/pull/7178
