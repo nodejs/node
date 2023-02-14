@@ -145,3 +145,93 @@ const testResBody = 'response content';
     }));
   }));
 }
+
+{
+  // Happy flow - capitalized header name
+
+  const server = http2.createServer();
+
+  server.on('request', common.mustCall((req, res) => {
+    debug('Server sending early hints...');
+    res.writeEarlyHints({
+      Link: '</styles.css>; rel=preload; as=style'
+    });
+
+    debug('Server sending full response...');
+    res.end(testResBody);
+  }));
+
+  server.listen(0);
+
+  server.on('listening', common.mustCall(() => {
+    const client = http2.connect(`http://localhost:${server.address().port}`);
+    const req = client.request();
+
+    debug('Client sending request...');
+
+    req.on('headers', common.mustCall((headers) => {
+      assert.notStrictEqual(headers, undefined);
+      assert.strictEqual(headers[':status'], 103);
+      assert.strictEqual(headers.link, '</styles.css>; rel=preload; as=style');
+    }));
+
+    req.on('response', common.mustCall((headers) => {
+      assert.strictEqual(headers[':status'], 200);
+    }));
+
+    let data = '';
+    req.on('data', common.mustCallAtLeast((d) => data += d));
+
+    req.on('end', common.mustCall(() => {
+      debug('Got full response.');
+      assert.strictEqual(data, testResBody);
+      client.close();
+      server.close();
+    }));
+  }));
+}
+
+{
+  // Happy flow - non-link header
+
+  const server = http2.createServer();
+
+  server.on('request', common.mustCall((req, res) => {
+    debug('Server sending early hints...');
+    res.writeEarlyHints({
+      'x-hint': 'value'
+    });
+
+    debug('Server sending full response...');
+    res.end(testResBody);
+  }));
+
+  server.listen(0);
+
+  server.on('listening', common.mustCall(() => {
+    const client = http2.connect(`http://localhost:${server.address().port}`);
+    const req = client.request();
+
+    debug('Client sending request...');
+
+    req.on('headers', common.mustCall((headers) => {
+      assert.notStrictEqual(headers, undefined);
+      assert.strictEqual(headers[':status'], 103);
+      assert.strictEqual(headers['x-hint'], 'value');
+    }));
+
+    req.on('response', common.mustCall((headers) => {
+      assert.strictEqual(headers[':status'], 200);
+    }));
+
+    let data = '';
+    req.on('data', common.mustCallAtLeast((d) => data += d));
+
+    req.on('end', common.mustCall(() => {
+      debug('Got full response.');
+      assert.strictEqual(data, testResBody);
+      client.close();
+      server.close();
+    }));
+  }));
+}

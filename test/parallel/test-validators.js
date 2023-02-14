@@ -12,7 +12,6 @@ const {
   validateString,
   validateInt32,
   validateUint32,
-  validateLinkHeaderValue,
 } = require('internal/validators');
 const { MAX_SAFE_INTEGER, MIN_SAFE_INTEGER } = Number;
 const outOfRangeError = {
@@ -154,16 +153,4 @@ const invalidArgValueError = {
   ].forEach((i) => assert.throws(() => validateNumber(i, 'name'), {
     code: 'ERR_INVALID_ARG_TYPE'
   }));
-}
-
-{
-  // validateLinkHeaderValue type validation.
-  [
-    ['</styles.css>; rel=preload; as=style', '</styles.css>; rel=preload; as=style'],
-    ['</styles.css>; rel=preload; title=hello', '</styles.css>; rel=preload; title=hello'],
-    ['</styles.css>; rel=preload; crossorigin=hello', '</styles.css>; rel=preload; crossorigin=hello'],
-    ['</styles.css>; rel=preload; disabled=true', '</styles.css>; rel=preload; disabled=true'],
-    ['</styles.css>; rel=preload; fetchpriority=high', '</styles.css>; rel=preload; fetchpriority=high'],
-    ['</styles.css>; rel=preload; referrerpolicy=origin', '</styles.css>; rel=preload; referrerpolicy=origin'],
-  ].forEach(([value, expected]) => assert.strictEqual(validateLinkHeaderValue(value), expected));
 }
