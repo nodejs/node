@@ -752,7 +752,7 @@ changes:
 Type: Documentation-only
 
 The [`events.listenerCount(emitter, eventName)`][] API is
-deprecated. Please use [`emitter.listenerCount(eventName)`][] instead.
+deprecated. Please use [`emitter.listenerCount(eventName, listener)`][] instead.
 
 ### DEP0034: `fs.exists(path, callback)`
 
@@ -3402,7 +3402,7 @@ be added when a function is bound to an `AsyncResource`.
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`domain`]: domain.md
 [`ecdh.setPublicKey()`]: crypto.md#ecdhsetpublickeypublickey-encoding
-[`emitter.listenerCount(eventName)`]: events.md#emitterlistenercounteventname
+[`emitter.listenerCount(eventName, listener)`]: events.md#emitterlistenercounteventname-listener
 [`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitter-eventname
 [`fs.FileHandle`]: fs.md#class-filehandle
 [`fs.access()`]: fs.md#fsaccesspath-mode-callback
