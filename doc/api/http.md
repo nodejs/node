@@ -423,8 +423,9 @@ the data is read it will consume memory that can eventually lead to a
 For backward compatibility, `res` will only emit `'error'` if there is an
 `'error'` listener registered.
 
-Set `Content-Length` header to limit the response body size. Mismatching the
-`Content-Length` header value will result in an \[`Error`]\[] being thrown,
+Set `Content-Length` header to limit the response body size.
+If [`response.strictContentLength`][] is set to `true`, mismatching the
+`Content-Length` header value will result in an `Error` being thrown,
 identified by `code:` [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`][].
 
 `Content-Length` value should be in bytes, not characters. Use
@@ -2073,6 +2074,21 @@ response.statusMessage = 'Not found';
 
 After response header was sent to the client, this property indicates the
 status message which was sent out.
+
+### `response.strictContentLength`
+
+<!-- YAML
+added:
+  - v18.10.0
+  - v16.18.0
+-->
+
+* {boolean} **Default:** `false`
+
+If set to `true`, Node.js will check whether the `Content-Length`
+header value and the size of the body, in bytes, are equal.
+Mismatching the `Content-Length` header value will result
+in an `Error` being thrown, identified by `code:` [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`][].
 
 ### `response.uncork()`
 
@@ -3860,6 +3876,7 @@ Set the maximum number of idle HTTP parsers.
 [`response.getHeader()`]: #responsegetheadername
 [`response.setHeader()`]: #responsesetheadername-value
 [`response.socket`]: #responsesocket
+[`response.strictContentLength`]: #responsestrictcontentlength
 [`response.writableEnded`]: #responsewritableended
 [`response.writableFinished`]: #responsewritablefinished
 [`response.write()`]: #responsewritechunk-encoding-callback
