@@ -204,13 +204,12 @@ async function ctrlCTest() {
     'await new Promise(() => {})',
     { ctrl: true, name: 'c' },
   ]);
-  assert.deepStrictEqual(output.slice(0, 3), [
+  assert.deepStrictEqual(output, [
     'await new Promise(() => {})\r',
     'Uncaught:',
-    'Error [ERR_SCRIPT_EXECUTION_INTERRUPTED]: ' +
-      'Script execution was interrupted by `SIGINT`',
-  ]);
-  assert.deepStrictEqual(output.slice(-2), [
+    '[Error [ERR_SCRIPT_EXECUTION_INTERRUPTED]: ' +
+      'Script execution was interrupted by `SIGINT`] {',
+    "  code: 'ERR_SCRIPT_EXECUTION_INTERRUPTED'",
     '}',
     PROMPT,
   ]);

@@ -51,3 +51,11 @@ bar
     at *
     at *
   foo: 'bar' }
+Foo [Error]
+    at *util_inspect_error.js*
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *

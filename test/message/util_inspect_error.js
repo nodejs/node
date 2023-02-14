@@ -10,3 +10,11 @@ console.log(util.inspect({ err, nested: { err } }, { compact: false }));
 
 err.foo = 'bar';
 console.log(util.inspect(err, { compact: true, breakLength: 5 }));
+
+class Foo extends Error {
+  toString() {
+    return 1;
+  }
+}
+
+console.log(new Foo());
