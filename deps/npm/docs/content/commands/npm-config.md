@@ -154,7 +154,6 @@ Show extended information in `ls`, `search`, and `help-search`.
 ### See Also
 
 * [npm folders](/configuring-npm/folders)
-* [npm config](/commands/npm-config)
 * [package.json](/configuring-npm/package-json)
 * [npmrc](/configuring-npm/npmrc)
 * [npm](/commands/npm)

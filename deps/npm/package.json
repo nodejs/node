@@ -1,5 +1,5 @@
 {
-  "version": "8.19.3",
+  "version": "8.19.4",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -213,6 +213,9 @@
     "licensee": "^9.0.0",
     "nock": "^13.2.4",
     "npm-packlist": "^5.1.3",
+    "remark": "^14.0.2",
+    "remark-gfm": "^3.0.1",
+    "remark-github": "^11.2.4",
     "spawk": "^1.7.1",
     "tap": "^16.0.1"
   },
