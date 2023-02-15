@@ -310,6 +310,102 @@ t.test('audit signatures', async t => {
     }),
   }
 
+  const installWithValidAttestations = {
+    'package.json': JSON.stringify({
+      name: 'test-dep',
+      version: '1.0.0',
+      dependencies: {
+        sigstore: '1.0.0',
+      },
+    }),
+    node_modules: {
+      sigstore: {
+        'package.json': JSON.stringify({
+          name: 'sigstore',
+          version: '1.0.0',
+        }),
+      },
+    },
+    'package-lock.json': JSON.stringify({
+      name: 'test-dep',
+      version: '1.0.0',
+      lockfileVersion: 2,
+      requires: true,
+      packages: {
+        '': {
+          name: 'test-dep',
+          version: '1.0.0',
+          dependencies: {
+            sigstore: '^1.0.0',
+          },
+        },
+        'node_modules/sigstore': {
+          version: '1.0.0',
+        },
+      },
+      dependencies: {
+        sigstore: {
+          version: '1.0.0',
+        },
+      },
+    }),
+  }
+
+  const installWithMultipleValidAttestations = {
+    'package.json': JSON.stringify({
+      name: 'test-dep',
+      version: '1.0.0',
+      dependencies: {
+        sigstore: '1.0.0',
+        'tuf-js': '1.0.0',
+      },
+    }),
+    node_modules: {
+      sigstore: {
+        'package.json': JSON.stringify({
+          name: 'sigstore',
+          version: '1.0.0',
+        }),
+      },
+      'tuf-js': {
+        'package.json': JSON.stringify({
+          name: 'tuf-js',
+          version: '1.0.0',
+        }),
+      },
+    },
+    'package-lock.json': JSON.stringify({
+      name: 'test-dep',
+      version: '1.0.0',
+      lockfileVersion: 2,
+      requires: true,
+      packages: {
+        '': {
+          name: 'test-dep',
+          version: '1.0.0',
+          dependencies: {
+            sigstore: '^1.0.0',
+            'tuf-js': '^1.0.0',
+          },
+        },
+        'node_modules/sigstore': {
+          version: '1.0.0',
+        },
+        'node_modules/tuf-js': {
+          version: '1.0.0',
+        },
+      },
+      dependencies: {
+        sigstore: {
+          version: '1.0.0',
+        },
+        'tuf-js': {
+          version: '1.0.0',
+        },
+      },
+    }),
+  }
+
   const installWithAlias = {
     'package.json': JSON.stringify({
       name: 'test-dep',
@@ -717,6 +813,44 @@ t.test('audit signatures', async t => {
     await registry.package({ manifest })
   }
 
+  async function manifestWithValidAttestations ({ registry }) {
+    const manifest = registry.manifest({
+      name: 'sigstore',
+      packuments: [{
+        version: '1.0.0',
+        dist: {
+          // eslint-disable-next-line max-len
+          integrity: 'sha512-e+qfbn/zf1+rCza/BhIA//Awmf0v1pa5HQS8Xk8iXrn9bgytytVLqYD0P7NSqZ6IELTgq+tcDvLPkQjNHyWLNg==',
+          tarball: 'https://registry.npmjs.org/sigstore/-/sigstore-1.0.0.tgz',
+          // eslint-disable-next-line max-len
+          attestations: { url: 'https://registry.npmjs.org/-/npm/v1/attestations/sigstore@1.0.0', provenance: { predicateType: 'https://slsa.dev/provenance/v0.2' } },
+          // eslint-disable-next-line max-len
+          signatures: [{ keyid: 'SHA256:jl3bwswu80PjjokCgh0o2w5c2U4LhQAE57gj9cz1kzA', sig: 'MEQCIBlpcHT68iWOpx8pJr3WUzD1EqQ7tb0CmY36ebbceR6IAiAVGRaxrFoyh0/5B7H1o4VFhfsHw9F8G+AxOZQq87q+lg==' }],
+        },
+      }],
+    })
+    await registry.package({ manifest })
+  }
+
+  async function manifestWithMultipleValidAttestations ({ registry }) {
+    const manifest = registry.manifest({
+      name: 'tuf-js',
+      packuments: [{
+        version: '1.0.0',
+        dist: {
+          // eslint-disable-next-line max-len
+          integrity: 'sha512-1dxsQwESDzACJjTdYHQ4wJ1f/of7jALWKfJEHSBWUQB/5UTJUx9SW6GHXp4mZ1KvdBRJCpGjssoPFGi4hvw8/A==',
+          tarball: 'https://registry.npmjs.org/tuf-js/-/tuf-js-1.0.0.tgz',
+          // eslint-disable-next-line max-len
+          attestations: { url: 'https://registry.npmjs.org/-/npm/v1/attestations/tuf-js@1.0.0', provenance: { predicateType: 'https://slsa.dev/provenance/v0.2' } },
+          // eslint-disable-next-line max-len
+          signatures: [{ keyid: 'SHA256:jl3bwswu80PjjokCgh0o2w5c2U4LhQAE57gj9cz1kzA', sig: 'MEYCIQDgGQeY2QLkLuoO9YxOqFZ+a6zYuaZpXhc77kUfdCUXDQIhAJp/vV+9Xg1bfM5YlTvKIH9agUEOu5T76+tQaHY2vZyO' }],
+        },
+      }],
+    })
+    await registry.package({ manifest })
+  }
+
   async function manifestWithInvalidSigs ({ registry, name = 'kms-demo', version = '1.0.0' }) {
     const manifest = registry.manifest({
       name,
@@ -758,7 +892,7 @@ t.test('audit signatures', async t => {
 
     await npm.exec('audit', ['signatures'])
 
-    t.equal(process.exitCode, 0, 'should exit successfully')
+    t.notOk(process.exitCode, 'should exit successfully')
     t.match(joinedOutput(), /audited 1 package/)
     t.matchSnapshot(joinedOutput())
   })
@@ -791,7 +925,7 @@ t.test('audit signatures', async t => {
 
     await npm.exec('audit', ['signatures'])
 
-    t.equal(process.exitCode, 0, 'should exit successfully')
+    t.notOk(process.exitCode, 'should exit successfully')
     t.match(joinedOutput(), /audited 1 package/)
     t.matchSnapshot(joinedOutput())
   })
@@ -914,7 +1048,7 @@ t.test('audit signatures', async t => {
 
     await npm.exec('audit', ['signatures'])
 
-    t.equal(process.exitCode, 0, 'should exit successfully')
+    t.notOk(process.exitCode, 'should exit successfully')
     t.match(joinedOutput(), /audited 1 package/)
     t.matchSnapshot(joinedOutput())
   })
@@ -1095,7 +1229,7 @@ t.test('audit signatures', async t => {
 
     await npm.exec('audit', ['signatures'])
 
-    t.equal(process.exitCode, 0, 'should exit successfully')
+    t.notOk(process.exitCode, 'should exit successfully')
     t.match(joinedOutput(), JSON.stringify({ invalid: [], missing: [] }, null, 2))
     t.matchSnapshot(joinedOutput())
   })
@@ -1148,7 +1282,7 @@ t.test('audit signatures', async t => {
 
     await npm.exec('audit', ['signatures'])
 
-    t.equal(process.exitCode, 0, 'should exit successfully')
+    t.notOk(process.exitCode, 'should exit successfully')
     t.match(joinedOutput(), /audited 1 package/)
     t.matchSnapshot(joinedOutput())
   })
@@ -1257,7 +1391,7 @@ t.test('audit signatures', async t => {
 
     await npm.exec('audit', ['signatures'])
 
-    t.equal(process.exitCode, 0, 'should exit successfully')
+    t.notOk(process.exitCode, 'should exit successfully')
     t.match(joinedOutput(), /audited 1 package/)
     t.matchSnapshot(joinedOutput())
   })
@@ -1401,7 +1535,7 @@ t.test('audit signatures', async t => {
 
     await npm.exec('audit', ['signatures'])
 
-    t.equal(process.exitCode, 0, 'should exit successfully')
+    t.notOk(process.exitCode, 'should exit successfully')
     t.match(joinedOutput(), /audited 2 packages/)
     t.matchSnapshot(joinedOutput())
   })
@@ -1447,7 +1581,7 @@ t.test('audit signatures', async t => {
 
     await npm.exec('audit', ['signatures'])
 
-    t.equal(process.exitCode, 0, 'should exit successfully')
+    t.notOk(process.exitCode, 'should exit successfully')
     t.match(joinedOutput(), /audited 1 package/)
     t.matchSnapshot(joinedOutput())
   })
@@ -1576,6 +1710,173 @@ t.test('audit signatures', async t => {
     t.matchSnapshot(joinedOutput())
   })
 
+  t.test('with valid attestations', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: installWithValidAttestations,
+      mocks: {
+        pacote: t.mock('pacote', {
+          sigstore: {
+            sigstore: { verify: async () => true },
+          },
+        }),
+      },
+    })
+    const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
+    await manifestWithValidAttestations({ registry })
+    const fixture = fs.readFileSync(
+      path.join(__dirname, '..', 'fixtures', 'sigstore/valid-sigstore-attestations.json'),
+      'utf8'
+    )
+    registry.nock.get('/-/npm/v1/attestations/sigstore@1.0.0').reply(200, fixture)
+    registry.nock.get('/-/npm/v1/keys').reply(200, VALID_REGISTRY_KEYS)
+
+    await npm.exec('audit', ['signatures'])
+
+    t.notOk(process.exitCode, 'should exit successfully')
+    t.match(joinedOutput(), /1 package has a verified attestation/)
+    t.matchSnapshot(joinedOutput())
+  })
+
+  t.test('with multiple valid attestations', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: installWithMultipleValidAttestations,
+      mocks: {
+        pacote: t.mock('pacote', {
+          sigstore: {
+            sigstore: { verify: async () => true },
+          },
+        }),
+      },
+    })
+    const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
+    await manifestWithValidAttestations({ registry })
+    await manifestWithMultipleValidAttestations({ registry })
+    const fixture1 = fs.readFileSync(
+      path.join(__dirname, '..', 'fixtures', 'sigstore/valid-sigstore-attestations.json'),
+      'utf8'
+    )
+    const fixture2 = fs.readFileSync(
+      path.join(__dirname, '..', 'fixtures', 'sigstore/valid-tuf-js-attestations.json'),
+      'utf8'
+    )
+    registry.nock.get('/-/npm/v1/attestations/sigstore@1.0.0').reply(200, fixture1)
+    registry.nock.get('/-/npm/v1/attestations/tuf-js@1.0.0').reply(200, fixture2)
+    registry.nock.get('/-/npm/v1/keys').reply(200, VALID_REGISTRY_KEYS)
+
+    await npm.exec('audit', ['signatures'])
+
+    t.notOk(process.exitCode, 'should exit successfully')
+    t.match(joinedOutput(), /2 packages have verified attestations/)
+  })
+
+  t.test('with invalid attestations', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: installWithValidAttestations,
+      mocks: {
+        pacote: t.mock('pacote', {
+          sigstore: {
+            sigstore: {
+              verify: async () => {
+                throw new Error(`artifact signature verification failed`)
+              },
+            },
+          },
+        }),
+      },
+    })
+    const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
+    await manifestWithValidAttestations({ registry })
+    const fixture = fs.readFileSync(
+      path.join(__dirname, '..', 'fixtures', 'sigstore/valid-sigstore-attestations.json'),
+      'utf8'
+    )
+    registry.nock.get('/-/npm/v1/attestations/sigstore@1.0.0').reply(200, fixture)
+    registry.nock.get('/-/npm/v1/keys').reply(200, VALID_REGISTRY_KEYS)
+
+    await npm.exec('audit', ['signatures'])
+
+    t.equal(process.exitCode, 1, 'should exit with error')
+    t.match(
+      joinedOutput(),
+      '1 package has an invalid attestation'
+    )
+    t.matchSnapshot(joinedOutput())
+  })
+
+  t.test('json output with invalid attestations', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: installWithValidAttestations,
+      config: {
+        json: true,
+      },
+      mocks: {
+        pacote: t.mock('pacote', {
+          sigstore: {
+            sigstore: {
+              verify: async () => {
+                throw new Error(`artifact signature verification failed`)
+              },
+            },
+          },
+        }),
+      },
+    })
+    const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
+    await manifestWithValidAttestations({ registry })
+    const fixture = fs.readFileSync(
+      path.join(__dirname, '..', 'fixtures', 'sigstore/valid-sigstore-attestations.json'),
+      'utf8'
+    )
+    registry.nock.get('/-/npm/v1/attestations/sigstore@1.0.0').reply(200, fixture)
+    registry.nock.get('/-/npm/v1/keys').reply(200, VALID_REGISTRY_KEYS)
+
+    await npm.exec('audit', ['signatures'])
+
+    t.equal(process.exitCode, 1, 'should exit with error')
+    t.match(joinedOutput(), 'artifact signature verification failed')
+    t.matchSnapshot(joinedOutput())
+  })
+
+  t.test('with multiple invalid attestations', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: installWithMultipleValidAttestations,
+      mocks: {
+        pacote: t.mock('pacote', {
+          sigstore: {
+            sigstore: {
+              verify: async () => {
+                throw new Error(`artifact signature verification failed`)
+              },
+            },
+          },
+        }),
+      },
+    })
+    const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
+    await manifestWithValidAttestations({ registry })
+    await manifestWithMultipleValidAttestations({ registry })
+    const fixture1 = fs.readFileSync(
+      path.join(__dirname, '..', 'fixtures', 'sigstore/valid-sigstore-attestations.json'),
+      'utf8'
+    )
+    const fixture2 = fs.readFileSync(
+      path.join(__dirname, '..', 'fixtures', 'sigstore/valid-tuf-js-attestations.json'),
+      'utf8'
+    )
+    registry.nock.get('/-/npm/v1/attestations/sigstore@1.0.0').reply(200, fixture1)
+    registry.nock.get('/-/npm/v1/attestations/tuf-js@1.0.0').reply(200, fixture2)
+    registry.nock.get('/-/npm/v1/keys').reply(200, VALID_REGISTRY_KEYS)
+
+    await npm.exec('audit', ['signatures'])
+
+    t.equal(process.exitCode, 1, 'should exit with error')
+    t.match(
+      joinedOutput(),
+      '2 packages have invalid attestations'
+    )
+    t.matchSnapshot(joinedOutput())
+  })
+
   t.test('workspaces', async t => {
     t.test('verifies registry deps and ignores local workspace deps', async t => {
       const { npm, joinedOutput } = await loadMockNpm(t, {
@@ -1625,7 +1926,7 @@ t.test('audit signatures', async t => {
 
       await npm.exec('audit', ['signatures'])
 
-      t.equal(process.exitCode, 0, 'should exit successfully')
+      t.notOk(process.exitCode, 'should exit successfully')
       t.match(joinedOutput(), /audited 3 packages/)
       t.matchSnapshot(joinedOutput())
     })
@@ -1678,7 +1979,7 @@ t.test('audit signatures', async t => {
 
       await npm.exec('audit', ['signatures'])
 
-      t.equal(process.exitCode, 0, 'should exit successfully')
+      t.notOk(process.exitCode, 'should exit successfully')
       t.match(joinedOutput(), /audited 2 packages/)
       t.matchSnapshot(joinedOutput())
     })

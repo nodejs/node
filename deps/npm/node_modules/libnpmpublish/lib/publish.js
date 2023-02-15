@@ -4,6 +4,9 @@ const npa = require('npm-package-arg')
 const semver = require('semver')
 const { URL } = require('url')
 const ssri = require('ssri')
+const ciInfo = require('ci-info')
+
+const { generateProvenance } = require('./provenance')
 
 const publish = async (manifest, tarballData, opts) => {
   if (manifest.private) {
@@ -36,7 +39,7 @@ Remove the 'private' field from the package.json to publish it.`),
     )
   }
 
-  const metadata = buildMetadata(reg, pubManifest, tarballData, opts)
+  const metadata = await buildMetadata(reg, pubManifest, tarballData, spec, opts)
 
   try {
     return await npmFetch(spec.escapedName, {
@@ -89,8 +92,8 @@ const patchManifest = (_manifest, opts) => {
   return manifest
 }
 
-const buildMetadata = (registry, manifest, tarballData, opts) => {
-  const { access, defaultTag, algorithms } = opts
+const buildMetadata = async (registry, manifest, tarballData, spec, opts) => {
+  const { access, defaultTag, algorithms, provenance } = opts
   const root = {
     _id: manifest.name,
     name: manifest.name,
@@ -105,6 +108,7 @@ const buildMetadata = (registry, manifest, tarballData, opts) => {
   root['dist-tags'][tag] = manifest.version
 
   const tarballName = `${manifest.name}-${manifest.version}.tgz`
+  const provenanceBundleName = `${manifest.name}-${manifest.version}.sigstore`
   const tarballURI = `${manifest.name}/-/${tarballName}`
   const integrity = ssri.fromData(tarballData, {
     algorithms: [...new Set(['sha1'].concat(algorithms))],
@@ -128,6 +132,41 @@ const buildMetadata = (registry, manifest, tarballData, opts) => {
     content_type: 'application/octet-stream',
     data: tarballData.toString('base64'),
     length: tarballData.length,
+  }
+
+  // Handle case where --provenance flag was set to true
+  if (provenance === true) {
+    const subject = {
+      name: npa.toPurl(spec),
+      digest: { sha512: integrity.sha512[0].hexDigest() },
+    }
+
+    // Ensure that we're running in GHA and an OIDC token is available,
+    // currently the only supported build environment
+    if (ciInfo.name !== 'GitHub Actions' || !process.env.ACTIONS_ID_TOKEN_REQUEST_URL) {
+      throw Object.assign(
+        new Error('Automatic provenance generation not supported outside of GitHub Actions'),
+        { code: 'EUSAGE' }
+      )
+    }
+
+    const visibility =
+      await npmFetch.json(`${registry}/-/package/${spec.escapedName}/visibility`, opts)
+    if (!visibility.public && opts.provenance === true && opts.access !== 'public') {
+      throw Object.assign(
+        /* eslint-disable-next-line max-len */
+        new Error("Can't generate provenance for new or private package, you must set `access` to public."),
+        { code: 'EUSAGE' }
+      )
+    }
+    const provenanceBundle = await generateProvenance([subject], opts)
+
+    const serializedBundle = JSON.stringify(provenanceBundle)
+    root._attachments[provenanceBundleName] = {
+      content_type: provenanceBundle.mediaType,
+      data: serializedBundle,
+      length: serializedBundle.length,
+    }
   }
 
   return root

@@ -1,4 +1,4 @@
-.TH "NPM-TEAM" "1" "January 2023" "" ""
+.TH "NPM-TEAM" "1" "February 2023" "" ""
 .SH "NAME"
 \fBnpm-team\fR - Manage organization teams and team memberships
 .SS "Synopsis"
@@ -20,7 +20,7 @@ Used to manage teams in organizations, and change team memberships. Does not han
 .P
 Teams must always be fully qualified with the organization/scope they belong to when operating on them, separated by a colon (\fB:\fR). That is, if you have a \fBnewteam\fR team in an \fBorg\fR organization, you must always refer to that team as \fB@org:newteam\fR in these commands.
 .P
-If you have two-factor authentication enabled in \fBauth-and-writes\fR mode, then you can provide a code from your authenticator with \fB\[lB]--otp <otpcode>\[rB]\fR. If you don't include this then you will be prompted.
+If you have two-factor authentication enabled in \fBauth-and-writes\fR mode, then you can provide a code from your authenticator with \fB\[lB]--otp <otpcode>\[rB]\fR. If you don't include this then you will be taken through a second factor flow based on your \fBauthtype\fR.
 .RS 0
 .IP \(bu 4
 create / destroy: Create a new team, or destroy an existing one. Note: You cannot remove the \fBdevelopers\fR team, learn more.

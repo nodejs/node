@@ -1,5 +1,17 @@
 # Changelog
 
+### [9.3.1](https://www.github.com/nodejs/node-gyp/compare/v9.3.0...v9.3.1) (2022-12-16)
+
+
+### Bug Fixes
+
+* increase node 12 support to ^12.13 ([#2771](https://www.github.com/nodejs/node-gyp/issues/2771)) ([888efb9](https://www.github.com/nodejs/node-gyp/commit/888efb9055857afee6a6b54550722cf9ae3ee323))
+
+
+### Miscellaneous
+
+* update python test matrix ([#2774](https://www.github.com/nodejs/node-gyp/issues/2774)) ([38f01fa](https://www.github.com/nodejs/node-gyp/commit/38f01fa57d10fdb3db7697121d957bc2e0e96508))
+
 ## [9.3.0](https://www.github.com/nodejs/node-gyp/compare/v9.2.0...v9.3.0) (2022-10-10)
 
 

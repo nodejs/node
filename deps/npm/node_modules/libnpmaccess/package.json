@@ -1,6 +1,6 @@
 {
   "name": "libnpmaccess",
-  "version": "7.0.1",
+  "version": "7.0.2",
   "description": "programmatic library for `npm access` commands",
   "author": "GitHub Inc.",
   "license": "ISC",
@@ -17,9 +17,9 @@
   "devDependencies": {
     "@npmcli/eslint-config": "^4.0.0",
     "@npmcli/mock-registry": "^1.0.0",
-    "@npmcli/template-oss": "4.11.1",
-    "nock": "^13.2.4",
-    "tap": "^16.3.2"
+    "@npmcli/template-oss": "4.11.4",
+    "nock": "^13.3.0",
+    "tap": "^16.3.4"
   },
   "repository": {
     "type": "git",
@@ -41,7 +41,7 @@
   ],
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.11.1",
+    "version": "4.11.4",
     "content": "../../scripts/template-oss/index.js"
   },
   "tap": {
