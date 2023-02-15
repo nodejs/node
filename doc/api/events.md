@@ -244,9 +244,6 @@ myEmitter.emit('error', new Error('whoops!'));
 // Throws and crashes Node.js
 ```
 
-To guard against crashing the Node.js process the [`domain`][] module can be
-used. (Note, however, that the `node:domain` module is deprecated.)
-
 As a best practice, listeners should always be added for the `'error'` events.
 
 ```mjs
@@ -2467,7 +2464,6 @@ to the `EventTarget`.
 [`EventTarget` Web API]: https://dom.spec.whatwg.org/#eventtarget
 [`EventTarget` error handling]: #eventtarget-error-handling
 [`Event` Web API]: https://dom.spec.whatwg.org/#event
-[`domain`]: domain.md
 [`emitter.listenerCount()`]: #emitterlistenercounteventname
 [`emitter.removeListener()`]: #emitterremovelistenereventname-listener
 [`emitter.setMaxListeners(n)`]: #emittersetmaxlistenersn

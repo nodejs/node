@@ -104,8 +104,7 @@ pass or fail).
 
 For _all_ [`EventEmitter`][] objects, if an `'error'` event handler is not
 provided, the error will be thrown, causing the Node.js process to report an
-uncaught exception and crash unless either: The [`domain`][domains] module is
-used appropriately or a handler has been registered for the
+uncaught exception and crash unless a handler has been registered for the
 [`'uncaughtException'`][] event.
 
 ```js
@@ -298,6 +297,7 @@ console.log(symptom);
 //         at [_onLine] [as _onLine] (node:internal/readline/interface:425:12)
 //         at [_line] [as _line] (node:internal/readline/interface:886:18)
 ```
+<!-- TODO(bnoordhuis) stack trace mentions removed domain module -->
 
 ### `error.code`
 
@@ -1205,25 +1205,6 @@ ongoing asynchronous operations.
 ### `ERR_DNS_SET_SERVERS_FAILED`
 
 `c-ares` failed to set the DNS server.
-
-<a id="ERR_DOMAIN_CALLBACK_NOT_AVAILABLE"></a>
-
-### `ERR_DOMAIN_CALLBACK_NOT_AVAILABLE`
-
-The `node:domain` module was not usable since it could not establish the
-required error handling hooks, because
-[`process.setUncaughtExceptionCaptureCallback()`][] had been called at an
-earlier point in time.
-
-<a id="ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE"></a>
-
-### `ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`
-
-[`process.setUncaughtExceptionCaptureCallback()`][] could not be called
-because the `node:domain` module has been loaded at an earlier point in time.
-
-The stack trace is extended to include the point in time at which the
-`node:domain` module had been loaded.
 
 <a id="ERR_DUPLICATE_STARTUP_SNAPSHOT_MAIN_FUNCTION"></a>
 
@@ -3617,7 +3598,6 @@ The native call from `process.cpuUsage` could not be processed.
 [crypto digest algorithm]: crypto.md#cryptogethashes
 [debugger]: debugger.md
 [define a custom subpath]: packages.md#subpath-exports
-[domains]: domain.md
 [event emitter-based]: events.md#class-eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
 [policy]: permissions.md#policies

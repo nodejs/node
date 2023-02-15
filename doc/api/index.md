@@ -27,7 +27,6 @@
 * [Deprecated APIs](deprecations.md)
 * [Diagnostics Channel](diagnostics_channel.md)
 * [DNS](dns.md)
-* [Domain](domain.md)
 * [Errors](errors.md)
 * [Events](events.md)
 * [File system](fs.md)

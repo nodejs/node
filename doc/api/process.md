@@ -3461,9 +3461,6 @@ To unset the capture function,
 method with a non-`null` argument while another capture function is set will
 throw an error.
 
-Using this function is mutually exclusive with using the deprecated
-[`domain`][] built-in module.
-
 ## `process.stderr`
 
 * {Stream}
@@ -3836,8 +3833,8 @@ cases:
 * `7` **Internal Exception Handler Run-Time Failure**: There was an
   uncaught exception, and the internal fatal exception handler
   function itself threw an error while attempting to handle it. This
-  can happen, for example, if an [`'uncaughtException'`][] or
-  `domain.on('error')` handler throws an error.
+  can happen, for example, if an [`'uncaughtException'`][] handler
+  throws an error.
 * `8`: Unused. In previous versions of Node.js, exit code 8 sometimes
   indicated an uncaught exception.
 * `9` **Invalid Argument**: Either an unknown option was specified,
@@ -3890,7 +3887,6 @@ cases:
 [`Worker` constructor]: worker_threads.md#new-workerfilename-options
 [`console.error()`]: console.md#consoleerrordata-args
 [`console.log()`]: console.md#consolelogdata-args
-[`domain`]: domain.md
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket
 [`os.constants.dlopen`]: os.md#dlopen-constants

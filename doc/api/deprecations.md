@@ -717,24 +717,6 @@ Type: Documentation-only
 The [`ecdh.setPublicKey()`][] method is now deprecated as its inclusion in the
 API is not useful.
 
-### DEP0032: `node:domain` module
-
-<!-- YAML
-changes:
-  - version:
-    - v6.12.0
-    - v4.8.6
-    pr-url: https://github.com/nodejs/node/pull/10116
-    description: A deprecation code has been assigned.
-  - version: v1.4.2
-    pr-url: https://github.com/nodejs/node/pull/943
-    description: Documentation-only deprecation.
--->
-
-Type: Documentation-only
-
-The [`domain`][] module is deprecated and should not be used.
-
 ### DEP0033: `EventEmitter.listenerCount()`
 
 <!-- YAML
@@ -1944,21 +1926,6 @@ Type: Runtime
 
 `timers.unenroll()` is deprecated. Please use the publicly documented
 [`clearTimeout()`][] or [`clearInterval()`][] instead.
-
-### DEP0097: `MakeCallback` with `domain` property
-
-<!-- YAML
-changes:
-  - version: v10.0.0
-    pr-url: https://github.com/nodejs/node/pull/17417
-    description: Runtime deprecation.
--->
-
-Type: Runtime
-
-Users of `MakeCallback` that add the `domain` property to carry context,
-should start using the `async_context` variant of `MakeCallback` or
-`CallbackScope`, or the high-level `AsyncResource` class.
 
 ### DEP0098: AsyncHooks embedder `AsyncResource.emitBefore` and `AsyncResource.emitAfter` APIs
 
@@ -3400,7 +3367,6 @@ be added when a function is bound to an `AsyncResource`.
 [`diagnostics_channel.unsubscribe(name, onMessage)`]: diagnostics_channel.md#diagnostics_channelunsubscribename-onmessage
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
-[`domain`]: domain.md
 [`ecdh.setPublicKey()`]: crypto.md#ecdhsetpublickeypublickey-encoding
 [`emitter.listenerCount(eventName)`]: events.md#emitterlistenercounteventname
 [`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitter-eventname
