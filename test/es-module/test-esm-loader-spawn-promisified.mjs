@@ -15,10 +15,10 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       'import "nonexistent/file.mjs"',
     ]);
 
+    assert.match(stderr, /ERR_MODULE_NOT_FOUND/);
+    assert.strictEqual(stdout, '');
     assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
-    assert.strictEqual(stdout, '');
-    assert.match(stderr, /ERR_MODULE_NOT_FOUND/);
   });
 
   it('throws on unknown extensions', async () => {
@@ -31,10 +31,10 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       `import '${fixtures.fileURL('/es-modules/file.unknown')}'`,
     ]);
 
+    assert.match(stderr, /ERR_UNKNOWN_FILE_EXTENSION/);
+    assert.strictEqual(stdout, '');
     assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
-    assert.strictEqual(stdout, '');
-    assert.match(stderr, /ERR_UNKNOWN_FILE_EXTENSION/);
   });
 
   it('throws on invalid return values', async () => {
@@ -47,10 +47,10 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       'import "esmHook/badReturnVal.mjs"',
     ]);
 
+    assert.match(stderr, /ERR_INVALID_RETURN_VALUE/);
+    assert.strictEqual(stdout, '');
     assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
-    assert.strictEqual(stdout, '');
-    assert.match(stderr, /ERR_INVALID_RETURN_VALUE/);
   });
 
   it('throws on boolean false', async () => {
@@ -63,10 +63,10 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       'import "esmHook/format.false"',
     ]);
 
+    assert.match(stderr, /ERR_INVALID_RETURN_PROPERTY_VALUE/);
+    assert.strictEqual(stdout, '');
     assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
-    assert.strictEqual(stdout, '');
-    assert.match(stderr, /ERR_INVALID_RETURN_PROPERTY_VALUE/);
   });
   it('throws on boolean true', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
@@ -78,10 +78,10 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       'import "esmHook/format.true"',
     ]);
 
+    assert.match(stderr, /ERR_INVALID_RETURN_PROPERTY_VALUE/);
+    assert.strictEqual(stdout, '');
     assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
-    assert.strictEqual(stdout, '');
-    assert.match(stderr, /ERR_INVALID_RETURN_PROPERTY_VALUE/);
   });
 
   it('throws on invalid returned object', async () => {
@@ -94,10 +94,10 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       'import "esmHook/badReturnFormatVal.mjs"',
     ]);
 
+    assert.match(stderr, /ERR_INVALID_RETURN_PROPERTY_VALUE/);
+    assert.strictEqual(stdout, '');
     assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
-    assert.strictEqual(stdout, '');
-    assert.match(stderr, /ERR_INVALID_RETURN_PROPERTY_VALUE/);
   });
 
   it('throws on unsupported format', async () => {
@@ -110,10 +110,10 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       'import "esmHook/unsupportedReturnFormatVal.mjs"',
     ]);
 
+    assert.match(stderr, /ERR_UNKNOWN_MODULE_FORMAT/);
+    assert.strictEqual(stdout, '');
     assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
-    assert.strictEqual(stdout, '');
-    assert.match(stderr, /ERR_UNKNOWN_MODULE_FORMAT/);
   });
 
   it('throws on invalid format property type', async () => {
@@ -126,10 +126,10 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       'import "esmHook/badReturnSourceVal.mjs"',
     ]);
 
+    assert.match(stderr, /ERR_INVALID_RETURN_PROPERTY_VALUE/);
+    assert.strictEqual(stdout, '');
     assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
-    assert.strictEqual(stdout, '');
-    assert.match(stderr, /ERR_INVALID_RETURN_PROPERTY_VALUE/);
   });
 
   it('rejects dynamic imports for all of the error cases checked above', async () => {
@@ -154,10 +154,10 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       })`,
     ]);
 
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
-    assert.strictEqual(stdout, '');
-    assert.strictEqual(stderr, '');
   });
 });
 
@@ -177,10 +177,10 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       })`,
     ]);
 
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
-    assert.strictEqual(stdout, '');
-    assert.strictEqual(stderr, '');
   });
 
   it('can define .ext files as ESM', async () => {
@@ -201,10 +201,10 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       })`,
     ]);
 
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
-    assert.strictEqual(stdout, '');
-    assert.strictEqual(stderr, '');
   });
 
   it('can predetermine the format in the custom loader resolve hook', async () => {
@@ -222,10 +222,10 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       })`,
     ]);
 
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
-    assert.strictEqual(stdout, '');
-    assert.strictEqual(stderr, '');
   });
 
   it('can provide source for a nonexistent file', async () => {
@@ -244,10 +244,10 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       })`,
     ]);
 
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
-    assert.strictEqual(stdout, '');
-    assert.strictEqual(stderr, '');
   });
 
   it('ensures that loaders have a separate context from userland', async () => {
@@ -264,10 +264,10 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       });`,
     ]);
 
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
-    assert.strictEqual(stdout, '');
-    assert.strictEqual(stderr, '');
   });
 
   it('ensures that user loaders are not bound to the internal loader', async () => {
@@ -280,9 +280,9 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       ';', // Actual test is inside the loader module.
     ]);
 
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
-    assert.strictEqual(stdout, '');
-    assert.strictEqual(stderr, '');
   });
 });
