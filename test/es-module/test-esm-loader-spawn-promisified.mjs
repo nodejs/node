@@ -12,7 +12,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
-      'import \'nonexistent/file.mjs\'',
+      'import "nonexistent/file.mjs"',
     ]);
 
     assert.strictEqual(code, 1);
@@ -44,7 +44,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
-      'import \'esmHook/badReturnVal.mjs\'',
+      'import "esmHook/badReturnVal.mjs"',
     ]);
 
     assert.strictEqual(code, 1);
@@ -60,7 +60,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
-      'import \'esmHook/format.false\'',
+      'import "esmHook/format.false"',
     ]);
 
     assert.strictEqual(code, 1);
@@ -75,7 +75,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
-      'import \'esmHook/format.true\'',
+      'import "esmHook/format.true"',
     ]);
 
     assert.strictEqual(code, 1);
@@ -91,7 +91,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
-      'import \'esmHook/badReturnFormatVal.mjs\'',
+      'import "esmHook/badReturnFormatVal.mjs"',
     ]);
 
     assert.strictEqual(code, 1);
@@ -107,7 +107,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
-      'import \'esmHook/unsupportedReturnFormatVal.mjs\'',
+      'import "esmHook/unsupportedReturnFormatVal.mjs"',
     ]);
 
     assert.strictEqual(code, 1);
@@ -123,7 +123,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
-      'import \'esmHook/badReturnSourceVal.mjs\'',
+      'import "esmHook/badReturnSourceVal.mjs"',
     ]);
 
     assert.strictEqual(code, 1);
@@ -140,7 +140,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
-      Promise.allSettled([
+      await Promise.allSettled([
         import('nonexistent/file.mjs'),
         import('${fixtures.fileURL('/es-modules/file.unknown')}'),
         import('esmHook/badReturnVal.mjs'),
@@ -170,7 +170,7 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
-      import('${fixtures.fileURL('/es-module-loaders/js-as-esm.js')}')
+      await import('${fixtures.fileURL('/es-module-loaders/js-as-esm.js')}')
       .then((parsedModule) => {
         assert.strictEqual(typeof parsedModule, 'object');
         assert.strictEqual(parsedModule.namedExport, 'named-export');
@@ -191,7 +191,7 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
-      import('${fixtures.fileURL('/es-modules/file.ext')}')
+      await import('${fixtures.fileURL('/es-modules/file.ext')}')
       .then((parsedModule) => {
         assert.strictEqual(typeof parsedModule, 'object');
         const { default: defaultExport } = parsedModule;
@@ -215,7 +215,7 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
-      import('esmHook/preknownFormat.pre')
+      await import('esmHook/preknownFormat.pre')
       .then((parsedModule) => {
         assert.strictEqual(typeof parsedModule, 'object');
         assert.strictEqual(parsedModule.default, 'hello world');
@@ -236,7 +236,7 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
-      import('esmHook/virtual.mjs')
+      await import('esmHook/virtual.mjs')
       .then((parsedModule) => {
         assert.strictEqual(typeof parsedModule, 'object');
         assert.strictEqual(typeof parsedModule.default, 'undefined');
@@ -258,10 +258,26 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
-      import('${fixtures.fileURL('/es-modules/stateful.mjs')}')
+      await import('${fixtures.fileURL('/es-modules/stateful.mjs')}')
       .then(({ default: count }) => {
         assert.strictEqual(count(), 1);
       });`,
+    ]);
+
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(stderr, '');
+  });
+
+  it('ensures that user loaders are not bound to the internal loader', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-loader',
+      fixtures.fileURL('/es-module-loaders/loader-this-value-inside-hook-functions.mjs'),
+      '--input-type=module',
+      '--eval',
+      ';', // Actual test is inside the loader module.
     ]);
 
     assert.strictEqual(code, 0);
