@@ -19,6 +19,8 @@ test-crypto-keygen: PASS,FLAKY
 test-fs-rmdir-recursive: PASS, FLAKY
 
 [$system==linux]
+# https://github.com/nodejs/node/issues/46683
+test-crypto-key-objects: PASS, FLAKY
 # https://github.com/nodejs/node/issues/39368
 test-domain-error-types: PASS,FLAKY
 
