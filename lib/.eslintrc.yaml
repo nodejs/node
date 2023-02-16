@@ -261,3 +261,52 @@ globals:
   module: false
   internalBinding: false
   primordials: false
+overrides:
+  - files:
+      - ./*/promises.js
+      - ./_stream_*.js
+      - ./_tls_common.js
+      - ./assert/*.js
+      - ./cluster.js
+      - ./console.js
+      - ./constants.js
+      - ./internal/assert.js
+      - ./internal/child_process/*.js
+      - ./internal/cli_table.js
+      - ./internal/debugger/inspect.js
+      - ./internal/events/*.js
+      - ./internal/fixed_queue.js
+      - ./internal/freelist.js
+      - ./internal/heap_utils.js
+      - ./internal/http.js
+      - ./internal/idna.js
+      - ./internal/js_stream_socket.js
+      - ./internal/mime.js
+      - ./internal/modules/*.js
+      - ./internal/per_context/messageport.js
+      - ./internal/policy/*.js
+      - ./internal/priority_queue.js
+      - ./internal/readline/*.js
+      - ./internal/readme.md
+      - ./internal/repl/history.js
+      - ./internal/source_map/prepare_stack_trace.js
+      - ./internal/structured_clone.js
+      - ./internal/test/*.js
+      - ./internal/test_runner/**/*.js
+      - ./internal/tls/secure-context.js
+      - ./internal/util/parse_args/*.js
+      - ./internal/v8_prof_processor.js
+      - ./internal/vm.js
+      - ./internal/watch_mode/*.js
+      - ./internal/webidl.js
+      - ./module.js
+      - ./path/*.js
+      - ./process.js
+      - ./punycode.js
+      - ./stream/*.js
+      - ./sys.js
+      - ./test.js
+      - ./url.js
+      - ./util/*.js
+    rules:
+      comma-dangle: [error, always-multiline]
