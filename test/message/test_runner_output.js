@@ -383,3 +383,9 @@ test('unfinished test with unhandledRejection', async () => {
     setTimeout(() => Promise.reject(new Error('bar')));
   });
 });
+
+// Verify that uncaught exceptions outside of any tests are handled after the
+// test harness has finished bootstrapping itself.
+setImmediate(() => {
+  throw new Error('uncaught from outside of a test');
+});
