@@ -628,7 +628,7 @@ class Environment : public MemoryRetainer {
   void RegisterHandleCleanups();
   void CleanupHandles();
   void Exit(int code);
-  void ExitEnv();
+  void ExitEnv(StopFlags::Flags flags);
 
   // Register clean-up cb to be called on environment destruction.
   inline void RegisterHandleCleanup(uv_handle_t* handle,
