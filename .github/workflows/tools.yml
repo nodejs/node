@@ -159,7 +159,7 @@ jobs:
             label: dependencies
             run: |
               NEW_VERSION=$(gh api repos/nghttp2/nghttp2/releases/latest -q '.tag_name|ltrimstr("v")')
-              CURRENT_VERSION=$(grep "#define NGHTTP2_VERSION" ./deps/nghttp2/lib/includes/nghttp2ver.h | sed -n "s/^.*VERSION \(.*\)/\1/p")
+              CURRENT_VERSION=$(grep "#define NGHTTP2_VERSION" ./deps/nghttp2/lib/includes/nghttp2/nghttp2ver.h | sed -n "s/^.*VERSION \(.*\)/\1/p")
               if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
                 ./tools/update-nghttp2.sh "$NEW_VERSION"
