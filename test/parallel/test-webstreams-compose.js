@@ -326,7 +326,7 @@ const {
       transform: common.mustNotCall()
     })
   )
-  // .on('data', common.mustNotCall())
+  .on('data', common.mustNotCall())
   .on('end', common.mustNotCall())
   .on('error', (err) => {
     assert.strictEqual(err?.message, 'asd');
@@ -335,7 +335,28 @@ const {
 }
 
 {
-  const _err = new Error('asd');
+
+  compose(
+    new TransformStream({
+      transform: common.mustCall((chunk, controller) => {
+        controller.enqueue(chunk);
+      })
+    }),
+    new TransformStream({
+      transform: common.mustCall((chunk, controller) => {
+        controller.error(new Error('asd'));
+      })
+    })
+  )
+  .on('data', common.mustNotCall())
+  .on('end', common.mustNotCall())
+  .on('error', (err) => {
+    assert.strictEqual(err?.message, 'asd');
+  })
+  .end('xyz');
+}
+
+{
 
   compose(
     new TransformStream({
@@ -347,7 +368,7 @@ const {
       let tmp = '';
       for await (const chunk of source) {
         tmp += chunk;
-        throw _err;
+        throw new Error('asd');
       }
       return tmp;
     },
@@ -355,10 +376,108 @@ const {
       transform: common.mustNotCall()
     })
   )
-  // .on('data', common.mustNotCall())
+  .on('data', common.mustNotCall())
   .on('end', common.mustNotCall())
   .on('error', (err) => {
-    assert.strictEqual(err, _err);
+    assert.strictEqual(err?.message, 'asd');
   })
   .end('xyz');
+}
+
+{
+
+  compose(
+    new TransformStream({
+      transform: common.mustCall((chunk, controller) => {
+        controller.error(new Error('asd'));
+      })
+    }),
+    new Transform({
+      transform: common.mustNotCall()
+    })
+  )
+  .on('data', common.mustNotCall())
+  .on('end', common.mustNotCall())
+  .on('error', (err) => {
+    assert.strictEqual(err?.message, 'asd');
+  })
+  .end('xyz');
+}
+
+{
+
+  compose(
+    new Transform({
+      transform: common.mustCall((chunk, enc, clb) => {
+        clb(new Error('asd'));
+      })
+    }),
+    new TransformStream({
+      transform: common.mustNotCall()
+    })
+  )
+  .on('data', common.mustNotCall())
+  .on('end', common.mustNotCall())
+  .on('error', (err) => {
+    assert.strictEqual(err?.message, 'asd');
+  })
+  .end('xyz');
+}
+
+{
+  compose(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Error('asd'));
+      }
+    }),
+    new TransformStream({
+      transform: common.mustNotCall()
+    })
+  )
+  .on('data', common.mustNotCall())
+  .on('end', common.mustNotCall())
+  .on('error', (err) => {
+    assert.strictEqual(err?.message, 'asd');
+  })
+  .end('xyz');
+}
+
+{
+  compose(
+    new TransformStream({
+      transform: common.mustCall((chunk, controller) => {
+        controller.enqueue(chunk.toString().toUpperCase());
+      })
+    }),
+    new WritableStream({
+      write: common.mustCall((chunk, controller) => {
+        controller.error(new Error('asd'));
+      })
+    })
+  )
+  .on('error', (err) => {
+    assert.strictEqual(err?.message, 'asd');
+  })
+  .end('xyz');
+}
+
+{
+  compose(
+    new TransformStream({
+      transform: common.mustCall((chunk, controller) => {
+        controller.enqueue(chunk.toString().toUpperCase());
+      })
+    }),
+    async function*(source) {
+      for await (const chunk of source) {
+        yield chunk;
+      }
+    },
+    async function(source) {
+      throw new Error('asd');
+    }
+  ).on('error', (err) => {
+    assert.strictEqual(err?.message, 'asd');
+  }).end('xyz');
 }
