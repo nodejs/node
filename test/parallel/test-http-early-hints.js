@@ -58,7 +58,7 @@ const testResBody = 'response content\n';
     res.writeEarlyHints({
       link: [
         '</styles.css>; rel=preload; as=style',
-        '</scripts.js>; rel=preload; as=script',
+        '</scripts.js>; rel=preload; as=script; crossorigin',
       ]
     });
 
@@ -75,7 +75,7 @@ const testResBody = 'response content\n';
     req.on('information', common.mustCall((res) => {
       assert.strictEqual(
         res.headers.link,
-        '</styles.css>; rel=preload; as=style, </scripts.js>; rel=preload; as=script'
+        '</styles.css>; rel=preload; as=style, </scripts.js>; rel=preload; as=script; crossorigin'
       );
     }));
 
