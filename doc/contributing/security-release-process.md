@@ -118,6 +118,7 @@ out a better way, forward the email you receive to
 `oss-security@lists.openwall.com` as a CC.
 
 * [ ] Create a new issue in [nodejs/tweet][]
+
   ```text
   Security release pre-alert:
 
@@ -129,6 +130,13 @@ out a better way, forward the email you receive to
 
   https://nodejs.org/en/blog/vulnerability/month-year-security-releases/
   ```
+
+  We specifically ask that collaborators other than the releasers and security
+  steward working on the security release do not tweet or publicise the release
+  until the tweet from the Node.js twitter handle goes out. We have often
+  seen tweets sent out before the release and associated announcements are
+  complete which may confuse those waiting for the release and also takes
+  away from the work the releasers have put into shipping the releases.
 
 * [ ] Request releaser(s) to start integrating the PRs to be released.
 
