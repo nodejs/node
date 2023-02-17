@@ -231,6 +231,10 @@ function getFormats(key) {
 // material length must be a multiple of 8.
 // If the wrapping algorithm is RSA-OAEP, the exported key
 // material maximum length is a factor of the modulusLength
+//
+// As per the NOTE in step 13 https://w3c.github.io/webcrypto/#SubtleCrypto-method-wrapKey
+// we're padding AES-KW wrapped JWK to make sure it is always a multiple of 8 bytes
+// in length
 async function wrappingIsPossible(name, exported) {
   if ('byteLength' in exported) {
     switch (name) {
@@ -239,13 +243,8 @@ async function wrappingIsPossible(name, exported) {
       case 'RSA-OAEP':
         return exported.byteLength <= 446;
     }
-  } else if ('kty' in exported) {
-    switch (name) {
-      case 'AES-KW':
-        return JSON.stringify(exported).length % 8 === 0;
-      case 'RSA-OAEP':
-        return JSON.stringify(exported).length <= 478;
-    }
+  } else if ('kty' in exported && name === 'RSA-OAEP') {
+    return JSON.stringify(exported).length <= 478;
   }
   return true;
 }
