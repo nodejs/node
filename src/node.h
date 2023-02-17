@@ -276,6 +276,15 @@ enum Flags : uint64_t {
 // TODO(addaleax): Make this the canonical name, as it is more descriptive.
 namespace ProcessInitializationFlags = ProcessFlags;
 
+namespace StopFlags {
+enum Flags : uint32_t {
+  kNoFlags = 0,
+  // Do not explicitly terminate the Isolate
+  // when exiting the Environment.
+  kDoNotTerminateIsolate = 1 << 0,
+};
+}  // namespace StopFlags
+
 class NODE_EXTERN InitializationResult {
  public:
   virtual ~InitializationResult();
@@ -312,6 +321,7 @@ NODE_EXTERN int Start(int argc, char* argv[]);
 // Tear down Node.js while it is running (there are active handles
 // in the loop and / or actively executing JavaScript code).
 NODE_EXTERN int Stop(Environment* env);
+NODE_EXTERN int Stop(Environment* env, StopFlags::Flags flags);
 
 // Set up per-process state needed to run Node.js. This will consume arguments
 // from argv, fill exec_argv, and possibly add errors resulting from parsing
