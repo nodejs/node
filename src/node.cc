@@ -1254,7 +1254,11 @@ int Start(int argc, char** argv) {
 }
 
 int Stop(Environment* env) {
-  env->ExitEnv();
+  return Stop(env, StopFlags::kNoFlags);
+}
+
+int Stop(Environment* env, StopFlags::Flags flags) {
+  env->ExitEnv(flags);
   return 0;
 }
 
