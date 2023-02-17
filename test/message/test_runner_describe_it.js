@@ -2,7 +2,7 @@
 'use strict';
 require('../common');
 const assert = require('node:assert');
-const { describe, it } = require('node:test');
+const { describe, it, test } = require('node:test');
 const util = require('util');
 
 
@@ -40,6 +40,8 @@ it.skip('async skip pass', async () => {
 it('async pass', async () => {
 
 });
+
+test('mixing describe/it and test should work', () => {});
 
 it('async throw fail', async () => {
   throw new Error('thrown from async throw fail');
@@ -95,6 +97,7 @@ describe('subtest sync throw fail', () => {
   it('+sync throw fail', () => {
     throw new Error('thrown from subtest sync throw fail');
   });
+  test('mixing describe/it and test should work', () => {});
 });
 
 it('sync throw non-error fail', async () => {
@@ -106,7 +109,7 @@ describe('level 0a', { concurrency: 4 }, () => {
     const p1a = new Promise((resolve) => {
       setTimeout(() => {
         resolve();
-      }, 1000);
+      }, 100);
     });
 
     return p1a;
@@ -124,7 +127,7 @@ describe('level 0a', { concurrency: 4 }, () => {
     const p1c = new Promise((resolve) => {
       setTimeout(() => {
         resolve();
-      }, 2000);
+      }, 200);
     });
 
     return p1c;
@@ -134,7 +137,7 @@ describe('level 0a', { concurrency: 4 }, () => {
     const p1c = new Promise((resolve) => {
       setTimeout(() => {
         resolve();
-      }, 1500);
+      }, 150);
     });
 
     return p1c;
@@ -143,7 +146,7 @@ describe('level 0a', { concurrency: 4 }, () => {
   const p0a = new Promise((resolve) => {
     setTimeout(() => {
       resolve();
-    }, 3000);
+    }, 300);
   });
 
   return p0a;
@@ -309,12 +312,12 @@ describe('describe async throw fails', async () => {
 describe('timeouts', () => {
   it('timed out async test', { timeout: 5 }, async () => {
     return new Promise((resolve) => {
-      setTimeout(resolve, 1000);
+      setTimeout(resolve, 100);
     });
   });
 
   it('timed out callback test', { timeout: 5 }, (done) => {
-    setTimeout(done, 1000);
+    setTimeout(done, 100);
   });
 
 

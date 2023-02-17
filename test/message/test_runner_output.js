@@ -119,7 +119,7 @@ test('level 0a', { concurrency: 4 }, async (t) => {
     return p1a;
   });
 
-  t.test('level 1b', async (t) => {
+  test('level 1b', async (t) => {
     const p1b = new Promise((resolve) => {
       resolve();
     });
