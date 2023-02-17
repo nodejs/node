@@ -1253,10 +1253,6 @@ int Start(int argc, char** argv) {
   return static_cast<int>(StartInternal(argc, argv));
 }
 
-int Stop(Environment* env) {
-  return Stop(env, StopFlags::kNoFlags);
-}
-
 int Stop(Environment* env, StopFlags::Flags flags) {
   env->ExitEnv(flags);
   return 0;
