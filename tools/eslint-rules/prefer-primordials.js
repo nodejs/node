@@ -114,7 +114,7 @@ module.exports = {
           node,
         );
         const parentName = parent?.name;
-        if (!isTarget(nameMap, name) && !isTarget(nameMap, parentName)) {
+        if (!isTarget(nameMap, name) && (!isTarget(nameMap, parentName) || isIgnored(nameMap, parentName, name))) {
           return;
         }
 
