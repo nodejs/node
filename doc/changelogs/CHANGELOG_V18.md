@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#18.14.2">18.14.2</a><br/>
 <a href="#18.14.1">18.14.1</a><br/>
 <a href="#18.14.0">18.14.0</a><br/>
 <a href="#18.13.0">18.13.0</a><br/>
@@ -53,6 +54,22 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.14.2"></a>
+
+## 2023-02-21, Version 18.14.2 'Hydrogen' (LTS), @MylesBorins
+
+### Notable Changes
+
+* \[[`f864bef32a`](https://github.com/nodejs/node/commit/f864bef32a)] - **deps**: upgrade npm to 9.5.0 (npm team) [#46673](https://github.com/nodejs/node/pull/46673)
+
+### Commits
+
+* \[[`880a65d7ff`](https://github.com/nodejs/node/commit/880a65d7ff)] - **build**: delete `snapshot.blob` file from the project (Juan José Arboleda) [#46626](https://github.com/nodejs/node/pull/46626)
+* \[[`cbea56efda`](https://github.com/nodejs/node/commit/cbea56efda)] - **deps**: update undici to 5.20.0 (Node.js GitHub Bot) [#46711](https://github.com/nodejs/node/pull/46711)
+* \[[`f864bef32a`](https://github.com/nodejs/node/commit/f864bef32a)] - **deps**: upgrade npm to 9.5.0 (npm team) [#46673](https://github.com/nodejs/node/pull/46673)
+* \[[`648041d568`](https://github.com/nodejs/node/commit/648041d568)] - **deps**: upgrade npm to 9.4.0 (npm team) [#46353](https://github.com/nodejs/node/pull/46353)
+* \[[`5e1f213f3c`](https://github.com/nodejs/node/commit/5e1f213f3c)] - **deps**: patch V8 to 10.2.154.26 (Michaël Zasso) [#46446](https://github.com/nodejs/node/pull/46446)
 
 <a id="18.14.1"></a>
 
