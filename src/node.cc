@@ -39,6 +39,7 @@
 #include "node_realm-inl.h"
 #include "node_report.h"
 #include "node_revert.h"
+#include "node_sea.h"
 #include "node_snapshot_builder.h"
 #include "node_v8_platform-inl.h"
 #include "node_version.h"
@@ -126,6 +127,7 @@
 #include <cstring>
 
 #include <string>
+#include <tuple>
 #include <vector>
 
 namespace node {
@@ -320,6 +322,18 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   if (env->argv().size() > 1) {
     first_argv = env->argv()[1];
   }
+
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  if (sea::IsSingleExecutable()) {
+    // TODO(addaleax): Find a way to reuse:
+    //
+    // LoadEnvironment(Environment*, const char*)
+    //
+    // instead and not add yet another main entry point here because this
+    // already duplicates existing code.
+    return StartExecution(env, "internal/main/single_executable_application");
+  }
+#endif
 
   if (first_argv == "inspect") {
     return StartExecution(env, "internal/main/inspect");
@@ -1187,6 +1201,10 @@ int LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
 }
 
 int Start(int argc, char** argv) {
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  std::tie(argc, argv) = sea::FixupArgsForSEA(argc, argv);
+#endif
+
   CHECK_GT(argc, 0);
 
   // Hack around with the argv pointer. Used for process.title = "blah".
