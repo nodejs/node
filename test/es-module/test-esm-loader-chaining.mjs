@@ -9,7 +9,7 @@ const setupArgs = [
   '--input-type=module',
   '--eval',
 ];
-const commonInput = 'import fs from "node:fs"; console.log(fs)';
+const commonInput = 'import os from "node:os"; console.log(os)';
 const commonArgs = [
   ...setupArgs,
   commonInput,
@@ -114,11 +114,11 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
     );
 
     assert.match(stdout, /^resolve arg count: 3$/m);
-    assert.match(stdout, /specifier: 'node:fs'/);
+    assert.match(stdout, /specifier: 'node:os'/);
     assert.match(stdout, /next: \[AsyncFunction: nextResolve\]/);
 
     assert.match(stdout, /^load arg count: 3$/m);
-    assert.match(stdout, /url: 'node:fs'/);
+    assert.match(stdout, /url: 'node:os'/);
     assert.match(stdout, /next: \[AsyncFunction: nextLoad\]/);
   });
 

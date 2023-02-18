@@ -3,8 +3,7 @@ import { mustCall } from '../common/index.mjs';
 import assert from 'assert';
 
 const dirname = import.meta.url.slice(0, import.meta.url.lastIndexOf('/') + 1);
-const fixtures = dirname.slice(0, dirname.lastIndexOf('/', dirname.length - 2) +
-    1) + 'fixtures/';
+const fixtures = dirname.slice(0, dirname.lastIndexOf('/', dirname.length - 2) + 1) + 'fixtures/';
 
 (async () => {
   assert.strictEqual(await import.meta.resolve('./test-esm-import-meta.mjs'),
