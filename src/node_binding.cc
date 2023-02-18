@@ -62,6 +62,7 @@
   V(process_wrap)                                                              \
   V(process_methods)                                                           \
   V(report)                                                                    \
+  V(sea)                                                                       \
   V(serdes)                                                                    \
   V(signal_wrap)                                                               \
   V(spawn_sync)                                                                \
