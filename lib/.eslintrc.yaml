@@ -290,6 +290,7 @@ overrides:
       - ./internal/readme.md
       - ./internal/repl/history.js
       - ./internal/source_map/prepare_stack_trace.js
+      - ./internal/streams/*.js
       - ./internal/structured_clone.js
       - ./internal/test/*.js
       - ./internal/test_runner/**/*.js
