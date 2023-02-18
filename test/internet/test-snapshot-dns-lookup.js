@@ -19,8 +19,8 @@ const env = {
 
 tmpdir.refresh();
 function checkOutput(stderr, stdout) {
-  assert(stdout.match(stdout, /address: "\d+\.\d+\.\d+\.\d+"/));
-  assert(stdout.match(stdout, /family: 4/));
+  assert.match(stdout, /address: "\d+\.\d+\.\d+\.\d+"/);
+  assert.match(stdout, /family: 4/);
   assert.strictEqual(stdout.trim().split('\n').length, 2);
 }
 {
