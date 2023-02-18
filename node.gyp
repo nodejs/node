@@ -151,7 +151,8 @@
 
       'include_dirs': [
         'src',
-        'deps/v8/include'
+        'deps/v8/include',
+        'deps/postject'
       ],
 
       'sources': [
@@ -449,6 +450,7 @@
 
       'include_dirs': [
         'src',
+        'deps/postject',
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
       'dependencies': [
@@ -523,6 +525,7 @@
         'src/node_report.cc',
         'src/node_report_module.cc',
         'src/node_report_utils.cc',
+        'src/node_sea.cc',
         'src/node_serdes.cc',
         'src/node_shadow_realm.cc',
         'src/node_snapshotable.cc',
@@ -633,6 +636,7 @@
         'src/node_report.h',
         'src/node_revert.h',
         'src/node_root_certs.h',
+        'src/node_sea.h',
         'src/node_shadow_realm.h',
         'src/node_snapshotable.h',
         'src/node_snapshot_builder.h',
@@ -675,6 +679,7 @@
         'src/util-inl.h',
         # Dependency headers
         'deps/v8/include/v8.h',
+        'deps/postject/postject-api.h'
         # javascript files to make for an even more pleasant IDE experience
         '<@(library_files)',
         '<@(deps_files)',
