@@ -40,6 +40,7 @@ TAP version 13
     not ok 7 - not ok 3
       ---
       duration_ms: *
+      failureType: 'testAborted'
       error: 'This operation was aborted'
       code: 20
       stack: |-
@@ -58,6 +59,7 @@ TAP version 13
     not ok 8 - not ok 4
       ---
       duration_ms: *
+      failureType: 'testAborted'
       error: 'This operation was aborted'
       code: 20
       stack: |-
@@ -76,6 +78,7 @@ TAP version 13
     not ok 9 - not ok 5
       ---
       duration_ms: *
+      failureType: 'testAborted'
       error: 'This operation was aborted'
       code: 20
       stack: |-
@@ -94,6 +97,7 @@ TAP version 13
 not ok 1 - promise timeout signal
   ---
   duration_ms: *
+  failureType: 'testAborted'
   error: 'The operation was aborted due to timeout'
   code: 23
   stack: |-
@@ -106,6 +110,7 @@ not ok 1 - promise timeout signal
 not ok 2 - promise abort signal
   ---
   duration_ms: *
+  failureType: 'testAborted'
   error: 'This operation was aborted'
   code: 20
   stack: |-
@@ -160,6 +165,7 @@ not ok 2 - promise abort signal
     not ok 7 - not ok 3
       ---
       duration_ms: *
+      failureType: 'testAborted'
       error: 'This operation was aborted'
       code: 20
       stack: |-
@@ -178,6 +184,7 @@ not ok 2 - promise abort signal
     not ok 8 - not ok 4
       ---
       duration_ms: *
+      failureType: 'testAborted'
       error: 'This operation was aborted'
       code: 20
       stack: |-
@@ -196,6 +203,7 @@ not ok 2 - promise abort signal
     not ok 9 - not ok 5
       ---
       duration_ms: *
+      failureType: 'testAborted'
       error: 'This operation was aborted'
       code: 20
       stack: |-
@@ -214,6 +222,7 @@ not ok 2 - promise abort signal
 not ok 3 - callback timeout signal
   ---
   duration_ms: *
+  failureType: 'testAborted'
   error: 'The operation was aborted due to timeout'
   code: 23
   stack: |-
@@ -226,6 +235,7 @@ not ok 3 - callback timeout signal
 not ok 4 - callback abort signal
   ---
   duration_ms: *
+  failureType: 'testAborted'
   error: 'This operation was aborted'
   code: 20
   stack: |-
