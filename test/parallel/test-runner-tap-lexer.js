@@ -444,3 +444,39 @@ ok 1
     assert.strictEqual(tokens[index].value, token.value);
   });
 }
+
+// Test isLiteralSymbol method
+{
+  const tokens = TAPLexer('ok 1 - description أتث讲演講👍🔥');
+
+  [
+    { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.NUMERIC, value: '1' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.DASH, value: '-' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.LITERAL, value: 'description' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.LITERAL, value: 'أتث讲演講👍🔥' },
+    { kind: TokenKind.EOL, value: '' },
+  ].forEach((token, index) => {
+    assert.strictEqual(tokens[index].kind, token.kind);
+    assert.strictEqual(tokens[index].value, token.value);
+  });
+}
+
+{
+  const tokens = TAPLexer('# comment أتث讲演講👍🔥');
+  [
+    { kind: TokenKind.COMMENT, value: '#' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.LITERAL, value: 'comment' },
+    { kind: TokenKind.WHITESPACE, value: ' ' },
+    { kind: TokenKind.LITERAL, value: 'أتث讲演講👍🔥' },
+    { kind: TokenKind.EOL, value: '' },
+  ].forEach((token, index) => {
+    assert.strictEqual(tokens[index].kind, token.kind);
+    assert.strictEqual(tokens[index].value, token.value);
+  });
+}
