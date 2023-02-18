@@ -1,0 +1,30 @@
+/// <reference types="node" />
+import * as sigstore from './types/sigstore';
+import { KeySelector } from './verify';
+export * as utils from './sigstore-utils';
+export { SerializedBundle as Bundle, SerializedEnvelope as Envelope, } from './types/sigstore';
+export declare const DEFAULT_FULCIO_URL = "https://fulcio.sigstore.dev";
+export declare const DEFAULT_REKOR_URL = "https://rekor.sigstore.dev";
+interface TLogOptions {
+    rekorURL?: string;
+}
+export type SignOptions = {
+    fulcioURL?: string;
+    identityToken?: string;
+    oidcIssuer?: string;
+    oidcClientID?: string;
+    oidcClientSecret?: string;
+} & TLogOptions;
+export type VerifyOptions = {
+    ctLogThreshold?: number;
+    tlogThreshold?: number;
+    certificateIssuer?: string;
+    certificateIdentityEmail?: string;
+    certificateIdentityURI?: string;
+    certificateOIDs?: Record<string, string>;
+    keySelector?: KeySelector;
+} & TLogOptions;
+type Bundle = sigstore.SerializedBundle;
+export declare function sign(payload: Buffer, options?: SignOptions): Promise<Bundle>;
+export declare function attest(payload: Buffer, payloadType: string, options?: SignOptions): Promise<Bundle>;
+export declare function verify(bundle: Bundle, payload?: Buffer, options?: VerifyOptions): Promise<void>;

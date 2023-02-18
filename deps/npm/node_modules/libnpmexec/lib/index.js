@@ -1,8 +1,6 @@
 'use strict'
 
 const { mkdir } = require('fs/promises')
-const { promisify } = require('util')
-
 const Arborist = require('@npmcli/arborist')
 const ciInfo = require('ci-info')
 const crypto = require('crypto')
@@ -10,7 +8,7 @@ const log = require('proc-log')
 const npa = require('npm-package-arg')
 const npmlog = require('npmlog')
 const pacote = require('pacote')
-const read = promisify(require('read'))
+const read = require('read')
 const semver = require('semver')
 
 const { fileExists, localFileExists } = require('./file-exists.js')

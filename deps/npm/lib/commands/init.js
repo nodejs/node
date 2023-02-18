@@ -165,24 +165,20 @@ class Init extends BaseCommand {
       ].join('\n'))
     }
 
-    // XXX promisify init-package-json
-    await new Promise((res, rej) => {
-      initJson(path, initFile, this.npm.config, (er, data) => {
-        log.resume()
-        log.enableProgress()
-        log.silly('package data', data)
-        if (er && er.message === 'canceled') {
-          log.warn('init', 'canceled')
-          return res()
-        }
-        if (er) {
-          rej(er)
-        } else {
-          log.info('init', 'written successfully')
-          res(data)
-        }
-      })
-    })
+    try {
+      const data = await initJson(path, initFile, this.npm.config)
+      log.silly('package data', data)
+      return data
+    } catch (er) {
+      if (er.message === 'canceled') {
+        log.warn('init', 'canceled')
+      } else {
+        throw er
+      }
+    } finally {
+      log.resume()
+      log.enableProgress()
+    }
   }
 
   async setWorkspace (pkg, workspacePath) {

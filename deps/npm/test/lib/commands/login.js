@@ -139,5 +139,45 @@ t.test('web', t => {
       '//registry.npmjs.org/:_authToken': 'npm_test-token',
     })
   })
+  t.test('server error', async t => {
+    const { npm } = await loadMockNpm(t, {
+      config: { 'auth-type': 'web' },
+    })
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+    })
+    registry.nock.post(registry.fullPath('/-/v1/login'))
+      .reply(503, {})
+    await t.rejects(
+      npm.exec('login', []),
+      { message: /503/ }
+    )
+  })
+  t.test('fallback', async t => {
+    const stdin = new stream.PassThrough()
+    stdin.write('test-user\n')
+    stdin.write('test-password\n')
+    mockGlobals(t, {
+      'process.stdin': stdin,
+      'process.stdout': new stream.PassThrough(), // to quiet readline
+    }, { replace: true })
+    const { npm } = await loadMockNpm(t, {
+      config: { 'auth-type': 'web' },
+    })
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+    })
+    registry.nock.post(registry.fullPath('/-/v1/login'))
+      .reply(404, {})
+    registry.couchlogin({
+      username: 'test-user',
+      password: 'test-password',
+      token: 'npm_test-token',
+    })
+    await npm.exec('login', [])
+    t.same(npm.config.get('//registry.npmjs.org/:_authToken'), 'npm_test-token')
+  })
   t.end()
 })

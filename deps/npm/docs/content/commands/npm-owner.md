@@ -30,8 +30,8 @@ or you can't.  Future versions may contain more fine-grained access levels, but
 that is not implemented at this time.
 
 If you have two-factor authentication enabled with `auth-and-writes` (see
-[`npm-profile`](/commands/npm-profile)) then you'll need to include an otp
-on the command line when changing ownership with `--otp`.
+[`npm-profile`](/commands/npm-profile)) then you'll need to go through a second factor
+flow when changing ownership or include an otp on the command line with `--otp`.
 
 ### Configuration
 

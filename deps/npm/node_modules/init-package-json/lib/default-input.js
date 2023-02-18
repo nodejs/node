@@ -1,190 +1,160 @@
-/* eslint-disable no-undef */
-var fs = require('fs')
-var path = require('path')
-var validateLicense = require('validate-npm-package-license')
-var validateName = require('validate-npm-package-name')
-var npa = require('npm-package-arg')
-var semver = require('semver')
+/* globals config, dirname, package, basename, yes, prompt */
+
+const fs = require('fs/promises')
+const path = require('path')
+const validateLicense = require('validate-npm-package-license')
+const validateName = require('validate-npm-package-name')
+const npa = require('npm-package-arg')
+const semver = require('semver')
 
 // more popular packages should go here, maybe?
-function isTestPkg (p) {
-  return !!p.match(/^(expresso|mocha|tap|coffee-script|coco|streamline)$/)
-}
+const isTestPkg = (p) => !!p.match(/^(expresso|mocha|tap|coffee-script|coco|streamline)$/)
 
-function niceName (n) {
-  return n.replace(/^node-|[.-]js$/g, '').replace(/\s+/g, ' ').replace(/ /g, '-').toLowerCase()
-}
+const invalid = (msg) => Object.assign(new Error(msg), { notValid: true })
 
-function readDeps (test, excluded) {
-  return function (cb) {
-    fs.readdir('node_modules', function (readdirErr, dir) {
-      if (readdirErr) {
-        return cb()
-      }
-      var deps = {}
-      var n = dir.length
-      if (n === 0) {
-        return cb(null, deps)
-      }
-      dir.forEach(function (d) {
-        if (d.match(/^\./)) {
-          return next()
-        }
-        if (test !== isTestPkg(d) || excluded[d]) {
-          return next()
-        }
+const readDeps = (test, excluded) => async () => {
+  const dirs = await fs.readdir('node_modules').catch(() => null)
 
-        var dp = path.join(dirname, 'node_modules', d, 'package.json')
-        fs.readFile(dp, 'utf8', function (readFileErr, p) {
-          if (readFileErr) {
-            return next()
-          }
-          try {
-            p = JSON.parse(p)
-          } catch (e) {
-            return next()
-          }
-          if (!p.version) {
-            return next()
-          }
-          if (p._requiredBy) {
-            if (!p._requiredBy.some(function (req) {
-              return req === '#USER'
-            })) {
-              return next()
-            }
-          }
-          deps[d] = config.get('save-exact') ? p.version : config.get('save-prefix') + p.version
-          return next()
-        })
-      })
-      function next () {
-        if (--n === 0) {
-          return cb(null, deps)
-        }
-      }
-    })
+  if (!dirs) {
+    return
   }
+
+  const deps = {}
+  for (const dir of dirs) {
+    if (dir.match(/^\./) || test !== isTestPkg(dir) || excluded[dir]) {
+      continue
+    }
+
+    const dp = path.join(dirname, 'node_modules', dir, 'package.json')
+    const p = await fs.readFile(dp, 'utf8').then((d) => JSON.parse(d)).catch(() => null)
+
+    if (!p || !p.version || p?._requiredBy?.some((r) => r === '#USER')) {
+      continue
+    }
+
+    deps[dir] = config.get('save-exact') ? p.version : config.get('save-prefix') + p.version
+  }
+
+  return deps
 }
 
-var name = niceName(package.name || basename)
-var spec
-try {
-  spec = npa(name)
-} catch (e) {
-  spec = {}
+const getConfig = (key) => {
+  // dots take precedence over dashes
+  const def = config?.defaults?.[`init.${key}`]
+  const val = config.get(`init.${key}`)
+  return (val !== def && val) ? val : config.get(`init-${key.replace(/\./g, '-')}`)
 }
-var scope = config.get('scope')
-if (scope) {
-  if (scope.charAt(0) !== '@') {
-    scope = '@' + scope
+
+const getName = () => {
+  const rawName = package.name || basename
+  let name = rawName
+    .replace(/^node-|[.-]js$/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/ /g, '-')
+    .toLowerCase()
+
+  let spec
+  try {
+    spec = npa(name)
+  } catch {
+    spec = {}
   }
-  if (spec.scope) {
-    name = scope + '/' + spec.name.split('/')[1]
-  } else {
-    name = scope + '/' + name
+
+  let scope = config.get('scope')
+
+  if (scope) {
+    if (scope.charAt(0) !== '@') {
+      scope = '@' + scope
+    }
+    if (spec.scope) {
+      name = scope + '/' + spec.name.split('/')[1]
+    } else {
+      name = scope + '/' + name
+    }
   }
+
+  return name
 }
-exports.name = yes ? name : prompt('package name', name, function (data) {
-  var its = validateName(data)
+
+const name = getName()
+exports.name = yes ? name : prompt('package name', name, (data) => {
+  const its = validateName(data)
   if (its.validForNewPackages) {
     return data
   }
-  var errors = (its.errors || []).concat(its.warnings || [])
-  var er = new Error('Sorry, ' + errors.join(' and ') + '.')
-  er.notValid = true
-  return er
+  const errors = (its.errors || []).concat(its.warnings || [])
+  return invalid(`Sorry, ${errors.join(' and ')}.`)
 })
 
-const defaultDottedInitVersion = config &&
-  config.defaults &&
-  config.defaults['init.version']
-const dottedInitVersion =
-  config.get('init.version') !== defaultDottedInitVersion &&
-  config.get('init.version')
-var version = package.version ||
-              dottedInitVersion ||
-              config.get('init-version') ||
-              '1.0.0'
-exports.version = yes ?
-  version :
-  prompt('version', version, function (promptedVersion) {
-    if (semver.valid(promptedVersion)) {
-      return promptedVersion
-    }
-    var er = new Error('Invalid version: "' + promptedVersion + '"')
-    er.notValid = true
-    return er
-  })
+const version = package.version || getConfig('version') || '1.0.0'
+exports.version = yes ? version : prompt('version', version, (v) => {
+  if (semver.valid(v)) {
+    return v
+  }
+  return invalid(`Invalid version: "${v}"`)
+})
 
 if (!package.description) {
   exports.description = yes ? '' : prompt('description')
 }
 
 if (!package.main) {
-  exports.main = function (cb) {
-    fs.readdir(dirname, function (er, f) {
-      if (er) {
-        f = []
-      }
+  exports.main = async () => {
+    const files = await fs.readdir(dirname)
+      .then(list => list.filter((f) => f.match(/\.js$/)))
+      .catch(() => [])
 
-      f = f.filter(function (filtered) {
-        return filtered.match(/\.js$/)
-      })
+    let index
+    if (files.includes('index.js')) {
+      index = 'index.js'
+    } else if (files.includes('main.js')) {
+      index = 'main.js'
+    } else if (files.includes(basename + '.js')) {
+      index = basename + '.js'
+    } else {
+      index = files[0] || 'index.js'
+    }
 
-      if (f.indexOf('index.js') !== -1) {
-        f = 'index.js'
-      } else if (f.indexOf('main.js') !== -1) {
-        f = 'main.js'
-      } else if (f.indexOf(basename + '.js') !== -1) {
-        f = basename + '.js'
-      } else {
-        f = f[0]
-      }
-
-      var index = f || 'index.js'
-      return cb(null, yes ? index : prompt('entry point', index))
-    })
+    return yes ? index : prompt('entry point', index)
   }
 }
 
 if (!package.bin) {
-  exports.bin = function (cb) {
-    fs.readdir(path.resolve(dirname, 'bin'), function (er, d) {
-      // no bins
-      if (er) {
-        return cb()
-      }
+  exports.bin = async () => {
+    try {
+      const d = await fs.readdir(path.resolve(dirname, 'bin'))
       // just take the first js file we find there, or nada
       let r = d.find(f => f.match(/\.js$/))
       if (r) {
         r = `bin/${r}`
       }
-      return cb(null, r)
-    })
+      return r
+    } catch {
+      // no bins
+    }
   }
 }
 
-exports.directories = function (cb) {
-  fs.readdir(dirname, function (er, dirs) {
-    if (er) {
-      return cb(er)
+exports.directories = async () => {
+  const dirs = await fs.readdir(dirname)
+
+  const res = dirs.reduce((acc, d) => {
+    if (/^examples?$/.test(d)) {
+      acc.example = d
+    } else if (/^tests?$/.test(d)) {
+      acc.test = d
+    } else if (/^docs?$/.test(d)) {
+      acc.doc = d
+    } else if (d === 'man') {
+      acc.man = d
+    } else if (d === 'lib') {
+      acc.lib = d
     }
-    var res = {}
-    dirs.forEach(function (d) {
-      switch (d) {
-        case 'example': case 'examples': return res.example = d
-        case 'test': case 'tests': return res.test = d
-        case 'doc': case 'docs': return res.doc = d
-        case 'man': return res.man = d
-        case 'lib': return res.lib = d
-      }
-    })
-    if (Object.keys(res).length === 0) {
-      res = undefined
-    }
-    return cb(null, res)
-  })
+
+    return acc
+  }, {})
+
+  return Object.keys(res).length === 0 ? undefined : res
 }
 
 if (!package.dependencies) {
@@ -196,116 +166,97 @@ if (!package.devDependencies) {
 }
 
 // MUST have a test script!
-var s = package.scripts || {}
-var notest = 'echo "Error: no test specified" && exit 1'
 if (!package.scripts) {
-  exports.scripts = function (cb) {
-    fs.readdir(path.join(dirname, 'node_modules'), function (er, d) {
-      setupScripts(d || [], cb)
-    })
-  }
-}
-function setupScripts (d, cb) {
-  // check to see what framework is in use, if any
-  function tx (test) {
-    return test || notest
-  }
-  if (!s.test || s.test === notest) {
-    var commands = {
-      tap: 'tap test/*.js',
-      expresso: 'expresso test',
-      mocha: 'mocha',
-    }
-    var command
-    Object.keys(commands).forEach(function (k) {
-      if (d.indexOf(k) !== -1) {
-        command = commands[k]
+  const scripts = package.scripts || {}
+  const notest = 'echo "Error: no test specified" && exit 1'
+  exports.scripts = async () => {
+    const d = await fs.readdir(path.join(dirname, 'node_modules')).catch(() => [])
+
+    // check to see what framework is in use, if any
+    let command
+    if (!scripts.test || scripts.test === notest) {
+      const commands = {
+        tap: 'tap test/*.js',
+        expresso: 'expresso test',
+        mocha: 'mocha',
       }
-    })
-    var ps = 'test command'
-    if (yes) {
-      s.test = command || notest
-    } else {
-      s.test = command ? prompt(ps, command, tx) : prompt(ps, tx)
+      for (const [k, v] of Object.entries(commands)) {
+        if (d.includes(k)) {
+          command = v
+        }
+      }
     }
+
+    const promptArgs = ['test command', (t) => t || notest]
+    if (command) {
+      promptArgs.splice(1, 0, command)
+    }
+    scripts.test = yes ? command || notest : prompt(...promptArgs)
+
+    return scripts
   }
-  return cb(null, s)
 }
 
 if (!package.repository) {
-  exports.repository = function (cb) {
-    fs.readFile('.git/config', 'utf8', function (er, gconf) {
-      if (er || !gconf) {
-        return cb(null, yes ? '' : prompt('git repository'))
-      }
-      gconf = gconf.split(/\r?\n/)
-      var i = gconf.indexOf('[remote "origin"]')
-      if (i !== -1) {
-        var u = gconf[i + 1]
-        if (!u.match(/^\s*url =/)) {
-          u = gconf[i + 2]
-        }
-        if (!u.match(/^\s*url =/)) {
-          u = null
-        } else {
-          u = u.replace(/^\s*url = /, '')
-        }
-      }
-      if (u && u.match(/^git@github.com:/)) {
-        u = u.replace(/^git@github.com:/, 'https://github.com/')
-      }
+  exports.repository = async () => {
+    const gconf = await fs.readFile('.git/config', 'utf8').catch(() => '')
+    const lines = gconf.split(/\r?\n/)
 
-      return cb(null, yes ? u : prompt('git repository', u))
-    })
+    let url
+    const i = lines.indexOf('[remote "origin"]')
+
+    if (i !== -1) {
+      url = gconf[i + 1]
+      if (!url.match(/^\s*url =/)) {
+        url = gconf[i + 2]
+      }
+      if (!url.match(/^\s*url =/)) {
+        url = null
+      } else {
+        url = url.replace(/^\s*url = /, '')
+      }
+    }
+
+    if (url && url.match(/^git@github.com:/)) {
+      url = url.replace(/^git@github.com:/, 'https://github.com/')
+    }
+
+    return yes ? url || '' : prompt('git repository', url || undefined)
   }
 }
 
 if (!package.keywords) {
-  exports.keywords = yes ? '' : prompt('keywords', function (promptedKeywords) {
-    if (!promptedKeywords) {
-      return undefined
+  exports.keywords = yes ? '' : prompt('keywords', (data) => {
+    if (!data) {
+      return
     }
-    if (Array.isArray(promptedKeywords)) {
-      promptedKeywords = promptedKeywords.join(' ')
+    if (Array.isArray(data)) {
+      data = data.join(' ')
     }
-    if (typeof promptedKeywords !== 'string') {
-      return promptedKeywords
+    if (typeof data !== 'string') {
+      return data
     }
-    return promptedKeywords.split(/[\s,]+/)
+    return data.split(/[\s,]+/)
   })
 }
 
 if (!package.author) {
-  exports.author = config.get('init.author.name') ||
-                   config.get('init-author-name')
+  const authorName = getConfig('author.name')
+  exports.author = authorName
     ? {
-      name: config.get('init.author.name') ||
-               config.get('init-author-name'),
-      email: config.get('init.author.email') ||
-                config.get('init-author-email'),
-      url: config.get('init.author.url') ||
-              config.get('init-author-url'),
+      name: authorName,
+      email: getConfig('author.email'),
+      url: getConfig('author.url'),
     }
     : yes ? '' : prompt('author')
 }
 
-const defaultDottedInitLicense = config &&
-  config.defaults &&
-  config.defaults['init.license']
-const dottedInitLicense =
-  config.get('init.license') !== defaultDottedInitLicense &&
-  config.get('init.license')
-var license = package.license ||
-              dottedInitLicense ||
-              config.get('init-license') ||
-              'ISC'
-exports.license = yes ? license : prompt('license', license, function (data) {
-  var its = validateLicense(data)
+const license = package.license || getConfig('license') || 'ISC'
+exports.license = yes ? license : prompt('license', license, (data) => {
+  const its = validateLicense(data)
   if (its.validForNewPackages) {
     return data
   }
-  var errors = (its.errors || []).concat(its.warnings || [])
-  var er = new Error('Sorry, ' + errors.join(' and ') + '.')
-  er.notValid = true
-  return er
+  const errors = (its.errors || []).concat(its.warnings || [])
+  return invalid(`Sorry, ${errors.join(' and ')}.`)
 })

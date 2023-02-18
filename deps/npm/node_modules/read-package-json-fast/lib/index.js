@@ -1,10 +1,6 @@
-const { promisify } = require('util')
-const fs = require('fs')
-const readFile = promisify(fs.readFile)
-const lstat = promisify(fs.lstat)
-const readdir = promisify(fs.readdir)
+const { readFile, lstat, readdir } = require('fs/promises')
 const parse = require('json-parse-even-better-errors')
-
+const normalizePackageBin = require('npm-normalize-package-bin')
 const { resolve, dirname, join, relative } = require('path')
 
 const rpj = path => readFile(path, 'utf8')
@@ -13,8 +9,6 @@ const rpj = path => readFile(path, 'utf8')
     er.path = path
     throw er
   })
-
-const normalizePackageBin = require('npm-normalize-package-bin')
 
 // load the directories.bin folder as a 'bin' object
 const readBinDir = async (path, data) => {

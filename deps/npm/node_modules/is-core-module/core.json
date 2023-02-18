@@ -57,6 +57,8 @@
 	"node:https": [">= 14.18 && < 15", ">= 16"],
 	"inspector": ">= 8",
 	"node:inspector": [">= 14.18 && < 15", ">= 16"],
+	"inspector/promises": [">= 19"],
+	"node:inspector/promises": [">= 19"],
 	"_linklist": "< 8",
 	"module": true,
 	"node:module": [">= 14.18 && < 15", ">= 16"],

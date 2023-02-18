@@ -35,6 +35,7 @@ class Publish extends BaseCommand {
     'workspace',
     'workspaces',
     'include-workspace-root',
+    'provenance',
   ]
 
   static usage = ['<package-spec>']

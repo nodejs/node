@@ -26,7 +26,10 @@ class Unpublish extends BaseCommand {
 
   async getKeysOfVersions (name, opts) {
     const pkgUri = npa(name).escapedName
-    const json = await npmFetch.json(`${pkgUri}?write=true`, opts)
+    const json = await npmFetch.json(`${pkgUri}?write=true`, {
+      ...opts,
+      spec: name,
+    })
     return Object.keys(json.versions)
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "libnpmfund",
-  "version": "4.0.8",
+  "version": "4.0.10",
   "main": "lib/index.js",
   "files": [
     "bin/",
@@ -31,7 +31,6 @@
   ],
   "license": "ISC",
   "scripts": {
-    "eslint": "eslint",
     "lint": "eslint \"**/*.js\"",
     "lintfix": "node ../.. run lint -- --fix",
     "posttest": "node ../.. run lint",
@@ -42,18 +41,18 @@
   },
   "devDependencies": {
     "@npmcli/eslint-config": "^4.0.0",
-    "@npmcli/template-oss": "4.11.1",
-    "tap": "^16.3.2"
+    "@npmcli/template-oss": "4.11.4",
+    "tap": "^16.3.4"
   },
   "dependencies": {
-    "@npmcli/arborist": "^6.2.0"
+    "@npmcli/arborist": "^6.2.2"
   },
   "engines": {
     "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.11.1",
+    "version": "4.11.4",
     "content": "../../scripts/template-oss/index.js"
   },
   "tap": {

@@ -408,7 +408,7 @@ This value is not exported to the environment for child processes.
 
 #### `install-links`
 
-* Default: true
+* Default: false
 * Type: Boolean
 
 When set file: protocol dependencies will be packed and installed as regular

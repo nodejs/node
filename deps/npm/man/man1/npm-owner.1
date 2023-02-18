@@ -1,4 +1,4 @@
-.TH "NPM-OWNER" "1" "January 2023" "" ""
+.TH "NPM-OWNER" "1" "February 2023" "" ""
 .SH "NAME"
 \fBnpm-owner\fR - Manage package owners
 .SS "Synopsis"
@@ -27,7 +27,7 @@ rm: Remove a user from the package owner list. This immediately revokes their pr
 .P
 Note that there is only one level of access. Either you can modify a package, or you can't. Future versions may contain more fine-grained access levels, but that is not implemented at this time.
 .P
-If you have two-factor authentication enabled with \fBauth-and-writes\fR (see npm help npm-profile) then you'll need to include an otp on the command line when changing ownership with \fB--otp\fR.
+If you have two-factor authentication enabled with \fBauth-and-writes\fR (see npm help npm-profile) then you'll need to go through a second factor flow when changing ownership or include an otp on the command line with \fB--otp\fR.
 .SS "Configuration"
 .SS "\fBregistry\fR"
 .RS 0

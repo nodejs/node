@@ -19,7 +19,9 @@ const {
 
 const { dirname, relative } = require('path')
 const toBatchSyntax = require('./to-batch-syntax')
-const shebangExpr = /^#!\s*(?:\/usr\/bin\/env\s*((?:[^ \t=]+=[^ \t=]+\s+)*))?([^ \t]+)(.*)$/
+// linting disabled because this regex is really long
+// eslint-disable-next-line max-len
+const shebangExpr = /^#!\s*(?:\/usr\/bin\/env\s+(?:-S\s+)?((?:[^ \t=]+=[^ \t=]+\s+)*))?([^ \t]+)(.*)$/
 
 const cmdShimIfExists = (from, to) =>
   stat(from).then(() => cmdShim(from, to), () => {})

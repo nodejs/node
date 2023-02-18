@@ -1,19 +1,22 @@
 {
   "name": "fs-minipass",
-  "version": "2.1.0",
-  "main": "index.js",
+  "version": "3.0.1",
+  "main": "lib/index.js",
   "scripts": {
     "test": "tap",
-    "preversion": "npm test",
-    "postversion": "npm publish",
-    "postpublish": "git push origin --follow-tags"
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run lint -- --fix",
+    "snap": "tap",
+    "posttest": "npm run lint"
   },
   "keywords": [],
-  "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
+  "author": "GitHub Inc.",
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/npm/fs-minipass.git"
+    "url": "https://github.com/npm/fs-minipass.git"
   },
   "bugs": {
     "url": "https://github.com/npm/fs-minipass/issues"
@@ -21,19 +24,30 @@
   "homepage": "https://github.com/npm/fs-minipass#readme",
   "description": "fs read and write streams based on minipass",
   "dependencies": {
-    "minipass": "^3.0.0"
+    "minipass": "^4.0.0"
   },
   "devDependencies": {
-    "mutate-fs": "^2.0.1",
-    "tap": "^14.6.4"
+    "@npmcli/eslint-config": "^4.0.1",
+    "@npmcli/template-oss": "4.11.3",
+    "mutate-fs": "^2.1.1",
+    "tap": "^16.3.2"
   },
   "files": [
-    "index.js"
+    "bin/",
+    "lib/"
   ],
   "tap": {
-    "check-coverage": true
+    "check-coverage": true,
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
   },
   "engines": {
-    "node": ">= 8"
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.11.3"
   }
 }

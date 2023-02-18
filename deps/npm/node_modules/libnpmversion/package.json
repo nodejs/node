@@ -1,6 +1,6 @@
 {
   "name": "libnpmversion",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "main": "lib/index.js",
   "files": [
     "bin/",
@@ -32,9 +32,9 @@
   },
   "devDependencies": {
     "@npmcli/eslint-config": "^4.0.0",
-    "@npmcli/template-oss": "4.11.1",
+    "@npmcli/template-oss": "4.11.4",
     "require-inject": "^1.4.4",
-    "tap": "^16.3.2"
+    "tap": "^16.3.4"
   },
   "dependencies": {
     "@npmcli/git": "^4.0.1",
@@ -48,7 +48,7 @@
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.11.1",
+    "version": "4.11.4",
     "content": "../../scripts/template-oss/index.js"
   }
 }

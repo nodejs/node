@@ -1,6 +1,6 @@
 {
   "name": "libnpmdiff",
-  "version": "5.0.8",
+  "version": "5.0.10",
   "description": "The registry diff",
   "repository": {
     "type": "git",
@@ -32,7 +32,6 @@
   ],
   "license": "ISC",
   "scripts": {
-    "eslint": "eslint",
     "lint": "eslint \"**/*.js\"",
     "lintfix": "node ../.. run lint -- --fix",
     "test": "tap",
@@ -43,23 +42,23 @@
   },
   "devDependencies": {
     "@npmcli/eslint-config": "^4.0.0",
-    "@npmcli/template-oss": "4.11.1",
-    "tap": "^16.3.2"
+    "@npmcli/template-oss": "4.11.4",
+    "tap": "^16.3.4"
   },
   "dependencies": {
-    "@npmcli/arborist": "^6.2.0",
+    "@npmcli/arborist": "^6.2.2",
     "@npmcli/disparity-colors": "^3.0.0",
     "@npmcli/installed-package-contents": "^2.0.0",
     "binary-extensions": "^2.2.0",
     "diff": "^5.1.0",
-    "minimatch": "^5.1.1",
+    "minimatch": "^6.1.6",
     "npm-package-arg": "^10.1.0",
-    "pacote": "^15.0.7",
+    "pacote": "^15.0.8",
     "tar": "^6.1.13"
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.11.1",
+    "version": "4.11.4",
     "content": "../../scripts/template-oss/index.js"
   },
   "tap": {

@@ -1,0 +1,59 @@
+{
+  "name": "sigstore",
+  "version": "1.0.0",
+  "description": "code-signing for npm packages",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --maxWorkers=2 --coverage",
+    "lint": "eslint --fix --ext .ts src/**",
+    "lint:check": "eslint --max-warnings 0 --ext .ts src/**",
+    "format": "prettier --write \"src/**/*\"",
+    "codegen:sigstore": "./hack/generate-sigstore-types",
+    "codegen:rekor": "./hack/generate-rekor-types"
+  },
+  "bin": {
+    "sigstore": "bin/sigstore.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sigstore/sigstore-js.git"
+  },
+  "files": [
+    "dist",
+    "store"
+  ],
+  "author": "bdehamer@github.com",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/sigstore/sigstore-js/issues"
+  },
+  "homepage": "https://github.com/sigstore/sigstore-js#readme",
+  "devDependencies": {
+    "@tsconfig/node14": "^1.0.3",
+    "@types/jest": "^29.4.0",
+    "@types/make-fetch-happen": "^10.0.0",
+    "@types/node": "^18.6.5",
+    "@typescript-eslint/eslint-plugin": "^5.26.0",
+    "@typescript-eslint/parser": "^5.26.0",
+    "eslint": "^8.16.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "jest": "^29.4.1",
+    "json-schema-to-typescript": "^11.0.2",
+    "nock": "^13.2.4",
+    "prettier": "^2.6.2",
+    "ts-jest": "^29.0.5",
+    "typescript": "^4.7.2"
+  },
+  "dependencies": {
+    "make-fetch-happen": "^11.0.1",
+    "tuf-js": "^1.0.0"
+  },
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  }
+}
