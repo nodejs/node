@@ -131,7 +131,7 @@ const open = (_args, opts = {}, extra = {}) => {
   let platform = process.platform
   // process.platform === 'linux' may actually indicate WSL, if that's the case
   // we want to treat things as win32 anyway so the host can open the argument
-  if (platform === 'linux' && os.release().includes('Microsoft')) {
+  if (platform === 'linux' && os.release().toLowerCase().includes('microsoft')) {
     platform = 'win32'
   }
 

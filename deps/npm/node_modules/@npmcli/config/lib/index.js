@@ -482,8 +482,9 @@ class Config {
       if (problem.action === 'delete') {
         this.delete(problem.key, problem.where)
       } else if (problem.action === 'rename') {
-        const old = this.get(problem.from, problem.where)
-        this.set(problem.to, old, problem.where)
+        const raw = this.data.get(problem.where).raw?.[problem.from]
+        const calculated = this.get(problem.from, problem.where)
+        this.set(problem.to, raw || calculated, problem.where)
         this.delete(problem.from, problem.where)
       }
     }

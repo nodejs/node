@@ -172,7 +172,9 @@ resolved, and other properties, as they are determined.
     integrity signature of a manifest, if present.  There must be a
     configured `_keys` entry in the config that is scoped to the
     registry the manifest is being fetched from.
-
+* `verifyAttestations` A boolean that will make pacote verify Sigstore
+    attestations, if present. There must be a configured `_keys` entry in the
+    config that is scoped to the registry the manifest is being fetched from.
 
 ### Advanced API
 

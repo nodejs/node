@@ -1078,7 +1078,7 @@ define('init.version', {
 })
 
 define('install-links', {
-  default: true,
+  default: false,
   type: Boolean,
   description: `
     When set file: protocol dependencies will be packed and installed as
@@ -1618,6 +1618,15 @@ define('progress', {
     flatOptions.progress = !obj.progress ? false
       : !!process.stderr.isTTY && process.env.TERM !== 'dumb'
   },
+})
+
+define('provenance', {
+  default: false,
+  type: Boolean,
+  description: `
+    Indicates that a provenance statement should be generated.
+  `,
+  flatten,
 })
 
 define('proxy', {

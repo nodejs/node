@@ -82,7 +82,6 @@ const _rollbackRetireShallowNodes = Symbol.for('rollbackRetireShallowNodes')
 const _rollbackCreateSparseTree = Symbol.for('rollbackCreateSparseTree')
 const _rollbackMoveBackRetiredUnchanged = Symbol.for('rollbackMoveBackRetiredUnchanged')
 const _saveIdealTree = Symbol.for('saveIdealTree')
-const _saveLockFile = Symbol('saveLockFile')
 const _copyIdealToActual = Symbol('copyIdealToActual')
 const _addOmitsToTrashList = Symbol('addOmitsToTrashList')
 const _packageLockOnly = Symbol('packageLockOnly')
@@ -1404,64 +1403,53 @@ module.exports = cls => class Reifier extends cls {
       }
     }
 
-    // preserve indentation, if possible
-    const {
-      [Symbol.for('indent')]: indent,
-    } = this.idealTree.package
-    const format = indent === undefined ? '  ' : indent
-
-    const saveOpt = {
-      format: (this[_formatPackageLock] && format) ? format
-      : this[_formatPackageLock],
-    }
-
-    const promises = [this[_saveLockFile](saveOpt)]
-
-    const updatePackageJson = async (tree) => {
-      const pkgJson = await PackageJson.load(tree.path)
-        .catch(() => new PackageJson(tree.path))
-      const {
-        dependencies = {},
-        devDependencies = {},
-        optionalDependencies = {},
-        peerDependencies = {},
-        // bundleDependencies is not required by PackageJson like the other fields here
-        // PackageJson also doesn't omit an empty array for this field so defaulting this
-        // to an empty array would add that field to every package.json file.
-        bundleDependencies,
-      } = tree.package
-
-      pkgJson.update({
-        dependencies,
-        devDependencies,
-        optionalDependencies,
-        peerDependencies,
-        bundleDependencies,
-      })
-      await pkgJson.save()
-    }
-
     if (save) {
       for (const tree of updatedTrees) {
         // refresh the edges so they have the correct specs
         tree.package = tree.package
-        promises.push(updatePackageJson(tree))
+        const pkgJson = await PackageJson.load(tree.path)
+          .catch(() => new PackageJson(tree.path))
+        const {
+          dependencies = {},
+          devDependencies = {},
+          optionalDependencies = {},
+          peerDependencies = {},
+          // bundleDependencies is not required by PackageJson like the other
+          // fields here PackageJson also doesn't omit an empty array for this
+          // field so defaulting this to an empty array would add that field to
+          // every package.json file.
+          bundleDependencies,
+        } = tree.package
+
+        pkgJson.update({
+          dependencies,
+          devDependencies,
+          optionalDependencies,
+          peerDependencies,
+          bundleDependencies,
+        })
+        await pkgJson.save()
       }
     }
 
-    await Promise.all(promises)
-    process.emit('timeEnd', 'reify:save')
-    return true
-  }
+    // before now edge specs could be changing, affecting the `requires` field
+    // in the package lock, so we hold off saving to the very last action
+    if (this[_usePackageLock]) {
+      // preserve indentation, if possible
+      let format = this.idealTree.package[Symbol.for('indent')]
+      if (format === undefined) {
+        format = '  '
+      }
 
-  async [_saveLockFile] (saveOpt) {
-    if (!this[_usePackageLock]) {
-      return
+      // TODO this ignores options.save
+      await this.idealTree.meta.save({
+        format: (this[_formatPackageLock] && format) ? format
+        : this[_formatPackageLock],
+      })
     }
 
-    const { meta } = this.idealTree
-
-    return meta.save(saveOpt)
+    process.emit('timeEnd', 'reify:save')
+    return true
   }
 
   async [_copyIdealToActual] () {

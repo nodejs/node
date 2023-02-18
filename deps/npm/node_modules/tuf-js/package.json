@@ -1,0 +1,58 @@
+{
+  "name": "tuf-js",
+  "version": "1.0.0",
+  "description": "JavaScript implementation of The Update Framework (TUF)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --maxWorkers=2 --coverage",
+    "lint": "eslint --fix --ext .ts src/**",
+    "lint:check": "eslint --max-warnings 0 --ext .ts src/**",
+    "format": "prettier --write \"src/**/*\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/github/tuf-js.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "tuf"
+  ],
+  "author": "bdehamer@github.com",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/github/tuf-js/issues"
+  },
+  "homepage": "https://github.com/github/tuf-js#readme",
+  "devDependencies": {
+    "@tsconfig/node14": "^1.0.3",
+    "@types/jest": "^28.1.8",
+    "@types/lodash.isequal": "^4.5.6",
+    "@types/make-fetch-happen": "^10.0.1",
+    "@types/minimatch": "^5.1.2",
+    "@types/node": "^18.11.10",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "eslint": "^8.28.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "http-server": "^14.1.1",
+    "jest": "^28.1.3",
+    "nock": "^13.2.9",
+    "prettier": "^2.8.0",
+    "ts-jest": "^28.0.8",
+    "typescript": "^4.9.3"
+  },
+  "dependencies": {
+    "make-fetch-happen": "^11.0.1",
+    "minimatch": "^6.1.0"
+  },
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  }
+}
