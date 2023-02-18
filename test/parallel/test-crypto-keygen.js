@@ -1200,6 +1200,17 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       code: 'ERR_OUT_OF_RANGE',
     });
   }
+
+  // Test invalid exponents. (caught by OpenSSL)
+  for (const publicExponent of [1, 1 + 0x10001]) {
+    generateKeyPair('rsa', {
+      modulusLength: 4096,
+      publicExponent
+    }, common.mustCall((err) => {
+      assert.strictEqual(err.name, 'Error');
+      assert.match(err.message, common.hasOpenSSL3 ? /exponent/ : /bad e value/);
+    }));
+  }
 }
 
 // Test DSA parameters.
