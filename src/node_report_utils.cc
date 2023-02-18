@@ -149,7 +149,6 @@ static void ReportPath(uv_handle_t* h, JSONWriter* writer) {
   if (rc == 0 && size > 0) {
     buffer.SetLength(size);
     writer->json_keyvalue("filename", buffer.ToStringView());
-    wrote_filename = true;
   } else {
     writer->json_keyvalue("filename", null);
   }
