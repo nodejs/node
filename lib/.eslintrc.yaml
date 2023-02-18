@@ -286,6 +286,7 @@ overrides:
       - ./internal/per_context/messageport.js
       - ./internal/policy/*.js
       - ./internal/priority_queue.js
+      - ./internal/process/*.js
       - ./internal/readline/*.js
       - ./internal/readme.md
       - ./internal/repl/history.js
