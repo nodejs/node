@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.16.0](https://github.com/nodejs/corepack/compare/v0.15.3...v0.16.0) (2023-02-17)
+
+
+### Features
+
+* update package manager versions ([#228](https://github.com/nodejs/corepack/issues/228)) ([bb000f9](https://github.com/nodejs/corepack/commit/bb000f9c10a1fbd85f2c15a90218d90b42473130))
+* build: migrate to ESBuild ([#229](https://github.com/nodejs/corepack/pull/229)) ([15ceb83](https://github.com/nodejs/corepack/commit/15ceb832a34a223efbe3d3f9cb792d9101a7022a))
+
+
+### Bug Fixes
+
+* npm registry override ([#219](https://github.com/nodejs/corepack/issues/219)) ([1b35362](https://github.com/nodejs/corepack/commit/1b353624e644874d9ef6c9acaf6d1254bff3015a))
+
 ## [0.15.3](https://github.com/nodejs/corepack/compare/v0.15.2...v0.15.3) (2022-12-30)
 
 
