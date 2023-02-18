@@ -206,7 +206,7 @@ const setupMockNpm = async (t, {
         acc.env[`process.env."npm_config_${key}"`] = value
       } else {
         const values = [].concat(value)
-        acc.argv.push(...values.flatMap(v => [`--${key}`, v.toString()]))
+        acc.argv.push(...values.flatMap(v => `--${key}=${v.toString()}`))
       }
       acc.config[key] = value
       return acc

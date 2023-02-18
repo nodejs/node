@@ -1,13 +1,10 @@
 {
   "name": "string_decoder",
-  "version": "1.3.0",
+  "version": "1.1.1",
   "description": "The string_decoder module from Node core",
   "main": "lib/string_decoder.js",
-  "files": [
-    "lib"
-  ],
   "dependencies": {
-    "safe-buffer": "~5.2.0"
+    "safe-buffer": "~5.1.0"
   },
   "devDependencies": {
     "babel-polyfill": "^6.23.0",

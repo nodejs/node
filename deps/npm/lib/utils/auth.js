@@ -8,16 +8,27 @@ const adduser = async (npm, { creds, ...opts }) => {
   const authType = npm.config.get('auth-type')
   let res
   if (authType === 'web') {
-    res = await profile.adduserWeb((url, emitter) => {
-      openUrlPrompt(
-        npm,
-        url,
-        'Create your account at',
-        'Press ENTER to open in the browser...',
-        emitter
-      )
-    }, opts)
-  } else {
+    try {
+      res = await profile.adduserWeb((url, emitter) => {
+        openUrlPrompt(
+          npm,
+          url,
+          'Create your account at',
+          'Press ENTER to open in the browser...',
+          emitter
+        )
+      }, opts)
+    } catch (err) {
+      if (err.code === 'ENYI') {
+        log.verbose('web add user not supported, trying couch')
+      } else {
+        throw err
+      }
+    }
+  }
+
+  // auth type !== web or ENYI error w/ web adduser
+  if (!res) {
     const username = await read.username('Username:', creds.username)
     const password = await read.password('Password:', creds.password)
     const email = await read.email('Email: (this IS public) ', creds.email)
@@ -44,16 +55,27 @@ const login = async (npm, { creds, ...opts }) => {
   const authType = npm.config.get('auth-type')
   let res
   if (authType === 'web') {
-    res = await profile.loginWeb((url, emitter) => {
-      openUrlPrompt(
-        npm,
-        url,
-        'Login at',
-        'Press ENTER to open in the browser...',
-        emitter
-      )
-    }, opts)
-  } else {
+    try {
+      res = await profile.loginWeb((url, emitter) => {
+        openUrlPrompt(
+          npm,
+          url,
+          'Login at',
+          'Press ENTER to open in the browser...',
+          emitter
+        )
+      }, opts)
+    } catch (err) {
+      if (err.code === 'ENYI') {
+        log.verbose('web login not supported, trying couch')
+      } else {
+        throw err
+      }
+    }
+  }
+
+  // auth type !== web or ENYI error w/ web login
+  if (!res) {
     const username = await read.username('Username:', creds.username)
     const password = await read.password('Password:', creds.password)
     res = await otplease(npm, opts, (reqOpts) =>

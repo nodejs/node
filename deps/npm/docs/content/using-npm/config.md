@@ -691,7 +691,7 @@ number, if not already set in package.json.
 
 #### `install-links`
 
-* Default: true
+* Default: false
 * Type: Boolean
 
 When set file: protocol dependencies will be packed and installed as regular
@@ -1004,6 +1004,13 @@ When set to `true`, npm will display a progress bar during time intensive
 operations, if `process.stderr` is a TTY.
 
 Set to `false` to suppress the progress bar.
+
+#### `provenance`
+
+* Default: false
+* Type: Boolean
+
+Indicates that a provenance statement should be generated.
 
 #### `proxy`
 

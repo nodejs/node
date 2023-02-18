@@ -81,7 +81,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "init.license": "ISC",
   "init.module": "{HOME}/.npm-init.js",
   "init.version": "1.0.0",
-  "install-links": true,
+  "install-links": false,
   "install-strategy": "hoisted",
   "key": null,
   "legacy-bundling": false,
@@ -116,6 +116,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "preid": "",
   "production": null,
   "progress": true,
+  "provenance": false,
   "proxy": null,
   "read-only": false,
   "rebuild-bundle": true,
@@ -234,7 +235,7 @@ init.author.url = ""
 init.license = "ISC"
 init.module = "{HOME}/.npm-init.js"
 init.version = "1.0.0"
-install-links = true
+install-links = false
 install-strategy = "hoisted"
 json = false
 key = null
@@ -270,6 +271,7 @@ prefer-online = false
 preid = ""
 production = null
 progress = true
+provenance = false
 proxy = null
 read-only = false
 rebuild-bundle = true
