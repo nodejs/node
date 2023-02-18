@@ -63,7 +63,7 @@ assert.throws(() => {
 }, /^RangeError: Illegal input >= 0x80 \(not a basic code point\)$/);
 assert.throws(() => {
   punycode.decode('あ');
-}, /^RangeError: Overflow: input needs wider integers to process$/);
+}, /^RangeError: Invalid input$/);
 
 // http://tools.ietf.org/html/rfc3492#section-7.1
 const tests = [
