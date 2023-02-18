@@ -314,6 +314,8 @@ For information about the governance of the Node.js project, see
   **Daniel Bevenius** <<daniel.bevenius@gmail.com>> (he/him)
 * [danielleadams](https://github.com/danielleadams) -
   **Danielle Adams** <<adamzdanielle@gmail.com>> (she/her)
+* [debadree25](https://github.com/debadree25) -
+  **Debadree Chatterjee** <<debadree333@gmail.com>> (he/him)
 * [deokjinkim](https://github.com/deokjinkim) -
   **Deokjin Kim** <<deokjin81.kim@gmail.com>> (he/him)
 * [devnexen](https://github.com/devnexen) -
