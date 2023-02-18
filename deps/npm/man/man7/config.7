@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "January 2023" "" ""
+.TH "CONFIG" "7" "February 2023" "" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
@@ -815,7 +815,7 @@ The value that \fBnpm init\fR should use by default for the package version numb
 .SS "\fBinstall-links\fR"
 .RS 0
 .IP \(bu 4
-Default: true
+Default: false
 .IP \(bu 4
 Type: Boolean
 .RE 0
@@ -1168,6 +1168,16 @@ Type: Boolean
 When set to \fBtrue\fR, npm will display a progress bar during time intensive operations, if \fBprocess.stderr\fR is a TTY.
 .P
 Set to \fBfalse\fR to suppress the progress bar.
+.SS "\fBprovenance\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Indicates that a provenance statement should be generated.
 .SS "\fBproxy\fR"
 .RS 0
 .IP \(bu 4

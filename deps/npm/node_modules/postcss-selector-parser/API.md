@@ -395,16 +395,18 @@ Arguments:
 
 ### `container.atPosition(line, column)`
 
-Returns the node at the source position `index`.
+Returns the node at the source position `line` and `column`.
 
 ```js
-selector.at(0) === selector.first;
-selector.at(0) === selector.nodes[0];
+// Input: :not(.foo),\n#foo > :matches(ol, ul)
+selector.atPosition(1, 1); // => :not(.foo)
+selector.atPosition(2, 1); // => \n#foo
 ```
 
 Arguments:
 
-* `index`: The index of the node to return.
+* `line`: The line number of the node to return.
+* `column`: The column number of the node to return.
 
 ### `container.index(node)`
 

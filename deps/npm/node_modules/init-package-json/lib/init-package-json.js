@@ -1,184 +1,145 @@
 
-module.exports = init
-module.exports.yes = yes
+const promzard = require('promzard')
+const path = require('path')
+const fs = require('fs/promises')
+const semver = require('semver')
+const read = require('read')
+const util = require('util')
+const rpj = require('read-package-json')
 
-var PZ = require('promzard').PromZard
-var path = require('path')
-var def = require.resolve('./default-input.js')
-
-var fs = require('fs')
-var semver = require('semver')
-var read = require('read')
+const def = require.resolve('./default-input.js')
 
 // to validate the data object at the end as a worthwhile package
 // and assign default values for things.
-var readJson = require('read-package-json')
-
-function yes (conf) {
-  return !!(
-    conf.get('yes') || conf.get('y') ||
-    conf.get('force') || conf.get('f')
-  )
+const _extraSet = rpj.extraSet
+const _rpj = util.promisify(rpj)
+const _rpjExtras = util.promisify(rpj.extras)
+const readPkgJson = async (file, pkg) => {
+  // only do a few of these. no need for mans or contributors if they're in the files
+  rpj.extraSet = _extraSet.filter(f => f.name !== 'authors' && f.name !== 'mans')
+  const p = pkg ? _rpjExtras(file, pkg) : _rpj(file)
+  return p.catch(() => ({})).finally(() => rpj.extraSet = _extraSet)
 }
 
-function init (dir, input, config, cb) {
-  if (typeof config === 'function') {
-    cb = config
-    config = {}
-  }
+const isYes = (c) => !!(c.get('yes') || c.get('y') || c.get('force') || c.get('f'))
 
-  // accept either a plain-jane object, or a config object
-  // with a "get" method.
-  if (typeof config.get !== 'function') {
-    var data = config
-    config = {
-      get: function (k) {
-        return data[k]
-      },
-      toJSON: function () {
-        return data
-      },
+const getConfig = (c = {}) => {
+  // accept either a plain-jane object, or a config object with a "get" method.
+  if (typeof c.get !== 'function') {
+    const data = c
+    return {
+      get: (k) => data[k],
+      toJSON: () => data,
     }
   }
-
-  var packageFile = path.resolve(dir, 'package.json')
-  input = path.resolve(input)
-  var pkg
-  var ctx = { yes: yes(config) }
-
-  var es = readJson.extraSet
-  readJson.extraSet = es.filter(function (fn) {
-    return fn.name !== 'authors' && fn.name !== 'mans'
-  })
-  readJson(packageFile, function (er, d) {
-    readJson.extraSet = es
-
-    if (er) {
-      pkg = {}
-    } else {
-      pkg = d
-    }
-
-    ctx.filename = packageFile
-    ctx.dirname = path.dirname(packageFile)
-    ctx.basename = path.basename(ctx.dirname)
-    if (!pkg.version || !semver.valid(pkg.version)) {
-      delete pkg.version
-    }
-
-    ctx.package = pkg
-    ctx.config = config || {}
-
-    // make sure that the input is valid.
-    // if not, use the default
-    var pz = new PZ(input, ctx)
-    pz.backupFile = def
-    pz.on('error', cb)
-    pz.on('data', function (pzData) {
-      Object.keys(pzData).forEach(function (k) {
-        if (pzData[k] !== undefined && pzData[k] !== null) {
-          pkg[k] = pzData[k]
-        }
-      })
-
-      // only do a few of these.
-      // no need for mans or contributors if they're in the files
-      es = readJson.extraSet
-      readJson.extraSet = es.filter(function (fn) {
-        return fn.name !== 'authors' && fn.name !== 'mans'
-      })
-      readJson.extras(packageFile, pkg, function (extrasErr, pkgWithExtras) {
-        if (extrasErr) {
-          return cb(extrasErr, pkgWithExtras)
-        }
-        readJson.extraSet = es
-        pkgWithExtras = unParsePeople(pkgWithExtras)
-        // no need for the readme now.
-        delete pkgWithExtras.readme
-        delete pkgWithExtras.readmeFilename
-
-        // really don't want to have this lying around in the file
-        delete pkgWithExtras._id
-
-        // ditto
-        delete pkgWithExtras.gitHead
-
-        // if the repo is empty, remove it.
-        if (!pkgWithExtras.repository) {
-          delete pkgWithExtras.repository
-        }
-
-        // readJson filters out empty descriptions, but init-package-json
-        // traditionally leaves them alone
-        if (!pkgWithExtras.description) {
-          pkgWithExtras.description = pzData.description
-        }
-
-        var stringified = JSON.stringify(updateDeps(pkgWithExtras), null, 2) + '\n'
-        function write (writeYes) {
-          fs.writeFile(packageFile, stringified, 'utf8', function (writeFileErr) {
-            if (!writeFileErr && writeYes && !config.get('silent')) {
-              console.log('Wrote to %s:\n\n%s\n', packageFile, stringified)
-            }
-            return cb(writeFileErr, pkgWithExtras)
-          })
-        }
-        if (ctx.yes) {
-          return write(true)
-        }
-        console.log('About to write to %s:\n\n%s\n', packageFile, stringified)
-        read({ prompt: 'Is this OK? ', default: 'yes' }, function (promptErr, ok) {
-          if (promptErr) {
-            return cb(promptErr)
-          }
-          if (!ok || ok.toLowerCase().charAt(0) !== 'y') {
-            console.log('Aborted.')
-          } else {
-            return write()
-          }
-        })
-      })
-    })
-  })
+  return c
 }
 
-function updateDeps (depsData) {
+const stringifyPerson = (p) => {
+  if (typeof p === 'string') {
+    return p
+  }
+  const { name = '', url, web, email, mail } = p
+  const u = url || web
+  const e = email || mail
+  return `${name}${e ? ` <${e}>` : ''}${u ? ` (${u})` : ''}`
+}
+
+async function init (dir, input = def, c = {}) {
+  const config = getConfig(c)
+  const yes = isYes(config)
+  const packageFile = path.resolve(dir, 'package.json')
+
+  const pkg = await readPkgJson(packageFile)
+
+  if (!semver.valid(pkg.version)) {
+    delete pkg.version
+  }
+
+  // make sure that the input is valid. if not, use the default
+  const pzData = await promzard(path.resolve(input), {
+    yes,
+    config,
+    filename: packageFile,
+    dirname: path.dirname(packageFile),
+    basename: path.basename(path.dirname(packageFile)),
+    package: pkg,
+  }, { backupFile: def })
+
+  for (const [k, v] of Object.entries(pzData)) {
+    if (v != null) {
+      pkg[k] = v
+    }
+  }
+
+  const pkgExtras = await readPkgJson(packageFile, pkg)
+
+  // turn the objects into somewhat more humane strings.
+  if (pkgExtras.author) {
+    pkgExtras.author = stringifyPerson(pkgExtras.author)
+  }
+
+  for (const set of ['maintainers', 'contributors']) {
+    if (Array.isArray(pkgExtras[set])) {
+      pkgExtras[set] = pkgExtras[set].map(stringifyPerson)
+    }
+  }
+
+  // no need for the readme now.
+  delete pkgExtras.readme
+  delete pkgExtras.readmeFilename
+
+  // really don't want to have this lying around in the file
+  delete pkgExtras._id
+
+  // ditto
+  delete pkgExtras.gitHead
+
+  // if the repo is empty, remove it.
+  if (!pkgExtras.repository) {
+    delete pkgExtras.repository
+  }
+
+  // readJson filters out empty descriptions, but init-package-json
+  // traditionally leaves them alone
+  if (!pkgExtras.description) {
+    pkgExtras.description = pzData.description
+  }
+
   // optionalDependencies don't need to be repeated in two places
-  if (depsData.dependencies) {
-    if (depsData.optionalDependencies) {
-      for (const name of Object.keys(depsData.optionalDependencies)) {
-        delete depsData.dependencies[name]
+  if (pkgExtras.dependencies) {
+    if (pkgExtras.optionalDependencies) {
+      for (const name of Object.keys(pkgExtras.optionalDependencies)) {
+        delete pkgExtras.dependencies[name]
       }
     }
-    if (Object.keys(depsData.dependencies).length === 0) {
-      delete depsData.dependencies
+    if (Object.keys(pkgExtras.dependencies).length === 0) {
+      delete pkgExtras.dependencies
     }
   }
 
-  return depsData
-}
+  const stringified = JSON.stringify(pkgExtras, null, 2) + '\n'
+  const msg = util.format('%s:\n\n%s\n', packageFile, stringified)
+  const write = () => fs.writeFile(packageFile, stringified, 'utf8')
 
-// turn the objects into somewhat more humane strings.
-function unParsePeople (data) {
-  if (data.author) {
-    data.author = unParsePerson(data.author)
-  }['maintainers', 'contributors'].forEach(function (set) {
-    if (!Array.isArray(data[set])) {
-      return
+  if (yes) {
+    await write()
+    if (!config.get('silent')) {
+      console.log(`Wrote to ${msg}`)
     }
-    data[set] = data[set].map(unParsePerson)
-  })
-  return data
+    return pkgExtras
+  }
+
+  console.log(`About to write to ${msg}`)
+  const ok = await read({ prompt: 'Is this OK? ', default: 'yes' })
+  if (!ok || !ok.toLowerCase().startsWith('y')) {
+    console.log('Aborted.')
+    return
+  }
+
+  await write()
+  return pkgExtras
 }
 
-function unParsePerson (person) {
-  if (typeof person === 'string') {
-    return person
-  }
-  var name = person.name || ''
-  var u = person.url || person.web
-  var url = u ? (' (' + u + ')') : ''
-  var e = person.email || person.mail
-  var email = e ? (' <' + e + '>') : ''
-  return name + email + url
-}
+module.exports = init
+module.exports.yes = isYes

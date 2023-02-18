@@ -1,4 +1,4 @@
-.TH "NPM-ACCESS" "1" "January 2023" "" ""
+.TH "NPM-ACCESS" "1" "February 2023" "" ""
 .SH "NAME"
 \fBnpm-access\fR - Set access level on published packages
 .SS "Synopsis"
@@ -55,7 +55,7 @@ You have been given read-write privileges for a package, either as a member of a
 .RE 0
 
 .P
-If you have two-factor authentication enabled then you'll be prompted to provide an otp token, or may use the \fB--otp=...\fR option to specify it on the command line.
+If you have two-factor authentication enabled then you'll be prompted to provide a second factor, or may use the \fB--otp=...\fR option to specify it on the command line.
 .P
 If your account is not paid, then attempts to publish scoped packages will fail with an HTTP 402 status code (logically enough), unless you use \fB--access=public\fR.
 .P
