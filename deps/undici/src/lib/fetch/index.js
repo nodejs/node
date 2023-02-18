@@ -53,7 +53,7 @@ const {
 const { kHeadersList } = require('../core/symbols')
 const EE = require('events')
 const { Readable, pipeline } = require('stream')
-const { isErrored, isReadable } = require('../core/util')
+const { isErrored, isReadable, nodeMajor, nodeMinor } = require('../core/util')
 const { dataURLProcessor, serializeAMimeType } = require('./dataURL')
 const { TransformStream } = require('stream/web')
 const { getGlobalDispatcher } = require('../global')
@@ -63,10 +63,6 @@ const { STATUS_CODES } = require('http')
 /** @type {import('buffer').resolveObjectURL} */
 let resolveObjectURL
 let ReadableStream = globalThis.ReadableStream
-
-const nodeVersion = process.versions.node.split('.')
-const nodeMajor = Number(nodeVersion[0])
-const nodeMinor = Number(nodeVersion[1])
 
 class Fetch extends EE {
   constructor (dispatcher) {
