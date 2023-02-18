@@ -300,6 +300,7 @@ overrides:
       - ./internal/vm.js
       - ./internal/watch_mode/*.js
       - ./internal/webidl.js
+      - ./internal/webstreams/*.js
       - ./module.js
       - ./path/*.js
       - ./process.js
