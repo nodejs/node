@@ -21,10 +21,11 @@ jobs:
             subsystem: tools
             label: tools
             run: |
-              NEW_VERSION=$(./tools/dep_updaters/update-eslint.sh | tail -n1)
-              if [ $? = 0 ]; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-              fi
+              ./tools/dep_updaters/update-eslint.sh > temp-output
+              cat temp-output
+              MAYBE_VERSION=$(tail -n1 temp-output)
+              if grep -q "NEW_VERSION" <<< "$MAYBE_VERSION"; then $MAYBE_VERSION >> $GITHUB_ENV; fi
+              rm temp-output
           - id: corepack
             subsystem: deps
             label: dependencies
@@ -79,10 +80,11 @@ jobs:
             subsystem: deps,test
             label: test
             run: |
-              NEW_VERSION=$(./tools/dep_updaters/update-postject.sh | tail -n1)
-              if [ $? = 0 ]; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-              fi
+              ./tools/dep_updaters/update-postject.sh > temp-output
+              cat temp-output
+              MAYBE_VERSION=$(tail -n1 temp-output)
+              if grep -q "NEW_VERSION" <<< "$MAYBE_VERSION"; then $MAYBE_VERSION >> $GITHUB_ENV; fi
+              rm temp-output
           - id: base64
             subsystem: deps
             label: dependencies

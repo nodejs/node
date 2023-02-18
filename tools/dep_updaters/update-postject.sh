@@ -36,5 +36,6 @@ mkdir deps/postject
 cp test/fixtures/postject-copy/node_modules/postject/LICENSE deps/postject
 cp test/fixtures/postject-copy/node_modules/postject/dist/postject-api.h deps/postject
 
-# The last line of the script should always be the NEW_VERSION
-echo "$NEW_VERSION"
+# The last line of the script should always print the new version,
+# as we need to add it to $GITHUB_ENV variable.
+echo "NEW_VERSION=$NEW_VERSION"

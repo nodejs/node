@@ -73,5 +73,6 @@ rm -rf ../node_modules/eslint
 mv eslint-tmp/node_modules/eslint ../node_modules/eslint
 rm -rf eslint-tmp/
 
-# The last line of the script should always be the NEW_VERSION
-echo "$NEW_VERSION"
+# The last line of the script should always print the new version,
+# as we need to add it to $GITHUB_ENV variable.
+echo "NEW_VERSION=$NEW_VERSION"
