@@ -296,6 +296,7 @@ var require_util = __commonJS({
     var { Blob } = require("buffer");
     var nodeUtil = require("util");
     var { stringify } = require("querystring");
+    var [nodeMajor, nodeMinor] = process.versions.node.split(".").map((v) => Number(v));
     function nop() {
     }
     function isStream(obj) {
@@ -580,7 +581,10 @@ var require_util = __commonJS({
       validateHandler,
       getSocketInfo,
       isFormDataLike,
-      buildURL
+      buildURL,
+      nodeMajor,
+      nodeMinor,
+      nodeHasAutoSelectFamily: nodeMajor > 18 || nodeMajor === 18 && nodeMinor >= 13
     };
   }
 });
@@ -1653,6 +1657,7 @@ var require_headers = __commonJS({
         if (init instanceof HeadersList) {
           this[kHeadersMap] = new Map(init[kHeadersMap]);
           this[kHeadersSortedMap] = init[kHeadersSortedMap];
+          this.cookies = init.cookies;
         } else {
           this[kHeadersMap] = new Map(init);
           this[kHeadersSortedMap] = null;
@@ -5817,6 +5822,7 @@ var require_dataURL = __commonJS({
       dataURLProcessor,
       URLSerializer,
       collectASequenceOfCodePoints,
+      collectASequenceOfCodePointsFast,
       stringPercentDecode,
       parseMIMEType,
       collectAnHTTPQuotedString,
@@ -7978,9 +7984,6 @@ var require_request2 = __commonJS({
     var kHandler = Symbol("handler");
     var channels = {};
     var extractBody;
-    var nodeVersion = process.versions.node.split(".");
-    var nodeMajor = Number(nodeVersion[0]);
-    var nodeMinor = Number(nodeVersion[1]);
     try {
       const diagnosticsChannel = require("diagnostics_channel");
       channels.create = diagnosticsChannel.channel("undici:request:create");
@@ -8084,7 +8087,7 @@ var require_request2 = __commonJS({
           throw new InvalidArgumentError("headers must be an object or an array");
         }
         if (util.isFormDataLike(this.body)) {
-          if (nodeMajor < 16 || nodeMajor === 16 && nodeMinor < 8) {
+          if (util.nodeMajor < 16 || util.nodeMajor === 16 && util.nodeMinor < 8) {
             throw new InvalidArgumentError("Form-Data bodies are only supported in node v16.8 and newer.");
           }
           if (!extractBody) {
@@ -9002,7 +9005,9 @@ var require_client = __commonJS({
         connect: connect2,
         maxRequestsPerClient,
         localAddress,
-        maxResponseSize
+        maxResponseSize,
+        autoSelectFamily,
+        autoSelectFamilyAttemptTimeout
       } = {}) {
         super();
         if (keepAlive !== void 0) {
@@ -9059,12 +9064,16 @@ var require_client = __commonJS({
         if (maxResponseSize != null && (!Number.isInteger(maxResponseSize) || maxResponseSize < -1)) {
           throw new InvalidArgumentError("maxResponseSize must be a positive number");
         }
+        if (autoSelectFamilyAttemptTimeout != null && (!Number.isInteger(autoSelectFamilyAttemptTimeout) || autoSelectFamilyAttemptTimeout < -1)) {
+          throw new InvalidArgumentError("autoSelectFamilyAttemptTimeout must be a positive number");
+        }
         if (typeof connect2 !== "function") {
           connect2 = buildConnector({
             ...tls,
             maxCachedSessions,
             socketPath,
             timeout: connectTimeout,
+            ...util.nodeHasAutoSelectFamily && autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : void 0,
             ...connect2
           });
         }
@@ -9084,8 +9093,8 @@ var require_client = __commonJS({
         this[kNeedDrain] = 0;
         this[kHostHeader] = `host: ${this[kUrl].hostname}${this[kUrl].port ? `:${this[kUrl].port}` : ""}\r
 `;
-        this[kBodyTimeout] = bodyTimeout != null ? bodyTimeout : 3e4;
-        this[kHeadersTimeout] = headersTimeout != null ? headersTimeout : 3e4;
+        this[kBodyTimeout] = bodyTimeout != null ? bodyTimeout : 3e5;
+        this[kHeadersTimeout] = headersTimeout != null ? headersTimeout : 3e5;
         this[kStrictContentLength] = strictContentLength == null ? true : strictContentLength;
         this[kMaxRedirections] = maxRedirections;
         this[kMaxRequests] = maxRequestsPerClient;
@@ -10251,6 +10260,8 @@ var require_pool = __commonJS({
         tls,
         maxCachedSessions,
         socketPath,
+        autoSelectFamily,
+        autoSelectFamilyAttemptTimeout,
         ...options
       } = {}) {
         super();
@@ -10269,6 +10280,7 @@ var require_pool = __commonJS({
             maxCachedSessions,
             socketPath,
             timeout: connectTimeout == null ? 1e4 : connectTimeout,
+            ...util.nodeHasAutoSelectFamily && autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : void 0,
             ...connect
           });
         }
@@ -10496,7 +10508,7 @@ var require_fetch = __commonJS({
     var { kHeadersList } = require_symbols();
     var EE = require("events");
     var { Readable, pipeline } = require("stream");
-    var { isErrored, isReadable } = require_util();
+    var { isErrored, isReadable, nodeMajor, nodeMinor } = require_util();
     var { dataURLProcessor, serializeAMimeType } = require_dataURL();
     var { TransformStream } = require("stream/web");
     var { getGlobalDispatcher } = require_global2();
@@ -10504,9 +10516,6 @@ var require_fetch = __commonJS({
     var { STATUS_CODES } = require("http");
     var resolveObjectURL;
     var ReadableStream = globalThis.ReadableStream;
-    var nodeVersion = process.versions.node.split(".");
-    var nodeMajor = Number(nodeVersion[0]);
-    var nodeMinor = Number(nodeVersion[1]);
     var Fetch = class extends EE {
       constructor(dispatcher) {
         super();

@@ -20,10 +20,6 @@ const DecoratorHandler = require('./lib/handler/DecoratorHandler')
 const RedirectHandler = require('./lib/handler/RedirectHandler')
 const createRedirectInterceptor = require('./lib/interceptor/redirectInterceptor')
 
-const nodeVersion = process.versions.node.split('.')
-const nodeMajor = Number(nodeVersion[0])
-const nodeMinor = Number(nodeVersion[1])
-
 let hasCrypto
 try {
   require('crypto')
@@ -100,7 +96,7 @@ function makeDispatcher (fn) {
 module.exports.setGlobalDispatcher = setGlobalDispatcher
 module.exports.getGlobalDispatcher = getGlobalDispatcher
 
-if (nodeMajor > 16 || (nodeMajor === 16 && nodeMinor >= 8)) {
+if (util.nodeMajor > 16 || (util.nodeMajor === 16 && util.nodeMinor >= 8)) {
   let fetchImpl = null
   module.exports.fetch = async function fetch (resource) {
     if (!fetchImpl) {
@@ -127,7 +123,7 @@ if (nodeMajor > 16 || (nodeMajor === 16 && nodeMinor >= 8)) {
   module.exports.getGlobalOrigin = getGlobalOrigin
 }
 
-if (nodeMajor >= 16) {
+if (util.nodeMajor >= 16) {
   const { deleteCookie, getCookies, getSetCookies, setCookie } = require('./lib/cookies')
 
   module.exports.deleteCookie = deleteCookie
@@ -141,7 +137,7 @@ if (nodeMajor >= 16) {
   module.exports.serializeAMimeType = serializeAMimeType
 }
 
-if (nodeMajor >= 18 && hasCrypto) {
+if (util.nodeMajor >= 18 && hasCrypto) {
   const { WebSocket } = require('./lib/websocket/websocket')
 
   module.exports.WebSocket = WebSocket

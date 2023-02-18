@@ -34,10 +34,6 @@ const channels = {}
 
 let extractBody
 
-const nodeVersion = process.versions.node.split('.')
-const nodeMajor = Number(nodeVersion[0])
-const nodeMinor = Number(nodeVersion[1])
-
 try {
   const diagnosticsChannel = require('diagnostics_channel')
   channels.create = diagnosticsChannel.channel('undici:request:create')
@@ -172,7 +168,7 @@ class Request {
     }
 
     if (util.isFormDataLike(this.body)) {
-      if (nodeMajor < 16 || (nodeMajor === 16 && nodeMinor < 8)) {
+      if (util.nodeMajor < 16 || (util.nodeMajor === 16 && util.nodeMinor < 8)) {
         throw new InvalidArgumentError('Form-Data bodies are only supported in node v16.8 and newer.')
       }
 

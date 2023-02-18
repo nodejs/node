@@ -75,6 +75,7 @@ class HeadersList {
     if (init instanceof HeadersList) {
       this[kHeadersMap] = new Map(init[kHeadersMap])
       this[kHeadersSortedMap] = init[kHeadersSortedMap]
+      this.cookies = init.cookies
     } else {
       this[kHeadersMap] = new Map(init)
       this[kHeadersSortedMap] = null

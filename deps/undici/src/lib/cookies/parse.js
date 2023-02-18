@@ -2,7 +2,7 @@
 
 const { maxNameValuePairSize, maxAttributeValueSize } = require('./constants')
 const { isCTLExcludingHtab } = require('./util')
-const { collectASequenceOfCodePoints } = require('../fetch/dataURL')
+const { collectASequenceOfCodePointsFast } = require('../fetch/dataURL')
 const assert = require('assert')
 
 /**
@@ -32,7 +32,7 @@ function parseSetCookie (header) {
     //    (including the %x3B (";") in question).
     const position = { position: 0 }
 
-    nameValuePair = collectASequenceOfCodePoints((char) => char !== ';', header, position)
+    nameValuePair = collectASequenceOfCodePointsFast(';', header, position)
     unparsedAttributes = header.slice(position.position)
   } else {
     // Otherwise:
@@ -54,8 +54,8 @@ function parseSetCookie (header) {
     //    empty) value string consists of the characters after the first
     //    %x3D ("=") character.
     const position = { position: 0 }
-    name = collectASequenceOfCodePoints(
-      (char) => char !== '=',
+    name = collectASequenceOfCodePointsFast(
+      '=',
       nameValuePair,
       position
     )
@@ -106,8 +106,8 @@ function parseUnparsedAttributes (unparsedAttributes, cookieAttributeList = {}) 
   if (unparsedAttributes.includes(';')) {
     // 1. Consume the characters of the unparsed-attributes up to, but
     //    not including, the first %x3B (";") character.
-    cookieAv = collectASequenceOfCodePoints(
-      (char) => char !== ';',
+    cookieAv = collectASequenceOfCodePointsFast(
+      ';',
       unparsedAttributes,
       { position: 0 }
     )
@@ -134,8 +134,8 @@ function parseUnparsedAttributes (unparsedAttributes, cookieAttributeList = {}) 
     //    character.
     const position = { position: 0 }
 
-    attributeName = collectASequenceOfCodePoints(
-      (char) => char !== '=',
+    attributeName = collectASequenceOfCodePointsFast(
+      '=',
       cookieAv,
       position
     )

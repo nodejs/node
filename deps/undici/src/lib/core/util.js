@@ -10,6 +10,8 @@ const { Blob } = require('buffer')
 const nodeUtil = require('util')
 const { stringify } = require('querystring')
 
+const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(v => Number(v))
+
 function nop () {}
 
 function isStream (obj) {
@@ -420,5 +422,8 @@ module.exports = {
   validateHandler,
   getSocketInfo,
   isFormDataLike,
-  buildURL
+  buildURL,
+  nodeMajor,
+  nodeMinor,
+  nodeHasAutoSelectFamily: nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 13)
 }

@@ -74,7 +74,7 @@ Returns: `void | Promise<ConnectData>` - Only returns a `Promise` if no `callbac
 #### Parameter: `ConnectData`
 
 * **statusCode** `number`
-* **headers** `Record<string, string | string[]>`
+* **headers** `Record<string, string | string[] | undefined>`
 * **socket** `stream.Duplex`
 * **opaque** `unknown`
 
@@ -199,8 +199,8 @@ Returns: `Boolean` - `false` if dispatcher is busy and further dispatch calls wo
 * **idempotent** `boolean` (optional) - Default: `true` if `method` is `'HEAD'` or `'GET'` - Whether the requests can be safely retried or not. If `false` the request won't be sent until all preceding requests in the pipeline has completed.
 * **blocking** `boolean` (optional) - Default: `false` - Whether the response is expected to take a long time and would end up blocking the pipeline. When this is set to `true` further pipelining will be avoided on the same connection until headers have been received.
 * **upgrade** `string | null` (optional) - Default: `null` - Upgrade the request. Should be used to specify the kind of upgrade i.e. `'Websocket'`.
-* **bodyTimeout** `number | null` (optional) - The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Defaults to 30 seconds.
-* **headersTimeout** `number | null` (optional) - The amount of time the parser will wait to receive the complete HTTP headers while not sending the request. Defaults to 30 seconds.
+* **bodyTimeout** `number | null` (optional) - The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Defaults to 300 seconds.
+* **headersTimeout** `number | null` (optional) - The amount of time the parser will wait to receive the complete HTTP headers while not sending the request. Defaults to 300 seconds.
 * **throwOnError** `boolean` (optional) - Default: `false` - Whether Undici should throw an error upon receiving a 4xx or 5xx response from the server.
 
 #### Parameter: `DispatchHandler`
@@ -383,7 +383,7 @@ Extends: [`RequestOptions`](#parameter-requestoptions)
 #### Parameter: PipelineHandlerData
 
 * **statusCode** `number`
-* **headers** `Record<string, string | string[]>`
+* **headers** `Record<string, string | string[] | undefined>`
 * **opaque** `unknown`
 * **body** `stream.Readable`
 * **context** `object`
@@ -644,7 +644,7 @@ Returns: `void | Promise<StreamData>` - Only returns a `Promise` if no `callback
 #### Parameter: `StreamFactoryData`
 
 * **statusCode** `number`
-* **headers** `Record<string, string | string[]>`
+* **headers** `Record<string, string | string[] | undefined>`
 * **opaque** `unknown`
 * **onInfo** `({statusCode: number, headers: Record<string, string | string[]>}) => void | null` (optional) - Default: `null` - Callback collecting all the info headers (HTTP 100-199) received.
 
@@ -853,9 +853,9 @@ Emitted when dispatcher is no longer busy.
 
 ## Parameter: `UndiciHeaders`
 
-* `Record<string, string | string[]> | string[] | null`
+* `Record<string, string | string[] | undefined> | string[] | null`
 
-Header arguments such as `options.headers` in [`Client.dispatch`](Client.md#clientdispatchoptions-handlers) can be specified in two forms; either as an object specified by the `Record<string, string | string[]>` (`IncomingHttpHeaders`) type, or an array of strings. An array representation of a header list must have an even length or an `InvalidArgumentError` will be thrown.
+Header arguments such as `options.headers` in [`Client.dispatch`](Client.md#clientdispatchoptions-handlers) can be specified in two forms; either as an object specified by the `Record<string, string | string[] | undefined>` (`IncomingHttpHeaders`) type, or an array of strings. An array representation of a header list must have an even length or an `InvalidArgumentError` will be thrown.
 
 Keys are lowercase and values are not modified.
 

@@ -405,6 +405,18 @@ implementations in Deno and Cloudflare Workers.
 
 Refs: https://fetch.spec.whatwg.org/#atomic-http-redirect-handling
 
+## Workarounds
+
+### Network address family autoselection.
+
+If you experience problem when connecting to a remote server that is resolved by your DNS servers to a IPv6 (AAAA record)
+first, there are chances that your local router or ISP might have problem connecting to IPv6 networks. In that case
+undici will throw an error with code `UND_ERR_CONNECT_TIMEOUT`. 
+
+If the target server resolves to both a IPv6 and IPv4 (A records) address and you are using a compatible Node version 
+(18.3.0 and above), you can fix the problem by providing the `autoSelectFamily` option (support by both `undici.request`
+and `undici.Agent`) which will enable the family autoselection algorithm when establishing the connection.
+
 ## Collaborators
 
 * [__Daniele Belardi__](https://github.com/dnlup), <https://www.npmjs.com/~dnlup>
