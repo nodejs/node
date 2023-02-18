@@ -20,8 +20,8 @@
   *
   *
 
- sync skip pass (*ms)
- sync skip pass with message (*ms)
+ sync skip pass (*ms) # SKIP
+ sync skip pass with message (*ms) # SKIP
  sync pass (*ms)
  this test should pass
  sync throw fail (*ms)
@@ -34,7 +34,7 @@
   *
   *
 
- async skip pass (*ms)
+ async skip pass (*ms) # SKIP
  async pass (*ms)
  async throw fail (*ms)
   Error: thrown from async throw fail
@@ -46,7 +46,7 @@
   *
   *
 
- async skip fail (*ms)
+ async skip fail (*ms) # SKIP
   Error: thrown from async throw fail
   *
   *
@@ -129,8 +129,8 @@
  top level (*ms)
 
  invalid subtest - pass but subtest fails (*ms)
- sync skip option (*ms)
- sync skip option with message (*ms)
+ sync skip option (*ms) # SKIP
+ sync skip option with message (*ms) # SKIP
  sync skip option is false fail (*ms)
   Error: this should be executed
   *
@@ -146,13 +146,13 @@
  <anonymous> (*ms)
  test with only a name provided (*ms)
  <anonymous> (*ms)
- <anonymous> (*ms)
- test with a name and options provided (*ms)
- functionAndOptions (*ms)
+ <anonymous> (*ms) # SKIP
+ test with a name and options provided (*ms) # SKIP
+ functionAndOptions (*ms) # SKIP
  escaped description \ # *
  	 *
  (*ms)
- escaped skip message (*ms)
+ escaped skip message (*ms) # SKIP
  escaped todo message (*ms)
  escaped diagnostic (*ms)
  #diagnostic
