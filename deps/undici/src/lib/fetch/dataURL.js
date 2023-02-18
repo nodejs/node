@@ -556,6 +556,7 @@ module.exports = {
   dataURLProcessor,
   URLSerializer,
   collectASequenceOfCodePoints,
+  collectASequenceOfCodePointsFast,
   stringPercentDecode,
   parseMIMEType,
   collectAnHTTPQuotedString,
