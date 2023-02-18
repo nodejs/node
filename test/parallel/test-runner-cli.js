@@ -28,11 +28,10 @@ const testFixtures = fixtures.path('test-runner');
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
-  assert.match(stdout, /ok 1 - .+index\.test\.js/);
-  assert.match(stdout, /not ok 2 - .+random\.test\.mjs/);
-  assert.match(stdout, /not ok 1 - this should fail/);
+  assert.match(stdout, /ok 1 - this should pass/);
+  assert.match(stdout, /not ok 2 - this should fail/);
   assert.match(stdout, /ok 3 - .+subdir.+subdir_test\.js/);
-  assert.match(stdout, /ok 4 - .+random\.cjs/);
+  assert.match(stdout, /ok 4 - this should pass/);
 }
 
 {
@@ -41,11 +40,10 @@ const testFixtures = fixtures.path('test-runner');
   const child = spawnSync(process.execPath, args);
 
   const stdout = child.stdout.toString();
-  assert.match(stdout, /ok 1 - .+index\.test\.js/);
-  assert.match(stdout, /not ok 2 - .+random\.test\.mjs/);
-  assert.match(stdout, /not ok 1 - this should fail/);
+  assert.match(stdout, /ok 1 - this should pass/);
+  assert.match(stdout, /not ok 2 - this should fail/);
   assert.match(stdout, /ok 3 - .+subdir.+subdir_test\.js/);
-  assert.match(stdout, /ok 4 - .+random\.cjs/);
+  assert.match(stdout, /ok 4 - this should pass/);
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
@@ -61,10 +59,10 @@ const testFixtures = fixtures.path('test-runner');
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
   assert.match(stdout, /not ok 1 - .+index\.js/);
-  assert.match(stdout, /ok 2 - .+index\.test\.js/);
-  assert.match(stdout, /not ok 3 - .+random\.test\.mjs/);
-  assert.match(stdout, /not ok 1 - this should fail/);
+  assert.match(stdout, /ok 2 - this should pass/);
+  assert.match(stdout, /not ok 3 - this should fail/);
   assert.match(stdout, /ok 4 - .+subdir.+subdir_test\.js/);
+  assert.match(stdout, /ok 5 - this should pass/);
 }
 
 {
@@ -89,11 +87,10 @@ const testFixtures = fixtures.path('test-runner');
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
-  assert.match(stdout, /ok 1 - .+index\.test\.js/);
-  assert.match(stdout, /not ok 2 - .+random\.test\.mjs/);
-  assert.match(stdout, /not ok 1 - this should fail/);
+  assert.match(stdout, /ok 1 - this should pass/);
+  assert.match(stdout, /not ok 2 - this should fail/);
   assert.match(stdout, /ok 3 - .+subdir.+subdir_test\.js/);
-  assert.match(stdout, /ok 4 - .+random\.cjs/);
+  assert.match(stdout, /ok 4 - this should pass/);
 }
 
 {
@@ -131,42 +128,36 @@ const testFixtures = fixtures.path('test-runner');
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
-  assert.match(stdout, /# Subtest: .+index\.test\.js/);
-  assert.match(stdout, / {4}# Subtest: this should pass/);
-  assert.match(stdout, / {4}ok 1 - this should pass/);
-  assert.match(stdout, / {6}---/);
-  assert.match(stdout, / {6}duration_ms: .*/);
-  assert.match(stdout, / {6}\.\.\./);
-  assert.match(stdout, / {4}1\.\.1/);
-
-  assert.match(stdout, /ok 1 - .+index\.test\.js/);
+  assert.match(stdout, /# Subtest: this should pass/);
+  assert.match(stdout, /ok 1 - this should pass/);
+  assert.match(stdout, / {2}---/);
+  assert.match(stdout, / {2}duration_ms: .*/);
+  assert.match(stdout, / {2}\.\.\./);
 
   assert.match(stdout, /# Subtest: .+invalid-tap\.js/);
-  assert.match(stdout, / {4}# invalid tap output/);
+  assert.match(stdout, /# invalid tap output/);
   assert.match(stdout, /ok 2 - .+invalid-tap\.js/);
 
-  assert.match(stdout, /# Subtest: .+nested\.js/);
-  assert.match(stdout, / {4}# Subtest: level 0a/);
-  assert.match(stdout, / {8}# Subtest: level 1a/);
-  assert.match(stdout, / {8}ok 1 - level 1a/);
-  assert.match(stdout, / {8}# Subtest: level 1b/);
-  assert.match(stdout, / {8}not ok 2 - level 1b/);
-  assert.match(stdout, / {10}code: 'ERR_TEST_FAILURE'/);
-  assert.match(stdout, / {10}stack: |-'/);
-  assert.match(stdout, / {12}TestContext\.<anonymous> .*/);
-  assert.match(stdout, / {8}# Subtest: level 1c/);
-  assert.match(stdout, / {8}ok 3 - level 1c # SKIP aaa/);
-  assert.match(stdout, / {8}# Subtest: level 1d/);
-  assert.match(stdout, / {8}ok 4 - level 1d/);
-  assert.match(stdout, / {4}not ok 1 - level 0a/);
-  assert.match(stdout, / {6}error: '1 subtest failed'/);
-  assert.match(stdout, / {4}# Subtest: level 0b/);
-  assert.match(stdout, / {4}not ok 2 - level 0b/);
-  assert.match(stdout, / {6}error: 'level 0b error'/);
-  assert.match(stdout, /not ok 3 - .+nested\.js/);
-  assert.match(stdout, /# tests 3/);
+  assert.match(stdout, /# Subtest: level 0a/);
+  assert.match(stdout, / {4}# Subtest: level 1a/);
+  assert.match(stdout, / {4}ok 1 - level 1a/);
+  assert.match(stdout, / {4}# Subtest: level 1b/);
+  assert.match(stdout, / {4}not ok 2 - level 1b/);
+  assert.match(stdout, / {6}code: 'ERR_TEST_FAILURE'/);
+  assert.match(stdout, / {6}stack: |-'/);
+  assert.match(stdout, / {8}TestContext\.<anonymous> .*/);
+  assert.match(stdout, / {4}# Subtest: level 1c/);
+  assert.match(stdout, / {4}ok 3 - level 1c # SKIP aaa/);
+  assert.match(stdout, / {4}# Subtest: level 1d/);
+  assert.match(stdout, / {4}ok 4 - level 1d/);
+  assert.match(stdout, /not ok 3 - level 0a/);
+  assert.match(stdout, / {2}error: '1 subtest failed'/);
+  assert.match(stdout, /# Subtest: level 0b/);
+  assert.match(stdout, /not ok 4 - level 0b/);
+  assert.match(stdout, / {2}error: 'level 0b error'/);
+  assert.match(stdout, /# tests 4/);
   assert.match(stdout, /# pass 2/);
-  assert.match(stdout, /# fail 1/);
+  assert.match(stdout, /# fail 2/);
 }
 
 {
@@ -181,16 +172,15 @@ const testFixtures = fixtures.path('test-runner');
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
-  assert.match(stdout, /# Subtest: .+user-logs\.js/);
-  assert.match(stdout, / {4}# stderr 1/);
-  assert.match(stdout, / {4}# stderr 2/);
-  assert.match(stdout, / {4}# stdout 3/);
-  assert.match(stdout, / {4}# stderr 6/);
-  assert.match(stdout, / {4}# not ok 1 - fake test/);
-  assert.match(stdout, / {4}# stderr 5/);
-  assert.match(stdout, / {4}# stdout 4/);
-  assert.match(stdout, / {4}# Subtest: a test/);
-  assert.match(stdout, / {4}ok 1 - a test/);
+  assert.match(stdout, /# stderr 1/);
+  assert.match(stdout, /# stderr 2/);
+  assert.match(stdout, /# stdout 3/);
+  assert.match(stdout, /# stderr 6/);
+  assert.match(stdout, /# not ok 1 - fake test/);
+  assert.match(stdout, /# stderr 5/);
+  assert.match(stdout, /# stdout 4/);
+  assert.match(stdout, /# Subtest: a test/);
+  assert.match(stdout, /ok 1 - a test/);
   assert.match(stdout, /# tests 1/);
   assert.match(stdout, /# pass 1/);
 }
