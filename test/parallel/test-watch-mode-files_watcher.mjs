@@ -104,6 +104,7 @@ describe('watch mode file watcher', () => {
        watcher.watchPath(tmpdir.path);
 
        const changed = once(watcher, 'changed');
+       await setTimeout(common.platformTimeout(100)); // avoid throttling
        writeFileSync(file, 'changed');
        await changed;
        assert.strictEqual(changesCount, 1);
