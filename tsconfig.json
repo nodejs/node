@@ -21,12 +21,11 @@
     "./typings/primordials.d.ts"
   ],
   "compilerOptions": {
-    "allowJs": true,
-    "checkJs": false,
-    "noEmit": true,
-    "lib": ["ESNext"],
-    "target": "ESNext",
-    "module": "CommonJS",
+    "module": "commonjs",
+    "noImplicitAny": true,
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "sourceMap": true
     "baseUrl": ".",
     "paths": {
       "_http_agent": ["./lib/_http_agent.js"],
