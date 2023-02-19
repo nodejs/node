@@ -54,7 +54,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           SHORT_SHA=$(node -p 'process.version.split(/-nightly\d{8}/)[1]')
-          echo "NIGHTLY_REF=$(gh api /repos/nodejs/node/commits/$SHORT_SHA | jq -r '.sha')" >> $GITHUB_ENV
+          echo "NIGHTLY_REF=$(gh api /repos/nodejs/node/commits/$SHORT_SHA --jq '.sha')" >> $GITHUB_ENV
       - name: Checkout ${{ steps.setup-node.outputs.node-version }}
         uses: actions/checkout@v3
         with:
@@ -62,6 +62,10 @@ jobs:
           ref: ${{ env.NIGHTLY_REF || steps.setup-node.outputs.node-version }}
       - name: Set env.NODE
         run: echo "NODE=$(which node)" >> $GITHUB_ENV
+      - name: Set env.WPT_DAILY_REF
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "WPT_DAILY_REF=$(gh api /repos/web-platform-tests/wpt/branches/epochs/daily --jq '.commit.sha')" >> $GITHUB_ENV
 
       # replace checked out WPT with the synchronized branch
       - name: Remove stale WPT
@@ -74,7 +78,7 @@ jobs:
           persist-credentials: false
           path: test/fixtures/wpt
           clean: false
-          ref: epochs/daily
+          ref: ${{ env.WPT_DAILY_REF }}
       - name: Set env.WPT_REVISION
         run: echo "WPT_REVISION=$(git rev-parse HEAD)" >> $GITHUB_ENV
         working-directory: test/fixtures/wpt
