@@ -2,7 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { Readable, Writable, Transform, pipeline } = require('stream');
+const { Readable, Writable, Transform, pipeline, PassThrough } = require('stream');
 const { pipeline: pipelinePromise } = require('stream/promises');
 const { ReadableStream, WritableStream, TransformStream } = require('stream/web');
 const http = require('http');
@@ -409,4 +409,14 @@ const http = require('http');
     c.enqueue(`${i}`);
   }
   c.close();
+}
+
+{
+  const rs = new ReadableStream({
+    start(controller) {
+      controller.close();
+    }
+  });
+
+  pipeline(rs, new PassThrough(), common.mustSucceed());
 }
