@@ -604,8 +604,8 @@ safer to use a registry-provided authentication bearer token stored in the
   current level
 * Type: null, "restricted", or "public"
 
-If do not want your scoped package to be publicly viewable (and installable)
-set \`--access=restricted\`.
+If you do not want your scoped package to be publicly viewable (and
+installable) set \`--access=restricted\`.
 
 Unscoped packages can not be set to \`restricted\`.
 
@@ -654,7 +654,8 @@ exit code.
 * Default: "web"
 * Type: "legacy" or "web"
 
-What authentication strategy to use with \`login\`.
+What authentication strategy to use with \`login\`. Note that if an \`otp\`
+config is given, this value will always be set to \`legacy\`.
 
 #### \`before\`
 
@@ -1152,7 +1153,7 @@ number, if not already set in package.json.
 
 #### \`install-links\`
 
-* Default: true
+* Default: false
 * Type: Boolean
 
 When set file: protocol dependencies will be packed and installed as regular
@@ -1162,13 +1163,13 @@ workspaces.
 #### \`install-strategy\`
 
 * Default: "hoisted"
-* Type: "hoisted", "nested", or "shallow"
+* Type: "hoisted", "nested", "shallow", or "linked"
 
 Sets the strategy for installing packages in node_modules. hoisted
 (default): Install non-duplicated in top-level, and duplicated as necessary
 within directory structure. nested: (formerly --legacy-bundling) install in
 place, no hoisting. shallow (formerly --global-style) only install direct
-deps at top-level. linked: (coming soon) install in node_modules/.store,
+deps at top-level. linked: (experimental) install in node_modules/.store,
 link in place, unhoisted.
 
 #### \`json\`
@@ -1466,6 +1467,13 @@ operations, if \`process.stderr\` is a TTY.
 
 Set to \`false\` to suppress the progress bar.
 
+#### \`provenance\`
+
+* Default: false
+* Type: Boolean
+
+Indicates that a provenance statement should be generated.
+
 #### \`proxy\`
 
 * Default: null
@@ -1702,7 +1710,7 @@ be resolved using the nearest non-peer dependency specification, even if
 doing so will result in some packages receiving a peer dependency outside
 the range set in their package's \`peerDependencies\` object.
 
-When such and override is performed, a warning is printed, explaining the
+When such an override is performed, a warning is printed, explaining the
 conflict and the packages involved. If \`--strict-peer-deps\` is set, then
 this warning is treated as a failure.
 
@@ -1983,7 +1991,7 @@ Alias for \`--include=dev\`.
   \`--install-strategy=shallow\`
 
 Only install direct dependencies in the top level \`node_modules\`, but hoist
-on deeper dependendencies. Sets \`--install-strategy=shallow\`.
+on deeper dependencies. Sets \`--install-strategy=shallow\`.
 
 #### \`init.author.email\`
 
@@ -2218,6 +2226,7 @@ Array [
   "preid",
   "production",
   "progress",
+  "provenance",
   "proxy",
   "read-only",
   "rebuild-bundle",
@@ -2352,6 +2361,7 @@ Array [
   "preid",
   "production",
   "progress",
+  "provenance",
   "proxy",
   "read-only",
   "rebuild-bundle",
@@ -2380,6 +2390,7 @@ Array [
   "tag",
   "tag-version-prefix",
   "umask",
+  "unicode",
   "user-agent",
   "workspace",
   "workspaces",
@@ -2409,7 +2420,6 @@ Array [
   "prefix",
   "timing",
   "tmp",
-  "unicode",
   "update-notifier",
   "usage",
   "userconfig",
@@ -2491,6 +2501,8 @@ npm access grant <read-only|read-write> <scope:team> [<package>]
 npm access revoke <scope:team> [<package>]
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`json\`
 #### \`otp\`
 #### \`registry\`
@@ -2515,6 +2527,8 @@ npm adduser
 alias: add-user
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`registry\`
 #### \`scope\`
 #### \`auth-type\`
@@ -2532,7 +2546,7 @@ Options:
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--foreground-scripts] [--ignore-scripts]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
+[-ws|--workspaces] [--include-workspace-root] [--install-links]
 
 Run "npm help audit" for more info
 
@@ -2603,6 +2617,8 @@ npm cache ls [<name>@<version>]
 npm cache verify
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`cache\`
 `
 
@@ -2614,13 +2630,13 @@ npm ci
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-E|--save-exact] [-g|--global] [--install-strategy <hoisted|nested|shallow>]
-[--legacy-bundling] [--global-style]
-[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+[-E|--save-exact] [-g|--global]
+[--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
+[--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
+[-ws|--workspaces] [--include-workspace-root] [--install-links]
 
 aliases: clean-install, ic, install-clean, isntall-clean
 
@@ -2665,6 +2681,8 @@ Run "npm help completion" for more info
 npm completion
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 NO PARAMS
 `
 
@@ -2698,6 +2716,8 @@ npm config fix
 alias: c
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`json\`
 #### \`global\`
 #### \`editor\`
@@ -2712,12 +2732,12 @@ Usage:
 npm dedupe
 
 Options:
-[--install-strategy <hoisted|nested|shallow>] [--legacy-bundling]
+[--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
 [--global-style] [--strict-peer-deps] [--no-package-lock]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
 [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
+[-ws|--workspaces] [--include-workspace-root] [--install-links]
 
 alias: ddp
 
@@ -2760,6 +2780,8 @@ Run "npm help deprecate" for more info
 \`\`\`bash
 npm deprecate <package-spec> <message>
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`registry\`
 #### \`otp\`
@@ -2872,6 +2894,8 @@ Run "npm help doctor" for more info
 npm doctor [ping] [registry] [versions] [environment] [permissions] [cache]
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`registry\`
 `
 
@@ -2889,6 +2913,8 @@ Run "npm help edit" for more info
 \`\`\`bash
 npm edit <pkg>[/<subpkg>...]
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`editor\`
 `
@@ -2965,6 +2991,8 @@ Run "npm help explore" for more info
 npm explore <pkg> [ -- <command>]
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`shell\`
 `
 
@@ -2975,12 +3003,12 @@ Usage:
 npm find-dupes
 
 Options:
-[--install-strategy <hoisted|nested|shallow>] [--legacy-bundling]
+[--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
 [--global-style] [--strict-peer-deps] [--no-package-lock]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
 [--no-audit] [--no-bin-links] [--no-fund]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
+[-ws|--workspaces] [--include-workspace-root] [--install-links]
 
 Run "npm help find-dupes" for more info
 
@@ -3040,6 +3068,8 @@ Run "npm help get" for more info
 npm get [<key> ...] (See \`npm config\`)
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 NO PARAMS
 `
 
@@ -3062,6 +3092,8 @@ npm help <term> [<terms..>]
 alias: hlep
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`viewer\`
 `
 
@@ -3079,6 +3111,8 @@ Run "npm help help-search" for more info
 \`\`\`bash
 npm help-search <text>
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`long\`
 `
@@ -3104,6 +3138,8 @@ npm hook rm <id>
 npm hook update <id> <url> <secret>
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`registry\`
 #### \`otp\`
 `
@@ -3112,7 +3148,7 @@ exports[`test/lib/docs.js TAP usage init > must match snapshot 1`] = `
 Create a package.json file
 
 Usage:
-npm init <package-spec> (same as \`npx <package-spec>)
+npm init <package-spec> (same as \`npx <package-spec>\`)
 npm init <@scope> (same as \`npx <@scope>/create\`)
 
 Options:
@@ -3125,7 +3161,7 @@ aliases: create, innit
 Run "npm help init" for more info
 
 \`\`\`bash
-npm init <package-spec> (same as \`npx <package-spec>)
+npm init <package-spec> (same as \`npx <package-spec>\`)
 npm init <@scope> (same as \`npx <@scope>/create\`)
 
 aliases: create, innit
@@ -3148,13 +3184,13 @@ npm install [<package-spec> ...]
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-E|--save-exact] [-g|--global] [--install-strategy <hoisted|nested|shallow>]
-[--legacy-bundling] [--global-style]
-[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+[-E|--save-exact] [-g|--global]
+[--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
+[--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
+[-ws|--workspaces] [--include-workspace-root] [--install-links]
 
 aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 
@@ -3195,13 +3231,13 @@ npm install-ci-test
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-E|--save-exact] [-g|--global] [--install-strategy <hoisted|nested|shallow>]
-[--legacy-bundling] [--global-style]
-[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+[-E|--save-exact] [-g|--global]
+[--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
+[--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
+[-ws|--workspaces] [--include-workspace-root] [--install-links]
 
 alias: cit
 
@@ -3242,13 +3278,13 @@ npm install-test [<package-spec> ...]
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-E|--save-exact] [-g|--global] [--install-strategy <hoisted|nested|shallow>]
-[--legacy-bundling] [--global-style]
-[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+[-E|--save-exact] [-g|--global]
+[--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
+[--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
+[-ws|--workspaces] [--include-workspace-root] [--install-links]
 
 alias: it
 
@@ -3289,12 +3325,13 @@ npm link [<package-spec>]
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-E|--save-exact] [-g|--global] [--install-strategy <hoisted|nested|shallow>]
-[--legacy-bundling] [--global-style] [--strict-peer-deps] [--no-package-lock]
+[-E|--save-exact] [-g|--global]
+[--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
+[--global-style] [--strict-peer-deps] [--no-package-lock]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
 [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
+[-ws|--workspaces] [--include-workspace-root] [--install-links]
 
 alias: ln
 
@@ -3337,7 +3374,7 @@ Options:
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--link]
 [--package-lock-only] [--unicode]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
+[-ws|--workspaces] [--include-workspace-root] [--install-links]
 
 alias: la
 
@@ -3380,6 +3417,8 @@ Run "npm help login" for more info
 npm login
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`registry\`
 #### \`scope\`
 #### \`auth-type\`
@@ -3400,6 +3439,8 @@ Run "npm help logout" for more info
 npm logout
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`registry\`
 #### \`scope\`
 `
@@ -3415,7 +3456,7 @@ Options:
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--link]
 [--package-lock-only] [--unicode]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
+[-ws|--workspaces] [--include-workspace-root] [--install-links]
 
 alias: list
 
@@ -3447,6 +3488,8 @@ exports[`test/lib/docs.js TAP usage npm > must match snapshot 1`] = `
 \`\`\`bash
 npm
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 NO PARAMS
 `
@@ -3484,6 +3527,8 @@ npm org ls orgname [<username>]
 
 alias: ogr
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`registry\`
 #### \`otp\`
@@ -3586,6 +3631,8 @@ Run "npm help ping" for more info
 npm ping
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`registry\`
 `
 
@@ -3635,6 +3682,8 @@ Run "npm help prefix" for more info
 npm prefix [-g]
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`global\`
 `
 
@@ -3659,6 +3708,8 @@ npm profile get [<key>]
 npm profile set <key> <value>
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`registry\`
 #### \`json\`
 #### \`parseable\`
@@ -3675,7 +3726,7 @@ Options:
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--dry-run]
 [--json] [--foreground-scripts] [--ignore-scripts]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
+[-ws|--workspaces] [--include-workspace-root] [--install-links]
 
 Run "npm help prune" for more info
 
@@ -3703,7 +3754,7 @@ npm publish <package-spec>
 Options:
 [--tag <tag>] [--access <restricted|public>] [--dry-run] [--otp <otp>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
+[-ws|--workspaces] [--include-workspace-root] [--provenance]
 
 Run "npm help publish" for more info
 
@@ -3718,6 +3769,7 @@ npm publish <package-spec>
 #### \`workspace\`
 #### \`workspaces\`
 #### \`include-workspace-root\`
+#### \`provenance\`
 `
 
 exports[`test/lib/docs.js TAP usage query > must match snapshot 1`] = `
@@ -3752,7 +3804,7 @@ npm rebuild [<package-spec>] ...]
 Options:
 [-g|--global] [--no-bin-links] [--foreground-scripts] [--ignore-scripts]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
+[-ws|--workspaces] [--include-workspace-root] [--install-links]
 
 alias: rb
 
@@ -3832,6 +3884,8 @@ Run "npm help root" for more info
 npm root
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`global\`
 `
 
@@ -3886,6 +3940,8 @@ npm search [search terms ...]
 aliases: find, s, se
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`long\`
 #### \`json\`
 #### \`color\`
@@ -3911,6 +3967,8 @@ Run "npm help set" for more info
 npm set <key>=<value> [<key>=<value> ...] (See \`npm config\`)
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 NO PARAMS
 `
 
@@ -3925,6 +3983,8 @@ Run "npm help shrinkwrap" for more info
 \`\`\`bash
 npm shrinkwrap
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 NO PARAMS
 `
@@ -3943,6 +4003,8 @@ Run "npm help star" for more info
 \`\`\`bash
 npm star [<package-spec>...]
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`registry\`
 #### \`unicode\`
@@ -3963,6 +4025,8 @@ Run "npm help stars" for more info
 \`\`\`bash
 npm stars [<user>]
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`registry\`
 `
@@ -4028,6 +4092,8 @@ npm team rm <scope:team> <user> [--otp <otpcode>]
 npm team ls <scope>|<scope:team>
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`registry\`
 #### \`otp\`
 #### \`parseable\`
@@ -4077,6 +4143,8 @@ npm token revoke <id|token>
 npm token create [--read-only] [--cidr=list]
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`read-only\`
 #### \`cidr\`
 #### \`registry\`
@@ -4092,7 +4160,7 @@ npm uninstall [<@scope>/]<pkg>...
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
+[-ws|--workspaces] [--include-workspace-root] [--install-links]
 
 aliases: unlink, remove, rm, r, un
 
@@ -4149,6 +4217,8 @@ Run "npm help unstar" for more info
 npm unstar [<package-spec>...]
 \`\`\`
 
+Note: This command is unaware of workspaces.
+
 #### \`registry\`
 #### \`unicode\`
 #### \`otp\`
@@ -4162,12 +4232,13 @@ npm update [<pkg>...]
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[-g|--global] [--install-strategy <hoisted|nested|shallow>] [--legacy-bundling]
-[--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+[-g|--global] [--install-strategy <hoisted|nested|shallow|linked>]
+[--legacy-bundling] [--global-style]
+[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
 [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
 [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--no-install-links]
+[-ws|--workspaces] [--include-workspace-root] [--install-links]
 
 aliases: up, upgrade, udpate
 
@@ -4273,6 +4344,8 @@ Run "npm help whoami" for more info
 \`\`\`bash
 npm whoami
 \`\`\`
+
+Note: This command is unaware of workspaces.
 
 #### \`registry\`
 `

@@ -144,7 +144,7 @@ try {
 } catch (error) {
   console.error(error);
 }
-// Output: { type: 'number', value: 4, description: '4' }
+// Output: { result: { type: 'number', value: 4, description: '4' } }
 ```
 
 The latest version of the V8 inspector protocol is published on the
@@ -324,6 +324,10 @@ Node.js inspector supports all the Chrome DevTools Protocol domains declared
 by V8. Chrome DevTools Protocol domain provides an interface for interacting
 with one of the runtime agents used to inspect the application state and listen
 to the run-time events.
+
+You can not set `reportProgress` to `true` when sending a
+`HeapProfiler.takeHeapSnapshot` or `HeapProfiler.stopTrackingHeapObjects`
+command to V8.
 
 #### Example usage
 

@@ -1,7 +1,8 @@
-#include "util-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "gtest/gtest.h"
+#include "simdutf.h"
+#include "util-inl.h"
 
 using node::Calloc;
 using node::Malloc;

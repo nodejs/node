@@ -44,7 +44,7 @@ class MemoryRetainerNode : public v8::EmbedderGraph::Node {
     is_root_node_ = is_root_node;
   }
 
-  const char* Name() override { return name_.c_str(); }
+  const char* Name() override { return name_; }
   const char* NamePrefix() override { return "Node /"; }
   size_t SizeInBytes() override { return size_; }
   // TODO(addaleax): Merging this with the "official" WrapperNode() method
@@ -75,7 +75,7 @@ class MemoryRetainerNode : public v8::EmbedderGraph::Node {
 
   // Otherwise (retainer == nullptr), we set these fields in an ad-hoc way
   bool is_root_node_ = false;
-  std::string name_;
+  const char* name_;
   size_t size_ = 0;
   v8::EmbedderGraph::Node::Detachedness detachedness_ =
       v8::EmbedderGraph::Node::Detachedness::kUnknown;
@@ -318,8 +318,8 @@ MemoryRetainerNode* MemoryTracker::AddNode(const MemoryRetainer* retainer,
   if (CurrentNode() != nullptr) graph_->AddEdge(CurrentNode(), n, edge_name);
 
   if (n->JSWrapperNode() != nullptr) {
-    graph_->AddEdge(n, n->JSWrapperNode(), "wrapped");
-    graph_->AddEdge(n->JSWrapperNode(), n, "wrapper");
+    graph_->AddEdge(n, n->JSWrapperNode(), "native_to_javascript");
+    graph_->AddEdge(n->JSWrapperNode(), n, "javascript_to_native");
   }
 
   return n;

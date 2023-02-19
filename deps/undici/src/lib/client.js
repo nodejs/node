@@ -5,6 +5,7 @@
 const assert = require('assert')
 const net = require('net')
 const util = require('./core/util')
+const timers = require('./timers')
 const Request = require('./core/request')
 const DispatcherBase = require('./dispatcher-base')
 const {
@@ -65,6 +66,7 @@ const {
   kLocalAddress,
   kMaxResponseSize
 } = require('./core/symbols')
+const FastBuffer = Buffer[Symbol.species]
 
 const kClosedResolve = Symbol('kClosedResolve')
 
@@ -107,7 +109,9 @@ class Client extends DispatcherBase {
     connect,
     maxRequestsPerClient,
     localAddress,
-    maxResponseSize
+    maxResponseSize,
+    autoSelectFamily,
+    autoSelectFamilyAttemptTimeout
   } = {}) {
     super()
 
@@ -183,12 +187,20 @@ class Client extends DispatcherBase {
       throw new InvalidArgumentError('maxResponseSize must be a positive number')
     }
 
+    if (
+      autoSelectFamilyAttemptTimeout != null &&
+      (!Number.isInteger(autoSelectFamilyAttemptTimeout) || autoSelectFamilyAttemptTimeout < -1)
+    ) {
+      throw new InvalidArgumentError('autoSelectFamilyAttemptTimeout must be a positive number')
+    }
+
     if (typeof connect !== 'function') {
       connect = buildConnector({
         ...tls,
         maxCachedSessions,
         socketPath,
         timeout: connectTimeout,
+        ...(util.nodeHasAutoSelectFamily && autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
         ...connect
       })
     }
@@ -210,8 +222,8 @@ class Client extends DispatcherBase {
     this[kResuming] = 0 // 0, idle, 1, scheduled, 2 resuming
     this[kNeedDrain] = 0 // 0, idle, 1, scheduled, 2 resuming
     this[kHostHeader] = `host: ${this[kUrl].hostname}${this[kUrl].port ? `:${this[kUrl].port}` : ''}\r\n`
-    this[kBodyTimeout] = bodyTimeout != null ? bodyTimeout : 30e3
-    this[kHeadersTimeout] = headersTimeout != null ? headersTimeout : 30e3
+    this[kBodyTimeout] = bodyTimeout != null ? bodyTimeout : 300e3
+    this[kHeadersTimeout] = headersTimeout != null ? headersTimeout : 300e3
     this[kStrictContentLength] = strictContentLength == null ? true : strictContentLength
     this[kMaxRedirections] = maxRedirections
     this[kMaxRequests] = maxRequestsPerClient
@@ -362,9 +374,8 @@ async function lazyllhttp () {
       },
       wasm_on_status: (p, at, len) => {
         assert.strictEqual(currentParser.ptr, p)
-        const start = at - currentBufferPtr
-        const end = start + len
-        return currentParser.onStatus(currentBufferRef.slice(start, end)) || 0
+        const start = at - currentBufferPtr + currentBufferRef.byteOffset
+        return currentParser.onStatus(new FastBuffer(currentBufferRef.buffer, start, len)) || 0
       },
       wasm_on_message_begin: (p) => {
         assert.strictEqual(currentParser.ptr, p)
@@ -372,15 +383,13 @@ async function lazyllhttp () {
       },
       wasm_on_header_field: (p, at, len) => {
         assert.strictEqual(currentParser.ptr, p)
-        const start = at - currentBufferPtr
-        const end = start + len
-        return currentParser.onHeaderField(currentBufferRef.slice(start, end)) || 0
+        const start = at - currentBufferPtr + currentBufferRef.byteOffset
+        return currentParser.onHeaderField(new FastBuffer(currentBufferRef.buffer, start, len)) || 0
       },
       wasm_on_header_value: (p, at, len) => {
         assert.strictEqual(currentParser.ptr, p)
-        const start = at - currentBufferPtr
-        const end = start + len
-        return currentParser.onHeaderValue(currentBufferRef.slice(start, end)) || 0
+        const start = at - currentBufferPtr + currentBufferRef.byteOffset
+        return currentParser.onHeaderValue(new FastBuffer(currentBufferRef.buffer, start, len)) || 0
       },
       wasm_on_headers_complete: (p, statusCode, upgrade, shouldKeepAlive) => {
         assert.strictEqual(currentParser.ptr, p)
@@ -388,9 +397,8 @@ async function lazyllhttp () {
       },
       wasm_on_body: (p, at, len) => {
         assert.strictEqual(currentParser.ptr, p)
-        const start = at - currentBufferPtr
-        const end = start + len
-        return currentParser.onBody(currentBufferRef.slice(start, end)) || 0
+        const start = at - currentBufferPtr + currentBufferRef.byteOffset
+        return currentParser.onBody(new FastBuffer(currentBufferRef.buffer, start, len)) || 0
       },
       wasm_on_message_complete: (p) => {
         assert.strictEqual(currentParser.ptr, p)
@@ -404,8 +412,7 @@ async function lazyllhttp () {
 
 let llhttpInstance = null
 let llhttpPromise = lazyllhttp()
-  .catch(() => {
-  })
+llhttpPromise.catch()
 
 let currentParser = null
 let currentBufferRef = null
@@ -441,15 +448,16 @@ class Parser {
 
     this.keepAlive = ''
     this.contentLength = ''
+    this.connection = ''
     this.maxResponseSize = client[kMaxResponseSize]
   }
 
   setTimeout (value, type) {
     this.timeoutType = type
     if (value !== this.timeoutValue) {
-      clearTimeout(this.timeout)
+      timers.clearTimeout(this.timeout)
       if (value) {
-        this.timeout = setTimeout(onParserTimeout, value, this)
+        this.timeout = timers.setTimeout(onParserTimeout, value, this)
         // istanbul ignore else: only for jest
         if (this.timeout.unref) {
           this.timeout.unref()
@@ -565,7 +573,7 @@ class Parser {
     this.llhttp.llhttp_free(this.ptr)
     this.ptr = null
 
-    clearTimeout(this.timeout)
+    timers.clearTimeout(this.timeout)
     this.timeout = null
     this.timeoutValue = null
     this.timeoutType = null
@@ -616,6 +624,8 @@ class Parser {
     const key = this.headers[len - 2]
     if (key.length === 10 && key.toString().toLowerCase() === 'keep-alive') {
       this.keepAlive += buf.toString()
+    } else if (key.length === 10 && key.toString().toLowerCase() === 'connection') {
+      this.connection += buf.toString()
     } else if (key.length === 14 && key.toString().toLowerCase() === 'content-length') {
       this.contentLength += buf.toString()
     }
@@ -709,7 +719,11 @@ class Parser {
     assert.strictEqual(this.timeoutType, TIMEOUT_HEADERS)
 
     this.statusCode = statusCode
-    this.shouldKeepAlive = shouldKeepAlive
+    this.shouldKeepAlive = (
+      shouldKeepAlive ||
+      // Override llhttp value which does not allow keepAlive for HEAD.
+      (request.method === 'HEAD' && !socket[kReset] && this.connection.toLowerCase() === 'keep-alive')
+    )
 
     if (this.statusCode >= 200) {
       const bodyTimeout = request.bodyTimeout != null
@@ -739,7 +753,7 @@ class Parser {
     this.headers = []
     this.headersSize = 0
 
-    if (shouldKeepAlive && client[kPipelining]) {
+    if (this.shouldKeepAlive && client[kPipelining]) {
       const keepAliveTimeout = this.keepAlive ? util.parseKeepAliveTimeout(this.keepAlive) : null
 
       if (keepAliveTimeout != null) {
@@ -769,7 +783,6 @@ class Parser {
     }
 
     if (request.method === 'HEAD') {
-      assert(socket[kReset])
       return 1
     }
 
@@ -843,6 +856,7 @@ class Parser {
     this.bytesRead = 0
     this.contentLength = ''
     this.keepAlive = ''
+    this.connection = ''
 
     assert(this.headers.length % 2 === 0)
     this.headers = []
@@ -1067,8 +1081,6 @@ async function connect (client) {
 
     assert(socket)
 
-    client[kSocket] = socket
-
     socket[kNoRef] = false
     socket[kWriting] = false
     socket[kReset] = false
@@ -1083,6 +1095,8 @@ async function connect (client) {
       .on('readable', onSocketReadable)
       .on('end', onSocketEnd)
       .on('close', onSocketClose)
+
+    client[kSocket] = socket
 
     if (channels.connected.hasSubscribers) {
       channels.connected.publish({
@@ -1169,7 +1183,7 @@ function _resume (client, sync) {
 
     const socket = client[kSocket]
 
-    if (socket) {
+    if (socket && !socket.destroyed) {
       if (client[kSize] === 0) {
         if (!socket[kNoRef] && socket.unref) {
           socket.unref()
@@ -1236,7 +1250,7 @@ function _resume (client, sync) {
 
     if (!socket) {
       connect(client)
-      continue
+      return
     }
 
     if (socket.destroyed || socket[kWriting] || socket[kReset] || socket[kBlocking]) {
@@ -1295,7 +1309,7 @@ function _resume (client, sync) {
 }
 
 function write (client, request) {
-  const { body, method, path, host, upgrade, headers, blocking } = request
+  const { body, method, path, host, upgrade, headers, blocking, reset } = request
 
   // https://tools.ietf.org/html/rfc7231#section-4.3.1
   // https://tools.ietf.org/html/rfc7231#section-4.3.2
@@ -1363,7 +1377,6 @@ function write (client, request) {
 
   if (method === 'HEAD') {
     // https://github.com/mcollina/undici/issues/258
-
     // Close after a HEAD request to interop with misbehaving servers
     // that may send a body in the response.
 
@@ -1375,6 +1388,10 @@ function write (client, request) {
     // requests on this connection.
 
     socket[kReset] = true
+  }
+
+  if (reset != null) {
+    socket[kReset] = reset
   }
 
   if (client[kMaxRequests] && socket[kCounter]++ >= client[kMaxRequests]) {
@@ -1395,7 +1412,7 @@ function write (client, request) {
 
   if (upgrade) {
     header += `connection: upgrade\r\nupgrade: ${upgrade}\r\n`
-  } else if (client[kPipelining]) {
+  } else if (client[kPipelining] && !socket[kReset]) {
     header += 'connection: keep-alive\r\n'
   } else {
     header += 'connection: close\r\n'

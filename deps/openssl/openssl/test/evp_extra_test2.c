@@ -356,6 +356,37 @@ static int test_dh_tofrom_data_select(void)
     EVP_PKEY_CTX_free(gctx);
     return ret;
 }
+
+static int test_dh_paramgen(void)
+{
+    int ret;
+    OSSL_PARAM params[3];
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY_CTX *gctx = NULL;
+    unsigned int pbits = 512; /* minimum allowed for speed */
+
+    params[0] = OSSL_PARAM_construct_uint(OSSL_PKEY_PARAM_FFC_PBITS, &pbits);
+    params[1] = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_FFC_TYPE,
+                                                 "generator", 0);
+    params[2] = OSSL_PARAM_construct_end();
+
+    ret = TEST_ptr(gctx = EVP_PKEY_CTX_new_from_name(mainctx, "DH", NULL))
+          && TEST_int_gt(EVP_PKEY_paramgen_init(gctx), 0)
+          && TEST_true(EVP_PKEY_CTX_set_params(gctx, params))
+          && TEST_true(EVP_PKEY_paramgen(gctx, &pkey))
+          && TEST_ptr(pkey);
+
+    EVP_PKEY_CTX_free(gctx);
+    gctx = NULL;
+
+    ret = ret && TEST_ptr(gctx = EVP_PKEY_CTX_new_from_pkey(mainctx, pkey, NULL))
+              && TEST_int_eq(EVP_PKEY_param_check(gctx), 1)
+              && TEST_int_eq(EVP_PKEY_param_check_quick(gctx), 1);
+
+    EVP_PKEY_CTX_free(gctx);
+    EVP_PKEY_free(pkey);
+    return ret;
+}
 #endif
 
 #ifndef OPENSSL_NO_EC
@@ -377,6 +408,19 @@ static int test_ecx_tofrom_data_select(void)
 
     ret = TEST_ptr(key = EVP_PKEY_Q_keygen(mainctx, NULL, "X25519"))
           && TEST_true(do_pkey_tofrom_data_select(key, "X25519"));
+    EVP_PKEY_free(key);
+    return ret;
+}
+#endif
+
+#ifndef OPENSSL_NO_SM2
+static int test_sm2_tofrom_data_select(void)
+{
+    int ret;
+    EVP_PKEY *key = NULL;
+
+    ret = TEST_ptr(key = EVP_PKEY_Q_keygen(mainctx, NULL, "SM2"))
+          && TEST_true(do_pkey_tofrom_data_select(key, "SM2"));
     EVP_PKEY_free(key);
     return ret;
 }
@@ -1105,12 +1149,16 @@ int setup_tests(void)
 #else
     ADD_ALL_TESTS(test_d2i_PrivateKey_ex, 1);
 #endif
+#ifndef OPENSSL_NO_SM2
+    ADD_TEST(test_sm2_tofrom_data_select);
+#endif
 #ifndef OPENSSL_NO_DSA
     ADD_TEST(test_dsa_todata);
     ADD_TEST(test_dsa_tofrom_data_select);
 #endif
 #ifndef OPENSSL_NO_DH
     ADD_TEST(test_dh_tofrom_data_select);
+    ADD_TEST(test_dh_paramgen);
 #endif
     ADD_TEST(test_rsa_tofrom_data_select);
 

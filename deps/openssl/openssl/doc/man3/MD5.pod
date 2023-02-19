@@ -80,8 +80,8 @@ etc. instead of calling the hash functions directly.
 =head1 NOTE
 
 MD2, MD4, and MD5 are recommended only for compatibility with existing
-applications. In new applications, SHA-1 or RIPEMD-160 should be
-preferred.
+applications. In new applications, hashes from the SHA-2 or SHA-3 family
+should be preferred.
 
 =head1 RETURN VALUES
 
@@ -97,7 +97,7 @@ RFC 1319, RFC 1320, RFC 1321
 
 =head1 SEE ALSO
 
-L<EVP_DigestInit(3)>
+L<EVP_DigestInit(3)>, L<EVP_MD-SHA2(7)>, L<EVP_MD-SHA3(7)>
 
 =head1 HISTORY
 
@@ -105,7 +105,7 @@ All of these functions were deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

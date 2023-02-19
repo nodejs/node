@@ -119,7 +119,7 @@ test('level 0a', { concurrency: 4 }, async (t) => {
     return p1a;
   });
 
-  t.test('level 1b', async (t) => {
+  test('level 1b', async (t) => {
     const p1b = new Promise((resolve) => {
       resolve();
     });
@@ -303,7 +303,7 @@ test('custom inspect symbol fail', () => {
     [util.inspect.custom]() {
       return 'customized';
     },
-    foo: 1
+    foo: 1,
   };
 
   throw obj;
@@ -314,7 +314,7 @@ test('custom inspect symbol that throws fail', () => {
     [util.inspect.custom]() {
       throw new Error('bad-inspect');
     },
-    foo: 1
+    foo: 1,
   };
 
   throw obj;

@@ -13,7 +13,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream); // TODO(MoLow): assert.snapshot
+    for await (const _ of stream);
   });
 
   it('should fail with non existing file', async () => {
@@ -21,23 +21,23 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustCall(1));
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream); // TODO(MoLow): assert.snapshot
+    for await (const _ of stream);
   });
 
   it('should succeed with a file', async () => {
     const stream = run({ files: [join(testFixtures, 'test/random.cjs')] });
     stream.on('test:fail', common.mustNotCall());
-    stream.on('test:pass', common.mustCall(2));
+    stream.on('test:pass', common.mustCall(1));
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream); // TODO(MoLow): assert.snapshot
+    for await (const _ of stream);
   });
 
   it('should run same file twice', async () => {
     const stream = run({ files: [join(testFixtures, 'test/random.cjs'), join(testFixtures, 'test/random.cjs')] });
     stream.on('test:fail', common.mustNotCall());
-    stream.on('test:pass', common.mustCall(4));
+    stream.on('test:pass', common.mustCall(2));
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream); // TODO(MoLow): assert.snapshot
+    for await (const _ of stream);
   });
 
   it('should run a failed test', async () => {
@@ -45,7 +45,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustCall(1));
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream); // TODO(MoLow): assert.snapshot
+    for await (const _ of stream);
   });
 
   it('should support timeout', async () => {
@@ -56,7 +56,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustCall(2));
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream); // TODO(MoLow): assert.snapshot
+    for await (const _ of stream);
   });
 
   it('should validate files', async () => {

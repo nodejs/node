@@ -41,11 +41,12 @@ EVP_MAC_CTX_get_params(), or with EVP_MAC_CTX_get_block_size().
 
 Sets the MAC key.
 Setting this parameter is identical to passing a I<key> to L<EVP_MAC_init(3)>.
+The length of the key (in bytes) must be in the range 4...512.
 
 =item "custom" (B<OSSL_MAC_PARAM_CUSTOM>) <octet string>
 
 Sets the custom value.
-It is an optional value of at most 256 bytes, and is empty by default.
+It is an optional value with a length of at most 512 bytes, and is empty by default.
 
 =item "size" (B<OSSL_MAC_PARAM_SIZE>) <unsigned integer>
 

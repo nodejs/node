@@ -314,6 +314,7 @@ module.exports = {
     // Custom rules from eslint-plugin-node-core
     'node-core/no-unescaped-regexp-dot': 'error',
     'node-core/no-duplicate-requires': 'error',
+    'node-core/prefer-proto': 'error',
   },
   globals: {
     ByteLengthQueuingStrategy: 'readable',

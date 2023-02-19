@@ -132,19 +132,19 @@ for (const [ value, _method ] of [
   const bigInt64Array = new BigInt64Array(arrayBuffer);
   const bigUint64Array = new BigUint64Array(arrayBuffer);
 
-  const fakeBuffer = Object.create(Buffer.prototype);
-  const fakeDataView = Object.create(DataView.prototype);
-  const fakeUint8Array = Object.create(Uint8Array.prototype);
-  const fakeUint8ClampedArray = Object.create(Uint8ClampedArray.prototype);
-  const fakeUint16Array = Object.create(Uint16Array.prototype);
-  const fakeUint32Array = Object.create(Uint32Array.prototype);
-  const fakeInt8Array = Object.create(Int8Array.prototype);
-  const fakeInt16Array = Object.create(Int16Array.prototype);
-  const fakeInt32Array = Object.create(Int32Array.prototype);
-  const fakeFloat32Array = Object.create(Float32Array.prototype);
-  const fakeFloat64Array = Object.create(Float64Array.prototype);
-  const fakeBigInt64Array = Object.create(BigInt64Array.prototype);
-  const fakeBigUint64Array = Object.create(BigUint64Array.prototype);
+  const fakeBuffer = { __proto__: Buffer.prototype };
+  const fakeDataView = { __proto__: DataView.prototype };
+  const fakeUint8Array = { __proto__: Uint8Array.prototype };
+  const fakeUint8ClampedArray = { __proto__: Uint8ClampedArray.prototype };
+  const fakeUint16Array = { __proto__: Uint16Array.prototype };
+  const fakeUint32Array = { __proto__: Uint32Array.prototype };
+  const fakeInt8Array = { __proto__: Int8Array.prototype };
+  const fakeInt16Array = { __proto__: Int16Array.prototype };
+  const fakeInt32Array = { __proto__: Int32Array.prototype };
+  const fakeFloat32Array = { __proto__: Float32Array.prototype };
+  const fakeFloat64Array = { __proto__: Float64Array.prototype };
+  const fakeBigInt64Array = { __proto__: BigInt64Array.prototype };
+  const fakeBigUint64Array = { __proto__: BigUint64Array.prototype };
 
   const stealthyDataView =
     Object.setPrototypeOf(new DataView(arrayBuffer), Uint8Array.prototype);

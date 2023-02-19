@@ -23,7 +23,7 @@ const groupedInputs = {
 
   // Put it here so the benchmark result lines will not be super long.
   LONG_AND_INVALID: ['Here is a value that is really a folded header ' +
-    'value\r\n  this should be supported, but it is not currently']
+    'value\r\n  this should be supported, but it is not currently'],
 };
 
 const inputs = [

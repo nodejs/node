@@ -208,15 +208,15 @@ function stringifyPosition(value) {
     return position(value)
   }
   if ('line' in value || 'column' in value) {
-    return point$1(value)
+    return point$2(value)
   }
   return ''
 }
-function point$1(point) {
+function point$2(point) {
   return index(point && point.line) + ':' + index(point && point.column)
 }
 function position(pos) {
-  return point$1(pos && pos.start) + '-' + point$1(pos && pos.end)
+  return point$2(pos && pos.start) + '-' + point$2(pos && pos.end)
 }
 function index(value) {
   return value && typeof value === 'number' ? value : 1
@@ -288,12 +288,12 @@ VFileMessage.prototype.source = null;
 VFileMessage.prototype.ruleId = null;
 VFileMessage.prototype.position = null;
 
-function isUrl(fileURLOrPath) {
+function isUrl(fileUrlOrPath) {
   return (
-    fileURLOrPath !== null &&
-    typeof fileURLOrPath === 'object' &&
-    fileURLOrPath.href &&
-    fileURLOrPath.origin
+    fileUrlOrPath !== null &&
+    typeof fileUrlOrPath === 'object' &&
+    fileUrlOrPath.href &&
+    fileUrlOrPath.origin
   )
 }
 
@@ -303,7 +303,7 @@ class VFile {
     let options;
     if (!value) {
       options = {};
-    } else if (typeof value === 'string' || isBuffer(value)) {
+    } else if (typeof value === 'string' || buffer(value)) {
       options = {value};
     } else if (isUrl(value)) {
       options = {path: value};
@@ -321,13 +321,19 @@ class VFile {
     let index = -1;
     while (++index < order.length) {
       const prop = order[index];
-      if (prop in options && options[prop] !== undefined) {
+      if (
+        prop in options &&
+        options[prop] !== undefined &&
+        options[prop] !== null
+      ) {
         this[prop] = prop === 'history' ? [...options[prop]] : options[prop];
       }
     }
     let prop;
     for (prop in options) {
-      if (!order.includes(prop)) this[prop] = options[prop];
+      if (!order.includes(prop)) {
+        this[prop] = options[prop];
+      }
     }
   }
   get path() {
@@ -384,7 +390,7 @@ class VFile {
     this.path = path$1.join(this.dirname || '', stem + (this.extname || ''));
   }
   toString(encoding) {
-    return (this.value || '').toString(encoding)
+    return (this.value || '').toString(encoding || undefined)
   }
   message(reason, place, origin) {
     const message = new VFileMessage(reason, place, origin);
@@ -423,6 +429,9 @@ function assertPath(path, name) {
   if (!path) {
     throw new Error('Setting `' + name + '` requires `path` to be set too')
   }
+}
+function buffer(value) {
+  return isBuffer(value)
 }
 
 const unified = base().freeze();
@@ -729,28 +738,33 @@ function looksLikeAVFileValue(value) {
   return typeof value === 'string' || isBuffer(value)
 }
 
-function toString(node, options) {
-  var {includeImageAlt = true} = options || {};
-  return one(node, includeImageAlt)
+function toString(value, options) {
+  const includeImageAlt = (options || {}).includeImageAlt;
+  return one(
+    value,
+    typeof includeImageAlt === 'boolean' ? includeImageAlt : true
+  )
 }
-function one(node, includeImageAlt) {
+function one(value, includeImageAlt) {
   return (
-    (node &&
-      typeof node === 'object' &&
-      (node.value ||
-        (includeImageAlt ? node.alt : '') ||
-        ('children' in node && all(node.children, includeImageAlt)) ||
-        (Array.isArray(node) && all(node, includeImageAlt)))) ||
+    (node(value) &&
+      (('value' in value && value.value) ||
+        (includeImageAlt && 'alt' in value && value.alt) ||
+        ('children' in value && all(value.children, includeImageAlt)))) ||
+    (Array.isArray(value) && all(value, includeImageAlt)) ||
     ''
   )
 }
 function all(values, includeImageAlt) {
-  var result = [];
-  var index = -1;
+  const result = [];
+  let index = -1;
   while (++index < values.length) {
     result[index] = one(values[index], includeImageAlt);
   }
   return result.join('')
+}
+function node(value) {
+  return Boolean(value && typeof value === 'object')
 }
 
 function splice(list, start, remove, items) {
@@ -6807,15 +6821,15 @@ const disable = {
 
 var defaultConstructs = /*#__PURE__*/Object.freeze({
   __proto__: null,
-  document: document,
-  contentInitial: contentInitial,
-  flowInitial: flowInitial,
-  flow: flow,
-  string: string,
-  text: text$2,
-  insideSpan: insideSpan,
   attentionMarkers: attentionMarkers,
-  disable: disable
+  contentInitial: contentInitial,
+  disable: disable,
+  document: document,
+  flow: flow,
+  flowInitial: flowInitial,
+  insideSpan: insideSpan,
+  string: string,
+  text: text$2
 });
 
 function parse$1(options = {}) {
@@ -6975,113 +6989,105 @@ const fromMarkdown =
       )
     )
   };
-function compiler(options = {}) {
-  const config = configure$1(
-    {
-      transforms: [],
-      canContainEols: [
-        'emphasis',
-        'fragment',
-        'heading',
-        'paragraph',
-        'strong'
-      ],
-      enter: {
-        autolink: opener(link),
-        autolinkProtocol: onenterdata,
-        autolinkEmail: onenterdata,
-        atxHeading: opener(heading),
-        blockQuote: opener(blockQuote),
-        characterEscape: onenterdata,
-        characterReference: onenterdata,
-        codeFenced: opener(codeFlow),
-        codeFencedFenceInfo: buffer,
-        codeFencedFenceMeta: buffer,
-        codeIndented: opener(codeFlow, buffer),
-        codeText: opener(codeText, buffer),
-        codeTextData: onenterdata,
-        data: onenterdata,
-        codeFlowValue: onenterdata,
-        definition: opener(definition),
-        definitionDestinationString: buffer,
-        definitionLabelString: buffer,
-        definitionTitleString: buffer,
-        emphasis: opener(emphasis),
-        hardBreakEscape: opener(hardBreak),
-        hardBreakTrailing: opener(hardBreak),
-        htmlFlow: opener(html, buffer),
-        htmlFlowData: onenterdata,
-        htmlText: opener(html, buffer),
-        htmlTextData: onenterdata,
-        image: opener(image),
-        label: buffer,
-        link: opener(link),
-        listItem: opener(listItem),
-        listItemValue: onenterlistitemvalue,
-        listOrdered: opener(list, onenterlistordered),
-        listUnordered: opener(list),
-        paragraph: opener(paragraph),
-        reference: onenterreference,
-        referenceString: buffer,
-        resourceDestinationString: buffer,
-        resourceTitleString: buffer,
-        setextHeading: opener(heading),
-        strong: opener(strong),
-        thematicBreak: opener(thematicBreak)
-      },
-      exit: {
-        atxHeading: closer(),
-        atxHeadingSequence: onexitatxheadingsequence,
-        autolink: closer(),
-        autolinkEmail: onexitautolinkemail,
-        autolinkProtocol: onexitautolinkprotocol,
-        blockQuote: closer(),
-        characterEscapeValue: onexitdata,
-        characterReferenceMarkerHexadecimal: onexitcharacterreferencemarker,
-        characterReferenceMarkerNumeric: onexitcharacterreferencemarker,
-        characterReferenceValue: onexitcharacterreferencevalue,
-        codeFenced: closer(onexitcodefenced),
-        codeFencedFence: onexitcodefencedfence,
-        codeFencedFenceInfo: onexitcodefencedfenceinfo,
-        codeFencedFenceMeta: onexitcodefencedfencemeta,
-        codeFlowValue: onexitdata,
-        codeIndented: closer(onexitcodeindented),
-        codeText: closer(onexitcodetext),
-        codeTextData: onexitdata,
-        data: onexitdata,
-        definition: closer(),
-        definitionDestinationString: onexitdefinitiondestinationstring,
-        definitionLabelString: onexitdefinitionlabelstring,
-        definitionTitleString: onexitdefinitiontitlestring,
-        emphasis: closer(),
-        hardBreakEscape: closer(onexithardbreak),
-        hardBreakTrailing: closer(onexithardbreak),
-        htmlFlow: closer(onexithtmlflow),
-        htmlFlowData: onexitdata,
-        htmlText: closer(onexithtmltext),
-        htmlTextData: onexitdata,
-        image: closer(onexitimage),
-        label: onexitlabel,
-        labelText: onexitlabeltext,
-        lineEnding: onexitlineending,
-        link: closer(onexitlink),
-        listItem: closer(),
-        listOrdered: closer(),
-        listUnordered: closer(),
-        paragraph: closer(),
-        referenceString: onexitreferencestring,
-        resourceDestinationString: onexitresourcedestinationstring,
-        resourceTitleString: onexitresourcetitlestring,
-        resource: onexitresource,
-        setextHeading: closer(onexitsetextheading),
-        setextHeadingLineSequence: onexitsetextheadinglinesequence,
-        setextHeadingText: onexitsetextheadingtext,
-        strong: closer(),
-        thematicBreak: closer()
-      }
+function compiler(options) {
+  const config = {
+    transforms: [],
+    canContainEols: ['emphasis', 'fragment', 'heading', 'paragraph', 'strong'],
+    enter: {
+      autolink: opener(link),
+      autolinkProtocol: onenterdata,
+      autolinkEmail: onenterdata,
+      atxHeading: opener(heading),
+      blockQuote: opener(blockQuote),
+      characterEscape: onenterdata,
+      characterReference: onenterdata,
+      codeFenced: opener(codeFlow),
+      codeFencedFenceInfo: buffer,
+      codeFencedFenceMeta: buffer,
+      codeIndented: opener(codeFlow, buffer),
+      codeText: opener(codeText, buffer),
+      codeTextData: onenterdata,
+      data: onenterdata,
+      codeFlowValue: onenterdata,
+      definition: opener(definition),
+      definitionDestinationString: buffer,
+      definitionLabelString: buffer,
+      definitionTitleString: buffer,
+      emphasis: opener(emphasis),
+      hardBreakEscape: opener(hardBreak),
+      hardBreakTrailing: opener(hardBreak),
+      htmlFlow: opener(html, buffer),
+      htmlFlowData: onenterdata,
+      htmlText: opener(html, buffer),
+      htmlTextData: onenterdata,
+      image: opener(image),
+      label: buffer,
+      link: opener(link),
+      listItem: opener(listItem),
+      listItemValue: onenterlistitemvalue,
+      listOrdered: opener(list, onenterlistordered),
+      listUnordered: opener(list),
+      paragraph: opener(paragraph),
+      reference: onenterreference,
+      referenceString: buffer,
+      resourceDestinationString: buffer,
+      resourceTitleString: buffer,
+      setextHeading: opener(heading),
+      strong: opener(strong),
+      thematicBreak: opener(thematicBreak)
     },
-    options.mdastExtensions || []
-  );
+    exit: {
+      atxHeading: closer(),
+      atxHeadingSequence: onexitatxheadingsequence,
+      autolink: closer(),
+      autolinkEmail: onexitautolinkemail,
+      autolinkProtocol: onexitautolinkprotocol,
+      blockQuote: closer(),
+      characterEscapeValue: onexitdata,
+      characterReferenceMarkerHexadecimal: onexitcharacterreferencemarker,
+      characterReferenceMarkerNumeric: onexitcharacterreferencemarker,
+      characterReferenceValue: onexitcharacterreferencevalue,
+      codeFenced: closer(onexitcodefenced),
+      codeFencedFence: onexitcodefencedfence,
+      codeFencedFenceInfo: onexitcodefencedfenceinfo,
+      codeFencedFenceMeta: onexitcodefencedfencemeta,
+      codeFlowValue: onexitdata,
+      codeIndented: closer(onexitcodeindented),
+      codeText: closer(onexitcodetext),
+      codeTextData: onexitdata,
+      data: onexitdata,
+      definition: closer(),
+      definitionDestinationString: onexitdefinitiondestinationstring,
+      definitionLabelString: onexitdefinitionlabelstring,
+      definitionTitleString: onexitdefinitiontitlestring,
+      emphasis: closer(),
+      hardBreakEscape: closer(onexithardbreak),
+      hardBreakTrailing: closer(onexithardbreak),
+      htmlFlow: closer(onexithtmlflow),
+      htmlFlowData: onexitdata,
+      htmlText: closer(onexithtmltext),
+      htmlTextData: onexitdata,
+      image: closer(onexitimage),
+      label: onexitlabel,
+      labelText: onexitlabeltext,
+      lineEnding: onexitlineending,
+      link: closer(onexitlink),
+      listItem: closer(),
+      listOrdered: closer(),
+      listUnordered: closer(),
+      paragraph: closer(),
+      referenceString: onexitreferencestring,
+      resourceDestinationString: onexitresourcedestinationstring,
+      resourceTitleString: onexitresourcetitlestring,
+      resource: onexitresource,
+      setextHeading: closer(onexitsetextheading),
+      setextHeadingLineSequence: onexitsetextheadinglinesequence,
+      setextHeadingText: onexitsetextheadingtext,
+      strong: closer(),
+      thematicBreak: closer()
+    }
+  };
+  configure$1(config, (options || {}).mdastExtensions || []);
   const data = {};
   return compile
   function compile(events) {
@@ -7089,12 +7095,9 @@ function compiler(options = {}) {
       type: 'root',
       children: []
     };
-    const stack = [tree];
-    const tokenStack = [];
-    const listStack = [];
     const context = {
-      stack,
-      tokenStack,
+      stack: [tree],
+      tokenStack: [],
       config,
       enter,
       exit,
@@ -7103,6 +7106,7 @@ function compiler(options = {}) {
       setData,
       getData
     };
+    const listStack = [];
     let index = -1;
     while (++index < events.length) {
       if (
@@ -7132,13 +7136,13 @@ function compiler(options = {}) {
         );
       }
     }
-    if (tokenStack.length > 0) {
-      const tail = tokenStack[tokenStack.length - 1];
+    if (context.tokenStack.length > 0) {
+      const tail = context.tokenStack[context.tokenStack.length - 1];
       const handler = tail[1] || defaultOnError;
       handler.call(context, undefined, tail[0]);
     }
     tree.position = {
-      start: point(
+      start: point$1(
         events.length > 0
           ? events[0][1].start
           : {
@@ -7147,7 +7151,7 @@ function compiler(options = {}) {
               offset: 0
             }
       ),
-      end: point(
+      end: point$1(
         events.length > 0
           ? events[events.length - 2][1].end
           : {
@@ -7277,13 +7281,6 @@ function compiler(options = {}) {
   function getData(key) {
     return data[key]
   }
-  function point(d) {
-    return {
-      line: d.line,
-      column: d.column,
-      offset: d.offset
-    }
-  }
   function opener(create, and) {
     return open
     function open(token) {
@@ -7303,7 +7300,7 @@ function compiler(options = {}) {
     this.stack.push(node);
     this.tokenStack.push([token, errorHandler]);
     node.position = {
-      start: point(token.start)
+      start: point$1(token.start)
     };
     return node
   }
@@ -7336,7 +7333,7 @@ function compiler(options = {}) {
         handler.call(this, token, open[0]);
       }
     }
-    node.position.end = point(token.end);
+    node.position.end = point$1(token.end);
     return node
   }
   function resume() {
@@ -7347,22 +7344,19 @@ function compiler(options = {}) {
   }
   function onenterlistitemvalue(token) {
     if (getData('expectingFirstListItemValue')) {
-      const ancestor =
-        this.stack[this.stack.length - 2];
+      const ancestor = this.stack[this.stack.length - 2];
       ancestor.start = Number.parseInt(this.sliceSerialize(token), 10);
       setData('expectingFirstListItemValue');
     }
   }
   function onexitcodefencedfenceinfo() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.lang = data;
   }
   function onexitcodefencedfencemeta() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.meta = data;
   }
   function onexitcodefencedfence() {
@@ -7372,21 +7366,18 @@ function compiler(options = {}) {
   }
   function onexitcodefenced() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.value = data.replace(/^(\r?\n|\r)|(\r?\n|\r)$/g, '');
     setData('flowCodeInside');
   }
   function onexitcodeindented() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.value = data.replace(/(\r?\n|\r)$/g, '');
   }
   function onexitdefinitionlabelstring(token) {
     const label = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.label = label;
     node.identifier = normalizeIdentifier(
       this.sliceSerialize(token)
@@ -7394,19 +7385,16 @@ function compiler(options = {}) {
   }
   function onexitdefinitiontitlestring() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.title = data;
   }
   function onexitdefinitiondestinationstring() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.url = data;
   }
   function onexitatxheadingsequence(token) {
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     if (!node.depth) {
       const depth = this.sliceSerialize(token).length;
       node.depth = depth;
@@ -7416,36 +7404,34 @@ function compiler(options = {}) {
     setData('setextHeadingSlurpLineEnding', true);
   }
   function onexitsetextheadinglinesequence(token) {
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.depth = this.sliceSerialize(token).charCodeAt(0) === 61 ? 1 : 2;
   }
   function onexitsetextheading() {
     setData('setextHeadingSlurpLineEnding');
   }
   function onenterdata(token) {
-    const parent =
-      this.stack[this.stack.length - 1];
-    let tail = parent.children[parent.children.length - 1];
+    const node = this.stack[this.stack.length - 1];
+    let tail = node.children[node.children.length - 1];
     if (!tail || tail.type !== 'text') {
       tail = text();
       tail.position = {
-        start: point(token.start)
+        start: point$1(token.start)
       };
-      parent.children.push(tail);
+      node.children.push(tail);
     }
     this.stack.push(tail);
   }
   function onexitdata(token) {
     const tail = this.stack.pop();
     tail.value += this.sliceSerialize(token);
-    tail.position.end = point(token.end);
+    tail.position.end = point$1(token.end);
   }
   function onexitlineending(token) {
     const context = this.stack[this.stack.length - 1];
     if (getData('atHardBreak')) {
       const tail = context.children[context.children.length - 1];
-      tail.position.end = point(token.end);
+      tail.position.end = point$1(token.end);
       setData('atHardBreak');
       return
     }
@@ -7462,80 +7448,73 @@ function compiler(options = {}) {
   }
   function onexithtmlflow() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.value = data;
   }
   function onexithtmltext() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.value = data;
   }
   function onexitcodetext() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.value = data;
   }
   function onexitlink() {
-    const context =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     if (getData('inReference')) {
-      context.type += 'Reference';
-      context.referenceType = getData('referenceType') || 'shortcut';
-      delete context.url;
-      delete context.title;
+      const referenceType = getData('referenceType') || 'shortcut';
+      node.type += 'Reference';
+      node.referenceType = referenceType;
+      delete node.url;
+      delete node.title;
     } else {
-      delete context.identifier;
-      delete context.label;
+      delete node.identifier;
+      delete node.label;
     }
     setData('referenceType');
   }
   function onexitimage() {
-    const context =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     if (getData('inReference')) {
-      context.type += 'Reference';
-      context.referenceType = getData('referenceType') || 'shortcut';
-      delete context.url;
-      delete context.title;
+      const referenceType = getData('referenceType') || 'shortcut';
+      node.type += 'Reference';
+      node.referenceType = referenceType;
+      delete node.url;
+      delete node.title;
     } else {
-      delete context.identifier;
-      delete context.label;
+      delete node.identifier;
+      delete node.label;
     }
     setData('referenceType');
   }
   function onexitlabeltext(token) {
-    const ancestor =
-      this.stack[this.stack.length - 2];
     const string = this.sliceSerialize(token);
+    const ancestor = this.stack[this.stack.length - 2];
     ancestor.label = decodeString(string);
     ancestor.identifier = normalizeIdentifier(string).toLowerCase();
   }
   function onexitlabel() {
-    const fragment =
-      this.stack[this.stack.length - 1];
+    const fragment = this.stack[this.stack.length - 1];
     const value = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     setData('inReference', true);
     if (node.type === 'link') {
-      node.children = fragment.children;
+      const children = fragment.children;
+      node.children = children;
     } else {
       node.alt = value;
     }
   }
   function onexitresourcedestinationstring() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.url = data;
   }
   function onexitresourcetitlestring() {
     const data = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.title = data;
   }
   function onexitresource() {
@@ -7546,8 +7525,7 @@ function compiler(options = {}) {
   }
   function onexitreferencestring(token) {
     const label = this.resume();
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.label = label;
     node.identifier = normalizeIdentifier(
       this.sliceSerialize(token)
@@ -7568,22 +7546,21 @@ function compiler(options = {}) {
       );
       setData('characterReferenceType');
     } else {
-      value = decodeNamedCharacterReference(data);
+      const result = decodeNamedCharacterReference(data);
+      value = result;
     }
     const tail = this.stack.pop();
     tail.value += value;
-    tail.position.end = point(token.end);
+    tail.position.end = point$1(token.end);
   }
   function onexitautolinkprotocol(token) {
     onexitdata.call(this, token);
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.url = this.sliceSerialize(token);
   }
   function onexitautolinkemail(token) {
     onexitdata.call(this, token);
-    const node =
-      this.stack[this.stack.length - 1];
+    const node = this.stack[this.stack.length - 1];
     node.url = 'mailto:' + this.sliceSerialize(token);
   }
   function blockQuote() {
@@ -7696,6 +7673,13 @@ function compiler(options = {}) {
     }
   }
 }
+function point$1(d) {
+  return {
+    line: d.line,
+    column: d.column,
+    offset: d.offset
+  }
+}
 function configure$1(combined, extensions) {
   let index = -1;
   while (++index < extensions.length) {
@@ -7706,21 +7690,25 @@ function configure$1(combined, extensions) {
       extension(combined, value);
     }
   }
-  return combined
 }
 function extension(combined, extension) {
   let key;
   for (key in extension) {
     if (own$5.call(extension, key)) {
-      const list = key === 'canContainEols' || key === 'transforms';
-      const maybe = own$5.call(combined, key) ? combined[key] : undefined;
-      const left = maybe || (combined[key] = list ? [] : {});
-      const right = extension[key];
-      if (right) {
-        if (list) {
-          combined[key] = [...left, ...right];
-        } else {
-          Object.assign(left, right);
+      if (key === 'canContainEols') {
+        const right = extension[key];
+        if (right) {
+          combined[key].push(...right);
+        }
+      } else if (key === 'transforms') {
+        const right = extension[key];
+        if (right) {
+          combined[key].push(...right);
+        }
+      } else if (key === 'enter' || key === 'exit') {
+        const right = extension[key];
+        if (right) {
+          Object.assign(combined[key], right);
         }
       }
     }
@@ -7813,107 +7801,19 @@ function configure(base, extension) {
   return base
 }
 
-function track(options_) {
-  const options = options_ || {};
-  const now = options.now || {};
-  let lineShift = options.lineShift || 0;
-  let line = now.line || 1;
-  let column = now.column || 1;
-  return {move, current, shift}
-  function current() {
-    return {now: {line, column}, lineShift}
-  }
-  function shift(value) {
-    lineShift += value;
-  }
-  function move(value = '') {
-    const chunks = value.split(/\r?\n|\r/g);
-    const tail = chunks[chunks.length - 1];
-    line += chunks.length - 1;
-    column =
-      chunks.length === 1 ? column + tail.length : 1 + tail.length + lineShift;
-    return value
-  }
-}
-
-function containerFlow(parent, context, safeOptions) {
-  const indexStack = context.indexStack;
-  const children = parent.children || [];
-  const tracker = track(safeOptions);
-  const results = [];
-  let index = -1;
-  indexStack.push(-1);
-  while (++index < children.length) {
-    const child = children[index];
-    indexStack[indexStack.length - 1] = index;
-    results.push(
-      tracker.move(
-        context.handle(child, parent, context, {
-          before: '\n',
-          after: '\n',
-          ...tracker.current()
-        })
-      )
-    );
-    if (child.type !== 'list') {
-      context.bulletLastUsed = undefined;
-    }
-    if (index < children.length - 1) {
-      results.push(tracker.move(between(child, children[index + 1])));
-    }
-  }
-  indexStack.pop();
-  return results.join('')
-  function between(left, right) {
-    let index = context.join.length;
-    while (index--) {
-      const result = context.join[index](left, right, parent, context);
-      if (result === true || result === 1) {
-        break
-      }
-      if (typeof result === 'number') {
-        return '\n'.repeat(1 + result)
-      }
-      if (result === false) {
-        return '\n\n<!---->\n\n'
-      }
-    }
-    return '\n\n'
-  }
-}
-
-const eol = /\r?\n|\r/g;
-function indentLines(value, map) {
-  const result = [];
-  let start = 0;
-  let line = 0;
-  let match;
-  while ((match = eol.exec(value))) {
-    one(value.slice(start, match.index));
-    result.push(match[0]);
-    start = match.index + match[0].length;
-    line++;
-  }
-  one(value.slice(start));
-  return result.join('')
-  function one(value) {
-    result.push(map(value, line, !value));
-  }
-}
-
-function blockquote(node, _, context, safeOptions) {
-  const exit = context.enter('blockquote');
-  const tracker = track(safeOptions);
+function blockquote(node, _, state, info) {
+  const exit = state.enter('blockquote');
+  const tracker = state.createTracker(info);
   tracker.move('> ');
   tracker.shift(2);
-  const value = indentLines(
-    containerFlow(node, context, tracker.current()),
-    map$2
+  const value = state.indentLines(
+    state.containerFlow(node, tracker.current()),
+    map$3
   );
   exit();
   return value
 }
-function map$2(line, _, blank) {
+function map$3(line, _, blank) {
   return '>' + (blank ? '' : ' ') + line
 }
 
@@ -7924,11 +7824,11 @@ function patternInScope(stack, pattern) {
   )
 }
 function listInScope(stack, list, none) {
-  if (!list) {
-    return none
-  }
   if (typeof list === 'string') {
     list = [list];
+  }
+  if (!list || list.length === 0) {
+    return none
   }
   let index = -1;
   while (++index < list.length) {
@@ -7939,14 +7839,14 @@ function listInScope(stack, list, none) {
   return false
 }
 
-function hardBreak(_, _1, context, safeOptions) {
+function hardBreak(_, _1, state, info) {
   let index = -1;
-  while (++index < context.unsafe.length) {
+  while (++index < state.unsafe.length) {
     if (
-      context.unsafe[index].character === '\n' &&
-      patternInScope(context.stack, context.unsafe[index])
+      state.unsafe[index].character === '\n' &&
+      patternInScope(state.stack, state.unsafe[index])
     ) {
-      return /[ \t]/.test(safeOptions.before) ? '' : ' '
+      return /[ \t]/.test(info.before) ? '' : ' '
     }
   }
   return '\\\n'
@@ -7975,9 +7875,9 @@ function longestStreak(value, substring) {
   return max
 }
 
-function formatCodeAsIndented(node, context) {
+function formatCodeAsIndented(node, state) {
   return Boolean(
-    !context.options.fences &&
+    !state.options.fences &&
       node.value &&
       !node.lang &&
       /[^ \r\n]/.test(node.value) &&
@@ -7985,8 +7885,8 @@ function formatCodeAsIndented(node, context) {
   )
 }
 
-function checkFence(context) {
-  const marker = context.options.fence || '`';
+function checkFence(state) {
+  const marker = state.options.fence || '`';
   if (marker !== '`' && marker !== '~') {
     throw new Error(
       'Cannot serialize code with `' +
@@ -7997,136 +7897,24 @@ function checkFence(context) {
   return marker
 }
 
-function patternCompile(pattern) {
-  if (!pattern._compiled) {
-    const before =
-      (pattern.atBreak ? '[\\r\\n][\\t ]*' : '') +
-      (pattern.before ? '(?:' + pattern.before + ')' : '');
-    pattern._compiled = new RegExp(
-      (before ? '(' + before + ')' : '') +
-        (/[|\\{}()[\]^$+*?.-]/.test(pattern.character) ? '\\' : '') +
-        pattern.character +
-        (pattern.after ? '(?:' + pattern.after + ')' : ''),
-      'g'
-    );
-  }
-  return pattern._compiled
-}
-
-function safe(context, input, config) {
-  const value = (config.before || '') + (input || '') + (config.after || '');
-  const positions = [];
-  const result = [];
-  const infos = {};
-  let index = -1;
-  while (++index < context.unsafe.length) {
-    const pattern = context.unsafe[index];
-    if (!patternInScope(context.stack, pattern)) {
-      continue
-    }
-    const expression = patternCompile(pattern);
-    let match;
-    while ((match = expression.exec(value))) {
-      const before = 'before' in pattern || Boolean(pattern.atBreak);
-      const after = 'after' in pattern;
-      const position = match.index + (before ? match[1].length : 0);
-      if (positions.includes(position)) {
-        if (infos[position].before && !before) {
-          infos[position].before = false;
-        }
-        if (infos[position].after && !after) {
-          infos[position].after = false;
-        }
-      } else {
-        positions.push(position);
-        infos[position] = {before, after};
-      }
-    }
-  }
-  positions.sort(numerical);
-  let start = config.before ? config.before.length : 0;
-  const end = value.length - (config.after ? config.after.length : 0);
-  index = -1;
-  while (++index < positions.length) {
-    const position = positions[index];
-    if (position < start || position >= end) {
-      continue
-    }
-    if (
-      (position + 1 < end &&
-        positions[index + 1] === position + 1 &&
-        infos[position].after &&
-        !infos[position + 1].before &&
-        !infos[position + 1].after) ||
-      (positions[index - 1] === position - 1 &&
-        infos[position].before &&
-        !infos[position - 1].before &&
-        !infos[position - 1].after)
-    ) {
-      continue
-    }
-    if (start !== position) {
-      result.push(escapeBackslashes(value.slice(start, position), '\\'));
-    }
-    start = position;
-    if (
-      /[!-/:-@[-`{-~]/.test(value.charAt(position)) &&
-      (!config.encode || !config.encode.includes(value.charAt(position)))
-    ) {
-      result.push('\\');
-    } else {
-      result.push(
-        '&#x' + value.charCodeAt(position).toString(16).toUpperCase() + ';'
-      );
-      start++;
-    }
-  }
-  result.push(escapeBackslashes(value.slice(start, end), config.after));
-  return result.join('')
-}
-function numerical(a, b) {
-  return a - b
-}
-function escapeBackslashes(value, after) {
-  const expression = /\\(?=[!-/:-@[-`{-~])/g;
-  const positions = [];
-  const results = [];
-  const whole = value + after;
-  let index = -1;
-  let start = 0;
-  let match;
-  while ((match = expression.exec(whole))) {
-    positions.push(match.index);
-  }
-  while (++index < positions.length) {
-    if (start !== positions[index]) {
-      results.push(value.slice(start, positions[index]));
-    }
-    results.push('\\');
-    start = positions[index];
-  }
-  results.push(value.slice(start));
-  return results.join('')
-}
-
-function code$1(node, _, context, safeOptions) {
-  const marker = checkFence(context);
+function code$1(node, _, state, info) {
+  const marker = checkFence(state);
   const raw = node.value || '';
   const suffix = marker === '`' ? 'GraveAccent' : 'Tilde';
-  if (formatCodeAsIndented(node, context)) {
-    const exit = context.enter('codeIndented');
-    const value = indentLines(raw, map$1);
+  if (formatCodeAsIndented(node, state)) {
+    const exit = state.enter('codeIndented');
+    const value = state.indentLines(raw, map$2);
     exit();
     return value
   }
-  const tracker = track(safeOptions);
+  const tracker = state.createTracker(info);
   const sequence = marker.repeat(Math.max(longestStreak(raw, marker) + 1, 3));
-  const exit = context.enter('codeFenced');
+  const exit = state.enter('codeFenced');
   let value = tracker.move(sequence);
   if (node.lang) {
-    const subexit = context.enter('codeFencedLang' + suffix);
+    const subexit = state.enter(`codeFencedLang${suffix}`);
     value += tracker.move(
-      safe(context, node.lang, {
+      state.safe(node.lang, {
         before: value,
         after: ' ',
         encode: ['`'],
@@ -8136,10 +7924,10 @@ function code$1(node, _, context, safeOptions) {
     subexit();
   }
   if (node.lang && node.meta) {
-    const subexit = context.enter('codeFencedMeta' + suffix);
+    const subexit = state.enter(`codeFencedMeta${suffix}`);
     value += tracker.move(' ');
     value += tracker.move(
-      safe(context, node.meta, {
+      state.safe(node.meta, {
         before: value,
         after: '\n',
         encode: ['`'],
@@ -8156,19 +7944,12 @@ function code$1(node, _, context, safeOptions) {
   exit();
   return value
 }
-function map$1(line, _, blank) {
+function map$2(line, _, blank) {
   return (blank ? '' : '    ') + line
 }
 
-function association(node) {
-  if (node.label || !node.identifier) {
-    return node.label || ''
-  }
-  return decodeString(node.identifier)
-}
-
-function checkQuote(context) {
-  const marker = context.options.quote || '"';
+function checkQuote(state) {
+  const marker = state.options.quote || '"';
   if (marker !== '"' && marker !== "'") {
     throw new Error(
       'Cannot serialize title with `' +
@@ -8179,15 +7960,15 @@ function checkQuote(context) {
   return marker
 }
 
-function definition(node, _, context, safeOptions) {
-  const quote = checkQuote(context);
+function definition(node, _, state, info) {
+  const quote = checkQuote(state);
   const suffix = quote === '"' ? 'Quote' : 'Apostrophe';
-  const exit = context.enter('definition');
-  let subexit = context.enter('label');
-  const tracker = track(safeOptions);
+  const exit = state.enter('definition');
+  let subexit = state.enter('label');
+  const tracker = state.createTracker(info);
   let value = tracker.move('[');
   value += tracker.move(
-    safe(context, association(node), {
+    state.safe(state.associationId(node), {
       before: value,
       after: ']',
       ...tracker.current()
@@ -8199,16 +7980,16 @@ function definition(node, _, context, safeOptions) {
     !node.url ||
     /[\0- \u007F]/.test(node.url)
   ) {
-    subexit = context.enter('destinationLiteral');
+    subexit = state.enter('destinationLiteral');
     value += tracker.move('<');
     value += tracker.move(
-      safe(context, node.url, {before: value, after: '>', ...tracker.current()})
+      state.safe(node.url, {before: value, after: '>', ...tracker.current()})
     );
     value += tracker.move('>');
   } else {
-    subexit = context.enter('destinationRaw');
+    subexit = state.enter('destinationRaw');
     value += tracker.move(
-      safe(context, node.url, {
+      state.safe(node.url, {
         before: value,
         after: node.title ? ' ' : '\n',
         ...tracker.current()
@@ -8217,10 +7998,10 @@ function definition(node, _, context, safeOptions) {
   }
   subexit();
   if (node.title) {
-    subexit = context.enter('title' + suffix);
+    subexit = state.enter(`title${suffix}`);
     value += tracker.move(' ' + quote);
     value += tracker.move(
-      safe(context, node.title, {
+      state.safe(node.title, {
         before: value,
         after: quote,
         ...tracker.current()
@@ -8233,8 +8014,8 @@ function definition(node, _, context, safeOptions) {
   return value
 }
 
-function checkEmphasis(context) {
-  const marker = context.options.emphasis || '*';
+function checkEmphasis(state) {
+  const marker = state.options.emphasis || '*';
   if (marker !== '*' && marker !== '_') {
     throw new Error(
       'Cannot serialize emphasis with `' +
@@ -8245,67 +8026,14 @@ function checkEmphasis(context) {
   return marker
 }
 
-function containerPhrasing(parent, context, safeOptions) {
-  const indexStack = context.indexStack;
-  const children = parent.children || [];
-  const results = [];
-  let index = -1;
-  let before = safeOptions.before;
-  indexStack.push(-1);
-  let tracker = track(safeOptions);
-  while (++index < children.length) {
-    const child = children[index];
-    let after;
-    indexStack[indexStack.length - 1] = index;
-    if (index + 1 < children.length) {
-      let handle = context.handle.handlers[children[index + 1].type];
-      if (handle && handle.peek) handle = handle.peek;
-      after = handle
-        ? handle(children[index + 1], parent, context, {
-            before: '',
-            after: '',
-            ...tracker.current()
-          }).charAt(0)
-        : '';
-    } else {
-      after = safeOptions.after;
-    }
-    if (
-      results.length > 0 &&
-      (before === '\r' || before === '\n') &&
-      child.type === 'html'
-    ) {
-      results[results.length - 1] = results[results.length - 1].replace(
-        /(\r?\n|\r)$/,
-        ' '
-      );
-      before = ' ';
-      tracker = track(safeOptions);
-      tracker.move(results.join(''));
-    }
-    results.push(
-      tracker.move(
-        context.handle(child, parent, context, {
-          ...tracker.current(),
-          before,
-          after
-        })
-      )
-    );
-    before = results[results.length - 1].slice(-1);
-  }
-  indexStack.pop();
-  return results.join('')
-}
-
 emphasis.peek = emphasisPeek;
-function emphasis(node, _, context, safeOptions) {
-  const marker = checkEmphasis(context);
-  const exit = context.enter('emphasis');
-  const tracker = track(safeOptions);
+function emphasis(node, _, state, info) {
+  const marker = checkEmphasis(state);
+  const exit = state.enter('emphasis');
+  const tracker = state.createTracker(info);
   let value = tracker.move(marker);
   value += tracker.move(
-    containerPhrasing(node, context, {
+    state.containerPhrasing(node, {
       before: value,
       after: marker,
       ...tracker.current()
@@ -8315,8 +8043,8 @@ function emphasis(node, _, context, safeOptions) {
   exit();
   return value
 }
-function emphasisPeek(_, _1, context) {
-  return context.options.emphasis || '*'
+function emphasisPeek(_, _1, state) {
+  return state.options.emphasis || '*'
 }
 
 const convert =
@@ -8370,8 +8098,13 @@ function typeFactory(check) {
 }
 function castFactory(check) {
   return assertion
-  function assertion(...parameters) {
-    return Boolean(check.call(this, ...parameters))
+  function assertion(node, ...parameters) {
+    return Boolean(
+      node &&
+        typeof node === 'object' &&
+        'type' in node &&
+        Boolean(check.call(this, node, ...parameters))
+    )
   }
 }
 function ok() {
@@ -8383,8 +8116,8 @@ function color$2(d) {
 }
 
 const CONTINUE$1 = true;
-const SKIP$1 = 'skip';
 const EXIT$1 = false;
+const SKIP$1 = 'skip';
 const visitParents$1 =
   (
     function (tree, test, visitor, reverse) {
@@ -8395,22 +8128,20 @@ const visitParents$1 =
       }
       const is = convert(test);
       const step = reverse ? -1 : 1;
-      factory(tree, null, [])();
+      factory(tree, undefined, [])();
       function factory(node, index, parents) {
-        const value = typeof node === 'object' && node !== null ? node : {};
-        let name;
+        const value = node && typeof node === 'object' ? node : {};
         if (typeof value.type === 'string') {
-          name =
+          const name =
             typeof value.tagName === 'string'
               ? value.tagName
-              : typeof value.name === 'string'
+              :
+              typeof value.name === 'string'
               ? value.name
               : undefined;
           Object.defineProperty(visit, 'name', {
             value:
-              'node (' +
-              color$2(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
+              'node (' + color$2(node.type + (name ? '<' + name + '>' : '')) + ')'
           });
         }
         return visit
@@ -8472,7 +8203,7 @@ const visit$1 =
     }
   );
 
-function formatHeadingAsSetext(node, context) {
+function formatHeadingAsSetext(node, state) {
   let literalWithBreak = false;
   visit$1(node, (node) => {
     if (
@@ -8486,17 +8217,17 @@ function formatHeadingAsSetext(node, context) {
   return Boolean(
     (!node.depth || node.depth < 3) &&
       toString(node) &&
-      (context.options.setext || literalWithBreak)
+      (state.options.setext || literalWithBreak)
   )
 }
 
-function heading(node, _, context, safeOptions) {
+function heading(node, _, state, info) {
   const rank = Math.max(Math.min(6, node.depth || 1), 1);
-  const tracker = track(safeOptions);
-  if (formatHeadingAsSetext(node, context)) {
-    const exit = context.enter('headingSetext');
-    const subexit = context.enter('phrasing');
-    const value = containerPhrasing(node, context, {
+  const tracker = state.createTracker(info);
+  if (formatHeadingAsSetext(node, state)) {
+    const exit = state.enter('headingSetext');
+    const subexit = state.enter('phrasing');
+    const value = state.containerPhrasing(node, {
       ...tracker.current(),
       before: '\n',
       after: '\n'
@@ -8513,10 +8244,10 @@ function heading(node, _, context, safeOptions) {
     )
   }
   const sequence = '#'.repeat(rank);
-  const exit = context.enter('headingAtx');
-  const subexit = context.enter('phrasing');
+  const exit = state.enter('headingAtx');
+  const subexit = state.enter('phrasing');
   tracker.move(sequence + ' ');
-  let value = containerPhrasing(node, context, {
+  let value = state.containerPhrasing(node, {
     before: '# ',
     after: '\n',
     ...tracker.current()
@@ -8529,7 +8260,7 @@ function heading(node, _, context, safeOptions) {
       value.slice(1);
   }
   value = value ? sequence + ' ' + value : sequence;
-  if (context.options.closeAtx) {
+  if (state.options.closeAtx) {
     value += ' ' + sequence;
   }
   subexit();
@@ -8546,15 +8277,15 @@ function htmlPeek() {
 }
 
 image.peek = imagePeek;
-function image(node, _, context, safeOptions) {
-  const quote = checkQuote(context);
+function image(node, _, state, info) {
+  const quote = checkQuote(state);
   const suffix = quote === '"' ? 'Quote' : 'Apostrophe';
-  const exit = context.enter('image');
-  let subexit = context.enter('label');
-  const tracker = track(safeOptions);
+  const exit = state.enter('image');
+  let subexit = state.enter('label');
+  const tracker = state.createTracker(info);
   let value = tracker.move('![');
   value += tracker.move(
-    safe(context, node.alt, {before: value, after: ']', ...tracker.current()})
+    state.safe(node.alt, {before: value, after: ']', ...tracker.current()})
   );
   value += tracker.move('](');
   subexit();
@@ -8562,16 +8293,16 @@ function image(node, _, context, safeOptions) {
     (!node.url && node.title) ||
     /[\0- \u007F]/.test(node.url)
   ) {
-    subexit = context.enter('destinationLiteral');
+    subexit = state.enter('destinationLiteral');
     value += tracker.move('<');
     value += tracker.move(
-      safe(context, node.url, {before: value, after: '>', ...tracker.current()})
+      state.safe(node.url, {before: value, after: '>', ...tracker.current()})
     );
     value += tracker.move('>');
   } else {
-    subexit = context.enter('destinationRaw');
+    subexit = state.enter('destinationRaw');
     value += tracker.move(
-      safe(context, node.url, {
+      state.safe(node.url, {
         before: value,
         after: node.title ? ' ' : ')',
         ...tracker.current()
@@ -8580,10 +8311,10 @@ function image(node, _, context, safeOptions) {
   }
   subexit();
   if (node.title) {
-    subexit = context.enter('title' + suffix);
+    subexit = state.enter(`title${suffix}`);
     value += tracker.move(' ' + quote);
     value += tracker.move(
-      safe(context, node.title, {
+      state.safe(node.title, {
         before: value,
         after: quote,
         ...tracker.current()
@@ -8601,29 +8332,29 @@ function imagePeek() {
 }
 
 imageReference.peek = imageReferencePeek;
-function imageReference(node, _, context, safeOptions) {
+function imageReference(node, _, state, info) {
   const type = node.referenceType;
-  const exit = context.enter('imageReference');
-  let subexit = context.enter('label');
-  const tracker = track(safeOptions);
+  const exit = state.enter('imageReference');
+  let subexit = state.enter('label');
+  const tracker = state.createTracker(info);
   let value = tracker.move('![');
-  const alt = safe(context, node.alt, {
+  const alt = state.safe(node.alt, {
     before: value,
     after: ']',
     ...tracker.current()
   });
   value += tracker.move(alt + '][');
   subexit();
-  const stack = context.stack;
-  context.stack = [];
-  subexit = context.enter('reference');
-  const reference = safe(context, association(node), {
+  const stack = state.stack;
+  state.stack = [];
+  subexit = state.enter('reference');
+  const reference = state.safe(state.associationId(node), {
     before: value,
     after: ']',
     ...tracker.current()
   });
   subexit();
-  context.stack = stack;
+  state.stack = stack;
   exit();
   if (type === 'full' || !alt || alt !== reference) {
     value += tracker.move(reference + ']');
@@ -8638,8 +8369,24 @@ function imageReferencePeek() {
   return '!'
 }
 
+function patternCompile(pattern) {
+  if (!pattern._compiled) {
+    const before =
+      (pattern.atBreak ? '[\\r\\n][\\t ]*' : '') +
+      (pattern.before ? '(?:' + pattern.before + ')' : '');
+    pattern._compiled = new RegExp(
+      (before ? '(' + before + ')' : '') +
+        (/[|\\{}()[\]^$+*?.-]/.test(pattern.character) ? '\\' : '') +
+        pattern.character +
+        (pattern.after ? '(?:' + pattern.after + ')' : ''),
+      'g'
+    );
+  }
+  return pattern._compiled
+}
+
 inlineCode.peek = inlineCodePeek;
-function inlineCode(node, _, context) {
+function inlineCode(node, _, state) {
   let value = node.value || '';
   let sequence = '`';
   let index = -1;
@@ -8652,8 +8399,8 @@ function inlineCode(node, _, context) {
   ) {
     value = ' ' + value + ' ';
   }
-  while (++index < context.unsafe.length) {
-    const pattern = context.unsafe[index];
+  while (++index < state.unsafe.length) {
+    const pattern = state.unsafe[index];
     const expression = patternCompile(pattern);
     let match;
     if (!pattern.atBreak) continue
@@ -8674,10 +8421,10 @@ function inlineCodePeek() {
   return '`'
 }
 
-function formatLinkAsAutolink(node, context) {
+function formatLinkAsAutolink(node, state) {
   const raw = toString(node);
   return Boolean(
-    !context.options.resourceLink &&
+    !state.options.resourceLink &&
       node.url &&
       !node.title &&
       node.children &&
@@ -8690,19 +8437,19 @@ function formatLinkAsAutolink(node, context) {
 }
 
 link.peek = linkPeek;
-function link(node, _, context, safeOptions) {
-  const quote = checkQuote(context);
+function link(node, _, state, info) {
+  const quote = checkQuote(state);
   const suffix = quote === '"' ? 'Quote' : 'Apostrophe';
-  const tracker = track(safeOptions);
+  const tracker = state.createTracker(info);
   let exit;
   let subexit;
-  if (formatLinkAsAutolink(node, context)) {
-    const stack = context.stack;
-    context.stack = [];
-    exit = context.enter('autolink');
+  if (formatLinkAsAutolink(node, state)) {
+    const stack = state.stack;
+    state.stack = [];
+    exit = state.enter('autolink');
     let value = tracker.move('<');
     value += tracker.move(
-      containerPhrasing(node, context, {
+      state.containerPhrasing(node, {
         before: value,
         after: '>',
         ...tracker.current()
@@ -8710,14 +8457,14 @@ function link(node, _, context, safeOptions) {
     );
     value += tracker.move('>');
     exit();
-    context.stack = stack;
+    state.stack = stack;
     return value
   }
-  exit = context.enter('link');
-  subexit = context.enter('label');
+  exit = state.enter('link');
+  subexit = state.enter('label');
   let value = tracker.move('[');
   value += tracker.move(
-    containerPhrasing(node, context, {
+    state.containerPhrasing(node, {
       before: value,
       after: '](',
       ...tracker.current()
@@ -8729,16 +8476,16 @@ function link(node, _, context, safeOptions) {
     (!node.url && node.title) ||
     /[\0- \u007F]/.test(node.url)
   ) {
-    subexit = context.enter('destinationLiteral');
+    subexit = state.enter('destinationLiteral');
     value += tracker.move('<');
     value += tracker.move(
-      safe(context, node.url, {before: value, after: '>', ...tracker.current()})
+      state.safe(node.url, {before: value, after: '>', ...tracker.current()})
     );
     value += tracker.move('>');
   } else {
-    subexit = context.enter('destinationRaw');
+    subexit = state.enter('destinationRaw');
     value += tracker.move(
-      safe(context, node.url, {
+      state.safe(node.url, {
         before: value,
         after: node.title ? ' ' : ')',
         ...tracker.current()
@@ -8747,10 +8494,10 @@ function link(node, _, context, safeOptions) {
   }
   subexit();
   if (node.title) {
-    subexit = context.enter('title' + suffix);
+    subexit = state.enter(`title${suffix}`);
     value += tracker.move(' ' + quote);
     value += tracker.move(
-      safe(context, node.title, {
+      state.safe(node.title, {
         before: value,
         after: quote,
         ...tracker.current()
@@ -8763,34 +8510,34 @@ function link(node, _, context, safeOptions) {
   exit();
   return value
 }
-function linkPeek(node, _, context) {
-  return formatLinkAsAutolink(node, context) ? '<' : '['
+function linkPeek(node, _, state) {
+  return formatLinkAsAutolink(node, state) ? '<' : '['
 }
 
 linkReference.peek = linkReferencePeek;
-function linkReference(node, _, context, safeOptions) {
+function linkReference(node, _, state, info) {
   const type = node.referenceType;
-  const exit = context.enter('linkReference');
-  let subexit = context.enter('label');
-  const tracker = track(safeOptions);
+  const exit = state.enter('linkReference');
+  let subexit = state.enter('label');
+  const tracker = state.createTracker(info);
   let value = tracker.move('[');
-  const text = containerPhrasing(node, context, {
+  const text = state.containerPhrasing(node, {
     before: value,
     after: ']',
     ...tracker.current()
   });
   value += tracker.move(text + '][');
   subexit();
-  const stack = context.stack;
-  context.stack = [];
-  subexit = context.enter('reference');
-  const reference = safe(context, association(node), {
+  const stack = state.stack;
+  state.stack = [];
+  subexit = state.enter('reference');
+  const reference = state.safe(state.associationId(node), {
     before: value,
     after: ']',
     ...tracker.current()
   });
   subexit();
-  context.stack = stack;
+  state.stack = stack;
   exit();
   if (type === 'full' || !text || text !== reference) {
     value += tracker.move(reference + ']');
@@ -8805,8 +8552,8 @@ function linkReferencePeek() {
   return '['
 }
 
-function checkBullet(context) {
-  const marker = context.options.bullet || '*';
+function checkBullet(state) {
+  const marker = state.options.bullet || '*';
   if (marker !== '*' && marker !== '+' && marker !== '-') {
     throw new Error(
       'Cannot serialize items with `' +
@@ -8817,9 +8564,9 @@ function checkBullet(context) {
   return marker
 }
 
-function checkBulletOther(context) {
-  const bullet = checkBullet(context);
-  const bulletOther = context.options.bulletOther;
+function checkBulletOther(state) {
+  const bullet = checkBullet(state);
+  const bulletOther = state.options.bulletOther;
   if (!bulletOther) {
     return bullet === '*' ? '-' : '*'
   }
@@ -8842,8 +8589,8 @@ function checkBulletOther(context) {
   return bulletOther
 }
 
-function checkBulletOrdered(context) {
-  const marker = context.options.bulletOrdered || '.';
+function checkBulletOrdered(state) {
+  const marker = state.options.bulletOrdered || '.';
   if (marker !== '.' && marker !== ')') {
     throw new Error(
       'Cannot serialize items with `' +
@@ -8854,9 +8601,9 @@ function checkBulletOrdered(context) {
   return marker
 }
 
-function checkBulletOrderedOther(context) {
-  const bulletOrdered = checkBulletOrdered(context);
-  const bulletOrderedOther = context.options.bulletOrderedOther;
+function checkBulletOrderedOther(state) {
+  const bulletOrdered = checkBulletOrdered(state);
+  const bulletOrderedOther = state.options.bulletOrderedOther;
   if (!bulletOrderedOther) {
     return bulletOrdered === '.' ? ')' : '.'
   }
@@ -8879,8 +8626,8 @@ function checkBulletOrderedOther(context) {
   return bulletOrderedOther
 }
 
-function checkRule(context) {
-  const marker = context.options.rule || '*';
+function checkRule(state) {
+  const marker = state.options.rule || '*';
   if (marker !== '*' && marker !== '-' && marker !== '_') {
     throw new Error(
       'Cannot serialize rules with `' +
@@ -8891,20 +8638,20 @@ function checkRule(context) {
   return marker
 }
 
-function list(node, parent, context, safeOptions) {
-  const exit = context.enter('list');
-  const bulletCurrent = context.bulletCurrent;
-  let bullet = node.ordered ? checkBulletOrdered(context) : checkBullet(context);
+function list(node, parent, state, info) {
+  const exit = state.enter('list');
+  const bulletCurrent = state.bulletCurrent;
+  let bullet = node.ordered ? checkBulletOrdered(state) : checkBullet(state);
   const bulletOther = node.ordered
-    ? checkBulletOrderedOther(context)
-    : checkBulletOther(context);
-  const bulletLastUsed = context.bulletLastUsed;
+    ? checkBulletOrderedOther(state)
+    : checkBulletOther(state);
+  const bulletLastUsed = state.bulletLastUsed;
   let useDifferentMarker = false;
   if (
     parent &&
     (node.ordered
-      ? context.options.bulletOrderedOther
-      : context.options.bulletOther) &&
+      ? state.options.bulletOrderedOther
+      : state.options.bulletOther) &&
     bulletLastUsed &&
     bullet === bulletLastUsed
   ) {
@@ -8916,17 +8663,17 @@ function list(node, parent, context, safeOptions) {
       (bullet === '*' || bullet === '-') &&
       firstListItem &&
       (!firstListItem.children || !firstListItem.children[0]) &&
-      context.stack[context.stack.length - 1] === 'list' &&
-      context.stack[context.stack.length - 2] === 'listItem' &&
-      context.stack[context.stack.length - 3] === 'list' &&
-      context.stack[context.stack.length - 4] === 'listItem' &&
-      context.indexStack[context.indexStack.length - 1] === 0 &&
-      context.indexStack[context.indexStack.length - 2] === 0 &&
-      context.indexStack[context.indexStack.length - 3] === 0
+      state.stack[state.stack.length - 1] === 'list' &&
+      state.stack[state.stack.length - 2] === 'listItem' &&
+      state.stack[state.stack.length - 3] === 'list' &&
+      state.stack[state.stack.length - 4] === 'listItem' &&
+      state.indexStack[state.indexStack.length - 1] === 0 &&
+      state.indexStack[state.indexStack.length - 2] === 0 &&
+      state.indexStack[state.indexStack.length - 3] === 0
     ) {
       useDifferentMarker = true;
     }
-    if (checkRule(context) === bullet && firstListItem) {
+    if (checkRule(state) === bullet && firstListItem) {
       let index = -1;
       while (++index < node.children.length) {
         const item = node.children[index];
@@ -8946,16 +8693,16 @@ function list(node, parent, context, safeOptions) {
   if (useDifferentMarker) {
     bullet = bulletOther;
   }
-  context.bulletCurrent = bullet;
-  const value = containerFlow(node, context, safeOptions);
-  context.bulletLastUsed = bullet;
-  context.bulletCurrent = bulletCurrent;
+  state.bulletCurrent = bullet;
+  const value = state.containerFlow(node, info);
+  state.bulletLastUsed = bullet;
+  state.bulletCurrent = bulletCurrent;
   exit();
   return value
 }
 
-function checkListItemIndent(context) {
-  const style = context.options.listItemIndent || 'tab';
+function checkListItemIndent(state) {
+  const style = state.options.listItemIndent || 'tab';
   if (style === 1 || style === '1') {
     return 'one'
   }
@@ -8969,15 +8716,15 @@ function checkListItemIndent(context) {
   return style
 }
 
-function listItem(node, parent, context, safeOptions) {
-  const listItemIndent = checkListItemIndent(context);
-  let bullet = context.bulletCurrent || checkBullet(context);
+function listItem(node, parent, state, info) {
+  const listItemIndent = checkListItemIndent(state);
+  let bullet = state.bulletCurrent || checkBullet(state);
   if (parent && parent.type === 'list' && parent.ordered) {
     bullet =
       (typeof parent.start === 'number' && parent.start > -1
         ? parent.start
         : 1) +
-      (context.options.incrementListMarker === false
+      (state.options.incrementListMarker === false
         ? 0
         : parent.children.indexOf(node)) +
       bullet;
@@ -8990,12 +8737,12 @@ function listItem(node, parent, context, safeOptions) {
   ) {
     size = Math.ceil(size / 4) * 4;
   }
-  const tracker = track(safeOptions);
+  const tracker = state.createTracker(info);
   tracker.move(bullet + ' '.repeat(size - bullet.length));
   tracker.shift(size);
-  const exit = context.enter('listItem');
-  const value = indentLines(
-    containerFlow(node, context, tracker.current()),
+  const exit = state.enter('listItem');
+  const value = state.indentLines(
+    state.containerFlow(node, tracker.current()),
     map
   );
   exit();
@@ -9008,21 +8755,40 @@ function listItem(node, parent, context, safeOptions) {
   }
 }
 
-function paragraph(node, _, context, safeOptions) {
-  const exit = context.enter('paragraph');
-  const subexit = context.enter('phrasing');
-  const value = containerPhrasing(node, context, safeOptions);
+function paragraph(node, _, state, info) {
+  const exit = state.enter('paragraph');
+  const subexit = state.enter('phrasing');
+  const value = state.containerPhrasing(node, info);
   subexit();
   exit();
   return value
 }
 
-function root(node, _, context, safeOptions) {
-  return containerFlow(node, context, safeOptions)
+const phrasing =  (
+  convert([
+    'break',
+    'delete',
+    'emphasis',
+    'footnote',
+    'footnoteReference',
+    'image',
+    'imageReference',
+    'inlineCode',
+    'link',
+    'linkReference',
+    'strong',
+    'text'
+  ])
+);
+
+function root(node, _, state, info) {
+  const hasPhrasing = node.children.some((d) => phrasing(d));
+  const fn = hasPhrasing ? state.containerPhrasing : state.containerFlow;
+  return fn.call(state, node, info)
 }
 
-function checkStrong(context) {
-  const marker = context.options.strong || '*';
+function checkStrong(state) {
+  const marker = state.options.strong || '*';
   if (marker !== '*' && marker !== '_') {
     throw new Error(
       'Cannot serialize strong with `' +
@@ -9034,13 +8800,13 @@ function checkStrong(context) {
 }
 
 strong.peek = strongPeek;
-function strong(node, _, context, safeOptions) {
-  const marker = checkStrong(context);
-  const exit = context.enter('strong');
-  const tracker = track(safeOptions);
+function strong(node, _, state, info) {
+  const marker = checkStrong(state);
+  const exit = state.enter('strong');
+  const tracker = state.createTracker(info);
   let value = tracker.move(marker + marker);
   value += tracker.move(
-    containerPhrasing(node, context, {
+    state.containerPhrasing(node, {
       before: value,
       after: marker,
       ...tracker.current()
@@ -9050,16 +8816,16 @@ function strong(node, _, context, safeOptions) {
   exit();
   return value
 }
-function strongPeek(_, _1, context) {
-  return context.options.strong || '*'
+function strongPeek(_, _1, state) {
+  return state.options.strong || '*'
 }
 
-function text$1(node, _, context, safeOptions) {
-  return safe(context, node.value, safeOptions)
+function text$1(node, _, state, info) {
+  return state.safe(node.value, info)
 }
 
-function checkRuleRepetition(context) {
-  const repetition = context.options.ruleRepetition || 3;
+function checkRuleRepetition(state) {
+  const repetition = state.options.ruleRepetition || 3;
   if (repetition < 3) {
     throw new Error(
       'Cannot serialize rules with repetition `' +
@@ -9070,11 +8836,11 @@ function checkRuleRepetition(context) {
   return repetition
 }
 
-function thematicBreak(_, _1, context) {
+function thematicBreak(_, _1, state) {
   const value = (
-    checkRule(context) + (context.options.ruleSpaces ? ' ' : '')
-  ).repeat(checkRuleRepetition(context));
-  return context.options.ruleSpaces ? value.slice(0, -1) : value
+    checkRule(state) + (state.options.ruleSpaces ? ' ' : '')
+  ).repeat(checkRuleRepetition(state));
+  return state.options.ruleSpaces ? value.slice(0, -1) : value
 }
 
 const handle = {
@@ -9101,12 +8867,12 @@ const handle = {
 };
 
 const join = [joinDefaults];
-function joinDefaults(left, right, parent, context) {
+function joinDefaults(left, right, parent, state) {
   if (
     right.type === 'code' &&
-    formatCodeAsIndented(right, context) &&
+    formatCodeAsIndented(right, state) &&
     (left.type === 'list' ||
-      (left.type === right.type && formatCodeAsIndented(left, context)))
+      (left.type === right.type && formatCodeAsIndented(left, state)))
   ) {
     return false
   }
@@ -9115,8 +8881,8 @@ function joinDefaults(left, right, parent, context) {
     left.type === right.type &&
     Boolean(left.ordered) === Boolean(right.ordered) &&
     !(left.ordered
-      ? context.options.bulletOrderedOther
-      : context.options.bulletOther)
+      ? state.options.bulletOrderedOther
+      : state.options.bulletOther)
   ) {
     return false
   }
@@ -9125,7 +8891,7 @@ function joinDefaults(left, right, parent, context) {
       left.type === 'paragraph' &&
       (left.type === right.type ||
         right.type === 'definition' ||
-        (right.type === 'heading' && formatHeadingAsSetext(right, context)))
+        (right.type === 'heading' && formatHeadingAsSetext(right, state)))
     ) {
       return
     }
@@ -9228,27 +8994,281 @@ const unsafe = [
   {atBreak: true, character: '~'}
 ];
 
+function association(node) {
+  if (node.label || !node.identifier) {
+    return node.label || ''
+  }
+  return decodeString(node.identifier)
+}
+
+function containerPhrasing(parent, state, info) {
+  const indexStack = state.indexStack;
+  const children = parent.children || [];
+  const results = [];
+  let index = -1;
+  let before = info.before;
+  indexStack.push(-1);
+  let tracker = state.createTracker(info);
+  while (++index < children.length) {
+    const child = children[index];
+    let after;
+    indexStack[indexStack.length - 1] = index;
+    if (index + 1 < children.length) {
+      let handle = state.handle.handlers[children[index + 1].type];
+      if (handle && handle.peek) handle = handle.peek;
+      after = handle
+        ? handle(children[index + 1], parent, state, {
+            before: '',
+            after: '',
+            ...tracker.current()
+          }).charAt(0)
+        : '';
+    } else {
+      after = info.after;
+    }
+    if (
+      results.length > 0 &&
+      (before === '\r' || before === '\n') &&
+      child.type === 'html'
+    ) {
+      results[results.length - 1] = results[results.length - 1].replace(
+        /(\r?\n|\r)$/,
+        ' '
+      );
+      before = ' ';
+      tracker = state.createTracker(info);
+      tracker.move(results.join(''));
+    }
+    results.push(
+      tracker.move(
+        state.handle(child, parent, state, {
+          ...tracker.current(),
+          before,
+          after
+        })
+      )
+    );
+    before = results[results.length - 1].slice(-1);
+  }
+  indexStack.pop();
+  return results.join('')
+}
+
+function containerFlow(parent, state, info) {
+  const indexStack = state.indexStack;
+  const children = parent.children || [];
+  const tracker = state.createTracker(info);
+  const results = [];
+  let index = -1;
+  indexStack.push(-1);
+  while (++index < children.length) {
+    const child = children[index];
+    indexStack[indexStack.length - 1] = index;
+    results.push(
+      tracker.move(
+        state.handle(child, parent, state, {
+          before: '\n',
+          after: '\n',
+          ...tracker.current()
+        })
+      )
+    );
+    if (child.type !== 'list') {
+      state.bulletLastUsed = undefined;
+    }
+    if (index < children.length - 1) {
+      results.push(
+        tracker.move(between(child, children[index + 1], parent, state))
+      );
+    }
+  }
+  indexStack.pop();
+  return results.join('')
+}
+function between(left, right, parent, state) {
+  let index = state.join.length;
+  while (index--) {
+    const result = state.join[index](left, right, parent, state);
+    if (result === true || result === 1) {
+      break
+    }
+    if (typeof result === 'number') {
+      return '\n'.repeat(1 + result)
+    }
+    if (result === false) {
+      return '\n\n<!---->\n\n'
+    }
+  }
+  return '\n\n'
+}
+
+const eol = /\r?\n|\r/g;
+function indentLines(value, map) {
+  const result = [];
+  let start = 0;
+  let line = 0;
+  let match;
+  while ((match = eol.exec(value))) {
+    one(value.slice(start, match.index));
+    result.push(match[0]);
+    start = match.index + match[0].length;
+    line++;
+  }
+  one(value.slice(start));
+  return result.join('')
+  function one(value) {
+    result.push(map(value, line, !value));
+  }
+}
+
+function safe(state, input, config) {
+  const value = (config.before || '') + (input || '') + (config.after || '');
+  const positions = [];
+  const result = [];
+  const infos = {};
+  let index = -1;
+  while (++index < state.unsafe.length) {
+    const pattern = state.unsafe[index];
+    if (!patternInScope(state.stack, pattern)) {
+      continue
+    }
+    const expression = patternCompile(pattern);
+    let match;
+    while ((match = expression.exec(value))) {
+      const before = 'before' in pattern || Boolean(pattern.atBreak);
+      const after = 'after' in pattern;
+      const position = match.index + (before ? match[1].length : 0);
+      if (positions.includes(position)) {
+        if (infos[position].before && !before) {
+          infos[position].before = false;
+        }
+        if (infos[position].after && !after) {
+          infos[position].after = false;
+        }
+      } else {
+        positions.push(position);
+        infos[position] = {before, after};
+      }
+    }
+  }
+  positions.sort(numerical);
+  let start = config.before ? config.before.length : 0;
+  const end = value.length - (config.after ? config.after.length : 0);
+  index = -1;
+  while (++index < positions.length) {
+    const position = positions[index];
+    if (position < start || position >= end) {
+      continue
+    }
+    if (
+      (position + 1 < end &&
+        positions[index + 1] === position + 1 &&
+        infos[position].after &&
+        !infos[position + 1].before &&
+        !infos[position + 1].after) ||
+      (positions[index - 1] === position - 1 &&
+        infos[position].before &&
+        !infos[position - 1].before &&
+        !infos[position - 1].after)
+    ) {
+      continue
+    }
+    if (start !== position) {
+      result.push(escapeBackslashes(value.slice(start, position), '\\'));
+    }
+    start = position;
+    if (
+      /[!-/:-@[-`{-~]/.test(value.charAt(position)) &&
+      (!config.encode || !config.encode.includes(value.charAt(position)))
+    ) {
+      result.push('\\');
+    } else {
+      result.push(
+        '&#x' + value.charCodeAt(position).toString(16).toUpperCase() + ';'
+      );
+      start++;
+    }
+  }
+  result.push(escapeBackslashes(value.slice(start, end), config.after));
+  return result.join('')
+}
+function numerical(a, b) {
+  return a - b
+}
+function escapeBackslashes(value, after) {
+  const expression = /\\(?=[!-/:-@[-`{-~])/g;
+  const positions = [];
+  const results = [];
+  const whole = value + after;
+  let index = -1;
+  let start = 0;
+  let match;
+  while ((match = expression.exec(whole))) {
+    positions.push(match.index);
+  }
+  while (++index < positions.length) {
+    if (start !== positions[index]) {
+      results.push(value.slice(start, positions[index]));
+    }
+    results.push('\\');
+    start = positions[index];
+  }
+  results.push(value.slice(start));
+  return results.join('')
+}
+
+function track(config) {
+  const options = config || {};
+  const now = options.now || {};
+  let lineShift = options.lineShift || 0;
+  let line = now.line || 1;
+  let column = now.column || 1;
+  return {move, current, shift}
+  function current() {
+    return {now: {line, column}, lineShift}
+  }
+  function shift(value) {
+    lineShift += value;
+  }
+  function move(input) {
+    const value = input || '';
+    const chunks = value.split(/\r?\n|\r/g);
+    const tail = chunks[chunks.length - 1];
+    line += chunks.length - 1;
+    column =
+      chunks.length === 1 ? column + tail.length : 1 + tail.length + lineShift;
+    return value
+  }
+}
+
 function toMarkdown(tree, options = {}) {
-  const context = {
+  const state = {
     enter,
+    indentLines,
+    associationId: association,
+    containerPhrasing: containerPhrasingBound,
+    containerFlow: containerFlowBound,
+    createTracker: track,
+    safe: safeBound,
     stack: [],
     unsafe: [],
     join: [],
     handlers: {},
     options: {},
-    indexStack: []
+    indexStack: [],
+    handle: undefined
   };
-  configure(context, {unsafe, join, handlers: handle});
-  configure(context, options);
-  if (context.options.tightDefinitions) {
-    configure(context, {join: [joinDefinition]});
+  configure(state, {unsafe, join, handlers: handle});
+  configure(state, options);
+  if (state.options.tightDefinitions) {
+    configure(state, {join: [joinDefinition]});
   }
-  context.handle = zwitch('type', {
+  state.handle = zwitch('type', {
     invalid,
     unknown,
-    handlers: context.handlers
+    handlers: state.handlers
   });
-  let result = context.handle(tree, undefined, context, {
+  let result = state.handle(tree, undefined, state, {
     before: '\n',
     after: '\n',
     now: {line: 1, column: 1},
@@ -9263,10 +9283,10 @@ function toMarkdown(tree, options = {}) {
   }
   return result
   function enter(name) {
-    context.stack.push(name);
+    state.stack.push(name);
     return exit
     function exit() {
-      context.stack.pop();
+      state.stack.pop();
     }
   }
 }
@@ -9280,6 +9300,15 @@ function joinDefinition(left, right) {
   if (left.type === 'definition' && left.type === right.type) {
     return 0
   }
+}
+function containerPhrasingBound(parent, info) {
+  return containerPhrasing(parent, this, info)
+}
+function containerFlowBound(parent, info) {
+  return containerFlow(parent, this, info)
+}
+function safeBound(value, config) {
+  return safe(this, value, config)
 }
 
 function remarkStringify(options) {
@@ -10730,7 +10759,7 @@ const findAndReplace =
         let index = -1;
         let grandparent;
         while (++index < parents.length) {
-          const parent =  (parents[index]);
+          const parent = parents[index];
           if (
             ignored(
               parent,
@@ -10754,11 +10783,10 @@ const findAndReplace =
         const index = parent.children.indexOf(node);
         let change = false;
         let nodes = [];
-        let position;
         find.lastIndex = 0;
         let match = find.exec(node.value);
         while (match) {
-          position = match.index;
+          const position = match.index;
           const matchObject = {
             index: match.index,
             input: match.input,
@@ -10925,7 +10953,7 @@ function findUrl(_, protocol, domain, path, match) {
 function findEmail(_, atext, label, match) {
   if (
     !previous(match, true) ||
-    /[_-\d]$/.test(label)
+    /[-\d_]$/.test(label)
   ) {
     return false
   }
@@ -10953,22 +10981,19 @@ function isCorrectDomain(domain) {
 }
 function splitUrl(url) {
   const trailExec = /[!"&'),.:;<>?\]}]+$/.exec(url);
-  let closingParenIndex;
-  let openingParens;
-  let closingParens;
-  let trail;
-  if (trailExec) {
-    url = url.slice(0, trailExec.index);
-    trail = trailExec[0];
+  if (!trailExec) {
+    return [url, undefined]
+  }
+  url = url.slice(0, trailExec.index);
+  let trail = trailExec[0];
+  let closingParenIndex = trail.indexOf(')');
+  const openingParens = ccount(url, '(');
+  let closingParens = ccount(url, ')');
+  while (closingParenIndex !== -1 && openingParens > closingParens) {
+    url += trail.slice(0, closingParenIndex + 1);
+    trail = trail.slice(closingParenIndex + 1);
     closingParenIndex = trail.indexOf(')');
-    openingParens = ccount(url, '(');
-    closingParens = ccount(url, ')');
-    while (closingParenIndex !== -1 && openingParens > closingParens) {
-      url += trail.slice(0, closingParenIndex + 1);
-      trail = trail.slice(closingParenIndex + 1);
-      closingParenIndex = trail.indexOf(')');
-      closingParens++;
-    }
+    closingParens++;
   }
   return [url, trail]
 }
@@ -10982,6 +11007,7 @@ function previous(match, email) {
   )
 }
 
+footnoteReference.peek = footnoteReferencePeek;
 function gfmFootnoteFromMarkdown() {
   return {
     enter: {
@@ -10997,110 +11023,104 @@ function gfmFootnoteFromMarkdown() {
       gfmFootnoteCallString: exitFootnoteCallString
     }
   }
-  function enterFootnoteDefinition(token) {
-    this.enter(
-      {type: 'footnoteDefinition', identifier: '', label: '', children: []},
-      token
-    );
-  }
-  function enterFootnoteDefinitionLabelString() {
-    this.buffer();
-  }
-  function exitFootnoteDefinitionLabelString(token) {
-    const label = this.resume();
-    const node =  (
-      this.stack[this.stack.length - 1]
-    );
-    node.label = label;
-    node.identifier = normalizeIdentifier(
-      this.sliceSerialize(token)
-    ).toLowerCase();
-  }
-  function exitFootnoteDefinition(token) {
-    this.exit(token);
-  }
-  function enterFootnoteCall(token) {
-    this.enter({type: 'footnoteReference', identifier: '', label: ''}, token);
-  }
-  function enterFootnoteCallString() {
-    this.buffer();
-  }
-  function exitFootnoteCallString(token) {
-    const label = this.resume();
-    const node =  (
-      this.stack[this.stack.length - 1]
-    );
-    node.label = label;
-    node.identifier = normalizeIdentifier(
-      this.sliceSerialize(token)
-    ).toLowerCase();
-  }
-  function exitFootnoteCall(token) {
-    this.exit(token);
-  }
 }
 function gfmFootnoteToMarkdown() {
-  footnoteReference.peek = footnoteReferencePeek;
   return {
     unsafe: [{character: '[', inConstruct: ['phrasing', 'label', 'reference']}],
     handlers: {footnoteDefinition, footnoteReference}
   }
-  function footnoteReference(node, _, context, safeOptions) {
-    const tracker = track(safeOptions);
-    let value = tracker.move('[^');
-    const exit = context.enter('footnoteReference');
-    const subexit = context.enter('reference');
-    value += tracker.move(
-      safe(context, association(node), {
-        ...tracker.current(),
-        before: value,
-        after: ']'
-      })
-    );
-    subexit();
-    exit();
-    value += tracker.move(']');
-    return value
+}
+function enterFootnoteDefinition(token) {
+  this.enter(
+    {type: 'footnoteDefinition', identifier: '', label: '', children: []},
+    token
+  );
+}
+function enterFootnoteDefinitionLabelString() {
+  this.buffer();
+}
+function exitFootnoteDefinitionLabelString(token) {
+  const label = this.resume();
+  const node =  (
+    this.stack[this.stack.length - 1]
+  );
+  node.label = label;
+  node.identifier = normalizeIdentifier(
+    this.sliceSerialize(token)
+  ).toLowerCase();
+}
+function exitFootnoteDefinition(token) {
+  this.exit(token);
+}
+function enterFootnoteCall(token) {
+  this.enter({type: 'footnoteReference', identifier: '', label: ''}, token);
+}
+function enterFootnoteCallString() {
+  this.buffer();
+}
+function exitFootnoteCallString(token) {
+  const label = this.resume();
+  const node =  (
+    this.stack[this.stack.length - 1]
+  );
+  node.label = label;
+  node.identifier = normalizeIdentifier(
+    this.sliceSerialize(token)
+  ).toLowerCase();
+}
+function exitFootnoteCall(token) {
+  this.exit(token);
+}
+function footnoteReference(node, _, context, safeOptions) {
+  const tracker = track(safeOptions);
+  let value = tracker.move('[^');
+  const exit = context.enter('footnoteReference');
+  const subexit = context.enter('reference');
+  value += tracker.move(
+    safe(context, association(node), {
+      ...tracker.current(),
+      before: value,
+      after: ']'
+    })
+  );
+  subexit();
+  exit();
+  value += tracker.move(']');
+  return value
+}
+function footnoteReferencePeek() {
+  return '['
+}
+function footnoteDefinition(node, _, context, safeOptions) {
+  const tracker = track(safeOptions);
+  let value = tracker.move('[^');
+  const exit = context.enter('footnoteDefinition');
+  const subexit = context.enter('label');
+  value += tracker.move(
+    safe(context, association(node), {
+      ...tracker.current(),
+      before: value,
+      after: ']'
+    })
+  );
+  subexit();
+  value += tracker.move(
+    ']:' + (node.children && node.children.length > 0 ? ' ' : '')
+  );
+  tracker.shift(4);
+  value += tracker.move(
+    indentLines(containerFlow(node, context, tracker.current()), map$1)
+  );
+  exit();
+  return value
+}
+function map$1(line, index, blank) {
+  if (index === 0) {
+    return line
   }
-  function footnoteReferencePeek() {
-    return '['
-  }
-  function footnoteDefinition(node, _, context, safeOptions) {
-    const tracker = track(safeOptions);
-    let value = tracker.move('[^');
-    const exit = context.enter('footnoteDefinition');
-    const subexit = context.enter('label');
-    value += tracker.move(
-      safe(context, association(node), {
-        ...tracker.current(),
-        before: value,
-        after: ']'
-      })
-    );
-    subexit();
-    value += tracker.move(
-      ']:' + (node.children && node.children.length > 0 ? ' ' : '')
-    );
-    tracker.shift(4);
-    value += tracker.move(
-      indentLines(containerFlow(node, context, tracker.current()), map)
-    );
-    exit();
-    return value
-    function map(line, index, blank) {
-      if (index) {
-        return (blank ? '' : '    ') + line
-      }
-      return line
-    }
-  }
+  return (blank ? '' : '    ') + line
 }
 
-const gfmStrikethroughFromMarkdown = {
-  canContainEols: ['delete'],
-  enter: {strikethrough: enterStrikethrough},
-  exit: {strikethrough: exitStrikethrough}
-};
 const constructsWithoutStrikethrough = [
   'autolink',
   'destinationLiteral',
@@ -11109,6 +11129,12 @@ const constructsWithoutStrikethrough = [
   'titleQuote',
   'titleApostrophe'
 ];
+handleDelete.peek = peekDelete;
+const gfmStrikethroughFromMarkdown = {
+  canContainEols: ['delete'],
+  enter: {strikethrough: enterStrikethrough},
+  exit: {strikethrough: exitStrikethrough}
+};
 const gfmStrikethroughToMarkdown = {
   unsafe: [
     {
@@ -11119,7 +11145,6 @@ const gfmStrikethroughToMarkdown = {
   ],
   handlers: {delete: handleDelete}
 };
-handleDelete.peek = peekDelete;
 function enterStrikethrough(token) {
   this.enter({type: 'delete', children: []}, token);
 }
@@ -11128,7 +11153,7 @@ function exitStrikethrough(token) {
 }
 function handleDelete(node, _, context, safeOptions) {
   const tracker = track(safeOptions);
-  const exit = context.enter('emphasis');
+  const exit = context.enter('strikethrough');
   let value = tracker.move('~~');
   value += containerPhrasing(node, context, {
     ...tracker.current(),
@@ -11464,37 +11489,37 @@ function exitCheck(token) {
 }
 function exitParagraphWithTaskListItem(token) {
   const parent =  (this.stack[this.stack.length - 2]);
-  const node =  (this.stack[this.stack.length - 1]);
-  const siblings = parent.children;
-  const head = node.children[0];
-  let index = -1;
-  let firstParaghraph;
   if (
     parent &&
     parent.type === 'listItem' &&
-    typeof parent.checked === 'boolean' &&
-    head &&
-    head.type === 'text'
+    typeof parent.checked === 'boolean'
   ) {
-    while (++index < siblings.length) {
-      const sibling = siblings[index];
-      if (sibling.type === 'paragraph') {
-        firstParaghraph = sibling;
-        break
+    const node =  (this.stack[this.stack.length - 1]);
+    const head = node.children[0];
+    if (head && head.type === 'text') {
+      const siblings = parent.children;
+      let index = -1;
+      let firstParaghraph;
+      while (++index < siblings.length) {
+        const sibling = siblings[index];
+        if (sibling.type === 'paragraph') {
+          firstParaghraph = sibling;
+          break
+        }
       }
-    }
-    if (firstParaghraph === node) {
-      head.value = head.value.slice(1);
-      if (head.value.length === 0) {
-        node.children.shift();
-      } else if (
-        node.position &&
-        head.position &&
-        typeof head.position.start.offset === 'number'
-      ) {
-        head.position.start.column++;
-        head.position.start.offset++;
-        node.position.start = Object.assign({}, head.position.start);
+      if (firstParaghraph === node) {
+        head.value = head.value.slice(1);
+        if (head.value.length === 0) {
+          node.children.shift();
+        } else if (
+          node.position &&
+          head.position &&
+          typeof head.position.start.offset === 'number'
+        ) {
+          head.position.start.column++;
+          head.position.start.offset++;
+          node.position.start = Object.assign({}, head.position.start);
+        }
       }
     }
   }
@@ -11557,22 +11582,26 @@ function remarkGfm(options = {}) {
 }
 
 function location(file) {
-  var value = String(file);
-  var indices = [];
-  var search = /\r?\n|\r/g;
+  const value = String(file);
+  const indices = [];
+  const search = /\r?\n|\r/g;
   while (search.test(value)) {
     indices.push(search.lastIndex);
   }
   indices.push(value.length + 1);
   return {toPoint, toOffset}
   function toPoint(offset) {
-    var index = -1;
-    if (offset > -1 && offset < indices[indices.length - 1]) {
+    let index = -1;
+    if (
+      typeof offset === 'number' &&
+      offset > -1 &&
+      offset < indices[indices.length - 1]
+    ) {
       while (++index < indices.length) {
         if (indices[index] > offset) {
           return {
             line: index + 1,
-            column: offset - (indices[index - 1] || 0) + 1,
+            column: offset - (index > 0 ? indices[index - 1] : 0) + 1,
             offset
           }
         }
@@ -11581,9 +11610,8 @@ function location(file) {
     return {line: undefined, column: undefined, offset: undefined}
   }
   function toOffset(point) {
-    var line = point && point.line;
-    var column = point && point.column;
-    var offset;
+    const line = point && point.line;
+    const column = point && point.column;
     if (
       typeof line === 'number' &&
       typeof column === 'number' &&
@@ -11591,9 +11619,12 @@ function location(file) {
       !Number.isNaN(column) &&
       line - 1 in indices
     ) {
-      offset = (indices[line - 2] || 0) + column - 1 || 0;
+      const offset = (indices[line - 2] || 0) + column - 1 || 0;
+      if (offset > -1 && offset < indices[indices.length - 1]) {
+        return offset
+      }
     }
-    return offset > -1 && offset < indices[indices.length - 1] ? offset : -1
+    return -1
   }
 }
 
@@ -11943,12 +11974,13 @@ function parseParameters(value) {
     : parameters
   function replacer(_, $1, $2, $3, $4) {
     let value = $2 || $3 || $4 || '';
+    const number = Number(value);
     if (value === 'true' || value === '') {
       value = true;
     } else if (value === 'false') {
       value = false;
-    } else if (!Number.isNaN(Number(value))) {
-      value = Number(value);
+    } else if (!Number.isNaN(number)) {
+      value = number;
     }
     parameters[$1] = value;
     return ''
@@ -13192,10 +13224,10 @@ const remarkLintNoDuplicateDefinitions = lintRule(
 var remarkLintNoDuplicateDefinitions$1 = remarkLintNoDuplicateDefinitions;
 
 function headingStyle(node, relative) {
-  var last = node.children[node.children.length - 1];
-  var depth = node.depth;
-  var pos = node && node.position && node.position.end;
-  var final = last && last.position && last.position.end;
+  const last = node.children[node.children.length - 1];
+  const depth = node.depth;
+  const pos = node.position && node.position.end;
+  const final = last && last.position && last.position.end;
   if (!pos) {
     return null
   }
@@ -13205,10 +13237,10 @@ function headingStyle(node, relative) {
     }
     return 'atx-closed'
   }
-  if (final.line + 1 === pos.line) {
+  if (final && final.line + 1 === pos.line) {
     return 'setext'
   }
-  if (final.column + depth < pos.column) {
+  if (final && final.column + depth < pos.column) {
     return 'atx-closed'
   }
   return consolidate(depth, relative)
@@ -19424,7 +19456,7 @@ const { compareIdentifiers } = identifiers;
 let SemVer$2 = class SemVer {
   constructor (version, options) {
     options = parseOptions$1(options);
-    if (version instanceof SemVer$2) {
+    if (version instanceof SemVer) {
       if (version.loose === !!options.loose &&
           version.includePrerelease === !!options.includePrerelease) {
         return version
@@ -19488,11 +19520,11 @@ let SemVer$2 = class SemVer {
   }
   compare (other) {
     debug('SemVer.compare', this.version, this.options, other);
-    if (!(other instanceof SemVer$2)) {
+    if (!(other instanceof SemVer)) {
       if (typeof other === 'string' && other === this.version) {
         return 0
       }
-      other = new SemVer$2(other, this.options);
+      other = new SemVer(other, this.options);
     }
     if (other.version === this.version) {
       return 0
@@ -19500,8 +19532,8 @@ let SemVer$2 = class SemVer {
     return this.compareMain(other) || this.comparePre(other)
   }
   compareMain (other) {
-    if (!(other instanceof SemVer$2)) {
-      other = new SemVer$2(other, this.options);
+    if (!(other instanceof SemVer)) {
+      other = new SemVer(other, this.options);
     }
     return (
       compareIdentifiers(this.major, other.major) ||
@@ -19510,8 +19542,8 @@ let SemVer$2 = class SemVer {
     )
   }
   comparePre (other) {
-    if (!(other instanceof SemVer$2)) {
-      other = new SemVer$2(other, this.options);
+    if (!(other instanceof SemVer)) {
+      other = new SemVer(other, this.options);
     }
     if (this.prerelease.length && !other.prerelease.length) {
       return -1
@@ -19539,8 +19571,8 @@ let SemVer$2 = class SemVer {
     } while (++i)
   }
   compareBuild (other) {
-    if (!(other instanceof SemVer$2)) {
-      other = new SemVer$2(other, this.options);
+    if (!(other instanceof SemVer)) {
+      other = new SemVer(other, this.options);
     }
     let i = 0;
     do {
@@ -20745,6 +20777,7 @@ const plugins = [
     remarkLintProhibitedStrings,
     [
       { yes: "End-of-Life" },
+      { no: "filesystem", yes: "file system" },
       { yes: "GitHub" },
       { no: "hostname", yes: "host name" },
       { yes: "JavaScript" },
@@ -20774,13 +20807,16 @@ const settings = {
 };
 const remarkPresetLintNode = { plugins, settings };
 
-function toVFile(options) {
-  if (typeof options === 'string' || options instanceof URL$1) {
-    options = {path: options};
-  } else if (isBuffer(options)) {
-    options = {path: String(options)};
+function toVFile(description) {
+  if (typeof description === 'string' || description instanceof URL$1) {
+    description = {path: description};
+  } else if (isBuffer(description)) {
+    description = {path: String(description)};
   }
-  return looksLikeAVFile(options) ? options : new VFile(options)
+  return looksLikeAVFile(description)
+    ? description
+    :
+      new VFile(description || undefined)
 }
 function readSync(description, options) {
   const file = toVFile(description);
@@ -20812,7 +20848,8 @@ const read =
         try {
           fp = path$1.resolve(file.cwd, file.path);
         } catch (error) {
-          return reject(error)
+          const exception =  (error);
+          return reject(exception)
         }
         fs.readFile(fp, options, done);
         function done(error, result) {
@@ -20846,12 +20883,13 @@ const write =
         try {
           fp = path$1.resolve(file.cwd, file.path);
         } catch (error) {
-          return reject(error)
+          const exception =  (error);
+          return reject(exception, null)
         }
-        fs.writeFile(fp, file.value || '', options, done);
+        fs.writeFile(fp, file.value || '', options || null, done);
         function done(error) {
           if (error) {
-            reject(error);
+            reject(error, null);
           } else {
             resolve(file);
           }
@@ -20860,11 +20898,11 @@ const write =
     }
   );
 function looksLikeAVFile(value) {
-  return (
+  return Boolean(
     value &&
-    typeof value === 'object' &&
-    'message' in value &&
-    'messages' in value
+      typeof value === 'object' &&
+      'message' in value &&
+      'messages' in value
   )
 }
 toVFile.readSync = readSync;
@@ -21241,7 +21279,7 @@ function stringWidth(string, options = {}) {
 }
 
 function statistics(value) {
-  var result = {true: 0, false: 0, null: 0};
+  const result = {true: 0, false: 0, null: 0};
   if (value) {
     if (Array.isArray(value)) {
       list(value);
@@ -21257,22 +21295,25 @@ function statistics(value) {
     total: result.true + result.false + result.null
   }
   function list(value) {
-    var index = -1;
+    let index = -1;
     while (++index < value.length) {
       one(value[index]);
     }
   }
   function one(value) {
     if ('messages' in value) return list(value.messages)
-    result[
-      value.fatal === undefined || value.fatal === null
-        ? null
-        : Boolean(value.fatal)
-    ]++;
+    const field =  (
+      String(
+        value.fatal === undefined || value.fatal === null
+          ? null
+          : Boolean(value.fatal)
+      )
+    );
+    result[field]++;
   }
 }
 
-var severities = {true: 2, false: 1, null: 0, undefined: 0};
+const severities = {true: 2, false: 1, null: 0, undefined: 0};
 function sort(file) {
   file.messages.sort(comparator);
   return file
@@ -21281,18 +21322,18 @@ function comparator(a, b) {
   return (
     check(a, b, 'line') ||
     check(a, b, 'column') ||
-    severities[b.fatal] - severities[a.fatal] ||
+    severities[String(b.fatal)] - severities[String(a.fatal)] ||
     compare(a, b, 'source') ||
     compare(a, b, 'ruleId') ||
     compare(a, b, 'reason') ||
     0
   )
 }
-function check(a, b, property) {
-  return (a[property] || 0) - (b[property] || 0)
+function check(a, b, field) {
+  return (a[field] || 0) - (b[field] || 0)
 }
-function compare(a, b, property) {
-  return String(a[property] || '').localeCompare(b[property] || '')
+function compare(a, b, field) {
+  return String(a[field] || '').localeCompare(b[field] || '')
 }
 
 function hasFlag(flag, argv = globalThis.Deno ? globalThis.Deno.args : process$1.argv) {
@@ -21444,24 +21485,23 @@ const labels = {
   null: 'info',
   undefined: 'info'
 };
-function reporter(files, options = {}) {
-  let one;
+function reporter(files, options) {
   if (!files) {
     return ''
   }
   if ('name' in files && 'message' in files) {
     return String(files.stack || files)
   }
-  if (!Array.isArray(files)) {
-    one = true;
-    files = [files];
+  const options_ = options || {};
+  if (Array.isArray(files)) {
+    return format$1(transform(files, options_), false, options_)
   }
-  return format$1(transform(files, options), one, options)
+  return format$1(transform([files], options_), true, options_)
 }
 function transform(files, options) {
   const rows = [];
   const all = [];
-  const sizes = {};
+  const sizes = {place: 0, label: 0, reason: 0, ruleId: 0, source: 0};
   let index = -1;
   while (++index < files.length) {
     const messages = sort({messages: [...files[index].messages]}).messages;

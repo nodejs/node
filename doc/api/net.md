@@ -29,7 +29,7 @@ sockets on other operating systems.
 [`socket.connect()`][] take a `path` parameter to identify IPC endpoints.
 
 On Unix, the local domain is also known as the Unix domain. The path is a
-filesystem pathname. It gets truncated to an OS-dependent length of
+file system pathname. It gets truncated to an OS-dependent length of
 `sizeof(sockaddr_un.sun_path) - 1`. Typical values are 107 bytes on Linux and
 103 bytes on macOS. If a Node.js API abstraction creates the Unix domain socket,
 it will unlink the Unix domain socket as well. For example,
@@ -37,7 +37,7 @@ it will unlink the Unix domain socket as well. For example,
 [`server.close()`][] will unlink it. But if a user creates the Unix domain
 socket outside of these abstractions, the user will need to remove it. The same
 applies when a Node.js API creates a Unix domain socket but the program then
-crashes. In short, a Unix domain socket will be visible in the filesystem and
+crashes. In short, a Unix domain socket will be visible in the file system and
 will persist until unlinked.
 
 On Windows, the local domain is implemented using a named pipe. The path _must_
@@ -780,6 +780,20 @@ Returns the bound `address`, the address `family` name and `port` of the
 socket as reported by the operating system:
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
 
+### `socket.autoSelectFamilyAttemptedAddresses`
+
+<!-- YAML
+added: v19.4.0
+-->
+
+* {string\[]}
+
+This property is only present if the family autoselection algorithm is enabled in
+[`socket.connect(options)`][] and it is an array of the addresses that have been attempted.
+
+Each address is a string in the form of `$IP:$PORT`. If the connection was successful,
+then the last address is the one that the socket is currently connected to.
+
 ### `socket.bufferSize`
 
 <!-- YAML
@@ -856,7 +870,14 @@ behavior.
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: v19.3.0
+  - version: v19.4.0
+    pr-url: https://github.com/nodejs/node/pull/45777
+    description: The default value for autoSelectFamily option can be changed
+                 at runtime using `setDefaultAutoSelectFamily` or via the
+                 command line option `--enable-network-family-autoselection`.
+  - version:
+      - v19.3.0
+      - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/44731
     description: Added the `autoSelectFamily` option.
   - version:
@@ -909,12 +930,14 @@ For TCP connections, available `options` are:
   that loosely implements section 5 of [RFC 8305][].
   The `all` option passed to lookup is set to `true` and the sockets attempts to connect to all
   obtained IPv6 and IPv4 addresses, in sequence, until a connection is established.
-  The first returned AAAA address is tried first, then the first returned A address and so on.
+  The first returned AAAA address is tried first, then the first returned A address,
+  then the second returned AAAA address and so on.
   Each connection attempt is given the amount of time specified by the `autoSelectFamilyAttemptTimeout`
   option before timing out and trying the next address.
   Ignored if the `family` option is not `0` or if `localAddress` is set.
   Connection errors are not emitted if at least one connection succeeds.
-  **Default:** `false`.
+  **Default:** initially `false`, but it can be changed at runtime using [`net.setDefaultAutoSelectFamily(value)`][]
+  or via the command line option `--enable-network-family-autoselection`.
 * `autoSelectFamilyAttemptTimeout` {number}: The amount of time in milliseconds to wait
   for a connection attempt to finish before trying the next address when using the `autoSelectFamily` option.
   If set to a positive integer less than `10`, then the value `10` will be used instead.
@@ -1027,6 +1050,16 @@ See [`writable.destroy()`][] for further details.
   connection is destroyed no further data can be transferred using it.
 
 See [`writable.destroyed`][] for further details.
+
+### `socket.destroySoon()`
+
+<!-- YAML
+added: v0.3.4
+-->
+
+Destroys the socket after all data is written. If the `'finish'` event was
+already emitted the socket is destroyed immediately. If the socket is still
+writable it implicitly calls `socket.end()`.
 
 ### `socket.end([data[, encoding]][, callback])`
 
@@ -1495,6 +1528,26 @@ immediately initiates connection with
 [`socket.connect(port[, host][, connectListener])`][`socket.connect(port)`],
 then returns the `net.Socket` that starts the connection.
 
+## `net.setDefaultAutoSelectFamily(value)`
+
+<!-- YAML
+added: v19.4.0
+-->
+
+Sets the default value of the `autoSelectFamily` option of [`socket.connect(options)`][].
+
+* `value` {boolean} The new default value. The initial default value is `false`.
+
+## `net.getDefaultAutoSelectFamily()`
+
+<!-- YAML
+added: v19.4.0
+-->
+
+Gets the current default value of the `autoSelectFamily` option of [`socket.connect(options)`][].
+
+* Returns: {boolean} The current default value of the `autoSelectFamily` option.
+
 ## `net.createServer([options][, connectionListener])`
 
 <!-- YAML
@@ -1673,6 +1726,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [`net.createConnection(path)`]: #netcreateconnectionpath-connectlistener
 [`net.createConnection(port, host)`]: #netcreateconnectionport-host-connectlistener
 [`net.createServer()`]: #netcreateserveroptions-connectionlistener
+[`net.setDefaultAutoSelectFamily(value)`]: #netsetdefaultautoselectfamilyvalue
 [`new net.Socket(options)`]: #new-netsocketoptions
 [`readable.setEncoding()`]: stream.md#readablesetencodingencoding
 [`server.close()`]: #serverclosecallback

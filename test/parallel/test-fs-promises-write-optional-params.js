@@ -33,26 +33,33 @@ async function testInvalid(dest, expectedCode, ...params) {
 async function testValid(dest, buffer, options) {
   const length = options?.length;
   const offset = options?.offset;
-  let fh;
+  let fh, writeResult, writeBufCopy, readResult, readBufCopy;
+
   try {
-    fh = await fsPromises.open(dest, 'w+');
-    const writeResult = await fh.write(buffer, options);
-    const writeBufCopy = Uint8Array.prototype.slice.call(writeResult.buffer);
-
-    const readResult = await fh.read(buffer, options);
-    const readBufCopy = Uint8Array.prototype.slice.call(readResult.buffer);
-
-    assert.ok(writeResult.bytesWritten >= readResult.bytesRead);
-    if (length !== undefined && length !== null) {
-      assert.strictEqual(writeResult.bytesWritten, length);
-    }
-    if (offset === undefined || offset === 0) {
-      assert.deepStrictEqual(writeBufCopy, readBufCopy);
-    }
-    assert.deepStrictEqual(writeResult.buffer, readResult.buffer);
+    fh = await fsPromises.open(dest, 'w');
+    writeResult = await fh.write(buffer, options);
+    writeBufCopy = Uint8Array.prototype.slice.call(writeResult.buffer);
   } finally {
     await fh?.close();
   }
+
+  try {
+    fh = await fsPromises.open(dest, 'r');
+    readResult = await fh.read(buffer, options);
+    readBufCopy = Uint8Array.prototype.slice.call(readResult.buffer);
+  } finally {
+    await fh?.close();
+  }
+
+  assert.ok(writeResult.bytesWritten >= readResult.bytesRead);
+  if (length !== undefined && length !== null) {
+    assert.strictEqual(writeResult.bytesWritten, length);
+    assert.strictEqual(readResult.bytesRead, length);
+  }
+  if (offset === undefined || offset === 0) {
+    assert.deepStrictEqual(writeBufCopy, readBufCopy);
+  }
+  assert.deepStrictEqual(writeResult.buffer, readResult.buffer);
 }
 
 (async () => {

@@ -154,6 +154,7 @@ npm access set mfa=none|publish|automation [&lt;package&gt;]
 npm access grant &lt;read-only|read-write&gt; &lt;scope:team&gt; [&lt;package&gt;]
 npm access revoke &lt;scope:team&gt; [&lt;package&gt;]
 </code></pre>
+<p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
 <p>Used to set access controls on private packages.</p>
 <p>For all of the subcommands, <code>npm access</code> will perform actions on the packages
@@ -204,8 +205,7 @@ public using <code>npm publish --access=public</code>, or set their access as pu
 <li>You have been given read-write privileges for a package, either as a member
 of a team or directly as an owner.</li>
 </ul>
-<p>If you have two-factor authentication enabled then you'll be prompted to
-provide an otp token, or may use the <code>--otp=...</code> option to specify it on
+<p>If you have two-factor authentication enabled then you'll be prompted to provide a second factor, or may use the <code>--otp=...</code> option to specify it on
 the command line.</p>
 <p>If your account is not paid, then attempts to publish scoped packages will
 fail with an HTTP 402 status code (logically enough), unless you use

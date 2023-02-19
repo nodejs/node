@@ -62,7 +62,26 @@ an ordinary listener function is called, the standard `this` keyword
 is intentionally set to reference the `EventEmitter` instance to which the
 listener is attached.
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+class MyEmitter extends EventEmitter {}
+const myEmitter = new MyEmitter();
+myEmitter.on('event', function(a, b) {
+  console.log(a, b, this, this === myEmitter);
+  // Prints:
+  //   a b MyEmitter {
+  //     _events: [Object: null prototype] { event: [Function (anonymous)] },
+  //     _eventsCount: 1,
+  //     _maxListeners: undefined,
+  //     [Symbol(kCapture)]: false
+  //   } true
+});
+myEmitter.emit('event', 'a', 'b');
+```
+
+```cjs
+const EventEmitter = require('node:events');
+class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 myEmitter.on('event', function(a, b) {
   console.log(a, b, this, this === myEmitter);
@@ -80,7 +99,20 @@ myEmitter.emit('event', 'a', 'b');
 It is possible to use ES6 Arrow Functions as listeners, however, when doing so,
 the `this` keyword will no longer reference the `EventEmitter` instance:
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+class MyEmitter extends EventEmitter {}
+const myEmitter = new MyEmitter();
+myEmitter.on('event', (a, b) => {
+  console.log(a, b, this);
+  // Prints: a b {}
+});
+myEmitter.emit('event', 'a', 'b');
+```
+
+```cjs
+const EventEmitter = require('node:events');
+class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 myEmitter.on('event', (a, b) => {
   console.log(a, b, this);
@@ -97,7 +129,21 @@ events and helps avoid race conditions and logic errors. When appropriate,
 listener functions can switch to an asynchronous mode of operation using
 the `setImmediate()` or `process.nextTick()` methods:
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+class MyEmitter extends EventEmitter {}
+const myEmitter = new MyEmitter();
+myEmitter.on('event', (a, b) => {
+  setImmediate(() => {
+    console.log('this happens asynchronously');
+  });
+});
+myEmitter.emit('event', 'a', 'b');
+```
+
+```cjs
+const EventEmitter = require('node:events');
+class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 myEmitter.on('event', (a, b) => {
   setImmediate(() => {
@@ -112,7 +158,23 @@ myEmitter.emit('event', 'a', 'b');
 When a listener is registered using the `eventEmitter.on()` method, that
 listener is invoked _every time_ the named event is emitted.
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+class MyEmitter extends EventEmitter {}
+const myEmitter = new MyEmitter();
+let m = 0;
+myEmitter.on('event', () => {
+  console.log(++m);
+});
+myEmitter.emit('event');
+// Prints: 1
+myEmitter.emit('event');
+// Prints: 2
+```
+
+```cjs
+const EventEmitter = require('node:events');
+class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 let m = 0;
 myEmitter.on('event', () => {
@@ -128,7 +190,23 @@ Using the `eventEmitter.once()` method, it is possible to register a listener
 that is called at most once for a particular event. Once the event is emitted,
 the listener is unregistered and _then_ called.
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+class MyEmitter extends EventEmitter {}
+const myEmitter = new MyEmitter();
+let m = 0;
+myEmitter.once('event', () => {
+  console.log(++m);
+});
+myEmitter.emit('event');
+// Prints: 1
+myEmitter.emit('event');
+// Ignored
+```
+
+```cjs
+const EventEmitter = require('node:events');
+class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 let m = 0;
 myEmitter.once('event', () => {
@@ -150,7 +228,17 @@ If an `EventEmitter` does _not_ have at least one listener registered for the
 `'error'` event, and an `'error'` event is emitted, the error is thrown, a
 stack trace is printed, and the Node.js process exits.
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+class MyEmitter extends EventEmitter {}
+const myEmitter = new MyEmitter();
+myEmitter.emit('error', new Error('whoops!'));
+// Throws and crashes Node.js
+```
+
+```cjs
+const EventEmitter = require('node:events');
+class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 myEmitter.emit('error', new Error('whoops!'));
 // Throws and crashes Node.js
@@ -161,7 +249,20 @@ used. (Note, however, that the `node:domain` module is deprecated.)
 
 As a best practice, listeners should always be added for the `'error'` events.
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+class MyEmitter extends EventEmitter {}
+const myEmitter = new MyEmitter();
+myEmitter.on('error', (err) => {
+  console.error('whoops! there was an error');
+});
+myEmitter.emit('error', new Error('whoops!'));
+// Prints: whoops! there was an error
+```
+
+```cjs
+const EventEmitter = require('node:events');
+class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 myEmitter.on('error', (err) => {
   console.error('whoops! there was an error');
@@ -200,7 +301,16 @@ myEmitter.emit('error', new Error('whoops!'));
 Using `async` functions with event handlers is problematic, because it
 can lead to an unhandled rejection in case of a thrown exception:
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+const ee = new EventEmitter();
+ee.on('something', async (value) => {
+  throw new Error('kaboom');
+});
+```
+
+```cjs
+const EventEmitter = require('node:events');
 const ee = new EventEmitter();
 ee.on('something', async (value) => {
   throw new Error('kaboom');
@@ -213,7 +323,25 @@ handler on the `Promise`. This handler routes the exception
 asynchronously to the [`Symbol.for('nodejs.rejection')`][rejection] method
 if there is one, or to [`'error'`][error] event handler if there is none.
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+const ee1 = new EventEmitter({ captureRejections: true });
+ee1.on('something', async (value) => {
+  throw new Error('kaboom');
+});
+
+ee1.on('error', console.log);
+
+const ee2 = new EventEmitter({ captureRejections: true });
+ee2.on('something', async (value) => {
+  throw new Error('kaboom');
+});
+
+ee2[Symbol.for('nodejs.rejection')] = console.log;
+```
+
+```cjs
+const EventEmitter = require('node:events');
 const ee1 = new EventEmitter({ captureRejections: true });
 ee1.on('something', async (value) => {
   throw new Error('kaboom');
@@ -310,7 +438,31 @@ but important side effect: any _additional_ listeners registered to the same
 `name` _within_ the `'newListener'` callback are inserted _before_ the
 listener that is in the process of being added.
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+class MyEmitter extends EventEmitter {}
+
+const myEmitter = new MyEmitter();
+// Only do this once so we don't loop forever
+myEmitter.once('newListener', (event, listener) => {
+  if (event === 'event') {
+    // Insert a new listener in front
+    myEmitter.on('event', () => {
+      console.log('B');
+    });
+  }
+});
+myEmitter.on('event', () => {
+  console.log('A');
+});
+myEmitter.emit('event');
+// Prints:
+//   B
+//   A
+```
+
+```cjs
+const EventEmitter = require('node:events');
 class MyEmitter extends EventEmitter {}
 
 const myEmitter = new MyEmitter();
@@ -569,7 +721,19 @@ By default, event listeners are invoked in the order they are added. The
 `emitter.prependListener()` method can be used as an alternative to add the
 event listener to the beginning of the listeners array.
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+const myEE = new EventEmitter();
+myEE.on('foo', () => console.log('a'));
+myEE.prependListener('foo', () => console.log('b'));
+myEE.emit('foo');
+// Prints:
+//   b
+//   a
+```
+
+```cjs
+const EventEmitter = require('node:events');
 const myEE = new EventEmitter();
 myEE.on('foo', () => console.log('a'));
 myEE.prependListener('foo', () => console.log('b'));
@@ -604,7 +768,19 @@ By default, event listeners are invoked in the order they are added. The
 `emitter.prependOnceListener()` method can be used as an alternative to add the
 event listener to the beginning of the listeners array.
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+const myEE = new EventEmitter();
+myEE.once('foo', () => console.log('a'));
+myEE.prependOnceListener('foo', () => console.log('b'));
+myEE.emit('foo');
+// Prints:
+//   b
+//   a
+```
+
+```cjs
+const EventEmitter = require('node:events');
 const myEE = new EventEmitter();
 myEE.once('foo', () => console.log('a'));
 myEE.prependOnceListener('foo', () => console.log('b'));
@@ -710,7 +886,41 @@ time of emitting are called in order. This implies that any
 _before_ the last listener finishes execution will not remove them from
 `emit()` in progress. Subsequent events behave as expected.
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+class MyEmitter extends EventEmitter {}
+const myEmitter = new MyEmitter();
+
+const callbackA = () => {
+  console.log('A');
+  myEmitter.removeListener('event', callbackB);
+};
+
+const callbackB = () => {
+  console.log('B');
+};
+
+myEmitter.on('event', callbackA);
+
+myEmitter.on('event', callbackB);
+
+// callbackA removes listener callbackB but it will still be called.
+// Internal listener array at time of emit [callbackA, callbackB]
+myEmitter.emit('event');
+// Prints:
+//   A
+//   B
+
+// callbackB is now removed.
+// Internal listener array [callbackA]
+myEmitter.emit('event');
+// Prints:
+//   A
+```
+
+```cjs
+const EventEmitter = require('node:events');
+class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 
 const callbackA = () => {
@@ -751,7 +961,24 @@ event (as in the example below), `removeListener()` will remove the most
 recently added instance. In the example the `once('ping')`
 listener is removed:
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+const ee = new EventEmitter();
+
+function pong() {
+  console.log('pong');
+}
+
+ee.on('ping', pong);
+ee.once('ping', pong);
+ee.removeListener('ping', pong);
+
+ee.emit('ping');
+ee.emit('ping');
+```
+
+```cjs
+const EventEmitter = require('node:events');
 const ee = new EventEmitter();
 
 function pong() {
@@ -797,7 +1024,33 @@ added: v9.4.0
 Returns a copy of the array of listeners for the event named `eventName`,
 including any wrappers (such as those created by `.once()`).
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+const emitter = new EventEmitter();
+emitter.once('log', () => console.log('log once'));
+
+// Returns a new Array with a function `onceWrapper` which has a property
+// `listener` which contains the original listener bound above
+const listeners = emitter.rawListeners('log');
+const logFnWrapper = listeners[0];
+
+// Logs "log once" to the console and does not unbind the `once` event
+logFnWrapper.listener();
+
+// Logs "log once" to the console and removes the listener
+logFnWrapper();
+
+emitter.on('log', () => console.log('log persistently'));
+// Will return a new Array with a single function bound by `.on()` above
+const newListeners = emitter.rawListeners('log');
+
+// Logs "log persistently" twice
+newListeners[0]();
+emitter.emit('log');
+```
+
+```cjs
+const EventEmitter = require('node:events');
 const emitter = new EventEmitter();
 emitter.once('log', () => console.log('log once'));
 
@@ -907,7 +1160,19 @@ that a "possible EventEmitter memory leak" has been detected. For any single
 `EventEmitter`, the `emitter.getMaxListeners()` and `emitter.setMaxListeners()`
 methods can be used to temporarily avoid this warning:
 
-```js
+```mjs
+import { EventEmitter } from 'node:events';
+const emitter = new EventEmitter();
+emitter.setMaxListeners(emitter.getMaxListeners() + 1);
+emitter.once('event', () => {
+  // do stuff
+  emitter.setMaxListeners(Math.max(emitter.getMaxListeners() - 1, 0));
+});
+```
+
+```cjs
+const EventEmitter = require('node:events');
+const emitter = new EventEmitter();
 emitter.setMaxListeners(emitter.getMaxListeners() + 1);
 emitter.once('event', () => {
   // do stuff
@@ -967,13 +1232,13 @@ import { getEventListeners, EventEmitter } from 'node:events';
   const ee = new EventEmitter();
   const listener = () => console.log('Events are fun');
   ee.on('foo', listener);
-  getEventListeners(ee, 'foo'); // [listener]
+  console.log(getEventListeners(ee, 'foo')); // [ [Function: listener] ]
 }
 {
   const et = new EventTarget();
   const listener = () => console.log('Events are fun');
   et.addEventListener('foo', listener);
-  getEventListeners(et, 'foo'); // [listener]
+  console.log(getEventListeners(et, 'foo')); // [ [Function: listener] ]
 }
 ```
 
@@ -984,13 +1249,13 @@ const { getEventListeners, EventEmitter } = require('node:events');
   const ee = new EventEmitter();
   const listener = () => console.log('Events are fun');
   ee.on('foo', listener);
-  getEventListeners(ee, 'foo'); // [listener]
+  console.log(getEventListeners(ee, 'foo')); // [ [Function: listener] ]
 }
 {
   const et = new EventTarget();
   const listener = () => console.log('Events are fun');
   et.addEventListener('foo', listener);
-  getEventListeners(et, 'foo'); // [listener]
+  console.log(getEventListeners(et, 'foo')); // [ [Function: listener] ]
 }
 ```
 
@@ -1548,7 +1813,7 @@ Promise.resolve().then(() => {
 The `EventEmitterAsyncResource` class has the same methods and takes the
 same options as `EventEmitter` and `AsyncResource` themselves.
 
-### `new events.EventEmitterAsyncResource(options)`
+### `new events.EventEmitterAsyncResource([options])`
 
 * `options` {Object}
   * `captureRejections` {boolean} It enables
@@ -1646,9 +1911,8 @@ and cannot be used in place of an `EventEmitter` in most cases.
    ignored.
 2. The `NodeEventTarget` does not emulate the full `EventEmitter` API.
    Specifically the `prependListener()`, `prependOnceListener()`,
-   `rawListeners()`, `setMaxListeners()`, `getMaxListeners()`, and
-   `errorMonitor` APIs are not emulated. The `'newListener'` and
-   `'removeListener'` events will also not be emitted.
+   `rawListeners()`, and `errorMonitor` APIs are not emulated.
+   The `'newListener'` and `'removeListener'` events will also not be emitted.
 3. The `NodeEventTarget` does not implement any special default behavior
    for events with type `'error'`.
 4. The `NodeEventTarget` supports `EventListener` objects as well as
@@ -1748,14 +2012,18 @@ added: v14.5.0
 
 This is not used in Node.js and is provided purely for completeness.
 
-#### `event.cancelBubble()`
+#### `event.cancelBubble`
 
 <!-- YAML
 added: v14.5.0
 -->
 
-Alias for `event.stopPropagation()`. This is not used in Node.js and is
-provided purely for completeness.
+> Stability: 3 - Legacy: Use [`event.stopPropagation()`][] instead.
+
+* Type: {boolean}
+
+Alias for `event.stopPropagation()` if set to `true`. This is not used
+in Node.js and is provided purely for completeness.
 
 #### `event.cancelable`
 
@@ -1817,6 +2085,22 @@ added: v14.5.0
 
 This is not used in Node.js and is provided purely for completeness.
 
+#### `event.initEvent(type[, bubbles[, cancelable]])`
+
+<!-- YAML
+added: v19.5.0
+-->
+
+> Stability: 3 - Legacy: The WHATWG spec considers it deprecated and users
+> shouldn't use it at all.
+
+* `type` {string}
+* `bubbles` {boolean}
+* `cancelable` {boolean}
+
+Redundant with event constructors and incapable of setting `composed`.
+This is not used in Node.js and is provided purely for completeness.
+
 #### `event.isTrusted`
 
 <!-- YAML
@@ -1842,8 +2126,11 @@ Sets the `defaultPrevented` property to `true` if `cancelable` is `true`.
 added: v14.5.0
 -->
 
+> Stability: 3 - Legacy: Use [`event.defaultPrevented`][] instead.
+
 * Type: {boolean} True if the event has not been canceled.
 
+The value of `event.returnValue` is always the opposite of `event.defaultPrevented`.
 This is not used in Node.js and is provided purely for completeness.
 
 #### `event.srcElement`
@@ -1851,6 +2138,8 @@ This is not used in Node.js and is provided purely for completeness.
 <!-- YAML
 added: v14.5.0
 -->
+
+> Stability: 3 - Legacy: Use [`event.target`][] instead.
 
 * Type: {EventTarget} The `EventTarget` dispatching the event.
 
@@ -2028,7 +2317,7 @@ added: v14.5.0
 The `NodeEventTarget` is a Node.js-specific extension to `EventTarget`
 that emulates a subset of the `EventEmitter` API.
 
-#### `nodeEventTarget.addListener(type, listener[, options])`
+#### `nodeEventTarget.addListener(type, listener)`
 
 <!-- YAML
 added: v14.5.0
@@ -2037,9 +2326,6 @@ added: v14.5.0
 * `type` {string}
 
 * `listener` {Function|EventListener}
-
-* `options` {Object}
-  * `once` {boolean}
 
 * Returns: {EventTarget} this
 
@@ -2072,7 +2358,29 @@ added: v14.5.0
 Node.js-specific extension to the `EventTarget` class that returns the number
 of event listeners registered for the `type`.
 
-#### `nodeEventTarget.off(type, listener)`
+#### `nodeEventTarget.setMaxListeners(n)`
+
+<!-- YAML
+added: v14.5.0
+-->
+
+* `n` {number}
+
+Node.js-specific extension to the `EventTarget` class that sets the number
+of max event listeners as `n`.
+
+#### `nodeEventTarget.getMaxListeners()`
+
+<!-- YAML
+added: v14.5.0
+-->
+
+* Returns: {number}
+
+Node.js-specific extension to the `EventTarget` class that returns the number
+of max event listeners.
+
+#### `nodeEventTarget.off(type, listener[, options])`
 
 <!-- YAML
 added: v14.5.0
@@ -2081,12 +2389,15 @@ added: v14.5.0
 * `type` {string}
 
 * `listener` {Function|EventListener}
+
+* `options` {Object}
+  * `capture` {boolean}
 
 * Returns: {EventTarget} this
 
 Node.js-specific alias for `eventTarget.removeListener()`.
 
-#### `nodeEventTarget.on(type, listener[, options])`
+#### `nodeEventTarget.on(type, listener)`
 
 <!-- YAML
 added: v14.5.0
@@ -2095,15 +2406,12 @@ added: v14.5.0
 * `type` {string}
 
 * `listener` {Function|EventListener}
-
-* `options` {Object}
-  * `once` {boolean}
 
 * Returns: {EventTarget} this
 
 Node.js-specific alias for `eventTarget.addListener()`.
 
-#### `nodeEventTarget.once(type, listener[, options])`
+#### `nodeEventTarget.once(type, listener)`
 
 <!-- YAML
 added: v14.5.0
@@ -2112,8 +2420,6 @@ added: v14.5.0
 * `type` {string}
 
 * `listener` {Function|EventListener}
-
-* `options` {Object}
 
 * Returns: {EventTarget} this
 
@@ -2135,7 +2441,7 @@ Node.js-specific extension to the `EventTarget` class. If `type` is specified,
 removes all registered listeners for `type`, otherwise removes all registered
 listeners.
 
-#### `nodeEventTarget.removeListener(type, listener)`
+#### `nodeEventTarget.removeListener(type, listener[, options])`
 
 <!-- YAML
 added: v14.5.0
@@ -2144,6 +2450,9 @@ added: v14.5.0
 * `type` {string}
 
 * `listener` {Function|EventListener}
+
+* `options` {Object}
+  * `capture` {boolean}
 
 * Returns: {EventTarget} this
 
@@ -2162,6 +2471,9 @@ to the `EventTarget`.
 [`emitter.listenerCount()`]: #emitterlistenercounteventname
 [`emitter.removeListener()`]: #emitterremovelistenereventname-listener
 [`emitter.setMaxListeners(n)`]: #emittersetmaxlistenersn
+[`event.defaultPrevented`]: #eventdefaultprevented
+[`event.stopPropagation()`]: #eventstoppropagation
+[`event.target`]: #eventtarget
 [`events.defaultMaxListeners`]: #eventsdefaultmaxlisteners
 [`fs.ReadStream`]: fs.md#class-fsreadstream
 [`net.Server`]: net.md#class-netserver

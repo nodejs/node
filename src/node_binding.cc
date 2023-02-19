@@ -62,6 +62,7 @@
   V(process_wrap)                                                              \
   V(process_methods)                                                           \
   V(report)                                                                    \
+  V(sea)                                                                       \
   V(serdes)                                                                    \
   V(signal_wrap)                                                               \
   V(spawn_sync)                                                                \
@@ -100,6 +101,12 @@
 // the NODE_BINDING_CONTEXT_AWARE_INTERNAL.
 #define V(modname) void _register_##modname();
 NODE_BUILTIN_BINDINGS(V)
+#undef V
+
+#define V(modname)                                                             \
+  void _register_isolate_##modname(node::IsolateData* isolate_data,            \
+                                   v8::Local<v8::FunctionTemplate> target);
+NODE_BINDINGS_WITH_PER_ISOLATE_INIT(V)
 #undef V
 
 #ifdef _AIX
@@ -229,9 +236,12 @@ static bool libc_may_be_musl() { return false; }
 namespace node {
 
 using v8::Context;
+using v8::EscapableHandleScope;
 using v8::Exception;
-using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::HandleScope;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::String;
@@ -552,50 +562,86 @@ inline struct node_module* FindModule(struct node_module* list,
   return mp;
 }
 
-static Local<Object> InitInternalBinding(Environment* env,
-                                         node_module* mod,
-                                         Local<String> module) {
-  // Internal bindings don't have a "module" object, only exports.
-  Local<Function> ctor = env->binding_data_ctor_template()
-                             ->GetFunction(env->context())
-                             .ToLocalChecked();
-  Local<Object> exports = ctor->NewInstance(env->context()).ToLocalChecked();
+void CreateInternalBindingTemplates(IsolateData* isolate_data) {
+#define V(modname)                                                             \
+  do {                                                                         \
+    Local<FunctionTemplate> templ =                                            \
+        FunctionTemplate::New(isolate_data->isolate());                        \
+    templ->InstanceTemplate()->SetInternalFieldCount(                          \
+        BaseObject::kInternalFieldCount);                                      \
+    templ->Inherit(BaseObject::GetConstructorTemplate(isolate_data));          \
+    _register_isolate_##modname(isolate_data, templ);                          \
+    isolate_data->set_##modname##_binding(templ);                              \
+  } while (0);
+  NODE_BINDINGS_WITH_PER_ISOLATE_INIT(V)
+#undef V
+}
+
+static Local<Object> GetInternalBindingExportObject(IsolateData* isolate_data,
+                                                    const char* mod_name,
+                                                    Local<Context> context) {
+  Local<FunctionTemplate> ctor;
+#define V(name)                                                                \
+  if (strcmp(mod_name, #name) == 0) {                                          \
+    ctor = isolate_data->name##_binding();                                     \
+  } else  // NOLINT(readability/braces)
+  NODE_BINDINGS_WITH_PER_ISOLATE_INIT(V)
+#undef V
+  {
+    ctor = isolate_data->binding_data_ctor_template();
+  }
+
+  Local<Object> obj = ctor->GetFunction(context)
+                          .ToLocalChecked()
+                          ->NewInstance(context)
+                          .ToLocalChecked();
+  return obj;
+}
+
+static Local<Object> InitInternalBinding(Realm* realm, node_module* mod) {
+  EscapableHandleScope scope(realm->isolate());
+  Local<Context> context = realm->context();
+  Local<Object> exports = GetInternalBindingExportObject(
+      realm->isolate_data(), mod->nm_modname, context);
   CHECK_NULL(mod->nm_register_func);
   CHECK_NOT_NULL(mod->nm_context_register_func);
-  Local<Value> unused = Undefined(env->isolate());
-  mod->nm_context_register_func(exports, unused, env->context(), mod->nm_priv);
-  return exports;
+  Local<Value> unused = Undefined(realm->isolate());
+  // Internal bindings don't have a "module" object, only exports.
+  mod->nm_context_register_func(exports, unused, context, mod->nm_priv);
+  return scope.Escape(exports);
 }
 
 void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Realm* realm = Realm::GetCurrent(args);
+  Isolate* isolate = realm->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = realm->context();
 
   CHECK(args[0]->IsString());
 
   Local<String> module = args[0].As<String>();
-  node::Utf8Value module_v(env->isolate(), module);
+  node::Utf8Value module_v(isolate, module);
   Local<Object> exports;
 
   node_module* mod = FindModule(modlist_internal, *module_v, NM_F_INTERNAL);
   if (mod != nullptr) {
-    exports = InitInternalBinding(env, mod, module);
-    env->internal_bindings.insert(mod);
+    exports = InitInternalBinding(realm, mod);
+    realm->internal_bindings.insert(mod);
   } else if (!strcmp(*module_v, "constants")) {
-    exports = Object::New(env->isolate());
-    CHECK(
-        exports->SetPrototype(env->context(), Null(env->isolate())).FromJust());
-    DefineConstants(env->isolate(), exports);
+    exports = Object::New(isolate);
+    CHECK(exports->SetPrototype(context, Null(isolate)).FromJust());
+    DefineConstants(isolate, exports);
   } else if (!strcmp(*module_v, "natives")) {
-    exports = builtins::BuiltinLoader::GetSourceObject(env->context());
+    exports = realm->env()->builtin_loader()->GetSourceObject(context);
     // Legacy feature: process.binding('natives').config contains stringified
     // config.gypi
     CHECK(exports
-              ->Set(env->context(),
-                    env->config_string(),
-                    builtins::BuiltinLoader::GetConfigString(env->isolate()))
+              ->Set(context,
+                    realm->isolate_data()->config_string(),
+                    realm->env()->builtin_loader()->GetConfigString(isolate))
               .FromJust());
   } else {
-    return THROW_ERR_INVALID_MODULE(env, "No such binding: %s", *module_v);
+    return THROW_ERR_INVALID_MODULE(isolate, "No such binding: %s", *module_v);
   }
 
   args.GetReturnValue().Set(exports);

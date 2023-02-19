@@ -146,6 +146,12 @@ parser.add_argument('--no-ifaddrs',
     default=None,
     help='use on deprecated SunOS systems that do not support ifaddrs.h')
 
+parser.add_argument('--disable-single-executable-application',
+    action='store_true',
+    dest='disable_single_executable_application',
+    default=None,
+    help='Disable Single Executable Application support.')
+
 parser.add_argument("--fully-static",
     action="store_true",
     dest="fully_static",
@@ -484,6 +490,12 @@ parser.add_argument('--experimental-enable-pointer-compression',
     default=None,
     help='[Experimental] Enable V8 pointer compression (limits max heap to 4GB and breaks ABI compatibility)')
 
+parser.add_argument('--disable-shared-readonly-heap',
+    action='store_true',
+    dest='disable_shared_ro_heap',
+    default=None,
+    help='Disable the shared read-only heap feature in V8')
+
 parser.add_argument('--v8-options',
     action='store',
     dest='v8_options',
@@ -565,7 +577,7 @@ intl_optgroup.add_argument('--without-intl',
     action='store_const',
     dest='with_intl',
     const='none',
-    help='Disable Intl, same as --with-intl=none (disables inspector)')
+    help='Disable Intl, same as --with-intl=none')
 
 intl_optgroup.add_argument('--with-icu-path',
     action='store',
@@ -1351,6 +1363,10 @@ def configure_node(o):
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
 
+  o['variables']['single_executable_application'] = b(not options.disable_single_executable_application)
+  if options.disable_single_executable_application:
+    o['defines'] += ['DISABLE_SINGLE_EXECUTABLE_APPLICATION']
+
   o['variables']['node_with_ltcg'] = b(options.with_ltcg)
   if flavor != 'win' and options.with_ltcg:
     raise Exception('Link Time Code Generation is only supported on Windows.')
@@ -1471,7 +1487,7 @@ def configure_v8(o):
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
   o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
-  o['variables']['v8_enable_shared_ro_heap'] = 0 if options.enable_pointer_compression else 1
+  o['variables']['v8_enable_shared_ro_heap'] = 0 if options.enable_pointer_compression or options.disable_shared_ro_heap else 1
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
@@ -1662,6 +1678,9 @@ def configure_intl(o):
 
   # always set icu_small, node.gyp depends on it being defined.
   o['variables']['icu_small'] = b(False)
+
+  # prevent data override
+  o['defines'] += ['ICU_NO_USER_DATA_OVERRIDE']
 
   with_intl = options.with_intl
   with_icu_source = options.with_icu_source
@@ -1915,7 +1934,6 @@ def configure_intl(o):
 
 def configure_inspector(o):
   disable_inspector = (options.without_inspector or
-                       options.with_intl in (None, 'none') or
                        options.without_ssl)
   o['variables']['v8_enable_inspector'] = 0 if disable_inspector else 1
 
@@ -2018,11 +2036,7 @@ output['variables']['node_builtin_shareable_builtins'] = []
 for builtin in shareable_builtins:
   builtin_id = 'node_shared_builtin_' + builtin.replace('/', '_') + '_path'
   if getattr(options, builtin_id):
-    if options.with_intl == 'none':
-      option_name = '--shared-builtin-' + builtin + '-path'
-      error(option_name + ' is incompatible with --with-intl=none' )
-    else:
-      output['defines'] += [builtin_id.upper() + '=' + getattr(options, builtin_id)]
+    output['defines'] += [builtin_id.upper() + '=' + getattr(options, builtin_id)]
   else:
     output['variables']['node_builtin_shareable_builtins'] += [shareable_builtins[builtin]]
 

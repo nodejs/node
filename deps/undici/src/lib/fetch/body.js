@@ -2,7 +2,14 @@
 
 const Busboy = require('busboy')
 const util = require('../core/util')
-const { ReadableStreamFrom, isBlobLike, isReadableStreamLike, readableStreamClose } = require('./util')
+const {
+  ReadableStreamFrom,
+  isBlobLike,
+  isReadableStreamLike,
+  readableStreamClose,
+  createDeferredPromise,
+  fullyReadBody
+} = require('./util')
 const { FormData } = require('./formdata')
 const { kState } = require('./symbols')
 const { webidl } = require('./webidl')
@@ -13,7 +20,6 @@ const assert = require('assert')
 const { isErrored } = require('../core/util')
 const { isUint8Array, isArrayBuffer } = require('util/types')
 const { File: UndiciFile } = require('./file')
-const { StringDecoder } = require('string_decoder')
 const { parseMIMEType, serializeAMimeType } = require('./dataURL')
 
 let ReadableStream = globalThis.ReadableStream
@@ -99,7 +105,7 @@ function extractBody (object, keepalive = false) {
     // Set source to a copy of the bytes held by object.
     source = new Uint8Array(object.buffer.slice(object.byteOffset, object.byteOffset + object.byteLength))
   } else if (util.isFormDataLike(object)) {
-    const boundary = '----formdata-undici-' + Math.random()
+    const boundary = `----formdata-undici-${Math.random()}`.replace('.', '').slice(0, 32)
     const prefix = `--${boundary}\r\nContent-Disposition: form-data`
 
     /*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */
@@ -109,68 +115,49 @@ function extractBody (object, keepalive = false) {
 
     // Set action to this step: run the multipart/form-data
     // encoding algorithm, with object’s entry list and UTF-8.
-    action = async function * (object) {
-      const enc = new TextEncoder()
+    // - This ensures that the body is immutable and can't be changed afterwords
+    // - That the content-length is calculated in advance.
+    // - And that all parts are pre-encoded and ready to be sent.
 
-      for (const [name, value] of object) {
-        if (typeof value === 'string') {
-          yield enc.encode(
-            prefix +
-              `; name="${escape(normalizeLinefeeds(name))}"` +
-              `\r\n\r\n${normalizeLinefeeds(value)}\r\n`
-          )
-        } else {
-          yield enc.encode(
-            prefix +
-              `; name="${escape(normalizeLinefeeds(name))}"` +
-              (value.name ? `; filename="${escape(value.name)}"` : '') +
-              '\r\n' +
-              `Content-Type: ${
-                value.type || 'application/octet-stream'
-              }\r\n\r\n`
-          )
+    const enc = new TextEncoder()
+    const blobParts = []
+    const rn = new Uint8Array([13, 10]) // '\r\n'
+    length = 0
 
-          yield * value.stream()
-
-          // '\r\n' encoded
-          yield new Uint8Array([13, 10])
-        }
+    for (const [name, value] of object) {
+      if (typeof value === 'string') {
+        const chunk = enc.encode(prefix +
+          `; name="${escape(normalizeLinefeeds(name))}"` +
+          `\r\n\r\n${normalizeLinefeeds(value)}\r\n`)
+        blobParts.push(chunk)
+        length += chunk.byteLength
+      } else {
+        const chunk = enc.encode(`${prefix}; name="${escape(normalizeLinefeeds(name))}"` +
+          (value.name ? `; filename="${escape(value.name)}"` : '') + '\r\n' +
+          `Content-Type: ${
+            value.type || 'application/octet-stream'
+          }\r\n\r\n`)
+        blobParts.push(chunk, value, rn)
+        length += chunk.byteLength + value.size + rn.byteLength
       }
-
-      yield enc.encode(`--${boundary}--`)
     }
+
+    const chunk = enc.encode(`--${boundary}--`)
+    blobParts.push(chunk)
+    length += chunk.byteLength
 
     // Set source to object.
     source = object
 
-    // Set length to unclear, see html/6424 for improving this.
-    length = (() => {
-      const prefixLength = prefix.length
-      const boundaryLength = boundary.length
-      let bodyLength = 0
-
-      for (const [name, value] of object) {
-        if (typeof value === 'string') {
-          bodyLength +=
-            prefixLength +
-            Buffer.byteLength(`; name="${escape(normalizeLinefeeds(name))}"\r\n\r\n${normalizeLinefeeds(value)}\r\n`)
+    action = async function * () {
+      for (const part of blobParts) {
+        if (part.stream) {
+          yield * part.stream()
         } else {
-          bodyLength +=
-            prefixLength +
-            Buffer.byteLength(`; name="${escape(normalizeLinefeeds(name))}"` + (value.name ? `; filename="${escape(value.name)}"` : '')) +
-            2 + // \r\n
-            `Content-Type: ${
-              value.type || 'application/octet-stream'
-            }\r\n\r\n`.length
-
-          // value is a Blob or File, and \r\n
-          bodyLength += value.size + 2
+          yield part
         }
       }
-
-      bodyLength += boundaryLength + 4 // --boundary--
-      return bodyLength
-    })()
+    }
 
     // Set type to `multipart/form-data; boundary=`,
     // followed by the multipart/form-data boundary string generated
@@ -190,11 +177,6 @@ function extractBody (object, keepalive = false) {
     if (object.type) {
       type = object.type
     }
-  } else if (object instanceof Uint8Array) {
-    // byte sequence
-
-    // Set source to object.
-    source = object
   } else if (typeof object[Symbol.asyncIterator] === 'function') {
     // If keepalive is true, then throw a TypeError.
     if (keepalive) {
@@ -337,26 +319,45 @@ function bodyMixinMethods (instance) {
   const methods = {
     blob () {
       // The blob() method steps are to return the result of
-      // running consume body with this and Blob.
-      return specConsumeBody(this, 'Blob', instance)
+      // running consume body with this and the following step
+      // given a byte sequence bytes: return a Blob whose
+      // contents are bytes and whose type attribute is this’s
+      // MIME type.
+      return specConsumeBody(this, (bytes) => {
+        let mimeType = bodyMimeType(this)
+
+        if (mimeType === 'failure') {
+          mimeType = ''
+        } else if (mimeType) {
+          mimeType = serializeAMimeType(mimeType)
+        }
+
+        // Return a Blob whose contents are bytes and type attribute
+        // is mimeType.
+        return new Blob([bytes], { type: mimeType })
+      }, instance)
     },
 
     arrayBuffer () {
-      // The arrayBuffer() method steps are to return the
-      // result of running consume body with this and ArrayBuffer.
-      return specConsumeBody(this, 'ArrayBuffer', instance)
+      // The arrayBuffer() method steps are to return the result
+      // of running consume body with this and the following step
+      // given a byte sequence bytes: return a new ArrayBuffer
+      // whose contents are bytes.
+      return specConsumeBody(this, (bytes) => {
+        return new Uint8Array(bytes).buffer
+      }, instance)
     },
 
     text () {
-      // The text() method steps are to return the result of
-      // running consume body with this and text.
-      return specConsumeBody(this, 'text', instance)
+      // The text() method steps are to return the result of running
+      // consume body with this and UTF-8 decode.
+      return specConsumeBody(this, utf8DecodeBytes, instance)
     },
 
     json () {
-      // The json() method steps are to return the result of
-      // running consume body with this and JSON.
-      return specConsumeBody(this, 'JSON', instance)
+      // The json() method steps are to return the result of running
+      // consume body with this and parse JSON from bytes.
+      return specConsumeBody(this, parseJSONFromBytes, instance)
     },
 
     async formData () {
@@ -381,8 +382,7 @@ function bodyMixinMethods (instance) {
             defParamCharset: 'utf8'
           })
         } catch (err) {
-          // Error due to headers:
-          throw Object.assign(new TypeError(), { cause: err })
+          throw new DOMException(`${err}`, 'AbortError')
         }
 
         busboy.on('field', (name, value) => {
@@ -480,8 +480,13 @@ function mixinBody (prototype) {
   Object.assign(prototype.prototype, bodyMixinMethods(prototype))
 }
 
-// https://fetch.spec.whatwg.org/#concept-body-consume-body
-async function specConsumeBody (object, type, instance) {
+/**
+ * @see https://fetch.spec.whatwg.org/#concept-body-consume-body
+ * @param {Response|Request} object
+ * @param {(value: unknown) => unknown} convertBytesToJSValue
+ * @param {Response|Request} instance
+ */
+async function specConsumeBody (object, convertBytesToJSValue, instance) {
   webidl.brandCheck(object, instance)
 
   throwIfAborted(object[kState])
@@ -492,71 +497,37 @@ async function specConsumeBody (object, type, instance) {
     throw new TypeError('Body is unusable')
   }
 
-  // 2. Let promise be a promise resolved with an empty byte
-  //    sequence.
-  let promise
+  // 2. Let promise be a new promise.
+  const promise = createDeferredPromise()
 
-  // 3. If object’s body is non-null, then set promise to the
-  //    result of fully reading body as promise given object’s
-  //    body.
-  if (object[kState].body != null) {
-    promise = await fullyReadBodyAsPromise(object[kState].body)
-  } else {
-    // step #2
-    promise = { size: 0, bytes: [new Uint8Array()] }
-  }
+  // 3. Let errorSteps given error be to reject promise with error.
+  const errorSteps = (error) => promise.reject(error)
 
-  // 4. Let steps be to return the result of package data with
-  //    the first argument given, type, and object’s MIME type.
-  const mimeType = type === 'Blob' || type === 'FormData'
-    ? bodyMimeType(object)
-    : undefined
-
-  // 5. Return the result of upon fulfillment of promise given
-  //    steps.
-  return packageData(promise, type, mimeType)
-}
-
-/**
- * @see https://fetch.spec.whatwg.org/#concept-body-package-data
- * @param {{ size: number, bytes: Uint8Array[] }} bytes
- * @param {string} type
- * @param {ReturnType<typeof parseMIMEType>|undefined} mimeType
- */
-function packageData ({ bytes, size }, type, mimeType) {
-  switch (type) {
-    case 'ArrayBuffer': {
-      // Return a new ArrayBuffer whose contents are bytes.
-      const uint8 = new Uint8Array(size)
-      let offset = 0
-
-      for (const chunk of bytes) {
-        uint8.set(chunk, offset)
-        offset += chunk.byteLength
-      }
-
-      return uint8.buffer
-    }
-    case 'Blob': {
-      if (mimeType === 'failure') {
-        mimeType = ''
-      } else if (mimeType) {
-        mimeType = serializeAMimeType(mimeType)
-      }
-
-      // Return a Blob whose contents are bytes and type attribute
-      // is mimeType.
-      return new Blob(bytes, { type: mimeType })
-    }
-    case 'JSON': {
-      // Return the result of running parse JSON from bytes on bytes.
-      return JSON.parse(utf8DecodeBytes(bytes))
-    }
-    case 'text': {
-      // 1. Return the result of running UTF-8 decode on bytes.
-      return utf8DecodeBytes(bytes)
+  // 4. Let successSteps given a byte sequence data be to resolve
+  //    promise with the result of running convertBytesToJSValue
+  //    with data. If that threw an exception, then run errorSteps
+  //    with that exception.
+  const successSteps = (data) => {
+    try {
+      promise.resolve(convertBytesToJSValue(data))
+    } catch (e) {
+      errorSteps(e)
     }
   }
+
+  // 5. If object’s body is null, then run successSteps with an
+  //    empty byte sequence.
+  if (object[kState].body == null) {
+    successSteps(new Uint8Array())
+    return promise.promise
+  }
+
+  // 6. Otherwise, fully read object’s body given successSteps,
+  //    errorSteps, and object’s relevant global object.
+  fullyReadBody(object[kState].body, successSteps, errorSteps)
+
+  // 7. Return promise.
+  return promise.promise
 }
 
 // https://fetch.spec.whatwg.org/#body-unusable
@@ -567,71 +538,38 @@ function bodyUnusable (body) {
   return body != null && (body.stream.locked || util.isDisturbed(body.stream))
 }
 
-// https://fetch.spec.whatwg.org/#fully-reading-body-as-promise
-async function fullyReadBodyAsPromise (body) {
-  // 1. Let reader be the result of getting a reader for body’s
-  //    stream. If that threw an exception, then return a promise
-  //    rejected with that exception.
-  const reader = body.stream.getReader()
-
-  // 2. Return the result of reading all bytes from reader.
-  /** @type {Uint8Array[]} */
-  const bytes = []
-  let size = 0
-
-  while (true) {
-    const { done, value } = await reader.read()
-
-    if (done) {
-      break
-    }
-
-    // https://streams.spec.whatwg.org/#read-loop
-    // If chunk is not a Uint8Array object, reject promise with
-    // a TypeError and abort these steps.
-    if (!isUint8Array(value)) {
-      throw new TypeError('Value is not a Uint8Array.')
-    }
-
-    bytes.push(value)
-    size += value.byteLength
-  }
-
-  return { size, bytes }
-}
-
 /**
  * @see https://encoding.spec.whatwg.org/#utf-8-decode
- * @param {Uint8Array[]} ioQueue
+ * @param {Buffer} buffer
  */
-function utf8DecodeBytes (ioQueue) {
-  if (ioQueue.length === 0) {
+function utf8DecodeBytes (buffer) {
+  if (buffer.length === 0) {
     return ''
   }
 
-  // 1. Let buffer be the result of peeking three bytes
-  //    from ioQueue, converted to a byte sequence.
-  const buffer = ioQueue[0]
+  // 1. Let buffer be the result of peeking three bytes from
+  //    ioQueue, converted to a byte sequence.
 
   // 2. If buffer is 0xEF 0xBB 0xBF, then read three
   //    bytes from ioQueue. (Do nothing with those bytes.)
   if (buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
-    ioQueue[0] = ioQueue[0].subarray(3)
+    buffer = buffer.subarray(3)
   }
 
   // 3. Process a queue with an instance of UTF-8’s
   //    decoder, ioQueue, output, and "replacement".
-  const decoder = new StringDecoder('utf-8')
-  let output = ''
-
-  for (const chunk of ioQueue) {
-    output += decoder.write(chunk)
-  }
-
-  output += decoder.end()
+  const output = new TextDecoder().decode(buffer)
 
   // 4. Return output.
   return output
+}
+
+/**
+ * @see https://infra.spec.whatwg.org/#parse-json-bytes-to-a-javascript-value
+ * @param {Uint8Array} bytes
+ */
+function parseJSONFromBytes (bytes) {
+  return JSON.parse(utf8DecodeBytes(bytes))
 }
 
 /**

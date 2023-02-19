@@ -479,12 +479,8 @@ std::shared_ptr<KeyObjectData> ImportJWKSecretKey(
     return std::shared_ptr<KeyObjectData>();
   }
 
+  static_assert(String::kMaxLength <= INT_MAX);
   ByteSource key_data = ByteSource::FromEncodedString(env, key.As<String>());
-  if (key_data.size() > INT_MAX) {
-    THROW_ERR_CRYPTO_INVALID_KEYLEN(env);
-    return std::shared_ptr<KeyObjectData>();
-  }
-
   return KeyObjectData::CreateSecret(std::move(key_data));
 }
 
@@ -893,33 +889,36 @@ size_t KeyObjectData::GetSymmetricKeySize() const {
   return symmetric_key_.size();
 }
 
+bool KeyObjectHandle::HasInstance(Environment* env, Local<Value> value) {
+  Local<FunctionTemplate> t = env->crypto_key_object_handle_constructor();
+  return !t.IsEmpty() && t->HasInstance(value);
+}
+
 v8::Local<v8::Function> KeyObjectHandle::Initialize(Environment* env) {
-  Local<Function> templ = env->crypto_key_object_handle_constructor();
-  if (!templ.IsEmpty()) {
-    return templ;
+  Local<FunctionTemplate> templ = env->crypto_key_object_handle_constructor();
+  if (templ.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    templ = NewFunctionTemplate(isolate, New);
+    templ->InstanceTemplate()->SetInternalFieldCount(
+        KeyObjectHandle::kInternalFieldCount);
+    templ->Inherit(BaseObject::GetConstructorTemplate(env));
+
+    SetProtoMethod(isolate, templ, "init", Init);
+    SetProtoMethodNoSideEffect(
+        isolate, templ, "getSymmetricKeySize", GetSymmetricKeySize);
+    SetProtoMethodNoSideEffect(
+        isolate, templ, "getAsymmetricKeyType", GetAsymmetricKeyType);
+    SetProtoMethod(isolate, templ, "export", Export);
+    SetProtoMethod(isolate, templ, "exportJwk", ExportJWK);
+    SetProtoMethod(isolate, templ, "initECRaw", InitECRaw);
+    SetProtoMethod(isolate, templ, "initEDRaw", InitEDRaw);
+    SetProtoMethod(isolate, templ, "initJwk", InitJWK);
+    SetProtoMethod(isolate, templ, "keyDetail", GetKeyDetail);
+    SetProtoMethod(isolate, templ, "equals", Equals);
+
+    env->set_crypto_key_object_handle_constructor(templ);
   }
-  Isolate* isolate = env->isolate();
-  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
-  t->InstanceTemplate()->SetInternalFieldCount(
-      KeyObjectHandle::kInternalFieldCount);
-  t->Inherit(BaseObject::GetConstructorTemplate(env));
-
-  SetProtoMethod(isolate, t, "init", Init);
-  SetProtoMethodNoSideEffect(
-      isolate, t, "getSymmetricKeySize", GetSymmetricKeySize);
-  SetProtoMethodNoSideEffect(
-      isolate, t, "getAsymmetricKeyType", GetAsymmetricKeyType);
-  SetProtoMethod(isolate, t, "export", Export);
-  SetProtoMethod(isolate, t, "exportJwk", ExportJWK);
-  SetProtoMethod(isolate, t, "initECRaw", InitECRaw);
-  SetProtoMethod(isolate, t, "initEDRaw", InitEDRaw);
-  SetProtoMethod(isolate, t, "initJwk", InitJWK);
-  SetProtoMethod(isolate, t, "keyDetail", GetKeyDetail);
-  SetProtoMethod(isolate, t, "equals", Equals);
-
-  auto function = t->GetFunction(env->context()).ToLocalChecked();
-  env->set_crypto_key_object_handle_constructor(function);
-  return function;
+  return templ->GetFunction(env->context()).ToLocalChecked();
 }
 
 void KeyObjectHandle::RegisterExternalReferences(
@@ -1397,7 +1396,7 @@ BaseObjectPtr<BaseObject> NativeKeyObject::KeyObjectTransferData::Deserialize(
       key_ctor = env->crypto_key_object_private_constructor();
       break;
     default:
-      CHECK(false);
+      UNREACHABLE();
   }
 
   Local<Value> key;

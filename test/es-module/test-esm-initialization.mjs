@@ -5,7 +5,7 @@ import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
 
-describe('ESM: ensure initialisation happens only once', { concurrency: true }, () => {
+describe('ESM: ensure initialization happens only once', { concurrency: true }, () => {
   it(async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--loader',

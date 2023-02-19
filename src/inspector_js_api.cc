@@ -1,3 +1,4 @@
+#include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "inspector_agent.h"
 #include "inspector_io.h"
@@ -272,7 +273,7 @@ static void RegisterAsyncHookWrapper(const FunctionCallbackInfo<Value>& args) {
 
 void IsEnabled(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  args.GetReturnValue().Set(InspectorEnabled(env));
+  args.GetReturnValue().Set(env->inspector_agent()->IsListening());
 }
 
 void Open(const FunctionCallbackInfo<Value>& args) {

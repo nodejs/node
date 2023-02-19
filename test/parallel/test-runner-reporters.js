@@ -26,7 +26,7 @@ describe('node:test reporters', { concurrency: true }, () => {
   it('should default destination to stdout when passing a single reporter', async () => {
     const child = spawnSync(process.execPath, ['--test', '--test-reporter', 'dot', testFile]);
     assert.strictEqual(child.stderr.toString(), '');
-    assert.strictEqual(child.stdout.toString(), '.XX.X\n');
+    assert.strictEqual(child.stdout.toString(), '.XX.\n');
   });
 
   it('should throw when passing reporters without a destination', async () => {
@@ -45,13 +45,13 @@ describe('node:test reporters', { concurrency: true }, () => {
     const child = spawnSync(process.execPath,
                             ['--test', '--test-reporter', 'dot', '--test-reporter-destination', 'stdout', testFile]);
     assert.strictEqual(child.stderr.toString(), '');
-    assert.strictEqual(child.stdout.toString(), '.XX.X\n');
+    assert.strictEqual(child.stdout.toString(), '.XX.\n');
   });
 
   it('should support stderr as a destination', async () => {
     const child = spawnSync(process.execPath,
                             ['--test', '--test-reporter', 'dot', '--test-reporter-destination', 'stderr', testFile]);
-    assert.strictEqual(child.stderr.toString(), '.XX.X\n');
+    assert.strictEqual(child.stderr.toString(), '.XX.\n');
     assert.strictEqual(child.stdout.toString(), '');
   });
 
@@ -61,7 +61,7 @@ describe('node:test reporters', { concurrency: true }, () => {
                             ['--test', '--test-reporter', 'dot', '--test-reporter-destination', file, testFile]);
     assert.strictEqual(child.stderr.toString(), '');
     assert.strictEqual(child.stdout.toString(), '');
-    assert.strictEqual(fs.readFileSync(file, 'utf8'), '.XX.X\n');
+    assert.strictEqual(fs.readFileSync(file, 'utf8'), '.XX.\n');
   });
 
   it('should support multiple reporters', async () => {
@@ -75,7 +75,7 @@ describe('node:test reporters', { concurrency: true }, () => {
                              testFile]);
     assert.match(child.stdout.toString(), /TAP version 13/);
     assert.match(child.stdout.toString(), /# duration_ms/);
-    assert.strictEqual(fs.readFileSync(file, 'utf8'), '.XX.X\n');
+    assert.strictEqual(fs.readFileSync(file, 'utf8'), '.XX.\n');
     const file2Contents = fs.readFileSync(file2, 'utf8');
     assert.match(file2Contents, /▶ nested/);
     assert.match(file2Contents, /✔ ok/);
@@ -86,10 +86,34 @@ describe('node:test reporters', { concurrency: true }, () => {
     it(`should support a '${ext}' file as a custom reporter`, async () => {
       const filename = `custom.${ext}`;
       const child = spawnSync(process.execPath,
-                              ['--test', '--test-reporter', fixtures.path('test-runner/custom_reporters/', filename),
+                              ['--test', '--test-reporter', fixtures.fileURL('test-runner/custom_reporters/', filename),
                                testFile]);
       assert.strictEqual(child.stderr.toString(), '');
-      assert.strictEqual(child.stdout.toString(), `${filename} {"test:start":5,"test:pass":2,"test:fail":3,"test:plan":3,"test:diagnostic":7}`);
+      const stdout = child.stdout.toString();
+      assert.match(stdout, /{"test:start":4,"test:pass":2,"test:fail":2,"test:plan":2,"test:diagnostic":\d+}$/);
+      assert.strictEqual(stdout.slice(0, filename.length + 2), `${filename} {`);
     });
+  });
+
+  it('should support a custom reporter from node_modules', async () => {
+    const child = spawnSync(process.execPath,
+                            ['--test', '--test-reporter', 'reporter-cjs', 'reporters.js'],
+                            { cwd: fixtures.path('test-runner') });
+    assert.strictEqual(child.stderr.toString(), '');
+    assert.match(
+      child.stdout.toString(),
+      /^package: reporter-cjs{"test:start":4,"test:pass":2,"test:fail":2,"test:plan":2,"test:diagnostic":\d+}$/,
+    );
+  });
+
+  it('should support a custom ESM reporter from node_modules', async () => {
+    const child = spawnSync(process.execPath,
+                            ['--test', '--test-reporter', 'reporter-esm', 'reporters.js'],
+                            { cwd: fixtures.path('test-runner') });
+    assert.strictEqual(child.stderr.toString(), '');
+    assert.match(
+      child.stdout.toString(),
+      /^package: reporter-esm{"test:start":4,"test:pass":2,"test:fail":2,"test:plan":2,"test:diagnostic":\d+}$/,
+    );
   });
 });

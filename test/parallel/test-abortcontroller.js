@@ -103,7 +103,7 @@ const { setTimeout: sleep } = require('timers/promises');
     NaN,
     true,
     'AbortController',
-    Object.create(AbortController.prototype),
+    { __proto__: AbortController.prototype },
   ];
   for (const badController of badAbortControllers) {
     throws(
@@ -134,7 +134,7 @@ const { setTimeout: sleep } = require('timers/promises');
     NaN,
     true,
     'AbortSignal',
-    Object.create(AbortSignal.prototype),
+    { __proto__: AbortSignal.prototype },
   ];
   for (const badSignal of badAbortSignals) {
     throws(
@@ -253,4 +253,21 @@ const { setTimeout: sleep } = require('timers/promises');
   // Does not throw because it's not aborted.
   const ac = new AbortController();
   ac.signal.throwIfAborted();
+}
+
+{
+  const originalDesc = Reflect.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted');
+  const actualReason = new Error();
+  Reflect.defineProperty(AbortSignal.prototype, 'aborted', { value: false });
+  throws(() => AbortSignal.abort(actualReason).throwIfAborted(), actualReason);
+  Reflect.defineProperty(AbortSignal.prototype, 'aborted', originalDesc);
+}
+
+{
+  const originalDesc = Reflect.getOwnPropertyDescriptor(AbortSignal.prototype, 'reason');
+  const actualReason = new Error();
+  const fakeExcuse = new Error();
+  Reflect.defineProperty(AbortSignal.prototype, 'reason', { value: fakeExcuse });
+  throws(() => AbortSignal.abort(actualReason).throwIfAborted(), actualReason);
+  Reflect.defineProperty(AbortSignal.prototype, 'reason', originalDesc);
 }

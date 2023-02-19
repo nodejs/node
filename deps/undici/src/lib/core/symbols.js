@@ -32,7 +32,7 @@ module.exports = {
   kClosed: Symbol('closed'),
   kNeedDrain: Symbol('need drain'),
   kReset: Symbol('reset'),
-  kDestroyed: Symbol('destroyed'),
+  kDestroyed: Symbol.for('nodejs.stream.destroyed'),
   kMaxHeadersSize: Symbol('max headers size'),
   kRunningIdx: Symbol('running index'),
   kPendingIdx: Symbol('pending index'),

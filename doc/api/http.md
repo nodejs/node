@@ -423,8 +423,9 @@ the data is read it will consume memory that can eventually lead to a
 For backward compatibility, `res` will only emit `'error'` if there is an
 `'error'` listener registered.
 
-Set `Content-Length` header to limit the response body size. Mismatching the
-`Content-Length` header value will result in an \[`Error`]\[] being thrown,
+Set `Content-Length` header to limit the response body size.
+If [`response.strictContentLength`][] is set to `true`, mismatching the
+`Content-Length` header value will result in an `Error` being thrown,
 identified by `code:` [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`][].
 
 `Content-Length` value should be in bytes, not characters. Use
@@ -1310,7 +1311,8 @@ changes:
 If a client connection emits an `'error'` event, it will be forwarded here.
 Listener of this event is responsible for closing/destroying the underlying
 socket. For example, one may wish to more gracefully close the socket with a
-custom HTTP response instead of abruptly severing the connection.
+custom HTTP response instead of abruptly severing the connection. The socket
+**must be closed or destroyed** before the listener ends.
 
 This event is guaranteed to be passed an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specifies a socket
@@ -1515,9 +1517,15 @@ or waiting for a response.
 added:
  - v11.3.0
  - v10.14.0
+changes:
+  - version:
+    - v19.4.0
+    - v18.14.0
+    pr-url: https://github.com/nodejs/node/pull/45778
+    description: The default is now set to the minimum between 60000 (60 seconds) or `requestTimeout`.
 -->
 
-* {number} **Default:** `60000`
+* {number} **Default:** The minimum between [`server.requestTimeout`][] or `60000`.
 
 Limit the amount of time the parser will wait to receive the complete HTTP
 headers.
@@ -2067,6 +2075,21 @@ response.statusMessage = 'Not found';
 After response header was sent to the client, this property indicates the
 status message which was sent out.
 
+### `response.strictContentLength`
+
+<!-- YAML
+added:
+  - v18.10.0
+  - v16.18.0
+-->
+
+* {boolean} **Default:** `false`
+
+If set to `true`, Node.js will check whether the `Content-Length`
+header value and the size of the body, in bytes, are equal.
+Mismatching the `Content-Length` header value will result
+in an `Error` being thrown, identified by `code:` [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`][].
+
 ### `response.uncork()`
 
 <!-- YAML
@@ -2422,6 +2445,15 @@ as an argument to any listeners on the event.
 <!-- YAML
 added: v0.1.5
 changes:
+  - version:
+    - v19.5.0
+    - v18.14.0
+    pr-url: https://github.com/nodejs/node/pull/45982
+    description: >-
+     The `joinDuplicateHeaders` option in the `http.request()`
+     and `http.createServer()` functions ensures that duplicate
+     headers are not discarded, but rather combined using a
+     comma separator, in accordance with RFC 9110 Section 5.3.
   - version: v15.1.0
     pr-url: https://github.com/nodejs/node/pull/35281
     description: >-
@@ -2451,6 +2483,10 @@ header name:
   `etag`, `expires`, `from`, `host`, `if-modified-since`, `if-unmodified-since`,
   `last-modified`, `location`, `max-forwards`, `proxy-authorization`, `referer`,
   `retry-after`, `server`, or `user-agent` are discarded.
+  To allow duplicate values of the headers listed above to be joined,
+  use the option `joinDuplicateHeaders` in [`http.request()`][]
+  and [`http.createServer()`][]. See RFC 9110 Section 5.3 for more
+  information.
 * `set-cookie` is always an array. Duplicates are added to the array.
 * For duplicate `cookie` headers, the values are joined together with `; `.
 * For all other headers, the values are joined together with `, `.
@@ -2954,6 +2990,48 @@ Sets a single header value. If the header already exists in the to-be-sent
 headers, its value will be replaced. Use an array of strings to send multiple
 headers with the same name.
 
+### `outgoingMessage.setHeaders(headers)`
+
+<!-- YAML
+added: v19.6.0
+-->
+
+* `headers` {Headers|Map}
+* Returns: {http.ServerResponse}
+
+Returns the response object.
+
+Sets multiple header values for implicit headers.
+`headers` must be an instance of [`Headers`][] or `Map`,
+if a header already exists in the to-be-sent headers,
+its value will be replaced.
+
+```js
+const headers = new Headers({ foo: 'bar' });
+response.setHeaders(headers);
+```
+
+or
+
+```js
+const headers = new Map([['foo', 'bar']]);
+res.setHeaders(headers);
+```
+
+When headers have been set with [`outgoingMessage.setHeaders()`][],
+they will be merged with any headers passed to [`response.writeHead()`][],
+with the headers passed to [`response.writeHead()`][] given precedence.
+
+```js
+// Returns content-type = text/plain
+const server = http.createServer((req, res) => {
+  const headers = new Headers({ 'Content-Type': 'text/html' });
+  res.setHeaders(headers);
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('ok');
+});
+```
+
 ### `outgoingMessage.setTimeout(msesc[, callback])`
 
 <!-- YAML
@@ -3178,14 +3256,18 @@ changes:
   * `requestTimeout`: Sets the timeout value in milliseconds for receiving
     the entire request from the client.
     See [`server.requestTimeout`][] for more information.
+    **Default:** `300000`.
   * `requireHostHeader` {boolean} It forces the server to respond with
     a 400 (Bad Request) status code to any HTTP/1.1 request message
     that lacks a Host header (as mandated by the specification).
     **Default:** `true`.
+  * `joinDuplicateHeaders` {boolean} It joins the field line values of multiple
+    headers in a request with `, ` instead of discarding the duplicates.
+    See [`message.headers`][] for more information.
+    **Default:** `false`.
   * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
     to be used. Useful for extending the original `ServerResponse`. **Default:**
     `ServerResponse`.
-    **Default:** `300000`.
   * `uniqueHeaders` {Array} A list of response headers that should be sent only
     once. If the header's value is an array, the items will be joined
     using `; `.
@@ -3437,6 +3519,10 @@ changes:
   * `uniqueHeaders` {Array} A list of request headers that should be sent
     only once. If the header's value is an array, the items will be joined
     using `; `.
+  * `joinDuplicateHeaders` {boolean} It joins the field line values of
+    multiple headers in a request with `, ` instead of discarding
+    the duplicates. See [`message.headers`][] for more information.
+    **Default:** `false`.
 * `callback` {Function}
 * Returns: {http.ClientRequest}
 
@@ -3638,13 +3724,20 @@ Passing an `AbortSignal` and then calling `abort` on the corresponding
 `AbortController` will behave the same way as calling `.destroy()` on the
 request itself.
 
-## `http.validateHeaderName(name)`
+## `http.validateHeaderName(name[, label])`
 
 <!-- YAML
 added: v14.3.0
+changes:
+  - version:
+    - v19.5.0
+    - v18.14.0
+    pr-url: https://github.com/nodejs/node/pull/46143
+    description: The `label` parameter is added.
 -->
 
 * `name` {string}
+* `label` {string} Label for error message. **Default:** `'Header name'`.
 
 Performs the low-level validations on the provided `name` that are done when
 `res.setHeader(name, value)` is called.
@@ -3664,9 +3757,9 @@ const { validateHeaderName } = require('node:http');
 try {
   validateHeaderName('');
 } catch (err) {
-  err instanceof TypeError; // --> true
-  err.code; // --> 'ERR_INVALID_HTTP_TOKEN'
-  err.message; // --> 'Header name must be a valid HTTP token [""]'
+  console.error(err instanceof TypeError); // --> true
+  console.error(err.code); // --> 'ERR_INVALID_HTTP_TOKEN'
+  console.error(err.message); // --> 'Header name must be a valid HTTP token [""]'
 }
 ```
 
@@ -3698,21 +3791,21 @@ const { validateHeaderValue } = require('node:http');
 try {
   validateHeaderValue('x-my-header', undefined);
 } catch (err) {
-  err instanceof TypeError; // --> true
-  err.code === 'ERR_HTTP_INVALID_HEADER_VALUE'; // --> true
-  err.message; // --> 'Invalid value "undefined" for header "x-my-header"'
+  console.error(err instanceof TypeError); // --> true
+  console.error(err.code === 'ERR_HTTP_INVALID_HEADER_VALUE'); // --> true
+  console.error(err.message); // --> 'Invalid value "undefined" for header "x-my-header"'
 }
 
 try {
   validateHeaderValue('x-my-header', 'oʊmɪɡə');
 } catch (err) {
-  err instanceof TypeError; // --> true
-  err.code === 'ERR_INVALID_CHAR'; // --> true
-  err.message; // --> 'Invalid character in header content ["x-my-header"]'
+  console.error(err instanceof TypeError); // --> true
+  console.error(err.code === 'ERR_INVALID_CHAR'); // --> true
+  console.error(err.message); // --> 'Invalid character in header content ["x-my-header"]'
 }
 ```
 
-## `http.setMaxIdleHTTPParsers`
+## `http.setMaxIdleHTTPParsers(max)`
 
 <!-- YAML
 added:
@@ -3720,9 +3813,9 @@ added:
   - v16.18.0
 -->
 
-* {number}
+* `max` {number} **Default:** `1000`.
 
-Set the maximum number of idle HTTP parsers. **Default:** `1000`.
+Set the maximum number of idle HTTP parsers.
 
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
 [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`]: errors.md#err_http_content_length_mismatch
@@ -3737,6 +3830,7 @@ Set the maximum number of idle HTTP parsers. **Default:** `1000`.
 [`Buffer.byteLength()`]: buffer.md#static-method-bufferbytelengthstring-encoding
 [`Duplex`]: stream.md#class-streamduplex
 [`HPE_HEADER_OVERFLOW`]: errors.md#hpe_header_overflow
+[`Headers`]: globals.md#class-headers
 [`TypeError`]: errors.md#class-typeerror
 [`URL`]: url.md#the-whatwg-url-api
 [`agent.createConnection()`]: #agentcreateconnectionoptions-callback
@@ -3750,6 +3844,7 @@ Set the maximum number of idle HTTP parsers. **Default:** `1000`.
 [`http.IncomingMessage`]: #class-httpincomingmessage
 [`http.ServerResponse`]: #class-httpserverresponse
 [`http.Server`]: #class-httpserver
+[`http.createServer()`]: #httpcreateserveroptions-requestlistener
 [`http.get()`]: #httpgetoptions-callback
 [`http.globalAgent`]: #httpglobalagent
 [`http.request()`]: #httprequestoptions-callback
@@ -3762,6 +3857,7 @@ Set the maximum number of idle HTTP parsers. **Default:** `1000`.
 [`net.createConnection()`]: net.md#netcreateconnectionoptions-connectlistener
 [`new URL()`]: url.md#new-urlinput-base
 [`outgoingMessage.setHeader(name, value)`]: #outgoingmessagesetheadername-value
+[`outgoingMessage.setHeaders()`]: #outgoingmessagesetheadersheaders
 [`outgoingMessage.socket`]: #outgoingmessagesocket
 [`removeHeader(name)`]: #requestremoveheadername
 [`request.destroy()`]: #requestdestroyerror
@@ -3780,6 +3876,7 @@ Set the maximum number of idle HTTP parsers. **Default:** `1000`.
 [`response.getHeader()`]: #responsegetheadername
 [`response.setHeader()`]: #responsesetheadername-value
 [`response.socket`]: #responsesocket
+[`response.strictContentLength`]: #responsestrictcontentlength
 [`response.writableEnded`]: #responsewritableended
 [`response.writableFinished`]: #responsewritablefinished
 [`response.write()`]: #responsewritechunk-encoding-callback

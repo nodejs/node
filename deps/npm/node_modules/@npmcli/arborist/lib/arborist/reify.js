@@ -1,5 +1,4 @@
 // mixin implementing the reify method
-
 const onExit = require('../signal-handling.js')
 const pacote = require('pacote')
 const AuditReport = require('../audit-report.js')
@@ -10,8 +9,9 @@ const debug = require('../debug.js')
 const walkUp = require('walk-up-path')
 const log = require('proc-log')
 const hgi = require('hosted-git-info')
+const rpj = require('read-package-json-fast')
 
-const { dirname, resolve, relative } = require('path')
+const { dirname, resolve, relative, join } = require('path')
 const { depth: dfwalk } = require('treeverse')
 const {
   lstat,
@@ -82,7 +82,6 @@ const _rollbackRetireShallowNodes = Symbol.for('rollbackRetireShallowNodes')
 const _rollbackCreateSparseTree = Symbol.for('rollbackCreateSparseTree')
 const _rollbackMoveBackRetiredUnchanged = Symbol.for('rollbackMoveBackRetiredUnchanged')
 const _saveIdealTree = Symbol.for('saveIdealTree')
-const _saveLockFile = Symbol('saveLockFile')
 const _copyIdealToActual = Symbol('copyIdealToActual')
 const _addOmitsToTrashList = Symbol('addOmitsToTrashList')
 const _packageLockOnly = Symbol('packageLockOnly')
@@ -105,6 +104,8 @@ const _pruneBundledMetadeps = Symbol('pruneBundledMetadeps')
 const _resolvedAdd = Symbol.for('resolvedAdd')
 const _usePackageLock = Symbol.for('usePackageLock')
 const _formatPackageLock = Symbol.for('formatPackageLock')
+
+const _createIsolatedTree = Symbol.for('createIsolatedTree')
 
 module.exports = cls => class Reifier extends cls {
   constructor (options) {
@@ -138,6 +139,8 @@ module.exports = cls => class Reifier extends cls {
 
   // public method
   async reify (options = {}) {
+    const linked = (options.installStrategy || this.options.installStrategy) === 'linked'
+
     if (this[_packageLockOnly] && this[_global]) {
       const er = new Error('cannot generate lockfile for global packages')
       er.code = 'ESHRINKWRAPGLOBAL'
@@ -154,8 +157,22 @@ module.exports = cls => class Reifier extends cls {
     process.emit('time', 'reify')
     await this[_validatePath]()
     await this[_loadTrees](options)
+
+    const oldTree = this.idealTree
+    if (linked) {
+      // swap out the tree with the isolated tree
+      // this is currently technical debt which will be resolved in a refactor
+      // of Node/Link trees
+      log.warn('reify', 'The "linked" install strategy is EXPERIMENTAL and may contain bugs.')
+      this.idealTree = await this[_createIsolatedTree](this.idealTree)
+    }
     await this[_diffTrees]()
     await this[_reifyPackages]()
+    if (linked) {
+      // swap back in the idealTree
+      // so that the lockfile is preserved
+      this.idealTree = oldTree
+    }
     await this[_saveIdealTree](options)
     await this[_copyIdealToActual]()
     // This is a very bad pattern and I can't wait to stop doing it
@@ -634,44 +651,40 @@ module.exports = cls => class Reifier extends cls {
   }
 
   async [_extractOrLink] (node) {
-    // in normal cases, node.resolved should *always* be set by now.
-    // however, it is possible when a lockfile is damaged, or very old,
-    // or in some other race condition bugs in npm v6, that a previously
-    // bundled dependency will have just a version, but no resolved value,
-    // and no 'bundled: true' setting.
-    // Do the best with what we have, or else remove it from the tree
-    // entirely, since we can't possibly reify it.
-    let res = null
-    if (node.resolved) {
-      const registryResolved = this[_registryResolved](node.resolved)
-      if (registryResolved) {
-        res = `${node.name}@${registryResolved}`
-      }
-    } else if (node.packageName && node.version) {
-      res = `${node.packageName}@${node.version}`
-    }
-
-    // no idea what this thing is.  remove it from the tree.
-    if (!res) {
-      const warning = 'invalid or damaged lockfile detected\n' +
-        'please re-try this operation once it completes\n' +
-        'so that the damage can be corrected, or perform\n' +
-        'a fresh install with no lockfile if the problem persists.'
-      log.warn('reify', warning)
-      log.verbose('reify', 'unrecognized node in tree', node.path)
-      node.parent = null
-      node.fsParent = null
-      this[_addNodeToTrashList](node)
-      return
-    }
-
     const nm = resolve(node.parent.path, 'node_modules')
     await this[_validateNodeModules](nm)
 
-    if (node.isLink) {
-      await rm(node.path, { recursive: true, force: true })
-      await this[_symlink](node)
-    } else {
+    if (!node.isLink) {
+      // in normal cases, node.resolved should *always* be set by now.
+      // however, it is possible when a lockfile is damaged, or very old,
+      // or in some other race condition bugs in npm v6, that a previously
+      // bundled dependency will have just a version, but no resolved value,
+      // and no 'bundled: true' setting.
+      // Do the best with what we have, or else remove it from the tree
+      // entirely, since we can't possibly reify it.
+      let res = null
+      if (node.resolved) {
+        const registryResolved = this[_registryResolved](node.resolved)
+        if (registryResolved) {
+          res = `${node.name}@${registryResolved}`
+        }
+      } else if (node.package.name && node.version) {
+        res = `${node.package.name}@${node.version}`
+      }
+
+      // no idea what this thing is.  remove it from the tree.
+      if (!res) {
+        const warning = 'invalid or damaged lockfile detected\n' +
+          'please re-try this operation once it completes\n' +
+          'so that the damage can be corrected, or perform\n' +
+          'a fresh install with no lockfile if the problem persists.'
+        log.warn('reify', warning)
+        log.verbose('reify', 'unrecognized node in tree', node.path)
+        node.parent = null
+        node.fsParent = null
+        this[_addNodeToTrashList](node)
+        return
+      }
       await debug(async () => {
         const st = await lstat(node.path).catch(e => null)
         if (st && !st.isDirectory()) {
@@ -688,7 +701,17 @@ module.exports = cls => class Reifier extends cls {
         resolved: node.resolved,
         integrity: node.integrity,
       })
+      // store nodes don't use Node class so node.package doesn't get updated
+      if (node.isInStore) {
+        const pkg = await rpj(join(node.path, 'package.json'))
+        node.package.scripts = pkg.scripts
+      }
+      return
     }
+
+    // node.isLink
+    await rm(node.path, { recursive: true, force: true })
+    await this[_symlink](node)
   }
 
   async [_symlink] (node) {
@@ -1380,64 +1403,53 @@ module.exports = cls => class Reifier extends cls {
       }
     }
 
-    // preserve indentation, if possible
-    const {
-      [Symbol.for('indent')]: indent,
-    } = this.idealTree.package
-    const format = indent === undefined ? '  ' : indent
-
-    const saveOpt = {
-      format: (this[_formatPackageLock] && format) ? format
-      : this[_formatPackageLock],
-    }
-
-    const promises = [this[_saveLockFile](saveOpt)]
-
-    const updatePackageJson = async (tree) => {
-      const pkgJson = await PackageJson.load(tree.path)
-        .catch(() => new PackageJson(tree.path))
-      const {
-        dependencies = {},
-        devDependencies = {},
-        optionalDependencies = {},
-        peerDependencies = {},
-        // bundleDependencies is not required by PackageJson like the other fields here
-        // PackageJson also doesn't omit an empty array for this field so defaulting this
-        // to an empty array would add that field to every package.json file.
-        bundleDependencies,
-      } = tree.package
-
-      pkgJson.update({
-        dependencies,
-        devDependencies,
-        optionalDependencies,
-        peerDependencies,
-        bundleDependencies,
-      })
-      await pkgJson.save()
-    }
-
     if (save) {
       for (const tree of updatedTrees) {
         // refresh the edges so they have the correct specs
         tree.package = tree.package
-        promises.push(updatePackageJson(tree))
+        const pkgJson = await PackageJson.load(tree.path)
+          .catch(() => new PackageJson(tree.path))
+        const {
+          dependencies = {},
+          devDependencies = {},
+          optionalDependencies = {},
+          peerDependencies = {},
+          // bundleDependencies is not required by PackageJson like the other
+          // fields here PackageJson also doesn't omit an empty array for this
+          // field so defaulting this to an empty array would add that field to
+          // every package.json file.
+          bundleDependencies,
+        } = tree.package
+
+        pkgJson.update({
+          dependencies,
+          devDependencies,
+          optionalDependencies,
+          peerDependencies,
+          bundleDependencies,
+        })
+        await pkgJson.save()
       }
     }
 
-    await Promise.all(promises)
-    process.emit('timeEnd', 'reify:save')
-    return true
-  }
+    // before now edge specs could be changing, affecting the `requires` field
+    // in the package lock, so we hold off saving to the very last action
+    if (this[_usePackageLock]) {
+      // preserve indentation, if possible
+      let format = this.idealTree.package[Symbol.for('indent')]
+      if (format === undefined) {
+        format = '  '
+      }
 
-  async [_saveLockFile] (saveOpt) {
-    if (!this[_usePackageLock]) {
-      return
+      // TODO this ignores options.save
+      await this.idealTree.meta.save({
+        format: (this[_formatPackageLock] && format) ? format
+        : this[_formatPackageLock],
+      })
     }
 
-    const { meta } = this.idealTree
-
-    return meta.save(saveOpt)
+    process.emit('timeEnd', 'reify:save')
+    return true
   }
 
   async [_copyIdealToActual] () {

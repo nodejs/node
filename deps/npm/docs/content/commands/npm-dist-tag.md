@@ -22,12 +22,12 @@ Add, remove, and enumerate distribution tags on a package:
   or the [`--tag` config](/using-npm/config#tag) if not specified. If you have
   two-factor authentication on auth-and-writes then you’ll need to include a
   one-time password on the command line with
-  `--otp <one-time password>`, or at the OTP prompt.
+  `--otp <one-time password>`, or go through a second factor flow based on your `authtype`.
 
 * rm: Clear a tag that is no longer in use from the package. If you have
   two-factor authentication on auth-and-writes then you’ll need to include
   a one-time password on the command line with `--otp <one-time password>`,
-  or at the OTP prompt.
+  or go through a second factor flow based on your `authtype`
 
 * ls: Show all of the dist-tags for a package, defaulting to the package in
   the current prefix. This is the default action if none is specified.

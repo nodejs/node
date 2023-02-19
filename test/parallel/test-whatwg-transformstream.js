@@ -186,3 +186,22 @@ class Source {
     inspect(controller, { depth: 0 }),
     /TransformStreamDefaultController \[/);
 }
+
+{
+  Object.defineProperty(Object.prototype, 'type', {
+    get: common.mustNotCall('get %Object.prototype%.type'),
+    set: common.mustNotCall('set %Object.prototype%.type'),
+    configurable: true,
+  });
+
+  new TransformStream({
+    transform(chunk, controller) {
+      controller.enqueue(chunk);
+    },
+    flush(controller) {
+      controller.terminate();
+    }
+  });
+
+  delete Object.prototype.type;
+}

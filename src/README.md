@@ -31,10 +31,13 @@ embedder API.
 Important concepts when using V8 are the ones of [`Isolate`][]s and
 [JavaScript value handles][].
 
+V8 supports [fast API calls][], which can be useful for improving the
+performance in certain cases.
+
 ## libuv API documentation
 
 The other major dependency of Node.js is [libuv][], providing
-the [event loop][] and other operation system abstractions to Node.js.
+the [event loop][] and other operating system abstractions to Node.js.
 
 There is a [reference documentation for the libuv API][].
 
@@ -1055,6 +1058,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [cleanup hooks]: #cleanup-hooks
 [event loop]: #event-loop
 [exception handling]: #exception-handling
+[fast API calls]: ../doc/contributing/adding-v8-fast-api.md
 [internal field]: #internal-fields
 [introduction for V8 embedders]: https://v8.dev/docs/embed
 [libuv]: https://libuv.org/

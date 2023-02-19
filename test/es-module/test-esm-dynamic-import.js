@@ -59,7 +59,7 @@ function expectFsNamespace(result) {
                     'ERR_UNSUPPORTED_ESM_URL_SCHEME');
   if (common.isWindows) {
     const msg =
-      'Only URLs with a scheme in: file, data are supported by the default ' +
+      'Only URLs with a scheme in: file and data are supported by the default ' +
       'ESM loader. On Windows, absolute paths must be valid file:// URLs. ' +
       "Received protocol 'c:'";
     expectModuleError(import('C:\\example\\foo.mjs'),

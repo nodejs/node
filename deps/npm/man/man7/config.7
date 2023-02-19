@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "December 2022" "" ""
+.TH "CONFIG" "7" "February 2023" "" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
@@ -161,7 +161,7 @@ Type: null, "restricted", or "public"
 .RE 0
 
 .P
-If do not want your scoped package to be publicly viewable (and installable) set \fB--access=restricted\fR.
+If you do not want your scoped package to be publicly viewable (and installable) set \fB--access=restricted\fR.
 .P
 Unscoped packages can not be set to \fBrestricted\fR.
 .P
@@ -216,7 +216,7 @@ Type: "legacy" or "web"
 .RE 0
 
 .P
-What authentication strategy to use with \fBlogin\fR.
+What authentication strategy to use with \fBlogin\fR. Note that if an \fBotp\fR config is given, this value will always be set to \fBlegacy\fR.
 .SS "\fBbefore\fR"
 .RS 0
 .IP \(bu 4
@@ -815,7 +815,7 @@ The value that \fBnpm init\fR should use by default for the package version numb
 .SS "\fBinstall-links\fR"
 .RS 0
 .IP \(bu 4
-Default: true
+Default: false
 .IP \(bu 4
 Type: Boolean
 .RE 0
@@ -827,11 +827,11 @@ When set file: protocol dependencies will be packed and installed as regular dep
 .IP \(bu 4
 Default: "hoisted"
 .IP \(bu 4
-Type: "hoisted", "nested", or "shallow"
+Type: "hoisted", "nested", "shallow", or "linked"
 .RE 0
 
 .P
-Sets the strategy for installing packages in node_modules. hoisted (default): Install non-duplicated in top-level, and duplicated as necessary within directory structure. nested: (formerly --legacy-bundling) install in place, no hoisting. shallow (formerly --global-style) only install direct deps at top-level. linked: (coming soon) install in node_modules/.store, link in place, unhoisted.
+Sets the strategy for installing packages in node_modules. hoisted (default): Install non-duplicated in top-level, and duplicated as necessary within directory structure. nested: (formerly --legacy-bundling) install in place, no hoisting. shallow (formerly --global-style) only install direct deps at top-level. linked: (experimental) install in node_modules/.store, link in place, unhoisted.
 .SS "\fBjson\fR"
 .RS 0
 .IP \(bu 4
@@ -1168,6 +1168,16 @@ Type: Boolean
 When set to \fBtrue\fR, npm will display a progress bar during time intensive operations, if \fBprocess.stderr\fR is a TTY.
 .P
 Set to \fBfalse\fR to suppress the progress bar.
+.SS "\fBprovenance\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Indicates that a provenance statement should be generated.
 .SS "\fBproxy\fR"
 .RS 0
 .IP \(bu 4
@@ -1445,7 +1455,7 @@ If set to \fBtrue\fR, and \fB--legacy-peer-deps\fR is not set, then \fIany\fR co
 .P
 By default, conflicting \fBpeerDependencies\fR deep in the dependency graph will be resolved using the nearest non-peer dependency specification, even if doing so will result in some packages receiving a peer dependency outside the range set in their package's \fBpeerDependencies\fR object.
 .P
-When such and override is performed, a warning is printed, explaining the conflict and the packages involved. If \fB--strict-peer-deps\fR is set, then this warning is treated as a failure.
+When such an override is performed, a warning is printed, explaining the conflict and the packages involved. If \fB--strict-peer-deps\fR is set, then this warning is treated as a failure.
 .SS "\fBstrict-ssl\fR"
 .RS 0
 .IP \(bu 4
@@ -1770,7 +1780,7 @@ DEPRECATED: This option has been deprecated in favor of \fB--install-strategy=sh
 .RE 0
 
 .P
-Only install direct dependencies in the top level \fBnode_modules\fR, but hoist on deeper dependendencies. Sets \fB--install-strategy=shallow\fR.
+Only install direct dependencies in the top level \fBnode_modules\fR, but hoist on deeper dependencies. Sets \fB--install-strategy=shallow\fR.
 .SS "\fBinit.author.email\fR"
 .RS 0
 .IP \(bu 4

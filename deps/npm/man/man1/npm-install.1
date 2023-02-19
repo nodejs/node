@@ -1,4 +1,4 @@
-.TH "NPM-INSTALL" "1" "December 2022" "" ""
+.TH "NPM-INSTALL" "1" "February 2023" "" ""
 .SH "NAME"
 \fBnpm-install\fR - Install a package
 .SS "Synopsis"
@@ -424,11 +424,11 @@ man pages are linked to \fB{prefix}/share/man\fR
 .IP \(bu 4
 Default: "hoisted"
 .IP \(bu 4
-Type: "hoisted", "nested", or "shallow"
+Type: "hoisted", "nested", "shallow", or "linked"
 .RE 0
 
 .P
-Sets the strategy for installing packages in node_modules. hoisted (default): Install non-duplicated in top-level, and duplicated as necessary within directory structure. nested: (formerly --legacy-bundling) install in place, no hoisting. shallow (formerly --global-style) only install direct deps at top-level. linked: (coming soon) install in node_modules/.store, link in place, unhoisted.
+Sets the strategy for installing packages in node_modules. hoisted (default): Install non-duplicated in top-level, and duplicated as necessary within directory structure. nested: (formerly --legacy-bundling) install in place, no hoisting. shallow (formerly --global-style) only install direct deps at top-level. linked: (experimental) install in node_modules/.store, link in place, unhoisted.
 .SS "\fBlegacy-bundling\fR"
 .RS 0
 .IP \(bu 4
@@ -452,7 +452,7 @@ DEPRECATED: This option has been deprecated in favor of \fB--install-strategy=sh
 .RE 0
 
 .P
-Only install direct dependencies in the top level \fBnode_modules\fR, but hoist on deeper dependendencies. Sets \fB--install-strategy=shallow\fR.
+Only install direct dependencies in the top level \fBnode_modules\fR, but hoist on deeper dependencies. Sets \fB--install-strategy=shallow\fR.
 .SS "\fBomit\fR"
 .RS 0
 .IP \(bu 4
@@ -482,7 +482,7 @@ If set to \fBtrue\fR, and \fB--legacy-peer-deps\fR is not set, then \fIany\fR co
 .P
 By default, conflicting \fBpeerDependencies\fR deep in the dependency graph will be resolved using the nearest non-peer dependency specification, even if doing so will result in some packages receiving a peer dependency outside the range set in their package's \fBpeerDependencies\fR object.
 .P
-When such and override is performed, a warning is printed, explaining the conflict and the packages involved. If \fB--strict-peer-deps\fR is set, then this warning is treated as a failure.
+When such an override is performed, a warning is printed, explaining the conflict and the packages involved. If \fB--strict-peer-deps\fR is set, then this warning is treated as a failure.
 .SS "\fBpackage-lock\fR"
 .RS 0
 .IP \(bu 4
@@ -624,7 +624,7 @@ This value is not exported to the environment for child processes.
 .SS "\fBinstall-links\fR"
 .RS 0
 .IP \(bu 4
-Default: true
+Default: false
 .IP \(bu 4
 Type: Boolean
 .RE 0

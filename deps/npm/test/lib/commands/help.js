@@ -1,351 +1,231 @@
 const t = require('tap')
-const { EventEmitter } = require('events')
+const localeCompare = require('@isaacs/string-locale-compare')('en')
+const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
+const { cleanCwd } = require('../../fixtures/clean-snapshot')
 
-const npmConfig = {
-  usage: false,
-  viewer: undefined,
-  loglevel: undefined,
-}
+const genManPages = (obj) => {
+  const man = {}
+  const resPages = new Set()
 
-let helpSearchArgs = null
-const OUTPUT = []
-const npm = {
-  usage: 'test npm usage',
-  config: {
-    get: key => npmConfig[key],
-    set: (key, value) => {
-      npmConfig[key] = value
-    },
-    parsedArgv: {
-      cooked: [],
-    },
-    validate: () => {},
-  },
-  exec: async (cmd, args) => {
-    if (cmd === 'help-search') {
-      helpSearchArgs = args
-    } else if (cmd === 'help') {
-      return { usage: 'npm help <term>' }
+  for (const [section, pages] of Object.entries(obj)) {
+    const num = parseInt(section, 10)
+    man[`man${num}`] = {}
+
+    const sectionPages = []
+    for (const name of pages) {
+      man[`man${num}`][`${name}.${section}`] = `.TH "${name.toUpperCase()}" "${num}"`
+      sectionPages.push(name.replace(/^npm-/, ''))
     }
-  },
-  deref: cmd => {},
-  output: msg => {
-    OUTPUT.push(msg)
-  },
+
+    // return a sorted list of uniq pages in order to test completion
+    for (const p of sectionPages.sort(localeCompare)) {
+      resPages.add(p)
+    }
+  }
+
+  // man directory name is hardcoded in the command
+  return { fixtures: { man }, pages: [...resPages.values()] }
 }
 
-const globDefaults = [
-  '/root/man/man1/npm-whoami.1',
-  '/root/man/man5/npmrc.5',
-  '/root/man/man7/disputes.7',
-]
+const mockHelp = async (t, {
+  man = {
+    1: ['whoami', 'install', 'star', 'unstar', 'uninstall', 'unpublish'].map(p => `npm-${p}`),
+    5: ['npmrc', 'install', 'package-json'],
+    7: ['disputes', 'config'],
+  },
+  browser = false,
+  woman = false,
+  exec: execArgs = null,
+  spawnErr,
+  ...opts
+} = {}) => {
+  const config = {
+    // always set viewer to test the same on all platforms
+    viewer: browser ? 'browser' : woman ? 'woman' : 'man',
+    ...opts.config,
+  }
 
-let globErr = null
-let globResult = globDefaults
-let globParam
-const glob = (p, cb) => {
-  globParam = p
-  return cb(globErr, globResult)
-}
+  let args = null
+  const mockSpawn = async (...a) => {
+    args = a
+    if (spawnErr) {
+      throw spawnErr
+    }
+  }
+  mockSpawn.open = async (url) => args = [cleanCwd(decodeURI(url))]
 
-let spawnBin = null
-let spawnArgs = null
-let spawnCode = 0
-const spawn = (bin, args) => {
-  spawnBin = bin
-  spawnArgs = args
-  const spawnEmitter = new EventEmitter()
-  process.nextTick(() => {
-    spawnEmitter.emit('exit', spawnCode)
+  const manPages = genManPages(man)
+
+  const { npm, ...rest } = await loadMockNpm(t, {
+    npm: ({ other }) => ({ npmRoot: other }),
+    mocks: { '@npmcli/promise-spawn': mockSpawn },
+    otherDirs: { ...manPages.fixtures },
+    config,
+    ...opts,
   })
-  return spawnEmitter
-}
 
-let openUrlArg = null
-const openUrl = async (npm, url, msg) => {
-  openUrlArg = url
-}
+  const help = await npm.cmd('help')
+  const exec = execArgs
+    ? await npm.exec('help', execArgs)
+    : (...a) => npm.exec('help', a)
 
-const Help = t.mock('../../../lib/commands/help.js', {
-  '../../../lib/utils/open-url.js': openUrl,
-  child_process: {
-    spawn,
-  },
-  glob,
-})
-const help = new Help(npm)
+  return {
+    npm,
+    help,
+    exec,
+    manPages: manPages.pages,
+    getArgs: () => args,
+    ...rest,
+  }
+}
 
 t.test('npm help', async t => {
-  await help.exec([])
+  const { exec, joinedOutput } = await mockHelp(t)
+  await exec()
 
-  t.match(OUTPUT, ['test npm usage'], 'showed npm usage')
+  t.match(joinedOutput(), 'npm <command>', 'showed npm usage')
 })
 
 t.test('npm help completion', async t => {
-  t.teardown(() => {
-    globErr = null
-  })
+  const { help, manPages } = await mockHelp(t)
 
   const noArgs = await help.completion({ conf: { argv: { remain: [] } } })
-  t.strictSame(noArgs, ['help', 'whoami', 'npmrc', 'disputes'], 'outputs available help pages')
+  t.strictSame(noArgs, ['help', ...manPages], 'outputs available help pages')
   const threeArgs = await help.completion({ conf: { argv: { remain: ['one', 'two', 'three'] } } })
   t.strictSame(threeArgs, [], 'outputs no results when more than 2 args are provided')
-  globErr = new Error('glob failed')
-  t.rejects(
-    help.completion({ conf: { argv: { remain: [] } } }),
-    /glob failed/,
-    'glob errors propagate'
-  )
 })
 
 t.test('npm help multiple args calls search', async t => {
-  t.teardown(() => {
-    helpSearchArgs = null
-  })
+  const { joinedOutput } = await mockHelp(t, { exec: ['run', 'script'] })
 
-  await help.exec(['run', 'script'])
-
-  t.strictSame(helpSearchArgs, ['run', 'script'], 'passed the args to help-search')
+  t.match(joinedOutput(), 'No matches in help for: run script', 'calls help-search')
 })
 
 t.test('npm help no matches calls search', async t => {
-  globResult = []
-  t.teardown(() => {
-    helpSearchArgs = null
-    globResult = globDefaults
-  })
+  const { joinedOutput } = await mockHelp(t, { exec: ['asdfasdf'] })
 
-  await help.exec(['asdfasdf'])
-  t.strictSame(helpSearchArgs, ['asdfasdf'], 'passed the args to help-search')
-})
-
-t.test('npm help glob errors propagate', async t => {
-  globErr = new Error('glob failed')
-  t.teardown(() => {
-    globErr = null
-    spawnBin = null
-    spawnArgs = null
-  })
-
-  await t.rejects(help.exec(['whoami']), /glob failed/, 'glob error propagates')
+  t.match(joinedOutput(), 'No matches in help for: asdfasdf', 'passed the args to help-search')
 })
 
 t.test('npm help whoami', async t => {
-  globResult = ['/root/man/man1/npm-whoami.1.xz']
-  t.teardown(() => {
-    globResult = globDefaults
-    spawnBin = null
-    spawnArgs = null
-  })
+  const { getArgs } = await mockHelp(t, { exec: ['whoami'] })
 
-  await help.exec(['whoami'])
-
+  const [spawnBin, spawnArgs] = getArgs()
   t.equal(spawnBin, 'man', 'calls man by default')
-  t.strictSame(spawnArgs, [globResult[0]], 'passes the correct arguments')
+  t.equal(spawnArgs.length, 1)
+  t.match(spawnArgs[0], /\/man\/man1\/npm-whoami\.1$/)
 })
 
 t.test('npm help 1 install', async t => {
-  npmConfig.viewer = 'browser'
-  globResult = ['/root/man/man5/install.5', '/root/man/man1/npm-install.1']
-
-  t.teardown(() => {
-    npmConfig.viewer = undefined
-    globResult = globDefaults
-    spawnBin = null
-    spawnArgs = null
+  const { getArgs } = await mockHelp(t, {
+    exec: ['1', 'install'],
+    browser: true,
   })
 
-  await help.exec(['1', 'install'])
-
-  t.match(openUrlArg, /commands(\/|\\)npm-install.html$/, 'attempts to open the correct url')
-  t.ok(openUrlArg.startsWith('file:///'), 'opens with the correct uri schema')
+  const [url] = getArgs()
+  t.match(url, /commands\/npm-install.html$/, 'attempts to open the correct url')
+  t.ok(url.startsWith('file:///'), 'opens with the correct uri schema')
 })
 
 t.test('npm help 5 install', async t => {
-  npmConfig.viewer = 'browser'
-  globResult = ['/root/man/man5/install.5']
-
-  t.teardown(() => {
-    npmConfig.viewer = undefined
-    globResult = globDefaults
-    globParam = null
-    spawnBin = null
-    spawnArgs = null
+  const { getArgs } = await mockHelp(t, {
+    exec: ['5', 'install'],
+    browser: true,
   })
 
-  await help.exec(['5', 'install'])
-
-  t.match(globParam, /man5/, 'searches only in man5 folder')
-  t.match(openUrlArg, /configuring-npm(\/|\\)install.html$/, 'attempts to open the correct url')
+  const [url] = getArgs()
+  t.match(url, /configuring-npm\/install.html$/, 'attempts to open the correct url')
 })
 
 t.test('npm help 7 config', async t => {
-  npmConfig.viewer = 'browser'
-  globResult = ['/root/man/man7/config.7']
-  t.teardown(() => {
-    npmConfig.viewer = undefined
-    globParam = null
-    globResult = globDefaults
-    spawnBin = null
-    spawnArgs = null
+  const { getArgs } = await mockHelp(t, {
+    exec: ['7', 'config'],
+    browser: true,
   })
 
-  await help.exec(['7', 'config'])
-
-  t.match(globParam, /man7/, 'searches only in man5 folder')
-  t.match(openUrlArg, /using-npm(\/|\\)config.html$/, 'attempts to open the correct url')
+  const [url] = getArgs()
+  t.match(url, /using-npm\/config.html$/, 'attempts to open the correct url')
 })
 
 t.test('npm help package.json redirects to package-json', async t => {
-  globResult = ['/root/man/man5/package-json.5']
-  t.teardown(() => {
-    globResult = globDefaults
-    spawnBin = null
-    spawnArgs = null
+  const { getArgs } = await mockHelp(t, {
+    exec: ['package.json'],
   })
 
-  await help.exec(['package.json'])
-
+  const [spawnBin, spawnArgs] = getArgs()
   t.equal(spawnBin, 'man', 'calls man by default')
-  t.match(globParam, /package-json/, 'glob was asked to find package-json')
-  t.strictSame(spawnArgs, [globResult[0]], 'passes the correct arguments')
+  t.equal(spawnArgs.length, 1)
+  t.match(spawnArgs[0], /\/man\/man5\/package-json\.5$/)
 })
 
 t.test('npm help ?(un)star', async t => {
-  npmConfig.viewer = 'woman'
-  globResult = ['/root/man/man1/npm-star.1', '/root/man/man1/npm-unstar.1']
-  t.teardown(() => {
-    npmConfig.viewer = undefined
-    globResult = globDefaults
-    spawnBin = null
-    spawnArgs = null
+  const { getArgs } = await mockHelp(t, {
+    exec: ['?(un)star'],
+    woman: true,
   })
 
-  await help.exec(['?(un)star'])
-
+  const [spawnBin, spawnArgs] = getArgs()
   t.equal(spawnBin, 'emacsclient', 'maps woman to emacs correctly')
-  t.strictSame(
-    spawnArgs,
-    ['-e', `(woman-find-file '/root/man/man1/npm-star.1')`],
-    'passes the correct arguments'
-  )
-})
-
-t.test('npm help - woman viewer propagates errors', async t => {
-  npmConfig.viewer = 'woman'
-  spawnCode = 1
-  globResult = ['/root/man/man1/npm-star.1', '/root/man/man1/npm-unstar.1']
-  t.teardown(() => {
-    npmConfig.viewer = undefined
-    spawnCode = 0
-    globResult = globDefaults
-    spawnBin = null
-    spawnArgs = null
-  })
-
-  await t.rejects(
-    help.exec(['?(un)star']),
-    /help process exited with code: 1/,
-    'received the correct error'
-  )
-  t.equal(spawnBin, 'emacsclient', 'maps woman to emacs correctly')
-  t.strictSame(
-    spawnArgs,
-    ['-e', `(woman-find-file '/root/man/man1/npm-star.1')`],
-    'passes the correct arguments'
-  )
+  t.equal(spawnArgs.length, 2)
+  t.match(spawnArgs[1], /^\(woman-find-file '/)
+  t.match(spawnArgs[1], /\/man\/man1\/npm-star.1'\)$/)
 })
 
 t.test('npm help un*', async t => {
-  globResult = [
-    '/root/man/man1/npm-unstar.1',
-    '/root/man/man1/npm-uninstall.1',
-    '/root/man/man1/npm-unpublish.1',
-  ]
-  t.teardown(() => {
-    globResult = globDefaults
-    spawnBin = null
-    spawnArgs = null
+  const { getArgs } = await mockHelp(t, {
+    exec: ['un*'],
   })
 
-  await help.exec(['un*'])
-
+  const [spawnBin, spawnArgs] = getArgs()
   t.equal(spawnBin, 'man', 'calls man by default')
-  t.strictSame(spawnArgs, ['/root/man/man1/npm-uninstall.1'], 'passes the correct arguments')
-})
-
-t.test('npm help - man viewer propagates errors', async t => {
-  spawnCode = 1
-  globResult = [
-    '/root/man/man1/npm-unstar.1',
-    '/root/man/man1/npm-uninstall.1',
-    '/root/man/man1/npm-unpublish.1',
-  ]
-  t.teardown(() => {
-    spawnCode = 0
-    globResult = globDefaults
-    spawnBin = null
-    spawnArgs = null
-  })
-
-  await t.rejects(help.exec(['un*']), /help process exited with code: 1/, 'received correct error')
-  t.equal(spawnBin, 'man', 'calls man by default')
-  t.strictSame(spawnArgs, ['/root/man/man1/npm-uninstall.1'], 'passes the correct arguments')
-})
-
-t.test('npm help with complex installation path finds proper help file', async t => {
-  npmConfig.viewer = 'browser'
-  globResult = [
-    'C:/Program Files/node-v14.15.5-win-x64/node_modules/npm/man/man1/npm-install.1',
-    // glob always returns forward slashes, even on Windows
-  ]
-
-  t.teardown(() => {
-    npmConfig.viewer = undefined
-    globResult = globDefaults
-    spawnBin = null
-    spawnArgs = null
-  })
-
-  await help.exec(['1', 'install'])
-
-  t.match(openUrlArg, /commands(\/|\\)npm-install.html$/, 'attempts to open the correct url')
+  t.equal(spawnArgs.length, 1)
+  t.match(spawnArgs[0], /\/man\/man1\/npm-uninstall\.1$/)
 })
 
 t.test('npm help - prefers npm help pages', async t => {
-  // Unusual ordering is to get full test coverage of all branches inside the
-  // sort function.
-  globResult = [
-    '/root/man/man6/npm-install.6',
-    '/root/man/man1/install.1',
-    '/root/man/man5/npm-install.5',
-  ]
-  t.teardown(() => {
-    globResult = globDefaults
-    spawnBin = null
-    spawnArgs = null
+  const { getArgs } = await mockHelp(t, {
+    man: {
+      6: ['npm-install'],
+      1: ['install'],
+      5: ['install', 'npm-install'],
+    },
+    exec: ['install'],
   })
-  await help.exec(['install'])
 
+  const [spawnBin, spawnArgs] = getArgs()
   t.equal(spawnBin, 'man', 'calls man by default')
-  t.strictSame(spawnArgs, ['/root/man/man5/npm-install.5'], 'passes the correct arguments')
+  t.equal(spawnArgs.length, 1)
+  t.match(spawnArgs[0], /\/man\/man5\/npm-install\.5$/)
 })
 
 t.test('npm help - works in the presence of strange man pages', async t => {
-  // Unusual ordering is to get full test coverage of all branches inside the
-  // sort function.
-  globResult = [
-    '/root/man/man6/config.6strange',
-    '/root/man/man1/config.1',
-    '/root/man/man5/config.5ssl',
-  ]
-  t.teardown(() => {
-    globResult = globDefaults
-    spawnBin = null
-    spawnArgs = null
+  const { getArgs } = await mockHelp(t, {
+    man: {
+      '6strange': ['config'],
+      1: ['config'],
+      '5ssl': ['config'],
+    },
+    exec: ['config'],
   })
-  await help.exec(['config'])
 
+  const [spawnBin, spawnArgs] = getArgs()
   t.equal(spawnBin, 'man', 'calls man by default')
-  t.strictSame(spawnArgs, ['/root/man/man1/config.1'], 'passes the correct arguments')
+  t.equal(spawnArgs.length, 1)
+  t.match(spawnArgs[0], /\/man\/man1\/config\.1$/)
+})
+
+t.test('rejects with code', async t => {
+  const { exec } = await mockHelp(t, {
+    spawnErr: Object.assign(new Error('errrrr'), { code: 'SPAWN_ERR' }),
+  })
+
+  await t.rejects(exec('whoami'), /help process exited with code: SPAWN_ERR/)
+})
+
+t.test('rejects with no code', async t => {
+  const { exec } = await mockHelp(t, {
+    spawnErr: new Error('errrrr'),
+  })
+
+  await t.rejects(exec('whoami'), /errrrr/)
 })

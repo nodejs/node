@@ -553,6 +553,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<BoolT> BoolConstant(bool value) {
     return value ? Int32TrueConstant() : Int32FalseConstant();
   }
+  TNode<ExternalPointerHandleT> ExternalPointerHandleNullConstant() {
+    return ReinterpretCast<ExternalPointerHandleT>(Uint32Constant(0));
+  }
 
   bool IsMapOffsetConstant(Node* node);
 

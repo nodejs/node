@@ -1027,7 +1027,9 @@ equality.
 ## Class: `util.MIMEType`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 > Stability: 1 - Experimental
@@ -1226,7 +1228,9 @@ console.log(JSON.stringify(myMIMES));
 ### Class: `util.MIMEParams`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 The `MIMEParams` API provides read and write access to the parameters of a
@@ -1983,6 +1987,51 @@ Marks the given {AbortSignal} as transferable so that it can be used with
 const signal = transferableAbortSignal(AbortSignal.timeout(100));
 const channel = new MessageChannel();
 channel.port2.postMessage(signal, [signal]);
+```
+
+## `util.aborted(signal, resource)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `signal` {AbortSignal}
+* `resource` {Object} Any non-null entity, reference to which is held weakly.
+* Returns: {Promise}
+
+Listens to abort event on the provided `signal` and
+returns a promise that is fulfilled when the `signal` is
+aborted. If the passed `resource` is garbage collected before the `signal` is
+aborted, the returned promise shall remain pending indefinitely.
+
+```cjs
+const { aborted } = require('node:util');
+
+const dependent = obtainSomethingAbortable();
+
+aborted(dependent.signal, dependent).then(() => {
+  // Do something when dependent is aborted.
+});
+
+dependent.on('event', () => {
+  dependent.abort();
+});
+```
+
+```mjs
+import { aborted } from 'node:util';
+
+const dependent = obtainSomethingAbortable();
+
+aborted(dependent.signal, dependent).then(() => {
+  // Do something when dependent is aborted.
+});
+
+dependent.on('event', () => {
+  dependent.abort();
+});
 ```
 
 ## `util.types`

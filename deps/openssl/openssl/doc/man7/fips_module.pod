@@ -460,6 +460,11 @@ L<OSSL_PROVIDER_get0_name(3)>.
 
 L<migration_guide(7)>, L<crypto(7)>, L<fips_config(5)>
 
+=head1 HISTORY
+
+The FIPS module guide was created for use with the new FIPS provider
+in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
 Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.

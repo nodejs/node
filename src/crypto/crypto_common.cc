@@ -1,13 +1,12 @@
+#include "crypto/crypto_common.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
+#include "memory_tracker-inl.h"
+#include "node.h"
 #include "node_buffer.h"
 #include "node_crypto.h"
-#include "crypto/crypto_common.h"
-#include "node.h"
 #include "node_internals.h"
-#include "node_url.h"
 #include "string_bytes.h"
-#include "memory_tracker-inl.h"
 #include "v8.h"
 
 #include <openssl/ec.h>
@@ -543,6 +542,16 @@ MaybeLocal<Value> GetKeyUsage(Environment* env, X509* cert) {
   }
 
   return Undefined(env->isolate());
+}
+
+MaybeLocal<Value> GetCurrentCipherName(Environment* env,
+                                       const SSLPointer& ssl) {
+  return GetCipherName(env, SSL_get_current_cipher(ssl.get()));
+}
+
+MaybeLocal<Value> GetCurrentCipherVersion(Environment* env,
+                                          const SSLPointer& ssl) {
+  return GetCipherVersion(env, SSL_get_current_cipher(ssl.get()));
 }
 
 MaybeLocal<Value> GetFingerprintDigest(

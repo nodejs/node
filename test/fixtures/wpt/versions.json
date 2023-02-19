@@ -12,7 +12,7 @@
     "path": "dom/abort"
   },
   "dom/events": {
-    "commit": "f8821adb281696322f4bd96d412a98ae510f9125",
+    "commit": "ab8999891c6225bef1741c2960033aad620481a8",
     "path": "dom/events"
   },
   "encoding": {
@@ -72,7 +72,7 @@
     "path": "streams"
   },
   "url": {
-    "commit": "0a187bc16933e67dfb8755935143a6dd5a9e12f2",
+    "commit": "f1ade799d04b72b0ff75c13e988744c2cd873741",
     "path": "url"
   },
   "user-timing": {
@@ -88,7 +88,7 @@
     "path": "wasm/webapi"
   },
   "WebCryptoAPI": {
-    "commit": "84456654f439f236f3470a36601ecbc4365f50c5",
+    "commit": "238d9d9bac54d4f1ae8844fc8dd4389b1ad99b4e",
     "path": "WebCryptoAPI"
   },
   "webidl/ecmascript-binding/es-exceptions": {

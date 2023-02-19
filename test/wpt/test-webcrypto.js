@@ -8,10 +8,6 @@ const { WPTRunner } = require('../common/wpt');
 
 const runner = new WPTRunner('WebCryptoAPI');
 
-runner.setInitScript(`
-  global.location = {};
-`);
-
 runner.pretendGlobalThisAs('Window');
 
 runner.runJsTests();

@@ -334,18 +334,20 @@ void AsyncWrap::SetCallbackTrampoline(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(Environment* env) {
-  Local<FunctionTemplate> tmpl = env->async_wrap_ctor_template();
+Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(
+    IsolateData* isolate_data) {
+  Local<FunctionTemplate> tmpl = isolate_data->async_wrap_ctor_template();
   if (tmpl.IsEmpty()) {
-    Isolate* isolate = env->isolate();
+    Isolate* isolate = isolate_data->isolate();
     tmpl = NewFunctionTemplate(isolate, nullptr);
-    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap"));
-    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
+    tmpl->SetClassName(
+        FIXED_ONE_BYTE_STRING(isolate_data->isolate(), "AsyncWrap"));
+    tmpl->Inherit(BaseObject::GetConstructorTemplate(isolate_data));
     SetProtoMethod(isolate, tmpl, "getAsyncId", AsyncWrap::GetAsyncId);
     SetProtoMethod(isolate, tmpl, "asyncReset", AsyncWrap::AsyncReset);
     SetProtoMethod(
         isolate, tmpl, "getProviderType", AsyncWrap::GetProviderType);
-    env->set_async_wrap_ctor_template(tmpl);
+    isolate_data->set_async_wrap_ctor_template(tmpl);
   }
   return tmpl;
 }
@@ -671,13 +673,19 @@ MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   return ret;
 }
 
-std::string AsyncWrap::MemoryInfoName() const {
+const char* AsyncWrap::MemoryInfoName() const {
   return provider_names[provider_type()];
 }
 
 std::string AsyncWrap::diagnostic_name() const {
-  return MemoryInfoName() + " (" + std::to_string(env()->thread_id()) + ":" +
-      std::to_string(static_cast<int64_t>(async_id_)) + ")";
+  char buf[64];
+  snprintf(buf,
+           sizeof(buf),
+           "%s(%" PRIu64 ":%.0f)",
+           MemoryInfoName(),
+           env()->thread_id(),
+           async_id_);
+  return buf;
 }
 
 Local<Object> AsyncWrap::GetOwner() {

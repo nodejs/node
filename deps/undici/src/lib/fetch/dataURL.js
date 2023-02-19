@@ -5,6 +5,12 @@ const { isValidHTTPToken, isomorphicDecode } = require('./util')
 
 const encoder = new TextEncoder()
 
+// Regex
+const HTTP_TOKEN_CODEPOINTS = /^[!#$%&'*+-.^_|~A-z0-9]+$/
+const HTTP_WHITESPACE_REGEX = /(\u000A|\u000D|\u0009|\u0020)/ // eslint-disable-line
+// https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
+const HTTP_QUOTED_STRING_TOKENS = /^(\u0009|\x{0020}-\x{007E}|\x{0080}-\x{00FF})+$/ // eslint-disable-line
+
 // https://fetch.spec.whatwg.org/#data-url-processor
 /** @param {URL} dataURL */
 function dataURLProcessor (dataURL) {
@@ -25,8 +31,8 @@ function dataURLProcessor (dataURL) {
   // 5. Let mimeType be the result of collecting a
   // sequence of code points that are not equal
   // to U+002C (,), given position.
-  let mimeType = collectASequenceOfCodePoints(
-    (char) => char !== ',',
+  let mimeType = collectASequenceOfCodePointsFast(
+    ',',
     input,
     position
   )
@@ -139,6 +145,25 @@ function collectASequenceOfCodePoints (condition, input, position) {
   return result
 }
 
+/**
+ * A faster collectASequenceOfCodePoints that only works when comparing a single character.
+ * @param {string} char
+ * @param {string} input
+ * @param {{ position: number }} position
+ */
+function collectASequenceOfCodePointsFast (char, input, position) {
+  const idx = input.indexOf(char, position.position)
+  const start = position.position
+
+  if (idx === -1) {
+    position.position = input.length
+    return input.slice(start)
+  }
+
+  position.position = idx
+  return input.slice(start, position.position)
+}
+
 // https://url.spec.whatwg.org/#string-percent-decode
 /** @param {string} input */
 function stringPercentDecode (input) {
@@ -208,8 +233,8 @@ function parseMIMEType (input) {
   // 3. Let type be the result of collecting a sequence
   // of code points that are not U+002F (/) from
   // input, given position.
-  const type = collectASequenceOfCodePoints(
-    (char) => char !== '/',
+  const type = collectASequenceOfCodePointsFast(
+    '/',
     input,
     position
   )
@@ -217,7 +242,7 @@ function parseMIMEType (input) {
   // 4. If type is the empty string or does not solely
   // contain HTTP token code points, then return failure.
   // https://mimesniff.spec.whatwg.org/#http-token-code-point
-  if (type.length === 0 || !/^[!#$%&'*+-.^_|~A-z0-9]+$/.test(type)) {
+  if (type.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(type)) {
     return 'failure'
   }
 
@@ -233,8 +258,8 @@ function parseMIMEType (input) {
   // 7. Let subtype be the result of collecting a sequence of
   // code points that are not U+003B (;) from input, given
   // position.
-  let subtype = collectASequenceOfCodePoints(
-    (char) => char !== ';',
+  let subtype = collectASequenceOfCodePointsFast(
+    ';',
     input,
     position
   )
@@ -244,7 +269,7 @@ function parseMIMEType (input) {
 
   // 9. If subtype is the empty string or does not solely
   // contain HTTP token code points, then return failure.
-  if (subtype.length === 0 || !/^[!#$%&'*+-.^_|~A-z0-9]+$/.test(subtype)) {
+  if (subtype.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(subtype)) {
     return 'failure'
   }
 
@@ -258,9 +283,7 @@ function parseMIMEType (input) {
     /** @type {Map<string, string>} */
     parameters: new Map(),
     // https://mimesniff.spec.whatwg.org/#mime-type-essence
-    get essence () {
-      return `${this.type}/${this.subtype}`
-    }
+    essence: `${type}/${subtype}`
   }
 
   // 11. While position is not past the end of input:
@@ -272,7 +295,7 @@ function parseMIMEType (input) {
     // whitespace from input given position.
     collectASequenceOfCodePoints(
       // https://fetch.spec.whatwg.org/#http-whitespace
-      (char) => /(\u000A|\u000D|\u0009|\u0020)/.test(char), // eslint-disable-line
+      char => HTTP_WHITESPACE_REGEX.test(char),
       input,
       position
     )
@@ -320,8 +343,8 @@ function parseMIMEType (input) {
 
       // 2. Collect a sequence of code points that are not
       // U+003B (;) from input, given position.
-      collectASequenceOfCodePoints(
-        (char) => char !== ';',
+      collectASequenceOfCodePointsFast(
+        ';',
         input,
         position
       )
@@ -331,8 +354,8 @@ function parseMIMEType (input) {
       // 1. Set parameterValue to the result of collecting
       // a sequence of code points that are not U+003B (;)
       // from input, given position.
-      parameterValue = collectASequenceOfCodePoints(
-        (char) => char !== ';',
+      parameterValue = collectASequenceOfCodePointsFast(
+        ';',
         input,
         position
       )
@@ -355,9 +378,8 @@ function parseMIMEType (input) {
     // then set mimeType’s parameters[parameterName] to parameterValue.
     if (
       parameterName.length !== 0 &&
-      /^[!#$%&'*+-.^_|~A-z0-9]+$/.test(parameterName) &&
-      // https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
-      !/^(\u0009|\x{0020}-\x{007E}|\x{0080}-\x{00FF})+$/.test(parameterValue) &&  // eslint-disable-line
+      HTTP_TOKEN_CODEPOINTS.test(parameterName) &&
+      !HTTP_QUOTED_STRING_TOKENS.test(parameterValue) &&
       !mimeType.parameters.has(parameterName)
     ) {
       mimeType.parameters.set(parameterName, parameterValue)
@@ -534,6 +556,7 @@ module.exports = {
   dataURLProcessor,
   URLSerializer,
   collectASequenceOfCodePoints,
+  collectASequenceOfCodePointsFast,
   stringPercentDecode,
   parseMIMEType,
   collectAnHTTPQuotedString,

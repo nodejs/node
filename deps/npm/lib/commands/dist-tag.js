@@ -17,6 +17,7 @@ class DistTag extends BaseCommand {
     'ls [<package-spec>]',
   ]
 
+  static workspaces = true
   static ignoreImplicitWorkspace = false
 
   async completion (opts) {
@@ -57,14 +58,14 @@ class DistTag extends BaseCommand {
     }
   }
 
-  async execWorkspaces ([cmdName, pkg, tag], filters) {
+  async execWorkspaces ([cmdName, pkg, tag]) {
     // cmdName is some form of list
     // pkg is one of:
     // - unset
     // - .
     // - .@version
     if (['ls', 'l', 'sl', 'list'].includes(cmdName) && (!pkg || pkg === '.' || /^\.@/.test(pkg))) {
-      return this.listWorkspaces(filters)
+      return this.listWorkspaces()
     }
 
     // pkg is unset
@@ -73,12 +74,12 @@ class DistTag extends BaseCommand {
     // - .
     // - .@version
     if (!pkg && (!cmdName || cmdName === '.' || /^\.@/.test(cmdName))) {
-      return this.listWorkspaces(filters)
+      return this.listWorkspaces()
     }
 
     // anything else is just a regular dist-tag command
     // so we fallback to the non-workspaces implementation
-    log.warn('Ignoring workspaces for specified package')
+    log.warn('dist-tag', 'Ignoring workspaces for specified package')
     return this.exec([cmdName, pkg, tag])
   }
 
@@ -116,7 +117,7 @@ class DistTag extends BaseCommand {
       },
       spec,
     }
-    await otplease(this.npm, reqOpts, reqOpts => regFetch(url, reqOpts))
+    await otplease(this.npm, reqOpts, o => regFetch(url, o))
     this.npm.output(`+${t}: ${spec.name}@${version}`)
   }
 
@@ -142,7 +143,7 @@ class DistTag extends BaseCommand {
       method: 'DELETE',
       spec,
     }
-    await otplease(this.npm, reqOpts, reqOpts => regFetch(url, reqOpts))
+    await otplease(this.npm, reqOpts, o => regFetch(url, o))
     this.npm.output(`-${tag}: ${spec.name}@${version}`)
   }
 
@@ -172,8 +173,8 @@ class DistTag extends BaseCommand {
     }
   }
 
-  async listWorkspaces (filters) {
-    await this.setWorkspaces(filters)
+  async listWorkspaces () {
+    await this.setWorkspaces()
 
     for (const name of this.workspaceNames) {
       try {

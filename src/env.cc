@@ -314,6 +314,7 @@ IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
     info.primitive_values.push_back(creator->AddData(async_wrap_provider(i)));
 
   uint32_t id = 0;
+#define VM(PropertyName) V(PropertyName##_binding, FunctionTemplate)
 #define V(PropertyName, TypeName)                                              \
   do {                                                                         \
     Local<TypeName> field = PropertyName();                                    \
@@ -324,6 +325,7 @@ IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
     id++;                                                                      \
   } while (0);
   PER_ISOLATE_TEMPLATE_PROPERTIES(V)
+  NODE_BINDINGS_WITH_PER_ISOLATE_INIT(VM)
 #undef V
 
   return info;
@@ -368,6 +370,7 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   const std::vector<PropInfo>& values = info->template_values;
   i = 0;  // index to the array
   uint32_t id = 0;
+#define VM(PropertyName) V(PropertyName##_binding, FunctionTemplate)
 #define V(PropertyName, TypeName)                                              \
   do {                                                                         \
     if (values.size() > i && id == values[i].id) {                             \
@@ -388,6 +391,7 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   } while (0);
 
   PER_ISOLATE_TEMPLATE_PROPERTIES(V);
+  NODE_BINDINGS_WITH_PER_ISOLATE_INIT(VM);
 #undef V
 }
 
@@ -454,12 +458,12 @@ void IsolateData::CreateProperties() {
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
 
-  // TODO(legendecas): eagerly create per isolate templates.
   Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
   templ->InstanceTemplate()->SetInternalFieldCount(
       BaseObject::kInternalFieldCount);
   templ->Inherit(BaseObject::GetConstructorTemplate(this));
   set_binding_data_ctor_template(templ);
+  binding::CreateInternalBindingTemplates(this);
 
   contextify::ContextifyContext::InitializeGlobalTemplates(this);
 }
@@ -468,19 +472,20 @@ IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
                          MultiIsolatePlatform* platform,
                          ArrayBufferAllocator* node_allocator,
-                         const IsolateDataSerializeInfo* isolate_data_info)
+                         const SnapshotData* snapshot_data)
     : isolate_(isolate),
       event_loop_(event_loop),
       node_allocator_(node_allocator == nullptr ? nullptr
                                                 : node_allocator->GetImpl()),
-      platform_(platform) {
+      platform_(platform),
+      snapshot_data_(snapshot_data) {
   options_.reset(
       new PerIsolateOptions(*(per_process::cli_options->per_isolate)));
 
-  if (isolate_data_info == nullptr) {
+  if (snapshot_data == nullptr) {
     CreateProperties();
   } else {
-    DeserializeProperties(isolate_data_info);
+    DeserializeProperties(&snapshot_data->isolate_data_info);
   }
 }
 
@@ -619,7 +624,7 @@ std::string GetExecPath(const std::vector<std::string>& argv) {
   std::string exec_path;
   if (uv_exepath(exec_path_buf, &exec_path_len) == 0) {
     exec_path = std::string(exec_path_buf, exec_path_len);
-  } else {
+  } else if (argv.size() > 0) {
     exec_path = argv[0];
   }
 
@@ -650,6 +655,7 @@ Environment::Environment(IsolateData* isolate_data,
       isolate_data_(isolate_data),
       async_hooks_(isolate, MAYBE_FIELD_PTR(env_info, async_hooks)),
       immediate_info_(isolate, MAYBE_FIELD_PTR(env_info, immediate_info)),
+      timeout_info_(isolate_, 1, MAYBE_FIELD_PTR(env_info, timeout_info)),
       tick_info_(isolate, MAYBE_FIELD_PTR(env_info, tick_info)),
       timer_base_(uv_now(isolate_data->event_loop())),
       exec_argv_(exec_args),
@@ -670,6 +676,24 @@ Environment::Environment(IsolateData* isolate_data,
       thread_id_(thread_id.id == static_cast<uint64_t>(-1)
                      ? AllocateEnvironmentThreadId().id
                      : thread_id.id) {
+  constexpr bool is_shared_ro_heap =
+#ifdef NODE_V8_SHARED_RO_HEAP
+      true;
+#else
+      false;
+#endif
+  if (is_shared_ro_heap && !is_main_thread()) {
+    // If this is a Worker thread and we are in shared-readonly-heap mode,
+    // we can always safely use the parent's Isolate's code cache.
+    CHECK_NOT_NULL(isolate_data->worker_context());
+    builtin_loader()->CopySourceAndCodeCacheReferenceFrom(
+        isolate_data->worker_context()->env()->builtin_loader());
+  } else if (isolate_data->snapshot_data() != nullptr) {
+    // ... otherwise, if a snapshot was provided, use its code cache.
+    builtin_loader()->RefreshCodeCache(
+        isolate_data->snapshot_data()->code_cache);
+  }
+
   // We'll be creating new objects so make sure we've entered the context.
   HandleScope handle_scope(isolate);
 
@@ -731,23 +755,6 @@ Environment::Environment(IsolateData* isolate_data,
                                       "args",
                                       std::move(traced_value));
   }
-}
-
-Environment::Environment(IsolateData* isolate_data,
-                         Local<Context> context,
-                         const std::vector<std::string>& args,
-                         const std::vector<std::string>& exec_args,
-                         const EnvSerializeInfo* env_info,
-                         EnvironmentFlags::Flags flags,
-                         ThreadId thread_id)
-    : Environment(isolate_data,
-                  context->GetIsolate(),
-                  args,
-                  exec_args,
-                  env_info,
-                  flags,
-                  thread_id) {
-  InitializeMainContext(context, env_info);
 }
 
 void Environment::InitializeMainContext(Local<Context> context,
@@ -904,11 +911,15 @@ void Environment::InitializeLibuv() {
   StartProfilerIdleNotifier();
 }
 
-void Environment::ExitEnv() {
-  set_can_call_into_js(false);
+void Environment::ExitEnv(StopFlags::Flags flags) {
+  // Should not access non-thread-safe methods here.
   set_stopping(true);
-  isolate_->TerminateExecution();
-  SetImmediateThreadsafe([](Environment* env) { uv_stop(env->event_loop()); });
+  if ((flags & StopFlags::kDoNotTerminateIsolate) == 0)
+    isolate_->TerminateExecution();
+  SetImmediateThreadsafe([](Environment* env) {
+    env->set_can_call_into_js(false);
+    uv_stop(env->event_loop());
+  });
 }
 
 void Environment::RegisterHandleCleanups() {
@@ -1581,18 +1592,6 @@ void Environment::PrintInfoForSnapshotIfDebug() {
   if (enabled_debug_list()->enabled(DebugCategory::MKSNAPSHOT)) {
     fprintf(stderr, "At the exit of the Environment:\n");
     principal_realm()->PrintInfoForSnapshot();
-    fprintf(stderr, "\nBuiltins without cache:\n");
-    for (const auto& s : builtins_without_cache) {
-      fprintf(stderr, "%s\n", s.c_str());
-    }
-    fprintf(stderr, "\nBuiltins with cache:\n");
-    for (const auto& s : builtins_with_cache) {
-      fprintf(stderr, "%s\n", s.c_str());
-    }
-    fprintf(stderr, "\nStatic bindings (need to be registered):\n");
-    for (const auto mod : internal_bindings) {
-      fprintf(stderr, "%s:%s\n", mod->nm_filename, mod->nm_modname);
-    }
   }
 }
 
@@ -1600,13 +1599,9 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   EnvSerializeInfo info;
   Local<Context> ctx = context();
 
-  // Currently all modules are compiled without cache in builtin snapshot
-  // builder.
-  info.builtins = std::vector<std::string>(builtins_without_cache.begin(),
-                                           builtins_without_cache.end());
-
   info.async_hooks = async_hooks_.Serialize(ctx, creator);
   info.immediate_info = immediate_info_.Serialize(ctx, creator);
+  info.timeout_info = timeout_info_.Serialize(ctx, creator);
   info.tick_info = tick_info_.Serialize(ctx, creator);
   info.performance_state = performance_state_->Serialize(ctx, creator);
   info.exit_info = exit_info_.Serialize(ctx, creator);
@@ -1650,9 +1645,9 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
 
   RunDeserializeRequests();
 
-  builtins_in_snapshot = info->builtins;
   async_hooks_.Deserialize(ctx);
   immediate_info_.Deserialize(ctx);
+  timeout_info_.Deserialize(ctx);
   tick_info_.Deserialize(ctx);
   performance_state_->Deserialize(ctx);
   exit_info_.Deserialize(ctx);
@@ -1841,8 +1836,6 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   // Iteratable STLs have their own sizes subtracted from the parent
   // by default.
   tracker->TrackField("isolate_data", isolate_data_);
-  tracker->TrackField("builtins_with_cache", builtins_with_cache);
-  tracker->TrackField("builtins_without_cache", builtins_without_cache);
   tracker->TrackField("destroy_async_id_list", destroy_async_id_list_);
   tracker->TrackField("exec_argv", exec_argv_);
   tracker->TrackField("exit_info", exit_info_);
@@ -1852,6 +1845,7 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("cleanup_queue", cleanup_queue_);
   tracker->TrackField("async_hooks", async_hooks_);
   tracker->TrackField("immediate_info", immediate_info_);
+  tracker->TrackField("timeout_info", timeout_info_);
   tracker->TrackField("tick_info", tick_info_);
   tracker->TrackField("principal_realm", principal_realm_);
 

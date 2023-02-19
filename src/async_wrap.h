@@ -138,6 +138,8 @@ class AsyncWrap : public BaseObject {
   static constexpr double kInvalidAsyncId = -1;
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      IsolateData* isolate_data);
+  inline static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
 
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
@@ -207,7 +209,7 @@ class AsyncWrap : public BaseObject {
       v8::Local<v8::Value>* argv);
 
   virtual std::string diagnostic_name() const;
-  std::string MemoryInfoName() const override;
+  const char* MemoryInfoName() const override;
 
   static void WeakCallback(const v8::WeakCallbackInfo<DestroyParam> &info);
 

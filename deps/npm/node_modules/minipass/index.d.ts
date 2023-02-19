@@ -140,8 +140,8 @@ declare class Minipass<
     listener: () => any
   ): this
 
-  [Symbol.iterator](): Iterator<RType>
-  [Symbol.asyncIterator](): AsyncIterator<RType>
+  [Symbol.iterator](): Generator<RType, void, void>
+  [Symbol.asyncIterator](): AsyncGenerator<RType, void, void>
 }
 
 export = Minipass

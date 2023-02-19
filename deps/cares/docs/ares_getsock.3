@@ -18,10 +18,10 @@
 ares_getsock \- get socket descriptors to wait on
 .SH SYNOPSIS
 .nf
-.B #include <ares.h>
-.PP
-.B int ares_getsock(ares_channel \fIchannel\fP, ares_socket_t *\fIsocks\fP,
-.B int \fInumsocks\fP);
+#include <ares.h>
+
+int ares_getsock(ares_channel \fIchannel\fP, ares_socket_t *\fIsocks\fP,
+                 int \fInumsocks\fP);
 .fi
 .SH DESCRIPTION
 The

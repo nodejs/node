@@ -170,6 +170,7 @@ with-code-cache test-code-cache:
 
 out/Makefile: config.gypi common.gypi node.gyp \
 	deps/uv/uv.gyp deps/llhttp/llhttp.gyp deps/zlib/zlib.gyp \
+	deps/simdutf/simdutf.gyp deps/ada/ada.gyp \
 	tools/v8_gypfiles/toolchain.gypi tools/v8_gypfiles/features.gypi \
 	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
 	$(PYTHON) tools/gyp_node.py -f make
@@ -593,6 +594,12 @@ test-message: test-build
 .PHONY: test-wpt
 test-wpt: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) wpt
+
+.PHONY: test-wpt-report
+test-wpt-report:
+	$(RM) -r out/wpt
+	mkdir -p out/wpt
+	WPT_REPORT=1 $(PYTHON) tools/test.py --shell $(NODE) $(PARALLEL_ARGS) wpt
 
 .PHONY: test-simple
 test-simple: | cctest # Depends on 'all'.
@@ -1549,7 +1556,7 @@ CONFLICT_RE=^>>>>>>> [[:xdigit:]]+|^<<<<<<< [[:alpha:]]+
 
 # Related CI job: node-test-linter
 lint-ci: lint-js-ci lint-cpp lint-py lint-md lint-addon-docs lint-yaml-build lint-yaml
-	@if ! ( grep -IEqrs "$(CONFLICT_RE)" --exclude="error-message.js" benchmark deps doc lib src test tools ) \
+	@if ! ( grep -IEqrs "$(CONFLICT_RE)" --exclude="error-message.js" --exclude="merge-conflict.json" benchmark deps doc lib src test tools ) \
 		&& ! ( $(FIND) . -maxdepth 1 -type f | xargs grep -IEqs "$(CONFLICT_RE)" ); then \
 		exit 0 ; \
 	else \

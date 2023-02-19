@@ -313,7 +313,7 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
         flush != Z_FULL_FLUSH &&
         flush != Z_FINISH &&
         flush != Z_BLOCK) {
-      CHECK(0 && "Invalid flush value");
+      UNREACHABLE("Invalid flush value");
     }
 
     if (args[1]->IsNull()) {
@@ -797,7 +797,7 @@ void ZlibContext::DoThreadPoolWork() {
             break;
           }
 
-          // fallthrough
+          [[fallthrough]];
         case 1:
           if (next_expected_header_byte == nullptr) {
             break;
@@ -814,10 +814,10 @@ void ZlibContext::DoThreadPoolWork() {
 
           break;
         default:
-          CHECK(0 && "invalid number of gzip magic number bytes read");
+          UNREACHABLE("invalid number of gzip magic number bytes read");
       }
 
-      // fallthrough
+      [[fallthrough]];
     case INFLATE:
     case GUNZIP:
     case INFLATERAW:

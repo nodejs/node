@@ -12,12 +12,13 @@
 #include "util.h"
 #include "v8.h"
 
+#include <openssl/dsa.h>
+#include <openssl/ec.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
-#include <openssl/ec.h>
+#include <openssl/hmac.h>
 #include <openssl/kdf.h>
 #include <openssl/rsa.h>
-#include <openssl/dsa.h>
 #include <openssl/ssl.h>
 #ifndef OPENSSL_NO_ENGINE
 #  include <openssl/engine.h>
@@ -398,7 +399,7 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
 
   AdditionalParams* params() { return &params_; }
 
-  std::string MemoryInfoName() const override {
+  const char* MemoryInfoName() const override {
     return CryptoJobTraits::JobName;
   }
 

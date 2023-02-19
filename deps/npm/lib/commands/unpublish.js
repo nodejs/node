@@ -21,11 +21,15 @@ class Unpublish extends BaseCommand {
   static name = 'unpublish'
   static params = ['dry-run', 'force', 'workspace', 'workspaces']
   static usage = ['[<package-spec>]']
+  static workspaces = true
   static ignoreImplicitWorkspace = false
 
   async getKeysOfVersions (name, opts) {
     const pkgUri = npa(name).escapedName
-    const json = await npmFetch.json(`${pkgUri}?write=true`, opts)
+    const json = await npmFetch.json(`${pkgUri}?write=true`, {
+      ...opts,
+      spec: name,
+    })
     return Object.keys(json.versions)
   }
 
@@ -130,15 +134,15 @@ class Unpublish extends BaseCommand {
     }
 
     if (!dryRun) {
-      await otplease(this.npm, opts, opts => libunpub(spec, opts))
+      await otplease(this.npm, opts, o => libunpub(spec, o))
     }
     if (!silent) {
       this.npm.output(`- ${pkgName}${pkgVersion}`)
     }
   }
 
-  async execWorkspaces (args, filters) {
-    await this.setWorkspaces(filters)
+  async execWorkspaces (args) {
+    await this.setWorkspaces()
 
     const force = this.npm.config.get('force')
     if (!force) {

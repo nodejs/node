@@ -107,8 +107,8 @@ tarball that will be compared with the local files by default.
   current level
 * Type: null, "restricted", or "public"
 
-If do not want your scoped package to be publicly viewable (and installable)
-set `--access=restricted`.
+If you do not want your scoped package to be publicly viewable (and
+installable) set `--access=restricted`.
 
 Unscoped packages can not be set to `restricted`.
 
@@ -193,6 +193,13 @@ all workspaces via the `workspaces` flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.
 
 This value is not exported to the environment for child processes.
+
+#### `provenance`
+
+* Default: false
+* Type: Boolean
+
+Indicates that a provenance statement should be generated.
 
 ### See Also
 

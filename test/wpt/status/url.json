@@ -7,7 +7,13 @@
     "skip": "TODO: port from .window.js"
   },
   "historical.any.js": {
-    "requires": ["small-icu"]
+    "requires": ["small-icu"],
+    "fail": {
+      "expected": [
+        "URL: no structured serialize/deserialize support",
+        "URLSearchParams: no structured serialize/deserialize support"
+      ]
+    }
   },
   "urlencoded-parser.any.js": {
     "requires": ["small-icu"]
@@ -23,5 +29,8 @@
   },
   "url-setters-a-area.window.js": {
     "skip": "already tested in url-setters.any.js"
+  },
+  "IdnaTestV2.window.js": {
+    "requires": ["small-icu"]
   }
 }

@@ -105,17 +105,42 @@ MaybeLocal<Object> CreateProcessObject(Realm* realm) {
   READONLY_PROPERTY(
       process, "version", FIXED_ONE_BYTE_STRING(isolate, NODE_VERSION));
 
-  // process.versions
   Local<Object> versions = Object::New(isolate);
-  READONLY_PROPERTY(process, "versions", versions);
+  // Node.js version is always on the top
+  READONLY_STRING_PROPERTY(
+      versions, "node", per_process::metadata.versions.node);
+
+#define V(key) +1
+  std::pair<std::string_view, std::string_view>
+      versions_array[NODE_VERSIONS_KEYS(V)];
+#undef V
+  auto* slot = &versions_array[0];
 
 #define V(key)                                                                 \
-  if (!per_process::metadata.versions.key.empty()) {                           \
-    READONLY_STRING_PROPERTY(                                                  \
-        versions, #key, per_process::metadata.versions.key);                   \
-  }
+  do {                                                                         \
+    *slot++ = std::pair<std::string_view, std::string_view>(                   \
+        #key, per_process::metadata.versions.key);                             \
+  } while (0);
   NODE_VERSIONS_KEYS(V)
 #undef V
+
+  std::sort(&versions_array[0],
+            &versions_array[arraysize(versions_array)],
+            [](auto& a, auto& b) { return a.first < b.first; });
+
+  for (const auto& version : versions_array) {
+    versions
+        ->DefineOwnProperty(
+            context,
+            OneByteString(isolate, version.first.data(), version.first.size()),
+            OneByteString(
+                isolate, version.second.data(), version.second.size()),
+            v8::ReadOnly)
+        .Check();
+  }
+
+  // process.versions
+  READONLY_PROPERTY(process, "versions", versions);
 
   // process.arch
   READONLY_STRING_PROPERTY(process, "arch", per_process::metadata.arch);

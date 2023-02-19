@@ -26,7 +26,7 @@ function serverHandler(sock) {
   }, 100);
 }
 
-const cpus = os.cpus().length;
+const cpus = os.availableParallelism();
 let createClients = true;
 let done = 0;
 let count = 0;

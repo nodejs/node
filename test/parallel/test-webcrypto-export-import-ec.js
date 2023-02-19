@@ -261,6 +261,38 @@ async function testImportJwk(
       });
   }
 
+  {
+    const invalidUse = name === 'ECDH' ? 'sig' : 'enc';
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, use: invalidUse },
+        { name, namedCurve },
+        extractable,
+        privateUsages),
+      { message: 'Invalid JWK "use" Parameter' });
+  }
+
+  if (name === 'ECDSA') {
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, x: jwk.x, y: jwk.y, crv: jwk.crv, alg: jwk.crv === 'P-256' ? 'ES384' : 'ES256' },
+        { name, namedCurve },
+        extractable,
+        publicUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: jwk.crv === 'P-256' ? 'ES384' : 'ES256' },
+        { name, namedCurve },
+        extractable,
+        privateUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+  }
+
   for (const crv of [undefined, namedCurve === 'P-256' ? 'P-384' : 'P-256']) {
     await assert.rejects(
       subtle.importKey(
@@ -269,16 +301,16 @@ async function testImportJwk(
         { name, namedCurve },
         extractable,
         publicUsages),
-      { message: /Named curve mismatch/ });
+      { message: 'JWK "crv" does not match the requested algorithm' });
 
     await assert.rejects(
       subtle.importKey(
         'jwk',
-        { kty: jwk.kty, d: jwk.d, x: jwk.x, y: jwk.y, crv },
+        { ...jwk, crv },
         { name, namedCurve },
         extractable,
-        publicUsages),
-      { message: /Named curve mismatch/ });
+        privateUsages),
+      { message: 'JWK "crv" does not match the requested algorithm' });
   }
 }
 
@@ -325,6 +357,19 @@ async function testImportRaw({ name, publicUsages }, namedCurve) {
   });
 
   await Promise.all(tests);
+})().then(common.mustCall());
+
+
+// https://github.com/nodejs/node/issues/45859
+(async function() {
+  const compressed = Buffer.from([48, 57, 48, 19, 6, 7, 42, 134, 72, 206, 61, 2, 1, 6, 8, 42, 134, 72, 206, 61, 3, 1, 7, 3, 34, 0, 2, 210, 16, 176, 166, 249, 217, 240, 18, 134, 128, 88, 180, 63, 164, 244, 113, 1, 133, 67, 187, 160, 12, 146, 80, 223, 146, 87, 194, 172, 174, 93, 209]);  // eslint-disable-line max-len
+  const uncompressed = Buffer.from([48, 89, 48, 19, 6, 7, 42, 134, 72, 206, 61, 2, 1, 6, 8, 42, 134, 72, 206, 61, 3, 1, 7, 3, 66, 0, 4, 210, 16, 176, 166, 249, 217, 240, 18, 134, 128, 88, 180, 63, 164, 244, 113, 1, 133, 67, 187, 160, 12, 146, 80, 223, 146, 87, 194, 172, 174, 93, 209, 206, 3, 117, 82, 212, 129, 69, 12, 227, 155, 77, 16, 149, 112, 27, 23, 91, 250, 179, 75, 142, 108, 9, 158, 24, 241, 193, 152, 53, 131, 97, 232]);  // eslint-disable-line max-len
+  for (const name of ['ECDH', 'ECDSA']) {
+    const options = { name, namedCurve: 'P-256' };
+    const key = await subtle.importKey('spki', compressed, options, true, []);
+    const spki = await subtle.exportKey('spki', key);
+    assert.deepStrictEqual(uncompressed, Buffer.from(spki));
+  }
 })().then(common.mustCall());
 
 {

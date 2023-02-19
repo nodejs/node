@@ -34,10 +34,6 @@ const channels = {}
 
 let extractBody
 
-const nodeVersion = process.versions.node.split('.')
-const nodeMajor = Number(nodeVersion[0])
-const nodeMinor = Number(nodeVersion[1])
-
 try {
   const diagnosticsChannel = require('diagnostics_channel')
   channels.create = diagnosticsChannel.channel('undici:request:create')
@@ -65,6 +61,7 @@ class Request {
     upgrade,
     headersTimeout,
     bodyTimeout,
+    reset,
     throwOnError
   }, handler) {
     if (typeof path !== 'string') {
@@ -95,6 +92,10 @@ class Request {
 
     if (bodyTimeout != null && (!Number.isFinite(bodyTimeout) || bodyTimeout < 0)) {
       throw new InvalidArgumentError('invalid bodyTimeout')
+    }
+
+    if (reset != null && typeof reset !== 'boolean') {
+      throw new InvalidArgumentError('invalid reset')
     }
 
     this.headersTimeout = headersTimeout
@@ -139,6 +140,8 @@ class Request {
 
     this.blocking = blocking == null ? false : blocking
 
+    this.reset = reset == null ? null : reset
+
     this.host = null
 
     this.contentLength = null
@@ -165,7 +168,7 @@ class Request {
     }
 
     if (util.isFormDataLike(this.body)) {
-      if (nodeMajor < 16 || (nodeMajor === 16 && nodeMinor < 8)) {
+      if (util.nodeMajor < 16 || (util.nodeMajor === 16 && util.nodeMinor < 8)) {
         throw new InvalidArgumentError('Form-Data bodies are only supported in node v16.8 and newer.')
       }
 
@@ -271,8 +274,22 @@ class Request {
   }
 }
 
-function processHeader (request, key, val) {
+function processHeaderValue (key, val) {
   if (val && typeof val === 'object') {
+    throw new InvalidArgumentError(`invalid ${key} header`)
+  }
+
+  val = val != null ? `${val}` : ''
+
+  if (headerCharRegex.exec(val) !== null) {
+    throw new InvalidArgumentError(`invalid ${key} header`)
+  }
+
+  return `${key}: ${val}\r\n`
+}
+
+function processHeader (request, key, val) {
+  if (val && (typeof val === 'object' && !Array.isArray(val))) {
     throw new InvalidArgumentError(`invalid ${key} header`)
   } else if (val === undefined) {
     return
@@ -283,6 +300,9 @@ function processHeader (request, key, val) {
     key.length === 4 &&
     key.toLowerCase() === 'host'
   ) {
+    if (headerCharRegex.exec(val) !== null) {
+      throw new InvalidArgumentError(`invalid ${key} header`)
+    }
     // Consumed by Client
     request.host = val
   } else if (
@@ -297,11 +317,10 @@ function processHeader (request, key, val) {
   } else if (
     request.contentType === null &&
     key.length === 12 &&
-    key.toLowerCase() === 'content-type' &&
-    headerCharRegex.exec(val) === null
+    key.toLowerCase() === 'content-type'
   ) {
     request.contentType = val
-    request.headers += `${key}: ${val}\r\n`
+    request.headers += processHeaderValue(key, val)
   } else if (
     key.length === 17 &&
     key.toLowerCase() === 'transfer-encoding'
@@ -311,7 +330,12 @@ function processHeader (request, key, val) {
     key.length === 10 &&
     key.toLowerCase() === 'connection'
   ) {
-    throw new InvalidArgumentError('invalid connection header')
+    const value = typeof val === 'string' ? val.toLowerCase() : null
+    if (value !== 'close' && value !== 'keep-alive') {
+      throw new InvalidArgumentError('invalid connection header')
+    } else if (value === 'close') {
+      request.reset = true
+    }
   } else if (
     key.length === 10 &&
     key.toLowerCase() === 'keep-alive'
@@ -329,10 +353,14 @@ function processHeader (request, key, val) {
     throw new NotSupportedError('expect header not supported')
   } else if (tokenRegExp.exec(key) === null) {
     throw new InvalidArgumentError('invalid header key')
-  } else if (headerCharRegex.exec(val) !== null) {
-    throw new InvalidArgumentError(`invalid ${key} header`)
   } else {
-    request.headers += `${key}: ${val}\r\n`
+    if (Array.isArray(val)) {
+      for (let i = 0; i < val.length; i++) {
+        request.headers += processHeaderValue(key, val[i])
+      }
+    } else {
+      request.headers += processHeaderValue(key, val)
+    }
   }
 }
 

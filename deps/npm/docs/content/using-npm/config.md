@@ -142,8 +142,8 @@ safer to use a registry-provided authentication bearer token stored in the
   current level
 * Type: null, "restricted", or "public"
 
-If do not want your scoped package to be publicly viewable (and installable)
-set `--access=restricted`.
+If you do not want your scoped package to be publicly viewable (and
+installable) set `--access=restricted`.
 
 Unscoped packages can not be set to `restricted`.
 
@@ -192,7 +192,8 @@ exit code.
 * Default: "web"
 * Type: "legacy" or "web"
 
-What authentication strategy to use with `login`.
+What authentication strategy to use with `login`. Note that if an `otp`
+config is given, this value will always be set to `legacy`.
 
 #### `before`
 
@@ -690,7 +691,7 @@ number, if not already set in package.json.
 
 #### `install-links`
 
-* Default: true
+* Default: false
 * Type: Boolean
 
 When set file: protocol dependencies will be packed and installed as regular
@@ -700,13 +701,13 @@ workspaces.
 #### `install-strategy`
 
 * Default: "hoisted"
-* Type: "hoisted", "nested", or "shallow"
+* Type: "hoisted", "nested", "shallow", or "linked"
 
 Sets the strategy for installing packages in node_modules. hoisted
 (default): Install non-duplicated in top-level, and duplicated as necessary
 within directory structure. nested: (formerly --legacy-bundling) install in
 place, no hoisting. shallow (formerly --global-style) only install direct
-deps at top-level. linked: (coming soon) install in node_modules/.store,
+deps at top-level. linked: (experimental) install in node_modules/.store,
 link in place, unhoisted.
 
 #### `json`
@@ -1004,6 +1005,13 @@ operations, if `process.stderr` is a TTY.
 
 Set to `false` to suppress the progress bar.
 
+#### `provenance`
+
+* Default: false
+* Type: Boolean
+
+Indicates that a provenance statement should be generated.
+
 #### `proxy`
 
 * Default: null
@@ -1240,7 +1248,7 @@ be resolved using the nearest non-peer dependency specification, even if
 doing so will result in some packages receiving a peer dependency outside
 the range set in their package's `peerDependencies` object.
 
-When such and override is performed, a warning is printed, explaining the
+When such an override is performed, a warning is printed, explaining the
 conflict and the packages involved. If `--strict-peer-deps` is set, then
 this warning is treated as a failure.
 
@@ -1521,7 +1529,7 @@ Alias for `--include=dev`.
   `--install-strategy=shallow`
 
 Only install direct dependencies in the top level `node_modules`, but hoist
-on deeper dependendencies. Sets `--install-strategy=shallow`.
+on deeper dependencies. Sets `--install-strategy=shallow`.
 
 #### `init.author.email`
 

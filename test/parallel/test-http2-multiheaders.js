@@ -8,7 +8,7 @@ const http2 = require('http2');
 
 const server = http2.createServer();
 
-const src = Object.create(null);
+const src = { __proto__: null };
 src.accept = [ 'abc', 'def' ];
 src.Accept = 'ghijklmnop';
 src['www-authenticate'] = 'foo';

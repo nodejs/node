@@ -12,7 +12,7 @@ const NOT_HTTP_QUOTED_STRING_CODE_POINT = '\n';
 const mime = new MIMEType('application/ecmascript; ');
 const mime_descriptors = Object.getOwnPropertyDescriptors(mime);
 const mime_proto = Object.getPrototypeOf(mime);
-const mime_impersonator = Object.create(mime_proto);
+const mime_impersonator = { __proto__: mime_proto };
 for (const key of Object.keys(mime_descriptors)) {
   const descriptor = mime_descriptors[key];
   if (descriptor.get) {

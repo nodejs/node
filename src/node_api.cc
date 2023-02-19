@@ -95,6 +95,9 @@ template <bool enforceUncaughtExceptionPolicy, typename T>
 void node_napi_env__::CallbackIntoModule(T&& call) {
   CallIntoModule(call, [](napi_env env_, v8::Local<v8::Value> local_err) {
     node_napi_env__* env = static_cast<node_napi_env__*>(env_);
+    if (env->terminatedOrTerminating()) {
+      return;
+    }
     node::Environment* node_env = env->node_env();
     if (!node_env->options()->force_node_api_uncaught_exceptions_policy &&
         !enforceUncaughtExceptionPolicy) {
@@ -654,7 +657,7 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
     // a file system path.
     // TODO(gabrielschulhof): Pass the `filename` through unchanged if/when we
     // receive it as a URL already.
-    module_filename = node::url::URL::FromFilePath(filename.ToString()).href();
+    module_filename = node::url::FromFilePath(filename.ToString());
   }
 
   // Create a new napi_env for this specific module.

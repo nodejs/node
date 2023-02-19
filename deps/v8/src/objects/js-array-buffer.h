@@ -168,14 +168,15 @@ class JSArrayBuffer
  private:
   void DetachInternal(bool force_for_wasm_memory, Isolate* isolate);
 
-  inline ArrayBufferExtension** extension_location() const;
-
 #if V8_COMPRESS_POINTERS
-  static const int kUninitializedTagMask = 1;
-
-  inline uint32_t* extension_lo() const;
-  inline uint32_t* extension_hi() const;
-#endif
+  // When pointer compression is enabled, the pointer to the extension is
+  // stored in the external pointer table and the object itself only contains a
+  // 32-bit external pointer handles. This simplifies alignment requirements
+  // and is also necessary for the sandbox.
+  inline ExternalPointerHandle* extension_handle_location() const;
+#else
+  inline ArrayBufferExtension** extension_location() const;
+#endif  // V8_COMPRESS_POINTERS
 
   TQ_OBJECT_CONSTRUCTORS(JSArrayBuffer)
 };

@@ -63,7 +63,7 @@ function testUnref(queueSize) {
   return new Promise((resolve, reject) => {
     let output = '';
     const child = fork(__filename, ['child', queueSize], {
-      stdio: [process.stdin, 'pipe', process.stderr, 'ipc']
+      stdio: [process.stdin, 'pipe', process.stderr, 'ipc'],
     });
     child.on('close', (code) => {
       if (code === 0) {
@@ -99,7 +99,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThread',
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  quitAfter: binding.ARRAY_LENGTH
+  quitAfter: binding.ARRAY_LENGTH,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -110,7 +110,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThreadNoJsFunc',
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  quitAfter: binding.ARRAY_LENGTH
+  quitAfter: binding.ARRAY_LENGTH,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -119,7 +119,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThread',
   maxQueueSize: 0,
-  quitAfter: binding.ARRAY_LENGTH
+  quitAfter: binding.ARRAY_LENGTH,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -128,7 +128,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThreadNonblocking',
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  quitAfter: binding.ARRAY_LENGTH
+  quitAfter: binding.ARRAY_LENGTH,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -137,7 +137,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThread',
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  quitAfter: 1
+  quitAfter: 1,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -146,7 +146,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThread',
   maxQueueSize: 0,
-  quitAfter: 1
+  quitAfter: 1,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -155,7 +155,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThreadNonblocking',
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  quitAfter: 1
+  quitAfter: 1,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -166,7 +166,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
   threadStarter: 'StartThread',
   quitAfter: 1,
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  launchSecondary: true
+  launchSecondary: true,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -177,7 +177,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
   threadStarter: 'StartThreadNonblocking',
   quitAfter: 1,
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  launchSecondary: true
+  launchSecondary: true,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -187,7 +187,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
   threadStarter: 'StartThread',
   quitAfter: 1,
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  abort: true
+  abort: true,
 }))
 .then((result) => assert.strictEqual(result.indexOf(0), -1))
 
@@ -197,7 +197,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
   threadStarter: 'StartThread',
   quitAfter: 1,
   maxQueueSize: 0,
-  abort: true
+  abort: true,
 }))
 .then((result) => assert.strictEqual(result.indexOf(0), -1))
 
@@ -207,7 +207,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
   threadStarter: 'StartThreadNonblocking',
   quitAfter: 1,
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  abort: true
+  abort: true,
 }))
 .then((result) => assert.strictEqual(result.indexOf(0), -1))
 
@@ -216,7 +216,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThreadNonblocking',
   maxQueueSize: binding.ARRAY_LENGTH >>> 1,
-  quitAfter: binding.ARRAY_LENGTH
+  quitAfter: binding.ARRAY_LENGTH,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 

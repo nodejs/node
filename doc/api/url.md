@@ -252,7 +252,7 @@ console.log(myURL.hostname);
 // Prints example.org
 
 // Setting the hostname does not change the port
-myURL.hostname = 'example.com:82';
+myURL.hostname = 'example.com';
 console.log(myURL.href);
 // Prints https://example.com:81/foo
 
@@ -332,7 +332,7 @@ console.log(myURL.password);
 
 myURL.password = '123';
 console.log(myURL.href);
-// Prints https://abc:123@example.com
+// Prints https://abc:123@example.com/
 ```
 
 Invalid URL characters included in the value assigned to the `password` property
@@ -490,7 +490,7 @@ For instance, changing from `http` to `https` works:
 const u = new URL('http://example.org');
 u.protocol = 'https';
 console.log(u.href);
-// https://example.org
+// https://example.org/
 ```
 
 However, changing from `http` to a hypothetical `fish` protocol does not
@@ -500,7 +500,7 @@ because the new protocol is not special.
 const u = new URL('http://example.org');
 u.protocol = 'fish';
 console.log(u.href);
-// http://example.org
+// http://example.org/
 ```
 
 Likewise, changing from a non-special protocol to a special protocol is also
@@ -1521,7 +1521,9 @@ The formatting process operates as follows:
 <!-- YAML
 added: v0.1.25
 changes:
-  - version: v19.0.0
+  - version:
+      - v19.0.0
+      - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/44919
     description: Documentation-only deprecation.
   - version:

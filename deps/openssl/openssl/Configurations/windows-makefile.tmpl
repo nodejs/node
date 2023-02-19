@@ -747,7 +747,8 @@ EOF
 $target: $gen0 $deps $mkdef
 	"\$(PERL)" "$mkdef"$ord_ver --type $args{intent} --ordinals $gen0 --name $ord_name --OS windows > $target
 EOF
-      } elsif (platform->isasm($args{src})) {
+      } elsif (platform->isasm($args{src})
+               || platform->iscppasm($args{src})) {
           #
           # Assembler generator
           #
@@ -757,7 +758,9 @@ EOF
               dso => '$(DSO_CFLAGS) $(DSO_CPPFLAGS)',
               bin => '$(BIN_CFLAGS) $(BIN_CPPFLAGS)'
           } -> {$args{intent}};
-          my $target = platform->asm($args{src});
+          my $target = platform->isasm($args{src})
+                       ? platform->asm($args{src})
+                       : $args{src};
 
           my $generator;
           if ($gen0 =~ /\.pl$/) {
@@ -770,18 +773,6 @@ EOF
           }
 
           if (defined($generator)) {
-              # If the target is named foo.S in build.info, we want to
-              # end up generating foo.s in two steps.
-              if ($args{src} =~ /\.S$/) {
-                   return <<"EOF";
-$target: "$gen0" $deps
-	cmd /C "set "ASM=\$(AS)" & $generator \$@.S"
-	\$(CPP) $incs $cppflags $defs \$@.S > \$@.i
-	move /Y \$@.i \$@
-        del /Q \$@.S
-EOF
-              }
-              # Otherwise....
               return <<"EOF";
 $target: "$gen0" $deps
 	cmd /C "set "ASM=\$(AS)" & $generator \$@"

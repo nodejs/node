@@ -1,5 +1,6 @@
 // META: title=WebCryptoAPI: importKey() for symmetric keys
 // META: timeout=long
+// META: script=../util/helpers.js
 
 // Test importKey and exportKey for non-PKC algorithms. Only "happy paths" are
 // currently tested - those where the operation should succeed.
@@ -57,6 +58,10 @@
         });
     });
 
+    function hasLength(algorithm) {
+        return algorithm.name === 'HMAC' || algorithm.name.startsWith('AES');
+    }
+
     // Test importKey with a given key format and other parameters. If
     // extrable is true, export the key and verify that it matches the input.
     function testFormat(format, algorithm, keyData, keySize, usages, extractable) {
@@ -64,6 +69,7 @@
             return subtle.importKey(format, keyData, algorithm, extractable, usages).
             then(function(key) {
                 assert_equals(key.constructor, CryptoKey, "Imported a CryptoKey object");
+                assert_goodCryptoKey(key, hasLength(key.algorithm) ? { length: keySize, ...algorithm } : algorithm, extractable, usages, 'secret');
                 if (!extractable) {
                     return;
                 }

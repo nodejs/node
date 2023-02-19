@@ -76,22 +76,15 @@ overrides:
   - files:
       - es-module/*.js
       - es-module/*.mjs
-      - internet/*.js
-      - js-native-api/*/*.js
-      - known_issues/*.js
-      - message/*.js
-      - node-api/*/*.js
       - parallel/*.js
       - parallel/*.mjs
-      - pseudo-tty/*.js
-      - pummel/*.js
       - sequential/*.js
       - sequential/*.mjs
     rules:
       comma-dangle: [error, {
         arrays: always-multiline,
-        exports: only-multiline,
+        exports: always-multiline,
         functions: only-multiline,
-        imports: only-multiline,
+        imports: always-multiline,
         objects: only-multiline,
       }]

@@ -79,6 +79,10 @@ Enable Cofactor DH (ECC CDH) if this value is 1, otherwise it uses normal EC DH
 if the value is zero. The cofactor variant multiplies the shared secret by the
 EC curve's cofactor (note for some curves the cofactor is 1).
 
+See also L<EVP_KEYEXCH-ECDH(7)> for the related
+B<OSSL_EXCHANGE_PARAM_EC_ECDH_COFACTOR_MODE> parameter that can be set on a
+per-operation basis.
+
 =item "encoding" (B<OSSL_PKEY_PARAM_EC_ENCODING>) <UTF8 string>
 
 Set the format used for serializing the EC group parameters.
@@ -104,15 +108,21 @@ but is equivalent to "named-nist" for the OpenSSL FIPS provider.
 Setting this value to 0 indicates that the public key should not be included when
 encoding the private key. The default value of 1 will include the public key.
 
-See also L<EVP_KEYEXCH-ECDH(7)> for the related
-B<OSSL_EXCHANGE_PARAM_EC_ECDH_COFACTOR_MODE> parameter that can be set on a
-per-operation basis.
-
 =item "pub" (B<OSSL_PKEY_PARAM_PUB_KEY>) <octet string>
 
-The public key value in encoded EC point format. This parameter is used
-when importing or exporting the public key value with the EVP_PKEY_fromdata()
-and EVP_PKEY_todata() functions.
+The public key value in encoded EC point format conforming to Sec. 2.3.3 and
+2.3.4 of the SECG SEC 1 ("Elliptic Curve Cryptography") standard.
+This parameter is used when importing or exporting the public key value with the
+EVP_PKEY_fromdata() and EVP_PKEY_todata() functions.
+
+Note, in particular, that the choice of point compression format used for
+encoding the exported value via EVP_PKEY_todata() depends on the underlying
+provider implementation.
+Before OpenSSL 3.0.8, the implementation of providers included with OpenSSL always
+opted for an encoding in compressed format, unconditionally.
+Since OpenSSL 3.0.8, the implementation has been changed to honor the
+B<OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT> parameter, if set, or to default
+to uncompressed format.
 
 =item "priv" (B<OSSL_PKEY_PARAM_PRIV_KEY>) <unsigned integer>
 

@@ -2099,7 +2099,7 @@ class WasmGraphBuildingInterface {
       }
       if (exception_value != nullptr) {
         *exception_value = builder_->LoopExitValue(
-            *exception_value, MachineRepresentation::kWord32);
+            *exception_value, MachineRepresentation::kTaggedPointer);
       }
       if (wrap_exit_values) {
         WrapLocalsAtLoopExit(decoder, control);

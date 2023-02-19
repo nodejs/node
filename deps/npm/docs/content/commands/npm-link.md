@@ -147,13 +147,13 @@ folder instead of the current working directory. See
 #### `install-strategy`
 
 * Default: "hoisted"
-* Type: "hoisted", "nested", or "shallow"
+* Type: "hoisted", "nested", "shallow", or "linked"
 
 Sets the strategy for installing packages in node_modules. hoisted
 (default): Install non-duplicated in top-level, and duplicated as necessary
 within directory structure. nested: (formerly --legacy-bundling) install in
 place, no hoisting. shallow (formerly --global-style) only install direct
-deps at top-level. linked: (coming soon) install in node_modules/.store,
+deps at top-level. linked: (experimental) install in node_modules/.store,
 link in place, unhoisted.
 
 #### `legacy-bundling`
@@ -176,7 +176,7 @@ de-duplicating. Sets `--install-strategy=nested`.
   `--install-strategy=shallow`
 
 Only install direct dependencies in the top level `node_modules`, but hoist
-on deeper dependendencies. Sets `--install-strategy=shallow`.
+on deeper dependencies. Sets `--install-strategy=shallow`.
 
 #### `strict-peer-deps`
 
@@ -193,7 +193,7 @@ be resolved using the nearest non-peer dependency specification, even if
 doing so will result in some packages receiving a peer dependency outside
 the range set in their package's `peerDependencies` object.
 
-When such and override is performed, a warning is printed, explaining the
+When such an override is performed, a warning is printed, explaining the
 conflict and the packages involved. If `--strict-peer-deps` is set, then
 this warning is treated as a failure.
 
@@ -336,7 +336,7 @@ This value is not exported to the environment for child processes.
 
 #### `install-links`
 
-* Default: true
+* Default: false
 * Type: Boolean
 
 When set file: protocol dependencies will be packed and installed as regular

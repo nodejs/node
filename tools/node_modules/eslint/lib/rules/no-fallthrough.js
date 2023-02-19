@@ -5,10 +5,26 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const { directivesPattern } = require("../shared/directives");
+
+//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
 const DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/iu;
+
+/**
+ * Checks whether or not a given comment string is really a fallthrough comment and not an ESLint directive.
+ * @param {string} comment The comment string to check.
+ * @param {RegExp} fallthroughCommentPattern The regular expression used for checking for fallthrough comments.
+ * @returns {boolean} `true` if the comment string is truly a fallthrough comment.
+ */
+function isFallThroughComment(comment, fallthroughCommentPattern) {
+    return fallthroughCommentPattern.test(comment) && !directivesPattern.test(comment.trim());
+}
 
 /**
  * Checks whether or not a given case has a fallthrough comment.
@@ -25,14 +41,14 @@ function hasFallthroughComment(caseWhichFallsThrough, subsequentCase, context, f
         const trailingCloseBrace = sourceCode.getLastToken(caseWhichFallsThrough.consequent[0]);
         const commentInBlock = sourceCode.getCommentsBefore(trailingCloseBrace).pop();
 
-        if (commentInBlock && fallthroughCommentPattern.test(commentInBlock.value)) {
+        if (commentInBlock && isFallThroughComment(commentInBlock.value, fallthroughCommentPattern)) {
             return true;
         }
     }
 
     const comment = sourceCode.getCommentsBefore(subsequentCase).pop();
 
-    return Boolean(comment && fallthroughCommentPattern.test(comment.value));
+    return Boolean(comment && isFallThroughComment(comment.value, fallthroughCommentPattern));
 }
 
 /**

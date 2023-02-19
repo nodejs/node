@@ -1,8 +1,8 @@
 import { URL } from 'url'
 import { Duplex, Readable, Writable } from 'stream'
 import { EventEmitter } from 'events'
-import { IncomingHttpHeaders } from 'http'
 import { Blob } from 'buffer'
+import { IncomingHttpHeaders } from './header'
 import BodyReadable from './readable'
 import { FormData } from './formdata'
 import Errors from './errors'
@@ -105,12 +105,16 @@ declare namespace Dispatcher {
     query?: Record<string, any>;
     /** Whether the requests can be safely retried or not. If `false` the request won't be sent until all preceding requests in the pipeline have completed. Default: `true` if `method` is `HEAD` or `GET`. */
     idempotent?: boolean;
+    /** Whether the response is expected to take a long time and would end up blocking the pipeline. When this is set to `true` further pipelining will be avoided on the same connection until headers have been received. */
+    blocking?: boolean;
     /** Upgrade the request. Should be used to specify the kind of upgrade i.e. `'Websocket'`. Default: `method === 'CONNECT' || null`. */
     upgrade?: boolean | string | null;
-    /** The amount of time the parser will wait to receive the complete HTTP headers. Defaults to 30 seconds. */
+    /** The amount of time the parser will wait to receive the complete HTTP headers. Defaults to 300 seconds. */
     headersTimeout?: number | null;
-    /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use 0 to disable it entirely. Defaults to 30 seconds. */
+    /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use 0 to disable it entirely. Defaults to 300 seconds. */
     bodyTimeout?: number | null;
+    /** Whether the request should stablish a keep-alive or not. Default `false` */
+    reset?: boolean;
     /** Whether Undici should throw an error upon receiving a 4xx or 5xx response from the server. Defaults to false */
     throwOnError?: boolean;
   }

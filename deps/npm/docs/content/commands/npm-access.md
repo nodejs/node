@@ -16,6 +16,8 @@ npm access grant <read-only|read-write> <scope:team> [<package>]
 npm access revoke <scope:team> [<package>]
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Used to set access controls on private packages.
@@ -65,8 +67,7 @@ You must have privileges to set the access of a package:
 * You have been given read-write privileges for a package, either as a member
   of a team or directly as an owner.
 
-If you have two-factor authentication enabled then you'll be prompted to
-provide an otp token, or may use the `--otp=...` option to specify it on
+If you have two-factor authentication enabled then you'll be prompted to provide a second factor, or may use the `--otp=...` option to specify it on
 the command line.
 
 If your account is not paid, then attempts to publish scoped packages will

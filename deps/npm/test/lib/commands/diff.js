@@ -1,1164 +1,1041 @@
 const t = require('tap')
-const { resolve, join } = require('path')
-const { fake: mockNpm } = require('../../fixtures/mock-npm')
+const { join, extname } = require('path')
+const MockRegistry = require('@npmcli/mock-registry')
+const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 
-const noop = () => null
-let libnpmdiff = noop
-
-const config = {
-  global: false,
-  tag: 'latest',
-  diff: [],
-}
-const flatOptions = {
-  global: false,
-  diffUnified: null,
-  diffIgnoreAllSpace: false,
-  diffNoPrefix: false,
-  diffSrcPrefix: '',
-  diffDstPrefix: '',
-  diffText: false,
-  savePrefix: '^',
-}
-const fooPath = t.testdir({
-  'package.json': JSON.stringify({ name: 'foo', version: '1.0.0' }),
-})
-const npm = mockNpm({
-  prefix: fooPath,
-  config,
-  flatOptions,
-  output: noop,
-})
-
-const mocks = {
-  'proc-log': { info: noop, verbose: noop },
-  libnpmdiff: (...args) => libnpmdiff(...args),
-  'npm-registry-fetch': async () => ({}),
-}
-
-t.afterEach(() => {
-  config.global = false
-  config.tag = 'latest'
-  config.diff = []
-  flatOptions.global = false
-  flatOptions.diffUnified = null
-  flatOptions.diffIgnoreAllSpace = false
-  flatOptions.diffNoPrefix = false
-  flatOptions.diffSrcPrefix = ''
-  flatOptions.diffDstPrefix = ''
-  flatOptions.diffText = false
-  flatOptions.savePrefix = '^'
-  npm.globalDir = fooPath
-  npm.prefix = fooPath
-  libnpmdiff = noop
-  diff.prefix = undefined
-  diff.top = undefined
-})
-
-const Diff = t.mock('../../../lib/commands/diff.js', mocks)
-const diff = new Diff(npm)
-
-t.test('no args', t => {
-  t.test('in a project dir', async t => {
-    t.plan(3)
-
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'foo@latest', 'should have default spec comparison')
-      t.equal(b, `file:${fooPath}`, 'should compare to cwd')
-      t.match(opts, npm.flatOptions, 'should forward flat options')
+const jsonifyTestdir = (obj) => {
+  for (const [key, value] of Object.entries(obj || {})) {
+    if (extname(key) === '.json') {
+      obj[key] = JSON.stringify(value, null, 2) + '\n'
+    } else if (typeof value === 'object') {
+      obj[key] = jsonifyTestdir(value)
+    } else {
+      obj[key] = value.trim() + '\n'
     }
+  }
+  return obj
+}
 
-    npm.prefix = fooPath
-    await diff.exec([])
+// generic helper to call diff with a specified dir contents and registry calls
+const mockDiff = async (t, {
+  exec,
+  diff = [],
+  tarballs = {},
+  times = {},
+  ...opts
+} = {}) => {
+  const tarballFixtures = Object.entries(tarballs).reduce((acc, [spec, fixture]) => {
+    const [name, version] = spec.split('@')
+    acc[name] = acc[name] || {}
+    acc[name][version] = fixture
+    if (!acc[name][version]['package.json']) {
+      acc[name][version]['package.json'] = { name, version }
+    } else {
+      acc[name][version]['package.json'].name = name
+      acc[name][version]['package.json'].version = version
+    }
+    return acc
+  }, {})
+
+  const { prefixDir, globalPrefixDir, otherDirs, config, ...rest } = opts
+  const { npm, ...res } = await loadMockNpm(t, {
+    prefixDir: jsonifyTestdir(prefixDir),
+    otherDirs: jsonifyTestdir({ tarballs: tarballFixtures, ...otherDirs }),
+    globalPrefixDir: jsonifyTestdir(globalPrefixDir),
+    config: {
+      ...config,
+      diff: [].concat(diff),
+    },
+    ...rest,
+  })
+
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    strict: true,
+    debug: true,
+  })
+
+  const manifests = Object.entries(tarballFixtures).reduce((acc, [name, versions]) => {
+    acc[name] = registry.manifest({
+      name,
+      packuments: Object.keys(versions).map((version) => ({ version })),
+    })
+    return acc
+  }, {})
+
+  for (const [name, manifest] of Object.entries(manifests)) {
+    await registry.package({ manifest, times: times[name] ?? 1 })
+    for (const [version, tarballManifest] of Object.entries(manifest.versions)) {
+      await registry.tarball({
+        manifest: tarballManifest,
+        tarball: join(res.other, 'tarballs', name, version),
+      })
+    }
+  }
+
+  if (exec) {
+    await npm.exec('diff', exec)
+    res.output = res.joinedOutput()
+  }
+
+  return { npm, registry, ...res }
+}
+
+// a more specific helper to call diff against a local package and a registry package
+// and assert the diff output contains the matching strings
+const assertFoo = async (t, arg) => {
+  let diff = []
+  let exec = []
+
+  if (typeof arg === 'string' || Array.isArray(arg)) {
+    diff = arg
+  } else if (arg && typeof arg === 'object') {
+    diff = arg.diff
+    exec = arg.exec
+  }
+
+  const { output } = await mockDiff(t, {
+    diff,
+    prefixDir: {
+      'package.json': { name: 'foo', version: '1.0.0' },
+      'index.js': 'const version = "1.0.0"',
+      'a.js': 'const a = "a@1.0.0"',
+      'b.js': 'const b = "b@1.0.0"',
+    },
+    tarballs: {
+      'foo@0.1.0': {
+        'index.js': 'const version = "0.1.0"',
+        'a.js': 'const a = "a@0.1.0"',
+        'b.js': 'const b = "b@0.1.0"',
+      },
+    },
+    exec,
+  })
+
+  const hasFile = (f) => !exec.length || exec.some(e => e.endsWith(f))
+
+  if (hasFile('package.json')) {
+    t.match(output, /-\s*"version": "0\.1\.0"/)
+    t.match(output, /\+\s*"version": "1\.0\.0"/)
+  }
+
+  if (hasFile('index.js')) {
+    t.match(output, /-\s*const version = "0\.1\.0"/)
+    t.match(output, /\+\s*const version = "1\.0\.0"/)
+  }
+
+  if (hasFile('a.js')) {
+    t.match(output, /-\s*const a = "a@0\.1\.0"/)
+    t.match(output, /\+\s*const a = "a@1\.0\.0"/)
+  }
+
+  if (hasFile('b.js')) {
+    t.match(output, /-\s*const b = "b@0\.1\.0"/)
+    t.match(output, /\+\s*const b = "b@1\.0\.0"/)
+  }
+
+  return output
+}
+
+const rejectDiff = async (t, msg, opts) => {
+  const { npm } = await mockDiff(t, opts)
+  await t.rejects(npm.exec('diff', []), msg)
+}
+
+t.test('no args', async t => {
+  t.test('in a project dir', async t => {
+    const output = await assertFoo(t)
+    t.matchSnapshot(output)
   })
 
   t.test('no args, missing package.json name in cwd', async t => {
-    const path = t.testdir({})
-    npm.prefix = path
-    await t.rejects(
-      diff.exec([]),
-      /Needs multiple arguments to compare or run from a project dir./,
-      'should throw EDIFF error msg'
-    )
+    await rejectDiff(t, /Needs multiple arguments to compare or run from a project dir./)
   })
 
   t.test('no args, bad package.json in cwd', async t => {
-    const path = t.testdir({
-      'package.json': '{invalid"json',
+    await rejectDiff(t, /Needs multiple arguments to compare or run from a project dir./, {
+      prefixDir: { 'package.json': '{invalid"json' },
     })
-    npm.prefix = path
-
-    await t.rejects(
-      diff.exec([]),
-      /Needs multiple arguments to compare or run from a project dir./,
-      'should throw EDIFF error msg'
-    )
   })
-
-  t.end()
 })
 
-t.test('single arg', t => {
+t.test('single arg', async t => {
   t.test('spec using cwd package name', async t => {
-    t.plan(3)
-
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'foo@1.0.0', 'should forward single spec')
-      t.equal(b, `file:${fooPath}`, 'should compare to cwd')
-      t.match(opts, npm.flatOptions, 'should forward flat options')
-    }
-
-    config.diff = ['foo@1.0.0']
-    npm.prefix = fooPath
-    await diff.exec([])
+    await assertFoo(t, 'foo@0.1.0')
   })
 
   t.test('unknown spec, no package.json', async t => {
-    const path = t.testdir({})
-
-    config.diff = ['foo@1.0.0']
-    npm.prefix = path
-    await t.rejects(
-      diff.exec([]),
-      /Needs multiple arguments to compare or run from a project dir./,
-      'should throw usage error'
-    )
+    await rejectDiff(t, /Needs multiple arguments to compare or run from a project dir./, {
+      diff: ['foo@1.0.0'],
+    })
   })
 
   t.test('spec using semver range', async t => {
-    t.plan(3)
-
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'foo@~1.0.0', 'should forward single spec')
-      t.equal(b, `file:${fooPath}`, 'should compare to cwd')
-      t.match(opts, npm.flatOptions, 'should forward flat options')
-    }
-
-    config.diff = ['foo@~1.0.0']
-    await diff.exec([])
+    await assertFoo(t, 'foo@~0.1.0')
   })
 
   t.test('version', async t => {
-    t.plan(3)
-
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'foo@2.1.4', 'should convert to expected first spec')
-      t.equal(b, `file:${fooPath}`, 'should compare to cwd')
-      t.match(opts, npm.flatOptions, 'should forward flat options')
-    }
-
-    config.diff = ['2.1.4']
-    await diff.exec([])
+    await assertFoo(t, '0.1.0')
   })
 
   t.test('version, no package.json', async t => {
-    const path = t.testdir({})
-    npm.prefix = path
-    config.diff = ['2.1.4']
-    await t.rejects(
-      diff.exec([]),
-      /Needs multiple arguments to compare or run from a project dir./,
-      'should throw an error message explaining usage'
-    )
+    await rejectDiff(t, /Needs multiple arguments to compare or run from a project dir./, {
+      diff: ['0.1.0'],
+    })
   })
 
   t.test('version, filtering by files', async t => {
-    t.plan(3)
-
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'foo@2.1.4', 'should use expected spec')
-      t.equal(b, `file:${fooPath}`, 'should compare to cwd')
-      t.match(
-        opts,
-        {
-          ...npm.flatOptions,
-          diffFiles: ['./foo.js', './bar.js'],
-        },
-        'should forward flatOptions and diffFiles'
-      )
-    }
-
-    config.diff = ['2.1.4']
-    await diff.exec(['./foo.js', './bar.js'])
+    const output = await assertFoo(t, { diff: '0.1.0', exec: ['./a.js', './b.js'] })
+    t.matchSnapshot(output)
   })
 
   t.test('spec is not a dep', async t => {
-    t.plan(2)
-
-    const path = t.testdir({
-      node_modules: {},
-      'package.json': JSON.stringify({
-        name: 'my-project',
-      }),
+    const { output } = await mockDiff(t, {
+      diff: 'bar@1.0.0',
+      prefixDir: {
+        node_modules: {},
+        'package.json': { name: 'my-project', version: '1.0.0' },
+      },
+      tarballs: {
+        'bar@1.0.0': {},
+      },
+      exec: [],
     })
 
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@1.0.0', 'should have current spec')
-      t.equal(b, `file:${path}`, 'should compare to cwd')
-    }
-
-    config.diff = ['bar@1.0.0']
-    npm.prefix = path
-
-    await diff.exec([])
+    t.match(output, /-\s*"name": "bar"/)
+    t.match(output, /\+\s*"name": "my-project"/)
   })
 
   t.test('unknown package name', async t => {
-    t.plan(3)
-
-    const path = t.testdir({
-      'package.json': JSON.stringify({
-        name: 'my-project',
-        dependencies: {
-          bar: '^1.0.0',
-        },
-      }),
-    })
-
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'simple-output@*', 'should forward single spec')
-      t.equal(b, `file:${path}`, 'should compare to cwd')
-      t.match(opts, npm.flatOptions, 'should forward flat options')
-    }
-
-    config.diff = ['simple-output']
-    npm.prefix = path
-    await diff.exec([])
-  })
-
-  t.test('unknown package name, no package.json', async t => {
-    const path = t.testdir({})
-
-    config.diff = ['bar']
-    npm.prefix = path
-    await t.rejects(
-      diff.exec([]),
-      /Needs multiple arguments to compare or run from a project dir./,
-      'should throw usage error'
-    )
-  })
-
-  t.test('transform single direct dep name into spec comparison', async t => {
-    t.plan(4)
-
-    const path = t.testdir({
-      node_modules: {
-        bar: {
-          'package.json': JSON.stringify({
-            name: 'bar',
-            version: '1.0.0',
-          }),
-        },
-      },
-      'package.json': JSON.stringify({
-        name: 'my-project',
-        dependencies: {
-          bar: '^1.0.0',
-        },
-      }),
-    })
-
-    config.diff = ['bar']
-    npm.prefix = path
-
-    const Diff = t.mock('../../../lib/commands/diff.js', {
-      ...mocks,
-      pacote: {
-        packument: spec => {
-          t.equal(spec.name, 'bar', 'should have expected spec name')
-        },
-      },
-      'npm-pick-manifest': (packument, target) => {
-        t.equal(target, '^1.0.0', 'should use expected target')
-        return { version: '1.8.10' }
-      },
-      libnpmdiff: async ([a, b], opts) => {
-        t.equal(
-          a,
-          `bar@file:${resolve(path, 'node_modules/bar')}`,
-          'should target local node_modules pkg'
-        )
-        t.equal(b, 'bar@1.8.10', 'should have possible semver range spec')
-      },
-    })
-    const diff = new Diff(npm)
-
-    await diff.exec([])
-  })
-
-  t.test('global space, transform single direct dep name', async t => {
-    t.plan(4)
-
-    const path = t.testdir({
-      globalDir: {
-        lib: {
-          node_modules: {
-            lorem: {
-              'package.json': JSON.stringify({
-                name: 'lorem',
-                version: '2.0.0',
-              }),
-            },
-          },
-        },
-      },
-      project: {
-        node_modules: {
-          bar: {
-            'package.json': JSON.stringify({
-              name: 'bar',
-              version: '1.0.0',
-            }),
-          },
-        },
-        'package.json': JSON.stringify({
+    const { npm, registry } = await mockDiff(t, {
+      diff: 'bar',
+      prefixDir: {
+        'package.json': {
           name: 'my-project',
           dependencies: {
             bar: '^1.0.0',
           },
-        }),
-      },
-    })
-
-    config.global = true
-    flatOptions.global = true
-    config.diff = ['lorem']
-    npm.prefix = resolve(path, 'project')
-    npm.globalDir = resolve(path, 'globalDir/lib/node_modules')
-
-    const Diff = t.mock('../../../lib/commands/diff.js', {
-      ...mocks,
-      pacote: {
-        packument: spec => {
-          t.equal(spec.name, 'lorem', 'should have expected spec name')
         },
       },
-      'npm-pick-manifest': (packument, target) => {
-        t.equal(target, '*', 'should always want latest in global space')
-        return { version: '2.1.0' }
-      },
-      libnpmdiff: async ([a, b], opts) => {
-        t.equal(
-          a,
-          `lorem@file:${resolve(path, 'globalDir/lib/node_modules/lorem')}`,
-          'should target local node_modules pkg'
-        )
-        t.equal(b, 'lorem@2.1.0', 'should have possible semver range spec')
-      },
     })
-    const diff = new Diff(npm)
+    registry.getPackage('bar', { times: 2, code: 404 })
+    t.rejects(npm.exec('diff', []), /404 Not Found.*bar/)
+  })
 
-    await diff.exec([])
+  t.test('unknown package name, no package.json', async t => {
+    const { npm } = await mockDiff(t, {
+      diff: 'bar',
+    })
+    t.rejects(npm.exec('diff', []),
+      /Needs multiple arguments to compare or run from a project dir./)
+  })
+
+  t.test('transform single direct dep name into spec comparison', async t => {
+    const { output } = await mockDiff(t, {
+      diff: 'bar',
+      prefixDir: {
+        node_modules: {
+          bar: {
+            'package.json': {
+              name: 'bar',
+              version: '1.0.0',
+            },
+          },
+        },
+        'package.json': {
+          name: 'my-project',
+          dependencies: {
+            bar: '^1.0.0',
+          },
+        },
+      },
+      tarballs: {
+        'bar@1.8.0': {},
+      },
+      times: { bar: 2 },
+      exec: [],
+    })
+
+    t.match(output, /-\s*"version": "1\.0\.0"/)
+    t.match(output, /\+\s*"version": "1\.8\.0"/)
+  })
+
+  t.test('global space, transform single direct dep name', async t => {
+    const { output } = await mockDiff(t, {
+      diff: 'lorem',
+      config: {
+        global: true,
+      },
+      globalPrefixDir: {
+        node_modules: {
+          lorem: {
+            'package.json': {
+              name: 'lorem',
+              version: '2.0.0',
+            },
+          },
+        },
+      },
+      prefixDir: {
+        node_modules: {
+          lorem: {
+            'package.json': {
+              name: 'lorem',
+              version: '3.0.0',
+            },
+          },
+        },
+        'package.json': {
+          name: 'my-project',
+          dependencies: {
+            lorem: '^3.0.0',
+          },
+        },
+      },
+      tarballs: {
+        'lorem@1.0.0': {},
+      },
+      times: {
+        lorem: 2,
+      },
+      exec: [],
+    })
+
+    t.match(output, 'lorem')
+    t.match(output, /-\s*"version": "2\.0\.0"/)
+    t.match(output, /\+\s*"version": "1\.0\.0"/)
   })
 
   t.test('transform single spec into spec comparison', async t => {
-    t.plan(2)
-
-    const path = t.testdir({
-      node_modules: {
-        bar: {
-          'package.json': JSON.stringify({
-            name: 'bar',
-            version: '1.0.0',
-          }),
+    const { output } = await mockDiff(t, {
+      diff: 'bar@2.0.0',
+      prefixDir: {
+        node_modules: {
+          bar: {
+            'package.json': {
+              name: 'bar',
+              version: '1.0.0',
+            },
+          },
+        },
+        'package.json': {
+          name: 'my-project',
+          dependencies: {
+            bar: '^1.0.0',
+          },
         },
       },
-      'package.json': JSON.stringify({
-        name: 'my-project',
-        dependencies: {
-          bar: '^1.0.0',
-        },
-      }),
+      tarballs: {
+        'bar@2.0.0': {},
+      },
+      times: {
+        lorem: 2,
+      },
+      exec: [],
     })
 
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(
-        a,
-        `bar@file:${resolve(path, 'node_modules/bar')}`,
-        'should target local node_modules pkg'
-      )
-      t.equal(b, 'bar@2.0.0', 'should have expected comparison spec')
-    }
-
-    config.diff = ['bar@2.0.0']
-    npm.prefix = path
-
-    await diff.exec([])
+    t.match(output, 'bar')
+    t.match(output, /-\s*"version": "1\.0\.0"/)
+    t.match(output, /\+\s*"version": "2\.0\.0"/)
   })
 
   t.test('transform single spec from transitive deps', async t => {
-    t.plan(4)
-
-    const path = t.testdir({
-      node_modules: {
-        bar: {
-          'package.json': JSON.stringify({
-            name: 'bar',
-            version: '1.0.0',
-            dependencies: {
-              lorem: '^2.0.0',
+    const { output } = await mockDiff(t, {
+      diff: 'lorem',
+      prefixDir: {
+        node_modules: {
+          bar: {
+            'package.json': {
+              name: 'bar',
+              version: '1.0.0',
+              dependencies: {
+                lorem: '^2.0.0',
+              },
             },
-          }),
+          },
+          lorem: {
+            'package.json': {
+              name: 'lorem',
+              version: '2.0.0',
+            },
+          },
         },
-        lorem: {
-          'package.json': JSON.stringify({
-            name: 'lorem',
-            version: '2.0.0',
-          }),
+        'package.json': {
+          name: 'my-project',
+          dependencies: {
+            bar: '^1.0.0',
+          },
         },
       },
-      'package.json': JSON.stringify({
-        name: 'my-project',
-        dependencies: {
-          bar: '^1.0.0',
-        },
-      }),
+      tarballs: {
+        'lorem@2.2.2': {},
+      },
+      times: {
+        lorem: 2,
+      },
+      exec: [],
     })
 
-    const Diff = t.mock('../../../lib/commands/diff.js', {
-      ...mocks,
-      pacote: {
-        packument: spec => {
-          t.equal(spec.name, 'lorem', 'should have expected spec name')
-        },
-      },
-      'npm-pick-manifest': (packument, target) => {
-        t.equal(target, '^2.0.0', 'should target first semver-range spec found')
-        return { version: '2.2.2' }
-      },
-      libnpmdiff: async ([a, b], opts) => {
-        t.equal(
-          a,
-          `lorem@file:${resolve(path, 'node_modules/lorem')}`,
-          'should target local node_modules pkg'
-        )
-        t.equal(b, 'lorem@2.2.2', 'should have expected target spec')
-      },
-    })
-    const diff = new Diff(npm)
-
-    config.diff = ['lorem']
-    npm.prefix = path
-
-    await diff.exec([])
+    t.match(output, 'lorem')
+    t.match(output, /-\s*"version": "2\.0\.0"/)
+    t.match(output, /\+\s*"version": "2\.2\.2"/)
   })
 
   t.test('missing actual tree', async t => {
-    t.plan(2)
-
-    const path = t.testdir({
-      'package.json': JSON.stringify({
-        name: 'my-project',
-      }),
+    const { output } = await mockDiff(t, {
+      diff: 'lorem',
+      prefixDir: {
+        'package.json': {
+          name: 'lorem',
+          version: '2.0.0',
+        },
+      },
+      mocks: {
+        '@npmcli/arborist': class {
+          constructor () {
+            throw new Error('ERR')
+          }
+        },
+      },
+      tarballs: {
+        'lorem@2.2.2': {},
+      },
+      exec: [],
     })
 
-    const Diff = t.mock('../../../lib/commands/diff.js', {
-      ...mocks,
-      '@npmcli/arborist': class {
-        constructor () {
-          throw new Error('ERR')
-        }
-      },
-      libnpmdiff: async ([a, b], opts) => {
-        t.equal(a, 'lorem@*', 'should target any version of pkg name')
-        t.equal(b, `file:${path}`, 'should target current cwd')
-      },
-    })
-    const diff = new Diff(npm)
-
-    config.diff = ['lorem']
-    npm.prefix = path
-
-    await diff.exec([])
+    t.match(output, 'lorem')
+    t.match(output, /-\s*"version": "2\.2\.2"/)
+    t.match(output, /\+\s*"version": "2\.0\.0"/)
   })
 
   t.test('unknown package name', async t => {
-    t.plan(2)
+    const { output } = await mockDiff(t, {
+      diff: 'bar',
+      prefixDir: {
+        'package.json': { version: '1.0.0' },
+      },
 
-    const path = t.testdir({
-      'package.json': JSON.stringify({ version: '1.0.0' }),
+      tarballs: {
+        'bar@2.2.2': {},
+      },
+      exec: [],
     })
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@*', 'should target any version of pkg name')
-      t.equal(b, `file:${path}`, 'should compare to cwd')
-    }
 
-    config.diff = ['bar']
-    npm.prefix = path
-
-    await diff.exec([])
+    t.match(output, 'bar')
+    t.match(output, /-\s*"version": "2\.2\.2"/)
+    t.match(output, /\+\s*"version": "1\.0\.0"/)
   })
 
   t.test('use project name in project dir', async t => {
-    t.plan(2)
+    const { output } = await mockDiff(t, {
+      diff: 'foo',
+      prefixDir: {
+        'package.json': { name: 'foo', version: '1.0.0' },
+      },
+      tarballs: {
+        'foo@2.2.2': {},
+      },
+      exec: [],
+    })
 
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'foo@*', 'should target any version of pkg name')
-      t.equal(b, `file:${fooPath}`, 'should compare to cwd')
-    }
-
-    config.diff = ['foo']
-    await diff.exec([])
+    t.match(output, 'foo')
+    t.match(output, /-\s*"version": "2\.2\.2"/)
+    t.match(output, /\+\s*"version": "1\.0\.0"/)
   })
 
   t.test('dir spec type', async t => {
-    t.plan(2)
+    const { output } = await mockDiff(t, {
+      diff: '../other/other-pkg',
+      prefixDir: {
+        'package.json': { name: 'foo', version: '1.0.0' },
+      },
+      otherDirs: {
+        'other-pkg': {
+          'package.json': { name: 'foo', version: '2.0.0' },
+        },
+      },
+      exec: [],
+    })
 
-    const otherPath = resolve('/path/to/other-dir')
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, `file:${otherPath}`, 'should target dir')
-      t.equal(b, `file:${fooPath}`, 'should compare to cwd')
-    }
-
-    config.diff = [otherPath]
-    await diff.exec([])
+    t.match(output, 'foo')
+    t.match(output, /-\s*"version": "2\.0\.0"/)
+    t.match(output, /\+\s*"version": "1\.0\.0"/)
   })
 
   t.test('unsupported spec type', async t => {
-    config.diff = ['git+https://github.com/user/foo']
+    const p = mockDiff(t, {
+      diff: 'git+https://github.com/user/foo',
+      exec: [],
+    })
+
     await t.rejects(
-      diff.exec([]),
+      p,
       /Spec type git not supported./,
       'should throw spec type not supported error.'
     )
   })
-
-  t.end()
 })
 
-t.test('first arg is a qualified spec', t => {
+t.test('first arg is a qualified spec', async t => {
   t.test('second arg is ALSO a qualified spec', async t => {
-    t.plan(3)
+    const { output } = await mockDiff(t, {
+      diff: ['bar@1.0.0', 'bar@^2.0.0'],
+      tarballs: {
+        'bar@1.0.0': {},
+        'bar@2.2.2': {},
+      },
+      times: {
+        bar: 2,
+      },
+      exec: [],
+    })
 
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@1.0.0', 'should set expected first spec')
-      t.equal(b, 'bar@^2.0.0', 'should set expected second spec')
-      t.match(opts, npm.flatOptions, 'should forward flat options')
-    }
-
-    config.diff = ['bar@1.0.0', 'bar@^2.0.0']
-    await diff.exec([])
+    t.match(output, 'bar')
+    t.match(output, /-\s*"version": "1\.0\.0"/)
+    t.match(output, /\+\s*"version": "2\.2\.2"/)
   })
 
   t.test('second arg is a known dependency name', async t => {
-    t.plan(2)
-
-    const path = t.testdir({
-      node_modules: {
-        bar: {
-          'package.json': JSON.stringify({
-            name: 'bar',
-            version: '1.0.0',
-          }),
+    const { output } = await mockDiff(t, {
+      prefixDir: {
+        node_modules: {
+          bar: {
+            'package.json': {
+              name: 'bar',
+              version: '1.0.0',
+            },
+          },
+        },
+        'package.json': {
+          name: 'my-project',
+          dependencies: {
+            bar: '^1.0.0',
+          },
         },
       },
-      'package.json': JSON.stringify({
-        name: 'my-project',
-        dependencies: {
-          bar: '^1.0.0',
-        },
-      }),
+      tarballs: {
+        'bar@2.0.0': {},
+      },
+      diff: ['bar@2.0.0', 'bar'],
+      exec: [],
     })
 
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@2.0.0', 'should set expected first spec')
-      t.equal(
-        b,
-        `bar@file:${resolve(path, 'node_modules/bar')}`,
-        'should target local node_modules pkg'
-      )
-    }
-
-    npm.prefix = path
-    config.diff = ['bar@2.0.0', 'bar']
-    await diff.exec([])
+    t.match(output, 'bar')
+    t.match(output, /-\s*"version": "2\.0\.0"/)
+    t.match(output, /\+\s*"version": "1\.0\.0"/)
   })
 
   t.test('second arg is a valid semver version', async t => {
-    t.plan(2)
+    const { output } = await mockDiff(t, {
+      tarballs: {
+        'bar@1.0.0': {},
+        'bar@2.0.0': {},
+      },
+      times: {
+        bar: 2,
+      },
+      diff: ['bar@1.0.0', '2.0.0'],
+      exec: [],
+    })
 
-    config.diff = ['bar@1.0.0', '2.0.0']
-
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@1.0.0', 'should set expected first spec')
-      t.equal(b, 'bar@2.0.0', 'should use name from first arg')
-    }
-
-    await diff.exec([])
+    t.match(output, 'bar')
+    t.match(output, /-\s*"version": "1\.0\.0"/)
+    t.match(output, /\+\s*"version": "2\.0\.0"/)
   })
 
   t.test('second arg is an unknown dependency name', async t => {
-    t.plan(2)
+    const { output } = await mockDiff(t, {
+      tarballs: {
+        'bar@1.0.0': {},
+        'bar-fork@2.0.0': {},
+      },
+      diff: ['bar@1.0.0', 'bar-fork'],
+      exec: [],
+    })
 
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@1.0.0', 'should set expected first spec')
-      t.equal(b, 'bar-fork@*', 'should target any version if not a dep')
-    }
+    t.match(output, /-\s*"name": "bar"/)
+    t.match(output, /\+\s*"name": "bar-fork"/)
 
-    config.diff = ['bar@1.0.0', 'bar-fork']
-    await diff.exec([])
+    t.match(output, /-\s*"version": "1\.0\.0"/)
+    t.match(output, /\+\s*"version": "2\.0\.0"/)
   })
-
-  t.end()
 })
 
 t.test('first arg is a known dependency name', async t => {
-  t.test('second arg is a qualified spec', t => {
-    t.plan(2)
-
-    const path = t.testdir({
-      node_modules: {
-        bar: {
-          'package.json': JSON.stringify({
-            name: 'bar',
-            version: '1.0.0',
-          }),
+  t.test('second arg is a qualified spec', async t => {
+    const { output } = await mockDiff(t, {
+      prefixDir: {
+        node_modules: {
+          bar: {
+            'package.json': {
+              name: 'bar',
+              version: '1.0.0',
+            },
+          },
+        },
+        'package.json': {
+          name: 'my-project',
+          dependencies: {
+            bar: '^1.0.0',
+          },
         },
       },
-      'package.json': JSON.stringify({
-        name: 'my-project',
-        dependencies: {
-          bar: '^1.0.0',
-        },
-      }),
+      tarballs: {
+        'bar@2.0.0': {},
+      },
+      diff: ['bar', 'bar@2.0.0'],
+      exec: [],
     })
 
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(
-        a,
-        `bar@file:${resolve(path, 'node_modules/bar')}`,
-        'should target local node_modules pkg'
-      )
-      t.equal(b, 'bar@2.0.0', 'should set expected second spec')
-    }
-
-    npm.prefix = path
-    config.diff = ['bar', 'bar@2.0.0']
-    diff.exec([], err => {
-      if (err) {
-        throw err
-      }
-    })
+    t.match(output, 'bar')
+    t.match(output, /-\s*"version": "1\.0\.0"/)
+    t.match(output, /\+\s*"version": "2\.0\.0"/)
   })
 
-  t.test('second arg is ALSO a known dependency', t => {
-    t.plan(2)
-
-    const path = t.testdir({
-      node_modules: {
-        bar: {
-          'package.json': JSON.stringify({
-            name: 'bar',
-            version: '1.0.0',
-          }),
+  t.test('second arg is ALSO a known dependency', async t => {
+    const { output } = await mockDiff(t, {
+      prefixDir: {
+        node_modules: {
+          bar: {
+            'package.json': {
+              name: 'bar',
+              version: '1.0.0',
+            },
+          },
+          'bar-fork': {
+            'package.json': {
+              name: 'bar-fork',
+              version: '1.0.0',
+            },
+          },
         },
-        'bar-fork': {
-          'package.json': JSON.stringify({
-            name: 'bar-fork',
-            version: '1.0.0',
-          }),
+        'package.json': {
+          name: 'my-project',
+          dependencies: {
+            bar: '^1.0.0',
+          },
         },
       },
-      'package.json': JSON.stringify({
-        name: 'my-project',
-        dependencies: {
-          bar: '^1.0.0',
-        },
-      }),
+      diff: ['bar', 'bar-fork'],
+      exec: [],
     })
 
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(
-        a,
-        `bar@file:${resolve(path, 'node_modules/bar')}`,
-        'should target local node_modules pkg'
-      )
-      t.equal(
-        b,
-        `bar-fork@file:${resolve(path, 'node_modules/bar-fork')}`,
-        'should target fork local node_modules pkg'
-      )
-    }
-
-    npm.prefix = path
-    config.diff = ['bar', 'bar-fork']
-    diff.exec([], err => {
-      if (err) {
-        throw err
-      }
-    })
+    t.match(output, /-\s*"name": "bar"/)
+    t.match(output, /\+\s*"name": "bar-fork"/)
   })
 
-  t.test('second arg is a valid semver version', t => {
-    t.plan(2)
-
-    const path = t.testdir({
-      node_modules: {
-        bar: {
-          'package.json': JSON.stringify({
-            name: 'bar',
-            version: '1.0.0',
-          }),
+  t.test('second arg is a valid semver version', async t => {
+    const { output } = await mockDiff(t, {
+      prefixDir: {
+        node_modules: {
+          bar: {
+            'package.json': {
+              name: 'bar',
+              version: '1.0.0',
+            },
+          },
+        },
+        'package.json': {
+          name: 'my-project',
+          dependencies: {
+            bar: '^1.0.0',
+          },
         },
       },
-      'package.json': JSON.stringify({
-        name: 'my-project',
-        dependencies: {
-          bar: '^1.0.0',
-        },
-      }),
+      tarballs: {
+        'bar@2.0.0': {},
+      },
+      diff: ['bar', '2.0.0'],
+      exec: [],
     })
 
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(
-        a,
-        `bar@file:${resolve(path, 'node_modules/bar')}`,
-        'should target local node_modules pkg'
-      )
-      t.equal(b, 'bar@2.0.0', 'should use package name from first arg')
-    }
-
-    npm.prefix = path
-    config.diff = ['bar', '2.0.0']
-    diff.exec([], err => {
-      if (err) {
-        throw err
-      }
-    })
+    t.match(output, 'bar')
+    t.match(output, /-\s*"version": "1\.0\.0"/)
+    t.match(output, /\+\s*"version": "2\.0\.0"/)
   })
 
   t.test('second arg is an unknown dependency name', async t => {
-    t.plan(2)
-
-    const path = t.testdir({
-      node_modules: {
-        bar: {
-          'package.json': JSON.stringify({
-            name: 'bar',
-            version: '1.0.0',
-          }),
+    const { output } = await mockDiff(t, {
+      prefixDir: {
+        node_modules: {
+          bar: {
+            'package.json': {
+              name: 'bar',
+              version: '1.0.0',
+            },
+          },
+        },
+        'package.json': {
+          name: 'my-project',
+          dependencies: {
+            bar: '^1.0.0',
+          },
         },
       },
-      'package.json': JSON.stringify({
-        name: 'my-project',
-        dependencies: {
-          bar: '^1.0.0',
-        },
-      }),
+      tarballs: {
+        'bar-fork@1.0.0': {},
+      },
+      diff: ['bar', 'bar-fork'],
+      exec: [],
     })
 
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(
-        a,
-        `bar@file:${resolve(path, 'node_modules/bar')}`,
-        'should target local node_modules pkg'
-      )
-      t.equal(b, 'bar-fork@*', 'should set expected second spec')
-    }
-
-    npm.prefix = path
-    config.diff = ['bar', 'bar-fork']
-    await diff.exec([])
+    t.match(output, /-\s*"name": "bar"/)
+    t.match(output, /\+\s*"name": "bar-fork"/)
   })
-
-  t.end()
 })
 
-t.test('first arg is a valid semver range', t => {
+t.test('first arg is a valid semver range', async t => {
   t.test('second arg is a qualified spec', async t => {
-    t.plan(2)
+    const { output } = await mockDiff(t, {
+      tarballs: {
+        'bar@1.0.0': {},
+        'bar@2.0.0': {},
+      },
+      diff: ['1.0.0', 'bar@2.0.0'],
+      times: { bar: 2 },
+      exec: [],
+    })
 
-    config.diff = ['1.0.0', 'bar@2.0.0']
-
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@1.0.0', 'should use name from second arg')
-      t.equal(b, 'bar@2.0.0', 'should use expected spec')
-    }
-
-    await diff.exec([])
+    t.match(output, 'bar')
+    t.match(output, /-\s*"version": "1\.0\.0"/)
+    t.match(output, /\+\s*"version": "2\.0\.0"/)
   })
 
   t.test('second arg is a known dependency', async t => {
-    t.plan(2)
-
-    const path = t.testdir({
-      node_modules: {
-        bar: {
-          'package.json': JSON.stringify({
-            name: 'bar',
-            version: '2.0.0',
-          }),
+    const { output } = await mockDiff(t, {
+      prefixDir: {
+        node_modules: {
+          bar: {
+            'package.json': {
+              name: 'bar',
+              version: '2.0.0',
+            },
+          },
+        },
+        'package.json': {
+          name: 'my-project',
+          dependencies: {
+            bar: '^1.0.0',
+          },
         },
       },
-      'package.json': JSON.stringify({
-        name: 'my-project',
-        dependencies: {
-          bar: '^1.0.0',
-        },
-      }),
+      tarballs: {
+        'bar@1.0.0': {},
+      },
+      diff: ['1.0.0', 'bar'],
+      exec: [],
     })
 
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@1.0.0', 'should use name from second arg')
-      t.equal(
-        b,
-        `bar@file:${resolve(path, 'node_modules/bar')}`,
-        'should set expected second spec from nm'
-      )
-    }
-
-    npm.prefix = path
-    config.diff = ['1.0.0', 'bar']
-    await diff.exec([])
+    t.match(output, 'bar')
+    t.match(output, /-\s*"version": "1\.0\.0"/)
+    t.match(output, /\+\s*"version": "2\.0\.0"/)
   })
 
   t.test('second arg is ALSO a semver version', async t => {
-    t.plan(2)
+    const { output } = await mockDiff(t, {
+      prefixDir: {
+        'package.json': {
+          name: 'bar',
+        },
+      },
+      tarballs: {
+        'bar@1.0.0': {},
+        'bar@2.0.0': {},
+      },
+      diff: ['1.0.0', '2.0.0'],
+      times: { bar: 2 },
+      exec: [],
+    })
 
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'foo@1.0.0', 'should use name from project dir')
-      t.equal(b, 'foo@2.0.0', 'should use name from project dir')
-    }
-
-    config.diff = ['1.0.0', '2.0.0']
-    await diff.exec([])
+    t.match(output, 'bar')
+    t.match(output, /-\s*"version": "1\.0\.0"/)
+    t.match(output, /\+\s*"version": "2\.0\.0"/)
   })
 
   t.test('second arg is ALSO a semver version BUT cwd not a project dir', async t => {
-    const path = t.testdir({})
-    config.diff = ['1.0.0', '2.0.0']
-    npm.prefix = path
+    const p = mockDiff(t, {
+      diff: ['1.0.0', '2.0.0'],
+      exec: [],
+    })
     await t.rejects(
-      diff.exec([]),
+      p,
       /Needs to be run from a project dir in order to diff two versions./,
       'should throw two versions need project dir error usage msg'
     )
   })
 
   t.test('second arg is an unknown dependency name', async t => {
-    t.plan(2)
+    const { output } = await mockDiff(t, {
+      prefixDir: {
+        prefixDir: {
+          'package.json': {
+            name: 'bar',
+          },
+        },
+      },
+      tarballs: {
+        'bar@1.0.0': {},
+        'bar@2.0.0': {},
+      },
+      diff: ['1.0.0', 'bar'],
+      times: { bar: 2 },
+      exec: [],
+    })
 
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@1.0.0', 'should use name from second arg')
-      t.equal(b, 'bar@*', 'should compare against any version')
-    }
-
-    config.diff = ['1.0.0', 'bar']
-    await diff.exec([])
+    t.match(output, 'bar')
+    t.match(output, /-\s*"version": "1\.0\.0"/)
+    t.match(output, /\+\s*"version": "2\.0\.0"/)
   })
 
   t.test('second arg is a qualified spec, missing actual tree', async t => {
-    t.plan(2)
-
-    const path = t.testdir({
-      'package.json': JSON.stringify({
-        name: 'my-project',
-      }),
-    })
-
-    const Diff = t.mock('../../../lib/commands/diff.js', {
-      ...mocks,
-      '@npmcli/arborist': class {
-        constructor () {
-          throw new Error('ERR')
-        }
-      },
-      libnpmdiff: async ([a, b], opts) => {
-        t.equal(a, 'lorem@1.0.0', 'should target latest version of pkg name')
-        t.equal(b, 'lorem@2.0.0', 'should target expected spec')
-      },
-    })
-    const diff = new Diff(npm)
-
-    config.diff = ['1.0.0', 'lorem@2.0.0']
-    npm.prefix = path
-
-    await diff.exec([])
-  })
-
-  t.end()
-})
-
-t.test('first arg is an unknown dependency name', t => {
-  t.test('second arg is a qualified spec', t => {
-    t.plan(4)
-
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@*', 'should set expected first spec')
-      t.equal(b, 'bar@2.0.0', 'should set expected second spec')
-      t.match(opts, npm.flatOptions, 'should forward flat options')
-      t.match(opts, { where: fooPath }, 'should forward pacote options')
-    }
-
-    config.diff = ['bar', 'bar@2.0.0']
-    diff.exec([], err => {
-      if (err) {
-        throw err
-      }
-    })
-  })
-
-  t.test('second arg is a known dependency', t => {
-    t.plan(2)
-
-    const path = t.testdir({
-      node_modules: {
-        bar: {
-          'package.json': JSON.stringify({
-            name: 'bar',
-            version: '2.0.0',
-          }),
+    const { output } = await mockDiff(t, {
+      prefixDir: {
+        'package.json': {
+          name: 'lorem',
+          version: '2.0.0',
         },
       },
-      'package.json': JSON.stringify({
-        name: 'my-project',
-        dependencies: {
-          bar: '^1.0.0',
+      mocks: {
+        '@npmcli/arborist': class {
+          constructor () {
+            throw new Error('ERR')
+          }
         },
-      }),
+      },
+      tarballs: {
+        'lorem@1.0.0': {},
+        'lorem@2.0.0': {},
+      },
+      times: { lorem: 2 },
+      diff: ['1.0.0', 'lorem@2.0.0'],
+      exec: [],
     })
 
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar-fork@*', 'should use any version')
-      t.equal(
-        b,
-        `bar@file:${resolve(path, 'node_modules/bar')}`,
-        'should target local node_modules pkg'
-      )
-    }
-
-    npm.prefix = path
-    config.diff = ['bar-fork', 'bar']
-    diff.exec([], err => {
-      if (err) {
-        throw err
-      }
-    })
+    t.match(output, 'lorem')
+    t.match(output, /-\s*"version": "1\.0\.0"/)
+    t.match(output, /\+\s*"version": "2\.0\.0"/)
   })
-
-  t.test('second arg is a valid semver version', t => {
-    t.plan(2)
-
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@*', 'should use any version')
-      t.equal(b, 'bar@^1.0.0', 'should use name from first arg')
-    }
-
-    config.diff = ['bar', '^1.0.0']
-    diff.exec([], err => {
-      if (err) {
-        throw err
-      }
-    })
-  })
-
-  t.test('second arg is ALSO an unknown dependency name', t => {
-    t.plan(2)
-
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@*', 'should use any version')
-      t.equal(b, 'bar-fork@*', 'should use any version')
-    }
-
-    config.diff = ['bar', 'bar-fork']
-    diff.exec([], err => {
-      if (err) {
-        throw err
-      }
-    })
-  })
-
-  t.test('cwd not a project dir', t => {
-    t.plan(2)
-
-    const path = t.testdir({})
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'bar@*', 'should use any version')
-      t.equal(b, 'bar-fork@*', 'should use any version')
-    }
-
-    config.diff = ['bar', 'bar-fork']
-    npm.prefix = path
-
-    diff.exec([], err => {
-      if (err) {
-        throw err
-      }
-    })
-  })
-
-  t.end()
 })
 
-t.test('various options', t => {
+t.test('first arg is an unknown dependency name', async t => {
+  t.test('second arg is a qualified spec', async t => {
+    const { output } = await mockDiff(t, {
+      tarballs: {
+        'bar@2.0.0': {},
+        'bar@3.0.0': {},
+      },
+      times: { bar: 2 },
+      diff: ['bar', 'bar@2.0.0'],
+      exec: [],
+    })
+
+    t.match(output, 'bar')
+    t.match(output, /-\s*"version": "3\.0\.0"/)
+    t.match(output, /\+\s*"version": "2\.0\.0"/)
+  })
+
+  t.test('second arg is a known dependency', async t => {
+    const { output } = await mockDiff(t, {
+      prefixDir: {
+        node_modules: {
+          bar: {
+            'package.json': {
+              name: 'bar',
+              version: '2.0.0',
+            },
+          },
+        },
+        'package.json': {
+          name: 'my-project',
+          dependencies: {
+            bar: '^1.0.0',
+          },
+        },
+      },
+      tarballs: {
+        'bar-fork@2.0.0': {},
+      },
+      diff: ['bar-fork', 'bar'],
+      exec: [],
+    })
+
+    t.match(output, /-\s*"name": "bar-fork"/)
+    t.match(output, /\+\s*"name": "bar"/)
+  })
+
+  t.test('second arg is a valid semver version', async t => {
+    const { output } = await mockDiff(t, {
+      tarballs: {
+        'bar@1.5.0': {},
+        'bar@2.0.0': {},
+      },
+      times: { bar: 2 },
+      diff: ['bar', '^1.0.0'],
+      exec: [],
+    })
+
+    t.match(output, 'bar')
+    t.match(output, /-\s*"version": "2\.0\.0"/)
+    t.match(output, /\+\s*"version": "1\.5\.0"/)
+  })
+
+  t.test('second arg is ALSO an unknown dependency name', async t => {
+    const { output } = await mockDiff(t, {
+      prefixDir: {
+        'package.json': {
+          name: 'my-project',
+        },
+      },
+      tarballs: {
+        'bar@1.0.0': {},
+        'bar-fork@1.0.0': {},
+      },
+      diff: ['bar', 'bar-fork'],
+      exec: [],
+    })
+
+    t.match(output, /-\s*"name": "bar"/)
+    t.match(output, /\+\s*"name": "bar-fork"/)
+  })
+
+  t.test('cwd not a project dir', async t => {
+    const { output } = await mockDiff(t, {
+      tarballs: {
+        'bar@1.0.0': {},
+        'bar-fork@1.0.0': {},
+      },
+      diff: ['bar', 'bar-fork'],
+      exec: [],
+    })
+
+    t.match(output, /-\s*"name": "bar"/)
+    t.match(output, /\+\s*"name": "bar-fork"/)
+  })
+})
+
+t.test('various options', async t => {
+  const mockOptions = async (t, config) => {
+    const file = (v) => new Array(50).fill(0).map((_, i) => `${i}${i === 20 ? v : ''}`).join('\n')
+    const mock = await mockDiff(t, {
+      diff: ['bar@2.0.0', 'bar@3.0.0'],
+      config,
+      exec: [],
+      tarballs: {
+        'bar@2.0.0': { 'index.js': file('2.0.0') },
+        'bar@3.0.0': { 'index.js': file('3.0.0') },
+      },
+      times: { bar: 2 },
+    })
+
+    return mock
+  }
+
   t.test('using --name-only option', async t => {
-    t.plan(1)
-
-    flatOptions.diffNameOnly = true
-
-    libnpmdiff = async ([a, b], opts) => {
-      t.match(
-        opts,
-        {
-          ...npm.flatOptions,
-          diffNameOnly: true,
-        },
-        'should forward nameOnly=true option'
-      )
-    }
-
-    await diff.exec([])
-  })
-
-  t.test('set files after both versions', async t => {
-    t.plan(3)
-
-    config.diff = ['2.1.4', '3.0.0']
-
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'foo@2.1.4', 'should use expected spec')
-      t.equal(b, 'foo@3.0.0', 'should use expected spec')
-      t.match(
-        opts,
-        {
-          ...npm.flatOptions,
-          diffFiles: ['./foo.js', './bar.js'],
-        },
-        'should forward diffFiles values'
-      )
-    }
-
-    await diff.exec(['./foo.js', './bar.js'])
-  })
-
-  t.test('set files no diff args', async t => {
-    t.plan(3)
-
-    libnpmdiff = async ([a, b], opts) => {
-      t.equal(a, 'foo@latest', 'should have default spec')
-      t.equal(b, `file:${fooPath}`, 'should compare to cwd')
-      t.match(
-        opts,
-        {
-          ...npm.flatOptions,
-          diffFiles: ['./foo.js', './bar.js'],
-        },
-        'should forward all remaining items as filenames'
-      )
-    }
-
-    await diff.exec(['./foo.js', './bar.js'])
+    const { output } = await mockOptions(t, {
+      'diff-name-only': true,
+    })
+    t.matchSnapshot(output)
   })
 
   t.test('using diff option', async t => {
-    t.plan(1)
+    const { output } = await mockOptions(t, {
+      'diff-context': 5,
+      'diff-ignore-whitespace': true,
+      'diff-no-prefix': false,
+      'diff-drc-prefix': 'foo/',
+      'diff-fst-prefix': 'bar/',
+      'diff-text': true,
 
-    flatOptions.diffContext = 5
-    flatOptions.diffIgnoreWhitespace = true
-    flatOptions.diffNoPrefix = false
-    flatOptions.diffSrcPrefix = 'foo/'
-    flatOptions.diffDstPrefix = 'bar/'
-    flatOptions.diffText = true
-
-    libnpmdiff = async ([a, b], opts) => {
-      t.match(
-        opts,
-        {
-          ...npm.flatOptions,
-          diffContext: 5,
-          diffIgnoreWhitespace: true,
-          diffNoPrefix: false,
-          diffSrcPrefix: 'foo/',
-          diffDstPrefix: 'bar/',
-          diffText: true,
-        },
-        'should forward diff options'
-      )
-    }
-
-    await diff.exec([])
+    })
+    t.matchSnapshot(output)
   })
-
-  t.end()
 })
 
 t.test('too many args', async t => {
-  config.diff = ['a', 'b', 'c']
+  const { npm } = await mockDiff(t, {
+    diff: ['a', 'b', 'c'],
+  })
+
   await t.rejects(
-    diff.exec([]),
+    npm.exec('diff', []),
     /Can't use more than two --diff arguments./,
     'should throw usage error'
   )
 })
 
-t.test('workspaces', t => {
-  const path = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'workspaces-test',
-      version: '1.2.3-test',
-      workspaces: ['workspace-a', 'workspace-b', 'workspace-c'],
-    }),
-    'workspace-a': {
-      'package.json': JSON.stringify({
-        name: 'workspace-a',
-        version: '1.2.3-a',
-      }),
-    },
-    'workspace-b': {
-      'package.json': JSON.stringify({
-        name: 'workspace-b',
-        version: '1.2.3-b',
-      }),
-    },
-    'workspace-c': JSON.stringify({
+t.test('workspaces', async t => {
+  const mockWorkspaces = (t, workspaces = true, opts) => mockDiff(t, {
+    prefixDir: {
       'package.json': {
-        name: 'workspace-n',
-        version: '1.2.3-n',
+        name: 'workspaces-test',
+        version: '1.2.3',
+        workspaces: ['workspace-a', 'workspace-b', 'workspace-c'],
       },
-    }),
+      'workspace-a': {
+        'package.json': {
+          name: 'workspace-a',
+          version: '1.2.3-a',
+        },
+      },
+      'workspace-b': {
+        'package.json': {
+          name: 'workspace-b',
+          version: '1.2.3-b',
+        },
+      },
+      'workspace-c': {
+        'package.json': {
+          name: 'workspace-c',
+          version: '1.2.3-c',
+        },
+      },
+    },
+    exec: [],
+    config: workspaces === true ? { workspaces } : { workspace: workspaces },
+    ...opts,
   })
 
   t.test('all workspaces', async t => {
-    const diffCalls = []
-    libnpmdiff = async ([a, b]) => {
-      diffCalls.push([a, b])
-    }
-    npm.prefix = path
-    npm.localPrefix = path
-    await diff.execWorkspaces([], [])
-    t.same(
-      diffCalls,
-      [
-        ['workspace-a@latest', join(`file:${path}`, 'workspace-a')],
-        ['workspace-b@latest', join(`file:${path}`, 'workspace-b')],
-      ],
-      'should call libnpmdiff with workspaces params'
-    )
+    const { output } = await mockWorkspaces(t, true, {
+      tarballs: {
+        'workspace-a@2.0.0-a': {},
+        'workspace-b@2.0.0-b': {},
+        'workspace-c@2.0.0-c': {},
+      },
+    })
+
+    t.match(output, '"name": "workspace-a"')
+    t.match(output, /-\s*"version": "2\.0\.0-a"/)
+    t.match(output, /\+\s*"version": "1\.2\.3-a"/)
+
+    t.match(output, '"name": "workspace-b"')
+    t.match(output, /-\s*"version": "2\.0\.0-b"/)
+    t.match(output, /\+\s*"version": "1\.2\.3-b"/)
+
+    t.match(output, '"name": "workspace-c"')
+    t.match(output, /-\s*"version": "2\.0\.0-c"/)
+    t.match(output, /\+\s*"version": "1\.2\.3-c"/)
   })
 
   t.test('one workspace', async t => {
-    const diffCalls = []
-    libnpmdiff = async ([a, b]) => {
-      diffCalls.push([a, b])
-    }
-    npm.prefix = path
-    npm.localPrefix = path
-    await diff.execWorkspaces([], ['workspace-a'])
-    t.same(
-      diffCalls,
-      [['workspace-a@latest', join(`file:${path}`, 'workspace-a')]],
-      'should call libnpmdiff with workspaces params'
-    )
+    const { output } = await mockWorkspaces(t, 'workspace-a', {
+      tarballs: {
+        'workspace-a@2.0.0-a': {},
+      },
+    })
+
+    t.match(output, '"name": "workspace-a"')
+    t.match(output, /-\s*"version": "2\.0\.0-a"/)
+    t.match(output, /\+\s*"version": "1\.2\.3-a"/)
+
+    t.notMatch(output, '"name": "workspace-b"')
+    t.notMatch(output, '"name": "workspace-c"')
   })
 
   t.test('invalid workspace', async t => {
-    libnpmdiff = () => {
-      t.fail('should not call libnpmdiff')
-    }
-    npm.prefix = path
-    npm.localPrefix = path
-    await t.rejects(diff.execWorkspaces([], ['workspace-x']), /No workspaces found/)
-    await t.rejects(diff.execWorkspaces([], ['workspace-x']), /workspace-x/)
+    const p = mockWorkspaces(t, 'workspace-x')
+    await t.rejects(p, /No workspaces found/)
+    await t.rejects(p, /workspace-x/)
   })
-  t.end()
 })

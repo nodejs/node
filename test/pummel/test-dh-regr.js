@@ -54,6 +54,6 @@ for (let i = 0; i < 2000; i++) {
     bSecret,
     'Secrets should be equal.\n' +
     `aSecret: ${aSecret.toString('base64')}\n` +
-    `bSecret: ${bSecret.toString('base64')}`
+    `bSecret: ${bSecret.toString('base64')}`,
   );
 }

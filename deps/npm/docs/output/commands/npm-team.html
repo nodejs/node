@@ -162,7 +162,8 @@ when operating on them, separated by a colon (<code>:</code>). That is, if you h
 as <code>@org:newteam</code> in these commands.</p>
 <p>If you have two-factor authentication enabled in <code>auth-and-writes</code> mode, then
 you can provide a code from your authenticator with <code>[--otp &lt;otpcode&gt;]</code>.
-If you don't include this then you will be prompted.</p>
+If you don't include this then you will be taken through a second factor flow based
+on your <code>authtype</code>.</p>
 <ul>
 <li>
 <p>create / destroy:

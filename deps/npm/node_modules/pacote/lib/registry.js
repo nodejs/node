@@ -7,6 +7,8 @@ const rpj = require('read-package-json-fast')
 const pickManifest = require('npm-pick-manifest')
 const ssri = require('ssri')
 const crypto = require('crypto')
+const npa = require('npm-package-arg')
+const { sigstore } = require('sigstore')
 
 // Corgis are cute. 🐕🐶
 const corgiDoc = 'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*'
@@ -203,7 +205,118 @@ class RegistryFetcher extends Fetcher {
           mani._signatures = dist.signatures
         }
       }
+
+      if (dist.attestations) {
+        if (this.opts.verifyAttestations) {
+          // Always fetch attestations from the current registry host
+          const attestationsPath = new URL(dist.attestations.url).pathname
+          const attestationsUrl = removeTrailingSlashes(this.registry) + attestationsPath
+          const res = await fetch(attestationsUrl, {
+            ...this.opts,
+            // disable integrity check for attestations json payload, we check the
+            // integrity in the verification steps below
+            integrity: null,
+          })
+          const { attestations } = await res.json()
+          const bundles = attestations.map(({ predicateType, bundle }) => {
+            const statement = JSON.parse(
+              Buffer.from(bundle.dsseEnvelope.payload, 'base64').toString('utf8')
+            )
+            const keyid = bundle.dsseEnvelope.signatures[0].keyid
+            const signature = bundle.dsseEnvelope.signatures[0].sig
+
+            return {
+              predicateType,
+              bundle,
+              statement,
+              keyid,
+              signature,
+            }
+          })
+
+          const attestationKeyIds = bundles.map((b) => b.keyid).filter((k) => !!k)
+          const attestationRegistryKeys = (this.registryKeys || [])
+            .filter(key => attestationKeyIds.includes(key.keyid))
+          if (!attestationRegistryKeys.length) {
+            throw Object.assign(new Error(
+              `${mani._id} has attestations but no corresponding public key(s) can be found`
+            ), { code: 'EMISSINGSIGNATUREKEY' })
+          }
+
+          for (const { predicateType, bundle, keyid, signature, statement } of bundles) {
+            const publicKey = attestationRegistryKeys.find(key => key.keyid === keyid)
+            // Publish attestations have a keyid set and a valid public key must be found
+            if (keyid) {
+              if (!publicKey) {
+                throw Object.assign(new Error(
+                  `${mani._id} has attestations with keyid: ${keyid} ` +
+                  'but no corresponding public key can be found'
+                ), { code: 'EMISSINGSIGNATUREKEY' })
+              }
+
+              const validPublicKey =
+                !publicKey.expires || (Date.parse(publicKey.expires) > Date.now())
+              if (!validPublicKey) {
+                throw Object.assign(new Error(
+                  `${mani._id} has attestations with keyid: ${keyid} ` +
+                  `but the corresponding public key has expired ${publicKey.expires}`
+                ), { code: 'EEXPIREDSIGNATUREKEY' })
+              }
+            }
+
+            const subject = {
+              name: statement.subject[0].name,
+              sha512: statement.subject[0].digest.sha512,
+            }
+
+            // Only type 'version' can be turned into a PURL
+            const purl = this.spec.type === 'version' ? npa.toPurl(this.spec) : this.spec
+            // Verify the statement subject matches the package, version
+            if (subject.name !== purl) {
+              throw Object.assign(new Error(
+                `${mani._id} package name and version (PURL): ${purl} ` +
+                `doesn't match what was signed: ${subject.name}`
+              ), { code: 'EATTESTATIONSUBJECT' })
+            }
+
+            // Verify the statement subject matches the tarball integrity
+            const integrityHexDigest = ssri.parse(this.integrity).hexDigest()
+            if (subject.sha512 !== integrityHexDigest) {
+              throw Object.assign(new Error(
+                `${mani._id} package integrity (hex digest): ` +
+                `${integrityHexDigest} ` +
+                `doesn't match what was signed: ${subject.sha512}`
+              ), { code: 'EATTESTATIONSUBJECT' })
+            }
+
+            try {
+              // Provenance attestations are signed with a signing certificate
+              // (including the key) so we don't need to return a public key.
+              //
+              // Publish attestations are signed with a keyid so we need to
+              // specify a public key from the keys endpoint: `registry-host.tld/-/npm/v1/keys`
+              const options = { keySelector: publicKey ? () => publicKey.pemkey : undefined }
+              await sigstore.verify(bundle, null, options)
+            } catch (e) {
+              throw Object.assign(new Error(
+                `${mani._id} failed to verify attestation: ${e.message}`
+              ), {
+                code: 'EATTESTATIONVERIFY',
+                predicateType,
+                keyid,
+                signature,
+                resolved: mani._resolved,
+                integrity: mani._integrity,
+              })
+            }
+          }
+          mani._attestations = dist.attestations
+        } else {
+          mani._attestations = dist.attestations
+        }
+      }
     }
+
     this.package = mani
     return this.package
   }

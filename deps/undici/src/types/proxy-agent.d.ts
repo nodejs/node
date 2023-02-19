@@ -1,6 +1,7 @@
-import { TlsOptions } from 'tls'
 import Agent from './agent'
+import buildConnector from './connector';
 import Dispatcher from './dispatcher'
+import { IncomingHttpHeaders } from './header'
 
 export default ProxyAgent
 
@@ -19,7 +20,8 @@ declare namespace ProxyAgent {
      */
     auth?: string;
     token?: string;
-    requestTls?: TlsOptions & { servername?: string };
-    proxyTls?: TlsOptions & { servername?: string };
+    headers?: IncomingHttpHeaders;
+    requestTls?: buildConnector.BuildOptions;
+    proxyTls?: buildConnector.BuildOptions;
   }
 }

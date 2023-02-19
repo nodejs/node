@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -353,9 +353,13 @@ static int get_cert_by_subject_ex(X509_LOOKUP *xl, X509_LOOKUP_TYPE type,
         tmp = sk_X509_OBJECT_value(xl->store_ctx->objs, j);
         X509_STORE_unlock(xl->store_ctx);
 
-        /* If a CRL, update the last file suffix added for this */
-
-        if (type == X509_LU_CRL) {
+        /*
+         * If a CRL, update the last file suffix added for this.
+         * We don't need to add an entry if k is 0 as this is the initial value.
+         * This avoids the need for a write lock and sort operation in the
+         * simple case where no CRL is present for a hash.
+         */
+        if (type == X509_LU_CRL && k > 0) {
             if (!CRYPTO_THREAD_write_lock(ctx->lock))
                 goto finish;
             /*
@@ -384,6 +388,12 @@ static int get_cert_by_subject_ex(X509_LOOKUP *xl, X509_LOOKUP_TYPE type,
                     ok = 0;
                     goto finish;
                 }
+
+                /*
+                 * Ensure stack is sorted so that subsequent sk_BY_DIR_HASH_find
+                 * will not mutate the stack and therefore require a write lock.
+                 */
+                sk_BY_DIR_HASH_sort(ent->hashes);
             } else if (hent->suffix < k) {
                 hent->suffix = k;
             }

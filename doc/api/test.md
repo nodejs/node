@@ -291,7 +291,9 @@ test('a test that creates asynchronous activity', (t) => {
 ## Watch mode
 
 <!-- YAML
-added: v19.2.0
+added:
+  - v19.2.0
+  - v18.13.0
 -->
 
 > Stability: 1 - Experimental
@@ -367,6 +369,56 @@ process finishes with an exit code of 0, the test is considered passing.
 Otherwise, the test is considered to be a failure. Test files must be
 executable by Node.js, but are not required to use the `node:test` module
 internally.
+
+## Collecting code coverage
+
+When Node.js is started with the [`--experimental-test-coverage`][]
+command-line flag, code coverage is collected and statistics are reported once
+all tests have completed. If the [`NODE_V8_COVERAGE`][] environment variable is
+used to specify a code coverage directory, the generated V8 coverage files are
+written to that directory. Node.js core modules and files within
+`node_modules/` directories are not included in the coverage report. If
+coverage is enabled, the coverage report is sent to any [test reporters][] via
+the `'test:coverage'` event.
+
+Coverage can be disabled on a series of lines using the following
+comment syntax:
+
+```js
+/* node:coverage disable */
+if (anAlwaysFalseCondition) {
+  // Code in this branch will never be executed, but the lines are ignored for
+  // coverage purposes. All lines following the 'disable' comment are ignored
+  // until a corresponding 'enable' comment is encountered.
+  console.log('this is never executed');
+}
+/* node:coverage enable */
+```
+
+Coverage can also be disabled for a specified number of lines. After the
+specified number of lines, coverage will be automatically reenabled. If the
+number of lines is not explicitly provided, a single line is ignored.
+
+```js
+/* node:coverage ignore next */
+if (anAlwaysFalseCondition) { console.log('this is never executed'); }
+
+/* node:coverage ignore next 3 */
+if (anAlwaysFalseCondition) {
+  console.log('this is never executed');
+}
+```
+
+The test runner's code coverage functionality has the following limitations,
+which will be addressed in a future Node.js release:
+
+* Although coverage data is collected for child processes, this information is
+  not included in the coverage report. Because the command line test runner uses
+  child processes to execute test files, it cannot be used with
+  `--experimental-test-coverage`.
+* Source maps are not supported.
+* Excluding specific files or directories from the coverage report is not
+  supported.
 
 ## Mocking
 
@@ -454,7 +506,7 @@ test('spies on an object method', (t) => {
 ## Test reporters
 
 <!-- YAML
-added: REPLACEME
+added: v19.6.0
 -->
 
 The `node:test` module supports passing [`--test-reporter`][]
@@ -470,7 +522,7 @@ The following built-reporters are supported:
   The `spec` reporter outputs the test results in a human-readable format.
 
 * `dot`
-  The `dot` reporter outputs the test results in a comact format,
+  The `dot` reporter outputs the test results in a compact format,
   where each passing test is represented by a `.`,
   and each failing test is represented by a `X`.
 
@@ -591,6 +643,9 @@ module.exports = async function * customReporter(source) {
 };
 ```
 
+The value provided to `--test-reporter` should be a string like one used in an
+`import()` in JavaScript code, or a value provided for [`--import`][].
+
 ### Multiple reporters
 
 The [`--test-reporter`][] flag can be specified multiple times to report test
@@ -623,11 +678,10 @@ added:
   properties are supported:
   * `concurrency` {number|boolean} If a number is provided,
     then that many files would run in parallel.
-    If truthy, it would run (number of cpu cores - 1)
-    files in parallel.
-    If falsy, it would only run one file at a time.
-    If unspecified, subtests inherit this value from their parent.
-    **Default:** `true`.
+    If `true`, it would run `os.availableParallelism() - 1` test files in
+    parallel.
+    If `false`, it would only run one test file at a time.
+    **Default:** `false`.
   * `files`: {Array} An array containing the list of files to run.
     **Default** matching files from [test runner execution model][].
   * `signal` {AbortSignal} Allows aborting an in-progress test execution.
@@ -673,10 +727,9 @@ changes:
   properties are supported:
   * `concurrency` {number|boolean} If a number is provided,
     then that many tests would run in parallel.
-    If truthy, it would run (number of cpu cores - 1)
-    tests in parallel.
+    If `true`, it would run `os.availableParallelism() - 1` tests in parallel.
     For subtests, it will be `Infinity` tests in parallel.
-    If falsy, it would only run one test at a time.
+    If `false`, it would only run one test at a time.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `false`.
   * `only` {boolean} If truthy, and the test context is configured to run
@@ -863,7 +916,7 @@ before each subtest of the current suite.
 
 ```js
 describe('tests', async () => {
-  beforeEach(() => t.diagnostic('about to run a test'));
+  beforeEach(() => console.log('about to run a test'));
   it('is a subtest', () => {
     assert.ok('some relevant assertion here');
   });
@@ -894,7 +947,7 @@ after each subtest of the current test.
 
 ```js
 describe('tests', async () => {
-  afterEach(() => t.diagnostic('about to run a test'));
+  afterEach(() => console.log('finished running a test'));
   it('is a subtest', () => {
     assert.ok('some relevant assertion here');
   });
@@ -904,7 +957,9 @@ describe('tests', async () => {
 ## Class: `MockFunctionContext`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 The `MockFunctionContext` class is used to inspect or manipulate the behavior of
@@ -913,7 +968,9 @@ mocks created via the [`MockTracker`][] APIs.
 ### `ctx.calls`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 * {Array}
@@ -935,7 +992,9 @@ mock. Each entry in the array is an object with the following properties.
 ### `ctx.callCount()`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 * Returns: {integer} The number of times that this mock has been invoked.
@@ -947,7 +1006,9 @@ is a getter that creates a copy of the internal call tracking array.
 ### `ctx.mockImplementation(implementation)`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 * `implementation` {Function|AsyncFunction} The function to be used as the
@@ -984,7 +1045,9 @@ test('changes a mock behavior', (t) => {
 ### `ctx.mockImplementationOnce(implementation[, onCall])`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 * `implementation` {Function|AsyncFunction} The function to be used as the
@@ -1028,7 +1091,9 @@ test('changes a mock behavior once', (t) => {
 ### `ctx.resetCalls()`
 
 <!-- YAML
-added: v19.3.0
+added:
+  - v19.3.0
+  - v18.13.0
 -->
 
 Resets the call history of the mock function.
@@ -1036,7 +1101,9 @@ Resets the call history of the mock function.
 ### `ctx.restore()`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 Resets the implementation of the mock function to its original behavior. The
@@ -1045,7 +1112,9 @@ mock can still be used after calling this function.
 ## Class: `MockTracker`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 The `MockTracker` class is used to manage mocking functionality. The test runner
@@ -1056,7 +1125,9 @@ Each test also provides its own `MockTracker` instance via the test context's
 ### `mock.fn([original[, implementation]][, options])`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 * `original` {Function|AsyncFunction} An optional function to create a mock on.
@@ -1107,7 +1178,9 @@ test('mocks a counting function', (t) => {
 ### `mock.getter(object, methodName[, implementation][, options])`
 
 <!-- YAML
-added: v19.3.0
+added:
+  - v19.3.0
+  - v18.13.0
 -->
 
 This function is syntax sugar for [`MockTracker.method`][] with `options.getter`
@@ -1116,7 +1189,9 @@ set to `true`.
 ### `mock.method(object, methodName[, implementation][, options])`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 * `object` {Object} The object whose method is being mocked.
@@ -1170,7 +1245,9 @@ test('spies on an object method', (t) => {
 ### `mock.reset()`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 This function restores the default behavior of all mocks that were previously
@@ -1186,7 +1263,9 @@ function manually is recommended.
 ### `mock.restoreAll()`
 
 <!-- YAML
-added: v19.1.0
+added:
+  - v19.1.0
+  - v18.13.0
 -->
 
 This function restores the default behavior of all mocks that were previously
@@ -1196,7 +1275,9 @@ not disassociate the mocks from the `MockTracker` instance.
 ### `mock.setter(object, methodName[, implementation][, options])`
 
 <!-- YAML
-added: v19.3.0
+added:
+  - v19.3.0
+  - v18.13.0
 -->
 
 This function is syntax sugar for [`MockTracker.method`][] with `options.setter`
@@ -1216,9 +1297,47 @@ A successful call to [`run()`][] method will return a new {TestsStream}
 object, streaming a series of events representing the execution of the tests.
 `TestsStream` will emit events, in the order of the tests definition
 
+### Event: `'test:coverage'`
+
+* `data` {Object}
+  * `summary` {Object} An object containing the coverage report.
+    * `files` {Array} An array of coverage reports for individual files. Each
+      report is an object with the following schema:
+      * `path` {string} The absolute path of the file.
+      * `totalLineCount` {number} The total number of lines.
+      * `totalBranchCount` {number} The total number of branches.
+      * `totalFunctionCount` {number} The total number of functions.
+      * `coveredLineCount` {number} The number of covered lines.
+      * `coveredBranchCount` {number} The number of covered branches.
+      * `coveredFunctionCount` {number} The number of covered functions.
+      * `coveredLinePercent` {number} The percentage of lines covered.
+      * `coveredBranchPercent` {number} The percentage of branches covered.
+      * `coveredFunctionPercent` {number} The percentage of functions covered.
+      * `uncoveredLineNumbers` {Array} An array of integers representing line
+        numbers that are uncovered.
+    * `totals` {Object} An object containing a summary of coverage for all
+      files.
+      * `totalLineCount` {number} The total number of lines.
+      * `totalBranchCount` {number} The total number of branches.
+      * `totalFunctionCount` {number} The total number of functions.
+      * `coveredLineCount` {number} The number of covered lines.
+      * `coveredBranchCount` {number} The number of covered branches.
+      * `coveredFunctionCount` {number} The number of covered functions.
+      * `coveredLinePercent` {number} The percentage of lines covered.
+      * `coveredBranchPercent` {number} The percentage of branches covered.
+      * `coveredFunctionPercent` {number} The percentage of functions covered.
+    * `workingDirectory` {string} The working directory when code coverage
+      began. This is useful for displaying relative path names in case the tests
+      changed the working directory of the Node.js process.
+  * `nesting` {number} The nesting level of the test.
+
+Emitted when code coverage is enabled and all tests have completed.
+
 ### Event: `'test:diagnostic'`
 
 * `data` {Object}
+  * `file` {string|undefined} The path of the test file,
+    undefined if test is not ran through a file.
   * `message` {string} The diagnostic message.
   * `nesting` {number} The nesting level of the test.
 
@@ -1230,6 +1349,8 @@ Emitted when [`context.diagnostic`][] is called.
   * `details` {Object} Additional execution metadata.
     * `duration` {number} The duration of the test in milliseconds.
     * `error` {Error} The error thrown by the test.
+  * `file` {string|undefined} The path of the test file,
+    undefined if test is not ran through a file.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
   * `testNumber` {number} The ordinal number of the test.
@@ -1243,6 +1364,8 @@ Emitted when a test fails.
 * `data` {Object}
   * `details` {Object} Additional execution metadata.
     * `duration` {number} The duration of the test in milliseconds.
+  * `file` {string|undefined} The path of the test file,
+    undefined if test is not ran through a file.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
   * `testNumber` {number} The ordinal number of the test.
@@ -1254,6 +1377,8 @@ Emitted when a test passes.
 ### Event: `'test:plan'`
 
 * `data` {Object}
+  * `file` {string|undefined} The path of the test file,
+    undefined if test is not ran through a file.
   * `nesting` {number} The nesting level of the test.
   * `count` {number} The number of subtests that have ran.
 
@@ -1262,6 +1387,8 @@ Emitted when all subtests have completed for a given test.
 ### Event: `'test:start'`
 
 * `data` {Object}
+  * `file` {string|undefined} The path of the test file,
+    undefined if test is not ran through a file.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
 
@@ -1316,7 +1443,9 @@ test('top level test', async (t) => {
 ### `context.after([fn][, options])`
 
 <!-- YAML
-added: v19.3.0
+added:
+  - v19.3.0
+  - v18.13.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function. The first argument
@@ -1514,9 +1643,12 @@ changes:
   `fn` does not have a name.
 * `options` {Object} Configuration options for the subtest. The following
   properties are supported:
-  * `concurrency` {number} The number of tests that can be run at the same time.
+  * `concurrency` {number|boolean|null} If a number is provided,
+    then that many tests would run in parallel.
+    If `true`, it would run all subtests in parallel.
+    If `false`, it would only run one test at a time.
     If unspecified, subtests inherit this value from their parent.
-    **Default:** `1`.
+    **Default:** `null`.
   * `only` {boolean} If truthy, and the test context is configured to run
     `only` tests, then this test will be run. Otherwise, the test is skipped.
     **Default:** `false`.
@@ -1585,6 +1717,8 @@ added:
   aborted.
 
 [TAP]: https://testanything.org/
+[`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
+[`--import`]: cli.md#--importmodule
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination
@@ -1593,6 +1727,7 @@ added:
 [`MockFunctionContext`]: #class-mockfunctioncontext
 [`MockTracker.method`]: #mockmethodobject-methodname-implementation-options
 [`MockTracker`]: #class-mocktracker
+[`NODE_V8_COVERAGE`]: cli.md#node_v8_coveragedir
 [`SuiteContext`]: #class-suitecontext
 [`TestContext`]: #class-testcontext
 [`context.diagnostic`]: #contextdiagnosticmessage
@@ -1603,4 +1738,5 @@ added:
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [stream.compose]: stream.md#streamcomposestreams
+[test reporters]: #test-reporters
 [test runner execution model]: #test-runner-execution-model

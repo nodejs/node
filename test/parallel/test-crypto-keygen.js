@@ -1200,6 +1200,17 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       code: 'ERR_OUT_OF_RANGE',
     });
   }
+
+  // Test invalid exponents. (caught by OpenSSL)
+  for (const publicExponent of [1, 1 + 0x10001]) {
+    generateKeyPair('rsa', {
+      modulusLength: 4096,
+      publicExponent
+    }, common.mustCall((err) => {
+      assert.strictEqual(err.name, 'Error');
+      assert.match(err.message, common.hasOpenSSL3 ? /exponent/ : /bad e value/);
+    }));
+  }
 }
 
 // Test DSA parameters.
@@ -1816,4 +1827,32 @@ generateKeyPair('rsa', {
     hash: 'sha256',
     hashAlgorithm: 'sha1'
   }, common.mustNotCall()), { code: 'ERR_INVALID_ARG_VALUE' });
+}
+
+{
+  // https://github.com/nodejs/node/issues/46102#issuecomment-1372153541
+
+  generateKeyPair('rsa', {
+    modulusLength: 513,
+  }, common.mustSucceed((publicKey, privateKey) => {
+    assert.strictEqual(privateKey.asymmetricKeyDetails.modulusLength, 513);
+    assert.strictEqual(publicKey.asymmetricKeyDetails.modulusLength, 513);
+  }));
+
+  generateKeyPair('rsa-pss', {
+    modulusLength: 513,
+  }, common.mustSucceed((publicKey, privateKey) => {
+    assert.strictEqual(privateKey.asymmetricKeyDetails.modulusLength, 513);
+    assert.strictEqual(publicKey.asymmetricKeyDetails.modulusLength, 513);
+  }));
+
+  if (common.hasOpenSSL3) {
+    generateKeyPair('dsa', {
+      modulusLength: 2049,
+      divisorLength: 256,
+    }, common.mustSucceed((publicKey, privateKey) => {
+      assert.strictEqual(privateKey.asymmetricKeyDetails.modulusLength, 2049);
+      assert.strictEqual(publicKey.asymmetricKeyDetails.modulusLength, 2049);
+    }));
+  }
 }

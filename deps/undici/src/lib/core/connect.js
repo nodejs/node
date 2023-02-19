@@ -120,6 +120,12 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
       })
     }
 
+    // Set TCP keep alive options on the socket here instead of in connect() for the case of assigning the socket
+    if (options.keepAlive == null || options.keepAlive) {
+      const keepAliveInitialDelay = options.keepAliveInitialDelay === undefined ? 60e3 : options.keepAliveInitialDelay
+      socket.setKeepAlive(true, keepAliveInitialDelay)
+    }
+
     const cancelTimeout = setupTimeout(() => onConnectTimeout(socket), timeout)
 
     socket

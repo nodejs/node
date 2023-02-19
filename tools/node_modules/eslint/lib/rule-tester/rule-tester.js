@@ -314,7 +314,7 @@ function emitLegacyRuleAPIWarning(ruleName) {
     if (!emitLegacyRuleAPIWarning[`warned-${ruleName}`]) {
         emitLegacyRuleAPIWarning[`warned-${ruleName}`] = true;
         process.emitWarning(
-            `"${ruleName}" rule is using the deprecated function-style format and will stop working in ESLint v9. Please use object-style format: https://eslint.org/docs/developer-guide/working-with-rules`,
+            `"${ruleName}" rule is using the deprecated function-style format and will stop working in ESLint v9. Please use object-style format: https://eslint.org/docs/latest/extend/custom-rules`,
             "DeprecationWarning"
         );
     }
@@ -329,7 +329,7 @@ function emitMissingSchemaWarning(ruleName) {
     if (!emitMissingSchemaWarning[`warned-${ruleName}`]) {
         emitMissingSchemaWarning[`warned-${ruleName}`] = true;
         process.emitWarning(
-            `"${ruleName}" rule has options but is missing the "meta.schema" property and will stop working in ESLint v9. Please add a schema: https://eslint.org/docs/developer-guide/working-with-rules#options-schemas`,
+            `"${ruleName}" rule has options but is missing the "meta.schema" property and will stop working in ESLint v9. Please add a schema: https://eslint.org/docs/latest/extend/custom-rules#options-schemas`,
             "DeprecationWarning"
         );
     }
@@ -493,7 +493,7 @@ class RuleTester {
         if (typeof this[DESCRIBE] === "function" || typeof this[IT] === "function") {
             throw new Error(
                 "Set `RuleTester.itOnly` to use `only` with a custom test framework.\n" +
-                "See https://eslint.org/docs/developer-guide/nodejs-api#customizing-ruletester for more."
+                "See https://eslint.org/docs/latest/integrate/nodejs-api#customizing-ruletester for more."
             );
         }
         if (typeof it === "function") {
@@ -632,14 +632,18 @@ class RuleTester {
              * The goal is to check whether or not AST was modified when
              * running the rule under test.
              */
-            linter.defineRule("rule-tester/validate-ast", () => ({
-                Program(node) {
-                    beforeAST = cloneDeeplyExcludesParent(node);
-                },
-                "Program:exit"(node) {
-                    afterAST = node;
+            linter.defineRule("rule-tester/validate-ast", {
+                create() {
+                    return {
+                        Program(node) {
+                            beforeAST = cloneDeeplyExcludesParent(node);
+                        },
+                        "Program:exit"(node) {
+                            afterAST = node;
+                        }
+                    };
                 }
-            }));
+            });
 
             if (typeof config.parser === "string") {
                 assert(path.isAbsolute(config.parser), "Parsers provided as strings to RuleTester must be absolute paths");

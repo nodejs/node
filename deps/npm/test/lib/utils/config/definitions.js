@@ -1,14 +1,15 @@
 const t = require('tap')
 const { resolve } = require('path')
 const mockGlobals = require('../../../fixtures/mock-globals')
+const tmock = require('../../../fixtures/tmock')
 const pkg = require('../../../../package.json')
 
 // have to fake the node version, or else it'll only pass on this one
 mockGlobals(t, { 'process.version': 'v14.8.0', 'process.env.NODE_ENV': undefined })
 
-const mockDefs = (mocks = {}) => t.mock('../../../../lib/utils/config/definitions.js', mocks)
+const mockDefs = (mocks = {}) => tmock(t, '{LIB}/utils/config/definitions.js', mocks)
 
-const isWin = (isWindows) => ({ '../../../../lib/utils/is-windows.js': { isWindows } })
+const isWin = (isWindows) => ({ '{LIB}/utils/is-windows.js': { isWindows } })
 
 t.test('basic flattening function camelCases from css-case', t => {
   const flat = {}
@@ -928,5 +929,14 @@ t.test('remap global-style', t => {
   const flat = {}
   mockDefs()['global-style'].flatten('global-style', obj, flat)
   t.strictSame(flat, { installStrategy: 'shallow' })
+  t.end()
+})
+
+t.test('otp changes auth-type', t => {
+  const obj = { 'auth-type': 'web', otp: 123456 }
+  const flat = {}
+  mockDefs().otp.flatten('otp', obj, flat)
+  t.strictSame(flat, { authType: 'legacy', otp: 123456 })
+  t.strictSame(obj, { 'auth-type': 'legacy', otp: 123456 })
   t.end()
 })

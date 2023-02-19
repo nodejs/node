@@ -126,7 +126,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   });
 
   // Constructor throws if historySize is not a positive number
-  ['not a number', -1, NaN, {}, true, Symbol(), null].forEach((historySize) => {
+  [-1, NaN].forEach((historySize) => {
     assert.throws(() => {
       readline.createInterface({
         input,
@@ -134,7 +134,20 @@ function assertCursorRowsAndCols(rli, rows, cols) {
       });
     }, {
       name: 'RangeError',
-      code: 'ERR_INVALID_ARG_VALUE'
+      code: 'ERR_OUT_OF_RANGE',
+    });
+  });
+
+  // Constructor throws if type of historySize is not a number
+  ['not a number', {}, true, Symbol(), null].forEach((historySize) => {
+    assert.throws(() => {
+      readline.createInterface({
+        input,
+        historySize,
+      });
+    }, {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_TYPE',
     });
   });
 
