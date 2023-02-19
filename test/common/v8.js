@@ -2,20 +2,34 @@
 const assert = require('assert');
 const { GCProfiler } = require('v8');
 
-function collectGCProfile({ duration }) {
+function collectGCProfile({ duration, mode, format }) {
   return new Promise((resolve) => {
-    const profiler = new GCProfiler();
+    const profiler = new GCProfiler({
+      mode,
+    });
     profiler.start();
     setTimeout(() => {
-      resolve(profiler.stop());
+      resolve(profiler.stop(format));
     }, duration);
   });
 }
 
-function checkGCProfile(data) {
+function checkGCProfile(data, options) {
+  if (options?.format === GCProfiler.GC_PROFILER_FORMAT.NONE) {
+    assert.ok(data === undefined);
+    return;
+  }
+  if (options?.format === GCProfiler.GC_PROFILER_FORMAT.STRING) {
+    data = JSON.parse(data);
+  }
   assert.ok(data.version > 0);
   assert.ok(data.startTime >= 0);
   assert.ok(data.endTime >= 0);
+  assert.ok(data.totalGCTime >= 0);
+  if (options?.mode === GCProfiler.GC_PROFILER_MODE.TIME) {
+    assert.ok(data.statistics === undefined);
+    return;
+  }
   assert.ok(Array.isArray(data.statistics));
   // If the array is not empty, check it
   if (data.statistics.length) {
@@ -58,13 +72,21 @@ function checkGCProfile(data) {
   }
 }
 
-async function testGCProfiler() {
-  const data = await collectGCProfile({ duration: 5000 });
-  checkGCProfile(data);
+async function testGCProfiler(options) {
+  const data = await collectGCProfile({ duration: 5000, ...options });
+  checkGCProfile(data, options);
+}
+
+function emitGC() {
+  for (let i = 0; i < 100; i++) {
+    new Array(100);
+  }
+  global?.gc();
 }
 
 module.exports = {
   collectGCProfile,
   checkGCProfile,
   testGCProfiler,
+  emitGC,
 };

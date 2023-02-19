@@ -39,11 +39,18 @@ class BindingData : public SnapshotableObject {
 class GCProfiler : public BaseObject {
  public:
   enum class GCProfilerState { kInitialized, kStarted, kStopped };
-  GCProfiler(Environment* env, v8::Local<v8::Object> object);
+  enum class GCProfilerMode { TIME, ALL };
+  enum class GCProfilerFormat { NONE, OBJECT, STRING };
+  GCProfiler(Environment* env,
+             v8::Local<v8::Object> object,
+             GCProfilerMode profile_mode);
   inline ~GCProfiler() override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetTotalGCTime(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  bool is_collect_all();
 
   JSONWriter* writer();
 
@@ -53,7 +60,9 @@ class GCProfiler : public BaseObject {
   SET_MEMORY_INFO_NAME(GCProfiler)
   SET_SELF_SIZE(GCProfiler)
 
+  GCProfilerMode mode;
   uint64_t start_time;
+  uint64_t gc_time;
   uint8_t current_gc_type;
   GCProfilerState state;
 

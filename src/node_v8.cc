@@ -277,14 +277,16 @@ static void BeforeGCCallback(Isolate* isolate,
   if (profiler->current_gc_type != 0) {
     return;
   }
-  JSONWriter* writer = profiler->writer();
-  writer->json_start();
-  writer->json_keyvalue("gcType", GetGCTypeName(gc_type));
-  writer->json_objectstart("beforeGC");
-  SetHeapStatistics(writer, isolate);
-  writer->json_objectend();
   profiler->current_gc_type = gc_type;
   profiler->start_time = uv_hrtime();
+  if (profiler->is_collect_all()) {
+    JSONWriter* writer = profiler->writer();
+    writer->json_start();
+    writer->json_keyvalue("gcType", GetGCTypeName(gc_type));
+    writer->json_objectstart("beforeGC");
+    SetHeapStatistics(writer, isolate);
+    writer->json_objectend();
+  }
 }
 
 static void AfterGCCallback(Isolate* isolate,
@@ -295,22 +297,30 @@ static void AfterGCCallback(Isolate* isolate,
   if (profiler->current_gc_type != gc_type) {
     return;
   }
-  JSONWriter* writer = profiler->writer();
   profiler->current_gc_type = 0;
-  writer->json_keyvalue("cost", (uv_hrtime() - profiler->start_time) / 1e3);
+  uint64_t cost = (uv_hrtime() - profiler->start_time) / 1e6;
+  profiler->gc_time += cost;
   profiler->start_time = 0;
-  writer->json_objectstart("afterGC");
-  SetHeapStatistics(writer, isolate);
-  writer->json_objectend();
-  writer->json_end();
+  if (profiler->is_collect_all()) {
+    JSONWriter* writer = profiler->writer();
+    writer->json_keyvalue("cost", cost);
+    writer->json_objectstart("afterGC");
+    SetHeapStatistics(writer, isolate);
+    writer->json_objectend();
+    writer->json_end();
+  }
 }
 
-GCProfiler::GCProfiler(Environment* env, Local<Object> object)
+GCProfiler::GCProfiler(Environment* env,
+                       Local<Object> object,
+                       GCProfilerMode profile_mode)
     : BaseObject(env, object),
+      mode(profile_mode),
       start_time(0),
+      gc_time(0),
       current_gc_type(0),
       state(GCProfilerState::kInitialized),
-      writer_(out_stream_, false) {
+      writer_(out_stream_, true) {
   MakeWeak();
 }
 
@@ -334,10 +344,17 @@ std::ostringstream* GCProfiler::out_stream() {
   return &out_stream_;
 }
 
+bool GCProfiler::is_collect_all() {
+  return mode == GCProfilerMode::ALL;
+}
+
 void GCProfiler::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
+  CHECK(args[0]->IsUint32());
   Environment* env = Environment::GetCurrent(args);
-  new GCProfiler(env, args.This());
+  GCProfilerMode mode =
+      static_cast<GCProfilerMode>(args[0].As<Uint32>()->Value());
+  new GCProfiler(env, args.This(), mode);
 }
 
 void GCProfiler::Start(const FunctionCallbackInfo<Value>& args) {
@@ -348,7 +365,8 @@ void GCProfiler::Start(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   profiler->writer()->json_start();
-  profiler->writer()->json_keyvalue("version", 1);
+  // Version 2: add totalGCTime and change the unit of `cost` to millisecond
+  profiler->writer()->json_keyvalue("version", 2);
 
   uv_timeval64_t ts;
   if (uv_gettimeofday(&ts) == 0) {
@@ -357,22 +375,34 @@ void GCProfiler::Start(const FunctionCallbackInfo<Value>& args) {
   } else {
     profiler->writer()->json_keyvalue("startTime", 0);
   }
-  profiler->writer()->json_arraystart("statistics");
   env->isolate()->AddGCPrologueCallback(BeforeGCCallback,
                                         static_cast<void*>(profiler));
   env->isolate()->AddGCEpilogueCallback(AfterGCCallback,
                                         static_cast<void*>(profiler));
   profiler->state = GCProfiler::GCProfilerState::kStarted;
+  if (profiler->is_collect_all()) {
+    profiler->writer()->json_arraystart("statistics");
+  }
 }
 
 void GCProfiler::Stop(const FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(args[0]->IsUint32());
+  GCProfilerFormat format =
+      static_cast<GCProfilerFormat>(args[0].As<Uint32>()->Value());
   Environment* env = Environment::GetCurrent(args);
   GCProfiler* profiler;
   ASSIGN_OR_RETURN_UNWRAP(&profiler, args.Holder());
   if (profiler->state != GCProfiler::GCProfilerState::kStarted) {
     return;
   }
-  profiler->writer()->json_arrayend();
+  profiler->state = GCProfiler::GCProfilerState::kStopped;
+  if (format == GCProfilerFormat::NONE) {
+    return;
+  }
+  if (profiler->is_collect_all()) {
+    profiler->writer()->json_arrayend();
+  }
+
   uv_timeval64_t ts;
   if (uv_gettimeofday(&ts) == 0) {
     profiler->writer()->json_keyvalue("endTime",
@@ -380,14 +410,36 @@ void GCProfiler::Stop(const FunctionCallbackInfo<v8::Value>& args) {
   } else {
     profiler->writer()->json_keyvalue("endTime", 0);
   }
+
+  profiler->writer()->json_keyvalue("totalGCTime",
+                                    static_cast<double>(profiler->gc_time));
   profiler->writer()->json_end();
-  profiler->state = GCProfiler::GCProfilerState::kStopped;
   auto string = profiler->out_stream()->str();
-  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
-                                                string.data(),
-                                                v8::NewStringType::kNormal,
-                                                string.size())
-                                .ToLocalChecked());
+  Local<String> data = String::NewFromUtf8(env->isolate(),
+                                           string.data(),
+                                           v8::NewStringType::kNormal,
+                                           string.size())
+                           .ToLocalChecked();
+  if (format == GCProfilerFormat::STRING) {
+    args.GetReturnValue().Set(data);
+  } else {
+    Local<Value> object;
+    if (!v8::JSON::Parse(env->context(), data).ToLocal(&object) ||
+        !object->IsObject()) {
+      env->ThrowError("Failed to parse profile result as JSON object");
+    } else {
+      args.GetReturnValue().Set(object.As<Object>());
+    }
+  }
+}
+
+void GCProfiler::GetTotalGCTime(const FunctionCallbackInfo<v8::Value>& args) {
+  GCProfiler* profiler;
+  ASSIGN_OR_RETURN_UNWRAP(&profiler, args.Holder());
+  if (profiler->state != GCProfiler::GCProfilerState::kStarted) {
+    return;
+  }
+  args.GetReturnValue().Set(static_cast<double>(profiler->gc_time));
 }
 
 void Initialize(Local<Object> target,
@@ -460,6 +512,36 @@ void Initialize(Local<Object> target,
   t->InstanceTemplate()->SetInternalFieldCount(BaseObject::kInternalFieldCount);
   SetProtoMethod(env->isolate(), t, "start", GCProfiler::Start);
   SetProtoMethod(env->isolate(), t, "stop", GCProfiler::Stop);
+  SetProtoMethod(
+      env->isolate(), t, "getTotalGCTime", GCProfiler::GetTotalGCTime);
+
+  Local<Object> gc_profiler_mode = Object::New(env->isolate());
+  GCProfiler::GCProfilerMode TIME = GCProfiler::GCProfilerMode::TIME;
+  GCProfiler::GCProfilerMode ALL = GCProfiler::GCProfilerMode::ALL;
+  NODE_DEFINE_CONSTANT(gc_profiler_mode, TIME);
+  NODE_DEFINE_CONSTANT(gc_profiler_mode, ALL);
+  Local<String> gc_profiler_mode_constant_name =
+      String::NewFromUtf8(
+          env->isolate(), "GC_PROFILER_MODE", v8::NewStringType::kInternalized)
+          .ToLocalChecked();
+  target->Set(context, gc_profiler_mode_constant_name, gc_profiler_mode)
+      .Check();
+
+  Local<Object> gc_profiler_format = Object::New(env->isolate());
+  GCProfiler::GCProfilerFormat NONE = GCProfiler::GCProfilerFormat::NONE;
+  GCProfiler::GCProfilerFormat OBJECT = GCProfiler::GCProfilerFormat::OBJECT;
+  GCProfiler::GCProfilerFormat STRING = GCProfiler::GCProfilerFormat::STRING;
+  NODE_DEFINE_CONSTANT(gc_profiler_format, NONE);
+  NODE_DEFINE_CONSTANT(gc_profiler_format, OBJECT);
+  NODE_DEFINE_CONSTANT(gc_profiler_format, STRING);
+  Local<String> gc_profiler_format_constant_name =
+      String::NewFromUtf8(env->isolate(),
+                          "GC_PROFILER_FORMAT",
+                          v8::NewStringType::kInternalized)
+          .ToLocalChecked();
+  target->Set(context, gc_profiler_format_constant_name, gc_profiler_format)
+      .Check();
+
   SetConstructorFunction(context, target, "GCProfiler", t);
 }
 
@@ -473,6 +555,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GCProfiler::New);
   registry->Register(GCProfiler::Start);
   registry->Register(GCProfiler::Stop);
+  registry->Register(GCProfiler::GetTotalGCTime);
 }
 
 }  // namespace v8_utils
