@@ -8,9 +8,6 @@ if (!common.hasCrypto) {
   require('assert').fail('missing crypto');
   common.skip('missing crypto');
 }
-  // Change require('assert').fail to common.skip when issue is fixed and test
-  // is moved out of the known_issues directory
-  require('assert').fail('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
 
