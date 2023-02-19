@@ -705,6 +705,9 @@ added: v18.9.0
     **Default:** `false`.
   * `files`: {Array} An array containing the list of files to run.
     **Default** matching files from [test runner execution model][].
+  * `setup` {Function} A function that accepts the `TestsStream` instance
+    and can be used to setup listeners before any tests are run.
+    **Default:** `undefined`.
   * `signal` {AbortSignal} Allows aborting an in-progress test execution.
   * `timeout` {number} A number of milliseconds the test execution will
     fail after.
