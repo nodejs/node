@@ -1991,7 +1991,7 @@ channel.port2.postMessage(signal, [signal]);
 ## `util.aborted(signal, resource)`
 
 <!-- YAML
-added: REPLACEME
+added: v19.7.0
 -->
 
 > Stability: 1 - Experimental

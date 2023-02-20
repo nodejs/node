@@ -123,7 +123,7 @@ added:
  - v13.10.0
  - v12.17.0
 changes:
- - version: REPLACEME
+ - version: v19.7.0
    pr-url: https://github.com/nodejs/node/pull/46386
    description: Removed experimental onPropagate option.
  - version:
