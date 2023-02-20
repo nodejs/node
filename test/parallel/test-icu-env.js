@@ -122,7 +122,7 @@ if (isMockable) {
   assert.deepStrictEqual(
     locales.map((LANG) => runEnvOutside({ LANG, TZ: 'Europe/Zurich' }, 'new Date(333333333333).toLocaleString()')),
     [
-      '7/25/1980, 1:35:33 AM',
+      '7/25/1980, 1:35:33 AM',
       '1980/7/25 01:35:33',
       '25/7/1980, 1:35:33 am',
       '25/7/1980, 1:35:33',
