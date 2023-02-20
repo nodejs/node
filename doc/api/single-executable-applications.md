@@ -1,6 +1,6 @@
 # Single executable applications
 
-<!--introduced_in=REPLACEME-->
+<!--introduced_in=v19.7.0-->
 
 > Stability: 1 - Experimental: This feature is being designed and will change.
 

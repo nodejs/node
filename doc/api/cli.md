@@ -437,7 +437,7 @@ Use this flag to enable [ShadowRealm][] support.
 ### `--experimental-test-coverage`
 
 <!-- YAML
-added: REPLACEME
+added: v19.7.0
 -->
 
 When used in conjunction with the `node:test` module, a code coverage report is
