@@ -77,8 +77,8 @@ function test(keylen, expectedCipher, cb) {
       out += d;
     });
     client.stdout.on('end', function() {
-      // DHE key length can be checked -brief option in s_client but it
-      // is only supported in openssl 1.0.2 so we cannot check it.
+      assert(keylen === 'error' ||
+             out.includes(`Server Temp Key: DH, ${keylen} bits`));
       const reg = new RegExp(`Cipher    : ${expectedCipher}`);
       if (reg.test(out)) {
         nsuccess++;
