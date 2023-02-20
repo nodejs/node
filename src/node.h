@@ -317,8 +317,8 @@ NODE_EXTERN int Start(int argc, char* argv[]);
 
 // Tear down Node.js while it is running (there are active handles
 // in the loop and / or actively executing JavaScript code).
-NODE_EXTERN int Stop(Environment* env);
-NODE_EXTERN int Stop(Environment* env, StopFlags::Flags flags);
+NODE_EXTERN int Stop(Environment* env,
+                     StopFlags::Flags flags = StopFlags::kNoFlags);
 
 // Set up per-process state needed to run Node.js. This will consume arguments
 // from argv, fill exec_argv, and possibly add errors resulting from parsing
@@ -463,7 +463,7 @@ enum IsolateSettingsFlags {
   DETAILED_SOURCE_POSITIONS_FOR_PROFILING = 1 << 1,
   SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK = 1 << 2,
   SHOULD_NOT_SET_PREPARE_STACK_TRACE_CALLBACK = 1 << 3,
-  ALLOW_MODIFY_CODE_GENERATION_FROM_STRINGS_CALLBACK = 1 << 4,
+  ALLOW_MODIFY_CODE_GENERATION_FROM_STRINGS_CALLBACK = 0, /* legacy no-op */
 };
 
 struct IsolateSettings {
@@ -565,25 +565,17 @@ NODE_EXTERN void SetIsolateUpForNode(v8::Isolate* isolate);
 // This is a convenience method equivalent to using SetIsolateCreateParams(),
 // Isolate::Allocate(), MultiIsolatePlatform::RegisterIsolate(),
 // Isolate::Initialize(), and SetIsolateUpForNode().
-NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator,
-                                    struct uv_loop_s* event_loop,
-                                    MultiIsolatePlatform* platform = nullptr);
-// TODO(addaleax): Merge with the function definition above.
-NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator,
-                                    struct uv_loop_s* event_loop,
-                                    MultiIsolatePlatform* platform,
-                                    const EmbedderSnapshotData* snapshot_data,
-                                    const IsolateSettings& settings = {});
 NODE_EXTERN v8::Isolate* NewIsolate(
-    std::shared_ptr<ArrayBufferAllocator> allocator,
+    ArrayBufferAllocator* allocator,
     struct uv_loop_s* event_loop,
-    MultiIsolatePlatform* platform);
-// TODO(addaleax): Merge with the function definition above.
+    MultiIsolatePlatform* platform,
+    const EmbedderSnapshotData* snapshot_data = nullptr,
+    const IsolateSettings& settings = {});
 NODE_EXTERN v8::Isolate* NewIsolate(
     std::shared_ptr<ArrayBufferAllocator> allocator,
     struct uv_loop_s* event_loop,
     MultiIsolatePlatform* platform,
-    const EmbedderSnapshotData* snapshot_data,
+    const EmbedderSnapshotData* snapshot_data = nullptr,
     const IsolateSettings& settings = {});
 
 // Creates a new context with Node.js-specific tweaks.
@@ -603,14 +595,8 @@ NODE_EXTERN IsolateData* CreateIsolateData(
     v8::Isolate* isolate,
     struct uv_loop_s* loop,
     MultiIsolatePlatform* platform = nullptr,
-    ArrayBufferAllocator* allocator = nullptr);
-// TODO(addaleax): Merge with the function definition above.
-NODE_EXTERN IsolateData* CreateIsolateData(
-    v8::Isolate* isolate,
-    struct uv_loop_s* loop,
-    MultiIsolatePlatform* platform,
-    ArrayBufferAllocator* allocator,
-    const EmbedderSnapshotData* snapshot_data);
+    ArrayBufferAllocator* allocator = nullptr,
+    const EmbedderSnapshotData* snapshot_data = nullptr);
 NODE_EXTERN void FreeIsolateData(IsolateData* isolate_data);
 
 struct ThreadId {

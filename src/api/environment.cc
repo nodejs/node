@@ -269,8 +269,7 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
 
   auto* modify_code_generation_from_strings_callback =
       ModifyCodeGenerationFromStrings;
-  if (s.flags & ALLOW_MODIFY_CODE_GENERATION_FROM_STRINGS_CALLBACK &&
-      s.modify_code_generation_from_strings_callback) {
+  if (s.modify_code_generation_from_strings_callback != nullptr) {
     modify_code_generation_from_strings_callback =
         s.modify_code_generation_from_strings_callback;
   }
@@ -382,18 +381,6 @@ Isolate* NewIsolate(std::shared_ptr<ArrayBufferAllocator> allocator,
                     settings);
 }
 
-Isolate* NewIsolate(ArrayBufferAllocator* allocator,
-                    uv_loop_t* event_loop,
-                    MultiIsolatePlatform* platform) {
-  return NewIsolate(allocator, event_loop, platform, nullptr);
-}
-
-Isolate* NewIsolate(std::shared_ptr<ArrayBufferAllocator> allocator,
-                    uv_loop_t* event_loop,
-                    MultiIsolatePlatform* platform) {
-  return NewIsolate(allocator, event_loop, platform, nullptr);
-}
-
 IsolateData* CreateIsolateData(
     Isolate* isolate,
     uv_loop_t* loop,
@@ -403,13 +390,6 @@ IsolateData* CreateIsolateData(
   const SnapshotData* snapshot_data =
       SnapshotData::FromEmbedderWrapper(embedder_snapshot_data);
   return new IsolateData(isolate, loop, platform, allocator, snapshot_data);
-}
-
-IsolateData* CreateIsolateData(Isolate* isolate,
-                               uv_loop_t* loop,
-                               MultiIsolatePlatform* platform,
-                               ArrayBufferAllocator* allocator) {
-  return CreateIsolateData(isolate, loop, platform, allocator, nullptr);
 }
 
 void FreeIsolateData(IsolateData* isolate_data) {
