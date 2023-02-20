@@ -9,7 +9,7 @@
           '_GNU_SOURCE'
         ]
       }],
-      [ 'OS=="aix"', {
+      [ 'OS in "aix os400"', {
         'include_dirs': [ 'config/aix' ],
         'sources': [ 'config/aix/ares_config.h' ],
         'defines': [

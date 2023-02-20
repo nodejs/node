@@ -326,6 +326,21 @@
             }],
           ]
         }],
+        [ 'OS=="os400"', {
+          'sources': [
+            'src/unix/aix-common.c',
+            'src/unix/ibmi.c',
+            'src/unix/posix-poll.c',
+            'src/unix/no-fsevents.c',
+            'src/unix/no-proctitle.c',
+          ],
+          'defines': [
+            '_ALL_SOURCE',
+            '_XOPEN_SOURCE=500',
+            '_LINUX_SOURCE_COMPAT',
+            '_THREAD_SAFE',
+          ],
+        }],
         [ 'OS=="freebsd" or OS=="dragonflybsd"', {
           'sources': [ 'src/unix/freebsd.c' ],
         }],
