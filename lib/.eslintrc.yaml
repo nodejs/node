@@ -273,6 +273,7 @@ overrides:
       - ./internal/assert.js
       - ./internal/child_process/*.js
       - ./internal/cli_table.js
+      - ./internal/cluster/*.js
       - ./internal/debugger/inspect.js
       - ./internal/events/*.js
       - ./internal/fixed_queue.js
