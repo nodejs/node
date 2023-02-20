@@ -420,8 +420,10 @@ static void ReportFatalException(Environment* env,
       // Not an error object. Just print as-is.
       node::Utf8Value message(env->isolate(), error);
 
-      FPrintF(stderr, "%s\n",
-              *message ? message.ToString() : "<toString() threw exception>");
+      FPrintF(
+          stderr,
+          "%s\n",
+          *message ? message.ToStringView() : "<toString() threw exception>");
     } else {
       node::Utf8Value name_string(env->isolate(), name.ToLocalChecked());
       node::Utf8Value message_string(env->isolate(), message.ToLocalChecked());
