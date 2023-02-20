@@ -437,6 +437,9 @@
 
   # noi18n is required for Intl
   'regress/regress-crbug-1052647': [PASS,FAIL],
+
+  # Tests ICU-specific behavior.
+  'regress/regress-crbug-1414292': [SKIP],
 }],  # 'no_i18n'
 
 ##############################################################################

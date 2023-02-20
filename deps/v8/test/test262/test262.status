@@ -659,6 +659,10 @@
   'language/expressions/assignmenttargettype/direct-callexpression-arguments': [FAIL],
   'language/expressions/assignmenttargettype/parenthesized-callexpression-arguments': [FAIL],
 
+  # We replace U+202F (narrow-width space) with U+0020 (regular space).
+  # https://crbug.com/1414292
+  'intl402/DateTimeFormat/prototype/format/timedatestyle-en': [FAIL],
+
   ############################ INVALID TESTS #############################
 
   # Test makes unjustified assumptions about the number of calls to SortCompare.
