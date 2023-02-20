@@ -653,7 +653,7 @@ added: v3.2.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/46523
-    description: Added the listener argument.
+    description: Added the `listener` argument.
 -->
 
 * `eventName` {string|symbol} The name of the event being listened for
