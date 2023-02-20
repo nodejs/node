@@ -400,11 +400,10 @@ static void PrintJavaScriptErrorProperties(JSONWriter* writer,
           !value->ToString(context).ToLocal(&value_string)) {
         continue;
       }
-      String::Utf8Value k(isolate, key);
+      node::Utf8Value k(isolate, key);
       if (!strcmp(*k, "stack") || !strcmp(*k, "message")) continue;
-      String::Utf8Value v(isolate, value_string);
-      writer->json_keyvalue(std::string(*k, k.length()),
-                            std::string(*v, v.length()));
+      node::Utf8Value v(isolate, value_string);
+      writer->json_keyvalue(k.ToStringView(), v.ToStringView());
     }
   }
   writer->json_objectend();  // the end of 'errorProperties'
@@ -631,27 +630,26 @@ static void PrintResourceUsage(JSONWriter* writer) {
   uint64_t free_memory = uv_get_free_memory();
   uint64_t total_memory = uv_get_total_memory();
 
-  writer->json_keyvalue("free_memory", std::to_string(free_memory));
-  writer->json_keyvalue("total_memory", std::to_string(total_memory));
+  writer->json_keyvalue("free_memory", free_memory);
+  writer->json_keyvalue("total_memory", total_memory);
 
   size_t rss;
   int err = uv_resident_set_memory(&rss);
   if (!err) {
-    writer->json_keyvalue("rss", std::to_string(rss));
+    writer->json_keyvalue("rss", rss);
   }
 
   uint64_t constrained_memory = uv_get_constrained_memory();
   if (constrained_memory) {
-    writer->json_keyvalue("constrained_memory",
-                          std::to_string(constrained_memory));
+    writer->json_keyvalue("constrained_memory", constrained_memory);
   }
 
   // See GuessMemoryAvailableToTheProcess
   if (!err && constrained_memory && constrained_memory >= rss) {
     uint64_t available_memory = constrained_memory - rss;
-    writer->json_keyvalue("available_memory", std::to_string(available_memory));
+    writer->json_keyvalue("available_memory", available_memory);
   } else {
-    writer->json_keyvalue("available_memory", std::to_string(free_memory));
+    writer->json_keyvalue("available_memory", free_memory);
   }
 
   if (uv_getrusage(&rusage) == 0) {
@@ -668,7 +666,7 @@ static void PrintResourceUsage(JSONWriter* writer) {
     writer->json_keyvalue("cpuConsumptionPercent", cpu_percentage);
     writer->json_keyvalue("userCpuConsumptionPercent", user_cpu_percentage);
     writer->json_keyvalue("kernelCpuConsumptionPercent", kernel_cpu_percentage);
-    writer->json_keyvalue("maxRss", std::to_string(rusage.ru_maxrss * 1024));
+    writer->json_keyvalue("maxRss", rusage.ru_maxrss * 1024);
     writer->json_objectstart("pageFaults");
     writer->json_keyvalue("IORequired", rusage.ru_majflt);
     writer->json_keyvalue("IONotRequired", rusage.ru_minflt);
@@ -795,13 +793,15 @@ static void PrintComponentVersions(JSONWriter* writer) {
   writer->json_objectstart("componentVersions");
 
 #define V(key) +1
-  std::pair<std::string, std::string> versions_array[NODE_VERSIONS_KEYS(V)];
+  std::pair<std::string_view, std::string_view>
+      versions_array[NODE_VERSIONS_KEYS(V)];
 #undef V
   auto* slot = &versions_array[0];
 
 #define V(key)                                                                 \
   do {                                                                         \
-    *slot++ = std::make_pair(#key, per_process::metadata.versions.key);        \
+    *slot++ = std::pair<std::string_view, std::string_view>(                   \
+        #key, per_process::metadata.versions.key);                             \
   } while (0);
   NODE_VERSIONS_KEYS(V)
 #undef V
