@@ -464,6 +464,9 @@
 
   # Non-BMP characters currently aren't considered identifiers in no_i18n
   'harmony/private-name-surrogate-pair': [PASS,FAIL],
+
+  # Tests ICU-specific behavior.
+  'regress/regress-crbug-1414292': [SKIP],
 }],  # 'no_i18n'
 
 ##############################################################################
