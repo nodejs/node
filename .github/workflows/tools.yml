@@ -23,8 +23,7 @@ jobs:
             run: |
               ./tools/dep_updaters/update-eslint.sh > temp-output
               cat temp-output
-              MAYBE_VERSION=$(tail -n1 temp-output)
-              if grep -q "NEW_VERSION" <<< "$MAYBE_VERSION"; then $MAYBE_VERSION >> $GITHUB_ENV; fi
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV"
               rm temp-output
           - id: corepack
             subsystem: deps
@@ -82,8 +81,7 @@ jobs:
             run: |
               ./tools/dep_updaters/update-postject.sh > temp-output
               cat temp-output
-              MAYBE_VERSION=$(tail -n1 temp-output)
-              if grep -q "NEW_VERSION" <<< "$MAYBE_VERSION"; then $MAYBE_VERSION >> $GITHUB_ENV; fi
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV"
               rm temp-output
           - id: base64
             subsystem: deps
