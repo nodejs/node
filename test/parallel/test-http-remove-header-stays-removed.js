@@ -37,8 +37,6 @@ const server = http.createServer(function(request, response) {
   response.setHeader('date', 'coffee o clock');
 
   response.end('beep boop\n');
-
-  this.close();
 });
 
 let response = '';
@@ -57,5 +55,12 @@ server.listen(0, function() {
     res.on('data', function(chunk) {
       response += chunk;
     });
+
+    setTimeout(function() {
+      // The socket should be closed immediately, with no keep-alive, because
+      // no content-length or transfer-encoding are used:
+      assert.strictEqual(res.socket.closed, true);
+      server.close();
+    }, 10);
   });
 });
