@@ -3373,7 +3373,7 @@ In a future version of Node.js, [`message.headers`][],
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`domain`]: domain.md
 [`ecdh.setPublicKey()`]: crypto.md#ecdhsetpublickeypublickey-encoding
-[`emitter.listenerCount(eventName)`]: events.md#emitterlistenercounteventname
+[`emitter.listenerCount(eventName)`]: events.md#emitterlistenercounteventname-listener
 [`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitter-eventname
 [`fs.FileHandle`]: fs.md#class-filehandle
 [`fs.access()`]: fs.md#fsaccesspath-mode-callback
