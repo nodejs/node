@@ -1304,11 +1304,10 @@ int SnapshotBuilder::Generate(std::ostream& out,
   return exit_code;
 }
 
-SnapshotableObject::SnapshotableObject(Environment* env,
+SnapshotableObject::SnapshotableObject(Realm* realm,
                                        Local<Object> wrap,
                                        EmbedderObjectType type)
-    : BaseObject(env, wrap), type_(type) {
-}
+    : BaseObject(realm, wrap), type_(type) {}
 
 std::string_view SnapshotableObject::GetTypeName() const {
   switch (type_) {
