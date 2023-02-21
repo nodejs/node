@@ -42,8 +42,8 @@ const origPrepareStackTrace = Error.prepareStackTrace;
 Error.prepareStackTrace = (err, stack) => {
   if (err instanceof SyntaxError)
     return err.toString();
-  stack.push(err);
-  return stack.reverse().join('--->\n');
+  stack.unshift(err);
+  return stack.join('--->\n');
 };
 
 process.on('uncaughtException', (e) => {
