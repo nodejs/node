@@ -476,8 +476,9 @@ v8::CFunction BindingData::fast_bigint_(v8::CFunction::Make(FastBigInt));
 
 void BindingData::AddMethods() {
   Local<Context> ctx = env()->context();
-  SetFastMethod(ctx, object(), "hrtime", SlowNumber, &fast_number_);
-  SetFastMethod(ctx, object(), "hrtimeBigInt", SlowBigInt, &fast_bigint_);
+  SetFastMethodNoSideEffect(ctx, object(), "hrtime", SlowNumber, &fast_number_);
+  SetFastMethodNoSideEffect(
+      ctx, object(), "hrtimeBigInt", SlowBigInt, &fast_bigint_);
 }
 
 void BindingData::RegisterExternalReferences(

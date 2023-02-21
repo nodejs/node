@@ -367,6 +367,27 @@ void SetFastMethod(Local<v8::Context> context,
                           slow_callback,
                           Local<v8::Signature>(),
                           v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect,
+                          c_function)
+          ->GetFunction(context)
+          .ToLocalChecked();
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name, type).ToLocalChecked();
+  that->Set(context, name_string, function).Check();
+}
+
+void SetFastMethodNoSideEffect(Local<v8::Context> context,
+                               Local<v8::Object> that,
+                               const char* name,
+                               v8::FunctionCallback slow_callback,
+                               const v8::CFunction* c_function) {
+  Isolate* isolate = context->GetIsolate();
+  Local<v8::Function> function =
+      NewFunctionTemplate(isolate,
+                          slow_callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
                           v8::SideEffectType::kHasNoSideEffect,
                           c_function)
           ->GetFunction(context)
