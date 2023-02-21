@@ -113,11 +113,6 @@ directory and C++ code in the
 
 The low-level implementation of
 [HTTP2](https://nodejs.org/docs/latest/api/http2.html)
-is based on [nghttp2](https://nghttp2.org/). Updates are pulled into Node.js
-under [deps/nghttp2](https://github.com/nodejs/node/tree/HEAD/deps/nghttp2)
-as needed.
+is based on [nghttp2](https://nghttp2.org/). See [maintaining nghttp2][].
 
-The low-level implementation is made available in the Node.js API through
-JavaScript code in the [lib](https://github.com/nodejs/node/tree/HEAD/lib)
-directory and C++ code in the
-[src](https://github.com/nodejs/node/tree/HEAD/src) directory.
+[maintaining nghttp2]: ./maintaining-nghttp2.md
