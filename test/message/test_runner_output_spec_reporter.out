@@ -199,9 +199,12 @@
  only is set but not in only mode
    running subtest 1 (*ms)
    running subtest 2 (*ms)
+   'only' and 'runOnly' require the --test-only command-line option.
    running subtest 3 (*ms)
+   'only' and 'runOnly' require the --test-only command-line option.
    running subtest 4 (*ms)
  only is set but not in only mode (*ms)
+ 'only' and 'runOnly' require the --test-only command-line option.
 
  custom inspect symbol fail (*ms)
   customized
