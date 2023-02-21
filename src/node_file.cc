@@ -259,7 +259,7 @@ FileHandle* FileHandle::New(BindingData* binding_data,
 }
 
 void FileHandle::New(const FunctionCallbackInfo<Value>& args) {
-  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
+  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
   Environment* env = binding_data->env();
   CHECK(args.IsConstructCall());
   CHECK(args[0]->IsInt32());
@@ -324,7 +324,7 @@ BaseObjectPtr<BaseObject> FileHandle::TransferData::Deserialize(
     Environment* env,
     v8::Local<v8::Context> context,
     std::unique_ptr<worker::TransferData> self) {
-  BindingData* bd = Environment::GetBindingData<BindingData>(context);
+  BindingData* bd = Realm::GetBindingData<BindingData>(context);
   if (bd == nullptr) return {};
 
   int fd = fd_;
@@ -724,7 +724,7 @@ void FSReqCallback::SetReturnValue(const FunctionCallbackInfo<Value>& args) {
 
 void NewFSReqCallback(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
+  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
   new FSReqCallback(binding_data, args.This(), args[0]->IsTrue());
 }
 
@@ -1131,7 +1131,7 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void Stat(const FunctionCallbackInfo<Value>& args) {
-  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
+  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
   Environment* env = binding_data->env();
 
   const int argc = args.Length();
@@ -1164,7 +1164,7 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void LStat(const FunctionCallbackInfo<Value>& args) {
-  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
+  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
   Environment* env = binding_data->env();
 
   const int argc = args.Length();
@@ -1198,7 +1198,7 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void FStat(const FunctionCallbackInfo<Value>& args) {
-  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
+  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
   Environment* env = binding_data->env();
 
   const int argc = args.Length();
@@ -1230,7 +1230,7 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void StatFs(const FunctionCallbackInfo<Value>& args) {
-  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
+  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
   Environment* env = binding_data->env();
 
   const int argc = args.Length();
@@ -1945,7 +1945,7 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
-  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
+  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
   Environment* env = binding_data->env();
   Isolate* isolate = env->isolate();
 
@@ -2635,29 +2635,31 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
                       file_handle_read_wrap_freelist);
 }
 
-BindingData::BindingData(Environment* env, v8::Local<v8::Object> wrap)
-    : SnapshotableObject(env, wrap, type_int),
-      stats_field_array(env->isolate(), kFsStatsBufferLength),
-      stats_field_bigint_array(env->isolate(), kFsStatsBufferLength),
-      statfs_field_array(env->isolate(), kFsStatFsBufferLength),
-      statfs_field_bigint_array(env->isolate(), kFsStatFsBufferLength) {
-  wrap->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "statValues"),
+BindingData::BindingData(Realm* realm, v8::Local<v8::Object> wrap)
+    : SnapshotableObject(realm, wrap, type_int),
+      stats_field_array(realm->isolate(), kFsStatsBufferLength),
+      stats_field_bigint_array(realm->isolate(), kFsStatsBufferLength),
+      statfs_field_array(realm->isolate(), kFsStatFsBufferLength),
+      statfs_field_bigint_array(realm->isolate(), kFsStatFsBufferLength) {
+  Isolate* isolate = realm->isolate();
+  Local<Context> context = realm->context();
+  wrap->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "statValues"),
             stats_field_array.GetJSArray())
       .Check();
 
-  wrap->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "bigintStatValues"),
+  wrap->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "bigintStatValues"),
             stats_field_bigint_array.GetJSArray())
       .Check();
 
-  wrap->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "statFsValues"),
+  wrap->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "statFsValues"),
             statfs_field_array.GetJSArray())
       .Check();
 
-  wrap->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "bigintStatFsValues"),
+  wrap->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "bigintStatFsValues"),
             statfs_field_bigint_array.GetJSArray())
       .Check();
 }
@@ -2668,8 +2670,8 @@ void BindingData::Deserialize(Local<Context> context,
                               InternalFieldInfoBase* info) {
   DCHECK_EQ(index, BaseObject::kEmbedderType);
   HandleScope scope(context->GetIsolate());
-  Environment* env = Environment::GetCurrent(context);
-  BindingData* binding = env->AddBindingData<BindingData>(context, holder);
+  Realm* realm = Realm::GetCurrent(context);
+  BindingData* binding = realm->AddBindingData<BindingData>(context, holder);
   CHECK_NOT_NULL(binding);
 }
 
@@ -2698,10 +2700,11 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
   Isolate* isolate = env->isolate();
   BindingData* const binding_data =
-      env->AddBindingData<BindingData>(context, target);
+      realm->AddBindingData<BindingData>(context, target);
   if (binding_data == nullptr) return;
 
   SetMethod(context, target, "access", Access);

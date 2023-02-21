@@ -482,7 +482,7 @@ Which explains that the unregistered external reference is
 
 Some internal bindings, such as the HTTP parser, maintain internal state that
 only affects that particular binding. In that case, one common way to store
-that state is through the use of `Environment::AddBindingData`, which gives
+that state is through the use of `Realm::AddBindingData`, which gives
 binding functions access to an object for storing such state.
 That object is always a [`BaseObject`][].
 
@@ -507,7 +507,7 @@ class BindingData : public BaseObject {
 
 // Available for binding functions, e.g. the HTTP Parser constructor:
 static void New(const FunctionCallbackInfo<Value>& args) {
-  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
+  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
   new Parser(binding_data, args.This());
 }
 
@@ -517,12 +517,12 @@ void InitializeHttpParser(Local<Object> target,
                           Local<Value> unused,
                           Local<Context> context,
                           void* priv) {
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
   BindingData* const binding_data =
-      env->AddBindingData<BindingData>(context, target);
+      realm->AddBindingData<BindingData>(context, target);
   if (binding_data == nullptr) return;
 
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);
+  Local<FunctionTemplate> t = NewFunctionTemplate(realm->isolate(), Parser::New);
   ...
 }
 ```

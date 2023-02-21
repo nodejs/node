@@ -2568,7 +2568,7 @@ void HttpErrorString(const FunctionCallbackInfo<Value>& args) {
 // would be suitable, for instance, for creating the Base64
 // output for an HTTP2-Settings header field.
 void PackSettings(const FunctionCallbackInfo<Value>& args) {
-  Http2State* state = Environment::GetBindingData<Http2State>(args);
+  Http2State* state = Realm::GetBindingData<Http2State>(args);
   args.GetReturnValue().Set(Http2Settings::Pack(state));
 }
 
@@ -2576,7 +2576,7 @@ void PackSettings(const FunctionCallbackInfo<Value>& args) {
 // default SETTINGS. RefreshDefaultSettings updates that TypedArray with the
 // default values.
 void RefreshDefaultSettings(const FunctionCallbackInfo<Value>& args) {
-  Http2State* state = Environment::GetBindingData<Http2State>(args);
+  Http2State* state = Realm::GetBindingData<Http2State>(args);
   Http2Settings::RefreshDefaults(state);
 }
 
@@ -2659,7 +2659,7 @@ void Http2Session::RefreshState(const FunctionCallbackInfo<Value>& args) {
 
 // Constructor for new Http2Session instances.
 void Http2Session::New(const FunctionCallbackInfo<Value>& args) {
-  Http2State* state = Environment::GetBindingData<Http2State>(args);
+  Http2State* state = Realm::GetBindingData<Http2State>(args);
   Environment* env = state->env();
   CHECK(args.IsConstructCall());
   SessionType type =
@@ -3187,11 +3187,12 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
 
-  Http2State* const state = env->AddBindingData<Http2State>(context, target);
+  Http2State* const state = realm->AddBindingData<Http2State>(context, target);
   if (state == nullptr) return;
 
 #define SET_STATE_TYPEDARRAY(name, field)             \
