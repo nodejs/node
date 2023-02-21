@@ -37,17 +37,17 @@ void Blob::Initialize(
     Local<Value> unused,
     Local<Context> context,
     void* priv) {
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
 
   BlobBindingData* const binding_data =
-      env->AddBindingData<BlobBindingData>(context, target);
+      realm->AddBindingData<BlobBindingData>(context, target);
   if (binding_data == nullptr) return;
 
   SetMethod(context, target, "createBlob", New);
   SetMethod(context, target, "storeDataObject", StoreDataObject);
   SetMethod(context, target, "getDataObject", GetDataObject);
   SetMethod(context, target, "revokeDataObject", RevokeDataObject);
-  FixedSizeBlobCopyJob::Initialize(env, target);
+  FixedSizeBlobCopyJob::Initialize(realm->env(), target);
 }
 
 Local<FunctionTemplate> Blob::GetConstructorTemplate(Environment* env) {
@@ -236,8 +236,7 @@ std::unique_ptr<worker::TransferData> Blob::CloneForMessaging() const {
 
 void Blob::StoreDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  BlobBindingData* binding_data =
-      Environment::GetBindingData<BlobBindingData>(args);
+  BlobBindingData* binding_data = Realm::GetBindingData<BlobBindingData>(args);
 
   CHECK(args[0]->IsString());  // ID key
   CHECK(Blob::HasInstance(env, args[1]));  // Blob
@@ -260,8 +259,7 @@ void Blob::StoreDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 void Blob::RevokeDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  BlobBindingData* binding_data =
-      Environment::GetBindingData<BlobBindingData>(args);
+  BlobBindingData* binding_data = Realm::GetBindingData<BlobBindingData>(args);
 
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsString());  // ID key
@@ -272,8 +270,7 @@ void Blob::RevokeDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 void Blob::GetDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  BlobBindingData* binding_data =
-      Environment::GetBindingData<BlobBindingData>(args);
+  BlobBindingData* binding_data = Realm::GetBindingData<BlobBindingData>(args);
 
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsString());
@@ -428,8 +425,8 @@ BlobBindingData::StoredDataObject::StoredDataObject(
       length(length_),
       type(type_) {}
 
-BlobBindingData::BlobBindingData(Environment* env, Local<Object> wrap)
-    : SnapshotableObject(env, wrap, type_int) {
+BlobBindingData::BlobBindingData(Realm* realm, Local<Object> wrap)
+    : SnapshotableObject(realm, wrap, type_int) {
   MakeWeak();
 }
 
@@ -465,9 +462,9 @@ void BlobBindingData::Deserialize(Local<Context> context,
                                   InternalFieldInfoBase* info) {
   DCHECK_EQ(index, BaseObject::kEmbedderType);
   HandleScope scope(context->GetIsolate());
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
   BlobBindingData* binding =
-      env->AddBindingData<BlobBindingData>(context, holder);
+      realm->AddBindingData<BlobBindingData>(context, holder);
   CHECK_NOT_NULL(binding);
 }
 
