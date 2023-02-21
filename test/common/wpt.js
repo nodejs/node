@@ -251,6 +251,9 @@ class StatusRuleSet {
 
 // A specification of WPT test
 class WPTTestSpec {
+
+  #content;
+
   /**
    * @param {string} mod name of the WPT module, e.g.
    *                     'html/webappapis/microtask-queuing'
@@ -298,7 +301,8 @@ class WPTTestSpec {
   }
 
   getContent() {
-    return fs.readFileSync(this.getAbsolutePath(), 'utf8');
+    this.#content ??= fs.readFileSync(this.getAbsolutePath(), 'utf8');
+    return this.#content;
   }
 }
 
@@ -911,6 +915,17 @@ class WPTRunner {
       const lackingIntl = intlRequirements.isLacking(spec.requires);
       if (lackingIntl) {
         this.skip(filename, [ `requires ${lackingIntl}` ]);
+        continue;
+      }
+
+      if (filename.includes('tentative')) {
+        this.skip(filename, [ 'test makes assertions not yet required by any specification' ]);
+        continue;
+      }
+
+      const isServiceWorker = spec.getContent().includes('importScripts(');
+      if (isServiceWorker) {
+        this.skip(filename, [ 'importScripts is not defined' ]);
         continue;
       }
 
