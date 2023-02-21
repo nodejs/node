@@ -1,7 +1,7 @@
 // Flags: --no-warnings --test-only
 'use strict';
 require('../common');
-const test = require('node:test');
+const { test, describe, it } = require('node:test');
 
 // These tests should be skipped based on the 'only' option.
 test('only = undefined');
@@ -45,4 +45,38 @@ test('only = true, with subtests', { only: true }, async (t) => {
   // Explicitly do not run these tests.
   await t.test('skipped subtest 3', { only: false });
   await t.test('skipped subtest 4', { skip: true });
+});
+
+describe.only('describe only = true, with subtests', () => {
+  it('`it` subtest 1 should run', () => {});
+
+  it('`it` subtest 2 should run', async () => {});
+});
+
+describe.only('describe only = true, with a mixture of subtests', () => {
+  it.only('`it` subtest 1', () => {});
+
+  it.only('`it` async subtest 1', async () => {});
+
+  it('`it` subtest 2 only=true', { only: true });
+
+  it('`it` subtest 2 only=false', { only: false }, () => {
+    throw new Error('This should not run');
+  });
+
+  it.skip('`it` subtest 3 skip', () => {
+    throw new Error('This should not run');
+  });
+
+  it.todo('`it` subtest 4 todo', { only: false }, () => {
+    throw new Error('This should not run');
+  });
+});
+
+describe.only('describe only = true, with subtests', () => {
+  test('subtest should run', () => {});
+
+  test('async subtest should run', async () => {});
+
+  test('subtest should be skipped', { only: false }, () => {});
 });
