@@ -824,6 +824,15 @@ Shorthand for skipping a suite, same as [`describe([name], { skip: true }[, fn])
 Shorthand for marking a suite as `TODO`, same as
 [`describe([name], { todo: true }[, fn])`][describe options].
 
+## `describe.only([name][, options][, fn])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Shorthand for marking a suite as `only`, same as
+[`describe([name], { only: true }[, fn])`][describe options].
+
 ## `it([name][, options][, fn])`
 
 * `name` {string} The name of the test, which is displayed when reporting test
@@ -847,6 +856,15 @@ same as [`it([name], { skip: true }[, fn])`][it options].
 
 Shorthand for marking a test as `TODO`,
 same as [`it([name], { todo: true }[, fn])`][it options].
+
+## `it.only([name][, options][, fn])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Shorthand for marking a test as `only`,
+same as [`it([name], { only: true }[, fn])`][it options].
 
 ## `before([fn][, options])`
 
