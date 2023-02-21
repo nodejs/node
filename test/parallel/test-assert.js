@@ -727,6 +727,49 @@ assert.throws(
   }
 );
 assert.throws(
+  () => {
+    try { assert.ok(0);   // eslint-disable-line no-useless-catch, brace-style
+    } catch (err) {
+      throw err;
+    }
+  },
+  {
+    code: 'ERR_ASSERTION',
+    constructor: assert.AssertionError,
+    generatedMessage: true,
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             'assert.ok(0)\n'
+  }
+);
+assert.throws(
+  () => {
+    try {
+      throw new Error();
+    } catch (err) { assert.ok(0); }     // eslint-disable-line no-unused-vars
+  },
+  {
+    code: 'ERR_ASSERTION',
+    constructor: assert.AssertionError,
+    generatedMessage: true,
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             'assert.ok(0)\n'
+  }
+);
+assert.throws(
+  () => {
+    function test() { assert.ok(0);     // eslint-disable-line brace-style
+    }
+    test();
+  },
+  {
+    code: 'ERR_ASSERTION',
+    constructor: assert.AssertionError,
+    generatedMessage: true,
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             'assert.ok(0)\n'
+  }
+);
+assert.throws(
   () => assert(typeof 123n === 'string'),
   {
     code: 'ERR_ASSERTION',
