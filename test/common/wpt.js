@@ -359,7 +359,7 @@ class StatusLoader {
   }
 
   /**
-   * Grep for all .*.js file recursively in a directory.
+   * Grep for all .*.js file recursively in a directory, omitting helpers.
    * @param {string} dir
    */
   grep(dir) {
