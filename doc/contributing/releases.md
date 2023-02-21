@@ -341,10 +341,8 @@ The new entry should take the following form:
 
 ### Notable changes
 
-* List interesting changes here
-* Particularly changes that are responsible for minor or major version bumps
-* Also be sure to look at any changes introduced by dependencies such as npm
-* ... and include any notable items from there
+* List notable changes here
+* ...
 
 ### Commits
 
@@ -353,6 +351,12 @@ The new entry should take the following form:
 
 The release type should be either Current, LTS, or Maintenance, depending on the
 type of release being produced.
+
+By default, the `### Notable changes` section should be populated with the
+commits in the release that have either the `notable-change` or `semver-minor`
+label. Some `semver-minor` features may be determined by the releaser, or
+indicated by another contributor, to not be appropriate to be listed as a
+notable. The ultimate decision rests with the releaser.
 
 You can use `branch-diff` to get a list of commits with the `notable-change`
 label:
