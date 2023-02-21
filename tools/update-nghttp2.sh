@@ -43,6 +43,10 @@ for dir in *; do
   rm -rf "$dir"
 done
 
+# Refs: https://github.com/nodejs/node/issues/45572
+echo "Copying config.h file"
+cp "$DEPS_DIR/nghttp2/lib/includes/config.h" "$WORKSPACE/nghttp2/lib/includes"
+
 echo "Copying existing gyp files"
 cp "$DEPS_DIR/nghttp2/nghttp2.gyp" "$WORKSPACE/nghttp2"
 
