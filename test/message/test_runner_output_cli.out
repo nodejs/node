@@ -475,11 +475,13 @@ ok 52 - callback async throw after done
       ---
       duration_ms: *
       ...
+    # 'only' and 'runOnly' require the --test-only command-line option.
     # Subtest: running subtest 3
     ok 3 - running subtest 3
       ---
       duration_ms: *
       ...
+    # 'only' and 'runOnly' require the --test-only command-line option.
     # Subtest: running subtest 4
     ok 4 - running subtest 4
       ---
@@ -490,6 +492,7 @@ ok 53 - only is set but not in only mode
   ---
   duration_ms: *
   ...
+# 'only' and 'runOnly' require the --test-only command-line option.
 # Subtest: custom inspect symbol fail
 not ok 54 - custom inspect symbol fail
   ---
