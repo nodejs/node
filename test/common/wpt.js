@@ -378,6 +378,7 @@ class StatusLoader {
         result.push(filepath);
       }
     }
+    result = result.filter((filepath) => !filepath.endsWith('.helper.js'));
     return result;
   }
 
