@@ -464,14 +464,13 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
 
 namespace process {
 
-BindingData::BindingData(Environment* env, v8::Local<v8::Object> object)
-    : SnapshotableObject(env, object, type_int) {
-  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), kBufferSize);
-  array_buffer_.Reset(env->isolate(), ab);
-  object
-      ->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "hrtimeBuffer"),
-            ab)
+BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
+    : SnapshotableObject(realm, object, type_int) {
+  Isolate* isolate = realm->isolate();
+  Local<Context> context = realm->context();
+  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, kBufferSize);
+  array_buffer_.Reset(isolate, ab);
+  object->Set(context, FIXED_ONE_BYTE_STRING(isolate, "hrtimeBuffer"), ab)
       .ToChecked();
   backing_store_ = ab->GetBackingStore();
 }
@@ -564,9 +563,9 @@ void BindingData::Deserialize(Local<Context> context,
                               InternalFieldInfoBase* info) {
   DCHECK_EQ(index, BaseObject::kEmbedderType);
   v8::HandleScope scope(context->GetIsolate());
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
-  BindingData* binding = env->AddBindingData<BindingData>(context, holder);
+  BindingData* binding = realm->AddBindingData<BindingData>(context, holder);
   CHECK_NOT_NULL(binding);
 }
 
@@ -574,9 +573,10 @@ static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
                        void* priv) {
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
   BindingData* const binding_data =
-      env->AddBindingData<BindingData>(context, target);
+      realm->AddBindingData<BindingData>(context, target);
   if (binding_data == nullptr) return;
   binding_data->AddMethods();
 

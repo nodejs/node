@@ -874,14 +874,14 @@ class FdEntry final : public EntryImpl {
         uv_fs_close(nullptr, &req, file, nullptr);
         return nullptr;
       }
+      Realm* realm = entry->env()->principal_realm();
       return std::make_shared<ReaderImpl>(
-          BaseObjectPtr<fs::FileHandle>(
-              fs::FileHandle::New(entry->env()->GetBindingData<fs::BindingData>(
-                                      entry->env()->context()),
-                                  file,
-                                  Local<Object>(),
-                                  entry->start_,
-                                  entry->end_)),
+          BaseObjectPtr<fs::FileHandle>(fs::FileHandle::New(
+              realm->GetBindingData<fs::BindingData>(realm->context()),
+              file,
+              Local<Object>(),
+              entry->start_,
+              entry->end_)),
           entry);
     }
 

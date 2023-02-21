@@ -111,7 +111,7 @@ class Blob : public BaseObject {
 
 class BlobBindingData : public SnapshotableObject {
  public:
-  explicit BlobBindingData(Environment* env, v8::Local<v8::Object> wrap);
+  explicit BlobBindingData(Realm* realm, v8::Local<v8::Object> wrap);
 
   using InternalFieldInfo = InternalFieldInfoBase;
 

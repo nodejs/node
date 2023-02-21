@@ -302,6 +302,7 @@ void Realm::DoneBootstrapping() {
 
 void Realm::RunCleanup() {
   TRACE_EVENT0(TRACING_CATEGORY_NODE1(realm), "RunCleanup");
+  binding_data_store_.clear();
 
   cleanup_queue_.Drain();
 }

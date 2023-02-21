@@ -201,48 +201,6 @@ inline Environment* Environment::GetCurrent(
   return GetCurrent(info.GetIsolate()->GetCurrentContext());
 }
 
-template <typename T, typename U>
-inline T* Environment::GetBindingData(const v8::PropertyCallbackInfo<U>& info) {
-  return GetBindingData<T>(info.GetIsolate()->GetCurrentContext());
-}
-
-template <typename T>
-inline T* Environment::GetBindingData(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  return GetBindingData<T>(info.GetIsolate()->GetCurrentContext());
-}
-
-template <typename T>
-inline T* Environment::GetBindingData(v8::Local<v8::Context> context) {
-  BindingDataStore* map = static_cast<BindingDataStore*>(
-      context->GetAlignedPointerFromEmbedderData(
-          ContextEmbedderIndex::kBindingListIndex));
-  DCHECK_NOT_NULL(map);
-  auto it = map->find(T::type_name);
-  if (UNLIKELY(it == map->end())) return nullptr;
-  T* result = static_cast<T*>(it->second.get());
-  DCHECK_NOT_NULL(result);
-  DCHECK_EQ(result->env(), GetCurrent(context));
-  return result;
-}
-
-template <typename T>
-inline T* Environment::AddBindingData(
-    v8::Local<v8::Context> context,
-    v8::Local<v8::Object> target) {
-  DCHECK_EQ(GetCurrent(context), this);
-  // This won't compile if T is not a BaseObject subclass.
-  BaseObjectPtr<T> item = MakeDetachedBaseObject<T>(this, target);
-  BindingDataStore* map = static_cast<BindingDataStore*>(
-      context->GetAlignedPointerFromEmbedderData(
-          ContextEmbedderIndex::kBindingListIndex));
-  DCHECK_NOT_NULL(map);
-  auto result = map->emplace(T::type_name, item);
-  CHECK(result.second);
-  DCHECK_EQ(GetBindingData<T>(context), item.get());
-  return item.get();
-}
-
 inline v8::Isolate* Environment::isolate() const {
   return isolate_;
 }

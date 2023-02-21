@@ -58,7 +58,7 @@ class BindingData : public SnapshotableObject {
   static constexpr EmbedderObjectType type_int =
       EmbedderObjectType::k_process_binding_data;
 
-  BindingData(Environment* env, v8::Local<v8::Object> object);
+  BindingData(Realm* realm, v8::Local<v8::Object> object);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(BindingData)

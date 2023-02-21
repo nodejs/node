@@ -83,34 +83,32 @@ namespace http2 {
 
 class Http2State : public BaseObject {
  public:
-  Http2State(Environment* env, v8::Local<v8::Object> obj)
-      : BaseObject(env, obj),
-        root_buffer(env->isolate(), sizeof(http2_state_internal)),
+  Http2State(Realm* realm, v8::Local<v8::Object> obj)
+      : BaseObject(realm, obj),
+        root_buffer(realm->isolate(), sizeof(http2_state_internal)),
         session_state_buffer(
-            env->isolate(),
+            realm->isolate(),
             offsetof(http2_state_internal, session_state_buffer),
             IDX_SESSION_STATE_COUNT,
             root_buffer),
-        stream_state_buffer(
-            env->isolate(),
-            offsetof(http2_state_internal, stream_state_buffer),
-            IDX_STREAM_STATE_COUNT,
-            root_buffer),
-        stream_stats_buffer(
-            env->isolate(),
-            offsetof(http2_state_internal, stream_stats_buffer),
-            IDX_STREAM_STATS_COUNT,
-            root_buffer),
+        stream_state_buffer(realm->isolate(),
+                            offsetof(http2_state_internal, stream_state_buffer),
+                            IDX_STREAM_STATE_COUNT,
+                            root_buffer),
+        stream_stats_buffer(realm->isolate(),
+                            offsetof(http2_state_internal, stream_stats_buffer),
+                            IDX_STREAM_STATS_COUNT,
+                            root_buffer),
         session_stats_buffer(
-            env->isolate(),
+            realm->isolate(),
             offsetof(http2_state_internal, session_stats_buffer),
             IDX_SESSION_STATS_COUNT,
             root_buffer),
-        options_buffer(env->isolate(),
-                        offsetof(http2_state_internal, options_buffer),
-                        IDX_OPTIONS_FLAGS + 1,
-                        root_buffer),
-        settings_buffer(env->isolate(),
+        options_buffer(realm->isolate(),
+                       offsetof(http2_state_internal, options_buffer),
+                       IDX_OPTIONS_FLAGS + 1,
+                       root_buffer),
+        settings_buffer(realm->isolate(),
                         offsetof(http2_state_internal, settings_buffer),
                         IDX_SETTINGS_COUNT + 1,
                         root_buffer) {}
