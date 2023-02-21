@@ -17,6 +17,7 @@
         "ArrayBuffer elements of the blobParts array should be supported.",
         "Passing typed arrays as elements of the blobParts array should work.",
         "Passing a Float64Array as element of the blobParts array should work.",
+        "Passing BigInt typed arrays as elements of the blobParts array should work.",
         "Array with two blobs",
         "Array with two buffers",
         "Array with two bufferviews",
@@ -43,5 +44,12 @@
   },
   "Blob-slice.any.js": {
     "skip": "Depends on File API"
+  },
+  "Blob-stream.any.js": {
+    "fail": {
+      "expected": [
+        "Reading Blob.stream() with BYOB reader"
+      ]
+    }
   }
 }

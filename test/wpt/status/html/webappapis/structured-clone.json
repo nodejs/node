@@ -1,7 +1,24 @@
 {
   "structured-clone.any.js": {
     "fail": {
-      "expected": ["File basic"]
+      "expected": [
+        "File basic",
+        "Serializing a non-serializable platform object fails",
+        "A subclass instance will deserialize as its closest serializable superclass",
+        "Resizable ArrayBuffer",
+        "Growable SharedArrayBuffer",
+        "Length-tracking TypedArray",
+        "Length-tracking DataView",
+        "Serializing OOB TypedArray throws",
+        "Serializing OOB DataView throws",
+        "A detached ArrayBuffer cannot be transferred",
+        "Transferring a non-transferable platform object fails",
+        "Resizable ArrayBuffer is transferable",
+        "Length-tracking TypedArray is transferable",
+        "Length-tracking DataView is transferable",
+        "Transferring OOB TypedArray throws",
+        "Transferring OOB DataView throws"
+      ]
     }
   }
 }

@@ -489,9 +489,7 @@ class WPTRunner {
   pretendGlobalThisAs(name) {
     switch (name) {
       case 'Window': {
-        this.globalThisInitScripts.push(
-          `global.Window = Object.getPrototypeOf(globalThis).constructor;
-          self.GLOBAL.isWorker = () => false;`);
+        this.globalThisInitScripts.push('globalThis.Window = Object.getPrototypeOf(globalThis).constructor;');
         this.loadLazyGlobals();
         break;
       }
@@ -531,39 +529,10 @@ class WPTRunner {
     this.globalThisInitScripts.push(script);
   }
 
-  brandCheckGlobalScopeAttribute(name) {
-    // TODO(legendecas): idlharness GlobalScope attribute receiver validation.
-    const script = `
-      const desc = Object.getOwnPropertyDescriptor(globalThis, '${name}');
-      function getter() {
-        // Mimic GlobalScope instance brand check.
-        if (this !== globalThis) {
-          throw new TypeError('Illegal invocation');
-        }
-        return desc.get();
-      }
-      Object.defineProperty(getter, 'name', { value: 'get ${name}' });
-
-      function setter(value) {
-        // Mimic GlobalScope instance brand check.
-        if (this !== globalThis) {
-          throw new TypeError('Illegal invocation');
-        }
-        desc.set(value);
-      }
-      Object.defineProperty(setter, 'name', { value: 'set ${name}' });
-
-      Object.defineProperty(globalThis, '${name}', {
-        get: getter,
-        set: setter,
-      });
-    `;
-    this.globalThisInitScripts.push(script);
-  }
-
   // TODO(joyeecheung): work with the upstream to port more tests in .html
   // to .js.
   async runJsTests() {
+    this.pretendGlobalThisAs('Window');
     let queue = [];
 
     // If the tests are run as `node test/wpt/test-something.js subset.any.js`,

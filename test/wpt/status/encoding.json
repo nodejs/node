@@ -51,6 +51,9 @@
   "streams/realms.window.js": {
     "skip": "window is not defined"
   },
+  "streams/invalid-realm.window.js": {
+    "skip": "document is not defined"
+  },
   "streams/decode-attributes.any.js": {
     "requires": ["full-icu"]
   },

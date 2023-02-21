@@ -23,9 +23,6 @@
   "event-global-set-before-handleEvent-lookup.window.js": {
     "skip": "window is not defined"
   },
-  "event-global.worker.js": {
-    "skip": "importScripts is not defined"
-  },
   "legacy-pre-activation-behavior.window.js": {
     "skip": "document is not defined"
   },

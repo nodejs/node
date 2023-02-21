@@ -1,4 +1,15 @@
 {
+  "idlharness.any.js": {
+    "fail": {
+      "expected": [
+        "PerformanceResourceTiming interface: attribute responseStatus",
+        "PerformanceResourceTiming interface: attribute renderBlockingStatus",
+        "PerformanceResourceTiming interface: resource must inherit property \"responseStatus\" with the proper type",
+        "PerformanceResourceTiming interface: resource must inherit property \"renderBlockingStatus\" with the proper type",
+        "PerformanceResourceTiming interface: default toJSON operation on resource"
+      ]
+    }
+  },
   "cors-preflight.any.js": {
     "skip": "Browser-specific test"
   },

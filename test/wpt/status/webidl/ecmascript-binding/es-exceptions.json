@@ -1,1 +1,9 @@
-{}
+{
+  "DOMException-constructor-and-prototype.any.js": {
+    "fail": {
+      "expected": [
+        "existence and property descriptor of DOMException"
+      ]
+    }
+  }
+}

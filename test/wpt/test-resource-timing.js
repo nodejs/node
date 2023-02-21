@@ -1,10 +1,9 @@
 'use strict';
-require('../common');
+
 const { WPTRunner } = require('../common/wpt');
 
 const runner = new WPTRunner('resource-timing');
 
-runner.pretendGlobalThisAs('Window');
 runner.setInitScript(`
   global.resource = performance.markResourceTiming({
     startTime: 0,

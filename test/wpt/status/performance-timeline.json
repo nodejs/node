@@ -7,6 +7,9 @@
       ]
     }
   },
+  "droppedentriescount.any.js": {
+    "skip": "depends on relative-path fetch()"
+  },
   "webtiming-resolution.any.js": {
     "skip": "flaky"
   }

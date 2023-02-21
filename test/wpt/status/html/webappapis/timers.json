@@ -1,4 +1,7 @@
 {
+  "evil-spec-example.any.js": {
+    "skip": "Node.js validates setTimeout arguments using its own validators, not WebIDL"
+  },
   "negative-settimeout.any.js": {
     "skip": "unreliable in Node.js; Refs: https://github.com/nodejs/node/issues/37672"
   }

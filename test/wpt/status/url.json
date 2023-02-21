@@ -25,7 +25,12 @@
     "requires": ["small-icu"]
   },
   "url-setters.any.js": {
-    "requires": ["small-icu"]
+    "requires": ["small-icu"],
+    "fail": {
+      "expected": [
+        "URL: Setting <http://example.net:8080/path>.port = 'randomstring' Setting port to a string that doesn't parse as a number"
+      ]
+    }
   },
   "url-setters-a-area.window.js": {
     "skip": "already tested in url-setters.any.js"
