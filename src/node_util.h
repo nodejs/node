@@ -18,7 +18,7 @@ class WeakReference : public SnapshotableObject {
   static constexpr EmbedderObjectType type_int =
       EmbedderObjectType::k_util_weak_reference;
 
-  WeakReference(Environment* env,
+  WeakReference(Realm* realm,
                 v8::Local<v8::Object> object,
                 v8::Local<v8::Object> target);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -37,7 +37,7 @@ class WeakReference : public SnapshotableObject {
   };
 
  private:
-  WeakReference(Environment* env,
+  WeakReference(Realm* realm,
                 v8::Local<v8::Object> object,
                 v8::Local<v8::Object> target,
                 uint64_t reference_count);

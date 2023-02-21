@@ -57,7 +57,7 @@ constexpr size_t kFsStatFsBufferLength =
 
 class BindingData : public SnapshotableObject {
  public:
-  explicit BindingData(Environment* env, v8::Local<v8::Object> wrap);
+  explicit BindingData(Realm* realm, v8::Local<v8::Object> wrap);
 
   AliasedFloat64Array stats_field_array;
   AliasedBigInt64Array stats_field_bigint_array;

@@ -33,7 +33,10 @@
 namespace node {
 
 BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> object)
-    : BaseObject(env->principal_realm(), object) {}
+    : BaseObject(env->principal_realm(), object) {
+  // TODO(legendecas): Check the shorthand is only used in the principal realm
+  // while allowing to create a BaseObject in a vm context.
+}
 
 // static
 v8::Local<v8::FunctionTemplate> BaseObject::GetConstructorTemplate(
