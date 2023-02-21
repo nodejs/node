@@ -52,13 +52,12 @@ const { WPTRunner } = require('../common/wpt');
 const runner = new WPTRunner('url');
 
 // Set Node.js flags required for the tests.
-runner.setFlags(['--expose-internals']);
+runner.setFlags(['--experimental-shadow-realm']);
 
 // Set a script that will be executed in the worker before running the tests.
 runner.setInitScript(`
-  const { internalBinding } = require('internal/test/binding');
-  const { DOMException } = internalBinding('messaging');
-  global.DOMException = DOMException;
+  const { File } = require('buffer');
+  globalThis.File = File;
 `);
 
 runner.runJsTests();
