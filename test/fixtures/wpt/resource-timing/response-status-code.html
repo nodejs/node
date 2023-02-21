@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8" />
+<meta name="timeout" content="long">
+<title>This test validates the response status of resources.</title>
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#sec-performanceresourcetiming"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/entry-invariants.js"></script>
+<script src="resources/resource-loaders.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+</head>
+<body>
+<script>
+const {ORIGIN, REMOTE_ORIGIN} = get_host_info();
+const SAME_ORIGIN = location.origin;
+const status_codes = [
+  200, 203,
+  400, 401, 403, 404,
+  500, 501, 502, 503,
+];
+
+const load_image_object = async path => {
+  return load.object(path, "image/png");
+}
+
+const load_frame_object = async path => {
+  return load.object(path, "text/html");
+}
+
+const load_null_object = async path => {
+  return load.object(path, null);
+}
+
+// Response status for same origin resources is exposed.
+for(const loader of [
+  load.font,
+  load.image,
+  load.script,
+  load.stylesheet,
+  load.xhr_sync,
+  load.xhr_async,
+  load.iframe,
+  load_image_object,
+  load_frame_object,
+  load_null_object
+]) {
+  for(const status of status_codes) {
+    let path = (loader == load.font) ? '/fonts/pass.woff' :
+                                       '/resource-timing/resources/empty.js';
+    path += `?pipe=status(${status})`;
+    attribute_test(
+      loader, new URL(path, ORIGIN),
+      entry => {
+        assert_equals(entry.responseStatus, status,
+          `response status for ${entry.name} should be ${status}`);
+      }
+    );
+  }
+}
+
+// Response status is exposed for CORS requests for cross-origin resources.
+for(const loader of [
+  load.image_with_attrs,
+  load.script_with_attrs,
+  load.stylesheet_with_attrs
+]) {
+  for(const status of status_codes) {
+    const path = `/resource-timing/resources/empty.js?pipe=status(${status})`
+      + `|header(access-control-allow-origin, ${ORIGIN})`;
+    loader_with_crossOrigin_attr = async url => {
+      return loader(url, {"crossOrigin": "anonymous"});
+    }
+    attribute_test(
+      loader_with_crossOrigin_attr, new URL(path, REMOTE_ORIGIN),
+      entry => {
+        assert_equals(entry.responseStatus, status,
+          `response status for ${entry.name} should be ${status}`);
+      }
+    );
+  }
+}
+
+// Response status is 0 when a no-cors request is made for cross origin
+// fonts, images, scripts, stylesheets.
+// Response status is 0 when request's mode is "navigate" and response's
+// URL's origin is not same origin with request's origin. So response
+// status is not exposed for cross origin iframes.
+for(const loader of [
+  load.font,
+  load.image,
+  load.script,
+  load.stylesheet,
+  load.iframe,
+  load_image_object,
+  load_frame_object,
+  load_null_object
+]) {
+  for(const tao of [false, true]) {
+    for(const status of status_codes) {
+      let path = (loader == load.font) ? '/fonts/pass.woff' :
+                                         '/resource-timing/resources/empty.js';
+      path += `?pipe=status(${status})`;
+      if (tao) {
+        path += `|header(timing-allow-origin, *)`;
+      }
+      attribute_test(
+        loader, new URL(path, REMOTE_ORIGIN),
+        entry => {
+          assert_equals(entry.responseStatus, 0,
+            `response status for ${entry.name} should be 0`);
+        }
+      );
+    }
+  }
+}
+
+// Response status for iframes is 0 when cross origin redirects are present
+// Same-Origin => Cross-Origin => Same-Origin => Same-Origin redirect chain
+for(const loader of [
+  load.iframe,
+  load_frame_object,
+  load_null_object
+]) {
+  for(const status of status_codes) {
+    const destUrl =
+      `${SAME_ORIGIN}/resource-timing/resources/multi_redirect.py` +
+        `?page_origin=${SAME_ORIGIN}` +
+        `&cross_origin=${REMOTE_ORIGIN}` +
+        `&final_resource=` +
+        `/resource-timing/resources/empty.js?pipe=status(${status})`;
+    attribute_test(
+      loader, new URL(destUrl),
+      entry => {
+        assert_equals(entry.responseStatus, 0,
+          `response status should be 0 for iframes having cross origin`
+          + ` redirects`);
+      }
+    );
+  }
+}
+
+// Response status for iframes is exposed for same origin redirects
+for(const loader of [
+  load.iframe,
+  load_frame_object,
+  load_null_object
+]) {
+  for(const status of status_codes) {
+    const destUrl = `${SAME_ORIGIN}/resource-timing/resources/redirect-cors.py`
+      + `?location=${SAME_ORIGIN}/resource-timing/resources/empty.js`
+      + `?pipe=status(${status})`;
+    attribute_test(
+      loader, new URL(destUrl),
+      entry => {
+        assert_equals(entry.responseStatus, status,
+          `response status should be exposed for iframes having only same`
+          + ` origin redirects`);
+      }
+    );
+  }
+};
+</script>
+</body>
+</html>

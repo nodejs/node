@@ -1593,6 +1593,17 @@
             }
         },
         {
+            "comment": "Setting port to a string that doesn't parse as a number",
+            "href": "http://example.net:8080/path",
+            "new_value": "randomstring",
+            "expected": {
+                "href": "http://example.net:8080/path",
+                "host": "example.net:8080",
+                "hostname": "example.net",
+                "port": "8080"
+            }
+        },
+        {
             "comment": "Port numbers are 16 bit integers, overflowing is an error",
             "href": "non-special://example.net:8080/path",
             "new_value": "65536",

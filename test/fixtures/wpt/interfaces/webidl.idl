@@ -9,7 +9,7 @@ typedef (Int8Array or Int16Array or Int32Array or
          Float32Array or Float64Array or DataView) ArrayBufferView;
 
 typedef (ArrayBufferView or ArrayBuffer) BufferSource;
-[Exposed=(Window,Worker),
+[Exposed=*,
  Serializable]
 interface DOMException { // but see below note about ECMAScript binding
   constructor(optional DOMString message = "", optional DOMString name = "Error");

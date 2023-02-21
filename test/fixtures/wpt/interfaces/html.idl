@@ -98,7 +98,6 @@ partial interface Document {
   // also has obsolete members
 };
 Document includes GlobalEventHandlers;
-Document includes DocumentAndElementEventHandlers;
 
 partial interface mixin DocumentOrShadowRoot {
   readonly attribute Element? activeElement;
@@ -131,7 +130,6 @@ interface HTMLElement : Element {
 };
 
 HTMLElement includes GlobalEventHandlers;
-HTMLElement includes DocumentAndElementEventHandlers;
 HTMLElement includes ElementContentEditable;
 HTMLElement includes HTMLOrSVGElement;
 
@@ -886,7 +884,7 @@ interface HTMLInputElement : HTMLElement {
   [CEReactions] attribute DOMString formTarget;
   [CEReactions] attribute unsigned long height;
   attribute boolean indeterminate;
-  readonly attribute HTMLElement? list;
+  readonly attribute HTMLDataListElement? list;
   [CEReactions] attribute DOMString max;
   [CEReactions] attribute long maxLength;
   [CEReactions] attribute DOMString min;
@@ -1364,14 +1362,7 @@ interface mixin CanvasShadowStyles {
 
 interface mixin CanvasFilters {
   // filters
-  attribute (DOMString or CanvasFilter) filter; // (default "none")
-};
-
-typedef record<DOMString, any> CanvasFilterInput;
-
-[Exposed=(Window,Worker,PaintWorklet)]
-interface CanvasFilter {
-  constructor(optional (CanvasFilterInput or sequence<CanvasFilterInput>) filters);
+  attribute DOMString filter; // (default "none")
 };
 
 interface mixin CanvasRect {
@@ -1641,8 +1632,19 @@ dictionary ValidityStateFlags {
   boolean customError = false;
 };
 
+[Exposed=Window]
+interface UserActivation {
+  readonly attribute boolean hasBeenActive;
+  readonly attribute boolean isActive;
+};
+
+partial interface Navigator {
+  [SameObject] readonly attribute UserActivation userActivation;
+};
+
 dictionary FocusOptions {
   boolean preventScroll = false;
+  boolean focusVisible;
 };
 
 interface mixin ElementContentEditable {
@@ -1769,20 +1771,6 @@ interface BarProp {
   readonly attribute boolean visible;
 };
 
-enum ScrollRestoration { "auto", "manual" };
-
-[Exposed=Window]
-interface History {
-  readonly attribute unsigned long length;
-  attribute ScrollRestoration scrollRestoration;
-  readonly attribute any state;
-  undefined go(optional long delta = 0);
-  undefined back();
-  undefined forward();
-  undefined pushState(any data, DOMString unused, optional USVString? url = null);
-  undefined replaceState(any data, DOMString unused, optional USVString? url = null);
-};
-
 [Exposed=Window]
 interface Location { // but see also additional creation steps and overridden internal methods
   [LegacyUnforgeable] stringifier attribute USVString href;
@@ -1800,6 +1788,20 @@ interface Location { // but see also additional creation steps and overridden in
   [LegacyUnforgeable] undefined reload();
 
   [LegacyUnforgeable, SameObject] readonly attribute DOMStringList ancestorOrigins;
+};
+
+enum ScrollRestoration { "auto", "manual" };
+
+[Exposed=Window]
+interface History {
+  readonly attribute unsigned long length;
+  attribute ScrollRestoration scrollRestoration;
+  readonly attribute any state;
+  undefined go(optional long delta = 0);
+  undefined back();
+  undefined forward();
+  undefined pushState(any data, DOMString unused, optional USVString? url = null);
+  undefined replaceState(any data, DOMString unused, optional USVString? url = null);
 };
 
 [Exposed=Window]
@@ -1901,7 +1903,9 @@ interface mixin GlobalEventHandlers {
   attribute EventHandler oncontextlost;
   attribute EventHandler oncontextmenu;
   attribute EventHandler oncontextrestored;
+  attribute EventHandler oncopy;
   attribute EventHandler oncuechange;
+  attribute EventHandler oncut;
   attribute EventHandler ondblclick;
   attribute EventHandler ondrag;
   attribute EventHandler ondragend;
@@ -1932,6 +1936,7 @@ interface mixin GlobalEventHandlers {
   attribute EventHandler onmouseout;
   attribute EventHandler onmouseover;
   attribute EventHandler onmouseup;
+  attribute EventHandler onpaste;
   attribute EventHandler onpause;
   attribute EventHandler onplay;
   attribute EventHandler onplaying;
@@ -1940,6 +1945,7 @@ interface mixin GlobalEventHandlers {
   attribute EventHandler onreset;
   attribute EventHandler onresize;
   attribute EventHandler onscroll;
+  attribute EventHandler onscrollend;
   attribute EventHandler onsecuritypolicyviolation;
   attribute EventHandler onseeked;
   attribute EventHandler onseeking;
@@ -1976,12 +1982,6 @@ interface mixin WindowEventHandlers {
   attribute EventHandler onstorage;
   attribute EventHandler onunhandledrejection;
   attribute EventHandler onunload;
-};
-
-interface mixin DocumentAndElementEventHandlers {
-  attribute EventHandler oncopy;
-  attribute EventHandler oncut;
-  attribute EventHandler onpaste;
 };
 
 typedef (DOMString or Function) TimerHandler;
@@ -2132,13 +2132,13 @@ typedef (CanvasImageSource or
          Blob or
          ImageData) ImageBitmapSource;
 
-enum ImageOrientation { "none", "flipY" };
+enum ImageOrientation { "from-image", "flipY" };
 enum PremultiplyAlpha { "none", "premultiply", "default" };
 enum ColorSpaceConversion { "none", "default" };
 enum ResizeQuality { "pixelated", "low", "medium", "high" };
 
 dictionary ImageBitmapOptions {
-  ImageOrientation imageOrientation = "none";
+  ImageOrientation imageOrientation = "from-image";
   PremultiplyAlpha premultiplyAlpha = "default";
   ColorSpaceConversion colorSpaceConversion = "default";
   [EnforceRange] unsigned long resizeWidth;

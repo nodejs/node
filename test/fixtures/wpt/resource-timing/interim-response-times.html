@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing: PerformanceResourceTiming interim resource times</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<script src="/common/utils.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+  const {REMOTE_ORIGIN} = get_host_info();
+  function interim_response_time_test({origin, tao, with103, expected}) {
+    promise_test(async t => {
+      const delay = 100;
+      const url = new URL('/resource-timing/resources/header-delay.py',
+        origin == "same-origin" ? location.href : REMOTE_ORIGIN);
+      url.searchParams.set("delay", delay);
+      if (tao)
+        url.searchParams.set("tao", "*");
+      if (with103)
+        url.searchParams.set("with103", "true");
+      const response = await fetch(url.toString(), {mode: "cors"});
+      assert_equals(response.status, 200)
+      await response.text();
+      const [entry] = performance.getEntriesByName(url.toString());
+      if (expected) {
+        assert_greater_than(entry.firstInterimResponseStart,
+                            entry.requestStart + delay * 2,
+                            "firstInterimResponseStart");
+        assert_greater_than(entry.responseStart,
+                            entry.firstInterimResponseStart + delay,
+                            "responseStart");
+      } else {
+        assert_equals(entry.firstInterimResponseStart, 0);
+      }
+
+      assert_equals(entry.toJSON().firstInterimResponseStart,
+                    entry.firstInterimResponseStart);
+    }, `Fetch from ${origin} ${with103 ? "with" : "without"} early hints, ${
+        tao ? "with" : "without"} Timing-Allow-Origin should ${
+        expected ? "expose" : "not expose"} interim response times`);
+  }
+
+  interim_response_time_test(
+    {origin: "same-origin", tao: false, with103: true, expected: true});
+
+  // TAO should protect firstInterimResponseStart
+  interim_response_time_test(
+    {origin: "cross-origin", tao: true, with103: true, expected: true});
+  interim_response_time_test(
+    {origin: "cross-origin", tao: false, with103: true, expected: false});
+
+  // Without early hints, firstInterimResponseStart should be 0 regalrdss of protections.
+  interim_response_time_test(
+    {origin: "same-origin", tao: false, with103: false, expected: false});
+  interim_response_time_test(
+    {origin: "cross-origin", tao: true, with103: false, expected: false});
+
+</script>
+</body>
+</html>

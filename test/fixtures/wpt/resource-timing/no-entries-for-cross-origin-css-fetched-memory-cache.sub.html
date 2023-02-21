@@ -1,0 +1,53 @@
+<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>Make sure that resources fetched by cross origin CSS are not in the timeline.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<!--
+  This test is mostly the same as no-entries-for-cross-origin-css-fetched.html
+  but loads the sub-resources from another Document (<iframe>) earlier before
+  they are loaded via cross-origin CSSs, so that the resources are loaded from
+  cache and therefore no resource timing entries are created.
+-->
+
+<body>
+  <script>
+    const addLink = () => {
+      return new Promise(resolve => {
+        const link = document.createElement('LINK');
+        link.rel = 'stylesheet';
+        link.id = 'cross_origin_style';
+        link.href = 'http://{{hosts[][www1]}}:{{ports[http][1]}}/resource-timing/resources/nested.css';
+        link.addEventListener('load', resolve);
+        document.body.appendChild(link);
+      });
+    }
+
+    const addFrame = () => {
+      return new Promise(resolve => {
+        const iframe = document.createElement('iframe');
+        iframe.src = 'resources/no-entries-for-cross-origin-css-fetched-memory-cache-iframe.sub.html';
+        iframe.addEventListener('load', resolve);
+        document.body.appendChild(iframe);
+      });
+    }
+
+    promise_test(async t => {
+      await addFrame();
+      await addLink();
+      // Assert no resource timing entries are created when the link is attached.
+      const url = (new URL(document.getElementById('cross_origin_style').href));
+      const prefix = url.protocol + '//' + url.host;
+      assert_equals(performance.getEntriesByName(
+        prefix + '/resource-timing/resources/resource_timing_test0.css?id=n1').length, 0,
+        'Import should not be in timeline');
+      assert_equals(performance.getEntriesByName(
+        prefix + '/fonts/Ahem.ttf?id=n1').length, 0, 'Font should not be in timeline');
+      assert_equals(performance.getEntriesByName(
+        prefix + '/resource-timing/resources/blue.png?id=n1').length, 0,
+        'Image should not be in timeline');
+    }, 'Make sure that resources fetched by cross origin CSS are not in the timeline.');
+  </script>
+  <ol>Some content</ol>
+</body>

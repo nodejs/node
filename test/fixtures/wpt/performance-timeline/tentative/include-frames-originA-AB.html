@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+
+<head>
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+  <script src=/common/get-host-info.sub.js></script>
+</head>
+
+<body>
+  <script>
+    const loadChildFrame = (src) => {
+      return new Promise(resolve => {
+        const childFrame = document.createElement('iframe');
+
+        childFrame.addEventListener("load", () => {
+          resolve();
+        });
+
+        childFrame.src = src;
+
+        document.body.appendChild(childFrame);
+      });
+    }
+
+    const verifyPerformanceEntries = () => {
+      const entries = performance.getEntries({ includeChildFrames: true });
+
+      const navigationEntries = performance.getEntries({ entryType: "navigation", includeChildFrames: true });
+
+      const markedEntries = performance.getEntries(
+        { name: 'entry-name', includeChildFrames: true });
+
+      // 4 entries for parent, 2 for local child, 0 for remote child.
+      assert_equals(entries.length, 6, 'Total entries should 6.');
+
+      // 1 entry for parent, 1 for local child.
+      assert_equals(navigationEntries.length, 2, 'Navigation entries should be 2.');
+
+      // 1 entry for local child.
+      assert_equals(markedEntries.length, 1, 'Mark entries should be 1.');
+    }
+
+    promise_test(() => {
+      performance.clearResourceTimings();
+
+      // Load first child iframe.
+      sameOriginPromise = loadChildFrame('../resources/child-frame.html');
+
+      // Create second child iframe.
+      crossOriginPromise = loadChildFrame(
+        get_host_info().HTTP_REMOTE_ORIGIN + '/resources/child-frame.html');
+
+      return Promise.all([sameOriginPromise, crossOriginPromise]).then(verifyPerformanceEntries);
+    }, 'GetEntries of a document of origin A and its two child frames of origin A and B respectively.');
+  </script>
+</body>

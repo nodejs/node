@@ -1,0 +1,49 @@
+<!DOCTYPE HTML>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/utils.js"></script>
+<script src="/common/dispatcher/dispatcher.js"></script>
+<script src="/html/browsers/browsing-the-web/back-forward-cache/resources/helper.sub.js"></script>
+<script>
+  const reload = () => {
+    window.location.reload();
+  };
+
+  const getNavigationId = () => {
+    window.performance.mark('initial_load');
+    let entries = window.performance.getEntriesByType('mark');
+    return entries[entries.length - 1].navigationId;
+  }
+
+  promise_test(async t => {
+    const pageA = new RemoteContext(token());
+    const pageB = new RemoteContext(token());
+
+    const urlA = executorPath + pageA.context_id;
+    const urlB = originCrossSite + executorPath + pageB.context_id;
+    // Open url A.
+    window.open(urlA, '_blank', 'noopener')
+    await pageA.execute_script(waitForPageShow);
+
+    // Assert navigation id is 1 when the document is loaded first time.
+
+    let navigationId = await pageA.execute_script(getNavigationId);
+    assert_equals(navigationId, 1, 'Navigation Id should be 1 initially.');
+
+    // Navigate away to url B and back.
+    await navigateAndThenBack(pageA, pageB, urlB);
+
+    // Assert navigation id increments to 2 when the document is load from bfcache.
+    navigationId = await pageA.execute_script(getNavigationId);
+    assert_equals(navigationId, 2, 'Navigation Id should be 2 after increment.');
+
+    // Reload page.
+    await pageA.execute_script(reload);
+    await pageA.execute_script(waitForPageShow);
+
+    // Assert navigation id is reset to 1 after reload.
+    navigationId = await pageA.execute_script(getNavigationId);
+    assert_equals(navigationId, 1, 'Navigation Id should be 1 after reload.');
+  }, 'Navigation Id should be reset to 1 after reload.');
+</script>

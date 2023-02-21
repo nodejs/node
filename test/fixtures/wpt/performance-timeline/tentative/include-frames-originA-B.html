@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+
+<head>
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+  <script src=/common/get-host-info.sub.js></script>
+
+</head>
+
+<body>
+  <script>
+    const loadCrossOriginChildFrame = () => {
+      return new Promise((resolve, reject) => {
+
+        const childFrame = document.createElement('iframe');
+
+        childFrame.addEventListener("load", resolve);
+
+        childFrame.src =
+          get_host_info().HTTP_REMOTE_ORIGIN + '/performance_timeline/resources/child-frame.html';
+
+        document.body.appendChild(childFrame);
+      })
+    }
+
+    promise_test(async () => {
+      performance.clearResourceTimings();
+
+      await loadCrossOriginChildFrame();
+
+      const entries = performance.getEntries({ includeChildFrames: true });
+
+      const navigationEntries = performance.getEntries({ entryType: "navigation", includeChildFrames: true });
+
+      const markedEntries = performance.getEntries(
+        { name: 'entry-name', includeChildFrames: true });
+
+      // 3 entries for parent, 0 for child.
+      assert_equals(entries.length, 3, 'Total entries should be 3.');
+
+      // 1 entry for parent.
+      assert_equals(navigationEntries.length, 1, 'Navigation entries should 1.');
+
+      // 0 entries.
+      assert_equals(markedEntries.length, 0, 'Mark entries should 0.');
+    }, 'GetEntries of a parent Frame of origin A and its child frame of origin B');
+  </script>
+</body>

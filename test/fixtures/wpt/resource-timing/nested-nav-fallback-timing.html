@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test ResourceTiming reporting for cross-origin iframe.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/observe-entry.js"></script>
+</head>
+<body>
+<body>
+<script>
+  const {REMOTE_ORIGIN} = get_host_info();
+
+  promise_test(async t => {
+    const iframe = document.createElement('iframe');
+    t.add_cleanup(() => iframe.remove());
+    iframe.src = `${REMOTE_ORIGIN}/resource-timing/resources/delay-load.html`;
+    document.body.appendChild(iframe);
+    const entry = await observe_entry(iframe.src);
+    assert_greater_than(entry.duration, 1000);
+  }, "Cross-origin TAO-fail IFrame entries should report window load time");
+
+  promise_test(async t => {
+    const object = document.createElement('object');
+    object.type = "text/html";
+    t.add_cleanup(() => object.remove());
+    object.data = `${REMOTE_ORIGIN}/resource-timing/resources/delay-load.html`;
+    document.body.appendChild(object);
+    const entry = await observe_entry(object.data);
+    assert_greater_than(entry.duration, 1000);
+  }, "Cross-origin TAO-fail object entries should report window load time");
+
+  </script>

@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+
+<head>
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+  <script src="/common/utils.js"></script>
+  <script src="/common/dispatcher/dispatcher.js"></script>
+  <script src="/html/browsers/browsing-the-web/back-forward-cache/resources/helper.sub.js"></script>
+</head>
+
+<body>
+  <script>
+    const BackForwardCacheRestorationName = '';
+    const BackForwardCacheRestorationType = 'back-forward-cache-restoration';
+
+    let getNumberofBackForwardCacheRestorationEntries = (BackForwardCacheRestorationType) => {
+      return window.performance.getEntriesByType(BackForwardCacheRestorationType).length;
+    }
+
+    let getBackForwardCacheRestorationByType = (BackForwardCacheRestorationType) => {
+      let entries = window.performance.getEntriesByType(BackForwardCacheRestorationType);
+      return entries[entries.length - 1];
+    }
+
+    let getBackForwardCacheRestorationByGetAllAndFilter = (BackForwardCacheRestorationType) => {
+      let entries = window.performance.getEntries().filter(e => e.entryType == BackForwardCacheRestorationType);
+      return entries[entries.length - 1];
+    }
+
+    let getBackForwardCacheRestorationByPerformanceObserverBuffered = async (BackForwardCacheRestorationType) => {
+      let p = new Promise(resolve => {
+        new PerformanceObserver((list) => {
+          const entries = list.getEntries().filter(e => e.entryType == BackForwardCacheRestorationType);
+          if (entries.length > 0) {
+            resolve(entries[entries.length - 1]);
+          }
+        }).observe({ type: BackForwardCacheRestorationType, buffered: true });
+      });
+      return await p;
+    }
+
+    let checkEntry = (entry, expectedNavigationId) => {
+      assert_equals(entry.name, BackForwardCacheRestorationName);
+      assert_equals(entry.entryType, BackForwardCacheRestorationType);
+      assert_equals(entry.navigationId, expectedNavigationId);
+      assert_true(entry.pageshowEventStart > entry.startTime);
+      assert_true(entry.pageshowEventEnd >= entry.pageshowEventStart);
+    }
+
+    promise_test(async t => {
+      const pageA = new RemoteContext(token());
+      const pageB = new RemoteContext(token());
+
+      const urlA = executorPath + pageA.context_id;
+      const urlB = originCrossSite + executorPath + pageB.context_id;
+      // Open url A.
+      window.open(urlA, '_blank', 'noopener');
+      await pageA.execute_script(waitForPageShow);
+
+      // Assert no instance of BackForwardCacheRestoration exists without back forward cache navigatoin.
+      let size = await pageA.execute_script(getNumberofBackForwardCacheRestorationEntries);
+      assert_equals(0, size);
+
+      let entry;
+      for (i = 0; i < 2; i++) {
+        // Navigate away to url B and back.
+        await navigateAndThenBack(pageA, pageB, urlB);
+
+        // Assert Performance Observer API supports BackForwardCacheRestoration.
+        entry = await pageA.execute_script(getBackForwardCacheRestorationByPerformanceObserverBuffered, [BackForwardCacheRestorationType]);
+        checkEntry(entry, i + 2); // The expected navigation id of the entry created at i-th navigating away and back is i+2 because navigation id starts from 1 and increments before an instance of BackForwardRestoration is created.
+        // Assert Performance Timeline API supports BackForwardCacheRestoration.
+        entry = await pageA.execute_script(getBackForwardCacheRestorationByType, [BackForwardCacheRestorationType]);
+        checkEntry(entry, i + 2);
+
+        entry = await pageA.execute_script(getBackForwardCacheRestorationByGetAllAndFilter, [BackForwardCacheRestorationType]);
+        checkEntry(entry, i + 2);
+      }
+    }, 'Performance API for the back forward cache restoration entry.');
+  </script>
+</body>
+
+</html>

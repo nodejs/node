@@ -1,0 +1,43 @@
+<!DOCTYPE HTML>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<!--
+Navigation timing, LCP and paint timing entries are only emitted during initial
+load, not after a bfcache navigation. Therefore we only verify the existence of
+navigation id, not the increment.
+-->
+
+<body>
+  <p>This text is to trigger a LCP entry emission.</p>
+  <script>
+    async function NavigationIdsFromLCP() {
+      return new Promise(resolve => {
+        new PerformanceObserver((entryList) => {
+          resolve(entryList.getEntries());
+        }).observe({ type: 'largest-contentful-paint', buffered: true });
+      })
+    }
+
+    promise_test(async t => {
+      // Assert navigation id exists in LCP entries and is the default value 1.
+      const navigationIds = await NavigationIdsFromLCP();
+      assert_true(navigationIds.every(e => e.navigationId == 1), 'Navigation Id\
+      of LCP entries should be default value 1 at initial navigations');
+
+      // Assert navigation id exists in a NavigationTiming entry and is the
+      // default value 1.
+      const navigationId = performance.getEntriesByType('navigation')[0].navigationId;
+      assert_equals(navigationId, 1, 'Navigation Id of an navigation timing\
+      entry should be default value 1 at initial navigations');
+
+      // Assert navigation id exists in PaintTiming entries and is the default
+      // value 1.
+      assert_true(performance.getEntriesByType('paint').every(e =>
+        e.navigationId == 1),
+        'Navigation Id of PaintTiming entries should be default value 1 at\
+         initial navigations.');
+
+    }, 'Navigation Id should be 1 at initial navigations.');
+  </script>
+</body>

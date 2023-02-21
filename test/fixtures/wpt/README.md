@@ -10,27 +10,28 @@ See [test/wpt](../../wpt/README.md) for information on how these tests are run.
 
 Last update:
 
-- common: https://github.com/web-platform-tests/wpt/tree/03c5072aff/common
+- common: https://github.com/web-platform-tests/wpt/tree/dbd648158d/common
 - console: https://github.com/web-platform-tests/wpt/tree/767ae35464/console
-- dom/abort: https://github.com/web-platform-tests/wpt/tree/8fadb38120/dom/abort
-- dom/events: https://github.com/web-platform-tests/wpt/tree/ab8999891c/dom/events
-- encoding: https://github.com/web-platform-tests/wpt/tree/779d175c40/encoding
+- dom/abort: https://github.com/web-platform-tests/wpt/tree/e8cba6918a/dom/abort
+- dom/events: https://github.com/web-platform-tests/wpt/tree/c821e5c4e8/dom/events
+- encoding: https://github.com/web-platform-tests/wpt/tree/0c1b9d1622/encoding
 - fetch/data-urls/resources: https://github.com/web-platform-tests/wpt/tree/7c79d998ff/fetch/data-urls/resources
-- FileAPI: https://github.com/web-platform-tests/wpt/tree/3b279420d4/FileAPI
+- FileAPI/blob: https://github.com/web-platform-tests/wpt/tree/c9a3667cce/FileAPI/blob
 - FileAPI/file: https://github.com/web-platform-tests/wpt/tree/c01f637cca/FileAPI/file
+- FileAPI/support: https://github.com/web-platform-tests/wpt/tree/049c26522d/FileAPI/support
 - hr-time: https://github.com/web-platform-tests/wpt/tree/34cafd797e/hr-time
 - html/webappapis/atob: https://github.com/web-platform-tests/wpt/tree/f267e1dca6/html/webappapis/atob
-- html/webappapis/microtask-queuing: https://github.com/web-platform-tests/wpt/tree/2c5c3c4c27/html/webappapis/microtask-queuing
-- html/webappapis/structured-clone: https://github.com/web-platform-tests/wpt/tree/47d3fb280c/html/webappapis/structured-clone
-- html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/5873f2d8f1/html/webappapis/timers
-- interfaces: https://github.com/web-platform-tests/wpt/tree/df731dab88/interfaces
-- performance-timeline: https://github.com/web-platform-tests/wpt/tree/17ebc3aea0/performance-timeline
-- resource-timing: https://github.com/web-platform-tests/wpt/tree/22d38586d0/resource-timing
-- resources: https://github.com/web-platform-tests/wpt/tree/fbf1e7d247/resources
-- streams: https://github.com/web-platform-tests/wpt/tree/9e5ef42bd3/streams
-- url: https://github.com/web-platform-tests/wpt/tree/f1ade799d0/url
-- user-timing: https://github.com/web-platform-tests/wpt/tree/df24fb604e/user-timing
-- wasm/jsapi: https://github.com/web-platform-tests/wpt/tree/d8dbe6990b/wasm/jsapi
+- html/webappapis/microtask-queuing: https://github.com/web-platform-tests/wpt/tree/22ecfc9bac/html/webappapis/microtask-queuing
+- html/webappapis/structured-clone: https://github.com/web-platform-tests/wpt/tree/5656a2f465/html/webappapis/structured-clone
+- html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/22ecfc9bac/html/webappapis/timers
+- interfaces: https://github.com/web-platform-tests/wpt/tree/4304540ff0/interfaces
+- performance-timeline: https://github.com/web-platform-tests/wpt/tree/b6f6bf16fe/performance-timeline
+- resource-timing: https://github.com/web-platform-tests/wpt/tree/a8d60f5514/resource-timing
+- resources: https://github.com/web-platform-tests/wpt/tree/bbea8dcb1c/resources
+- streams: https://github.com/web-platform-tests/wpt/tree/e97fac4791/streams
+- url: https://github.com/web-platform-tests/wpt/tree/e257f628d3/url
+- user-timing: https://github.com/web-platform-tests/wpt/tree/5ae85bf826/user-timing
+- wasm/jsapi: https://github.com/web-platform-tests/wpt/tree/cde25e7e3c/wasm/jsapi
 - wasm/webapi: https://github.com/web-platform-tests/wpt/tree/fd1b23eeaa/wasm/webapi
 - WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/238d9d9bac/WebCryptoAPI
 - webidl/ecmascript-binding/es-exceptions: https://github.com/web-platform-tests/wpt/tree/a370aad338/webidl/ecmascript-binding/es-exceptions

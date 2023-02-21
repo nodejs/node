@@ -2246,7 +2246,8 @@
                 ReadOnlyError: 0,
                 VersionError: 0,
                 OperationError: 0,
-                NotAllowedError: 0
+                NotAllowedError: 0,
+                OptOutError: 0
             };
 
             var code_name_map = {};
@@ -2476,6 +2477,10 @@
         this.cleanup_callbacks = [];
         this._user_defined_cleanup_count = 0;
         this._done_callbacks = [];
+
+        if (typeof AbortController === "function") {
+            this._abortController = new AbortController();
+        }
 
         // Tests declared following harness completion are likely an indication
         // of a programming error, but they cannot be reported
@@ -2953,6 +2958,10 @@
 
         this.phase = this.phases.CLEANING;
 
+        if (this._abortController) {
+            this._abortController.abort("Test cleanup");
+        }
+
         forEach(this.cleanup_callbacks,
                 function(cleanup_callback) {
                     var result;
@@ -3044,6 +3053,16 @@
                     callback();
                 });
         test._done_callbacks.length = 0;
+    }
+
+    /**
+     * Gives an AbortSignal that will be aborted when the test finishes.
+     */
+    Test.prototype.get_signal = function() {
+        if (!this._abortController) {
+            throw new Error("AbortController is not supported in this browser");
+        }
+        return this._abortController.signal;
     }
 
     /**
@@ -3822,7 +3841,9 @@
             return;
         }
 
-        this.pending_remotes.push(this.create_remote_window(remote));
+        var remoteContext = this.create_remote_window(remote);
+        this.pending_remotes.push(remoteContext);
+        return remoteContext.done;
     };
 
     /**
@@ -3837,7 +3858,7 @@
      * @param {Window} window - The window to fetch tests from.
      */
     function fetch_tests_from_window(window) {
-        tests.fetch_tests_from_window(window);
+        return tests.fetch_tests_from_window(window);
     }
     expose(fetch_tests_from_window, 'fetch_tests_from_window');
 
@@ -3871,7 +3892,7 @@
      */
     function begin_shadow_realm_tests(postMessage) {
         if (!(test_environment instanceof ShadowRealmTestEnvironment)) {
-            throw new Error("beign_shadow_realm_tests called in non-Shadow Realm environment");
+            throw new Error("begin_shadow_realm_tests called in non-Shadow Realm environment");
         }
 
         test_environment.begin(function (msg) {

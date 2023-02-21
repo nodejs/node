@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+
+<head>
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+  <script src=/common/get-host-info.sub.js></script>
+</head>
+
+<body>
+  <script>
+    const loadChildFrame = () => {
+      return new Promise(resolve => {
+
+        const childFrame = document.createElement('iframe');
+
+        window.addEventListener("message", (e) => {
+          resolve(e.data)
+        });
+
+        childFrame.src = "../resources/include-frames-subframe.html?origin=" + get_host_info().ORIGIN;
+
+        document.body.appendChild(childFrame);
+      });
+    }
+
+    promise_test(async () => {
+      performance.clearResourceTimings();
+
+      // Load a child frame. The child frame upon loading would load a child frame of its own.
+      childFrameEntrySize = await loadChildFrame();
+
+      // Verify the number of performance entries in the child frame.
+      assert_equals(childFrameEntrySize, 6, 'Child Frame should have 6 entries.');
+
+      const entries = performance.getEntries({ includeChildFrames: true });
+
+      const navigationEntries = performance.getEntries({ entryType: "navigation", includeChildFrames: true });
+
+      const markedEntries = performance.getEntries(
+        { name: 'entry-name', includeChildFrames: true });
+
+      // 3 entries for parent, 4 for child, 2 for grandchild.
+      assert_equals(entries.length, 9, 'Total entries should be 9.');
+
+      // 1 entry for parent, 1 for child, 1 for grandchild.
+      assert_equals(navigationEntries.length, 3, 'Navigation entries should be 3.');
+
+      // 1 entry for child, 1 for grandchild.
+      assert_equals(markedEntries.length, 2, 'Mark entries should be 2.');
+
+      // Test cases where includeChildFrames is false.
+      const entriesWithNoFitlerOptions = performance.getEntries();
+
+      const entriesWithoutIncludingChildFrames = performance.getEntries({ includeChildFrames: false });
+
+      const navigationEntriesWithoutIncludingChildFrames = performance.getEntries({ entryType: "navigation", includeChildFrames: false });
+
+      const markedEntriesWithoutIncludingChildFrames = performance.getEntries(
+        { name: 'entry-name', includeChildFrames: false });
+
+      // 3 entries for parent.
+      assert_equals(entriesWithNoFitlerOptions.length, 3,
+        'Total entries without filter options should be 3 without filter options.');
+
+      assert_equals(entriesWithoutIncludingChildFrames.length, 3,
+        'Total entries with includeChildFrame being false should be 3.');
+
+      // 1 entry for parent.
+      assert_equals(navigationEntriesWithoutIncludingChildFrames.length, 1,
+        'Navigation entries with includeChildFrame being false should be 1.');
+
+      // 0 entry for child.
+      assert_equals(markedEntriesWithoutIncludingChildFrames.length, 0,
+        'Mark entries with includeChildFrame being false should be 0.');
+
+    }, 'GetEntries of a document of origin A, its child frame of origin B and \
+    its grandchild frame of origin A.');
+  </script>
+</body>

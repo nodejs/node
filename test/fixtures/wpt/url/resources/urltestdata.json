@@ -965,6 +965,11 @@
     "hash": ""
   },
   {
+    "input": "http://[::127.0.0.1.]",
+    "base": "http://example.org/foo/bar",
+    "failure": true
+  },
+  {
     "input": "http://[0:0:0:0:0:0:13.1.68.3]",
     "base": "http://example.org/foo/bar",
     "href": "http://[::d01:4403]/",
@@ -3960,7 +3965,17 @@
     "failure": true
   },
   {
+    "input": "http://[::.1.2]",
+    "base": "http://other.com/",
+    "failure": true
+  },
+  {
     "input": "http://[::1.]",
+    "base": "http://other.com/",
+    "failure": true
+  },
+  {
+    "input": "http://[::.1]",
     "base": "http://other.com/",
     "failure": true
   },
