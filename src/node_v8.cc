@@ -91,23 +91,24 @@ static const size_t kHeapCodeStatisticsPropertiesCount =
     HEAP_CODE_STATISTICS_PROPERTIES(V);
 #undef V
 
-BindingData::BindingData(Environment* env, Local<Object> obj)
-    : SnapshotableObject(env, obj, type_int),
-      heap_statistics_buffer(env->isolate(), kHeapStatisticsPropertiesCount),
-      heap_space_statistics_buffer(env->isolate(),
+BindingData::BindingData(Realm* realm, Local<Object> obj)
+    : SnapshotableObject(realm, obj, type_int),
+      heap_statistics_buffer(realm->isolate(), kHeapStatisticsPropertiesCount),
+      heap_space_statistics_buffer(realm->isolate(),
                                    kHeapSpaceStatisticsPropertiesCount),
-      heap_code_statistics_buffer(env->isolate(),
+      heap_code_statistics_buffer(realm->isolate(),
                                   kHeapCodeStatisticsPropertiesCount) {
-  obj->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "heapStatisticsBuffer"),
+  Local<Context> context = realm->context();
+  obj->Set(context,
+           FIXED_ONE_BYTE_STRING(realm->isolate(), "heapStatisticsBuffer"),
            heap_statistics_buffer.GetJSArray())
       .Check();
-  obj->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "heapCodeStatisticsBuffer"),
+  obj->Set(context,
+           FIXED_ONE_BYTE_STRING(realm->isolate(), "heapCodeStatisticsBuffer"),
            heap_code_statistics_buffer.GetJSArray())
       .Check();
-  obj->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "heapSpaceStatisticsBuffer"),
+  obj->Set(context,
+           FIXED_ONE_BYTE_STRING(realm->isolate(), "heapSpaceStatisticsBuffer"),
            heap_space_statistics_buffer.GetJSArray())
       .Check();
 }
@@ -130,8 +131,8 @@ void BindingData::Deserialize(Local<Context> context,
                               InternalFieldInfoBase* info) {
   DCHECK_EQ(index, BaseObject::kEmbedderType);
   HandleScope scope(context->GetIsolate());
-  Environment* env = Environment::GetCurrent(context);
-  BindingData* binding = env->AddBindingData<BindingData>(context, holder);
+  Realm* realm = Realm::GetCurrent(context);
+  BindingData* binding = realm->AddBindingData<BindingData>(context, holder);
   CHECK_NOT_NULL(binding);
 }
 
@@ -168,7 +169,7 @@ void SetHeapSnapshotNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
 }
 
 void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
-  BindingData* data = Environment::GetBindingData<BindingData>(args);
+  BindingData* data = Realm::GetBindingData<BindingData>(args);
   HeapStatistics s;
   args.GetIsolate()->GetHeapStatistics(&s);
   AliasedFloat64Array& buffer = data->heap_statistics_buffer;
@@ -179,7 +180,7 @@ void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 
 
 void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
-  BindingData* data = Environment::GetBindingData<BindingData>(args);
+  BindingData* data = Realm::GetBindingData<BindingData>(args);
   HeapSpaceStatistics s;
   Isolate* const isolate = args.GetIsolate();
   CHECK(args[0]->IsUint32());
@@ -194,7 +195,7 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 }
 
 void UpdateHeapCodeStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
-  BindingData* data = Environment::GetBindingData<BindingData>(args);
+  BindingData* data = Realm::GetBindingData<BindingData>(args);
   HeapCodeStatistics s;
   args.GetIsolate()->GetHeapCodeAndMetadataStatistics(&s);
   AliasedFloat64Array& buffer = data->heap_code_statistics_buffer;
@@ -393,9 +394,10 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
   BindingData* const binding_data =
-      env->AddBindingData<BindingData>(context, target);
+      realm->AddBindingData<BindingData>(context, target);
   if (binding_data == nullptr) return;
 
   SetMethodNoSideEffect(

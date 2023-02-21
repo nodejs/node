@@ -277,7 +277,7 @@ FSReqBase* GetReqWrap(const v8::FunctionCallbackInfo<v8::Value>& args,
     return Unwrap<FSReqBase>(value.As<v8::Object>());
   }
 
-  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
+  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
   Environment* env = binding_data->env();
   if (value->StrictEquals(env->fs_use_promises_symbol())) {
     if (use_bigint) {
