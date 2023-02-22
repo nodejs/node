@@ -368,6 +368,9 @@ DOCBUILDSTAMP_PREREQS = tools/doc/addon-verify.mjs doc/api/addons.md
 ifeq ($(OSTYPE),aix)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
+ifeq ($(OSTYPE),os400)
+DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
+endif
 
 node_use_openssl = $(call available-node,"-p" \
 			 "process.versions.openssl != undefined")
