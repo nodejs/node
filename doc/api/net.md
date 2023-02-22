@@ -941,7 +941,7 @@ For TCP connections, available `options` are:
 * `autoSelectFamilyAttemptTimeout` {number}: The amount of time in milliseconds to wait
   for a connection attempt to finish before trying the next address when using the `autoSelectFamily` option.
   If set to a positive integer less than `10`, then the value `10` will be used instead.
-  **Default:** `250`.
+  **Default:** initially `250`, but it can be changed at runtime using [`net.setDefaultAutoSelectFamilyAttemptTimeout(value)`][]
 
 For [IPC][] connections, available `options` are:
 
@@ -1528,26 +1528,6 @@ immediately initiates connection with
 [`socket.connect(port[, host][, connectListener])`][`socket.connect(port)`],
 then returns the `net.Socket` that starts the connection.
 
-## `net.setDefaultAutoSelectFamily(value)`
-
-<!-- YAML
-added: v19.4.0
--->
-
-Sets the default value of the `autoSelectFamily` option of [`socket.connect(options)`][].
-
-* `value` {boolean} The new default value. The initial default value is `false`.
-
-## `net.getDefaultAutoSelectFamily()`
-
-<!-- YAML
-added: v19.4.0
--->
-
-Gets the current default value of the `autoSelectFamily` option of [`socket.connect(options)`][].
-
-* Returns: {boolean} The current default value of the `autoSelectFamily` option.
-
 ## `net.createServer([options][, connectionListener])`
 
 <!-- YAML
@@ -1642,6 +1622,47 @@ Use `nc` to connect to a Unix domain socket server:
 $ nc -U /tmp/echo.sock
 ```
 
+## `net.getDefaultAutoSelectFamily()`
+
+<!-- YAML
+added: v19.4.0
+-->
+
+Gets the current default value of the `autoSelectFamily` option of [`socket.connect(options)`][].
+
+* Returns: {boolean} The current default value of the `autoSelectFamily` option.
+
+## `net.setDefaultAutoSelectFamily(value)`
+
+<!-- YAML
+added: v19.4.0
+-->
+
+Sets the default value of the `autoSelectFamily` option of [`socket.connect(options)`][].
+
+* `value` {boolean} The new default value. The initial default value is `false`.
+
+## `net.getDefaultAutoSelectFamilyAttemptTimeout()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Gets the current default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
+
+* Returns: {number} The current default value of the `autoSelectFamilyAttemptTimeout` option.
+
+## `net.setDefaultAutoSelectFamilyAttemptTimeout(value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Sets the default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
+
+* `value` {number} The new default value, which must be a positive number. If the number is less than `10`,
+  the value `10` is used insted The initial default value is `250`.
+
 ## `net.isIP(input)`
 
 <!-- YAML
@@ -1727,6 +1748,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [`net.createConnection(port, host)`]: #netcreateconnectionport-host-connectlistener
 [`net.createServer()`]: #netcreateserveroptions-connectionlistener
 [`net.setDefaultAutoSelectFamily(value)`]: #netsetdefaultautoselectfamilyvalue
+[`net.setDefaultAutoSelectFamilyAttemptTimeout(value)`]: #netsetdefaultautoselectfamilyattempttimeoutvalue
 [`new net.Socket(options)`]: #new-netsocketoptions
 [`readable.setEncoding()`]: stream.md#readablesetencodingencoding
 [`server.close()`]: #serverclosecallback

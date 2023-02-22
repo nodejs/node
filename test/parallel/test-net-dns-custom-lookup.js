@@ -26,13 +26,22 @@ function check(addressType, cb) {
 
   function lookup(host, dnsopts, cb) {
     dnsopts.family = addressType;
+
     if (addressType === 4) {
       process.nextTick(function() {
-        cb(null, common.localhostIPv4, 4);
+        if (dnsopts.all) {
+          cb(null, [{ address: common.localhostIPv4, family: 4 }]);
+        } else {
+          cb(null, common.localhostIPv4, 4);
+        }
       });
     } else {
       process.nextTick(function() {
-        cb(null, '::1', 6);
+        if (dnsopts.all) {
+          cb(null, [{ address: '::1', family: 6 }]);
+        } else {
+          cb(null, '::1', 6);
+        }
       });
     }
   }
@@ -48,7 +57,11 @@ check(4, function() {
     host: 'localhost',
     port: 80,
     lookup(host, dnsopts, cb) {
-      cb(null, undefined, 4);
+      if (dnsopts.all) {
+        cb(null, [{ address: undefined, family: 4 }]);
+      } else {
+        cb(null, undefined, 4);
+      }
     }
   }).on('error', common.expectsError({ code: 'ERR_INVALID_IP_ADDRESS' }));
 }
