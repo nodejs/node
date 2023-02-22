@@ -383,6 +383,69 @@ session.post('HeapProfiler.takeHeapSnapshot', null, (err, r) => {
 });
 ```
 
+### Class: `inspector.RawSession`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Extends: {EventEmitter}
+
+Both `RawSession` and `Session` are used to communicate with the V8 Inspector.
+But they're a little different.
+
+When using `Session.post()` to dispatch a message to V8 inspector,
+`Session.post()` will construct a request that conforms to the format of the
+V8 inspector protocol. When `Session` receives a message from the V8 inspector.
+It will parse the data and execute a callback passed in by the user or trigger
+the corresponding event.
+
+`RawSession` only transfers the data transparently between the user and the V8
+inspector without doing any processing.
+
+#### `session.post(message)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `message` {string}
+
+Posts a message to the inspector back-end.
+
+#### Event: `'message'`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string} message from the V8 inspector
+
+Emitted when any message from the V8 inspector is received.
+
+Here is an example.
+
+```js
+const { RawSession } = require('inspector');
+
+const session = new RawSession();
+
+session.connect();
+
+session.on('message', (result) => {
+  const data = JSON.parse(result);
+  console.log(data);
+});
+
+const data = JSON.stringify({
+  method: 'Runtime.evaluate',
+  id: 1,
+  params: { expression: '1 + 1' },
+});
+
+session.post(data);
+```
+
 ## Common Objects
 
 ### `inspector.close()`
