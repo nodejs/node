@@ -781,6 +781,9 @@ class WPTRunner {
   resultCallback(filename, test, reportResult) {
     const status = this.getTestStatus(test.status);
     const title = this.getTestTitle(filename);
+    if (/^Untitled( \d+)?$/.test(test.name)) {
+      test.name = `${title}${test.name.slice(8)}`;
+    }
     console.log(`---- ${title} ----`);
     if (status !== kPass) {
       this.fail(filename, test, status, reportResult);
