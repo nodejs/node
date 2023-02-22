@@ -62,10 +62,10 @@ jobs:
           ref: ${{ env.NIGHTLY_REF || steps.setup-node.outputs.node-version }}
       - name: Set env.NODE
         run: echo "NODE=$(which node)" >> $GITHUB_ENV
-      - name: Set env.WPT_DAILY_REF
+      - name: Set env.WPT_REVISION
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "WPT_DAILY_REF=$(gh api /repos/web-platform-tests/wpt/branches/epochs/daily --jq '.commit.sha')" >> $GITHUB_ENV
+        run: echo "WPT_REVISION=$(gh api /repos/web-platform-tests/wpt/branches/epochs/daily --jq '.commit.sha')" >> $GITHUB_ENV
 
       # replace checked out WPT with the synchronized branch
       - name: Remove stale WPT
@@ -78,10 +78,7 @@ jobs:
           persist-credentials: false
           path: test/fixtures/wpt
           clean: false
-          ref: ${{ env.WPT_DAILY_REF }}
-      - name: Set env.WPT_REVISION
-        run: echo "WPT_REVISION=$(git rev-parse HEAD)" >> $GITHUB_ENV
-        working-directory: test/fixtures/wpt
+          ref: ${{ env.WPT_REVISION }}
 
       - name: Run WPT and generate report
         run: make test-wpt-report || true
