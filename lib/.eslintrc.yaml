@@ -287,7 +287,7 @@ overrides:
       - ./internal/structured_clone.js
       - ./internal/test/*.js
       - ./internal/test_runner/**/*.js
-      - ./internal/tls/secure-context.js
+      - ./internal/tls/*.js
       - ./internal/util/parse_args/*.js
       - ./internal/v8_prof_processor.js
       - ./internal/vm.js
@@ -301,6 +301,7 @@ overrides:
       - ./stream/*.js
       - ./sys.js
       - ./test.js
+      - ./tls.js
       - ./url.js
       - ./util/*.js
     rules:
