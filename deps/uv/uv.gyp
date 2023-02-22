@@ -255,8 +255,10 @@
           },
         }],
         [ 'OS=="android"', {
+          'defines': [
+            '_GNU_SOURCE',
+          ],
           'sources': [
-            'src/unix/android-ifaddrs.c',
             'src/unix/linux-core.c',
             'src/unix/linux-inotify.c',
             'src/unix/linux-syscalls.c',
