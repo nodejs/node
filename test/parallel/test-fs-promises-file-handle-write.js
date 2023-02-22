@@ -31,7 +31,7 @@ async function validateArrayBufferWrite() {
   const fileHandle = await open(filePathForHandle, 'w+');
   const buffer = Buffer.from('Hello world'.repeat(100), 'utf8');
 
-  await fileHandle.write(buffer.buffer, 0, buffer.length);
+  await fileHandle.write(buffer.buffer, buffer.byteOffset, buffer.length);
   const readFileData = fs.readFileSync(filePathForHandle);
   assert.deepStrictEqual(buffer, readFileData);
 
