@@ -20,9 +20,8 @@ const server = tls.createServer({})
   }).on('tlsClientError', common.mustCall(function(e) {
     assert.ok(e instanceof Error,
               'Instance of Error should be passed to error handler');
-    // OpenSSL 1.0.x and 1.1.x use different error codes for junk inputs.
     assert.ok(
-      /SSL routines:[^:]*:(unknown protocol|wrong version number)/.test(
+      /SSL routines:[^:]*:wrong version number/.test(
         e.message),
       'Expecting SSL unknown protocol');
 
