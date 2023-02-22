@@ -1,8 +1,15 @@
 #include "main_thread_interface.h"
 
 #include "env-inl.h"
+#if !defined(_WIN32) || !defined(_M_ARM64)
 #include "simdutf.h"
+#endif
 #include "v8-inspector.h"
+#if defined(_WIN32) && defined(_M_ARM64)
+#include "util-inl.h"
+
+#include <unicode/unistr.h>
+#endif
 
 #include <functional>
 #include <memory>
@@ -286,12 +293,19 @@ Deletable* MainThreadInterface::GetObjectIfExists(int id) {
 }
 
 std::unique_ptr<StringBuffer> Utf8ToStringView(const std::string_view message) {
+#if defined(_WIN32) && defined(_M_ARM64)
+  icu::UnicodeString utf16 = icu::UnicodeString::fromUTF8(
+      icu::StringPiece(message.data(), message.length()));
+  StringView view(reinterpret_cast<const uint16_t*>(utf16.getBuffer()),
+                  utf16.length());
+#else
   size_t expected_u16_length =
       simdutf::utf16_length_from_utf8(message.data(), message.length());
   MaybeStackBuffer<char16_t> buffer(expected_u16_length);
   size_t utf16_length = simdutf::convert_utf8_to_utf16(
       message.data(), message.length(), buffer.out());
   StringView view(reinterpret_cast<uint16_t*>(buffer.out()), utf16_length);
+#endif
   return StringBuffer::create(view);
 }
 
