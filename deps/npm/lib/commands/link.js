@@ -52,7 +52,7 @@ class Link extends ArboristWorkspaceCmd {
         { code: 'ELINKGLOBAL' }
       )
     }
-    // install-links is implicitely false when running `npm link`
+    // install-links is implicitly false when running `npm link`
     this.npm.config.set('install-links', false)
 
     // link with no args: symlink the folder to the global location
