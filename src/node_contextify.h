@@ -194,9 +194,6 @@ class CompiledFnEntry final : public BaseObject {
 
  private:
   uint32_t id_;
-  v8::Global<v8::Function> fn_;
-
-  static void WeakCallback(const v8::WeakCallbackInfo<CompiledFnEntry>& data);
 };
 
 v8::Maybe<bool> StoreCodeCacheResult(
