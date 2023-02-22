@@ -19,8 +19,8 @@
   "Event-constructors.any.js": {
     "fail": {
       "expected": [
-        "Untitled 3",
-        "Untitled 4"
+        "Event constructors 3",
+        "Event constructors 4"
       ]
     }
   },
