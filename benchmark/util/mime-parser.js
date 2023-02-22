@@ -2,75 +2,6 @@
 
 const common = require('../common.js');
 
-const inputs = [
-  {
-    input: 'text/html;charset=gbk',
-    output: 'text/html;charset=gbk',
-    navigable: true,
-    encoding: 'GBK',
-  },
-  {
-    input: 'TEXT/HTML;CHARSET=GBK',
-    output: 'text/html;charset=GBK',
-    navigable: true,
-    encoding: 'GBK',
-  },
-  {
-    input: 'text/html;charset=gbk(',
-    output: 'text/html;charset="gbk("',
-    navigable: true,
-    encoding: null,
-  },
-  {
-    input: 'text/html;x=(;charset=gbk',
-    output: 'text/html;x="(";charset=gbk',
-    navigable: true,
-    encoding: 'GBK',
-  },
-  {
-    input: 'text/html;charset=gbk;charset=windows-1255',
-    output: 'text/html;charset=gbk',
-    navigable: true,
-    encoding: 'GBK',
-  },
-  {
-    input: 'text/html;charset=();charset=GBK',
-    output: 'text/html;charset="()"',
-    navigable: true,
-    encoding: null,
-  },
-  {
-    input: 'text/html;charset =gbk',
-    output: 'text/html',
-    navigable: true,
-    encoding: null,
-  },
-  {
-    input: 'text/html ;charset=gbk',
-    output: 'text/html;charset=gbk',
-    navigable: true,
-    encoding: 'GBK',
-  },
-  {
-    input: 'text/html; charset=gbk',
-    output: 'text/html;charset=gbk',
-    navigable: true,
-    encoding: 'GBK',
-  },
-  {
-    input: 'text/html;charset= gbk',
-    output: 'text/html;charset=" gbk"',
-    navigable: true,
-    encoding: 'GBK',
-  },
-  {
-    input: 'text/html;charset= "gbk"',
-    output: 'text/html;charset=" \\"gbk\\""',
-    navigable: true,
-    encoding: null,
-  },
-];
-
 const strings = [
   'text/html;charset=gbk',
   'text/html;charset=GBK',
@@ -93,5 +24,4 @@ function main({ strings: string, n }) {
   bench.start();
   new MIMEType(string);
   bench.end(n);
-  //   assert.ok(noDead === undefined || noDead.length > 0);
 }
