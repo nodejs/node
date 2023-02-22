@@ -33,7 +33,21 @@ tool, [postject][]:
    $ cp $(command -v node) hello
    ```
 
-3. Inject the JavaScript file into the copied binary by running `postject` with
+3. Remove the signature of the binary:
+
+   * On macOS:
+
+   ```console
+   $ codesign --remove-signature hello
+   ```
+
+   * On Windows:
+
+   ```console
+   $ signtool remove /s hello
+   ```
+
+4. Inject the JavaScript file into the copied binary by running `postject` with
    the following options:
 
    * `hello` - The name of the copy of the `node` executable created in step 2.
@@ -61,7 +75,21 @@ tool, [postject][]:
          --macho-segment-name NODE_JS
      ```
 
-4. Run the binary:
+5. Sign the binary:
+
+   * On macOS:
+
+   ```console
+   $ codesign --sign - hello
+   ```
+
+   * On Windows:
+
+   ```console
+   $ signtool sign /fd SHA256 hello
+   ```
+
+6. Run the binary:
    ```console
    $ ./hello world
    Hello, world!
