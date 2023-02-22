@@ -45,7 +45,7 @@ from utils import SearchFiles
 parser = argparse.ArgumentParser()
 
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
-            'android', 'aix', 'cloudabi', 'ios')
+            'android', 'aix', 'cloudabi', 'os400', 'ios')
 valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'mips64el', 'ppc',
               'ppc64', 'x64', 'x86', 'x86_64', 's390x', 'riscv64', 'loong64')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
@@ -1325,7 +1325,7 @@ def configure_node(o):
   elif sys.platform == 'zos':
     configure_zos(o)
 
-  if flavor == 'aix':
+  if flavor in ('aix', 'os400'):
     o['variables']['node_target_type'] = 'static_library'
 
   if target_arch in ('x86', 'x64', 'ia32', 'x32'):
@@ -1445,6 +1445,8 @@ def configure_node(o):
   elif sys.platform == 'darwin':
     shlib_suffix = '%s.dylib'
   elif sys.platform.startswith('aix'):
+    shlib_suffix = '%s.a'
+  elif sys.platform == 'os400':
     shlib_suffix = '%s.a'
   elif sys.platform.startswith('zos'):
     shlib_suffix = '%s.x'
@@ -1959,6 +1961,9 @@ def configure_intl(o):
   elif flavor == 'mac':
     icu_config['variables']['icu_asm_ext'] = 'S'
     icu_config['variables']['icu_asm_opts'] = [ '-a', 'gcc-darwin' ]
+  elif sys.platform == 'os400':
+    icu_config['variables']['icu_asm_ext'] = 'S'
+    icu_config['variables']['icu_asm_opts'] = [ '-a', 'xlc' ]
   elif sys.platform.startswith('aix'):
     icu_config['variables']['icu_asm_ext'] = 'S'
     icu_config['variables']['icu_asm_opts'] = [ '-a', 'xlc' ]

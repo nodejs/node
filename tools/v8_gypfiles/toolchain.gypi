@@ -330,11 +330,11 @@
               'V8_TARGET_ARCH_PPC_BE',
             ],
             'conditions': [
-              ['OS=="aix"', {
+              ['OS=="aix" or OS=="os400"', {
                 # Work around AIX ceil, trunc and round oddities.
                 'cflags': [ '-mcpu=power5+ -mfprnd' ],
               }],
-              ['OS=="aix"', {
+              ['OS=="aix" or OS=="os400"', {
                 # Work around AIX assembler popcntb bug.
                 'cflags': [ '-mno-popcntb' ],
               }],
@@ -1098,7 +1098,7 @@
         ],
       }],
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
-         or OS=="netbsd" or OS=="qnx" or OS=="aix"', {
+         or OS=="netbsd" or OS=="qnx" or OS=="aix" or OS=="os400"', {
         'conditions': [
           [ 'v8_no_strict_aliasing==1', {
             'cflags': [ '-fno-strict-aliasing' ],
@@ -1114,7 +1114,7 @@
       ['OS=="netbsd"', {
         'cflags': [ '-I/usr/pkg/include' ],
       }],
-      ['OS=="aix"', {
+      ['OS=="aix" or OS=="os400"', {
         'defines': [
           # Support for malloc(0)
           '_LINUX_SOURCE_COMPAT=1',
@@ -1147,7 +1147,7 @@
             # Support for backtrace_symbols.
             'ldflags': [ '-rdynamic' ],
           }],
-          ['OS=="aix"', {
+          ['OS=="aix" or OS=="os400"', {
             'ldflags': [ '-Wl,-bbigtoc' ],
             'conditions': [
               ['v8_target_arch=="ppc64"', {
@@ -1191,7 +1191,7 @@
             },
             'conditions': [
               ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx" or OS=="aix"', {
+            OS=="qnx" or OS=="aix" or OS=="os400"', {
                 'cflags!': [
                   '-O3',
                   '-O2',
@@ -1242,7 +1242,7 @@
             },
             'conditions': [
               ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx" or OS=="aix"', {
+            OS=="qnx" or OS=="aix" or OS=="os400"', {
                 'cflags!': [
                   '-O0',
                   '-O1',
@@ -1292,7 +1292,7 @@
         'defines!': ['ENABLE_HANDLE_ZAPPING',],
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
-            or OS=="aix"', {
+            or OS=="aix" or OS=="os400"', {
             'cflags!': [
               '-Os',
             ],
