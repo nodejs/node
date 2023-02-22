@@ -274,7 +274,7 @@ def headers(action):
   ], 'include/node/')
 
   # Add the expfile that is created on AIX
-  if sys.platform.startswith('aix'):
+  if sys.platform.startswith('aix') or sys.platform == "os400":
     action(['out/Release/node.exp'], 'include/node/')
 
   subdir_files('deps/v8/include', 'include/node/', wanted_v8_headers)
