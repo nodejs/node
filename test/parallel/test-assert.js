@@ -728,6 +728,9 @@ assert.throws(
 );
 assert.throws(
   () => {
+    // This test case checks if `try` left brace without a line break
+    // before the assertion causes any wrong assertion message.
+    // Therefore, don't reformat the following code.
     try { assert.ok(0);   // eslint-disable-line no-useless-catch, brace-style
     } catch (err) {
       throw err;
@@ -745,6 +748,9 @@ assert.throws(
   () => {
     try {
       throw new Error();
+    // This test case checks if `catch` left brace without a line break
+    // before the assertion causes any wrong assertion message.
+    // Therefore, don't reformat the following code.
     } catch (err) { assert.ok(0); }     // eslint-disable-line no-unused-vars
   },
   {
@@ -757,6 +763,9 @@ assert.throws(
 );
 assert.throws(
   () => {
+    // This test case checks if `function` left brace without a line break
+    // before the assertion causes any wrong assertion message.
+    // Therefore, don't reformat the following code.
     function test() { assert.ok(0);     // eslint-disable-line brace-style
     }
     test();
