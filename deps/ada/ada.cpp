@@ -1,4 +1,4 @@
-/* auto-generated on 2023-02-07 17:26:54 -0500. Do not edit! */
+/* auto-generated on 2023-02-22 09:24:39 -0500. Do not edit! */
 // dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/src, filename=ada.cpp
 /* begin file src/ada.cpp */
 #include "ada.h"
@@ -635,8 +635,8 @@ namespace ada::serializers {
   }
 
   std::string ipv6(const std::array<uint16_t, 8>& address) noexcept {
-    size_t compress_length = 0;
-    size_t compress = 0;
+    size_t compress_length = 0; // The length of a long sequence of zeros.
+    size_t compress = 0; // The start of a long sequence of zeros.
     find_longest_sequence_of_ipv6_pieces(address, compress, compress_length);
 
     if (compress_length <= 1) {
@@ -644,24 +644,28 @@ namespace ada::serializers {
       compress = compress_length = 8;
     }
 
-    std::string output{};
+    std::string output(4 * 8 + 7 + 2, '\0');
     size_t piece_index = 0;
-    char buf[5];
-
+    char *point = output.data();
+    char *point_end = output.data() + output.size();
+    *point++ = '[';
     while (true) {
       if (piece_index == compress) {
-        output.append("::", piece_index == 0 ? 2 : 1);
-        if ((piece_index = piece_index + compress_length) == 8) break;
+        *point++ = ':';
+        // If we skip a value initially, we need to write '::', otherwise
+        // a single ':' will do since it follows a previous ':'.
+        if(piece_index == 0) { *point++ = ':'; }
+        piece_index += compress_length;
+        if(piece_index == 8) { break; }
       }
-
-      // Optimization opportunity: Get rid of snprintf.
-      snprintf(buf, 5, "%x", address[piece_index]);
-      output += buf;
-      if (++piece_index == 8) break;
-      output.push_back(':');
+      point = std::to_chars(point, point_end, address[piece_index], 16).ptr;
+      piece_index++;
+      if(piece_index == 8) { break; }
+      *point++ = ':';
     }
-
-    return "[" + output + "]";
+    *point++ = ']';
+    output.resize(point - output.data());
+    return output;
   }
 
   std::string ipv4(const uint64_t address) noexcept {
@@ -1651,7 +1655,16 @@ namespace ada {
     if (trimmed.empty()) { port = std::nullopt; return true; }
     // Input should not start with control characters.
     if (ada::unicode::is_c0_control_or_space(trimmed.front())) { return false; }
-    return parse_port(trimmed);
+    // Input should start with ascii digit character.
+    if (!checkers::is_digit(input.front())) { return false; }
+
+    // Revert changes if parse_port fails.
+    std::optional<uint16_t> previous_port = port;
+    parse_port(trimmed);
+    if (is_valid) { return true; }
+    port = previous_port;
+    is_valid = true;
+    return false;
   }
 
   void url::set_hash(const std::string_view input) {
@@ -1692,7 +1705,7 @@ namespace ada {
     return parse_path(input);
   }
 
-  bool url::set_host(const std::string_view input) {
+  bool url::set_host_or_hostname(const std::string_view input, bool override_hostname) {
     if (has_opaque_path) { return false; }
 
     std::optional<std::string> previous_host = host;
@@ -1713,7 +1726,7 @@ namespace ada {
       // Otherwise, if c is U+003A (:) and insideBrackets is false, then:
       // Note: we cannot access *pointer safely if (pointer == pointer_end).
       if ((pointer != new_host.end()) && (*pointer == ':') && !inside_brackets) {
-        // TODO: The next 2 lines is the only difference between set_host and set_hostname. Let's simplify it.
+        if (override_hostname) { return false; }
         std::string_view buffer(&*(pointer + 1));
         if (!buffer.empty()) { set_port(buffer); }
       }
@@ -1761,70 +1774,12 @@ namespace ada {
     return true;
   }
 
+  bool url::set_host(const std::string_view input) {
+    return set_host_or_hostname(input, false);
+  }
+
   bool url::set_hostname(const std::string_view input) {
-    if (has_opaque_path) { return false; }
-
-    std::optional<std::string> previous_host = host;
-
-    std::string_view::iterator input_pointer_end = std::find(input.begin(), input.end(), '#');
-    std::string _host(input.data(), std::distance(input.begin(), input_pointer_end));
-    helpers::remove_ascii_tab_or_newline(_host);
-    std::string_view new_host(_host);
-
-    // If url's scheme is "file", then set state to file host state, instead of host state.
-    if (get_scheme_type() != ada::scheme::type::FILE) {
-      std::string_view host_view(_host.data(), _host.length());
-      bool inside_brackets{false};
-      size_t location = helpers::get_host_delimiter_location(*this, host_view, inside_brackets);
-      std::string_view::iterator pointer = (location != std::string_view::npos) ? new_host.begin() + location : new_host.end();
-
-      // Otherwise, if c is U+003A (:) and insideBrackets is false, then:
-      // Note: we cannot access *pointer safely if (pointer == pointer_end).
-      if ((pointer != new_host.end()) && (*pointer == ':') && !inside_brackets) {
-        // If buffer is the empty string, validation error, return failure.
-        return false;
-      }
-      // If url is special and host_view is the empty string, validation error, return failure.
-      else if (host_view.empty() && is_special()) {
-        return false;
-      }
-      // Otherwise, if state override is given, host_view is the empty string,
-      // and either url includes credentials or url’s port is non-null, return.
-      else if (host_view.empty() && (includes_credentials() || port.has_value())) {
-        return true;
-      }
-
-      // Let host be the result of host parsing host_view with url is not special.
-      if (host_view.empty()) {
-        host = "";
-        return true;
-      }
-
-      bool succeeded = parse_host(host_view);
-      if (!succeeded) { host = previous_host; }
-      return succeeded;
-    }
-
-    size_t location = new_host.find_first_of("/\\?");
-    if (location != std::string_view::npos) { new_host.remove_suffix(new_host.length() - location); }
-
-    if (new_host.empty()) {
-      // Set url’s host to the empty string.
-      host = "";
-    }
-    else {
-      // Let host be the result of host parsing buffer with url is not special.
-      if (!parse_host(new_host)) {
-        host = previous_host;
-        return false;
-      }
-
-      // If host is "localhost", then set host to the empty string.
-      if (host.has_value() && host.value() == "localhost") {
-        host = "";
-      }
-    }
-    return true;
+    return set_host_or_hostname(input, true);
   }
 
   bool url::set_protocol(const std::string_view input) {
@@ -1849,15 +1804,16 @@ namespace ada {
     ada::result out = ada::parse(input);
 
     if (out) {
-      set_protocol(out->get_protocol());
-      set_username(out->get_username());
-      set_password(out->get_password());
-      set_host(out->get_host());
-      set_hostname(out->get_hostname());
-      set_port(out->get_port());
-      set_pathname(out->get_pathname());
-      set_hash(out->get_hash());
-      set_search(out->get_search());
+      username = out->username;
+      password = out->password;
+      host = out->host;
+      port = out->port;
+      path = out->path;
+      query = out->query;
+      fragment = out->fragment;
+      type = out->type;
+      non_special_scheme = out->non_special_scheme;
+      has_opaque_path = out->has_opaque_path;
     }
 
     return out.has_value();
@@ -1989,7 +1945,8 @@ namespace ada::parser {
         case ada::state::NO_SCHEME: {
           ada_log("NO_SCHEME ", helpers::substring(url_data, input_position));
           // If base is null, or base has an opaque path and c is not U+0023 (#), validation error, return failure.
-          if (base_url == nullptr || (base_url->has_opaque_path && (input_position != input_size))) {
+          // SCHEME state updates the state to NO_SCHEME and validates url_data is not empty.
+          if (base_url == nullptr || (base_url->has_opaque_path && url_data[input_position] != '#')) {
             ada_log("NO_SCHEME validation error");
             url.is_valid = false;
             return url;
