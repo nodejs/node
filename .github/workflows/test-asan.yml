@@ -45,6 +45,7 @@ jobs:
       CXX: clang++
       LINK: clang++
       CONFIG_FLAGS: --enable-asan
+      ASAN: true
     steps:
       - uses: actions/checkout@v3
         with:
