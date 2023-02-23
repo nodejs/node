@@ -1,3 +1,5 @@
+// Flags: --no-warnings
+
 'use strict';
 
 const common = require('../common');
@@ -15,8 +17,7 @@ const net = require('net');
 {
   let i = 0;
   let socket;
-  const mustNotCall = common.mustNotCall.bind(null);
-  process.on('warning', mustNotCall);
+  process.on('warning', common.mustCall());
 
   const server = http.createServer(common.mustNotCall());
 
@@ -41,7 +42,6 @@ const net = require('net');
 
     socket.on('close', () => {
       server.close();
-      process.removeListener('warning', mustNotCall);
     });
   });
 }
