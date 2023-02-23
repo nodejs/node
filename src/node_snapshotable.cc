@@ -1119,12 +1119,12 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
 
   {
     HandleScope scope(isolate);
-    TryCatch bootstrapCatch(isolate);
+    TryCatch bootstrap_catch(isolate);
 
-    auto print_Exception = OnScopeLeave([&]() {
-      if (bootstrapCatch.HasCaught()) {
+    auto print_exception = OnScopeLeave([&]() {
+      if (bootstrap_catch.HasCaught()) {
         PrintCaughtException(
-            isolate, isolate->GetCurrentContext(), bootstrapCatch);
+            isolate, isolate->GetCurrentContext(), bootstrap_catch);
       }
     });
 

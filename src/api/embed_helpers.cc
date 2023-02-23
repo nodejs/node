@@ -180,6 +180,16 @@ CommonEnvironmentSetup::CreateForSnapshotting(
       nullptr,
       true,
       [&](const CommonEnvironmentSetup* setup) -> Environment* {
+        v8::TryCatch bootstrap_catch(setup->isolate());
+
+        auto print_exception = OnScopeLeave([&]() {
+          if (bootstrap_catch.HasCaught()) {
+            PrintCaughtException(setup->isolate(),
+                                 setup->isolate()->GetCurrentContext(),
+                                 bootstrap_catch);
+            errors->push_back("Failed to bootstrap environment.");
+          }
+        });
         return CreateEnvironment(
             setup->isolate_data(),
             setup->context(),
