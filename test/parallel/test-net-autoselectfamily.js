@@ -10,11 +10,11 @@ const { createConnection, createServer } = require('net');
 
 // Test that happy eyeballs algorithm is properly implemented.
 
-let autoSelectFamilyAttemptTimeout = common.platformTimeout(250);
-if (common.isWindows) {
-  // Some of the windows machines in the CI need more time to establish connection
-  autoSelectFamilyAttemptTimeout = common.platformTimeout(1500);
-}
+// Purposely not using setDefaultAutoSelectFamilyAttemptTimeout here to test the
+// parameter is correctly used in options.
+//
+// Some of the windows machines in the CI need more time to establish connection
+const autoSelectFamilyAttemptTimeout = common.platformTimeout(common.isWindows ? 1500 : 250);
 
 function _lookup(resolver, hostname, options, cb) {
   resolver.resolve(hostname, 'ANY', (err, replies) => {
