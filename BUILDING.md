@@ -152,7 +152,7 @@ Depending on the host platform, the selection of toolchains may vary.
 
 | Operating System | Compiler Versions                                              |
 | ---------------- | -------------------------------------------------------------- |
-| Linux            | GCC >= 8.3                                                     |
+| Linux            | GCC >= 10.1                                                    |
 | Windows          | Visual Studio >= 2019 with the Windows 10 SDK on a 64-bit host |
 | macOS            | Xcode >= 11 (Apple LLVM >= 11)                                 |
 
@@ -223,7 +223,7 @@ The Node.js project supports Python >= 3 for building and testing.
 
 #### Unix prerequisites
 
-* `gcc` and `g++` >= 8.3 or newer
+* `gcc` and `g++` >= 10.1 or newer
 * GNU Make 3.81 or newer
 * Python >=3.6 <=3.11 (see note above)
   * For test coverage, your Python installation must include pip.
