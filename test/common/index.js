@@ -940,7 +940,14 @@ const common = {
 
   get hasIPv6() {
     const iFaces = require('os').networkInterfaces();
-    const re = isWindows ? /Loopback Pseudo-Interface/ : /lo/;
+    let re;
+    if (isWindows) {
+      re = /Loopback Pseudo-Interface/;
+    } else if (this.isIBMi) {
+      re = /\*LOOPBACK/;
+    } else {
+      re = /lo/;
+    }
     return Object.keys(iFaces).some((name) => {
       return re.test(name) &&
              iFaces[name].some(({ family }) => family === 'IPv6');
