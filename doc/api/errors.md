@@ -2593,6 +2593,13 @@ An attempt was made to operate on an already closed socket.
 When calling [`net.Socket.write()`][] on a connecting socket and the socket was
 closed before the connection was established.
 
+<a id="ERR_SOCKET_CONNECTION_TIMEOUT"></a>
+
+### `ERR_SOCKET_CONNECTION_TIMEOUT`
+
+The socket was unable to connect to any address returned by the DNS within the
+allowed timeout when using the family autoselection algorithm.
+
 <a id="ERR_SOCKET_DGRAM_IS_CONNECTED"></a>
 
 ### `ERR_SOCKET_DGRAM_IS_CONNECTED`
