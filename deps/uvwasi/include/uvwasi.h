@@ -10,7 +10,7 @@ extern "C" {
 
 #define UVWASI_VERSION_MAJOR 0
 #define UVWASI_VERSION_MINOR 0
-#define UVWASI_VERSION_PATCH 15
+#define UVWASI_VERSION_PATCH 16
 #define UVWASI_VERSION_HEX ((UVWASI_VERSION_MAJOR << 16) | \
                             (UVWASI_VERSION_MINOR <<  8) | \
                             (UVWASI_VERSION_PATCH))
@@ -251,6 +251,10 @@ uvwasi_errno_t uvwasi_random_get(uvwasi_t* uvwasi,
                                  void* buf,
                                  uvwasi_size_t buf_len);
 uvwasi_errno_t uvwasi_sched_yield(uvwasi_t* uvwasi);
+uvwasi_errno_t uvwasi_sock_accept(uvwasi_t* uvwasi,
+                                  uvwasi_fd_t sock,
+                                  uvwasi_fdflags_t flags,
+                                  uvwasi_fd_t* fd);
 uvwasi_errno_t uvwasi_sock_recv(uvwasi_t* uvwasi,
                                 uvwasi_fd_t sock,
                                 const uvwasi_iovec_t* ri_data,
