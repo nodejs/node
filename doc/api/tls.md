@@ -356,6 +356,30 @@ export NODE_OPTIONS=--tls-cipher-list='ECDHE-RSA-AES128-GCM-SHA256:!RC4'
 node server.js
 ```
 
+To verify, use the following command to show the set cipher list, note the
+difference between `defaultCoreCipherList` and `defaultCipherList`:
+
+```bash
+node --tls-cipher-list='ECDHE-RSA-AES128-GCM-SHA256:!RC4' -p crypto.constants.defaultCipherList | tr ':' '\n'
+ECDHE-RSA-AES128-GCM-SHA256
+!RC4
+```
+
+i.e. the `defaultCoreCipherList` list is set at compilation time and the
+`defaultCipherList` is set at runtime.
+
+To modify the default cipher suites from within the runtime, modify the
+`tls.DEFAULT_CIPHERS` variable, this must be performed before listening on any
+sockets, it will not affect sockets already opened. For example:
+
+```js
+// Remove Obsolete CBC Ciphers and RSA Key Exchange based Ciphers as they don't provide Forward Secrecy
+tls.DEFAULT_CIPHERS +=
+  ':!ECDHE-RSA-AES128-SHA:!ECDHE-RSA-AES128-SHA256:!ECDHE-RSA-AES256-SHA:!ECDHE-RSA-AES256-SHA384' +
+  ':!ECDHE-ECDSA-AES128-SHA:!ECDHE-ECDSA-AES128-SHA256:!ECDHE-ECDSA-AES256-SHA:!ECDHE-ECDSA-AES256-SHA384' +
+  ':!kRSA';
+```
+
 The default can also be replaced on a per client or server basis using the
 `ciphers` option from [`tls.createSecureContext()`][], which is also available
 in [`tls.createServer()`][], [`tls.connect()`][], and when creating new
@@ -2223,6 +2247,18 @@ added: v11.4.0
   the default to `'TLSv1.1'`. Using `--tls-min-v1.3` sets the default to
   `'TLSv1.3'`. If multiple of the options are provided, the lowest minimum is
   used.
+
+## `tls.DEFAULT_CIPHERS`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string} The default value of the `ciphers` option of
+  [`tls.createSecureContext()`][]. It can be assigned any of the supported
+  OpenSSL ciphers.  Defaults to the content of
+  `crypto.constants.defaultCoreCipherList`, unless changed using CLI options
+  using `--tls-default-ciphers`.
 
 [CVE-2021-44531]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44531
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
