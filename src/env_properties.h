@@ -232,6 +232,7 @@
   V(password_string, "password")                                               \
   V(path_string, "path")                                                       \
   V(pending_handle_string, "pendingHandle")                                    \
+  V(permission_string, "permission")                                           \
   V(pid_string, "pid")                                                         \
   V(ping_rtt_string, "pingRTT")                                                \
   V(pipe_source_string, "pipeSource")                                          \
@@ -259,6 +260,7 @@
   V(rename_string, "rename")                                                   \
   V(replacement_string, "replacement")                                         \
   V(require_string, "require")                                                 \
+  V(resource_string, "resource")                                               \
   V(retry_string, "retry")                                                     \
   V(salt_length_string, "saltLength")                                          \
   V(scheme_string, "scheme")                                                   \

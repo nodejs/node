@@ -76,6 +76,18 @@ the next argument will be used as a script filename.
 .It Fl -abort-on-uncaught-exception
 Aborting instead of exiting causes a core file to be generated for analysis.
 .
+.It Fl -allow-fs-read
+Allow file system read access when using the permission model.
+.
+.It Fl -allow-fs-write
+Allow file system write access when using the permission model.
+.
+.It Fl -allow-child-process
+Allow spawning process when using the permission model.
+.
+.It Fl -allow-worker
+Allow creating worker threads when using the permission model.
+.
 .It Fl -completion-bash
 Print source-able bash completion script for Node.js.
 .
@@ -153,6 +165,9 @@ to use as a custom module loader.
 .
 .It Fl -experimental-network-imports
 Enable experimental support for loading modules using `import` over `https:`.
+.
+.It Fl -experimental-permission
+Enable the experimental permission model.
 .
 .It Fl -experimental-policy
 Use the specified file as a security policy.
