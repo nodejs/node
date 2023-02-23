@@ -100,6 +100,154 @@ If this flag is passed, the behavior can still be set to not abort through
 [`process.setUncaughtExceptionCaptureCallback()`][] (and through usage of the
 `node:domain` module that uses it).
 
+### `--allow-child-process`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+When using the [Permission Model][], the process will not be able to spawn any
+child process by default.
+Attempts to do so will throw an `ERR_ACCESS_DENIED` unless the
+user explicitly passes the `--allow-child-process` flag when starting Node.js.
+
+Example:
+
+```js
+const childProcess = require('node:child_process');
+// Attempt to bypass the permission
+childProcess.spawn('node', ['-e', 'require("fs").writeFileSync("/new-file", "example")']);
+```
+
+```console
+$ node --experimental-permission --allow-fs-read=* index.js
+node:internal/child_process:388
+  const err = this._handle.spawn(options);
+                           ^
+Error: Access to this API has been restricted
+    at ChildProcess.spawn (node:internal/child_process:388:28)
+    at Object.spawn (node:child_process:723:9)
+    at Object.<anonymous> (/home/index.js:3:14)
+    at Module._compile (node:internal/modules/cjs/loader:1120:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1174:10)
+    at Module.load (node:internal/modules/cjs/loader:998:32)
+    at Module._load (node:internal/modules/cjs/loader:839:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12)
+    at node:internal/main/run_main_module:17:47 {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'ChildProcess'
+}
+```
+
+### `--allow-fs-read`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+This flag configures file system read permissions using
+the [Permission Model][].
+
+The valid arguments for the `--allow-fs-read` flag are:
+
+* `*` - To allow the `FileSystemRead` operations.
+* Paths delimited by comma (,) to manage `FileSystemRead` (reading) operations.
+
+Examples can be found in the [File System Permissions][] documentation.
+
+Relative paths are NOT yet supported by the CLI flag.
+
+The initializer module also needs to be allowed. Consider the following example:
+
+```console
+$ node --experimental-permission t.js
+node:internal/modules/cjs/loader:162
+  const result = internalModuleStat(filename);
+                 ^
+
+Error: Access to this API has been restricted
+    at stat (node:internal/modules/cjs/loader:162:18)
+    at Module._findPath (node:internal/modules/cjs/loader:640:16)
+    at resolveMainPath (node:internal/modules/run_main:15:25)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:53:24)
+    at node:internal/main/run_main_module:23:47 {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'FileSystemRead',
+  resource: '/Users/rafaelgss/repos/os/node/t.js'
+}
+```
+
+The process needs to have access to the `index.js` module:
+
+```console
+$ node --experimental-permission --allow-fs-read=/path/to/index.js index.js
+```
+
+### `--allow-fs-write`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+This flag configures file system write permissions using
+the [Permission Model][].
+
+The valid arguments for the `--allow-fs-write` flag are:
+
+* `*` - To allow the `FileSystemWrite` operations.
+* Paths delimited by comma (,) to manage `FileSystemWrite` (writing) operations.
+
+Examples can be found in the [File System Permissions][] documentation.
+
+Relative paths are NOT supported through the CLI flag.
+
+### `--allow-worker`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+When using the [Permission Model][], the process will not be able to create any
+worker threads by default.
+For security reasons, the call will throw an `ERR_ACCESS_DENIED` unless the
+user explicitly pass the flag `--allow-worker` in the main Node.js process.
+
+Example:
+
+```js
+const { Worker } = require('node:worker_threads');
+// Attempt to bypass the permission
+new Worker(__filename);
+```
+
+```console
+$ node --experimental-permission --allow-fs-read=* index.js
+node:internal/worker:188
+    this[kHandle] = new WorkerImpl(url,
+                    ^
+
+Error: Access to this API has been restricted
+    at new Worker (node:internal/worker:188:21)
+    at Object.<anonymous> (/home/index.js.js:3:1)
+    at Module._compile (node:internal/modules/cjs/loader:1120:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1174:10)
+    at Module.load (node:internal/modules/cjs/loader:998:32)
+    at Module._load (node:internal/modules/cjs/loader:839:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12)
+    at node:internal/main/run_main_module:17:47 {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'WorkerThreads'
+}
+```
+
 ### `--build-snapshot`
 
 <!-- YAML
@@ -385,6 +533,20 @@ added:
 > Stability: 1 - Experimental
 
 Enable experimental support for the `https:` protocol in `import` specifiers.
+
+### `--experimental-permission`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable the Permission Model for current process. When enabled, the
+following permissions are restricted:
+
+* File System - manageable through
+  \[`--allow-fs-read`]\[],\[`allow-fs-write`]\[] flags
+* Child Process - manageable through \[`--allow-child-process`]\[] flag
+* Worker Threads - manageable through \[`--allow-worker`]\[] flag
 
 ### `--experimental-policy`
 
@@ -1883,6 +2045,10 @@ Node.js options that are allowed are:
 
 <!-- node-options-node start -->
 
+* `--allow-child-process`
+* `--allow-fs-read`
+* `--allow-fs-write`
+* `--allow-worker`
 * `--conditions`, `-C`
 * `--diagnostic-dir`
 * `--disable-proto`
@@ -1896,6 +2062,7 @@ Node.js options that are allowed are:
 * `--experimental-loader`
 * `--experimental-modules`
 * `--experimental-network-imports`
+* `--experimental-permission`
 * `--experimental-policy`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
@@ -2331,9 +2498,11 @@ done
 [ECMAScript module]: esm.md#modules-ecmascript-modules
 [ECMAScript module loader]: esm.md#loaders
 [Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
+[File System Permissions]: permissions.md#file-system-permissions
 [Modules loaders]: packages.md#modules-loaders
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
+[Permission Model]: permissions.md#permission-model
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [ShadowRealm]: https://github.com/tc39/proposal-shadowrealm

@@ -401,6 +401,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental ES Module import.meta.resolve() support",
             &EnvironmentOptions::experimental_import_meta_resolve,
             kAllowedInEnvvar);
+  AddOption("--experimental-permission",
+            "enable the permission system",
+            &EnvironmentOptions::experimental_permission,
+            kAllowedInEnvvar,
+            false);
   AddOption("--experimental-policy",
             "use the specified file as a "
             "security policy",
@@ -415,6 +420,22 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_policy_integrity,
             kAllowedInEnvvar);
   Implies("--policy-integrity", "[has_policy_integrity_string]");
+  AddOption("--allow-fs-read",
+            "allow permissions to read the filesystem",
+            &EnvironmentOptions::allow_fs_read,
+            kAllowedInEnvvar);
+  AddOption("--allow-fs-write",
+            "allow permissions to write in the filesystem",
+            &EnvironmentOptions::allow_fs_write,
+            kAllowedInEnvvar);
+  AddOption("--allow-child-process",
+            "allow use of child process when any permissions are set",
+            &EnvironmentOptions::allow_child_process,
+            kAllowedInEnvvar);
+  AddOption("--allow-worker",
+            "allow worker threads when any permissions are set",
+            &EnvironmentOptions::allow_worker_threads,
+            kAllowedInEnvvar);
   AddOption("--experimental-repl-await",
             "experimental await keyword support in REPL",
             &EnvironmentOptions::experimental_repl_await,

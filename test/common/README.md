@@ -1005,9 +1005,12 @@ The `tmpdir` module supports the use of a temporary directory for testing.
 
 The realpath of the testing temporary directory.
 
-### `refresh()`
+### `refresh(useSpawn)`
 
-Deletes and recreates the testing temporary directory.
+* `useSpawn` [\<boolean>][<boolean>] default = false
+
+Deletes and recreates the testing temporary directory. When `useSpawn` is true
+this action is performed using `child_process.spawnSync`.
 
 The first time `refresh()` runs, it adds a listener to process `'exit'` that
 cleans the temporary directory. Thus, every file under `tmpdir.path` needs to

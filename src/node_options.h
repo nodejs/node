@@ -120,6 +120,11 @@ class EnvironmentOptions : public Options {
   std::string experimental_policy;
   std::string experimental_policy_integrity;
   bool has_policy_integrity_string = false;
+  bool experimental_permission = false;
+  std::string allow_fs_read;
+  std::string allow_fs_write;
+  bool allow_child_process = false;
+  bool allow_worker_threads = false;
   bool experimental_repl_await = true;
   bool experimental_vm_modules = false;
   bool expose_internals = false;
