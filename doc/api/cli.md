@@ -462,14 +462,20 @@ added: v6.0.0
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
 against FIPS-compatible OpenSSL.)
 
-### `--enable-network-family-autoselection`
+### `--no-network-family-autoselection`
 
 <!-- YAML
 added: v19.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46790
+    description: The flag was renamed from `--no-enable-network-family-autoselection`
+                 to `--no-network-family-autoselection`. The old name can still work as
+                 an alias.
 -->
 
-Enables the family autoselection algorithm unless connection options explicitly
-disables it.
+Disables the family autoselection algorithm unless connection options explicitly
+enables it.
 
 ### `--enable-source-maps`
 
@@ -2125,6 +2131,7 @@ Node.js options that are allowed are:
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
 * `--no-global-search-paths`
+* `--no-network-family-autoselection`
 * `--no-warnings`
 * `--node-memory-debug`
 * `--openssl-config`

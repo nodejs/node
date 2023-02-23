@@ -358,10 +358,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "returned)",
             &EnvironmentOptions::dns_result_order,
             kAllowedInEnvvar);
-  AddOption("--enable-network-family-autoselection",
-            "Enable network address family autodetection algorithm",
-            &EnvironmentOptions::enable_network_family_autoselection,
-            kAllowedInEnvvar);
+  AddOption("--network-family-autoselection",
+            "Disable network address family autodetection algorithm",
+            &EnvironmentOptions::network_family_autoselection,
+            kAllowedInEnvvar,
+            true);
+  AddAlias("--enable-network-family-autoselection",
+           "--network-family-autoselection");
   AddOption("--enable-source-maps",
             "Source Map V3 support for stack traces",
             &EnvironmentOptions::enable_source_maps,

@@ -25,7 +25,7 @@ tls.connect({
   port: 42,
   lookup: common.mustCall((host, options) => {
     assert.strictEqual(host, 'localhost');
-    assert.deepStrictEqual(options, { family: undefined, hints });
+    assert.deepStrictEqual(options, { family: undefined, hints, all: true });
   }),
   hints
 });

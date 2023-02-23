@@ -13,7 +13,6 @@ const assert = require('assert');
 const dgram = require('dgram');
 const { Resolver } = require('dns');
 const { request, createServer } = require('https');
-const { setDefaultAutoSelectFamilyAttemptTimeout } = require('net');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -24,9 +23,6 @@ const options = {
 };
 
 // Test that happy eyeballs algorithm is properly implemented when using HTTP.
-
-// Some of the windows machines in the CI need more time to establish connection
-setDefaultAutoSelectFamilyAttemptTimeout(common.platformTimeout(common.isWindows ? 1500 : 250));
 
 function _lookup(resolver, hostname, options, cb) {
   resolver.resolve(hostname, 'ANY', (err, replies) => {

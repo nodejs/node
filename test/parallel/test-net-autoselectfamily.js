@@ -13,8 +13,8 @@ const { createConnection, createServer } = require('net');
 // Purposely not using setDefaultAutoSelectFamilyAttemptTimeout here to test the
 // parameter is correctly used in options.
 //
-// Some of the windows machines in the CI need more time to establish connection
-const autoSelectFamilyAttemptTimeout = common.platformTimeout(common.isWindows ? 1500 : 250);
+// Some of the machines in the CI need more time to establish connection
+const autoSelectFamilyAttemptTimeout = common.defaultAutoSelectFamilyAttemptTimeout;
 
 function _lookup(resolver, hostname, options, cb) {
   resolver.resolve(hostname, 'ANY', (err, replies) => {

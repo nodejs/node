@@ -26,6 +26,7 @@ const process = global.process;  // Some tests tamper with the process global.
 const assert = require('assert');
 const { exec, execSync, spawn, spawnSync } = require('child_process');
 const fs = require('fs');
+const net = require('net');
 // Do not require 'os' until needed so that test-os-checked-function can
 // monkey patch it. If 'os' is required here, that test will fail.
 const path = require('path');
@@ -136,6 +137,14 @@ const isPi = (() => {
 })();
 
 const isDumbTerminal = process.env.TERM === 'dumb';
+
+// When using high concurrency or in the CI we need much more time for each connection attempt
+const defaultAutoSelectFamilyAttemptTimeout = platformTimeout(2500);
+// Since this is also used by tools outside of the test suite,
+// make sure setDefaultAutoSelectFamilyAttemptTimeout
+if (typeof net.setDefaultAutoSelectFamilyAttemptTimeout === 'function') {
+  net.setDefaultAutoSelectFamilyAttemptTimeout(platformTimeout(defaultAutoSelectFamilyAttemptTimeout));
+}
 
 const buildType = process.config.target_defaults ?
   process.config.target_defaults.default_configuration :
@@ -886,6 +895,7 @@ const common = {
   canCreateSymLink,
   childShouldThrowAndAbort,
   createZeroFilledFile,
+  defaultAutoSelectFamilyAttemptTimeout,
   expectsError,
   expectWarning,
   gcUntil,
