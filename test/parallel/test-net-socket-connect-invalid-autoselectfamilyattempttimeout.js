@@ -1,5 +1,7 @@
 'use strict';
+
 require('../common');
+
 const assert = require('assert');
 const net = require('net');
 
@@ -10,5 +12,9 @@ for (const autoSelectFamilyAttemptTimeout of [-10, 0]) {
       autoSelectFamily: true,
       autoSelectFamilyAttemptTimeout,
     });
+  }, { code: 'ERR_OUT_OF_RANGE' });
+
+  assert.throws(() => {
+    net.setDefaultAutoSelectFamilyAttemptTimeout(autoSelectFamilyAttemptTimeout);
   }, { code: 'ERR_OUT_OF_RANGE' });
 }

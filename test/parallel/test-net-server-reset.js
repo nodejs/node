@@ -20,17 +20,11 @@ server.on('close', common.mustCall());
 
 assert.strictEqual(server, server.listen(0, () => {
   net.createConnection(server.address().port)
-    .on('error', common.mustCall(
-      common.expectsError({
-        code: 'ECONNRESET',
-        name: 'Error'
-      }))
-    );
+    .on('error', common.mustCall((error) => {
+      assert.strictEqual(error.code, 'ECONNRESET');
+    }));
   net.createConnection(server.address().port)
-    .on('error', common.mustCall(
-      common.expectsError({
-        code: 'ECONNRESET',
-        name: 'Error'
-      }))
-    );
+    .on('error', common.mustCall((error) => {
+      assert.strictEqual(error.code, 'ECONNRESET');
+    }));
 }));

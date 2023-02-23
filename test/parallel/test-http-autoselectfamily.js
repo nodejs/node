@@ -7,14 +7,12 @@ const assert = require('assert');
 const dgram = require('dgram');
 const { Resolver } = require('dns');
 const { request, createServer } = require('http');
+const { setDefaultAutoSelectFamilyAttemptTimeout } = require('net');
 
 // Test that happy eyeballs algorithm is properly implemented when using HTTP.
 
-let autoSelectFamilyAttemptTimeout = common.platformTimeout(250);
-if (common.isWindows) {
-  // Some of the windows machines in the CI need more time to establish connection
-  autoSelectFamilyAttemptTimeout = common.platformTimeout(1500);
-}
+// Some of the windows machines in the CI need more time to establish connection
+setDefaultAutoSelectFamilyAttemptTimeout(common.platformTimeout(common.isWindows ? 1500 : 250));
 
 function _lookup(resolver, hostname, options, cb) {
   resolver.resolve(hostname, 'ANY', (err, replies) => {
@@ -77,7 +75,6 @@ function createDnsServer(ipv6Addr, ipv4Addr, cb) {
         {
           lookup,
           autoSelectFamily: true,
-          autoSelectFamilyAttemptTimeout
         },
         (res) => {
           assert.strictEqual(res.statusCode, 200);
@@ -122,7 +119,6 @@ if (common.hasIPv6) {
           {
             lookup,
             autoSelectFamily: true,
-            autoSelectFamilyAttemptTimeout,
           },
           (res) => {
             assert.strictEqual(res.statusCode, 200);
