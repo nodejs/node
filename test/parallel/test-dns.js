@@ -239,6 +239,14 @@ assert.throws(() => dns.lookup('nodejs.org', 4), {
   name: 'TypeError'
 });
 
+assert.throws(() => dns.lookup('', {
+  family: 'nodejs.org',
+  hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL,
+}), {
+  code: 'ERR_INVALID_ARG_TYPE',
+  name: 'TypeError'
+});
+
 dns.lookup('', { family: 4, hints: 0 }, common.mustCall());
 
 dns.lookup('', {
@@ -262,6 +270,16 @@ dns.lookup('', {
 
 dns.lookup('', {
   hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL
+}, common.mustCall());
+
+dns.lookup('', {
+  hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL,
+  family: 'IPv4'
+}, common.mustCall());
+
+dns.lookup('', {
+  hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL,
+  family: 'IPv6'
 }, common.mustCall());
 
 (async function() {
