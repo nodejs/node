@@ -293,6 +293,10 @@ inline TickInfo* Environment::tick_info() {
   return &tick_info_;
 }
 
+inline permission::Permission* Environment::permission() {
+  return &permission_;
+}
+
 inline uint64_t Environment::timer_base() const {
   return timer_base_;
 }
