@@ -121,7 +121,7 @@ jobs:
               NEW_VERSION=$(gh api repos/libuv/libuv/releases/latest -q '.tag_name|ltrimstr("v")')
               ./tools/dep_updaters/update-libuv.sh "$NEW_VERSION" > temp-output
               cat temp-output
-              if cat temp-output | grep "All done!"; then
+              if grep -q "All done!" temp-output; then
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
               fi
               rm temp-output
@@ -132,7 +132,7 @@ jobs:
               NEW_VERSION=$(gh api repos/simdutf/simdutf/releases/latest -q '.tag_name|ltrimstr("v")')
               ./tools/dep_updaters/update-simdutf.sh "$NEW_VERSION" > temp-output
               cat temp-output
-              if cat temp-output | grep "All done!"; then
+              if grep -q "All done!" temp-output; then
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
               fi
               rm temp-output
