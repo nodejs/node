@@ -557,6 +557,11 @@ const customReporter = new Transform({
       case 'test:diagnostic':
         callback(null, event.data.message);
         break;
+      case 'test:coverage': {
+        const { totalLineCount } = event.data.summary.totals;
+        callback(null, `total line count: ${totalLineCount}\n`);
+        break;
+      }
     }
   },
 });
@@ -586,6 +591,11 @@ const customReporter = new Transform({
       case 'test:diagnostic':
         callback(null, event.data.message);
         break;
+      case 'test:coverage': {
+        const { totalLineCount } = event.data.summary.totals;
+        callback(null, `total line count: ${totalLineCount}\n`);
+        break;
+      }
     }
   },
 });
@@ -614,6 +624,11 @@ export default async function * customReporter(source) {
       case 'test:diagnostic':
         yield `${event.data.message}\n`;
         break;
+      case 'test:coverage': {
+        const { totalLineCount } = event.data.summary.totals;
+        yield `total line count: ${totalLineCount}\n`;
+        break;
+      }
     }
   }
 }
@@ -638,6 +653,11 @@ module.exports = async function * customReporter(source) {
       case 'test:diagnostic':
         yield `${event.data.message}\n`;
         break;
+      case 'test:coverage': {
+        const { totalLineCount } = event.data.summary.totals;
+        yield `total line count: ${totalLineCount}\n`;
+        break;
+      }
     }
   }
 };
