@@ -2557,6 +2557,15 @@ uvwasi_errno_t uvwasi_sock_shutdown(uvwasi_t* uvwasi,
   return UVWASI_ENOTSUP;
 }
 
+uvwasi_errno_t uvwasi_sock_accept(uvwasi_t* uvwasi,
+                                  uvwasi_fd_t sock,
+                                  uvwasi_fdflags_t flags,
+                                  uvwasi_fd_t* fd) {
+  /* TODO(mhdawson): Needs implementation */
+  UVWASI_DEBUG("uvwasi_sock_accept(uvwasi=%p, unimplemented)\n", uvwasi);
+  return UVWASI_ENOTSUP;
+};
+
 
 const char* uvwasi_embedder_err_code_to_string(uvwasi_errno_t code) {
   switch (code) {
