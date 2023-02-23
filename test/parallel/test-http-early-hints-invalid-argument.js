@@ -6,28 +6,44 @@ const debug = require('node:util').debuglog('test');
 
 const testResBody = 'response content\n';
 
-const server = http.createServer(common.mustCall((req, res) => {
-  debug('Server sending early hints...');
-  res.writeEarlyHints('bad argument type');
+{
+  const server = http.createServer(common.mustCall((req, res) => {
+    debug('Server sending early hints...');
+    assert.throws(() => {
+      res.writeEarlyHints('bad argument type');
+    }, (err) => err.code === 'ERR_INVALID_ARG_TYPE');
 
-  debug('Server sending full response...');
-  res.end(testResBody);
-}));
+    assert.throws(() => {
+      res.writeEarlyHints({
+        link: '</>; '
+      });
+    }, (err) => err.code === 'ERR_INVALID_ARG_VALUE');
 
-server.listen(0, common.mustCall(() => {
-  const req = http.request({
-    port: server.address().port, path: '/'
-  });
+    assert.throws(() => {
+      res.writeEarlyHints({
+        link: 'rel=preload; </scripts.js>'
+      });
+    }, (err) => err.code === 'ERR_INVALID_ARG_VALUE');
 
-  req.end();
-  debug('Client sending request...');
+    assert.throws(() => {
+      res.writeEarlyHints({
+        link: 'invalid string'
+      });
+    }, (err) => err.code === 'ERR_INVALID_ARG_VALUE');
 
-  req.on('information', common.mustNotCall());
+    debug('Server sending full response...');
+    res.end(testResBody);
+    server.close();
+  }));
 
-  process.on('uncaughtException', (err) => {
-    debug(`Caught an exception: ${JSON.stringify(err)}`);
-    if (err.name === 'AssertionError') throw err;
-    assert.strictEqual(err.code, 'ERR_INVALID_ARG_TYPE');
-    process.exit(0);
-  });
-}));
+  server.listen(0, common.mustCall(() => {
+    const req = http.request({
+      port: server.address().port, path: '/'
+    });
+
+    req.end();
+    debug('Client sending request...');
+
+    req.on('information', common.mustNotCall());
+  }));
+}
