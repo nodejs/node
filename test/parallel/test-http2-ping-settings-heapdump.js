@@ -11,14 +11,6 @@ const v8 = require('v8');
 // after it is destroyed, either because they are detached from it or have been
 // destroyed themselves.
 
-// We use an higher autoSelectFamilyAttemptTimeout in this test as the v8.getHeapSnapshot().resume()
-// will slow the connection flow and we don't want the second connection attempt to start.
-let autoSelectFamilyAttemptTimeout = common.platformTimeout(1000);
-if (common.isWindows) {
-  // Some of the windows machines in the CI need more time to establish connection
-  autoSelectFamilyAttemptTimeout = common.platformTimeout(10000);
-}
-
 for (const variant of ['ping', 'settings']) {
   const server = http2.createServer();
   server.on('session', common.mustCall((session) => {
@@ -38,8 +30,7 @@ for (const variant of ['ping', 'settings']) {
   }));
 
   server.listen(0, common.mustCall(() => {
-    const client = http2.connect(`http://localhost:${server.address().port}`, { autoSelectFamilyAttemptTimeout },
-                                 common.mustCall());
+    const client = http2.connect(`http://localhost:${server.address().port}`, common.mustCall());
     client.on('error', (err) => {
       // We destroy the session so it's possible to get ECONNRESET here.
       if (err.code !== 'ECONNRESET')
