@@ -13,7 +13,14 @@
 #include <string>
 #include <unordered_map>
 
+namespace v8 {
+class BackingStore;
+}
+
 namespace node {
+
+template <typename T>
+struct MallocedBuffer;
 
 // Set the node name of a MemoryRetainer to klass
 #define SET_MEMORY_INFO_NAME(Klass)                                            \

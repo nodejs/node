@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_v8.h"
+#include "aliased_buffer-inl.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"

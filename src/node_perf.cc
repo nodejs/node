@@ -1,5 +1,5 @@
 #include "node_perf.h"
-#include "aliased_buffer.h"
+#include "aliased_buffer-inl.h"
 #include "env-inl.h"
 #include "histogram-inl.h"
 #include "memory_tracker-inl.h"

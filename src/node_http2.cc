@@ -1,5 +1,5 @@
 #include "node_http2.h"
-#include "aliased_buffer.h"
+#include "aliased_buffer-inl.h"
 #include "aliased_struct-inl.h"
 #include "debug_utils-inl.h"
 #include "histogram-inl.h"
