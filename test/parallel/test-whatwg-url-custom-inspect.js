@@ -55,9 +55,7 @@ assert.strictEqual(
     username: 'username',
     password: 'password',
     port: '8080',
-    hash: '#hash',
-    hasHost: true,
-    hasOpaquePath: false
+    hash: '#hash'
   }
 }`);
 
