@@ -281,7 +281,8 @@ overrides:
       - ./internal/process/*.js
       - ./internal/readline/*.js
       - ./internal/readme.md
-      - ./internal/repl/history.js
+      - ./internal/repl.js
+      - ./internal/repl/*.js
       - ./internal/source_map/prepare_stack_trace.js
       - ./internal/streams/*.js
       - ./internal/structured_clone.js
@@ -298,6 +299,7 @@ overrides:
       - ./path/*.js
       - ./process.js
       - ./punycode.js
+      - ./repl.js
       - ./stream/*.js
       - ./sys.js
       - ./test.js
