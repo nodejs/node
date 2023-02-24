@@ -4,7 +4,7 @@ set -e
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 DEPS_DIR="$BASE_DIR/deps"
-[ -z "$NODE" ] && NODE="$ROOT/out/Release/node"
+[ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
 [ -x "$NODE" ] || NODE=$(command -v node)
 
 NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
@@ -12,7 +12,8 @@ const res = await fetch('https://api.github.com/repos/simdutf/simdutf/releases/l
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
 const { tag_name } = await res.json();
 console.log(tag_name.replace('v', ''));
-EOF)"
+EOF
+)"
 CURRENT_VERSION=$(grep "#define SIMDUTF_VERSION" "$DEPS_DIR/simdutf/simdutf.h" | sed -n "s/^.*VERSION \"\(.*\)\"/\1/p")
 
 if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
