@@ -206,6 +206,25 @@ void AliasedBufferBase<NativeT, V8T>::reserve(size_t new_capacity) {
   count_ = new_capacity;
 }
 
+template <typename NativeT, typename V8T>
+inline size_t AliasedBufferBase<NativeT, V8T>::SelfSize() const {
+  return sizeof(*this);
+}
+
+#define VM(NativeT, V8T)                                                       \
+  template <>                                                                  \
+  inline const char* AliasedBufferBase<NativeT, v8::V8T>::MemoryInfoName()     \
+      const {                                                                  \
+    return "Aliased" #V8T;                                                     \
+  }                                                                            \
+  template <>                                                                  \
+  inline void AliasedBufferBase<NativeT, v8::V8T>::MemoryInfo(                 \
+      node::MemoryTracker* tracker) const {                                    \
+    tracker->TrackField("js_array", js_array_);                                \
+  }
+ALIASED_BUFFER_LIST(VM)
+#undef VM
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

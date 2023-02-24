@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <cinttypes>
+#include "memory_tracker.h"
 #include "v8.h"
 
 namespace node {
@@ -28,7 +29,7 @@ typedef size_t AliasedBufferIndex;
  * observed. Any notification APIs will be left as a future exercise.
  */
 template <class NativeT, class V8T>
-class AliasedBufferBase {
+class AliasedBufferBase : public MemoryRetainer {
  public:
   static_assert(std::is_scalar<NativeT>::value);
 
@@ -156,6 +157,11 @@ class AliasedBufferBase {
   // Should only be used on an owning array, not one created as a sub array of
   // an owning `AliasedBufferBase`.
   void reserve(size_t new_capacity);
+
+  inline size_t SelfSize() const override;
+
+  inline const char* MemoryInfoName() const override;
+  inline void MemoryInfo(node::MemoryTracker* tracker) const override;
 
  private:
   v8::Isolate* isolate_ = nullptr;
