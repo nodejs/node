@@ -2,7 +2,6 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "aliased_buffer.h"
 #include "v8-profiler.h"
 
 #include <uv.h>
@@ -238,10 +237,6 @@ class MemoryTracker {
   inline void TrackInlineField(const char* edge_name,
                                const uv_async_t& value,
                                const char* node_name = nullptr);
-  template <class NativeT, class V8T>
-  inline void TrackField(const char* edge_name,
-                         const AliasedBufferBase<NativeT, V8T>& value,
-                         const char* node_name = nullptr);
 
   // Put a memory container into the graph, create an edge from
   // the current node if there is one on the stack.

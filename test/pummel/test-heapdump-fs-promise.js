@@ -10,7 +10,7 @@ validateSnapshotNodes('Node / FSReqPromise', [
   {
     children: [
       { node_name: 'FSReqPromise', edge_name: 'native_to_javascript' },
-      { node_name: 'Float64Array', edge_name: 'stats_field_array' },
+      { node_name: 'Node / AliasedFloat64Array', edge_name: 'stats_field_array' },
     ],
   },
 ]);
