@@ -472,19 +472,17 @@ const { Readable } = require('node:stream');
 
 {
   const createInnerTransform = () => new Transform({
-      objectMode: true,
+    objectMode: true,
 
-      construct(callback) {
-        this.push('header from constructor');
-        callback();
-      },
+    construct(callback) {
+      this.push('header from constructor');
+      callback();
+    },
 
-      transform: (row, encoding, callback) => {
-        // process.nextTick(() => {
-        callback(null, 'transform | ' + row);
-        // });
-      },
-    });
+    transform: (row, encoding, callback) => {
+      callback(null, 'transform | ' + row);
+    },
+  });
 
   const createOuterTransform = () => {
     let innerTransform;
@@ -501,9 +499,7 @@ const { Readable } = require('node:stream');
 
           callback();
         } else if (innerTransform.write('outer | ' + row)) {
-          // process.nextTick(() => {
-            process.nextTick(callback);
-          // });
+          process.nextTick(callback);
         } else {
           innerTransform.once('drain', callback);
         }
@@ -512,20 +508,18 @@ const { Readable } = require('node:stream');
   };
 
   Readable.from([
-      'create InnerTransform',
-      'firstLine',
-      'secondLine',
-    ])
+    'create InnerTransform',
+    'firstLine',
+    'secondLine',
+  ])
       .compose(createOuterTransform())
     .toArray().then(
-    common.mustCall((value) => {
-      assert.deepStrictEqual(value, [
-        'header from constructor',
-        'transform | outer | firstLine',
-        'transform | outer | secondLine',
-      ]);
-    }),
-  );
-
-
+      common.mustCall((value) => {
+        assert.deepStrictEqual(value, [
+          'header from constructor',
+          'transform | outer | firstLine',
+          'transform | outer | secondLine',
+        ]);
+      }),
+    );
 }
