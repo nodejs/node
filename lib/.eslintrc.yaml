@@ -267,11 +267,13 @@ overrides:
       - ./_stream_*.js
       - ./_tls_common.js
       - ./assert/*.js
+      - ./child_process.js
       - ./cluster.js
       - ./console.js
       - ./constants.js
       - ./fs.js
       - ./internal/assert.js
+      - ./internal/child_process.js
       - ./internal/child_process/*.js
       - ./internal/cli_table.js
       - ./internal/cluster/*.js
