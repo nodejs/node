@@ -129,6 +129,8 @@
 namespace node {
 
 using v8::EscapableHandleScope;
+using v8::Function;
+using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
@@ -277,22 +279,18 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 
   if (cb != nullptr) {
     EscapableHandleScope scope(env->isolate());
+    Realm* realm = env->principal_realm();
+    // TODO(addaleax): pass the callback to the main script more directly,
+    // e.g. by making StartExecution(env, builtin) parametrizable
+    env->set_embedder_mksnapshot_entry_point(std::move(cb));
+    auto reset_entry_point =
+        OnScopeLeave([&]() { env->set_embedder_mksnapshot_entry_point({}); });
 
-    if (env->isolate_data()->options()->build_snapshot) {
-      // TODO(addaleax): pass the callback to the main script more directly,
-      // e.g. by making StartExecution(env, builtin) parametrizable
-      env->set_embedder_mksnapshot_entry_point(std::move(cb));
-      auto reset_entry_point =
-          OnScopeLeave([&]() { env->set_embedder_mksnapshot_entry_point({}); });
+    const char* entry = env->isolate_data()->options()->build_snapshot
+                            ? "internal/main/mksnapshot"
+                            : "internal/main/embedding";
 
-      return StartExecution(env, "internal/main/mksnapshot");
-    }
-
-    if (StartExecution(env, "internal/main/environment").IsEmpty()) return {};
-    return scope.EscapeMaybe(cb({
-        env->process_object(),
-        env->builtin_module_require(),
-    }));
+    return scope.EscapeMaybe(StartExecution(env, entry));
   }
 
   // TODO(joyeecheung): move these conditions into JS land and let the
@@ -311,18 +309,6 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   if (env->argv().size() > 1) {
     first_argv = env->argv()[1];
   }
-
-#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  if (sea::IsSingleExecutable()) {
-    // TODO(addaleax): Find a way to reuse:
-    //
-    // LoadEnvironment(Environment*, const char*)
-    //
-    // instead and not add yet another main entry point here because this
-    // already duplicates existing code.
-    return StartExecution(env, "internal/main/single_executable_application");
-  }
-#endif
 
   if (first_argv == "inspect") {
     return StartExecution(env, "internal/main/inspect");

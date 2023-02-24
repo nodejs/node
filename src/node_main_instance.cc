@@ -9,6 +9,7 @@
 #include "node_internals.h"
 #include "node_options-inl.h"
 #include "node_realm.h"
+#include "node_sea.h"
 #include "node_snapshot_builder.h"
 #include "node_snapshotable.h"
 #include "node_v8_platform-inl.h"
@@ -86,7 +87,15 @@ ExitCode NodeMainInstance::Run() {
 
 void NodeMainInstance::Run(ExitCode* exit_code, Environment* env) {
   if (*exit_code == ExitCode::kNoFailure) {
-    LoadEnvironment(env, StartExecutionCallback{});
+    bool is_sea = false;
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+    if (sea::IsSingleExecutable()) {
+      LoadEnvironment(env, sea::FindSingleExecutableCode());
+    }
+#endif
+    if (!is_sea) {
+      LoadEnvironment(env, StartExecutionCallback{});
+    }
 
     *exit_code =
         SpinEventLoopInternal(env).FromMaybe(ExitCode::kGenericUserError);
