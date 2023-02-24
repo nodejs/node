@@ -114,4 +114,16 @@ describe('node:test reporters', { concurrency: true }, () => {
       /^package: reporter-esm{"test:start":5,"test:pass":2,"test:fail":3,"test:plan":3,"test:diagnostic":\d+}$/,
     );
   });
+
+  it('should throw when reporter setup throws asynchronously', async () => {
+    const child = spawnSync(
+      process.execPath,
+      ['--test', '--test-reporter', fixtures.fileURL('empty.js'), 'reporters.js'],
+      { cwd: fixtures.path('test-runner') }
+    );
+    assert.strictEqual(child.status, 7);
+    assert.strictEqual(child.signal, null);
+    assert.strictEqual(child.stdout.toString(), '');
+    assert.match(child.stderr.toString(), /ERR_INVALID_ARG_TYPE/);
+  });
 });
