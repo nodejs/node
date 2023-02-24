@@ -1414,7 +1414,6 @@ LINT_CPP_ADDON_DOC_FILES = $(wildcard $(LINT_CPP_ADDON_DOC_FILES_GLOB))
 LINT_CPP_EXCLUDE ?=
 LINT_CPP_EXCLUDE += src/node_root_certs.h
 LINT_CPP_EXCLUDE += $(LINT_CPP_ADDON_DOC_FILES)
-LINT_CPP_EXCLUDE += $(wildcard test/js-native-api/??_*/*.cc test/js-native-api/??_*/*.h test/node-api/??_*/*.cc test/node-api/??_*/*.h)
 # These files were copied more or less verbatim from V8.
 LINT_CPP_EXCLUDE += src/tracing/trace_event.h src/tracing/trace_event_common.h
 
@@ -1434,9 +1433,7 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	test/embedding/*.h \
 	test/fixtures/*.c \
 	test/js-native-api/*/*.cc \
-	test/js-native-api/*/*.h \
 	test/node-api/*/*.cc \
-	test/node-api/*/*.h \
 	tools/icu/*.cc \
 	tools/icu/*.h \
 	tools/code_cache/*.cc \
@@ -1444,6 +1441,16 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	tools/snapshot/*.cc \
 	tools/snapshot/*.h \
 	))
+
+FORMAT_CPP_FILES ?=
+FORMAT_CPP_FILES += $(LINT_CPP_FILES)
+# C source codes.
+FORMAT_CPP_FILES += $(wildcard \
+	test/js-native-api/*/*.c \
+	test/js-native-api/*/*.h \
+	test/node-api/*/*.c \
+	test/node-api/*/*.h \
+	)
 
 # Code blocks don't have newline at the end,
 # and the actual filename is generated so it won't match header guards
@@ -1473,7 +1480,7 @@ ifneq ("","$(wildcard tools/clang-format/node_modules/)")
 		--binary=tools/clang-format/node_modules/.bin/clang-format \
 		--style=file \
 		$(CLANG_FORMAT_START) -- \
-		$(LINT_CPP_FILES)
+		$(FORMAT_CPP_FILES)
 else
 	$(info Required tooling for C++ code formatting is not installed.)
 	$(info To install (requires internet access) run: $$ make format-cpp-build)
