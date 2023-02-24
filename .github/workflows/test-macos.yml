@@ -40,11 +40,11 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@d27e3f3d7c64b4bbf8e4abfb9b63b83e846e0435 # v4.5.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
