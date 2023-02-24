@@ -11,7 +11,6 @@
 
 namespace node {
 
-using v8::Boolean;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -47,7 +46,7 @@ enum url_update_action {
   kHref = 9,
 };
 
-void SetArgs(Environment* env, Local<Value> argv[12], const ada::result& url) {
+void SetArgs(Environment* env, Local<Value> argv[10], const ada::result& url) {
   Isolate* isolate = env->isolate();
   argv[0] = Utf8String(isolate, url->get_href());
   argv[1] = Utf8String(isolate, url->get_origin());
@@ -59,8 +58,6 @@ void SetArgs(Environment* env, Local<Value> argv[12], const ada::result& url) {
   argv[7] = Utf8String(isolate, url->get_password());
   argv[8] = Utf8String(isolate, url->get_port());
   argv[9] = Utf8String(isolate, url->get_hash());
-  argv[10] = Boolean::New(isolate, url->host.has_value());
-  argv[11] = Boolean::New(isolate, url->has_opaque_path);
 }
 
 void Parse(const FunctionCallbackInfo<Value>& args) {
@@ -86,8 +83,7 @@ void Parse(const FunctionCallbackInfo<Value>& args) {
     }
     base_pointer = &base.value();
   }
-  ada::result out =
-      ada::parse(std::string_view(input.out(), input.length()), base_pointer);
+  ada::result out = ada::parse(input.ToStringView(), base_pointer);
 
   if (!out) {
     return args.GetReturnValue().Set(false);
@@ -95,8 +91,6 @@ void Parse(const FunctionCallbackInfo<Value>& args) {
 
   const Local<Value> undef = Undefined(isolate);
   Local<Value> argv[] = {
-      undef,
-      undef,
       undef,
       undef,
       undef,
@@ -192,10 +186,8 @@ void UpdateUrl(const FunctionCallbackInfo<Value>& args) {
   Utf8Value new_value(isolate, args[2].As<String>());
   Local<Function> success_callback_ = args[3].As<Function>();
 
-  std::string_view new_value_view =
-      std::string_view(new_value.out(), new_value.length());
-  std::string_view input_view = std::string_view(input.out(), input.length());
-  ada::result out = ada::parse(input_view);
+  std::string_view new_value_view = new_value.ToStringView();
+  ada::result out = ada::parse(input.ToStringView());
   CHECK(out);
 
   bool result{true};
@@ -255,13 +247,64 @@ void UpdateUrl(const FunctionCallbackInfo<Value>& args) {
       undef,
       undef,
       undef,
-      undef,
-      undef,
   };
   SetArgs(env, argv, out);
   USE(success_callback_->Call(
       env->context(), args.This(), arraysize(argv), argv));
   args.GetReturnValue().Set(result);
+}
+
+void FormatUrl(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GT(args.Length(), 4);
+  CHECK(args[0]->IsString());  // url href
+
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  Utf8Value href(isolate, args[0].As<String>());
+  const bool fragment = args[1]->IsTrue();
+  const bool unicode = args[2]->IsTrue();
+  const bool search = args[3]->IsTrue();
+  const bool auth = args[4]->IsTrue();
+
+  ada::result out = ada::parse(href.ToStringView());
+  CHECK(out);
+
+  if (!fragment) {
+    out->fragment = std::nullopt;
+  }
+
+  if (unicode) {
+#if defined(NODE_HAVE_I18N_SUPPORT)
+    std::string hostname = out->get_hostname();
+    MaybeStackBuffer<char> buf;
+    int32_t len = i18n::ToUnicode(&buf, hostname.data(), hostname.length());
+
+    if (len < 0) {
+      out->host = "";
+    } else {
+      out->host = buf.ToString();
+    }
+#else
+    out->host = "";
+#endif
+  }
+
+  if (!search) {
+    out->query = std::nullopt;
+  }
+
+  if (!auth) {
+    out->username = "";
+    out->password = "";
+  }
+
+  std::string result = out->get_href();
+  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
+                                                result.data(),
+                                                NewStringType::kNormal,
+                                                result.length())
+                                .ToLocalChecked());
 }
 
 void Initialize(Local<Object> target,
@@ -270,6 +313,7 @@ void Initialize(Local<Object> target,
                 void* priv) {
   SetMethod(context, target, "parse", Parse);
   SetMethod(context, target, "updateUrl", UpdateUrl);
+  SetMethod(context, target, "formatUrl", FormatUrl);
 
   SetMethodNoSideEffect(context, target, "domainToASCII", DomainToASCII);
   SetMethodNoSideEffect(context, target, "domainToUnicode", DomainToUnicode);
@@ -279,6 +323,7 @@ void Initialize(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Parse);
   registry->Register(UpdateUrl);
+  registry->Register(FormatUrl);
 
   registry->Register(DomainToASCII);
   registry->Register(DomainToUnicode);
