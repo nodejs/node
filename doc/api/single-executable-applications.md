@@ -41,7 +41,10 @@ tool, [postject][]:
    $ codesign --remove-signature hello
    ```
 
-   * On Windows:
+   * On Windows (optional):
+
+   [signtool][] can be used from the installed [Windows SDK][]. If this step is
+   skipped, ignore any signature-related warning from postject.
 
    ```console
    $ signtool remove /s hello
@@ -83,7 +86,10 @@ tool, [postject][]:
    $ codesign --sign - hello
    ```
 
-   * On Windows:
+   * On Windows (optional):
+
+   A certificate needs to be present for this to work. However, the unsigned
+   binary would still be runnable.
 
    ```console
    $ signtool sign /fd SHA256 hello
@@ -160,9 +166,11 @@ to help us document them.
 [ELF]: https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
+[Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
 [`require.main`]: modules.md#accessing-the-main-module
 [fuse]: https://www.electronjs.org/docs/latest/tutorial/fuses
 [postject]: https://github.com/nodejs/postject
+[signtool]: https://learn.microsoft.com/en-us/windows/win32/seccrypto/signtool
 [single executable applications]: https://github.com/nodejs/single-executable
