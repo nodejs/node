@@ -1,4 +1,4 @@
-/* auto-generated on 2023-02-07 17:26:54 -0500. Do not edit! */
+/* auto-generated on 2023-02-22 14:24:01 -0500. Do not edit! */
 // dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada.h
 /* begin file include/ada.h */
 /**
@@ -1452,6 +1452,15 @@ namespace ada {
      * @see https://url.spec.whatwg.org/#dom-url-href
      */
     bool set_href(const std::string_view input);
+
+    /**
+     * @private
+     * 
+     * Sets the host or hostname according to override condition.
+     * Return true on success.
+     * @see https://url.spec.whatwg.org/#hostname-state
+     */
+    bool set_host_or_hostname(std::string_view input, bool override_hostname);
 
     /**
      * The password getter steps are to return this’s URL’s password.
@@ -4333,14 +4342,14 @@ namespace ada {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "1.0.1"
+#define ADA_VERSION "1.0.3"
 
 namespace ada {
 
   enum {
     ADA_VERSION_MAJOR = 1,
     ADA_VERSION_MINOR = 0,
-    ADA_VERSION_REVISION = 1,
+    ADA_VERSION_REVISION = 3,
   };
 
 } // namespace ada
