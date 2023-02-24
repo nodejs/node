@@ -66,5 +66,5 @@ jobs:
         with:
           author: Node.js GitHub Bot <github-bot@iojs.org>
           branch: actions/tools-update-openssl  # Custom branch *just* for this Action.
-          commit-message: 'deps: update archs files for openssl'
+          commit-message: 'deps: update archs files for openssl-${{ env.NEW_VERSION }}'
           path: deps/openssl
