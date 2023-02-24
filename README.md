@@ -380,6 +380,8 @@ For information about the governance of the Node.js project, see
   **Luke Karrys** <<luke@lukekarrys.com>> (he/him)
 * [Lxxyx](https://github.com/Lxxyx) -
   **Zijian Liu** <<lxxyxzj@gmail.com>> (he/him)
+* [marco-ippolito](https://github.com/marco-ippolito) -
+  **Marco Ippolito** <<marcoippolito54@gmail.com>> (he/him)
 * [marsonya](https://github.com/marsonya) -
   **Akhil Marsonya** <<akhil.marsonya27@gmail.com>> (he/him)
 * [mcollina](https://github.com/mcollina) -
