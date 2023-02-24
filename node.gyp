@@ -571,6 +571,7 @@
         'src/uv.cc',
         # headers to make for a more pleasant IDE experience
         'src/aliased_buffer.h',
+        'src/aliased_buffer-inl.h',
         'src/aliased_struct.h',
         'src/aliased_struct-inl.h',
         'src/async_wrap.h',
