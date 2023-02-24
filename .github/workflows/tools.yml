@@ -118,23 +118,17 @@ jobs:
             subsystem: deps
             label: dependencies
             run: |
-              NEW_VERSION=$(gh api repos/libuv/libuv/releases/latest -q '.tag_name|ltrimstr("v")')
-              ./tools/dep_updaters/update-libuv.sh "$NEW_VERSION" > temp-output
+              ./tools/dep_updaters/update-libuv.sh > temp-output
               cat temp-output
-              if grep -q "All done!" temp-output; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-              fi
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV"
               rm temp-output
           - id: simdutf
             subsystem: deps
             label: dependencies
             run: |
-              NEW_VERSION=$(gh api repos/simdutf/simdutf/releases/latest -q '.tag_name|ltrimstr("v")')
-              ./tools/dep_updaters/update-simdutf.sh "$NEW_VERSION" > temp-output
+              ./tools/dep_updaters/update-simdutf.sh > temp-output
               cat temp-output
-              if grep -q "All done!" temp-output; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-              fi
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV"
               rm temp-output
           - id: ada
             subsystem: deps

@@ -2,15 +2,17 @@
 set -e
 # Shell script to update simdutf in the source tree to a specific version
 
-if [ "$#" -le 0 ]; then
-  echo "Error: please provide an simdutf version to update to"
-  echo "	e.g. $0 2.0.3"
-  exit 1
-fi
-
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 DEPS_DIR="$BASE_DIR/deps"
-NEW_VERSION=$1
+[ -z "$NODE" ] && NODE="$ROOT/out/Release/node"
+[ -x "$NODE" ] || NODE=$(command -v node)
+
+NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
+const res = await fetch('https://api.github.com/repos/simdutf/simdutf/releases/latest');
+if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
+const { tag_name } = await res.json();
+console.log(tag_name.replace('v', ''));
+EOF)"
 CURRENT_VERSION=$(grep "#define SIMDUTF_VERSION" "$DEPS_DIR/simdutf/simdutf.h" | sed -n "s/^.*VERSION \"\(.*\)\"/\1/p")
 
 if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
@@ -56,3 +58,7 @@ echo ""
 echo "$ git add -A deps/simdutf"
 echo "$ git commit -m \"deps: update simdutf to $NEW_VERSION\""
 echo ""
+
+# The last line of the script should always print the new version,
+# as we need to add it to $GITHUB_ENV variable.
+echo "NEW_VERSION=$NEW_VERSION"

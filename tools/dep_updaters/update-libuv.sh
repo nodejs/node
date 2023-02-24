@@ -2,16 +2,18 @@
 set -e
 # Shell script to update libuv in the source tree to a specific version
 
-if [ "$#" -le 0 ]; then
-  echo "Error: please provide an libuv version to update to"
-  echo "	e.g. $0 1.44.2"
-  exit 1
-fi
-
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 DEPS_DIR="$BASE_DIR/deps"
+[ -z "$NODE" ] && NODE="$ROOT/out/Release/node"
+[ -x "$NODE" ] || NODE=$(command -v node)
 
-NEW_VERSION=$1
+NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
+const res = await fetch('https://api.github.com/repos/libuv/libuv/releases/latest');
+if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
+const { tag_name } = await res.json();
+console.log(tag_name.replace('v', ''));
+EOF)"
+
 VERSION_H="$DEPS_DIR/uv/include/uv/version.h"
 CURRENT_MAJOR_VERSION=$(grep "#define UV_VERSION_MAJOR" "$VERSION_H" | sed -n "s/^.*MAJOR \(.*\)/\1/p")
 CURRENT_MINOR_VERSION=$(grep "#define UV_VERSION_MINOR" "$VERSION_H" | sed -n "s/^.*MINOR \(.*\)/\1/p")
@@ -56,3 +58,7 @@ echo ""
 echo "$ git add -A deps/uv"
 echo "$ git commit -m \"deps: update libuv to $NEW_VERSION\""
 echo ""
+
+# The last line of the script should always print the new version,
+# as we need to add it to $GITHUB_ENV variable.
+echo "NEW_VERSION=$NEW_VERSION"
