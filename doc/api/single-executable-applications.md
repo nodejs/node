@@ -6,6 +6,10 @@
 added:
   - v19.7.0
   - v18.16.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46824
+    description: Added support for "useSnapshot".
 -->
 
 > Stability: 1 - Experimental: This feature is being designed and will change.
@@ -169,13 +173,32 @@ The configuration currently reads the following top-level fields:
 {
   "main": "/path/to/bundled/script.js",
   "output": "/path/to/write/the/generated/blob.blob",
-  "disableExperimentalSEAWarning": true // Default: false
+  "disableExperimentalSEAWarning": true, // Default: false
+  "useSnapshot": true  // Default: false
 }
 ```
 
 If the paths are not absolute, Node.js will use the path relative to the
 current working directory. The version of the Node.js binary used to produce
 the blob must be the same as the one to which the blob will be injected.
+
+### Startup snapshot support
+
+When `useSnapshot` is set to true in the configuration, during the generation
+of the single executable preparation blob, Node.js will run the `main` script
+to generate a startup snapshot. The script must invoke
+[`v8.startupSnapshot.setDeserializeMainFunction()`][] to set up the entry point.
+The generated startup snapshot would be part of the preparation blob and get
+injected into the final executable. When the single executable application is
+launched, instead of running the `main` script from scratch, Node.js would
+instead deserialize the snapshot to get to the state initialized during
+build-time directly.
+
+The general constraints of the startup snapshot scripts also apply to the main
+script when it's used to build snapshot for the single executable application,
+and the main script can use the [`v8.startupSnapshot` API][] to adapt to
+these constraints. See
+[documentation about startup snapshot support in Node.js][].
 
 ## Notes
 
@@ -249,6 +272,9 @@ to help us document them.
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
 [`require.main`]: modules.md#accessing-the-main-module
+[`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
+[`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
+[documentation about startup snapshot support in Node.js]: cli.md#--build-snapshot
 [fuse]: https://www.electronjs.org/docs/latest/tutorial/fuses
 [postject]: https://github.com/nodejs/postject
 [signtool]: https://learn.microsoft.com/en-us/windows/win32/seccrypto/signtool

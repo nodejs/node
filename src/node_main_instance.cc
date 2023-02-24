@@ -92,12 +92,16 @@ void NodeMainInstance::Run(ExitCode* exit_code, Environment* env) {
     bool runs_sea_code = false;
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
     if (sea::IsSingleExecutable()) {
-      runs_sea_code = true;
       sea::SeaResource sea = sea::FindSingleExecutableResource();
-      std::string_view code = sea.code;
-      LoadEnvironment(env, code);
+      if (!sea.use_snapshot()) {
+        runs_sea_code = true;
+        std::string_view code = sea.main_code_or_snapshot;
+        LoadEnvironment(env, code);
+      }
     }
 #endif
+    // Either there is already a snapshot main function from SEA, or it's not
+    // a SEA at all.
     if (!runs_sea_code) {
       LoadEnvironment(env, StartExecutionCallback{});
     }
