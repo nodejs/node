@@ -279,7 +279,6 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 
   if (cb != nullptr) {
     EscapableHandleScope scope(env->isolate());
-    Realm* realm = env->principal_realm();
     // TODO(addaleax): pass the callback to the main script more directly,
     // e.g. by making StartExecution(env, builtin) parametrizable
     env->set_embedder_mksnapshot_entry_point(std::move(cb));
