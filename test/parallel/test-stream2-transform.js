@@ -23,6 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { PassThrough, Transform } = require('stream');
+const { Readable } = require('node:stream');
 
 {
   // Verify writable side consumption
@@ -467,4 +468,60 @@ const { PassThrough, Transform } = require('stream');
   process.nextTick(common.mustCall(function() {
     assert.strictEqual(ended, true);
   }));
+}
+
+{
+  const createInnerTransform = () => new Transform({
+    objectMode: true,
+
+    construct(callback) {
+      this.push('header from constructor');
+      callback();
+    },
+
+    transform: (row, encoding, callback) => {
+      callback(null, 'transform | ' + row);
+    },
+  });
+
+  const createOuterTransform = () => {
+    let innerTransform;
+
+    return new Transform({
+      objectMode: true,
+
+      transform(row, encoding, callback) {
+        if (!innerTransform) {
+          innerTransform = createInnerTransform();
+          innerTransform.on('data', (data) => {
+            this.push(data);
+          });
+
+          callback();
+        } else if (innerTransform.write('outer | ' + row)) {
+          process.nextTick(callback);
+        } else {
+          innerTransform.once('drain', callback);
+        }
+      },
+    });
+  };
+
+  Readable.from([
+      'create InnerTransform',
+      'firstLine',
+      'secondLine',
+    ])
+      .compose(createOuterTransform())
+    .toArray().then(
+    common.mustCall((value) => {
+      assert.deepStrictEqual(value, [
+        'header from constructor',
+        'transform | outer | firstLine',
+        'transform | outer | secondLine',
+      ]);
+    }),
+  );
+
+
 }
