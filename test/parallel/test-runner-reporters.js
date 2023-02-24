@@ -120,7 +120,7 @@ describe('node:test reporters', { concurrency: true }, () => {
   it('should throw when reporter setup throws asynchronously', async () => {
     const child = spawnSync(
       process.execPath,
-      ['--test', '--test-reporter', fixtures.path('empty.js'), 'reporters.js'],
+      ['--test', '--test-reporter', fixtures.fileURL('empty.js'), 'reporters.js'],
       { cwd: fixtures.path('test-runner') }
     );
     assert.strictEqual(child.status, 7);
