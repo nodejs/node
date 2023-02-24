@@ -510,6 +510,22 @@ SlicedArguments::SlicedArguments(
     (*this)[i] = args[i + start];
 }
 
+template <typename T, size_t kStackStorageSize>
+void MaybeStackBuffer<T, kStackStorageSize>::AllocateSufficientStorage(
+    size_t storage) {
+  CHECK(!IsInvalidated());
+  if (storage > capacity()) {
+    bool was_allocated = IsAllocated();
+    T* allocated_ptr = was_allocated ? buf_ : nullptr;
+    buf_ = Realloc(allocated_ptr, storage);
+    capacity_ = storage;
+    if (!was_allocated && length_ > 0)
+      memcpy(buf_, buf_st_, length_ * sizeof(buf_[0]));
+  }
+
+  length_ = storage;
+}
+
 template <typename T, size_t S>
 ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
     v8::Local<v8::Value> value) {

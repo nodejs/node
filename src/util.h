@@ -411,19 +411,7 @@ class MaybeStackBuffer {
   // This method can be called multiple times throughout the lifetime of the
   // buffer, but once this has been called Invalidate() cannot be used.
   // Content of the buffer in the range [0, length()) is preserved.
-  void AllocateSufficientStorage(size_t storage) {
-    CHECK(!IsInvalidated());
-    if (storage > capacity()) {
-      bool was_allocated = IsAllocated();
-      T* allocated_ptr = was_allocated ? buf_ : nullptr;
-      buf_ = Realloc(allocated_ptr, storage);
-      capacity_ = storage;
-      if (!was_allocated && length_ > 0)
-        memcpy(buf_, buf_st_, length_ * sizeof(buf_[0]));
-    }
-
-    length_ = storage;
-  }
+  void AllocateSufficientStorage(size_t storage);
 
   void SetLength(size_t length) {
     // capacity() returns how much memory is actually available.
