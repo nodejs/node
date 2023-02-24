@@ -46,12 +46,12 @@ jobs:
     if: needs.get-prs-for-ci.outputs.numbers != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
         with:
           persist-credentials: false
 
       - name: Install Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
