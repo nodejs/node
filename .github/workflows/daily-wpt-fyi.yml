@@ -96,16 +96,18 @@ jobs:
           if-no-files-found: warn
       - name: Upload WPT Report to wpt.fyi API
         env:
-          WPT_FYI_ENDPOINT: ${{ vars.WPT_FYI_ENDPOINT }}
           WPT_FYI_USERNAME: ${{ vars.WPT_FYI_USERNAME }}
           WPT_FYI_PASSWORD: ${{ secrets.WPT_FYI_PASSWORD }}
         run: |
           if [ -e out/wpt/wptreport.json ]; then
             cd out/wpt
             gzip wptreport.json
-            curl \
-              -u "$WPT_FYI_USERNAME:$WPT_FYI_PASSWORD" \
-              -F "result_file=@wptreport.json.gz" \
-              -F "labels=master" \
-              $WPT_FYI_ENDPOINT
+            for WPT_FYI_ENDPOINT in "https://wpt.fyi/api/results/upload" "https://staging.wpt.fyi/api/results/upload"
+            do
+              curl \
+                -u "$WPT_FYI_USERNAME:$WPT_FYI_PASSWORD" \
+                -F "result_file=@wptreport.json.gz" \
+                -F "labels=master" \
+                $WPT_FYI_ENDPOINT
+            done
           fi
