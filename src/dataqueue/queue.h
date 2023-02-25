@@ -117,7 +117,7 @@ namespace node {
 //
 // For idempotent DataQueues, any number of readers can be created and
 // pull concurrently from the same DataQueue. The DataQueue can be read
-// multiple times. Succesful reads should always produce the same result.
+// multiple times. Successful reads should always produce the same result.
 // If, for whatever reason, the implementation cannot ensure that the
 // data read will remain the same, the read must fail with an error status.
 //
