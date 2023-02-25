@@ -484,9 +484,7 @@ class WPTRunner {
   pretendGlobalThisAs(name) {
     switch (name) {
       case 'Window': {
-        this.globalThisInitScripts.push(
-          `global.Window = Object.getPrototypeOf(globalThis).constructor;
-          self.GLOBAL.isWorker = () => false;`);
+        this.globalThisInitScripts.push('globalThis.Window = Object.getPrototypeOf(globalThis).constructor;');
         this.loadLazyGlobals();
         break;
       }
