@@ -1,4 +1,4 @@
-/* auto-generated on 2023-02-10 14:42:58 -0500. Do not edit! */
+/* auto-generated on 2023-02-23 11:36:05 -0500. Do not edit! */
 // dofile: invoked with prepath=/Users/dlemire/CVS/github/simdutf/include, filename=simdutf.h
 /* begin file include/simdutf.h */
 #ifndef SIMDUTF_H
@@ -572,7 +572,7 @@ SIMDUTF_DISABLE_UNDESIRED_WARNINGS
 #define SIMDUTF_SIMDUTF_VERSION_H
 
 /** The version of simdutf being used (major.minor.revision) */
-#define SIMDUTF_VERSION "3.2.0"
+#define SIMDUTF_VERSION "3.2.1"
 
 namespace simdutf {
 enum {
@@ -587,7 +587,7 @@ enum {
   /**
    * The revision (major.minor.REVISION) of simdutf being used.
    */
-  SIMDUTF_VERSION_REVISION = 0
+  SIMDUTF_VERSION_REVISION = 1
 };
 } // namespace simdutf
 
@@ -690,21 +690,11 @@ static inline uint32_t detect_supported_architectures() {
   return instruction_set::ALTIVEC;
 }
 
-#elif defined(__arm__) || defined(__aarch64__) // incl. armel, armhf, arm64
-
-#if defined(__ARM_NEON)
+#elif defined(__aarch64__) || defined(_M_ARM64)
 
 static inline uint32_t detect_supported_architectures() {
   return instruction_set::NEON;
 }
-
-#else // ARM without NEON
-
-static inline uint32_t detect_supported_architectures() {
-  return instruction_set::DEFAULT;
-}
-
-#endif
 
 #elif defined(__x86_64__) || defined(_M_AMD64) // x64
 
@@ -822,7 +812,7 @@ static inline uint32_t detect_supported_architectures() {
 }
 #else // fallback
 
-
+// includes 32-bit ARM.
 static inline uint32_t detect_supported_architectures() {
   return instruction_set::DEFAULT;
 }
