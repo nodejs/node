@@ -36,7 +36,6 @@ exec(cmdline, function(err, stdout, stderr) {
     console.log(stdout);
     console.log(stderr);
     assert(false, 'this test should fail');
-    return;
   }
 
   if (err.code !== 134 && err.signal !== 'SIGABRT') {
