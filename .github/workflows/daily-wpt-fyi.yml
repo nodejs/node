@@ -80,34 +80,64 @@ jobs:
           clean: false
           ref: ${{ env.WPT_REVISION }}
 
+      # Node.js WPT Runner
       - name: Run WPT and generate report
-        run: make test-wpt-report || true
-      - name: Clone report for upload
         run: |
+          make test-wpt-report || true
           if [ -e out/wpt/wptreport.json ]; then
-            cd out/wpt
-            cp wptreport.json wptreport-${{ steps.setup-node.outputs.node-version }}.json
+            echo "WPT_REPORT=$(pwd)/out/wpt/wptreport.json" >> $GITHUB_ENV
           fi
+
+      # undici WPT Runner
+      - name: Set env.UNDICI_VERSION
+        if: ${{ env.WPT_REPORT != '' }}
+        run: echo "UNDICI_VERSION=v$(jq -r '.version' < deps/undici/src/package.json)" >> $GITHUB_ENV
+      - name: Remove deps/undici
+        if: ${{ env.WPT_REPORT != '' }}
+        run: rm -rf deps/undici
+      - name: Checkout undici
+        if: ${{ env.WPT_REPORT != '' }}
+        uses: actions/checkout@v3
+        with:
+          repository: nodejs/undici
+          persist-credentials: false
+          path: deps/undici
+          clean: false
+          ref: ${{ env.UNDICI_VERSION }}
+      - name: Add undici WPTs to the report
+        if: ${{ env.WPT_REPORT != '' }}
+        run: |
+          rm -rf test/wpt/tests
+          mv ../../test/fixtures/wpt/ test/wpt/tests/
+          npm install
+          npm run test:wpt || true
+        working-directory: deps/undici
+
+      # Upload artifacts
+      - name: Clone report for upload
+        if: ${{ env.WPT_REPORT != '' }}
+        working-directory: out/wpt
+        run: cp wptreport.json wptreport-${{ steps.setup-node.outputs.node-version }}.json
       - name: Upload GitHub Actions artifact
+        if: ${{ env.WPT_REPORT != '' }}
         uses: actions/upload-artifact@v3
         with:
           path: out/wpt/wptreport-*.json
           name: WPT Reports
-          if-no-files-found: warn
+          if-no-files-found: error
       - name: Upload WPT Report to wpt.fyi API
+        if: ${{ env.WPT_REPORT != '' }}
         env:
           WPT_FYI_USERNAME: ${{ vars.WPT_FYI_USERNAME }}
           WPT_FYI_PASSWORD: ${{ secrets.WPT_FYI_PASSWORD }}
+        working-directory: out/wpt
         run: |
-          if [ -e out/wpt/wptreport.json ]; then
-            cd out/wpt
-            gzip wptreport.json
-            for WPT_FYI_ENDPOINT in "https://wpt.fyi/api/results/upload" "https://staging.wpt.fyi/api/results/upload"
-            do
-              curl \
-                -u "$WPT_FYI_USERNAME:$WPT_FYI_PASSWORD" \
-                -F "result_file=@wptreport.json.gz" \
-                -F "labels=master" \
-                $WPT_FYI_ENDPOINT
-            done
-          fi
+          gzip wptreport.json
+          for WPT_FYI_ENDPOINT in "https://wpt.fyi/api/results/upload" "https://staging.wpt.fyi/api/results/upload"
+          do
+            curl \
+              -u "$WPT_FYI_USERNAME:$WPT_FYI_PASSWORD" \
+              -F "result_file=@wptreport.json.gz" \
+              -F "labels=master" \
+              $WPT_FYI_ENDPOINT
+          done
