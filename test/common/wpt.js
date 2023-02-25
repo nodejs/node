@@ -693,7 +693,7 @@ class WPTRunner {
 
   getTestTitle(filename) {
     const spec = this.specMap.get(filename);
-    return spec.meta?.title || filename;
+    return spec.meta?.title || filename.split('.')[0];
   }
 
   // Map WPT test status to strings
