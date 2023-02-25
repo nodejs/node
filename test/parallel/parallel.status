@@ -34,8 +34,6 @@ test-crypto-dh-stateless: SKIP
 test-crypto-keygen: SKIP
 
 [$system==solaris] # Also applies to SmartOS
-# https://github.com/nodejs/node/issues/43446
-test-net-connect-reset-until-connected: PASS, FLAKY
 # https://github.com/nodejs/node/issues/43457
 test-domain-no-error-handler-abort-on-uncaught-0: PASS, FLAKY
 test-domain-no-error-handler-abort-on-uncaught-1: PASS,FLAKY
@@ -55,8 +53,6 @@ test-domain-with-abort-on-uncaught-exception: PASS, FLAKY
 test-fs-stat-bigint: PASS,FLAKY
 # https://github.com/nodejs/node/issues/31280
 test-worker-message-port-message-before-close: PASS,FLAKY
-# https://github.com/nodejs/node/issues/43446
-test-net-connect-reset-until-connected: PASS, FLAKY
 
 [$system==aix]
 
