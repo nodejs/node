@@ -4,7 +4,7 @@ const _append = Symbol('append')
 
 const sqBracketsMatcher = str => str.match(/(.+)\[([^\]]+)\]\.?(.*)$/)
 
-// replaces any occurence of an empty-brackets (e.g: []) with a special
+// replaces any occurrence of an empty-brackets (e.g: []) with a special
 // Symbol(append) to represent it, this is going to be useful for the setter
 // method that will push values to the end of the array when finding these
 const replaceAppendSymbols = str => {
@@ -29,7 +29,7 @@ const parseKeys = key => {
       const preSqBracketPortion = index[1]
 
       // we want to have a `new String` wrapper here in order to differentiate
-      // between multiple occurences of the same string, e.g:
+      // between multiple occurrences of the same string, e.g:
       // foo.bar[foo.bar] should split into { foo: { bar: { 'foo.bar': {} } }
       /* eslint-disable-next-line no-new-wrappers */
       const foundKey = new String(index[2])
@@ -41,7 +41,7 @@ const parseKeys = key => {
       sqBracketItems.add(foundKey)
 
       // returns an array that contains either dot-separate items (that will
-      // be splitted appart during the next step OR the fully parsed keys
+      // be split apart during the next step OR the fully parsed keys
       // read from square brackets, e.g:
       // foo.bar[1.0.0].a.b -> ['foo.bar', '1.0.0', 'a.b']
       return [
@@ -142,7 +142,7 @@ const setter = ({ data, key, value, force }) => {
   const keys = parseKeys(key)
   const setKeys = (_data, _key) => {
     // handles array indexes, converting valid integers to numbers,
-    // note that occurences of Symbol(append) will throw,
+    // note that occurrences of Symbol(append) will throw,
     // so we just ignore these for now
     let maybeIndex = Number.NaN
     try {
