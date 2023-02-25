@@ -28,11 +28,9 @@ if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI.');
 
 const assert = require('assert');
-const { spawn } = require('child_process');
+const { execFile } = require('child_process');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
-
-let success = false;
 
 function loadPEM(n) {
   return fixtures.readKey(`${n}.pem`);
@@ -42,21 +40,13 @@ const server = tls.Server({
   secureProtocol: 'TLSv1_2_server_method',
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert')
-}, null).listen(0, function() {
+}, null).listen(0, common.mustCall(() => {
   const args = ['s_client', '-quiet', '-tls1_1',
-                '-connect', `127.0.0.1:${this.address().port}`];
+                '-connect', `127.0.0.1:${server.address().port}`];
 
-  const client = spawn(common.opensslCli, args);
-  let out = '';
-  client.stderr.setEncoding('utf8');
-  client.stderr.on('data', function(d) {
-    out += d;
-    if (/SSL alert number 70/.test(out)) {
-      success = true;
-      server.close();
-    }
-  });
-});
-process.on('exit', function() {
-  assert(success);
-});
+  execFile(common.opensslCli, args, common.mustCall((err, _, stderr) => {
+    assert.strictEqual(err.code, 1);
+    assert.match(stderr, /SSL alert number 70/);
+    server.close();
+  }));
+}));
