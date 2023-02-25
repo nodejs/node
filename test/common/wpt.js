@@ -501,6 +501,7 @@ class WPTRunner {
 
   loadLazyGlobals() {
     const lazyProperties = [
+      'DOMException',
       'Performance', 'PerformanceEntry', 'PerformanceMark', 'PerformanceMeasure',
       'PerformanceObserver', 'PerformanceObserverEntryList', 'PerformanceResourceTiming',
       'Blob', 'atob', 'btoa',
