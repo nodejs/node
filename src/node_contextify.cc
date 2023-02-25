@@ -246,7 +246,7 @@ BaseObjectPtr<ContextifyContext> ContextifyContext::New(
     const ContextOptions& options) {
   HandleScope scope(env->isolate());
   // This only initializes part of the context. The primordials are
-  // only initilaized when needed because even deserializing them slows
+  // only initialized when needed because even deserializing them slows
   // things down significantly and they are only needed in rare occasions
   // in the vm contexts.
   if (InitializeContextRuntime(v8_context).IsNothing()) {
