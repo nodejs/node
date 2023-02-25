@@ -4,8 +4,6 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_union_bytes.h"
-#include "simdutf.h"
-#include "v8.h"
 
 // The POSTJECT_SENTINEL_FUSE macro is a string of random characters selected by
 // the Node.js project that is present only once in the entire binary. It is
@@ -19,7 +17,6 @@
 #include <memory>
 #include <string_view>
 #include <tuple>
-#include <vector>
 
 #if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 

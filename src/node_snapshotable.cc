@@ -1443,7 +1443,7 @@ void SerializeSnapshotableObjects(Realm* realm,
 
 namespace mksnapshot {
 
-// NB: This is also use by the regular embedding codepath.
+// NB: This is also used by the regular embedding codepath.
 void GetEmbedderEntryFunction(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();

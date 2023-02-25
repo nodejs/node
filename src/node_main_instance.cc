@@ -90,6 +90,7 @@ void NodeMainInstance::Run(ExitCode* exit_code, Environment* env) {
     bool is_sea = false;
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
     if (sea::IsSingleExecutable()) {
+      is_sea = true;
       LoadEnvironment(env, sea::FindSingleExecutableCode());
     }
 #endif
