@@ -14,9 +14,10 @@ class WorkerStartedRequest : public Request {
       uint64_t id,
       const std::string& url,
       std::shared_ptr<node::inspector::MainThreadHandle> worker_thread,
-      bool waiting)
+      bool waiting,
+      const std::string& title_prefix)
       : id_(id),
-        info_(BuildWorkerTitle(id), url, worker_thread),
+        info_(BuildWorkerTitle(id, title_prefix), url, worker_thread),
         waiting_(waiting) {}
   void Call(MainThreadInterface* thread) override {
     auto manager = thread->inspector_agent()->GetWorkerManager();
@@ -24,8 +25,8 @@ class WorkerStartedRequest : public Request {
   }
 
  private:
-  static std::string BuildWorkerTitle(int id) {
-    return "Worker " + std::to_string(id);
+  static std::string BuildWorkerTitle(int id, const std::string& title_prefix) {
+    return title_prefix + "Worker " + std::to_string(id);
   }
 
   uint64_t id_;
@@ -57,11 +58,13 @@ ParentInspectorHandle::ParentInspectorHandle(
     uint64_t id,
     const std::string& url,
     std::shared_ptr<MainThreadHandle> parent_thread,
-    bool wait_for_connect)
+    bool wait_for_connect,
+    const std::string& title_prefix)
     : id_(id),
       url_(url),
       parent_thread_(parent_thread),
-      wait_(wait_for_connect) {}
+      wait_(wait_for_connect),
+      title_prefix_(title_prefix) {}
 
 ParentInspectorHandle::~ParentInspectorHandle() {
   parent_thread_->Post(
@@ -71,7 +74,7 @@ ParentInspectorHandle::~ParentInspectorHandle() {
 void ParentInspectorHandle::WorkerStarted(
     std::shared_ptr<MainThreadHandle> worker_thread, bool waiting) {
   std::unique_ptr<Request> request(
-      new WorkerStartedRequest(id_, url_, worker_thread, waiting));
+      new WorkerStartedRequest(id_, url_, worker_thread, waiting, title_prefix_));
   parent_thread_->Post(std::move(request));
 }
 
@@ -97,9 +100,9 @@ void WorkerManager::WorkerStarted(uint64_t session_id,
 }
 
 std::unique_ptr<ParentInspectorHandle> WorkerManager::NewParentHandle(
-    uint64_t thread_id, const std::string& url) {
+    uint64_t thread_id, const std::string& url, const std::string& title_prefix) {
   bool wait = !delegates_waiting_on_start_.empty();
-  return std::make_unique<ParentInspectorHandle>(thread_id, url, thread_, wait);
+  return std::make_unique<ParentInspectorHandle>(thread_id, url, thread_, wait, title_prefix);
 }
 
 void WorkerManager::RemoveAttachDelegate(int id) {

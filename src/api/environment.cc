@@ -508,12 +508,13 @@ void FreeEnvironment(Environment* env) {
 NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     Environment* env,
     ThreadId thread_id,
-    const char* url) {
+    const char* url,
+    const char* title_prefix) {
   CHECK_NOT_NULL(env);
   CHECK_NE(thread_id.id, static_cast<uint64_t>(-1));
 #if HAVE_INSPECTOR
   return std::make_unique<InspectorParentHandleImpl>(
-      env->inspector_agent()->GetParentHandle(thread_id.id, url));
+      env->inspector_agent()->GetParentHandle(thread_id.id, url, title_prefix));
 #else
   return {};
 #endif

@@ -30,6 +30,7 @@ class Worker : public AsyncWrap {
   Worker(Environment* env,
          v8::Local<v8::Object> wrap,
          const std::string& url,
+         const std::string& title_prefix,
          std::shared_ptr<PerIsolateOptions> per_isolate_opts,
          std::vector<std::string>&& exec_argv,
          std::shared_ptr<KVStore> env_vars,

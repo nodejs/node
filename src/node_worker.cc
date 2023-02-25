@@ -49,6 +49,7 @@ constexpr double kMB = 1024 * 1024;
 Worker::Worker(Environment* env,
                Local<Object> wrap,
                const std::string& url,
+               const std::string& title_prefix,
                std::shared_ptr<PerIsolateOptions> per_isolate_opts,
                std::vector<std::string>&& exec_argv,
                std::shared_ptr<KVStore> env_vars,
@@ -83,7 +84,7 @@ Worker::Worker(Environment* env,
       .Check();
 
   inspector_parent_handle_ = GetInspectorParentHandle(
-      env, thread_id_, url.c_str());
+      env, thread_id_, url.c_str(), title_prefix.c_str());
 
   argv_ = std::vector<std::string>{env->argv()[0]};
   // Mark this Worker object as weak until we actually start the thread.
@@ -467,6 +468,7 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   std::string url;
+  std::string title_prefix;
   std::shared_ptr<PerIsolateOptions> per_isolate_opts = nullptr;
   std::shared_ptr<KVStore> env_vars = nullptr;
 
@@ -477,6 +479,12 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     Utf8Value value(
         isolate, args[0]->ToString(env->context()).FromMaybe(Local<String>()));
     url.append(value.out(), value.length());
+  }
+
+  if (!args[5]->IsNullOrUndefined()) {
+    Utf8Value value(
+        isolate, args[5]->ToString(env->context()).FromMaybe(Local<String>()));
+    title_prefix.append(value.out(), value.length());
   }
 
   if (args[1]->IsNull()) {
@@ -589,6 +597,7 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   Worker* worker = new Worker(env,
                               args.This(),
                               url,
+                              title_prefix,
                               per_isolate_opts,
                               std::move(exec_argv_out),
                               env_vars,
