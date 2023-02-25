@@ -46,7 +46,6 @@ For example, for the URL tests, add a file `test/wpt/test-url.js`:
 ```js
 'use strict';
 
-require('../common');
 const { WPTRunner } = require('../common/wpt');
 
 const runner = new WPTRunner('url');
