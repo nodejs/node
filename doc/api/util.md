@@ -2515,12 +2515,44 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
-Returns `true` if the value is an instance of a built-in [`Error`][] type.
+Returns `true` if the value was returned by the constructor of a
+[built-in `Error` type][].
 
 ```js
 util.types.isNativeError(new Error());  // Returns true
 util.types.isNativeError(new TypeError());  // Returns true
 util.types.isNativeError(new RangeError());  // Returns true
+```
+
+Subclasses of the native error types will use the return value of the native
+error constructor as the new `this` and are therefore also native errors:
+
+```js
+class MyError extends Error {}
+util.types.isNativeError(new MyError());  // Returns true
+```
+
+A value being `instanceof` a native error is not equivalent to `isNativeError()`
+returning `true` for that value. Therefore, we recommend using
+`isNativeError(e) || e instanceof Error` to check if `e` is an error.
+
+`isNativeError()` returns `true` for errors which come from a different
+[realm][] while `instanceof Error` returns `false` for these errors:
+
+```js
+const vm = require('vm');
+const context = vm.createContext({});
+util.types.isNativeError(vm.runInContext('new Error()', context)); // Returns true
+vm.runInContext('new Error()', context) instanceof Error; // Returns false
+```
+
+Conversely, `isNativeError()` returns `false` for all objects which where not
+returned by the constructor of a native error. That includes values
+which are `instanceof` native errors:
+
+```js
+util.types.isNativeError({__proto__: Error.prototype}); // Returns false
+({__proto__: Error.prototype} instanceof Error); // Returns true
 ```
 
 ### `util.types.isNumberObject(value)`
@@ -3287,6 +3319,8 @@ util.log('Timestamped message.');
 [Customizing `util.inspect` colors]: #customizing-utilinspect-colors
 [Internationalization]: intl.md
 [Module Namespace Object]: https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects
+[realm]: https://tc39.es/ecma262/#realm
+[built-in `Error` type]: https://tc39.es/ecma262/#sec-error-objects
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`'warning'`]: process.md#event-warning
