@@ -133,11 +133,21 @@ jobs:
         working-directory: out/wpt
         run: |
           gzip wptreport.json
+          echo "## Node.js ${{ steps.setup-node.outputs.node-version }}" >> $GITHUB_STEP_SUMMARY
           for WPT_FYI_ENDPOINT in "https://wpt.fyi/api/results/upload" "https://staging.wpt.fyi/api/results/upload"
           do
-            curl \
+            response=$(curl -sS \
               -u "$WPT_FYI_USERNAME:$WPT_FYI_PASSWORD" \
               -F "result_file=@wptreport.json.gz" \
               -F "labels=master" \
-              $WPT_FYI_ENDPOINT
+              $WPT_FYI_ENDPOINT)
+
+            if [[ $response =~ Task\ ([0-9]+)\ added\ to\ queue ]]; then
+              run_id=${BASH_REMATCH[1]}
+              origin=${WPT_FYI_ENDPOINT%/api/results/upload}
+
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Run ID [$run_id]($origin/api/runs/$run_id) added to the processor queue at $origin" >> $GITHUB_STEP_SUMMARY
+              echo "- [View on the ${origin:8} dashboard]($origin/results?run_id=$run_id)" >> $GITHUB_STEP_SUMMARY
+            fi
           done
