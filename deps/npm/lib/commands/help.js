@@ -10,7 +10,7 @@ const BaseCommand = require('../base-command.js')
 
 // Strips out the number from foo.7 or foo.7. or foo.7.tgz
 // We don't currently compress our man pages but if we ever did this would
-// seemlessly continue supporting it
+// seamlessly continue supporting it
 const manNumberRegex = /\.(\d+)(\.[^/\\]*)?$/
 // Searches for the "npm-" prefix in page names, to prefer those.
 const manNpmPrefixRegex = /\/npm-/

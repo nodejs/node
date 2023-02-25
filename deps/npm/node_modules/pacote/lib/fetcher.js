@@ -425,7 +425,7 @@ class FetcherBase {
     return ((mode | m) & ~this.umask) | exe | 0o600
   }
 
-  [_tarxOptions] ({ cwd, uid, gid }) {
+  [_tarxOptions] ({ cwd }) {
     const sawIgnores = new Set()
     return {
       cwd,
@@ -460,9 +460,9 @@ class FetcherBase {
         log.warn('tar', code, msg)
         log.silly('tar', code, msg, data)
       },
-      uid,
-      gid,
       umask: this.umask,
+      // always ignore ownership info from tarball metadata
+      preserveOwner: false,
     }
   }
 }

@@ -120,7 +120,7 @@ SPDX license identifier for the license you're using, like this:
 
 You can check [the full list of SPDX license
 IDs](https://spdx.org/licenses/).  Ideally you should pick one that is
-[OSI](https://opensource.org/licenses/alphabetical) approved.
+[OSI](https://opensource.org/licenses/) approved.
 
 If your package is licensed under multiple common licenses, use an [SPDX
 license expression syntax version 2.0

@@ -22,7 +22,7 @@ async function updateWorkspaces ({
     ? false
     : config.get('save')
 
-  // runs a minimalistic reify update, targetting only the workspaces
+  // runs a minimalistic reify update, targeting only the workspaces
   // that had version updates and skipping fund/audit/save
   const opts = {
     ...flatOptions,
