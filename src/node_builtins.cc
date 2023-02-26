@@ -192,7 +192,7 @@ MaybeLocal<String> BuiltinLoader::LoadBuiltinSource(Isolate* isolate,
     ABORT();
   }
   return source_it->second.ToStringChecked(isolate);
-#else  // !NODE_BUILTIN_MODULES_PATH
+#else   // !NODE_BUILTIN_MODULES_PATH
   std::string filename = OnDiskFileName(id);
 
   std::string contents;
