@@ -2529,7 +2529,7 @@ error constructor as the new `this` and are therefore also native errors:
 
 ```js
 class MyError extends Error {}
-util.types.isNativeError(new MyError());  // Returns true
+console.log(util.types.isNativeError(new MyError()));  // true
 ```
 
 A value being `instanceof` a native error is not equivalent to `isNativeError()`
