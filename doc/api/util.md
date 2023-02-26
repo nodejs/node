@@ -2540,7 +2540,7 @@ returning `true` for that value. Therefore, we recommend using
 [realm][] while `instanceof Error` returns `false` for these errors:
 
 ```js
-const vm = require('vm');
+const vm = require('node:vm');
 const context = vm.createContext({});
 util.types.isNativeError(vm.runInContext('new Error()', context)); // Returns true
 vm.runInContext('new Error()', context) instanceof Error; // Returns false
