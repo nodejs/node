@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.17.0](https://github.com/nodejs/corepack/compare/v0.16.0...v0.17.0) (2023-02-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* add `"exports"` to the `package.json` ([#239](https://github.com/nodejs/corepack/issues/239))
+
+### Features
+
+* update package manager versions ([#242](https://github.com/nodejs/corepack/issues/242)) ([5141639](https://github.com/nodejs/corepack/commit/5141639af8198a343105be1e98a74f7c9e152472))
+
+
+### Bug Fixes
+
+* add `"exports"` to the `package.json` ([#239](https://github.com/nodejs/corepack/issues/239)) ([8e12d08](https://github.com/nodejs/corepack/commit/8e12d088dec171c03e90f623895a1fbf867130e6))
+
 ## [0.16.0](https://github.com/nodejs/corepack/compare/v0.15.3...v0.16.0) (2023-02-17)
 
 
