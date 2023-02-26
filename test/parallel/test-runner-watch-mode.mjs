@@ -12,9 +12,7 @@ async function testWatch({ files, fileToUpdate }) {
   const child = spawn(process.execPath, ['--watch', '--test', '--no-warnings', ...files], { encoding: 'utf8' });
   let stdout = '';
 
-  console.log(`${child.pid} [running test]`);
   child.stdout.on('data', (data) => {
-    console.log(data.toString().split(/\r?\n/).map((line) => `${child.pid} [stdout] ${line}`).join('\n'));
     stdout += data.toString();
     const matches = stdout.match(/test has ran/g);
     if (matches?.length >= 1) ran1.resolve();
@@ -22,11 +20,9 @@ async function testWatch({ files, fileToUpdate }) {
   });
 
   await ran1.promise;
-  console.log(`${child.pid} [restarting]`);
   const interval = setInterval(() => writeFileSync(fileToUpdate, readFileSync(fileToUpdate, 'utf8')), 50);
   await ran2.promise;
   clearInterval(interval);
-  console.log(`${child.pid} [done]`);
   child.kill();
 }
 
