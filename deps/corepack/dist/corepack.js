@@ -43737,7 +43737,7 @@ function String2(descriptor, ...args) {
 }
 
 // package.json
-var version = "0.16.0";
+var version = "0.17.0";
 
 // sources/Engine.ts
 var import_fs3 = __toESM(require("fs"));
@@ -43749,7 +43749,7 @@ var import_semver3 = __toESM(require_semver2());
 var config_default = {
   definitions: {
     npm: {
-      default: "9.5.0+sha1.75f0d6d27c0a4cc403cd9e1e68ac574555e3b43d",
+      default: "9.5.1+sha1.dc74eb85d07d78e24fadc674968a1ea16b18108c",
       fetchLatestFrom: {
         type: "npm",
         package: "npm"
@@ -43780,7 +43780,7 @@ var config_default = {
       }
     },
     pnpm: {
-      default: "7.27.0+sha1.572d3b6d6b0ff64f11edd1c4e8774cc7351f1089",
+      default: "7.27.1+sha1.75c15a7a16389531192dab282e45aacdac1ed4c0",
       fetchLatestFrom: {
         type: "npm",
         package: "pnpm"
