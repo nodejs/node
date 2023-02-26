@@ -449,7 +449,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
   ChildEnvironmentData data;
   data.thread_id = node::AllocateEnvironmentThreadId();
   data.inspector_parent_handle =
-      GetInspectorParentHandle(*env, data.thread_id, "file:///embedded.js", "");
+      GetInspectorParentHandle(*env, data.thread_id, "file:///embedded.js");
   CHECK(data.inspector_parent_handle);
   data.platform = GetMultiIsolatePlatform(*env);
   CHECK_NOT_NULL(data.platform);
