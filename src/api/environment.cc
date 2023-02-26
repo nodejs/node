@@ -525,6 +525,7 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     const char* url,
     const char* title_prefix) {
   CHECK_NOT_NULL(env);
+  if (title_prefix == nullptr) title_prefix = "";
   CHECK_NE(thread_id.id, static_cast<uint64_t>(-1));
 #if HAVE_INSPECTOR
   return std::make_unique<InspectorParentHandleImpl>(
