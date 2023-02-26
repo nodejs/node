@@ -47,7 +47,7 @@ const entry = fixtures.path('snapshot', 'error.js');
   console.log(child.status);
   console.log(stderr);
   console.log(child.stdout.toString());
-  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.status, 14);
   assert.match(stderr, /Cannot open/);
   assert(!fs.existsSync(path.join(tmpdir.path, 'snapshot.blob')));
 }

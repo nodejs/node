@@ -1132,8 +1132,7 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
               "node:embedded_snapshot_main was specified as snapshot "
               "entry point but Node.js was built without embedded "
               "snapshot.\n");
-      // TODO(joyeecheung): should be kInvalidCommandLineArgument instead.
-      exit_code = ExitCode::kGenericUserError;
+      exit_code = ExitCode::kInvalidCommandLineArgument;
       return exit_code;
     }
   } else {
@@ -1166,8 +1165,7 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
     fprintf(stderr,
             "Cannot open %s for writing a snapshot.\n",
             snapshot_blob_path.c_str());
-    // TODO(joyeecheung): should be kStartupSnapshotFailure.
-    exit_code = ExitCode::kGenericUserError;
+    exit_code = ExitCode::kStartupSnapshotFailure;
   }
   return exit_code;
 }
@@ -1183,17 +1181,16 @@ ExitCode LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
     FILE* fp = fopen(filename.c_str(), "rb");
     if (fp == nullptr) {
       fprintf(stderr, "Cannot open %s", filename.c_str());
-      // TODO(joyeecheung): should be kStartupSnapshotFailure.
-      exit_code = ExitCode::kGenericUserError;
+      exit_code = ExitCode::kStartupSnapshotFailure;
       return exit_code;
     }
     std::unique_ptr<SnapshotData> read_data = std::make_unique<SnapshotData>();
     bool ok = SnapshotData::FromFile(read_data.get(), fp);
     fclose(fp);
     if (!ok) {
-      // If we fail to read the customized snapshot, simply exit with 1.
-      // TODO(joyeecheung): should be kStartupSnapshotFailure.
-      exit_code = ExitCode::kGenericUserError;
+      // If we fail to read the customized snapshot,
+      // simply exit with kStartupSnapshotFailure.
+      exit_code = ExitCode::kStartupSnapshotFailure;
       return exit_code;
     }
     *snapshot_data_ptr = read_data.release();
