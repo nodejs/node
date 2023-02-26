@@ -2542,8 +2542,9 @@ returning `true` for that value. Therefore, we recommend using
 ```js
 const vm = require('node:vm');
 const context = vm.createContext({});
-util.types.isNativeError(vm.runInContext('new Error()', context)); // Returns true
-vm.runInContext('new Error()', context) instanceof Error; // Returns false
+const myError = vm.runInContext('new Error', context);
+console.log(util.types.isNativeError(myError)); // true
+console.log(myError instanceof Error); // false
 ```
 
 Conversely, `isNativeError()` returns `false` for all objects which where not
