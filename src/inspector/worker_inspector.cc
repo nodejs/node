@@ -73,8 +73,8 @@ ParentInspectorHandle::~ParentInspectorHandle() {
 
 void ParentInspectorHandle::WorkerStarted(
     std::shared_ptr<MainThreadHandle> worker_thread, bool waiting) {
-  std::unique_ptr<Request> request(
-      new WorkerStartedRequest(id_, url_, worker_thread, waiting, title_prefix_));
+  std::unique_ptr<Request> request(new WorkerStartedRequest(
+      id_, url_, worker_thread, waiting, title_prefix_));
   parent_thread_->Post(std::move(request));
 }
 
@@ -100,9 +100,12 @@ void WorkerManager::WorkerStarted(uint64_t session_id,
 }
 
 std::unique_ptr<ParentInspectorHandle> WorkerManager::NewParentHandle(
-    uint64_t thread_id, const std::string& url, const std::string& title_prefix) {
+    uint64_t thread_id,
+    const std::string& url,
+    const std::string& title_prefix) {
   bool wait = !delegates_waiting_on_start_.empty();
-  return std::make_unique<ParentInspectorHandle>(thread_id, url, thread_, wait, title_prefix);
+  return std::make_unique<ParentInspectorHandle>(
+      thread_id, url, thread_, wait, title_prefix);
 }
 
 void WorkerManager::RemoveAttachDelegate(int id) {

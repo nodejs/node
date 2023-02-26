@@ -952,7 +952,9 @@ void Agent::SetParentHandle(
 }
 
 std::unique_ptr<ParentInspectorHandle> Agent::GetParentHandle(
-    uint64_t thread_id, const std::string& url, const std::string& title_prefix) {
+    uint64_t thread_id,
+    const std::string& url,
+    const std::string& title_prefix) {
   if (!parent_env_->should_create_inspector() && !client_) {
     ThrowUninitializedInspectorError(parent_env_);
     return std::unique_ptr<ParentInspectorHandle>{};
@@ -960,9 +962,11 @@ std::unique_ptr<ParentInspectorHandle> Agent::GetParentHandle(
 
   CHECK_NOT_NULL(client_);
   if (!parent_handle_) {
-    return client_->getWorkerManager()->NewParentHandle(thread_id, url, title_prefix);
+    return client_->getWorkerManager()->NewParentHandle(
+        thread_id, url, title_prefix);
   } else {
-    return parent_handle_->NewParentInspectorHandle(thread_id, url, title_prefix);
+    return parent_handle_->NewParentInspectorHandle(
+        thread_id, url, title_prefix);
   }
 }
 
