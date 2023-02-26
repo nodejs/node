@@ -23,12 +23,12 @@ console.log(hash);
 ```
 
 ```cjs
-const crypto = require('node:crypto');
+const { createHmac } = require('node:crypto');
 
 const secret = 'abcdefg';
-const hash = crypto.createHmac('sha256', secret)
-                   .update('I love cupcakes')
-                   .digest('hex');
+const hash = createHmac('sha256', secret)
+               .update('I love cupcakes')
+               .digest('hex');
 console.log(hash);
 // Prints:
 //   c0fa1bc00531bd78ef38c628449c5102aeabd49b5dc3a2a516ea6ea959d6658e
