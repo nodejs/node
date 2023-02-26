@@ -263,10 +263,8 @@ globals:
   primordials: false
 overrides:
   - files:
-      - ./*/promises.js
-      - ./_stream_*.js
-      - ./_tls_common.js
-      - ./assert/*.js
+      - ./*/*.js
+      - ./_*.js
       - ./child_process.js
       - ./cluster.js
       - ./console.js
@@ -290,7 +288,7 @@ overrides:
       - ./internal/js_stream_socket.js
       - ./internal/mime.js
       - ./internal/modules/*.js
-      - ./internal/per_context/messageport.js
+      - ./internal/per_context/*.js
       - ./internal/perf/*.js
       - ./internal/policy/*.js
       - ./internal/priority_queue.js
@@ -299,7 +297,7 @@ overrides:
       - ./internal/readme.md
       - ./internal/repl.js
       - ./internal/repl/*.js
-      - ./internal/source_map/prepare_stack_trace.js
+      - ./internal/source_map/*.js
       - ./internal/streams/*.js
       - ./internal/structured_clone.js
       - ./internal/test/*.js
@@ -312,15 +310,12 @@ overrides:
       - ./internal/webidl.js
       - ./internal/webstreams/*.js
       - ./module.js
-      - ./path/*.js
       - ./process.js
       - ./punycode.js
       - ./repl.js
-      - ./stream/*.js
       - ./sys.js
       - ./test.js
       - ./tls.js
       - ./url.js
-      - ./util/*.js
     rules:
       comma-dangle: [error, always-multiline]
