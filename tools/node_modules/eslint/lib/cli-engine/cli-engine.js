@@ -615,8 +615,8 @@ class CLIEngine {
             useEslintrc: options.useEslintrc,
             builtInRules,
             loadRules,
-            getEslintRecommendedConfig: () => require("../../conf/eslint-recommended.js"),
-            getEslintAllConfig: () => require("../../conf/eslint-all.js")
+            getEslintRecommendedConfig: () => require("@eslint/js").configs.recommended,
+            getEslintAllConfig: () => require("@eslint/js").configs.all
         });
         const fileEnumerator = new FileEnumerator({
             configArrayFactory,
