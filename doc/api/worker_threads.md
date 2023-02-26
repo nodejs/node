@@ -906,6 +906,10 @@ if (isMainThread) {
 <!-- YAML
 added: v10.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46832
+    description: Added support for a `titlePrefix` option, which allows
+                 adding a custom prefix to the worker title.
   - version: v14.9.0
     pr-url: https://github.com/nodejs/node/pull/34584
     description: The `filename` parameter can be a WHATWG `URL` object using
@@ -1004,6 +1008,9 @@ changes:
       used for generated code.
     * `stackSizeMb` {number} The default maximum stack size for the thread.
       Small values may lead to unusable Worker instances. **Default:** `4`.
+  * `titlePrefix` {string} A prefix to use for the title of the worker thread.
+    The final title will be `titlePrefix` + `Worker ${threadId}`. **Default:**
+    `''`.
 
 ### Event: `'error'`
 
