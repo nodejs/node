@@ -178,8 +178,8 @@ console.log(Certificate.verifySpkac(Buffer.from(spkac)));
 ```
 
 ```cjs
-const { Certificate } = require('node:crypto');
 const { Buffer } = require('node:buffer');
+const { Certificate } = require('node:crypto');
 
 const spkac = getSpkacSomehow();
 console.log(Certificate.verifySpkac(Buffer.from(spkac)));
@@ -292,8 +292,8 @@ console.log(cert.verifySpkac(Buffer.from(spkac)));
 ```
 
 ```cjs
-const { Certificate } = require('node:crypto');
 const { Buffer } = require('node:buffer');
+const { Certificate } = require('node:crypto');
 
 const cert = Certificate();
 const spkac = getSpkacSomehow();
