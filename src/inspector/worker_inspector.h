@@ -63,11 +63,8 @@ class ParentInspectorHandle {
       uint64_t thread_id,
       const std::string& url,
       const std::string& title_prefix) {
-    return std::make_unique<ParentInspectorHandle>(thread_id,
-                                                   url,
-                                                   parent_thread_,
-                                                   wait_,
-                                                   title_prefix);
+    return std::make_unique<ParentInspectorHandle>(
+        thread_id, url, parent_thread_, wait_, title_prefix);
   }
   void WorkerStarted(std::shared_ptr<MainThreadHandle> worker_thread,
                      bool waiting);
