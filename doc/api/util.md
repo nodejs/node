@@ -2552,8 +2552,9 @@ returned by the constructor of a native error. That includes values
 which are `instanceof` native errors:
 
 ```js
-util.types.isNativeError({__proto__: Error.prototype}); // Returns false
-({__proto__: Error.prototype} instanceof Error); // Returns true
+const myError = { __proto__: Error.prototype };
+console.log(util.types.isNativeError(myError)); // false
+console.log(myError instanceof Error)); // true
 ```
 
 ### `util.types.isNumberObject(value)`
