@@ -196,10 +196,7 @@ static std::string FormatStackTrace(Isolate* isolate, Local<StackTrace> stack) {
 
     if (stack_frame->IsEval()) {
       if (stack_frame->GetScriptId() == Message::kNoScriptIdInfo) {
-        char buf[64];
-        snprintf(
-            buf, sizeof(buf), "    at [eval]:%i:%i\n", line_number, column);
-        result += std::string(buf);
+        result += SPrintF("    at [eval]:%i:%i\n", line_number, column);
       } else {
         std::vector<char> buf(script_name.length() + 64);
         snprintf(buf.data(),
@@ -238,7 +235,7 @@ static std::string FormatStackTrace(Isolate* isolate, Local<StackTrace> stack) {
 }
 
 static void PrintToStderrAndFlush(const std::string& str) {
-  FPrintF(stderr, "%s\n", str.c_str());
+  FPrintF(stderr, "%s\n", str);
   fflush(stderr);
 }
 
