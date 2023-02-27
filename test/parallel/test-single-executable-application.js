@@ -5,7 +5,7 @@ const common = require('../common');
 
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
-const { copyFileSync, readFileSync, writeFileSync } = require('fs');
+const { copyFileSync, writeFileSync } = require('fs');
 const { execFileSync } = require('child_process');
 const { join } = require('path');
 const { strictEqual } = require('assert');
@@ -15,9 +15,6 @@ if (!process.config.variables.single_executable_application)
 
 if (!['darwin', 'win32', 'linux'].includes(process.platform))
   common.skip(`Unsupported platform ${process.platform}.`);
-
-if (process.platform === 'linux' && process.config.variables.asan)
-  common.skip('Running the resultant binary fails with `Segmentation fault (core dumped)`.');
 
 if (process.platform === 'linux' && process.config.variables.is_debug === 1)
   common.skip('Running the resultant binary fails with `Couldn\'t read target executable"`.');
@@ -37,21 +34,6 @@ if (!process.config.variables.node_use_openssl || process.config.variables.node_
 
 if (process.config.variables.want_separate_host_toolset !== 0)
   common.skip('Running the resultant binary fails with `Segmentation fault (core dumped)`.');
-
-if (process.platform === 'linux') {
-  try {
-    const osReleaseText = readFileSync('/etc/os-release', { encoding: 'utf-8' });
-    if (!/^NAME="Ubuntu"/m.test(osReleaseText)) {
-      throw new Error('Not Ubuntu.');
-    }
-  } catch {
-    common.skip('Only supported Linux distribution is Ubuntu.');
-  }
-
-  if (process.arch !== 'x64') {
-    common.skip(`Unsupported architecture for Linux - ${process.arch}.`);
-  }
-}
 
 const inputFile = fixtures.path('sea.js');
 const requirableFile = join(tmpdir.path, 'requirable.js');

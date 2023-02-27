@@ -12,7 +12,6 @@
 #elif defined(__linux__)
 #include <elf.h>
 #include <link.h>
-#include <sys/auxv.h>
 #include <sys/param.h>
 #elif defined(_WIN32)
 #include <windows.h>
@@ -43,6 +42,68 @@ static inline bool postject_has_resource() {
   static const volatile char* sentinel = POSTJECT_SENTINEL_FUSE ":0";
   return sentinel[sizeof(POSTJECT_SENTINEL_FUSE)] == '1';
 }
+
+#if defined(__linux__)
+struct postject__dl_iterate_phdr_data {
+  void* data;
+  size_t size;
+  const char* elf_section_name;
+  size_t elf_section_name_size;
+};
+
+static int postject__dl_iterate_phdr_callback(struct dl_phdr_info* info,
+                                              size_t size,
+                                              void* opaque) {
+  /*
+    The first object visited by the callback is the main program.
+    For the main program, the dlpi_name field will be an empty string.
+  */
+  if (info->dlpi_name == NULL || strcmp(info->dlpi_name, "") != 0) {
+    // skip to the next shared object
+    return 0;
+  }
+
+  struct postject__dl_iterate_phdr_data* data =
+      (struct postject__dl_iterate_phdr_data*)opaque;
+
+  // iterate program headers
+  for (unsigned i = 0; i < info->dlpi_phnum; i++) {
+    // skip everything but notes
+    if (info->dlpi_phdr[i].p_type != PT_NOTE)
+      continue;
+
+    // note segment starts at base address + segment virtual address
+    uintptr_t pos = (info->dlpi_addr + info->dlpi_phdr[i].p_vaddr);
+    uintptr_t end = (pos + info->dlpi_phdr[i].p_memsz);
+
+    // iterate through segment until we reach the end
+    while (pos < end) {
+      if (pos + sizeof(ElfW(Nhdr)) > end) {
+        break;  // invalid
+      }
+
+      ElfW(Nhdr)* note = (ElfW(Nhdr)*)(uintptr_t)pos;
+      if (note->n_namesz != 0 && note->n_descsz != 0 &&
+          strncmp((char*)(pos + sizeof(ElfW(Nhdr))), data->elf_section_name,
+                  data->elf_section_name_size) == 0) {
+        data->size = note->n_descsz;
+        // advance past note header and aligned name
+        // to get to description data
+        data->data = (void*)((uintptr_t)note + sizeof(ElfW(Nhdr)) +
+                             roundup(note->n_namesz, 4));
+        // found the note, so terminate the search by returning 1
+        return 1;
+      }
+
+      pos += (sizeof(ElfW(Nhdr)) + roundup(note->n_namesz, 4) +
+              roundup(note->n_descsz, 4));
+    }
+  }
+
+  // skip to the next shared object
+  return 0;
+}
+#endif
 
 static const void* postject_find_resource(
     const char* name,
@@ -114,46 +175,14 @@ static const void* postject_find_resource(
     name = options->elf_section_name;
   }
 
-  uintptr_t p = getauxval(AT_PHDR);
-  size_t n = getauxval(AT_PHNUM);
-  uintptr_t base_addr = p - sizeof(ElfW(Ehdr));
-
-  // iterate program header
-  for (; n > 0; n--, p += sizeof(ElfW(Phdr))) {
-    ElfW(Phdr)* phdr = (ElfW(Phdr)*)p;
-
-    // skip everything but notes
-    if (phdr->p_type != PT_NOTE) {
-      continue;
-    }
-
-    // note segment starts at base address + segment virtual address
-    uintptr_t pos = (base_addr + phdr->p_vaddr);
-    uintptr_t end = (pos + phdr->p_memsz);
-
-    // iterate through segment until we reach the end
-    while (pos < end) {
-      if (pos + sizeof(ElfW(Nhdr)) > end) {
-        break;  // invalid
-      }
-
-      ElfW(Nhdr)* note = (ElfW(Nhdr)*)(uintptr_t)pos;
-      if (note->n_namesz != 0 && note->n_descsz != 0 &&
-          strncmp((char*)(pos + sizeof(ElfW(Nhdr))), (char*)name,
-                  sizeof(name)) == 0) {
-        *size = note->n_descsz;
-        // advance past note header and aligned name
-        // to get to description data
-        return (void*)((uintptr_t)note + sizeof(ElfW(Nhdr)) +
-                       roundup(note->n_namesz, 4));
-      }
-
-      pos += (sizeof(ElfW(Nhdr)) + roundup(note->n_namesz, 4) +
-              roundup(note->n_descsz, 4));
-    }
-  }
-  return NULL;
-
+  struct postject__dl_iterate_phdr_data data;
+  data.data = NULL;
+  data.size = 0;
+  data.elf_section_name = name;
+  data.elf_section_name_size = sizeof(name);
+  dl_iterate_phdr(postject__dl_iterate_phdr_callback, &data);
+  *size = data.size;
+  return data.data;
 #elif defined(_WIN32)
   void* ptr = NULL;
   char* resource_name = NULL;
