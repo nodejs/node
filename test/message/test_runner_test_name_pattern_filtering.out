@@ -1,0 +1,73 @@
+TAP version 13
+# Subtest: suite-one
+    # Subtest: subtest-one
+    ok 1 - subtest-one # SKIP test name does not match pattern
+      ---
+      duration_ms: *
+      ...
+    # Subtest: suite-two
+        # Subtest: subtest-one
+        ok 1 - subtest-one
+          ---
+          duration_ms: *
+          ...
+        1..1
+    ok 2 - suite-two
+      ---
+      duration_ms: *
+      ...
+    # Subtest: suite-three
+    ok 3 - suite-three # SKIP test name does not match pattern
+      ---
+      duration_ms: *
+      ...
+    1..3
+ok 1 - suite-one
+  ---
+  duration_ms: *
+  ...
+# Subtest: suite-one
+    # Subtest: subtest-one
+    ok 1 - subtest-one # SKIP test name does not match pattern
+      ---
+      duration_ms: *
+      ...
+    # Subtest: suite-two
+        # Subtest: subtest-one
+        ok 1 - subtest-one
+          ---
+          duration_ms: *
+          ...
+        1..1
+    ok 2 - suite-two
+      ---
+      duration_ms: *
+      ...
+    # Subtest: suite-three
+    ok 3 - suite-three # SKIP test name does not match pattern
+      ---
+      duration_ms: *
+      ...
+    1..3
+ok 2 - suite-one
+  ---
+  duration_ms: *
+  ...
+# Subtest: excluded
+ok 3 - excluded # SKIP test name does not match pattern
+  ---
+  duration_ms: *
+  ...
+# Subtest: excluded
+ok 4 - excluded # SKIP test name does not match pattern
+  ---
+  duration_ms: *
+  ...
+1..4
+# tests 4
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 2
+# todo 0
+# duration_ms *
