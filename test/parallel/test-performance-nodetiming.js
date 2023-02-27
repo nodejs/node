@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { performance } = require('perf_hooks');
+const { isMainThread } = require('worker_threads');
 
 const { nodeTiming } = performance;
 assert.strictEqual(nodeTiming.name, 'node');
@@ -24,7 +25,13 @@ for (let idx = 0; idx < keys.length; idx++) {
 
 // loop milestones.
 assert.strictEqual(nodeTiming.idleTime, 0);
-assert.strictEqual(nodeTiming.loopStart, -1);
+if (isMainThread) {
+  // Main thread does not start loop until the first tick is finished.
+  assert.strictEqual(nodeTiming.loopStart, -1);
+} else {
+  // Worker threads run the user script after loop is started.
+  assert.ok(nodeTiming.loopStart >= nodeTiming.bootstrapComplete);
+}
 assert.strictEqual(nodeTiming.loopExit, -1);
 
 setTimeout(common.mustCall(() => {
