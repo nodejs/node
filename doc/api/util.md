@@ -2532,7 +2532,7 @@ class MyError extends Error {}
 console.log(util.types.isNativeError(new MyError()));  // true
 ```
 
-A value being `instanceof` a native error is not equivalent to `isNativeError()`
+A value being `instanceof` a native error class is not equivalent to `isNativeError()`
 returning `true` for that value. `isNativeError()` returns `true` for errors
 which come from a different [realm][] while `instanceof Error` returns `false`
 for these errors:
