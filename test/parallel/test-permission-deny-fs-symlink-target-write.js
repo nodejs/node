@@ -53,7 +53,7 @@ fs.writeFileSync(path.join(readWriteFolder, 'file'), 'NO evil file contents');
     }));
 
     // App will be able to write to the symlink
-    fs.writeFile('file', 'some content', (err) => {
+    fs.writeFile(path.join(writeOnlyFolder, 'link-to-read-write'), 'some content', (err) => {
       assert.ifError(err);
     });
   });
