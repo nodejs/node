@@ -2796,11 +2796,16 @@ const server = http.createServer((req, res) => {
 
 <!-- YAML
 added: v16.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46675
+    description: Added support for webstreams.
 -->
 
 > Stability: 1 - `stream.compose` is experimental.
 
-* `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]}
+* `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]|
+  ReadableStream\[]|WritableStream\[]|TransformStream\[]}
 * Returns: {stream.Duplex}
 
 Combines two or more streams into a `Duplex` stream that writes to the
