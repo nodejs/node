@@ -136,22 +136,23 @@ void Permission::ThrowAccessDenied(Environment* env,
                                    const std::string_view& res) {
   Local<Value> err = ERR_ACCESS_DENIED(env->isolate());
   CHECK(err->IsObject());
-  err.As<Object>()
-      ->Set(env->context(),
-            env->permission_string(),
-            v8::String::NewFromUtf8(env->isolate(),
-                                    PermissionToString(perm),
-                                    v8::NewStringType::kNormal)
-                .ToLocalChecked())
-      .FromMaybe(false);
-  err.As<Object>()
-      ->Set(env->context(),
-            env->resource_string(),
-            v8::String::NewFromUtf8(env->isolate(),
-                                    std::string(res).c_str(),
-                                    v8::NewStringType::kNormal)
-                .ToLocalChecked())
-      .FromMaybe(false);
+  if (err.As<Object>()
+          ->Set(env->context(),
+                env->permission_string(),
+                v8::String::NewFromUtf8(env->isolate(),
+                                        PermissionToString(perm),
+                                        v8::NewStringType::kNormal)
+                    .ToLocalChecked())
+          .IsNothing() ||
+      err.As<Object>()
+          ->Set(env->context(),
+                env->resource_string(),
+                v8::String::NewFromUtf8(env->isolate(),
+                                        std::string(res).c_str(),
+                                        v8::NewStringType::kNormal)
+                    .ToLocalChecked())
+          .IsNothing())
+    return;
   env->isolate()->ThrowException(err);
 }
 
