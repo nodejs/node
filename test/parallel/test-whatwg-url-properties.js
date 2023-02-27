@@ -73,6 +73,13 @@ const { URL, URLSearchParams, format } = require('url');
   assert.strictEqual(params.size, 3);
 }
 
+{
+  const u = new URL('https://abc.com/?q=old');
+  const s = u.searchParams;
+  u.href = 'http://abc.com/?q=new';
+  assert.strictEqual(s.get('q'), 'new');
+}
+
 function stringifyName(name) {
   if (typeof name === 'symbol') {
     const { description } = name;
