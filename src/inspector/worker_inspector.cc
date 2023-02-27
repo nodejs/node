@@ -26,7 +26,8 @@ class WorkerStartedRequest : public Request {
 
  private:
   static std::string BuildWorkerTitle(int id, const std::string& title_prefix) {
-    return title_prefix + "Worker " + std::to_string(id);
+    return "[Worker " + std::to_string(id) + "]" +
+           (title_prefix == "" ? "" : " " + title_prefix);
   }
 
   uint64_t id_;
