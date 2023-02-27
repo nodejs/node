@@ -16,16 +16,15 @@ let recursionDepth = 0;
 rli.on('line', function onLine() {
   // Abort in case of infinite loop
   if (recursionDepth > 2) {
-    return
+    return;
   }
-  recursionDepth++
+  recursionDepth++;
   // Write something recursively to readline
   rli.write('foo');
-  return;
 });
 
-// minimal reproduction for #46731
+// Minimal reproduction for #46731
 const testInput = ' \n}\n';
 rli.write(testInput);
 
-assert.strictEqual(recursionDepth, testInput.match(/\n/g).length, "infinite loop");
+assert.strictEqual(recursionDepth, testInput.match(/\n/g).length);
