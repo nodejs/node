@@ -2533,11 +2533,9 @@ console.log(util.types.isNativeError(new MyError()));  // true
 ```
 
 A value being `instanceof` a native error is not equivalent to `isNativeError()`
-returning `true` for that value. Therefore, we recommend using
-`isNativeError(e) || e instanceof Error` to check if `e` is an error.
-
-`isNativeError()` returns `true` for errors which come from a different
-[realm][] while `instanceof Error` returns `false` for these errors:
+returning `true` for that value. `isNativeError()` returns `true` for errors
+which come from a different [realm][] while `instanceof Error` returns `false`
+for these errors:
 
 ```js
 const vm = require('node:vm');
