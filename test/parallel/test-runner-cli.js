@@ -18,6 +18,18 @@ const testFixtures = fixtures.path('test-runner');
   assert.match(child.stderr.toString(), /^Could not find/);
 }
 
+
+{
+  // Returned only test taht maches with the filter
+  const args = ['--test', '--test-name-pattern="too"', join(testFixtures, 'test/random.cjs')];
+  const child = spawnSync('./node', args);
+
+  assert.strictEqual(child.stderr.toString(), '');
+  const stdout = child.stdout.toString();
+  assert.match(stdout, /ok 1 - this should pass # SKIP test name does not match pattern/);
+  assert.match(stdout, /ok 2 - this should pass too/);
+}
+
 {
   // Default behavior. node_modules is ignored. Files that don't match the
   // pattern are ignored except in test/ directories.
