@@ -5,7 +5,7 @@
 require('../common');
 const assert = require('assert');
 
-Object.freeze(globalThis);
+Object.seal(globalThis);
 const keys = Reflect.ownKeys(globalThis).filter((k) => typeof k === 'string');
 
 // These failures come from undici. We can remove them once they are fixed.
