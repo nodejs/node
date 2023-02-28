@@ -2,6 +2,12 @@
 
 <!--introduced_in=v18.0.0-->
 
+<!-- YAML
+added:
+  - v18.0.0
+  - v16.17.0
+-->
+
 > Stability: 1 - Experimental
 
 <!-- source_link=lib/test.js -->
