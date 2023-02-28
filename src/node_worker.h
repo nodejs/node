@@ -100,6 +100,8 @@ class Worker : public AsyncWrap {
   ExitCode exit_code_ = ExitCode::kNoFailure;
   ThreadId thread_id_;
   uintptr_t stack_base_ = 0;
+  // Optional name used for debugging in inspector and trace events.
+  std::string name_;
 
   // Custom resource constraints:
   double resource_limits_[kTotalResourceLimitCount];

@@ -59,6 +59,7 @@ Worker::Worker(Environment* env,
       exec_argv_(exec_argv),
       platform_(env->isolate_data()->platform()),
       thread_id_(AllocateEnvironmentThreadId()),
+      name_(name),
       env_vars_(env_vars),
       snapshot_data_(snapshot_data) {
   Debug(this, "Creating new worker instance with thread id %llu",
@@ -265,11 +266,10 @@ size_t Worker::NearHeapLimit(void* data, size_t current_heap_limit,
 }
 
 void Worker::Run() {
-  std::string name = "WorkerThread ";
-  name += std::to_string(thread_id_.id);
+  std::string trace_name ="[worker " + std::to_string(thread_id_.id) + "]" + (name_ == "" ? "" : " " + name_);
   TRACE_EVENT_METADATA1(
       "__metadata", "thread_name", "name",
-      TRACE_STR_COPY(name.c_str()));
+      TRACE_STR_COPY(trace_name.c_str()));
   CHECK_NOT_NULL(platform_);
 
   Debug(this, "Creating isolate for worker with id %llu", thread_id_.id);
