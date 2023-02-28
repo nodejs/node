@@ -57,14 +57,14 @@ class ParentInspectorHandle {
                         const std::string& url,
                         std::shared_ptr<MainThreadHandle> parent_thread,
                         bool wait_for_connect,
-                        const std::string& title_prefix);
+                        const std::string& name);
   ~ParentInspectorHandle();
   std::unique_ptr<ParentInspectorHandle> NewParentInspectorHandle(
       uint64_t thread_id,
       const std::string& url,
-      const std::string& title_prefix) {
+      const std::string& name) {
     return std::make_unique<ParentInspectorHandle>(
-        thread_id, url, parent_thread_, wait_, title_prefix);
+        thread_id, url, parent_thread_, wait_, name);
   }
   void WorkerStarted(std::shared_ptr<MainThreadHandle> worker_thread,
                      bool waiting);
@@ -81,7 +81,7 @@ class ParentInspectorHandle {
   std::string url_;
   std::shared_ptr<MainThreadHandle> parent_thread_;
   bool wait_;
-  std::string title_prefix_;
+  std::string name_;
 };
 
 class WorkerManager : public std::enable_shared_from_this<WorkerManager> {
@@ -92,7 +92,7 @@ class WorkerManager : public std::enable_shared_from_this<WorkerManager> {
   std::unique_ptr<ParentInspectorHandle> NewParentHandle(
       uint64_t thread_id,
       const std::string& url,
-      const std::string& title_prefix);
+      const std::string& name);
   void WorkerStarted(uint64_t session_id, const WorkerInfo& info, bool waiting);
   void WorkerFinished(uint64_t session_id);
   std::unique_ptr<WorkerManagerEventHandle> SetAutoAttach(

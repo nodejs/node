@@ -683,7 +683,7 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     Environment* parent_env,
     ThreadId child_thread_id,
     const char* child_url,
-    const char* title_prefix);
+    const char* name);
 
 struct StartExecutionCallbackInfo {
   v8::Local<v8::Object> process_object;
