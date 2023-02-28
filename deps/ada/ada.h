@@ -1,5 +1,5 @@
-/* auto-generated on 2023-02-22 14:24:01 -0500. Do not edit! */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada.h
+/* auto-generated on 2023-02-26 15:07:41 -0500. Do not edit! */
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada.h
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -8,7 +8,7 @@
 #ifndef ADA_H
 #define ADA_H
 
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/character_sets-inl.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/character_sets-inl.h
 /* begin file include/ada/character_sets-inl.h */
 /**
  * @file character_sets-inl.h
@@ -19,7 +19,7 @@
 #ifndef ADA_CHARACTER_SETS_INL_H
 #define ADA_CHARACTER_SETS_INL_H
 
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/character_sets.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/character_sets.h
 /* begin file include/ada/character_sets.h */
 /**
  * @file character_sets.h
@@ -30,7 +30,7 @@
 #ifndef ADA_CHARACTER_SETS_H
 #define ADA_CHARACTER_SETS_H
 
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/common_defs.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/common_defs.h
 /* begin file include/ada/common_defs.h */
 /**
  * @file common_defs.h
@@ -715,7 +715,7 @@ namespace ada::character_sets {
 
 #endif // ADA_CHARACTER_SETS_H
 /* end file include/ada/character_sets-inl.h */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/checkers-inl.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/checkers-inl.h
 /* begin file include/ada/checkers-inl.h */
 /**
  * @file checkers-inl.h
@@ -770,7 +770,7 @@ namespace ada::checkers {
 
 #endif //ADA_CHECKERS_H
 /* end file include/ada/checkers-inl.h */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/log.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/log.h
 /* begin file include/ada/log.h */
 /**
  * @file log.h
@@ -851,7 +851,7 @@ ada_really_inline void log([[maybe_unused]] T t) {
 
 #endif // ADA_LOG_H
 /* end file include/ada/log.h */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/encoding_type.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/encoding_type.h
 /* begin file include/ada/encoding_type.h */
 /**
  * @file encoding_type.h
@@ -885,7 +885,7 @@ namespace ada {
 
 #endif // ADA_ENCODING_TYPE_H
 /* end file include/ada/encoding_type.h */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/helpers.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/helpers.h
 /* begin file include/ada/helpers.h */
 /**
  * @file helpers.h
@@ -894,7 +894,7 @@ namespace ada {
 #ifndef ADA_HELPERS_H
 #define ADA_HELPERS_H
 
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/url.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/url.h
 /* begin file include/ada/url.h */
 /**
  * @file url.h
@@ -903,7 +903,7 @@ namespace ada {
 #ifndef ADA_URL_H
 #define ADA_URL_H
 
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/checkers.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/checkers.h
 /* begin file include/ada/checkers.h */
 /**
  * @file checkers.h
@@ -1000,7 +1000,7 @@ namespace ada::checkers {
 
 #endif //ADA_CHECKERS_H
 /* end file include/ada/checkers.h */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/scheme.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/scheme.h
 /* begin file include/ada/scheme.h */
 /**
  * @file scheme.h
@@ -1072,7 +1072,7 @@ namespace ada::scheme {
 
 #endif // ADA_SCHEME_H
 /* end file include/ada/scheme.h */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/serializers.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/serializers.h
 /* begin file include/ada/serializers.h */
 /**
  * @file serializers.h
@@ -1115,7 +1115,7 @@ namespace ada::serializers {
 
 #endif // ADA_SERIALIZERS_H
 /* end file include/ada/serializers.h */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/unicode.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/unicode.h
 /* begin file include/ada/unicode.h */
 /**
  * @file unicode.h
@@ -1669,7 +1669,7 @@ namespace ada {
 
 #endif // ADA_URL_H
 /* end file include/ada/url.h */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/state.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/state.h
 /* begin file include/ada/state.h */
 /**
  * @file state.h
@@ -1773,10 +1773,11 @@ namespace ada::helpers {
   ada_really_inline std::string_view substring(std::string_view input, size_t pos) noexcept;
 
   /**
-   * Returns a host's delimiter location depending on the state of the instance.
+   * Returns a host's delimiter location depending on the state of the instance, and 
+   * whether a colon was found outside brackets.
    * Used by the host parser.
    */
-  ada_really_inline size_t get_host_delimiter_location(const ada::url& url, std::string_view& view, bool& inside_brackets) noexcept;
+  ada_really_inline std::pair<size_t,bool> get_host_delimiter_location(const bool is_special, std::string_view& view) noexcept;
 
   /**
    * Removes leading and trailing C0 control and whitespace characters from string.
@@ -1788,11 +1789,31 @@ namespace ada::helpers {
    */
   ada_really_inline void strip_trailing_spaces_from_opaque_path(ada::url& url) noexcept;
 
+  /**
+   * Reverse the order of the bytes.
+   */
+  ada_really_inline uint64_t swap_bytes(uint64_t val) noexcept;
+
+  /**
+   * Reverse the order of the bytes but only if the system is big endian
+   */
+  ada_really_inline uint64_t swap_bytes_if_big_endian(uint64_t val) noexcept;
+  
+  /**
+  * Finds the delimiter of a view in authority state.
+  */
+  ada_really_inline size_t find_authority_delimiter_special(std::string_view view) noexcept;
+
+  /**
+   * Finds the delimiter of a view in authority state.
+   */
+  ada_really_inline size_t find_authority_delimiter(std::string_view view) noexcept;
+
 } // namespace ada::helpers
 
 #endif // ADA_HELPERS_H
 /* end file include/ada/helpers.h */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/parser.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/parser.h
 /* begin file include/ada/parser.h */
 /**
  * @file parser.h
@@ -1801,7 +1822,7 @@ namespace ada::helpers {
 #ifndef ADA_PARSER_H
 #define ADA_PARSER_H
 
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/expected.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/expected.h
 /* begin file include/ada/expected.h */
 /**
  * @file expected.h
@@ -4197,7 +4218,7 @@ namespace ada::parser {
 
 #endif // ADA_PARSER_H
 /* end file include/ada/parser.h */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/scheme-inl.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/scheme-inl.h
 /* begin file include/ada/scheme-inl.h */
 /**
  * @file scheme-inl.h
@@ -4252,7 +4273,7 @@ namespace ada::scheme {
 
 #endif // ADA_SCHEME_H
 /* end file include/ada/scheme-inl.h */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/url-inl.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/url-inl.h
 /* begin file include/ada/url-inl.h */
 /**
  * @file url-inl.h
@@ -4333,7 +4354,7 @@ namespace ada {
 /* end file include/ada/url-inl.h */
 
 // Public API
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/ada_version.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/ada_version.h
 /* begin file include/ada/ada_version.h */
 /**
  * @file ada_version.h
@@ -4342,21 +4363,21 @@ namespace ada {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "1.0.3"
+#define ADA_VERSION "1.0.4"
 
 namespace ada {
 
   enum {
     ADA_VERSION_MAJOR = 1,
     ADA_VERSION_MINOR = 0,
-    ADA_VERSION_REVISION = 3,
+    ADA_VERSION_REVISION = 4,
   };
 
 } // namespace ada
 
 #endif // ADA_ADA_VERSION_H
 /* end file include/ada/ada_version.h */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/include, filename=ada/implementation.h
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/implementation.h
 /* begin file include/ada/implementation.h */
 /**
  * @file implementation.h
