@@ -13,7 +13,7 @@ const { ConfigArray, ConfigArraySymbol } = require("@humanwhocodes/config-array"
 const { flatConfigSchema } = require("./flat-config-schema");
 const { RuleValidator } = require("./rule-validator");
 const { defaultConfig } = require("./default-config");
-const recommendedConfig = require("../../conf/eslint-recommended");
+const jsPlugin = require("@eslint/js");
 
 //-----------------------------------------------------------------------------
 // Helpers
@@ -96,17 +96,23 @@ class FlatConfigArray extends ConfigArray {
      */
     [ConfigArraySymbol.preprocessConfig](config) {
         if (config === "eslint:recommended") {
-            return recommendedConfig;
+
+            // if we are in a Node.js environment warn the user
+            if (typeof process !== "undefined" && process.emitWarning) {
+                process.emitWarning("The 'eslint:recommended' string configuration is deprecated and will be replaced by the @eslint/js package's 'recommended' config.");
+            }
+
+            return jsPlugin.configs.recommended;
         }
 
         if (config === "eslint:all") {
 
-            /*
-             * Load `eslint-all.js` here instead of at the top level to avoid loading all rule modules
-             * when it isn't necessary. `eslint-all.js` reads `meta` of rule objects to filter out deprecated ones,
-             * so requiring `eslint-all.js` module loads all rule modules as a consequence.
-             */
-            return require("../../conf/eslint-all");
+            // if we are in a Node.js environment warn the user
+            if (typeof process !== "undefined" && process.emitWarning) {
+                process.emitWarning("The 'eslint:all' string configuration is deprecated and will be replaced by the @eslint/js package's 'all' config.");
+            }
+
+            return jsPlugin.configs.all;
         }
 
         /*
