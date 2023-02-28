@@ -47,12 +47,6 @@ void Realm::MemoryInfo(MemoryTracker* tracker) const {
 
   tracker->TrackField("env", env_);
   tracker->TrackField("cleanup_queue", cleanup_queue_);
-
-  ForEachBaseObject([&](BaseObject* obj) {
-    if (obj->IsDoneInitializing()) {
-      tracker->Track(obj);
-    }
-  });
 }
 
 void Realm::CreateProperties() {
