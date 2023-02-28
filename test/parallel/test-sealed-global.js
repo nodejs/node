@@ -1,6 +1,6 @@
 'use strict';
 
-// This tests that the globals can still be loaded after globalThis is freezed.
+// This tests that the globals can still be loaded after globalThis is sealed.
 
 require('../common');
 const assert = require('assert');
