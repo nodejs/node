@@ -802,6 +802,7 @@ ThreadId AllocateEnvironmentThreadId() {
 }
 
 void DefaultProcessExitHandler(Environment* env, int exit_code) {
+  env->set_stopping(true);
   env->set_can_call_into_js(false);
   env->stop_sub_worker_contexts();
   env->isolate()->DumpAndResetStats();
