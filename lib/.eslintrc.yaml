@@ -2,13 +2,6 @@ env:
   es6: true
 
 rules:
-  comma-dangle: [error, {
-    arrays: always-multiline,
-    exports: always-multiline,
-    functions: always-multiline,
-    imports: always-multiline,
-    objects: only-multiline,
-  }]
   prefer-object-spread: error
   no-buffer-constructor: error
   no-mixed-operators:
@@ -249,30 +242,3 @@ globals:
   module: false
   internalBinding: false
   primordials: false
-overrides:
-  - files:
-      - ./*/*.js
-      - ./*.js
-      - ./internal/child_process/*.js
-      - ./internal/cluster/*.js
-      - ./internal/debugger/*.js
-      - ./internal/events/*.js
-      - ./internal/fs/*.js
-      - ./internal/modules/*.js
-      - ./internal/per_context/*.js
-      - ./internal/perf/*.js
-      - ./internal/policy/*.js
-      - ./internal/process/*.js
-      - ./internal/readline/*.js
-      - ./internal/readme.md
-      - ./internal/repl/*.js
-      - ./internal/source_map/*.js
-      - ./internal/streams/*.js
-      - ./internal/test/*.js
-      - ./internal/test_runner/**/*.js
-      - ./internal/tls/*.js
-      - ./internal/util/parse_args/*.js
-      - ./internal/watch_mode/*.js
-      - ./internal/webstreams/*.js
-    rules:
-      comma-dangle: [error, always-multiline]
