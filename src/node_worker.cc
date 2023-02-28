@@ -84,8 +84,8 @@ Worker::Worker(Environment* env,
                 Number::New(env->isolate(), static_cast<double>(thread_id_.id)))
       .Check();
 
-  inspector_parent_handle_ = GetInspectorParentHandle(
-      env, thread_id_, url.c_str(), name.c_str());
+  inspector_parent_handle_ =
+      GetInspectorParentHandle(env, thread_id_, url.c_str(), name.c_str());
 
   argv_ = std::vector<std::string>{env->argv()[0]};
   // Mark this Worker object as weak until we actually start the thread.
@@ -269,8 +269,7 @@ void Worker::Run() {
   std::string trace_name = "[worker " + std::to_string(thread_id_.id) + "]" +
                            (name_ == "" ? "" : " " + name_);
   TRACE_EVENT_METADATA1(
-      "__metadata", "thread_name", "name",
-      TRACE_STR_COPY(trace_name.c_str()));
+      "__metadata", "thread_name", "name", TRACE_STR_COPY(trace_name.c_str()));
   CHECK_NOT_NULL(platform_);
 
   Debug(this, "Creating isolate for worker with id %llu", thread_id_.id);
