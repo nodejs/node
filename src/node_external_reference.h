@@ -13,6 +13,12 @@ namespace node {
 using CFunctionCallbackWithOneByteString =
     uint32_t (*)(v8::Local<v8::Value>, const v8::FastOneByteString&);
 using CFunctionCallback = void (*)(v8::Local<v8::Value> receiver);
+using CFunctionCallbackReturnDouble =
+    double (*)(v8::Local<v8::Object> receiver);
+using CFunctionCallbackWithInt64 = void (*)(v8::Local<v8::Object> receiver,
+                                            int64_t);
+using CFunctionCallbackWithBool = void (*)(v8::Local<v8::Object> receiver,
+                                           bool);
 
 // This class manages the external references from the V8 heap
 // to the C++ addresses in Node.js.
@@ -23,6 +29,9 @@ class ExternalReferenceRegistry {
 #define ALLOWED_EXTERNAL_REFERENCE_TYPES(V)                                    \
   V(CFunctionCallback)                                                         \
   V(CFunctionCallbackWithOneByteString)                                        \
+  V(CFunctionCallbackReturnDouble)                                             \
+  V(CFunctionCallbackWithInt64)                                                \
+  V(CFunctionCallbackWithBool)                                                 \
   V(const v8::CFunctionInfo*)                                                  \
   V(v8::FunctionCallback)                                                      \
   V(v8::AccessorGetterCallback)                                                \
