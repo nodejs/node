@@ -112,7 +112,7 @@ function isBooleanCast(expression, scope) {
 /**
  * Returns true for:
  * truthiness checks:  value, Boolean(value), !!value
- * falsyness checks:   !value, !Boolean(value)
+ * falsiness checks:   !value, !Boolean(value)
  * nullish checks:     value == null, value === undefined || value === null
  * @param {ASTNode} expression Test condition
  * @param {import('eslint-scope').Scope} scope Scope of the expression

@@ -197,7 +197,7 @@ module.exports = {
 
         return {
 
-            // Makes and pushs a new scope information.
+            // Makes and pushes a new scope information.
             onCodePathStart(codePath) {
                 scopeInfo = {
                     upper: scopeInfo,

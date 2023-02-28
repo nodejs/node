@@ -72,7 +72,7 @@ module.exports = {
         let funcInfo = null;
 
         /**
-         * Pushs a `this` scope (non-arrow function, class static block, or class field initializer) information to the stack.
+         * Pushes a `this` scope (non-arrow function, class static block, or class field initializer) information to the stack.
          * Top-level scopes are handled separately.
          *
          * This is used in order to check whether or not `this` binding is a
