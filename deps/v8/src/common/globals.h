@@ -144,14 +144,7 @@ namespace internal {
 
 #define ENABLE_SPARKPLUG true
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
-// Set stack limit lower for ARM and ARM64 than for other architectures because:
-//  - on Arm stack allocating MacroAssembler takes 120K bytes.
-//    See issue crbug.com/405338
-//  - on Arm64 when running in single-process mode for Android WebView, when
-//    initializing V8 we already have a large stack and so have to set the
-//    limit lower. See issue crbug.com/v8/10575
-#define V8_DEFAULT_STACK_SIZE_KB 864
+#if 0
 #elif V8_TARGET_ARCH_IA32
 // In mid-2022, we're observing an increase in stack overflow crashes on
 // 32-bit Windows; the suspicion is that some third-party software suddenly
