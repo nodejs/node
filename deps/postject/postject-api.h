@@ -54,15 +54,6 @@ struct postject__dl_iterate_phdr_data {
 static int postject__dl_iterate_phdr_callback(struct dl_phdr_info* info,
                                               size_t size,
                                               void* opaque) {
-  /*
-    The first object visited by the callback is the main program.
-    For the main program, the dlpi_name field will be an empty string.
-  */
-  if (info->dlpi_name == NULL || strcmp(info->dlpi_name, "") != 0) {
-    // skip to the next shared object
-    return 0;
-  }
-
   struct postject__dl_iterate_phdr_data* data =
       (struct postject__dl_iterate_phdr_data*)opaque;
 
