@@ -1,0 +1,167 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zip_fopen.mdoc -- open file in zip archive for reading
+.\" Copyright (C) 2003-2017 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIP_FOPEN" "3" "December 18, 2017" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzip_fopen\fR,
+\fBzip_fopen_index\fR
+\- open file in zip archive for reading
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.sp
+\fIzip_file_t *\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_fopen\fR(\fIzip_t\ *archive\fR, \fIconst\ char\ *fname\fR, \fIzip_flags_t\ flags\fR);
+.PD
+.PP
+\fIzip_file_t *\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_fopen_index\fR(\fIzip_t\ *archive\fR, \fIzip_uint64_t\ index\fR, \fIzip_flags_t\ flags\fR);
+.PD
+.SH "DESCRIPTION"
+The
+\fBzip_fopen\fR()
+function opens the file name
+\fIfname\fR
+in
+\fIarchive\fR.
+The
+\fIflags\fR
+argument specifies how the name lookup should be done, according to
+the values are described in
+zip_name_locate(3).
+Also, the following values may be
+\fIor\fR'ed
+to it.
+.RS 6n
+.TP 19n
+\fRZIP_FL_COMPRESSED\fR
+Read the compressed data.
+Otherwise the data is uncompressed by
+\fBzip_fread\fR().
+.TP 19n
+\fRZIP_FL_UNCHANGED\fR
+Read the original data from the zip archive, ignoring any changes made
+to the file; this is not supported by all data sources.
+.RE
+.PP
+The
+\fBzip_fopen_index\fR()
+function opens the file at position
+\fIindex\fR.
+.PP
+If encrypted data is encountered, the functions call
+zip_fopen_encrypted(3)
+or
+zip_fopen_index_encrypted(3)
+respectively, using the default password set with
+zip_set_default_password(3).
+.SH "RETURN VALUES"
+Upon successful completion, a
+\fIstruct zip_file\fR
+pointer is returned.
+Otherwise,
+\fRNULL\fR
+is returned and the error code in
+\fIarchive\fR
+is set to indicate the error.
+.SH "ERRORS"
+.TP 19n
+[\fRZIP_ER_CHANGED\fR]
+The file data has been changed and the data source does
+not support rereading data.
+.TP 19n
+[\fRZIP_ER_COMPNOTSUPP\fR]
+The compression method used is not supported.
+.TP 19n
+[\fRZIP_ER_ENCRNOTSUPP\fR]
+The encryption method used is not supported.
+.TP 19n
+[\fRZIP_ER_MEMORY\fR]
+Required memory could not be allocated.
+.TP 19n
+[\fRZIP_ER_NOPASSWD\fR]
+The file is encrypted, but no password has been provided.
+.TP 19n
+[\fRZIP_ER_READ\fR]
+A file read error occurred.
+.TP 19n
+[\fRZIP_ER_SEEK\fR]
+A file seek error occurred.
+.TP 19n
+[\fRZIP_ER_WRONGPASSWD\fR]
+The provided password does not match the password used for encryption.
+Note that some incorrect passwords are not detected by the check done by
+\fBzip_fopen\fR().
+.TP 19n
+[\fRZIP_ER_ZLIB\fR]
+Initializing the zlib stream failed.
+.PP
+The function
+\fBzip_fopen\fR()
+may also fail and set
+\fIzip_err\fR
+for any of the errors specified for the routine
+zip_name_locate(3).
+.PP
+The function
+\fBzip_fopen_index\fR()
+may also fail with
+\fRZIP_ER_INVAL\fR
+if
+\fIindex\fR
+is invalid.
+.SH "SEE ALSO"
+libzip(3),
+zip_fclose(3),
+zip_fread(3),
+zip_fseek(3),
+zip_get_num_entries(3),
+zip_name_locate(3),
+zip_set_default_password(3)
+.SH "HISTORY"
+\fBzip_fopen\fR()
+and
+\fBzip_fopen_index\fR()
+were added in libzip 1.0.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

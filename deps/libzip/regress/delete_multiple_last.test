@@ -1,0 +1,4 @@
+# delete multiple entries in zip archive, emptying it
+return 0
+args testfile.zzip delete 0 delete 1 delete 2 delete 3
+file-del testfile.zzip testcomment.zip

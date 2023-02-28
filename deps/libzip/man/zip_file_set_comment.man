@@ -1,0 +1,123 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zip_file_set_comment.mdoc -- set comment for file in zip
+.\" Copyright (C) 2006-2021 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP files.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIP_FILE_SET_COMMENT" "3" "September 22, 2020" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzip_file_set_comment\fR
+\- set comment for file in zip
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.sp
+\fIint\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_file_set_comment\fR(\fIzip_t\ *archive\fR, \fIzip_uint64_t\ index\fR, \fIconst\ char\ *comment\fR, \fIzip_uint16_t\ len\fR, \fIzip_flags_t\ flags\fR);
+.PD
+.SH "DESCRIPTION"
+The
+\fBzip_file_set_comment\fR()
+function sets the comment for the file at position
+\fIindex\fR
+in the zip archive to
+\fIcomment\fR
+of length
+\fIlen\fR.
+If
+\fIcomment\fR
+is
+\fRNULL\fR
+and
+\fIlen\fR
+is 0, the file comment will be removed.
+The
+\fIflags\fR
+argument can be any of:
+.TP 22n
+\fRZIP_FL_ENC_GUESS\fR
+Guess encoding of
+\fIcomment\fR
+(default).
+(Only CP-437 and UTF-8 are recognized.)
+.TP 22n
+\fRZIP_FL_ENC_UTF_8\fR
+Interpret
+\fIcomment\fR
+as UTF-8.
+.TP 22n
+\fRZIP_FL_ENC_CP437\fR
+Interpret
+\fIcomment\fR
+as code page 437 (CP-437).
+.SH "RETURN VALUES"
+Upon successful completion 0 is returned.
+Otherwise, \-1 is returned and the error information in
+\fIarchive\fR
+is set to indicate the error.
+.SH "ERRORS"
+\fBzip_file_set_comment\fR()
+fails if:
+.TP 19n
+[\fRZIP_ER_INVAL\fR]
+\fIindex\fR
+is not a valid file index in
+\fIarchive\fR,
+or
+\fIlen\fR
+is less than 0 or longer than the maximum comment length in a zip file
+(65535), or
+\fIcomment\fR
+is not a valid UTF-8 encoded string.
+.TP 19n
+[\fRZIP_ER_MEMORY\fR]
+Required memory could not be allocated.
+.TP 19n
+[\fRZIP_ER_RDONLY\fR]
+The
+\fIarchive\fR
+was opened in read-only mode.
+.SH "SEE ALSO"
+libzip(3),
+zip_file_get_comment(3),
+zip_get_archive_comment(3),
+zip_set_archive_comment(3)
+.SH "HISTORY"
+\fBzip_file_set_comment\fR()
+was added in libzip 0.11.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

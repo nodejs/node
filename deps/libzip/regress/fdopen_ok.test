@@ -1,0 +1,15 @@
+# zip_fdopen: stdin opens fine
+program ../src/ziptool
+args /dev/stdin stat 0
+stdin-file test.zip
+return 0
+file test.zip test.zip test.zip
+stdout name: 'test'
+stdout index: '0'
+stdout size: '5'
+stdout compressed size: '5'
+stdout mtime: 'Mon Oct 06 2003 15:46:42'
+stdout crc: '3bb935c6'
+stdout compression method: '0'
+stdout encryption method: '0'
+stdout 

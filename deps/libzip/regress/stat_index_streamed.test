@@ -1,0 +1,13 @@
+# stat file in streamed zip file
+args streamed stat 0
+file streamed streamed.zip streamed.zip
+return 0
+stdout name: '-'
+stdout index: '0'
+stdout size: '2'
+stdout compressed size: '4'
+stdout mtime: 'Wed Apr 25 2012 10:20:38'
+stdout crc: 'ddeaa107'
+stdout compression method: '8'
+stdout encryption method: '0'
+stdout

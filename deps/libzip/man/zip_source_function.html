@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html>
+<!-- This is an automatically generated file.  Do not edit.
+   zip_source_function.mdoc -- create data source from function
+   Copyright (C) 2004-2022 Dieter Baron and Thomas Klausner
+  
+   This file is part of libzip, a library to manipulate ZIP archives.
+   The authors can be contacted at <info@libzip.org>
+  
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in
+      the documentation and/or other materials provided with the
+      distribution.
+   3. The names of the authors may not be used to endorse or promote
+      products derived from this software without specific prior
+      written permission.
+  
+   THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+   OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+   ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+   DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+   GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+   IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+   IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   -->
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" href="../nih-man.css" type="text/css" media="all"/>
+  <title>ZIP_SOURCE_FUNCTION(3)</title>
+</head>
+<body>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">ZIP_SOURCE_FUNCTION(3)</td>
+    <td class="head-vol">Library Functions Manual</td>
+    <td class="head-rtitle">ZIP_SOURCE_FUNCTION(3)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<section class="Sh">
+<h1 class="Sh" id="NAME"><a class="permalink" href="#NAME">NAME</a></h1>
+<code class="Nm">zip_source_function</code>,
+  <code class="Nm">zip_source_function_create</code> &#x2014;
+<div class="Nd">create data source from function</div>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="LIBRARY"><a class="permalink" href="#LIBRARY">LIBRARY</a></h1>
+libzip (-lzip)
+</section>
+<section class="Sh">
+<h1 class="Sh" id="SYNOPSIS"><a class="permalink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<code class="In">#include &lt;<a class="In">zip.h</a>&gt;</code>
+<p class="Pp"><var class="Ft">zip_source_t *</var>
+  <br/>
+  <code class="Fn">zip_source_function</code>(<var class="Fa" style="white-space: nowrap;">zip_t
+    *archive</var>,
+    <var class="Fa" style="white-space: nowrap;">zip_source_callback fn</var>,
+    <var class="Fa" style="white-space: nowrap;">void *userdata</var>);</p>
+<p class="Pp"><var class="Ft">zip_source_t *</var>
+  <br/>
+  <code class="Fn">zip_source_function_create</code>(<var class="Fa" style="white-space: nowrap;">zip_source_callback
+    fn</var>, <var class="Fa" style="white-space: nowrap;">void *userdata</var>,
+    <var class="Fa" style="white-space: nowrap;">zip_error_t *error</var>);</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="DESCRIPTION"><a class="permalink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+The functions <code class="Fn">zip_source_function</code>() and
+  <code class="Fn">zip_source_function_create</code>() create a zip source from
+  the user-provided function <var class="Ar">fn</var>, which must be of the
+  following type:
+<p class="Pp"><var class="Ft">typedef zip_int64_t</var>
+    <code class="Fn">(*zip_source_callback)</code>(<var class="Fa">void
+    *userdata</var>, <var class="Fa">void *data</var>,
+    <var class="Fa">zip_uint64_t len</var>, <var class="Fa">zip_source_cmd_t
+    cmd</var>);</p>
+<p class="Pp"><var class="Ar">archive</var> or <var class="Ar">error</var> are
+    used for reporting errors and can be <code class="Dv">NULL</code>.</p>
+<p class="Pp">When called by the library, the first argument is the
+    <var class="Ar">userdata</var> argument supplied to the function. The next
+    two arguments are a buffer <var class="Ar">data</var> of size
+    <var class="Ar">len</var> when data is passed in or expected to be returned,
+    or else <code class="Dv">NULL</code> and 0. The last argument,
+    <var class="Ar">cmd</var>, specifies which action the function should
+    perform.</p>
+<p class="Pp">Depending on the uses, there are three useful sets of commands to
+    be supported by a <code class="Fn">zip_source_callback</code>():</p>
+<dl class="Bl-tag">
+  <dt>read source</dt>
+  <dd>Providing streamed data (for file data added to archives). Must support
+      <code class="Dv">ZIP_SOURCE_OPEN</code>,
+      <code class="Dv">ZIP_SOURCE_READ</code>,
+      <code class="Dv">ZIP_SOURCE_CLOSE</code>,
+      <code class="Dv">ZIP_SOURCE_STAT</code>, and
+      <code class="Dv">ZIP_SOURCE_ERROR</code>.</dd>
+  <dt>seekable read source</dt>
+  <dd>Same as previous, but from a source allowing reading from arbitrary
+      offsets (also for read-only zip archive). Must additionally support
+      <code class="Dv">ZIP_SOURCE_SEEK</code>,
+      <code class="Dv">ZIP_SOURCE_TELL</code>, and
+      <code class="Dv">ZIP_SOURCE_SUPPORTS</code>.</dd>
+  <dt>read/write source</dt>
+  <dd>Same as previous, but additionally allowing writing (also for writable zip
+      archives). Must additionally support
+      <code class="Dv">ZIP_SOURCE_BEGIN_WRITE</code>,
+      <code class="Dv">ZIP_SOURCE_COMMIT_WRITE</code>,
+      <code class="Dv">ZIP_SOURCE_ROLLBACK_WRITE</code>,
+      <code class="Dv">ZIP_SOURCE_SEEK_WRITE</code>,
+      <code class="Dv">ZIP_SOURCE_TELL_WRITE</code>, and
+      <code class="Dv">ZIP_SOURCE_REMOVE</code>.
+    <p class="Pp">On top of the above, supporting the pseudo-command
+        <code class="Dv">ZIP_SOURCE_SUPPORTS_REOPEN</code> allows calling
+        <code class="Fn">zip_source_open</code>() again after calling
+        <code class="Fn">zip_source_close</code>().</p>
+  </dd>
+</dl>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_ACCEPT_EMPTY</code></h2>
+Return 1 if an empty source should be accepted as a valid zip archive. This is
+  the default if this command is not supported by a source. File system backed
+  sources should return 0.
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_BEGIN_WRITE</code></h2>
+Prepare the source for writing. Use this to create any temporary file(s).
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_BEGIN_WRITE_CLONING</code></h2>
+Prepare the source for writing, keeping the first <var class="Ar">len</var>
+  bytes of the original file. Only implement this command if it is more
+  efficient than copying the data, and if it does not destructively overwrite
+  the original file (you still have to be able to execute
+  <code class="Dv">ZIP_SOURCE_ROLLBACK_WRITE</code>).
+<p class="Pp">The next write should happen at byte
+  <var class="Ar">offset</var>.</p>
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_CLOSE</code></h2>
+Reading is done.
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_COMMIT_WRITE</code></h2>
+Finish writing to the source. Replace the original data with the newly written
+  data. Clean up temporary files or internal buffers. Subsequently opening and
+  reading from the source should return the newly written data.
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_ERROR</code></h2>
+Get error information. <var class="Ar">data</var> points to an array of two
+  ints, which should be filled with the libzip error code and the corresponding
+  system error code for the error that occurred. See
+  <a class="Xr" href="zip_errors.html">zip_errors(3)</a> for details on the
+  error codes. If the source stores error information in a zip_error_t, use
+  <a class="Xr" href="zip_error_to_data.html">zip_error_to_data(3)</a> and
+  return its return value. Otherwise, return 2 * sizeof(int).
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_FREE</code></h2>
+Clean up and free all resources, including <var class="Ar">userdata</var>. The
+  callback function will not be called again.
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_GET_FILE_ATTRIBUTES</code></h2>
+Provide information about various data. Then the data should be put in the
+  appropriate entry in the passed <var class="Vt">zip_file_attributes_t</var>
+  argument, and the appropriate <code class="Dv">ZIP_FILE_ATTRIBUTES_*</code>
+  value must be or'ed into the <var class="Ar">valid</var> member to denote that
+  the corresponding data has been provided. A
+  <var class="Vt">zip_file_attributes_t</var> structure can be initialized using
+  <a class="Xr" href="zip_file_attributes_init.html">zip_file_attributes_init(3)</a>.
+<dl class="Bl-tag">
+  <dt>ASCII mode</dt>
+  <dd>If a file is a plaintext file in ASCII. Can be used by extraction tools to
+      automatically convert line endings (part of the internal file attributes).
+      Member <var class="Ar">ascii</var>, flag
+      <code class="Dv">ZIP_FILE_ATTRIBUTES_ASCII</code>.</dd>
+  <dt>General Purpose Bit Flags (limited to Compression Flags)</dt>
+  <dd>The general purpose bit flag in the zip in the local and central directory
+      headers contain information about the compression method. Member
+      <var class="Ar">general_purpose_bit_flags</var> and
+      <var class="Ar">general_purpose_bit_mask</var> to denote which members
+      have been set; flag
+      <code class="Dv">ZIP_FILE_ATTRIBUTES_GENERAL_PURPOSE_BIT_FLAGS</code>.</dd>
+  <dt>External File Attributes</dt>
+  <dd>The external file attributes (usually operating system-specific). Member
+      <var class="Ar">external_file_attributes</var>, flag
+      <code class="Dv">ZIP_FILE_ATTRIBUTES_EXTERNAL_FILE_ATTRIBUTES</code>.</dd>
+  <dt>Version Needed</dt>
+  <dd>A minimum version needed required to unpack this entry (in the usual
+      &quot;major * 10 + minor&quot; format). Member
+      <var class="Ar">version_needed</var>, flag
+      <code class="Dv">ZIP_FILE_ATTRIBUTES_VERSION_NEEDED</code>.</dd>
+  <dt>Operating System</dt>
+  <dd>One of the operating systems as defined by the
+      <code class="Dv">ZIP_OPSYS_*</code> variables (see
+      <span class="Pa">zip.h</span>). This value affects the interpretation of
+      the external file attributes. Member <var class="Ar">host_system</var>,
+      flag <code class="Dv">ZIP_FILE_ATTRIBUTES_HOST_SYSTEM</code>.</dd>
+</dl>
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_OPEN</code></h2>
+Prepare for reading.
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_READ</code></h2>
+Read data into the buffer <var class="Ar">data</var> of size
+  <var class="Ar">len</var>. Return the number of bytes placed into
+  <var class="Ar">data</var> on success, and zero for end-of-file.
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_REMOVE</code></h2>
+Remove the underlying file. This is called if a zip archive is empty when
+  closed.
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_ROLLBACK_WRITE</code></h2>
+Abort writing to the source. Discard written data. Clean up temporary files or
+  internal buffers. Subsequently opening and reading from the source should
+  return the original data.
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_SEEK</code></h2>
+Specify position to read next byte from, like
+  <a class="Xr" href="http://pubs.opengroup.org/onlinepubs/9699919799/functions/fseek.html">fseek(3)</a>. Use
+  <a class="Xr" href="http://pubs.opengroup.org/onlinepubs/9699919799/functions/ZIP_SOURCE_GET_ARGS.html">ZIP_SOURCE_GET_ARGS(3)</a> to
+  decode the arguments into the following struct:
+<div class="Bd Pp">
+<pre>
+struct zip_source_args_seek {
+    zip_int64_t offset;
+    int whence;
+};
+</pre>
+</div>
+<p class="Pp">If the size of the source's data is known, use
+    <a class="Xr" href="zip_source_seek_compute_offset.html">zip_source_seek_compute_offset(3)</a>
+    to validate the arguments and compute the new offset.</p>
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_SEEK_WRITE</code></h2>
+Specify position to write next byte to, like
+  <a class="Xr" href="http://pubs.opengroup.org/onlinepubs/9699919799/functions/fseek.html">fseek(3)</a>. See
+  <code class="Dv">ZIP_SOURCE_SEEK</code> for details.
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_STAT</code></h2>
+Get meta information for the input data. <var class="Ar">data</var> points to an
+  allocated <var class="Vt">struct zip_stat</var>, which should be initialized
+  using <a class="Xr" href="zip_stat_init.html">zip_stat_init(3)</a> and then
+  filled in.
+<p class="Pp">For uncompressed, unencrypted data, all information is optional.
+    However, fill in as much information as is readily available.</p>
+<p class="Pp">If the data is compressed,
+    <code class="Dv">ZIP_STAT_COMP_METHOD</code>,
+    <code class="Dv">ZIP_STAT_SIZE</code>, and
+    <code class="Dv">ZIP_STAT_CRC</code> must be filled in.</p>
+<p class="Pp">If the data is encrypted,
+    <code class="Dv">ZIP_STAT_ENCRYPTION_METHOD</code>,
+    <code class="Dv">ZIP_STAT_COMP_METHOD</code>,
+    <code class="Dv">ZIP_STAT_SIZE</code>, and
+    <code class="Dv">ZIP_STAT_CRC</code> must be filled in.</p>
+<p class="Pp">Information only available after the source has been read (e.g.,
+    size) can be omitted in an earlier call. <i class="Em">NOTE</i>:
+    <code class="Fn">zip_source_function</code>() may be called with this
+    argument even after being called with
+    <code class="Dv">ZIP_SOURCE_CLOSE</code>.</p>
+<p class="Pp">Return sizeof(struct zip_stat) on success.</p>
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_SUPPORTS</code></h2>
+Return bitmap specifying which commands are supported. Use
+  <a class="Xr" href="zip_source_make_command_bitmap.html">zip_source_make_command_bitmap(3)</a>.
+  If this command is not implemented, the source is assumed to be a read source
+  without seek support.
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_TELL</code></h2>
+Return the current read offset in the source, like
+  <a class="Xr" href="http://pubs.opengroup.org/onlinepubs/9699919799/functions/ftell.html">ftell(3)</a>.
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_TELL_WRITE</code></h2>
+Return the current write offset in the source, like
+  <a class="Xr" href="http://pubs.opengroup.org/onlinepubs/9699919799/functions/ftell.html">ftell(3)</a>.
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_WRITE</code></h2>
+Write data to the source. Return number of bytes written.
+</section>
+<section class="Ss">
+<h2 class="Ss"><code class="Dv">ZIP_SOURCE_SUPPORTS_REOPEN</code></h2>
+This command is never actually invoked, support for it signals the ability to
+  handle multiple open/read/close cycles.
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Return_Values"><a class="permalink" href="#Return_Values">Return
+  Values</a></h2>
+Commands should return -1 on error. <code class="Dv">ZIP_SOURCE_ERROR</code>
+  will be called to retrieve the error code. On success, commands return 0,
+  unless specified otherwise in the description above.
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Calling_Conventions"><a class="permalink" href="#Calling_Conventions">Calling
+  Conventions</a></h2>
+The library will always issue <code class="Dv">ZIP_SOURCE_OPEN</code> before
+  issuing <code class="Dv">ZIP_SOURCE_READ</code>,
+  <code class="Dv">ZIP_SOURCE_SEEK</code>, or
+  <code class="Dv">ZIP_SOURCE_TELL</code>. When it no longer wishes to read from
+  this source, it will issue <code class="Dv">ZIP_SOURCE_CLOSE</code>. If the
+  library wishes to read the data again, it will issue
+  <code class="Dv">ZIP_SOURCE_OPEN</code> a second time. If the function is
+  unable to provide the data again, it should return -1.
+<p class="Pp"><code class="Dv">ZIP_SOURCE_BEGIN_WRITE</code> or
+    <code class="Dv">ZIP_SOURCE_BEGIN_WRITE_CLONING</code> will be called before
+    <code class="Dv">ZIP_SOURCE_WRITE</code>,
+    <code class="Dv">ZIP_SOURCE_SEEK_WRITE</code>, or
+    <code class="Dv">ZIP_SOURCE_TELL_WRITE</code>. When writing is complete,
+    either <code class="Dv">ZIP_SOURCE_COMMIT_WRITE</code> or
+    <code class="Dv">ZIP_SOURCE_ROLLBACK_WRITE</code> will be called.</p>
+<p class="Pp"><code class="Dv">ZIP_SOURCE_ACCEPT_EMPTY</code>,
+    <code class="Dv">ZIP_SOURCE_GET_FILE_ATTRIBUTES</code>, and
+    <code class="Dv">ZIP_SOURCE_STAT</code> can be issued at any time.</p>
+<p class="Pp"><code class="Dv">ZIP_SOURCE_ERROR</code> will only be issued in
+    response to the function returning -1.</p>
+<p class="Pp"><code class="Dv">ZIP_SOURCE_FREE</code> will be the last command
+    issued; if <code class="Dv">ZIP_SOURCE_OPEN</code> was called and succeeded,
+    <code class="Dv">ZIP_SOURCE_CLOSE</code> will be called before
+    <code class="Dv">ZIP_SOURCE_FREE</code>, and similarly for
+    <code class="Dv">ZIP_SOURCE_BEGIN_WRITE</code> or
+    <code class="Dv">ZIP_SOURCE_BEGIN_WRITE_CLONING</code> and
+    <code class="Dv">ZIP_SOURCE_COMMIT_WRITE</code> or
+    <code class="Dv">ZIP_SOURCE_ROLLBACK_WRITE</code>.</p>
+</section>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="RETURN_VALUES"><a class="permalink" href="#RETURN_VALUES">RETURN
+  VALUES</a></h1>
+Upon successful completion, the created source is returned. Otherwise,
+  <code class="Dv">NULL</code> is returned and the error code in
+  <var class="Ar">archive</var> or <var class="Ar">error</var> is set to
+  indicate the error (unless it is <code class="Dv">NULL</code>).
+</section>
+<section class="Sh">
+<h1 class="Sh" id="ERRORS"><a class="permalink" href="#ERRORS">ERRORS</a></h1>
+<code class="Fn">zip_source_function</code>() fails if:
+<dl class="Bl-tag">
+  <dt>[<a class="permalink" href="#ZIP_ER_MEMORY"><code class="Er" id="ZIP_ER_MEMORY">ZIP_ER_MEMORY</code></a>]</dt>
+  <dd>Required memory could not be allocated.</dd>
+</dl>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="SEE_ALSO"><a class="permalink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<a class="Xr" href="libzip.html">libzip(3)</a>,
+  <a class="Xr" href="zip_file_add.html">zip_file_add(3)</a>,
+  <a class="Xr" href="zip_file_attributes_init.html">zip_file_attributes_init(3)</a>,
+  <a class="Xr" href="zip_file_replace.html">zip_file_replace(3)</a>,
+  <a class="Xr" href="zip_source.html">zip_source(3)</a>,
+  <a class="Xr" href="zip_stat_init.html">zip_stat_init(3)</a>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="HISTORY"><a class="permalink" href="#HISTORY">HISTORY</a></h1>
+<code class="Fn">zip_source_function</code>() and
+  <code class="Fn">zip_source_function_create</code>() were added in libzip 1.0.
+</section>
+<section class="Sh">
+<h1 class="Sh" id="AUTHORS"><a class="permalink" href="#AUTHORS">AUTHORS</a></h1>
+<span class="An">Dieter Baron</span>
+  &lt;<a class="Mt" href="mailto:dillo@nih.at">dillo@nih.at</a>&gt; and
+  <span class="An">Thomas Klausner</span>
+  &lt;<a class="Mt" href="mailto:tk@giga.or.at">tk@giga.or.at</a>&gt;
+</section>
+</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">June 28, 2022</td>
+    <td class="foot-os">NiH</td>
+  </tr>
+</table>
+</body>
+</html>

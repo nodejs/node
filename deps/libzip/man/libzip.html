@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+<!-- This is an automatically generated file.  Do not edit.
+   libzip.mdoc -- general overview of available functions
+   Copyright (C) 2005-2022 Dieter Baron and Thomas Klausner
+  
+   This file is part of libzip, a library to manipulate ZIP archives.
+   The authors can be contacted at <info@libzip.org>
+  
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in
+      the documentation and/or other materials provided with the
+      distribution.
+   3. The names of the authors may not be used to endorse or promote
+      products derived from this software without specific prior
+      written permission.
+  
+   THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+   OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+   ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+   DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+   GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+   IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+   IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   -->
+<head>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" href="../nih-man.css" type="text/css" media="all"/>
+  <title>LIBZIP(3)</title>
+</head>
+<body>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">LIBZIP(3)</td>
+    <td class="head-vol">Library Functions Manual</td>
+    <td class="head-rtitle">LIBZIP(3)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<section class="Sh">
+<h1 class="Sh" id="NAME"><a class="permalink" href="#NAME">NAME</a></h1>
+<code class="Nm">libzip</code> &#x2014;
+<div class="Nd">library for manipulating zip archives</div>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="LIBRARY"><a class="permalink" href="#LIBRARY">LIBRARY</a></h1>
+libzip (-lzip)
+</section>
+<section class="Sh">
+<h1 class="Sh" id="SYNOPSIS"><a class="permalink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<code class="In">#include &lt;<a class="In">zip.h</a>&gt;</code>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="DESCRIPTION"><a class="permalink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+<code class="Nm">libzip</code> is a library for reading, creating, and modifying
+  zip archives.
+<p class="Pp">The main design criteria for <code class="Nm">libzip</code>
+  were:</p>
+<ul class="Bl-bullet Bl-compact">
+  <li>Do not create corrupt files, even in case of errors.</li>
+  <li>Do not delete data.</li>
+  <li>Be efficient.</li>
+</ul>
+<p class="Pp">For this reason, when modifying zip archives,
+    <code class="Nm">libzip</code> writes to a temporary file and replaces the
+    original zip archive atomically.</p>
+<p class="Pp">Below there are two sections listing functions: one for how to
+    read from zip archives and one for how to create/modify them.</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="FILE_NAMES"><a class="permalink" href="#FILE_NAMES">FILE
+  NAMES</a></h1>
+<section class="Ss">
+<h2 class="Ss" id="Encoding"><a class="permalink" href="#Encoding">Encoding</a></h2>
+Names of files in the host file system are expected in UTF-8 encoding. On
+  Windows, variants for ASCII and UTF-16 are also available.
+<p class="Pp">Names of files inside archives are by default expected in UTF-8
+    encoding. Other encodings can be requested by using the flags
+    <code class="Dv">ZIP_FL_ENC_CP437</code> and
+    <code class="Dv">ZIP_FL_ENC_RAW</code>.</p>
+<p class="Pp">For details see the relevant man pages.</p>
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Directory_Separator"><a class="permalink" href="#Directory_Separator">Directory
+  Separator</a></h2>
+The zip format requires the use of forward slash (&#x2018;/&#x2019;) as
+  directory separator. Since backslash (&#x2018;\&#x2019;) can be part of a
+  valid file name on Unix systems, <code class="Nm">libzip</code> does not
+  automatically convert them, even on Windows. It is the responsibility of the
+  programmer to ensure that all directory separators are passed as forward
+  slashes to <code class="Nm">libzip</code>.
+</section>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="THREAD_SAFETY"><a class="permalink" href="#THREAD_SAFETY">THREAD
+  SAFETY</a></h1>
+In general, different zip archives opened by <code class="Nm">libzip</code> are
+  independent of each other and can be used by parallel-running threads without
+  locking. If you want to use an archive from multiple threads, you have to
+  synchronize access to it yourself. If you use an archive as a source for
+  <a class="Xr" href="zip_file_add.html">zip_file_add(3)</a> or
+  <a class="Xr" href="zip_file_replace.html">zip_file_replace(3)</a>, access to
+  the target archive must be synchronized with access to the source archive as
+  well.
+</section>
+<section class="Sh">
+<h1 class="Sh" id="READING_ZIP_ARCHIVES"><a class="permalink" href="#READING_ZIP_ARCHIVES">READING
+  ZIP ARCHIVES</a></h1>
+<section class="Ss">
+<h2 class="Ss" id="Open_Archive"><a class="permalink" href="#Open_Archive">Open
+  Archive</a></h2>
+<ul class="Bl-bullet Bl-compact">
+  <li><a class="Xr" href="zip_open.html">zip_open(3)</a></li>
+  <li><a class="Xr" href="zip_fdopen.html">zip_fdopen(3)</a></li>
+</ul>
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Find_Files"><a class="permalink" href="#Find_Files">Find
+  Files</a></h2>
+<ul class="Bl-bullet Bl-compact">
+  <li><a class="Xr" href="zip_name_locate.html">zip_name_locate(3)</a></li>
+</ul>
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Read_Files"><a class="permalink" href="#Read_Files">Read
+  Files</a></h2>
+<ul class="Bl-bullet Bl-compact">
+  <li><a class="Xr" href="zip_fopen.html">zip_fopen(3)</a></li>
+  <li><a class="Xr" href="zip_fopen_encrypted.html">zip_fopen_encrypted(3)</a></li>
+  <li><a class="Xr" href="zip_fopen_index.html">zip_fopen_index(3)</a></li>
+  <li><a class="Xr" href="zip_fopen_index_encrypted.html">zip_fopen_index_encrypted(3)</a></li>
+  <li><a class="Xr" href="zip_fread.html">zip_fread(3)</a></li>
+  <li><a class="Xr" href="zip_file_is_seekable.html">zip_file_is_seekable(3)</a></li>
+  <li><a class="Xr" href="zip_fseek.html">zip_fseek(3)</a> (uncompressed files
+      only)</li>
+  <li><a class="Xr" href="zip_ftell.html">zip_ftell(3)</a></li>
+  <li><a class="Xr" href="zip_fclose.html">zip_fclose(3)</a></li>
+</ul>
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Close_Archive"><a class="permalink" href="#Close_Archive">Close
+  Archive</a></h2>
+<ul class="Bl-bullet Bl-compact">
+  <li><a class="Xr" href="zip_close.html">zip_close(3)</a></li>
+</ul>
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Miscellaneous"><a class="permalink" href="#Miscellaneous">Miscellaneous</a></h2>
+<ul class="Bl-bullet Bl-compact">
+  <li><a class="Xr" href="zip_stat.html">zip_stat(3)</a></li>
+  <li><a class="Xr" href="zip_compression_method_supported.html">zip_compression_method_supported(3)</a></li>
+  <li><a class="Xr" href="zip_encryption_method_supported.html">zip_encryption_method_supported(3)</a></li>
+  <li><a class="Xr" href="zip_file_get_comment.html">zip_file_get_comment(3)</a></li>
+  <li><a class="Xr" href="zip_file_get_external_attributes.html">zip_file_get_external_attributes(3)</a></li>
+  <li><a class="Xr" href="zip_get_archive_comment.html">zip_get_archive_comment(3)</a></li>
+  <li><a class="Xr" href="zip_get_archive_flag.html">zip_get_archive_flag(3)</a></li>
+  <li><a class="Xr" href="zip_get_name.html">zip_get_name(3)</a></li>
+  <li><a class="Xr" href="zip_get_num_entries.html">zip_get_num_entries(3)</a></li>
+  <li><a class="Xr" href="zip_set_default_password.html">zip_set_default_password(3)</a></li>
+  <li><a class="Xr" href="zip_source_pass_to_lower_layer.html">zip_source_pass_to_lower_layer(3)</a></li>
+</ul>
+</section>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="CREATING/MODIFYING_ZIP_ARCHIVES"><a class="permalink" href="#CREATING/MODIFYING_ZIP_ARCHIVES">CREATING/MODIFYING
+  ZIP ARCHIVES</a></h1>
+<section class="Ss">
+<h2 class="Ss" id="Create/Open_Archive"><a class="permalink" href="#Create/Open_Archive">Create/Open
+  Archive</a></h2>
+<ul class="Bl-bullet Bl-compact">
+  <li><a class="Xr" href="zip_open.html">zip_open(3)</a></li>
+</ul>
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Add/Change_Files_and_Directories"><a class="permalink" href="#Add/Change_Files_and_Directories">Add/Change
+  Files and Directories</a></h2>
+<ul class="Bl-bullet Bl-compact">
+  <li><a class="Xr" href="zip_dir_add.html">zip_dir_add(3)</a></li>
+  <li><a class="Xr" href="zip_file_add.html">zip_file_add(3)</a></li>
+  <li><a class="Xr" href="zip_file_replace.html">zip_file_replace(3)</a></li>
+  <li><a class="Xr" href="zip_file_set_comment.html">zip_file_set_comment(3)</a></li>
+  <li><a class="Xr" href="zip_file_set_dostime.html">zip_file_set_dostime(3)</a></li>
+  <li><a class="Xr" href="zip_file_set_external_attributes.html">zip_file_set_external_attributes(3)</a></li>
+  <li><a class="Xr" href="zip_file_set_encryption.html">zip_file_set_encryption(3)</a></li>
+  <li><a class="Xr" href="zip_file_set_mtime.html">zip_file_set_mtime(3)</a></li>
+  <li><a class="Xr" href="zip_set_file_compression.html">zip_set_file_compression(3)</a></li>
+  <li><a class="Xr" href="zip_source_buffer.html">zip_source_buffer(3)</a></li>
+  <li><a class="Xr" href="zip_source_file.html">zip_source_file(3)</a></li>
+  <li><a class="Xr" href="zip_source_filep.html">zip_source_filep(3)</a></li>
+  <li><a class="Xr" href="zip_source_free.html">zip_source_free(3)</a></li>
+  <li><a class="Xr" href="zip_source_function.html">zip_source_function(3)</a></li>
+  <li><a class="Xr" href="zip_source_layered.html">zip_source_layered(3)</a></li>
+  <li><a class="Xr" href="zip_source_zip.html">zip_source_zip(3)</a></li>
+</ul>
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Rename_Files"><a class="permalink" href="#Rename_Files">Rename
+  Files</a></h2>
+<ul class="Bl-bullet Bl-compact">
+  <li><a class="Xr" href="zip_rename.html">zip_rename(3)</a></li>
+</ul>
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Delete_Files"><a class="permalink" href="#Delete_Files">Delete
+  Files</a></h2>
+<ul class="Bl-bullet Bl-compact">
+  <li><a class="Xr" href="zip_delete.html">zip_delete(3)</a></li>
+</ul>
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Revert_Changes"><a class="permalink" href="#Revert_Changes">Revert
+  Changes</a></h2>
+<ul class="Bl-bullet Bl-compact">
+  <li><a class="Xr" href="zip_unchange.html">zip_unchange(3)</a></li>
+  <li><a class="Xr" href="zip_unchange_all.html">zip_unchange_all(3)</a></li>
+  <li><a class="Xr" href="zip_unchange_archive.html">zip_unchange_archive(3)</a></li>
+</ul>
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Read/Modify_Extra_Fields"><a class="permalink" href="#Read/Modify_Extra_Fields">Read/Modify
+  Extra Fields</a></h2>
+<ul class="Bl-bullet Bl-compact">
+  <li><a class="Xr" href="zip_file_extra_field_delete.html">zip_file_extra_field_delete(3)</a></li>
+  <li><a class="Xr" href="zip_file_extra_field_delete_by_id.html">zip_file_extra_field_delete_by_id(3)</a></li>
+  <li><a class="Xr" href="zip_file_extra_field_get.html">zip_file_extra_field_get(3)</a></li>
+  <li><a class="Xr" href="zip_file_extra_field_get_by_id.html">zip_file_extra_field_get_by_id(3)</a></li>
+  <li><a class="Xr" href="zip_file_extra_field_set.html">zip_file_extra_field_set(3)</a></li>
+  <li><a class="Xr" href="zip_file_extra_fields_count.html">zip_file_extra_fields_count(3)</a></li>
+  <li><a class="Xr" href="zip_file_extra_fields_count_by_id.html">zip_file_extra_fields_count_by_id(3)</a></li>
+</ul>
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Close_Archive_(Writing)"><a class="permalink" href="#Close_Archive_(Writing)">Close
+  Archive (Writing)</a></h2>
+<ul class="Bl-bullet Bl-compact">
+  <li><a class="Xr" href="zip_close.html">zip_close(3)</a></li>
+  <li><a class="Xr" href="zip_discard.html">zip_discard(3)</a></li>
+</ul>
+</section>
+<section class="Ss">
+<h2 class="Ss" id="Miscellaneous_(Writing)"><a class="permalink" href="#Miscellaneous_(Writing)">Miscellaneous
+  (Writing)</a></h2>
+<ul class="Bl-bullet Bl-compact">
+  <li><a class="Xr" href="zip_file_attributes_init.html">zip_file_attributes_init(3)</a></li>
+  <li><a class="Xr" href="zip_libzip_version.html">zip_libzip_version(3)</a></li>
+  <li><a class="Xr" href="zip_register_cancel_callback_with_state.html">zip_register_cancel_callback_with_state(3)</a></li>
+  <li><a class="Xr" href="zip_register_progress_callback_with_state.html">zip_register_progress_callback_with_state(3)</a></li>
+  <li><a class="Xr" href="zip_set_archive_comment.html">zip_set_archive_comment(3)</a></li>
+  <li><a class="Xr" href="zip_set_archive_flag.html">zip_set_archive_flag(3)</a></li>
+  <li><a class="Xr" href="zip_source.html">zip_source(3)</a></li>
+</ul>
+</section>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="ERROR_HANDLING"><a class="permalink" href="#ERROR_HANDLING">ERROR
+  HANDLING</a></h1>
+<ul class="Bl-bullet Bl-compact">
+  <li><a class="Xr" href="zip_error_strerror.html">zip_error_strerror(3)</a></li>
+  <li><a class="Xr" href="zip_strerror.html">zip_strerror(3)</a></li>
+  <li><a class="Xr" href="zip_file_strerror.html">zip_file_strerror(3)</a></li>
+  <li><a class="Xr" href="zip_file_get_error.html">zip_file_get_error(3)</a></li>
+  <li><a class="Xr" href="zip_get_error.html">zip_get_error(3)</a></li>
+  <li><a class="Xr" href="zip_error_init_with_code.html">zip_error_init_with_code(3)</a></li>
+  <li><a class="Xr" href="zip_error_set.html">zip_error_set(3)</a></li>
+  <li><a class="Xr" href="zip_error_set_from_source.html">zip_error_set_from_source(3)</a></li>
+  <li><a class="Xr" href="zip_error_system_type.html">zip_error_system_type(3)</a></li>
+  <li><a class="Xr" href="zip_errors.html">zip_errors(3)</a></li>
+</ul>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="AUTHORS"><a class="permalink" href="#AUTHORS">AUTHORS</a></h1>
+<span class="An">Dieter Baron</span>
+  &lt;<a class="Mt" href="mailto:dillo@nih.at">dillo@nih.at</a>&gt; and
+  <span class="An">Thomas Klausner</span>
+  &lt;<a class="Mt" href="mailto:tk@giga.or.at">tk@giga.or.at</a>&gt;
+</section>
+</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">December 5, 2022</td>
+    <td class="foot-os">NiH</td>
+  </tr>
+</table>
+</body>
+</html>

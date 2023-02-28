@@ -1,0 +1,14 @@
+# follow strict rules and convert UTF-8 as if it was CP437,
+# if not marked otherwise (in this case: not marked)
+args -s test-utf8-unmarked.zip stat 0
+return 0
+file test-utf8-unmarked.zip test-utf8-unmarked.zip test-utf8-unmarked.zip
+stdout name: '├ä├û├£├ñ├╢├╝├ƒ─ç├º─ë├⌐├¿├¬├½─ô'
+stdout index: '0'
+stdout size: '0'
+stdout compressed size: '0'
+stdout mtime: 'Sat Feb 18 2012 00:15:08'
+stdout crc: '0'
+stdout compression method: '0'
+stdout encryption method: '0'
+stdout 

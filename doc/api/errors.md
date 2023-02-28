@@ -3522,6 +3522,18 @@ removed: v16.9.0
 The pathname used for the main script of a worker has an
 unknown file extension.
 
+<a id="ERR_ZIP_UNSUPPORTED_COMPRESSION"></a>
+
+### `ERR_ZIP_UNSUPPORTED_COMPRESSION`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Used when the specified compression algorithm isn't directly integrated within
+the Node.js zip interface. You may then have to compress / decompress the data
+buffers yourself.
+
 <a id="ERR_ZLIB_BINDING_CLOSED"></a>
 
 ### `ERR_ZLIB_BINDING_CLOSED`

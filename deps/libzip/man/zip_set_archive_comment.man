@@ -1,0 +1,98 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zip_set_archive_comment.mdoc -- set zip archive comment
+.\" Copyright (C) 2006-2021 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIP_SET_ARCHIVE_COMMENT" "3" "December 18, 2017" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzip_set_archive_comment\fR
+\- set zip archive comment
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.sp
+\fIint\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_set_archive_comment\fR(\fIzip_t\ *archive\fR, \fIconst\ char\ *comment\fR, \fIzip_uint16_t\ len\fR);
+.PD
+.SH "DESCRIPTION"
+The
+\fBzip_set_archive_comment\fR()
+function sets the comment for the entire zip archive.
+If
+\fIcomment\fR
+is
+\fRNULL\fR
+and
+\fIlen\fR
+is 0, the archive comment will be removed.
+\fIcomment\fR
+must be encoded in ASCII or UTF-8.
+.SH "RETURN VALUES"
+Upon successful completion 0 is returned.
+Otherwise, \-1 is returned and the error information in
+\fIarchive\fR
+is set to indicate the error.
+.SH "ERRORS"
+\fBzip_set_archive_comment\fR()
+fails if:
+.TP 19n
+[\fRZIP_ER_INVAL\fR]
+\fIlen\fR
+is less than 0 or longer than the maximum comment length in a zip file
+(65535), or
+\fIcomment\fR
+is not a valid UTF-8 encoded string.
+.TP 19n
+[\fRZIP_ER_MEMORY\fR]
+Required memory could not be allocated.
+.SH "SEE ALSO"
+libzip(3),
+zip_file_get_comment(3),
+zip_file_set_comment(3),
+zip_get_archive_comment(3)
+.SH "HISTORY"
+\fBzip_set_archive_comment\fR()
+was added in libzip 0.7.
+In libzip 0.11 the type of
+\fIlen\fR
+was changed from
+\fIint\fR
+to
+\fIzip_uint16_t\fR.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

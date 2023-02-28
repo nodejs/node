@@ -1,0 +1,7 @@
+description check the reopen functionality (partial reads with -1 length)
+return 0
+args -- testbuffer.zip cat 0 replace_file_contents 0 "Overwritten\n" cat_partial 0 4 -1 add newfile.txt "A new file\n" cat_partial 1 2 -1
+file testbuffer.zip testbuffer.zip testbuffer_reopen.zip
+stdout This is a test, and it seems to have been successful.
+stdout written
+stdout new file

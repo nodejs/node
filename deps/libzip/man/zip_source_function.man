@@ -1,0 +1,423 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zip_source_function.mdoc -- create data source from function
+.\" Copyright (C) 2004-2022 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIP_SOURCE_FUNCTION" "3" "June 28, 2022" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzip_source_function\fR,
+\fBzip_source_function_create\fR
+\- create data source from function
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.sp
+\fIzip_source_t *\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_source_function\fR(\fIzip_t\ *archive\fR, \fIzip_source_callback\ fn\fR, \fIvoid\ *userdata\fR);
+.PD
+.PP
+\fIzip_source_t *\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_source_function_create\fR(\fIzip_source_callback\ fn\fR, \fIvoid\ *userdata\fR, \fIzip_error_t\ *error\fR);
+.PD
+.SH "DESCRIPTION"
+The functions
+\fBzip_source_function\fR()
+and
+\fBzip_source_function_create\fR()
+create a zip source from the user-provided function
+\fIfn\fR,
+which must be of the following type:
+.PP
+\fItypedef zip_int64_t\fR
+\fB\fR(*\fPzip_source_callback\fR)\fP\fR(\fIvoid\ *userdata\fR, \fIvoid\ *data\fR, \fIzip_uint64_t\ len\fR, \fIzip_source_cmd_t\ cmd\fR)
+.PP
+\fIarchive\fR
+or
+\fIerror\fR
+are used for reporting errors and can be
+\fRNULL\fR.
+.PP
+When called by the library, the first argument is the
+\fIuserdata\fR
+argument supplied to the function.
+The next two arguments are a buffer
+\fIdata\fR
+of size
+\fIlen\fR
+when data is passed in or expected to be returned, or else
+\fRNULL\fR
+and 0.
+The last argument,
+\fIcmd\fR,
+specifies which action the function should perform.
+.PP
+Depending on the uses, there are three useful sets of commands to be supported by a
+\fBzip_source_callback\fR():
+.TP 24n
+read source
+Providing streamed data (for file data added to archives).
+Must support
+\fRZIP_SOURCE_OPEN\fR,
+\fRZIP_SOURCE_READ\fR,
+\fRZIP_SOURCE_CLOSE\fR,
+\fRZIP_SOURCE_STAT\fR,
+and
+\fRZIP_SOURCE_ERROR\fR.
+.TP 24n
+seekable read source
+Same as previous, but from a source allowing reading from arbitrary
+offsets (also for read-only zip archive).
+Must additionally support
+\fRZIP_SOURCE_SEEK\fR,
+\fRZIP_SOURCE_TELL\fR,
+and
+\fRZIP_SOURCE_SUPPORTS\fR.
+.TP 24n
+read/write source
+Same as previous, but additionally allowing writing (also for writable
+zip archives).
+Must additionally support
+\fRZIP_SOURCE_BEGIN_WRITE\fR,
+\fRZIP_SOURCE_COMMIT_WRITE\fR,
+\fRZIP_SOURCE_ROLLBACK_WRITE\fR,
+\fRZIP_SOURCE_SEEK_WRITE\fR,
+\fRZIP_SOURCE_TELL_WRITE\fR,
+and
+\fRZIP_SOURCE_REMOVE\fR.
+.sp
+On top of the above, supporting the pseudo-command
+\fRZIP_SOURCE_SUPPORTS_REOPEN\fR
+allows calling
+\fBzip_source_open\fR()
+again after calling
+\fBzip_source_close\fR().
+.SS "\fRZIP_SOURCE_ACCEPT_EMPTY\fR"
+Return 1 if an empty source should be accepted as a valid zip archive.
+This is the default if this command is not supported by a source.
+File system backed sources should return 0.
+.SS "\fRZIP_SOURCE_BEGIN_WRITE\fR"
+Prepare the source for writing.
+Use this to create any temporary file(s).
+.SS "\fRZIP_SOURCE_BEGIN_WRITE_CLONING\fR"
+Prepare the source for writing, keeping the first
+\fIlen\fR
+bytes of the original file.
+Only implement this command if it is more efficient than copying the
+data, and if it does not destructively overwrite the original file
+(you still have to be able to execute
+\fRZIP_SOURCE_ROLLBACK_WRITE\fR).
+.PP
+The next write should happen at byte
+\fIoffset\fR.
+.SS "\fRZIP_SOURCE_CLOSE\fR"
+Reading is done.
+.SS "\fRZIP_SOURCE_COMMIT_WRITE\fR"
+Finish writing to the source.
+Replace the original data with the newly written data.
+Clean up temporary files or internal buffers.
+Subsequently opening and reading from the source should return the
+newly written data.
+.SS "\fRZIP_SOURCE_ERROR\fR"
+Get error information.
+\fIdata\fR
+points to an array of two ints, which should be filled with the libzip
+error code and the corresponding system error code for the error that
+occurred.
+See
+zip_errors(3)
+for details on the error codes.
+If the source stores error information in a zip_error_t, use
+zip_error_to_data(3)
+and return its return value.
+Otherwise, return 2 * sizeof(int).
+.SS "\fRZIP_SOURCE_FREE\fR"
+Clean up and free all resources, including
+\fIuserdata\fR.
+The callback function will not be called again.
+.SS "\fRZIP_SOURCE_GET_FILE_ATTRIBUTES\fR"
+Provide information about various data.
+Then the data should be put in the appropriate entry in the passed
+\fIzip_file_attributes_t\fR
+argument, and the appropriate
+\fRZIP_FILE_ATTRIBUTES_*\fR
+value must be or'ed into the
+\fIvalid\fR
+member to denote that the corresponding data has been provided.
+A
+\fIzip_file_attributes_t\fR
+structure can be initialized using
+zip_file_attributes_init(3).
+.TP 12n
+ASCII mode
+If a file is a plaintext file in ASCII.
+Can be used by extraction tools to automatically convert line endings
+(part of the internal file attributes).
+Member
+\fIascii\fR,
+flag
+\fRZIP_FILE_ATTRIBUTES_ASCII\fR.
+.TP 12n
+General Purpose Bit Flags (limited to Compression Flags)
+The general purpose bit flag in the zip in the local and central
+directory headers contain information about the compression method.
+Member
+\fIgeneral_purpose_bit_flags\fR
+and
+\fIgeneral_purpose_bit_mask\fR
+to denote which members have been set;
+flag
+\fRZIP_FILE_ATTRIBUTES_GENERAL_PURPOSE_BIT_FLAGS\fR.
+.TP 12n
+External File Attributes
+The external file attributes (usually operating system-specific).
+Member
+\fIexternal_file_attributes\fR,
+flag
+\fRZIP_FILE_ATTRIBUTES_EXTERNAL_FILE_ATTRIBUTES\fR.
+.TP 12n
+Version Needed
+A minimum version needed required to unpack this entry (in the usual
+"major * 10 + minor" format).
+Member
+\fIversion_needed\fR,
+flag
+\fRZIP_FILE_ATTRIBUTES_VERSION_NEEDED\fR.
+.TP 12n
+Operating System
+One of the operating systems as defined by the
+\fRZIP_OPSYS_*\fR
+variables (see
+\fIzip.h\fR).
+This value affects the interpretation of the external file attributes.
+Member
+\fIhost_system\fR,
+flag
+\fRZIP_FILE_ATTRIBUTES_HOST_SYSTEM\fR.
+.SS "\fRZIP_SOURCE_OPEN\fR"
+Prepare for reading.
+.SS "\fRZIP_SOURCE_READ\fR"
+Read data into the buffer
+\fIdata\fR
+of size
+\fIlen\fR.
+Return the number of bytes placed into
+\fIdata\fR
+on success, and zero for end-of-file.
+.SS "\fRZIP_SOURCE_REMOVE\fR"
+Remove the underlying file.
+This is called if a zip archive is empty when closed.
+.SS "\fRZIP_SOURCE_ROLLBACK_WRITE\fR"
+Abort writing to the source.
+Discard written data.
+Clean up temporary files or internal buffers.
+Subsequently opening and reading from the source should return the
+original data.
+.SS "\fRZIP_SOURCE_SEEK\fR"
+Specify position to read next byte from, like
+fseek(3).
+Use
+ZIP_SOURCE_GET_ARGS(3)
+to decode the arguments into the following struct:
+.nf
+.sp
+.RS 0n
+struct zip_source_args_seek {
+    zip_int64_t offset;
+    int whence;
+};
+.RE
+.fi
+.PP
+If the size of the source's data is known, use
+zip_source_seek_compute_offset(3)
+to validate the arguments and compute the new offset.
+.SS "\fRZIP_SOURCE_SEEK_WRITE\fR"
+Specify position to write next byte to, like
+fseek(3).
+See
+\fRZIP_SOURCE_SEEK\fR
+for details.
+.SS "\fRZIP_SOURCE_STAT\fR"
+Get meta information for the input data.
+\fIdata\fR
+points to an allocated
+\fIstruct zip_stat\fR,
+which should be initialized using
+zip_stat_init(3)
+and then filled in.
+.PP
+For uncompressed, unencrypted data, all information is optional.
+However, fill in as much information as is readily available.
+.PP
+If the data is compressed,
+\fRZIP_STAT_COMP_METHOD\fR,
+\fRZIP_STAT_SIZE\fR,
+and
+\fRZIP_STAT_CRC\fR
+must be filled in.
+.PP
+If the data is encrypted,
+\fRZIP_STAT_ENCRYPTION_METHOD\fR,
+\fRZIP_STAT_COMP_METHOD\fR,
+\fRZIP_STAT_SIZE\fR,
+and
+\fRZIP_STAT_CRC\fR
+must be filled in.
+.PP
+Information only available after the source has been read (e.g., size)
+can be omitted in an earlier call.
+\fINOTE\fR:
+\fBzip_source_function\fR()
+may be called with this argument even after being called with
+\fRZIP_SOURCE_CLOSE\fR.
+.PP
+Return sizeof(struct zip_stat) on success.
+.SS "\fRZIP_SOURCE_SUPPORTS\fR"
+Return bitmap specifying which commands are supported.
+Use
+zip_source_make_command_bitmap(3).
+If this command is not implemented, the source is assumed to be a
+read source without seek support.
+.SS "\fRZIP_SOURCE_TELL\fR"
+Return the current read offset in the source, like
+ftell(3).
+.SS "\fRZIP_SOURCE_TELL_WRITE\fR"
+Return the current write offset in the source, like
+ftell(3).
+.SS "\fRZIP_SOURCE_WRITE\fR"
+Write data to the source.
+Return number of bytes written.
+.SS "\fRZIP_SOURCE_SUPPORTS_REOPEN\fR"
+This command is never actually invoked, support for it signals the
+ability to handle multiple open/read/close cycles.
+.SS "Return Values"
+Commands should return \-1 on error.
+\fRZIP_SOURCE_ERROR\fR
+will be called to retrieve the error code.
+On success, commands return 0, unless specified otherwise in the
+description above.
+.SS "Calling Conventions"
+The library will always issue
+\fRZIP_SOURCE_OPEN\fR
+before issuing
+\fRZIP_SOURCE_READ\fR,
+\fRZIP_SOURCE_SEEK\fR,
+or
+\fRZIP_SOURCE_TELL\fR.
+When it no longer wishes to read from this source, it will issue
+\fRZIP_SOURCE_CLOSE\fR.
+If the library wishes to read the data again, it will issue
+\fRZIP_SOURCE_OPEN\fR
+a second time.
+If the function is unable to provide the data again, it should
+return \-1.
+.PP
+\fRZIP_SOURCE_BEGIN_WRITE\fR
+or
+\fRZIP_SOURCE_BEGIN_WRITE_CLONING\fR
+will be called before
+\fRZIP_SOURCE_WRITE\fR,
+\fRZIP_SOURCE_SEEK_WRITE\fR,
+or
+\fRZIP_SOURCE_TELL_WRITE\fR.
+When writing is complete, either
+\fRZIP_SOURCE_COMMIT_WRITE\fR
+or
+\fRZIP_SOURCE_ROLLBACK_WRITE\fR
+will be called.
+.PP
+\fRZIP_SOURCE_ACCEPT_EMPTY\fR,
+\fRZIP_SOURCE_GET_FILE_ATTRIBUTES\fR,
+and
+\fRZIP_SOURCE_STAT\fR
+can be issued at any time.
+.PP
+\fRZIP_SOURCE_ERROR\fR
+will only be issued in response to the function
+returning \-1.
+.PP
+\fRZIP_SOURCE_FREE\fR
+will be the last command issued;
+if
+\fRZIP_SOURCE_OPEN\fR
+was called and succeeded,
+\fRZIP_SOURCE_CLOSE\fR
+will be called before
+\fRZIP_SOURCE_FREE\fR,
+and similarly for
+\fRZIP_SOURCE_BEGIN_WRITE\fR
+or
+\fRZIP_SOURCE_BEGIN_WRITE_CLONING\fR
+and
+\fRZIP_SOURCE_COMMIT_WRITE\fR
+or
+\fRZIP_SOURCE_ROLLBACK_WRITE\fR.
+.SH "RETURN VALUES"
+Upon successful completion, the created source is returned.
+Otherwise,
+\fRNULL\fR
+is returned and the error code in
+\fIarchive\fR
+or
+\fIerror\fR
+is set to indicate the error (unless
+it is
+\fRNULL\fR).
+.SH "ERRORS"
+\fBzip_source_function\fR()
+fails if:
+.TP 19n
+[\fRZIP_ER_MEMORY\fR]
+Required memory could not be allocated.
+.SH "SEE ALSO"
+libzip(3),
+zip_file_add(3),
+zip_file_attributes_init(3),
+zip_file_replace(3),
+zip_source(3),
+zip_stat_init(3)
+.SH "HISTORY"
+\fBzip_source_function\fR()
+and
+\fBzip_source_function_create\fR()
+were added in libzip 1.0.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

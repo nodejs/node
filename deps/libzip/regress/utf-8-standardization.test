@@ -1,0 +1,4 @@
+# replace file contents and make UTF-8 name
+return 0
+args testfile.zzip replace_file_contents 0 "Some new content for the file." set_file_mtime 0 1406885162
+file testfile.zzip utf-8-standardization-input.zip utf-8-standardization-output.zip

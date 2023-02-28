@@ -1,0 +1,7 @@
+# read contents from multiply reopened changed file
+return 0
+args test_open_multiple.zip replace_file_contents 0 12345678 fopen stuff fopen stuff fread 0 2 fread 1 4 fread 0 3 fread 1 3 fread 0 3 fread 1 1 unchange_all
+file test_open_multiple.zip test_open_multiple.zip test_open_multiple.zip
+stdout opened 'stuff' as file 0
+stdout opened 'stuff' as file 1
+stdout 1212343455676788

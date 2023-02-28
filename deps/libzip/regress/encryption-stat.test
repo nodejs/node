@@ -1,0 +1,23 @@
+features CRYPTO
+description encrypt file, look at stat before commit
+return 0
+args encrypt.zzip  stat 1  set_file_encryption 1 AES-128 no-entropy  stat 1  unchange_all
+file encrypt.zzip encrypt-none.zip encrypt-none.zip
+stdout name: 'encrypted'
+stdout index: '1'
+stdout size: '10'
+stdout compressed size: '10'
+stdout mtime: 'Sat Jan 14 2017 21:27:26'
+stdout crc: 'fb8c5e55'
+stdout compression method: '0'
+stdout encryption method: '0'
+stdout 
+stdout name: 'encrypted'
+stdout index: '1'
+stdout size: '10'
+stdout compressed size: '10'
+stdout mtime: 'Sat Jan 14 2017 21:27:26'
+stdout crc: 'fb8c5e55'
+stdout compression method: '0'
+stdout encryption method: '257'
+stdout 

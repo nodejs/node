@@ -1,0 +1,5 @@
+# test reading from a buffer fragment source
+return 0
+args -mF 1024 test.zip  cat 1
+file test.zip cm-default.zip cm-default.zip
+stdout uncompressible

@@ -1,0 +1,27 @@
+# various tests for zip_name_locate
+args test.zip  name_locate nosuchfile 0  name_locate test 0  name_locate "" 0  name_locate TeSt 0  name_locate TeSt C  name_locate testdir/test2 0  name_locate tesTdir/tESt2 C  name_locate testdir/test2 d  name_locate tesTdir/tESt2 dC  name_locate test2 0  name_locate test2 d  name_locate TeST2 dC  delete 0  name_locate test 0  name_locate test u  add new teststring  name_locate new 0  name_locate new u  add "" teststring  name_locate "" 0  unchange_all  name_locate test 0  name_locate new 0
+stderr can't find entry with name 'nosuchfile' using flags '0'
+stdout name 'test' using flags '0' found at index 0
+stderr can't find entry with name '' using flags '0'
+stderr can't find entry with name 'TeSt' using flags '0'
+stdout name 'TeSt' using flags 'C' found at index 0
+stdout name 'testdir/test2' using flags '0' found at index 2
+stdout name 'tesTdir/tESt2' using flags 'C' found at index 2
+stderr can't find entry with name 'testdir/test2' using flags 'd'
+stderr can't find entry with name 'tesTdir/tESt2' using flags 'dC'
+stderr can't find entry with name 'test2' using flags '0'
+stdout name 'test2' using flags 'd' found at index 2
+stdout name 'TeST2' using flags 'dC' found at index 2
+# delete 0
+stderr can't find entry with name 'test' using flags '0'
+stdout name 'test' using flags 'u' found at index 0
+# add "new"
+stdout name 'new' using flags '0' found at index 3
+stderr can't find entry with name 'new' using flags 'u'
+# add ""
+stdout name '' using flags '0' found at index 4
+# unchange all
+stdout name 'test' using flags '0' found at index 0
+stderr can't find entry with name 'new' using flags '0'
+return 0
+file test.zip test.zip test.zip

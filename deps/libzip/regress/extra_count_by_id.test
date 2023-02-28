@@ -1,0 +1,22 @@
+# count extra fields for index
+args encrypt.zip count_extra_by_id 0 0 l count_extra_by_id 0 1 l count_extra_by_id 0 21589 l count_extra_by_id 0 30805 l count_extra_by_id 0 21844 l count_extra_by_id 0 12345 l count_extra_by_id 0 0 c count_extra_by_id 0 1 c count_extra_by_id 0 21589 c count_extra_by_id 0 30805 c count_extra_by_id 0 21844 c count_extra_by_id 0 12345 c count_extra_by_id 0 0 cl count_extra_by_id 0 1 cl count_extra_by_id 0 21589 cl count_extra_by_id 0 30805 cl count_extra_by_id 0 21844 cl count_extra_by_id 0 12345 cl
+return 0
+file encrypt.zip encrypt.zip encrypt.zip
+stdout Extra field count: 0
+stdout Extra field count: 0
+stdout Extra field count: 1
+stdout Extra field count: 1
+stdout Extra field count: 0
+stdout Extra field count: 0
+stdout Extra field count: 0
+stdout Extra field count: 0
+stdout Extra field count: 1
+stdout Extra field count: 1
+stdout Extra field count: 0
+stdout Extra field count: 0
+stdout Extra field count: 0
+stdout Extra field count: 0
+stdout Extra field count: 2
+stdout Extra field count: 2
+stdout Extra field count: 0
+stdout Extra field count: 0

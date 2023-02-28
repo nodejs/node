@@ -1,0 +1,7 @@
+# zip_open: file is not a zip archive
+program tryopen
+file CMakeLists.txt CMakeLists.txt CMakeLists.txt
+args CMakeLists.txt
+return 1
+stdout opening 'CMakeLists.txt' returned error 19
+stderr 1 errors

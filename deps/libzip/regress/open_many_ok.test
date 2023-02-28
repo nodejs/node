@@ -1,0 +1,12 @@
+# zip_open: files open fine, have > 65k entries
+program tryopen
+args manyfiles.zip manyfiles-zip64.zip manyfiles-133000.zip manyfiles-65536.zip
+return 0
+file manyfiles.zip manyfiles.zip manyfiles.zip
+file manyfiles-zip64.zip manyfiles-zip64.zip manyfiles-zip64.zip
+file manyfiles-133000.zip manyfiles-133000.zip manyfiles-133000.zip
+file manyfiles-65536.zip manyfiles-65536.zip manyfiles-65536.zip
+stdout opening 'manyfiles.zip' succeeded, 70000 entries
+stdout opening 'manyfiles-zip64.zip' succeeded, 70000 entries
+stdout opening 'manyfiles-133000.zip' succeeded, 133000 entries
+stdout opening 'manyfiles-65536.zip' succeeded, 65536 entries

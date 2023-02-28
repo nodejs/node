@@ -1,0 +1,112 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zip_source_buffer.mdoc -- create zip data source from buffer
+.\" Copyright (C) 2004-2021 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIP_SOURCE_BUFFER" "3" "December 18, 2017" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzip_source_buffer\fR,
+\fBzip_source_buffer_create\fR
+\- create zip data source from buffer
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.sp
+\fIzip_source_t *\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_source_buffer\fR(\fIzip_t\ *archive\fR, \fIconst\ void\ *data\fR, \fIzip_uint64_t\ len\fR, \fIint\ freep\fR);
+.PD
+.PP
+\fIzip_source_t *\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_source_buffer_create\fR(\fIconst\ void\ *data\fR, \fIzip_uint64_t\ len\fR, \fIint\ freep\fR, \fIzip_error_t\ *error\fR);
+.PD
+.SH "DESCRIPTION"
+The functions
+\fBzip_source_buffer\fR()
+and
+\fBzip_source_buffer_create\fR()
+create a zip source from the buffer
+\fIdata\fR
+of size
+\fIlen\fR.
+If
+\fIfreep\fR
+is non-zero, the buffer will be freed when it is no longer needed.
+\fIdata\fR
+must remain valid for the lifetime of the created source.
+.PP
+The source can be used to open a zip archive from.
+.SH "RETURN VALUES"
+Upon successful completion, the created source is returned.
+Otherwise,
+\fRNULL\fR
+is returned and the error code in
+\fIarchive\fR
+or
+\fIerror\fR
+is set to indicate the error.
+.SH "ERRORS"
+\fBzip_source_buffer\fR()
+and
+\fBzip_source_buffer_create\fR()
+fail if:
+.TP 19n
+[\fRZIP_ER_INVAL\fR]
+\fIlen\fR
+is greater than zero and
+\fIdata\fR
+is
+\fRNULL\fR.
+.TP 19n
+[\fRZIP_ER_MEMORY\fR]
+Required memory could not be allocated.
+.SH "SEE ALSO"
+libzip(3),
+zip_file_add(3),
+zip_file_replace(3),
+zip_open_from_source(3),
+zip_source(3)
+.SH "HISTORY"
+\fBzip_source_buffer\fR()
+and
+\fBzip_source_buffer_create\fR()
+were added in libzip 1.0.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

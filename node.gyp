@@ -495,6 +495,7 @@
         'src/module_wrap.cc',
         'src/node.cc',
         'src/node_api.cc',
+        'src/node_archive.cc',
         'src/node_binding.cc',
         'src/node_blob.cc',
         'src/node_buffer.cc',

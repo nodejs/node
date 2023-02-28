@@ -1,0 +1,4 @@
+# change mtime in a zip archive
+return 0
+args testfile set_file_mtime 0 1407272201
+file testfile testfile.zip testfile2014.zip

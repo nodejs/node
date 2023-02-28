@@ -1,0 +1,4 @@
+# start changing local and global comments, but revert before closing
+return 0
+args testcomment.zip  set_archive_comment "some long string, a bit longer than this at least"  set_file_comment 0 "File comment no 0"  set_file_comment 1 "File comment no 1"  set_file_comment 3 "File comment no 3"  set_file_comment 2 ""   unchange_all
+file testcomment.zip testcomment.zip testcomment.zip

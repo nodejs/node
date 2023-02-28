@@ -1,0 +1,73 @@
+#ifndef HAD_CONFIG_H
+#define HAD_CONFIG_H
+#ifndef _HAD_ZIPCONF_H
+#include "zipconf.h"
+#endif
+/* BEGIN DEFINES */
+#cmakedefine ENABLE_FDOPEN
+#cmakedefine HAVE___PROGNAME
+#cmakedefine HAVE__CLOSE
+#cmakedefine HAVE__DUP
+#cmakedefine HAVE__FDOPEN
+#cmakedefine HAVE__FILENO
+#cmakedefine HAVE__SETMODE
+#cmakedefine HAVE__SNPRINTF
+#cmakedefine HAVE__SNPRINTF_S
+#cmakedefine HAVE__SNWPRINTF_S
+#cmakedefine HAVE__STRDUP
+#cmakedefine HAVE__STRICMP
+#cmakedefine HAVE__STRTOI64
+#cmakedefine HAVE__STRTOUI64
+#cmakedefine HAVE__UMASK
+#cmakedefine HAVE__UNLINK
+#cmakedefine HAVE_ARC4RANDOM
+#cmakedefine HAVE_CLONEFILE
+#cmakedefine HAVE_COMMONCRYPTO
+#cmakedefine HAVE_CRYPTO
+#cmakedefine HAVE_FICLONERANGE
+#cmakedefine HAVE_FILENO
+#cmakedefine HAVE_FCHMOD
+#cmakedefine HAVE_FSEEKO
+#cmakedefine HAVE_FTELLO
+#cmakedefine HAVE_GETPROGNAME
+#cmakedefine HAVE_GNUTLS
+#cmakedefine HAVE_LIBBZ2
+#cmakedefine HAVE_LIBLZMA
+#cmakedefine HAVE_LIBZSTD
+#cmakedefine HAVE_LOCALTIME_R
+#cmakedefine HAVE_LOCALTIME_S
+#cmakedefine HAVE_MEMCPY_S
+#cmakedefine HAVE_MBEDTLS
+#cmakedefine HAVE_MKSTEMP
+#cmakedefine HAVE_NULLABLE
+#cmakedefine HAVE_OPENSSL
+#cmakedefine HAVE_SETMODE
+#cmakedefine HAVE_SNPRINTF
+#cmakedefine HAVE_SNPRINTF_S
+#cmakedefine HAVE_STRCASECMP
+#cmakedefine HAVE_STRDUP
+#cmakedefine HAVE_STRERROR_S
+#cmakedefine HAVE_STRERRORLEN_S
+#cmakedefine HAVE_STRICMP
+#cmakedefine HAVE_STRNCPY_S
+#cmakedefine HAVE_STRTOLL
+#cmakedefine HAVE_STRTOULL
+#cmakedefine HAVE_STRUCT_TM_TM_ZONE
+#cmakedefine HAVE_STDBOOL_H
+#cmakedefine HAVE_STRINGS_H
+#cmakedefine HAVE_UNISTD_H
+#cmakedefine HAVE_WINDOWS_CRYPTO
+#cmakedefine SIZEOF_OFF_T ${SIZEOF_OFF_T}
+#cmakedefine SIZEOF_SIZE_T ${SIZEOF_SIZE_T}
+#cmakedefine HAVE_DIRENT_H
+#cmakedefine HAVE_FTS_H
+#cmakedefine HAVE_NDIR_H
+#cmakedefine HAVE_SYS_DIR_H
+#cmakedefine HAVE_SYS_NDIR_H
+#cmakedefine WORDS_BIGENDIAN
+#cmakedefine HAVE_SHARED
+/* END DEFINES */
+#define PACKAGE "@CMAKE_PROJECT_NAME@"
+#define VERSION "@CMAKE_PROJECT_VERSION@"
+
+#endif /* HAD_CONFIG_H */

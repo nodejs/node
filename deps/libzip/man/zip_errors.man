@@ -1,0 +1,147 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zip_errors.mdoc -- list of all libzip error codes
+.\" Copyright (C) 1999-2021 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"   This file was generated automatically by ./make_zip_errors.sh
+.\"   from ./../lib/zip.h; make changes there.
+.\"
+.TH "ZIP_ERRORS" "3" "December 18, 2017" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzip_errors\fR
+\- list of all libzip error codes
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.SH "DESCRIPTION"
+The following error codes are used by libzip:
+.TP 26n
+[\fRZIP_ER_CHANGED\fR]
+Entry has been changed.
+.TP 26n
+[\fRZIP_ER_CLOSE\fR]
+Closing zip archive failed.
+.TP 26n
+[\fRZIP_ER_COMPNOTSUPP\fR]
+Compression method not supported.
+.TP 26n
+[\fRZIP_ER_COMPRESSED_DATA\fR]
+Compressed data invalid.
+.TP 26n
+[\fRZIP_ER_CRC\fR]
+CRC error.
+.TP 26n
+[\fRZIP_ER_DELETED\fR]
+Entry has been deleted.
+.TP 26n
+[\fRZIP_ER_ENCRNOTSUPP\fR]
+Encryption method not supported.
+.TP 26n
+[\fRZIP_ER_EOF\fR]
+Premature end of file.
+.TP 26n
+[\fRZIP_ER_EXISTS\fR]
+File already exists.
+.TP 26n
+[\fRZIP_ER_INCONS\fR]
+Zip archive inconsistent.
+.TP 26n
+[\fRZIP_ER_INTERNAL\fR]
+Internal error.
+.TP 26n
+[\fRZIP_ER_INUSE\fR]
+Resource still in use.
+.TP 26n
+[\fRZIP_ER_INVAL\fR]
+Invalid argument.
+.TP 26n
+[\fRZIP_ER_MEMORY\fR]
+Malloc failure.
+.TP 26n
+[\fRZIP_ER_MULTIDISK\fR]
+Multi-disk zip archives not supported.
+.TP 26n
+[\fRZIP_ER_NOENT\fR]
+No such file.
+.TP 26n
+[\fRZIP_ER_NOPASSWD\fR]
+No password provided.
+.TP 26n
+[\fRZIP_ER_NOZIP\fR]
+Not a zip archive.
+.TP 26n
+[\fRZIP_ER_OK\fR]
+No error.
+.TP 26n
+[\fRZIP_ER_OPEN\fR]
+Can't open file.
+.TP 26n
+[\fRZIP_ER_OPNOTSUPP\fR]
+Operation not supported.
+.TP 26n
+[\fRZIP_ER_RDONLY\fR]
+Read-only archive.
+.TP 26n
+[\fRZIP_ER_READ\fR]
+Read error.
+.TP 26n
+[\fRZIP_ER_REMOVE\fR]
+Can't remove file.
+.TP 26n
+[\fRZIP_ER_RENAME\fR]
+Renaming temporary file failed.
+.TP 26n
+[\fRZIP_ER_SEEK\fR]
+Seek error.
+.TP 26n
+[\fRZIP_ER_TELL\fR]
+Tell error.
+.TP 26n
+[\fRZIP_ER_TMPOPEN\fR]
+Failure to create temporary file.
+.TP 26n
+[\fRZIP_ER_WRITE\fR]
+Write error.
+.TP 26n
+[\fRZIP_ER_WRONGPASSWD\fR]
+Wrong password provided.
+.TP 26n
+[\fRZIP_ER_ZIPCLOSED\fR]
+Containing zip archive was closed.
+.TP 26n
+[\fRZIP_ER_ZLIB\fR]
+Zlib error.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

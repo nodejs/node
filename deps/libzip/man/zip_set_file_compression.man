@@ -1,0 +1,155 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zip_set_file_compression.mdoc -- set compression method and its flags
+.\" Copyright (C) 2012-2021 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP files.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIP_SET_FILE_COMPRESSION" "3" "June 18, 2021" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzip_set_file_compression\fR
+\- set compression method for file in zip
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.sp
+\fIint\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_set_file_compression\fR(\fIzip_t\ *archive\fR, \fIzip_uint64_t\ index\fR, \fIzip_int32_t\ comp\fR, \fIzip_uint32_t\ comp_flags\fR);
+.PD
+.SH "DESCRIPTION"
+The
+\fBzip_set_file_compression\fR()
+function sets the compression method for the file at position
+\fIindex\fR
+in the zip archive to
+\fIcomp\fR
+with the compression method specific
+\fIcomp_flags\fR.
+The
+\fIcomp\fR
+is the same as returned by
+zip_stat(3).
+For the
+\fIcomp\fR
+argument, currently only the following values are supported:
+.TP 19n
+\fRZIP_CM_DEFAULT\fR
+default compression; currently the same as
+\fRZIP_CM_DEFLATE\fR,
+but
+\fIflags\fR
+are ignored.
+.TP 19n
+\fRZIP_CM_STORE\fR
+Store the file uncompressed.
+.TP 19n
+\fRZIP_CM_BZIP2\fR
+Compress the file using the
+bzip2(1)
+algorithm.
+.TP 19n
+\fRZIP_CM_DEFLATE\fR
+Deflate the file with the
+zlib(3)
+algorithm and default options.
+.TP 19n
+\fRZIP_CM_XZ\fR
+Use the
+xz(1)
+algorithm for compression
+.TP 19n
+\fRZIP_CM_ZSTD\fR
+Use the
+zstd(1)
+algorithm for compression
+.PP
+\fINOTE\fR:
+Only the deflate and store methods can be assumed to be universally
+supported.
+.PP
+The
+\fIcomp_flags\fR
+argument defines the compression level.
+This value is dependent on the compression algorithm.
+In general, lower numbers mean faster de/compression and higher
+numbers mean slower de/compression.
+For
+\fRZIP_CM_BZIP\fR,
+\fRZIP_CM_DEFLATE\fR,
+and
+\fRZIP_CM_XZ\fR
+1 is the fastest compression and 9 the best, 0 chooses the default.
+For
+\fRZIP_CM_ZSTD\fR
+possible values are
+ZSTD_minCLevel(3)
+to
+ZSTD_maxCLevel(3).
+.PP
+Further compression method specific flags might be added over time.
+.PP
+The current compression method for a file in a zip archive can be
+determined using
+zip_stat(3).
+.SH "RETURN VALUES"
+Upon successful completion 0 is returned.
+Otherwise, \-1 is returned and the error information in
+\fIarchive\fR
+is set to indicate the error.
+.SH "ERRORS"
+\fBzip_set_file_compression\fR()
+fails if:
+.TP 19n
+[\fRZIP_ER_COMPNOTSUPP\fR]
+Unsupported compression method requested.
+.TP 19n
+[\fRZIP_ER_INVAL\fR]
+\fIindex\fR
+is not a valid file index in
+\fIarchive\fR,
+or the argument combination is invalid.
+.TP 19n
+[\fRZIP_ER_RDONLY\fR]
+Read-only zip file, no changes allowed.
+.SH "SEE ALSO"
+libzip(3),
+zip_compression_method_supported(3),
+zip_stat(3)
+.SH "HISTORY"
+\fBzip_set_file_compression\fR()
+was added in libzip 0.11.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

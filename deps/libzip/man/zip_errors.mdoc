@@ -1,0 +1,117 @@
+.\" zip_errors.mdoc -- list of all libzip error codes
+.\" Copyright (C) 1999-2021 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"   This file was generated automatically by ./make_zip_errors.sh
+.\"   from ./../lib/zip.h; make changes there.
+.\"
+.Dd December 18, 2017
+.Dt ZIP_ERRORS 3
+.Os
+.Sh NAME
+.Nm zip_errors
+.Nd list of all libzip error codes
+.Sh LIBRARY
+libzip (-lzip)
+.Sh SYNOPSIS
+.In zip.h
+.Sh DESCRIPTION
+The following error codes are used by libzip:
+.Bl -tag -width XZIP_ER_COMPRESSED_DATAX
+.It Bq Er ZIP_ER_CHANGED
+Entry has been changed.
+.It Bq Er ZIP_ER_CLOSE
+Closing zip archive failed.
+.It Bq Er ZIP_ER_COMPNOTSUPP
+Compression method not supported.
+.It Bq Er ZIP_ER_COMPRESSED_DATA
+Compressed data invalid.
+.It Bq Er ZIP_ER_CRC
+CRC error.
+.It Bq Er ZIP_ER_DELETED
+Entry has been deleted.
+.It Bq Er ZIP_ER_ENCRNOTSUPP
+Encryption method not supported.
+.It Bq Er ZIP_ER_EOF
+Premature end of file.
+.It Bq Er ZIP_ER_EXISTS
+File already exists.
+.It Bq Er ZIP_ER_INCONS
+Zip archive inconsistent.
+.It Bq Er ZIP_ER_INTERNAL
+Internal error.
+.It Bq Er ZIP_ER_INUSE
+Resource still in use.
+.It Bq Er ZIP_ER_INVAL
+Invalid argument.
+.It Bq Er ZIP_ER_MEMORY
+Malloc failure.
+.It Bq Er ZIP_ER_MULTIDISK
+Multi-disk zip archives not supported.
+.It Bq Er ZIP_ER_NOENT
+No such file.
+.It Bq Er ZIP_ER_NOPASSWD
+No password provided.
+.It Bq Er ZIP_ER_NOZIP
+Not a zip archive.
+.It Bq Er ZIP_ER_OK
+No error.
+.It Bq Er ZIP_ER_OPEN
+Can't open file.
+.It Bq Er ZIP_ER_OPNOTSUPP
+Operation not supported.
+.It Bq Er ZIP_ER_RDONLY
+Read-only archive.
+.It Bq Er ZIP_ER_READ
+Read error.
+.It Bq Er ZIP_ER_REMOVE
+Can't remove file.
+.It Bq Er ZIP_ER_RENAME
+Renaming temporary file failed.
+.It Bq Er ZIP_ER_SEEK
+Seek error.
+.It Bq Er ZIP_ER_TELL
+Tell error.
+.It Bq Er ZIP_ER_TMPOPEN
+Failure to create temporary file.
+.It Bq Er ZIP_ER_WRITE
+Write error.
+.It Bq Er ZIP_ER_WRONGPASSWD
+Wrong password provided.
+.It Bq Er ZIP_ER_ZIPCLOSED
+Containing zip archive was closed.
+.It Bq Er ZIP_ER_ZLIB
+Zlib error.
+.El
+.Sh AUTHORS
+.An -nosplit
+.An Dieter Baron Aq Mt dillo@nih.at
+and
+.An Thomas Klausner Aq Mt tk@giga.or.at

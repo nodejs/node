@@ -1,0 +1,5 @@
+# add stored file from zip to zip
+return 0
+args -- testfile.zip   add_from_zip abac-repeat.txt teststored.zzip 0 0 -1
+file teststored.zzip teststored.zip teststored.zip
+file-new testfile.zip testdeflated.zip

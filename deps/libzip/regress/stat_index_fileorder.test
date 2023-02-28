@@ -1,0 +1,22 @@
+# zip_open: entries ordered by central directory order
+args fileorder.zzip stat 0 stat 1
+return 0
+file fileorder.zzip fileorder.zip fileorder.zip
+stdout name: 'file1'
+stdout index: '0'
+stdout size: '5'
+stdout compressed size: '5'
+stdout mtime: 'Fri Apr 27 2012 23:21:42'
+stdout crc: '9ee760e5'
+stdout compression method: '0'
+stdout encryption method: '0'
+stdout 
+stdout name: 'file2'
+stdout index: '1'
+stdout size: '5'
+stdout compressed size: '5'
+stdout mtime: 'Fri Apr 27 2012 23:21:44'
+stdout crc: '7ee315f'
+stdout compression method: '0'
+stdout encryption method: '0'
+stdout 

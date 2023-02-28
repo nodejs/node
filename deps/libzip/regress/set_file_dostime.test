@@ -1,0 +1,4 @@
+# change dostime in a zip archive (use torrentzip default time)
+return 0
+args testfile set_file_dostime 0 48128 8600
+file testfile testfile.zip testfile0.zip

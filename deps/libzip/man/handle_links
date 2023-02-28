@@ -1,0 +1,74 @@
+#!/usr/bin/env perl
+
+use strict;
+
+my $operation = shift @ARGV;
+
+if ($operation !~ m/^(install|uninstall)$/) {
+    print STDERR "$0: unknown operation $operation\n";
+    exit(1);
+}
+
+my %options = ();
+
+for my $arg (@ARGV) {
+    if ($arg =~ m/([^=]*)=(.*)/) {
+        $options{$1} = $2;
+    }
+    else {
+        print STDERR "$0: can't parse option [$arg]\n";
+        exit(1);
+    }
+}
+
+for my $option (qw(command directory extension file)) {
+    unless (defined($options{$option})) {
+        print STDERR "$0: required variable $option not provided\n";
+        exit(1);
+    }
+}
+
+my $fh;
+unless (open $fh, '<', $options{file}) {
+    print STDERR "$0: can't open links file '$options{file}': $!";
+    exit(1);
+}
+
+my @cmd = split /\s+/, $options{command};
+
+while (my $line = <$fh>) {
+    chomp $line;
+    my @args = split /\s+/, $line;
+
+    process(@args);
+}
+
+sub process {
+    my ($source, @destinations) = @_;
+
+    my @args = (@cmd);
+
+    if ($operation eq 'install') {
+        push @args, "$options{directory}/$source.$options{extension}";
+    }
+
+    for my $destination (@destinations) {
+        push @args, "$options{directory}/$destination.$options{extension}";
+        run_command(@args);
+        pop @args;
+    }
+}
+
+sub run_command {
+    print (join ' ', @_);
+    print "\n";
+
+    my $ret = system(@_);
+
+    if ($ret != 0) {
+        print STDERR "$0: command failed: $?\n";
+        exit(1);
+    }
+
+    return 1;
+}

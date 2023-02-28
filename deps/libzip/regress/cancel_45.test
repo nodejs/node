@@ -1,0 +1,8 @@
+# test default compression stores if smaller; test cancel after 45%
+return 1
+args -n test.zip  cancel 45  add compressible aaaaaaaaaaaaaa  add uncompressible uncompressible  add_nul large-compressible 8200  add_file large-uncompressible large-uncompressible 0 -1
+file large-uncompressible large-uncompressible large-uncompressible
+stdout 0.0% done
+stdout 25.0% done
+stdout 50.0% done
+stderr can't close zip archive 'test.zip': Operation cancelled

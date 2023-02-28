@@ -1,0 +1,7 @@
+# zip_open: file shall be created but already exists
+program tryopen
+args -e test.zip
+return 1
+file test.zip test.zip test.zip
+stdout opening 'test.zip' returned error 10
+stderr 1 errors

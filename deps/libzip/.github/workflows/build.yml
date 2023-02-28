@@ -1,0 +1,53 @@
+name: build
+on: [push]
+
+jobs:
+  all:
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }}${{ matrix.name_extra }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        cmake_extra: [""]
+        name_extra: [""]
+        include:
+          - os: windows-latest
+            cmake_extra: "-T ClangCl"
+            name_extra: " clang-cl"
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: install dependencies (Linux)
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          sudo apt-get install libzstd-dev
+      - name: install dependencies (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        uses: lukka/run-vcpkg@v7
+        id: runvcpkg
+        with:
+          vcpkgGitCommitId: f93ba152d55e1d243160e690bc302ffe8638358e
+          vcpkgTriplet: x64-windows
+          vcpkgArguments: zlib bzip2 liblzma zstd
+      - name: prepare build directory
+        run: |
+          cmake -E make_directory ${{runner.workspace}}/build
+      - name: configure (Unix)
+        if: ${{ runner.os != 'Windows' }}
+        working-directory: ${{runner.workspace}}/build
+        run: |
+          cmake ${{ matrix.cmake_extra }} ${{github.workspace}}
+      - name: configure (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        working-directory: ${{runner.workspace}}/build
+        run: |
+          cmake ${{ matrix.cmake_extra }} -DCMAKE_TOOLCHAIN_FILE=${{env.VCPKG_ROOT}}/scripts/buildsystems/vcpkg.cmake ${{github.workspace}}
+      - name: build
+        working-directory: ${{runner.workspace}}/build
+        run: |
+          cmake --build . --config Release
+      - name: test
+        working-directory: ${{runner.workspace}}/build
+        run: |
+          ctest -v -C Release

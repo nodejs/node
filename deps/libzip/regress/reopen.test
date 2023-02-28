@@ -1,0 +1,7 @@
+description check the reopen functionality
+return 0
+args -- testbuffer.zip cat 0 replace_file_contents 0 "Overwritten\n" cat 0 add newfile.txt "A new file\n" cat 1
+file testbuffer.zip testbuffer.zip testbuffer_reopen.zip
+stdout This is a test, and it seems to have been successful.
+stdout Overwritten
+stdout A new file

@@ -1,0 +1,4 @@
+# add directories to zip
+return 0
+args testdir.zip   add_dir testdir/   add_dir testdir-noslash
+file-new testdir.zip testdir.zip

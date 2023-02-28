@@ -1,0 +1,5 @@
+# change mtime in a zip archive, fails because file is PKWare-encrypted
+return 1
+args testfile set_file_mtime 0 1407272201
+file testfile encrypt.zip encrypt.zip
+stderr can't set file mtime at index '0' to '1407272201': Operation not supported

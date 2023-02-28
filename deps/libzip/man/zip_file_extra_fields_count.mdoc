@@ -1,0 +1,113 @@
+.\" zip_file_extra_fields_count.mdoc -- count extra field for file in zip
+.\" Copyright (C) 2012-2017 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP files.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd December 18, 2017
+.Dt ZIP_FILE_EXTRA_FIELDS_COUNT 3
+.Os
+.Sh NAME
+.Nm zip_file_extra_fields_count ,
+.Nm zip_file_extra_fields_count_by_id
+.Nd count extra fields for file in zip
+.Sh LIBRARY
+libzip (-lzip)
+.Sh SYNOPSIS
+.In zip.h
+.Ft zip_int16_t
+.Fn zip_file_extra_fields_count "zip_t *archive" "zip_uint64_t index" "zip_flags_t flags"
+.Ft zip_int16_t
+.Fn zip_file_extra_fields_count_by_id "zip_t *archive" "zip_uint64_t index" "zip_uint16_t extra_field_id" "zip_flags_t flags"
+.Sh DESCRIPTION
+The
+.Fn zip_file_extra_fields_count
+function counts the extra fields for the file at position
+.Ar index
+in the zip archive.
+.Pp
+The following
+.Ar flags
+are supported:
+.Bl -tag -width ZIP_FL_CENTRALXX -offset indent
+.It Dv ZIP_FL_CENTRAL
+Count extra fields from the archive's central directory.
+.It Dv ZIP_FL_LOCAL
+Count extra fields from the local file headers.
+.It Dv ZIP_FL_UNCHANGED
+Count the original unchanged extra fields, ignoring any changes made.
+.El
+.Pp
+The
+.Fn zip_file_extra_fields_count_by_id
+function counts the extra fields with ID (two-byte signature)
+.Ar extra_field_id .
+The other arguments are the same as for
+.Fn zip_file_extra_fields_count .
+.Pp
+Extra fields that are the same in the central directory and the local file
+header are merged into one.
+Therefore, the counts with
+.Dv ZIP_FL_CENTRAL
+and
+.Dv ZIP_FL_LOCAL
+do not need to add up to the same value as when given
+.Dv ZIP_FL_CENTRAL|ZIP_FL_LOCAL
+at the same time.
+.Sh RETURN VALUES
+Upon successful completion, the requested number of extra fields is returned.
+Otherwise, \-1 is returned and the error code in
+.Ar archive
+is set to indicate the error.
+.Sh ERRORS
+.Fn zip_file_extra_fields_count
+and
+.Fn zip_file_extra_fields_count_by_id
+fail if:
+.Bl -tag -width Er
+.It Bq Er ZIP_ER_NOENT
+.Ar index
+is not a valid file index in
+.Ar archive .
+.\" TODO: _zip_read_local_ef errors
+.El
+.Sh SEE ALSO
+.Xr libzip 3 ,
+.Xr zip_file_extra_field_delete 3 ,
+.Xr zip_file_extra_field_get 3 ,
+.Xr zip_file_extra_field_set 3
+.Sh HISTORY
+.Fn zip_file_extra_fields_count
+and
+.Fn zip_file_extra_fields_count_by_id
+were added in libzip 0.11.
+.Sh AUTHORS
+.An -nosplit
+.An Dieter Baron Aq Mt dillo@nih.at
+and
+.An Thomas Klausner Aq Mt tk@giga.or.at

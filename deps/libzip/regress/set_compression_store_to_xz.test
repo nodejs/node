@@ -1,0 +1,5 @@
+# change method from stored to xz-compressed
+features LIBLZMA
+return 0
+args test.zip  set_file_compression 0 xz 0
+file test.zip testfile-stored-dos.zip testfile-xz.zip

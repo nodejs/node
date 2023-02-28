@@ -1,0 +1,133 @@
+.\" zip_close.mdoc -- close zip archive
+.\" Copyright (C) 2003-2022 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd April 1, 2022
+.Dt ZIP_CLOSE 3
+.Os
+.Sh NAME
+.Nm zip_close
+.Nd close zip archive
+.Sh LIBRARY
+libzip (-lzip)
+.Sh SYNOPSIS
+.In zip.h
+.Ft int
+.Fn zip_close "zip_t *archive"
+.Sh DESCRIPTION
+The
+.Fn zip_close
+function writes any changes made to
+.Ar archive
+to disk.
+If
+.Ar archive
+contains no files, the file is completely removed (no empty archive is
+written).
+If successful,
+.Ar archive
+is freed.
+Otherwise
+.Ar archive
+is left unchanged and must still be freed.
+.Pp
+To close and free a zip archive without saving changes, use
+.Xr zip_discard 3 .
+.Pp
+Progress updates for GUIs can be implemented using
+.Xr zip_register_progress_callback_with_state 3 .
+Cancelling the write of an archive during
+.Nm
+can be implemented using
+.Xr zip_register_cancel_callback_with_state 3 .
+.Sh RETURN VALUES
+Upon successful completion 0 is returned.
+Otherwise, \-1 is returned and the error code in
+.Ar archive
+is set to indicate the error.
+.Sh ERRORS
+.Fn zip_close
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ZIP_ER_EOF
+Unexpected end-of-file found while reading from a file.
+.It Bq Er ZIP_ER_INTERNAL
+The callback function of an added or replaced file returned an
+error but failed to report which.
+.It Bq Er ZIP_ER_INVAL
+The
+.Ar path
+argument is
+.Dv NULL .
+.It Bq Er ZIP_ER_MEMORY
+Required memory could not be allocated.
+.It Bq Er ZIP_ER_NOZIP
+File is not a zip archive.
+.It Bq Er ZIP_ER_READ
+A file read failed.
+.It Bq Er ZIP_ER_RENAME
+A temporary file could not be renamed to its final name.
+.It Bq Er ZIP_ER_SEEK
+A file seek failed.
+.It Bq Er ZIP_ER_TMPOPEN
+A temporary file could not be created.
+.It Bq Er ZIP_ER_WRITE
+A file write failed.
+.It Bq Er ZIP_ER_ZLIB
+An error occurred while (de)compressing a stream with
+.Xr zlib 3 .
+.El
+Additionally, any errors returned by the callback function
+for added or replaced files will be passed back.
+.Sh SEE ALSO
+.Xr libzip 3 ,
+.Xr zip_discard 3 ,
+.Xr zip_fdopen 3 ,
+.Xr zip_get_error 3 ,
+.Xr zip_open 3 ,
+.Xr zip_register_cancel_callback_with_state 3 ,
+.Xr zip_register_progress_callback_with_state 3 ,
+.Xr zip_strerror 3
+.Sh HISTORY
+.Fn zip_close
+was added in libzip 0.6.
+.Sh AUTHORS
+.An -nosplit
+.An Dieter Baron Aq Mt dillo@nih.at
+and
+.An Thomas Klausner Aq Mt tk@giga.or.at
+.Sh CAVEATS
+Please note that all indices,
+.Xr zip_stat 3
+information and other data about the archive is invalid after
+.Nm .
+When you open the same file again, it will be a completely new
+.Vt zip_t
+structure.

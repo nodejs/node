@@ -1,0 +1,4 @@
+# create big zip64 zip file from scratch
+args -H bigstored.zh  add_nul bigzero 4294967296  set_file_compression 0 0 0  set_file_mtime 0 0  add_nul smallzero 16384  set_file_compression 1 0 0  set_file_mtime 1 0
+file-new bigstored.zh bigstored.zh
+return 0

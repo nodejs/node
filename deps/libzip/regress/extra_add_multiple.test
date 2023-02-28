@@ -1,0 +1,8 @@
+# add extra fields
+args testfile.zip  set_extra 0 2345 65535 cl extra1  set_extra 0 2345 65535 cl extra2  set_extra 0 2345 0 c extra1c  set_extra 0 2345 1 l extra2l  get_extra_by_id 0 2345 0 c  get_extra_by_id 0 2345 1 c  get_extra_by_id 0 2345 0 l  get_extra_by_id 0 2345 1 l
+return 0
+file testfile.zip testfile.zip testfile-plus-extra.zip
+stdout Extra field 0x0929: len 7, data 0x65787472613163
+stdout Extra field 0x0929: len 6, data 0x657874726132
+stdout Extra field 0x0929: len 6, data 0x657874726131
+stdout Extra field 0x0929: len 7, data 0x6578747261326c

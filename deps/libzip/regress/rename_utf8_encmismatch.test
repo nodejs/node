@@ -1,0 +1,4 @@
+# rename file to UTF-8 name in zip archive with CP437 comment (sets InfoZIP UTF-8 Name Extension)
+return 0
+args testfile rename 0 ÄÖÜßäöü
+file testfile test-cp437-fc.zip test-cp437-fc-utf-8-filename.zip

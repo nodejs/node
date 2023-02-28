@@ -1,0 +1,161 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zip_name_locate.mdoc -- get index of file by name
+.\" Copyright (C) 2003-2022 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIP_NAME_LOCATE" "3" "March 15, 2022" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzip_name_locate\fR
+\- get index of file by name
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.sp
+\fIzip_int64_t\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_name_locate\fR(\fIzip_t\ *archive\fR, \fIconst\ char\ *fname\fR, \fIzip_flags_t\ flags\fR);
+.PD
+.SH "DESCRIPTION"
+The
+\fBzip_name_locate\fR()
+function returns the index of the file named
+\fIfname\fR
+in
+\fIarchive\fR.
+If
+\fIarchive\fR
+does not contain a file with that name, \-1 is returned.
+.PP
+If neither
+\fRZIP_FL_ENC_RAW\fR
+nor
+\fRZIP_FL_ENC_STRICT\fR
+are specified, guess the encoding of the name in the ZIP archive and convert it
+to UTF-8, if necessary, before comparing.
+.PP
+If neither
+\fRZIP_FL_ENC_CP437\fR
+nor
+\fRZIP_FL_ENC_UTF_8\fR
+are specified, guess the encoding of
+\fIfname\fR.
+.PP
+Only CP-437 and UTF-8 are recognized.
+.PP
+The
+\fIflags\fR
+are specified by
+\fIor\fR'ing
+the following values, or 0 for none of them.
+.RS 6n
+.TP 19n
+\fRZIP_FL_NOCASE\fR
+Ignore case distinctions.
+(Will only work well if the file names are ASCII.)
+With this flag,
+\fBzip_name_locate\fR()
+will be slow for archives with many files.
+.TP 19n
+\fRZIP_FL_NODIR\fR
+Ignore directory part of file name in archive.
+With this flag,
+\fBzip_name_locate\fR()
+will be slow for archives with many files.
+.TP 19n
+\fRZIP_FL_ENC_GUESS\fR
+This flag has no effect (its value is 0); it can be used to explicitly denote the absence of encoding flags.
+.TP 19n
+\fRZIP_FL_ENC_RAW\fR
+Compare
+\fIfname\fR
+against the unmodified names as they are in the ZIP archive, without converting them to UTF-8.
+.TP 19n
+\fRZIP_FL_ENC_STRICT\fR
+Follow the ZIP specification and expect CP-437 encoded names in
+the ZIP archive (except if they are explicitly marked as UTF-8).
+Convert them to UTF-8 before comparing.
+.TP 19n
+\fRZIP_FL_ENC_CP437\fR
+\fIfname\fR
+is encoded as CP-437.
+.TP 19n
+\fRZIP_FL_ENC_UTF_8\fR
+\fIfname\fR
+is encoded as UTF-8.
+.RE
+.PP
+\fINote\fR:
+ASCII is a subset of both CP-437 and UTF-8.
+.SH "RETURN VALUES"
+\fBzip_name_locate\fR()
+returns the index of the file named
+\fIfname\fR
+or \-1, if
+\fIarchive\fR
+does not contain an entry of that name.
+.SH "ERRORS"
+\fBzip_name_locate\fR()
+fails if:
+.TP 19n
+[\fRZIP_ER_INVAL\fR]
+One of the arguments is invalid.
+.TP 19n
+[\fRZIP_ER_MEMORY\fR]
+Required memory could not be allocated.
+.TP 19n
+[\fRZIP_ER_NOENT\fR]
+No entry of the name
+\fIfname\fR
+is found in the archive.
+.SH "SEE ALSO"
+libzip(3),
+zip_get_name(3)
+.SH "HISTORY"
+\fBzip_name_locate\fR()
+was added in libzip 0.6.
+In libzip 0.11 the return type was changed from
+\fIint\fR
+to
+\fIzip_int64_t\fR.
+In libzip 0.11 the type of
+\fIflags\fR
+was changed from
+\fIint\fR
+to
+\fIzip_flags_t\fR.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

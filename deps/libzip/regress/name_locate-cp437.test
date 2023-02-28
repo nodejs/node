@@ -1,0 +1,9 @@
+description tests for various encoding flags for zip_name_locate
+args test.zip  name_locate "‘’“”•–—˜™š›œŸ " 0  name_locate "‘’“”•–—˜™š›œŸ " 4  name_locate "‘’“”•–—˜™š›œŸ " 8  name_locate "‘’“”•–—˜™š›œŸ " r  name_locate "‘’“”•–—˜™š›œŸ " s
+return 0
+file test.zip test-cp437.zip test-cp437.zip
+stdout name '‘’“”•–—˜™š›œŸ ' using flags '0' found at index 9
+stdout name '‘’“”•–—˜™š›œŸ ' using flags '4' found at index 9
+stdout name '‘’“”•–—˜™š›œŸ ' using flags 'r' found at index 9
+stdout name '‘’“”•–—˜™š›œŸ ' using flags 's' found at index 9
+stderr can't find entry with name '‘’“”•–—˜™š›œŸ ' using flags '8'

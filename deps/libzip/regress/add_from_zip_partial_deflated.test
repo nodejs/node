@@ -1,0 +1,5 @@
+# add parts of a file from zip to zip
+return 0
+args -- testfile.zip   add_from_zip first firstsecond.zzip 0 0 9   add_from_zip second firstsecond.zzip 0 9 -1
+file firstsecond.zzip firstsecond.zip firstsecond.zip
+file-new testfile.zip firstsecond-split-stored.zip

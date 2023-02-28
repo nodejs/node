@@ -1,0 +1,6 @@
+# add file to zip
+program add_from_filep
+return 0
+args testfile.zip testfile.txt
+file testfile.txt testfile.txt testfile.txt
+file-new testfile.zip testfile.zip

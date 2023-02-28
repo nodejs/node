@@ -1,0 +1,4 @@
+# rename file inside zip archive
+return 0
+args -mF 100 rename.zip  rename 1 notfile2
+file rename.zip testcomment.zip rename_ok.zip

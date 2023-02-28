@@ -1,0 +1,4 @@
+# add buffer contents as file to zip
+return 0
+args testbuffer.zip add teststring.txt "This is a test, and it seems to have been successful.\n"
+file-new testbuffer.zip testbuffer.zip

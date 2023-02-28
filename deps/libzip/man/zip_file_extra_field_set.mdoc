@@ -1,0 +1,115 @@
+.\" zip_file_extra_field_set.mdoc -- set extra field for file in zip
+.\" Copyright (C) 2012-2017 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP files.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd December 18, 2017
+.Dt ZIP_FILE_EXTRA_FIELD_SET 3
+.Os
+.Sh NAME
+.Nm zip_file_extra_field_set
+.Nd set extra field for file in zip
+.Sh LIBRARY
+libzip (-lzip)
+.Sh SYNOPSIS
+.In zip.h
+.Ft int
+.Fn zip_file_extra_field_set "zip_t *archive" "zip_uint64_t index" "zip_uint16_t extra_field_id" "zip_uint16_t extra_field_index" "const zip_uint8_t *extra_field_data" "zip_uint16_t len" "zip_flags_t flags"
+.Sh DESCRIPTION
+The
+.Fn zip_file_extra_field_set
+function sets the extra field with ID (two-byte signature)
+.Ar extra_field_id
+and index
+.Ar extra_field_index
+for the file at position
+.Ar index
+in the zip archive.
+The extra field's data will be set to
+.Ar extra_field_data
+and length
+.Ar len .
+If a new entry shall be appended, set
+.Ar extra_field_index
+to
+.Dv ZIP_EXTRA_FIELD_NEW .
+.Pp
+At least one of the following
+.Ar flags
+must be set:
+.Bl -tag -width ZIP_FL_CENTRALXX -offset indent
+.It Dv ZIP_FL_CENTRAL
+Set extra field in the archive's central directory.
+.It Dv ZIP_FL_LOCAL
+Set extra field in the local file headers.
+.El
+.Pp
+Please note that the extra field IDs 0x0001 (ZIP64 extension),
+0x6375 (Infozip UTF-8 comment), and
+0x7075 (Infozip UTF-8 file name) can not be set using
+.Fn zip_file_extra_field_set
+since they are set by
+.Xr libzip 3
+automatically when needed.
+.Sh RETURN VALUES
+Upon successful completion 0 is returned.
+Otherwise, \-1 is returned and the error code in
+.Ar archive
+is set to indicate the error.
+.Sh ERRORS
+.Fn zip_file_extra_field_set
+fails if:
+.Bl -tag -width Er
+.It Bq Er ZIP_ER_INVAL
+The extra field size is too large (ID and length need 4 bytes; the
+maximum length of all extra fields for one file combined is 65536
+bytes).
+This error also occurs if
+.Ar extra_field_index
+is too large.
+.It Bq Er ZIP_ER_MEMORY
+Required memory could not be allocated.
+.It Bq Er ZIP_ER_NOENT
+.Ar index
+is not a valid file index in
+.Ar archive .
+.El
+.Sh SEE ALSO
+.Xr libzip 3 ,
+.Xr zip_file_extra_field_delete 3 ,
+.Xr zip_file_extra_field_get 3 ,
+.Xr zip_file_extra_fields_count 3
+.Sh HISTORY
+.Fn zip_file_extra_field_set
+was added in libzip 0.11.
+.Sh AUTHORS
+.An -nosplit
+.An Dieter Baron Aq Mt dillo@nih.at
+and
+.An Thomas Klausner Aq Mt tk@giga.or.at

@@ -1,0 +1,409 @@
+.\" zip_source_function.mdoc -- create data source from function
+.\" Copyright (C) 2004-2022 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd June 28, 2022
+.Dt ZIP_SOURCE_FUNCTION 3
+.Os
+.Sh NAME
+.Nm zip_source_function ,
+.Nm zip_source_function_create
+.Nd create data source from function
+.Sh LIBRARY
+libzip (-lzip)
+.Sh SYNOPSIS
+.In zip.h
+.Ft zip_source_t *
+.Fn zip_source_function "zip_t *archive" "zip_source_callback fn" "void *userdata"
+.Ft zip_source_t *
+.Fn zip_source_function_create "zip_source_callback fn" "void *userdata" "zip_error_t *error"
+.Sh DESCRIPTION
+The functions
+.Fn zip_source_function
+and
+.Fn zip_source_function_create
+create a zip source from the user-provided function
+.Ar fn ,
+which must be of the following type:
+.Pp
+.Ft typedef zip_int64_t
+.Fo \fR(*\fPzip_source_callback\fR)\fP
+.Fa "void *userdata" "void *data" "zip_uint64_t len" "zip_source_cmd_t cmd"
+.Fc
+.Pp
+.Ar archive
+or
+.Ar error
+are used for reporting errors and can be
+.Dv NULL .
+.Pp
+When called by the library, the first argument is the
+.Ar userdata
+argument supplied to the function.
+The next two arguments are a buffer
+.Ar data
+of size
+.Ar len
+when data is passed in or expected to be returned, or else
+.Dv NULL
+and 0.
+The last argument,
+.Ar cmd ,
+specifies which action the function should perform.
+.Pp
+Depending on the uses, there are three useful sets of commands to be supported by a
+.Fn zip_source_callback :
+.Bl -tag -width seekable-read-sourceXX
+.It read source
+Providing streamed data (for file data added to archives).
+Must support
+.Dv ZIP_SOURCE_OPEN ,
+.Dv ZIP_SOURCE_READ ,
+.Dv ZIP_SOURCE_CLOSE ,
+.Dv ZIP_SOURCE_STAT ,
+and
+.Dv ZIP_SOURCE_ERROR .
+.It seekable read source
+Same as previous, but from a source allowing reading from arbitrary
+offsets (also for read-only zip archive).
+Must additionally support
+.Dv ZIP_SOURCE_SEEK ,
+.Dv ZIP_SOURCE_TELL ,
+and
+.Dv ZIP_SOURCE_SUPPORTS .
+.It read/write source
+Same as previous, but additionally allowing writing (also for writable
+zip archives).
+Must additionally support
+.Dv ZIP_SOURCE_BEGIN_WRITE ,
+.Dv ZIP_SOURCE_COMMIT_WRITE ,
+.Dv ZIP_SOURCE_ROLLBACK_WRITE ,
+.Dv ZIP_SOURCE_SEEK_WRITE ,
+.Dv ZIP_SOURCE_TELL_WRITE ,
+and
+.Dv ZIP_SOURCE_REMOVE .
+.Pp
+On top of the above, supporting the pseudo-command
+.Dv ZIP_SOURCE_SUPPORTS_REOPEN
+allows calling
+.Fn zip_source_open
+again after calling
+.Fn zip_source_close .
+.El
+.Ss Dv ZIP_SOURCE_ACCEPT_EMPTY
+Return 1 if an empty source should be accepted as a valid zip archive.
+This is the default if this command is not supported by a source.
+File system backed sources should return 0.
+.Ss Dv ZIP_SOURCE_BEGIN_WRITE
+Prepare the source for writing.
+Use this to create any temporary file(s).
+.Ss Dv ZIP_SOURCE_BEGIN_WRITE_CLONING
+Prepare the source for writing, keeping the first
+.Ar len
+bytes of the original file.
+Only implement this command if it is more efficient than copying the
+data, and if it does not destructively overwrite the original file
+(you still have to be able to execute
+.Dv ZIP_SOURCE_ROLLBACK_WRITE ) .
+.Pp
+The next write should happen at byte
+.Ar offset .
+.Ss Dv ZIP_SOURCE_CLOSE
+Reading is done.
+.Ss Dv ZIP_SOURCE_COMMIT_WRITE
+Finish writing to the source.
+Replace the original data with the newly written data.
+Clean up temporary files or internal buffers.
+Subsequently opening and reading from the source should return the
+newly written data.
+.Ss Dv ZIP_SOURCE_ERROR
+Get error information.
+.Ar data
+points to an array of two ints, which should be filled with the libzip
+error code and the corresponding system error code for the error that
+occurred.
+See
+.Xr zip_errors 3
+for details on the error codes.
+If the source stores error information in a zip_error_t, use
+.Xr zip_error_to_data 3
+and return its return value.
+Otherwise, return 2 * sizeof(int).
+.Ss Dv ZIP_SOURCE_FREE
+Clean up and free all resources, including
+.Ar userdata .
+The callback function will not be called again.
+.Ss Dv ZIP_SOURCE_GET_FILE_ATTRIBUTES
+Provide information about various data.
+Then the data should be put in the appropriate entry in the passed
+.Vt zip_file_attributes_t
+argument, and the appropriate
+.Dv ZIP_FILE_ATTRIBUTES_*
+value must be or'ed into the
+.Ar valid
+member to denote that the corresponding data has been provided.
+A
+.Vt zip_file_attributes_t
+structure can be initialized using
+.Xr zip_file_attributes_init 3 .
+.Bl -tag -width 10n
+.It ASCII mode
+If a file is a plaintext file in ASCII.
+Can be used by extraction tools to automatically convert line endings
+(part of the internal file attributes).
+Member
+.Ar ascii ,
+flag
+.Dv ZIP_FILE_ATTRIBUTES_ASCII .
+.It General Purpose Bit Flags (limited to Compression Flags)
+The general purpose bit flag in the zip in the local and central
+directory headers contain information about the compression method.
+Member
+.Ar general_purpose_bit_flags
+and
+.Ar general_purpose_bit_mask
+to denote which members have been set;
+flag
+.Dv ZIP_FILE_ATTRIBUTES_GENERAL_PURPOSE_BIT_FLAGS .
+.It External File Attributes
+The external file attributes (usually operating system-specific).
+Member
+.Ar external_file_attributes ,
+flag
+.Dv ZIP_FILE_ATTRIBUTES_EXTERNAL_FILE_ATTRIBUTES .
+.It Version Needed
+A minimum version needed required to unpack this entry (in the usual
+"major * 10 + minor" format).
+Member
+.Ar version_needed ,
+flag
+.Dv ZIP_FILE_ATTRIBUTES_VERSION_NEEDED .
+.It Operating System
+One of the operating systems as defined by the
+.Dv ZIP_OPSYS_*
+variables (see
+.Pa zip.h ) .
+This value affects the interpretation of the external file attributes.
+Member
+.Ar host_system ,
+flag
+.Dv ZIP_FILE_ATTRIBUTES_HOST_SYSTEM .
+.El
+.Ss Dv ZIP_SOURCE_OPEN
+Prepare for reading.
+.Ss Dv ZIP_SOURCE_READ
+Read data into the buffer
+.Ar data
+of size
+.Ar len .
+Return the number of bytes placed into
+.Ar data
+on success, and zero for end-of-file.
+.Ss Dv ZIP_SOURCE_REMOVE
+Remove the underlying file.
+This is called if a zip archive is empty when closed.
+.Ss Dv ZIP_SOURCE_ROLLBACK_WRITE
+Abort writing to the source.
+Discard written data.
+Clean up temporary files or internal buffers.
+Subsequently opening and reading from the source should return the
+original data.
+.Ss Dv ZIP_SOURCE_SEEK
+Specify position to read next byte from, like
+.Xr fseek 3 .
+Use
+.Xr ZIP_SOURCE_GET_ARGS 3
+to decode the arguments into the following struct:
+.Bd -literal
+struct zip_source_args_seek {
+    zip_int64_t offset;
+    int whence;
+};
+.Ed
+.Pp
+If the size of the source's data is known, use
+.Xr zip_source_seek_compute_offset 3
+to validate the arguments and compute the new offset.
+.Ss Dv ZIP_SOURCE_SEEK_WRITE
+Specify position to write next byte to, like
+.Xr fseek 3 .
+See
+.Dv ZIP_SOURCE_SEEK
+for details.
+.Ss Dv ZIP_SOURCE_STAT
+Get meta information for the input data.
+.Ar data
+points to an allocated
+.Vt struct zip_stat ,
+which should be initialized using
+.Xr zip_stat_init 3
+and then filled in.
+.Pp
+For uncompressed, unencrypted data, all information is optional.
+However, fill in as much information as is readily available.
+.Pp
+If the data is compressed,
+.Dv ZIP_STAT_COMP_METHOD ,
+.Dv ZIP_STAT_SIZE ,
+and
+.Dv ZIP_STAT_CRC
+must be filled in.
+.Pp
+If the data is encrypted,
+.Dv ZIP_STAT_ENCRYPTION_METHOD ,
+.Dv ZIP_STAT_COMP_METHOD ,
+.Dv ZIP_STAT_SIZE ,
+and
+.Dv ZIP_STAT_CRC
+must be filled in.
+.Pp
+Information only available after the source has been read (e.g., size)
+can be omitted in an earlier call.
+.Em NOTE :
+.Fn zip_source_function
+may be called with this argument even after being called with
+.Dv ZIP_SOURCE_CLOSE .
+.Pp
+Return sizeof(struct zip_stat) on success.
+.Ss Dv ZIP_SOURCE_SUPPORTS
+Return bitmap specifying which commands are supported.
+Use
+.Xr zip_source_make_command_bitmap 3 .
+If this command is not implemented, the source is assumed to be a
+read source without seek support.
+.Ss Dv ZIP_SOURCE_TELL
+Return the current read offset in the source, like
+.Xr ftell 3 .
+.Ss Dv ZIP_SOURCE_TELL_WRITE
+Return the current write offset in the source, like
+.Xr ftell 3 .
+.Ss Dv ZIP_SOURCE_WRITE
+Write data to the source.
+Return number of bytes written.
+.Ss Dv ZIP_SOURCE_SUPPORTS_REOPEN
+This command is never actually invoked, support for it signals the
+ability to handle multiple open/read/close cycles.
+.Ss Return Values
+Commands should return \-1 on error.
+.Dv ZIP_SOURCE_ERROR
+will be called to retrieve the error code.
+On success, commands return 0, unless specified otherwise in the
+description above.
+.Ss Calling Conventions
+The library will always issue
+.Dv ZIP_SOURCE_OPEN
+before issuing
+.Dv ZIP_SOURCE_READ ,
+.Dv ZIP_SOURCE_SEEK ,
+or
+.Dv ZIP_SOURCE_TELL .
+When it no longer wishes to read from this source, it will issue
+.Dv ZIP_SOURCE_CLOSE .
+If the library wishes to read the data again, it will issue
+.Dv ZIP_SOURCE_OPEN
+a second time.
+If the function is unable to provide the data again, it should
+return \-1.
+.Pp
+.Dv ZIP_SOURCE_BEGIN_WRITE
+or
+.Dv ZIP_SOURCE_BEGIN_WRITE_CLONING
+will be called before
+.Dv ZIP_SOURCE_WRITE ,
+.Dv ZIP_SOURCE_SEEK_WRITE ,
+or
+.Dv ZIP_SOURCE_TELL_WRITE .
+When writing is complete, either
+.Dv ZIP_SOURCE_COMMIT_WRITE
+or
+.Dv ZIP_SOURCE_ROLLBACK_WRITE
+will be called.
+.Pp
+.Dv ZIP_SOURCE_ACCEPT_EMPTY ,
+.Dv ZIP_SOURCE_GET_FILE_ATTRIBUTES ,
+and
+.Dv ZIP_SOURCE_STAT
+can be issued at any time.
+.Pp
+.Dv ZIP_SOURCE_ERROR
+will only be issued in response to the function
+returning \-1.
+.Pp
+.Dv ZIP_SOURCE_FREE
+will be the last command issued;
+if
+.Dv ZIP_SOURCE_OPEN
+was called and succeeded,
+.Dv ZIP_SOURCE_CLOSE
+will be called before
+.Dv ZIP_SOURCE_FREE ,
+and similarly for
+.Dv ZIP_SOURCE_BEGIN_WRITE
+or
+.Dv ZIP_SOURCE_BEGIN_WRITE_CLONING
+and
+.Dv ZIP_SOURCE_COMMIT_WRITE
+or
+.Dv ZIP_SOURCE_ROLLBACK_WRITE .
+.Sh RETURN VALUES
+Upon successful completion, the created source is returned.
+Otherwise,
+.Dv NULL
+is returned and the error code in
+.Ar archive
+or
+.Ar error
+is set to indicate the error (unless
+it is
+.Dv NULL ) .
+.Sh ERRORS
+.Fn zip_source_function
+fails if:
+.Bl -tag -width Er
+.It Bq Er ZIP_ER_MEMORY
+Required memory could not be allocated.
+.El
+.Sh SEE ALSO
+.Xr libzip 3 ,
+.Xr zip_file_add 3 ,
+.Xr zip_file_attributes_init 3 ,
+.Xr zip_file_replace 3 ,
+.Xr zip_source 3 ,
+.Xr zip_stat_init 3
+.Sh HISTORY
+.Fn zip_source_function
+and
+.Fn zip_source_function_create
+were added in libzip 1.0.
+.Sh AUTHORS
+.An -nosplit
+.An Dieter Baron Aq Mt dillo@nih.at
+and
+.An Thomas Klausner Aq Mt tk@giga.or.at

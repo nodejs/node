@@ -1,0 +1,5 @@
+# add buffer contents as file to zip, then read unchanged from it
+program fopen_unchanged
+return 1
+args testbuffer.zip
+stderr can't zip_fopen file 'teststring.txt': No such file

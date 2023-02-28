@@ -1,0 +1,14 @@
+# show comments of a zip archive
+return 0
+args testcomment.zip   get_archive_comment   get_file_comment 0   get_file_comment 1   get_file_comment 2   get_file_comment 3
+file testcomment.zip testcomment.zip testcomment.zip
+stdout Archive comment: This is the archive comment for the file.
+stdout 
+stdout Long.
+stdout 
+stdout Longer.
+stdout 
+stdout No comment for 'file1'
+stdout File comment for 'file2': First one had no comment.
+stdout File comment for 'file3': Third one.
+stdout File comment for 'file4': Last.

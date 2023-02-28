@@ -1,0 +1,5 @@
+# add file to zip
+return 0
+args -- testfile.zip   add_file testfile.txt testfile.txt 0 -1
+file testfile.txt testfile.txt testfile.txt
+file-new testfile.zip testfile.zip

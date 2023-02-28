@@ -1,0 +1,6 @@
+# successful fseek test
+program fseek
+args test.zip 0 2
+return 0
+file test.zip test.zip test.zip
+stdout st

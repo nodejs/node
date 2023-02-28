@@ -1,0 +1,13 @@
+# stat file in zip that contains archive comment to find out if it detected the right one of the two
+args zip-in-archive-comment.zip stat 0
+file zip-in-archive-comment.zip zip-in-archive-comment.zip zip-in-archive-comment.zip
+return 0
+stdout name: 'testfile.txt'
+stdout index: '0'
+stdout size: '0'
+stdout compressed size: '0'
+stdout mtime: 'Fri Jul 15 2005 16:37:14'
+stdout crc: '0'
+stdout compression method: '0'
+stdout encryption method: '0'
+stdout 

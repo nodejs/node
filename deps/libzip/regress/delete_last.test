@@ -1,0 +1,4 @@
+# delete last entry in zip archive
+return 0
+args testfile.zzip delete 0
+file-del testfile.zzip testfile.zip

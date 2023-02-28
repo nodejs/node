@@ -254,6 +254,42 @@ possible to determine whether the input ended prematurely or lacks the
 integrity checks, making it necessary to manually check that the
 decompressed result is valid.
 
+## Compressing multiple files together
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `zlib` library provides ways to compress individual objects, but not to
+aggregate multiple ones into a single file suitable for redistribution (what
+is often called archival).
+
+To this end, `node:zip` provides the `ZipArchive` class which allows to create,
+read, and modify zip archives:
+
+```js
+const fs = require('node:fs');
+const { ZipArchive } = require('node:zlib');
+
+const zip = new ZipArchive();
+zip.addFile('README.md', fs.readFileSync('README.md'));
+const data = zip.digest();
+
+fs.writeFileSync('archive.zip', data);
+```
+
+The constructor accepts a buffer instance as parameter, which can be useful to
+inspect the content of existing archives:
+
+```js
+const fs = require('node:fs');
+const { ZipArchive } = require('node:zlib');
+
+const zip = new ZipArchive(fs.readFileSync('archive.zip'));
+const entries = zip.getEntries();
+const file = zip.readEntry(entries.get('README.md'));
+```
+
 ## Memory usage tuning
 
 <!--type=misc-->
@@ -486,6 +522,72 @@ These advanced options are available for controlling decompression:
 * `BROTLI_DECODER_PARAM_LARGE_WINDOW`
   * Boolean flag enabling “Large Window Brotli” mode (not compatible with the
     Brotli format as standardized in [RFC 7932][]).
+
+### Zip constants
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+There are several options and other constants available when working with zip
+archives:
+
+#### Opsys constants
+
+These values may be used when using the `restatEntry` function. In general you
+should only need `ZIP_OPSYS_UNIX`, which allows you to describe both file
+permissions and symlinks.
+
+* `ZIP_OPSYS_DOS`
+* `ZIP_OPSYS_AMIGA`
+* `ZIP_OPSYS_OPENVMS`
+* `ZIP_OPSYS_UNIX`
+* `ZIP_OPSYS_VM_CMS`
+* `ZIP_OPSYS_ATARI_ST`
+* `ZIP_OPSYS_OS_2`
+* `ZIP_OPSYS_MACINTOSH`
+* `ZIP_OPSYS_Z_SYSTEM`
+* `ZIP_OPSYS_CPM`
+* `ZIP_OPSYS_WINDOWS_NTFS`
+* `ZIP_OPSYS_MVS`
+* `ZIP_OPSYS_VSE`
+* `ZIP_OPSYS_ACORN_RISC`
+* `ZIP_OPSYS_VFAT`
+* `ZIP_OPSYS_ALTERNATE_MVS`
+* `ZIP_OPSYS_BEOS`
+* `ZIP_OPSYS_TANDEM`
+* `ZIP_OPSYS_OS_400`
+* `ZIP_OPSYS_OS_X`
+
+#### Compression constants
+
+These values may be used with the `addFile` function. Brotli isn't officially
+supported by the Zip format - you can still use it as an underlying data format
+if you compress the data yourself, but because it doesn't have a standardized
+compression constant, third-party tools will see the content as corrupted.
+
+* `ZIP_CM_DEFAULT`
+* `ZIP_CM_STORE`
+* `ZIP_CM_SHRINK`
+* `ZIP_CM_REDUCE_1`
+* `ZIP_CM_REDUCE_2`
+* `ZIP_CM_REDUCE_3`
+* `ZIP_CM_REDUCE_4`
+* `ZIP_CM_IMPLODE`
+* `ZIP_CM_DEFLATE`
+* `ZIP_CM_DEFLATE64`
+* `ZIP_CM_PKWARE_IMPLODE`
+* `ZIP_CM_BZIP2`
+* `ZIP_CM_TERSE`
+* `ZIP_CM_LZMA`
+* `ZIP_CM_LZ77`
+* `ZIP_CM_LZMA2`
+* `ZIP_CM_ZSTD`
+* `ZIP_CM_XZ`
+* `ZIP_CM_JPEG`
+* `ZIP_CM_WAVPACK`
+* `ZIP_CM_PPMD`
 
 ## Class: `Options`
 
@@ -1219,6 +1321,86 @@ changes:
 * `options` {zlib options}
 
 Decompress a chunk of data with [`Unzip`][].
+
+## Class: `zlib.ZipArchive`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental.
+
+### `zip.addFile(path, data[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string}
+* `data` {string|Buffer|TypedArray|DataView}
+* `options` {Object|string}
+  * `algorithm` {number|null} **Default:** `zlib.ZIP_CM_DEFLATE`
+  * `compress` {boolean|null} **Default:** `true`
+  * `encoding` {string|null} **Default:** `'utf8'`
+  * `tolerateStore` {boolean|null} **Default:** `true`
+  * `crc` {string|null} **Default:** `null`
+  * `size` {number|null} **Default:** `'utf8'`
+* Returns: {number} Returns an entry number upon success.
+
+Adds or updates a file inside the given zip archive. If `compress` is `true`,
+the data will first be compressed according to `algorithm`. If the resulting
+buffer is smaller than the original one, or if `tolerateStore` is set to
+`false`, it'll be stored inside the archive. Otherwise, the original data
+will be stored as-is.
+
+If `compress` is set to `false`, the data is assumed to be pre-compressed. In
+that case, both `crc` and `size` have to be provided, as they each refer to the
+original content. In the case of `crc`, it can be obtained by calling
+`crc32Sync` on the original content.
+
+### `zip.addSymlink(path, target)`
+
+* `path` {string}
+* `target` {string}
+* Returns: {number} Returns an entry number upon success.
+
+Adds or updates a file inside the given zip archive. The file metadata will be
+set those of a symlink, using `ZIP_OPSYS_UNIX`.
+
+### `zip.deleteEntry(entry)`
+
+* `entry` {number}
+
+Removes an entry from a given zip archive.
+
+### `zip.getEntries([options])`
+
+* `options` {Object}
+  * `withFileTypes` {boolean|null} **Default:** `false`
+* Returns: {Map} Returns a map where keys are paths and values are numbers
+  suitable for use in other functions accepting entry numbers.
+
+Returns a map of all the entries within the zip archive. Because of how zip
+works, not all entries are files: some may be directories too. To know their
+types for sure, set the `withFileTypes` option to true.
+
+### `zip.readEntry(entry[, options])`
+
+* `entry` {number}
+* `options` {Object|string}
+  * `decompress` {boolean|null} **Default:** `true`
+  * `encoding` {string|null} **Default:** `'utf8'`
+
+Reads the content associated with an entry. If the `decompress` option is set
+to `true` (the default), the function will decompress the data before returning
+it. Otherwise, an `[algorithm, data]` tuple will be returned that you'll then
+have to uncompress yourself.
+
+### `zip.statEntry(entry)`
+
+* `entry` {number}
+
+Retrieves the metadata associated with the given entry.
 
 [Brotli parameters]: #brotli-constants
 [Memory usage tuning]: #memory-usage-tuning

@@ -1,0 +1,81 @@
+os:
+- Visual Studio 2017
+
+environment:
+  matrix:
+    - GENERATOR: "Visual Studio 15 2017 Win64"
+      TRIPLET: x64-windows
+      CMAKE_OPTS: "-DBUILD_SHARED_LIBS=off"
+      CMAKE_CONFIG: Release
+      RUN_TESTS: yes
+#    - GENERATOR: "Visual Studio 15 2017 Win64"
+#      TRIPLET: x64-windows
+#      CMAKE_OPTS: "-DBUILD_SHARED_LIBS=off"
+#      CMAKE_CONFIG: Debug
+#      RUN_TESTS: yes
+    - GENERATOR: "Visual Studio 15 2017 Win64"
+      TRIPLET: x64-uwp
+      CMAKE_OPTS: "-DCMAKE_SYSTEM_NAME=WindowsStore -DCMAKE_SYSTEM_VERSION=10.0"
+      CMAKE_CONFIG: Release
+      RUN_TESTS: no
+    - GENERATOR: "Visual Studio 15 2017"
+      TRIPLET: x86-windows
+      CMAKE_OPTS: "-DBUILD_SHARED_LIBS=off"
+      CMAKE_CONFIG: Release
+      RUN_TESTS: yes
+#    - GENERATOR: "Visual Studio 15 2017"
+#      TRIPLET: x86-windows
+#      CMAKE_OPTS: "-DBUILD_SHARED_LIBS=off"
+#      CMAKE_CONFIG: Debug
+#      RUN_TESTS: yes
+    - GENERATOR: "Visual Studio 15 2017"
+      TRIPLET: x86-uwp
+      CMAKE_OPTS: "-DCMAKE_SYSTEM_NAME=WindowsStore -DCMAKE_SYSTEM_VERSION=10.0"
+      CMAKE_CONFIG: Release
+      RUN_TESTS: no
+    - GENERATOR: "Visual Studio 15 2017 ARM"
+      TRIPLET: arm-windows
+      CMAKE_OPTS: "-DENABLE_OPENSSL=off"
+      CMAKE_CONFIG: Release
+      RUN_TESTS: no
+    - GENERATOR: "Visual Studio 15 2017 ARM"
+      TRIPLET: arm-uwp
+      CMAKE_OPTS: "-DCMAKE_SYSTEM_NAME=WindowsStore -DCMAKE_SYSTEM_VERSION=10.0 -DENABLE_OPENSSL=off"
+      CMAKE_CONFIG: Release
+      RUN_TESTS: no
+    - GENERATOR: "Visual Studio 15 2017"
+      TRIPLET: arm64-windows
+      CMAKE_OPTS: "-AARM64 -DENABLE_OPENSSL=off"
+      CMAKE_CONFIG: Release
+      RUN_TESTS: no
+    - GENERATOR: "Visual Studio 15 2017"
+      TRIPLET: arm64-uwp
+      CMAKE_OPTS: "-AARM64 -DCMAKE_SYSTEM_NAME=WindowsStore -DCMAKE_SYSTEM_VERSION=10.0 -DENABLE_OPENSSL=off"
+      CMAKE_CONFIG: Release
+      RUN_TESTS: no
+
+before_build:
+  cmd: >-
+    vcpkg install zlib:%TRIPLET% bzip2:%TRIPLET% liblzma:%TRIPLET% zstd:%TRIPLET%
+
+    mkdir build
+
+    cd build
+
+    cmake -DCMAKE_TOOLCHAIN_FILE=C:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake .. -G "%GENERATOR%" %CMAKE_OPTS%
+
+    appveyor PushArtifact config.h
+
+    appveyor PushArtifact CMakeCache.txt
+
+build_script:
+  cmd: >-
+    cmake --build . --config %CMAKE_CONFIG% --target INSTALL
+
+    cmake --build . --config %CMAKE_CONFIG%
+
+test_script:
+  cmd: >-
+    set VERBOSE=yes
+
+    IF %RUN_TESTS%==yes ( ctest -C %CMAKE_CONFIG% --output-on-failure )

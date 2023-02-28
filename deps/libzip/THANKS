@@ -1,0 +1,149 @@
+Thanks to Info-ZIP for info on the DOS-time/date conversion code,
+and some other general information gathered from their sources.
+
+Thanks to these people for suggestions, testing, and bug reports:
+
+ag2s20150909
+Agostino Sarubbo
+Alberto Spin
+Alexander Galanin <al@galanin.nnov.ru>
+Alexandr Shadchin <alexandr.shadchin@gmail.com>
+Alexey Bykov <gnfalex@rambler.ru>
+Andreas Deininger <andreas@deininger.net>
+Andreas Falkenhahn <andreas@falkenhahn.com>
+Andrew Brampton <brampton@gmail.com>
+Andrew Molyneux <andrew@molyneuxfamily.co.uk>
+Ankur Kothari <ankz.kothari@gmail.com>
+Antonin Décimo <antonin.decimo@gmail.com>
+Arseniy Terekhin <senyai@gmail.com>
+BALATON Zoltan <balaton@eik.bme.hu>
+Benjamin Gilbert <bgilbert@backtick.net>
+Beuc <beuc@beuc.net>
+Boaz Stolk <bstolk@aweta.nl>
+Bogdan <bogiebog@gmail.com>
+Brian 'geeknik' Carpenter <geeknik@protonmail.ch>
+Carl Mastrangelo <notcarl@google.com>
+Cédric Tabin
+celan69
+Charlie Li <git@vishwin.info>
+Chris Nehren <cnehren+libzip@pobox.com>
+Christoph Cullmann <cullmann@kde.org>
+Christoph M. Becker <cmbecker69@gmx.de>
+Coverity <info@coverity.com>
+cryi <cryi@tutanota.com>
+ctenter-scs
+Dane Springmeyer <dane.springmeyer@gmail.com>
+Daniel Russel <drussel@gmail.com>
+Ларионов Даниил <scumcoder@yandex.ru>
+David Demelier <demelier.david@gmail.com>
+Dean Ellis <dellis1972@googlemail.com>
+Declan Moran
+Del Merritt <del@alum.mit.edu>
+Devin Davila <daviladsoftware@gmail.com>
+Dmytro Rybachenko <atmoliton@gmail.com>
+Eelco Dolstra
+Elvis Angelaccio
+Erwin Haid <erwin.haid@gmx.de>
+Eun-cheol Joo
+Fabrice Fontaine
+Filip Niksic
+Florian Delizy <florian.delizy@gmail.com>
+Force Charlie <charlieio@outlook.com>
+François Simon <AT.GFI.Francois.SIMON@sesam-vitale.fr>
+Frederik Ramm <frederik@remote.org>
+gk7huki <gk7huki@gmail.com>
+Gerard ODonnell
+Giovanni
+Hanno Böck <hanno@hboeck.de>
+HeeMyung
+Heiko Becker
+Heiko Hund <heiko@ist.eigentlich.net>
+hongjunwang
+Ilya Voronin
+Info-ZIP group
+Ivan Kolesnikov <kiv.apple@gmail.com>
+Jan Weiß <jan@geheimwerk.de>
+Jay Freeman (saurik) <saurik@saurik.com>
+jloqfjgk@github
+Joachim Reichel <joachim.reichel@gmx.de>
+João Custódio <joao_custodio@symantec.com>
+Joel Ebrahimi <joel.ebrahimi@gmail.com>
+Jono Spiro <jono.spiro@gmail.com>
+Julien Matthey <julien@turtlespeak.net>
+Julien Schueller <schueller@phimeca.com>
+Justin Cohen <justincohen@google.com>
+kensington <kensington@gentoo.org>
+Keith Jones <keith@keithjjones.com>
+Khaled Mardam-Bey
+Kohei Yoshida <kohei.yoshida@gmail.com>
+Krzesimir Nowak <qdlacz@gmail.com>
+Leith Bade <leith@mapbox.com>
+Lubomir I. Ivanov <neolit123@gmail.com>
+Lucas Bustamante
+Maël Nison
+Mark A. Tsuchida <marktsuchida@gmail.com>
+Martin Buchholz <martinrb@google.com>
+Martin Herkt <lachs0r@srsfckn.biz>
+Martin Szulecki <m.szulecki@libimobiledevice.org>
+Michael Balzer
+Michael Beck <mm.beck@gmx.net>
+Michael Heimpold <mhei@heimpold.de>
+Michał Janiszewski <janisozaur+libzip@gmail.com>
+Michal Vyskocil <mvyskocil@suse.cz>
+Mikhail Gusarov <dottedmag@dottedmag.net>.
+Miklos Vajna
+Morris Hafner
+Muhammad Arslan Kabeer
+Oliver Kaiser <under.northern.sky@googlemail.com>
+Oliver Kuckertz <oliver.kuckertz@mologie.de>
+OSS-Fuzz Team
+Ørjan Malde <red@foxi.me>
+Pascal Terjan <pterjan@gmail.com>
+Patrick Spendrin <ps_ml@gmx.de>
+Paul Harris <harris.pc@gmail.com>
+Paul Sheppard <shepsoft@googlemail.com>
+Pavel Raiskup <praiskup@redhat.com>
+Pierre Joye <pierre.php@gmail.com>
+Pierre-Louis Cabelguen <plcabelguen@googlemail.com>
+PW Hu <jlu.hpw@foxmail.com>
+Rafał Mikrut
+Randy <randy408@protonmail.com>
+Remi Collet <remi@fedoraproject.org>
+rezso <rezso@rezso.net>
+Richard Schütz
+Rick Carback <carback1@umbc.edu>
+Rikard Falkeborn <rikard.falkeborn@gmail.com>
+Robert Norris <rw_norris@hotmail.com>
+Roberto Tirabassi <rtirabassi@3di.it>
+robhz786 <robhz786@gmail.com>
+Roland Ortloff <Ortloff.R@gmx.de>
+Rosen Penev <rosenp@gmail.com>
+Ryan Burns <rtburns@protonmail.com>
+Sam Sappenfield
+scribam
+Sebastian Kemper <sebastian_ml@gmx.net>
+Sebastian Schmitt <sebastian.schmitt@auvesy.de>
+Sergei Ozerov <ru.programmist@gmail.com>
+shenlebantongying
+Simon Talbot <simont@nse.co.uk>
+SpaceIm
+Stephen Bryant <steve@bawue.de>
+Tabata Shintaro <tabata.shintaro@gmail.com>
+Tarmo Pikaro <tapika@yahoo.com>
+Taylor C. Richberger
+TC
+Thomas Debesse <dev@illwieckz.net>
+Tim Lunn <Tim@feathertop.org>
+Timo Warns <warns@pre-sense.de>
+Timofey
+Tom Callaway <tcallawa@redhat.com>
+Tomas Hoger <thoger@redhat.com>
+Tomáš Malý <malytomas@ucpu.cz>
+Torsten Paul <Torsten.Paul@gmx.de>
+Transporter <ogre.transporter@gmail.com>
+Vassili Courzakis <vcoxvco@googlemail.com>
+Vitaly Murashev <vitaly.murashev@gmail.com>
+William Lee
+William Ouwehand <mail@syncoda.nl>
+Wojciech Michalski <wmichalski@quay.pl>
+Wolfgang Glunz <Wolfgang.Glunz@gmx.de>

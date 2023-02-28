@@ -1,0 +1,5 @@
+# zip_open: create new archive
+program tryopen
+args -n new.zip
+return 0
+stdout opening 'new.zip' succeeded, 0 entries

@@ -1,0 +1,183 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zip_file_add.mdoc -- add files to zip archive
+.\" Copyright (C) 2004-2021 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIP_FILE_ADD" "3" "September 22, 2020" "NiH" "Library Functions Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzip_file_add\fR,
+\fBzip_file_replace\fR
+\- add file to zip archive or replace file in zip archive
+.SH "LIBRARY"
+libzip (-lzip)
+.SH "SYNOPSIS"
+\fB#include <zip.h>\fR
+.sp
+\fIzip_int64_t\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_file_add\fR(\fIzip_t\ *archive\fR, \fIconst\ char\ *name\fR, \fIzip_source_t\ *source\fR, \fIzip_flags_t\ flags\fR);
+.PD
+.PP
+\fIint\fR
+.br
+.PD 0
+.HP 4n
+\fBzip_file_replace\fR(\fIzip_t\ *archive\fR, \fIzip_uint64_t\ index\fR, \fIzip_source_t\ *source\fR, \fIzip_flags_t\ flags\fR);
+.PD
+.SH "DESCRIPTION"
+The function
+\fBzip_file_add\fR()
+adds a file to a zip archive, while
+\fBzip_file_replace\fR()
+replaces an existing file in a zip archive.
+The argument
+\fIarchive\fR
+specifies the zip archive to which the file should be added.
+\fIname\fR
+is the file's name in the zip archive (for
+\fBzip_file_add\fR()),
+while
+\fIindex\fR
+specifies which file should be replaced (for
+\fBzip_file_replace\fR()).
+The
+\fIflags\fR
+argument can be any combination of
+\fRZIP_FL_OVERWRITE\fR
+with one of
+\fRZIP_FL_ENC_*\fR:
+.TP 22n
+\fRZIP_FL_OVERWRITE\fR
+Overwrite any existing file of the same name.
+For
+\fBzip_file_add\fR
+only.
+.TP 22n
+\fRZIP_FL_ENC_GUESS\fR
+Guess encoding of
+\fIname\fR
+(default).
+(Only CP-437 and UTF-8 are recognized.)
+.TP 22n
+\fRZIP_FL_ENC_UTF_8\fR
+Interpret
+\fIname\fR
+as UTF-8.
+.TP 22n
+\fRZIP_FL_ENC_CP437\fR
+Interpret
+\fIname\fR
+as code page 437 (CP-437).
+.PD 0
+.PP
+The data is obtained from the
+\fIsource\fR
+argument, see
+zip_source(3).
+.PD
+.PP
+\fINOTE\fR:
+zip_source_free(3)
+should not be called on a
+\fIsource\fR
+after it was used successfully in a
+\fBzip_file_add\fR
+or
+\fBzip_file_replace\fR
+call.
+.SH "RETURN VALUES"
+Upon successful completion,
+\fBzip_file_add\fR()
+returns the index of the new file in the archive, and
+\fBzip_file_replace\fR()
+returns 0.
+Otherwise, \-1 is returned and the error code in
+\fIarchive\fR
+is set to indicate the error.
+.SH "EXAMPLES"
+.nf
+.RS 6n
+zip_source_t *s;
+const char buf[]="teststring";
+
+if ((s=zip_source_buffer(archive, buf, sizeof(buf), 0)) == NULL ||
+    zip_file_add(archive, name, s, ZIP_FL_ENC_UTF_8) < 0) {
+    zip_source_free(s);
+    printf("error adding file: %s\en", zip_strerror(archive));
+}
+.RE
+.fi
+.SH "ERRORS"
+\fBzip_file_add\fR()
+and
+\fBzip_file_replace\fR()
+fail if:
+.TP 19n
+[\fRZIP_ER_EXISTS\fR]
+There is already a file called
+\fIname\fR
+in the archive.
+(Only applies to
+\fBzip_file_add\fR(),
+and only if
+\fRZIP_FL_OVERWRITE\fR
+is not provided).
+.TP 19n
+[\fRZIP_ER_INVAL\fR]
+\fIsource\fR
+or
+\fIname\fR
+are
+\fRNULL\fR,
+or
+\fIindex\fR
+is invalid.
+.TP 19n
+[\fRZIP_ER_MEMORY\fR]
+Required memory could not be allocated.
+.TP 19n
+[\fRZIP_ER_RDONLY\fR]
+Archive was opened in read-only mode.
+.SH "SEE ALSO"
+libzip(3),
+zip_source(3)
+.SH "HISTORY"
+\fBzip_file_add\fR()
+and
+\fBzip_file_replace\fR()
+were added in libzip 0.11.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>

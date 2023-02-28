@@ -1,0 +1,31 @@
+# try opening simulated Android APK zipaligned files, and similar inconsistent files
+program tryopen
+file extra_field_align_1-0.zzip extra_field_align_1-0.zip extra_field_align_1-0.zip
+file extra_field_align_1-ff.zzip extra_field_align_1-ff.zip extra_field_align_1-ff.zip
+file extra_field_align_2-0.zzip extra_field_align_2-0.zip extra_field_align_2-0.zip
+file extra_field_align_2-ff.zzip extra_field_align_2-ff.zip extra_field_align_2-ff.zip
+file extra_field_align_3-0.zzip extra_field_align_3-0.zip extra_field_align_3-0.zip
+file extra_field_align_3-ff.zzip extra_field_align_3-ff.zip extra_field_align_3-ff.zip
+file extra_field_align_4-ff.zzip extra_field_align_4-ff.zip extra_field_align_4-ff.zip
+file extra_field_align_1-ef_00.zzip extra_field_align_1-ef_00.zip extra_field_align_1-ef_00.zip
+file extra_field_align_1-ef_ff.zzip extra_field_align_1-ef_ff.zip extra_field_align_1-ef_ff.zip
+file extra_field_align_2-ef_00.zzip extra_field_align_2-ef_00.zip extra_field_align_2-ef_00.zip
+file extra_field_align_2-ef_ff.zzip extra_field_align_2-ef_ff.zip extra_field_align_2-ef_ff.zip
+file extra_field_align_3-ef_00.zzip extra_field_align_3-ef_00.zip extra_field_align_3-ef_00.zip
+file extra_field_align_3-ef_ff.zzip extra_field_align_3-ef_ff.zip extra_field_align_3-ef_ff.zip
+args -c extra_field_align_1-0.zzip extra_field_align_1-ff.zzip extra_field_align_2-0.zzip extra_field_align_2-ff.zzip extra_field_align_3-0.zzip extra_field_align_3-ff.zzip extra_field_align_4-ff.zzip extra_field_align_1-ef_00.zzip extra_field_align_1-ef_ff.zzip extra_field_align_2-ef_00.zzip extra_field_align_2-ef_ff.zzip extra_field_align_3-ef_00.zzip extra_field_align_3-ef_ff.zzip
+return 1
+stdout opening 'extra_field_align_1-0.zzip' succeeded, 1 entries
+stdout opening 'extra_field_align_1-ff.zzip' returned error 21/15
+stdout opening 'extra_field_align_2-0.zzip' succeeded, 1 entries
+stdout opening 'extra_field_align_2-ff.zzip' returned error 21/15
+stdout opening 'extra_field_align_3-0.zzip' succeeded, 1 entries
+stdout opening 'extra_field_align_3-ff.zzip' returned error 21/15
+stdout opening 'extra_field_align_4-ff.zzip' succeeded, 1 entries
+stdout opening 'extra_field_align_1-ef_00.zzip' succeeded, 1 entries
+stdout opening 'extra_field_align_1-ef_ff.zzip' returned error 21/15
+stdout opening 'extra_field_align_2-ef_00.zzip' succeeded, 1 entries
+stdout opening 'extra_field_align_2-ef_ff.zzip' returned error 21/15
+stdout opening 'extra_field_align_3-ef_00.zzip' succeeded, 1 entries
+stdout opening 'extra_field_align_3-ef_ff.zzip' returned error 21/15
+stderr 6 errors

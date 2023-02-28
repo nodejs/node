@@ -1,0 +1,6 @@
+# zip_open: file opens fine
+program tryopen
+args test.zip
+return 0
+file test.zip test.zip test.zip
+stdout opening 'test.zip' succeeded, 3 entries

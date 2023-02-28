@@ -1,0 +1,7 @@
+# zip_open: file is part of a multi-disk zip archive
+program tryopen
+args test.piz
+return 1
+file test.piz multidisk.zip multidisk.zip
+stdout opening 'test.piz' returned error 1
+stderr 1 errors

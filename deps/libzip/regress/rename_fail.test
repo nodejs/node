@@ -1,0 +1,5 @@
+# rename file inside zip archive, but file name already exists
+return 1
+args rename.zip   rename 0 file4
+file rename.zip testcomment.zip testcomment.zip
+stderr can't rename file at index '0' to 'file4': File already exists

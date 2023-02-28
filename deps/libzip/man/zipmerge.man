@@ -1,0 +1,109 @@
+.\" Automatically generated from an mdoc input file.  Do not edit.
+.\" zipmerge.mdoc -- merge zip archives
+.\" Copyright (C) 2004-2022 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "ZIPMERGE" "1" "December 5, 2022" "NiH" "General Commands Manual"
+.nh
+.if n .ad l
+.SH "NAME"
+\fBzipmerge\fR
+\- merge zip archives
+.SH "SYNOPSIS"
+.HP 9n
+\fBzipmerge\fR
+[\fB\-DhIiSsV\fR]
+\fItarget-zip\fR
+\fIsource-zip\fR\ [\fIsource-zip\ ...\fR]
+.SH "DESCRIPTION"
+\fBzipmerge\fR
+merges the source zip archives
+\fIsource-zip\fR
+into the target zip archive
+\fItarget-zip\fR.
+By default, files in the source zip archives overwrite
+existing files of the same name in the target zip archive.
+.PP
+Supported options:
+.TP 5n
+\fB\-D\fR
+Ignore directory components in file name comparisons.
+This option is slow for archives with many files.
+.TP 5n
+\fB\-h\fR
+Display a short help message and exit.
+.TP 5n
+\fB\-I\fR
+Ignore case in file name comparisons
+This option is slow for archives with many files.
+.TP 5n
+\fB\-i\fR
+Ask before overwriting files.
+See also
+\fB\-s\fR.
+.TP 5n
+\fB\-k\fR
+Do not compress files that were uncompressed in
+\fIsource-zip\fR,
+otherwise they are compressed with the default compression method.
+.TP 5n
+\fB\-S\fR
+Do not overwrite files that have the same size and
+CRC32 in both the source and target archives.
+.TP 5n
+\fB\-s\fR
+When
+\fB\-i\fR
+is given, do not ask before overwriting files that have the same size
+and CRC32.
+.TP 5n
+\fB\-V\fR
+Display version information and exit.
+.SH "EXIT STATUS"
+\fBzipmerge\fR
+exits 0 on success and >1 if an error occurred.
+.SH "SEE ALSO"
+zipcmp(1),
+ziptool(1),
+libzip(3)
+.SH "HISTORY"
+\fBzipmerge\fR
+was added in libzip 0.6.
+.SH "AUTHORS"
+Dieter Baron <\fIdillo@nih.at\fR>
+and
+Thomas Klausner <\fItk@giga.or.at\fR>
+.SH "CAVEATS"
+\fBzipmerge\fR
+uses one open file descriptor per zip archive.
+If you need to merge a lot of zip archives, check your shell's
+file descriptor ulimit and either increase it or run
+\fBzipmerge\fR
+multiple times with e.g. 1000 source zip archives each time.

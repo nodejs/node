@@ -1,0 +1,11 @@
+# zip_open: various inconsistent files
+program tryopen
+file incons-file-count-high.zzip incons-file-count-high.zip incons-file-count-high.zip
+file incons-file-count-low.zzip incons-file-count-low.zip incons-file-count-low.zip
+file incons-file-count-overflow.zzip incons-file-count-overflow.zip incons-file-count-overflow.zip
+args incons-file-count-high.zzip incons-file-count-low.zzip incons-file-count-overflow.zzip
+return 1
+stdout opening 'incons-file-count-high.zzip' returned error 21/5
+stdout opening 'incons-file-count-low.zzip' returned error 21/5
+stdout opening 'incons-file-count-overflow.zzip' returned error 21/11
+stderr 3 errors

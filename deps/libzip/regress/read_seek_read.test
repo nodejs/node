@@ -1,0 +1,7 @@
+# read past EOF, seek to beginning, read again
+return 0
+args test.zip fopen test  fread 0 10  fseek 0 0 set  fread 0 5
+file test.zip test.zip test.zip
+stdout opened 'test' as file 0
+stdout test
+stdout test

@@ -1,0 +1,4 @@
+# add file, set compression method to ZIP_CM_STORE
+return 0
+args -mn test.zip add foo foo  set_file_compression 0 store 0
+file-new test.zip foo-stored.zip

@@ -1,0 +1,11 @@
+@PACKAGE_INIT@
+
+# only needed for static library, and doesn't work as-is
+#include(CMakeFindDependencyMacro)
+#find_dependency(ZLIB::ZLIB)
+# how to handle the optional dependencies?
+# Provide all our library targets to users.
+include("${CMAKE_CURRENT_LIST_DIR}/libzip-targets.cmake")
+
+check_required_components(libzip)
+

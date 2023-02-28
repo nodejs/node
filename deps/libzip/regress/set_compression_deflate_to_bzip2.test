@@ -1,0 +1,5 @@
+# change method from deflated to bzip2
+features LIBBZ2
+return 0
+args test.zip  set_file_compression 0 bzip2 0
+file test.zip testdeflated.zip testbzip2.zip

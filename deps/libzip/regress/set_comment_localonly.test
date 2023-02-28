@@ -1,0 +1,4 @@
+# change file comments in a zip archive
+return 0
+args testcomment.zip  set_file_comment 0 "File comment no 0"  set_file_comment 1 "File comment no 1"  set_file_comment 3 "File comment no 3"  set_file_comment 2 ""  
+file testcomment.zip testcomment.zip testchangedlocal.zip

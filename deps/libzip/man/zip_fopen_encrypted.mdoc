@@ -1,0 +1,135 @@
+.\" zip_fopen_encrypted.mdoc -- open encrypted file in zip archive for reading
+.\" Copyright (C) 2011-2021 Dieter Baron and Thomas Klausner
+.\"
+.\" This file is part of libzip, a library to manipulate ZIP archives.
+.\" The authors can be contacted at <info@libzip.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior
+.\"    written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd September 15, 2020
+.Dt ZIP_FOPEN_ENCRYPTED 3
+.Os
+.Sh NAME
+.Nm zip_fopen_encrypted ,
+.Nm zip_fopen_index_encrypted
+.Nd open encrypted file in zip archive for reading
+.Sh LIBRARY
+libzip (-lzip)
+.Sh SYNOPSIS
+.In zip.h
+.Ft zip_file_t *
+.Fn zip_fopen_encrypted "zip_t *archive" "const char *fname" "zip_flags_t flags" "const char *password"
+.Ft zip_file_t *
+.Fn zip_fopen_index_encrypted "zip_t *archive" "zip_uint64_t index" "zip_flags_t flags" "const char *password"
+.Sh DESCRIPTION
+The
+.Fn zip_fopen_encrypted
+function opens the encrypted file name
+.Ar fname
+in
+.Ar archive
+using the password given in the
+.Ar password
+argument.
+If
+.Ar password
+is
+.Dv NULL
+or the empty string, the default password is used (see
+.Xr zip_set_default_password 3 ) .
+The
+.Ar flags
+argument are the same as for
+.Xr zip_fopen 3 .
+.Pp
+The
+.Fn zip_fopen_index_encrypted
+function opens the file at position
+.Ar index ,
+see
+.Xr zip_fopen_index 3 .
+These functions are called automatically by
+.Xr zip_fopen 3 ;
+you only need to call them if you want to specify a non-default password
+(see
+.Xr zip_set_default_password 3 ) .
+.Sh RETURN VALUES
+Upon successful completion, a
+.Ft struct zip_file
+pointer is returned.
+Otherwise,
+.Dv NULL
+is returned and the error code in
+.Ar archive
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width ZIP_ER_ENCRNOTSUPPXX
+.It Bq Er ZIP_ER_NOPASSWD
+No password was provided.
+.El
+.Pp
+The function
+.Fn zip_fopen_encrypted
+may also fail and set
+.Va zip_err
+for any of the errors specified for the routine
+.Xr zip_fopen 3 .
+.Pp
+The function
+.Fn zip_fopen_index_encrypted
+may also fail and set
+.Va zip_err
+for any of the errors specified for the routine
+.Xr zip_fopen_index 3 .
+.Sh SEE ALSO
+.Xr libzip 3 ,
+.Xr zip_fclose 3 ,
+.Xr zip_fopen 3 ,
+.Xr zip_fread 3 ,
+.Xr zip_get_num_entries 3 ,
+.Xr zip_name_locate 3
+.Sh HISTORY
+.Fn zip_fopen_encrypted
+and
+.Fn zip_fopen_index_encrypted
+were added in libzip 1.0.
+.Sh AUTHORS
+.An -nosplit
+.An Dieter Baron Aq Mt dillo@nih.at
+and
+.An Thomas Klausner Aq Mt tk@giga.or.at
+.Sh CAVEATS
+The zip file format provides very limited possibility for password
+verification (a short hash of is compared against one byte in the zip
+archive).
+For this reason, reading a file while using an incorrect password may
+immediately fail with
+.Er ZIP_ER_WRONGPASSWD ,
+but if the mismatch is not detected, a zlib error may be returned
+later instead.
+Since zlib errors can also be caused by broken compressed data, there
+is no way to make sure if the password was incorrect or if it was
+correct, but the compressed data was invalid.
