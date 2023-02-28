@@ -1,8 +1,8 @@
-/* auto-generated on 2023-02-22 14:24:01 -0500. Do not edit! */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/src, filename=ada.cpp
+/* auto-generated on 2023-02-26 15:07:41 -0500. Do not edit! */
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/src, filename=ada.cpp
 /* begin file src/ada.cpp */
 #include "ada.h"
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/src, filename=checkers.cpp
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/src, filename=checkers.cpp
 /* begin file src/checkers.cpp */
 #include <algorithm>
 
@@ -24,10 +24,10 @@ namespace ada::checkers {
   }
 
 
-  // for use with path_signature
+  // for use with path_signature, we include all characters that need percent encoding.
   static constexpr uint8_t path_signature_table[256] = {
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0,
       1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -37,8 +37,28 @@ namespace ada::checkers {
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+  static_assert(path_signature_table[uint8_t('?')] == 1);
+  static_assert(path_signature_table[uint8_t('`')] == 1);
+  static_assert(path_signature_table[uint8_t('{')] == 1);
+  static_assert(path_signature_table[uint8_t('}')] == 1);
+  //
+  static_assert(path_signature_table[uint8_t(' ')] == 1);
+  static_assert(path_signature_table[uint8_t('?')] == 1);
+  static_assert(path_signature_table[uint8_t('"')] == 1);
+  static_assert(path_signature_table[uint8_t('#')] == 1);
+  static_assert(path_signature_table[uint8_t('<')] == 1);
+  static_assert(path_signature_table[uint8_t('>')] == 1);
+  //
+  static_assert(path_signature_table[0] == 1);
+  static_assert(path_signature_table[31] == 1);
+  static_assert(path_signature_table[127] == 1);
+  static_assert(path_signature_table[128] == 1);
+  static_assert(path_signature_table[255] == 1);
 
   ada_really_inline constexpr uint8_t path_signature(std::string_view input) noexcept {
+    // The path percent-encode set is the query percent-encode set and U+003F (?), U+0060 (`), U+007B ({), and U+007D (}).
+    // The query percent-encode set is the C0 control percent-encode set and U+0020 SPACE, U+0022 ("), U+0023 (#), U+003C (<), and U+003E (>).
+    // The C0 control percent-encode set are the C0 controls and all code points greater than U+007E (~).
     size_t i = 0;
     uint8_t accumulator{};
     for (; i + 7 < input.size(); i += 8) {
@@ -52,14 +72,14 @@ namespace ada::checkers {
                     path_signature_table[uint8_t(input[i + 7])]);
     }
     for (; i < input.size(); i++) {
-      accumulator |= path_signature_table[uint8_t(input[i])];
+      accumulator |= uint8_t(path_signature_table[uint8_t(input[i])]);
     }
     return accumulator;
   }
 
 
   ada_really_inline constexpr bool verify_dns_length(std::string_view input) noexcept {
-    if(input.back() == '.') { 
+    if(input.back() == '.') {
       if(input.size() > 254) return false;
     } else if (input.size() > 253) return false;
 
@@ -79,7 +99,7 @@ namespace ada::checkers {
   }
 } // namespace ada::checkers
 /* end file src/checkers.cpp */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/src, filename=unicode.cpp
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/src, filename=unicode.cpp
 /* begin file src/unicode.cpp */
 
 #include <algorithm>
@@ -610,7 +630,7 @@ constexpr static uint8_t is_forbidden_domain_code_point_table[] = {
 
 } // namespace ada::unicode
 /* end file src/unicode.cpp */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/src, filename=serializers.cpp
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/src, filename=serializers.cpp
 /* begin file src/serializers.cpp */
 
 #include <array>
@@ -683,7 +703,7 @@ namespace ada::serializers {
 
 } // namespace ada::serializers
 /* end file src/serializers.cpp */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/src, filename=implementation.cpp
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/src, filename=implementation.cpp
 /* begin file src/implementation.cpp */
 #include <string_view>
 
@@ -734,7 +754,7 @@ namespace ada {
 
 } // namespace ada
 /* end file src/implementation.cpp */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/src, filename=helpers.cpp
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/src, filename=helpers.cpp
 /* begin file src/helpers.cpp */
 
 #include <algorithm>
@@ -829,27 +849,216 @@ namespace ada::helpers {
     return pos > input.size() ? std::string_view() : input.substr(pos);
   }
 
-  ada_really_inline size_t get_host_delimiter_location(const ada::url& url, std::string_view& view, bool& inside_brackets) noexcept {
-    size_t location = url.is_special() ? view.find_first_of(":[/?\\") : view.find_first_of(":[/?");
+  // Reverse the byte order.
+  ada_really_inline uint64_t swap_bytes(uint64_t val) noexcept {
+    // performance: this often compiles to a single instruction (e.g., bswap)
+    return ((((val) & 0xff00000000000000ull) >> 56) |
+          (((val) & 0x00ff000000000000ull) >> 40) |
+          (((val) & 0x0000ff0000000000ull) >> 24) |
+          (((val) & 0x000000ff00000000ull) >> 8 ) |
+          (((val) & 0x00000000ff000000ull) << 8 ) |
+          (((val) & 0x0000000000ff0000ull) << 24) |
+          (((val) & 0x000000000000ff00ull) << 40) |
+          (((val) & 0x00000000000000ffull) << 56));
+  }
 
-    // Next while loop is almost never taken!
-    while((location != std::string_view::npos) && (view[location] == '[')) {
-      location = view.find(']',location);
-      if(location == std::string_view::npos) {
-        inside_brackets = true;
-        /**
-         * TODO: Ok. So if we arrive here then view has an unclosed [,
-         * Is the URL valid???
-         */
-      } else {
-        location = url.is_special() ? view.find_first_of(":[/?\\#", location) : view.find_first_of(":[/?#", location);
+  ada_really_inline uint64_t swap_bytes_if_big_endian(uint64_t val) noexcept {
+    // performance: under little-endian systems (most systems), this function
+    // is free (just returns the input).
+#if ADA_IS_BIG_ENDIAN
+    return swap_bytes(val);
+#else
+    return val; // unchanged (trivial)
+#endif
+  }
+
+  // starting at index location, this finds the next location of a character
+  // :, /, \\, ? or [. If none is found, view.size() is returned.
+  // For use within get_host_delimiter_location.
+  ada_really_inline size_t find_next_host_delimiter_special(std::string_view view, size_t location) noexcept {
+    // performance: if you plan to call find_next_host_delimiter more than once,
+    // you *really* want find_next_host_delimiter to be inlined, because
+    // otherwise, the constants may get reloaded each time (bad).
+    auto has_zero_byte = [](uint64_t v) {
+      return ((v - 0x0101010101010101) & ~(v)&0x8080808080808080);
+    };
+    auto index_of_first_set_byte = [](uint64_t v) {
+      return ((((v - 1) & 0x101010101010101) * 0x101010101010101) >> 56) - 1;
+    };
+    auto broadcast = [](uint8_t v) -> uint64_t { return 0x101010101010101 * v; };
+    size_t i = location;
+    uint64_t mask1 = broadcast(':');
+    uint64_t mask2 = broadcast('/');
+    uint64_t mask3 = broadcast('\\');
+    uint64_t mask4 = broadcast('?');
+    uint64_t mask5 = broadcast('[');
+    // This loop will get autovectorized under many optimizing compilers,
+    // so you get actually SIMD!
+    for (; i + 7 < view.size(); i += 8) {
+      uint64_t word{};
+      // performance: the next memcpy translates into a single CPU instruction.
+      memcpy(&word, view.data() + i, sizeof(word));
+      // performance: on little-endian systems (most systems), this next line is free.
+      word = swap_bytes_if_big_endian(word);
+      uint64_t xor1 = word ^ mask1;
+      uint64_t xor2 = word ^ mask2;
+      uint64_t xor3 = word ^ mask3;
+      uint64_t xor4 = word ^ mask4;
+      uint64_t xor5 = word ^ mask5;
+      uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) | has_zero_byte(xor3) | has_zero_byte(xor4) | has_zero_byte(xor5);
+      if(is_match) {
+        return i + index_of_first_set_byte(is_match);
       }
     }
-
-    if (location != std::string_view::npos) {
-      view.remove_suffix(view.size() - location);
+    if (i < view.size()) {
+      uint64_t word{};
+      // performance: the next memcpy translates into a function call, but
+      // that is difficult to avoid. Might be a bit expensive.
+      memcpy(&word, view.data() + i, view.size() - i);
+      word = swap_bytes_if_big_endian(word);
+      uint64_t xor1 = word ^ mask1;
+      uint64_t xor2 = word ^ mask2;
+      uint64_t xor3 = word ^ mask3;
+      uint64_t xor4 = word ^ mask4;
+      uint64_t xor5 = word ^ mask5;
+      uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) | has_zero_byte(xor3) | has_zero_byte(xor4) | has_zero_byte(xor5);
+      if(is_match) {
+        return i + index_of_first_set_byte(is_match);
+      }
     }
-    return location;
+    return view.size();
+  }
+
+  // starting at index location, this finds the next location of a character
+  // :, /, ? or [. If none is found, view.size() is returned.
+  // For use within get_host_delimiter_location.
+  ada_really_inline size_t find_next_host_delimiter(std::string_view view, size_t location) noexcept {
+    // performance: if you plan to call find_next_host_delimiter more than once,
+    // you *really* want find_next_host_delimiter to be inlined, because
+    // otherwise, the constants may get reloaded each time (bad).
+    auto has_zero_byte = [](uint64_t v) {
+      return ((v - 0x0101010101010101) & ~(v)&0x8080808080808080);
+    };
+    auto index_of_first_set_byte = [](uint64_t v) {
+      return ((((v - 1) & 0x101010101010101) * 0x101010101010101) >> 56) - 1;
+    };
+    auto broadcast = [](uint8_t v) -> uint64_t { return 0x101010101010101 * v; };
+    size_t i = location;
+    uint64_t mask1 = broadcast(':');
+    uint64_t mask2 = broadcast('/');
+    uint64_t mask4 = broadcast('?');
+    uint64_t mask5 = broadcast('[');
+    // This loop will get autovectorized under many optimizing compilers,
+    // so you get actually SIMD!
+    for (; i + 7 < view.size(); i += 8) {
+      uint64_t word{};
+      // performance: the next memcpy translates into a single CPU instruction.
+      memcpy(&word, view.data() + i, sizeof(word));
+      // performance: on little-endian systems (most systems), this next line is free.
+      word = swap_bytes_if_big_endian(word);
+      uint64_t xor1 = word ^ mask1;
+      uint64_t xor2 = word ^ mask2;
+      uint64_t xor4 = word ^ mask4;
+      uint64_t xor5 = word ^ mask5;
+      uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) | has_zero_byte(xor4) | has_zero_byte(xor5);
+      if(is_match) {
+        return i + index_of_first_set_byte(is_match);
+      }
+    }
+    if (i < view.size()) {
+      uint64_t word{};
+      // performance: the next memcpy translates into a function call, but
+      // that is difficult to avoid. Might be a bit expensive.
+      memcpy(&word, view.data() + i, view.size() - i);
+      // performance: on little-endian systems (most systems), this next line is free.
+      word = swap_bytes_if_big_endian(word);
+      uint64_t xor1 = word ^ mask1;
+      uint64_t xor2 = word ^ mask2;
+      uint64_t xor4 = word ^ mask4;
+      uint64_t xor5 = word ^ mask5;
+      uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) | has_zero_byte(xor4) | has_zero_byte(xor5);
+      if(is_match) {
+        return i + index_of_first_set_byte(is_match);
+      }
+    }
+    return view.size();
+  }
+
+  ada_really_inline std::pair<size_t,bool> get_host_delimiter_location(const bool is_special, std::string_view& view) noexcept {
+    /**
+     * The spec at https://url.spec.whatwg.org/#hostname-state expects us to compute
+     * a variable called insideBrackets but this variable is only used once, to check
+     * whether a ':' character was found outside brackets.
+     * Exact text:
+     * "Otherwise, if c is U+003A (:) and insideBrackets is false, then:".
+     * It is conceptually simpler and arguably more efficient to just return a Boolean
+     * indicating whether ':' was found outside brackets.
+     */
+    const size_t view_size = view.size();
+    size_t location = 0;
+    bool found_colon = false;
+    /**
+     * Performance analysis:
+     *
+     * We are basically seeking the end of the hostname which can be indicated
+     * by the end of the view, or by one of the characters ':', '/', '?', '\\' (where '\\' is only
+     * applicable for special URLs). However, these must appear outside a bracket range. E.g.,
+     * if you have [something?]fd: then the '?' does not count.
+     *
+     * So we can skip ahead to the next delimiter, as long as we include '[' in the set of delimiters,
+     * and that we handle it first.
+     *
+     * So the trick is to have a fast function that locates the next delimiter. Unless we find '[',
+     * then it only needs to be called once! Ideally, such a function would be provided by the C++
+     * standard library, but it seems that find_first_of is not very fast, so we are forced to roll
+     * our own.
+     *
+     * We do not break into two loops for speed, but for clarity.
+     */
+    if(is_special) {
+      // We move to the next delimiter.
+      location = find_next_host_delimiter_special(view, location);
+      // Unless we find '[' then we are going only going to have to call
+      // find_next_host_delimiter_special once.
+      for (;location < view_size; location = find_next_host_delimiter_special(view, location)) {
+        if (view[location] == '[') {
+          location = view.find(']', location);
+          if (location == std::string_view::npos) {
+            // performance: view.find might get translated to a memchr, which
+            // has no notion of std::string_view::npos, so the code does not
+            // reflect the assembly.
+            location = view_size;
+            break;
+          }
+        } else {
+          found_colon = view[location] == ':';
+          break;
+        }
+      }
+    } else {
+      // We move to the next delimiter.
+      location = find_next_host_delimiter(view, location);
+      // Unless we find '[' then we are going only going to have to call
+      // find_next_host_delimiter_special once.
+      for (;location < view_size; location = find_next_host_delimiter(view, location)) {
+        if (view[location] == '[') {
+          location = view.find(']', location);
+          if (location == std::string_view::npos) {
+            // performance: view.find might get translated to a memchr, which
+            // has no notion of std::string_view::npos, so the code does not
+            // reflect the assembly.
+            location = view_size;
+            break;
+          }
+        } else {
+          found_colon = view[location] == ':';
+          break;
+        }
+      }
+    }
+    // performance: remove_suffix may translate into a single instruction.
+    view.remove_suffix(view_size - location);
+    return {location, found_colon};
   }
 
   ada_really_inline void trim_c0_whitespace(std::string_view& input) noexcept {
@@ -899,11 +1108,11 @@ namespace ada::helpers {
             if(path.empty()) { path = '/'; return true; }
             // Fast case where we have nothing to do:
             if(path.back() == '/') { return true; }
-            // If you have the path "/joe/myfriend", 
+            // If you have the path "/joe/myfriend",
             // then you delete 'myfriend'.
             path.resize(path.rfind('/') + 1);
             return true;
-          } 
+          }
           path += '/';
           if (path_view != ".") {
             path.append(path_view);
@@ -981,6 +1190,93 @@ namespace ada::helpers {
     if (url.query.has_value()) return;
     while (!url.path.empty() && url.path.back() == ' ') { url.path.resize(url.path.size()-1); }
   }
+
+  ada_really_inline size_t find_authority_delimiter_special(std::string_view view) noexcept {
+    auto has_zero_byte = [](uint64_t v) {
+      return ((v - 0x0101010101010101) & ~(v)&0x8080808080808080);
+    };
+    auto index_of_first_set_byte = [](uint64_t v) {
+      return ((((v - 1) & 0x101010101010101) * 0x101010101010101) >> 56) - 1;
+    };
+    auto broadcast = [](uint8_t v) -> uint64_t { return 0x101010101010101 * v; };
+    size_t i = 0;
+    uint64_t mask1 = broadcast('@');
+    uint64_t mask2 = broadcast('/');
+    uint64_t mask3 = broadcast('?');
+    uint64_t mask4 = broadcast('\\');
+
+    for (; i + 7 < view.size(); i += 8) {
+      uint64_t word{};
+      memcpy(&word, view.data() + i, sizeof(word));
+      word = swap_bytes_if_big_endian(word);
+      uint64_t xor1 = word ^ mask1;
+      uint64_t xor2 = word ^ mask2;
+      uint64_t xor3 = word ^ mask3;
+      uint64_t xor4 = word ^ mask4;
+      uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) | has_zero_byte(xor3) | has_zero_byte(xor4);
+      if (is_match) {
+        return i + index_of_first_set_byte(is_match);
+      }
+    }
+
+    if (i < view.size()) {
+      uint64_t word{};
+      memcpy(&word, view.data() + i, view.size() - i);
+      word = swap_bytes_if_big_endian(word);
+      uint64_t xor1 = word ^ mask1;
+      uint64_t xor2 = word ^ mask2;
+      uint64_t xor3 = word ^ mask3;
+      uint64_t xor4 = word ^ mask4;
+      uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) | has_zero_byte(xor3) | has_zero_byte(xor4);
+      if (is_match) {
+        return i + index_of_first_set_byte(is_match);
+      }
+    }
+
+    return view.size();
+  }
+
+  ada_really_inline size_t find_authority_delimiter(std::string_view view) noexcept {
+    auto has_zero_byte = [](uint64_t v) {
+      return ((v - 0x0101010101010101) & ~(v)&0x8080808080808080);
+    };
+    auto index_of_first_set_byte = [](uint64_t v) {
+      return ((((v - 1) & 0x101010101010101) * 0x101010101010101) >> 56) - 1;
+    };
+    auto broadcast = [](uint8_t v) -> uint64_t { return 0x101010101010101 * v; };
+    size_t i = 0;
+    uint64_t mask1 = broadcast('@');
+    uint64_t mask2 = broadcast('/');
+    uint64_t mask3 = broadcast('?');
+
+    for (; i + 7 < view.size(); i += 8) {
+      uint64_t word{};
+      memcpy(&word, view.data() + i, sizeof(word));
+      word = swap_bytes_if_big_endian(word);
+      uint64_t xor1 = word ^ mask1;
+      uint64_t xor2 = word ^ mask2;
+      uint64_t xor3 = word ^ mask3;
+      uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) | has_zero_byte(xor3);
+      if (is_match) {
+        return i + index_of_first_set_byte(is_match);
+      }
+    }
+
+    if (i < view.size()) {
+      uint64_t word{};
+      memcpy(&word, view.data() + i, view.size() - i);
+      word = swap_bytes_if_big_endian(word);
+      uint64_t xor1 = word ^ mask1;
+      uint64_t xor2 = word ^ mask2;
+      uint64_t xor3 = word ^ mask3;
+      uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) | has_zero_byte(xor3);
+      if (is_match) {
+        return i + index_of_first_set_byte(is_match);
+      }
+    }
+
+    return view.size();
+  }
 } // namespace ada::helpers
 
 namespace ada {
@@ -989,7 +1285,7 @@ namespace ada {
   }
 }
 /* end file src/helpers.cpp */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/src, filename=url.cpp
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/src, filename=url.cpp
 /* begin file src/url.cpp */
 
 #include <numeric>
@@ -1514,7 +1810,7 @@ namespace ada {
   }
 } // namespace ada
 /* end file src/url.cpp */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/src, filename=url-getters.cpp
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/src, filename=url-getters.cpp
 /* begin file src/url-getters.cpp */
 /**
  * @file url-getters.cpp
@@ -1624,7 +1920,7 @@ namespace ada {
 
 } // namespace ada
 /* end file src/url-getters.cpp */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/src, filename=url-setters.cpp
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/src, filename=url-setters.cpp
 /* begin file src/url-setters.cpp */
 /**
  * @file url-setters.cpp
@@ -1711,23 +2007,22 @@ namespace ada {
     std::optional<std::string> previous_host = host;
     std::optional<uint16_t> previous_port = port;
 
-    std::string_view::iterator _host_end = std::find(input.begin(), input.end(), '#');
-    std::string _host(input.data(), std::distance(input.begin(), _host_end));
+    size_t host_end_pos = input.find('#');
+    std::string _host(input.data(), host_end_pos != std::string_view::npos ? host_end_pos : input.size());
     helpers::remove_ascii_tab_or_newline(_host);
     std::string_view new_host(_host);
 
     // If url's scheme is "file", then set state to file host state, instead of host state.
     if (get_scheme_type() != ada::scheme::type::FILE) {
       std::string_view host_view(_host.data(), _host.length());
-      bool inside_brackets{false};
-      size_t location = helpers::get_host_delimiter_location(*this, host_view, inside_brackets);
-      std::string_view::iterator pointer = (location != std::string_view::npos) ? new_host.begin() + location : new_host.end();
+      auto [location,found_colon] = helpers::get_host_delimiter_location(is_special(), host_view);
 
       // Otherwise, if c is U+003A (:) and insideBrackets is false, then:
-      // Note: we cannot access *pointer safely if (pointer == pointer_end).
-      if ((pointer != new_host.end()) && (*pointer == ':') && !inside_brackets) {
+      // Note: the 'found_colon' value is true if and only if a colon was encountered
+      // while not inside brackets.
+      if (found_colon) {
         if (override_hostname) { return false; }
-        std::string_view buffer(&*(pointer + 1));
+        std::string_view  buffer = new_host.substr(location+1);
         if (!buffer.empty()) { set_port(buffer); }
       }
       // If url is special and host_view is the empty string, validation error, return failure.
@@ -1821,7 +2116,7 @@ namespace ada {
 
 } // namespace ada
 /* end file src/url-setters.cpp */
-// dofile: invoked with prepath=/Users/yagiz/Developer/url-parser/src, filename=parser.cpp
+// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/src, filename=parser.cpp
 /* begin file src/parser.cpp */
 
 #include <iostream>
@@ -1991,8 +2286,8 @@ namespace ada::parser {
           bool password_token_seen{false};
           do {
             std::string_view view = helpers::substring(url_data, input_position);
-            size_t location = url.is_special() ? view.find_first_of("@/?\\") : view.find_first_of("@/?");
-            std::string_view authority_view(view.data(), (location != std::string_view::npos) ? location : view.size());
+            size_t location = url.is_special() ? helpers::find_authority_delimiter_special(view) : helpers::find_authority_delimiter(view);
+            std::string_view authority_view(view.data(), location);
             size_t end_of_authority = input_position + authority_view.size();
             // If c is U+0040 (@), then:
             if ((end_of_authority != input_size) && (url_data[end_of_authority] == '@')) {
@@ -2197,11 +2492,12 @@ namespace ada::parser {
           ada_log("HOST ", helpers::substring(url_data, input_position));
 
           std::string_view host_view = helpers::substring(url_data, input_position);
-          bool inside_brackets{false};
-          size_t location = helpers::get_host_delimiter_location(url, host_view, inside_brackets);
+          auto [location, found_colon] = helpers::get_host_delimiter_location(url.is_special(), host_view);
           input_position = (location != std::string_view::npos) ? input_position + location : input_size;
           // Otherwise, if c is U+003A (:) and insideBrackets is false, then:
-          if ((input_position != input_size) && (url_data[input_position] == ':') && !inside_brackets) {
+          // Note: the 'found_colon' value is true if and only if a colon was encountered
+          // while not inside brackets.
+          if (found_colon) {
             // If buffer is the empty string, validation error, return failure.
             // Let host be the result of host parsing buffer with url is not special.
             ada_log("HOST parsing ", host_view);
@@ -2214,7 +2510,9 @@ namespace ada::parser {
           // Otherwise, if one of the following is true:
           // - c is the EOF code point, U+002F (/), U+003F (?), or U+0023 (#)
           // - url is special and c is U+005C (\)
-          else if (input_position == input_size || url_data[input_position] == '/' || url_data[input_position] == '?' || (url.is_special() && url_data[input_position] == '\\')) {
+          // The get_host_delimiter_location function either brings us to
+          // the colon outside of the bracket, or to one of those characters.
+          else {
 
             // If url is special and host_view is the empty string, validation error, return failure.
             if (url.is_special() && host_view.empty()) {
