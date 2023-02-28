@@ -434,6 +434,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "allow worker threads when any permissions are set",
             &EnvironmentOptions::allow_worker_threads,
             kAllowedInEnvvar);
+  AddOption("--allow-ffi",
+            "allow FFI when any permissions are set",
+            &EnvironmentOptions::allow_ffi,
+            kAllowedInEnvvar);
   AddOption("--experimental-repl-await",
             "experimental await keyword support in REPL",
             &EnvironmentOptions::experimental_repl_await,

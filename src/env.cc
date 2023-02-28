@@ -882,6 +882,9 @@ Environment::Environment(IsolateData* isolate_data,
     if (!options_->allow_worker_threads) {
       permission()->Apply({"*"}, permission::PermissionScope::kWorkerThreads);
     }
+    if (!options_->allow_ffi) {
+      permission()->Apply({"*"}, permission::PermissionScope::kFfi);
+    }
 
     if (!options_->allow_fs_read.empty()) {
       permission()->Apply(options_->allow_fs_read,

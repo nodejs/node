@@ -1,0 +1,10 @@
+
+to generate config *.h files for a given platform+arch, run the command:
+
+  $ ./configure --enable-static --disable-shared --disable-builddir --with-pic
+
+then copy over these files into "config/<(platform)/<(arch)":
+
+  - fficonfig.h
+  - include/ffi.h
+  - include/ffitarget.h

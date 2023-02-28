@@ -1,4 +1,5 @@
 #include "node_binding.h"
+#include <dlfcn.h>
 #include <atomic>
 #include "env-inl.h"
 #include "node_builtins.h"
@@ -39,6 +40,7 @@
   V(credentials)                                                               \
   V(encoding_binding)                                                          \
   V(errors)                                                                    \
+  V(ffi)                                                                       \
   V(fs)                                                                        \
   V(fs_dir)                                                                    \
   V(fs_event_wrap)                                                             \
@@ -323,10 +325,15 @@ static struct global_handle_map_t {
 } global_handle_map;
 
 DLib::DLib(const char* filename, int flags)
-    : filename_(filename), flags_(flags), handle_(nullptr) {}
+    : filename_(filename), flags_(flags), handle_(nullptr), is_self_(false) {}
+DLib::DLib(int flags) : flags_(flags), handle_(nullptr), is_self_(true) {}
 
 #ifdef __POSIX__
 bool DLib::Open() {
+  if (is_self_) {
+    handle_ = RTLD_DEFAULT;
+    return true;
+  }
   handle_ = dlopen(filename_.c_str(), flags_);
   if (handle_ != nullptr) return true;
   errmsg_ = dlerror();
@@ -358,6 +365,7 @@ void* DLib::GetSymbolAddress(const char* name) {
 }
 #else   // !__POSIX__
 bool DLib::Open() {
+  if (is_self_) return true;
   int ret = uv_dlopen(filename_.c_str(), &lib_);
   if (ret == 0) {
     handle_ = static_cast<void*>(lib_.handle);

@@ -170,7 +170,7 @@ with-code-cache test-code-cache:
 
 out/Makefile: config.gypi common.gypi node.gyp \
 	deps/uv/uv.gyp deps/llhttp/llhttp.gyp deps/zlib/zlib.gyp \
-	deps/simdutf/simdutf.gyp deps/ada/ada.gyp \
+	deps/simdutf/simdutf.gyp deps/ada/ada.gyp deps/libffi/libffi.gyp \
 	tools/v8_gypfiles/toolchain.gypi tools/v8_gypfiles/features.gypi \
 	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
 	$(PYTHON) tools/gyp_node.py -f make
@@ -417,6 +417,30 @@ test/addons/.buildstamp: $(ADDONS_PREREQS) \
 # TODO(bnoordhuis) Force rebuild after gyp update.
 build-addons: | $(NODE_EXE) test/addons/.buildstamp
 
+FFI_BINDING_GYPS := \
+	$(filter-out test/ffi/??_*/binding.gyp, \
+		$(wildcard test/ffi/*/binding.gyp))
+
+FFI_BINDING_SOURCES := \
+	$(filter-out test/ffi/??_*/*.c, $(wildcard test/ffi/*/*.c)) \
+	$(filter-out test/ffi/??_*/*.h, $(wildcard test/ffi/*/*.h))
+
+# Implicitly depends on $(NODE_EXE), see the build-ffi-tests rule for rationale.
+# Depends on node-gyp package.json so that build-ffi-tests is (re)executed when
+# node-gyp is updated as part of an npm update.
+test/ffi/.buildstamp: $(ADDONS_PREREQS) \
+	$(FFI_BINDING_GYPS) $(FFI_BINDING_SOURCES)
+	@$(call run_build_addons,"$$PWD/test/ffi",$@)
+
+.PHONY: build-ffi-tests
+# .buildstamp needs $(NODE_EXE) but cannot depend on it
+# directly because it calls make recursively.  The parent make cannot know
+# if the subprocess touched anything so it pessimistically assumes that
+# .buildstamp is out of date and need a rebuild.
+# Just goes to show that recursive make really is harmful...
+# TODO(bnoordhuis) Force rebuild after gyp update.
+build-ffi-tests: | $(NODE_EXE) test/ffi/.buildstamp
+
 JS_NATIVE_API_BINDING_GYPS := \
 	$(filter-out test/js-native-api/??_*/binding.gyp, \
 		$(wildcard test/js-native-api/*/binding.gyp))
@@ -488,7 +512,10 @@ clear-stalled:
 	fi
 
 .PHONY: test-build
-test-build: | all build-addons build-js-native-api-tests build-node-api-tests
+test-build: | all build-addons build-ffi-tests build-js-native-api-tests build-node-api-tests
+
+.PHONY: test-build-ffi
+test-build-ffi: all build-ffi-tests
 
 .PHONY: test-build-js-native-api
 test-build-js-native-api: all build-js-native-api-tests
@@ -509,7 +536,7 @@ test-all-suites: | clear-stalled test-build bench-addons-build doc-only ## Run a
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) test/*
 
 JS_SUITES ?= default
-NATIVE_SUITES ?= addons js-native-api node-api
+NATIVE_SUITES ?= addons ffi js-native-api node-api
 # CI_* variables should be kept synchronized with the ones in vcbuild.bat
 CI_NATIVE_SUITES ?= $(NATIVE_SUITES) benchmark
 CI_JS_SUITES ?= $(JS_SUITES) pummel
@@ -523,7 +550,7 @@ endif
 # Build and test addons without building anything else
 # Related CI job: node-test-commit-arm-fanned
 test-ci-native: LOGLEVEL := info
-test-ci-native: | benchmark/napi/.buildstamp test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
+test-ci-native: | benchmark/napi/.buildstamp test/addons/.buildstamp test/ffi/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES)
@@ -545,7 +572,7 @@ test-ci-js: | clear-stalled
 .PHONY: test-ci
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 test-ci: LOGLEVEL := info
-test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tests build-node-api-tests doc-only
+test-ci: | clear-stalled bench-addons-build build-addons build-ffi-tests build-js-native-api-tests build-node-api-tests doc-only
 	out/Release/cctest --gtest_output=xml:out/junit/cctest.xml
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
@@ -643,6 +670,16 @@ test-js-native-api-clean:
 	$(RM) -r test/js-native-api/*/build
 	$(RM) test/js-native-api/.buildstamp
 
+.PHONY: test-ffi
+test-ffi: test-build-ffi
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) ffi
+
+.PHONY: test-ffi-clean
+.NOTPARALLEL: test-ffi-clean
+test-ffi-clean:
+	$(RM) -r test/ffi/*/build
+	$(RM) test/ffi/.buildstamp
+
 .PHONY: test-node-api
 test-node-api: test-build-node-api
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) node-api
@@ -654,7 +691,7 @@ test-node-api-clean:
 	$(RM) test/node-api/.buildstamp
 
 .PHONY: test-addons
-test-addons: test-build test-js-native-api test-node-api
+test-addons: test-build test-ffi test-js-native-api test-node-api
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) addons
 
 .PHONY: test-addons-clean
@@ -663,6 +700,7 @@ test-addons-clean:
 	$(RM) -r test/addons/??_*/
 	$(RM) -r test/addons/*/build
 	$(RM) test/addons/.buildstamp test/addons/.docbuildstamp
+	$(MAKE) test-ffi-clean
 	$(MAKE) test-js-native-api-clean
 	$(MAKE) test-node-api-clean
 

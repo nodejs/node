@@ -480,10 +480,9 @@ will restrict access to all available permissions.
 The available permissions are documented by the [`--experimental-permission`][]
 flag.
 
-When starting Node.js with `--experimental-permission`,
-the ability to access the file system through the `fs` module, spawn processes,
-use `node:worker_threads` and enable the runtime inspector
-will be restricted.
+When starting Node.js with `--experimental-permission`, the ability to access
+the file system through the `fs` module, spawn processes, use
+`node:worker_threads`, load shared libraries with `node:ffi`, and enable the
 
 ```console
 $ node --experimental-permission index.js
@@ -502,8 +501,9 @@ Error: Access to this API has been restricted
 }
 ```
 
-Allowing access to spawning a process and creating worker threads can be done
-using the [`--allow-child-process`][] and [`--allow-worker`][] respectively.
+Allowing access to spawning a process, creating worker threads, and loading
+shared libraries with FFI can be done using the [`--allow-child-process`][],
+[`--allow-worker`][], and [`--allow-ffi`][] flags respectively.
 
 #### Runtime API
 
@@ -575,6 +575,7 @@ There are constraints you need to know before using this system:
 [Import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
 [`--allow-child-process`]: cli.md#--allow-child-process
+[`--allow-ffi`]: cli.md#--allow-ffi
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-write`]: cli.md#--allow-fs-write
 [`--allow-worker`]: cli.md#--allow-worker

@@ -31,6 +31,7 @@
 * [Errors](errors.md)
 * [Events](events.md)
 * [File system](fs.md)
+* [Foreign Function Interface](ffi.md)
 * [Globals](globals.md)
 * [HTTP](http.md)
 * [HTTP/2](http2.md)

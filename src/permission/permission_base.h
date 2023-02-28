@@ -19,6 +19,8 @@ namespace permission {
 
 #define CHILD_PROCESS_PERMISSIONS(V) V(ChildProcess, "child", PermissionsRoot)
 
+#define FFI_PERMISSIONS(V) V(Ffi, "ffi", PermissionsRoot)
+
 #define WORKER_THREADS_PERMISSIONS(V)                                          \
   V(WorkerThreads, "worker", PermissionsRoot)
 
@@ -26,6 +28,7 @@ namespace permission {
 
 #define PERMISSIONS(V)                                                         \
   FILESYSTEM_PERMISSIONS(V)                                                    \
+  FFI_PERMISSIONS(V)                                                           \
   CHILD_PROCESS_PERMISSIONS(V)                                                 \
   WORKER_THREADS_PERMISSIONS(V)                                                \
   INSPECTOR_PERMISSIONS(V)

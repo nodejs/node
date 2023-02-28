@@ -1271,6 +1271,38 @@ added: v14.0.0
 Used when a feature that is not available
 to the current platform which is running Node.js is used.
 
+<a id="ERR_FFI_LIBRARY_LOAD_FAILED"></a>
+
+### `ERR_FFI_LIBRARY_LOAD_FAILED`
+
+<!--
+added: REPLACEME
+-->
+
+The loading of a shared library failed in [`ffi.getNativeFunction()`][].
+
+<a id="ERR_FFI_SYMBOL_NOT_FOUND"></a>
+
+### `ERR_FFI_SYMBOL_NOT_FOUND`
+
+<!--
+added: REPLACEME
+-->
+
+The given function symbol was not found in the given shared library in
+[`ffi.getNativeFunction()`][].
+
+<a id="ERR_FFI_UNSUPPORTED_TYPE"></a>
+
+### `ERR_FFI_UNSUPPORTED_TYPE`
+
+<!--
+added: REPLACEME
+-->
+
+One or more of the types passed to [`ffi.getNativeFunction()`][] as return or
+argument types is not supported.
+
 <a id="ERR_FS_CP_DIR_TO_NON_DIR"></a>
 
 ### `ERR_FS_CP_DIR_TO_NON_DIR`
@@ -3603,6 +3635,7 @@ The native call from `process.cpuUsage` could not be processed.
 [`dgram.disconnect()`]: dgram.md#socketdisconnect
 [`dgram.remoteAddress()`]: dgram.md#socketremoteaddress
 [`errno`(3) man page]: https://man7.org/linux/man-pages/man3/errno.3.html
+[`ffi.getNativeFunction()`]: ffi.md#ffigetnativefunctionlibrary-func-rettype-argtypes
 [`fs.Dir`]: fs.md#class-fsdir
 [`fs.cp()`]: fs.md#fscpsrc-dest-options-callback
 [`fs.readFileSync`]: fs.md#fsreadfilesyncpath-options

@@ -141,6 +141,48 @@ Error: Access to this API has been restricted
 }
 ```
 
+### `--allow-ffi`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+When using the [Permission Model][], the process will not be able to get
+pointers from buffers, or load shared libraries through the `node:ffi` module by
+default. Attempts to do so will throw an `ERR_ACCESS_DENIED` unless the
+user explicitly passes the `--allow-ffi` flag when starting Node.js.
+
+Example:
+
+```js
+const ffi = require('node:ffi');
+// Attempt to bypass the permission
+ffi.getBufferPointer(Buffer.alloc(1));
+```
+
+```console
+$ node --experimental-permission --allow-fs-read=* index.js
+node:ffi:226
+  const ptr = getBufferPointerInternal(buf);
+              ^
+
+Error: Access to this API has been restricted
+    at Object.getBufferPointer (node:ffi:226:15)
+    at Object.<anonymous> (/Users/bryan.english/node/script.js:3:5)
+    at Module._compile (node:internal/modules/cjs/loader:1287:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1341:10)
+    at Module.load (node:internal/modules/cjs/loader:1145:32)
+    at Module._load (node:internal/modules/cjs/loader:984:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:83:12)
+    at node:internal/main/run_main_module:23:47 {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'Ffi',
+  resource: ''
+}
+```
+
 ### `--allow-fs-read`
 
 <!-- YAML
@@ -584,6 +626,7 @@ following permissions are restricted:
   [`--allow-fs-read`][], [`--allow-fs-write`][] flags
 * Child Process - manageable through [`--allow-child-process`][] flag
 * Worker Threads - manageable through [`--allow-worker`][] flag
+* FFI - manageable through [`--allow-ffi`][] flag
 
 ### `--experimental-policy`
 
@@ -2195,6 +2238,7 @@ Node.js options that are allowed are:
 <!-- node-options-node start -->
 
 * `--allow-child-process`
+* `--allow-ffi`
 * `--allow-fs-read`
 * `--allow-fs-write`
 * `--allow-worker`

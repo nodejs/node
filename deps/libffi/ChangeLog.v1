@@ -1,0 +1,764 @@
+The libffi version 1 ChangeLog archive.
+
+Version 1 of libffi had per-directory ChangeLogs.  Current and future
+versions have a single ChangeLog file in the root directory.  The
+version 1 ChangeLogs have all been concatonated into this file for
+future reference only.
+
+--- libffi ----------------------------------------------------------------
+
+Mon Oct  5 02:17:50 1998  Anthony Green  <green@cygnus.com>
+
+	* configure.in: Boosted rev.
+	* configure, Makefile.in, aclocal.m4: Rebuilt.
+	* README: Boosted rev and updated release notes.
+
+Mon Oct  5 01:03:03 1998  Anthony Green  <green@cygnus.com>
+
+	* configure.in: Boosted rev.
+	* configure, Makefile.in, aclocal.m4: Rebuilt.
+	* README: Boosted rev and updated release notes.
+
+1998-07-25  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* m68k/ffi.c (ffi_prep_cif_machdep): Use bitmask for cif->flags.
+	Correctly handle small structures.
+	(ffi_prep_args): Also handle small structures.
+	(ffi_call): Pass size of return type to ffi_call_SYSV.
+	* m68k/sysv.S: Adjust for above changes.  Correctly align small
+	structures in the return value.
+
+	* types.c (uint64, sint64) [M68K]: Change alignment to 4.
+
+Fri Apr 17 17:26:58 1998  Anthony Green  <green@hoser.cygnus.com>
+
+	* configure.in: Boosted rev.
+	* configure,Makefile.in,aclocal.m4: Rebuilt.
+	* README: Boosted rev and added release notes.
+
+Sun Feb 22 00:50:41 1998  Geoff Keating  <geoffk@ozemail.com.au>
+
+	* configure.in: Add PowerPC config bits.
+
+1998-02-14  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* configure.in: Add m68k config bits.  Change AC_CANONICAL_SYSTEM
+	to AC_CANONICAL_HOST, this is not a compiler.  Use $host instead
+	of $target.  Remove AC_CHECK_SIZEOF(char), we already know the
+	result.  Fix argument of AC_ARG_ENABLE.
+	* configure, fficonfig.h.in: Rebuilt.
+
+Tue Feb 10 20:53:40 1998  Richard Henderson  <rth@cygnus.com>
+
+	* configure.in: Add Alpha config bits.
+
+Tue May 13 13:39:20 1997  Anthony Green  <green@hoser.cygnus.com>
+
+	* README: Updated dates and reworded Irix comments.
+
+	* configure.in: Removed AC_PROG_RANLIB.
+
+	* Makefile.in, aclocal.m4, config.guess, config.sub, configure,
+	ltmain.sh, */Makefile.in: libtoolized again and	rebuilt with 
+	automake and autoconf.
+	
+Sat May 10 18:44:50 1997  Tom Tromey  <tromey@cygnus.com>
+
+	* configure, aclocal.m4: Rebuilt.
+	* configure.in: Don't compute EXTRADIST; now handled in
+	src/Makefile.in.  Removed macros implied by AM_INIT_AUTOMAKE.
+	Don't run AM_MAINTAINER_MODE.
+
+Thu May  8 14:34:05 1997  Anthony Green  <green@hoser.cygnus.com>
+
+	* missing, ltmain.sh, ltconfig.sh: Created. These are new files
+	required by automake and libtool.
+
+	* README: Boosted rev to 1.14. Added notes.
+
+	* acconfig.h: Moved PACKAGE and VERSION for new automake.
+	
+	* configure.in: Changes for libtool.
+	
+	* Makefile.am (check): make test now make check. Uses libtool now.
+
+	* Makefile.in, configure.in, aclocal.h, fficonfig.h.in: Rebuilt.
+
+Thu May  1 16:27:07 1997  Anthony Green  <green@hoser.cygnus.com>
+
+	* missing: Added file required by new automake.
+
+Tue Nov 26 14:10:42 1996  Anthony Green  <green@csk3.cygnus.com>
+
+	* acconfig.h: Added USING_PURIFY flag. This is defined when
+	--enable-purify-safety was used at configure time.
+
+	* configure.in (allsources): Added --enable-purify-safety switch.
+	(VERSION): Boosted rev to 1.13.
+	* configure: Rebuilt.
+
+Fri Nov 22 06:46:12 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* configure.in (VERSION): Boosted rev to 1.12.
+	Removed special CFLAGS hack for gcc.
+	* configure: Rebuilt.
+
+	* README: Boosted rev to 1.12. Added notes.
+
+	* Many files: Cygnus Support changed to Cygnus Solutions.
+
+Wed Oct 30 11:15:25 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* configure.in (VERSION): Boosted rev to 1.11.
+	* configure: Rebuilt.
+
+	* README: Boosted rev to 1.11. Added notes about GNU make.
+
+Tue Oct 29 12:25:12 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* configure.in: Fixed -Wall trick.
+	(VERSION): Boosted rev.
+	* configure: Rebuilt
+
+	* acconfig.h: Needed for --enable-debug configure switch.
+
+	* README: Boosted rev to 1.09. Added more notes on building
+	libffi, and LCLint.
+
+	* configure.in: Added --enable-debug switch. Boosted rev to
+	1.09.
+	* configure: Rebuilt
+
+Tue Oct 15 13:11:28 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* configure.in (VERSION): Boosted rev to 1.08
+	* configure: Rebuilt.
+
+	* README: Added n32 bug fix notes.
+
+	* Makefile.am: Added "make lint" production. 
+	* Makefile.in: Rebuilt.
+
+Mon Oct 14 10:54:46 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* README: Added web page reference.
+
+	* configure.in, README: Boosted rev to 1.05
+	* configure: Rebuilt.
+
+	* README: Fixed n32 sample code.
+
+Fri Oct 11 17:09:28 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* README: Added sparc notes.
+
+	* configure.in, README: Boosted rev to 1.04.
+	* configure: Rebuilt.
+
+Thu Oct 10 10:31:03 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* configure.in, README: Boosted rev to 1.03.
+	* configure: Rebuilt.
+
+	* README: Added struct notes. 
+
+	* Makefile.am (EXTRA_DIST): Added LICENSE to distribution.
+	* Makefile.in: Rebuilt.
+
+	* README: Removed Linux section. No special notes now
+	because aggregates arg/return types work.
+
+Wed Oct  9 16:16:42 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* README, configure.in (VERSION): Boosted rev to 1.02
+	* configure: Rebuilt.
+
+Tue Oct  8 11:56:33 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* README (NOTE): Added n32 notes.
+
+	* Makefile.am: Added test production.
+	* Makefile: Rebuilt
+
+	* README: spell checked!
+
+	* configure.in (VERSION): Boosted rev to 1.01
+	* configure: Rebuilt.
+
+Mon Oct  7 15:50:22 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* configure.in: Added nasty bit to support SGI tools.
+	* configure: Rebuilt.
+	
+	* README: Added SGI notes. Added note about automake bug.
+
+Mon Oct  7 11:00:28 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* README: Rewrote intro, and fixed examples.
+
+Fri Oct  4 10:19:55 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* configure.in: -D$TARGET is no longer used as a compiler switch.
+	It is now inserted into ffi.h at configure time.
+	* configure: Rebuilt.
+
+	* FFI_ABI and FFI_STATUS are now ffi_abi and ffi_status.
+
+Thu Oct  3 13:47:34 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* README, LICENSE: Created. Wrote some docs.
+
+	* configure.in: Don't barf on i586-unknown-linuxaout.
+	Added EXTRADIST code for "make dist".
+	* configure: Rebuilt.
+
+	* */Makefile.in: Rebuilt with patched automake. 
+
+Tue Oct  1 17:12:25 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* Makefile.am, aclocal.m4, config.guess, config.sub,
+	configure.in, fficonfig.h.in, install-sh, mkinstalldirs, 
+	stamp-h.in: Created
+	* Makefile.in, configure: Generated
+
+--- libffi/include --------------------------------------------------------
+
+Tue Feb 24 13:09:36 1998  Anthony Green  <green@gerbil.cygnus.com>
+
+	* ffi_mips.h: Updated FFI_TYPE_STRUCT_* values based on
+	ffi.h.in changes.  This is a work-around for SGI's "simple"
+	assembler.
+
+Sun Feb 22 00:51:55 1998  Geoff Keating  <geoffk@ozemail.com.au>
+
+	* ffi.h.in: PowerPC support.
+
+1998-02-14  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* ffi.h.in: Add m68k support.
+	(FFI_TYPE_LONGDOUBLE): Make it a separate value.
+
+Tue Feb 10 20:55:16 1998  Richard Henderson  <rth@cygnus.com>
+
+	* ffi.h.in (SIZEOF_ARG): Use a pointer type by default.
+
+	* ffi.h.in: Alpha support.
+
+Fri Nov 22 06:48:45 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi.h.in, ffi_common.h: Cygnus Support -> Cygnus Solutions.
+
+Wed Nov 20 22:31:01 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* ffi.h.in: Added ffi_type_void definition.
+
+Tue Oct 29 12:22:40 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* Makefile.am (hack_DATA): Always install ffi_mips.h.
+
+	* ffi.h.in: Removed FFI_DEBUG. It's now in the correct
+	place (acconfig.h).
+	Added #include <stddef.h> for size_t definition.
+
+Tue Oct 15 17:23:35 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* ffi.h.in, ffi_common.h, ffi_mips.h: More clean up.
+	Commented out #define of FFI_DEBUG.
+
+Tue Oct 15 13:01:06 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi_common.h: Added bool definition.
+
+	* ffi.h.in, ffi_common.h: Clean up based on LCLint output.
+	Added funny /*@...@*/ comments to annotate source.
+
+Mon Oct 14 12:29:23 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi.h.in: Interface changes based on feedback from Jim
+	Blandy.
+
+Fri Oct 11 16:49:35 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi.h.in: Small change for sparc support.
+
+Thu Oct 10 14:53:37 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi_mips.h: Added FFI_TYPE_STRUCT_* definitions for 
+	special structure return types.
+
+Wed Oct  9 13:55:57 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi.h.in: Added SIZEOF_ARG definition for X86
+
+Tue Oct  8 11:40:36 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi.h.in (FFI_FN): Added macro for eliminating compiler warnings.
+	Use it to case your function pointers to the proper type.
+
+	* ffi_mips.h (SIZEOF_ARG): Added magic to fix type promotion bug.
+
+	* Makefile.am (EXTRA_DIST): Added ffi_mips.h to EXTRA_DIST.
+	* Makefile: Rebuilt.
+
+	* ffi_mips.h: Created. Moved all common mips definitions here.
+
+Mon Oct  7 10:58:12 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* ffi.h.in: The SGI assember is very picky about parens. Redefined
+ 	some macros to avoid problems.
+
+	* ffi.h.in: Added FFI_DEFAULT_ABI definitions. Also added
+	externs for pointer, and 64bit integral ffi_types.
+
+Fri Oct  4 09:51:37 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* ffi.h.in: Added FFI_ABI member to ffi_cif and changed
+	function prototypes accordingly.
+	Added #define @TARGET@. Now programs including ffi.h don't 
+	have to specify this themselves.
+
+Thu Oct  3 15:36:44 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* ffi.h.in: Changed ffi_prep_cif's values from void* to void**
+
+	* Makefile.am (EXTRA_DIST): Added EXTRA_DIST for "make dist"
+	to work.
+	* Makefile.in: Regenerated.
+
+Wed Oct  2 10:16:59 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* Makefile.am: Created
+	* Makefile.in: Generated
+
+	* ffi_common.h: Added rcsid comment
+
+Tue Oct  1 17:13:51 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi.h.in, ffi_common.h: Created
+
+--- libffi/src ------------------------------------------------------------
+
+Mon Oct  5 02:17:50 1998  Anthony Green  <green@cygnus.com>
+
+	* arm/ffi.c, arm/sysv.S: Created.
+
+	* Makefile.am: Added arm files.
+	* Makefile.in: Rebuilt.
+
+Mon Oct  5 01:41:38 1998  Anthony Green  <green@rtl.cygnus.com>
+
+	* Makefile.am (libffi_la_LDFLAGS): Incremented revision.
+
+Sun Oct  4 16:27:17 1998  Anthony Green  <green@cygnus.com>
+
+	* alpha/osf.S (ffi_call_osf): Patch for DU assembler.
+
+	* ffitest.c (main): long long and long double return values work
+	for x86.
+
+Fri Apr 17 11:50:58 1998  Anthony Green  <green@hoser.cygnus.com>
+
+	* Makefile.in: Rebuilt.
+
+	* ffitest.c (main): Floating point tests not executed for systems
+ 	with broken lond double (SunOS 4 w/ GCC).
+
+	* types.c: Fixed x86 alignment info for long long types.
+
+Thu Apr 16 07:15:28 1998  Anthony Green  <green@ada.cygnus.com>
+
+	* ffitest.c: Added more notes about GCC bugs under Irix 6.
+
+Wed Apr 15 08:42:22 1998  Anthony Green  <green@hoser.cygnus.com>
+
+	* ffitest.c (struct5): New test function.
+	(main): New test with struct5.
+
+Thu Mar  5 10:48:11 1998  Anthony Green  <green@tootie.to.cygnus.com>
+
+	* prep_cif.c (initialize_aggregate): Fix assertion for
+	nested structures.
+
+Tue Feb 24 16:33:41 1998  Anthony Green  <green@hoser.cygnus.com>
+
+	* prep_cif.c (ffi_prep_cif): Added long double support for sparc.
+
+Sun Feb 22 00:52:18 1998  Geoff Keating  <geoffk@ozemail.com.au>
+
+	* powerpc/asm.h: New file.
+	* powerpc/ffi.c: New file.
+	* powerpc/sysv.S: New file.
+	* Makefile.am: PowerPC port.
+	* ffitest.c (main): Allow all tests to run even in presence of gcc
+ 	bug on PowerPC.
+
+1998-02-17  Anthony Green  <green@hoser.cygnus.com>
+
+	* mips/ffi.c: Fixed comment typo.
+
+	* x86/ffi.c (ffi_prep_cif_machdep), x86/sysv.S (retfloat): 
+	Fixed x86 long double return handling.
+
+	* types.c: Fixed x86 long double alignment info.
+
+1998-02-14  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* types.c: Add m68k support.
+
+	* ffitest.c (floating): Add long double parameter.
+	(return_ll, ldblit): New functions to test long long and long
+	double return value.
+	(main): Fix type error in assignment of ts[1-4]_type.elements.
+	Add tests for long long and long double arguments and return
+	values.
+
+	* prep_cif.c (ffi_prep_cif) [M68K]: Don't allocate argument for
+	struct value pointer.
+
+	* m68k/ffi.c, m68k/sysv.S: New files.
+	* Makefile.am: Add bits for m68k port.  Add kludge to work around
+	automake deficiency.
+	(test): Don't require "." in $PATH.
+	* Makefile.in: Rebuilt.
+
+Wed Feb 11 07:36:50 1998  Anthony Green  <green@hoser.cygnus.com>
+
+	* Makefile.in: Rebuilt.
+
+Tue Feb 10 20:56:00 1998  Richard Henderson  <rth@cygnus.com>
+
+	* alpha/ffi.c, alpha/osf.S: New files.
+	* Makefile.am: Alpha port.
+
+Tue Nov 18 14:12:07 1997  Anthony Green  <green@hoser.cygnus.com>
+
+	* mips/ffi.c (ffi_prep_cif_machdep): Initialize rstruct_flag
+	for n32.
+
+Tue Jun  3 17:18:20 1997  Anthony Green  <green@hoser.cygnus.com>
+
+	* ffitest.c (main): Added hack to get structure tests working
+	correctly.
+
+Sat May 10 19:06:42 1997  Tom Tromey  <tromey@cygnus.com>
+
+	* Makefile.in: Rebuilt.
+	* Makefile.am (EXTRA_DIST): Explicitly list all distributable
+	files in subdirs.
+	(VERSION, CC): Removed.
+
+Thu May  8 17:19:01 1997  Anthony Green  <green@hoser.cygnus.com>
+
+	* Makefile.am: Many changes for new automake and libtool.
+	* Makefile.in: Rebuilt.
+
+Fri Nov 22 06:57:56 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffitest.c (main): Fixed test case for non mips machines.
+
+Wed Nov 20 22:31:59 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* types.c: Added ffi_type_void declaration.
+
+Tue Oct 29 13:07:19 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffitest.c (main): Fixed character constants.
+	(main): Emit warning for structure test 3 failure on Sun.
+
+	* Makefile.am (VPATH): Fixed VPATH def'n so automake won't
+	strip it out. 
+	Moved distdir hack from libffi to automake. 
+	(ffitest): Added missing -c for $(COMPILE) (change in automake).
+	* Makefile.in: Rebuilt.
+	
+Tue Oct 15 13:08:20 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* Makefile.am: Added "make lint" production. 
+	* Makefile.in: Rebuilt.
+
+	* prep_cif.c (STACK_ARG_SIZE): Improved STACK_ARG_SIZE macro.
+  	Clean up based on LCLint output. Added funny /*@...@*/ comments to
+ 	annotate source.
+
+	* ffitest.c, debug.c: Cleaned up code.
+
+Mon Oct 14 12:26:56 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffitest.c: Changes based on interface changes.
+
+	* prep_cif.c (ffi_prep_cif): Cleaned up interface based on
+	feedback from Jim Blandy.
+
+Fri Oct 11 15:53:18 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffitest.c: Reordered tests while porting to sparc.
+	Made changes to handle lame structure passing for sparc.
+	Removed calls to fflush().
+
+	* prep_cif.c (ffi_prep_cif): Added special case for sparc
+	aggregate type arguments.
+
+Thu Oct 10 09:56:51 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffitest.c (main): Added structure passing/returning tests.
+
+	* prep_cif.c (ffi_prep_cif): Perform proper initialization
+	of structure return types if needed.
+	(initialize_aggregate): Bug fix
+
+Wed Oct  9 16:04:20 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* types.c: Added special definitions for x86 (double doesn't
+	need double word alignment).
+
+	* ffitest.c: Added many tests
+
+Tue Oct  8 09:19:22 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* prep_cif.c (ffi_prep_cif): Fixed assertion.
+
+	* debug.c (ffi_assert): Must return a non void now.
+
+	* Makefile.am: Added test production.
+	* Makefile: Rebuilt.
+
+	* ffitest.c (main): Created. 
+
+	* types.c: Created. Stripped common code out of */ffi.c.
+
+	* prep_cif.c: Added missing stdlib.h include.
+
+	* debug.c (ffi_type_test): Used "a" to eliminate compiler
+	warnings in non-debug builds. Included ffi_common.h.
+
+Mon Oct  7 15:36:42 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* Makefile.am: Added a rule for .s -> .o
+	This is required by the SGI compiler.
+	* Makefile: Rebuilt.
+
+Fri Oct  4 09:51:08 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* prep_cif.c (initialize_aggregate): Moved abi specification
+	to ffi_prep_cif().
+
+Thu Oct  3 15:37:37 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* prep_cif.c (ffi_prep_cif): Changed values from void* to void**.
+	(initialize_aggregate): Fixed aggregate type initialization.
+
+	* Makefile.am (EXTRA_DIST): Added support code for "make dist".
+	* Makefile.in: Regenerated.
+
+Wed Oct  2 11:41:57 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* debug.c, prep_cif: Created.
+
+	* Makefile.am: Added debug.o and prep_cif.o to OBJ.
+	* Makefile.in: Regenerated.
+
+	* Makefile.am (INCLUDES): Added missing -I../include
+	* Makefile.in: Regenerated.
+
+Tue Oct  1 17:11:51 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* error.c, Makefile.am: Created.
+	* Makefile.in: Generated.
+
+--- libffi/src/x86 --------------------------------------------------------
+
+Sun Oct  4 16:27:17 1998  Anthony Green  <green@cygnus.com>
+
+	* sysv.S (retlongdouble): Fixed long long return value support.
+	* ffi.c (ffi_prep_cif_machdep): Ditto.
+
+Wed May 13 04:30:33 1998  Anthony Green  <green@raft.ppp.tsoft.net>
+
+	* ffi.c (ffi_prep_cif_machdep): Fixed long double return value
+	support.
+
+Wed Apr 15 08:43:20 1998  Anthony Green  <green@hoser.cygnus.com>
+
+	* ffi.c (ffi_prep_args): small struct support was missing.
+
+Thu May  8 16:53:58 1997  Anthony Green  <green@hoser.cygnus.com>
+
+	* objects.mak: Removed.
+
+Mon Dec  2 15:12:58 1996  Tom Tromey  <tromey@cygnus.com>
+
+	* sysv.S: Use .balign, for a.out Linux boxes.
+
+Tue Oct 15 13:06:50 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* ffi.c: Clean up based on LCLint output.
+	Added funny /*@...@*/ comments to annotate source.
+
+Fri Oct 11 16:43:38 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi.c (ffi_call): Added assertion for bad ABIs.
+
+Wed Oct  9 13:57:27 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* sysv.S (retdouble): Fixed double return problems.
+
+	* ffi.c	(ffi_call): Corrected fn arg definition.
+	(ffi_prep_cif_machdep): Fixed double return problems
+
+Tue Oct  8 12:12:49 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi.c: Moved ffi_type definitions to types.c.
+	(ffi_prep_args): Fixed type promotion bug.
+
+Mon Oct  7 15:53:06 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi.c (FFI_*_TYPEDEF): Removed redundant ';'
+
+Fri Oct  4 09:54:53 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* ffi.c (ffi_call): Removed FFI_ABI arg, and swapped
+	remaining args.
+
+Wed Oct  2 10:07:05 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* ffi.c, sysv.S, objects.mak: Created.
+	(ffi_prep_cif): cif->rvalue no longer initialized to NULL.
+	(ffi_prep_cif_machdep): Moved machine independent cif processing
+	to src/prep_cif.c. Introduced ffi_prep_cif_machdep().
+
+--- libffi/src/mips -------------------------------------------------------
+
+Tue Feb 17 17:18:07 1998  Anthony Green  <green@hoser.cygnus.com>
+
+	* o32.S: Fixed typo in comment.
+
+	* ffi.c (ffi_prep_cif_machdep): Fixed argument processing.
+
+Thu May  8 16:53:58 1997  Anthony Green  <green@hoser.cygnus.com>
+
+	* o32.s, n32.s: Wrappers for SGI tool support.
+
+	* objects.mak: Removed.
+
+Tue Oct 29 14:37:45 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi.c (ffi_prep_args): Changed int z to size_t z.
+
+Tue Oct 15 13:17:25 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* n32.S: Fixed bad stack munging. 
+
+	* ffi.c: Moved prototypes for ffi_call_?32() to here from
+	ffi_mips.h because extended_cif is not defined in ffi_mips.h.
+
+Mon Oct 14 12:42:02 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi.c: Interface changes based on feedback from Jim Blandy.
+
+Thu Oct 10 11:22:16 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* n32.S, ffi.c: Lots of changes to support passing and 
+	returning structures with the n32 calling convention.
+
+	* n32.S: Fixed fn pointer bug.
+
+	* ffi.c (ffi_prep_cif_machdep): Fix for o32 structure
+	return values.
+	(ffi_prep_args): Fixed n32 structure passing when structures
+	partially fit in registers.
+
+Wed Oct  9 13:49:25 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* objects.mak: Added n32.o.
+
+	* n32.S: Created.
+
+	* ffi.c (ffi_prep_args): Added magic to support proper
+	n32 processing.
+
+Tue Oct  8 10:37:35 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi.c: Moved ffi_type definitions to types.c.
+	(ffi_prep_args): Fixed type promotion bug.
+
+	* o32.S: This code is only built for o32 compiles.
+	A lot of the #define cruft has moved to ffi_mips.h.
+
+	* ffi.c (ffi_prep_cif_machdep): Fixed arg flags. Second arg
+	is only processed if the first is either a float or double.
+
+Mon Oct  7 15:33:59 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* o32.S: Modified to compile under each of o32, n32 and n64.
+
+	* ffi.c (FFI_*_TYPEDEF): Removed redundant ';'
+
+Fri Oct  4 09:53:25 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* ffi.c (ffi_call): Removed FFI_ABI arg, and swapped
+	remaining args.
+
+Wed Oct  2 17:41:22 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* o32.S: Removed crufty definitions.
+
+Wed Oct  2 12:53:42 1996  Anthony Green  <green@hoser.cygnus.com>
+
+	* ffi.c (ffi_prep_cif): cif->rvalue no longer initialized to NULL.
+	(ffi_prep_cif_machdep): Moved all machine independent cif processing
+	to src/prep_cif.c. Introduced ffi_prep_cif_machdep. Return types
+	of FFI_TYPE_STRUCT are no different than FFI_TYPE_INT.
+
+Tue Oct  1 17:11:02 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi.c, o32.S, object.mak: Created
+	
+--- libffi/src/sparc ------------------------------------------------------
+
+Tue Feb 24 16:33:18 1998  Anthony Green  <green@hoser.cygnus.com>
+
+	* ffi.c (ffi_prep_args): Added long double support.
+
+Thu May  8 16:53:58 1997  Anthony Green  <green@hoser.cygnus.com>
+
+	* objects.mak: Removed.
+
+Thu May  1 16:07:56 1997  Anthony Green  <green@hoser.cygnus.com>
+
+	* v8.S: Fixed minor portability problem reported by 
+	Russ McManus <mcmanr@eq.gs.com>.
+
+Tue Nov 26 14:12:43 1996  Anthony Green  <green@csk3.cygnus.com>
+
+	* v8.S: Used STACKFRAME define elsewhere. 
+
+	* ffi.c (ffi_prep_args): Zero out space when USING_PURIFY
+	is set.
+	(ffi_prep_cif_machdep): Allocate the correct stack frame 
+	space for functions with < 6 args.
+
+Tue Oct 29 15:08:55 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi.c (ffi_prep_args): int z is now size_t z.
+
+Mon Oct 14 13:31:24 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* v8.S (ffi_call_V8): Gordon rewrites this again. It looks
+	great now.
+
+	* ffi.c (ffi_call): The comment about hijacked registers
+	is no longer valid after gordoni hacked v8.S.
+
+        * v8.S (ffi_call_V8): Rewrote with gordoni. Much simpler.
+	
+	* v8.S, ffi.c: ffi_call() had changed to accept more than
+	two args, so v8.S had to change (because it hijacks incoming
+	arg registers).
+
+	* ffi.c: Interface changes based on feedback from Jim Blandy.
+
+Thu Oct 10 17:48:16 1996  Anthony Green  <green@rtl.cygnus.com>
+
+	* ffi.c, v8.S, objects.mak: Created.
+	
+
