@@ -47,7 +47,7 @@ it('async throw fail', async () => {
   throw new Error('thrown from async throw fail');
 });
 
-it('async skip fail', async (t) => {
+it('async skip fail', async (t, done) => {
   t.skip();
   throw new Error('thrown from async throw fail');
 });
@@ -206,61 +206,61 @@ it('escaped skip message', { skip: '#skip' });
 // A test whose todo message needs to be escaped.
 it('escaped todo message', { todo: '#todo' });
 
-it('callback pass', (done) => {
+it('callback pass', (t, done) => {
   setImmediate(done);
 });
 
-it('callback fail', (done) => {
+it('callback fail', (t, done) => {
   setImmediate(() => {
     done(new Error('callback failure'));
   });
 });
 
-it('sync t is this in test', function() {
-  assert.deepStrictEqual(this, { signal: this.signal, name: this.name });
+it('sync t is this in test', function(t) {
+  assert.strictEqual(this, t);
 });
 
-it('async t is this in test', async function() {
-  assert.deepStrictEqual(this, { signal: this.signal, name: this.name });
+it('async t is this in test', async function(t) {
+  assert.strictEqual(this, t);
 });
 
-it('callback t is this in test', function(done) {
-  assert.deepStrictEqual(this, { signal: this.signal, name: this.name });
+it('callback t is this in test', function(t, done) {
+  assert.strictEqual(this, t);
   done();
 });
 
-it('callback also returns a Promise', async (done) => {
+it('callback also returns a Promise', async (t, done) => {
   throw new Error('thrown from callback also returns a Promise');
 });
 
-it('callback throw', (done) => {
+it('callback throw', (t, done) => {
   throw new Error('thrown from callback throw');
 });
 
-it('callback called twice', (done) => {
+it('callback called twice', (t, done) => {
   done();
   done();
 });
 
-it('callback called twice in different ticks', (done) => {
+it('callback called twice in different ticks', (t, done) => {
   setImmediate(done);
   done();
 });
 
-it('callback called twice in future tick', (done) => {
+it('callback called twice in future tick', (t, done) => {
   setImmediate(() => {
     done();
     done();
   });
 });
 
-it('callback async throw', (done) => {
+it('callback async throw', (t, done) => {
   setImmediate(() => {
     throw new Error('thrown from callback async throw');
   });
 });
 
-it('callback async throw after done', (done) => {
+it('callback async throw after done', (t, done) => {
   setImmediate(() => {
     throw new Error('thrown from callback async throw after done');
   });
@@ -316,7 +316,7 @@ describe('timeouts', () => {
     });
   });
 
-  it('timed out callback test', { timeout: 5 }, (done) => {
+  it('timed out callback test', { timeout: 5 }, (t, done) => {
     setTimeout(done, 100);
   });
 
@@ -327,7 +327,7 @@ describe('timeouts', () => {
     });
   });
 
-  it('large timeout callback test is ok', { timeout: 30_000_000 }, (done) => {
+  it('large timeout callback test is ok', { timeout: 30_000_000 }, (t, done) => {
     setTimeout(done, 10);
   });
 });
