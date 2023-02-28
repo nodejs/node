@@ -32,7 +32,7 @@ describe('describe hooks', () => {
   });
 
   it('1', () => testArr.push('1'));
-  it('2', () => testArr.push('2'));
+  test('2', () => testArr.push('2'));
 
   describe('nested', () => {
     before(function() {
@@ -48,44 +48,44 @@ describe('describe hooks', () => {
       testArr.push('afterEach ' + this.name);
     });
     it('nested 1', () => testArr.push('nested 1'));
-    it('nested 2', () => testArr.push('nested 2'));
+    test('nested 2', () => testArr.push('nested 2'));
   });
 });
 
 describe('before throws', () => {
   before(() => { throw new Error('before'); });
   it('1', () => {});
-  it('2', () => {});
+  test('2', () => {});
 });
 
 describe('after throws', () => {
   after(() => { throw new Error('after'); });
   it('1', () => {});
-  it('2', () => {});
+  test('2', () => {});
 });
 
 describe('beforeEach throws', () => {
   beforeEach(() => { throw new Error('beforeEach'); });
   it('1', () => {});
-  it('2', () => {});
+  test('2', () => {});
 });
 
 describe('afterEach throws', () => {
   afterEach(() => { throw new Error('afterEach'); });
   it('1', () => {});
-  it('2', () => {});
+  test('2', () => {});
 });
 
 describe('afterEach when test fails', () => {
   afterEach(common.mustCall(2));
   it('1', () => { throw new Error('test'); });
-  it('2', () => {});
+  test('2', () => {});
 });
 
 describe('afterEach throws and test fails', () => {
   afterEach(() => { throw new Error('afterEach'); });
   it('1', () => { throw new Error('test'); });
-  it('2', () => {});
+  test('2', () => {});
 });
 
 test('test hooks', async (t) => {
