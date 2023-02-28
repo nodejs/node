@@ -266,7 +266,8 @@ size_t Worker::NearHeapLimit(void* data, size_t current_heap_limit,
 }
 
 void Worker::Run() {
-  std::string trace_name ="[worker " + std::to_string(thread_id_.id) + "]" + (name_ == "" ? "" : " " + name_);
+  std::string trace_name = "[worker " + std::to_string(thread_id_.id) + "]" +
+                           (name_ == "" ? "" : " " + name_);
   TRACE_EVENT_METADATA1(
       "__metadata", "thread_name", "name",
       TRACE_STR_COPY(trace_name.c_str()));
