@@ -13,9 +13,13 @@ const rli = new readline.Interface({
 
 let recursionDepth = 0;
 
-rli.on('line', function onLine() {
+// Minimal reproduction for #46731
+const testInput = ' \n}\n';
+const numberOfExpectedLines = testInput.match(/\n/g).length;
+
+rli.on('line', () => {
   // Abort in case of infinite loop
-  if (recursionDepth > 2) {
+  if (recursionDepth > numberOfExpectedLines) {
     return;
   }
   recursionDepth++;
@@ -23,8 +27,7 @@ rli.on('line', function onLine() {
   rli.write('foo');
 });
 
-// Minimal reproduction for #46731
-const testInput = ' \n}\n';
+
 rli.write(testInput);
 
-assert.strictEqual(recursionDepth, testInput.match(/\n/g).length);
+assert.strictEqual(recursionDepth, numberOfExpectedLines);
