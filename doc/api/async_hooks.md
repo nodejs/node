@@ -179,9 +179,9 @@ const asyncHook = createHook({
 ```
 
 ```cjs
-const async_hooks = require('node:async_hooks');
+const { createHook } = require('node:async_hooks');
 
-const asyncHook = async_hooks.createHook({
+const asyncHook = createHook({
   init(asyncId, type, triggerAsyncId, resource) { },
   destroy(asyncId) { },
 });
@@ -245,12 +245,12 @@ function debug(...args) {
 ```
 
 ```cjs
-const fs = require('node:fs');
-const util = require('node:util');
+const { writeFileSync } = require('node:fs');
+const { format } = require('node:util');
 
 function debug(...args) {
   // Use a function like this one when debugging inside an AsyncHook callback
-  fs.writeFileSync('log.out', `${util.format(...args)}\n`, { flag: 'a' });
+  writeFileSync('log.out', `${format(...args)}\n`, { flag: 'a' });
 }
 ```
 
@@ -282,9 +282,9 @@ const hook = createHook(callbacks).enable();
 ```
 
 ```cjs
-const async_hooks = require('node:async_hooks');
+const { createHook } = require('node:async_hooks');
 
-const hook = async_hooks.createHook(callbacks).enable();
+const hook = createHook(callbacks).enable();
 ```
 
 ### `asyncHook.disable()`
@@ -330,7 +330,9 @@ clearTimeout(setTimeout(() => {}, 10));
 ```
 
 ```cjs
-require('node:net').createServer().listen(function() { this.close(); });
+const { createServer } = require('node:net');
+
+createServer().listen(function() { this.close(); });
 // OR
 clearTimeout(setTimeout(() => {}, 10));
 ```
@@ -374,7 +376,7 @@ The following is a simple demonstration of `triggerAsyncId`:
 ```mjs
 import { createHook, executionAsyncId } from 'node:async_hooks';
 import { stdout } from 'node:process';
-import net from 'node:net';
+import { createServer } from 'node:net';
 
 createHook({
   init(asyncId, type, triggerAsyncId) {
@@ -385,13 +387,13 @@ createHook({
   },
 }).enable();
 
-net.createServer((conn) => {}).listen(8080);
+createServer((conn) => {}).listen(8080);
 ```
 
 ```cjs
 const { createHook, executionAsyncId } = require('node:async_hooks');
 const { stdout } = require('node:process');
-const net = require('node:net');
+const { createServer } = require('node:net');
 
 createHook({
   init(asyncId, type, triggerAsyncId) {
@@ -402,7 +404,7 @@ createHook({
   },
 }).enable();
 
-net.createServer((conn) => {}).listen(8080);
+createServer((conn) => {}).listen(8080);
 ```
 
 Output when hitting the server with `nc localhost 8080`:
@@ -730,9 +732,9 @@ fs.open(path, 'r', (err, fd) => {
 ```
 
 ```cjs
-const async_hooks = require('node:async_hooks');
+const { executionAsyncId } = require('node:async_hooks');
 
-console.log(async_hooks.executionAsyncId());  // 1 - bootstrap
+console.log(executionAsyncId());  // 1 - bootstrap
 fs.open(path, 'r', (err, fd) => {
   console.log(async_hooks.executionAsyncId());  // 6 - open()
 });
