@@ -223,7 +223,7 @@ function globMatch({ basePath, pattern }) {
  *      should be thrown when a pattern is unmatched.
  * @returns {Promise<Array<string>>} An array of matching file paths
  *      or an empty array if there are no matches.
- * @throws {UnmatchedSearchPatternsErrror} If there is a pattern that doesn't
+ * @throws {UnmatchedSearchPatternsError} If there is a pattern that doesn't
  *      match any files.
  */
 async function globSearch({

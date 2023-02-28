@@ -113,6 +113,10 @@ module.exports = {
                     },
                     applyDefaultIgnorePatterns: {
                         type: "boolean"
+                    },
+                    afterHashbangComment: {
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -447,6 +451,13 @@ module.exports = {
                             checkForEmptyLine(token, {
                                 after: options.afterBlockComment,
                                 before: options.beforeBlockComment
+                            });
+                        }
+                    } else if (token.type === "Shebang") {
+                        if (options.afterHashbangComment) {
+                            checkForEmptyLine(token, {
+                                after: options.afterHashbangComment,
+                                before: false
                             });
                         }
                     }
