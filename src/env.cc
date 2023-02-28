@@ -1298,12 +1298,16 @@ void Environment::ToggleImmediateRef(bool ref) {
   }
 }
 
-
-Local<Value> Environment::GetNow() {
+uint64_t Environment::GetNowUint64() {
   uv_update_time(event_loop());
   uint64_t now = uv_now(event_loop());
   CHECK_GE(now, timer_base());
   now -= timer_base();
+  return now;
+}
+
+Local<Value> Environment::GetNow() {
+  uint64_t now = GetNowUint64();
   if (now <= 0xffffffff)
     return Integer::NewFromUnsigned(isolate(), static_cast<uint32_t>(now));
   else

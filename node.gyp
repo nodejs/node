@@ -677,6 +677,7 @@
         'src/string_decoder-inl.h',
         'src/string_search.h',
         'src/tcp_wrap.h',
+        'src/timers.h',
         'src/tracing/agent.h',
         'src/tracing/node_trace_buffer.h',
         'src/tracing/node_trace_writer.h',
