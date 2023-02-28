@@ -279,9 +279,9 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     EscapableHandleScope scope(env->isolate());
     // TODO(addaleax): pass the callback to the main script more directly,
     // e.g. by making StartExecution(env, builtin) parametrizable
-    env->set_embedder_mksnapshot_entry_point(std::move(cb));
+    env->set_embedder_entry_point(std::move(cb));
     auto reset_entry_point =
-        OnScopeLeave([&]() { env->set_embedder_mksnapshot_entry_point({}); });
+        OnScopeLeave([&]() { env->set_embedder_entry_point({}); });
 
     const char* entry = env->isolate_data()->options()->build_snapshot
                             ? "internal/main/mksnapshot"

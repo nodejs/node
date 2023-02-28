@@ -1447,7 +1447,7 @@ namespace mksnapshot {
 void GetEmbedderEntryFunction(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
-  if (!env->embedder_mksnapshot_entry_point()) return;
+  if (!env->embedder_entry_point()) return;
   MaybeLocal<Function> jsfn =
       Function::New(isolate->GetCurrentContext(),
                     [](const FunctionCallbackInfo<Value>& args) {
@@ -1456,11 +1456,10 @@ void GetEmbedderEntryFunction(const FunctionCallbackInfo<Value>& args) {
                       Local<Value> runcjs_fn = args[1];
                       CHECK(require_fn->IsFunction());
                       CHECK(runcjs_fn->IsFunction());
-                      MaybeLocal<Value> retval =
-                          env->embedder_mksnapshot_entry_point()(
-                              {env->process_object(),
-                               require_fn.As<Function>(),
-                               runcjs_fn.As<Function>()});
+                      MaybeLocal<Value> retval = env->embedder_entry_point()(
+                          {env->process_object(),
+                           require_fn.As<Function>(),
+                           runcjs_fn.As<Function>()});
                       if (!retval.IsEmpty())
                         args.GetReturnValue().Set(retval.ToLocalChecked());
                     });

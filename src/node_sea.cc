@@ -20,9 +20,8 @@
 
 #if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 
-using v8::Boolean;
 using v8::Context;
-using v8::Isolate;
+using v8::FunctionCallbackInfo;
 using v8::Local;
 using v8::Object;
 using v8::Value;
@@ -53,6 +52,10 @@ bool IsSingleExecutable() {
   return postject_has_resource();
 }
 
+void IsSingleExecutable(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(IsSingleExecutable());
+}
+
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
   // Repeats argv[0] at position 1 on argv as a replacement for the missing
   // entry point file path.
@@ -79,13 +82,12 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  Isolate* isolate = env->isolate();
-  READONLY_PROPERTY(
-      target, "isSea", Boolean::New(isolate, IsSingleExecutable()));
+  SetMethod(context, target, "isSea", IsSingleExecutable);
 }
 
-void RegisterExternalReferences(ExternalReferenceRegistry* registry) {}
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(IsSingleExecutable);
+}
 
 }  // namespace sea
 }  // namespace node
