@@ -67,6 +67,7 @@ not ok 1 - describe timeout signal
   failureType: 'testAborted'
   error: 'The operation was aborted due to timeout'
   code: 23
+  name: 'TimeoutError'
   stack: |-
     *
     *
@@ -80,6 +81,7 @@ not ok 2 - describe abort signal
   failureType: 'testAborted'
   error: 'This operation was aborted'
   code: 20
+  name: 'AbortError'
   stack: |-
     *
     *
