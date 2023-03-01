@@ -2545,7 +2545,7 @@ console.log(util.types.isNativeError(myError)); // true
 console.log(myError instanceof Error); // false
 ```
 
-Conversely, `isNativeError()` returns `false` for all objects which where not
+Conversely, `isNativeError()` returns `false` for all objects which were not
 returned by the constructor of a native error. That includes values
 which are `instanceof` native errors:
 
