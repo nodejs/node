@@ -5,7 +5,6 @@
 <script src=/resources/testharness.js></script>
 <script src=/resources/testharnessreport.js></script>
 <div id=log></div>
-<iframe></iframe>
 <script>
 promise_test(() => fetch("resources/urltestdata.json").then(res => res.json()).then(runTests), "Loading data…")
 
@@ -41,9 +40,11 @@ function runTests(testData) {
         assert_throws_js(TypeError, () => self.navigator.sendBeacon(test.input))
       }, "sendBeacon(): " + name)
 
-      self.test(() => {
-        assert_throws_js(self[0].TypeError, () => self[0].location = test.input)
-      }, "Location's href: " + name)
+      self.test(t => {
+        const frame = document.body.appendChild(document.createElement("iframe"));
+        t.add_cleanup(() => frame.remove());
+        assert_throws_dom("SyntaxError", frame.contentWindow.DOMException, () => frame.contentWindow.location = test.input);
+      }, "Location's href: " + name);
 
       self.test(() => {
         assert_throws_dom("SyntaxError", () => self.open(test.input).close())
