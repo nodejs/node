@@ -3319,8 +3319,6 @@ util.log('Timestamped message.');
 [Customizing `util.inspect` colors]: #customizing-utilinspect-colors
 [Internationalization]: intl.md
 [Module Namespace Object]: https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects
-[realm]: https://tc39.es/ecma262/#realm
-[built-in `Error` type]: https://tc39.es/ecma262/#sec-error-objects
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`'warning'`]: process.md#event-warning
@@ -3369,10 +3367,12 @@ util.log('Timestamped message.');
 [`util.types.isNativeError()`]: #utiltypesisnativeerrorvalue
 [`util.types.isSharedArrayBuffer()`]: #utiltypesissharedarraybuffervalue
 [async function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
+[built-in `Error` type]: https://tc39.es/ecma262/#sec-error-objects
 [compare function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort#Parameters
 [constructor]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
 [default sort]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
 [global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for
 [list of deprecated APIS]: deprecations.md#list-of-deprecated-apis
+[realm]: https://tc39.es/ecma262/#realm
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
 [util.inspect.custom]: #utilinspectcustom
