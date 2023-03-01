@@ -2552,7 +2552,7 @@ which are `instanceof` native errors:
 ```js
 const myError = { __proto__: Error.prototype };
 console.log(util.types.isNativeError(myError)); // false
-console.log(myError instanceof Error)); // true
+console.log(myError instanceof Error); // true
 ```
 
 ### `util.types.isNumberObject(value)`
