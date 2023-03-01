@@ -387,12 +387,12 @@ void OptionsParser<Options>::Parse(
         implied_name.insert(2, "no-");
       }
       auto implications = implications_.equal_range(implied_name);
-      for (auto it = implications.first; it != implications.second; ++it) {
-        if (it->second.type == kV8Option) {
-          v8_args->push_back(it->second.name);
+      for (auto imp = implications.first; imp != implications.second; ++imp) {
+        if (imp->second.type == kV8Option) {
+          v8_args->push_back(imp->second.name);
         } else {
-          *it->second.target_field->template Lookup<bool>(options) =
-              it->second.target_value;
+          *imp->second.target_field->template Lookup<bool>(options) =
+              imp->second.target_value;
         }
       }
     }
