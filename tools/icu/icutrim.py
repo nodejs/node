@@ -97,9 +97,9 @@ if options.verbose>0:
     print("Options: "+str(options))
 
 if (os.path.isdir(options.tmpdir) and options.deltmpdir):
-  if options.verbose>1:
-    print("Deleting tmp dir %s.." % (options.tmpdir))
-  shutil.rmtree(options.tmpdir)
+    if options.verbose>1:
+        print("Deleting tmp dir %s.." % (options.tmpdir))
+    shutil.rmtree(options.tmpdir)
 
 if not (os.path.isdir(options.tmpdir)):
     os.mkdir(options.tmpdir)

@@ -109,11 +109,11 @@ void usage() {
 #define ASSERT_SUCCESS(status, what)      \
   if (U_FAILURE(*status)) {               \
     printf("%s:%d: %s: ERROR: %s %s\n", \
-             __FILE__,                    \
-             __LINE__,                    \
-             PROG,                        \
-             u_errorName(*status),        \
-             what);                       \
+           __FILE__,                    \
+           __LINE__,                    \
+           PROG,                        \
+           u_errorName(*status),        \
+           what);                       \
     return 1;                             \
   }
 

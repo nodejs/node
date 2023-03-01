@@ -58,25 +58,25 @@ from jinja2.utils import Markup, escape, clear_caches, \
      is_undefined, select_autoescape
 
 __all__ = [
-    'Environment', 'Template', 'BaseLoader', 'FileSystemLoader',
-    'PackageLoader', 'DictLoader', 'FunctionLoader', 'PrefixLoader',
-    'ChoiceLoader', 'BytecodeCache', 'FileSystemBytecodeCache',
-    'MemcachedBytecodeCache', 'Undefined', 'DebugUndefined',
-    'StrictUndefined', 'TemplateError', 'UndefinedError', 'TemplateNotFound',
-    'TemplatesNotFound', 'TemplateSyntaxError', 'TemplateAssertionError',
-    'TemplateRuntimeError',
-    'ModuleLoader', 'environmentfilter', 'contextfilter', 'Markup', 'escape',
-    'environmentfunction', 'contextfunction', 'clear_caches', 'is_undefined',
-    'evalcontextfilter', 'evalcontextfunction', 'make_logging_undefined',
-    'select_autoescape',
+     'Environment', 'Template', 'BaseLoader', 'FileSystemLoader',
+     'PackageLoader', 'DictLoader', 'FunctionLoader', 'PrefixLoader',
+     'ChoiceLoader', 'BytecodeCache', 'FileSystemBytecodeCache',
+     'MemcachedBytecodeCache', 'Undefined', 'DebugUndefined',
+     'StrictUndefined', 'TemplateError', 'UndefinedError', 'TemplateNotFound',
+     'TemplatesNotFound', 'TemplateSyntaxError', 'TemplateAssertionError',
+     'TemplateRuntimeError',
+     'ModuleLoader', 'environmentfilter', 'contextfilter', 'Markup', 'escape',
+     'environmentfunction', 'contextfunction', 'clear_caches', 'is_undefined',
+     'evalcontextfilter', 'evalcontextfunction', 'make_logging_undefined',
+     'select_autoescape',
 ]
 
 
 def _patch_async():
-    from jinja2.utils import have_async_gen
-    if have_async_gen:
-        from jinja2.asyncsupport import patch_all
-        patch_all()
+     from jinja2.utils import have_async_gen
+     if have_async_gen:
+          from jinja2.asyncsupport import patch_all
+          patch_all()
 
 
 _patch_async()
