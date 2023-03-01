@@ -8,8 +8,11 @@ const repl = require('repl');
 common.skipIfDumbTerminal();
 
 const command = `.load ${fixtures.path('repl-load-multiline.js')}`;
-const terminalCode = '\u001b[1G\u001b[0J \u001b[1G';
-const terminalCodeRegex = new RegExp(terminalCode.replace(/\[/g, '\\['), 'g');
+
+// \u001b[nG - Move the cursor to nth column.
+// \u001b[0J - Clear from cursor to end of screen.
+/* eslint-disable-next-line no-control-regex */
+const terminalCodeRegex = /(\u001b\[0J|\u001b\[\d+G) ?/g;
 
 const expected = `${command}
 const getLunch = () =>
