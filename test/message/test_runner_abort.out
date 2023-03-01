@@ -43,6 +43,7 @@ TAP version 13
       failureType: 'testAborted'
       error: 'This operation was aborted'
       code: 20
+      name: 'AbortError'
       stack: |-
         *
         *
@@ -62,6 +63,7 @@ TAP version 13
       failureType: 'testAborted'
       error: 'This operation was aborted'
       code: 20
+      name: 'AbortError'
       stack: |-
         *
         *
@@ -81,6 +83,7 @@ TAP version 13
       failureType: 'testAborted'
       error: 'This operation was aborted'
       code: 20
+      name: 'AbortError'
       stack: |-
         *
         *
@@ -100,6 +103,7 @@ not ok 1 - promise timeout signal
   failureType: 'testAborted'
   error: 'The operation was aborted due to timeout'
   code: 23
+  name: 'TimeoutError'
   stack: |-
     *
     *
@@ -113,6 +117,7 @@ not ok 2 - promise abort signal
   failureType: 'testAborted'
   error: 'This operation was aborted'
   code: 20
+  name: 'AbortError'
   stack: |-
     *
     *
@@ -168,6 +173,7 @@ not ok 2 - promise abort signal
       failureType: 'testAborted'
       error: 'This operation was aborted'
       code: 20
+      name: 'AbortError'
       stack: |-
         *
         *
@@ -187,6 +193,7 @@ not ok 2 - promise abort signal
       failureType: 'testAborted'
       error: 'This operation was aborted'
       code: 20
+      name: 'AbortError'
       stack: |-
         *
         *
@@ -206,6 +213,7 @@ not ok 2 - promise abort signal
       failureType: 'testAborted'
       error: 'This operation was aborted'
       code: 20
+      name: 'AbortError'
       stack: |-
         *
         *
@@ -225,6 +233,7 @@ not ok 3 - callback timeout signal
   failureType: 'testAborted'
   error: 'The operation was aborted due to timeout'
   code: 23
+  name: 'TimeoutError'
   stack: |-
     *
     *
@@ -238,6 +247,7 @@ not ok 4 - callback abort signal
   failureType: 'testAborted'
   error: 'This operation was aborted'
   code: 20
+  name: 'AbortError'
   stack: |-
     *
     *
