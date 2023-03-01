@@ -126,6 +126,7 @@ not ok 13 - async assertion fail
     true !== false
 
   code: 'ERR_ASSERTION'
+  name: 'AssertionError'
   expected: false
   actual: true
   operator: 'strictEqual'
