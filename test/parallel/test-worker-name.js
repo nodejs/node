@@ -3,25 +3,24 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 const assert = require('assert');
-const { Worker, isMainThread } = require('worker_threads');
+const { Worker, isMainThread, parentPort } = require('worker_threads');
 
 const { Session } = require('inspector');
 
 if (isMainThread) {
   const name = 'Hello Thread';
-  new Worker(__filename, {
-    workerData: 'Test Worker',
+  const worker = new Worker(__filename, {
     name,
   });
-
+  const expectedTitle = `[worker 1] ${name}`;
+  worker.once('message', common.mustCall((message) => {
+    assert.strictEqual(message, expectedTitle);
+  }));
+} else {
   const session = new Session();
-  session.connect();
+  session.connectToMainThread();
   session.on('NodeWorker.attachedToWorker', common.mustCall(({ params: { workerInfo } }) => {
-    const id = workerInfo.workerId;
-    const expectedTitle = `[Worker ${id}] ${name}`;
-    assert.strictEqual(workerInfo.title, expectedTitle);
+    parentPort.postMessage(workerInfo.title);
   }));
   session.post('NodeWorker.enable', { waitForDebuggerOnStart: false });
-} else {
-  // nothing to do
 }
