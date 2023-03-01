@@ -23,5 +23,5 @@ if (isMainThread) {
   }));
   session.post('NodeWorker.enable', { waitForDebuggerOnStart: false });
 } else {
-  console.log('inside worker');
+  // nothing to do
 }
