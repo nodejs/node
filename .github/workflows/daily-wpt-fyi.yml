@@ -42,7 +42,7 @@ jobs:
       # install a version and checkout
       - name: Get latest nightly
         if: matrix.node-version == 'latest-nightly'
-        run: echo "NIGHTLY=$(curl -s https://nodejs.org/download/nightly/index.json | jq -r '.[0].version')" >> $GITHUB_ENV
+        run: echo "NIGHTLY=$(curl -s https://nodejs.org/download/nightly/index.json | jq -r '[.[] | select(.files[] | contains("linux-x64"))][0].version')" >> $GITHUB_ENV
       - name: Install Node.js
         id: setup-node
         uses: actions/setup-node@v3
