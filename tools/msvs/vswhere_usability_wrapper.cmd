@@ -5,7 +5,7 @@
 
 @if not defined DEBUG_HELPER @ECHO OFF
 setlocal
-if "%~2"=="prerelease" set VSWHERE_WITH_PRERELEASE=1
+if "%~3"=="prerelease" set VSWHERE_WITH_PRERELEASE=1
 set "InstallerPath=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer"
 if not exist "%InstallerPath%" set "InstallerPath=%ProgramFiles%\Microsoft Visual Studio\Installer"
 if not exist "%InstallerPath%" goto :no-vswhere
@@ -13,7 +13,11 @@ if not exist "%InstallerPath%" goto :no-vswhere
 set "Path=%Path%;%InstallerPath%"
 where vswhere 2> nul > nul
 if errorlevel 1 goto :no-vswhere
-set VSWHERE_REQ=-requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64
+if "%2"=="arm64" (
+    set VSWHERE_REQ=-requires Microsoft.VisualStudio.Component.VC.Tools.ARM64    
+) else (
+    set VSWHERE_REQ=-requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64
+)
 set VSWHERE_PRP=-property installationPath
 set VSWHERE_LMT=-version %1
 vswhere -prerelease > nul
