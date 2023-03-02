@@ -313,7 +313,7 @@ void Initialize(Local<Object> target,
                 void* priv) {
   SetMethod(context, target, "parse", Parse);
   SetMethod(context, target, "updateUrl", UpdateUrl);
-  SetMethod(context, target, "formatUrl", FormatUrl);
+  SetMethodNoSideEffect(context, target, "formatUrl", FormatUrl);
 
   SetMethodNoSideEffect(context, target, "domainToASCII", DomainToASCII);
   SetMethodNoSideEffect(context, target, "domainToUnicode", DomainToUnicode);
