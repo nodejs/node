@@ -27,9 +27,14 @@ const net = require('net');
 const { readFileSync } = require('fs');
 
 if (common.isLinux) {
-  const unprivilegedPortStart = parseInt(readFileSync('/proc/sys/net/ipv4/ip_unprivileged_port_start'));
-  if (unprivilegedPortStart <= 42) {
-    common.skip('Port 42 is unprivileged');
+  try {
+    const unprivilegedPortStart = parseInt(readFileSync('/proc/sys/net/ipv4/ip_unprivileged_port_start'));
+    if (unprivilegedPortStart <= 42) {
+      common.skip('Port 42 is unprivileged');
+    }
+  } catch {
+    // Do nothing, feature doesn't exist, minimum is 1024 so 42 is usable.
+    // Continue...
   }
 }
 
