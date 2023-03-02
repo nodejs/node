@@ -51,6 +51,9 @@ class RunScript extends BaseCommand {
       // find the script name
       const json = resolve(this.npm.localPrefix, 'package.json')
       const { scripts = {} } = await rpj(json).catch(er => ({}))
+      if (opts.isFish) {
+        return Object.keys(scripts).map(s => `${s}\t${scripts[s].slice(0, 30)}`)
+      }
       return Object.keys(scripts)
     }
   }

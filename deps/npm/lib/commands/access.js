@@ -53,20 +53,22 @@ class Access extends BaseCommand {
       return commands
     }
 
-    switch (argv[2]) {
-      case 'grant':
-        return ['read-only', 'read-write']
-      case 'revoke':
-        return []
-      case 'list':
-      case 'ls':
-        return ['packages', 'collaborators']
-      case 'get':
-        return ['status']
-      case 'set':
-        return setCommands
-      default:
-        throw new Error(argv[2] + ' not recognized')
+    if (argv.length === 3) {
+      switch (argv[2]) {
+        case 'grant':
+          return ['read-only', 'read-write']
+        case 'revoke':
+          return []
+        case 'list':
+        case 'ls':
+          return ['packages', 'collaborators']
+        case 'get':
+          return ['status']
+        case 'set':
+          return setCommands
+        default:
+          throw new Error(argv[2] + ' not recognized')
+      }
     }
   }
 

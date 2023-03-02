@@ -30,6 +30,7 @@ t.test('completion', async t => {
   ])
   testComp(['npm', 'access', 'grant'], ['read-only', 'read-write'])
   testComp(['npm', 'access', 'revoke'], [])
+  testComp(['npm', 'access', 'grant', ''], [])
 
   await t.rejects(
     access.completion({ conf: { argv: { remain: ['npm', 'access', 'foobar'] } } }),
