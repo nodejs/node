@@ -1,4 +1,11 @@
 {
+  "idlharness.any.js": {
+    "fail": {
+      "expected": [
+        "ReadableStream interface: async iterable<any>"
+      ]
+    }
+  },
   "queuing-strategies-size-function-per-global.window.js": {
     "skip": "Browser-specific test"
   },
