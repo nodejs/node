@@ -91,8 +91,9 @@ static int postject__dl_iterate_phdr_callback(struct dl_phdr_info* info,
     }
   }
 
-  // skip to the next shared object
-  return 0;
+  // wasn't able to find the note in the main executable program headers, so
+  // terminate the search
+  return 1;
 }
 #endif
 
