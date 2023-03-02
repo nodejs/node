@@ -15,9 +15,11 @@ if (isMainThread) {
   const expectedTitle = `[worker 1] ${name}`;
   worker.once('message', common.mustCall((message) => {
     assert.strictEqual(message, expectedTitle);
+    worker.postMessage('done');
   }));
 } else {
   const session = new Session();
+  parentPort.once('message', () => {});
   session.connectToMainThread();
   session.on('NodeWorker.attachedToWorker', common.mustCall(({ params: { workerInfo } }) => {
     parentPort.postMessage(workerInfo.title);
