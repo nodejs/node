@@ -15,14 +15,20 @@ function onFatal(error) {
 }
 
 function getLastLine(output) {
-  const splitedByLine = output.split(';');
-  return splitedByLine[splitedByLine.length - 2];
+  const splittedByLine = output.split(';');
+  return splittedByLine[splittedByLine.length - 2];
 }
 
 // Stepping through breakpoints.
 try {
   await cli.waitForInitialBreak();
   await cli.waitForPrompt();
+
+  await cli.command('setContextLineNumber("1")');
+  assert.ok(cli.output.includes('argument must be of type number. Received type string'));
+
+  await cli.command('setContextLineNumber(0)');
+  assert.ok(cli.output.includes('A value greater than 0 is required'));
 
   // Make sure the initial value is 2.
   await cli.stepCommand('n');
