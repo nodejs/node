@@ -5,12 +5,14 @@
 
 #if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 
+#include <string_view>
 #include <tuple>
 
 namespace node {
 namespace sea {
 
 bool IsSingleExecutable();
+std::string_view FindSingleExecutableCode();
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv);
 
 }  // namespace sea

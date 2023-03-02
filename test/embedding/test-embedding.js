@@ -40,6 +40,11 @@ assert.strictEqual(
   child_process.spawnSync(binary, ['throw new Error()']).status,
   1);
 
+// Cannot require internals anymore:
+assert.strictEqual(
+  child_process.spawnSync(binary, ['require("lib/internal/test/binding")']).status,
+  1);
+
 assert.strictEqual(
   child_process.spawnSync(binary, ['process.exitCode = 8']).status,
   8);
