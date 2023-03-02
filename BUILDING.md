@@ -584,6 +584,10 @@ to run it again before invoking `make -j4`.
   to `PATH`. A build with the `openssl-no-asm` option does not need this, nor
   does a build targeting ARM64 Windows.
 
+Optional requirements to build the MSI installer package:
+
+* The .NET SDK component from [Visual Studio 2019](https://visualstudio.microsoft.com/vs/older-downloads/#visual-studio-2019-and-other-products)
+
 Optional requirements for compiling for Windows 10 on ARM (ARM64):
 
 * Visual Studio 15.9.0 or newer

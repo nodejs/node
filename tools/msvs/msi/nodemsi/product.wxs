@@ -123,14 +123,14 @@
       </Feature>
     </Feature>
 
-      <StandardDirectory Id="ProgramMenuFolder">
-        <Directory Id="ApplicationProgramsFolder" Name="Node.js"/>
-      </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Node.js"/>
+    </StandardDirectory>
 
-      <Directory Id="$(var.ProgramFilesFolderId)">
-        <Directory Id="INSTALLDIR" Name="nodejs">
-        </Directory>
+    <StandardDirectory Id="$(var.ProgramFilesFolderId)">
+      <Directory Id="INSTALLDIR" Name="nodejs">
       </Directory>
+    </StandardDirectory>
 
     <DirectoryRef Id="INSTALLDIR">
       <Component Id="NodeExecutable">
@@ -241,17 +241,17 @@
           </Component>
         </Directory>
       </Directory>
-
-      <Directory Id="AppDataFolder">
-        <Directory Id="AppDataDir" Name="npm">
-          <Component Id="AppData" Guid="D3B35D0E-D0F9-4D11-A773-D4608E90E1D1">
-            <CreateFolder />
-            <RemoveFolder Id="AppDataDir" On="uninstall" />
-            <RegistryValue Root="HKCU" Key="$(var.RegistryKeyPath)\Components" Type="string" Value="" />
-          </Component>
-        </Directory>
-      </Directory>
     </DirectoryRef>
+
+    <StandardDirectory Id="AppDataFolder">
+      <Directory Id="AppDataDir" Name="npm">
+        <Component Id="AppData" Guid="D3B35D0E-D0F9-4D11-A773-D4608E90E1D1">
+          <CreateFolder />
+          <RemoveFolder Id="AppDataDir" On="uninstall" />
+          <RegistryValue Root="HKCU" Key="$(var.RegistryKeyPath)\Components" Type="string" Value="" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
 
     <DirectoryRef Id="ApplicationProgramsFolder">
       <Component Id="DocumentationShortcuts">
