@@ -683,7 +683,7 @@
         'src/util-inl.h',
         # Dependency headers
         'deps/v8/include/v8.h',
-        'deps/postject/postject-api.h'
+        'deps/postject/postject-api.h',
         # javascript files to make for an even more pleasant IDE experience
         '<@(library_files)',
         '<@(deps_files)',
