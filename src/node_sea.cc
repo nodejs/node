@@ -4,8 +4,6 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_union_bytes.h"
-#include "simdutf.h"
-#include "v8.h"
 
 // The POSTJECT_SENTINEL_FUSE macro is a string of random characters selected by
 // the Node.js project that is present only once in the entire binary. It is
@@ -19,7 +17,6 @@
 #include <memory>
 #include <string_view>
 #include <tuple>
-#include <vector>
 
 #if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 
@@ -29,9 +26,11 @@ using v8::Local;
 using v8::Object;
 using v8::Value;
 
-namespace {
+namespace node {
+namespace sea {
 
-const std::string_view FindSingleExecutableCode() {
+std::string_view FindSingleExecutableCode() {
+  CHECK(IsSingleExecutable());
   static const std::string_view sea_code = []() -> std::string_view {
     size_t size;
 #ifdef __APPLE__
@@ -49,42 +48,12 @@ const std::string_view FindSingleExecutableCode() {
   return sea_code;
 }
 
-void GetSingleExecutableCode(const FunctionCallbackInfo<Value>& args) {
-  node::Environment* env = node::Environment::GetCurrent(args);
-
-  static const std::string_view sea_code = FindSingleExecutableCode();
-
-  if (sea_code.empty()) {
-    return;
-  }
-
-  // TODO(joyeecheung): Use one-byte strings for ASCII-only source to save
-  // memory/binary size - using UTF16 by default results in twice of the size
-  // than necessary.
-  static const node::UnionBytes sea_code_union_bytes =
-      []() -> node::UnionBytes {
-    size_t expected_u16_length =
-        simdutf::utf16_length_from_utf8(sea_code.data(), sea_code.size());
-    auto out = std::make_shared<std::vector<uint16_t>>(expected_u16_length);
-    size_t u16_length = simdutf::convert_utf8_to_utf16(
-        sea_code.data(),
-        sea_code.size(),
-        reinterpret_cast<char16_t*>(out->data()));
-    out->resize(u16_length);
-    return node::UnionBytes{out};
-  }();
-
-  args.GetReturnValue().Set(
-      sea_code_union_bytes.ToStringChecked(env->isolate()));
-}
-
-}  // namespace
-
-namespace node {
-namespace sea {
-
 bool IsSingleExecutable() {
   return postject_has_resource();
+}
+
+void IsSingleExecutable(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(IsSingleExecutable());
 }
 
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
@@ -113,12 +82,11 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  SetMethod(
-      context, target, "getSingleExecutableCode", GetSingleExecutableCode);
+  SetMethod(context, target, "isSea", IsSingleExecutable);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  registry->Register(GetSingleExecutableCode);
+  registry->Register(IsSingleExecutable);
 }
 
 }  // namespace sea
