@@ -2040,13 +2040,6 @@ which is not supported.
 The input may not be used in the [`REPL`][]. The conditions under which this
 error is used are described in the [`REPL`][] documentation.
 
-<a id="ERR_INVALID_RETURN_PROPERTY"></a>
-
-### `ERR_INVALID_RETURN_PROPERTY`
-
-Thrown in case a function option does not provide a valid value for one of its
-returned object properties on execution.
-
 <a id="ERR_INVALID_RETURN_PROPERTY_VALUE"></a>
 
 ### `ERR_INVALID_RETURN_PROPERTY_VALUE`
@@ -3282,6 +3275,13 @@ removed: v15.0.0
 -->
 
 An invalid or unknown file encoding was passed.
+
+<a id="ERR_INVALID_RETURN_PROPERTY"></a>
+
+### `ERR_INVALID_RETURN_PROPERTY`
+
+Thrown in case a function option does not provide a valid value for one of its
+returned object properties on execution.
 
 <a id="ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST"></a>
 
