@@ -4,12 +4,21 @@ set -e
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 DEPS_DIR="$BASE_DIR/deps"
-SIMDUTF_VERSION=$1
+[ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
+[ -x "$NODE" ] || NODE=$(command -v node)
 
-if [ "$#" -le 0 ]; then
-  echo "Error: please provide an simdutf version to update to"
-  echo "	e.g. $0 2.0.3"
-  exit 1
+NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
+const res = await fetch('https://api.github.com/repos/simdutf/simdutf/releases/latest');
+if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
+const { tag_name } = await res.json();
+console.log(tag_name.replace('v', ''));
+EOF
+)"
+CURRENT_VERSION=$(grep "#define SIMDUTF_VERSION" "$DEPS_DIR/simdutf/simdutf.h" | sed -n "s/^.*VERSION \"\(.*\)\"/\1/p")
+
+if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
+  echo "Skipped because simdutf is on the latest version."
+  exit 0
 fi
 
 echo "Making temporary workspace..."
@@ -24,8 +33,8 @@ cleanup () {
 
 trap cleanup INT TERM EXIT
 
-SIMDUTF_REF="v$SIMDUTF_VERSION"
-SIMDUTF_ZIP="simdutf-$SIMDUTF_VERSION.zip"
+SIMDUTF_REF="v$NEW_VERSION"
+SIMDUTF_ZIP="simdutf-$NEW_VERSION.zip"
 SIMDUTF_LICENSE="LICENSE-MIT"
 
 cd "$WORKSPACE"
@@ -48,5 +57,9 @@ echo ""
 echo "Please git add simdutf, commit the new version:"
 echo ""
 echo "$ git add -A deps/simdutf"
-echo "$ git commit -m \"deps: update simdutf to $SIMDUTF_VERSION\""
+echo "$ git commit -m \"deps: update simdutf to $NEW_VERSION\""
 echo ""
+
+# The last line of the script should always print the new version,
+# as we need to add it to $GITHUB_ENV variable.
+echo "NEW_VERSION=$NEW_VERSION"
