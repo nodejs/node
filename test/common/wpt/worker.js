@@ -1,22 +1,29 @@
 'use strict';
 
-const { runInThisContext } = require('vm');
+const { runInNewContext, runInThisContext } = require('vm');
+const { setFlagsFromString } = require('v8');
 const { parentPort, workerData } = require('worker_threads');
 
 const { ResourceLoader } = require(workerData.wptRunner);
 const resource = new ResourceLoader(workerData.wptPath);
 
-global.self = global;
-global.GLOBAL = {
+if (workerData.needsGc) {
+  // See https://github.com/nodejs/node/issues/16595#issuecomment-340288680
+  setFlagsFromString('--expose-gc');
+  globalThis.gc = runInNewContext('gc');
+}
+
+globalThis.self = global;
+globalThis.GLOBAL = {
   isWindow() { return false; },
   isShadowRealm() { return false; },
 };
-global.require = require;
+globalThis.require = require;
 
 // This is a mock, because at the moment fetch is not implemented
 // in Node.js, but some tests and harness depend on this to pull
 // resources.
-global.fetch = function fetch(file) {
+globalThis.fetch = function fetch(file) {
   return resource.read(workerData.testRelativePath, file, true);
 };
 

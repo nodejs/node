@@ -2,6 +2,7 @@
 <meta charset="utf-8">
 <script src="/resources/testharness.js"></script>
 <script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
 <body>
 <script>
 async_test(t => {
@@ -42,7 +43,7 @@ async_test(t => {
   const url = URL.createObjectURL(blob);
   const frame = document.createElement('iframe');
   frame.setAttribute('style', 'display:none;');
-  frame.src = '//{{domains[www1]}}:{{location[port]}}/FileAPI/url/resources/revoke-helper.html';
+  frame.src = get_host_info().HTTP_REMOTE_ORIGIN + '/FileAPI/url/resources/revoke-helper.html';
   document.body.appendChild(frame);
 
   frame.onload = t.step_func(e => {

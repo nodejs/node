@@ -453,14 +453,13 @@ class WPTRunner {
     this.scriptsModifier = modifier;
   }
 
-  fullInitScript(hasSubsetScript, locationSearchString) {
+  fullInitScript(url, metaTitle) {
     let { initScript } = this;
-    if (hasSubsetScript || locationSearchString) {
-      initScript = `${initScript}\n\n//===\nglobalThis.location ||= {};`;
-    }
 
-    if (locationSearchString) {
-      initScript = `${initScript}\n\n//===\nglobalThis.location.search = "${locationSearchString}";`;
+    initScript = `${initScript}\n\n//===\nglobalThis.location = new URL("${url.href}");`;
+
+    if (metaTitle) {
+      initScript = `${initScript}\n\n//===\nglobalThis.META_TITLE = "${metaTitle}";`;
     }
 
     if (this.globalThisInitScripts.length === null) {
@@ -553,13 +552,13 @@ class WPTRunner {
       const relativePath = spec.getRelativePath();
       const harnessPath = fixtures.path('wpt', 'resources', 'testharness.js');
       const scriptsToRun = [];
-      let hasSubsetScript = false;
+      let needsGc = false;
 
       // Scripts specified with the `// META: script=` header
       if (meta.script) {
         for (const script of meta.script) {
-          if (script === '/common/subset-tests.js' || script === '/common/subset-tests-by-key.js') {
-            hasSubsetScript = true;
+          if (script === '/common/gc.js') {
+            needsGc = true;
           }
           const obj = {
             filename: this.resource.toRealFilePath(relativePath, script),
@@ -592,12 +591,13 @@ class WPTRunner {
             testRelativePath: relativePath,
             wptRunner: __filename,
             wptPath: this.path,
-            initScript: this.fullInitScript(hasSubsetScript, variant),
+            initScript: this.fullInitScript(new URL(`/${relativePath.replace(/\.js$/, '.html')}${variant}`, 'http://wpt'), meta.title),
             harness: {
               code: fs.readFileSync(harnessPath, 'utf8'),
               filename: harnessPath,
             },
             scriptsToRun,
+            needsGc,
           },
         });
         this.workers.set(testFileName, worker);
@@ -749,11 +749,7 @@ class WPTRunner {
    */
   resultCallback(filename, test, reportResult) {
     const status = this.getTestStatus(test.status);
-    const title = this.getTestTitle(filename);
-    if (/^Untitled( \d+)?$/.test(test.name)) {
-      test.name = `${title}${test.name.slice(8)}`;
-    }
-    console.log(`---- ${title} ----`);
+    console.log(`---- ${test.name} ----`);
     if (status !== kPass) {
       this.fail(filename, test, status, reportResult);
     } else {
