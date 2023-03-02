@@ -2524,8 +2524,7 @@ console.log(util.types.isNativeError(new TypeError()));  // true
 console.log(util.types.isNativeError(new RangeError()));  // true
 ```
 
-Subclasses of the native error types will use the return value of the native
-error constructor as the new `this` and are therefore also native errors:
+Subclasses of the native error types are also native errors:
 
 ```js
 class MyError extends Error {}
