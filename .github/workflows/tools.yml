@@ -23,7 +23,7 @@ jobs:
             run: |
               ./tools/dep_updaters/update-eslint.sh > temp-output
               cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV"
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
           - id: corepack
             subsystem: deps
@@ -81,7 +81,7 @@ jobs:
             run: |
               ./tools/dep_updaters/update-postject.sh > temp-output
               cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV"
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
           - id: base64
             subsystem: deps
@@ -120,7 +120,7 @@ jobs:
             run: |
               ./tools/dep_updaters/update-libuv.sh > temp-output
               cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV"
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
           - id: simdutf
             subsystem: deps
@@ -128,7 +128,7 @@ jobs:
             run: |
               ./tools/dep_updaters/update-simdutf.sh > temp-output
               cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV"
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
           - id: ada
             subsystem: deps
