@@ -851,11 +851,13 @@ Shorthand for marking a suite as `only`, same as
 ## `it([name][, options][, fn])`
 
 <!-- YAML
-added: v18.6.0
+added:
+  - v18.6.0
+  - v16.17.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/46889
-    description: it is now a shorthand for test and behaves the same way.
+    description: Calling `it()` is now equivalent to calling `test()`.
 -->
 
 Shorthand for [`test()`][].
