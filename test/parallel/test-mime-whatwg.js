@@ -9,7 +9,7 @@ function test(mimes) {
   for (const entry of mimes) {
     if (typeof entry === 'string') continue;
     const { input, output } = entry;
-    if (output === null) {
+    if (output == null) {
       assert.throws(() => new MIMEType(input), /ERR_INVALID_MIME_SYNTAX/i);
     } else {
       const str = `${new MIMEType(input)}`;
