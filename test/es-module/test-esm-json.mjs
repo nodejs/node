@@ -6,7 +6,6 @@ import { describe, it } from 'node:test';
 
 import secret from '../fixtures/experimental.json' assert { type: 'json' };
 
-
 describe('ESM: importing JSON', () => {
   it('should load JSON', () => {
     assert.strictEqual(secret.ofLife, 42);
@@ -17,8 +16,8 @@ describe('ESM: importing JSON', () => {
       fixtures.path('/es-modules/json-modules.mjs'),
     ]);
 
-    assert.match(stderr, /ExperimentalWarning/);
-    assert.match(stderr, /JSON modules/);
+    assert.match(stderr, /ExperimentalWarning: Importing JSON modules/);
+    assert.match(stderr, /ExperimentalWarning: Import assertions/);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
