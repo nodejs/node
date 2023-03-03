@@ -28,7 +28,7 @@ try {
   assert.ok(cli.output.includes('argument must be of type number. Received type string'));
 
   await cli.command('setContextLineNumber(0)');
-  assert.ok(cli.output.includes('A value greater than 0 is required'));
+  assert.ok(cli.output.includes('It must be >= 1. Received 0'));
 
   // Make sure the initial value is 2.
   await cli.stepCommand('n');
