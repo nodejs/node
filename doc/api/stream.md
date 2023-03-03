@@ -3335,7 +3335,7 @@ added: REPLACEME
 * Returns: {integer}
 
 Returns the default highWaterMark used by streams.
-Defaults to `65536` (64 KiB), or `16` for `objectMode`.
+Defaults to `16384` (16 KiB), or `16` for `objectMode`.
 
 ### `stream.setDefaultHighWaterMark(objectMode, value)`
 
