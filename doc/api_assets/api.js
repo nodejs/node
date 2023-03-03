@@ -136,7 +136,7 @@
     updateHashes();
   }
 
-  function setCopyButton() {
+  function setupCopyButton() {
     const buttons = document.querySelectorAll('.copy-button');
     buttons.forEach((button) => {
       button.addEventListener('click', (el) => {
@@ -176,7 +176,7 @@
     // Make link to other versions of the doc open to the same hash target (if it exists).
     setupAltDocsLink();
 
-    setCopyButton();
+    setupCopyButton();
   }
 
   if (document.readyState === 'loading') {
