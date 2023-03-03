@@ -61,7 +61,7 @@ assert.strictEqual(
 
 assert.strictEqual(
   util.inspect({ a: url }, { depth: 0 }),
-  '{ a: [URL] }');
+  '{ a: URL {} }');
 
 class MyURL extends URL {}
 assert(util.inspect(new MyURL(url.href)).startsWith('MyURL {'));
