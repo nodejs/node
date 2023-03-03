@@ -596,9 +596,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "report given reporter to the given destination",
             &EnvironmentOptions::test_reporter_destination,
             kAllowedInEnvvar);
-  AddOption("--test-child-process",
-            "",  // for internal use by test runner
-            &EnvironmentOptions::test_child_process);
   AddOption("--test-only",
             "run tests with 'only' option set",
             &EnvironmentOptions::test_only,
