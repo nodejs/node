@@ -450,6 +450,10 @@ number of bytes read is zero.
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46933
+    description: Added option to create a 'bytes' stream.
 -->
 
 > Stability: 1 - Experimental
