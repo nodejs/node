@@ -945,6 +945,10 @@ bool Agent::IsActive() {
   return io_ != nullptr || client_->IsActive();
 }
 
+bool Agent::HasInspectorThread() {
+  return io_ != nullptr;
+}
+
 void Agent::SetParentHandle(
     std::unique_ptr<ParentInspectorHandle> parent_handle) {
   parent_handle_ = std::move(parent_handle);
