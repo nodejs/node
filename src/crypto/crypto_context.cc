@@ -878,8 +878,6 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
         env->isolate(), "DH parameter is less than 2048 bits"));
   }
 
-  SSL_CTX_set_options(sc->ctx_.get(), SSL_OP_SINGLE_DH_USE);
-
   if (!SSL_CTX_set_tmp_dh(sc->ctx_.get(), dh.get())) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error setting temp DH parameter");
