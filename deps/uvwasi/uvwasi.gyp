@@ -1,4 +1,16 @@
 {
+  'variables': {
+    'uvwasi_sources': [
+      'src/clocks.c',
+      'src/fd_table.c',
+      'src/path_resolver.c',
+      'src/poll_oneoff.c',
+      'src/uv_mapping.c',
+      'src/uvwasi.c',
+      'src/wasi_rights.c',
+      'src/wasi_serdes.c',
+    ]
+  },
   'targets': [
     {
       'target_name': 'uvwasi',
@@ -9,14 +21,7 @@
       },
       'include_dirs': ['include'],
       'sources': [
-        'src/clocks.c',
-        'src/fd_table.c',
-        'src/path_resolver.c',
-        'src/poll_oneoff.c',
-        'src/uv_mapping.c',
-        'src/uvwasi.c',
-        'src/wasi_rights.c',
-        'src/wasi_serdes.c',
+        '<@(uvwasi_sources)',
       ],
       'direct_dependent_settings': {
         'include_dirs': ['include']
