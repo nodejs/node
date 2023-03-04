@@ -973,6 +973,11 @@ kbd {
 .dark-mode .js-flavor-selector {
   filter: invert(1);
 }
+
+.copy-button {
+  float: right;
+}
+
 @supports (aspect-ratio: 1 / 1) {
   .js-flavor-selector {
     height: 1.5em;
