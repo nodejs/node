@@ -535,6 +535,7 @@
         'src/node_url.cc',
         'src/node_util.cc',
         'src/node_v8.cc',
+        'src/node_v8_platform.cc',
         'src/node_wasi.cc',
         'src/node_wasm_web_api.cc',
         'src/node_watchdog.cc',
