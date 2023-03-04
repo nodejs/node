@@ -2,6 +2,14 @@
   'variables': {
     'arm_fpu%': '',
     'target_arch%': '',
+    'base64_sources_common': [
+      'base64/include/libbase64.h',
+      'base64/lib/arch/generic/codec.c',
+      'base64/lib/tables/tables.c',
+      'base64/lib/codec_choose.c',
+      'base64/lib/codecs.h',
+      'base64/lib/lib.c',
+    ],
   },
   'targets': [
     {
@@ -14,12 +22,7 @@
       },
       'defines': [ 'BASE64_STATIC_DEFINE' ],
       'sources': [
-        'base64/include/libbase64.h',
-        'base64/lib/arch/generic/codec.c',
-        'base64/lib/tables/tables.c',
-        'base64/lib/codec_choose.c',
-        'base64/lib/codecs.h',
-        'base64/lib/lib.c',
+        '<@(base64_sources_common)',
       ],
 
       'conditions': [

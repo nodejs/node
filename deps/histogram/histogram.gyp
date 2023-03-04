@@ -1,4 +1,9 @@
 {
+  'variables': {
+    'histogram_sources': [
+      'src/hdr_histogram.c',
+    ]
+  },
   'targets': [
     {
       'target_name': 'histogram',
@@ -12,7 +17,7 @@
         'include_dirs': [ 'src' ]
       },
       'sources': [
-        'src/hdr_histogram.c',
+        '<@(histogram_sources)',
       ]
     }
   ]

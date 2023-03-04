@@ -1,6 +1,7 @@
 {
   'variables': {
     'v8_enable_i18n_support%': 1,
+    'ada_sources': [ 'ada.cpp' ],
   },
   'targets': [
     {
@@ -10,7 +11,7 @@
       'direct_dependent_settings': {
         'include_dirs': ['.'],
       },
-      'sources': ['ada.cpp'],
+      'sources': [ '<@(ada_sources)' ],
       'conditions': [
         ['v8_enable_i18n_support==0', {
           'defines': ['ADA_HAS_ICU=0'],
