@@ -1177,6 +1177,35 @@
       ]
     }, # overlapped-checker
     {
+      'target_name': 'node_js2c',
+      'type': 'executable',
+      'dependencies': [
+        'deps/simdutf/simdutf.gyp:simdutf',
+      ],
+      'include_dirs': [
+        'tools'
+      ],
+      'sources': [
+        'tools/js2c.cc',
+        'tools/executable_wrapper.h'
+      ],
+      'conditions': [
+        [ 'node_shared_libuv=="false"', {
+          'dependencies': [ 'deps/uv/uv.gyp:libuv' ],
+        }],
+        [ 'debug_node=="true"', {
+          'cflags!': [ '-O3' ],
+          'cflags': [ '-g', '-O0' ],
+          'defines': [ 'DEBUG' ],
+          'xcode_settings': {
+            'OTHER_CFLAGS': [
+              '-g', '-O0'
+            ],
+          },
+        }],
+      ]
+    },
+    {
       'target_name': 'node_mksnapshot',
       'type': 'executable',
 

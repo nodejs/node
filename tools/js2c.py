@@ -55,14 +55,14 @@ TEMPLATE = """
 namespace node {{
 
 namespace builtins {{
-
 {0}
-
 namespace {{
 const ThreadsafeCopyOnWrite<BuiltinSourceMap> global_source_map {{
-  BuiltinSourceMap{{ {1} }}
-}};
-}}
+  BuiltinSourceMap {{
+{1}
+  }}  // BuiltinSourceMap
+}};  // ThreadsafeCopyOnWrite
+}}  // anonymous namespace
 
 void BuiltinLoader::LoadJavaScriptSource() {{
   source_ = global_source_map;
@@ -70,7 +70,7 @@ void BuiltinLoader::LoadJavaScriptSource() {{
 
 void RegisterExternalReferencesForInternalizedBuiltinCode(
   ExternalReferenceRegistry* registry) {{
-  {2}
+{2}
 }}
 
 UnionBytes BuiltinLoader::GetConfig() {{
@@ -98,9 +98,9 @@ static const uint16_t {0}[] = {{
 static StaticExternalTwoByteResource {2}({0}, {3}, nullptr);
 """
 
-INITIALIZER = '{{"{0}", UnionBytes(&{1}) }},'
+INITIALIZER = '    {{"{0}", UnionBytes(&{1}) }},'
 
-REGISTRATION = 'registry->Register(&{0});'
+REGISTRATION = '  registry->Register(&{0});'
 
 CONFIG_GYPI_ID = 'config_raw'
 
@@ -110,7 +110,7 @@ SLUGGER_RE = re.compile(r'[.\-/]')
 
 is_verbose = False
 
-def GetDefinition(var, source, resource_var, step=30):
+def GetDefinition(var, source, resource_var):
   template = ONE_BYTE_STRING
   code_points = [ord(c) for c in source]
   if any(c > 127 for c in code_points):
@@ -122,12 +122,8 @@ def GetDefinition(var, source, resource_var, step=30):
       for i in range(0, len(encoded_source), 2)
     ]
 
-  # For easier debugging, align to the common 3 char for code-points.
-  elements_s = ['%3s' % x for x in code_points]
-  # Put no more then `step` code-points in a line.
-  slices = [elements_s[i:i + step] for i in range(0, len(elements_s), step)]
-  lines = [','.join(s) for s in slices]
-  array_content = ',\n'.join(lines)
+  elements_s = ['%s' % x for x in code_points]
+  array_content = ','.join(elements_s) + ','
   length = len(code_points)
   definition = template.format(var, array_content, resource_var, length)
 
@@ -174,8 +170,8 @@ def JS2C(source_files, target):
 
   # Emit result
   definitions = ''.join(definitions)
-  initializers = '\n  '.join(initializers)
-  registrations = '\n  '.join(registrations)
+  initializers = '\n'.join(initializers)
+  registrations = '\n'.join(registrations)
   out = TEMPLATE.format(definitions, initializers,
                         registrations, CONFIG_GYPI_RESOURCE_ID)
   write_if_chaged(out, target)
@@ -263,8 +259,10 @@ def main():
   assert len(source_files['.gypi']) == 1
   assert os.path.basename(source_files['.gypi'][0]) == 'config.gypi'
   source_files['config.gypi'] = source_files.pop('.gypi')[0]
-  JS2C(source_files, options.target)
+  source_files['.js'] = sorted(source_files['.js'])
+  source_files['.mjs'] = sorted(source_files['.mjs'])
 
+  JS2C(source_files, options.target)
 
 if __name__ == "__main__":
   main()
