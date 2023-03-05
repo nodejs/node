@@ -601,7 +601,9 @@ Use this flag to enable [ShadowRealm][] support.
 ### `--experimental-test-coverage`
 
 <!-- YAML
-added: v19.7.0
+added:
+  - v19.7.0
+  - v18.15.0
 -->
 
 When used in conjunction with the `node:test` module, a code coverage report is
@@ -1419,7 +1421,9 @@ whose name matches the provided pattern. See the documentation on
 ### `--test-reporter`
 
 <!-- YAML
-added: v19.6.0
+added:
+  - v19.6.0
+  - v18.15.0
 -->
 
 A test reporter to use when running tests. See the documentation on
@@ -1428,7 +1432,9 @@ A test reporter to use when running tests. See the documentation on
 ### `--test-reporter-destination`
 
 <!-- YAML
-added: v19.6.0
+added:
+  - v19.6.0
+  - v18.15.0
 -->
 
 The destination for the corresponding test reporter. See the documentation on
