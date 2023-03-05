@@ -155,7 +155,13 @@
         } else {
           code = parentNode.querySelector('code').textContent;
         }
+
+        button.textContent = 'Copied';
         navigator.clipboard.writeText(code);
+
+        setTimeout(() => {
+          button.textContent = 'Copy';
+        }, 2500);
       });
     });
   }
