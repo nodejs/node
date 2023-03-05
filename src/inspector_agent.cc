@@ -250,7 +250,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     std::string raw_message = protocol::StringUtil::StringViewToUtf8(message);
     per_process::Debug(DebugCategory::INSPECTOR_SERVER,
                        "[inspector received] %s\n",
-                       raw_message.c_str());
+                       raw_message);
     std::unique_ptr<protocol::DictionaryValue> value =
         protocol::DictionaryValue::cast(protocol::StringUtil::parseMessage(
             raw_message, false));
@@ -304,7 +304,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
       std::string raw_message = protocol::StringUtil::StringViewToUtf8(message);
       per_process::Debug(DebugCategory::INSPECTOR_SERVER,
                          "[inspector send] %s\n",
-                         raw_message.c_str());
+                         raw_message);
     }
     delegate_->SendMessageToFrontend(message);
   }
