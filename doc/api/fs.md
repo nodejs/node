@@ -1536,7 +1536,9 @@ changes:
 ### `fsPromises.statfs(path[, options])`
 
 <!-- YAML
-added: v19.6.0
+added:
+  - v19.6.0
+  - v18.15.0
 -->
 
 * `path` {string|Buffer|URL}
@@ -4160,7 +4162,9 @@ Stats {
 ### `fs.statfs(path[, options], callback)`
 
 <!-- YAML
-added: v19.6.0
+added:
+  - v19.6.0
+  - v18.15.0
 -->
 
 * `path` {string|Buffer|URL}
@@ -5931,7 +5935,9 @@ Retrieves the {fs.Stats} for the path.
 ### `fs.statfsSync(path[, options])`
 
 <!-- YAML
-added: v19.6.0
+added:
+  - v19.6.0
+  - v18.15.0
 -->
 
 * `path` {string|Buffer|URL}
@@ -7040,7 +7046,9 @@ of 0.12, `ctime` is not "creation time", and on Unix systems, it never was.
 ### Class: `fs.StatFs`
 
 <!-- YAML
-added: v19.6.0
+added:
+  - v19.6.0
+  - v18.15.0
 -->
 
 Provides information about a mounted file system.
@@ -7078,7 +7086,9 @@ StatFs {
 #### `statfs.bavail`
 
 <!-- YAML
-added: v19.6.0
+added:
+  - v19.6.0
+  - v18.15.0
 -->
 
 * {number|bigint}
@@ -7088,7 +7098,9 @@ Free blocks available to unprivileged users.
 #### `statfs.bfree`
 
 <!-- YAML
-added: v19.6.0
+added:
+  - v19.6.0
+  - v18.15.0
 -->
 
 * {number|bigint}
@@ -7098,7 +7110,9 @@ Free blocks in file system.
 #### `statfs.blocks`
 
 <!-- YAML
-added: v19.6.0
+added:
+  - v19.6.0
+  - v18.15.0
 -->
 
 * {number|bigint}
@@ -7108,7 +7122,9 @@ Total data blocks in file system.
 #### `statfs.bsize`
 
 <!-- YAML
-added: v19.6.0
+added:
+  - v19.6.0
+  - v18.15.0
 -->
 
 * {number|bigint}
@@ -7118,7 +7134,9 @@ Optimal transfer block size.
 #### `statfs.ffree`
 
 <!-- YAML
-added: v19.6.0
+added:
+  - v19.6.0
+  - v18.15.0
 -->
 
 * {number|bigint}
@@ -7128,7 +7146,9 @@ Free file nodes in file system.
 #### `statfs.files`
 
 <!-- YAML
-added: v19.6.0
+added:
+  - v19.6.0
+  - v18.15.0
 -->
 
 * {number|bigint}
@@ -7138,7 +7158,9 @@ Total file nodes in file system.
 #### `statfs.type`
 
 <!-- YAML
-added: v19.6.0
+added:
+  - v19.6.0
+  - v18.15.0
 -->
 
 * {number|bigint}
