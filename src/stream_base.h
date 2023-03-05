@@ -51,7 +51,7 @@ class StreamReq {
 
   // TODO(RaisinTen): Update the return type to a Maybe, so that we can indicate
   // if there is a pending exception/termination.
-  inline void Done(int status, const char* error_str = nullptr);
+  void Done(int status, const char* error_str = nullptr);
   inline void Dispose();
 
   StreamBase* stream() const { return stream_; }
@@ -276,7 +276,7 @@ class StreamResource {
   inline void PushStreamListener(StreamListener* listener);
   // Remove a listener, and, if this was the currently active one,
   // transfer ownership back to the previous listener.
-  inline void RemoveStreamListener(StreamListener* listener);
+  void RemoveStreamListener(StreamListener* listener);
 
  protected:
   // Call the current listener's OnStreamAlloc() method.
@@ -339,7 +339,7 @@ class StreamBase : public StreamResource {
   // ShutdownWrap object (that was created in JS), or a new one will be created.
   // Returns 1 in case of a synchronous completion, 0 in case of asynchronous
   // completion, and a libuv error case in case of synchronous failure.
-  inline int Shutdown(
+  int Shutdown(
       v8::Local<v8::Object> req_wrap_obj = v8::Local<v8::Object>());
 
   // TODO(RaisinTen): Update the return type to a Maybe, so that we can indicate
@@ -353,7 +353,7 @@ class StreamBase : public StreamResource {
   // write is too large to finish synchronously.
   // If the return value indicates a synchronous completion, no callback will
   // be invoked.
-  inline StreamWriteResult Write(
+  StreamWriteResult Write(
       uv_buf_t* bufs,
       size_t count,
       uv_stream_t* send_handle = nullptr,
