@@ -222,7 +222,7 @@ our %config = (
         "AS" => undef,
         "ASFLAGS" => undef,
         "BUILDFILE" => undef,
-        "CC" => "gcc",
+        "CC" => undef,
         "CFLAGS" => undef,
         "CPP" => undef,
         "CPPDEFINES" => undef,
@@ -27345,8 +27345,8 @@ unless (caller) {
     use File::Copy;
     use Pod::Usage;
 
-    use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/util/perl';
-    use OpenSSL::fallback '/home/rafaelgss/repos/os/node/deps/openssl/openssl/external/perl/MODULES.txt';
+    use lib '/home/runner/work/node/node/deps/openssl/openssl/util/perl';
+    use OpenSSL::fallback '/home/runner/work/node/node/deps/openssl/openssl/external/perl/MODULES.txt';
 
     my $here = dirname($0);
 
@@ -27373,7 +27373,7 @@ unless (caller) {
             );
 
         use lib '.';
-        use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/Configurations';
+        use lib '/home/runner/work/node/node/deps/openssl/openssl/Configurations';
         use gentemplate;
 
         open my $buildfile_template_fh, ">$buildfile_template"
@@ -27390,8 +27390,8 @@ unless (caller) {
 
         my $prepend = <<'_____';
 use File::Spec::Functions;
-use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/util/perl';
-use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/Configurations';
+use lib '/home/runner/work/node/node/deps/openssl/openssl/util/perl';
+use lib '/home/runner/work/node/node/deps/openssl/openssl/Configurations';
 use lib '.';
 use platform;
 _____
