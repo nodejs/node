@@ -2953,7 +2953,7 @@ headers with the same name.
 ### `outgoingMessage.setHeaders(headers)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.15.0
 -->
 
 * `headers` {Headers|Map}

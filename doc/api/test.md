@@ -504,7 +504,7 @@ test('spies on an object method', (t) => {
 ## Test reporters
 
 <!-- YAML
-added: REPLACEME
+added: v18.15.0
 -->
 
 The `node:test` module supports passing [`--test-reporter`][]
@@ -806,7 +806,7 @@ Shorthand for marking a suite as `TODO`, same as
 ## `describe.only([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.15.0
 -->
 
 Shorthand for marking a suite as `only`, same as
@@ -839,7 +839,7 @@ same as [`it([name], { todo: true }[, fn])`][it options].
 ## `it.only([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.15.0
 -->
 
 Shorthand for marking a test as `only`,

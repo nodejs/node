@@ -1110,7 +1110,7 @@ over the IPC channel using `process.send()`.
 ## `process.constrainedMemory()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.15.0
 -->
 
 > Stability: 1 - Experimental
