@@ -7564,12 +7564,12 @@ of one before invoking the other:
 ```mjs
 import { rename, stat } from 'node:fs/promises';
 
-const fromDir = '/tmp/hello';
-const toDir = '/tmp/world';
+const oldPath = '/tmp/hello';
+const newPath = '/tmp/world';
 
 try {
-  await rename(fromDir, toDir);
-  const stats = await stat(toDir);
+  await rename(oldPath, newPath);
+  const stats = await stat(newPath);
   console.log(`stats: ${JSON.stringify(stats)}`);
 } catch (error) {
   console.error('there was an error:', error.message);
@@ -7579,10 +7579,10 @@ try {
 ```cjs
 const { rename, stat } = require('node:fs/promises');
 
-(async function(fromDir, toDir) {
+(async function(oldPath, newPath) {
   try {
-    await rename(fromDir, toDir);
-    const stats = await stat(toDir);
+    await rename(oldPath, newPath);
+    const stats = await stat(newPath);
     console.log(`stats: ${JSON.stringify(stats)}`);
   } catch (error) {
     console.error('there was an error:', error.message);
