@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-fs-read=* --allow-fs-write=*
+// Flags: --experimental-permission --allow-fs-read=* --allow-fs-write=* --allow-child-process
 'use strict';
 
 const common = require('../common');

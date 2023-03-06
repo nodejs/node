@@ -32,7 +32,19 @@ if (process.argv[2] === 'child') {
     permission: 'ChildProcess',
   }));
   assert.throws(() => {
+    childProcess.spawnSync(process.execPath, ['--version']);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'ChildProcess',
+  }));
+  assert.throws(() => {
     childProcess.exec(process.execPath, ['--version']);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'ChildProcess',
+  }));
+  assert.throws(() => {
+    childProcess.execSync(process.execPath, ['--version']);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'ChildProcess',
@@ -45,6 +57,12 @@ if (process.argv[2] === 'child') {
   }));
   assert.throws(() => {
     childProcess.execFile(process.execPath, ['--version']);
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'ChildProcess',
+  }));
+  assert.throws(() => {
+    childProcess.execFileSync(process.execPath, ['--version']);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'ChildProcess',
