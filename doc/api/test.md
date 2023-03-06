@@ -6,9 +6,13 @@
 added:
   - v18.0.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46983
+    description: The test runner is now stable.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 <!-- source_link=lib/test.js -->
 
@@ -377,6 +381,8 @@ internally.
 
 ## Collecting code coverage
 
+> Stability: 1 - Experimental
+
 When Node.js is started with the [`--experimental-test-coverage`][]
 command-line flag, code coverage is collected and statistics are reported once
 all tests have completed. If the [`NODE_V8_COVERAGE`][] environment variable is
@@ -534,6 +540,11 @@ The following built-reporters are supported:
 
 When `stdout` is a [TTY][], the `spec` reporter is used by default.
 Otherwise, the `tap` reporter is used by default.
+
+The exact output of these reporters is subject to change between versions of
+Node.js, and should not be relied on programmatically. If programmatic access
+to the test runner's output is required, use the events emitted by the
+{TestsStream}.
 
 ### Custom reporters
 
