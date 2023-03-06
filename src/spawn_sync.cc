@@ -369,6 +369,8 @@ void SyncProcessRunner::Initialize(Local<Object> target,
 
 void SyncProcessRunner::Spawn(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kChildProcess, "");
   env->PrintSyncTrace();
   SyncProcessRunner p(env);
   Local<Value> result;
