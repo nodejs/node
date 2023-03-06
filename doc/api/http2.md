@@ -3112,7 +3112,7 @@ const client = http2.connect('http://localhost:8001');
 // for CONNECT requests or an error will be thrown.
 const req = client.request({
   ':method': 'CONNECT',
-  ':authority': `localhost:${port}`,
+  ':authority': 'localhost:8000',
 });
 
 req.on('response', (headers) => {
