@@ -113,4 +113,56 @@ describe('Loader hooks', { concurrency: true }, () => {
       assert.strictEqual(signal, null);
     });
   });
+
+  it('should work without worker permission', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-permission',
+      '--allow-fs-read',
+      '*',
+      '--experimental-loader',
+      fixtures.fileURL('empty.js'),
+      fixtures.path('es-modules/esm-top-level-await.mjs'),
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.match(stdout, /^1\r?\n2\r?\n$/);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
+  it('should allow loader hooks to spawn workers when allowed by the CLI flags', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-permission',
+      '--allow-worker',
+      '--allow-fs-read',
+      '*',
+      '--experimental-loader',
+      `data:text/javascript,import{Worker}from"worker_threads";new Worker(${encodeURIComponent(JSON.stringify(fixtures.path('empty.js')))}).unref()`,
+      fixtures.path('es-modules/esm-top-level-await.mjs'),
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.match(stdout, /^1\r?\n2\r?\n$/);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
+  it('should not allow loader hooks to spawn workers if restricted by the CLI flags', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-permission',
+      '--allow-fs-read',
+      '*',
+      '--experimental-loader',
+      `data:text/javascript,import{Worker}from"worker_threads";new Worker(${encodeURIComponent(JSON.stringify(fixtures.path('empty.js')))}).unref()`,
+      fixtures.path('es-modules/esm-top-level-await.mjs'),
+    ]);
+
+    assert.match(stderr, /code: 'ERR_ACCESS_DENIED'/);
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 1);
+    assert.strictEqual(signal, null);
+  });
 });
