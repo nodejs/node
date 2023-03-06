@@ -346,7 +346,8 @@ void HistogramBase::Initialize(IsolateData* isolate_data,
   SetConstructorFunction(isolate_data->isolate(),
                          target,
                          "Histogram",
-                         GetConstructorTemplate(isolate_data));
+                         GetConstructorTemplate(isolate_data),
+                         SetConstructorFunctionFlag::NONE);
 }
 
 BaseObjectPtr<BaseObject> HistogramBase::HistogramTransferData::Deserialize(
@@ -372,6 +373,7 @@ Local<FunctionTemplate> IntervalHistogram::GetConstructorTemplate(
     Isolate* isolate = env->isolate();
     tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
+    tmpl->SetClassName(OneByteString(isolate, "Histogram"));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         HistogramBase::kInternalFieldCount);
     SetProtoMethodNoSideEffect(isolate, tmpl, "count", GetCount);
