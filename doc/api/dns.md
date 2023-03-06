@@ -794,6 +794,10 @@ dns orders in workers.
 
 ## `dns.getDefaultResultOrder()`
 
+<!-- YAML
+added: REPLACEME
+-->
+
 Get the value of `dnsOrder`.
 
 ## `dns.setServers(servers)`
@@ -1356,6 +1360,10 @@ higher priority than [`--dns-result-order`][]. When using [worker threads][],
 default dns orders in workers.
 
 ### `dnsPromises.getDefaultResultOrder()`
+
+<!-- YAML
+added: REPLACEME
+-->
 
 Get the value of `dnsOrder`.
 
