@@ -1396,6 +1396,9 @@ added:
   - v18.1.0
   - v16.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46983
+    description: The test runner is now stable.
   - version:
       - v19.2.0
       - v18.13.0
@@ -1412,6 +1415,10 @@ for more details.
 
 <!-- YAML
 added: v18.11.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46983
+    description: The test runner is now stable.
 -->
 
 A regular expression that configures the test runner to only execute tests
@@ -1424,6 +1431,10 @@ whose name matches the provided pattern. See the documentation on
 added:
   - v19.6.0
   - v18.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46983
+    description: The test runner is now stable.
 -->
 
 A test reporter to use when running tests. See the documentation on
@@ -1435,6 +1446,10 @@ A test reporter to use when running tests. See the documentation on
 added:
   - v19.6.0
   - v18.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46983
+    description: The test runner is now stable.
 -->
 
 The destination for the corresponding test reporter. See the documentation on
@@ -1446,6 +1461,10 @@ The destination for the corresponding test reporter. See the documentation on
 added:
   - v18.0.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46983
+    description: The test runner is now stable.
 -->
 
 Configures the test runner to only execute top level tests that have the `only`
