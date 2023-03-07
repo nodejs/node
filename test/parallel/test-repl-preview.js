@@ -164,6 +164,16 @@ async function tests(options) {
       'aaaa\r',
       'Uncaught ReferenceError: aaaa is not defined'
     ]
+  }, {
+    input: '/0',
+    noPreview: '/0',
+    preview: [
+      '/0\r',
+      '/0',
+      '^',
+      '',
+      'Uncaught SyntaxError: Invalid regular expression: missing /',
+    ]
   }];
 
   const hasPreview = repl.terminal &&
@@ -184,8 +194,13 @@ async function tests(options) {
       assert.deepStrictEqual(lines, preview);
     } else {
       assert.ok(lines[0].includes(noPreview), lines.map(inspect));
-      if (preview.length !== 1 || preview[0] !== `${input}\r`)
-        assert.strictEqual(lines.length, 2);
+      if (preview.length !== 1 || preview[0] !== `${input}\r`) {
+        if (preview[preview.length-1].includes('Uncaught SyntaxError')) { // Syntax error
+          assert.strictEqual(lines.length, 5);
+        } else {
+          assert.strictEqual(lines.length, 2);
+        }
+      }
     }
   }
 }
