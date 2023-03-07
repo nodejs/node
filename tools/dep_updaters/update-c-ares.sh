@@ -43,9 +43,7 @@ ARES_TARBALL="c-ares-$NEW_VERSION.tar.gz"
 cd "$WORKSPACE"
 
 echo "Fetching c-ares source archive"
-curl -sL -o "$ARES_TARBALL" "https://github.com/c-ares/c-ares/releases/download/$ARES_REF/$ARES_TARBALL"
-gzip -dc "$ARES_TARBALL" | tar xf -
-rm "$ARES_TARBALL"
+curl -sL "https://github.com/c-ares/c-ares/releases/download/$ARES_REF/$ARES_TARBALL" | tar xz
 mv "c-ares-$NEW_VERSION" cares
 
 echo "Removing tests"
