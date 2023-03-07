@@ -57,8 +57,7 @@ int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
   BaseObjectPtr<AsyncWrap> req_wrap_ptr;
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(GetAsyncWrap());
   ShutdownWrap* req_wrap = CreateShutdownWrap(req_wrap_obj);
-  if (req_wrap != nullptr)
-    req_wrap_ptr.reset(req_wrap->GetAsyncWrap());
+  if (req_wrap != nullptr) req_wrap_ptr.reset(req_wrap->GetAsyncWrap());
   int err = DoShutdown(req_wrap);
 
   if (err != 0 && req_wrap != nullptr) {
@@ -67,9 +66,11 @@ int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
 
   const char* msg = Error();
   if (msg != nullptr) {
-    if (req_wrap_obj->Set(env->context(),
-                          env->error_string(),
-                          OneByteString(env->isolate(), msg)).IsNothing()) {
+    if (req_wrap_obj
+            ->Set(env->context(),
+                  env->error_string(),
+                  OneByteString(env->isolate(), msg))
+            .IsNothing()) {
       return UV_EBUSY;
     }
     ClearError();
@@ -87,14 +88,13 @@ StreamWriteResult StreamBase::Write(uv_buf_t* bufs,
   int err;
 
   size_t total_bytes = 0;
-  for (size_t i = 0; i < count; ++i)
-    total_bytes += bufs[i].len;
+  for (size_t i = 0; i < count; ++i) total_bytes += bufs[i].len;
   bytes_written_ += total_bytes;
 
   if (send_handle == nullptr && !skip_try_write) {
     err = DoTryWrite(&bufs, &count);
     if (err != 0 || count == 0) {
-      return StreamWriteResult { false, err, nullptr, total_bytes, {} };
+      return StreamWriteResult{false, err, nullptr, total_bytes, {}};
     }
   }
 
@@ -104,7 +104,7 @@ StreamWriteResult StreamBase::Write(uv_buf_t* bufs,
     if (!env->write_wrap_template()
              ->NewInstance(env->context())
              .ToLocal(&req_wrap_obj)) {
-      return StreamWriteResult { false, UV_EBUSY, nullptr, 0, {} };
+      return StreamWriteResult{false, UV_EBUSY, nullptr, 0, {}};
     }
     StreamReq::ResetObject(req_wrap_obj);
   }
@@ -123,16 +123,18 @@ StreamWriteResult StreamBase::Write(uv_buf_t* bufs,
 
   const char* msg = Error();
   if (msg != nullptr) {
-    if (req_wrap_obj->Set(env->context(),
-                          env->error_string(),
-                          OneByteString(env->isolate(), msg)).IsNothing()) {
-      return StreamWriteResult { false, UV_EBUSY, nullptr, 0, {} };
+    if (req_wrap_obj
+            ->Set(env->context(),
+                  env->error_string(),
+                  OneByteString(env->isolate(), msg))
+            .IsNothing()) {
+      return StreamWriteResult{false, UV_EBUSY, nullptr, 0, {}};
     }
     ClearError();
   }
 
-  return StreamWriteResult {
-      async, err, req_wrap, total_bytes, std::move(req_wrap_ptr) };
+  return StreamWriteResult{
+      async, err, req_wrap, total_bytes, std::move(req_wrap_ptr)};
 }
 
 template int StreamBase::WriteString<ASCII>(
@@ -784,7 +786,8 @@ void StreamResource::RemoveStreamListener(StreamListener* listener) {
   // Remove from the linked list.
   for (current = listener_, previous = nullptr;
        /* No loop condition because we want a crash if listener is not found */
-       ; previous = current, current = current->previous_listener_) {
+       ;
+       previous = current, current = current->previous_listener_) {
     CHECK_NOT_NULL(current);
     if (current == listener) {
       if (previous != nullptr)
@@ -818,10 +821,11 @@ void StreamReq::Done(int status, const char* error_str) {
   Environment* env = async_wrap->env();
   if (error_str != nullptr) {
     v8::HandleScope handle_scope(env->isolate());
-    if (async_wrap->object()->Set(
-            env->context(),
-            env->error_string(),
-            OneByteString(env->isolate(), error_str)).IsNothing()) {
+    if (async_wrap->object()
+            ->Set(env->context(),
+                  env->error_string(),
+                  OneByteString(env->isolate(), error_str))
+            .IsNothing()) {
       return;
     }
   }
