@@ -140,3 +140,6 @@
 /lib/test.js @nodejs/test_runner
 /lib/internal/main/test_runner.js @nodejs/test_runner
 /lib/internal/test_runner/* @nodejs/test_runner
+
+# Single Executable Applications
+/src/node_sea* @nodejs/single-executable
