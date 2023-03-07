@@ -6,8 +6,8 @@ const jsonModuleDataUrl = 'data:application/json,""';
 
 expectWarning(
   'ExperimentalWarning',
-  'Import assertions are not a stable feature of the JavaScript language, ' +
-  'avoid relying on their current behavior and syntax as those might change ' +
+  'Import assertions are not a stable feature of the JavaScript language. ' +
+  'Avoid relying on their current behavior and syntax as those might change ' +
   'in a future version of Node.js.'
 );
 
