@@ -36,7 +36,7 @@ class BindingData : public SnapshotableObject {
   static void RegisterTimerExternalReferences(
       ExternalReferenceRegistry* registry);
 
-private:
+ private:
   static constexpr size_t kEncodeIntoResultsLength = 2;
   AliasedUint32Array encode_into_results_buffer_;
 };
