@@ -4,12 +4,23 @@ set -e
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 DEPS_DIR="$BASE_DIR/deps"
-ARES_VERSION=$1
 
-if [ "$#" -le 0 ]; then
-  echo "Error: please provide an c-ares version to update to"
-  echo "	e.g. $0 1.18.1"
-  exit 1
+[ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
+[ -x "$NODE" ] || NODE=$(command -v node)
+
+NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
+const res = await fetch('https://api.github.com/repos/c-ares/c-ares/releases/latest');
+if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
+const { tag_name } = await res.json();
+console.log(tag_name.replace('cares-', '').replaceAll('_', '.'));
+EOF
+)"
+
+CURRENT_VERSION=$(grep "#define ARES_VERSION_STR" ./deps/cares/include/ares_version.h |  sed -n "s/^.*VERSION_STR \"\(.*\)\"/\1/p")
+
+if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
+  echo "Skipped because simdutf is on the latest version."
+  exit 0
 fi
 
 echo "Making temporary workspace"
@@ -24,8 +35,8 @@ cleanup () {
 
 trap cleanup INT TERM EXIT
 
-ARES_REF="cares-$(echo "$ARES_VERSION" | tr . _)"
-ARES_TARBALL="c-ares-$ARES_VERSION.tar.gz"
+ARES_REF="cares-$(echo "$NEW_VERSION" | tr . _)"
+ARES_TARBALL="c-ares-$NEW_VERSION.tar.gz"
 
 cd "$WORKSPACE"
 
@@ -33,7 +44,7 @@ echo "Fetching c-ares source archive"
 curl -sL -o "$ARES_TARBALL" "https://github.com/c-ares/c-ares/releases/download/$ARES_REF/$ARES_TARBALL"
 gzip -dc "$ARES_TARBALL" | tar xf -
 rm "$ARES_TARBALL"
-mv "c-ares-$ARES_VERSION" cares
+mv "c-ares-$NEW_VERSION" cares
 
 echo "Removing tests"
 rm -rf "$WORKSPACE/cares/test"
@@ -52,5 +63,9 @@ echo ""
 echo "Please git add c-ares, commit the new version:"
 echo ""
 echo "$ git add -A deps/cares"
-echo "$ git commit -m \"deps: update c-ares to $ARES_VERSION\""
+echo "$ git commit -m \"deps: update c-ares to $NEW_VERSION\""
 echo ""
+
+# The last line of the script should always print the new version,
+# as we need to add it to $GITHUB_ENV variable.
+echo "NEW_VERSION=$NEW_VERSION"
