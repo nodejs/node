@@ -1434,12 +1434,6 @@ added: v19.6.0
 The destination for the corresponding test reporter. See the documentation on
 [test reporters][] for more details.
 
-### `--test-child-process`
-
-A flag to identify the process as a child of another test process to ensure
-that test reporting is formatted correctly to be parsed by a parent test
-process.
-
 ### `--test-only`
 
 <!-- YAML
