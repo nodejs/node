@@ -1226,6 +1226,11 @@ pathToFileURL('/some/path%.c');       // Correct:   file:///some/path%25.c (POSI
 added:
   - v15.7.0
   - v14.18.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46989
+    description: The returned object will also contain all the own enumerable
+                 properties of the `url` argument.
 -->
 
 * `url` {URL} The [WHATWG URL][] object to convert to an options object.
