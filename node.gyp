@@ -27,7 +27,7 @@
     'node_lib_target_name%': 'libnode',
     'node_intermediate_lib_type%': 'static_library',
     'node_builtin_modules_path%': '',
-    # We list the deps/ files out instead of globbing them in js2c.py since we
+    # We list the deps/ files out instead of globbing them in js2c.cc since we
     # only include a subset of all the files under these directories.
     # The lengths of their file names combined should not exceed the
     # Windows command length limit or there would be an error.
@@ -362,6 +362,7 @@
       'src/quic/transportparams.h',
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
+    'node_js2c_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_js2c<(EXECUTABLE_SUFFIX)',
     'conditions': [
       ['GENERATOR == "ninja"', {
         'node_text_start_object_path': 'src/large_pages/node_text_start.node_text_start.o'
@@ -770,6 +771,7 @@
         'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/simdutf/simdutf.gyp:simdutf',
         'deps/ada/ada.gyp:ada',
+        'node_js2c#host',
       ],
 
       'sources': [
@@ -925,8 +927,7 @@
           'action_name': 'node_js2c',
           'process_outputs_as_sources': 1,
           'inputs': [
-            # Put the code first so it's a dependency and can be used for invocation.
-            'tools/js2c.py',
+            '<(node_js2c_exec)',
             '<@(library_files)',
             '<@(deps_files)',
             'config.gypi'
@@ -935,12 +936,9 @@
             '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
           ],
           'action': [
-            '<(python)',
-            'tools/js2c.py',
-            '--directory',
-            'lib',
-            '--target',
+            '<(node_js2c_exec)',
             '<@(_outputs)',
+            'lib',
             'config.gypi',
             '<@(deps_files)',
           ],
@@ -1178,8 +1176,9 @@
     {
       'target_name': 'node_js2c',
       'type': 'executable',
+      'toolsets': ['host'],
       'dependencies': [
-        'deps/simdutf/simdutf.gyp:simdutf',
+        'deps/simdutf/simdutf.gyp:simdutf#host',
       ],
       'include_dirs': [
         'tools'
@@ -1190,7 +1189,7 @@
       ],
       'conditions': [
         [ 'node_shared_libuv=="false"', {
-          'dependencies': [ 'deps/uv/uv.gyp:libuv' ],
+          'dependencies': [ 'deps/uv/uv.gyp:libuv#host' ],
         }],
         [ 'debug_node=="true"', {
           'cflags!': [ '-O3' ],

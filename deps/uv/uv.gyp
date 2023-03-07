@@ -162,6 +162,7 @@
   'targets': [
     {
       'target_name': 'libuv',
+      'toolsets': ['host', 'target'],
       'type': '<(uv_library)',
       'include_dirs': [
         'include',
