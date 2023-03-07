@@ -339,8 +339,7 @@ class StreamBase : public StreamResource {
   // ShutdownWrap object (that was created in JS), or a new one will be created.
   // Returns 1 in case of a synchronous completion, 0 in case of asynchronous
   // completion, and a libuv error case in case of synchronous failure.
-  int Shutdown(
-      v8::Local<v8::Object> req_wrap_obj = v8::Local<v8::Object>());
+  int Shutdown(v8::Local<v8::Object> req_wrap_obj = v8::Local<v8::Object>());
 
   // TODO(RaisinTen): Update the return type to a Maybe, so that we can indicate
   // if there is a pending exception/termination.
