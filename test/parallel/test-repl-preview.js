@@ -162,7 +162,7 @@ async function tests(options) {
     noPreview: 'Uncaught ReferenceError: aaaa is not defined',
     preview: [
       'aaaa\r',
-      'Uncaught ReferenceError: aaaa is not defined'
+      'Uncaught ReferenceError: aaaa is not defined',
     ]
   }, {
     input: '/0',
@@ -174,6 +174,16 @@ async function tests(options) {
       '',
       'Uncaught SyntaxError: Invalid regular expression: missing /',
     ]
+  }, {
+    input: '{})',
+    noPreview: '{})',
+    preview: [
+      '{})\r',
+      '{})',
+      '  ^',
+      '',
+      "Uncaught SyntaxError: Unexpected token ')'",
+    ],
   }];
 
   const hasPreview = repl.terminal &&
@@ -195,7 +205,7 @@ async function tests(options) {
     } else {
       assert.ok(lines[0].includes(noPreview), lines.map(inspect));
       if (preview.length !== 1 || preview[0] !== `${input}\r`) {
-        if (preview[preview.length-1].includes('Uncaught SyntaxError')) { // Syntax error
+        if (preview[preview.length - 1].includes('Uncaught SyntaxError')) {
           assert.strictEqual(lines.length, 5);
         } else {
           assert.strictEqual(lines.length, 2);
