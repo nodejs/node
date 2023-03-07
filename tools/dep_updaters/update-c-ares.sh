@@ -18,6 +18,8 @@ EOF
 
 CURRENT_VERSION=$(grep "#define ARES_VERSION_STR" ./deps/cares/include/ares_version.h |  sed -n "s/^.*VERSION_STR \"\(.*\)\"/\1/p")
 
+echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
+
 if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
   echo "Skipped because c-ares is on the latest version."
   exit 0

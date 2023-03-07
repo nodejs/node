@@ -163,11 +163,11 @@ jobs:
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
                 ./tools/update-llhttp.sh "$NEW_VERSION"
               fi
-          - id: cares
+          - id: c-ares
             subsystem: deps
             label: dependencies
             run: |
-              ./tools/dep_updaters/update-cares.sh > temp-output
+              ./tools/dep_updaters/update-c-ares.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
