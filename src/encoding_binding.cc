@@ -14,14 +14,12 @@ namespace encoding_binding {
 using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::Context;
-using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
-using v8::Uint32Array;
 using v8::Uint8Array;
 using v8::Value;
 
