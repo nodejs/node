@@ -715,6 +715,9 @@ is provided below to assist with ecosystem coordination.
   mutually exclusive with `"production"`._
 * `"production"` - can be used to define a production environment entry
   point. _Must always be mutually exclusive with `"development"`._
+* `"style"` - CSS `@import` or imports from CSS preprocessors like SASS or LESS
+* `"sass"` - imports from `.sass` or `.scss` files
+* `"less"` - imports from `.less` files
 
 New conditions definitions may be added to this list by creating a pull request
 to the [Node.js documentation for this section][]. The requirements for listing
