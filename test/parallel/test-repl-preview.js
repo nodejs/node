@@ -157,6 +157,13 @@ async function tests(options) {
       '\x1B[90m1\x1B[39m\x1B[12G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
       '\x1B[33m1\x1B[39m',
     ]
+  }, {
+    input: 'aaaa',
+    noPreview: 'Uncaught ReferenceError: aaaa is not defined',
+    preview: [
+      'aaaa\r',
+      'Uncaught ReferenceError: aaaa is not defined'
+    ]
   }];
 
   const hasPreview = repl.terminal &&
