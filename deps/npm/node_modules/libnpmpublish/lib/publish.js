@@ -141,11 +141,19 @@ const buildMetadata = async (registry, manifest, tarballData, spec, opts) => {
       digest: { sha512: integrity.sha512[0].hexDigest() },
     }
 
-    // Ensure that we're running in GHA and an OIDC token is available,
-    // currently the only supported build environment
-    if (ciInfo.name !== 'GitHub Actions' || !process.env.ACTIONS_ID_TOKEN_REQUEST_URL) {
+    // Ensure that we're running in GHA, currently the only supported build environment
+    if (ciInfo.name !== 'GitHub Actions') {
       throw Object.assign(
         new Error('Automatic provenance generation not supported outside of GitHub Actions'),
+        { code: 'EUSAGE' }
+      )
+    }
+
+    // Ensure that the GHA OIDC token is available
+    if (!process.env.ACTIONS_ID_TOKEN_REQUEST_URL) {
+      throw Object.assign(
+        /* eslint-disable-next-line max-len */
+        new Error('Provenance generation in GitHub Actions requires "write" access to the "id-token" permission'),
         { code: 'EUSAGE' }
       )
     }
