@@ -798,7 +798,11 @@ dns orders in workers.
 added: REPLACEME
 -->
 
-Get the value of `dnsOrder`.
+Get the default value for `verbatim` in [`dns.lookup()`][] and
+[`dnsPromises.lookup()`][]. The value could be:
+
+* `ipv4first`: for `verbatim` defaulting to `false`.
+* `verbatim`: for `verbatim` defaulting to `true`.
 
 ## `dns.setServers(servers)`
 
