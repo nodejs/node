@@ -20,7 +20,6 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
-using v8::Uint32Array;
 using v8::Uint8Array;
 using v8::Value;
 
