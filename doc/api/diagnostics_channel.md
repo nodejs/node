@@ -1,7 +1,9 @@
 # Diagnostics Channel
 
 <!-- YAML
-added: v15.1.0
+added:
+  - v15.1.0
+  - v14.17.0
 changes:
   - version: v19.2.0
     pr-url: https://github.com/nodejs/node/pull/45290
