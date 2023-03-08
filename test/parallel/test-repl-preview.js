@@ -184,6 +184,13 @@ async function tests(options) {
       '',
       "Uncaught SyntaxError: Unexpected token ')'",
     ],
+  }, {
+    input: "{ a: '{' }",
+    noPreview: "{ a: \x1B[32m'{'\x1B[39m }",
+    preview: [
+      "{ a: '{' }\r",
+      "{ a: \x1B[32m'{'\x1B[39m }",
+    ],
   }];
 
   const hasPreview = repl.terminal &&
