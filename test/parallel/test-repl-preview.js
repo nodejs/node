@@ -191,6 +191,22 @@ async function tests(options) {
       "{ a: '{' }\r",
       "{ a: \x1B[32m'{'\x1B[39m }",
     ],
+  }, {
+    input: "{'{':0}",
+    noPreview: "{ \x1B[32m'{'\x1B[39m: \x1B[33m0\x1B[39m }",
+    preview: [
+      "{'{':0}",
+      "\x1B[90m{ '{': 0 }\x1B[39m\x1B[15G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r",
+      "{ \x1B[32m'{'\x1B[39m: \x1B[33m0\x1B[39m }",
+    ],
+  }, {
+    input: '{[Symbol.for("{")]: 0 }',
+    noPreview: '{ [\x1B[32mSymbol({)\x1B[39m]: \x1B[33m0\x1B[39m }',
+    preview: [
+      // eslint-disable-next-line max-len
+      '{[Sym\x1B[90mbol\x1B[39m\x1B[13G\x1B[0Kb\x1B[90mol\x1B[39m\x1B[14G\x1B[0Ko\x1B[90ml\x1B[39m\x1B[15G\x1B[0Kl.for("{")]: 0 }\r',
+      '{ [\x1B[32mSymbol({)\x1B[39m]: \x1B[33m0\x1B[39m }',
+    ],
   }];
 
   const hasPreview = repl.terminal &&
