@@ -213,18 +213,18 @@ MaybeLocal<String> BuiltinLoader::LoadBuiltinSource(Isolate* isolate,
 
 namespace {
 static Mutex externalized_builtins_mutex;
-std::unordered_map<std::string, std::string> externalized_builtin_sources;
+std::unordered_map<std::string, std::unique_ptr<StaticExternalTwoByteResource>>
+    externalized_builtin_sources;
 }  // namespace
 
 void BuiltinLoader::AddExternalizedBuiltin(const char* id,
                                            const char* filename) {
-  std::string source;
+  StaticExternalTwoByteResource* resource;
   {
     Mutex::ScopedLock lock(externalized_builtins_mutex);
     auto it = externalized_builtin_sources.find(id);
-    if (it != externalized_builtin_sources.end()) {
-      source = it->second;
-    } else {
+    if (it == externalized_builtin_sources.end()) {
+      std::string source;
       int r = ReadFileSync(&source, filename);
       if (r != 0) {
         fprintf(stderr,
@@ -233,23 +233,29 @@ void BuiltinLoader::AddExternalizedBuiltin(const char* id,
                 filename);
         ABORT();
       }
-      externalized_builtin_sources[id] = source;
+      size_t expected_u16_length =
+          simdutf::utf16_length_from_utf8(source.data(), source.length());
+      auto out = std::make_shared<std::vector<uint16_t>>(expected_u16_length);
+      size_t u16_length = simdutf::convert_utf8_to_utf16(
+          source.data(),
+          source.length(),
+          reinterpret_cast<char16_t*>(out->data()));
+      out->resize(u16_length);
+
+      auto result = externalized_builtin_sources.emplace(
+          id,
+          std::make_unique<StaticExternalTwoByteResource>(
+              out->data(), out->size(), out));
+      CHECK(result.second);
+      it = result.first;
     }
+    // OK to get the raw pointer, since externalized_builtin_sources owns
+    // the resource, resources are never removed from the map, and
+    // externalized_builtin_sources has static lifetime.
+    resource = it->second.get();
   }
 
-  Add(id, source);
-}
-
-bool BuiltinLoader::Add(const char* id, std::string_view utf8source) {
-  size_t expected_u16_length =
-      simdutf::utf16_length_from_utf8(utf8source.data(), utf8source.length());
-  auto out = std::make_shared<std::vector<uint16_t>>(expected_u16_length);
-  size_t u16_length =
-      simdutf::convert_utf8_to_utf16(utf8source.data(),
-                                     utf8source.length(),
-                                     reinterpret_cast<char16_t*>(out->data()));
-  out->resize(u16_length);
-  return Add(id, UnionBytes(out));
+  Add(id, UnionBytes(resource));
 }
 
 MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
@@ -715,6 +721,8 @@ void BuiltinLoader::RegisterExternalReferences(
   registry->Register(CompileFunction);
   registry->Register(HasCachedBuiltins);
   registry->Register(SetInternalLoaders);
+
+  RegisterExternalReferencesForInternalizedBuiltinCode(registry);
 }
 
 }  // namespace builtins
