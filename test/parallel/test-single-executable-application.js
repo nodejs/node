@@ -42,9 +42,8 @@ if (process.config.variables.want_separate_host_toolset !== 0)
 
 if (process.platform === 'linux') {
   const osReleaseText = readFileSync('/etc/os-release', { encoding: 'utf-8' });
-  if (/^NAME="Alpine Linux"/m.test(osReleaseText)) {
-    common.skip('Alpine Linux is not supported.');
-  }
+  const isAlpine = /^NAME="Alpine Linux"/m.test(osReleaseText);
+  if (isAlpine) common.skip('Alpine Linux is not supported.');
 
   if (process.arch === 's390x') {
     common.skip('On s390x, postject fails with `memory access out of bounds`.');
