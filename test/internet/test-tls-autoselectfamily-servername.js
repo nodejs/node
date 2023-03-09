@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const { addresses: { INET_HOST } } = require('../common/internet');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
@@ -15,9 +16,9 @@ setDefaultAutoSelectFamilyAttemptTimeout(common.platformTimeout(common.isWindows
 // Test that TLS connecting works without autoSelectFamily
 {
   const socket = connect({
-    host: 'nodejs.org',
+    host: INET_HOST,
     port: 443,
-    servername: 'nodejs.org',
+    servername: INET_HOST,
     autoSelectFamily: false,
   });
 
@@ -27,9 +28,9 @@ setDefaultAutoSelectFamilyAttemptTimeout(common.platformTimeout(common.isWindows
 // Test that TLS connecting works with autoSelectFamily
 {
   const socket = connect({
-    host: 'nodejs.org',
+    host: INET_HOST,
     port: 443,
-    servername: 'nodejs.org',
+    servername: INET_HOST,
     autoSelectFamily: true,
   });
 
