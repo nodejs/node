@@ -133,3 +133,20 @@ const naturals = () => from(async function*() {
     assert.strictEqual(streamShouldNotClose.destroyed, true);
   })().then(common.mustCall());
 }
+
+{
+  const errorToThrow = new Error('should close');
+
+  const streamShouldNotClose = from((function *() {
+    yield 1;
+    throw errorToThrow;
+  })());
+
+  streamShouldNotClose.take(3, { destroyStream: false })
+    .toArray()
+    .then(common.mustNotCall())
+    .catch(common.mustCall((error) => {
+      assert.strictEqual(streamShouldNotClose.destroyed, true);
+      assert.strictEqual(error, errorToThrow);
+    }))
+}
