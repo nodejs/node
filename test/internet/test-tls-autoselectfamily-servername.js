@@ -15,9 +15,9 @@ setDefaultAutoSelectFamilyAttemptTimeout(common.platformTimeout(common.isWindows
 // Test that TLS connecting works without autoSelectFamily
 {
   const socket = connect({
-    host: 'google.com',
+    host: 'nodejs.org',
     port: 443,
-    servername: 'google.com',
+    servername: 'nodejs.org',
     autoSelectFamily: false,
   });
 
@@ -27,9 +27,9 @@ setDefaultAutoSelectFamilyAttemptTimeout(common.platformTimeout(common.isWindows
 // Test that TLS connecting works with autoSelectFamily
 {
   const socket = connect({
-    host: 'google.com',
+    host: 'nodejs.org',
     port: 443,
-    servername: 'google.com',
+    servername: 'nodejs.org',
     autoSelectFamily: true,
   });
 
