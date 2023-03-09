@@ -243,7 +243,6 @@ declare function InternalBinding(binding: 'constants'): {
     DH_CHECK_P_NOT_PRIME: 1;
     DH_UNABLE_TO_CHECK_GENERATOR: 4;
     DH_NOT_SUITABLE_GENERATOR: 8;
-    ALPN_ENABLED: 1;
     RSA_PKCS1_PADDING: 1;
     RSA_SSLV23_PADDING: 2;
     RSA_NO_PADDING: 3;
