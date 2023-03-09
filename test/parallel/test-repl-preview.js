@@ -207,6 +207,28 @@ async function tests(options) {
       '{[Sym\x1B[90mbol\x1B[39m\x1B[13G\x1B[0Kb\x1B[90mol\x1B[39m\x1B[14G\x1B[0Ko\x1B[90ml\x1B[39m\x1B[15G\x1B[0Kl.for("{")]: 0 }\r',
       '{ [\x1B[32mSymbol({)\x1B[39m]: \x1B[33m0\x1B[39m }',
     ],
+  }, {
+    input: '{},{}',
+    noPreview: '{}',
+    preview: [
+      '{},{}',
+      '\x1B[90m{}\x1B[39m\x1B[13G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
+      '{}',
+    ],
+  }, {
+    input: '{} //',
+    noPreview: 'repl > ',
+    preview: [
+      '{} //\r',
+    ],
+  }, {
+    input: '{throw 0}',
+    noPreview: 'Uncaught \x1B[33m0\x1B[39m',
+    preview: [
+      '{thr\x1B[90mow\x1B[39m\x1B[12G\x1B[0Ko\x1B[90mw\x1B[39m\x1B[13G\x1B[0Kw 0}',
+      '\x1B[90m0\x1B[39m\x1B[17G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
+      'Uncaught \x1B[33m0\x1B[39m',
+    ],
   }];
 
   const hasPreview = repl.terminal &&
