@@ -329,6 +329,19 @@ const errorTests = [
   },
   // Multiline object
   {
+    send: '{}),({}',
+    expect: '... ',
+  },
+  {
+    send: '}',
+    expect: [
+      '{}),({}',
+      kArrow,
+      '',
+      /^Uncaught SyntaxError: /,
+    ]
+  },
+  {
     send: '{ a: ',
     expect: '| '
   },
