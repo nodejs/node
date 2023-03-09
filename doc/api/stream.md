@@ -2437,6 +2437,9 @@ added:
 * `options` {Object}
   * `signal` {AbortSignal} allows destroying the stream if the signal is
     aborted.
+  * `destroyStream` {boolean} When set to `false`, the stream will not be
+    closed after take finished unless the stream had an error.
+    **Default:** `true`.
 * Returns: {Readable} a stream with `limit` chunks taken.
 
 This method returns a new stream with the first `limit` chunks.
@@ -2445,6 +2448,25 @@ This method returns a new stream with the first `limit` chunks.
 import { Readable } from 'node:stream';
 
 await Readable.from([1, 2, 3, 4]).take(2).toArray(); // [1, 2]
+```
+
+Using the `destroyStream: false` you can use it start parsing
+
+```mjs
+import fs from 'node:fs';
+import { Readable } from 'node:stream';
+
+const csvParsedStream = fs
+  .createReadStream('file.csv')
+  .compose(myAwesomeParseCSV());
+
+const [columns] = await csvParsedStream
+  .take(1)
+  .toArray();
+
+const parsed = await csvParsedStream
+  .map((row) => parseRowByColumns(row, columns))
+  .toArray();
 ```
 
 ##### `readable.asIndexedPairs([options])`
