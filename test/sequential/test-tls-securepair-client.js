@@ -38,7 +38,7 @@ const fixtures = require('../common/fixtures');
 const tls = require('tls');
 const spawn = require('child_process').spawn;
 
-const useIPv4 = common.hasIPv6 ? false : true;
+const useIPv4 = !common.hasIPv6;
 
 test1();
 
