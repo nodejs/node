@@ -4,8 +4,7 @@ const common = require('../common');
 const {
   Readable,
 } = require('stream');
-const { deepStrictEqual, rejects, throws } = require('assert');
-const assert = require('assert');
+const { deepStrictEqual, rejects, throws, strictEqual } = require('assert');
 
 const { from } = Readable;
 
@@ -108,7 +107,7 @@ const naturals = () => from(async function*() {
 
     // Close stream by default
     await streamShouldCloseWithoutOption.take(2).toArray();
-    assert.strictEqual(streamShouldCloseWithoutOption.destroyed, true);
+    strictEqual(streamShouldCloseWithoutOption.destroyed, true);
   })().then(common.mustCall());
 }
 
@@ -117,7 +116,7 @@ const naturals = () => from(async function*() {
     const streamShouldCloseWithOption = from([1, 2, 3, 4, 5]);
 
     await streamShouldCloseWithOption.take(2, { destroyStream: true }).toArray();
-    assert.strictEqual(streamShouldCloseWithOption.destroyed, true);
+    strictEqual(streamShouldCloseWithOption.destroyed, true);
   })().then(common.mustCall());
 }
 
@@ -127,10 +126,10 @@ const naturals = () => from(async function*() {
 
     // Do not close stream
     await streamShouldNotClose.take(2, { destroyStream: false }).toArray();
-    assert.strictEqual(streamShouldNotClose.destroyed, false);
+    strictEqual(streamShouldNotClose.destroyed, false);
 
     deepStrictEqual(await streamShouldNotClose.toArray(), [3, 4, 5]);
-    assert.strictEqual(streamShouldNotClose.destroyed, true);
+    strictEqual(streamShouldNotClose.destroyed, true);
   })().then(common.mustCall());
 }
 
@@ -146,7 +145,7 @@ const naturals = () => from(async function*() {
     .toArray()
     .then(common.mustNotCall())
     .catch(common.mustCall((error) => {
-      assert.strictEqual(streamShouldNotClose.destroyed, true);
-      assert.strictEqual(error, errorToThrow);
-    }))
+      strictEqual(streamShouldNotClose.destroyed, true);
+      strictEqual(error, errorToThrow);
+    }));
 }
