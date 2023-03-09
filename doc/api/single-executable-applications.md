@@ -153,8 +153,8 @@ platforms:
 
 * Windows
 * macOS
-* Linux (all distributions except Alpine and all architectures except s390x and
-  ppc64)
+* Linux (all distributions [supported by Node.js][] except Alpine and all
+  architectures [supported by Node.js][] except s390x and ppc64)
 
 This is due to a lack of better tools to generate single-executables that can be
 used to test this feature on other platforms.
@@ -175,3 +175,4 @@ to help us document them.
 [postject]: https://github.com/nodejs/postject
 [signtool]: https://learn.microsoft.com/en-us/windows/win32/seccrypto/signtool
 [single executable applications]: https://github.com/nodejs/single-executable
+[supported by Node.js]: https://github.com/nodejs/node/blob/main/BUILDING.md#platform-list
