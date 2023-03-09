@@ -153,7 +153,8 @@ platforms:
 
 * Windows
 * macOS
-* Linux (AMD64 only)
+* Linux (all distributions except Alpine and all architectures except s390x and
+  ppc64)
 
 This is due to a lack of better tools to generate single-executables that can be
 used to test this feature on other platforms.
