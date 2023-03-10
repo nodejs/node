@@ -1,5 +1,6 @@
 // META: title=WebCryptoAPI: wrapKey() and unwrapKey()
 // META: timeout=long
+// META: script=../util/helpers.js
 
 // Tests for wrapKey and unwrapKey round tripping
 
@@ -19,7 +20,7 @@
                 promises.push(testWrapping(wrapper, key));
             })
         });
-        return Promise.all(promises);
+        return Promise.allSettled(promises);
     });
     }, "setup");
 
@@ -48,7 +49,7 @@
             {
                 name: "AES-GCM",
                 generateParameters: {name: "AES-GCM", length: 128},
-                wrapParameters: {name: "AES-GCM", iv: new Uint8Array(16), additionalData: new Uint8Array(16), tagLength: 64}
+                wrapParameters: {name: "AES-GCM", iv: new Uint8Array(16), additionalData: new Uint8Array(16), tagLength: 128}
             },
             {
                 name: "AES-KW",
@@ -141,7 +142,7 @@
                     .then(function(wrappedResult) {
                         return subtle.unwrapKey(fmt, wrappedResult, wrapper.unwrappingKey, wrapper.parameters.wrapParameters, toWrap.algorithm, true, toWrap.usages);
                     }).then(function(unwrappedResult) {
-                        assert_true(unwrappedResult.extractable, "Unwrapped result is extractable");
+                        assert_goodCryptoKey(unwrappedResult, toWrap.algorithm, true, toWrap.usages, toWrap.key.type);
                         return subtle.exportKey(fmt, unwrappedResult)
                     }).then(function(roundTripExport) {
                         assert_true(equalExport(originalExport, roundTripExport), "Post-wrap export matches original export");
@@ -161,7 +162,7 @@
                         .then(function(wrappedResult) {
                             return subtle.unwrapKey(fmt, wrappedResult, wrapper.unwrappingKey, wrapper.parameters.wrapParameters, toWrap.algorithm, false, toWrap.usages);
                         }).then(function(unwrappedResult){
-                            assert_false(unwrappedResult.extractable, "Unwrapped result is non-extractable");
+                            assert_goodCryptoKey(unwrappedResult, toWrap.algorithm, false, toWrap.usages, toWrap.key.type);
                             return equalKeys(toWrap.key, unwrappedResult);
                         }).then(function(result){
                             assert_true(result, "Unwrapped key matches original");
