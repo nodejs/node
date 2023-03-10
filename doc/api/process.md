@@ -606,7 +606,10 @@ process.on('warning', (warning) => {
 
 By default, Node.js will print process warnings to `stderr`. The `--no-warnings`
 command-line option can be used to suppress the default console output but the
-`'warning'` event will still be emitted by the `process` object.
+`'warning'` event will still be emitted by the `process` object. At this point,
+it is not supported to supress specific warning types like `ExperimentalWarning`.
+To supress deprecation warnings please lookat `--no-deprecation`
+command-line flag as below.
 
 The following example illustrates the warning that is printed to `stderr` when
 too many listeners have been added to an event:
