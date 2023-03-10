@@ -75,6 +75,9 @@ EXTERN_C_START
 
 // Deprecated. Replaced by symbol-based registration defined by NAPI_MODULE
 // and NAPI_MODULE_INIT macros.
+#if defined(__cplusplus) && __cplusplus >= 201402L
+[[deprecated]]
+#endif
 NAPI_EXTERN void NAPI_CDECL napi_module_register(napi_module* mod);
 
 NAPI_EXTERN NAPI_NO_RETURN void NAPI_CDECL

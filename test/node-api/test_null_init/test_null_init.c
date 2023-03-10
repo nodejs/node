@@ -1,5 +1,11 @@
 #include <node_api.h>
 
+// This test uses old module initialization style deprecated in current code.
+// The goal is to see that all previously compiled code continues to work the
+// same way as before.
+// The test has a copy of previous macro definitions which are removed from
+// the node_api.h file.
+
 #if defined(_MSC_VER)
 #if defined(__cplusplus)
 #define NAPI_C_CTOR(fn)                                                        \

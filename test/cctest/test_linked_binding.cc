@@ -127,6 +127,29 @@ TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingNapiTest) {
   CHECK_EQ(strcmp(*utf8val, "world"), 0);
 }
 
+TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingNapiCallbackTest) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env test_env {handle_scope, argv};
+
+  AddLinkedBinding(*test_env, "local_linked_napi", InitializeLocalNapiBinding);
+
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+  const char* run_script =
+      "process._linkedBinding('local_linked_napi').hello";
+  v8::Local<v8::Script> script = v8::Script::Compile(
+      context,
+      v8::String::NewFromOneByte(isolate_,
+                                 reinterpret_cast<const uint8_t*>(run_script))
+                                 .ToLocalChecked())
+      .ToLocalChecked();
+  v8::Local<v8::Value> completion_value = script->Run(context).ToLocalChecked();
+  v8::String::Utf8Value utf8val(isolate_, completion_value);
+  CHECK_NOT_NULL(*utf8val);
+  CHECK_EQ(strcmp(*utf8val, "world"), 0);
+}
+
 napi_value NapiLinkedWithInstanceData(napi_env env, napi_value exports) {
   int* instance_data = new int(0);
   CHECK_EQ(
@@ -167,6 +190,39 @@ TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingNapiInstanceDataTest) {
     Env test_env {handle_scope, argv};
 
     AddLinkedBinding(*test_env, local_linked_napi_id);
+
+    v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+    const char* run_script =
+        "process._linkedBinding('local_linked_napi_id').hello";
+    v8::Local<v8::Script> script = v8::Script::Compile(
+        context,
+        v8::String::NewFromOneByte(isolate_,
+                                   reinterpret_cast<const uint8_t*>(run_script))
+                                   .ToLocalChecked())
+        .ToLocalChecked();
+    v8::Local<v8::Value> completion_value =
+        script->Run(context).ToLocalChecked();
+    CHECK(completion_value->IsExternal());
+    instance_data = static_cast<int*>(
+        completion_value.As<v8::External>()->Value());
+    CHECK_NE(instance_data, nullptr);
+    CHECK_EQ(*instance_data, 0);
+  }
+
+  CHECK_EQ(*instance_data, 1);
+  delete instance_data;
+}
+
+TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingNapiCallbackInstanceDataTest) {
+  const v8::HandleScope handle_scope(isolate_);
+  int* instance_data = nullptr;
+
+  {
+    const Argv argv;
+    Env test_env {handle_scope, argv};
+
+    AddLinkedBinding(*test_env, "local_linked_napi_id", NapiLinkedWithInstanceData);
 
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
 
