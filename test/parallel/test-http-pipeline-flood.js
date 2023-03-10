@@ -53,6 +53,15 @@ function parent() {
     const args = [__filename, 'child', this.address().port];
     const child = spawn(process.execPath, args, { stdio: 'inherit' });
     child.on('close', common.mustCall(function() {
+      if (common.isIBMi) {
+        // On IBM i calling server.close after the child process closes
+        // is not enough to end the server. For some reason the connection still
+        // lingers around with the server even though the process was closed.
+        // Calling closeAllConnections cleans up the lingering connection.
+        // Then calling server.close stops the server from listening
+        // for new connections and ends the server.
+        server.closeAllConnections();
+      }
       server.close();
     }));
 
