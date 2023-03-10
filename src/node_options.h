@@ -163,7 +163,6 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> test_name_pattern;
   std::vector<std::string> test_reporter;
   std::vector<std::string> test_reporter_destination;
-  bool test_child_process = false;
   bool test_only = false;
   bool test_udp_no_try_send = false;
   bool throw_deprecation = false;

@@ -2262,6 +2262,13 @@ If `value` equals `'1'`, the check for a supported platform is skipped during
 Node.js startup. Node.js might not execute correctly. Any issues encountered
 on unsupported platforms will not be fixed.
 
+### `NODE_TEST_CONTEXT=value`
+
+If `value` equals `'child'`, test reporter options will be overridden and test
+output will be sent to stdout in the TAP format. This is intended to facilitate
+parsing and aggregating test output by a parent process that spawns one or more
+children.
+
 ### `NODE_TLS_REJECT_UNAUTHORIZED=value`
 
 If `value` equals `'0'`, certificate validation is disabled for TLS connections.
