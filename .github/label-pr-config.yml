@@ -33,6 +33,7 @@ subSystemLabels:
   /^src\/node_worker/: c++, worker
   /^src\/quic\/*/: c++, quic, dont-land-on-v14.x
   /^src\/node_bob*/: c++, quic, dont-land-on-v14.x
+  /^src\/node_sea/: single-executable
 
   # don't label python files as c++
   /^src\/.+\.py$/: python, needs-ci
