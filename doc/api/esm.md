@@ -1127,7 +1127,7 @@ export async function load(url, context, nextLoad) {
     // file, search up the file system for the nearest parent package.json file
     // and read its "type" field.
     const format = await getPackageType(url);
-    // When a hook returns a format of 'commonjs', `source` is be ignored.
+    // When a hook returns a format of 'commonjs', `source` is ignored.
     // To handle CommonJS files, a handler needs to be registered with
     // `require.extensions` in order to process the files with the CommonJS
     // loader. Avoiding the need for a separate CommonJS handler is a future
