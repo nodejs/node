@@ -13,19 +13,11 @@ Updates to the c-ares dependency involve the following steps:
 
 ## Running the update script
 
-The `tools/update-cares.sh` script automates the update of the c-ares source
-files, preserving the existing files added by Node.js.
+The `tools/dep_updaters/update-c-ares.sh` script automates the update of
+the c-ares source files, preserving the existing files added by Node.js.
 
-In the following examples, `x.y.z` should match the c-ares version to update to.
-
-```console
-./tools/update-cares.sh x.y.z
-```
-
-e.g.
-
-```console
-./tools/update-cares.sh 1.18.1
+```bash
+./tools/dep_updaters/update-c-ares.sh
 ```
 
 ## Check that Node.js still builds and tests
