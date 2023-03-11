@@ -1266,6 +1266,57 @@ const { getEventListeners, EventEmitter } = require('node:events');
 }
 ```
 
+## `events.getMaxListeners(emitterOrTarget)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `emitterOrTarget` {EventEmitter|EventTarget}
+* Returns: {number}
+
+Returns the currently set max amount of listeners.
+
+For `EventEmitter`s this behaves exactly the same as calling `.getMaxListeners` on
+the emitter.
+
+For `EventTarget`s this is the only way to get the max event listeners for the
+event target.
+
+```mjs
+import { getMaxListeners, setMaxListeners, EventEmitter } from 'node:events';
+
+{
+  const ee = new EventEmitter();
+  console.log(getMaxListeners(ee)); // 10
+  setMaxListeners(11, ee);
+  console.log(getMaxListeners(ee)); // 11
+}
+{
+  const et = new EventTarget();
+  console.log(getMaxListeners(et)); // 10
+  setMaxListeners(11, et);
+  console.log(getMaxListeners(et)); // 11
+}
+```
+
+```cjs
+const { getMaxListeners, setMaxListeners, EventEmitter } = require('node:events');
+
+{
+  const ee = new EventEmitter();
+  console.log(getMaxListeners(ee)); // 10
+  setMaxListeners(11, ee);
+  console.log(getMaxListeners(ee)); // 11
+}
+{
+  const et = new EventTarget();
+  console.log(getMaxListeners(et)); // 10
+  setMaxListeners(11, et);
+  console.log(getMaxListeners(et)); // 11
+}
+```
+
 ## `events.once(emitter, name[, options])`
 
 <!-- YAML
