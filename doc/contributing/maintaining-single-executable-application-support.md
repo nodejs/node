@@ -54,7 +54,9 @@ for the following features are in the list of work we'd like to get to:
 * Running an archive of multiple files.
 * Embedding [Node.js CLI options][] into the binary.
 * [XCOFF][] executable format.
-* Run tests on Linux architectures/distributions other than AMD64 Ubuntu.
+* Run tests on Alpine Linux.
+* Run tests on s390x Linux.
+* Run tests on ppc64 Linux.
 
 ## Disabling single executable application support
 
