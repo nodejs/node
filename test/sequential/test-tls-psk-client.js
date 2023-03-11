@@ -14,6 +14,7 @@ const { spawn } = require('child_process');
 const CIPHERS = 'PSK+HIGH';
 const KEY = 'd731ef57be09e5204f0b205b60627028';
 const IDENTITY = 'Client_identity';  // Hardcoded by `openssl s_server`
+const useIPv4 = !common.hasIPv6;
 
 const server = spawn(common.opensslCli, [
   's_server',
@@ -23,6 +24,7 @@ const server = spawn(common.opensslCli, [
   '-psk_hint', IDENTITY,
   '-nocert',
   '-rev',
+  ...(useIPv4 ? ['-4'] : []),
 ], { encoding: 'utf8' });
 let serverErr = '';
 let serverOut = '';
