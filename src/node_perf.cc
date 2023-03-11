@@ -1,5 +1,5 @@
 #include "node_perf.h"
-#include "aliased_buffer.h"
+#include "aliased_buffer-inl.h"
 #include "env-inl.h"
 #include "histogram-inl.h"
 #include "memory_tracker-inl.h"
@@ -38,6 +38,9 @@ using v8::Value;
 // Nanoseconds in a millisecond, as a float.
 #define NANOS_PER_MILLIS 1e6
 
+const uint64_t performance_process_start = PERFORMANCE_NOW();
+const double performance_process_start_timestamp =
+    GetCurrentTimeInMicroseconds();
 uint64_t performance_v8_start;
 
 PerformanceState::PerformanceState(Isolate* isolate,
@@ -271,7 +274,7 @@ void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
 void GetTimeOrigin(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   args.GetReturnValue().Set(
-      Number::New(args.GetIsolate(), env->time_origin() / 1e6));
+      Number::New(args.GetIsolate(), env->time_origin() / NANOS_PER_MILLIS));
 }
 
 void GetTimeOriginTimeStamp(const FunctionCallbackInfo<Value>& args) {

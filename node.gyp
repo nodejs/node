@@ -479,6 +479,7 @@
         'src/connection_wrap.cc',
         'src/dataqueue/queue.cc',
         'src/debug_utils.cc',
+        'src/encoding_binding.cc',
         'src/env.cc',
         'src/fs_event_wrap.cc',
         'src/handle_wrap.cc',
@@ -571,6 +572,7 @@
         'src/uv.cc',
         # headers to make for a more pleasant IDE experience
         'src/aliased_buffer.h',
+        'src/aliased_buffer-inl.h',
         'src/aliased_struct.h',
         'src/aliased_struct-inl.h',
         'src/async_wrap.h',
@@ -589,6 +591,7 @@
         'src/dataqueue/queue.h',
         'src/debug_utils.h',
         'src/debug_utils-inl.h',
+        'src/encoding_binding.h',
         'src/env_properties.h',
         'src/env.h',
         'src/env-inl.h',
@@ -677,6 +680,7 @@
         'src/string_decoder-inl.h',
         'src/string_search.h',
         'src/tcp_wrap.h',
+        'src/timers.h',
         'src/tracing/agent.h',
         'src/tracing/node_trace_buffer.h',
         'src/tracing/node_trace_writer.h',
@@ -691,7 +695,7 @@
         'src/util-inl.h',
         # Dependency headers
         'deps/v8/include/v8.h',
-        'deps/postject/postject-api.h'
+        'deps/postject/postject-api.h',
         # javascript files to make for an even more pleasant IDE experience
         '<@(library_files)',
         '<@(deps_files)',

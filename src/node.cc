@@ -277,22 +277,17 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 
   if (cb != nullptr) {
     EscapableHandleScope scope(env->isolate());
+    // TODO(addaleax): pass the callback to the main script more directly,
+    // e.g. by making StartExecution(env, builtin) parametrizable
+    env->set_embedder_entry_point(std::move(cb));
+    auto reset_entry_point =
+        OnScopeLeave([&]() { env->set_embedder_entry_point({}); });
 
-    if (env->isolate_data()->options()->build_snapshot) {
-      // TODO(addaleax): pass the callback to the main script more directly,
-      // e.g. by making StartExecution(env, builtin) parametrizable
-      env->set_embedder_mksnapshot_entry_point(std::move(cb));
-      auto reset_entry_point =
-          OnScopeLeave([&]() { env->set_embedder_mksnapshot_entry_point({}); });
+    const char* entry = env->isolate_data()->options()->build_snapshot
+                            ? "internal/main/mksnapshot"
+                            : "internal/main/embedding";
 
-      return StartExecution(env, "internal/main/mksnapshot");
-    }
-
-    if (StartExecution(env, "internal/main/environment").IsEmpty()) return {};
-    return scope.EscapeMaybe(cb({
-        env->process_object(),
-        env->builtin_module_require(),
-    }));
+    return scope.EscapeMaybe(StartExecution(env, entry));
   }
 
   // TODO(joyeecheung): move these conditions into JS land and let the
@@ -311,18 +306,6 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   if (env->argv().size() > 1) {
     first_argv = env->argv()[1];
   }
-
-#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  if (sea::IsSingleExecutable()) {
-    // TODO(addaleax): Find a way to reuse:
-    //
-    // LoadEnvironment(Environment*, const char*)
-    //
-    // instead and not add yet another main entry point here because this
-    // already duplicates existing code.
-    return StartExecution(env, "internal/main/single_executable_application");
-  }
-#endif
 
   if (first_argv == "inspect") {
     return StartExecution(env, "internal/main/inspect");
@@ -1132,8 +1115,7 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
               "node:embedded_snapshot_main was specified as snapshot "
               "entry point but Node.js was built without embedded "
               "snapshot.\n");
-      // TODO(joyeecheung): should be kInvalidCommandLineArgument instead.
-      exit_code = ExitCode::kGenericUserError;
+      exit_code = ExitCode::kInvalidCommandLineArgument;
       return exit_code;
     }
   } else {
@@ -1166,8 +1148,7 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
     fprintf(stderr,
             "Cannot open %s for writing a snapshot.\n",
             snapshot_blob_path.c_str());
-    // TODO(joyeecheung): should be kStartupSnapshotFailure.
-    exit_code = ExitCode::kGenericUserError;
+    exit_code = ExitCode::kStartupSnapshotFailure;
   }
   return exit_code;
 }
@@ -1183,17 +1164,16 @@ ExitCode LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
     FILE* fp = fopen(filename.c_str(), "rb");
     if (fp == nullptr) {
       fprintf(stderr, "Cannot open %s", filename.c_str());
-      // TODO(joyeecheung): should be kStartupSnapshotFailure.
-      exit_code = ExitCode::kGenericUserError;
+      exit_code = ExitCode::kStartupSnapshotFailure;
       return exit_code;
     }
     std::unique_ptr<SnapshotData> read_data = std::make_unique<SnapshotData>();
     bool ok = SnapshotData::FromFile(read_data.get(), fp);
     fclose(fp);
     if (!ok) {
-      // If we fail to read the customized snapshot, simply exit with 1.
-      // TODO(joyeecheung): should be kStartupSnapshotFailure.
-      exit_code = ExitCode::kGenericUserError;
+      // If we fail to read the customized snapshot,
+      // simply exit with kStartupSnapshotFailure.
+      exit_code = ExitCode::kStartupSnapshotFailure;
       return exit_code;
     }
     *snapshot_data_ptr = read_data.release();

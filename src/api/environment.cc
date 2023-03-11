@@ -509,11 +509,17 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     Environment* env,
     ThreadId thread_id,
     const char* url) {
+  return GetInspectorParentHandle(env, thread_id, url, "");
+}
+
+NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
+    Environment* env, ThreadId thread_id, const char* url, const char* name) {
   CHECK_NOT_NULL(env);
+  if (name == nullptr) name = "";
   CHECK_NE(thread_id.id, static_cast<uint64_t>(-1));
 #if HAVE_INSPECTOR
   return std::make_unique<InspectorParentHandleImpl>(
-      env->inspector_agent()->GetParentHandle(thread_id.id, url));
+      env->inspector_agent()->GetParentHandle(thread_id.id, url, name));
 #else
   return {};
 #endif
@@ -528,17 +534,15 @@ MaybeLocal<Value> LoadEnvironment(
   return StartExecution(env, cb);
 }
 
-MaybeLocal<Value> LoadEnvironment(
-    Environment* env,
-    const char* main_script_source_utf8) {
-  CHECK_NOT_NULL(main_script_source_utf8);
+MaybeLocal<Value> LoadEnvironment(Environment* env,
+                                  std::string_view main_script_source_utf8) {
+  CHECK_NOT_NULL(main_script_source_utf8.data());
   return LoadEnvironment(
       env, [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
-        std::string name = "embedder_main_" + std::to_string(env->thread_id());
-        env->builtin_loader()->Add(name.c_str(), main_script_source_utf8);
-        Realm* realm = env->principal_realm();
-
-        return realm->ExecuteBootstrapper(name.c_str());
+        Local<Value> main_script =
+            ToV8Value(env->context(), main_script_source_utf8).ToLocalChecked();
+        return info.run_cjs->Call(
+            env->context(), Null(env->isolate()), 1, &main_script);
       });
 }
 
@@ -861,6 +865,7 @@ ThreadId AllocateEnvironmentThreadId() {
 }
 
 void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code) {
+  env->set_stopping(true);
   env->set_can_call_into_js(false);
   env->stop_sub_worker_contexts();
   env->isolate()->DumpAndResetStats();

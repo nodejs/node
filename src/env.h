@@ -846,9 +846,11 @@ class Environment : public MemoryRetainer {
   inline HandleWrapQueue* handle_wrap_queue() { return &handle_wrap_queue_; }
   inline ReqWrapQueue* req_wrap_queue() { return &req_wrap_queue_; }
 
+  // https://w3c.github.io/hr-time/#dfn-time-origin
   inline uint64_t time_origin() {
     return time_origin_;
   }
+  // https://w3c.github.io/hr-time/#dfn-get-time-origin-timestamp
   inline double time_origin_timestamp() {
     return time_origin_timestamp_;
   }
@@ -891,6 +893,8 @@ class Environment : public MemoryRetainer {
   static inline Environment* ForAsyncHooks(AsyncHooks* hooks);
 
   v8::Local<v8::Value> GetNow();
+  uint64_t GetNowUint64();
+
   void ScheduleTimer(int64_t duration);
   void ToggleTimerRef(bool ref);
 
@@ -946,8 +950,8 @@ class Environment : public MemoryRetainer {
 
 #endif  // HAVE_INSPECTOR
 
-  inline const StartExecutionCallback& embedder_mksnapshot_entry_point() const;
-  inline void set_embedder_mksnapshot_entry_point(StartExecutionCallback&& fn);
+  inline const StartExecutionCallback& embedder_entry_point() const;
+  inline void set_embedder_entry_point(StartExecutionCallback&& fn);
 
   inline void set_process_exit_handler(
       std::function<void(Environment*, ExitCode)>&& handler);
@@ -1055,10 +1059,17 @@ class Environment : public MemoryRetainer {
 
   AliasedInt32Array stream_base_state_;
 
-  // https://w3c.github.io/hr-time/#dfn-time-origin
-  uint64_t time_origin_;
-  // https://w3c.github.io/hr-time/#dfn-get-time-origin-timestamp
-  double time_origin_timestamp_;
+  // As PerformanceNodeTiming is exposed in worker_threads, the per_process
+  // time origin is exposed in the worker threads. This is an intentional
+  // diverge from the HTML spec of web workers.
+  // Process start time from the monotonic clock. This should not be used as an
+  // absolute time, but only as a time relative to another monotonic clock time.
+  const uint64_t time_origin_;
+  // Process start timestamp from the wall clock. This is an absolute time
+  // exposed as `performance.timeOrigin`.
+  const double time_origin_timestamp_;
+  // This is the time when the environment is created.
+  const uint64_t environment_start_;
   std::unique_ptr<performance::PerformanceState> performance_state_;
 
   bool has_serialized_options_ = false;
@@ -1131,7 +1142,7 @@ class Environment : public MemoryRetainer {
   std::unique_ptr<Realm> principal_realm_ = nullptr;
 
   builtins::BuiltinLoader builtin_loader_;
-  StartExecutionCallback embedder_mksnapshot_entry_point_;
+  StartExecutionCallback embedder_entry_point_;
 
   // Used by allocate_managed_buffer() and release_managed_buffer() to keep
   // track of the BackingStore for a given pointer.

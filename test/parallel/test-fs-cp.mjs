@@ -275,8 +275,10 @@ function nextdir() {
 
 // It throws an error if attempt is made to copy socket.
 if (!isWindows) {
+  const src = nextdir();
+  mkdirSync(src);
   const dest = nextdir();
-  const sock = `${process.pid}.sock`;
+  const sock = join(src, `${process.pid}.sock`);
   const server = net.createServer();
   server.listen(sock);
   assert.throws(
@@ -596,8 +598,10 @@ if (!isWindows) {
 
 // It returns an error if attempt is made to copy socket.
 if (!isWindows) {
+  const src = nextdir();
+  mkdirSync(src);
   const dest = nextdir();
-  const sock = `${process.pid}.sock`;
+  const sock = join(src, `${process.pid}.sock`);
   const server = net.createServer();
   server.listen(sock);
   cp(sock, dest, mustCall((err) => {

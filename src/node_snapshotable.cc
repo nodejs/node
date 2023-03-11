@@ -5,6 +5,7 @@
 #include <vector>
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
+#include "encoding_binding.h"
 #include "env-inl.h"
 #include "node_blob.h"
 #include "node_builtins.h"
@@ -20,6 +21,7 @@
 #include "node_util.h"
 #include "node_v8.h"
 #include "node_v8_platform-inl.h"
+#include "timers.h"
 
 #if HAVE_INSPECTOR
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
@@ -1443,19 +1445,25 @@ void SerializeSnapshotableObjects(Realm* realm,
 
 namespace mksnapshot {
 
+// NB: This is also used by the regular embedding codepath.
 void GetEmbedderEntryFunction(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
-  if (!env->embedder_mksnapshot_entry_point()) return;
+  if (!env->embedder_entry_point()) return;
   MaybeLocal<Function> jsfn =
       Function::New(isolate->GetCurrentContext(),
                     [](const FunctionCallbackInfo<Value>& args) {
                       Environment* env = Environment::GetCurrent(args);
                       Local<Value> require_fn = args[0];
+                      Local<Value> runcjs_fn = args[1];
                       CHECK(require_fn->IsFunction());
-                      CHECK(env->embedder_mksnapshot_entry_point());
-                      env->embedder_mksnapshot_entry_point()(
-                          {env->process_object(), require_fn.As<Function>()});
+                      CHECK(runcjs_fn->IsFunction());
+                      MaybeLocal<Value> retval = env->embedder_entry_point()(
+                          {env->process_object(),
+                           require_fn.As<Function>(),
+                           runcjs_fn.As<Function>()});
+                      if (!retval.IsEmpty())
+                        args.GetReturnValue().Set(retval.ToLocalChecked());
                     });
   if (!jsfn.IsEmpty()) args.GetReturnValue().Set(jsfn.ToLocalChecked());
 }

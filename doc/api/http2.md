@@ -354,7 +354,7 @@ server.on('stream', (stream, headers) => {
   stream.end('<h1>Hello World</h1>');
 });
 
-server.listen(80);
+server.listen(8000);
 ```
 
 Even though HTTP/2 streams and network sockets are not in a 1:1 correspondence,
@@ -2532,7 +2532,7 @@ server.on('stream', (stream, headers) => {
   stream.end('<h1>Hello World</h1>');
 });
 
-server.listen(80);
+server.listen(8000);
 ```
 
 ### `http2.createSecureServer(options[, onRequestHandler])`
@@ -2673,7 +2673,7 @@ server.on('stream', (stream, headers) => {
   stream.end('<h1>Hello World</h1>');
 });
 
-server.listen(80);
+server.listen(8443);
 ```
 
 ### `http2.connect(authority[, options][, listener])`
@@ -3126,7 +3126,7 @@ const client = http2.connect('http://localhost:8001');
 // for CONNECT requests or an error will be thrown.
 const req = client.request({
   ':method': 'CONNECT',
-  ':authority': `localhost:${port}`,
+  ':authority': 'localhost:8000',
 });
 
 req.on('response', (headers) => {

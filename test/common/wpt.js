@@ -453,14 +453,13 @@ class WPTRunner {
     this.scriptsModifier = modifier;
   }
 
-  fullInitScript(hasSubsetScript, locationSearchString) {
+  fullInitScript(url, metaTitle) {
     let { initScript } = this;
-    if (hasSubsetScript || locationSearchString) {
-      initScript = `${initScript}\n\n//===\nglobalThis.location ||= {};`;
-    }
 
-    if (locationSearchString) {
-      initScript = `${initScript}\n\n//===\nglobalThis.location.search = "${locationSearchString}";`;
+    initScript = `${initScript}\n\n//===\nglobalThis.location = new URL("${url.href}");`;
+
+    if (metaTitle) {
+      initScript = `${initScript}\n\n//===\nglobalThis.META_TITLE = "${metaTitle}";`;
     }
 
     if (this.globalThisInitScripts.length === null) {
@@ -484,9 +483,7 @@ class WPTRunner {
   pretendGlobalThisAs(name) {
     switch (name) {
       case 'Window': {
-        this.globalThisInitScripts.push(
-          `global.Window = Object.getPrototypeOf(globalThis).constructor;
-          self.GLOBAL.isWorker = () => false;`);
+        this.globalThisInitScripts.push('globalThis.Window = Object.getPrototypeOf(globalThis).constructor;');
         this.loadLazyGlobals();
         break;
       }
@@ -503,6 +500,7 @@ class WPTRunner {
 
   loadLazyGlobals() {
     const lazyProperties = [
+      'DOMException',
       'Performance', 'PerformanceEntry', 'PerformanceMark', 'PerformanceMeasure',
       'PerformanceObserver', 'PerformanceObserverEntryList', 'PerformanceResourceTiming',
       'Blob', 'atob', 'btoa',
@@ -523,36 +521,6 @@ class WPTRunner {
       lazyProperties.push('crypto', 'Crypto', 'CryptoKey', 'SubtleCrypto');
     }
     const script = lazyProperties.map((name) => `globalThis.${name};`).join('\n');
-    this.globalThisInitScripts.push(script);
-  }
-
-  brandCheckGlobalScopeAttribute(name) {
-    // TODO(legendecas): idlharness GlobalScope attribute receiver validation.
-    const script = `
-      const desc = Object.getOwnPropertyDescriptor(globalThis, '${name}');
-      function getter() {
-        // Mimic GlobalScope instance brand check.
-        if (this !== globalThis) {
-          throw new TypeError('Illegal invocation');
-        }
-        return desc.get();
-      }
-      Object.defineProperty(getter, 'name', { value: 'get ${name}' });
-
-      function setter(value) {
-        // Mimic GlobalScope instance brand check.
-        if (this !== globalThis) {
-          throw new TypeError('Illegal invocation');
-        }
-        desc.set(value);
-      }
-      Object.defineProperty(setter, 'name', { value: 'set ${name}' });
-
-      Object.defineProperty(globalThis, '${name}', {
-        get: getter,
-        set: setter,
-      });
-    `;
     this.globalThisInitScripts.push(script);
   }
 
@@ -584,13 +552,13 @@ class WPTRunner {
       const relativePath = spec.getRelativePath();
       const harnessPath = fixtures.path('wpt', 'resources', 'testharness.js');
       const scriptsToRun = [];
-      let hasSubsetScript = false;
+      let needsGc = false;
 
       // Scripts specified with the `// META: script=` header
       if (meta.script) {
         for (const script of meta.script) {
-          if (script === '/common/subset-tests.js' || script === '/common/subset-tests-by-key.js') {
-            hasSubsetScript = true;
+          if (script === '/common/gc.js') {
+            needsGc = true;
           }
           const obj = {
             filename: this.resource.toRealFilePath(relativePath, script),
@@ -623,12 +591,13 @@ class WPTRunner {
             testRelativePath: relativePath,
             wptRunner: __filename,
             wptPath: this.path,
-            initScript: this.fullInitScript(hasSubsetScript, variant),
+            initScript: this.fullInitScript(new URL(`/${relativePath.replace(/\.js$/, '.html')}${variant}`, 'http://wpt'), meta.title),
             harness: {
               code: fs.readFileSync(harnessPath, 'utf8'),
               filename: harnessPath,
             },
             scriptsToRun,
+            needsGc,
           },
         });
         this.workers.set(testFileName, worker);
@@ -752,7 +721,7 @@ class WPTRunner {
 
   getTestTitle(filename) {
     const spec = this.specMap.get(filename);
-    return spec.meta?.title || filename;
+    return spec.meta?.title || filename.split('.')[0];
   }
 
   // Map WPT test status to strings
@@ -780,11 +749,7 @@ class WPTRunner {
    */
   resultCallback(filename, test, reportResult) {
     const status = this.getTestStatus(test.status);
-    const title = this.getTestTitle(filename);
-    if (/^Untitled( \d+)?$/.test(test.name)) {
-      test.name = `${title}${test.name.slice(8)}`;
-    }
-    console.log(`---- ${title} ----`);
+    console.log(`---- ${test.name} ----`);
     if (status !== kPass) {
       this.fail(filename, test, status, reportResult);
     } else {

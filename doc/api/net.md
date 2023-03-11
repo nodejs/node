@@ -1661,7 +1661,7 @@ added: REPLACEME
 Sets the default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
 
 * `value` {number} The new default value, which must be a positive number. If the number is less than `10`,
-  the value `10` is used insted The initial default value is `250`.
+  the value `10` is used instead. The initial default value is `250`.
 
 ## `net.isIP(input)`
 

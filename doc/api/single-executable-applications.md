@@ -33,7 +33,24 @@ tool, [postject][]:
    $ cp $(command -v node) hello
    ```
 
-3. Inject the JavaScript file into the copied binary by running `postject` with
+3. Remove the signature of the binary:
+
+   * On macOS:
+
+   ```console
+   $ codesign --remove-signature hello
+   ```
+
+   * On Windows (optional):
+
+   [signtool][] can be used from the installed [Windows SDK][]. If this step is
+   skipped, ignore any signature-related warning from postject.
+
+   ```console
+   $ signtool remove /s hello
+   ```
+
+4. Inject the JavaScript file into the copied binary by running `postject` with
    the following options:
 
    * `hello` - The name of the copy of the `node` executable created in step 2.
@@ -61,7 +78,24 @@ tool, [postject][]:
          --macho-segment-name NODE_JS
      ```
 
-4. Run the binary:
+5. Sign the binary:
+
+   * On macOS:
+
+   ```console
+   $ codesign --sign - hello
+   ```
+
+   * On Windows (optional):
+
+   A certificate needs to be present for this to work. However, the unsigned
+   binary would still be runnable.
+
+   ```console
+   $ signtool sign /fd SHA256 hello
+   ```
+
+6. Run the binary:
    ```console
    $ ./hello world
    Hello, world!
@@ -119,7 +153,8 @@ platforms:
 
 * Windows
 * macOS
-* Linux (AMD64 only)
+* Linux (all distributions [supported by Node.js][] except Alpine and all
+  architectures [supported by Node.js][] except s390x and ppc64)
 
 This is due to a lack of better tools to generate single-executables that can be
 used to test this feature on other platforms.
@@ -132,9 +167,12 @@ to help us document them.
 [ELF]: https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
+[Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
 [`require.main`]: modules.md#accessing-the-main-module
 [fuse]: https://www.electronjs.org/docs/latest/tutorial/fuses
 [postject]: https://github.com/nodejs/postject
+[signtool]: https://learn.microsoft.com/en-us/windows/win32/seccrypto/signtool
 [single executable applications]: https://github.com/nodejs/single-executable
+[supported by Node.js]: https://github.com/nodejs/node/blob/main/BUILDING.md#platform-list

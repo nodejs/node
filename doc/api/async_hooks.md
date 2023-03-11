@@ -375,6 +375,7 @@ The following is a simple demonstration of `triggerAsyncId`:
 import { createHook, executionAsyncId } from 'node:async_hooks';
 import { stdout } from 'node:process';
 import net from 'node:net';
+import fs from 'node:fs';
 
 createHook({
   init(asyncId, type, triggerAsyncId) {
@@ -392,6 +393,7 @@ net.createServer((conn) => {}).listen(8080);
 const { createHook, executionAsyncId } = require('node:async_hooks');
 const { stdout } = require('node:process');
 const net = require('node:net');
+const fs = require('node:fs');
 
 createHook({
   init(asyncId, type, triggerAsyncId) {
@@ -722,6 +724,7 @@ changes:
 
 ```mjs
 import { executionAsyncId } from 'node:async_hooks';
+import fs from 'node:fs';
 
 console.log(executionAsyncId());  // 1 - bootstrap
 fs.open(path, 'r', (err, fd) => {
@@ -731,6 +734,7 @@ fs.open(path, 'r', (err, fd) => {
 
 ```cjs
 const async_hooks = require('node:async_hooks');
+const fs = require('node:fs');
 
 console.log(async_hooks.executionAsyncId());  // 1 - bootstrap
 fs.open(path, 'r', (err, fd) => {

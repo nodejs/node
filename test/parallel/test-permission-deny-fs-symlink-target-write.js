@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-fs-read=* --allow-fs-write=*
+// Flags: --experimental-permission --allow-fs-read=* --allow-fs-write=* --allow-child-process
 'use strict';
 
 const common = require('../common');
@@ -53,9 +53,7 @@ fs.writeFileSync(path.join(readWriteFolder, 'file'), 'NO evil file contents');
     }));
 
     // App will be able to write to the symlink
-    fs.writeFile('file', 'some content', (err) => {
-      assert.ifError(err);
-    });
+    fs.writeFile(path.join(writeOnlyFolder, 'link-to-read-write'), 'some content', common.mustSucceed());
   });
 
   // App won't be able to symlink to a readOnlyFolder

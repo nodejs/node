@@ -2,13 +2,6 @@ env:
   es6: true
 
 rules:
-  comma-dangle: [error, {
-    arrays: always-multiline,
-    exports: always-multiline,
-    functions: always-multiline,
-    imports: always-multiline,
-    objects: only-multiline,
-  }]
   prefer-object-spread: error
   no-buffer-constructor: error
   no-mixed-operators:
@@ -61,7 +54,7 @@ rules:
     - name: DecompressionStream
       message: Use `const { DecompressionStream } = require('internal/webstreams/compression')` instead of the global.
     - name: DOMException
-      message: Use lazy function `const { lazyDOMException } = require('internal/util');` instead of the global.
+      message: Use lazy function `const { lazyDOMExceptionClass } = require('internal/util');` instead of the global.
     - name: Event
       message: Use `const { Event } = require('internal/event_target');` instead of the global.
     - name: EventTarget
@@ -261,66 +254,3 @@ globals:
   module: false
   internalBinding: false
   primordials: false
-overrides:
-  - files:
-      - ./*/promises.js
-      - ./_stream_*.js
-      - ./_tls_common.js
-      - ./assert/*.js
-      - ./child_process.js
-      - ./cluster.js
-      - ./console.js
-      - ./constants.js
-      - ./events.js
-      - ./fs.js
-      - ./internal/assert.js
-      - ./internal/child_process.js
-      - ./internal/child_process/*.js
-      - ./internal/cli_table.js
-      - ./internal/cluster/*.js
-      - ./internal/debugger/*.js
-      - ./internal/event_target.js
-      - ./internal/events/*.js
-      - ./internal/fixed_queue.js
-      - ./internal/freelist.js
-      - ./internal/fs/*.js
-      - ./internal/heap_utils.js
-      - ./internal/http.js
-      - ./internal/idna.js
-      - ./internal/js_stream_socket.js
-      - ./internal/mime.js
-      - ./internal/modules/*.js
-      - ./internal/per_context/messageport.js
-      - ./internal/perf/*.js
-      - ./internal/policy/*.js
-      - ./internal/priority_queue.js
-      - ./internal/process/*.js
-      - ./internal/readline/*.js
-      - ./internal/readme.md
-      - ./internal/repl.js
-      - ./internal/repl/*.js
-      - ./internal/source_map/prepare_stack_trace.js
-      - ./internal/streams/*.js
-      - ./internal/structured_clone.js
-      - ./internal/test/*.js
-      - ./internal/test_runner/**/*.js
-      - ./internal/tls/*.js
-      - ./internal/util/parse_args/*.js
-      - ./internal/v8_prof_processor.js
-      - ./internal/vm.js
-      - ./internal/watch_mode/*.js
-      - ./internal/webidl.js
-      - ./internal/webstreams/*.js
-      - ./module.js
-      - ./path/*.js
-      - ./process.js
-      - ./punycode.js
-      - ./repl.js
-      - ./stream/*.js
-      - ./sys.js
-      - ./test.js
-      - ./tls.js
-      - ./url.js
-      - ./util/*.js
-    rules:
-      comma-dangle: [error, always-multiline]

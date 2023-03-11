@@ -20,7 +20,6 @@ using v8::Local;
 using v8::NewStringType;
 using v8::Object;
 using v8::String;
-using v8::Undefined;
 using v8::Value;
 
 Local<String> Utf8String(Isolate* isolate, const std::string& str) {
@@ -46,18 +45,20 @@ enum url_update_action {
   kHref = 9,
 };
 
-void SetArgs(Environment* env, Local<Value> argv[10], const ada::result& url) {
+void SetArgs(Environment* env,
+             Local<Value> (*argv)[10],
+             const ada::result& url) {
   Isolate* isolate = env->isolate();
-  argv[0] = Utf8String(isolate, url->get_href());
-  argv[1] = Utf8String(isolate, url->get_origin());
-  argv[2] = Utf8String(isolate, url->get_protocol());
-  argv[3] = Utf8String(isolate, url->get_hostname());
-  argv[4] = Utf8String(isolate, url->get_pathname());
-  argv[5] = Utf8String(isolate, url->get_search());
-  argv[6] = Utf8String(isolate, url->get_username());
-  argv[7] = Utf8String(isolate, url->get_password());
-  argv[8] = Utf8String(isolate, url->get_port());
-  argv[9] = Utf8String(isolate, url->get_hash());
+  (*argv)[0] = Utf8String(isolate, url->get_href());
+  (*argv)[1] = Utf8String(isolate, url->get_origin());
+  (*argv)[2] = Utf8String(isolate, url->get_protocol());
+  (*argv)[3] = Utf8String(isolate, url->get_hostname());
+  (*argv)[4] = Utf8String(isolate, url->get_pathname());
+  (*argv)[5] = Utf8String(isolate, url->get_search());
+  (*argv)[6] = Utf8String(isolate, url->get_username());
+  (*argv)[7] = Utf8String(isolate, url->get_password());
+  (*argv)[8] = Utf8String(isolate, url->get_port());
+  (*argv)[9] = Utf8String(isolate, url->get_hash());
 }
 
 void Parse(const FunctionCallbackInfo<Value>& args) {
@@ -69,7 +70,6 @@ void Parse(const FunctionCallbackInfo<Value>& args) {
   Local<Function> success_callback_ = args[2].As<Function>();
 
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
@@ -89,20 +89,8 @@ void Parse(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(false);
   }
 
-  const Local<Value> undef = Undefined(isolate);
-  Local<Value> argv[] = {
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-  };
-  SetArgs(env, argv, out);
+  Local<Value> argv[10];
+  SetArgs(env, &argv, out);
   USE(success_callback_->Call(
       env->context(), args.This(), arraysize(argv), argv));
   args.GetReturnValue().Set(true);
@@ -235,20 +223,8 @@ void UpdateUrl(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  const Local<Value> undef = Undefined(isolate);
-  Local<Value> argv[] = {
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-  };
-  SetArgs(env, argv, out);
+  Local<Value> argv[10];
+  SetArgs(env, &argv, out);
   USE(success_callback_->Call(
       env->context(), args.This(), arraysize(argv), argv));
   args.GetReturnValue().Set(result);
@@ -313,7 +289,7 @@ void Initialize(Local<Object> target,
                 void* priv) {
   SetMethod(context, target, "parse", Parse);
   SetMethod(context, target, "updateUrl", UpdateUrl);
-  SetMethod(context, target, "formatUrl", FormatUrl);
+  SetMethodNoSideEffect(context, target, "formatUrl", FormatUrl);
 
   SetMethodNoSideEffect(context, target, "domainToASCII", DomainToASCII);
   SetMethodNoSideEffect(context, target, "domainToUnicode", DomainToUnicode);

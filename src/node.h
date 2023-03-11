@@ -679,9 +679,16 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     ThreadId child_thread_id,
     const char* child_url);
 
+NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
+    Environment* parent_env,
+    ThreadId child_thread_id,
+    const char* child_url,
+    const char* name);
+
 struct StartExecutionCallbackInfo {
   v8::Local<v8::Object> process_object;
   v8::Local<v8::Function> native_require;
+  v8::Local<v8::Function> run_cjs;
 };
 
 using StartExecutionCallback =
@@ -691,8 +698,7 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     Environment* env,
     StartExecutionCallback cb);
 NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
-    Environment* env,
-    const char* main_script_source_utf8);
+    Environment* env, std::string_view main_script_source_utf8);
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
 // Set a callback that is called when process.exit() is called from JS,

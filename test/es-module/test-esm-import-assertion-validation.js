@@ -1,10 +1,18 @@
 // Flags: --expose-internals
 'use strict';
-require('../common');
+const common = require('../common');
 
 const assert = require('assert');
 
 const { validateAssertions } = require('internal/modules/esm/assert');
+
+common.expectWarning(
+  'ExperimentalWarning',
+  'Import assertions are not a stable feature of the JavaScript language. ' +
+  'Avoid relying on their current behavior and syntax as those might change ' +
+  'in a future version of Node.js.'
+);
+
 
 const url = 'test://';
 

@@ -10,10 +10,12 @@ namespace node {
 // what the class passes to SET_BINDING_ID(), the second argument should match
 // the C++ class name.
 #define SERIALIZABLE_BINDING_TYPES(V)                                          \
+  V(encoding_binding_data, encoding_binding::BindingData)                      \
   V(fs_binding_data, fs::BindingData)                                          \
   V(v8_binding_data, v8_utils::BindingData)                                    \
   V(blob_binding_data, BlobBindingData)                                        \
-  V(process_binding_data, process::BindingData)
+  V(process_binding_data, process::BindingData)                                \
+  V(timers_binding_data, timers::BindingData)
 
 #define UNSERIALIZABLE_BINDING_TYPES(V)                                        \
   V(http2_binding_data, http2::BindingData)                                    \

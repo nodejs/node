@@ -24,7 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "aliased_buffer.h"
+#include "aliased_buffer-inl.h"
 #include "callback_queue-inl.h"
 #include "env.h"
 #include "node.h"
@@ -406,14 +406,12 @@ inline builtins::BuiltinLoader* Environment::builtin_loader() {
   return &builtin_loader_;
 }
 
-inline const StartExecutionCallback&
-Environment::embedder_mksnapshot_entry_point() const {
-  return embedder_mksnapshot_entry_point_;
+inline const StartExecutionCallback& Environment::embedder_entry_point() const {
+  return embedder_entry_point_;
 }
 
-inline void Environment::set_embedder_mksnapshot_entry_point(
-    StartExecutionCallback&& fn) {
-  embedder_mksnapshot_entry_point_ = std::move(fn);
+inline void Environment::set_embedder_entry_point(StartExecutionCallback&& fn) {
+  embedder_entry_point_ = std::move(fn);
 }
 
 inline double Environment::new_async_id() {

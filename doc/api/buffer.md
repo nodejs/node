@@ -1058,6 +1058,28 @@ console.log(bufA.length);
 `Buffer.concat()` may also use the internal `Buffer` pool like
 [`Buffer.allocUnsafe()`][] does.
 
+### Static method: `Buffer.copyBytesFrom(view[, offset[, length]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `view` {TypedArray} The {TypedArray} to copy.
+* `offset` {integer} The starting offset within `view`. **Default:**: `0`.
+* `length` {integer} The number of elements from `view` to copy.
+  **Default:** `view.length - offset`.
+
+Copies the underlying memory of `view` into a new `Buffer`.
+
+```js
+const u16 = new Uint16Array([0, 0xffff]);
+const buf = Buffer.copyBytesFrom(u16, 0, 1);
+u16[1] = 0;
+console.log(buf.length); // 2
+console.log(buf[0]); // 255
+console.log(buf[1]); // 255
+```
+
 ### Static method: `Buffer.from(array)`
 
 <!-- YAML
@@ -5141,7 +5163,9 @@ and binary data should be performed using `Buffer.from(str, 'base64')` and
 ### `buffer.isAscii(input)`
 
 <!-- YAML
-added: v19.6.0
+added:
+  - v19.6.0
+  - v18.15.0
 -->
 
 * input {Buffer | ArrayBuffer | TypedArray} The input to validate.

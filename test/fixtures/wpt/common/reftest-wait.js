@@ -18,3 +18,22 @@ function takeScreenshotDelayed(timeout) {
         takeScreenshot();
     }, timeout);
 }
+
+/**
+ * Ensure that a precondition is met before waiting for a screenshot.
+ * @param {bool} condition - Fail the test if this evaluates to false
+ * @param {string} msg - Error message to write to the screenshot
+ */
+function failIfNot(condition, msg) {
+  const fail = () => {
+    (document.body || document.documentElement).textContent = `Precondition Failed: ${msg}`;
+    takeScreenshot();
+  };
+  if (!condition) {
+    if (document.readyState == "interactive") {
+      fail();
+    } else {
+      document.addEventListener("DOMContentLoaded", fail, false);
+    }
+  }
+}

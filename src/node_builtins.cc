@@ -185,17 +185,14 @@ static std::string OnDiskFileName(const char* id) {
 MaybeLocal<String> BuiltinLoader::LoadBuiltinSource(Isolate* isolate,
                                                     const char* id) const {
   auto source = source_.read();
-#ifdef NODE_BUILTIN_MODULES_PATH
-  if (strncmp(id, "embedder_main_", strlen("embedder_main_")) == 0) {
-#endif  // NODE_BUILTIN_MODULES_PATH
-    const auto source_it = source->find(id);
-    if (UNLIKELY(source_it == source->end())) {
-      fprintf(stderr, "Cannot find native builtin: \"%s\".\n", id);
-      ABORT();
-    }
-    return source_it->second.ToStringChecked(isolate);
-#ifdef NODE_BUILTIN_MODULES_PATH
+#ifndef NODE_BUILTIN_MODULES_PATH
+  const auto source_it = source->find(id);
+  if (UNLIKELY(source_it == source->end())) {
+    fprintf(stderr, "Cannot find native builtin: \"%s\".\n", id);
+    ABORT();
   }
+  return source_it->second.ToStringChecked(isolate);
+#else   // !NODE_BUILTIN_MODULES_PATH
   std::string filename = OnDiskFileName(id);
 
   std::string contents;
@@ -395,12 +392,6 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
         FIXED_ONE_BYTE_STRING(isolate, "internalBinding"),
         FIXED_ONE_BYTE_STRING(isolate, "primordials"),
     };
-  } else if (strncmp(id, "embedder_main_", strlen("embedder_main_")) == 0) {
-    // Synthetic embedder main scripts from LoadEnvironment(): process, require
-    parameters = {
-        FIXED_ONE_BYTE_STRING(isolate, "process"),
-        FIXED_ONE_BYTE_STRING(isolate, "require"),
-    };
   } else {
     // others: exports, require, module, process, internalBinding, primordials
     parameters = {
@@ -457,12 +448,6 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
                  realm->builtin_module_require(),
                  realm->internal_binding_loader(),
                  realm->primordials()};
-  } else if (strncmp(id, "embedder_main_", strlen("embedder_main_")) == 0) {
-    // Synthetic embedder main scripts from LoadEnvironment(): process, require
-    arguments = {
-        realm->process_object(),
-        realm->builtin_module_require(),
-    };
   } else {
     // This should be invoked with the other CompileAndCall() methods, as
     // we are unable to generate the arguments.

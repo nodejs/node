@@ -42,12 +42,13 @@ jobs:
       # install a version and checkout
       - name: Get latest nightly
         if: matrix.node-version == 'latest-nightly'
-        run: echo "NIGHTLY=$(curl -s https://nodejs.org/download/nightly/index.json | jq -r '.[0].version')" >> $GITHUB_ENV
+        run: echo "NIGHTLY=$(curl -s https://nodejs.org/download/nightly/index.json | jq -r '[.[] | select(.files[] | contains("linux-x64"))][0].version')" >> $GITHUB_ENV
       - name: Install Node.js
         id: setup-node
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NIGHTLY || matrix.node-version }}
+          check-latest: true
       - name: Get nightly ref
         if: contains(matrix.node-version, 'nightly')
         env:
@@ -96,16 +97,18 @@ jobs:
           if-no-files-found: warn
       - name: Upload WPT Report to wpt.fyi API
         env:
-          WPT_FYI_ENDPOINT: ${{ vars.WPT_FYI_ENDPOINT }}
           WPT_FYI_USERNAME: ${{ vars.WPT_FYI_USERNAME }}
           WPT_FYI_PASSWORD: ${{ secrets.WPT_FYI_PASSWORD }}
         run: |
           if [ -e out/wpt/wptreport.json ]; then
             cd out/wpt
             gzip wptreport.json
-            curl \
-              -u "$WPT_FYI_USERNAME:$WPT_FYI_PASSWORD" \
-              -F "result_file=@wptreport.json.gz" \
-              -F "labels=master" \
-              $WPT_FYI_ENDPOINT
+            for WPT_FYI_ENDPOINT in "https://wpt.fyi/api/results/upload" "https://staging.wpt.fyi/api/results/upload"
+            do
+              curl \
+                -u "$WPT_FYI_USERNAME:$WPT_FYI_PASSWORD" \
+                -F "result_file=@wptreport.json.gz" \
+                -F "labels=master" \
+                $WPT_FYI_ENDPOINT
+            done
           fi

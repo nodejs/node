@@ -48,6 +48,9 @@
   "streams/decode-ignore-bom.any.js": {
     "requires": ["small-icu"]
   },
+  "streams/invalid-realm.window.js": {
+    "skip": "document is not defined"
+  },
   "streams/realms.window.js": {
     "skip": "window is not defined"
   },

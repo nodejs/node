@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "memory_tracker.h"
+#include "util-inl.h"
 
 namespace node {
 
@@ -267,13 +268,6 @@ void MemoryTracker::TrackInlineField(const char* name,
                                      const uv_async_t& value,
                                      const char* node_name) {
   TrackInlineFieldWithSize(name, sizeof(value), "uv_async_t");
-}
-
-template <class NativeT, class V8T>
-void MemoryTracker::TrackField(const char* name,
-                               const AliasedBufferBase<NativeT, V8T>& value,
-                               const char* node_name) {
-  TrackField(name, value.GetJSArray(), "AliasedBuffer");
 }
 
 void MemoryTracker::Track(const MemoryRetainer* retainer,

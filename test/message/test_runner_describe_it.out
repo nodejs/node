@@ -104,7 +104,7 @@ not ok 12 - async throw fail
     *
   ...
 # Subtest: async skip fail
-not ok 13 - async skip fail
+not ok 13 - async skip fail # SKIP
   ---
   duration_ms: *
   failureType: 'callbackAndPromisePresent'
@@ -122,6 +122,7 @@ not ok 14 - async assertion fail
     true !== false
     
   code: 'ERR_ASSERTION'
+  name: 'AssertionError'
   expected: false
   actual: true
   operator: 'strictEqual'
@@ -644,8 +645,8 @@ not ok 60 - invalid subtest fail
 # Warning: Test "callback async throw after done" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # tests 60
 # pass 23
-# fail 23
+# fail 22
 # cancelled 0
-# skipped 9
+# skipped 10
 # todo 5
 # duration_ms *
