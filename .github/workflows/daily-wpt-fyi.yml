@@ -48,6 +48,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NIGHTLY || matrix.node-version }}
+          check-latest: true
       - name: Get nightly ref
         if: contains(matrix.node-version, 'nightly')
         env:
