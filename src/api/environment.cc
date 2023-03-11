@@ -876,7 +876,7 @@ void AddLinkedBinding(Environment* env,
             reinterpret_cast<napi_addon_register_func>(priv));
       },
       name,
-      fn,
+      reinterpret_cast<void*>(fn),
       nullptr  // nm_link
   };
   AddLinkedBinding(env, mod);
