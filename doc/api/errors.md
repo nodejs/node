@@ -701,7 +701,7 @@ will display if `block` does not throw.
 
 ### `ERR_ARG_NOT_ALLOWED`
 
-A function argument that can't be accept depending of some logic restriction.
+A function argument that can't be accepted depending of some logic restriction.
 e.g. The function `run(...)` from module `node:test` can't accept `testNamePatterns`
 param from programatic function and from CLI at same time. <a id="ERR_ARG_NOT_ITERABLE"></a>
 

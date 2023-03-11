@@ -20,7 +20,7 @@ const testFixtures = fixtures.path('test-runner');
 
 
 {
-  // Returned only test taht maches with the filter
+  // Returned only test that maches with the filter
   const args = ['--test', '--test-name-pattern="too"', join(testFixtures, 'test/random.cjs')];
   const child = spawnSync('./node', args);
 

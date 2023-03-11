@@ -8,6 +8,17 @@ const testFixtures = fixtures.path('test-runner');
 
 describe('require(\'node:test\').run', { concurrency: true }, () => {
 
+  it('should not throw error', async () => {
+    const argv = process.argv;
+    process.argv = [null, `${process.cwd()}/test/fixtures/test-runner/test/random.cjs`];
+    const stream = run();
+    stream.on('test:pass', common.mustCall(2));
+    stream.on('test:fail', common.mustNotCall());
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+    process.argv = argv;
+  });
+
   it('should run with no tests', async () => {
     const stream = run({ files: [] });
     stream.on('test:fail', common.mustNotCall());
