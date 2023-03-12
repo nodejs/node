@@ -2450,8 +2450,8 @@ import { Readable } from 'node:stream';
 await Readable.from([1, 2, 3, 4]).take(2).toArray(); // [1, 2]
 ```
 
-Using the `destroyStream: false` you can use it to get some data that is
-required for the rest of the stream parsing
+Using the `destroyStream: false` option prevents `take` from closing the stream,
+so that the remaining stream data can be consumed later on
 
 ```mjs
 import fs from 'node:fs';
