@@ -2438,7 +2438,7 @@ added:
   * `signal` {AbortSignal} allows destroying the stream if the signal is
     aborted.
   * `destroyStream` {boolean} When set to `false`, the stream will not be
-    closed after take finished unless the stream had an error.
+    closed after take is finished unless the stream had an error.
     **Default:** `true`.
 * Returns: {Readable} a stream with `limit` chunks taken.
 
