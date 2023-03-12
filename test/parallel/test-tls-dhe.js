@@ -29,6 +29,7 @@ if (!common.opensslCli)
   common.skip('missing openssl-cli');
 
 const assert = require('assert');
+const { X509Certificate } = require('crypto');
 const { once } = require('events');
 const tls = require('tls');
 const { execFile } = require('child_process');
@@ -36,7 +37,11 @@ const fixtures = require('../common/fixtures');
 
 const key = fixtures.readKey('agent2-key.pem');
 const cert = fixtures.readKey('agent2-cert.pem');
-const ciphers = 'DHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
+
+// Prefer DHE over ECDHE when possible.
+const dheCipher = 'DHE-RSA-AES128-SHA256';
+const ecdheCipher = 'ECDHE-RSA-AES128-SHA256';
+const ciphers = `${dheCipher}:${ecdheCipher}`;
 
 // Test will emit a warning because the DH parameter size is < 2048 bits
 common.expectWarning('SecurityWarning',
@@ -47,12 +52,12 @@ function loadDHParam(n) {
   return fixtures.readKey(keyname);
 }
 
-function test(keylen, expectedCipher) {
+function test(dhparam, keylen, expectedCipher) {
   const options = {
-    key: key,
-    cert: cert,
-    ciphers: ciphers,
-    dhparam: loadDHParam(keylen),
+    key,
+    cert,
+    ciphers,
+    dhparam,
     maxVersion: 'TLSv1.2',
   };
 
@@ -63,7 +68,7 @@ function test(keylen, expectedCipher) {
                   '-cipher', ciphers];
 
     execFile(common.opensslCli, args, common.mustSucceed((stdout) => {
-      assert(keylen === 'error' ||
+      assert(keylen === null ||
              stdout.includes(`Server Temp Key: DH, ${keylen} bits`));
       assert(stdout.includes(`Cipher    : ${expectedCipher}`));
       server.close();
@@ -73,12 +78,35 @@ function test(keylen, expectedCipher) {
   return once(server, 'close');
 }
 
+function testCustomParam(keylen, expectedCipher) {
+  const dhparam = loadDHParam(keylen);
+  if (keylen === 'error') keylen = null;
+  return test(dhparam, keylen, expectedCipher);
+}
+
 (async () => {
+  // By default, DHE is disabled while ECDHE is enabled.
+  for (const dhparam of [undefined, null]) {
+    await test(dhparam, null, ecdheCipher);
+  }
+
+  // The DHE parameters selected by OpenSSL depend on the strength of the
+  // certificate's key. For this test, we can assume that the modulus length
+  // of the certificate's key is equal to the size of the DHE parameter, but
+  // that is really only true for a few modulus lengths.
+  const {
+    publicKey: { asymmetricKeyDetails: { modulusLength } }
+  } = new X509Certificate(cert);
+  await test('auto', modulusLength, dheCipher);
+
   assert.throws(() => {
-    test(512, 'DHE-RSA-AES128-SHA256');
+    testCustomParam(512);
   }, /DH parameter is less than 1024 bits/);
 
-  await test(1024, 'DHE-RSA-AES128-SHA256');
-  await test(2048, 'DHE-RSA-AES128-SHA256');
-  await test('error', 'ECDHE-RSA-AES128-SHA256');
+  // Custom DHE parameters are supported (but discouraged).
+  await testCustomParam(1024, dheCipher);
+  await testCustomParam(2048, dheCipher);
+
+  // Invalid DHE parameters are discarded. ECDHE remains enabled.
+  await testCustomParam('error', ecdheCipher);
 })().then(common.mustCall());
