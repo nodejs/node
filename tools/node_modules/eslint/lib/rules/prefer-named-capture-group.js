@@ -14,8 +14,8 @@ const {
     CONSTRUCT,
     ReferenceTracker,
     getStringIfConstant
-} = require("eslint-utils");
-const regexpp = require("regexpp");
+} = require("@eslint-community/eslint-utils");
+const regexpp = require("@eslint-community/regexpp");
 
 //------------------------------------------------------------------------------
 // Helpers

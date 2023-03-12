@@ -10,7 +10,7 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
-const regexpp = require("regexpp");
+const regexpp = require("@eslint-community/regexpp");
 
 //------------------------------------------------------------------------------
 // Helpers

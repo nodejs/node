@@ -526,9 +526,9 @@ async function findFiles({
         }
 
         // save patterns for later use based on whether globs are enabled
-        if (globInputPaths && isGlobPattern(filePath)) {
+        if (globInputPaths && isGlobPattern(pattern)) {
 
-            const basePath = globParent(filePath);
+            const basePath = path.resolve(cwd, globParent(pattern));
 
             // group in cwd if possible and split out others
             if (isPathInside(basePath, cwd)) {

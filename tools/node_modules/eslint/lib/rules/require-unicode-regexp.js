@@ -14,7 +14,7 @@ const {
     CONSTRUCT,
     ReferenceTracker,
     getStringIfConstant
-} = require("eslint-utils");
+} = require("@eslint-community/eslint-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
