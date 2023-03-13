@@ -2265,9 +2265,7 @@ on unsupported platforms will not be fixed.
 ### `NODE_TEST_CONTEXT=value`
 
 If `value` equals `'child'`, test reporter options will be overridden and test
-output will be sent to stdout in the TAP format. This is intended to facilitate
-parsing and aggregating test output by a parent process that spawns one or more
-children.
+output will be sent to stdout in the TAP format.
 
 ### `NODE_TLS_REJECT_UNAUTHORIZED=value`
 
