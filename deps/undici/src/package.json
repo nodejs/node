@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "5.20.0",
+  "version": "5.21.0",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -86,6 +86,7 @@
     "husky": "^8.0.1",
     "import-fresh": "^3.3.0",
     "jest": "^29.0.2",
+    "jsdom": "^21.1.0",
     "jsfuzz": "^1.0.15",
     "mocha": "^10.0.0",
     "p-timeout": "^3.2.0",
@@ -112,8 +113,7 @@
     "ignore": [
       "lib/llhttp/constants.js",
       "lib/llhttp/utils.js",
-      "test/wpt/tests",
-      "test/wpt/runner/resources"
+      "test/wpt/tests"
     ]
   },
   "tsd": {

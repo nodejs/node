@@ -2,9 +2,13 @@
 
 /**
  * @see https://encoding.spec.whatwg.org/#concept-encoding-get
- * @param {string} label
+ * @param {string|undefined} label
  */
 function getEncoding (label) {
+  if (!label) {
+    return 'failure'
+  }
+
   // 1. Remove any leading and trailing ASCII whitespace from label.
   // 2. If label is an ASCII case-insensitive match for any of the
   //    labels listed in the table below, then return the

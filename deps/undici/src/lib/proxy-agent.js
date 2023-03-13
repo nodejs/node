@@ -3,7 +3,7 @@
 const { kProxy, kClose, kDestroy, kInterceptors } = require('./core/symbols')
 const { URL } = require('url')
 const Agent = require('./agent')
-const Client = require('./client')
+const Pool = require('./pool')
 const DispatcherBase = require('./dispatcher-base')
 const { InvalidArgumentError, RequestAbortedError } = require('./core/errors')
 const buildConnector = require('./core/connect')
@@ -34,6 +34,10 @@ function buildProxyOptions (opts) {
   }
 }
 
+function defaultFactory (origin, opts) {
+  return new Pool(origin, opts)
+}
+
 class ProxyAgent extends DispatcherBase {
   constructor (opts) {
     super(opts)
@@ -49,6 +53,12 @@ class ProxyAgent extends DispatcherBase {
 
     if (!opts || !opts.uri) {
       throw new InvalidArgumentError('Proxy opts.uri is mandatory')
+    }
+
+    const { clientFactory = defaultFactory } = opts
+
+    if (typeof clientFactory !== 'function') {
+      throw new InvalidArgumentError('Proxy opts.clientFactory must be a function.')
     }
 
     this[kRequestTls] = opts.requestTls
@@ -69,7 +79,7 @@ class ProxyAgent extends DispatcherBase {
 
     const connect = buildConnector({ ...opts.proxyTls })
     this[kConnectEndpoint] = buildConnector({ ...opts.requestTls })
-    this[kClient] = new Client(resolvedUrl, { connect })
+    this[kClient] = clientFactory(resolvedUrl, { connect })
     this[kAgent] = new Agent({
       ...opts,
       connect: async (opts, callback) => {

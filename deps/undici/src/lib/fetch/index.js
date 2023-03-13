@@ -297,7 +297,7 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
   // capability.
   // TODO: given global’s relevant settings object’s cross-origin isolated
   // capability?
-  response.timingInfo.endTime = coarsenedSharedCurrentTime()
+  timingInfo.endTime = coarsenedSharedCurrentTime()
 
   // 10. Set response’s timing info to timingInfo.
   response.timingInfo = timingInfo
