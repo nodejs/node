@@ -54,7 +54,7 @@ server.listen(0, function() {
     res.setEncoding('ascii');
     res.on('data', function(chunk) {
       response += chunk;
-      if (response?.toString() === 'beep boop\n') {
+      if (response === 'beep boop\n') {
         setTimeout(function() {
           // The socket should be closed immediately, with no keep-alive, because
           // no content-length or transfer-encoding are used:
