@@ -5834,14 +5834,6 @@ See the [list of SSL OP Flags][] for details.
     <td>Allows initial connection to servers that do not support RI.</td>
   </tr>
   <tr>
-    <td><code>SSL_OP_NETSCAPE_CA_DN_BUG</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG</code></td>
-    <td></td>
-  </tr>
-  <tr>
     <td><code>SSL_OP_NO_COMPRESSION</code></td>
     <td>Instructs OpenSSL to disable support for SSL/TLS compression.</td>
   </tr>
