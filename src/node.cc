@@ -1239,6 +1239,11 @@ static ExitCode StartInternal(int argc, char** argv) {
 
   uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
 
+  std::string sea_config = per_process::cli_options->experimental_sea_config;
+  if (!sea_config.empty()) {
+    return sea::BuildSingleExecutableBlob(sea_config);
+  }
+
   // --build-snapshot indicates that we are in snapshot building mode.
   if (per_process::cli_options->per_isolate->build_snapshot) {
     if (result->args().size() < 2) {

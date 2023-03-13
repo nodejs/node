@@ -66,7 +66,7 @@ To disable single executable application support, build Node.js with the
 ## Implementation
 
 When built with single executable application support, the Node.js process uses
-[`postject-api.h`][] to check if the `NODE_JS_CODE` section exists in the
+[`postject-api.h`][] to check if the `NODE_SEA_BLOB` section exists in the
 binary. If it is found, it passes the buffer to
 [`single_executable_application.js`][], which executes the contents of the
 embedded script.

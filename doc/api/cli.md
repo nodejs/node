@@ -588,6 +588,16 @@ added: v16.6.0
 
 Use this flag to disable top-level await in REPL.
 
+### `--experimental-sea-config`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Use this flag to generate a blob that can be injected in to the Node.js
+binary to produce a [single executable application][]. See the documentation
+about [this configuration][`--experimental-sea-config`] for details.
+
 ### `--experimental-shadow-realm`
 
 <!-- YAML
@@ -2550,6 +2560,7 @@ done
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
 [`--experimental-wasm-modules`]: #--experimental-wasm-modules
+[`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule
 [`--openssl-config`]: #--openssl-configfile
@@ -2587,6 +2598,7 @@ done
 [scavenge garbage collector]: https://v8.dev/blog/orinoco-parallel-scavenger
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
 [semi-space]: https://www.memorymanagement.org/glossary/s.html#semi.space
+[single executable applications]: single-executable-applications.md
 [test reporters]: test.md#test-reporters
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [tracking issue for user-land snapshots]: https://github.com/nodejs/node/issues/44014
