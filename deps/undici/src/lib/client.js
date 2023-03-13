@@ -1,3 +1,5 @@
+// @ts-check
+
 'use strict'
 
 /* global WebAssembly */
@@ -85,7 +87,15 @@ try {
   channels.connected = { hasSubscribers: false }
 }
 
+/**
+ * @type {import('../types/client').default}
+ */
 class Client extends DispatcherBase {
+  /**
+   *
+   * @param {string|URL} url
+   * @param {import('../types/client').Client.Options} options
+   */
   constructor (url, {
     interceptors,
     maxHeaderSize,
@@ -1658,6 +1668,8 @@ class AsyncWriter {
       process.emitWarning(new RequestContentLengthMismatchError())
     }
 
+    socket.cork()
+
     if (bytesWritten === 0) {
       if (!expectsPayload) {
         socket[kReset] = true
@@ -1677,6 +1689,8 @@ class AsyncWriter {
     this.bytesWritten += len
 
     const ret = socket.write(chunk)
+
+    socket.uncork()
 
     request.onBodySent(chunk)
 
