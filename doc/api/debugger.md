@@ -197,6 +197,7 @@ debug>
   after)
 * `watch(expr)`: Add expression to watch list
 * `unwatch(expr)`: Remove expression from watch list
+* `unwatch(index)`: Remove expression at specific index from watch list
 * `watchers`: List all watchers and their values (automatically listed on each
   breakpoint)
 * `repl`: Open debugger's repl for evaluation in debugging script's context
