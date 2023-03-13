@@ -22,13 +22,6 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-Local<String> Utf8String(Isolate* isolate, const std::string& str) {
-  return String::NewFromUtf8(isolate,
-                             str.data(),
-                             NewStringType::kNormal,
-                             str.length()).ToLocalChecked();
-}
-
 namespace url {
 namespace {
 
@@ -45,20 +38,25 @@ enum url_update_action {
   kHref = 9,
 };
 
-void SetArgs(Environment* env,
-             Local<Value> (*argv)[10],
-             const ada::result& url) {
+auto GetCallbackArgs(Environment* env, const ada::result& url) {
+  Local<Context> context = env->context();
   Isolate* isolate = env->isolate();
-  (*argv)[0] = Utf8String(isolate, url->get_href());
-  (*argv)[1] = Utf8String(isolate, url->get_origin());
-  (*argv)[2] = Utf8String(isolate, url->get_protocol());
-  (*argv)[3] = Utf8String(isolate, url->get_hostname());
-  (*argv)[4] = Utf8String(isolate, url->get_pathname());
-  (*argv)[5] = Utf8String(isolate, url->get_search());
-  (*argv)[6] = Utf8String(isolate, url->get_username());
-  (*argv)[7] = Utf8String(isolate, url->get_password());
-  (*argv)[8] = Utf8String(isolate, url->get_port());
-  (*argv)[9] = Utf8String(isolate, url->get_hash());
+
+  auto js_string = [&](std::string_view sv) {
+    return ToV8Value(context, sv, isolate).ToLocalChecked();
+  };
+  return std::array{
+      js_string(url->get_href()),
+      js_string(url->get_origin()),
+      js_string(url->get_protocol()),
+      js_string(url->get_hostname()),
+      js_string(url->get_pathname()),
+      js_string(url->get_search()),
+      js_string(url->get_username()),
+      js_string(url->get_password()),
+      js_string(url->get_port()),
+      js_string(url->get_hash()),
+  };
 }
 
 void Parse(const FunctionCallbackInfo<Value>& args) {
@@ -89,10 +87,9 @@ void Parse(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(false);
   }
 
-  Local<Value> argv[10];
-  SetArgs(env, &argv, out);
+  auto argv = GetCallbackArgs(env, out);
   USE(success_callback_->Call(
-      env->context(), args.This(), arraysize(argv), argv));
+      env->context(), args.This(), argv.size(), argv.data()));
   args.GetReturnValue().Set(true);
 }
 
@@ -223,10 +220,9 @@ void UpdateUrl(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  Local<Value> argv[10];
-  SetArgs(env, &argv, out);
+  auto argv = GetCallbackArgs(env, out);
   USE(success_callback_->Call(
-      env->context(), args.This(), arraysize(argv), argv));
+      env->context(), args.This(), argv.size(), argv.data()));
   args.GetReturnValue().Set(result);
 }
 
