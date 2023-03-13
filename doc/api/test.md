@@ -532,7 +532,7 @@ The following built-reporters are supported:
 ### Custom reporters
 
 [`--test-reporter`][] can be used to specify a path to custom reporter.
-a custom reporter is a module that exports a value
+A custom reporter is a module that exports a value
 accepted by [stream.compose][].
 Reporters should transform events emitted by a {TestsStream}
 
