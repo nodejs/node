@@ -101,7 +101,7 @@ class PlatformWithPageAllocator final : public cppgc::Platform {
         page_allocator_(GetGlobalPageAllocator()) {
     // This platform wrapper should only be used if the platform doesn't provide
     // a `PageAllocator`.
-    CHECK_NULL(delegate->GetPageAllocator());
+    CHECK_NULL(delegate_->GetPageAllocator());
   }
   ~PlatformWithPageAllocator() override = default;
 
