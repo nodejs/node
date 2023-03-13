@@ -1,10 +1,11 @@
 'use strict'
 
-const { finished } = require('stream')
+const { finished, PassThrough } = require('stream')
 const {
   InvalidArgumentError,
   InvalidReturnValueError,
-  RequestAbortedError
+  RequestAbortedError,
+  ResponseStatusCodeError
 } = require('../core/errors')
 const util = require('../core/util')
 const { AsyncResource } = require('async_hooks')
@@ -16,7 +17,7 @@ class StreamHandler extends AsyncResource {
       throw new InvalidArgumentError('invalid opts')
     }
 
-    const { signal, method, opaque, body, onInfo, responseHeaders } = opts
+    const { signal, method, opaque, body, onInfo, responseHeaders, throwOnError } = opts
 
     try {
       if (typeof callback !== 'function') {
@@ -57,6 +58,7 @@ class StreamHandler extends AsyncResource {
     this.trailers = null
     this.body = body
     this.onInfo = onInfo || null
+    this.throwOnError = throwOnError || false
 
     if (util.isStream(body)) {
       body.on('error', (err) => {
@@ -76,8 +78,8 @@ class StreamHandler extends AsyncResource {
     this.context = context
   }
 
-  onHeaders (statusCode, rawHeaders, resume) {
-    const { factory, opaque, context } = this
+  onHeaders (statusCode, rawHeaders, resume, statusMessage) {
+    const { factory, opaque, context, callback } = this
 
     if (statusCode < 200) {
       if (this.onInfo) {
@@ -95,6 +97,32 @@ class StreamHandler extends AsyncResource {
       opaque,
       context
     })
+
+    if (this.throwOnError && statusCode >= 400) {
+      const headers = this.responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
+      const chunks = []
+      const pt = new PassThrough()
+      pt
+        .on('data', (chunk) => chunks.push(chunk))
+        .on('end', () => {
+          const payload = Buffer.concat(chunks).toString('utf8')
+          this.runInAsyncScope(
+            callback,
+            null,
+            new ResponseStatusCodeError(
+              `Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`,
+              statusCode,
+              headers,
+              payload
+            )
+          )
+        })
+        .on('error', (err) => {
+          this.onError(err)
+        })
+      this.res = pt
+      return
+    }
 
     if (
       !res ||
