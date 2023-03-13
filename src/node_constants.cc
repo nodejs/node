@@ -1032,9 +1032,6 @@ void DefineCryptoConstants(Local<Object> target) {
     NODE_DEFINE_CONSTANT(target, DH_NOT_SUITABLE_GENERATOR);
 #endif
 
-#define ALPN_ENABLED 1
-    NODE_DEFINE_CONSTANT(target, ALPN_ENABLED);
-
 #ifdef RSA_PKCS1_PADDING
     NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PADDING);
 #endif

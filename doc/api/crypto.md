@@ -5981,10 +5981,6 @@ See the [list of SSL OP Flags][] for details.
     <td></td>
   </tr>
   <tr>
-    <td><code>ALPN_ENABLED</code></td>
-    <td></td>
-  </tr>
-  <tr>
     <td><code>RSA_PKCS1_PADDING</code></td>
     <td></td>
   </tr>
