@@ -5,19 +5,15 @@ const diagnosticsChannel = require('diagnostics_channel')
 const { uid, states } = require('./constants')
 const {
   kReadyState,
-  kResponse,
-  kExtensions,
-  kProtocol,
   kSentClose,
   kByteParser,
   kReceivedClose
 } = require('./symbols')
 const { fireEvent, failWebsocketConnection } = require('./util')
 const { CloseEvent } = require('./events')
-const { ByteParser } = require('./receiver')
 const { makeRequest } = require('../fetch/request')
 const { fetching } = require('../fetch/index')
-const { getGlobalDispatcher } = require('../..')
+const { getGlobalDispatcher } = require('../global')
 
 const channels = {}
 channels.open = diagnosticsChannel.channel('undici:websocket:open')
@@ -29,8 +25,9 @@ channels.socketError = diagnosticsChannel.channel('undici:websocket:socket_error
  * @param {URL} url
  * @param {string|string[]} protocols
  * @param {import('./websocket').WebSocket} ws
+ * @param {(response: any) => void} onEstablish
  */
-function establishWebSocketConnection (url, protocols, ws) {
+function establishWebSocketConnection (url, protocols, ws, onEstablish) {
   // 1. Let requestURL be a copy of url, with its scheme set to "http", if url’s
   //    scheme is "ws", and to "https" otherwise.
   const requestURL = url
@@ -173,65 +170,23 @@ function establishWebSocketConnection (url, protocols, ws) {
         return
       }
 
-      // processResponse is called when the "response’s header list has been received and initialized."
-      // once this happens, the connection is open
-      ws[kResponse] = response
-
-      const parser = new ByteParser(ws)
-      response.socket.ws = ws // TODO: use symbol
-      ws[kByteParser] = parser
-
-      whenConnectionEstablished(ws)
-
       response.socket.on('data', onSocketData)
       response.socket.on('close', onSocketClose)
       response.socket.on('error', onSocketError)
 
-      parser.on('drain', onParserDrain)
+      if (channels.open.hasSubscribers) {
+        channels.open.publish({
+          address: response.socket.address(),
+          protocol: secProtocol,
+          extensions: secExtension
+        })
+      }
+
+      onEstablish(response)
     }
   })
 
   return controller
-}
-
-/**
- * @see https://websockets.spec.whatwg.org/#feedback-from-the-protocol
- * @param {import('./websocket').WebSocket} ws
- */
-function whenConnectionEstablished (ws) {
-  const { [kResponse]: response } = ws
-
-  // 1. Change the ready state to OPEN (1).
-  ws[kReadyState] = states.OPEN
-
-  // 2. Change the extensions attribute’s value to the extensions in use, if
-  //    it is not the null value.
-  // https://datatracker.ietf.org/doc/html/rfc6455#section-9.1
-  const extensions = response.headersList.get('sec-websocket-extensions')
-
-  if (extensions !== null) {
-    ws[kExtensions] = extensions
-  }
-
-  // 3. Change the protocol attribute’s value to the subprotocol in use, if
-  //    it is not the null value.
-  // https://datatracker.ietf.org/doc/html/rfc6455#section-1.9
-  const protocol = response.headersList.get('sec-websocket-protocol')
-
-  if (protocol !== null) {
-    ws[kProtocol] = protocol
-  }
-
-  // 4. Fire an event named open at the WebSocket object.
-  fireEvent('open', ws)
-
-  if (channels.open.hasSubscribers) {
-    channels.open.publish({
-      address: response.socket.address(),
-      protocol,
-      extensions
-    })
-  }
 }
 
 /**
@@ -241,10 +196,6 @@ function onSocketData (chunk) {
   if (!this.ws[kByteParser].write(chunk)) {
     this.pause()
   }
-}
-
-function onParserDrain () {
-  this.ws[kResponse].socket.resume()
 }
 
 /**

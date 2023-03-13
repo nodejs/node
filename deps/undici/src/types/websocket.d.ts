@@ -1,5 +1,6 @@
 /// <reference types="node" />
 
+import type { MessagePort } from 'worker_threads'
 import {
   EventTarget,
   Event,

@@ -300,7 +300,7 @@ var require_util = __commonJS({
     function nop() {
     }
     function isStream(obj) {
-      return obj && typeof obj.pipe === "function";
+      return obj && typeof obj === "object" && typeof obj.pipe === "function" && typeof obj.on === "function";
     }
     function isBlobLike(object) {
       return Blob && object instanceof Blob || object && typeof object === "object" && (typeof object.stream === "function" || typeof object.arrayBuffer === "function") && /^(Blob|File)$/.test(object[Symbol.toStringTag]);
@@ -318,6 +318,10 @@ var require_util = __commonJS({
     function parseURL(url) {
       if (typeof url === "string") {
         url = new URL(url);
+        if (!/^https?:/.test(url.origin || url.protocol)) {
+          throw new InvalidArgumentError("invalid protocol");
+        }
+        return url;
       }
       if (!url || typeof url !== "object") {
         throw new InvalidArgumentError("invalid url");
@@ -549,8 +553,22 @@ var require_util = __commonJS({
         }
       }, 0);
     }
-    function isFormDataLike(chunk) {
-      return chunk && chunk.constructor && chunk.constructor.name === "FormData" && typeof chunk === "object" && (typeof chunk.append === "function" && typeof chunk.delete === "function" && typeof chunk.get === "function" && typeof chunk.getAll === "function" && typeof chunk.has === "function" && typeof chunk.set === "function" && typeof chunk.entries === "function" && typeof chunk.keys === "function" && typeof chunk.values === "function" && typeof chunk.forEach === "function");
+    function isFormDataLike(object) {
+      return object && typeof object === "object" && typeof object.append === "function" && typeof object.delete === "function" && typeof object.get === "function" && typeof object.getAll === "function" && typeof object.has === "function" && typeof object.set === "function" && object[Symbol.toStringTag] === "FormData";
+    }
+    function throwIfAborted(signal) {
+      if (!signal) {
+        return;
+      }
+      if (typeof signal.throwIfAborted === "function") {
+        signal.throwIfAborted();
+      } else {
+        if (signal.aborted) {
+          const err = new Error("The operation was aborted");
+          err.name = "AbortError";
+          throw err;
+        }
+      }
     }
     var kEnumerableProperty = /* @__PURE__ */ Object.create(null);
     kEnumerableProperty.enumerable = true;
@@ -582,6 +600,7 @@ var require_util = __commonJS({
       getSocketInfo,
       isFormDataLike,
       buildURL,
+      throwIfAborted,
       nodeMajor,
       nodeMinor,
       nodeHasAutoSelectFamily: nodeMajor > 18 || nodeMajor === 18 && nodeMinor >= 13
@@ -767,11 +786,51 @@ var require_constants = __commonJS({
   }
 });
 
+// lib/fetch/global.js
+var require_global = __commonJS({
+  "lib/fetch/global.js"(exports2, module2) {
+    "use strict";
+    var globalOrigin = Symbol.for("undici.globalOrigin.1");
+    function getGlobalOrigin() {
+      return globalThis[globalOrigin];
+    }
+    function setGlobalOrigin(newOrigin) {
+      if (newOrigin !== void 0 && typeof newOrigin !== "string" && !(newOrigin instanceof URL)) {
+        throw new Error("Invalid base url");
+      }
+      if (newOrigin === void 0) {
+        Object.defineProperty(globalThis, globalOrigin, {
+          value: void 0,
+          writable: true,
+          enumerable: false,
+          configurable: false
+        });
+        return;
+      }
+      const parsedURL = new URL(newOrigin);
+      if (parsedURL.protocol !== "http:" && parsedURL.protocol !== "https:") {
+        throw new TypeError(`Only http & https urls are allowed, received ${parsedURL.protocol}`);
+      }
+      Object.defineProperty(globalThis, globalOrigin, {
+        value: parsedURL,
+        writable: true,
+        enumerable: false,
+        configurable: false
+      });
+    }
+    module2.exports = {
+      getGlobalOrigin,
+      setGlobalOrigin
+    };
+  }
+});
+
 // lib/fetch/util.js
 var require_util2 = __commonJS({
   "lib/fetch/util.js"(exports2, module2) {
     "use strict";
     var { redirectStatus, badPorts, referrerPolicy: referrerPolicyTokens } = require_constants();
+    var { getGlobalOrigin } = require_global();
     var { performance: performance2 } = require("perf_hooks");
     var { isBlobLike, toUSVString, ReadableStreamFrom } = require_util();
     var assert = require("assert");
@@ -791,7 +850,9 @@ var require_util2 = __commonJS({
         return null;
       }
       let location = response.headersList.get("location");
-      location = location ? new URL(location, responseURL(response)) : null;
+      if (location !== null && isValidHeaderValue(location)) {
+        location = new URL(location, responseURL(response));
+      }
       if (location && !location.hash) {
         location.hash = requestFragment;
       }
@@ -884,7 +945,7 @@ var require_util2 = __commonJS({
       let serializedOrigin = request.origin;
       if (request.responseTainting === "cors" || request.mode === "websocket") {
         if (serializedOrigin) {
-          request.headersList.append("Origin", serializedOrigin);
+          request.headersList.append("origin", serializedOrigin);
         }
       } else if (request.method !== "GET" && request.method !== "HEAD") {
         switch (request.referrerPolicy) {
@@ -906,7 +967,7 @@ var require_util2 = __commonJS({
           default:
         }
         if (serializedOrigin) {
-          request.headersList.append("Origin", serializedOrigin);
+          request.headersList.append("origin", serializedOrigin);
         }
       }
     }
@@ -929,68 +990,73 @@ var require_util2 = __commonJS({
       };
     }
     function makePolicyContainer() {
-      return {};
+      return {
+        referrerPolicy: "strict-origin-when-cross-origin"
+      };
     }
-    function clonePolicyContainer() {
-      return {};
+    function clonePolicyContainer(policyContainer) {
+      return {
+        referrerPolicy: policyContainer.referrerPolicy
+      };
     }
     function determineRequestsReferrer(request) {
       const policy = request.referrerPolicy;
-      if (policy == null || policy === "" || policy === "no-referrer") {
-        return "no-referrer";
-      }
-      const environment = request.client;
+      assert(policy);
       let referrerSource = null;
       if (request.referrer === "client") {
-        if (request.client?.globalObject?.constructor?.name === "Window") {
-          const origin = environment.globalObject.self?.origin ?? environment.globalObject.location?.origin;
-          if (origin == null || origin === "null")
-            return "no-referrer";
-          referrerSource = new URL(environment.globalObject.location.href);
-        } else {
-          if (environment?.globalObject?.location == null) {
-            return "no-referrer";
-          }
-          referrerSource = new URL(environment.globalObject.location.href);
+        const globalOrigin = getGlobalOrigin();
+        if (!globalOrigin || globalOrigin.origin === "null") {
+          return "no-referrer";
         }
+        referrerSource = new URL(globalOrigin);
       } else if (request.referrer instanceof URL) {
         referrerSource = request.referrer;
-      } else {
-        return "no-referrer";
       }
-      const urlProtocol = referrerSource.protocol;
-      if (urlProtocol === "about:" || urlProtocol === "data:" || urlProtocol === "blob:") {
-        return "no-referrer";
+      let referrerURL = stripURLForReferrer(referrerSource);
+      const referrerOrigin = stripURLForReferrer(referrerSource, true);
+      if (referrerURL.toString().length > 4096) {
+        referrerURL = referrerOrigin;
       }
-      let temp;
-      let referrerOrigin;
-      const referrerUrl = (temp = stripURLForReferrer(referrerSource)).length > 4096 ? referrerOrigin = stripURLForReferrer(referrerSource, true) : temp;
-      const areSameOrigin = sameOrigin(request, referrerUrl);
-      const isNonPotentiallyTrustWorthy = isURLPotentiallyTrustworthy(referrerUrl) && !isURLPotentiallyTrustworthy(request.url);
+      const areSameOrigin = sameOrigin(request, referrerURL);
+      const isNonPotentiallyTrustWorthy = isURLPotentiallyTrustworthy(referrerURL) && !isURLPotentiallyTrustworthy(request.url);
       switch (policy) {
         case "origin":
           return referrerOrigin != null ? referrerOrigin : stripURLForReferrer(referrerSource, true);
         case "unsafe-url":
-          return referrerUrl;
+          return referrerURL;
         case "same-origin":
           return areSameOrigin ? referrerOrigin : "no-referrer";
         case "origin-when-cross-origin":
-          return areSameOrigin ? referrerUrl : referrerOrigin;
-        case "strict-origin-when-cross-origin":
-          if (areSameOrigin)
-            return referrerOrigin;
+          return areSameOrigin ? referrerURL : referrerOrigin;
+        case "strict-origin-when-cross-origin": {
+          const currentURL = requestCurrentURL(request);
+          if (sameOrigin(referrerURL, currentURL)) {
+            return referrerURL;
+          }
+          if (isURLPotentiallyTrustworthy(referrerURL) && !isURLPotentiallyTrustworthy(currentURL)) {
+            return "no-referrer";
+          }
+          return referrerOrigin;
+        }
         case "strict-origin":
         case "no-referrer-when-downgrade":
         default:
           return isNonPotentiallyTrustWorthy ? "no-referrer" : referrerOrigin;
       }
-      function stripURLForReferrer(url, originOnly = false) {
-        const urlObject = new URL(url.href);
-        urlObject.username = "";
-        urlObject.password = "";
-        urlObject.hash = "";
-        return originOnly ? urlObject.origin : urlObject.href;
+    }
+    function stripURLForReferrer(url, originOnly) {
+      assert(url instanceof URL);
+      if (url.protocol === "file:" || url.protocol === "about:" || url.protocol === "blank:") {
+        return "no-referrer";
       }
+      url.username = "";
+      url.password = "";
+      url.hash = "";
+      if (originOnly) {
+        url.pathname = "";
+        url.search = "";
+      }
+      return url;
     }
     function isURLPotentiallyTrustworthy(url) {
       if (!(url instanceof URL)) {
@@ -5620,7 +5686,6 @@ var require_dataURL = __commonJS({
   "lib/fetch/dataURL.js"(exports2, module2) {
     var assert = require("assert");
     var { atob: atob2 } = require("buffer");
-    var { format } = require("url");
     var { isValidHTTPToken, isomorphicDecode } = require_util2();
     var encoder = new TextEncoder();
     var HTTP_TOKEN_CODEPOINTS = /^[!#$%&'*+-.^_|~A-z0-9]+$/;
@@ -5660,7 +5725,15 @@ var require_dataURL = __commonJS({
       return { mimeType: mimeTypeRecord, body };
     }
     function URLSerializer(url, excludeFragment = false) {
-      return format(url, { fragment: !excludeFragment });
+      const href = url.href;
+      if (!excludeFragment) {
+        return href;
+      }
+      const hash = href.lastIndexOf("#");
+      if (hash === -1) {
+        return href;
+      }
+      return href.slice(0, hash);
     }
     function collectASequenceOfCodePoints(condition, input, position) {
       let result = "";
@@ -6514,45 +6587,6 @@ Content-Type: ${value.type || "application/octet-stream"}\r
   }
 });
 
-// lib/fetch/global.js
-var require_global = __commonJS({
-  "lib/fetch/global.js"(exports2, module2) {
-    "use strict";
-    var globalOrigin = Symbol.for("undici.globalOrigin.1");
-    function getGlobalOrigin() {
-      return globalThis[globalOrigin];
-    }
-    function setGlobalOrigin(newOrigin) {
-      if (newOrigin !== void 0 && typeof newOrigin !== "string" && !(newOrigin instanceof URL)) {
-        throw new Error("Invalid base url");
-      }
-      if (newOrigin === void 0) {
-        Object.defineProperty(globalThis, globalOrigin, {
-          value: void 0,
-          writable: true,
-          enumerable: false,
-          configurable: false
-        });
-        return;
-      }
-      const parsedURL = new URL(newOrigin);
-      if (parsedURL.protocol !== "http:" && parsedURL.protocol !== "https:") {
-        throw new TypeError(`Only http & https urls are allowed, received ${parsedURL.protocol}`);
-      }
-      Object.defineProperty(globalThis, globalOrigin, {
-        value: parsedURL,
-        writable: true,
-        enumerable: false,
-        configurable: false
-      });
-    }
-    module2.exports = {
-      getGlobalOrigin,
-      setGlobalOrigin
-    };
-  }
-});
-
 // lib/fetch/response.js
 var require_response = __commonJS({
   "lib/fetch/response.js"(exports2, module2) {
@@ -6954,7 +6988,8 @@ var require_request = __commonJS({
     var {
       isValidHTTPToken,
       sameOrigin,
-      normalizeMethod
+      normalizeMethod,
+      makePolicyContainer
     } = require_util2();
     var {
       forbiddenMethods,
@@ -6989,7 +7024,11 @@ var require_request = __commonJS({
         init = webidl.converters.RequestInit(init);
         this[kRealm] = {
           settingsObject: {
-            baseUrl: getGlobalOrigin()
+            baseUrl: getGlobalOrigin(),
+            get origin() {
+              return this.baseUrl?.origin;
+            },
+            policyContainer: makePolicyContainer()
           }
         };
         let request = null;
@@ -7131,12 +7170,14 @@ var require_request = __commonJS({
           if (signal.aborted) {
             ac.abort(signal.reason);
           } else {
-            const acRef = new WeakRef(ac);
             const abort = function() {
-              acRef.deref()?.abort(this.reason);
+              ac.abort(this.reason);
             };
-            if (getEventListeners(signal, "abort").length >= defaultMaxListeners) {
-              setMaxListeners(100, signal);
+            try {
+              if (getEventListeners(signal, "abort").length >= defaultMaxListeners) {
+                setMaxListeners(100, signal);
+              }
+            } catch {
             }
             signal.addEventListener("abort", abort, { once: true });
             requestFinalizer.register(this, { signal, abort });
@@ -7900,12 +7941,14 @@ var require_timers = __commonJS({
       let idx = 0;
       while (idx < len) {
         const timer = fastTimers[idx];
-        if (timer.expires && fastNow >= timer.expires) {
-          timer.expires = 0;
+        if (timer.state === 0) {
+          timer.state = fastNow + timer.delay;
+        } else if (timer.state > 0 && fastNow >= timer.state) {
+          timer.state = -1;
           timer.callback(timer.opaque);
         }
-        if (timer.expires === 0) {
-          timer.active = false;
+        if (timer.state === -1) {
+          timer.state = -2;
           if (idx !== len - 1) {
             fastTimers[idx] = fastTimers.pop();
           } else {
@@ -7936,32 +7979,31 @@ var require_timers = __commonJS({
         this.callback = callback;
         this.delay = delay;
         this.opaque = opaque;
-        this.expires = 0;
-        this.active = false;
+        this.state = -2;
         this.refresh();
       }
       refresh() {
-        if (!this.active) {
-          this.active = true;
+        if (this.state === -2) {
           fastTimers.push(this);
           if (!fastNowTimeout || fastTimers.length === 1) {
             refreshTimeout();
-            fastNow = Date.now();
           }
         }
-        this.expires = fastNow + this.delay;
+        this.state = 0;
       }
       clear() {
-        this.expires = 0;
+        this.state = -1;
       }
     };
     module2.exports = {
       setTimeout(callback, delay, opaque) {
-        return new Timeout(callback, delay, opaque);
+        return delay < 1e3 ? setTimeout(callback, delay, opaque) : new Timeout(callback, delay, opaque);
       },
       clearTimeout(timeout) {
-        if (timeout && timeout.clear) {
+        if (timeout instanceof Timeout) {
           timeout.clear();
+        } else {
+          clearTimeout(timeout);
         }
       }
     };
@@ -10140,6 +10182,7 @@ upgrade: ${upgrade}\r
           }
           process.emitWarning(new RequestContentLengthMismatchError());
         }
+        socket.cork();
         if (bytesWritten === 0) {
           if (!expectsPayload) {
             socket[kReset] = true;
@@ -10160,6 +10203,7 @@ ${len.toString(16)}\r
         }
         this.bytesWritten += len;
         const ret = socket.write(chunk);
+        socket.uncork();
         request.onBodySent(chunk);
         if (!ret) {
           if (socket[kParser].timeout && socket[kParser].timeoutType === TIMEOUT_HEADERS) {
@@ -10627,7 +10671,7 @@ var require_fetch = __commonJS({
         });
         cacheState = "";
       }
-      response.timingInfo.endTime = coarsenedSharedCurrentTime();
+      timingInfo.endTime = coarsenedSharedCurrentTime();
       response.timingInfo = timingInfo;
       markResourceTiming(timingInfo, originalURL, initiatorType, globalThis, cacheState);
     }

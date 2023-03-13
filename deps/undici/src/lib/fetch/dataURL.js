@@ -1,6 +1,5 @@
 const assert = require('assert')
 const { atob } = require('buffer')
-const { format } = require('url')
 const { isValidHTTPToken, isomorphicDecode } = require('./util')
 
 const encoder = new TextEncoder()
@@ -118,7 +117,17 @@ function dataURLProcessor (dataURL) {
  * @param {boolean} excludeFragment
  */
 function URLSerializer (url, excludeFragment = false) {
-  return format(url, { fragment: !excludeFragment })
+  const href = url.href
+
+  if (!excludeFragment) {
+    return href
+  }
+
+  const hash = href.lastIndexOf('#')
+  if (hash === -1) {
+    return href
+  }
+  return href.slice(0, hash)
 }
 
 // https://infra.spec.whatwg.org/#collect-a-sequence-of-code-points

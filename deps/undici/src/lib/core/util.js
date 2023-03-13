@@ -15,7 +15,7 @@ const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(v => Number(
 function nop () {}
 
 function isStream (obj) {
-  return obj && typeof obj.pipe === 'function'
+  return obj && typeof obj === 'object' && typeof obj.pipe === 'function' && typeof obj.on === 'function'
 }
 
 // based on https://github.com/node-fetch/fetch-blob/blob/8ab587d34080de94140b54f07168451e7d0b655e/index.js#L229-L241 (MIT License)
@@ -46,6 +46,12 @@ function buildURL (url, queryParams) {
 function parseURL (url) {
   if (typeof url === 'string') {
     url = new URL(url)
+
+    if (!/^https?:/.test(url.origin || url.protocol)) {
+      throw new InvalidArgumentError('invalid protocol')
+    }
+
+    return url
   }
 
   if (!url || typeof url !== 'object') {
@@ -375,21 +381,32 @@ function ReadableStreamFrom (iterable) {
 
 // The chunk should be a FormData instance and contains
 // all the required methods.
-function isFormDataLike (chunk) {
-  return (chunk &&
-    chunk.constructor && chunk.constructor.name === 'FormData' &&
-    typeof chunk === 'object' &&
-      (typeof chunk.append === 'function' &&
-        typeof chunk.delete === 'function' &&
-        typeof chunk.get === 'function' &&
-        typeof chunk.getAll === 'function' &&
-        typeof chunk.has === 'function' &&
-        typeof chunk.set === 'function' &&
-        typeof chunk.entries === 'function' &&
-        typeof chunk.keys === 'function' &&
-        typeof chunk.values === 'function' &&
-        typeof chunk.forEach === 'function')
+function isFormDataLike (object) {
+  return (
+    object &&
+    typeof object === 'object' &&
+    typeof object.append === 'function' &&
+    typeof object.delete === 'function' &&
+    typeof object.get === 'function' &&
+    typeof object.getAll === 'function' &&
+    typeof object.has === 'function' &&
+    typeof object.set === 'function' &&
+    object[Symbol.toStringTag] === 'FormData'
   )
+}
+
+function throwIfAborted (signal) {
+  if (!signal) { return }
+  if (typeof signal.throwIfAborted === 'function') {
+    signal.throwIfAborted()
+  } else {
+    if (signal.aborted) {
+      // DOMException not available < v17.0.0
+      const err = new Error('The operation was aborted')
+      err.name = 'AbortError'
+      throw err
+    }
+  }
 }
 
 const kEnumerableProperty = Object.create(null)
@@ -423,6 +440,7 @@ module.exports = {
   getSocketInfo,
   isFormDataLike,
   buildURL,
+  throwIfAborted,
   nodeMajor,
   nodeMinor,
   nodeHasAutoSelectFamily: nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 13)
