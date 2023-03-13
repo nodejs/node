@@ -89,6 +89,11 @@ class V8_EXPORT V8 {
   static void SetFlagsFromCommandLine(int* argc, char** argv,
                                       bool remove_flags);
 
+  /**
+   * Gets V8 flags names and stores them in the provided vector.
+   */
+  static std::vector<const char*> GetFlagsNames();
+
   /** Get the version string. */
   static const char* GetVersion();
 

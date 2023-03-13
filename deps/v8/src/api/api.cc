@@ -687,6 +687,10 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
                                        HelpOptions(HelpOptions::kDontExit));
 }
 
+std::vector<const char*> V8::GetFlagsNames() {
+  return i::FlagList::GetNames();
+}
+
 RegisteredExtension* RegisteredExtension::first_extension_ = nullptr;
 
 RegisteredExtension::RegisteredExtension(std::unique_ptr<Extension> extension)
@@ -6326,7 +6330,7 @@ void v8::V8::InitializeExternalStartupDataFromFile(const char* snapshot_blob) {
   i::InitializeExternalStartupDataFromFile(snapshot_blob);
 }
 
-const char* v8::V8::GetVersion() { return i::Version::GetVersion(); }
+const char* V8::GetVersion() { return i::Version::GetVersion(); }
 
 #ifdef V8_ENABLE_SANDBOX
 VirtualAddressSpace* v8::V8::GetSandboxAddressSpace() {

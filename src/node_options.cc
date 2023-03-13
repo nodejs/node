@@ -6,6 +6,7 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_sea.h"
+#include "v8.h"
 #if HAVE_OPENSSL
 #include "openssl/opensslv.h"
 #endif
@@ -738,6 +739,14 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
 
 PerIsolateOptionsParser::PerIsolateOptionsParser(
   const EnvironmentOptionsParser& eop) {
+
+  std::vector<const char*> v8_available_flags = v8::V8::GetFlagsNames();
+  for (size_t i = 0; i < v8_available_flags.size(); ++i) {
+    std::string v8Opt = "--";
+    v8Opt.append(v8_available_flags[i]);
+    AddOption(v8Opt.c_str(), "", V8Option{}, kAllowedInEnvvar);
+  }
+
   AddOption("--track-heap-objects",
             "track heap object allocations for heap snapshots",
             &PerIsolateOptions::track_heap_objects,

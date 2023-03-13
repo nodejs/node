@@ -132,6 +132,9 @@ class V8_EXPORT_PRIVATE FlagList {
 
   static void PrintValues();
 
+  // Get all the flags names and store them in the privided vector.
+  static std::vector<const char*> GetNames();
+
   // Set flags as consequence of being implied by another flag.
   static void EnforceFlagImplications();
 

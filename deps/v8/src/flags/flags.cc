@@ -833,6 +833,18 @@ void FlagList::PrintValues() {
   }
 }
 
+// static
+std::vector<const char*> FlagList::GetNames() {
+  std::vector<const char*> stor;
+  for (const Flag& f : flags) {
+    std::string parsed_name;
+    FlagName flag_name = FlagName{f.name()};
+    for (const char* p = flag_name.name; *p; ++p) parsed_name += NormalizeChar(*p);
+    stor.push_back(parsed_name.c_str());
+  }
+  return stor;
+}
+
 namespace {
 
 class ImplicationProcessor {
