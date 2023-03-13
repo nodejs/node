@@ -4,7 +4,7 @@
 
 const assert = require('assert')
 const { Readable } = require('stream')
-const { RequestAbortedError, NotSupportedError } = require('../core/errors')
+const { RequestAbortedError, NotSupportedError, InvalidArgumentError } = require('../core/errors')
 const util = require('../core/util')
 const { ReadableStreamFrom, toUSVString } = require('../core/util')
 
@@ -146,15 +146,31 @@ module.exports = class BodyReadable extends Readable {
 
   async dump (opts) {
     let limit = opts && Number.isFinite(opts.limit) ? opts.limit : 262144
+    const signal = opts && opts.signal
+    const abortFn = () => {
+      this.destroy()
+    }
+    if (signal) {
+      if (typeof signal !== 'object' || !('aborted' in signal)) {
+        throw new InvalidArgumentError('signal must be an AbortSignal')
+      }
+      util.throwIfAborted(signal)
+      signal.addEventListener('abort', abortFn, { once: true })
+    }
     try {
       for await (const chunk of this) {
+        util.throwIfAborted(signal)
         limit -= Buffer.byteLength(chunk)
         if (limit < 0) {
           return
         }
       }
     } catch {
-      // Do nothing...
+      util.throwIfAborted(signal)
+    } finally {
+      if (signal) {
+        signal.removeEventListener('abort', abortFn)
+      }
     }
   }
 }

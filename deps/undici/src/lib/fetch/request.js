@@ -9,7 +9,8 @@ const util = require('../core/util')
 const {
   isValidHTTPToken,
   sameOrigin,
-  normalizeMethod
+  normalizeMethod,
+  makePolicyContainer
 } = require('./util')
 const {
   forbiddenMethods,
@@ -51,10 +52,14 @@ class Request {
     input = webidl.converters.RequestInfo(input)
     init = webidl.converters.RequestInit(init)
 
-    // TODO
+    // https://html.spec.whatwg.org/multipage/webappapis.html#environment-settings-object
     this[kRealm] = {
       settingsObject: {
-        baseUrl: getGlobalOrigin()
+        baseUrl: getGlobalOrigin(),
+        get origin () {
+          return this.baseUrl?.origin
+        },
+        policyContainer: makePolicyContainer()
       }
     }
 
@@ -349,14 +354,17 @@ class Request {
       if (signal.aborted) {
         ac.abort(signal.reason)
       } else {
-        const acRef = new WeakRef(ac)
         const abort = function () {
-          acRef.deref()?.abort(this.reason)
+          ac.abort(this.reason)
         }
 
-        if (getEventListeners(signal, 'abort').length >= defaultMaxListeners) {
-          setMaxListeners(100, signal)
-        }
+        // Third-party AbortControllers may not work with these.
+        // See https://github.com/nodejs/undici/pull/1910#issuecomment-1464495619
+        try {
+          if (getEventListeners(signal, 'abort').length >= defaultMaxListeners) {
+            setMaxListeners(100, signal)
+          }
+        } catch {}
 
         signal.addEventListener('abort', abort, { once: true })
         requestFinalizer.register(this, { signal, abort })

@@ -407,7 +407,7 @@ Refs: https://fetch.spec.whatwg.org/#atomic-http-redirect-handling
 
 ## Workarounds
 
-### Network address family autoselection.
+### Network address family autoselection.
 
 If you experience problem when connecting to a remote server that is resolved by your DNS servers to a IPv6 (AAAA record)
 first, there are chances that your local router or ISP might have problem connecting to IPv6 networks. In that case
