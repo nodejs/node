@@ -38,6 +38,7 @@
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/cppgc/object-allocator.h"
+#include "src/heap/cppgc/platform.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/stats-collector.h"
@@ -213,14 +214,16 @@ namespace {
 
 class CppgcPlatformAdapter final : public cppgc::Platform {
  public:
-  explicit CppgcPlatformAdapter(v8::Platform* platform) : platform_(platform) {}
+  explicit CppgcPlatformAdapter(v8::Platform* platform)
+      : platform_(platform),
+        page_allocator_(platform->GetPageAllocator()
+                            ? platform->GetPageAllocator()
+                            : &cppgc::internal::GetGlobalPageAllocator()) {}
 
   CppgcPlatformAdapter(const CppgcPlatformAdapter&) = delete;
   CppgcPlatformAdapter& operator=(const CppgcPlatformAdapter&) = delete;
 
-  PageAllocator* GetPageAllocator() final {
-    return platform_->GetPageAllocator();
-  }
+  PageAllocator* GetPageAllocator() final { return page_allocator_; }
 
   double MonotonicallyIncreasingTime() final {
     return platform_->MonotonicallyIncreasingTime();
@@ -249,6 +252,7 @@ class CppgcPlatformAdapter final : public cppgc::Platform {
 
  private:
   v8::Platform* platform_;
+  cppgc::PageAllocator* page_allocator_;
   v8::Isolate* isolate_ = nullptr;
   bool is_in_detached_mode_ = false;
 };
