@@ -9,7 +9,7 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-const { findVariable } = require("eslint-utils");
+const { findVariable } = require("@eslint-community/eslint-utils");
 const astUtils = require("./utils/ast-utils");
 
 const WellKnownMutationFunctions = {

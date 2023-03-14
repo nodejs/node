@@ -9,8 +9,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const { CALL, CONSTRUCT, ReferenceTracker, getStringIfConstant } = require("eslint-utils");
-const { RegExpParser, visitRegExpAST } = require("regexpp");
+const { CALL, CONSTRUCT, ReferenceTracker, getStringIfConstant } = require("@eslint-community/eslint-utils");
+const { RegExpParser, visitRegExpAST } = require("@eslint-community/regexpp");
 
 //------------------------------------------------------------------------------
 // Helpers
