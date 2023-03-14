@@ -36,6 +36,45 @@ function splitPluginIdentifier(identifier) {
     };
 }
 
+/**
+ * Returns the name of an object in the config by reading its `meta` key.
+ * @param {Object} object The object to check.
+ * @returns {string?} The name of the object if found or `null` if there
+ *      is no name.
+ */
+function getObjectId(object) {
+
+    // first check old-style name
+    let name = object.name;
+
+    if (!name) {
+
+        if (!object.meta) {
+            return null;
+        }
+
+        name = object.meta.name;
+
+        if (!name) {
+            return null;
+        }
+    }
+
+    // now check for old-style version
+    let version = object.version;
+
+    if (!version) {
+        version = object.meta && object.meta.version;
+    }
+
+    // if there's a version then append that
+    if (version) {
+        return `${name}@${version}`;
+    }
+
+    return name;
+}
+
 const originalBaseConfig = Symbol("originalBaseConfig");
 
 //-----------------------------------------------------------------------------
@@ -151,16 +190,25 @@ class FlatConfigArray extends ConfigArray {
 
         // Check parser value
         if (languageOptions && languageOptions.parser) {
-            if (typeof languageOptions.parser === "string") {
-                const { pluginName, objectName: localParserName } = splitPluginIdentifier(languageOptions.parser);
+            const { parser } = languageOptions;
 
-                parserName = languageOptions.parser;
+            if (typeof parser === "string") {
+                const { pluginName, objectName: localParserName } = splitPluginIdentifier(parser);
+
+                parserName = parser;
 
                 if (!plugins || !plugins[pluginName] || !plugins[pluginName].parsers || !plugins[pluginName].parsers[localParserName]) {
                     throw new TypeError(`Key "parser": Could not find "${localParserName}" in plugin "${pluginName}".`);
                 }
 
                 languageOptions.parser = plugins[pluginName].parsers[localParserName];
+            } else if (typeof parser === "object") {
+                parserName = getObjectId(parser);
+
+                if (!parserName) {
+                    invalidParser = true;
+                }
+
             } else {
                 invalidParser = true;
             }
@@ -178,6 +226,13 @@ class FlatConfigArray extends ConfigArray {
                 }
 
                 config.processor = plugins[pluginName].processors[localProcessorName];
+            } else if (typeof processor === "object") {
+                processorName = getObjectId(processor);
+
+                if (!processorName) {
+                    invalidProcessor = true;
+                }
+
             } else {
                 invalidProcessor = true;
             }
@@ -191,11 +246,11 @@ class FlatConfigArray extends ConfigArray {
             value: function() {
 
                 if (invalidParser) {
-                    throw new Error("Caching is not supported when parser is an object.");
+                    throw new Error("Could not serialize parser object (missing 'meta' object).");
                 }
 
                 if (invalidProcessor) {
-                    throw new Error("Caching is not supported when processor is an object.");
+                    throw new Error("Could not serialize processor object (missing 'meta' object).");
                 }
 
                 return {

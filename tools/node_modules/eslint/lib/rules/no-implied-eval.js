@@ -10,7 +10,7 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
-const { getStaticValue } = require("eslint-utils");
+const { getStaticValue } = require("@eslint-community/eslint-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition

@@ -139,6 +139,7 @@ export function parse(code, options) {
 //------------------------------------------------------------------------------
 
 export const version = espreeVersion;
+export const name = "espree";
 
 /* istanbul ignore next */
 export const VisitorKeys = (function() {
@@ -148,16 +149,16 @@ export const VisitorKeys = (function() {
 // Derive node types from VisitorKeys
 /* istanbul ignore next */
 export const Syntax = (function() {
-    let name,
+    let key,
         types = {};
 
     if (typeof Object.create === "function") {
         types = Object.create(null);
     }
 
-    for (name in VisitorKeys) {
-        if (Object.hasOwnProperty.call(VisitorKeys, name)) {
-            types[name] = name;
+    for (key in VisitorKeys) {
+        if (Object.hasOwnProperty.call(VisitorKeys, key)) {
+            types[key] = key;
         }
     }
 

@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const { findVariable } = require("eslint-utils");
+const { findVariable } = require("@eslint-community/eslint-utils");
 
 //------------------------------------------------------------------------------
 // Helpers

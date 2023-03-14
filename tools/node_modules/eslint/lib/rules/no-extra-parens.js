@@ -8,7 +8,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-const { isParenthesized: isParenthesizedRaw } = require("eslint-utils");
+const { isParenthesized: isParenthesizedRaw } = require("@eslint-community/eslint-utils");
 const astUtils = require("./utils/ast-utils.js");
 
 /** @type {import('../shared/types').Rule} */

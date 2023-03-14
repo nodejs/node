@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 const
-    { isCommentToken } = require("eslint-utils"),
+    { isCommentToken } = require("@eslint-community/eslint-utils"),
     TokenStore = require("./token-store"),
     astUtils = require("../shared/ast-utils"),
     Traverser = require("../shared/traverser");
