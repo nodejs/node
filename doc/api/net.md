@@ -1643,7 +1643,7 @@ Sets the default value of the `autoSelectFamily` option of [`socket.connect(opt
 ## `net.getDefaultAutoSelectFamilyAttemptTimeout()`
 
 <!-- YAML
-added: REPLACEME
+added: v19.8.0
 -->
 
 Gets the current default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
@@ -1653,7 +1653,7 @@ Gets the current default value of the `autoSelectFamilyAttemptTimeout` option o
 ## `net.setDefaultAutoSelectFamilyAttemptTimeout(value)`
 
 <!-- YAML
-added: REPLACEME
+added: v19.8.0
 -->
 
 Sets the default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].

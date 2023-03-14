@@ -3331,7 +3331,7 @@ Functions based on `fs.open()` exhibit this behavior as well:
 ### `fs.openAsBlob(path[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v19.8.0
 -->
 
 > Stability: 1 - Experimental

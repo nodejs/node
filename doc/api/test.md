@@ -840,7 +840,7 @@ Shorthand for marking a suite as `TODO`, same as
 ## `describe.only([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added: v19.8.0
 -->
 
 Shorthand for marking a suite as `only`, same as
@@ -853,7 +853,7 @@ added:
   - v18.6.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v19.8.0
     pr-url: https://github.com/nodejs/node/pull/46889
     description: Calling `it()` is now equivalent to calling `test()`.
 -->
@@ -875,7 +875,7 @@ same as [`it([name], { todo: true }[, fn])`][it options].
 ## `it.only([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added: v19.8.0
 -->
 
 Shorthand for marking a test as `only`,
