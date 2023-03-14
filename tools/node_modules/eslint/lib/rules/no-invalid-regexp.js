@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const RegExpValidator = require("regexpp").RegExpValidator;
+const RegExpValidator = require("@eslint-community/regexpp").RegExpValidator;
 const validator = new RegExpValidator();
 const validFlags = /[dgimsuy]/gu;
 const undefined1 = void 0;

@@ -22,7 +22,37 @@ module.exports = {
         },
 
         fixable: "whitespace",
-        schema: [{ enum: ["starred-block", "separate-lines", "bare-block"] }],
+        schema: {
+            anyOf: [
+                {
+                    type: "array",
+                    items: [
+                        {
+                            enum: ["starred-block", "bare-block"]
+                        }
+                    ],
+                    additionalItems: false
+                },
+                {
+                    type: "array",
+                    items: [
+                        {
+                            enum: ["separate-lines"]
+                        },
+                        {
+                            type: "object",
+                            properties: {
+                                checkJSDoc: {
+                                    type: "boolean"
+                                }
+                            },
+                            additionalProperties: false
+                        }
+                    ],
+                    additionalItems: false
+                }
+            ]
+        },
         messages: {
             expectedBlock: "Expected a block comment instead of consecutive line comments.",
             expectedBareBlock: "Expected a block comment without padding stars.",
@@ -37,6 +67,8 @@ module.exports = {
     create(context) {
         const sourceCode = context.getSourceCode();
         const option = context.options[0] || "starred-block";
+        const params = context.options[1] || {};
+        const checkJSDoc = !!params.checkJSDoc;
 
         //----------------------------------------------------------------------
         // Helpers
@@ -333,11 +365,18 @@ module.exports = {
             "separate-lines"(commentGroup) {
                 const [firstComment] = commentGroup;
 
-                if (firstComment.type !== "Block" || isJSDocComment(commentGroup)) {
+                const isJSDoc = isJSDocComment(commentGroup);
+
+                if (firstComment.type !== "Block" || (!checkJSDoc && isJSDoc)) {
                     return;
                 }
 
-                const commentLines = getCommentLines(commentGroup);
+                let commentLines = getCommentLines(commentGroup);
+
+                if (isJSDoc) {
+                    commentLines = commentLines.slice(1, commentLines.length - 1);
+                }
+
                 const tokenAfter = sourceCode.getTokenAfter(firstComment, { includeComments: true });
 
                 if (tokenAfter && firstComment.loc.end.line === tokenAfter.loc.start.line) {

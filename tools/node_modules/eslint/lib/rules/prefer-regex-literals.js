@@ -10,8 +10,8 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
-const { CALL, CONSTRUCT, ReferenceTracker, findVariable } = require("eslint-utils");
-const { RegExpValidator, visitRegExpAST, RegExpParser } = require("regexpp");
+const { CALL, CONSTRUCT, ReferenceTracker, findVariable } = require("@eslint-community/eslint-utils");
+const { RegExpValidator, visitRegExpAST, RegExpParser } = require("@eslint-community/regexpp");
 const { canTokensBeAdjacent } = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------

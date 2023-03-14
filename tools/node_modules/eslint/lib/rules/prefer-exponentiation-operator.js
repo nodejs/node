@@ -10,7 +10,7 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
-const { CALL, ReferenceTracker } = require("eslint-utils");
+const { CALL, ReferenceTracker } = require("@eslint-community/eslint-utils");
 
 //------------------------------------------------------------------------------
 // Helpers

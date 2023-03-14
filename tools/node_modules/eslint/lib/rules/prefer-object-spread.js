@@ -6,7 +6,7 @@
 
 "use strict";
 
-const { CALL, ReferenceTracker } = require("eslint-utils");
+const { CALL, ReferenceTracker } = require("@eslint-community/eslint-utils");
 const {
     isCommaToken,
     isOpeningParenToken,

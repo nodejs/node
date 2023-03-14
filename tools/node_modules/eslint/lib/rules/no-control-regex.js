@@ -5,7 +5,7 @@
 
 "use strict";
 
-const RegExpValidator = require("regexpp").RegExpValidator;
+const RegExpValidator = require("@eslint-community/regexpp").RegExpValidator;
 const collector = new (class {
     constructor() {
         this._source = "";

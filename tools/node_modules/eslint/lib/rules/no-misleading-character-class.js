@@ -3,8 +3,8 @@
  */
 "use strict";
 
-const { CALL, CONSTRUCT, ReferenceTracker, getStringIfConstant } = require("eslint-utils");
-const { RegExpValidator, RegExpParser, visitRegExpAST } = require("regexpp");
+const { CALL, CONSTRUCT, ReferenceTracker, getStringIfConstant } = require("@eslint-community/eslint-utils");
+const { RegExpValidator, RegExpParser, visitRegExpAST } = require("@eslint-community/regexpp");
 const { isCombiningCharacter, isEmojiModifier, isRegionalIndicatorSymbol, isSurrogatePair } = require("./utils/unicode");
 const astUtils = require("./utils/ast-utils.js");
 
