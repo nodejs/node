@@ -590,10 +590,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::test_name_pattern);
   AddOption("--test-reporter",
             "report test output using the given reporter",
-            &EnvironmentOptions::test_reporter);
+            &EnvironmentOptions::test_reporter,
+            kAllowedInEnvvar);
   AddOption("--test-reporter-destination",
             "report given reporter to the given destination",
-            &EnvironmentOptions::test_reporter_destination);
+            &EnvironmentOptions::test_reporter_destination,
+            kAllowedInEnvvar);
   AddOption("--test-only",
             "run tests with 'only' option set",
             &EnvironmentOptions::test_only,
