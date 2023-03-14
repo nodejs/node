@@ -3975,7 +3975,7 @@ cases:
 [`process.config`]: #processconfig
 [`process.execPath`]: #processexecpath
 [`process.exit()`]: #processexitcode
-[`process.exitCode`]: #processexitcode_1
+[`process.exitCode`]: #processexitcode-1
 [`process.hrtime()`]: #processhrtimetime
 [`process.hrtime.bigint()`]: #processhrtimebigint
 [`process.kill()`]: #processkillpid-signal

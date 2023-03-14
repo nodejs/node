@@ -988,7 +988,7 @@ true
 FIPS support can then be enable via the OpenSSL configuration file or
 using `--enable-fips` or `--force-fips` command line options to the Node.js
 executable. See sections
-[Enabling FIPS using Node.js options](#enabling-fips-using-node.js-options) and
+[Enabling FIPS using Node.js options](#enabling-fips-using-nodejs-options) and
 [Enabling FIPS using OpenSSL config](#enabling-fips-using-openssl-config) below.
 
 ### Enabling FIPS using Node.js options
