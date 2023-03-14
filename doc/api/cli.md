@@ -1941,6 +1941,8 @@ Node.js options that are allowed are:
 * `--secure-heap`
 * `--snapshot-blob`
 * `--test-only`
+* `--test-reporter-destination`
+* `--test-reporter`
 * `--throw-deprecation`
 * `--title`
 * `--tls-cipher-list`
@@ -2081,6 +2083,11 @@ added: v14.5.0
 If `value` equals `'1'`, the check for a supported platform is skipped during
 Node.js startup. Node.js might not execute correctly. Any issues encountered
 on unsupported platforms will not be fixed.
+
+### `NODE_TEST_CONTEXT=value`
+
+If `value` equals `'child'`, test reporter options will be overridden and test
+output will be sent to stdout in the TAP format.
 
 ### `NODE_TLS_REJECT_UNAUTHORIZED=value`
 
