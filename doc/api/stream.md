@@ -2799,7 +2799,7 @@ const server = http.createServer((req, res) => {
 <!-- YAML
 added: v16.9.0
 changes:
-  - version: REPLACEME
+  - version: v19.8.0
     pr-url: https://github.com/nodejs/node/pull/46675
     description: Added support for webstreams.
 -->

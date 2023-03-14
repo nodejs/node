@@ -121,7 +121,7 @@ added:
  - v13.3.0
  - v12.16.0
 changes:
- - version: REPLACEME
+ - version: v19.8.0
    pr-url: https://github.com/nodejs/node/pull/46469
    description: version field added to options.
 -->
@@ -152,7 +152,7 @@ changes:
 ### `wasi.getImportObject()`
 
 <!-- YAML
-added: REPLACEME
+added: v19.8.0
 -->
 
 Return an import object that can be passed to `WebAssembly.instantiate()` if
