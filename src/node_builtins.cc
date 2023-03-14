@@ -253,9 +253,6 @@ bool BuiltinLoader::Add(const char* id, std::string_view utf8source) {
   return Add(id, UnionBytes(out));
 }
 
-// Returns Local<Function> of the compiled module if return_code_cache
-// is false (we are only compiling the function).
-// Otherwise return a Local<Object> containing the cache.
 MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
     Local<Context> context,
     const char* id,
@@ -353,9 +350,6 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
   return scope.Escape(fun);
 }
 
-// Returns Local<Function> of the compiled module if return_code_cache
-// is false (we are only compiling the function).
-// Otherwise return a Local<Object> containing the cache.
 MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
                                                      const char* id,
                                                      Realm* optional_realm) {
