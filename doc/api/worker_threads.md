@@ -906,7 +906,7 @@ if (isMainThread) {
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v19.8.0
     pr-url: https://github.com/nodejs/node/pull/46832
     description: Added support for a `name` option, which allows
                  adding a name to worker title for debugging.

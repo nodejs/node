@@ -139,7 +139,7 @@ Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
 ### Static method: `AsyncLocalStorage.bind(fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v19.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -153,7 +153,7 @@ Binds the given function to the current execution context.
 ### Static method: `AsyncLocalStorage.snapshot()`
 
 <!-- YAML
-added: REPLACEME
+added: v19.8.0
 -->
 
 > Stability: 1 - Experimental
