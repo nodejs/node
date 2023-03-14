@@ -15,11 +15,7 @@ const commonArgs = [
   commonInput,
 ];
 
-describe('ESM: loader chaining', {
-  // FIXME(JakobJingleheimer): Enabling test runner concurrency causes the CustomizedModuleLoader to
-  // hang ~1/10 times. Disabling it is a significant hit to test execution time: 0.650s -> 1.823s
-  concurrency: false
-}, () => {
+describe('ESM: loader chaining', { concurrency: true }, () => {
   it('should load unadulterated source when there are no loaders', async () => {
     const { code, stderr, stdout } = await spawnPromisified(
       execPath,
