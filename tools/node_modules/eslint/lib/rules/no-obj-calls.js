@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const { CALL, CONSTRUCT, ReferenceTracker } = require("eslint-utils");
+const { CALL, CONSTRUCT, ReferenceTracker } = require("@eslint-community/eslint-utils");
 const getPropertyName = require("./utils/ast-utils").getStaticPropertyName;
 
 //------------------------------------------------------------------------------

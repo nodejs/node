@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 const assert = require("assert");
-const { isCommentToken } = require("eslint-utils");
+const { isCommentToken } = require("@eslint-community/eslint-utils");
 const cursors = require("./cursors");
 const ForwardTokenCursor = require("./forward-token-cursor");
 const PaddedTokenCursor = require("./padded-token-cursor");
