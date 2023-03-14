@@ -38,6 +38,30 @@ function nextdir() {
   assertDirEquivalent(src, dest);
 }
 
+// It copies a nested folder structure with mode flags.
+// This test is based on fs.promises.copyFile() with `COPYFILE_FICLONE_FORCE`.
+(() => {
+  const src = './test/fixtures/copy/kitchen-sink';
+  const dest = nextdir();
+  try {
+    cpSync(src, dest, mustNotMutateObjectDeep({
+      recursive: true,
+      mode: fs.constants.COPYFILE_FICLONE_FORCE,
+    }));
+  } catch (err) {
+    // If the platform does not support `COPYFILE_FICLONE_FORCE` operation,
+    // it should enter this path.
+    assert.strictEqual(err.syscall, 'copyfile');
+    assert(err.code === 'ENOTSUP' || err.code === 'ENOTTY' ||
+      err.code === 'ENOSYS' || err.code === 'EXDEV');
+    return;
+  }
+
+  // If the platform support `COPYFILE_FICLONE_FORCE` operation,
+  // it should reach to here.
+  assertDirEquivalent(src, dest);
+})();
+
 // It does not throw errors when directory is copied over and force is false.
 {
   const src = nextdir();
@@ -105,6 +129,14 @@ function nextdir() {
         { code: 'ERR_INVALID_ARG_TYPE' }
       );
     });
+}
+
+// It rejects if options.mode is invalid.
+{
+  assert.throws(
+    () => cpSync('a', 'b', { mode: -1 }),
+    { code: 'ERR_OUT_OF_RANGE' }
+  );
 }
 
 
@@ -422,6 +454,31 @@ if (!isWindows) {
   cp(src, dest, mustNotMutateObjectDeep({ recursive: true }), mustCall((err) => {
     assert.strictEqual(err, null);
     assertDirEquivalent(src, dest);
+  }));
+}
+
+// It copies a nested folder structure with mode flags.
+// This test is based on fs.promises.copyFile() with `COPYFILE_FICLONE_FORCE`.
+{
+  const src = './test/fixtures/copy/kitchen-sink';
+  const dest = nextdir();
+  cp(src, dest, mustNotMutateObjectDeep({
+    recursive: true,
+    mode: fs.constants.COPYFILE_FICLONE_FORCE,
+  }), mustCall((err) => {
+    if (!err) {
+      // If the platform support `COPYFILE_FICLONE_FORCE` operation,
+      // it should reach to here.
+      assert.strictEqual(err, null);
+      assertDirEquivalent(src, dest);
+      return;
+    }
+
+    // If the platform does not support `COPYFILE_FICLONE_FORCE` operation,
+    // it should enter this path.
+    assert.strictEqual(err.syscall, 'copyfile');
+    assert(err.code === 'ENOTSUP' || err.code === 'ENOTTY' ||
+      err.code === 'ENOSYS' || err.code === 'EXDEV');
   }));
 }
 
@@ -799,6 +856,14 @@ if (!isWindows) {
   );
 }
 
+// It throws if options is not object.
+{
+  assert.throws(
+    () => cp('a', 'b', { mode: -1 }, () => {}),
+    { code: 'ERR_OUT_OF_RANGE' }
+  );
+}
+
 // Promises implementation of copy.
 
 // It copies a nested folder structure with files and folders.
@@ -809,6 +874,32 @@ if (!isWindows) {
   assert.strictEqual(p, undefined);
   assertDirEquivalent(src, dest);
 }
+
+// It copies a nested folder structure with mode flags.
+// This test is based on fs.promises.copyFile() with `COPYFILE_FICLONE_FORCE`.
+await (async () => {
+  const src = './test/fixtures/copy/kitchen-sink';
+  const dest = nextdir();
+  let p = null;
+  try {
+    p = await fs.promises.cp(src, dest, mustNotMutateObjectDeep({
+      recursive: true,
+      mode: fs.constants.COPYFILE_FICLONE_FORCE,
+    }));
+  } catch (err) {
+    // If the platform does not support `COPYFILE_FICLONE_FORCE` operation,
+    // it should enter this path.
+    assert.strictEqual(err.syscall, 'copyfile');
+    assert(err.code === 'ENOTSUP' || err.code === 'ENOTTY' ||
+      err.code === 'ENOSYS' || err.code === 'EXDEV');
+    return;
+  }
+
+  // If the platform support `COPYFILE_FICLONE_FORCE` operation,
+  // it should reach to here.
+  assert.strictEqual(p, undefined);
+  assertDirEquivalent(src, dest);
+})();
 
 // It accepts file URL as src and dest.
 {
@@ -844,6 +935,16 @@ if (!isWindows) {
   await assert.rejects(
     fs.promises.cp('a', 'b', () => {}),
     { code: 'ERR_INVALID_ARG_TYPE' }
+  );
+}
+
+// It rejects if options.mode is invalid.
+{
+  await assert.rejects(
+    fs.promises.cp('a', 'b', {
+      mode: -1,
+    }),
+    { code: 'ERR_OUT_OF_RANGE' }
   );
 }
 
