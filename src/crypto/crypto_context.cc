@@ -1123,8 +1123,6 @@ void SecureContext::SetClientCertEngine(
 #endif  // !OPENSSL_NO_ENGINE
 
 void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
-#if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_get_tlsext_ticket_keys)
-
   SecureContext* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
@@ -1137,11 +1135,9 @@ void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   memcpy(Buffer::Data(buff) + 32, wrap->ticket_key_aes_, 16);
 
   args.GetReturnValue().Set(buff);
-#endif  // !def(OPENSSL_NO_TLSEXT) && def(SSL_CTX_get_tlsext_ticket_keys)
 }
 
 void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
-#if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_get_tlsext_ticket_keys)
   SecureContext* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
@@ -1156,7 +1152,6 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   memcpy(wrap->ticket_key_aes_, buf.data() + 32, 16);
 
   args.GetReturnValue().Set(true);
-#endif  // !def(OPENSSL_NO_TLSEXT) && def(SSL_CTX_get_tlsext_ticket_keys)
 }
 
 // Currently, EnableTicketKeyCallback and TicketKeyCallback are only present for
