@@ -6,25 +6,28 @@ common.skipIfWorker();
 
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 
 if (common.isWindows) {
+  const { root } = path.parse(process.cwd());
+  const abs = (p) => path.join(root, p);
   const denyList = [
-    'C:\\tmp\\*',
-    'C:\\example\\foo*',
-    'C:\\example\\bar*',
-    'C:\\folder\\*',
-    'C:\\show',
-    'C:\\slower',
-    'C:\\slown',
-    'C:\\home\\foo\\*',
-  ];
+    'tmp\\*',
+    'example\\foo*',
+    'example\\bar*',
+    'folder\\*',
+    'show',
+    'slower',
+    'slown',
+    'home\\foo\\*',
+  ].map(abs);
   assert.ok(process.permission.deny('fs.read', denyList));
-  assert.ok(process.permission.has('fs.read', 'C:\\slow'));
-  assert.ok(process.permission.has('fs.read', 'C:\\slows'));
-  assert.ok(!process.permission.has('fs.read', 'C:\\slown'));
-  assert.ok(!process.permission.has('fs.read', 'C:\\home\\foo'));
-  assert.ok(!process.permission.has('fs.read', 'C:\\home\\foo\\'));
-  assert.ok(process.permission.has('fs.read', 'C:\\home\\fo'));
+  assert.ok(process.permission.has('fs.read', abs('slow')));
+  assert.ok(process.permission.has('fs.read', abs('slows')));
+  assert.ok(!process.permission.has('fs.read', abs('slown')));
+  assert.ok(!process.permission.has('fs.read', abs('home\\foo')));
+  assert.ok(!process.permission.has('fs.read', abs('home\\foo\\')));
+  assert.ok(process.permission.has('fs.read', abs('home\\fo')));
 } else {
   const denyList = [
     '/tmp/*',
