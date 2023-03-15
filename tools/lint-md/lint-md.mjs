@@ -11966,20 +11966,20 @@ function parseParameters(value) {
   const parameters = {};
   return value
     .replace(
-      /\s+([-\w]+)(?:=(?:"((?:\\[\s\S]|[^"])+)"|'((?:\\[\s\S]|[^'])+)'|((?:\\[\s\S]|[^"'\s])+)))?/gi,
+      /\s+([-\w]+)(?:=(?:"((?:\\[\s\S]|[^"])*)"|'((?:\\[\s\S]|[^'])*)'|((?:\\[\s\S]|[^"'\s])+)))?/gi,
       replacer
     )
     .replace(/\s+/g, '')
     ? null
     : parameters
   function replacer(_, $1, $2, $3, $4) {
-    let value = $2 || $3 || $4 || '';
+    let value = $2 === undefined ? ($3 === undefined ? $4 : $3) : $2;
     const number = Number(value);
-    if (value === 'true' || value === '') {
+    if (value === 'true' || value === undefined) {
       value = true;
     } else if (value === 'false') {
       value = false;
-    } else if (!Number.isNaN(number)) {
+    } else if (value.trim() && !Number.isNaN(number)) {
       value = number;
     }
     parameters[$1] = value;
