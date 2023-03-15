@@ -384,7 +384,7 @@ Object {
   "c": "config",
   "cit": "install-ci-test",
   "clean-install": "ci",
-  "clean-install-test": "cit",
+  "clean-install-test": "install-ci-test",
   "create": "init",
   "ddp": "dedupe",
   "dist-tags": "dist-tag",
@@ -421,7 +421,7 @@ Object {
   "s": "search",
   "se": "search",
   "show": "view",
-  "sit": "cit",
+  "sit": "install-ci-test",
   "t": "test",
   "tst": "test",
   "udpate": "update",
@@ -3239,14 +3239,14 @@ Options:
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root] [--install-links]
 
-alias: cit
+aliases: cit, clean-install-test, sit
 
 Run "npm help install-ci-test" for more info
 
 \`\`\`bash
 npm install-ci-test
 
-alias: cit
+aliases: cit, clean-install-test, sit
 \`\`\`
 
 #### \`save\`

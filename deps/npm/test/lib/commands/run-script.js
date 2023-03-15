@@ -34,12 +34,12 @@ const mockRs = async (t, { windows = false, runScript, ...opts } = {}) => {
 }
 
 t.test('completion', async t => {
-  const completion = async (t, remain, pkg) => {
+  const completion = async (t, remain, pkg, isFish = false) => {
     const { npm } = await mockRs(t,
       pkg ? { prefixDir: { 'package.json': JSON.stringify(pkg) } } : {}
     )
     const cmd = await npm.cmd('run-script')
-    return cmd.completion({ conf: { argv: { remain } } })
+    return cmd.completion({ conf: { argv: { remain } }, isFish })
   }
 
   t.test('already have a script name', async t => {
@@ -59,6 +59,13 @@ t.test('completion', async t => {
       scripts: { hello: 'echo hello', world: 'echo world' },
     })
     t.strictSame(res, ['hello', 'world'])
+  })
+
+  t.test('fish shell', async t => {
+    const res = await completion(t, ['npm', 'run'], {
+      scripts: { hello: 'echo hello', world: 'echo world' },
+    }, true)
+    t.strictSame(res, ['hello\techo hello', 'world\techo world'])
   })
 })
 

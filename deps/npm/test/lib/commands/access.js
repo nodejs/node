@@ -30,6 +30,7 @@ t.test('completion', async t => {
   ])
   testComp(['npm', 'access', 'grant'], ['read-only', 'read-write'])
   testComp(['npm', 'access', 'revoke'], [])
+  testComp(['npm', 'access', 'grant', ''], [])
 
   await t.rejects(
     access.completion({ conf: { argv: { remain: ['npm', 'access', 'foobar'] } } }),
@@ -70,10 +71,16 @@ t.test('grant', t => {
   })
 
   t.test('read-only', async t => {
-    const { npm } = await loadMockNpm(t)
+    const authToken = 'abcd1234'
+    const { npm } = await loadMockNpm(t, {
+      config: {
+        '//registry.npmjs.org/:_authToken': authToken,
+      },
+    })
     const registry = new MockRegistry({
       tap: t,
       registry: npm.config.get('registry'),
+      authorization: authToken,
     })
     const permissions = 'read-only'
     registry.setPermissions({ spec: '@npmcli/test-package', team: '@npm:test-team', permissions })
@@ -84,10 +91,16 @@ t.test('grant', t => {
 
 t.test('revoke', t => {
   t.test('success', async t => {
-    const { npm } = await loadMockNpm(t)
+    const authToken = 'abcd1234'
+    const { npm } = await loadMockNpm(t, {
+      config: {
+        '//registry.npmjs.org/:_authToken': authToken,
+      },
+    })
     const registry = new MockRegistry({
       tap: t,
       registry: npm.config.get('registry'),
+      authorization: authToken,
     })
     registry.removePermissions({ spec: '@npmcli/test-package', team: '@npm:test-team' })
     await npm.exec('access', ['revoke', '@npm:test-team', '@npmcli/test-package'])

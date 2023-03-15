@@ -389,11 +389,12 @@ class Audit extends ArboristWorkspaceCmd {
     const argv = opts.conf.argv.remain
 
     if (argv.length === 2) {
-      return ['fix']
+      return ['fix', 'signatures']
     }
 
     switch (argv[2]) {
       case 'fix':
+      case 'signatures':
         return []
       default:
         throw Object.assign(new Error(argv[2] + ' not recognized'), {

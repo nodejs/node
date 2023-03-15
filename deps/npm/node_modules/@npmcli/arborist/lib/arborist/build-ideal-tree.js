@@ -1243,7 +1243,7 @@ This is a one-time fix-up, please be patient...
     if (isWorkspace) {
       const existingNode = this.idealTree.edgesOut.get(spec.name).to
       if (existingNode && existingNode.isWorkspace && existingNode.satisfies(edge)) {
-        return edge.to
+        return existingNode
       }
     }
 
