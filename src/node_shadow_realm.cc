@@ -1,20 +1,25 @@
 #include "node_shadow_realm.h"
 #include "env-inl.h"
+#include "node_errors.h"
 
 namespace node {
 namespace shadow_realm {
 using v8::Context;
-using v8::EscapableHandleScope;
 using v8::HandleScope;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Value;
+
+using TryCatchScope = node::errors::TryCatchScope;
 
 // static
 ShadowRealm* ShadowRealm::New(Environment* env) {
   ShadowRealm* realm = new ShadowRealm(env);
   env->AssignToContext(realm->context(), realm, ContextInfo(""));
 
+  // We do not expect the realm bootstrapping to throw any
+  // exceptions. If it does, exit the current Node.js instance.
+  TryCatchScope try_catch(env, TryCatchScope::CatchMode::kFatal);
   if (realm->RunBootstrapping().IsEmpty()) {
     delete realm;
     return nullptr;
@@ -91,21 +96,19 @@ PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
 
 v8::MaybeLocal<v8::Value> ShadowRealm::BootstrapRealm() {
-  EscapableHandleScope scope(isolate_);
-  MaybeLocal<Value> result = v8::True(isolate_);
+  HandleScope scope(isolate_);
 
   // Skip "internal/bootstrap/node" as it installs node globals and per-isolate
-  // callbacks like PrepareStackTraceCallback.
+  // callbacks.
 
   if (!env_->no_browser_globals()) {
-    result = ExecuteBootstrapper("internal/bootstrap/web/exposed-wildcard");
-
-    if (result.IsEmpty()) {
+    if (ExecuteBootstrapper("internal/bootstrap/web/exposed-wildcard")
+            .IsEmpty()) {
       return MaybeLocal<Value>();
     }
   }
 
-  return result;
+  return v8::True(isolate_);
 }
 
 }  // namespace shadow_realm
