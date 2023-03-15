@@ -1729,7 +1729,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [`'data'`]: #event-data
 [`'drain'`]: #event-drain
 [`'end'`]: #event-end
-[`'error'`]: #event-error_1
+[`'error'`]: #event-error-1
 [`'listening'`]: #event-listening
 [`'timeout'`]: #event-timeout
 [`EventEmitter`]: events.md#class-eventemitter
