@@ -535,9 +535,14 @@ module.exports = cls => class Reifier extends cls {
           await this[_renamePath](d, retired)
         }
       }
-      const made = await mkdir(node.path, { recursive: true })
       this[_sparseTreeDirs].add(node.path)
-      this[_sparseTreeRoots].add(made)
+      const made = await mkdir(node.path, { recursive: true })
+      // if the directory already exists, made will be undefined. if that's the case
+      // we don't want to remove it because we aren't the ones who created it so we
+      // omit it from the _sparseTreeRoots
+      if (made) {
+        this[_sparseTreeRoots].add(made)
+      }
     }))
       .then(() => process.emit('timeEnd', 'reify:createSparse'))
   }
