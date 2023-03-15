@@ -2,6 +2,7 @@
 #include "node/inspector/protocol/Protocol.h"
 #include "node_util.h"
 #include "simdutf.h"
+#include "util-inl.h"
 
 namespace node {
 namespace inspector {
