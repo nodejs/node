@@ -19,18 +19,9 @@ using v8::SnapshotCreator;
 using v8::String;
 using v8::Value;
 
-Realm::Realm(Environment* env,
-             v8::Local<v8::Context> context,
-             const RealmSerializeInfo* realm_info)
-    : env_(env), isolate_(context->GetIsolate()) {
+Realm::Realm(Environment* env, v8::Local<v8::Context> context, Kind kind)
+    : env_(env), isolate_(context->GetIsolate()), kind_(kind) {
   context_.Reset(isolate_, context);
-
-  // Create properties if not deserializing from snapshot.
-  // Or the properties are deserialized with DeserializeProperties() when the
-  // env drained the deserialize requests.
-  if (realm_info == nullptr) {
-    CreateProperties();
-  }
 }
 
 Realm::~Realm() {
@@ -208,7 +199,142 @@ MaybeLocal<Value> Realm::BootstrapInternalLoaders() {
   return scope.Escape(loader_exports);
 }
 
-MaybeLocal<Value> Realm::BootstrapNode() {
+MaybeLocal<Value> Realm::RunBootstrapping() {
+  EscapableHandleScope scope(isolate_);
+
+  CHECK(!has_run_bootstrapping_code());
+
+  if (BootstrapInternalLoaders().IsEmpty()) {
+    return MaybeLocal<Value>();
+  }
+
+  Local<Value> result;
+  if (!BootstrapRealm().ToLocal(&result)) {
+    return MaybeLocal<Value>();
+  }
+
+  DoneBootstrapping();
+
+  return scope.Escape(result);
+}
+
+void Realm::DoneBootstrapping() {
+  // Make sure that no request or handle is created during bootstrap -
+  // if necessary those should be done in pre-execution.
+  // Usually, doing so would trigger the checks present in the ReqWrap and
+  // HandleWrap classes, so this is only a consistency check.
+
+  // TODO(legendecas): track req_wrap and handle_wrap by realms instead of
+  // environments.
+  if (kind_ == kPrincipal) {
+    CHECK(env_->req_wrap_queue()->IsEmpty());
+    CHECK(env_->handle_wrap_queue()->IsEmpty());
+  }
+
+  has_run_bootstrapping_code_ = true;
+
+  // This adjusts the return value of base_object_created_after_bootstrap() so
+  // that tests that check the count do not have to account for internally
+  // created BaseObjects.
+  base_object_created_by_bootstrap_ = base_object_count_;
+}
+
+void Realm::RunCleanup() {
+  TRACE_EVENT0(TRACING_CATEGORY_NODE1(realm), "RunCleanup");
+  for (size_t i = 0; i < binding_data_store_.size(); ++i) {
+    binding_data_store_[i].reset();
+  }
+  cleanup_queue_.Drain();
+}
+
+void Realm::PrintInfoForSnapshot() {
+  fprintf(stderr, "Realm = %p\n", this);
+  fprintf(stderr, "BaseObjects of the Realm:\n");
+  size_t i = 0;
+  ForEachBaseObject([&](BaseObject* obj) {
+    std::cout << "#" << i++ << " " << obj << ": " << obj->MemoryInfoName()
+              << "\n";
+  });
+
+  fprintf(stderr, "\nBuiltins without cache:\n");
+  for (const auto& s : builtins_without_cache) {
+    fprintf(stderr, "%s\n", s.c_str());
+  }
+  fprintf(stderr, "\nBuiltins with cache:\n");
+  for (const auto& s : builtins_with_cache) {
+    fprintf(stderr, "%s\n", s.c_str());
+  }
+  fprintf(stderr, "\nStatic bindings (need to be registered):\n");
+  for (const auto mod : internal_bindings) {
+    fprintf(stderr, "%s:%s\n", mod->nm_filename, mod->nm_modname);
+  }
+
+  fprintf(stderr, "End of the Realm.\n");
+}
+
+void Realm::VerifyNoStrongBaseObjects() {
+  // When a process exits cleanly, i.e. because the event loop ends up without
+  // things to wait for, the Node.js objects that are left on the heap should
+  // be:
+  //
+  //   1. weak, i.e. ready for garbage collection once no longer referenced, or
+  //   2. detached, i.e. scheduled for destruction once no longer referenced, or
+  //   3. an unrefed libuv handle, i.e. does not keep the event loop alive, or
+  //   4. an inactive libuv handle (essentially the same here)
+  //
+  // There are a few exceptions to this rule, but generally, if there are
+  // C++-backed Node.js objects on the heap that do not fall into the above
+  // categories, we may be looking at a potential memory leak. Most likely,
+  // the cause is a missing MakeWeak() call on the corresponding object.
+  //
+  // In order to avoid this kind of problem, we check the list of BaseObjects
+  // for these criteria. Currently, we only do so when explicitly instructed to
+  // or when in debug mode (where --verify-base-objects is always-on).
+
+  // TODO(legendecas): introduce per-realm options.
+  if (!env()->options()->verify_base_objects) return;
+
+  ForEachBaseObject([](BaseObject* obj) {
+    if (obj->IsNotIndicativeOfMemoryLeakAtExit()) return;
+    fprintf(stderr,
+            "Found bad BaseObject during clean exit: %s\n",
+            obj->MemoryInfoName());
+    fflush(stderr);
+    ABORT();
+  });
+}
+
+v8::Local<v8::Context> Realm::context() const {
+  return PersistentToLocal::Strong(context_);
+}
+
+#define V(PropertyName, TypeName)                                              \
+  v8::Local<TypeName> PrincipalRealm::PropertyName() const {                   \
+    return PersistentToLocal::Strong(PropertyName##_);                         \
+  }                                                                            \
+  void PrincipalRealm::set_##PropertyName(v8::Local<TypeName> value) {         \
+    PropertyName##_.Reset(isolate(), value);                                   \
+  }
+PER_REALM_STRONG_PERSISTENT_VALUES(V)
+#undef V
+
+PrincipalRealm::PrincipalRealm(Environment* env,
+                               v8::Local<v8::Context> context,
+                               const RealmSerializeInfo* realm_info)
+    : Realm(env, context, kPrincipal) {
+  // Create properties if not deserializing from snapshot.
+  // Or the properties are deserialized with DeserializeProperties() when the
+  // env drained the deserialize requests.
+  if (realm_info == nullptr) {
+    CreateProperties();
+  }
+}
+
+void PrincipalRealm::MemoryInfo(MemoryTracker* tracker) const {
+  Realm::MemoryInfo(tracker);
+}
+
+MaybeLocal<Value> PrincipalRealm::BootstrapRealm() {
   EscapableHandleScope scope(isolate_);
 
   MaybeLocal<Value> result = ExecuteBootstrapper("internal/bootstrap/node");
@@ -255,109 +381,6 @@ MaybeLocal<Value> Realm::BootstrapNode() {
   }
 
   return scope.EscapeMaybe(result);
-}
-
-MaybeLocal<Value> Realm::RunBootstrapping() {
-  EscapableHandleScope scope(isolate_);
-
-  CHECK(!has_run_bootstrapping_code());
-
-  if (BootstrapInternalLoaders().IsEmpty()) {
-    return MaybeLocal<Value>();
-  }
-
-  Local<Value> result;
-  if (!BootstrapNode().ToLocal(&result)) {
-    return MaybeLocal<Value>();
-  }
-
-  DoneBootstrapping();
-
-  return scope.Escape(result);
-}
-
-void Realm::DoneBootstrapping() {
-  // Make sure that no request or handle is created during bootstrap -
-  // if necessary those should be done in pre-execution.
-  // Usually, doing so would trigger the checks present in the ReqWrap and
-  // HandleWrap classes, so this is only a consistency check.
-
-  // TODO(legendecas): track req_wrap and handle_wrap by realms instead of
-  // environments.
-  CHECK(env_->req_wrap_queue()->IsEmpty());
-  CHECK(env_->handle_wrap_queue()->IsEmpty());
-
-  has_run_bootstrapping_code_ = true;
-
-  // This adjusts the return value of base_object_created_after_bootstrap() so
-  // that tests that check the count do not have to account for internally
-  // created BaseObjects.
-  base_object_created_by_bootstrap_ = base_object_count_;
-}
-
-void Realm::RunCleanup() {
-  TRACE_EVENT0(TRACING_CATEGORY_NODE1(realm), "RunCleanup");
-  for (size_t i = 0; i < binding_data_store_.size(); ++i) {
-    binding_data_store_[i].reset();
-  }
-  cleanup_queue_.Drain();
-}
-
-void Realm::PrintInfoForSnapshot() {
-  fprintf(stderr, "Realm = %p\n", this);
-  fprintf(stderr, "BaseObjects of the Realm:\n");
-  size_t i = 0;
-  ForEachBaseObject([&](BaseObject* obj) {
-    std::cout << "#" << i++ << " " << obj << ": " << obj->MemoryInfoName()
-              << "\n";
-  });
-
-  fprintf(stderr, "\nnBuiltins without cache:\n");
-  for (const auto& s : builtins_without_cache) {
-    fprintf(stderr, "%s\n", s.c_str());
-  }
-  fprintf(stderr, "\nBuiltins with cache:\n");
-  for (const auto& s : builtins_with_cache) {
-    fprintf(stderr, "%s\n", s.c_str());
-  }
-  fprintf(stderr, "\nStatic bindings (need to be registered):\n");
-  for (const auto mod : internal_bindings) {
-    fprintf(stderr, "%s:%s\n", mod->nm_filename, mod->nm_modname);
-  }
-
-  fprintf(stderr, "End of the Realm.\n");
-}
-
-void Realm::VerifyNoStrongBaseObjects() {
-  // When a process exits cleanly, i.e. because the event loop ends up without
-  // things to wait for, the Node.js objects that are left on the heap should
-  // be:
-  //
-  //   1. weak, i.e. ready for garbage collection once no longer referenced, or
-  //   2. detached, i.e. scheduled for destruction once no longer referenced, or
-  //   3. an unrefed libuv handle, i.e. does not keep the event loop alive, or
-  //   4. an inactive libuv handle (essentially the same here)
-  //
-  // There are a few exceptions to this rule, but generally, if there are
-  // C++-backed Node.js objects on the heap that do not fall into the above
-  // categories, we may be looking at a potential memory leak. Most likely,
-  // the cause is a missing MakeWeak() call on the corresponding object.
-  //
-  // In order to avoid this kind of problem, we check the list of BaseObjects
-  // for these criteria. Currently, we only do so when explicitly instructed to
-  // or when in debug mode (where --verify-base-objects is always-on).
-
-  // TODO(legendecas): introduce per-realm options.
-  if (!env()->options()->verify_base_objects) return;
-
-  ForEachBaseObject([](BaseObject* obj) {
-    if (obj->IsNotIndicativeOfMemoryLeakAtExit()) return;
-    fprintf(stderr,
-            "Found bad BaseObject during clean exit: %s\n",
-            obj->MemoryInfoName());
-    fflush(stderr);
-    ABORT();
-  });
 }
 
 }  // namespace node
