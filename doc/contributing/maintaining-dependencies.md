@@ -49,7 +49,7 @@ more of these reasons:
 3. They have a system wide configuration for the
    dependency that all applications should respect.
 
-## Supporting externalized dependencies with native code.
+## Supporting externalized dependencies with native code
 
 Support for externalized dependencies with native code for which a
 shared library is available can added by:
@@ -76,7 +76,7 @@ shared library is available can added by:
     }],
 ```
 
-## Supporting externalizable dependencies with JavaScript codeIZA
+## Supporting externalizable dependencies with JavaScript code
 
 Support for an externalizable dependency with JavaScript code
 can be added by:
