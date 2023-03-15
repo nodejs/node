@@ -146,12 +146,15 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
+#define VR(PropertyName, TypeName) V(v8::Private, per_realm_##PropertyName)
 #define V(TypeName, PropertyName)                                             \
   inline v8::Local<TypeName> PropertyName() const;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
+  PER_REALM_STRONG_PERSISTENT_VALUES(VR)
 #undef V
+#undef VR
 #undef VY
 #undef VS
 #undef VP
@@ -183,6 +186,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
+#define VR(PropertyName, TypeName) V(v8::Private, per_realm_##PropertyName)
 #define VM(PropertyName) V(v8::FunctionTemplate, PropertyName##_binding)
 #define VT(PropertyName, TypeName) V(TypeName, PropertyName)
 #define V(TypeName, PropertyName)                                             \
@@ -191,9 +195,11 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
   PER_ISOLATE_TEMPLATE_PROPERTIES(VT)
+  PER_REALM_STRONG_PERSISTENT_VALUES(VR)
   NODE_BINDINGS_WITH_PER_ISOLATE_INIT(VM)
 #undef V
 #undef VM
+#undef VR
 #undef VT
 #undef VS
 #undef VY
@@ -1126,7 +1132,7 @@ class Environment : public MemoryRetainer {
   std::function<void(Environment*, ExitCode)> process_exit_handler_{
       DefaultProcessExitHandlerInternal};
 
-  std::unique_ptr<Realm> principal_realm_ = nullptr;
+  std::unique_ptr<PrincipalRealm> principal_realm_ = nullptr;
 
   builtins::BuiltinLoader builtin_loader_;
   StartExecutionCallback embedder_mksnapshot_entry_point_;
