@@ -9,7 +9,7 @@ const {
   fail,
   rejects,
 } = require('assert');
-const { kEvents } = require('internal/event_target');
+const { kState } = require('internal/event_target');
 
 async function onceAnEvent() {
   const ee = new EventEmitter();
@@ -80,7 +80,7 @@ async function catchesErrorsWithAbortSignal() {
   try {
     const promise = once(ee, 'myevent', { signal });
     strictEqual(ee.listenerCount('error'), 1);
-    strictEqual(signal[kEvents].size, 1);
+    strictEqual(signal[kState].events.size, 1);
 
     await promise;
   } catch (e) {
@@ -89,7 +89,7 @@ async function catchesErrorsWithAbortSignal() {
   strictEqual(err, expected);
   strictEqual(ee.listenerCount('error'), 0);
   strictEqual(ee.listenerCount('myevent'), 0);
-  strictEqual(signal[kEvents].size, 0);
+  strictEqual(signal[kState].events.size, 0);
 }
 
 async function stopListeningAfterCatchingError() {
@@ -200,9 +200,9 @@ async function abortSignalAfterEvent() {
     ac.abort();
   });
   const promise = once(ee, 'foo', { signal: ac.signal });
-  strictEqual(ac.signal[kEvents].size, 1);
+  strictEqual(ac.signal[kState].events.size, 1);
   await promise;
-  strictEqual(ac.signal[kEvents].size, 0);
+  strictEqual(ac.signal[kState].events.size, 0);
 }
 
 async function abortSignalRemoveListener() {
