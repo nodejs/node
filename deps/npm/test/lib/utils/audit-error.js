@@ -87,7 +87,7 @@ t.test('error, audit command, json', async t => {
       message: 'message',
       body: { response: 'body' },
       method: 'POST',
-      uri: 'https://example.com/not/a/registry',
+      uri: 'https://username:password@example.com/not/a/registry',
       headers: {
         head: ['ers'],
       },
@@ -101,7 +101,7 @@ t.test('error, audit command, json', async t => {
     '{\n' +
       '  "message": "message",\n' +
       '  "method": "POST",\n' +
-      '  "uri": "https://example.com/not/a/registry",\n' +
+      '  "uri": "https://username:***@example.com/not/a/registry",\n' +
       '  "headers": {\n' +
       '    "head": [\n' +
       '      "ers"\n' +

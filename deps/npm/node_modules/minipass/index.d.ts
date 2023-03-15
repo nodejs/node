@@ -26,21 +26,23 @@ declare namespace Minipass {
 
   type BufferOrString = Buffer | string
 
-  interface StringOptions {
+  interface SharedOptions {
+    async?: boolean
+    signal?: AbortSignal
+  }
+
+  interface StringOptions extends SharedOptions {
     encoding: BufferEncoding
     objectMode?: boolean
-    async?: boolean
   }
 
-  interface BufferOptions {
+  interface BufferOptions extends SharedOptions {
     encoding?: null | 'buffer'
     objectMode?: boolean
-    async?: boolean
   }
 
-  interface ObjectModeOptions {
+  interface ObjectModeOptions extends SharedOptions {
     objectMode: true
-    async?: boolean
   }
 
   interface PipeOptions {
@@ -70,6 +72,7 @@ declare class Minipass<
   readonly flowing: boolean
   readonly writable: boolean
   readonly readable: boolean
+  readonly aborted: boolean
   readonly paused: boolean
   readonly emittedEnd: boolean
   readonly destroyed: boolean

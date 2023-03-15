@@ -79,12 +79,10 @@ class Completion extends BaseCommand {
       })
     }
 
-    const { COMP_CWORD, COMP_LINE, COMP_POINT } = process.env
+    const { COMP_CWORD, COMP_LINE, COMP_POINT, COMP_FISH } = process.env
 
     // if the COMP_* isn't in the env, then just dump the script.
-    if (COMP_CWORD === undefined ||
-      COMP_LINE === undefined ||
-      COMP_POINT === undefined) {
+    if (COMP_CWORD === undefined || COMP_LINE === undefined || COMP_POINT === undefined) {
       return dumpScript(resolve(this.npm.npmRoot, 'lib', 'utils', 'completion.sh'))
     }
 
@@ -111,6 +109,7 @@ class Completion extends BaseCommand {
     partialWords.push(partialWord)
 
     const opts = {
+      isFish: COMP_FISH === 'true',
       words,
       w,
       word,
