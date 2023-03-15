@@ -299,13 +299,16 @@ IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
 #define VP(PropertyName, StringValue) V(Private, PropertyName)
 #define VY(PropertyName, StringValue) V(Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(String, PropertyName)
+#define VR(PropertyName, TypeName) V(Private, per_realm_##PropertyName)
 #define V(TypeName, PropertyName)                                              \
   info.primitive_values.push_back(                                             \
       creator->AddData(PropertyName##_.Get(isolate)));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
+  PER_REALM_STRONG_PERSISTENT_VALUES(VR)
 #undef V
+#undef VR
 #undef VY
 #undef VS
 #undef VP
@@ -338,6 +341,7 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
 #define VP(PropertyName, StringValue) V(Private, PropertyName)
 #define VY(PropertyName, StringValue) V(Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(String, PropertyName)
+#define VR(PropertyName, TypeName) V(Private, per_realm_##PropertyName)
 #define V(TypeName, PropertyName)                                              \
   do {                                                                         \
     MaybeLocal<TypeName> maybe_field =                                         \
@@ -352,7 +356,9 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
+  PER_REALM_STRONG_PERSISTENT_VALUES(VR)
 #undef V
+#undef VR
 #undef VY
 #undef VS
 #undef VP
@@ -420,6 +426,19 @@ void IsolateData::CreateProperties() {
                        sizeof(StringValue) - 1)                                \
                        .ToLocalChecked()));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
+#undef V
+#define V(PropertyName, TypeName)                                              \
+  per_realm_##PropertyName##_.Set(                                             \
+      isolate_,                                                                \
+      Private::New(                                                            \
+          isolate_,                                                            \
+          String::NewFromOneByte(                                              \
+              isolate_,                                                        \
+              reinterpret_cast<const uint8_t*>("per_realm_" #PropertyName),    \
+              NewStringType::kInternalized,                                    \
+              sizeof("per_realm_" #PropertyName) - 1)                          \
+              .ToLocalChecked()));
+  PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
 #define V(PropertyName, StringValue)                                           \
   PropertyName##_.Set(                                                         \
@@ -786,7 +805,7 @@ Environment::Environment(IsolateData* isolate_data,
 
 void Environment::InitializeMainContext(Local<Context> context,
                                         const EnvSerializeInfo* env_info) {
-  principal_realm_ = std::make_unique<Realm>(
+  principal_realm_ = std::make_unique<PrincipalRealm>(
       this, context, MAYBE_FIELD_PTR(env_info, principal_realm));
   AssignToContext(context, principal_realm_.get(), ContextInfo(""));
   if (env_info != nullptr) {

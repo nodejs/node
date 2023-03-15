@@ -42,6 +42,10 @@ inline v8::Isolate* Realm::isolate() const {
   return isolate_;
 }
 
+inline Realm::Kind Realm::kind() const {
+  return kind_;
+}
+
 inline bool Realm::has_run_bootstrapping_code() const {
   return has_run_bootstrapping_code_;
 }
@@ -113,20 +117,6 @@ int64_t Realm::base_object_created_after_bootstrap() const {
 
 int64_t Realm::base_object_count() const {
   return base_object_count_;
-}
-
-#define V(PropertyName, TypeName)                                              \
-  inline v8::Local<TypeName> Realm::PropertyName() const {                     \
-    return PersistentToLocal::Strong(PropertyName##_);                         \
-  }                                                                            \
-  inline void Realm::set_##PropertyName(v8::Local<TypeName> value) {           \
-    PropertyName##_.Reset(isolate(), value);                                   \
-  }
-PER_REALM_STRONG_PERSISTENT_VALUES(V)
-#undef V
-
-v8::Local<v8::Context> Realm::context() const {
-  return PersistentToLocal::Strong(context_);
 }
 
 void Realm::AddCleanupHook(CleanupQueue::Callback fn, void* arg) {

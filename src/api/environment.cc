@@ -67,6 +67,16 @@ MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
   if (env == nullptr) {
     return exception->ToString(context).FromMaybe(Local<Value>());
   }
+  // TODO(legendecas): Per-realm prepareStackTrace callback.
+  // If we are in a Realm that is not the principal Realm (e.g. ShadowRealm),
+  // skip the prepareStackTrace callback to avoid passing the JS objects (
+  // the exception and trace) across the realm boundary with the
+  // `Error.prepareStackTrace` override.
+  Realm* current_realm = Realm::GetCurrent(context);
+  if (current_realm != nullptr &&
+      current_realm->kind() != Realm::Kind::kPrincipal) {
+    return exception->ToString(context).FromMaybe(Local<Value>());
+  }
   Local<Function> prepare = env->prepare_stack_trace_callback();
   if (prepare.IsEmpty()) {
     return exception->ToString(context).FromMaybe(Local<Value>());
@@ -81,8 +91,8 @@ MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
   // is what ReThrow gives us). Just returning the empty MaybeLocal would leave
   // us with a pending exception.
   TryCatchScope try_catch(env);
-  MaybeLocal<Value> result = prepare->Call(
-      context, Undefined(env->isolate()), arraysize(args), args);
+  MaybeLocal<Value> result =
+      prepare->Call(context, Undefined(env->isolate()), arraysize(args), args);
   if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
     try_catch.ReThrow();
   }

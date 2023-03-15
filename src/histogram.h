@@ -84,8 +84,9 @@ class HistogramImpl {
 class HistogramBase : public BaseObject, public HistogramImpl {
  public:
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
-    Environment* env);
-  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+      IsolateData* isolate_data);
+  static void Initialize(IsolateData* isolate_data,
+                         v8::Local<v8::ObjectTemplate> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static BaseObjectPtr<HistogramBase> Create(

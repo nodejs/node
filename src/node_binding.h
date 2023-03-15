@@ -24,9 +24,17 @@ static_assert(static_cast<int>(NM_F_LINKED) ==
               static_cast<int>(node::ModuleFlags::kLinked),
               "NM_F_LINKED != node::ModuleFlags::kLinked");
 
+#if NODE_HAVE_I18N_SUPPORT
+#define NODE_BUILTIN_ICU_BINDINGS(V) V(icu)
+#else
+#define NODE_BUILTIN_ICU_BINDINGS(V)
+#endif
+
 #define NODE_BINDINGS_WITH_PER_ISOLATE_INIT(V)                                 \
   V(builtins)                                                                  \
-  V(worker)
+  V(performance)                                                               \
+  V(worker)                                                                    \
+  NODE_BUILTIN_ICU_BINDINGS(V)
 
 #define NODE_BINDING_CONTEXT_AWARE_CPP(modname, regfunc, priv, flags)          \
   static node::node_module _module = {                                         \
@@ -56,6 +64,8 @@ namespace node {
   NODE_BINDING_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_INTERNAL)
 
 // Define a per-isolate initialization function for a node internal binding.
+// The modname should be registered in the NODE_BINDINGS_WITH_PER_ISOLATE_INIT
+// list.
 #define NODE_BINDING_PER_ISOLATE_INIT(modname, per_isolate_func)               \
   void _register_isolate_##modname(node::IsolateData* isolate_data,            \
                                    v8::Local<v8::FunctionTemplate> target) {   \

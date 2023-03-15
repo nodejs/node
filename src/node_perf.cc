@@ -28,9 +28,9 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
-using v8::String;
 using v8::Value;
 
 // Microseconds in a millisecond, as a float.
@@ -99,7 +99,10 @@ void PerformanceState::Mark(PerformanceMilestone milestone, uint64_t ts) {
 
 // Allows specific Node.js lifecycle milestones to be set from JavaScript
 void MarkMilestone(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Realm* realm = Realm::GetCurrent(args);
+  // TODO(legendecas): Remove this check once the sub-realms are supported.
+  CHECK_EQ(realm->kind(), Realm::Kind::kPrincipal);
+  Environment* env = realm->env();
   PerformanceMilestone milestone =
       static_cast<PerformanceMilestone>(args[0].As<Int32>()->Value());
   if (milestone != NODE_PERFORMANCE_MILESTONE_INVALID)
@@ -107,9 +110,11 @@ void MarkMilestone(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SetupPerformanceObservers(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Realm* realm = Realm::GetCurrent(args);
+  // TODO(legendecas): Remove this check once the sub-realms are supported.
+  CHECK_EQ(realm->kind(), Realm::Kind::kPrincipal);
   CHECK(args[0]->IsFunction());
-  env->set_performance_entry_callback(args[0].As<Function>());
+  realm->set_performance_entry_callback(args[0].As<Function>());
 }
 
 // Marks the start of a GC cycle
@@ -284,15 +289,41 @@ void GetTimeOriginTimeStamp(const FunctionCallbackInfo<Value>& args) {
 }
 
 void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  env->performance_state()->Mark(
+  Realm* realm = Realm::GetCurrent(args);
+  CHECK_EQ(realm->kind(), Realm::Kind::kPrincipal);
+  realm->env()->performance_state()->Mark(
       performance::NODE_PERFORMANCE_MILESTONE_BOOTSTRAP_COMPLETE);
 }
 
-void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context,
-                void* priv) {
+static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                       Local<FunctionTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
+  Local<ObjectTemplate> proto = target->PrototypeTemplate();
+
+  HistogramBase::Initialize(isolate_data, proto);
+
+  SetMethod(isolate, proto, "markMilestone", MarkMilestone);
+  SetMethod(isolate, proto, "setupObservers", SetupPerformanceObservers);
+  SetMethod(isolate,
+            proto,
+            "installGarbageCollectionTracking",
+            InstallGarbageCollectionTracking);
+  SetMethod(isolate,
+            proto,
+            "removeGarbageCollectionTracking",
+            RemoveGarbageCollectionTracking);
+  SetMethod(isolate, proto, "notify", Notify);
+  SetMethod(isolate, proto, "loopIdleTime", LoopIdleTime);
+  SetMethod(isolate, proto, "getTimeOrigin", GetTimeOrigin);
+  SetMethod(isolate, proto, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
+  SetMethod(isolate, proto, "createELDHistogram", CreateELDHistogram);
+  SetMethod(isolate, proto, "markBootstrapComplete", MarkBootstrapComplete);
+}
+
+void CreatePerContextProperties(Local<Object> target,
+                                Local<Value> unused,
+                                Local<Context> context,
+                                void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   PerformanceState* state = env->performance_state();
@@ -303,32 +334,6 @@ void Initialize(Local<Object> target,
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "milestones"),
               state->milestones.GetJSArray()).Check();
-
-  Local<String> performanceEntryString =
-      FIXED_ONE_BYTE_STRING(isolate, "PerformanceEntry");
-
-  Local<FunctionTemplate> pe = FunctionTemplate::New(isolate);
-  pe->SetClassName(performanceEntryString);
-  Local<Function> fn = pe->GetFunction(context).ToLocalChecked();
-  target->Set(context, performanceEntryString, fn).Check();
-  env->set_performance_entry_template(fn);
-
-  SetMethod(context, target, "markMilestone", MarkMilestone);
-  SetMethod(context, target, "setupObservers", SetupPerformanceObservers);
-  SetMethod(context,
-            target,
-            "installGarbageCollectionTracking",
-            InstallGarbageCollectionTracking);
-  SetMethod(context,
-            target,
-            "removeGarbageCollectionTracking",
-            RemoveGarbageCollectionTracking);
-  SetMethod(context, target, "notify", Notify);
-  SetMethod(context, target, "loopIdleTime", LoopIdleTime);
-  SetMethod(context, target, "getTimeOrigin", GetTimeOrigin);
-  SetMethod(context, target, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
-  SetMethod(context, target, "createELDHistogram", CreateELDHistogram);
-  SetMethod(context, target, "markBootstrapComplete", MarkBootstrapComplete);
 
   Local<Object> constants = Object::New(isolate);
 
@@ -365,12 +370,8 @@ void Initialize(Local<Object> target,
   PropertyAttribute attr =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
 
-  target->DefineOwnProperty(context,
-                            env->constants_string(),
-                            constants,
-                            attr).ToChecked();
-
-  HistogramBase::Initialize(env, target);
+  target->DefineOwnProperty(context, env->constants_string(), constants, attr)
+      .ToChecked();
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -390,6 +391,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace performance
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(performance, node::performance::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(
+    performance, node::performance::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(performance,
+                              node::performance::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(performance,
                                 node::performance::RegisterExternalReferences)
