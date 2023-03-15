@@ -1150,11 +1150,14 @@ static void IsAscii(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Realm* realm = Realm::GetCurrent(args);
+
+  // TODO(legendecas): Remove this check once the binding supports sub-realms.
+  CHECK_EQ(realm->kind(), Realm::Kind::kPrincipal);
 
   CHECK(args[0]->IsObject());
   Local<Object> proto = args[0].As<Object>();
-  env->set_buffer_prototype_object(proto);
+  realm->set_buffer_prototype_object(proto);
 }
 
 void GetZeroFillToggle(const FunctionCallbackInfo<Value>& args) {
