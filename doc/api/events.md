@@ -1281,7 +1281,8 @@ For `EventEmitter`s this behaves exactly the same as calling `.getMaxListeners` 
 the emitter.
 
 For `EventTarget`s this is the only way to get the max event listeners for the
-event target.
+event target. If the number of event handlers on a single EventTarget exceeds the
+max set, the EventTarget will print a warning.
 
 ```mjs
 import { getMaxListeners, setMaxListeners, EventEmitter } from 'node:events';
