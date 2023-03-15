@@ -9,7 +9,7 @@ description: Install a project with a clean slate and run tests
 ```bash
 npm install-ci-test
 
-alias: cit
+aliases: cit, clean-install-test, sit
 ```
 
 ### Description
