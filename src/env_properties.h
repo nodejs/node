@@ -20,7 +20,6 @@
 #define PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)                               \
   V(arrow_message_private_symbol, "node:arrowMessage")                         \
   V(contextify_context_private_symbol, "node:contextify:context")              \
-  V(compiled_function_entry, "node:compiled_function_entry")                   \
   V(decorated_private_symbol, "node:decorated")                                \
   V(napi_type_tag, "node:napi:type_tag")                                       \
   V(napi_wrapper, "node:napi:wrapper")                                         \
