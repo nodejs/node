@@ -218,9 +218,10 @@ MaybeLocal<Value> Realm::BootstrapNode() {
   }
 
   if (!env_->no_browser_globals()) {
-    result = ExecuteBootstrapper("internal/bootstrap/browser");
-
-    if (result.IsEmpty()) {
+    if (ExecuteBootstrapper("internal/bootstrap/web/exposed-wildcard")
+            .IsEmpty() ||
+        ExecuteBootstrapper("internal/bootstrap/web/exposed-window-or-worker")
+            .IsEmpty()) {
       return MaybeLocal<Value>();
     }
   }
