@@ -8,7 +8,8 @@
 </tr>
 <tr>
 <td>
-<b><a href="#19.8.0">19.8.0</a></b><br/>
+<b><a href="#19.8.1">19.8.1</a></b><br/>
+<a href="#19.8.0">19.8.0</a><br/>
 <a href="#19.7.0">19.7.0</a><br/>
 <a href="#19.6.1">19.6.1</a><br/>
 <a href="#19.6.0">19.6.0</a><br/>
@@ -43,6 +44,21 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="19.8.1"></a>
+
+## 2023-03-15, Version 19.8.1 (Current), @targos
+
+### Notable Changes
+
+This release contains a single revert of a change that was introduced in v19.8.0
+and introduced application crashes.
+
+Fixes: <https://github.com/nodejs/node/issues/47096>
+
+### Commits
+
+* \[[`f7c8aa4cf1`](https://github.com/nodejs/node/commit/f7c8aa4cf1)] - _**Revert**_ "**vm**: fix leak in vm.compileFunction when importModuleDynamically is used" (Michaël Zasso) [#47101](https://github.com/nodejs/node/pull/47101)
 
 <a id="19.8.0"></a>
 
