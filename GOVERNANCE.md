@@ -74,7 +74,7 @@ has authored or approved a commit that has landed.
 ## Technical Steering Committee
 
 A subset of the collaborators forms the Technical Steering Committee (TSC).
-The TSC voting members have final authority over this project, including:
+The TSC has final authority over this project, including:
 
 * Technical direction
 * Project governance and process (including this policy)
@@ -103,8 +103,8 @@ something. If consensus-seeking fails for an issue, a collaborator may apply the
 `tsc-agenda` label. That will add it to the TSC meeting agenda.
 
 Before each TSC meeting, the meeting chair will share the agenda with members of
-the TSC. TSC voting members can also add items to the agenda at the beginning of
-each meeting. The meeting chair and the TSC cannot veto or remove items.
+the TSC. TSC members can also add items to the agenda at the beginning of each
+meeting. The meeting chair and the TSC cannot veto or remove items.
 
 The TSC may invite people to take part in a non-voting capacity.
 
