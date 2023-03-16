@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 
-// Identify inactive TSC members.
+// Identify inactive TSC voting members.
 
 // From the TSC Charter:
-//   A TSC member is automatically removed from the TSC if, during a 3-month
-//   period, all of the following are true:
-//     * They attend fewer than 25% of the regularly scheduled meetings.
-//     * They do not participate in any TSC votes.
+//   A TSC voting member is automatically converted to a TSC regular member if
+//   they do not participate in three consecutive TSC votes.
 
 import cp from 'node:child_process';
 import fs from 'node:fs';
@@ -20,9 +18,8 @@ const args = parseArgs({
 });
 
 const verbose = args.values.verbose;
-const SINCE = args.positionals[0] || '3 months ago';
 
-async function runGitCommand(cmd, options = {}) {
+async function runShellCommand(cmd, options = {}) {
   const childProcess = cp.spawn('/bin/sh', ['-c', cmd], {
     cwd: options.cwd ?? new URL('..', import.meta.url),
     encoding: 'utf8',
@@ -34,17 +31,14 @@ async function runGitCommand(cmd, options = {}) {
   const errorHandler = new Promise(
     (_, reject) => childProcess.on('error', reject),
   );
-  let returnValue = options.mapFn ? new Set() : '';
+  let returnValue = options.returnAsArray ? [] : '';
   await Promise.race([errorHandler, Promise.resolve()]);
   // If no mapFn, return the value. If there is a mapFn, use it to make a Set to
   // return.
   for await (const line of lines) {
     await Promise.race([errorHandler, Promise.resolve()]);
-    if (options.mapFn) {
-      const val = options.mapFn(line);
-      if (val) {
-        returnValue.add(val);
-      }
+    if (options.returnAsArray) {
+      returnValue.push(line);
     } else {
       returnValue += line;
     }
@@ -60,6 +54,13 @@ async function getTscFromReadme() {
   const returnedArray = [];
   let foundTscHeading = false;
   for await (const line of readmeText) {
+    // Until three votes have passed from March 16, 2023, we will need this.
+    // After that point, we can use this for setting `foundTscHeading` below
+    // and remove this.
+    if (line === '#### TSC voting members') {
+      continue;
+    }
+
     // If we've found the TSC heading already, stop processing at the next
     // heading.
     if (foundTscHeading && line.startsWith('#')) {
@@ -84,36 +85,6 @@ async function getTscFromReadme() {
   return returnedArray;
 }
 
-async function getAttendance(tscMembers, meetings) {
-  const attendance = {};
-  for (const member of tscMembers) {
-    attendance[member] = 0;
-  }
-  for (const meeting of meetings) {
-    // Get the file contents.
-    const meetingFile =
-      await fs.promises.readFile(path.join('.tmp', meeting), 'utf8');
-    // Extract the attendee list.
-    const startMarker = '## Present';
-    const start = meetingFile.indexOf(startMarker) + startMarker.length;
-    const end = meetingFile.indexOf('## Agenda');
-    meetingFile.substring(start, end).trim().split('\n')
-      .map((line) => {
-        const match = line.match(/@(\S+)/);
-        if (match) {
-          return match[1];
-        }
-        // Using `console.warn` so that stdout output is not generated.
-        // The stdout output is consumed in find-inactive-tsc.yml.
-        console.warn(`Attendee entry does not contain GitHub handle: ${line}`);
-        return '';
-      })
-      .filter((handle) => tscMembers.includes(handle))
-      .forEach((handle) => { attendance[handle]++; });
-  }
-  return attendance;
-}
-
 async function getVotingRecords(tscMembers, votes) {
   const votingRecords = {};
   for (const member of tscMembers) {
@@ -122,7 +93,7 @@ async function getVotingRecords(tscMembers, votes) {
   for (const vote of votes) {
     // Get the vote data.
     const voteData = JSON.parse(
-      await fs.promises.readFile(path.join('.tmp', vote), 'utf8'),
+      await fs.promises.readFile(path.join('.tmp/votes', vote), 'utf8'),
     );
     for (const member in voteData.votes) {
       if (tscMembers.includes(member)) {
@@ -133,22 +104,22 @@ async function getVotingRecords(tscMembers, votes) {
   return votingRecords;
 }
 
-async function moveTscToEmeritus(peopleToMove) {
+async function moveVotingToRegular(peopleToMove) {
   const readmeText = readline.createInterface({
     input: fs.createReadStream(new URL('../README.md', import.meta.url)),
     crlfDelay: Infinity,
   });
   let fileContents = '';
-  let inTscSection = false;
-  let inTscEmeritusSection = false;
+  let inTscVotingSection = false;
+  let inTscRegularSection = false;
   let memberFirstLine = '';
   const textToMove = [];
   let moveToInactive = false;
   for await (const line of readmeText) {
-    // If we've been processing TSC emeriti and we reach the end of
+    // If we've been processing TSC regular members and we reach the end of
     // the list, print out the remaining entries to be moved because they come
     // alphabetically after the last item.
-    if (inTscEmeritusSection && line === '' &&
+    if (inTscRegularSection && line === '' &&
         fileContents.endsWith('>\n')) {
       while (textToMove.length) {
         fileContents += textToMove.pop();
@@ -158,21 +129,21 @@ async function moveTscToEmeritus(peopleToMove) {
     // If we've found the TSC heading already, stop processing at the
     // next heading.
     if (line.startsWith('#')) {
-      inTscSection = false;
-      inTscEmeritusSection = false;
+      inTscVotingSection = false;
+      inTscRegularSection = false;
     }
 
-    const isTsc = inTscSection && line.length;
-    const isTscEmeritus = inTscEmeritusSection && line.length;
+    const isTscVoting = inTscVotingSection && line.length;
+    const isTscRegular = inTscRegularSection && line.length;
 
-    if (line === '### TSC (Technical Steering Committee)') {
-      inTscSection = true;
+    if (line === '#### TSC voting members') {
+      inTscVotingSection = true;
     }
-    if (line === '### TSC emeriti') {
-      inTscEmeritusSection = true;
+    if (line === '#### TSC regular members') {
+      inTscRegularSection = true;
     }
 
-    if (isTsc) {
+    if (isTscVoting) {
       if (line.startsWith('* ')) {
         memberFirstLine = line;
         const match = line.match(/^\* \[([^\]]+)/);
@@ -191,7 +162,7 @@ async function moveTscToEmeritus(peopleToMove) {
       }
     }
 
-    if (isTscEmeritus) {
+    if (isTscRegular) {
       if (line.startsWith('* ')) {
         memberFirstLine = line;
       } else if (line.startsWith('  **')) {
@@ -207,7 +178,7 @@ async function moveTscToEmeritus(peopleToMove) {
       }
     }
 
-    if (!isTsc && !isTscEmeritus) {
+    if (!isTscVoting && !isTscRegular) {
       fileContents += `${line}\n`;
     }
   }
@@ -215,71 +186,54 @@ async function moveTscToEmeritus(peopleToMove) {
   return fileContents;
 }
 
-// Get current TSC members, then get TSC members at start of period. Only check
-// TSC members who are on both lists. This way, we don't flag someone who has
-// only been on the TSC for a week and therefore hasn't attended any meetings.
+// Get current TSC voting members, then get TSC voting members at start of
+// period. Only check TSC voting members who are on both lists. This way, we
+// don't flag someone who hasn't been on the TSC long enough to have missed 3
+// consecutive votes.
 const tscMembersAtEnd = await getTscFromReadme();
 
-const startCommit = await runGitCommand(`git rev-list -1 --before '${SINCE}' HEAD`);
-await runGitCommand(`git checkout ${startCommit} -- README.md`);
+// Get the last three votes.
+// Assumes that the TSC repo is cloned in the .tmp dir.
+const votes = await runShellCommand(
+  'ls *.json | sort -rn | head -3',
+  { cwd: '.tmp/votes', returnAsArray: true },
+);
+
+// Reverse the votes list so the oldest of the three votes is first.
+votes.reverse();
+
+const startCommit = await runShellCommand(`git rev-list -1 --before '${votes[0]}' HEAD`);
+await runShellCommand(`git checkout ${startCommit} -- README.md`);
 const tscMembersAtStart = await getTscFromReadme();
-await runGitCommand('git reset HEAD README.md');
-await runGitCommand('git checkout -- README.md');
+await runShellCommand('git reset HEAD README.md');
+await runShellCommand('git checkout -- README.md');
 
 const tscMembers = tscMembersAtEnd.filter(
   (memberAtEnd) => tscMembersAtStart.includes(memberAtEnd),
 );
 
-// Get all meetings since SINCE.
-// Assumes that the TSC repo is cloned in the .tmp dir.
-const meetings = await runGitCommand(
-  `git whatchanged --since '${SINCE}' --name-only --pretty=format: meetings`,
-  { cwd: '.tmp', mapFn: (line) => line },
-);
-
-// Get TSC meeting attendance.
-const attendance = await getAttendance(tscMembers, meetings);
-const lightAttendance = tscMembers.filter(
-  (member) => attendance[member] < meetings.size * 0.25,
-);
-
-// Get all votes since SINCE.
-// Assumes that the TSC repo is cloned in the .tmp dir.
-const votes = await runGitCommand(
-  `git whatchanged --since '${SINCE}' --name-only --pretty=format: votes/*.json`,
-  { cwd: '.tmp', mapFn: (line) => line },
-);
-
 // Check voting record.
 const votingRecords = await getVotingRecords(tscMembers, votes);
-const noVotes = tscMembers.filter(
+const inactive = tscMembers.filter(
   (member) => votingRecords[member] === 0,
 );
-
-const inactive = lightAttendance.filter((member) => noVotes.includes(member));
 
 if (inactive.length) {
   // The stdout output is consumed in find-inactive-tsc.yml. If format of output
   // changes, find-inactive-tsc.yml may need to be updated.
   console.log(`INACTIVE_TSC_HANDLES=${inactive.map((entry) => '@' + entry).join(' ')}`);
-  const commitDetails = inactive.map((entry) => {
-    let details = `Since ${SINCE}, `;
-    details += `${entry} attended ${attendance[entry]} out of ${meetings.size} meetings`;
-    details += ` and voted in ${votingRecords[entry]} of ${votes.size} votes.`;
-    return details;
-  });
-  console.log(`DETAILS_FOR_COMMIT_BODY=${commitDetails.join(' ')}`);
+  const commitDetails = `${inactive.join(' ')} did not participate in three consecutive TSC votes: ${votes.join(' ')}`;
+  console.log(`DETAILS_FOR_COMMIT_BODY=${commitDetails}`);
 
   if (process.env.GITHUB_ACTIONS) {
     // Using console.warn() to avoid messing with find-inactive-tsc which
     // consumes stdout.
     console.warn('Generating new README.md file...');
-    const newReadmeText = await moveTscToEmeritus(inactive);
+    const newReadmeText = await moveVotingToRegular(inactive);
     fs.writeFileSync(new URL('../README.md', import.meta.url), newReadmeText);
   }
 }
 
 if (verbose) {
-  console.log(attendance);
   console.log(votingRecords);
 }
