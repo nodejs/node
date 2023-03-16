@@ -340,8 +340,8 @@ For undocumented APIs that are public, open a pull request documenting the API.
 
 ### Breaking changes
 
-At least two TSC members must approve backward-incompatible changes to the
-`main` branch.
+At least two TSC voting members must approve backward-incompatible changes to
+the `main` branch.
 
 Examples of breaking changes include:
 
@@ -411,7 +411,7 @@ possible to avoid confusion and typosquatting attacks.
 For pull requests introducing new core modules:
 
 * Allow at least one week for review.
-* Land only after sign-off from at least two TSC members.
+* Land only after sign-off from at least two TSC voting members.
 * Land with a [Stability Index][] of Experimental. The module must remain
   Experimental until a semver-major release.
 
@@ -742,7 +742,7 @@ git push upstream main
 
 ### I made a mistake
 
-* Ping a TSC member.
+* Ping a TSC voting member.
 * With `git`, there's a way to override remote trees by force pushing
   (`git push -f`). This is generally forbidden as it creates conflicts in other
   people's forks. It is permissible for simpler slip-ups such as typos in commit
