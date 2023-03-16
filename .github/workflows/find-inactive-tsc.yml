@@ -1,4 +1,4 @@
-name: Find inactive TSC members
+name: Find inactive TSC voting members
 
 on:
   schedule:
@@ -38,7 +38,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Find inactive TSC members
+      - name: Find inactive TSC voting members
         run: tools/find-inactive-tsc.mjs >> $GITHUB_ENV
 
       - name: Open pull request
@@ -56,6 +56,6 @@ jobs:
             @nodejs/tsc ${{ env.INACTIVE_TSC_HANDLES }}
 
             ${{ env.DETAILS_FOR_COMMIT_BODY }}
-          commit-message: 'meta: move one or more TSC members to emeritus'
+          commit-message: 'meta: move TSC voting member(s) to regular member(s)'
           labels: meta
-          title: 'meta: move one or more TSC members to emeritus'
+          title: 'meta: move TSC voting member(s) to regular member(s)'

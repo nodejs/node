@@ -158,6 +158,8 @@ For information about the governance of the Node.js project, see
 
 ### TSC (Technical Steering Committee)
 
+#### TSC voting members
+
 <!--lint disable prohibited-strings-->
 
 * [aduh95](https://github.com/aduh95) -
@@ -207,9 +209,9 @@ For information about the governance of the Node.js project, see
 
 <details>
 
-<summary>Emeriti</summary>
+<summary>Regular members</summary>
 
-### TSC emeriti
+#### TSC regular members
 
 * [addaleax](https://github.com/addaleax) -
   **Anna Henningsen** <<anna@addaleax.net>> (she/her)
