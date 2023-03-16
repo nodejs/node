@@ -480,3 +480,15 @@ ok 1
     assert.strictEqual(tokens[index].value, token.value);
   });
 }
+
+{
+  const tokens = TAPLexer('\x1b');
+
+  [
+    { kind: TokenKind.ESCAPE, value: '\x1b' },
+    { kind: TokenKind.EOL, value: '' },
+  ].forEach((token, index) => {
+    assert.strictEqual(tokens[index].kind, token.kind);
+    assert.strictEqual(tokens[index].value, token.value);
+  });
+}
