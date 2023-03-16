@@ -118,8 +118,8 @@ the issue tracker is:
 
 * A TSC member opens an issue explaining the proposal/issue and @-mentions
   @nodejs/tsc.
-* The proposal passes if, after 72 hours, there are two or more TSC approvals
-  and no TSC opposition.
+* The proposal passes if, after 72 hours, there are two or more TSC voting
+  member approvals and no TSC voting member opposition.
 * If there is an extended impasse, a TSC member may make a motion for a vote.
 
 ## Collaborator nominations
