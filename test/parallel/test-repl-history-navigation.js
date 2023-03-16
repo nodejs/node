@@ -614,6 +614,24 @@ const tests = [
     ],
     clean: false
   },
+  {
+    // Test that preview should not be removed when pressing ESCAPE key
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    skip: !process.features.inspector,
+    test: [
+      '1+1',
+      ESCAPE,
+      ENTER,
+    ],
+    expected: [
+      prompt, ...'1+1',
+      '\n// 2',
+      '\n// 2',
+      '2\n',
+      prompt,
+    ],
+    clean: false
+  },
 ];
 const numtests = tests.length;
 
