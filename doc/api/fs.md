@@ -2333,6 +2333,9 @@ changes:
   - version: v16.10.0
     pr-url: https://github.com/nodejs/node/pull/40013
     description: The `fs` option does not need `close` method if `autoClose` is `false`.
+  - version: v15.5.0
+    pr-url: https://github.com/nodejs/node/pull/36431
+    description: Add support for `AbortSignal`.
   - version:
      - v15.4.0
     pr-url: https://github.com/nodejs/node/pull/35922
@@ -2379,6 +2382,7 @@ changes:
   * `end` {integer} **Default:** `Infinity`
   * `highWaterMark` {integer} **Default:** `64 * 1024`
   * `fs` {Object|null} **Default:** `null`
+  * `signal` {AbortSignal|null} **Default:** `null`
 * Returns: {fs.ReadStream}
 
 Unlike the 16 KiB default `highWaterMark` for a {stream.Readable}, the stream
@@ -2458,6 +2462,9 @@ changes:
   - version: v16.10.0
     pr-url: https://github.com/nodejs/node/pull/40013
     description: The `fs` option does not need `close` method if `autoClose` is `false`.
+  - version: v15.5.0
+    pr-url: https://github.com/nodejs/node/pull/36431
+    description: Add support for `AbortSignal`.
   - version:
      - v15.4.0
     pr-url: https://github.com/nodejs/node/pull/35922
@@ -2500,6 +2507,7 @@ changes:
   * `emitClose` {boolean} **Default:** `true`
   * `start` {integer}
   * `fs` {Object|null} **Default:** `null`
+  * `signal` {AbortSignal|null} **Default:** `null`
 * Returns: {fs.WriteStream}
 
 `options` may also include a `start` option to allow writing data at some
