@@ -627,8 +627,7 @@ TypeTaggedInstance(napi_env env, napi_callback_info info) {
   return instance;
 }
 
-static napi_value
-PlainExternal(napi_env env, napi_callback_info info) {
+static napi_value PlainExternal(napi_env env, napi_callback_info info) {
   napi_value instance;
 
   NODE_API_CALL(env, napi_create_external(env, NULL, NULL, NULL, &instance));
@@ -636,16 +635,17 @@ PlainExternal(napi_env env, napi_callback_info info) {
   return instance;
 }
 
-static napi_value
-TypeTaggedExternal(napi_env env, napi_callback_info info) {
+static napi_value TypeTaggedExternal(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   uint32_t type_index;
   napi_value instance, which_type;
 
-  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, &which_type, NULL, NULL));
+  NODE_API_CALL(env,
+                napi_get_cb_info(env, info, &argc, &which_type, NULL, NULL));
   NODE_API_CALL(env, napi_get_value_uint32(env, which_type, &type_index));
   NODE_API_CALL(env, napi_create_external(env, NULL, NULL, NULL, &instance));
-  NODE_API_CALL(env, napi_type_tag_object(env, instance, &type_tags[type_index]));
+  NODE_API_CALL(env,
+                napi_type_tag_object(env, instance, &type_tags[type_index]));
 
   return instance;
 }
@@ -671,33 +671,36 @@ CheckTypeTag(napi_env env, napi_callback_info info) {
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
-    DECLARE_NODE_API_PROPERTY("Get", Get),
-    DECLARE_NODE_API_PROPERTY("GetNamed", GetNamed),
-    DECLARE_NODE_API_PROPERTY("GetPropertyNames", GetPropertyNames),
-    DECLARE_NODE_API_PROPERTY("GetSymbolNames", GetSymbolNames),
-    DECLARE_NODE_API_PROPERTY("GetEnumerableWritableNames", GetEnumerableWritableNames),
-    DECLARE_NODE_API_PROPERTY("GetOwnWritableNames", GetOwnWritableNames),
-    DECLARE_NODE_API_PROPERTY("GetEnumerableConfigurableNames", GetEnumerableConfigurableNames),
-    DECLARE_NODE_API_PROPERTY("GetOwnConfigurableNames", GetOwnConfigurableNames),
-    DECLARE_NODE_API_PROPERTY("Set", Set),
-    DECLARE_NODE_API_PROPERTY("SetNamed", SetNamed),
-    DECLARE_NODE_API_PROPERTY("Has", Has),
-    DECLARE_NODE_API_PROPERTY("HasNamed", HasNamed),
-    DECLARE_NODE_API_PROPERTY("HasOwn", HasOwn),
-    DECLARE_NODE_API_PROPERTY("Delete", Delete),
-    DECLARE_NODE_API_PROPERTY("New", New),
-    DECLARE_NODE_API_PROPERTY("Inflate", Inflate),
-    DECLARE_NODE_API_PROPERTY("Wrap", Wrap),
-    DECLARE_NODE_API_PROPERTY("Unwrap", Unwrap),
-    DECLARE_NODE_API_PROPERTY("TestSetProperty", TestSetProperty),
-    DECLARE_NODE_API_PROPERTY("TestHasProperty", TestHasProperty),
-    DECLARE_NODE_API_PROPERTY("TypeTaggedInstance", TypeTaggedInstance),
-    DECLARE_NODE_API_PROPERTY("TypeTaggedExternal", TypeTaggedExternal),
-    DECLARE_NODE_API_PROPERTY("PlainExternal", PlainExternal),
-    DECLARE_NODE_API_PROPERTY("CheckTypeTag", CheckTypeTag),
-    DECLARE_NODE_API_PROPERTY("TestGetProperty", TestGetProperty),
-    DECLARE_NODE_API_PROPERTY("TestFreeze", TestFreeze),
-    DECLARE_NODE_API_PROPERTY("TestSeal", TestSeal),
+      DECLARE_NODE_API_PROPERTY("Get", Get),
+      DECLARE_NODE_API_PROPERTY("GetNamed", GetNamed),
+      DECLARE_NODE_API_PROPERTY("GetPropertyNames", GetPropertyNames),
+      DECLARE_NODE_API_PROPERTY("GetSymbolNames", GetSymbolNames),
+      DECLARE_NODE_API_PROPERTY("GetEnumerableWritableNames",
+                                GetEnumerableWritableNames),
+      DECLARE_NODE_API_PROPERTY("GetOwnWritableNames", GetOwnWritableNames),
+      DECLARE_NODE_API_PROPERTY("GetEnumerableConfigurableNames",
+                                GetEnumerableConfigurableNames),
+      DECLARE_NODE_API_PROPERTY("GetOwnConfigurableNames",
+                                GetOwnConfigurableNames),
+      DECLARE_NODE_API_PROPERTY("Set", Set),
+      DECLARE_NODE_API_PROPERTY("SetNamed", SetNamed),
+      DECLARE_NODE_API_PROPERTY("Has", Has),
+      DECLARE_NODE_API_PROPERTY("HasNamed", HasNamed),
+      DECLARE_NODE_API_PROPERTY("HasOwn", HasOwn),
+      DECLARE_NODE_API_PROPERTY("Delete", Delete),
+      DECLARE_NODE_API_PROPERTY("New", New),
+      DECLARE_NODE_API_PROPERTY("Inflate", Inflate),
+      DECLARE_NODE_API_PROPERTY("Wrap", Wrap),
+      DECLARE_NODE_API_PROPERTY("Unwrap", Unwrap),
+      DECLARE_NODE_API_PROPERTY("TestSetProperty", TestSetProperty),
+      DECLARE_NODE_API_PROPERTY("TestHasProperty", TestHasProperty),
+      DECLARE_NODE_API_PROPERTY("TypeTaggedInstance", TypeTaggedInstance),
+      DECLARE_NODE_API_PROPERTY("TypeTaggedExternal", TypeTaggedExternal),
+      DECLARE_NODE_API_PROPERTY("PlainExternal", PlainExternal),
+      DECLARE_NODE_API_PROPERTY("CheckTypeTag", CheckTypeTag),
+      DECLARE_NODE_API_PROPERTY("TestGetProperty", TestGetProperty),
+      DECLARE_NODE_API_PROPERTY("TestFreeze", TestFreeze),
+      DECLARE_NODE_API_PROPERTY("TestSeal", TestSeal),
   };
 
   init_test_null(env, exports);
