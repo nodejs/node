@@ -104,7 +104,7 @@ async function getVotingRecords(tscMembers, votes) {
   return votingRecords;
 }
 
-async function moveTscToEmeritus(peopleToMove) {
+async function moveVotingToRegular(peopleToMove) {
   const readmeText = readline.createInterface({
     input: fs.createReadStream(new URL('../README.md', import.meta.url)),
     crlfDelay: Infinity,
@@ -133,17 +133,17 @@ async function moveTscToEmeritus(peopleToMove) {
       inTscRegularSection = false;
     }
 
-    const isTsc = inTscVotingSection && line.length;
-    const isTscEmeritus = inTscRegularSection && line.length;
+    const isTscVoting = inTscVotingSection && line.length;
+    const isTscRegular = inTscRegularSection && line.length;
 
     if (line === '#### TSC voting members') {
       inTscVotingSection = true;
     }
-    if (line === '### TSC regular members') {
+    if (line === '#### TSC regular members') {
       inTscRegularSection = true;
     }
 
-    if (isTsc) {
+    if (isTscVoting) {
       if (line.startsWith('* ')) {
         memberFirstLine = line;
         const match = line.match(/^\* \[([^\]]+)/);
@@ -162,7 +162,7 @@ async function moveTscToEmeritus(peopleToMove) {
       }
     }
 
-    if (isTscEmeritus) {
+    if (isTscRegular) {
       if (line.startsWith('* ')) {
         memberFirstLine = line;
       } else if (line.startsWith('  **')) {
@@ -178,7 +178,7 @@ async function moveTscToEmeritus(peopleToMove) {
       }
     }
 
-    if (!isTsc && !isTscEmeritus) {
+    if (!isTscVoting && !isTscRegular) {
       fileContents += `${line}\n`;
     }
   }
@@ -229,7 +229,7 @@ if (inactive.length) {
     // Using console.warn() to avoid messing with find-inactive-tsc which
     // consumes stdout.
     console.warn('Generating new README.md file...');
-    const newReadmeText = await moveTscToEmeritus(inactive);
+    const newReadmeText = await moveVotingToRegular(inactive);
     fs.writeFileSync(new URL('../README.md', import.meta.url), newReadmeText);
   }
 }

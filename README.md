@@ -207,28 +207,39 @@ For information about the governance of the Node.js project, see
 * [Trott](https://github.com/Trott) -
   **Rich Trott** <<rtrott@gmail.com>> (he/him)
 
-<details>
-
-<summary>Regular members</summary>
-
 #### TSC regular members
 
 * [addaleax](https://github.com/addaleax) -
   **Anna Henningsen** <<anna@addaleax.net>> (she/her)
 * [bnoordhuis](https://github.com/bnoordhuis) -
   **Ben Noordhuis** <<info@bnoordhuis.nl>>
-* [chrisdickinson](https://github.com/chrisdickinson) -
-  **Chris Dickinson** <<christopher.s.dickinson@gmail.com>>
 * [codebytere](https://github.com/codebytere) -
   **Shelley Vohr** <<shelley.vohr@gmail.com>> (she/her)
 * [danbev](https://github.com/danbev) -
   **Daniel Bevenius** <<daniel.bevenius@gmail.com>> (he/him)
+* [gabrielschulhof](https://github.com/gabrielschulhof) -
+  **Gabriel Schulhof** <<gabrielschulhof@gmail.com>>
+* [mscdex](https://github.com/mscdex) -
+  **Brian White** <<mscdex@mscdex.net>>
+* [MylesBorins](https://github.com/MylesBorins) -
+  **Myles Borins** <<myles.borins@gmail.com>> (he/him)
+* [rvagg](https://github.com/rvagg) -
+  **Rod Vagg** <<r@va.gg>>
+* [TimothyGu](https://github.com/TimothyGu) -
+  **Tiancheng "Timothy" Gu** <<timothygu99@gmail.com>> (he/him)
+
+<details>
+
+<summary>TSC emeriti members</summary>
+
+#### TSC emeriti members
+
+* [chrisdickinson](https://github.com/chrisdickinson) -
+  **Chris Dickinson** <<christopher.s.dickinson@gmail.com>>
 * [evanlucas](https://github.com/evanlucas) -
   **Evan Lucas** <<evanlucas@me.com>> (he/him)
 * [Fishrock123](https://github.com/Fishrock123) -
   **Jeremiah Senkpiel** <<fishrock123@rocketmail.com>> (he/they)
-* [gabrielschulhof](https://github.com/gabrielschulhof) -
-  **Gabriel Schulhof** <<gabrielschulhof@gmail.com>>
 * [gibfahn](https://github.com/gibfahn) -
   **Gibson Fahnestock** <<gibfahn@gmail.com>> (he/him)
 * [indutny](https://github.com/indutny) -
@@ -239,10 +250,6 @@ For information about the governance of the Node.js project, see
   **Josh Gavant** <<josh.gavant@outlook.com>>
 * [mmarchini](https://github.com/mmarchini) -
   **Mary Marchini** <<oss@mmarchini.me>> (she/her)
-* [mscdex](https://github.com/mscdex) -
-  **Brian White** <<mscdex@mscdex.net>>
-* [MylesBorins](https://github.com/MylesBorins) -
-  **Myles Borins** <<myles.borins@gmail.com>> (he/him)
 * [nebrius](https://github.com/nebrius) -
   **Bryan Hughes** <<bryan@nebri.us>>
 * [ofrobots](https://github.com/ofrobots) -
@@ -251,16 +258,12 @@ For information about the governance of the Node.js project, see
   **Alexis Campailla** <<orangemocha@nodejs.org>>
 * [piscisaureus](https://github.com/piscisaureus) -
   **Bert Belder** <<bertbelder@gmail.com>>
-* [rvagg](https://github.com/rvagg) -
-  **Rod Vagg** <<r@va.gg>>
 * [sam-github](https://github.com/sam-github) -
   **Sam Roberts** <<vieuxtech@gmail.com>>
 * [shigeki](https://github.com/shigeki) -
   **Shigeki Ohtsu** <<ohtsu@ohtsu.org>> (he/him)
 * [thefourtheye](https://github.com/thefourtheye) -
   **Sakthipriyan Vairamani** <<thechargingvolcano@gmail.com>> (he/him)
-* [TimothyGu](https://github.com/TimothyGu) -
-  **Tiancheng "Timothy" Gu** <<timothygu99@gmail.com>> (he/him)
 * [trevnorris](https://github.com/trevnorris) -
   **Trevor Norris** <<trev.norris@gmail.com>>
 
