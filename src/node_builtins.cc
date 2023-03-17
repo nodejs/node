@@ -224,8 +224,7 @@ void BuiltinLoader::AddExternalizedBuiltin(const char* id,
     auto it = externalized_builtin_sources.find(id);
     if (it != externalized_builtin_sources.end()) {
       source = it->second;
-    }
-    {
+    } else {
       int r = ReadFileSync(&source, filename);
       if (r != 0) {
         fprintf(stderr,
