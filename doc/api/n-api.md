@@ -6374,8 +6374,6 @@ the add-on's file name during loading.
 [`Worker`]: worker_threads.md#class-worker
 [`async_hooks.executionAsyncResource()`]: async_hooks.md#async_hooksexecutionasyncresource
 [`global`]: globals.md#global
-[external]: #napi_create_external
-[externals]: #napi_create_external
 [`init` hooks]: async_hooks.md#initasyncid-type-triggerasyncid-resource
 [`napi_add_async_cleanup_hook`]: #napi_add_async_cleanup_hook
 [`napi_add_env_cleanup_hook`]: #napi_add_env_cleanup_hook
@@ -6441,6 +6439,8 @@ the add-on's file name during loading.
 [async_hooks `type`]: async_hooks.md#type
 [context-aware addons]: addons.md#context-aware-addons
 [docs]: https://github.com/nodejs/node-addon-api#api-documentation
+[external]: #napi_create_external
+[externals]: #napi_create_external
 [global scope]: globals.md
 [gyp-next]: https://github.com/nodejs/gyp-next
 [module scope]: modules.md#the-module-scope
