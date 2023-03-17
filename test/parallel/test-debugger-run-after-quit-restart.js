@@ -25,7 +25,7 @@ const path = require('path');
     .then(() => cli.stepCommand('n'))
     .then(() => {
       assert.ok(
-        cli.output.includes(`break in ${script}:2`),
+        cli.output.includes(`step in ${script}:2`),
         'steps to the 2nd line'
       );
     })
