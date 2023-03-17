@@ -214,7 +214,7 @@ Returns a list of `PerformanceEntry` objects in chronological order
 with respect to `performanceEntry.startTime` whose `performanceEntry.entryType`
 is equal to `type`.
 
-### `performance.mark([name[, options]])`
+### `performance.mark(name[, options])`
 
 <!-- YAML
 added: v8.5.0
@@ -222,7 +222,7 @@ changes:
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44483
     description: This method must be called with the `performance` object as
-                 the receiver.
+                 the receiver. The name argument is no longer optional.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37136
     description: Updated to conform to the User Timing Level 3 specification.
