@@ -605,13 +605,23 @@ static napi_value TestSeal(napi_env env,
 }
 
 // We create two type tags. They are basically 128-bit UUIDs.
-static const napi_type_tag type_tags[5] = {
-  { 0xdaf987b3cc62481a, 0xb745b0497f299531 },
-  { 0xbb7936c374084d9b, 0xa9548d0762eeedb9 },
-  { 0xa5ed9ce2e4c00c38, 0 },
-  { 0, 0 },
-  { 0xa5ed9ce2e4c00c38, 0xdaf987b3cc62481a },
+#define TYPE_TAG_COUNT 5
+static const napi_type_tag type_tags[TYPE_TAG_COUNT] = {
+    {0xdaf987b3cc62481a, 0xb745b0497f299531},
+    {0xbb7936c374084d9b, 0xa9548d0762eeedb9},
+    {0xa5ed9ce2e4c00c38, 0},
+    {0, 0},
+    {0xa5ed9ce2e4c00c38, 0xdaf987b3cc62481a},
 };
+#define VALIDATE_TYPE_INDEX(env, type_index)                                   \
+  do {                                                                         \
+    if ((type_index) >= TYPE_TAG_COUNT) {                                      \
+      NODE_API_CALL((env),                                                     \
+                    napi_throw_range_error((env),                              \
+                                           "NODE_API_TEST_INVALID_TYPE_INDEX", \
+                                           "Invalid type index"));             \
+    }                                                                          \
+  } while (0)
 
 static napi_value
 TypeTaggedInstance(napi_env env, napi_callback_info info) {
@@ -621,6 +631,7 @@ TypeTaggedInstance(napi_env env, napi_callback_info info) {
 
   NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, &which_type, NULL, NULL));
   NODE_API_CALL(env, napi_get_value_uint32(env, which_type, &type_index));
+  VALIDATE_TYPE_INDEX(env, type_index);
   NODE_API_CALL(env, napi_create_object(env, &instance));
   NODE_API_CALL(env, napi_type_tag_object(env, instance, &type_tags[type_index]));
 
@@ -643,6 +654,7 @@ static napi_value TypeTaggedExternal(napi_env env, napi_callback_info info) {
   NODE_API_CALL(env,
                 napi_get_cb_info(env, info, &argc, &which_type, NULL, NULL));
   NODE_API_CALL(env, napi_get_value_uint32(env, which_type, &type_index));
+  VALIDATE_TYPE_INDEX(env, type_index);
   NODE_API_CALL(env, napi_create_external(env, NULL, NULL, NULL, &instance));
   NODE_API_CALL(env,
                 napi_type_tag_object(env, instance, &type_tags[type_index]));
@@ -659,6 +671,7 @@ CheckTypeTag(napi_env env, napi_callback_info info) {
 
   NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
   NODE_API_CALL(env, napi_get_value_uint32(env, argv[0], &type_index));
+  VALIDATE_TYPE_INDEX(env, type_index);
   NODE_API_CALL(env, napi_check_object_type_tag(env,
                                             argv[1],
                                             &type_tags[type_index],
