@@ -97,8 +97,11 @@
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
   'test-jump-table-assembler/JumpTablePatchingStress': [PASS, SLOW],
-  'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/SharedStrings': [PASS, SLOW],
+  'test-serialize/StartupSerializerOnce': [PASS, SLOW],
+  'test-serialize/StartupSerializerTwice': [PASS, SLOW],
+  'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'test-accessors/HandleScopePop': [PASS, HEAVY],
@@ -114,6 +117,7 @@
   'test-serialize/SnapshotCompression': [PASS, HEAVY],
   'test-serialize/StartupSerializerOnceRunScript': [PASS, HEAVY],
   'test-serialize/StartupSerializerTwiceRunScript': [PASS, HEAVY],
+  'test-serialize/StaticRootsPredictableSnapshot': [PASS, HEAVY],
   'test-strings/StringOOMNewStringFromOneByte': [PASS, HEAVY],
   'test-strings/StringOOMNewStringFromUtf8': [PASS, HEAVY],
   'test-strings/Traverse': [PASS, HEAVY],
@@ -125,6 +129,9 @@
 ['mode == debug', {
   # BUG(v8:10996): Flaky on Linux64 - debug
   'test-cpu-profiler/StartProfilingAfterOsr': [SKIP],
+
+  'test-concurrent-allocation/ConcurrentAllocationWhileMainThreadParksAndUnparks': [PASS, SLOW],
+  'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [PASS, SLOW],
 }],
 
 ##############################################################################
@@ -297,7 +304,9 @@
   'test-serialize/StartupSerializerOnce': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+  'test-serialize/StaticRootsPredictableSnapshot': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
+
 }],  # 'system == windows and arch == x64 and mode == debug'
 
 ##############################################################################
@@ -510,9 +519,7 @@
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
 ['not has_webassembly or variant == jitless', {
   'test-api/TurboAsmDisablesDetach': [SKIP],
-  'test-api/WasmI32AtomicWaitCallback': [SKIP],
-  'test-api/WasmI64AtomicWaitCallback': [SKIP],
-  'test-api/WasmSetJitCodeEventHandler': [SKIP],
+  'test-api/Wasm*': [SKIP],
   'test-api-array-buffer/ArrayBuffer_NonDetachableWasDetached': [SKIP],
   'test-backing-store/Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree': [SKIP],
   'test-c-wasm-entry/*': [SKIP],
@@ -778,6 +785,7 @@
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+  'test-serialize/StaticRootsPredictableSnapshot': [SKIP],
   'test-serialize/WeakArraySerializationInSnapshot': [SKIP],
   'test-typedarrays/SpeciesConstructor': [SKIP],
   'test-typedarrays/SpeciesConstructorAccessor': [SKIP],
@@ -919,18 +927,6 @@
   'test-debug/TerminateOnResumeFromOtherThread': [SKIP],
   'test-debug/TerminateOnResumeRunJavaScriptAtBreakpoint': [SKIP],
   'test-debug/TerminateOnResumeRunMicrotaskAtBreakpoint': [SKIP],
-  'test-embedder-tracing/BasicTracedReference': [SKIP],
-  'test-embedder-tracing/GarbageCollectionForTesting': [SKIP],
-  'test-embedder-tracing/NotifyEmptyStack': [SKIP],
-  'test-embedder-tracing/TracedReferenceCopyReferences': [SKIP],
-  'test-embedder-tracing/TracedReferenceCopy': [SKIP],
-  'test-embedder-tracing/TracedReferenceHandlesDoNotLeak': [SKIP],
-  'test-embedder-tracing/TracedReferenceHandlesMarking': [SKIP],
-  'test-embedder-tracing/TracedReferenceMove': [SKIP],
-  'test-embedder-tracing/TracedReferenceToUnmodifiedJSObjectDiesOnMarkSweep': [SKIP],
-  'test-embedder-tracing/TracingInEphemerons': [SKIP],
-  'test-embedder-tracing/TracingInRevivedSubgraph': [SKIP],
-  'test-embedder-tracing/V8RegisteringEmbedderReference': [SKIP],
   'test-external-string-tracker/ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization': [SKIP],
   'test-external-string-tracker/ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact': [SKIP],
   'test-heap-profiler/HeapSnapshotDeleteDuringTakeSnapshot': [SKIP],

@@ -6,6 +6,7 @@
 
 #include <iomanip>
 
+#include "src/base/v8-fallthrough.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/reloc-info.h"
@@ -49,7 +50,7 @@ inline EmbeddedData EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(
   // copy of the re-embedded builtins in the shared CodeRange, so use that if
   // it's present.
   if (v8_flags.jitless) return EmbeddedData::FromBlob();
-  CodeRange* code_range = CodeRange::GetProcessWideCodeRange().get();
+  CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
   return (code_range && code_range->embedded_blob_code_copy() != nullptr)
              ? EmbeddedData::FromBlob(code_range)
              : EmbeddedData::FromBlob();
@@ -62,95 +63,112 @@ inline EmbeddedData EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(
 
 }  // namespace
 
-Address OffHeapInstructionStart(HeapObject code, Builtin builtin) {
+Address Code::OffHeapInstructionStart() const {
   // TODO(11527): Here and below: pass Isolate as an argument for getting
   // the EmbeddedData.
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.InstructionStartOfBuiltin(builtin);
 }
 
-Address OffHeapInstructionEnd(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapInstructionEnd() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.InstructionStartOfBuiltin(builtin) +
          d.InstructionSizeOfBuiltin(builtin);
 }
 
-int OffHeapInstructionSize(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapInstructionSize() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.InstructionSizeOfBuiltin(builtin);
 }
 
-Address OffHeapMetadataStart(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapMetadataStart() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.MetadataStartOfBuiltin(builtin);
 }
 
-Address OffHeapMetadataEnd(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapMetadataEnd() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.MetadataStartOfBuiltin(builtin) + d.MetadataSizeOfBuiltin(builtin);
 }
 
-int OffHeapMetadataSize(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapMetadataSize() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.MetadataSizeOfBuiltin(builtin);
 }
 
-Address OffHeapSafepointTableAddress(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapSafepointTableAddress() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.SafepointTableStartOf(builtin);
 }
 
-int OffHeapSafepointTableSize(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapSafepointTableSize() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.SafepointTableSizeOf(builtin);
 }
 
-Address OffHeapHandlerTableAddress(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapHandlerTableAddress() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.HandlerTableStartOf(builtin);
 }
 
-int OffHeapHandlerTableSize(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapHandlerTableSize() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.HandlerTableSizeOf(builtin);
 }
 
-Address OffHeapConstantPoolAddress(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapConstantPoolAddress() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.ConstantPoolStartOf(builtin);
 }
 
-int OffHeapConstantPoolSize(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapConstantPoolSize() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.ConstantPoolSizeOf(builtin);
 }
 
-Address OffHeapCodeCommentsAddress(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapCodeCommentsAddress() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.CodeCommentsStartOf(builtin);
 }
 
-int OffHeapCodeCommentsSize(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapCodeCommentsSize() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.CodeCommentsSizeOf(builtin);
 }
 
-Address OffHeapUnwindingInfoAddress(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+Address Code::OffHeapUnwindingInfoAddress() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.UnwindingInfoStartOf(builtin);
 }
 
-int OffHeapUnwindingInfoSize(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapUnwindingInfoSize() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.UnwindingInfoSizeOf(builtin);
 }
 
-int OffHeapStackSlots(HeapObject code, Builtin builtin) {
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+int Code::OffHeapStackSlots() const {
+  Builtin builtin = builtin_id();
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
   return d.StackSlotsOf(builtin);
 }
 
-void Code::ClearEmbeddedObjects(Heap* heap) {
+void InstructionStream::ClearEmbeddedObjects(Heap* heap) {
   HeapObject undefined = ReadOnlyRoots(heap).undefined_value();
   int mode_mask = RelocInfo::EmbeddedObjectModeMask();
   for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
@@ -160,25 +178,25 @@ void Code::ClearEmbeddedObjects(Heap* heap) {
   set_embedded_objects_cleared(true);
 }
 
-void Code::Relocate(intptr_t delta) {
+void InstructionStream::Relocate(intptr_t delta) {
   for (RelocIterator it(*this, RelocInfo::kApplyMask); !it.done(); it.next()) {
     it.rinfo()->apply(delta);
   }
   FlushICache();
 }
 
-void Code::FlushICache() const {
-  FlushInstructionCache(raw_instruction_start(), raw_instruction_size());
+void InstructionStream::FlushICache() const {
+  FlushInstructionCache(instruction_start(), instruction_size());
 }
 
-void Code::CopyFromNoFlush(ByteArray reloc_info, Heap* heap,
-                           const CodeDesc& desc) {
+void InstructionStream::CopyFromNoFlush(ByteArray reloc_info, Heap* heap,
+                                        const CodeDesc& desc) {
   // Copy code.
   static_assert(kOnHeapBodyIsContiguous);
-  CopyBytes(reinterpret_cast<byte*>(raw_instruction_start()), desc.buffer,
+  CopyBytes(reinterpret_cast<byte*>(instruction_start()), desc.buffer,
             static_cast<size_t>(desc.instr_size));
   // TODO(jgruber,v8:11036): Merge with the above.
-  CopyBytes(reinterpret_cast<byte*>(raw_instruction_start() + desc.instr_size),
+  CopyBytes(reinterpret_cast<byte*>(instruction_start() + desc.instr_size),
             desc.unwinding_info, static_cast<size_t>(desc.unwinding_info_size));
 
   // Copy reloc info.
@@ -188,8 +206,8 @@ void Code::CopyFromNoFlush(ByteArray reloc_info, Heap* heap,
   RelocateFromDesc(reloc_info, heap, desc);
 }
 
-void Code::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
-                            const CodeDesc& desc) {
+void InstructionStream::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
+                                         const CodeDesc& desc) {
   // Unbox handles and relocate.
   Assembler* origin = desc.origin;
   const int mode_mask = RelocInfo::PostCodegenRelocationMask();
@@ -203,9 +221,9 @@ void Code::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
       // Rewrite code handles to direct pointers to the first instruction in the
       // code object.
       Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
-      DCHECK(p->IsCodeT(GetPtrComprCageBaseSlow(*p)));
-      Code code = FromCodeT(CodeT::cast(*p));
-      it.rinfo()->set_target_address(code.raw_instruction_start(),
+      DCHECK(p->IsCode(GetPtrComprCageBaseSlow(*p)));
+      InstructionStream code = FromCode(Code::cast(*p));
+      it.rinfo()->set_target_address(code.instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsNearBuiltinEntry(mode)) {
       // Rewrite builtin IDs to PC-relative offset to the builtin entry point.
@@ -217,7 +235,7 @@ void Code::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
       DCHECK_EQ(p, it.rinfo()->target_address());
     } else {
       intptr_t delta =
-          raw_instruction_start() - reinterpret_cast<Address>(desc.buffer);
+          instruction_start() - reinterpret_cast<Address>(desc.buffer);
       it.rinfo()->apply(delta);
     }
   }
@@ -229,15 +247,6 @@ SafepointEntry Code::GetSafepointEntry(Isolate* isolate, Address pc) {
   return table.FindEntry(pc);
 }
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-SafepointEntry CodeDataContainer::GetSafepointEntry(Isolate* isolate,
-                                                    Address pc) {
-  DCHECK(!is_maglevved());
-  SafepointTable table(isolate, pc, *this);
-  return table.FindEntry(pc);
-}
-#endif  // V8_EXTERNAL_CODE_SPACE
-
 MaglevSafepointEntry Code::GetMaglevSafepointEntry(Isolate* isolate,
                                                    Address pc) {
   DCHECK(is_maglevved());
@@ -245,59 +254,23 @@ MaglevSafepointEntry Code::GetMaglevSafepointEntry(Isolate* isolate,
   return table.FindEntry(pc);
 }
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-MaglevSafepointEntry CodeDataContainer::GetMaglevSafepointEntry(
-    Isolate* isolate, Address pc) {
-  DCHECK(is_maglevved());
-  MaglevSafepointTable table(isolate, pc, *this);
-  return table.FindEntry(pc);
-}
-#endif  // V8_EXTERNAL_CODE_SPACE
-
 Address Code::OffHeapInstructionStart(Isolate* isolate, Address pc) const {
-  DCHECK(is_off_heap_trampoline());
+  DCHECK(!has_instruction_stream());
   EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
   return d.InstructionStartOfBuiltin(builtin_id());
 }
-
-#ifdef V8_EXTERNAL_CODE_SPACE
-Address CodeDataContainer::OffHeapInstructionStart(Isolate* isolate,
-                                                   Address pc) const {
-  DCHECK(is_off_heap_trampoline());
-  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
-  return d.InstructionStartOfBuiltin(builtin_id());
-}
-#endif
 
 Address Code::OffHeapInstructionEnd(Isolate* isolate, Address pc) const {
-  DCHECK(is_off_heap_trampoline());
+  DCHECK(!has_instruction_stream());
   EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
   return d.InstructionEndOf(builtin_id());
 }
-
-#ifdef V8_EXTERNAL_CODE_SPACE
-Address CodeDataContainer::OffHeapInstructionEnd(Isolate* isolate,
-                                                 Address pc) const {
-  DCHECK(is_off_heap_trampoline());
-  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
-  return d.InstructionEndOf(builtin_id());
-}
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 bool Code::OffHeapBuiltinContains(Isolate* isolate, Address pc) const {
-  DCHECK(is_off_heap_trampoline());
+  DCHECK(!has_instruction_stream());
   EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
   return d.BuiltinContains(builtin_id(), pc);
 }
-
-#ifdef V8_EXTERNAL_CODE_SPACE
-bool CodeDataContainer::OffHeapBuiltinContains(Isolate* isolate,
-                                               Address pc) const {
-  DCHECK(is_off_heap_trampoline());
-  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
-  return d.BuiltinContains(builtin_id(), pc);
-}
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 // TODO(cbruni): Move to BytecodeArray
 int AbstractCode::SourcePosition(PtrComprCageBase cage_base, int offset) {
@@ -339,10 +312,10 @@ int AbstractCode::SourceStatementPosition(PtrComprCageBase cage_base,
   return statement_position;
 }
 
-bool Code::CanDeoptAt(Isolate* isolate, Address pc) {
+bool InstructionStream::CanDeoptAt(Isolate* isolate, Address pc) {
   DeoptimizationData deopt_data =
       DeoptimizationData::cast(deoptimization_data());
-  Address code_start_address = InstructionStart(isolate, pc);
+  Address code_start_address = instruction_start();
   for (int i = 0; i < deopt_data.DeoptCount(); i++) {
     if (deopt_data.Pc(i).value() == -1) continue;
     Address address = code_start_address + deopt_data.Pc(i).value();
@@ -354,7 +327,7 @@ bool Code::CanDeoptAt(Isolate* isolate, Address pc) {
   return false;
 }
 
-bool Code::IsIsolateIndependent(Isolate* isolate) {
+bool InstructionStream::IsIsolateIndependent(Isolate* isolate) {
   static constexpr int kModeMask =
       RelocInfo::AllRealModesMask() &
       ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
@@ -389,9 +362,12 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
       if (OffHeapInstructionStream::PcIsOffHeap(isolate, target_address))
         continue;
 
-      Code target = Code::GetCodeFromTargetAddress(target_address);
-      CHECK(target.IsCode());
-      if (Builtins::IsIsolateIndependentBuiltin(target)) continue;
+      InstructionStream target =
+          InstructionStream::FromTargetAddress(target_address);
+      CHECK(target.IsInstructionStream());
+      if (Builtins::IsIsolateIndependentBuiltin(target.code(kAcquireLoad))) {
+        continue;
+      }
     }
     return false;
   }
@@ -401,7 +377,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
 #endif
 }
 
-bool Code::Inlines(SharedFunctionInfo sfi) {
+bool InstructionStream::Inlines(SharedFunctionInfo sfi) {
   // We can only check for inlining for optimized code.
   DCHECK(is_optimized_code());
   DisallowGarbageCollection no_gc;
@@ -417,35 +393,48 @@ bool Code::Inlines(SharedFunctionInfo sfi) {
   return false;
 }
 
-Code::OptimizedCodeIterator::OptimizedCodeIterator(Isolate* isolate) {
-  isolate_ = isolate;
-  Object list = isolate->heap()->native_contexts_list();
-  next_context_ =
-      list.IsUndefined(isolate_) ? NativeContext() : NativeContext::cast(list);
-}
+InstructionStream::OptimizedCodeIterator::OptimizedCodeIterator(
+    Isolate* isolate)
+    : isolate_(isolate),
+      safepoint_scope_(std::make_unique<SafepointScope>(
+          isolate, isolate->is_shared_space_isolate()
+                       ? SafepointKind::kGlobal
+                       : SafepointKind::kIsolate)),
+      object_iterator_(
+          isolate->heap()->code_space()->GetObjectIterator(isolate->heap())),
+      state_(kIteratingCodeSpace) {}
 
-Code Code::OptimizedCodeIterator::Next() {
-  do {
-    Object next;
-    if (!current_code_.is_null()) {
-      // Get next code in the linked list.
-      next = current_code_.next_code_link();
-    } else if (!next_context_.is_null()) {
-      // Linked list of code exhausted. Get list of next context.
-      next = next_context_.OptimizedCodeListHead();
-      Object next_context = next_context_.next_context_link();
-      next_context_ = next_context.IsUndefined(isolate_)
-                          ? NativeContext()
-                          : NativeContext::cast(next_context);
-    } else {
-      // Exhausted contexts.
-      return Code();
+InstructionStream InstructionStream::OptimizedCodeIterator::Next() {
+  while (true) {
+    HeapObject object = object_iterator_->Next();
+    if (object.is_null()) {
+      // No objects left in the current iterator, try to move to the next space
+      // based on the state.
+      switch (state_) {
+        case kIteratingCodeSpace: {
+          object_iterator_ =
+              isolate_->heap()->code_lo_space()->GetObjectIterator(
+                  isolate_->heap());
+          state_ = kIteratingCodeLOSpace;
+          continue;
+        }
+        case kIteratingCodeLOSpace:
+          // No other spaces to iterate, so clean up and we're done. Keep the
+          // object iterator so that it keeps returning null on Next(), to avoid
+          // needing to branch on state_ before the while loop, but drop the
+          // safepoint scope since we no longer need to stop the heap from
+          // moving.
+          safepoint_scope_.reset();
+          state_ = kDone;
+          V8_FALLTHROUGH;
+        case kDone:
+          return InstructionStream();
+      }
     }
-    current_code_ =
-        next.IsUndefined(isolate_) ? Code() : FromCodeT(CodeT::cast(next));
-  } while (current_code_.is_null());
-  DCHECK(CodeKindCanDeoptimize(current_code_.kind()));
-  return current_code_;
+    InstructionStream code = InstructionStream::cast(object);
+    if (!CodeKindCanDeoptimize(code.kind())) continue;
+    return code;
+  }
 }
 
 Handle<DeoptimizationData> DeoptimizationData::New(Isolate* isolate,
@@ -528,10 +517,8 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {
 
 namespace {
 
-template <typename CodeOrCodeT>
-inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os,
-                                 CodeOrCodeT code, Address begin, size_t size,
-                                 Address current_pc) {
+void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
+                          Address begin, size_t size, Address current_pc) {
   Address end = begin + size;
   AllowHandleAllocation allow_handles;
   DisallowGarbageCollection no_gc;
@@ -541,9 +528,8 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os,
                        CodeReference(handle(code, isolate)), current_pc);
 }
 
-template <typename CodeOrCodeT>
 void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
-                 CodeOrCodeT code, Address current_pc) {
+                 Code code, Address current_pc) {
   CodeKind kind = code.kind();
   os << "kind = " << CodeKindToString(kind) << "\n";
   if (name == nullptr && code.is_builtin()) {
@@ -562,16 +548,6 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
                                       : "unknown")
      << "\n";
   os << "address = " << reinterpret_cast<void*>(code.ptr()) << "\n\n";
-
-  if (code.IsCode() && code.is_off_heap_trampoline()) {
-    Code trampoline_code = Code::cast(code);
-    int trampoline_size = trampoline_code.raw_instruction_size();
-    os << "Trampoline (size = " << trampoline_size << ")\n";
-    DisassembleCodeRange(isolate, os, trampoline_code,
-                         trampoline_code.raw_instruction_start(),
-                         trampoline_size, current_pc);
-    os << "\n";
-  }
 
   {
     int code_size = code.InstructionSize();
@@ -654,8 +630,9 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
 
   os << "RelocInfo (size = " << code.relocation_size() << ")\n";
-  if (code.IsCode()) {
-    for (RelocIterator it(Code::cast(code)); !it.done(); it.next()) {
+  if (code.IsInstructionStream()) {
+    for (RelocIterator it(InstructionStream::cast(code)); !it.done();
+         it.next()) {
       it.rinfo()->Print(isolate, os);
     }
   }
@@ -677,13 +654,6 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
                        Address current_pc) {
   i::Disassemble(name, os, isolate, *this, current_pc);
 }
-
-#ifdef V8_EXTERNAL_CODE_SPACE
-void CodeDataContainer::Disassemble(const char* name, std::ostream& os,
-                                    Isolate* isolate, Address current_pc) {
-  i::Disassemble(name, os, isolate, *this, current_pc);
-}
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 #endif  // ENABLE_DISASSEMBLER
 
@@ -897,8 +867,8 @@ void DependentCode::InstallDependency(Isolate* isolate, Handle<Code> code,
                                       Handle<HeapObject> object,
                                       DependencyGroups groups) {
   if (V8_UNLIKELY(v8_flags.trace_compilation_dependencies)) {
-    StdoutStream{} << "Installing dependency of [" << code->GetHeapObject()
-                   << "] on [" << object << "] in groups [";
+    StdoutStream{} << "Installing dependency of [" << code << "] on [" << object
+                   << "] in groups [";
     PrintDependencyGroups(groups);
     StdoutStream{} << "]\n";
   }
@@ -918,26 +888,15 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
     Handle<Code> code) {
   if (entries->length() == entries->capacity()) {
     // We'd have to grow - try to compact first.
-    entries->IterateAndCompact([](CodeT, DependencyGroups) { return false; });
+    entries->IterateAndCompact([](Code, DependencyGroups) { return false; });
   }
 
-  MaybeObjectHandle code_slot(HeapObjectReference::Weak(ToCodeT(*code)),
-                              isolate);
+  MaybeObjectHandle code_slot(HeapObjectReference::Weak(*code), isolate);
   MaybeObjectHandle group_slot(MaybeObject::FromSmi(Smi::FromInt(groups)),
                                isolate);
   entries = Handle<DependentCode>::cast(
       WeakArrayList::AddToEnd(isolate, entries, code_slot, group_slot));
   return entries;
-}
-
-Handle<DependentCode> DependentCode::New(Isolate* isolate,
-                                         DependencyGroups groups,
-                                         Handle<Code> code) {
-  Handle<DependentCode> result = Handle<DependentCode>::cast(
-      isolate->factory()->NewWeakArrayList(LengthFor(1), AllocationType::kOld));
-  result->Set(0, HeapObjectReference::Weak(ToCodeT(*code)));
-  result->Set(1, Smi::FromInt(groups));
-  return result;
 }
 
 void DependentCode::IterateAndCompact(const IterateAndCompactFn& fn) {
@@ -960,7 +919,7 @@ void DependentCode::IterateAndCompact(const IterateAndCompactFn& fn) {
       continue;
     }
 
-    if (fn(CodeT::cast(obj->GetHeapObjectAssumeWeak()),
+    if (fn(Code::cast(obj->GetHeapObjectAssumeWeak()),
            static_cast<DependencyGroups>(
                Get(i + kGroupsSlotOffset).ToSmi().value()))) {
       len = FillEntryFromBack(i, len);
@@ -977,7 +936,7 @@ bool DependentCode::MarkCodeForDeoptimization(
   DisallowGarbageCollection no_gc;
 
   bool marked_something = false;
-  IterateAndCompact([&](CodeT code, DependencyGroups groups) {
+  IterateAndCompact([&](Code code, DependencyGroups groups) {
     if ((groups & deopt_groups) == 0) return false;
 
     if (!code.marked_for_deoptimization()) {
@@ -1021,17 +980,15 @@ DependentCode DependentCode::empty_dependent_code(const ReadOnlyRoots& roots) {
   return DependentCode::cast(roots.empty_weak_array_list());
 }
 
-void Code::SetMarkedForDeoptimization(const char* reason) {
+void InstructionStream::SetMarkedForDeoptimization(const char* reason) {
   set_marked_for_deoptimization(true);
   Deoptimizer::TraceMarkForDeoptimization(*this, reason);
 }
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-void CodeDataContainer::SetMarkedForDeoptimization(const char* reason) {
+void Code::SetMarkedForDeoptimization(const char* reason) {
   set_marked_for_deoptimization(true);
-  Deoptimizer::TraceMarkForDeoptimization(FromCodeT(*this), reason);
+  Deoptimizer::TraceMarkForDeoptimization(FromCode(*this), reason);
 }
-#endif
 
 const char* DependentCode::DependencyGroupName(DependencyGroup group) {
   switch (group) {

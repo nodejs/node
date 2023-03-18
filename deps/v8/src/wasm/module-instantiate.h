@@ -31,7 +31,6 @@ template <typename T>
 class MaybeHandle;
 
 namespace wasm {
-class ConstantExpression;
 class ErrorThrower;
 
 MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
@@ -39,13 +38,13 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
     Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports,
     MaybeHandle<JSArrayBuffer> memory);
 
-// Loads a range of elements from element segment into a table.
-// Returns the empty {Optional} if the operation succeeds, or an {Optional} with
-// the error {MessageTemplate} if it fails.
-base::Optional<MessageTemplate> LoadElemSegment(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, uint32_t table_index,
-    uint32_t segment_index, uint32_t dst, uint32_t src,
-    uint32_t count) V8_WARN_UNUSED_RESULT;
+// Initializes a segment at index {segment_index} of the segment array of
+// {instance}. If successful, returns the empty {Optional}, otherwise an
+// {Optional} that contains the error message. Exits early if the segment is
+// already initialized.
+base::Optional<MessageTemplate> InitializeElementSegment(
+    Zone* zone, Isolate* isolate, Handle<WasmInstanceObject> instance,
+    uint32_t segment_index);
 
 }  // namespace wasm
 }  // namespace internal

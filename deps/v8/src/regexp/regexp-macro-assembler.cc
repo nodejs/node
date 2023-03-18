@@ -283,12 +283,12 @@ bool NativeRegExpMacroAssembler::CanReadUnaligned() const {
 // static
 int NativeRegExpMacroAssembler::CheckStackGuardState(
     Isolate* isolate, int start_index, RegExp::CallOrigin call_origin,
-    Address* return_address, Code re_code, Address* subject,
+    Address* return_address, InstructionStream re_code, Address* subject,
     const byte** input_start, const byte** input_end) {
   DisallowGarbageCollection no_gc;
   Address old_pc = PointerAuthentication::AuthenticatePC(return_address, 0);
-  DCHECK_LE(re_code.raw_instruction_start(), old_pc);
-  DCHECK_LE(old_pc, re_code.raw_instruction_end());
+  DCHECK_LE(re_code.instruction_start(), old_pc);
+  DCHECK_LE(old_pc, re_code.instruction_end());
 
   StackLimitCheck check(isolate);
   bool js_has_overflowed = check.JsHasOverflowed();
@@ -315,7 +315,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
 
   // Prepare for possible GC.
   HandleScope handles(isolate);
-  Handle<Code> code_handle(re_code, isolate);
+  Handle<InstructionStream> code_handle(re_code, isolate);
   Handle<String> subject_handle(String::cast(Object(*subject)), isolate);
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject_handle);
   int return_value = 0;
@@ -431,7 +431,7 @@ int NativeRegExpMacroAssembler::Execute(
   RegExpStackScope stack_scope(isolate);
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(input);
-  CodeT code = CodeT::cast(regexp.code(is_one_byte));
+  Code code = Code::cast(regexp.code(is_one_byte));
   RegExp::CallOrigin call_origin = RegExp::CallOrigin::kFromRuntime;
 
   using RegexpMatcherSig =

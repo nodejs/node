@@ -138,7 +138,7 @@ TEST(Run_WasmModule_CompilationHintsLazy) {
         isolate, &thrower, module.ToHandleChecked(), {}, {});
     CHECK(!instance.is_null());
     int32_t result = testing::CallWasmFunctionForTesting(
-        isolate, instance.ToHandleChecked(), "main", 0, nullptr);
+        isolate, instance.ToHandleChecked(), "main", {});
     CHECK_EQ(kReturnValue, result);
 
     // Lazy function was invoked and therefore compiled.
@@ -578,7 +578,7 @@ TEST(TestInterruptLoop) {
 
     InterruptThread thread(isolate, memory_array);
     CHECK(thread.Start());
-    testing::CallWasmFunctionForTesting(isolate, instance, "main", 0, nullptr);
+    testing::CallWasmFunctionForTesting(isolate, instance, "main", {});
     Address address = reinterpret_cast<Address>(
         &memory_array[InterruptThread::interrupt_location_]);
     CHECK_EQ(InterruptThread::interrupt_value_,
@@ -658,16 +658,17 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
     // Initial memory size is 16 pages, should trap till index > MemSize on
     // consecutive GrowMem calls
     for (uint32_t i = 1; i < 5; i++) {
-      Handle<Object> params[1] = {Handle<Object>(Smi::FromInt(i), isolate)};
+      Handle<Object> params[1] = {handle(Smi::FromInt(i), isolate)};
       v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-      testing::CallWasmFunctionForTesting(isolate, instance, "main", 1, params);
+      testing::CallWasmFunctionForTesting(isolate, instance, "main",
+                                          base::ArrayVector(params));
       CHECK(try_catch.HasCaught());
       isolate->clear_pending_exception();
     }
 
-    Handle<Object> params[1] = {Handle<Object>(Smi::FromInt(1), isolate)};
-    int32_t result = testing::CallWasmFunctionForTesting(isolate, instance,
-                                                         "main", 1, params);
+    Handle<Object> params[1] = {handle(Smi::FromInt(1), isolate)};
+    int32_t result = testing::CallWasmFunctionForTesting(
+        isolate, instance, "main", base::ArrayVector(params));
     CHECK_EQ(0xACED, result);
   }
   Cleanup();
@@ -708,23 +709,24 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
       Handle<Object> params[1] = {
           Handle<Object>(Smi::FromInt((16 + i) * kPageSize - 3), isolate)};
       v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-      testing::CallWasmFunctionForTesting(isolate, instance, "main", 1, params);
+      testing::CallWasmFunctionForTesting(isolate, instance, "main",
+                                          base::ArrayVector(params));
       CHECK(try_catch.HasCaught());
       isolate->clear_pending_exception();
     }
 
     for (int i = 1; i < 5; i++) {
       Handle<Object> params[1] = {
-          Handle<Object>(Smi::FromInt((20 + i) * kPageSize - 4), isolate)};
-      int32_t result = testing::CallWasmFunctionForTesting(isolate, instance,
-                                                           "main", 1, params);
+          handle(Smi::FromInt((20 + i) * kPageSize - 4), isolate)};
+      int32_t result = testing::CallWasmFunctionForTesting(
+          isolate, instance, "main", base::ArrayVector(params));
       CHECK_EQ(0xACED, result);
     }
 
     v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-    Handle<Object> params[1] = {
-        Handle<Object>(Smi::FromInt(25 * kPageSize), isolate)};
-    testing::CallWasmFunctionForTesting(isolate, instance, "main", 1, params);
+    Handle<Object> params[1] = {handle(Smi::FromInt(25 * kPageSize), isolate)};
+    testing::CallWasmFunctionForTesting(isolate, instance, "main",
+                                        base::ArrayVector(params));
     CHECK(try_catch.HasCaught());
     isolate->clear_pending_exception();
   }

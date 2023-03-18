@@ -15,6 +15,7 @@
 #include 'src/objects/js-atomics-synchronization.h'
 #include 'src/objects/js-function.h'
 #include 'src/objects/js-generator.h'
+#include 'src/objects/js-iterator-helpers.h'
 #include 'src/objects/js-promise.h'
 #include 'src/objects/js-regexp-string-iterator.h'
 #include 'src/objects/js-shadow-realm.h'
@@ -229,7 +230,7 @@ type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';
 type RawPtr<To: type> extends RawPtr;
 type ExternalPointer
     generates 'TNode<ExternalPointerT>' constexpr 'ExternalPointer_t';
-extern class Code extends HeapObject;
+extern class InstructionStream extends HeapObject;
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 
 type Number = Smi|HeapNumber;
@@ -358,7 +359,12 @@ constexpr 'CodeStubAssembler::ExtractFixedArrayFlag' {
   ...
 }
 
+const kBigIntMaxLengthBits:
+    constexpr uintptr generates 'BigInt::kMaxLengthBits';
 const kBigIntMaxLength: constexpr intptr generates 'BigInt::kMaxLength';
+const kBigIntDigitSize: constexpr intptr generates 'kSystemPointerSize';
+const kBitsPerByte: constexpr intptr generates 'kBitsPerByte';
+const kBigIntDigitBits: intptr = kBigIntDigitSize * kBitsPerByte;
 
 extern enum MessageTemplate {
   kAllPromisesRejected,
@@ -442,6 +448,9 @@ extern enum MessageTemplate {
   kInvalidWeakRefsRegisterTarget,
   kInvalidWeakRefsUnregisterToken,
   kInvalidWeakRefsWeakRefConstructorTarget,
+  kObjectGetterCallable,
+  kObjectSetterCallable,
+  kPropertyDescObject,
   ...
 }
 
@@ -480,6 +489,8 @@ const kFixedDoubleArrayMaxLength:
     constexpr int31 generates 'FixedDoubleArray::kMaxLength';
 const kObjectAlignmentMask: constexpr intptr
     generates 'kObjectAlignmentMask';
+const kObjectAlignment: constexpr intptr
+    generates 'kObjectAlignment';
 const kMinAddedElementsCapacity:
     constexpr int31 generates 'JSObject::kMinAddedElementsCapacity';
 const kMaxFastArrayLength:
@@ -528,6 +539,7 @@ extern macro MatchSymbolConstant(): Symbol;
 extern macro MessageStringConstant(): String;
 extern macro NanConstant(): NaN;
 extern macro NameStringConstant(): String;
+extern macro NextStringConstant(): String;
 extern macro NullConstant(): Null;
 extern macro NumberStringConstant(): String;
 extern macro ReturnStringConstant(): String;
@@ -549,6 +561,7 @@ const False: False = FalseConstant();
 const kEmptyString: EmptyString = EmptyStringConstant();
 const kLengthString: String = LengthStringConstant();
 const kMessageString: String = MessageStringConstant();
+const kNextString: String = NextStringConstant();
 const kReturnString: String = ReturnStringConstant();
 
 const kNaN: NaN = NanConstant();
@@ -777,6 +790,8 @@ extern transitioning runtime NormalizeElements(Context, JSObject): void;
 extern transitioning runtime TransitionElementsKindWithKind(
     Context, JSObject, Smi): void;
 
+extern macro LoadObjectField(HeapObject, constexpr int32): Object;
+
 extern macro LoadBufferObject(RawPtr, constexpr int32): Object;
 extern macro LoadBufferPointer(RawPtr, constexpr int32): RawPtr;
 extern macro LoadBufferSmi(RawPtr, constexpr int32): Smi;
@@ -960,6 +975,8 @@ extern operator '*' macro IntPtrMul(intptr, intptr): intptr;
 extern operator '*' macro Int64Mul(int64, int64): int64;
 extern operator '/' macro IntPtrDiv(intptr, intptr): intptr;
 extern operator '/' macro Int64Div(int64, int64): int64;
+extern operator '%' macro IntPtrMod(intptr, intptr): intptr;
+extern operator '%' macro Int64Mod(int64, int64): int64;
 extern operator '<<' macro WordShl(intptr, intptr): intptr;
 extern operator '>>' macro WordSar(intptr, intptr): intptr;
 extern operator '&' macro WordAnd(intptr, intptr): intptr;
@@ -1474,6 +1491,23 @@ macro RequireObjectCoercible(implicit context: Context)(
 extern macro BranchIfSameValue(JSAny, JSAny): never labels Taken, NotTaken;
 macro SameValue(a: JSAny, b: JSAny): bool {
   BranchIfSameValue(a, b) otherwise return true, return false;
+}
+macro SameValue(a: (JSAny|TheHole), b: (JSAny|TheHole)): bool {
+  typeswitch (a) {
+    case (a: TheHole): {
+      return UnsafeCast<TheHole>(b) == a;
+    }
+    case (a: JSAny): {
+      typeswitch (b) {
+        case (TheHole): {
+          return false;
+        }
+        case (b: JSAny): {
+          return SameValue(a, b);
+        }
+      }
+    }
+  }
 }
 
 // Does "if (index1 + index2 > limit) goto IfOverflow" in an uintptr overflow

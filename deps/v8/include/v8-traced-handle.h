@@ -62,7 +62,11 @@ class TracedReferenceBase {
    */
   V8_INLINE v8::Local<v8::Value> Get(v8::Isolate* isolate) const {
     if (IsEmpty()) return Local<Value>();
+#if V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    return Local<Value>::New(isolate, *reinterpret_cast<Value**>(val_));
+#else
     return Local<Value>::New(isolate, reinterpret_cast<Value*>(val_));
+#endif
   }
 
   /**
@@ -117,11 +121,11 @@ class TracedReferenceBase {
 
 /**
  * A traced handle with copy and move semantics. The handle is to be used
- * together with |v8::EmbedderHeapTracer| or as part of GarbageCollected objects
- * (see v8-cppgc.h) and specifies edges from C++ objects to JavaScript.
+ * together as part of GarbageCollected objects (see v8-cppgc.h) or from stack
+ * and specifies edges from C++ objects to JavaScript.
  *
  * The exact semantics are:
- * - Tracing garbage collections use |v8::EmbedderHeapTracer| or cppgc.
+ * - Tracing garbage collections using CppHeap.
  * - Non-tracing garbage collections refer to
  *   |v8::EmbedderRootsHandler::IsRoot()| whether the handle should
  * be treated as root or not.
@@ -135,7 +139,16 @@ class BasicTracedReference : public TracedReferenceBase {
   /**
    * Construct a Local<T> from this handle.
    */
-  Local<T> Get(Isolate* isolate) const { return Local<T>::New(isolate, *this); }
+  Local<T> Get(Isolate* isolate) const {
+#if V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    if (val_ == nullptr) {
+      return Local<T>();
+    }
+    return Local<T>::New(isolate, *this);
+#else
+    return Local<T>::New(isolate, *this);
+#endif
+  }
 
   template <class S>
   V8_INLINE BasicTracedReference<S>& As() const {
@@ -166,7 +179,6 @@ class BasicTracedReference : public TracedReferenceBase {
       Isolate* isolate, T* that, void* slot,
       internal::GlobalHandleStoreMode store_mode);
 
-  friend class EmbedderHeapTracer;
   template <typename F>
   friend class Local;
   friend class Object;
@@ -181,13 +193,7 @@ class BasicTracedReference : public TracedReferenceBase {
 /**
  * A traced handle without destructor that clears the handle. The embedder needs
  * to ensure that the handle is not accessed once the V8 object has been
- * reclaimed. This can happen when the handle is not passed through the
- * EmbedderHeapTracer. For more details see BasicTracedReference.
- *
- * The reference assumes the embedder has precise knowledge about references at
- * all times. In case V8 needs to separately handle on-stack references, the
- * embedder is required to set the stack start through
- * |EmbedderHeapTracer::SetStackStart|.
+ * reclaimed. For more details see BasicTracedReference.
  */
 template <typename T>
 class TracedReference : public BasicTracedReference<T> {
@@ -291,7 +297,13 @@ template <class T>
 internal::Address* BasicTracedReference<T>::New(
     Isolate* isolate, T* that, void* slot,
     internal::GlobalHandleStoreMode store_mode) {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  if (reinterpret_cast<internal::Address>(that) ==
+      internal::kLocalTaggedNullAddress)
+    return nullptr;
+#else
   if (that == nullptr) return nullptr;
+#endif
   internal::Address* p = reinterpret_cast<internal::Address*>(that);
   return internal::GlobalizeTracedReference(
       reinterpret_cast<internal::Isolate*>(isolate), p,

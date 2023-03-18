@@ -141,12 +141,11 @@ Type::bitset Type::BitsetLub() const {
 // TODO(neis): Once the broker mode kDisabled is gone, change the input type to
 // MapRef and get rid of the HeapObjectType class.
 template <typename MapRefLike>
-Type::bitset BitsetType::Lub(const MapRefLike& map) {
+Type::bitset BitsetType::Lub(const MapRefLike& map, JSHeapBroker* broker) {
   switch (map.instance_type()) {
     case CONS_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
     case THIN_STRING_TYPE:
-    case THIN_ONE_BYTE_STRING_TYPE:
     case SLICED_STRING_TYPE:
     case SLICED_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_STRING_TYPE:
@@ -168,7 +167,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case BIGINT_TYPE:
       return kBigInt;
     case ODDBALL_TYPE:
-      switch (map.oddball_type()) {
+      switch (map.oddball_type(broker)) {
         case OddballType::kNone:
           break;
         case OddballType::kHole:
@@ -248,6 +247,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_REG_EXP_STRING_ITERATOR_TYPE:
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
+    case JS_RAB_GSAB_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
     case JS_MAP_TYPE:
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
@@ -257,6 +257,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_MAP_VALUE_ITERATOR_TYPE:
     case JS_STRING_ITERATOR_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
+    case JS_ITERATOR_MAP_HELPER_TYPE:
     case JS_FINALIZATION_REGISTRY_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_REF_TYPE:
@@ -368,8 +369,8 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:
     case SCRIPT_TYPE:
+    case INSTRUCTION_STREAM_TYPE:
     case CODE_TYPE:
-    case CODE_DATA_CONTAINER_TYPE:
     case PROPERTY_CELL_TYPE:
     case SOURCE_TEXT_MODULE_TYPE:
     case SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE:
@@ -393,7 +394,8 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
 }
 
 // Explicit instantiation.
-template Type::bitset BitsetType::Lub<MapRef>(const MapRef& map);
+template Type::bitset BitsetType::Lub<MapRef>(const MapRef& map,
+                                              JSHeapBroker* broker);
 
 Type::bitset BitsetType::Lub(double value) {
   DisallowGarbageCollection no_gc;
@@ -889,6 +891,10 @@ Type Type::Constant(JSHeapBroker* broker, Handle<i::Object> value, Zone* zone) {
   // consider having the graph store ObjectRefs or ObjectData pointer instead,
   // which would make new ref construction here unnecessary.
   ObjectRef ref = MakeRefAssumeMemoryFence(broker, value);
+  return Constant(broker, ref, zone);
+}
+
+Type Type::Constant(JSHeapBroker* broker, ObjectRef ref, Zone* zone) {
   if (ref.IsSmi()) {
     return Constant(static_cast<double>(ref.AsSmi()), zone);
   }
@@ -898,7 +904,7 @@ Type Type::Constant(JSHeapBroker* broker, Handle<i::Object> value, Zone* zone) {
   if (ref.IsString() && !ref.IsInternalizedString()) {
     return Type::String();
   }
-  return HeapConstant(ref.AsHeapObject(), zone);
+  return HeapConstant(ref.AsHeapObject(), broker, zone);
 }
 
 Type Type::Union(Type type1, Type type2, Zone* zone) {
@@ -1136,10 +1142,12 @@ Type Type::OtherNumberConstant(double value, Zone* zone) {
 }
 
 // static
-Type Type::HeapConstant(const HeapObjectRef& value, Zone* zone) {
+Type Type::HeapConstant(const HeapObjectRef& value, JSHeapBroker* broker,
+                        Zone* zone) {
   DCHECK(!value.IsHeapNumber());
   DCHECK_IMPLIES(value.IsString(), value.IsInternalizedString());
-  BitsetType::bitset bitset = BitsetType::Lub(value.GetHeapObjectType());
+  BitsetType::bitset bitset =
+      BitsetType::Lub(value.GetHeapObjectType(broker), broker);
   if (Type(bitset).IsSingleton()) return Type(bitset);
   return HeapConstantType::New(value, bitset, zone);
 }

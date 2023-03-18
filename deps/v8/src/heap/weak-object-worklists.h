@@ -19,7 +19,7 @@ struct Ephemeron {
 };
 
 using HeapObjectAndSlot = std::pair<HeapObject, HeapObjectSlot>;
-using HeapObjectAndCode = std::pair<HeapObject, Code>;
+using HeapObjectAndCode = std::pair<HeapObject, InstructionStream>;
 class EphemeronHashTable;
 class JSFunction;
 class SharedFunctionInfo;

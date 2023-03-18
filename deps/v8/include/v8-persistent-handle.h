@@ -45,6 +45,9 @@ V8_EXPORT void MoveGlobalReference(internal::Address** from,
  */
 template <class T>
 class Eternal {
+  template <class F>
+  friend class Local;
+
  public:
   V8_INLINE Eternal() : val_(nullptr) {}
   template <class S>
@@ -55,7 +58,11 @@ class Eternal {
   V8_INLINE Local<T> Get(Isolate* isolate) const {
     // The eternal handle will never go away, so as with the roots, we don't
     // even need to open a handle.
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    return Local<T>::New(isolate, *this);
+#else
     return Local<T>(val_);
+#endif
   }
 
   V8_INLINE bool IsEmpty() const { return val_ == nullptr; }
@@ -132,10 +139,17 @@ class PersistentBase {
   template <class S>
   V8_INLINE bool operator==(const Local<S>& that) const {
     internal::Address* a = reinterpret_cast<internal::Address*>(this->val_);
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    internal::Address b = reinterpret_cast<internal::Address>(that.val_);
+    if (a == nullptr) return b == internal::kLocalTaggedNullAddress;
+    if (b == internal::kLocalTaggedNullAddress) return false;
+    return *a == b;
+#else
     internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
     if (a == nullptr) return b == nullptr;
     if (b == nullptr) return false;
     return *a == *b;
+#endif
   }
 
   template <class S>
@@ -252,7 +266,7 @@ class NonCopyablePersistentTraits {
  * This will clone the contents of storage cell, but not any of the flags, etc.
  */
 template <class T>
-struct CopyablePersistentTraits {
+struct V8_DEPRECATED("Use v8::Global instead") CopyablePersistentTraits {
   using CopyablePersistent = Persistent<T, CopyablePersistentTraits<T>>;
   static const bool kResetInDestructor = true;
   template <class S, class M>
@@ -282,11 +296,22 @@ class Persistent : public PersistentBase<T> {
    * When the Local is non-empty, a new storage cell is created
    * pointing to the same object, and no flags are set.
    */
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  template <class S>
+  V8_INLINE Persistent(Isolate* isolate, Local<S> that)
+      : PersistentBase<T>(
+            PersistentBase<T>::New(isolate, reinterpret_cast<S*>(&that))) {
+    static_assert(std::is_base_of<T, S>::value, "type check");
+  }
+#else
   template <class S>
   V8_INLINE Persistent(Isolate* isolate, Local<S> that)
       : PersistentBase<T>(PersistentBase<T>::New(isolate, *that)) {
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
+#endif
+
   /**
    * Construct a Persistent from a Persistent.
    * When the Persistent is non-empty, a new storage cell is created
@@ -379,11 +404,20 @@ class Global : public PersistentBase<T> {
    * When the Local is non-empty, a new storage cell is created
    * pointing to the same object, and no flags are set.
    */
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  template <class S>
+  V8_INLINE Global(Isolate* isolate, Local<S> that)
+      : PersistentBase<T>(
+            PersistentBase<T>::New(isolate, reinterpret_cast<T*>(&that))) {
+    static_assert(std::is_base_of<T, S>::value, "type check");
+  }
+#else
   template <class S>
   V8_INLINE Global(Isolate* isolate, Local<S> that)
       : PersistentBase<T>(PersistentBase<T>::New(isolate, *that)) {
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
+#endif
 
   /**
    * Construct a Global from a PersistentBase.
@@ -486,7 +520,11 @@ void PersistentBase<T>::Reset(Isolate* isolate, const Local<S>& other) {
   static_assert(std::is_base_of<T, S>::value, "type check");
   Reset();
   if (other.IsEmpty()) return;
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  this->val_ = New(isolate, const_cast<S*>(reinterpret_cast<const S*>(&other)));
+#else
   this->val_ = New(isolate, other.val_);
+#endif
 }
 
 /**

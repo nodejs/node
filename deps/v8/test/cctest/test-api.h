@@ -72,6 +72,14 @@ struct ConvertJSValue<uint32_t> {
   }
 };
 
+template <>
+struct ConvertJSValue<std::nullptr_t> {
+  static v8::Maybe<std::nullptr_t> Get(v8::Local<v8::Value> value,
+                                       v8::Local<v8::Context> context) {
+    return value->IsNull() ? v8::Just(nullptr) : v8::Nothing<std::nullptr_t>();
+  }
+};
+
 // NaNs and +/-Infinity should be 0, otherwise (modulo 2^64) - 2^63.
 // Step 8 - 12 of https://heycam.github.io/webidl/#abstract-opdef-converttoint
 // The int64_t and uint64_t implementations below are copied from Blink:

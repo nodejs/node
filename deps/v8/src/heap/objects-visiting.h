@@ -21,8 +21,8 @@ namespace internal {
   V(BytecodeArray)                      \
   V(CallHandlerInfo)                    \
   V(Cell)                               \
+  V(InstructionStream)                  \
   V(Code)                               \
-  V(CodeDataContainer)                  \
   V(CoverageInfo)                       \
   V(DataHandler)                        \
   V(EmbedderDataArray)                  \
@@ -31,7 +31,7 @@ namespace internal {
   V(FeedbackMetadata)                   \
   V(FixedDoubleArray)                   \
   V(JSArrayBuffer)                      \
-  V(JSDataView)                         \
+  V(JSDataViewOrRabGsabDataView)        \
   V(JSExternalObject)                   \
   V(JSFinalizationRegistry)             \
   V(JSFunction)                         \
@@ -70,7 +70,8 @@ namespace internal {
   IF_WASM(V, WasmSuspenderObject)       \
   IF_WASM(V, WasmResumeData)            \
   IF_WASM(V, WasmTypeInfo)              \
-  IF_WASM(V, WasmContinuationObject)
+  IF_WASM(V, WasmContinuationObject)    \
+  IF_WASM(V, WasmNull)
 
 #define FORWARD_DECLARE(TypeName) class TypeName;
 TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)
@@ -148,6 +149,9 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
 
   int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
   int VisitWeakCell(Map map, WeakCell weak_cell);
+
+  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
+  int VisitJSObjectSubclass(Map map, T object);
 };
 
 class WeakObjectRetainer;

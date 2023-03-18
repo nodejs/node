@@ -12,7 +12,6 @@
 #include "src/common/globals.h"
 #include "src/heap/base/active-system-pages.h"
 #include "src/heap/basic-memory-chunk.h"
-#include "src/heap/heap.h"
 #include "src/heap/invalidated-slots.h"
 #include "src/heap/list.h"
 #include "src/heap/marking.h"
@@ -24,6 +23,7 @@ namespace internal {
 
 class CodeObjectRegistry;
 class FreeListCategory;
+class Space;
 
 // MemoryChunk represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
@@ -241,6 +241,15 @@ class MemoryChunk : public BasicMemoryChunk {
   static void ValidateOffsets(MemoryChunk* chunk);
 #endif
 
+  template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
+  void set_slot_set(SlotSet* slot_set) {
+    if (access_mode == AccessMode::ATOMIC) {
+      base::AsAtomicPointer::Release_Store(&slot_set_[type], slot_set);
+      return;
+    }
+    slot_set_[type] = slot_set;
+  }
+
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
   // is ceil(size() / kPageSize).
@@ -288,7 +297,7 @@ class MemoryChunk : public BasicMemoryChunk {
 
   PossiblyEmptyBuckets possibly_empty_buckets_;
 
-  ActiveSystemPages active_system_pages_;
+  ActiveSystemPages* active_system_pages_;
 
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   ObjectStartBitmap object_start_bitmap_;
@@ -306,6 +315,8 @@ class MemoryChunk : public BasicMemoryChunk {
   friend class MemoryAllocator;
   friend class MemoryChunkValidator;
   friend class PagedSpace;
+  template <RememberedSetType>
+  friend class RememberedSet;
 };
 
 }  // namespace internal

@@ -25,7 +25,11 @@ class GapResolver final {
     virtual void AssembleSwap(InstructionOperand* source,
                               InstructionOperand* destination) = 0;
 
-    // Assemble cycles.
+    // Helper functions to resolve cyclic dependencies.
+    // - {Push} pushes {src} and returns an operand that encodes the new stack
+    // slot.
+    // - {Pop} pops the topmost stack operand and moves it to {dest}.
+    // - {PopTempStackSlots} pops all remaining unpopped stack slots.
     // - {SetPendingMove} reserves scratch registers needed to perform the moves
     // in the cycle.
     // - {MoveToTempLocation} moves an operand to a temporary location, either
@@ -33,34 +37,38 @@ class GapResolver final {
     // reserved registers.
     // - {MoveTempLocationTo} moves the temp location to the destination,
     // thereby completing the cycle.
-    virtual void MoveToTempLocation(InstructionOperand* src) = 0;
+    virtual AllocatedOperand Push(InstructionOperand* src) = 0;
+    virtual void Pop(InstructionOperand* dest, MachineRepresentation rep) = 0;
+    virtual void PopTempStackSlots() = 0;
+    virtual void MoveToTempLocation(InstructionOperand* src,
+                                    MachineRepresentation rep) = 0;
     virtual void MoveTempLocationTo(InstructionOperand* dst,
                                     MachineRepresentation rep) = 0;
     virtual void SetPendingMove(MoveOperands* move) = 0;
+    int temp_slots_ = 0;
   };
 
-  explicit GapResolver(Assembler* assembler)
-      : assembler_(assembler), split_rep_(MachineRepresentation::kSimd128) {}
+  explicit GapResolver(Assembler* assembler) : assembler_(assembler) {}
 
   // Resolve a set of parallel moves, emitting assembler instructions.
   V8_EXPORT_PRIVATE void Resolve(ParallelMove* parallel_move);
 
  private:
+  // Take a vector of moves where each move blocks the next one, and the last
+  // one blocks the first one, and resolve it using a temporary location.
+  void PerformCycle(const std::vector<MoveOperands*>& cycle);
   // Performs the given move, possibly performing other moves to unblock the
   // destination operand.
   void PerformMove(ParallelMove* moves, MoveOperands* move);
-  // Perform the move and its non-cyclic dependencies. Return the cycle if one
-  // is found.
-  base::Optional<std::vector<MoveOperands*>> PerformMoveHelper(
-      ParallelMove* moves, MoveOperands* move);
-
+  // Perform the move and its dependencies. Also performs simple cyclic
+  // dependencies. For more complex cases the method may bail out:
+  // in this case, it returns one of the problematic moves. The caller
+  // ({PerformMove}) will use a temporary stack slot to unblock the dependencies
+  // and try again.
+  MoveOperands* PerformMoveHelper(ParallelMove* moves, MoveOperands* move,
+                                  std::vector<MoveOperands*>* cycle);
   // Assembler used to emit moves and save registers.
   Assembler* const assembler_;
-
-  // While resolving moves, the largest FP representation that can be moved.
-  // Any larger moves must be split into an equivalent series of moves of this
-  // representation.
-  MachineRepresentation split_rep_;
 };
 
 }  // namespace compiler

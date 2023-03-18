@@ -16,6 +16,7 @@ namespace {
 bool IsMachineLoad(Node* const node) {
   const IrOpcode::Value opcode = node->opcode();
   return opcode == IrOpcode::kLoad || opcode == IrOpcode::kProtectedLoad ||
+         opcode == IrOpcode::kLoadTrapOnNull ||
          opcode == IrOpcode::kUnalignedLoad ||
          opcode == IrOpcode::kLoadImmutable;
 }
@@ -100,6 +101,7 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
     // SPECIAL CASES - Load.
     case IrOpcode::kLoad:
     case IrOpcode::kProtectedLoad:
+    case IrOpcode::kLoadTrapOnNull:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kLoadImmutable:
       DCHECK_EQ(node->op()->ValueInputCount(), 2);
@@ -119,6 +121,7 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
     // SPECIAL CASES - Store.
     case IrOpcode::kStore:
     case IrOpcode::kProtectedStore:
+    case IrOpcode::kStoreTrapOnNull:
     case IrOpcode::kUnalignedStore: {
       DCHECK_EQ(node->op()->ValueInputCount(), 3);
       MaybeMarkAndQueueForRevisit(node->InputAt(0),
@@ -264,6 +267,10 @@ void DecompressionOptimizer::ChangeLoad(Node* const node) {
     case IrOpcode::kProtectedLoad:
       NodeProperties::ChangeOp(node,
                                machine()->ProtectedLoad(compressed_load_rep));
+      break;
+    case IrOpcode::kLoadTrapOnNull:
+      NodeProperties::ChangeOp(node,
+                               machine()->LoadTrapOnNull(compressed_load_rep));
       break;
     case IrOpcode::kUnalignedLoad:
       NodeProperties::ChangeOp(node,

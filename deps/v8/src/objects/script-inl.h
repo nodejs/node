@@ -25,7 +25,7 @@ NEVER_READ_ONLY_SPACE_IMPL(Script)
 
 #if V8_ENABLE_WEBASSEMBLY
 ACCESSORS_CHECKED(Script, wasm_breakpoint_infos, FixedArray,
-                  kEvalFromSharedOrWrappedArgumentsOrSfiTableOffset,
+                  kEvalFromSharedOrWrappedArgumentsOffset,
                   this->type() == TYPE_WASM)
 ACCESSORS_CHECKED(Script, wasm_managed_native_module, Object,
                   kEvalFromPositionOffset, this->type() == TYPE_WASM)
@@ -37,59 +37,43 @@ ACCESSORS_CHECKED(Script, wasm_weak_instance_list, WeakArrayList,
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 SMI_ACCESSORS(Script, type, kScriptTypeOffset)
-ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments_or_sfi_table,
-                  Object, kEvalFromSharedOrWrappedArgumentsOrSfiTableOffset,
+ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments, Object,
+                  kEvalFromSharedOrWrappedArgumentsOffset,
                   CHECK_SCRIPT_NOT_WASM)
 SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
                       CHECK_SCRIPT_NOT_WASM)
 #undef CHECK_SCRIPT_NOT_WASM
 
+ACCESSORS(Script, compiled_lazy_function_positions, Object,
+          kCompiledLazyFunctionPositionsOffset)
+
 bool Script::is_wrapped() const {
-  return eval_from_shared_or_wrapped_arguments_or_sfi_table().IsFixedArray() &&
-         type() != TYPE_WEB_SNAPSHOT;
+  return eval_from_shared_or_wrapped_arguments().IsFixedArray();
 }
 
 bool Script::has_eval_from_shared() const {
-  return eval_from_shared_or_wrapped_arguments_or_sfi_table()
-      .IsSharedFunctionInfo();
+  return eval_from_shared_or_wrapped_arguments().IsSharedFunctionInfo();
 }
 
 void Script::set_eval_from_shared(SharedFunctionInfo shared,
                                   WriteBarrierMode mode) {
   DCHECK(!is_wrapped());
-  DCHECK_NE(type(), TYPE_WEB_SNAPSHOT);
-  set_eval_from_shared_or_wrapped_arguments_or_sfi_table(shared, mode);
+  set_eval_from_shared_or_wrapped_arguments(shared, mode);
 }
 
 SharedFunctionInfo Script::eval_from_shared() const {
   DCHECK(has_eval_from_shared());
-  return SharedFunctionInfo::cast(
-      eval_from_shared_or_wrapped_arguments_or_sfi_table());
+  return SharedFunctionInfo::cast(eval_from_shared_or_wrapped_arguments());
 }
 
 void Script::set_wrapped_arguments(FixedArray value, WriteBarrierMode mode) {
   DCHECK(!has_eval_from_shared());
-  DCHECK_NE(type(), TYPE_WEB_SNAPSHOT);
-  set_eval_from_shared_or_wrapped_arguments_or_sfi_table(value, mode);
+  set_eval_from_shared_or_wrapped_arguments(value, mode);
 }
 
 FixedArray Script::wrapped_arguments() const {
   DCHECK(is_wrapped());
-  return FixedArray::cast(eval_from_shared_or_wrapped_arguments_or_sfi_table());
-}
-
-void Script::set_shared_function_info_table(ObjectHashTable value,
-                                            WriteBarrierMode mode) {
-  DCHECK(!has_eval_from_shared());
-  DCHECK(!is_wrapped());
-  DCHECK_EQ(type(), TYPE_WEB_SNAPSHOT);
-  set_eval_from_shared_or_wrapped_arguments_or_sfi_table(value, mode);
-}
-
-ObjectHashTable Script::shared_function_info_table() const {
-  DCHECK_EQ(type(), TYPE_WEB_SNAPSHOT);
-  return ObjectHashTable::cast(
-      eval_from_shared_or_wrapped_arguments_or_sfi_table());
+  return FixedArray::cast(eval_from_shared_or_wrapped_arguments());
 }
 
 DEF_GETTER(Script, shared_function_infos, WeakFixedArray) {
@@ -111,11 +95,6 @@ void Script::set_shared_function_infos(WeakFixedArray value,
 }
 
 int Script::shared_function_info_count() const {
-  if (V8_UNLIKELY(type() == TYPE_WEB_SNAPSHOT)) {
-    // +1 because the 0th element in shared_function_infos is reserved for the
-    // top-level SharedFunctionInfo which doesn't exist.
-    return shared_function_info_table().NumberOfElements() + 1;
-  }
   return shared_function_infos().length();
 }
 
@@ -146,6 +125,14 @@ Script::CompilationState Script::compilation_state() {
 }
 void Script::set_compilation_state(CompilationState state) {
   set_flags(CompilationStateBit::update(flags(), state));
+}
+
+bool Script::produce_compile_hints() const {
+  return ProduceCompileHintsBit::decode(flags());
+}
+
+void Script::set_produce_compile_hints(bool produce_compile_hints) {
+  set_flags(ProduceCompileHintsBit::update(flags(), produce_compile_hints));
 }
 
 bool Script::is_repl_mode() const { return IsReplModeBit::decode(flags()); }

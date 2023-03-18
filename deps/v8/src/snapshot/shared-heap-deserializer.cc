@@ -12,7 +12,7 @@ namespace internal {
 void SharedHeapDeserializer::DeserializeIntoIsolate() {
   // Don't deserialize into client Isolates. If there are client Isolates, the
   // shared heap object cache should already be populated.
-  if (isolate()->has_shared_heap() && !isolate()->is_shared_space_isolate()) {
+  if (isolate()->has_shared_space() && !isolate()->is_shared_space_isolate()) {
     DCHECK(!isolate()->shared_heap_object_cache()->empty());
     return;
   }

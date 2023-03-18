@@ -94,7 +94,7 @@ V8_INLINE bool SemiSpaceNewSpace::EnsureAllocation(
   }
 
   DCHECK(old_top + aligned_size_in_bytes <= high);
-  UpdateInlineAllocationLimit(aligned_size_in_bytes);
+  UpdateInlineAllocationLimitForAllocation(aligned_size_in_bytes);
   DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
   return true;

@@ -4,6 +4,7 @@
 
 #include "src/objects/map.h"
 
+#include "src/common/assert-scope.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
@@ -179,8 +180,8 @@ VisitorId Map::GetVisitorId(Map map) {
     case MAP_TYPE:
       return kVisitMap;
 
-    case CODE_TYPE:
-      return kVisitCode;
+    case INSTRUCTION_STREAM_TYPE:
+      return kVisitInstructionStream;
 
     case CELL_TYPE:
       return kVisitCell;
@@ -211,7 +212,8 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitJSArrayBuffer;
 
     case JS_DATA_VIEW_TYPE:
-      return kVisitJSDataView;
+    case JS_RAB_GSAB_DATA_VIEW_TYPE:
+      return kVisitJSDataViewOrRabGsabDataView;
 
     case JS_EXTERNAL_OBJECT_TYPE:
       return kVisitJSExternalObject;
@@ -242,8 +244,8 @@ VisitorId Map::GetVisitorId(Map map) {
     case SWISS_NAME_DICTIONARY_TYPE:
       return kVisitSwissNameDictionary;
 
-    case CODE_DATA_CONTAINER_TYPE:
-      return kVisitCodeDataContainer;
+    case CODE_TYPE:
+      return kVisitCode;
 
     case PREPARSE_DATA_TYPE:
       return kVisitPreparseData;
@@ -262,6 +264,8 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_DATE_TYPE:
     case JS_ERROR_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_ITERATOR_FILTER_HELPER_TYPE:
+    case JS_ITERATOR_MAP_HELPER_TYPE:
     case JS_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_KEY_ITERATOR_TYPE:
@@ -411,6 +415,8 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitWasmCapiFunctionData;
     case WASM_SUSPENDER_OBJECT_TYPE:
       return kVisitWasmSuspenderObject;
+    case WASM_NULL_TYPE:
+      return kVisitWasmNull;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #define MAKE_TQ_CASE(TYPE, Name) \
@@ -861,7 +867,7 @@ Handle<Map> Map::GetObjectCreateMap(Isolate* isolate,
   if (prototype->IsNull(isolate)) {
     return isolate->slow_object_with_null_prototype_map();
   }
-  if (prototype->IsJSObject()) {
+  if (prototype->IsJSObjectThatCanBeTrackedAsPrototype()) {
     Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
     if (!js_prototype->map().is_prototype_map()) {
       JSObject::OptimizeAsPrototype(js_prototype);
@@ -1472,6 +1478,8 @@ Handle<Map> Map::CopyReplaceDescriptors(Isolate* isolate, Handle<Map> map,
       DCHECK(!maybe_name.is_null());
       ConnectTransition(isolate, map, result, name, simple_flag);
       is_connected = true;
+    } else if (isolate->bootstrapper()->IsActive()) {
+      result->InitializeDescriptors(isolate, *descriptors);
     } else {
       descriptors->GeneralizeAllFields();
       result->InitializeDescriptors(isolate, *descriptors);
@@ -2209,9 +2217,12 @@ void Map::SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
 // static
 Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(Handle<JSObject> prototype,
                                                     Isolate* isolate) {
-  Object maybe_proto_info = prototype->map().prototype_info();
-  if (maybe_proto_info.IsPrototypeInfo()) {
-    return handle(PrototypeInfo::cast(maybe_proto_info), isolate);
+  DCHECK(prototype->IsJSObjectThatCanBeTrackedAsPrototype());
+  {
+    PrototypeInfo prototype_info;
+    if (prototype->map().TryGetPrototypeInfo(&prototype_info)) {
+      return handle(prototype_info, isolate);
+    }
   }
   Handle<PrototypeInfo> proto_info = isolate->factory()->NewPrototypeInfo();
   prototype->map().set_prototype_info(*proto_info, kReleaseStore);
@@ -2221,9 +2232,11 @@ Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(Handle<JSObject> prototype,
 // static
 Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(Handle<Map> prototype_map,
                                                     Isolate* isolate) {
-  Object maybe_proto_info = prototype_map->prototype_info();
-  if (maybe_proto_info.IsPrototypeInfo()) {
-    return handle(PrototypeInfo::cast(maybe_proto_info), isolate);
+  {
+    Object maybe_proto_info = prototype_map->prototype_info();
+    if (PrototypeInfo::IsPrototypeInfoFast(maybe_proto_info)) {
+      return handle(PrototypeInfo::cast(maybe_proto_info), isolate);
+    }
   }
   Handle<PrototypeInfo> proto_info = isolate->factory()->NewPrototypeInfo();
   prototype_map->set_prototype_info(*proto_info, kReleaseStore);
@@ -2233,7 +2246,8 @@ Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(Handle<Map> prototype_map,
 // static
 void Map::SetShouldBeFastPrototypeMap(Handle<Map> map, bool value,
                                       Isolate* isolate) {
-  if (value == false && !map->prototype_info().IsPrototypeInfo()) {
+  DCHECK(map->is_prototype_map());
+  if (value == false && !map->has_prototype_info()) {
     // "False" is the implicit default value, so there's nothing to do.
     return;
   }
@@ -2253,7 +2267,7 @@ Handle<Object> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
     maybe_prototype =
         handle(map->GetPrototypeChainRootMap(isolate).prototype(), isolate);
   }
-  if (!maybe_prototype->IsJSObject()) {
+  if (!maybe_prototype->IsJSObjectThatCanBeTrackedAsPrototype()) {
     return handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
   }
   Handle<JSObject> prototype = Handle<JSObject>::cast(maybe_prototype);
@@ -2265,14 +2279,14 @@ Handle<Object> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
   Object maybe_cell = prototype->map().prototype_validity_cell(kRelaxedLoad);
   // Return existing cell if it's still valid.
   if (maybe_cell.IsCell()) {
-    Handle<Cell> cell(Cell::cast(maybe_cell), isolate);
-    if (cell->value() == Smi::FromInt(Map::kPrototypeChainValid)) {
-      return cell;
+    Cell cell = Cell::cast(maybe_cell);
+    if (cell.value() == Smi::FromInt(Map::kPrototypeChainValid)) {
+      return handle(cell, isolate);
     }
   }
   // Otherwise create a new cell.
-  Handle<Cell> cell = isolate->factory()->NewCell(
-      handle(Smi::FromInt(Map::kPrototypeChainValid), isolate));
+  Handle<Cell> cell =
+      isolate->factory()->NewCell(Smi::FromInt(Map::kPrototypeChainValid));
   prototype->map().set_prototype_validity_cell(*cell, kRelaxedStore);
   return cell;
 }
@@ -2294,12 +2308,12 @@ void Map::SetPrototype(Isolate* isolate, Handle<Map> map,
                        bool enable_prototype_setup_mode) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kMap_SetPrototype);
 
-  if (prototype->IsJSObject()) {
+  if (prototype->IsJSObjectThatCanBeTrackedAsPrototype()) {
     Handle<JSObject> prototype_jsobj = Handle<JSObject>::cast(prototype);
     JSObject::OptimizeAsPrototype(prototype_jsobj, enable_prototype_setup_mode);
   } else {
     DCHECK(prototype->IsNull(isolate) || prototype->IsJSProxy() ||
-           prototype->IsWasmObject());
+           prototype->IsWasmObject() || prototype->InSharedWritableHeap());
   }
 
   WriteBarrierMode wb_mode =

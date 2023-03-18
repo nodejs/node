@@ -10,6 +10,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/strings/string-builder-inl.h"
+#include "src/strings/unicode-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 // TODO(chromium:1236668): Drop this when the "SaveAndClearThreadInWasmFlag"
@@ -231,38 +232,23 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
 RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<JSArray> array = args.at<JSArray>(0);
-  int32_t array_length;
-  if (!args[1].ToInt32(&array_length)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
-  }
-  Handle<String> special = args.at<String>(2);
+  Handle<FixedArray> array = args.at<FixedArray>(0);
 
-  size_t actual_array_length = 0;
-  CHECK(TryNumberToSize(array->length(), &actual_array_length));
-  CHECK_GE(array_length, 0);
-  CHECK(static_cast<size_t>(array_length) <= actual_array_length);
+  int array_length = args.smi_value_at(1);
+
+  Handle<String> special = args.at<String>(2);
 
   // This assumption is used by the slice encoding in one or two smis.
   DCHECK_GE(Smi::kMaxValue, String::kMaxLength);
 
-  CHECK(array->HasFastElements());
-  JSObject::EnsureCanContainHeapObjectElements(array);
-
   int special_length = special->length();
-  if (!array->HasObjectElements()) {
-    return isolate->Throw(ReadOnlyRoots(isolate).illegal_argument_string());
-  }
 
   int length;
   bool one_byte = special->IsOneByteRepresentation();
 
   {
     DisallowGarbageCollection no_gc;
-    FixedArray fixed_array = FixedArray::cast(array->elements());
-    if (fixed_array.length() < array_length) {
-      array_length = fixed_array.length();
-    }
+    FixedArray fixed_array = *array;
 
     if (array_length == 0) {
       return ReadOnlyRoots(isolate).empty_string();
@@ -286,8 +272,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, answer, isolate->factory()->NewRawOneByteString(length));
     DisallowGarbageCollection no_gc;
-    StringBuilderConcatHelper(*special, answer->GetChars(no_gc),
-                              FixedArray::cast(array->elements()),
+    StringBuilderConcatHelper(*special, answer->GetChars(no_gc), *array,
                               array_length);
     return *answer;
   } else {
@@ -295,8 +280,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, answer, isolate->factory()->NewRawTwoByteString(length));
     DisallowGarbageCollection no_gc;
-    StringBuilderConcatHelper(*special, answer->GetChars(no_gc),
-                              FixedArray::cast(array->elements()),
+    StringBuilderConcatHelper(*special, answer->GetChars(no_gc), *array,
                               array_length);
     return *answer;
   }
@@ -469,6 +453,33 @@ RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
   }
 
   return *builder.ToString().ToHandleChecked();
+}
+
+RUNTIME_FUNCTION(Runtime_StringIsWellFormed) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<String> string = args.at<String>(0);
+  return isolate->heap()->ToBoolean(
+      String::IsWellFormedUnicode(isolate, string));
+}
+
+RUNTIME_FUNCTION(Runtime_StringToWellFormed) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<String> source = args.at<String>(0);
+  if (String::IsWellFormedUnicode(isolate, source)) return *source;
+  // String::IsWellFormedUnicode would have returned true above otherwise.
+  DCHECK(!String::IsOneByteRepresentationUnderneath(*source));
+  const int length = source->length();
+  Handle<SeqTwoByteString> dest =
+      isolate->factory()->NewRawTwoByteString(length).ToHandleChecked();
+  DisallowGarbageCollection no_gc;
+  String::FlatContent source_contents = source->GetFlatContent(no_gc);
+  DCHECK(source_contents.IsFlat());
+  const uint16_t* source_data = source_contents.ToUC16Vector().begin();
+  uint16_t* dest_data = dest->GetChars(no_gc);
+  unibrow::Utf16::ReplaceUnpairedSurrogates(source_data, dest_data, length);
+  return *dest;
 }
 
 }  // namespace internal

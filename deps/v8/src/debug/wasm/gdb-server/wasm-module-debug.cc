@@ -147,7 +147,7 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
 
 // static
 std::vector<FrameSummary> WasmModuleDebug::FindWasmFrame(
-    StackTraceFrameIterator* frame_it, uint32_t* frame_index) {
+    DebuggableStackFrameIterator* frame_it, uint32_t* frame_index) {
   while (!frame_it->done()) {
     StackFrame* const frame = frame_it->frame();
     switch (frame->type()) {
@@ -189,7 +189,7 @@ std::vector<FrameSummary> WasmModuleDebug::FindWasmFrame(
 // static
 Handle<WasmInstanceObject> WasmModuleDebug::GetWasmInstance(
     Isolate* isolate, uint32_t frame_index) {
-  StackTraceFrameIterator frame_it(isolate);
+  DebuggableStackFrameIterator frame_it(isolate);
   std::vector<FrameSummary> frames = FindWasmFrame(&frame_it, &frame_index);
   if (frames.empty()) {
     return Handle<WasmInstanceObject>::null();
@@ -226,7 +226,7 @@ bool WasmModuleDebug::GetWasmLocal(Isolate* isolate, uint32_t frame_index,
                                    uint32_t buffer_size, uint32_t* size) {
   HandleScope handles(isolate);
 
-  StackTraceFrameIterator frame_it(isolate);
+  DebuggableStackFrameIterator frame_it(isolate);
   std::vector<FrameSummary> frames = FindWasmFrame(&frame_it, &frame_index);
   if (frames.empty()) {
     return false;
@@ -259,7 +259,7 @@ bool WasmModuleDebug::GetWasmStackValue(Isolate* isolate, uint32_t frame_index,
                                         uint32_t buffer_size, uint32_t* size) {
   HandleScope handles(isolate);
 
-  StackTraceFrameIterator frame_it(isolate);
+  DebuggableStackFrameIterator frame_it(isolate);
   std::vector<FrameSummary> frames = FindWasmFrame(&frame_it, &frame_index);
   if (frames.empty()) {
     return false;

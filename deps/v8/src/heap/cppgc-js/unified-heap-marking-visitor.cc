@@ -14,6 +14,18 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+std::unique_ptr<MarkingWorklists::Local> GetV8MarkingWorklists(
+    Heap* heap, cppgc::internal::CollectionType collection_type) {
+  if (!heap) return {};
+  auto* worklist =
+      (collection_type == cppgc::internal::CollectionType::kMajor)
+          ? heap->mark_compact_collector()->marking_worklists()
+          : heap->minor_mark_compact_collector()->marking_worklists();
+  return std::make_unique<MarkingWorklists::Local>(worklist);
+}
+}  // namespace
+
 UnifiedHeapMarkingVisitorBase::UnifiedHeapMarkingVisitorBase(
     HeapBase& heap, cppgc::internal::BasicMarkingState& marking_state,
     UnifiedHeapMarkingState& unified_heap_marking_state)
@@ -48,7 +60,7 @@ void UnifiedHeapMarkingVisitorBase::VisitWeakContainer(
 
 void UnifiedHeapMarkingVisitorBase::RegisterWeakCallback(WeakCallback callback,
                                                          const void* object) {
-  marking_state_.RegisterWeakCallback(callback, object);
+  marking_state_.RegisterWeakCustomCallback(callback, object);
 }
 
 void UnifiedHeapMarkingVisitorBase::HandleMovableReference(const void** slot) {
@@ -67,15 +79,13 @@ MutatorUnifiedHeapMarkingVisitor::MutatorUnifiedHeapMarkingVisitor(
 
 ConcurrentUnifiedHeapMarkingVisitor::ConcurrentUnifiedHeapMarkingVisitor(
     HeapBase& heap, Heap* v8_heap,
-    cppgc::internal::ConcurrentMarkingState& marking_state)
+    cppgc::internal::ConcurrentMarkingState& marking_state,
+    CppHeap::CollectionType collection_type)
     : UnifiedHeapMarkingVisitorBase(heap, marking_state,
                                     concurrent_unified_heap_marking_state_),
-      local_marking_worklist_(
-          v8_heap ? std::make_unique<MarkingWorklists::Local>(
-                        v8_heap->mark_compact_collector()->marking_worklists())
-                  : nullptr),
-      concurrent_unified_heap_marking_state_(v8_heap,
-                                             local_marking_worklist_.get()) {}
+      local_marking_worklist_(GetV8MarkingWorklists(v8_heap, collection_type)),
+      concurrent_unified_heap_marking_state_(
+          v8_heap, local_marking_worklist_.get(), collection_type) {}
 
 ConcurrentUnifiedHeapMarkingVisitor::~ConcurrentUnifiedHeapMarkingVisitor() {
   if (local_marking_worklist_) {

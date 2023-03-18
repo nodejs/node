@@ -367,7 +367,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address constant_pool_entry, Code code, Address target);
+      Address constant_pool_entry, InstructionStream code, Address target);
 
   // Get the size of the special target encoded at 'location'.
   inline static int deserialization_special_target_size(Address location);
@@ -388,7 +388,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // ---------------------------------------------------------------------------
-  // Code generation
+  // InstructionStream generation
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -1252,7 +1252,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   inline void emit(Instr x);
 
-  // Code generation
+  // InstructionStream generation
   // The relocation writer's position is at least kGap bytes below the end of
   // the generated instructions. This is so that multi-instruction sequences do
   // not have to check for overflow. The same is true for writes of large
@@ -1435,7 +1435,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
 
  private:
   friend class Assembler;
-  friend class TurboAssembler;
+  friend class MacroAssembler;
 
   template <typename T>
   bool CanAcquireVfp() const;

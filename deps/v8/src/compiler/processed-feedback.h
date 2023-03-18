@@ -89,10 +89,10 @@ class GlobalAccessFeedback : public ProcessedFeedback {
   int slot_index() const;
   bool immutable() const;
 
-  base::Optional<ObjectRef> GetConstantHint() const;
+  OptionalObjectRef GetConstantHint(JSHeapBroker* broker) const;
 
  private:
-  base::Optional<ObjectRef> const cell_or_context_;
+  OptionalObjectRef const cell_or_context_;
   int const index_and_immutable_;
 };
 
@@ -129,7 +129,7 @@ class ElementAccessFeedback : public ProcessedFeedback {
   // A transition group is a target and a possibly empty set of sources that can
   // transition to the target. It is represented as a non-empty vector with the
   // target at index 0.
-  using TransitionGroup = ZoneVector<Handle<Map>>;
+  using TransitionGroup = ZoneVector<MapRef>;
   ZoneVector<TransitionGroup> const& transition_groups() const;
 
   bool HasOnlyStringMaps(JSHeapBroker* broker) const;
@@ -184,7 +184,7 @@ class MegaDOMPropertyAccessFeedback : public ProcessedFeedback {
 
 class CallFeedback : public ProcessedFeedback {
  public:
-  CallFeedback(base::Optional<HeapObjectRef> target, float frequency,
+  CallFeedback(OptionalHeapObjectRef target, float frequency,
                SpeculationMode mode, CallFeedbackContent call_feedback_content,
                FeedbackSlotKind slot_kind)
       : ProcessedFeedback(kCall, slot_kind),
@@ -193,13 +193,13 @@ class CallFeedback : public ProcessedFeedback {
         mode_(mode),
         content_(call_feedback_content) {}
 
-  base::Optional<HeapObjectRef> target() const { return target_; }
+  OptionalHeapObjectRef target() const { return target_; }
   float frequency() const { return frequency_; }
   SpeculationMode speculation_mode() const { return mode_; }
   CallFeedbackContent call_feedback_content() const { return content_; }
 
  private:
-  base::Optional<HeapObjectRef> const target_;
+  OptionalHeapObjectRef const target_;
   float const frequency_;
   SpeculationMode const mode_;
   CallFeedbackContent const content_;
@@ -226,7 +226,7 @@ class SingleValueFeedback : public ProcessedFeedback {
 };
 
 class InstanceOfFeedback
-    : public SingleValueFeedback<base::Optional<JSObjectRef>,
+    : public SingleValueFeedback<OptionalJSObjectRef,
                                  ProcessedFeedback::kInstanceOf> {
   using SingleValueFeedback::SingleValueFeedback;
 };

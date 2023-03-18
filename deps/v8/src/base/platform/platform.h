@@ -316,7 +316,7 @@ class V8_BASE_EXPORT OS {
   // Whether the platform supports mapping a given address in another location
   // in the address space.
   V8_WARN_UNUSED_RESULT static constexpr bool IsRemapPageSupported() {
-#if (defined(V8_OS_MACOS) || defined(V8_OS_LINUX)) && \
+#if (defined(V8_OS_DARWIN) || defined(V8_OS_LINUX)) && \
     !(defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X))
     return true;
 #else

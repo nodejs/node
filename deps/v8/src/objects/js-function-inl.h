@@ -63,16 +63,16 @@ AbstractCode JSFunction::abstract_code(IsolateT* isolate) {
   if (ActiveTierIsIgnition()) {
     return AbstractCode::cast(shared().GetBytecodeArray(isolate));
   } else {
-    return ToAbstractCode(code(kAcquireLoad));
+    return AbstractCode::cast(code(kAcquireLoad));
   }
 }
 
 int JSFunction::length() { return shared().length(); }
 
-ACCESSORS_RELAXED(JSFunction, code, CodeT, kCodeOffset)
-RELEASE_ACQUIRE_GETTER_CHECKED(JSFunction, code, CodeT, kCodeOffset, true)
-void JSFunction::set_code(CodeT value, ReleaseStoreTag, WriteBarrierMode mode) {
-  TaggedField<CodeT, kCodeOffset>::Release_Store(*this, value);
+ACCESSORS_RELAXED(JSFunction, code, Code, kCodeOffset)
+RELEASE_ACQUIRE_GETTER_CHECKED(JSFunction, code, Code, kCodeOffset, true)
+void JSFunction::set_code(Code value, ReleaseStoreTag, WriteBarrierMode mode) {
+  TaggedField<Code, kCodeOffset>::Release_Store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, mode);
   if (V8_UNLIKELY(v8_flags.log_function_events && has_feedback_vector())) {
     feedback_vector().set_log_next_execution(true);
@@ -80,18 +80,13 @@ void JSFunction::set_code(CodeT value, ReleaseStoreTag, WriteBarrierMode mode) {
 }
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Context, kContextOffset)
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-void JSFunction::set_code(Code code, ReleaseStoreTag, WriteBarrierMode mode) {
-  set_code(ToCodeT(code), kReleaseStore, mode);
+void JSFunction::set_code(InstructionStream code, ReleaseStoreTag,
+                          WriteBarrierMode mode) {
+  set_code(ToCode(code), kReleaseStore, mode);
 }
-#endif
 
 Address JSFunction::code_entry_point() const {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    return CodeDataContainer::cast(code()).code_entry_point();
-  } else {
-    return code().InstructionStart();
-  }
+  return Code::cast(code()).code_entry_point();
 }
 
 // TODO(ishell): Why relaxed read but release store?
@@ -234,8 +229,8 @@ bool JSFunction::ShouldFlushBaselineCode(
   if (!IsBaselineCodeFlushingEnabled(code_flush_mode)) return false;
   // Do a raw read for shared and code fields here since this function may be
   // called on a concurrent thread. JSFunction itself should be fully
-  // initialized here but the SharedFunctionInfo, Code objects may not be
-  // initialized. We read using acquire loads to defend against that.
+  // initialized here but the SharedFunctionInfo, InstructionStream objects may
+  // not be initialized. We read using acquire loads to defend against that.
   Object maybe_shared = ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
   if (!maybe_shared.IsSharedFunctionInfo()) return false;
 
@@ -243,8 +238,13 @@ bool JSFunction::ShouldFlushBaselineCode(
   // code field. We don't use release stores when copying code pointers from
   // SFI / FV to JSFunction but it is safe in practice.
   Object maybe_code = ACQUIRE_READ_FIELD(*this, kCodeOffset);
-  if (!maybe_code.IsCodeT()) return false;
-  CodeT code = CodeT::cast(maybe_code);
+#ifdef THREAD_SANITIZER
+  // This is needed because TSAN does not process the memory fence
+  // emitted after page initialization.
+  BasicMemoryChunk::FromAddress(maybe_code.ptr())->SynchronizedHeapLoad();
+#endif
+  if (!maybe_code.IsCode()) return false;
+  Code code = Code::cast(maybe_code);
   if (code.kind() != CodeKind::BASELINE) return false;
 
   SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
@@ -254,14 +254,14 @@ bool JSFunction::ShouldFlushBaselineCode(
 bool JSFunction::NeedsResetDueToFlushedBytecode() {
   // Do a raw read for shared and code fields here since this function may be
   // called on a concurrent thread. JSFunction itself should be fully
-  // initialized here but the SharedFunctionInfo, Code objects may not be
-  // initialized. We read using acquire loads to defend against that.
+  // initialized here but the SharedFunctionInfo, InstructionStream objects may
+  // not be initialized. We read using acquire loads to defend against that.
   Object maybe_shared = ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
   if (!maybe_shared.IsSharedFunctionInfo()) return false;
 
   Object maybe_code = ACQUIRE_READ_FIELD(*this, kCodeOffset);
-  if (!maybe_code.IsCodeT()) return false;
-  CodeT code = CodeT::cast(maybe_code);
+  if (!maybe_code.IsCode()) return false;
+  Code code = Code::cast(maybe_code);
 
   SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
   return !shared.is_compiled() && code.builtin_id() != Builtin::kCompileLazy;

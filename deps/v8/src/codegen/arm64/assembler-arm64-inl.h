@@ -485,15 +485,15 @@ Tagged_t Assembler::target_compressed_address_at(Address pc,
   return Memory<Tagged_t>(target_pointer_address_at(pc));
 }
 
-Handle<CodeT> Assembler::code_target_object_handle_at(Address pc) {
+Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
   if (instr->IsLdrLiteralX()) {
-    return Handle<CodeT>(reinterpret_cast<Address*>(
+    return Handle<Code>(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc, 0 /* unused */)));
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     DCHECK_EQ(instr->ImmPCOffset() % kInstrSize, 0);
-    return Handle<CodeT>::cast(
+    return Handle<Code>::cast(
         GetEmbeddedObject(instr->ImmPCOffset() >> kInstrSizeLog2));
   }
 }
@@ -548,7 +548,7 @@ int Assembler::deserialization_special_target_size(Address location) {
 }
 
 void Assembler::deserialization_set_special_target_at(Address location,
-                                                      Code code,
+                                                      InstructionStream code,
                                                       Address target) {
   Instruction* instr = reinterpret_cast<Instruction*>(location);
   if (instr->IsBranchAndLink() || instr->IsUnconditionalBranch()) {
@@ -659,10 +659,11 @@ HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
     Tagged_t compressed =
         Assembler::target_compressed_address_at(pc_, constant_pool_);
     DCHECK(!HAS_SMI_TAG(compressed));
-    Object obj(V8HeapCompressionScheme::DecompressTaggedPointer(cage_base,
-                                                                compressed));
-    // Embedding of compressed Code objects must not happen when external code
-    // space is enabled, because CodeDataContainers must be used instead.
+    Object obj(
+        V8HeapCompressionScheme::DecompressTagged(cage_base, compressed));
+    // Embedding of compressed InstructionStream objects must not happen when
+    // external code space is enabled, because Codes must be used
+    // instead.
     DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
                    !IsCodeSpaceObject(HeapObject::cast(obj)));
     return HeapObject::cast(obj);

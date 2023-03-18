@@ -374,10 +374,10 @@ UTEST_R2_FORM_WITH_OP(sra, int32_t, -0x12340000, 17, >>)
 // -- CSR --
 UTEST_CSRI(csr_frm, DYN, RUP)
 UTEST_CSRI(csr_fflags, kInexact | kInvalidOperation, kInvalidOperation)
-UTEST_CSRI(csr_fcsr, kDivideByZero | kOverflow, kUnderflow)
+UTEST_CSRI(csr_fcsr, kDivideByZero | kFPUOverflow, kUnderflow)
 UTEST_CSR(csr_frm, DYN, RUP)
 UTEST_CSR(csr_fflags, kInexact | kInvalidOperation, kInvalidOperation)
-UTEST_CSR(csr_fcsr, kDivideByZero | kOverflow | (RDN << kFcsrFrmShift),
+UTEST_CSR(csr_fcsr, kDivideByZero | kFPUOverflow | (RDN << kFcsrFrmShift),
           kUnderflow | (RNE << kFcsrFrmShift))
 
 // -- RV32M Standard Extension --
@@ -1705,7 +1705,7 @@ TEST(li_estimate) {
     Label a;
     assm.bind(&a);
     assm.RV_li(t0, p);
-    int expected_count = assm.li_estimate(p, true);
+    int expected_count = assm.RV_li_count(p, true);
     int count = assm.InstructionsGeneratedSince(&a);
     CHECK_EQ(count, expected_count);
   }

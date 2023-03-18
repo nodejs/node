@@ -214,10 +214,10 @@ static void VisitLoadCommon(InstructionSelector* selector, Node* node,
       opcode = kPPC_LoadDecompressTaggedSigned;
       break;
     case MachineRepresentation::kTaggedPointer:
-      opcode = kPPC_LoadDecompressTaggedPointer;
+      opcode = kPPC_LoadDecompressTagged;
       break;
     case MachineRepresentation::kTagged:
-      opcode = kPPC_LoadDecompressAnyTagged;
+      opcode = kPPC_LoadDecompressTagged;
       break;
 #else
     case MachineRepresentation::kTaggedSigned:   // Fall through.

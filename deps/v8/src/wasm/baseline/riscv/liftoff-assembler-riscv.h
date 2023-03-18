@@ -23,31 +23,6 @@ inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 
 inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 
-inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
-  switch (liftoff_cond) {
-    case kEqual:
-      return eq;
-    case kUnequal:
-      return ne;
-    case kSignedLessThan:
-      return lt;
-    case kSignedLessEqual:
-      return le;
-    case kSignedGreaterThan:
-      return gt;
-    case kSignedGreaterEqual:
-      return ge;
-    case kUnsignedLessThan:
-      return ult;
-    case kUnsignedLessEqual:
-      return ule;
-    case kUnsignedGreaterThan:
-      return ugt;
-    case kUnsignedGreaterEqual:
-      return uge;
-  }
-}
-
 }  // namespace liftoff
 int LiftoffAssembler::PrepareStackFrame() {
   int offset = pc_offset();
@@ -86,19 +61,20 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
 void LiftoffAssembler::AlignFrameSize() {}
 
 void LiftoffAssembler::PatchPrepareStackFrame(
-    int offset, SafepointTableBuilder* safepoint_table_builder) {
+    int offset, SafepointTableBuilder* safepoint_table_builder,
+    bool feedback_vector_slot) {
   // The frame_size includes the frame marker and the instance slot. Both are
   // pushed as part of frame construction, so we don't need to allocate memory
   // for them anymore.
   int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
   // The frame setup builtin also pushes the feedback vector.
-  if (v8_flags.wasm_speculative_inlining) {
+  if (feedback_vector_slot) {
     frame_size -= kSystemPointerSize;
   }
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 256;
-  TurboAssembler patching_assembler(
+  MacroAssembler patching_assembler(
       nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
       ExternalAssemblerBuffer(buffer_start_ + offset, kAvailableSpace));
 
@@ -221,7 +197,7 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
                                                      Register instance,
                                                      int offset) {
   DCHECK_LE(0, offset);
-  LoadTaggedPointerField(dst, MemOperand{instance, offset});
+  LoadTaggedField(dst, MemOperand{instance, offset});
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {
@@ -231,21 +207,21 @@ void LiftoffAssembler::SpillInstance(Register instance) {
 void LiftoffAssembler::ResetOSRTarget() {}
 
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
-  TurboAssembler::Neg_s(dst, src);
+  MacroAssembler::Neg_s(dst, src);
 }
 
 void LiftoffAssembler::emit_f64_neg(DoubleRegister dst, DoubleRegister src) {
-  TurboAssembler::Neg_d(dst, src);
+  MacroAssembler::Neg_d(dst, src);
 }
 
 void LiftoffAssembler::emit_f32_min(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
-  TurboAssembler::Float32Min(dst, lhs, rhs);
+  MacroAssembler::Float32Min(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
-  TurboAssembler::Float32Max(dst, lhs, rhs);
+  MacroAssembler::Float32Max(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
@@ -255,12 +231,12 @@ void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
 
 void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
-  TurboAssembler::Float64Min(dst, lhs, rhs);
+  MacroAssembler::Float64Min(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
-  TurboAssembler::Float64Max(dst, lhs, rhs);
+  MacroAssembler::Float64Max(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
@@ -303,17 +279,17 @@ FP_UNOP(f64_sqrt, fsqrt_d)
 #undef FP_UNOP
 #undef FP_UNOP_RETURN_TRUE
 
-static FPUCondition ConditionToConditionCmpFPU(LiftoffCondition condition) {
+static FPUCondition ConditionToConditionCmpFPU(Condition condition) {
   switch (condition) {
     case kEqual:
       return EQ;
-    case kUnequal:
+    case kNotEqual:
       return NE;
     case kUnsignedLessThan:
       return LT;
-    case kUnsignedGreaterEqual:
+    case kUnsignedGreaterThanEqual:
       return GE;
-    case kUnsignedLessEqual:
+    case kUnsignedLessThanEqual:
       return LE;
     case kUnsignedGreaterThan:
       return GT;
@@ -323,18 +299,18 @@ static FPUCondition ConditionToConditionCmpFPU(LiftoffCondition condition) {
   UNREACHABLE();
 }
 
-void LiftoffAssembler::emit_f32_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, DoubleRegister lhs,
+void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  FPUCondition fcond = ConditionToConditionCmpFPU(liftoff_cond);
-  TurboAssembler::CompareF32(dst, fcond, lhs, rhs);
+  FPUCondition fcond = ConditionToConditionCmpFPU(cond);
+  MacroAssembler::CompareF32(dst, fcond, lhs, rhs);
 }
 
-void LiftoffAssembler::emit_f64_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, DoubleRegister lhs,
+void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  FPUCondition fcond = ConditionToConditionCmpFPU(liftoff_cond);
-  TurboAssembler::CompareF64(dst, fcond, lhs, rhs);
+  FPUCondition fcond = ConditionToConditionCmpFPU(cond);
+  MacroAssembler::CompareF64(dst, fcond, lhs, rhs);
 }
 
 bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
@@ -2062,33 +2038,41 @@ void LiftoffAssembler::emit_f32x4_qfma(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f32x4_qfma");
+  VU.set(kScratchReg, E32, m1);
+  vfmadd_vv(src1.fp().toV(), src2.fp().toV(), src3.fp().toV());
+  vmv_vv(dst.fp().toV(), src1.fp().toV());
 }
 
 void LiftoffAssembler::emit_f32x4_qfms(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f32x4_qfms");
+  VU.set(kScratchReg, E32, m1);
+  vfnmsub_vv(src1.fp().toV(), src2.fp().toV(), src3.fp().toV());
+  vmv_vv(dst.fp().toV(), src1.fp().toV());
 }
 
 void LiftoffAssembler::emit_f64x2_qfma(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f64x2_qfma");
+  VU.set(kScratchReg, E64, m1);
+  vfmadd_vv(src1.fp().toV(), src2.fp().toV(), src3.fp().toV());
+  vmv_vv(dst.fp().toV(), src1.fp().toV());
 }
 
 void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f64x2_qfms");
+  VU.set(kScratchReg, E64, m1);
+  vfnmsub_vv(src1.fp().toV(), src2.fp().toV(), src3.fp().toV());
+  vmv_vv(dst.fp().toV(), src1.fp().toV());
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
-  TurboAssembler::LoadWord(limit_address, MemOperand(limit_address));
-  TurboAssembler::Branch(ool_code, ule, sp, Operand(limit_address));
+  MacroAssembler::LoadWord(limit_address, MemOperand(limit_address));
+  MacroAssembler::Branch(ool_code, ule, sp, Operand(limit_address));
 }
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {
@@ -2121,7 +2105,7 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
     int32_t offset = 0;
     while (!fp_regs.is_empty()) {
       LiftoffRegister reg = fp_regs.GetFirstRegSet();
-      TurboAssembler::StoreDouble(reg.fp(), MemOperand(sp, offset));
+      MacroAssembler::StoreDouble(reg.fp(), MemOperand(sp, offset));
       fp_regs.clear(reg);
       offset += sizeof(double);
     }
@@ -2134,7 +2118,7 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   int32_t fp_offset = 0;
   while (!fp_regs.is_empty()) {
     LiftoffRegister reg = fp_regs.GetFirstRegSet();
-    TurboAssembler::LoadDouble(reg.fp(), MemOperand(sp, fp_offset));
+    MacroAssembler::LoadDouble(reg.fp(), MemOperand(sp, fp_offset));
     fp_regs.clear(reg);
     fp_offset += sizeof(double);
   }
@@ -2168,7 +2152,7 @@ void LiftoffAssembler::RecordSpillsInSafepoint(
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
-  TurboAssembler::DropAndRet(static_cast<int>(num_stack_slots));
+  MacroAssembler::DropAndRet(static_cast<int>(num_stack_slots));
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
@@ -2207,7 +2191,7 @@ void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
   AddWord(sp, sp, Operand(-size));
-  TurboAssembler::Move(addr, sp);
+  MacroAssembler::Move(addr, sp);
 }
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {

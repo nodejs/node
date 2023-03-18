@@ -72,7 +72,7 @@ for (const wasm_obj of [struct, array]) {
 
   let tag = new WebAssembly.Tag({parameters: ['structref']});
   testThrowsRepeated(() => new WebAssembly.Exception(wasm_obj), TypeError);
-  testThrowsRepeated(() => new WebAssembly.Exception(tag, wasm_obj), TypeError);
+  repeated(() => new WebAssembly.Exception(tag, wasm_obj));
   repeated(() => new WebAssembly.Exception(tag, [wasm_obj]));
   let exception = new WebAssembly.Exception(tag, [wasm_obj]);
   testThrowsRepeated(() => exception.is(wasm_obj), TypeError);

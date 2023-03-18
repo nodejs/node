@@ -346,7 +346,13 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
 
         const int argc = 2;
         base::ScopedVector<Handle<Object>> argv(argc);
-        argv[0] = error;
+        if (V8_UNLIKELY(error->IsJSGlobalObject())) {
+          // Pass global proxy instead of global object.
+          argv[0] =
+              handle(JSGlobalObject::cast(*error).global_proxy(), isolate);
+        } else {
+          argv[0] = error;
+        }
         argv[1] = sites;
 
         Handle<Object> result;
@@ -715,7 +721,7 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
 namespace {
 
 bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
-  JavaScriptFrameIterator it(isolate);
+  JavaScriptStackFrameIterator it(isolate);
   if (!it.done()) {
     // Compute the location from the function and the relocation info of the
     // baseline code. For optimized code this will use the deoptimization

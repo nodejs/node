@@ -131,7 +131,7 @@ int WasmStackSize(Isolate* isolate) {
   // TODO(wasm): Fix this for mixed JS/Wasm stacks with both --trace and
   // --trace-wasm.
   int n = 0;
-  for (StackTraceFrameIterator it(isolate); !it.done(); it.Advance()) {
+  for (DebuggableStackFrameIterator it(isolate); !it.done(); it.Advance()) {
     if (it.is_wasm()) n++;
   }
   return n;
@@ -146,7 +146,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceEnter) {
 
   // Find the caller wasm frame.
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  StackTraceFrameIterator it(isolate);
+  DebuggableStackFrameIterator it(isolate);
   DCHECK(!it.done());
   DCHECK(it.is_wasm());
   WasmFrame* frame = WasmFrame::cast(it.frame());
@@ -183,7 +183,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
 
   // Find the caller wasm frame.
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  StackTraceFrameIterator it(isolate);
+  DebuggableStackFrameIterator it(isolate);
   DCHECK(!it.done());
   DCHECK(it.is_wasm());
   WasmFrame* frame = WasmFrame::cast(it.frame());
@@ -265,7 +265,7 @@ RUNTIME_FUNCTION(Runtime_IsWasmCode) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   auto function = JSFunction::cast(args[0]);
-  CodeT code = function.code();
+  Code code = function.code();
   bool is_js_to_wasm = code.kind() == CodeKind::JS_TO_WASM_FUNCTION ||
                        (code.builtin_id() == Builtin::kGenericJSToWasmWrapper);
   return isolate->heap()->ToBoolean(is_js_to_wasm);
@@ -407,7 +407,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
 
   // Find the caller wasm frame.
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  StackTraceFrameIterator it(isolate);
+  DebuggableStackFrameIterator it(isolate);
   DCHECK(!it.done());
   DCHECK(it.is_wasm());
   WasmFrame* frame = WasmFrame::cast(it.frame());
@@ -425,25 +425,38 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
 
 RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
-  int function_index = args.smi_value_at(1);
-  wasm::TierUpNowForTesting(isolate, *instance, function_index);
+  DCHECK_EQ(1, args.length());
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
+  Handle<WasmExportedFunction> exp_fun =
+      Handle<WasmExportedFunction>::cast(function);
+  WasmInstanceObject instance = exp_fun->instance();
+  int func_index = exp_fun->function_index();
+  wasm::TierUpNowForTesting(isolate, instance, func_index);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmTierDown) {
+RUNTIME_FUNCTION(Runtime_WasmEnterDebugging) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  wasm::GetWasmEngine()->TierDownAllModulesPerIsolate(isolate);
+  wasm::GetWasmEngine()->EnterDebuggingForIsolate(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmTierUp) {
+RUNTIME_FUNCTION(Runtime_IsWasmDebugFunction) {
   HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  wasm::GetWasmEngine()->TierUpAllModulesPerIsolate(isolate);
-  return ReadOnlyRoots(isolate).undefined_value();
+  DCHECK_EQ(1, args.length());
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
+  Handle<WasmExportedFunction> exp_fun =
+      Handle<WasmExportedFunction>::cast(function);
+  wasm::NativeModule* native_module =
+      exp_fun->instance().module_object().native_module();
+  uint32_t func_index = exp_fun->function_index();
+  wasm::WasmCodeRefScope code_ref_scope;
+  wasm::WasmCode* code = native_module->GetCode(func_index);
+  return isolate->heap()->ToBoolean(code && code->is_liftoff() &&
+                                    code->for_debugging());
 }
 
 RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
@@ -476,6 +489,19 @@ RUNTIME_FUNCTION(Runtime_IsTurboFanFunction) {
   return isolate->heap()->ToBoolean(code && code->is_turbofan());
 }
 
+RUNTIME_FUNCTION(Runtime_IsUncompiledWasmFunction) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
+  Handle<WasmExportedFunction> exp_fun =
+      Handle<WasmExportedFunction>::cast(function);
+  wasm::NativeModule* native_module =
+      exp_fun->instance().module_object().native_module();
+  uint32_t func_index = exp_fun->function_index();
+  return isolate->heap()->ToBoolean(!native_module->HasCode(func_index));
+}
+
 RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
   DCHECK_EQ(1, args.length());
   DisallowGarbageCollection no_gc;
@@ -483,6 +509,31 @@ RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
 
   instance.module_object().native_module()->set_lazy_compile_frozen(true);
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+// This runtime function enables WebAssembly GC through an embedder
+// callback and thereby bypasses the value in v8_flags.
+RUNTIME_FUNCTION(Runtime_SetWasmGCEnabled) {
+  DCHECK_EQ(1, args.length());
+  bool enable = args.at(0)->BooleanValue(isolate);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  WasmGCEnabledCallback enabled = [](v8::Local<v8::Context>) { return true; };
+  WasmGCEnabledCallback disabled = [](v8::Local<v8::Context>) { return false; };
+  v8_isolate->SetWasmGCEnabledCallback(enable ? enabled : disabled);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_FlushWasmCode) {
+  wasm::GetWasmEngine()->FlushCode();
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_WasmCompiledExportWrappersCount) {
+  int count = isolate->counters()
+                  ->wasm_compiled_export_wrapper()
+                  ->GetInternalPointer()
+                  ->load();
+  return Smi::FromInt(count);
 }
 
 }  // namespace internal

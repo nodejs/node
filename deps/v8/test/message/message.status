@@ -53,6 +53,13 @@
   'fail/list-format*': [SKIP],
 }],  # no_i18n == True
 
+################################################################################
+['mode == release', {
+  # Slow tests in release mode.
+  'fail/map-grow-failed': [PASS, SLOW],
+  'fail/set-grow-failed': [PASS, SLOW],
+}],
+
 ##############################################################################
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
 ['not has_webassembly or variant == jitless', {

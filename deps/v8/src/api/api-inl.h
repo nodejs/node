@@ -7,6 +7,7 @@
 
 #include "include/v8-fast-api-calls.h"
 #include "src/api/api.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/execution/microtask-queue.h"
 #include "src/handles/handles-inl.h"
@@ -51,7 +52,12 @@ inline v8::internal::Handle<v8::internal::Object> FromCData(
 template <class From, class To>
 inline Local<To> Utils::Convert(v8::internal::Handle<From> obj) {
   DCHECK(obj.is_null() || (obj->IsSmi() || !obj->IsTheHole()));
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  if (obj.is_null()) return Local<To>();
+  return Local<To>(reinterpret_cast<To*>(*obj.location()));
+#else
   return Local<To>(reinterpret_cast<To*>(obj.location()));
+#endif
 }
 
 // Implementations of ToLocal
@@ -86,6 +92,7 @@ MAKE_TO_LOCAL(ToLocal, JSProxy, Proxy)
 MAKE_TO_LOCAL(ToLocal, JSArrayBuffer, ArrayBuffer)
 MAKE_TO_LOCAL(ToLocal, JSArrayBufferView, ArrayBufferView)
 MAKE_TO_LOCAL(ToLocal, JSDataView, DataView)
+MAKE_TO_LOCAL(ToLocal, JSRabGsabDataView, DataView)
 MAKE_TO_LOCAL(ToLocal, JSTypedArray, TypedArray)
 MAKE_TO_LOCAL(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)
 
@@ -114,6 +121,29 @@ MAKE_TO_LOCAL(ToLocal, ScriptOrModule, ScriptOrModule)
 
 // Implementations of OpenHandle
 
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+
+#define MAKE_OPEN_HANDLE(From, To)                                             \
+  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                    \
+      const v8::From* that, bool allow_empty_handle) {                         \
+    DCHECK(allow_empty_handle ||                                               \
+           reinterpret_cast<v8::internal::Address>(that) !=                    \
+               v8::internal::kLocalTaggedNullAddress);                         \
+    DCHECK(reinterpret_cast<v8::internal::Address>(that) ==                    \
+               v8::internal::kLocalTaggedNullAddress ||                        \
+           v8::internal::Object(reinterpret_cast<v8::internal::Address>(that)) \
+               .Is##To());                                                     \
+    if (reinterpret_cast<v8::internal::Address>(that) ==                       \
+        v8::internal::kLocalTaggedNullAddress) {                               \
+      return v8::internal::Handle<v8::internal::To>::null();                   \
+    }                                                                          \
+    return v8::internal::Handle<v8::internal::To>(                             \
+        v8::HandleScope::CreateHandleForCurrentIsolate(                        \
+            reinterpret_cast<v8::internal::Address>(that)));                   \
+  }
+
+#else
+
 #define MAKE_OPEN_HANDLE(From, To)                                    \
   v8::internal::Handle<v8::internal::To> Utils::OpenHandle(           \
       const v8::From* that, bool allow_empty_handle) {                \
@@ -126,6 +156,8 @@ MAKE_TO_LOCAL(ToLocal, ScriptOrModule, ScriptOrModule)
         reinterpret_cast<v8::internal::Address*>(                     \
             const_cast<v8::From*>(that)));                            \
   }
+
+#endif
 
 OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 
@@ -150,12 +182,13 @@ class V8_NODISCARD CallDepthScope {
     isolate_->thread_local_top()->IncrementCallDepth(this);
     isolate_->set_next_v8_call_is_safe_for_termination(false);
     if (!context.IsEmpty()) {
-      i::Handle<i::Context> env = Utils::OpenHandle(*context);
+      i::DisallowGarbageCollection no_gc;
+      i::Context env = *Utils::OpenHandle(*context);
       i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
       if (isolate->context().is_null() ||
-          isolate->context().native_context() != env->native_context()) {
+          isolate->context().native_context() != env.native_context()) {
         impl->SaveContext(isolate->context());
-        isolate->set_context(*env);
+        isolate->set_context(env);
         did_enter_context_ = true;
       }
     }

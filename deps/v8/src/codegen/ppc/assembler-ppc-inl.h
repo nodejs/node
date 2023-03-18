@@ -148,7 +148,7 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc,
 HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
-    return HeapObject::cast(Object(V8HeapCompressionScheme::DecompressTaggedAny(
+    return HeapObject::cast(Object(V8HeapCompressionScheme::DecompressTagged(
         cage_base,
         Assembler::target_compressed_address_at(pc_, constant_pool_))));
   } else {
@@ -401,7 +401,7 @@ Address Assembler::target_constant_pool_address_at(
 // has already deserialized the mov instructions etc.
 // There is a FIXED_SEQUENCE assumption here
 void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Code code, Address target) {
+    Address instruction_payload, InstructionStream code, Address target) {
   set_target_address_at(instruction_payload,
                         !code.is_null() ? code.constant_pool() : kNullAddress,
                         target);

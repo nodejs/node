@@ -86,8 +86,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
 
-  void NotifyLeftTrimming(HeapObject from, HeapObject to);
-
   bool IsStopped() const { return !IsMarking(); }
   bool IsMarking() const { return is_marking_; }
   bool IsMajorMarkingComplete() const {
@@ -132,6 +130,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool IsCompacting() { return IsMarking() && is_compacting_; }
 
   Heap* heap() const { return heap_; }
+  Isolate* isolate() const;
 
   IncrementalMarkingJob* incremental_marking_job() {
     return &incremental_marking_job_;

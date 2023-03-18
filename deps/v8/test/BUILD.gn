@@ -72,6 +72,20 @@ group("v8_perf") {
   ]
 }
 
+group("d8_pgo") {
+  testonly = true
+
+  data_deps = [
+    "..:d8",
+    "..:v8_python_base",
+  ]
+
+  data = [
+    "../tools/builtins-pgo/profile_only.py",
+    "../tools/builtins-pgo/get_hints.py",
+  ]
+}
+
 group("v8_bot_default") {
   testonly = true
 

@@ -6,7 +6,8 @@
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
-(function Test1() {
+(function TestImportedRefCall() {
+  print(arguments.callee.name);
   var exporting_instance = (function () {
     var builder = new WasmModuleBuilder();
 
@@ -30,7 +31,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
     var imported_wasm_function_index =
       builder.addImport("imports", "wasm_add", sig_index);
-
 
     var locally_defined_function =
       builder.addFunction("sub", sig_index)
@@ -120,6 +120,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function TestFromJSSlowPath() {
+  print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
   var sig_index = builder.addType(kSig_i_i);
 
@@ -134,4 +135,82 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       { parameters: ['i32'], results: ['i32'] }, (a) => undefined);
   // {undefined} is converted to 0.
   assertEquals(0, instance.exports.main(fun, 1000));
+})();
+
+(function TestImportedFunctionSubtyping() {
+  print(arguments.callee.name);
+  var exporting_instance = (function () {
+    var builder = new WasmModuleBuilder();
+    let super_struct = builder.addStruct([makeField(kWasmI32, true)]);
+    let sub_struct = builder.addStruct(
+      [makeField(kWasmI32, true), makeField(kWasmI64, true)], super_struct);
+    let super_sig = builder.addType(makeSig([wasmRefNullType(sub_struct)],
+                                            [kWasmI32]), kNoSuperType, false)
+    let sub_sig = builder.addType(makeSig([wasmRefNullType(super_struct)],
+                                          [kWasmI32]), super_sig)
+
+    builder.addFunction("exported_function", sub_sig)
+      .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, super_struct, 0])
+      .exportFunc();
+
+    return builder.instantiate({});
+  })();
+
+  var builder = new WasmModuleBuilder();
+  // These should canonicalize to the same types as the exporting instance.
+  let super_struct = builder.addStruct([makeField(kWasmI32, true)]);
+  let sub_struct = builder.addStruct(
+    [makeField(kWasmI32, true), makeField(kWasmI64, true)], super_struct);
+  let super_sig = builder.addType(
+    makeSig([wasmRefNullType(sub_struct)], [kWasmI32]), kNoSuperType, false);
+  builder.addImport("m", "f", super_sig);
+
+  // Import is a function of the declared type.
+  return builder.instantiate({m: {f:
+      exporting_instance.exports.exported_function}});
+})();
+
+(function TestJSFunctionCanonicallyDifferent() {
+  print(arguments.callee.name);
+
+  let imp = new WebAssembly.Function({parameters: ["i32"], results: ["i32"]},
+                                     x => x + 1);
+
+  (function () {
+    var builder = new WasmModuleBuilder();
+    let sig = builder.addType(kSig_i_i);
+
+    builder.addImport("m", "f", sig);
+
+    // This succeeds
+    builder.instantiate({m: {f: imp}});
+  })();
+
+  (function () {
+    var builder = new WasmModuleBuilder();
+    let sig = builder.addType(kSig_i_i, kNoSuperType, false);
+    let sig_sub = builder.addType(kSig_i_i, sig);
+
+    builder.addImport("m", "f", sig_sub);
+
+    // Import is a function of the declared type.
+    assertThrows(() => builder.instantiate({m: {f: imp}}),
+                 WebAssembly.LinkError,
+                 /imported function does not match the expected type/);
+  })();
+
+  (function () {
+    var builder = new WasmModuleBuilder();
+    builder.startRecGroup();
+    let sig_in_group = builder.addType(kSig_i_i);
+    builder.addType(kSig_i_v);
+    builder.endRecGroup();
+
+    builder.addImport("m", "f", sig_in_group);
+
+    // Import is a function of the declared type.
+    assertThrows(() => builder.instantiate({m: {f: imp}}),
+                 WebAssembly.LinkError,
+                 /imported function does not match the expected type/);
+  })();
 })();

@@ -331,8 +331,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_LoadSimd128:
     case kPPC_Peek:
     case kPPC_LoadDecompressTaggedSigned:
-    case kPPC_LoadDecompressTaggedPointer:
-    case kPPC_LoadDecompressAnyTagged:
+    case kPPC_LoadDecompressTagged:
     case kPPC_S128Load8Splat:
     case kPPC_S128Load16Splat:
     case kPPC_S128Load32Splat:

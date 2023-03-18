@@ -79,7 +79,7 @@ macro GetDerivedMap(implicit context: Context)(
   }
 }
 
-macro GetDerivedRabGsabMap(implicit context: Context)(
+macro GetDerivedRabGsabTypedArrayMap(implicit context: Context)(
     target: JSFunction, newTarget: JSReceiver): Map {
   return runtime::GetDerivedMap(context, target, newTarget, TrueConstant());
 }

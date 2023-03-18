@@ -26,6 +26,8 @@ export class SequenceView extends TextView {
   showRangeView: boolean;
   phaseSelectEl: HTMLSelectElement;
   toggleRangeViewEl: HTMLElement;
+  firstInstrInput: HTMLInputElement;
+  lastInstrInput: HTMLInputElement;
 
   constructor(parent: HTMLElement, broker: SelectionBroker) {
     super(parent, broker);
@@ -307,19 +309,12 @@ export class SequenceView extends TextView {
   private addRangeView(): void {
     if (this.sequence.registerAllocation) {
       if (!this.rangeView) {
-        this.rangeView = new RangeView(this);
+        this.rangeView = new RangeView(this, parseInt(this.firstInstrInput.value, 10),
+                                       parseInt(this.lastInstrInput.value, 10));
       }
       const source = this.sequence.registerAllocation;
       if (source.fixedLiveRanges.length == 0 && source.liveRanges.length == 0) {
         this.preventRangeView("No live ranges to show");
-      } else if (this.numInstructions >= 249) {
-        // This is due to the css grid-column being limited to 1000 columns.
-        // Performance issues would otherwise impose some limit.
-        // TODO(george.wort@arm.com): Allow the user to specify an instruction range
-        //                            to display that spans less than 249 instructions.
-        this.preventRangeView(
-          "Live range display is only supported for sequences with less than 249 instructions"
-        );
       }
       if (this.showRangeView) {
         this.rangeView.initializeContent(this.sequence.blocks);
@@ -362,8 +357,37 @@ export class SequenceView extends TextView {
     };
   }
 
+  private elementForRangeViewInputElement(form: HTMLElement, text: string): HTMLInputElement {
+    const instrInputEl = createElement("input", "instruction-range-input") as HTMLInputElement;
+    instrInputEl.type = "text";
+    instrInputEl.title = text;
+    instrInputEl.placeholder = text;
+    instrInputEl.alt = text;
+    form.appendChild(instrInputEl);
+    return instrInputEl;
+  }
+
   private elementForToggleRangeView(): HTMLElement {
-    const toggleRangeViewEl = createElement("label", "", "show live ranges");
+    const toggleRangeViewEl = createElement("label", "", "show live ranges from ");
+
+    const form = createElement("form", "range-toggle-form");
+    toggleRangeViewEl.appendChild(form);
+
+    this.firstInstrInput = this.elementForRangeViewInputElement(form, "first instruction");
+    form.appendChild(createElement("span", "", " to "));
+    this.lastInstrInput = this.elementForRangeViewInputElement(form, "last instruction");
+
+    const submit = createElement("input", "instruction-range-submit") as HTMLInputElement;
+    submit.type = "submit";
+    submit.value = "Refresh Ranges";
+    submit.onclick = (e: MouseEvent) => {
+      e.preventDefault();
+      // Single click if not shown, double click to refresh if shown.
+      this.toggleRangeViewEl.click();
+      if (!this.showRangeView) this.toggleRangeViewEl.click();
+    };
+    form.appendChild(submit);
+
     const toggleRangesInput = createElement("input", "range-toggle-show") as HTMLInputElement;
     toggleRangesInput.setAttribute("type", "checkbox");
     toggleRangesInput.oninput = () => this.toggleRangeView(toggleRangesInput);
@@ -375,6 +399,15 @@ export class SequenceView extends TextView {
     toggleRangesInput.disabled = true;
     this.showRangeView = toggleRangesInput.checked;
     if (this.showRangeView) {
+      const firstInstr = parseInt(this.firstInstrInput.value, 10);
+      const lastInstr = parseInt(this.lastInstrInput.value, 10);
+      if (this.rangeView.instructionRangeHandler.isNewRangeViewRequired(firstInstr, lastInstr)) {
+        // Remove current RangeView's selection nodes and blocks from SelectionHandlers.
+        this.removeHtmlElementFromAllMapsIf((e: HTMLElement) =>
+                                             e.closest("#ranges-content") != null);
+        this.rangeView = new RangeView(this, firstInstr, lastInstr);
+        this.addRangeView();
+      }
       this.rangeView.initializeContent(this.sequence.blocks);
       this.rangeView.show();
     } else {

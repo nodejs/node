@@ -16,6 +16,9 @@ out = """
 #include <cstdint>
 #include <string>
 
+// Don't bother initializing global cage base value, compute it from any
+// on heap address instead.
+#define V8_COMPRESS_POINTERS_DONT_USE_GLOBAL_BASE
 #include "src/common/ptr-compr-inl.h"
 #include "tools/debug_helper/debug-helper-internal.h"
 
@@ -72,7 +75,7 @@ if (hasattr(v8heapconst, 'HEAP_FIRST_PAGES')):  # Only exists in ptr-compr build
     if (space_name in expected_spaces):
       out = out + '  if (heap_addresses->' + space_name + '_first_page == 0) {\n'
       out = out + '    heap_addresses->' + space_name + \
-          '_first_page = i::V8HeapCompressionScheme::DecompressTaggedPointer(' + \
+          '_first_page = i::V8HeapCompressionScheme::DecompressTagged(' + \
           'any_uncompressed_ptr, ' + str(offset) + ');\n'
       out = out + '  }\n'
 out = out + '}\n'

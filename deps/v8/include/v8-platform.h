@@ -5,9 +5,11 @@
 #ifndef V8_V8_PLATFORM_H_
 #define V8_V8_PLATFORM_H_
 
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>  // For abort.
+
 #include <memory>
 #include <string>
 
@@ -285,6 +287,8 @@ class ConvertableToTraceFormat {
  * V8 Tracing controller.
  *
  * Can be implemented by an embedder to record trace events from V8.
+ *
+ * Will become obsolete in Perfetto SDK build (v8_use_perfetto = true).
  */
 class TracingController {
  public:
@@ -348,10 +352,16 @@ class TracingController {
     virtual void OnTraceDisabled() = 0;
   };
 
-  /** Adds tracing state change observer. */
+  /**
+   * Adds tracing state change observer.
+   * Does nothing in Perfetto SDK build (v8_use_perfetto = true).
+   */
   virtual void AddTraceStateObserver(TraceStateObserver*) {}
 
-  /** Removes tracing state change observer. */
+  /**
+   * Removes tracing state change observer.
+   * Does nothing in Perfetto SDK build (v8_use_perfetto = true).
+   */
   virtual void RemoveTraceStateObserver(TraceStateObserver*) {}
 };
 
@@ -534,7 +544,7 @@ static constexpr PlatformSharedMemoryHandle kInvalidSharedMemoryHandle = -1;
 // to avoid pulling in large OS header files into this header file. Instead,
 // the users of these routines are expected to include the respecitve OS
 // headers in addition to this one.
-#if V8_OS_MACOS
+#if V8_OS_DARWIN
 // Convert between a shared memory handle and a mach_port_t referencing a memory
 // entry object.
 inline PlatformSharedMemoryHandle SharedMemoryHandleFromMachMemoryEntry(
@@ -1074,10 +1084,27 @@ class Platform {
   virtual double MonotonicallyIncreasingTime() = 0;
 
   /**
-   * Current wall-clock time in milliseconds since epoch.
-   * This function is expected to return at least millisecond-precision values.
+   * Current wall-clock time in milliseconds since epoch. Use
+   * CurrentClockTimeMillisHighResolution() when higher precision is
+   * required.
+   */
+  virtual int64_t CurrentClockTimeMilliseconds() {
+    return floor(CurrentClockTimeMillis());
+  }
+
+  /**
+   * This function is deprecated and will be deleted. Use either
+   * CurrentClockTimeMilliseconds() or
+   * CurrentClockTimeMillisecondsHighResolution().
    */
   virtual double CurrentClockTimeMillis() = 0;
+
+  /**
+   * Same as CurrentClockTimeMilliseconds(), but with more precision.
+   */
+  virtual double CurrentClockTimeMillisecondsHighResolution() {
+    return CurrentClockTimeMillis();
+  }
 
   typedef void (*StackTracePrinter)();
 

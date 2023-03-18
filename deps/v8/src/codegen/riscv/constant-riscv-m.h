@@ -8,26 +8,38 @@
 namespace v8 {
 namespace internal {
 
-enum OpcodeRISCVM : uint32_t {
-  // RV32M Standard Extension
-  RO_MUL = OP | (0b000 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
-  RO_MULH = OP | (0b001 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
-  RO_MULHSU = OP | (0b010 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
-  RO_MULHU = OP | (0b011 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
-  RO_DIV = OP | (0b100 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
-  RO_DIVU = OP | (0b101 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
-  RO_REM = OP | (0b110 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
-  RO_REMU = OP | (0b111 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+// RV32M Standard Extension
+constexpr Opcode RO_MUL =
+    OP | (0b000 << kFunct3Shift) | (0b0000001 << kFunct7Shift);
+constexpr Opcode RO_MULH =
+    OP | (0b001 << kFunct3Shift) | (0b0000001 << kFunct7Shift);
+constexpr Opcode RO_MULHSU =
+    OP | (0b010 << kFunct3Shift) | (0b0000001 << kFunct7Shift);
+constexpr Opcode RO_MULHU =
+    OP | (0b011 << kFunct3Shift) | (0b0000001 << kFunct7Shift);
+constexpr Opcode RO_DIV =
+    OP | (0b100 << kFunct3Shift) | (0b0000001 << kFunct7Shift);
+constexpr Opcode RO_DIVU =
+    OP | (0b101 << kFunct3Shift) | (0b0000001 << kFunct7Shift);
+constexpr Opcode RO_REM =
+    OP | (0b110 << kFunct3Shift) | (0b0000001 << kFunct7Shift);
+constexpr Opcode RO_REMU =
+    OP | (0b111 << kFunct3Shift) | (0b0000001 << kFunct7Shift);
 
 #ifdef V8_TARGET_ARCH_RISCV64
-  // RV64M Standard Extension (in addition to RV32M)
-  RO_MULW = OP_32 | (0b000 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
-  RO_DIVW = OP_32 | (0b100 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
-  RO_DIVUW = OP_32 | (0b101 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
-  RO_REMW = OP_32 | (0b110 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
-  RO_REMUW = OP_32 | (0b111 << kFunct3Shift) | (0b0000001 << kFunct7Shift),
+// RV64M Standard Extension (in addition to RV32M)
+constexpr Opcode RO_MULW =
+    OP_32 | (0b000 << kFunct3Shift) | (0b0000001 << kFunct7Shift);
+constexpr Opcode RO_DIVW =
+    OP_32 | (0b100 << kFunct3Shift) | (0b0000001 << kFunct7Shift);
+constexpr Opcode RO_DIVUW =
+    OP_32 | (0b101 << kFunct3Shift) | (0b0000001 << kFunct7Shift);
+constexpr Opcode RO_REMW =
+    OP_32 | (0b110 << kFunct3Shift) | (0b0000001 << kFunct7Shift);
+constexpr Opcode RO_REMUW =
+    OP_32 | (0b111 << kFunct3Shift) | (0b0000001 << kFunct7Shift);
 #endif
-};
+// clang-format on
 }  // namespace internal
 }  // namespace v8
 

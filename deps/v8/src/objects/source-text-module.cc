@@ -135,8 +135,7 @@ void SourceTextModule::CreateExport(Isolate* isolate,
                                     Handle<SourceTextModule> module,
                                     int cell_index, Handle<FixedArray> names) {
   DCHECK_LT(0, names->length());
-  Handle<Cell> cell =
-      isolate->factory()->NewCell(isolate->factory()->undefined_value());
+  Handle<Cell> cell = isolate->factory()->NewCell();
   module->regular_exports().set(ExportIndex(cell_index), *cell);
 
   Handle<ObjectHashTable> exports(module->exports(), isolate);

@@ -230,6 +230,11 @@ void Builtins::Generate_LoadGlobalICInsideTypeofBaseline(
   assembler.GenerateLoadGlobalICBaseline(TypeofMode::kInside);
 }
 
+void Builtins::Generate_LookupGlobalIC(compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLookupGlobalIC(TypeofMode::kNotInside);
+}
+
 void Builtins::Generate_LookupGlobalICTrampoline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
@@ -240,6 +245,12 @@ void Builtins::Generate_LookupGlobalICBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateLookupGlobalICBaseline(TypeofMode::kNotInside);
+}
+
+void Builtins::Generate_LookupGlobalICInsideTypeof(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLookupGlobalIC(TypeofMode::kInside);
 }
 
 void Builtins::Generate_LookupGlobalICInsideTypeofTrampoline(

@@ -29,6 +29,8 @@ class WasmGCLowering final : public AdvancedReducer {
   Reduction Reduce(Node* node) final;
 
  private:
+  enum NullCheckStrategy { kExplicitNullChecks, kTrapHandler };
+
   Reduction ReduceWasmTypeCheck(Node* node);
   Reduction ReduceWasmTypeCast(Node* node);
   Reduction ReduceAssertNotNull(Node* node);
@@ -39,9 +41,21 @@ class WasmGCLowering final : public AdvancedReducer {
   Reduction ReduceTypeGuard(Node* node);
   Reduction ReduceWasmExternInternalize(Node* node);
   Reduction ReduceWasmExternExternalize(Node* node);
+  Reduction ReduceWasmStructGet(Node* node);
+  Reduction ReduceWasmStructSet(Node* node);
+  Reduction ReduceWasmArrayGet(Node* node);
+  Reduction ReduceWasmArraySet(Node* node);
+  Reduction ReduceWasmArrayLength(Node* node);
+  Reduction ReduceWasmArrayInitializeLength(Node* node);
+  Reduction ReduceStringAsWtf16(Node* node);
+  Reduction ReduceStringPrepareForGetCodeunit(Node* node);
+  Node* IsolateRoot();
   Node* RootNode(RootIndex index);
-  Node* Null();
-  Node* IsNull(Node* object);
+  Node* Null(wasm::ValueType type);
+  Node* IsNull(Node* object, wasm::ValueType type);
+  Node* BuildLoadExternalPointerFromObject(Node* object, int offset,
+                                           ExternalPointerTag tag);
+  NullCheckStrategy null_check_strategy_;
   WasmGraphAssembler gasm_;
   const wasm::WasmModule* module_;
   Node* dead_;

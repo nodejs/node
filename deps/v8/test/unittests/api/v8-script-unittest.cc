@@ -157,5 +157,76 @@ TEST_F(ScriptTest, GetEmptyStalledTopLevelAwaitMessage) {
       {});
 }
 
+TEST_F(ScriptTest, ProduceCompileHints) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(isolate(), NewString(url), 13, 0);
+
+  const char* code = "function lazy1() {} function lazy2() {} lazy1();";
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+
+  // Test producing compile hints.
+  {
+    Local<Script> script =
+        v8::ScriptCompiler::Compile(
+            v8_context(), &script_source,
+            v8::ScriptCompiler::CompileOptions::kProduceCompileHints)
+            .ToLocalChecked();
+    {
+      auto compile_hints = script->GetProducedCompileHints();
+      EXPECT_EQ(0u, compile_hints.size());
+    }
+
+    v8::Local<v8::Context> context = v8::Context::New(isolate());
+    v8::MaybeLocal<v8::Value> result = script->Run(context);
+    EXPECT_FALSE(result.IsEmpty());
+    {
+      auto compile_hints = script->GetProducedCompileHints();
+      EXPECT_EQ(1u, compile_hints.size());
+      EXPECT_EQ(14, compile_hints[0]);
+    }
+
+    // The previous data is cleared if we retrieve compile hints again.
+    {
+      auto compile_hints = script->GetProducedCompileHints();
+      EXPECT_EQ(0u, compile_hints.size());
+    }
+
+    // Call the other lazy function and retrieve compile hints again.
+    const char* code2 = "lazy2();";
+    v8::ScriptCompiler::Source script_source2(NewString(code2), origin);
+
+    Local<Script> script2 =
+        v8::ScriptCompiler::Compile(v8_context(), &script_source2)
+            .ToLocalChecked();
+    v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
+    EXPECT_FALSE(result2.IsEmpty());
+    {
+      auto compile_hints = script->GetProducedCompileHints();
+      EXPECT_EQ(1u, compile_hints.size());
+      EXPECT_EQ(34, compile_hints[0]);
+    }
+  }
+
+  // Test that compile hints are not produced unless the relevant compile option
+  // is set.
+  {
+    Local<Script> script =
+        v8::ScriptCompiler::Compile(v8_context(), &script_source)
+            .ToLocalChecked();
+    {
+      auto compile_hints = script->GetProducedCompileHints();
+      EXPECT_EQ(0u, compile_hints.size());
+    }
+
+    v8::Local<v8::Context> context = v8::Context::New(isolate());
+    v8::MaybeLocal<v8::Value> result = script->Run(context);
+    EXPECT_FALSE(result.IsEmpty());
+    {
+      auto compile_hints = script->GetProducedCompileHints();
+      EXPECT_EQ(0u, compile_hints.size());
+    }
+  }
+}
+
 }  // namespace
 }  // namespace v8

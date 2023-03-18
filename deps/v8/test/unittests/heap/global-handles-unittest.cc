@@ -27,6 +27,7 @@
 
 #include "src/handles/global-handles.h"
 
+#include "include/v8-embedder-heap.h"
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/execution/isolate.h"
@@ -47,29 +48,13 @@ struct TracedReferenceWrapper {
   v8::TracedReference<v8::Object> handle;
 };
 
-START_ALLOW_USE_DEPRECATED()
-
-// Empty v8::EmbedderHeapTracer that never keeps objects alive on Scavenge. See
-// |IsRootForNonTracingGC|.
-class NonRootingEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
+class NonRootingEmbedderRootsHandler final : public v8::EmbedderRootsHandler {
  public:
-  NonRootingEmbedderHeapTracer() = default;
-
-  void RegisterV8References(
-      const std::vector<std::pair<void*, void*>>& embedder_fields) final {}
-  bool AdvanceTracing(double deadline_in_ms) final { return true; }
-  bool IsTracingDone() final { return true; }
-  void TracePrologue(TraceFlags) final {}
-  void TraceEpilogue(TraceSummary*) final {}
-  void EnterFinalPause(EmbedderStackState) final {}
-
-  bool IsRootForNonTracingGC(
-      const v8::TracedReference<v8::Value>& handle) final {
+  bool IsRoot(const v8::TracedReference<v8::Value>& handle) final {
     return false;
   }
 
-  void ResetHandleInNonTracingGC(
-      const v8::TracedReference<v8::Value>& handle) final {
+  void ResetRoot(const v8::TracedReference<v8::Value>& handle) final {
     for (auto* wrapper : wrappers_) {
       if (wrapper->handle == handle) {
         wrapper->handle.Reset();
@@ -84,8 +69,6 @@ class NonRootingEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
  private:
   std::vector<TracedReferenceWrapper*> wrappers_;
 };
-
-END_ALLOW_USE_DEPRECATED()
 
 void SimpleCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -152,6 +135,8 @@ void WeakHandleTest(v8::Isolate* isolate, ConstructFunction construct_function,
                     ModifierFunction modifier_function, GCFunction gc_function,
                     SurvivalMode survives) {
   v8::HandleScope scope(isolate);
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      reinterpret_cast<i::Isolate*>(isolate)->heap());
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
 
@@ -176,15 +161,17 @@ class GlobalHandlesTest : public TestWithContext {
                                        ModifierFunction modifier_function,
                                        SurvivalMode survives) {
     v8::Isolate* isolate = v8_isolate();
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        i_isolate()->heap());
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(context);
 
-    NonRootingEmbedderHeapTracer tracer;
-    TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+    NonRootingEmbedderRootsHandler roots_handler;
+    v8_isolate()->SetEmbedderRootsHandler(&roots_handler);
 
     auto fp = std::make_unique<TracedReferenceWrapper>();
-    tracer.Register(fp.get());
+    roots_handler.Register(fp.get());
     construct_function(isolate, context, fp.get());
     CHECK(IsNewObjectInCorrectGeneration(isolate, fp->handle));
     modifier_function(fp.get());
@@ -193,6 +180,8 @@ class GlobalHandlesTest : public TestWithContext {
     // handle directly here.
     CHECK_IMPLIES(survives == SurvivalMode::kSurvives, !fp->handle.IsEmpty());
     CHECK_IMPLIES(survives == SurvivalMode::kDies, fp->handle.IsEmpty());
+
+    v8_isolate()->SetEmbedderRootsHandler(nullptr);
   }
 };
 
@@ -202,6 +191,8 @@ TEST_F(GlobalHandlesTest, EternalHandles) {
   Isolate* isolate = i_isolate();
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   EternalHandles* eternal_handles = isolate->eternal_handles();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      isolate->heap());
 
   // Create a number of handles that will not be on a block boundary
   const int kArrayLength = 2048 - 1;
@@ -289,10 +280,10 @@ TEST_F(GlobalHandlesTest, WeakPersistentSmi) {
                   v8::WeakCallbackType::kParameter);
 }
 
-START_ALLOW_USE_DEPRECATED()
-
 TEST_F(GlobalHandlesTest, PhantomHandlesWithoutCallbacks) {
   v8::Isolate* isolate = v8_isolate();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate()->heap());
 
   v8::Global<v8::Object> g1, g2;
   {
@@ -490,6 +481,8 @@ void ForceMarkSweep1(const v8::WeakCallbackInfo<FlagAndGlobal>& data) {
 
 TEST_F(GlobalHandlesTest, GCFromWeakCallbacks) {
   v8::Isolate* isolate = v8_isolate();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate()->heap());
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
@@ -547,6 +540,8 @@ void FirstPassCallback(const v8::WeakCallbackInfo<FlagAndGlobal>& data) {
 
 TEST_F(GlobalHandlesTest, SecondPassPhantomCallbacks) {
   v8::Isolate* isolate = v8_isolate();
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate()->heap());
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);

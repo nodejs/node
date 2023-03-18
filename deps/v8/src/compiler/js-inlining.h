@@ -66,7 +66,7 @@ class JSInliner final : public AdvancedReducer {
   SourcePositionTable* const source_positions_;
   NodeOriginTable* const node_origins_;
 
-  base::Optional<SharedFunctionInfoRef> DetermineCallTarget(Node* node);
+  OptionalSharedFunctionInfoRef DetermineCallTarget(Node* node);
   FeedbackCellRef DetermineCallContext(Node* node, Node** context_out);
 
   FrameState CreateArtificialFrameState(

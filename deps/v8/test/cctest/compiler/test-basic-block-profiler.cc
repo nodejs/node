@@ -61,13 +61,13 @@ TEST(ProfileDiamond) {
 
   m.GenerateCode();
   {
-    uint32_t expected[] = {0, 0, 0, 0, 0, 0};
+    uint32_t expected[] = {0, 0, 0, 0, 0, 0, 0};
     m.Expect(arraysize(expected), expected);
   }
 
   m.Call(0);
   {
-    uint32_t expected[] = {1, 1, 1, 0, 0, 1};
+    uint32_t expected[] = {1, 1, 1, 0, 0, 1, 0};
     m.Expect(arraysize(expected), expected);
   }
 
@@ -75,28 +75,34 @@ TEST(ProfileDiamond) {
 
   m.Call(1);
   {
-    uint32_t expected[] = {1, 0, 0, 1, 1, 1};
+    uint32_t expected[] = {1, 0, 0, 1, 1, 1, 0};
     m.Expect(arraysize(expected), expected);
   }
 
   m.Call(0);
   {
-    uint32_t expected[] = {2, 1, 1, 1, 1, 2};
+    uint32_t expected[] = {2, 1, 1, 1, 1, 2, 0};
     m.Expect(arraysize(expected), expected);
   }
 
   // Set the counters very high, to verify that they saturate rather than
   // overflowing.
-  uint32_t near_overflow[] = {UINT32_MAX - 1, UINT32_MAX - 1, UINT32_MAX - 1,
-                              UINT32_MAX - 1, UINT32_MAX - 1, UINT32_MAX - 1};
+  uint32_t near_overflow[] = {UINT32_MAX - 1,
+                              UINT32_MAX - 1,
+                              UINT32_MAX - 1,
+                              UINT32_MAX - 1,
+                              UINT32_MAX - 1,
+                              UINT32_MAX - 1,
+                              0};
   m.SetCounts(arraysize(near_overflow), near_overflow);
   m.Expect(arraysize(near_overflow), near_overflow);
 
   m.Call(0);
   m.Call(0);
   {
-    uint32_t expected[] = {UINT32_MAX,     UINT32_MAX,     UINT32_MAX,
-                           UINT32_MAX - 1, UINT32_MAX - 1, UINT32_MAX};
+    uint32_t expected[] = {
+        UINT32_MAX,     UINT32_MAX, UINT32_MAX, UINT32_MAX - 1,
+        UINT32_MAX - 1, UINT32_MAX, 0};
     m.Expect(arraysize(expected), expected);
   }
 }
@@ -121,7 +127,7 @@ TEST(ProfileLoop) {
 
   m.GenerateCode();
   {
-    uint32_t expected[] = {0, 0, 0, 0, 0, 0};
+    uint32_t expected[] = {0, 0, 0, 0, 0, 0, 0};
     m.Expect(arraysize(expected), expected);
   }
 
@@ -129,7 +135,7 @@ TEST(ProfileLoop) {
   for (size_t i = 0; i < arraysize(runs); i++) {
     m.ResetCounts();
     CHECK_EQ(1, m.Call(static_cast<int>(runs[i])));
-    uint32_t expected[] = {1, runs[i] + 1, runs[i], runs[i], 1, 1};
+    uint32_t expected[] = {1, runs[i] + 1, runs[i], runs[i], 1, 1, 0};
     m.Expect(arraysize(expected), expected);
   }
 }

@@ -190,7 +190,8 @@ std::ostream& operator<<(std::ostream& os, InstanceType instance_type) {
     INSTANCE_TYPE_LIST(WRITE_TYPE)
 #undef WRITE_TYPE
   }
-  UNREACHABLE();
+  return os << "[unknown instance type " << static_cast<int16_t>(instance_type)
+            << "]";
 }
 
 std::ostream& operator<<(std::ostream& os, PropertyCellType type) {
@@ -487,14 +488,7 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
     } while (currInput->IsJSProxy());
     return NoSideEffectsToString(isolate, currInput);
   } else if (input->IsBigInt()) {
-    MaybeHandle<String> maybe_string =
-        BigInt::ToString(isolate, Handle<BigInt>::cast(input), 10, kDontThrow);
-    Handle<String> result;
-    if (maybe_string.ToHandle(&result)) return result;
-    // BigInt-to-String conversion can fail on 32-bit platforms where
-    // String::kMaxLength is too small to fit this BigInt.
-    return isolate->factory()->NewStringFromStaticChars(
-        "<a very large BigInt>");
+    return BigInt::NoSideEffectsToString(isolate, Handle<BigInt>::cast(input));
   } else if (input->IsFunction()) {
     // -- F u n c t i o n
     Handle<String> fun_str;
@@ -657,6 +651,9 @@ bool Object::BooleanValue(IsolateT* isolate) {
   DCHECK(IsHeapObject());
   if (IsBoolean()) return IsTrue(isolate);
   if (IsNullOrUndefined(isolate)) return false;
+#ifdef V8_ENABLE_WEBASSEMBLY
+  if (IsWasmNull()) return false;
+#endif
   if (IsUndetectable()) return false;  // Undetectable object is false.
   if (IsString()) return String::cast(*this).length() != 0;
   if (IsHeapNumber()) return DoubleToBoolean(HeapNumber::cast(*this).value());
@@ -1168,9 +1165,7 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
         return result;
       }
       case LookupIterator::WASM_OBJECT:
-        THROW_NEW_ERROR(it->isolate(),
-                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque),
-                        Object);
+        return it->isolate()->factory()->undefined_value();
       case LookupIterator::INTERCEPTOR: {
         bool done;
         Handle<Object> result;
@@ -1391,7 +1386,7 @@ MaybeHandle<HeapObject> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
                     HeapObject);
   }
   // 9. Let extensibleTarget be ? IsExtensible(target).
-  Maybe<bool> is_extensible = JSReceiver::IsExtensible(target);
+  Maybe<bool> is_extensible = JSReceiver::IsExtensible(isolate, target);
   MAYBE_RETURN(is_extensible, MaybeHandle<HeapObject>());
   // 10. If extensibleTarget is true, return handlerProto.
   if (is_extensible.FromJust()) return Handle<HeapObject>::cast(handler_proto);
@@ -2031,22 +2026,18 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << ">";
       break;
     }
-    case CODE_DATA_CONTAINER_TYPE: {
-#ifdef V8_EXTERNAL_CODE_SPACE
-      CodeDataContainer code = CodeDataContainer::cast(*this);
-      os << "<CodeDataContainer " << CodeKindToString(code.kind());
+    case CODE_TYPE: {
+      Code code = Code::cast(*this);
+      os << "<Code " << CodeKindToString(code.kind());
       if (code.is_builtin()) {
         os << " " << Builtins::name(code.builtin_id());
       }
       os << ">";
-#else
-      os << "<CodeDataContainer>";
-#endif  // V8_EXTERNAL_CODE_SPACE
       break;
     }
-    case CODE_TYPE: {
-      Code code = Code::cast(*this);
-      os << "<Code " << CodeKindToString(code.kind());
+    case INSTRUCTION_STREAM_TYPE: {
+      InstructionStream code = InstructionStream::cast(*this);
+      os << "<InstructionStream " << CodeKindToString(code.kind());
       if (code.is_builtin()) {
         os << " " << Builtins::name(code.builtin_id());
       }
@@ -2286,8 +2277,8 @@ int HeapObject::SizeFromMap(Map map) const {
   TORQUE_INSTANCE_TYPE_TO_BODY_DESCRIPTOR_LIST(MAKE_TORQUE_SIZE_FOR)
 #undef MAKE_TORQUE_SIZE_FOR
 
-  if (instance_type == CODE_TYPE) {
-    return Code::unchecked_cast(*this).CodeSize();
+  if (instance_type == INSTRUCTION_STREAM_TYPE) {
+    return InstructionStream::unchecked_cast(*this).CodeSize();
   }
   if (instance_type == COVERAGE_INFO_TYPE) {
     return CoverageInfo::SizeFor(
@@ -2304,6 +2295,9 @@ int HeapObject::SizeFromMap(Map map) const {
   if (instance_type == WASM_ARRAY_TYPE) {
     return WasmArray::SizeFor(map, WasmArray::unchecked_cast(*this).length());
   }
+  if (instance_type == WASM_NULL_TYPE) {
+    return WasmNull::kSize;
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK_EQ(instance_type, EMBEDDER_DATA_ARRAY_TYPE);
   return EmbedderDataArray::SizeFor(
@@ -2316,8 +2310,9 @@ bool HeapObject::NeedsRehashing(PtrComprCageBase cage_base) const {
 
 bool HeapObject::NeedsRehashing(InstanceType instance_type) const {
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    // Use map() only when it's guaranteed that it's not a Code object.
-    DCHECK_IMPLIES(instance_type != CODE_TYPE,
+    // Use map() only when it's guaranteed that it's not a InstructionStream
+    // object.
+    DCHECK_IMPLIES(instance_type != INSTRUCTION_STREAM_TYPE,
                    instance_type == map().instance_type());
   } else {
     DCHECK_EQ(instance_type, map().instance_type());
@@ -2458,7 +2453,6 @@ void DescriptorArray::GeneralizeAllFields() {
     details = details.CopyWithRepresentation(Representation::Tagged());
     if (details.location() == PropertyLocation::kField) {
       DCHECK_EQ(PropertyKind::kData, details.kind());
-      details = details.CopyWithConstness(PropertyConstness::kMutable);
       SetValue(i, MaybeObject::FromObject(FieldType::Any()));
     }
     SetDetails(i, details);
@@ -3104,7 +3098,7 @@ Maybe<bool> JSProxy::CheckHasTrap(Isolate* isolate, Handle<Name> name,
       return Nothing<bool>();
     }
     // 9b ii. Let extensibleTarget be ? IsExtensible(target).
-    Maybe<bool> extensible_target = JSReceiver::IsExtensible(target);
+    Maybe<bool> extensible_target = JSReceiver::IsExtensible(isolate, target);
     MAYBE_RETURN(extensible_target, Nothing<bool>());
     // 9b iii. If extensibleTarget is false, throw a TypeError exception.
     if (!extensible_target.FromJust()) {
@@ -3223,7 +3217,7 @@ Maybe<bool> JSProxy::CheckDeleteTrap(Isolate* isolate, Handle<Name> name,
       return Nothing<bool>();
     }
     // 13. Let extensibleTarget be ? IsExtensible(target).
-    Maybe<bool> extensible_target = JSReceiver::IsExtensible(target);
+    Maybe<bool> extensible_target = JSReceiver::IsExtensible(isolate, target);
     MAYBE_RETURN(extensible_target, Nothing<bool>());
     // 14. If extensibleTarget is false, throw a TypeError exception.
     if (!extensible_target.FromJust()) {
@@ -3531,7 +3525,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
       JSReceiver::GetOwnPropertyDescriptor(isolate, target, key, &target_desc);
   MAYBE_RETURN(target_found, Nothing<bool>());
   // 12. Let extensibleTarget be ? IsExtensible(target).
-  Maybe<bool> maybe_extensible = JSReceiver::IsExtensible(target);
+  Maybe<bool> maybe_extensible = JSReceiver::IsExtensible(isolate, target);
   MAYBE_RETURN(maybe_extensible, Nothing<bool>());
   bool extensible_target = maybe_extensible.FromJust();
   // 13. If Desc has a [[Configurable]] field and if Desc.[[Configurable]]
@@ -3623,7 +3617,7 @@ Maybe<bool> JSProxy::SetPrivateSymbol(Isolate* isolate, Handle<JSProxy> proxy,
 
   PropertyDetails details(PropertyKind::kData, DONT_ENUM,
                           PropertyConstness::kMutable);
-  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     Handle<SwissNameDictionary> dict(proxy->property_dictionary_swiss(),
                                      isolate);
     Handle<SwissNameDictionary> result =
@@ -3704,7 +3698,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
       return Nothing<bool>();
     }
     // 11c. Let extensibleTarget be ? IsExtensible(target).
-    Maybe<bool> extensible_target = JSReceiver::IsExtensible(target);
+    Maybe<bool> extensible_target = JSReceiver::IsExtensible(isolate, target);
     MAYBE_RETURN(extensible_target, Nothing<bool>());
     // 11d. (Assert)
     // 11e. If extensibleTarget is false, throw a TypeError exception.
@@ -3717,7 +3711,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
     return Just(false);
   }
   // 12. Let extensibleTarget be ? IsExtensible(target).
-  Maybe<bool> extensible_target = JSReceiver::IsExtensible(target);
+  Maybe<bool> extensible_target = JSReceiver::IsExtensible(isolate, target);
   MAYBE_RETURN(extensible_target, Nothing<bool>());
   // 13. Let resultDesc be ? ToPropertyDescriptor(trapResultObj).
   if (!PropertyDescriptor::ToPropertyDescriptor(isolate, trap_result_obj,
@@ -3785,7 +3779,7 @@ Maybe<bool> JSProxy::PreventExtensions(Handle<JSProxy> proxy,
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap, Object::GetMethod(handler, trap_name), Nothing<bool>());
   if (trap->IsUndefined(isolate)) {
-    return JSReceiver::PreventExtensions(target, should_throw);
+    return JSReceiver::PreventExtensions(isolate, target, should_throw);
   }
 
   Handle<Object> trap_result;
@@ -3801,7 +3795,7 @@ Maybe<bool> JSProxy::PreventExtensions(Handle<JSProxy> proxy,
   }
 
   // Enforce the invariant.
-  Maybe<bool> target_result = JSReceiver::IsExtensible(target);
+  Maybe<bool> target_result = JSReceiver::IsExtensible(isolate, target);
   MAYBE_RETURN(target_result, Nothing<bool>());
   if (target_result.FromJust()) {
     isolate->Throw(*factory->NewTypeError(
@@ -3829,7 +3823,7 @@ Maybe<bool> JSProxy::IsExtensible(Handle<JSProxy> proxy) {
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap, Object::GetMethod(handler, trap_name), Nothing<bool>());
   if (trap->IsUndefined(isolate)) {
-    return JSReceiver::IsExtensible(target);
+    return JSReceiver::IsExtensible(isolate, target);
   }
 
   Handle<Object> trap_result;
@@ -3840,7 +3834,7 @@ Maybe<bool> JSProxy::IsExtensible(Handle<JSProxy> proxy) {
       Nothing<bool>());
 
   // Enforce the invariant.
-  Maybe<bool> target_result = JSReceiver::IsExtensible(target);
+  Maybe<bool> target_result = JSReceiver::IsExtensible(isolate, target);
   MAYBE_RETURN(target_result, Nothing<bool>());
   if (target_result.FromJust() != trap_result->BooleanValue(isolate)) {
     isolate->Throw(
@@ -4040,6 +4034,21 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
     DisallowGarbageCollection no_gc;
     ArrayList raw_array = *array;
     raw_array.Set(length, *obj);
+    raw_array.SetLength(length + 1);
+  }
+  return array;
+}
+
+Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
+                                 Smi obj1) {
+  int length = array->Length();
+  array = EnsureSpace(isolate, array, length + 1);
+  // Check that GC didn't remove elements from the array.
+  DCHECK_EQ(array->Length(), length);
+  {
+    DisallowGarbageCollection no_gc;
+    ArrayList raw_array = *array;
+    raw_array.Set(length, obj1);
     raw_array.SetLength(length + 1);
   }
   return array;
@@ -5120,11 +5129,6 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     Handle<Script> script, IsolateT* isolate,
     FunctionLiteral* function_literal) {
   int function_literal_id = function_literal->function_literal_id();
-  if (V8_UNLIKELY(script->type() == Script::TYPE_WEB_SNAPSHOT &&
-                  function_literal_id >=
-                      script->shared_function_info_count())) {
-    return FindWebSnapshotSharedFunctionInfo(script, isolate, function_literal);
-  }
 
   CHECK_NE(function_literal_id, kFunctionLiteralIdInvalid);
   // If this check fails, the problem is most probably the function id
@@ -5145,77 +5149,6 @@ template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
 template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     Handle<Script> script, LocalIsolate* isolate,
     FunctionLiteral* function_literal);
-
-MaybeHandle<SharedFunctionInfo> Script::FindWebSnapshotSharedFunctionInfo(
-    Handle<Script> script, Isolate* isolate,
-    FunctionLiteral* function_literal) {
-  // We might be able to de-dupe the SFI against a SFI that was
-  // created when deserializing the snapshot (or when calling a function which
-  // was included in the snapshot). In that case, we can find it based on the
-  // start position in shared_function_info_table.
-  Handle<ObjectHashTable> shared_function_info_table = handle(
-      ObjectHashTable::cast(script->shared_function_info_table()), isolate);
-  {
-    DisallowHeapAllocation no_gc;
-    Object index_object = shared_function_info_table->Lookup(
-        handle(Smi::FromInt(function_literal->start_position()), isolate));
-    if (!index_object.IsTheHole()) {
-      int index = Smi::cast(index_object).value();
-      DCHECK_LT(index, script->shared_function_info_count());
-      MaybeObject maybe_shared = script->shared_function_infos().Get(index);
-      HeapObject heap_object;
-      if (!maybe_shared->GetHeapObject(&heap_object)) {
-        // We found the correct location but it's not filled in (e.g., the weak
-        // pointer to the SharedFunctionInfo has been cleared). Record the
-        // location in the FunctionLiteral, so that it will be refilled later.
-        // SharedFunctionInfo::SetScript will write the SharedFunctionInfo in
-        // the shared_function_infos.
-        function_literal->set_function_literal_id(index);
-        return MaybeHandle<SharedFunctionInfo>();
-      }
-      SharedFunctionInfo shared = SharedFunctionInfo::cast(heap_object);
-      DCHECK_EQ(shared.StartPosition(), function_literal->start_position());
-      DCHECK_EQ(shared.EndPosition(), function_literal->end_position());
-      return handle(shared, isolate);
-    }
-  }
-
-  // It's possible that FunctionLiterals which were processed before this one
-  // were deduplicated against existing ones. Decrease function_literal_id to
-  // avoid holes in shared_function_infos.
-  int old_length = script->shared_function_info_count();
-  int function_literal_id = old_length;
-  function_literal->set_function_literal_id(function_literal_id);
-
-  // Also add to shared_function_info_table.
-  shared_function_info_table = ObjectHashTable::Put(
-      shared_function_info_table,
-      handle(Smi::FromInt(function_literal->start_position()), isolate),
-      handle(Smi::FromInt(function_literal_id), isolate));
-  script->set_shared_function_info_table(*shared_function_info_table);
-
-  // Grow shared_function_infos if needed (we don't know the correct amount of
-  // space needed upfront).
-  int new_length = old_length + 1;
-  Handle<WeakFixedArray> old_infos =
-      handle(script->shared_function_infos(), isolate);
-  if (new_length > old_infos->length()) {
-    int capacity = WeakArrayList::CapacityForLength(new_length);
-    Handle<WeakFixedArray> new_infos(
-        isolate->factory()->NewWeakFixedArray(capacity, AllocationType::kOld));
-    new_infos->CopyElements(isolate, 0, *old_infos, 0, old_length,
-                            WriteBarrierMode::UPDATE_WRITE_BARRIER);
-    script->set_shared_function_infos(*new_infos);
-  }
-  return MaybeHandle<SharedFunctionInfo>();
-}
-
-MaybeHandle<SharedFunctionInfo> Script::FindWebSnapshotSharedFunctionInfo(
-    Handle<Script> script, LocalIsolate* isolate,
-    FunctionLiteral* function_literal) {
-  // Off-thread serialization of web snapshots is not implemented.
-  UNREACHABLE();
-}
 
 Script::Iterator::Iterator(Isolate* isolate)
     : iterator_(isolate->heap()->script_list()) {}
@@ -5288,7 +5221,7 @@ Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, Handle<JSProxy> proxy,
         NewTypeError(MessageTemplate::kProxyTrapReturnedFalsish, trap_name));
   }
   // 10. Let extensibleTarget be ? IsExtensible(target).
-  Maybe<bool> is_extensible = JSReceiver::IsExtensible(target);
+  Maybe<bool> is_extensible = JSReceiver::IsExtensible(isolate, target);
   if (is_extensible.IsNothing()) return Nothing<bool>();
   // 11. If extensibleTarget is true, return true.
   if (is_extensible.FromJust()) {
@@ -5874,7 +5807,7 @@ template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base) {
   DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = GetWriteBarrierMode(no_gc);
-  ReadOnlyRoots roots = GetReadOnlyRoots(cage_base);
+  ReadOnlyRoots roots = EarlyGetReadOnlyRoots();
   uint32_t capacity = Capacity();
   bool done = false;
   for (int probe = 1; !done; probe++) {
@@ -6080,19 +6013,6 @@ Handle<RegisteredSymbolTable> RegisteredSymbolTable::Add(
   return table;
 }
 
-Handle<ObjectHashSet> ObjectHashSet::Add(Isolate* isolate,
-                                         Handle<ObjectHashSet> set,
-                                         Handle<Object> key) {
-  int32_t hash = key->GetOrCreateHash(isolate).value();
-  if (!set->Has(isolate, key, hash)) {
-    set = EnsureCapacity(isolate, set);
-    InternalIndex entry = set->FindInsertionEntry(isolate, hash);
-    set->set(EntryToIndex(entry), *key);
-    set->ElementAdded();
-  }
-  return set;
-}
-
 template <typename Derived, typename Shape>
 template <typename IsolateT>
 Handle<Derived> BaseNameDictionary<Derived, Shape>::New(
@@ -6103,6 +6023,17 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::New(
       isolate, at_least_space_for, allocation, capacity_option);
   dict->SetHash(PropertyArray::kNoHashSentinel);
   dict->set_next_enumeration_index(PropertyDetails::kInitialIndex);
+  return dict;
+}
+
+template <typename IsolateT>
+Handle<NameDictionary> NameDictionary::New(IsolateT* isolate,
+                                           int at_least_space_for,
+                                           AllocationType allocation,
+                                           MinimumCapacity capacity_option) {
+  auto dict = BaseNameDictionary<NameDictionary, NameDictionaryShape>::New(
+      isolate, at_least_space_for, allocation, capacity_option);
+  dict->set_flags(kFlagsDefault);
   return dict;
 }
 
@@ -6442,6 +6373,32 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Handle<Derived> table,
                                                   hash);
 }
 
+namespace {
+
+template <typename T>
+void RehashObjectHashTableAndGCIfNeeded(Isolate* isolate, Handle<T> table) {
+  // Rehash if more than 33% of the entries are deleted entries.
+  // TODO(verwaest): Consider to shrink the fixed array in place.
+  if ((table->NumberOfDeletedElements() << 1) > table->NumberOfElements()) {
+    table->Rehash(isolate);
+  }
+  // If we're out of luck, we didn't get a GC recently, and so rehashing
+  // isn't enough to avoid a crash.
+  if (!table->HasSufficientCapacityToAdd(1)) {
+    int nof = table->NumberOfElements() + 1;
+    int capacity = T::ComputeCapacity(nof * 2);
+    if (capacity > T::kMaxCapacity) {
+      for (size_t i = 0; i < 2; ++i) {
+        isolate->heap()->CollectAllGarbage(
+            Heap::kNoGCFlags, GarbageCollectionReason::kFullHashtable);
+      }
+      table->Rehash(isolate);
+    }
+  }
+}
+
+}  // namespace
+
 template <typename Derived, typename Shape>
 Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Isolate* isolate,
                                                          Handle<Derived> table,
@@ -6460,24 +6417,7 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Isolate* isolate,
     return table;
   }
 
-  // Rehash if more than 33% of the entries are deleted entries.
-  // TODO(verwaest): Consider to shrink the fixed array in place.
-  if ((table->NumberOfDeletedElements() << 1) > table->NumberOfElements()) {
-    table->Rehash(isolate);
-  }
-  // If we're out of luck, we didn't get a GC recently, and so rehashing
-  // isn't enough to avoid a crash.
-  if (!table->HasSufficientCapacityToAdd(1)) {
-    int nof = table->NumberOfElements() + 1;
-    int capacity = ObjectHashTable::ComputeCapacity(nof * 2);
-    if (capacity > ObjectHashTable::kMaxCapacity) {
-      for (size_t i = 0; i < 2; ++i) {
-        isolate->heap()->CollectAllGarbage(
-            Heap::kNoGCFlags, GarbageCollectionReason::kFullHashtable);
-      }
-      table->Rehash(isolate);
-    }
-  }
+  RehashObjectHashTableAndGCIfNeeded(isolate, table);
 
   // Check whether the hash table should be extended.
   table = Derived::EnsureCapacity(isolate, table);
@@ -6532,6 +6472,90 @@ void ObjectHashTableBase<Derived, Shape>::RemoveEntry(InternalIndex entry) {
   this->set_the_hole(Derived::EntryToIndex(entry));
   this->set_the_hole(Derived::EntryToValueIndex(entry));
   this->ElementRemoved();
+}
+
+template <typename Derived, int N>
+std::array<Object, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
+    Handle<Object> key) {
+  return Lookup(GetPtrComprCageBase(*this), key);
+}
+
+template <typename Derived, int N>
+std::array<Object, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
+    PtrComprCageBase cage_base, Handle<Object> key) {
+  DisallowGarbageCollection no_gc;
+
+  ReadOnlyRoots roots = this->GetReadOnlyRoots(cage_base);
+  DCHECK(this->IsKey(roots, *key));
+
+  Object hash_obj = key->GetHash();
+  if (hash_obj.IsUndefined(roots)) {
+    return {roots.the_hole_value(), roots.the_hole_value()};
+  }
+  int32_t hash = Smi::ToInt(hash_obj);
+
+  InternalIndex entry = this->FindEntry(cage_base, roots, key, hash);
+  if (entry.is_not_found()) {
+    return {roots.the_hole_value(), roots.the_hole_value()};
+  }
+
+  int start_index = this->EntryToIndex(entry) +
+                    ObjectMultiHashTableShape<N>::kEntryValueIndex;
+  std::array<Object, N> values;
+  for (int i = 0; i < N; i++) {
+    values[i] = this->get(start_index + i);
+    DCHECK(!values[i].IsTheHole());
+  }
+  return values;
+}
+
+// static
+template <typename Derived, int N>
+Handle<Derived> ObjectMultiHashTableBase<Derived, N>::Put(
+    Isolate* isolate, Handle<Derived> table, Handle<Object> key,
+    const std::array<Handle<Object>, N>& values) {
+  ReadOnlyRoots roots(isolate);
+  DCHECK(table->IsKey(roots, *key));
+
+  int32_t hash = key->GetOrCreateHash(isolate).value();
+  InternalIndex entry = table->FindEntry(isolate, roots, key, hash);
+
+  // Overwrite values if entry is found.
+  if (entry.is_found()) {
+    table->SetEntryValues(entry, values);
+    return table;
+  }
+
+  RehashObjectHashTableAndGCIfNeeded(isolate, table);
+
+  // Check whether the hash table should be extended.
+  table = Derived::EnsureCapacity(isolate, table);
+  entry = table->FindInsertionEntry(isolate, hash);
+  table->set(Derived::EntryToIndex(entry), *key);
+  table->SetEntryValues(entry, values);
+  return table;
+}
+
+template <typename Derived, int N>
+void ObjectMultiHashTableBase<Derived, N>::SetEntryValues(
+    InternalIndex entry, const std::array<Handle<Object>, N>& values) {
+  int start_index = EntryToValueIndexStart(entry);
+  for (int i = 0; i < N; i++) {
+    this->set(start_index + i, *values[i]);
+  }
+}
+
+Handle<ObjectHashSet> ObjectHashSet::Add(Isolate* isolate,
+                                         Handle<ObjectHashSet> set,
+                                         Handle<Object> key) {
+  int32_t hash = key->GetOrCreateHash(isolate).value();
+  if (!set->Has(isolate, key, hash)) {
+    set = EnsureCapacity(isolate, set);
+    InternalIndex entry = set->FindInsertionEntry(isolate, hash);
+    set->set(EntryToIndex(entry), *key);
+    set->ElementAdded();
+  }
+  return set;
 }
 
 void JSSet::Initialize(Handle<JSSet> set, Isolate* isolate) {
@@ -6942,86 +6966,6 @@ Address Smi::LexicographicCompare(Isolate* isolate, Smi x, Smi y) {
   return Smi::FromInt(tie).ptr();
 }
 
-// Force instantiation of template instances class.
-// Please note this list is compiler dependent.
-// Keep this at the end of this file
-
-#define EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                            \
-  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)                  \
-      HashTable<DERIVED, SHAPE>;                                            \
-                                                                            \
-  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
-  HashTable<DERIVED, SHAPE>::New(Isolate*, int, AllocationType,             \
-                                 MinimumCapacity);                          \
-  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
-  HashTable<DERIVED, SHAPE>::New(LocalIsolate*, int, AllocationType,        \
-                                 MinimumCapacity);                          \
-                                                                            \
-  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
-  HashTable<DERIVED, SHAPE>::EnsureCapacity(Isolate*, Handle<DERIVED>, int, \
-                                            AllocationType);                \
-  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
-  HashTable<DERIVED, SHAPE>::EnsureCapacity(LocalIsolate*, Handle<DERIVED>, \
-                                            int, AllocationType);
-
-#define EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(DERIVED, SHAPE) \
-  EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                   \
-  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)   \
-      ObjectHashTableBase<DERIVED, SHAPE>;
-
-#define EXTERN_DEFINE_DICTIONARY(DERIVED, SHAPE)                               \
-  EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                                     \
-  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)                     \
-      Dictionary<DERIVED, SHAPE>;                                              \
-                                                                               \
-  template V8_EXPORT_PRIVATE Handle<DERIVED> Dictionary<DERIVED, SHAPE>::Add(  \
-      Isolate* isolate, Handle<DERIVED>, Key, Handle<Object>, PropertyDetails, \
-      InternalIndex*);                                                         \
-  template V8_EXPORT_PRIVATE Handle<DERIVED> Dictionary<DERIVED, SHAPE>::Add(  \
-      LocalIsolate* isolate, Handle<DERIVED>, Key, Handle<Object>,             \
-      PropertyDetails, InternalIndex*);
-
-#define EXTERN_DEFINE_BASE_NAME_DICTIONARY(DERIVED, SHAPE)                     \
-  EXTERN_DEFINE_DICTIONARY(DERIVED, SHAPE)                                     \
-  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)                     \
-      BaseNameDictionary<DERIVED, SHAPE>;                                      \
-                                                                               \
-  template V8_EXPORT_PRIVATE Handle<DERIVED>                                   \
-  BaseNameDictionary<DERIVED, SHAPE>::New(Isolate*, int, AllocationType,       \
-                                          MinimumCapacity);                    \
-  template V8_EXPORT_PRIVATE Handle<DERIVED>                                   \
-  BaseNameDictionary<DERIVED, SHAPE>::New(LocalIsolate*, int, AllocationType,  \
-                                          MinimumCapacity);                    \
-                                                                               \
-  template Handle<DERIVED>                                                     \
-  BaseNameDictionary<DERIVED, SHAPE>::AddNoUpdateNextEnumerationIndex(         \
-      Isolate* isolate, Handle<DERIVED>, Key, Handle<Object>, PropertyDetails, \
-      InternalIndex*);                                                         \
-  template Handle<DERIVED>                                                     \
-  BaseNameDictionary<DERIVED, SHAPE>::AddNoUpdateNextEnumerationIndex(         \
-      LocalIsolate* isolate, Handle<DERIVED>, Key, Handle<Object>,             \
-      PropertyDetails, InternalIndex*);
-
-EXTERN_DEFINE_HASH_TABLE(StringSet, StringSetShape)
-EXTERN_DEFINE_HASH_TABLE(CompilationCacheTable, CompilationCacheShape)
-EXTERN_DEFINE_HASH_TABLE(ObjectHashSet, ObjectHashSetShape)
-EXTERN_DEFINE_HASH_TABLE(NameToIndexHashTable, NameToIndexShape)
-EXTERN_DEFINE_HASH_TABLE(RegisteredSymbolTable, RegisteredSymbolTableShape)
-
-EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(ObjectHashTable, ObjectHashTableShape)
-EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable, ObjectHashTableShape)
-
-EXTERN_DEFINE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
-EXTERN_DEFINE_DICTIONARY(NumberDictionary, NumberDictionaryShape)
-
-EXTERN_DEFINE_BASE_NAME_DICTIONARY(NameDictionary, NameDictionaryShape)
-EXTERN_DEFINE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
-
-#undef EXTERN_DEFINE_HASH_TABLE
-#undef EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE
-#undef EXTERN_DEFINE_DICTIONARY
-#undef EXTERN_DEFINE_BASE_NAME_DICTIONARY
-
 void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
     Isolate* isolate, Address raw_finalization_registry,
     Address raw_weak_cell) {
@@ -7073,6 +7017,98 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
   weak_cell.set_key_list_prev(undefined);
   weak_cell.set_key_list_next(undefined);
 }
+
+// Force instantiation of template instances class.
+// Please note this list is compiler dependent.
+// Keep this at the end of this file
+
+#define EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                            \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)                  \
+      HashTable<DERIVED, SHAPE>;                                            \
+                                                                            \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
+  HashTable<DERIVED, SHAPE>::New(Isolate*, int, AllocationType,             \
+                                 MinimumCapacity);                          \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
+  HashTable<DERIVED, SHAPE>::New(LocalIsolate*, int, AllocationType,        \
+                                 MinimumCapacity);                          \
+                                                                            \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
+  HashTable<DERIVED, SHAPE>::EnsureCapacity(Isolate*, Handle<DERIVED>, int, \
+                                            AllocationType);                \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
+  HashTable<DERIVED, SHAPE>::EnsureCapacity(LocalIsolate*, Handle<DERIVED>, \
+                                            int, AllocationType);
+
+#define EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(DERIVED, SHAPE) \
+  EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                   \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)   \
+      ObjectHashTableBase<DERIVED, SHAPE>;
+
+#define EXTERN_DEFINE_MULTI_OBJECT_BASE_HASH_TABLE(DERIVED, N)    \
+  EXTERN_DEFINE_HASH_TABLE(DERIVED, ObjectMultiHashTableShape<N>) \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)        \
+      ObjectMultiHashTableBase<DERIVED, N>;
+
+#define EXTERN_DEFINE_DICTIONARY(DERIVED, SHAPE)                               \
+  EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                                     \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)                     \
+      Dictionary<DERIVED, SHAPE>;                                              \
+                                                                               \
+  template V8_EXPORT_PRIVATE Handle<DERIVED> Dictionary<DERIVED, SHAPE>::Add(  \
+      Isolate* isolate, Handle<DERIVED>, Key, Handle<Object>, PropertyDetails, \
+      InternalIndex*);                                                         \
+  template V8_EXPORT_PRIVATE Handle<DERIVED> Dictionary<DERIVED, SHAPE>::Add(  \
+      LocalIsolate* isolate, Handle<DERIVED>, Key, Handle<Object>,             \
+      PropertyDetails, InternalIndex*);
+
+#define EXTERN_DEFINE_BASE_NAME_DICTIONARY(DERIVED, SHAPE)                     \
+  EXTERN_DEFINE_DICTIONARY(DERIVED, SHAPE)                                     \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)                     \
+      BaseNameDictionary<DERIVED, SHAPE>;                                      \
+                                                                               \
+  template V8_EXPORT_PRIVATE Handle<DERIVED>                                   \
+  BaseNameDictionary<DERIVED, SHAPE>::New(Isolate*, int, AllocationType,       \
+                                          MinimumCapacity);                    \
+  template V8_EXPORT_PRIVATE Handle<DERIVED>                                   \
+  BaseNameDictionary<DERIVED, SHAPE>::New(LocalIsolate*, int, AllocationType,  \
+                                          MinimumCapacity);                    \
+                                                                               \
+  template Handle<DERIVED>                                                     \
+  BaseNameDictionary<DERIVED, SHAPE>::AddNoUpdateNextEnumerationIndex(         \
+      Isolate* isolate, Handle<DERIVED>, Key, Handle<Object>, PropertyDetails, \
+      InternalIndex*);                                                         \
+  template Handle<DERIVED>                                                     \
+  BaseNameDictionary<DERIVED, SHAPE>::AddNoUpdateNextEnumerationIndex(         \
+      LocalIsolate* isolate, Handle<DERIVED>, Key, Handle<Object>,             \
+      PropertyDetails, InternalIndex*);
+
+EXTERN_DEFINE_HASH_TABLE(StringSet, StringSetShape)
+EXTERN_DEFINE_HASH_TABLE(CompilationCacheTable, CompilationCacheShape)
+EXTERN_DEFINE_HASH_TABLE(ObjectHashSet, ObjectHashSetShape)
+EXTERN_DEFINE_HASH_TABLE(NameToIndexHashTable, NameToIndexShape)
+EXTERN_DEFINE_HASH_TABLE(RegisteredSymbolTable, RegisteredSymbolTableShape)
+
+EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(ObjectHashTable, ObjectHashTableShape)
+EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable, ObjectHashTableShape)
+
+EXTERN_DEFINE_MULTI_OBJECT_BASE_HASH_TABLE(ObjectTwoHashTable, 2)
+
+EXTERN_DEFINE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
+EXTERN_DEFINE_DICTIONARY(NumberDictionary, NumberDictionaryShape)
+
+EXTERN_DEFINE_BASE_NAME_DICTIONARY(NameDictionary, NameDictionaryShape)
+template V8_EXPORT_PRIVATE Handle<NameDictionary> NameDictionary::New(
+    Isolate*, int, AllocationType, MinimumCapacity);
+template V8_EXPORT_PRIVATE Handle<NameDictionary> NameDictionary::New(
+    LocalIsolate*, int, AllocationType, MinimumCapacity);
+
+EXTERN_DEFINE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
+
+#undef EXTERN_DEFINE_HASH_TABLE
+#undef EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE
+#undef EXTERN_DEFINE_DICTIONARY
+#undef EXTERN_DEFINE_BASE_NAME_DICTIONARY
 
 }  // namespace internal
 }  // namespace v8

@@ -54,6 +54,8 @@ class WasmGCOperatorReducer final
  private:
   using ControlPathTypes = ControlPathState<NodeWithType, kMultipleInstances>;
 
+  Reduction ReduceWasmStructOperation(Node* node);
+  Reduction ReduceWasmArrayLength(Node* node);
   Reduction ReduceAssertNotNull(Node* node);
   Reduction ReduceCheckNull(Node* node);
   Reduction ReduceWasmTypeCheck(Node* node);
@@ -73,6 +75,7 @@ class WasmGCOperatorReducer final
 
   Graph* graph() { return mcgraph_->graph(); }
   CommonOperatorBuilder* common() { return mcgraph_->common(); }
+  SimplifiedOperatorBuilder* simplified() { return gasm_.simplified(); }
 
   MachineGraph* mcgraph_;
   WasmGraphAssembler gasm_;

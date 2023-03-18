@@ -60,8 +60,8 @@ class HeapObject : public Object {
 
   // Compare-and-swaps map word using release store, returns true if the map
   // word was actually swapped.
-  inline bool release_compare_and_swap_map_word(MapWord old_map_word,
-                                                MapWord new_map_word);
+  inline bool release_compare_and_swap_map_word_forwarded(
+      MapWord old_map_word, HeapObject new_target_object);
 
   // Initialize the map immediately after the object is allocated.
   // Do not use this outside Heap.
@@ -71,11 +71,13 @@ class HeapObject : public Object {
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.
   DECL_RELAXED_GETTER(map_word, MapWord)
-  inline void set_map_word(MapWord map_word, RelaxedStoreTag);
+  inline void set_map_word(Map map, RelaxedStoreTag);
+  inline void set_map_word_forwarded(HeapObject target_object, RelaxedStoreTag);
 
   // Access the map word using acquire load and release store.
   DECL_ACQUIRE_GETTER(map_word, MapWord)
-  inline void set_map_word(MapWord map_word, ReleaseStoreTag);
+  inline void set_map_word(Map map, ReleaseStoreTag);
+  inline void set_map_word_forwarded(HeapObject target_object, ReleaseStoreTag);
 
   // This method exists to help remove GetIsolate/GetHeap from HeapObject, in a
   // way that doesn't require passing Isolate/Heap down huge call chains or to
@@ -84,6 +86,8 @@ class HeapObject : public Object {
   // This version is intended to be used for the isolate values produced by
   // i::GetPtrComprCageBase(HeapObject) function which may return nullptr.
   inline ReadOnlyRoots GetReadOnlyRoots(PtrComprCageBase cage_base) const;
+  // This is slower, but safe to call during bootstrapping.
+  inline ReadOnlyRoots EarlyGetReadOnlyRoots() const;
 
   // Whether the object is in the RO heap and the RO heap is shared, or in the
   // writable shared heap.
@@ -91,24 +95,25 @@ class HeapObject : public Object {
 
   V8_INLINE bool InSharedWritableHeap() const;
 
+  V8_INLINE bool InReadOnlySpace() const;
+
 #define IS_TYPE_FUNCTION_DECL(Type) \
   V8_INLINE bool Is##Type() const;  \
   V8_INLINE bool Is##Type(PtrComprCageBase cage_base) const;
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   IS_TYPE_FUNCTION_DECL(HashTableBase)
   IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
-  IS_TYPE_FUNCTION_DECL(CodeT)
 #undef IS_TYPE_FUNCTION_DECL
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
-#define IS_TYPE_FUNCTION_DECL(Type, Value)              \
+#define IS_TYPE_FUNCTION_DECL(Type, Value, _)           \
   V8_INLINE bool Is##Type(Isolate* isolate) const;      \
   V8_INLINE bool Is##Type(LocalIsolate* isolate) const; \
   V8_INLINE bool Is##Type(ReadOnlyRoots roots) const;   \
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
-  IS_TYPE_FUNCTION_DECL(NullOrUndefined, /* unused */)
+  IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
 #undef IS_TYPE_FUNCTION_DECL
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) \
@@ -116,6 +121,8 @@ class HeapObject : public Object {
   V8_INLINE bool Is##Name(PtrComprCageBase cage_base) const;
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
+
+  V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype() const;
 
   // Converts an address to a HeapObject pointer.
   static inline HeapObject FromAddress(Address address) {

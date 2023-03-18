@@ -674,6 +674,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kJSToNumberConvertBigInt:
       CheckTypeIs(node, Type::Number());
       break;
+    case IrOpcode::kJSToBigInt:
+    case IrOpcode::kJSToBigIntConvertNumber:
+      CheckTypeIs(node, Type::BigInt());
+      break;
     case IrOpcode::kJSToNumeric:
       CheckTypeIs(node, Type::Numeric());
       break;
@@ -990,13 +994,15 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       CheckTypeIs(node, Type::Boolean());
       break;
-    case IrOpcode::kSpeculativeBigIntAdd:
-    case IrOpcode::kSpeculativeBigIntSubtract:
-    case IrOpcode::kSpeculativeBigIntMultiply:
-    case IrOpcode::kSpeculativeBigIntDivide:
-    case IrOpcode::kSpeculativeBigIntModulus:
-    case IrOpcode::kSpeculativeBigIntBitwiseAnd:
+#define SPECULATIVE_BIGINT_BINOP(Name) case IrOpcode::k##Name:
+      SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(SPECULATIVE_BIGINT_BINOP)
+#undef SPECULATIVE_BIGINT_BINOP
       CheckTypeIs(node, Type::BigInt());
+      break;
+    case IrOpcode::kSpeculativeBigIntEqual:
+    case IrOpcode::kSpeculativeBigIntLessThan:
+    case IrOpcode::kSpeculativeBigIntLessThanOrEqual:
+      CheckTypeIs(node, Type::Boolean());
       break;
     case IrOpcode::kSpeculativeBigIntNegate:
       CheckTypeIs(node, Type::BigInt());
@@ -1006,18 +1012,26 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::BigInt());
       break;
-    case IrOpcode::kBigIntAdd:
-    case IrOpcode::kBigIntSubtract:
-    case IrOpcode::kBigIntMultiply:
-    case IrOpcode::kBigIntDivide:
-    case IrOpcode::kBigIntModulus:
-    case IrOpcode::kBigIntBitwiseAnd:
+#define BIGINT_BINOP(Name) case IrOpcode::k##Name:
+      SIMPLIFIED_BIGINT_BINOP_LIST(BIGINT_BINOP)
+#undef BIGINT_BINOP
       CheckValueInputIs(node, 0, Type::BigInt());
       CheckValueInputIs(node, 1, Type::BigInt());
       CheckTypeIs(node, Type::BigInt());
       break;
+    case IrOpcode::kBigIntEqual:
+    case IrOpcode::kBigIntLessThan:
+    case IrOpcode::kBigIntLessThanOrEqual:
+      CheckValueInputIs(node, 0, Type::BigInt());
+      CheckValueInputIs(node, 1, Type::BigInt());
+      CheckTypeIs(node, Type::Boolean());
+      break;
     case IrOpcode::kBigIntNegate:
       CheckValueInputIs(node, 0, Type::BigInt());
+      CheckTypeIs(node, Type::BigInt());
+      break;
+    case IrOpcode::kSpeculativeToBigInt:
+      CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::BigInt());
       break;
     case IrOpcode::kNumberAdd:
@@ -1126,6 +1140,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kNumberToUint8Clamped:
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::Unsigned32());
+      break;
+    case IrOpcode::kIntegral32OrMinusZeroToBigInt:
+      CheckValueInputIs(node, 0, Type::Integral32OrMinusZero());
+      CheckTypeIs(node, Type::BigInt());
       break;
     case IrOpcode::kUnsigned32Divide:
       CheckValueInputIs(node, 0, Type::Unsigned32());
@@ -1559,6 +1577,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedInt64Mod:
     case IrOpcode::kAssertType:
     case IrOpcode::kVerifyType:
+    case IrOpcode::kCheckTurboshaftTypeOf:
       break;
     case IrOpcode::kDoubleArrayMin:
     case IrOpcode::kDoubleArrayMax:
@@ -1706,6 +1725,14 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kAssertNotNull:
     case IrOpcode::kWasmExternInternalize:
     case IrOpcode::kWasmExternExternalize:
+    case IrOpcode::kWasmStructGet:
+    case IrOpcode::kWasmStructSet:
+    case IrOpcode::kWasmArrayGet:
+    case IrOpcode::kWasmArraySet:
+    case IrOpcode::kWasmArrayLength:
+    case IrOpcode::kWasmArrayInitializeLength:
+    case IrOpcode::kStringAsWtf16:
+    case IrOpcode::kStringPrepareForGetCodeunit:
       // TODO(manoskouk): What are the constraints here?
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1716,6 +1743,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kLoadImmutable:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
+    case IrOpcode::kLoadTrapOnNull:
+    case IrOpcode::kStoreTrapOnNull:
     case IrOpcode::kStore:
     case IrOpcode::kStackSlot:
     case IrOpcode::kWord32And:
@@ -1937,7 +1966,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kTraceInstruction:
 
 #define SIMD_MACHINE_OP_CASE(Name) case IrOpcode::k##Name:
-      MACHINE_SIMD_OP_LIST(SIMD_MACHINE_OP_CASE)
+      MACHINE_SIMD128_OP_LIST(SIMD_MACHINE_OP_CASE)
+      MACHINE_SIMD256_OP_LIST(SIMD_MACHINE_OP_CASE)
 #undef SIMD_MACHINE_OP_CASE
 
       // TODO(rossberg): Check.
@@ -2075,34 +2105,34 @@ void ScheduleVerifier::Run(Schedule* schedule) {
   }
 
   // Verify that all blocks reachable from start are in the RPO.
-  BoolVector marked(static_cast<int>(count), false, zone);
+  BitVector marked(static_cast<int>(count), zone);
   {
     ZoneQueue<BasicBlock*> queue(zone);
     queue.push(start);
-    marked[start->id().ToSize()] = true;
+    marked.Add(start->id().ToInt());
     while (!queue.empty()) {
       BasicBlock* block = queue.front();
       queue.pop();
       for (size_t s = 0; s < block->SuccessorCount(); s++) {
         BasicBlock* succ = block->SuccessorAt(s);
-        if (!marked[succ->id().ToSize()]) {
-          marked[succ->id().ToSize()] = true;
+        if (!marked.Contains(succ->id().ToInt())) {
+          marked.Add(succ->id().ToInt());
           queue.push(succ);
         }
       }
     }
   }
   // Verify marked blocks are in the RPO.
-  for (size_t i = 0; i < count; i++) {
-    BasicBlock* block = schedule->GetBlockById(BasicBlock::Id::FromSize(i));
-    if (marked[i]) {
+  for (int i = 0; i < static_cast<int>(count); i++) {
+    BasicBlock* block = schedule->GetBlockById(BasicBlock::Id::FromInt(i));
+    if (marked.Contains(i)) {
       CHECK_GE(block->rpo_number(), 0);
       CHECK_EQ(block, rpo_order->at(block->rpo_number()));
     }
   }
   // Verify RPO blocks are marked.
   for (size_t b = 0; b < rpo_order->size(); b++) {
-    CHECK(marked[rpo_order->at(b)->id().ToSize()]);
+    CHECK(marked.Contains(rpo_order->at(b)->id().ToInt()));
   }
 
   {

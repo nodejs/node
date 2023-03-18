@@ -316,7 +316,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 
   // Test serialization.
   {
-    SafepointKind safepoint_kind = isolate->has_shared_heap()
+    SafepointKind safepoint_kind = isolate->has_shared_space()
                                        ? SafepointKind::kGlobal
                                        : SafepointKind::kIsolate;
     SafepointScope safepoint_scope(isolate, safepoint_kind);
@@ -325,7 +325,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
     Snapshot::SerializerFlags flags(
         Snapshot::kAllowUnknownExternalReferencesForTesting |
         Snapshot::kAllowActiveIsolateForTesting |
-        ((isolate->has_shared_heap() || ReadOnlyHeap::IsReadOnlySpaceShared())
+        ((isolate->has_shared_space() || ReadOnlyHeap::IsReadOnlySpaceShared())
              ? Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting
              : 0));
     serialized_data = Snapshot::Create(isolate, *default_context,

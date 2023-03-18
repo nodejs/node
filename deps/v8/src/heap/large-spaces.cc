@@ -9,6 +9,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/combined-heap.h"
+#include "src/heap/heap-verifier.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/list.h"
 #include "src/heap/marking-state-inl.h"
@@ -68,12 +69,21 @@ size_t LargeObjectSpace::Available() const {
 }
 
 void LargePage::ClearOutOfLiveRangeSlots(Address free_start) {
-  RememberedSet<OLD_TO_NEW>::RemoveRange(this, free_start, area_end(),
-                                         SlotSet::FREE_EMPTY_BUCKETS);
-  RememberedSet<OLD_TO_OLD>::RemoveRange(this, free_start, area_end(),
-                                         SlotSet::FREE_EMPTY_BUCKETS);
-  RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(this, free_start, area_end());
-  RememberedSet<OLD_TO_OLD>::RemoveRangeTyped(this, free_start, area_end());
+  DCHECK_NULL(slot_set<OLD_TO_NEW>());
+  DCHECK_NULL(typed_slot_set<OLD_TO_NEW>());
+
+  DCHECK_NULL(slot_set<OLD_TO_OLD>());
+  DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
+
+  // area_end() might not be aligned to a full bucket size with large objects.
+  // Align it to bucket size such that the following RemoveRange invocation just
+  // drops the whole bucket and the bucket is reset to nullptr.
+  Address aligned_area_end = address() + SlotSet::OffsetForBucket(buckets());
+  DCHECK_LE(area_end(), aligned_area_end);
+  RememberedSet<OLD_TO_SHARED>::RemoveRange(this, free_start, aligned_area_end,
+                                            SlotSet::FREE_EMPTY_BUCKETS);
+
+  RememberedSet<OLD_TO_SHARED>::RemoveRangeTyped(this, free_start, area_end());
 }
 
 // -----------------------------------------------------------------------------
@@ -139,7 +149,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
   // If so, fail the allocation.
   if (!heap()->CanExpandOldGeneration(object_size) ||
       !heap()->ShouldExpandOldGenerationOnSlowAllocation(
-          heap()->main_thread_local_heap())) {
+          heap()->main_thread_local_heap(), AllocationOrigin::kRuntime)) {
     return AllocationResult::Failure();
   }
 
@@ -175,7 +185,8 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
   if (!heap()->CanExpandOldGenerationBackground(local_heap, object_size) ||
-      !heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap)) {
+      !heap()->ShouldExpandOldGenerationOnSlowAllocation(
+          local_heap, AllocationOrigin::kRuntime)) {
     return AllocationResult::Failure();
   }
 
@@ -287,26 +298,6 @@ void LargeObjectSpace::RemovePage(LargePage* page) {
   }
 }
 
-namespace {
-
-// Returns the `GetCommitPageSize()`-aligned end of the payload that can be
-// used to shrink down an object. Returns kNullAddress if shrinking is not
-// supported.
-Address GetEndOfPayload(LargePage* page, Address object_address,
-                        size_t object_size) {
-  if (page->executable() == EXECUTABLE) {
-    return kNullAddress;
-  }
-  const size_t used_committed_size =
-      ::RoundUp((object_address - page->address()) + object_size,
-                MemoryAllocator::GetCommitPageSize());
-  return (used_committed_size < page->size())
-             ? page->address() + used_committed_size
-             : kNullAddress;
-}
-
-}  // namespace
-
 void LargeObjectSpace::ShrinkPageToObjectSize(LargePage* page,
                                               HeapObject object,
                                               size_t object_size) {
@@ -314,17 +305,34 @@ void LargeObjectSpace::ShrinkPageToObjectSize(LargePage* page,
   PtrComprCageBase cage_base(heap()->isolate());
   DCHECK_EQ(object, page->GetObject());
   DCHECK_EQ(object_size, page->GetObject().Size(cage_base));
+  DCHECK_EQ(page->executable(), NOT_EXECUTABLE);
 #endif  // DEBUG
-  Address free_start = GetEndOfPayload(page, object.address(), object_size);
-  if (free_start != kNullAddress) {
-    DCHECK(!page->IsFlagSet(Page::IS_EXECUTABLE));
-    page->ClearOutOfLiveRangeSlots(free_start);
-    const size_t bytes_to_free = page->size() - (free_start - page->address());
-    heap()->memory_allocator()->PartialFreeMemory(
-        page, free_start, bytes_to_free, page->area_start() + object_size);
-    size_ -= bytes_to_free;
-    AccountUncommitted(bytes_to_free);
+
+  const size_t used_committed_size =
+      ::RoundUp(object.address() - page->address() + object_size,
+                MemoryAllocator::GetCommitPageSize());
+
+  // Object shrunk since last GC.
+  if (object_size < page->area_size()) {
+    page->ClearOutOfLiveRangeSlots(object.address() + object_size);
+    const Address new_area_end = page->area_start() + object_size;
+
+    // Object shrunk enough that we can even free some OS pages.
+    if (used_committed_size < page->size()) {
+      const size_t bytes_to_free = page->size() - used_committed_size;
+      heap()->memory_allocator()->PartialFreeMemory(
+          page, page->address() + used_committed_size, bytes_to_free,
+          new_area_end);
+      size_ -= bytes_to_free;
+      AccountUncommitted(bytes_to_free);
+    } else {
+      // Can't free OS page but keep object area up-to-date.
+      page->set_area_end(new_area_end);
+    }
   }
+
+  DCHECK_EQ(used_committed_size, page->size());
+  DCHECK_EQ(object_size, page->area_size());
 }
 
 bool LargeObjectSpace::Contains(HeapObject object) const {
@@ -353,7 +361,8 @@ std::unique_ptr<ObjectIterator> LargeObjectSpace::GetObjectIterator(
 #ifdef VERIFY_HEAP
 // We do not assume that the large object iterator works, because it depends
 // on the invariants we are checking during verification.
-void LargeObjectSpace::Verify(Isolate* isolate) {
+void LargeObjectSpace::Verify(Isolate* isolate,
+                              SpaceVerificationVisitor* visitor) const {
   size_t external_backing_store_bytes[kNumTypes];
 
   for (int i = 0; i < kNumTypes; i++) {
@@ -361,20 +370,15 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
   }
 
   PtrComprCageBase cage_base(isolate);
-  for (LargePage* chunk = first_page(); chunk != nullptr;
+  for (const LargePage* chunk = first_page(); chunk != nullptr;
        chunk = chunk->next_page()) {
+    visitor->VerifyPage(chunk);
+
     // Each chunk contains an object that starts at the large object page's
     // object area start.
     HeapObject object = chunk->GetObject();
     Page* page = Page::FromHeapObject(object);
     CHECK(object.address() == page->area_start());
-
-    // The first word should be a map, and we expect all map pointers to be
-    // in map space or read-only space.
-    Map map = object.map(cage_base);
-    CHECK(map.IsMap(cage_base));
-    CHECK(ReadOnlyHeap::Contains(map) ||
-          isolate->heap()->old_space()->Contains(map));
 
     // We have only the following types in the large object space:
     const bool is_valid_lo_space_object =                         //
@@ -388,6 +392,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
         object.IsFixedArray(cage_base) ||                         //
         object.IsFixedDoubleArray(cage_base) ||                   //
         object.IsFreeSpace(cage_base) ||                          //
+        object.IsInstructionStream(cage_base) ||                  //
         object.IsPreparseData(cage_base) ||                       //
         object.IsPropertyArray(cage_base) ||                      //
         object.IsScopeInfo() ||                                   //
@@ -407,45 +412,15 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
             object.map(cage_base).instance_type());
     }
 
-    // The object itself should look OK.
-    object.ObjectVerify(isolate);
+    // Invoke visitor on each object.
+    visitor->VerifyObject(object);
 
-    if (!v8_flags.verify_heap_skip_remembered_set) {
-      HeapVerifier::VerifyRememberedSetFor(heap(), object);
-    }
-
-    // Byte arrays and strings don't have interior pointers.
-    if (object.IsAbstractCode(cage_base)) {
-      VerifyPointersVisitor code_visitor(heap());
-      object.IterateBody(map, object.Size(cage_base), &code_visitor);
-    } else if (object.IsFixedArray(cage_base)) {
-      FixedArray array = FixedArray::cast(object);
-      for (int j = 0; j < array.length(); j++) {
-        Object element = array.get(j);
-        if (element.IsHeapObject()) {
-          HeapObject element_object = HeapObject::cast(element);
-          CHECK(IsValidHeapObject(heap(), element_object));
-          CHECK(element_object.map(cage_base).IsMap(cage_base));
-        }
-      }
-    } else if (object.IsPropertyArray(cage_base)) {
-      PropertyArray array = PropertyArray::cast(object);
-      for (int j = 0; j < array.length(); j++) {
-        Object property = array.get(j);
-        if (property.IsHeapObject()) {
-          HeapObject property_object = HeapObject::cast(property);
-          CHECK(heap()->Contains(property_object));
-          CHECK(property_object.map(cage_base).IsMap(cage_base));
-        }
-      }
-    }
     for (int i = 0; i < kNumTypes; i++) {
       ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
       external_backing_store_bytes[t] += chunk->ExternalBackingStoreBytes(t);
     }
 
-    CHECK(!chunk->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
-    CHECK(!chunk->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
+    visitor->VerifyPageDone(chunk);
   }
   for (int i = 0; i < kNumTypes; i++) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);

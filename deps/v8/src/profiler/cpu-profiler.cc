@@ -415,7 +415,7 @@ void ProfilerCodeObserver::LogBuiltins() {
        ++builtin) {
     CodeEventsContainer evt_rec(CodeEventRecord::Type::kReportBuiltin);
     ReportBuiltinEventRecord* rec = &evt_rec.ReportBuiltinEventRecord_;
-    CodeT code = builtins->code(builtin);
+    Code code = builtins->code(builtin);
     rec->instruction_start = code.InstructionStart();
     rec->instruction_size = code.InstructionSize();
     rec->builtin = builtin;
@@ -645,7 +645,8 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   }
 
   if (!symbolizer_) {
-    symbolizer_ = std::make_unique<Symbolizer>(code_observer_->code_map());
+    symbolizer_ =
+        std::make_unique<Symbolizer>(code_observer_->instruction_stream_map());
   }
 
   base::TimeDelta sampling_interval = ComputeSamplingInterval();

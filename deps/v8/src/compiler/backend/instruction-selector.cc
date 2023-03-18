@@ -57,8 +57,8 @@ InstructionSelector::InstructionSelector(
       continuation_inputs_(sequence->zone()),
       continuation_outputs_(sequence->zone()),
       continuation_temps_(sequence->zone()),
-      defined_(node_count, false, zone),
-      used_(node_count, false, zone),
+      defined_(static_cast<int>(node_count), zone),
+      used_(static_cast<int>(node_count), zone),
       effect_level_(node_count, 0, zone),
       virtual_registers_(node_count,
                          InstructionOperand::kInvalidVirtualRegister, zone),
@@ -389,16 +389,12 @@ const std::map<NodeId, int> InstructionSelector::GetVirtualRegistersForTesting()
 
 bool InstructionSelector::IsDefined(Node* node) const {
   DCHECK_NOT_NULL(node);
-  size_t const id = node->id();
-  DCHECK_LT(id, defined_.size());
-  return defined_[id];
+  return defined_.Contains(node->id());
 }
 
 void InstructionSelector::MarkAsDefined(Node* node) {
   DCHECK_NOT_NULL(node);
-  size_t const id = node->id();
-  DCHECK_LT(id, defined_.size());
-  defined_[id] = true;
+  defined_.Add(node->id());
 }
 
 bool InstructionSelector::IsUsed(Node* node) const {
@@ -407,16 +403,12 @@ bool InstructionSelector::IsUsed(Node* node) const {
   // that the Retain is actually emitted, otherwise the GC will mess up.
   if (node->opcode() == IrOpcode::kRetain) return true;
   if (!node->op()->HasProperty(Operator::kEliminatable)) return true;
-  size_t const id = node->id();
-  DCHECK_LT(id, used_.size());
-  return used_[id];
+  return used_.Contains(node->id());
 }
 
 void InstructionSelector::MarkAsUsed(Node* node) {
   DCHECK_NOT_NULL(node);
-  size_t const id = node->id();
-  DCHECK_LT(id, used_.size());
-  used_[id] = true;
+  used_.Add(node->id());
 }
 
 int InstructionSelector::GetEffectLevel(Node* node) const {
@@ -459,7 +451,7 @@ bool InstructionSelector::CanAddressRelativeToRootsRegister(
   // 3. IsAddressableThroughRootRegister: Is the target address guaranteed to
   //    have a fixed root-relative offset? If so, we can ignore 2.
   const bool this_root_relative_offset_is_constant =
-      TurboAssemblerBase::IsAddressableThroughRootRegister(isolate(),
+      MacroAssemblerBase::IsAddressableThroughRootRegister(isolate(),
                                                            reference);
   return this_root_relative_offset_is_constant;
 }
@@ -1162,7 +1154,9 @@ bool InstructionSelector::IsSourcePositionUsed(Node* node) {
           node->opcode() == IrOpcode::kTrapIf ||
           node->opcode() == IrOpcode::kTrapUnless ||
           node->opcode() == IrOpcode::kProtectedLoad ||
-          node->opcode() == IrOpcode::kProtectedStore);
+          node->opcode() == IrOpcode::kProtectedStore ||
+          node->opcode() == IrOpcode::kLoadTrapOnNull ||
+          node->opcode() == IrOpcode::kStoreTrapOnNull);
 }
 
 void InstructionSelector::VisitBlock(BasicBlock* block) {
@@ -1182,6 +1176,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
         node->opcode() == IrOpcode::kUnalignedStore ||
         node->opcode() == IrOpcode::kCall ||
         node->opcode() == IrOpcode::kProtectedStore ||
+        node->opcode() == IrOpcode::kStoreTrapOnNull ||
 #define ADD_EFFECT_FOR_ATOMIC_OP(Opcode) \
   node->opcode() == IrOpcode::k##Opcode ||
         MACHINE_ATOMIC_OP_LIST(ADD_EFFECT_FOR_ATOMIC_OP)
@@ -1473,7 +1468,13 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitLoad(node);
     }
     case IrOpcode::kLoadTransform: {
-      MarkAsRepresentation(MachineRepresentation::kSimd128, node);
+      LoadTransformParameters params = LoadTransformParametersOf(node->op());
+      if (params.transformation == LoadTransformation::kS256Load32Splat ||
+          params.transformation == LoadTransformation::kS256Load64Splat) {
+        MarkAsRepresentation(MachineRepresentation::kSimd256, node);
+      } else {
+        MarkAsRepresentation(MachineRepresentation::kSimd128, node);
+      }
       return VisitLoadTransform(node);
     }
     case IrOpcode::kLoadLane: {
@@ -1483,6 +1484,7 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kStore:
       return VisitStore(node);
     case IrOpcode::kProtectedStore:
+    case IrOpcode::kStoreTrapOnNull:
       return VisitProtectedStore(node);
     case IrOpcode::kStoreLane: {
       MarkAsRepresentation(MachineRepresentation::kSimd128, node);
@@ -1927,7 +1929,8 @@ void InstructionSelector::VisitNode(Node* node) {
       ATOMIC_CASE(Exchange)
       ATOMIC_CASE(CompareExchange)
 #undef ATOMIC_CASE
-    case IrOpcode::kProtectedLoad: {
+    case IrOpcode::kProtectedLoad:
+    case IrOpcode::kLoadTrapOnNull: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
       return VisitProtectedLoad(node);
@@ -2378,6 +2381,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8DotI8x16I7x16S(node);
     case IrOpcode::kI32x4DotI8x16I7x16AddS:
       return MarkAsSimd128(node), VisitI32x4DotI8x16I7x16AddS(node);
+
+      // SIMD256
+#if V8_TARGET_ARCH_X64
+    case IrOpcode::kF32x8Add:
+      return MarkAsSimd256(node), VisitF32x8Add(node);
+    case IrOpcode::kF32x8Sub:
+      return MarkAsSimd256(node), VisitF32x8Sub(node);
+#endif  //  V8_TARGET_ARCH_X64
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
             node->op()->mnemonic(), node->id());
@@ -2805,28 +2816,14 @@ void InstructionSelector::VisitI64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64 && \
-    !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32 &&                         \
-    !V8_TARGET_ARCH_RISCV32 && !V8_TARGET_ARCH_RISCV64
-void InstructionSelector::VisitF64x2Qfma(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF64x2Qfms(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF32x4Qfma(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
-        // && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32 &&
-        // !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_RISCV32
-
 #if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
 void InstructionSelector::VisitI16x8DotI8x16I7x16S(Node* node) {
   UNIMPLEMENTED();
 }
-#endif  // !V8_TARGET_ARCH_ARM6 && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
-
-#if !V8_TARGET_ARCH_ARM64
 void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(Node* node) {
   UNIMPLEMENTED();
 }
-#endif  // !V8_TARGET_ARCH_ARM6
+#endif  // !V8_TARGET_ARCH_ARM6 && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 
@@ -2919,7 +2916,7 @@ void InstructionSelector::VisitProjection(Node* node) {
     case IrOpcode::kInt32AbsWithOverflow:
     case IrOpcode::kInt64AbsWithOverflow:
       if (ProjectionIndexOf(node->op()) == 0u) {
-        Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+        EmitIdentity(node);
       } else {
         DCHECK_EQ(1u, ProjectionIndexOf(node->op()));
         MarkAsUsed(value);
@@ -3125,12 +3122,109 @@ void InstructionSelector::VisitReturn(Node* ret) {
 
 void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
                                       BasicBlock* fbranch) {
+  TryPrepareScheduleFirstProjection(branch->InputAt(0));
+
   FlagsContinuation cont =
       FlagsContinuation::ForBranch(kNotEqual, tbranch, fbranch);
   VisitWordCompareZero(branch, branch->InputAt(0), &cont);
 }
 
+// When a DeoptimizeIf/DeoptimizeUnless/Branch depends on a BinopOverflow, the
+// InstructionSelector can sometimes generate a fuse instruction covering both
+// the BinopOverflow and the DeoptIf/Branch, and the final emitted code will
+// look like:
+//
+//     r = BinopOverflow
+//     jo branch_target/deopt_target
+//
+// When this fusing fails, the final code looks like:
+//
+//     r = BinopOverflow
+//     o = sete  // sets overflow bit
+//     cmp o, 0
+//     jnz branch_target/deopt_target
+//
+// To be able to fuse tue BinopOverflow and the DeoptIf/Branch, the 1st
+// projection (Projection[0], which contains the actual result) must already be
+// scheduled (and a few other conditions must be satisfied, see
+// InstructionSelectorXXX::VisitWordCompareZero).
+// TryPrepareScheduleFirstProjection is thus called from
+// VisitDeoptimizeIf/VisitDeoptimizeUnless/VisitBranch and detects if the 1st
+// projection could be scheduled now, and, if so, defines it.
+void InstructionSelector::TryPrepareScheduleFirstProjection(
+    Node* const maybe_projection) {
+  if (maybe_projection->opcode() != IrOpcode::kProjection) {
+    // The DeoptimizeIf/DeoptimizeUnless/Branch condition is not a projection.
+    return;
+  }
+
+  if (ProjectionIndexOf(maybe_projection->op()) != 1u) {
+    // The DeoptimizeIf/DeoptimizeUnless/Branch isn't on the Projection[1] (ie,
+    // not on the overflow bit of a BinopOverflow).
+    return;
+  }
+
+  Node* const node = maybe_projection->InputAt(0);
+  if (schedule_->block(node) != current_block_) {
+    // The projection input is not in the current block, so it shouldn't be
+    // emitted now, so we don't need to eagerly schedule its Projection[0].
+    return;
+  }
+
+  switch (node->opcode()) {
+    case IrOpcode::kInt32AddWithOverflow:
+    case IrOpcode::kInt32SubWithOverflow:
+    case IrOpcode::kInt32MulWithOverflow:
+    case IrOpcode::kInt64AddWithOverflow:
+    case IrOpcode::kInt64SubWithOverflow:
+    case IrOpcode::kInt64MulWithOverflow: {
+      Node* result = NodeProperties::FindProjection(node, 0);
+      if (result == nullptr || IsDefined(result)) {
+        // No Projection(0), or it's already defined.
+        return;
+      }
+
+      if (schedule_->block(result) != current_block_) {
+        // {result} wasn't planned to be scheduled in {current_block_}. To avoid
+        // adding checks to see if it can still be scheduled now, we just bail
+        // out.
+        return;
+      }
+
+      // Checking if all uses of {result} that are in the current block have
+      // already been Defined.
+      // We also ignore Phi uses: if {result} is used in a Phi in the block in
+      // which it is defined, this means that this block is a loop header, and
+      // {result} back into it through the back edge. In this case, it's normal
+      // to schedule {result} before the Phi that uses it.
+      for (Node* use : result->uses()) {
+        if (IsUsed(use) && !IsDefined(use) &&
+            schedule_->block(use) == current_block_ &&
+            use->opcode() != IrOpcode::kPhi) {
+          return;
+        }
+      }
+
+      // Visiting the projection now. Note that this relies on the fact that
+      // VisitProjection doesn't Emit something: if it did, then we could be
+      // Emitting something after a Branch, which is invalid (Branch can only be
+      // at the end of a block, and the end of a block must always be a block
+      // terminator). (remember that we emit operation in reverse order, so
+      // because we are doing TryPrepareScheduleFirstProjection before actually
+      // emitting the Branch, it would be after in the final instruction
+      // sequence, not before)
+      VisitProjection(result);
+      return;
+    }
+
+    default:
+      return;
+  }
+}
+
 void InstructionSelector::VisitDeoptimizeIf(Node* node) {
+  TryPrepareScheduleFirstProjection(node->InputAt(0));
+
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
       kNotEqual, p.reason(), node->id(), p.feedback(),
@@ -3139,6 +3233,8 @@ void InstructionSelector::VisitDeoptimizeIf(Node* node) {
 }
 
 void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
+  TryPrepareScheduleFirstProjection(node->InputAt(0));
+
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
       kEqual, p.reason(), node->id(), p.feedback(),
@@ -3165,6 +3261,7 @@ void InstructionSelector::VisitTrapUnless(Node* node, TrapId trap_id) {
 
 void InstructionSelector::EmitIdentity(Node* node) {
   MarkAsUsed(node->InputAt(0));
+  MarkAsDefined(node);
   SetRename(node, node->InputAt(0));
 }
 

@@ -56,7 +56,10 @@ namespace compiler {
   V(X64Word64AtomicOrUint64)                               \
   V(X64Word64AtomicXorUint64)                              \
   V(X64Word64AtomicExchangeUint64)                         \
-  V(X64Word64AtomicCompareExchangeUint64)
+  V(X64Word64AtomicCompareExchangeUint64)                  \
+  V(X64Movdqu256)                                          \
+  V(X64S256Load32Splat)                                    \
+  V(X64S256Load64Splat)
 
 #define TARGET_ARCH_OPCODE_LIST(V)                   \
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
@@ -170,8 +173,7 @@ namespace compiler {
   V(X64Float32Abs)                                   \
   V(X64Float32Neg)                                   \
   V(X64MovqDecompressTaggedSigned)                   \
-  V(X64MovqDecompressTaggedPointer)                  \
-  V(X64MovqDecompressAnyTagged)                      \
+  V(X64MovqDecompressTagged)                         \
   V(X64MovqCompressTagged)                           \
   V(X64MovqEncodeSandboxedPointer)                   \
   V(X64MovqDecodeSandboxedPointer)                   \
@@ -190,22 +192,22 @@ namespace compiler {
   V(X64Cvttpd2dq)                                    \
   V(X64I32x4TruncF64x2UZero)                         \
   V(X64I32x4TruncF32x4U)                             \
-  V(X64F64x2Splat)                                   \
-  V(X64F64x2ExtractLane)                             \
-  V(X64F64x2ReplaceLane)                             \
-  V(X64F64x2Abs)                                     \
-  V(X64F64x2Neg)                                     \
-  V(X64F64x2Sqrt)                                    \
-  V(X64F64x2Add)                                     \
-  V(X64F64x2Sub)                                     \
-  V(X64F64x2Mul)                                     \
-  V(X64F64x2Div)                                     \
-  V(X64F64x2Min)                                     \
-  V(X64F64x2Max)                                     \
-  V(X64F64x2Eq)                                      \
-  V(X64F64x2Ne)                                      \
-  V(X64F64x2Lt)                                      \
-  V(X64F64x2Le)                                      \
+  V(X64FSplat)                                       \
+  V(X64FExtractLane)                                 \
+  V(X64FReplaceLane)                                 \
+  V(X64FAbs)                                         \
+  V(X64FNeg)                                         \
+  V(X64FSqrt)                                        \
+  V(X64FAdd)                                         \
+  V(X64FSub)                                         \
+  V(X64FMul)                                         \
+  V(X64FDiv)                                         \
+  V(X64FMin)                                         \
+  V(X64FMax)                                         \
+  V(X64FEq)                                          \
+  V(X64FNe)                                          \
+  V(X64FLt)                                          \
+  V(X64FLe)                                          \
   V(X64F64x2Qfma)                                    \
   V(X64F64x2Qfms)                                    \
   V(X64Minpd)                                        \
@@ -213,45 +215,29 @@ namespace compiler {
   V(X64F64x2Round)                                   \
   V(X64F64x2ConvertLowI32x4S)                        \
   V(X64F64x2ConvertLowI32x4U)                        \
-  V(X64F32x4Splat)                                   \
-  V(X64F32x4ExtractLane)                             \
-  V(X64F32x4ReplaceLane)                             \
   V(X64F32x4SConvertI32x4)                           \
   V(X64F32x4UConvertI32x4)                           \
-  V(X64F32x4Abs)                                     \
-  V(X64F32x4Neg)                                     \
-  V(X64F32x4Sqrt)                                    \
-  V(X64F32x4Add)                                     \
-  V(X64F32x4Sub)                                     \
-  V(X64F32x4Mul)                                     \
-  V(X64F32x4Div)                                     \
-  V(X64F32x4Min)                                     \
-  V(X64F32x4Max)                                     \
-  V(X64F32x4Eq)                                      \
-  V(X64F32x4Ne)                                      \
-  V(X64F32x4Lt)                                      \
-  V(X64F32x4Le)                                      \
   V(X64F32x4Qfma)                                    \
   V(X64F32x4Qfms)                                    \
   V(X64Minps)                                        \
   V(X64Maxps)                                        \
   V(X64F32x4Round)                                   \
   V(X64F32x4DemoteF64x2Zero)                         \
-  V(X64I64x2Splat)                                   \
-  V(X64I64x2ExtractLane)                             \
-  V(X64I64x2Abs)                                     \
-  V(X64I64x2Neg)                                     \
-  V(X64I64x2BitMask)                                 \
-  V(X64I64x2Shl)                                     \
-  V(X64I64x2ShrS)                                    \
-  V(X64I64x2Add)                                     \
-  V(X64I64x2Sub)                                     \
-  V(X64I64x2Mul)                                     \
-  V(X64I64x2Eq)                                      \
-  V(X64I64x2GtS)                                     \
-  V(X64I64x2GeS)                                     \
-  V(X64I64x2Ne)                                      \
-  V(X64I64x2ShrU)                                    \
+  V(X64ISplat)                                       \
+  V(X64IExtractLane)                                 \
+  V(X64IAbs)                                         \
+  V(X64INeg)                                         \
+  V(X64IBitMask)                                     \
+  V(X64IShl)                                         \
+  V(X64IShrS)                                        \
+  V(X64IAdd)                                         \
+  V(X64ISub)                                         \
+  V(X64IMul)                                         \
+  V(X64IEq)                                          \
+  V(X64IGtS)                                         \
+  V(X64IGeS)                                         \
+  V(X64INe)                                          \
+  V(X64IShrU)                                        \
   V(X64I64x2ExtMulLowI32x4S)                         \
   V(X64I64x2ExtMulHighI32x4S)                        \
   V(X64I64x2ExtMulLowI32x4U)                         \
@@ -260,34 +246,20 @@ namespace compiler {
   V(X64I64x2SConvertI32x4High)                       \
   V(X64I64x2UConvertI32x4Low)                        \
   V(X64I64x2UConvertI32x4High)                       \
-  V(X64I32x4Splat)                                   \
-  V(X64I32x4ExtractLane)                             \
   V(X64I32x4SConvertF32x4)                           \
   V(X64I32x4SConvertI16x8Low)                        \
   V(X64I32x4SConvertI16x8High)                       \
-  V(X64I32x4Neg)                                     \
-  V(X64I32x4Shl)                                     \
-  V(X64I32x4ShrS)                                    \
-  V(X64I32x4Add)                                     \
-  V(X64I32x4Sub)                                     \
-  V(X64I32x4Mul)                                     \
-  V(X64I32x4MinS)                                    \
-  V(X64I32x4MaxS)                                    \
-  V(X64I32x4Eq)                                      \
-  V(X64I32x4Ne)                                      \
-  V(X64I32x4GtS)                                     \
-  V(X64I32x4GeS)                                     \
+  V(X64IMinS)                                        \
+  V(X64IMaxS)                                        \
   V(X64I32x4UConvertF32x4)                           \
   V(X64I32x4UConvertI16x8Low)                        \
   V(X64I32x4UConvertI16x8High)                       \
-  V(X64I32x4ShrU)                                    \
-  V(X64I32x4MinU)                                    \
-  V(X64I32x4MaxU)                                    \
-  V(X64I32x4GtU)                                     \
-  V(X64I32x4GeU)                                     \
-  V(X64I32x4Abs)                                     \
-  V(X64I32x4BitMask)                                 \
+  V(X64IMinU)                                        \
+  V(X64IMaxU)                                        \
+  V(X64IGtU)                                         \
+  V(X64IGeU)                                         \
   V(X64I32x4DotI16x8S)                               \
+  V(X64I32x4DotI8x16I7x16AddS)                       \
   V(X64I32x4ExtMulLowI16x8S)                         \
   V(X64I32x4ExtMulHighI16x8S)                        \
   V(X64I32x4ExtMulLowI16x8U)                         \
@@ -297,38 +269,18 @@ namespace compiler {
   V(X64I32x4TruncSatF64x2SZero)                      \
   V(X64I32x4TruncSatF64x2UZero)                      \
   V(X64I32X4ShiftZeroExtendI8x16)                    \
-  V(X64I16x8Splat)                                   \
-  V(X64I16x8ExtractLaneS)                            \
+  V(X64IExtractLaneS)                                \
   V(X64I16x8SConvertI8x16Low)                        \
   V(X64I16x8SConvertI8x16High)                       \
-  V(X64I16x8Neg)                                     \
-  V(X64I16x8Shl)                                     \
-  V(X64I16x8ShrS)                                    \
   V(X64I16x8SConvertI32x4)                           \
-  V(X64I16x8Add)                                     \
   V(X64I16x8AddSatS)                                 \
-  V(X64I16x8Sub)                                     \
   V(X64I16x8SubSatS)                                 \
-  V(X64I16x8Mul)                                     \
-  V(X64I16x8MinS)                                    \
-  V(X64I16x8MaxS)                                    \
-  V(X64I16x8Eq)                                      \
-  V(X64I16x8Ne)                                      \
-  V(X64I16x8GtS)                                     \
-  V(X64I16x8GeS)                                     \
   V(X64I16x8UConvertI8x16Low)                        \
   V(X64I16x8UConvertI8x16High)                       \
-  V(X64I16x8ShrU)                                    \
   V(X64I16x8UConvertI32x4)                           \
   V(X64I16x8AddSatU)                                 \
   V(X64I16x8SubSatU)                                 \
-  V(X64I16x8MinU)                                    \
-  V(X64I16x8MaxU)                                    \
-  V(X64I16x8GtU)                                     \
-  V(X64I16x8GeU)                                     \
   V(X64I16x8RoundingAverageU)                        \
-  V(X64I16x8Abs)                                     \
-  V(X64I16x8BitMask)                                 \
   V(X64I16x8ExtMulLowI8x16S)                         \
   V(X64I16x8ExtMulHighI8x16S)                        \
   V(X64I16x8ExtMulLowI8x16U)                         \
@@ -338,33 +290,13 @@ namespace compiler {
   V(X64I16x8Q15MulRSatS)                             \
   V(X64I16x8RelaxedQ15MulRS)                         \
   V(X64I16x8DotI8x16I7x16S)                          \
-  V(X64I8x16Splat)                                   \
-  V(X64I8x16ExtractLaneS)                            \
   V(X64I8x16SConvertI16x8)                           \
-  V(X64I8x16Neg)                                     \
-  V(X64I8x16Shl)                                     \
-  V(X64I8x16ShrS)                                    \
-  V(X64I8x16Add)                                     \
   V(X64I8x16AddSatS)                                 \
-  V(X64I8x16Sub)                                     \
   V(X64I8x16SubSatS)                                 \
-  V(X64I8x16MinS)                                    \
-  V(X64I8x16MaxS)                                    \
-  V(X64I8x16Eq)                                      \
-  V(X64I8x16Ne)                                      \
-  V(X64I8x16GtS)                                     \
-  V(X64I8x16GeS)                                     \
   V(X64I8x16UConvertI16x8)                           \
   V(X64I8x16AddSatU)                                 \
   V(X64I8x16SubSatU)                                 \
-  V(X64I8x16ShrU)                                    \
-  V(X64I8x16MinU)                                    \
-  V(X64I8x16MaxU)                                    \
-  V(X64I8x16GtU)                                     \
-  V(X64I8x16GeU)                                     \
   V(X64I8x16RoundingAverageU)                        \
-  V(X64I8x16Abs)                                     \
-  V(X64I8x16BitMask)                                 \
   V(X64S128Const)                                    \
   V(X64S128Zero)                                     \
   V(X64S128AllOnes)                                  \
@@ -405,12 +337,13 @@ namespace compiler {
   V(X64S8x4Reverse)                                  \
   V(X64S8x2Reverse)                                  \
   V(X64V128AnyTrue)                                  \
-  V(X64I64x2AllTrue)                                 \
-  V(X64I32x4AllTrue)                                 \
-  V(X64I16x8AllTrue)                                 \
-  V(X64I8x16AllTrue)                                 \
+  V(X64IAllTrue)                                     \
+  V(X64Blendvpd)                                     \
+  V(X64Blendvps)                                     \
   V(X64Pblendvb)                                     \
-  V(X64TraceInstruction)
+  V(X64TraceInstruction)                             \
+  V(X64F32x8Add)                                     \
+  V(X64F32x8Sub)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

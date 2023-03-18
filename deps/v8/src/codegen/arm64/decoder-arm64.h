@@ -39,6 +39,7 @@ namespace internal {
   V(LoadStoreRegisterOffset)            \
   V(LoadStoreUnsignedOffset)            \
   V(LoadStoreAcquireRelease)            \
+  V(AtomicMemory)                       \
   V(LogicalShifted)                     \
   V(AddSubShifted)                      \
   V(AddSubExtended)                     \

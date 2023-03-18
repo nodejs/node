@@ -36,6 +36,7 @@
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/strings/string-search.h"
+#include "src/strings/unicode-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-external-refs.h"
@@ -338,6 +339,9 @@ struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
 FUNCTION_REFERENCE(write_barrier_marking_from_code_function,
                    WriteBarrier::MarkingFromCode)
 
+FUNCTION_REFERENCE(write_barrier_shared_marking_from_code_function,
+                   WriteBarrier::SharedMarkingFromCode)
+
 FUNCTION_REFERENCE(shared_barrier_from_code_function,
                    WriteBarrier::SharedFromCode)
 
@@ -349,6 +353,19 @@ FUNCTION_REFERENCE(delete_handle_scope_extensions,
 
 FUNCTION_REFERENCE(ephemeron_key_write_barrier_function,
                    Heap::EphemeronKeyWriteBarrierFromCode)
+
+ExternalPointerHandle AllocateAndInitializeExternalPointerTableEntry(
+    Isolate* isolate, Address pointer) {
+#ifdef V8_ENABLE_SANDBOX
+  return isolate->external_pointer_table().AllocateAndInitializeEntry(
+      isolate, pointer, kExternalObjectValueTag);
+#else
+  return 0;
+#endif  // V8_ENABLE_SANDBOX
+}
+
+FUNCTION_REFERENCE(allocate_and_initialize_external_pointer_table_entry,
+                   AllocateAndInitializeExternalPointerTableEntry)
 
 FUNCTION_REFERENCE(get_date_field_function, JSDate::GetField)
 
@@ -512,6 +529,18 @@ ExternalReference ExternalReference::heap_is_marking_flag_address(
 ExternalReference ExternalReference::heap_is_minor_marking_flag_address(
     Isolate* isolate) {
   return ExternalReference(isolate->heap()->IsMinorMarkingFlagAddress());
+}
+
+ExternalReference ExternalReference::is_shared_space_isolate_flag_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->isolate_data()->is_shared_space_isolate_flag_address());
+}
+
+ExternalReference ExternalReference::uses_shared_heap_flag_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->isolate_data()->uses_shared_heap_flag_address());
 }
 
 ExternalReference ExternalReference::new_space_allocation_top_address(
@@ -720,7 +749,7 @@ namespace {
 static uintptr_t BaselinePCForBytecodeOffset(Address raw_code_obj,
                                              int bytecode_offset,
                                              Address raw_bytecode_array) {
-  Code code_obj = Code::cast(Object(raw_code_obj));
+  InstructionStream code_obj = InstructionStream::cast(Object(raw_code_obj));
   BytecodeArray bytecode_array =
       BytecodeArray::cast(Object(raw_bytecode_array));
   return code_obj.GetBaselineStartPCForBytecodeOffset(bytecode_offset,
@@ -730,7 +759,7 @@ static uintptr_t BaselinePCForBytecodeOffset(Address raw_code_obj,
 static uintptr_t BaselinePCForNextExecutedBytecode(Address raw_code_obj,
                                                    int bytecode_offset,
                                                    Address raw_bytecode_array) {
-  Code code_obj = Code::cast(Object(raw_code_obj));
+  InstructionStream code_obj = InstructionStream::cast(Object(raw_code_obj));
   BytecodeArray bytecode_array =
       BytecodeArray::cast(Object(raw_bytecode_array));
   return code_obj.GetBaselinePCForNextExecutedBytecode(bytecode_offset,
@@ -852,8 +881,6 @@ FUNCTION_REFERENCE_WITH_TYPE(ieee754_atan2_function, base::ieee754::atan2,
                              BUILTIN_FP_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_cbrt_function, base::ieee754::cbrt,
                              BUILTIN_FP_CALL)
-FUNCTION_REFERENCE_WITH_TYPE(ieee754_cos_function, base::ieee754::cos,
-                             BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_cosh_function, base::ieee754::cosh,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_exp_function, base::ieee754::exp,
@@ -868,8 +895,6 @@ FUNCTION_REFERENCE_WITH_TYPE(ieee754_log10_function, base::ieee754::log10,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_log2_function, base::ieee754::log2,
                              BUILTIN_FP_CALL)
-FUNCTION_REFERENCE_WITH_TYPE(ieee754_sin_function, base::ieee754::sin,
-                             BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_sinh_function, base::ieee754::sinh,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_tan_function, base::ieee754::tan,
@@ -878,6 +903,32 @@ FUNCTION_REFERENCE_WITH_TYPE(ieee754_tanh_function, base::ieee754::tanh,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_pow_function, base::ieee754::pow,
                              BUILTIN_FP_FP_CALL)
+
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
+ExternalReference ExternalReference::ieee754_sin_function() {
+  static_assert(
+      IsValidExternalReferenceType<decltype(&base::ieee754::libm_sin)>::value);
+  static_assert(IsValidExternalReferenceType<
+                decltype(&base::ieee754::fdlibm_sin)>::value);
+  auto* f = v8_flags.use_libm_trig_functions ? base::ieee754::libm_sin
+                                             : base::ieee754::fdlibm_sin;
+  return ExternalReference(Redirect(FUNCTION_ADDR(f), BUILTIN_FP_CALL));
+}
+ExternalReference ExternalReference::ieee754_cos_function() {
+  static_assert(
+      IsValidExternalReferenceType<decltype(&base::ieee754::libm_cos)>::value);
+  static_assert(IsValidExternalReferenceType<
+                decltype(&base::ieee754::fdlibm_cos)>::value);
+  auto* f = v8_flags.use_libm_trig_functions ? base::ieee754::libm_cos
+                                             : base::ieee754::fdlibm_cos;
+  return ExternalReference(Redirect(FUNCTION_ADDR(f), BUILTIN_FP_CALL));
+}
+#else
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_sin_function, base::ieee754::sin,
+                             BUILTIN_FP_CALL)
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_cos_function, base::ieee754::cos,
+                             BUILTIN_FP_CALL)
+#endif
 
 void* libc_memchr(void* string, int character, size_t search_length) {
   return memchr(string, character, search_length);
@@ -1103,6 +1154,24 @@ static Address LexicographicCompareWrapper(Isolate* isolate, Address smi_x,
 FUNCTION_REFERENCE(smi_lexicographic_compare_function,
                    LexicographicCompareWrapper)
 
+uint32_t HasUnpairedSurrogate(const uint16_t* code_units, size_t length) {
+  // Use uint32_t to avoid complexity around bool return types.
+  static constexpr uint32_t kTrue = 1;
+  static constexpr uint32_t kFalse = 0;
+  return unibrow::Utf16::HasUnpairedSurrogate(code_units, length) ? kTrue
+                                                                  : kFalse;
+}
+
+FUNCTION_REFERENCE(has_unpaired_surrogate, HasUnpairedSurrogate)
+
+void ReplaceUnpairedSurrogates(const uint16_t* source_code_units,
+                               uint16_t* dest_code_units, size_t length) {
+  return unibrow::Utf16::ReplaceUnpairedSurrogates(source_code_units,
+                                                   dest_code_units, length);
+}
+
+FUNCTION_REFERENCE(replace_unpaired_surrogates, ReplaceUnpairedSurrogates)
+
 FUNCTION_REFERENCE(mutable_big_int_absolute_add_and_canonicalize_function,
                    MutableBigInt_AbsoluteAddAndCanonicalize)
 
@@ -1129,6 +1198,33 @@ FUNCTION_REFERENCE(mutable_big_int_bitwise_and_nn_and_canonicalize_function,
 
 FUNCTION_REFERENCE(mutable_big_int_bitwise_and_pn_and_canonicalize_function,
                    MutableBigInt_BitwiseAndPosNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_or_pp_and_canonicalize_function,
+                   MutableBigInt_BitwiseOrPosPosAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_or_nn_and_canonicalize_function,
+                   MutableBigInt_BitwiseOrNegNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_or_pn_and_canonicalize_function,
+                   MutableBigInt_BitwiseOrPosNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_xor_pp_and_canonicalize_function,
+                   MutableBigInt_BitwiseXorPosPosAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_xor_nn_and_canonicalize_function,
+                   MutableBigInt_BitwiseXorNegNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_xor_pn_and_canonicalize_function,
+                   MutableBigInt_BitwiseXorPosNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_left_shift_and_canonicalize_function,
+                   MutableBigInt_LeftShiftAndCanonicalize)
+
+FUNCTION_REFERENCE(big_int_right_shift_result_length_function,
+                   RightShiftResultLength)
+
+FUNCTION_REFERENCE(mutable_big_int_right_shift_and_canonicalize_function,
+                   MutableBigInt_RightShiftAndCanonicalize)
 
 FUNCTION_REFERENCE(check_object_type, CheckObjectType)
 

@@ -17,6 +17,8 @@
 namespace v8 {
 namespace internal {
 
+class GcSafeCode;
+
 class MaglevSafepointEntry : public SafepointEntryBase {
  public:
   static constexpr int kNoDeoptIndex = -1;
@@ -49,6 +51,8 @@ class MaglevSafepointEntry : public SafepointEntryBase {
   uint8_t num_pushed_registers() const { return num_pushed_registers_; }
   uint32_t tagged_register_indexes() const { return tagged_register_indexes_; }
 
+  uint32_t register_input_count() const { return tagged_register_indexes_; }
+
  private:
   uint32_t num_tagged_slots_ = 0;
   uint32_t num_untagged_slots_ = 0;
@@ -56,17 +60,15 @@ class MaglevSafepointEntry : public SafepointEntryBase {
   uint32_t tagged_register_indexes_ = 0;
 };
 
-// A wrapper class for accessing the safepoint table embedded into the Code
-// object.
+// A wrapper class for accessing the safepoint table embedded into the
+// InstructionStream object.
 class MaglevSafepointTable {
  public:
   // The isolate and pc arguments are used for figuring out whether pc
   // belongs to the embedded or un-embedded code blob.
-  explicit MaglevSafepointTable(Isolate* isolate, Address pc, Code code);
-#ifdef V8_EXTERNAL_CODE_SPACE
   explicit MaglevSafepointTable(Isolate* isolate, Address pc,
-                                CodeDataContainer code);
-#endif
+                                InstructionStream code);
+  explicit MaglevSafepointTable(Isolate* isolate, Address pc, Code code);
   MaglevSafepointTable(const MaglevSafepointTable&) = delete;
   MaglevSafepointTable& operator=(const MaglevSafepointTable&) = delete;
 
@@ -107,10 +109,14 @@ class MaglevSafepointTable {
 
   // Returns the entry for the given pc.
   MaglevSafepointEntry FindEntry(Address pc) const;
+  static MaglevSafepointEntry FindEntry(Isolate* isolate, GcSafeCode code,
+                                        Address pc);
 
   void Print(std::ostream&) const;
 
  private:
+  MaglevSafepointTable(Isolate* isolate, Address pc, GcSafeCode code);
+
   // Layout information.
   static constexpr int kLengthOffset = 0;
   static constexpr int kEntryConfigurationOffset = kLengthOffset + kIntSize;

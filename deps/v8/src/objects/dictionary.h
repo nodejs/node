@@ -115,7 +115,7 @@ class BaseDictionaryShape : public BaseShape<Key> {
                                   PropertyDetails value);
 };
 
-class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
+class BaseNameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
  public:
   static inline bool IsMatch(Handle<Name> key, Object other);
   static inline uint32_t Hash(ReadOnlyRoots roots, Handle<Name> key);
@@ -123,9 +123,13 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
   static inline Handle<Object> AsHandle(LocalIsolate* isolate,
                                         Handle<Name> key);
-  static const int kPrefixSize = 2;
-  static const int kEntrySize = 3;
   static const int kEntryValueIndex = 1;
+};
+
+class NameDictionaryShape : public BaseNameDictionaryShape {
+ public:
+  static const int kPrefixSize = 3;
+  static const int kEntrySize = 3;
   static const bool kMatchNeedsHoleCheck = false;
 };
 
@@ -194,6 +198,7 @@ class V8_EXPORT_PRIVATE NameDictionary
   DECL_CAST(NameDictionary)
   DECL_PRINTER(NameDictionary)
 
+  static const int kFlagsIndex = kObjectHashIndex + 1;
   static const int kEntryValueIndex = 1;
   static const int kEntryDetailsIndex = 2;
   static const int kInitialCapacity = 2;
@@ -204,17 +209,34 @@ class V8_EXPORT_PRIVATE NameDictionary
   inline void set_hash(int hash);
   inline int hash() const;
 
+  // Note: Flags are stored as smi, so only 31 bits are usable.
+  using MayHaveInterestingSymbolsBit = base::BitField<bool, 0, 1, uint32_t>;
+  DECL_BOOLEAN_ACCESSORS(may_have_interesting_symbols)
+
+  static constexpr int kFlagsDefault = 0;
+
+  inline uint32_t flags() const;
+  inline void set_flags(uint32_t flags);
+
+  // Creates a new NameDictionary.
+  template <typename IsolateT>
+  V8_WARN_UNUSED_RESULT static Handle<NameDictionary> New(
+      IsolateT* isolate, int at_least_space_for,
+      AllocationType allocation = AllocationType::kYoung,
+      MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
+
   OBJECT_CONSTRUCTORS(NameDictionary,
                       BaseNameDictionary<NameDictionary, NameDictionaryShape>);
 };
 
-class V8_EXPORT_PRIVATE GlobalDictionaryShape : public NameDictionaryShape {
+class V8_EXPORT_PRIVATE GlobalDictionaryShape : public BaseNameDictionaryShape {
  public:
   static inline bool IsMatch(Handle<Name> key, Object other);
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
-  static const int kEntrySize = 1;  // Overrides NameDictionaryShape::kEntrySize
   static const bool kMatchNeedsHoleCheck = true;
+  static const int kPrefixSize = 2;
+  static const int kEntrySize = 1;
 
   template <typename Dictionary>
   static inline PropertyDetails DetailsAt(Dictionary dict, InternalIndex entry);

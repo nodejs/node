@@ -152,6 +152,8 @@ namespace compiler {
   V(ArmF64x2Le)                    \
   V(ArmF64x2Pmin)                  \
   V(ArmF64x2Pmax)                  \
+  V(ArmF64x2Qfma)                  \
+  V(ArmF64x2Qfms)                  \
   V(ArmF64x2Ceil)                  \
   V(ArmF64x2Floor)                 \
   V(ArmF64x2Trunc)                 \
@@ -179,6 +181,8 @@ namespace compiler {
   V(ArmF32x4Le)                    \
   V(ArmF32x4Pmin)                  \
   V(ArmF32x4Pmax)                  \
+  V(ArmF32x4Qfma)                  \
+  V(ArmF32x4Qfms)                  \
   V(ArmF32x4DemoteF64x2Zero)       \
   V(ArmI64x2SplatI32Pair)          \
   V(ArmI64x2ReplaceLaneI32Pair)    \

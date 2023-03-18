@@ -1,0 +1,166 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// In GetIteratorDirect and the helpers below, this file implements the changes
+// in [1] and [2], which are highly likely to get consensus at the March 2023
+// TC39.
+//
+// [1] https://github.com/tc39/proposal-iterator-helpers/pull/265
+// [2] https://github.com/tc39/proposal-iterator-helpers/pull/267
+//
+// TODO(v8:13556): Remove this comment once PR is merged.
+
+// --- Utilities
+
+namespace iterator {
+
+// https://tc39.es/proposal-iterator-helpers/#sec-getiteratordirect
+transitioning macro GetIteratorDirect(implicit context: Context)(
+    obj: JSReceiver): IteratorRecord {
+  // 1. Let nextMethod be ? Get(obj, "next").
+  const nextProp = GetProperty(obj, kNextString);
+
+  // 2. If IsCallable(nextMethod) is false, throw a TypeError exception.
+  const nextMethod = Cast<Callable>(nextProp)
+      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, 'next');
+
+  // 3. Let iteratorRecord be Record { [[Iterator]]: obj, [[NextMethod]]:
+  //    nextMethod, [[Done]]: false }.
+  // 4. Return iteratorRecord.
+  return IteratorRecord{object: obj, next: nextMethod};
+}
+
+// --- Dispatch functions for all iterator helpers
+
+// https://tc39.es/proposal-iterator-helpers/#sec-%iteratorhelperprototype%.next
+transitioning javascript builtin IteratorHelperPrototypeNext(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+  // 1. Return ? GeneratorResume(this value, undefined, "Iterator Helper").
+
+  // Iterator helpers are specified as generators but we implement them as
+  // direct iterators.
+  typeswitch (receiver) {
+    case (mapHelper: JSIteratorMapHelper): {
+      return IteratorMapHelperNext(mapHelper);
+    }
+    case (Object): {
+      ThrowTypeError(
+          MessageTemplate::kIncompatibleMethodReceiver,
+          'Iterator Helper.prototype.next', receiver);
+    }
+  }
+}
+
+// https://tc39.es/proposal-iterator-helpers/#sec-%iteratorhelperprototype%.return
+transitioning javascript builtin IteratorHelperPrototypeReturn(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSObject {
+  // 1. Let O be this value.
+  // 2. Perform ? RequireInternalSlot(O, [[UnderlyingIterator]]).
+  // 3. Assert: O has a [[GeneratorState]] slot.
+  // 4. If O.[[GeneratorState]] is suspendedStart, then
+  //   a. Set O.[[GeneratorState]] to completed.
+  //   b. Perform ? IteratorClose(O.[[UnderlyingIterator]],
+  //      NormalCompletion(unused)).
+  //   c. Return CreateIterResultObject(undefined, true).
+  // 5. Let C be Completion { [[Type]]: return, [[Value]]: undefined,
+  //    [[Target]]: empty }.
+  // 6. Return ? GeneratorResumeAbrupt(O, C, "Iterator Helper").
+
+  // Iterator helpers are specified as generators. The net effect of this method
+  // is to close the underlying and return { value: undefined, done: true }.
+  const helper = Cast<JSIteratorHelper>(receiver) otherwise ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver,
+      'Iterator Helper.prototype.return', receiver);
+
+  IteratorCloseOnException(helper.underlying);
+  return AllocateJSIteratorResult(Undefined, True);
+}
+
+// --- Map helper
+
+macro NewJSIteratorMapHelper(implicit context: Context)(
+    underlying: IteratorRecord, mapper: Callable): JSIteratorMapHelper {
+  return new JSIteratorMapHelper{
+    map: *NativeContextSlot(ContextSlot::ITERATOR_MAP_HELPER_MAP_INDEX),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    underlying: underlying,
+    mapper: mapper,
+    counter: 0
+  };
+}
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.map
+transitioning javascript builtin IteratorPrototypeMap(
+    js-implicit context: NativeContext,
+    receiver: JSAny)(mapper: JSAny): JSIteratorMapHelper {
+  const methodName: constexpr string = 'Iterator.prototype.map';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a *TypeError* exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 3. If IsCallable(mapper) is false, throw a TypeError exception.
+  const mapper = Cast<Callable>(mapper)
+      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+
+  // 4. Let iterated be ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  // Step 5 implemented in IteratorMapHelperNext
+
+  // 6. Let result be CreateIteratorFromClosure(closure, "Iterator Helper",
+  //    %IteratorHelperPrototype%).
+  // 7. Set result.[[UnderlyingIterator]] to iterated.
+  // 8. Return result.
+  return NewJSIteratorMapHelper(iterated, mapper);
+}
+
+transitioning builtin IteratorMapHelperNext(implicit context: Context)(
+    helper: JSIteratorMapHelper): JSAny {
+  // a. Let counter be 0.
+  // (Done when creating JSIteratorMapHelper.)
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+  const underlying = helper.underlying;
+  const counter = helper.counter;
+
+  // b. Repeat,
+  let next: JSReceiver;
+  try {
+    // i. Let next be ? IteratorStep(iterated).
+    next = IteratorStep(underlying, fastIteratorResultMap)
+        otherwise Done;
+  } label Done {
+    // ii. If next is false, return undefined.
+    return AllocateJSIteratorResult(Undefined, True);
+  }
+
+  // iii. Let value be ? IteratorValue(next).
+  const value = IteratorValue(next, fastIteratorResultMap);
+
+  try {
+    // iv. Let mapped be Completion(
+    //     Call(mapper, undefined, « value, 𝔽(counter) »)).
+    const mapped = Call(context, helper.mapper, Undefined, value, counter);
+
+    // viii. Set counter to counter + 1.
+    // (Done out of order. Iterator helpers are specified as generators with
+    // yields but we implement them as direct iterators.)
+    helper.counter = counter + 1;
+
+    // vi. Let completion be Completion(Yield(mapped)).
+    return AllocateJSIteratorResult(mapped, False);
+
+    // vii. IfAbruptCloseIterator(completion, iterated).
+    // (Done in IteratorHelperPrototypeReturn.)
+  } catch (e, message) {
+    // v. IfAbruptCloseIterator(mapped, iterated).
+    IteratorCloseOnException(underlying);
+    ReThrowWithMessage(context, e, message);
+  }
+}
+
+}  // namespace iterator

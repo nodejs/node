@@ -179,7 +179,7 @@ void RunDecompressionOptimization(Graph& graph, Zone* phase_zone) {
       case Opcode::kPhi: {
         auto& phi = op.Cast<PhiOp>();
         if (phi.rep == RegisterRepresentation::Tagged()) {
-          phi.rep = RegisterRepresentation::Tagged();
+          phi.rep = RegisterRepresentation::Compressed();
         }
         break;
       }

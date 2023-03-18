@@ -98,9 +98,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
 
-  // Creates a new CodeDataContainer for a Code object.
-  Handle<CodeDataContainer> NewCodeDataContainer(int flags,
-                                                 AllocationType allocation);
+  // Creates a new Code for a InstructionStream object.
+  Handle<Code> NewCode(int flags, AllocationType allocation);
 
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
@@ -161,9 +160,12 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<TemplateObjectDescription> NewTemplateObjectDescription(
       Handle<FixedArray> raw_strings, Handle<FixedArray> cooked_strings);
 
-  Handle<Script> NewScript(Handle<PrimitiveHeapObject> source);
-  Handle<Script> NewScriptWithId(Handle<PrimitiveHeapObject> source,
-                                 int script_id);
+  Handle<Script> NewScript(
+      Handle<PrimitiveHeapObject> source,
+      ScriptEventType event_type = ScriptEventType::kCreate);
+  Handle<Script> NewScriptWithId(
+      Handle<PrimitiveHeapObject> source, int script_id,
+      ScriptEventType event_type = ScriptEventType::kCreate);
 
   Handle<ArrayList> NewArrayList(
       int size, AllocationType allocation = AllocationType::kYoung);
@@ -336,7 +338,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
                                               AllocationType allocation);
 
  private:
-  friend class WebSnapshotDeserializer;
   Impl* impl() { return static_cast<Impl*>(this); }
   auto isolate() { return impl()->isolate(); }
   ReadOnlyRoots read_only_roots() { return impl()->read_only_roots(); }

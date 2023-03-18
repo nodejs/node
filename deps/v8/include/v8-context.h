@@ -9,6 +9,7 @@
 
 #include "v8-data.h"          // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
+#include "v8-maybe.h"         // NOLINT(build/include_directory)
 #include "v8-snapshot.h"      // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
 
@@ -162,6 +163,13 @@ class V8_EXPORT Context : public Data {
    * context that was in place when entering the current context.
    */
   void Exit();
+
+  /**
+   * Attempts to recursively freeze all objects reachable from this context.
+   * Some objects (generators, iterators, non-const closures) can not be frozen
+   * and will cause this method to throw an error.
+   */
+  Maybe<void> DeepFreeze();
 
   /** Returns the isolate associated with a current context. */
   Isolate* GetIsolate();
@@ -365,13 +373,18 @@ Local<Value> Context::GetEmbedderData(int index) {
 #ifdef V8_COMPRESS_POINTERS
   // We read the full pointer value and then decompress it in order to avoid
   // dealing with potential endiannes issues.
-  value =
-      I::DecompressTaggedAnyField(embedder_data, static_cast<uint32_t>(value));
+  value = I::DecompressTaggedField(embedder_data, static_cast<uint32_t>(value));
 #endif
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  return Local<Value>(reinterpret_cast<Value*>(value));
+#else
   internal::Isolate* isolate = internal::IsolateFromNeverReadOnlySpaceObject(
       *reinterpret_cast<A*>(this));
   A* result = HandleScope::CreateHandle(isolate, value);
   return Local<Value>(reinterpret_cast<Value*>(result));
+#endif
+
 #else
   return SlowGetEmbedderData(index);
 #endif
@@ -381,7 +394,7 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
 #if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
-  A ctx = *reinterpret_cast<const A*>(this);
+  A ctx = internal::ValueHelper::ValueToAddress(this);
   A embedder_data =
       I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
   int value_offset = I::kEmbedderDataArrayHeaderSize +

@@ -149,6 +149,8 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
 
   CSA_DCHECK(this, IsCallable(proxy));
 
+  PerformStackCheck(context);
+
   Label throw_proxy_handler_revoked(this, Label::kDeferred),
       trap_undefined(this), not_an_object(this, Label::kDeferred);
 

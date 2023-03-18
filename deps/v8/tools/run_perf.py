@@ -127,6 +127,7 @@ import json
 import logging
 import math
 import argparse
+import pathlib
 import os
 import re
 import subprocess
@@ -787,6 +788,7 @@ class Platform(object):
     if output.stderr:  # pragma: no cover
       # Print stderr for debugging.
       logging.info(title % 'Stderr' + '\n%s', output.stderr)
+    if output.HasTimedOut():
       logging.warning('>>> Test timed out after %ss.', runnable.timeout)
     if output.exit_code != 0:
       logging.warning('>>> Test crashed with exit code %d.', output.exit_code)
@@ -1076,10 +1078,12 @@ def Main(argv):
   parser.add_argument('--outdir-secondary',
                       help='Base directory with compile output without patch '
                       'or for reference build')
-  parser.add_argument('--binary-override-path',
-                      help='JavaScript engine binary. By default, d8 under '
-                      'architecture-specific build dir. '
-                      'Not supported in conjunction with outdir-secondary.')
+  parser.add_argument(
+      '--binary-override-path',
+      '--d8-path',
+      help='JavaScript engine binary. By default, d8 under '
+      'architecture-specific build dir. '
+      'Not supported in conjunction with outdir-secondary.')
   parser.add_argument('--prioritize',
                       help='Raise the priority to nice -20 for the '
                       'benchmarking process.Requires Linux, schedtool, and '
@@ -1123,9 +1127,13 @@ def Main(argv):
   parser.add_argument('--dump-logcats-to',
                       help='Writes logcat output from each test into specified '
                       'directory. Only supported for android targets.')
-  parser.add_argument('--run-count', type=int, default=0,
-                      help='Override the run count specified by the test '
-                      'suite. The default 0 uses the suite\'s config.')
+  parser.add_argument(
+      '--run-count',
+      "--repeat",
+      type=int,
+      default=0,
+      help='Override the run count specified by the test '
+      'suite. The default 0 uses the suite\'s config.')
   parser.add_argument(
       '--dry-run',
       default=False,
@@ -1164,15 +1172,15 @@ def Main(argv):
         os.path.join(workspace, args.outdir), args.arch)
     default_binary_name = 'd8'
   else:
-    if not os.path.isfile(args.binary_override_path):
-      logging.error('binary-override-path must be a file name')
+    path = pathlib.Path(args.binary_override_path).expanduser().resolve()
+    if not path.is_file():
+      logging.error(f'binary-override-path "{path}" must be a file name')
       return INFRA_FAILURE_RETCODE
     if args.outdir_secondary:
       logging.error('specify either binary-override-path or outdir-secondary')
       return INFRA_FAILURE_RETCODE
-    args.shell_dir = os.path.abspath(
-        os.path.dirname(args.binary_override_path))
-    default_binary_name = os.path.basename(args.binary_override_path)
+    args.shell_dir = str(path.parent)
+    default_binary_name = path.name
 
   if args.outdir_secondary:
     args.shell_dir_secondary = find_build_directory(

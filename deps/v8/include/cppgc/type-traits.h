@@ -16,7 +16,7 @@ class Visitor;
 
 namespace internal {
 template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
-          typename CheckingPolicy>
+          typename CheckingPolicy, typename StorageType>
 class BasicMember;
 struct DijkstraWriteBarrierPolicy;
 struct NoWriteBarrierPolicy;
@@ -126,9 +126,10 @@ template <typename BasicMemberCandidate, typename WeaknessTag,
           typename WriteBarrierPolicy>
 struct IsSubclassOfBasicMemberTemplate {
  private:
-  template <typename T, typename CheckingPolicy>
+  template <typename T, typename CheckingPolicy, typename StorageType>
   static std::true_type SubclassCheck(
-      BasicMember<T, WeaknessTag, WriteBarrierPolicy, CheckingPolicy>*);
+      BasicMember<T, WeaknessTag, WriteBarrierPolicy, CheckingPolicy,
+                  StorageType>*);
   static std::false_type SubclassCheck(...);
 
  public:

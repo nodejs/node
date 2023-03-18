@@ -24,7 +24,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 114
+bytecode array length: 112
 bytecodes: [
   /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
@@ -43,7 +43,6 @@ bytecodes: [
                 B(Mov), R(3), R(5),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
                 B(CreateClosure), U8(4), U8(1), U8(2),
-                B(Star4),
                 B(SetNamedProperty), R(3), U8(5), U8(0),
                 B(PopContext), R(2),
                 B(Mov), R(5), R(0),
@@ -64,7 +63,6 @@ bytecodes: [
                 B(Mov), R(3), R(5),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
                 B(CreateClosure), U8(9), U8(3), U8(2),
-                B(Star4),
                 B(SetNamedProperty), R(3), U8(5), U8(2),
                 B(PopContext), R(2),
                 B(Mov), R(5), R(1),
@@ -127,7 +125,7 @@ snippet: "
 "
 frame size: 12
 parameter count: 1
-bytecode array length: 232
+bytecode array length: 229
 bytecodes: [
   /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(3),
@@ -153,7 +151,6 @@ bytecodes: [
                 B(Mov), R(10), R(7),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(3),
                 B(CreateClosure), U8(6), U8(2), U8(2),
-                B(Star5),
                 B(SetNamedProperty), R(4), U8(7), U8(0),
                 B(PopContext), R(3),
                 B(Mov), R(6), R(0),
@@ -191,7 +188,6 @@ bytecodes: [
                 B(Mov), R(10), R(7),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(5),
                 B(CreateClosure), U8(16), U8(7), U8(2),
-                B(Star5),
                 B(SetNamedProperty), R(4), U8(7), U8(2),
                 B(PopContext), R(3),
                 B(Mov), R(6), R(1),
@@ -211,7 +207,6 @@ bytecodes: [
                 B(Mov), R(1), R(7),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(3),
                 B(CreateClosure), U8(20), U8(9), U8(2),
-                B(Star5),
                 B(SetNamedProperty), R(4), U8(7), U8(4),
                 B(PopContext), R(3),
                 B(Mov), R(6), R(2),

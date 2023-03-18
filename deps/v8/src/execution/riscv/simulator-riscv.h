@@ -1035,6 +1035,7 @@ class Simulator : public SimulatorBase {
 
   // Stop helper functions.
   bool IsWatchpoint(reg_t code);
+  bool IsTracepoint(reg_t code);
   void PrintWatchpoint(reg_t code);
   void HandleStop(reg_t code);
   bool IsStopInstruction(Instruction* instr);

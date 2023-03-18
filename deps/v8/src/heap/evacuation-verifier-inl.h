@@ -23,8 +23,8 @@ void FullEvacuationVerifier::VerifyHeapObjectImpl(HeapObject heap_object) {
 
 bool FullEvacuationVerifier::ShouldVerifyObject(HeapObject heap_object) {
   const bool in_shared_heap = heap_object.InSharedWritableHeap();
-  return heap_->isolate()->is_shared_heap_isolate() ? in_shared_heap
-                                                    : !in_shared_heap;
+  return heap_->isolate()->is_shared_space_isolate() ? in_shared_heap
+                                                     : !in_shared_heap;
 }
 
 template <typename TSlot>

@@ -11,6 +11,7 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/objects.h"
+#include "src/objects/prototype-info.h"
 #include "torque-generated/bit-fields.h"
 #include "torque-generated/visitor-lists.h"
 
@@ -30,7 +31,8 @@ enum InstanceType : uint16_t;
   V(CoverageInfo)                    \
   V(DataObject)                      \
   V(FeedbackMetadata)                \
-  V(FixedDoubleArray)
+  V(FixedDoubleArray)                \
+  IF_WASM(V, WasmNull)
 
 #define POINTER_VISITOR_ID_LIST(V)      \
   V(AccessorInfo)                       \
@@ -38,8 +40,8 @@ enum InstanceType : uint16_t;
   V(BytecodeArray)                      \
   V(CallHandlerInfo)                    \
   V(Cell)                               \
+  V(InstructionStream)                  \
   V(Code)                               \
-  V(CodeDataContainer)                  \
   V(DataHandler)                        \
   V(EmbedderDataArray)                  \
   V(EphemeronHashTable)                 \
@@ -47,7 +49,7 @@ enum InstanceType : uint16_t;
   V(FreeSpace)                          \
   V(JSApiObject)                        \
   V(JSArrayBuffer)                      \
-  V(JSDataView)                         \
+  V(JSDataViewOrRabGsabDataView)        \
   V(JSExternalObject)                   \
   V(JSFinalizationRegistry)             \
   V(JSFunction)                         \
@@ -407,6 +409,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   DECL_BOOLEAN_ACCESSORS(is_extensible)
   DECL_BOOLEAN_ACCESSORS(is_prototype_map)
   inline bool is_abandoned_prototype_map() const;
+  inline bool has_prototype_info() const;
+  inline bool TryGetPrototypeInfo(PrototypeInfo* result) const;
 
   // Whether the instance has been added to the retained map list by
   // Heap::AddRetainedMap.
@@ -567,6 +571,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   V8_EXPORT_PRIVATE static void SetPrototype(
       Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype,
       bool enable_prototype_setup_mode = true);
+
+  // Sets prototype and constructor fields to null. Can be called during
+  // bootstrapping.
+  inline void init_prototype_and_constructor_or_back_pointer(
+      ReadOnlyRoots roots);
 
   // [constructor]: points back to the function or FunctionTemplateInfo
   // responsible for this map.

@@ -608,7 +608,8 @@ Handle<BigInt> SystemUTCEpochNanoseconds(Isolate* isolate) {
   TEMPORAL_ENTER_FUNC();
   // 1. Let ns be the approximate current UTC date and time, in nanoseconds
   // since the epoch.
-  double ms = V8::GetCurrentPlatform()->CurrentClockTimeMillis();
+  double ms =
+      V8::GetCurrentPlatform()->CurrentClockTimeMillisecondsHighResolution();
   // 2. Set ns to the result of clamping ns between −8.64 × 10^21 and 8.64 ×
   // 10^21.
 
@@ -3106,16 +3107,8 @@ MaybeHandle<JSTemporalZonedDateTime> SystemZonedDateTime(
 }
 
 int CompareResultToSign(ComparisonResult r) {
-  switch (r) {
-    case ComparisonResult::kEqual:
-      return 0;
-    case ComparisonResult::kLessThan:
-      return -1;
-    case ComparisonResult::kGreaterThan:
-      return 1;
-    case ComparisonResult::kUndefined:
-      UNREACHABLE();
-  }
+  DCHECK_NE(r, ComparisonResult::kUndefined);
+  return static_cast<int>(r);
 }
 
 // #sec-temporal-formattimezoneoffsetstring
@@ -4614,7 +4607,8 @@ bool IsBuiltinCalendar(Isolate* isolate, Handle<String> id) {
   // 1. Let calendars be AvailableCalendars().
   // 2. If calendars contains the ASCII-lowercase of id, return true.
   // 3. Return false.
-  id = Intl::ConvertToLower(isolate, id).ToHandleChecked();
+  id = Intl::ConvertToLower(isolate, String::Flatten(isolate, id))
+           .ToHandleChecked();
   return GetCalendarMap()->Contains(id->ToCString().get());
 }
 
@@ -4624,7 +4618,8 @@ Handle<String> CalendarIdentifier(Isolate* isolate, int32_t index) {
 }
 
 int32_t CalendarIndex(Isolate* isolate, Handle<String> id) {
-  id = Intl::ConvertToLower(isolate, id).ToHandleChecked();
+  id = Intl::ConvertToLower(isolate, String::Flatten(isolate, id))
+           .ToHandleChecked();
   return GetCalendarMap()->Index(id->ToCString().get());
 }
 

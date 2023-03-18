@@ -87,11 +87,6 @@ AllocationResult HeapAllocator::AllocateRawWithLightRetrySlowPath(
                                   GarbageCollectionReason::kAllocationFailure);
     } else {
       AllocationSpace space_to_gc = AllocationTypeToGCSpace(allocation);
-      if (v8_flags.minor_mc && i > 0) {
-        // Repeated young gen GCs won't have any additional effect. Do a full GC
-        // instead.
-        space_to_gc = AllocationSpace::OLD_SPACE;
-      }
       heap_->CollectGarbage(space_to_gc,
                             GarbageCollectionReason::kAllocationFailure);
     }

@@ -104,6 +104,22 @@ constexpr Condition kNumberOfConditions = 16;
 constexpr Condition hs = cs;  // C set            Unsigned higher or same.
 constexpr Condition lo = cc;  // C clear          Unsigned lower.
 
+// Unified cross-platform condition names/aliases.
+constexpr Condition kEqual = eq;
+constexpr Condition kNotEqual = ne;
+constexpr Condition kLessThan = lt;
+constexpr Condition kGreaterThan = gt;
+constexpr Condition kLessThanEqual = le;
+constexpr Condition kGreaterThanEqual = ge;
+constexpr Condition kUnsignedLessThan = lo;
+constexpr Condition kUnsignedGreaterThan = hi;
+constexpr Condition kUnsignedLessThanEqual = ls;
+constexpr Condition kUnsignedGreaterThanEqual = hs;
+constexpr Condition kOverflow = vs;
+constexpr Condition kNoOverflow = vc;
+constexpr Condition kZero = eq;
+constexpr Condition kNotZero = ne;
+
 inline Condition NegateCondition(Condition cond) {
   DCHECK(cond != al);
   return static_cast<Condition>(cond ^ ne);

@@ -32,6 +32,9 @@
 
   # Slow tests.
   'ParsingTest.ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
+
+  # BUG(13660): Flaky test.
+  'OS.RemapPages': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -243,7 +246,6 @@
   'WeakMapsTest.WeakMapsWithChainedEntries': [SKIP],
   'WeakMapsTest.Weakness': [SKIP],
   'WeakSetsTest.WeakSet_Weakness': [SKIP],
-  'WebSnapshotTest.SFIDeduplicationAfterBytecodeFlushing': [SKIP],
 
   # CodeRange tests
   'CodePagesTest.LargeCodeObjectWithSignalHandler': [SKIP],
@@ -260,13 +262,6 @@
   'FactoryCodeBuilderOOMTest.Factory_CodeBuilder_BuildOOM': [SKIP],
   'FactoryCodeBuilderOOMTest.Factory_CodeBuilder_TryBuildOOM': [SKIP],
 }], # third_party_heap
-
-################################################################################
-['variant == always_sparkplug', {
-  # SFI deduplication tests check compilation state, which always_sparkplug
-  # can break.
-  'WebSnapshotTest.SFIDeduplication*': [SKIP],
-}],
 
 ##############################################################################
 ['byteorder == big', {

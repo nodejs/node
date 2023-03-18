@@ -109,7 +109,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  JavaScriptFrameIterator frame_iterator(isolate);
+  JavaScriptStackFrameIterator frame_iterator(isolate);
   UnoptimizedFrame* frame =
       reinterpret_cast<UnoptimizedFrame*>(frame_iterator.frame());
 
@@ -159,7 +159,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeExit) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  JavaScriptFrameIterator frame_iterator(isolate);
+  JavaScriptStackFrameIterator frame_iterator(isolate);
   UnoptimizedFrame* frame =
       reinterpret_cast<UnoptimizedFrame*>(frame_iterator.frame());
 

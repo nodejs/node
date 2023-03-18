@@ -48,7 +48,7 @@ FEATURE_FLAGS = {
     'host-gc-required': '--expose-gc-as=v8GC',
     'IsHTMLDDA': '--allow-natives-syntax',
     'import-assertions': '--harmony-import-assertions',
-    'resizable-arraybuffer': '--harmony-rab-gsab',
+    'resizable-arraybuffer': '--harmony-rab-gsab-transfer',
     'Temporal': '--harmony-temporal',
     'array-find-from-last': '--harmony-array-find-last',
     'ShadowRealm': '--harmony-shadow-realm',
@@ -56,6 +56,8 @@ FEATURE_FLAGS = {
     'array-grouping': '--harmony-array-grouping',
     'change-array-by-copy': '--harmony-change-array-by-copy',
     'symbols-as-weakmap-keys': '--harmony-symbol-as-weakmap-key',
+    'String.prototype.isWellFormed': '--harmony-string-is-well-formed',
+    'String.prototype.toWellFormed': '--harmony-string-is-well-formed',
 }
 
 SKIPPED_FEATURES = set([])

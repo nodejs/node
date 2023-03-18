@@ -69,7 +69,7 @@ Address RelocInfo::constant_pool_entry_address() { UNREACHABLE(); }
 int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
 
 void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Code code, Address target) {
+    Address instruction_payload, InstructionStream code, Address target) {
   set_target_address_at(instruction_payload,
                         !code.is_null() ? code.constant_pool() : kNullAddress,
                         target);

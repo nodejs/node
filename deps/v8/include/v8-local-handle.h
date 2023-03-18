@@ -53,6 +53,7 @@ class Utils;
 namespace internal {
 template <typename T>
 class CustomArguments;
+class SamplingHeapProfiler;
 }  // namespace internal
 
 namespace api_internal {
@@ -91,6 +92,9 @@ class V8_EXPORT V8_NODISCARD HandleScope {
 
   HandleScope(const HandleScope&) = delete;
   void operator=(const HandleScope&) = delete;
+
+  static internal::Address* CreateHandleForCurrentIsolate(
+      internal::Address value);
 
  protected:
   V8_INLINE HandleScope() = default;
@@ -154,7 +158,12 @@ class V8_EXPORT V8_NODISCARD HandleScope {
 template <class T>
 class Local {
  public:
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  V8_INLINE Local()
+      : val_(reinterpret_cast<T*>(internal::kLocalTaggedNullAddress)) {}
+#else
   V8_INLINE Local() : val_(nullptr) {}
+#endif
   template <class S>
   V8_INLINE Local(Local<S> that) : val_(reinterpret_cast<T*>(*that)) {
     /**
@@ -168,12 +177,24 @@ class Local {
   /**
    * Returns true if the handle is empty.
    */
-  V8_INLINE bool IsEmpty() const { return val_ == nullptr; }
+  V8_INLINE bool IsEmpty() const {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    return (internal::Address)val_ == internal::kLocalTaggedNullAddress;
+#else
+    return val_ == nullptr;
+#endif
+  }
 
   /**
    * Sets the handle to be empty. IsEmpty() will then return true.
    */
-  V8_INLINE void Clear() { val_ = nullptr; }
+  V8_INLINE void Clear() {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    val_ = reinterpret_cast<T*>(internal::kLocalTaggedNullAddress);
+#else
+    val_ = nullptr;
+#endif
+  }
 
   V8_INLINE T* operator->() const { return val_; }
 
@@ -191,20 +212,37 @@ class Local {
    */
   template <class S>
   V8_INLINE bool operator==(const Local<S>& that) const {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    internal::Address a = reinterpret_cast<internal::Address>(this->val_);
+    internal::Address b = reinterpret_cast<internal::Address>(that.val_);
+    if (a == internal::kLocalTaggedNullAddress)
+      return b == internal::kLocalTaggedNullAddress;
+    if (b == internal::kLocalTaggedNullAddress) return false;
+    return a == b;
+#else
     internal::Address* a = reinterpret_cast<internal::Address*>(this->val_);
     internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
     if (a == nullptr) return b == nullptr;
     if (b == nullptr) return false;
     return *a == *b;
+#endif
   }
 
   template <class S>
   V8_INLINE bool operator==(const PersistentBase<S>& that) const {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    internal::Address a = reinterpret_cast<internal::Address>(this->val_);
+    internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
+    if (a == internal::kLocalTaggedNullAddress) return b == nullptr;
+    if (b == nullptr) return false;
+    return a == *b;
+#else
     internal::Address* a = reinterpret_cast<internal::Address*>(this->val_);
     internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
     if (a == nullptr) return b == nullptr;
     if (b == nullptr) return false;
     return *a == *b;
+#endif
   }
 
   /**
@@ -252,6 +290,22 @@ class Local {
     return Local<S>::Cast(*this);
   }
 
+  V8_INLINE T* ValueFromSlot() const {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    return val_;
+#else
+    return *reinterpret_cast<T**>(val_);
+#endif
+  }
+
+  V8_INLINE internal::Address AddressFromSlot() const {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    return reinterpret_cast<internal::Address>(val_);
+#else
+    return *reinterpret_cast<internal::Address*>(val_);
+#endif
+  }
+
   /**
    * Create a local handle for the content of another handle.
    * The referee is kept alive by the local handle even when
@@ -263,12 +317,34 @@ class Local {
 
   V8_INLINE static Local<T> New(Isolate* isolate,
                                 const PersistentBase<T>& that) {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    return New(isolate, *reinterpret_cast<T**>(that.val_));
+#else
     return New(isolate, that.val_);
+#endif
   }
 
   V8_INLINE static Local<T> New(Isolate* isolate,
                                 const BasicTracedReference<T>& that) {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    return New(isolate, *reinterpret_cast<T**>(that.val_));
+#else
     return New(isolate, *that);
+#endif
+  }
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  V8_INLINE static Local<T> New(Isolate* isolate, const Eternal<T>& that) {
+    return New(isolate, *reinterpret_cast<T**>(that.val_));
+  }
+#endif
+
+  V8_INLINE static Local<T> New(T* value) {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    return Local<T>(*reinterpret_cast<T**>(value));
+#else
+    return Local<T>(value);
+#endif
   }
 
  private:
@@ -313,14 +389,22 @@ class Local {
   friend class BasicTracedReference;
   template <class F>
   friend class TracedReference;
+  friend class v8::internal::SamplingHeapProfiler;
 
   explicit V8_INLINE Local(T* that) : val_(that) {}
   V8_INLINE static Local<T> New(Isolate* isolate, T* that) {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    if (reinterpret_cast<internal::Address>(that) ==
+        internal::kLocalTaggedNullAddress)
+      return Local<T>();
+    return Local<T>(that);
+#else
     if (that == nullptr) return Local<T>();
     T* that_ptr = that;
     internal::Address* p = reinterpret_cast<internal::Address*>(that_ptr);
     return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(
         reinterpret_cast<internal::Isolate*>(isolate), *p)));
+#endif
   }
   T* val_;
 };
@@ -344,13 +428,24 @@ using Handle = Local<T>;
 template <class T>
 class MaybeLocal {
  public:
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  V8_INLINE MaybeLocal()
+      : val_(reinterpret_cast<T*>(internal::kLocalTaggedNullAddress)) {}
+#else
   V8_INLINE MaybeLocal() : val_(nullptr) {}
+#endif
   template <class S>
   V8_INLINE MaybeLocal(Local<S> that) : val_(reinterpret_cast<T*>(*that)) {
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
 
-  V8_INLINE bool IsEmpty() const { return val_ == nullptr; }
+  V8_INLINE bool IsEmpty() const {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    return (internal::Address)val_ == internal::kLocalTaggedNullAddress;
+#else
+    return val_ == nullptr;
+#endif
+  }
 
   /**
    * Converts this MaybeLocal<> to a Local<>. If this MaybeLocal<> is empty,
@@ -358,7 +453,13 @@ class MaybeLocal {
    */
   template <class S>
   V8_WARN_UNUSED_RESULT V8_INLINE bool ToLocal(Local<S>* out) const {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    out->val_ = IsEmpty()
+                    ? reinterpret_cast<T*>(internal::kLocalTaggedNullAddress)
+                    : this->val_;
+#else
     out->val_ = IsEmpty() ? nullptr : this->val_;
+#endif
     return !IsEmpty();
   }
 
@@ -367,7 +468,13 @@ class MaybeLocal {
    * V8 will crash the process.
    */
   V8_INLINE Local<T> ToLocalChecked() {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    if (V8_UNLIKELY(reinterpret_cast<internal::Address>(val_) ==
+                    internal::kLocalTaggedNullAddress))
+      api_internal::ToLocalEmpty();
+#else
     if (V8_UNLIKELY(val_ == nullptr)) api_internal::ToLocalEmpty();
+#endif
     return Local<T>(val_);
   }
 
@@ -399,9 +506,13 @@ class V8_EXPORT V8_NODISCARD EscapableHandleScope : public HandleScope {
    */
   template <class T>
   V8_INLINE Local<T> Escape(Local<T> value) {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    return value;
+#else
     internal::Address* slot =
         Escape(reinterpret_cast<internal::Address*>(*value));
     return Local<T>(reinterpret_cast<T*>(slot));
+#endif
   }
 
   template <class T>

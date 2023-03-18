@@ -26,6 +26,11 @@ void PublishSegment(MarkingWorklist& worklist, HeapObject object) {
   local.Publish();
 }
 
+HeapObject ObjectForTesting(i::Isolate* isolate) {
+  return HeapObject::cast(
+      isolate->roots_table().slot(RootIndex::kFirstStrongRoot).load(isolate));
+}
+
 TEST(ConcurrentMarking) {
   if (!i::v8_flags.concurrent_marking) return;
   CcTest::InitializeVM();
@@ -42,7 +47,7 @@ TEST(ConcurrentMarking) {
       new ConcurrentMarking(heap, &weak_objects);
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   PublishSegment(*collector->marking_worklists()->shared(),
-                 ReadOnlyRoots(heap).undefined_value());
+                 ObjectForTesting(heap->isolate()));
   concurrent_marking->ScheduleJob(GarbageCollector::MARK_COMPACTOR);
   concurrent_marking->Join();
   delete concurrent_marking;
@@ -64,11 +69,11 @@ TEST(ConcurrentMarkingReschedule) {
       new ConcurrentMarking(heap, &weak_objects);
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   PublishSegment(*collector->marking_worklists()->shared(),
-                 ReadOnlyRoots(heap).undefined_value());
+                 ObjectForTesting(heap->isolate()));
   concurrent_marking->ScheduleJob(GarbageCollector::MARK_COMPACTOR);
   concurrent_marking->Join();
   PublishSegment(*collector->marking_worklists()->shared(),
-                 ReadOnlyRoots(heap).undefined_value());
+                 ObjectForTesting(heap->isolate()));
   concurrent_marking->RescheduleJobIfNeeded(GarbageCollector::MARK_COMPACTOR);
   concurrent_marking->Join();
   delete concurrent_marking;
@@ -91,12 +96,12 @@ TEST(ConcurrentMarkingPreemptAndReschedule) {
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   for (int i = 0; i < 5000; i++)
     PublishSegment(*collector->marking_worklists()->shared(),
-                   ReadOnlyRoots(heap).undefined_value());
+                   ObjectForTesting(heap->isolate()));
   concurrent_marking->ScheduleJob(GarbageCollector::MARK_COMPACTOR);
   concurrent_marking->Pause();
   for (int i = 0; i < 5000; i++)
     PublishSegment(*collector->marking_worklists()->shared(),
-                   ReadOnlyRoots(heap).undefined_value());
+                   ObjectForTesting(heap->isolate()));
   concurrent_marking->RescheduleJobIfNeeded(GarbageCollector::MARK_COMPACTOR);
   concurrent_marking->Join();
   delete concurrent_marking;

@@ -129,8 +129,72 @@ enum Condition {
   ordered = 7,
   overflow = 8,  // Summary overflow
   nooverflow = 9,
-  al = 10  // Always.
+  al = 10,  // Always.
+
+  // Unified cross-platform condition names/aliases.
+  // Do not set unsigned constants equal to their signed variants.
+  // We need to be able to differentiate between signed and unsigned enum
+  // constants in order to emit the right instructions (i.e CmpS64 vs CmpU64).
+  kEqual = eq,
+  kNotEqual = ne,
+  kLessThan = lt,
+  kGreaterThan = gt,
+  kLessThanEqual = le,
+  kGreaterThanEqual = ge,
+  kUnsignedLessThan = 11,
+  kUnsignedGreaterThan = 12,
+  kUnsignedLessThanEqual = 13,
+  kUnsignedGreaterThanEqual = 14,
+  kOverflow = overflow,
+  kNoOverflow = nooverflow,
+  kZero = 15,
+  kNotZero = 16,
 };
+
+inline Condition to_condition(Condition cond) {
+  switch (cond) {
+    case kUnsignedLessThan:
+      return lt;
+    case kUnsignedGreaterThan:
+      return gt;
+    case kUnsignedLessThanEqual:
+      return le;
+    case kUnsignedGreaterThanEqual:
+      return ge;
+    case kZero:
+      return eq;
+    case kNotZero:
+      return ne;
+    default:
+      break;
+  }
+  return cond;
+}
+
+inline bool is_signed(Condition cond) {
+  switch (cond) {
+    case kEqual:
+    case kNotEqual:
+    case kLessThan:
+    case kGreaterThan:
+    case kLessThanEqual:
+    case kGreaterThanEqual:
+    case kOverflow:
+    case kNoOverflow:
+    case kZero:
+    case kNotZero:
+      return true;
+
+    case kUnsignedLessThan:
+    case kUnsignedGreaterThan:
+    case kUnsignedLessThanEqual:
+    case kUnsignedGreaterThanEqual:
+      return false;
+
+    default:
+      UNREACHABLE();
+  }
+}
 
 inline Condition NegateCondition(Condition cond) {
   DCHECK(cond != al);

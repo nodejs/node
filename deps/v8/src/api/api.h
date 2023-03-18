@@ -15,6 +15,7 @@
 #include "src/execution/isolate.h"
 #include "src/objects/bigint.h"
 #include "src/objects/contexts.h"
+#include "src/objects/js-array-buffer.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
@@ -115,7 +116,7 @@ class RegisteredExtension {
   V(Int32Array, JSTypedArray)                  \
   V(Float32Array, JSTypedArray)                \
   V(Float64Array, JSTypedArray)                \
-  V(DataView, JSDataView)                      \
+  V(DataView, JSDataViewOrRabGsabDataView)     \
   V(SharedArrayBuffer, JSArrayBuffer)          \
   V(Name, Name)                                \
   V(String, String)                            \
@@ -191,6 +192,8 @@ class Utils {
       v8::internal::Handle<v8::internal::JSArrayBufferView> obj);
   static inline Local<DataView> ToLocal(
       v8::internal::Handle<v8::internal::JSDataView> obj);
+  static inline Local<DataView> ToLocal(
+      v8::internal::Handle<v8::internal::JSRabGsabDataView> obj);
   static inline Local<TypedArray> ToLocal(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
   static inline Local<Uint8Array> ToLocalUint8Array(

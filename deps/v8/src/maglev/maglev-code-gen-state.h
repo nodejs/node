@@ -73,6 +73,8 @@ class MaglevCodeGenState {
   }
   MaglevCompilationInfo* compilation_info() const { return compilation_info_; }
 
+  Label* entry_label() { return &entry_label_; }
+
  private:
   MaglevCompilationInfo* const compilation_info_;
   MaglevSafepointTableBuilder* const safepoint_table_builder_;
@@ -84,6 +86,9 @@ class MaglevCodeGenState {
 
   int untagged_slots_ = 0;
   int tagged_slots_ = 0;
+
+  // Entry point label for recursive calls.
+  Label entry_label_;
 };
 
 // Some helpers for codegen.

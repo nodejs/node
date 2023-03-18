@@ -18,7 +18,6 @@ template <typename Callback>
 void MarkingWorklists::Update(Callback callback) {
   shared_.Update(callback);
   on_hold_.Update(callback);
-  wrapper_.Update(callback);
   other_.Update(callback);
   for (auto& cw : context_worklists_) {
     cw.worklist->Update(callback);
@@ -57,16 +56,6 @@ void MarkingWorklists::Local::PushExtractedWrapper(
     const WrapperSnapshot& snapshot) {
   DCHECK_NOT_NULL(cpp_marking_state_);
   cpp_marking_state_->MarkAndPush(snapshot);
-}
-
-void MarkingWorklists::Local::PushWrapper(HeapObject object) {
-  DCHECK_NULL(cpp_marking_state_);
-  wrapper_.Push(object);
-}
-
-bool MarkingWorklists::Local::PopWrapper(HeapObject* object) {
-  DCHECK_NULL(cpp_marking_state_);
-  return wrapper_.Pop(object);
 }
 
 Address MarkingWorklists::Local::SwitchToContext(Address context) {

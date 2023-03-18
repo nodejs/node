@@ -560,7 +560,7 @@ void CollectAndMaybeResetCounts(Isolate* isolate,
       // feedback allocation we may miss counting functions if the feedback
       // vector wasn't allocated yet and the function's interrupt budget wasn't
       // updated (i.e. it didn't execute return / jump).
-      for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
+      for (JavaScriptStackFrameIterator it(isolate); !it.done(); it.Advance()) {
         SharedFunctionInfo shared = it.frame()->function().shared();
         if (counter_map->Get(shared) != 0) continue;
         counter_map->Add(shared, 1);

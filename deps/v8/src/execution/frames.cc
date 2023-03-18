@@ -99,25 +99,23 @@ class StackHandlerIterator {
 // -------------------------------------------------------------------------
 
 #define INITIALIZE_SINGLETON(type, field) field##_(this),
-StackFrameIteratorBase::StackFrameIteratorBase(Isolate* isolate,
-                                               bool can_access_heap_objects)
+StackFrameIteratorBase::StackFrameIteratorBase(Isolate* isolate)
     : isolate_(isolate),
       STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON) frame_(nullptr),
-      handler_(nullptr),
-      can_access_heap_objects_(can_access_heap_objects) {}
+      handler_(nullptr) {}
 #undef INITIALIZE_SINGLETON
 
 StackFrameIterator::StackFrameIterator(Isolate* isolate)
     : StackFrameIterator(isolate, isolate->thread_local_top()) {}
 
 StackFrameIterator::StackFrameIterator(Isolate* isolate, ThreadLocalTop* t)
-    : StackFrameIteratorBase(isolate, true) {
+    : StackFrameIteratorBase(isolate) {
   Reset(t);
 }
 #if V8_ENABLE_WEBASSEMBLY
 StackFrameIterator::StackFrameIterator(Isolate* isolate,
                                        wasm::StackMemory* stack)
-    : StackFrameIteratorBase(isolate, true) {
+    : StackFrameIteratorBase(isolate) {
   Reset(isolate->thread_local_top(), stack);
 }
 #endif
@@ -151,7 +149,7 @@ void StackFrameIterator::Advance() {
 }
 
 StackFrame* StackFrameIterator::Reframe() {
-  StackFrame::Type type = frame_->ComputeType(this, &frame_->state_);
+  StackFrame::Type type = ComputeStackFrameType(&frame_->state_);
   frame_ = SingletonFor(type, &frame_->state_);
   return frame();
 }
@@ -205,12 +203,12 @@ StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type) {
 
 void TypedFrameWithJSLinkage::Iterate(RootVisitor* v) const {
   IterateExpressions(v);
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCodeT());
+  IteratePc(v, pc_address(), constant_pool_address(), GcSafeLookupCode());
 }
 
 // -------------------------------------------------------------------------
 
-void JavaScriptFrameIterator::Advance() {
+void JavaScriptStackFrameIterator::Advance() {
   do {
     iterator_.Advance();
   } while (!iterator_.done() && !iterator_.frame()->is_java_script());
@@ -218,24 +216,24 @@ void JavaScriptFrameIterator::Advance() {
 
 // -------------------------------------------------------------------------
 
-StackTraceFrameIterator::StackTraceFrameIterator(Isolate* isolate)
+DebuggableStackFrameIterator::DebuggableStackFrameIterator(Isolate* isolate)
     : iterator_(isolate) {
   if (!done() && !IsValidFrame(iterator_.frame())) Advance();
 }
 
-StackTraceFrameIterator::StackTraceFrameIterator(Isolate* isolate,
-                                                 StackFrameId id)
-    : StackTraceFrameIterator(isolate) {
+DebuggableStackFrameIterator::DebuggableStackFrameIterator(Isolate* isolate,
+                                                           StackFrameId id)
+    : DebuggableStackFrameIterator(isolate) {
   while (!done() && frame()->id() != id) Advance();
 }
 
-void StackTraceFrameIterator::Advance() {
+void DebuggableStackFrameIterator::Advance() {
   do {
     iterator_.Advance();
   } while (!done() && !IsValidFrame(iterator_.frame()));
 }
 
-int StackTraceFrameIterator::FrameFunctionCount() const {
+int DebuggableStackFrameIterator::FrameFunctionCount() const {
   DCHECK(!done());
   if (!iterator_.frame()->is_optimized()) return 1;
   std::vector<SharedFunctionInfo> infos;
@@ -243,15 +241,16 @@ int StackTraceFrameIterator::FrameFunctionCount() const {
   return static_cast<int>(infos.size());
 }
 
-FrameSummary StackTraceFrameIterator::GetTopValidFrame() const {
+FrameSummary DebuggableStackFrameIterator::GetTopValidFrame() const {
   DCHECK(!done());
   // Like FrameSummary::GetTop, but additionally observes
-  // StackTraceFrameIterator filtering semantics.
+  // DebuggableStackFrameIterator filtering semantics.
   std::vector<FrameSummary> frames;
   frame()->Summarize(&frames);
   if (is_javascript()) {
     for (int i = static_cast<int>(frames.size()) - 1; i >= 0; i--) {
-      if (!IsValidJSFunction(*frames[i].AsJavaScript().function())) continue;
+      JSFunction function = *frames[i].AsJavaScript().function();
+      if (!function.shared().IsSubjectToDebugging()) continue;
       return frames[i];
     }
     UNREACHABLE();
@@ -263,20 +262,15 @@ FrameSummary StackTraceFrameIterator::GetTopValidFrame() const {
 }
 
 // static
-bool StackTraceFrameIterator::IsValidFrame(StackFrame* frame) {
+bool DebuggableStackFrameIterator::IsValidFrame(StackFrame* frame) {
   if (frame->is_java_script()) {
-    return IsValidJSFunction(static_cast<JavaScriptFrame*>(frame)->function());
+    JSFunction function = static_cast<JavaScriptFrame*>(frame)->function();
+    return function.shared().IsSubjectToDebugging();
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (frame->is_wasm()) return true;
 #endif  // V8_ENABLE_WEBASSEMBLY
   return false;
-}
-
-// static
-bool StackTraceFrameIterator::IsValidJSFunction(JSFunction f) {
-  if (!f.IsJSFunction()) return false;
-  return f.shared().IsSubjectToDebugging();
 }
 
 // -------------------------------------------------------------------------
@@ -308,10 +302,9 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
     } else if (!isolate->heap()->InSpaceSlow(pc, CODE_SPACE)) {
       return false;
     }
-    CodeLookupResult interpreter_entry_trampoline =
-        isolate->heap()->GcSafeFindCodeForInnerPointer(pc);
-    return interpreter_entry_trampoline.code()
-        .is_interpreter_trampoline_builtin();
+    Code interpreter_entry_trampoline =
+        isolate->heap()->FindCodeForInnerPointer(pc);
+    return interpreter_entry_trampoline.is_interpreter_trampoline_builtin();
   } else {
     return false;
   }
@@ -319,29 +312,23 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
 
 }  // namespace
 
-bool SafeStackFrameIterator::IsNoFrameBytecodeHandlerPc(Isolate* isolate,
-                                                        Address pc,
-                                                        Address fp) const {
-  // Return false for builds with non-embedded bytecode handlers.
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) return false;
-
+bool StackFrameIteratorForProfiler::IsNoFrameBytecodeHandlerPc(
+    Isolate* isolate, Address pc, Address fp) const {
   EmbeddedData d = EmbeddedData::FromBlob(isolate);
   if (pc < d.InstructionStartOfBytecodeHandlers() ||
       pc >= d.InstructionEndOfBytecodeHandlers()) {
-    // Not a bytecode handler pc address.
     return false;
   }
 
-  if (!IsValidStackAddress(fp +
-                           CommonFrameConstants::kContextOrFrameTypeOffset)) {
+  Address frame_type_address =
+      fp + CommonFrameConstants::kContextOrFrameTypeOffset;
+  if (!IsValidStackAddress(frame_type_address)) {
     return false;
   }
 
   // Check if top stack frame is a bytecode handler stub frame.
-  MSAN_MEMORY_IS_INITIALIZED(
-      fp + CommonFrameConstants::kContextOrFrameTypeOffset, kSystemPointerSize);
-  intptr_t marker =
-      Memory<intptr_t>(fp + CommonFrameConstants::kContextOrFrameTypeOffset);
+  MSAN_MEMORY_IS_INITIALIZED(frame_type_address, kSystemPointerSize);
+  intptr_t marker = Memory<intptr_t>(frame_type_address);
   if (StackFrame::IsTypeMarker(marker) &&
       StackFrame::MarkerToType(marker) == StackFrame::STUB) {
     // Bytecode handler built a frame.
@@ -350,43 +337,63 @@ bool SafeStackFrameIterator::IsNoFrameBytecodeHandlerPc(Isolate* isolate,
   return true;
 }
 
-SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
-                                               Address fp, Address sp,
-                                               Address lr, Address js_entry_sp)
-    : StackFrameIteratorBase(isolate, false),
+StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
+    Isolate* isolate, Address pc, Address fp, Address sp, Address lr,
+    Address js_entry_sp)
+    : StackFrameIteratorBase(isolate),
       low_bound_(sp),
       high_bound_(js_entry_sp),
       top_frame_type_(StackFrame::NO_FRAME_TYPE),
-      top_context_address_(kNullAddress),
       external_callback_scope_(isolate->external_callback_scope()),
       top_link_register_(lr) {
-  StackFrame::State state;
-  StackFrame::Type type;
-  ThreadLocalTop* top = isolate->thread_local_top();
-  bool advance_frame = true;
-
-  Address fast_c_fp = isolate->isolate_data()->fast_c_call_caller_fp();
-  uint8_t stack_is_iterable = isolate->isolate_data()->stack_is_iterable();
-  if (!stack_is_iterable) {
-    frame_ = nullptr;
+  if (!isolate->isolate_data()->stack_is_iterable()) {
+    // The stack is not iterable in a short time interval during deoptimization.
+    // See also: ExternalReference::stack_is_iterable_address.
+    DCHECK(done());
     return;
   }
-  // 'Fast C calls' are a special type of C call where we call directly from
-  // JS to C without an exit frame inbetween. The CEntryStub is responsible
-  // for setting Isolate::c_entry_fp, meaning that it won't be set for fast C
-  // calls. To keep the stack iterable, we store the FP and PC of the caller
-  // of the fast C call on the isolate. This is guaranteed to be the topmost
-  // JS frame, because fast C calls cannot call back into JS. We start
-  // iterating the stack from this topmost JS frame.
-  if (fast_c_fp) {
+
+  // For Advance below, we need frame_ to be set; and that only happens if the
+  // type is not NO_FRAME_TYPE.
+  // TODO(jgruber): Clean this up.
+  static constexpr StackFrame::Type kTypeForAdvance = StackFrame::TURBOFAN;
+
+  StackFrame::State state;
+  StackFrame::Type type;
+  ThreadLocalTop* const top = isolate->thread_local_top();
+  bool advance_frame = true;
+  const Address fast_c_fp = isolate->isolate_data()->fast_c_call_caller_fp();
+  if (fast_c_fp != kNullAddress) {
+    // 'Fast C calls' are a special type of C call where we call directly from
+    // JS to C without an exit frame inbetween. The CEntryStub is responsible
+    // for setting Isolate::c_entry_fp, meaning that it won't be set for fast C
+    // calls. To keep the stack iterable, we store the FP and PC of the caller
+    // of the fast C call on the isolate. This is guaranteed to be the topmost
+    // JS frame, because fast C calls cannot call back into JS. We start
+    // iterating the stack from this topmost JS frame.
     DCHECK_NE(kNullAddress, isolate->isolate_data()->fast_c_call_caller_pc());
-    type = StackFrame::Type::TURBOFAN;
-    top_frame_type_ = type;
     state.fp = fast_c_fp;
     state.sp = sp;
     state.pc_address = reinterpret_cast<Address*>(
         isolate->isolate_data()->fast_c_call_caller_pc_address());
-    advance_frame = false;
+
+    // ComputeStackFrameType will read both kContextOffset and
+    // kFunctionOffset, we check only that kFunctionOffset is within the stack
+    // bounds and do a compile time check that kContextOffset slot is pushed on
+    // the stack before kFunctionOffset.
+    static_assert(StandardFrameConstants::kFunctionOffset <
+                  StandardFrameConstants::kContextOffset);
+    if (IsValidStackAddress(state.fp +
+                            StandardFrameConstants::kFunctionOffset)) {
+      type = ComputeStackFrameType(&state);
+      if (IsValidFrameType(type)) {
+        top_frame_type_ = type;
+        advance_frame = false;
+      }
+    } else {
+      // Cannot determine the actual type; the frame will be skipped below.
+      type = kTypeForAdvance;
+    }
   } else if (IsValidTop(top)) {
     type = ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
     top_frame_type_ = type;
@@ -394,8 +401,9 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
     DCHECK_NE(fp, kNullAddress);
     state.fp = fp;
     state.sp = sp;
-    state.pc_address = StackFrame::ResolveReturnAddressLocation(
-        reinterpret_cast<Address*>(CommonFrame::ComputePCAddress(fp)));
+    state.pc_address =
+        StackFrame::ResolveReturnAddressLocation(reinterpret_cast<Address*>(
+            fp + StandardFrameConstants::kCallerPCOffset));
 
     // If the current PC is in a bytecode handler, the top stack frame isn't
     // the bytecode handler's frame and the top of stack or link register is a
@@ -404,62 +412,52 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
     // properly and make sure we do not drop the frame.
     bool is_no_frame_bytecode_handler = false;
     if (IsNoFrameBytecodeHandlerPc(isolate, pc, fp)) {
-      Address* tos_location = nullptr;
+      Address* top_location = nullptr;
       if (top_link_register_) {
-        tos_location = &top_link_register_;
+        top_location = &top_link_register_;
       } else if (IsValidStackAddress(sp)) {
         MSAN_MEMORY_IS_INITIALIZED(sp, kSystemPointerSize);
-        tos_location = reinterpret_cast<Address*>(sp);
+        top_location = reinterpret_cast<Address*>(sp);
       }
 
-      if (IsInterpreterFramePc(isolate, *tos_location, &state)) {
-        state.pc_address = tos_location;
+      if (IsInterpreterFramePc(isolate, *top_location, &state)) {
+        state.pc_address = top_location;
         is_no_frame_bytecode_handler = true;
         advance_frame = false;
       }
     }
 
-    // StackFrame::ComputeType will read both kContextOffset and kMarkerOffset,
-    // we check only that kMarkerOffset is within the stack bounds and do
-    // compile time check that kContextOffset slot is pushed on the stack before
-    // kMarkerOffset.
+    // ComputeStackFrameType will read both kContextOffset and
+    // kFunctionOffset, we check only that kFunctionOffset is within the stack
+    // bounds and do a compile time check that kContextOffset slot is pushed on
+    // the stack before kFunctionOffset.
     static_assert(StandardFrameConstants::kFunctionOffset <
                   StandardFrameConstants::kContextOffset);
-    Address frame_marker = fp + StandardFrameConstants::kFunctionOffset;
-    if (IsValidStackAddress(frame_marker)) {
+    Address function_slot = fp + StandardFrameConstants::kFunctionOffset;
+    if (IsValidStackAddress(function_slot)) {
       if (is_no_frame_bytecode_handler) {
         type = StackFrame::INTERPRETED;
       } else {
-        type = StackFrame::ComputeType(this, &state);
+        type = ComputeStackFrameType(&state);
       }
       top_frame_type_ = type;
-      MSAN_MEMORY_IS_INITIALIZED(
-          fp + CommonFrameConstants::kContextOrFrameTypeOffset,
-          kSystemPointerSize);
-      Address type_or_context_address =
-          Memory<Address>(fp + CommonFrameConstants::kContextOrFrameTypeOffset);
-      if (!StackFrame::IsTypeMarker(type_or_context_address))
-        top_context_address_ = type_or_context_address;
     } else {
-      // Mark the frame as TURBOFAN if we cannot determine its type.
-      // We chose TURBOFAN rather than INTERPRETED because it's closer to
-      // the original value of StackFrame::JAVA_SCRIPT here, in that JAVA_SCRIPT
-      // referred to full-codegen frames (now removed from the tree), and
-      // TURBOFAN refers to turbofan frames, both of which are generated
-      // code. INTERPRETED frames refer to bytecode.
-      // The frame anyways will be skipped.
-      type = StackFrame::TURBOFAN;
-      // Top frame is incomplete so we cannot reliably determine its type.
-      top_frame_type_ = StackFrame::NO_FRAME_TYPE;
+      // Cannot determine the actual type; the frame will be skipped below.
+      type = kTypeForAdvance;
     }
   } else {
+    // Not iterable.
+    DCHECK(done());
     return;
   }
+
   frame_ = SingletonFor(type, &state);
-  if (advance_frame && frame_) Advance();
+  if (advance_frame && !done()) {
+    Advance();
+  }
 }
 
-bool SafeStackFrameIterator::IsValidTop(ThreadLocalTop* top) const {
+bool StackFrameIteratorForProfiler::IsValidTop(ThreadLocalTop* top) const {
   Address c_entry_fp = Isolate::c_entry_fp(top);
   if (!IsValidExitFrame(c_entry_fp)) return false;
   // There should be at least one JS_ENTRY stack handler.
@@ -469,7 +467,7 @@ bool SafeStackFrameIterator::IsValidTop(ThreadLocalTop* top) const {
   return c_entry_fp < handler;
 }
 
-void SafeStackFrameIterator::AdvanceOneFrame() {
+void StackFrameIteratorForProfiler::AdvanceOneFrame() {
   DCHECK(!done());
   StackFrame* last_frame = frame_;
   Address last_sp = last_frame->sp(), last_fp = last_frame->fp();
@@ -492,26 +490,26 @@ void SafeStackFrameIterator::AdvanceOneFrame() {
   }
 }
 
-bool SafeStackFrameIterator::IsValidFrame(StackFrame* frame) const {
+bool StackFrameIteratorForProfiler::IsValidFrame(StackFrame* frame) const {
   return IsValidStackAddress(frame->sp()) && IsValidStackAddress(frame->fp());
 }
 
-bool SafeStackFrameIterator::IsValidCaller(StackFrame* frame) {
+bool StackFrameIteratorForProfiler::IsValidCaller(StackFrame* frame) {
   StackFrame::State state;
   if (frame->is_entry() || frame->is_construct_entry()) {
     // See EntryFrame::GetCallerState. It computes the caller FP address
     // and calls ExitFrame::GetStateForFramePointer on it. We need to be
     // sure that caller FP address is valid.
-    Address caller_fp =
-        Memory<Address>(frame->fp() + EntryFrameConstants::kCallerFPOffset);
-    if (!IsValidExitFrame(caller_fp)) return false;
+    Address next_exit_frame_fp = Memory<Address>(
+        frame->fp() + EntryFrameConstants::kNextExitFrameFPOffset);
+    if (!IsValidExitFrame(next_exit_frame_fp)) return false;
   }
   frame->ComputeCallerState(&state);
   return IsValidStackAddress(state.sp) && IsValidStackAddress(state.fp) &&
          SingletonFor(frame->GetCallerState(&state)) != nullptr;
 }
 
-bool SafeStackFrameIterator::IsValidExitFrame(Address fp) const {
+bool StackFrameIteratorForProfiler::IsValidExitFrame(Address fp) const {
   if (!IsValidStackAddress(fp)) return false;
   Address sp = ExitFrame::ComputeStackPointer(fp);
   if (!IsValidStackAddress(sp)) return false;
@@ -521,7 +519,7 @@ bool SafeStackFrameIterator::IsValidExitFrame(Address fp) const {
   return *state.pc_address != kNullAddress;
 }
 
-void SafeStackFrameIterator::Advance() {
+void StackFrameIteratorForProfiler::Advance() {
   while (true) {
     AdvanceOneFrame();
     if (done()) break;
@@ -561,54 +559,58 @@ void SafeStackFrameIterator::Advance() {
 // -------------------------------------------------------------------------
 
 namespace {
-CodeLookupResult GetContainingCode(Isolate* isolate, Address pc) {
+
+base::Optional<GcSafeCode> GetContainingCode(Isolate* isolate, Address pc) {
   return isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
 }
+
 }  // namespace
 
-CodeLookupResult StackFrame::LookupCodeT() const {
-  CodeLookupResult result = GetContainingCode(isolate(), pc());
-  if (DEBUG_BOOL) {
-    CHECK(result.IsFound());
-    if (result.IsCode()) {
-      Code code = result.code();
-      CHECK_GE(pc(), code.InstructionStart(isolate(), pc()));
-      CHECK_LT(pc(), code.InstructionEnd(isolate(), pc()));
-    } else {
-#ifdef V8_EXTERNAL_CODE_SPACE
-      CodeDataContainer code = result.code_data_container();
-      CHECK_GE(pc(), code.InstructionStart(isolate(), pc()));
-      CHECK_LT(pc(), code.InstructionEnd(isolate(), pc()));
-#endif
-    }
-  }
-  return result;
+GcSafeCode StackFrame::GcSafeLookupCode() const {
+  base::Optional<GcSafeCode> result = GetContainingCode(isolate(), pc());
+  DCHECK_GE(pc(), result->InstructionStart(isolate(), pc()));
+  DCHECK_LT(pc(), result->InstructionEnd(isolate(), pc()));
+  return result.value();
+}
+
+Code StackFrame::LookupCode() const {
+  DCHECK_NE(isolate()->heap()->gc_state(), Heap::MARK_COMPACT);
+  return GcSafeLookupCode().UnsafeCastToCode();
 }
 
 void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
                            Address* constant_pool_address,
-                           CodeLookupResult lookup_result) const {
-  if (lookup_result.IsCodeDataContainer()) {
-    // The embeded builtins are immovable, so there's no need to update PCs on
-    // the stack, just visit the CodeT object.
-    Object code = lookup_result.code_data_container();
-    v->VisitRunningCode(FullObjectSlot(&code));
+                           GcSafeCode holder) const {
+  const Address old_pc = ReadPC(pc_address);
+  DCHECK_GE(old_pc, holder.InstructionStart(isolate(), old_pc));
+  DCHECK_LT(old_pc, holder.InstructionEnd(isolate(), old_pc));
+
+  // Keep the old pc offset before visiting the code since we need it to
+  // calculate the new pc after a potential InstructionStream move.
+  const uintptr_t pc_offset_from_start = old_pc - holder.InstructionStart();
+
+  // Visit.
+  GcSafeCode visited_holder = holder;
+  const Object old_istream = holder.raw_instruction_stream();
+  Object visited_istream = old_istream;
+  v->VisitRunningCode(FullObjectSlot{&visited_holder},
+                      FullObjectSlot{&visited_istream});
+  if (visited_istream == old_istream) {
+    // Note this covers two important cases:
+    // 1. the associated InstructionStream object did not move, and
+    // 2. `holder` is an embedded builtin and has no InstructionStream.
     return;
   }
-  Code holder = lookup_result.code();
-  Address old_pc = ReadPC(pc_address);
-  DCHECK(ReadOnlyHeap::Contains(holder) ||
-         holder.GetHeap()->GcSafeCodeContains(holder, old_pc));
-  unsigned pc_offset = holder.GetOffsetFromInstructionStart(isolate_, old_pc);
-  Object code = holder;
-  v->VisitRunningCode(FullObjectSlot(&code));
-  if (code == holder) return;
-  holder = Code::unchecked_cast(code);
-  Address pc = holder.InstructionStart(isolate_, old_pc) + pc_offset;
+
+  DCHECK(visited_holder.has_instruction_stream());
+
+  InstructionStream istream =
+      InstructionStream::unchecked_cast(visited_istream);
+  const Address new_pc = istream.instruction_start() + pc_offset_from_start;
   // TODO(v8:10026): avoid replacing a signed pointer.
-  PointerAuthentication::ReplacePC(pc_address, pc, kSystemPointerSize);
-  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool_address) {
-    *constant_pool_address = holder.constant_pool();
+  PointerAuthentication::ReplacePC(pc_address, new_pc, kSystemPointerSize);
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool_address != nullptr) {
+    *constant_pool_address = istream.constant_pool();
   }
 }
 
@@ -620,180 +622,211 @@ void StackFrame::SetReturnAddressLocationResolver(
 
 namespace {
 
-template <typename CodeOrCodeT>
-inline StackFrame::Type ComputeBuiltinFrameType(CodeOrCodeT code) {
+StackFrame::Type ComputeBuiltinFrameType(GcSafeCode code) {
   if (code.is_interpreter_trampoline_builtin() ||
-      // Frames for baseline entry trampolines on the stack are still
-      // interpreted frames.
       code.is_baseline_trampoline_builtin()) {
+    // Frames for baseline entry trampolines on the stack are still interpreted
+    // frames.
     return StackFrame::INTERPRETED;
-  }
-  if (code.is_baseline_leave_frame_builtin()) {
+  } else if (code.is_baseline_leave_frame_builtin()) {
     return StackFrame::BASELINE;
-  }
-  if (code.is_turbofanned()) {
+  } else if (code.is_turbofanned()) {
     // TODO(bmeurer): We treat frames for BUILTIN Code objects as
-    // OptimizedFrame for now (all the builtins with JavaScript
-    // linkage are actually generated with TurboFan currently, so
-    // this is sound).
+    // OptimizedFrame for now (all the builtins with JavaScript linkage are
+    // actually generated with TurboFan currently, so this is sound).
     return StackFrame::TURBOFAN;
   }
   return StackFrame::BUILTIN;
 }
 
+StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
+  DCHECK_LE(static_cast<uintptr_t>(candidate), StackFrame::NUMBER_OF_TYPES);
+  switch (candidate) {
+    case StackFrame::BUILTIN_CONTINUATION:
+    case StackFrame::BUILTIN_EXIT:
+    case StackFrame::CONSTRUCT:
+    case StackFrame::CONSTRUCT_ENTRY:
+    case StackFrame::ENTRY:
+    case StackFrame::EXIT:
+    case StackFrame::INTERNAL:
+    case StackFrame::IRREGEXP:
+    case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION:
+    case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
+    case StackFrame::STUB:
+      return candidate;
+
+#if V8_ENABLE_WEBASSEMBLY
+    case StackFrame::JS_TO_WASM:
+    case StackFrame::STACK_SWITCH:
+    case StackFrame::WASM:
+    case StackFrame::WASM_DEBUG_BREAK:
+    case StackFrame::WASM_EXIT:
+    case StackFrame::WASM_LIFTOFF_SETUP:
+    case StackFrame::WASM_TO_JS:
+      return candidate;
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+    // Any other marker value is likely to be a bogus stack frame when being
+    // called from the profiler (in particular, JavaScript frames, including
+    // interpreted frames, should never have a StackFrame::Type marker).
+    // Consider these frames "native".
+    // TODO(jgruber): For the StackFrameIterator, I'm not sure this fallback
+    // makes sense. Shouldn't we know how to handle all frames we encounter
+    // there?
+    case StackFrame::BASELINE:
+    case StackFrame::BUILTIN:
+    case StackFrame::INTERPRETED:
+    case StackFrame::MAGLEV:
+    case StackFrame::MANUAL:
+    case StackFrame::NATIVE:
+    case StackFrame::NO_FRAME_TYPE:
+    case StackFrame::NUMBER_OF_TYPES:
+    case StackFrame::TURBOFAN:
+    case StackFrame::TURBOFAN_STUB_WITH_CONTEXT:
+#if V8_ENABLE_WEBASSEMBLY
+    case StackFrame::C_WASM_ENTRY:
+    case StackFrame::WASM_TO_JS_FUNCTION:
+#endif  // V8_ENABLE_WEBASSEMBLY
+      return StackFrame::NATIVE;
+  }
+  UNREACHABLE();
+}
+
 }  // namespace
 
-StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
-                                         State* state) {
+StackFrame::Type StackFrameIterator::ComputeStackFrameType(
+    StackFrame::State* state) const {
 #if V8_ENABLE_WEBASSEMBLY
   if (state->fp == kNullAddress) {
     DCHECK(v8_flags.experimental_wasm_stack_switching);
-    return NO_FRAME_TYPE;
+    return StackFrame::NO_FRAME_TYPE;
+  }
+#endif
+
+  const Address pc = StackFrame::ReadPC(state->pc_address);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // If the {pc} does not point into WebAssembly code we can rely on the
+  // returned {wasm_code} to be null and fall back to {GetContainingCode}.
+  wasm::WasmCodeRefScope code_ref_scope;
+  if (wasm::WasmCode* wasm_code = wasm::GetWasmCodeManager()->LookupCode(pc)) {
+    switch (wasm_code->kind()) {
+      case wasm::WasmCode::kWasmFunction:
+        return StackFrame::WASM;
+      case wasm::WasmCode::kWasmToCapiWrapper:
+        return StackFrame::WASM_EXIT;
+      case wasm::WasmCode::kWasmToJsWrapper:
+        return StackFrame::WASM_TO_JS;
+      default:
+        UNREACHABLE();
+    }
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  // Look up the code object to figure out the type of the stack frame.
+  base::Optional<GcSafeCode> lookup_result = GetContainingCode(isolate(), pc);
+  if (!lookup_result.has_value()) return StackFrame::NATIVE;
+
+  MSAN_MEMORY_IS_INITIALIZED(
+      state->fp + CommonFrameConstants::kContextOrFrameTypeOffset,
+      kSystemPointerSize);
+  const intptr_t marker = Memory<intptr_t>(
+      state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
+  switch (lookup_result->kind()) {
+    case CodeKind::BUILTIN: {
+      if (StackFrame::IsTypeMarker(marker)) break;
+      return ComputeBuiltinFrameType(lookup_result.value());
+    }
+    case CodeKind::BASELINE:
+      return StackFrame::BASELINE;
+    case CodeKind::MAGLEV:
+      if (StackFrame::IsTypeMarker(marker)) {
+        // An INTERNAL frame can be set up with an associated Maglev code
+        // object when calling into runtime to handle tiering. In this case,
+        // all stack slots are tagged pointers and should be visited through
+        // the usual logic.
+        DCHECK_EQ(StackFrame::MarkerToType(marker), StackFrame::INTERNAL);
+        return StackFrame::INTERNAL;
+      }
+      return StackFrame::MAGLEV;
+    case CodeKind::TURBOFAN:
+      return StackFrame::TURBOFAN;
+#if V8_ENABLE_WEBASSEMBLY
+    case CodeKind::JS_TO_WASM_FUNCTION:
+      if (lookup_result->builtin_id() == Builtin::kGenericJSToWasmWrapper) {
+        return StackFrame::JS_TO_WASM;
+      }
+      return StackFrame::TURBOFAN_STUB_WITH_CONTEXT;
+    case CodeKind::JS_TO_JS_FUNCTION:
+      return StackFrame::TURBOFAN_STUB_WITH_CONTEXT;
+    case CodeKind::C_WASM_ENTRY:
+      return StackFrame::C_WASM_ENTRY;
+    case CodeKind::WASM_TO_JS_FUNCTION:
+      return StackFrame::WASM_TO_JS_FUNCTION;
+    case CodeKind::WASM_FUNCTION:
+    case CodeKind::WASM_TO_CAPI_FUNCTION:
+      // These never appear as on-heap Code objects.
+      UNREACHABLE();
+#else
+    case CodeKind::C_WASM_ENTRY:
+    case CodeKind::JS_TO_JS_FUNCTION:
+    case CodeKind::JS_TO_WASM_FUNCTION:
+    case CodeKind::WASM_FUNCTION:
+    case CodeKind::WASM_TO_CAPI_FUNCTION:
+    case CodeKind::WASM_TO_JS_FUNCTION:
+      UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
+    case CodeKind::BYTECODE_HANDLER:
+    case CodeKind::FOR_TESTING:
+    case CodeKind::REGEXP:
+    case CodeKind::INTERPRETED_FUNCTION:
+      // Fall back to the marker.
+      break;
+  }
+
+  return SafeStackFrameType(StackFrame::MarkerToType(marker));
+}
+
+StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
+    StackFrame::State* state) const {
+#if V8_ENABLE_WEBASSEMBLY
+  if (state->fp == kNullAddress) {
+    DCHECK(v8_flags.experimental_wasm_stack_switching);
+    return StackFrame::NO_FRAME_TYPE;
   }
 #endif
 
   MSAN_MEMORY_IS_INITIALIZED(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset,
       kSystemPointerSize);
-  intptr_t marker = Memory<intptr_t>(
+  const intptr_t marker = Memory<intptr_t>(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
-  Address pc = StackFrame::ReadPC(state->pc_address);
-  if (!iterator->can_access_heap_objects_) {
-    // TODO(titzer): "can_access_heap_objects" is kind of bogus. It really
-    // means that we are being called from the profiler, which can interrupt
-    // the VM with a signal at any arbitrary instruction, with essentially
-    // anything on the stack. So basically none of these checks are 100%
-    // reliable.
-    MSAN_MEMORY_IS_INITIALIZED(
-        state->fp + StandardFrameConstants::kFunctionOffset,
-        kSystemPointerSize);
-    Object maybe_function = Object(
-        Memory<Address>(state->fp + StandardFrameConstants::kFunctionOffset));
-    if (!StackFrame::IsTypeMarker(marker)) {
-      if (maybe_function.IsSmi()) {
-        return NATIVE;
-      } else if (IsInterpreterFramePc(iterator->isolate(), pc, state)) {
-        return INTERPRETED;
-      } else {
-        return TURBOFAN;
-      }
+  if (StackFrame::IsTypeMarker(marker)) {
+    if (static_cast<uintptr_t>(marker) > StackFrame::NUMBER_OF_TYPES) {
+      // We've read some bogus value from the stack.
+      return StackFrame::NATIVE;
     }
-  } else {
-#if V8_ENABLE_WEBASSEMBLY
-    // If the {pc} does not point into WebAssembly code we can rely on the
-    // returned {wasm_code} to be null and fall back to {GetContainingCode}.
-    wasm::WasmCodeRefScope code_ref_scope;
-    if (wasm::WasmCode* wasm_code =
-            wasm::GetWasmCodeManager()->LookupCode(pc)) {
-      switch (wasm_code->kind()) {
-        case wasm::WasmCode::kWasmFunction:
-          return WASM;
-        case wasm::WasmCode::kWasmToCapiWrapper:
-          return WASM_EXIT;
-        case wasm::WasmCode::kWasmToJsWrapper:
-          return WASM_TO_JS;
-        default:
-          UNREACHABLE();
-      }
-    }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-    // Look up the code object to figure out the type of the stack frame.
-    CodeLookupResult lookup_result = GetContainingCode(iterator->isolate(), pc);
-    if (lookup_result.IsFound()) {
-      switch (lookup_result.kind()) {
-        case CodeKind::BUILTIN: {
-          if (StackFrame::IsTypeMarker(marker)) break;
-          // We can't use lookup_result.ToCodeT() because we might in the
-          // middle of GC.
-          if (lookup_result.IsCodeDataContainer()) {
-            return ComputeBuiltinFrameType(
-                CodeT::cast(lookup_result.code_data_container()));
-          }
-          return ComputeBuiltinFrameType(lookup_result.code());
-        }
-        case CodeKind::BASELINE:
-          return BASELINE;
-        case CodeKind::MAGLEV:
-          if (IsTypeMarker(marker)) {
-            // An INTERNAL frame can be set up with an associated Maglev code
-            // object when calling into runtime to handle tiering. In this case,
-            // all stack slots are tagged pointers and should be visited through
-            // the usual logic.
-            DCHECK_EQ(MarkerToType(marker), StackFrame::INTERNAL);
-            return StackFrame::INTERNAL;
-          }
-          return MAGLEV;
-        case CodeKind::TURBOFAN:
-          return TURBOFAN;
-#if V8_ENABLE_WEBASSEMBLY
-        case CodeKind::JS_TO_WASM_FUNCTION:
-          if (lookup_result.builtin_id() == Builtin::kGenericJSToWasmWrapper) {
-            return JS_TO_WASM;
-          } else {
-            return TURBOFAN_STUB_WITH_CONTEXT;
-          }
-        case CodeKind::JS_TO_JS_FUNCTION:
-          return TURBOFAN_STUB_WITH_CONTEXT;
-        case CodeKind::C_WASM_ENTRY:
-          return C_WASM_ENTRY;
-        case CodeKind::WASM_TO_JS_FUNCTION:
-          return WASM_TO_JS_FUNCTION;
-        case CodeKind::WASM_FUNCTION:
-        case CodeKind::WASM_TO_CAPI_FUNCTION:
-          // Never appear as on-heap {Code} objects.
-          UNREACHABLE();
-#endif  // V8_ENABLE_WEBASSEMBLY
-        default:
-          // All other types should have an explicit marker
-          break;
-      }
-    } else {
-      return NATIVE;
-    }
+    return SafeStackFrameType(StackFrame::MarkerToType(marker));
   }
-  DCHECK(StackFrame::IsTypeMarker(marker));
-  StackFrame::Type candidate = StackFrame::MarkerToType(marker);
-  switch (candidate) {
-    case ENTRY:
-    case CONSTRUCT_ENTRY:
-    case EXIT:
-    case BUILTIN_CONTINUATION:
-    case JAVA_SCRIPT_BUILTIN_CONTINUATION:
-    case JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
-    case BUILTIN_EXIT:
-    case STUB:
-    case INTERNAL:
-    case CONSTRUCT:
-#if V8_ENABLE_WEBASSEMBLY
-    case WASM_TO_JS:
-    case WASM:
-    case WASM_LIFTOFF_SETUP:
-    case WASM_EXIT:
-    case WASM_DEBUG_BREAK:
-    case JS_TO_WASM:
-    case STACK_SWITCH:
-#endif  // V8_ENABLE_WEBASSEMBLY
-      return candidate;
 
-    // Any other marker value is likely to be a bogus stack frame when being
-    // called from the profiler (in particular, JavaScript frames, including
-    // interpreted frames, should never have a StackFrame::Type
-    // marker). Consider these frames "native".
-    default:
-      return NATIVE;
+  // We use unauthenticated_pc because it may come from
+  // fast_c_call_caller_pc_address, for which authentication does not work.
+  const Address pc = StackFrame::unauthenticated_pc(state->pc_address);
+  MSAN_MEMORY_IS_INITIALIZED(
+      state->fp + StandardFrameConstants::kFunctionOffset, kSystemPointerSize);
+  Object maybe_function = Object(
+      Memory<Address>(state->fp + StandardFrameConstants::kFunctionOffset));
+  if (maybe_function.IsSmi()) {
+    return StackFrame::NATIVE;
+  } else if (IsInterpreterFramePc(isolate(), pc, state)) {
+    return StackFrame::INTERPRETED;
   }
+  return StackFrame::TURBOFAN;
 }
-
-#ifdef DEBUG
-bool StackFrame::can_access_heap_objects() const {
-  return iterator_->can_access_heap_objects_;
-}
-#endif
 
 StackFrame::Type StackFrame::GetCallerState(State* state) const {
   ComputeCallerState(state);
-  return ComputeType(iterator_, state);
+  return iterator_->ComputeStackFrameType(state);
 }
 
 Address CommonFrame::GetCallerStackPointer() const {
@@ -818,9 +851,9 @@ void EntryFrame::ComputeCallerState(State* state) const {
 }
 
 StackFrame::Type EntryFrame::GetCallerState(State* state) const {
-  const int offset = EntryFrameConstants::kCallerFPOffset;
-  Address fp = Memory<Address>(this->fp() + offset);
-  return ExitFrame::GetStateForFramePointer(fp, state);
+  Address next_exit_frame_fp =
+      Memory<Address>(fp() + EntryFrameConstants::kNextExitFrameFPOffset);
+  return ExitFrame::GetStateForFramePointer(next_exit_frame_fp, state);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -851,7 +884,7 @@ void ExitFrame::ComputeCallerState(State* state) const {
 void ExitFrame::Iterate(RootVisitor* v) const {
   // The arguments are traversed as part of the expression stack of
   // the calling frame.
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCodeT());
+  IteratePc(v, pc_address(), constant_pool_address(), GcSafeLookupCode());
 }
 
 StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
@@ -927,10 +960,10 @@ void BuiltinExitFrame::Summarize(std::vector<FrameSummary>* frames) const {
   DCHECK(frames->empty());
   Handle<FixedArray> parameters = GetParameters();
   DisallowGarbageCollection no_gc;
-  CodeLookupResult code = LookupCodeT();
+  Code code = LookupCode();
   int code_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
   FrameSummary::JavaScriptFrameSummary summary(
-      isolate(), receiver(), function(), code.ToAbstractCode(), code_offset,
+      isolate(), receiver(), function(), AbstractCode::cast(code), code_offset,
       IsConstructor(), *parameters);
   frames->push_back(summary);
 }
@@ -1039,9 +1072,9 @@ Object CommonFrame::context() const {
 }
 
 int CommonFrame::position() const {
-  CodeLookupResult code = LookupCodeT();
+  Code code = LookupCode();
   int code_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
-  return code.ToAbstractCode().SourcePosition(isolate(), code_offset);
+  return AbstractCode::cast(code).SourcePosition(isolate(), code_offset);
 }
 
 int CommonFrame::ComputeExpressionsCount() const {
@@ -1063,12 +1096,12 @@ void CommonFrame::ComputeCallerState(State* state) const {
   }
 #endif
   state->sp = caller_sp();
-  state->pc_address = ResolveReturnAddressLocation(
-      reinterpret_cast<Address*>(ComputePCAddress(fp())));
+  state->pc_address = ResolveReturnAddressLocation(reinterpret_cast<Address*>(
+      fp() + StandardFrameConstants::kCallerPCOffset));
   state->callee_fp = fp();
   state->callee_pc_address = pc_address();
-  state->constant_pool_address =
-      reinterpret_cast<Address*>(ComputeConstantPoolAddress(fp()));
+  state->constant_pool_address = reinterpret_cast<Address*>(
+      fp() + StandardFrameConstants::kConstantPoolOffset);
 }
 
 void CommonFrame::Summarize(std::vector<FrameSummary>* functions) const {
@@ -1092,10 +1125,10 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
   // FullMaybeObjectSlots here.
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     // When external code space is enabled the spill slot could contain both
-    // Code and non-Code references, which have different cage bases. So
-    // unconditional decompression of the value might corrupt Code pointers.
-    // However, given that
-    // 1) the Code pointers are never compressed by design (because
+    // InstructionStream and non-InstructionStream references, which have
+    // different cage bases. So unconditional decompression of the value might
+    // corrupt InstructionStream pointers. However, given that 1) the
+    // InstructionStream pointers are never compressed by design (because
     //    otherwise we wouldn't know which cage base to apply for
     //    decompression, see respective DCHECKs in
     //    RelocInfo::target_object()),
@@ -1104,23 +1137,23 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
     // we can avoid updating upper part of the spill slot if it already
     // contains full value.
     // TODO(v8:11880): Remove this special handling by enforcing builtins
-    // to use CodeTs instead of Code objects.
+    // to use CodeTs instead of InstructionStream objects.
     Address value = *spill_slot.location();
     if (!HAS_SMI_TAG(value) && value <= 0xffffffff) {
       // We don't need to update smi values or full pointers.
       was_compressed = true;
-      *spill_slot.location() = V8HeapCompressionScheme::DecompressTaggedPointer(
+      *spill_slot.location() = V8HeapCompressionScheme::DecompressTagged(
           cage_base, static_cast<Tagged_t>(value));
       if (DEBUG_BOOL) {
         // Ensure that the spill slot contains correct heap object.
         HeapObject raw = HeapObject::cast(Object(*spill_slot.location()));
         MapWord map_word = raw.map_word(cage_base, kRelaxedLoad);
         HeapObject forwarded = map_word.IsForwardingAddress()
-                                   ? map_word.ToForwardingAddress()
+                                   ? map_word.ToForwardingAddress(raw)
                                    : raw;
         bool is_self_forwarded =
-            forwarded.map_word(cage_base, kRelaxedLoad).ptr() ==
-            forwarded.address();
+            forwarded.map_word(cage_base, kRelaxedLoad) ==
+            MapWord::FromForwardingAddress(forwarded, forwarded);
         if (is_self_forwarded) {
           // The object might be in a self-forwarding state if it's located
           // in new large object space. GC will fix this at a later stage.
@@ -1132,7 +1165,7 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
           MapWord fwd_map_map_word =
               forwarded_map.map_word(cage_base, kRelaxedLoad);
           if (fwd_map_map_word.IsForwardingAddress()) {
-            forwarded_map = fwd_map_map_word.ToForwardingAddress();
+            forwarded_map = fwd_map_map_word.ToForwardingAddress(forwarded_map);
           }
           CHECK(forwarded_map.IsMap(cage_base));
         }
@@ -1144,7 +1177,7 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
     if (!HAS_SMI_TAG(compressed_value)) {
       was_compressed = slot_contents <= 0xFFFFFFFF;
       // We don't need to update smi values.
-      *spill_slot.location() = V8HeapCompressionScheme::DecompressTaggedPointer(
+      *spill_slot.location() = V8HeapCompressionScheme::DecompressTagged(
           cage_base, compressed_value);
     }
   }
@@ -1180,11 +1213,12 @@ SafepointEntry GetSafepointEntryFromCodeCache(
     InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry) {
   if (!entry->safepoint_entry.is_initialized()) {
     entry->safepoint_entry =
-        entry->code.GetSafepointEntry(isolate, inner_pointer);
+        SafepointTable::FindEntry(isolate, entry->code.value(), inner_pointer);
     DCHECK(entry->safepoint_entry.is_initialized());
   } else {
-    DCHECK_EQ(entry->safepoint_entry,
-              entry->code.GetSafepointEntry(isolate, inner_pointer));
+    DCHECK_EQ(
+        entry->safepoint_entry,
+        SafepointTable::FindEntry(isolate, entry->code.value(), inner_pointer));
   }
   return entry->safepoint_entry;
 }
@@ -1193,12 +1227,13 @@ MaglevSafepointEntry GetMaglevSafepointEntryFromCodeCache(
     Isolate* isolate, Address inner_pointer,
     InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry) {
   if (!entry->maglev_safepoint_entry.is_initialized()) {
-    entry->maglev_safepoint_entry =
-        entry->code.GetMaglevSafepointEntry(isolate, inner_pointer);
+    entry->maglev_safepoint_entry = MaglevSafepointTable::FindEntry(
+        isolate, entry->code.value(), inner_pointer);
     DCHECK(entry->maglev_safepoint_entry.is_initialized());
   } else {
     DCHECK_EQ(entry->maglev_safepoint_entry,
-              entry->code.GetMaglevSafepointEntry(isolate, inner_pointer));
+              MaglevSafepointTable::FindEntry(isolate, entry->code.value(),
+                                              inner_pointer));
   }
   return entry->maglev_safepoint_entry;
 }
@@ -1207,9 +1242,7 @@ MaglevSafepointEntry GetMaglevSafepointEntryFromCodeCache(
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 void WasmFrame::Iterate(RootVisitor* v) const {
-  // Make sure that we're not doing "safe" stack frame iteration. We cannot
-  // possibly find pointers in optimized frames in that state.
-  DCHECK(can_access_heap_objects());
+  DCHECK(!iterator_->IsStackFrameIteratorForProfiler());
 
   //  ===  WasmFrame ===
   //  +-----------------+-----------------------------------------
@@ -1261,7 +1294,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
                 "WasmExitFrame has one slot more than WasmFrame");
 
   int frame_header_size = WasmFrameConstants::kFixedFrameSizeFromFp;
-  if (wasm_code->is_liftoff() && v8_flags.wasm_speculative_inlining) {
+  if (wasm_code->is_liftoff() && wasm_code->frame_has_feedback_slot()) {
     // Frame has Wasm feedback slot.
     frame_header_size += kSystemPointerSize;
   }
@@ -1314,9 +1347,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void TypedFrame::Iterate(RootVisitor* v) const {
-  // Make sure that we're not doing "safe" stack frame iteration. We cannot
-  // possibly find pointers in optimized frames in that state.
-  DCHECK(can_access_heap_objects());
+  DCHECK(!iterator_->IsStackFrameIteratorForProfiler());
 
   //  ===  TypedFrame ===
   //  +-----------------+-----------------------------------------
@@ -1341,8 +1372,9 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   Address inner_pointer = pc();
   InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
-  CHECK(entry->code.IsFound());
-  DCHECK(entry->code.is_turbofanned());
+  CHECK(entry->code.has_value());
+  GcSafeCode code = entry->code.value();
+  DCHECK(code.is_turbofanned());
   SafepointEntry safepoint_entry =
       GetSafepointEntryFromCodeCache(isolate(), inner_pointer, entry);
 
@@ -1355,7 +1387,7 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   // Determine the fixed header and spill slot area size.
   int frame_header_size = TypedFrameConstants::kFixedFrameSizeFromFp;
   int spill_slots_size =
-      entry->code.stack_slots() * kSystemPointerSize -
+      code.stack_slots() * kSystemPointerSize -
       (frame_header_size + StandardFrameConstants::kFixedFrameSizeAboveFp);
 
   // Fixed frame slots.
@@ -1368,13 +1400,13 @@ void TypedFrame::Iterate(RootVisitor* v) const {
                                   spill_slots_size);
 
   // Visit the rest of the parameters.
-  if (HasTaggedOutgoingParams(entry->code)) {
+  if (HasTaggedOutgoingParams(code)) {
     v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
                          parameters_limit);
   }
 
   // Visit pointer spill slots and locals.
-  DCHECK_GE((entry->code.stack_slots() + kBitsPerByte) / kBitsPerByte,
+  DCHECK_GE((code.stack_slots() + kBitsPerByte) / kBitsPerByte,
             safepoint_entry.tagged_slots().size());
   VisitSpillSlots(isolate(), v, parameters_limit,
                   safepoint_entry.tagged_slots());
@@ -1384,13 +1416,11 @@ void TypedFrame::Iterate(RootVisitor* v) const {
                        frame_header_limit);
 
   // Visit the return address in the callee and incoming arguments.
-  IteratePc(v, pc_address(), constant_pool_address(), entry->code);
+  IteratePc(v, pc_address(), constant_pool_address(), code);
 }
 
 void MaglevFrame::Iterate(RootVisitor* v) const {
-  // Make sure that we're not doing "safe" stack frame iteration. We cannot
-  // possibly find pointers in optimized frames in that state.
-  DCHECK(can_access_heap_objects());
+  DCHECK(!iterator_->IsStackFrameIteratorForProfiler());
 
   //  ===  MaglevFrame ===
   //  +-----------------+-----------------------------------------
@@ -1431,8 +1461,9 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
   Address inner_pointer = pc();
   InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
-  CHECK(entry->code.IsFound());
-  DCHECK(entry->code.is_maglevved());
+  CHECK(entry->code.has_value());
+  GcSafeCode code = entry->code.value();
+  DCHECK(code.is_maglevved());
   MaglevSafepointEntry maglev_safepoint_entry =
       GetMaglevSafepointEntryFromCodeCache(isolate(), inner_pointer, entry);
 
@@ -1453,50 +1484,13 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
   uint32_t tagged_slot_count = maglev_safepoint_entry.num_tagged_slots();
   uint32_t spill_slot_count =
       tagged_slot_count + maglev_safepoint_entry.num_untagged_slots();
-  DCHECK_EQ(entry->code.stack_slots(),
+  DCHECK_EQ(code.stack_slots(),
             StandardFrameConstants::kFixedSlotCount +
                 maglev_safepoint_entry.num_tagged_slots() +
                 maglev_safepoint_entry.num_untagged_slots());
 
-  // Check that our frame size is big enough for our spill slots and pushed
-  // registers.
-  intptr_t actual_frame_size = static_cast<intptr_t>(fp() - sp());
-  intptr_t expected_frame_size_excl_outgoing_params =
-      StandardFrameConstants::kFixedFrameSizeFromFp +
-      (spill_slot_count + maglev_safepoint_entry.num_pushed_registers()) *
-          kSystemPointerSize;
-  if (actual_frame_size < expected_frame_size_excl_outgoing_params) {
-    // If the frame size is smaller than the expected size, then we must be in
-    // the stack guard in the prologue of the maglev function. This means that
-    // we've set up the frame header, but not the spill slots yet.
-
-    if (v8_flags.maglev_ool_prologue) {
-      // DCHECK the frame setup under the above assumption. The
-      // MaglevOutOfLinePrologue builtin creates an INTERNAL frame for the
-      // StackGuardWithGap call (where extra slots and args are), so the MAGLEV
-      // frame itself is exactly kFixedFrameSizeFromFp.
-      DCHECK_EQ(actual_frame_size,
-                StandardFrameConstants::kFixedFrameSizeFromFp);
-      DCHECK_EQ(isolate()->c_function(),
-                Runtime::FunctionForId(Runtime::kStackGuardWithGap)->entry);
-      DCHECK_EQ(maglev_safepoint_entry.num_pushed_registers(), 0);
-    } else {
-      // DCHECK the frame setup under the above assumption. Include one extra
-      // slot for the single argument into StackGuardWithGap, and another for
-      // the saved new.target register.
-      DCHECK_EQ(actual_frame_size,
-                StandardFrameConstants::kFixedFrameSizeFromFp +
-                    2 * kSystemPointerSize);
-      DCHECK_EQ(isolate()->c_function(),
-                Runtime::FunctionForId(Runtime::kStackGuardWithGap)->entry);
-      DCHECK_EQ(maglev_safepoint_entry.num_pushed_registers(), 0);
-    }
-    spill_slot_count = 0;
-    tagged_slot_count = 0;
-  }
-
   // Visit the outgoing parameters if they are tagged.
-  DCHECK(entry->code.has_tagged_outgoing_params());
+  DCHECK(code.has_tagged_outgoing_params());
   FullObjectSlot parameters_base(&Memory<Address>(sp()));
   FullObjectSlot parameters_limit =
       frame_header_base - spill_slot_count -
@@ -1533,7 +1527,7 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
                        frame_header_limit);
 
   // Visit the return address in the callee and incoming arguments.
-  IteratePc(v, pc_address(), constant_pool_address(), entry->code);
+  IteratePc(v, pc_address(), constant_pool_address(), code);
 }
 
 BytecodeOffset MaglevFrame::GetBytecodeOffsetForOSR() const {
@@ -1547,7 +1541,7 @@ BytecodeOffset MaglevFrame::GetBytecodeOffsetForOSR() const {
   return data.GetBytecodeOffset(deopt_index);
 }
 
-bool CommonFrame::HasTaggedOutgoingParams(CodeLookupResult& code_lookup) const {
+bool CommonFrame::HasTaggedOutgoingParams(GcSafeCode code_lookup) const {
 #if V8_ENABLE_WEBASSEMBLY
   // With inlined JS-to-Wasm calls, we can be in an OptimizedFrame and
   // directly call a Wasm function from JavaScript. In this case the
@@ -1561,20 +1555,14 @@ bool CommonFrame::HasTaggedOutgoingParams(CodeLookupResult& code_lookup) const {
 }
 
 HeapObject TurbofanStubWithContextFrame::unchecked_code() const {
-  CodeLookupResult code_lookup = isolate()->FindCodeObject(pc());
-  if (code_lookup.IsCodeDataContainer()) {
-    return code_lookup.code_data_container();
-  }
-  if (code_lookup.IsCode()) {
-    return code_lookup.code();
-  }
-  return {};
+  base::Optional<GcSafeCode> code_lookup =
+      isolate()->heap()->GcSafeTryFindCodeForInnerPointer(pc());
+  if (!code_lookup.has_value()) return {};
+  return code_lookup.value();
 }
 
 void CommonFrame::IterateTurbofanOptimizedFrame(RootVisitor* v) const {
-  // Make sure that we're not doing "safe" stack frame iteration. We cannot
-  // possibly find pointers in optimized frames in that state.
-  DCHECK(can_access_heap_objects());
+  DCHECK(!iterator_->IsStackFrameIteratorForProfiler());
 
   //  ===  TurbofanFrame ===
   //  +-----------------+-----------------------------------------
@@ -1603,8 +1591,9 @@ void CommonFrame::IterateTurbofanOptimizedFrame(RootVisitor* v) const {
   Address inner_pointer = pc();
   InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
-  CHECK(entry->code.IsFound());
-  DCHECK(entry->code.is_turbofanned());
+  CHECK(entry->code.has_value());
+  GcSafeCode code = entry->code.value();
+  DCHECK(code.is_turbofanned());
   SafepointEntry safepoint_entry =
       GetSafepointEntryFromCodeCache(isolate(), inner_pointer, entry);
 
@@ -1618,7 +1607,7 @@ void CommonFrame::IterateTurbofanOptimizedFrame(RootVisitor* v) const {
   // Determine the fixed header and spill slot area size.
   int frame_header_size = StandardFrameConstants::kFixedFrameSizeFromFp;
   int spill_slot_count =
-      entry->code.stack_slots() - StandardFrameConstants::kFixedSlotCount;
+      code.stack_slots() - StandardFrameConstants::kFixedSlotCount;
 
   // Fixed frame slots.
   FullObjectSlot frame_header_base(&Memory<Address>(fp() - frame_header_size));
@@ -1629,14 +1618,14 @@ void CommonFrame::IterateTurbofanOptimizedFrame(RootVisitor* v) const {
   FullObjectSlot parameters_limit = frame_header_base - spill_slot_count;
 
   // Visit the outgoing parameters if they are tagged.
-  if (HasTaggedOutgoingParams(entry->code)) {
+  if (HasTaggedOutgoingParams(code)) {
     v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
                          parameters_limit);
   }
 
   // Spill slots are in the region ]frame_header_base, parameters_limit];
   // Visit pointer spill slots and locals.
-  DCHECK_GE((entry->code.stack_slots() + kBitsPerByte) / kBitsPerByte,
+  DCHECK_GE((code.stack_slots() + kBitsPerByte) / kBitsPerByte,
             safepoint_entry.tagged_slots().size());
   VisitSpillSlots(isolate(), v, parameters_limit,
                   safepoint_entry.tagged_slots());
@@ -1647,7 +1636,7 @@ void CommonFrame::IterateTurbofanOptimizedFrame(RootVisitor* v) const {
                        frame_header_limit);
 
   // Visit the return address in the callee and incoming arguments.
-  IteratePc(v, pc_address(), constant_pool_address(), entry->code);
+  IteratePc(v, pc_address(), constant_pool_address(), code);
 }
 
 void TurbofanStubWithContextFrame::Iterate(RootVisitor* v) const {
@@ -1659,21 +1648,17 @@ void TurbofanFrame::Iterate(RootVisitor* v) const {
 }
 
 HeapObject StubFrame::unchecked_code() const {
-  CodeLookupResult code_lookup = isolate()->FindCodeObject(pc());
-  if (code_lookup.IsCodeDataContainer()) {
-    return code_lookup.code_data_container();
-  }
-  if (code_lookup.IsCode()) {
-    return code_lookup.code();
-  }
-  return {};
+  base::Optional<GcSafeCode> code_lookup =
+      isolate()->heap()->GcSafeTryFindCodeForInnerPointer(pc());
+  if (!code_lookup.has_value()) return {};
+  return code_lookup.value();
 }
 
 int StubFrame::LookupExceptionHandlerInTable() {
-  CodeLookupResult code = LookupCodeT();
+  Code code = LookupCode();
   DCHECK(code.is_turbofanned());
   DCHECK_EQ(code.kind(), CodeKind::BUILTIN);
-  HandlerTable table(code.codet());
+  HandlerTable table(code);
   int pc_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
   return table.LookupReturn(pc_offset);
 }
@@ -1686,19 +1671,12 @@ bool JavaScriptFrame::IsConstructor() const {
   return IsConstructFrame(caller_fp());
 }
 
-bool JavaScriptFrame::HasInlinedFrames() const {
-  std::vector<SharedFunctionInfo> functions;
-  GetFunctions(&functions);
-  return functions.size() > 1;
-}
-
 HeapObject CommonFrameWithJSLinkage::unchecked_code() const {
   return function().code();
 }
 
 int TurbofanFrame::ComputeParametersCount() const {
-  CodeLookupResult code = LookupCodeT();
-  if (code.kind() == CodeKind::BUILTIN) {
+  if (GcSafeLookupCode().kind() == CodeKind::BUILTIN) {
     return static_cast<int>(
                Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset)) -
            kJSArgcReceiverSlots;
@@ -1735,9 +1713,10 @@ bool CommonFrameWithJSLinkage::IsConstructor() const {
 void CommonFrameWithJSLinkage::Summarize(
     std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
-  CodeLookupResult code = LookupCodeT();
+  GcSafeCode code = GcSafeLookupCode();
   int offset = code.GetOffsetFromInstructionStart(isolate(), pc());
-  Handle<AbstractCode> abstract_code(code.ToAbstractCode(), isolate());
+  Handle<AbstractCode> abstract_code(
+      AbstractCode::cast(code.UnsafeCastToCode()), isolate());
   Handle<FixedArray> params = GetParameters();
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), *abstract_code, offset,
@@ -1774,7 +1753,7 @@ Script JavaScriptFrame::script() const {
 int CommonFrameWithJSLinkage::LookupExceptionHandlerInTable(
     int* stack_depth, HandlerTable::CatchPrediction* prediction) {
   if (DEBUG_BOOL) {
-    CodeLookupResult code_lookup_result = LookupCodeT();
+    Code code_lookup_result = LookupCode();
     CHECK(!code_lookup_result.has_handler_table());
     CHECK(!code_lookup_result.is_optimized_code() ||
           code_lookup_result.kind() == CodeKind::BASELINE);
@@ -1816,7 +1795,7 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
                                bool print_line_number) {
   // constructor calls
   DisallowGarbageCollection no_gc;
-  JavaScriptFrameIterator it(isolate);
+  JavaScriptStackFrameIterator it(isolate);
   while (!it.done()) {
     if (it.frame()->is_java_script()) {
       JavaScriptFrame* frame = it.frame();
@@ -1833,8 +1812,8 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
         code_offset = baseline_frame->GetBytecodeOffset();
         abstract_code = AbstractCode::cast(baseline_frame->GetBytecodeArray());
       } else {
-        CodeLookupResult code = frame->LookupCodeT();
-        code_offset = code.GetOffsetFromInstructionStart(isolate, frame->pc());
+        code_offset = frame->LookupCode().GetOffsetFromInstructionStart(
+            isolate, frame->pc());
       }
       PrintFunctionAndOffset(function, abstract_code, code_offset, file,
                              print_line_number);
@@ -1884,7 +1863,7 @@ Object CommonFrameWithJSLinkage::GetParameter(int index) const {
 }
 
 int CommonFrameWithJSLinkage::ComputeParametersCount() const {
-  DCHECK(can_access_heap_objects() &&
+  DCHECK(!iterator_->IsStackFrameIteratorForProfiler() &&
          isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
   return function().shared().internal_formal_parameter_count_without_receiver();
 }
@@ -2158,7 +2137,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
 
   // Delegate to JS frame in absence of deoptimization info.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
-  CodeLookupResult code = LookupCodeT();
+  GcSafeCode code = GcSafeLookupCode();
   if (code.kind() == CodeKind::BUILTIN) {
     return JavaScriptFrame::Summarize(frames);
   }
@@ -2228,10 +2207,9 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
           it->kind() ==
               TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
         code_offset = 0;
-        abstract_code = ToAbstractCode(
-            isolate()->builtins()->code_handle(
-                Builtins::GetBuiltinFromBytecodeOffset(it->bytecode_offset())),
-            isolate());
+        abstract_code =
+            Handle<AbstractCode>::cast(isolate()->builtins()->code_handle(
+                Builtins::GetBuiltinFromBytecodeOffset(it->bytecode_offset())));
       } else {
         DCHECK_EQ(it->kind(), TranslatedFrame::kUnoptimizedFunction);
         code_offset = it->bytecode_offset().ToInt();
@@ -2260,7 +2238,7 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
   // to use FrameSummary to find the corresponding code offset in unoptimized
   // code to perform prediction there.
   DCHECK_NULL(prediction);
-  CodeT code = LookupCodeT().ToCodeT();
+  Code code = LookupCode();
 
   HandlerTable table(code);
   if (table.NumberOfReturnEntries() == 0) return -1;
@@ -2277,15 +2255,14 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
   return table.LookupReturn(pc_offset);
 }
 
-int MaglevFrame::FindReturnPCForTrampoline(CodeT code,
-                                           int trampoline_pc) const {
+int MaglevFrame::FindReturnPCForTrampoline(Code code, int trampoline_pc) const {
   DCHECK_EQ(code.kind(), CodeKind::MAGLEV);
   DCHECK(code.marked_for_deoptimization());
   MaglevSafepointTable safepoints(isolate(), pc(), code);
   return safepoints.find_return_pc(trampoline_pc);
 }
 
-int TurbofanFrame::FindReturnPCForTrampoline(CodeT code,
+int TurbofanFrame::FindReturnPCForTrampoline(Code code,
                                              int trampoline_pc) const {
   DCHECK_EQ(code.kind(), CodeKind::TURBOFAN);
   DCHECK(code.marked_for_deoptimization());
@@ -2298,16 +2275,15 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
   DCHECK(is_optimized());
 
   JSFunction opt_function = function();
-  CodeT code = opt_function.code();
+  Code code = opt_function.code();
 
-  // The code object may have been replaced by lazy deoptimization. Fall
-  // back to a slow search in this case to find the original optimized
-  // code object.
+  // The code object may have been replaced by lazy deoptimization. Fall back
+  // to a slow search in this case to find the original optimized code object.
   if (!code.contains(isolate(), pc())) {
-    CodeLookupResult lookup_result =
-        isolate()->heap()->GcSafeFindCodeForInnerPointer(pc());
-    CHECK(lookup_result.IsFound());
-    code = lookup_result.ToCodeT();
+    code = isolate()
+               ->heap()
+               ->GcSafeFindCodeForInnerPointer(pc())
+               .UnsafeCastToCode();
   }
   DCHECK(!code.is_null());
   DCHECK(CodeKindCanDeoptimize(code.kind()));
@@ -2337,7 +2313,7 @@ void OptimizedFrame::GetFunctions(
 
   // Delegate to JS frame in absence of turbofan deoptimization.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
-  CodeLookupResult code = LookupCodeT();
+  Code code = LookupCode();
   if (code.kind() == CodeKind::BUILTIN) {
     return JavaScriptFrame::GetFunctions(functions);
   }
@@ -2351,32 +2327,33 @@ void OptimizedFrame::GetFunctions(
 
   TranslationArrayIterator it(data.TranslationByteArray(),
                               data.TranslationIndex(deopt_index).value());
-  TranslationOpcode opcode = TranslationOpcodeFromInt(it.NextUnsigned());
-  DCHECK_EQ(TranslationOpcode::BEGIN, opcode);
-  it.Next();  // Skip frame count.
-  int jsframe_count = it.Next();
-  it.Next();  // Skip update feedback count.
+  TranslationOpcode opcode = it.NextOpcode();
+  DCHECK(TranslationOpcodeIsBegin(opcode));
+  it.NextOperand();  // Skip lookback distance.
+  it.NextOperand();  // Skip frame count.
+  int jsframe_count = it.NextOperand();
 
   // We insert the frames in reverse order because the frames
   // in the deoptimization translation are ordered bottom-to-top.
   while (jsframe_count != 0) {
-    opcode = TranslationOpcodeFromInt(it.NextUnsigned());
-    if (opcode == TranslationOpcode::INTERPRETED_FRAME ||
+    opcode = it.NextOpcode();
+    if (opcode == TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN ||
+        opcode == TranslationOpcode::INTERPRETED_FRAME_WITHOUT_RETURN ||
         opcode == TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME ||
         opcode == TranslationOpcode::
                       JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME) {
-      it.Next();  // Skip bailout id.
+      it.NextOperand();  // Skip bailout id.
       jsframe_count--;
 
       // The second operand of the frame points to the function.
-      Object shared = literal_array.get(it.Next());
+      Object shared = literal_array.get(it.NextOperand());
       functions->push_back(SharedFunctionInfo::cast(shared));
 
       // Skip over remaining operands to advance to the next opcode.
-      it.Skip(TranslationOpcodeOperandCount(opcode) - 2);
+      it.SkipOperands(TranslationOpcodeOperandCount(opcode) - 2);
     } else {
       // Skip over operands to advance to the next opcode.
-      it.Skip(TranslationOpcodeOperandCount(opcode));
+      it.SkipOperands(TranslationOpcodeOperandCount(opcode));
     }
   }
 }
@@ -2464,12 +2441,12 @@ void InterpretedFrame::PatchBytecodeArray(BytecodeArray bytecode_array) {
 }
 
 int BaselineFrame::GetBytecodeOffset() const {
-  Code code = LookupCodeT().code();
+  InstructionStream code = LookupCode().instruction_stream();
   return code.GetBytecodeOffsetForBaselinePC(this->pc(), GetBytecodeArray());
 }
 
 intptr_t BaselineFrame::GetPCForBytecodeOffset(int bytecode_offset) const {
-  Code code = LookupCodeT().code();
+  InstructionStream code = LookupCode().instruction_stream();
   return code.GetBaselineStartPCForBytecodeOffset(bytecode_offset,
                                                   GetBytecodeArray());
 }
@@ -2500,7 +2477,7 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
     return;
   }
   wasm::WasmCodeRefScope code_ref_scope;
-  accumulator->Add("Wasm [");
+  accumulator->Add(is_wasm_to_js() ? "Wasm-to-JS [" : "Wasm [");
   accumulator->PrintName(script().name());
   Address instruction_start = wasm_code()->instruction_start();
   base::Vector<const uint8_t> raw_func_name =
@@ -2631,13 +2608,19 @@ void WasmDebugBreakFrame::Print(StringStream* accumulator, PrintMode mode,
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
 
+WasmInstanceObject WasmToJsFrame::wasm_instance() const {
+  // WasmToJsFrames hold the {WasmApiFunctionRef} object in the instance slot.
+  // Load the instance from there.
+  const int offset = WasmFrameConstants::kWasmInstanceOffset;
+  Object func_ref_obj(Memory<Address>(fp() + offset));
+  WasmApiFunctionRef func_ref = WasmApiFunctionRef::cast(func_ref_obj);
+  return WasmInstanceObject::cast(func_ref.instance());
+}
+
 void JsToWasmFrame::Iterate(RootVisitor* v) const {
-  CodeLookupResult lookup_result = GetContainingCode(isolate(), pc());
-  CHECK(lookup_result.IsFound());
-#ifdef DEBUG
-  Builtin builtin = lookup_result.builtin_id();
-  DCHECK_EQ(builtin, Builtin::kGenericJSToWasmWrapper);
-#endif  // DEBUG
+  DCHECK_EQ(GetContainingCode(isolate(), pc())->builtin_id(),
+            Builtin::kGenericJSToWasmWrapper);
+
   //  GenericJSToWasmWrapper stack layout
   //  ------+-----------------+----------------------
   //        |  return addr    |
@@ -2910,7 +2893,7 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
 }
 
 void EntryFrame::Iterate(RootVisitor* v) const {
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCodeT());
+  IteratePc(v, pc_address(), constant_pool_address(), GcSafeLookupCode());
 }
 
 void CommonFrame::IterateExpressions(RootVisitor* v) const {
@@ -2933,11 +2916,11 @@ void CommonFrame::IterateExpressions(RootVisitor* v) const {
 
 void JavaScriptFrame::Iterate(RootVisitor* v) const {
   IterateExpressions(v);
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCodeT());
+  IteratePc(v, pc_address(), constant_pool_address(), GcSafeLookupCode());
 }
 
 void InternalFrame::Iterate(RootVisitor* v) const {
-  CodeLookupResult code = LookupCodeT();
+  GcSafeCode code = GcSafeLookupCode();
   IteratePc(v, pc_address(), constant_pool_address(), code);
   // Internal frames typically do not receive any arguments, hence their stack
   // only contains tagged pointers.
@@ -2973,12 +2956,18 @@ InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
   uint32_t index = hash & (kInnerPointerToCodeCacheSize - 1);
   InnerPointerToCodeCacheEntry* entry = cache(index);
   if (entry->inner_pointer == inner_pointer) {
-    if (DEBUG_BOOL) {
-      CodeLookupResult lookup_result =
-          isolate_->heap()->GcSafeFindCodeForInnerPointer(inner_pointer);
-      CHECK(lookup_result.IsFound());
-      CHECK_EQ(entry->code, lookup_result);
-    }
+    // Why this DCHECK holds is nontrivial:
+    //
+    // - the cache is filled lazily on calls to this function.
+    // - this function may be called while GC, and in particular
+    //   MarkCompactCollector::UpdatePointersAfterEvacuation, is in progress.
+    // - the cache is cleared at the end of UpdatePointersAfterEvacuation.
+    // - now, why does pointer equality hold even during moving GC?
+    // - .. because GcSafeFindCodeForInnerPointer does not follow forwarding
+    //   pointers and always returns the old object (which is still valid,
+    //   *except* for the map_word).
+    DCHECK_EQ(entry->code,
+              isolate_->heap()->GcSafeFindCodeForInnerPointer(inner_pointer));
   } else {
     // Because this code may be interrupted by a profiling signal that
     // also queries the cache, we cannot update inner_pointer before the code
@@ -2986,7 +2975,7 @@ InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
     // the code has been computed.
     entry->code =
         isolate_->heap()->GcSafeFindCodeForInnerPointer(inner_pointer);
-    if (entry->code.IsCode() && entry->code.code().is_maglevved()) {
+    if (entry->code->is_maglevved()) {
       entry->maglev_safepoint_entry.Reset();
     } else {
       entry->safepoint_entry.Reset();

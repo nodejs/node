@@ -1286,6 +1286,68 @@ TestFill(ArrayFillHelper, false);
     assertThrows(
         () => { TypedArrayFillHelper(fixedLength, 3, 1, evil); }, TypeError);
   }
+  // Resizing + a length-tracking TA -> no OOB, but bounds recomputation needed.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    const evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT); return 1;
+    }};
+    TypedArrayFillHelper(lengthTracking, evil, 0, 4);
+  }
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    const evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT); return 0;
+    }};
+    TypedArrayFillHelper(lengthTracking, 1, evil, 4);
+  }
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    const evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT); return 4;
+    }};
+    TypedArrayFillHelper(lengthTracking, 1, 0, evil);
+  }
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    const evil = { valueOf: () => {
+      rab.resize(0); return 1;
+    }};
+    TypedArrayFillHelper(lengthTracking, evil, 0, 4);
+  }
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    const evil = { valueOf: () => {
+      rab.resize(0); return 0;
+    }};
+    TypedArrayFillHelper(lengthTracking, 1, evil, 4);
+  }
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    const evil = { valueOf: () => {
+      rab.resize(0); return 4;
+    }};
+    TypedArrayFillHelper(lengthTracking, 1, 0, evil);
+  }
 })();
 
 (function ArrayFillParameterConversionResizes() {
@@ -1298,6 +1360,8 @@ TestFill(ArrayFillHelper, false);
       rab.resize(2 * ctor.BYTES_PER_ELEMENT); return 3;
     }};
     ArrayFillHelper(fixedLength, evil, 1, 2);
+    // The underlying data doesn't change: all writes fail because 'fixedLength'
+    // is OOB.
     assertEquals([0, 0], ReadDataFromBuffer(rab, ctor));
   }
   for (let ctor of ctors) {
@@ -1321,6 +1385,71 @@ TestFill(ArrayFillHelper, false);
     }};
     ArrayFillHelper(fixedLength, 3, 1, evil);
     assertEquals([0, 0], ReadDataFromBuffer(rab, ctor));
+  }
+  // Resizing + a length-tracking TA -> no OOB, but bounds recomputation needed.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    const evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT); return 3;
+    }};
+    ArrayFillHelper(lengthTracking, evil, 0, 4);
+    assertEquals([3, 3], ReadDataFromBuffer(rab, ctor));
+  }
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    const evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT); return 0;
+    }};
+    ArrayFillHelper(lengthTracking, 3, evil, 4);
+    assertEquals([3, 3], ReadDataFromBuffer(rab, ctor));
+  }
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    const evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT); return 4;
+    }};
+    ArrayFillHelper(lengthTracking, 3, 0, evil);
+    assertEquals([3, 3], ReadDataFromBuffer(rab, ctor));
+  }
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    const evil = { valueOf: () => {
+      rab.resize(0); return 3;
+    }};
+    ArrayFillHelper(lengthTracking, evil, 0, 4);
+  }
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    const evil = { valueOf: () => {
+      rab.resize(0); return 0;
+    }};
+    ArrayFillHelper(lengthTracking, 3, evil, 4);
+  }
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    const evil = { valueOf: () => {
+      rab.resize(0); return 4;
+    }};
+    ArrayFillHelper(lengthTracking, 3, 0, evil);
   }
 })();
 
@@ -1389,16 +1518,56 @@ function AtParameterConversionResizes(atHelper) {
                                            8 * ctor.BYTES_PER_ELEMENT);
     const fixedLength = new ctor(rab, 0, 4);
 
-    let evil = { valueOf: () => { rab.resize(2); return 0;}};
+    const evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT); return 0;
+    }};
     assertEquals(undefined, atHelper(fixedLength, evil));
   }
-
+  // Resizing + a length-tracking TA -> no OOB, but bounds recomputation needed.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
     const lengthTracking = new ctor(rab);
 
-    let evil = { valueOf: () => { rab.resize(2); return -1;}};
+    const evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT); return -1;
+    }};
+    // The TypedArray is *not* out of bounds since it's length-tracking.
+    assertEquals(undefined, atHelper(lengthTracking, evil));
+  }
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    WriteToTypedArray(lengthTracking, 0, 25);
+
+    const evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT); return 0;
+    }};
+    // The TypedArray is *not* out of bounds since it's length-tracking.
+    assertEquals(25, atHelper(lengthTracking, evil));
+  }
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    const evil = { valueOf: () => {
+      rab.resize(0); return -1;
+    }};
+    // The TypedArray is *not* out of bounds since it's length-tracking.
+    assertEquals(undefined, atHelper(lengthTracking, evil));
+  }
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    WriteToTypedArray(lengthTracking, 0, 25);
+
+    const evil = { valueOf: () => {
+      rab.resize(0); return 0;
+    }};
     // The TypedArray is *not* out of bounds since it's length-tracking.
     assertEquals(undefined, atHelper(lengthTracking, evil));
   }
@@ -1491,6 +1660,7 @@ AtParameterConversionResizes(ArrayAtHelper);
     assertThrows(() => { fixedLength.slice(evil); }, TypeError);
     assertEquals(2 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
   }
+  // Resizing + a length-tracking TA -> no OOB, but bounds recomputation needed.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -1502,6 +1672,19 @@ AtParameterConversionResizes(ArrayAtHelper);
                                     return 0; }};
     assertEquals([1, 2, 0, 0], ToNumbers(lengthTracking.slice(evil)));
     assertEquals(2 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i + 1);
+    }
+    const evil = { valueOf: () => { rab.resize(0);
+                                    return 0; }};
+    assertEquals([0, 0, 0, 0], ToNumbers(lengthTracking.slice(evil)));
+    assertEquals(0, rab.byteLength);
   }
 })();
 
@@ -1812,6 +1995,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     lengthTracking.copyWithin(evil, 0);
     assertEquals([0, 1, 0], ToNumbers(lengthTracking));
   }
+  // Resizing + a length-tracking TA -> no OOB, but bounds recomputation needed.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -1828,6 +2012,23 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
                                     return 2;}};
     lengthTracking.copyWithin(0, evil);
     assertEquals([2, 1, 2], ToNumbers(lengthTracking));
+  }
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i);
+    }
+    // [0, 1, 2, 3]
+    //        ^
+    //        start
+    // ^
+    // target
+    const evil = { valueOf: () => { rab.resize(0); return 2; }};
+    lengthTracking.copyWithin(0, evil);
+    assertEquals([], ToNumbers(lengthTracking));
   }
 })();
 
@@ -2229,7 +2430,7 @@ function EntriesKeysValuesShrinkMidIteration(
     return rab;
   }
 
-  // Iterating with entries() (the 4 loops below).
+  // Iterating with entries() (the 5 loops below).
   for (let ctor of ctors) {
     const rab = CreateRabForTest(ctor);
     const fixedLength = new ctor(rab, 0, 4);
@@ -2252,6 +2453,7 @@ function EntriesKeysValuesShrinkMidIteration(
                              rab, 1, 3 * ctor.BYTES_PER_ELEMENT); });
   }
 
+  // Resizing + a length-tracking TA -> no OOB.
   for (let ctor of ctors) {
     const rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
@@ -2259,6 +2461,16 @@ function EntriesKeysValuesShrinkMidIteration(
     TestIterationAndResize(entriesHelper(lengthTracking),
                            [[0, 0], [1, 2], [2, 4]],
                            rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+
+    TestIterationAndResize(entriesHelper(lengthTracking),
+                           [[0, 0]],
+                           rab, 1, 0);
   }
 
   for (let ctor of ctors) {
@@ -2270,7 +2482,7 @@ function EntriesKeysValuesShrinkMidIteration(
                            rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
   }
 
-  // Iterating with keys() (the 4 loops below).
+  // Iterating with keys() (the 5 loops below).
   for (let ctor of ctors) {
     const rab = CreateRabForTest(ctor);
     const fixedLength = new ctor(rab, 0, 4);
@@ -2293,6 +2505,7 @@ function EntriesKeysValuesShrinkMidIteration(
                              rab, 2, 3 * ctor.BYTES_PER_ELEMENT); });
   }
 
+  // Resizing + a length-tracking TA -> no OOB.
   for (let ctor of ctors) {
     const rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
@@ -2300,6 +2513,16 @@ function EntriesKeysValuesShrinkMidIteration(
     TestIterationAndResize(keysHelper(lengthTracking),
                            [0, 1, 2],
                            rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+
+    TestIterationAndResize(keysHelper(lengthTracking),
+                           [0],
+                           rab, 1, 0);
   }
 
   for (let ctor of ctors) {
@@ -2311,7 +2534,7 @@ function EntriesKeysValuesShrinkMidIteration(
                            rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
   }
 
-  // Iterating with values() (the 4 loops below).
+  // Iterating with values() (the 5 loops below).
   for (let ctor of ctors) {
     const rab = CreateRabForTest(ctor);
     const fixedLength = new ctor(rab, 0, 4);
@@ -2334,6 +2557,7 @@ function EntriesKeysValuesShrinkMidIteration(
                              rab, 2, 3 * ctor.BYTES_PER_ELEMENT); });
   }
 
+  // Resizing + a length-tracking TA -> no OOB.
   for (let ctor of ctors) {
     const rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
@@ -2341,6 +2565,16 @@ function EntriesKeysValuesShrinkMidIteration(
     TestIterationAndResize(valuesHelper(lengthTracking),
                            [0, 2, 4],
                            rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+
+    TestIterationAndResize(valuesHelper(lengthTracking),
+                           [0, 2],
+                           rab, 2, 0);
   }
 
   for (let ctor of ctors) {
@@ -2593,6 +2827,7 @@ function EveryShrinkMidIteration(everyHelper, hasUndefined) {
     }
   }
 
+  // Resizing + a length-tracking TA -> no OOB.
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
@@ -2604,6 +2839,21 @@ function EveryShrinkMidIteration(everyHelper, hasUndefined) {
       assertEquals([0, 2, 4, undefined], values);
     } else {
       assertEquals([0, 2, 4], values);
+    }
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    values = [];
+    resizeAfter = 2;
+    resizeTo = 0;
+    assertTrue(everyHelper(lengthTracking, CollectValuesAndResize));
+    if (hasUndefined) {
+      assertEquals([0, 2, undefined, undefined], values);
+    } else {
+      assertEquals([0, 2], values);
     }
   }
 
@@ -2761,6 +3011,7 @@ function SomeShrinkMidIteration(someHelper, hasUndefined) {
     }
   }
 
+  // Resizing + a length-tracking TA -> no OOB.
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
@@ -2772,6 +3023,21 @@ function SomeShrinkMidIteration(someHelper, hasUndefined) {
       assertEquals([0, 2, 4, undefined], values);
     } else {
       assertEquals([0, 2, 4], values);
+    }
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    values = [];
+    resizeAfter = 2;
+    resizeTo = 0;
+    assertFalse(someHelper(lengthTracking, CollectValuesAndResize));
+    if (hasUndefined) {
+      assertEquals([0, 2, undefined, undefined], values);
+    } else {
+      assertEquals([0, 2], values);
     }
   }
 
@@ -3171,6 +3437,7 @@ function FindShrinkMidIteration(findHelper) {
     assertEquals([4, undefined], values);
   }
 
+  // Resizing + a length-tracking TA -> no OOB.
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
@@ -3179,6 +3446,17 @@ function FindShrinkMidIteration(findHelper) {
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
     assertEquals(undefined, findHelper(lengthTracking, CollectValuesAndResize));
     assertEquals([0, 2, 4, undefined], values);
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    values = [];
+    resizeAfter = 2;
+    resizeTo = 0;
+    assertEquals(undefined, findHelper(lengthTracking, CollectValuesAndResize));
+    assertEquals([0, 2, undefined, undefined], values);
   }
 
   for (let ctor of ctors) {
@@ -3326,6 +3604,7 @@ function FindIndexShrinkMidIteration(findIndexHelper) {
     assertEquals([4, undefined], values);
   }
 
+  // Resizing + a length-tracking TA -> no OOB.
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
@@ -3334,6 +3613,17 @@ function FindIndexShrinkMidIteration(findIndexHelper) {
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
     assertEquals(-1, findIndexHelper(lengthTracking, CollectValuesAndResize));
     assertEquals([0, 2, 4, undefined], values);
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    values = [];
+    resizeAfter = 2;
+    resizeTo = 0;
+    assertEquals(-1, findIndexHelper(lengthTracking, CollectValuesAndResize));
+    assertEquals([0, 2, undefined, undefined], values);
   }
 
   for (let ctor of ctors) {
@@ -3479,6 +3769,7 @@ function FindLastShrinkMidIteration(findLastHelper) {
     assertEquals([6, undefined], values);
   }
 
+  // Resizing + a length-tracking TA -> no OOB.
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
@@ -3488,6 +3779,18 @@ function FindLastShrinkMidIteration(findLastHelper) {
     assertEquals(undefined,
                  findLastHelper(lengthTracking, CollectValuesAndResize));
     assertEquals([6, 4, 2, 0], values);
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    values = [];
+    resizeAfter = 2;
+    resizeTo = 0;
+    assertEquals(undefined,
+                 findLastHelper(lengthTracking, CollectValuesAndResize));
+    assertEquals([6, 4, undefined, undefined], values);
   }
 
   for (let ctor of ctors) {
@@ -3649,6 +3952,7 @@ function FindLastIndexShrinkMidIteration(findLastIndexHelper) {
     assertEquals([6, 4, 2, 0], values);
   }
 
+  // Resizing + a length-tracking TA -> no OOB.
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
@@ -3658,6 +3962,18 @@ function FindLastIndexShrinkMidIteration(findLastIndexHelper) {
     assertEquals(-1,
                  findLastIndexHelper(lengthTracking, CollectValuesAndResize));
     assertEquals([6, undefined, 2, 0], values);
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    values = [];
+    resizeAfter = 1;
+    resizeTo = 0;
+    assertEquals(-1,
+                 findLastIndexHelper(lengthTracking, CollectValuesAndResize));
+    assertEquals([6, undefined, undefined, undefined], values);
   }
 
   for (let ctor of ctors) {
@@ -3910,6 +4226,7 @@ Filter(ArrayFilterHelper, false);
     assertEquals([4, undefined], values);
   }
 
+  // Resizing + a length-tracking TA -> no OOB.
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
@@ -3918,6 +4235,17 @@ Filter(ArrayFilterHelper, false);
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
     assertEquals([], ToNumbers(lengthTracking.filter(CollectValuesAndResize)));
     assertEquals([0, 2, 4, undefined], values);
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    values = [];
+    resizeAfter = 2;
+    resizeTo = 0;
+    assertEquals([], ToNumbers(lengthTracking.filter(CollectValuesAndResize)));
+    assertEquals([0, 2, undefined, undefined], values);
   }
 
   for (let ctor of ctors) {
@@ -4199,12 +4527,22 @@ ForEachReduceReduceRight(ArrayForEachHelper, ArrayReduceHelper,
     assertEquals([4, undefined], ForEachHelper(fixedLengthWithOffset));
   }
 
+  // Resizing + a length-tracking TA -> no OOB.
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
     resizeAfter = 2;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
     assertEquals([0, 2, 4, undefined], ForEachHelper(lengthTracking));
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    resizeAfter = 2;
+    resizeTo = 0;
+    assertEquals([0, 2, undefined, undefined], ForEachHelper(lengthTracking));
   }
 
   for (let ctor of ctors) {
@@ -4233,12 +4571,22 @@ ForEachReduceReduceRight(ArrayForEachHelper, ArrayReduceHelper,
     assertEquals([4, undefined], ReduceHelper(fixedLengthWithOffset));
   }
 
+  // Resizing + a length-tracking TA -> no OOB.
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
     resizeAfter = 2;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
     assertEquals([0, 2, 4, undefined], ReduceHelper(lengthTracking));
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    resizeAfter = 2;
+    resizeTo = 0;
+    assertEquals([0, 2, undefined, undefined], ReduceHelper(lengthTracking));
   }
 
   for (let ctor of ctors) {
@@ -4267,6 +4615,7 @@ ForEachReduceReduceRight(ArrayForEachHelper, ArrayReduceHelper,
     assertEquals([6, undefined], ReduceRightHelper(fixedLengthWithOffset));
   }
 
+  // Resizing + a length-tracking TA -> no OOB.
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
@@ -4274,6 +4623,15 @@ ForEachReduceReduceRight(ArrayForEachHelper, ArrayReduceHelper,
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
     // Unaffected by the shrinking, since we've already iterated past the point.
     assertEquals([6, 4, 2, 0], ReduceRightHelper(lengthTracking));
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    resizeAfter = 2;
+    resizeTo = 0;
+    assertEquals([6, 4, undefined, undefined], ReduceRightHelper(lengthTracking));
   }
 
   for (let ctor of ctors) {
@@ -4621,6 +4979,7 @@ function IncludesParameterConversionResizes(helper) {
     assertFalse(helper(fixedLength, 0, evil));
   }
 
+  // Resizing + a length-tracking TA -> no OOB.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -4628,6 +4987,21 @@ function IncludesParameterConversionResizes(helper) {
 
     let evil = { valueOf: () => {
       rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+      return 0;
+    }};
+    assertFalse(helper(lengthTracking, undefined));
+    // "includes" iterates until the original length and sees "undefined"s.
+    assertTrue(helper(lengthTracking, undefined, evil));
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { valueOf: () => {
+      rab.resize(0);
       return 0;
     }};
     assertFalse(helper(lengthTracking, undefined));
@@ -4950,6 +5324,41 @@ function IndexOfParameterConversionShrinks(indexOfHelper, lastIndexOfHelper) {
     // 2 no longer found.
     assertEquals(-1, indexOfHelper(lengthTracking, 2, evil));
   }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i);
+    }
+
+    let evil = { valueOf: () => {
+      rab.resize(0);
+      return 2;
+    }};
+    assertEquals(2, indexOfHelper(lengthTracking, 2));
+    // 2 no longer found.
+    assertEquals(-1, indexOfHelper(lengthTracking, evil));
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i);
+    }
+
+    let evil = { valueOf: () => {
+      rab.resize(0);
+      return 1;
+    }};
+    assertEquals(2, indexOfHelper(lengthTracking, 2));
+    // 2 no longer found.
+    assertEquals(-1, indexOfHelper(lengthTracking, 2, evil));
+  }
 }
 IndexOfParameterConversionShrinks(TypedArrayIndexOfHelper);
 IndexOfParameterConversionShrinks(ArrayIndexOfHelper);
@@ -4995,6 +5404,41 @@ function LastIndexOfParameterConversionShrinks(lastIndexOfHelper) {
 
     let evil = { valueOf: () => {
       rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+      return 2;
+    }};
+    assertEquals(2, lastIndexOfHelper(lengthTracking, 2));
+    // 2 no longer found.
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, 2, evil));
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i);
+    }
+
+    const evil = { valueOf: () => {
+      rab.resize(0);
+      return 2;
+    }};
+    assertEquals(2, lastIndexOfHelper(lengthTracking, 2));
+    // 2 no longer found.
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, evil));
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i);
+    }
+
+    const evil = { valueOf: () => {
+      rab.resize(0);
       return 2;
     }};
     assertEquals(2, lastIndexOfHelper(lengthTracking, 2));
@@ -5258,6 +5702,21 @@ function JoinParameterConversionShrinks(joinHelper) {
     // the new length are converted to the empty string.
     assertEquals('0.0..', joinHelper(lengthTracking, evil));
   }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { toString: () => {
+      rab.resize(0);
+      return '.';
+    }};
+    // We iterate 4 elements, since it was the starting length. All elements are
+    // converted to the empty string.
+    assertEquals('...', joinHelper(lengthTracking, evil));
+  }
 }
 JoinParameterConversionShrinks(TypedArrayJoinHelper);
 JoinParameterConversionShrinks(ArrayJoinHelper);
@@ -5350,6 +5809,33 @@ function ToLocaleStringNumberPrototypeToLocaleStringShrinks(
     // We iterate 4 elements, since it was the starting length. Elements beyond
     // the new length are converted to the empty string.
     assertEquals('0,0,,', toLocaleStringHelper(lengthTracking));
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    let resizeAfter = 1;
+    Number.prototype.toLocaleString = function() {
+      --resizeAfter;
+      if (resizeAfter == 0) {
+        rab.resize(0);
+      }
+      return oldNumberPrototypeToLocaleString.call(this);
+    }
+    BigInt.prototype.toLocaleString = function() {
+      --resizeAfter;
+      if (resizeAfter == 0) {
+        rab.resize(0);
+      }
+      return oldBigIntPrototypeToLocaleString.call(this);
+    }
+
+    // We iterate 4 elements, since it was the starting length. Elements beyond
+    // the new length are converted to the empty string.
+    assertEquals('0,,,', toLocaleStringHelper(lengthTracking));
   }
 
   Number.prototype.toLocaleString = oldNumberPrototypeToLocaleString;
@@ -5619,6 +6105,20 @@ function MapShrinkMidIteration(mapHelper, hasUndefined) {
     }
   }
 
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    resizeAfter = 1;
+    resizeTo = 0;
+    if (hasUndefined) {
+      assertEquals([0, undefined, undefined, undefined],
+                   Helper(lengthTracking));
+    } else {
+      assertEquals([0], Helper(lengthTracking));
+    }
+  }
+
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
@@ -5775,6 +6275,33 @@ MapGrowMidIteration(ArrayMapHelper);
     resizeWhenConstructorCalled = true;
     assertEquals([0, 1, undefined, undefined], Helper(lengthTracking));
     assertEquals(2 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                     8 * ctor.BYTES_PER_ELEMENT);
+
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    let resizeWhenConstructorCalled = false;
+    class MyArray extends ctor {
+      constructor(...params) {
+        super(...params);
+        if (resizeWhenConstructorCalled) {
+          rab.resize(0);
+        }
+      }
+    };
+
+    const lengthTracking = new MyArray(rab);
+    resizeWhenConstructorCalled = true;
+    assertEquals([undefined, undefined, undefined, undefined],
+                 Helper(lengthTracking));
+    assertEquals(0, rab.byteLength);
   }
 })();
 
@@ -6188,6 +6715,16 @@ Reverse(ArrayReverseHelper, false);
     assertEquals([1, 2, 4], ToNumbers(new ctor(rab)));
   }
 
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    resizeTo = 0;
+    lengthTracking.set(CreateSourceProxy(1));
+    assertEquals([], ToNumbers(lengthTracking));
+    assertEquals([], ToNumbers(new ctor(rab)));
+  }
+
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
@@ -6367,6 +6904,17 @@ Reverse(ArrayReverseHelper, false);
     lengthTracking.set(CreateSourceProxy(2));
     assertEquals([1, 1, 4], ToNumbers(lengthTracking));
     assertEquals([1, 1, 4], ToNumbers(new ctor(rab)));
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    resizeAt = 2;
+    resizeTo = 0;
+    lengthTracking.set(CreateSourceProxy(2));
+    assertEquals([], ToNumbers(lengthTracking));
+    assertEquals([], ToNumbers(new ctor(rab)));
   }
 
   for (let ctor of ctors) {
@@ -6840,6 +7388,31 @@ Reverse(ArrayReverseHelper, false);
       return 3;
     }};
     assertThrows(() => { lengthTracking.subarray(0, evil); });
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { valueOf: () => {
+      rab.resize(0);
+      return 1;
+    }};
+    assertThrows(() => { lengthTracking.subarray(0, evil); });
+  }
+
+  // Like the previous test, but now we construct a smaller subarray and it
+  // succeeds.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { valueOf: () => {
+      rab.resize(0);
+      return 0;
+    }};
+    assertEquals([], ToNumbers(lengthTracking.subarray(evil, 0)));
   }
 })();
 
@@ -7346,6 +7919,17 @@ function SortCallbackShrinks(sortHelper) {
     assertTrue([10, 9, 8, 7].includes(newData[0]));
     assertTrue([10, 9, 8, 7].includes(newData[1]));
   }
+
+  for (let ctor of ctors) {
+    rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                     8 * ctor.BYTES_PER_ELEMENT);
+    resizeTo = 0;
+    const lengthTracking = new ctor(rab, 0);
+    const taFull = new ctor(rab, 0);
+    WriteUnsortedData(taFull);
+
+    sortHelper(lengthTracking, CustomComparison);
+  }
 }
 SortCallbackShrinks(TypedArraySortHelper);
 SortCallbackShrinks(ArraySortHelper);
@@ -7523,6 +8107,18 @@ SortCallbackGrows(ArraySortHelper);
     const evil = {toString: () => {
         rab.resize(2 * ctor.BYTES_PER_ELEMENT);
         return 3;  // Index too large after resize.
+    }};
+    assertThrows(() => { helper(lengthTracking, evil, 8); }, TypeError);
+  }
+
+  // Special case: resizing to 0 -> length-tracking TA still not OOB.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab, 0);
+    const evil = {toString: () => {
+        rab.resize(0);
+        return 0;  // Index too large after resize.
     }};
     assertThrows(() => { helper(lengthTracking, evil, 8); }, TypeError);
   }

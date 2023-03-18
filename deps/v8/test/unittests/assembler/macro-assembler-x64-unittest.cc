@@ -40,6 +40,57 @@
 
 namespace v8 {
 namespace internal {
+
+#define __ masm.
+
+// Test the x64 assembler by compiling some simple functions into
+// a buffer and executing them.  These tests do not initialize the
+// V8 library, create a context, or use any V8 objects.
+
+using MacroAssemblerX64Test = TestWithIsolate;
+
+TEST_F(MacroAssemblerX64Test, TestHardAbort) {
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer->CreateView());
+  __ set_root_array_available(false);
+  __ set_abort_hard(true);
+
+  __ Abort(AbortReason::kNoReason);
+
+  CodeDesc desc;
+  masm.GetCode(isolate(), &desc);
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<void>::FromBuffer(isolate(), buffer->start());
+
+  ASSERT_DEATH_IF_SUPPORTED({ f.Call(); }, "abort: no reason");
+}
+
+TEST_F(MacroAssemblerX64Test, TestCheck) {
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer->CreateView());
+  __ set_root_array_available(false);
+  __ set_abort_hard(true);
+
+  // Fail if the first parameter is 17.
+  __ movl(rax, Immediate(17));
+  __ cmpl(rax, arg_reg_1);
+  __ Check(Condition::not_equal, AbortReason::kNoReason);
+  __ ret(0);
+
+  CodeDesc desc;
+  masm.GetCode(isolate(), &desc);
+  buffer->MakeExecutable();
+  auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer->start());
+
+  f.Call(0);
+  f.Call(18);
+  ASSERT_DEATH_IF_SUPPORTED({ f.Call(17); }, "abort: no reason");
+}
+
+#undef __
+
 namespace test_macro_assembler_x64 {
 
 // Test the x64 assembler by compiling some simple functions into
@@ -50,8 +101,6 @@ namespace test_macro_assembler_x64 {
 // the XMM registers.  The return value is in RAX.
 // This calling convention is used on Linux, with GCC, and on Mac OS,
 // with GCC.  A different convention is used on 64-bit windows.
-
-using MacroAssemblerX64Test = TestWithIsolate;
 
 using F0 = int();
 
@@ -468,7 +517,7 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
   code->Print(os);
 #endif
   using myF0 = Address();
-  auto f = GeneratedCode<myF0>::FromAddress(isolate, code->entry());
+  auto f = GeneratedCode<myF0>::FromAddress(isolate, code->code_entry_point());
   Object result = Object(f.Call());
   CHECK_EQ(old_array->ptr(), result.ptr());
 
@@ -481,7 +530,8 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
 
   // Test the user-facing reloc interface.
   const int mode_mask = RelocInfo::EmbeddedObjectModeMask();
-  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+  for (RelocIterator it(code->instruction_stream(), mode_mask); !it.done();
+       it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsCompressedEmbeddedObject(mode)) {
       CHECK_EQ(*my_array, it.rinfo()->target_object(cage_base));

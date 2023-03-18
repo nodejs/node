@@ -52,7 +52,7 @@ CodeKinds JSFunction::GetAvailableCodeKinds() const {
   // Check the optimized code cache.
   if (has_feedback_vector() && feedback_vector().has_optimized_code() &&
       !feedback_vector().optimized_code().marked_for_deoptimization()) {
-    CodeT code = feedback_vector().optimized_code();
+    Code code = feedback_vector().optimized_code();
     DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
     result |= CodeKindToCodeKindFlag(code.kind());
   }
@@ -474,18 +474,19 @@ MaybeHandle<Object> JSWrappedFunction::Create(
   // 8. If result is an Abrupt Completion, throw a TypeError exception.
   if (is_abrupt.IsNothing()) {
     DCHECK(isolate->has_pending_exception());
+    Handle<Object> pending_exception =
+        Handle<Object>(isolate->pending_exception(), isolate);
     isolate->clear_pending_exception();
-    // TODO(v8:11989): provide a non-observable inspection on the
-    // pending_exception to the newly created TypeError.
-    // https://github.com/tc39/proposal-shadowrealm/issues/353
 
     // The TypeError thrown is created with creation Realm's TypeError
     // constructor instead of the executing Realm's.
+    Handle<JSFunction> type_error_function =
+        Handle<JSFunction>(creation_context->type_error_function(), isolate);
+    Handle<String> string =
+        Object::NoSideEffectsToString(isolate, pending_exception);
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
-        NewError(Handle<JSFunction>(creation_context->type_error_function(),
-                                    isolate),
-                 MessageTemplate::kCannotWrap),
+        NewError(type_error_function, MessageTemplate::kCannotWrap, string),
         {});
   }
   DCHECK(is_abrupt.FromJust());
@@ -584,13 +585,15 @@ void JSFunction::CreateAndAttachFeedbackVector(
   Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
       handle(function->closure_feedback_cell_array(), isolate);
   Handle<FeedbackVector> feedback_vector = FeedbackVector::New(
-      isolate, shared, closure_feedback_cell_array, compiled_scope);
+      isolate, shared, closure_feedback_cell_array,
+      handle(function->raw_feedback_cell(isolate), isolate), compiled_scope);
+  USE(feedback_vector);
   // EnsureClosureFeedbackCellArray should handle the special case where we need
   // to allocate a new feedback cell. Please look at comment in that function
   // for more details.
   DCHECK(function->raw_feedback_cell() !=
          isolate->heap()->many_closures_cell());
-  function->raw_feedback_cell().set_value(*feedback_vector, kReleaseStore);
+  DCHECK_EQ(function->raw_feedback_cell().value(), *feedback_vector);
   function->SetInterruptBudget(isolate);
 
   DCHECK_EQ(v8_flags.log_function_events,
@@ -689,7 +692,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
     // needed.  At that point, a new initial map is created and the
     // prototype is put into the initial map where it belongs.
     function->set_prototype_or_initial_map(*value, kReleaseStore);
-    if (value->IsJSObject()) {
+    if (value->IsJSObjectThatCanBeTrackedAsPrototype()) {
       // Optimize as prototype to detach it from its transition tree.
       JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value));
     }
@@ -745,10 +748,11 @@ void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
 
 void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
                                Handle<Map> map, Handle<HeapObject> prototype,
-                               Handle<JSFunction> constructor) {
+                               Handle<HeapObject> constructor) {
   if (map->prototype() != *prototype) {
     Map::SetPrototype(isolate, map, prototype);
   }
+  DCHECK_IMPLIES(!constructor->IsJSFunction(), map->InSharedHeap());
   map->SetConstructor(*constructor);
   function->set_prototype_or_initial_map(*map, kReleaseStore);
   if (v8_flags.log_maps) {
@@ -820,6 +824,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_DATA_VIEW_TYPE:
+    case JS_RAB_GSAB_DATA_VIEW_TYPE:
     case JS_DATE_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_FUNCTION_TYPE:
@@ -898,7 +903,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case BYTECODE_ARRAY_TYPE:
     case BYTE_ARRAY_TYPE:
     case CELL_TYPE:
-    case CODE_TYPE:
+    case INSTRUCTION_STREAM_TYPE:
     case FILLER_TYPE:
     case FIXED_ARRAY_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
@@ -1103,7 +1108,7 @@ int TypedArrayElementsKindToRabGsabCtorIndex(ElementsKind elements_kind) {
 
 }  // namespace
 
-MaybeHandle<Map> JSFunction::GetDerivedRabGsabMap(
+MaybeHandle<Map> JSFunction::GetDerivedRabGsabTypedArrayMap(
     Isolate* isolate, Handle<JSFunction> constructor,
     Handle<JSReceiver> new_target) {
   MaybeHandle<Map> maybe_map = GetDerivedMap(isolate, constructor, new_target);
@@ -1129,6 +1134,28 @@ MaybeHandle<Map> JSFunction::GetDerivedRabGsabMap(
   Handle<Map> rab_gsab_map = Map::Copy(isolate, map, "RAB / GSAB");
   rab_gsab_map->set_elements_kind(
       GetCorrespondingRabGsabElementsKind(map->elements_kind()));
+  return rab_gsab_map;
+}
+
+MaybeHandle<Map> JSFunction::GetDerivedRabGsabDataViewMap(
+    Isolate* isolate, Handle<JSReceiver> new_target) {
+  Handle<Context> context =
+      handle(isolate->context().native_context(), isolate);
+  Handle<JSFunction> constructor = handle(context->data_view_fun(), isolate);
+  MaybeHandle<Map> maybe_map = GetDerivedMap(isolate, constructor, new_target);
+  Handle<Map> map;
+  if (!maybe_map.ToHandle(&map)) {
+    return MaybeHandle<Map>();
+  }
+  if (*map == constructor->initial_map()) {
+    return handle(Map::cast(context->js_rab_gsab_data_view_map()), isolate);
+  }
+
+  // This only happens when subclassing DataViews. Create a new map with the
+  // JS_RAB_GSAB_DATA_VIEW instance type. Note: the map is not cached and
+  // reused -> every data view gets a unique map, making ICs slow.
+  Handle<Map> rab_gsab_map = Map::Copy(isolate, map, "RAB / GSAB");
+  rab_gsab_map->set_instance_type(JS_RAB_GSAB_DATA_VIEW_TYPE);
   return rab_gsab_map;
 }
 

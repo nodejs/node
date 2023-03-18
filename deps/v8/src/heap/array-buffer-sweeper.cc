@@ -7,10 +7,12 @@
 #include <atomic>
 #include <memory>
 
+#include "src/base/logging.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/remembered-set.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/task-utils.h"
@@ -93,12 +95,13 @@ struct ArrayBufferSweeper::SweepingJob final {
   ArrayBufferList young_;
   ArrayBufferList old_;
   const SweepingType type_;
-  std::atomic<size_t> freed_bytes_{0};
+  size_t freed_bytes_{0};
 
   friend class ArrayBufferSweeper;
 };
 
-ArrayBufferSweeper::ArrayBufferSweeper(Heap* heap) : heap_(heap) {}
+ArrayBufferSweeper::ArrayBufferSweeper(Heap* heap)
+    : heap_(heap), local_sweeper_(heap_->sweeper()) {}
 
 ArrayBufferSweeper::~ArrayBufferSweeper() {
   EnsureFinished();
@@ -115,7 +118,7 @@ void ArrayBufferSweeper::EnsureFinished() {
   switch (abort_result) {
     case TryAbortResult::kTaskAborted:
       // Task has not run, so we need to run it synchronously here.
-      job_->Sweep();
+      DoSweep();
       break;
     case TryAbortResult::kTaskRemoved:
       // Task was removed, but did actually run, just ensure we are in the right
@@ -148,6 +151,7 @@ void ArrayBufferSweeper::FinishIfDone() {
 
 void ArrayBufferSweeper::RequestSweep(SweepingType type) {
   DCHECK(!sweeping_in_progress());
+  DCHECK(local_sweeper_.IsEmpty());
 
   if (young_.IsEmpty() && (old_.IsEmpty() || type == SweepingType::kYoung))
     return;
@@ -162,15 +166,26 @@ void ArrayBufferSweeper::RequestSweep(SweepingType type) {
               : GCTracer::Scope::BACKGROUND_FULL_ARRAY_BUFFER_SWEEP;
       TRACE_GC_EPOCH(heap_->tracer(), scope_id, ThreadKind::kBackground);
       base::MutexGuard guard(&sweeping_mutex_);
-      job_->Sweep();
+      DoSweep();
       job_finished_.NotifyAll();
     });
     job_->id_ = task->id();
     V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
   } else {
-    job_->Sweep();
+    GCTracer::Scope::ScopeId scope_id =
+        type == SweepingType::kYoung ? GCTracer::Scope::YOUNG_ARRAY_BUFFER_SWEEP
+                                     : GCTracer::Scope::FULL_ARRAY_BUFFER_SWEEP;
+    TRACE_GC_EPOCH(heap_->tracer(), scope_id, ThreadKind::kMain);
+    DoSweep();
     Finalize();
   }
+}
+
+void ArrayBufferSweeper::DoSweep() {
+  DCHECK_NOT_NULL(job_);
+  local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
+  DCHECK(!heap_->sweeper()->IsIteratingPromotedPages());
+  job_->Sweep();
 }
 
 void ArrayBufferSweeper::Prepare(SweepingType type) {
@@ -196,9 +211,10 @@ void ArrayBufferSweeper::Finalize() {
   CHECK_EQ(job_->state_, SweepingState::kDone);
   young_.Append(&job_->young_);
   old_.Append(&job_->old_);
-  const size_t freed_bytes =
-      job_->freed_bytes_.exchange(0, std::memory_order_relaxed);
-  DecrementExternalMemoryCounters(freed_bytes);
+  DecrementExternalMemoryCounters(job_->freed_bytes_);
+
+  local_sweeper_.Finalize();
+
   job_.reset();
   DCHECK(!sweeping_in_progress());
 }
@@ -230,16 +246,18 @@ void ArrayBufferSweeper::Append(JSArrayBuffer object,
 
 void ArrayBufferSweeper::Detach(JSArrayBuffer object,
                                 ArrayBufferExtension* extension) {
+  // Finish sweeping here first such that the code below is guaranteed to
+  // observe the same sweeping state.
+  FinishIfDone();
+
   size_t bytes = extension->ClearAccountingLength();
 
   // We cannot free the extension eagerly here, since extensions are tracked in
   // a singly linked list. The next GC will remove it automatically.
 
-  FinishIfDone();
-
   if (!sweeping_in_progress()) {
     // If concurrent sweeping isn't running at the moment, we can also adjust
-    // the respective bytes in the corresponding ArraybufferLists as they are
+    // the respective bytes in the corresponding ArrayBufferLists as they are
     // only approximate.
     if (Heap::InYoungGeneration(object)) {
       DCHECK_GE(young_.bytes_, bytes);
@@ -303,7 +321,7 @@ ArrayBufferList ArrayBufferSweeper::SweepingJob::SweepListFull(
     if (!current->IsMarked()) {
       const size_t bytes = current->accounting_length();
       delete current;
-      if (bytes) freed_bytes_.fetch_add(bytes, std::memory_order_relaxed);
+      if (bytes) freed_bytes_ += bytes;
     } else {
       current->Unmark();
       survivor_list.Append(current);
@@ -329,7 +347,7 @@ void ArrayBufferSweeper::SweepingJob::SweepYoung() {
     if (!current->IsYoungMarked()) {
       size_t bytes = current->accounting_length();
       delete current;
-      if (bytes) freed_bytes_.fetch_add(bytes, std::memory_order_relaxed);
+      if (bytes) freed_bytes_ += bytes;
     } else if (current->IsYoungPromoted()) {
       current->YoungUnmark();
       new_old.Append(current);

@@ -168,8 +168,8 @@ InvokeParams InvokeParams::SetUpForRunMicrotasks(
   return params;
 }
 
-Handle<CodeT> JSEntry(Isolate* isolate, Execution::Target execution_target,
-                      bool is_construct) {
+Handle<Code> JSEntry(Isolate* isolate, Execution::Target execution_target,
+                     bool is_construct) {
   if (is_construct) {
     DCHECK_EQ(Execution::Target::kCallable, execution_target);
     return BUILTIN_CODE(isolate, JSConstructEntry);
@@ -397,7 +397,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 
   // Placeholder for return value.
   Object value;
-  Handle<CodeT> code =
+  Handle<Code> code =
       JSEntry(isolate, params.execution_target, params.is_construct);
   {
     // Save and restore context around invocation and block the
@@ -468,6 +468,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 
 MaybeHandle<Object> InvokeWithTryCatch(Isolate* isolate,
                                        const InvokeParams& params) {
+  DCHECK(!isolate->is_execution_terminating());
   bool is_termination = false;
   MaybeHandle<Object> maybe_result;
   if (params.exception_out != nullptr) {
@@ -611,7 +612,7 @@ static_assert(offsetof(StackHandlerMarker, padding) ==
 static_assert(sizeof(StackHandlerMarker) == StackHandlerConstants::kSize);
 
 #if V8_ENABLE_WEBASSEMBLY
-void Execution::CallWasm(Isolate* isolate, Handle<CodeT> wrapper_code,
+void Execution::CallWasm(Isolate* isolate, Handle<Code> wrapper_code,
                          Address wasm_call_target, Handle<Object> object_ref,
                          Address packed_args) {
   using WasmEntryStub = GeneratedCode<Address(

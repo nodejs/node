@@ -74,6 +74,7 @@ class GraphTest : public TestWithNativeContextAndZone {
   CommonOperatorBuilder common_;
   Graph graph_;
   JSHeapBroker broker_;
+  CurrentHeapBrokerScope current_broker_;
   SourcePositionTable source_positions_;
   NodeOriginTable node_origins_;
   TickCounter tick_counter_;

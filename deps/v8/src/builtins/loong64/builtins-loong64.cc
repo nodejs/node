@@ -112,8 +112,8 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 
   // Remove caller arguments from the stack and return.
-  __ DropArguments(t3, TurboAssembler::kCountIsSmi,
-                   TurboAssembler::kCountIncludesReceiver, t3);
+  __ DropArguments(t3, MacroAssembler::kCountIsSmi,
+                   MacroAssembler::kCountIncludesReceiver, t3);
   __ Ret();
 }
 
@@ -267,8 +267,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::CONSTRUCT);
 
   // Remove caller arguments from the stack and return.
-  __ DropArguments(a1, TurboAssembler::kCountIsSmi,
-                   TurboAssembler::kCountIncludesReceiver, a4);
+  __ DropArguments(a1, MacroAssembler::kCountIsSmi,
+                   MacroAssembler::kCountIncludesReceiver, a4);
   __ Ret();
 
   __ bind(&check_receiver);
@@ -320,12 +320,12 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   __ GetObjectType(sfi_data, scratch1, scratch1);
   if (v8_flags.debug_code) {
     Label not_baseline;
-    __ Branch(&not_baseline, ne, scratch1, Operand(CODET_TYPE));
+    __ Branch(&not_baseline, ne, scratch1, Operand(CODE_TYPE));
     AssertCodeIsBaseline(masm, sfi_data, scratch1);
     __ Branch(is_baseline);
     __ bind(&not_baseline);
   } else {
-    __ Branch(is_baseline, eq, scratch1, Operand(CODET_TYPE));
+    __ Branch(is_baseline, eq, scratch1, Operand(CODE_TYPE));
   }
   __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
   __ Ld_d(sfi_data,
@@ -554,12 +554,12 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Clear c_entry_fp, now we've pushed its previous value to the stack.
   // If the c_entry_fp is not already zero and we don't clear it, the
-  // SafeStackFrameIterator will assume we are executing C++ and miss the JS
-  // frames on top.
+  // StackFrameIteratorForProfiler will assume we are executing C++ and miss the
+  // JS frames on top.
   __ St_d(zero_reg, MemOperand(s5, 0));
 
   // Set up frame pointer for the frame to be pushed.
-  __ addi_d(fp, sp, -EntryFrameConstants::kCallerFPOffset);
+  __ addi_d(fp, sp, -EntryFrameConstants::kNextExitFrameFPOffset);
 
   // Registers:
   //  either
@@ -672,7 +672,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ St_d(a5, MemOperand(a4, 0));
 
   // Reset the stack to the callee saved registers.
-  __ addi_d(sp, sp, -EntryFrameConstants::kCallerFPOffset);
+  __ addi_d(sp, sp, -EntryFrameConstants::kNextExitFrameFPOffset);
 
   // Restore callee-saved fpu registers.
   __ MultiPopFPU(kCalleeSavedFPU);
@@ -803,8 +803,8 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // Drop receiver + arguments.
-  __ DropArguments(params_size, TurboAssembler::kCountIsBytes,
-                   TurboAssembler::kCountIncludesReceiver);
+  __ DropArguments(params_size, MacroAssembler::kCountIsBytes,
+                   MacroAssembler::kCountIncludesReceiver);
 }
 
 // Advance the current bytecode offset. This simulates what all bytecode
@@ -1328,7 +1328,7 @@ static void GenerateInterpreterPushArgs(MacroAssembler* masm, Register num_args,
 
   // Push the arguments.
   __ PushArray(start_address, num_args, scratch, scratch2,
-               TurboAssembler::PushArrayOrder::kReverse);
+               MacroAssembler::PushArrayOrder::kReverse);
 }
 
 // static
@@ -1471,7 +1471,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ Ld_d(t0,
           FieldMemOperand(t0, InterpreterData::kInterpreterTrampolineOffset));
-  __ Add_d(t0, t0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ LoadCodeEntry(t0, t0);
   __ Branch(&trampoline_loaded);
 
   __ bind(&builtin_trampoline);
@@ -1682,8 +1682,8 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   Label jump_to_optimized_code;
   {
     // If maybe_target_code is not null, no need to call into runtime. A
-    // precondition here is: if maybe_target_code is a Code object, it must NOT
-    // be marked_for_deoptimization (callers must ensure this).
+    // precondition here is: if maybe_target_code is a InstructionStream object,
+    // it must NOT be marked_for_deoptimization (callers must ensure this).
     __ Branch(&jump_to_optimized_code, ne, maybe_target_code,
               Operand(Smi::zero()));
   }
@@ -1722,11 +1722,15 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ LeaveFrame(StackFrame::STUB);
   }
 
+  __ LoadCodeInstructionStreamNonBuiltin(a0, a0);
+
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
-  __ Ld_d(a1, MemOperand(maybe_target_code,
-                         Code::kDeoptimizationDataOrInterpreterDataOffset -
-                             kHeapObjectTag));
+  __ Ld_d(
+      a1,
+      MemOperand(maybe_target_code,
+                 InstructionStream::kDeoptimizationDataOrInterpreterDataOffset -
+                     kHeapObjectTag));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
@@ -1738,7 +1742,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   // <entry_addr> = <code_obj> + #header_size + <osr_offset>
   __ Add_d(maybe_target_code, maybe_target_code, a1);
   Generate_OSREntry(masm, maybe_target_code,
-                    Operand(Code::kHeaderSize - kHeapObjectTag));
+                    Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
 }
 }  // namespace
 
@@ -1790,8 +1794,8 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ Movz(arg_array, undefined_value, scratch);  // if argc == 1
     __ Ld_d(receiver, MemOperand(sp, 0));
     __ DropArgumentsAndPushNewReceiver(argc, this_arg,
-                                       TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountIncludesReceiver);
+                                       MacroAssembler::kCountIsInteger,
+                                       MacroAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -1885,8 +1889,8 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ Movz(arguments_list, undefined_value, scratch);  // if argc == 2
 
     __ DropArgumentsAndPushNewReceiver(argc, this_argument,
-                                       TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountIncludesReceiver);
+                                       MacroAssembler::kCountIsInteger,
+                                       MacroAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -1945,8 +1949,8 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ Movz(new_target, target, scratch);  // if argc == 2
 
     __ DropArgumentsAndPushNewReceiver(argc, undefined_value,
-                                       TurboAssembler::kCountIsInteger,
-                                       TurboAssembler::kCountIncludesReceiver);
+                                       MacroAssembler::kCountIsInteger,
+                                       MacroAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -2754,8 +2758,7 @@ void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
-                               SaveFPRegsMode save_doubles, ArgvMode argv_mode,
-                               bool builtin_exit_frame) {
+                               ArgvMode argv_mode, bool builtin_exit_frame) {
   // Called from JavaScript; parameters are on stack as if calling JS function
   // a0: number of arguments including receiver
   // a1: pointer to builtin function
@@ -2778,8 +2781,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // Enter the exit frame that transitions from JavaScript to C++.
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(
-      save_doubles == SaveFPRegsMode::kSave, 0,
-      builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
+      0, builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
 
   // s0: number of arguments  including receiver (C callee-saved)
   // s1: pointer to first argument (C callee-saved)
@@ -2832,7 +2834,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
                       ? no_reg
                       // s0: still holds argc (callee-saved).
                       : s0;
-  __ LeaveExitFrame(save_doubles == SaveFPRegsMode::kSave, argc, EMIT_RETURN);
+  __ LeaveExitFrame(argc, EMIT_RETURN);
 
   // Handling of exception.
   __ bind(&exception_returned);
@@ -3099,10 +3101,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     __ Ld_d(s0, *stack_space_operand);
   }
 
-  static constexpr bool kDontSaveDoubles = false;
   static constexpr bool kRegisterContainsSlotCount = false;
-  __ LeaveExitFrame(kDontSaveDoubles, s0, NO_EMIT_RETURN,
-                    kRegisterContainsSlotCount);
+  __ LeaveExitFrame(s0, NO_EMIT_RETURN, kRegisterContainsSlotCount);
 
   // Check if the function scheduled an exception.
   __ LoadRoot(a4, RootIndex::kTheHoleValue);
@@ -3211,9 +3211,8 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
   static constexpr int kApiStackSpace = 4;
-  static constexpr bool kDontSaveDoubles = false;
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(kDontSaveDoubles, kApiStackSpace);
+  __ EnterExitFrame(kApiStackSpace, StackFrame::EXIT);
 
   // EnterExitFrame may align the sp.
 
@@ -3311,7 +3310,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   const int kApiStackSpace = 1;
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(false, kApiStackSpace);
+  __ EnterExitFrame(kApiStackSpace, StackFrame::EXIT);
 
   // Create v8::PropertyCallbackInfo object on the stack and initialize
   // it's args_ field.
@@ -3337,8 +3336,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
 void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   // The sole purpose of DirectCEntry is for movable callers (e.g. any general
-  // purpose Code object) to be able to call into C functions that may trigger
-  // GC and thus move the caller.
+  // purpose InstructionStream object) to be able to call into C functions that
+  // may trigger GC and thus move the caller.
   //
   // DirectCEntry places the return address on the stack (updated by the GC),
   // making the call GC safe. The irregexp backend relies on this.
@@ -3577,7 +3576,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   Register closure = a1;
   __ Ld_d(closure, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
 
-  // Get the Code object from the shared function info.
+  // Get the InstructionStream object from the shared function info.
   Register code_obj = s1;
   __ Ld_d(code_obj,
           FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
@@ -3589,7 +3588,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   if (!is_osr) {
     Label start_with_baseline;
     __ GetObjectType(code_obj, t2, t2);
-    __ Branch(&start_with_baseline, eq, t2, Operand(CODET_TYPE));
+    __ Branch(&start_with_baseline, eq, t2, Operand(CODE_TYPE));
 
     // Start with bytecode as there is no baseline code.
     Builtin builtin_id = next_bytecode
@@ -3602,12 +3601,14 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ bind(&start_with_baseline);
   } else if (v8_flags.debug_code) {
     __ GetObjectType(code_obj, t2, t2);
-    __ Assert(eq, AbortReason::kExpectedBaselineData, t2, Operand(CODET_TYPE));
+    __ Assert(eq, AbortReason::kExpectedBaselineData, t2, Operand(CODE_TYPE));
   }
 
   if (v8_flags.debug_code) {
     AssertCodeIsBaseline(masm, code_obj, t2);
   }
+
+  __ LoadCodeInstructionStreamNonBuiltin(code_obj, code_obj);
 
   // Replace BytecodeOffset with the feedback vector.
   Register feedback_vector = a2;
@@ -3685,9 +3686,10 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
             MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
     ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister);
     Generate_OSREntry(masm, code_obj,
-                      Operand(Code::kHeaderSize - kHeapObjectTag));
+                      Operand(InstructionStream::kHeaderSize - kHeapObjectTag));
   } else {
-    __ Add_d(code_obj, code_obj, Code::kHeaderSize - kHeapObjectTag);
+    __ Add_d(code_obj, code_obj,
+             InstructionStream::kHeaderSize - kHeapObjectTag);
     __ Jump(code_obj);
   }
   __ Trap();  // Unreachable.

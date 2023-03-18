@@ -14,9 +14,7 @@
 #include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
 #include "src/heap/base/active-system-pages.h"
-#include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
-#include "src/heap/heap-controller.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/invalidated-slots-inl.h"
@@ -269,7 +267,6 @@ void SpaceWithLinearArea::DisableInlineAllocation() {
 
   allocation_info_.SetEnabled(false);
   FreeLinearAllocationArea();
-  UpdateInlineAllocationLimit(0);
 }
 
 void SpaceWithLinearArea::EnableInlineAllocation() {
@@ -277,7 +274,6 @@ void SpaceWithLinearArea::EnableInlineAllocation() {
 
   allocation_info_.SetEnabled(true);
   AdvanceAllocationObservers();
-  UpdateInlineAllocationLimit(0);
 }
 
 void SpaceWithLinearArea::UpdateAllocationOrigins(AllocationOrigin origin) {
@@ -335,7 +331,7 @@ void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
   if (!allocation_counter_.IsStepInProgress()) {
     AdvanceAllocationObservers();
     Space::AddAllocationObserver(observer);
-    UpdateInlineAllocationLimit(0);
+    UpdateInlineAllocationLimit();
   } else {
     Space::AddAllocationObserver(observer);
   }
@@ -346,7 +342,7 @@ void SpaceWithLinearArea::RemoveAllocationObserver(
   if (!allocation_counter_.IsStepInProgress()) {
     AdvanceAllocationObservers();
     Space::RemoveAllocationObserver(observer);
-    UpdateInlineAllocationLimit(0);
+    UpdateInlineAllocationLimit();
   } else {
     Space::RemoveAllocationObserver(observer);
   }
@@ -360,7 +356,7 @@ void SpaceWithLinearArea::PauseAllocationObservers() {
 void SpaceWithLinearArea::ResumeAllocationObservers() {
   Space::ResumeAllocationObservers();
   MarkLabStartInitialized();
-  UpdateInlineAllocationLimit(0);
+  UpdateInlineAllocationLimit();
 }
 
 void SpaceWithLinearArea::AdvanceAllocationObservers() {
@@ -456,6 +452,29 @@ int MemoryChunk::FreeListsLength() {
     }
   }
   return length;
+}
+
+SpaceIterator::SpaceIterator(Heap* heap)
+    : heap_(heap), current_space_(FIRST_MUTABLE_SPACE) {}
+
+SpaceIterator::~SpaceIterator() = default;
+
+bool SpaceIterator::HasNext() {
+  while (current_space_ <= LAST_MUTABLE_SPACE) {
+    Space* space = heap_->space(current_space_);
+    if (space) return true;
+    ++current_space_;
+  }
+
+  // No more spaces left.
+  return false;
+}
+
+Space* SpaceIterator::Next() {
+  DCHECK_LE(current_space_, LAST_MUTABLE_SPACE);
+  Space* space = heap_->space(current_space_++);
+  DCHECK_NOT_NULL(space);
+  return space;
 }
 
 }  // namespace internal

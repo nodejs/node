@@ -16,7 +16,7 @@ assertEquals([1, 2, 3], [].concat(re));
 RegExp.prototype[Symbol.isConcatSpreadable] = true;
 RegExp.prototype.length = 3;
 
-assertEquals([void 0, void 0, void 0], [].concat(/abc/));
+assertEquals(new Array(3), [].concat(/abc/));
 RegExp.prototype[0] = 1;
 RegExp.prototype[1] = 2;
 RegExp.prototype[2] = 3;

@@ -1,4 +1,5 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
+//
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +11,8 @@
 #include "src/inspector/v8-stack-trace-impl.h"
 
 #include <algorithm>
+#include <memory>
+#include <vector>
 
 #include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "src/debug/debug-interface.h"
@@ -311,6 +314,21 @@ int V8StackTraceImpl::topScriptId() const { return m_frames[0]->scriptId(); }
 
 StringView V8StackTraceImpl::topFunctionName() const {
   return toStringView(m_frames[0]->functionName());
+}
+
+std::vector<V8StackFrame> V8StackTraceImpl::frames() const {
+  std::vector<V8StackFrame> ret;
+  ret.reserve(m_frames.size());
+
+  for (const auto& frame : m_frames) {
+    if (frame) {
+      ret.emplace_back(V8StackFrame{
+          toStringView(frame->sourceURL()), toStringView(frame->functionName()),
+          frame->lineNumber() + 1, frame->columnNumber() + 1});
+    }
+  }
+
+  return ret;
 }
 
 std::unique_ptr<protocol::Runtime::StackTrace>

@@ -168,7 +168,7 @@ TEST(Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
   register_state.fp = stack;
 
   // Put the current PC inside of a valid builtin.
-  CodeT builtin = *BUILTIN_CODE(i_isolate, StringEqual);
+  Code builtin = *BUILTIN_CODE(i_isolate, StringEqual);
   const uintptr_t offset = 40;
   CHECK_LT(offset, builtin.InstructionSize());
   register_state.pc =
@@ -225,7 +225,7 @@ TEST(Unwind_BuiltinPCAtStart_Success_CodePagesAPI) {
 
   // Put the current PC at the start of a valid builtin, so that we are setting
   // up the frame.
-  CodeT builtin = *BUILTIN_CODE(i_isolate, StringEqual);
+  Code builtin = *BUILTIN_CODE(i_isolate, StringEqual);
   register_state.pc = reinterpret_cast<void*>(builtin.InstructionStart());
 
   bool unwound = v8::Unwinder::TryUnwindV8Frames(
@@ -296,18 +296,18 @@ TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
 
   // Put the current PC inside of the created code object.
-  CodeT codet = foo->code();
+  Code code = foo->code();
   // We don't produce optimized code when run with --no-turbofan and
   // --no-maglev.
-  if (!codet.is_optimized_code()) return;
+  if (!code.is_optimized_code()) return;
 
-  Code code = FromCodeT(codet);
+  InstructionStream instruction_stream = FromCode(code);
   // We don't want the offset too early or it could be the `push rbp`
   // instruction (which is not at the start of generated code, because the lazy
   // deopt check happens before frame setup).
-  const uintptr_t offset = code.InstructionSize() - 20;
-  CHECK_LT(offset, code.InstructionSize());
-  Address pc = code.InstructionStart() + offset;
+  const uintptr_t offset = instruction_stream.instruction_size() - 20;
+  CHECK_LT(offset, instruction_stream.instruction_size());
+  Address pc = instruction_stream.instruction_start() + offset;
   register_state.pc = reinterpret_cast<void*>(pc);
 
   // Get code pages from the API now that the code obejct exists and check that
@@ -456,7 +456,7 @@ TEST(Unwind_JSEntry_Fail_CodePagesAPI) {
   CHECK_LE(pages_length, arraysize(code_pages));
   RegisterState register_state;
 
-  CodeT js_entry = *BUILTIN_CODE(i_isolate, JSEntry);
+  Code js_entry = *BUILTIN_CODE(i_isolate, JSEntry);
   byte* start = reinterpret_cast<byte*>(js_entry.InstructionStart());
   register_state.pc = start + 10;
 
@@ -638,7 +638,7 @@ TEST(PCIsInV8_InJSEntryRange_CodePagesAPI) {
       isolate->CopyCodePages(arraysize(code_pages), code_pages);
   CHECK_LE(pages_length, arraysize(code_pages));
 
-  CodeT js_entry = *BUILTIN_CODE(i_isolate, JSEntry);
+  Code js_entry = *BUILTIN_CODE(i_isolate, JSEntry);
   byte* start = reinterpret_cast<byte*>(js_entry.InstructionStart());
   size_t length = js_entry.InstructionSize();
 
@@ -673,11 +673,14 @@ TEST(PCIsInV8_LargeCodeObject_CodePagesAPI) {
   desc.unwinding_info = nullptr;
   desc.unwinding_info_size = 0;
   desc.origin = nullptr;
-  Handle<Code> foo_code =
-      Factory::CodeBuilder(i_isolate, desc, CodeKind::WASM_FUNCTION).Build();
+  Handle<InstructionStream> foo_code(
+      Factory::CodeBuilder(i_isolate, desc, CodeKind::WASM_FUNCTION)
+          .Build()
+          ->instruction_stream(),
+      i_isolate);
 
   CHECK(i_isolate->heap()->InSpace(*foo_code, CODE_LO_SPACE));
-  byte* start = reinterpret_cast<byte*>(foo_code->InstructionStart());
+  byte* start = reinterpret_cast<byte*>(foo_code->instruction_start());
 
   MemoryRange code_pages[v8::Isolate::kMinCodePagesBufferSize];
   size_t pages_length =

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --no-liftoff
+// Flags: --experimental-wasm-gc --no-liftoff --no-wasm-lazy-compilation
+// Flags: --no-wasm-inlining --no-wasm-speculative-inlining
 
 // This tests are meant to examine if Turbofan CsaLoadElimination works
 // correctly for wasm. The TurboFan graphs can be examined with --trace-turbo.
@@ -314,6 +315,52 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(value_0 + value_1, instance.exports.main());
 })();
 
+(function WasmLoadEliminationArrayLength() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+  let array = builder.addArray(kWasmI32, true);
+  builder.addFunction("producer", makeSig([kWasmI32], [wasmRefType(array)]))
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprArrayNewDefault, array])
+    .exportFunc();
+  let side_effect = builder.addFunction("side_effect", kSig_v_v).addBody([]);
+  builder.addFunction("tester", makeSig([wasmRefType(array)], [kWasmI32]))
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprArrayLen,
+              kExprI32Const, 1, kExprI32Add,
+              kGCPrefix, kExprArrayNewDefault, array,
+              kExprCallFunction, side_effect.index,  // unknown side-effect
+              kGCPrefix, kExprArrayLen,
+              kExprLocalGet, 0, kGCPrefix, kExprArrayLen,
+              kExprI32Mul])
+    .exportFunc();
+  let instance = builder.instantiate();
+  assertEquals(10 * 11,
+               instance.exports.tester(instance.exports.producer(10)));
+})();
+
+(function WasmLoadEliminationUnrelatedTypes() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+  let struct1 = builder.addStruct([makeField(kWasmI32, true)]);
+  let struct2 = builder.addStruct([makeField(kWasmI32, true),
+                                   makeField(kWasmI64, true)]);
+
+  builder.addFunction("tester",
+      makeSig([wasmRefType(struct1), wasmRefType(struct2)], [kWasmI32]))
+    // f(x, y) { y.f = x.f + 10; return y.f * x.f }
+    // x.f load in the state should survive y.f store.
+    .addBody([kExprLocalGet, 1,
+              kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct1, 0,
+              kExprI32Const, 10, kExprI32Add,
+              kGCPrefix, kExprStructSet, struct2, 0,
+              kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct1, 0,
+              kExprLocalGet, 1, kGCPrefix, kExprStructGet, struct2, 0,
+              kExprI32Mul]);
+
+  builder.instantiate()
+})();
+
 (function EscapeAnalysisWithLoadElimination() {
   print(arguments.callee.name);
 
@@ -468,9 +515,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       // Cast from struct_a to struct_b via common base type struct_super.
       kExprLocalGet, 0,
-      // TODO(7748): Replace cast op with "ref.cast null".
-      kGCPrefix, kExprRefCastDeprecated, struct_super,
-      kGCPrefix, kExprRefCastDeprecated, struct_b, // annotated as 'ref null none'
+      kGCPrefix, kExprRefCastNull, struct_super,
+      kGCPrefix, kExprRefCastNull, struct_b, // annotated as 'ref null none'
       kExprRefIsNull,
     ]);
 

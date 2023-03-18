@@ -47,15 +47,12 @@ namespace internal {
   V(CONS_ONE_BYTE_STRING_TYPE)                           \
   V(EXTERNAL_ONE_BYTE_STRING_TYPE)                       \
   V(SLICED_ONE_BYTE_STRING_TYPE)                         \
-  V(THIN_ONE_BYTE_STRING_TYPE)                           \
   V(UNCACHED_EXTERNAL_STRING_TYPE)                       \
   V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)              \
   V(SHARED_STRING_TYPE)                                  \
   V(SHARED_EXTERNAL_STRING_TYPE)                         \
-  V(SHARED_THIN_STRING_TYPE)                             \
   V(SHARED_ONE_BYTE_STRING_TYPE)                         \
   V(SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE)                \
-  V(SHARED_THIN_ONE_BYTE_STRING_TYPE)                    \
   V(SHARED_UNCACHED_EXTERNAL_STRING_TYPE)                \
   V(SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)
 
@@ -101,8 +98,6 @@ namespace internal {
     uncached_external_one_byte_internalized_string,                            \
     UncachedExternalOneByteInternalizedString)                                 \
   V(THIN_STRING_TYPE, ThinString::kSize, thin_string, ThinString)              \
-  V(THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize, thin_one_byte_string,        \
-    ThinOneByteString)                                                         \
                                                                                \
   V(SHARED_STRING_TYPE, kVariableSizeSentinel, shared_string, SharedString)    \
   V(SHARED_ONE_BYTE_STRING_TYPE, kVariableSizeSentinel,                        \
@@ -117,11 +112,7 @@ namespace internal {
   V(SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,                             \
     ExternalOneByteString::kUncachedSize,                                      \
     shared_uncached_external_one_byte_string,                                  \
-    SharedUncachedExternalOneByteString)                                       \
-  V(SHARED_THIN_STRING_TYPE, ThinString::kSize, shared_thin_string,            \
-    SharedThinString)                                                          \
-  V(SHARED_THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize,                       \
-    shared_thin_one_byte_string, SharedThinOneByteString)
+    SharedUncachedExternalOneByteString)
 
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate

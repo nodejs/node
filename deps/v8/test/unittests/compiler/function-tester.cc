@@ -52,6 +52,18 @@ FunctionTester::FunctionTester(Isolate* isolate, Graph* graph, int param_count)
   CompileGraph(graph);
 }
 
+FunctionTester::FunctionTester(Isolate* isolate, Handle<InstructionStream> code,
+                               int param_count)
+    : isolate(isolate),
+      canonical(isolate),
+      function((v8_flags.allow_natives_syntax = true,
+                NewFunction(BuildFunction(param_count).c_str()))),
+      flags_(0) {
+  CHECK(!code.is_null());
+  Compile(function);
+  function->set_code(ToCode(*code), kReleaseStore);
+}
+
 FunctionTester::FunctionTester(Isolate* isolate, Handle<Code> code,
                                int param_count)
     : isolate(isolate),
@@ -61,10 +73,10 @@ FunctionTester::FunctionTester(Isolate* isolate, Handle<Code> code,
       flags_(0) {
   CHECK(!code.is_null());
   Compile(function);
-  function->set_code(ToCodeT(*code), kReleaseStore);
+  function->set_code(*code, kReleaseStore);
 }
 
-FunctionTester::FunctionTester(Isolate* isolate, Handle<Code> code)
+FunctionTester::FunctionTester(Isolate* isolate, Handle<InstructionStream> code)
     : FunctionTester(isolate, code, 0) {}
 
 void FunctionTester::CheckThrows(Handle<Object> a) {
@@ -192,11 +204,9 @@ Handle<JSFunction> FunctionTester::Optimize(
   CHECK(info.shared_info()->HasBytecodeArray());
   JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
 
-  Handle<CodeT> code = ToCodeT(
+  Handle<Code> code =
       compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)
-          .ToHandleChecked(),
-      isolate);
-  info.native_context().AddOptimizedCode(*code);
+          .ToHandleChecked();
   function->set_code(*code, v8::kReleaseStore);
   return function;
 }

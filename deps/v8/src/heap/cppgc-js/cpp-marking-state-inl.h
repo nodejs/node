@@ -6,7 +6,8 @@
 #define V8_HEAP_CPPGC_JS_CPP_MARKING_STATE_INL_H_
 
 #include "src/heap/cppgc-js/cpp-marking-state.h"
-#include "src/heap/embedder-tracing-inl.h"
+#include "src/heap/cppgc-js/wrappable-info-inl.h"
+#include "src/heap/cppgc-js/wrappable-info.h"
 #include "src/objects/embedder-data-slot.h"
 #include "src/objects/js-objects.h"
 
@@ -33,11 +34,11 @@ void CppMarkingState::MarkAndPush(const EmbedderDataSnapshot& snapshot) {
 
 void CppMarkingState::MarkAndPush(const EmbedderDataSlot type_slot,
                                   const EmbedderDataSlot instance_slot) {
-  LocalEmbedderHeapTracer::WrapperInfo info;
-  if (LocalEmbedderHeapTracer::ExtractWrappableInfo(
-          isolate_, wrapper_descriptor_, type_slot, instance_slot, &info)) {
+  const auto maybe_info = WrappableInfo::From(
+      isolate_, type_slot, instance_slot, wrapper_descriptor_);
+  if (maybe_info.has_value()) {
     marking_state_.MarkAndPush(
-        cppgc::internal::HeapObjectHeader::FromObject(info.second));
+        cppgc::internal::HeapObjectHeader::FromObject(maybe_info->instance));
   }
 }
 

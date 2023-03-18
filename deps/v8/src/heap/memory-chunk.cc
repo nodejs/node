@@ -138,19 +138,14 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
   base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_NEW], nullptr);
   base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_OLD], nullptr);
   base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_SHARED], nullptr);
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_CODE], nullptr);
-  }
+  base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_CODE], nullptr);
   base::AsAtomicPointer::Release_Store(&typed_slot_set_[OLD_TO_NEW], nullptr);
   base::AsAtomicPointer::Release_Store(&typed_slot_set_[OLD_TO_OLD], nullptr);
   base::AsAtomicPointer::Release_Store(&typed_slot_set_[OLD_TO_SHARED],
                                        nullptr);
   invalidated_slots_[OLD_TO_NEW] = nullptr;
   invalidated_slots_[OLD_TO_OLD] = nullptr;
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    // Not actually used but initialize anyway for predictability.
-    invalidated_slots_[OLD_TO_CODE] = nullptr;
-  }
+  invalidated_slots_[OLD_TO_CODE] = nullptr;
   invalidated_slots_[OLD_TO_SHARED] = nullptr;
   progress_bar_.Initialize();
   set_concurrent_sweeping_state(ConcurrentSweepingState::kDone);
@@ -187,15 +182,17 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
   possibly_empty_buckets_.Initialize();
 
   if (page_size == PageSize::kRegular) {
-    active_system_pages_.Init(MemoryChunkLayout::kMemoryChunkHeaderSize,
-                              MemoryAllocator::GetCommitPageSizeBits(), size());
+    active_system_pages_ = new ActiveSystemPages;
+    active_system_pages_->Init(MemoryChunkLayout::kMemoryChunkHeaderSize,
+                               MemoryAllocator::GetCommitPageSizeBits(),
+                               size());
   } else {
     // We do not track active system pages for large pages.
-    active_system_pages_.Clear();
+    active_system_pages_ = nullptr;
   }
 
   // All pages of a shared heap need to be marked with this flag.
-  if (heap->IsShared() || owner()->identity() == SHARED_SPACE ||
+  if (owner()->identity() == SHARED_SPACE ||
       owner()->identity() == SHARED_LO_SPACE) {
     SetFlag(MemoryChunk::IN_SHARED_HEAP);
   }
@@ -207,7 +204,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
 
 size_t MemoryChunk::CommittedPhysicalMemory() const {
   if (!base::OS::HasLazyCommits() || IsLargePage()) return size();
-  return active_system_pages_.Size(MemoryAllocator::GetCommitPageSizeBits());
+  return active_system_pages_->Size(MemoryAllocator::GetCommitPageSizeBits());
 }
 
 void MemoryChunk::SetOldGenerationPageFlags(bool is_marking) {
@@ -250,10 +247,15 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
     code_object_registry_ = nullptr;
   }
 
+  if (active_system_pages_ != nullptr) {
+    delete active_system_pages_;
+    active_system_pages_ = nullptr;
+  }
+
   possibly_empty_buckets_.Release();
   ReleaseSlotSet<OLD_TO_NEW>();
   ReleaseSlotSet<OLD_TO_OLD>();
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) ReleaseSlotSet<OLD_TO_CODE>();
+  ReleaseSlotSet<OLD_TO_CODE>();
   ReleaseSlotSet<OLD_TO_SHARED>();
   ReleaseTypedSlotSet<OLD_TO_NEW>();
   ReleaseTypedSlotSet<OLD_TO_OLD>();
@@ -276,9 +278,7 @@ template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_NEW>();
 template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_OLD>();
 template V8_EXPORT_PRIVATE SlotSet*
 MemoryChunk::AllocateSlotSet<OLD_TO_SHARED>();
-#ifdef V8_EXTERNAL_CODE_SPACE
 template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_CODE>();
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 template <RememberedSetType type>
 SlotSet* MemoryChunk::AllocateSlotSet() {
@@ -300,9 +300,7 @@ SlotSet* MemoryChunk::AllocateSlotSet(SlotSet** slot_set) {
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_NEW>();
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_OLD>();
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_SHARED>();
-#ifdef V8_EXTERNAL_CODE_SPACE
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_CODE>();
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 template <RememberedSetType type>
 void MemoryChunk::ReleaseSlotSet() {
@@ -382,6 +380,7 @@ void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object,
                                                      int new_size) {
   // ByteArray and FixedArray are still invalidated in tests.
   DCHECK(object.IsString() || object.IsByteArray() || object.IsFixedArray());
+  DCHECK(!object.InSharedWritableHeap());
   bool skip_slot_recording;
 
   switch (type) {
@@ -428,6 +427,7 @@ MemoryChunk::UpdateInvalidatedObjectSize<OLD_TO_SHARED>(HeapObject object,
 
 template <RememberedSetType type>
 void MemoryChunk::UpdateInvalidatedObjectSize(HeapObject object, int new_size) {
+  DCHECK(!object.InSharedWritableHeap());
   DCHECK_GT(new_size, 0);
 
   if (invalidated_slots<type>() == nullptr) return;

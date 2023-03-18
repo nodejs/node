@@ -1,44 +1,20 @@
-# -*- coding: utf-8 -*-
-from ._compat import imap
-from ._compat import implements_to_string
-from ._compat import PY2
-from ._compat import text_type
+import typing as t
+
+if t.TYPE_CHECKING:
+    from .runtime import Undefined
 
 
 class TemplateError(Exception):
     """Baseclass for all template errors."""
 
-    if PY2:
+    def __init__(self, message: t.Optional[str] = None) -> None:
+        super().__init__(message)
 
-        def __init__(self, message=None):
-            if message is not None:
-                message = text_type(message).encode("utf-8")
-            Exception.__init__(self, message)
-
-        @property
-        def message(self):
-            if self.args:
-                message = self.args[0]
-                if message is not None:
-                    return message.decode("utf-8", "replace")
-
-        def __unicode__(self):
-            return self.message or u""
-
-    else:
-
-        def __init__(self, message=None):
-            Exception.__init__(self, message)
-
-        @property
-        def message(self):
-            if self.args:
-                message = self.args[0]
-                if message is not None:
-                    return message
+    @property
+    def message(self) -> t.Optional[str]:
+        return self.args[0] if self.args else None
 
 
-@implements_to_string
 class TemplateNotFound(IOError, LookupError, TemplateError):
     """Raised if a template does not exist.
 
@@ -47,11 +23,15 @@ class TemplateNotFound(IOError, LookupError, TemplateError):
         provided, an :exc:`UndefinedError` is raised.
     """
 
-    # looks weird, but removes the warning descriptor that just
-    # bogusly warns us about message being deprecated
-    message = None
+    # Silence the Python warning about message being deprecated since
+    # it's not valid here.
+    message: t.Optional[str] = None
 
-    def __init__(self, name, message=None):
+    def __init__(
+        self,
+        name: t.Optional[t.Union[str, "Undefined"]],
+        message: t.Optional[str] = None,
+    ) -> None:
         IOError.__init__(self, name)
 
         if message is None:
@@ -66,8 +46,8 @@ class TemplateNotFound(IOError, LookupError, TemplateError):
         self.name = name
         self.templates = [name]
 
-    def __str__(self):
-        return self.message
+    def __str__(self) -> str:
+        return str(self.message)
 
 
 class TemplatesNotFound(TemplateNotFound):
@@ -82,7 +62,11 @@ class TemplatesNotFound(TemplateNotFound):
     .. versionadded:: 2.2
     """
 
-    def __init__(self, names=(), message=None):
+    def __init__(
+        self,
+        names: t.Sequence[t.Union[str, "Undefined"]] = (),
+        message: t.Optional[str] = None,
+    ) -> None:
         if message is None:
             from .runtime import Undefined
 
@@ -94,52 +78,57 @@ class TemplatesNotFound(TemplateNotFound):
                 else:
                     parts.append(name)
 
-            message = u"none of the templates given were found: " + u", ".join(
-                imap(text_type, parts)
-            )
-        TemplateNotFound.__init__(self, names and names[-1] or None, message)
+            parts_str = ", ".join(map(str, parts))
+            message = f"none of the templates given were found: {parts_str}"
+
+        super().__init__(names[-1] if names else None, message)
         self.templates = list(names)
 
 
-@implements_to_string
 class TemplateSyntaxError(TemplateError):
     """Raised to tell the user that there is a problem with the template."""
 
-    def __init__(self, message, lineno, name=None, filename=None):
-        TemplateError.__init__(self, message)
+    def __init__(
+        self,
+        message: str,
+        lineno: int,
+        name: t.Optional[str] = None,
+        filename: t.Optional[str] = None,
+    ) -> None:
+        super().__init__(message)
         self.lineno = lineno
         self.name = name
         self.filename = filename
-        self.source = None
+        self.source: t.Optional[str] = None
 
         # this is set to True if the debug.translate_syntax_error
         # function translated the syntax error into a new traceback
         self.translated = False
 
-    def __str__(self):
+    def __str__(self) -> str:
         # for translated errors we only return the message
         if self.translated:
-            return self.message
+            return t.cast(str, self.message)
 
         # otherwise attach some stuff
-        location = "line %d" % self.lineno
+        location = f"line {self.lineno}"
         name = self.filename or self.name
         if name:
-            location = 'File "%s", %s' % (name, location)
-        lines = [self.message, "  " + location]
+            location = f'File "{name}", {location}'
+        lines = [t.cast(str, self.message), "  " + location]
 
         # if the source is set, add the line to the output
         if self.source is not None:
             try:
                 line = self.source.splitlines()[self.lineno - 1]
             except IndexError:
-                line = None
-            if line:
+                pass
+            else:
                 lines.append("    " + line.strip())
 
-        return u"\n".join(lines)
+        return "\n".join(lines)
 
-    def __reduce__(self):
+    def __reduce__(self):  # type: ignore
         # https://bugs.python.org/issue1692335 Exceptions that take
         # multiple required arguments have problems with pickling.
         # Without this, raises TypeError: __init__() missing 1 required

@@ -34,3 +34,10 @@ let cv = new Atomics.Condition;
     assertEquals(false, Atomics.Condition.wait(cv, mutex, 100));
   });
 })();
+
+// Mutexes can be assigned to shared objects.
+(function TestConditionCanBeAssignedToSharedObjects() {
+  const Box = new SharedStructType(["payload"]);
+  const box = new Box;
+  box.payload = cv;
+})();

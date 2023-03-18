@@ -144,6 +144,7 @@ class RuntimeCallTimer final {
   V(BigUint64Array_New)                                    \
   V(BooleanObject_BooleanValue)                            \
   V(BooleanObject_New)                                     \
+  V(Context_DeepFreeze)                                    \
   V(Context_New)                                           \
   V(Context_NewRemoteContext)                              \
   V(DataView_New)                                          \
@@ -374,7 +375,12 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TraceScheduleAndVerify)          \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildTurboshaft)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, OptimizeTurboshaft)              \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftDeadCodeElimination)   \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftMachineLowering)       \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftRecreateSchedule)      \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftTagUntagLowering)      \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftTypeAssertions)        \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftTypedOptimizations)    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypeAssertions)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypedLowering)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Typer)                           \
@@ -474,6 +480,7 @@ class RuntimeCallTimer final {
   V(OptimizeFinalizePipelineJob)               \
   V(OptimizeHeapBrokerInitialization)          \
   V(OptimizeNonConcurrent)                     \
+  V(OptimizeRevectorizer)                      \
   V(OptimizeSerialization)                     \
   V(OptimizeSerializeMetadata)                 \
   V(ParseEval)                                 \
@@ -489,21 +496,6 @@ class RuntimeCallTimer final {
   V(TestCounter2)                              \
   V(TestCounter3)                              \
   V(UpdateProtector)                           \
-  V(WebSnapshotDeserialize)                    \
-  V(WebSnapshotDeserialize_Arrays)             \
-  V(WebSnapshotDeserialize_ArrayBuffers)       \
-  V(WebSnapshotDeserialize_BigInts)            \
-  V(WebSnapshotDeserialize_BuiltinObjects)     \
-  V(WebSnapshotDeserialize_Classes)            \
-  V(WebSnapshotDeserialize_Contexts)           \
-  V(WebSnapshotDeserialize_DataViews)          \
-  V(WebSnapshotDeserialize_Exports)            \
-  V(WebSnapshotDeserialize_Functions)          \
-  V(WebSnapshotDeserialize_Maps)               \
-  V(WebSnapshotDeserialize_Objects)            \
-  V(WebSnapshotDeserialize_Strings)            \
-  V(WebSnapshotDeserialize_Symbols)            \
-  V(WebSnapshotDeserialize_TypedArrays)        \
   V(WrappedFunctionLengthGetter)               \
   V(WrappedFunctionNameGetter)
 

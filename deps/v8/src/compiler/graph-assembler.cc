@@ -105,7 +105,8 @@ TNode<HeapObject> JSGraphAssembler::HeapConstant(Handle<HeapObject> object) {
 }
 
 TNode<Object> JSGraphAssembler::Constant(const ObjectRef& ref) {
-  return TNode<Object>::UncheckedCast(AddClonedNode(jsgraph()->Constant(ref)));
+  return TNode<Object>::UncheckedCast(
+      AddClonedNode(jsgraph()->Constant(ref, broker())));
 }
 
 TNode<Number> JSGraphAssembler::NumberConstant(double value) {
@@ -200,6 +201,13 @@ TNode<UintPtrT> GraphAssembler::UintPtrDiv(TNode<UintPtrT> left,
              : TNode<UintPtrT>::UncheckedCast(Uint32Div(left, right));
 }
 
+TNode<UintPtrT> GraphAssembler::ChangeUint32ToUintPtr(
+    SloppyTNode<Uint32T> value) {
+  return kSystemPointerSize == 8
+             ? TNode<UintPtrT>::UncheckedCast(ChangeUint32ToUint64(value))
+             : TNode<UintPtrT>::UncheckedCast(value);
+}
+
 #define CHECKED_BINOP_DEF(Name)                                       \
   Node* GraphAssembler::Name(Node* left, Node* right) {               \
     return AddNode(                                                   \
@@ -222,7 +230,7 @@ Node* GraphAssembler::TaggedEqual(Node* left, Node* right) {
 
 Node* GraphAssembler::SmiSub(Node* left, Node* right) {
   if (COMPRESS_POINTERS_BOOL) {
-    return Int32Sub(left, right);
+    return BitcastWord32ToWord64(Int32Sub(left, right));
   } else {
     return IntSub(left, right);
   }
@@ -482,6 +490,7 @@ class ArrayBufferViewAccessBuilder {
         instance_type_(instance_type),
         candidates_(std::move(candidates)) {
     DCHECK_NOT_NULL(assembler_);
+    // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
     DCHECK(instance_type_ == JS_DATA_VIEW_TYPE ||
            instance_type_ == JS_TYPED_ARRAY_TYPE);
   }
@@ -494,6 +503,7 @@ class ArrayBufferViewAccessBuilder {
   }
 
   base::Optional<int> TryComputeStaticElementShift() {
+    DCHECK(instance_type_ != JS_RAB_GSAB_DATA_VIEW_TYPE);
     if (instance_type_ == JS_DATA_VIEW_TYPE) return 0;
     if (candidates_.empty()) return base::nullopt;
     int shift = ElementsKindToShiftSize(*candidates_.begin());
@@ -506,6 +516,7 @@ class ArrayBufferViewAccessBuilder {
   }
 
   base::Optional<int> TryComputeStaticElementSize() {
+    DCHECK(instance_type_ != JS_RAB_GSAB_DATA_VIEW_TYPE);
     if (instance_type_ == JS_DATA_VIEW_TYPE) return 1;
     if (candidates_.empty()) return base::nullopt;
     int size = ElementsKindToByteSize(*candidates_.begin());
@@ -579,8 +590,7 @@ class ArrayBufferViewAccessBuilder {
               .Then([&]() { return unchecked_byte_length; })
               .Else([&]() { return a.UintPtrConstant(0); })
               .Value();
-      return a.UintPtrDiv(byte_length,
-                          TNode<UintPtrT>::UncheckedCast(element_size));
+      return a.UintPtrDiv(byte_length, a.ChangeUint32ToUintPtr(element_size));
     };
 
     // 3) Length-tracking backed by RAB (JSArrayBuffer stores the length)
@@ -597,7 +607,7 @@ class ArrayBufferViewAccessBuilder {
           .Then([&]() {
             // length = floor((byte_length - byte_offset) / element_size)
             return a.UintPtrDiv(a.UintPtrSub(byte_length, byte_offset),
-                                TNode<UintPtrT>::UncheckedCast(element_size));
+                                a.ChangeUint32ToUintPtr(element_size));
           })
           .Else([&]() { return a.UintPtrConstant(0); })
           .ExpectTrue()
@@ -618,7 +628,7 @@ class ArrayBufferViewAccessBuilder {
           UseInfo::Word());
 
       return a.UintPtrDiv(a.UintPtrSub(byte_length, byte_offset),
-                          TNode<UintPtrT>::UncheckedCast(element_size));
+                          a.ChangeUint32ToUintPtr(element_size));
     };
 
     return a.MachineSelectIf<UintPtrT>(length_tracking_bit)
@@ -793,7 +803,7 @@ TNode<Number> JSGraphAssembler::TypedArrayLength(
 
 TNode<Uint32T> JSGraphAssembler::LookupByteShiftForElementsKind(
     TNode<Uint32T> elements_kind) {
-  TNode<Uint32T> index = TNode<Uint32T>::UncheckedCast(Int32Sub(
+  TNode<UintPtrT> index = ChangeUint32ToUintPtr(Int32Sub(
       elements_kind, Uint32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)));
   TNode<RawPtrT> shift_table = TNode<RawPtrT>::UncheckedCast(ExternalConstant(
       ExternalReference::
@@ -804,7 +814,7 @@ TNode<Uint32T> JSGraphAssembler::LookupByteShiftForElementsKind(
 
 TNode<Uint32T> JSGraphAssembler::LookupByteSizeForElementsKind(
     TNode<Uint32T> elements_kind) {
-  TNode<Uint32T> index = TNode<Uint32T>::UncheckedCast(Int32Sub(
+  TNode<UintPtrT> index = ChangeUint32ToUintPtr(Int32Sub(
       elements_kind, Uint32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)));
   TNode<RawPtrT> size_table = TNode<RawPtrT>::UncheckedCast(ExternalConstant(
       ExternalReference::
@@ -841,6 +851,11 @@ TNode<Object> JSGraphAssembler::JSCallRuntime2(Runtime::FunctionId function_id,
   });
 }
 
+Node* JSGraphAssembler::Chained(const Operator* op, Node* input) {
+  return AddNode(
+      graph()->NewNode(common()->Chained(op), input, effect(), control()));
+}
+
 Node* GraphAssembler::TypeGuard(Type type, Node* value) {
   return AddNode(
       graph()->NewNode(common()->TypeGuard(type), value, effect(), control()));
@@ -856,8 +871,7 @@ Node* GraphAssembler::DebugBreak() {
       graph()->NewNode(machine()->DebugBreak(), effect(), control()));
 }
 
-Node* GraphAssembler::Unreachable(
-    GraphAssemblerLabel<0u>* block_updater_successor) {
+Node* GraphAssembler::Unreachable() {
   Node* result = UnreachableWithoutConnectToEnd();
   ConnectUnreachableToEnd();
   InitializeEffectControl(nullptr, nullptr);
@@ -882,7 +896,7 @@ Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, Node* offset,
 
 Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, int offset,
                             Node* value) {
-  return Store(rep, object, Int32Constant(offset), value);
+  return Store(rep, object, IntPtrConstant(offset), value);
 }
 
 Node* GraphAssembler::Load(MachineType type, Node* object, Node* offset) {
@@ -891,7 +905,7 @@ Node* GraphAssembler::Load(MachineType type, Node* object, Node* offset) {
 }
 
 Node* GraphAssembler::Load(MachineType type, Node* object, int offset) {
-  return Load(type, object, Int32Constant(offset));
+  return Load(type, object, IntPtrConstant(offset));
 }
 
 Node* GraphAssembler::StoreUnaligned(MachineRepresentation rep, Node* object,
@@ -925,6 +939,18 @@ Node* GraphAssembler::ProtectedLoad(MachineType type, Node* object,
                                     Node* offset) {
   return AddNode(graph()->NewNode(machine()->ProtectedLoad(type), object,
                                   offset, effect(), control()));
+}
+
+Node* GraphAssembler::LoadTrapOnNull(MachineType type, Node* object,
+                                     Node* offset) {
+  return AddNode(graph()->NewNode(machine()->LoadTrapOnNull(type), object,
+                                  offset, effect(), control()));
+}
+
+Node* GraphAssembler::StoreTrapOnNull(StoreRepresentation rep, Node* object,
+                                      Node* offset, Node* value) {
+  return AddNode(graph()->NewNode(machine()->StoreTrapOnNull(rep), object,
+                                  offset, value, effect(), control()));
 }
 
 Node* GraphAssembler::Retain(Node* buffer) {

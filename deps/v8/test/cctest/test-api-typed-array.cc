@@ -5,6 +5,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-array-buffer.h"
 #include "test/cctest/test-api.h"
 
 using ::v8::Array;
@@ -454,7 +455,7 @@ THREADED_TEST(DataView) {
 
   // TODO(v8:11111): Use API functions for testing these, once they're exposed
   // via the API.
-  i::Handle<i::JSDataView> i_dv = v8::Utils::OpenHandle(*dv);
+  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv = v8::Utils::OpenHandle(*dv);
   CHECK(!i_dv->is_length_tracking());
   CHECK(!i_dv->is_backed_by_rab());
 }
@@ -531,7 +532,7 @@ THREADED_TEST(SharedDataView) {
 
   // TODO(v8:11111): Use API functions for testing these, once they're exposed
   // via the API.
-  i::Handle<i::JSDataView> i_dv = v8::Utils::OpenHandle(*dv);
+  i::Handle<i::JSDataViewOrRabGsabDataView> i_dv = v8::Utils::OpenHandle(*dv);
   CHECK(!i_dv->is_length_tracking());
   CHECK(!i_dv->is_backed_by_rab());
 }

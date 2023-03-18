@@ -9,6 +9,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
+#include "src/heap/sweeper.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/tasks/cancelable-task.h"
 
@@ -67,12 +68,15 @@ class ArrayBufferSweeper final {
   // Bytes accounted in the old generation. Rebuilt during sweeping.
   size_t OldBytes() const { return old().ApproximateBytes(); }
 
+  bool sweeping_in_progress() const {
+    DCHECK_IMPLIES(!job_, local_sweeper_.IsEmpty());
+    return job_.get();
+  }
+
  private:
   struct SweepingJob;
 
   enum class SweepingState { kInProgress, kDone };
-
-  bool sweeping_in_progress() const { return job_.get(); }
 
   // Finishes sweeping if it is already done.
   void FinishIfDone();
@@ -87,12 +91,15 @@ class ArrayBufferSweeper final {
 
   void ReleaseAll(ArrayBufferList* extension);
 
+  void DoSweep();
+
   Heap* const heap_;
   std::unique_ptr<SweepingJob> job_;
   base::Mutex sweeping_mutex_;
   base::ConditionVariable job_finished_;
   ArrayBufferList young_;
   ArrayBufferList old_;
+  Sweeper::LocalSweeper local_sweeper_;
 };
 
 }  // namespace internal

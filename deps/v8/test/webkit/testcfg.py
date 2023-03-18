@@ -81,7 +81,7 @@ class TestCase(testcase.D8TestCase):
 
   def _get_files_params(self):
     files = self._source_files
-    if self._test_config.isolates:
+    if self.test_config.isolates:
       files = files + ['--isolate'] + files
     return files
 

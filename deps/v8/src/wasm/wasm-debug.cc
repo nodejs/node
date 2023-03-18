@@ -173,7 +173,7 @@ class DebugInfoImpl {
   // is in the function of the given index.
   int DeadBreakpoint(int func_index, base::Vector<const int> breakpoints,
                      Isolate* isolate) {
-    StackTraceFrameIterator it(isolate);
+    DebuggableStackFrameIterator it(isolate);
     if (it.done() || !it.is_wasm()) return 0;
     auto* wasm_frame = WasmFrame::cast(it.frame());
     if (static_cast<int>(wasm_frame->function_index()) != func_index) return 0;
@@ -209,7 +209,7 @@ class DebugInfoImpl {
     // Recompile the function with Liftoff, setting the new breakpoints.
     // Not thread-safe. The caller is responsible for locking {mutex_}.
     CompilationEnv env = native_module_->CreateCompilationEnv();
-    auto* function = &native_module_->module()->functions[func_index];
+    auto* function = &env.module->functions[func_index];
     base::Vector<const uint8_t> wire_bytes = native_module_->wire_bytes();
     FunctionBody body{function->sig, function->code.offset(),
                       wire_bytes.begin() + function->code.offset(),
@@ -218,6 +218,17 @@ class DebugInfoImpl {
 
     // Debug side tables for stepping are generated lazily.
     bool generate_debug_sidetable = for_debugging == kWithBreakpoints;
+    // If lazy validation is on, we might need to lazily validate here.
+    if (V8_UNLIKELY(!env.module->function_was_validated(func_index))) {
+      WasmFeatures unused_detected_features;
+      DecodeResult validation_result = ValidateFunctionBody(
+          env.enabled_features, env.module, &unused_detected_features, body);
+      // Handling illegal modules here is tricky. As lazy validation is off by
+      // default anyway and this is for debugging only, we just crash for now.
+      CHECK_WITH_MSG(validation_result.ok(),
+                     validation_result.error().message().c_str());
+      env.module->set_function_validated(func_index);
+    }
     WasmCompilationResult result = ExecuteLiftoffCompilation(
         &env, body,
         LiftoffOptions{}
@@ -618,7 +629,7 @@ class DebugInfoImpl {
     // The first return location is after the breakpoint, others are after wasm
     // calls.
     ReturnLocation return_location = kAfterBreakpoint;
-    for (StackTraceFrameIterator it(isolate); !it.done();
+    for (DebuggableStackFrameIterator it(isolate); !it.done();
          it.Advance(), return_location = kAfterWasmCall) {
       // We still need the flooded function for stepping.
       if (it.frame()->id() == stepping_frame) continue;

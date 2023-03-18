@@ -1,101 +1,23 @@
-// Copyright 2022 the V8 project authors. All rights reserved.
+// Copyright 2023 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef V8_MAGLEV_MAGLEV_ASSEMBLER_INL_H_
 #define V8_MAGLEV_MAGLEV_ASSEMBLER_INL_H_
 
-#include <tuple>
-#include <type_traits>
-#include <utility>
-
-#include "src/codegen/macro-assembler-inl.h"
 #include "src/maglev/maglev-assembler.h"
-#include "src/maglev/maglev-basic-block.h"
-#include "src/maglev/maglev-code-gen-state.h"
+
+#ifdef V8_TARGET_ARCH_ARM64
+#include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
+#elif V8_TARGET_ARCH_X64
+#include "src/maglev/x64/maglev-assembler-x64-inl.h"
+#else
+#error "Maglev does not supported this architecture."
+#endif
 
 namespace v8 {
 namespace internal {
 namespace maglev {
-
-ZoneLabelRef::ZoneLabelRef(MaglevAssembler* masm)
-    : ZoneLabelRef(masm->compilation_info()->zone()) {}
-
-void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
-                             BasicBlock* if_false, BasicBlock* next_block) {
-  // We don't have any branch probability information, so try to jump
-  // over whatever the next block emitted is.
-  if (if_false == next_block) {
-    // Jump over the false block if true, otherwise fall through into it.
-    j(condition, if_true->label());
-  } else {
-    // Jump to the false block if true.
-    j(NegateCondition(condition), if_false->label());
-    // Jump to the true block if it's not the next block.
-    if (if_true != next_block) {
-      jmp(if_true->label());
-    }
-  }
-}
-
-void MaglevAssembler::PushInput(const Input& input) {
-  if (input.operand().IsConstant()) {
-    input.node()->LoadToRegister(this, kScratchRegister);
-    Push(kScratchRegister);
-  } else {
-    // TODO(leszeks): Consider special casing the value. (Toon: could possibly
-    // be done through Input directly?)
-    const compiler::AllocatedOperand& operand =
-        compiler::AllocatedOperand::cast(input.operand());
-
-    if (operand.IsRegister()) {
-      Push(operand.GetRegister());
-    } else {
-      DCHECK(operand.IsStackSlot());
-      Push(GetStackSlot(operand));
-    }
-  }
-}
-
-Register MaglevAssembler::FromAnyToRegister(const Input& input,
-                                            Register scratch) {
-  if (input.operand().IsConstant()) {
-    input.node()->LoadToRegister(this, scratch);
-    return scratch;
-  }
-  const compiler::AllocatedOperand& operand =
-      compiler::AllocatedOperand::cast(input.operand());
-  if (operand.IsRegister()) {
-    return ToRegister(input);
-  } else {
-    DCHECK(operand.IsStackSlot());
-    movq(scratch, ToMemOperand(input));
-    return scratch;
-  }
-}
-
-inline void MaglevAssembler::DefineLazyDeoptPoint(LazyDeoptInfo* info) {
-  info->set_deopting_call_return_pc(pc_offset_for_safepoint());
-  code_gen_state()->PushLazyDeopt(info);
-  safepoint_table_builder()->DefineSafepoint(this);
-}
-
-inline void MaglevAssembler::DefineExceptionHandlerPoint(NodeBase* node) {
-  ExceptionHandlerInfo* info = node->exception_handler_info();
-  if (!info->HasExceptionHandler()) return;
-  info->pc_offset = pc_offset_for_safepoint();
-  code_gen_state()->PushHandlerInfo(node);
-}
-
-inline void MaglevAssembler::DefineExceptionHandlerAndLazyDeoptPoint(
-    NodeBase* node) {
-  DefineExceptionHandlerPoint(node);
-  DefineLazyDeoptPoint(node->lazy_deopt_info());
-}
-
-// ---
-// Deferred code handling.
-// ---
 
 namespace detail {
 
@@ -149,10 +71,18 @@ struct CopyForDeferredHelper<BytecodeOffset>
 template <>
 struct CopyForDeferredHelper<EagerDeoptInfo*>
     : public CopyForDeferredByValue<EagerDeoptInfo*> {};
+// LazyDeoptInfo pointers are copied by value.
+template <>
+struct CopyForDeferredHelper<LazyDeoptInfo*>
+    : public CopyForDeferredByValue<LazyDeoptInfo*> {};
 // ZoneLabelRef is copied by value.
 template <>
 struct CopyForDeferredHelper<ZoneLabelRef>
     : public CopyForDeferredByValue<ZoneLabelRef> {};
+// RegList are copied by value.
+template <>
+struct CopyForDeferredHelper<RegList> : public CopyForDeferredByValue<RegList> {
+};
 // Register snapshots are copied by value.
 template <>
 struct CopyForDeferredHelper<RegisterSnapshot>
@@ -214,15 +144,21 @@ class DeferredCodeInfoImpl final : public DeferredCodeInfo {
 
   template <typename... InArgs>
   explicit DeferredCodeInfoImpl(MaglevCompilationInfo* compilation_info,
+                                RegList general_temporaries,
+                                DoubleRegList double_temporaries,
                                 FunctionPointer function, InArgs&&... args)
       : function(function),
-        args(CopyForDeferred(compilation_info, std::forward<InArgs>(args))...) {
-  }
+        args(CopyForDeferred(compilation_info, std::forward<InArgs>(args))...),
+        general_temporaries_(general_temporaries),
+        double_temporaries_(double_temporaries) {}
 
   DeferredCodeInfoImpl(DeferredCodeInfoImpl&&) = delete;
   DeferredCodeInfoImpl(const DeferredCodeInfoImpl&) = delete;
 
   void Generate(MaglevAssembler* masm) override {
+    MaglevAssembler::ScratchRegisterScope scratch_scope(masm);
+    scratch_scope.SetAvailable(general_temporaries_);
+    scratch_scope.SetAvailableDouble(double_temporaries_);
     std::apply(function,
                std::tuple_cat(std::make_tuple(masm), std::move(args)));
   }
@@ -230,13 +166,15 @@ class DeferredCodeInfoImpl final : public DeferredCodeInfo {
  private:
   FunctionPointer function;
   Tuple args;
+  RegList general_temporaries_;
+  DoubleRegList double_temporaries_;
 };
 
 }  // namespace detail
 
 template <typename Function, typename... Args>
-inline DeferredCodeInfo* MaglevAssembler::PushDeferredCode(
-    Function&& deferred_code_gen, Args&&... args) {
+inline Label* MaglevAssembler::MakeDeferredCode(Function&& deferred_code_gen,
+                                                Args&&... args) {
   using FunctionPointer =
       typename detail::FunctionArgumentsTupleHelper<Function>::FunctionPointer;
   static_assert(
@@ -245,15 +183,18 @@ inline DeferredCodeInfo* MaglevAssembler::PushDeferredCode(
                               std::declval<MaglevCompilationInfo*>(),
                               std::declval<Args>()))...>,
       "Parameters of deferred_code_gen function should match arguments into "
-      "PushDeferredCode");
+      "MakeDeferredCode");
 
+  ScratchRegisterScope scratch_scope(this);
   using DeferredCodeInfoT = detail::DeferredCodeInfoImpl<Function>;
   DeferredCodeInfoT* deferred_code =
       compilation_info()->zone()->New<DeferredCodeInfoT>(
-          compilation_info(), deferred_code_gen, std::forward<Args>(args)...);
+          compilation_info(), scratch_scope.Available(),
+          scratch_scope.AvailableDouble(), deferred_code_gen,
+          std::forward<Args>(args)...);
 
   code_gen_state()->PushDeferredCode(deferred_code);
-  return deferred_code;
+  return &deferred_code->deferred_code_label;
 }
 
 // Note this doesn't take capturing lambdas by design, since state may
@@ -263,46 +204,69 @@ template <typename Function, typename... Args>
 inline void MaglevAssembler::JumpToDeferredIf(Condition cond,
                                               Function&& deferred_code_gen,
                                               Args&&... args) {
-  DeferredCodeInfo* deferred_code = PushDeferredCode<Function, Args...>(
-      std::forward<Function>(deferred_code_gen), std::forward<Args>(args)...);
   if (v8_flags.code_comments) {
     RecordComment("-- Jump to deferred code");
   }
-  j(cond, &deferred_code->deferred_code_label);
+  JumpIf(cond, MakeDeferredCode<Function, Args...>(
+                   std::forward<Function>(deferred_code_gen),
+                   std::forward<Args>(args)...));
 }
 
-// ---
-// Deopt
-// ---
+inline void MaglevAssembler::SmiToDouble(DoubleRegister result, Register smi) {
+  AssertSmi(smi);
+  SmiUntag(smi);
+  Int32ToDouble(result, smi);
+}
 
-inline void MaglevAssembler::RegisterEagerDeopt(EagerDeoptInfo* deopt_info,
-                                                DeoptimizeReason reason) {
-  if (deopt_info->reason() != DeoptimizeReason::kUnknown) {
-    DCHECK_EQ(deopt_info->reason(), reason);
+inline void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
+                                    BasicBlock* if_false,
+                                    BasicBlock* next_block) {
+  Branch(condition, if_true->label(), Label::kFar, if_true == next_block,
+         if_false->label(), Label::kFar, if_false == next_block);
+}
+
+inline void MaglevAssembler::Branch(Condition condition, Label* if_true,
+                                    Label::Distance true_distance,
+                                    bool fallthrough_when_true, Label* if_false,
+                                    Label::Distance false_distance,
+                                    bool fallthrough_when_false) {
+  if (fallthrough_when_false) {
+    if (fallthrough_when_true) {
+      // If both paths are a fallthrough, do nothing.
+      DCHECK_EQ(if_true, if_false);
+      return;
+    }
+    // Jump over the false block if true, otherwise fall through into it.
+    JumpIf(condition, if_true, true_distance);
+  } else {
+    // Jump to the false block if true.
+    JumpIf(NegateCondition(condition), if_false, false_distance);
+    // Jump to the true block if it's not the next block.
+    if (!fallthrough_when_true) {
+      Jump(if_true, true_distance);
+    }
   }
-  if (deopt_info->deopt_entry_label()->is_unused()) {
-    code_gen_state()->PushEagerDeopt(deopt_info);
-    deopt_info->set_reason(reason);
-  }
 }
 
-template <typename NodeT>
-inline void MaglevAssembler::EmitEagerDeopt(NodeT* node,
-                                            DeoptimizeReason reason) {
-  static_assert(NodeT::kProperties.can_eager_deopt());
-  RegisterEagerDeopt(node->eager_deopt_info(), reason);
-  RecordComment("-- Jump to eager deopt");
-  jmp(node->eager_deopt_info()->deopt_entry_label());
+inline void MaglevAssembler::LoadTaggedField(Register result,
+                                             MemOperand operand) {
+  MacroAssembler::LoadTaggedField(result, operand);
 }
 
-template <typename NodeT>
-inline void MaglevAssembler::EmitEagerDeoptIf(Condition cond,
-                                              DeoptimizeReason reason,
-                                              NodeT* node) {
-  static_assert(NodeT::kProperties.can_eager_deopt());
-  RegisterEagerDeopt(node->eager_deopt_info(), reason);
-  RecordComment("-- Jump to eager deopt");
-  j(cond, node->eager_deopt_info()->deopt_entry_label());
+inline void MaglevAssembler::LoadTaggedField(Register result, Register object,
+                                             int offset) {
+  MacroAssembler::LoadTaggedField(result, FieldMemOperand(object, offset));
+}
+
+inline void MaglevAssembler::LoadTaggedSignedField(Register result,
+                                                   MemOperand operand) {
+  MacroAssembler::LoadTaggedField(result, operand);
+}
+
+inline void MaglevAssembler::LoadTaggedSignedField(Register result,
+                                                   Register object,
+                                                   int offset) {
+  MacroAssembler::LoadTaggedField(result, FieldMemOperand(object, offset));
 }
 
 }  // namespace maglev

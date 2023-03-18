@@ -276,6 +276,8 @@ def PrepareMksnapshotCmdline(orig_cmdline, path):
     if w.startswith("gen/") or w.startswith("snapshot_blob"):
       result += ("%(path)s%(sep)s%(arg)s " %
                  {"path": path, "sep": os.sep, "arg": w})
+    elif w.startswith("../../"):
+      result += "%s " % w[6:]
     else:
       result += "%s " % w
   return result
@@ -384,6 +386,10 @@ class Config(object):
     return_code, output = _CallWithOutput("autoninja -C %s %s" %
                                           (path, targets))
     if return_code != 0 and "FAILED:" in output and "snapshot_blob" in output:
+      if "gen-static-roots.py" in output:
+        _Notify("V8 build requires your attention",
+                "Please re-generate static roots...")
+        return return_code
       csa_trap = re.compile("Specify option( --csa-trap-on-node=[^ ]*)")
       match = csa_trap.search(output)
       extra_opt = match.group(1) if match else ""

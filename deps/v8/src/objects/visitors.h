@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-class CodeDataContainer;
+class Code;
 
 #define ROOT_ID_LIST(V)                                 \
   V(kStringTable, "(Internalized strings)")             \
@@ -91,11 +91,14 @@ class RootVisitor {
     UNREACHABLE();
   }
 
-  // Visits a single pointer which is Code from the execution stack.
-  virtual void VisitRunningCode(FullObjectSlot p) {
-    // For most visitors, currently running Code is no different than any other
+  // Visits a running Code object and potentially its associated
+  // InstructionStream from the execution stack.
+  virtual void VisitRunningCode(FullObjectSlot code_slot,
+                                FullObjectSlot istream_or_smi_zero_slot) {
+    // For most visitors, currently running code is no different than any other
     // on-stack pointer.
-    VisitRootPointer(Root::kStackRoots, nullptr, p);
+    VisitRootPointer(Root::kStackRoots, nullptr, istream_or_smi_zero_slot);
+    VisitRootPointer(Root::kStackRoots, nullptr, code_slot);
   }
 
   // Intended for serialization/deserialization checking: insert, or
@@ -104,6 +107,15 @@ class RootVisitor {
   virtual void Synchronize(VisitorSynchronization::SyncTag tag) {}
 
   static const char* RootName(Root root);
+
+  // The type of collector that invokes this visitor. This is used by the
+  // ConservativeStackVisitor to determine which root pointers on the stack
+  // to follow, during conservative stack scanning. For MARK_COMPACTOR (the
+  // default) all pointers are followed, whereas for young generation
+  // collectors only pointers to objects in the young generation are followed.
+  virtual GarbageCollector collector() const {
+    return GarbageCollector::MARK_COMPACTOR;
+  }
 };
 
 class RelocIterator;
@@ -120,11 +132,10 @@ class ObjectVisitor {
                              ObjectSlot end) = 0;
   virtual void VisitPointers(HeapObject host, MaybeObjectSlot start,
                              MaybeObjectSlot end) = 0;
-  // When V8_EXTERNAL_CODE_SPACE is enabled, visits a Code pointer slot.
-  // The values may be modified on return.
-  // Not used when V8_EXTERNAL_CODE_SPACE is not enabled (the Code pointer
-  // slots are visited as a part of on-heap slot visitation - via
-  // VisitPointers()).
+  // When V8_EXTERNAL_CODE_SPACE is enabled, visits a InstructionStream pointer
+  // slot. The values may be modified on return. Not used when
+  // V8_EXTERNAL_CODE_SPACE is not enabled (the InstructionStream pointer slots
+  // are visited as a part of on-heap slot visitation - via VisitPointers()).
   virtual void VisitCodePointer(HeapObject host, CodeObjectSlot slot) = 0;
 
   // Custom weak pointers must be ignored by the GC but not other
@@ -154,27 +165,30 @@ class ObjectVisitor {
   }
 
   // To allow lazy clearing of inline caches the visitor has
-  // a rich interface for iterating over Code objects ...
+  // a rich interface for iterating over InstructionStream objects ...
 
   // Visits a code target in the instruction stream.
-  virtual void VisitCodeTarget(Code host, RelocInfo* rinfo) = 0;
+  virtual void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) = 0;
 
   // Visit pointer embedded into a code object.
-  virtual void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) = 0;
+  virtual void VisitEmbeddedPointer(InstructionStream host,
+                                    RelocInfo* rinfo) = 0;
 
   // Visits an external reference embedded into a code object.
-  virtual void VisitExternalReference(Code host, RelocInfo* rinfo) {}
+  virtual void VisitExternalReference(InstructionStream host,
+                                      RelocInfo* rinfo) {}
 
   // Visits an external pointer.
   virtual void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
                                     ExternalPointerTag tag) {}
 
   // Visits an (encoded) internal reference.
-  virtual void VisitInternalReference(Code host, RelocInfo* rinfo) {}
+  virtual void VisitInternalReference(InstructionStream host,
+                                      RelocInfo* rinfo) {}
 
   // Visits an off-heap target or near builtin entry in the instruction stream.
   // TODO(ishell): rename to VisitBuiltinEntry.
-  virtual void VisitOffHeapTarget(Code host, RelocInfo* rinfo) {}
+  virtual void VisitOffHeapTarget(InstructionStream host, RelocInfo* rinfo) {}
 
   // Visits the relocation info using the given iterator.
   void VisitRelocInfo(RelocIterator* it);
@@ -193,7 +207,7 @@ class ObjectVisitorWithCageBases : public ObjectVisitor {
   inline explicit ObjectVisitorWithCageBases(Heap* heap);
 
   // The pointer compression cage base value used for decompression of all
-  // tagged values except references to Code objects.
+  // tagged values except references to InstructionStream objects.
   PtrComprCageBase cage_base() const {
 #if V8_COMPRESS_POINTERS
     return cage_base_;
@@ -203,7 +217,7 @@ class ObjectVisitorWithCageBases : public ObjectVisitor {
   }
 
   // The pointer compression cage base value used for decompression of
-  // references to Code objects.
+  // references to InstructionStream objects.
   PtrComprCageBase code_cage_base() const {
 #ifdef V8_EXTERNAL_CODE_SPACE
     return code_cage_base_;

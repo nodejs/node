@@ -105,7 +105,7 @@ class TestCase(testcase.D8TestCase):
     else:
       mjsunit_files = [os.path.join(self.suite.root, "mjsunit.js")]
 
-    if self.suite.framework_name == 'num_fuzzer':
+    if self.framework_name == 'num_fuzzer':
       mjsunit_files.append(os.path.join(self.suite.root, "mjsunit_numfuzz.js"))
 
     self._source_files = files
@@ -128,10 +128,10 @@ class TestCase(testcase.D8TestCase):
 
   def _get_files_params(self):
     files = list(self._source_files)
-    if not self._test_config.no_harness:
+    if not self.test_config.no_harness:
       files += self._mjsunit_files
     files += self._files_suffix
-    if self._test_config.isolates:
+    if self.test_config.isolates:
       files += ['--isolate'] + files
 
     return files
@@ -190,8 +190,7 @@ class CombinedTest(testcase.D8TestCase):
       passed as arguments.
   """
   def __init__(self, name, tests):
-    super(CombinedTest, self).__init__(tests[0].suite, '', name,
-                                       tests[0]._test_config)
+    super(CombinedTest, self).__init__(tests[0].suite, '', name)
     self._tests = tests
 
   def _prepare_outcomes(self, force_update=True):

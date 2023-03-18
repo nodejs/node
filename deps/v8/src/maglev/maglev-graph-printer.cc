@@ -50,6 +50,7 @@ void PrintPaddedId(std::ostream& os, MaglevGraphLabeller* graph_labeller,
     os << node->id() << "/";
   }
   os << graph_labeller->NodeId(node) << ": ";
+  if (node->is_dead()) os << "☠ ";
 }
 
 void PrintPadding(std::ostream& os, int size) {
@@ -371,7 +372,16 @@ void PrintSingleDeoptFrame(
     LazyDeoptInfo* lazy_deopt_info_if_top_frame = nullptr) {
   switch (frame.type()) {
     case DeoptFrame::FrameType::kInterpretedFrame: {
-      os << "@" << frame.as_interpreted().bytecode_position() << " : {";
+      os << "@" << frame.as_interpreted().bytecode_position();
+      if (!v8_flags.print_maglev_deopt_verbose) {
+        int count = 0;
+        frame.as_interpreted().frame_state()->ForEachValue(
+            frame.as_interpreted().unit(),
+            [&](ValueNode* node, interpreter::Register reg) { count++; });
+        os << " (" << count << " live vars)";
+        return;
+      }
+      os << " : {";
       bool first = true;
       frame.as_interpreted().frame_state()->ForEachValue(
           frame.as_interpreted().unit(),
@@ -395,8 +405,9 @@ void PrintSingleDeoptFrame(
       break;
     }
     case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
-      os << "@" << Builtins::name(frame.as_builtin_continuation().builtin_id())
-         << " : {";
+      os << "@" << Builtins::name(frame.as_builtin_continuation().builtin_id());
+      if (!v8_flags.print_maglev_deopt_verbose) return;
+      os << " : {";
       int arg_index = 0;
       for (ValueNode* node : frame.as_builtin_continuation().parameters()) {
         os << "a" << arg_index << ":" << PrintNodeLabel(graph_labeller, node)
@@ -510,7 +521,7 @@ void PrintExceptionHandlerPoint(std::ostream& os,
     // No phis in the block.
     return;
   }
-  int handler_offset = first_phi->merge_offset();
+  int handler_offset = first_phi->merge_state()->merge_offset();
 
   // The exception handler liveness should be a subset of lazy_deopt_info one.
   auto* liveness = block->state()->frame_state().liveness();
@@ -571,10 +582,27 @@ void MaybePrintLazyDeoptOrExceptionHandler(std::ostream& os,
 void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
   PrintVerticalArrows(os_, targets_);
   PrintPaddedId(os_, graph_labeller_, max_node_id_, phi);
+  os_ << "φ";
+  switch (phi->value_representation()) {
+    case ValueRepresentation::kTagged:
+      os_ << "ᵀ";
+      break;
+    case ValueRepresentation::kInt32:
+      os_ << "ᴵ";
+      break;
+    case ValueRepresentation::kUint32:
+      os_ << "ᵁ";
+      break;
+    case ValueRepresentation::kFloat64:
+      os_ << "ᶠ";
+      break;
+    case ValueRepresentation::kWord64:
+      UNREACHABLE();
+  }
   if (phi->input_count() == 0) {
-    os_ << "φₑ " << phi->owner().ToString();
+    os_ << "ₑ " << phi->owner().ToString();
   } else {
-    os_ << "φ (";
+    os_ << " (";
     // Manually walk Phi inputs to print just the node labels, without
     // input locations (which are shown in the predecessor block's gap
     // moves).
@@ -688,8 +716,24 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
         os_ << (has_fallthrough ? "│" : " ");
         os_ << "    - ";
         graph_labeller_->PrintInput(os_, phi->input(pid));
-        os_ << " → " << graph_labeller_->NodeId(phi) << ": φ "
-            << phi->result().operand() << "\n";
+        os_ << " → " << graph_labeller_->NodeId(phi) << ": φ";
+        switch (phi->value_representation()) {
+          case ValueRepresentation::kTagged:
+            os_ << "ᵀ";
+            break;
+          case ValueRepresentation::kInt32:
+            os_ << "ᴵ";
+            break;
+          case ValueRepresentation::kUint32:
+            os_ << "ᵁ";
+            break;
+          case ValueRepresentation::kFloat64:
+            os_ << "ᶠ";
+            break;
+          case ValueRepresentation::kWord64:
+            UNREACHABLE();
+        }
+        os_ << " " << phi->result().operand() << "\n";
       }
       if (target->state()->register_state().is_initialized()) {
         PrintVerticalArrows(os_, targets_);
@@ -734,7 +778,7 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
 
 void PrintGraph(std::ostream& os, MaglevCompilationInfo* compilation_info,
                 Graph* const graph) {
-  GraphProcessor<MaglevPrintingVisitor> printer(
+  GraphProcessor<MaglevPrintingVisitor, /*visit_dead_nodes*/ true> printer(
       compilation_info->graph_labeller(), os);
   printer.ProcessGraph(graph);
 }

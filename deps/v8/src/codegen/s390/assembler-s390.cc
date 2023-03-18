@@ -371,7 +371,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   // TODO(jgruber): Consider moving responsibility for proper alignment to
   // metadata table builders (safepoint, handler, constant pool, code
   // comments).
-  DataAlign(Code::kMetadataAlignment);
+  DataAlign(InstructionStream::kMetadataAlignment);
 
   EmitRelocations();
 
@@ -510,8 +510,10 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
   } else if (LLILF == opcode) {
     DCHECK(target_pos == kEndOfChain || target_pos >= 0);
     // Emitted label constant, not part of a branch.
-    // Make label relative to Code pointer of generated Code object.
-    int32_t imm32 = target_pos + (Code::kHeaderSize - kHeapObjectTag);
+    // Make label relative to InstructionStream pointer of generated
+    // InstructionStream object.
+    int32_t imm32 =
+        target_pos + (InstructionStream::kHeaderSize - kHeapObjectTag);
     instr &= (~static_cast<uint64_t>(0xFFFFFFFF));
     instr_at_put<SixByteInstr>(pos, instr | imm32);
     return;
@@ -608,7 +610,7 @@ void Assembler::load_label_offset(Register r1, Label* L) {
   int constant;
   if (L->is_bound()) {
     target_pos = L->pos();
-    constant = target_pos + (Code::kHeaderSize - kHeapObjectTag);
+    constant = target_pos + (InstructionStream::kHeaderSize - kHeapObjectTag);
   } else {
     if (L->is_linked()) {
       target_pos = L->pos();  // L's link
@@ -831,7 +833,7 @@ void Assembler::EmitRelocations() {
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = reinterpret_cast<Address>(buffer_start_) + it->position();
-    RelocInfo rinfo(pc, rmode, it->data(), Code());
+    RelocInfo rinfo(pc, rmode, it->data(), InstructionStream());
 
     // Fix up internal references now that they are guaranteed to be bound.
     if (RelocInfo::IsInternalReference(rmode)) {

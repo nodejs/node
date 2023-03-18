@@ -304,39 +304,6 @@ HEAP_TEST(ObjectStartBitmap) {
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 }
 
-// TODO(1600): compaction of map space is temporary removed from GC.
-#if 0
-static Handle<Map> CreateMap(Isolate* isolate) {
-  return isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-}
-
-TEST(MapCompact) {
-  v8_flags.max_map_space_pages = 16;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-
-  {
-    v8::HandleScope sc;
-    // keep allocating maps while pointers are still encodable and thus
-    // mark compact is permitted.
-    Handle<JSObject> root = factory->NewJSObjectFromMap(CreateMap());
-    do {
-      Handle<Map> map = CreateMap();
-      map->set_prototype(*root);
-      root = factory->NewJSObjectFromMap(map);
-    } while (CcTest::heap()->map_space()->MapPointersEncodable());
-  }
-  // Now, as we don't have any handles to just allocated maps, we should
-  // be able to trigger map compaction.
-  // To give an additional chance to fail, try to force compaction which
-  // should be impossible right now.
-  CcTest::CollectAllGarbage(Heap::kForceCompactionMask);
-  // And now map pointers should be encodable again.
-  CHECK(CcTest::heap()->map_space()->MapPointersEncodable());
-}
-#endif
-
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer)
 #define V8_WITH_ASAN 1

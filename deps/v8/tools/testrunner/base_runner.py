@@ -90,15 +90,7 @@ TEST_MAP = {
 ModeConfig = namedtuple(
     'ModeConfig', 'label flags timeout_scalefactor status_mode')
 
-DEBUG_FLAGS = ["--nohard-abort", "--enable-slow-asserts", "--verify-heap"]
 RELEASE_FLAGS = ["--nohard-abort"]
-
-DEBUG_MODE = ModeConfig(
-    label='debug',
-    flags=DEBUG_FLAGS,
-    timeout_scalefactor=4,
-    status_mode="debug",
-)
 
 RELEASE_MODE = ModeConfig(
     label='release',
@@ -390,9 +382,22 @@ class BaseTestRunner(object):
       print(">>> Latest GN build found: %s" % latest_config)
       return os.path.join(DEFAULT_OUT_GN, latest_config)
 
+  def _custom_debug_mode(self):
+    custom_debug_flags = ["--nohard-abort"]
+    if self.build_config.verify_heap:
+      custom_debug_flags += ["--verify-heap"]
+    if self.build_config.slow_dchecks:
+      custom_debug_flags += ["--enable-slow-asserts"]
+    return ModeConfig(
+        label='debug',
+        flags=custom_debug_flags,
+        timeout_scalefactor=4,
+        status_mode="debug",
+    )
+
   def _process_default_options(self):
     if self.build_config.is_debug:
-      self.mode_options = DEBUG_MODE
+      self.mode_options = self._custom_debug_mode()
     elif self.build_config.dcheck_always_on:
       self.mode_options = TRY_RELEASE_MODE
     else:
@@ -523,8 +528,7 @@ class BaseTestRunner(object):
       if self.options.verbose:
         print('>>> Loading test suite: %s' % name)
       suite = testsuite.TestSuite.Load(
-          ctx, os.path.join(self.options.test_root, name), test_config,
-          self.framework_name)
+          ctx, os.path.join(self.options.test_root, name), test_config)
 
       if self._is_testsuite_supported(suite):
         tests = suite.load_tests_from_disk(variables)
@@ -547,6 +551,8 @@ class BaseTestRunner(object):
             sys.byteorder,
         "cfi_vptr":
             self.build_config.cfi_vptr,
+        "code_comments":
+            self.build_config.code_comments,
         "component_build":
             self.build_config.component_build,
         "conservative_stack_scanning":
@@ -559,8 +565,12 @@ class BaseTestRunner(object):
             self.build_config.single_generation,
         "dcheck_always_on":
             self.build_config.dcheck_always_on,
+        "debug_code":
+            self.build_config.debug_code,
         "deopt_fuzzer":
             False,
+        "disassembler":
+            self.build_config.disassembler,
         "endurance_fuzzer":
             False,
         "gc_fuzzer":
@@ -569,12 +579,25 @@ class BaseTestRunner(object):
             False,
         "gcov_coverage":
             self.build_config.gcov_coverage,
+        "gdbjit":
+            self.build_config.gdbjit,
+        # TODO(jgruber): Note this rename from maglev to has_maglev is required
+        # to avoid a name clash with the "maglev" variant. See also the TODO in
+        # statusfile.py (this really shouldn't be needed).
+        "has_maglev":
+            self.build_config.maglev,
+        "has_turbofan":
+            self.build_config.turbofan,
         "has_webassembly":
             self.build_config.webassembly,
         "isolates":
             self.options.isolates,
         "is_clang":
             self.build_config.is_clang,
+        "is_debug":
+            self.build_config.is_debug,
+        "is_DEBUG_defined":
+            self.build_config.is_DEBUG_defined,
         "is_full_debug":
             self.build_config.is_full_debug,
         "interrupt_fuzzer":
@@ -602,6 +625,8 @@ class BaseTestRunner(object):
         "simulator_run":
             self.build_config.simulator_run
             and not self.options.dont_skip_simulator_slow_tests,
+        "slow_dchecks":
+            self.build_config.slow_dchecks,
         "system":
             self.target_os,
         "third_party_heap":
@@ -612,6 +637,8 @@ class BaseTestRunner(object):
             self.build_config.ubsan_vptr,
         "verify_csa":
             self.build_config.verify_csa,
+        "verify_heap":
+            self.build_config.verify_heap,
         "lite_mode":
             self.build_config.lite_mode,
         "pointer_compression":
@@ -631,17 +658,21 @@ class BaseTestRunner(object):
     return [] # pragma: no cover
 
   def _create_test_config(self):
+    shard_id, shard_count = self.options.shard_info
     timeout = self.build_config.timeout_scalefactor(
         self.options.timeout * self.mode_options.timeout_scalefactor)
     return TestConfig(
         command_prefix=self.options.command_prefix,
         extra_flags=self.options.extra_flags,
+        framework_name=self.framework_name,
         isolates=self.options.isolates,
         mode_flags=self.mode_options.flags + self._runner_flags(),
         no_harness=self.options.no_harness,
         noi18n=self.build_config.no_i18n,
         random_seed=self.options.random_seed,
         run_skipped=self.options.run_skipped,
+        shard_count=shard_count,
+        shard_id=shard_id,
         shell_dir=self.outdir,
         timeout=timeout,
         verbose=self.options.verbose,

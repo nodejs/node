@@ -49,15 +49,15 @@ void* Zone::AsanNew(size_t size) {
   size = RoundUp(size, kAlignmentInBytes);
 
   // Check if the requested size is available without expanding.
-  Address result = position_;
-
   const size_t size_with_redzone = size + kASanRedzoneBytes;
   DCHECK_LE(position_, limit_);
-  if (size_with_redzone > limit_ - position_) {
-    result = NewExpand(size_with_redzone);
-  } else {
-    position_ += size_with_redzone;
+  if (V8_UNLIKELY(size_with_redzone > limit_ - position_)) {
+    Expand(size_with_redzone);
   }
+  DCHECK_LE(size_with_redzone, limit_ - position_);
+
+  Address result = position_;
+  position_ += size_with_redzone;
 
   Address redzone_position = result + size;
   DCHECK_EQ(redzone_position + kASanRedzoneBytes, position_);
@@ -128,7 +128,7 @@ void Zone::ReleaseSegment(Segment* segment) {
   allocator_->ReturnSegment(segment, supports_compression());
 }
 
-Address Zone::NewExpand(size_t size) {
+void Zone::Expand(size_t size) {
   // Make sure the requested size is already properly aligned and that
   // there isn't enough room in the Zone to satisfy the request.
   DCHECK_EQ(size, RoundDown(size, kAlignmentInBytes));
@@ -178,15 +178,10 @@ Address Zone::NewExpand(size_t size) {
   allocator_->TraceAllocateSegment(segment);
 
   // Recompute 'top' and 'limit' based on the new segment.
-  Address result = RoundUp(segment->start(), kAlignmentInBytes);
-  position_ = result + size;
-  // Check for address overflow.
-  // (Should not happen since the segment is guaranteed to accommodate
-  // size bytes + header and alignment padding)
-  DCHECK(position_ >= result);
+  position_ = RoundUp(segment->start(), kAlignmentInBytes);
   limit_ = segment->end();
-  DCHECK(position_ <= limit_);
-  return result;
+  DCHECK_LE(position_, limit_);
+  DCHECK_LE(size, limit_ - position_);
 }
 
 ZoneScope::ZoneScope(Zone* zone)

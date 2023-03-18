@@ -32,9 +32,12 @@ InspectorTest.runAsyncTestSuite([
     const {params: {callFrames, data}} = await pausedPromise;
     InspectorTest.log(`${data.uncaught ? 'Uncaught' : 'Caught'} exception at`);
     await session.logSourceLocation(callFrames[0].location);
+
+    await Protocol.Debugger.resume();
+    // Wait on this before the Promise.all to ensure we didn't break twice (crbug.com/1270780).
+    await evalPromise;
+
     await Promise.all([
-      Protocol.Debugger.resume(),
-      evalPromise,
       Protocol.Runtime.disable(),
       Protocol.Debugger.disable(),
     ]);

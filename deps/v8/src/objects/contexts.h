@@ -169,6 +169,8 @@ enum ContextLookupFlags {
   V(INTL_SEGMENTER_FUNCTION_INDEX, JSFunction, intl_segmenter_function)        \
   V(INTL_SEGMENTS_MAP_INDEX, Map, intl_segments_map)                           \
   V(INTL_SEGMENT_ITERATOR_MAP_INDEX, Map, intl_segment_iterator_map)           \
+  V(ITERATOR_FILTER_HELPER_MAP_INDEX, Map, iterator_filter_helper_map)         \
+  V(ITERATOR_MAP_HELPER_MAP_INDEX, Map, iterator_map_helper_map)               \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
   V(JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX, Map,                               \
     js_array_packed_smi_elements_map)                                          \
@@ -230,6 +232,7 @@ enum ContextLookupFlags {
   V(CATCH_CONTEXT_MAP_INDEX, Map, catch_context_map)                           \
   V(WITH_CONTEXT_MAP_INDEX, Map, with_context_map)                             \
   V(DEBUG_EVALUATE_CONTEXT_MAP_INDEX, Map, debug_evaluate_context_map)         \
+  V(JS_RAB_GSAB_DATA_VIEW_MAP_INDEX, Map, js_rab_gsab_data_view_map)           \
   V(MAP_CACHE_INDEX, Object, map_cache)                                        \
   V(MAP_KEY_ITERATOR_MAP_INDEX, Map, map_key_iterator_map)                     \
   V(MAP_KEY_VALUE_ITERATOR_MAP_INDEX, Map, map_key_value_iterator_map)         \
@@ -549,13 +552,11 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.
-    OPTIMIZED_CODE_LIST,    // Weak.
-    DEOPTIMIZED_CODE_LIST,  // Weak.
-    NEXT_CONTEXT_LINK,      // Weak.
+    NEXT_CONTEXT_LINK,  // Weak.
 
     // Total number of slots.
     NATIVE_CONTEXT_SLOTS,
-    FIRST_WEAK_SLOT = OPTIMIZED_CODE_LIST,
+    FIRST_WEAK_SLOT = NEXT_CONTEXT_LINK,
     FIRST_JS_ARRAY_MAP_SLOT = JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX,
 
     // TODO(shell): Remove, once it becomes zero
@@ -779,14 +780,6 @@ class NativeContext : public Context {
 #undef NATIVE_CONTEXT_FIELDS_DEF
 
   class BodyDescriptor;
-
-  // The native context stores a list of all optimized code and a list of all
-  // deoptimized code, which are needed by the deoptimizer.
-  V8_EXPORT_PRIVATE void AddOptimizedCode(CodeT code);
-  inline void SetOptimizedCodeListHead(Object head);
-  inline Object OptimizedCodeListHead();
-  inline void SetDeoptimizedCodeListHead(Object head);
-  inline Object DeoptimizedCodeListHead();
 
   void ResetErrorsThrown();
   void IncrementErrorsThrown();

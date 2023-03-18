@@ -222,19 +222,20 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   // ES6 7.3.14 (when passed kDontThrow)
   // 'level' must be SEALED or FROZEN.
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetIntegrityLevel(
-      Handle<JSReceiver> object, IntegrityLevel lvl, ShouldThrow should_throw);
+      Isolate* isolate, Handle<JSReceiver> object, IntegrityLevel lvl,
+      ShouldThrow should_throw);
 
   // ES6 7.3.15
   // 'level' must be SEALED or FROZEN.
   V8_WARN_UNUSED_RESULT static Maybe<bool> TestIntegrityLevel(
-      Handle<JSReceiver> object, IntegrityLevel lvl);
+      Isolate* isolate, Handle<JSReceiver> object, IntegrityLevel lvl);
 
   // ES6 [[PreventExtensions]] (when passed kDontThrow)
   V8_WARN_UNUSED_RESULT static Maybe<bool> PreventExtensions(
-      Handle<JSReceiver> object, ShouldThrow should_throw);
+      Isolate* isolate, Handle<JSReceiver> object, ShouldThrow should_throw);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> IsExtensible(
-      Handle<JSReceiver> object);
+      Isolate* isolate, Handle<JSReceiver> object);
 
   // Returns the class name.
   V8_EXPORT_PRIVATE String class_name();
@@ -331,6 +332,10 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   V8_EXPORT_PRIVATE static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> New(
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target,
       Handle<AllocationSite> site);
+
+  static MaybeHandle<JSObject> NewWithMap(Isolate* isolate,
+                                          Handle<Map> initial_map,
+                                          Handle<AllocationSite> site);
 
   // 9.1.12 ObjectCreate ( proto [ , internalSlotsList ] )
   // Notice: This is NOT 19.1.2.2 Object.create ( O, Properties )
@@ -753,12 +758,12 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   bool ReferencesObject(Object obj);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> TestIntegrityLevel(
-      Handle<JSObject> object, IntegrityLevel lvl);
+      Isolate* isolate, Handle<JSObject> object, IntegrityLevel lvl);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> PreventExtensions(
-      Handle<JSObject> object, ShouldThrow should_throw);
+      Isolate* isolate, Handle<JSObject> object, ShouldThrow should_throw);
 
-  static bool IsExtensible(Handle<JSObject> object);
+  static bool IsExtensible(Isolate* isolate, Handle<JSObject> object);
 
   static MaybeHandle<Object> ReadFromOptionsBag(Handle<Object> options,
                                                 Handle<String> option_name,
@@ -901,7 +906,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // attrs is one of NONE, SEALED, or FROZEN (depending on the operation).
   template <PropertyAttributes attrs>
   V8_WARN_UNUSED_RESULT static Maybe<bool> PreventExtensionsWithTransition(
-      Handle<JSObject> object, ShouldThrow should_throw);
+      Isolate* isolate, Handle<JSObject> object, ShouldThrow should_throw);
 
   TQ_OBJECT_CONSTRUCTORS(JSObject)
 };
@@ -1109,8 +1114,8 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSDate> New(
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target, double tv);
 
-  // Returns the time value (UTC) identifying the current time.
-  static double CurrentTimeValue(Isolate* isolate);
+  // Returns the time value (UTC) identifying the current time in milliseconds.
+  static int64_t CurrentTimeValue(Isolate* isolate);
 
   // Returns the date field with the specified index.
   // See FieldIndex for the list of date fields.

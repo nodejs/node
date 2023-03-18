@@ -319,9 +319,6 @@ class PerIsolateData {
   Local<FunctionTemplate> GetTestApiObjectCtor() const;
   void SetTestApiObjectCtor(Local<FunctionTemplate> ctor);
 
-  Local<FunctionTemplate> GetSnapshotObjectCtor() const;
-  void SetSnapshotObjectCtor(Local<FunctionTemplate> ctor);
-
   Local<FunctionTemplate> GetDomNodeCtor() const;
   void SetDomNodeCtor(Local<FunctionTemplate> ctor);
 
@@ -344,7 +341,6 @@ class PerIsolateData {
   std::unordered_set<DynamicImportData*> import_data_;
 #endif
   Global<FunctionTemplate> test_api_object_ctor_;
-  Global<FunctionTemplate> snapshot_object_ctor_;
   Global<FunctionTemplate> dom_node_ctor_;
 
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& args,
@@ -405,7 +401,7 @@ class ShellOptions {
   DisallowReassignment<bool> fuzzilli_coverage_statistics = {
       "fuzzilli-coverage-statistics", false};
   DisallowReassignment<bool> fuzzilli_enable_builtins_coverage = {
-      "fuzzilli-enable-builtins-coverage", true};
+      "fuzzilli-enable-builtins-coverage", false};
   DisallowReassignment<bool> send_idle_notification = {"send-idle-notification",
                                                        false};
   DisallowReassignment<bool> invoke_weak_callbacks = {"invoke-weak-callbacks",
@@ -464,13 +460,7 @@ class ShellOptions {
       "enable-system-instrumentation", false};
   DisallowReassignment<bool> enable_etw_stack_walking = {
       "enable-etw-stack-walking", false};
-  DisallowReassignment<const char*> web_snapshot_config = {
-      "web-snapshot-config", nullptr};
-  DisallowReassignment<const char*> web_snapshot_output = {
-      "web-snapshot-output", nullptr};
-  DisallowReassignment<bool> d8_web_snapshot_api = {
-      "experimental-d8-web-snapshot-api", false};
-  // Applies to web snapshot and JSON deserialization.
+  // Applies to JSON deserialization.
   DisallowReassignment<bool> stress_deserialize = {"stress-deserialize", false};
   DisallowReassignment<bool> compile_only = {"compile-only", false};
   DisallowReassignment<int> repeat_compile = {"repeat-compile", 1};
@@ -508,8 +498,6 @@ class Shell : public i::AllStatic {
                             ReportExceptions report_exceptions,
                             ProcessMessageQueue process_message_queue);
   static bool ExecuteModule(Isolate* isolate, const char* file_name);
-  static bool TakeWebSnapshot(Isolate* isolate);
-  static bool ExecuteWebSnapshot(Isolate* isolate, const char* file_name);
   static bool LoadJSON(Isolate* isolate, const char* file_name);
   static void ReportException(Isolate* isolate, Local<Message> message,
                               Local<Value> exception);
@@ -569,10 +557,6 @@ class Shell : public i::AllStatic {
                              const PropertyCallbackInfo<Value>& info);
   static void RealmSharedSet(Local<String> property, Local<Value> value,
                              const PropertyCallbackInfo<void>& info);
-  static void RealmTakeWebSnapshot(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void RealmUseWebSnapshot(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void TestVerifySourcePositions(
@@ -598,6 +582,18 @@ class Shell : public i::AllStatic {
   static void SerializerDeserialize(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  static void ProfilerSetOnProfileEndListener(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ProfilerTriggerSample(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static bool HasOnProfileEndListener(Isolate* isolate);
+
+  static void TriggerOnProfileEndListener(Isolate* isolate,
+                                          std::string profile);
+
+  static void ResetOnProfileEndListener(Isolate* isolate);
+
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PrintErr(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WriteStdout(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -606,6 +602,7 @@ class Shell : public i::AllStatic {
   static void QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args);
   static void Quit(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Version(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteFile(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ReadFile(const v8::FunctionCallbackInfo<v8::Value>& args);
   static char* ReadChars(const char* name, int* size_out);
   static MaybeLocal<PrimitiveArray> ReadLines(Isolate* isolate,
@@ -724,8 +721,6 @@ class Shell : public i::AllStatic {
 
   static void PromiseRejectCallback(v8::PromiseRejectMessage reject_message);
 
-  static Local<FunctionTemplate> CreateSnapshotTemplate(Isolate* isolate);
-
  private:
   static inline int DeserializationRunCount() {
     return options.stress_deserialize ? 1000 : 1;
@@ -734,6 +729,11 @@ class Shell : public i::AllStatic {
   static Global<Context> evaluation_context_;
   static base::OnceType quit_once_;
   static Global<Function> stringify_function_;
+
+  static base::Mutex profiler_end_callback_lock_;
+  static std::map<Isolate*, std::pair<Global<Function>, Global<Context>>>
+      profiler_end_callback_;
+
   static const char* stringify_source_;
   static CounterMap* counter_map_;
   static base::SharedMutex counter_mutex_;

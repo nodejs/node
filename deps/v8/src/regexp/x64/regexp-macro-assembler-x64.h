@@ -92,80 +92,102 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
 
  private:
   // Offsets from rbp of function parameters and stored registers.
-  static const int kFramePointer = 0;
+  static constexpr int kFramePointerOffset = 0;
   // Above the frame pointer - function parameters and return address.
-  static const int kReturn_eip = kFramePointer + kSystemPointerSize;
-  static const int kFrameAlign = kReturn_eip + kSystemPointerSize;
+  static constexpr int kReturnAddressOffset =
+      kFramePointerOffset + kSystemPointerSize;
+  static constexpr int kFrameAlign = kReturnAddressOffset + kSystemPointerSize;
+  // Below the frame pointer - the stack frame type marker and locals.
+  static constexpr int kFrameTypeOffset =
+      kFramePointerOffset - kSystemPointerSize;
+  static_assert(kFrameTypeOffset ==
+                CommonFrameConstants::kContextOrFrameTypeOffset);
 
 #ifdef V8_TARGET_OS_WIN
   // Parameters (first four passed as registers, but with room on stack).
   // In Microsoft 64-bit Calling Convention, there is room on the callers
   // stack (before the return address) to spill parameter registers. We
   // use this space to store the register passed parameters.
-  static const int kInputString = kFrameAlign;
+  static constexpr int kInputStringOffset = kFrameAlign;
   // StartIndex is passed as 32 bit int.
-  static const int kStartIndex = kInputString + kSystemPointerSize;
-  static const int kInputStart = kStartIndex + kSystemPointerSize;
-  static const int kInputEnd = kInputStart + kSystemPointerSize;
-  static const int kRegisterOutput = kInputEnd + kSystemPointerSize;
+  static constexpr int kStartIndexOffset =
+      kInputStringOffset + kSystemPointerSize;
+  static constexpr int kInputStartOffset =
+      kStartIndexOffset + kSystemPointerSize;
+  static constexpr int kInputEndOffset = kInputStartOffset + kSystemPointerSize;
+  static constexpr int kRegisterOutputOffset =
+      kInputEndOffset + kSystemPointerSize;
   // For the case of global regular expression, we have room to store at least
   // one set of capture results.  For the case of non-global regexp, we ignore
   // this value. NumOutputRegisters is passed as 32-bit value.  The upper
   // 32 bit of this 64-bit stack slot may contain garbage.
-  static const int kNumOutputRegisters = kRegisterOutput + kSystemPointerSize;
+  static constexpr int kNumOutputRegistersOffset =
+      kRegisterOutputOffset + kSystemPointerSize;
   // DirectCall is passed as 32 bit int (values 0 or 1).
-  static const int kDirectCall = kNumOutputRegisters + kSystemPointerSize;
-  static const int kIsolate = kDirectCall + kSystemPointerSize;
+  static constexpr int kDirectCallOffset =
+      kNumOutputRegistersOffset + kSystemPointerSize;
+  static constexpr int kIsolateOffset = kDirectCallOffset + kSystemPointerSize;
 #else
   // In AMD64 ABI Calling Convention, the first six integer parameters
   // are passed as registers, and caller must allocate space on the stack
   // if it wants them stored. We push the parameters after the frame pointer.
-  static const int kInputString = kFramePointer - kSystemPointerSize;
-  static const int kStartIndex = kInputString - kSystemPointerSize;
-  static const int kInputStart = kStartIndex - kSystemPointerSize;
-  static const int kInputEnd = kInputStart - kSystemPointerSize;
-  static const int kRegisterOutput = kInputEnd - kSystemPointerSize;
+  static constexpr int kInputStringOffset =
+      kFrameTypeOffset - kSystemPointerSize;
+  static constexpr int kStartIndexOffset =
+      kInputStringOffset - kSystemPointerSize;
+  static constexpr int kInputStartOffset =
+      kStartIndexOffset - kSystemPointerSize;
+  static constexpr int kInputEndOffset = kInputStartOffset - kSystemPointerSize;
+  static constexpr int kRegisterOutputOffset =
+      kInputEndOffset - kSystemPointerSize;
   // For the case of global regular expression, we have room to store at least
   // one set of capture results.  For the case of non-global regexp, we ignore
   // this value.
-  static const int kNumOutputRegisters = kRegisterOutput - kSystemPointerSize;
+  static constexpr int kNumOutputRegistersOffset =
+      kRegisterOutputOffset - kSystemPointerSize;
 
-  static const int kDirectCall = kFrameAlign;
-  static const int kIsolate = kDirectCall + kSystemPointerSize;
+  static constexpr int kDirectCallOffset = kFrameAlign;
+  static constexpr int kIsolateOffset = kDirectCallOffset + kSystemPointerSize;
 #endif
 
   // We push callee-save registers that we use after the frame pointer (and
   // after the parameters).
 #ifdef V8_TARGET_OS_WIN
-  static const int kBackup_rsi = kFramePointer - kSystemPointerSize;
-  static const int kBackup_rdi = kBackup_rsi - kSystemPointerSize;
-  static const int kBackup_rbx = kBackup_rdi - kSystemPointerSize;
-  static const int kNumCalleeSaveRegisters = 3;
-  static const int kLastCalleeSaveRegister = kBackup_rbx;
+  static constexpr int kBackupRsiOffset = kFrameTypeOffset - kSystemPointerSize;
+  static constexpr int kBackupRdiOffset = kBackupRsiOffset - kSystemPointerSize;
+  static constexpr int kBackupRbxOffset = kBackupRdiOffset - kSystemPointerSize;
+  static constexpr int kNumCalleeSaveRegisters = 3;
+  static constexpr int kLastCalleeSaveRegister = kBackupRbxOffset;
 #else
-  static const int kBackup_rbx = kNumOutputRegisters - kSystemPointerSize;
-  static const int kNumCalleeSaveRegisters = 1;
-  static const int kLastCalleeSaveRegister = kBackup_rbx;
+  static constexpr int kBackupRbxOffset =
+      kNumOutputRegistersOffset - kSystemPointerSize;
+  static constexpr int kNumCalleeSaveRegisters = 1;
+  static constexpr int kLastCalleeSaveRegister = kBackupRbxOffset;
 #endif
 
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
-  static const int kSuccessfulCaptures =
+  static constexpr int kSuccessfulCapturesOffset =
       kLastCalleeSaveRegister - kSystemPointerSize;
-  static const int kStringStartMinusOne =
-      kSuccessfulCaptures - kSystemPointerSize;
-  static const int kBacktrackCount = kStringStartMinusOne - kSystemPointerSize;
+  static constexpr int kStringStartMinusOneOffset =
+      kSuccessfulCapturesOffset - kSystemPointerSize;
+  static constexpr int kBacktrackCountOffset =
+      kStringStartMinusOneOffset - kSystemPointerSize;
   // Stores the initial value of the regexp stack pointer in a
   // position-independent representation (in case the regexp stack grows and
   // thus moves).
-  static const int kRegExpStackBasePointer =
-      kBacktrackCount - kSystemPointerSize;
+  static constexpr int kRegExpStackBasePointerOffset =
+      kBacktrackCountOffset - kSystemPointerSize;
 
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kRegExpStackBasePointer - kSystemPointerSize;
+  static constexpr int kRegisterZeroOffset =
+      kRegExpStackBasePointerOffset - kSystemPointerSize;
 
   // Initial size of code buffer.
-  static const int kRegExpCodeSize = 1024;
+  static constexpr int kRegExpCodeSize = 1024;
+
+  void CallCFunctionFromIrregexpCode(ExternalReference function,
+                                     int num_arguments);
 
   void PushCallerSavedRegisters();
   void PopCallerSavedRegisters();
@@ -189,7 +211,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   // name to the register.
   static constexpr Register backtrack_stackpointer() { return rcx; }
 
-  // The registers containing a self pointer to this code's Code object.
+  // The registers containing a self pointer to this code's InstructionStream
+  // object.
   static constexpr Register code_object_pointer() { return r8; }
 
   // Byte size of chars in the string to match (decided by the Mode argument)
@@ -223,9 +246,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   // by a word size and stores the value there.
   inline void Push(Immediate value);
 
-  // Pushes the Code object relative offset of a label on the backtrack stack
-  // (i.e., a backtrack target). Decrements the stack pointer (rcx)
-  // by a word size and stores the value there.
+  // Pushes the InstructionStream object relative offset of a label on the
+  // backtrack stack (i.e., a backtrack target). Decrements the stack pointer
+  // (rcx) by a word size and stores the value there.
   inline void Push(Label* label);
 
   // Pops a value from the backtrack stack. Reads the word at the stack pointer

@@ -411,8 +411,7 @@ namespace compiler {
   V(PPC_S128Store64Lane)             \
   V(PPC_StoreCompressTagged)         \
   V(PPC_LoadDecompressTaggedSigned)  \
-  V(PPC_LoadDecompressTaggedPointer) \
-  V(PPC_LoadDecompressAnyTagged)
+  V(PPC_LoadDecompressTagged)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

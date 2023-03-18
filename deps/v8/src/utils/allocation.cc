@@ -166,7 +166,7 @@ void* AllocatePages(v8::PageAllocator* page_allocator, void* hint, size_t size,
   DCHECK_NOT_NULL(page_allocator);
   DCHECK_EQ(hint, AlignedAddress(hint, alignment));
   DCHECK(IsAligned(size, page_allocator->AllocatePageSize()));
-  if (v8_flags.randomize_all_allocations) {
+  if (!hint && v8_flags.randomize_all_allocations) {
     hint = AlignedAddress(page_allocator->GetRandomMmapAddr(), alignment);
   }
   void* result = nullptr;
@@ -240,7 +240,6 @@ bool VirtualMemory::SetPermissions(Address address, size_t size,
   CHECK(InVM(address, size));
   bool result = page_allocator_->SetPermissions(
       reinterpret_cast<void*>(address), size, access);
-  DCHECK(result);
   return result;
 }
 
@@ -249,7 +248,6 @@ bool VirtualMemory::RecommitPages(Address address, size_t size,
   CHECK(InVM(address, size));
   bool result = page_allocator_->RecommitPages(reinterpret_cast<void*>(address),
                                                size, access);
-  DCHECK(result);
   return result;
 }
 
@@ -312,8 +310,12 @@ VirtualMemoryCage::VirtualMemoryCage(VirtualMemoryCage&& other) V8_NOEXCEPT {
 
 VirtualMemoryCage& VirtualMemoryCage::operator=(VirtualMemoryCage&& other)
     V8_NOEXCEPT {
+  base_ = other.base_;
+  size_ = other.size_;
   page_allocator_ = std::move(other.page_allocator_);
   reservation_ = std::move(other.reservation_);
+  other.base_ = kNullAddress;
+  other.size_ = 0;
   return *this;
 }
 

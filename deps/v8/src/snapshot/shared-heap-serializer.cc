@@ -201,7 +201,7 @@ bool SharedHeapSerializer::ShouldReconstructSharedHeapObjectCacheForTesting()
   // need to reconstruct the shared heap object cache because it is not actually
   // shared.
   return reconstruct_read_only_and_shared_object_caches_for_testing() &&
-         isolate()->has_shared_heap();
+         isolate()->has_shared_space();
 }
 
 void SharedHeapSerializer::ReconstructSharedHeapObjectCacheForTesting() {

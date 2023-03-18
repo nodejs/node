@@ -237,7 +237,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This is for calls and branches within generated code.  The serializer
   // has already deserialized the lui/ori instructions etc.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code code, Address target);
+      Address instruction_payload, InstructionStream code, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -250,10 +250,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Here we are patching the address in the LUI/ORI instruction pair.
   // These values are used in the serialization process and must be zero for
-  // LOONG platform, as Code, Embedded Object or External-reference pointers
-  // are split across two consecutive instructions and don't exist separately
-  // in the code, so the serializer should not step forwards in memory after
-  // a target is resolved and written.
+  // LOONG platform, as InstructionStream, Embedded Object or External-reference
+  // pointers are split across two consecutive instructions and don't exist
+  // separately in the code, so the serializer should not step forwards in
+  // memory after a target is resolved and written.
   static constexpr int kSpecialTargetSize = 0;
 
   // Number of consecutive instructions used to store 32bit/64bit constant.
@@ -281,7 +281,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // ---------------------------------------------------------------------------
-  // Code generation.
+  // InstructionStream generation.
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -902,7 +902,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // intervals of kBufferCheckInterval emitted bytes.
   static constexpr int kBufferCheckInterval = 1 * KB / 2;
 
-  // Code generation.
+  // InstructionStream generation.
   // The relocation writer's position is at least kGap bytes below the end of
   // the generated instructions. This is so that multi-instruction sequences do
   // not have to check for overflow. The same is true for writes of large
@@ -937,7 +937,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
-  // Code emission.
+  // InstructionStream emission.
   inline void CheckBuffer();
   void GrowBuffer();
   inline void emit(Instr x);

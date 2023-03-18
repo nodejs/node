@@ -41,6 +41,9 @@ class StatsCounter;
   V(address_of_real_jslimit, "StackGuard::address_of_real_jslimit()")          \
   V(heap_is_marking_flag_address, "heap_is_marking_flag_address")              \
   V(heap_is_minor_marking_flag_address, "heap_is_minor_marking_flag_address")  \
+  V(is_shared_space_isolate_flag_address,                                      \
+    "is_shared_space_isolate_flag_address")                                    \
+  V(uses_shared_heap_flag_address, "uses_shared_heap_flag_address")            \
   V(new_space_allocation_top_address, "Heap::NewSpaceAllocationTopAddress()")  \
   V(new_space_allocation_limit_address,                                        \
     "Heap::NewSpaceAllocationLimitAddress()")                                  \
@@ -116,6 +119,8 @@ class StatsCounter;
   V(address_of_shared_string_table_flag, "v8_flags.shared_string_table")       \
   V(address_of_the_hole_nan, "the_hole_nan")                                   \
   V(address_of_uint32_bias, "uint32_bias")                                     \
+  V(allocate_and_initialize_external_pointer_table_entry,                      \
+    "AllocateAndInitializeExternalPointerTableEntry")                          \
   V(baseline_pc_for_bytecode_offset, "BaselinePCForBytecodeOffset")            \
   V(baseline_pc_for_next_executed_bytecode,                                    \
     "BaselinePCForNextExecutedBytecode")                                       \
@@ -192,6 +197,23 @@ class StatsCounter;
     "MutableBigInt_BitwiseAndNegNegAndCanonicalize")                           \
   V(mutable_big_int_bitwise_and_pn_and_canonicalize_function,                  \
     "MutableBigInt_BitwiseAndPosNegAndCanonicalize")                           \
+  V(mutable_big_int_bitwise_or_pp_and_canonicalize_function,                   \
+    "MutableBigInt_BitwiseOrPosPosAndCanonicalize")                            \
+  V(mutable_big_int_bitwise_or_nn_and_canonicalize_function,                   \
+    "MutableBigInt_BitwiseOrNegNegAndCanonicalize")                            \
+  V(mutable_big_int_bitwise_or_pn_and_canonicalize_function,                   \
+    "MutableBigInt_BitwiseOrPosNegAndCanonicalize")                            \
+  V(mutable_big_int_bitwise_xor_pp_and_canonicalize_function,                  \
+    "MutableBigInt_BitwiseXorPosPosAndCanonicalize")                           \
+  V(mutable_big_int_bitwise_xor_nn_and_canonicalize_function,                  \
+    "MutableBigInt_BitwiseXorNegNegAndCanonicalize")                           \
+  V(mutable_big_int_bitwise_xor_pn_and_canonicalize_function,                  \
+    "MutableBigInt_BitwiseXorPosNegAndCanonicalize")                           \
+  V(mutable_big_int_left_shift_and_canonicalize_function,                      \
+    "MutableBigInt_LeftShiftAndCanonicalize")                                  \
+  V(big_int_right_shift_result_length_function, "RightShiftResultLength")      \
+  V(mutable_big_int_right_shift_and_canonicalize_function,                     \
+    "MutableBigInt_RightShiftAndCanonicalize")                                 \
   V(new_deoptimizer_function, "Deoptimizer::New()")                            \
   V(orderedhashmap_gethash_raw, "orderedhashmap_gethash_raw")                  \
   V(printf_function, "printf")                                                 \
@@ -209,6 +231,8 @@ class StatsCounter;
   V(array_indexof_includes_smi_or_object,                                      \
     "array_indexof_includes_smi_or_object")                                    \
   V(array_indexof_includes_double, "array_indexof_includes_double")            \
+  V(has_unpaired_surrogate, "Utf16::HasUnpairedSurrogate")                     \
+  V(replace_unpaired_surrogates, "Utf16::ReplaceUnpairedSurrogates")           \
   V(try_string_to_index_or_lookup_existing,                                    \
     "try_string_to_index_or_lookup_existing")                                  \
   V(string_from_forward_table, "string_from_forward_table")                    \
@@ -292,6 +316,8 @@ class StatsCounter;
   V(address_of_wasm_int32_overflow_as_float, "wasm_int32_overflow_as_float")   \
   V(supports_cetss_address, "CpuFeatures::supports_cetss_address")             \
   V(write_barrier_marking_from_code_function, "WriteBarrier::MarkingFromCode") \
+  V(write_barrier_shared_marking_from_code_function,                           \
+    "WriteBarrier::SharedMarkingFromCode")                                     \
   V(shared_barrier_from_code_function, "WriteBarrier::SharedFromCode")         \
   V(call_enqueue_microtask_function, "MicrotaskQueue::CallEnqueueMicrotask")   \
   V(call_enter_context_function, "call_enter_context_function")                \

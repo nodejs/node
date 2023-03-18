@@ -10,6 +10,7 @@
 #include "src/base/platform/time.h"
 #include "src/execution/thread-id.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/js-struct.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -26,7 +27,7 @@ class WaiterQueueNode;
 // Base class for JSAtomicsMutex and JSAtomicsCondition
 class JSSynchronizationPrimitive
     : public TorqueGeneratedJSSynchronizationPrimitive<
-          JSSynchronizationPrimitive, JSObject> {
+          JSSynchronizationPrimitive, AlwaysSharedSpaceJSObject> {
  public:
   // Synchronization only store raw data as state.
   static constexpr int kEndOfTaggedFieldsOffset = JSObject::kHeaderSize;
@@ -44,10 +45,10 @@ class JSSynchronizationPrimitive
 
   inline std::atomic<StateT>* AtomicStatePtr();
 
-  using TorqueGeneratedJSSynchronizationPrimitive<JSSynchronizationPrimitive,
-                                                  JSObject>::state;
-  using TorqueGeneratedJSSynchronizationPrimitive<JSSynchronizationPrimitive,
-                                                  JSObject>::set_state;
+  using TorqueGeneratedJSSynchronizationPrimitive<
+      JSSynchronizationPrimitive, AlwaysSharedSpaceJSObject>::state;
+  using TorqueGeneratedJSSynchronizationPrimitive<
+      JSSynchronizationPrimitive, AlwaysSharedSpaceJSObject>::set_state;
 };
 
 // A non-recursive mutex that is exposed to JS.

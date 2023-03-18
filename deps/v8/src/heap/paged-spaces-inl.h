@@ -39,7 +39,7 @@ class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
   inline HeapObject Next() override;
 
   // The pointer compression cage base value used for decompression of all
-  // tagged values except references to Code objects.
+  // tagged values except references to InstructionStream objects.
   PtrComprCageBase cage_base() const {
 #if V8_COMPRESS_POINTERS
     return cage_base_;
@@ -81,7 +81,7 @@ HeapObject PagedSpaceObjectIterator::FromCurrentPage() {
     cur_addr_ += obj_size;
     DCHECK_LE(cur_addr_, cur_end_);
     if (!obj.IsFreeSpaceOrFiller(cage_base())) {
-      if (obj.IsCode(cage_base())) {
+      if (obj.IsInstructionStream(cage_base())) {
         DCHECK_EQ(space_->identity(), CODE_SPACE);
         DCHECK_CODEOBJECT_SIZE(obj_size, space_);
       } else {

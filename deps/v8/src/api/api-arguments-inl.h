@@ -11,21 +11,21 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/slots-inl.h"
+#include "v8-isolate.h"
 
 namespace v8 {
 namespace internal {
 
-void Object::VerifyApiCallResultType() {
 #if DEBUG
-  if (IsSmi()) return;
+bool Object::IsApiCallResultType() const {
+  if (IsSmi()) return true;
   DCHECK(IsHeapObject());
-  if (!(IsString() || IsSymbol() || IsJSReceiver() || IsHeapNumber() ||
-        IsBigInt() || IsUndefined() || IsTrue() || IsFalse() || IsNull())) {
-    FATAL("API call returned invalid object");
-  }
-#endif  // DEBUG
+  return (IsString() || IsSymbol() || IsJSReceiver() || IsHeapNumber() ||
+          IsBigInt() || IsUndefined() || IsTrue() || IsFalse() || IsNull());
 }
+#endif  // DEBUG
 
 CustomArgumentsBase::CustomArgumentsBase(Isolate* isolate)
     : Relocatable(isolate) {}
@@ -37,25 +37,25 @@ CustomArguments<T>::~CustomArguments() {
 
 template <typename T>
 template <typename V>
-Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
+Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) const {
   // Check the ReturnValue.
   FullObjectSlot slot = slot_at(kReturnValueOffset);
   // Nothing was set, return empty handle as per previous behaviour.
-  if ((*slot).IsTheHole(isolate)) return Handle<V>();
-  Handle<V> result = Handle<V>::cast(Handle<Object>(slot.location()));
-  result->VerifyApiCallResultType();
-  return result;
+  Object raw_object = *slot;
+  if (raw_object.IsTheHole(isolate)) return Handle<V>();
+  DCHECK(raw_object.IsApiCallResultType());
+  return Handle<V>::cast(Handle<Object>(slot.location()));
 }
 
-inline JSObject PropertyCallbackArguments::holder() {
+inline JSObject PropertyCallbackArguments::holder() const {
   return JSObject::cast(*slot_at(T::kHolderIndex));
 }
 
-inline Object PropertyCallbackArguments::receiver() {
+inline Object PropertyCallbackArguments::receiver() const {
   return *slot_at(T::kThisIndex);
 }
 
-inline JSReceiver FunctionCallbackArguments::holder() {
+inline JSReceiver FunctionCallbackArguments::holder() const {
   return JSReceiver::cast(*slot_at(T::kHolderIndex));
 }
 

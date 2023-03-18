@@ -23,7 +23,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define __ tasm()->
+#define __ masm()->
 
 // TODO(LOONG_dev): consider renaming these macros.
 #define TRACE_MSG(msg)                                                      \
@@ -450,8 +450,8 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                        \
   do {                                                                      \
-    FrameScope scope(tasm(), StackFrame::MANUAL);                           \
-    UseScratchRegisterScope temps(tasm());                                  \
+    FrameScope scope(masm(), StackFrame::MANUAL);                           \
+    UseScratchRegisterScope temps(masm());                                  \
     Register scratch = temps.Acquire();                                     \
     __ PrepareCallCFunction(0, 2, scratch);                                 \
     __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 2); \
@@ -459,8 +459,8 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
 
 #define ASSEMBLE_IEEE754_UNOP(name)                                         \
   do {                                                                      \
-    FrameScope scope(tasm(), StackFrame::MANUAL);                           \
-    UseScratchRegisterScope temps(tasm());                                  \
+    FrameScope scope(masm(), StackFrame::MANUAL);                           \
+    UseScratchRegisterScope temps(masm());                                  \
     Register scratch = temps.Acquire();                                     \
     __ PrepareCallCFunction(0, 1, scratch);                                 \
     __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 1); \
@@ -487,7 +487,7 @@ void CodeGenerator::AssemblePrepareTailCall() {
 
 namespace {
 
-void AdjustStackPointerForTailCall(TurboAssembler* tasm,
+void AdjustStackPointerForTailCall(MacroAssembler* masm,
                                    FrameAccessState* state,
                                    int new_slot_above_sp,
                                    bool allow_shrinkage = true) {
@@ -495,10 +495,10 @@ void AdjustStackPointerForTailCall(TurboAssembler* tasm,
                           StandardFrameConstants::kFixedSlotCountAboveFp;
   int stack_slot_delta = new_slot_above_sp - current_sp_offset;
   if (stack_slot_delta > 0) {
-    tasm->Sub_d(sp, sp, stack_slot_delta * kSystemPointerSize);
+    masm->Sub_d(sp, sp, stack_slot_delta * kSystemPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
-    tasm->Add_d(sp, sp, -stack_slot_delta * kSystemPointerSize);
+    masm->Add_d(sp, sp, -stack_slot_delta * kSystemPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
   }
 }
@@ -507,19 +507,19 @@ void AdjustStackPointerForTailCall(TurboAssembler* tasm,
 
 void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
                                               int first_unused_slot_offset) {
-  AdjustStackPointerForTailCall(tasm(), frame_access_state(),
+  AdjustStackPointerForTailCall(masm(), frame_access_state(),
                                 first_unused_slot_offset, false);
 }
 
 void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
                                              int first_unused_slot_offset) {
-  AdjustStackPointerForTailCall(tasm(), frame_access_state(),
+  AdjustStackPointerForTailCall(masm(), frame_access_state(),
                                 first_unused_slot_offset);
 }
 
 // Check that {kJavaScriptCallCodeStartRegister} is correct.
 void CodeGenerator::AssembleCodeStartRegisterCheck() {
-  UseScratchRegisterScope temps(tasm());
+  UseScratchRegisterScope temps(masm());
   Register scratch = temps.Acquire();
   __ ComputeCodeStartAddress(scratch);
   __ Assert(eq, AbortReason::kWrongFunctionCodeStart,
@@ -530,17 +530,17 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 // jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
 // to:
 //    1. read from memory the word that contains that bit, which can be found in
-//       the flags in the referenced {CodeDataContainer} object;
+//       the flags in the referenced {Code} object;
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
-  UseScratchRegisterScope temps(tasm());
+  UseScratchRegisterScope temps(masm());
   Register scratch = temps.Acquire();
-  int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
+  int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ Ld_d(scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  __ Ld_w(scratch, FieldMemOperand(
-                       scratch, CodeDataContainer::kKindSpecificFlagsOffset));
-  __ And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  __ Ld_w(scratch, FieldMemOperand(scratch, Code::kKindSpecificFlagsOffset));
+  __ And(scratch, scratch,
+         Operand(1 << InstructionStream::kMarkedForDeoptimizationBit));
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne, scratch, Operand(zero_reg));
 }
@@ -628,7 +628,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallJSFunction: {
       Register func = i.InputRegister(0);
       if (v8_flags.debug_code) {
-        UseScratchRegisterScope temps(tasm());
+        UseScratchRegisterScope temps(masm());
         Register scratch = temps.Acquire();
         // Check the function's context matches the context argument.
         __ Ld_d(scratch, FieldMemOperand(func, JSFunction::kContextOffset));
@@ -642,7 +642,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchPrepareCallCFunction: {
-      UseScratchRegisterScope temps(tasm());
+      UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
       int const num_gp_parameters = ParamField::decode(instr->opcode());
       int const num_fp_parameters = FPParamField::decode(instr->opcode());
@@ -749,7 +749,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       {
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
-        FrameScope scope(tasm(), StackFrame::NO_FRAME_TYPE);
+        FrameScope scope(masm(), StackFrame::NO_FRAME_TYPE);
         __ Call(isolate()->builtins()->code_handle(Builtin::kAbortCSADcheck),
                 RelocInfo::CODE_TARGET);
       }
@@ -829,7 +829,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         DCHECK_EQ(kArchAtomicStoreWithWriteBarrier, arch_opcode);
         DCHECK_EQ(addressing_mode, kMode_MRI);
-        UseScratchRegisterScope temps(tasm());
+        UseScratchRegisterScope temps(masm());
         Register scratch = temps.Acquire();
         __ Add_d(scratch, object, Operand(i.InputInt64(1)));
         __ amswap_db_d(zero_reg, value, scratch);
@@ -843,7 +843,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchStackSlot: {
-      UseScratchRegisterScope temps(tasm());
+      UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
       FrameOffset offset =
           frame_access_state()->GetFrameOffset(i.InputInt32(0));
@@ -1225,8 +1225,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kLoong64Float64Mod: {
       // TODO(turbofan): implement directly.
-      FrameScope scope(tasm(), StackFrame::MANUAL);
-      UseScratchRegisterScope temps(tasm());
+      FrameScope scope(masm(), StackFrame::MANUAL);
+      UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
       __ PrepareCallCFunction(0, 2, scratch);
       __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
@@ -1363,7 +1363,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ftintrz_w_s(scratch_d, i.InputDoubleRegister(0));
       __ movfr2gr_s(i.OutputRegister(), scratch_d);
       if (set_overflow_to_min_i32) {
-        UseScratchRegisterScope temps(tasm());
+        UseScratchRegisterScope temps(masm());
         Register scratch = temps.Acquire();
         // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
         // because INT32_MIN allows easier out-of-bounds detection.
@@ -1392,7 +1392,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kLoong64Float64ToInt64: {
-      UseScratchRegisterScope temps(tasm());
+      UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
       FPURegister scratch_d = kScratchDoubleReg;
 
@@ -1438,7 +1438,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool set_overflow_to_min_i32 = MiscField::decode(instr->opcode());
       __ Ftintrz_uw_s(i.OutputRegister(), i.InputDoubleRegister(0), scratch);
       if (set_overflow_to_min_i32) {
-        UseScratchRegisterScope temps(tasm());
+        UseScratchRegisterScope temps(masm());
         Register scratch = temps.Acquire();
         // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
         // because 0 allows easier out-of-bounds detection.
@@ -1863,11 +1863,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  << "\"";                                                      \
   UNIMPLEMENTED();
 
-void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
+void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
                             Instruction* instr, FlagsCondition condition,
                             Label* tlabel, Label* flabel, bool fallthru) {
 #undef __
-#define __ tasm->
+#define __ masm->
   Loong64OperandConverter i(gen, instr);
 
   // LOONG64 does not have condition code flags, so compare and branch are
@@ -1882,7 +1882,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
     __ Branch(tlabel, cc, t8, Operand(zero_reg));
   } else if (instr->arch_opcode() == kLoong64Add_d ||
              instr->arch_opcode() == kLoong64Sub_d) {
-    UseScratchRegisterScope temps(tasm);
+    UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     Register scratch2 = temps.Acquire();
     Condition cc = FlagsConditionToConditionOvf(condition);
@@ -1941,7 +1941,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
   }
   if (!fallthru) __ Branch(flabel);  // no fallthru to flabel.
 #undef __
-#define __ tasm()->
+#define __ masm()->
 }
 
 // Assembles branches after an instruction.
@@ -1949,7 +1949,7 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   Label* tlabel = branch->true_label;
   Label* flabel = branch->false_label;
 
-  AssembleBranchToLabels(this, tasm(), instr, branch->condition, tlabel, flabel,
+  AssembleBranchToLabels(this, masm(), instr, branch->condition, tlabel, flabel,
                          branch->fallthru);
 }
 
@@ -2014,7 +2014,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
   };
   auto ool = zone()->New<OutOfLineTrap>(this, instr);
   Label* tlabel = ool->entry();
-  AssembleBranchToLabels(this, tasm(), instr, condition, tlabel, nullptr, true);
+  AssembleBranchToLabels(this, masm(), instr, condition, tlabel, nullptr, true);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2041,7 +2041,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     return;
   } else if (instr->arch_opcode() == kLoong64Add_d ||
              instr->arch_opcode() == kLoong64Sub_d) {
-    UseScratchRegisterScope temps(tasm());
+    UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
     Condition cc = FlagsConditionToConditionOvf(condition);
     // Check for overflow creates 1 or 0 for result.
@@ -2242,6 +2242,10 @@ void CodeGenerator::AssembleConstructFrame() {
       if (call_descriptor->IsWasmFunctionCall() ||
           call_descriptor->IsWasmImportWrapper() ||
           call_descriptor->IsWasmCapiFunction()) {
+        // For import wrappers and C-API functions, this stack slot is only used
+        // for printing stack traces in V8. Also, it holds a WasmApiFunctionRef
+        // instead of the instance itself, which is taken care of in the frames
+        // accessors.
         __ Push(kWasmInstanceRegister);
       }
       if (call_descriptor->IsWasmCapiFunction()) {
@@ -2285,7 +2289,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
       if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
-        UseScratchRegisterScope temps(tasm());
+        UseScratchRegisterScope temps(masm());
         Register scratch = temps.Acquire();
         __ Ld_d(scratch, FieldMemOperand(
                              kWasmInstanceRegister,
@@ -2427,11 +2431,71 @@ void CodeGenerator::FinishCode() {}
 void CodeGenerator::PrepareForDeoptimizationExits(
     ZoneDeque<DeoptimizationExit*>* exits) {}
 
-void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
+AllocatedOperand CodeGenerator::Push(InstructionOperand* source) {
+  auto rep = LocationOperand::cast(source)->representation();
+  int new_slots = ElementSizeInPointers(rep);
+  Loong64OperandConverter g(this, nullptr);
+  int last_frame_slot_id =
+      frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+  int sp_delta = frame_access_state_->sp_delta();
+  int slot_id = last_frame_slot_id + sp_delta + new_slots;
+  AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
+  if (source->IsRegister()) {
+    __ Push(g.ToRegister(source));
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  } else if (source->IsStackSlot()) {
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.Acquire();
+    __ Ld_d(scratch, g.ToMemOperand(source));
+    __ Push(scratch);
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  } else {
+    // No push instruction for this operand type. Bump the stack pointer and
+    // assemble the move.
+    __ Sub_d(sp, sp, Operand(new_slots * kSystemPointerSize));
+    frame_access_state()->IncreaseSPDelta(new_slots);
+    AssembleMove(source, &stack_slot);
+  }
+  temp_slots_ += new_slots;
+  return stack_slot;
+}
+
+void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
+  Loong64OperandConverter g(this, nullptr);
+  int new_slots = ElementSizeInPointers(rep);
+  frame_access_state()->IncreaseSPDelta(-new_slots);
+  if (dest->IsRegister()) {
+    __ Pop(g.ToRegister(dest));
+  } else if (dest->IsStackSlot()) {
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.Acquire();
+    __ Pop(scratch);
+    __ St_d(scratch, g.ToMemOperand(dest));
+  } else {
+    int last_frame_slot_id =
+        frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+    int sp_delta = frame_access_state_->sp_delta();
+    int slot_id = last_frame_slot_id + sp_delta + new_slots;
+    AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
+    AssembleMove(&stack_slot, dest);
+    __ Add_d(sp, sp, Operand(new_slots * kSystemPointerSize));
+  }
+  temp_slots_ -= new_slots;
+}
+
+void CodeGenerator::PopTempStackSlots() {
+  if (temp_slots_ > 0) {
+    frame_access_state()->IncreaseSPDelta(-temp_slots_);
+    __ Add_d(sp, sp, Operand(temp_slots_ * kSystemPointerSize));
+    temp_slots_ = 0;
+  }
+}
+
+void CodeGenerator::MoveToTempLocation(InstructionOperand* source,
+                                       MachineRepresentation rep) {
   // Must be kept in sync with {MoveTempLocationTo}.
   DCHECK(!source->IsImmediate());
-  auto rep = LocationOperand::cast(source)->representation();
-  move_cycle_.temps.emplace(tasm());
+  move_cycle_.temps.emplace(masm());
   auto& temps = *move_cycle_.temps;
   // Temporarily exclude the reserved scratch registers while we pick one to
   // resolve the move cycle. Re-include them immediately afterwards as they
@@ -2481,27 +2545,7 @@ void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
   } else {
     // The scratch registers are blocked by pending moves. Use the stack
     // instead.
-    int new_slots = ElementSizeInPointers(rep);
-    Loong64OperandConverter g(this, nullptr);
-    if (source->IsRegister()) {
-      __ Push(g.ToRegister(source));
-    } else if (source->IsStackSlot()) {
-      UseScratchRegisterScope temps2(tasm());
-      Register scratch = temps2.Acquire();
-      __ Ld_d(scratch, g.ToMemOperand(source));
-      __ Push(scratch);
-    } else {
-      // No push instruction for this operand type. Bump the stack pointer and
-      // assemble the move.
-      int last_frame_slot_id =
-          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
-      int sp_delta = frame_access_state_->sp_delta();
-      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
-      __ Sub_d(sp, sp, Operand(new_slots * kSystemPointerSize));
-      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
-      AssembleMove(source, &temp);
-    }
-    frame_access_state()->IncreaseSPDelta(new_slots);
+    Push(source);
   }
 }
 
@@ -2531,25 +2575,7 @@ void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
       AssembleMove(&scratch, dest);
     }
   } else {
-    int new_slots = ElementSizeInPointers(rep);
-    frame_access_state()->IncreaseSPDelta(-new_slots);
-    Loong64OperandConverter g(this, nullptr);
-    if (dest->IsRegister()) {
-      __ Pop(g.ToRegister(dest));
-    } else if (dest->IsStackSlot()) {
-      UseScratchRegisterScope temps2(tasm());
-      Register scratch = temps2.Acquire();
-      __ Pop(scratch);
-      __ St_d(scratch, g.ToMemOperand(dest));
-    } else {
-      int last_frame_slot_id =
-          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
-      int sp_delta = frame_access_state_->sp_delta();
-      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
-      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
-      AssembleMove(&temp, dest);
-      __ Add_d(sp, sp, Operand(new_slots * kSystemPointerSize));
-    }
+    Pop(dest, rep);
   }
   // Restore the default state to release the {UseScratchRegisterScope} and to
   // prepare for the next cycle.
@@ -2559,7 +2585,7 @@ void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
 void CodeGenerator::SetPendingMove(MoveOperands* move) {
   InstructionOperand* src = &move->source();
   InstructionOperand* dst = &move->destination();
-  UseScratchRegisterScope temps(tasm());
+  UseScratchRegisterScope temps(masm());
   if (src->IsConstant() || (src->IsStackSlot() && dst->IsStackSlot())) {
     Register temp = temps.Acquire();
     move_cycle_.scratch_regs.set(temp);
@@ -2616,7 +2642,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     if (destination->IsRegister()) {
       __ Ld_d(g.ToRegister(destination), src);
     } else {
-      UseScratchRegisterScope temps(tasm());
+      UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
       __ Ld_d(scratch, src);
       __ St_d(scratch, g.ToMemOperand(destination));
@@ -2624,7 +2650,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   } else if (source->IsConstant()) {
     Constant src = g.ToConstant(source);
     if (destination->IsRegister() || destination->IsStackSlot()) {
-      UseScratchRegisterScope temps(tasm());
+      UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
       Register dst =
           destination->IsRegister() ? g.ToRegister(destination) : scratch;
@@ -2671,7 +2697,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         if (base::bit_cast<int32_t>(src.ToFloat32()) == 0) {
           __ St_d(zero_reg, dst);
         } else {
-          UseScratchRegisterScope temps(tasm());
+          UseScratchRegisterScope temps(masm());
           Register scratch = temps.Acquire();
           __ li(scratch, Operand(base::bit_cast<int32_t>(src.ToFloat32())));
           __ St_d(scratch, dst);
@@ -2722,7 +2748,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   // Dispatch on the source and destination operand kinds.  Not all
   // combinations are possible.
   if (source->IsRegister()) {
-    UseScratchRegisterScope temps(tasm());
+    UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
     // Register-register.
     Register src = g.ToRegister(source);
@@ -2744,7 +2770,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     // Since the Ld instruction may need a scratch reg,
     // we should not use both of the two scratch registers in
     // UseScratchRegisterScope here.
-    UseScratchRegisterScope temps(tasm());
+    UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
     FPURegister scratch_d = kScratchDoubleReg;
     MemOperand src = g.ToMemOperand(source);
@@ -2770,7 +2796,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPStackSlot());
-    UseScratchRegisterScope temps(tasm());
+    UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
     FPURegister scratch_d = kScratchDoubleReg;
     MemOperand src = g.ToMemOperand(source);

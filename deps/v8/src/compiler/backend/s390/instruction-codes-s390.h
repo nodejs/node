@@ -398,8 +398,7 @@ namespace compiler {
   V(S390_LoadSimd128)                       \
   V(S390_StoreCompressTagged)               \
   V(S390_LoadDecompressTaggedSigned)        \
-  V(S390_LoadDecompressTaggedPointer)       \
-  V(S390_LoadDecompressAnyTagged)
+  V(S390_LoadDecompressTagged)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

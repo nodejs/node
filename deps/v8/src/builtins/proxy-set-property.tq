@@ -21,6 +21,8 @@ transitioning builtin
 ProxySetProperty(implicit context: Context)(
     proxy: JSProxy, name: PropertyKey|PrivateSymbol, value: JSAny,
     receiverValue: JSAny): JSAny {
+  // Handle deeply nested proxy.
+  PerformStackCheck();
   // 1. Assert: IsPropertyKey(P) is true.
   dcheck(TaggedIsNotSmi(name));
   dcheck(Is<Name>(name));

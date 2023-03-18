@@ -56,13 +56,17 @@ struct WasmCompilationResult {
   ExecutionTier requested_tier;
   ExecutionTier result_tier;
   Kind kind = kFunction;
-  ForDebugging for_debugging = kNoDebugging;
+  ForDebugging for_debugging = kNotForDebugging;
+  bool frame_has_feedback_slot = false;
 };
 
 class V8_EXPORT_PRIVATE WasmCompilationUnit final {
  public:
   WasmCompilationUnit(int index, ExecutionTier tier, ForDebugging for_debugging)
-      : func_index_(index), tier_(tier), for_debugging_(for_debugging) {}
+      : func_index_(index), tier_(tier), for_debugging_(for_debugging) {
+    DCHECK_IMPLIES(for_debugging != ForDebugging::kNotForDebugging,
+                   tier_ == ExecutionTier::kLiftoff);
+  }
 
   WasmCompilationResult ExecuteCompilation(CompilationEnv*,
                                            const WireBytesStorage*, Counters*,
@@ -73,7 +77,7 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
   ForDebugging for_debugging() const { return for_debugging_; }
   int func_index() const { return func_index_; }
 
-  static void CompileWasmFunction(Isolate*, NativeModule*,
+  static void CompileWasmFunction(Counters*, NativeModule*,
                                   WasmFeatures* detected, const WasmFunction*,
                                   ExecutionTier);
 
@@ -112,22 +116,22 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   Isolate* isolate() const { return isolate_; }
 
   void Execute();
-  Handle<CodeT> Finalize();
+  Handle<Code> Finalize();
 
   bool is_import() const { return is_import_; }
   const FunctionSig* sig() const { return sig_; }
   uint32_t canonical_sig_index() const { return canonical_sig_index_; }
 
   // Run a compilation unit synchronously.
-  static Handle<CodeT> CompileJSToWasmWrapper(Isolate* isolate,
-                                              const FunctionSig* sig,
-                                              uint32_t canonical_sig_index,
-                                              const WasmModule* module,
-                                              bool is_import);
+  static Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
+                                             const FunctionSig* sig,
+                                             uint32_t canonical_sig_index,
+                                             const WasmModule* module,
+                                             bool is_import);
 
   // Run a compilation unit synchronously, but ask for the specific
   // wrapper.
-  static Handle<CodeT> CompileSpecificJSToWasmWrapper(
+  static Handle<Code> CompileSpecificJSToWasmWrapper(
       Isolate* isolate, const FunctionSig* sig, uint32_t canonical_sig_index,
       const WasmModule* module);
 

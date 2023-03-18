@@ -52,18 +52,18 @@ class JSInliningHeuristic final : public AdvancedReducer {
   static const int kMaxCallPolymorphism = 4;
 
   struct Candidate {
-    base::Optional<JSFunctionRef> functions[kMaxCallPolymorphism];
+    OptionalJSFunctionRef functions[kMaxCallPolymorphism];
     // In the case of polymorphic inlining, this tells if each of the
     // functions could be inlined.
     bool can_inline_function[kMaxCallPolymorphism];
     // Strong references to bytecode to ensure it is not flushed from SFI
     // while choosing inlining candidates.
-    base::Optional<BytecodeArrayRef> bytecode[kMaxCallPolymorphism];
+    OptionalBytecodeArrayRef bytecode[kMaxCallPolymorphism];
     // TODO(2206): For now polymorphic inlining is treated orthogonally to
     // inlining based on SharedFunctionInfo. This should be unified and the
     // above array should be switched to SharedFunctionInfo instead. Currently
     // we use {num_functions == 1 && functions[0].is_null()} as an indicator.
-    base::Optional<SharedFunctionInfoRef> shared_info;
+    OptionalSharedFunctionInfoRef shared_info;
     int num_functions;
     Node* node = nullptr;     // The call site at which to inline.
     CallFrequency frequency;  // Relative frequency of this call site.

@@ -54,10 +54,26 @@ class V8_EXPORT BackingStore : public v8::internal::BackingStoreBase {
   size_t ByteLength() const;
 
   /**
+   * The maximum length (in bytes) that this backing store may grow to.
+   *
+   * If this backing store was created for a resizable ArrayBuffer or a growable
+   * SharedArrayBuffer, it is >= ByteLength(). Otherwise it is ==
+   * ByteLength().
+   */
+  size_t MaxByteLength() const;
+
+  /**
    * Indicates whether the backing store was created for an ArrayBuffer or
    * a SharedArrayBuffer.
    */
   bool IsShared() const;
+
+  /**
+   * Indicates whether the backing store was created for a resizable ArrayBuffer
+   * or a growable SharedArrayBuffer, and thus may be resized by user JavaScript
+   * code.
+   */
+  bool IsResizableByUserJavaScript() const;
 
   /**
    * Prevent implicit instantiation of operator delete with size_t argument.
@@ -190,6 +206,11 @@ class V8_EXPORT ArrayBuffer : public Object {
   size_t ByteLength() const;
 
   /**
+   * Maximum length in bytes.
+   */
+  size_t MaxByteLength() const;
+
+  /**
    * Create a new ArrayBuffer. Allocate |byte_length| bytes.
    * Allocated memory will be owned by a created ArrayBuffer and
    * will be deallocated when it is garbage-collected,
@@ -234,6 +255,21 @@ class V8_EXPORT ArrayBuffer : public Object {
   static std::unique_ptr<BackingStore> NewBackingStore(
       void* data, size_t byte_length, v8::BackingStore::DeleterCallback deleter,
       void* deleter_data);
+
+  /**
+   * Returns a new resizable standalone BackingStore that is allocated using the
+   * array buffer allocator of the isolate. The result can be later passed to
+   * ArrayBuffer::New.
+   *
+   * |byte_length| must be <= |max_byte_length|.
+   *
+   * This function is usable without an isolate. Unlike |NewBackingStore| calls
+   * with an isolate, GCs cannot be triggered, and there are no
+   * retries. Allocation failure will cause the function to crash with an
+   * out-of-memory error.
+   */
+  static std::unique_ptr<BackingStore> NewResizableBackingStore(
+      size_t byte_length, size_t max_byte_length);
 
   /**
    * Returns true if this ArrayBuffer may be detached.
@@ -391,6 +427,11 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * Data length in bytes.
    */
   size_t ByteLength() const;
+
+  /**
+   * Maximum length in bytes.
+   */
+  size_t MaxByteLength() const;
 
   /**
    * Create a new SharedArrayBuffer. Allocate |byte_length| bytes.

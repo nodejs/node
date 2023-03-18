@@ -303,10 +303,10 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep) {
       opcode = kS390_LoadDecompressTaggedSigned;
       break;
     case MachineRepresentation::kTaggedPointer:
-      opcode = kS390_LoadDecompressTaggedPointer;
+      opcode = kS390_LoadDecompressTagged;
       break;
     case MachineRepresentation::kTagged:
-      opcode = kS390_LoadDecompressAnyTagged;
+      opcode = kS390_LoadDecompressTagged;
       break;
 #else
     case MachineRepresentation::kTaggedSigned:   // Fall through.

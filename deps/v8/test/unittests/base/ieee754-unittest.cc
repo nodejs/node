@@ -131,6 +131,175 @@ TEST(Ieee754, Atanh) {
   EXPECT_DOUBLE_EQ(0.54930614433405478, atanh(0.5));
 }
 
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
+TEST(Ieee754, LibmCos) {
+  // Test values mentioned in the EcmaScript spec.
+  EXPECT_THAT(libm_cos(kQNaN), IsNaN());
+  EXPECT_THAT(libm_cos(kSNaN), IsNaN());
+  EXPECT_THAT(libm_cos(kInfinity), IsNaN());
+  EXPECT_THAT(libm_cos(-kInfinity), IsNaN());
+
+  // Tests for cos for |x| < pi/4
+  EXPECT_EQ(1.0, 1 / libm_cos(-0.0));
+  EXPECT_EQ(1.0, 1 / libm_cos(0.0));
+  // cos(x) = 1 for |x| < 2^-27
+  EXPECT_EQ(1, libm_cos(2.3283064365386963e-10));
+  EXPECT_EQ(1, libm_cos(-2.3283064365386963e-10));
+  // Test KERNELCOS for |x| < 0.3.
+  // cos(pi/20) = sqrt(sqrt(2)*sqrt(sqrt(5)+5)+4)/2^(3/2)
+  EXPECT_EQ(0.9876883405951378, libm_cos(0.15707963267948966));
+  // Test KERNELCOS for x ~= 0.78125
+  EXPECT_EQ(0.7100335477927638, libm_cos(0.7812504768371582));
+  EXPECT_EQ(0.7100338835660797, libm_cos(0.78125));
+  // Test KERNELCOS for |x| > 0.3.
+  // cos(pi/8) = sqrt(sqrt(2)+1)/2^(3/4)
+  EXPECT_EQ(0.9238795325112867, libm_cos(0.39269908169872414));
+  // Test KERNELTAN for |x| < 0.67434.
+  EXPECT_EQ(0.9238795325112867, libm_cos(-0.39269908169872414));
+
+  // Tests for cos.
+  EXPECT_EQ(1, libm_cos(3.725290298461914e-9));
+  // Cover different code paths in KERNELCOS.
+  EXPECT_EQ(0.9689124217106447, libm_cos(0.25));
+  EXPECT_EQ(0.8775825618903728, libm_cos(0.5));
+  EXPECT_EQ(0.7073882691671998, libm_cos(0.785));
+  // Test that cos(Math.PI/2) != 0 since Math.PI is not exact.
+  EXPECT_EQ(6.123233995736766e-17, libm_cos(1.5707963267948966));
+  // Test cos for various phases.
+  EXPECT_EQ(0.7071067811865474, libm_cos(7.0 / 4 * kPI));
+  EXPECT_EQ(0.7071067811865477, libm_cos(9.0 / 4 * kPI));
+  EXPECT_EQ(-0.7071067811865467, libm_cos(11.0 / 4 * kPI));
+  EXPECT_EQ(-0.7071067811865471, libm_cos(13.0 / 4 * kPI));
+  EXPECT_EQ(0.9367521275331447, libm_cos(1000000.0));
+  EXPECT_EQ(-3.435757038074824e-12, libm_cos(1048575.0 / 2 * kPI));
+
+  // Test Hayne-Panek reduction.
+  EXPECT_EQ(-0.9258790228548379e0, libm_cos(kTwo120));
+  EXPECT_EQ(-0.9258790228548379e0, libm_cos(-kTwo120));
+}
+
+TEST(Ieee754, LibmSin) {
+  // Test values mentioned in the EcmaScript spec.
+  EXPECT_THAT(libm_sin(kQNaN), IsNaN());
+  EXPECT_THAT(libm_sin(kSNaN), IsNaN());
+  EXPECT_THAT(libm_sin(kInfinity), IsNaN());
+  EXPECT_THAT(libm_sin(-kInfinity), IsNaN());
+
+  // Tests for sin for |x| < pi/4
+  EXPECT_EQ(-kInfinity, Divide(1.0, libm_sin(-0.0)));
+  EXPECT_EQ(kInfinity, Divide(1.0, libm_sin(0.0)));
+  // sin(x) = x for x < 2^-27
+  EXPECT_EQ(2.3283064365386963e-10, libm_sin(2.3283064365386963e-10));
+  EXPECT_EQ(-2.3283064365386963e-10, libm_sin(-2.3283064365386963e-10));
+  // sin(pi/8) = sqrt(sqrt(2)-1)/2^(3/4)
+  EXPECT_EQ(0.3826834323650898, libm_sin(0.39269908169872414));
+  EXPECT_EQ(-0.3826834323650898, libm_sin(-0.39269908169872414));
+
+  // Tests for sin.
+  EXPECT_EQ(0.479425538604203, libm_sin(0.5));
+  EXPECT_EQ(-0.479425538604203, libm_sin(-0.5));
+  EXPECT_EQ(1, libm_sin(kPI / 2.0));
+  EXPECT_EQ(-1, libm_sin(-kPI / 2.0));
+  // Test that sin(Math.PI) != 0 since Math.PI is not exact.
+  EXPECT_EQ(1.2246467991473532e-16, libm_sin(kPI));
+  EXPECT_EQ(-7.047032979958965e-14, libm_sin(2200.0 * kPI));
+  // Test sin for various phases.
+  EXPECT_EQ(-0.7071067811865477, libm_sin(7.0 / 4.0 * kPI));
+  EXPECT_EQ(0.7071067811865474, libm_sin(9.0 / 4.0 * kPI));
+  EXPECT_EQ(0.7071067811865483, libm_sin(11.0 / 4.0 * kPI));
+  EXPECT_EQ(-0.7071067811865479, libm_sin(13.0 / 4.0 * kPI));
+  EXPECT_EQ(-3.2103381051568376e-11, libm_sin(1048576.0 / 4 * kPI));
+
+  // Test Hayne-Panek reduction.
+  EXPECT_EQ(0.377820109360752e0, libm_sin(kTwo120));
+  EXPECT_EQ(-0.377820109360752e0, libm_sin(-kTwo120));
+}
+
+TEST(Ieee754, FdlibmCos) {
+  // Test values mentioned in the EcmaScript spec.
+  EXPECT_THAT(fdlibm_cos(kQNaN), IsNaN());
+  EXPECT_THAT(fdlibm_cos(kSNaN), IsNaN());
+  EXPECT_THAT(fdlibm_cos(kInfinity), IsNaN());
+  EXPECT_THAT(fdlibm_cos(-kInfinity), IsNaN());
+
+  // Tests for cos for |x| < pi/4
+  EXPECT_EQ(1.0, 1 / fdlibm_cos(-0.0));
+  EXPECT_EQ(1.0, 1 / fdlibm_cos(0.0));
+  // cos(x) = 1 for |x| < 2^-27
+  EXPECT_EQ(1, fdlibm_cos(2.3283064365386963e-10));
+  EXPECT_EQ(1, fdlibm_cos(-2.3283064365386963e-10));
+  // Test KERNELCOS for |x| < 0.3.
+  // cos(pi/20) = sqrt(sqrt(2)*sqrt(sqrt(5)+5)+4)/2^(3/2)
+  EXPECT_EQ(0.9876883405951378, fdlibm_cos(0.15707963267948966));
+  // Test KERNELCOS for x ~= 0.78125
+  EXPECT_EQ(0.7100335477927638, fdlibm_cos(0.7812504768371582));
+  EXPECT_EQ(0.7100338835660797, fdlibm_cos(0.78125));
+  // Test KERNELCOS for |x| > 0.3.
+  // cos(pi/8) = sqrt(sqrt(2)+1)/2^(3/4)
+  EXPECT_EQ(0.9238795325112867, fdlibm_cos(0.39269908169872414));
+  // Test KERNELTAN for |x| < 0.67434.
+  EXPECT_EQ(0.9238795325112867, fdlibm_cos(-0.39269908169872414));
+
+  // Tests for cos.
+  EXPECT_EQ(1, fdlibm_cos(3.725290298461914e-9));
+  // Cover different code paths in KERNELCOS.
+  EXPECT_EQ(0.9689124217106447, fdlibm_cos(0.25));
+  EXPECT_EQ(0.8775825618903728, fdlibm_cos(0.5));
+  EXPECT_EQ(0.7073882691671998, fdlibm_cos(0.785));
+  // Test that cos(Math.PI/2) != 0 since Math.PI is not exact.
+  EXPECT_EQ(6.123233995736766e-17, fdlibm_cos(1.5707963267948966));
+  // Test cos for various phases.
+  EXPECT_EQ(0.7071067811865474, fdlibm_cos(7.0 / 4 * kPI));
+  EXPECT_EQ(0.7071067811865477, fdlibm_cos(9.0 / 4 * kPI));
+  EXPECT_EQ(-0.7071067811865467, fdlibm_cos(11.0 / 4 * kPI));
+  EXPECT_EQ(-0.7071067811865471, fdlibm_cos(13.0 / 4 * kPI));
+  EXPECT_EQ(0.9367521275331447, fdlibm_cos(1000000.0));
+  EXPECT_EQ(-3.435757038074824e-12, fdlibm_cos(1048575.0 / 2 * kPI));
+
+  // Test Hayne-Panek reduction.
+  EXPECT_EQ(-0.9258790228548379e0, fdlibm_cos(kTwo120));
+  EXPECT_EQ(-0.9258790228548379e0, fdlibm_cos(-kTwo120));
+}
+
+TEST(Ieee754, FdlibmSin) {
+  // Test values mentioned in the EcmaScript spec.
+  EXPECT_THAT(fdlibm_sin(kQNaN), IsNaN());
+  EXPECT_THAT(fdlibm_sin(kSNaN), IsNaN());
+  EXPECT_THAT(fdlibm_sin(kInfinity), IsNaN());
+  EXPECT_THAT(fdlibm_sin(-kInfinity), IsNaN());
+
+  // Tests for sin for |x| < pi/4
+  EXPECT_EQ(-kInfinity, Divide(1.0, fdlibm_sin(-0.0)));
+  EXPECT_EQ(kInfinity, Divide(1.0, fdlibm_sin(0.0)));
+  // sin(x) = x for x < 2^-27
+  EXPECT_EQ(2.3283064365386963e-10, fdlibm_sin(2.3283064365386963e-10));
+  EXPECT_EQ(-2.3283064365386963e-10, fdlibm_sin(-2.3283064365386963e-10));
+  // sin(pi/8) = sqrt(sqrt(2)-1)/2^(3/4)
+  EXPECT_EQ(0.3826834323650898, fdlibm_sin(0.39269908169872414));
+  EXPECT_EQ(-0.3826834323650898, fdlibm_sin(-0.39269908169872414));
+
+  // Tests for sin.
+  EXPECT_EQ(0.479425538604203, fdlibm_sin(0.5));
+  EXPECT_EQ(-0.479425538604203, fdlibm_sin(-0.5));
+  EXPECT_EQ(1, fdlibm_sin(kPI / 2.0));
+  EXPECT_EQ(-1, fdlibm_sin(-kPI / 2.0));
+  // Test that sin(Math.PI) != 0 since Math.PI is not exact.
+  EXPECT_EQ(1.2246467991473532e-16, fdlibm_sin(kPI));
+  EXPECT_EQ(-7.047032979958965e-14, fdlibm_sin(2200.0 * kPI));
+  // Test sin for various phases.
+  EXPECT_EQ(-0.7071067811865477, fdlibm_sin(7.0 / 4.0 * kPI));
+  EXPECT_EQ(0.7071067811865474, fdlibm_sin(9.0 / 4.0 * kPI));
+  EXPECT_EQ(0.7071067811865483, fdlibm_sin(11.0 / 4.0 * kPI));
+  EXPECT_EQ(-0.7071067811865479, fdlibm_sin(13.0 / 4.0 * kPI));
+  EXPECT_EQ(-3.2103381051568376e-11, fdlibm_sin(1048576.0 / 4 * kPI));
+
+  // Test Hayne-Panek reduction.
+  EXPECT_EQ(0.377820109360752e0, fdlibm_sin(kTwo120));
+  EXPECT_EQ(-0.377820109360752e0, fdlibm_sin(-kTwo120));
+}
+
+#else
+
 TEST(Ieee754, Cos) {
   // Test values mentioned in the EcmaScript spec.
   EXPECT_THAT(cos(kQNaN), IsNaN());
@@ -176,6 +345,45 @@ TEST(Ieee754, Cos) {
   EXPECT_EQ(-0.9258790228548379e0, cos(kTwo120));
   EXPECT_EQ(-0.9258790228548379e0, cos(-kTwo120));
 }
+
+TEST(Ieee754, Sin) {
+  // Test values mentioned in the EcmaScript spec.
+  EXPECT_THAT(sin(kQNaN), IsNaN());
+  EXPECT_THAT(sin(kSNaN), IsNaN());
+  EXPECT_THAT(sin(kInfinity), IsNaN());
+  EXPECT_THAT(sin(-kInfinity), IsNaN());
+
+  // Tests for sin for |x| < pi/4
+  EXPECT_EQ(-kInfinity, Divide(1.0, sin(-0.0)));
+  EXPECT_EQ(kInfinity, Divide(1.0, sin(0.0)));
+  // sin(x) = x for x < 2^-27
+  EXPECT_EQ(2.3283064365386963e-10, sin(2.3283064365386963e-10));
+  EXPECT_EQ(-2.3283064365386963e-10, sin(-2.3283064365386963e-10));
+  // sin(pi/8) = sqrt(sqrt(2)-1)/2^(3/4)
+  EXPECT_EQ(0.3826834323650898, sin(0.39269908169872414));
+  EXPECT_EQ(-0.3826834323650898, sin(-0.39269908169872414));
+
+  // Tests for sin.
+  EXPECT_EQ(0.479425538604203, sin(0.5));
+  EXPECT_EQ(-0.479425538604203, sin(-0.5));
+  EXPECT_EQ(1, sin(kPI / 2.0));
+  EXPECT_EQ(-1, sin(-kPI / 2.0));
+  // Test that sin(Math.PI) != 0 since Math.PI is not exact.
+  EXPECT_EQ(1.2246467991473532e-16, sin(kPI));
+  EXPECT_EQ(-7.047032979958965e-14, sin(2200.0 * kPI));
+  // Test sin for various phases.
+  EXPECT_EQ(-0.7071067811865477, sin(7.0 / 4.0 * kPI));
+  EXPECT_EQ(0.7071067811865474, sin(9.0 / 4.0 * kPI));
+  EXPECT_EQ(0.7071067811865483, sin(11.0 / 4.0 * kPI));
+  EXPECT_EQ(-0.7071067811865479, sin(13.0 / 4.0 * kPI));
+  EXPECT_EQ(-3.2103381051568376e-11, sin(1048576.0 / 4 * kPI));
+
+  // Test Hayne-Panek reduction.
+  EXPECT_EQ(0.377820109360752e0, sin(kTwo120));
+  EXPECT_EQ(-0.377820109360752e0, sin(-kTwo120));
+}
+
+#endif
 
 TEST(Ieee754, Cosh) {
   // Test values mentioned in the EcmaScript spec.
@@ -304,43 +512,6 @@ TEST(Ieee754, Cbrt) {
   EXPECT_EQ(1.4422495703074083, cbrt(3));
   EXPECT_EQ(100, cbrt(100 * 100 * 100));
   EXPECT_EQ(46.415888336127786, cbrt(100000));
-}
-
-TEST(Ieee754, Sin) {
-  // Test values mentioned in the EcmaScript spec.
-  EXPECT_THAT(sin(kQNaN), IsNaN());
-  EXPECT_THAT(sin(kSNaN), IsNaN());
-  EXPECT_THAT(sin(kInfinity), IsNaN());
-  EXPECT_THAT(sin(-kInfinity), IsNaN());
-
-  // Tests for sin for |x| < pi/4
-  EXPECT_EQ(-kInfinity, Divide(1.0, sin(-0.0)));
-  EXPECT_EQ(kInfinity, Divide(1.0, sin(0.0)));
-  // sin(x) = x for x < 2^-27
-  EXPECT_EQ(2.3283064365386963e-10, sin(2.3283064365386963e-10));
-  EXPECT_EQ(-2.3283064365386963e-10, sin(-2.3283064365386963e-10));
-  // sin(pi/8) = sqrt(sqrt(2)-1)/2^(3/4)
-  EXPECT_EQ(0.3826834323650898, sin(0.39269908169872414));
-  EXPECT_EQ(-0.3826834323650898, sin(-0.39269908169872414));
-
-  // Tests for sin.
-  EXPECT_EQ(0.479425538604203, sin(0.5));
-  EXPECT_EQ(-0.479425538604203, sin(-0.5));
-  EXPECT_EQ(1, sin(kPI / 2.0));
-  EXPECT_EQ(-1, sin(-kPI / 2.0));
-  // Test that sin(Math.PI) != 0 since Math.PI is not exact.
-  EXPECT_EQ(1.2246467991473532e-16, sin(kPI));
-  EXPECT_EQ(-7.047032979958965e-14, sin(2200.0 * kPI));
-  // Test sin for various phases.
-  EXPECT_EQ(-0.7071067811865477, sin(7.0 / 4.0 * kPI));
-  EXPECT_EQ(0.7071067811865474, sin(9.0 / 4.0 * kPI));
-  EXPECT_EQ(0.7071067811865483, sin(11.0 / 4.0 * kPI));
-  EXPECT_EQ(-0.7071067811865479, sin(13.0 / 4.0 * kPI));
-  EXPECT_EQ(-3.2103381051568376e-11, sin(1048576.0 / 4 * kPI));
-
-  // Test Hayne-Panek reduction.
-  EXPECT_EQ(0.377820109360752e0, sin(kTwo120));
-  EXPECT_EQ(-0.377820109360752e0, sin(-kTwo120));
 }
 
 TEST(Ieee754, Sinh) {

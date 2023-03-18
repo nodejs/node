@@ -42,6 +42,8 @@ V8_INLINE bool operator==(const WasmTypeCheckConfig& p1,
   return p1.from == p2.from && p1.to == p2.to;
 }
 
+static constexpr int kCharWidthBailoutSentinel = 3;
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

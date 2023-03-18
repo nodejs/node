@@ -38,13 +38,13 @@ class CustomArguments : public CustomArgumentsBase {
       : CustomArgumentsBase(isolate) {}
 
   template <typename V>
-  Handle<V> GetReturnValue(Isolate* isolate);
+  Handle<V> GetReturnValue(Isolate* isolate) const;
 
-  inline Isolate* isolate() {
+  inline Isolate* isolate() const {
     return reinterpret_cast<Isolate*>((*slot_at(T::kIsolateIndex)).ptr());
   }
 
-  inline FullObjectSlot slot_at(int index) {
+  inline FullObjectSlot slot_at(int index) const {
     // This allows index == T::kArgsLength so "one past the end" slots
     // can be retrieved for iterating purposes.
     DCHECK_LE(static_cast<unsigned>(index),
@@ -161,8 +161,8 @@ class PropertyCallbackArguments final
       GenericNamedPropertyGetterCallback f, Handle<Name> name,
       Handle<Object> info, Handle<Object> receiver = Handle<Object>());
 
-  inline JSObject holder();
-  inline Object receiver();
+  inline JSObject holder() const;
+  inline Object receiver() const;
 
 #ifdef DEBUG
   // This stores current value of Isolate::javascript_execution_counter().
@@ -199,10 +199,10 @@ class FunctionCallbackArguments
   inline Handle<Object> Call(CallHandlerInfo handler);
 
  private:
-  inline JSReceiver holder();
+  inline JSReceiver holder() const;
 
   internal::Address* argv_;
-  int argc_;
+  int const argc_;
 };
 
 }  // namespace internal

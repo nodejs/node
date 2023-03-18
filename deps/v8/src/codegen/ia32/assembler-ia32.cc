@@ -320,13 +320,13 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
   // As a crutch to avoid having to add manual Align calls wherever we use a
-  // raw workflow to create Code objects (mostly in tests), add another Align
-  // call here. It does no harm - the end of the Code object is aligned to the
-  // (larger) kCodeAlignment anyways.
+  // raw workflow to create InstructionStream objects (mostly in tests), add
+  // another Align call here. It does no harm - the end of the InstructionStream
+  // object is aligned to the (larger) kCodeAlignment anyways.
   // TODO(jgruber): Consider moving responsibility for proper alignment to
   // metadata table builders (safepoint, handler, constant pool, code
   // comments).
-  DataAlign(Code::kMetadataAlignment);
+  DataAlign(InstructionStream::kMetadataAlignment);
 
   const int code_comments_size = WriteCodeComments();
 
@@ -1537,8 +1537,9 @@ void Assembler::bind_to(Label* L, int pos) {
       long_at_put(fixup_pos, reinterpret_cast<int>(buffer_start_ + pos));
       internal_reference_positions_.push_back(fixup_pos);
     } else if (disp.type() == Displacement::CODE_RELATIVE) {
-      // Relative to Code heap object pointer.
-      long_at_put(fixup_pos, pos + Code::kHeaderSize - kHeapObjectTag);
+      // Relative to InstructionStream heap object pointer.
+      long_at_put(fixup_pos,
+                  pos + InstructionStream::kHeaderSize - kHeapObjectTag);
     } else {
       if (disp.type() == Displacement::UNCONDITIONAL_JUMP) {
         DCHECK_EQ(byte_at(fixup_pos - 1), 0xE9);  // jmp expected
@@ -1642,7 +1643,6 @@ void Assembler::call(Operand adr) {
 void Assembler::call(Handle<Code> code, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-  DCHECK(code->IsExecutable());
   EMIT(0xE8);
   emit(code, rmode);
 }
@@ -3406,7 +3406,8 @@ void Assembler::dd(Label* label) {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code());
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data,
+                  InstructionStream());
   reloc_info_writer.Write(&rinfo);
 }
 

@@ -22,6 +22,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/prototype-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/templates.h"
 #include "src/objects/visitors.h"
@@ -98,16 +99,15 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
 
   V8_INLINE void VisitCodePointer(HeapObject host,
                                   CodeObjectSlot slot) override {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     *tagged_fields_count_ += 1;
   }
 
-  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
-    // Code target is most likely encoded as a relative 32-bit offset and not
-    // as a full tagged value, so there's nothing to count.
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
+    // InstructionStream target is most likely encoded as a relative 32-bit
+    // offset and not as a full tagged value, so there's nothing to count.
   }
 
-  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
     *tagged_fields_count_ += 1;
   }
 
@@ -149,7 +149,7 @@ FieldStatsCollector::GetInobjectFieldStats(Map map) {
     for (InternalIndex descriptor : map.IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(descriptor);
       if (details.location() == PropertyLocation::kField) {
-        FieldIndex index = FieldIndex::ForDescriptor(map, descriptor);
+        FieldIndex index = FieldIndex::ForDetails(map, details);
         // Stop on first out-of-object field.
         if (!index.is_inobject()) break;
         if (details.representation().IsSmi()) {
@@ -430,7 +430,7 @@ class ObjectStatsCollectorImpl {
   // Details.
   void RecordVirtualAllocationSiteDetails(AllocationSite site);
   void RecordVirtualBytecodeArrayDetails(BytecodeArray bytecode);
-  void RecordVirtualCodeDetails(Code code);
+  void RecordVirtualCodeDetails(InstructionStream code);
   void RecordVirtualContext(Context context);
   void RecordVirtualFeedbackVectorDetails(FeedbackVector vector);
   void RecordVirtualFixedArrayDetails(FixedArray array);
@@ -754,8 +754,8 @@ void ObjectStatsCollectorImpl::CollectStatistics(
         RecordVirtualMapDetails(Map::cast(obj));
       } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {
         RecordVirtualBytecodeArrayDetails(BytecodeArray::cast(obj));
-      } else if (InstanceTypeChecker::IsCode(instance_type)) {
-        RecordVirtualCodeDetails(Code::cast(obj));
+      } else if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+        RecordVirtualCodeDetails(InstructionStream::cast(obj));
       } else if (InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
         RecordVirtualFunctionTemplateInfoDetails(
             FunctionTemplateInfo::cast(obj));
@@ -847,8 +847,12 @@ bool ObjectStatsCollectorImpl::IsCowArray(FixedArrayBase array) {
 }
 
 bool ObjectStatsCollectorImpl::SameLiveness(HeapObject obj1, HeapObject obj2) {
-  return obj1.is_null() || obj2.is_null() ||
-         marking_state_->Color(obj1) == marking_state_->Color(obj2);
+  if (obj1.is_null() || obj2.is_null()) return true;
+  auto col1 = obj1.InReadOnlySpace() ? Marking::ObjectColor::BLACK_OBJECT
+                                     : marking_state_->Color(obj1);
+  auto col2 = obj2.InReadOnlySpace() ? Marking::ObjectColor::BLACK_OBJECT
+                                     : marking_state_->Color(obj2);
+  return col1 == col2;
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
@@ -905,9 +909,9 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
   }
 
   if (map.is_prototype_map()) {
-    if (map.prototype_info().IsPrototypeInfo(cage_base())) {
-      PrototypeInfo info = PrototypeInfo::cast(map.prototype_info());
-      Object users = info.prototype_users();
+    PrototypeInfo prototype_info;
+    if (map.TryGetPrototypeInfo(&prototype_info)) {
+      Object users = prototype_info.prototype_users();
       if (users.IsWeakFixedArray(cage_base())) {
         RecordSimpleVirtualObjectStats(map, WeakArrayList::cast(users),
                                        ObjectStats::PROTOTYPE_USERS_TYPE);
@@ -1032,7 +1036,8 @@ ObjectStats::VirtualInstanceType CodeKindToVirtualInstanceType(CodeKind kind) {
 
 }  // namespace
 
-void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
+void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(
+    InstructionStream code) {
   RecordSimpleVirtualObjectStats(HeapObject(), code,
                                  CodeKindToVirtualInstanceType(code.kind()));
   RecordSimpleVirtualObjectStats(code, code.relocation_info(),
@@ -1093,7 +1098,7 @@ class ObjectStatsVisitor {
         phase_(phase) {}
 
   void Visit(HeapObject obj) {
-    if (marking_state_->IsBlack(obj)) {
+    if (obj.InReadOnlySpace() || marking_state_->IsBlack(obj)) {
       live_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kYes);
     } else {

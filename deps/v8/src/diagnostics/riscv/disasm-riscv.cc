@@ -1269,7 +1269,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     }
     case (RO_FCVT_S_D & kRFPTypeMask): {
       if (instr->Rs2Value() == 0b00001) {
-        Format(instr, "fcvt.s.d  ['frm] 'fd, 'rs1");
+        Format(instr, "fcvt.s.d  ['frm] 'fd, 'fs1");
       } else {
         UNSUPPORTED_RISCV();
       }

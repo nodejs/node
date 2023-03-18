@@ -368,14 +368,12 @@ class CreateFunctionContextParameters final {
         slot_count_(slot_count),
         scope_type_(scope_type) {}
 
-  ScopeInfoRef scope_info(JSHeapBroker* broker) const {
-    return scope_info_.AsRef(broker);
-  }
+  ScopeInfoRef scope_info() const { return scope_info_; }
   int slot_count() const { return slot_count_; }
   ScopeType scope_type() const { return scope_type_; }
 
  private:
-  const ScopeInfoTinyRef scope_info_;
+  const ScopeInfoRef scope_info_;
   int const slot_count_;
   ScopeType const scope_type_;
 
@@ -400,11 +398,11 @@ class DefineNamedOwnPropertyParameters final {
                                    FeedbackSource const& feedback)
       : name_(name), feedback_(feedback) {}
 
-  NameRef name(JSHeapBroker* broker) const { return name_.AsRef(broker); }
+  NameRef name() const { return name_; }
   FeedbackSource const& feedback() const { return feedback_; }
 
  private:
-  const NameTinyRef name_;
+  const NameRef name_;
   FeedbackSource const feedback_;
 
   friend bool operator==(DefineNamedOwnPropertyParameters const&,
@@ -450,12 +448,12 @@ class NamedAccess final {
               FeedbackSource const& feedback)
       : name_(name), feedback_(feedback), language_mode_(language_mode) {}
 
-  NameRef name(JSHeapBroker* broker) const { return name_.AsRef(broker); }
+  NameRef name() const { return name_; }
   LanguageMode language_mode() const { return language_mode_; }
   FeedbackSource const& feedback() const { return feedback_; }
 
  private:
-  const NameTinyRef name_;
+  const NameRef name_;
   FeedbackSource const feedback_;
   LanguageMode const language_mode_;
 
@@ -478,13 +476,13 @@ class LoadGlobalParameters final {
                        TypeofMode typeof_mode)
       : name_(name), feedback_(feedback), typeof_mode_(typeof_mode) {}
 
-  NameRef name(JSHeapBroker* broker) const { return name_.AsRef(broker); }
+  NameRef name() const { return name_; }
   TypeofMode typeof_mode() const { return typeof_mode_; }
 
   const FeedbackSource& feedback() const { return feedback_; }
 
  private:
-  const NameTinyRef name_;
+  const NameRef name_;
   const FeedbackSource feedback_;
   const TypeofMode typeof_mode_;
 
@@ -511,11 +509,11 @@ class StoreGlobalParameters final {
 
   LanguageMode language_mode() const { return language_mode_; }
   FeedbackSource const& feedback() const { return feedback_; }
-  NameRef name(JSHeapBroker* broker) const { return name_.AsRef(broker); }
+  NameRef name() const { return name_; }
 
  private:
   LanguageMode const language_mode_;
-  const NameTinyRef name_;
+  const NameRef name_;
   FeedbackSource const feedback_;
 
   friend bool operator==(StoreGlobalParameters const&,
@@ -565,17 +563,15 @@ CreateArgumentsType const& CreateArgumentsTypeOf(const Operator* op);
 // used as parameter by JSCreateArray operators.
 class CreateArrayParameters final {
  public:
-  CreateArrayParameters(size_t arity, base::Optional<AllocationSiteRef> site)
+  CreateArrayParameters(size_t arity, OptionalAllocationSiteRef site)
       : arity_(arity), site_(site) {}
 
   size_t arity() const { return arity_; }
-  base::Optional<AllocationSiteRef> site(JSHeapBroker* broker) const {
-    return AllocationSiteTinyRef::AsOptionalRef(broker, site_);
-  }
+  OptionalAllocationSiteRef site() const { return site_; }
 
  private:
   size_t const arity_;
-  base::Optional<AllocationSiteTinyRef> const site_;
+  OptionalAllocationSiteRef const site_;
 
   friend bool operator==(CreateArrayParameters const&,
                          CreateArrayParameters const&);
@@ -651,11 +647,11 @@ class CreateBoundFunctionParameters final {
       : arity_(arity), map_(map) {}
 
   size_t arity() const { return arity_; }
-  MapRef map(JSHeapBroker* broker) const { return map_.AsRef(broker); }
+  MapRef map() const { return map_; }
 
  private:
   size_t const arity_;
-  const MapTinyRef map_;
+  const MapRef map_;
 
   friend bool operator==(CreateBoundFunctionParameters const&,
                          CreateBoundFunctionParameters const&);
@@ -676,18 +672,16 @@ const CreateBoundFunctionParameters& CreateBoundFunctionParametersOf(
 class CreateClosureParameters final {
  public:
   CreateClosureParameters(const SharedFunctionInfoRef& shared_info,
-                          const CodeTRef& code, AllocationType allocation)
+                          const CodeRef& code, AllocationType allocation)
       : shared_info_(shared_info), code_(code), allocation_(allocation) {}
 
-  SharedFunctionInfoRef shared_info(JSHeapBroker* broker) const {
-    return shared_info_.AsRef(broker);
-  }
-  CodeTRef code(JSHeapBroker* broker) const { return code_.AsRef(broker); }
+  SharedFunctionInfoRef shared_info() const { return shared_info_; }
+  CodeRef code() const { return code_; }
   AllocationType allocation() const { return allocation_; }
 
  private:
-  const SharedFunctionInfoTinyRef shared_info_;
-  const CodeTTinyRef code_;
+  const SharedFunctionInfoRef shared_info_;
+  const CodeRef code_;
   AllocationType const allocation_;
 
   friend bool operator==(CreateClosureParameters const&,
@@ -710,17 +704,13 @@ class GetTemplateObjectParameters final {
                               FeedbackSource const& feedback)
       : description_(description), shared_(shared), feedback_(feedback) {}
 
-  TemplateObjectDescriptionRef description(JSHeapBroker* broker) const {
-    return description_.AsRef(broker);
-  }
-  SharedFunctionInfoRef shared(JSHeapBroker* broker) const {
-    return shared_.AsRef(broker);
-  }
+  TemplateObjectDescriptionRef description() const { return description_; }
+  SharedFunctionInfoRef shared() const { return shared_; }
   FeedbackSource const& feedback() const { return feedback_; }
 
  private:
-  const TemplateObjectDescriptionTinyRef description_;
-  const SharedFunctionInfoTinyRef shared_;
+  const TemplateObjectDescriptionRef description_;
+  const SharedFunctionInfoRef shared_;
   FeedbackSource const feedback_;
 
   friend bool operator==(GetTemplateObjectParameters const&,
@@ -749,15 +739,13 @@ class CreateLiteralParameters final {
         length_(length),
         flags_(flags) {}
 
-  HeapObjectRef constant(JSHeapBroker* broker) const {
-    return constant_.AsRef(broker);
-  }
+  HeapObjectRef constant() const { return constant_; }
   FeedbackSource const& feedback() const { return feedback_; }
   int length() const { return length_; }
   int flags() const { return flags_; }
 
  private:
-  const HeapObjectTinyRef constant_;
+  const HeapObjectRef constant_;
   FeedbackSource const feedback_;
   int const length_;
   int const flags_;
@@ -885,16 +873,14 @@ int RegisterCountOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 int GeneratorStoreValueCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 int RestoreRegisterIndexOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-ScopeInfoRef ScopeInfoOf(JSHeapBroker* broker,
-                         const Operator* op) V8_WARN_UNUSED_RESULT;
+ScopeInfoRef ScopeInfoOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-bool operator==(ScopeInfoTinyRef const&, ScopeInfoTinyRef const&);
-bool operator!=(ScopeInfoTinyRef const&, ScopeInfoTinyRef const&);
+bool operator==(ScopeInfoRef const&, ScopeInfoRef const&);
+bool operator!=(ScopeInfoRef const&, ScopeInfoRef const&);
 
-size_t hash_value(ScopeInfoTinyRef const&);
+size_t hash_value(ScopeInfoRef const&);
 
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
-                                           ScopeInfoTinyRef const&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ScopeInfoRef const&);
 
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all
@@ -935,20 +921,21 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ToName();
   const Operator* ToNumber();
   const Operator* ToNumberConvertBigInt();
+  const Operator* ToBigInt();
+  const Operator* ToBigIntConvertNumber();
   const Operator* ToNumeric();
   const Operator* ToObject();
   const Operator* ToString();
 
   const Operator* Create();
   const Operator* CreateArguments(CreateArgumentsType type);
-  const Operator* CreateArray(size_t arity,
-                              base::Optional<AllocationSiteRef> site);
+  const Operator* CreateArray(size_t arity, OptionalAllocationSiteRef site);
   const Operator* CreateArrayIterator(IterationKind);
   const Operator* CreateAsyncFunctionObject(int register_count);
   const Operator* CreateCollectionIterator(CollectionKind, IterationKind);
   const Operator* CreateBoundFunction(size_t arity, const MapRef& map);
   const Operator* CreateClosure(
-      const SharedFunctionInfoRef& shared_info, const CodeTRef& code,
+      const SharedFunctionInfoRef& shared_info, const CodeRef& code,
       AllocationType allocation = AllocationType::kYoung);
   const Operator* CreateIterResultObject();
   const Operator* CreateStringIterator();
@@ -1339,7 +1326,8 @@ class JSDefineKeyedOwnPropertyNode final : public JSNodeWrapperBase {
   V(Object, object, 0, Object) \
   V(Key, key, 1, Object)       \
   V(Value, value, 2, Object)   \
-  V(FeedbackVector, feedback_vector, 3, HeapObject)
+  V(Flags, flags, 3, Object)   \
+  V(FeedbackVector, feedback_vector, 4, HeapObject)
   INPUTS(DEFINE_INPUT_ACCESSORS)
 #undef INPUTS
 };

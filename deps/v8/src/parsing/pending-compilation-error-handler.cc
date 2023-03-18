@@ -81,7 +81,8 @@ void PendingCompilationErrorHandler::ReportMessageAt(int start_position,
                                                      int end_position,
                                                      MessageTemplate message,
                                                      const char* arg) {
-  if (has_pending_error_) return;
+  if (has_pending_error_ && end_position >= error_details_.start_pos()) return;
+
   has_pending_error_ = true;
 
   error_details_ = MessageDetails(start_position, end_position, message, arg);
@@ -91,7 +92,8 @@ void PendingCompilationErrorHandler::ReportMessageAt(int start_position,
                                                      int end_position,
                                                      MessageTemplate message,
                                                      const AstRawString* arg) {
-  if (has_pending_error_) return;
+  if (has_pending_error_ && end_position >= error_details_.start_pos()) return;
+
   has_pending_error_ = true;
 
   error_details_ = MessageDetails(start_position, end_position, message, arg);
@@ -102,7 +104,8 @@ void PendingCompilationErrorHandler::ReportMessageAt(int start_position,
                                                      MessageTemplate message,
                                                      const AstRawString* arg0,
                                                      const char* arg1) {
-  if (has_pending_error_) return;
+  if (has_pending_error_ && end_position >= error_details_.start_pos()) return;
+
   has_pending_error_ = true;
   error_details_ =
       MessageDetails(start_position, end_position, message, arg0, arg1);

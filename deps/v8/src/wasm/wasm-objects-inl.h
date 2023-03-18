@@ -56,6 +56,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WasmArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmContinuationObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmSuspenderObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmResumeData)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmNull)
 
 CAST_ACCESSOR(WasmInstanceObject)
 
@@ -125,7 +126,8 @@ int WasmGlobalObject::type_size() const { return type().value_kind_size(); }
 Address WasmGlobalObject::address() const {
   DCHECK_NE(type(), wasm::kWasmAnyRef);
   DCHECK_LE(offset() + type_size(), untagged_buffer().byte_length());
-  return Address(untagged_buffer().backing_store()) + offset();
+  return reinterpret_cast<Address>(untagged_buffer().backing_store()) +
+         offset();
 }
 
 int32_t WasmGlobalObject::GetI32() {
@@ -142,6 +144,10 @@ float WasmGlobalObject::GetF32() {
 
 double WasmGlobalObject::GetF64() {
   return base::ReadUnalignedValue<double>(address());
+}
+
+byte* WasmGlobalObject::GetS128RawBytes() {
+  return reinterpret_cast<byte*>(address());
 }
 
 Handle<Object> WasmGlobalObject::GetRef() {
@@ -213,8 +219,8 @@ ACCESSORS(WasmInstanceObject, data_segment_starts, FixedAddressArray,
           kDataSegmentStartsOffset)
 ACCESSORS(WasmInstanceObject, data_segment_sizes, FixedUInt32Array,
           kDataSegmentSizesOffset)
-ACCESSORS(WasmInstanceObject, dropped_elem_segments, FixedUInt8Array,
-          kDroppedElemSegmentsOffset)
+ACCESSORS(WasmInstanceObject, element_segments, FixedArray,
+          kElementSegmentsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, break_on_entry, uint8_t,
                     kBreakOnEntryOffset)
 

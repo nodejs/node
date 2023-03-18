@@ -80,6 +80,7 @@
 #include "test/common/flag-utils.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-engine.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -531,6 +532,9 @@ class TestOneByteResource : public String::ExternalOneByteStringResource {
 
 
 THREADED_TEST(ScriptUsingStringResource) {
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
+
   int dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
   uint16_t* two_byte_source = AsciiToTwoByteString(c_source);
@@ -563,6 +567,9 @@ THREADED_TEST(ScriptUsingStringResource) {
 
 
 THREADED_TEST(ScriptUsingOneByteStringResource) {
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
+
   int dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
   {
@@ -596,6 +603,9 @@ THREADED_TEST(ScriptUsingOneByteStringResource) {
 
 
 THREADED_TEST(ScriptMakingExternalString) {
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
+
   int dispose_count = 0;
   uint16_t* two_byte_source = AsciiToTwoByteString("1 + 2 * 3");
   {
@@ -630,6 +640,9 @@ THREADED_TEST(ScriptMakingExternalString) {
 
 
 THREADED_TEST(ScriptMakingExternalOneByteString) {
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
+
   int dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
   {
@@ -752,8 +765,6 @@ TEST(MakingExternalUnalignedOneByteString) {
 
   // Trigger GCs and force evacuation.
   CcTest::CollectAllGarbage();
-  i::ScanStackModeScopeForTesting no_stack_scanning(
-      CcTest::heap(), i::Heap::ScanStackMode::kNone);
   CcTest::heap()->CollectAllGarbage(i::Heap::kReduceMemoryFootprintMask,
                                     i::GarbageCollectionReason::kTesting);
 }
@@ -855,6 +866,9 @@ TEST(ScavengeExternalString) {
   ManualGCScope manual_gc_scope;
   i::v8_flags.stress_compaction = false;
   i::v8_flags.gc_global = false;
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
+
   int dispose_count = 0;
   bool in_young_generation = false;
   {
@@ -880,6 +894,9 @@ TEST(ScavengeExternalOneByteString) {
   ManualGCScope manual_gc_scope;
   i::v8_flags.stress_compaction = false;
   i::v8_flags.gc_global = false;
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
+
   int dispose_count = 0;
   bool in_young_generation = false;
   {
@@ -925,6 +942,9 @@ int TestOneByteResourceWithDisposeControl::dispose_calls = 0;
 
 
 TEST(ExternalStringWithDisposeHandling) {
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
+
   const char* c_source = "1 + 2 * 3";
 
   // Use a stack allocated external string resource allocated object.
@@ -4199,6 +4219,8 @@ void FirstPassCallback(const v8::WeakCallbackInfo<TwoPassCallbackData>& data) {
 
 TEST(TwoPassPhantomCallbacks) {
   auto isolate = CcTest::isolate();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   GCCallbackMetadata metadata;
   const size_t kLength = 20;
   for (size_t i = 0; i < kLength; ++i) {
@@ -4213,6 +4235,8 @@ TEST(TwoPassPhantomCallbacks) {
 
 TEST(TwoPassPhantomCallbacksNestedGc) {
   auto isolate = CcTest::isolate();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   GCCallbackMetadata metadata;
   const size_t kLength = 20;
   TwoPassCallbackData* array[kLength];
@@ -4233,6 +4257,8 @@ TEST(TwoPassPhantomCallbacksNestedGc) {
 // the second pass callback can still execute JS as per its API contract.
 TEST(TwoPassPhantomCallbacksTriggeredByStringAlloc) {
   auto isolate = CcTest::isolate();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   GCCallbackMetadata metadata;
   auto data = new TwoPassCallbackData(isolate, &metadata);
   data->SetWeak();
@@ -7600,8 +7626,11 @@ static void SetFlag(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
 
 static void IndependentWeakHandle(bool global_gc, bool interlinked) {
   ManualGCScope manual_gc_scope;
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   // Parallel scavenge introduces too much fragmentation.
   i::v8_flags.parallel_scavenge = false;
+
   v8::Isolate* iso = CcTest::isolate();
   v8::HandleScope scope(iso);
   v8::Local<Context> context = Context::New(iso);
@@ -7706,6 +7735,8 @@ void InternalFieldCallback(bool global_gc) {
   // which prevents it from being reclaimed and the callbacks from being
   // executed.
   ManualGCScope manual_gc_scope;
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -7741,6 +7772,7 @@ void InternalFieldCallback(bool global_gc) {
     handle.SetWeak<v8::Persistent<v8::Object>>(
         &handle, CheckInternalFields, v8::WeakCallbackType::kInternalFields);
   }
+
   if (i::v8_flags.single_generation || global_gc) {
     CcTest::CollectAllGarbage();
   } else {
@@ -7847,6 +7879,8 @@ THREADED_TEST(GCFromWeakCallbacks) {
   v8::HandleScope scope(isolate);
   v8::Local<Context> context = Context::New(isolate);
   Context::Scope context_scope(context);
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   if (i::v8_flags.single_generation) {
     FlagAndPersistent object;
@@ -13009,12 +13043,13 @@ bool ApiTestFuzzer::NextThread() {
 
 
 void ApiTestFuzzer::Run() {
-  // When it is our turn...
+  // Wait until it is our turn.
   gate_.Wait();
   {
-    // ... get the V8 lock
+    // Get the V8 lock.
     v8::Locker locker(CcTest::isolate());
-    // ... and start running the test.
+    // Start running the test, which will enter the isolate and exit it when it
+    // finishes.
     CallTest();
   }
   // This test finished.
@@ -13055,11 +13090,18 @@ static void CallTestNumber(int test_number) {
 
 
 void ApiTestFuzzer::RunAllTests() {
+  // This method is called when running each THREADING_TEST, which is an
+  // initialized test and has entered the isolate at this point. We need to exit
+  // the isolate, so that the fuzzer threads can enter it in turn, while running
+  // their tests.
+  CcTest::isolate()->Exit();
   // Set off the first test.
   current_ = -1;
   NextThread();
   // Wait till they are all done.
   all_tests_done_.Wait();
+  // We enter the isolate again, to prepare for teardown.
+  CcTest::isolate()->Enter();
 }
 
 
@@ -13077,10 +13119,16 @@ int ApiTestFuzzer::GetNextTestNumber() {
 void ApiTestFuzzer::ContextSwitch() {
   // If the new thread is the same as the current thread there is nothing to do.
   if (NextThread()) {
-    // Now it can start.
-    v8::Unlocker unlocker(CcTest::isolate());
-    // Wait till someone starts us again.
-    gate_.Wait();
+    // Exit the isolate from this thread.
+    CcTest::i_isolate()->Exit();
+    {
+      // Now the new thread can start.
+      v8::Unlocker unlocker(CcTest::isolate());
+      // Wait till someone starts us again.
+      gate_.Wait();
+    }
+    // Enter the isolate from this thread again.
+    CcTest::i_isolate()->Enter();
     // And we're off.
   }
 }
@@ -13295,6 +13343,8 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
   // the first garbage collection but some of the maps have already
   // been marked at that point.  Therefore some of the maps are not
   // collected until the second garbage collection.
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();
   int count = GetGlobalObjectsCount();
@@ -13346,6 +13396,8 @@ static void WeakApiCallback(
 
 
 TEST(WeakCallbackApi) {
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   i::GlobalHandles* globals =
@@ -13521,7 +13573,7 @@ THREADED_TEST(NestedHandleScopeAndContexts) {
   env->Exit();
 }
 
-static v8::base::HashMap* code_map = nullptr;
+static v8::base::HashMap* instruction_stream_map = nullptr;
 static v8::base::HashMap* jitcode_line_info = nullptr;
 static int saw_bar = 0;
 static int move_events = 0;
@@ -13564,7 +13616,7 @@ static bool FunctionNameIs(const char* expected,
 
 static void event_handler(const v8::JitCodeEvent* event) {
   CHECK_NOT_NULL(event);
-  CHECK_NOT_NULL(code_map);
+  CHECK_NOT_NULL(instruction_stream_map);
   CHECK_NOT_NULL(jitcode_line_info);
 
   class DummyJitCodeLineInfo {
@@ -13575,7 +13627,7 @@ static void event_handler(const v8::JitCodeEvent* event) {
       CHECK_NOT_NULL(event->code_start);
       CHECK_NE(0, static_cast<int>(event->code_len));
       CHECK_NOT_NULL(event->name.str);
-      v8::base::HashMap::Entry* entry = code_map->LookupOrInsert(
+      v8::base::HashMap::Entry* entry = instruction_stream_map->LookupOrInsert(
           event->code_start, i::ComputePointerHash(event->code_start));
       entry->value = reinterpret_cast<void*>(event->code_len);
 
@@ -13595,14 +13647,14 @@ static void event_handler(const v8::JitCodeEvent* event) {
         // calculations can cause a GC, which can move the newly created code
         // before its existence can be logged.
         v8::base::HashMap::Entry* entry =
-            code_map->Lookup(event->code_start, hash);
+            instruction_stream_map->Lookup(event->code_start, hash);
         if (entry != nullptr) {
           ++move_events;
 
           CHECK_EQ(reinterpret_cast<void*>(event->code_len), entry->value);
-          code_map->Remove(event->code_start, hash);
+          instruction_stream_map->Remove(event->code_start, hash);
 
-          entry = code_map->LookupOrInsert(
+          entry = instruction_stream_map->LookupOrInsert(
               event->new_code_start,
               i::ComputePointerHash(event->new_code_start));
           entry->value = reinterpret_cast<void*>(event->code_len);
@@ -13687,7 +13739,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   {
     v8::HandleScope scope(isolate);
     v8::base::HashMap code;
-    code_map = &code;
+    instruction_stream_map = &code;
 
     v8::base::HashMap lineinfo;
     jitcode_line_info = &lineinfo;
@@ -13734,7 +13786,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     CHECK_LE(kIterations, saw_bar);
     CHECK_LT(0, move_events);
 
-    code_map = nullptr;
+    instruction_stream_map = nullptr;
     jitcode_line_info = nullptr;
   }
 
@@ -13754,7 +13806,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
 
     // Now get code through initial iteration.
     v8::base::HashMap code;
-    code_map = &code;
+    instruction_stream_map = &code;
 
     v8::base::HashMap lineinfo;
     jitcode_line_info = &lineinfo;
@@ -13770,7 +13822,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     // with EnumExisting.
     CHECK_LT(0u, code.occupancy());
 
-    code_map = nullptr;
+    instruction_stream_map = nullptr;
   }
 
   isolate->Exit();
@@ -13810,7 +13862,7 @@ namespace internal {
 namespace wasm {
 TEST(WasmSetJitCodeEventHandler) {
   v8::base::HashMap code;
-  code_map = &code;
+  instruction_stream_map = &code;
 
   v8::base::HashMap lineinfo;
   jitcode_line_info = &lineinfo;
@@ -13824,13 +13876,13 @@ TEST(WasmSetJitCodeEventHandler) {
 
   TestSignatures sigs;
   auto& f = r.NewFunction(sigs.i_i(), "f");
-  BUILD(f, WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(0)));
+  f.Build({WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(0))});
 
   LocalContext env;
 
-  BUILD(r,
-        WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_CALL_FUNCTION(f.function_index(),
-                                                           WASM_LOCAL_GET(1))));
+  r.Build(
+      {WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_CALL_FUNCTION(f.function_index(),
+                                                          WASM_LOCAL_GET(1)))});
 
   Handle<JSFunction> func = r.builder().WrapCode(0);
   CHECK(env->Global()
@@ -16521,11 +16573,13 @@ TEST(TestMemorySavingsMode) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  START_ALLOW_USE_DEPRECATED();
   CHECK(!i_isolate->IsMemorySavingsModeActive());
   isolate->EnableMemorySavingsMode();
   CHECK(i_isolate->IsMemorySavingsModeActive());
   isolate->DisableMemorySavingsMode();
   CHECK(!i_isolate->IsMemorySavingsModeActive());
+  END_ALLOW_USE_DEPRECATED();
 }
 
 TEST(Regress2333) {
@@ -16672,6 +16726,8 @@ TEST(GetHeapSpaceStatistics) {
 }
 
 TEST(NumberOfNativeContexts) {
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   static const size_t kNumTestContexts = 10;
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
@@ -16696,6 +16752,8 @@ TEST(NumberOfNativeContexts) {
 }
 
 TEST(NumberOfDetachedContexts) {
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   static const size_t kNumTestContexts = 10;
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
@@ -16923,6 +16981,8 @@ TEST(ExternalInternalizedStringCollectedAtTearDown) {
 
 
 TEST(ExternalInternalizedStringCollectedAtGC) {
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   int destroyed = 0;
   { LocalContext env;
     v8::HandleScope handle_scope(env->GetIsolate());
@@ -17116,6 +17176,9 @@ TEST(Regress528) {
   v8::HandleScope scope(isolate);
   v8::Local<Context> other_context;
   int gc_count;
+
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   // Create a context used to keep the code from aging in the compilation
   // cache.
@@ -19504,6 +19567,8 @@ static int CountLiveMapsInMapCache(i::Context context) {
 THREADED_TEST(Regress1516) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   // Object with 20 properties is not a common case, so it should be removed
   // from the cache after GC.
@@ -20982,198 +21047,6 @@ TEST(AccessCheckThrows) {
   // Reset the failed access check callback so it does not influence
   // the other tests.
   isolate->SetFailedAccessCheckCallbackFunction(nullptr);
-}
-
-namespace {
-
-const char kOneByteSubjectString[] = {
-    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
-    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
-    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', '\0'};
-const uint16_t kTwoByteSubjectString[] = {
-    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
-    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
-    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', '\0'};
-
-const int kSubjectStringLength = arraysize(kOneByteSubjectString) - 1;
-static_assert(arraysize(kOneByteSubjectString) ==
-              arraysize(kTwoByteSubjectString));
-
-OneByteVectorResource one_byte_string_resource(v8::base::Vector<const char>(
-    &kOneByteSubjectString[0], kSubjectStringLength));
-UC16VectorResource two_byte_string_resource(
-    v8::base::Vector<const v8::base::uc16>(&kTwoByteSubjectString[0],
-                                           kSubjectStringLength));
-
-class RegExpInterruptTest {
- public:
-  RegExpInterruptTest()
-      : i_thread(this),
-        env_(),
-        isolate_(env_->GetIsolate()),
-        sem_(0),
-        ran_test_body_(false),
-        ran_to_completion_(false) {}
-
-  void RunTest(v8::InterruptCallback test_body_fn) {
-    v8::HandleScope handle_scope(isolate_);
-
-    i_thread.SetTestBody(test_body_fn);
-    CHECK(i_thread.Start());
-
-    TestBody();
-
-    i_thread.Join();
-  }
-
-  static void CollectAllGarbage(v8::Isolate* isolate, void* data) {
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    i::ScanStackModeScopeForTesting no_stack_scanning(
-        CcTest::heap(), i::Heap::ScanStackMode::kNone);
-    i_isolate->heap()->PreciseCollectAllGarbage(
-        i::Heap::kNoGCFlags, i::GarbageCollectionReason::kRuntime);
-  }
-
-  static void MakeSubjectOneByteExternal(v8::Isolate* isolate, void* data) {
-    auto instance = reinterpret_cast<RegExpInterruptTest*>(data);
-
-    v8::HandleScope scope(isolate);
-    v8::Local<v8::String> string =
-        v8::Local<v8::String>::New(isolate, instance->string_handle_);
-    CHECK(string->CanMakeExternal());
-    string->MakeExternal(&one_byte_string_resource);
-  }
-
-  static void MakeSubjectTwoByteExternal(v8::Isolate* isolate, void* data) {
-    auto instance = reinterpret_cast<RegExpInterruptTest*>(data);
-
-    v8::HandleScope scope(isolate);
-    v8::Local<v8::String> string =
-        v8::Local<v8::String>::New(isolate, instance->string_handle_);
-    CHECK(string->CanMakeExternal());
-    string->MakeExternal(&two_byte_string_resource);
-  }
-
- private:
-  static void SignalSemaphore(v8::Isolate* isolate, void* data) {
-    reinterpret_cast<RegExpInterruptTest*>(data)->sem_.Signal();
-  }
-
-  void CreateTestStrings() {
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
-
-    // The string must be in old space to support externalization.
-    i::Handle<i::String> i_string =
-        i_isolate->factory()->NewStringFromAsciiChecked(
-            &kOneByteSubjectString[0], i::AllocationType::kOld);
-    v8::Local<v8::String> string = v8::Utils::ToLocal(i_string);
-
-    env_->Global()->Set(env_.local(), v8_str("a"), string).FromJust();
-
-    string_handle_.Reset(env_->GetIsolate(), string);
-  }
-
-  void TestBody() {
-    CHECK(!ran_test_body_.load());
-    CHECK(!ran_to_completion_.load());
-
-    CreateTestStrings();
-
-    v8::TryCatch try_catch(env_->GetIsolate());
-
-    isolate_->RequestInterrupt(&SignalSemaphore, this);
-    CompileRun("/((a*)*)*b/.exec(a)");
-
-    CHECK(try_catch.HasTerminated());
-    CHECK(ran_test_body_.load());
-    CHECK(ran_to_completion_.load());
-  }
-
-  class InterruptThread : public v8::base::Thread {
-   public:
-    explicit InterruptThread(RegExpInterruptTest* test)
-        : Thread(Options("RegExpInterruptTest")), test_(test) {}
-
-    void Run() override {
-      CHECK_NOT_NULL(test_body_fn_);
-
-      // Wait for JS execution to start.
-      test_->sem_.Wait();
-
-      // Sleep for a bit to allow irregexp execution to start up, then run the
-      // test body.
-      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(50));
-      test_->isolate_->RequestInterrupt(&RunTestBody, test_);
-      test_->isolate_->RequestInterrupt(&SignalSemaphore, test_);
-
-      // Wait for the scheduled interrupt to signal.
-      test_->sem_.Wait();
-
-      // Sleep again to resume irregexp execution, then terminate.
-      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(50));
-      test_->ran_to_completion_.store(true);
-      test_->isolate_->TerminateExecution();
-    }
-
-    static void RunTestBody(v8::Isolate* isolate, void* data) {
-      auto instance = reinterpret_cast<RegExpInterruptTest*>(data);
-      instance->i_thread.test_body_fn_(isolate, data);
-      instance->ran_test_body_.store(true);
-    }
-
-    void SetTestBody(v8::InterruptCallback callback) {
-      test_body_fn_ = callback;
-    }
-
-   private:
-    v8::InterruptCallback test_body_fn_;
-    RegExpInterruptTest* test_;
-  };
-
-  InterruptThread i_thread;
-
-  LocalContext env_;
-  v8::Isolate* isolate_;
-  v8::base::Semaphore sem_;  // Coordinates between main and interrupt threads.
-
-  v8::Persistent<v8::String> string_handle_;
-
-  std::atomic<bool> ran_test_body_;
-  std::atomic<bool> ran_to_completion_;
-};
-
-}  // namespace
-
-TEST(RegExpInterruptAndCollectAllGarbage) {
-  // Move all movable objects on GC.
-  i::v8_flags.compact_on_every_full_gc = true;
-  // We want to be stuck regexp execution, so no fallback to linear-time
-  // engine.
-  // TODO(mbid,v8:10765): Find a way to test interrupt support of the
-  // experimental engine.
-  i::v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks = false;
-  RegExpInterruptTest test;
-  test.RunTest(RegExpInterruptTest::CollectAllGarbage);
-}
-
-TEST(RegExpInterruptAndMakeSubjectOneByteExternal) {
-  // We want to be stuck regexp execution, so no fallback to linear-time
-  // engine.
-  // TODO(mbid,v8:10765): Find a way to test interrupt support of the
-  // experimental engine.
-  i::v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks = false;
-  RegExpInterruptTest test;
-  test.RunTest(RegExpInterruptTest::MakeSubjectOneByteExternal);
-}
-
-TEST(RegExpInterruptAndMakeSubjectTwoByteExternal) {
-  // We want to be stuck regexp execution, so no fallback to linear-time
-  // engine.
-  // TODO(mbid,v8:10765): Find a way to test interrupt support of the
-  // experimental engine.
-  i::v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks = false;
-  RegExpInterruptTest test;
-  test.RunTest(RegExpInterruptTest::MakeSubjectTwoByteExternal);
 }
 
 class RequestInterruptTestBase {
@@ -22954,8 +22827,7 @@ void SourceURLHelper(v8::Isolate* isolate, const char* source_text,
                             Local<Value>(),       // source map URL
                             false,                // is opaque
                             false,                // is WASM
-                            true                  // is ES Module
-    );
+                            true);                // is ES Module
     v8::ScriptCompiler::Source source(source_str, origin, nullptr);
 
     Local<v8::Module> module =
@@ -23792,12 +23664,6 @@ TEST(StreamingWithIsolateScriptCache) {
 // Variant of the above test which evicts the root SharedFunctionInfo from the
 // Isolate script cache but still reuses the same Script.
 TEST(StreamingWithIsolateScriptCacheClearingRootSFI) {
-  // TODO(v8:12808): Remove this check once background compilation is capable of
-  // reusing an existing Script.
-  if (i::v8_flags.stress_background_compile) {
-    return;
-  }
-
   StreamingWithIsolateScriptCache(true);
 }
 
@@ -24665,7 +24531,7 @@ TEST(StringConcatOverflow) {
 }
 
 TEST(TurboAsmDisablesDetach) {
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   i::v8_flags.turbofan = true;
   i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
@@ -24699,7 +24565,7 @@ TEST(TurboAsmDisablesDetach) {
 
   result = CompileRun(store).As<v8::ArrayBuffer>();
   CHECK(!result->IsDetachable());
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
 
 TEST(ClassPrototypeCreationContext) {
@@ -25590,8 +25456,8 @@ TEST(MemoryPressure) {
   WeakCallCounter counter(1234);
 
   // Conservative stack scanning might break results.
-  i::ScanStackModeScopeForTesting no_stack_scanning(
-      CcTest::heap(), i::Heap::ScanStackMode::kNone);
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   // Check that critical memory pressure notification sets GC interrupt.
   auto garbage = CreateGarbageWithWeakCallCounter(isolate, &counter);
@@ -26753,9 +26619,9 @@ TEST(WasmI32AtomicWaitCallback) {
   WasmRunner<int32_t, int32_t, int32_t, double> r(TestExecutionTier::kTurbofan);
   r.builder().AddMemory(kWasmPageSize, SharedFlag::kShared);
   r.builder().SetHasSharedMemory();
-  BUILD(r, WASM_ATOMICS_WAIT(kExprI32AtomicWait, WASM_LOCAL_GET(0),
+  r.Build({WASM_ATOMICS_WAIT(kExprI32AtomicWait, WASM_LOCAL_GET(0),
                              WASM_LOCAL_GET(1),
-                             WASM_I64_SCONVERT_F64(WASM_LOCAL_GET(2)), 4));
+                             WASM_I64_SCONVERT_F64(WASM_LOCAL_GET(2)), 4)});
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -26788,9 +26654,9 @@ TEST(WasmI64AtomicWaitCallback) {
   WasmRunner<int32_t, int32_t, double, double> r(TestExecutionTier::kTurbofan);
   r.builder().AddMemory(kWasmPageSize, SharedFlag::kShared);
   r.builder().SetHasSharedMemory();
-  BUILD(r, WASM_ATOMICS_WAIT(kExprI64AtomicWait, WASM_LOCAL_GET(0),
+  r.Build({WASM_ATOMICS_WAIT(kExprI64AtomicWait, WASM_LOCAL_GET(0),
                              WASM_I64_SCONVERT_F64(WASM_LOCAL_GET(1)),
-                             WASM_I64_SCONVERT_F64(WASM_LOCAL_GET(2)), 8));
+                             WASM_I64_SCONVERT_F64(WASM_LOCAL_GET(2)), 8)});
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -27455,8 +27321,6 @@ static void CallIsolate2(const v8::FunctionCallbackInfo<v8::Value>& args) {
       v8::Local<v8::Context>::New(isolate_2, context_2);
   v8::Context::Scope context_scope(context);
   i::Heap* heap_2 = reinterpret_cast<i::Isolate*>(isolate_2)->heap();
-  i::ScanStackModeScopeForTesting no_stack_scanning(
-      heap_2, i::Heap::ScanStackMode::kNone);
   heap_2->CollectAllGarbage(i::Heap::kForcedGC,
                             i::GarbageCollectionReason::kTesting);
   CompileRun("f2() //# sourceURL=isolate2b");
@@ -27565,7 +27429,7 @@ UNINITIALIZED_TEST(NestedIsolates) {
 
 #undef THREADED_PROFILED_TEST
 
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 namespace {
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -28275,10 +28139,10 @@ void CheckDynamicTypeInfo() {
   CHECK_EQ(c_func.ReturnInfo().GetType(), v8::CTypeInfo::Type::kVoid);
 }
 }  // namespace
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 
 TEST(FastApiStackSlot) {
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   if (i::v8_flags.jitless) return;
 
   i::v8_flags.turbofan = true;
@@ -28326,11 +28190,11 @@ TEST(FastApiStackSlot) {
   int32_t slow_value_typed = checker.slow_value_.ToChecked();
   CHECK_EQ(slow_value_typed, test_value);
   CHECK_EQ(checker.fast_value_, test_value);
-#endif
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
 
 TEST(FastApiCalls) {
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   if (i::v8_flags.jitless) return;
 
   i::v8_flags.turbofan = true;
@@ -28797,10 +28661,10 @@ TEST(FastApiCalls) {
   // TODO(mslekova): Restructure the tests so that the fast optimized calls
   // are compared against the slow optimized calls.
   // TODO(mslekova): Add tests for FTI that requires access check.
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
 
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 namespace {
 static Trivial* UnwrapTrivialObject(Local<Object> object) {
   i::Address addr = *reinterpret_cast<i::Address*>(*object);
@@ -28877,10 +28741,10 @@ void SequenceSlowCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return;
 }
 }  // namespace
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 
 TEST(FastApiSequenceOverloads) {
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   if (i::v8_flags.jitless) return;
 
   i::v8_flags.turbofan = true;
@@ -28934,11 +28798,11 @@ TEST(FastApiSequenceOverloads) {
       CompileRun("const ta = new Int32Array([1, 2, 3, 4]);"
                  "func(4, ta);"));
   CHECK_EQ(4, rcv->x());
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
 
 TEST(FastApiOverloadResolution) {
-#ifndef V8_LITE_MODE
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   if (i::v8_flags.jitless) return;
 
   i::v8_flags.turbofan = true;
@@ -28982,7 +28846,7 @@ TEST(FastApiOverloadResolution) {
   CHECK_EQ(v8::CFunction::OverloadResolution::kAtCompileTime,
            typed_array_callback.GetOverloadResolution(&diff_arity_callback));
 
-#endif  // V8_LITE_MODE
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
 
 THREADED_TEST(Recorder_GetContext) {
@@ -28992,6 +28856,8 @@ THREADED_TEST(Recorder_GetContext) {
 
   // Set up isolate and context.
   v8::Isolate* iso = CcTest::isolate();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   v8::metrics::Recorder::ContextId original_id;
   std::vector<v8::metrics::Recorder::ContextId> ids;
   {
@@ -29075,6 +28941,9 @@ TEST(TriggerMainThreadMetricsEvent) {
   using v8::Local;
   using v8::MaybeLocal;
 
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
+
   // Set up isolate and context.
   v8::Isolate* iso = CcTest::isolate();
   i::Isolate* i_iso = reinterpret_cast<i::Isolate*>(iso);
@@ -29113,6 +28982,9 @@ TEST(TriggerDelayedMainThreadMetricsEvent) {
   using v8::Local;
   using v8::MaybeLocal;
   i::v8_flags.stress_concurrent_allocation = false;
+
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   // Set up isolate and context.
   v8::Isolate* iso = CcTest::isolate();
@@ -29466,4 +29338,300 @@ UNINITIALIZED_TEST(OOMDetailsAreMovableAndCopyable) {
 
 UNINITIALIZED_TEST(JitCodeEventIsMovableAndCopyable) {
   TestCopyAndMoveConstructionAndAssignment<v8::JitCodeEvent>();
+}
+
+#if V8_ENABLE_WEBASSEMBLY
+TEST(WasmAbortStreamingAfterContextDisposal) {
+  // This is a regression test for https://crbug.com/1403531.
+
+  class Resolver final : public i::wasm::CompilationResultResolver {
+   public:
+    void OnCompilationSucceeded(
+        i::Handle<i::WasmModuleObject> result) override {
+      UNREACHABLE();
+    }
+    void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+      UNREACHABLE();
+    }
+  };
+
+  auto resolver = std::make_shared<Resolver>();
+
+  std::unique_ptr<v8::WasmStreaming> wasm_streaming;
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  {
+    v8::HandleScope scope(isolate);
+    LocalContext context;
+
+    wasm_streaming =
+        i::wasm::StartStreamingForTesting(i_isolate, std::move(resolver));
+    isolate->ContextDisposedNotification(false);
+  }
+
+  wasm_streaming->Abort({});
+  wasm_streaming.reset();
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+TEST(DeepFreezeIncompatibleTypes) {
+  const int numCases = 7;
+  struct {
+    const char* script;
+    const char* exception;
+  } test_cases[numCases] = {
+      {
+          R"(
+        "use strict"
+        let foo = 1;
+      )",
+          "TypeError: Cannot DeepFreeze non-const value foo"},
+      {
+          R"(
+        "use strict"
+        const foo = 1;
+        const generator = function*() {
+          yield 1;
+          yield 2;
+        }
+        const gen = generator();
+      )",
+          "TypeError: Cannot DeepFreeze object of type Generator"},
+      {
+          R"(
+        "use strict"
+        const incrementer = (function() {
+          let a = 1;
+          return function() { a += 1; return a; };
+        })();
+      )",
+          "TypeError: Cannot DeepFreeze non-const value a"},
+      {
+          R"(
+      let a = new Number();
+      )",
+          "TypeError: Cannot DeepFreeze non-const value a"},
+      {
+          R"(
+      const a = [0, 1, 2, 3, 4, 5];
+      var it = a[Symbol.iterator]();
+      function foo() {
+         return it.next().value;
+          }
+      foo();
+      )",
+          "TypeError: Cannot DeepFreeze object of type Array Iterator"},
+      {
+          R"(
+      const a = "0123456789";
+      var it = a[Symbol.iterator]();
+      function foo() {
+         return it.next().value;
+          }
+      foo();
+      )",
+          "TypeError: Cannot DeepFreeze object of type Object"},
+      {R"(
+      const a = "0123456789";
+      var it = a.matchAll(/\d/g);
+      function foo() {
+         return it.next().value;
+          }
+      foo();
+      )",
+       "TypeError: Cannot DeepFreeze object of type Object"},
+  };
+
+  for (int idx = 0; idx < numCases; idx++) {
+    LocalContext env;
+    v8::Isolate* isolate = env->GetIsolate();
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = env.local();
+    v8::Maybe<void> maybe_success = v8::Nothing<void>();
+    CompileRun(context, test_cases[idx].script);
+    v8::TryCatch tc(isolate);
+    maybe_success = context->DeepFreeze();
+    CHECK(maybe_success.IsNothing());
+    CHECK(tc.HasCaught());
+    v8::String::Utf8Value uS(isolate, tc.Exception());
+    std::string exception(*uS, uS.length());
+    CHECK_EQ(std::string(test_cases[idx].exception), exception);
+  }
+}
+
+TEST(DeepFreezeIsFrozen) {
+  const int numCases = 10;
+  struct {
+    const char* script;
+    const char* exception;
+    int32_t expected;
+  } test_cases[numCases] = {
+      {// Closure
+       R"(
+        const incrementer = (function() {
+          const a = {b: 1};
+          return function() { a.b += 1; return a.b; };
+        })();
+        const foo = function() { return incrementer(); }
+        foo();
+      )",
+       nullptr, 2},
+      {
+          R"(
+        const incrementer = (function() {
+          const a = {b: 1};
+          return function() { a.b += 1; return a.b; };
+        })();
+        const foo = function() { return incrementer(); }
+        foo();
+      )",
+          nullptr, 2},
+      {// Array
+       R"(
+        const a = [0, -1, -2];
+        const foo = function() { a[0] += 1; return a[0]; }
+      )",
+       nullptr, 0},
+      {
+          R"(
+        const a = [0, -1, -2];
+        const foo = function() { a[0] += 1; return a[0]; }
+      )",
+          nullptr, 0},
+      {// Wrapper Objects
+       R"(
+        const a = {b: new Number()};
+        const foo = function() {
+          a.b = new Number(a.b + 1);
+          return a.b.valueOf();
+        }
+      )",
+       nullptr, 0},
+      {// Functions
+       // Assignment to constant doesn't work.
+       R"(
+        const foo = function() {
+          foo = function() { return 2;}
+          return 1;
+        }
+      )",
+       "TypeError: Assignment to constant variable.", 0},
+      {
+          R"(
+        const a = {b: {c: {d: {e: {f: 1}}}}};
+        const foo = function() {
+          a.b.c.d.e.f += 1;
+          return a.b.c.d.e.f;
+        }
+      )",
+          nullptr, 1},
+      {
+          R"(
+        const foo = function() {
+          if (!('count' in globalThis))
+            globalThis.count = 1;
+          ++count;
+          return count;
+        }
+      )",
+          "ReferenceError: count is not defined", 0},
+      {
+          R"(
+        const countPrototype = {
+          get() {
+            return 1;
+          },
+        };
+        const count = Object.create(countPrototype);
+        function foo() {
+          const curr_count = count.get();
+          count.prototype = { get() { return curr_count + 1; }};
+          return count.get();
+        }
+      )",
+          nullptr, 1},
+      {
+          R"(
+          const a = (function(){
+            function A(){};
+            A.o = 1;
+            return new A();
+          })();
+        function foo() {
+          a.constructor.o++;
+          return a.constructor.o;
+        }
+      )",
+          nullptr, 1},
+  };
+  for (int idx = 0; idx < numCases; idx++) {
+    LocalContext env;
+    v8::Isolate* isolate = env->GetIsolate();
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = env.local();
+    v8::Maybe<void> maybe_success = v8::Nothing<void>();
+    v8::TryCatch tc(isolate);
+    v8::MaybeLocal<v8::Value> status =
+        CompileRun(context, test_cases[idx].script);
+    CHECK(!status.IsEmpty());
+    CHECK(!tc.HasCaught());
+
+    maybe_success = context->DeepFreeze();
+    CHECK(!tc.HasCaught());
+    status = CompileRun(context, "foo()");
+
+    if (test_cases[idx].exception) {
+      CHECK(tc.HasCaught());
+      v8::String::Utf8Value uS(isolate, tc.Exception());
+      std::string exception(*uS, uS.length());
+      CHECK_EQ(std::string(test_cases[idx].exception), exception);
+    } else {
+      CHECK(!tc.HasCaught());
+      CHECK(!status.IsEmpty());
+      ExpectInt32("foo()", test_cases[idx].expected);
+    }
+  }
+}
+
+TEST(DeepFreezeAllowsSyntax) {
+  const int numCases = 2;
+  struct {
+    const char* script;
+    int32_t expected;
+  } test_cases[numCases] = {
+      {
+          R"(
+      const a = 1;
+      function foo() {
+        let b = 4;
+        b += 1;
+        return a + b;
+      }
+    )",
+          6,
+      },
+      {
+          R"(
+      var a = 1;
+      function foo() {
+        let b = 4;
+        b += 1;
+        return a + b;
+      }
+    )",
+          6,
+      }};  // TODO(behamilton): Add more cases that should be supported.
+  for (int idx = 0; idx < numCases; idx++) {
+    LocalContext env;
+    v8::Isolate* isolate = env->GetIsolate();
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = env.local();
+    v8::Maybe<void> maybe_success = v8::Nothing<void>();
+    v8::MaybeLocal<v8::Value> status =
+        CompileRun(context, test_cases[idx].script);
+    CHECK(!status.IsEmpty());
+    maybe_success = context->DeepFreeze();
+    CHECK(!maybe_success.IsNothing());
+    ExpectInt32("foo()", test_cases[idx].expected);
+  }
 }

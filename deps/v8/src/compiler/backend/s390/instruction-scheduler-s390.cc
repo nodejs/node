@@ -358,8 +358,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_LoadReverseSimd128:
     case kS390_Peek:
     case kS390_LoadDecompressTaggedSigned:
-    case kS390_LoadDecompressTaggedPointer:
-    case kS390_LoadDecompressAnyTagged:
+    case kS390_LoadDecompressTagged:
     case kS390_S128Load8Splat:
     case kS390_S128Load16Splat:
     case kS390_S128Load32Splat:

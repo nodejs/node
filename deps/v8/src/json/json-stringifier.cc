@@ -591,6 +591,11 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
                      JSRawJson::kRawJsonIndex),
                  isolate_)));
       return SUCCESS;
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_STRUCT_TYPE:
+    case WASM_ARRAY_TYPE:
+      return UNCHANGED;
+#endif
     default:
       if (InstanceTypeChecker::IsString(instance_type)) {
         if (deferred_string_key) SerializeDeferredKey(comma, key);
@@ -852,7 +857,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
     if (details.location() == PropertyLocation::kField &&
         *map == object->map(cage_base)) {
       DCHECK_EQ(PropertyKind::kData, details.kind());
-      FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+      FieldIndex field_index = FieldIndex::ForDetails(*map, details);
       property = JSObject::FastPropertyAt(
           isolate_, object, details.representation(), field_index);
     } else {

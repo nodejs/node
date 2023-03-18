@@ -199,11 +199,9 @@ namespace compiler {
   V(Arm64Float64MoveU64)                             \
   V(Arm64U64MoveFloat64)                             \
   V(Arm64LdrDecompressTaggedSigned)                  \
-  V(Arm64LdrDecompressTaggedPointer)                 \
-  V(Arm64LdrDecompressAnyTagged)                     \
+  V(Arm64LdrDecompressTagged)                        \
   V(Arm64LdarDecompressTaggedSigned)                 \
-  V(Arm64LdarDecompressTaggedPointer)                \
-  V(Arm64LdarDecompressAnyTagged)                    \
+  V(Arm64LdarDecompressTagged)                       \
   V(Arm64StrCompressTagged)                          \
   V(Arm64StlrCompressTagged)                         \
   V(Arm64LdrDecodeSandboxedPointer)                  \

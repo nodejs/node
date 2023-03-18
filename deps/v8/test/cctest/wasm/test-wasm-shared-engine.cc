@@ -34,12 +34,14 @@ class SharedEngineIsolate {
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
     v8::Isolate::Initialize(isolate_, create_params);
+    v8_isolate()->Enter();
     v8::HandleScope handle_scope(v8_isolate());
     v8::Context::New(v8_isolate())->Enter();
     testing::SetupIsolateForWasmModule(isolate());
     zone_.reset(new Zone(isolate()->allocator(), ZONE_NAME));
   }
   ~SharedEngineIsolate() {
+    v8_isolate()->Exit();
     zone_.reset();
     isolate_->Dispose();
   }
@@ -71,8 +73,7 @@ class SharedEngineIsolate {
   }
 
   int32_t Run(Handle<WasmInstanceObject> instance) {
-    return testing::CallWasmFunctionForTesting(isolate(), instance, "main", 0,
-                                               nullptr);
+    return testing::CallWasmFunctionForTesting(isolate(), instance, "main", {});
   }
 
  private:
@@ -299,7 +300,7 @@ TEST(SharedEngineRunThreadedTierUp) {
     Handle<WasmInstanceObject> instance = isolate->ImportInstance(module);
     WasmFeatures detected = WasmFeatures::None();
     WasmCompilationUnit::CompileWasmFunction(
-        isolate->isolate(), module.get(), &detected,
+        isolate->isolate()->counters(), module.get(), &detected,
         &module->module()->functions[0], ExecutionTier::kTurbofan);
     CHECK_EQ(23, isolate->Run(instance));
   });

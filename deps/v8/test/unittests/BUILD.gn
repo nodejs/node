@@ -4,6 +4,17 @@
 
 import("../../gni/v8.gni")
 
+if (v8_enable_webassembly) {
+  # Specifies if the target build is a simulator build. Comparing target cpu
+  # with v8 target cpu to not affect simulator builds for making cross-compile
+  # snapshots.
+  target_is_simulator = (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
+                        (current_cpu != v8_current_cpu && v8_multi_arch_build)
+  if (!target_is_simulator && v8_current_cpu == "x64") {
+    v8_enable_wasm_simd256_revec = true
+  }
+}
+
 if (is_fuchsia) {
   import("//build/config/fuchsia/generate_runner_scripts.gni")
   import("//third_party/fuchsia-sdk/sdk/build/component.gni")
@@ -288,90 +299,11 @@ v8_source_set("unittests_sources") {
     "codegen/aligned-slot-allocator-unittest.cc",
     "codegen/code-layout-unittest.cc",
     "codegen/code-pages-unittest.cc",
-    "codegen/code-stub-assembler-unittest.cc",
-    "codegen/code-stub-assembler-unittest.h",
     "codegen/factory-unittest.cc",
     "codegen/register-configuration-unittest.cc",
     "codegen/source-position-table-unittest.cc",
     "compiler-dispatcher/compiler-dispatcher-unittest.cc",
     "compiler-dispatcher/optimizing-compile-dispatcher-unittest.cc",
-    "compiler/backend/instruction-selector-unittest.cc",
-    "compiler/backend/instruction-selector-unittest.h",
-    "compiler/backend/instruction-sequence-unittest.cc",
-    "compiler/backend/instruction-sequence-unittest.h",
-    "compiler/backend/instruction-unittest.cc",
-    "compiler/branch-elimination-unittest.cc",
-    "compiler/bytecode-analysis-unittest.cc",
-    "compiler/checkpoint-elimination-unittest.cc",
-    "compiler/codegen-tester.cc",
-    "compiler/codegen-tester.h",
-    "compiler/codegen-unittest.cc",
-    "compiler/common-operator-reducer-unittest.cc",
-    "compiler/common-operator-unittest.cc",
-    "compiler/compiler-test-utils.h",
-    "compiler/compiler-unittest.cc",
-    "compiler/constant-folding-reducer-unittest.cc",
-    "compiler/control-equivalence-unittest.cc",
-    "compiler/control-flow-optimizer-unittest.cc",
-    "compiler/csa-load-elimination-unittest.cc",
-    "compiler/dead-code-elimination-unittest.cc",
-    "compiler/decompression-optimizer-unittest.cc",
-    "compiler/diamond-unittest.cc",
-    "compiler/effect-control-linearizer-unittest.cc",
-    "compiler/frame-unittest.cc",
-    "compiler/function-tester.cc",
-    "compiler/function-tester.h",
-    "compiler/graph-reducer-unittest.cc",
-    "compiler/graph-reducer-unittest.h",
-    "compiler/graph-trimmer-unittest.cc",
-    "compiler/graph-unittest.cc",
-    "compiler/graph-unittest.h",
-    "compiler/js-call-reducer-unittest.cc",
-    "compiler/js-create-lowering-unittest.cc",
-    "compiler/js-intrinsic-lowering-unittest.cc",
-    "compiler/js-native-context-specialization-unittest.cc",
-    "compiler/js-operator-unittest.cc",
-    "compiler/js-typed-lowering-unittest.cc",
-    "compiler/linkage-tail-call-unittest.cc",
-    "compiler/load-elimination-unittest.cc",
-    "compiler/loop-peeling-unittest.cc",
-    "compiler/machine-operator-reducer-unittest.cc",
-    "compiler/machine-operator-unittest.cc",
-    "compiler/node-cache-unittest.cc",
-    "compiler/node-matchers-unittest.cc",
-    "compiler/node-properties-unittest.cc",
-    "compiler/node-test-utils.cc",
-    "compiler/node-test-utils.h",
-    "compiler/node-unittest.cc",
-    "compiler/opcodes-unittest.cc",
-    "compiler/persistent-unittest.cc",
-    "compiler/redundancy-elimination-unittest.cc",
-    "compiler/regalloc/live-range-unittest.cc",
-    "compiler/regalloc/mid-tier-register-allocator-unittest.cc",
-    "compiler/regalloc/move-optimizer-unittest.cc",
-    "compiler/regalloc/register-allocator-unittest.cc",
-    "compiler/run-bytecode-graph-builder-unittest.cc",
-    "compiler/run-deopt-unittest.cc",
-    "compiler/run-jsbranches-unittest.cc",
-    "compiler/run-jscalls-unittest.cc",
-    "compiler/run-jsexceptions-unittest.cc",
-    "compiler/run-jsobjects-unittest.cc",
-    "compiler/run-jsops-unittest.cc",
-    "compiler/run-tail-calls-unittest.cc",
-    "compiler/schedule-unittest.cc",
-    "compiler/scheduler-rpo-unittest.cc",
-    "compiler/scheduler-unittest.cc",
-    "compiler/simplified-lowering-unittest.cc",
-    "compiler/simplified-operator-reducer-unittest.cc",
-    "compiler/simplified-operator-unittest.cc",
-    "compiler/sloppy-equality-unittest.cc",
-    "compiler/state-values-utils-unittest.cc",
-    "compiler/turboshaft/snapshot-table-unittest.cc",
-    "compiler/typed-optimization-unittest.cc",
-    "compiler/typer-unittest.cc",
-    "compiler/types-unittest.cc",
-    "compiler/value-numbering-reducer-unittest.cc",
-    "compiler/zone-stats-unittest.cc",
     "date/date-cache-unittest.cc",
     "date/date-unittest.cc",
     "debug/debug-property-iterator-unittest.cc",
@@ -393,12 +325,13 @@ v8_source_set("unittests_sources") {
     "heap/bitmap-test-utils.h",
     "heap/bitmap-unittest.cc",
     "heap/code-object-registry-unittest.cc",
+    "heap/cppgc-js/embedder-roots-handler-unittest.cc",
     "heap/cppgc-js/traced-reference-unittest.cc",
     "heap/cppgc-js/unified-heap-snapshot-unittest.cc",
     "heap/cppgc-js/unified-heap-unittest.cc",
     "heap/cppgc-js/unified-heap-utils.cc",
     "heap/cppgc-js/unified-heap-utils.h",
-    "heap/embedder-tracing-unittest.cc",
+    "heap/cppgc-js/young-unified-heap-unittest.cc",
     "heap/gc-idle-time-handler-unittest.cc",
     "heap/gc-tracer-unittest.cc",
     "heap/global-handles-unittest.cc",
@@ -441,8 +374,6 @@ v8_source_set("unittests_sources") {
     "interpreter/bytecode-utils.h",
     "interpreter/bytecodes-unittest.cc",
     "interpreter/constant-array-builder-unittest.cc",
-    "interpreter/interpreter-assembler-unittest.cc",
-    "interpreter/interpreter-assembler-unittest.h",
     "interpreter/interpreter-intrinsics-unittest.cc",
     "interpreter/interpreter-tester.cc",
     "interpreter/interpreter-tester.h",
@@ -534,11 +465,99 @@ v8_source_set("unittests_sources") {
     "utils/sparse-bit-vector-unittest.cc",
     "utils/utils-unittest.cc",
     "utils/version-unittest.cc",
-    "web-snapshot/web-snapshot-unittest.cc",
     "zone/zone-allocator-unittest.cc",
     "zone/zone-chunk-list-unittest.cc",
     "zone/zone-unittest.cc",
+    "zone/zone-vector-unittest.cc",
   ]
+
+  if (v8_enable_turbofan) {
+    sources += [
+      "codegen/code-stub-assembler-unittest.cc",
+      "codegen/code-stub-assembler-unittest.h",
+      "compiler/backend/instruction-selector-unittest.cc",
+      "compiler/backend/instruction-selector-unittest.h",
+      "compiler/backend/instruction-sequence-unittest.cc",
+      "compiler/backend/instruction-sequence-unittest.h",
+      "compiler/backend/instruction-unittest.cc",
+      "compiler/branch-elimination-unittest.cc",
+      "compiler/bytecode-analysis-unittest.cc",
+      "compiler/checkpoint-elimination-unittest.cc",
+      "compiler/codegen-tester.cc",
+      "compiler/codegen-tester.h",
+      "compiler/codegen-unittest.cc",
+      "compiler/common-operator-reducer-unittest.cc",
+      "compiler/common-operator-unittest.cc",
+      "compiler/compiler-test-utils.h",
+      "compiler/compiler-unittest.cc",
+      "compiler/constant-folding-reducer-unittest.cc",
+      "compiler/control-equivalence-unittest.cc",
+      "compiler/control-flow-optimizer-unittest.cc",
+      "compiler/csa-load-elimination-unittest.cc",
+      "compiler/dead-code-elimination-unittest.cc",
+      "compiler/decompression-optimizer-unittest.cc",
+      "compiler/diamond-unittest.cc",
+      "compiler/effect-control-linearizer-unittest.cc",
+      "compiler/frame-unittest.cc",
+      "compiler/function-tester.cc",
+      "compiler/function-tester.h",
+      "compiler/graph-reducer-unittest.cc",
+      "compiler/graph-reducer-unittest.h",
+      "compiler/graph-trimmer-unittest.cc",
+      "compiler/graph-unittest.cc",
+      "compiler/graph-unittest.h",
+      "compiler/js-call-reducer-unittest.cc",
+      "compiler/js-create-lowering-unittest.cc",
+      "compiler/js-intrinsic-lowering-unittest.cc",
+      "compiler/js-native-context-specialization-unittest.cc",
+      "compiler/js-operator-unittest.cc",
+      "compiler/js-typed-lowering-unittest.cc",
+      "compiler/linkage-tail-call-unittest.cc",
+      "compiler/load-elimination-unittest.cc",
+      "compiler/loop-peeling-unittest.cc",
+      "compiler/machine-operator-reducer-unittest.cc",
+      "compiler/machine-operator-unittest.cc",
+      "compiler/node-cache-unittest.cc",
+      "compiler/node-matchers-unittest.cc",
+      "compiler/node-properties-unittest.cc",
+      "compiler/node-test-utils.cc",
+      "compiler/node-test-utils.h",
+      "compiler/node-unittest.cc",
+      "compiler/opcodes-unittest.cc",
+      "compiler/persistent-unittest.cc",
+      "compiler/redundancy-elimination-unittest.cc",
+      "compiler/regalloc/live-range-unittest.cc",
+      "compiler/regalloc/mid-tier-register-allocator-unittest.cc",
+      "compiler/regalloc/move-optimizer-unittest.cc",
+      "compiler/regalloc/register-allocator-unittest.cc",
+      "compiler/run-bytecode-graph-builder-unittest.cc",
+      "compiler/run-deopt-unittest.cc",
+      "compiler/run-jsbranches-unittest.cc",
+      "compiler/run-jscalls-unittest.cc",
+      "compiler/run-jsexceptions-unittest.cc",
+      "compiler/run-jsobjects-unittest.cc",
+      "compiler/run-jsops-unittest.cc",
+      "compiler/run-tail-calls-unittest.cc",
+      "compiler/schedule-unittest.cc",
+      "compiler/scheduler-rpo-unittest.cc",
+      "compiler/scheduler-unittest.cc",
+      "compiler/simplified-lowering-unittest.cc",
+      "compiler/simplified-operator-reducer-unittest.cc",
+      "compiler/simplified-operator-unittest.cc",
+      "compiler/sloppy-equality-unittest.cc",
+      "compiler/state-values-utils-unittest.cc",
+      "compiler/turboshaft/snapshot-table-unittest.cc",
+      "compiler/turboshaft/turboshaft-typer-unittest.cc",
+      "compiler/turboshaft/turboshaft-types-unittest.cc",
+      "compiler/typed-optimization-unittest.cc",
+      "compiler/typer-unittest.cc",
+      "compiler/types-unittest.cc",
+      "compiler/value-numbering-reducer-unittest.cc",
+      "compiler/zone-stats-unittest.cc",
+      "interpreter/interpreter-assembler-unittest.cc",
+      "interpreter/interpreter-assembler-unittest.h",
+    ]
+  }
 
   if (v8_enable_runtime_call_stats) {
     sources += [ "logging/runtime-call-stats-unittest.cc" ]
@@ -564,15 +583,20 @@ v8_source_set("unittests_sources") {
       "wasm/simd-shuffle-unittest.cc",
       "wasm/streaming-decoder-unittest.cc",
       "wasm/string-builder-unittest.cc",
+      "wasm/struct-types-unittest.cc",
       "wasm/subtyping-unittest.cc",
       "wasm/wasm-code-manager-unittest.cc",
       "wasm/wasm-compiler-unittest.cc",
+      "wasm/wasm-disassembler-unittest-gc.wasm.inc",
+      "wasm/wasm-disassembler-unittest-gc.wat.inc",
       "wasm/wasm-disassembler-unittest-mvp.wasm.inc",
       "wasm/wasm-disassembler-unittest-mvp.wat.inc",
       "wasm/wasm-disassembler-unittest-names.wasm.inc",
       "wasm/wasm-disassembler-unittest-names.wat.inc",
       "wasm/wasm-disassembler-unittest-simd.wasm.inc",
       "wasm/wasm-disassembler-unittest-simd.wat.inc",
+      "wasm/wasm-disassembler-unittest-too-many-ends.wasm.inc",
+      "wasm/wasm-disassembler-unittest-too-many-ends.wat.inc",
       "wasm/wasm-disassembler-unittest.cc",
       "wasm/wasm-macro-gen-unittest.cc",
       "wasm/wasm-module-builder-unittest.cc",
@@ -581,7 +605,10 @@ v8_source_set("unittests_sources") {
   }
 
   if (v8_enable_wasm_simd256_revec) {
-    sources += [ "compiler/linear-scheduler-unittest.cc" ]
+    sources += [
+      "compiler/linear-scheduler-unittest.cc",
+      "compiler/revec-unittest.cc",
+    ]
   }
 
   if (v8_enable_wasm_gdb_remote_debugging) {
@@ -592,12 +619,9 @@ v8_source_set("unittests_sources") {
     sources += [ "heap/object-start-bitmap-unittest.cc" ]
   }
 
-  if (v8_enable_inner_pointer_resolution_mb) {
-    sources += [ "heap/marking-inner-pointer-resolution-unittest.cc" ]
-  }
-
   if (v8_enable_conservative_stack_scanning) {
     sources += [ "heap/conservative-stack-visitor-unittest.cc" ]
+    sources += [ "heap/marking-inner-pointer-resolution-unittest.cc" ]
   }
 
   if (v8_enable_i18n_support) {
@@ -610,70 +634,91 @@ v8_source_set("unittests_sources") {
   if (v8_current_cpu == "arm") {
     sources += [
       "assembler/disasm-arm-unittest.cc",
-      "assembler/turbo-assembler-arm-unittest.cc",
-      "compiler/arm/instruction-selector-arm-unittest.cc",
+      "assembler/macro-assembler-arm-unittest.cc",
     ]
+    if (v8_enable_turbofan) {
+      sources += [ "compiler/arm/instruction-selector-arm-unittest.cc" ]
+    }
   } else if (v8_current_cpu == "arm64") {
     sources += [
       "assembler/disasm-arm64-unittest.cc",
       "assembler/macro-assembler-arm64-unittest.cc",
-      "assembler/turbo-assembler-arm64-unittest.cc",
       "codegen/pointer-auth-arm64-unittest.cc",
-      "compiler/arm64/instruction-selector-arm64-unittest.cc",
     ]
+    if (v8_enable_turbofan) {
+      sources += [ "compiler/arm64/instruction-selector-arm64-unittest.cc" ]
+    }
+    if (v8_enable_webassembly && current_cpu == "arm64") {
+      sources += [ "wasm/trap-handler-x64-arm64-unittest.cc" ]
+    }
   } else if (v8_current_cpu == "x86") {
     sources += [
       "assembler/disasm-ia32-unittest.cc",
-      "assembler/turbo-assembler-ia32-unittest.cc",
-      "compiler/ia32/instruction-selector-ia32-unittest.cc",
+      "assembler/macro-assembler-ia32-unittest.cc",
     ]
+    if (v8_enable_turbofan) {
+      sources += [ "compiler/ia32/instruction-selector-ia32-unittest.cc" ]
+    }
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [
       "assembler/disasm-mips64-unittest.cc",
-      "assembler/turbo-assembler-mips64-unittest.cc",
-      "compiler/mips64/instruction-selector-mips64-unittest.cc",
+      "assembler/macro-assembler-mips64-unittest.cc",
     ]
+    if (v8_enable_turbofan) {
+      sources += [ "compiler/mips64/instruction-selector-mips64-unittest.cc" ]
+    }
   } else if (v8_current_cpu == "riscv64") {
     sources += [
       "assembler/disasm-riscv-unittest.cc",
-      "assembler/turbo-assembler-riscv-unittest.cc",
-      "compiler/riscv64/instruction-selector-riscv64-unittest.cc",
+      "assembler/macro-assembler-riscv-unittest.cc",
     ]
+    if (v8_enable_turbofan) {
+      sources += [ "compiler/riscv64/instruction-selector-riscv64-unittest.cc" ]
+    }
   } else if (v8_current_cpu == "riscv32") {
     sources += [
       "assembler/disasm-riscv-unittest.cc",
-      "assembler/turbo-assembler-riscv-unittest.cc",
-      "compiler/riscv32/instruction-selector-riscv32-unittest.cc",
+      "assembler/macro-assembler-riscv-unittest.cc",
     ]
+    if (v8_enable_turbofan) {
+      sources += [ "compiler/riscv32/instruction-selector-riscv32-unittest.cc" ]
+    }
   } else if (v8_current_cpu == "x64") {
     sources += [
       "assembler/assembler-x64-unittest.cc",
       "assembler/disasm-x64-unittest.cc",
       "assembler/macro-assembler-x64-unittest.cc",
-      "assembler/turbo-assembler-x64-unittest.cc",
-      "compiler/x64/instruction-selector-x64-unittest.cc",
     ]
+    if (v8_enable_turbofan) {
+      sources += [ "compiler/x64/instruction-selector-x64-unittest.cc" ]
+    }
     if (v8_enable_webassembly) {
-      sources += [ "wasm/trap-handler-x64-unittest.cc" ]
+      sources += [ "wasm/trap-handler-x64-arm64-unittest.cc" ]
     }
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [
       "assembler/disasm-ppc-unittest.cc",
-      "assembler/turbo-assembler-ppc-unittest.cc",
-      "compiler/ppc/instruction-selector-ppc-unittest.cc",
+      "assembler/macro-assembler-ppc-unittest.cc",
     ]
+    if (v8_enable_turbofan) {
+      sources += [ "compiler/ppc/instruction-selector-ppc-unittest.cc" ]
+    }
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     sources += [
       "assembler/disasm-s390-unittest.cc",
-      "assembler/turbo-assembler-s390-unittest.cc",
-      "compiler/s390/instruction-selector-s390-unittest.cc",
+      "assembler/macro-assembler-s390-unittest.cc",
     ]
+    if (v8_enable_turbofan) {
+      sources += [ "compiler/s390/instruction-selector-s390-unittest.cc" ]
+    }
   } else if (v8_current_cpu == "loong64") {
     sources += [
       "assembler/disasm-loong64-unittest.cc",
-      "assembler/turbo-assembler-loong64-unittest.cc",
-      "compiler/loong64/instruction-selector-loong64-unittest.cc",
+      "assembler/macro-assembler-loong64-unittest.cc",
     ]
+    if (v8_enable_turbofan) {
+      sources += [ "compiler/loong64/instruction-selector-loong64-unittest.cc" ]
+    }
   }
 
   if (v8_enable_webassembly) {

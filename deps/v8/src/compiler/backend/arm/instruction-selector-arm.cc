@@ -397,7 +397,7 @@ void EmitLoad(InstructionSelector* selector, InstructionCode opcode,
     if (int_matcher.HasResolvedValue()) {
       ptrdiff_t const delta =
           int_matcher.ResolvedValue() +
-          TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+          MacroAssemblerBase::RootRegisterOffsetForExternalReference(
               selector->isolate(), m.ResolvedValue());
       input_count = 1;
       inputs[0] = g.UseImmediate(static_cast<int32_t>(delta));
@@ -753,7 +753,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
       if (int_matcher.HasResolvedValue()) {
         ptrdiff_t const delta =
             int_matcher.ResolvedValue() +
-            TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+            MacroAssemblerBase::RootRegisterOffsetForExternalReference(
                 selector->isolate(), m.ResolvedValue());
         int input_count = 2;
         InstructionOperand inputs[2];
@@ -2917,6 +2917,20 @@ void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
 void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
   VisitS128Select(node);
 }
+
+#define VISIT_SIMD_QFMOP(op)                        \
+  void InstructionSelector::Visit##op(Node* node) { \
+    ArmOperandGenerator g(this);                    \
+    Emit(kArm##op, g.DefineAsRegister(node),        \
+         g.UseUniqueRegister(node->InputAt(0)),     \
+         g.UseUniqueRegister(node->InputAt(1)),     \
+         g.UseUniqueRegister(node->InputAt(2)));    \
+  }
+VISIT_SIMD_QFMOP(F64x2Qfma)
+VISIT_SIMD_QFMOP(F64x2Qfms)
+VISIT_SIMD_QFMOP(F32x4Qfma)
+VISIT_SIMD_QFMOP(F32x4Qfms)
+#undef VISIT_SIMD_QFMOP
 
 #if V8_ENABLE_WEBASSEMBLY
 namespace {
