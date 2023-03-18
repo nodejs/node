@@ -18,9 +18,9 @@ if (build_with_chromium) {
       "zip_writer.h",
     ]
     deps = [
+      "..:minizip",
       "//base",
       "//base:i18n",
-      "//third_party/zlib:minizip",
     ]
   }
 
@@ -30,8 +30,8 @@ if (build_with_chromium) {
       "compression_utils.h",
     ]
     deps = [
+      "..",
       "//base",
-      "//third_party/zlib",
     ]
     public_deps = [ ":compression_utils_portable" ]
   }
@@ -44,5 +44,5 @@ static_library("compression_utils_portable") {
     "compression_utils_portable.cc",
     "compression_utils_portable.h",
   ]
-  public_deps = [ "//third_party/zlib" ]
+  public_deps = [ ".." ]
 }
