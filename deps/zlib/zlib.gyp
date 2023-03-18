@@ -186,6 +186,8 @@
               'cflags!': [ '-ansi' ],
               'cflags': [ '-Wno-implicit-fallthrough' ],
               'defines': [ 'HAVE_HIDDEN' ],
+            }, {
+              'defines': [ 'ZLIB_DLL' ]
             }],
             ['OS=="mac" or OS=="ios" or OS=="freebsd" or OS=="android"', {
               # Mac, Android and the BSDs don't have fopen64, ftello64, or
