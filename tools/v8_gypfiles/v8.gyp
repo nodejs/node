@@ -4,6 +4,8 @@
 {
   'variables': {
     'V8_ROOT': '../../deps/v8',
+    'V8_ZLIB_ROOT': '<(V8_ROOT)/third_party/zlib',
+    'arm_fpu%': '',
     'v8_code': 1,
     'v8_random_seed%': 314159265,
     'v8_vector_stores%': 0,
@@ -1885,6 +1887,54 @@
     },  # postmortem-metadata
 
     {
+      'target_name': 'v8_zlib_adler32_simd',
+      'type': 'static_library',
+      'conditions': [
+        ['target_arch in "ia32 x64" and OS!="ios"', {
+          'defines': [ 'ADLER32_SIMD_SSSE3' ],
+          'conditions': [
+            ['OS=="win"', {
+              'defines': [ 'X86_WINDOWS' ],
+            },{
+              'defines': [ 'X86_NOT_WINDOWS' ],
+            }],
+            ['OS!="win" or llvm_version!="0.0"', {
+              'cflags': [ '-mssse3' ],
+              'xcode_settings': {
+                'OTHER_CFLAGS': [ '-mssse3' ],
+              },
+            }],
+          ],
+        }],
+        ['arm_fpu=="neon"', {
+          'defines': [ 'ADLER32_SIMD_NEON' ],
+        }],
+      ],
+      'include_dirs': [ '<(V8_ZLIB_ROOT)' ],
+      'direct_dependent_settings': {
+        'conditions': [
+          ['target_arch in "ia32 x64" and OS!="ios"', {
+            'defines': [ 'ADLER32_SIMD_SSSE3' ],
+            'conditions': [
+              ['OS=="win"', {
+                'defines': [ 'X86_WINDOWS' ],
+              },{
+                'defines': [ 'X86_NOT_WINDOWS' ],
+              }],
+            ],
+          }],
+          ['arm_fpu=="neon"', {
+            'defines': [ 'ADLER32_SIMD_NEON' ],
+          }],
+        ],
+        'include_dirs': [ '<(V8_ZLIB_ROOT)' ],
+      },
+      'sources': [
+        '<!@pymod_do_main(GN-scraper "<(V8_ZLIB_ROOT)/BUILD.gn" "\\"zlib_adler32_simd\\".*?sources = ")',
+      ],
+    }, # v8_zlib_adler32_simd
+
+    {
       'target_name': 'v8_zlib',
       'type': 'static_library',
       'toolsets': ['host', 'target'],
@@ -1898,52 +1948,61 @@
             }]
           ]
         }],
+        ['target_arch in "ia32 x64" and OS!="ios"', {
+          'dependencies': [
+            'v8_zlib_adler32_simd',
+          ],
+        }],
+        ['arm_fpu=="neon"', {
+          'dependencies': [
+            'v8_zlib_adler32_simd',
+          ],
+        }],
       ],
       'direct_dependent_settings': {
         'include_dirs': [
-          '<(V8_ROOT)/third_party/zlib',
-          '<(V8_ROOT)/third_party/zlib/google',
+          '<(V8_ZLIB_ROOT)',
+          '<(V8_ZLIB_ROOT)/google',
         ],
       },
       'defines': [ 'ZLIB_IMPLEMENTATION' ],
       'include_dirs': [
-        '<(V8_ROOT)/third_party/zlib',
-        '<(V8_ROOT)/third_party/zlib/google',
+        '<(V8_ZLIB_ROOT)',
+        '<(V8_ZLIB_ROOT)/google',
       ],
       'sources': [
-        '<(V8_ROOT)/third_party/zlib/adler32.c',
-        '<(V8_ROOT)/third_party/zlib/chromeconf.h',
-        '<(V8_ROOT)/third_party/zlib/compress.c',
-        '<(V8_ROOT)/third_party/zlib/contrib/optimizations/insert_string.h',
-        '<(V8_ROOT)/third_party/zlib/contrib/optimizations/insert_string.h',
-        '<(V8_ROOT)/third_party/zlib/cpu_features.c',
-        '<(V8_ROOT)/third_party/zlib/cpu_features.h',
-        '<(V8_ROOT)/third_party/zlib/crc32.c',
-        '<(V8_ROOT)/third_party/zlib/crc32.h',
-        '<(V8_ROOT)/third_party/zlib/deflate.c',
-        '<(V8_ROOT)/third_party/zlib/deflate.h',
-        '<(V8_ROOT)/third_party/zlib/gzclose.c',
-        '<(V8_ROOT)/third_party/zlib/gzguts.h',
-        '<(V8_ROOT)/third_party/zlib/gzlib.c',
-        '<(V8_ROOT)/third_party/zlib/gzread.c',
-        '<(V8_ROOT)/third_party/zlib/gzwrite.c',
-        '<(V8_ROOT)/third_party/zlib/infback.c',
-        '<(V8_ROOT)/third_party/zlib/inffast.c',
-        '<(V8_ROOT)/third_party/zlib/inffast.h',
-        '<(V8_ROOT)/third_party/zlib/inffixed.h',
-        '<(V8_ROOT)/third_party/zlib/inflate.c',
-        '<(V8_ROOT)/third_party/zlib/inflate.h',
-        '<(V8_ROOT)/third_party/zlib/inftrees.c',
-        '<(V8_ROOT)/third_party/zlib/inftrees.h',
-        '<(V8_ROOT)/third_party/zlib/trees.c',
-        '<(V8_ROOT)/third_party/zlib/trees.h',
-        '<(V8_ROOT)/third_party/zlib/uncompr.c',
-        '<(V8_ROOT)/third_party/zlib/zconf.h',
-        '<(V8_ROOT)/third_party/zlib/zlib.h',
-        '<(V8_ROOT)/third_party/zlib/zutil.c',
-        '<(V8_ROOT)/third_party/zlib/zutil.h',
-        '<(V8_ROOT)/third_party/zlib/google/compression_utils_portable.cc',
-        '<(V8_ROOT)/third_party/zlib/google/compression_utils_portable.h',
+        '<(V8_ZLIB_ROOT)/chromeconf.h',
+        '<(V8_ZLIB_ROOT)/adler32.c',
+        '<(V8_ZLIB_ROOT)/compress.c',
+        '<(V8_ZLIB_ROOT)/contrib/optimizations/insert_string.h',
+        '<(V8_ZLIB_ROOT)/cpu_features.c',
+        '<(V8_ZLIB_ROOT)/cpu_features.h',
+        '<(V8_ZLIB_ROOT)/crc32.c',
+        '<(V8_ZLIB_ROOT)/crc32.h',
+        '<(V8_ZLIB_ROOT)/deflate.c',
+        '<(V8_ZLIB_ROOT)/deflate.h',
+        '<(V8_ZLIB_ROOT)/gzclose.c',
+        '<(V8_ZLIB_ROOT)/gzguts.h',
+        '<(V8_ZLIB_ROOT)/gzlib.c',
+        '<(V8_ZLIB_ROOT)/gzread.c',
+        '<(V8_ZLIB_ROOT)/gzwrite.c',
+        '<(V8_ZLIB_ROOT)/infback.c',
+        '<(V8_ZLIB_ROOT)/inffast.c',
+        '<(V8_ZLIB_ROOT)/inffast.h',
+        '<(V8_ZLIB_ROOT)/inffixed.h',
+        '<(V8_ZLIB_ROOT)/inflate.c',
+        '<(V8_ZLIB_ROOT)/inflate.h',
+        '<(V8_ZLIB_ROOT)/inftrees.c',
+        '<(V8_ZLIB_ROOT)/inftrees.h',
+        '<(V8_ZLIB_ROOT)/trees.c',
+        '<(V8_ZLIB_ROOT)/trees.h',
+        '<(V8_ZLIB_ROOT)/uncompr.c',
+        '<(V8_ZLIB_ROOT)/zconf.h',
+        '<(V8_ZLIB_ROOT)/zlib.h',
+        '<(V8_ZLIB_ROOT)/zutil.c',
+        '<(V8_ZLIB_ROOT)/zutil.h',
+        '<(V8_ZLIB_ROOT)/google/compression_utils_portable.cc',
+        '<(V8_ZLIB_ROOT)/google/compression_utils_portable.h',
       ],
     },  # v8_zlib
   ],
