@@ -7,19 +7,19 @@ const { extname } = require('node:internal/modules/esm/get_format');
 const { fileURLToPath } = require('node:url');
 
 [
-  'file:///path/to/file',
-  'file:///path/to/file.ext',
-  'file:///path.to/file.ext',
-  'file:///path.to/file',
-  'file:///path.to/.file',
-  'file:///path.to/.file.ext',
-  'file:///path/to/f.ext',
-  'file:///path/to/..ext',
-  'file:///path/to/..',
-  'file:///file',
-  'file:///file.ext',
-  'file:///.file',
-  'file:///.file.ext',
+  'file:///c:/path/to/file',
+  'file:///c:/path/to/file.ext',
+  'file:///c:/path.to/file.ext',
+  'file:///c:/path.to/file',
+  'file:///c:/path.to/.file',
+  'file:///c:/path.to/.file.ext',
+  'file:///c:/path/to/f.ext',
+  'file:///c:/path/to/..ext',
+  'file:///c:/path/to/..',
+  'file:///c:/file',
+  'file:///c:/file.ext',
+  'file:///c:/.file',
+  'file:///c:/.file.ext',
 ].forEach((input) => {
   const inputAsURL = new URL(input);
   const inputAsPath = fileURLToPath(inputAsURL);
