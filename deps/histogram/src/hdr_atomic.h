@@ -8,7 +8,7 @@
 #define HDR_ATOMIC_H__
 
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !(defined(__clang__) && (defined(_M_ARM) || defined(_M_ARM64)))
 
 #include <stdint.h>
 #include <intrin.h>
