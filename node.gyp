@@ -1052,6 +1052,7 @@
           'sources': [
             'test/cctest/test_crypto_clienthello.cc',
             'test/cctest/test_node_crypto.cc',
+            'test/cctest/test_node_crypto_env.cc',
             'test/cctest/test_quic_cid.cc',
             'test/cctest/test_quic_tokens.cc',
           ]
