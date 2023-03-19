@@ -249,6 +249,21 @@ const gid = os.userInfo().gid;
   fs.open(regularFile, 'r', (err) => {
     assert.ifError(err);
   });
+
+  // Extra flags should not enable trivially bypassing all restrictions.
+  // See https://github.com/nodejs/node/issues/47090.
+  assert.throws(() => {
+    fs.openSync(blockedFile, fs.constants.O_RDONLY | fs.constants.O_NOCTTY);
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+  });
+  assert.throws(() => {
+    fs.open(blockedFile, fs.constants.O_RDWR | 0x10000000, common.mustNotCall());
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+  });
 }
 
 // fs.opendir

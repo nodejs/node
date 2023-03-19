@@ -238,3 +238,32 @@ const regularFile = fixtures.path('permission', 'deny', 'regular-file.md');
     resource: path.toNamespacedPath(blockedFile),
   }));
 }
+
+// fs.open
+{
+  // Extra flags should not enable trivially bypassing all restrictions.
+  // See https://github.com/nodejs/node/issues/47090.
+  assert.throws(() => {
+    fs.open(blockedFile, fs.constants.O_RDWR | 0x10000000, common.mustNotCall());
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
+  assert.rejects(async () => {
+    await fs.promises.open(blockedFile, fs.constants.O_RDWR | fs.constants.O_NOFOLLOW);
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
+  if (common.isWindows) {
+    // In particular, on Windows, the permission system should not blindly let
+    // code delete write-protected files.
+    const O_TEMPORARY = 0x40;
+    assert.throws(() => {
+      fs.openSync(blockedFile, fs.constants.O_RDONLY | O_TEMPORARY);
+    }, {
+      code: 'ERR_ACCESS_DENIED',
+      permission: 'FileSystemWrite'
+    });
+  }
+}
