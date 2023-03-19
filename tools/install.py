@@ -290,8 +290,8 @@ def headers(action):
 
   if 'false' == variables.get('node_shared_zlib'):
     action([
-      'deps/zlib/zconf.h',
-      'deps/zlib/zlib.h',
+      'deps/v8/third_party/zlib/zconf.h',
+      'deps/v8/third_party/zlib/zlib.h',
     ], 'include/node/')
 
   if sys.platform == 'zos':
