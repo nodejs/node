@@ -64,8 +64,11 @@ using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
+using v8::JustVoid;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
+using v8::Nothing;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -1949,6 +1952,37 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static inline Maybe<void> CheckOpenPermissions(Environment* env,
+                                               const BufferValue& path,
+                                               int flags) {
+  // These flags capture the intention of the open() call.
+  const int rwflags = flags & (UV_FS_O_RDONLY | UV_FS_O_WRONLY | UV_FS_O_RDWR);
+
+  // These flags have write-like side effects even with O_RDONLY, at least on
+  // some operating systems. On Windows, for example, O_RDONLY | O_TEMPORARY
+  // can be used to delete a file. Bizarre.
+  const int write_as_side_effect = flags & (UV_FS_O_APPEND | UV_FS_O_CREAT |
+                                            UV_FS_O_TRUNC | UV_FS_O_TEMPORARY);
+
+  // TODO(rafaelgss): it can be optimized to avoid two permission checks
+  auto pathView = path.ToStringView();
+  if (rwflags != UV_FS_O_WRONLY) {
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env,
+        permission::PermissionScope::kFileSystemRead,
+        pathView,
+        Nothing<void>());
+  }
+  if (rwflags != UV_FS_O_RDONLY || write_as_side_effect) {
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env,
+        permission::PermissionScope::kFileSystemWrite,
+        pathView,
+        Nothing<void>());
+  }
+  return JustVoid();
+}
+
 static void Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1964,22 +1998,7 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsInt32());
   const int mode = args[2].As<Int32>()->Value();
 
-  auto pathView = path.ToStringView();
-  // Open can be called either in write or read
-  if (flags == O_RDWR) {
-    // TODO(rafaelgss): it can be optimized to avoid O(2*n)
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env, permission::PermissionScope::kFileSystemRead, pathView);
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env, permission::PermissionScope::kFileSystemWrite, pathView);
-  } else if ((flags & ~(UV_FS_O_RDONLY | UV_FS_O_SYNC)) == 0) {
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env, permission::PermissionScope::kFileSystemRead, pathView);
-  } else if ((flags & (UV_FS_O_APPEND | UV_FS_O_TRUNC | UV_FS_O_CREAT |
-                       UV_FS_O_WRONLY)) != 0) {
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env, permission::PermissionScope::kFileSystemWrite, pathView);
-  }
+  if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
 
   FSReqBase* req_wrap_async = GetReqWrap(args, 3);
   if (req_wrap_async != nullptr) {  // open(path, flags, mode, req)
@@ -2010,9 +2029,6 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(isolate, args[0]);
   CHECK_NOT_NULL(*path);
-  auto pathView = path.ToStringView();
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemRead, pathView);
 
   CHECK(args[1]->IsInt32());
   const int flags = args[1].As<Int32>()->Value();
@@ -2020,21 +2036,7 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsInt32());
   const int mode = args[2].As<Int32>()->Value();
 
-  // Open can be called either in write or read
-  if (flags == O_RDWR) {
-    // TODO(rafaelgss): it can be optimized to avoid O(2*n)
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env, permission::PermissionScope::kFileSystemRead, pathView);
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env, permission::PermissionScope::kFileSystemWrite, pathView);
-  } else if ((flags & ~(UV_FS_O_RDONLY | UV_FS_O_SYNC)) == 0) {
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env, permission::PermissionScope::kFileSystemRead, pathView);
-  } else if ((flags & (UV_FS_O_APPEND | UV_FS_O_TRUNC | UV_FS_O_CREAT |
-                       UV_FS_O_WRONLY)) != 0) {
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env, permission::PermissionScope::kFileSystemWrite, pathView);
-  }
+  if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
 
   FSReqBase* req_wrap_async = GetReqWrap(args, 3);
   if (req_wrap_async != nullptr) {  // openFileHandle(path, flags, mode, req)
