@@ -2,6 +2,7 @@
   { "input": "test", "output": [["test", ""]] },
   { "input": "\uFEFFtest=\uFEFF", "output": [["\uFEFFtest", "\uFEFF"]] },
   { "input": "%EF%BB%BFtest=%EF%BB%BF", "output": [["\uFEFFtest", "\uFEFF"]] },
+  { "input": "%EF%BF%BF=%EF%BF%BF", "output": [["\uFFFF", "\uFFFF"]] },
   { "input": "%FE%FF", "output": [["\uFFFD\uFFFD", ""]] },
   { "input": "%FF%FE", "output": [["\uFFFD\uFFFD", ""]] },
   { "input": "†&†=x", "output": [["†", ""], ["†", "x"]] },

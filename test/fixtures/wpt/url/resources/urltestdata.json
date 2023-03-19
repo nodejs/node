@@ -8892,5 +8892,457 @@
     "protocol": "https:",
     "search": "",
     "username": ""
+  },
+  {
+    "input": "https://a%C2%ADb/",
+    "base": "about:blank",
+    "hash": "",
+    "host": "ab",
+    "hostname": "ab",
+    "href": "https://ab/",
+    "origin": "https://ab",
+    "password": "",
+    "pathname": "/",
+    "port": "",
+    "protocol": "https:",
+    "search": "",
+    "username": ""
+  },
+  {
+    "comment": "Empty host after domain to ASCII",
+    "input": "https://\u00AD/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "https://%C2%AD/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "https://xn--/",
+    "base": "about:blank",
+    "failure": true
+  },
+  "Non-special schemes that some implementations might incorrectly treat as special",
+  {
+    "input": "data://example.com:8080/pathname?search#hash",
+    "base": "about:blank",
+    "href": "data://example.com:8080/pathname?search#hash",
+    "origin": "null",
+    "protocol": "data:",
+    "username": "",
+    "password": "",
+    "host": "example.com:8080",
+    "hostname": "example.com",
+    "port": "8080",
+    "pathname": "/pathname",
+    "search": "?search",
+    "hash": "#hash"
+  },
+  {
+    "input": "data:///test",
+    "base": "about:blank",
+    "href": "data:///test",
+    "origin": "null",
+    "protocol": "data:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/test",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "data://test/a/../b",
+    "base": "about:blank",
+    "href": "data://test/b",
+    "origin": "null",
+    "protocol": "data:",
+    "username": "",
+    "password": "",
+    "host": "test",
+    "hostname": "test",
+    "port": "",
+    "pathname": "/b",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "data://:443",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "data://test:test",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "data://[:1]",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "javascript://example.com:8080/pathname?search#hash",
+    "base": "about:blank",
+    "href": "javascript://example.com:8080/pathname?search#hash",
+    "origin": "null",
+    "protocol": "javascript:",
+    "username": "",
+    "password": "",
+    "host": "example.com:8080",
+    "hostname": "example.com",
+    "port": "8080",
+    "pathname": "/pathname",
+    "search": "?search",
+    "hash": "#hash"
+  },
+  {
+    "input": "javascript:///test",
+    "base": "about:blank",
+    "href": "javascript:///test",
+    "origin": "null",
+    "protocol": "javascript:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/test",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "javascript://test/a/../b",
+    "base": "about:blank",
+    "href": "javascript://test/b",
+    "origin": "null",
+    "protocol": "javascript:",
+    "username": "",
+    "password": "",
+    "host": "test",
+    "hostname": "test",
+    "port": "",
+    "pathname": "/b",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "javascript://:443",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "javascript://test:test",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "javascript://[:1]",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "mailto://example.com:8080/pathname?search#hash",
+    "base": "about:blank",
+    "href": "mailto://example.com:8080/pathname?search#hash",
+    "origin": "null",
+    "protocol": "mailto:",
+    "username": "",
+    "password": "",
+    "host": "example.com:8080",
+    "hostname": "example.com",
+    "port": "8080",
+    "pathname": "/pathname",
+    "search": "?search",
+    "hash": "#hash"
+  },
+  {
+    "input": "mailto:///test",
+    "base": "about:blank",
+    "href": "mailto:///test",
+    "origin": "null",
+    "protocol": "mailto:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/test",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "mailto://test/a/../b",
+    "base": "about:blank",
+    "href": "mailto://test/b",
+    "origin": "null",
+    "protocol": "mailto:",
+    "username": "",
+    "password": "",
+    "host": "test",
+    "hostname": "test",
+    "port": "",
+    "pathname": "/b",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "mailto://:443",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "mailto://test:test",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "mailto://[:1]",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "intent://example.com:8080/pathname?search#hash",
+    "base": "about:blank",
+    "href": "intent://example.com:8080/pathname?search#hash",
+    "origin": "null",
+    "protocol": "intent:",
+    "username": "",
+    "password": "",
+    "host": "example.com:8080",
+    "hostname": "example.com",
+    "port": "8080",
+    "pathname": "/pathname",
+    "search": "?search",
+    "hash": "#hash"
+  },
+  {
+    "input": "intent:///test",
+    "base": "about:blank",
+    "href": "intent:///test",
+    "origin": "null",
+    "protocol": "intent:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/test",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "intent://test/a/../b",
+    "base": "about:blank",
+    "href": "intent://test/b",
+    "origin": "null",
+    "protocol": "intent:",
+    "username": "",
+    "password": "",
+    "host": "test",
+    "hostname": "test",
+    "port": "",
+    "pathname": "/b",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "intent://:443",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "intent://test:test",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "intent://[:1]",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "urn://example.com:8080/pathname?search#hash",
+    "base": "about:blank",
+    "href": "urn://example.com:8080/pathname?search#hash",
+    "origin": "null",
+    "protocol": "urn:",
+    "username": "",
+    "password": "",
+    "host": "example.com:8080",
+    "hostname": "example.com",
+    "port": "8080",
+    "pathname": "/pathname",
+    "search": "?search",
+    "hash": "#hash"
+  },
+  {
+    "input": "urn:///test",
+    "base": "about:blank",
+    "href": "urn:///test",
+    "origin": "null",
+    "protocol": "urn:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/test",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "urn://test/a/../b",
+    "base": "about:blank",
+    "href": "urn://test/b",
+    "origin": "null",
+    "protocol": "urn:",
+    "username": "",
+    "password": "",
+    "host": "test",
+    "hostname": "test",
+    "port": "",
+    "pathname": "/b",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "urn://:443",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "urn://test:test",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "urn://[:1]",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "turn://example.com:8080/pathname?search#hash",
+    "base": "about:blank",
+    "href": "turn://example.com:8080/pathname?search#hash",
+    "origin": "null",
+    "protocol": "turn:",
+    "username": "",
+    "password": "",
+    "host": "example.com:8080",
+    "hostname": "example.com",
+    "port": "8080",
+    "pathname": "/pathname",
+    "search": "?search",
+    "hash": "#hash"
+  },
+  {
+    "input": "turn:///test",
+    "base": "about:blank",
+    "href": "turn:///test",
+    "origin": "null",
+    "protocol": "turn:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/test",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "turn://test/a/../b",
+    "base": "about:blank",
+    "href": "turn://test/b",
+    "origin": "null",
+    "protocol": "turn:",
+    "username": "",
+    "password": "",
+    "host": "test",
+    "hostname": "test",
+    "port": "",
+    "pathname": "/b",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "turn://:443",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "turn://test:test",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "turn://[:1]",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "stun://example.com:8080/pathname?search#hash",
+    "base": "about:blank",
+    "href": "stun://example.com:8080/pathname?search#hash",
+    "origin": "null",
+    "protocol": "stun:",
+    "username": "",
+    "password": "",
+    "host": "example.com:8080",
+    "hostname": "example.com",
+    "port": "8080",
+    "pathname": "/pathname",
+    "search": "?search",
+    "hash": "#hash"
+  },
+  {
+    "input": "stun:///test",
+    "base": "about:blank",
+    "href": "stun:///test",
+    "origin": "null",
+    "protocol": "stun:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/test",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "stun://test/a/../b",
+    "base": "about:blank",
+    "href": "stun://test/b",
+    "origin": "null",
+    "protocol": "stun:",
+    "username": "",
+    "password": "",
+    "host": "test",
+    "hostname": "test",
+    "port": "",
+    "pathname": "/b",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "stun://:443",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "stun://test:test",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "stun://[:1]",
+    "base": "about:blank",
+    "failure": true
   }
 ]

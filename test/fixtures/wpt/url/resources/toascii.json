@@ -161,23 +161,6 @@
     "output": "ab"
   },
   {
-    "input": "a%C2%ADb",
-    "output": "ab"
-  },
-  {
-    "comment": "Empty host after domain to ASCII",
-    "input": "\u00AD",
-    "output": null
-  },
-  {
-    "input": "%C2%AD",
-    "output": null
-  },
-  {
-    "input": "xn--",
-    "output": null
-  },
-  {
     "comment": "Interesting UseSTD3ASCIIRules=false cases",
     "input": "≠",
     "output": "xn--1ch"

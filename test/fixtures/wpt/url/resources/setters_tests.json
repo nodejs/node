@@ -1061,6 +1061,42 @@
                 "host": "",
                 "hostname": ""
             }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "a%C2%ADb",
+            "expected": {
+                "href": "https://ab/",
+                "host": "ab",
+                "hostname": "ab"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "\u00AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "%C2%AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "xn--",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
         }
     ],
     "hostname": [
@@ -1435,6 +1471,42 @@
                 "href": "sc:///",
                 "host": "",
                 "hostname": ""
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "a%C2%ADb",
+            "expected": {
+                "href": "https://ab/",
+                "host": "ab",
+                "hostname": "ab"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "\u00AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "%C2%AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "xn--",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
             }
         }
     ],
