@@ -34,5 +34,9 @@
   },
   "IdnaTestV2.window.js": {
     "requires": ["small-icu"]
+  },
+  "javascript-urls.window.js": {
+    "required": ["small-icu"],
+    "skip": "requires document.body reference"
   }
 }
