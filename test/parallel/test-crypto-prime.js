@@ -229,14 +229,16 @@ generatePrime(
   });
 });
 
-['hello', {}, []].forEach((i) => {
-  assert.throws(() => checkPrime(2, { checks: i }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  }, common.mustNotCall());
-  assert.throws(() => checkPrimeSync(2, { checks: i }), {
-    code: 'ERR_INVALID_ARG_TYPE'
+for (const checks of ['hello', {}, []]) {
+  assert.throws(() => checkPrime(2n, { checks }, common.mustNotCall()), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: /checks/
   });
-});
+  assert.throws(() => checkPrimeSync(2n, { checks }), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: /checks/
+  });
+}
 
 assert(!checkPrimeSync(Buffer.from([0x1])));
 assert(checkPrimeSync(Buffer.from([0x2])));
