@@ -510,6 +510,7 @@ void BuiltinLoader::RefreshCodeCache(const std::vector<CodeCacheInfo>& in) {
             item.data.data(),
             item.data.size(),
             v8::ScriptCompiler::CachedData::BufferNotOwned));
+    USE(result.second);
     DCHECK(result.second);
   }
   code_cache_->has_code_cache = true;
