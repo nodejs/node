@@ -172,7 +172,8 @@ out/Makefile: config.gypi common.gypi node.gyp \
 	deps/uv/uv.gyp deps/llhttp/llhttp.gyp \
 	deps/simdutf/simdutf.gyp deps/ada/ada.gyp \
 	tools/v8_gypfiles/toolchain.gypi tools/v8_gypfiles/features.gypi \
-	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
+	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp \
+	tools/v8_gypfiles/zlib.gyp
 	$(PYTHON) tools/gyp_node.py -f make
 
 # node_version.h is listed because the N-API version is taken from there
