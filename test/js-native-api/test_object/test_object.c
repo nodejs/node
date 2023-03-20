@@ -638,10 +638,14 @@ TypeTaggedInstance(napi_env env, napi_callback_info info) {
   return instance;
 }
 
+// V8 will not allowe us to construct an external with a NULL data value.
+#define IN_LIEU_OF_NULL ((void*)0x1)
+
 static napi_value PlainExternal(napi_env env, napi_callback_info info) {
   napi_value instance;
 
-  NODE_API_CALL(env, napi_create_external(env, NULL, NULL, NULL, &instance));
+  NODE_API_CALL(
+      env, napi_create_external(env, IN_LIEU_OF_NULL, NULL, NULL, &instance));
 
   return instance;
 }
@@ -655,7 +659,8 @@ static napi_value TypeTaggedExternal(napi_env env, napi_callback_info info) {
                 napi_get_cb_info(env, info, &argc, &which_type, NULL, NULL));
   NODE_API_CALL(env, napi_get_value_uint32(env, which_type, &type_index));
   VALIDATE_TYPE_INDEX(env, type_index);
-  NODE_API_CALL(env, napi_create_external(env, NULL, NULL, NULL, &instance));
+  NODE_API_CALL(
+      env, napi_create_external(env, IN_LIEU_OF_NULL, NULL, NULL, &instance));
   NODE_API_CALL(env,
                 napi_type_tag_object(env, instance, &type_tags[type_index]));
 
