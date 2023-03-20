@@ -737,6 +737,10 @@ added:
     number. If a nullish value is provided, each process gets its own port,
     incremented from the primary's `process.debugPort`.
     **Default:** `undefined`.
+  * `testNamePatterns` {array<regex>|regex} A regex used to filter the tests 
+    by name before run it.
+    This can be a regex, or a regex string.
+    **Default:** `undefined`.
 * Returns: {TestsStream}
 
 ```js
