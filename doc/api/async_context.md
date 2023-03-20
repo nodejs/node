@@ -167,7 +167,7 @@ calls the function passed to it within the captured context.
 
 ```js
 const asyncLocalStorage = new AsyncLocalStorage();
-const runInAsyncScope = asyncLocalStorage.run(123, () => asyncLocalStorage.snapshot());
+const runInAsyncScope = asyncLocalStorage.run(123, () => AsyncLocalStorage.snapshot());
 const result = asyncLocalStorage.run(321, () => runInAsyncScope(() => asyncLocalStorage.getStore()));
 console.log(result);  // returns 123
 ```
