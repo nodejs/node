@@ -733,9 +733,10 @@ A hook that returns without calling `next<hookName>()` _and_ without returning
 `shortCircuit: true` also triggers an exception. These errors are to help
 prevent unintentional breaks in the chain.
 
-Hooks are run in a separate thread, isolated from the main. That means it is a different
-[realm](https://tc39.es/ecma262/#realm). The hooks thread may be terminated by
-the main thread at any time, so do not depend on asynchronous operations to complete.
+Hooks are run in a separate thread, isolated from the main. That means it is a
+different [realm](https://tc39.es/ecma262/#realm). The hooks thread may be
+terminated by the main thread at any time, so do not depend on asynchronous
+operations to complete.
 
 #### `resolve(specifier, context, nextResolve)`
 
