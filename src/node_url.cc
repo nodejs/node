@@ -308,8 +308,8 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   SetMethod(context, target, "parse", Parse);
-  SetMethod(context, target, "canParse", CanParse);
   SetMethod(context, target, "updateUrl", UpdateUrl);
+  SetMethodNoSideEffect(context, target, "canParse", CanParse);
   SetMethodNoSideEffect(context, target, "formatUrl", FormatUrl);
 
   SetMethodNoSideEffect(context, target, "domainToASCII", DomainToASCII);
