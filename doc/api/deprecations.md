@@ -1864,14 +1864,18 @@ bits are allowed. Authentication tags of other lengths are invalid per
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47182
+    description: End-of-Life.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18333
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The [`crypto.DEFAULT_ENCODING`][] property is deprecated.
+The `crypto.DEFAULT_ENCODING` property only existed for compatibility with
+Node.js releases prior to versions 0.9.3 and has been removed.
 
 ### DEP0092: Top-level `this` bound to `module.exports`
 
@@ -3385,7 +3389,6 @@ be added when a function is bound to an `AsyncResource`.
 [`console.error()`]: console.md#consoleerrordata-args
 [`console.log()`]: console.md#consolelogdata-args
 [`crypto.Certificate()` constructor]: crypto.md#legacy-api
-[`crypto.DEFAULT_ENCODING`]: crypto.md#cryptodefault_encoding
 [`crypto.createCipher()`]: crypto.md#cryptocreatecipheralgorithm-password-options
 [`crypto.createCipheriv()`]: crypto.md#cryptocreatecipherivalgorithm-key-iv-options
 [`crypto.createDecipher()`]: crypto.md#cryptocreatedecipheralgorithm-password-options
