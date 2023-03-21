@@ -18,3 +18,16 @@
 [34m* skipped 1[39m
 [34m* todo 0[39m
 [34m* duration_ms *[39m
+
+[31m* failing tests:[39m
+
+[31m* should fail [90m(*ms)[39m
+  Error: fail
+      at * [90m(*)[39m
+  [90m    at *[39m
+  [90m    at *[39m
+  [90m    at *[39m
+  [90m    at *[39m
+  [90m    at *[39m
+  [90m    at *[39m
+[39m
