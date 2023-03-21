@@ -10,14 +10,17 @@ TAP version 13
     ok 1 - nested
       ---
       duration_ms: *
+      type: 'suite'
       ...
     1..1
 ok 1 - nested - no tests
   ---
   duration_ms: *
+  type: 'suite'
   ...
 1..1
 # tests 1
+# suites 2
 # pass 1
 # fail 0
 # cancelled 0
