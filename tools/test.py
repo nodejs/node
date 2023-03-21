@@ -44,6 +44,7 @@ import utils
 import multiprocessing
 import errno
 import copy
+import io
 
 
 if sys.version_info >= (3, 5):
@@ -1595,7 +1596,13 @@ def Main():
     parser.print_help()
     return 1
 
-  ch = logging.StreamHandler(sys.stdout)
+  stream = sys.stdout
+  try:
+    sys.stdout.reconfigure(encoding='utf8')
+  except AttributeError:
+    # Python < 3.7 does not have reconfigure
+    stream = io.TextIOWrapper(sys.stdout.buffer,encoding='utf8')
+  ch = logging.StreamHandler(stream)
   logger.addHandler(ch)
   logger.setLevel(logging.INFO)
   if options.logfile:
