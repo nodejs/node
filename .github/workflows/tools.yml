@@ -169,6 +169,14 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+          - id: brotli
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-brotli.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
     steps:
       - uses: actions/checkout@v3
         with:
