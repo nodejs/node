@@ -14,7 +14,7 @@ const assert = require('assert');
 const tmpDir = tmpdir.path;
 
 async function read(fileHandle, buffer, offset, length, position, options) {
-  return options.useConf ?
+  return options && options.useConf ?
     fileHandle.read({ buffer, offset, length, position }) :
     fileHandle.read(buffer, offset, length, position);
 }
@@ -97,12 +97,22 @@ async function validateReadLength(len) {
 }
 
 
+async function validateReadWithNoOptions(byte) {
+  const buf = Buffer.alloc(byte);
+  const filePath = fixtures.path('x.txt');
+  const fileHandle = await open(filePath, 'r');
+  const { bytesRead } = await read(fileHandle, buf);
+  assert.strictEqual(bytesRead, byte);
+}
+
 (async function() {
   tmpdir.refresh();
   await validateRead('Hello world', 'read-file', { useConf: false });
   await validateRead('', 'read-empty-file', { useConf: false });
   await validateRead('Hello world', 'read-file-conf', { useConf: true });
   await validateRead('', 'read-empty-file-conf', { useConf: true });
+  await validateReadWithNoOptions(4);
+  await validateReadWithNoOptions(0);
   await validateLargeRead({ useConf: false });
   await validateLargeRead({ useConf: true });
   await validateReadNoParams();
