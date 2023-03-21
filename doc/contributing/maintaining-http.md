@@ -79,7 +79,7 @@ repository. Updates are pulled into Node.js under
 [deps/llhttp](https://github.com/nodejs/node/tree/HEAD/deps/llhttp).
 
 In order to update Node.js with a new version of llhttp you can use the
-`tools/update-llhttp.sh` script.
+`tools/dep_updater/update-llhttp.sh` script.
 
 The contents of the `deps/llhttp` folder should look like the following:
 
