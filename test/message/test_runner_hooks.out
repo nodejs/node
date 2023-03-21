@@ -25,11 +25,13 @@ TAP version 13
     ok 3 - nested
       ---
       duration_ms: *
+      type: 'suite'
       ...
     1..3
 ok 1 - describe hooks
   ---
   duration_ms: *
+  type: 'suite'
   ...
 # Subtest: before throws
     # Subtest: 1
@@ -52,6 +54,7 @@ ok 1 - describe hooks
 not ok 2 - before throws
   ---
   duration_ms: *
+  type: 'suite'
   failureType: 'hookFailed'
   error: 'failed running before hook'
   code: 'ERR_TEST_FAILURE'
@@ -80,6 +83,7 @@ not ok 2 - before throws
 not ok 3 - after throws
   ---
   duration_ms: *
+  type: 'suite'
   failureType: 'hookFailed'
   error: 'failed running after hook'
   code: 'ERR_TEST_FAILURE'
@@ -136,6 +140,7 @@ not ok 3 - after throws
 not ok 4 - beforeEach throws
   ---
   duration_ms: *
+  type: 'suite'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -183,6 +188,7 @@ not ok 4 - beforeEach throws
 not ok 5 - afterEach throws
   ---
   duration_ms: *
+  type: 'suite'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -216,6 +222,7 @@ not ok 5 - afterEach throws
 not ok 6 - afterEach when test fails
   ---
   duration_ms: *
+  type: 'suite'
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
@@ -263,6 +270,7 @@ not ok 6 - afterEach when test fails
 not ok 7 - afterEach throws and test fails
   ---
   duration_ms: *
+  type: 'suite'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -491,10 +499,11 @@ not ok 13 - t.after() is called if test body throws
   ...
 # - after() called
 1..13
-# tests 13
-# pass 2
-# fail 11
-# cancelled 0
+# tests 35
+# suites 8
+# pass 14
+# fail 19
+# cancelled 2
 # skipped 0
 # todo 0
 # duration_ms *

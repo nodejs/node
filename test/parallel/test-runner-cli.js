@@ -155,9 +155,10 @@ const testFixtures = fixtures.path('test-runner');
   assert.match(stdout, /# Subtest: level 0b/);
   assert.match(stdout, /not ok 4 - level 0b/);
   assert.match(stdout, / {2}error: 'level 0b error'/);
-  assert.match(stdout, /# tests 4/);
-  assert.match(stdout, /# pass 2/);
-  assert.match(stdout, /# fail 2/);
+  assert.match(stdout, /# tests 8/);
+  assert.match(stdout, /# pass 4/);
+  assert.match(stdout, /# fail 3/);
+  assert.match(stdout, /# skipped 1/);
 }
 
 {

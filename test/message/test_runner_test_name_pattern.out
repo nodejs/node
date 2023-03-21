@@ -38,16 +38,19 @@ ok 7 - top level skipped it enabled # SKIP
 ok 8 - top level describe disabled # SKIP test name does not match pattern
   ---
   duration_ms: *
+  type: 'suite'
   ...
 # Subtest: top level skipped describe disabled
 ok 9 - top level skipped describe disabled # SKIP test name does not match pattern
   ---
   duration_ms: *
+  type: 'suite'
   ...
 # Subtest: top level skipped describe enabled
 ok 10 - top level skipped describe enabled # SKIP
   ---
   duration_ms: *
+  type: 'suite'
   ...
 # Subtest: top level runs because name includes PaTtErN
 ok 11 - top level runs because name includes PaTtErN
@@ -80,6 +83,7 @@ ok 12 - top level test enabled
     ok 3 - nested describe disabled # SKIP test name does not match pattern
       ---
       duration_ms: *
+      type: 'suite'
       ...
     # Subtest: nested describe enabled
         # Subtest: is enabled
@@ -91,17 +95,20 @@ ok 12 - top level test enabled
     ok 4 - nested describe enabled
       ---
       duration_ms: *
+      type: 'suite'
       ...
     1..4
 ok 13 - top level describe enabled
   ---
   duration_ms: *
+  type: 'suite'
   ...
 1..13
 # tests 13
-# pass 4
+# suites 6
+# pass 6
 # fail 0
 # cancelled 0
-# skipped 9
+# skipped 7
 # todo 0
 # duration_ms *
