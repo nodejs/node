@@ -64,6 +64,7 @@ TAP version 13
 not ok 1 - describe timeout signal
   ---
   duration_ms: *
+  type: 'suite'
   failureType: 'testAborted'
   error: 'The operation was aborted due to timeout'
   code: 23
@@ -78,6 +79,7 @@ not ok 1 - describe timeout signal
 not ok 2 - describe abort signal
   ---
   duration_ms: *
+  type: 'suite'
   failureType: 'testAborted'
   error: 'This operation was aborted'
   code: 20
@@ -94,10 +96,11 @@ not ok 2 - describe abort signal
     *
   ...
 1..2
-# tests 2
-# pass 0
+# tests 9
+# suites 2
+# pass 4
 # fail 0
-# cancelled 2
+# cancelled 5
 # skipped 0
 # todo 0
 # duration_ms *

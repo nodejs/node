@@ -210,6 +210,7 @@ ok 21 - immediate resolve pass
 not ok 22 - subtest sync throw fail
   ---
   duration_ms: *
+  type: 'suite'
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
@@ -247,11 +248,13 @@ not ok 23 - sync throw non-error fail
 ok 24 - level 0a
   ---
   duration_ms: *
+  type: 'suite'
   ...
 # Subtest: invalid subtest - pass but subtest fails
 ok 25 - invalid subtest - pass but subtest fails
   ---
   duration_ms: *
+  type: 'suite'
   ...
 # Subtest: sync skip option
 ok 26 - sync skip option # SKIP
@@ -494,6 +497,7 @@ not ok 53 - custom inspect symbol that throws fail
 not ok 54 - subtest sync throw fails
   ---
   duration_ms: *
+  type: 'suite'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -511,6 +515,7 @@ not ok 54 - subtest sync throw fails
 not ok 55 - describe sync throw fails
   ---
   duration_ms: *
+  type: 'suite'
   failureType: 'testCodeFailure'
   error: 'thrown from describe'
   code: 'ERR_TEST_FAILURE'
@@ -539,6 +544,7 @@ not ok 55 - describe sync throw fails
 not ok 56 - describe async throw fails
   ---
   duration_ms: *
+  type: 'suite'
   failureType: 'testCodeFailure'
   error: 'thrown from describe'
   code: 'ERR_TEST_FAILURE'
@@ -587,6 +593,7 @@ not ok 56 - describe async throw fails
 not ok 57 - timeouts
   ---
   duration_ms: *
+  type: 'suite'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -612,6 +619,7 @@ not ok 57 - timeouts
 not ok 58 - successful thenable
   ---
   duration_ms: *
+  type: 'suite'
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
@@ -620,6 +628,7 @@ not ok 58 - successful thenable
 not ok 59 - rejected thenable
   ---
   duration_ms: *
+  type: 'suite'
   failureType: 'testCodeFailure'
   error: 'custom error'
   code: 'ERR_TEST_FAILURE'
@@ -643,10 +652,11 @@ not ok 60 - invalid subtest fail
 # Warning: Test "immediate reject - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from immediate reject fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
 # Warning: Test "callback called twice in different ticks" generated asynchronous activity after the test ended. This activity created the error "Error [ERR_TEST_FAILURE]: callback invoked multiple times" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # Warning: Test "callback async throw after done" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
-# tests 60
-# pass 23
-# fail 22
-# cancelled 0
+# tests 67
+# suites 9
+# pass 29
+# fail 19
+# cancelled 4
 # skipped 10
 # todo 5
 # duration_ms *

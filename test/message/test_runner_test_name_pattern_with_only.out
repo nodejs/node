@@ -31,10 +31,11 @@ ok 4 - not only and does not match pattern # SKIP 'only' option not set
   duration_ms: *
   ...
 1..4
-# tests 4
-# pass 1
+# tests 6
+# suites 0
+# pass 2
 # fail 0
 # cancelled 0
-# skipped 3
+# skipped 4
 # todo 0
 # duration_ms *

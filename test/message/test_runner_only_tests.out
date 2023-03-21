@@ -131,6 +131,7 @@ ok 11 - only = true, with subtests
 ok 12 - describe only = true, with subtests
   ---
   duration_ms: *
+  type: 'suite'
   ...
 # Subtest: describe only = true, with a mixture of subtests
     # Subtest: `it` subtest 1
@@ -167,6 +168,7 @@ ok 12 - describe only = true, with subtests
 ok 13 - describe only = true, with a mixture of subtests
   ---
   duration_ms: *
+  type: 'suite'
   ...
 # Subtest: describe only = true, with subtests
     # Subtest: subtest should run
@@ -188,12 +190,14 @@ ok 13 - describe only = true, with a mixture of subtests
 ok 14 - describe only = true, with subtests
   ---
   duration_ms: *
+  type: 'suite'
   ...
 1..14
-# tests 14
-# pass 4
+# tests 34
+# suites 3
+# pass 14
 # fail 0
 # cancelled 0
-# skipped 10
+# skipped 20
 # todo 0
 # duration_ms *
