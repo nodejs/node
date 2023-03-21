@@ -20,12 +20,14 @@ const { Blob } = require('buffer');
 const tmpdir = require('../common/tmpdir');
 const testfile = path.join(tmpdir.path, 'test-file-backed-blob.txt');
 const testfile2 = path.join(tmpdir.path, 'test-file-backed-blob2.txt');
+const testfile3 = path.join(tmpdir.path, 'test-file-backed-blob3.txt');
 tmpdir.refresh();
 
 const data = `${'a'.repeat(1000)}${'b'.repeat(2000)}`;
 
 writeFileSync(testfile, data);
 writeFileSync(testfile2, data.repeat(100));
+writeFileSync(testfile3, '');
 
 (async () => {
   const blob = await openAsBlob(testfile);
@@ -78,4 +80,22 @@ writeFileSync(testfile2, data.repeat(100));
   await rejects(read(), { name: 'NotReadableError' });
 
   await unlink(testfile2);
+})().then(common.mustCall());
+
+(async () => {
+  const blob = await openAsBlob(testfile3);
+  strictEqual(blob.size, 0);
+  strictEqual(await blob.text(), '');
+  writeFileSync(testfile3, 'abc');
+  await rejects(blob.text(), { name: 'NotReadableError' });
+  await unlink(testfile3);
+})().then(common.mustCall());
+
+(async () => {
+  const blob = await openAsBlob(testfile3);
+  strictEqual(blob.size, 0);
+  writeFileSync(testfile3, 'abc');
+  const stream = blob.stream();
+  const reader = stream.getReader();
+  await rejects(() => reader.read(), { name: 'NotReadableError' });
 })().then(common.mustCall());
