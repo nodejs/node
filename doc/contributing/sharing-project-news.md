@@ -19,7 +19,7 @@ The projects approach is as follows:
   quick way to find them.
 * The next-10 team reaches out to teams/groups on an ad hoc basis
   to ensure teams know about the option for sharing news.
-* The next-10 team reaches out to those who publish newsletters add hoc
+* The next-10 team reaches out to those who publish newsletters ad hoc
   to let them know about this approach and how they can find the updates.
 
 We trust/expect collaborators to post project related news versus news
