@@ -4,7 +4,7 @@ The project, supported by the next-10 team, aims to make it easy
 to share project news with those who publish newsletters
 that cover Node.js.
 
-The projects approach is as follows:
+The project's approach is as follows:
 
 * The project will create one "What's new in YYYY" issue in the `nodejs\node`
   repo for news related to Node.js core.
