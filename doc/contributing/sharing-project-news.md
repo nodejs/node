@@ -15,7 +15,7 @@ The project's approach is as follows:
   issues throughout the year.
 * At the end of each year the issue is closed and if appropriate a
   new one is created.
-* A list of these documents is maintained the section below as
+* A list of these documents is maintained in the section below as a
   quick way to find them.
 * The next-10 team reaches out to teams/groups on an ad hoc basis
   to ensure teams know about the option for sharing news.
