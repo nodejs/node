@@ -69,7 +69,6 @@ class Realm : public MemoryRetainer {
   void DeserializeProperties(const RealmSerializeInfo* info);
 
   v8::MaybeLocal<v8::Value> ExecuteBootstrapper(const char* id);
-  v8::MaybeLocal<v8::Value> BootstrapInternalLoaders();
   v8::MaybeLocal<v8::Value> BootstrapNode();
   v8::MaybeLocal<v8::Value> RunBootstrapping();
 
