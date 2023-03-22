@@ -129,7 +129,6 @@ class Realm : public MemoryRetainer {
  protected:
   ~Realm();
 
-  v8::MaybeLocal<v8::Value> BootstrapInternalLoaders();
   virtual v8::MaybeLocal<v8::Value> BootstrapRealm() = 0;
 
   Environment* env_;
