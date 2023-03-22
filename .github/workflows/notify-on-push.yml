@@ -3,7 +3,7 @@ on:
     branches:
       - main
 
-name: Notify on Force Push
+name: Notify on Push
 permissions:
   contents: read
 
@@ -26,6 +26,7 @@ jobs:
             After: <https://github.com/${{ github.repository }}/commit/${{ github.event.after }}|${{ github.event.after }}>
           SLACK_USERNAME: nodejs-bot
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
   notifyOnMissingMetadata:
     name: Notify on Push on `main` that lacks metadata
     if: github.repository == 'nodejs/node'
