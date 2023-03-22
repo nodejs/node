@@ -662,6 +662,27 @@ added: v16.7.0
 Removes the stored {Blob} identified by the given ID. Attempting to revoke a
 ID that isn't registered will silently fail.
 
+#### `URL.canParse(input[, base])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `input` {string} The absolute or relative input URL to parse. If `input`
+  is relative, then `base` is required. If `input` is absolute, the `base`
+  is ignored. If `input` is not a string, it is [converted to a string][] first.
+* `base` {string} The base URL to resolve against if the `input` is not
+  absolute. If `base` is not a string, it is [converted to a string][] first.
+* Returns: {boolean}
+
+Checks if an `input` relative to the `base` can be parsed to a `URL`.
+
+```js
+const isValid = URL.canParse('/foo', 'https://example.org/'); // true
+
+const isNotValid = URL.canParse('/foo'); // false
+```
+
 ### Class: `URLSearchParams`
 
 <!-- YAML
