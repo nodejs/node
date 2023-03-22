@@ -48,23 +48,28 @@ const kEuro = Buffer.from([0xe2, 0x82, 0xac]).toString();
 
   assert.throws(
     () => Reflect.get(TextDecoderStream.prototype, 'encoding', {}), {
-      code: 'ERR_INVALID_THIS',
+      name: 'TypeError',
+      message: /Cannot read private member/,
     });
   assert.throws(
     () => Reflect.get(TextDecoderStream.prototype, 'fatal', {}), {
-      code: 'ERR_INVALID_THIS',
+      name: 'TypeError',
+      message: /Cannot read private member/,
     });
   assert.throws(
     () => Reflect.get(TextDecoderStream.prototype, 'ignoreBOM', {}), {
-      code: 'ERR_INVALID_THIS',
+      name: 'TypeError',
+      message: /Cannot read private member/,
     });
   assert.throws(
     () => Reflect.get(TextDecoderStream.prototype, 'readable', {}), {
-      code: 'ERR_INVALID_THIS',
+      name: 'TypeError',
+      message: /Cannot read private member/,
     });
   assert.throws(
     () => Reflect.get(TextDecoderStream.prototype, 'writable', {}), {
-      code: 'ERR_INVALID_THIS',
+      name: 'TypeError',
+      message: /Cannot read private member/,
     });
 }
 
@@ -89,14 +94,17 @@ const kEuro = Buffer.from([0xe2, 0x82, 0xac]).toString();
 
   assert.throws(
     () => Reflect.get(TextEncoderStream.prototype, 'encoding', {}), {
-      code: 'ERR_INVALID_THIS',
+      name: 'TypeError',
+      message: /Cannot read private member/,
     });
   assert.throws(
     () => Reflect.get(TextEncoderStream.prototype, 'readable', {}), {
-      code: 'ERR_INVALID_THIS',
+      name: 'TypeError',
+      message: /Cannot read private member/,
     });
   assert.throws(
     () => Reflect.get(TextEncoderStream.prototype, 'writable', {}), {
-      code: 'ERR_INVALID_THIS',
+      name: 'TypeError',
+      message: /Cannot read private member/,
     });
 }
