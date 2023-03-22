@@ -77,27 +77,6 @@ LExit:
   return WcaFinalize(ERROR_SUCCESS);
 }
 
-
-extern "C" UINT WINAPI BroadcastEnvironmentUpdate(MSIHANDLE hInstall) {
-  HRESULT hr = S_OK;
-  UINT er = ERROR_SUCCESS;
-
-  hr = WcaInitialize(hInstall, "BroadcastEnvironmentUpdate");
-  ExitOnFailure(hr, "Failed to initialize");
-
-  SendMessageTimeoutW(HWND_BROADCAST,
-                      WM_SETTINGCHANGE,
-                      0,
-                      (LPARAM) L"Environment",
-                      SMTO_ABORTIFHUNG,
-                      5000,
-                      NULL);
-
-LExit:
-  er = SUCCEEDED(hr) ? ERROR_SUCCESS : ERROR_INSTALL_FAILURE;
-  return WcaFinalize(er);
-}
-
 #define AUTHENTICATED_USERS_SID L"S-1-5-11"
 
 extern "C" UINT WINAPI GetLocalizedUserNames(MSIHANDLE hInstall) {

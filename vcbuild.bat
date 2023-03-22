@@ -259,19 +259,6 @@ echo Looking for Visual Studio 2022
 if not defined target_env set "VCINSTALLDIR="
 call tools\msvs\vswhere_usability_wrapper.cmd "[17.0,18.0)" %target_arch% "prerelease"
 if "_%VCINSTALLDIR%_" == "__" goto vs-set-2019
-set "WIXSDKDIR=%WIX%\SDK\VS2017"
-if defined msi (
-  echo Looking for WiX installation for Visual Studio 2022...
-  if not exist "%WIXSDKDIR%" (
-    echo Failed to find WiX install for Visual Studio 2022
-    echo VS2022 support for WiX is only present starting at version 3.XX
-    goto vs-set-2019
-  )
-  if not exist "%VCINSTALLDIR%\..\MSBuild\Microsoft\WiX" (
-    echo Failed to find the WiX Toolset Visual Studio 2022 Extension
-    goto vs-set-2019
-  )
-)
 @rem check if VS2022 is already setup, and for the requested arch
 if "_%VisualStudioVersion%_" == "_17.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2022
 @rem need to clear VSINSTALLDIR for vcvarsall to work as expected
@@ -299,19 +286,6 @@ echo Looking for Visual Studio 2019
 if not defined target_env set "VCINSTALLDIR="
 call tools\msvs\vswhere_usability_wrapper.cmd "[16.0,17.0)" %target_arch% "prerelease"
 if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
-set "WIXSDKDIR=%WIX%\SDK\VS2017"
-if defined msi (
-  echo Looking for WiX installation for Visual Studio 2019...
-  if not exist "%WIXSDKDIR%" (
-    echo Failed to find WiX install for Visual Studio 2019
-    echo VS2019 support for WiX is only present starting at version 3.11
-    goto msbuild-not-found
-  )
-  if not exist "%VCINSTALLDIR%\..\MSBuild\Microsoft\WiX" (
-    echo Failed to find the WiX Toolset Visual Studio 2019 Extension
-    goto msbuild-not-found
-  )
-)
 @rem check if VS2019 is already setup, and for the requested arch
 if "_%VisualStudioVersion%_" == "_16.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2019
 @rem need to clear VSINSTALLDIR for vcvarsall to work as expected
@@ -532,7 +506,7 @@ if not defined msi goto install-doctools
 echo Building node-v%FULLVERSION%-%target_arch%.msi
 set "msbsdk="
 if defined WindowsSDKVersion set "msbsdk=/p:WindowsTargetPlatformVersion=%WindowsSDKVersion:~0,-1%"
-msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build %msbsdk% /p:PlatformToolset=%PLATFORM_TOOLSET% /p:WixSdkDir="%WIXSDKDIR%" /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Restore,Clean,Build %msbsdk% /p:PlatformToolset=%PLATFORM_TOOLSET% /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
 if not defined sign goto upload

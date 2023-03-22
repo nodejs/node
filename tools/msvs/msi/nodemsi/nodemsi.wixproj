@@ -1,0 +1,70 @@
+<Project Sdk="WixToolset.Sdk/4.0.0-rc.1">
+  <Import Project="Sdk.props" Sdk="WixToolset.Sdk" Version="4.0.0-rc.1" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
+    <ProductVersion>3.5</ProductVersion>
+    <ProjectGuid>{1d808ff0-b5a9-4be9-859d-b334b6f48be2}</ProjectGuid>
+    <OutputName>node-v$(FullVersion)-$(Platform)</OutputName>
+    <OutputType>Package</OutputType>
+    <NodeVersion Condition=" '$(NodeVersion)' == '' ">0.0.0.0</NodeVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
+    <OutputPath>..\..\..\..\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NpmSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;CorepackSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\corepack\;ProgramFilesFolderId=ProgramFilesFolder</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
+    <OutputPath>..\..\..\..\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NpmSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;CorepackSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\corepack\;ProgramFilesFolderId=ProgramFilesFolder</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
+    <OutputPath>..\..\..\..\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NpmSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;CorepackSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\corepack\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+    <Cultures>en-US</Cultures>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
+    <OutputPath>..\..\..\..\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NpmSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;CorepackSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\corepack\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|arm64' ">
+    <OutputPath>..\..\..\..\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NpmSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;CorepackSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\corepack\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|arm64' ">
+    <OutputPath>..\..\..\..\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NpmSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;CorepackSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\corepack\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\..\..\npm.wxs">
+      <Link>npm.wxs</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\corepack.wxs">
+      <Link>corepack.wxs</Link>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="4.0.0-rc.1" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="4.0.0-rc.1" />
+    <PackageReference Include="WixToolset.Heat" Version="4.0.0-rc.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../custom_actions/custom_actions.vcxproj" />
+  </ItemGroup>
+  <Import Project="Sdk.targets" Sdk="WixToolset.Sdk" Version="4.0.0-rc.1" />
+  <Target Name="BeforeBuild">
+    <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm" PreprocessorVariable="var.NpmSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="NpmSourceFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\..\npm.wxs">
+    </HeatDirectory>
+    <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\corepack" PreprocessorVariable="var.CorepackSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="CorepackSourceFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\..\corepack.wxs">
+    </HeatDirectory>
+  </Target>
+  <PropertyGroup>
+    <PostBuildEvent>move "$(TargetDir)en-us\$(TargetFileName)" "$(TargetPath)"
+    move "$(TargetDir)en-us\$(TargetPdbFileName)" "$(TargetPdbPath)"</PostBuildEvent>
+  </PropertyGroup>
+</Project>
