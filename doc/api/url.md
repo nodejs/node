@@ -111,6 +111,10 @@ added:
   - v7.0.0
   - v6.13.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47214
+    description: The class is now not serializable/deserializable through
+                 `structuredClone` to conform to the WHATWG specification.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18281
     description: The class is now available on the global object.
@@ -669,6 +673,10 @@ added:
   - v7.5.0
   - v6.13.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47214
+    description: The class is now not serializable/deserializable through
+                 `structuredClone` to conform to the WHATWG specification.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18281
     description: The class is now available on the global object.

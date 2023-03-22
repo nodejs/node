@@ -811,6 +811,11 @@ added: v0.0.1
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47214
+    description: Throws a DOM exception when used with `URL` and
+                 `URLSearchParams` to conform with WHATWG specification.
 -->
 
 <!-- type=global -->
