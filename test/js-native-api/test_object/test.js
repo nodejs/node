@@ -165,12 +165,26 @@ assert.strictEqual(newObject.test_string, 'test string');
   const obj2 = test_object.TypeTaggedInstance(1);
   const obj3 = test_object.TypeTaggedInstance(2);
   const obj4 = test_object.TypeTaggedInstance(3);
+  const external = test_object.TypeTaggedExternal(2);
+  const plainExternal = test_object.PlainExternal();
+
+  // Verify that we do not allow type tag indices greater than the largest
+  // available index.
+  assert.throws(() => test_object.TypeTaggedInstance(39), {
+    name: 'RangeError',
+    message: 'Invalid type index',
+  });
+  assert.throws(() => test_object.TypeTaggedExternal(39), {
+    name: 'RangeError',
+    message: 'Invalid type index',
+  });
 
   // Verify that type tags are correctly accepted.
   assert.strictEqual(test_object.CheckTypeTag(0, obj1), true);
   assert.strictEqual(test_object.CheckTypeTag(1, obj2), true);
   assert.strictEqual(test_object.CheckTypeTag(2, obj3), true);
   assert.strictEqual(test_object.CheckTypeTag(3, obj4), true);
+  assert.strictEqual(test_object.CheckTypeTag(2, external), true);
 
   // Verify that wrongly tagged objects are rejected.
   assert.strictEqual(test_object.CheckTypeTag(0, obj2), false);
@@ -180,10 +194,19 @@ assert.strictEqual(newObject.test_string, 'test string');
   assert.strictEqual(test_object.CheckTypeTag(2, obj4), false);
   assert.strictEqual(test_object.CheckTypeTag(3, obj3), false);
   assert.strictEqual(test_object.CheckTypeTag(4, obj3), false);
+  assert.strictEqual(test_object.CheckTypeTag(0, external), false);
+  assert.strictEqual(test_object.CheckTypeTag(1, external), false);
+  assert.strictEqual(test_object.CheckTypeTag(3, external), false);
+  assert.strictEqual(test_object.CheckTypeTag(4, external), false);
 
   // Verify that untagged objects are rejected.
   assert.strictEqual(test_object.CheckTypeTag(0, {}), false);
   assert.strictEqual(test_object.CheckTypeTag(1, {}), false);
+  assert.strictEqual(test_object.CheckTypeTag(0, plainExternal), false);
+  assert.strictEqual(test_object.CheckTypeTag(1, plainExternal), false);
+  assert.strictEqual(test_object.CheckTypeTag(2, plainExternal), false);
+  assert.strictEqual(test_object.CheckTypeTag(3, plainExternal), false);
+  assert.strictEqual(test_object.CheckTypeTag(4, plainExternal), false);
 }
 
 {
