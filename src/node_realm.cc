@@ -10,7 +10,6 @@ namespace node {
 
 using v8::Context;
 using v8::EscapableHandleScope;
-using v8::Function;
 using v8::HandleScope;
 using v8::Local;
 using v8::MaybeLocal;
@@ -174,42 +173,14 @@ MaybeLocal<Value> Realm::ExecuteBootstrapper(const char* id) {
   return scope.EscapeMaybe(result);
 }
 
-MaybeLocal<Value> Realm::BootstrapInternalLoaders() {
-  EscapableHandleScope scope(isolate_);
-
-  // Bootstrap internal loaders
-  Local<Value> loader_exports;
-  if (!ExecuteBootstrapper("internal/bootstrap/loaders")
-           .ToLocal(&loader_exports)) {
-    return MaybeLocal<Value>();
-  }
-  CHECK(loader_exports->IsObject());
-  Local<Object> loader_exports_obj = loader_exports.As<Object>();
-  Local<Value> internal_binding_loader =
-      loader_exports_obj->Get(context(), env_->internal_binding_string())
-          .ToLocalChecked();
-  CHECK(internal_binding_loader->IsFunction());
-  set_internal_binding_loader(internal_binding_loader.As<Function>());
-  Local<Value> require =
-      loader_exports_obj->Get(context(), env_->require_string())
-          .ToLocalChecked();
-  CHECK(require->IsFunction());
-  set_builtin_module_require(require.As<Function>());
-
-  return scope.Escape(loader_exports);
-}
-
 MaybeLocal<Value> Realm::RunBootstrapping() {
   EscapableHandleScope scope(isolate_);
 
   CHECK(!has_run_bootstrapping_code());
 
-  if (BootstrapInternalLoaders().IsEmpty()) {
-    return MaybeLocal<Value>();
-  }
-
   Local<Value> result;
-  if (!BootstrapRealm().ToLocal(&result)) {
+  if (!ExecuteBootstrapper("internal/bootstrap/loaders").ToLocal(&result) ||
+      !BootstrapRealm().ToLocal(&result)) {
     return MaybeLocal<Value>();
   }
 
