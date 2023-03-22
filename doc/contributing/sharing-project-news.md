@@ -6,7 +6,7 @@ that cover Node.js.
 
 The project's approach is as follows:
 
-* The project will create one "What's new in YYYY" issue in the `nodejs\node`
+* The project will create one "What's new in YYYY" issue in the `nodejs/node`
   repo for news related to Node.js core.
 * Teams/groups can create a "what's new in YYYY" issue in one or more of their
   repositories. As an example see
