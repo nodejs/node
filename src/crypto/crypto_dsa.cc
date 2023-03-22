@@ -83,16 +83,12 @@ Maybe<bool> DsaKeyGenTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
     DsaKeyPairGenConfig* params) {
-  Environment* env = Environment::GetCurrent(args);
   CHECK(args[*offset]->IsUint32());  // modulus bits
   CHECK(args[*offset + 1]->IsInt32());  // divisor bits
 
   params->params.modulus_bits = args[*offset].As<Uint32>()->Value();
   params->params.divisor_bits = args[*offset + 1].As<Int32>()->Value();
-  if (params->params.divisor_bits < -1) {
-    THROW_ERR_OUT_OF_RANGE(env, "invalid value for divisor_bits");
-    return Nothing<bool>();
-  }
+  CHECK_GE(params->params.divisor_bits, -1);
 
   *offset += 2;
 
