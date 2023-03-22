@@ -15,6 +15,7 @@ using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::False;
 using v8::FunctionCallbackInfo;
+using v8::Int32;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -185,8 +186,6 @@ Maybe<bool> CheckPrimeTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     CheckPrimeConfig* params) {
-  Environment* env = Environment::GetCurrent(args);
-
   ArrayBufferOrViewContents<unsigned char> candidate(args[offset]);
 
   params->candidate =
@@ -195,15 +194,9 @@ Maybe<bool> CheckPrimeTraits::AdditionalConfig(
           candidate.size(),
           nullptr));
 
-  CHECK(args[offset + 1]->IsUint32());  // Checks
-
-  const int checks = static_cast<int>(args[offset + 1].As<Uint32>()->Value());
-  if (checks < 0) {
-    THROW_ERR_OUT_OF_RANGE(env, "invalid options.checks");
-    return Nothing<bool>();
-  }
-
-  params->checks = checks;
+  CHECK(args[offset + 1]->IsInt32());  // Checks
+  params->checks = args[offset + 1].As<Int32>()->Value();
+  CHECK_GE(params->checks, 0);
 
   return Just(true);
 }

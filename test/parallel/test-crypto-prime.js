@@ -240,6 +240,17 @@ for (const checks of ['hello', {}, []]) {
   });
 }
 
+for (const checks of [-(2 ** 31), -1, 2 ** 31, 2 ** 32 - 1, 2 ** 32, 2 ** 50]) {
+  assert.throws(() => checkPrime(2n, { checks }, common.mustNotCall()), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: /<= 2147483647/
+  });
+  assert.throws(() => checkPrimeSync(2n, { checks }), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: /<= 2147483647/
+  });
+}
+
 assert(!checkPrimeSync(Buffer.from([0x1])));
 assert(checkPrimeSync(Buffer.from([0x2])));
 assert(checkPrimeSync(Buffer.from([0x3])));
