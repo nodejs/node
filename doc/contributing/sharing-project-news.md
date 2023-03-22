@@ -17,7 +17,7 @@ The projects approach is as follows:
   new one is created.
 * A list of these documents is maintained the section below as
   quick way to find them.
-* The next-10 team reaches out to teams/groups on an add hoc basis
+* The next-10 team reaches out to teams/groups on an ad hoc basis
   to ensure teams know about the option for sharing news.
 * The next-10 team reaches out to those who publish newsletters add hoc
   to let them know about this approach and how they can find the updates.
