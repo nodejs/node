@@ -1278,7 +1278,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }
 
   // Test invalid divisor lengths. (out of range)
-  for (const divisorLength of [-6, -9, 2147483648]) {
+  for (const divisorLength of [-1, -6, -9, 2147483648]) {
     assert.throws(() => generateKeyPair('dsa', {
       modulusLength: 2048,
       divisorLength
