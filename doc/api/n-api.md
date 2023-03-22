@@ -733,13 +733,13 @@ napiVersion: 8
 -->
 
 A 128-bit value stored as two unsigned 64-bit integers. It serves as a UUID
-with which JavaScript objects can be "tagged" in order to ensure that they are
-of a certain type. This is a stronger check than [`napi_instanceof`][], because
-the latter can report a false positive if the object's prototype has been
-manipulated. Type-tagging is most useful in conjunction with [`napi_wrap`][]
-because it ensures that the pointer retrieved from a wrapped object can be
-safely cast to the native type corresponding to the type tag that had been
-previously applied to the JavaScript object.
+with which JavaScript objects or [externals][] can be "tagged" in order to
+ensure that they are of a certain type. This is a stronger check than
+[`napi_instanceof`][], because the latter can report a false positive if the
+object's prototype has been manipulated. Type-tagging is most useful in
+conjunction with [`napi_wrap`][] because it ensures that the pointer retrieved
+from a wrapped object can be safely cast to the native type corresponding to the
+type tag that had been previously applied to the JavaScript object.
 
 ```c
 typedef struct {
@@ -4969,7 +4969,7 @@ To this end, Node-API provides type-tagging capabilities.
 
 A type tag is a 128-bit integer unique to the addon. Node-API provides the
 `napi_type_tag` structure for storing a type tag. When such a value is passed
-along with a JavaScript object stored in a `napi_value` to
+along with a JavaScript object or [external][] stored in a `napi_value` to
 `napi_type_tag_object()`, the JavaScript object will be "marked" with the
 type tag. The "mark" is invisible on the JavaScript side. When a JavaScript
 object arrives into a native binding, `napi_check_object_type_tag()` can be used
@@ -5255,15 +5255,15 @@ napi_status napi_type_tag_object(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] js_object`: The JavaScript object to be marked.
+* `[in] js_object`: The JavaScript object or [external][] to be marked.
 * `[in] type_tag`: The tag with which the object is to be marked.
 
 Returns `napi_ok` if the API succeeded.
 
-Associates the value of the `type_tag` pointer with the JavaScript object.
-`napi_check_object_type_tag()` can then be used to compare the tag that was
-attached to the object with one owned by the addon to ensure that the object
-has the right type.
+Associates the value of the `type_tag` pointer with the JavaScript object or
+[external][]. `napi_check_object_type_tag()` can then be used to compare the tag
+that was attached to the object with one owned by the addon to ensure that the
+object has the right type.
 
 If the object already has an associated type tag, this API will return
 `napi_invalid_arg`.
@@ -5285,7 +5285,8 @@ napi_status napi_check_object_type_tag(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] js_object`: The JavaScript object whose type tag to examine.
+* `[in] js_object`: The JavaScript object or [external][] whose type tag to
+  examine.
 * `[in] type_tag`: The tag with which to compare any tag found on the object.
 * `[out] result`: Whether the type tag given matched the type tag on the
   object. `false` is also returned if no type tag was found on the object.
@@ -6455,6 +6456,8 @@ the add-on's file name during loading.
 [async_hooks `type`]: async_hooks.md#type
 [context-aware addons]: addons.md#context-aware-addons
 [docs]: https://github.com/nodejs/node-addon-api#api-documentation
+[external]: #napi_create_external
+[externals]: #napi_create_external
 [global scope]: globals.md
 [gyp-next]: https://github.com/nodejs/gyp-next
 [module scope]: modules.md#the-module-scope
