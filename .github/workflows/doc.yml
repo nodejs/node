@@ -23,9 +23,46 @@ jobs:
   build-docs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    outputs:
+      DOCS_HAVE_CHANGED: ${{ env.DOCS_HAVE_CHANGED }}
     steps:
+      - name: Find the last successful workflow
+        if: github.event.action == 'synchronize'
+        id: last-successful-run
+        # We want to fetch the minimum number of commits since the docs have
+        # changed. The variable is initialized to 1 to account for the merge commit.
+        run: |
+          NB_OF_COMMITS=1
+          for sha in $(gh api -X GET /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/commits -f per_page=250 --jq 'map(.sha) | reverse | join("\n")'); do
+            NB_OF_COMMITS=$((NB_OF_COMMITS+1))
+            HAS_BEEN_DEPLOYED=$(gh api "/repos/${{ github.repository }}/commits/$sha/statuses" --jq 'map(.context == "node-pr-doc-preview/deploy") | any')
+            if [ "$HAS_BEEN_DEPLOYED" = "true" ]; then
+              echo "Found last successful run on $sha, $NB_OF_COMMITS commit(s) ago"
+              echo "sha=$sha" >> "$GITHUB_OUTPUT"
+              break
+            else
+              echo "No successful workflow found for $sha"
+            fi
+          done
+          echo "nbOfCommits=$NB_OF_COMMITS" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Compute number of commits to fetch
+        id: nb-of-commits
+        run: |
+          if [ -z "${{ github.event.action }}" ]; then
+            NB_OF_COMMITS=1 # push event, no need for more than 1 commit.
+          elif [ "${{ github.event.action }}" = "synchronize" ]; then
+            NB_OF_COMMITS=${{ steps.last-successful-run.outputs.nbOfCommits }}
+          else
+            NB_OF_COMMITS=2 # PR was (re-)open, we only compare with the base
+          fi
+          echo "to_fetch=$NB_OF_COMMITS" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v3
         with:
+          fetch-depth: ${{ steps.nb-of-commits.outputs.to_fetch }}
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v3
@@ -35,18 +72,41 @@ jobs:
         run: npx envinfo
       - name: Build
         run: NODE=$(command -v node) make doc-only
+      - name: Check if the docs have changed (synchronize)
+        if: github.event.action == 'synchronize'
+        run: git diff --quiet ${{ steps.last-successful-run.outputs.sha || github.event.pull_request.base.sha }} -- doc/api || echo "DOCS_HAVE_CHANGED=1" >> "$GITHUB_ENV"
+      - name: Check if the docs have changed ((re-)open)
+        if: github.event.pull_request && github.event.action != 'synchronize'
+        run: git diff --quiet ${{ github.event.pull_request.base.sha }} -- doc/api || echo "DOCS_HAVE_CHANGED=1" >> "$GITHUB_ENV"
       - uses: actions/upload-artifact@v3
+        if: env.DOCS_HAVE_CHANGED || github.event.pusher
         with:
           name: docs
           path: out/doc
+      - name: Mark commit as skipped for deploy
+        if: github.event.pull_request && !env.DOCS_HAVE_CHANGED
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ github.repository }}/statuses/${{ github.event.pull_request.head.sha }} \
+            -f state='success' \
+            -f description='No doc changes detected, preview has not been deployed' \
+            -f context='node-pr-doc-preview/deploy' 
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Test
         run: NODE=$(command -v node) make test-doc-ci TEST_CI_ARGS="-p actions --measure-flakiness 9"
-  build-preview:
-    if: github.event.pull_request
+  deploy-preview:
     needs: build-docs
-    runs-on: ubuntu-latest
+    if: needs.build-docs.outputs.DOCS_HAVE_CHANGED == 1
     permissions:
-      contents: write
+      statuses: write
+    concurrency:
+      group: node-pr-doc-preview
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
     steps:
       - name: Check out the gh-pages branch
         uses: actions/checkout@v3
@@ -54,6 +114,12 @@ jobs:
           # We want to persist credentials so we can push to gh-pages
           persist-credentials: true
           ref: gh-pages
+          repository: ${{ github.repository_owner }}/node-pr-doc-preview
+          # A personal token is required GITHUB_TOKEN cannot be configured to
+          # have write access on a repo except the one the action runs on.
+          # It needs to be set here because `checkout` configures GitHub
+          # authentication for push as well.
+          token: ${{ secrets.GH_USER_TOKEN }}
       - name: Erase previous version (if it exists)
         run: rm -rf "${{ github.event.pull_request.number }}"
       - name: Download tarball from build job
@@ -61,12 +127,26 @@ jobs:
         with:
           name: docs
           path: ${{ github.event.pull_request.number }}
-      - name: Commit the doc preview to gh-pages
+      - name: Push the doc preview to gh-pages
         run: |
           git config user.email "github-bot@iojs.org"
           git config user.name "Node.js GitHub Bot"
-          git add "${{ github.event.pull_request.number }}"
-          git commit \
-            -m "Add/Update preview for ${{ github.event.pull_request.html_url }}" \
-            -m "The preview will be available at https://${{ github.repository_owner }}.github.io/${{ github.event.pull_request.base.repo.name }}/${{ github.event.pull_request.number }}/api/"
-          git push origin HEAD:gh-pages
+          git diff --quiet || (\
+            git add "${{ github.event.pull_request.number }}" &&\
+            git commit \
+              -m "Add/Update preview for ${{ github.event.pull_request.html_url }}" \
+              -m "The preview will be available at https://${{ github.repository_owner }}.github.io/node-pr-doc-preview/${{ github.event.pull_request.number }}/api/" &&\
+            git push origin HEAD:gh-pages \
+          )
+      - name: Mark commit as successfully deployed
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ github.repository }}/statuses/${{ github.event.pull_request.head.sha }} \
+            -f state='success' \
+            -f description='The build succeeded, the preview has been queued for deployment!' \
+            -f context='node-pr-doc-preview/deploy' 
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -1,0 +1,43 @@
+name: Remove doc preview of closed PRs
+
+on:
+  pull_request:
+    types: [closed]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: lts/*
+
+permissions: {}
+
+jobs:
+  remove-preview:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: node-pr-doc-preview
+      cancel-in-progress: false
+    steps:
+      - name: Check out the gh-pages branch
+        uses: actions/checkout@v3
+        with:
+          # We want to persist credentials so we can push to gh-pages
+          persist-credentials: true
+          ref: gh-pages
+          repository: ${{ github.repository_owner }}/node-pr-doc-preview
+          # A personal token is required GITHUB_TOKEN cannot be configured to
+          # have write access on a repo except the one the action runs on.
+          # It needs to be set here because `checkout` configures GitHub
+          # authentication for push as well.
+          token: ${{ secrets.GH_USER_TOKEN }}
+      - name: Erase previous version (if it exists)
+        run: |
+          git config user.email "github-bot@iojs.org"
+          git config user.name "Node.js GitHub Bot"
+          git rm -rf "${{ github.event.pull_request.number }}" || true
+          git diff --quiet HEAD || (\
+            git commit -m "Remove preview for ${{ github.event.pull_request.html_url }}" &&\
+            git push origin HEAD:gh-pages \
+          )
