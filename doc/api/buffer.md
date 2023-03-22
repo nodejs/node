@@ -5054,9 +5054,11 @@ See [`Buffer.from(string[, encoding])`][`Buffer.from(string)`].
 added:
   - v19.2.0
   - v18.13.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47153
+    description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 * Extends: {Blob}
 

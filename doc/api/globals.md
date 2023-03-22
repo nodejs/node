@@ -474,6 +474,16 @@ changes:
 
 A browser-compatible implementation of the [`fetch()`][] function.
 
+## Class: `File`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+<!-- type=global -->
+
+See {File}.
+
 ## Class `FormData`
 
 <!-- YAML
