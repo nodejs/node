@@ -14,6 +14,10 @@ test-crypto-keygen: PASS,FLAKY
 # https://github.com/nodejs/node/issues/41201
 test-fs-rmdir-recursive: PASS, FLAKY
 
+# Windows on ARM
+[$system==win32 && $arch==arm64]
+test-child-process-exec-cwd: SKIP
+
 [$system==linux]
 # https://github.com/nodejs/node/issues/39368
 test-domain-error-types: PASS,FLAKY
