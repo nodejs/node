@@ -93,6 +93,30 @@ void Parse(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(true);
 }
 
+void CanParse(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 2);
+  CHECK(args[0]->IsString());  // input
+  // args[1] // base url
+
+  Environment* env = Environment::GetCurrent(args);
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  Utf8Value input(env->isolate(), args[0]);
+  ada::result base;
+  ada::url* base_pointer = nullptr;
+  if (args[1]->IsString()) {
+    base = ada::parse(Utf8Value(env->isolate(), args[1]).ToString());
+    if (!base) {
+      return args.GetReturnValue().Set(false);
+    }
+    base_pointer = &base.value();
+  }
+  ada::result out = ada::parse(input.ToStringView(), base_pointer);
+
+  args.GetReturnValue().Set(out.has_value());
+}
+
 void DomainToASCII(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_GE(args.Length(), 1);
@@ -285,6 +309,7 @@ void Initialize(Local<Object> target,
                 void* priv) {
   SetMethod(context, target, "parse", Parse);
   SetMethod(context, target, "updateUrl", UpdateUrl);
+  SetMethodNoSideEffect(context, target, "canParse", CanParse);
   SetMethodNoSideEffect(context, target, "formatUrl", FormatUrl);
 
   SetMethodNoSideEffect(context, target, "domainToASCII", DomainToASCII);
@@ -294,6 +319,7 @@ void Initialize(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Parse);
+  registry->Register(CanParse);
   registry->Register(UpdateUrl);
   registry->Register(FormatUrl);
 
