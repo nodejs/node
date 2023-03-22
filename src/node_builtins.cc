@@ -662,6 +662,16 @@ void BuiltinLoader::HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
       args.GetIsolate(), instance->code_cache_->has_code_cache));
 }
 
+void SetInternalLoaders(const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+  CHECK(args[0]->IsFunction());
+  CHECK(args[1]->IsFunction());
+  DCHECK(realm->internal_binding_loader().IsEmpty());
+  DCHECK(realm->builtin_module_require().IsEmpty());
+  realm->set_internal_binding_loader(args[0].As<Function>());
+  realm->set_builtin_module_require(args[1].As<Function>());
+}
+
 void BuiltinLoader::CopySourceAndCodeCacheReferenceFrom(
     const BuiltinLoader* other) {
   code_cache_ = other->code_cache_;
@@ -700,6 +710,7 @@ void BuiltinLoader::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, proto, "getCacheUsage", BuiltinLoader::GetCacheUsage);
   SetMethod(isolate, proto, "compileFunction", BuiltinLoader::CompileFunction);
   SetMethod(isolate, proto, "hasCachedBuiltins", HasCachedBuiltins);
+  SetMethod(isolate, proto, "setInternalLoaders", SetInternalLoaders);
 }
 
 void BuiltinLoader::CreatePerContextProperties(Local<Object> target,
@@ -718,6 +729,7 @@ void BuiltinLoader::RegisterExternalReferences(
   registry->Register(GetCacheUsage);
   registry->Register(CompileFunction);
   registry->Register(HasCachedBuiltins);
+  registry->Register(SetInternalLoaders);
 }
 
 }  // namespace builtins
