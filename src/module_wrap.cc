@@ -768,7 +768,6 @@ void ModuleWrap::Initialize(Local<Object> target,
   Local<FunctionTemplate> tpl = NewFunctionTemplate(isolate, New);
   tpl->InstanceTemplate()->SetInternalFieldCount(
       ModuleWrap::kInternalFieldCount);
-  tpl->Inherit(BaseObject::GetConstructorTemplate(env));
 
   SetProtoMethod(isolate, tpl, "link", Link);
   SetProtoMethod(isolate, tpl, "instantiate", Instantiate);

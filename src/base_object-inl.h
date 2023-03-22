@@ -38,12 +38,6 @@ BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> object)
   // while allowing to create a BaseObject in a vm context.
 }
 
-// static
-v8::Local<v8::FunctionTemplate> BaseObject::GetConstructorTemplate(
-    Environment* env) {
-  return BaseObject::GetConstructorTemplate(env->isolate_data());
-}
-
 void BaseObject::Detach() {
   CHECK_GT(pointer_data()->strong_ptr_count, 0);
   pointer_data()->is_detached = true;
@@ -74,6 +68,15 @@ Environment* BaseObject::env() const {
 
 Realm* BaseObject::realm() const {
   return realm_;
+}
+
+bool BaseObject::IsBaseObject(v8::Local<v8::Object> obj) {
+  if (obj->InternalFieldCount() < BaseObject::kInternalFieldCount) {
+    return false;
+  }
+  void* ptr =
+      obj->GetAlignedPointerFromInternalField(BaseObject::kEmbedderType);
+  return ptr == &kNodeEmbedderId;
 }
 
 void BaseObject::TagNodeObject(v8::Local<v8::Object> object) {

@@ -28,7 +28,6 @@ Local<Function> WasmStreamingObject::Initialize(Environment* env) {
 
   Isolate* isolate = env->isolate();
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
-  t->Inherit(BaseObject::GetConstructorTemplate(env));
   t->InstanceTemplate()->SetInternalFieldCount(
       WasmStreamingObject::kInternalFieldCount);
 
