@@ -31,25 +31,29 @@ jobs:
     name: Notify on Push on `main` that lacks metadata
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - name: Check commit message
-        run: npx -q core-validate-commit ${{ github.event.commits[0].id }} || echo "INVALID_COMMIT_MESSAGE=1" >> $GITHUB_ENV
+        run: npx -q core-validate-commit ${{ github.event.after }} || echo "INVALID_COMMIT_MESSAGE=1" >> $GITHUB_ENV
       - name: Retrieve PR number if possible
-        if: ${{ env.INVALID_COMMIT_MESSAGE }}
+        if: env.INVALID_COMMIT_MESSAGE
         run: |
-          node <<<'EOF'
-          const invalidCommitMessageMatch = /\s\(\#\d+\)$/.exec(process.env.COMMIT_MESSAGE);
-          if (match == null) process.exit(1)
-          console.log(`PR_ID=${match[0]}`)
-          EOF >> $GITHUB_ENV || true
-        env:
-          COMMIT_MESSAGE: ${{ github.event.commits[0].message }}
+          COMMIT_TITLE=$(git --no-pager log --oneline -1 --no-color) node <<'EOF' >> $GITHUB_ENV || true
+          const invalidCommitMessageMatch = /\s\(\#(\d+)\)$/.exec(process.env.COMMIT_TITLE);
+          if (invalidCommitMessageMatch == null) process.exit(1)
+          console.log(`PR_ID=${invalidCommitMessageMatch[1]}`)
+          EOF
       - name: Comment on the Pull Request
         if: ${{ env.PR_ID }}
-        run: gh pr comment ${{ env.PR_ID }} --repo "${{ github.repository }}" --body "$BODY"
+        run: |
+          gh pr comment ${{ env.PR_ID }} --repo "${{ github.repository }}" \
+            --body "A commit referencing this Pull Request was pushed to `main` by @${{ github.actor }} without the expected commit metadata added to its message."
         env:
-          BODY: |
-            A commit referencing this Pull Request was pushed to `main` by @${{ github.actor }} without the expected commit metadata added to its message.
+          GH_TOKEN: ${{ github.token }}
       - name: Slack Notification
         if: ${{ env.INVALID_COMMIT_MESSAGE }}
         uses: rtCamp/action-slack-notify@12e36fc18b0689399306c2e0b3e0f2978b7f1ee7
