@@ -2,6 +2,8 @@ import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { join } from 'node:path';
 import { describe, it, run } from 'node:test';
+import { Writable } from 'node:stream';
+import { dot } from 'node:test/reporters';
 import assert from 'node:assert';
 
 const testFixtures = fixtures.path('test-runner');
@@ -64,5 +66,23 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       .forEach((files) => assert.throws(() => run({ files }), {
         code: 'ERR_INVALID_ARG_TYPE'
       }));
+  });
+
+  it('should be piped with dot', (ctx, done) => {
+    const written = [];
+    const writer = new Writable();
+    writer._write = function(chunk, encoding, cb) {
+      written.push(chunk.toString());
+      process.nextTick(cb);
+    };
+    function finish() {
+      assert.deepStrictEqual(written, [
+        '.',
+        '\n',
+      ]);
+      done();
+    }
+    writer.on('finish', finish);
+    run({ files: [join(testFixtures, 'test/random.cjs')] }).compose(dot).pipe(writer);
   });
 });

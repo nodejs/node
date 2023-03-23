@@ -546,6 +546,16 @@ Node.js, and should not be relied on programmatically. If programmatic access
 to the test runner's output is required, use the events emitted by the
 {TestsStream}.
 
+The reporters are available via the `node:test/reporters` module:
+
+```mjs
+import { tap, spec, dot } from 'node:test/reporters';
+```
+
+```cjs
+const { tap, spec, dot } = require('node:test/reporters');
+```
+
 ### Custom reporters
 
 [`--test-reporter`][] can be used to specify a path to custom reporter.
@@ -739,8 +749,18 @@ added:
     **Default:** `undefined`.
 * Returns: {TestsStream}
 
-```js
+```mjs
+import { tap } from 'node:test/reporters';
+
 run({ files: [path.resolve('./tests/test.js')] })
+  .compose(tap)
+  .pipe(process.stdout);
+```
+```cjs
+const { tap } = require('node:test/reporters');
+
+run({ files: [path.resolve('./tests/test.js')] })
+  .compose(tap)
   .pipe(process.stdout);
 ```
 
