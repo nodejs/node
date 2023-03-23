@@ -1,3 +1,6 @@
+import { writeSync } from 'node:fs';
+
+
 export async function resolve(specifier, context, next) {
   // This check is needed to make sure that we don't prevent the
   // resolution from follow-up loaders. It wouldn't be a problem
@@ -7,8 +10,8 @@ export async function resolve(specifier, context, next) {
     return next(specifier);
   }
 
-  console.log('resolve 42'); // This log is deliberate
-  console.log('next<HookName>:', next.name); // This log is deliberate
+  writeSync(1, 'resolve 42' + '\n'); // Signal that this specific hook ran
+  writeSync(1, `next<HookName>: ${next.name}\n`); // Expose actual value the hook was called with
 
   return next('file:///42.mjs');
 }
