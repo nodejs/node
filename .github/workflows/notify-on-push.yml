@@ -1,0 +1,66 @@
+on:
+  push:
+    branches:
+      - main
+
+name: Notify on Push
+permissions:
+  contents: read
+
+jobs:
+  notifyOnForcePush:
+    name: Notify on Force Push on `main`
+    if: github.repository == 'nodejs/node' && github.event.forced
+    runs-on: ubuntu-latest
+    steps:
+      - name: Slack Notification
+        uses: rtCamp/action-slack-notify@12e36fc18b0689399306c2e0b3e0f2978b7f1ee7
+        env:
+          SLACK_COLOR: '#DE512A'
+          SLACK_ICON: https://github.com/nodejs.png?size=48
+          SLACK_TITLE: ${{ github.actor }} force-pushed to ${{ github.ref }}
+          SLACK_MESSAGE: |
+            A commit was force-pushed to <https://github.com/${{ github.repository }}/tree/${{ github.repository.default_branch }}|${{ github.repository }}@${{ github.repository.default_branch }}> by <https://github.com/${{ github.actor }}|${{ github.actor }}>
+
+            Before: <https://github.com/${{ github.repository }}/commit/${{ github.event.before }}|${{ github.event.before }}>
+            After: <https://github.com/${{ github.repository }}/commit/${{ github.event.after }}|${{ github.event.after }}>
+          SLACK_USERNAME: nodejs-bot
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  notifyOnMissingMetadata:
+    name: Notify on Push on `main` that lacks metadata
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check commit message
+        run: npx -q core-validate-commit ${{ github.event.commits[0].id }} || echo "INVALID_COMMIT_MESSAGE=1" >> $GITHUB_ENV
+      - name: Retrieve PR number if possible
+        if: ${{ env.INVALID_COMMIT_MESSAGE }}
+        run: |
+          node <<<'EOF'
+          const invalidCommitMessageMatch = /\s\(\#\d+\)$/.exec(process.env.COMMIT_MESSAGE);
+          if (match == null) process.exit(1)
+          console.log(`PR_ID=${match[0]}`)
+          EOF >> $GITHUB_ENV || true
+        env:
+          COMMIT_MESSAGE: ${{ github.event.commits[0].message }}
+      - name: Comment on the Pull Request
+        if: ${{ env.PR_ID }}
+        run: gh pr comment ${{ env.PR_ID }} --repo "${{ github.repository }}" --body "$BODY"
+        env:
+          BODY: |
+            A commit referencing this Pull Request was pushed to `main` by @${{ github.actor }} without the expected commit metadata added to its message.
+      - name: Slack Notification
+        if: ${{ env.INVALID_COMMIT_MESSAGE }}
+        uses: rtCamp/action-slack-notify@12e36fc18b0689399306c2e0b3e0f2978b7f1ee7
+        env:
+          SLACK_COLOR: '#DE512A'
+          SLACK_ICON: https://github.com/nodejs.png?size=48
+          SLACK_TITLE: Invalid commit was pushed to ${{ github.repository.default_branch }}
+          SLACK_MESSAGE: |
+            A commit lacking the expected metadata was pushed to <https://github.com/${{ github.repository }}/tree/${{ github.repository.default_branch }}|${{ github.repository }}@${{ github.repository.default_branch }}> by <https://github.com/${{ github.actor }}|${{ github.actor }}>.
+
+            Before: <https://github.com/${{ github.repository }}/commit/${{ github.event.before }}|${{ github.event.before }}>
+            After: <https://github.com/${{ github.repository }}/commit/${{ github.event.after }}|${{ github.event.after }}>
+          SLACK_USERNAME: nodejs-bot
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
