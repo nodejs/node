@@ -1,5 +1,5 @@
 [32m* should pass [90m(*ms)[39m[39m
-[31m* should fail [90m(*ms)[39m
+[31m* should fail [90m(*ms)[39m[39m
   Error: fail
       at * [90m(*)[39m
   [90m    at *[39m
@@ -8,13 +8,53 @@
   [90m    at *[39m
   [90m    at *[39m
   [90m    at *[39m
-**
+
 [90m* should skip [90m(*ms)[39m # SKIP[39m
-[34m* tests 3[39m
+* parent
+  [31m* should fail [90m(*ms)[39m[39m
+    Error: fail
+        at * [90m(*)[39m
+    [90m    at *[39m
+    [90m    at *[39m
+    [90m    at *[39m
+    [90m    at *[39m
+
+  [31m* should pass but parent fail [90m(*ms)[39m[39m
+    [32m'test did not finish before its parent and was cancelled'[39m
+
+[31m* [39mparent [90m(*ms)[39m
+
+[34m* tests 6[39m
 [34m* suites 0[39m
 [34m* pass 1[39m
-[34m* fail 1[39m
-[34m* cancelled 0[39m
+[34m* fail 3[39m
+[34m* cancelled 1[39m
 [34m* skipped 1[39m
 [34m* todo 0[39m
 [34m* duration_ms *[39m
+
+[31m* failing tests:[39m
+
+[31m* should fail [90m(*ms)[39m[39m
+  Error: fail
+      at * [90m(*)[39m
+  [90m    at *[39m
+  [90m    at *[39m
+  [90m    at *[39m
+  [90m    at *[39m
+  [90m    at *[39m
+  [90m    at *[39m
+
+[31m* should fail [90m(*ms)[39m[39m
+  Error: fail
+      at * [90m(*)[39m
+  [90m    at *[39m
+  [90m    at *[39m
+  [90m    at *[39m
+  [90m    at *[39m
+
+[31m* should pass but parent fail [90m(*ms)[39m[39m
+  [32m'test did not finish before its parent and was cancelled'[39m
+
+[31m* parent [90m(*ms)[39m[39m
+  [32m'2 subtests failed'[39m

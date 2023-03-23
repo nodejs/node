@@ -9,3 +9,7 @@ const test = require('node:test');
 test('should pass', () => {});
 test('should fail', () => { throw new Error('fail'); });
 test('should skip', { skip: true }, () => {});
+test('parent', () => {
+  test('should fail', () => { throw new Error('fail'); });
+  test('should pass but parent fail', () => {});
+});
