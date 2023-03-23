@@ -4430,28 +4430,6 @@ pbkdf2('secret', 'salt', 100000, 64, 'sha512', (err, derivedKey) => {
 });
 ```
 
-The `crypto.DEFAULT_ENCODING` property can be used to change the way the
-`derivedKey` is passed to the callback. This property, however, has been
-deprecated and use should be avoided.
-
-```mjs
-import crypto from 'node:crypto';
-crypto.DEFAULT_ENCODING = 'hex';
-crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, derivedKey) => {
-  if (err) throw err;
-  console.log(derivedKey);  // '3745e48...aa39b34'
-});
-```
-
-```cjs
-const crypto = require('node:crypto');
-crypto.DEFAULT_ENCODING = 'hex';
-crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, derivedKey) => {
-  if (err) throw err;
-  console.log(derivedKey);  // '3745e48...aa39b34'
-});
-```
-
 An array of supported digest functions can be retrieved using
 [`crypto.getHashes()`][].
 
@@ -4519,24 +4497,6 @@ const {
 
 const key = pbkdf2Sync('secret', 'salt', 100000, 64, 'sha512');
 console.log(key.toString('hex'));  // '3745e48...08d59ae'
-```
-
-The `crypto.DEFAULT_ENCODING` property may be used to change the way the
-`derivedKey` is returned. This property, however, is deprecated and use
-should be avoided.
-
-```mjs
-import crypto from 'node:crypto';
-crypto.DEFAULT_ENCODING = 'hex';
-const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 512, 'sha512');
-console.log(key);  // '3745e48...aa39b34'
-```
-
-```cjs
-const crypto = require('node:crypto');
-crypto.DEFAULT_ENCODING = 'hex';
-const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 512, 'sha512');
-console.log(key);  // '3745e48...aa39b34'
 ```
 
 An array of supported digest functions can be retrieved using
