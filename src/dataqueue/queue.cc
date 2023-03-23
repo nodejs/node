@@ -787,7 +787,7 @@ class FdEntry final : public EntryImpl {
  public:
   static std::unique_ptr<FdEntry> Create(Environment* env, Local<Value> path) {
     // We're only going to create the FdEntry if the file exists.
-    uv_fs_t req = {0};
+    uv_fs_t req = uv_fs_t();
     auto cleanup = OnScopeLeave([&] { uv_fs_req_cleanup(&req); });
 
     auto buf = std::make_shared<BufferValue>(env->isolate(), path);
@@ -849,7 +849,7 @@ class FdEntry final : public EntryImpl {
   }
 
   static bool CheckModified(FdEntry* entry, int fd) {
-    uv_fs_t req = {0};
+    uv_fs_t req = uv_fs_t();
     auto cleanup = OnScopeLeave([&] { uv_fs_req_cleanup(&req); });
     // TODO(jasnell): Note the use of a sync fs call here is a bit unfortunate.
     // Doing this asynchronously creates a bit of a race condition tho, a file
