@@ -1148,8 +1148,8 @@ announced immediately following the release of 12.0.0).
 
 Approximately two months before a major release, new `vN.x` and
 `vN.x-staging` branches (where `N` indicates the major release) should be
-created as forks of the `main` branch. Up until one week before the release
-date, these must be kept in sync with `main`.
+created as forks of the `main` branch. Up until the cut-off date announced by
+the releaser, these must be kept in sync with `main`.
 
 The `vN.x` and `vN.x-staging` branches must be kept in sync with one another
 up until the date of the release.
