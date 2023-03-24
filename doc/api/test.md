@@ -751,6 +751,7 @@ added:
 
 ```mjs
 import { tap } from 'node:test/reporters';
+import process from 'node:process';
 
 run({ files: [path.resolve('./tests/test.js')] })
   .compose(tap)

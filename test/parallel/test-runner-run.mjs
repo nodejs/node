@@ -68,21 +68,11 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       }));
   });
 
-  it('should be piped with dot', (ctx, done) => {
-    const written = [];
-    const writer = new Writable();
-    writer._write = function(chunk, encoding, cb) {
-      written.push(chunk.toString());
-      process.nextTick(cb);
-    };
-    function finish() {
-      assert.deepStrictEqual(written, [
-        '.',
-        '\n',
-      ]);
-      done();
-    }
-    writer.on('finish', finish);
-    run({ files: [join(testFixtures, 'test/random.cjs')] }).compose(dot).pipe(writer);
+  it('should be piped with dot', async () => {
+    const result = await run({ files: [join(testFixtures, 'test/random.cjs')] }).compose(dot).toArray();
+    assert.deepStrictEqual(result, [
+      '.',
+      '\n',
+    ]);
   });
 });
