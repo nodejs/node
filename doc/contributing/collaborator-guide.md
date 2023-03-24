@@ -509,7 +509,7 @@ The TSC serves as the final arbiter where required.
      squashing only keeps one author.
    * The "Rebase and merge" method has no way of adding metadata to the commit.
 3. Make sure CI is complete and green. If the CI is not green, check for
-   unreliable tests and infrastructure failures. If there are not corresponding
+   unreliable tests and infrastructure failures. If there are no corresponding
    issues in the [node][unreliable tests] or
    [build](https://github.com/nodejs/build/issues) repositories, open new
    issues. Run a new CI any time someone pushes new code to the pull request.
