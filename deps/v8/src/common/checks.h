@@ -15,7 +15,7 @@
 
 #ifdef ENABLE_SLOW_DCHECKS
 #define SLOW_DCHECK(condition) \
-  CHECK(!v8::internal::v8_flags.enable_slow_asserts || (condition))
+  CHECK(!v8::internal::v8_flags.enable_slow_asserts.value() || (condition))
 #define SLOW_DCHECK_IMPLIES(lhs, rhs) SLOW_DCHECK(!(lhs) || (rhs))
 #else
 #define SLOW_DCHECK(condition) ((void)0)
