@@ -79,14 +79,14 @@ bool BaseObject::IsBaseObject(v8::Local<v8::Object> obj) {
   return ptr == &kNodeEmbedderId;
 }
 
-void BaseObject::TagNodeObject(v8::Local<v8::Object> object) {
+void BaseObject::TagBaseObject(v8::Local<v8::Object> object) {
   DCHECK_GE(object->InternalFieldCount(), BaseObject::kInternalFieldCount);
   object->SetAlignedPointerInInternalField(BaseObject::kEmbedderType,
                                            &kNodeEmbedderId);
 }
 
 void BaseObject::SetInternalFields(v8::Local<v8::Object> object, void* slot) {
-  TagNodeObject(object);
+  TagBaseObject(object);
   object->SetAlignedPointerInInternalField(BaseObject::kSlot, slot);
 }
 

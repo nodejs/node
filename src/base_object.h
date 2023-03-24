@@ -77,7 +77,7 @@ class BaseObject : public MemoryRetainer {
   static inline void SetInternalFields(v8::Local<v8::Object> object,
                                        void* slot);
   static inline bool IsBaseObject(v8::Local<v8::Object> object);
-  static inline void TagNodeObject(v8::Local<v8::Object> object);
+  static inline void TagBaseObject(v8::Local<v8::Object> object);
   static void LazilyInitializedJSTemplateConstructor(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static inline BaseObject* FromJSObject(v8::Local<v8::Value> object);
