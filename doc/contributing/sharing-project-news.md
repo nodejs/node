@@ -1,6 +1,6 @@
 # Sharing project news
 
-The project, supported by the next-10 team, aims to make it easy
+The project aims to make it easy
 to share project news with those who publish newsletters
 that cover Node.js.
 
