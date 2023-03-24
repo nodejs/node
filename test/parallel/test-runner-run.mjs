@@ -2,7 +2,6 @@ import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { join } from 'node:path';
 import { describe, it, run } from 'node:test';
-import { Writable } from 'node:stream';
 import { dot } from 'node:test/reporters';
 import assert from 'node:assert';
 

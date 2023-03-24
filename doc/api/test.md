@@ -757,6 +757,7 @@ run({ files: [path.resolve('./tests/test.js')] })
   .compose(tap)
   .pipe(process.stdout);
 ```
+
 ```cjs
 const { tap } = require('node:test/reporters');
 
