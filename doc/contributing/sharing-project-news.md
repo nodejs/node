@@ -8,8 +8,8 @@ The project's approach is as follows:
 
 * The project will create one "What's new in YYYY" discussion item in
   the `nodejs/node` repo for news related to Node.js core.
-* Teams/groups can create a "what's new in YYYY" issue in one or more of their
-  repositories. As an example see
+* Teams/groups can create a "what's new in YYYY" issue or discussion item
+  in one or more of their repositories. As an example see
   [What's new in the Node-API and node-addon-api world? - 2023 version](https://github.com/nodejs/abi-stable-node/issues/446).
 * Collaborators periodically add news as additional comments on these
   issues throughout the year.
