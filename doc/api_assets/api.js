@@ -136,6 +136,36 @@
     updateHashes();
   }
 
+  function setupCopyButton() {
+    const buttons = document.querySelectorAll('.copy-button');
+    buttons.forEach((button) => {
+      button.addEventListener('click', (el) => {
+        const parentNode = el.target.parentNode;
+
+        const flavorSelector = parentNode.querySelector('.js-flavor-selector');
+
+        let code = '';
+
+        if (flavorSelector) {
+          if (flavorSelector.checked) {
+            code = parentNode.querySelector('.mjs').textContent;
+          } else {
+            code = parentNode.querySelector('.cjs').textContent;
+          }
+        } else {
+          code = parentNode.querySelector('code').textContent;
+        }
+
+        button.textContent = 'Copied';
+        navigator.clipboard.writeText(code);
+
+        setTimeout(() => {
+          button.textContent = 'Copy';
+        }, 2500);
+      });
+    });
+  }
+
   function bootstrap() {
     // Check if we have JavaScript support.
     document.documentElement.classList.add('has-js');
@@ -151,6 +181,8 @@
 
     // Make link to other versions of the doc open to the same hash target (if it exists).
     setupAltDocsLink();
+
+    setupCopyButton();
   }
 
   if (document.readyState === 'loading') {
