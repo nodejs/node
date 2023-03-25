@@ -100,7 +100,7 @@ jobs:
         run: NODE=$(command -v node) make test-doc-ci TEST_CI_ARGS="-p actions --measure-flakiness 9"
   deploy-preview:
     needs: build-docs
-    if: needs.build-docs.outputs.DOCS_HAVE_CHANGED == 1
+    if: needs.build-docs.outputs.DOCS_HAVE_CHANGED == 1 && github.repository == 'nodejs/node'
     permissions:
       statuses: write
     concurrency:

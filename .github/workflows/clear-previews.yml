@@ -16,6 +16,7 @@ permissions: {}
 jobs:
   remove-preview:
     runs-on: ubuntu-latest
+    if: github.repository == 'nodejs/node'
     concurrency:
       group: node-pr-doc-preview
       cancel-in-progress: false
