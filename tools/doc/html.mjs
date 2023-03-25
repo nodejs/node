@@ -226,9 +226,12 @@ export function preprocessElements({ filename }) {
         const className = isJSFlavorSnippet(node) ?
           `language-js ${node.lang}` :
           `language-${node.lang}`;
+
         const highlighted =
           `<code class='${className}'>${(getLanguage(node.lang || '') ? highlight(node.value, { language: node.lang }) : node).value}</code>`;
         node.type = 'html';
+
+        const copyButton = '<button class="copy-button">copy</button>';
 
         if (isJSFlavorSnippet(node)) {
           const previousNode = parent.children[index - 1] || {};
@@ -253,16 +256,17 @@ export function preprocessElements({ filename }) {
               ' aria-label="Show modern ES modules syntax">' +
               previousNode.value +
               highlighted +
+              copyButton +
               '</pre>';
             node.lang = null;
             previousNode.value = '';
             previousNode.lang = null;
           } else {
             // Isolated JS snippet, no need to add the checkbox.
-            node.value = `<pre>${highlighted}</pre>`;
+            node.value = `<pre>${highlighted} ${copyButton}</pre>`;
           }
         } else {
-          node.value = `<pre>${highlighted}</pre>`;
+          node.value = `<pre>${highlighted} ${copyButton}</pre>`;
         }
       } else if (node.type === 'html' && common.isYAMLBlock(node.value)) {
         node.value = parseYAML(node.value);
