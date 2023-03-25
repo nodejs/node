@@ -973,6 +973,33 @@ kbd {
 .dark-mode .js-flavor-selector {
   filter: invert(1);
 }
+
+.copy-button {
+  float: right;
+  
+  outline: none;
+  font-size: 10px;
+  color: #fff;
+  background-color: var(--green1);
+  line-height: 1;
+  border-radius: 500px;
+  border: 1px solid transparent;
+  letter-spacing: 2px;
+  min-width: 7.5rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 0 .5rem;
+  margin-right: .2rem;
+  height: 1.5rem;
+  transition-property: background-color,border-color,color,box-shadow,filter;
+  transition-duration: .3s;
+  cursor: pointer;
+}
+
+.copy-button:hover {
+  background-color: var(--green2);
+}
+
 @supports (aspect-ratio: 1 / 1) {
   .js-flavor-selector {
     height: 1.5em;
