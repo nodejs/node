@@ -13,15 +13,8 @@ directory and C++ code in the
 
 ## Step 1: Updating nghttp2
 
-The `tools/update-nghttp2.sh` script automates the update of the
+The `tools/dep_updaters/update-nghttp2.sh` script automates the update of the
 postject source files.
-
-In the following examples, `x.y.z` should match the nghttp2
-version to update to.
-
-```console
-$ ./tools/update-nghttp2.sh x.y.z
-```
 
 ## Step 2: Test the build
 
