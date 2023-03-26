@@ -3644,7 +3644,7 @@ the following events will be emitted in the following order:
 * (connection closed here)
 * `'aborted'` on the `res` object
 * `'error'` on the `res` object with an error with message
-  `'Error: aborted'` and code `'ECONNRESET'`.
+  `'Error: aborted'` and code `'ECONNRESET'`
 * `'close'`
 * `'close'` on the `res` object
 
@@ -3653,7 +3653,7 @@ events will be emitted in the following order:
 
 * (`req.destroy()` called here)
 * `'error'` with an error with message `'Error: socket hang up'` and code
-  `'ECONNRESET'`
+  `'ECONNRESET'`, or the error with which `req.destroy()` was called
 * `'close'`
 
 If `req.destroy()` is called before the connection succeeds, the following
@@ -3662,7 +3662,7 @@ events will be emitted in the following order:
 * `'socket'`
 * (`req.destroy()` called here)
 * `'error'` with an error with message `'Error: socket hang up'` and code
-  `'ECONNRESET'`
+  `'ECONNRESET'`, or the error with which `req.destroy()` was called
 * `'close'`
 
 If `req.destroy()` is called after the response is received, the following
@@ -3673,8 +3673,8 @@ events will be emitted in the following order:
   * `'data'` any number of times, on the `res` object
 * (`req.destroy()` called here)
 * `'aborted'` on the `res` object
-* `'error'` on the `res` object with an error with message
-  `'Error: aborted'` and code `'ECONNRESET'`.
+* `'error'` on the `res` object with an error with message `'Error: aborted'`
+  and code `'ECONNRESET'`, or the error with which `req.destroy()` was called
 * `'close'`
 * `'close'` on the `res` object
 
@@ -3712,9 +3712,11 @@ events will be emitted in the following order:
 Setting the `timeout` option or using the `setTimeout()` function will
 not abort the request or do anything besides add a `'timeout'` event.
 
-Passing an `AbortSignal` and then calling `abort` on the corresponding
+Passing an `AbortSignal` and then calling `abort()` on the corresponding
 `AbortController` will behave the same way as calling `.destroy()` on the
-request itself.
+request. Specifically, the `'error'` event will be emitted with an error with
+the message `'AbortError: The operation was aborted'`, the code `'ABORT_ERR'`
+and the `cause`, if one was provided.
 
 ## `http.validateHeaderName(name[, label])`
 
