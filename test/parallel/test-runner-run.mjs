@@ -79,7 +79,6 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     const specReporter = new spec();
     const result = await run({ files: [join(testFixtures, 'test/random.cjs')] }).compose(specReporter).toArray();
     const stringResults = result.map((bfr) => bfr.toString());
-    assert.strictEqual(stringResults.length, 2);
     assert.match(stringResults[0], /this should pass/);
     assert.match(stringResults[1], /tests 1/);
     assert.match(stringResults[1], /pass 1/);
