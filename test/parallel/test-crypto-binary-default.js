@@ -579,6 +579,31 @@ assert.throws(
     name: 'TypeError'
   });
 
+{
+  const hash = crypto.createHash('sha1');
+  hash.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
+    assert.strictEqual(err.name, 'TypeError');
+  }));
+  hash.end('str', 'hex', common.mustCall((err) => {
+    assert.ok(err instanceof Error, 'err should be an error');
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(err.name, 'Error');
+  }));
+}
+
+{
+  const decipher = crypto.createDecipher('des-ede3-cbc', '');
+  decipher.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
+    assert.strictEqual(err.name, 'TypeError');
+  }));
+  decipher.end('str', 'hex', common.mustCall((err) => {
+    assert.ok(err instanceof Error, 'err should be an error');
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(err.name, 'Error');
+  }));
+}
 
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along
