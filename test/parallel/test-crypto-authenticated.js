@@ -29,8 +29,6 @@ const crypto = require('crypto');
 const { inspect } = require('util');
 const fixtures = require('../common/fixtures');
 
-crypto.DEFAULT_ENCODING = 'buffer';
-
 //
 // Test authenticated encryption modes.
 //
@@ -74,7 +72,6 @@ const expectedWarnings = common.hasFipsCrypto ?
   ];
 
 const expectedDeprecationWarnings = [
-  ['crypto.DEFAULT_ENCODING is deprecated.', 'DEP0091'],
   ['crypto.createCipher is deprecated.', 'DEP0106'],
 ];
 
