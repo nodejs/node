@@ -337,7 +337,9 @@
     ],
     'node_quic_sources': [
       'src/quic/cid.cc',
+      'src/quic/preferredaddress.cc',
       'src/quic/cid.h',
+      'src/quic/preferredaddress.h',
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'conditions': [
@@ -1018,7 +1020,6 @@
         'test/cctest/test_traced_value.cc',
         'test/cctest/test_util.cc',
         'test/cctest/test_dataqueue.cc',
-        'test/cctest/test_quic_cid.cc',
       ],
 
       'conditions': [
@@ -1029,6 +1030,7 @@
           'sources': [
             'test/cctest/test_crypto_clienthello.cc',
             'test/cctest/test_node_crypto.cc',
+            'test/cctest/test_quic_cid.cc',
           ]
         }],
         ['v8_enable_inspector==1', {
