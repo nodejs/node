@@ -337,8 +337,10 @@
     ],
     'node_quic_sources': [
       'src/quic/cid.cc',
+      'src/quic/data.cc',
       'src/quic/preferredaddress.cc',
       'src/quic/cid.h',
+      'src/quic/data.h',
       'src/quic/preferredaddress.h',
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
