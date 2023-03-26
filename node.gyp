@@ -335,6 +335,14 @@
       'src/node_crypto.cc',
       'src/node_crypto.h',
     ],
+    'node_quic_sources': [
+      'src/quic/cid.cc',
+      'src/quic/data.cc',
+      'src/quic/preferredaddress.cc',
+      'src/quic/cid.h',
+      'src/quic/data.h',
+      'src/quic/preferredaddress.h',
+    ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'conditions': [
       ['GENERATOR == "ninja"', {
@@ -836,6 +844,7 @@
         [ 'node_use_openssl=="true"', {
           'sources': [
             '<@(node_crypto_sources)',
+            '<@(node_quic_sources)',
           ],
         }],
         [ 'OS in "linux freebsd mac solaris" and '
@@ -1023,6 +1032,7 @@
           'sources': [
             'test/cctest/test_crypto_clienthello.cc',
             'test/cctest/test_node_crypto.cc',
+            'test/cctest/test_quic_cid.cc',
           ]
         }],
         ['v8_enable_inspector==1', {
