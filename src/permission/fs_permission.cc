@@ -7,6 +7,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -154,6 +155,20 @@ bool FSPermission::is_granted(PermissionScope perm,
   }
 }
 
+std::string FSPermission::RadixTree::NormalizePathIfCaseInsensitive(
+    const std::string& path) {
+  if (!case_sensitive_) {
+    std::string transformed_path = path;
+    std::transform(
+        transformed_path.begin(),
+        transformed_path.end(),
+        transformed_path.begin(),
+        [](unsigned char c) -> unsigned char { return std::tolower(c); });
+    return transformed_path;
+  }
+  return path;
+}
+
 FSPermission::RadixTree::RadixTree() : root_node_(new Node("")) {}
 
 FSPermission::RadixTree::~RadixTree() {
@@ -168,7 +183,15 @@ bool FSPermission::RadixTree::Lookup(const std::string_view& s,
   }
 
   unsigned int parent_node_prefix_len = current_node->prefix.length();
-  const std::string path(s);
+  std::string path(s);
+  if (!case_sensitive_) {
+    std::transform(
+        path.begin(),
+        path.end(),
+        path.begin(),
+        [](unsigned char c) -> unsigned char { return std::tolower(c); });
+  }
+
   auto path_len = path.length();
 
   while (true) {
@@ -190,10 +213,11 @@ bool FSPermission::RadixTree::Lookup(const std::string_view& s,
   }
 }
 
-void FSPermission::RadixTree::Insert(const std::string& path) {
+void FSPermission::RadixTree::Insert(const std::string& res) {
   FSPermission::RadixTree::Node* current_node = root_node_;
 
   unsigned int parent_node_prefix_len = current_node->prefix.length();
+  const std::string path = NormalizePathIfCaseInsensitive(res);
   int path_len = path.length();
 
   for (int i = 1; i <= path_len; ++i) {

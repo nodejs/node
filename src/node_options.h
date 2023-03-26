@@ -15,6 +15,13 @@
 #include "openssl/opensslv.h"
 #endif
 
+#if defined(__linux__)
+// Linux filesystems are case-sensitive by default
+#define FILESYSTEM_IS_CASE_SENSITIVE true
+#else
+#define FILESYSTEM_IS_CASE_SENSITIVE false
+#endif
+
 namespace node {
 
 class HostPort {
@@ -121,6 +128,7 @@ class EnvironmentOptions : public Options {
   std::string experimental_policy_integrity;
   bool has_policy_integrity_string = false;
   bool experimental_permission = false;
+  bool permission_case_sensitive = FILESYSTEM_IS_CASE_SENSITIVE;
   std::string allow_fs_read;
   std::string allow_fs_write;
   bool allow_child_process = false;

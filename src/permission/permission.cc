@@ -162,6 +162,16 @@ void Permission::EnablePermissions() {
   }
 }
 
+void Permission::SetFSPermissionCaseSensitive(const bool sensitive) {
+  auto it = nodes_.find(PermissionScope::kFileSystem);
+  if (it != nodes_.end()) {
+    auto fs_permission = std::static_pointer_cast<FSPermission>(it->second);
+    if (fs_permission) {
+      fs_permission->CaseSensitive(sensitive);
+    }
+  }
+}
+
 void Permission::Apply(const std::string& allow, PermissionScope scope) {
   auto permission = nodes_.find(scope);
   if (permission != nodes_.end()) {

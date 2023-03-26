@@ -565,6 +565,9 @@ There are constraints you need to know before using this system:
 * The model does not inherit to a worker thread.
 * When creating symlinks the target (first argument) should have read and
   write access.
+* Environment with a custom case-sensitive file system,
+  ensure to use the `--permission-case-sensitive` flag properly.
+  See [Case-insensitive file systems][] for further information.
 * Permission changes are not retroactively applied to existing resources.
   Consider the following snippet:
   ```js
@@ -586,12 +589,30 @@ const fd = fs.openSync('./README.md', 'r');
 // Error: Access to this API has been restricted
 ```
 
+#### Case-insensitive file systems
+
+Case-insensitive file systems are commonly used in Windows and macOS
+environments, but they can also be used in Linux and other Unix-like operating
+systems with certain configuration options or software tools.
+
+The Permission Model determines whether file and directory are case-sensitive
+from the operating system. This behavior is manageable by the flag
+[`--permission-case-sensitive`][]. However, in some cases, an operating system
+may have a custom file system configuration where some paths are case-sensitive
+and others are case-insensitive. To ensure consistency, it is recommended to
+enforce case-insensitivity using the `--no-permission-case-sensitive` flag.
+The Permission Model does not allow for multi-path configuration,
+so this flag should be used to apply the same case-sensitivity setting to all
+paths.
+
+[Case-insensitive file systems]: #case-insensitive-file-systems
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
 [`--allow-child-process`]: cli.md#--allow-child-process
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-write`]: cli.md#--allow-fs-write
 [`--allow-worker`]: cli.md#--allow-worker
 [`--experimental-permission`]: cli.md#--experimental-permission
+[`--permission-case-sensitive`]: cli.md#--permission-case-sensitive
 [`permission.deny()`]: process.md#processpermissiondenyscope-reference
 [`permission.has()`]: process.md#processpermissionhasscope-reference
 [import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string

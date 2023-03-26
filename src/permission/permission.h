@@ -50,6 +50,7 @@ class Permission {
   // Permission.Deny API
   bool Deny(PermissionScope scope, const std::vector<std::string>& params);
   void EnablePermissions();
+  void SetFSPermissionCaseSensitive(const bool sensitive);
 
  private:
   COLD_NOINLINE bool is_scope_granted(const PermissionScope permission,

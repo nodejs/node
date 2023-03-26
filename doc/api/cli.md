@@ -588,6 +588,14 @@ added: v16.6.0
 
 Use this flag to disable top-level await in REPL.
 
+### `--no-permission-case-sensitive`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Use this flag to force disable case-sensitive in the [Permission Model][].
+
 ### `--experimental-shadow-realm`
 
 <!-- YAML
@@ -1081,6 +1089,29 @@ unless either the `--pending-deprecation` command-line flag, or the
 `NODE_PENDING_DEPRECATION=1` environment variable, is set. Pending deprecations
 are used to provide a kind of selective "early warning" mechanism that
 developers may leverage to detect deprecated API usage.
+
+### `--permission-case-sensitive`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Determines whether the [Permission Model][] considers file and directory
+permissions as case-sensitive.
+
+If the flag is enabled, the file system will differentiate between uppercase and
+lowercase letters in file and directory permissions, so `/home/user/file.md` and
+`/home/USER/fiLE.MD` would be treated as distinct files.
+
+If the flag is disabled, file and directory permissions would be considered
+case-insensitive, so `/home/user/file.md` and `/home/USER/fiLE.MD` would be
+considered the same file.
+
+The default value for this flag varies depending on the operating system.
+Currently, Linux is the only operating system that has this flag enabled by
+default. Further information can be found in [Case-insensitive file systems][].
 
 ### `--policy-integrity=sri`
 
@@ -2121,6 +2152,7 @@ Node.js options that are allowed are:
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
 * `--no-global-search-paths`
+* `--no-permission-case-sensitive`
 * `--no-warnings`
 * `--node-memory-debug`
 * `--openssl-config`
@@ -2523,6 +2555,7 @@ done
 ```
 
 [#42511]: https://github.com/nodejs/node/issues/42511
+[Case-insensitive file systems]: permissions.md#case-insensitive-file-systems
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [CommonJS]: modules.md
 [CommonJS module]: modules.md

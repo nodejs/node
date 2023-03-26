@@ -783,6 +783,8 @@ Environment::Environment(IsolateData* isolate_data,
     // spawn/worker nor use addons unless explicitly allowed by the user
     if (!options_->allow_fs_read.empty() || !options_->allow_fs_write.empty()) {
       options_->allow_native_addons = false;
+      permission()->SetFSPermissionCaseSensitive(
+          options_->permission_case_sensitive);
       if (!options_->allow_child_process) {
         permission()->Deny(permission::PermissionScope::kChildProcess, {});
       }

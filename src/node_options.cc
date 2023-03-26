@@ -420,6 +420,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_policy_integrity,
             kAllowedInEnvvar);
   Implies("--policy-integrity", "[has_policy_integrity_string]");
+  AddOption("--permission-case-sensitive",
+            "enforces case-sensitive permission checks in the Permission Model",
+            &EnvironmentOptions::permission_case_sensitive,
+            kAllowedInEnvvar);
   AddOption("--allow-fs-read",
             "allow permissions to read the filesystem",
             &EnvironmentOptions::allow_fs_read,

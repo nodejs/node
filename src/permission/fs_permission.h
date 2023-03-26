@@ -21,6 +21,19 @@ class FSPermission final : public PermissionBase {
             const std::vector<std::string>& params) override;
   bool is_granted(PermissionScope perm, const std::string_view& param) override;
 
+  // For now, case_sensitive is a constant. Once set, its value won't change.
+  // FSPermission is constructed *before* cli evaluation.
+  // That's why we lazy-initialize it here.
+  void CaseSensitive(const bool sensitive) {
+    if (case_sensitive_initialized_) return;
+
+    case_sensitive_initialized_ = true;
+    granted_in_fs_.case_sensitive_ = sensitive;
+    granted_out_fs_.case_sensitive_ = sensitive;
+    deny_in_fs_.case_sensitive_ = sensitive;
+    deny_out_fs_.case_sensitive_ = sensitive;
+  }
+
   // For debugging purposes, use the gist function to print the whole tree
   // https://gist.github.com/RafaelGSS/5b4f09c559a54f53f9b7c8c030744d19
   struct RadixTree {
@@ -126,6 +139,9 @@ class FSPermission final : public PermissionBase {
     void Insert(const std::string& s);
     bool Lookup(const std::string_view& s) { return Lookup(s, false); }
     bool Lookup(const std::string_view& s, bool when_empty_return);
+    std::string NormalizePathIfCaseInsensitive(const std::string& path);
+
+    bool case_sensitive_;
 
    private:
     Node* root_node_;
@@ -135,6 +151,8 @@ class FSPermission final : public PermissionBase {
   void GrantAccess(PermissionScope scope, std::string param);
   void RestrictAccess(PermissionScope scope,
                       const std::vector<std::string>& params);
+
+  bool case_sensitive_initialized_ = false;
   // /tmp/* --grant
   // /tmp/dsadsa/t.js denied in runtime
   //
