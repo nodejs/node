@@ -3,7 +3,7 @@ export async function resolve(specifier, context, next) {
   // resolution from follow-up loaders. It wouldn't be a problem
   // in real life because loaders aren't supposed to break the
   // resolution, but the ones used in our tests do, for convenience.
-  if (specifier.includes('loader')) {
+  if (specifier === 'node:fs' || specifier.includes('loader')) {
     return next(specifier);
   }
 
