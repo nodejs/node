@@ -8,7 +8,7 @@ const fixture = path('debugger-repeat-last.js');
 
 const args = [
   'inspect',
-  `--port=${common.PORT}`,
+  '--port=0',
   fixture,
 ];
 
