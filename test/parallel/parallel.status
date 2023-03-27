@@ -19,7 +19,6 @@ test-child-process-stdio-reuse-readable-stdio: PASS, FLAKY
 
 # Windows on ARM
 [$system==win32 && $arch==arm64]
-test-child-process-exec-cwd: SKIP
 
 [$system==linux]
 # https://github.com/nodejs/node/issues/39368
