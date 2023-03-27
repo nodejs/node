@@ -1,3 +1,5 @@
+#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+
 #include "data.h"
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
@@ -253,3 +255,5 @@ QuicError QuicError::INTERNAL_ERROR =
 
 }  // namespace quic
 }  // namespace node
+
+#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC

@@ -1,6 +1,7 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <memory_tracker.h>
 #include <nghttp3/nghttp3.h>
@@ -132,4 +133,5 @@ class QuicError final : public MemoryRetainer {
 }  // namespace quic
 }  // namespace node
 
+#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

@@ -1,3 +1,4 @@
+#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #include <gtest/gtest.h>
 #include <ngtcp2/ngtcp2.h>
 #include <quic/cid.h>
@@ -91,3 +92,4 @@ TEST(CID, Basic) {
     }
   }
 }
+#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC

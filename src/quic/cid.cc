@@ -1,3 +1,4 @@
+#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #include "cid.h"
 #include <crypto/crypto_util.h>
 #include <memory_tracker-inl.h>
@@ -148,3 +149,4 @@ const CID::Factory& CID::Factory::random() {
 
 }  // namespace quic
 }  // namespace node
+#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC

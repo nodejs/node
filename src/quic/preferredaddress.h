@@ -1,6 +1,7 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <env.h>
 #include <ngtcp2/ngtcp2.h>
@@ -67,4 +68,5 @@ class PreferredAddress final {
 }  // namespace quic
 }  // namespace node
 
+#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

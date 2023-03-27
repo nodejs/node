@@ -1,3 +1,5 @@
+#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+
 #include "preferredaddress.h"
 #include <env-inl.h>
 #include <ngtcp2/ngtcp2.h>
@@ -153,3 +155,5 @@ void PreferredAddress::Set(ngtcp2_transport_params* params,
 
 }  // namespace quic
 }  // namespace node
+
+#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
