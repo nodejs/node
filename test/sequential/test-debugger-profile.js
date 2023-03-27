@@ -14,7 +14,7 @@ function delay(ms) {
 
 // Profiles.
 {
-  const cli = startCLI([fixtures.path('debugger/empty.js')]);
+  const cli = startCLI(['--port=0', fixtures.path('debugger/empty.js')]);
 
   function onFatal(error) {
     cli.quit();
