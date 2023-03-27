@@ -1214,7 +1214,7 @@ path to the blob that is used to restore the application state.
 
 When loading a snapshot, Node.js checks that:
 
-1. The version, architecture and platform of the running Node.js binary
+1. The version, architecture, and platform of the running Node.js binary
    are exactly the same as that of the binary that generates the snapshot.
 2. The V8 flags and CPU features are compatible with that of the binary
    that generates the snapshot.
