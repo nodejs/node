@@ -17,7 +17,7 @@ const filename = path.join(tmpdir.path, 'node.heapsnapshot');
 // Heap profiler take snapshot.
 {
   const opts = { cwd: tmpdir.path };
-  const cli = startCLI([fixtures.path('debugger/empty.js')], [], opts);
+  const cli = startCLI(['--port=0', fixtures.path('debugger/empty.js')], [], opts);
 
   async function waitInitialBreak() {
     try {
