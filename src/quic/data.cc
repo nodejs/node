@@ -11,8 +11,8 @@ namespace node {
 using v8::Array;
 using v8::BigInt;
 using v8::Integer;
-using v8::MaybeLocal;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Undefined;
 using v8::Value;
 

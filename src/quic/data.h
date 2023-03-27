@@ -51,10 +51,10 @@ class Store final : public MemoryRetainer {
   SET_SELF_SIZE(Store);
 
  private:
-   template <typename T, typename t> T convert() const;
-   std::shared_ptr<v8::BackingStore> store_;
-   size_t length_ = 0;
-   size_t offset_ = 0;
+  template <typename T, typename t> T convert() const;
+  std::shared_ptr<v8::BackingStore> store_;
+  size_t length_ = 0;
+  size_t offset_ = 0;
 };
 
 class QuicError final : public MemoryRetainer {
