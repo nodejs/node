@@ -62,8 +62,8 @@ class QuicError final : public MemoryRetainer {
  public:
   using error_code = uint64_t;
 
-  static constexpr error_code NO_ERROR = NGTCP2_NO_ERROR;
-  static constexpr error_code APP_NO_ERROR = 65280;
+  static constexpr error_code QUIC_NO_ERROR = NGTCP2_NO_ERROR;
+  static constexpr error_code QUIC_APP_NO_ERROR = 65280;
 
   enum class Type {
     TRANSPORT = NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT,

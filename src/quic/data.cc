@@ -127,8 +127,8 @@ QuicError::QuicError(const ngtcp2_connection_close_error& error)
       ptr_(&error_) {}
 
 QuicError::operator bool() const {
-  if ((code() == NO_ERROR && type() == Type::TRANSPORT) ||
-      ((code() == APP_NO_ERROR && type() == Type::APPLICATION))) {
+  if ((code() == QUIC_NO_ERROR && type() == Type::TRANSPORT) ||
+      ((code() == QUIC_APP_NO_ERROR && type() == Type::APPLICATION))) {
     return false;
   }
   return true;
@@ -243,9 +243,9 @@ QuicError QuicError::FromConnectionClose(ngtcp2_conn* session) {
 }
 
 QuicError QuicError::TRANSPORT_NO_ERROR =
-    QuicError::ForTransport(QuicError::NO_ERROR);
+    QuicError::ForTransport(QuicError::QUIC_NO_ERROR);
 QuicError QuicError::APPLICATION_NO_ERROR =
-    QuicError::ForApplication(QuicError::APP_NO_ERROR);
+    QuicError::ForApplication(QuicError::QUIC_APP_NO_ERROR);
 QuicError QuicError::VERSION_NEGOTIATION = QuicError::ForVersionNegotiation();
 QuicError QuicError::IDLE_CLOSE = QuicError::ForIdleClose();
 QuicError QuicError::INTERNAL_ERROR =

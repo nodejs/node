@@ -98,9 +98,9 @@ Maybe<PreferredAddress::Policy> PreferredAddress::GetPolicy(
   if (value->Uint32Value(env->context()).To(&val)) {
     switch (val) {
       case QUIC_PREFERRED_ADDRESS_USE:
-        return Just(Policy::USE);
+        return Just(Policy::USE_PREFERRED_ADDRESS);
       case QUIC_PREFERRED_ADDRESS_IGNORE:
-        return Just(Policy::IGNORE);
+        return Just(Policy::IGNORE_PREFERRED_ADDRESS);
     }
   }
   THROW_ERR_INVALID_ARG_VALUE(
