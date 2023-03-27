@@ -47,8 +47,8 @@ class Store final : public MemoryRetainer {
   size_t length() const;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(Store);
-  SET_SELF_SIZE(Store);
+  SET_MEMORY_INFO_NAME(Store)
+  SET_SELF_SIZE(Store)
 
  private:
   template <typename T, typename t>
@@ -98,8 +98,8 @@ class QuicError final : public MemoryRetainer {
   bool operator!=(const QuicError& other) const;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(QuicError);
-  SET_SELF_SIZE(QuicError);
+  SET_MEMORY_INFO_NAME(QuicError)
+  SET_SELF_SIZE(QuicError)
 
   std::string ToString() const;
   v8::MaybeLocal<v8::Value> ToV8Value(Environment* env) const;

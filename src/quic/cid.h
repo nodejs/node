@@ -69,9 +69,9 @@ class CID final : public MemoryRetainer {
 
   std::string ToString() const;
 
-  SET_NO_MEMORY_INFO();
-  SET_MEMORY_INFO_NAME(CID);
-  SET_SELF_SIZE(CID);
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(CID)
+  SET_SELF_SIZE(CID)
 
   template <typename T>
   using Map = std::unordered_map<CID, T, CID::Hash>;
