@@ -1,8 +1,8 @@
 #include "data.h"
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
-#include <node_sockaddr-inl.h>
 #include <ngtcp2/ngtcp2.h>
+#include <node_sockaddr-inl.h>
 #include <v8.h>
 #include "util.h"
 
@@ -23,27 +23,27 @@ Path::Path(const SocketAddress& local, const SocketAddress& remote) {
   ngtcp2_addr_init(&this->remote, remote.data(), remote.length());
 }
 
-PathStorage::PathStorage() { ngtcp2_path_storage_zero(this); }
-PathStorage::operator ngtcp2_path() { return path; }
+PathStorage::PathStorage() {
+  ngtcp2_path_storage_zero(this);
+}
+PathStorage::operator ngtcp2_path() {
+  return path;
+}
 
 // ============================================================================
 
 Store::Store(std::shared_ptr<v8::BackingStore> store,
-    size_t length,
-    size_t offset)
-    : store_(std::move(store)),
-      length_(length),
-      offset_(offset) {
+             size_t length,
+             size_t offset)
+    : store_(std::move(store)), length_(length), offset_(offset) {
   CHECK_LE(offset_, store->ByteLength());
   CHECK_LE(length_, store->ByteLength() - offset_);
 }
 
 Store::Store(std::unique_ptr<v8::BackingStore> store,
-    size_t length,
-    size_t offset)
-    : store_(std::move(store)),
-      length_(length),
-      offset_(offset) {
+             size_t length,
+             size_t offset)
+    : store_(std::move(store)), length_(length), offset_(offset) {
   CHECK_LE(offset_, store->ByteLength());
   CHECK_LE(length_, store->ByteLength() - offset_);
 }
@@ -64,15 +64,18 @@ Store::Store(v8::Local<v8::ArrayBufferView> view, Option option)
   }
 }
 
-Store::operator bool() const { return store_ != nullptr; }
-size_t Store::length() const { return length_; }
+Store::operator bool() const {
+  return store_ != nullptr;
+}
+size_t Store::length() const {
+  return length_;
+}
 
 template <typename T, typename t>
 T Store::convert() const {
   T buf;
-  buf.base = store_ != nullptr ?
-      static_cast<t*>(store_->Data()) + offset_ :
-      nullptr;
+  buf.base =
+      store_ != nullptr ? static_cast<t*>(store_->Data()) + offset_ : nullptr;
   buf.len = length_;
   return buf;
 }
@@ -98,18 +101,21 @@ void Store::MemoryInfo(MemoryTracker* tracker) const {
 namespace {
 std::string TypeName(QuicError::Type type) {
   switch (type) {
-    case QuicError::Type::APPLICATION: return "APPLICATION";
-    case QuicError::Type::TRANSPORT: return "TRANSPORT";
-    case QuicError::Type::VERSION_NEGOTIATION: return "VERSION_NEGOTIATION";
-    case QuicError::Type::IDLE_CLOSE: return "IDLE_CLOSE";
+    case QuicError::Type::APPLICATION:
+      return "APPLICATION";
+    case QuicError::Type::TRANSPORT:
+      return "TRANSPORT";
+    case QuicError::Type::VERSION_NEGOTIATION:
+      return "VERSION_NEGOTIATION";
+    case QuicError::Type::IDLE_CLOSE:
+      return "IDLE_CLOSE";
   }
   UNREACHABLE();
 }
 }  // namespace
 
 QuicError::QuicError(const std::string_view reason)
-    : reason_(reason),
-      ptr_(&error_) {}
+    : reason_(reason), ptr_(&error_) {}
 
 QuicError::QuicError(const ngtcp2_connection_close_error* ptr)
     : reason_(reinterpret_cast<const char*>(ptr->reason), ptr->reasonlen),
@@ -122,7 +128,7 @@ QuicError::QuicError(const ngtcp2_connection_close_error& error)
 
 QuicError::operator bool() const {
   if ((code() == NO_ERROR && type() == Type::TRANSPORT) ||
-     ((code() == APP_NO_ERROR && type() == Type::APPLICATION))) {
+      ((code() == APP_NO_ERROR && type() == Type::APPLICATION))) {
     return false;
   }
   return true;
@@ -138,8 +144,7 @@ bool QuicError::operator!=(const QuicError& other) const {
 
 bool QuicError::operator==(const QuicError& other) const {
   if (this == &other) return true;
-  return type() == other.type() &&
-         code() == other.code() &&
+  return type() == other.type() && code() == other.code() &&
          frame_type() == other.frame_type();
 }
 
@@ -169,9 +174,9 @@ QuicError::operator const ngtcp2_connection_close_error*() const {
 
 MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
   Local<Value> argv[] = {
-    Integer::New(env->isolate(), static_cast<int>(type())),
-    BigInt::NewFromUnsigned(env->isolate(), code()),
-    Undefined(env->isolate()),
+      Integer::New(env->isolate(), static_cast<int>(type())),
+      BigInt::NewFromUnsigned(env->isolate(), code()),
+      Undefined(env->isolate()),
   };
 
   if (reason_.length() > 0 &&
@@ -193,61 +198,41 @@ void QuicError::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("reason", reason_.length());
 }
 
-QuicError QuicError::ForTransport(
-    error_code code,
-    const std::string_view reason) {
+QuicError QuicError::ForTransport(error_code code,
+                                  const std::string_view reason) {
   QuicError error(reason);
   ngtcp2_connection_close_error_set_transport_error(
-      &error.error_,
-      code,
-      error.reason_c_str(),
-      reason.length());
+      &error.error_, code, error.reason_c_str(), reason.length());
   return error;
 }
 
-QuicError QuicError::ForApplication(
-    error_code code,
-    const std::string_view reason) {
+QuicError QuicError::ForApplication(error_code code,
+                                    const std::string_view reason) {
   QuicError error(reason);
   ngtcp2_connection_close_error_set_application_error(
-      &error.error_,
-      code,
-      error.reason_c_str(),
-      reason.length());
+      &error.error_, code, error.reason_c_str(), reason.length());
   return error;
 }
 
-QuicError QuicError::ForVersionNegotiation(
-    const std::string_view reason) {
+QuicError QuicError::ForVersionNegotiation(const std::string_view reason) {
   return ForNgtcp2Error(NGTCP2_ERR_RECV_VERSION_NEGOTIATION, reason);
 }
 
-QuicError QuicError::ForIdleClose(
-    const std::string_view reason) {
+QuicError QuicError::ForIdleClose(const std::string_view reason) {
   return ForNgtcp2Error(NGTCP2_ERR_IDLE_CLOSE, reason);
 }
 
-QuicError QuicError::ForNgtcp2Error(
-    int code,
-    const std::string_view reason) {
+QuicError QuicError::ForNgtcp2Error(int code, const std::string_view reason) {
   QuicError error(reason);
   ngtcp2_connection_close_error_set_transport_error_liberr(
-      &error.error_,
-      code,
-      error.reason_c_str(),
-      reason.length());
+      &error.error_, code, error.reason_c_str(), reason.length());
   return error;
 }
 
-QuicError QuicError::ForTlsAlert(
-    int code,
-    const std::string_view reason) {
+QuicError QuicError::ForTlsAlert(int code, const std::string_view reason) {
   QuicError error(reason);
   ngtcp2_connection_close_error_set_transport_error_tls_alert(
-      &error.error_,
-      code,
-      error.reason_c_str(),
-      reason.length());
+      &error.error_, code, error.reason_c_str(), reason.length());
   return error;
 }
 
@@ -261,10 +246,8 @@ QuicError QuicError::TRANSPORT_NO_ERROR =
     QuicError::ForTransport(QuicError::NO_ERROR);
 QuicError QuicError::APPLICATION_NO_ERROR =
     QuicError::ForApplication(QuicError::APP_NO_ERROR);
-QuicError QuicError::VERSION_NEGOTIATION =
-    QuicError::ForVersionNegotiation();
-QuicError QuicError::IDLE_CLOSE =
-    QuicError::ForIdleClose();
+QuicError QuicError::VERSION_NEGOTIATION = QuicError::ForVersionNegotiation();
+QuicError QuicError::IDLE_CLOSE = QuicError::ForIdleClose();
 QuicError QuicError::INTERNAL_ERROR =
     QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL);
 

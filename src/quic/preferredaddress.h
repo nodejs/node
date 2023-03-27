@@ -3,8 +3,8 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <env.h>
-#include <node_internals.h>
 #include <ngtcp2/ngtcp2.h>
+#include <node_internals.h>
 #include <v8.h>
 #include <string>
 

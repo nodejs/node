@@ -1,9 +1,9 @@
 #include "preferredaddress.h"
 #include <env-inl.h>
+#include <ngtcp2/ngtcp2.h>
 #include <node_errors.h>
 #include <node_sockaddr-inl.h>
 #include <util-inl.h>
-#include <ngtcp2/ngtcp2.h>
 #include <uv.h>
 #include <v8.h>
 
@@ -26,8 +26,8 @@ std::optional<const PreferredAddress::AddressInfo> get_address_info(
     PreferredAddress::AddressInfo address;
     address.family = FAMILY;
     address.port = paddr.ipv4_port;
-    if (uv_inet_ntop(FAMILY, paddr.ipv4_addr,
-                     address.host, sizeof(address.host)) == 0) {
+    if (uv_inet_ntop(
+            FAMILY, paddr.ipv4_addr, address.host, sizeof(address.host)) == 0) {
       address.address = address.host;
     }
     return address;
@@ -36,8 +36,8 @@ std::optional<const PreferredAddress::AddressInfo> get_address_info(
     PreferredAddress::AddressInfo address;
     address.family = FAMILY;
     address.port = paddr.ipv6_port;
-    if (uv_inet_ntop(FAMILY, paddr.ipv6_addr,
-                     address.host, sizeof(address.host)) == 0) {
+    if (uv_inet_ntop(
+            FAMILY, paddr.ipv6_addr, address.host, sizeof(address.host)) == 0) {
       address.address = address.host;
     }
     return address;
@@ -45,9 +45,8 @@ std::optional<const PreferredAddress::AddressInfo> get_address_info(
 }
 
 template <int FAMILY>
-void copy_to_transport_params(
-    ngtcp2_transport_params* params,
-    const sockaddr* addr) {
+void copy_to_transport_params(ngtcp2_transport_params* params,
+                              const sockaddr* addr) {
   params->preferred_address_present = true;
   if constexpr (FAMILY == AF_INET) {
     const sockaddr_in* src = reinterpret_cast<const sockaddr_in*>(addr);
@@ -87,23 +86,25 @@ bool resolve(const PreferredAddress::AddressInfo& address,
                         // more efficient conversion. For now, however, this
                         // works.
                         std::to_string(address.port).c_str(),
-                        &hints) == 0 && req->addrinfo != nullptr;
+                        &hints) == 0 &&
+         req->addrinfo != nullptr;
 }
 }  // namespace
 
 Maybe<PreferredAddress::Policy> PreferredAddress::GetPolicy(
-    Environment* env,
-    Local<Value> value) {
+    Environment* env, Local<Value> value) {
   CHECK(value->IsUint32());
   uint32_t val = 0;
   if (value->Uint32Value(env->context()).To(&val)) {
     switch (val) {
-      case QUIC_PREFERRED_ADDRESS_USE: return Just(Policy::USE);
-      case QUIC_PREFERRED_ADDRESS_IGNORE: return Just(Policy::IGNORE);
+      case QUIC_PREFERRED_ADDRESS_USE:
+        return Just(Policy::USE);
+      case QUIC_PREFERRED_ADDRESS_IGNORE:
+        return Just(Policy::IGNORE);
     }
   }
-  THROW_ERR_INVALID_ARG_VALUE(env,
-      "%d is not a valid preferred address policy", val);
+  THROW_ERR_INVALID_ARG_VALUE(
+      env, "%d is not a valid preferred address policy", val);
   return Nothing<Policy>();
 }
 
@@ -114,13 +115,13 @@ PreferredAddress::PreferredAddress(ngtcp2_path* dest,
   DCHECK_NOT_NULL(dest);
 }
 
-std::optional<const PreferredAddress::AddressInfo>
-PreferredAddress::ipv4() const {
+std::optional<const PreferredAddress::AddressInfo> PreferredAddress::ipv4()
+    const {
   return get_address_info<AF_INET>(*paddr_);
 }
 
-std::optional<const PreferredAddress::AddressInfo>
-PreferredAddress::ipv6() const {
+std::optional<const PreferredAddress::AddressInfo> PreferredAddress::ipv6()
+    const {
   return get_address_info<AF_INET6>(*paddr_);
 }
 
@@ -137,14 +138,15 @@ void PreferredAddress::Use(const AddressInfo& address) {
   }
 }
 
-void PreferredAddress::Set(
-    ngtcp2_transport_params* params,
-    const sockaddr* addr) {
+void PreferredAddress::Set(ngtcp2_transport_params* params,
+                           const sockaddr* addr) {
   DCHECK_NOT_NULL(params);
   DCHECK_NOT_NULL(addr);
   switch (addr->sa_family) {
-    case AF_INET: return copy_to_transport_params<AF_INET>(params, addr);
-    case AF_INET6: return copy_to_transport_params<AF_INET6>(params, addr);
+    case AF_INET:
+      return copy_to_transport_params<AF_INET>(params, addr);
+    case AF_INET6:
+      return copy_to_transport_params<AF_INET6>(params, addr);
   }
   // Any other value is just ignored.
 }

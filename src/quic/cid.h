@@ -33,7 +33,7 @@ namespace quic {
 // While the connection is being established, it is possible for either
 // peer to generate additional CIDs that are also associated with the
 // connection.
-class CID final: public MemoryRetainer {
+class CID final : public MemoryRetainer {
  public:
   static constexpr size_t kMinLength = NGTCP2_MIN_CIDLEN;
   static constexpr size_t kMaxLength = NGTCP2_MAX_CIDLEN;

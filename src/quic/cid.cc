@@ -1,8 +1,8 @@
 #include "cid.h"
+#include <crypto/crypto_util.h>
 #include <memory_tracker-inl.h>
 #include <node_mutex.h>
 #include <string_bytes.h>
-#include <crypto/crypto_util.h>
 
 namespace node {
 namespace quic {
@@ -10,7 +10,9 @@ namespace quic {
 // ============================================================================
 // CID
 
-CID::CID() : ptr_(&cid_) { cid_.datalen = 0; }
+CID::CID() : ptr_(&cid_) {
+  cid_.datalen = 0;
+}
 
 CID::CID(const ngtcp2_cid& cid) : CID() {
   DCHECK_GE(cid.datalen, kMinLength);
@@ -36,8 +38,7 @@ CID::CID(const CID& other) : ptr_(&cid_) {
 }
 
 bool CID::operator==(const CID& other) const noexcept {
-  if (this == &other || (length() == 0 && other.length() == 0))
-    return true;
+  if (this == &other || (length() == 0 && other.length() == 0)) return true;
   if (length() != other.length()) return false;
   return memcmp(ptr_->data, other.ptr_->data, ptr_->datalen) == 0;
 }
@@ -46,12 +47,22 @@ bool CID::operator!=(const CID& other) const noexcept {
   return !(*this == other);
 }
 
-CID::operator const uint8_t*() const { return ptr_->data; }
-CID::operator const ngtcp2_cid&() const { return *ptr_; }
-CID::operator const ngtcp2_cid*() const { return ptr_; }
-CID::operator bool() const { return ptr_->datalen >= kMinLength; }
+CID::operator const uint8_t*() const {
+  return ptr_->data;
+}
+CID::operator const ngtcp2_cid&() const {
+  return *ptr_;
+}
+CID::operator const ngtcp2_cid*() const {
+  return ptr_;
+}
+CID::operator bool() const {
+  return ptr_->datalen >= kMinLength;
+}
 
-size_t CID::length() const { return ptr_->datalen; }
+size_t CID::length() const {
+  return ptr_->datalen;
+}
 
 std::string CID::ToString() const {
   char dest[kMaxLength * 2];
@@ -63,7 +74,7 @@ std::string CID::ToString() const {
   return std::string(dest, written);
 }
 
-CID CID::kInvalid {};
+CID CID::kInvalid{};
 
 // ============================================================================
 // CID::Hash
@@ -71,8 +82,8 @@ CID CID::kInvalid {};
 size_t CID::Hash::operator()(const CID& cid) const {
   size_t hash = 0;
   for (size_t n = 0; n < cid.length(); n++) {
-    hash ^= std::hash<uint8_t>{}(cid.ptr_->data[n] + 0x9e3779b9 +
-        (hash << 6) + (hash >> 2));
+    hash ^= std::hash<uint8_t>{}(cid.ptr_->data[n] + 0x9e3779b9 + (hash << 6) +
+                                 (hash >> 2));
   }
   return hash;
 }

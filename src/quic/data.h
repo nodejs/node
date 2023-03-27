@@ -3,10 +3,10 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <memory_tracker.h>
+#include <nghttp3/nghttp3.h>
+#include <ngtcp2/ngtcp2.h>
 #include <node_internals.h>
 #include <node_sockaddr.h>
-#include <ngtcp2/ngtcp2.h>
-#include <nghttp3/nghttp3.h>
 #include <v8.h>
 
 namespace node {
@@ -16,7 +16,7 @@ struct Path final : public ngtcp2_path {
   Path(const SocketAddress& local, const SocketAddress& remote);
 };
 
-struct PathStorage final: public ngtcp2_path_storage {
+struct PathStorage final : public ngtcp2_path_storage {
   PathStorage();
   operator ngtcp2_path();
 };
@@ -51,7 +51,8 @@ class Store final : public MemoryRetainer {
   SET_SELF_SIZE(Store);
 
  private:
-  template <typename T, typename t> T convert() const;
+  template <typename T, typename t>
+  T convert() const;
   std::shared_ptr<v8::BackingStore> store_;
   size_t length_ = 0;
   size_t offset_ = 0;
