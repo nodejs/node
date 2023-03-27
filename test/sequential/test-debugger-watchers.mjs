@@ -7,7 +7,7 @@ import startCLI from '../common/debugger.js';
 import assert from 'assert';
 
 const script = path('debugger', 'break.js');
-const cli = startCLI([script]);
+const cli = startCLI(['--port=0', script]);
 
 function onFatal(error) {
   cli.quit();

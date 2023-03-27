@@ -11,7 +11,7 @@ const assert = require('assert');
 // Test for files that start with strict directive.
 {
   const script = fixtures.path('debugger', 'use-strict.js');
-  const cli = startCLI([script]);
+  const cli = startCLI(['--port=0', script]);
 
   function onFatal(error) {
     cli.quit();
