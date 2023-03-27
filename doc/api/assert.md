@@ -348,7 +348,7 @@ const callsfunc = tracker.calls(func);
 callsfunc(1, 2, 3);
 
 assert.deepStrictEqual(tracker.getCalls(callsfunc),
-                       [{ thisArg: undefined, arguments: [1, 2, 3 ] }]);
+                       [{ thisArg: this, arguments: [1, 2, 3] }]);
 ```
 
 ```cjs
@@ -362,7 +362,7 @@ const callsfunc = tracker.calls(func);
 callsfunc(1, 2, 3);
 
 assert.deepStrictEqual(tracker.getCalls(callsfunc),
-                       [{ thisArg: undefined, arguments: [1, 2, 3 ] }]);
+                       [{ thisArg: undefined, arguments: [1, 2, 3] }]);
 ```
 
 ### `tracker.report()`
