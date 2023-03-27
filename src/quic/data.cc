@@ -4,10 +4,16 @@
 #include <node_sockaddr-inl.h>
 #include <ngtcp2/ngtcp2.h>
 #include <v8.h>
+#include "util.h"
 
 namespace node {
 
+using v8::Array;
+using v8::BigInt;
+using v8::Integer;
+using v8::MaybeLocal;
 using v8::Local;
+using v8::Undefined;
 using v8::Value;
 
 namespace quic {
@@ -86,6 +92,181 @@ Store::operator nghttp3_vec() const {
 void Store::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("store", store_);
 }
+
+// ============================================================================
+
+namespace {
+std::string TypeName(QuicError::Type type) {
+  switch (type) {
+    case QuicError::Type::APPLICATION: return "APPLICATION";
+    case QuicError::Type::TRANSPORT: return "TRANSPORT";
+    case QuicError::Type::VERSION_NEGOTIATION: return "VERSION_NEGOTIATION";
+    case QuicError::Type::IDLE_CLOSE: return "IDLE_CLOSE";
+  }
+  UNREACHABLE();
+}
+}  // namespace
+
+QuicError::QuicError(const std::string_view reason)
+    : reason_(reason),
+      ptr_(&error_) {}
+
+QuicError::QuicError(const ngtcp2_connection_close_error* ptr)
+    : reason_(reinterpret_cast<const char*>(ptr->reason), ptr->reasonlen),
+      ptr_(ptr) {}
+
+QuicError::QuicError(const ngtcp2_connection_close_error& error)
+    : reason_(reinterpret_cast<const char*>(error.reason), error.reasonlen),
+      error_(error),
+      ptr_(&error_) {}
+
+QuicError::operator bool() const {
+  if ((code() == NO_ERROR && type() == Type::TRANSPORT) ||
+     ((code() == APP_NO_ERROR && type() == Type::APPLICATION))) {
+    return false;
+  }
+  return true;
+}
+
+const uint8_t* QuicError::reason_c_str() const {
+  return reinterpret_cast<const uint8_t*>(reason_.c_str());
+}
+
+bool QuicError::operator!=(const QuicError& other) const {
+  return !(*this == other);
+}
+
+bool QuicError::operator==(const QuicError& other) const {
+  if (this == &other) return true;
+  return type() == other.type() &&
+         code() == other.code() &&
+         frame_type() == other.frame_type();
+}
+
+QuicError::Type QuicError::type() const {
+  return static_cast<Type>(ptr_->type);
+}
+
+QuicError::error_code QuicError::code() const {
+  return ptr_->error_code;
+}
+
+uint64_t QuicError::frame_type() const {
+  return ptr_->frame_type;
+}
+
+const std::string_view QuicError::reason() const {
+  return reason_;
+}
+
+QuicError::operator const ngtcp2_connection_close_error&() const {
+  return *ptr_;
+}
+
+QuicError::operator const ngtcp2_connection_close_error*() const {
+  return ptr_;
+}
+
+MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
+  Local<Value> argv[] = {
+    Integer::New(env->isolate(), static_cast<int>(type())),
+    BigInt::NewFromUnsigned(env->isolate(), code()),
+    Undefined(env->isolate()),
+  };
+
+  if (reason_.length() > 0 &&
+      !node::ToV8Value(env->context(), reason()).ToLocal(&argv[2])) {
+    return MaybeLocal<Value>();
+  }
+  return Array::New(env->isolate(), argv, arraysize(argv)).As<Value>();
+}
+
+std::string QuicError::ToString() const {
+  std::string str = "QuicError(";
+  str += TypeName(type()) + ") ";
+  str += std::to_string(code());
+  if (!reason_.empty()) str += ": " + reason_;
+  return str;
+}
+
+void QuicError::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("reason", reason_.length());
+}
+
+QuicError QuicError::ForTransport(
+    error_code code,
+    const std::string_view reason) {
+  QuicError error(reason);
+  ngtcp2_connection_close_error_set_transport_error(
+      &error.error_,
+      code,
+      error.reason_c_str(),
+      reason.length());
+  return error;
+}
+
+QuicError QuicError::ForApplication(
+    error_code code,
+    const std::string_view reason) {
+  QuicError error(reason);
+  ngtcp2_connection_close_error_set_application_error(
+      &error.error_,
+      code,
+      error.reason_c_str(),
+      reason.length());
+  return error;
+}
+
+QuicError QuicError::ForVersionNegotiation(
+    const std::string_view reason) {
+  return ForNgtcp2Error(NGTCP2_ERR_RECV_VERSION_NEGOTIATION, reason);
+}
+
+QuicError QuicError::ForIdleClose(
+    const std::string_view reason) {
+  return ForNgtcp2Error(NGTCP2_ERR_IDLE_CLOSE, reason);
+}
+
+QuicError QuicError::ForNgtcp2Error(
+    int code,
+    const std::string_view reason) {
+  QuicError error(reason);
+  ngtcp2_connection_close_error_set_transport_error_liberr(
+      &error.error_,
+      code,
+      error.reason_c_str(),
+      reason.length());
+  return error;
+}
+
+QuicError QuicError::ForTlsAlert(
+    int code,
+    const std::string_view reason) {
+  QuicError error(reason);
+  ngtcp2_connection_close_error_set_transport_error_tls_alert(
+      &error.error_,
+      code,
+      error.reason_c_str(),
+      reason.length());
+  return error;
+}
+
+QuicError QuicError::FromConnectionClose(ngtcp2_conn* session) {
+  QuicError error;
+  ngtcp2_conn_get_connection_close_error(session, &error.error_);
+  return error;
+}
+
+QuicError QuicError::TRANSPORT_NO_ERROR =
+    QuicError::ForTransport(QuicError::NO_ERROR);
+QuicError QuicError::APPLICATION_NO_ERROR =
+    QuicError::ForApplication(QuicError::APP_NO_ERROR);
+QuicError QuicError::VERSION_NEGOTIATION =
+    QuicError::ForVersionNegotiation();
+QuicError QuicError::IDLE_CLOSE =
+    QuicError::ForIdleClose();
+QuicError QuicError::INTERNAL_ERROR =
+    QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL);
 
 }  // namespace quic
 }  // namespace node

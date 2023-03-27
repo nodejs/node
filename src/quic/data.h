@@ -57,6 +57,77 @@ class Store final : public MemoryRetainer {
    size_t offset_ = 0;
 };
 
+class QuicError final : public MemoryRetainer {
+ public:
+  using error_code = uint64_t;
+
+  static constexpr error_code NO_ERROR = NGTCP2_NO_ERROR;
+  static constexpr error_code APP_NO_ERROR = 65280;
+
+  enum class Type {
+    TRANSPORT = NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT,
+    APPLICATION = NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION,
+    VERSION_NEGOTIATION =
+        NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_VERSION_NEGOTIATION,
+    IDLE_CLOSE = NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_IDLE_CLOSE,
+  };
+
+  static constexpr error_code QUIC_ERROR_TYPE_TRANSPORT =
+      NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT;
+  static constexpr error_code QUIC_ERROR_TYPE_APPLICATION =
+      NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION;
+
+  explicit QuicError(const std::string_view reason = "");
+  explicit QuicError(const ngtcp2_connection_close_error* ptr);
+  explicit QuicError(const ngtcp2_connection_close_error& error);
+
+  Type type() const;
+  error_code code() const;
+  const std::string_view reason() const;
+  uint64_t frame_type() const;
+
+  operator const ngtcp2_connection_close_error&() const;
+  operator const ngtcp2_connection_close_error*() const;
+
+  // Returns false if the QuicError uses a no_error code with type
+  // transport or application.
+  operator bool() const;
+
+  bool operator==(const QuicError& other) const;
+  bool operator!=(const QuicError& other) const;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(QuicError);
+  SET_SELF_SIZE(QuicError);
+
+  std::string ToString() const;
+  v8::MaybeLocal<v8::Value> ToV8Value(Environment* env) const;
+
+  static QuicError ForTransport(error_code code,
+                                const std::string_view reason = "");
+  static QuicError ForApplication(error_code code,
+                                  const std::string_view reason = "");
+  static QuicError ForVersionNegotiation(const std::string_view reason = "");
+  static QuicError ForIdleClose(const std::string_view reason = "");
+  static QuicError ForNgtcp2Error(int code, const std::string_view reason = "");
+  static QuicError ForTlsAlert(int code, const std::string_view reason = "");
+
+  static QuicError FromConnectionClose(ngtcp2_conn* session);
+
+  static QuicError TRANSPORT_NO_ERROR;
+  static QuicError APPLICATION_NO_ERROR;
+  static QuicError VERSION_NEGOTIATION;
+  static QuicError IDLE_CLOSE;
+  static QuicError INTERNAL_ERROR;
+
+ private:
+  const uint8_t* reason_c_str() const;
+
+  std::string reason_;
+  ngtcp2_connection_close_error error_;
+  const ngtcp2_connection_close_error* ptr_ = nullptr;
+};
+
 }  // namespace quic
 }  // namespace node
 
