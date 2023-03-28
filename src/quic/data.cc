@@ -15,6 +15,7 @@ using v8::BigInt;
 using v8::Integer;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::Uint8Array;
 using v8::Undefined;
 using v8::Value;
 
@@ -64,6 +65,14 @@ Store::Store(v8::Local<v8::ArrayBufferView> view, Option option)
   if (option == Option::DETACH) {
     USE(view->Buffer()->Detach(Local<Value>()));
   }
+}
+
+v8::Local<v8::Uint8Array> Store::ToUint8Array(Environment* env) const {
+  return !store_
+             ? Uint8Array::New(v8::ArrayBuffer::New(env->isolate(), 0), 0, 0)
+             : Uint8Array::New(v8::ArrayBuffer::New(env->isolate(), store_),
+                               offset_,
+                               length_);
 }
 
 Store::operator bool() const {

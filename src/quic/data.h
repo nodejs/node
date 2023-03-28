@@ -3,6 +3,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
+#include <env.h>
 #include <memory_tracker.h>
 #include <nghttp3/nghttp3.h>
 #include <ngtcp2/ngtcp2.h>
@@ -40,6 +41,8 @@ class Store final : public MemoryRetainer {
 
   Store(v8::Local<v8::ArrayBuffer> buffer, Option option = Option::NONE);
   Store(v8::Local<v8::ArrayBufferView> view, Option option = Option::NONE);
+
+  v8::Local<v8::Uint8Array> ToUint8Array(Environment* env) const;
 
   operator uv_buf_t() const;
   operator ngtcp2_vec() const;
