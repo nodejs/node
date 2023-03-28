@@ -520,6 +520,10 @@ test('spies on an object method', (t) => {
 added:
   - v19.6.0
   - v18.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47238
+    description: Reporters are now exposed at `node:test/reporters`.
 -->
 
 The `node:test` module supports passing [`--test-reporter`][]
@@ -545,6 +549,16 @@ The exact output of these reporters is subject to change between versions of
 Node.js, and should not be relied on programmatically. If programmatic access
 to the test runner's output is required, use the events emitted by the
 {TestsStream}.
+
+The reporters are available via the `node:test/reporters` module:
+
+```mjs
+import { tap, spec, dot } from 'node:test/reporters';
+```
+
+```cjs
+const { tap, spec, dot } = require('node:test/reporters');
+```
 
 ### Custom reporters
 
@@ -739,8 +753,20 @@ added:
     **Default:** `undefined`.
 * Returns: {TestsStream}
 
-```js
+```mjs
+import { tap } from 'node:test/reporters';
+import process from 'node:process';
+
 run({ files: [path.resolve('./tests/test.js')] })
+  .compose(tap)
+  .pipe(process.stdout);
+```
+
+```cjs
+const { tap } = require('node:test/reporters');
+
+run({ files: [path.resolve('./tests/test.js')] })
+  .compose(tap)
   .pipe(process.stdout);
 ```
 
