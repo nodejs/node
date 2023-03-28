@@ -190,7 +190,6 @@ class EnvironmentOptions : public Options {
 
   bool syntax_check_only = false;
   bool has_eval_string = false;
-  bool experimental_wasi = false;
   std::string eval_string;
   bool print_eval = false;
   bool force_repl = false;
