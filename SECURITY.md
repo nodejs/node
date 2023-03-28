@@ -116,7 +116,8 @@ lead to a loss of confidentiality, integrity, or availability.
    npm registry.
    The code run inherits all the privileges of the execution user.
 4. Inputs provided to it by the code it is asked to run, as it is the
-   responsibility of the application to perform the required input validations.
+   responsibility of the application to perform the required input validations,
+   e.g. the input to `JSON.parse()`.
 5. Any connection used for inspector (debugger protocol) regardless of being
    opened by command line options or Node.js APIs, and regardless of the remote
    end being on the local machine or remote.
@@ -124,7 +125,8 @@ lead to a loss of confidentiality, integrity, or availability.
    See <https://nodejs.org/api/modules.html#all-together>.
 
 Any unexpected behavior from the data manipulation from Node.js Internal
-functions are considered a vulnerability.
+functions may be considered a vulnerability if they are expoitable via
+untrusted resources.
 
 In addition to addressing vulnerabilities based on the above, the project works
 to avoid APIs and internal implementations that make it "easy" for application
