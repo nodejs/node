@@ -1,8 +1,8 @@
 name: Timezone update
 on:
   schedule:
-    # Run once a week at 00:05 AM UTC on Sunday.
-    - cron: 5 0 * * 0
+    # Run everyday at 00:05 AM UTC.
+    - cron: 5 0 * * *
 
   workflow_dispatch:
 
