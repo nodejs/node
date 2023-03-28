@@ -88,7 +88,6 @@ if (process.argv[2] === 'wasi-child-default') {
 
     const child = cp.spawnSync(process.execPath, [
       ...args,
-      '--experimental-wasi-unstable-preview1',
       __filename,
       'wasi-child-' + flavor,
       options.test,
