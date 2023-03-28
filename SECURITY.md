@@ -193,7 +193,7 @@ the community they pose.
 
 * If Node.js is asked to connect to a remote site and return an
   artifact, it is not considered a vulnerability if the size of
-  that artifact is large enough to impact performance and or
+  that artifact is large enough to impact performance or
   cause the runtime to run out of resources.
 
 ## Receiving security updates
