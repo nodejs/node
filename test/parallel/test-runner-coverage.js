@@ -94,7 +94,7 @@ test('test tap coverage reporter', async (t) => {
     }
 
     const fixture = fixtures.path('test-runner', 'coverage.js');
-    const args = ['--experimental-test-coverage', fixture];
+    const args = ['--experimental-test-coverage', '--test-reporter', 'tap', fixture];
     const options = { env: { ...process.env, NODE_V8_COVERAGE: tmpdir.path } };
     const result = spawnSync(process.execPath, args, options);
     const report = getTapCoverageFixtureReport();
@@ -111,7 +111,7 @@ test('test tap coverage reporter', async (t) => {
     }
 
     const fixture = fixtures.path('test-runner', 'coverage.js');
-    const args = ['--experimental-test-coverage', fixture];
+    const args = ['--experimental-test-coverage', '--test-reporter', 'tap', fixture];
     const result = spawnSync(process.execPath, args);
     const report = getTapCoverageFixtureReport();
 
