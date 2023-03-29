@@ -38,16 +38,16 @@ Store::Store(std::shared_ptr<v8::BackingStore> store,
              size_t length,
              size_t offset)
     : store_(std::move(store)), length_(length), offset_(offset) {
-  CHECK_LE(offset_, store->ByteLength());
-  CHECK_LE(length_, store->ByteLength() - offset_);
+  CHECK_LE(offset_, store_->ByteLength());
+  CHECK_LE(length_, store_->ByteLength() - offset_);
 }
 
 Store::Store(std::unique_ptr<v8::BackingStore> store,
              size_t length,
              size_t offset)
     : store_(std::move(store)), length_(length), offset_(offset) {
-  CHECK_LE(offset_, store->ByteLength());
-  CHECK_LE(length_, store->ByteLength() - offset_);
+  CHECK_LE(offset_, store_->ByteLength());
+  CHECK_LE(length_, store_->ByteLength() - offset_);
 }
 
 Store::Store(v8::Local<v8::ArrayBuffer> buffer, Option option)
