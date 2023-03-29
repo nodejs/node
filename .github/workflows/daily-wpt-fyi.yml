@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@d27e3f3d7c64b4bbf8e4abfb9b63b83e846e0435  # v4.5.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -45,7 +45,7 @@ jobs:
         run: echo "NIGHTLY=$(curl -s https://nodejs.org/download/nightly/index.json | jq -r '[.[] | select(.files[] | contains("linux-x64"))][0].version')" >> $GITHUB_ENV
       - name: Install Node.js
         id: setup-node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c  # v3.6.0
         with:
           node-version: ${{ env.NIGHTLY || matrix.node-version }}
           check-latest: true
@@ -57,7 +57,7 @@ jobs:
           SHORT_SHA=$(node -p 'process.version.split(/-nightly\d{8}/)[1]')
           echo "NIGHTLY_REF=$(gh api /repos/nodejs/node/commits/$SHORT_SHA --jq '.sha')" >> $GITHUB_ENV
       - name: Checkout ${{ steps.setup-node.outputs.node-version }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c  # v3.3.0
         with:
           persist-credentials: false
           ref: ${{ env.NIGHTLY_REF || steps.setup-node.outputs.node-version }}
@@ -73,7 +73,7 @@ jobs:
         run: rm -rf wpt
         working-directory: test/fixtures
       - name: Checkout epochs/daily WPT
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c  # v3.3.0
         with:
           repository: web-platform-tests/wpt
           persist-credentials: false
@@ -121,7 +121,7 @@ jobs:
         run: cp wptreport.json wptreport-${{ steps.setup-node.outputs.node-version }}.json
       - name: Upload GitHub Actions artifact
         if: ${{ env.WPT_REPORT != '' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce  # v3.1.2
         with:
           path: out/wpt/wptreport-*.json
           name: WPT Reports
