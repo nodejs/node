@@ -346,7 +346,7 @@ const callsfunc = tracker.calls(func);
 callsfunc(1, 2, 3);
 
 assert.deepStrictEqual(tracker.getCalls(callsfunc),
-                       [{ thisArg: this, arguments: [1, 2, 3 ] }]);
+                       [{ thisArg: undefined, arguments: [1, 2, 3] }]);
 ```
 
 ```cjs
@@ -360,7 +360,7 @@ const callsfunc = tracker.calls(func);
 callsfunc(1, 2, 3);
 
 assert.deepStrictEqual(tracker.getCalls(callsfunc),
-                       [{ thisArg: this, arguments: [1, 2, 3 ] }]);
+                       [{ thisArg: undefined, arguments: [1, 2, 3] }]);
 ```
 
 ### `tracker.report()`
@@ -397,7 +397,7 @@ function func() {}
 const callsfunc = tracker.calls(func, 2);
 
 // Returns an array containing information on callsfunc()
-tracker.report();
+console.log(tracker.report());
 // [
 //  {
 //    message: 'Expected the func function to be executed 2 time(s) but was
@@ -423,7 +423,7 @@ function func() {}
 const callsfunc = tracker.calls(func, 2);
 
 // Returns an array containing information on callsfunc()
-tracker.report();
+console.log(tracker.report());
 // [
 //  {
 //    message: 'Expected the func function to be executed 2 time(s) but was
@@ -458,24 +458,26 @@ const callsfunc = tracker.calls(func);
 
 callsfunc();
 // Tracker was called once
-tracker.getCalls(callsfunc).length === 1;
+assert.strictEqual(tracker.getCalls(callsfunc).length, 1);
 
 tracker.reset(callsfunc);
-tracker.getCalls(callsfunc).length === 0;
+assert.strictEqual(tracker.getCalls(callsfunc).length, 0);
 ```
 
 ```cjs
 const assert = require('node:assert');
+
+const tracker = new assert.CallTracker();
 
 function func() {}
 const callsfunc = tracker.calls(func);
 
 callsfunc();
 // Tracker was called once
-tracker.getCalls(callsfunc).length === 1;
+assert.strictEqual(tracker.getCalls(callsfunc).length, 1);
 
 tracker.reset(callsfunc);
-tracker.getCalls(callsfunc).length === 0;
+assert.strictEqual(tracker.getCalls(callsfunc).length, 0);
 ```
 
 ### `tracker.verify()`
