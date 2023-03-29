@@ -470,13 +470,13 @@ added:
 
 > Stability: 1 - Experimental
 
-* `store` {AsyncLocalStorage} The store to which to bind the event data
-* `transform` {Function} Transform event data before setting the store context
+* `store` {AsyncLocalStorage} The store to which to bind the context data
+* `transform` {Function} Transform context data before setting the store context
 
-When [`channel.runStores(data, ...)`][] is called, the given event data will
+When [`channel.runStores(context, ...)`][] is called, the given context data will
 be applied to any store bound to the channel. If the store has already been
 bound the previous `transform` function will be replaced with the new one.
-The `transform` function may be omitted to have the event data be used as the
+The `transform` function may be omitted to set the given context data as the
 context directly.
 
 ```mjs
@@ -544,7 +544,7 @@ channel.bindStore(store);
 channel.unbindStore(store);
 ```
 
-#### `channel.runStores(data, fn[, thisArg[, ...args]])`
+#### `channel.runStores(context, fn[, thisArg[, ...args]])`
 
 <!-- YAML
 added:
@@ -553,18 +553,23 @@ added:
 
 > Stability: 1 - Experimental
 
-* `data` {any} Message to send to subscribers and bind to stores
+* `context` {any} Message to send to subscribers and bind to stores
 * `fn` {Function} Handler to run within the entered storage context
 * `thisArg` {any} The receiver to be used for the function call.
 * `...args` {any} Optional arguments to pass to the function.
 
 Applies the given data to any AsyncLocalStorage instances bound to the channel
-for the duration of the given function, then publishes the [`start` event][]
-for the channel within the context of the bound stores. If a transform function
-was given to [`channel.bindStore(store)`][] it will be applied to transform the
-message data before it becomes the context value for the store. The prior
-storage context is accessible from within the transform function in cases where
-context linking is required.
+for the duration of the given function, then publishes to the channel within
+the scope of that data is applied to the stores.
+
+If a transform function was given to [`channel.bindStore(store)`][] it will be
+applied to transform the message data before it becomes the context value for
+the store. The prior storage context is accessible from within the transform
+function in cases where context linking is required.
+
+The context applied to the store should be accesible in any async code which
+continues from execution which began during the given function, however
+there are some situations in which [context loss][] may occur.
 
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
@@ -755,7 +760,7 @@ channels.unsubscribe({
 });
 ```
 
-#### `tracingChannel.traceSync(fn[, data[, thisArg[, ...args]]])`
+#### `tracingChannel.traceSync(fn[, context[, thisArg[, ...args]]])`
 
 <!-- YAML
 added:
@@ -765,7 +770,7 @@ added:
 > Stability: 1 - Experimental
 
 * `fn` {Function} Function to wrap a trace around
-* `data` {Object} Shared object to correlate events through
+* `context` {Object} Shared object to correlate events through
 * `thisArg` {any} The receiver to be used for the function call
 * `...args` {any} Optional arguments to pass to the function
 * Returns: {any} The return value of the given function
@@ -773,7 +778,8 @@ added:
 Trace a synchronous function call. This will always produce a [`start` event][]
 and [`end` event][] around the execution and may produce an [`error` event][]
 if the given function throws an error. This will run the given function using
-[`channel.runStores(data, ...)`][] on the `start` channel.
+[`channel.runStores(context, ...)`][] on the `start` channel which ensures all
+events should have any bound stores set to match this trace context.
 
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
@@ -799,7 +805,7 @@ channels.traceSync(() => {
 });
 ```
 
-#### `tracingChannel.tracePromise(fn[, data[, thisArg[, ...args]]])`
+#### `tracingChannel.tracePromise(fn[, context[, thisArg[, ...args]]])`
 
 <!-- YAML
 added:
@@ -809,7 +815,7 @@ added:
 > Stability: 1 - Experimental
 
 * `fn` {Function} Promise-returning function to wrap a trace around
-* `data` {Object} Shared object to correlate trace events through
+* `context` {Object} Shared object to correlate trace events through
 * `thisArg` {any} The receiver to be used for the function call
 * `...args` {any} Optional arguments to pass to the function
 * Returns: {Promise} Chained from promise returned by the given function
@@ -820,7 +826,8 @@ function execution, and will produce an [`asyncStart` event][] and
 [`asyncEnd` event][] when a promise continuation is reached. It may also
 produce an [`error` event][] if the given function throws an error or the
 returned promise rejects. This will run the given function using
-[`channel.runStores(data, ...)`][] on the `start` channel.
+[`channel.runStores(context, ...)`][] on the `start` channel which ensures all
+events should have any bound stores set to match this trace context.
 
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
@@ -846,7 +853,7 @@ channels.tracePromise(async () => {
 });
 ```
 
-#### `tracingChannel.traceCallback(fn[, position[, data[, thisArg[, ...args]]]])`
+#### `tracingChannel.traceCallback(fn[, position[, context[, thisArg[, ...args]]]])`
 
 <!-- YAML
 added:
@@ -857,7 +864,7 @@ added:
 
 * `fn` {Function} callback using function to wrap a trace around
 * `position` {number} Zero-indexed argument position of expected callback
-* `data` {Object} Shared object to correlate trace events through
+* `context` {Object} Shared object to correlate trace events through
 * `thisArg` {any} The receiver to be used for the function call
 * `...args` {any} Optional arguments to pass to the function
 * Returns: {any} The return value of the given function
@@ -868,7 +875,8 @@ function execution, and will produce a [`asyncStart` event][] and
 [`asyncEnd` event][] around the callback execution. It may also produce an
 [`error` event][] if the given function throws an error or the returned
 promise rejects. This will run the given function using
-[`channel.runStores(data, ...)`][] on the `start` channel.
+[`channel.runStores(context, ...)`][] on the `start` channel which ensures all
+events should have any bound stores set to match this trace context.
 
 The `position` will be -1 by default to indicate the final argument should
 be used as the callback.
@@ -897,6 +905,51 @@ channels.traceCallback((arg1, callback) => {
 }, {
   some: 'thing',
 }, thisArg, arg1, callback);
+```
+
+The callback will also be run with [`channel.runStores(context, ...)`][] which
+enables context loss recovery in some cases.
+
+```mjs
+import diagnostics_channel from 'node:diagnostics_channel';
+import { AsyncLocalStorage } from 'async_hooks';
+
+const channels = diagnostics_channel.tracingChannel('my-channel');
+const myStore = new AsyncLocalStorage();
+
+// The start channel sets the initial store data to something
+// and stores that store data value on the trace context object
+channels.start.bindStore(myStore, (data) => {
+  const span = new Span(data);
+  data.span = span;
+  return span;
+});
+
+// Then asyncStart can restore from that data it stored previously
+channels.asyncStart.bindStore(myStore, (data) => {
+  return data.span;
+});
+```
+
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
+const { AsyncLocalStorage } = require('async_hooks');
+
+const channels = diagnostics_channel.tracingChannel('my-channel');
+const myStore = new AsyncLocalStorage();
+
+// The start channel sets the initial store data to something
+// and stores that store data value on the trace context object
+channels.start.bindStore(myStore, (data) => {
+  const span = new Span(data);
+  data.span = span;
+  return span;
+});
+
+// Then asyncStart can restore from that data it stored previously
+channels.asyncStart.bindStore(myStore, (data) => {
+  return data.span;
+});
 ```
 
 ### TracingChannel Channels
@@ -1081,6 +1134,7 @@ added: v16.18.0
 Emitted when a new thread is created.
 
 [TracingChannel Channels]: #tracingchannel-channels
+[context loss]: async_context.md#troubleshooting-context-loss
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`TracingChannel`]: #class-tracingchannel
 [`Worker`]: worker_threads.md#class-worker
