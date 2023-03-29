@@ -118,9 +118,9 @@ not ok 14 - async assertion fail
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
-    
+
     true !== false
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: false
@@ -569,7 +569,7 @@ not ok 56 - describe async throw fails
       error: 'test timed out after 5ms'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        async Promise.all (index 0)
+         async Promise.all (index 0)
       ...
     # Subtest: timed out callback test
     not ok 2 - timed out callback test

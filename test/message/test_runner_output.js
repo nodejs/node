@@ -384,6 +384,46 @@ test('unfinished test with unhandledRejection', async () => {
   });
 });
 
+test('should print error cause', () => {
+  Error.stackTraceLimit = 4;
+  throw new Error('foo', { cause: new Error('bar') });
+});
+
+test('should print error cause for nested errors', () => {
+  throw new Error('a', { cause: new Error('b', { cause:
+  new Error('c', { cause: new Error('d', { cause: new Error('e') }) }) }) });
+});
+
+test('should handle cycles in error', () => {
+  const outer = new Error('b', { cause: null });
+  outer.cause = new Error('c', { cause: new Error('d', { cause: outer }) });
+  throw outer;
+});
+
+test('should handle primitive, undefined and null cause', () => {
+  test('primitive cause', () => {
+    throw new Error('foo', { cause: 'something went wrong' });
+  });
+  test('undefined cause', () => {
+    throw new Error('foo', { cause: undefined });
+  });
+  test('null cause', () => {
+    throw new Error('foo', { cause: null });
+  });
+});
+
+test('should handle case when cause throw', () => {
+  const error = new Error();
+  Reflect.defineProperty(error, 'cause', { get() { throw new Error('bar'); } });
+  throw error;
+});
+
+test('should handle case when stack throw', () => {
+  const error = new Error();
+  Reflect.defineProperty(error, 'stack', { get() { throw new Error('bar'); } });
+  throw error;
+});
+
 // Verify that uncaught exceptions outside of any tests are handled after the
 // test harness has finished bootstrapping itself.
 setImmediate(() => {

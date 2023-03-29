@@ -624,8 +624,145 @@ not ok 64 - unfinished test with unhandledRejection
     *
     *
   ...
+# Subtest: should print error cause
+not ok 65 - should print error cause
+  ---
+  duration_ms: *
+  failureType: 'testCodeFailure'
+  error: 'foo'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    *
+    *
+    *
+    *
+      [cause]: Error: bar
+      *
+      *
+      *
+      *
+  ...
+# Subtest: should print error cause for nested errors
+not ok 66 - should print error cause for nested errors
+  ---
+  duration_ms: *
+  failureType: 'testCodeFailure'
+  error: 'a'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    *
+    *
+    *
+    *
+      [cause]: Error: b
+      *
+      *
+      *
+      *
+        [cause]: Error: c
+        *
+        *
+        *
+        *
+          [cause]: [Error]
+  ...
+# Subtest: should handle cycles in error
+not ok 67 - should handle cycles in error
+  ---
+  duration_ms: *
+  failureType: 'testCodeFailure'
+  error: 'b'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    *
+    *
+    *
+    *
+      [cause]: Error: c
+      *
+      *
+      *
+      *
+        [cause]: Error: d
+        *
+        *
+        *
+        *
+          [cause]: [Circular *1]
+  ...
+# Subtest: should handle primitive, undefined and null cause
+    # Subtest: primitive cause
+    not ok 1 - primitive cause
+      ---
+      duration_ms: *
+      failureType: 'testCodeFailure'
+      error: 'foo'
+      code: 'ERR_TEST_FAILURE'
+      stack: |-
+        *
+        *
+        *
+        *
+          [cause]: 'something went wrong'
+      ...
+    # Subtest: undefined cause
+    not ok 2 - undefined cause
+      ---
+      duration_ms: *
+      failureType: 'testCodeFailure'
+      error: 'foo'
+      code: 'ERR_TEST_FAILURE'
+      stack: |-
+        *
+        *
+        *
+        *
+          [cause]: undefined
+      ...
+    # Subtest: null cause
+    not ok 3 - null cause
+      ---
+      duration_ms: *
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..3
+not ok 68 - should handle primitive, undefined and null cause
+  ---
+  duration_ms: *
+  failureType: 'subtestsFailed'
+  error: '3 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: should handle case when cause throw
+not ok 69 - should handle case when cause throw
+  ---
+  duration_ms: *
+  failureType: 'testCodeFailure'
+  error: ''
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    *
+    *
+    *
+    *
+  ...
+# Subtest: should handle case when stack throw
+not ok 70 - should handle case when stack throw
+  ---
+  duration_ms: *
+  failureType: 'testCodeFailure'
+  error: ''
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    *
+    *
+    *
+    *
+  ...
 # Subtest: invalid subtest fail
-not ok 65 - invalid subtest fail
+not ok 71 - invalid subtest fail
   ---
   duration_ms: *
   failureType: 'parentAlreadyFinished'
@@ -634,7 +771,7 @@ not ok 65 - invalid subtest fail
   stack: |-
     *
   ...
-1..65
+1..71
 # Warning: Test "unhandled rejection - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
 # Warning: Test "async unhandled rejection - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from async unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
 # Warning: A resource generated asynchronous activity after the test ended. This activity created the error "Error: uncaught from outside of a test" which triggered an uncaughtException event, caught by the test runner.
@@ -642,11 +779,11 @@ not ok 65 - invalid subtest fail
 # Warning: Test "immediate reject - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from immediate reject fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
 # Warning: Test "callback called twice in different ticks" generated asynchronous activity after the test ended. This activity created the error "Error [ERR_TEST_FAILURE]: callback invoked multiple times" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # Warning: Test "callback async throw after done" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
-# tests 79
+# tests 88
 # suites 0
 # pass 37
-# fail 24
-# cancelled 3
+# fail 32
+# cancelled 4
 # skipped 10
 # todo 5
 # duration_ms *
