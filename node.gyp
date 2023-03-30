@@ -335,11 +335,13 @@
       'src/node_crypto.h',
     ],
     'node_quic_sources': [
+      'src/quic/bindingdata.cc',
       'src/quic/cid.cc',
       'src/quic/data.cc',
       'src/quic/preferredaddress.cc',
       'src/quic/sessionticket.cc',
       'src/quic/tokens.cc',
+      'src/quic/bindingdata.h',
       'src/quic/cid.h',
       'src/quic/data.h',
       'src/quic/preferredaddress.h',
