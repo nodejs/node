@@ -7,7 +7,7 @@ namespace node {
 
 template <typename T>
 T* CopyOnWrite<T>::write() {
-  if (!data_.unique()) {
+  if (data_.use_count() > 1l) {
     data_ = std::make_shared<T>(*data_);
   }
   return data_.get();
