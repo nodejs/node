@@ -52,7 +52,7 @@ function makeHttp10Request(cb) {
 
     setTimeout(function() {
       cb(socket);
-    }, 1);
+    }, 100);
   });
 }
 
